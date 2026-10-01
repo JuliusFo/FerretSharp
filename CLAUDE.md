@@ -2,7 +2,7 @@
 
 > Projektanweisungen für Claude Code. Bitte vollständig lesen, bevor ein Arbeitspaket umgesetzt wird.
 > Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-01
+> Stand: 2026-10-01 (WP-05 umgesetzt)
 
 ## 1. Ziel
 
@@ -136,18 +136,21 @@ record ConnectionProfile(
 
 ### 5.2 Workspace
 ```csharp
-class Workspace {
-    Guid Id; Guid ConnectionId; string Name;          // z. B. "Bug 3711"
-    List<TabState> Tabs;                             // Tabelle + Filter + Sort (+ grobe Scrollposition)
-    string Notes;                                    // Freitext
-    List<SavedQuery> Queries;
-    List<VirtualForeignKey> VirtualFks;              // manuell definierte FKs
+record Workspace(Guid Id, Guid ConnectionId, string Name) {   // z. B. "Bug 3711", max. 40 Zeichen
+    string Notes;                                    // Freitext (noch ohne UI)
+    IReadOnlyList<TabState> Tabs; int ActiveTabIndex;
+    bool IsOpen; int Order; DateTimeOffset LastActive;
+    // WP-06: List<VirtualForeignKey> VirtualFks (manuell definierte FKs)
 }
+record TabState(TableRef Table, TabMode Mode, FilterRows, AppliedFilters, Sorts, int? FirstVisibleRow);
 ```
-- Zur Laufzeit hält jeder Workspace eine **eigene** `OracleSession` (eigene Connection, ab v2 eigene Transaktion).
+- `SavedQuery` entfällt in v1 (kein SQL-Editor), siehe Backlog.
+- Zur Laufzeit hält jeder offene Workspace eine **eigene** Session (eigene Connection, ab v2 eigene Transaktion), geöffnet beim ersten Datenzugriff (`WorkspaceManager.GetDataAsync`). Das Schema lädt eine separate Explorer-Session (ADR 0005).
 - Connection-String mit `Pooling=false`: Die Sessions leben lange, und eine Connection mit offener Transaktion darf nie in einen Pool zurückgehen.
-- Beim Öffnen `ModuleName = "FerretSharp"`, `ActionName = <Workspace-Name>`, `ClientInfo` setzen → in `V$SESSION` ist erkennbar, welcher Workspace eine Sperre hält.
-- Persistenz unter `%APPDATA%\FerretSharp\workspaces\{id}.json`. Workspace schließen = Zustand speichern; öffnen = wiederherstellen.
+- Beim Öffnen `ModuleName = "FerretSharp"`, `ActionName = <Workspace-Name>`, `ClientInfo` setzen → in `V$SESSION` ist erkennbar, welcher Workspace eine Sperre hält. Umbenennen setzt ACTION neu. Werte werden nach ASCII transliteriert (Abschnitt 6).
+- Persistenz unter `%APPDATA%\FerretSharp\workspaces\{id}.json` (`WorkspaceStore`, eine Datei pro Workspace, versioniert, unlesbare Dateien werden gemeldet und nicht angefasst). Tab-Änderungen speichert der `WorkspaceManager` gesammelt nach 1 s, Strukturänderungen und Trennen/Beenden sofort.
+- Beim Verbinden: offene Workspaces laden, der zuletzt aktive wird aktiv; ist keiner offen, wird der zuletzt benutzte wieder geöffnet, sonst „Workspace 1“ angelegt. Der letzte offene Workspace lässt sich nicht schließen. Gelöscht werden nur geschlossene Workspaces; das Löschen einer Verbindung löscht ihre Workspaces mit.
+- Tabellen, die beim Wiederherstellen nicht mehr im Schema sind (gelöscht, Synonym weg), werden still verworfen.
 
 ### 5.3 Schema
 ```csharp
@@ -163,14 +166,14 @@ record ForeignKeyInfo(string Name, TableRef From, IReadOnlyList<string> FromColu
 enum FkSource { Declared, Manual, Convention /* v3: ClrModel */ }
 ```
 - `ForeignKeyInfo` trägt Owner (`TableRef`), damit FKs über Schemagrenzen nicht verloren gehen.
-- **Synonyme** (WP-04b): `ISchemaReader.GetSynonymTargetsAsync` liefert Tabellen/Views/MViews anderer Schemas, die über private Synonyme des Schemas oder öffentliche Synonyme erreichbar sind – nur Ziele mit Zugriff (`ALL_OBJECTS`), keine Oracle-Schemas (`ALL_USERS.ORACLE_MAINTAINED`), keine DB-Links. `TableSummary` beschreibt immer das **echte Objekt**, `Synonym` und `DisplayName` den Namen, unter dem der Nutzer es kennt. `SchemaCache.Merge`: eigene Objekte vor Synonymen, privat vor öffentlich, ein Eintrag pro echtem Objekt. FKs werden für alle beteiligten Owner geladen.
+- **Synonyme** (WP-04b): `ISchemaReader.GetSynonymTargetsAsync` liefert Tabellen/Views/MViews anderer Schemas, die über private Synonyme des Schemas oder öffentliche Synonyme erreichbar sind – nur Ziele mit Zugriff (`ALL_OBJECTS`), keine Oracle-Schemas (`ALL_USERS.ORACLE_MAINTAINED`), keine DB-Links. `TableSummary` beschreibt immer das **echte Objekt**, `Synonym` und `DisplayName` den Namen, unter dem der Nutzer es kennt. `SchemaCache.Merge`: eigene Objekte vor Synonymen, privat vor öffentlich, ein Eintrag pro echtem Objekt. FKs werden für alle beteiligten Owner geladen. Synonymketten (Synonym auf Synonym) werden nicht aufgelöst (Backlog). Ist im Profil ein Schema eingetragen, zählen die privaten Synonyme dieses Schemas, nicht die des Login-Users – so löst auch Oracle mit `CURRENT_SCHEMA` auf (entschieden, bleibt so). Gemessen: 27.889 öffentliche Synonyme (davon 20.000 eigene, die Hälfte ohne Zugriff) → Verbinden 2,5 s kalt, 0,5–0,8 s warm (ohne: 0,1 s); kein Handlungsbedarf.
 - View-/MView-Definition: `TableDetails.Definition` aus `ALL_VIEWS.TEXT` / `ALL_MVIEWS.QUERY` (LONG, max. 32.767 Zeichen, `DefinitionTruncated`).
 - Quellen: `ALL_TABLES`, `ALL_VIEWS`, `ALL_MVIEWS`, `ALL_TAB_COLUMNS` (inkl. `IDENTITY_COLUMN`), `ALL_CONSTRAINTS` (P/U/R), `ALL_CONS_COLUMNS`.
 - Tabellenliste ohne Recyclebin (`DROPPED`), Nested/Secondary Tables, IOT-Overflow-Segmente und MView-Containertabellen (die MView erscheint einmal als `MaterializedView`).
 - `DATA_DEFAULT` ist `LONG` → `OracleSession` setzt `InitialLONGFetchSize` (4000).
 - **Immer nach `OWNER` filtern.** `ALL_TAB_COLUMNS` ist auf großen Datenbanken langsam → Tabellenliste und alle FKs des Schemas beim Connect laden, Spalten/Keys lazy pro Tabelle (`SchemaCache`). Cachen, manuell refreshbar.
 - Schema-Name aus dem Profil wird normalisiert (`OracleIdentifier.Normalize`): `erp` → `ERP`, `"Erp"` bleibt `Erp`.
-- Verbindungsaufbau: `ActiveConnection` (bis WP-05 genau eine) öffnet die Session über `IDatabaseConnector`, lädt den `SchemaCache` und merkt die Nutzung in `recent.json` (`RecentConnections`). Oracle-Fehler kommen als `DatabaseException` mit ORA-Code an.
+- Verbindungsaufbau: `ActiveConnection` (genau eine aktive Verbindung) öffnet die Explorer-Session über `IDatabaseConnector`, lädt den `SchemaCache`, hängt die Workspaces an (`WorkspaceManager.AttachAsync`) und merkt die Nutzung in `recent.json` (`RecentConnections`). Trennen speichert die Workspaces und schließt alle Sessions. Oracle-Fehler kommen als `DatabaseException` mit ORA-Code an.
 
 ### 5.4 Filter & Query
 ```csharp
@@ -250,6 +253,7 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 
 **Sessions & Nebenläufigkeit**
 - `OracleConnection` ist nicht thread-safe → pro Session ein `SemaphoreSlim(1,1)` (kein `lock`, wegen `await`); Queries pro Workspace laufen sequenziell.
+- **ODP.NET (managed, 23.26) verliert die Session, wenn `ActionName`/`ClientInfo` Nicht-ASCII enthalten**: Der nächste Roundtrip endet mit ORA-12537, die Connection ist weg (schon ein einzelnes „Ä“ reicht; per Integrationstest gefunden). `OracleSession.ToSessionAttribute` transliteriert deshalb (ä → ae, ß → ss, é → e, – → -, sonst `?`) und kürzt auf 64 Zeichen. Gilt für jeden Wert, der in MODULE/ACTION/CLIENT_INFO landet.
 - Alles async mit `CancellationToken`; Abbruch löst `OracleCommand.Cancel()` aus (Token-Registration). Lang laufende Abfragen (`COUNT(*)`, FK-Counts) sind in der UI abbrechbar.
 - Verbindungsabbruch (Idle-Timeout, Firewall, `IDLE_TIME`-Profil) erkennen und laut melden. In v2 gehen dabei uncommittete Änderungen verloren → das muss der Nutzer klar sehen.
 
@@ -305,7 +309,9 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 
 `Esc` bleibt dem Grid vorbehalten (Zelleingabe abbrechen) bzw. schließt Menüs/Dialoge. Globale Shortcuts registriert die `Shell` über `wwwroot/js/shortcuts.js` (Capture-Listener → `OnShortcut` in .NET); `F12` öffnet im Debug-Build die DevTools.
 
-UI-Muster: Dialoge und Bestätigungen fordern Komponenten über den kaskadierten `ShellState` an. Komponenten ohne Parameter rendern bei Parent-Updates **nicht** neu → sie abonnieren `ShellState.Changed` bzw. `ConnectionManager.Changed` selbst.
+UI-Muster: Dialoge und Bestätigungen fordern Komponenten über den kaskadierten `ShellState` an. Komponenten ohne Parameter rendern bei Parent-Updates **nicht** neu → sie abonnieren `ShellState.Changed` bzw. `ConnectionManager.Changed`/`WorkspaceManager.Changed` selbst. Tab-Zustand, der kein Neurendern braucht (Tippen im Filter, Scrollen, Sortieren), meldet `ShellState.MarkDirty()`; die Shell reicht dann die Tabs aller offenen Workspaces an `WorkspaceManager.UpdateTabs` weiter (speichert nur bei Änderung).
+
+Blazor kennt **kein `auxclick`-Event**: `@onauxclick` wird kommentarlos als HTML-Attribut ausgegeben und tut nichts (so war Mittelklick-Schließen der Tabs seit WP-04 wirkungslos). Mittelklick über `@onmouseup` mit `e.Button == 1`.
 
 ## 8. Arbeitspakete
 
@@ -357,7 +363,9 @@ Jedes Paket: eigener Branch `wp/NN-kurzname`, am Ende `dotnet build -warnaserror
 - UI: Workspace-Leiste pro Verbindung, Workspace anlegen/umbenennen/schließen; jeder Workspace hat eine eigene `OracleSession` (ActionName = Workspace-Name).
 - Tabellen-Tabs im Dokument-Bereich gehören zum aktiven Workspace.
 - Zustand wird beim Schließen gespeichert und beim Öffnen wiederhergestellt.
-- **Fertig wenn:** Zwei Workspaces auf derselben Verbindung öffnen dieselbe Tabelle mit unterschiedlichen Filtern; nach einem App-Neustart sind beide inkl. Filter wieder da.
+- Umgesetzt: Workspace-Chips in der Topbar (Klick aktiviert, Doppelklick benennt um, ✕/Mittelklick schließt), Menü „+“ mit „Neuer Workspace“ und den geschlossenen Workspaces (wieder öffnen, löschen mit Bestätigung), Statusleiste mit aktivem Workspace und Speicher-/Ladefehlern. Gespeichert werden auch noch nicht angewendete Filterzeilen; die Scrollposition wird exakt wiederhergestellt (zweistufig im Infinite Row Model). Wiederhergestellte Tabs mounten erst beim ersten Anzeigen.
+- Nebenbei behoben: Mittelklick auf Tabs (WP-04) war wirkungslos (`auxclick`, Abschnitt 7); Nicht-ASCII in ACTION/CLIENT_INFO zerstört die Session (Abschnitt 6).
+- **Fertig wenn:** Zwei Workspaces auf derselben Verbindung öffnen dieselbe Tabelle mit unterschiedlichen Filtern; nach einem App-Neustart sind beide inkl. Filter wieder da. → erfüllt (Integrationstest + E2E-Prüfung, `V$SESSION` zeigt eine Session je Workspace plus Explorer).
 
 #### WP-06 FK-Navigation
 - FK-Graph aus `SchemaCache` (deklarierte FKs) + `VirtualForeignKey` (manuell, im Workspace gespeichert) + Vorschlag per Namenskonvention (`KUNDE_ID` → `KUNDE.ID`, konfigurierbar).
@@ -421,6 +429,7 @@ Die Arbeitspakete werden zu Beginn von v3 mit dem Nutzer verfeinert. Grober Zusc
 
 ## 9. Offene UX-Fragen
 - Shortcut-Belegung für Commit/Rollback (Abschnitt 7) – vorläufig, Nutzerfeedback einholen.
+- Workspaces: Standardname ist „Workspace N“ mit der kleinsten freien Nummer (nach Umbenennen von „Workspace 1“ heißt der nächste wieder „Workspace 1“). Shortcuts zum Wechseln (z. B. Ctrl+1…9) und eine Oberfläche für die Notizen fehlen noch.
 
 ## 10. Backlog (nach v3)
 
@@ -446,3 +455,4 @@ Die Arbeitspakete werden zu Beginn von v3 mit dem Nutzer verfeinert. Grober Zusc
 - Vor dem Abschluss eines Pakets müssen `dotnet build -warnaserror` und `dotnet test` grün sein. Danach dem Nutzer eine kurze Zusammenfassung auf Deutsch geben (was gebaut, was offen, was zu testen).
 - Bei Unsicherheit über UX-Details: einfachste Variante bauen und als Frage in der Zusammenfassung bzw. in Abschnitt 9 notieren, nicht blockieren.
 - UI end-to-end prüfen, ohne die echten Nutzerdaten anzufassen: App mit `--data-dir=<scratch>` und `--theme=dark|light` starten, Umgebungsvariable `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9333` setzen und die Seite per Chrome DevTools Protocol (`Runtime.evaluate`) bedienen; Screenshots per `PrintWindow` vom App-Fenster. Für eine Test-DB einen eigenen Container starten (`gvenzl/oracle-free:23-slim-faststart`, `APP_USER`/`APP_USER_PASSWORD`) und danach gezielt per Name entfernen. Im Credential Manager angelegte Test-Einträge über die App wieder löschen.
+- E2E-Fallen: Nach einem Klick auf einen Tab ist `.page.active` noch kurz die alte Seite → auf etwas Spezifisches des Ziels warten. Synthetische Events erreichen Blazor, ersetzen aber keinen Test mit echter Eingabe (`Input.dispatchMouseEvent`/`dispatchKeyEvent`), sonst bleiben Fehler wie das fehlende `auxclick` unentdeckt. Im Infinite Row Model kennt das Grid anfangs nur ~501 Zeilen; `scrollTop` weiter unten wird abgeschnitten.

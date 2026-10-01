@@ -1,0 +1,178 @@
+@* Workspaces of the active connection: click activates, double-click renames, × or middle-click closes. *@
+@using FerretSharp.Core.Workspaces
+@using FerretSharp.UI.State
+@implements IDisposable
+@inject WorkspaceManager Workspaces
+
+<div class="workspaces">
+    @{ var open = Workspaces.Open; var activeId = Workspaces.Active?.Id; }
+    @foreach (var workspace in open)
+    {
+        var w = workspace;
+        <div class="ws @(w.Id == activeId ? "active" : "")" title="@(_renaming == w.Id ? null : "Doppelklick: umbenennen · Mittelklick: schließen")"
+             @onclick="() => Activate(w)" @ondblclick="() => StartRename(w)" @onmouseup="e => CloseOnMiddleClick(e, w)">
+            @if (_renaming == w.Id)
+            {
+                <input class="ws-rename" @ref="_renameInput" maxlength="@Workspace.MaxNameLength" @bind="_renameText" @bind:event="oninput"
+                       @onkeydown="OnRenameKeyDown" @onblur="CommitRename" @onclick:stopPropagation="true" @ondblclick:stopPropagation="true" />
+            }
+            else
+            {
+                <span class="ws-name">@w.Name</span>
+            }
+            @if (open.Count > 1 && _renaming != w.Id)
+            {
+                <button class="ws-close" title="Workspace schließen (Zustand bleibt gespeichert)"
+                        @onclick:stopPropagation="true" @onclick="() => CloseAsync(w)">✕</button>
+            }
+        </div>
+    }
+
+    <div class="ws-menu-anchor">
+        <button class="ws-add @(_menuOpen ? "open" : "")" title="Workspace hinzufügen oder wieder öffnen" @onclick="ToggleMenu">+</button>
+        @if (_menuOpen)
+        {
+            <div class="popover-backdrop" @onclick="() => _menuOpen = false"></div>
+            <div class="popover ws-pop" @onkeydown="OnMenuKeyDown">
+                <div class="popover-list">
+                    <button class="menu-item" @onclick="CreateAsync"><span class="plus">+</span> Neuer Workspace</button>
+                    @{ var closed = Workspaces.Closed; }
+                    @if (closed.Count > 0)
+                    {
+                        <div class="group-head-btn static">Geschlossen</div>
+                        @foreach (var workspace in closed)
+                        {
+                            var w = workspace;
+                            <div class="ws-closed">
+                                <button class="menu-item" title="Wieder öffnen" @onclick="() => ReopenAsync(w)">
+                                    <span class="ws-name">@w.Name</span>
+                                    <span class="ws-meta">@TabCount(w) · @w.LastActive.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)</span>
+                                </button>
+                                <button class="icon-btn ghost ws-delete" title="Endgültig löschen" @onclick="() => _pendingDelete = w">✕</button>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@if (_pendingDelete is { } pending)
+{
+    <ConfirmDialog Title="Workspace löschen" ConfirmLabel="Löschen" Danger="true"
+                   OnConfirm="() => DeleteAsync(pending)" OnCancel="() => _pendingDelete = null">
+        Workspace <strong>@pending.Name</strong> mit @TabCount(pending) und allen Filtern endgültig löschen?
+    </ConfirmDialog>
+}
+
+@code {
+    private ElementReference _renameInput;
+    private Guid? _renaming;
+    private bool _focusRename;
+    private string _renameText = "";
+    private bool _menuOpen;
+    private Workspace? _pendingDelete;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    protected override void OnInitialized() => Workspaces.Changed += OnChanged;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusRename)
+        {
+            _focusRename = false;
+            await _renameInput.FocusAsync();
+        }
+    }
+
+    private static string TabCount(Workspace workspace) => workspace.Tabs.Count == 1 ? "1 Tab" : $"{workspace.Tabs.Count} Tabs";
+
+    private void Activate(Workspace workspace)
+    {
+        Workspaces.Activate(workspace.Id);
+        Shell.ShowExplorer();
+    }
+
+    private void StartRename(Workspace workspace)
+    {
+        _renaming = workspace.Id;
+        _renameText = workspace.Name;
+        _focusRename = true;
+    }
+
+    private void CommitRename()
+    {
+        if (_renaming is { } id && Workspace.NormalizeName(_renameText) is { } name)
+        {
+            Workspaces.Rename(id, name);
+        }
+
+        _renaming = null;
+    }
+
+    private void OnRenameKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            CommitRename();
+        }
+        else if (e.Key == "Escape")
+        {
+            _renaming = null;
+        }
+    }
+
+    private async Task CloseAsync(Workspace workspace)
+    {
+        if (Workspaces.Open.Count > 1)
+        {
+            await Workspaces.CloseAsync(workspace.Id);
+        }
+    }
+
+    private async Task CloseOnMiddleClick(MouseEventArgs e, Workspace workspace)
+    {
+        if (e.Button == 1)
+        {
+            await CloseAsync(workspace);
+        }
+    }
+
+    private void ToggleMenu() => _menuOpen = !_menuOpen;
+
+    private void OnMenuKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            _menuOpen = false;
+        }
+    }
+
+    private async Task CreateAsync()
+    {
+        _menuOpen = false;
+        var workspace = await Workspaces.CreateAsync();
+        Shell.ShowExplorer();
+        StartRename(workspace);
+    }
+
+    private async Task ReopenAsync(Workspace workspace)
+    {
+        _menuOpen = false;
+        await Workspaces.ReopenAsync(workspace.Id);
+        Shell.ShowExplorer();
+    }
+
+    private async Task DeleteAsync(Workspace workspace)
+    {
+        _pendingDelete = null;
+        await Workspaces.DeleteAsync(workspace.Id);
+    }
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Workspaces.Changed -= OnChanged;
+}

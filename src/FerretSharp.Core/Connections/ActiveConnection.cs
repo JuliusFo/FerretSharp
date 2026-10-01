@@ -1,5 +1,5 @@
-using FerretSharp.Core.Data;
 using FerretSharp.Core.Schema;
+using FerretSharp.Core.Workspaces;
 
 namespace FerretSharp.Core.Connections;
 
@@ -15,10 +15,11 @@ public enum ConnectionStatus
 public sealed record ConnectionError(string Message, string? ErrorCode);
 
 /// <summary>
-/// The connection currently being browsed: opens the session, loads the schema cache and records usage.
-/// Until workspaces exist (WP-05) there is exactly one.
+/// The connection currently being browsed: opens the explorer session, loads the schema cache, attaches the
+/// workspaces (each with its own data session, see <see cref="WorkspaceManager"/>) and records usage.
 /// </summary>
-public sealed class ActiveConnection(ConnectionManager connections, IDatabaseConnector connector, RecentConnections recent) : IAsyncDisposable
+public sealed class ActiveConnection(
+    ConnectionManager connections, IDatabaseConnector connector, RecentConnections recent, WorkspaceManager workspaces) : IAsyncDisposable
 {
     public const string ExplorerAction = "Explorer";
 
@@ -36,9 +37,6 @@ public sealed class ActiveConnection(ConnectionManager connections, IDatabaseCon
     public string? ServerVersion { get; private set; }
 
     public SchemaCache? Schema { get; private set; }
-
-    /// <summary>Data access of the open session; null unless connected. Shares the session with schema loading.</summary>
-    public IDataAccess? Data => IsConnected ? _connection?.Data : null;
 
     public ConnectionError? Error { get; private set; }
 
@@ -63,6 +61,7 @@ public sealed class ActiveConnection(ConnectionManager connections, IDatabaseCon
             _connection = await connector.OpenAsync(profile, password, ExplorerAction, cts.Token);
             var schema = new SchemaCache(_connection.Schema, profile.EffectiveSchema);
             await schema.LoadAsync(cts.Token);
+            await workspaces.AttachAsync(profile, cts.Token);
 
             Schema = schema;
             ServerVersion = _connection.ServerVersion;
@@ -135,6 +134,7 @@ public sealed class ActiveConnection(ConnectionManager connections, IDatabaseCon
 
     private async Task CloseAsync()
     {
+        await workspaces.DetachAsync();
         Schema = null;
         ServerVersion = null;
         if (_connection is not null)

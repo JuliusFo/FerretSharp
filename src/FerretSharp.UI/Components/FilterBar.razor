@@ -21,14 +21,14 @@
                 var valueCount = FilterRules.ValueCount(r.Op);
                 <div class="filter-row @(r.Error is null ? "" : "invalid") @(r.Enabled ? "" : "disabled")">
                     <input type="checkbox" class="row-toggle" checked="@r.Enabled" title="Filter aktiv"
-                           @onchange="e => r.Enabled = e.Value is true" />
+                           @onchange="e => { r.Enabled = e.Value is true; Shell.MarkDirty(); }" />
                     <select class="field col" value="@r.Column" @onchange="e => ChangeColumn(r, (string?)e.Value)">
                         @foreach (var c in Details.Columns)
                         {
                             <option value="@c.Name">@c.Name</option>
                         }
                     </select>
-                    <select class="field op" value="@r.Op" @onchange="e => r.Op = Enum.Parse<FilterOperator>((string)e.Value!)">
+                    <select class="field op" value="@r.Op" @onchange="e => { r.Op = Enum.Parse<FilterOperator>((string)e.Value!); Shell.MarkDirty(); }">
                         @foreach (var op in FilterRules.OperatorsFor(category))
                         {
                             <option value="@op">@OperatorLabels.Label(op)</option>
@@ -41,13 +41,13 @@
                         }
                         else if (valueCount == 2)
                         {
-                            <input class="field value" placeholder="@("von: " + Placeholder(category))" @bind="r.Value" @bind:event="oninput" @onkeydown="OnKeyDown" />
-                            <input class="field value" placeholder="@("bis: " + Placeholder(category))" @bind="r.Value2" @bind:event="oninput" @onkeydown="OnKeyDown" />
+                            <input class="field value" placeholder="@("von: " + Placeholder(category))" @bind="r.Value" @bind:event="oninput" @bind:after="Shell.MarkDirty" @onkeydown="OnKeyDown" />
+                            <input class="field value" placeholder="@("bis: " + Placeholder(category))" @bind="r.Value2" @bind:event="oninput" @bind:after="Shell.MarkDirty" @onkeydown="OnKeyDown" />
                         }
                         else
                         {
                             <input class="field value" placeholder="@(valueCount < 0 ? "Werte mit ; trennen" : Placeholder(category))"
-                                   @bind="r.Value" @bind:event="oninput" @onkeydown="OnKeyDown" />
+                                   @bind="r.Value" @bind:event="oninput" @bind:after="Shell.MarkDirty" @onkeydown="OnKeyDown" />
                         }
                     </div>
                     <button class="icon-btn" title="Entfernen" @onclick="() => RemoveRow(r)">−</button>
@@ -68,6 +68,9 @@
 </div>
 
 @code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
     [Parameter, EditorRequired]
     public TableTab Tab { get; set; } = null!;
 
@@ -88,6 +91,7 @@
         var row = new FilterRow { Column = column.Name };
         row.Op = FilterRules.OperatorsFor(ColumnCategories.Of(column))[0];
         Tab.FilterRows.Add(row);
+        Shell.MarkDirty();
     }
 
     private async Task RemoveRow(FilterRow row)
@@ -112,6 +116,8 @@
         {
             row.Op = allowed.FirstOrDefault();
         }
+
+        Shell.MarkDirty();
     }
 
     private async Task OnKeyDown(KeyboardEventArgs e)

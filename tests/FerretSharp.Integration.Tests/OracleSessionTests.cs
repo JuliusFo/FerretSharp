@@ -44,6 +44,38 @@ public class OracleSessionTests(OracleContainerFixture oracle)
     }
 
     [Fact]
+    public async Task Set_action_takes_effect_on_the_next_round_trip()
+    {
+        await using var session = await OpenAsync(new SessionContext("FerretSharp", "Workspace 1"));
+
+        await session.SetActionAsync("Bug 3711", Ct);
+
+        Assert.Equal("Bug 3711", await ActionAsync(session));
+    }
+
+    /// <summary>Raw non-ASCII values make ODP.NET 23.26 lose the session (ORA-12537), so they are transliterated.</summary>
+    [Fact]
+    public async Task Non_ascii_session_attributes_keep_the_session_alive()
+    {
+        await using var session = await OpenAsync(new SessionContext("FerretSharp", "Prüfung – Änderung", "Grüße"));
+
+        await session.SetActionAsync("Straße", Ct);
+
+        Assert.Equal("Strasse", await ActionAsync(session));
+        Assert.True(await session.PingAsync(Ct) > TimeSpan.Zero);
+    }
+
+    private static Task<string> ActionAsync(OracleSession session) => session.ExecuteReaderAsync(
+        "SELECT SYS_CONTEXT('USERENV', 'ACTION') FROM DUAL",
+        [],
+        async (reader, ct) =>
+        {
+            await reader.ReadAsync(ct);
+            return reader.GetString(0);
+        },
+        Ct);
+
+    [Fact]
     public async Task Sorting_and_comparison_are_binary_regardless_of_the_windows_locale()
     {
         await using var session = await OpenAsync();

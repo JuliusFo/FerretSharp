@@ -1,6 +1,7 @@
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Schema;
 using FerretSharp.Core.Tests.Fakes;
+using FerretSharp.Core.Workspaces;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 
@@ -14,13 +15,17 @@ public sealed class ActiveConnectionTests : IDisposable
     private readonly IDatabaseConnection _connection = Substitute.For<IDatabaseConnection>();
     private readonly ISchemaReader _reader = Substitute.For<ISchemaReader>();
     private readonly RecentConnections _recent;
+    private readonly InMemoryWorkspaceStore _workspaceStore = new();
+    private readonly WorkspaceManager _workspaces;
     private readonly ActiveConnection _active;
     private readonly ConnectionProfile _profile = TestProfiles.HostPort();
 
     public ActiveConnectionTests()
     {
         _recent = new RecentConnections(Path.Combine(_directory, "recent.json"));
-        _active = new ActiveConnection(new ConnectionManager(Substitute.For<IConnectionStore>(), _secrets), _connector, _recent);
+        var connections = new ConnectionManager(Substitute.For<IConnectionStore>(), _secrets);
+        _workspaces = new WorkspaceManager(_workspaceStore, connections, _connector);
+        _active = new ActiveConnection(connections, _connector, _recent, _workspaces);
 
         _secrets.SetPassword(_profile.Id, "pw");
         _connection.ServerVersion.Returns("23.26.3.0.0");
@@ -98,6 +103,34 @@ public sealed class ActiveConnectionTests : IDisposable
         Assert.Null(_active.Profile);
         Assert.Null(_active.Schema);
         await _connection.Received(1).DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Connect_attaches_the_workspaces_and_disconnect_detaches_them()
+    {
+        await _active.ConnectAsync(_profile, Ct);
+
+        Assert.Same(_profile, _workspaces.Profile);
+        Assert.Single(_workspaces.Open);
+
+        await _active.DisconnectAsync();
+
+        Assert.Null(_workspaces.Profile);
+        Assert.Empty(_workspaces.Open);
+        Assert.Single(_workspaceStore.Saved);
+    }
+
+    [Fact]
+    public async Task Connecting_to_another_profile_switches_the_workspaces()
+    {
+        var other = TestProfiles.HostPort("Other");
+        _secrets.SetPassword(other.Id, "pw2");
+        await _active.ConnectAsync(_profile, Ct);
+
+        await _active.ConnectAsync(other, Ct);
+
+        Assert.Same(other, _workspaces.Profile);
+        Assert.Equal(other.Id, Assert.Single(_workspaces.Open).ConnectionId);
     }
 
     [Fact]

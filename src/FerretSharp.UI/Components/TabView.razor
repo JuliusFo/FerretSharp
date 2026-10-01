@@ -4,6 +4,7 @@
 @using FerretSharp.UI.State
 @implements IDisposable
 @inject ActiveConnection Active
+@inject WorkspaceManager Workspaces
 
 <div class="tabview">
     <div class="tab-toolbar">
@@ -175,6 +176,8 @@
         CancelCount();
         _countError = null;
         Tab.Error = null;
+        Tab.FirstVisibleRow = null;
+        Shell.MarkDirty();
         if (_grid is not null)
         {
             await _grid.RefreshAsync();
@@ -183,7 +186,7 @@
 
     private async Task CountAsync()
     {
-        if (_details is null || Active.Data is not { } data)
+        if (_details is null)
         {
             return;
         }
@@ -194,6 +197,7 @@
         var filters = Tab.AppliedFilters;
         try
         {
+            var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, cts.Token);
             var count = await Task.Run(() => data.CountAsync(details, filters, cts.Token), cts.Token);
             Tab.TotalCount = count;
             if (_grid is not null)
