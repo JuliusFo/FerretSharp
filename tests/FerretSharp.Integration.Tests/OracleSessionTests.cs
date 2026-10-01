@@ -44,6 +44,24 @@ public class OracleSessionTests(OracleContainerFixture oracle)
     }
 
     [Fact]
+    public async Task Sorting_and_comparison_are_binary_regardless_of_the_windows_locale()
+    {
+        await using var session = await OpenAsync();
+
+        var values = await session.ExecuteReaderAsync(
+            "SELECT SYS_CONTEXT('USERENV', 'NLS_SORT'), (SELECT value FROM nls_session_parameters WHERE parameter = 'NLS_COMP') FROM DUAL",
+            [],
+            async (reader, ct) =>
+            {
+                await reader.ReadAsync(ct);
+                return (reader.GetString(0), reader.GetString(1));
+            },
+            Ct);
+
+        Assert.Equal(("BINARY", "BINARY"), values);
+    }
+
+    [Fact]
     public async Task Bind_variables_are_bound_by_name()
     {
         await using var session = await OpenAsync();

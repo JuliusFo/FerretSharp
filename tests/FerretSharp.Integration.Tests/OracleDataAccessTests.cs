@@ -65,6 +65,15 @@ public class OracleDataAccessTests(OracleContainerFixture oracle) : IAsyncLifeti
     }
 
     [Fact]
+    public async Task Descending_text_sort_is_binary()
+    {
+        // Binary: 'N' (0x4E) > '5' (0x35). A German linguistic sort would put "50…" first.
+        var page = await _data.ReadPageAsync(_grid, [FilterCondition.Of("NAME", FilterOperator.IsNotNull)], [new SortSpec("NAME", true)], new PageSpec(0, 1), Ct);
+
+        Assert.StartsWith("Name ", (string)page.Rows[0].Values[Index("NAME")]!);
+    }
+
+    [Fact]
     public async Task Rows_carry_primary_key_and_exact_values()
     {
         var page = await _data.ReadPageAsync(_grid, [], [], new PageSpec(0, 3), Ct);

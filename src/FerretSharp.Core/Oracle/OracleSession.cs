@@ -36,6 +36,14 @@ public sealed class OracleSession : IAsyncDisposable
         try
         {
             await connection.OpenAsync(cancellationToken);
+
+            // ODP.NET derives NLS settings from the Windows locale; German Windows gives NLS_SORT=GERMAN, which sorts
+            // digits after letters and cannot use B-tree indexes. Browsing needs a predictable, machine-independent order.
+            var globalization = connection.GetSessionInfo();
+            globalization.Sort = "BINARY";
+            globalization.Comparison = "BINARY";
+            connection.SetSessionInfo(globalization);
+
             connection.ModuleName = context.Module;
             connection.ActionName = context.Action;
             connection.ClientInfo = context.ClientInfo ?? string.Empty;
