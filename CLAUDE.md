@@ -51,14 +51,15 @@ Versionierung: SemVer, Git-Tag `vX.Y.Z` pro Release, `CHANGELOG.md` pflegen. Fea
 | Runtime | **.NET 10 (LTS, Support bis Nov. 2028)**, C# 14 | .NET 8 endet am 10.11.2026. SDK per `global.json` pinnen (`rollForward: latestFeature`). |
 | Solution | **`FerretSharp.slnx`** | Standardformat des .NET-10-SDK, Rider-kompatibel, weniger Merge-Konflikte. |
 | Pakete | **Central Package Management** (`Directory.Packages.props`) | Versionen an einer Stelle. |
-| UI | **WPF** (Windows-only reicht) | ausgereift, Third-Party-Grids verfügbar |
-| Theme | **WPF-UI** (lepoco) | AvalonDock-Theme (`Dirkster.AvalonDock.Themes.VS2013`, Light/Dark) daran angleichen. ModernWpf wird nicht mehr gepflegt → nicht verwenden. |
-| MVVM | `CommunityToolkit.Mvvm` | Konvention: **partial properties** (`[ObservableProperty] public partial string Name { get; set; }`), `[RelayCommand]` mit async + `CancellationToken`. |
-| Hosting/DI | `Microsoft.Extensions.Hosting` | DI, Konfiguration, Logging ab WP-01. |
+| UI | **Blazor Hybrid**: WPF-Host mit `BlazorWebView` (`Microsoft.AspNetCore.Components.WebView.Wpf`), Komponenten in einer Razor Class Library | ADR 0004. Windows-only reicht; WebView2-Runtime ist auf Windows 10/11 vorhanden. App-TFM **`net10.0-windows10.0.19041.0`** (mit `net10.0-windows` stürzt BlazorWebView beim Start ab). |
+| Theme | eigenes CSS mit Design-Tokens (`ferretsharp.css`), hell/dunkel über `prefers-color-scheme` | Titelleiste per DWM passend gefärbt (`WindowTheme`). `--theme=dark\|light` übersteuert Windows. **Nicht verwenden:** WPF-UI, AvalonDock, CommunityToolkit.Mvvm, AvalonEdit, CSS-Frameworks. |
+| UI-Zustand | Komponenten + schlanke State-/Service-Klassen in `FerretSharp.UI` | Kein MVVM-Framework. Lange Operationen async mit `CancellationToken`. |
+| JS-Interop | ein ES-Modul pro Thema in `FerretSharp.UI/wwwroot/js`, Aufruf über `IJSObjectReference` | JS bleibt dünn (Grid-Brücke, Zwischenablage, Scrollen, Fokus). **Keine Geschäftslogik in JS.** |
+| Hosting/DI | `Microsoft.Extensions.Hosting` | DI, Konfiguration, Logging ab WP-01. Die BlazorWebView nutzt den Service Provider des Hosts. |
 | Logging | `Microsoft.Extensions.Logging` + **Serilog** (`Serilog.Extensions.Hosting`, `Serilog.Sinks.File`) | Datei unter `%APPDATA%\FerretSharp\logs`. Keine Bind-Werte von Prod-Verbindungen loggen (maskieren). |
-| Grid | eingebautes `DataGrid` (Row- **und** Column-Virtualisierung, Recycling), hinter ViewModel gekapselt | später austauschbar gegen DevExpress/Syncfusion |
-| Docking | `Dirkster.AvalonDock` | IDE-artige Tabs für Workspaces/Tabellen |
-| SQL-Editor | `AvalonEdit` | eigene XSHD-Definition für Oracle SQL |
+| Grid | **AG Grid Community** (MIT) über JS-Interop, **Infinite Row Model** | Datenblöcke und Sortierung kommen aus .NET (`IDataAccess`), gekapselt in einer `FerretGrid`-Komponente. Version 34.x, **lokal im Repo** unter `FerretSharp.UI/wwwroot/lib/ag-grid/` (kein CDN). Vor dem Herunterladen den Nutzer fragen (WP-04). Enterprise-Features (Kontextmenü, Zellbereich) nicht verwenden – eigene Lösungen in Blazor. |
+| Layout | Tabs + Seitenleiste in Blazor | Kein Docking-Framework. |
+| SQL-Anzeige | eigener Highlighter in Razor (siehe Prototyp `TableView.razor`) | Vollwertiger Editor (Monaco) erst mit dem freien SQL-Editor (Backlog). |
 | Oracle | `Oracle.ManagedDataAccess.Core` (23.x) | rein managed, kein Instant Client; **durchgängig async** mit `CancellationToken`. |
 | Oracle-Version | Ziel **19c+**; 12.2 sollte funktionieren | `OFFSET/FETCH`, `ALL_TAB_IDENTITY_COLS` erst ab 12c. Kein ROWNUM-Fallback. |
 | Tests | **xUnit v3** auf **Microsoft Testing Platform** + NSubstitute; Integration: **Testcontainers.Oracle** | Kein VSTest (`Microsoft.NET.Test.Sdk`/`xunit.runner.visualstudio` nicht verwenden). Image `gvenzl/oracle-free:23-slim-faststart`. Benötigt Docker. |
@@ -82,12 +83,16 @@ FerretSharp.slnx
 │  │  ├─ Data/                         # RowSet, RowKey, IDataAccess   (v2: RowChange, ChangeTracker)
 │  │  ├─ Workspaces/                   # Workspace, WorkspaceStore, TabState
 │  │  └─ Oracle/                       # OracleSession, OracleSchemaReader, OracleDataAccess, OracleTypeMapper, OracleIdentifier
-│  └─ FerretSharp.App/                 # net10.0-windows, WPF, referenziert Core
-│     ├─ ViewModels/
-│     ├─ Views/
-│     ├─ Controls/                     # LetterIndexBar, FilterBar, DataGridHost
-│     ├─ Services/                     # DialogService, ThemeService, CredentialManagerSecretStore
-│     └─ App.xaml
+│  ├─ FerretSharp.UI/                  # net10.0, Razor Class Library – plattformneutral, KEIN WPF/Windows
+│  │  ├─ Shell.razor                   # Root-Komponente (Topbar, Explorer, Tabs, Statusleiste)
+│  │  ├─ Components/                   # LetterIndexBar, FilterBar, FerretGrid, SqlPreview, ContextMenu, Dialoge …
+│  │  ├─ State/                        # UI-Zustand (aktiver Workspace, Tabs), Services-Interfaces für den Host
+│  │  └─ wwwroot/                      # css/ferretsharp.css, js/*.js (ES-Module), lib/ag-grid/
+│  └─ FerretSharp.App/                 # net10.0-windows10.0.19041.0 – schlanker WPF-Host
+│     ├─ Views/MainWindow.xaml         # nur die BlazorWebView
+│     ├─ Services/                     # WindowTheme, DialogService (native Fehler), CredentialManagerSecretStore
+│     ├─ wwwroot/index.html            # Host-Page, bindet _content/FerretSharp.UI/… ein
+│     └─ App.xaml                      # Generic Host, Serilog, Exception-Handler
 ├─ tests/
 │  ├─ FerretSharp.Core.Tests/          # schnell, ohne DB
 │  └─ FerretSharp.Integration.Tests/   # Testcontainers, überspringt sauber, wenn kein Docker verfügbar
@@ -103,9 +108,11 @@ FerretSharp.slnx
 ```
 
 Regeln:
-- `FerretSharp.Core` darf **kein** `System.Windows` und keine Windows-only-APIs referenzieren (CA1416). CI-Check: `dotnet build src/FerretSharp.Core` unter Linux.
+- `FerretSharp.Core` und `FerretSharp.UI` dürfen **kein** `System.Windows` und keine Windows-only-APIs referenzieren (CA1416). CI-Check: `dotnet build src/FerretSharp.Core` und `src/FerretSharp.UI` unter Linux.
+- Was nur der Host kann (Credential Manager, native Datei-Dialoge, Fenster), definiert die UI/Core als Interface; die Implementierung liegt in `FerretSharp.App`.
 - Alles, was Oracle-spezifisch ist, liegt hinter Interfaces (`ISchemaReader`, `IDataAccess`), damit Unit-Tests mit Mocks laufen.
-- SQL-Strings entstehen ausschließlich in `Query/` (QueryBuilder) und `Oracle/` (Schema-Reader, Session-Setup, v2: DML). ViewModels enthalten kein SQL.
+- SQL-Strings entstehen ausschließlich in `Query/` (QueryBuilder) und `Oracle/` (Schema-Reader, Session-Setup, v2: DML). Komponenten in `FerretSharp.UI` enthalten kein SQL (Ausnahme: reine Anzeige eines vom QueryBuilder erzeugten Statements).
+- Der Prototyp auf Branch `spike/blazor-hybrid` (`prototypes/FerretSharp.Prototype.Blazor`) ist Referenz für Look & Feel und die AG-Grid-Brücke – Code daraus übernehmen und sauber in die Architektur einpassen, nicht 1:1 kopieren (Fake-Daten, SQL im UI).
 - `QueryBuilder` kennt den Oracle-Treiber nicht: Er liefert eigene `QueryParameter`, das Mapping auf `OracleParameter` passiert in `OracleSession`.
 
 ## 5. Domänenmodell
@@ -255,8 +262,10 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 ```
 - Tabellenliste alphabetisch (Tabellen und Views unterscheidbar), Buchstabenleiste links: Klick springt zur ersten Tabelle mit diesem Buchstaben; Buchstaben ohne Treffer ausgegraut. (Fuzzy-Suche = Backlog.)
 - Prod: roter Rahmen; ab v2 Schreiben nur nach Freischalten über Toggle + Bestätigungsdialog.
-- Dynamische Grid-Spalten aus dem Schema erzeugen (Code-Behind/Behavior), Zeilen als `RowViewModel` mit Indexer binden. `EnableRowVirtualization`, `EnableColumnVirtualization`, `VirtualizingPanel.VirtualizationMode="Recycling"`.
-- Header-Klick sortiert serverseitig: `Sorting`-Event abfangen, `e.Handled = true`, neu abfragen.
+- Grid-Spalten werden aus dem Schema erzeugt und als Column-Definitions an AG Grid übergeben (eigener Header-Renderer: Name, Oracle-Typ, NOT NULL, PK/FK-Badges). AG Grid fragt Blöcke à 500 Zeilen per `invokeMethodAsync` bei .NET an (Infinite Row Model); Zeilen gehen als Dictionaries mit Row-Index über die Grenze.
+- Header-Klick sortiert serverseitig: AG Grid liefert das Sort-Model im Datasource-Request, .NET fragt neu ab.
+- Kontextmenü (FK-Navigation, Kopieren) und Dialoge sind Blazor-Komponenten; AG Grid meldet nur das `cellContextMenu`-Event.
+- Look & Feel und Interaktionen: siehe Prototyp (Branch `spike/blazor-hybrid`).
 
 **Shortcuts**
 
@@ -269,7 +278,7 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 | Ctrl+Shift+Enter | Commit (auf Prod immer mit Bestätigung) | v2 |
 | – | Rollback nur über Button, mit Bestätigung | v2 |
 
-`Esc` bleibt dem DataGrid vorbehalten (Zelleingabe abbrechen).
+`Esc` bleibt dem Grid vorbehalten (Zelleingabe abbrechen) bzw. schließt Menüs/Dialoge. Shortcuts werden in der WebView behandelt (JS-Keydown → Blazor); `F12` öffnet im Debug-Build die DevTools.
 
 ## 8. Arbeitspakete
 
@@ -281,11 +290,11 @@ Jedes Paket: eigener Branch `wp/NN-kurzname`, am Ende `dotnet build -warnaserror
 - `FerretSharp.slnx`, Projekte, `global.json`, `Directory.Build.props`, `Directory.Packages.props`, `.gitignore`, `.editorconfig`, `CHANGELOG.md`, `docs/backlog.md`.
 - Generic Host in `App.xaml.cs` (DI, Konfiguration, Serilog-Datei-Logging).
 - Globale Exception-Handler (`DispatcherUnhandledException`, `AppDomain.UnhandledException`, `TaskScheduler.UnobservedTaskException`) → loggen + Fehlerdialog.
-- Leeres WPF-Fenster mit WPF-UI-Theme, AvalonDock-Layout (links Explorer, Mitte Dokument-Bereich, unten Statusleiste), AvalonDock-Theme angeglichen.
+- WPF-Host mit `BlazorWebView`, Root-Komponente `Shell` aus `FerretSharp.UI` (Topbar, Explorer links, Inhaltsbereich, Statusleiste), Design-Tokens hell/dunkel, dunkle Titelleiste, `--theme`-Override, `ErrorBoundary`.
 - Testprojekte: Unit (Dummy-Test), Integration (Testcontainers-Smoke-Test `SELECT 1 FROM DUAL`, überspringt ohne Docker).
 - CI-Workflow: zurückgestellt, bis das Hosting feststeht (siehe `docs/backlog.md`).
-- ADRs: 0001 .NET 10, 0002 Versionierung (read-only first, .NET-Integration in v3), 0003 Theme WPF-UI.
-- **Fertig wenn:** App startet und loggt; beide Testprojekte laufen; `dotnet build src/FerretSharp.Core` läuft unter Linux.
+- ADRs: 0001 .NET 10, 0002 Versionierung (read-only first, .NET-Integration in v3), 0003 Theme WPF-UI (ersetzt), 0004 Blazor Hybrid.
+- **Fertig wenn:** App startet und loggt; beide Testprojekte laufen; `dotnet build src/FerretSharp.Core` und `src/FerretSharp.UI` laufen unter Linux.
 
 #### WP-02 Connections
 - `ConnectionProfile`, `OracleAddress` (polymorph in JSON), `ConnectionStore` (JSON), `ISecretStore` mit Credential-Manager-Implementierung (App) + In-Memory-Fake (Tests).
@@ -296,15 +305,16 @@ Jedes Paket: eigener Branch `wp/NN-kurzname`, am Ende `dotnet build -warnaserror
 #### WP-03 Schema-Cache & Tabellenliste
 - `OracleSchemaReader : ISchemaReader` (Tabellen, Views, MViews, Spalten, PK/UK/FK, Identity, IOT-Flag), immer nach Owner gefiltert, Details lazy.
 - `SchemaCache` mit Refresh; Unit-Tests gegen Mock-Reader, Integrationstests gegen ein Testschema im Container (inkl. Quoted Identifiers, composite FKs, View ohne PK, IOT).
-- Explorer-Panel: Tabellenliste alphabetisch + `LetterIndexBar`-Control.
+- Explorer-Panel: Tabellenliste alphabetisch (Suchfeld mit einfachem Contains-Filter) + `LetterIndexBar`-Komponente.
 - **Fertig wenn:** Nach dem Connect erscheinen alle Tabellen/Views, die Buchstabenleiste springt korrekt.
 
 #### WP-04 Grid, Paging & Filter (read-only)
 - Läuft zunächst auf einer Default-Session pro Verbindung (Workspaces folgen in WP-05).
 - `QueryBuilder` mit vollständigen Tests (alle Operatoren, Typ-Einschränkungen, LIKE-Escaping, IN-Chunking, DATE-Bereich, deterministische Sortierung, Paging, Quoting, Bind-Variablen).
 - `RowKey`-Ermittlung (PK → ROWID → None).
-- `DataGridHost`-Control: dynamische Spalten, Row- und Column-Virtualisierung, serverseitiges Sortieren per Header-Klick, NULL-Darstellung, Typ-Formatierung (DATE, TIMESTAMP, NUMBER ohne Präzisionsverlust), LOB-Vorschau, Fallback-Darstellung für unbekannte Typen.
-- `FilterBar`-Control im TablePlus-Stil: Zeilen hinzufügen/entfernen, Operatoren typabhängig, `Apply`, `Apply All`, `Clear`; der `SQL`-Button öffnet ein AvalonEdit-Popup mit dem generierten Statement.
+- AG Grid einführen: Nutzer fragen, dann Version 34.x lokal nach `FerretSharp.UI/wwwroot/lib/ag-grid/` legen (inkl. Lizenzdatei), in `index.html` einbinden.
+- `FerretGrid`-Komponente (AG Grid, Infinite Row Model): Spalten aus dem Schema, serverseitiges Sortieren per Header-Klick, NULL-Darstellung, Typ-Formatierung (DATE, TIMESTAMP, NUMBER ohne Präzisionsverlust – große Zahlen als String übertragen), LOB-Vorschau, Fallback-Darstellung für unbekannte Typen.
+- `FilterBar`-Komponente im TablePlus-Stil: Zeilen hinzufügen/entfernen, Operatoren typabhängig, Validierung je Typ, `Apply`, `Apply All`, `Clear`; der `SQL`-Button zeigt das vom `QueryBuilder` erzeugte Statement mit Bind-Variablen (Highlighter-Komponente).
 - Paging („nächste 500 Zeilen“ / Endlos-Nachladen) und Zeilenzähler (`COUNT(*)` lazy, abbrechbar).
 - **Fertig wenn:** Eine Tabelle mit > 100k Zeilen bleibt flüssig; die Filter erzeugen korrektes SQL (Tests); Seiten überlappen nicht und haben keine Lücken (Integrationstest).
 
@@ -338,7 +348,7 @@ Jedes Paket: eigener Branch `wp/NN-kurzname`, am Ende `dotnet build -warnaserror
 - **Fertig wenn:** Integrationstest belegt, dass DML auf einer gesperrten Prod-Session von Oracle abgelehnt wird.
 
 #### WP-09 Editieren
-- `ChangeTracker`, `RowChange`, Dirty-Markierung im Grid (Zellfarbe je Zustand Pending/Flushed), Inline-Editing, Zeile hinzufügen/löschen. Kein Editieren bei `RowKey.None` oder exotischen Typen.
+- `ChangeTracker`, `RowChange`, Dirty-Markierung im Grid (Zellfarbe je Zustand Pending/Flushed, `cellClassRules`), Inline-Editing über AG-Grid-Cell-Editoren (Validierung in .NET), Zeile hinzufügen/löschen. Kein Editieren bei `RowKey.None` oder exotischen Typen.
 - `OracleTypeMapper` Text → Oracle-Typ inkl. Fehlermeldung bei ungültiger Eingabe.
 - `OracleDataAccess.FlushAsync` gemäß 5.6 (Savepoint, `FOR UPDATE WAIT n`, RowKey-WHERE, `RETURNING`, `BindByName`).
 - Lock-Konflikte (`ORA-30006`, `ORA-00054`) als Dialog, inkl. sperrender Session, falls ermittelbar.
@@ -388,7 +398,9 @@ Die Arbeitspakete werden zu Beginn von v3 mit dem Nutzer verfeinert. Grober Zusc
 - Migrations-Cockpit (Pending Migrations, Schema-Diff Modell ↔ DB).
 - Plugins als C#-Scripts (Roslyn).
 - Team-Workspace im Repo (`.ferretsharp/`), Verbindungen ohne Passwörter.
-- Grid-Upgrade auf DevExpress/Syncfusion, falls die Lizenz passt.
+- AG Grid auf aktuelle Major-Version (36+) heben, sobald die API-Änderungen geprüft sind.
+- Web-Host (`FerretSharp.DevHost`, Blazor Server) mit Fake-Daten, um die UI im Browser mit Hot Reload zu entwickeln und automatisiert zu prüfen.
+- bUnit-Tests für UI-Komponenten.
 
 ## 11. Arbeitsweise für Claude Code
 

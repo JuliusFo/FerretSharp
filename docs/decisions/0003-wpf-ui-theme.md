@@ -1,6 +1,6 @@
 # ADR 0003: WPF-UI als Theme, AvalonDock-Theme synchronisiert
 
-- Status: akzeptiert
+- Status: **ersetzt** durch [0004 Blazor Hybrid](0004-blazor-hybrid-ui.md)
 - Datum: 2026-10-01
 
 ## Kontext
