@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/FerretSharp.Core/FerretSharp.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/FerretSharp.Core.Tests/FerretSharp.Core.Tests.csproj" />
+  </Folder>
+</Solution>
