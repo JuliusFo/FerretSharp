@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/FerretSharp.App/FerretSharp.App.csproj" />
     <Project Path="src/FerretSharp.Core/FerretSharp.Core.csproj" />
   </Folder>
   <Folder Name="/tests/">

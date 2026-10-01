@@ -61,10 +61,11 @@ Versionierung: SemVer, Git-Tag `vX.Y.Z` pro Release, `CHANGELOG.md` pflegen. Fea
 | SQL-Editor | `AvalonEdit` | eigene XSHD-Definition für Oracle SQL |
 | Oracle | `Oracle.ManagedDataAccess.Core` (23.x) | rein managed, kein Instant Client; **durchgängig async** mit `CancellationToken`. |
 | Oracle-Version | Ziel **19c+**; 12.2 sollte funktionieren | `OFFSET/FETCH`, `ALL_TAB_IDENTITY_COLS` erst ab 12c. Kein ROWNUM-Fallback. |
-| Tests | **xUnit v3** + NSubstitute; Integration: **Testcontainers.Oracle** | Image explizit setzen (z. B. `gvenzl/oracle-free:23-slim-faststart`). Benötigt Docker. |
+| Tests | **xUnit v3** auf **Microsoft Testing Platform** + NSubstitute; Integration: **Testcontainers.Oracle** | Kein VSTest (`Microsoft.NET.Test.Sdk`/`xunit.runner.visualstudio` nicht verwenden). Image `gvenzl/oracle-free:23-slim-faststart`. Benötigt Docker. |
 | Persistenz | JSON-Dateien (`System.Text.Json`) | Polymorphie über `[JsonPolymorphic]`/`[JsonDerivedType]`; keine `object`-Properties (werden zu `JsonElement`). |
 | Secrets | Windows Credential Manager via **`Meziantou.Framework.Win32.CredentialManager`** | Implementierung liegt im **App**-Projekt (Windows-only), Core kennt nur `ISecretStore`. Passwörter nie im JSON. |
-| CI | z. B. GitHub Actions | Linux-Job: Core + Unit- + Integrationstests. Windows-Job: ganze Solution. |
+| Paketquellen | repo-lokales `nuget.config` (nur nuget.org) | Auf dem Entwicklungsrechner ist global zusätzlich eine DevExpress-Quelle eingerichtet; CPM verlangt dann Source Mapping. |
+| CI | vorerst keine (nur lokal) | Sobald das Hosting feststeht: Linux-Job (Core + Unit- + Integrationstests), Windows-Job (ganze Solution). |
 | Distribution | `dotnet publish` self-contained | Installer/Auto-Update (Velopack) = Backlog. |
 
 **Nicht** verwenden: Entity Framework für den generischen Zugriff (kennt Schema nur über DbContext). EF-Integration ist ein späteres, optionales Feature (siehe Backlog).
@@ -97,7 +98,8 @@ FerretSharp.slnx
 ├─ CHANGELOG.md
 ├─ global.json
 ├─ Directory.Build.props               # Nullable enable, ImplicitUsings, TreatWarningsAsErrors
-└─ Directory.Packages.props
+├─ Directory.Packages.props
+└─ nuget.config
 ```
 
 Regeln:
@@ -281,7 +283,7 @@ Jedes Paket: eigener Branch `wp/NN-kurzname`, am Ende `dotnet build -warnaserror
 - Globale Exception-Handler (`DispatcherUnhandledException`, `AppDomain.UnhandledException`, `TaskScheduler.UnobservedTaskException`) → loggen + Fehlerdialog.
 - Leeres WPF-Fenster mit WPF-UI-Theme, AvalonDock-Layout (links Explorer, Mitte Dokument-Bereich, unten Statusleiste), AvalonDock-Theme angeglichen.
 - Testprojekte: Unit (Dummy-Test), Integration (Testcontainers-Smoke-Test `SELECT 1 FROM DUAL`, überspringt ohne Docker).
-- CI-Workflow (Linux: Core + Tests; Windows: ganze Solution).
+- CI-Workflow: zurückgestellt, bis das Hosting feststeht (siehe `docs/backlog.md`).
 - ADRs: 0001 .NET 10, 0002 Versionierung (read-only first, .NET-Integration in v3), 0003 Theme WPF-UI.
 - **Fertig wenn:** App startet und loggt; beide Testprojekte laufen; `dotnet build src/FerretSharp.Core` läuft unter Linux.
 
