@@ -142,5 +142,63 @@ kbd { font: 600 10px var(--mono); padding: 1px 5px; border-radius: 4px; border: 
 .modal-backdrop { position: fixed; inset: 0; z-index: 60; background: rgba(10, 10, 15, .42); display: grid; place-items: center; }
 .modal { width: min(820px, 92vw); background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
 
+/* ---------- connections in the top bar ---------- */
+.conn {
+  display: flex; align-items: center; gap: 8px;
+  height: 30px; padding: 0 10px;
+  border: 1px solid var(--border); border-radius: 7px; background: var(--surface-2);
+  white-space: nowrap;
+}
+.conn:hover { border-color: var(--border-strong); background: var(--hover); }
+.conn-name { font-weight: 500; }
+.conn-kind { font-size: 10px; font-weight: 700; letter-spacing: .05em; color: var(--muted); }
+.kind-prod .conn-kind { color: var(--prod); }
+.kind-other .dot { background: var(--faint); }
+.dot.err { background: var(--danger); }
+.statusbar .error { color: var(--danger); }
+
+.empty-actions { margin-top: 16px; display: flex; justify-content: center; gap: 8px; }
+
+/* ---------- dialogs & forms ---------- */
+.dialog { width: min(640px, 94vw); display: flex; flex-direction: column; max-height: 92vh; }
+.dialog header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 14px; }
+.dialog-body { padding: 16px 18px; overflow-y: auto; user-select: text; }
+.dialog footer { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border); background: var(--surface-2); }
+.dialog footer .spacer { flex: 1; }
+
+.form-grid { display: grid; grid-template-columns: 110px 1fr; gap: 12px 14px; align-items: start; }
+.form-grid > label { padding-top: 6px; color: var(--muted); font-weight: 500; }
+.form-grid .field { width: 100%; }
+.form-grid .row { display: flex; gap: 8px; align-items: center; }
+.form-grid .row .grow { flex: 1; width: auto; }
+.form-grid .row .port { width: 84px; flex: none; }
+.row-label { color: var(--muted); }
+.field.mono { font-family: var(--mono); font-size: 12px; }
+.field-error { margin-top: 4px; font-size: 12px; color: var(--danger); }
+.hint.small { margin-top: 4px; font-size: 12px; }
+
+.check { display: flex; align-items: center; gap: 8px; padding-top: 2px; cursor: pointer; }
+.check input { width: 15px; height: 15px; accent-color: var(--accent); margin: 0; }
+
+.segmented { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 2px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); justify-self: start; }
+.seg { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); }
+.seg:hover { color: var(--text); }
+.seg.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(0, 0, 0, .12), 0 0 0 1px var(--border); }
+.segmented.small .seg { height: 24px; padding: 0 8px; font-size: 12px; }
+
+.icon-btn { width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--muted); }
+.icon-btn:hover { color: var(--text); }
+.icon-btn.ghost { border-color: transparent; background: transparent; }
+.btn.danger { color: var(--danger); }
+.btn.danger:hover:not(:disabled) { background: var(--danger-weak); color: var(--danger); }
+
+.test-result { display: flex; align-items: center; gap: 10px; margin: 0 18px 14px; padding: 10px 12px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--border); user-select: text; }
+.test-result.ok { border-color: rgba(48, 164, 108, .45); background: rgba(48, 164, 108, .08); }
+.test-result.error { border-color: var(--danger); background: var(--danger-weak); }
+.test-result .code { font: 600 12px var(--mono); color: var(--danger); white-space: nowrap; }
+
+.spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--border-strong); border-top-color: var(--accent); animation: spin .8s linear infinite; flex: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
 #blazor-error-ui { display: none; position: fixed; bottom: 0; left: 0; right: 0; padding: 8px 16px; background: var(--danger); color: #fff; z-index: 100; }
 #blazor-error-ui .dismiss { cursor: pointer; float: right; }

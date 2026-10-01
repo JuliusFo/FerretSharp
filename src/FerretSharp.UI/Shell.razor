@@ -1,12 +1,29 @@
 @* Root component hosted by the BlazorWebView. *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.UI.State
+@implements IDisposable
+@inject ConnectionManager Connections
 
 <div class="app">
     <header class="topbar">
         <div class="brand">Ferret<span>Sharp</span></div>
 
         <div class="workspaces">
-            <span class="hint">Keine Verbindung</span>
-            <button class="ws-add" title="Verbindung hinzufügen (folgt in WP-02)" disabled>+</button>
+            @foreach (var profile in Connections.Profiles)
+            {
+                <button class="conn @ConnectionKindInfo.CssClass(profile.Kind)"
+                        title="@profile.Address.Display · @profile.User – klicken zum Bearbeiten"
+                        @onclick="() => OpenDialog(profile)">
+                    <span class="dot"></span>
+                    <span class="conn-name">@profile.Name</span>
+                    <span class="conn-kind">@ConnectionKindInfo.Short(profile.Kind)</span>
+                </button>
+            }
+            @if (Connections.Profiles.Count == 0)
+            {
+                <span class="hint">Keine Verbindung</span>
+            }
+            <button class="ws-add" title="Verbindung hinzufügen" @onclick="() => OpenDialog(null)">+</button>
         </div>
 
         <div class="topbar-right">
@@ -25,7 +42,16 @@
         <main class="content">
             <ErrorBoundary>
                 <ChildContent>
-                    <EmptyState Title="Willkommen bei FerretSharp" Text="Ferret out your Oracle data." />
+                    @if (Connections.Profiles.Count == 0)
+                    {
+                        <EmptyState Title="Willkommen bei FerretSharp" Text="Lege zuerst eine Oracle-Verbindung an.">
+                            <button class="btn primary" @onclick="() => OpenDialog(null)">Verbindung hinzufügen</button>
+                        </EmptyState>
+                    }
+                    else
+                    {
+                        <EmptyState Title="Willkommen bei FerretSharp" Text="Ferret out your Oracle data." />
+                    }
                 </ChildContent>
                 <ErrorContent Context="exception">
                     <EmptyState Title="Da ist etwas schiefgelaufen" Text="@exception.Message" IsError="true" />
@@ -35,13 +61,54 @@
     </div>
 
     <footer class="statusbar">
-        <span class="item"><span class="dot"></span> Nicht verbunden</span>
+        @if (Connections.LoadError is { } error)
+        {
+            <span class="item error" title="@error"><span class="dot err"></span> Verbindungen konnten nicht geladen werden</span>
+        }
+        else
+        {
+            <span class="item"><span class="dot"></span> Nicht verbunden</span>
+            <span class="item">@ConnectionCount</span>
+        }
         <span class="spacer"></span>
         <span class="item">@Version</span>
     </footer>
 </div>
 
+@if (_dialogOpen)
+{
+    <ConnectionDialog Profile="_dialogProfile" OnClose="CloseDialog" />
+}
+
 @code {
     private static readonly string Version =
         "v" + (typeof(Shell).Assembly.GetName().Version?.ToString(3) ?? "0.0.0");
+
+    private bool _dialogOpen;
+    private ConnectionProfile? _dialogProfile;
+
+    private string ConnectionCount => Connections.Profiles.Count switch
+    {
+        0 => "",
+        1 => "1 Verbindung gespeichert",
+        var n => $"{n} Verbindungen gespeichert",
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        Connections.Changed += OnConnectionsChanged;
+        await Connections.LoadAsync(CancellationToken.None);
+    }
+
+    private void OpenDialog(ConnectionProfile? profile)
+    {
+        _dialogProfile = profile;
+        _dialogOpen = true;
+    }
+
+    private void CloseDialog() => _dialogOpen = false;
+
+    private void OnConnectionsChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Connections.Changed -= OnConnectionsChanged;
 }

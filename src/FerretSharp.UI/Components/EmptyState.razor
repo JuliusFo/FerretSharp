@@ -1,7 +1,14 @@
 <div class="empty @(IsError ? "is-error" : "")">
     <div>
         <h2>@Title</h2>
-        <p>@Text</p>
+        @if (Text is not null)
+        {
+            <p>@Text</p>
+        }
+        @if (ChildContent is not null)
+        {
+            <div class="empty-actions">@ChildContent</div>
+        }
     </div>
 </div>
 
@@ -14,4 +21,7 @@
 
     [Parameter]
     public bool IsError { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
 }

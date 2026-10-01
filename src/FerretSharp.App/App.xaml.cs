@@ -4,6 +4,8 @@ using System.Windows.Threading;
 using FerretSharp.App.Services;
 using FerretSharp.App.Views;
 using FerretSharp.Core;
+using FerretSharp.Core.Connections;
+using FerretSharp.Core.Oracle;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -21,7 +23,9 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
-        var paths = AppPaths.Default;
+        // "--data-dir=<path>" redirects connections, workspaces and logs (tests, screenshots, separate profiles).
+        var dataDir = e.Args.FirstOrDefault(a => a.StartsWith("--data-dir=", StringComparison.OrdinalIgnoreCase))?["--data-dir=".Length..];
+        var paths = string.IsNullOrWhiteSpace(dataDir) ? AppPaths.Default : new AppPaths(Path.GetFullPath(dataDir));
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Debug()
             .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
@@ -39,6 +43,10 @@ public partial class App : Application
         builder.Services.AddBlazorWebViewDeveloperTools();
 #endif
         builder.Services.AddSingleton(paths);
+        builder.Services.AddSingleton<IConnectionStore>(new ConnectionStore(paths.ConnectionsFile));
+        builder.Services.AddSingleton<ISecretStore, CredentialManagerSecretStore>();
+        builder.Services.AddSingleton<IConnectionTester, OracleConnectionTester>();
+        builder.Services.AddSingleton<ConnectionManager>();
         builder.Services.AddSingleton(WindowTheme.FromArgs(e.Args));
         builder.Services.AddSingleton<IDialogService, DialogService>();
         builder.Services.AddSingleton<MainWindow>();
