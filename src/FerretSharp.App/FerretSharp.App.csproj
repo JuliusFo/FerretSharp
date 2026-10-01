@@ -1,25 +1,26 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <!-- Thin WPF host: generic host, logging, window chrome and the BlazorWebView. The UI lives in FerretSharp.UI. -->
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <!-- BlazorWebView's WebView2CompositionControl needs the WinRT projection (Microsoft.Windows.SDK.NET). -->
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <UseWPF>true</UseWPF>
     <RootNamespace>FerretSharp.App</RootNamespace>
     <AssemblyName>FerretSharp</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CommunityToolkit.Mvvm" />
-    <PackageReference Include="Dirkster.AvalonDock" />
-    <PackageReference Include="Dirkster.AvalonDock.Themes.VS2013" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Wpf" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Serilog.Extensions.Hosting" />
     <PackageReference Include="Serilog.Sinks.File" />
-    <PackageReference Include="WPF-UI" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\FerretSharp.Core\FerretSharp.Core.csproj" />
+    <ProjectReference Include="..\FerretSharp.UI\FerretSharp.UI.csproj" />
   </ItemGroup>
 
 </Project>

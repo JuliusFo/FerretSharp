@@ -1,0 +1,47 @@
+@* Root component hosted by the BlazorWebView. *@
+
+<div class="app">
+    <header class="topbar">
+        <div class="brand">Ferret<span>Sharp</span></div>
+
+        <div class="workspaces">
+            <span class="hint">Keine Verbindung</span>
+            <button class="ws-add" title="Verbindung hinzufügen (folgt in WP-02)" disabled>+</button>
+        </div>
+
+        <div class="topbar-right">
+            <span class="badge">READ-ONLY</span>
+        </div>
+    </header>
+
+    <div class="body">
+        <aside class="sidebar">
+            <div class="sidebar-head">
+                <div class="schema">Explorer</div>
+            </div>
+            <div class="sidebar-empty">Nach dem Verbinden erscheinen hier Tabellen und Views.</div>
+        </aside>
+
+        <main class="content">
+            <ErrorBoundary>
+                <ChildContent>
+                    <EmptyState Title="Willkommen bei FerretSharp" Text="Ferret out your Oracle data." />
+                </ChildContent>
+                <ErrorContent Context="exception">
+                    <EmptyState Title="Da ist etwas schiefgelaufen" Text="@exception.Message" IsError="true" />
+                </ErrorContent>
+            </ErrorBoundary>
+        </main>
+    </div>
+
+    <footer class="statusbar">
+        <span class="item"><span class="dot"></span> Nicht verbunden</span>
+        <span class="spacer"></span>
+        <span class="item">@Version</span>
+    </footer>
+</div>
+
+@code {
+    private static readonly string Version =
+        "v" + (typeof(Shell).Assembly.GetName().Version?.ToString(3) ?? "0.0.0");
+}

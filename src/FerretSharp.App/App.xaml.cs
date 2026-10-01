@@ -2,13 +2,13 @@ using System.IO;
 using System.Windows;
 using System.Windows.Threading;
 using FerretSharp.App.Services;
-using FerretSharp.App.ViewModels;
 using FerretSharp.App.Views;
 using FerretSharp.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog;
+using Serilog.Events;
 
 namespace FerretSharp.App;
 
@@ -24,6 +24,7 @@ public partial class App : Application
         var paths = AppPaths.Default;
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Debug()
+            .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
             .WriteTo.File(
                 Path.Combine(paths.LogsDirectory, "ferretsharp-.log"),
                 rollingInterval: RollingInterval.Day,
@@ -33,10 +34,13 @@ public partial class App : Application
         var builder = Host.CreateApplicationBuilder(e.Args);
         builder.Services.AddSerilog();
         builder.Services.Configure<ConsoleLifetimeOptions>(o => o.SuppressStatusMessages = true);
+        builder.Services.AddWpfBlazorWebView();
+#if DEBUG
+        builder.Services.AddBlazorWebViewDeveloperTools();
+#endif
         builder.Services.AddSingleton(paths);
+        builder.Services.AddSingleton(WindowTheme.FromArgs(e.Args));
         builder.Services.AddSingleton<IDialogService, DialogService>();
-        builder.Services.AddSingleton<ThemeService>();
-        builder.Services.AddSingleton<MainWindowViewModel>();
         builder.Services.AddSingleton<MainWindow>();
 
         _host = builder.Build();

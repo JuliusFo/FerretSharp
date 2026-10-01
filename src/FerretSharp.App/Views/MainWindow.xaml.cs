@@ -1,15 +1,24 @@
+using System.Windows;
 using FerretSharp.App.Services;
-using FerretSharp.App.ViewModels;
-using Wpf.Ui.Controls;
+using Microsoft.Web.WebView2.Core;
 
 namespace FerretSharp.App.Views;
 
-public partial class MainWindow : FluentWindow
+public partial class MainWindow : Window
 {
-    public MainWindow(MainWindowViewModel viewModel, ThemeService themeService)
+    public MainWindow(IServiceProvider services, WindowTheme theme)
     {
-        DataContext = viewModel;
+        theme.PrepareWebViewBackground();
         InitializeComponent();
-        themeService.Attach(this, DockingManager);
+
+        WebView.Services = services;
+        theme.Attach(this);
+
+        if (theme.ForceDark is { } dark)
+        {
+            WebView.BlazorWebViewInitialized += (_, e) =>
+                e.WebView.CoreWebView2.Profile.PreferredColorScheme =
+                    dark ? CoreWebView2PreferredColorScheme.Dark : CoreWebView2PreferredColorScheme.Light;
+        }
     }
 }
