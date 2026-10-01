@@ -99,7 +99,7 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
         switch (ColumnCategories.Of(column))
         {
             case ColumnCategory.Number when column.DataType is "NUMBER" or "FLOAT" or "INTEGER":
-                return ToNumber(reader.GetOracleDecimal(ordinal).ToString());
+                return ToNumber(NormalizeDecimalSeparator(reader.GetOracleDecimal(ordinal).ToString()));
             case ColumnCategory.Timestamp when column.DataType.Contains("LOCAL", StringComparison.Ordinal):
                 return reader.GetOracleTimeStampLTZ(ordinal).Value;
             case ColumnCategory.Timestamp:
@@ -113,6 +113,13 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
                 return reader.GetValue(ordinal);
         }
     }
+
+    /// <summary>
+    /// <c>OracleDecimal.ToString()</c> uses the current culture ("1,5" on German Windows) but never group separators,
+    /// so a comma can only be the decimal separator.
+    /// </summary>
+    internal static string NormalizeDecimalSeparator(string text) =>
+        text.Contains(',', StringComparison.Ordinal) ? text.Replace(',', '.') : text;
 
     /// <summary>decimal when it holds the exact value, otherwise <see cref="BigNumber"/> (NUMBER has up to 38 digits).</summary>
     internal static object ToNumber(string invariant)

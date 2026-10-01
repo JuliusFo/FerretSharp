@@ -6,7 +6,22 @@ namespace FerretSharp.Core.Data;
 /// <summary>Identifies a row for navigation (v1) and later for UPDATE/DELETE (v2). See CLAUDE.md 5.5.</summary>
 public abstract record RowKey
 {
-    public sealed record PrimaryKey(IReadOnlyList<object?> Values) : RowKey;
+    /// <summary>Compares by value: two keys with the same column values are equal.</summary>
+    public sealed record PrimaryKey(IReadOnlyList<object?> Values) : RowKey
+    {
+        public bool Equals(PrimaryKey? other) => other is not null && Values.SequenceEqual(other.Values);
+
+        public override int GetHashCode()
+        {
+            var hash = new HashCode();
+            foreach (var value in Values)
+            {
+                hash.Add(value);
+            }
+
+            return hash.ToHashCode();
+        }
+    }
 
     public sealed record RowId(string Value) : RowKey;
 

@@ -56,4 +56,14 @@ public class CellFormatterTests
     {
         Assert.IsType(expected, OracleDataAccess.ToNumber(invariant));
     }
+
+    [Theory]
+    [InlineData("1,5", "1.5")]
+    [InlineData("-0,25", "-0.25")]
+    [InlineData("1.5", "1.5")]
+    [InlineData("42", "42")]
+    public void Culture_formatted_oracle_decimals_are_normalized(string text, string expected)
+    {
+        Assert.Equal(expected, OracleDataAccess.NormalizeDecimalSeparator(text));
+    }
 }
