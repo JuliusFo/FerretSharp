@@ -3,3 +3,4 @@
 *.xaml text
 *.png binary
 *.ico binary
+src/FerretSharp.UI/wwwroot/lib/** -diff linguist-vendored

@@ -60,6 +60,39 @@ public static class SampleSchema
         """,
         "CREATE TABLE WEG_DAMIT (ID NUMBER)",
         "DROP TABLE WEG_DAMIT",
+        """
+        CREATE TABLE GRID_TEST (
+            ID      NUMBER(10) PRIMARY KEY,
+            GRUPPE  NUMBER(2) NOT NULL,
+            NAME    VARCHAR2(50 CHAR),
+            KZ      CHAR(3),
+            DATUM   DATE,
+            TS      TIMESTAMP(6),
+            BETRAG  NUMBER(12,2),
+            RIESIG  NUMBER(38),
+            NOTIZ   CLOB,
+            DATEN   RAW(8))
+        """,
+        // 1234 rows; GRUPPE has only 7 distinct values (many ties when sorting), every 10th NAME is NULL,
+        // a few names contain LIKE wildcards, DATUM spreads over days with times.
+        """
+        INSERT INTO GRID_TEST
+        SELECT LEVEL,
+               MOD(LEVEL, 7),
+               CASE WHEN MOD(LEVEL, 10) = 0 THEN NULL
+                    WHEN LEVEL = 5 THEN '50%_Rabatt'
+                    WHEN LEVEL = 6 THEN '50 Rabatt'
+                    ELSE 'Name ' || LEVEL END,
+               CASE WHEN LEVEL <= 3 THEN 'AB' END,
+               DATE '2026-01-01' + (LEVEL - 1) / 4,
+               TIMESTAMP '2026-01-01 00:00:00.123456' + NUMTODSINTERVAL(LEVEL, 'MINUTE'),
+               LEVEL * 1.5,
+               CASE WHEN LEVEL = 1 THEN 12345678901234567890123456789012345678 END,
+               CASE WHEN LEVEL = 1 THEN TO_CLOB(RPAD('x', 3000, 'x')) WHEN LEVEL = 2 THEN EMPTY_CLOB() END,
+               CASE WHEN LEVEL = 1 THEN HEXTORAW('CAFE') END
+          FROM DUAL CONNECT BY LEVEL <= 1234
+        """,
+        "COMMIT",
     ];
 
     public static async Task EnsureCreatedAsync(string connectionString, CancellationToken cancellationToken)

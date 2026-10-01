@@ -1,3 +1,4 @@
+using FerretSharp.Core.Data;
 using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.Connections;
@@ -35,6 +36,9 @@ public sealed class ActiveConnection(ConnectionManager connections, IDatabaseCon
     public string? ServerVersion { get; private set; }
 
     public SchemaCache? Schema { get; private set; }
+
+    /// <summary>Data access of the open session; null unless connected. Shares the session with schema loading.</summary>
+    public IDataAccess? Data => IsConnected ? _connection?.Data : null;
 
     public ConnectionError? Error { get; private set; }
 

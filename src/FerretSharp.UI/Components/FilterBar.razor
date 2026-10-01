@@ -1,0 +1,131 @@
+@using FerretSharp.Core.Query
+@using FerretSharp.Core.Schema
+@using FerretSharp.UI.State
+
+<div class="filterbar">
+    @if (Tab.FilterRows.Count == 0)
+    {
+        <button class="btn" @onclick="AddRow"><span class="plus">+</span> Filter</button>
+        <span class="hint">Kein Filter – alle Zeilen</span>
+        <span class="spacer"></span>
+        <button class="btn ghost" @onclick="OnShowSql">@Icons.Code SQL</button>
+    }
+    else
+    {
+        <div class="filter-rows">
+            @foreach (var row in Tab.FilterRows)
+            {
+                var r = row;
+                var column = Details.Columns.FirstOrDefault(c => c.Name == r.Column);
+                var category = column is null ? ColumnCategory.Unsupported : ColumnCategories.Of(column);
+                var valueCount = FilterRules.ValueCount(r.Op);
+                <div class="filter-row @(r.Error is null ? "" : "invalid") @(r.Enabled ? "" : "disabled")">
+                    <input type="checkbox" class="row-toggle" checked="@r.Enabled" title="Filter aktiv"
+                           @onchange="e => r.Enabled = e.Value is true" />
+                    <select class="field col" value="@r.Column" @onchange="e => ChangeColumn(r, (string?)e.Value)">
+                        @foreach (var c in Details.Columns)
+                        {
+                            <option value="@c.Name">@c.Name</option>
+                        }
+                    </select>
+                    <select class="field op" value="@r.Op" @onchange="e => r.Op = Enum.Parse<FilterOperator>((string)e.Value!)">
+                        @foreach (var op in FilterRules.OperatorsFor(category))
+                        {
+                            <option value="@op">@OperatorLabels.Label(op)</option>
+                        }
+                    </select>
+                    <div class="values">
+                        @if (valueCount == 0)
+                        {
+                            <div class="field value disabled">—</div>
+                        }
+                        else if (valueCount == 2)
+                        {
+                            <input class="field value" placeholder="@("von: " + Placeholder(category))" @bind="r.Value" @bind:event="oninput" @onkeydown="OnKeyDown" />
+                            <input class="field value" placeholder="@("bis: " + Placeholder(category))" @bind="r.Value2" @bind:event="oninput" @onkeydown="OnKeyDown" />
+                        }
+                        else
+                        {
+                            <input class="field value" placeholder="@(valueCount < 0 ? "Werte mit ; trennen" : Placeholder(category))"
+                                   @bind="r.Value" @bind:event="oninput" @onkeydown="OnKeyDown" />
+                        }
+                    </div>
+                    <button class="icon-btn" title="Entfernen" @onclick="() => RemoveRow(r)">−</button>
+                    <button class="icon-btn" title="Filter hinzufügen" @onclick="AddRow">+</button>
+                    @if (r.Error is not null)
+                    {
+                        <span class="filter-error">@r.Error</span>
+                    }
+                </div>
+            }
+        </div>
+        <div class="filter-actions">
+            <button class="btn ghost" @onclick="OnShowSql">@Icons.Code SQL</button>
+            <button class="btn ghost" @onclick="ClearAsync">Leeren</button>
+            <button class="btn primary" @onclick="OnApply">Anwenden <kbd>Ctrl ↵</kbd></button>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public TableTab Tab { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public TableDetails Details { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnApply { get; set; }
+
+    [Parameter]
+    public EventCallback OnShowSql { get; set; }
+
+    private void AddRow()
+    {
+        // Prefer the first text column: "contains" on a name is the most common quick filter.
+        var column = Details.Columns.FirstOrDefault(c => ColumnCategories.Of(c) == ColumnCategory.Text && !Details.PrimaryKey.Contains(c.Name))
+                     ?? Details.Columns[0];
+        var row = new FilterRow { Column = column.Name };
+        row.Op = FilterRules.OperatorsFor(ColumnCategories.Of(column))[0];
+        Tab.FilterRows.Add(row);
+    }
+
+    private async Task RemoveRow(FilterRow row)
+    {
+        Tab.FilterRows.Remove(row);
+        await OnApply.InvokeAsync();
+    }
+
+    private async Task ClearAsync()
+    {
+        Tab.FilterRows.Clear();
+        await OnApply.InvokeAsync();
+    }
+
+    private void ChangeColumn(FilterRow row, string? name)
+    {
+        row.Column = name ?? row.Column;
+        row.Error = null;
+        var column = Details.Columns.FirstOrDefault(c => c.Name == row.Column);
+        var allowed = column is null ? [] : FilterRules.OperatorsFor(ColumnCategories.Of(column));
+        if (!allowed.Contains(row.Op))
+        {
+            row.Op = allowed.FirstOrDefault();
+        }
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await OnApply.InvokeAsync();
+        }
+    }
+
+    private static string Placeholder(ColumnCategory category) => category switch
+    {
+        ColumnCategory.Number => "Zahl, z. B. 4711 oder 12,5",
+        ColumnCategory.Date or ColumnCategory.Timestamp or ColumnCategory.TimestampWithTimeZone => "TT.MM.JJJJ [hh:mm]",
+        _ => "Text",
+    };
+}

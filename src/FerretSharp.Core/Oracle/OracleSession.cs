@@ -18,10 +18,10 @@ public sealed class OracleSession : IAsyncDisposable
     internal const int UserCancelledErrorNumber = 1013;
 
     /// <summary>
-    /// Characters of LONG columns fetched with the row (e.g. <c>ALL_TAB_COLUMNS.DATA_DEFAULT</c>). Without it,
-    /// ODP.NET returns no LONG data. Enough for defaults and previews; never needed in full.
+    /// Characters of LONG columns fetched with the row (<c>ALL_TAB_COLUMNS.DATA_DEFAULT</c>, <c>ALL_VIEWS.TEXT</c>).
+    /// Without it, ODP.NET returns no LONG data. 32767 is the driver's maximum; table data never selects LONG columns.
     /// </summary>
-    private const int LongFetchSize = 4000;
+    internal const int LongFetchSize = 32767;
 
     private readonly OracleConnection _connection;
     private readonly SemaphoreSlim _gate = new(1, 1);
@@ -36,6 +36,14 @@ public sealed class OracleSession : IAsyncDisposable
         try
         {
             await connection.OpenAsync(cancellationToken);
+
+            // ODP.NET derives NLS settings from the Windows locale; German Windows gives NLS_SORT=GERMAN, which sorts
+            // digits after letters and cannot use B-tree indexes. Browsing needs a predictable, machine-independent order.
+            var globalization = connection.GetSessionInfo();
+            globalization.Sort = "BINARY";
+            globalization.Comparison = "BINARY";
+            connection.SetSessionInfo(globalization);
+
             connection.ModuleName = context.Module;
             connection.ActionName = context.Action;
             connection.ClientInfo = context.ClientInfo ?? string.Empty;
@@ -114,6 +122,9 @@ public sealed class OracleSession : IAsyncDisposable
         {
             case OracleTypeHint.Varchar2:
                 result.OracleDbType = OracleDbType.Varchar2;
+                break;
+            case OracleTypeHint.Char:
+                result.OracleDbType = OracleDbType.Char;
                 break;
             case OracleTypeHint.Number:
                 result.OracleDbType = OracleDbType.Decimal;

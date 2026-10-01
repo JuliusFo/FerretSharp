@@ -1,0 +1,88 @@
+@* Read-only SQL with lightweight syntax highlighting (keywords, strings, binds, quoted identifiers). *@
+
+<pre class="sql @Class">@foreach (var (text, css) in Tokens)
+    {
+        if (css is null) { @text } else { <span class="@css">@text</span> }
+    }</pre>
+
+@code {
+    private static readonly HashSet<string> Keywords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "SELECT", "FROM", "WHERE", "AND", "OR", "ORDER", "BY", "DESC", "ASC", "OFFSET", "ROWS", "FETCH", "NEXT", "ONLY",
+        "LIKE", "ESCAPE", "IS", "NOT", "NULL", "IN", "BETWEEN", "CASE", "WHEN", "THEN", "ELSE", "END", "UPPER", "COUNT",
+        "ROWID", "DBMS_LOB", "SUBSTR", "GETLENGTH", "JOIN", "LEFT", "RIGHT", "INNER", "OUTER", "FULL", "CROSS", "ON",
+        "GROUP", "HAVING", "AS", "DISTINCT", "UNION", "ALL", "EXISTS", "WITH", "SUM", "MIN", "MAX", "AVG", "NVL",
+        "DECODE", "OVER", "PARTITION", "SYSDATE", "TRUNC", "TO_CHAR", "TO_DATE", "TO_NUMBER", "COALESCE",
+    };
+
+    private string _highlightedFor = "";
+    private List<(string Text, string? Css)> _tokens = [];
+
+    [Parameter, EditorRequired]
+    public string Sql { get; set; } = "";
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    private List<(string Text, string? Css)> Tokens
+    {
+        get
+        {
+            if (!ReferenceEquals(_highlightedFor, Sql))
+            {
+                _tokens = Highlight(Sql);
+                _highlightedFor = Sql;
+            }
+
+            return _tokens;
+        }
+    }
+
+    private static List<(string Text, string? Css)> Highlight(string sql)
+    {
+        var result = new List<(string, string?)>();
+        var i = 0;
+        while (i < sql.Length)
+        {
+            var c = sql[i];
+            if (c is '\'' or '"')
+            {
+                var end = sql.IndexOf(c, i + 1);
+                end = end < 0 ? sql.Length - 1 : end;
+                result.Add((sql[i..(end + 1)], c == '\'' ? "str" : "ident"));
+                i = end + 1;
+            }
+            else if (c == '-' && i + 1 < sql.Length && sql[i + 1] == '-')
+            {
+                var end = sql.IndexOf('\n', i);
+                end = end < 0 ? sql.Length : end;
+                result.Add((sql[i..end], "comment"));
+                i = end;
+            }
+            else if (c == ':' && i + 1 < sql.Length && char.IsLetter(sql[i + 1]))
+            {
+                var end = i + 1;
+                while (end < sql.Length && (char.IsLetterOrDigit(sql[end]) || sql[end] == '_')) end++;
+                result.Add((sql[i..end], "bind"));
+                i = end;
+            }
+            else if (char.IsLetter(c))
+            {
+                var end = i;
+                while (end < sql.Length && (char.IsLetterOrDigit(sql[end]) || sql[end] is '_' or '$' or '#')) end++;
+                var word = sql[i..end];
+                result.Add((word, Keywords.Contains(word) ? "kw" : null));
+                i = end;
+            }
+            else
+            {
+                var end = i + 1;
+                while (end < sql.Length && !char.IsLetter(sql[end]) && sql[end] is not ('\'' or '"' or ':' or '-')) end++;
+                result.Add((sql[i..end], null));
+                i = end;
+            }
+        }
+
+        return result;
+    }
+}

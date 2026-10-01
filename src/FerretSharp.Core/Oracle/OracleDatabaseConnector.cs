@@ -1,4 +1,6 @@
 using FerretSharp.Core.Connections;
+using FerretSharp.Core.Data;
+using FerretSharp.Core.Query;
 using FerretSharp.Core.Schema;
 using Oracle.ManagedDataAccess.Client;
 
@@ -28,7 +30,19 @@ public sealed class OracleDatabaseConnector : IDatabaseConnector
 
         public ISchemaReader Schema { get; } = new TranslatingSchemaReader(new OracleSchemaReader(session));
 
+        public IDataAccess Data { get; } = new TranslatingDataAccess(new OracleDataAccess(session));
+
         public ValueTask DisposeAsync() => session.DisposeAsync();
+    }
+
+    private sealed class TranslatingDataAccess(IDataAccess inner) : IDataAccess
+    {
+        public Task<RowPage> ReadPageAsync(
+            TableDetails table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts, PageSpec page, CancellationToken cancellationToken) =>
+            OracleErrors.Guard(() => inner.ReadPageAsync(table, filters, sorts, page, cancellationToken));
+
+        public Task<long> CountAsync(TableDetails table, IReadOnlyList<FilterCondition> filters, CancellationToken cancellationToken) =>
+            OracleErrors.Guard(() => inner.CountAsync(table, filters, cancellationToken));
     }
 
     /// <summary>Keeps OracleException out of the layers above.</summary>

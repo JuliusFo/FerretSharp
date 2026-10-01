@@ -129,6 +129,20 @@ public class OracleSchemaReaderTests(OracleContainerFixture oracle) : IAsyncLife
         Assert.Equal(["KUNDE_ID", "NAME", "ANZAHL"], details.Columns.Select(c => c.Name));
         Assert.Empty(details.PrimaryKey);
         Assert.False(details.IsIndexOrganized);
+        Assert.StartsWith("SELECT k.KUNDE_ID", details.Definition);
+        Assert.Contains("GROUP BY k.KUNDE_ID, k.NAME", details.Definition);
+        Assert.False(details.DefinitionTruncated);
+    }
+
+    [Fact]
+    public async Task Tables_have_no_definition_and_mviews_show_their_query()
+    {
+        var table = await Reader.GetDetailsAsync(new TableSummary(_owner, "KUNDEN", TableKind.Table), Ct);
+        Assert.Null(table.Definition);
+
+        Assert.SkipUnless(SampleSchema.HasMaterializedView, "Test user may not create materialized views.");
+        var mview = await Reader.GetDetailsAsync(new TableSummary(_owner, "MV_UMSATZ", TableKind.MaterializedView), Ct);
+        Assert.Contains("SUM(UMSATZ)", mview.Definition);
     }
 
     [Fact]

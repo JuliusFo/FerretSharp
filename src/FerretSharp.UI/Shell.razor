@@ -38,6 +38,44 @@
             <main class="content">
                 <ErrorBoundary @ref="_errorBoundary">
                     <ChildContent>
+                        @* Tabs stay mounted while connected (also behind the overview), so grids keep their state. *@
+                        @if (Active.IsConnected)
+                        {
+                            <div class="workarea @(ShowExplorer ? "" : "hidden")">
+                                @if (_state.Tabs.Count == 0)
+                                {
+                                    <EmptyState Title="Tabelle auswählen" Text="Links eine Tabelle oder View wählen. Ctrl+Enter wendet Filter an, F5 lädt neu." />
+                                }
+                                else
+                                {
+                                    <nav class="tabs">
+                                        @foreach (var tab in _state.Tabs)
+                                        {
+                                            var t = tab;
+                                            <div class="tab @(t == _state.ActiveTab ? "active" : "")" title="@t.Table.Owner.@t.Table.Name"
+                                                 @onclick="() => _state.ActivateTab(t)" @onauxclick="e => CloseOnMiddleClick(e, t)">
+                                                @Icons.For(t.Table.Kind)
+                                                <span class="tab-name">@t.Table.Name</span>
+                                                @if (t.ActiveFilterCount > 0)
+                                                {
+                                                    <span class="filter-pill">@t.ActiveFilterCount Filter</span>
+                                                }
+                                                <button class="tab-close" title="Schließen" @onclick:stopPropagation="true" @onclick="() => _state.CloseTab(t)">✕</button>
+                                            </div>
+                                        }
+                                    </nav>
+                                    <div class="pages">
+                                        @foreach (var tab in _state.Tabs)
+                                        {
+                                            <div class="page @(tab == _state.ActiveTab ? "active" : "")" @key="tab.Id">
+                                                <TabView Tab="tab" />
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+
                         @if (!ShowExplorer)
                         {
                             <ConnectionsPage />
@@ -65,14 +103,6 @@
                                     <button class="btn ghost" @onclick="_state.ShowConnections">Zur Übersicht</button>
                                 </div>
                             </EmptyState>
-                        }
-                        else if (_state.SelectedTable is { } table)
-                        {
-                            <TableStructure @key="table.Ref" Table="table" />
-                        }
-                        else
-                        {
-                            <EmptyState Title="Tabelle auswählen" Text="Links eine Tabelle oder View wählen, um die Struktur zu sehen." />
                         }
                     </ChildContent>
                     <ErrorContent Context="exception">
@@ -133,6 +163,8 @@
 
 @code {
     private const string SwitcherShortcut = "ctrl+shift+o";
+    private const string ApplyFiltersShortcut = "ctrl+enter";
+    private const string RefreshShortcut = "f5"; // also stops the WebView from reloading the page
 
     private static readonly string Version =
         "v" + (typeof(Shell).Assembly.GetName().Version?.ToString(3) ?? "0.0.0");
@@ -163,16 +195,37 @@
         {
             _selfRef = DotNetObjectReference.Create(this);
             _shortcuts = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/shortcuts.js");
-            await _shortcuts.InvokeVoidAsync("register", _selfRef, new[] { SwitcherShortcut });
+            await _shortcuts.InvokeVoidAsync("register", _selfRef, new[] { SwitcherShortcut, ApplyFiltersShortcut, RefreshShortcut });
         }
     }
 
     [JSInvokable]
     public void OnShortcut(string combo)
     {
-        if (combo == SwitcherShortcut && _state.ConnectionDialog is null && _state.PendingDelete is null)
+        if (_state.ConnectionDialog is not null || _state.PendingDelete is not null)
         {
-            _state.OpenSwitcher();
+            return;
+        }
+
+        switch (combo)
+        {
+            case SwitcherShortcut:
+                _state.OpenSwitcher();
+                break;
+            case ApplyFiltersShortcut:
+                _state.RequestTabCommand(TabCommand.ApplyFilters);
+                break;
+            case RefreshShortcut:
+                _state.RequestTabCommand(TabCommand.Refresh);
+                break;
+        }
+    }
+
+    private void CloseOnMiddleClick(MouseEventArgs e, TableTab tab)
+    {
+        if (e.Button == 1)
+        {
+            _state.CloseTab(tab);
         }
     }
 
@@ -195,7 +248,7 @@
     private async Task DisconnectAsync()
     {
         await Active.DisconnectAsync();
-        _state.SelectTable(null);
+        _state.CloseAllTabs();
         _state.ShowConnections();
     }
 
@@ -212,7 +265,7 @@
 
     private void RecoverFromError()
     {
-        _state.SelectTable(null);
+        _state.CloseAllTabs();
         _errorBoundary?.Recover();
     }
 
