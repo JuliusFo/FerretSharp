@@ -126,8 +126,10 @@ record ConnectionProfile(
     OracleAddress Address,        // HostPort(host, port, serviceName?, sid?) | TnsAlias(alias, tnsAdminPath?)
     string User,
     string? DefaultSchema,        // falls technischer User, aber anderes Schema angeschaut wird
-    bool ReadOnly);               // bei Prod default true; wirkt ab v2 (in v1 ist alles read-only)
+    bool ReadOnly,                // bei Prod default true; wirkt ab v2 (in v1 ist alles read-only)
+    string? Group = null);        // optional, z. B. Projekt/Kunde ("ERP", "Kasse") – Gruppierung in Umschalter und Übersicht
 ```
+- Suche und Gruppierung: `ConnectionSearch` (alle Suchbegriffe müssen in Name, Gruppe, Adresse, Benutzer oder Art vorkommen; Gruppen alphabetisch, „Ohne Gruppe“ zuletzt; innerhalb einer Gruppe Dev → Test → Prod → Sonstige).
 - Passwort separat über `ISecretStore.Get(profileId)` / `Set(...)`.
 - `TnsAlias` braucht den Ort der `tnsnames.ora`: Der Managed Driver liest **nicht** die Registry. Reihenfolge: `tnsAdminPath` im Profil → Umgebungsvariable `TNS_ADMIN` → Fehlermeldung mit Hinweis.
 - Connection-Datei: `%APPDATA%\FerretSharp\connections.json`, optional zusätzlich pro Repo (`.ferretsharp/connections.json`, ohne Secrets).
@@ -247,7 +249,7 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│ [Prod ▾] [Test ▾]   Workspaces: [Bug 3711] [Feature ABC] [+]     │  ← farbiger Rahmen je ConnectionKind
+│ [● ERP Test ▾]   Workspaces: [Bug 3711] [Feature ABC] [+]        │  ← farbiger Rahmen je ConnectionKind
 ├───────────┬─────────────────────────────────────────────────────┤
 │ A         │ Tab: KUNDEN  │ Tab: AUFTRAG                          │
 │ B  KUNDEN │ ┌─ Filterzeilen (TablePlus-Stil) ──────[SQL][Apply]─┐│
@@ -260,6 +262,9 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 │           │ 2 Flushed · Tx seit 4 min · [Flush][Commit][Rollback]│
 └───────────┴─────────────────────────────────────────────────────┘
 ```
+- **Verbindungen** (es sind im Alltag 12+): oben links nur die aktive Verbindung als Umschalter. Klick oder `Ctrl+Shift+O` öffnet ein Popover mit Suche, „Zuletzt verwendet“ (ab WP-03), einklappbaren Gruppen und Pfeiltasten-/Enter-Bedienung; „⋯“ je Zeile → Bearbeiten, Duplizieren, Löschen (mit Bestätigung).
+- **Startseite „Verbindungen“**: Übersicht aller Verbindungen nach Gruppen (Name, Umgebung, Adresse, Benutzer → Schema, „⋯“-Menü). Erscheint, solange keine Verbindung aktiv ist, und über „Alle Verbindungen verwalten …“ im Popover. Doppelklick verbindet (ab WP-03; bis dahin: bearbeiten).
+- **Chips in der Topbar** sind die Workspaces der aktiven Verbindung (WP-05), nicht die Verbindungen.
 - Tabellenliste alphabetisch (Tabellen und Views unterscheidbar), Buchstabenleiste links: Klick springt zur ersten Tabelle mit diesem Buchstaben; Buchstaben ohne Treffer ausgegraut. (Fuzzy-Suche = Backlog.)
 - Prod: roter Rahmen; ab v2 Schreiben nur nach Freischalten über Toggle + Bestätigungsdialog.
 - Grid-Spalten werden aus dem Schema erzeugt und als Column-Definitions an AG Grid übergeben (eigener Header-Renderer: Name, Oracle-Typ, NOT NULL, PK/FK-Badges). AG Grid fragt Blöcke à 500 Zeilen per `invokeMethodAsync` bei .NET an (Infinite Row Model); Zeilen gehen als Dictionaries mit Row-Index über die Grenze.
@@ -271,6 +276,7 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 
 | Taste | Aktion | Version |
 |---|---|---|
+| Ctrl+Shift+O | Verbindungs-Umschalter öffnen | v1 |
 | Ctrl+Enter | Filter anwenden | v1 |
 | F5 | Refresh (v2 in Read-only-Tx: neue Transaktion) | v1 |
 | Ctrl+P | Tabelle suchen (Backlog) | – |
@@ -278,7 +284,9 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 | Ctrl+Shift+Enter | Commit (auf Prod immer mit Bestätigung) | v2 |
 | – | Rollback nur über Button, mit Bestätigung | v2 |
 
-`Esc` bleibt dem Grid vorbehalten (Zelleingabe abbrechen) bzw. schließt Menüs/Dialoge. Shortcuts werden in der WebView behandelt (JS-Keydown → Blazor); `F12` öffnet im Debug-Build die DevTools.
+`Esc` bleibt dem Grid vorbehalten (Zelleingabe abbrechen) bzw. schließt Menüs/Dialoge. Globale Shortcuts registriert die `Shell` über `wwwroot/js/shortcuts.js` (Capture-Listener → `OnShortcut` in .NET); `F12` öffnet im Debug-Build die DevTools.
+
+UI-Muster: Dialoge und Bestätigungen fordern Komponenten über den kaskadierten `ShellState` an. Komponenten ohne Parameter rendern bei Parent-Updates **nicht** neu → sie abonnieren `ShellState.Changed` bzw. `ConnectionManager.Changed` selbst.
 
 ## 8. Arbeitspakete
 
