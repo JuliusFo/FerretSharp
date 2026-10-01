@@ -163,6 +163,8 @@ record ForeignKeyInfo(string Name, TableRef From, IReadOnlyList<string> FromColu
 enum FkSource { Declared, Manual, Convention /* v3: ClrModel */ }
 ```
 - `ForeignKeyInfo` trägt Owner (`TableRef`), damit FKs über Schemagrenzen nicht verloren gehen.
+- **Synonyme** (WP-04b): `ISchemaReader.GetSynonymTargetsAsync` liefert Tabellen/Views/MViews anderer Schemas, die über private Synonyme des Schemas oder öffentliche Synonyme erreichbar sind – nur Ziele mit Zugriff (`ALL_OBJECTS`), keine Oracle-Schemas (`ALL_USERS.ORACLE_MAINTAINED`), keine DB-Links. `TableSummary` beschreibt immer das **echte Objekt**, `Synonym` und `DisplayName` den Namen, unter dem der Nutzer es kennt. `SchemaCache.Merge`: eigene Objekte vor Synonymen, privat vor öffentlich, ein Eintrag pro echtem Objekt. FKs werden für alle beteiligten Owner geladen.
+- View-/MView-Definition: `TableDetails.Definition` aus `ALL_VIEWS.TEXT` / `ALL_MVIEWS.QUERY` (LONG, max. 32.767 Zeichen, `DefinitionTruncated`).
 - Quellen: `ALL_TABLES`, `ALL_VIEWS`, `ALL_MVIEWS`, `ALL_TAB_COLUMNS` (inkl. `IDENTITY_COLUMN`), `ALL_CONSTRAINTS` (P/U/R), `ALL_CONS_COLUMNS`.
 - Tabellenliste ohne Recyclebin (`DROPPED`), Nested/Secondary Tables, IOT-Overflow-Segmente und MView-Containertabellen (die MView erscheint einmal als `MaterializedView`).
 - `DATA_DEFAULT` ist `LONG` → `OracleSession` setzt `InitialLONGFetchSize` (4000).
@@ -344,6 +346,11 @@ Jedes Paket: eigener Branch `wp/NN-kurzname`, am Ende `dotnet build -warnaserror
 - Paging („nächste 500 Zeilen“ / Endlos-Nachladen) und Zeilenzähler (`COUNT(*)` lazy, abbrechbar).
 - Zusätzlich umgesetzt: Tabellen als Tabs (Klick im Explorer öffnet/aktiviert, Mittelklick schließt), Umschalter „Daten | Struktur“ je Tab, Tabs bleiben gemountet (Grid-Zustand bleibt beim Wechsel erhalten), F5 = Neu laden statt WebView-Reload, Filter-Zeilen einzeln aktivierbar.
 - **Fertig wenn:** Eine Tabelle mit > 100k Zeilen bleibt flüssig; die Filter erzeugen korrektes SQL (Tests); Seiten überlappen nicht und haben keine Lücken (Integrationstest).
+
+#### WP-04b Views & Synonyme (eingeschoben)
+- View-/MView-Definition in der Strukturansicht (mit Syntax-Hervorhebung, `SqlCode`-Komponente).
+- Synonyme im Explorer (Tag „SYN“, Tooltip mit Ziel), Daten/Struktur/FKs über das echte Objekt; Integrationstest legt als SYSTEM ein zweites Schema mit privaten und öffentlichen Synonymen an.
+- **Fertig wenn:** Objekte, die der Nutzer nur über Synonyme erreicht, erscheinen im Explorer und lassen sich wie eigene Tabellen/Views öffnen.
 
 #### WP-05 Workspaces
 - `Workspace`, `WorkspaceStore` (JSON), `TabState` (Tabelle, Filter, Sort, grobe Scrollposition = erste sichtbare Zeile, nur wenn bereits geladen).

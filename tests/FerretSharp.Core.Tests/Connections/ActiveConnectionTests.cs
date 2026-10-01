@@ -26,6 +26,7 @@ public sealed class ActiveConnectionTests : IDisposable
         _connection.ServerVersion.Returns("23.26.3.0.0");
         _connection.Schema.Returns(_reader);
         _reader.GetTablesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([new TableSummary("APP_USER", "KUNDEN", TableKind.Table)]);
+        _reader.GetSynonymTargetsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
         _reader.GetForeignKeysAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
         _connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(_connection);

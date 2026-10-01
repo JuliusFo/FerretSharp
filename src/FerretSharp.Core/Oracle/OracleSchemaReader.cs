@@ -26,6 +26,24 @@ public sealed class OracleSchemaReader(OracleSession session) : ISchemaReader
             SELECT m.mview_name, 'MVIEW' FROM all_mviews m WHERE m.owner = :owner)
         """;
 
+    // Private synonyms of the schema and public synonyms; targets must be tables/views/mviews the session can see
+    // (ALL_OBJECTS), outside the schema itself and outside Oracle-maintained schemas (filters thousands of SYS
+    // synonyms). An mview shows up in ALL_OBJECTS as TABLE and MATERIALIZED VIEW, hence MAX over a rank.
+    private const string SynonymsSql = """
+        SELECT s.owner, s.synonym_name, s.table_owner, s.table_name,
+               MAX(CASE o.object_type WHEN 'MATERIALIZED VIEW' THEN 3 WHEN 'VIEW' THEN 2 ELSE 1 END) AS kind
+          FROM all_synonyms s
+          JOIN all_objects o
+            ON o.owner = s.table_owner AND o.object_name = s.table_name
+           AND o.object_type IN ('TABLE', 'VIEW', 'MATERIALIZED VIEW')
+          JOIN all_users u
+            ON u.username = s.table_owner AND u.oracle_maintained = 'N'
+         WHERE s.db_link IS NULL
+           AND (s.owner = :owner OR s.owner = 'PUBLIC')
+           AND s.table_owner <> :owner
+         GROUP BY s.owner, s.synonym_name, s.table_owner, s.table_name
+        """;
+
     private const string ForeignKeysSql = """
         SELECT c.constraint_name, c.table_name, cc.column_name, r.owner, r.table_name, rc.column_name
           FROM all_constraints c
@@ -81,6 +99,24 @@ public sealed class OracleSchemaReader(OracleSession session) : ISchemaReader
 
             tables.Sort((a, b) => string.CompareOrdinal(a.Name, b.Name));
             return (IReadOnlyList<TableSummary>)tables;
+        }, cancellationToken);
+
+    public Task<IReadOnlyList<TableSummary>> GetSynonymTargetsAsync(string owner, CancellationToken cancellationToken) =>
+        session.ExecuteReaderAsync(SynonymsSql, [new("owner", owner)], async (reader, ct) =>
+        {
+            var result = new List<TableSummary>();
+            while (await reader.ReadAsync(ct))
+            {
+                var kind = GetInt(reader, 4) switch
+                {
+                    3 => TableKind.MaterializedView,
+                    2 => TableKind.View,
+                    _ => TableKind.Table,
+                };
+                result.Add(new TableSummary(reader.GetString(2), reader.GetString(3), kind, new SynonymInfo(reader.GetString(0), reader.GetString(1))));
+            }
+
+            return (IReadOnlyList<TableSummary>)result;
         }, cancellationToken);
 
     public Task<IReadOnlyList<ForeignKeyInfo>> GetForeignKeysAsync(string owner, CancellationToken cancellationToken) =>

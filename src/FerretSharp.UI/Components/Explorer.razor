@@ -41,10 +41,14 @@
                     @foreach (var table in tables)
                     {
                         var t = table;
-                        <button class="table-item @(Shell.ActiveTab?.Table.Ref == t.Ref ? "active" : "") @(IsOpen(t) ? "open" : "")" title="@KindLabel(t.Kind)"
+                        <button class="table-item @(Shell.ActiveTab?.Table.Ref == t.Ref ? "active" : "") @(IsOpen(t) ? "open" : "")" title="@Tooltip(t)"
                                 @onclick="() => Shell.OpenTable(t)">
                             @Icons.For(t.Kind)
-                            <span class="name">@t.Name</span>
+                            <span class="name">@t.DisplayName</span>
+                            @if (t.Synonym is not null)
+                            {
+                                <span class="kind-tag syn">SYN</span>
+                            }
                             @if (t.Kind != TableKind.Table)
                             {
                                 <span class="kind-tag">@(t.Kind == TableKind.View ? "VIEW" : "MVIEW")</span>
@@ -88,12 +92,15 @@
 
         foreach (var table in Schema.Tables)
         {
-            if (_query.Length > 0 && !table.Name.Contains(_query.Trim(), StringComparison.OrdinalIgnoreCase))
+            var query = _query.Trim();
+            if (query.Length > 0
+                && !table.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase)
+                && !table.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
-            var key = LetterIndexBar.KeyOf(table.Name);
+            var key = LetterIndexBar.KeyOf(table.DisplayName);
             if (!result.TryGetValue(key, out var list))
             {
                 result[key] = list = [];
@@ -139,12 +146,18 @@
         }
     }
 
-    private static string KindLabel(TableKind kind) => kind switch
+    private static string Tooltip(TableSummary table)
     {
-        TableKind.View => "View",
-        TableKind.MaterializedView => "Materialized View",
-        _ => "Tabelle",
-    };
+        var kind = table.Kind switch
+        {
+            TableKind.View => "View",
+            TableKind.MaterializedView => "Materialized View",
+            _ => "Tabelle",
+        };
+        return table.Synonym is { } synonym
+            ? $"{(synonym.IsPublic ? "Öffentliches Synonym" : "Synonym")} → {table.Owner}.{table.Name} ({kind})"
+            : kind;
+    }
 
     private void OnChanged() => InvokeAsync(StateHasChanged);
 

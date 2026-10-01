@@ -13,10 +13,24 @@ public sealed record TableRef(string Owner, string Name)
     public override string ToString() => $"{Owner}.{Name}";
 }
 
-/// <summary>Loaded for every object of the schema on connect.</summary>
-public sealed record TableSummary(string Owner, string Name, TableKind Kind)
+/// <summary>A private (owner = the browsed schema) or public synonym through which an object is reached.</summary>
+public sealed record SynonymInfo(string Owner, string Name)
+{
+    public const string PublicOwner = "PUBLIC";
+
+    public bool IsPublic => Owner == PublicOwner;
+}
+
+/// <summary>
+/// Loaded for every object of the schema on connect. <see cref="Owner"/>/<see cref="Name"/> always denote the real
+/// object; objects of other schemas reached through a synonym carry it in <see cref="Synonym"/>.
+/// </summary>
+public sealed record TableSummary(string Owner, string Name, TableKind Kind, SynonymInfo? Synonym = null)
 {
     public TableRef Ref => new(Owner, Name);
+
+    /// <summary>The name users know the object by: the synonym if there is one.</summary>
+    public string DisplayName => Synonym?.Name ?? Name;
 }
 
 /// <param name="DataType">Oracle type name as in <c>ALL_TAB_COLUMNS.DATA_TYPE</c>, e.g. <c>VARCHAR2</c> or <c>TIMESTAMP(6)</c>.</param>
@@ -81,6 +95,12 @@ public interface ISchemaReader
 {
     /// <summary>Tables, views and materialized views of <paramref name="owner"/>, sorted by name.</summary>
     Task<IReadOnlyList<TableSummary>> GetTablesAsync(string owner, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Tables, views and materialized views of other (non-Oracle) schemas that <paramref name="owner"/> reaches through
+    /// its private synonyms or public synonyms, limited to objects the session may access. No DB-link synonyms.
+    /// </summary>
+    Task<IReadOnlyList<TableSummary>> GetSynonymTargetsAsync(string owner, CancellationToken cancellationToken);
 
     /// <summary>All declared foreign keys whose referencing table belongs to <paramref name="owner"/>.</summary>
     Task<IReadOnlyList<ForeignKeyInfo>> GetForeignKeysAsync(string owner, CancellationToken cancellationToken);

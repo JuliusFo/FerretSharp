@@ -3,8 +3,9 @@ using System.Collections.Concurrent;
 namespace FerretSharp.Core.Schema;
 
 /// <summary>
-/// Schema metadata for one connection: object list and foreign keys are loaded up front, column details lazily
-/// per table (ALL_TAB_COLUMNS is slow on large databases). <see cref="RefreshAsync"/> drops everything.
+/// Schema metadata for one connection: object list (own objects plus synonym targets) and foreign keys are loaded
+/// up front, column details lazily per table (ALL_TAB_COLUMNS is slow on large databases). <see cref="RefreshAsync"/>
+/// drops everything.
 /// </summary>
 public sealed class SchemaCache(ISchemaReader reader, string owner)
 {
@@ -15,6 +16,7 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
 
     public string Owner { get; } = owner;
 
+    /// <summary>Own objects and synonym targets, one entry per real object, sorted by display name.</summary>
     public IReadOnlyList<TableSummary> Tables { get; private set; } = [];
 
     public IReadOnlyList<ForeignKeyInfo> ForeignKeys { get; private set; } = [];
@@ -23,8 +25,16 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
 
     public async Task LoadAsync(CancellationToken cancellationToken)
     {
-        var tables = await reader.GetTablesAsync(Owner, cancellationToken);
-        var foreignKeys = await reader.GetForeignKeysAsync(Owner, cancellationToken);
+        var own = await reader.GetTablesAsync(Owner, cancellationToken);
+        var synonymTargets = await reader.GetSynonymTargetsAsync(Owner, cancellationToken);
+        var tables = Merge(own, synonymTargets);
+
+        // Foreign keys of every schema that contributes objects, so relationships work across synonyms too.
+        var foreignKeys = new List<ForeignKeyInfo>();
+        foreach (var schema in tables.Select(t => t.Owner).Prepend(Owner).Distinct(StringComparer.Ordinal))
+        {
+            foreignKeys.AddRange(await reader.GetForeignKeysAsync(schema, cancellationToken));
+        }
 
         Tables = tables;
         ForeignKeys = foreignKeys;
@@ -60,4 +70,22 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
 
     /// <summary>Relationships where other tables reference <paramref name="table"/>.</summary>
     public IEnumerable<ForeignKeyInfo> IncomingOf(TableRef table) => _incoming[table];
+
+    /// <summary>
+    /// Own objects win over synonyms to them; several synonyms for the same object collapse into one entry,
+    /// preferring a private synonym over a public one.
+    /// </summary>
+    internal static IReadOnlyList<TableSummary> Merge(IReadOnlyList<TableSummary> own, IReadOnlyList<TableSummary> synonymTargets)
+    {
+        var ownRefs = own.Select(t => t.Ref).ToHashSet();
+        var viaSynonym = synonymTargets
+            .Where(t => !ownRefs.Contains(t.Ref))
+            .GroupBy(t => t.Ref)
+            .Select(g => g.OrderBy(t => t.Synonym?.IsPublic ?? false).ThenBy(t => t.DisplayName, StringComparer.Ordinal).First());
+
+        return own.Concat(viaSynonym)
+            .OrderBy(t => t.DisplayName, StringComparer.Ordinal)
+            .ThenBy(t => t.Owner, StringComparer.Ordinal)
+            .ToList();
+    }
 }

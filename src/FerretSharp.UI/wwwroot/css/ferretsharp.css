@@ -253,6 +253,7 @@ kbd { font: 600 10px var(--mono); padding: 1px 5px; border-radius: 4px; border: 
 .table-item.active .icon { color: var(--accent); }
 .table-item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); font-size: 12.5px; }
 .kind-tag { font-size: 9px; font-weight: 700; padding: 0 4px; border-radius: 4px; border: 1px solid var(--border-strong); color: var(--muted); }
+.kind-tag.syn, .chip.syn { border-color: rgba(142, 124, 240, .5); color: var(--dev); }
 
 /* ---------- table structure ---------- */
 .structure { position: absolute; inset: 0; overflow: auto; padding: 22px 28px 40px; user-select: text; }
