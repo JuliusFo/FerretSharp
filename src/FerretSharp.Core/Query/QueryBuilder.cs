@@ -314,6 +314,12 @@ public static class QueryBuilder
                 return Add(new QueryParameter(NextName(), number, OracleTypeHint.Number));
             }
 
+            if (category == ColumnCategory.Raw)
+            {
+                FilterRules.TryParseHex(text, out var bytes);
+                return Add(new QueryParameter(NextName(), bytes, OracleTypeHint.Raw));
+            }
+
             var hint = column.DataType is "CHAR" or "NCHAR" ? OracleTypeHint.Char : OracleTypeHint.Varchar2;
             return Add(new QueryParameter(NextName(), text, hint));
         }

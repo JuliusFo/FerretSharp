@@ -11,6 +11,9 @@ public enum OracleTypeHint
     Number,
     Date,
     TimeStamp,
+
+    /// <summary>Binary (RAW columns); the value is a byte array.</summary>
+    Raw,
 }
 
 /// <summary>Driver-neutral bind variable; mapped to <c>OracleParameter</c> by <c>OracleSession</c>.</summary>

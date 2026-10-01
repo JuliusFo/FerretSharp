@@ -54,6 +54,9 @@ public static class FilterRules
     private static readonly FilterOperator[] LobOperators =
         [FilterOperator.Contains, FilterOperator.StartsWith, FilterOperator.EndsWith, FilterOperator.IsNull, FilterOperator.IsNotNull];
 
+    private static readonly FilterOperator[] RawOperators =
+        [FilterOperator.Equals, FilterOperator.NotEquals, FilterOperator.In, FilterOperator.IsNull, FilterOperator.IsNotNull];
+
     private static readonly FilterOperator[] NullOnly = [FilterOperator.IsNull, FilterOperator.IsNotNull];
 
     private static readonly string[] DateFormats =
@@ -69,6 +72,7 @@ public static class FilterRules
         ColumnCategory.Text => TextOperators,
         ColumnCategory.Number or ColumnCategory.Date or ColumnCategory.Timestamp or ColumnCategory.TimestampWithTimeZone => Comparable,
         ColumnCategory.Clob => LobOperators,
+        ColumnCategory.Raw => RawOperators,
         _ => NullOnly,
     };
 
@@ -115,6 +119,7 @@ public static class FilterRules
                 ColumnCategory.Number when !TryParseNumber(value, out _) => $"„{value}“ ist keine Zahl.",
                 ColumnCategory.Date or ColumnCategory.Timestamp or ColumnCategory.TimestampWithTimeZone when !TryParseDate(value, out _, out _) =>
                     $"„{value}“ ist kein Datum (TT.MM.JJJJ [hh:mm[:ss]]).",
+                ColumnCategory.Raw when !TryParseHex(value, out _) => $"„{value}“ ist kein Hex-Wert (z. B. CAFE01).",
                 _ => null,
             };
             if (error is not null)
@@ -131,6 +136,27 @@ public static class FilterRules
         text.Contains(',', StringComparison.Ordinal)
             ? decimal.TryParse(text.Trim(), NumberStyles.Number, German, out value)
             : decimal.TryParse(text.Trim(), NumberStyles.Number & ~NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out value);
+
+    /// <summary>RAW values as hex digits (as the grid shows them), optionally with a 0x prefix.</summary>
+    public static bool TryParseHex(string text, out byte[] value)
+    {
+        var hex = text.Trim();
+        if (hex.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        {
+            hex = hex[2..];
+        }
+
+        try
+        {
+            value = Convert.FromHexString(hex);
+            return value.Length > 0;
+        }
+        catch (FormatException)
+        {
+            value = [];
+            return false;
+        }
+    }
 
     /// <param name="dateOnly">True if no time was given (equality then means "the whole day").</param>
     public static bool TryParseDate(string text, out DateTime value, out bool dateOnly)
