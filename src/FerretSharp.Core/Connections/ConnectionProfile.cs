@@ -18,6 +18,7 @@ public enum ConnectionKind
 public abstract record OracleAddress
 {
     /// <summary>Short human-readable form, e.g. <c>db01:1521/ORCLPDB</c> or <c>ERP_TEST</c>.</summary>
+    [JsonIgnore]
     public abstract string Display { get; }
 }
 
@@ -26,6 +27,7 @@ public sealed record HostPortAddress(string Host, int Port, string? ServiceName,
 {
     public const int DefaultPort = 1521;
 
+    [JsonIgnore] // not inherited from the abstract base property
     public override string Display => ServiceName is { Length: > 0 }
         ? $"{Host}:{Port}/{ServiceName}"
         : $"{Host}:{Port}:{Sid}";
@@ -35,6 +37,7 @@ public sealed record HostPortAddress(string Host, int Port, string? ServiceName,
 /// <param name="TnsAdminPath">Directory containing <c>tnsnames.ora</c>; falls back to the <c>TNS_ADMIN</c> environment variable.</param>
 public sealed record TnsAliasAddress(string Alias, string? TnsAdminPath) : OracleAddress
 {
+    [JsonIgnore]
     public override string Display => Alias;
 }
 

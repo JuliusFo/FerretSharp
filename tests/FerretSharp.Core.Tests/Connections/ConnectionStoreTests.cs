@@ -44,6 +44,8 @@ public sealed class ConnectionStoreTests : IDisposable
         Assert.Contains("\"type\": \"tnsAlias\"", json);
         Assert.Contains("\"kind\": \"prod\"", json);
         Assert.DoesNotContain("password", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("display", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("effectiveSchema", json, StringComparison.OrdinalIgnoreCase);
         Assert.Single(Directory.GetFiles(_directory));
     }
 

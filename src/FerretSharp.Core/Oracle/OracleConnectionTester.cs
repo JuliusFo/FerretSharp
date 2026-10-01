@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 using FerretSharp.Core.Connections;
 using Oracle.ManagedDataAccess.Client;
 
@@ -24,18 +25,20 @@ public sealed class OracleConnectionTester : IConnectionTester
         }
         catch (OracleException ex)
         {
-            return ConnectionTestResult.Failed(stopwatch.Elapsed, FirstLine(ex.Message), $"ORA-{ex.Number:00000}");
+            return ConnectionTestResult.Failed(stopwatch.Elapsed, CleanMessage(ex.Message), $"ORA-{ex.Number:00000}");
         }
         catch (Exception ex) when (ex is ConnectionConfigurationException or InvalidOperationException or ArgumentException)
         {
-            return ConnectionTestResult.Failed(stopwatch.Elapsed, FirstLine(ex.Message));
+            return ConnectionTestResult.Failed(stopwatch.Elapsed, CleanMessage(ex.Message));
         }
     }
 
-    private static string FirstLine(string message)
+    /// <summary>First line only, without the leading "ORA-01017: " (the code is reported separately).</summary>
+    internal static string CleanMessage(string message)
     {
         var newline = message.IndexOfAny(['\r', '\n']);
-        return newline < 0 ? message : message[..newline];
+        var firstLine = newline < 0 ? message : message[..newline];
+        return Regex.Replace(firstLine, @"^ORA-\d{5}:\s*", "");
     }
 }
 
