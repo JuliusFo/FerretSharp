@@ -30,16 +30,9 @@
         </header>
 
         <div class="body">
-            @if (ShowExplorer)
+            @if (ShowExplorer && Active.IsConnected)
             {
-                @if (Active.IsConnected)
-                {
-                    <Explorer />
-                }
-                else
-                {
-                    <aside class="sidebar"></aside>
-                }
+                <Explorer />
             }
 
             <main class="content">
