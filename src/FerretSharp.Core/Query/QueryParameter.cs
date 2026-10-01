@@ -5,6 +5,9 @@ public enum OracleTypeHint
 {
     Auto,
     Varchar2,
+
+    /// <summary>Blank-padded comparison semantics for CHAR columns ('AB' matches 'AB ').</summary>
+    Char,
     Number,
     Date,
     TimeStamp,

@@ -115,6 +115,9 @@ public sealed class OracleSession : IAsyncDisposable
             case OracleTypeHint.Varchar2:
                 result.OracleDbType = OracleDbType.Varchar2;
                 break;
+            case OracleTypeHint.Char:
+                result.OracleDbType = OracleDbType.Char;
+                break;
             case OracleTypeHint.Number:
                 result.OracleDbType = OracleDbType.Decimal;
                 break;

@@ -1,3 +1,4 @@
+using FerretSharp.Core.Data;
 using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.Connections;
@@ -8,6 +9,8 @@ public interface IDatabaseConnection : IAsyncDisposable
     string ServerVersion { get; }
 
     ISchemaReader Schema { get; }
+
+    IDataAccess Data { get; }
 }
 
 public interface IDatabaseConnector
