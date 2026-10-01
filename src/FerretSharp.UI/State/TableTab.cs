@@ -1,9 +1,8 @@
 using FerretSharp.Core.Query;
 using FerretSharp.Core.Schema;
+using FerretSharp.Core.Workspaces;
 
 namespace FerretSharp.UI.State;
-
-public enum TabMode { Data, Structure }
 
 /// <summary>One editable row of the filter bar.</summary>
 public sealed class FilterRow
@@ -44,14 +43,26 @@ public sealed class FilterRow
     };
 }
 
-/// <summary>An open table in the content area (later part of a workspace, WP-05).</summary>
-public sealed class TableTab(TableSummary table)
+/// <summary>An open table in the content area of a workspace.</summary>
+public sealed class TableTab(Guid workspaceId, TableSummary table)
 {
     public string Id { get; } = "grid-" + Guid.NewGuid().ToString("N");
+
+    /// <summary>The workspace whose session runs this tab's queries.</summary>
+    public Guid WorkspaceId { get; } = workspaceId;
 
     public TableSummary Table { get; } = table;
 
     public TabMode Mode { get; set; } = TabMode.Data;
+
+    /// <summary>
+    /// Set once the tab has been shown. Restored tabs are mounted (and query) only when first shown, so reopening
+    /// a workspace with many tabs does not fire all their queries at once.
+    /// </summary>
+    public bool Visited { get; set; }
+
+    /// <summary>Rough scroll position: first visible row, only if it was loaded.</summary>
+    public int? FirstVisibleRow { get; set; }
 
     /// <summary>Rows as edited in the filter bar (may be invalid or not yet applied).</summary>
     public List<FilterRow> FilterRows { get; } = [];
@@ -72,4 +83,20 @@ public sealed class TableTab(TableSummary table)
     public string? Error { get; set; }
 
     public int ActiveFilterCount => AppliedFilters.Count(f => f.Enabled);
+
+    public TabState ToState() => new(
+        Table.Ref, Mode, FilterRows.Select(r => r.ToCondition()).ToList(), AppliedFilters, Sorts, FirstVisibleRow);
+
+    public static TableTab Restore(Guid workspaceId, TableSummary table, TabState state)
+    {
+        var tab = new TableTab(workspaceId, table)
+        {
+            Mode = state.Mode,
+            AppliedFilters = state.AppliedFilters,
+            Sorts = state.Sorts,
+            FirstVisibleRow = state.FirstVisibleRow,
+        };
+        tab.FilterRows.AddRange(state.FilterRows.Select(FilterRow.From));
+        return tab;
+    }
 }

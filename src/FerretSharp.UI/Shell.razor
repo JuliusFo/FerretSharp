@@ -4,6 +4,7 @@
 @implements IAsyncDisposable
 @inject ConnectionManager Connections
 @inject ActiveConnection Active
+@inject WorkspaceManager Workspaces
 @inject RecentConnections Recent
 @inject IJSRuntime JS
 
@@ -17,6 +18,10 @@
                         @onclick="ToggleHome">@Icons.Home</button>
             }
             <ConnectionSwitcher />
+            @if (Active.IsConnected)
+            {
+                <WorkspaceBar />
+            }
             <div class="topbar-right">
                 @if (IsProdActive)
                 {
@@ -38,15 +43,12 @@
             <main class="content">
                 <ErrorBoundary @ref="_errorBoundary">
                     <ChildContent>
-                        @* Tabs stay mounted while connected (also behind the overview), so grids keep their state. *@
+                        @* Tabs of all open workspaces stay mounted while connected (also behind the overview), so grids keep
+                           their state. Restored tabs mount when first shown. *@
                         @if (Active.IsConnected)
                         {
                             <div class="workarea @(ShowExplorer ? "" : "hidden")">
-                                @if (_state.Tabs.Count == 0)
-                                {
-                                    <EmptyState Title="Tabelle auswählen" Text="Links eine Tabelle oder View wählen. Ctrl+Enter wendet Filter an, F5 lädt neu." />
-                                }
-                                else
+                                @if (_state.Tabs.Count > 0)
                                 {
                                     <nav class="tabs">
                                         @foreach (var tab in _state.Tabs)
@@ -64,15 +66,22 @@
                                             </div>
                                         }
                                     </nav>
-                                    <div class="pages">
-                                        @foreach (var tab in _state.Tabs)
+                                }
+                                <div class="pages">
+                                    @foreach (var workspace in _state.Workspaces)
+                                    {
+                                        foreach (var tab in workspace.Tabs.Where(t => t.Visited))
                                         {
-                                            <div class="page @(tab == _state.ActiveTab ? "active" : "")" @key="tab.Id">
+                                            <div class="page @(workspace == _state.ActiveWorkspace && tab == workspace.ActiveTab ? "active" : "")" @key="tab.Id">
                                                 <TabView Tab="tab" />
                                             </div>
                                         }
-                                    </div>
-                                }
+                                    }
+                                    @if (_state.Tabs.Count == 0)
+                                    {
+                                        <EmptyState Title="Tabelle auswählen" Text="Links eine Tabelle oder View wählen. Ctrl+Enter wendet Filter an, F5 lädt neu." />
+                                    }
+                                </div>
                             </div>
                         }
 
@@ -126,6 +135,10 @@
                     case ConnectionStatus.Connected:
                         <span class="item"><span class="dot ok"></span> Verbunden</span>
                         <span class="item">@Active.Profile?.Name</span>
+                        @if (Workspaces.Active is { } workspace)
+                        {
+                            <span class="item" title="Jeder Workspace fragt über eine eigene Oracle-Session ab (ACTION = Workspace-Name).">Workspace „@workspace.Name“ · eigene Session</span>
+                        }
                         <span class="item">Oracle @Active.ServerVersion</span>
                         <span class="item">Schema @Active.Schema?.Owner · @(Active.Schema?.Tables.Count ?? 0) Objekte</span>
                         <button class="status-btn" @onclick="DisconnectAsync">Trennen</button>
@@ -140,6 +153,16 @@
                         <span class="item"><span class="dot"></span> Nicht verbunden</span>
                         break;
                 }
+            }
+            @if (Workspaces.SaveError is { } saveError)
+            {
+                <span class="item error" title="@saveError"><span class="dot err"></span> Workspace nicht gespeichert</span>
+            }
+            @if (Workspaces.LoadErrors.Count > 0)
+            {
+                <span class="item error" title="@string.Join(Environment.NewLine, Workspaces.LoadErrors)">
+                    <span class="dot err"></span> @(Workspaces.LoadErrors.Count == 1 ? "1 Workspace-Datei" : $"{Workspaces.LoadErrors.Count} Workspace-Dateien") nicht lesbar
+                </span>
             }
             <span class="spacer"></span>
             <span class="item">@Version</span>
@@ -182,9 +205,11 @@
     protected override async Task OnInitializedAsync()
     {
         _state.Changed += OnChanged;
+        _state.Dirty += SaveTabs;
         _state.ConnectRequested += OnConnectRequested;
         Connections.Changed += OnChanged;
-        Active.Changed += OnChanged;
+        Active.Changed += OnConnectionOrWorkspacesChanged;
+        Workspaces.Changed += OnConnectionOrWorkspacesChanged;
         await Connections.LoadAsync(CancellationToken.None);
         await Recent.LoadAsync(CancellationToken.None);
     }
@@ -230,8 +255,35 @@
     }
 
     /// <summary>Runs off the UI thread; ActiveConnection reports progress through its Changed event.</summary>
-    private void OnConnectRequested(ConnectionProfile profile) =>
+    private void OnConnectRequested(ConnectionProfile profile)
+    {
+        SaveTabs();
+        _state.ClearWorkspaces();
         _ = Task.Run(() => Active.ConnectAsync(profile, CancellationToken.None));
+    }
+
+    /// <summary>Hands the tabs of every open workspace to the manager, which saves what changed (debounced).</summary>
+    private void SaveTabs()
+    {
+        foreach (var workspace in _state.Workspaces)
+        {
+            Workspaces.UpdateTabs(workspace.WorkspaceId, workspace.Tabs.Select(t => t.ToState()).ToList(), workspace.ActiveIndex);
+        }
+    }
+
+    private void OnConnectionOrWorkspacesChanged() => InvokeAsync(() =>
+    {
+        if (Active.IsConnected && Active.Schema is { } schema && Workspaces.Profile?.Id == Active.Profile?.Id)
+        {
+            _state.SyncWorkspaces(Workspaces.Open, Workspaces.Active?.Id, schema);
+        }
+        else if (_state.Workspaces.Count > 0)
+        {
+            _state.ClearWorkspaces();
+        }
+
+        StateHasChanged();
+    });
 
     private void ToggleHome()
     {
@@ -247,8 +299,9 @@
 
     private async Task DisconnectAsync()
     {
+        SaveTabs();
         await Active.DisconnectAsync();
-        _state.CloseAllTabs();
+        _state.ClearWorkspaces();
         _state.ShowConnections();
     }
 
@@ -261,6 +314,7 @@
         }
 
         await Connections.DeleteAsync(profile.Id, CancellationToken.None);
+        await Workspaces.DeleteForConnectionAsync(profile.Id);
     }
 
     private void RecoverFromError()
@@ -274,9 +328,11 @@
     public async ValueTask DisposeAsync()
     {
         _state.Changed -= OnChanged;
+        _state.Dirty -= SaveTabs;
         _state.ConnectRequested -= OnConnectRequested;
         Connections.Changed -= OnChanged;
-        Active.Changed -= OnChanged;
+        Active.Changed -= OnConnectionOrWorkspacesChanged;
+        Workspaces.Changed -= OnConnectionOrWorkspacesChanged;
         if (_shortcuts is not null)
         {
             try

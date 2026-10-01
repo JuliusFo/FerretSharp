@@ -76,9 +76,31 @@ button:disabled { cursor: default; opacity: .5; }
 .brand { font-weight: 600; font-size: 14px; letter-spacing: .01em; white-space: nowrap; }
 .brand span { color: var(--accent); }
 
-.workspaces { display: flex; gap: 8px; align-items: center; min-width: 0; overflow-x: auto; }
+.workspaces { display: flex; gap: 4px; align-items: center; min-width: 0; }
+.ws {
+  display: flex; align-items: center; gap: 6px; flex: none;
+  height: 30px; padding: 0 6px 0 10px; max-width: 240px;
+  border: 1px solid transparent; border-radius: 7px; background: transparent; white-space: nowrap; cursor: pointer;
+}
+.ws:hover { background: var(--hover); }
+.ws.active { background: var(--surface-2); border-color: var(--border-strong); }
+.ws-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
+.ws:not(.active) .ws-name { color: var(--muted); }
+.ws-close { width: 20px; height: 20px; border: 0; border-radius: 5px; background: transparent; color: var(--faint); font-size: 11px; opacity: 0; }
+.ws:hover .ws-close, .ws.active .ws-close { opacity: 1; }
+.ws-close:hover { background: var(--hover); color: var(--text); }
+.ws-rename { width: 150px; height: 22px; padding: 0 6px; border: 1px solid var(--accent); border-radius: 5px; background: var(--surface); outline: none; }
+.ws-menu-anchor { position: relative; flex: none; }
 .ws-add { width: 30px; height: 30px; border: 1px dashed var(--border-strong); border-radius: 7px; background: transparent; color: var(--muted); }
-.ws-add:hover:not(:disabled) { color: var(--text); border-color: var(--muted); }
+.ws-add:hover:not(:disabled), .ws-add.open { color: var(--text); border-color: var(--muted); }
+.ws-pop { width: 320px; max-height: min(420px, 70vh); padding: 4px 0; }
+.ws-pop .menu-item { display: flex; align-items: center; gap: 8px; }
+.ws-closed { display: flex; align-items: center; gap: 2px; }
+.ws-closed .menu-item { flex: 1; min-width: 0; flex-direction: column; align-items: flex-start; gap: 0; }
+.ws-closed .ws-name { max-width: 100%; white-space: nowrap; }
+.ws-meta { font-size: 11.5px; color: var(--faint); }
+.ws-delete { flex: none; color: var(--faint); font-size: 11px; }
+.ws-delete:hover { color: var(--danger); }
 
 .topbar-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
 

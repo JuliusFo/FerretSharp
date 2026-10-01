@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
 
@@ -293,12 +294,13 @@ public sealed class WorkspaceManager(
     /// <summary>Removes the stored workspaces of a deleted connection.</summary>
     public Task DeleteForConnectionAsync(Guid connectionId) => store.DeleteForConnectionAsync(connectionId, CancellationToken.None);
 
-    /// <summary>Records the current tabs of a workspace; saved after <see cref="SaveDelay"/>.</summary>
+    /// <summary>Records the current tabs of a workspace; saved after <see cref="SaveDelay"/> if anything differs.</summary>
     public void UpdateTabs(Guid workspaceId, IReadOnlyList<TabState> tabs, int activeTabIndex)
     {
         lock (_lock)
         {
-            if (Get(workspaceId) is not { } workspace)
+            if (Get(workspaceId) is not { } workspace
+                || (workspace.ActiveTabIndex == activeTabIndex && SameTabs(workspace.Tabs, tabs)))
             {
                 return;
             }
@@ -413,6 +415,10 @@ public sealed class WorkspaceManager(
             // Never opened: nothing to close.
         }
     }
+
+    /// <summary>Records hold lists, so record equality would compare references; the JSON form is what gets saved anyway.</summary>
+    private static bool SameTabs(IReadOnlyList<TabState> a, IReadOnlyList<TabState> b) =>
+        JsonSerializer.Serialize(a, ConnectionStore.JsonOptions) == JsonSerializer.Serialize(b, ConnectionStore.JsonOptions);
 
     private Workspace NewWorkspace(string name) =>
         new(Guid.NewGuid(), _profile!.Id, name) { Order = NextOrder(), LastActive = _time.GetUtcNow() };

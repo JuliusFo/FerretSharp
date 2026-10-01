@@ -21,7 +21,7 @@ function theme() {
       fontSize: 13,
       headerFontSize: 12,
       headerFontWeight: 600,
-      rowHeight: 30,
+      rowHeight: ROW_HEIGHT,
       headerHeight: 46,
       spacing: 6,
       wrapperBorder: false,
@@ -95,13 +95,41 @@ function width(meta) {
   return 180;
 }
 
+const ROW_HEIGHT = 30;
+const BLOCK_SIZE = 500;
+
+/** First row at the top of the viewport (getFirstDisplayedRowIndex would include the render buffer). */
+function firstVisibleRow(api) {
+  return Math.floor(api.getVerticalPixelRange().top / ROW_HEIGHT);
+}
+
 /**
  * columns: [{ id, name, type, category, nullable, pk, fk, numeric, sortable }]
  * sorts: [{ colId, sort }] initial sort state.
+ * firstRow: rough scroll position to restore (0 = top); the block containing it is loaded on demand.
  */
-export function create(elementId, dotnet, columns, sorts) {
+export function create(elementId, dotnet, columns, sorts, firstRow) {
   registerModules();
   destroy(elementId);
+  let restoreRow = firstRow > 0 ? firstRow : null;
+
+  // Scrolls to the saved row in two steps: after the first block, extend the (still unknown) row count so the grid
+  // can scroll there and fetch that block; once that block has arrived (which resets the row count), scroll again.
+  function restoreScroll(blockStart, blockEnd, lastRow) {
+    if (lastRow >= 0) restoreRow = Math.min(restoreRow, lastRow - 1);
+    const row = restoreRow;
+    if (row <= 0) {
+      restoreRow = null;
+    } else if (row >= blockStart && row < blockEnd) {
+      restoreRow = null;
+      setTimeout(() => api.ensureIndexVisible(row, 'top'));
+    } else if (blockStart === 0) {
+      setTimeout(() => {
+        if (api.getDisplayedRowCount() <= row + BLOCK_SIZE) api.setRowCount(row + BLOCK_SIZE, false);
+        api.ensureIndexVisible(row, 'top');
+      });
+    }
+  }
 
   const sortById = new Map(sorts.map((s, i) => [s.colId, { sort: s.sort, index: i }]));
   const columnDefs = columns.map(meta => ({
@@ -125,7 +153,7 @@ export function create(elementId, dotnet, columns, sorts) {
     columnDefs,
     defaultColDef: { resizable: true, minWidth: 70 },
     rowModelType: 'infinite',
-    cacheBlockSize: 500,
+    cacheBlockSize: BLOCK_SIZE,
     maxBlocksInCache: 40,
     maxConcurrentDatasourceRequests: 1,
     infiniteInitialRowCount: 1,
@@ -135,12 +163,14 @@ export function create(elementId, dotnet, columns, sorts) {
     tooltipShowDelay: 700,
     suppressMultiSort: false,
     animateRows: false,
+    onBodyScrollEnd: () => dotnet.invokeMethodAsync('OnScrolled', firstVisibleRow(api)).catch(() => {}),
     datasource: {
       getRows: async params => {
         try {
           const sortModel = params.sortModel.map(s => ({ colId: s.colId, sort: s.sort }));
           const page = await dotnet.invokeMethodAsync('GetRows', params.startRow, params.endRow, sortModel);
           params.successCallback(page.rows, page.lastRow);
+          if (restoreRow !== null) restoreScroll(params.startRow, params.startRow + page.rows.length, page.lastRow);
         } catch (e) {
           console.error(e);
           params.failCallback();

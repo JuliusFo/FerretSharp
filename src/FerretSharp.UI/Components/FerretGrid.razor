@@ -6,12 +6,16 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject ActiveConnection Active
+@inject WorkspaceManager Workspaces
 
 <div id="@Tab.Id" class="ag-host"></div>
 
 @code {
     private IJSObjectReference? _module;
     private DotNetObjectReference<FerretGrid>? _selfRef;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
 
     [Parameter, EditorRequired]
     public TableTab Tab { get; set; } = null!;
@@ -60,7 +64,7 @@
 
         _selfRef = DotNetObjectReference.Create(this);
         _module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/grid.js");
-        await _module.InvokeVoidAsync("create", Tab.Id, _selfRef, columns, sorts);
+        await _module.InvokeVoidAsync("create", Tab.Id, _selfRef, columns, sorts, Tab.FirstVisibleRow ?? 0);
     }
 
     /// <summary>Reloads from the first row, e.g. after filters changed.</summary>
@@ -84,7 +88,6 @@
     [JSInvokable]
     public async Task<GridPage> GetRows(int startRow, int endRow, GridSort[] sortModel)
     {
-        var data = Active.Data ?? throw new InvalidOperationException("Nicht verbunden.");
         Tab.Sorts = sortModel
             .Select(s => new SortSpec(Details.Columns[int.Parse(s.ColId[1..], CultureInfo.InvariantCulture)].Name, s.Sort == "desc"))
             .ToList();
@@ -92,6 +95,7 @@
         {
             Tab.RowsLoaded = 0;
             Tab.AllRowsLoaded = false;
+            Shell.MarkDirty(); // sort order may have changed
         }
 
         var details = Details;
@@ -99,6 +103,7 @@
         var sorts = Tab.Sorts;
         try
         {
+            var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, CancellationToken.None);
             var page = await Task.Run(() => data.ReadPageAsync(details, filters, sorts, new PageSpec(startRow, endRow - startRow), CancellationToken.None));
 
             var rows = new List<Dictionary<string, string?>>(page.Rows.Count);
@@ -126,6 +131,17 @@
             Tab.Error = ex is DatabaseException { ErrorCode: { } code } ? $"{code}: {ex.Message}" : ex.Message;
             await OnPageLoaded.InvokeAsync();
             throw;
+        }
+    }
+
+    /// <summary>Remembers the first visible row (rough scroll position), but only rows that were actually loaded.</summary>
+    [JSInvokable]
+    public void OnScrolled(int firstVisibleRow)
+    {
+        if (firstVisibleRow < Tab.RowsLoaded)
+        {
+            Tab.FirstVisibleRow = firstVisibleRow > 0 ? firstVisibleRow : null;
+            Shell.MarkDirty();
         }
     }
 

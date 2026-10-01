@@ -6,6 +6,7 @@ using FerretSharp.App.Views;
 using FerretSharp.Core;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Oracle;
+using FerretSharp.Core.Workspaces;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -49,6 +50,8 @@ public partial class App : Application
         builder.Services.AddSingleton<ConnectionManager>();
         builder.Services.AddSingleton(new RecentConnections(paths.RecentConnectionsFile));
         builder.Services.AddSingleton<IDatabaseConnector, OracleDatabaseConnector>();
+        builder.Services.AddSingleton<IWorkspaceStore>(new WorkspaceStore(paths.WorkspacesDirectory));
+        builder.Services.AddSingleton<WorkspaceManager>();
         builder.Services.AddSingleton<ActiveConnection>();
         builder.Services.AddSingleton(WindowTheme.FromArgs(e.Args));
         builder.Services.AddSingleton<IDialogService, DialogService>();
@@ -69,6 +72,7 @@ public partial class App : Application
     protected override async void OnExit(ExitEventArgs e)
     {
         _logger?.LogInformation("FerretSharp shutting down");
+        CloseConnection();
 
         if (_host is not null)
         {
@@ -78,6 +82,30 @@ public partial class App : Application
 
         await Log.CloseAndFlushAsync();
         base.OnExit(e);
+    }
+
+    /// <summary>
+    /// Saves the workspaces and closes all Oracle sessions. Runs synchronously (off the dispatcher) before anything
+    /// is awaited in <see cref="OnExit"/>, because the process may end at the first await.
+    /// </summary>
+    private void CloseConnection()
+    {
+        if (_host?.Services.GetService<ActiveConnection>() is not { } active)
+        {
+            return;
+        }
+
+        try
+        {
+            if (!Task.Run(() => active.DisposeAsync().AsTask()).Wait(TimeSpan.FromSeconds(5)))
+            {
+                _logger?.LogWarning("Closing the connection did not finish within 5 seconds");
+            }
+        }
+        catch (AggregateException ex)
+        {
+            _logger?.LogError(ex, "Closing the connection failed");
+        }
     }
 
     private void RegisterGlobalExceptionHandlers()

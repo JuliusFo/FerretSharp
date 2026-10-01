@@ -200,6 +200,21 @@ public sealed class WorkspaceManagerTests
     }
 
     [Fact]
+    public async Task Unchanged_tabs_are_not_saved_again()
+    {
+        await _manager.AttachAsync(_profile, Ct);
+        var id = _manager.Active!.Id;
+        _manager.UpdateTabs(id, [Tab("KUNDEN")], 0);
+        _time.Advance(WorkspaceManager.SaveDelay);
+        var saves = _store.SaveCount;
+
+        _manager.UpdateTabs(id, [Tab("KUNDEN")], 0);
+        _time.Advance(WorkspaceManager.SaveDelay);
+
+        Assert.Equal(saves, _store.SaveCount);
+    }
+
+    [Fact]
     public async Task Close_saves_disposes_the_session_and_activates_the_neighbor()
     {
         await _manager.AttachAsync(_profile, Ct);
