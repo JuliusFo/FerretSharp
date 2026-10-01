@@ -17,6 +17,12 @@ public sealed class OracleSession : IAsyncDisposable
     /// <summary>ORA-01013: user requested cancel of current operation.</summary>
     internal const int UserCancelledErrorNumber = 1013;
 
+    /// <summary>
+    /// Characters of LONG columns fetched with the row (e.g. <c>ALL_TAB_COLUMNS.DATA_DEFAULT</c>). Without it,
+    /// ODP.NET returns no LONG data. Enough for defaults and previews; never needed in full.
+    /// </summary>
+    private const int LongFetchSize = 4000;
+
     private readonly OracleConnection _connection;
     private readonly SemaphoreSlim _gate = new(1, 1);
 
@@ -70,6 +76,7 @@ public sealed class OracleSession : IAsyncDisposable
         {
             await using var command = _connection.CreateCommand();
             command.BindByName = true;
+            command.InitialLONGFetchSize = LongFetchSize;
             command.CommandText = sql;
             foreach (var parameter in parameters)
             {

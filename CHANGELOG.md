@@ -15,3 +15,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 - Passwords are stored in the Windows Credential Manager, never in `connections.json`.
 - Read-only `OracleSession` (pooling off, `V$SESSION` module/action/client info, serialized and cancellable queries).
 - `--data-dir=<path>` redirects connections and logs to another folder.
+- Connect/disconnect with progress, cancellation and an error view showing the ORA code; recently used connections in the switcher and on the overview page; red frame while a Prod connection is active.
+- Schema explorer: tables, views and materialized views of the connection's schema with search and A–Z letter index; object list and foreign keys load on connect, column details lazily.
+- Table structure view: columns with types, defaults, identity and PK/UK/FK markers, keys, row key, incoming and outgoing foreign keys with navigation.

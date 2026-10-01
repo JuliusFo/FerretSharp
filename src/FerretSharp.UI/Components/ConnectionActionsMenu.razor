@@ -7,6 +7,8 @@
 {
     <div class="overlay" @onclick="Close" @onclick:stopPropagation="true" @oncontextmenu="Close" @oncontextmenu:preventDefault="true"></div>
     <div class="menu" style="left:@Px(_x);top:@Px(_y)" @onclick:stopPropagation="true" @ondblclick:stopPropagation="true">
+        <button class="menu-item strong" @onclick="() => RunAsync(Shell.Connect)">Verbinden</button>
+        <div class="menu-sep"></div>
         <button class="menu-item" @onclick="() => RunAsync(Shell.EditConnection)">Bearbeiten</button>
         <button class="menu-item" @onclick="() => RunAsync(Shell.DuplicateConnection)">Duplizieren</button>
         <div class="menu-sep"></div>

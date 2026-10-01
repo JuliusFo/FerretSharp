@@ -2,6 +2,8 @@
 @using FerretSharp.UI.State
 @implements IDisposable
 @inject ConnectionManager Connections
+@inject ActiveConnection Active
+@inject RecentConnections Recent
 
 <div class="connections-page">
     <div class="page-head">
@@ -44,13 +46,20 @@
                         foreach (var profile in group.Profiles)
                         {
                             var p = profile;
-                            <div class="conn-line @ConnectionKindInfo.CssClass(p.Kind)" title="Doppelklick zum Bearbeiten"
-                                 @ondblclick="() => Shell.EditConnection(p)">
+                            <div class="conn-line @ConnectionKindInfo.CssClass(p.Kind)" title="Doppelklick zum Verbinden"
+                                 @ondblclick="() => Shell.Connect(p)">
                                 <span class="dot"></span>
-                                <span class="name">@p.Name</span>
+                                <span class="name">
+                                    @p.Name
+                                    @if (Active.Profile?.Id == p.Id && Active.IsConnected)
+                                    {
+                                        <span class="connected-tag">verbunden</span>
+                                    }
+                                </span>
                                 <span class="kind-badge">@ConnectionKindInfo.Short(p.Kind)</span>
                                 <span class="addr">@p.Address.Display@(p.Address is TnsAliasAddress ? " (TNS)" : "")</span>
                                 <span class="user">@p.User@(p.DefaultSchema is { } schema ? $" → {schema}" : "")</span>
+                                <span class="last-used">@LastUsedText(p)</span>
                                 <ConnectionActionsMenu Profile="p" />
                             </div>
                         }
@@ -68,7 +77,29 @@
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
 
-    protected override void OnInitialized() => Connections.Changed += OnConnectionsChanged;
+    protected override void OnInitialized()
+    {
+        Connections.Changed += OnConnectionsChanged;
+        Active.Changed += OnConnectionsChanged;
+    }
+
+    private string LastUsedText(ConnectionProfile profile)
+    {
+        if (!Recent.LastUsed.TryGetValue(profile.Id, out var lastUsed))
+        {
+            return "";
+        }
+
+        var local = lastUsed.ToLocalTime();
+        var days = (DateTime.Today - local.Date).Days;
+        return days switch
+        {
+            0 => $"heute {local:HH:mm}",
+            1 => $"gestern {local:HH:mm}",
+            < 7 => $"vor {days} Tagen",
+            _ => local.ToString("dd.MM.yyyy", CultureInfo.CurrentCulture),
+        };
+    }
 
     private void ToggleGroup(string key)
     {
@@ -80,5 +111,9 @@
 
     private void OnConnectionsChanged() => InvokeAsync(StateHasChanged);
 
-    public void Dispose() => Connections.Changed -= OnConnectionsChanged;
+    public void Dispose()
+    {
+        Connections.Changed -= OnConnectionsChanged;
+        Active.Changed -= OnConnectionsChanged;
+    }
 }

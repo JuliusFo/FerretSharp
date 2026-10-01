@@ -47,6 +47,9 @@ public partial class App : Application
         builder.Services.AddSingleton<ISecretStore, CredentialManagerSecretStore>();
         builder.Services.AddSingleton<IConnectionTester, OracleConnectionTester>();
         builder.Services.AddSingleton<ConnectionManager>();
+        builder.Services.AddSingleton(new RecentConnections(paths.RecentConnectionsFile));
+        builder.Services.AddSingleton<IDatabaseConnector, OracleDatabaseConnector>();
+        builder.Services.AddSingleton<ActiveConnection>();
         builder.Services.AddSingleton(WindowTheme.FromArgs(e.Args));
         builder.Services.AddSingleton<IDialogService, DialogService>();
         builder.Services.AddSingleton<MainWindow>();

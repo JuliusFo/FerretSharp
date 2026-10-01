@@ -1,0 +1,70 @@
+using FerretSharp.Core.Connections;
+using FerretSharp.Core.Schema;
+using Oracle.ManagedDataAccess.Client;
+
+namespace FerretSharp.Core.Oracle;
+
+public sealed class OracleDatabaseConnector : IDatabaseConnector
+{
+    public async Task<IDatabaseConnection> OpenAsync(
+        ConnectionProfile profile, string password, string action, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var connectionString = OracleConnectionStringFactory.Create(profile, password);
+            var session = await OracleSession.OpenAsync(
+                connectionString, new SessionContext(OracleSessionDefaults.Module, action), cancellationToken);
+            return new OracleDatabaseConnection(session);
+        }
+        catch (Exception ex) when (OracleErrors.Translate(ex) is { } translated)
+        {
+            throw translated;
+        }
+    }
+
+    private sealed class OracleDatabaseConnection(OracleSession session) : IDatabaseConnection
+    {
+        public string ServerVersion => session.ServerVersion;
+
+        public ISchemaReader Schema { get; } = new TranslatingSchemaReader(new OracleSchemaReader(session));
+
+        public ValueTask DisposeAsync() => session.DisposeAsync();
+    }
+
+    /// <summary>Keeps OracleException out of the layers above.</summary>
+    private sealed class TranslatingSchemaReader(ISchemaReader inner) : ISchemaReader
+    {
+        public Task<IReadOnlyList<TableSummary>> GetTablesAsync(string owner, CancellationToken cancellationToken) =>
+            OracleErrors.Guard(() => inner.GetTablesAsync(owner, cancellationToken));
+
+        public Task<IReadOnlyList<ForeignKeyInfo>> GetForeignKeysAsync(string owner, CancellationToken cancellationToken) =>
+            OracleErrors.Guard(() => inner.GetForeignKeysAsync(owner, cancellationToken));
+
+        public Task<TableDetails> GetDetailsAsync(TableSummary table, CancellationToken cancellationToken) =>
+            OracleErrors.Guard(() => inner.GetDetailsAsync(table, cancellationToken));
+    }
+}
+
+internal static class OracleErrors
+{
+    /// <summary>Maps driver/configuration failures to <see cref="DatabaseException"/>; null for anything else.</summary>
+    public static DatabaseException? Translate(Exception ex) => ex switch
+    {
+        OracleException oracle => new DatabaseException(
+            OracleConnectionTester.CleanMessage(oracle.Message), $"ORA-{oracle.Number:00000}", oracle),
+        ConnectionConfigurationException config => new DatabaseException(config.Message, inner: config),
+        _ => null,
+    };
+
+    public static async Task<T> Guard<T>(Func<Task<T>> action)
+    {
+        try
+        {
+            return await action();
+        }
+        catch (Exception ex) when (Translate(ex) is { } translated)
+        {
+            throw translated;
+        }
+    }
+}
