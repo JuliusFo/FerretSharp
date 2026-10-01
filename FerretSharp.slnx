@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/FerretSharp.App/FerretSharp.App.csproj" />
+    <Project Path="src/FerretSharp.Core/FerretSharp.Core.csproj" />
+    <Project Path="src/FerretSharp.UI/FerretSharp.UI.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/FerretSharp.Core.Tests/FerretSharp.Core.Tests.csproj" />
+    <Project Path="tests/FerretSharp.Integration.Tests/FerretSharp.Integration.Tests.csproj" />
+  </Folder>
+</Solution>

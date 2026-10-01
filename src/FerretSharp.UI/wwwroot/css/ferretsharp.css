@@ -1,0 +1,146 @@
+/* FerretSharp design tokens and shell styles. Light/dark follow prefers-color-scheme. */
+
+:root {
+  --bg: #f4f4f6;
+  --surface: #ffffff;
+  --surface-2: #f9f9fb;
+  --hover: #f0f0f4;
+  --border: #e5e5ea;
+  --border-strong: #d6d6de;
+  --text: #1d1d22;
+  --muted: #6b6b76;
+  --faint: #a4a4ae;
+  --accent: #3b6fe0;
+  --accent-text: #ffffff;
+  --accent-weak: rgba(59, 111, 224, 0.10);
+  --danger: #d64545;
+  --danger-weak: rgba(214, 69, 69, 0.10);
+  --prod: #e5484d;
+  --test: #30a46c;
+  --dev: #8e7cf0;
+  --shadow: 0 10px 30px rgba(20, 20, 30, 0.14), 0 2px 6px rgba(20, 20, 30, 0.08);
+  --mono: "Cascadia Mono", "Cascadia Code", Consolas, monospace;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141518;
+    --surface: #1c1d22;
+    --surface-2: #222329;
+    --hover: #26272e;
+    --border: #2c2d34;
+    --border-strong: #3a3b44;
+    --text: #e6e6ea;
+    --muted: #9a9aa6;
+    --faint: #5f606b;
+    --accent: #7aa2ff;
+    --accent-text: #0e1220;
+    --accent-weak: rgba(122, 162, 255, 0.15);
+    --danger: #ff6b6b;
+    --danger-weak: rgba(255, 107, 107, 0.12);
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font: 13px/1.4 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  overflow: hidden;
+  user-select: none;
+}
+
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: default; opacity: .5; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 10px; border: 3px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* ---------- shell ---------- */
+.app { display: flex; flex-direction: column; height: 100vh; }
+.app.is-prod { box-shadow: inset 0 0 0 2px var(--prod); }
+
+.topbar {
+  display: flex; align-items: center; gap: 16px; flex: none;
+  height: 46px; padding: 0 12px;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.brand { font-weight: 600; font-size: 14px; letter-spacing: .01em; white-space: nowrap; }
+.brand span { color: var(--accent); }
+
+.workspaces { display: flex; gap: 8px; align-items: center; min-width: 0; overflow-x: auto; }
+.ws-add { width: 30px; height: 30px; border: 1px dashed var(--border-strong); border-radius: 7px; background: transparent; color: var(--muted); }
+.ws-add:hover:not(:disabled) { color: var(--text); border-color: var(--muted); }
+
+.topbar-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+
+.body { flex: 1; display: flex; min-height: 0; }
+
+.sidebar { width: 280px; flex: none; display: flex; flex-direction: column; background: var(--surface); border-right: 1px solid var(--border); }
+.sidebar-head { padding: 12px 12px 8px; display: flex; flex-direction: column; gap: 8px; }
+.schema { display: flex; align-items: baseline; gap: 6px; font-weight: 600; }
+.sidebar-empty { padding: 4px 12px; color: var(--faint); }
+
+.content { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
+
+.statusbar {
+  display: flex; gap: 18px; align-items: center; flex: none;
+  height: 26px; padding: 0 12px; font-size: 12px; color: var(--muted);
+  background: var(--surface); border-top: 1px solid var(--border);
+}
+.statusbar .spacer { flex: 1; }
+.statusbar .item { display: flex; align-items: center; gap: 6px; }
+
+.empty { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; color: var(--muted); padding: 24px; }
+.empty h2 { margin: 0 0 6px; font-size: 20px; font-weight: 600; color: var(--text); }
+.empty p { margin: 0; }
+.empty.is-error h2 { color: var(--danger); }
+
+/* ---------- primitives ---------- */
+.hint { color: var(--faint); }
+
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); flex: none; }
+.dot.ok { background: var(--test); box-shadow: 0 0 0 3px rgba(48, 164, 108, .18); }
+.kind-prod .dot { background: var(--prod); }
+.kind-test .dot { background: var(--test); }
+.kind-dev .dot { background: var(--dev); }
+
+.badge {
+  font-size: 11px; font-weight: 600; letter-spacing: .04em;
+  padding: 3px 8px; border-radius: 6px;
+  background: var(--surface-2); color: var(--muted); border: 1px solid var(--border);
+}
+.badge-prod { background: var(--prod); color: #fff; border-color: var(--prod); }
+
+.btn {
+  height: 30px; padding: 0 12px; display: inline-flex; align-items: center; gap: 8px;
+  border: 1px solid var(--border); border-radius: 7px; background: var(--surface); white-space: nowrap;
+}
+.btn:hover:not(:disabled) { background: var(--hover); }
+.btn.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 600; }
+.btn.primary:hover:not(:disabled) { filter: brightness(1.07); }
+.btn.ghost { border-color: transparent; background: transparent; color: var(--muted); }
+.btn.ghost:hover:not(:disabled) { background: var(--hover); color: var(--text); }
+
+.field {
+  height: 30px; padding: 0 8px; min-width: 0;
+  border: 1px solid var(--border); border-radius: 7px; background: var(--surface-2); outline: none;
+}
+.field:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
+.field.invalid { border-color: var(--danger); box-shadow: 0 0 0 3px var(--danger-weak); }
+
+kbd { font: 600 10px var(--mono); padding: 1px 5px; border-radius: 4px; border: 1px solid currentColor; opacity: .7; }
+
+.modal-backdrop { position: fixed; inset: 0; z-index: 60; background: rgba(10, 10, 15, .42); display: grid; place-items: center; }
+.modal { width: min(820px, 92vw); background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+
+#blazor-error-ui { display: none; position: fixed; bottom: 0; left: 0; right: 0; padding: 8px 16px; background: var(--danger); color: #fff; z-index: 100; }
+#blazor-error-ui .dismiss { cursor: pointer; float: right; }
