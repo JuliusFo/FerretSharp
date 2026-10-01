@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using FerretSharp.Core.Oracle;
 
 namespace FerretSharp.Core.Connections;
 
@@ -55,9 +56,12 @@ public sealed record ConnectionProfile(
     bool ReadOnly,
     string? Group = null)
 {
-    /// <summary>The schema whose objects are shown: <see cref="DefaultSchema"/> if set, otherwise the user.</summary>
+    /// <summary>
+    /// The schema whose objects are shown, in data dictionary form: <see cref="DefaultSchema"/> if set, otherwise the user.
+    /// Unquoted names are upper-cased (<c>erp</c> → <c>ERP</c>), quoted ones keep their case.
+    /// </summary>
     [JsonIgnore]
-    public string EffectiveSchema => string.IsNullOrWhiteSpace(DefaultSchema) ? User.ToUpperInvariant() : DefaultSchema;
+    public string EffectiveSchema => OracleIdentifier.Normalize(string.IsNullOrWhiteSpace(DefaultSchema) ? User : DefaultSchema);
 
     public static bool IsReadOnlyByDefault(ConnectionKind kind) => kind == ConnectionKind.Prod;
 }
