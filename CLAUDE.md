@@ -156,12 +156,19 @@ record TableSummary(string Owner, string Name, TableKind Kind);                 
 record TableDetails(TableSummary Table, IReadOnlyList<ColumnInfo> Columns,
                     IReadOnlyList<string> PrimaryKey, IReadOnlyList<IReadOnlyList<string>> UniqueKeys,
                     bool IsIndexOrganized);                                           // lazy pro Tabelle
-record ColumnInfo(string Name, string OracleType, int? Precision, int? Scale, bool Nullable, bool IsIdentity, string? Default, int Position);
-record ForeignKeyInfo(string Name, string FromTable, IReadOnlyList<string> FromColumns, string ToTable, IReadOnlyList<string> ToColumns, FkSource Source);
+record ColumnInfo(string Name, string DataType, int? Length, bool CharSemantics, int? Precision, int? Scale,
+                  bool Nullable, bool IsIdentity, string? Default, int Position);    // DisplayType: "VARCHAR2(50 CHAR)", "NUMBER(12,2)", "INTEGER" …
+record TableRef(string Owner, string Name);                                           // exakter Dictionary-Name
+record ForeignKeyInfo(string Name, TableRef From, IReadOnlyList<string> FromColumns, TableRef To, IReadOnlyList<string> ToColumns, FkSource Source);
 enum FkSource { Declared, Manual, Convention /* v3: ClrModel */ }
 ```
-- Quellen: `ALL_TABLES`, `ALL_VIEWS`, `ALL_MVIEWS`, `ALL_TAB_COLUMNS`, `ALL_CONSTRAINTS` (P/U/R), `ALL_CONS_COLUMNS`, `ALL_TAB_IDENTITY_COLS`.
-- **Immer nach `OWNER` filtern.** `ALL_TAB_COLUMNS` ist auf großen Datenbanken langsam → Tabellenliste und alle FKs des Schemas beim Connect laden, Spalten/Keys lazy pro Tabelle. Cachen, manuell refreshbar.
+- `ForeignKeyInfo` trägt Owner (`TableRef`), damit FKs über Schemagrenzen nicht verloren gehen.
+- Quellen: `ALL_TABLES`, `ALL_VIEWS`, `ALL_MVIEWS`, `ALL_TAB_COLUMNS` (inkl. `IDENTITY_COLUMN`), `ALL_CONSTRAINTS` (P/U/R), `ALL_CONS_COLUMNS`.
+- Tabellenliste ohne Recyclebin (`DROPPED`), Nested/Secondary Tables, IOT-Overflow-Segmente und MView-Containertabellen (die MView erscheint einmal als `MaterializedView`).
+- `DATA_DEFAULT` ist `LONG` → `OracleSession` setzt `InitialLONGFetchSize` (4000).
+- **Immer nach `OWNER` filtern.** `ALL_TAB_COLUMNS` ist auf großen Datenbanken langsam → Tabellenliste und alle FKs des Schemas beim Connect laden, Spalten/Keys lazy pro Tabelle (`SchemaCache`). Cachen, manuell refreshbar.
+- Schema-Name aus dem Profil wird normalisiert (`OracleIdentifier.Normalize`): `erp` → `ERP`, `"Erp"` bleibt `Erp`.
+- Verbindungsaufbau: `ActiveConnection` (bis WP-05 genau eine) öffnet die Session über `IDatabaseConnector`, lädt den `SchemaCache` und merkt die Nutzung in `recent.json` (`RecentConnections`). Oracle-Fehler kommen als `DatabaseException` mit ORA-Code an.
 
 ### 5.4 Filter & Query
 ```csharp
@@ -313,7 +320,8 @@ Jedes Paket: eigener Branch `wp/NN-kurzname`, am Ende `dotnet build -warnaserror
 #### WP-03 Schema-Cache & Tabellenliste
 - `OracleSchemaReader : ISchemaReader` (Tabellen, Views, MViews, Spalten, PK/UK/FK, Identity, IOT-Flag), immer nach Owner gefiltert, Details lazy.
 - `SchemaCache` mit Refresh; Unit-Tests gegen Mock-Reader, Integrationstests gegen ein Testschema im Container (inkl. Quoted Identifiers, composite FKs, View ohne PK, IOT).
-- Explorer-Panel: Tabellenliste alphabetisch (Suchfeld mit einfachem Contains-Filter) + `LetterIndexBar`-Komponente.
+- Explorer-Panel: Tabellenliste alphabetisch (Suchfeld mit einfachem Contains-Filter) + `LetterIndexBar`-Komponente (A–Z, `#` für Namen, die nicht mit A–Z beginnen).
+- Zusätzlich umgesetzt: Strukturansicht der gewählten Tabelle (Spalten, PK/UK, Row-Key, ein-/ausgehende FKs mit Sprung), Verbinden/Trennen mit Fehleransicht (ORA-Code, „Erneut versuchen“), „Zuletzt verwendet“, roter Rahmen bei aktiver Prod-Verbindung.
 - **Fertig wenn:** Nach dem Connect erscheinen alle Tabellen/Views, die Buchstabenleiste springt korrekt.
 
 #### WP-04 Grid, Paging & Filter (read-only)
