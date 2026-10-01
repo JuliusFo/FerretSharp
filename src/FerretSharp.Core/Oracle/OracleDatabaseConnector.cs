@@ -51,6 +51,9 @@ public sealed class OracleDatabaseConnector : IDatabaseConnector
         public Task<IReadOnlyList<TableSummary>> GetTablesAsync(string owner, CancellationToken cancellationToken) =>
             OracleErrors.Guard(() => inner.GetTablesAsync(owner, cancellationToken));
 
+        public Task<IReadOnlyList<TableSummary>> GetSynonymTargetsAsync(string owner, CancellationToken cancellationToken) =>
+            OracleErrors.Guard(() => inner.GetSynonymTargetsAsync(owner, cancellationToken));
+
         public Task<IReadOnlyList<ForeignKeyInfo>> GetForeignKeysAsync(string owner, CancellationToken cancellationToken) =>
             OracleErrors.Guard(() => inner.GetForeignKeysAsync(owner, cancellationToken));
 

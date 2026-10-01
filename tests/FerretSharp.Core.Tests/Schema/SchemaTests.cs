@@ -41,6 +41,7 @@ public class SchemaCacheTests
     public SchemaCacheTests()
     {
         _reader.GetTablesAsync(Owner, Arg.Any<CancellationToken>()).Returns([Auftrag, Kunden]);
+        _reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns([]);
         _reader.GetForeignKeysAsync(Owner, Arg.Any<CancellationToken>()).Returns([AuftragKunde]);
         _reader.GetDetailsAsync(Arg.Any<TableSummary>(), Arg.Any<CancellationToken>())
             .Returns(ci => new TableDetails(ci.Arg<TableSummary>(), [], [], [], false));
@@ -89,6 +90,37 @@ public class SchemaCacheTests
         var details = await cache.GetDetailsAsync(Kunden, Ct);
 
         Assert.Same(Kunden, details.Table);
+    }
+
+    [Fact]
+    public async Task Synonym_targets_are_listed_and_their_schemas_foreign_keys_loaded()
+    {
+        var produkt = new TableSummary("ERP", "PRODUKT", TableKind.Table, new SynonymInfo(Owner, "S_PRODUKT"));
+        var kategorie = new TableSummary("ERP", "KATEGORIE", TableKind.Table, new SynonymInfo(SynonymInfo.PublicOwner, "KATEGORIE"));
+        var produktKategorie = new ForeignKeyInfo("FK_PK", produkt.Ref, ["KAT_ID"], kategorie.Ref, ["ID"], FkSource.Declared);
+        _reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns([produkt, kategorie]);
+        _reader.GetForeignKeysAsync("ERP", Arg.Any<CancellationToken>()).Returns([produktKategorie]);
+        var cache = new SchemaCache(_reader, Owner);
+
+        await cache.LoadAsync(Ct);
+
+        Assert.Equal(["AUFTRAG", "KATEGORIE", "KUNDEN", "S_PRODUKT"], cache.Tables.Select(t => t.DisplayName));
+        Assert.Same(produkt, cache.Find(new TableRef("ERP", "PRODUKT")));
+        Assert.Equal([produktKategorie], cache.IncomingOf(kategorie.Ref));
+        await _reader.Received(1).GetForeignKeysAsync("ERP", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public void Merge_prefers_own_objects_and_private_over_public_synonyms()
+    {
+        var ownKunden = new TableSummary(Owner, "KUNDEN", TableKind.Table);
+        var publicToOwn = new TableSummary(Owner, "KUNDEN", TableKind.Table, new SynonymInfo(SynonymInfo.PublicOwner, "P_KUNDEN"));
+        var publicToOther = new TableSummary("ERP", "PRODUKT", TableKind.Table, new SynonymInfo(SynonymInfo.PublicOwner, "A_PRODUKT"));
+        var privateToOther = new TableSummary("ERP", "PRODUKT", TableKind.Table, new SynonymInfo(Owner, "Z_PRODUKT"));
+
+        var merged = SchemaCache.Merge([ownKunden], [publicToOwn, publicToOther, privateToOther]);
+
+        Assert.Equal([ownKunden, privateToOther], merged);
     }
 
     [Fact]
