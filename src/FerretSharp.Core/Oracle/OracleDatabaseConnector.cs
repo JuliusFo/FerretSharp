@@ -32,6 +32,8 @@ public sealed class OracleDatabaseConnector : IDatabaseConnector
 
         public IDataAccess Data { get; } = new TranslatingDataAccess(new OracleDataAccess(session));
 
+        public Task SetActionAsync(string action, CancellationToken cancellationToken) => session.SetActionAsync(action, cancellationToken);
+
         public ValueTask DisposeAsync() => session.DisposeAsync();
     }
 

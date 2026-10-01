@@ -11,6 +11,9 @@ public interface IDatabaseConnection : IAsyncDisposable
     ISchemaReader Schema { get; }
 
     IDataAccess Data { get; }
+
+    /// <summary>Updates ACTION in <c>V$SESSION</c>, e.g. after the workspace was renamed.</summary>
+    Task SetActionAsync(string action, CancellationToken cancellationToken);
 }
 
 public interface IDatabaseConnector
