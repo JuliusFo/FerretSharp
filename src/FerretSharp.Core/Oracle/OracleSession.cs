@@ -18,10 +18,10 @@ public sealed class OracleSession : IAsyncDisposable
     internal const int UserCancelledErrorNumber = 1013;
 
     /// <summary>
-    /// Characters of LONG columns fetched with the row (e.g. <c>ALL_TAB_COLUMNS.DATA_DEFAULT</c>). Without it,
-    /// ODP.NET returns no LONG data. Enough for defaults and previews; never needed in full.
+    /// Characters of LONG columns fetched with the row (<c>ALL_TAB_COLUMNS.DATA_DEFAULT</c>, <c>ALL_VIEWS.TEXT</c>).
+    /// Without it, ODP.NET returns no LONG data. 32767 is the driver's maximum; table data never selects LONG columns.
     /// </summary>
-    private const int LongFetchSize = 4000;
+    internal const int LongFetchSize = 32767;
 
     private readonly OracleConnection _connection;
     private readonly SemaphoreSlim _gate = new(1, 1);

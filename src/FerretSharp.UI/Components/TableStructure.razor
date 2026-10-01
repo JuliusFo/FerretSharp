@@ -66,6 +66,18 @@
             </table>
         </section>
 
+        @if (details.Definition is { } definition)
+        {
+            <section>
+                <h2>Definition</h2>
+                <SqlCode Sql="@definition" Class="definition" />
+                @if (details.DefinitionTruncated)
+                {
+                    <p class="muted">Gekürzt – die Definition ist länger als 32.767 Zeichen.</p>
+                }
+            </section>
+        }
+
         <section>
             <h2>Schlüssel</h2>
             <dl class="keys">

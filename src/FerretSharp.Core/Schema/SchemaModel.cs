@@ -49,12 +49,16 @@ public sealed record ColumnInfo(
 }
 
 /// <summary>Lazily loaded per table.</summary>
+/// <param name="Definition">SELECT behind a view or materialized view; null for tables.</param>
+/// <param name="DefinitionTruncated">The definition is longer than what could be fetched.</param>
 public sealed record TableDetails(
     TableSummary Table,
     IReadOnlyList<ColumnInfo> Columns,
     IReadOnlyList<string> PrimaryKey,
     IReadOnlyList<IReadOnlyList<string>> UniqueKeys,
-    bool IsIndexOrganized);
+    bool IsIndexOrganized,
+    string? Definition = null,
+    bool DefinitionTruncated = false);
 
 /// <summary>Where a relationship comes from. <c>ClrModel</c> (EF Core navigations) follows in v3.</summary>
 public enum FkSource

@@ -59,6 +59,11 @@ public sealed class OracleSchemaReader(OracleSession session) : ISchemaReader
 
     private const string IotSql = "SELECT iot_type FROM all_tables WHERE owner = :owner AND table_name = :name";
 
+    // TEXT and QUERY are LONG columns: fetched up to the session's InitialLONGFetchSize (32767 characters).
+    private const string ViewDefinitionSql = "SELECT text FROM all_views WHERE owner = :owner AND view_name = :name";
+
+    private const string MViewDefinitionSql = "SELECT query FROM all_mviews WHERE owner = :owner AND mview_name = :name";
+
     public Task<IReadOnlyList<TableSummary>> GetTablesAsync(string owner, CancellationToken cancellationToken) =>
         session.ExecuteReaderAsync(TablesSql, [new("owner", owner)], async (reader, ct) =>
         {
@@ -130,7 +135,27 @@ public sealed class OracleSchemaReader(OracleSession session) : ISchemaReader
             .Select(g => (IReadOnlyList<string>)g.Select(k => k.Column).ToList())
             .ToList();
 
-        return new TableDetails(table, columns, primaryKey, uniqueKeys, isIot);
+        var definitionSql = table.Kind switch
+        {
+            TableKind.View => ViewDefinitionSql,
+            TableKind.MaterializedView => MViewDefinitionSql,
+            _ => null,
+        };
+        var (definition, truncated) = definitionSql is null
+            ? (null, false)
+            : await session.ExecuteReaderAsync(definitionSql, parameters, async (reader, ct) =>
+            {
+                if (!await reader.ReadAsync(ct) || reader.IsDBNull(0))
+                {
+                    return ((string?)null, false);
+                }
+
+                // TEXT_LENGTH counts bytes, so compare with the fetch limit instead (multi-byte text would look truncated).
+                var raw = reader.GetString(0);
+                return (raw.Trim(), raw.Length >= OracleSession.LongFetchSize);
+            }, cancellationToken);
+
+        return new TableDetails(table, columns, primaryKey, uniqueKeys, isIot, definition, truncated);
     }
 
     private static async Task<IReadOnlyList<ColumnInfo>> ReadColumnsAsync(DbDataReader reader, CancellationToken ct)
