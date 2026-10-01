@@ -1,5 +1,6 @@
 using System.Data.Common;
 using System.Diagnostics;
+using System.Text;
 using FerretSharp.Core.Query;
 using Oracle.ManagedDataAccess.Client;
 
@@ -45,8 +46,8 @@ public sealed class OracleSession : IAsyncDisposable
             connection.SetSessionInfo(globalization);
 
             connection.ModuleName = context.Module;
-            connection.ActionName = context.Action;
-            connection.ClientInfo = context.ClientInfo ?? string.Empty;
+            connection.ActionName = ToSessionAttribute(context.Action);
+            connection.ClientInfo = ToSessionAttribute(context.ClientInfo ?? string.Empty);
             return new OracleSession(connection);
         }
         catch (OracleException ex) when (ex.Number == UserCancelledErrorNumber)
@@ -59,6 +60,57 @@ public sealed class OracleSession : IAsyncDisposable
             await connection.DisposeAsync();
             throw;
         }
+    }
+
+    /// <summary>Changes ACTION in <c>V$SESSION</c> (e.g. after renaming a workspace); sent with the next round trip.</summary>
+    public async Task SetActionAsync(string action, CancellationToken cancellationToken)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            _connection.ActionName = ToSessionAttribute(action);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    /// <summary>
+    /// Makes a value safe for ACTION/CLIENT_INFO: ASCII only, at most 64 characters. ODP.NET (managed, 23.26) breaks
+    /// the session when these attributes contain non-ASCII characters – the next round trip fails with ORA-12537 and
+    /// the connection is gone (integration test). Workspace names like "Prüfung" are common, so umlauts are
+    /// transliterated (ä → ae), accents dropped (é → e) and anything else replaced by '?'.
+    /// </summary>
+    internal static string ToSessionAttribute(string value)
+    {
+        const int maxLength = 64;
+        var result = new StringBuilder(value.Length);
+        foreach (var c in value.Normalize(NormalizationForm.FormC))
+        {
+            result.Append(c switch
+            {
+                'ä' => "ae",
+                'ö' => "oe",
+                'ü' => "ue",
+                'Ä' => "Ae",
+                'Ö' => "Oe",
+                'Ü' => "Ue",
+                'ß' => "ss",
+                '–' or '—' => "-",
+                < '\u0080' when !char.IsControl(c) => c.ToString(),
+                _ when char.IsLowSurrogate(c) => "", // the high surrogate already became '?'
+                _ when char.IsHighSurrogate(c) => "?",
+                _ when c.ToString().Normalize(NormalizationForm.FormD)[0] is var b and < '\u0080' && !char.IsControl(b) => b.ToString(),
+                _ => "?",
+            });
+            if (result.Length >= maxLength)
+            {
+                break;
+            }
+        }
+
+        return result.Length > maxLength ? result.ToString(0, maxLength) : result.ToString();
     }
 
     /// <summary>Round trip with <c>SELECT 1 FROM DUAL</c>.</summary>
