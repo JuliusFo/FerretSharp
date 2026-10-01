@@ -6,6 +6,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Oracle.ManagedDataAccess.Core" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="FerretSharp.Core.Tests" />
   </ItemGroup>
 

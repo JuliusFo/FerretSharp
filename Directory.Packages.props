@@ -9,6 +9,10 @@
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebView.Wpf" Version="10.0.110" />
   </ItemGroup>
 
+  <ItemGroup Label="Windows">
+    <PackageVersion Include="Meziantou.Framework.Win32.CredentialManager" Version="3.0.4" />
+  </ItemGroup>
+
   <ItemGroup Label="Hosting">
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
     <PackageVersion Include="Serilog.Extensions.Hosting" Version="10.0.0" />

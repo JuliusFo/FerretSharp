@@ -1,47 +1,122 @@
 @* Root component hosted by the BlazorWebView. *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.UI.State
+@implements IAsyncDisposable
+@inject ConnectionManager Connections
+@inject IJSRuntime JS
 
-<div class="app">
-    <header class="topbar">
-        <div class="brand">Ferret<span>Sharp</span></div>
-
-        <div class="workspaces">
-            <span class="hint">Keine Verbindung</span>
-            <button class="ws-add" title="Verbindung hinzufügen (folgt in WP-02)" disabled>+</button>
-        </div>
-
-        <div class="topbar-right">
-            <span class="badge">READ-ONLY</span>
-        </div>
-    </header>
-
-    <div class="body">
-        <aside class="sidebar">
-            <div class="sidebar-head">
-                <div class="schema">Explorer</div>
+<CascadingValue Value="_state" IsFixed="true">
+    <div class="app">
+        <header class="topbar">
+            <div class="brand">Ferret<span>Sharp</span></div>
+            <ConnectionSwitcher />
+            <div class="topbar-right">
+                <span class="badge">READ-ONLY</span>
             </div>
-            <div class="sidebar-empty">Nach dem Verbinden erscheinen hier Tabellen und Views.</div>
-        </aside>
+        </header>
 
-        <main class="content">
-            <ErrorBoundary>
-                <ChildContent>
-                    <EmptyState Title="Willkommen bei FerretSharp" Text="Ferret out your Oracle data." />
-                </ChildContent>
-                <ErrorContent Context="exception">
-                    <EmptyState Title="Da ist etwas schiefgelaufen" Text="@exception.Message" IsError="true" />
-                </ErrorContent>
-            </ErrorBoundary>
-        </main>
+        <div class="body">
+            <main class="content">
+                <ErrorBoundary>
+                    <ChildContent>
+                        <ConnectionsPage />
+                    </ChildContent>
+                    <ErrorContent Context="exception">
+                        <EmptyState Title="Da ist etwas schiefgelaufen" Text="@exception.Message" IsError="true" />
+                    </ErrorContent>
+                </ErrorBoundary>
+            </main>
+        </div>
+
+        <footer class="statusbar">
+            @if (Connections.LoadError is { } error)
+            {
+                <span class="item error" title="@error"><span class="dot err"></span> Verbindungen konnten nicht geladen werden</span>
+            }
+            else
+            {
+                <span class="item"><span class="dot"></span> Nicht verbunden</span>
+            }
+            <span class="spacer"></span>
+            <span class="item">@Version</span>
+        </footer>
     </div>
 
-    <footer class="statusbar">
-        <span class="item"><span class="dot"></span> Nicht verbunden</span>
-        <span class="spacer"></span>
-        <span class="item">@Version</span>
-    </footer>
-</div>
+    @if (_state.ConnectionDialog is { } request)
+    {
+        <ConnectionDialog @key="request" Request="request" OnClose="_state.CloseConnectionDialog" />
+    }
+
+    @if (_state.PendingDelete is { } pending)
+    {
+        <ConfirmDialog Title="Verbindung löschen" ConfirmLabel="Löschen" Danger="true"
+                       OnConfirm="() => DeleteAsync(pending)" OnCancel="_state.CancelDelete">
+            Verbindung <strong>@pending.Name</strong> (@pending.Address.Display) wirklich löschen?
+            Das gespeicherte Passwort wird ebenfalls entfernt.
+        </ConfirmDialog>
+    }
+</CascadingValue>
 
 @code {
+    private const string SwitcherShortcut = "ctrl+shift+o";
+
     private static readonly string Version =
         "v" + (typeof(Shell).Assembly.GetName().Version?.ToString(3) ?? "0.0.0");
+
+    private readonly ShellState _state = new();
+    private IJSObjectReference? _shortcuts;
+    private DotNetObjectReference<Shell>? _selfRef;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _state.Changed += OnChanged;
+        Connections.Changed += OnChanged;
+        await Connections.LoadAsync(CancellationToken.None);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _selfRef = DotNetObjectReference.Create(this);
+            _shortcuts = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/shortcuts.js");
+            await _shortcuts.InvokeVoidAsync("register", _selfRef, new[] { SwitcherShortcut });
+        }
+    }
+
+    [JSInvokable]
+    public void OnShortcut(string combo)
+    {
+        if (combo == SwitcherShortcut && _state.ConnectionDialog is null && _state.PendingDelete is null)
+        {
+            _state.OpenSwitcher();
+        }
+    }
+
+    private async Task DeleteAsync(ConnectionProfile profile)
+    {
+        _state.CancelDelete();
+        await Connections.DeleteAsync(profile.Id, CancellationToken.None);
+    }
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    public async ValueTask DisposeAsync()
+    {
+        _state.Changed -= OnChanged;
+        Connections.Changed -= OnChanged;
+        if (_shortcuts is not null)
+        {
+            try
+            {
+                await _shortcuts.InvokeVoidAsync("unregister");
+                await _shortcuts.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+
+        _selfRef?.Dispose();
+    }
 }
