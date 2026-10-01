@@ -57,7 +57,7 @@ Versionierung: SemVer, Git-Tag `vX.Y.Z` pro Release, `CHANGELOG.md` pflegen. Fea
 | JS-Interop | ein ES-Modul pro Thema in `FerretSharp.UI/wwwroot/js`, Aufruf über `IJSObjectReference` | JS bleibt dünn (Grid-Brücke, Zwischenablage, Scrollen, Fokus). **Keine Geschäftslogik in JS.** |
 | Hosting/DI | `Microsoft.Extensions.Hosting` | DI, Konfiguration, Logging ab WP-01. Die BlazorWebView nutzt den Service Provider des Hosts. |
 | Logging | `Microsoft.Extensions.Logging` + **Serilog** (`Serilog.Extensions.Hosting`, `Serilog.Sinks.File`) | Datei unter `%APPDATA%\FerretSharp\logs`. Keine Bind-Werte von Prod-Verbindungen loggen (maskieren). |
-| Grid | **AG Grid Community** (MIT) über JS-Interop, **Infinite Row Model** | Datenblöcke und Sortierung kommen aus .NET (`IDataAccess`), gekapselt in einer `FerretGrid`-Komponente. Version 34.x, **lokal im Repo** unter `FerretSharp.UI/wwwroot/lib/ag-grid/` (kein CDN). Vor dem Herunterladen den Nutzer fragen (WP-04). Enterprise-Features (Kontextmenü, Zellbereich) nicht verwenden – eigene Lösungen in Blazor. |
+| Grid | **AG Grid Community 34.3.1** (MIT) über JS-Interop, **Infinite Row Model** | Datenblöcke à 500 und Sortierung kommen aus .NET (`IDataAccess`), gekapselt in `FerretGrid` + `wwwroot/js/grid.js`. Zellen gehen als fertig formatierte Strings über die Grenze (null = NULL), Spalten-IDs `c0`, `c1` … (Oracle-Namen dürfen Punkte enthalten). **Lokal im Repo** unter `FerretSharp.UI/wwwroot/lib/ag-grid/` (Herkunft/Hash in der README dort, kein CDN). Enterprise-Features (Kontextmenü, Zellbereich) nicht verwenden – eigene Lösungen in Blazor. |
 | Layout | Tabs + Seitenleiste in Blazor | Kein Docking-Framework. |
 | SQL-Anzeige | eigener Highlighter in Razor (siehe Prototyp `TableView.razor`) | Vollwertiger Editor (Monaco) erst mit dem freien SQL-Editor (Backlog). |
 | Oracle | `Oracle.ManagedDataAccess.Core` (23.x) | rein managed, kein Instant Client; **durchgängig async** mit `CancellationToken`. |
@@ -173,23 +173,28 @@ enum FkSource { Declared, Manual, Convention /* v3: ClrModel */ }
 ### 5.4 Filter & Query
 ```csharp
 enum FilterOperator { Equals, NotEquals, Contains, StartsWith, EndsWith, Gt, Gte, Lt, Lte, Between, In, IsNull, IsNotNull }
-record FilterCondition(string Column, FilterOperator Op, IReadOnlyList<string> Values); // Werte invariant-culture; Anzahl je Operator: 0 / 1 / 2 (Between) / n (In)
+record FilterCondition(string Column, FilterOperator Op, IReadOnlyList<string> Values, bool Enabled = true);
+    // Werte wie eingegeben (deutsch oder ISO); Anzahl je Operator: 0 / 1 / 2 (Between) / n (In, in der UI mit ";" getrennt)
 record SortSpec(string Column, bool Descending);
 record PageSpec(int Offset, int Limit);
 record QueryParameter(string Name, object? Value, OracleTypeHint Type);
-record QuerySpec(string Sql, IReadOnlyList<QueryParameter> Parameters);
+record SelectQuery(string Sql, IReadOnlyList<QueryParameter> Parameters, IReadOnlyList<ResultColumn> Columns, RowKeyKind RowKey, bool HasRowId);
 ```
-`QueryBuilder.BuildSelect(tableDetails, filters, sorts, page)` → `QuerySpec`. Regeln:
-- Werte werden anhand des Spaltentyps aus dem Schema interpretiert (`OracleTypeMapper`); ungültige Eingaben → Validierungsfehler, kein SQL.
-- Row-Key immer mitselektieren (Abschnitt 5.5).
-- **Immer deterministisch sortieren:** Nutzer-Sortierung + Row-Key als Tiebreaker. Ohne das liefert `OFFSET/FETCH` doppelte oder fehlende Zeilen zwischen den Seiten.
-- Paging: `OFFSET :o ROWS FETCH NEXT :n ROWS ONLY`.
-- Spaltennamen in Filter/Sort gegen das Schema validieren, dann per `OracleIdentifier.Quote()` quoten. Werte nur als Bind-Variablen.
-- Operatoren je Typ einschränken (kein `Contains` auf NUMBER/DATE).
-- `Contains`/`StartsWith`/`EndsWith`: `%`, `_` und das Escape-Zeichen escapen, `LIKE … ESCAPE '\'`. Groß-/Kleinschreibung ignorieren optional (`UPPER()` – nutzt dann keinen normalen Index).
-- `Equals` mit leerem Wert: in Oracle nie wahr (`'' = NULL`) → UI schlägt `IsNull` vor.
-- `In`: max. 1000 Elemente pro Liste (ORA-01795) → mehrere Listen mit `OR` verbinden.
-- `Equals` auf `DATE` ohne Uhrzeit → Bereich `col >= :d AND col < :d + 1`.
+`QueryBuilder.BuildSelect(tableDetails, filters, sorts, page)` / `BuildCount(…)` / `Validate(…)`. Regeln (alle mit Unit- und Integrationstests):
+- Spaltenkategorien (`ColumnCategories.Of`): Text, Number, Date, Timestamp(+TZ), Boolean, Interval, Raw, Clob, Blob, Long, Unsupported. Operatoren je Kategorie (`FilterRules.OperatorsFor`); kein `Contains` auf NUMBER/DATE, LOB nur LIKE-artig/NULL, RAW/BLOB/LONG/Unsupported nur NULL-Prüfung.
+- Werte: Zahlen deutsch („1.234,5“) oder invariant („1234.5“; ohne Komma ist der Punkt Dezimaltrenner); Datum `TT.MM.JJJJ [hh:mm[:ss]]` oder ISO. Ungültige Eingaben → Validierungsfehler pro Filterzeile, kein SQL.
+- Projektion statt `t.*`: CLOB → `DBMS_LOB.SUBSTR(…, 200, 1)` + `GETLENGTH`, BLOB → `GETLENGTH`, LONG/XMLTYPE/Objekttypen → `CASE WHEN … IS NULL THEN 0 ELSE 1 END` (LONG im Select verträgt sich nicht mit `FETCH FIRST`, ORA-00997).
+- `t.ROWID` wird bei Tabellen/MViews immer mitselektiert (Views: nein).
+- **Immer deterministisch sortieren:** Nutzer-Sortierung + Tiebreaker PK → ROWID → (View ohne Key) alle sortierbaren Spalten. Ohne das liefert `OFFSET/FETCH` doppelte oder fehlende Zeilen zwischen den Seiten.
+- Paging: `OFFSET :p_offset ROWS FETCH NEXT :p_limit ROWS ONLY`.
+- Spaltennamen in Filter/Sort gegen das Schema validieren, dann per `OracleIdentifier.Quote()` quoten. Werte nur als Bind-Variablen; **jede gebundene Variable muss im SQL vorkommen** (sonst ORA-01036) – Unit-Tests prüfen das für jedes Statement.
+- `Contains`/`StartsWith`/`EndsWith`: `%`, `_`, `\` escapen, `UPPER(c) LIKE UPPER(:p) ESCAPE '\'` (immer ohne Groß-/Kleinschreibung).
+- `≠` schließt NULL ein, wenn die Spalte nullable ist (wie C#/EF): `(c <> :p OR c IS NULL)`.
+- `CHAR`/`NCHAR`-Spalten werden als `OracleDbType.Char` gebunden (Blank-Padding: „AB“ findet „AB␣“).
+- `Equals` mit leerem Text: in Oracle nie wahr (`'' = NULL`) → Validierungsfehler mit Hinweis auf „ist NULL“.
+- `In`: max. 1000 Elemente pro Liste (ORA-01795) → mehrere Listen mit `OR`.
+- Datum ohne Uhrzeit meint den ganzen Tag: `=` → `[d, d+1)`, `>` → `>= d+1`, `≤` → `< d+1`, `zwischen` schließt den letzten Tag ein.
+- Daten: `IDataAccess.ReadPageAsync/CountAsync` (`OracleDataAccess`), Zellanzeige über `CellFormatter` (deutsch, NULL bleibt null). NUMBER > 28 Stellen → `BigNumber` (exakter Text).
 
 ### 5.5 Row-Identität
 ```csharp
@@ -235,6 +240,11 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 - `DATE` enthält eine Uhrzeit; `TIMESTAMP` reicht bis Nanosekunden (`OracleTimeStamp`, nicht `DateTime`); `TIMESTAMP WITH (LOCAL) TIME ZONE` gesondert.
 - `CLOB`/`BLOB`/`RAW`/`LONG`: im Grid nur Länge und Vorschau (nicht vollständig laden; z. B. `InitialLOBFetchSize` oder `DBMS_LOB.SUBSTR`). Bearbeitung (v2) in eigenem Editor-Dialog.
 - Unbekannte oder exotische Typen (`INTERVAL`, `XMLTYPE`, `JSON`, `BOOLEAN`/`VECTOR` ab 23ai, `BINARY_FLOAT/DOUBLE`, Objekttypen): als read-only Textdarstellung anzeigen, nie abstürzen.
+
+**Client-Locale (bei deutschem Windows sofort relevant)**
+- ODP.NET übernimmt NLS-Einstellungen aus dem Windows-Locale → `NLS_SORT=GERMAN` sortiert Ziffern hinter Buchstaben und kann keine Indizes nutzen. `OracleSession` setzt deshalb `Sort`/`Comparison` = `BINARY` (Integrationstest prüft das).
+- `OracleDecimal.ToString()` formatiert mit der aktuellen Kultur („1,5“) → vor dem Parsen normalisieren (`OracleDataAccess.NormalizeDecimalSeparator`).
+- SQL*Plus-Testskripte: `SET DEFINE OFF` (sonst wird `&` als Variable abgefragt) und `NLS_LANG=…AL32UTF8` für Umlaute.
 
 **Sessions & Nebenläufigkeit**
 - `OracleConnection` ist nicht thread-safe → pro Session ein `SemaphoreSlim(1,1)` (kein `lock`, wegen `await`); Queries pro Workspace laufen sequenziell.
@@ -332,6 +342,7 @@ Jedes Paket: eigener Branch `wp/NN-kurzname`, am Ende `dotnet build -warnaserror
 - `FerretGrid`-Komponente (AG Grid, Infinite Row Model): Spalten aus dem Schema, serverseitiges Sortieren per Header-Klick, NULL-Darstellung, Typ-Formatierung (DATE, TIMESTAMP, NUMBER ohne Präzisionsverlust – große Zahlen als String übertragen), LOB-Vorschau, Fallback-Darstellung für unbekannte Typen.
 - `FilterBar`-Komponente im TablePlus-Stil: Zeilen hinzufügen/entfernen, Operatoren typabhängig, Validierung je Typ, `Apply`, `Apply All`, `Clear`; der `SQL`-Button zeigt das vom `QueryBuilder` erzeugte Statement mit Bind-Variablen (Highlighter-Komponente).
 - Paging („nächste 500 Zeilen“ / Endlos-Nachladen) und Zeilenzähler (`COUNT(*)` lazy, abbrechbar).
+- Zusätzlich umgesetzt: Tabellen als Tabs (Klick im Explorer öffnet/aktiviert, Mittelklick schließt), Umschalter „Daten | Struktur“ je Tab, Tabs bleiben gemountet (Grid-Zustand bleibt beim Wechsel erhalten), F5 = Neu laden statt WebView-Reload, Filter-Zeilen einzeln aktivierbar.
 - **Fertig wenn:** Eine Tabelle mit > 100k Zeilen bleibt flüssig; die Filter erzeugen korrektes SQL (Tests); Seiten überlappen nicht und haben keine Lücken (Integrationstest).
 
 #### WP-05 Workspaces
