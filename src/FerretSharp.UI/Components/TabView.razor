@@ -11,7 +11,13 @@
             <button class="seg @(Tab.Mode == TabMode.Data ? "active" : "")" @onclick="() => SetMode(TabMode.Data)">Daten</button>
             <button class="seg @(Tab.Mode == TabMode.Structure ? "active" : "")" @onclick="() => SetMode(TabMode.Structure)">Struktur</button>
         </div>
-        <span class="toolbar-title">@Tab.Table.Owner.@Tab.Table.Name</span>
+        <span class="toolbar-title">
+            @if (Tab.Table.Synonym is { } synonym)
+            {
+                @($"{(synonym.IsPublic ? "öffentliches Synonym" : "Synonym")} {synonym.Name} → ")
+            }
+            @Tab.Table.Owner.@Tab.Table.Name
+        </span>
         <span class="spacer"></span>
         @if (Tab.Mode == TabMode.Data && _details is not null)
         {
@@ -102,9 +108,11 @@
     [Parameter, EditorRequired]
     public TableTab Tab { get; set; } = null!;
 
-    private string SortText => Tab.Sorts.Count == 0
-        ? "Sortierung: Row-Key"
-        : "Sortierung: " + string.Join(", ", Tab.Sorts.Select(s => s.Column + (s.Descending ? " ↓" : " ↑")));
+    private string SortText => Tab.Sorts.Count > 0
+        ? "Sortierung: " + string.Join(", ", Tab.Sorts.Select(s => s.Column + (s.Descending ? " ↓" : " ↑")))
+        : _details is not null && QueryBuilder.RowKeyOf(_details) == RowKeyKind.None
+            ? "Sortierung: alle Spalten"
+            : "Sortierung: Row-Key";
 
     private string RowKeyText => _details is null ? "" : QueryBuilder.RowKeyOf(_details) switch
     {

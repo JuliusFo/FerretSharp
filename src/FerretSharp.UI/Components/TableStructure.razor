@@ -7,13 +7,21 @@
 <div class="structure">
     <div class="structure-head">
         <span class="structure-icon">@Icons.For(Table.Kind)</span>
-        <h1>@Table.Name</h1>
+        <h1>@Table.DisplayName</h1>
         <span class="chip">@KindLabel</span>
+        @if (Table.Synonym is { } synonym)
+        {
+            <span class="chip syn">@(synonym.IsPublic ? "ÖFFENTLICHES SYNONYM" : "SYNONYM")</span>
+            <span class="muted">→ @Table.Owner.@Table.Name</span>
+        }
         @if (_details?.IsIndexOrganized == true)
         {
             <span class="chip">INDEX-ORGANIZED</span>
         }
-        <span class="muted">@Table.Owner</span>
+        @if (Table.Synonym is null)
+        {
+            <span class="muted">@Table.Owner</span>
+        }
     </div>
 
     @if (_error is not null)

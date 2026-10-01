@@ -55,7 +55,7 @@
                                             <div class="tab @(t == _state.ActiveTab ? "active" : "")" title="@t.Table.Owner.@t.Table.Name"
                                                  @onclick="() => _state.ActivateTab(t)" @onauxclick="e => CloseOnMiddleClick(e, t)">
                                                 @Icons.For(t.Table.Kind)
-                                                <span class="tab-name">@t.Table.Name</span>
+                                                <span class="tab-name">@t.Table.DisplayName</span>
                                                 @if (t.ActiveFilterCount > 0)
                                                 {
                                                     <span class="filter-pill">@t.ActiveFilterCount Filter</span>

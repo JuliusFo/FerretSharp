@@ -5,11 +5,12 @@
 
 @if (Active.Schema?.Find(Target) is { } table)
 {
-    <button class="link" title="Struktur anzeigen" @onclick="() => Shell.OpenTable(table, TabMode.Structure)">@Label</button>
+    <button class="link" title="@(table.Synonym is null ? "Struktur anzeigen" : $"Synonym für {Target} – Struktur anzeigen")"
+            @onclick="() => Shell.OpenTable(table, TabMode.Structure)">@Label(table)</button>
 }
 else
 {
-    <span class="mono" title="Liegt in einem anderen Schema">@Label</span>
+    <span class="mono" title="Liegt in einem anderen Schema ohne Synonym">@Target</span>
 }
 
 @code {
@@ -19,6 +20,7 @@ else
     [Parameter, EditorRequired]
     public TableRef Target { get; set; } = null!;
 
-    /// <summary>Owner is only shown for objects outside the browsed schema.</summary>
-    private string Label => Target.Owner == Active.Schema?.Owner ? Target.Name : Target.ToString();
+    /// <summary>Synonym name if the object is known by one; owner only for other schemas without synonym.</summary>
+    private string Label(TableSummary table) =>
+        table.Synonym is not null || Target.Owner == Active.Schema?.Owner ? table.DisplayName : Target.ToString();
 }
