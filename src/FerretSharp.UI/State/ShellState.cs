@@ -1,4 +1,5 @@
 using FerretSharp.Core.Connections;
+using FerretSharp.Core.Query;
 using FerretSharp.Core.Schema;
 using FerretSharp.Core.Workspaces;
 
@@ -129,6 +130,29 @@ public sealed class ShellState
             }
 
             tab.Visited = true;
+            workspace.ActiveTab = tab;
+            Page = ShellPage.Explorer;
+        });
+        return tab;
+    }
+
+    /// <summary>
+    /// Opens a new tab (also if the table is already open) with the filters applied – used for FK jumps, so the tab
+    /// the user came from keeps its own filters. It is placed right after the active tab.
+    /// </summary>
+    public TableTab? OpenFiltered(TableSummary table, IReadOnlyList<FilterCondition> filters)
+    {
+        if (ActiveWorkspace is not { } workspace)
+        {
+            return null;
+        }
+
+        var tab = new TableTab(workspace.WorkspaceId, table) { AppliedFilters = filters, Visited = true };
+        tab.FilterRows.AddRange(filters.Select(FilterRow.From));
+        Set(() =>
+        {
+            var index = workspace.ActiveTab is { } active ? workspace.Tabs.IndexOf(active) + 1 : workspace.Tabs.Count;
+            workspace.Tabs.Insert(index, tab);
             workspace.ActiveTab = tab;
             Page = ShellPage.Explorer;
         });

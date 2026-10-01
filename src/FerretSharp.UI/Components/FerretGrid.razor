@@ -11,6 +11,9 @@
 <div id="@Tab.Id" class="ag-host"></div>
 
 @code {
+    private const int MaxCachedBlocks = 40; // maxBlocksInCache in grid.js
+
+    private readonly Dictionary<int, IReadOnlyList<RowData>> _blocks = [];
     private IJSObjectReference? _module;
     private DotNetObjectReference<FerretGrid>? _selfRef;
 
@@ -26,6 +29,9 @@
     /// <summary>Raised after every page (or failure), so the tab footer can update.</summary>
     [Parameter]
     public EventCallback OnPageLoaded { get; set; }
+
+    [Parameter]
+    public EventCallback<GridContextMenuRequest> OnContextMenu { get; set; }
 
     public sealed record GridSort(string ColId, string Sort);
 
@@ -95,6 +101,7 @@
         {
             Tab.RowsLoaded = 0;
             Tab.AllRowsLoaded = false;
+            _blocks.Clear(); // new query: blocks from an older filter or sort order are stale
             Shell.MarkDirty(); // sort order may have changed
         }
 
@@ -118,6 +125,7 @@
                 rows.Add(cells);
             }
 
+            KeepBlock(startRow, page.Rows);
             Tab.RowsLoaded = Math.Max(Tab.RowsLoaded, startRow + page.Rows.Count);
             Tab.AllRowsLoaded |= page.IsLastPage;
             Tab.LastQueryTime = page.Elapsed;
@@ -132,6 +140,43 @@
             await OnPageLoaded.InvokeAsync();
             throw;
         }
+    }
+
+    /// <summary>Right-click on a cell; the menu needs the raw row values, not the display text.</summary>
+    [JSInvokable]
+    public async Task OnCellContextMenu(int rowIndex, string colId, double x, double y, double viewportWidth, double viewportHeight)
+    {
+        if (RowAt(rowIndex) is not { } row || !colId.StartsWith('c'))
+        {
+            return;
+        }
+
+        var column = int.Parse(colId[1..], CultureInfo.InvariantCulture);
+        await OnContextMenu.InvokeAsync(new GridContextMenuRequest(
+            row, column, CellFormatter.Format(Details.Columns[column], row.Values[column]), x, y, viewportWidth, viewportHeight));
+    }
+
+    /// <summary>Raw rows of a loaded block, kept as long as AG Grid keeps the block (same limit as in grid.js).</summary>
+    private void KeepBlock(int startRow, IReadOnlyList<RowData> rows)
+    {
+        _blocks[startRow] = rows;
+        while (_blocks.Count > MaxCachedBlocks)
+        {
+            _blocks.Remove(_blocks.Keys.MaxBy(start => Math.Abs(start - startRow)));
+        }
+    }
+
+    private RowData? RowAt(int index)
+    {
+        foreach (var (start, rows) in _blocks)
+        {
+            if (index >= start && index < start + rows.Count)
+            {
+                return rows[index - start];
+            }
+        }
+
+        return null;
     }
 
     /// <summary>Remembers the first visible row (rough scroll position), but only rows that were actually loaded.</summary>

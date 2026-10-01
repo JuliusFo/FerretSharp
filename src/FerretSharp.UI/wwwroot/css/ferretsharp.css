@@ -435,6 +435,25 @@ table.binds td { font-family: var(--mono); }
 .menu-item.danger { color: var(--danger); }
 .menu-item.danger:hover { background: var(--danger-weak); }
 .menu-sep { height: 1px; margin: 5px 4px; background: var(--border); }
+.menu-item:disabled { opacity: .55; cursor: default; }
+.menu-item:disabled:hover { background: transparent; }
+
+/* ---------- grid context menu ---------- */
+.ctx-menu { z-index: 45; padding: 4px; max-height: calc(100vh - 16px); overflow-y: auto; outline: none; }
+.ctx-head { display: flex; align-items: baseline; gap: 8px; padding: 6px 10px 8px; margin-bottom: 2px; border-bottom: 1px solid var(--border); min-width: 0; }
+.ctx-col { font: 600 11.5px var(--mono); color: var(--muted); flex: none; }
+.ctx-value { font: 12.5px var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; user-select: text; }
+.ctx-jump { height: auto; min-height: 40px; padding: 4px 10px; }
+.ctx-jump.related .ctx-table { color: var(--accent); }
+.ctx-jump.empty .ctx-table { color: var(--muted); }
+.ctx-arrow { width: 14px; flex: none; color: var(--faint); font-size: 14px; }
+.ctx-target { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.ctx-table { font: 600 12.5px var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ctx-meta { font: 11.5px var(--mono); color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ctx-count { flex: none; min-width: 26px; padding: 1px 7px; border-radius: 9px; background: var(--accent-weak); color: var(--accent); font-size: 11.5px; font-weight: 600; text-align: center; font-variant-numeric: tabular-nums; }
+.ctx-jump.empty .ctx-count, .ctx-count.muted { background: var(--surface-2); color: var(--faint); }
+.ctx-count.error { background: var(--danger-weak); color: var(--danger); }
+.ctx-empty { padding: 8px 10px; color: var(--faint); }
 .btn.danger-solid { background: var(--danger); border-color: var(--danger); color: #fff; font-weight: 600; }
 .btn.danger-solid:hover { filter: brightness(1.07); }
 .dialog.confirm { width: min(460px, 94vw); }

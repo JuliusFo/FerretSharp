@@ -54,7 +54,7 @@
                                         @foreach (var tab in _state.Tabs)
                                         {
                                             var t = tab;
-                                            <div class="tab @(t == _state.ActiveTab ? "active" : "")" title="@t.Table.Owner.@t.Table.Name"
+                                            <div class="tab @(t == _state.ActiveTab ? "active" : "")" title="@TabTooltip(t)"
                                                  @onclick="() => _state.ActivateTab(t)" @onmouseup="e => CloseOnMiddleClick(e, t)">
                                                 @Icons.For(t.Table.Kind)
                                                 <span class="tab-name">@t.Table.DisplayName</span>
@@ -244,6 +244,15 @@
                 _state.RequestTabCommand(TabCommand.Refresh);
                 break;
         }
+    }
+
+    /// <summary>Owner.table plus the active filters, so several tabs of the same table can be told apart.</summary>
+    private static string TabTooltip(TableTab tab)
+    {
+        var filters = tab.AppliedFilters.Where(f => f.Enabled)
+            .Select(f => $"{f.Column} {OperatorLabels.Label(f.Op)} {string.Join("; ", f.Values)}".TrimEnd())
+            .ToList();
+        return $"{tab.Table.Owner}.{tab.Table.Name}" + (filters.Count > 0 ? Environment.NewLine + string.Join(Environment.NewLine, filters) : "");
     }
 
     private void CloseOnMiddleClick(MouseEventArgs e, TableTab tab)
