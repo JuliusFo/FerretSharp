@@ -5,7 +5,7 @@
 
 @if (Active.Schema?.Find(Target) is { } table)
 {
-    <button class="link" title="Struktur anzeigen" @onclick="() => Shell.SelectTable(table)">@Label</button>
+    <button class="link" title="Struktur anzeigen" @onclick="() => Shell.OpenTable(table, TabMode.Structure)">@Label</button>
 }
 else
 {

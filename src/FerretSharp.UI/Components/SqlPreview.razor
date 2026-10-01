@@ -1,0 +1,127 @@
+@using FerretSharp.Core.Query
+
+<div class="modal-backdrop" @onclick="OnClose" @onkeydown="OnKeyDown">
+    <div class="modal dialog sql-dialog" @onclick:stopPropagation="true" role="dialog" aria-label="Generiertes SQL">
+        <header>
+            <span>@Title</span>
+            <span class="spacer"></span>
+            <button class="btn" @onclick="CopyAsync">@(_copied ? "Kopiert ✓" : "Kopieren")</button>
+            <button class="icon-btn ghost" title="Schließen" @onclick="OnClose">✕</button>
+        </header>
+        @if (Error is not null)
+        {
+            <div class="test-result error"><span>@Error</span></div>
+        }
+        else
+        {
+            <pre class="sql">@foreach (var (text, css) in Highlight(Sql))
+                {
+                    if (css is null) { @text } else { <span class="@css">@text</span> }
+                }</pre>
+            @if (Parameters.Count > 0)
+            {
+                <table class="binds">
+                    <thead><tr><th>Bind-Variable</th><th>Wert</th><th>Typ</th></tr></thead>
+                    <tbody>
+                        @foreach (var p in Parameters)
+                        {
+                            <tr><td>:@p.Name</td><td>@Format(p.Value)</td><td>@p.Type</td></tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    private static readonly HashSet<string> Keywords =
+    [
+        "SELECT", "FROM", "WHERE", "AND", "OR", "ORDER", "BY", "DESC", "ASC", "OFFSET", "ROWS", "FETCH", "NEXT", "ONLY",
+        "LIKE", "ESCAPE", "IS", "NOT", "NULL", "IN", "BETWEEN", "CASE", "WHEN", "THEN", "ELSE", "END", "UPPER", "COUNT",
+        "ROWID", "DBMS_LOB", "SUBSTR", "GETLENGTH",
+    ];
+
+    private bool _copied;
+
+    [Inject]
+    private IJSRuntime JS { get; set; } = null!;
+
+    [Parameter]
+    public string Title { get; set; } = "Generiertes SQL";
+
+    [Parameter]
+    public string Sql { get; set; } = "";
+
+    [Parameter]
+    public IReadOnlyList<QueryParameter> Parameters { get; set; } = [];
+
+    [Parameter]
+    public string? Error { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private async Task CopyAsync()
+    {
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", Sql);
+        _copied = true;
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await OnClose.InvokeAsync();
+        }
+    }
+
+    private static string Format(object? value) => value switch
+    {
+        null => "NULL",
+        DateTime d => d.ToString(d.TimeOfDay == TimeSpan.Zero ? "dd.MM.yyyy" : "dd.MM.yyyy HH:mm:ss", CultureInfo.InvariantCulture),
+        string s => $"'{s}'",
+        IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
+        _ => value.ToString() ?? "",
+    };
+
+    /// <summary>Tiny tokenizer: keywords, string literals, bind variables, quoted identifiers.</summary>
+    private static List<(string Text, string? Css)> Highlight(string sql)
+    {
+        var result = new List<(string, string?)>();
+        var i = 0;
+        while (i < sql.Length)
+        {
+            var c = sql[i];
+            if (c is '\'' or '"')
+            {
+                var end = sql.IndexOf(c, i + 1);
+                end = end < 0 ? sql.Length - 1 : end;
+                result.Add((sql[i..(end + 1)], c == '\'' ? "str" : "ident"));
+                i = end + 1;
+            }
+            else if (c == ':' && i + 1 < sql.Length && char.IsLetter(sql[i + 1]))
+            {
+                var end = i + 1;
+                while (end < sql.Length && (char.IsLetterOrDigit(sql[end]) || sql[end] == '_')) end++;
+                result.Add((sql[i..end], "bind"));
+                i = end;
+            }
+            else if (char.IsLetter(c))
+            {
+                var end = i;
+                while (end < sql.Length && (char.IsLetterOrDigit(sql[end]) || sql[end] == '_')) end++;
+                var word = sql[i..end];
+                result.Add((word, Keywords.Contains(word) ? "kw" : null));
+                i = end;
+            }
+            else
+            {
+                result.Add((c.ToString(), null));
+                i++;
+            }
+        }
+
+        return result;
+    }
+}

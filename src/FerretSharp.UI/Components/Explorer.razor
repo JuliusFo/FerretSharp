@@ -41,8 +41,8 @@
                     @foreach (var table in tables)
                     {
                         var t = table;
-                        <button class="table-item @(Shell.SelectedTable?.Ref == t.Ref ? "active" : "")" title="@KindLabel(t.Kind)"
-                                @onclick="() => Shell.SelectTable(t)">
+                        <button class="table-item @(Shell.ActiveTab?.Table.Ref == t.Ref ? "active" : "") @(IsOpen(t) ? "open" : "")" title="@KindLabel(t.Kind)"
+                                @onclick="() => Shell.OpenTable(t)">
                             @Icons.For(t.Kind)
                             <span class="name">@t.Name</span>
                             @if (t.Kind != TableKind.Table)
@@ -105,6 +105,8 @@
         return result;
     }
 
+    private bool IsOpen(TableSummary table) => Shell.Tabs.Any(t => t.Table.Ref == table.Ref);
+
     private static int SortKey(char letter) => letter == LetterIndexBar.Other ? int.MaxValue : letter;
 
     private async Task JumpAsync(char letter)
@@ -125,10 +127,7 @@
         try
         {
             await Task.Run(() => schema.RefreshAsync(CancellationToken.None));
-            if (Shell.SelectedTable is { } selected && schema.Find(selected.Ref) is null)
-            {
-                Shell.SelectTable(null);
-            }
+            Shell.RemoveTabsWhere(tab => schema.Find(tab.Table.Ref) is null);
         }
         catch (DatabaseException ex)
         {

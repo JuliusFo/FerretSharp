@@ -1,0 +1,264 @@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Query
+@using FerretSharp.Core.Schema
+@using FerretSharp.UI.State
+@implements IDisposable
+@inject ActiveConnection Active
+
+<div class="tabview">
+    <div class="tab-toolbar">
+        <div class="segmented small">
+            <button class="seg @(Tab.Mode == TabMode.Data ? "active" : "")" @onclick="() => SetMode(TabMode.Data)">Daten</button>
+            <button class="seg @(Tab.Mode == TabMode.Structure ? "active" : "")" @onclick="() => SetMode(TabMode.Structure)">Struktur</button>
+        </div>
+        <span class="toolbar-title">@Tab.Table.Owner.@Tab.Table.Name</span>
+        <span class="spacer"></span>
+        @if (Tab.Mode == TabMode.Data && _details is not null)
+        {
+            <button class="icon-btn ghost" title="Neu laden (F5)" @onclick="RefreshAsync">@Icons.Refresh</button>
+        }
+    </div>
+
+    @if (_loadError is not null)
+    {
+        <div class="tab-error">@_loadError</div>
+    }
+    else if (_details is null)
+    {
+        <div class="structure-loading padded"><span class="spinner"></span> Lade Struktur …</div>
+    }
+    else
+    {
+        <div class="tab-data @(Tab.Mode == TabMode.Data ? "" : "hidden")">
+            <FilterBar Tab="Tab" Details="_details" OnApply="ApplyFiltersAsync" OnShowSql="ShowSql" />
+            @if (Tab.Error is not null)
+            {
+                <div class="tab-error">@Tab.Error</div>
+            }
+            <div class="grid-host">
+                <FerretGrid @ref="_grid" Tab="Tab" Details="_details" OnPageLoaded="StateHasChanged" />
+            </div>
+            <footer class="tab-footer">
+                @* RowsLoaded is the highest loaded position (blocks load where the user scrolls), so it is a lower bound. *@
+                @if (Tab.AllRowsLoaded)
+                {
+                    <span><strong>@Tab.RowsLoaded.ToString("N0", CultureInfo.CurrentCulture)</strong> Zeilen</span>
+                }
+                else if (Tab.TotalCount is null)
+                {
+                    <span>≥ <strong>@Tab.RowsLoaded.ToString("N0", CultureInfo.CurrentCulture)</strong> Zeilen</span>
+                }
+                @if (Tab.TotalCount is { } total && !Tab.AllRowsLoaded)
+                {
+                    <span>Gesamt <strong>@total.ToString("N0", CultureInfo.CurrentCulture)</strong></span>
+                }
+                else if (_countCts is not null)
+                {
+                    <span><span class="spinner small"></span> Zähle … <button class="status-btn" @onclick="CancelCount">Abbrechen</button></span>
+                }
+                else if (!Tab.AllRowsLoaded)
+                {
+                    <button class="status-btn" @onclick="CountAsync">Zeilen zählen</button>
+                }
+                @if (Tab.LastQueryTime is { } time)
+                {
+                    <span>@time.TotalMilliseconds.ToString("N0", CultureInfo.CurrentCulture) ms</span>
+                }
+                <span>@SortText</span>
+                @if (_countError is not null)
+                {
+                    <span class="error">@_countError</span>
+                }
+                <span class="spacer"></span>
+                <span>Row-Key: @RowKeyText</span>
+            </footer>
+        </div>
+
+        @if (Tab.Mode == TabMode.Structure)
+        {
+            <div class="tab-structure">
+                <TableStructure Table="Tab.Table" />
+            </div>
+        }
+    }
+</div>
+
+@if (_sql is { } sql)
+{
+    <SqlPreview Sql="@sql.Sql" Parameters="sql.Parameters" Error="@sql.Error" OnClose="() => _sql = null" />
+}
+
+@code {
+    private TableDetails? _details;
+    private string? _loadError;
+    private FerretGrid? _grid;
+    private CancellationTokenSource? _countCts;
+    private string? _countError;
+    private (string Sql, IReadOnlyList<QueryParameter> Parameters, string? Error)? _sql;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public TableTab Tab { get; set; } = null!;
+
+    private string SortText => Tab.Sorts.Count == 0
+        ? "Sortierung: Row-Key"
+        : "Sortierung: " + string.Join(", ", Tab.Sorts.Select(s => s.Column + (s.Descending ? " ↓" : " ↑")));
+
+    private string RowKeyText => _details is null ? "" : QueryBuilder.RowKeyOf(_details) switch
+    {
+        RowKeyKind.PrimaryKey => "PK " + string.Join(", ", _details.PrimaryKey),
+        RowKeyKind.RowId => _details.IsIndexOrganized ? "UROWID" : "ROWID",
+        _ => "keiner (View ohne Schlüssel)",
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        Shell.TabCommandRequested += OnTabCommand;
+        if (Active.Schema is not { } schema)
+        {
+            return;
+        }
+
+        try
+        {
+            var table = Tab.Table;
+            _details = await Task.Run(() => schema.GetDetailsAsync(table, CancellationToken.None));
+        }
+        catch (DatabaseException ex)
+        {
+            _loadError = ex.ErrorCode is null ? ex.Message : $"{ex.ErrorCode}: {ex.Message}";
+        }
+    }
+
+    private void SetMode(TabMode mode)
+    {
+        Tab.Mode = mode;
+        Shell.NotifyChanged();
+    }
+
+    private async Task ApplyFiltersAsync()
+    {
+        if (_details is null)
+        {
+            return;
+        }
+
+        var conditions = Tab.FilterRows.Select(r => r.ToCondition()).ToList();
+        var errors = QueryBuilder.Validate(_details, conditions);
+        for (var i = 0; i < Tab.FilterRows.Count; i++)
+        {
+            Tab.FilterRows[i].Error = errors.GetValueOrDefault(i);
+        }
+
+        if (errors.Count > 0)
+        {
+            return;
+        }
+
+        Tab.AppliedFilters = conditions;
+        Shell.NotifyChanged(); // filter count in the tab header
+        await RefreshAsync();
+    }
+
+    private async Task RefreshAsync()
+    {
+        CancelCount();
+        _countError = null;
+        Tab.Error = null;
+        if (_grid is not null)
+        {
+            await _grid.RefreshAsync();
+        }
+    }
+
+    private async Task CountAsync()
+    {
+        if (_details is null || Active.Data is not { } data)
+        {
+            return;
+        }
+
+        var cts = _countCts = new CancellationTokenSource();
+        _countError = null;
+        var details = _details;
+        var filters = Tab.AppliedFilters;
+        try
+        {
+            var count = await Task.Run(() => data.CountAsync(details, filters, cts.Token), cts.Token);
+            Tab.TotalCount = count;
+            if (_grid is not null)
+            {
+                await _grid.SetRowCountAsync(count);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (DatabaseException ex)
+        {
+            _countError = ex.ErrorCode is null ? ex.Message : $"{ex.ErrorCode}: {ex.Message}";
+        }
+        finally
+        {
+            if (ReferenceEquals(_countCts, cts))
+            {
+                _countCts = null;
+            }
+
+            cts.Dispose();
+        }
+    }
+
+    private void CancelCount() => _countCts?.Cancel();
+
+    /// <summary>Shows the statement for the filters as currently edited (or the applied ones if the edit is invalid).</summary>
+    private void ShowSql()
+    {
+        if (_details is null)
+        {
+            return;
+        }
+
+        var edited = Tab.FilterRows.Select(r => r.ToCondition()).ToList();
+        var filters = QueryBuilder.Validate(_details, edited).Count == 0 ? edited : Tab.AppliedFilters;
+        try
+        {
+            var query = QueryBuilder.BuildSelect(_details, filters, Tab.Sorts, new PageSpec(0, 500));
+            _sql = (query.Sql, query.Parameters, null);
+        }
+        catch (QueryValidationException ex)
+        {
+            _sql = ("", [], ex.Message);
+        }
+    }
+
+    private void OnTabCommand(TableTab tab, TabCommand command)
+    {
+        if (tab != Tab)
+        {
+            return;
+        }
+
+        _ = InvokeAsync(async () =>
+        {
+            if (command == TabCommand.ApplyFilters)
+            {
+                await ApplyFiltersAsync();
+            }
+            else
+            {
+                await RefreshAsync();
+            }
+
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        Shell.TabCommandRequested -= OnTabCommand;
+        _countCts?.Cancel();
+    }
+}
