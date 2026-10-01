@@ -2,12 +2,30 @@
 @using FerretSharp.UI.State
 @implements IAsyncDisposable
 @inject ConnectionManager Connections
+@inject ActiveConnection Active
+@inject RecentConnections Recent
 @inject IJSRuntime JS
 
 <div class="switcher">
-    <button class="switcher-btn @(Shell.SwitcherOpen ? "open" : "")" title="Verbindung wählen (Ctrl+Shift+O)" @onclick="Toggle">
-        <span class="dot"></span>
-        <span>Verbindung wählen</span>
+    <button class="switcher-btn @(Shell.SwitcherOpen ? "open" : "") @(Active.Profile is { } ap ? ConnectionKindInfo.CssClass(ap.Kind) : "")"
+            title="Verbindung wählen (Ctrl+Shift+O)" @onclick="Toggle">
+        @if (Active.Status == ConnectionStatus.Connecting)
+        {
+            <span class="spinner small"></span>
+        }
+        else
+        {
+            <span class="dot @(Active.Status == ConnectionStatus.Failed ? "err" : "")"></span>
+        }
+        @if (Active.Profile is { } activeProfile)
+        {
+            <span class="switcher-name">@activeProfile.Name</span>
+            <span class="kind-badge">@ConnectionKindInfo.Short(activeProfile.Kind)</span>
+        }
+        else
+        {
+            <span>Verbindung wählen</span>
+        }
         <span class="chev">▾</span>
     </button>
 
@@ -22,7 +40,7 @@
             </div>
 
             <div class="popover-list">
-                @{ Recompute(); }
+                @{ Recompute(); var index = 0; }
                 @if (Connections.Profiles.Count == 0)
                 {
                     <div class="popover-empty">Noch keine Verbindungen.</div>
@@ -32,7 +50,15 @@
                     <div class="popover-empty">Keine Verbindung passt zu „@_query“.</div>
                 }
 
-                @{ var index = 0; }
+                @if (_recent.Count > 0)
+                {
+                    <div class="group-head-btn static">Zuletzt verwendet</div>
+                    @foreach (var profile in _recent)
+                    {
+                        @Row(profile, index++)
+                    }
+                }
+
                 @foreach (var group in _groups)
                 {
                     var key = group.Name ?? "";
@@ -47,16 +73,7 @@
                     {
                         foreach (var profile in group.Profiles)
                         {
-                            var rowIndex = index++;
-                            var p = profile;
-                            <div id="conn-row-@rowIndex" class="conn-row @ConnectionKindInfo.CssClass(p.Kind) @(rowIndex == _highlight ? "highlight" : "")"
-                                 @onclick="() => Activate(p)" @onmouseenter="() => _highlight = rowIndex">
-                                <span class="dot"></span>
-                                <span class="name">@p.Name</span>
-                                <span class="kind-badge">@ConnectionKindInfo.Short(p.Kind)</span>
-                                <span class="addr">@p.Address.Display</span>
-                                <ConnectionActionsMenu Profile="p" OnAction="Shell.CloseSwitcher" />
-                            </div>
+                            @Row(profile, index++)
                         }
                     }
                 }
@@ -64,13 +81,15 @@
 
             <div class="popover-footer">
                 <button class="menu-item" @onclick="NewConnection"><span class="plus">+</span> Neue Verbindung</button>
-                <button class="menu-item" @onclick="Shell.CloseSwitcher">Alle Verbindungen verwalten …</button>
+                <button class="menu-item" @onclick="Shell.ShowConnections">Alle Verbindungen verwalten …</button>
             </div>
         </div>
     }
 </div>
 
 @code {
+    private const int RecentCount = 3;
+
     private readonly HashSet<string> _collapsed = [];
     private ElementReference _searchInput;
     private IJSObjectReference? _dom;
@@ -79,6 +98,7 @@
     private string _query = "";
     private int _highlight;
     private IReadOnlyList<ConnectionGroup> _groups = [];
+    private IReadOnlyList<ConnectionProfile> _recent = [];
     private List<ConnectionProfile> _visible = [];
 
     [CascadingParameter]
@@ -86,19 +106,36 @@
 
     private bool Searching => !string.IsNullOrWhiteSpace(_query);
 
+    private RenderFragment Row(ConnectionProfile p, int rowIndex) =>
+        @<div id="conn-row-@rowIndex" class="conn-row @ConnectionKindInfo.CssClass(p.Kind) @(rowIndex == _highlight ? "highlight" : "")"
+              @onclick="() => Activate(p)" @onmouseenter="() => _highlight = rowIndex">
+            <span class="dot"></span>
+            <span class="name">
+                @p.Name
+                @if (Active.Profile?.Id == p.Id && Active.IsConnected)
+                {
+                    <span class="connected-tag">verbunden</span>
+                }
+            </span>
+            <span class="kind-badge">@ConnectionKindInfo.Short(p.Kind)</span>
+            <span class="addr">@p.Address.Display</span>
+            <ConnectionActionsMenu Profile="p" OnAction="Shell.CloseSwitcher" />
+        </div>;
+
     protected override void OnInitialized()
     {
         Shell.Changed += OnStateChanged;
         Connections.Changed += OnStateChanged;
+        Active.Changed += OnStateChanged;
     }
 
-    /// <summary>Groups and the flat list of visible rows (for keyboard navigation), rebuilt on every render.</summary>
+    /// <summary>Recent, groups and the flat list of visible rows (for keyboard navigation), rebuilt on every render.</summary>
     private void Recompute()
     {
+        _recent = Searching ? [] : Recent.MostRecent(Connections.Profiles, RecentCount);
         _groups = ConnectionSearch.Group(Connections.Profiles, _query);
-        _visible = _groups
-            .Where(g => Searching || !_collapsed.Contains(g.Name ?? ""))
-            .SelectMany(g => g.Profiles)
+        _visible = _recent
+            .Concat(_groups.Where(g => Searching || !_collapsed.Contains(g.Name ?? "")).SelectMany(g => g.Profiles))
             .ToList();
         _highlight = Math.Clamp(_highlight, 0, Math.Max(0, _visible.Count - 1));
     }
@@ -143,22 +180,6 @@
         InvokeAsync(StateHasChanged);
     }
 
-    public async ValueTask DisposeAsync()
-    {
-        Shell.Changed -= OnStateChanged;
-        Connections.Changed -= OnStateChanged;
-        if (_dom is not null)
-        {
-            try
-            {
-                await _dom.DisposeAsync();
-            }
-            catch (JSDisconnectedException)
-            {
-            }
-        }
-    }
-
     private void ToggleGroup(string key)
     {
         if (!_collapsed.Remove(key))
@@ -167,12 +188,7 @@
         }
     }
 
-    /// <summary>Until connecting exists (WP-03), activating a connection opens it for editing.</summary>
-    private void Activate(ConnectionProfile profile)
-    {
-        Shell.CloseSwitcher();
-        Shell.EditConnection(profile);
-    }
+    private void Activate(ConnectionProfile profile) => Shell.Connect(profile);
 
     private void NewConnection()
     {
@@ -198,6 +214,23 @@
             case "Escape":
                 Shell.CloseSwitcher();
                 break;
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Shell.Changed -= OnStateChanged;
+        Connections.Changed -= OnStateChanged;
+        Active.Changed -= OnStateChanged;
+        if (_dom is not null)
+        {
+            try
+            {
+                await _dom.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
         }
     }
 }

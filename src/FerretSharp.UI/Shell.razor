@@ -3,39 +3,120 @@
 @using FerretSharp.UI.State
 @implements IAsyncDisposable
 @inject ConnectionManager Connections
+@inject ActiveConnection Active
+@inject RecentConnections Recent
 @inject IJSRuntime JS
 
 <CascadingValue Value="_state" IsFixed="true">
-    <div class="app">
+    <div class="app @(IsProdActive ? "is-prod" : "")">
         <header class="topbar">
             <div class="brand">Ferret<span>Sharp</span></div>
+            @if (Active.Status != ConnectionStatus.Disconnected)
+            {
+                <button class="icon-btn ghost @(_state.Page == ShellPage.Connections ? "active" : "")" title="Alle Verbindungen"
+                        @onclick="ToggleHome">@Icons.Home</button>
+            }
             <ConnectionSwitcher />
             <div class="topbar-right">
-                <span class="badge">READ-ONLY</span>
+                @if (IsProdActive)
+                {
+                    <span class="badge badge-prod">PROD · READ-ONLY</span>
+                }
+                else
+                {
+                    <span class="badge">READ-ONLY</span>
+                }
             </div>
         </header>
 
         <div class="body">
+            @if (ShowExplorer)
+            {
+                @if (Active.IsConnected)
+                {
+                    <Explorer />
+                }
+                else
+                {
+                    <aside class="sidebar"></aside>
+                }
+            }
+
             <main class="content">
-                <ErrorBoundary>
+                <ErrorBoundary @ref="_errorBoundary">
                     <ChildContent>
-                        <ConnectionsPage />
+                        @if (!ShowExplorer)
+                        {
+                            <ConnectionsPage />
+                        }
+                        else if (Active.Status == ConnectionStatus.Connecting && Active.Profile is { } connecting)
+                        {
+                            <EmptyState Title="@($"Verbinde mit {connecting.Name} …")" Text="@connecting.Address.Display">
+                                <span class="spinner"></span>
+                                <button class="btn" @onclick="Active.CancelPendingConnect">Abbrechen</button>
+                            </EmptyState>
+                        }
+                        else if (Active.Status == ConnectionStatus.Failed && Active.Profile is { } failed)
+                        {
+                            <EmptyState Title="@($"Verbindung zu {failed.Name} fehlgeschlagen")" IsError="true">
+                                <div class="error-detail">
+                                    @if (Active.Error?.ErrorCode is { } errorCode)
+                                    {
+                                        <span class="code">@errorCode</span>
+                                    }
+                                    <span>@Active.Error?.Message</span>
+                                </div>
+                                <div class="button-row">
+                                    <button class="btn primary" @onclick="() => _state.Connect(failed)">Erneut versuchen</button>
+                                    <button class="btn" @onclick="() => _state.EditConnection(failed)">Bearbeiten</button>
+                                    <button class="btn ghost" @onclick="_state.ShowConnections">Zur Übersicht</button>
+                                </div>
+                            </EmptyState>
+                        }
+                        else if (_state.SelectedTable is { } table)
+                        {
+                            <TableStructure @key="table.Ref" Table="table" />
+                        }
+                        else
+                        {
+                            <EmptyState Title="Tabelle auswählen" Text="Links eine Tabelle oder View wählen, um die Struktur zu sehen." />
+                        }
                     </ChildContent>
                     <ErrorContent Context="exception">
-                        <EmptyState Title="Da ist etwas schiefgelaufen" Text="@exception.Message" IsError="true" />
+                        <EmptyState Title="Da ist etwas schiefgelaufen" Text="@exception.Message" IsError="true">
+                            <button class="btn" @onclick="RecoverFromError">Weiter</button>
+                        </EmptyState>
                     </ErrorContent>
                 </ErrorBoundary>
             </main>
         </div>
 
         <footer class="statusbar">
-            @if (Connections.LoadError is { } error)
+            @if (Connections.LoadError is { } loadError)
             {
-                <span class="item error" title="@error"><span class="dot err"></span> Verbindungen konnten nicht geladen werden</span>
+                <span class="item error" title="@loadError"><span class="dot err"></span> Verbindungen konnten nicht geladen werden</span>
             }
             else
             {
-                <span class="item"><span class="dot"></span> Nicht verbunden</span>
+                @switch (Active.Status)
+                {
+                    case ConnectionStatus.Connected:
+                        <span class="item"><span class="dot ok"></span> Verbunden</span>
+                        <span class="item">@Active.Profile?.Name</span>
+                        <span class="item">Oracle @Active.ServerVersion</span>
+                        <span class="item">Schema @Active.Schema?.Owner · @(Active.Schema?.Tables.Count ?? 0) Objekte</span>
+                        <button class="status-btn" @onclick="DisconnectAsync">Trennen</button>
+                        break;
+                    case ConnectionStatus.Connecting:
+                        <span class="item"><span class="spinner small"></span> Verbinde mit @Active.Profile?.Name …</span>
+                        break;
+                    case ConnectionStatus.Failed:
+                        <span class="item error"><span class="dot err"></span> Verbindung fehlgeschlagen</span>
+                        break;
+                    default:
+                        <span class="item"><span class="dot"></span> Nicht verbunden</span>
+                        break;
+                }
             }
             <span class="spacer"></span>
             <span class="item">@Version</span>
@@ -64,14 +145,23 @@
         "v" + (typeof(Shell).Assembly.GetName().Version?.ToString(3) ?? "0.0.0");
 
     private readonly ShellState _state = new();
+    private ErrorBoundary? _errorBoundary;
     private IJSObjectReference? _shortcuts;
     private DotNetObjectReference<Shell>? _selfRef;
+
+    private bool ShowExplorer => _state.Page == ShellPage.Explorer && Active.Status != ConnectionStatus.Disconnected;
+
+    private bool IsProdActive => Active.Profile?.Kind == ConnectionKind.Prod
+                                 && Active.Status is ConnectionStatus.Connected or ConnectionStatus.Connecting;
 
     protected override async Task OnInitializedAsync()
     {
         _state.Changed += OnChanged;
+        _state.ConnectRequested += OnConnectRequested;
         Connections.Changed += OnChanged;
+        Active.Changed += OnChanged;
         await Connections.LoadAsync(CancellationToken.None);
+        await Recent.LoadAsync(CancellationToken.None);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -93,10 +183,44 @@
         }
     }
 
+    /// <summary>Runs off the UI thread; ActiveConnection reports progress through its Changed event.</summary>
+    private void OnConnectRequested(ConnectionProfile profile) =>
+        _ = Task.Run(() => Active.ConnectAsync(profile, CancellationToken.None));
+
+    private void ToggleHome()
+    {
+        if (_state.Page == ShellPage.Connections)
+        {
+            _state.ShowExplorer();
+        }
+        else
+        {
+            _state.ShowConnections();
+        }
+    }
+
+    private async Task DisconnectAsync()
+    {
+        await Active.DisconnectAsync();
+        _state.SelectTable(null);
+        _state.ShowConnections();
+    }
+
     private async Task DeleteAsync(ConnectionProfile profile)
     {
         _state.CancelDelete();
+        if (Active.Profile?.Id == profile.Id)
+        {
+            await DisconnectAsync();
+        }
+
         await Connections.DeleteAsync(profile.Id, CancellationToken.None);
+    }
+
+    private void RecoverFromError()
+    {
+        _state.SelectTable(null);
+        _errorBoundary?.Recover();
     }
 
     private void OnChanged() => InvokeAsync(StateHasChanged);
@@ -104,7 +228,9 @@
     public async ValueTask DisposeAsync()
     {
         _state.Changed -= OnChanged;
+        _state.ConnectRequested -= OnConnectRequested;
         Connections.Changed -= OnChanged;
+        Active.Changed -= OnChanged;
         if (_shortcuts is not null)
         {
             try

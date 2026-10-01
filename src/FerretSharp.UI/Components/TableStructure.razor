@@ -1,0 +1,187 @@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Schema
+@using FerretSharp.UI.State
+@implements IDisposable
+@inject ActiveConnection Active
+
+<div class="structure">
+    <div class="structure-head">
+        <span class="structure-icon">@Icons.For(Table.Kind)</span>
+        <h1>@Table.Name</h1>
+        <span class="chip">@KindLabel</span>
+        @if (_details?.IsIndexOrganized == true)
+        {
+            <span class="chip">INDEX-ORGANIZED</span>
+        }
+        <span class="muted">@Table.Owner</span>
+    </div>
+
+    @if (_error is not null)
+    {
+        <div class="test-result error"><span>@_error</span></div>
+    }
+    else if (_details is null)
+    {
+        <div class="structure-loading"><span class="spinner"></span> Lade Struktur …</div>
+    }
+    else
+    {
+        var details = _details;
+        var fkColumns = Outgoing.SelectMany(f => f.FromColumns.Select(c => (Column: c, Fk: f))).ToLookup(x => x.Column, x => x.Fk);
+        var uniqueColumns = details.UniqueKeys.SelectMany(k => k).ToHashSet();
+
+        <section>
+            <h2>Spalten <span class="count">@details.Columns.Count</span></h2>
+            <table class="columns">
+                <thead>
+                    <tr><th class="num">#</th><th>Name</th><th>Typ</th><th>Null</th><th>Default</th><th></th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var column in details.Columns)
+                    {
+                        <tr>
+                            <td class="num">@column.Position</td>
+                            <td class="name">
+                                @column.Name
+                                @if (details.PrimaryKey.Contains(column.Name))
+                                {
+                                    <span class="fs-badge pk" title="Primärschlüssel">PK</span>
+                                }
+                                else if (uniqueColumns.Contains(column.Name))
+                                {
+                                    <span class="fs-badge uk" title="Unique Key">UK</span>
+                                }
+                                @foreach (var fk in fkColumns[column.Name])
+                                {
+                                    <span class="fs-badge fk" title="@fk.Name → @fk.To">FK</span>
+                                }
+                            </td>
+                            <td class="mono">@column.DisplayType</td>
+                            <td>@(column.Nullable ? "" : "NOT NULL")</td>
+                            <td class="mono default">@column.Default</td>
+                            <td>@(column.IsIdentity ? "IDENTITY" : "")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </section>
+
+        <section>
+            <h2>Schlüssel</h2>
+            <dl class="keys">
+                <dt>Primärschlüssel</dt>
+                <dd class="mono">@(details.PrimaryKey.Count > 0 ? string.Join(", ", details.PrimaryKey) : "–")</dd>
+                @foreach (var key in details.UniqueKeys)
+                {
+                    <dt>Unique</dt>
+                    <dd class="mono">@string.Join(", ", key)</dd>
+                }
+                <dt>Row-Key</dt>
+                <dd>@RowKeyText(details)</dd>
+            </dl>
+        </section>
+
+        <section>
+            <h2>Verweist auf <span class="count">@Outgoing.Count</span></h2>
+            @if (Outgoing.Count == 0)
+            {
+                <p class="muted">Keine Fremdschlüssel.</p>
+            }
+            @foreach (var fk in Outgoing)
+            {
+                <div class="relation">
+                    <span class="mono">(@string.Join(", ", fk.FromColumns))</span>
+                    <span class="arrow">→</span>
+                    <TableLink Target="fk.To" />
+                    <span class="mono">(@string.Join(", ", fk.ToColumns))</span>
+                    <span class="muted constraint">@fk.Name</span>
+                </div>
+            }
+        </section>
+
+        <section>
+            <h2>Referenziert von <span class="count">@Incoming.Count</span></h2>
+            @if (Incoming.Count == 0)
+            {
+                <p class="muted">Keine Tabelle verweist hierher.</p>
+            }
+            @foreach (var fk in Incoming)
+            {
+                <div class="relation">
+                    <TableLink Target="fk.From" />
+                    <span class="mono">(@string.Join(", ", fk.FromColumns))</span>
+                    <span class="arrow">→</span>
+                    <span class="mono">(@string.Join(", ", fk.ToColumns))</span>
+                    <span class="muted constraint">@fk.Name</span>
+                </div>
+            }
+        </section>
+    }
+</div>
+
+@code {
+    private CancellationTokenSource? _loadCts;
+    private TableDetails? _details;
+    private string? _error;
+    private TableRef? _loadedFor;
+
+    [Parameter, EditorRequired]
+    public TableSummary Table { get; set; } = null!;
+
+    private IReadOnlyList<ForeignKeyInfo> Outgoing => Active.Schema?.OutgoingOf(Table.Ref).ToList() ?? [];
+
+    private IReadOnlyList<ForeignKeyInfo> Incoming => Active.Schema?.IncomingOf(Table.Ref).ToList() ?? [];
+
+    private string KindLabel => Table.Kind switch
+    {
+        TableKind.View => "VIEW",
+        TableKind.MaterializedView => "MATERIALIZED VIEW",
+        _ => "TABELLE",
+    };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_loadedFor == Table.Ref || Active.Schema is not { } schema)
+        {
+            return;
+        }
+
+        _loadCts?.Cancel();
+        _loadCts?.Dispose();
+        var cts = _loadCts = new CancellationTokenSource();
+        _loadedFor = Table.Ref;
+        _details = null;
+        _error = null;
+
+        var table = Table;
+        try
+        {
+            var details = await Task.Run(() => schema.GetDetailsAsync(table, cts.Token), cts.Token);
+            if (!cts.IsCancellationRequested)
+            {
+                _details = details;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (DatabaseException ex)
+        {
+            _error = ex.ErrorCode is null ? ex.Message : $"{ex.ErrorCode}: {ex.Message}";
+        }
+    }
+
+    /// <summary>How rows of this object will be identified (CLAUDE.md 5.5): PK, otherwise ROWID, views without PK: none.</summary>
+    private static string RowKeyText(TableDetails details) => details switch
+    {
+        { PrimaryKey.Count: > 0 } => "Primärschlüssel",
+        { Table.Kind: TableKind.Table } => details.IsIndexOrganized ? "UROWID" : "ROWID",
+        _ => "keiner – nur lesbar",
+    };
+
+    public void Dispose()
+    {
+        _loadCts?.Cancel();
+        _loadCts?.Dispose();
+    }
+}

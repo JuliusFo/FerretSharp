@@ -1,0 +1,24 @@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Schema
+@using FerretSharp.UI.State
+@inject ActiveConnection Active
+
+@if (Active.Schema?.Find(Target) is { } table)
+{
+    <button class="link" title="Struktur anzeigen" @onclick="() => Shell.SelectTable(table)">@Label</button>
+}
+else
+{
+    <span class="mono" title="Liegt in einem anderen Schema">@Label</span>
+}
+
+@code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public TableRef Target { get; set; } = null!;
+
+    /// <summary>Owner is only shown for objects outside the browsed schema.</summary>
+    private string Label => Target.Owner == Active.Schema?.Owner ? Target.Name : Target.ToString();
+}

@@ -1,0 +1,167 @@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Schema
+@using FerretSharp.UI.State
+@implements IAsyncDisposable
+@inject ActiveConnection Active
+@inject IJSRuntime JS
+
+<aside class="sidebar explorer">
+    <div class="sidebar-head">
+        <div class="schema-row">
+            <span class="schema">@(Schema?.Owner ?? "–")</span>
+            <span class="muted">@CountText</span>
+            <button class="icon-btn ghost" title="Schema neu laden" disabled="@(_refreshing || Schema is null)" @onclick="RefreshAsync">
+                <span class="@(_refreshing ? "spin" : "")">@Icons.Refresh</span>
+            </button>
+        </div>
+        <div class="search">
+            @Icons.Search
+            <input placeholder="Tabelle suchen …" @bind="_query" @bind:event="oninput" disabled="@(Schema is null)" />
+        </div>
+    </div>
+
+    @if (_refreshError is not null)
+    {
+        <div class="sidebar-error">@_refreshError</div>
+    }
+
+    <div class="sidebar-body">
+        @{ var groups = Groups(); }
+        <LetterIndexBar Available="groups.Keys.ToHashSet()" OnJump="JumpAsync" />
+
+        <div class="table-list">
+            @if (Schema is not null && groups.Count == 0)
+            {
+                <div class="sidebar-empty">@(string.IsNullOrWhiteSpace(_query) ? "Das Schema enthält keine Tabellen oder Views." : $"Nichts gefunden für „{_query}“.")</div>
+            }
+            @foreach (var (letter, tables) in groups)
+            {
+                <div id="tbl-grp-@(letter == LetterIndexBar.Other ? "other" : letter.ToString())">
+                    <div class="group-head">@letter</div>
+                    @foreach (var table in tables)
+                    {
+                        var t = table;
+                        <button class="table-item @(Shell.SelectedTable?.Ref == t.Ref ? "active" : "")" title="@KindLabel(t.Kind)"
+                                @onclick="() => Shell.SelectTable(t)">
+                            @Icons.For(t.Kind)
+                            <span class="name">@t.Name</span>
+                            @if (t.Kind != TableKind.Table)
+                            {
+                                <span class="kind-tag">@(t.Kind == TableKind.View ? "VIEW" : "MVIEW")</span>
+                            }
+                        </button>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</aside>
+
+@code {
+    private IJSObjectReference? _dom;
+    private string _query = "";
+    private bool _refreshing;
+    private string? _refreshError;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    private SchemaCache? Schema => Active.Schema;
+
+    private string CountText => Schema is null ? "" : Schema.Tables.Count == 1 ? "1 Objekt" : $"{Schema.Tables.Count:N0} Objekte";
+
+    protected override void OnInitialized()
+    {
+        Active.Changed += OnChanged;
+        Shell.Changed += OnChanged;
+    }
+
+    private SortedDictionary<char, List<TableSummary>> Groups()
+    {
+        // A–Z first, "#" (other) last.
+        var result = new SortedDictionary<char, List<TableSummary>>(
+            Comparer<char>.Create((a, b) => SortKey(a).CompareTo(SortKey(b))));
+        if (Schema is null)
+        {
+            return result;
+        }
+
+        foreach (var table in Schema.Tables)
+        {
+            if (_query.Length > 0 && !table.Name.Contains(_query.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var key = LetterIndexBar.KeyOf(table.Name);
+            if (!result.TryGetValue(key, out var list))
+            {
+                result[key] = list = [];
+            }
+
+            list.Add(table);
+        }
+
+        return result;
+    }
+
+    private static int SortKey(char letter) => letter == LetterIndexBar.Other ? int.MaxValue : letter;
+
+    private async Task JumpAsync(char letter)
+    {
+        _dom ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
+        await _dom.InvokeVoidAsync("scrollIntoViewById", $"tbl-grp-{(letter == LetterIndexBar.Other ? "other" : letter.ToString())}", "start");
+    }
+
+    private async Task RefreshAsync()
+    {
+        if (Schema is not { } schema)
+        {
+            return;
+        }
+
+        _refreshing = true;
+        _refreshError = null;
+        try
+        {
+            await Task.Run(() => schema.RefreshAsync(CancellationToken.None));
+            if (Shell.SelectedTable is { } selected && schema.Find(selected.Ref) is null)
+            {
+                Shell.SelectTable(null);
+            }
+        }
+        catch (DatabaseException ex)
+        {
+            _refreshError = ex.ErrorCode is null ? ex.Message : $"{ex.ErrorCode}: {ex.Message}";
+        }
+        finally
+        {
+            _refreshing = false;
+        }
+    }
+
+    private static string KindLabel(TableKind kind) => kind switch
+    {
+        TableKind.View => "View",
+        TableKind.MaterializedView => "Materialized View",
+        _ => "Tabelle",
+    };
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    public async ValueTask DisposeAsync()
+    {
+        Active.Changed -= OnChanged;
+        Shell.Changed -= OnChanged;
+        if (_dom is not null)
+        {
+            try
+            {
+                await _dom.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+    }
+}

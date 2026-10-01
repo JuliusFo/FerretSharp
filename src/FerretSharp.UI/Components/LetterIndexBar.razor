@@ -1,0 +1,26 @@
+@* Vertical A–Z (+ #) index; letters without entries are disabled. *@
+
+<nav class="letters" aria-label="Buchstabenindex">
+    @foreach (var letter in Letters)
+    {
+        var l = letter;
+        <button disabled="@(!Available.Contains(l))" title="@Title(l)" @onclick="() => OnJump.InvokeAsync(l)">@l</button>
+    }
+</nav>
+
+@code {
+    /// <summary>Group key for names that do not start with A–Z (quoted identifiers like "1_Import" or "Übersicht").</summary>
+    public const char Other = '#';
+
+    private static readonly char[] Letters = [.. Enumerable.Range('A', 26).Select(c => (char)c), Other];
+
+    [Parameter, EditorRequired]
+    public IReadOnlySet<char> Available { get; set; } = new HashSet<char>();
+
+    [Parameter]
+    public EventCallback<char> OnJump { get; set; }
+
+    public static char KeyOf(string name) => name.Length > 0 && name[0] is >= 'A' and <= 'Z' ? name[0] : Other;
+
+    private static string Title(char letter) => letter == Other ? "Sonstige (Sonderzeichen, Ziffern, Kleinbuchstaben)" : letter.ToString();
+}
