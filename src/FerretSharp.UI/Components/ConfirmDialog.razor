@@ -1,0 +1,50 @@
+<div class="modal-backdrop" @onkeydown="OnKeyDown">
+    <div class="modal dialog confirm" role="alertdialog" aria-label="@Title">
+        <header><span>@Title</span></header>
+        <div class="dialog-body">@ChildContent</div>
+        <footer>
+            <span class="spacer"></span>
+            <button class="btn ghost" @ref="_cancelButton" @onclick="OnCancel">Abbrechen</button>
+            <button class="btn @(Danger ? "danger-solid" : "primary")" @onclick="OnConfirm">@ConfirmLabel</button>
+        </footer>
+    </div>
+</div>
+
+@code {
+    private ElementReference _cancelButton;
+
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public string ConfirmLabel { get; set; } = "OK";
+
+    [Parameter]
+    public bool Danger { get; set; }
+
+    [Parameter]
+    public EventCallback OnConfirm { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    // Focus the safe option, so Enter does not delete by accident.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await _cancelButton.FocusAsync();
+        }
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await OnCancel.InvokeAsync();
+        }
+    }
+}

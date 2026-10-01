@@ -1,0 +1,203 @@
+@using FerretSharp.Core.Connections
+@using FerretSharp.UI.State
+@implements IAsyncDisposable
+@inject ConnectionManager Connections
+@inject IJSRuntime JS
+
+<div class="switcher">
+    <button class="switcher-btn @(Shell.SwitcherOpen ? "open" : "")" title="Verbindung wählen (Ctrl+Shift+O)" @onclick="Toggle">
+        <span class="dot"></span>
+        <span>Verbindung wählen</span>
+        <span class="chev">▾</span>
+    </button>
+
+    @if (Shell.SwitcherOpen)
+    {
+        <div class="popover-backdrop" @onclick="Shell.CloseSwitcher"></div>
+        <div class="popover switcher-pop" @onkeydown="OnKeyDown">
+            <div class="popover-search">
+                @Icons.Search
+                <input @ref="_searchInput" placeholder="Verbindung suchen …" @bind="_query" @bind:event="oninput" @bind:after="() => _highlight = 0" />
+                <kbd>Ctrl Shift O</kbd>
+            </div>
+
+            <div class="popover-list">
+                @{ Recompute(); }
+                @if (Connections.Profiles.Count == 0)
+                {
+                    <div class="popover-empty">Noch keine Verbindungen.</div>
+                }
+                else if (_visible.Count == 0)
+                {
+                    <div class="popover-empty">Keine Verbindung passt zu „@_query“.</div>
+                }
+
+                @{ var index = 0; }
+                @foreach (var group in _groups)
+                {
+                    var key = group.Name ?? "";
+                    var collapsed = !Searching && _collapsed.Contains(key);
+                    <button class="group-head-btn" @onclick="() => ToggleGroup(key)">
+                        <span class="chev @(collapsed ? "closed" : "")">▾</span>
+                        <span>@(group.Name ?? "Ohne Gruppe")</span>
+                        <span class="count">@group.Profiles.Count</span>
+                    </button>
+
+                    @if (!collapsed)
+                    {
+                        foreach (var profile in group.Profiles)
+                        {
+                            var rowIndex = index++;
+                            var p = profile;
+                            <div id="conn-row-@rowIndex" class="conn-row @ConnectionKindInfo.CssClass(p.Kind) @(rowIndex == _highlight ? "highlight" : "")"
+                                 @onclick="() => Activate(p)" @onmouseenter="() => _highlight = rowIndex">
+                                <span class="dot"></span>
+                                <span class="name">@p.Name</span>
+                                <span class="kind-badge">@ConnectionKindInfo.Short(p.Kind)</span>
+                                <span class="addr">@p.Address.Display</span>
+                                <ConnectionActionsMenu Profile="p" OnAction="Shell.CloseSwitcher" />
+                            </div>
+                        }
+                    }
+                }
+            </div>
+
+            <div class="popover-footer">
+                <button class="menu-item" @onclick="NewConnection"><span class="plus">+</span> Neue Verbindung</button>
+                <button class="menu-item" @onclick="Shell.CloseSwitcher">Alle Verbindungen verwalten …</button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private readonly HashSet<string> _collapsed = [];
+    private ElementReference _searchInput;
+    private IJSObjectReference? _dom;
+    private bool _scrollToHighlight;
+    private bool _wasOpen;
+    private string _query = "";
+    private int _highlight;
+    private IReadOnlyList<ConnectionGroup> _groups = [];
+    private List<ConnectionProfile> _visible = [];
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    private bool Searching => !string.IsNullOrWhiteSpace(_query);
+
+    protected override void OnInitialized()
+    {
+        Shell.Changed += OnStateChanged;
+        Connections.Changed += OnStateChanged;
+    }
+
+    /// <summary>Groups and the flat list of visible rows (for keyboard navigation), rebuilt on every render.</summary>
+    private void Recompute()
+    {
+        _groups = ConnectionSearch.Group(Connections.Profiles, _query);
+        _visible = _groups
+            .Where(g => Searching || !_collapsed.Contains(g.Name ?? ""))
+            .SelectMany(g => g.Profiles)
+            .ToList();
+        _highlight = Math.Clamp(_highlight, 0, Math.Max(0, _visible.Count - 1));
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var justOpened = Shell.SwitcherOpen && !_wasOpen;
+        _wasOpen = Shell.SwitcherOpen;
+        if (justOpened)
+        {
+            await _searchInput.FocusAsync();
+        }
+
+        if (_scrollToHighlight)
+        {
+            _scrollToHighlight = false;
+            _dom ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
+            await _dom.InvokeVoidAsync("scrollIntoViewById", $"conn-row-{_highlight}");
+        }
+    }
+
+    private void Toggle()
+    {
+        if (Shell.SwitcherOpen)
+        {
+            Shell.CloseSwitcher();
+        }
+        else
+        {
+            Shell.OpenSwitcher();
+        }
+    }
+
+    private void OnStateChanged()
+    {
+        if (Shell.SwitcherOpen && !_wasOpen)
+        {
+            _query = "";
+            _highlight = 0;
+        }
+
+        InvokeAsync(StateHasChanged);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Shell.Changed -= OnStateChanged;
+        Connections.Changed -= OnStateChanged;
+        if (_dom is not null)
+        {
+            try
+            {
+                await _dom.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+    }
+
+    private void ToggleGroup(string key)
+    {
+        if (!_collapsed.Remove(key))
+        {
+            _collapsed.Add(key);
+        }
+    }
+
+    /// <summary>Until connecting exists (WP-03), activating a connection opens it for editing.</summary>
+    private void Activate(ConnectionProfile profile)
+    {
+        Shell.CloseSwitcher();
+        Shell.EditConnection(profile);
+    }
+
+    private void NewConnection()
+    {
+        Shell.CloseSwitcher();
+        Shell.NewConnection();
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "ArrowDown":
+                _highlight = Math.Min(_highlight + 1, Math.Max(0, _visible.Count - 1));
+                _scrollToHighlight = true;
+                break;
+            case "ArrowUp":
+                _highlight = Math.Max(_highlight - 1, 0);
+                _scrollToHighlight = true;
+                break;
+            case "Enter" when _visible.Count > 0:
+                Activate(_visible[_highlight]);
+                break;
+            case "Escape":
+                Shell.CloseSwitcher();
+                break;
+        }
+    }
+}

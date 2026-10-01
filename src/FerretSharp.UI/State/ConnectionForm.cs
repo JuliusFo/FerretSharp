@@ -16,6 +16,11 @@ public sealed class ConnectionForm
 
     public string Name { get; set; } = "";
 
+    public string Group { get; set; } = "";
+
+    /// <summary>Profile whose stored password is used when <see cref="Password"/> is empty (edit: itself, duplicate: the original).</summary>
+    public Guid? PasswordSourceId { get; private init; }
+
     public ConnectionKind Kind
     {
         get => _kind;
@@ -63,13 +68,23 @@ public sealed class ConnectionForm
         ReadOnlyTouched = true;
     }
 
-    public static ConnectionForm FromProfile(ConnectionProfile profile)
+    /// <summary>Edit an existing connection.</summary>
+    public static ConnectionForm FromProfile(ConnectionProfile profile) =>
+        Create(profile, profile.Id, isNew: false, profile.Name);
+
+    /// <summary>A new connection prefilled from <paramref name="original"/>, reusing its stored password unless one is entered.</summary>
+    public static ConnectionForm Duplicate(ConnectionProfile original) =>
+        Create(original, Guid.NewGuid(), isNew: true, original.Name + " (Kopie)");
+
+    private static ConnectionForm Create(ConnectionProfile profile, Guid id, bool isNew, string name)
     {
         var form = new ConnectionForm
         {
-            Id = profile.Id,
-            IsNew = false,
-            Name = profile.Name,
+            Id = id,
+            IsNew = isNew,
+            PasswordSourceId = profile.Id,
+            Name = name,
+            Group = profile.Group ?? "",
             User = profile.User,
             DefaultSchema = profile.DefaultSchema ?? "",
             ReadOnlyTouched = true,
@@ -121,7 +136,7 @@ public sealed class ConnectionForm
             address = new TnsAliasAddress(Alias.Trim(), NullIfBlank(TnsAdminPath));
         }
 
-        var profile = new ConnectionProfile(Id, Name.Trim(), Kind, address, User.Trim(), NullIfBlank(DefaultSchema), ReadOnly);
+        var profile = new ConnectionProfile(Id, Name.Trim(), Kind, address, User.Trim(), NullIfBlank(DefaultSchema), ReadOnly, NullIfBlank(Group));
         foreach (var (field, message) in ConnectionProfileValidator.Validate(profile))
         {
             errors[field] = message;

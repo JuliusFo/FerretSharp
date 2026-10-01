@@ -19,6 +19,18 @@
                 <FieldError Errors="Errors" Field="@ConnectionField.Name" />
             </div>
 
+            <label for="cn-group">Gruppe</label>
+            <div>
+                <input id="cn-group" class="field" list="cn-groups" @bind="Form.Group" @bind:event="oninput"
+                       placeholder="z. B. Projekt oder Kunde – optional" autocomplete="off" />
+                <datalist id="cn-groups">
+                    @foreach (var group in ConnectionSearch.GroupNames(Connections.Profiles))
+                    {
+                        <option value="@group"></option>
+                    }
+                </datalist>
+            </div>
+
             <label>Umgebung</label>
             <div class="segmented">
                 @foreach (var kind in ConnectionKindInfo.All)
@@ -90,7 +102,7 @@
             <label for="cn-password">Passwort</label>
             <div>
                 <input id="cn-password" type="password" class="field @Invalid(PasswordField)" @bind="Form.Password" @bind:event="oninput"
-                       placeholder="@(HasStoredPassword ? "unverändert" : "")" autocomplete="new-password" />
+                       placeholder="@PasswordPlaceholder" autocomplete="new-password" />
                 <FieldError Errors="Errors" Field="@PasswordField" />
                 <div class="hint small">Wird im Windows-Anmeldeinformationsspeicher abgelegt, nie in der Verbindungsdatei.</div>
             </div>
@@ -169,26 +181,45 @@
     private ConnectionTestResult? _testResult;
     private CancellationTokenSource? _testCts;
 
-    /// <summary>Profile to edit; null creates a new connection.</summary>
-    [Parameter]
-    public ConnectionProfile? Profile { get; set; }
+    [Parameter, EditorRequired]
+    public ConnectionDialogRequest Request { get; set; } = new(ConnectionDialogMode.New, null);
 
     [Parameter]
     public EventCallback OnClose { get; set; }
 
     private ConnectionForm Form { get; set; } = new();
 
-    private string Title => Form.IsNew ? "Neue Verbindung" : "Verbindung bearbeiten";
+    private string Title => Request.Mode switch
+    {
+        ConnectionDialogMode.Edit => "Verbindung bearbeiten",
+        ConnectionDialogMode.Duplicate => "Verbindung duplizieren",
+        _ => "Neue Verbindung",
+    };
 
+    /// <summary>The edited profile (edit) or the original (duplicate) has a stored password that can be reused.</summary>
     private bool HasStoredPassword { get; set; }
+
+    private string PasswordPlaceholder => !HasStoredPassword ? ""
+        : Request.Mode == ConnectionDialogMode.Duplicate ? "wie im Original" : "unverändert";
 
     private IReadOnlyDictionary<string, string> Errors => _submitted ? Validate() : new Dictionary<string, string>();
 
     protected override void OnInitialized()
     {
-        Form = Profile is null ? new ConnectionForm() : ConnectionForm.FromProfile(Profile);
-        HasStoredPassword = !Form.IsNew && Connections.HasPassword(Form.Id);
+        Form = Request switch
+        {
+            { Mode: ConnectionDialogMode.Edit, Profile: { } p } => ConnectionForm.FromProfile(p),
+            { Mode: ConnectionDialogMode.Duplicate, Profile: { } p } => ConnectionForm.Duplicate(p),
+            _ => new ConnectionForm(),
+        };
+        HasStoredPassword = Form.PasswordSourceId is { } source && Connections.HasPassword(source);
     }
+
+    /// <summary>The typed password, otherwise the stored one of the edited/original profile.</summary>
+    private string? EffectivePassword() =>
+        Form.Password.Length > 0 ? Form.Password
+        : Form.PasswordSourceId is { } source ? Connections.GetPassword(source)
+        : null;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -220,7 +251,7 @@
         }
 
         var profile = Form.ToProfile().Profile;
-        var password = Form.Password.Length > 0 ? Form.Password : Connections.GetPassword(Form.Id) ?? "";
+        var password = EffectivePassword() ?? "";
 
         _testCts = new CancellationTokenSource();
         _testing = true;
@@ -258,7 +289,9 @@
         try
         {
             var profile = Form.ToProfile().Profile;
-            await Connections.SaveAsync(profile, Form.Password.Length > 0 ? Form.Password : null, CancellationToken.None);
+            // Edit: null keeps the stored password. New/duplicate: always store one (a duplicate inherits the original's).
+            var newPassword = Form.IsNew ? EffectivePassword() : Form.Password.Length > 0 ? Form.Password : null;
+            await Connections.SaveAsync(profile, newPassword, CancellationToken.None);
             await CloseAsync();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
