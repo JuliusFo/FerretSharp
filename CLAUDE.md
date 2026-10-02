@@ -32,6 +32,8 @@ Es wird in Versionen ausgeliefert. Jede Version ist für sich benutzbar.
 
 Regeln für **v1**:
 - Es gibt **keinen** Codepfad, der DML/DDL erzeugt oder ausführt. `IDataAccess` und `OracleSession` bieten in v1 nur lesende Methoden (kein öffentliches `ExecuteNonQuery`). Einzige Ausnahme: INSERT-Statements als **Text-Export** (werden nie ausgeführt).
+- Abgesichert durch: `OracleSession.ExecuteReaderAsync` lehnt alles außer reinen Abfragen ab (`IsReadOnlyStatement`: beginnt nach Leerraum/Kommentaren mit `SELECT`/`WITH`, kein `FOR UPDATE`, nur ein Statement) – eine Stolperfalle gegen Programmierfehler, kein SQL-Parser. `ReadOnlyTests` prüfen per Reflection, dass die DB-Typen keine schreibenden Methoden anbieten, und dass alle Statements von `QueryBuilder` und `OracleSchemaReader` die Sperre passieren; ein Integrationstest zeigt, dass `DELETE` abgewiesen wird. In v2 muss die Sperre für die Daten-Session des Transaktions-APIs bewusst umgangen werden (eigene Methode, nicht die Sperre aufweichen).
+- Keine Garantie auf Datenbankseite: Hat der DB-User Schreibrechte, könnte ein Fehler in FerretSharp schreiben (ohne Transaktion committet ODP.NET sofort). `SET TRANSACTION READ ONLY` schützt nicht vor DDL (implizites Commit). Die einzige echte Garantie bleibt ein User mit reinen SELECT-Rechten.
 - v1-Sessions laufen ohne explizite Transaktion → jede Abfrage sieht den aktuellen Commit-Stand (Statement-Level-Konsistenz).
 - Trotzdem für v2 vorbauen: Row-Key immer mitselektieren (Abschnitt 5.5), eine Session pro Workspace, `TabState` erweiterbar.
 - Empfehlung an den Nutzer (nicht im Code erzwingbar): für Prod einen DB-User mit reinen SELECT-Grants verwenden.

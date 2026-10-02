@@ -14,6 +14,7 @@ First release: read-only Oracle browser (v1).
 - Error dialog for database errors with ORA code, message, the failing statement and its bind variables; bind values of Prod connections are masked there and in the log.
 - Connection loss (killed session, idle timeout, network) is recognized: banner and status bar offer "Neu verbinden", which restores all workspaces, tabs and filters.
 - Notices (export done, warnings) as toasts.
+- Read-only guard: sessions refuse every statement that is not a plain query (no DML, DDL, PL/SQL or `FOR UPDATE`), backed by architecture tests.
 - Solution scaffold (`FerretSharp.slnx`, .NET 10, central package management).
 - Blazor Hybrid shell: thin WPF host with `BlazorWebView`, platform-neutral Razor UI library (`FerretSharp.UI`) with design tokens for light/dark, native title bar following the theme, `--theme=dark|light` override.
 - Generic host with DI and Serilog file logging (`%APPDATA%\FerretSharp\logs`), global exception handlers.
