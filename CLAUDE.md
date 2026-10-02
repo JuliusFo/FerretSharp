@@ -297,6 +297,8 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 - Grid-Spalten werden aus dem Schema erzeugt und als Column-Definitions an AG Grid übergeben (eigener Header-Renderer: Name, Oracle-Typ, NOT NULL, PK/FK-Badges). AG Grid fragt Blöcke à 500 Zeilen per `invokeMethodAsync` bei .NET an (Infinite Row Model); Zeilen gehen als Dictionaries mit Row-Index über die Grenze.
 - Header-Klick sortiert serverseitig: AG Grid liefert das Sort-Model im Datasource-Request, .NET fragt neu ab.
 - Spalten anheften (v1.4): Rechtsklick auf den Header öffnet `ColumnMenu` (Blazor; `grid.js` liest die Spalte aus `col-id` der `.ag-header-cell`, weil AG Grids `columnHeaderContextMenu` keine Mausposition liefert), derselbe Eintrag steht im Zellen-Kontextmenü. Ziehen in den angehefteten Bereich meldet `grid.js` per `OnPinnedChanged` (nur UI-Quellen, nicht `api`). Der PK hat `lockPinned` + `lockPosition: 'left'`. Spalten-IDs bleiben `c<Schema-Index>`, nur die Reihenfolge der Column-Defs ändert sich.
+- Spaltensuche (v1.5, Entscheidung des Nutzers: nur Springen, kein Ausblenden; Suche nur nach Namen): `ColumnSearch` (Core/Query) – alle Wörter müssen vorkommen, Unterstriche optional, Reihenfolge exakt → Präfix → Wortanfang → enthält, je Gruppe Schema-Reihenfolge. `ColumnList` zeigt die Treffer, die Eingabe gehört der Eltern-Komponente: `ColumnPicker` (Spaltenwahl der Filterleiste statt `<select>`; Klick in die Liste per `mousedown` mit `preventDefault`, sonst schließt das `blur` die Liste vor dem Klick) und `ColumnJump` (Ctrl+F). Pfeiltasten wie im Verbindungs-Umschalter ohne JS-Abfangen.
+- Native `<select>`, deren Optionen sich ändern (Operator je Spaltentyp), brauchen `@key` auf die Optionsmenge: Bleibt der Wert gleich, setzt Blazor ihn nicht neu, und der Browser zeigt die erste Option (in v1.5 gefunden).
 - Kontextmenü (FK-Navigation, Kopieren) und Dialoge sind Blazor-Komponenten; AG Grid meldet nur das `cellContextMenu`-Event (Zeilenindex, Spalte, Mausposition), `grid.js` unterdrückt das WebView-Kontextmenü im Grid (`GridContextMenu`).
 - Look & Feel und Interaktionen: siehe Prototyp (Branch `spike/blazor-hybrid`).
 
@@ -308,6 +310,7 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 | Ctrl+Enter | Filter anwenden | v1 |
 | Ctrl+C | Im Grid: Wert der fokussierten Zelle; bei mehreren markierten Zeilen diese als Tabelle (Tab-getrennt, mit Kopfzeile). Mit der Maus markierter Text innerhalb einer Zelle wird normal kopiert. Kopiert wird immer der volle Wert (`DelimitedExport.CellText`), nicht der gekürzte Anzeigetext. | v1.3 |
 | F5 | Refresh (v2 in Read-only-Tx: neue Transaktion) | v1 |
+| Ctrl+F | Spalte suchen und hinspringen (Datenansicht; Scrollen, Hervorheben, Fokus auf die Zelle der ersten sichtbaren Zeile) | v1.5 |
 | Ctrl+P | Tabelle suchen (Backlog) | – |
 | Ctrl+S | Pending-Änderungen flushen (kein Commit) | v2 |
 | Ctrl+Shift+Enter | Commit (auf Prod immer mit Bestätigung) | v2 |
