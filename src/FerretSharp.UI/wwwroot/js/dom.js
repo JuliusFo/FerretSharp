@@ -10,6 +10,11 @@ export function focusAndSelect(element) {
   element?.select();
 }
 
+/** Selects the text only if the element still has the focus (it may have moved on, e.g. with Tab). */
+export function selectIfFocused(element) {
+  if (element && document.activeElement === element) element.select();
+}
+
 export function focusById(id) {
   document.getElementById(id)?.focus();
 }

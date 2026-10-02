@@ -1,0 +1,155 @@
+@* Column selection in the filter bar: a text field with a list of matching columns (replaces a plain <select>,
+   which only jumps by the first letter – too little for tables with 70 columns). Typing filters, arrow keys choose,
+   Enter or Tab takes the highlighted column, Escape or leaving the field keeps the previous one. *@
+@using FerretSharp.Core.Schema
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div class="colpick">
+    <input @ref="_input" class="field col" value="@(_open ? _query : Value)" spellcheck="false" autocomplete="off"
+           title="@Title" @onfocus="OpenAsync" @onclick="OpenIfClosedAsync" @onblur="Close" @oninput="OnInput" @onkeydown="OnKeyDownAsync" />
+    @if (_open)
+    {
+        <div class="popover colpick-pop">
+            <ColumnList @ref="_list" Details="Details" Query="@(_typed ? _query : "")" Current="CurrentIndex" OnPick="PickAsync" />
+        </div>
+    }
+</div>
+
+@code {
+    private ElementReference _input;
+    private ColumnList? _list;
+    private IJSObjectReference? _dom;
+    private bool _open;
+    private bool _typed;
+    private bool _selectName;
+    private string _query = "";
+
+    [Parameter, EditorRequired]
+    public TableDetails Details { get; set; } = null!;
+
+    /// <summary>Name of the selected column.</summary>
+    [Parameter, EditorRequired]
+    public string Value { get; set; } = "";
+
+    [Parameter]
+    public EventCallback<string> OnChange { get; set; }
+
+    /// <summary>Focus the field (and open the list) when it first appears, e.g. for a new filter row.</summary>
+    [Parameter]
+    public bool AutoFocus { get; set; }
+
+    private int? CurrentIndex
+    {
+        get
+        {
+            for (var i = 0; i < Details.Columns.Count; i++)
+            {
+                if (Details.Columns[i].Name == Value)
+                {
+                    return i;
+                }
+            }
+
+            return null;
+        }
+    }
+
+    private string? Title => CurrentIndex is { } i ? Details.Columns[i].DisplayType : null;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && AutoFocus)
+        {
+            await _input.FocusAsync(); // opens the list via onfocus
+        }
+
+        // After Escape or picking: typing again replaces the name instead of appending to it.
+        if (_selectName)
+        {
+            _selectName = false;
+            _dom ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
+            await _dom.InvokeVoidAsync("selectIfFocused", _input);
+        }
+    }
+
+    /// <summary>Shows all columns with the current one highlighted; the name is selected so typing replaces it.</summary>
+    private async Task OpenAsync()
+    {
+        _open = true;
+        _typed = false;
+        _query = Value;
+        _dom ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
+        await _dom.InvokeVoidAsync("focusAndSelect", _input);
+    }
+
+    /// <summary>A click into the still focused field after Escape or picking raises no focus event.</summary>
+    private Task OpenIfClosedAsync() => _open ? Task.CompletedTask : OpenAsync();
+
+    private void Close()
+    {
+        _open = false;
+        _typed = false;
+        _selectName = true;
+    }
+
+    private void OnInput(ChangeEventArgs e)
+    {
+        _query = e.Value as string ?? "";
+        _typed = true;
+        _open = true; // typing again after Escape
+    }
+
+    private async Task OnKeyDownAsync(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "ArrowDown" when !_open:
+                await OpenAsync();
+                break;
+            case "ArrowDown":
+                _list?.Move(1);
+                break;
+            case "ArrowUp":
+                _list?.Move(-1);
+                break;
+            case "PageDown":
+                _list?.Move(10);
+                break;
+            case "PageUp":
+                _list?.Move(-10);
+                break;
+            // Tab is not prevented: the focus moves on to the operator after taking the column.
+            case "Enter" or "Tab" when _open && _list is not null:
+                await _list.PickHighlightedAsync();
+                break;
+            case "Escape":
+                Close();
+                break;
+        }
+    }
+
+    private async Task PickAsync(int column)
+    {
+        Close();
+        var name = Details.Columns[column].Name;
+        if (name != Value)
+        {
+            await OnChange.InvokeAsync(name);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_dom is not null)
+        {
+            try
+            {
+                await _dom.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+    }
+}

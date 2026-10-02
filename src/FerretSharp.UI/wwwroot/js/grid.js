@@ -273,6 +273,28 @@ export function setPinned(elementId, pinnedIds) {
   });
 }
 
+/**
+ * Column search (Ctrl+F): scrolls the column into view (pinned ones always are), focuses its cell in the first
+ * visible row (so Ctrl+C and the context menu work right away) and briefly highlights header and cells.
+ */
+export function jumpToColumn(elementId, colId) {
+  const api = grids.get(elementId);
+  if (!api) return;
+  api.ensureColumnVisible(colId, 'middle');
+  const rows = api.getDisplayedRowCount();
+  if (rows > 0) api.setFocusedCell(Math.min(firstVisibleRow(api), rows - 1), colId);
+  // The grid renders the newly visible columns after the scroll.
+  setTimeout(() => {
+    api.flashCells({ columns: [colId] });
+    const header = document.querySelector(`#${elementId} .ag-header-cell[col-id="${colId}"]`);
+    if (header) {
+      header.classList.remove('fs-flash');
+      void header.offsetWidth; // restart the animation when jumping to the same column again
+      header.classList.add('fs-flash');
+    }
+  }, 50);
+}
+
 /** Known total (after COUNT): the scrollbar then reflects the full table. */
 export function setRowCount(elementId, count) {
   grids.get(elementId)?.setRowCount(count, true);

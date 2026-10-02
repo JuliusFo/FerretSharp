@@ -310,7 +310,7 @@ public sealed class ShellState
     }
 }
 
-public enum TabCommand { ApplyFilters, Refresh }
+public enum TabCommand { ApplyFilters, Refresh, FindColumn }
 
 /// <param name="Warnings">Shown below the text, e.g. LOB values that were not exported.</param>
 public sealed record Notice(string Text, IReadOnlyList<string> Warnings, DateTimeOffset At);

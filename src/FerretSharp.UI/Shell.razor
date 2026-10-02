@@ -231,6 +231,7 @@
     private const string SwitcherShortcut = "ctrl+shift+o";
     private const string ApplyFiltersShortcut = "ctrl+enter";
     private const string RefreshShortcut = "f5"; // also stops the WebView from reloading the page
+    private const string FindColumnShortcut = "ctrl+f"; // the browser's find would miss columns the grid has not rendered
 
     private static readonly string Version =
         "v" + (typeof(Shell).Assembly.GetName().Version?.ToString(3) ?? "0.0.0");
@@ -264,7 +265,7 @@
         {
             _selfRef = DotNetObjectReference.Create(this);
             _shortcuts = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/shortcuts.js");
-            await _shortcuts.InvokeVoidAsync("register", _selfRef, new[] { SwitcherShortcut, ApplyFiltersShortcut, RefreshShortcut });
+            await _shortcuts.InvokeVoidAsync("register", _selfRef, new[] { SwitcherShortcut, ApplyFiltersShortcut, RefreshShortcut, FindColumnShortcut });
         }
     }
 
@@ -286,6 +287,9 @@
                 break;
             case RefreshShortcut:
                 _state.RequestTabCommand(TabCommand.Refresh);
+                break;
+            case FindColumnShortcut:
+                _state.RequestTabCommand(TabCommand.FindColumn);
                 break;
         }
     }

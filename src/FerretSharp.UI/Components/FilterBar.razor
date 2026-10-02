@@ -19,15 +19,10 @@
                 var column = Details.Columns.FirstOrDefault(c => c.Name == r.Column);
                 var category = column is null ? ColumnCategory.Unsupported : ColumnCategories.Of(column);
                 var valueCount = FilterRules.ValueCount(r.Op);
-                <div class="filter-row @(r.Error is null ? "" : "invalid") @(r.Enabled ? "" : "disabled")">
+                <div @key="r" class="filter-row @(r.Error is null ? "" : "invalid") @(r.Enabled ? "" : "disabled")">
                     <input type="checkbox" class="row-toggle" checked="@r.Enabled" title="Filter aktiv"
                            @onchange="e => { r.Enabled = e.Value is true; Shell.MarkDirty(); }" />
-                    <select class="field col" value="@r.Column" @onchange="e => ChangeColumn(r, (string?)e.Value)">
-                        @foreach (var c in Details.Columns)
-                        {
-                            <option value="@c.Name">@c.Name</option>
-                        }
-                    </select>
+                    <ColumnPicker Details="Details" Value="@r.Column" OnChange="name => ChangeColumn(r, name)" AutoFocus="r == _newRow" />
                     <select class="field op" value="@r.Op" @onchange="e => { r.Op = Enum.Parse<FilterOperator>((string)e.Value!); Shell.MarkDirty(); }">
                         @foreach (var op in FilterRules.OperatorsFor(category))
                         {
@@ -68,6 +63,9 @@
 </div>
 
 @code {
+    /// <summary>The row added last; its column picker gets the focus, so the user can type the column right away.</summary>
+    private FilterRow? _newRow;
+
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
 
@@ -91,6 +89,7 @@
         var row = new FilterRow { Column = column.Name };
         row.Op = FilterRules.OperatorsFor(ColumnCategories.Of(column))[0];
         Tab.FilterRows.Add(row);
+        _newRow = row;
         Shell.MarkDirty();
     }
 
@@ -106,9 +105,9 @@
         await OnApply.InvokeAsync();
     }
 
-    private void ChangeColumn(FilterRow row, string? name)
+    private void ChangeColumn(FilterRow row, string name)
     {
-        row.Column = name ?? row.Column;
+        row.Column = name;
         row.Error = null;
         var column = Details.Columns.FirstOrDefault(c => c.Name == row.Column);
         var allowed = column is null ? [] : FilterRules.OperatorsFor(ColumnCategories.Of(column));

@@ -23,6 +23,7 @@
         <span class="spacer"></span>
         @if (Tab.Mode == TabMode.Data && _details is not null)
         {
+            <ColumnJump @ref="_jump" Details="_details" OnJump="c => _pendingJump = c" />
             <button class="icon-btn ghost" title="Neu laden (F5)" @onclick="RefreshAsync">@Icons.Refresh</button>
         }
     </div>
@@ -127,6 +128,8 @@
     private (string Sql, IReadOnlyList<QueryParameter> Parameters, string? Error)? _sql;
     private GridContextMenuRequest? _menu;
     private ColumnMenuRequest? _columnMenu;
+    private ColumnJump? _jump;
+    private int? _pendingJump; // scrolled to after the search list has closed, so the grid cell keeps the focus
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -165,6 +168,15 @@
             QueryErrorLog.Log(Logger, ex, Active.Profile);
             _loadError = ex;
             Shell.ReportFailure(ex);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_pendingJump is { } column && _grid is not null)
+        {
+            _pendingJump = null;
+            await _grid.JumpToColumnAsync(column);
         }
     }
 
@@ -293,13 +305,17 @@
 
         _ = InvokeAsync(async () =>
         {
-            if (command == TabCommand.ApplyFilters)
+            switch (command)
             {
-                await ApplyFiltersAsync();
-            }
-            else
-            {
-                await RefreshAsync();
+                case TabCommand.ApplyFilters:
+                    await ApplyFiltersAsync();
+                    break;
+                case TabCommand.Refresh:
+                    await RefreshAsync();
+                    break;
+                case TabCommand.FindColumn:
+                    _jump?.Open(); // only exists in the data view
+                    break;
             }
 
             StateHasChanged();
