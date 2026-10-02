@@ -14,6 +14,7 @@
   --accent-text: #ffffff;
   --accent-weak: rgba(59, 111, 224, 0.10);
   --danger: #d64545;
+  --danger-text: #ffffff;
   --danger-weak: rgba(214, 69, 69, 0.10);
   --prod: #e5484d;
   --test: #30a46c;
@@ -38,6 +39,7 @@
     --accent-text: #0e1220;
     --accent-weak: rgba(122, 162, 255, 0.15);
     --danger: #ff6b6b;
+    --danger-text: #1d0b0b;
     --danger-weak: rgba(255, 107, 107, 0.12);
     --shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
     color-scheme: dark;
@@ -148,7 +150,8 @@ button:disabled { cursor: default; opacity: .5; }
 }
 .btn:hover:not(:disabled) { background: var(--hover); }
 .btn.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 600; }
-.btn.primary:hover:not(:disabled) { filter: brightness(1.07); }
+/* Colored buttons keep their background on hover: `.btn:hover` would otherwise win and put light text on --hover. */
+.btn.primary:hover:not(:disabled) { background: var(--accent); filter: brightness(1.07); }
 .btn.ghost { border-color: transparent; background: transparent; color: var(--muted); }
 .btn.ghost:hover:not(:disabled) { background: var(--hover); color: var(--text); }
 
@@ -474,8 +477,8 @@ table.binds td { font-family: var(--mono); }
 .ctx-jump.no-rows .ctx-count, .ctx-count.muted { background: var(--surface-2); color: var(--faint); }
 .ctx-count.error { background: var(--danger-weak); color: var(--danger); }
 .ctx-empty { padding: 8px 10px; color: var(--faint); }
-.btn.danger-solid { background: var(--danger); border-color: var(--danger); color: #fff; font-weight: 600; }
-.btn.danger-solid:hover { filter: brightness(1.07); }
+.btn.danger-solid { background: var(--danger); border-color: var(--danger); color: var(--danger-text); font-weight: 600; }
+.btn.danger-solid:hover:not(:disabled) { background: var(--danger); filter: brightness(1.07); }
 .dialog.confirm { width: min(460px, 94vw); }
 .dialog.confirm .dialog-body { line-height: 1.55; }
 .dot.err { background: var(--danger); }
@@ -524,5 +527,5 @@ table.binds td { font-family: var(--mono); }
 .spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--border-strong); border-top-color: var(--accent); animation: spin .8s linear infinite; flex: none; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-#blazor-error-ui { display: none; position: fixed; bottom: 0; left: 0; right: 0; padding: 8px 16px; background: var(--danger); color: #fff; z-index: 100; }
+#blazor-error-ui { display: none; position: fixed; bottom: 0; left: 0; right: 0; padding: 8px 16px; background: var(--danger); color: var(--danger-text); z-index: 100; }
 #blazor-error-ui .dismiss { cursor: pointer; float: right; }
