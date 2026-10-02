@@ -1,3 +1,4 @@
+using System.Data;
 using System.Data.Common;
 using System.Diagnostics;
 using System.Text;
@@ -5,6 +6,18 @@ using FerretSharp.Core.Query;
 using Oracle.ManagedDataAccess.Client;
 
 namespace FerretSharp.Core.Oracle;
+
+/// <summary>
+/// A statement failed; carries it for the error dialog. <see cref="Exception.InnerException"/> is the
+/// <see cref="OracleException"/>, or null if the connection was already closed.
+/// </summary>
+internal sealed class OracleStatementException(string sql, IReadOnlyList<QueryParameter> parameters, OracleException? inner)
+    : Exception(inner?.Message ?? "Die Verbindung zur Datenbank ist getrennt.", inner)
+{
+    public QuerySpec Statement { get; } = new(sql, parameters);
+
+    public OracleException? Oracle { get; } = inner;
+}
 
 /// <summary>Values shown in <c>V$SESSION</c> (MODULE, ACTION, CLIENT_INFO) to identify who holds a session.</summary>
 public sealed record SessionContext(string Module, string Action, string? ClientInfo = null);
@@ -134,6 +147,12 @@ public sealed class OracleSession : IAsyncDisposable
         await _gate.WaitAsync(cancellationToken);
         try
         {
+            // After a fatal error (ORA-03113 …) ODP.NET closes the connection; report that like the error itself.
+            if (_connection.State != ConnectionState.Open)
+            {
+                throw new OracleStatementException(sql, parameters, null);
+            }
+
             await using var command = _connection.CreateCommand();
             command.BindByName = true;
             command.InitialLONGFetchSize = LongFetchSize;
@@ -153,6 +172,10 @@ public sealed class OracleSession : IAsyncDisposable
             catch (OracleException ex) when (ex.Number == UserCancelledErrorNumber)
             {
                 throw new OperationCanceledException("The query was cancelled.", ex, cancellationToken);
+            }
+            catch (OracleException ex)
+            {
+                throw new OracleStatementException(sql, parameters, ex);
             }
         }
         finally
