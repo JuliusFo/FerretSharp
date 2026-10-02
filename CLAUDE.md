@@ -92,12 +92,14 @@ FerretSharp.slnx
 │  │  └─ wwwroot/                      # css/ferretsharp.css, js/*.js (ES-Module), lib/ag-grid/
 │  └─ FerretSharp.App/                 # net10.0-windows10.0.19041.0 – schlanker WPF-Host
 │     ├─ Views/MainWindow.xaml         # nur die BlazorWebView
-│     ├─ Services/                     # WindowTheme, DialogService (native Fehler), CredentialManagerSecretStore
+│     ├─ Services/                     # WindowTheme, ThemeService, DialogService, FileSaveService, CredentialManagerSecretStore
+│     ├─ Assets/ferretsharp.ico        # App-Icon (generiert, nicht von Hand bearbeiten)
 │     ├─ wwwroot/index.html            # Host-Page, bindet _content/FerretSharp.UI/… ein
 │     └─ App.xaml                      # Generic Host, Serilog, Exception-Handler
 ├─ tests/
 │  ├─ FerretSharp.Core.Tests/          # schnell, ohne DB
 │  └─ FerretSharp.Integration.Tests/   # Testcontainers, überspringt sauber, wenn kein Docker verfügbar
+├─ tools/icon/New-AppIcon.ps1          # erzeugt das App-Icon: „FS“, F dunkel/S blau, kantige Buchstaben (eigene Formen, keine Schrift) auf runder heller Kachel; .ico mit 16–256 px
 ├─ docs/
 │  ├─ decisions/                       # ADRs, eine Datei pro Entscheidung
 │  └─ backlog.md
