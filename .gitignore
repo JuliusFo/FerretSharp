@@ -430,8 +430,8 @@ test-results/
 .AppleDouble
 .LSOverride
 
-# Icon must end with two \r
-Icon
+# macOS "Icon\r" files only – a bare "Icon" also matches tools/icon/ on case-insensitive Windows
+Icon[\r]
 
 
 # Thumbnails
