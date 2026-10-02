@@ -23,7 +23,9 @@
                     <input type="checkbox" class="row-toggle" checked="@r.Enabled" title="Filter aktiv"
                            @onchange="e => { r.Enabled = e.Value is true; Shell.MarkDirty(); }" />
                     <ColumnPicker Details="Details" Value="@r.Column" OnChange="name => ChangeColumn(r, name)" AutoFocus="r == _newRow" />
-                    <select class="field op" value="@r.Op" @onchange="e => { r.Op = Enum.Parse<FilterOperator>((string)e.Value!); Shell.MarkDirty(); }">
+                    @* Keyed by category: with other options the browser would show the first one while the kept operator
+                       (e.g. "=" from DATE to VARCHAR2) did not change, so Blazor would not set the value again. *@
+                    <select @key="category" class="field op" value="@r.Op" @onchange="e => { r.Op = Enum.Parse<FilterOperator>((string)e.Value!); Shell.MarkDirty(); }">
                         @foreach (var op in FilterRules.OperatorsFor(category))
                         {
                             <option value="@op">@OperatorLabels.Label(op)</option>
