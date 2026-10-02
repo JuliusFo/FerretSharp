@@ -47,7 +47,7 @@
                         {
                             var p = profile;
                             <div class="conn-line @ConnectionKindInfo.CssClass(p.Kind)" title="Doppelklick zum Verbinden"
-                                 @ondblclick="() => Shell.Connect(p)">
+                                 @onclick="e => ConnectOnDoubleClick(e, p)">
                                 <span class="dot"></span>
                                 <span class="name">
                                     @p.Name
@@ -76,6 +76,15 @@
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
+
+    /// <summary>Not @ondblclick: in the WPF host a real double click never raises dblclick (see CLAUDE.md).</summary>
+    private void ConnectOnDoubleClick(MouseEventArgs e, ConnectionProfile profile)
+    {
+        if (e.Detail >= 2)
+        {
+            Shell.Connect(profile);
+        }
+    }
 
     protected override void OnInitialized()
     {

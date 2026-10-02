@@ -5,6 +5,11 @@ export function scrollIntoViewById(id, block = 'nearest') {
   document.getElementById(id)?.scrollIntoView({ block });
 }
 
+export function focusAndSelect(element) {
+  element?.focus();
+  element?.select();
+}
+
 export function focusById(id) {
   document.getElementById(id)?.focus();
 }
