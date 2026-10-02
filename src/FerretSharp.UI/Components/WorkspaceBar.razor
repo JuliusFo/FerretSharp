@@ -1,4 +1,4 @@
-@* Workspaces of the active connection: click activates, double-click renames, × or middle-click closes. *@
+@* Workspaces of the active connection: click activates, double-click or "⋯" renames, × or middle-click closes. *@
 @using FerretSharp.Core.Workspaces
 @using FerretSharp.UI.State
 @implements IAsyncDisposable
@@ -10,7 +10,7 @@
     @foreach (var workspace in open)
     {
         var w = workspace;
-        <div class="ws @(w.Id == activeId ? "active" : "")" title="@(_renaming == w.Id ? null : "Doppelklick: umbenennen · Mittelklick: schließen")"
+        <div class="ws @(w.Id == activeId ? "active" : "")" title="@(_renaming == w.Id ? null : "Doppelklick oder ⋯: umbenennen · Mittelklick: schließen")"
              @onclick="e => OnChipClick(e, w)" @onmouseup="e => CloseOnMiddleClick(e, w)">
             @if (_renaming == w.Id)
             {
@@ -20,6 +20,7 @@
             else
             {
                 <span class="ws-name">@w.Name</span>
+                <button class="ws-more" title="Aktionen" @onclick:stopPropagation="true" @onclick="e => OpenActions(e, w)">⋯</button>
             }
             @if (open.Count > 1 && _renaming != w.Id)
             {
@@ -59,6 +60,19 @@
     </div>
 </div>
 
+@if (_actionsFor is { } target)
+{
+    <div class="overlay" @onclick="CloseActions" @oncontextmenu="CloseActions" @oncontextmenu:preventDefault="true"></div>
+    <div class="menu" style="left:@Px(_actionsX);top:@Px(_actionsY)" tabindex="-1" @ref="_actionsMenu" @onkeydown="OnActionsKeyDown">
+        <button class="menu-item" @onclick="() => RunAction(() => StartRename(target))">Umbenennen</button>
+        <button class="menu-item" disabled="@(Workspaces.Open.Count <= 1)"
+                title="@(Workspaces.Open.Count <= 1 ? "Der letzte offene Workspace bleibt offen." : "Zustand bleibt gespeichert, über + wieder öffnen")"
+                @onclick="() => RunActionAsync(() => CloseAsync(target))">Schließen</button>
+        <div class="menu-sep"></div>
+        <button class="menu-item" @onclick="() => RunActionAsync(CreateAsync)"><span class="plus">+</span> Neuer Workspace</button>
+    </div>
+}
+
 @if (_pendingDelete is { } pending)
 {
     <ConfirmDialog Title="Workspace löschen" ConfirmLabel="Löschen" Danger="true"
@@ -90,9 +104,55 @@
             _dom ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
             await _dom.InvokeVoidAsync("focusAndSelect", _renameInput);
         }
+
+        if (_focusActions && _actionsFor is not null)
+        {
+            _focusActions = false;
+            await _actionsMenu.FocusAsync();
+        }
     }
 
     private static string TabCount(Workspace workspace) => workspace.Tabs.Count == 1 ? "1 Tab" : $"{workspace.Tabs.Count} Tabs";
+
+    private Workspace? _actionsFor;
+    private double _actionsX;
+    private double _actionsY;
+    private ElementReference _actionsMenu;
+    private bool _focusActions;
+
+    /// <summary>"⋯" on a chip: rename, close, new – like the "⋯" menu of the connections.</summary>
+    private void OpenActions(MouseEventArgs e, Workspace workspace)
+    {
+        _menuOpen = false;
+        _actionsFor = workspace;
+        _actionsX = Math.Max(8, e.ClientX - 16);
+        _actionsY = e.ClientY + 12;
+        _focusActions = true; // Escape closes
+    }
+
+    private void CloseActions() => _actionsFor = null;
+
+    private void OnActionsKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            CloseActions();
+        }
+    }
+
+    private void RunAction(Action action)
+    {
+        CloseActions();
+        action();
+    }
+
+    private async Task RunActionAsync(Func<Task> action)
+    {
+        CloseActions();
+        await action();
+    }
+
+    private static string Px(double value) => value.ToString("0", CultureInfo.InvariantCulture) + "px";
 
     private void Activate(Workspace workspace)
     {

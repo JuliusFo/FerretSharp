@@ -92,12 +92,14 @@ FerretSharp.slnx
 │  │  └─ wwwroot/                      # css/ferretsharp.css, js/*.js (ES-Module), lib/ag-grid/
 │  └─ FerretSharp.App/                 # net10.0-windows10.0.19041.0 – schlanker WPF-Host
 │     ├─ Views/MainWindow.xaml         # nur die BlazorWebView
-│     ├─ Services/                     # WindowTheme, DialogService (native Fehler), CredentialManagerSecretStore
+│     ├─ Services/                     # WindowTheme, ThemeService, DialogService, FileSaveService, CredentialManagerSecretStore
+│     ├─ Assets/ferretsharp.ico        # App-Icon (generiert, nicht von Hand bearbeiten)
 │     ├─ wwwroot/index.html            # Host-Page, bindet _content/FerretSharp.UI/… ein
 │     └─ App.xaml                      # Generic Host, Serilog, Exception-Handler
 ├─ tests/
 │  ├─ FerretSharp.Core.Tests/          # schnell, ohne DB
 │  └─ FerretSharp.Integration.Tests/   # Testcontainers, überspringt sauber, wenn kein Docker verfügbar
+├─ tools/icon/New-AppIcon.ps1          # erzeugt das App-Icon: „FS“, F dunkel/S blau, kantige Buchstaben (eigene Formen, keine Schrift) auf runder heller Kachel; .ico mit 16–256 px
 ├─ docs/
 │  ├─ decisions/                       # ADRs, eine Datei pro Entscheidung
 │  └─ backlog.md
@@ -368,7 +370,7 @@ Jedes Paket: eigener Branch `wp/NN-kurzname`, am Ende `dotnet build -warnaserror
 - UI: Workspace-Leiste pro Verbindung, Workspace anlegen/umbenennen/schließen; jeder Workspace hat eine eigene `OracleSession` (ActionName = Workspace-Name).
 - Tabellen-Tabs im Dokument-Bereich gehören zum aktiven Workspace.
 - Zustand wird beim Schließen gespeichert und beim Öffnen wiederhergestellt.
-- Umgesetzt: Workspace-Chips in der Topbar (Klick aktiviert, Doppelklick benennt um, ✕/Mittelklick schließt), Menü „+“ mit „Neuer Workspace“ und den geschlossenen Workspaces (wieder öffnen, löschen mit Bestätigung), Statusleiste mit aktivem Workspace und Speicher-/Ladefehlern. Gespeichert werden auch noch nicht angewendete Filterzeilen; die Scrollposition wird exakt wiederhergestellt (zweistufig im Infinite Row Model). Wiederhergestellte Tabs mounten erst beim ersten Anzeigen.
+- Umgesetzt: Workspace-Chips in der Topbar (Klick aktiviert, Doppelklick benennt um, ✕/Mittelklick schließt; seit v1.2 zusätzlich „⋯“-Menü mit Umbenennen/Schließen/Neuer Workspace, Umbenennen markiert den ganzen Namen), Menü „+“ mit „Neuer Workspace“ und den geschlossenen Workspaces (wieder öffnen, löschen mit Bestätigung), Statusleiste mit aktivem Workspace und Speicher-/Ladefehlern. Gespeichert werden auch noch nicht angewendete Filterzeilen; die Scrollposition wird exakt wiederhergestellt (zweistufig im Infinite Row Model). Wiederhergestellte Tabs mounten erst beim ersten Anzeigen.
 - Nebenbei behoben: Mittelklick auf Tabs (WP-04) war wirkungslos (`auxclick`, Abschnitt 7); Nicht-ASCII in ACTION/CLIENT_INFO zerstört die Session (Abschnitt 6).
 - **Fertig wenn:** Zwei Workspaces auf derselben Verbindung öffnen dieselbe Tabelle mit unterschiedlichen Filtern; nach einem App-Neustart sind beide inkl. Filter wieder da. → erfüllt (Integrationstest + E2E-Prüfung, `V$SESSION` zeigt eine Session je Workspace plus Explorer).
 
