@@ -187,6 +187,9 @@ public sealed class OracleSession : IAsyncDisposable
             case OracleTypeHint.TimeStamp:
                 result.OracleDbType = OracleDbType.TimeStamp;
                 break;
+            case OracleTypeHint.Raw:
+                result.OracleDbType = OracleDbType.Raw;
+                break;
         }
 
         return result;

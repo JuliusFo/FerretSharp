@@ -9,3 +9,7 @@ Geplante Versionen und Arbeitspakete stehen in `CLAUDE.md`; hier landet alles, w
 - Gespeicherte Abfragen (`SavedQuery`) im Workspace, sobald es den freien SQL-Editor gibt.
 - Oberfläche für die Workspace-Notizen (Feld `Workspace.Notes` existiert bereits).
 - Shortcuts zum Wechseln der Workspaces (z. B. Ctrl+1…9) und eine Workspace-Übersicht pro Verbindung.
+- Virtuelle FKs (aus WP-06 herausgenommen): manuell definierte Beziehungen für Schemas ohne Constraints, mit Dialog zum Anlegen/Bearbeiten. Empfehlung: pro Verbindung speichern, nicht pro Workspace (sie beschreiben das Schema). Modell: `FkSource.Manual`.
+- FK-Vorschläge per Namenskonvention (`KUNDE_ID` → `KUNDE`/`KUNDEN`, deren einspaltiger PK), als „vermutet“ navigierbar oder als virtueller FK übernehmbar. Modell: `FkSource.Convention`.
+- FK-Navigation: „Zurück“-Historie über Sprünge; Tabs derselben Tabelle im Tab-Titel unterscheidbar machen (z. B. Kurzform des Filters).
+- FK-Navigation über Spalten mit TIMESTAMP WITH TIME ZONE, BINARY_FLOAT/DOUBLE oder NUMBER mit mehr als 28 Stellen (bisher als „nicht möglich“ markiert).

@@ -43,7 +43,7 @@
                 <div class="tab-error">@Tab.Error</div>
             }
             <div class="grid-host">
-                <FerretGrid @ref="_grid" Tab="Tab" Details="_details" OnPageLoaded="StateHasChanged" />
+                <FerretGrid @ref="_grid" Tab="Tab" Details="_details" OnPageLoaded="StateHasChanged" OnContextMenu="r => _menu = r" />
             </div>
             <footer class="tab-footer">
                 @* RowsLoaded is the highest loaded position (blocks load where the user scrolls), so it is a lower bound. *@
@@ -90,6 +90,11 @@
     }
 </div>
 
+@if (_menu is { } menu && _details is not null)
+{
+    <GridContextMenu @key="menu" Request="menu" Tab="Tab" Details="_details" OnClose="() => _menu = null" />
+}
+
 @if (_sql is { } sql)
 {
     <SqlPreview Sql="@sql.Sql" Parameters="sql.Parameters" Error="@sql.Error" OnClose="() => _sql = null" />
@@ -102,6 +107,7 @@
     private CancellationTokenSource? _countCts;
     private string? _countError;
     private (string Sql, IReadOnlyList<QueryParameter> Parameters, string? Error)? _sql;
+    private GridContextMenuRequest? _menu;
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;

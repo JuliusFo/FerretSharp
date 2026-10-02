@@ -1,0 +1,240 @@
+@* Right-click menu of a grid cell: copy the value, jump along foreign keys (outgoing and incoming with counts). *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Query
+@using FerretSharp.Core.Schema
+@using FerretSharp.UI.State
+@implements IAsyncDisposable
+@inject ActiveConnection Active
+@inject WorkspaceManager Workspaces
+@inject IJSRuntime JS
+
+<div class="popover-backdrop" @onclick="CloseAsync" @oncontextmenu="CloseAsync" @oncontextmenu:preventDefault="true"></div>
+<div id="@_id" class="popover ctx-menu" style="@Position" tabindex="-1" @onkeydown="OnKeyDown" @oncontextmenu:preventDefault="true">
+    <div class="ctx-head">
+        <span class="ctx-col">@Column.Name</span>
+        <span class="ctx-value @(Request.CellText is null ? "fs-null" : "")">@(Request.CellText ?? "NULL")</span>
+    </div>
+    <button class="menu-item" disabled="@(Request.CellText is null)" @onclick="CopyAsync">
+        Wert kopieren @if (_copied) { <span class="ctx-meta">kopiert</span> }
+    </button>
+
+    @if (_outgoing.Count > 0)
+    {
+        <div class="group-head-btn static">Verweist auf</div>
+        @foreach (var jump in _outgoing)
+        {
+            @JumpItem(jump, "→", null)
+        }
+    }
+
+    @if (_incoming.Count > 0)
+    {
+        <div class="group-head-btn static">Referenziert von</div>
+        @foreach (var jump in _incoming)
+        {
+            @JumpItem(jump, "←", _counts.GetValueOrDefault(jump))
+        }
+    }
+
+    @if (_outgoing.Count == 0 && _incoming.Count == 0)
+    {
+        <div class="ctx-empty">Keine Fremdschlüssel an dieser Tabelle.</div>
+    }
+</div>
+
+@code {
+    private const double MenuWidth = 400;
+    private const double ItemHeight = 44;
+
+    private readonly string _id = "ctx-" + Guid.NewGuid().ToString("N");
+    private readonly CancellationTokenSource _cts = new();
+    private readonly Dictionary<FkJump, CountState> _counts = [];
+    private IReadOnlyList<FkJump> _outgoing = [];
+    private IReadOnlyList<FkJump> _incoming = [];
+    private IJSObjectReference? _dom;
+    private bool _copied;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public GridContextMenuRequest Request { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public TableTab Tab { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public TableDetails Details { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private ColumnInfo Column => Details.Columns[Request.Column];
+
+    private abstract record CountState
+    {
+        public sealed record Loading : CountState;
+        public sealed record Done(long Count) : CountState;
+        public sealed record TimedOut : CountState;
+        public sealed record Failed(string Message) : CountState;
+    }
+
+    /// <summary>At the mouse position, kept inside the window.</summary>
+    private string Position
+    {
+        get
+        {
+            var height = 90 + ItemHeight * (_outgoing.Count + _incoming.Count + 1);
+            var left = Math.Max(8, Math.Min(Request.X, Request.ViewportWidth - MenuWidth - 8));
+            var top = Math.Max(8, Math.Min(Request.Y, Request.ViewportHeight - height - 8));
+            return FormattableString.Invariant($"position: fixed; left: {left:0}px; top: {top:0}px; width: {MenuWidth:0}px;");
+        }
+    }
+
+    private RenderFragment JumpItem(FkJump jump, string arrow, CountState? count) =>
+        @<button class="menu-item ctx-jump @(InvolvesColumn(jump) ? "related" : "") @(count is CountState.Done { Count: 0 } ? "empty" : "")"
+                 disabled="@(!jump.IsAvailable)" title="@Tooltip(jump)" @onclick="() => JumpAsync(jump)">
+            <span class="ctx-arrow">@arrow</span>
+            <span class="ctx-target">
+                <span class="ctx-table">@TableLabel(jump.Table)</span>
+                <span class="ctx-meta">@(jump.Unavailable ?? jump.Condition)</span>
+            </span>
+            @switch (count)
+            {
+                case CountState.Loading:
+                    <span class="spinner small"></span>
+                    break;
+                case CountState.Done done:
+                    <span class="ctx-count">@done.Count.ToString("N0", CultureInfo.CurrentCulture)</span>
+                    break;
+                case CountState.TimedOut:
+                    <span class="ctx-count muted" title="Zählen nach @FkNavigation.CountTimeout.TotalSeconds s abgebrochen">&gt; @FkNavigation.CountTimeout.TotalSeconds s</span>
+                    break;
+                case CountState.Failed failed:
+                    <span class="ctx-count error" title="@failed.Message">!</span>
+                    break;
+            }
+        </button>;
+
+    protected override void OnInitialized()
+    {
+        if (Active.Schema is not { } schema)
+        {
+            return;
+        }
+
+        var row = Details.Table.Ref;
+        var jumps = FkNavigation.JumpsFor(Details, Request.Row, schema.OutgoingOf(row), schema.IncomingOf(row));
+        // FKs over the clicked column first: that is usually the one the user means.
+        _outgoing = jumps.Where(j => j.Direction == JumpDirection.Outgoing).OrderByDescending(InvolvesColumn).ToList();
+        _incoming = jumps.Where(j => j.Direction == JumpDirection.Incoming).OrderByDescending(InvolvesColumn).ToList();
+        foreach (var jump in _incoming.Where(j => j.IsAvailable))
+        {
+            _counts[jump] = new CountState.Loading();
+        }
+
+        _ = CountAllAsync(schema);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _dom = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
+            await _dom.InvokeVoidAsync("focusById", _id); // Escape closes
+        }
+    }
+
+    /// <summary>One after the other: they share the workspace's session. Closing the menu cancels the rest.</summary>
+    private async Task CountAllAsync(SchemaCache schema)
+    {
+        var token = _cts.Token;
+        foreach (var jump in _counts.Keys.ToList())
+        {
+            CountState state;
+            try
+            {
+                var target = await Task.Run(() => schema.GetDetailsAsync(SummaryOf(jump.Table), token), token);
+                var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, token);
+                var count = await Task.Run(() => FkNavigation.CountAsync(data, target, jump, FkNavigation.CountTimeout, token), token);
+                state = count is { } n ? new CountState.Done(n) : new CountState.TimedOut();
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+            catch (Exception ex) when (ex is DatabaseException or QueryValidationException or InvalidOperationException)
+            {
+                state = new CountState.Failed(ex is DatabaseException { ErrorCode: { } code } ? $"{code}: {ex.Message}" : ex.Message);
+            }
+
+            _counts[jump] = state;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private bool InvolvesColumn(FkJump jump) =>
+        (jump.Direction == JumpDirection.Outgoing ? jump.ForeignKey.FromColumns : jump.ForeignKey.ToColumns).Contains(Column.Name);
+
+    /// <summary>Tables outside the browsed schemas (e.g. a referencing table in another schema) are opened by name.</summary>
+    private TableSummary SummaryOf(TableRef table) =>
+        Active.Schema?.Find(table) ?? new TableSummary(table.Owner, table.Name, TableKind.Table);
+
+    private string TableLabel(TableRef table)
+    {
+        var summary = SummaryOf(table);
+        return summary.Synonym is not null || table.Owner == Active.Schema?.Owner ? summary.DisplayName : table.ToString();
+    }
+
+    private static string Tooltip(FkJump jump) =>
+        $"{jump.ForeignKey.Name}: {jump.ForeignKey.From}({string.Join(", ", jump.ForeignKey.FromColumns)}) → " +
+        $"{jump.ForeignKey.To}({string.Join(", ", jump.ForeignKey.ToColumns)})";
+
+    private async Task JumpAsync(FkJump jump)
+    {
+        Shell.OpenFiltered(SummaryOf(jump.Table), jump.Filters);
+        await CloseAsync();
+    }
+
+    private async Task CopyAsync()
+    {
+        if (Request.CellText is { } text && _dom is not null)
+        {
+            _copied = await _dom.InvokeAsync<bool>("copyText", text);
+            if (_copied)
+            {
+                await CloseAsync();
+            }
+        }
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await CloseAsync();
+        }
+    }
+
+    private async Task CloseAsync()
+    {
+        await _cts.CancelAsync();
+        await OnClose.InvokeAsync();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await _cts.CancelAsync();
+        _cts.Dispose();
+        if (_dom is not null)
+        {
+            try
+            {
+                await _dom.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+    }
+}

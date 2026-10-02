@@ -2,7 +2,7 @@
 
 > Projektanweisungen für Claude Code. Bitte vollständig lesen, bevor ein Arbeitspaket umgesetzt wird.
 > Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-01 (WP-05 umgesetzt)
+> Stand: 2026-10-01 (WP-06 umgesetzt)
 
 ## 1. Ziel
 
@@ -10,7 +10,7 @@ Ein eigener Datenbank-Editor für **Oracle**, der stärker auf den eigenen Arbei
 Kernideen, die das Tool von DBeaver abheben:
 
 - **Workspaces** (Unter-Sessions) pro Verbindung, jeder mit eigener Oracle-Connection (und ab v2 eigener Transaktion) → zwei Workspaces können dieselbe Tabelle unabhängig voneinander ansehen und später bearbeiten.
-- **FK-Navigation** im Grid: von einer Zeile zu referenzierten/referenzierenden Zeilen springen, inkl. virtueller FKs für Schemas ohne deklarierte Constraints.
+- **FK-Navigation** im Grid: von einer Zeile zu referenzierten/referenzierenden Zeilen springen (v1: deklarierte FKs; virtuelle FKs für Schemas ohne deklarierte Constraints stehen im Backlog).
 - **Zusammenbaubare Filter** (TablePlus-Stil): Liste aus (Spalte, Operator, Wert), daraus wird das WHERE generiert.
 - **Sandbox-Editing** (v2): alle Änderungen laufen in einer Transaktion, Commit/Rollback explizit.
 - Prod-Verbindungen sind visuell markiert und standardmäßig read-only.
@@ -140,7 +140,6 @@ record Workspace(Guid Id, Guid ConnectionId, string Name) {   // z. B. "Bug 3711
     string Notes;                                    // Freitext (noch ohne UI)
     IReadOnlyList<TabState> Tabs; int ActiveTabIndex;
     bool IsOpen; int Order; DateTimeOffset LastActive;
-    // WP-06: List<VirtualForeignKey> VirtualFks (manuell definierte FKs)
 }
 record TabState(TableRef Table, TabMode Mode, FilterRows, AppliedFilters, Sorts, int? FirstVisibleRow);
 ```
@@ -186,7 +185,7 @@ record QueryParameter(string Name, object? Value, OracleTypeHint Type);
 record SelectQuery(string Sql, IReadOnlyList<QueryParameter> Parameters, IReadOnlyList<ResultColumn> Columns, RowKeyKind RowKey, bool HasRowId);
 ```
 `QueryBuilder.BuildSelect(tableDetails, filters, sorts, page)` / `BuildCount(…)` / `Validate(…)`. Regeln (alle mit Unit- und Integrationstests):
-- Spaltenkategorien (`ColumnCategories.Of`): Text, Number, Date, Timestamp(+TZ), Boolean, Interval, Raw, Clob, Blob, Long, Unsupported. Operatoren je Kategorie (`FilterRules.OperatorsFor`); kein `Contains` auf NUMBER/DATE, LOB nur LIKE-artig/NULL, RAW/BLOB/LONG/Unsupported nur NULL-Prüfung.
+- Spaltenkategorien (`ColumnCategories.Of`): Text, Number, Date, Timestamp(+TZ), Boolean, Interval, Raw, Clob, Blob, Long, Unsupported. Operatoren je Kategorie (`FilterRules.OperatorsFor`); kein `Contains` auf NUMBER/DATE, LOB nur LIKE-artig/NULL, RAW `=`/`≠`/`in` mit Hex-Werten (optional `0x`, gebunden als `byte[]`), BLOB/LONG/Unsupported nur NULL-Prüfung.
 - Werte: Zahlen deutsch („1.234,5“) oder invariant („1234.5“; ohne Komma ist der Punkt Dezimaltrenner); Datum `TT.MM.JJJJ [hh:mm[:ss]]` oder ISO. Ungültige Eingaben → Validierungsfehler pro Filterzeile, kein SQL.
 - Projektion statt `t.*`: CLOB → `DBMS_LOB.SUBSTR(…, 200, 1)` + `GETLENGTH`, BLOB → `GETLENGTH`, LONG/XMLTYPE/Objekttypen → `CASE WHEN … IS NULL THEN 0 ELSE 1 END` (LONG im Select verträgt sich nicht mit `FETCH FIRST`, ORA-00997).
 - `t.ROWID` wird bei Tabellen/MViews immer mitselektiert (Views: nein).
@@ -292,7 +291,7 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 - Prod: roter Rahmen; ab v2 Schreiben nur nach Freischalten über Toggle + Bestätigungsdialog.
 - Grid-Spalten werden aus dem Schema erzeugt und als Column-Definitions an AG Grid übergeben (eigener Header-Renderer: Name, Oracle-Typ, NOT NULL, PK/FK-Badges). AG Grid fragt Blöcke à 500 Zeilen per `invokeMethodAsync` bei .NET an (Infinite Row Model); Zeilen gehen als Dictionaries mit Row-Index über die Grenze.
 - Header-Klick sortiert serverseitig: AG Grid liefert das Sort-Model im Datasource-Request, .NET fragt neu ab.
-- Kontextmenü (FK-Navigation, Kopieren) und Dialoge sind Blazor-Komponenten; AG Grid meldet nur das `cellContextMenu`-Event.
+- Kontextmenü (FK-Navigation, Kopieren) und Dialoge sind Blazor-Komponenten; AG Grid meldet nur das `cellContextMenu`-Event (Zeilenindex, Spalte, Mausposition), `grid.js` unterdrückt das WebView-Kontextmenü im Grid (`GridContextMenu`).
 - Look & Feel und Interaktionen: siehe Prototyp (Branch `spike/blazor-hybrid`).
 
 **Shortcuts**
@@ -368,10 +367,12 @@ Jedes Paket: eigener Branch `wp/NN-kurzname`, am Ende `dotnet build -warnaserror
 - **Fertig wenn:** Zwei Workspaces auf derselben Verbindung öffnen dieselbe Tabelle mit unterschiedlichen Filtern; nach einem App-Neustart sind beide inkl. Filter wieder da. → erfüllt (Integrationstest + E2E-Prüfung, `V$SESSION` zeigt eine Session je Workspace plus Explorer).
 
 #### WP-06 FK-Navigation
-- FK-Graph aus `SchemaCache` (deklarierte FKs) + `VirtualForeignKey` (manuell, im Workspace gespeichert) + Vorschlag per Namenskonvention (`KUNDE_ID` → `KUNDE.ID`, konfigurierbar).
-- Kontextmenü auf Zelle/Zeile: **ausgehend** („verweist auf KUNDE #4711“ → Tab mit Filter öffnen) und **eingehend** („referenziert von AUFTRAG (12), RECHNUNG (3)“ → Counts lazy, mit Timeout, abbrechbar; Tab mit Filter öffnen). Composite FKs unterstützen.
-- Dialog zum Anlegen/Bearbeiten virtueller FKs.
-- **Fertig wenn:** Ein Sprung legt automatisch eine Filterzeile im Ziel-Tab an; virtuelle FKs überleben einen Neustart.
+- **Abweichung vom ursprünglichen Plan (Entscheidung des Nutzers):** nur deklarierte FKs aus dem `SchemaCache`. Virtuelle FKs (inkl. Dialog) und Vorschläge per Namenskonvention sind in den Backlog verschoben; `FkSource.Manual`/`Convention` bleiben im Enum, werden aber noch nicht erzeugt.
+- Kontextmenü auf Zelle/Zeile: **ausgehend** („verweist auf KUNDEN · ID = 4711“) und **eingehend** („referenziert von AUFTRAG · KUNDE_ID = 4711 (12)“ → Counts lazy, nacheinander auf der Workspace-Session, Timeout 5 s, Abbruch beim Schließen des Menüs). Composite FKs unterstützt. Dazu „Wert kopieren“.
+- **Ein Sprung öffnet immer einen neuen Tab** (rechts neben dem aktuellen, mit Filterzeilen und angewendet), auch wenn die Tabelle schon offen ist – der Ausgangs-Tab behält seine Filter (Entscheidung des Nutzers). Dieselbe Tabelle kann damit mehrfach offen sein; der Tab-Tooltip zeigt die Filter. Klick im Explorer aktiviert weiterhin den ersten Tab der Tabelle.
+- Umsetzung: `FkNavigation` (Core/Query) baut aus den **Rohwerten** der Zeile Gleichheitsfilter, die exakt zurückgelesen werden (invariante Zahlen, ISO-Datum, Hex für RAW) – nie aus dem deutschen Anzeigetext („1.234“ wäre 1,234). NULL-Schlüssel und Typen ohne exakte Gleichheit (LOB, BINARY_FLOAT/DOUBLE, NUMBER > 28 Stellen, Intervalle, TIMESTAMP WITH TIME ZONE) machen den Sprung unmöglich und werden im Menü begründet. `FerretGrid` hält die Rohwerte der geladenen Blöcke (max. 40 wie AG Grid). `FkNavigation.CountAsync` liefert nach dem Timeout sofort `null` und bricht das Statement ab.
+- Nebenbei: RAW-Spalten lassen sich jetzt per Hex-Wert filtern (`=`, `≠`, `in`), sonst wären FKs über `RAW(16)` (GUIDs, wie EF Core sie ablegt) nicht navigierbar.
+- **Fertig wenn:** Ein Sprung legt automatisch eine Filterzeile im Ziel-Tab an. → erfüllt (Unit-/Integrationstests inkl. Composite- und RAW-FK, E2E mit echter Maus).
 
 #### WP-07 Export & Politur v1 → Release v1.0.0
 - Keyboard-Shortcuts v1 (siehe Abschnitt 7).
@@ -455,4 +456,5 @@ Die Arbeitspakete werden zu Beginn von v3 mit dem Nutzer verfeinert. Grober Zusc
 - Vor dem Abschluss eines Pakets müssen `dotnet build -warnaserror` und `dotnet test` grün sein. Danach dem Nutzer eine kurze Zusammenfassung auf Deutsch geben (was gebaut, was offen, was zu testen).
 - Bei Unsicherheit über UX-Details: einfachste Variante bauen und als Frage in der Zusammenfassung bzw. in Abschnitt 9 notieren, nicht blockieren.
 - UI end-to-end prüfen, ohne die echten Nutzerdaten anzufassen: App mit `--data-dir=<scratch>` und `--theme=dark|light` starten, Umgebungsvariable `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9333` setzen und die Seite per Chrome DevTools Protocol (`Runtime.evaluate`) bedienen; Screenshots per `PrintWindow` vom App-Fenster. Für eine Test-DB einen eigenen Container starten (`gvenzl/oracle-free:23-slim-faststart`, `APP_USER`/`APP_USER_PASSWORD`) und danach gezielt per Name entfernen. Im Credential Manager angelegte Test-Einträge über die App wieder löschen.
+- E2E: Rechtsklick und Mittelklick mit `Input.dispatchMouseEvent` (echte Maus), die Zwischenablage über `Get-Clipboard` prüfen. **Kein `navigator.clipboard.readText()`** im WebView aufrufen: Es öffnet eine Berechtigungsabfrage, die als zusätzliches CDP-Target (`edge://permission-request-dialog/`) vor der App-Seite in `/json` steht; das CDP-Skript wählt deshalb das Target mit der URL `https://0.0.0.1/`.
 - E2E-Fallen: Nach einem Klick auf einen Tab ist `.page.active` noch kurz die alte Seite → auf etwas Spezifisches des Ziels warten. Synthetische Events erreichen Blazor, ersetzen aber keinen Test mit echter Eingabe (`Input.dispatchMouseEvent`/`dispatchKeyEvent`), sonst bleiben Fehler wie das fehlende `auxclick` unentdeckt. Im Infinite Row Model kennt das Grid anfangs nur ~501 Zeilen; `scrollTop` weiter unten wird abgeschnitten.

@@ -148,7 +148,10 @@ export function create(elementId, dotnet, columns, sorts, firstRow) {
     pinned: meta.pk ? 'left' : undefined,
   }));
 
-  const api = agGrid.createGrid(document.getElementById(elementId), {
+  const element = document.getElementById(elementId);
+  element.addEventListener('contextmenu', e => e.preventDefault()); // no WebView menu (Back, Reload, Inspect)
+
+  const api = agGrid.createGrid(element, {
     theme: theme(),
     columnDefs,
     defaultColDef: { resizable: true, minWidth: 70 },
@@ -164,6 +167,13 @@ export function create(elementId, dotnet, columns, sorts, firstRow) {
     suppressMultiSort: false,
     animateRows: false,
     onBodyScrollEnd: () => dotnet.invokeMethodAsync('OnScrolled', firstVisibleRow(api)).catch(() => {}),
+    // The menu itself is a Blazor component; the grid only reports where the user right-clicked.
+    onCellContextMenu: e => {
+      if (e.rowIndex == null || !e.data || !e.event) return;
+      e.node.setSelected(true);
+      dotnet.invokeMethodAsync('OnCellContextMenu', e.rowIndex, e.column.getColId(),
+        e.event.clientX, e.event.clientY, window.innerWidth, window.innerHeight).catch(() => {});
+    },
     datasource: {
       getRows: async params => {
         try {
