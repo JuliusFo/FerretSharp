@@ -304,6 +304,7 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 |---|---|---|
 | Ctrl+Shift+O | Verbindungs-Umschalter öffnen | v1 |
 | Ctrl+Enter | Filter anwenden | v1 |
+| Ctrl+C | Im Grid: Wert der fokussierten Zelle; bei mehreren markierten Zeilen diese als Tabelle (Tab-getrennt, mit Kopfzeile). Mit der Maus markierter Text innerhalb einer Zelle wird normal kopiert. Kopiert wird immer der volle Wert (`DelimitedExport.CellText`), nicht der gekürzte Anzeigetext. | v1.3 |
 | F5 | Refresh (v2 in Read-only-Tx: neue Transaktion) | v1 |
 | Ctrl+P | Tabelle suchen (Backlog) | – |
 | Ctrl+S | Pending-Änderungen flushen (kein Commit) | v2 |
