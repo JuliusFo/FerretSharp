@@ -7,6 +7,7 @@ using FerretSharp.Core;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Oracle;
 using FerretSharp.Core.Workspaces;
+using FerretSharp.UI.State;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -55,6 +56,7 @@ public partial class App : Application
         builder.Services.AddSingleton<ActiveConnection>();
         builder.Services.AddSingleton(WindowTheme.FromArgs(e.Args));
         builder.Services.AddSingleton<IDialogService, DialogService>();
+        builder.Services.AddSingleton<IFileSaveService, FileSaveService>();
         builder.Services.AddSingleton<MainWindow>();
 
         _host = builder.Build();

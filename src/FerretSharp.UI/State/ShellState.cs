@@ -62,11 +62,21 @@ public sealed class ShellState
 
     public bool SwitcherOpen { get; private set; }
 
+    /// <summary>Shown in the error dialog (code, message, statement).</summary>
+    public DatabaseException? ErrorDetails { get; private set; }
+
+    /// <summary>Set when a query found the session gone; the shell offers to reconnect.</summary>
+    public DatabaseException? ConnectionLost { get; private set; }
+
+    /// <summary>Short-lived message (export done, warnings), shown as a toast.</summary>
+    public Notice? Notice { get; private set; }
+
     public void Connect(ConnectionProfile profile)
     {
         Set(() =>
         {
             SwitcherOpen = false;
+            ConnectionLost = null;
             Page = ShellPage.Explorer;
         });
         ConnectRequested?.Invoke(profile);
@@ -233,6 +243,32 @@ public sealed class ShellState
 
     public void CancelDelete() => Set(() => PendingDelete = null);
 
+    public void ShowError(DatabaseException error) => Set(() => ErrorDetails = error);
+
+    public void CloseError() => Set(() => ErrorDetails = null);
+
+    /// <summary>Every database failure of the UI goes through here, so a lost connection is reported once and loudly.</summary>
+    public void ReportFailure(DatabaseException error)
+    {
+        if (error.IsConnectionLost && ConnectionLost is null)
+        {
+            Set(() => ConnectionLost = error);
+        }
+    }
+
+    public void ClearConnectionLost() => Set(() => ConnectionLost = null);
+
+    public void Notify(string text, IReadOnlyList<string>? warnings = null) =>
+        Set(() => Notice = new Notice(text, warnings ?? [], DateTimeOffset.UtcNow));
+
+    public void DismissNotice(Notice notice) => Set(() =>
+    {
+        if (Notice == notice)
+        {
+            Notice = null;
+        }
+    });
+
     public void OpenSwitcher() => Set(() => SwitcherOpen = true);
 
     public void CloseSwitcher() => Set(() => SwitcherOpen = false);
@@ -269,3 +305,6 @@ public sealed class ShellState
 }
 
 public enum TabCommand { ApplyFilters, Refresh }
+
+/// <param name="Warnings">Shown below the text, e.g. LOB values that were not exported.</param>
+public sealed record Notice(string Text, IReadOnlyList<string> Warnings, DateTimeOffset At);

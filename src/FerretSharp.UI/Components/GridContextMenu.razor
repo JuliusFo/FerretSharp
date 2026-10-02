@@ -1,5 +1,6 @@
 @* Right-click menu of a grid cell: copy the value, jump along foreign keys (outgoing and incoming with counts). *@
 @using FerretSharp.Core.Connections
+@using FerretSharp.Core.Data
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
 @using FerretSharp.UI.State
@@ -7,6 +8,7 @@
 @inject ActiveConnection Active
 @inject WorkspaceManager Workspaces
 @inject IJSRuntime JS
+@inject IFileSaveService Files
 
 <div class="popover-backdrop" @onclick="CloseAsync" @oncontextmenu="CloseAsync" @oncontextmenu:preventDefault="true"></div>
 <div id="@_id" class="popover ctx-menu" style="@Position" tabindex="-1" @onkeydown="OnKeyDown" @oncontextmenu:preventDefault="true">
@@ -17,6 +19,12 @@
     <button class="menu-item" disabled="@(Request.CellText is null)" @onclick="CopyAsync">
         Wert kopieren @if (_copied) { <span class="ctx-meta">kopiert</span> }
     </button>
+
+    <div class="group-head-btn static">Export · @RowsText(Request.Selected.Count)</div>
+    <button class="menu-item" title="Tabulator-getrennt mit Kopfzeile – lässt sich direkt in Excel einfügen" @onclick="CopyTableAsync">Als Tabelle kopieren</button>
+    <button class="menu-item" title="INSERT-Statements (werden nie ausgeführt)" @onclick="CopyInsertAsync">Als INSERT kopieren</button>
+    <button class="menu-item" title="Semikolon-getrennt, UTF-8 – öffnet sich direkt in Excel" @onclick="SaveCsvAsync">Als CSV speichern …</button>
+    <button class="menu-item" @onclick="SaveInsertAsync">Als INSERT-Skript speichern …</button>
 
     @if (_outgoing.Count > 0)
     {
@@ -84,7 +92,7 @@
     {
         get
         {
-            var height = 90 + ItemHeight * (_outgoing.Count + _incoming.Count + 1);
+            var height = 260 + ItemHeight * (_outgoing.Count + _incoming.Count);
             var left = Math.Max(8, Math.Min(Request.X, Request.ViewportWidth - MenuWidth - 8));
             var top = Math.Max(8, Math.Min(Request.Y, Request.ViewportHeight - height - 8));
             return FormattableString.Invariant($"position: fixed; left: {left:0}px; top: {top:0}px; width: {MenuWidth:0}px;");
@@ -92,7 +100,7 @@
     }
 
     private RenderFragment JumpItem(FkJump jump, string arrow, CountState? count) =>
-        @<button class="menu-item ctx-jump @(InvolvesColumn(jump) ? "related" : "") @(count is CountState.Done { Count: 0 } ? "empty" : "")"
+        @<button class="menu-item ctx-jump @(InvolvesColumn(jump) ? "related" : "") @(count is CountState.Done { Count: 0 } ? "no-rows" : "")"
                  disabled="@(!jump.IsAvailable)" title="@Tooltip(jump)" @onclick="() => JumpAsync(jump)">
             <span class="ctx-arrow">@arrow</span>
             <span class="ctx-target">
@@ -163,9 +171,14 @@
             {
                 return;
             }
-            catch (Exception ex) when (ex is DatabaseException or QueryValidationException or InvalidOperationException)
+            catch (DatabaseException ex)
             {
-                state = new CountState.Failed(ex is DatabaseException { ErrorCode: { } code } ? $"{code}: {ex.Message}" : ex.Message);
+                state = new CountState.Failed(ex.Display);
+                Shell.ReportFailure(ex);
+            }
+            catch (Exception ex) when (ex is QueryValidationException or InvalidOperationException)
+            {
+                state = new CountState.Failed(ex.Message);
             }
 
             _counts[jump] = state;
@@ -207,6 +220,47 @@
             }
         }
     }
+
+    private static string RowsText(int rows) => rows == 1 ? "1 Zeile" : $"{rows:N0} Zeilen";
+
+    private Task CopyTableAsync() =>
+        CopyExportAsync(DelimitedExport.Build(Details, Request.Selected, DelimitedExport.ClipboardSeparator), "als Tabelle kopiert");
+
+    private Task CopyInsertAsync() => CopyExportAsync(InsertExport.Build(Details, Request.Selected), "als INSERT kopiert");
+
+    private Task SaveCsvAsync() =>
+        SaveExportAsync(DelimitedExport.Build(Details, Request.Selected, DelimitedExport.CsvSeparator), ".csv", "CSV (Semikolon)", utf8Bom: true);
+
+    private Task SaveInsertAsync() => SaveExportAsync(InsertExport.Build(Details, Request.Selected), ".sql", "SQL-Skript", utf8Bom: false);
+
+    private async Task CopyExportAsync(ExportText export, string done)
+    {
+        var copied = _dom is not null && await _dom.InvokeAsync<bool>("copyText", export.Text);
+        await CloseAsync();
+        Shell.Notify(copied ? $"{RowsText(export.Rows)} {done}." : "Die Zwischenablage ist nicht verfügbar.", Warnings(export));
+    }
+
+    /// <summary>The menu closes first; the native dialog is modal.</summary>
+    private async Task SaveExportAsync(ExportText export, string extension, string filter, bool utf8Bom)
+    {
+        var shell = Shell;
+        await CloseAsync();
+        try
+        {
+            if (await Files.SaveTextAsync(Details.Table.DisplayName + extension, filter, export.Text, utf8Bom) is { } path)
+            {
+                shell.Notify($"{RowsText(export.Rows)} gespeichert: {path}", Warnings(export));
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            shell.Notify($"Speichern fehlgeschlagen: {ex.Message}");
+        }
+    }
+
+    private IReadOnlyList<string> Warnings(ExportText export) => Request.MissingRows == 0
+        ? export.Warnings
+        : [.. export.Warnings, $"{RowsText(Request.MissingRows)} der Auswahl nicht mehr geladen – nicht exportiert."];
 
     private async Task OnKeyDown(KeyboardEventArgs e)
     {

@@ -22,7 +22,7 @@
                     <tbody>
                         @foreach (var p in Parameters)
                         {
-                            <tr><td>:@p.Name</td><td>@Format(p.Value)</td><td>@p.Type</td></tr>
+                            <tr><td>:@p.Name</td><td>@BindValues.Format(p, mask: false)</td><td>@p.Type</td></tr>
                         }
                     </tbody>
                 </table>
@@ -65,13 +65,4 @@
             await OnClose.InvokeAsync();
         }
     }
-
-    private static string Format(object? value) => value switch
-    {
-        null => "NULL",
-        DateTime d => d.ToString(d.TimeOfDay == TimeSpan.Zero ? "dd.MM.yyyy" : "dd.MM.yyyy HH:mm:ss", CultureInfo.InvariantCulture),
-        string s => $"'{s}'",
-        IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
-        _ => value.ToString() ?? "",
-    };
 }

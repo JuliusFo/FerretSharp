@@ -6,7 +6,7 @@ public sealed class DialogService : IDialogService
 {
     public void ShowError(string title, Exception exception)
     {
-        // Plain MessageBox for now; replaced by a proper error dialog (Oracle code + statement) in WP-07.
+        // Unexpected (non-database) errors only; database errors use the Blazor ErrorDialog with code and statement.
         MessageBox.Show(
             Application.Current?.MainWindow!,
             exception.Message,

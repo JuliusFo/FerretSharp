@@ -69,6 +69,13 @@ internal static class OracleErrors
     /// <summary>Maps driver/configuration failures to <see cref="DatabaseException"/>; null for anything else.</summary>
     public static DatabaseException? Translate(Exception ex) => ex switch
     {
+        OracleStatementException { Oracle: { } oracle } statement => new DatabaseException(
+            OracleConnectionTester.CleanMessage(oracle.Message), $"ORA-{oracle.Number:00000}", oracle) { Statement = statement.Statement },
+        OracleStatementException closed => new DatabaseException(closed.Message, inner: closed)
+        {
+            Statement = closed.Statement,
+            IsConnectionLost = true,
+        },
         OracleException oracle => new DatabaseException(
             OracleConnectionTester.CleanMessage(oracle.Message), $"ORA-{oracle.Number:00000}", oracle),
         ConnectionConfigurationException config => new DatabaseException(config.Message, inner: config),

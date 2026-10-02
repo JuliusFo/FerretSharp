@@ -2,7 +2,7 @@
 
 > Projektanweisungen für Claude Code. Bitte vollständig lesen, bevor ein Arbeitspaket umgesetzt wird.
 > Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-01 (WP-06 umgesetzt)
+> Stand: 2026-10-02 (v1 komplett, WP-07 umgesetzt; Release v1.0.0 vorbereitet)
 
 ## 1. Ziel
 
@@ -32,6 +32,8 @@ Es wird in Versionen ausgeliefert. Jede Version ist für sich benutzbar.
 
 Regeln für **v1**:
 - Es gibt **keinen** Codepfad, der DML/DDL erzeugt oder ausführt. `IDataAccess` und `OracleSession` bieten in v1 nur lesende Methoden (kein öffentliches `ExecuteNonQuery`). Einzige Ausnahme: INSERT-Statements als **Text-Export** (werden nie ausgeführt).
+- Abgesichert durch: `OracleSession.ExecuteReaderAsync` lehnt alles außer reinen Abfragen ab (`IsReadOnlyStatement`: beginnt nach Leerraum/Kommentaren mit `SELECT`/`WITH`, kein `FOR UPDATE`, nur ein Statement) – eine Stolperfalle gegen Programmierfehler, kein SQL-Parser. `ReadOnlyTests` prüfen per Reflection, dass die DB-Typen keine schreibenden Methoden anbieten, und dass alle Statements von `QueryBuilder` und `OracleSchemaReader` die Sperre passieren; ein Integrationstest zeigt, dass `DELETE` abgewiesen wird. In v2 muss die Sperre für die Daten-Session des Transaktions-APIs bewusst umgangen werden (eigene Methode, nicht die Sperre aufweichen).
+- Keine Garantie auf Datenbankseite: Hat der DB-User Schreibrechte, könnte ein Fehler in FerretSharp schreiben (ohne Transaktion committet ODP.NET sofort). `SET TRANSACTION READ ONLY` schützt nicht vor DDL (implizites Commit). Die einzige echte Garantie bleibt ein User mit reinen SELECT-Rechten.
 - v1-Sessions laufen ohne explizite Transaktion → jede Abfrage sieht den aktuellen Commit-Stand (Statement-Level-Konsistenz).
 - Trotzdem für v2 vorbauen: Row-Key immer mitselektieren (Abschnitt 5.5), eine Session pro Workspace, `TabState` erweiterbar.
 - Empfehlung an den Nutzer (nicht im Code erzwingbar): für Prod einen DB-User mit reinen SELECT-Grants verwenden.
@@ -67,7 +69,7 @@ Versionierung: SemVer, Git-Tag `vX.Y.Z` pro Release, `CHANGELOG.md` pflegen. Fea
 | Secrets | Windows Credential Manager via **`Meziantou.Framework.Win32.CredentialManager`** | Implementierung liegt im **App**-Projekt (Windows-only), Core kennt nur `ISecretStore`. Passwörter nie im JSON. |
 | Paketquellen | repo-lokales `nuget.config` (nur nuget.org) | Auf dem Entwicklungsrechner ist global zusätzlich eine DevExpress-Quelle eingerichtet; CPM verlangt dann Source Mapping. |
 | CI | vorerst keine (nur lokal) | Sobald das Hosting feststeht: Linux-Job (Core + Unit- + Integrationstests), Windows-Job (ganze Solution). |
-| Distribution | `dotnet publish` self-contained | Installer/Auto-Update (Velopack) = Backlog. |
+| Distribution | `dotnet publish src/FerretSharp.App -c Release -r win-x64 --self-contained -o <ziel>` | Ordner-Deployment (kein Single-File). Installer/Auto-Update (Velopack) = Backlog. |
 
 **Nicht** verwenden: Entity Framework für den generischen Zugriff (kennt Schema nur über DbContext). EF-Integration ist ein späteres, optionales Feature (siehe Backlog).
 
@@ -381,6 +383,12 @@ Jedes Paket: eigener Branch `wp/NN-kurzname`, am Ende `dotnet build -warnaserror
 - Verbindungsabbruch-Erkennung mit Reconnect-Angebot.
 - `CHANGELOG.md`, Tag `v1.0.0`, self-contained Publish.
 - **Fertig wenn:** Der Nutzer kann DBeaver für das reine Lesen/Navigieren ersetzen.
+- Umgesetzt:
+  - Shortcuts v1 waren bereits vollständig (Ctrl+Shift+O, Ctrl+Enter, F5).
+  - Export: Mehrfachauswahl im Grid (Ctrl/Shift, nur geladene Zeilen), im Kontextmenü „Als Tabelle kopieren“ (Tab-getrennt, für Excel), „Als INSERT kopieren“, „Als CSV speichern …“ (`;`, UTF-8 mit BOM), „Als INSERT-Skript speichern …“ (nativer Dialog über `IFileSaveService`, Implementierung im App-Projekt). `DelimitedExport` (Data/) und `InsertExport` (Query/, weil SQL-Text) mit exakten Oracle-Literalen; ein Integrationstest führt das Skript gegen eine Tabellenkopie aus und vergleicht alle Werte. LOBs, die nur als Vorschau geladen sind, werden als NULL mit Kommentar exportiert und gemeldet (vollständiger LOB-Export = Backlog).
+  - Fehler: `DatabaseException` trägt das fehlgeschlagene Statement (`OracleSession` wirft intern `OracleStatementException`, `OracleErrors.Translate` übersetzt). `ErrorDialog` und Log (`QueryErrorLog`) zeigen Binds über `BindValues`, bei Prod maskiert.
+  - Verbindungsabbruch: `DatabaseException.IsConnectionLost` (ORA-00028/00603/01012/01089/01092/02396/03113/03114/03135/12537/12547/12570/12571 sowie bereits geschlossene Connection). Jede DB-Fehlerstelle der UI ruft `ShellState.ReportFailure`; Banner und Statusleiste bieten „Neu verbinden“ (= normaler Connect, Workspaces/Tabs kommen aus dem gespeicherten Zustand). Erkennung reaktiv beim nächsten Statement, kein Keep-alive-Ping. Integrationstest killt die Session als SYSTEM (ergibt ORA-03135).
+  - Release: Version 1.0.0 (`Directory.Build.props`), Publish: `dotnet publish src/FerretSharp.App -c Release -r win-x64 --self-contained -o <ziel>` (~180 MB, Ordner statt Single-File wegen WebView2/WPF-Nativbibliotheken).
 
 ### v2 – Sandbox-Editing
 
@@ -457,4 +465,7 @@ Die Arbeitspakete werden zu Beginn von v3 mit dem Nutzer verfeinert. Grober Zusc
 - Bei Unsicherheit über UX-Details: einfachste Variante bauen und als Frage in der Zusammenfassung bzw. in Abschnitt 9 notieren, nicht blockieren.
 - UI end-to-end prüfen, ohne die echten Nutzerdaten anzufassen: App mit `--data-dir=<scratch>` und `--theme=dark|light` starten, Umgebungsvariable `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9333` setzen und die Seite per Chrome DevTools Protocol (`Runtime.evaluate`) bedienen; Screenshots per `PrintWindow` vom App-Fenster. Für eine Test-DB einen eigenen Container starten (`gvenzl/oracle-free:23-slim-faststart`, `APP_USER`/`APP_USER_PASSWORD`) und danach gezielt per Name entfernen. Im Credential Manager angelegte Test-Einträge über die App wieder löschen.
 - E2E: Rechtsklick und Mittelklick mit `Input.dispatchMouseEvent` (echte Maus), die Zwischenablage über `Get-Clipboard` prüfen. **Kein `navigator.clipboard.readText()`** im WebView aufrufen: Es öffnet eine Berechtigungsabfrage, die als zusätzliches CDP-Target (`edge://permission-request-dialog/`) vor der App-Seite in `/json` steht; das CDP-Skript wählt deshalb das Target mit der URL `https://0.0.0.1/`.
+- **Native Dialoge (Speichern unter) nicht per UI Automation bedienen**: Sie öffnen sich in den echten Ordnern des Nutzers (Dokumente, OneDrive). Ein Fehlgriff traf dort einen Ordner-Eintrag statt des Dateinamenfelds, und der Dialog speicherte die Testdatei im Dokumente-Ordner (in WP-07 passiert, Datei wurde ins Scratchpad verschoben). Export-Inhalte über die Zwischenablage prüfen; den Speichern-Pfad höchstens bis zum Öffnen des Dialogs testen.
+- Statements per PowerShell-Pipe an `docker exec … sqlplus` bekommen ein BOM vorangestellt (SP2-0734) → `docker exec <name> bash -c "echo '…' | sqlplus …"` oder Skriptdatei per `docker cp`.
+- CSS-Klassennamen in Komponenten nicht mit globalen Klassen kollidieren lassen (`.empty` ist der Leerzustand mit `position: absolute; inset: 0` – so überdeckte in WP-06 ein Menüeintrag das ganze Kontextmenü).
 - E2E-Fallen: Nach einem Klick auf einen Tab ist `.page.active` noch kurz die alte Seite → auf etwas Spezifisches des Ziels warten. Synthetische Events erreichen Blazor, ersetzen aber keinen Test mit echter Eingabe (`Input.dispatchMouseEvent`/`dispatchKeyEvent`), sonst bleiben Fehler wie das fehlende `auxclick` unentdeckt. Im Infinite Row Model kennt das Grid anfangs nur ~501 Zeilen; `scrollTop` weiter unten wird abgeschnitten.

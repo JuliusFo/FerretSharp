@@ -138,7 +138,8 @@
         }
         catch (DatabaseException ex)
         {
-            _refreshError = ex.ErrorCode is null ? ex.Message : $"{ex.ErrorCode}: {ex.Message}";
+            _refreshError = ex.Display;
+            Shell.ReportFailure(ex);
         }
         finally
         {

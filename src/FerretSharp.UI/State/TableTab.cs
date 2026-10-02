@@ -1,3 +1,4 @@
+using FerretSharp.Core.Connections;
 using FerretSharp.Core.Query;
 using FerretSharp.Core.Schema;
 using FerretSharp.Core.Workspaces;
@@ -81,6 +82,9 @@ public sealed class TableTab(Guid workspaceId, TableSummary table)
     public long? TotalCount { get; set; }
 
     public string? Error { get; set; }
+
+    /// <summary>The database error behind <see cref="Error"/>, for the details dialog; null for validation errors.</summary>
+    public DatabaseException? Failure { get; set; }
 
     public int ActiveFilterCount => AppliedFilters.Count(f => f.Enabled);
 

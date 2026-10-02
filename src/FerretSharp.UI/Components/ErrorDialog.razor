@@ -1,0 +1,82 @@
+@* Database error with ORA code, message and the failing statement; bind values masked on Prod connections. *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Query
+
+<div class="modal-backdrop" @onclick="OnClose" @onkeydown="OnKeyDown">
+    <div class="modal dialog sql-dialog error-dialog" @onclick:stopPropagation="true" role="alertdialog" aria-label="Datenbankfehler" tabindex="-1" @ref="_dialog">
+        <header>
+            <span>Datenbankfehler</span>
+            <span class="spacer"></span>
+            <button class="btn" @onclick="CopyAsync">@(_copied ? "Kopiert ✓" : "Kopieren")</button>
+            <button class="icon-btn ghost" title="Schließen" @onclick="OnClose">✕</button>
+        </header>
+        <div class="error-detail left">
+            @if (Error.ErrorCode is { } errorCode)
+            {
+                <span class="code">@errorCode</span>
+            }
+            <span>@Error.Message</span>
+        </div>
+        @if (Error.IsConnectionLost)
+        {
+            <div class="hint padded">Die Verbindung zur Datenbank ist verloren gegangen (z. B. Session beendet, Idle-Timeout, Netzwerk). Über „Neu verbinden“ werden alle Workspaces mit ihren Tabs wiederhergestellt.</div>
+        }
+        @if (Error.Statement is { } statement)
+        {
+            <SqlCode Sql="@statement.Sql" />
+            @if (statement.Parameters.Count > 0)
+            {
+                <table class="binds">
+                    <thead><tr><th>Bind-Variable</th><th>Wert@(Mask ? " (Prod: maskiert)" : "")</th><th>Typ</th></tr></thead>
+                    <tbody>
+                        @foreach (var p in statement.Parameters)
+                        {
+                            <tr><td>:@p.Name</td><td>@BindValues.Format(p, Mask)</td><td>@p.Type</td></tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    private ElementReference _dialog;
+    private bool _copied;
+
+    [Inject]
+    private IJSRuntime JS { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public DatabaseException Error { get; set; } = null!;
+
+    /// <summary>Hide bind values (Prod connection).</summary>
+    [Parameter]
+    public bool Mask { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await _dialog.FocusAsync(); // Escape closes
+        }
+    }
+
+    private async Task CopyAsync()
+    {
+        var text = Error.Display + (Error.Statement is { } s ? Environment.NewLine + Environment.NewLine + BindValues.Describe(s, Mask) : "");
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", text);
+        _copied = true;
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await OnClose.InvokeAsync();
+        }
+    }
+}
