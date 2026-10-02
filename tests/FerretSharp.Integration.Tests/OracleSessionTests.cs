@@ -93,6 +93,27 @@ public class OracleSessionTests(OracleContainerFixture oracle)
         Assert.Equal(("BINARY", "BINARY"), values);
     }
 
+    /// <summary>The session refuses DML before it reaches the server; the row stays.</summary>
+    [Fact]
+    public async Task Writing_statements_are_refused_and_change_nothing()
+    {
+        await SampleSchema.EnsureCreatedAsync(oracle.RequireConnectionString(), Ct);
+        await using var session = await OpenAsync();
+        const string count = "SELECT COUNT(*) FROM GRID_TEST WHERE ID = 1";
+        Task<decimal> CountAsync() => session.ExecuteReaderAsync(count, [], async (reader, ct) =>
+        {
+            await reader.ReadAsync(ct);
+            return reader.GetDecimal(0);
+        }, Ct);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => session.ExecuteReaderAsync("DELETE FROM GRID_TEST WHERE ID = 1", [], (reader, ct) => reader.ReadAsync(ct), Ct));
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => session.ExecuteReaderAsync("SELECT * FROM GRID_TEST WHERE ID = 1 FOR UPDATE", [], (reader, ct) => reader.ReadAsync(ct), Ct));
+
+        Assert.Equal(1m, await CountAsync());
+    }
+
     [Fact]
     public async Task Bind_variables_are_bound_by_name()
     {
