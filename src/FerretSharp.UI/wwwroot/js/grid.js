@@ -27,6 +27,8 @@ function theme() {
       wrapperBorder: false,
       wrapperBorderRadius: 0,
       columnBorder: true,
+      // Clearly visible edge of the pinned area (primary key and pinned columns).
+      pinnedColumnBorder: { style: 'solid', width: 2, color: dark ? '#4a4b56' : '#c4c4ce' },
       accentColor: dark ? '#7aa2ff' : '#3b6fe0',
       backgroundColor: dark ? '#1c1d22' : '#ffffff',
       foregroundColor: dark ? '#e6e6ea' : '#1d1d22',
@@ -116,8 +118,13 @@ function firstVisibleRow(api) {
   return Math.floor(api.getVerticalPixelRange().top / ROW_HEIGHT);
 }
 
+/** Pinned columns in display order (primary key first); .NET drops the always pinned primary key. */
+function reportPinned(api, dotnet) {
+  dotnet.invokeMethodAsync('OnPinnedChanged', api.getDisplayedLeftColumns().map(c => c.getColId())).catch(() => {});
+}
+
 /**
- * columns: [{ id, name, type, category, nullable, pk, fk, numeric, sortable }]
+ * columns: [{ id, name, type, category, nullable, pk, fk, numeric, sortable, pinned }] in display order.
  * sorts: [{ colId, sort }] initial sort state.
  * firstRow: rough scroll position to restore (0 = top); the block containing it is loaded on demand.
  */
@@ -158,11 +165,22 @@ export function create(elementId, dotnet, columns, sorts, firstRow) {
     tooltipValueGetter: p => (p.value === null || p.value === undefined ? null : p.value),
     headerComponent: FerretHeader,
     headerComponentParams: { meta },
-    pinned: meta.pk ? 'left' : undefined,
+    pinned: meta.pinned ? 'left' : null,
+    // The primary key always stays pinned at the very left; other columns can also be pinned by dragging them there.
+    lockPinned: meta.pk,
+    lockPosition: meta.pk ? 'left' : undefined,
   }));
 
   const element = document.getElementById(elementId);
-  element.addEventListener('contextmenu', e => e.preventDefault()); // no WebView menu (Back, Reload, Inspect)
+  // No WebView menu (Back, Reload, Inspect). On a column header, the column menu is a Blazor component; AG Grid's
+  // columnHeaderContextMenu event carries no mouse position.
+  element.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    const colId = e.target.closest?.('.ag-header-cell')?.getAttribute('col-id');
+    if (colId) {
+      dotnet.invokeMethodAsync('OnHeaderContextMenu', colId, e.clientX, e.clientY, window.innerWidth, window.innerHeight).catch(() => {});
+    }
+  });
 
   // Ctrl+C: the focused cell, or the selected rows if there are several (AG Grid Community has no clipboard).
   // Text marked with the mouse inside one cell is copied by the browser as usual.
@@ -196,6 +214,9 @@ export function create(elementId, dotnet, columns, sorts, firstRow) {
     suppressMultiSort: false,
     animateRows: false,
     onBodyScrollEnd: () => dotnet.invokeMethodAsync('OnScrolled', firstVisibleRow(api)).catch(() => {}),
+    // Pinned or reordered within the pinned area by dragging (changes from setPinned have source 'api').
+    onColumnPinned: e => { if (e.source?.startsWith('ui')) reportPinned(api, dotnet); },
+    onColumnMoved: e => { if (e.finished && e.source?.startsWith('ui') && e.column?.getPinned()) reportPinned(api, dotnet); },
     // The menu itself is a Blazor component; the grid only reports where the user right-clicked.
     // Right-click on a selected row keeps the selection (export of several rows), otherwise selects just this row.
     onCellContextMenu: e => {
@@ -229,6 +250,27 @@ export function refresh(elementId) {
   if (!api) return;
   api.ensureIndexVisible(0, 'top');
   api.purgeInfiniteCache();
+}
+
+/**
+ * Pins exactly these columns to the left, in this order. The other columns keep their current order; a released
+ * column goes back in front of the first column that follows it in the schema (ids are c + schema index).
+ */
+export function setPinned(elementId, pinnedIds) {
+  const api = grids.get(elementId);
+  if (!api) return;
+  const pinned = new Set(pinnedIds);
+  const schemaIndex = colId => Number(colId.slice(1));
+  const state = api.getColumnState().filter(s => !pinned.has(s.colId));
+  const rest = state.filter(s => !s.pinned).map(s => s.colId);
+  for (const released of state.filter(s => s.pinned)) {
+    const at = rest.findIndex(id => schemaIndex(id) > schemaIndex(released.colId));
+    rest.splice(at < 0 ? rest.length : at, 0, released.colId);
+  }
+  api.applyColumnState({
+    state: [...pinnedIds.map(colId => ({ colId, pinned: 'left' })), ...rest.map(colId => ({ colId, pinned: null }))],
+    applyOrder: true,
+  });
 }
 
 /** Known total (after COUNT): the scrollbar then reflects the full table. */

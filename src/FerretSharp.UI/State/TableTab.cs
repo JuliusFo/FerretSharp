@@ -73,6 +73,9 @@ public sealed class TableTab(Guid workspaceId, TableSummary table)
 
     public IReadOnlyList<SortSpec> Sorts { get; set; } = [];
 
+    /// <summary>Columns the user pinned to the left, in pin order (without the always pinned primary key).</summary>
+    public IReadOnlyList<string> PinnedColumns { get; set; } = [];
+
     public int RowsLoaded { get; set; }
 
     public bool AllRowsLoaded { get; set; }
@@ -89,7 +92,10 @@ public sealed class TableTab(Guid workspaceId, TableSummary table)
     public int ActiveFilterCount => AppliedFilters.Count(f => f.Enabled);
 
     public TabState ToState() => new(
-        Table.Ref, Mode, FilterRows.Select(r => r.ToCondition()).ToList(), AppliedFilters, Sorts, FirstVisibleRow);
+        Table.Ref, Mode, FilterRows.Select(r => r.ToCondition()).ToList(), AppliedFilters, Sorts, FirstVisibleRow)
+    {
+        PinnedColumns = PinnedColumns,
+    };
 
     public static TableTab Restore(Guid workspaceId, TableSummary table, TabState state)
     {
@@ -99,6 +105,7 @@ public sealed class TableTab(Guid workspaceId, TableSummary table)
             AppliedFilters = state.AppliedFilters,
             Sorts = state.Sorts,
             FirstVisibleRow = state.FirstVisibleRow,
+            PinnedColumns = state.PinnedColumns,
         };
         tab.FilterRows.AddRange(state.FilterRows.Select(FilterRow.From));
         return tab;

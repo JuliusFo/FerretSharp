@@ -26,7 +26,10 @@ public sealed class WorkspaceStoreTests : IDisposable
                 [FilterCondition.Of("NAME", FilterOperator.Contains, "Müller"), new FilterCondition("ORT", FilterOperator.In, ["Köln", "Bonn"], Enabled: false)],
                 [FilterCondition.Of("NAME", FilterOperator.Contains, "Müller")],
                 [new SortSpec("NAME", Descending: true)],
-                FirstVisibleRow: 1200),
+                FirstVisibleRow: 1200)
+            {
+                PinnedColumns = ["NAME", "ORT"],
+            },
             new TabState(new TableRef("OTHER", "Quoted.Name"), TabMode.Structure, [], [], []),
         ],
     };
@@ -52,9 +55,27 @@ public sealed class WorkspaceStoreTests : IDisposable
         Assert.Equal(FilterOperator.In, tab.FilterRows[1].Op);
         Assert.Equal("Müller", Assert.Single(tab.AppliedFilters).Values[0]);
         Assert.Equal(new SortSpec("NAME", true), Assert.Single(tab.Sorts));
+        Assert.Equal(["NAME", "ORT"], tab.PinnedColumns);
         Assert.Equal(new TableRef("OTHER", "Quoted.Name"), loaded.Tabs[1].Table);
         Assert.Equal(TabMode.Structure, loaded.Tabs[1].Mode);
         Assert.Null(loaded.Tabs[1].FirstVisibleRow);
+        Assert.Empty(loaded.Tabs[1].PinnedColumns);
+    }
+
+    [Fact]
+    public async Task Tabs_saved_before_column_pinning_load_without_pinned_columns()
+    {
+        Directory.CreateDirectory(_directory);
+        var id = Guid.NewGuid();
+        await File.WriteAllTextAsync(Path.Combine(_directory, id + ".json"), $$"""
+            { "version": 1, "workspace": { "id": "{{id}}", "connectionId": "{{_connectionId}}", "name": "Alt",
+              "tabs": [ { "table": { "owner": "APP", "name": "KUNDEN" }, "mode": "data", "filterRows": [], "appliedFilters": [], "sorts": [] } ] } }
+            """, Ct);
+
+        var tab = Assert.Single(Assert.Single((await _store.LoadAsync(_connectionId, Ct)).Workspaces).Tabs);
+
+        Assert.Equal(new TableRef("APP", "KUNDEN"), tab.Table);
+        Assert.Empty(tab.PinnedColumns);
     }
 
     [Fact]

@@ -22,7 +22,11 @@ public sealed record TabState(
     IReadOnlyList<FilterCondition> FilterRows,
     IReadOnlyList<FilterCondition> AppliedFilters,
     IReadOnlyList<SortSpec> Sorts,
-    int? FirstVisibleRow = null);
+    int? FirstVisibleRow = null)
+{
+    /// <summary>Columns the user pinned to the left, in pin order; primary key columns are always pinned (<see cref="ColumnPinning"/>).</summary>
+    public IReadOnlyList<string> PinnedColumns { get; init; } = [];
+}
 
 /// <summary>
 /// A named working context on one connection (e.g. "Bug 3711") with its own tabs. At runtime every open workspace
