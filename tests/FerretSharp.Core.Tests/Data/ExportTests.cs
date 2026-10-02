@@ -86,6 +86,32 @@ public class ExportTests
     }
 
     [Fact]
+    public void Cell_text_is_the_full_value_not_the_display_text()
+    {
+        var text = Col("T", "VARCHAR2");
+        var longText = new string('x', 1500) + "\r\nZeile 2";
+        var raw = Col("R", "RAW");
+        var bytes = Enumerable.Range(0, 40).Select(i => (byte)i).ToArray();
+
+        Assert.EndsWith(" …", CellFormatter.Format(text, longText));
+        Assert.Equal(longText, DelimitedExport.CellText(text, longText).Text);
+        Assert.Equal("1234,5", DelimitedExport.CellText(Col("N", "NUMBER"), 1234.5m).Text);
+        Assert.Equal("1.234,5", CellFormatter.Format(Col("N", "NUMBER"), 1234.5m));
+        Assert.Equal(Convert.ToHexString(bytes), DelimitedExport.CellText(raw, bytes).Text);
+        Assert.Equal("", DelimitedExport.CellText(text, null).Text);
+        Assert.Empty(DelimitedExport.CellText(text, "a").Warnings);
+    }
+
+    [Fact]
+    public void Cell_text_of_a_previewed_lob_is_left_out_with_a_warning()
+    {
+        var copy = DelimitedExport.CellText(Col("NOTIZ", "CLOB"), new LobValue(new string('x', 200), 5000));
+
+        Assert.Equal("", copy.Text);
+        Assert.Equal(["NOTIZ (CLOB): 1 Wert nicht exportiert – nur die Vorschau geladen."], copy.Warnings);
+    }
+
+    [Fact]
     public void Special_values_become_oracle_literals()
     {
         var warnings = new ExportWarnings();

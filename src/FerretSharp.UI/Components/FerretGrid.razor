@@ -16,6 +16,7 @@
 
     private readonly Dictionary<int, IReadOnlyList<RowData>> _blocks = [];
     private IJSObjectReference? _module;
+    private IJSObjectReference? _dom;
     private DotNetObjectReference<FerretGrid>? _selfRef;
 
     [CascadingParameter]
@@ -174,6 +175,55 @@
             selected.OfType<RowData>().ToList(), selected.Count(r => r is null), x, y, viewportWidth, viewportHeight));
     }
 
+    /// <summary>
+    /// Ctrl+C in the grid: several selected rows are copied as a table (like "Als Tabelle kopieren"), otherwise the
+    /// focused cell – always from the raw values, not the display text.
+    /// </summary>
+    [JSInvokable]
+    public async Task OnCopy(int rowIndex, string colId, int[] selectedRows)
+    {
+        if (selectedRows.Length > 1)
+        {
+            var selected = selectedRows.Order().Select(RowAt).ToList();
+            var rows = selected.OfType<RowData>().ToList();
+            var table = DelimitedExport.Build(Details, rows, DelimitedExport.ClipboardSeparator);
+            var missing = selected.Count - rows.Count;
+            IReadOnlyList<string> warnings = missing == 0
+                ? table.Warnings
+                : [.. table.Warnings, $"{missing} der markierten Zeilen sind nicht mehr geladen – nicht kopiert."];
+            if (await CopyTextAsync(table.Text))
+            {
+                Shell.Notify(rows.Count == 1 ? "1 Zeile als Tabelle kopiert." : $"{rows.Count:N0} Zeilen als Tabelle kopiert.", warnings);
+            }
+
+            return;
+        }
+
+        if (RowAt(rowIndex) is not { } row || !colId.StartsWith('c'))
+        {
+            return;
+        }
+
+        var index = int.Parse(colId[1..], CultureInfo.InvariantCulture);
+        var cell = DelimitedExport.CellText(Details.Columns[index], row.Values[index]);
+        if (await CopyTextAsync(cell.Text) && cell.Warnings.Count > 0)
+        {
+            Shell.Notify("Wert nicht kopiert.", cell.Warnings);
+        }
+    }
+
+    private async Task<bool> CopyTextAsync(string text)
+    {
+        _dom ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
+        if (await _dom.InvokeAsync<bool>("copyText", text))
+        {
+            return true;
+        }
+
+        Shell.Notify("Die Zwischenablage ist nicht verfügbar.");
+        return false;
+    }
+
     /// <summary>Raw rows of a loaded block, kept as long as AG Grid keeps the block (same limit as in grid.js).</summary>
     private void KeepBlock(int startRow, IReadOnlyList<RowData> rows)
     {
@@ -223,6 +273,17 @@
 
     public async ValueTask DisposeAsync()
     {
+        if (_dom is not null)
+        {
+            try
+            {
+                await _dom.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+
         if (_module is not null)
         {
             try

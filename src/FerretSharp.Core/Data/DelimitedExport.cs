@@ -31,6 +31,18 @@ public static class DelimitedExport
         return new ExportText(text.ToString(), rows.Count, warnings.ToList());
     }
 
+    /// <summary>
+    /// One cell for the clipboard (Ctrl+C, "Wert kopieren"): same notation as the table export and the full value –
+    /// unlike the grid's display text, which shortens long texts, shows line breaks as ⏎ and groups thousands.
+    /// NULL is an empty text; a LOB that was only loaded as preview is left out with a warning.
+    /// </summary>
+    public static ExportText CellText(ColumnInfo column, object? value)
+    {
+        var warnings = new ExportWarnings();
+        var text = Value(column, value, warnings);
+        return new ExportText(text, 1, warnings.ToList());
+    }
+
     private static string Value(ColumnInfo column, object? value, ExportWarnings warnings) => value switch
     {
         null or DBNull => "",

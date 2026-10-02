@@ -95,6 +95,19 @@ function width(meta) {
   return 180;
 }
 
+function cellOf(node) {
+  const el = node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement;
+  return el?.closest('.ag-cell') ?? null;
+}
+
+/** True if the user marked text and the marking lies within a single cell. */
+function textMarkedInOneCell() {
+  const selection = window.getSelection();
+  if (!selection || selection.isCollapsed || !selection.toString()) return false;
+  const cell = cellOf(selection.anchorNode);
+  return cell !== null && cell === cellOf(selection.focusNode);
+}
+
 const ROW_HEIGHT = 30;
 const BLOCK_SIZE = 500;
 
@@ -150,6 +163,21 @@ export function create(elementId, dotnet, columns, sorts, firstRow) {
 
   const element = document.getElementById(elementId);
   element.addEventListener('contextmenu', e => e.preventDefault()); // no WebView menu (Back, Reload, Inspect)
+
+  // Ctrl+C: the focused cell, or the selected rows if there are several (AG Grid Community has no clipboard).
+  // Text marked with the mouse inside one cell is copied by the browser as usual.
+  element.addEventListener('keydown', e => {
+    if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'c') return;
+    if (textMarkedInOneCell()) return;
+    const cell = api.getFocusedCell();
+    if (!cell || cell.rowIndex == null) return;
+    e.preventDefault();
+    const selected = api.getSelectedNodes().map(n => n.rowIndex).filter(i => i != null);
+    dotnet.invokeMethodAsync('OnCopy', cell.rowIndex, cell.column.getColId(), selected).catch(() => {});
+  }, true);
+
+  // Shift+click selects a range of rows; without this the browser would also mark text across the cells.
+  element.addEventListener('mousedown', e => { if (e.shiftKey) e.preventDefault(); }, true);
 
   const api = agGrid.createGrid(element, {
     theme: theme(),

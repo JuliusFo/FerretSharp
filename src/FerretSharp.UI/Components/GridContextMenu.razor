@@ -209,14 +209,23 @@
         await CloseAsync();
     }
 
+    /// <summary>The full value (like Ctrl+C), not the shortened display text.</summary>
     private async Task CopyAsync()
     {
-        if (Request.CellText is { } text && _dom is not null)
+        if (Request.CellText is null || _dom is null)
         {
-            _copied = await _dom.InvokeAsync<bool>("copyText", text);
-            if (_copied)
+            return;
+        }
+
+        var cell = DelimitedExport.CellText(Column, Request.Row.Values[Request.Column]);
+        _copied = await _dom.InvokeAsync<bool>("copyText", cell.Text);
+        if (_copied)
+        {
+            var shell = Shell;
+            await CloseAsync();
+            if (cell.Warnings.Count > 0)
             {
-                await CloseAsync();
+                shell.Notify("Wert nicht kopiert.", cell.Warnings);
             }
         }
     }
