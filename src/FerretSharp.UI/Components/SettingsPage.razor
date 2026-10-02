@@ -1,0 +1,62 @@
+@* App settings. For now only the appearance (light/dark). *@
+@using FerretSharp.Core.Settings
+@using FerretSharp.UI.State
+@inject IThemeService Theme
+
+<div class="settings-page">
+    <div class="page-head">
+        <h1>Einstellungen</h1>
+        <span class="grow"></span>
+        <button class="btn ghost" @onclick="Back">Zurück</button>
+    </div>
+
+    <section class="settings-section">
+        <h2>Darstellung</h2>
+        <div class="settings-row">
+            <div class="settings-label">
+                <span>Farbschema</span>
+                <span class="hint">„System“ folgt der Windows-Einstellung.</span>
+            </div>
+            <div class="segmented" role="radiogroup" aria-label="Farbschema">
+                @foreach (var (mode, label) in Modes)
+                {
+                    var m = mode;
+                    <button class="seg @(Theme.Mode == m ? "active" : "")" role="radio" aria-checked="@(Theme.Mode == m ? "true" : "false")"
+                            @onclick="() => SetAsync(m)">@label</button>
+                }
+            </div>
+        </div>
+        @if (Theme.SessionOverride is { } forced)
+        {
+            <div class="settings-note">
+                Diese Sitzung wurde mit <code>--theme=@forced</code> gestartet und bleibt deshalb @(forced == "dark" ? "dunkel" : "hell").
+                Die Auswahl wird gespeichert und gilt ab dem nächsten Start ohne diesen Parameter.
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    private static readonly (ThemeMode Mode, string Label)[] Modes =
+        [(ThemeMode.System, "System"), (ThemeMode.Light, "Hell"), (ThemeMode.Dark, "Dunkel")];
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnBack { get; set; }
+
+    private Task Back() => OnBack.InvokeAsync();
+
+    private async Task SetAsync(ThemeMode mode)
+    {
+        try
+        {
+            await Theme.SetModeAsync(mode);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Shell.Notify($"Einstellung angewendet, aber nicht gespeichert: {ex.Message}");
+        }
+    }
+}
