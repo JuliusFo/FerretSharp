@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-02
+
 ### Fixed
 - Primary and red (delete) buttons lost their background on hover, leaving the text unreadable (light text on the light hover color, dark text on the dark one).
 - Red buttons in dark mode had poor contrast (white on light red, 2.8:1); they now use dark text (6.8:1).
