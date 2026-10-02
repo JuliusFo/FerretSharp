@@ -314,6 +314,10 @@ UI-Muster: Dialoge und Bestätigungen fordern Komponenten über den kaskadierten
 
 Blazor kennt **kein `auxclick`-Event**: `@onauxclick` wird kommentarlos als HTML-Attribut ausgegeben und tut nichts (so war Mittelklick-Schließen der Tabs seit WP-04 wirkungslos). Mittelklick über `@onmouseup` mit `e.Button == 1`.
 
+**Kein `@ondblclick` verwenden.** Der WPF-Host (`WebView2CompositionControl`) reicht beim zweiten Klick eines echten Doppelklicks das Mouse-down doppelt an die WebView weiter: Chromium zählt `detail` 1 → 2 → 3, der zweite `click` kommt mit `detail=3`, und `dblclick` feuert nie. Doppelklick deshalb über `@onclick` mit `e.Detail >= 2` erkennen (Workspace-Chip, Verbindungszeile). Fiel lange nicht auf, weil die E2E-Tests Doppelklicks synthetisch bzw. per CDP direkt in die WebView schickten, also am Host vorbei. Gefunden durch den Nutzer in v1.1.0.
+
+**Mausinteraktionen mit echter Windows-Eingabe prüfen** (`SendInput` über `realclick.ps1` im Scratchpad: `ClientToScreen` des Fensters + CSS-Position × `devicePixelRatio`), nicht nur per CDP. Nur so läuft die Eingabe durch den WPF-Host wie beim Nutzer. Dabei immer nur **eine** App-Instanz mit Debug-Port starten: Zwei Instanzen teilen sich das WebView2-Datenverzeichnis, und unterschiedliche Browser-Argumente (z. B. zwei Debug-Ports) lassen die zweite beim Start mit `0x8007139F` abstürzen.
+
 ## 8. Arbeitspakete
 
 Jedes Paket: eigener Branch `wp/NN-kurzname`, am Ende `dotnet build -warnaserror` + `dotnet test` grün, kurzer Eintrag in `docs/decisions/` bei nicht-trivialen Entscheidungen. Vor dem Start eines Pakets kurz den Plan nennen, dann umsetzen.
