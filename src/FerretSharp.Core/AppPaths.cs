@@ -26,4 +26,6 @@ public sealed class AppPaths
     public string RecentConnectionsFile => Path.Combine(Root, "recent.json");
 
     public string WorkspacesDirectory => Path.Combine(Root, "workspaces");
+
+    public string SettingsFile => Path.Combine(Root, "settings.json");
 }

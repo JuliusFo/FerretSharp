@@ -9,7 +9,7 @@ public enum ConnectionDialogMode { New, Edit, Duplicate }
 
 public sealed record ConnectionDialogRequest(ConnectionDialogMode Mode, ConnectionProfile? Profile);
 
-public enum ShellPage { Connections, Explorer }
+public enum ShellPage { Connections, Explorer, Settings }
 
 /// <summary>Tabs of one open workspace.</summary>
 public sealed class WorkspaceTabs(Guid workspaceId)
@@ -89,6 +89,12 @@ public sealed class ShellState
     });
 
     public void ShowExplorer() => Set(() => Page = ShellPage.Explorer);
+
+    public void ShowSettings() => Set(() =>
+    {
+        SwitcherOpen = false;
+        Page = ShellPage.Settings;
+    });
 
     /// <summary>
     /// Aligns the tabs with the open workspaces: restores tabs of newly opened ones from their saved state (tables

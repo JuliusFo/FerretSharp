@@ -2,13 +2,17 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
+using FerretSharp.Core.Settings;
+using Microsoft.Web.WebView2.Core;
 using Microsoft.Win32;
+using ThemeMode = FerretSharp.Core.Settings.ThemeMode;
 
 namespace FerretSharp.App.Services;
 
 /// <summary>
-/// Keeps the native window chrome (title bar, background behind the WebView) in line with the light/dark theme.
-/// The web content itself follows <c>prefers-color-scheme</c>; an explicit override is passed to WebView2.
+/// Light/dark for the whole window: native chrome (title bar, background behind the WebView) and the WebView's
+/// <c>prefers-color-scheme</c>, which the CSS and the grid follow. The mode comes from the settings and can change at
+/// runtime; <c>--theme=dark|light</c> overrides it for the session (tests, screenshots).
 /// </summary>
 public sealed class WindowTheme
 {
@@ -16,14 +20,29 @@ public sealed class WindowTheme
     private static readonly Color DarkBackground = Color.FromRgb(0x14, 0x15, 0x18);
     private static readonly Color LightBackground = Color.FromRgb(0xf4, 0xf4, 0xf6);
 
-    private WindowTheme(bool? forceDark) => ForceDark = forceDark;
+    private Window? _window;
+    private CoreWebView2? _webView;
 
-    /// <summary>null = follow Windows; true/false = forced via <c>--theme=dark|light</c>.</summary>
-    public bool? ForceDark { get; }
+    private WindowTheme(bool? sessionOverride, ThemeMode mode)
+    {
+        SessionOverride = sessionOverride;
+        Mode = mode;
+    }
 
-    public bool IsDark => ForceDark ?? IsSystemDark();
+    /// <summary>true/false when forced via <c>--theme=dark|light</c>; null otherwise.</summary>
+    public bool? SessionOverride { get; }
 
-    public static WindowTheme FromArgs(IEnumerable<string> args)
+    /// <summary>The saved choice (System follows Windows).</summary>
+    public ThemeMode Mode { get; private set; }
+
+    public bool IsDark => SessionOverride ?? Mode switch
+    {
+        ThemeMode.Dark => true,
+        ThemeMode.Light => false,
+        _ => IsSystemDark(),
+    };
+
+    public static WindowTheme Create(IEnumerable<string> args, ThemeMode mode)
     {
         var value = args.FirstOrDefault(a => a.StartsWith("--theme=", StringComparison.OrdinalIgnoreCase))?["--theme=".Length..];
         return new WindowTheme(value?.ToLowerInvariant() switch
@@ -31,7 +50,7 @@ public sealed class WindowTheme
             "dark" => true,
             "light" => false,
             _ => null,
-        });
+        }, mode);
     }
 
     /// <summary>Must run before the WebView2 environment is created to avoid a white flash on startup.</summary>
@@ -43,25 +62,43 @@ public sealed class WindowTheme
 
     public void Attach(Window window)
     {
-        Apply(window);
-        window.SourceInitialized += (_, _) => Apply(window);
+        _window = window;
+        ApplyWindow();
+        window.SourceInitialized += (_, _) => ApplyWindow();
 
-        if (ForceDark is null)
+        // In System mode the title bar follows Windows; the WebView does so by itself (PreferredColorScheme.Auto).
+        UserPreferenceChangedEventHandler handler = (_, e) =>
         {
-            UserPreferenceChangedEventHandler handler = (_, e) =>
+            if (e.Category == UserPreferenceCategory.General)
             {
-                if (e.Category == UserPreferenceCategory.General)
-                {
-                    window.Dispatcher.Invoke(() => Apply(window));
-                }
-            };
-            SystemEvents.UserPreferenceChanged += handler;
-            window.Closed += (_, _) => SystemEvents.UserPreferenceChanged -= handler;
-        }
+                window.Dispatcher.Invoke(ApplyWindow);
+            }
+        };
+        SystemEvents.UserPreferenceChanged += handler;
+        window.Closed += (_, _) => SystemEvents.UserPreferenceChanged -= handler;
     }
 
-    private void Apply(Window window)
+    public void AttachWebView(CoreWebView2 webView)
     {
+        _webView = webView;
+        ApplyWebView();
+    }
+
+    /// <summary>Switches immediately (UI thread). With a session override the window keeps the forced theme.</summary>
+    public void SetMode(ThemeMode mode)
+    {
+        Mode = mode;
+        ApplyWindow();
+        ApplyWebView();
+    }
+
+    private void ApplyWindow()
+    {
+        if (_window is not { } window)
+        {
+            return;
+        }
+
         var dark = IsDark;
         window.Background = new SolidColorBrush(dark ? DarkBackground : LightBackground);
 
@@ -71,6 +108,26 @@ public sealed class WindowTheme
             var value = dark ? 1 : 0;
             _ = DwmSetWindowAttribute(hwnd, DwmUseImmersiveDarkMode, ref value, sizeof(int));
         }
+    }
+
+    private void ApplyWebView()
+    {
+        if (_webView is null)
+        {
+            return;
+        }
+
+        _webView.Profile.PreferredColorScheme = SessionOverride switch
+        {
+            true => CoreWebView2PreferredColorScheme.Dark,
+            false => CoreWebView2PreferredColorScheme.Light,
+            null => Mode switch
+            {
+                ThemeMode.Dark => CoreWebView2PreferredColorScheme.Dark,
+                ThemeMode.Light => CoreWebView2PreferredColorScheme.Light,
+                _ => CoreWebView2PreferredColorScheme.Auto,
+            },
+        };
     }
 
     private static bool IsSystemDark()

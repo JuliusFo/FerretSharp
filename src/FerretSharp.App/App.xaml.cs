@@ -6,6 +6,7 @@ using FerretSharp.App.Views;
 using FerretSharp.Core;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Oracle;
+using FerretSharp.Core.Settings;
 using FerretSharp.Core.Workspaces;
 using FerretSharp.UI.State;
 using Microsoft.Extensions.DependencyInjection;
@@ -37,6 +38,21 @@ public partial class App : Application
                 retainedFileCountLimit: 14)
             .CreateLogger();
 
+        // Settings decide the theme, which must be known before the window and the WebView exist (no white flash).
+        var settingsStore = new SettingsStore(paths.SettingsFile);
+        var settings = AppSettings.Default;
+        string? settingsError = null;
+        try
+        {
+            settings = await settingsStore.LoadAsync(CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is SettingsStoreException or IOException or UnauthorizedAccessException)
+        {
+            settingsError = ex.Message;
+        }
+
+        var theme = WindowTheme.Create(e.Args, settings.Theme);
+
         var builder = Host.CreateApplicationBuilder(e.Args);
         builder.Services.AddSerilog();
         builder.Services.Configure<ConsoleLifetimeOptions>(o => o.SuppressStatusMessages = true);
@@ -54,7 +70,8 @@ public partial class App : Application
         builder.Services.AddSingleton<IWorkspaceStore>(new WorkspaceStore(paths.WorkspacesDirectory));
         builder.Services.AddSingleton<WorkspaceManager>();
         builder.Services.AddSingleton<ActiveConnection>();
-        builder.Services.AddSingleton(WindowTheme.FromArgs(e.Args));
+        builder.Services.AddSingleton(theme);
+        builder.Services.AddSingleton<IThemeService>(new ThemeService(theme, settingsStore, settings));
         builder.Services.AddSingleton<IDialogService, DialogService>();
         builder.Services.AddSingleton<IFileSaveService, FileSaveService>();
         builder.Services.AddSingleton<MainWindow>();
@@ -65,6 +82,10 @@ public partial class App : Application
 
         await _host.StartAsync();
         _logger.LogInformation("FerretSharp {Version} started", typeof(App).Assembly.GetName().Version);
+        if (settingsError is not null)
+        {
+            _logger.LogWarning("Settings could not be read, using defaults: {Error}", settingsError);
+        }
 
         var window = _host.Services.GetRequiredService<MainWindow>();
         MainWindow = window;

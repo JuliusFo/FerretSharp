@@ -23,6 +23,8 @@
                 <WorkspaceBar />
             }
             <div class="topbar-right">
+                <button class="icon-btn ghost @(_state.Page == ShellPage.Settings ? "active" : "")" title="Einstellungen"
+                        @onclick="ToggleSettings">@Icons.Settings</button>
                 @if (IsProdActive)
                 {
                     <span class="badge badge-prod">PROD · READ-ONLY</span>
@@ -100,7 +102,11 @@
                             </div>
                         }
 
-                        @if (!ShowExplorer)
+                        @if (_state.Page == ShellPage.Settings)
+                        {
+                            <SettingsPage OnBack="LeaveSettings" />
+                        }
+                        else if (!ShowExplorer)
                         {
                             <ConnectionsPage />
                         }
@@ -331,6 +337,34 @@
 
         StateHasChanged();
     });
+
+    private ShellPage _pageBeforeSettings = ShellPage.Connections;
+
+    private void ToggleSettings()
+    {
+        if (_state.Page == ShellPage.Settings)
+        {
+            LeaveSettings();
+        }
+        else
+        {
+            _pageBeforeSettings = _state.Page;
+            _state.ShowSettings();
+        }
+    }
+
+    /// <summary>Back to where the user came from; the explorer only if still connected.</summary>
+    private void LeaveSettings()
+    {
+        if (_pageBeforeSettings == ShellPage.Explorer && Active.Status != ConnectionStatus.Disconnected)
+        {
+            _state.ShowExplorer();
+        }
+        else
+        {
+            _state.ShowConnections();
+        }
+    }
 
     private void ToggleHome()
     {

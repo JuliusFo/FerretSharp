@@ -24,6 +24,9 @@ internal static class Icons
     public static readonly MarkupString Home = Svg(
         """<path d="M2.5 7.5 8 3l5.5 4.5"/><path d="M4 6.5V13h8V6.5"/>""", 1.6);
 
+    public static readonly MarkupString Settings = Svg(
+        """<path d="M2 4.5h6.5M12.5 4.5H14M2 11.5h1.5M7.5 11.5H14"/><circle cx="10.5" cy="4.5" r="2"/><circle cx="5.5" cy="11.5" r="2"/>""", 1.6);
+
     public static readonly MarkupString Code = Svg(
         """<path d="M5.5 4 2 8l3.5 4M10.5 4 14 8l-3.5 4"/>""", 1.6);
 
