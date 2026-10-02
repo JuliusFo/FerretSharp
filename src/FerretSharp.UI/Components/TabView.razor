@@ -5,6 +5,7 @@
 @implements IDisposable
 @inject ActiveConnection Active
 @inject WorkspaceManager Workspaces
+@inject ILogger<TabView> Logger
 
 <div class="tabview">
     <div class="tab-toolbar">
@@ -28,7 +29,10 @@
 
     @if (_loadError is not null)
     {
-        <div class="tab-error">@_loadError</div>
+        <div class="tab-error">
+            <span>@_loadError.Display</span>
+            <button class="link-btn" @onclick="() => Shell.ShowError(_loadError)">Details</button>
+        </div>
     }
     else if (_details is null)
     {
@@ -40,7 +44,13 @@
             <FilterBar Tab="Tab" Details="_details" OnApply="ApplyFiltersAsync" OnShowSql="ShowSql" />
             @if (Tab.Error is not null)
             {
-                <div class="tab-error">@Tab.Error</div>
+                <div class="tab-error">
+                    <span>@Tab.Error</span>
+                    @if (Tab.Failure is { } failure)
+                    {
+                        <button class="link-btn" @onclick="() => Shell.ShowError(failure)">Details</button>
+                    }
+                </div>
             }
             <div class="grid-host">
                 <FerretGrid @ref="_grid" Tab="Tab" Details="_details" OnPageLoaded="StateHasChanged" OnContextMenu="r => _menu = r" />
@@ -74,7 +84,7 @@
                 <span>@SortText</span>
                 @if (_countError is not null)
                 {
-                    <span class="error">@_countError</span>
+                    <span class="error">@_countError.Display <button class="link-btn" @onclick="() => Shell.ShowError(_countError)">Details</button></span>
                 }
                 <span class="spacer"></span>
                 <span>Row-Key: @RowKeyText</span>
@@ -102,10 +112,10 @@
 
 @code {
     private TableDetails? _details;
-    private string? _loadError;
+    private DatabaseException? _loadError;
     private FerretGrid? _grid;
     private CancellationTokenSource? _countCts;
-    private string? _countError;
+    private DatabaseException? _countError;
     private (string Sql, IReadOnlyList<QueryParameter> Parameters, string? Error)? _sql;
     private GridContextMenuRequest? _menu;
 
@@ -143,7 +153,9 @@
         }
         catch (DatabaseException ex)
         {
-            _loadError = ex.ErrorCode is null ? ex.Message : $"{ex.ErrorCode}: {ex.Message}";
+            QueryErrorLog.Log(Logger, ex, Active.Profile);
+            _loadError = ex;
+            Shell.ReportFailure(ex);
         }
     }
 
@@ -182,6 +194,7 @@
         CancelCount();
         _countError = null;
         Tab.Error = null;
+        Tab.Failure = null;
         Tab.FirstVisibleRow = null;
         Shell.MarkDirty();
         if (_grid is not null)
@@ -216,7 +229,9 @@
         }
         catch (DatabaseException ex)
         {
-            _countError = ex.ErrorCode is null ? ex.Message : $"{ex.ErrorCode}: {ex.Message}";
+            QueryErrorLog.Log(Logger, ex, Active.Profile);
+            _countError = ex;
+            Shell.ReportFailure(ex);
         }
         finally
         {

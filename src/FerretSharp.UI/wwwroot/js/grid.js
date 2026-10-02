@@ -160,7 +160,8 @@ export function create(elementId, dotnet, columns, sorts, firstRow) {
     maxBlocksInCache: 40,
     maxConcurrentDatasourceRequests: 1,
     infiniteInitialRowCount: 1,
-    rowSelection: { mode: 'singleRow', checkboxes: false, enableClickSelection: true },
+    // Click selects a row, Ctrl+click adds/removes, Shift+click selects a range (only loaded rows).
+    rowSelection: { mode: 'multiRow', checkboxes: false, headerCheckbox: false, enableClickSelection: true },
     enableCellTextSelection: true,
     ensureDomOrder: true,
     tooltipShowDelay: 700,
@@ -168,10 +169,12 @@ export function create(elementId, dotnet, columns, sorts, firstRow) {
     animateRows: false,
     onBodyScrollEnd: () => dotnet.invokeMethodAsync('OnScrolled', firstVisibleRow(api)).catch(() => {}),
     // The menu itself is a Blazor component; the grid only reports where the user right-clicked.
+    // Right-click on a selected row keeps the selection (export of several rows), otherwise selects just this row.
     onCellContextMenu: e => {
       if (e.rowIndex == null || !e.data || !e.event) return;
-      e.node.setSelected(true);
-      dotnet.invokeMethodAsync('OnCellContextMenu', e.rowIndex, e.column.getColId(),
+      if (!e.node.isSelected()) e.node.setSelected(true, true);
+      const selected = api.getSelectedNodes().map(n => n.rowIndex).filter(i => i != null);
+      dotnet.invokeMethodAsync('OnCellContextMenu', e.rowIndex, e.column.getColId(), selected,
         e.event.clientX, e.event.clientY, window.innerWidth, window.innerHeight).catch(() => {});
     },
     datasource: {

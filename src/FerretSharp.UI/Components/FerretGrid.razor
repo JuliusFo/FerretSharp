@@ -7,6 +7,7 @@
 @inject IJSRuntime JS
 @inject ActiveConnection Active
 @inject WorkspaceManager Workspaces
+@inject ILogger<FerretGrid> Logger
 
 <div id="@Tab.Id" class="ag-host"></div>
 
@@ -130,30 +131,47 @@
             Tab.AllRowsLoaded |= page.IsLastPage;
             Tab.LastQueryTime = page.Elapsed;
             Tab.Error = null;
+            Tab.Failure = null;
             await OnPageLoaded.InvokeAsync();
 
             return new GridPage(rows, page.IsLastPage ? startRow + page.Rows.Count : -1);
         }
-        catch (Exception ex) when (ex is DatabaseException or QueryValidationException)
+        catch (DatabaseException ex)
         {
-            Tab.Error = ex is DatabaseException { ErrorCode: { } code } ? $"{code}: {ex.Message}" : ex.Message;
+            QueryErrorLog.Log(Logger, ex, Active.Profile);
+            Tab.Error = ex.Display;
+            Tab.Failure = ex;
+            Shell.ReportFailure(ex);
+            await OnPageLoaded.InvokeAsync();
+            throw;
+        }
+        catch (QueryValidationException ex)
+        {
+            Tab.Error = ex.Message;
+            Tab.Failure = null;
             await OnPageLoaded.InvokeAsync();
             throw;
         }
     }
 
-    /// <summary>Right-click on a cell; the menu needs the raw row values, not the display text.</summary>
+    /// <summary>
+    /// Right-click on a cell; the menu needs the raw row values, not the display text. <paramref name="selectedRows"/>
+    /// are the selected row indexes (the clicked row is always among them); rows no longer cached are counted as missing.
+    /// </summary>
     [JSInvokable]
-    public async Task OnCellContextMenu(int rowIndex, string colId, double x, double y, double viewportWidth, double viewportHeight)
+    public async Task OnCellContextMenu(
+        int rowIndex, string colId, int[] selectedRows, double x, double y, double viewportWidth, double viewportHeight)
     {
         if (RowAt(rowIndex) is not { } row || !colId.StartsWith('c'))
         {
             return;
         }
 
+        var selected = selectedRows.Order().Select(RowAt).ToList();
         var column = int.Parse(colId[1..], CultureInfo.InvariantCulture);
         await OnContextMenu.InvokeAsync(new GridContextMenuRequest(
-            row, column, CellFormatter.Format(Details.Columns[column], row.Values[column]), x, y, viewportWidth, viewportHeight));
+            row, column, CellFormatter.Format(Details.Columns[column], row.Values[column]),
+            selected.OfType<RowData>().ToList(), selected.Count(r => r is null), x, y, viewportWidth, viewportHeight));
     }
 
     /// <summary>Raw rows of a loaded block, kept as long as AG Grid keeps the block (same limit as in grid.js).</summary>

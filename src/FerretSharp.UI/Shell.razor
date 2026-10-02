@@ -34,6 +34,21 @@
             </div>
         </header>
 
+        @if (_state.ConnectionLost is { } lost && Active.IsConnected && Active.Profile is { } lostProfile)
+        {
+            <div class="lost-banner" role="alert">
+                <span class="dot err"></span>
+                <span class="grow">
+                    <strong>Verbindung zur Datenbank verloren.</strong>
+                    @lost.Display
+                    <span class="muted">„Neu verbinden“ stellt alle Workspaces mit ihren Tabs und Filtern wieder her.</span>
+                </span>
+                <button class="btn primary" @onclick="() => _state.Connect(lostProfile)">Neu verbinden</button>
+                <button class="btn ghost" @onclick="() => _state.ShowError(lost)">Details</button>
+                <button class="btn ghost" @onclick="DisconnectAsync">Trennen</button>
+            </div>
+        }
+
         <div class="body">
             @if (ShowExplorer && Active.IsConnected)
             {
@@ -132,6 +147,11 @@
             {
                 @switch (Active.Status)
                 {
+                    case ConnectionStatus.Connected when _state.ConnectionLost is not null:
+                        <span class="item error"><span class="dot err"></span> Verbindung verloren</span>
+                        <span class="item">@Active.Profile?.Name</span>
+                        <button class="status-btn" @onclick="() => _state.Connect(Active.Profile!)">Neu verbinden</button>
+                        break;
                     case ConnectionStatus.Connected:
                         <span class="item"><span class="dot ok"></span> Verbunden</span>
                         <span class="item">@Active.Profile?.Name</span>
@@ -174,6 +194,23 @@
         <ConnectionDialog @key="request" Request="request" OnClose="_state.CloseConnectionDialog" />
     }
 
+    @if (_state.ErrorDetails is { } error)
+    {
+        <ErrorDialog @key="error" Error="error" Mask="@(Active.Profile?.Kind == ConnectionKind.Prod)" OnClose="_state.CloseError" />
+    }
+
+    @if (_state.Notice is { } notice)
+    {
+        <div class="toast @(notice.Warnings.Count > 0 ? "warn" : "")" role="status" @key="notice">
+            <div class="toast-text">@notice.Text</div>
+            @foreach (var warning in notice.Warnings)
+            {
+                <div class="toast-warning">⚠ @warning</div>
+            }
+            <button class="icon-btn ghost toast-close" title="Schließen" @onclick="() => _state.DismissNotice(notice)">✕</button>
+        </div>
+    }
+
     @if (_state.PendingDelete is { } pending)
     {
         <ConfirmDialog Title="Verbindung löschen" ConfirmLabel="Löschen" Danger="true"
@@ -193,6 +230,7 @@
         "v" + (typeof(Shell).Assembly.GetName().Version?.ToString(3) ?? "0.0.0");
 
     private readonly ShellState _state = new();
+    private Notice? _scheduledNotice;
     private ErrorBoundary? _errorBoundary;
     private IJSObjectReference? _shortcuts;
     private DotNetObjectReference<Shell>? _selfRef;
@@ -227,7 +265,7 @@
     [JSInvokable]
     public void OnShortcut(string combo)
     {
-        if (_state.ConnectionDialog is not null || _state.PendingDelete is not null)
+        if (_state.ConnectionDialog is not null || _state.PendingDelete is not null || _state.ErrorDetails is not null)
         {
             return;
         }
@@ -309,6 +347,7 @@
     private async Task DisconnectAsync()
     {
         SaveTabs();
+        _state.ClearConnectionLost();
         await Active.DisconnectAsync();
         _state.ClearWorkspaces();
         _state.ShowConnections();
@@ -332,7 +371,23 @@
         _errorBoundary?.Recover();
     }
 
-    private void OnChanged() => InvokeAsync(StateHasChanged);
+    private void OnChanged()
+    {
+        if (_state.Notice is { } notice && notice != _scheduledNotice)
+        {
+            _scheduledNotice = notice;
+            _ = DismissLaterAsync(notice);
+        }
+
+        InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>Toasts disappear by themselves; with warnings they stay longer.</summary>
+    private async Task DismissLaterAsync(Notice notice)
+    {
+        await Task.Delay(notice.Warnings.Count > 0 ? TimeSpan.FromSeconds(12) : TimeSpan.FromSeconds(5));
+        await InvokeAsync(() => _state.DismissNotice(notice));
+    }
 
     public async ValueTask DisposeAsync()
     {
