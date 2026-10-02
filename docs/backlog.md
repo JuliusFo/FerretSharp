@@ -13,3 +13,6 @@ Geplante Versionen und Arbeitspakete stehen in `CLAUDE.md`; hier landet alles, w
 - FK-Vorschläge per Namenskonvention (`KUNDE_ID` → `KUNDE`/`KUNDEN`, deren einspaltiger PK), als „vermutet“ navigierbar oder als virtueller FK übernehmbar. Modell: `FkSource.Convention`.
 - FK-Navigation: „Zurück“-Historie über Sprünge; Tabs derselben Tabelle im Tab-Titel unterscheidbar machen (z. B. Kurzform des Filters).
 - FK-Navigation über Spalten mit TIMESTAMP WITH TIME ZONE, BINARY_FLOAT/DOUBLE oder NUMBER mit mehr als 28 Stellen (bisher als „nicht möglich“ markiert).
+- Export: vollständige LOB-Werte (CLOB/BLOB) für markierte Zeilen nachladen statt sie als NULL zu exportieren; „Alle Zeilen des Filters exportieren“ (nicht nur geladene/markierte).
+- Verbindungsabbruch proaktiv erkennen (Keep-alive-Ping im Leerlauf), statt erst beim nächsten Statement.
+- Native Dialoge: zuletzt verwendeten Export-Ordner merken.
