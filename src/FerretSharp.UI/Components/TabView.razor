@@ -53,7 +53,8 @@
                 </div>
             }
             <div class="grid-host">
-                <FerretGrid @ref="_grid" Tab="Tab" Details="_details" OnPageLoaded="StateHasChanged" OnContextMenu="r => _menu = r" />
+                <FerretGrid @ref="_grid" Tab="Tab" Details="_details" OnPageLoaded="StateHasChanged"
+                            OnContextMenu="r => _menu = r" OnColumnMenu="r => _columnMenu = r" />
             </div>
             <footer class="tab-footer">
                 @* RowsLoaded is the highest loaded position (blocks load where the user scrolls), so it is a lower bound. *@
@@ -102,7 +103,14 @@
 
 @if (_menu is { } menu && _details is not null)
 {
-    <GridContextMenu @key="menu" Request="menu" Tab="Tab" Details="_details" OnClose="() => _menu = null" />
+    <GridContextMenu @key="menu" Request="menu" Tab="Tab" Details="_details" OnClose="() => _menu = null"
+                     Pinned="@(_grid?.IsPinned(menu.Column) == true)" OnTogglePin="TogglePinAsync" />
+}
+
+@if (_columnMenu is { } columnMenu && _details is not null)
+{
+    <ColumnMenu @key="columnMenu" Request="columnMenu" Details="_details" OnClose="() => _columnMenu = null"
+                Pinned="@(_grid?.IsPinned(columnMenu.Column) == true)" OnTogglePin="TogglePinAsync" />
 }
 
 @if (_sql is { } sql)
@@ -118,6 +126,7 @@
     private DatabaseException? _countError;
     private (string Sql, IReadOnlyList<QueryParameter> Parameters, string? Error)? _sql;
     private GridContextMenuRequest? _menu;
+    private ColumnMenuRequest? _columnMenu;
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -200,6 +209,14 @@
         if (_grid is not null)
         {
             await _grid.RefreshAsync();
+        }
+    }
+
+    private async Task TogglePinAsync(int column)
+    {
+        if (_grid is not null)
+        {
+            await _grid.TogglePinAsync(column);
         }
     }
 

@@ -19,6 +19,10 @@
     <button class="menu-item" disabled="@(Request.CellText is null)" @onclick="CopyAsync">
         Wert kopieren @if (_copied) { <span class="ctx-meta">kopiert</span> }
     </button>
+    @if (!Details.PrimaryKey.Contains(Column.Name))
+    {
+        <button class="menu-item" @onclick="TogglePinAsync">@(Pinned ? "Spalte lösen" : "Spalte links anheften")</button>
+    }
 
     <div class="group-head-btn static">Export · @RowsText(Request.Selected.Count)</div>
     <button class="menu-item" title="Tabulator-getrennt mit Kopfzeile – lässt sich direkt in Excel einfügen" @onclick="CopyTableAsync">Als Tabelle kopieren</button>
@@ -77,6 +81,13 @@
     [Parameter]
     public EventCallback OnClose { get; set; }
 
+    /// <summary>Whether the clicked column is currently pinned.</summary>
+    [Parameter]
+    public bool Pinned { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnTogglePin { get; set; }
+
     private ColumnInfo Column => Details.Columns[Request.Column];
 
     private abstract record CountState
@@ -92,7 +103,7 @@
     {
         get
         {
-            var height = 260 + ItemHeight * (_outgoing.Count + _incoming.Count);
+            var height = 292 + ItemHeight * (_outgoing.Count + _incoming.Count);
             var left = Math.Max(8, Math.Min(Request.X, Request.ViewportWidth - MenuWidth - 8));
             var top = Math.Max(8, Math.Min(Request.Y, Request.ViewportHeight - height - 8));
             return FormattableString.Invariant($"position: fixed; left: {left:0}px; top: {top:0}px; width: {MenuWidth:0}px;");
@@ -228,6 +239,12 @@
                 shell.Notify("Wert nicht kopiert.", cell.Warnings);
             }
         }
+    }
+
+    private async Task TogglePinAsync()
+    {
+        await CloseAsync();
+        await OnTogglePin.InvokeAsync(Request.Column);
     }
 
     private static string RowsText(int rows) => rows == 1 ? "1 Zeile" : $"{rows:N0} Zeilen";

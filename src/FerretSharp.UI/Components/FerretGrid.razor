@@ -35,11 +35,16 @@
     [Parameter]
     public EventCallback<GridContextMenuRequest> OnContextMenu { get; set; }
 
+    [Parameter]
+    public EventCallback<ColumnMenuRequest> OnColumnMenu { get; set; }
+
     public sealed record GridSort(string ColId, string Sort);
 
     public sealed record GridPage(IReadOnlyList<Dictionary<string, string?>> Rows, int LastRow);
 
     private static string ColumnId(int index) => "c" + index.ToString(CultureInfo.InvariantCulture);
+
+    private static int ColumnIndex(string colId) => int.Parse(colId[1..], CultureInfo.InvariantCulture);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -49,8 +54,10 @@
         }
 
         var foreignKeyColumns = Active.Schema?.OutgoingOf(Details.Table.Ref).SelectMany(f => f.FromColumns).ToHashSet() ?? [];
-        var columns = Details.Columns.Select((c, i) =>
+        Tab.PinnedColumns = ColumnPinning.Normalize(Details, Tab.PinnedColumns); // columns may have been dropped since
+        var columns = ColumnPinning.DisplayOrder(Details, Tab.PinnedColumns).Select(i =>
         {
+            var c = Details.Columns[i];
             var category = ColumnCategories.Of(c);
             return new
             {
@@ -63,6 +70,7 @@
                 fk = foreignKeyColumns.Contains(c.Name),
                 numeric = category == ColumnCategory.Number,
                 sortable = ColumnCategories.IsSortable(category),
+                pinned = ColumnPinning.IsPinned(Details, Tab.PinnedColumns, c.Name),
             };
         }).ToList();
         var sorts = Tab.Sorts
@@ -92,6 +100,35 @@
             await _module.InvokeVoidAsync("setRowCount", Tab.Id, (int)Math.Min(count, int.MaxValue));
         }
     }
+
+    public bool IsPinned(int column) => ColumnPinning.IsPinned(Details, Tab.PinnedColumns, Details.Columns[column].Name);
+
+    /// <summary>Pins or releases a column (from the column or cell menu); the primary key stays pinned.</summary>
+    public async Task TogglePinAsync(int column)
+    {
+        Tab.PinnedColumns = ColumnPinning.Toggle(Details, Tab.PinnedColumns, Details.Columns[column].Name);
+        Shell.MarkDirty();
+        if (_module is not null)
+        {
+            var pinned = ColumnPinning.DisplayOrder(Details, Tab.PinnedColumns)
+                .Where(i => IsPinned(i))
+                .Select(ColumnId)
+                .ToList();
+            await _module.InvokeVoidAsync("setPinned", Tab.Id, pinned);
+        }
+    }
+
+    /// <summary>The user pinned, released or reordered pinned columns by dragging; <paramref name="colIds"/> in display order.</summary>
+    [JSInvokable]
+    public void OnPinnedChanged(string[] colIds)
+    {
+        Tab.PinnedColumns = ColumnPinning.Normalize(Details, colIds.Select(id => Details.Columns[ColumnIndex(id)].Name));
+        Shell.MarkDirty();
+    }
+
+    [JSInvokable]
+    public async Task OnHeaderContextMenu(string colId, double x, double y, double viewportWidth, double viewportHeight) =>
+        await OnColumnMenu.InvokeAsync(new ColumnMenuRequest(ColumnIndex(colId), x, y, viewportWidth, viewportHeight));
 
     [JSInvokable]
     public async Task<GridPage> GetRows(int startRow, int endRow, GridSort[] sortModel)
