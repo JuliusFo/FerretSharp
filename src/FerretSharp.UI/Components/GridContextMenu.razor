@@ -92,7 +92,7 @@
     }
 
     private RenderFragment JumpItem(FkJump jump, string arrow, CountState? count) =>
-        @<button class="menu-item ctx-jump @(InvolvesColumn(jump) ? "related" : "") @(count is CountState.Done { Count: 0 } ? "empty" : "")"
+        @<button class="menu-item ctx-jump @(InvolvesColumn(jump) ? "related" : "") @(count is CountState.Done { Count: 0 } ? "no-rows" : "")"
                  disabled="@(!jump.IsAvailable)" title="@Tooltip(jump)" @onclick="() => JumpAsync(jump)">
             <span class="ctx-arrow">@arrow</span>
             <span class="ctx-target">
