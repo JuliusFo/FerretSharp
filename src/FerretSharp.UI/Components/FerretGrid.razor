@@ -101,6 +101,15 @@
         }
     }
 
+    /// <summary>Scrolls the column into view, highlights it briefly and focuses its cell in the first visible row.</summary>
+    public async Task JumpToColumnAsync(int column)
+    {
+        if (_module is not null)
+        {
+            await _module.InvokeVoidAsync("jumpToColumn", Tab.Id, ColumnId(column));
+        }
+    }
+
     public bool IsPinned(int column) => ColumnPinning.IsPinned(Details, Tab.PinnedColumns, Details.Columns[column].Name);
 
     /// <summary>Pins or releases a column (from the column or cell menu); the primary key stays pinned.</summary>

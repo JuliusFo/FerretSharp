@@ -404,6 +404,24 @@ dl.keys dd { margin: 0; }
 .row-toggle { width: 15px; height: 15px; margin: 0; accent-color: var(--accent); }
 .filter-actions { display: flex; gap: 6px; }
 
+/* ---------- column search (filter bar picker, Ctrl+F jump) ---------- */
+.colpick { position: relative; min-width: 0; }
+.colpick .field { width: 100%; }
+.colpick-pop { width: 380px; max-height: 340px; overflow-y: auto; padding: 4px 6px; }
+.coljump { position: relative; }
+.coljump-pop { left: auto; right: 0; width: 420px; max-height: min(480px, 70vh); }
+.coljump-count { font-size: 11px; color: var(--faint); white-space: nowrap; }
+.col-item {
+  display: flex; align-items: center; gap: 4px; height: 30px; padding: 0 8px; border-radius: 6px; cursor: pointer; min-width: 0;
+}
+.col-item.highlight { background: var(--accent-weak); }
+.col-item.current .col-item-name { color: var(--accent); }
+.col-item-name { font: 12px var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.col-item .fs-badge { margin-left: 2px; flex: none; }
+.col-item-type { margin-left: auto; padding-left: 12px; font: 11px var(--mono); color: var(--faint); white-space: nowrap; flex: none; }
+.ag-header-cell.fs-flash { animation: fs-flash 1.4s ease-out; }
+@keyframes fs-flash { from { background: var(--accent-weak); box-shadow: inset 0 -2px 0 var(--accent); } }
+
 /* ---------- grid ---------- */
 .fs-null { font-style: italic; color: var(--faint); }
 .fs-num { text-align: right; font-variant-numeric: tabular-nums; justify-content: flex-end; }

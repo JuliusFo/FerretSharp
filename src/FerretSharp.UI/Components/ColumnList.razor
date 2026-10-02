@@ -1,0 +1,133 @@
+@* Matching columns with a keyboard highlight. The search input belongs to the parent (ColumnPicker, ColumnJump),
+   which forwards the arrow keys and Enter via Move and PickHighlightedAsync. *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Query
+@using FerretSharp.Core.Schema
+@implements IAsyncDisposable
+@inject ActiveConnection Active
+@inject IJSRuntime JS
+
+<div class="col-list">
+    @if (_matches.Count == 0)
+    {
+        <div class="popover-empty">Keine Spalte passt zu „@Query“.</div>
+    }
+    @for (var i = 0; i < _matches.Count; i++)
+    {
+        var position = i;
+        var column = Details.Columns[_matches[i]];
+        <div id="@ItemId(position)" class="col-item @(position == _highlight ? "highlight" : "") @(_matches[i] == Current ? "current" : "")"
+             @onmousedown="() => PickAsync(position)" @onmousedown:preventDefault="true" @onmouseenter="() => _highlight = position">
+            <span class="col-item-name">@column.Name</span>
+            @if (Details.PrimaryKey.Contains(column.Name))
+            {
+                <span class="fs-badge pk">PK</span>
+            }
+            @if (_foreignKeyColumns.Contains(column.Name))
+            {
+                <span class="fs-badge fk">FK</span>
+            }
+            <span class="col-item-type">@column.DisplayType</span>
+        </div>
+    }
+</div>
+
+@code {
+    private readonly string _id = "cols-" + Guid.NewGuid().ToString("N");
+    private IReadOnlyList<int> _matches = [];
+    private HashSet<string> _foreignKeyColumns = [];
+    private string? _lastQuery;
+    private int _highlight;
+    private bool _scrollToHighlight;
+    private IJSObjectReference? _dom;
+
+    [Parameter, EditorRequired]
+    public TableDetails Details { get; set; } = null!;
+
+    [Parameter]
+    public string Query { get; set; } = "";
+
+    /// <summary>Column (index into <c>Details.Columns</c>) marked and highlighted while the query is empty.</summary>
+    [Parameter]
+    public int? Current { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnPick { get; set; }
+
+    private string ItemId(int position) => _id + "-" + position.ToString(CultureInfo.InvariantCulture);
+
+    protected override void OnInitialized() =>
+        _foreignKeyColumns = Active.Schema?.OutgoingOf(Details.Table.Ref).SelectMany(f => f.FromColumns).ToHashSet() ?? [];
+
+    protected override void OnParametersSet()
+    {
+        if (Query == _lastQuery)
+        {
+            return;
+        }
+
+        _lastQuery = Query;
+        _matches = ColumnSearch.Find(Details.Columns, Query);
+        var current = string.IsNullOrWhiteSpace(Query) && Current is { } c ? IndexOf(c) : -1;
+        _highlight = Math.Max(current, 0);
+        _scrollToHighlight = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_scrollToHighlight && _matches.Count > 0)
+        {
+            _scrollToHighlight = false;
+            _dom ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
+            await _dom.InvokeVoidAsync("scrollIntoViewById", ItemId(_highlight));
+        }
+    }
+
+    public void Move(int delta)
+    {
+        _highlight = Math.Clamp(_highlight + delta, 0, Math.Max(0, _matches.Count - 1));
+        _scrollToHighlight = true;
+        StateHasChanged();
+    }
+
+    /// <summary>Picks the highlighted column; false if nothing matches.</summary>
+    public async Task<bool> PickHighlightedAsync()
+    {
+        if (_matches.Count == 0)
+        {
+            return false;
+        }
+
+        await OnPick.InvokeAsync(_matches[_highlight]);
+        return true;
+    }
+
+    private Task PickAsync(int position) => OnPick.InvokeAsync(_matches[position]);
+
+    private int IndexOf(int column)
+    {
+        for (var i = 0; i < _matches.Count; i++)
+        {
+            if (_matches[i] == column)
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_dom is not null)
+        {
+            try
+            {
+                await _dom.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+    }
+}

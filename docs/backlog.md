@@ -16,3 +16,6 @@ Geplante Versionen und Arbeitspakete stehen in `CLAUDE.md`; hier landet alles, w
 - Export: vollständige LOB-Werte (CLOB/BLOB) für markierte Zeilen nachladen statt sie als NULL zu exportieren; „Alle Zeilen des Filters exportieren“ (nicht nur geladene/markierte).
 - Verbindungsabbruch proaktiv erkennen (Keep-alive-Ping im Leerlauf), statt erst beim nächsten Statement.
 - Native Dialoge: zuletzt verwendeten Export-Ordner merken.
+- Spalten ausblenden (Variante C der Spaltensuche): Auswahl per Häkchen, pro Tab gespeichert, Vorlagen wie „nur FKs“. Entschieden: Export (Tabelle kopieren, CSV) nimmt dann nur die sichtbaren Spalten, INSERT immer alle.
+- Spaltensuche auch in Spaltenkommentaren (`ALL_COL_COMMENTS`, bisher nicht geladen) und – mit v3 – in C#-Property-Namen.
+- Ctrl+F in der Strukturansicht (Spaltenliste filtern).
