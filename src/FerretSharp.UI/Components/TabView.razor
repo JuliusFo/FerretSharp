@@ -96,7 +96,7 @@
         @if (Tab.Mode == TabMode.Structure)
         {
             <div class="tab-structure">
-                <TableStructure Table="Tab.Table" />
+                <TableStructure @ref="_structure" Table="Tab.Table" />
             </div>
         }
     }
@@ -129,6 +129,7 @@
     private GridContextMenuRequest? _menu;
     private ColumnMenuRequest? _columnMenu;
     private ColumnJump? _jump;
+    private TableStructure? _structure;
     private int? _pendingJump; // scrolled to after the search list has closed, so the grid cell keeps the focus
 
     [CascadingParameter]
@@ -313,8 +314,11 @@
                 case TabCommand.Refresh:
                     await RefreshAsync();
                     break;
-                case TabCommand.FindColumn:
-                    _jump?.Open(); // only exists in the data view
+                case TabCommand.FindColumn when Tab.Mode == TabMode.Data:
+                    _jump?.Open();
+                    break;
+                case TabCommand.FindColumn when _structure is not null:
+                    await _structure.FocusFilterAsync();
                     break;
             }
 
