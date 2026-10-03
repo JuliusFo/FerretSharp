@@ -26,12 +26,19 @@ public sealed class OracleSchemaReader(OracleSession session) : ISchemaReader
             SELECT m.mview_name, 'MVIEW' FROM all_mviews m WHERE m.owner = :owner)
         """;
 
+    // Views and mviews that need recompiling (e.g. a column of their table was dropped); tables are never invalid.
+    private const string InvalidObjectsSql = """
+        SELECT object_name FROM all_objects
+         WHERE owner = :owner AND status = 'INVALID' AND object_type IN ('VIEW', 'MATERIALIZED VIEW')
+        """;
+
     // Private synonyms of the schema and public synonyms; targets must be tables/views/mviews the session can see
     // (ALL_OBJECTS), outside the schema itself and outside Oracle-maintained schemas (filters thousands of SYS
     // synonyms). An mview shows up in ALL_OBJECTS as TABLE and MATERIALIZED VIEW, hence MAX over a rank.
     private const string SynonymsSql = """
         SELECT s.owner, s.synonym_name, s.table_owner, s.table_name,
-               MAX(CASE o.object_type WHEN 'MATERIALIZED VIEW' THEN 3 WHEN 'VIEW' THEN 2 ELSE 1 END) AS kind
+               MAX(CASE o.object_type WHEN 'MATERIALIZED VIEW' THEN 3 WHEN 'VIEW' THEN 2 ELSE 1 END) AS kind,
+               MAX(CASE WHEN o.status = 'INVALID' AND o.object_type <> 'TABLE' THEN 1 ELSE 0 END) AS invalid
           FROM all_synonyms s
           JOIN all_objects o
             ON o.owner = s.table_owner AND o.object_name = s.table_name
@@ -58,12 +65,15 @@ public sealed class OracleSchemaReader(OracleSession session) : ISchemaReader
          ORDER BY c.constraint_name, cc.position
         """;
 
+    // ALL_TAB_COLS without hidden columns is exactly ALL_TAB_COLUMNS, plus VIRTUAL_COLUMN.
     private const string ColumnsSql = """
-        SELECT column_name, data_type, char_used, char_length, data_length, data_precision, data_scale,
-               nullable, identity_column, data_default, column_id
-          FROM all_tab_columns
-         WHERE owner = :owner AND table_name = :name
-         ORDER BY column_id
+        SELECT c.column_name, c.data_type, c.char_used, c.char_length, c.data_length, c.data_precision, c.data_scale,
+               c.nullable, c.identity_column, c.data_default, c.column_id, cm.comments, c.virtual_column, c.default_on_null
+          FROM all_tab_cols c
+          LEFT JOIN all_col_comments cm
+            ON cm.owner = c.owner AND cm.table_name = c.table_name AND cm.column_name = c.column_name
+         WHERE c.owner = :owner AND c.table_name = :name AND c.hidden_column = 'NO'
+         ORDER BY c.column_id
         """;
 
     private const string KeysSql = """
@@ -82,8 +92,106 @@ public sealed class OracleSchemaReader(OracleSession session) : ISchemaReader
 
     private const string MViewDefinitionSql = "SELECT query FROM all_mviews WHERE owner = :owner AND mview_name = :name";
 
-    public Task<IReadOnlyList<TableSummary>> GetTablesAsync(string owner, CancellationToken cancellationToken) =>
-        session.ExecuteReaderAsync(TablesSql, [new("owner", owner)], async (reader, ct) =>
+    // A materialized view is TABLE and MATERIALIZED VIEW in ALL_OBJECTS; its container table carries the statistics.
+    // Its comment lives in ALL_MVIEW_COMMENTS.
+    private const string ObjectInfoSql = """
+        SELECT o.status, o.created, o.last_ddl_time,
+               (SELECT c.comments FROM all_tab_comments c
+                 WHERE c.owner = o.owner AND c.table_name = o.object_name AND ROWNUM = 1) AS table_comment,
+               (SELECT c.comments FROM all_mview_comments c
+                 WHERE c.owner = o.owner AND c.mview_name = o.object_name AND ROWNUM = 1) AS mview_comment,
+               t.num_rows, t.last_analyzed, t.tablespace_name, t.partitioned, t.temporary
+          FROM all_objects o
+          LEFT JOIN all_tables t ON t.owner = o.owner AND t.table_name = o.object_name
+         WHERE o.owner = :owner AND o.object_name = :name AND o.object_type = :object_type
+        """;
+
+    // SEARCH_CONDITION is LONG (fetched up to InitialLONGFetchSize); it may be selected but not sorted on.
+    private const string ConstraintsSql = """
+        SELECT c.constraint_name, c.constraint_type, c.search_condition, c.r_owner, r.table_name, c.delete_rule,
+               c.status, c.validated, c.deferrable, c.deferred, c.generated
+          FROM all_constraints c
+          LEFT JOIN all_constraints r ON r.owner = c.r_owner AND r.constraint_name = c.r_constraint_name
+         WHERE c.owner = :owner AND c.table_name = :name
+         ORDER BY CASE c.constraint_type WHEN 'P' THEN 1 WHEN 'U' THEN 2 WHEN 'R' THEN 3 WHEN 'C' THEN 4 ELSE 5 END,
+                  c.constraint_name
+        """;
+
+    private const string ConstraintColumnsSql = """
+        SELECT constraint_name, column_name FROM all_cons_columns
+         WHERE owner = :owner AND table_name = :name
+         ORDER BY constraint_name, position
+        """;
+
+    private const string ReferencedColumnsSql = """
+        SELECT c.constraint_name, rc.column_name
+          FROM all_constraints c
+          JOIN all_cons_columns rc ON rc.owner = c.r_owner AND rc.constraint_name = c.r_constraint_name
+         WHERE c.owner = :owner AND c.table_name = :name AND c.constraint_type = 'R'
+         ORDER BY c.constraint_name, rc.position
+        """;
+
+    // LOB indexes (SYS_IL…) belong to LOB columns and cannot be changed or used directly.
+    private const string IndexesSql = """
+        SELECT owner, index_name, index_type, uniqueness, status, tablespace_name, partitioned, visibility
+          FROM all_indexes
+         WHERE table_owner = :owner AND table_name = :name AND index_type <> 'LOB'
+         ORDER BY index_name
+        """;
+
+    private const string IndexColumnsSql = """
+        SELECT index_owner, index_name, column_name, column_position, descend
+          FROM all_ind_columns
+         WHERE table_owner = :owner AND table_name = :name
+         ORDER BY index_owner, index_name, column_position
+        """;
+
+    // COLUMN_EXPRESSION is LONG: function-based columns and descending columns ("NAME" DESC is stored as an expression).
+    private const string IndexExpressionsSql = """
+        SELECT index_owner, index_name, column_position, column_expression
+          FROM all_ind_expressions
+         WHERE table_owner = :owner AND table_name = :name
+        """;
+
+    // STANDARD/DBMS_STANDARD are referenced by everything and say nothing.
+    private const string UsesSql = """
+        SELECT DISTINCT d.referenced_owner, d.referenced_name, d.referenced_type, o.status
+          FROM all_dependencies d
+          LEFT JOIN all_objects o
+            ON o.owner = d.referenced_owner AND o.object_name = d.referenced_name AND o.object_type = d.referenced_type
+         WHERE d.owner = :owner AND d.name = :name AND d.type IN ('TABLE', 'VIEW', 'MATERIALIZED VIEW')
+           AND d.referenced_link_name IS NULL
+           AND d.referenced_type <> 'NON-EXISTENT'
+           AND NOT (d.referenced_owner = 'SYS' AND d.referenced_name IN ('STANDARD', 'DBMS_STANDARD'))
+         ORDER BY d.referenced_type, d.referenced_owner, d.referenced_name
+        """;
+
+    private const string UsedBySql = """
+        SELECT DISTINCT d.owner, d.name, d.type, o.status
+          FROM all_dependencies d
+          LEFT JOIN all_objects o ON o.owner = d.owner AND o.object_name = d.name AND o.object_type = d.type
+         WHERE d.referenced_owner = :owner AND d.referenced_name = :name
+           AND d.referenced_type IN ('TABLE', 'VIEW', 'MATERIALIZED VIEW')
+         ORDER BY d.type, d.owner, d.name
+        """;
+
+    // A function call in a plain query: DBMS_METADATA only reads. Object type names use underscores here.
+    private const string DdlSql = "SELECT DBMS_METADATA.GET_DDL(:object_type, :name, :owner) FROM DUAL";
+
+    public async Task<IReadOnlyList<TableSummary>> GetTablesAsync(string owner, CancellationToken cancellationToken)
+    {
+        var invalid = await session.ExecuteReaderAsync(InvalidObjectsSql, [new("owner", owner)], async (reader, ct) =>
+        {
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            while (await reader.ReadAsync(ct))
+            {
+                names.Add(reader.GetString(0));
+            }
+
+            return names;
+        }, cancellationToken);
+
+        return await session.ExecuteReaderAsync(TablesSql, [new("owner", owner)], async (reader, ct) =>
         {
             var tables = new List<TableSummary>();
             while (await reader.ReadAsync(ct))
@@ -94,12 +202,14 @@ public sealed class OracleSchemaReader(OracleSession session) : ISchemaReader
                     "MVIEW" => TableKind.MaterializedView,
                     _ => TableKind.Table,
                 };
-                tables.Add(new TableSummary(owner, reader.GetString(0), kind));
+                var name = reader.GetString(0);
+                tables.Add(new TableSummary(owner, name, kind) { IsInvalid = kind != TableKind.Table && invalid.Contains(name) });
             }
 
             tables.Sort((a, b) => string.CompareOrdinal(a.Name, b.Name));
             return (IReadOnlyList<TableSummary>)tables;
         }, cancellationToken);
+    }
 
     public Task<IReadOnlyList<TableSummary>> GetSynonymTargetsAsync(string owner, CancellationToken cancellationToken) =>
         session.ExecuteReaderAsync(SynonymsSql, [new("owner", owner)], async (reader, ct) =>
@@ -113,7 +223,10 @@ public sealed class OracleSchemaReader(OracleSession session) : ISchemaReader
                     2 => TableKind.View,
                     _ => TableKind.Table,
                 };
-                result.Add(new TableSummary(reader.GetString(2), reader.GetString(3), kind, new SynonymInfo(reader.GetString(0), reader.GetString(1))));
+                result.Add(new TableSummary(reader.GetString(2), reader.GetString(3), kind, new SynonymInfo(reader.GetString(0), reader.GetString(1)))
+                {
+                    IsInvalid = GetInt(reader, 5) == 1,
+                });
             }
 
             return (IReadOnlyList<TableSummary>)result;
@@ -221,11 +334,190 @@ public sealed class OracleSchemaReader(OracleSession session) : ISchemaReader
                 Nullable: reader.GetString(7) == "Y",
                 IsIdentity: !reader.IsDBNull(8) && reader.GetString(8) == "YES",
                 Default: reader.IsDBNull(9) ? null : reader.GetString(9).Trim() is { Length: > 0 } d ? d : null,
-                Position: GetInt(reader, 10) ?? columns.Count + 1));
+                Position: GetInt(reader, 10) ?? columns.Count + 1,
+                Comment: GetText(reader, 11),
+                IsVirtual: GetText(reader, 12) == "YES",
+                DefaultOnNull: GetText(reader, 13) == "YES"));
         }
 
         return columns;
     }
+
+    public Task<ObjectInfo> GetObjectInfoAsync(TableSummary table, CancellationToken cancellationToken) =>
+        session.ExecuteReaderAsync(ObjectInfoSql, [new("owner", table.Owner), new("name", table.Name), new("object_type", ObjectType(table.Kind))], async (reader, ct) =>
+        {
+            if (!await reader.ReadAsync(ct))
+            {
+                return new ObjectInfo("N/A", null, null, null, null, null, null, false, false);
+            }
+
+            return new ObjectInfo(
+                Status: reader.GetString(0),
+                Created: GetDate(reader, 1),
+                LastDdl: GetDate(reader, 2),
+                Comment: (table.Kind == TableKind.MaterializedView ? GetText(reader, 4) : null) ?? GetText(reader, 3),
+                NumRows: reader.IsDBNull(5) ? null : Convert.ToInt64(reader.GetValue(5), CultureInfo.InvariantCulture),
+                LastAnalyzed: GetDate(reader, 6),
+                Tablespace: GetText(reader, 7),
+                Partitioned: GetText(reader, 8) == "YES",
+                Temporary: GetText(reader, 9) == "Y");
+        }, cancellationToken);
+
+    public async Task<IReadOnlyList<ConstraintInfo>> GetConstraintsAsync(TableRef table, CancellationToken cancellationToken)
+    {
+        QueryParameter[] parameters = [new("owner", table.Owner), new("name", table.Name)];
+        var columns = await ReadNameListsAsync(ConstraintColumnsSql, parameters, cancellationToken);
+        var referenced = await ReadNameListsAsync(ReferencedColumnsSql, parameters, cancellationToken);
+
+        return await session.ExecuteReaderAsync(ConstraintsSql, parameters, async (reader, ct) =>
+        {
+            var result = new List<ConstraintInfo>();
+            while (await reader.ReadAsync(ct))
+            {
+                var name = reader.GetString(0);
+                var type = reader.GetString(1) switch
+                {
+                    "P" => ConstraintType.PrimaryKey,
+                    "U" => ConstraintType.Unique,
+                    "R" => ConstraintType.ForeignKey,
+                    "C" => ConstraintType.Check,
+                    "V" => ConstraintType.ViewCheckOption,
+                    "O" => ConstraintType.ViewReadOnly,
+                    _ => ConstraintType.Other,
+                };
+                result.Add(new ConstraintInfo(
+                    Name: name,
+                    Type: type,
+                    Columns: columns.GetValueOrDefault(name) ?? [],
+                    Condition: type == ConstraintType.Check ? GetText(reader, 2)?.Trim() : null,
+                    References: GetText(reader, 3) is { } refOwner && GetText(reader, 4) is { } refTable ? new TableRef(refOwner, refTable) : null,
+                    ReferencedColumns: referenced.GetValueOrDefault(name) ?? [],
+                    DeleteRule: type == ConstraintType.ForeignKey ? GetText(reader, 5) : null,
+                    Enabled: GetText(reader, 6) == "ENABLED",
+                    Validated: GetText(reader, 7) == "VALIDATED",
+                    Deferrable: GetText(reader, 8) == "DEFERRABLE",
+                    InitiallyDeferred: GetText(reader, 9) == "DEFERRED",
+                    GeneratedName: GetText(reader, 10) == "GENERATED NAME"));
+            }
+
+            return (IReadOnlyList<ConstraintInfo>)result;
+        }, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<IndexInfo>> GetIndexesAsync(TableRef table, CancellationToken cancellationToken)
+    {
+        QueryParameter[] parameters = [new("owner", table.Owner), new("name", table.Name)];
+
+        var columns = await session.ExecuteReaderAsync(IndexColumnsSql, parameters, async (reader, ct) =>
+        {
+            var result = new List<(string Owner, string Index, string Column, int Position, bool Descending)>();
+            while (await reader.ReadAsync(ct))
+            {
+                result.Add((reader.GetString(0), reader.GetString(1), reader.GetString(2), GetInt(reader, 3) ?? 0, GetText(reader, 4) == "DESC"));
+            }
+
+            return result;
+        }, cancellationToken);
+
+        var expressions = await session.ExecuteReaderAsync(IndexExpressionsSql, parameters, async (reader, ct) =>
+        {
+            var result = new Dictionary<(string Owner, string Index, int Position), string>();
+            while (await reader.ReadAsync(ct))
+            {
+                if (GetText(reader, 3) is { } expression)
+                {
+                    result[(reader.GetString(0), reader.GetString(1), GetInt(reader, 2) ?? 0)] = expression.Trim();
+                }
+            }
+
+            return result;
+        }, cancellationToken);
+
+        var columnsByIndex = columns.ToLookup(c => (c.Owner, c.Index), c =>
+            expressions.TryGetValue((c.Owner, c.Index, c.Position), out var expression)
+                ? IndexColumnOf(expression, c.Descending)
+                : new IndexColumn(c.Column, false, c.Descending));
+
+        return await session.ExecuteReaderAsync(IndexesSql, parameters, async (reader, ct) =>
+        {
+            var result = new List<IndexInfo>();
+            while (await reader.ReadAsync(ct))
+            {
+                var owner = reader.GetString(0);
+                var name = reader.GetString(1);
+                result.Add(new IndexInfo(
+                    Owner: owner,
+                    Name: name,
+                    IndexType: reader.GetString(2),
+                    Unique: GetText(reader, 3) == "UNIQUE",
+                    Status: GetText(reader, 4) ?? "N/A",
+                    Columns: columnsByIndex[(owner, name)].ToList(),
+                    Tablespace: GetText(reader, 5),
+                    Partitioned: GetText(reader, 6) == "YES",
+                    Visible: GetText(reader, 7) != "INVISIBLE"));
+            }
+
+            return (IReadOnlyList<IndexInfo>)result;
+        }, cancellationToken);
+    }
+
+    public async Task<ObjectDependencies> GetDependenciesAsync(TableSummary table, CancellationToken cancellationToken)
+    {
+        QueryParameter[] parameters = [new("owner", table.Owner), new("name", table.Name)];
+        var uses = await ReadDependenciesAsync(UsesSql, parameters, cancellationToken);
+        var usedBy = await ReadDependenciesAsync(UsedBySql, parameters, cancellationToken);
+        return new ObjectDependencies(uses, usedBy);
+    }
+
+    public Task<string> GetDdlAsync(TableSummary table, CancellationToken cancellationToken)
+    {
+        var objectType = ObjectType(table.Kind).Replace(' ', '_');
+        return session.ExecuteReaderAsync(DdlSql, [new("object_type", objectType), new("name", table.Name), new("owner", table.Owner)], async (reader, ct) =>
+            await reader.ReadAsync(ct) && !reader.IsDBNull(0) ? reader.GetString(0).Trim() : "", cancellationToken);
+    }
+
+    /// <summary>A descending column is stored as the quoted column name ("NAME"); anything else is a real expression.</summary>
+    private static IndexColumn IndexColumnOf(string expression, bool descending) =>
+        expression.Length > 2 && expression[0] == '"' && expression[^1] == '"' && expression.IndexOf('"', 1) == expression.Length - 1
+            ? new IndexColumn(expression[1..^1], false, descending)
+            : new IndexColumn(expression, true, descending);
+
+    private Task<Dictionary<string, IReadOnlyList<string>>> ReadNameListsAsync(
+        string sql, IReadOnlyList<QueryParameter> parameters, CancellationToken cancellationToken) =>
+        session.ExecuteReaderAsync(sql, parameters, async (reader, ct) =>
+        {
+            var rows = new List<(string Key, string Value)>();
+            while (await reader.ReadAsync(ct))
+            {
+                rows.Add((reader.GetString(0), reader.GetString(1)));
+            }
+
+            return rows.GroupBy(r => r.Key).ToDictionary(g => g.Key, g => (IReadOnlyList<string>)g.Select(r => r.Value).ToList());
+        }, cancellationToken);
+
+    private Task<IReadOnlyList<DependencyInfo>> ReadDependenciesAsync(
+        string sql, IReadOnlyList<QueryParameter> parameters, CancellationToken cancellationToken) =>
+        session.ExecuteReaderAsync(sql, parameters, async (reader, ct) =>
+        {
+            var result = new List<DependencyInfo>();
+            while (await reader.ReadAsync(ct))
+            {
+                result.Add(new DependencyInfo(reader.GetString(0), reader.GetString(1), reader.GetString(2), GetText(reader, 3)));
+            }
+
+            return (IReadOnlyList<DependencyInfo>)result;
+        }, cancellationToken);
+
+    private static string ObjectType(TableKind kind) => kind switch
+    {
+        TableKind.View => "VIEW",
+        TableKind.MaterializedView => "MATERIALIZED VIEW",
+        _ => "TABLE",
+    };
+
+    private static string? GetText(DbDataReader reader, int ordinal) => reader.IsDBNull(ordinal) ? null : reader.GetString(ordinal);
+
+    private static DateTime? GetDate(DbDataReader reader, int ordinal) => reader.IsDBNull(ordinal) ? null : reader.GetDateTime(ordinal);
 
     private static int? GetInt(DbDataReader reader, int ordinal) =>
         reader.IsDBNull(ordinal) ? null : Convert.ToInt32(reader.GetValue(ordinal), CultureInfo.InvariantCulture);
