@@ -1,0 +1,86 @@
+@* "Indizes" view: indexes of the table with columns/expressions and state, plus foreign keys without a supporting index. *@
+@using FerretSharp.Core.Schema
+@inherits DetailViewBase<IReadOnlyList<IndexInfo>>
+
+@if (Table.Kind == TableKind.View)
+{
+    <p class="muted">Views haben keine Indizes – Abfragen nutzen die Indizes der zugrunde liegenden Tabellen.</p>
+}
+else
+{
+    <DetailStatus Loading="Loading && Data is null" Error="Error" Text="Lade Indizes …" />
+    @if (Data is { } indexes)
+    {
+        var unindexed = IndexAdvice.UnindexedForeignKeys(Active.Schema?.OutgoingOf(Table.Ref) ?? [], indexes);
+        @if (unindexed.Count > 0)
+        {
+            <div class="advice" role="note">
+                <strong>@(unindexed.Count == 1 ? "1 Fremdschlüssel ohne Index" : $"{unindexed.Count} Fremdschlüssel ohne Index"):</strong>
+                @foreach (var fk in unindexed)
+                {
+                    <span class="mono">@fk.Name (@string.Join(", ", fk.FromColumns))</span>
+                }
+                <span class="muted">
+                    Löschen oder Ändern des Schlüssels in der referenzierten Tabelle sperrt dann diese ganze Tabelle und durchsucht
+                    sie vollständig; auch Joins über den Fremdschlüssel werden langsam.
+                </span>
+            </div>
+        }
+        <section>
+            <h2>Indizes <span class="count">@indexes.Count</span></h2>
+            @if (indexes.Count == 0)
+            {
+                <p class="muted">Keine Indizes.</p>
+            }
+            else
+            {
+                <table class="columns">
+                    <thead>
+                        <tr><th>Name</th><th>Spalten</th><th>Typ</th><th>Zustand</th><th>Tablespace</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var index in indexes)
+                        {
+                            <tr>
+                                <td class="mono">
+                                    @(index.Owner == Table.Owner ? index.Name : $"{index.Owner}.{index.Name}")
+                                    @if (index.Unique)
+                                    {
+                                        <span class="fs-badge uk" title="Eindeutig">UNIQUE</span>
+                                    }
+                                </td>
+                                <td class="mono">
+                                    @for (var i = 0; i < index.Columns.Count; i++)
+                                    {
+                                        var column = index.Columns[i];
+                                        @(i > 0 ? ", " : "")
+                                        <span class="@(column.IsExpression ? "expression" : "")">@column.Name</span>
+                                        @if (column.Descending)
+                                        {
+                                            <span class="muted"> DESC</span>
+                                        }
+                                    }
+                                </td>
+                                <td>@index.IndexType</td>
+                                <td class="state @(index.IsUnusable ? "bad" : "")">@State(index)</td>
+                                <td class="mono">@index.Tablespace</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </section>
+    }
+}
+
+@code {
+    private static string State(IndexInfo index) => string.Join(" · ", new[]
+    {
+        index.Status switch { "VALID" => "gültig", "UNUSABLE" => "UNUSABLE", "N/A" => null, var s => s },
+        index.Partitioned ? "partitioniert" : null,
+        index.Visible ? null : "unsichtbar",
+    }.OfType<string>());
+
+    protected override Task<IReadOnlyList<IndexInfo>> LoadAsync(SchemaCache schema, CancellationToken cancellationToken) =>
+        Table.Kind == TableKind.View ? Task.FromResult<IReadOnlyList<IndexInfo>>([]) : schema.GetIndexesAsync(Table.Ref, cancellationToken);
+}

@@ -1,0 +1,37 @@
+@* Loading indicator or error of a detail view (see DetailViewBase). *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.UI.State
+
+@if (Error is { } error)
+{
+    <div class="detail-error">
+        <span>@error.Display</span>
+        @if (Hint is not null)
+        {
+            <span class="muted">@Hint</span>
+        }
+        <button class="link-btn" @onclick="() => Shell.ShowError(error)">Details</button>
+    </div>
+}
+else if (Loading)
+{
+    <div class="structure-loading"><span class="spinner"></span> @Text</div>
+}
+
+@code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter]
+    public bool Loading { get; set; }
+
+    [Parameter]
+    public DatabaseException? Error { get; set; }
+
+    [Parameter]
+    public string Text { get; set; } = "Lade …";
+
+    /// <summary>Explanation shown with the error, e.g. which privilege is missing.</summary>
+    [Parameter]
+    public string? Hint { get; set; }
+}

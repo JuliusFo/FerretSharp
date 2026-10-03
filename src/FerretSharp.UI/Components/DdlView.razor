@@ -1,0 +1,54 @@
+@* "DDL" view: the CREATE statement from DBMS_METADATA (shown and copied, never executed). *@
+@using FerretSharp.Core.Schema
+@inherits DetailViewBase<string>
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<DetailStatus Loading="Loading && Data is null" Error="Error" Text="Lade DDL …"
+              Hint="@(Error?.ErrorCode == "ORA-31603" ? "Oracle liefert die DDL von Objekten anderer Schemas nur mit der Rolle SELECT_CATALOG_ROLE." : null)" />
+
+@if (Data is { } ddl)
+{
+    <section>
+        <div class="structure-columns-head">
+            <h2>DDL</h2>
+            <button class="btn ghost" @onclick="CopyAsync">Kopieren</button>
+        </div>
+        <SqlCode Sql="@ddl" Class="ddl" />
+        <p class="muted">Aus <code>DBMS_METADATA.GET_DDL</code> – Indizes, Trigger und Grants stehen nicht darin.</p>
+    </section>
+}
+
+@code {
+    private IJSObjectReference? _dom;
+
+    protected override Task<string> LoadAsync(SchemaCache schema, CancellationToken cancellationToken) =>
+        schema.GetDdlAsync(Table, cancellationToken);
+
+    private async Task CopyAsync()
+    {
+        if (Data is null)
+        {
+            return;
+        }
+
+        _dom ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
+        Shell.Notify(await _dom.InvokeAsync<bool>("copyText", Data) ? "DDL kopiert." : "Die Zwischenablage ist nicht verfügbar.");
+    }
+
+    /// <summary>Blazor calls only DisposeAsync when a component has both, so the base cleanup runs from here.</summary>
+    async ValueTask IAsyncDisposable.DisposeAsync()
+    {
+        Dispose();
+        if (_dom is not null)
+        {
+            try
+            {
+                await _dom.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+    }
+}

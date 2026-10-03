@@ -32,7 +32,10 @@ public sealed record TableSummary(string Owner, string Name, TableKind Kind, Syn
     /// <summary>The name users know the object by: the synonym if there is one.</summary>
     public string DisplayName => Synonym?.Name ?? Name;
 
-    /// <summary><c>ALL_OBJECTS.STATUS = 'INVALID'</c>, e.g. a view whose table lost a column; queries on it fail.</summary>
+    /// <summary>
+    /// <c>ALL_OBJECTS.STATUS = 'INVALID'</c> (views and materialized views): needs recompiling. Oracle tries that on the
+    /// next use of a view; a view whose table lost a column then fails. An invalid materialized view still answers.
+    /// </summary>
     public bool IsInvalid { get; init; }
 }
 

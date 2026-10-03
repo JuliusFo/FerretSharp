@@ -3,10 +3,15 @@ using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.Workspaces;
 
+/// <summary>View of a table tab: the data grid or one of the detail views. <see cref="Structure"/> shows the columns.</summary>
 public enum TabMode
 {
     Data,
     Structure,
+    Constraints,
+    Indexes,
+    Dependencies,
+    Ddl,
 }
 
 /// <summary>

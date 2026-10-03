@@ -71,6 +71,7 @@
                 numeric = category == ColumnCategory.Number,
                 sortable = ColumnCategories.IsSortable(category),
                 pinned = ColumnPinning.IsPinned(Details, Tab.PinnedColumns, c.Name),
+                comment = c.Comment,
             };
         }).ToList();
         var sorts = Tab.Sorts
