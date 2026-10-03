@@ -17,7 +17,7 @@ Kernideen, die das Tool von DBeaver abheben:
 
 **Langfristiges Ziel (v3): Brücke zur C#-/EF-Core-Welt.** FerretSharp kennt das Datenmodell des eigenen .NET-Projekts (DbContext): Entity- und Property-Namen statt nur Tabellen/Spalten, Enums mit C#-Namen, Navigation Properties als Beziehungen, ausführbare LINQ-Queries mit Anzeige des generierten SQL, Code-Generierung aus Daten. v1 und v2 sind der Unterbau dafür – Architekturentscheidungen dort müssen v3 mitdenken (siehe Abschnitt 2).
 
-Der Nutzer ist erfahrener .NET-Entwickler (Rider, Blazor, SignalR). Erklärungen auf Senior-Niveau, keine Grundlagen.
+Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erklärungen auf Senior-Niveau, keine Grundlagen.
 
 ## 2. Versionen
 
@@ -51,7 +51,7 @@ Versionierung: SemVer, Git-Tag `vX.Y.Z` pro Release, `CHANGELOG.md` pflegen. Fea
 | Bereich | Entscheidung | Begründung / Hinweise |
 |---|---|---|
 | Runtime | **.NET 10 (LTS, Support bis Nov. 2028)**, C# 14 | .NET 8 endet am 10.11.2026. SDK per `global.json` pinnen (`rollForward: latestFeature`). |
-| Solution | **`FerretSharp.slnx`** | Standardformat des .NET-10-SDK, Rider-kompatibel, weniger Merge-Konflikte. |
+| Solution | **`FerretSharp.slnx`** | Standardformat des .NET-10-SDK, von Visual Studio (und Rider) unterstützt, weniger Merge-Konflikte. |
 | Pakete | **Central Package Management** (`Directory.Packages.props`) | Versionen an einer Stelle. |
 | UI | **Blazor Hybrid**: WPF-Host mit `BlazorWebView` (`Microsoft.AspNetCore.Components.WebView.Wpf`), Komponenten in einer Razor Class Library | ADR 0004. Windows-only reicht; WebView2-Runtime ist auf Windows 10/11 vorhanden. App-TFM **`net10.0-windows10.0.19041.0`** (mit `net10.0-windows` stürzt BlazorWebView beim Start ab). |
 | Theme | eigenes CSS mit Design-Tokens (`ferretsharp.css`), hell/dunkel über `prefers-color-scheme` | Auswahl System/Hell/Dunkel auf der Einstellungen-Seite (`AppSettings` in `settings.json`, `SettingsStore`). `WindowTheme` setzt Titelleiste (DWM), Fensterhintergrund und `CoreWebView2.Profile.PreferredColorScheme` – zur Laufzeit umschaltbar, CSS und Grid folgen über `prefers-color-scheme`. Die Einstellung wird vor dem Erzeugen des Fensters gelesen (kein weißes Aufblitzen). `--theme=dark\|light` übersteuert für die Sitzung (Tests). In WPF-Dateien `ThemeMode` per Alias auf `FerretSharp.Core.Settings` festlegen (`System.Windows.ThemeMode` kollidiert). **Nicht verwenden:** WPF-UI, AvalonDock, CommunityToolkit.Mvvm, AvalonEdit, CSS-Frameworks. |
@@ -441,7 +441,7 @@ Die Arbeitspakete werden zu Beginn von v3 mit dem Nutzer verfeinert. Grober Zusc
 #### WP-12 Schema-Anreicherung
 - Grid und Explorer zeigen optional Entity-/Property-Namen; Enums mit C#-Namen in Grid und Filter (Dropdown statt Zahl).
 - Navigation Properties als zusätzliche FK-Quelle (`FkSource.ClrModel`) in der FK-Navigation.
-- Sprung zur Entity-Klasse in Rider.
+- Sprung zur Entity-Klasse in Visual Studio (z. B. über `devenv /Edit <Datei>` in die laufende Instanz).
 
 #### WP-13 LINQ-Konsole
 - Roslyn-Scripting gegen den geladenen DbContext, Ergebnis im Grid, generiertes SQL (`ToQueryString()`) daneben.
