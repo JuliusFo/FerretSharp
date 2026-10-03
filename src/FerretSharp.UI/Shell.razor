@@ -71,11 +71,17 @@
                                         @foreach (var tab in _state.Tabs)
                                         {
                                             var t = tab;
+                                            // Several tabs of one table (FK jumps) are told apart by their filters.
+                                            var summary = _state.Tabs.Count(o => o.Table.Ref == t.Table.Ref) > 1 ? t.FilterSummary() : null;
                                             <div class="tab @(t == _state.ActiveTab ? "active" : "")" title="@TabTooltip(t)"
                                                  @onclick="() => _state.ActivateTab(t)" @onmouseup="e => CloseOnMiddleClick(e, t)">
                                                 @Icons.For(t.Table.Kind)
                                                 <span class="tab-name">@t.Table.DisplayName</span>
-                                                @if (t.ActiveFilterCount > 0)
+                                                @if (summary is not null)
+                                                {
+                                                    <span class="tab-filter">@summary</span>
+                                                }
+                                                else if (t.ActiveFilterCount > 0)
                                                 {
                                                     <span class="filter-pill">@t.ActiveFilterCount Filter</span>
                                                 }
@@ -232,6 +238,8 @@
     private const string ApplyFiltersShortcut = "ctrl+enter";
     private const string RefreshShortcut = "f5"; // also stops the WebView from reloading the page
     private const string FindColumnShortcut = "ctrl+f"; // the browser's find would miss columns the grid has not rendered
+    private const string BackShortcut = "alt+arrowleft"; // also keeps the WebView from navigating back
+    private const string ForwardShortcut = "alt+arrowright";
 
     private static readonly string Version =
         "v" + (typeof(Shell).Assembly.GetName().Version?.ToString(3) ?? "0.0.0");
@@ -265,7 +273,7 @@
         {
             _selfRef = DotNetObjectReference.Create(this);
             _shortcuts = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/shortcuts.js");
-            await _shortcuts.InvokeVoidAsync("register", _selfRef, new[] { SwitcherShortcut, ApplyFiltersShortcut, RefreshShortcut, FindColumnShortcut });
+            await _shortcuts.InvokeVoidAsync("register", _selfRef, new[] { SwitcherShortcut, ApplyFiltersShortcut, RefreshShortcut, FindColumnShortcut, BackShortcut, ForwardShortcut });
         }
     }
 
@@ -290,6 +298,12 @@
                 break;
             case FindColumnShortcut:
                 _state.RequestTabCommand(TabCommand.FindColumn);
+                break;
+            case BackShortcut:
+                _state.GoBack();
+                break;
+            case ForwardShortcut:
+                _state.GoForward();
                 break;
         }
     }
@@ -324,7 +338,7 @@
     {
         foreach (var workspace in _state.Workspaces)
         {
-            Workspaces.UpdateTabs(workspace.WorkspaceId, workspace.Tabs.Select(t => t.ToState()).ToList(), workspace.ActiveIndex);
+            Workspaces.UpdateTabs(workspace.WorkspaceId, workspace.Tabs.Select(t => t.ToState(workspace.Tabs)).ToList(), workspace.ActiveIndex);
         }
     }
 

@@ -26,6 +26,9 @@ public sealed record TabState(
 {
     /// <summary>Columns the user pinned to the left, in pin order; primary key columns are always pinned (<see cref="ColumnPinning"/>).</summary>
     public IReadOnlyList<string> PinnedColumns { get; init; } = [];
+
+    /// <summary>Index of the tab (in the same workspace) this one was opened from by an FK jump, for "Zurück"; null if none.</summary>
+    public int? OriginTab { get; init; }
 }
 
 /// <summary>

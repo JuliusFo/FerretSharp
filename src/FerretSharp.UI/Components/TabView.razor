@@ -9,6 +9,14 @@
 
 <div class="tabview">
     <div class="tab-toolbar">
+        @if (Tab.BackTarget(Shell.Tabs) is { } back)
+        {
+            <button class="btn ghost nav-btn" title="@($"Zurück zu {NavLabel(back)} (Alt+←)")" @onclick="Shell.GoBack">← @back.Table.DisplayName</button>
+        }
+        @if (Tab.ForwardTarget(Shell.Tabs) is { } forward)
+        {
+            <button class="btn ghost nav-btn" title="@($"Vor zu {NavLabel(forward)} (Alt+→)")" @onclick="Shell.GoForward">@forward.Table.DisplayName →</button>
+        }
         <div class="segmented small">
             <button class="seg @(Tab.Mode == TabMode.Data ? "active" : "")" @onclick="() => SetMode(TabMode.Data)">Daten</button>
             <button class="seg @(Tab.Mode == TabMode.Structure ? "active" : "")" @onclick="() => SetMode(TabMode.Structure)">Struktur</button>
@@ -144,7 +152,10 @@
             ? "Sortierung: alle Spalten"
             : "Sortierung: Row-Key";
 
-    private string RowKeyText => _details is null ? "" : QueryBuilder.RowKeyOf(_details) switch
+    private static string NavLabel(TableTab tab) =>
+        tab.FilterSummary(maxLength: 80) is { } filters ? $"{tab.Table.DisplayName} ({filters})" : tab.Table.DisplayName;
+
+    private string RowKeyText =>_details is null ? "" : QueryBuilder.RowKeyOf(_details) switch
     {
         RowKeyKind.PrimaryKey => "PK " + string.Join(", ", _details.PrimaryKey),
         RowKeyKind.RowId => _details.IsIndexOrganized ? "UROWID" : "ROWID",

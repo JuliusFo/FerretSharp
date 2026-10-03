@@ -30,7 +30,7 @@ public sealed class WorkspaceStoreTests : IDisposable
             {
                 PinnedColumns = ["NAME", "ORT"],
             },
-            new TabState(new TableRef("OTHER", "Quoted.Name"), TabMode.Structure, [], [], []),
+            new TabState(new TableRef("OTHER", "Quoted.Name"), TabMode.Structure, [], [], []) { OriginTab = 0 },
         ],
     };
 
@@ -56,6 +56,8 @@ public sealed class WorkspaceStoreTests : IDisposable
         Assert.Equal("Müller", Assert.Single(tab.AppliedFilters).Values[0]);
         Assert.Equal(new SortSpec("NAME", true), Assert.Single(tab.Sorts));
         Assert.Equal(["NAME", "ORT"], tab.PinnedColumns);
+        Assert.Null(tab.OriginTab);
+        Assert.Equal(0, loaded.Tabs[1].OriginTab);
         Assert.Equal(new TableRef("OTHER", "Quoted.Name"), loaded.Tabs[1].Table);
         Assert.Equal(TabMode.Structure, loaded.Tabs[1].Mode);
         Assert.Null(loaded.Tabs[1].FirstVisibleRow);
@@ -76,6 +78,7 @@ public sealed class WorkspaceStoreTests : IDisposable
 
         Assert.Equal(new TableRef("APP", "KUNDEN"), tab.Table);
         Assert.Empty(tab.PinnedColumns);
+        Assert.Null(tab.OriginTab);
     }
 
     [Fact]
