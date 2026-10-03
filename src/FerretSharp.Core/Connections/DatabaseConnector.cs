@@ -15,6 +15,13 @@ public interface IDatabaseConnection : IAsyncDisposable
 
     /// <summary>Updates ACTION in <c>V$SESSION</c>, e.g. after the workspace was renamed.</summary>
     Task SetActionAsync(string action, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Keep-alive round trip if the session has been idle for at least <paramref name="idleFor"/>; a busy or closed
+    /// session is skipped. False if it did not ping.
+    /// </summary>
+    /// <exception cref="DatabaseException">The ping failed, e.g. with <see cref="DatabaseException.IsConnectionLost"/>.</exception>
+    Task<bool> PingIfIdleAsync(TimeSpan idleFor, CancellationToken cancellationToken);
 }
 
 public interface IDatabaseConnector

@@ -5,10 +5,8 @@ using ThemeMode = FerretSharp.Core.Settings.ThemeMode;
 
 namespace FerretSharp.App.Services;
 
-public sealed class ThemeService(WindowTheme theme, SettingsStore store, AppSettings initial) : IThemeService
+public sealed class ThemeService(WindowTheme theme, AppSettingsService settings) : IThemeService
 {
-    private AppSettings _settings = initial;
-
     public ThemeMode Mode => theme.Mode;
 
     public string? SessionOverride => theme.SessionOverride switch
@@ -21,7 +19,6 @@ public sealed class ThemeService(WindowTheme theme, SettingsStore store, AppSett
     public async Task SetModeAsync(ThemeMode mode)
     {
         await Application.Current.Dispatcher.InvokeAsync(() => theme.SetMode(mode));
-        _settings = _settings with { Theme = mode };
-        await store.SaveAsync(_settings, CancellationToken.None);
+        await settings.UpdateAsync(s => s with { Theme = mode }, CancellationToken.None);
     }
 }

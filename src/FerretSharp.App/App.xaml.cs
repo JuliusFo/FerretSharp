@@ -70,8 +70,10 @@ public partial class App : Application
         builder.Services.AddSingleton<IWorkspaceStore>(new WorkspaceStore(paths.WorkspacesDirectory));
         builder.Services.AddSingleton<WorkspaceManager>();
         builder.Services.AddSingleton<ActiveConnection>();
+        builder.Services.AddSingleton<ConnectionKeepAlive>();
+        builder.Services.AddSingleton(new AppSettingsService(settingsStore, settings));
         builder.Services.AddSingleton(theme);
-        builder.Services.AddSingleton<IThemeService>(new ThemeService(theme, settingsStore, settings));
+        builder.Services.AddSingleton<IThemeService, ThemeService>();
         builder.Services.AddSingleton<IDialogService, DialogService>();
         builder.Services.AddSingleton<IFileSaveService, FileSaveService>();
         builder.Services.AddSingleton<MainWindow>();

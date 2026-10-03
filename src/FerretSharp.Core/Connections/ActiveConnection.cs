@@ -111,6 +111,53 @@ public sealed class ActiveConnection(
 
     public void CancelPendingConnect() => _connectCts?.Cancel();
 
+    /// <summary>
+    /// Keep-alive: pings the explorer session and the open workspace sessions that have been idle for at least
+    /// <paramref name="idleFor"/>. Returns the error if a session turned out to be gone; other failures are left to
+    /// the next statement. Does nothing while connecting or disconnecting.
+    /// </summary>
+    public async Task<DatabaseException?> PingIdleSessionsAsync(TimeSpan idleFor, CancellationToken cancellationToken)
+    {
+        IDatabaseConnection? explorer;
+        if (!_gate.Wait(0))
+        {
+            return null;
+        }
+
+        try
+        {
+            explorer = IsConnected ? _connection : null;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+
+        if (explorer is null)
+        {
+            return null;
+        }
+
+        IDatabaseConnection[] sessions = [explorer, .. workspaces.OpenSessions()];
+        foreach (var session in sessions)
+        {
+            try
+            {
+                await session.PingIfIdleAsync(idleFor, cancellationToken);
+            }
+            catch (DatabaseException ex) when (ex.IsConnectionLost)
+            {
+                return ex;
+            }
+            catch (Exception ex) when (ex is DatabaseException or OperationCanceledException or ObjectDisposedException)
+            {
+                // Cancelled (timeout), closed meanwhile (disconnect, workspace closed) or another error: not a lost connection.
+            }
+        }
+
+        return null;
+    }
+
     public async Task DisconnectAsync()
     {
         CancelPendingConnect();

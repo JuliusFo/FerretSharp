@@ -55,6 +55,21 @@ public sealed class DatabaseErrorTests(OracleContainerFixture oracle)
         Assert.NotNull(second.Statement);
     }
 
+    [Fact]
+    public async Task Keep_alive_ping_skips_a_recently_used_session_and_finds_a_killed_one()
+    {
+        var action = "Ping test " + Guid.NewGuid().ToString("N")[..8];
+        await using var connection = await OpenAsync(action);
+
+        Assert.False(await connection.PingIfIdleAsync(TimeSpan.FromMinutes(1), Ct)); // just opened
+        Assert.True(await connection.PingIfIdleAsync(TimeSpan.Zero, Ct));
+
+        await KillAsync(action);
+
+        var error = await Assert.ThrowsAsync<DatabaseException>(() => connection.PingIfIdleAsync(TimeSpan.Zero, Ct));
+        Assert.True(error.IsConnectionLost, error.Display);
+    }
+
     /// <summary>As SYSTEM (same password as the app user in the gvenzl image).</summary>
     private async Task KillAsync(string action)
     {

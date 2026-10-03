@@ -1,7 +1,8 @@
-@* App settings. For now only the appearance (light/dark). *@
+@* App settings: appearance (light/dark) and the connection keep-alive. *@
 @using FerretSharp.Core.Settings
 @using FerretSharp.UI.State
 @inject IThemeService Theme
+@inject AppSettingsService Settings
 
 <div class="settings-page">
     <div class="page-head">
@@ -34,11 +35,36 @@
             </div>
         }
     </section>
+
+    <section class="settings-section">
+        <h2>Verbindung</h2>
+        <div class="settings-row">
+            <div class="settings-label">
+                <span>Verbindung im Leerlauf prüfen</span>
+                <span class="hint">
+                    Fragt ruhende Sessions alle 2 Minuten kurz ab (<code>SELECT 1 FROM DUAL</code>). Ein Verbindungsabbruch
+                    wird so sofort gemeldet, und Firewalls trennen ruhende Verbindungen nicht. Hält die Sessions aber auch
+                    gegen ein <code>IDLE_TIME</code>-Limit der Datenbank offen.
+                </span>
+            </div>
+            <div class="segmented" role="radiogroup" aria-label="Verbindung im Leerlauf prüfen">
+                @foreach (var (on, label) in OnOff)
+                {
+                    var value = on;
+                    <button class="seg @(Settings.Current.KeepAlive == value ? "active" : "")" role="radio"
+                            aria-checked="@(Settings.Current.KeepAlive == value ? "true" : "false")"
+                            @onclick="() => SetKeepAliveAsync(value)">@label</button>
+                }
+            </div>
+        </div>
+    </section>
 </div>
 
 @code {
     private static readonly (ThemeMode Mode, string Label)[] Modes =
         [(ThemeMode.System, "System"), (ThemeMode.Light, "Hell"), (ThemeMode.Dark, "Dunkel")];
+
+    private static readonly (bool On, string Label)[] OnOff = [(true, "An"), (false, "Aus")];
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -53,6 +79,18 @@
         try
         {
             await Theme.SetModeAsync(mode);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Shell.Notify($"Einstellung angewendet, aber nicht gespeichert: {ex.Message}");
+        }
+    }
+
+    private async Task SetKeepAliveAsync(bool on)
+    {
+        try
+        {
+            await Settings.UpdateAsync(s => s with { KeepAlive = on }, CancellationToken.None);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
