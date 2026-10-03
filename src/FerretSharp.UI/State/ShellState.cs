@@ -163,16 +163,40 @@ public sealed class ShellState
             return null;
         }
 
-        var tab = new TableTab(workspace.WorkspaceId, table) { AppliedFilters = filters, Visited = true };
+        var tab = new TableTab(workspace.WorkspaceId, table) { AppliedFilters = filters, Visited = true, Origin = workspace.ActiveTab };
         tab.FilterRows.AddRange(filters.Select(FilterRow.From));
         Set(() =>
         {
+            if (workspace.ActiveTab is { } origin)
+            {
+                origin.Forward = null; // a new jump replaces the way forward, like in a browser
+            }
+
             var index = workspace.ActiveTab is { } active ? workspace.Tabs.IndexOf(active) + 1 : workspace.Tabs.Count;
             workspace.Tabs.Insert(index, tab);
             workspace.ActiveTab = tab;
             Page = ShellPage.Explorer;
         });
         return tab;
+    }
+
+    /// <summary>"Zurück" (Alt+←): activates the tab the active one was opened from by an FK jump.</summary>
+    public void GoBack()
+    {
+        if (ActiveTab is { } tab && Page == ShellPage.Explorer && tab.BackTarget(Tabs) is { } target)
+        {
+            target.Forward = tab;
+            ActivateTab(target);
+        }
+    }
+
+    /// <summary>"Vor" (Alt+→): returns to the tab the user went back from.</summary>
+    public void GoForward()
+    {
+        if (ActiveTab is { } tab && Page == ShellPage.Explorer && tab.ForwardTarget(Tabs) is { } target)
+        {
+            ActivateTab(target);
+        }
     }
 
     public void ActivateTab(TableTab tab) => Set(() =>
@@ -282,6 +306,7 @@ public sealed class ShellState
     private static WorkspaceTabs Restore(Workspace workspace, SchemaCache schema)
     {
         var result = new WorkspaceTabs(workspace.Id);
+        var restored = new Dictionary<int, TableTab>(); // saved index → tab
         TableTab? active = null;
         for (var i = 0; i < workspace.Tabs.Count; i++)
         {
@@ -293,9 +318,18 @@ public sealed class ShellState
 
             var tab = TableTab.Restore(workspace.Id, table, state);
             result.Tabs.Add(tab);
+            restored[i] = tab;
             if (i == workspace.ActiveTabIndex)
             {
                 active = tab;
+            }
+        }
+
+        foreach (var (i, tab) in restored)
+        {
+            if (workspace.Tabs[i].OriginTab is { } origin && origin != i)
+            {
+                tab.Origin = restored.GetValueOrDefault(origin);
             }
         }
 

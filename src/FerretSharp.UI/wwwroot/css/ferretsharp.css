@@ -368,6 +368,8 @@ dl.keys dd { margin: 0; }
 .tab.active::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--accent); }
 .tab .icon { color: var(--muted); }
 .tab-name { font-family: var(--mono); font-size: 12.5px; }
+.tab-filter { font: 11px var(--mono); color: var(--accent); max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-btn { height: 28px; padding: 0 8px; font: 12px var(--mono); max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
 .filter-pill { font-size: 10px; font-weight: 600; padding: 0 6px; border-radius: 8px; background: var(--accent-weak); color: var(--accent); }
 .tab-close { width: 22px; height: 22px; border: 0; border-radius: 5px; background: transparent; color: var(--faint); }
 .tab-close:hover { background: var(--hover); color: var(--text); }

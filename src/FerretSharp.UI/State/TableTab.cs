@@ -91,11 +91,61 @@ public sealed class TableTab(Guid workspaceId, TableSummary table)
 
     public int ActiveFilterCount => AppliedFilters.Count(f => f.Enabled);
 
-    public TabState ToState() => new(
+    /// <summary>The tab this one was opened from by an FK jump ("Zurück"); it may have been closed since.</summary>
+    public TableTab? Origin { get; set; }
+
+    /// <summary>The tab the user came back from with "Zurück" ("Vor"); not saved.</summary>
+    public TableTab? Forward { get; set; }
+
+    /// <summary>
+    /// Where "Zurück" leads: the origin tab, or – if that was closed – the nearest open tab further back along the
+    /// chain of jumps. Null if there is none.
+    /// </summary>
+    public TableTab? BackTarget(IReadOnlyCollection<TableTab> open)
+    {
+        var seen = new HashSet<TableTab> { this };
+        for (var tab = Origin; tab is not null && seen.Add(tab); tab = tab.Origin)
+        {
+            if (open.Contains(tab))
+            {
+                return tab;
+            }
+        }
+
+        return null;
+    }
+
+    public TableTab? ForwardTarget(IReadOnlyCollection<TableTab> open) => Forward is { } tab && open.Contains(tab) ? tab : null;
+
+    /// <summary>Short form of the active filters ("KUNDE_ID = 4711"), to tell several tabs of one table apart.</summary>
+    public string? FilterSummary(int maxLength = 40)
+    {
+        var text = string.Join(", ", AppliedFilters
+            .Where(f => f.Enabled)
+            .Select(f => $"{f.Column} {OperatorLabels.Label(f.Op)} {string.Join("; ", f.Values)}".TrimEnd()));
+        return text.Length == 0 ? null : text.Length <= maxLength ? text : text[..(maxLength - 1)].TrimEnd() + "…";
+    }
+
+    /// <param name="workspaceTabs">The tabs of the workspace in order, to save the origin as an index.</param>
+    public TabState ToState(IReadOnlyList<TableTab> workspaceTabs) => new(
         Table.Ref, Mode, FilterRows.Select(r => r.ToCondition()).ToList(), AppliedFilters, Sorts, FirstVisibleRow)
     {
         PinnedColumns = PinnedColumns,
+        OriginTab = BackTarget(workspaceTabs) is { } origin ? IndexOf(workspaceTabs, origin) : null,
     };
+
+    private static int IndexOf(IReadOnlyList<TableTab> tabs, TableTab tab)
+    {
+        for (var i = 0; i < tabs.Count; i++)
+        {
+            if (tabs[i] == tab)
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
 
     public static TableTab Restore(Guid workspaceId, TableSummary table, TabState state)
     {
