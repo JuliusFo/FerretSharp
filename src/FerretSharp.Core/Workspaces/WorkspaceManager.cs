@@ -82,6 +82,15 @@ public sealed class WorkspaceManager(
     /// <summary>Set while a workspace could not be saved; cleared after the next successful save.</summary>
     public string? SaveError { get; private set; }
 
+    /// <summary>Workspace sessions that are open (for the keep-alive); sessions still opening or failed are left out.</summary>
+    public IReadOnlyList<IDatabaseConnection> OpenSessions()
+    {
+        lock (_lock)
+        {
+            return _sessions.Values.Where(s => s.IsCompletedSuccessfully).Select(s => s.Result).ToList();
+        }
+    }
+
     public Workspace? Find(Guid workspaceId)
     {
         lock (_lock)

@@ -32,6 +32,30 @@ public sealed class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task Keep_alive_is_on_by_default_also_in_files_written_before_it_existed()
+    {
+        Directory.CreateDirectory(_directory);
+        await File.WriteAllTextAsync(_store.FilePath, """{ "version": 1, "settings": { "theme": "dark" } }""", Ct);
+
+        var settings = await _store.LoadAsync(Ct);
+
+        Assert.Equal(ThemeMode.Dark, settings.Theme);
+        Assert.True(settings.KeepAlive);
+    }
+
+    [Fact]
+    public async Task Service_keeps_changes_of_different_settings_and_saves_all_of_them()
+    {
+        var service = new AppSettingsService(_store, AppSettings.Default);
+
+        await service.UpdateAsync(s => s with { Theme = ThemeMode.Light }, Ct);
+        await service.UpdateAsync(s => s with { KeepAlive = false }, Ct);
+
+        Assert.Equal(new AppSettings { Theme = ThemeMode.Light, KeepAlive = false }, service.Current);
+        Assert.Equal(service.Current, await _store.LoadAsync(Ct));
+    }
+
+    [Fact]
     public async Task File_is_versioned_and_readable()
     {
         await _store.SaveAsync(new AppSettings { Theme = ThemeMode.Dark }, Ct);

@@ -6,6 +6,7 @@
 @inject ActiveConnection Active
 @inject WorkspaceManager Workspaces
 @inject RecentConnections Recent
+@inject ConnectionKeepAlive KeepAlive
 @inject IJSRuntime JS
 
 <CascadingValue Value="_state" IsFixed="true">
@@ -263,6 +264,8 @@
         Connections.Changed += OnChanged;
         Active.Changed += OnConnectionOrWorkspacesChanged;
         Workspaces.Changed += OnConnectionOrWorkspacesChanged;
+        KeepAlive.ConnectionLost += OnKeepAliveLost;
+        KeepAlive.Start();
         await Connections.LoadAsync(CancellationToken.None);
         await Recent.LoadAsync(CancellationToken.None);
     }
@@ -355,6 +358,9 @@
 
         StateHasChanged();
     });
+
+    /// <summary>The keep-alive found a session gone: same banner as a failed query, without waiting for the next click.</summary>
+    private void OnKeepAliveLost(DatabaseException error) => InvokeAsync(() => _state.ReportFailure(error));
 
     private ShellPage _pageBeforeSettings = ShellPage.Connections;
 
@@ -449,6 +455,7 @@
         Connections.Changed -= OnChanged;
         Active.Changed -= OnConnectionOrWorkspacesChanged;
         Workspaces.Changed -= OnConnectionOrWorkspacesChanged;
+        KeepAlive.ConnectionLost -= OnKeepAliveLost;
         if (_shortcuts is not null)
         {
             try

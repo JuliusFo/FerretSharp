@@ -34,6 +34,9 @@ public sealed class OracleDatabaseConnector : IDatabaseConnector
 
         public Task SetActionAsync(string action, CancellationToken cancellationToken) => session.SetActionAsync(action, cancellationToken);
 
+        public Task<bool> PingIfIdleAsync(TimeSpan idleFor, CancellationToken cancellationToken) =>
+            OracleErrors.Guard(() => session.PingIfIdleAsync(idleFor, cancellationToken));
+
         public ValueTask DisposeAsync() => session.DisposeAsync();
     }
 

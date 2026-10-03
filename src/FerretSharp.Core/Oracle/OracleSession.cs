@@ -63,6 +63,8 @@ public sealed class OracleSession : IAsyncDisposable
 
     private readonly OracleConnection _connection;
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private long _lastRoundTrip = Environment.TickCount64;
+    private volatile bool _disposed;
 
     private OracleSession(OracleConnection connection) => _connection = connection;
 
@@ -159,6 +161,22 @@ public sealed class OracleSession : IAsyncDisposable
     }
 
     /// <summary>
+    /// Keep-alive: pings only if the session has been idle for at least <paramref name="idleFor"/>. A session that is
+    /// running a statement or already closed is left alone. False if it did not ping.
+    /// </summary>
+    public async Task<bool> PingIfIdleAsync(TimeSpan idleFor, CancellationToken cancellationToken)
+    {
+        var idle = TimeSpan.FromMilliseconds(Environment.TickCount64 - Interlocked.Read(ref _lastRoundTrip));
+        if (_disposed || _gate.CurrentCount == 0 || idle < idleFor)
+        {
+            return false;
+        }
+
+        await PingAsync(cancellationToken);
+        return true;
+    }
+
+    /// <summary>
     /// Runs a query and hands the open reader to <paramref name="read"/>. Cancelling the token cancels the
     /// statement on the server; the session stays usable afterwards.
     /// </summary>
@@ -211,12 +229,14 @@ public sealed class OracleSession : IAsyncDisposable
         }
         finally
         {
+            Interlocked.Exchange(ref _lastRoundTrip, Environment.TickCount64);
             _gate.Release();
         }
     }
 
     public async ValueTask DisposeAsync()
     {
+        _disposed = true;
         await _connection.DisposeAsync();
         _gate.Dispose();
     }
