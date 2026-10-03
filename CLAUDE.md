@@ -27,7 +27,7 @@ Es wird in Versionen ausgeliefert. Jede Version ist für sich benutzbar.
 |---|---|---|
 | **v1 – Read-only Browser** | Connections, Schema, Grid, Filter, Workspaces, FK-Navigation, Export | WP-01 … WP-07 |
 | **v2 – Sandbox-Editing** | Transaktionsmodell, Editieren, Commit/Rollback, Lock-Handling, Prod-Freischaltung | WP-08 … WP-10 |
-| **v3 – .NET-Integration** | DbContext-Modell laden, Schema-Anreicherung (Entities, Enums, Navigations), LINQ-Konsole, Code-Generierung | WP-11 … WP-14 |
+| **v3 – .NET-Integration** | DbContext-Modell laden, Schema-Anreicherung (Entities, Enums, Navigations), LINQ-Konsole, Explain-Plan (Grid und LINQ), Code-Generierung | WP-11 … WP-15 |
 | **v4+** | Backlog (Abschnitt 10) | – |
 
 Regeln für **v1**:
@@ -445,10 +445,21 @@ Die Arbeitspakete werden zu Beginn von v3 mit dem Nutzer verfeinert. Grober Zusc
 
 #### WP-13 LINQ-Konsole
 - Roslyn-Scripting gegen den geladenen DbContext, Ergebnis im Grid, generiertes SQL (`ToQueryString()`) daneben.
+- **Kern-Anwendungsfall (Nutzer):** eine LINQ-Query direkt aus dem eigenen Code hineinkopieren und ausführen bzw. ihr SQL/ihren Plan sehen – ohne Debugger und ohne den QueryString herauszusuchen. Daraus folgt:
+  - Freie Bezeichner der kopierten Query (lokale Variablen, Parameter wie `customerId`, `request.From`, `ct`) erkennen (Roslyn-Diagnose CS0103) und als Eingabefelder anbieten bzw. in einem Variablen-Bereich deklarieren lassen; den Namen des Kontexts (`_context`, `dbContext`, `db` …) auf den geladenen DbContext abbilden.
+  - Endet die Query ohne Materialisierung (`IQueryable`), nur SQL/Plan zeigen bzw. seitenweise ins Grid laden; `ToListAsync()`/`FirstOrDefaultAsync(ct)` usw. ausführen.
+  - Extension-Methoden, Helfer und Enums des Projekts müssen verfügbar sein → Scripting im Kontext der Projekt-Assemblies (Argument für Out-of-Process im ADR aus WP-11).
 - Idealerweise auf der Connection/Transaktion des Workspaces, damit eigene uncommittete Änderungen sichtbar sind (beeinflusst das ADR aus WP-11).
-- Prod-Schutz gilt auch hier: Ausführung in `SET TRANSACTION READ ONLY`, solange nicht freigeschaltet; `SaveChanges` nur nach Freischaltung.
+- Prod-Schutz gilt auch hier: Ausführung in `SET TRANSACTION READ ONLY`, solange nicht freigeschaltet; `SaveChanges` sowie `ExecuteUpdate`/`ExecuteDelete` nur nach Freischaltung.
 
-#### WP-14 Code-Generierung → Release v3.0.0
+#### WP-14 Explain-Plan
+- Plan-Dialog für die Grid-Abfrage (Button neben „SQL“ an der Filterleiste) und für LINQ-Queries aus der Konsole; der Nutzer wählt die Variante:
+  - **Geschätzt:** `EXPLAIN PLAN FOR …` → `PLAN_TABLE`, ohne Ausführung. Schreibt in die (session-lokale, temporäre) `PLAN_TABLE` → nur über den bewussten Schreibweg aus WP-08, nicht über die Lesesperre. Prüfen, ob das in einer `READ ONLY`-Transaktion (gesperrtes Prod) erlaubt ist.
+  - **Tatsächlich:** `DBMS_XPLAN.DISPLAY_CURSOR` bzw. `V$SQL_PLAN…` für die letzte Ausführung, optional mit echten Zeilenzahlen (`GATHER_PLAN_STATISTICS`). Reines SELECT, braucht aber Leserechte auf die `V$`-Views (`SELECT_CATALOG_ROLE`) → klarer Hinweis, wenn sie fehlen.
+- Ein Plan-Modell im Core für beide Quellen (gleiche Spaltenstruktur), eine Baumansicht (Operation, Objekt, Kosten, Zeilen geschätzt/tatsächlich).
+- LINQ: SQL kommt von EF (`ToQueryString()`/Befehlstext); für „Tatsächlich“ liefert die Konsole bzw. der Hilfsprozess SQL-Text/`SQL_ID` der Ausführung (z. B. EF-Interceptor). Hinweis im Dialog: Geschätzte Pläne kennen die Bind-Werte nicht und können vom tatsächlichen abweichen.
+
+#### WP-15 Code-Generierung → Release v3.0.0
 - Aktive Filter als LINQ kopieren (`.Where(x => x.KundeId == 4711)`).
 - Markierte Zeilen als C#-Objektinitialisierer, `HasData()`-Seed oder Bogus-Fixture kopieren.
 
