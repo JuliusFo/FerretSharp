@@ -5,6 +5,22 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-10-03
+
+### Added
+- Detail views next to "Daten": Spalten | Constraints | Indizes | Abhängigkeiten | DDL, below a header with the table comment, status, creation and last DDL time, row count of the optimizer statistics and tablespace. Views stay loaded per tab; F5 reloads them.
+  - Spalten: column comments, VIRTUAL and DEFAULT ON NULL.
+  - Constraints: primary/unique/foreign keys and check constraints with condition, ON DELETE rule and state (disabled, not validated, deferrable); the system NOT NULL checks stay with the columns.
+  - Indizes: columns, function-based expressions, DESC, uniqueness, state (UNUSABLE, invisible); a hint lists foreign keys without a supporting index.
+  - Abhängigkeiten: what the object uses and what uses it (views, packages, triggers, synonyms), with invalid ones marked.
+  - DDL from DBMS_METADATA, with copy button (shown only, never executed).
+- Invalid views and materialized views are red in the explorer; the tooltip explains what that means for each kind.
+- Column comments as tooltips in the grid header and the column lists.
+- `tools/sample-db/04-object-details.sql`: comments, check constraints, indexes, an invalid view and statistics for the sample database.
+
+### Changed
+- "Struktur" is now "Spalten"; keys and foreign keys moved to "Constraints".
+
 ## [1.6.0] - 2026-10-03
 
 ### Added

@@ -1,0 +1,87 @@
+@* Header above the detail views: name, kind, synonym, status, comment, dates and statistics of the object. *@
+@using FerretSharp.Core.Schema
+@using FerretSharp.UI.State
+@inherits DetailViewBase<ObjectInfo>
+
+<div class="object-header">
+    <div class="structure-head">
+        <span class="structure-icon">@Icons.For(Table.Kind)</span>
+        <h1>@Table.DisplayName</h1>
+        <span class="chip">@KindLabel</span>
+        @if (Table.Synonym is { } synonym)
+        {
+            <span class="chip syn">@(synonym.IsPublic ? "ÖFFENTLICHES SYNONYM" : "SYNONYM")</span>
+            <span class="muted">→ @Table.Owner.@Table.Name</span>
+        }
+        @if (Details.IsIndexOrganized)
+        {
+            <span class="chip">INDEX-ORGANIZED</span>
+        }
+        @if (Data is { } flags)
+        {
+            @if (flags.IsInvalid)
+            {
+                <span class="chip invalid" title="@InvalidStatusText.For(Table.Kind == TableKind.MaterializedView ? "MATERIALIZED VIEW" : "VIEW")">UNGÜLTIG</span>
+            }
+            @if (flags.Partitioned)
+            {
+                <span class="chip">PARTITIONIERT</span>
+            }
+            @if (flags.Temporary)
+            {
+                <span class="chip">TEMPORÄR</span>
+            }
+        }
+        @if (Table.Synonym is null)
+        {
+            <span class="muted">@Table.Owner</span>
+        }
+    </div>
+
+    @if (Data is { } info)
+    {
+        @if (info.Comment is { } comment)
+        {
+            <p class="object-comment">@comment</p>
+        }
+        <div class="object-meta">
+            @if (info.Created is { } created)
+            {
+                <span>angelegt @Format(created)</span>
+            }
+            @if (info.LastDdl is { } ddl)
+            {
+                <span>letzte DDL @Format(ddl)</span>
+            }
+            @if (info.NumRows is { } rows)
+            {
+                <span title="Laut Optimizer-Statistik – nicht exakt. Exakt: „Zeilen zählen“ in der Datenansicht.">
+                    ≈ @rows.ToString("N0", CultureInfo.CurrentCulture) Zeilen@(info.LastAnalyzed is { } analyzed ? $" (Statistik vom {analyzed.ToString("d", CultureInfo.CurrentCulture)})" : "")
+                </span>
+            }
+            else if (Table.Kind != TableKind.View)
+            {
+                <span title="Für diese Tabelle wurden noch keine Optimizer-Statistiken erhoben.">keine Statistik</span>
+            }
+            @if (info.Tablespace is { } tablespace)
+            {
+                <span>Tablespace @tablespace</span>
+            }
+        </div>
+    }
+    <DetailStatus Loading="Loading && Data is null" Error="Error" Text="Lade Übersicht …" />
+</div>
+
+@code {
+    private string KindLabel => Table.Kind switch
+    {
+        TableKind.View => "VIEW",
+        TableKind.MaterializedView => "MATERIALIZED VIEW",
+        _ => "TABELLE",
+    };
+
+    private static string Format(DateTime value) => value.ToString("g", CultureInfo.CurrentCulture);
+
+    protected override Task<ObjectInfo> LoadAsync(SchemaCache schema, CancellationToken cancellationToken) =>
+        schema.GetObjectInfoAsync(Table, cancellationToken);
+}

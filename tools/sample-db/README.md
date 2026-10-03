@@ -16,5 +16,13 @@ recreates it (all data is lost), `-Port`, `-Name` and `-Password` override the d
 | `01-schema.sql` | KUNDEN, AUFTRAG, positions and deliveries (composite FK), RECHNUNG, quoted identifiers (`"MixedCase"`, `"notizen"`), an IOT, views, a materialized view, ~30 master data tables, a dropped table in the recycle bin |
 | `02-data.sql` | 150,000 customers (umlauts, `&`, `%`, `_`, NULLs), 50,000 orders with some CLOBs |
 | `03-vertrag.sql` | VERTRAG: 71 columns, 20,000 rows, several FKs |
+| `04-object-details.sql` | comments, check constraints (one disabled), indexes (function-based, descending), a view on VERTRAG, an invalid view, optimizer statistics |
+
+`04-object-details.sql` can also be added to an existing sample database:
+
+```powershell
+docker cp tools/sample-db/04-object-details.sql ferret-sample:/tmp/
+docker exec ferret-sample bash -c "NLS_LANG=GERMAN_GERMANY.AL32UTF8 sqlplus -s ferret/<password>@FREEPDB1 @/tmp/04-object-details.sql"
+```
 
 Remove it with `docker rm -f ferret-sample`.

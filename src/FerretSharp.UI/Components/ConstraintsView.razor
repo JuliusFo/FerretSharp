@@ -1,0 +1,118 @@
+@* "Constraints" view: primary/unique/foreign keys and checks with their state, the row key and the incoming foreign keys. *@
+@using FerretSharp.Core.Query
+@using FerretSharp.Core.Schema
+@inherits DetailViewBase<IReadOnlyList<ConstraintInfo>>
+
+<DetailStatus Loading="Loading && Data is null" Error="Error" Text="Lade Constraints …" />
+
+@if (Data is { } all)
+{
+    var shown = all.Where(c => !c.IsColumnNotNull).ToList();
+    var notNull = all.Count - shown.Count;
+    <section>
+        <h2>Constraints <span class="count">@shown.Count</span></h2>
+        @if (shown.Count == 0)
+        {
+            <p class="muted">Keine Constraints.</p>
+        }
+        else
+        {
+            <table class="columns constraints">
+                <thead>
+                    <tr><th>Art</th><th>Name</th><th>Spalten</th><th>Bedingung / Ziel</th><th>Zustand</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var c in shown)
+                    {
+                        <tr class="@(c.Enabled ? "" : "disabled")">
+                            <td><span class="con-type @TypeClass(c.Type)">@TypeLabel(c.Type)</span></td>
+                            <td class="mono @(c.GeneratedName ? "generated" : "")" title="@(c.GeneratedName ? "Von Oracle benannt" : null)">@c.Name</td>
+                            <td class="mono">@string.Join(", ", c.Columns)</td>
+                            <td>
+                                @if (c.References is { } target)
+                                {
+                                    <span class="arrow">→</span>
+                                    <TableLink Target="target" />
+                                    <span class="mono">(@string.Join(", ", c.ReferencedColumns))</span>
+                                    @if (c.DeleteRule is { } rule && rule != "NO ACTION")
+                                    {
+                                        <span class="muted"> · ON DELETE @rule</span>
+                                    }
+                                }
+                                else if (c.Condition is { } condition)
+                                {
+                                    <code class="condition">@condition</code>
+                                }
+                            </td>
+                            <td class="state">@State(c)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        @if (notNull > 0)
+        {
+            <p class="muted">@(notNull == 1 ? "1 NOT-NULL-Constraint steht" : $"{notNull} NOT-NULL-Constraints stehen") als „NOT NULL“ bei den Spalten.</p>
+        }
+        <p class="muted">Row-Key: @RowKeyText</p>
+    </section>
+}
+
+<section>
+    <h2>Referenziert von <span class="count">@Incoming.Count</span></h2>
+    @if (Incoming.Count == 0)
+    {
+        <p class="muted">Keine Tabelle verweist hierher.</p>
+    }
+    @foreach (var fk in Incoming)
+    {
+        <div class="relation">
+            <TableLink Target="fk.From" />
+            <span class="mono">(@string.Join(", ", fk.FromColumns))</span>
+            <span class="arrow">→</span>
+            <span class="mono">(@string.Join(", ", fk.ToColumns))</span>
+            <span class="muted constraint">@fk.Name</span>
+        </div>
+    }
+</section>
+
+@code {
+    private IReadOnlyList<ForeignKeyInfo> Incoming => Active.Schema?.IncomingOf(Table.Ref).ToList() ?? [];
+
+    /// <summary>How rows of this object will be identified (CLAUDE.md 5.5): PK, otherwise ROWID, views without PK: none.</summary>
+    private string RowKeyText => QueryBuilder.RowKeyOf(Details) switch
+    {
+        RowKeyKind.PrimaryKey => "Primärschlüssel (" + string.Join(", ", Details.PrimaryKey) + ")",
+        RowKeyKind.RowId => Details.IsIndexOrganized ? "UROWID" : "ROWID",
+        _ => "keiner – nur lesbar",
+    };
+
+    private static string TypeLabel(ConstraintType type) => type switch
+    {
+        ConstraintType.PrimaryKey => "PRIMARY KEY",
+        ConstraintType.Unique => "UNIQUE",
+        ConstraintType.ForeignKey => "FOREIGN KEY",
+        ConstraintType.Check => "CHECK",
+        ConstraintType.ViewCheckOption => "CHECK OPTION",
+        ConstraintType.ViewReadOnly => "READ ONLY",
+        _ => "SONSTIGE",
+    };
+
+    private static string TypeClass(ConstraintType type) => type switch
+    {
+        ConstraintType.PrimaryKey => "pk",
+        ConstraintType.Unique => "uk",
+        ConstraintType.ForeignKey => "fk",
+        _ => "",
+    };
+
+    private static string State(ConstraintInfo c) => string.Join(" · ", new[]
+    {
+        c.Enabled ? "aktiv" : "deaktiviert",
+        c.Enabled && !c.Validated ? "nicht validiert" : null,
+        c.Deferrable ? (c.InitiallyDeferred ? "deferrable, deferred" : "deferrable") : null,
+    }.OfType<string>());
+
+    protected override Task<IReadOnlyList<ConstraintInfo>> LoadAsync(SchemaCache schema, CancellationToken cancellationToken) =>
+        schema.GetConstraintsAsync(Table.Ref, cancellationToken);
+}

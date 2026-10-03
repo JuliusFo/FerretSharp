@@ -64,6 +64,21 @@ public sealed class OracleDatabaseConnector : IDatabaseConnector
 
         public Task<TableDetails> GetDetailsAsync(TableSummary table, CancellationToken cancellationToken) =>
             OracleErrors.Guard(() => inner.GetDetailsAsync(table, cancellationToken));
+
+        public Task<ObjectInfo> GetObjectInfoAsync(TableSummary table, CancellationToken cancellationToken) =>
+            OracleErrors.Guard(() => inner.GetObjectInfoAsync(table, cancellationToken));
+
+        public Task<IReadOnlyList<ConstraintInfo>> GetConstraintsAsync(TableRef table, CancellationToken cancellationToken) =>
+            OracleErrors.Guard(() => inner.GetConstraintsAsync(table, cancellationToken));
+
+        public Task<IReadOnlyList<IndexInfo>> GetIndexesAsync(TableRef table, CancellationToken cancellationToken) =>
+            OracleErrors.Guard(() => inner.GetIndexesAsync(table, cancellationToken));
+
+        public Task<ObjectDependencies> GetDependenciesAsync(TableSummary table, CancellationToken cancellationToken) =>
+            OracleErrors.Guard(() => inner.GetDependenciesAsync(table, cancellationToken));
+
+        public Task<string> GetDdlAsync(TableSummary table, CancellationToken cancellationToken) =>
+            OracleErrors.Guard(() => inner.GetDdlAsync(table, cancellationToken));
     }
 }
 

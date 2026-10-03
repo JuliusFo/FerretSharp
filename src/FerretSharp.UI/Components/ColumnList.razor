@@ -16,7 +16,7 @@
     {
         var position = i;
         var column = Details.Columns[_matches[i]];
-        <div id="@ItemId(position)" class="col-item @(position == _highlight ? "highlight" : "") @(_matches[i] == Current ? "current" : "")"
+        <div id="@ItemId(position)" class="col-item @(position == _highlight ? "highlight" : "") @(_matches[i] == Current ? "current" : "")" title="@column.Comment"
              @onmousedown="() => PickAsync(position)" @onmousedown:preventDefault="true" @onmouseenter="() => _highlight = position">
             <span class="col-item-name">@column.Name</span>
             @if (Details.PrimaryKey.Contains(column.Name))

@@ -383,7 +383,35 @@ dl.keys dd { margin: 0; }
 .toolbar-title { font: 12px var(--mono); color: var(--faint); }
 .tab-toolbar .spacer { flex: 1; }
 .tab-data { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-.tab-structure { flex: 1; position: relative; min-height: 0; }
+/* detail views (Spalten, Constraints, Indizes, Abhängigkeiten, DDL) below a common object header */
+.tab-details { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.tab-details.hidden, .details-body > .structure.hidden { display: none; }
+.object-header { flex: none; padding: 16px 28px 12px; border-bottom: 1px solid var(--border); background: var(--bg); user-select: text; }
+.object-header .structure-head { margin-bottom: 4px; }
+.object-comment { margin: 6px 0 4px; max-width: 1100px; color: var(--text); }
+.object-meta { display: flex; flex-wrap: wrap; gap: 2px 18px; margin-top: 4px; font-size: 12px; color: var(--muted); }
+.details-body { flex: 1; position: relative; min-height: 0; }
+.chip.invalid { background: var(--danger-weak); border-color: transparent; color: var(--danger); }
+.detail-error { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-bottom: 16px; padding: 8px 12px; border-radius: 8px; background: var(--danger-weak); color: var(--danger); font-size: 12.5px; }
+.detail-error .muted { color: var(--muted); }
+table.columns td.comment { white-space: normal; min-width: 180px; max-width: 460px; color: var(--muted); }
+table.columns td.flags { font-size: 10.5px; font-weight: 600; letter-spacing: .03em; color: var(--muted); }
+table.columns td.state { font-size: 12px; color: var(--muted); }
+table.columns td.state.bad { color: var(--danger); font-weight: 600; }
+table.columns td.generated { color: var(--muted); }
+table.columns tr.disabled td { opacity: .55; }
+table.constraints td:nth-child(4) { white-space: normal; }
+.con-type { font: 700 9.5px system-ui, sans-serif; letter-spacing: .04em; padding: 2px 6px; border-radius: 4px; background: var(--surface-2); color: var(--muted); white-space: nowrap; }
+.con-type.pk { background: rgba(234, 179, 8, .18); color: #b7791f; }
+.con-type.uk { background: rgba(142, 124, 240, .16); color: var(--dev); }
+.con-type.fk { background: var(--accent-weak); color: var(--accent); }
+code.condition { font: 12px var(--mono); white-space: pre-wrap; }
+.expression { color: var(--accent); }
+.advice { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; max-width: 1100px; margin-bottom: 18px; padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(234, 179, 8, .45); background: rgba(234, 179, 8, .10); font-size: 12.5px; }
+.advice .muted { color: var(--muted); flex-basis: 100%; }
+.relation.dependency .chip { min-width: 128px; text-align: center; }
+.table-item.invalid .name { color: var(--danger); }
+.table-item.invalid .icon { color: var(--danger); }
 .tab-error { padding: 8px 12px; background: var(--danger-weak); color: var(--danger); border-bottom: 1px solid var(--border); font-size: 12.5px; user-select: text; }
 .structure-loading.padded { padding: 20px; }
 .grid-host { flex: 1; min-height: 0; }
@@ -455,6 +483,8 @@ pre.sql .bind { color: #c2410c; }
 pre.sql .ident { color: var(--accent); }
 pre.sql .comment { color: var(--faint); font-style: italic; }
 pre.sql.definition { max-height: 360px; border: 1px solid var(--border); border-radius: 8px; }
+pre.sql.ddl { max-height: none; overflow: visible; border: 1px solid var(--border); border-radius: 8px; }
+.structure table + p.muted, .structure pre + p.muted, .structure p.muted + p.muted { margin-top: 8px; }
 @media (prefers-color-scheme: dark) {
   pre.sql .kw { color: #c4a7ff; }
   pre.sql .str { color: #7ee2a8; }

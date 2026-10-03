@@ -17,9 +17,13 @@
         {
             <button class="btn ghost nav-btn" title="@($"Vor zu {NavLabel(forward)} (Alt+→)")" @onclick="Shell.GoForward">@forward.Table.DisplayName →</button>
         }
-        <div class="segmented small">
-            <button class="seg @(Tab.Mode == TabMode.Data ? "active" : "")" @onclick="() => SetMode(TabMode.Data)">Daten</button>
-            <button class="seg @(Tab.Mode == TabMode.Structure ? "active" : "")" @onclick="() => SetMode(TabMode.Structure)">Struktur</button>
+        <div class="segmented small" role="tablist">
+            @foreach (var (mode, label) in Modes)
+            {
+                var m = mode;
+                <button class="seg @(Tab.Mode == m ? "active" : "")" role="tab" aria-selected="@(Tab.Mode == m ? "true" : "false")"
+                        @onclick="() => SetMode(m)">@label</button>
+            }
         </div>
         <span class="toolbar-title">
             @if (Tab.Table.Synonym is { } synonym)
@@ -32,7 +36,10 @@
         @if (Tab.Mode == TabMode.Data && _details is not null)
         {
             <ColumnJump @ref="_jump" Details="_details" OnJump="c => _pendingJump = c" />
-            <button class="icon-btn ghost" title="Neu laden (F5)" @onclick="RefreshAsync">@Icons.Refresh</button>
+        }
+        @if (_details is not null && Tab.Mode != TabMode.Structure)
+        {
+            <button class="icon-btn ghost" title="Neu laden (F5)" @onclick="RefreshViewAsync">@Icons.Refresh</button>
         }
     </div>
 
@@ -101,10 +108,36 @@
             </footer>
         </div>
 
-        @if (Tab.Mode == TabMode.Structure)
+        @* Detail views mount when first shown and then stay (like the grid), so switching back costs no query. *@
+        @if (_visited.Any(m => m != TabMode.Data))
         {
-            <div class="tab-structure">
-                <TableStructure @ref="_structure" Table="Tab.Table" />
+            <div class="tab-details @(Tab.Mode == TabMode.Data ? "hidden" : "")">
+                <ObjectHeader Details="_details" Version="_version" />
+                <div class="details-body">
+                    @foreach (var (mode, _) in Modes.Where(m => m.Mode != TabMode.Data && _visited.Contains(m.Mode)))
+                    {
+                        <div class="structure @(Tab.Mode == mode ? "" : "hidden")" @key="mode">
+                            @switch (mode)
+                            {
+                                case TabMode.Structure:
+                                    <ColumnsView @ref="_columns" Details="_details" />
+                                    break;
+                                case TabMode.Constraints:
+                                    <ConstraintsView Details="_details" Version="_version" />
+                                    break;
+                                case TabMode.Indexes:
+                                    <IndexesView Details="_details" Version="_version" />
+                                    break;
+                                case TabMode.Dependencies:
+                                    <DependenciesView Details="_details" Version="_version" />
+                                    break;
+                                case TabMode.Ddl:
+                                    <DdlView Details="_details" Version="_version" />
+                                    break;
+                            }
+                        </div>
+                    }
+                </div>
             </div>
         }
     }
@@ -137,8 +170,20 @@
     private GridContextMenuRequest? _menu;
     private ColumnMenuRequest? _columnMenu;
     private ColumnJump? _jump;
-    private TableStructure? _structure;
+    private ColumnsView? _columns;
     private int? _pendingJump; // scrolled to after the search list has closed, so the grid cell keeps the focus
+    private readonly HashSet<TabMode> _visited = [];
+    private int _version; // F5 in a detail view: incremented, the detail views reload
+
+    private static readonly (TabMode Mode, string Label)[] Modes =
+    [
+        (TabMode.Data, "Daten"),
+        (TabMode.Structure, "Spalten"),
+        (TabMode.Constraints, "Constraints"),
+        (TabMode.Indexes, "Indizes"),
+        (TabMode.Dependencies, "Abhängigkeiten"),
+        (TabMode.Ddl, "DDL"),
+    ];
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -183,6 +228,9 @@
         }
     }
 
+    /// <summary>The mode may also change from outside (a table link opens the structure of an open tab).</summary>
+    protected override void OnParametersSet() => _visited.Add(Tab.Mode);
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (_pendingJump is { } column && _grid is not null)
@@ -195,6 +243,7 @@
     private void SetMode(TabMode mode)
     {
         Tab.Mode = mode;
+        _visited.Add(mode);
         Shell.NotifyChanged();
     }
 
@@ -220,6 +269,18 @@
         Tab.AppliedFilters = conditions;
         Shell.NotifyChanged(); // filter count in the tab header
         await RefreshAsync();
+    }
+
+    /// <summary>F5 / reload button: the grid in the data view, the detail views otherwise (columns come with the schema).</summary>
+    private Task RefreshViewAsync()
+    {
+        if (Tab.Mode == TabMode.Data)
+        {
+            return RefreshAsync();
+        }
+
+        _version++;
+        return Task.CompletedTask;
     }
 
     private async Task RefreshAsync()
@@ -323,13 +384,13 @@
                     await ApplyFiltersAsync();
                     break;
                 case TabCommand.Refresh:
-                    await RefreshAsync();
+                    await RefreshViewAsync();
                     break;
                 case TabCommand.FindColumn when Tab.Mode == TabMode.Data:
                     _jump?.Open();
                     break;
-                case TabCommand.FindColumn when _structure is not null:
-                    await _structure.FocusFilterAsync();
+                case TabCommand.FindColumn when Tab.Mode == TabMode.Structure && _columns is not null:
+                    await _columns.FocusFilterAsync();
                     break;
             }
 

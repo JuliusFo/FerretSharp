@@ -61,9 +61,9 @@ class FerretHeader {
       this.onSortChanged = () => this.updateSort();
       params.column.addEventListener('sortChanged', this.onSortChanged);
       this.updateSort();
-    } else {
-      this.eGui.title = 'Nach diesem Typ kann nicht sortiert werden';
     }
+    // Column comment (ALL_COL_COMMENTS) as tooltip.
+    this.eGui.title = [meta.comment, meta.sortable ? null : 'Nach diesem Typ kann nicht sortiert werden'].filter(Boolean).join('\n');
   }
   updateSort() {
     const sort = this.params.column.getSort();

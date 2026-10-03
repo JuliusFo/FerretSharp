@@ -41,7 +41,7 @@
                     @foreach (var table in tables)
                     {
                         var t = table;
-                        <button class="table-item @(Shell.ActiveTab?.Table.Ref == t.Ref ? "active" : "") @(IsOpen(t) ? "open" : "")" title="@Tooltip(t)"
+                        <button class="table-item @(Shell.ActiveTab?.Table.Ref == t.Ref ? "active" : "") @(IsOpen(t) ? "open" : "") @(t.IsInvalid ? "invalid" : "")" title="@Tooltip(t)"
                                 @onclick="() => Shell.OpenTable(t)">
                             @Icons.For(t.Kind)
                             <span class="name">@t.DisplayName</span>
@@ -155,10 +155,18 @@
             TableKind.MaterializedView => "Materialized View",
             _ => "Tabelle",
         };
-        return table.Synonym is { } synonym
+        var text = table.Synonym is { } synonym
             ? $"{(synonym.IsPublic ? "Öffentliches Synonym" : "Synonym")} → {table.Owner}.{table.Name} ({kind})"
             : kind;
+        return table.IsInvalid ? text + Environment.NewLine + InvalidStatusText.For(ObjectType(table.Kind)) : text;
     }
+
+    private static string ObjectType(TableKind kind) => kind switch
+    {
+        TableKind.View => "VIEW",
+        TableKind.MaterializedView => "MATERIALIZED VIEW",
+        _ => "TABLE",
+    };
 
     private void OnChanged() => InvokeAsync(StateHasChanged);
 

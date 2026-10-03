@@ -31,11 +31,20 @@ public sealed record TableSummary(string Owner, string Name, TableKind Kind, Syn
 
     /// <summary>The name users know the object by: the synonym if there is one.</summary>
     public string DisplayName => Synonym?.Name ?? Name;
+
+    /// <summary>
+    /// <c>ALL_OBJECTS.STATUS = 'INVALID'</c> (views and materialized views): needs recompiling. Oracle tries that on the
+    /// next use of a view; a view whose table lost a column then fails. An invalid materialized view still answers.
+    /// </summary>
+    public bool IsInvalid { get; init; }
 }
 
 /// <param name="DataType">Oracle type name as in <c>ALL_TAB_COLUMNS.DATA_TYPE</c>, e.g. <c>VARCHAR2</c> or <c>TIMESTAMP(6)</c>.</param>
 /// <param name="Length">Character length for character types (CHAR semantics) or byte length for RAW.</param>
 /// <param name="CharSemantics">True if the length is in characters (<c>VARCHAR2(50 CHAR)</c>).</param>
+/// <param name="Comment">Column comment (<c>ALL_COL_COMMENTS</c>).</param>
+/// <param name="IsVirtual">Virtual column: computed from <see cref="Default"/>, which then holds the expression.</param>
+/// <param name="DefaultOnNull"><c>DEFAULT ON NULL</c>: the default also replaces an explicit NULL.</param>
 public sealed record ColumnInfo(
     string Name,
     string DataType,
@@ -46,7 +55,10 @@ public sealed record ColumnInfo(
     bool Nullable,
     bool IsIdentity,
     string? Default,
-    int Position)
+    int Position,
+    string? Comment = null,
+    bool IsVirtual = false,
+    bool DefaultOnNull = false)
 {
     /// <summary>Type as it would appear in DDL, e.g. <c>VARCHAR2(50 CHAR)</c>, <c>NUMBER(12,2)</c>, <c>DATE</c>.</summary>
     public string DisplayType => DataType switch
@@ -106,4 +118,22 @@ public interface ISchemaReader
     Task<IReadOnlyList<ForeignKeyInfo>> GetForeignKeysAsync(string owner, CancellationToken cancellationToken);
 
     Task<TableDetails> GetDetailsAsync(TableSummary table, CancellationToken cancellationToken);
+
+    /// <summary>Status, dates, comment and statistics of one object.</summary>
+    Task<ObjectInfo> GetObjectInfoAsync(TableSummary table, CancellationToken cancellationToken);
+
+    /// <summary>All constraints of the object, primary key first.</summary>
+    Task<IReadOnlyList<ConstraintInfo>> GetConstraintsAsync(TableRef table, CancellationToken cancellationToken);
+
+    /// <summary>Indexes on the table (without LOB indexes), by name.</summary>
+    Task<IReadOnlyList<IndexInfo>> GetIndexesAsync(TableRef table, CancellationToken cancellationToken);
+
+    /// <summary>Dependencies in both directions, limited to objects the session may see.</summary>
+    Task<ObjectDependencies> GetDependenciesAsync(TableSummary table, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// DDL from <c>DBMS_METADATA.GET_DDL</c>. Other schemas need <c>SELECT_CATALOG_ROLE</c>; without it Oracle
+    /// answers ORA-31603 (object not found).
+    /// </summary>
+    Task<string> GetDdlAsync(TableSummary table, CancellationToken cancellationToken);
 }

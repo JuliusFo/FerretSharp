@@ -65,6 +65,23 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
         }
     }
 
+    // Detail views (not cached here: each tab keeps what it loaded until it is reloaded).
+
+    public Task<ObjectInfo> GetObjectInfoAsync(TableSummary table, CancellationToken cancellationToken) =>
+        reader.GetObjectInfoAsync(table, cancellationToken);
+
+    public Task<IReadOnlyList<ConstraintInfo>> GetConstraintsAsync(TableRef table, CancellationToken cancellationToken) =>
+        reader.GetConstraintsAsync(table, cancellationToken);
+
+    public Task<IReadOnlyList<IndexInfo>> GetIndexesAsync(TableRef table, CancellationToken cancellationToken) =>
+        reader.GetIndexesAsync(table, cancellationToken);
+
+    public Task<ObjectDependencies> GetDependenciesAsync(TableSummary table, CancellationToken cancellationToken) =>
+        reader.GetDependenciesAsync(table, cancellationToken);
+
+    public Task<string> GetDdlAsync(TableSummary table, CancellationToken cancellationToken) =>
+        reader.GetDdlAsync(table, cancellationToken);
+
     /// <summary>Relationships where <paramref name="table"/> references other tables.</summary>
     public IEnumerable<ForeignKeyInfo> OutgoingOf(TableRef table) => _outgoing[table];
 
