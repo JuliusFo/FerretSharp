@@ -1,8 +1,10 @@
 @using FerretSharp.Core.Connections
+@using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
 @using FerretSharp.UI.State
-@implements IDisposable
+@implements IAsyncDisposable
 @inject ActiveConnection Active
+@inject IJSRuntime JS
 
 <div class="structure">
     <div class="structure-head">
@@ -38,14 +40,32 @@
         var fkColumns = Outgoing.SelectMany(f => f.FromColumns.Select(c => (Column: c, Fk: f))).ToLookup(x => x.Column, x => x.Fk);
         var uniqueColumns = details.UniqueKeys.SelectMany(k => k).ToHashSet();
 
+        // Filtering keeps the schema order: this is a table of the columns, not a list of search hits.
+        var shown = ColumnSearch.Find(details.Columns, _columnQuery).Order().Select(i => details.Columns[i]).ToList();
+        var filtering = !string.IsNullOrWhiteSpace(_columnQuery);
+
         <section>
-            <h2>Spalten <span class="count">@details.Columns.Count</span></h2>
+            <div class="structure-columns-head">
+                <h2>
+                    Spalten
+                    <span class="count">@(filtering ? $"{shown.Count} von {details.Columns.Count}" : details.Columns.Count.ToString(CultureInfo.CurrentCulture))</span>
+                </h2>
+                <label class="structure-filter">
+                    @Icons.Search
+                    <input @ref="_filterInput" placeholder="Spalten filtern … (Ctrl+F)" spellcheck="false" autocomplete="off"
+                           @bind="_columnQuery" @bind:event="oninput" @onkeydown="OnFilterKeyDown" />
+                </label>
+            </div>
             <table class="columns">
                 <thead>
                     <tr><th class="num">#</th><th>Name</th><th>Typ</th><th>Null</th><th>Default</th><th></th></tr>
                 </thead>
                 <tbody>
-                    @foreach (var column in details.Columns)
+                    @if (shown.Count == 0)
+                    {
+                        <tr><td colspan="6" class="muted">Keine Spalte passt zu „@_columnQuery“.</td></tr>
+                    }
+                    @foreach (var column in shown)
                     {
                         <tr>
                             <td class="num">@column.Position</td>
@@ -144,6 +164,9 @@
     private TableDetails? _details;
     private string? _error;
     private TableRef? _loadedFor;
+    private ElementReference _filterInput;
+    private IJSObjectReference? _dom;
+    private string _columnQuery = "";
 
     [Parameter, EditorRequired]
     public TableSummary Table { get; set; } = null!;
@@ -199,9 +222,39 @@
         _ => "keiner – nur lesbar",
     };
 
-    public void Dispose()
+    /// <summary>Ctrl+F: focuses the column filter and selects its text.</summary>
+    public async Task FocusFilterAsync()
+    {
+        if (_details is null)
+        {
+            return;
+        }
+
+        _dom ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
+        await _dom.InvokeVoidAsync("focusAndSelect", _filterInput);
+    }
+
+    private void OnFilterKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            _columnQuery = "";
+        }
+    }
+
+    public async ValueTask DisposeAsync()
     {
         _loadCts?.Cancel();
         _loadCts?.Dispose();
+        if (_dom is not null)
+        {
+            try
+            {
+                await _dom.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
     }
 }
