@@ -1,6 +1,7 @@
 using System.Data.Common;
 using System.Diagnostics;
 using System.Globalization;
+using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
 using FerretSharp.Core.Query;
 using FerretSharp.Core.Schema;
@@ -8,11 +9,15 @@ using Oracle.ManagedDataAccess.Client;
 
 namespace FerretSharp.Core.Oracle;
 
-/// <summary>Reads pages of table data. v1: read-only, there is no DML here.</summary>
+/// <summary>Reads pages of table data. Read-only; writing comes with WP-09 (FlushAsync).</summary>
 public sealed class OracleDataAccess(OracleSession session) : IDataAccess
 {
     private const int MaxDecimalDigits = 28;
 
+    /// <remarks>
+    /// In a locked session the first page of a query starts a new snapshot (new query, filter, sort, F5 – current
+    /// data); further pages stay in it, so paging neither repeats nor skips rows when data changes meanwhile.
+    /// </remarks>
     public async Task<RowPage> ReadPageAsync(
         TableDetails table,
         IReadOnlyList<FilterCondition> filters,
@@ -21,6 +26,11 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
         CancellationToken cancellationToken)
     {
         var query = QueryBuilder.BuildSelect(table, filters, sorts, page);
+        if (page.Offset == 0)
+        {
+            await session.RefreshSnapshotAsync(cancellationToken);
+        }
+
         var stopwatch = Stopwatch.StartNew();
         var rows = await session.ExecuteReaderAsync(query.Sql, query.Parameters, async (reader, ct) =>
         {
@@ -34,7 +44,8 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
             return result;
         }, cancellationToken);
 
-        return new RowPage(rows, rows.Count < page.Limit, stopwatch.Elapsed);
+        var snapshot = session.Transaction is { Mode: TransactionMode.ReadOnly } transaction ? transaction.StartedAt : null;
+        return new RowPage(rows, rows.Count < page.Limit, stopwatch.Elapsed, snapshot);
     }
 
     public async Task<long> CountAsync(TableDetails table, IReadOnlyList<FilterCondition> filters, CancellationToken cancellationToken)

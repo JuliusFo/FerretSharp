@@ -82,6 +82,15 @@ public sealed class WorkspaceManager(
     /// <summary>Set while a workspace could not be saved; cleared after the next successful save.</summary>
     public string? SaveError { get; private set; }
 
+    /// <summary>Transaction of the workspace's session; null while the session is not open (yet).</summary>
+    public TransactionInfo? TransactionOf(Guid workspaceId)
+    {
+        lock (_lock)
+        {
+            return _sessions.GetValueOrDefault(workspaceId) is { IsCompletedSuccessfully: true } session ? session.Result.Transaction : null;
+        }
+    }
+
     /// <summary>Workspace sessions that are open (for the keep-alive); sessions still opening or failed are left out.</summary>
     public IReadOnlyList<IDatabaseConnection> OpenSessions()
     {
@@ -396,7 +405,23 @@ public sealed class WorkspaceManager(
     {
         var password = connections.GetPassword(profile.Id)
             ?? throw new DatabaseException("Für diese Verbindung ist kein Passwort gespeichert. Bitte unter „Bearbeiten“ eingeben.");
-        return await connector.OpenAsync(profile, password, action, cancellationToken);
+        var connection = await connector.OpenAsync(profile, password, action, cancellationToken);
+        if (!profile.ReadOnly)
+        {
+            return connection;
+        }
+
+        // Read-only profile (Prod by default): Oracle itself rejects DML in this session.
+        try
+        {
+            await connection.UseReadOnlySnapshotsAsync(cancellationToken);
+            return connection;
+        }
+        catch
+        {
+            await connection.DisposeAsync();
+            throw;
+        }
     }
 
     private static async Task SetActionAsync(Task<IDatabaseConnection> session, string action)
