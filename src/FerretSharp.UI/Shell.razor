@@ -28,11 +28,11 @@
                         @onclick="ToggleSettings">@Icons.Settings</button>
                 @if (IsProdActive)
                 {
-                    <span class="badge badge-prod">PROD · READ-ONLY</span>
+                    <span class="badge badge-prod" title="@ReadOnlyTooltip">PROD · READ-ONLY</span>
                 }
                 else
                 {
-                    <span class="badge">READ-ONLY</span>
+                    <span class="badge" title="@ReadOnlyTooltip">READ-ONLY</span>
                 }
             </div>
         </header>
@@ -44,6 +44,10 @@
                 <span class="grow">
                     <strong>Verbindung zur Datenbank verloren.</strong>
                     @lost.Display
+                    @if (Workspaces.Active is { } lostWorkspace && Workspaces.TransactionOf(lostWorkspace.Id) is { Mode: TransactionMode.ReadWrite })
+                    {
+                        <strong> Die offene Transaktion ist verloren – nicht committete Änderungen sind weg.</strong>
+                    }
                     <span class="muted">„Neu verbinden“ stellt alle Workspaces mit ihren Tabs und Filtern wieder her.</span>
                 </span>
                 <button class="btn primary" @onclick="() => _state.Connect(lostProfile)">Neu verbinden</button>
@@ -171,6 +175,10 @@
                         @if (Workspaces.Active is { } workspace)
                         {
                             <span class="item" title="Jeder Workspace fragt über eine eigene Oracle-Session ab (ACTION = Workspace-Name).">Workspace „@workspace.Name“ · eigene Session</span>
+                            @if (Active.Profile?.ReadOnly == true)
+                            {
+                                <span class="item" title="Die Workspace-Sessions laufen in einer READ ONLY-Transaktion: Oracle selbst lehnt jede Änderung ab.">schreibgeschützt (Oracle)</span>
+                            }
                         }
                         <span class="item">Oracle @Active.ServerVersion</span>
                         <span class="item">Schema @Active.Schema?.Owner · @(Active.Schema?.Tables.Count ?? 0) Objekte</span>
@@ -255,6 +263,10 @@
 
     private bool IsProdActive => Active.Profile?.Kind == ConnectionKind.Prod
                                  && Active.Status is ConnectionStatus.Connected or ConnectionStatus.Connecting;
+
+    private string ReadOnlyTooltip => Active.Profile?.ReadOnly == true
+        ? "Schreibgeschützte Verbindung: Oracle selbst lehnt jede Änderung ab (READ ONLY-Transaktion)."
+        : "FerretSharp ändert keine Daten – Bearbeiten kommt mit v2.";
 
     protected override async Task OnInitializedAsync()
     {

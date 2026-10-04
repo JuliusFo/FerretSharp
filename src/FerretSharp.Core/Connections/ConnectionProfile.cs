@@ -44,7 +44,7 @@ public sealed record TnsAliasAddress(string Alias, string? TnsAdminPath) : Oracl
 
 /// <summary>A saved connection. The password is never part of the profile; see <see cref="ISecretStore"/>.</summary>
 /// <param name="DefaultSchema">Schema to browse if it differs from <paramref name="User"/> (technical users).</param>
-/// <param name="ReadOnly">Default true for Prod. Enforced from v2 on; v1 never writes.</param>
+/// <param name="ReadOnly">Default true for Prod. Workspace sessions then run in a read-only transaction, so Oracle rejects any change.</param>
 /// <param name="Group">Optional grouping, e.g. project or customer ("ERP", "Kasse"). Null = ungrouped.</param>
 public sealed record ConnectionProfile(
     Guid Id,

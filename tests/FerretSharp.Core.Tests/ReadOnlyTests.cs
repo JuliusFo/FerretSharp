@@ -8,8 +8,9 @@ using FerretSharp.Core.Schema;
 namespace FerretSharp.Core.Tests;
 
 /// <summary>
-/// v1 is read-only (CLAUDE.md, section 2). These tests keep it that way: the session refuses anything but plain
-/// queries, no type offers a writing method, and every statement FerretSharp builds passes the guard.
+/// Reading stays separate from writing (CLAUDE.md, section 2; ADR 0006): the query path refuses anything but plain
+/// queries, every statement FerretSharp builds passes that guard, the only write path is internal and refuses DDL,
+/// and transaction control exists on the session only.
 /// </summary>
 public class ReadOnlyTests
 {
@@ -46,24 +47,65 @@ public class ReadOnlyTests
     [InlineData("")]
     public void Everything_else_is_refused(string sql) => Assert.False(OracleSession.IsReadOnlyStatement(sql), sql);
 
-    private static readonly string[] WritingNames =
-        ["NonQuery", "Scalar", "Transaction", "Commit", "Rollback", "Savepoint", "Insert", "Update", "Delete", "Merge", "Flush", "Write"];
+    private static readonly string[] WritingNames = ["NonQuery", "Scalar", "Insert", "Update", "Delete", "Merge", "Flush", "Write"];
 
-    /// <summary>The only database entry points: no method on them may sound like writing.</summary>
+    private static readonly string[] TransactionControlNames = ["Commit", "Rollback", "Savepoint", "BeginTransaction"];
+
+    private static List<string> PublicMethods(Type type) =>
+        type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly)
+            .Select(m => m.Name)
+            .ToList();
+
+    /// <summary>The database entry points: no public method may write data (until WP-09 brings FlushAsync).</summary>
     [Theory]
     [InlineData(typeof(OracleSession))]
     [InlineData(typeof(IDataAccess))]
     [InlineData(typeof(ISchemaReader))]
     [InlineData(typeof(IDatabaseConnection))]
     [InlineData(typeof(IDatabaseConnector))]
-    public void Database_types_offer_no_writing_methods(Type type)
-    {
-        var methods = type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly)
-            .Select(m => m.Name)
-            .ToList();
+    public void Database_types_offer_no_writing_methods(Type type) =>
+        Assert.DoesNotContain(PublicMethods(type), name => WritingNames.Any(w => name.Contains(w, StringComparison.OrdinalIgnoreCase)));
 
-        Assert.DoesNotContain(methods, name => WritingNames.Any(w => name.Contains(w, StringComparison.OrdinalIgnoreCase)));
+    /// <summary>Commit, rollback and savepoints exist on the session only, not on what the UI gets to see.</summary>
+    [Theory]
+    [InlineData(typeof(IDataAccess))]
+    [InlineData(typeof(ISchemaReader))]
+    [InlineData(typeof(IDatabaseConnection))]
+    [InlineData(typeof(IDatabaseConnector))]
+    public void Transaction_control_is_not_exposed_beyond_the_session(Type type) =>
+        Assert.DoesNotContain(PublicMethods(type), name => TransactionControlNames.Any(w => name.Contains(w, StringComparison.OrdinalIgnoreCase)));
+
+    [Fact]
+    public void The_write_path_is_internal()
+    {
+        var method = typeof(OracleSession).GetMethod("ExecuteNonQueryAsync", BindingFlags.NonPublic | BindingFlags.Instance);
+
+        Assert.NotNull(method);
+        Assert.True(method.IsAssembly);
     }
+
+    [Theory]
+    [InlineData("INSERT INTO t (a) VALUES (:p0)")]
+    [InlineData("  update t set c = :p0 where id = :p1")]
+    [InlineData("-- flush\nDELETE FROM t WHERE ROWID = :rid")]
+    [InlineData("UPDATE t SET c = 'a;b' WHERE id = 1")]
+    public void Write_path_accepts_single_dml(string sql) => Assert.True(OracleSession.IsWriteStatement(sql), sql);
+
+    [Theory]
+    [InlineData("CREATE TABLE t (id NUMBER)")]
+    [InlineData("DROP TABLE t")]
+    [InlineData("TRUNCATE TABLE t")]
+    [InlineData("ALTER TABLE t ADD c NUMBER")]
+    [InlineData("GRANT SELECT ON t TO x")]
+    [InlineData("COMMENT ON TABLE t IS 'x'")]
+    [InlineData("MERGE INTO t USING s ON (1 = 1) WHEN MATCHED THEN UPDATE SET c = 1")]
+    [InlineData("BEGIN DELETE FROM t; END;")]
+    [InlineData("SELECT * FROM t")]
+    [InlineData("COMMIT")]
+    [InlineData("DELETE FROM t; DROP TABLE t")]
+    [InlineData("/* DELETE */ DROP TABLE t")]
+    [InlineData("")]
+    public void Write_path_refuses_ddl_plsql_and_everything_else(string sql) => Assert.False(OracleSession.IsWriteStatement(sql), sql);
 
     [Fact]
     public void Session_runs_statements_only_through_the_guarded_reader()

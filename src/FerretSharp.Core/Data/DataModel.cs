@@ -46,7 +46,8 @@ public sealed record NotNullMarker(string DataType);
 public sealed record RowData(RowKey Key, IReadOnlyList<object?> Values);
 
 /// <param name="IsLastPage">Fewer rows than requested were returned.</param>
-public sealed record RowPage(IReadOnlyList<RowData> Rows, bool IsLastPage, TimeSpan Elapsed);
+/// <param name="DataAsOf">Start of the read-only snapshot the page was read in (locked profiles); null otherwise.</param>
+public sealed record RowPage(IReadOnlyList<RowData> Rows, bool IsLastPage, TimeSpan Elapsed, DateTimeOffset? DataAsOf = null);
 
 public interface IDataAccess
 {

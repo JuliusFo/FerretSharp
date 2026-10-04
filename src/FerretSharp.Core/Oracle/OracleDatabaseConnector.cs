@@ -37,6 +37,15 @@ public sealed class OracleDatabaseConnector : IDatabaseConnector
         public Task<bool> PingIfIdleAsync(TimeSpan idleFor, CancellationToken cancellationToken) =>
             OracleErrors.Guard(() => session.PingIfIdleAsync(idleFor, cancellationToken));
 
+        public TransactionInfo Transaction => session.Transaction;
+
+        public Task UseReadOnlySnapshotsAsync(CancellationToken cancellationToken) =>
+            OracleErrors.Guard(async () =>
+            {
+                await session.UseReadOnlySnapshotsAsync(cancellationToken);
+                return true;
+            });
+
         public ValueTask DisposeAsync() => session.DisposeAsync();
     }
 

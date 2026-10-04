@@ -22,6 +22,14 @@ public interface IDatabaseConnection : IAsyncDisposable
     /// </summary>
     /// <exception cref="DatabaseException">The ping failed, e.g. with <see cref="DatabaseException.IsConnectionLost"/>.</exception>
     Task<bool> PingIfIdleAsync(TimeSpan idleFor, CancellationToken cancellationToken);
+
+    TransactionInfo Transaction { get; }
+
+    /// <summary>
+    /// Locks the session for a read-only profile: it runs in <c>SET TRANSACTION READ ONLY</c> from now on, so Oracle
+    /// rejects DML. Every new query (first page) starts a new snapshot.
+    /// </summary>
+    Task UseReadOnlySnapshotsAsync(CancellationToken cancellationToken);
 }
 
 public interface IDatabaseConnector

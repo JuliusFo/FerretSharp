@@ -82,6 +82,9 @@ public sealed class TableTab(Guid workspaceId, TableSummary table)
 
     public TimeSpan? LastQueryTime { get; set; }
 
+    /// <summary>Snapshot the shown data comes from (read-only profiles); null without one.</summary>
+    public DateTimeOffset? DataAsOf { get; set; }
+
     public long? TotalCount { get; set; }
 
     public string? Error { get; set; }

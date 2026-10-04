@@ -137,6 +137,42 @@ public sealed class WorkspaceManagerTests
     }
 
     [Fact]
+    public async Task Sessions_of_a_read_only_profile_are_locked_others_not()
+    {
+        var locked = _profile with { Id = Guid.NewGuid(), ReadOnly = true };
+        _secrets.SetPassword(locked.Id, "pw");
+
+        await _manager.AttachAsync(_profile, Ct);
+        await _manager.GetDataAsync(_manager.Active!.Id, Ct);
+        await _manager.AttachAsync(locked, Ct);
+        await _manager.GetDataAsync(_manager.Active!.Id, Ct);
+
+        await _opened[0].Connection.DidNotReceive().UseReadOnlySnapshotsAsync(Arg.Any<CancellationToken>());
+        await _opened[1].Connection.Received(1).UseReadOnlySnapshotsAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_session_that_cannot_be_locked_is_closed_and_not_used()
+    {
+        var locked = _profile with { ReadOnly = true };
+        await _manager.AttachAsync(locked, Ct);
+        _connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                var connection = Substitute.For<IDatabaseConnection>();
+                connection.UseReadOnlySnapshotsAsync(Arg.Any<CancellationToken>()).Throws(new DatabaseException("no", "ORA-01031"));
+                _opened.Add(("locked", connection));
+                return connection;
+            });
+
+        var error = await Assert.ThrowsAsync<DatabaseException>(() => _manager.GetDataAsync(_manager.Active!.Id, Ct));
+
+        Assert.Equal("ORA-01031", error.ErrorCode);
+        await _opened.Single().Connection.Received(1).DisposeAsync();
+        Assert.Null(_manager.TransactionOf(_manager.Active!.Id));
+    }
+
+    [Fact]
     public async Task A_failed_session_open_is_retried_on_next_use()
     {
         await _manager.AttachAsync(_profile, Ct);
