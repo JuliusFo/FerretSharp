@@ -2,7 +2,7 @@
 
 > Projektanweisungen für Claude Code. Bitte vollständig lesen, bevor ein Arbeitspaket umgesetzt wird.
 > Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-02 (v1 komplett, WP-07 umgesetzt; Release v1.0.0 vorbereitet)
+> Stand: 2026-10-04 (v1 komplett bis 1.7; WP-08 umgesetzt → 1.8.0; nächstes Paket WP-09)
 
 ## 1. Ziel
 
@@ -33,6 +33,7 @@ Es wird in Versionen ausgeliefert. Jede Version ist für sich benutzbar.
 Regeln für **v1**:
 - Es gibt **keinen** Codepfad, der DML/DDL erzeugt oder ausführt. `IDataAccess` und `OracleSession` bieten in v1 nur lesende Methoden (kein öffentliches `ExecuteNonQuery`). Einzige Ausnahme: INSERT-Statements als **Text-Export** (werden nie ausgeführt).
 - Abgesichert durch: `OracleSession.ExecuteReaderAsync` lehnt alles außer reinen Abfragen ab (`IsReadOnlyStatement`: beginnt nach Leerraum/Kommentaren mit `SELECT`/`WITH`, kein `FOR UPDATE`, nur ein Statement) – eine Stolperfalle gegen Programmierfehler, kein SQL-Parser. `ReadOnlyTests` prüfen per Reflection, dass die DB-Typen keine schreibenden Methoden anbieten, und dass alle Statements von `QueryBuilder` und `OracleSchemaReader` die Sperre passieren; ein Integrationstest zeigt, dass `DELETE` abgewiesen wird. In v2 muss die Sperre für die Daten-Session des Transaktions-APIs bewusst umgangen werden (eigene Methode, nicht die Sperre aufweichen).
+- **Seit WP-08 (ADR 0006)** gibt es diesen zweiten Weg: `OracleSession.ExecuteNonQueryAsync` ist `internal`, nimmt nur ein einzelnes INSERT/UPDATE/DELETE (`IsWriteStatement`, nie DDL) und nur innerhalb einer offenen Transaktion. Bis WP-09 ruft ihn kein Produktivcode auf. Transaktionssteuerung (Begin, Savepoint, Commit, Rollback) nur an `OracleSession`; `ReadOnlyTests` prüfen, dass `IDataAccess`/`ISchemaReader`/`IDatabaseConnection` weder schreibende noch transaktionssteuernde Methoden anbieten.
 - Keine Garantie auf Datenbankseite: Hat der DB-User Schreibrechte, könnte ein Fehler in FerretSharp schreiben (ohne Transaktion committet ODP.NET sofort). `SET TRANSACTION READ ONLY` schützt nicht vor DDL (implizites Commit). Die einzige echte Garantie bleibt ein User mit reinen SELECT-Rechten.
 - v1-Sessions laufen ohne explizite Transaktion → jede Abfrage sieht den aktuellen Commit-Stand (Statement-Level-Konsistenz).
 - Trotzdem für v2 vorbauen: Row-Key immer mitselektieren (Abschnitt 5.5), eine Session pro Workspace, `TabState` erweiterbar.
@@ -266,7 +267,8 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 **Transaktionen (v2)**
 - Uncommittetes Update in Workspace A blockiert ein Update derselben Zeile in B. Ein normales `UPDATE` wartet unbegrenzt; `ORA-00054` gibt es nur bei `NOWAIT`. Deshalb `FOR UPDATE WAIT n` (→ `ORA-30006`) und Dialog mit dem sperrenden Workspace bzw. der Session (`V$SESSION`, falls Rechte vorhanden).
 - Lange offene Transaktionen halten Locks und Undo. Die Statusleiste zeigt „Tx offen seit X min · N Zeilen gesperrt“.
-- Prod im gesperrten Zustand: `SET TRANSACTION READ ONLY` (Oracle erzwingt das selbst). Achtung, Snapshot-Semantik: Alle Abfragen sehen den Stand vom Transaktionsbeginn. **F5/Refresh beendet die Read-only-Transaktion und startet eine neue.** Muss nach jedem Commit/Rollback neu gesetzt werden. Bei `ORA-01555` automatisch neu starten.
+- Prod im gesperrten Zustand: `SET TRANSACTION READ ONLY` (Oracle erzwingt das selbst). Achtung, Snapshot-Semantik: Alle Abfragen sehen den Stand vom Transaktionsbeginn. **Umgesetzt (WP-08, ADR 0006, Entscheidung des Nutzers):** Jede neue Abfrage (erste Seite: Tab öffnen, Filter, Sortierung, F5) startet einen neuen Snapshot, weitere Seiten bleiben darin. Nach Rollback wird neu gesetzt. Bei ORA-01555, ORA-01466 (DDL nach Snapshot-Beginn, auch noch ~1 s danach) und ORA-08176 (erstes Segment einer Tabelle mit verzögerter Segment-Erzeugung) automatisch neu starten und wiederholen.
+- `SET TRANSACTION READ ONLY` nur innerhalb einer ODP.NET-Transaktion (`BeginTransaction`) – ohne sie committet ODP.NET sofort und der Schutz ist weg. DDL läuft auch in einer Read-only-Transaktion (implizites Commit). Belegt in `TransactionBehaviorTests`.
 - Concurrency-Check optional über `ORA_ROWSCN` (nur zuverlässig bei `ROWDEPENDENCIES`-Tabellen) oder Original-Werte im WHERE.
 
 **Performance**
@@ -412,7 +414,12 @@ Jedes Paket: eigener Branch `wp/NN-kurzname`, am Ende `dotnet build -warnaserror
 - `OracleSession` bekommt ein Transaktions-API (Begin, Savepoint, Commit, Rollback, `ExecuteNonQueryAsync`).
 - Prod gesperrt → `SET TRANSACTION READ ONLY` mit Snapshot-Semantik (Refresh = neue Tx, `ORA-01555` → Neustart).
 - Statusleiste: Tx-Alter, Anzahl Pending/Flushed, Warnung bei Verbindungsverlust mit offener Transaktion.
-- **Fertig wenn:** Integrationstest belegt, dass DML auf einer gesperrten Prod-Session von Oracle abgelehnt wird.
+- **Fertig wenn:** Integrationstest belegt, dass DML auf einer gesperrten Prod-Session von Oracle abgelehnt wird. → erfüllt (`SessionTransactionTests.Oracle_rejects_dml_in_a_locked_session`, ORA-01456).
+- Umgesetzt (Release 1.8.0, ADR 0006):
+  - Gesperrt sind die Workspace-Sessions der Profile mit „Schreibgeschützt“ (Prod voreingestellt), nicht nur Prod (Entscheidung des Nutzers); Dev/Test ohne Häkchen laufen bis WP-09 ohne Transaktion. `WorkspaceManager` sperrt direkt nach dem Öffnen (`IDatabaseConnection.UseReadOnlySnapshotsAsync`), die Explorer-Session bleibt ohne Transaktion.
+  - Snapshot je neuer Abfrage statt bis F5 (siehe Abschnitt 6); `RowPage.DataAsOf` → Tab-Fußzeile „Stand 14:02:13“.
+  - Statusleiste: „schreibgeschützt (Oracle)“ bei gesperrten Profilen; Tx-Alter und Pending/Flushed folgen mit WP-09. Das Verlust-Banner warnt, wenn eine schreibende Transaktion offen war (`WorkspaceManager.TransactionOf`).
+  - `BeginTransactionAsync` (nicht „BeginReadWrite“: `ReadOnlyTests` werten „Write“ im Namen als Datenschreiben).
 
 #### WP-09 Editieren
 - `ChangeTracker`, `RowChange`, Dirty-Markierung im Grid (Zellfarbe je Zustand Pending/Flushed, `cellClassRules`), Inline-Editing über AG-Grid-Cell-Editoren (Validierung in .NET), Zeile hinzufügen/löschen. Kein Editieren bei `RowKey.None` oder exotischen Typen.
