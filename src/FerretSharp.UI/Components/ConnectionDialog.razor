@@ -114,7 +114,7 @@
             <label class="check">
                 <input type="checkbox" checked="@Form.ReadOnly" @onchange="e => Form.SetReadOnly(e.Value is true)" />
                 Schreibgeschützt
-                <span class="hint">· wirkt ab v2, diese Version liest nur</span>
+                <span class="hint">· Oracle selbst lehnt Änderungen ab (READ ONLY-Transaktion)</span>
             </label>
         </div>
 
