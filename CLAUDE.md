@@ -2,7 +2,7 @@
 
 > Projektanweisungen für Claude Code. Bitte vollständig lesen, bevor ein Arbeitspaket umgesetzt wird.
 > Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-05 (v1 komplett bis 1.7; v2: WP-08 → 1.8.0, WP-09 → 1.9.0, WP-10 → 2.0.0; v3: WP-11 umgesetzt → 2.1.0)
+> Stand: 2026-10-05 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 geplant, Branch `wp/12-model-enrichment`)
 
 ## 1. Ziel
 
@@ -464,10 +464,16 @@ Die Arbeitspakete werden zu Beginn von v3 mit dem Nutzer verfeinert. Grober Zusc
   - UI: Abschnitt „C#-Modell“ im Verbindungsdialog (Projekt, Build-Konfiguration, DbContext), Statusleiste „C# · N Entities“, Seite „C#-Modell“ (`ShellPage.Model`) mit Abgleich, Spalten-Ansicht mit Property, C#-Typ und Converter.
   - `samples/FerretSharp.SampleModel` bildet den Stil des Nutzers nach (eigene `Directory.Build.props`/`Directory.Packages.props`, erbt nichts von FerretSharp); `ModelHostTests` laufen dagegen ohne DB. `tools/sample-db/05-clr-model.sql` ergänzt KUNDEN.GESPERRT (J/N) und KUNDENART.
 
-#### WP-12 Schema-Anreicherung
-- Grid und Explorer zeigen optional Entity-/Property-Namen; Enums mit C#-Namen in Grid und Filter (Dropdown statt Zahl).
-- Navigation Properties als zusätzliche FK-Quelle (`FkSource.ClrModel`) in der FK-Navigation.
-- Sprung zur Entity-Klasse in Visual Studio (z. B. über `devenv /Edit <Datei>` in die laufende Instanz).
+  - Nachträge: 2.1.1 – Entities mit `ToView` bekommen durch die Konvention des Nutzers zusätzlich einen Tabellennamen; EF fragt dann über die View ab (Tabelle nur für SaveChanges). Abgleich prüft deshalb View vor Tabelle, `PropertyExport.ViewColumn` trägt die Spaltennamen der View, `MappedEntityCount` zählt jede Entity einmal. 2.1.2 – Abgleich liest Spaltennamen mit **einer** Abfrage pro Schema (`ISchemaReader.GetColumnNamesAsync`, großer `FetchSize`) statt drei Abfragen pro Tabelle: beim Nutzer (425 Entities, ~4000 Properties, DB über Kunden-VPN) von > 3 min auf 12 s. ModelHost meldet Schritte als `##ferretsharp-progress`-Zeilen auf stdout; Modell-Seite und Statusleiste zeigen den aktuellen Schritt mit Laufzeit, danach die Dauer jedes Schritts.
+  - Erkenntnis beim Nutzer: Der Oracle-Provider quotet alle Namen (`"a"."Chargenr"`), Spalten mit gemischter Schreibweise im Modell (z. B. `Chargenr` gegen `CHARGENR`) führen bei der ersten Abfrage zu ORA-00904 – der Abgleich meldet sie zu Recht als „Abweichende Groß-/Kleinschreibung“.
+
+#### WP-12 Schema-Anreicherung → Release 2.2.0
+Entscheidungen des Nutzers (2026-10-05):
+- **Namen:** Der Oracle-Name bleibt vorne (der Nutzer sucht über Oracle-Namen), C#-Namen dezent daneben. Umschaltbar über eine Einstellung **„C#-Namen: aus · daneben (Standard) · vorne“** („vorne“ tauscht Haupt- und Nebenbeschriftung). Explorer: Entity-Name als zweite Beschriftung, Suche findet DB- und C#-Namen. Grid-Kopf: unter dem Spaltennamen `KundeId · int`; Spaltensuche (Ctrl+F) und Spaltenauswahl im Filter finden auch Property-Namen; Tab-Tooltip mit Entity. SQL-Vorschau bleibt immer bei DB-Namen. Ohne verknüpftes Projekt ändert sich nichts.
+- **Enums und konvertierte Werte** über die Wertetabellen (`PropertyExport.Values`, berechnet mit den Convertern des Projekts): Anzeige im Grid als **„Gewerbe (2)“** (C#-Name und DB-Wert); Bools mit Converter als **`true`/`false`**; Werte, die es im Enum nicht gibt, bleiben roh und werden markiert. Filter: Enum-Spalten bekommen ein Dropdown mit den Members (Operatoren `=`, `≠`, „in“), FerretSharp übersetzt in den DB-Wert. Editieren (seit 1.9): Dropdown, geschrieben wird der DB-Wert.
+- **Navigations als FK-Quelle** (`FkSource.ClrModel`): Beziehungen aus dem Modell ohne FK-Constraint in der DB kommen beim Nutzer **häufig** vor → volle Priorität. In der FK-Navigation (Kontextmenü) nutzbar, markiert „aus C#-Modell“, deklarierte FKs nicht doppelt; eigener Abschnitt in der Ansicht „Constraints“.
+- **Nicht in WP-12** (Entscheidung des Nutzers, Backlog): Sprung zur Entity-Klasse in Visual Studio und „Namen kopieren“.
+- Arbeitsweise des Nutzers (für spätere Pakete wichtig): pro Datenbank ein eigener Klon des DbContext-Repos auf dem passenden Branch (Prod-DB → release-Branch, Test-DB → test-Branch, Dev-DB → dev-Branch), jeweils als C#-Projekt der Verbindung verknüpft; entwickelt wird in einem weiteren, eigenen Klon.
 
 #### WP-13 LINQ-Konsole
 - Roslyn-Scripting gegen den geladenen DbContext, Ergebnis im Grid, generiertes SQL (`ToQueryString()`) daneben.
