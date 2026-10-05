@@ -510,6 +510,77 @@ public sealed class OracleSession : IAsyncDisposable
         _gate.Dispose();
     }
 
+    /// <summary>
+    /// The optimizer's plan of a plain query without running it (ADR 0012): <c>EXPLAIN PLAN</c> writes the plan into
+    /// <c>PLAN_TABLE</c> – a global temporary table, private to this session – under an id made here; <paramref name="read"/>
+    /// gets those rows (<c>ID</c>, <c>PARENT_ID</c>, <c>DEPTH</c>, <c>OPERATION</c> …, ordered by id), then they are deleted.
+    /// The only statements besides queries that leave this session's read path, and only these, built here. The bind
+    /// placeholders stay unbound: Oracle plans them as text. Not in a read-only transaction: Oracle refuses there.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Not a plain query, or the session is locked (read-only transaction).</exception>
+    internal async Task<T> ExplainPlanAsync<T>(string sql, Func<DbDataReader, CancellationToken, Task<T>> read, CancellationToken cancellationToken)
+    {
+        if (!IsReadOnlyStatement(sql))
+        {
+            throw new InvalidOperationException("Nur Abfragen (SELECT/WITH) lassen sich erklären.");
+        }
+
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            if (_transaction is not null && Transaction.Mode == TransactionMode.ReadOnly)
+            {
+                throw new InvalidOperationException("In einer READ ONLY-Transaktion lehnt Oracle EXPLAIN PLAN ab.");
+            }
+
+            var id = "FS" + Guid.NewGuid().ToString("N")[..24]; // STATEMENT_ID is a literal, at most 30 characters
+            var explain = $"EXPLAIN PLAN SET STATEMENT_ID = '{id}' FOR {sql.TrimEnd().TrimEnd(';')}";
+            try
+            {
+                await using (var command = CreateCommand(explain, []))
+                {
+                    await using var cancelRegistration = cancellationToken.Register(static c => ((OracleCommand)c!).Cancel(), command);
+                    await command.ExecuteNonQueryAsync(cancellationToken);
+                }
+
+                return await ReadCoreAsync(
+                    """
+                    SELECT ID, PARENT_ID, DEPTH, OPERATION, OPTIONS, OBJECT_OWNER, OBJECT_NAME, COST, CARDINALITY, BYTES,
+                           ACCESS_PREDICATES, FILTER_PREDICATES
+                      FROM PLAN_TABLE
+                     WHERE STATEMENT_ID = :id
+                     ORDER BY ID
+                    """,
+                    [new QueryParameter("id", id)], read, cancellationToken);
+            }
+            catch (OracleException ex) when (ex.Number == UserCancelledErrorNumber)
+            {
+                throw new OperationCanceledException("The statement was cancelled.", ex, cancellationToken);
+            }
+            catch (OracleException ex)
+            {
+                throw new OracleStatementException(explain, [], ex);
+            }
+            finally
+            {
+                try
+                {
+                    await using var delete = CreateCommand("DELETE FROM PLAN_TABLE WHERE STATEMENT_ID = :id", [new QueryParameter("id", id)]);
+                    await delete.ExecuteNonQueryAsync(CancellationToken.None);
+                }
+                catch (Exception ex) when (ex is OracleException or OracleStatementException)
+                {
+                    // the rows are private to the session and vanish with it
+                }
+            }
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _lastRoundTrip, Environment.TickCount64);
+            _gate.Release();
+        }
+    }
+
     private async Task<T> ReadCoreAsync<T>(
         string sql, IReadOnlyList<QueryParameter> parameters, Func<DbDataReader, CancellationToken, Task<T>> read, CancellationToken cancellationToken)
     {

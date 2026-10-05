@@ -100,6 +100,44 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
         return new SqlPage(columns, rows, last, stopwatch.Elapsed, snapshot);
     }
 
+    public async Task<ExecutionPlan> ExplainActualAsync(QuerySpec query, bool wholeResult, CancellationToken cancellationToken)
+    {
+        // Rights first: running a long query to find out afterwards that the plan cannot be read would waste the wait.
+        try
+        {
+            await session.ExecuteReaderAsync(OraclePlans.RightsProbe, [], async (reader, ct) => await reader.ReadAsync(ct), cancellationToken);
+        }
+        catch (OracleStatementException ex) when (OraclePlans.IsMissingRights(ex))
+        {
+            throw new PlanUnavailableException(
+                "Für den tatsächlichen Plan fehlen Leserechte auf V$SQL und V$SQL_PLAN_STATISTICS_ALL – ein DBA kann sie geben: " +
+                "GRANT SELECT_CATALOG_ROLE TO <user> oder GRANT SELECT ON V_$SQL / V_$SQL_PLAN_STATISTICS_ALL TO <user>. " +
+                "Der geschätzte Plan geht ohne sie.", ex);
+        }
+
+        var hinted = Plans.WithStatistics(query.Sql);
+        await session.RefreshSnapshotAsync(cancellationToken); // a fresh run, like a new query in the grid
+        var fetched = await session.ExecuteReaderAsync(hinted, query.Parameters, async (reader, ct) =>
+        {
+            long rows = 0;
+            while ((wholeResult || rows < IDataAccess.ActualPlanPageSize) && await reader.ReadAsync(ct))
+            {
+                rows++;
+            }
+
+            return rows;
+        }, cancellationToken);
+
+        var sqlId = Plans.SqlId(hinted);
+        var child = await session.ExecuteReaderAsync(OraclePlans.LatestChild, [new QueryParameter("sql_id", sqlId)], async (reader, ct) =>
+            await reader.ReadAsync(ct) ? Convert.ToInt32(reader.GetValue(0), CultureInfo.InvariantCulture) : (int?)null, cancellationToken)
+            ?? throw new PlanUnavailableException($"Der Cursor {sqlId} ist nicht mehr im Shared Pool – bitte erneut versuchen.");
+        var steps = await session.ExecuteReaderAsync(OraclePlans.ActualSteps,
+            [new QueryParameter("sql_id", sqlId), new QueryParameter("child", child)],
+            (reader, ct) => OraclePlans.ReadAsync(reader, actual: true, ct), cancellationToken);
+        return new ExecutionPlan(PlanSource.Actual, hinted, steps, sqlId, child, wholeResult, fetched);
+    }
+
     /// <summary>
     /// A column of a free query as <see cref="ColumnInfo"/>, so it formats like a table column: the Oracle type name
     /// from the driver's type, precision and scale from the reader's schema.
