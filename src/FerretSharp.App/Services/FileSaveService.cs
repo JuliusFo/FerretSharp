@@ -10,8 +10,30 @@ public sealed class FileSaveService : IFileSaveService
 {
     public async Task<string?> SaveTextAsync(string fileName, string filter, string text, bool utf8Bom)
     {
+        var path = await AskAsync(fileName, filter);
+        if (path is not null)
+        {
+            await File.WriteAllTextAsync(path, text, new UTF8Encoding(encoderShouldEmitUTF8Identifier: utf8Bom));
+        }
+
+        return path;
+    }
+
+    public async Task<string?> SaveBytesAsync(string fileName, string filter, byte[] content)
+    {
+        var path = await AskAsync(fileName, filter);
+        if (path is not null)
+        {
+            await File.WriteAllBytesAsync(path, content);
+        }
+
+        return path;
+    }
+
+    private static Task<string?> AskAsync(string fileName, string filter)
+    {
         var extension = Path.GetExtension(fileName);
-        var path = await Application.Current.Dispatcher.InvokeAsync(() =>
+        return Application.Current.Dispatcher.InvokeAsync(() =>
         {
             var dialog = new SaveFileDialog
             {
@@ -22,13 +44,6 @@ public sealed class FileSaveService : IFileSaveService
                 OverwritePrompt = true,
             };
             return dialog.ShowDialog(Application.Current.MainWindow) == true ? dialog.FileName : null;
-        });
-
-        if (path is not null)
-        {
-            await File.WriteAllTextAsync(path, text, new UTF8Encoding(encoderShouldEmitUTF8Identifier: utf8Bom));
-        }
-
-        return path;
+        }).Task;
     }
 }

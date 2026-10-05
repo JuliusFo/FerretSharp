@@ -30,9 +30,22 @@
                         @onclick="ToggleSettings">@Icons.Settings</button>
                 @if (Active.Profile is { } badgeProfile && Active.Status != ConnectionStatus.Disconnected)
                 {
-                    <span class="badge @(IsProdActive ? "badge-prod" : "") @(badgeProfile.ReadOnly ? "" : "editable")" title="@ReadOnlyTooltip">
-                        @(IsProdActive ? "PROD · " : "")@(badgeProfile.ReadOnly ? "READ-ONLY" : "BEARBEITBAR")
-                    </span>
+                    @if (badgeProfile.ReadOnly && Active.IsConnected && Workspaces.Active is { } badgeWorkspace)
+                    {
+                        // Read-only profile: the badge shows (and switches) the lock of the active workspace (WP-10).
+                        var unlocked = Workspaces.IsUnlocked(badgeWorkspace.Id);
+                        <button class="badge badge-btn @(IsProdActive ? "badge-prod" : "") @(unlocked ? "unlocked" : "")"
+                                title="@(unlocked ? $"Workspace „{badgeWorkspace.Name}“ ist zum Schreiben freigeschaltet – klicken zum Sperren." : $"{ReadOnlyTooltip} Klicken, um den Workspace „{badgeWorkspace.Name}“ zum Schreiben freizuschalten.")"
+                                @onclick="() => unlocked ? LockWorkspaceAsync(badgeWorkspace.Id) : RequestUnlockAsync(badgeWorkspace.Id)">
+                            @(IsProdActive ? "PROD · " : "")@(unlocked ? "FREIGESCHALTET" : "READ-ONLY")
+                        </button>
+                    }
+                    else
+                    {
+                        <span class="badge @(IsProdActive ? "badge-prod" : "") @(badgeProfile.ReadOnly ? "" : "editable")" title="@ReadOnlyTooltip">
+                            @(IsProdActive ? "PROD · " : "")@(badgeProfile.ReadOnly ? "READ-ONLY" : "BEARBEITBAR")
+                        </span>
+                    }
                 }
             </div>
         </header>
@@ -180,13 +193,22 @@
                         @if (Workspaces.Active is { } workspace)
                         {
                             <span class="item shrink" title="Workspace „@workspace.Name“ – fragt über eine eigene Oracle-Session ab (ACTION = Workspace-Name).">Workspace „@workspace.Name“</span>
-                            @if (Active.Profile?.ReadOnly == true)
+                            @if (Active.Profile?.ReadOnly == true && !Workspaces.IsUnlocked(workspace.Id))
                             {
                                 <span class="item" title="Die Workspace-Sessions laufen in einer READ ONLY-Transaktion: Oracle selbst lehnt jede Änderung ab.">schreibgeschützt (Oracle)</span>
+                                <button class="status-btn" title="Diesen Workspace zum Schreiben freischalten" @onclick="() => _state.RequestUnlock(workspace.Id)">Freischalten …</button>
                             }
-                            else if (_state.ActiveWorkspace is { } editTabs && _editing.SummaryOf(editTabs) is { HasWork: true } edits)
+                            else
                             {
-                                @EditStatus(editTabs, edits)
+                                @if (Workspaces.IsUnlocked(workspace.Id))
+                                {
+                                    <span class="item unlocked-item" title="Oracle schützt diesen Workspace nicht mehr; die anderen Workspaces bleiben gesperrt.">freigeschaltet</span>
+                                    <button class="status-btn" title="Wieder sperren (offene Änderungen vorher committen oder verwerfen)" @onclick="() => LockWorkspaceAsync(workspace.Id)">Sperren</button>
+                                }
+                                @if (_state.ActiveWorkspace is { } editTabs && _editing.SummaryOf(editTabs) is { HasWork: true } edits)
+                                {
+                                    @EditStatus(editTabs, edits)
+                                }
                             }
                         }
                         <span class="item shrink shrink-more" title="Oracle @Active.ServerVersion">Oracle @Active.ServerVersion</span>
@@ -270,6 +292,12 @@
             (@_editing.SummaryOf(commitTabs).Pending ausstehend · @_editing.SummaryOf(commitTabs).Flushed geschrieben)
             werden in <strong>@Active.Profile?.Name</strong> committed und sind danach für alle sichtbar.
         </ConfirmDialog>
+    }
+
+    @if (_state.PendingUnlock is { } unlockId && Active.Profile is { } unlockProfile && Workspaces.Find(unlockId) is { } unlockWorkspace)
+    {
+        <UnlockDialog @key="unlockId" Profile="unlockProfile" WorkspaceName="@unlockWorkspace.Name"
+                      OnConfirm="() => UnlockAsync(unlockId)" OnCancel="_state.CloseUnlock" />
     }
 
     @if (_confirmCloseTab is { } closingTab)
@@ -360,6 +388,53 @@
 
     private string WorkspaceName(Guid workspaceId) => Workspaces.Find(workspaceId)?.Name ?? "Workspace";
 
+    private Task RequestUnlockAsync(Guid workspaceId)
+    {
+        _state.RequestUnlock(workspaceId);
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Unlocks the workspace (WP-10) and reloads its tabs: they showed the read-only snapshot.</summary>
+    private async Task UnlockAsync(Guid workspaceId)
+    {
+        _state.CloseUnlock();
+        try
+        {
+            await Workspaces.UnlockAsync(workspaceId, CancellationToken.None);
+            foreach (var tab in _state.Workspaces.FirstOrDefault(w => w.WorkspaceId == workspaceId)?.Tabs ?? [])
+            {
+                _state.RequestTabCommand(tab, TabCommand.Reload);
+            }
+
+            _state.Notify($"Workspace „{WorkspaceName(workspaceId)}“ ist zum Schreiben freigeschaltet.");
+        }
+        catch (DatabaseException ex)
+        {
+            _state.ReportFailure(ex);
+            _state.ShowError(ex);
+        }
+    }
+
+    /// <summary>Locks the workspace again – after asking what happens to its uncommitted changes.</summary>
+    private Task LockWorkspaceAsync(Guid workspaceId) =>
+        GuardAsync("Workspace sperren", _state.Workspaces.Where(w => w.WorkspaceId == workspaceId).ToList(), async () =>
+        {
+            try
+            {
+                await Workspaces.LockAsync(workspaceId, CancellationToken.None);
+                _state.Notify($"Workspace „{WorkspaceName(workspaceId)}“ ist wieder schreibgeschützt.");
+            }
+            catch (InvalidOperationException ex)
+            {
+                _state.Notify(ex.Message);
+            }
+            catch (DatabaseException ex)
+            {
+                _state.ReportFailure(ex);
+                _state.ShowError(ex);
+            }
+        });
+
     /// <summary>Commits right away, on Prod only after a confirmation.</summary>
     private Task RequestCommit(WorkspaceTabs workspace)
     {
@@ -428,6 +503,7 @@
     {
         _editing = new WorkspaceEditing(_state, Workspaces, Active, Settings);
         _state.Guard = (what, ids, then) => GuardAsync(what, _state.Workspaces.Where(w => ids.Contains(w.WorkspaceId)).ToList(), then);
+        _state.LockWorkspace = LockWorkspaceAsync;
         ExitGuard.CanExit = () => _editing.WithWork().Count == 0 || _state.ConnectionLost is not null;
         ExitGuard.RequestExit = () => InvokeAsync(() => GuardAsync("FerretSharp beenden", _state.Workspaces, () =>
         {
@@ -471,7 +547,8 @@
     public void OnShortcut(string combo)
     {
         if (_state.ConnectionDialog is not null || _state.PendingDelete is not null || _state.ErrorDetails is not null
-            || _state.PendingLeave is not null || _editing.Problem is not null || _confirmRollback is not null || _confirmCommit is not null || _confirmCloseTab is not null)
+            || _state.PendingLeave is not null || _editing.Problem is not null || _confirmRollback is not null || _confirmCommit is not null || _confirmCloseTab is not null
+            || _state.PendingUnlock is not null)
         {
             return;
         }
@@ -479,7 +556,7 @@
         // Writing and committing need an editable connection and an active workspace.
         if (combo is FlushShortcut or CommitShortcut)
         {
-            if (Active.Profile?.ReadOnly == false && _state.ActiveWorkspace is { } workspace && _state.Page == ShellPage.Explorer)
+            if (_state.ActiveWorkspace is { } workspace && Workspaces.IsWritable(workspace.WorkspaceId) && _state.Page == ShellPage.Explorer)
             {
                 _ = combo == FlushShortcut ? _editing.FlushAsync(workspace) : RequestCommit(workspace);
             }

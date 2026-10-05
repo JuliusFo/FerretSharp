@@ -2,7 +2,7 @@
 
 > Projektanweisungen für Claude Code. Bitte vollständig lesen, bevor ein Arbeitspaket umgesetzt wird.
 > Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-05 (v1 komplett bis 1.7; WP-08 → 1.8.0; WP-09 umgesetzt → 1.9.0; nächstes Paket WP-10)
+> Stand: 2026-10-05 (v1 komplett bis 1.7; v2: WP-08 → 1.8.0, WP-09 → 1.9.0, WP-10 → 2.0.0; nächste Version v3)
 
 ## 1. Ziel
 
@@ -297,7 +297,7 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 - **Startseite „Verbindungen“**: Übersicht aller Verbindungen nach Gruppen (Name, Umgebung, Adresse, Benutzer → Schema, „⋯“-Menü). Erscheint, solange keine Verbindung aktiv ist, und über „Alle Verbindungen verwalten …“ im Popover. Doppelklick verbindet (ab WP-03; bis dahin: bearbeiten).
 - **Chips in der Topbar** sind die Workspaces der aktiven Verbindung (WP-05), nicht die Verbindungen.
 - Tabellenliste alphabetisch (Tabellen und Views unterscheidbar), Buchstabenleiste links: Klick springt zur ersten Tabelle mit diesem Buchstaben; Buchstaben ohne Treffer ausgegraut. (Fuzzy-Suche = Backlog.)
-- Prod: roter Rahmen; ab v2 Schreiben nur nach Freischalten über Toggle + Bestätigungsdialog.
+- Prod: roter Rahmen; Profile mit „Schreibgeschützt“ (Prod voreingestellt) schreiben erst nach dem Freischalten eines Workspaces (Badge, Statusleiste oder „⋯“-Menü; auf Prod mit eingetipptem Verbindungsnamen, seit 2.0).
 - Grid-Spalten werden aus dem Schema erzeugt und als Column-Definitions an AG Grid übergeben (eigener Header-Renderer: Name, Oracle-Typ, NOT NULL, PK/FK-Badges). AG Grid fragt Blöcke à 500 Zeilen per `invokeMethodAsync` bei .NET an (Infinite Row Model); Zeilen gehen als Dictionaries mit Row-Index über die Grenze.
 - Header-Klick sortiert serverseitig: AG Grid liefert das Sort-Model im Datasource-Request, .NET fragt neu ab.
 - Spalten anheften (v1.4): Rechtsklick auf den Header öffnet `ColumnMenu` (Blazor; `grid.js` liest die Spalte aus `col-id` der `.ag-header-cell`, weil AG Grids `columnHeaderContextMenu` keine Mausposition liefert), derselbe Eintrag steht im Zellen-Kontextmenü. Ziehen in den angehefteten Bereich meldet `grid.js` per `OnPinnedChanged` (nur UI-Quellen, nicht `api`). Der PK hat `lockPinned` + `lockPosition: 'left'`. Spalten-IDs bleiben `c<Schema-Index>`, nur die Reihenfolge der Column-Defs ändert sich.
@@ -441,6 +441,12 @@ Jedes Paket: eigener Branch `wp/NN-kurzname`, am Ende `dotnet build -warnaserror
 - Shortcuts v2 und Commit-Bestätigung auf Prod (beides seit 1.9.0 vorhanden; Prod-Profile ohne „Schreibgeschützt“ sind schon editierbar).
 - CLOB/BLOB-Editor-Dialog.
 - `CHANGELOG.md`, Tag `v2.0.0`.
+- Umgesetzt (Release 2.0.0, ADR 0008); Entscheidungen des Nutzers: Freischaltung **pro Workspace**, gilt **bis zum manuellen Sperren** (nie gespeichert), auf Prod **Verbindungsnamen eintippen**, CLOBs bis **10 MB** im Dialog, größere nur per Datei.
+  - Core: `OracleSession.StopReadOnlySnapshotsAsync` (über `IDatabaseConnection`), `WorkspaceManager.UnlockAsync`/`LockAsync`/`IsWritable`/`IsUnlocked`. Freigeschaltete Workspaces nur im Speicher: Schließen, Trennen, Neu verbinden sperren wieder. Sperren verlangt eine geschlossene schreibende Transaktion; lässt sich eine Session nicht wieder sperren, wird sie verworfen.
+  - UI: Badge als Schalter („PROD · READ-ONLY“ → `UnlockDialog`, „PROD · FREIGESCHALTET“ gestreift → Sperren), „Freischalten …“/„Sperren“ in der Statusleiste, Einträge im „⋯“-Menü der Chips, offenes Schloss am Chip. Sperren läuft über `GuardAsync` („Workspace sperren“). Nach dem Freischalten laden die Tabs neu (sie zeigten den Snapshot). `FerretGrid` schaltet das Editieren zur Laufzeit um (`setEditable` in `grid.js`), ohne das Grid neu aufzubauen.
+  - LOBs: `IDataAccess.ReadLobAsync` (ganzer Wert per Row-Key, `QueryBuilder.BuildSelectLob`), die Session holt LOBs vollständig (`InitialLOBFetchSize = -1`; Grid-Abfragen selektieren LOB-Spalten nie direkt). `ChangeTracker.SetContent` merkt den beim Öffnen gelesenen Wert als Referenz des Concurrency-Checks. Binds `Clob`/`NClob`/`Blob`. `LobEditorDialog` (Doppelklick, Enter oder „Inhalt öffnen …“; auf gesperrten Workspaces nur lesen): Textfeld bis `LobLimits.MaxEditLength`, Datei speichern/laden bis `MaxLoadLength` (100 MB) über `IFileSaveService.SaveBytesAsync`/`IFileOpenService`, Hex-Ansicht und Bildvorschau (`LobContent`).
+  - Textfeld im LOB-Dialog: Der Text geht erst beim `change` (Blur) nach .NET – E2E mit echter Maus auf „Übernehmen“ klicken, ein JS-`click()` übernimmt nichts. Esc im Textfeld schließt den Dialog nicht.
+  - Nebenbei behoben: Doppelklick auf Zellen neuer Zeilen startete im WPF-Host kein Editieren (seit 1.9): angeheftete Zeilen haben `row-index="t-0"`, das ergab `NaN`. Im E2E fiel das nicht auf, weil CDP-Doppelklicks AG Grids eigenes `dblclick` auslösen.
 
 ### v3 – .NET-Integration
 

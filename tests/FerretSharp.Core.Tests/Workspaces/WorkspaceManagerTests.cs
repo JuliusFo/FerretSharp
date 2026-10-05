@@ -152,6 +152,101 @@ public sealed class WorkspaceManagerTests
     }
 
     [Fact]
+    public async Task Unlocking_affects_only_that_workspace_and_its_open_session()
+    {
+        var locked = _profile with { ReadOnly = true };
+        await _manager.AttachAsync(locked, Ct);
+        var first = _manager.Active!.Id;
+        var second = (await _manager.CreateAsync()).Id;
+        await _manager.GetDataAsync(first, Ct);
+
+        await _manager.UnlockAsync(first, Ct);
+
+        Assert.True(_manager.IsWritable(first));
+        Assert.True(_manager.IsUnlocked(first));
+        Assert.False(_manager.IsWritable(second));
+        await _opened[0].Connection.Received(1).StopReadOnlySnapshotsAsync(Arg.Any<CancellationToken>());
+
+        await _manager.GetDataAsync(second, Ct);
+        await _opened[1].Connection.Received(1).UseReadOnlySnapshotsAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task An_unlocked_workspace_opens_its_session_without_the_lock()
+    {
+        await _manager.AttachAsync(_profile with { ReadOnly = true }, Ct);
+        var id = _manager.Active!.Id;
+
+        await _manager.UnlockAsync(id, Ct); // opens the session
+
+        var connection = Assert.Single(_opened).Connection;
+        await connection.DidNotReceive().UseReadOnlySnapshotsAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Locking_again_locks_the_session_but_not_with_a_writing_transaction_open()
+    {
+        await _manager.AttachAsync(_profile with { ReadOnly = true }, Ct);
+        var id = _manager.Active!.Id;
+        await _manager.UnlockAsync(id, Ct);
+        var connection = Assert.Single(_opened).Connection;
+        connection.Transaction.Returns(new TransactionInfo(TransactionMode.ReadWrite, _time.GetUtcNow()));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _manager.LockAsync(id, Ct));
+        Assert.True(_manager.IsWritable(id));
+
+        connection.Transaction.Returns(TransactionInfo.None);
+        await _manager.LockAsync(id, Ct);
+
+        Assert.False(_manager.IsWritable(id));
+        await connection.Received(1).UseReadOnlySnapshotsAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Disconnecting_or_closing_the_workspace_locks_it_again()
+    {
+        var locked = _profile with { ReadOnly = true };
+        await _manager.AttachAsync(locked, Ct);
+        var first = _manager.Active!.Id;
+        var second = (await _manager.CreateAsync()).Id;
+        await _manager.UnlockAsync(first, Ct);
+        await _manager.UnlockAsync(second, Ct);
+
+        await _manager.CloseAsync(second);
+        await _manager.ReopenAsync(second);
+        Assert.False(_manager.IsWritable(second));
+
+        await _manager.AttachAsync(locked, Ct); // reconnect
+        Assert.False(_manager.IsWritable(first));
+    }
+
+    [Fact]
+    public async Task Profiles_without_the_lock_are_writable_and_never_unlocked()
+    {
+        await _manager.AttachAsync(_profile, Ct);
+        var id = _manager.Active!.Id;
+
+        await _manager.UnlockAsync(id, Ct);
+
+        Assert.True(_manager.IsWritable(id));
+        Assert.False(_manager.IsUnlocked(id));
+        Assert.Empty(_opened);
+    }
+
+    [Fact]
+    public async Task A_failed_unlock_leaves_the_workspace_locked()
+    {
+        await _manager.AttachAsync(_profile with { ReadOnly = true }, Ct);
+        var id = _manager.Active!.Id;
+        await _manager.GetDataAsync(id, Ct);
+        _opened[0].Connection.StopReadOnlySnapshotsAsync(Arg.Any<CancellationToken>()).Throws(new DatabaseException("weg", "ORA-03113"));
+
+        await Assert.ThrowsAsync<DatabaseException>(() => _manager.UnlockAsync(id, Ct));
+
+        Assert.False(_manager.IsWritable(id));
+    }
+
+    [Fact]
     public async Task A_session_that_cannot_be_locked_is_closed_and_not_used()
     {
         var locked = _profile with { ReadOnly = true };

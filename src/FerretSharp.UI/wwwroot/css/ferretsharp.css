@@ -642,3 +642,38 @@ table.binds td { font-family: var(--mono); }
 
 #blazor-error-ui { display: none; position: fixed; bottom: 0; left: 0; right: 0; padding: 8px 16px; background: var(--danger); color: var(--danger-text); z-index: 100; }
 #blazor-error-ui .dismiss { cursor: pointer; float: right; }
+
+/* Unlocking a read-only workspace for writing (WP-10): unmistakable wherever it shows. */
+button.badge-btn { font-family: inherit; cursor: pointer; }
+button.badge-btn:hover { filter: brightness(1.08); }
+.badge.unlocked { background: var(--danger-weak); color: var(--danger); border-color: var(--danger); }
+.badge.badge-prod.unlocked {
+  color: #fff; border-color: var(--prod);
+  background: repeating-linear-gradient(-45deg, var(--prod) 0 6px, #a8262b 6px 12px);
+}
+.ws.unlocked { border-color: var(--danger); }
+.ws-unlocked { display: inline-flex; color: var(--danger); }
+.statusbar .item.unlocked-item { color: var(--danger); font-weight: 600; }
+.unlock-facts { margin: 10px 0 0; padding-left: 18px; color: var(--muted); }
+.unlock-facts li { margin: 3px 0; }
+.unlock-confirm { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; }
+.unlock-confirm .field { font-family: var(--mono); }
+
+/* LOB editor (WP-10) */
+.dialog.lob-dialog { width: min(980px, 94vw); }
+.lob-type { margin-left: 8px; color: var(--muted); font-weight: 400; font-size: 12px; }
+.lob-info { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 12px; color: var(--muted); }
+.lob-changed { color: #c07a00; font-weight: 600; }
+.lob-readonly { padding: 1px 6px; border: 1px solid var(--border); border-radius: 5px; }
+.lob-notice { color: var(--text); }
+.lob-text {
+  display: block; width: 100%; height: min(56vh, 520px); resize: vertical; box-sizing: border-box;
+  padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text);
+  font: 12px/1.5 var(--mono); white-space: pre; overflow: auto;
+}
+.lob-text:focus { outline: none; border-color: var(--accent); }
+.lob-text[readonly] { background: var(--surface-2); }
+.lob-hex { margin: 0; max-height: 40vh; overflow: auto; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); font: 12px/1.5 var(--mono); }
+.lob-image { margin-bottom: 8px; text-align: center; }
+.lob-image img { max-width: 100%; max-height: 40vh; border-radius: 6px; background: repeating-conic-gradient(#ccc 0 25%, #fff 0 50%) 0 0 / 16px 16px; }
+.lob-null { padding: 28px; border: 1px dashed var(--border-strong); border-radius: 8px; color: var(--muted); font-style: italic; text-align: center; }

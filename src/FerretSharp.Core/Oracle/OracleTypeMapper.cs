@@ -51,7 +51,7 @@ public static class OracleTypeMapper
             return "Primärschlüssel sind nur bei neuen Zeilen änderbar.";
         }
 
-        return IsEditableType(column) ? null : $"{column.DisplayType} lässt sich hier nicht bearbeiten.";
+        return IsEditableType(column) || IsLob(column) ? null : $"{column.DisplayType} lässt sich hier nicht bearbeiten.";
     }
 
     /// <summary>VARCHAR2/NVARCHAR2/CHAR/NCHAR, NUMBER/FLOAT/INTEGER, DATE, TIMESTAMP (without time zone), RAW.</summary>
@@ -62,6 +62,32 @@ public static class OracleTypeMapper
         ColumnCategory.Date or ColumnCategory.Timestamp or ColumnCategory.Raw => true,
         _ => false,
     };
+
+    /// <summary>CLOB, NCLOB, BLOB: edited as a whole in the LOB editor (WP-10), not in the cell.</summary>
+    public static bool IsLob(ColumnInfo column) => ColumnCategories.Of(column) is ColumnCategory.Clob or ColumnCategory.Blob;
+
+    /// <summary>
+    /// Checks a whole LOB value from the LOB editor: text for CLOB/NCLOB, bytes for BLOB, null = SQL NULL. An empty
+    /// text is NULL in Oracle, like for VARCHAR2.
+    /// </summary>
+    public static ParsedValue CheckContent(ColumnInfo column, object? value)
+    {
+        if (value is string { Length: 0 })
+        {
+            value = null;
+        }
+
+        if (value is null)
+        {
+            return column.Nullable ? ParsedValue.Ok(null) : ParsedValue.Fail($"{column.Name} darf nicht leer sein (NOT NULL).");
+        }
+
+        return (ColumnCategories.Of(column), value) switch
+        {
+            (ColumnCategory.Clob, string) or (ColumnCategory.Blob, byte[]) => ParsedValue.Ok(value),
+            _ => ParsedValue.Fail($"{column.DisplayType} erwartet {(ColumnCategories.Of(column) == ColumnCategory.Blob ? "Bytes" : "Text")}."),
+        };
+    }
 
     /// <summary>A value that cannot be edited even though its column can (NUMBER with more than 28 digits).</summary>
     public static bool IsEditableValue(object? value) => value is not BigNumber;
@@ -99,6 +125,11 @@ public static class OracleTypeMapper
         (null, _) or (_, null) => false,
         (decimal x, decimal y) => x == y,
         (byte[] x, byte[] y) => x.AsSpan().SequenceEqual(y),
+        // A LOB known only as preview and length (as loaded in the grid) against a whole value.
+        (LobValue lob, string text) => lob.Length == text.Length && lob.Preview is { } preview && text.StartsWith(preview, StringComparison.Ordinal),
+        (string text, LobValue lob) => lob.Length == text.Length && lob.Preview is { } preview && text.StartsWith(preview, StringComparison.Ordinal),
+        (LobValue { Preview: null } lob, byte[] bytes) => lob.Length == bytes.Length,
+        (byte[] bytes, LobValue { Preview: null } lob) => lob.Length == bytes.Length,
         (DateTime x, DateTime y) => x == y,
         _ => Equals(a, b),
     };
@@ -112,6 +143,9 @@ public static class OracleTypeMapper
         "NUMBER" or "FLOAT" or "INTEGER" => OracleTypeHint.Number,
         "DATE" => OracleTypeHint.Date,
         "RAW" => OracleTypeHint.Raw,
+        "CLOB" => OracleTypeHint.Clob,
+        "NCLOB" => OracleTypeHint.NClob,
+        "BLOB" => OracleTypeHint.Blob,
         _ when ColumnCategories.Of(column) == ColumnCategory.Timestamp => OracleTypeHint.TimeStamp,
         _ => OracleTypeHint.Auto,
     };

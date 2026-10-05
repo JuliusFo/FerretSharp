@@ -1,0 +1,89 @@
+@* Unlock one workspace of a read-only profile for writing (WP-10). On Prod the user types the connection's name
+   (the user's decision), elsewhere a plain confirmation is enough. *@
+@using FerretSharp.Core.Connections
+
+<div class="modal-backdrop" @onkeydown="OnKeyDown">
+    <div class="modal dialog confirm unlock-dialog" role="alertdialog" aria-label="Schreiben freischalten">
+        <header><span>Schreiben freischalten</span></header>
+        <div class="dialog-body">
+            <p>
+                Workspace <strong>„@WorkspaceName“</strong> auf <strong>@Profile.Name</strong> freischalten?
+                Danach lassen sich dort Zeilen ändern, einfügen und löschen – Oracle schützt diesen Workspace nicht mehr.
+            </p>
+            <ul class="unlock-facts">
+                <li>Änderungen werden erst mit <strong>Commit</strong> für andere sichtbar@(IsProd ? " (auf Prod mit Rückfrage)" : "").</li>
+                <li>Die anderen Workspaces dieser Verbindung bleiben gesperrt.</li>
+                <li>Wieder gesperrt wird mit „Sperren“, beim Schließen des Workspaces und beim Trennen.</li>
+            </ul>
+            @if (IsProd)
+            {
+                <label class="unlock-confirm">
+                    Zum Bestätigen den Namen der Verbindung eintippen: <strong>@Profile.Name</strong>
+                    <input @ref="_input" class="field" spellcheck="false" autocomplete="off" @bind="_typed" @bind:event="oninput"
+                           @onkeydown="OnInputKeyDown" aria-label="Name der Verbindung" />
+                </label>
+            }
+        </div>
+        <footer>
+            <span class="spacer"></span>
+            <button class="btn ghost" @ref="_cancelButton" @onclick="OnCancel">Abbrechen</button>
+            <button class="btn danger-solid" disabled="@(!Confirmed)" @onclick="ConfirmAsync">Freischalten</button>
+        </footer>
+    </div>
+</div>
+
+@code {
+    private ElementReference _input;
+    private ElementReference _cancelButton;
+    private string _typed = "";
+
+    [Parameter, EditorRequired]
+    public ConnectionProfile Profile { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public string WorkspaceName { get; set; } = "";
+
+    [Parameter]
+    public EventCallback OnConfirm { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    private bool IsProd => Profile.Kind == ConnectionKind.Prod;
+
+    /// <summary>Exactly the name (surrounding blanks do not count), like GitHub's "type the repository name".</summary>
+    private bool Confirmed => !IsProd || _typed.Trim() == Profile.Name.Trim();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Prod: straight into the name field; otherwise the safe option, so Enter does not unlock by accident.
+            await (IsProd ? _input : _cancelButton).FocusAsync();
+        }
+    }
+
+    private async Task ConfirmAsync()
+    {
+        if (Confirmed)
+        {
+            await OnConfirm.InvokeAsync();
+        }
+    }
+
+    private async Task OnInputKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await ConfirmAsync();
+        }
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await OnCancel.InvokeAsync();
+        }
+    }
+}

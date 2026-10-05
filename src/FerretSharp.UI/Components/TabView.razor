@@ -1,4 +1,5 @@
 @using FerretSharp.Core.Connections
+@using FerretSharp.Core.Oracle
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
 @using FerretSharp.UI.State
@@ -35,7 +36,7 @@
         <span class="spacer"></span>
         @if (Tab.Mode == TabMode.Data && _details is not null)
         {
-            @if (Tab.Changes is not null)
+            @if (Tab.Changes is not null && _grid?.CanEdit == true)
             {
                 <button class="btn ghost" title="Neue Zeile oben im Grid anlegen – wird mit „Schreiben“ (Ctrl+S) eingefügt" @onclick="() => _grid?.AddRowAsync() ?? Task.CompletedTask">+ Zeile</button>
             }
@@ -74,7 +75,8 @@
             }
             <div class="grid-host">
                 <FerretGrid @ref="_grid" Tab="Tab" Details="_details" OnPageLoaded="StateHasChanged"
-                            OnContextMenu="r => _menu = r" OnColumnMenu="r => _columnMenu = r" />
+                            OnContextMenu="r => _menu = r" OnColumnMenu="r => _columnMenu = r"
+                            OnLobOpen="r => _lob = r" OnEditableChanged="StateHasChanged" />
             </div>
             <footer class="tab-footer">
                 @* RowsLoaded is the highest loaded position (blocks load where the user scrolls), so it is a lower bound. *@
@@ -156,9 +158,19 @@
 @if (_menu is { } menu && _details is not null)
 {
     <GridContextMenu @key="menu" Request="menu" Tab="Tab" Details="_details" OnClose="() => _menu = null"
+                     CanEdit="@(_grid?.CanEdit == true && Tab.Changes is not null)"
                      Pinned="@(_grid?.IsPinned(menu.Column) == true)" OnTogglePin="TogglePinAsync"
                      OnDeleteRows="rows => _grid?.ChangeRowsAsync(rows, delete: true) ?? Task.CompletedTask"
-                     OnRevertRows="rows => _grid?.ChangeRowsAsync(rows, delete: false) ?? Task.CompletedTask" />
+                     OnRevertRows="rows => _grid?.ChangeRowsAsync(rows, delete: false) ?? Task.CompletedTask"
+                     OnOpenLob="() => _grid?.OpenLobAsync(menu.RowIndex, menu.Column) ?? Task.CompletedTask" />
+}
+
+@if (_lob is { } lob && _details is not null)
+{
+    <LobEditorDialog @key="lob" Request="lob" Details="_details" Tab="Tab"
+                     CanEdit="@LobEditable(lob)" ReadOnlyReason="@LobReadOnlyReason(lob)"
+                     OnApply="(loaded, value) => _grid?.SetLobAsync(lob, loaded, value) ?? Task.FromResult<string?>(null)"
+                     OnClose="() => _lob = null" />
 }
 
 @if (_columnMenu is { } columnMenu && _details is not null)
@@ -180,6 +192,27 @@
     private DatabaseException? _countError;
     private (string Sql, IReadOnlyList<QueryParameter> Parameters, string? Error)? _sql;
     private GridContextMenuRequest? _menu;
+    private FerretGrid.LobRequest? _lob;
+
+    /// <summary>The LOB editor may change the value: writable workspace, editable column, row not marked for deletion.</summary>
+    private bool LobEditable(FerretGrid.LobRequest lob) => LobReadOnlyReason(lob) is null;
+
+    private string? LobReadOnlyReason(FerretGrid.LobRequest lob)
+    {
+        if (_grid?.CanEdit != true || Tab.Changes is not { } changes)
+        {
+            return Workspaces.IsWritable(Tab.WorkspaceId)
+                ? "Diese Tabelle lässt sich nicht bearbeiten."
+                : "Der Workspace ist schreibgeschützt – zum Ändern freischalten.";
+        }
+
+        if (OracleTypeMapper.NotEditableReason(_details!, _details!.Columns[lob.Column], newRow: lob.NewRow is not null) is { } reason)
+        {
+            return reason;
+        }
+
+        return lob.Row is { } row && changes.Find(row.Key)?.Deleted is not null ? "Die Zeile ist zum Löschen markiert." : null;
+    }
     private ColumnMenuRequest? _columnMenu;
     private ColumnJump? _jump;
     private ColumnsView? _columns;

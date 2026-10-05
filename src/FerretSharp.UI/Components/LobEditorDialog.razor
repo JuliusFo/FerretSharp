@@ -1,0 +1,292 @@
+@* LOB editor (WP-10): the whole CLOB/NCLOB/BLOB value of one cell – read it, save it to a file, and on a writable
+   workspace replace it (text, file, NULL). The new value becomes a pending change like a cell edit. *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Data
+@using FerretSharp.Core.Oracle
+@using FerretSharp.Core.Schema
+@using FerretSharp.UI.State
+@inject WorkspaceManager Workspaces
+@inject ActiveConnection Active
+@inject IFileSaveService SaveFiles
+@inject IFileOpenService OpenFiles
+
+<div class="modal-backdrop" @onkeydown="OnKeyDown">
+    <div class="modal dialog lob-dialog" role="dialog" aria-label="@Column.Name" tabindex="-1" @ref="_dialog">
+        <header>
+            <span>@Column.Name <span class="lob-type">@Column.DisplayType · @Details.Table.DisplayName</span></span>
+            <button class="icon-btn ghost" title="Schließen" @onclick="OnClose">✕</button>
+        </header>
+        <div class="dialog-body">
+            @if (_loading)
+            {
+                <div class="structure-loading"><span class="spinner"></span> Lade den ganzen Wert …</div>
+            }
+            else if (_error is not null)
+            {
+                <div class="test-result error"><span>@_error</span></div>
+            }
+            else
+            {
+                <div class="lob-info">
+                    <span class="@(Current is null ? "fs-null" : "")">@LobContent.Describe(Current)</span>
+                    @if (_changed)
+                    {
+                        <span class="lob-changed">geändert</span>
+                    }
+                    @if (!CanEdit)
+                    {
+                        <span class="lob-readonly" title="@ReadOnlyReason">nur lesen</span>
+                    }
+                    @if (_notice is not null)
+                    {
+                        <span class="lob-notice">@_notice</span>
+                    }
+                </div>
+
+                @if (IsBlob)
+                {
+                    @if (_bytes is { } bytes)
+                    {
+                        var kind = LobContent.Detect(bytes);
+                        @if (kind.ImageMime is { } mime && bytes.Length <= MaxImagePreview)
+                        {
+                            <div class="lob-image"><img src="data:@mime;base64,@Convert.ToBase64String(bytes)" alt="Vorschau" /></div>
+                        }
+                        <pre class="lob-hex">@LobContent.HexDump(bytes, HexBytes)@(bytes.Length > HexBytes ? "\n…" : "")</pre>
+                    }
+                }
+                else if (_isNull)
+                {
+                    <div class="lob-null">NULL @if (CanEdit) { <button class="link-btn" @onclick="StartText">Text eingeben</button> }</div>
+                }
+                else if (_text is not null && _text.Length > LobLimits.MaxEditLength)
+                {
+                    <div class="lob-null">Zu groß zum Bearbeiten im Dialog (über @LobContent.Size(LobLimits.MaxEditLength)) – über „Als Datei speichern“ und „Aus Datei laden“.</div>
+                }
+                else
+                {
+                    @* Escape in the text box must not close the dialog: the typed text reaches .NET only on change (blur). *@
+                    <textarea class="lob-text" spellcheck="false" readonly="@(!CanEdit)" value="@_text" @onchange="OnTextChanged"
+                              @onkeydown:stopPropagation="true"></textarea>
+                }
+            }
+        </div>
+        <footer>
+            @if (!_loading && _error is null)
+            {
+                <button class="btn" disabled="@(Current is null)" @onclick="SaveToFileAsync">Als Datei speichern …</button>
+                @if (CanEdit)
+                {
+                    <button class="btn" @onclick="LoadFromFileAsync">Aus Datei laden …</button>
+                    <button class="btn" disabled="@(Current is null)" @onclick="SetNull">Auf NULL setzen</button>
+                }
+            }
+            <span class="spacer"></span>
+            @if (CanEdit && !_loading && _error is null)
+            {
+                <button class="btn ghost" @onclick="OnClose">Abbrechen</button>
+                <button class="btn primary" title="Als ausstehende Änderung übernehmen – geschrieben wird mit „Schreiben“ (Ctrl+S)" @onclick="ApplyAsync">Übernehmen</button>
+            }
+            else
+            {
+                <button class="btn" @onclick="OnClose">Schließen</button>
+            }
+        </footer>
+    </div>
+</div>
+
+@code {
+    private const int HexBytes = 1024;
+    private const int MaxImagePreview = 5 * 1024 * 1024;
+
+    private ElementReference _dialog;
+    private bool _loading = true;
+    private string? _error;
+    private string? _notice;
+    private object? _loaded; // as in the database (the workspace's transaction): reference for the concurrency check
+    private string? _text;
+    private byte[]? _bytes;
+    private bool _isNull;
+    private bool _changed;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public FerretGrid.LobRequest Request { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public TableDetails Details { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public TableTab Tab { get; set; } = null!;
+
+    /// <summary>The workspace may write and the cell can be edited.</summary>
+    [Parameter]
+    public bool CanEdit { get; set; }
+
+    [Parameter]
+    public string? ReadOnlyReason { get; set; }
+
+    /// <summary>Takes the new value (loaded, value); returns a message if it was refused.</summary>
+    [Parameter]
+    public Func<object?, object?, Task<string?>> OnApply { get; set; } = (_, _) => Task.FromResult<string?>(null);
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private ColumnInfo Column => Details.Columns[Request.Column];
+
+    private bool IsBlob => ColumnCategories.Of(Column) == ColumnCategory.Blob;
+
+    private object? Current => _isNull ? null : IsBlob ? _bytes : _text;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            if (Request.NewRow is { } added)
+            {
+                Show(added.ValueOf(Request.Column));
+                return;
+            }
+
+            var row = Request.Row!;
+            if (row.Values[Request.Column] is LobValue { Length: > LobLimits.MaxLoadLength } large)
+            {
+                _error = $"Der Wert ist {LobContent.Size(large.Length)} groß – FerretSharp lädt LOBs bis {LobContent.Size(LobLimits.MaxLoadLength)}.";
+                return;
+            }
+
+            var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, CancellationToken.None);
+            var read = await Task.Run(() => data.ReadLobAsync(Details, row.Key, Request.Column, CancellationToken.None));
+            if (!read.Found)
+            {
+                _error = "Die Zeile gibt es nicht mehr – bitte neu laden (F5).";
+                return;
+            }
+
+            _loaded = read.Value;
+            // A pending value of this cell is what the user sees; the database value stays the reference.
+            var change = Tab.Changes?.Find(row.Key);
+            Show(change?.StageOf(Request.Column) == ChangeStage.Pending ? change.ValueOf(Request.Column) : _loaded);
+        }
+        catch (DatabaseException ex)
+        {
+            _error = ex.Display;
+            Shell.ReportFailure(ex);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await _dialog.FocusAsync(); // Escape closes
+        }
+    }
+
+    private void Show(object? value)
+    {
+        _isNull = value is null;
+        _text = value as string ?? (IsBlob ? null : "");
+        _bytes = value as byte[];
+    }
+
+    private void OnTextChanged(ChangeEventArgs e)
+    {
+        _text = e.Value as string ?? "";
+        _changed = true;
+    }
+
+    private void StartText()
+    {
+        _isNull = false;
+        _text = "";
+        _changed = true;
+    }
+
+    private void SetNull()
+    {
+        _isNull = true;
+        _text = IsBlob ? null : "";
+        _bytes = null;
+        _changed = true;
+        _notice = null;
+    }
+
+    private async Task SaveToFileAsync()
+    {
+        var name = $"{Details.Table.Name}_{Column.Name}";
+        string? path = Current switch
+        {
+            string text => await SaveFiles.SaveTextAsync(name + ".txt", "Textdatei", text, utf8Bom: false),
+            byte[] bytes => await SaveFiles.SaveBytesAsync($"{name}.{LobContent.Detect(bytes).Extension}", "Datei", bytes),
+            _ => null,
+        };
+        if (path is not null)
+        {
+            Shell.Notify($"Gespeichert: {path}");
+        }
+    }
+
+    private async Task LoadFromFileAsync()
+    {
+        var file = IsBlob
+            ? await OpenFiles.OpenAsync("Alle Dateien", [], LobLimits.MaxLoadLength)
+            : await OpenFiles.OpenAsync("Textdateien", ["txt", "xml", "json", "csv", "sql", "html"], LobLimits.MaxLoadLength);
+        if (file is null)
+        {
+            return;
+        }
+
+        if (file.Content is not { } content)
+        {
+            _notice = $"„{file.Name}“ ist {LobContent.Size(file.Length)} groß – FerretSharp lädt LOBs bis {LobContent.Size(LobLimits.MaxLoadLength)}.";
+            return;
+        }
+
+        if (IsBlob)
+        {
+            Show(content);
+            _notice = $"aus „{file.Name}“";
+        }
+        else
+        {
+            Show(LobContent.DecodeText(content, out var utf8));
+            _notice = utf8 ? $"aus „{file.Name}“" : $"aus „{file.Name}“ (kein UTF-8 – als Windows-1252 gelesen)";
+        }
+
+        _changed = true;
+    }
+
+    private async Task ApplyAsync()
+    {
+        if (!_changed)
+        {
+            await OnClose.InvokeAsync();
+            return;
+        }
+
+        if (await OnApply(_loaded, Current) is { } refused)
+        {
+            _notice = refused;
+            return;
+        }
+
+        await OnClose.InvokeAsync();
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        // With changes, closing goes through "Abbrechen" only: Escape in the text box must not drop a long edit.
+        if (e.Key == "Escape" && !_changed)
+        {
+            await OnClose.InvokeAsync();
+        }
+    }
+}

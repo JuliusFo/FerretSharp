@@ -10,7 +10,9 @@
     @foreach (var workspace in open)
     {
         var w = workspace;
-        <div class="ws @(w.Id == activeId ? "active" : "")" title="@(_renaming == w.Id ? null : "Doppelklick oder ⋯: umbenennen · Mittelklick: schließen")"
+        var unlocked = Workspaces.IsUnlocked(w.Id);
+        <div class="ws @(w.Id == activeId ? "active" : "") @(unlocked ? "unlocked" : "")"
+             title="@(_renaming == w.Id ? null : (unlocked ? "Zum Schreiben freigeschaltet · " : "") + "Doppelklick oder ⋯: umbenennen · Mittelklick: schließen")"
              @onclick="e => OnChipClick(e, w)" @onmouseup="e => CloseOnMiddleClick(e, w)">
             @if (_renaming == w.Id)
             {
@@ -19,6 +21,10 @@
             }
             else
             {
+                @if (unlocked)
+                {
+                    <span class="ws-unlocked" aria-label="freigeschaltet">@Icons.Unlocked</span>
+                }
                 <span class="ws-name">@w.Name</span>
                 <button class="ws-more" title="Aktionen" @onclick:stopPropagation="true" @onclick="e => OpenActions(e, w)">⋯</button>
             }
@@ -68,6 +74,18 @@
         <button class="menu-item" disabled="@(Workspaces.Open.Count <= 1)"
                 title="@(Workspaces.Open.Count <= 1 ? "Der letzte offene Workspace bleibt offen." : "Zustand bleibt gespeichert, über + wieder öffnen")"
                 @onclick="() => RunActionAsync(() => CloseAsync(target))">Schließen</button>
+        @if (Workspaces.Profile?.ReadOnly == true)
+        {
+            <div class="menu-sep"></div>
+            @if (Workspaces.IsUnlocked(target.Id))
+            {
+                <button class="menu-item" title="Offene Änderungen vorher committen oder verwerfen" @onclick="() => RunActionAsync(() => Shell.LockWorkspaceAsync(target.Id))">Wieder sperren</button>
+            }
+            else
+            {
+                <button class="menu-item danger" @onclick="() => RunAction(() => Shell.RequestUnlock(target.Id))">Schreiben freischalten …</button>
+            }
+        }
         <div class="menu-sep"></div>
         <button class="menu-item" @onclick="() => RunActionAsync(CreateAsync)"><span class="plus">+</span> Neuer Workspace</button>
     </div>

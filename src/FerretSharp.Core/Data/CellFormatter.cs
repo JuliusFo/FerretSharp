@@ -15,7 +15,10 @@ public static class CellFormatter
 
     private static readonly CultureInfo German = CultureInfo.GetCultureInfo("de-DE");
 
-    public static string? Format(ColumnInfo column, object? value) => value switch
+    public static string? Format(ColumnInfo column, object? value) => FormatValue(column,
+        ColumnCategories.Of(column) is ColumnCategory.Clob or ColumnCategory.Blob ? LobValue.FromContent(value) : value);
+
+    private static string? FormatValue(ColumnInfo column, object? value) => value switch
     {
         null or DBNull => null,
         decimal d => FormatNumber(d.ToString(CultureInfo.InvariantCulture), column.Scale),

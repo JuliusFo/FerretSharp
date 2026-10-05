@@ -58,6 +58,21 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
         }, cancellationToken);
     }
 
+    public async Task<LobRead> ReadLobAsync(TableDetails table, RowKey key, int column, CancellationToken cancellationToken)
+    {
+        var query = QueryBuilder.BuildSelectLob(table, key, column);
+        return await session.ExecuteReaderAsync(query.Sql, query.Parameters, async (reader, ct) =>
+        {
+            if (!await reader.ReadAsync(ct))
+            {
+                return new LobRead(false, null);
+            }
+
+            // The session fetches LOBs completely: CLOB/NCLOB come as string, BLOB as byte[].
+            return new LobRead(true, reader.IsDBNull(0) ? null : reader.GetValue(0));
+        }, cancellationToken);
+    }
+
     internal static RowData ReadRow(OracleDataReader reader, SelectQuery query, TableDetails table)
     {
         var ordinal = 0;

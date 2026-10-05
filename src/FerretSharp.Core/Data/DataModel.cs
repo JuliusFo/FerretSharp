@@ -38,7 +38,19 @@ public sealed record BigNumber(string Invariant)
 }
 
 /// <summary>CLOB: first characters plus total length. BLOB: length only (<see cref="Preview"/> is null).</summary>
-public sealed record LobValue(string? Preview, long Length);
+public sealed record LobValue(string? Preview, long Length)
+{
+    /// <summary>
+    /// The grid form of a whole LOB value (a text or bytes from the LOB editor, WP-10): preview and length like a
+    /// loaded row. Anything else is returned unchanged.
+    /// </summary>
+    public static object? FromContent(object? value) => value switch
+    {
+        string text => new LobValue(text.Length > Query.QueryBuilder.ClobPreviewLength ? text[..Query.QueryBuilder.ClobPreviewLength] : text, text.Length),
+        byte[] bytes => new LobValue(null, bytes.Length),
+        _ => value,
+    };
+}
 
 /// <summary>Value of a column that is only checked for NULL (LONG, XMLTYPE, object types …).</summary>
 public sealed record NotNullMarker(string DataType);
@@ -61,4 +73,23 @@ public interface IDataAccess
         CancellationToken cancellationToken);
 
     Task<long> CountAsync(TableDetails table, IReadOnlyList<FilterCondition> filters, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The whole value of a LOB column (LOB editor, WP-10): text for CLOB/NCLOB, bytes for BLOB, null for NULL. Read in
+    /// the workspace's session, so it includes the workspace's own uncommitted changes.
+    /// </summary>
+    Task<LobRead> ReadLobAsync(TableDetails table, RowKey key, int column, CancellationToken cancellationToken);
+}
+
+/// <summary>Result of <see cref="IDataAccess.ReadLobAsync"/>; <see cref="Found"/> is false if the row is gone.</summary>
+public sealed record LobRead(bool Found, object? Value);
+
+/// <summary>Sizes of whole LOB values FerretSharp handles (characters for CLOB, bytes for BLOB).</summary>
+public static class LobLimits
+{
+    /// <summary>Edited as text in the dialog up to this length (the user's decision); larger only via file.</summary>
+    public const long MaxEditLength = 10 * 1024 * 1024;
+
+    /// <summary>Loaded at all (to save to a file or compare) up to this length.</summary>
+    public const long MaxLoadLength = 100 * 1024 * 1024;
 }

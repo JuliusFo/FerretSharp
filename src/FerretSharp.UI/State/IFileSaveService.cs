@@ -8,4 +8,8 @@ public interface IFileSaveService
     /// <param name="utf8Bom">Write a byte order mark (Excel needs it to read UTF-8 CSV).</param>
     /// <returns>The path written, or null if the user cancelled.</returns>
     Task<string?> SaveTextAsync(string fileName, string filter, string text, bool utf8Bom);
+
+    /// <summary>Saves binary content (BLOB) as it is.</summary>
+    /// <returns>The path written, or null if the user cancelled.</returns>
+    Task<string?> SaveBytesAsync(string fileName, string filter, byte[] content);
 }

@@ -290,6 +290,29 @@ public sealed class OracleSession : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Unlocks the session (WP-10, the user's explicit decision): ends the read-only transaction; afterwards it may open
+    /// a writing transaction like a session of an editable profile. Does nothing if the session is not locked.
+    /// </summary>
+    public async Task StopReadOnlySnapshotsAsync(CancellationToken cancellationToken)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            if (!_readOnlySnapshots)
+            {
+                return;
+            }
+
+            await EndTransactionCoreAsync(rollback: true);
+            _readOnlySnapshots = false;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
     /// <summary>Starts a new snapshot (new read-only transaction) in a locked session; does nothing otherwise.</summary>
     public async Task RefreshSnapshotAsync(CancellationToken cancellationToken)
     {
@@ -520,6 +543,9 @@ public sealed class OracleSession : IAsyncDisposable
         var command = _connection.CreateCommand();
         command.BindByName = true;
         command.InitialLONGFetchSize = LongFetchSize;
+        // Whole LOBs come with the row (LOB editor, locked rows of the concurrency check). Grid queries never select a
+        // LOB column itself, only a preview and its length (QueryBuilder).
+        command.InitialLOBFetchSize = -1;
         command.CommandText = sql;
         foreach (var parameter in parameters)
         {
@@ -644,6 +670,15 @@ public sealed class OracleSession : IAsyncDisposable
                 break;
             case OracleTypeHint.Raw:
                 result.OracleDbType = OracleDbType.Raw;
+                break;
+            case OracleTypeHint.Clob:
+                result.OracleDbType = OracleDbType.Clob;
+                break;
+            case OracleTypeHint.NClob:
+                result.OracleDbType = OracleDbType.NClob;
+                break;
+            case OracleTypeHint.Blob:
+                result.OracleDbType = OracleDbType.Blob;
                 break;
         }
 
