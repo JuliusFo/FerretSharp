@@ -5,6 +5,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-10-05
+
+### Added
+- Execution plans: "Plan" next to "SQL" in the filter bar (the grid's query with its filters and sorting) and in the LINQ console (the captured command with the bind values from your code).
+- "Geschätzt": the optimizer's plan via `EXPLAIN PLAN`, without running the query – also on Prod connections (it writes only to the session's own `PLAN_TABLE`). Bind values are unknown to it; the dialog says so.
+- "Tatsächlich": the query runs again in the workspace's session with `GATHER_PLAN_STATISTICS` – the first 500 rows or, switched on, the whole result – and the dialog shows the plan Oracle used with actual rows, starts, time and buffers. Needs read access to `V$SQL`/`V$SQL_PLAN_STATISTICS_ALL` (e.g. `SELECT_CATALOG_ROLE`); without it the dialog names the grant.
+- Marks: estimates off by a factor of ten or more (the usual reason for a bad plan), full table scans; steps an adaptive plan did not run are dimmed. Access and filter predicates per step. "Als Text kopieren" gives the plan in the familiar `DBMS_XPLAN` layout.
+
 ## [2.3.0] - 2026-10-05
 
 ### Added

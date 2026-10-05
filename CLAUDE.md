@@ -2,7 +2,7 @@
 
 > Projektanweisungen für Claude Code. Bitte vollständig lesen, bevor ein Arbeitspaket umgesetzt wird.
 > Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-05 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0)
+> Stand: 2026-10-05 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0; WP-14 → 2.4.0)
 
 ## 1. Ziel
 
@@ -505,6 +505,11 @@ Entscheidungen des Nutzers (2026-10-05):
   - **Tatsächlich:** `DBMS_XPLAN.DISPLAY_CURSOR` bzw. `V$SQL_PLAN…` für die letzte Ausführung, optional mit echten Zeilenzahlen (`GATHER_PLAN_STATISTICS`). Reines SELECT, braucht aber Leserechte auf die `V$`-Views (`SELECT_CATALOG_ROLE`) → klarer Hinweis, wenn sie fehlen.
 - Ein Plan-Modell im Core für beide Quellen (gleiche Spaltenstruktur), eine Baumansicht (Operation, Objekt, Kosten, Zeilen geschätzt/tatsächlich).
 - LINQ: SQL kommt von EF (`ToQueryString()`/Befehlstext); für „Tatsächlich“ liefert die Konsole bzw. der Hilfsprozess SQL-Text/`SQL_ID` der Ausführung (z. B. EF-Interceptor). Hinweis im Dialog: Geschätzte Pläne kennen die Bind-Werte nicht und können vom tatsächlichen abweichen.
+- Umgesetzt (Release 2.4.0, ADR 0012). Entscheidungen des Nutzers: EXPLAIN PLAN **auch auf Prod** (schreibt nur in die sitzungslokale `PLAN_TABLE`), tatsächlicher Plan **erste Seite oder ganzes Ergebnis, wählbar im Dialog**, Anzeige als **Dialog**.
+  - Spike: `EXPLAIN PLAN` geht ohne Bind-Werte (Platzhalter gelten als Text: `TO_NUMBER(:P_0)`), aber **nicht in einer READ-ONLY-Transaktion** (ORA-00604/ORA-01456) → geschätzt immer auf der Explorer-Session (`ISchemaReader.ExplainAsync`). Die `SQL_ID` lässt sich im Client berechnen (letzte 8 Byte von MD5(Text + NUL), zwei Little-Endian-Hälften, Base 32 `0123456789abcdfghjkmnpqrstuvwxyz`) – stimmt mit `V$SQL` überein. Ohne `SELECT_CATALOG_ROLE` ORA-00942 auf `V_$SQL`.
+  - Core: `ExecutionPlan`/`PlanStep`/`Plans` (Query/: `SqlId`, `WithStatistics` – Hint nach dem ersten SELECT, ein vorhandener Hint-Kommentar wird ergänzt, weil Oracle nur den ersten liest –, `Format` im Stil von DBMS_XPLAN, `IsMisestimate`: Faktor ≥ 10 bei ≥ 100 Zeilen, ohne ganzes Ergebnis nur Unterschätzungen). `OracleSession.ExplainPlanAsync` = eigener enger Weg (nur Statements, die die Lesesperre passieren; `EXPLAIN PLAN SET STATEMENT_ID = '<erzeugt>' FOR …`, Zeilen lesen, wieder löschen). `IDataAccess.ExplainActualAsync` prüft erst die Rechte (`OraclePlans.RightsProbe`), führt mit `GATHER_PLAN_STATISTICS` aus (500 Zeilen oder alle), sucht den jüngsten Child-Cursor der berechneten `SQL_ID` und liest `V$SQL_PLAN_STATISTICS_ALL`. Fehlende Rechte/gesperrte Session → `PlanUnavailableException` mit Grant-Hinweis.
+  - UI: `PlanDialog` (Geschätzt | Tatsächlich, „ganzes Ergebnis“, Prädikate je Schritt, Markierungen Fehlschätzung/FULL, abgeschwächte Schritte mit Starts 0 – adaptive Pläne behalten verworfene Zweige im Cursor –, „Als Text kopieren“). Grid: „Plan“ an der Filterleiste; „ganzes Ergebnis“ nimmt dort die Abfrage ohne Seitenlimit (sonst misst man nur die erste Seite). LINQ: „Plan“ neben „SQL“ mit den Bind-Werten aus dem Code.
+  - E2E-Erkenntnis: CDP-Klicks sind keine Nutzergeste, `navigator.clipboard.writeText` schlägt dann fehl – Kopieren nicht per CDP prüfen, und die Zwischenablage des Nutzers nicht überschreiben (er arbeitet nebenher).
 
 #### WP-15 Code-Generierung → Release v3.0.0
 - Aktive Filter als LINQ kopieren (`.Where(x => x.KundeId == 4711)`).

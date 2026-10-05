@@ -152,4 +152,10 @@ public interface ISchemaReader
     /// one query per table costs minutes over a slow network). Table name → columns in column order.
     /// </summary>
     Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetColumnNamesAsync(string owner, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The optimizer's estimated plan of a query (ADR 0012), without running it and without bind values. On the
+    /// explorer session, which has no transaction: Oracle refuses EXPLAIN PLAN in a read-only one.
+    /// </summary>
+    Task<Query.ExecutionPlan> ExplainAsync(Query.QuerySpec query, CancellationToken cancellationToken);
 }

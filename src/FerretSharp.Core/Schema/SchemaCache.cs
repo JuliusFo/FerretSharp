@@ -139,6 +139,10 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
     public Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetColumnNamesAsync(string owner, CancellationToken cancellationToken) =>
         reader.GetColumnNamesAsync(owner, cancellationToken);
 
+    /// <summary>The estimated plan of a query (explorer session, ADR 0012).</summary>
+    public Task<Query.ExecutionPlan> ExplainAsync(Query.QuerySpec query, CancellationToken cancellationToken) =>
+        reader.ExplainAsync(query, cancellationToken);
+
     /// <summary>Relationships where <paramref name="table"/> references other tables.</summary>
     public IEnumerable<ForeignKeyInfo> OutgoingOf(TableRef table) => _outgoing[table];
 

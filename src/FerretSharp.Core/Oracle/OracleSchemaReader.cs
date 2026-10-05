@@ -520,6 +520,19 @@ public sealed class OracleSchemaReader(OracleSession session) : ISchemaReader
             return (IReadOnlyDictionary<string, IReadOnlyList<string>>)result.ToDictionary(e => e.Key, e => (IReadOnlyList<string>)e.Value, StringComparer.Ordinal);
         }, cancellationToken);
 
+    public async Task<ExecutionPlan> ExplainAsync(QuerySpec query, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var steps = await session.ExplainPlanAsync(query.Sql, (reader, ct) => OraclePlans.ReadAsync(reader, actual: false, ct), cancellationToken);
+            return new ExecutionPlan(PlanSource.Estimated, query.Sql, steps);
+        }
+        catch (InvalidOperationException ex)
+        {
+            throw new PlanUnavailableException(ex.Message, ex);
+        }
+    }
+
     public async Task<IReadOnlyList<LockHolder>?> GetLockHoldersAsync(TableRef table, CancellationToken cancellationToken)
     {
         try

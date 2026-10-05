@@ -88,6 +88,17 @@ public interface IDataAccess
     /// </summary>
     /// <exception cref="InvalidOperationException">The statement is not a plain query.</exception>
     Task<SqlPage> ReadSqlAsync(QuerySpec query, int skip, int take, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The actual plan of a query (ADR 0012): runs it once more with <c>GATHER_PLAN_STATISTICS</c> – fetching the first
+    /// <see cref="ActualPlanPageSize"/> rows, or all of them – and reads the cursor's plan with the run's numbers from
+    /// <c>V$SQL_PLAN_STATISTICS_ALL</c>. Read only; in the workspace's snapshot or transaction.
+    /// </summary>
+    /// <exception cref="PlanUnavailableException">No rights on V$SQL / V$SQL_PLAN_STATISTICS_ALL, or the cursor is gone.</exception>
+    Task<ExecutionPlan> ExplainActualAsync(QuerySpec query, bool wholeResult, CancellationToken cancellationToken);
+
+    /// <summary>Rows fetched for the actual plan unless the whole result is wanted: one grid page.</summary>
+    public const int ActualPlanPageSize = 500;
 }
 
 /// <summary>A result column of a free query; <see cref="Column"/> is derived from the driver's type, for formatting.</summary>

@@ -105,6 +105,11 @@
                     }
                     <span class="muted">@(run.ResultType is { } type ? $"Ergebnis {type} · " : "")übersetzt in @Ms(run.Elapsed)</span>
                     <span class="spacer"></span>
+                    @if (kind == LinqCommandKind.Query && _query is not null)
+                    {
+                        <button class="btn ghost" title="Ausführungsplan des Kommandos – geschätzt oder tatsächlich (mit den Bind-Werten aus dem Code)"
+                                @onclick="() => _planOpen = true">Plan</button>
+                    }
                     <button class="btn ghost" @onclick="() => _showSql = !_showSql">@Icons.Code @(_showSql ? "SQL ausblenden" : "SQL")</button>
                 </div>
 
@@ -200,8 +205,14 @@
     </div>
 </div>
 
+@if (_planOpen && _query is { } planQuery)
+{
+    <PlanDialog Query="planQuery" WorkspaceId="Tab.WorkspaceId" Title="@($"{Tab.Title} · Kommando {Tab.SelectedCommand + 1}")" OnClose="() => _planOpen = false" />
+}
+
 @code {
     private MonacoEditor? _variablesEditor;
+    private bool _planOpen;
     private MonacoEditor? _codeEditor;
     private CancellationTokenSource? _cts;
     private bool _running;

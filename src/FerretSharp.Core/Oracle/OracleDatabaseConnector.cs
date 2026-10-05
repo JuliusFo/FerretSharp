@@ -74,6 +74,9 @@ public sealed class OracleDatabaseConnector : IDatabaseConnector
 
         public Task<SqlPage> ReadSqlAsync(QuerySpec query, int skip, int take, CancellationToken cancellationToken) =>
             OracleErrors.Guard(() => inner.ReadSqlAsync(query, skip, take, cancellationToken));
+
+        public Task<ExecutionPlan> ExplainActualAsync(QuerySpec query, bool wholeResult, CancellationToken cancellationToken) =>
+            OracleErrors.Guard(() => inner.ExplainActualAsync(query, wholeResult, cancellationToken));
     }
 
     /// <summary>Keeps OracleException out of the layers above.</summary>
@@ -111,6 +114,9 @@ public sealed class OracleDatabaseConnector : IDatabaseConnector
 
         public Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetColumnNamesAsync(string owner, CancellationToken cancellationToken) =>
             OracleErrors.Guard(() => inner.GetColumnNamesAsync(owner, cancellationToken));
+
+        public Task<ExecutionPlan> ExplainAsync(QuerySpec query, CancellationToken cancellationToken) =>
+            OracleErrors.Guard(() => inner.ExplainAsync(query, cancellationToken));
     }
 }
 
