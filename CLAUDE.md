@@ -2,7 +2,7 @@
 
 > Projektanweisungen für Claude Code. Bitte vollständig lesen, bevor ein Arbeitspaket umgesetzt wird.
 > Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-04 (v1 komplett bis 1.7; WP-08 umgesetzt → 1.8.0; nächstes Paket WP-09)
+> Stand: 2026-10-05 (v1 komplett bis 1.7; WP-08 → 1.8.0; WP-09 umgesetzt → 1.9.0; nächstes Paket WP-10)
 
 ## 1. Ziel
 
@@ -233,7 +233,7 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 - `ChangeTracker` sammelt pro Tab.
 - `OracleDataAccess.FlushAsync(changes, session, ct)` (bewusst nicht „Apply“, um Verwechslung mit dem Filter-Apply zu vermeiden):
   - pro Flush einen `SAVEPOINT` → einzelne Flushes lassen sich zurücknehmen
-  - vor jedem Update/Delete `SELECT … FOR UPDATE WAIT n` (n konfigurierbar, Default 3 s) → `ORA-30006` statt endlosem Warten
+  - vor jedem Update/Delete `SELECT … FOR UPDATE WAIT n` (n konfigurierbar, Default 3 s) → `ORA-30006` (Oracle 23: `ORA-00054`) statt endlosem Warten
   - `UPDATE t SET c=:v WHERE <RowKey>` (+ optional Original-Werte im WHERE für Concurrency, konfigurierbar)
   - `INSERT INTO t (...) VALUES (...) RETURNING ROWID INTO :rid` (bzw. PK)
   - `DELETE FROM t WHERE <RowKey>`
@@ -265,7 +265,7 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 - Verbindungsabbruch (Idle-Timeout, Firewall, `IDLE_TIME`-Profil) erkennen und laut melden. Seit v1.6 pingt `ConnectionKeepAlive` alle 2 min die Sessions, die mindestens 1 min ruhten (laufende werden übersprungen, Ping-Timeout 30 s), und meldet einen Abbruch sofort über das Banner. Abschaltbar in den Einstellungen (`AppSettings.KeepAlive`; alle Einstellungen laufen über `AppSettingsService`, damit sich Änderungen nicht gegenseitig überschreiben). Nebenwirkung, vom Nutzer so entschieden: Die Sessions bleiben auch gegen ein `IDLE_TIME`-Limit offen – in v2 bei offenen Transaktionen neu bewerten. In v2 gehen dabei uncommittete Änderungen verloren → das muss der Nutzer klar sehen.
 
 **Transaktionen (v2)**
-- Uncommittetes Update in Workspace A blockiert ein Update derselben Zeile in B. Ein normales `UPDATE` wartet unbegrenzt; `ORA-00054` gibt es nur bei `NOWAIT`. Deshalb `FOR UPDATE WAIT n` (→ `ORA-30006`) und Dialog mit dem sperrenden Workspace bzw. der Session (`V$SESSION`, falls Rechte vorhanden).
+- Uncommittetes Update in Workspace A blockiert ein Update derselben Zeile in B. Ein normales `UPDATE` wartet unbegrenzt; `ORA-00054` gibt es nur bei `NOWAIT`. Deshalb `FOR UPDATE WAIT n` (→ `ORA-30006`, in Oracle 23 `ORA-00054`) und Dialog mit dem sperrenden Workspace bzw. der Session (`V$SESSION`, falls Rechte vorhanden).
 - Lange offene Transaktionen halten Locks und Undo. Die Statusleiste zeigt „Tx offen seit X min · N Zeilen gesperrt“.
 - Prod im gesperrten Zustand: `SET TRANSACTION READ ONLY` (Oracle erzwingt das selbst). Achtung, Snapshot-Semantik: Alle Abfragen sehen den Stand vom Transaktionsbeginn. **Umgesetzt (WP-08, ADR 0006, Entscheidung des Nutzers):** Jede neue Abfrage (erste Seite: Tab öffnen, Filter, Sortierung, F5) startet einen neuen Snapshot, weitere Seiten bleiben darin. Nach Rollback wird neu gesetzt. Bei ORA-01555, ORA-01466 (DDL nach Snapshot-Beginn, auch noch ~1 s danach) und ORA-08176 (erstes Segment einer Tabelle mit verzögerter Segment-Erzeugung) automatisch neu starten und wiederholen.
 - `SET TRANSACTION READ ONLY` nur innerhalb einer ODP.NET-Transaktion (`BeginTransaction`) – ohne sie committet ODP.NET sofort und der Schutz ist weg. DDL läuft auch in einer Read-only-Transaktion (implizites Commit). Belegt in `TransactionBehaviorTests`.
@@ -318,8 +318,8 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 | Ctrl+F | Datenansicht: Spalte suchen und hinspringen (Scrollen, Hervorheben, Fokus auf die Zelle der ersten sichtbaren Zeile); Strukturansicht: Spalten filtern (v1.6) | v1.5 |
 | Alt+← / Alt+→ | Zurück zum Tab, aus dem ein FK-Sprung kam / wieder vor (verhindert nebenbei die Zurück-Navigation der WebView) | v1.6 |
 | Ctrl+P | Tabelle suchen (Backlog) | – |
-| Ctrl+S | Pending-Änderungen flushen (kein Commit) | v2 |
-| Ctrl+Shift+Enter | Commit (auf Prod immer mit Bestätigung) | v2 |
+| Ctrl+S | Pending-Änderungen flushen (kein Commit) | v1.9 |
+| Ctrl+Shift+Enter | Commit (auf Prod immer mit Bestätigung) | v1.9 |
 | – | Rollback nur über Button, mit Bestätigung | v2 |
 
 `Esc` bleibt dem Grid vorbehalten (Zelleingabe abbrechen) bzw. schließt Menüs/Dialoge. Globale Shortcuts registriert die `Shell` über `wwwroot/js/shortcuts.js` (Capture-Listener → `OnShortcut` in .NET); `F12` öffnet im Debug-Build die DevTools.
@@ -427,11 +427,18 @@ Jedes Paket: eigener Branch `wp/NN-kurzname`, am Ende `dotnet build -warnaserror
 - `OracleDataAccess.FlushAsync` gemäß 5.6 (Savepoint, `FOR UPDATE WAIT n`, RowKey-WHERE, `RETURNING`, `BindByName`).
 - Lock-Konflikte (`ORA-30006`, `ORA-00054`) als Dialog, inkl. sperrender Session, falls ermittelbar.
 - „Änderungen als SQL anzeigen“.
-- **Fertig wenn:** Änderungen in Workspace A sind in B bis zum Commit unsichtbar; ein Lock-Konflikt zwischen A und B erscheint nach ≤ n s als Dialog (Integrationstest); Rollback stellt das Grid zurück; Tests für die Statement-Generierung.
+- **Fertig wenn:** Änderungen in Workspace A sind in B bis zum Commit unsichtbar; ein Lock-Konflikt zwischen A und B erscheint nach ≤ n s als Dialog (Integrationstest); Rollback stellt das Grid zurück; Tests für die Statement-Generierung. → erfüllt (`EditingTests` im Integrationsprojekt, E2E mit zwei Workspaces).
+- Umgesetzt (Release 1.9.0); Entscheidungen des Nutzers: Commit schreibt Ausstehendes vorher automatisch, PK bestehender Zeilen nur lesbar, Concurrency-Check nur über die geänderten Spalten, Sperr-Wartezeit 3 s (Einstellungen: 1/3/5/10/30 s).
+  - Bearbeitbar sind Profile ohne „Schreibgeschützt“ (Badge BEARBEITBAR), Tabellen mit Row-Key (PK oder ROWID). Nicht editierbar (`OracleTypeMapper.NotEditableReason`, als Tooltip): Views, virtuelle und Identity-Spalten, PK bestehender Zeilen, LOB/LONG/INTERVAL/TIMESTAMP WITH TZ/BINARY_FLOAT/DOUBLE/Objekttypen, NUMBER > 28 Stellen.
+  - Core: `ChangeTracker` pro Tab (Ausstehend/Geschrieben je Zelle, Undo des letzten Schreibvorgangs), `DmlBuilder` (Query/), `IDataEditor`/`OracleDataEditor` statt `OracleDataAccess.FlushAsync`: Savepoint `FS_FLUSH_n` pro Schreibvorgang, alles oder nichts; je Zeile `SELECT … FOR UPDATE WAIT n` und Vergleich der geänderten Spalten, dann DML; Inserts lesen die Zeile über `RETURNING ROWID` neu (Defaults, Trigger). Fehler als `LockConflictException`, `ConcurrencyConflictException` (Überschreiben/Verwerfen), `RowGoneException`, `WriteFailedException` (ORA-Code → deutscher Text). Sperrende Sessions über `V$LOCKED_OBJECT`/`V$SESSION` (nur mit `SELECT_CATALOG_ROLE`, sonst Hinweis).
+  - Oracle 23 meldet ein abgelaufenes `FOR UPDATE WAIT n` als **ORA-00054**, nicht ORA-30006 – beide werden als Sperrkonflikt behandelt.
+  - UI: `WorkspaceEditing` (State/) orchestriert Schreiben/Commit/Rollback/Undo je Workspace. Grid mit `readOnlyEdit` + `cellEditRequest` und eigenem `FerretCellEditor`: Doppelklick oder Tippen startet, Enter prüft den Wert über `ValidateEdit` in .NET und lässt den Editor bei Fehlern mit Meldung offen. Neue Zeilen als angeheftete Zeilen oben („+ Zeile“), Entf markiert zum Löschen, Kontextmenü „Zeile löschen“/„Ausstehende Änderungen verwerfen“. Zellfarben `fs-pending`/`fs-flushed`, Zeilen `fs-row-deleted`/`fs-row-new`.
+  - Statusleiste: „Tx seit X min · N ausstehend · M geschrieben“ (Warnfarbe ab 10 min), Schreiben (Ctrl+S), ↶, SQL, Commit (Ctrl+Shift+Enter, auf Prod mit Bestätigung), Rollback (mit Bestätigung). Punkt am Tab bei Änderungen.
+  - Schutz vor Datenverlust: Tab schließen mit Ausstehendem fragt; Workspace schließen, Trennen, Verbindung wechseln/löschen und App beenden (`ExitGuard`, Closing-Handler im `MainWindow`) bieten Committen/Verwerfen/Abbrechen (`LeaveDialog`).
 
 #### WP-10 Prod-Freischaltung & Politur v2 → Release v2.0.0
 - Freischalt-Toggle für Prod mit Bestätigungsdialog (Rollback der Read-only-Tx, normale Tx starten); beim Sperren werden offene Änderungen erzwungen committed oder verworfen.
-- Shortcuts v2, Commit-Bestätigung auf Prod.
+- Shortcuts v2 und Commit-Bestätigung auf Prod (beides seit 1.9.0 vorhanden; Prod-Profile ohne „Schreibgeschützt“ sind schon editierbar).
 - CLOB/BLOB-Editor-Dialog.
 - `CHANGELOG.md`, Tag `v2.0.0`.
 
