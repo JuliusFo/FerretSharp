@@ -10,6 +10,10 @@
         <button class="btn" @onclick="AddRow"><span class="plus">+</span> Filter</button>
         <span class="hint">Kein Filter – alle Zeilen</span>
         <span class="spacer"></span>
+        @if (Presentations.For(Details).Entity is not null)
+        {
+            <LinqMenu Details="Details" Filters="CurrentFilters" />
+        }
         <button class="btn ghost" @onclick="OnShowSql">@Icons.Code SQL</button>
         <button class="btn ghost" title="Ausführungsplan der Abfrage – geschätzt oder tatsächlich" @onclick="OnShowPlan">Plan</button>
     }
@@ -68,6 +72,10 @@
             }
         </div>
         <div class="filter-actions">
+            @if (Presentations.For(Details).Entity is not null)
+            {
+                <LinqMenu Details="Details" Filters="CurrentFilters" />
+            }
             <button class="btn ghost" @onclick="OnShowSql">@Icons.Code SQL</button>
             <button class="btn ghost" title="Ausführungsplan der Abfrage – geschätzt oder tatsächlich" @onclick="OnShowPlan">Plan</button>
             <button class="btn ghost" @onclick="ClearAsync">Leeren</button>
@@ -98,6 +106,13 @@
     /// <summary>The execution plan of the query (WP-14).</summary>
     [Parameter]
     public EventCallback OnShowPlan { get; set; }
+
+    /// <summary>The filters as edited if they are valid, else the applied ones (like the SQL preview).</summary>
+    private IReadOnlyList<FilterCondition> CurrentFilters()
+    {
+        var edited = Tab.FilterRows.Select(r => r.ToCondition()).ToList();
+        return QueryBuilder.Validate(Details, edited).Count == 0 ? edited : Tab.AppliedFilters;
+    }
 
     private void AddRow()
     {

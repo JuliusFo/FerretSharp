@@ -19,6 +19,16 @@ export function focusById(id) {
   document.getElementById(id)?.focus();
 }
 
+/** Moves a fixed popup up if it reaches below the window (its height is only known once rendered). */
+export function keepInViewport(id, margin = 8) {
+  const element = document.getElementById(id);
+  if (!element) return;
+  const rect = element.getBoundingClientRect();
+  if (rect.bottom > window.innerHeight - margin) {
+    element.style.top = Math.max(margin, window.innerHeight - rect.height - margin) + 'px';
+  }
+}
+
 /** Returns false if the clipboard refused the write. */
 export async function copyText(text) {
   try {
