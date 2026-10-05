@@ -17,6 +17,7 @@ public enum ClrModelPhase
 /// <param name="Mapping">The model laid over the schema; kept while a reload runs.</param>
 /// <param name="Step">While loading: what is being done right now, since <paramref name="StepStartedAt"/>.</param>
 /// <param name="Steps">The steps of the last load with their durations (also of a failed one).</param>
+/// <param name="CachedAt">The model came from the cache (WP-16): when the model host exported it; null if it ran now.</param>
 public sealed record ClrModelState(
     ClrModelPhase Phase,
     ClrProjectLink? Link,
@@ -27,7 +28,8 @@ public sealed record ClrModelState(
     string? Step = null,
     DateTimeOffset? StepStartedAt = null,
     DateTimeOffset? LoadStartedAt = null,
-    IReadOnlyList<LoadStep>? Steps = null)
+    IReadOnlyList<LoadStep>? Steps = null,
+    DateTimeOffset? CachedAt = null)
 {
     public static readonly ClrModelState None = new(ClrModelPhase.None, null, null, null, null, null);
 }
@@ -45,15 +47,18 @@ public sealed class ClrModelManager : IDisposable
     private readonly IModelHostRunner _runner;
     private readonly ActiveConnection _active;
     private readonly ConnectionManager _connections;
+    private readonly ModelCache? _cache;
     private readonly Lock _lock = new();
     private CancellationTokenSource? _loading;
     private Guid? _profileId;
 
-    public ClrModelManager(IModelHostRunner runner, ActiveConnection active, ConnectionManager connections)
+    /// <param name="cache">Exported models to reuse while the build is unchanged (WP-16); null = always run the host.</param>
+    public ClrModelManager(IModelHostRunner runner, ActiveConnection active, ConnectionManager connections, ModelCache? cache = null)
     {
         _runner = runner;
         _active = active;
         _connections = connections;
+        _cache = cache;
         _active.Changed += OnConnectionChanged;
         _connections.Changed += OnConnectionChanged;
     }
@@ -75,8 +80,11 @@ public sealed class ClrModelManager : IDisposable
     private ClrProjectLink? CurrentLink =>
         _active.Profile is { } profile ? (_connections.Profiles.FirstOrDefault(p => p.Id == profile.Id) ?? profile).ClrProject : null;
 
-    /// <summary>Reads the model again; a load still running is cancelled.</summary>
-    public async Task LoadAsync()
+    /// <summary>Reads the model again from the project ("Neu laden"), not from the cache; a load still running is cancelled.</summary>
+    public Task LoadAsync() => LoadAsync(useCache: false);
+
+    /// <param name="useCache">Take the cached model if the build output is unchanged (connecting, link changed).</param>
+    private async Task LoadAsync(bool useCache)
     {
         CancellationTokenSource cts;
         lock (_lock)
@@ -107,18 +115,42 @@ public sealed class ClrModelManager : IDisposable
                 step, DateTimeOffset.Now, steps.StartedAt), cts);
         }
 
+        DateTimeOffset? cachedAt = null;
+
         void Finish(ClrModelPhase phase, ClrModelMapping? mapping, ModelHostError? error, DateTimeOffset? at) =>
-            Set(new ClrModelState(phase, link, output, mapping, error, at, Steps: steps.Finish()), cts);
+            Set(new ClrModelState(phase, link, output, mapping, error, at, Steps: steps.Finish(), CachedAt: cachedAt), cts);
 
         try
         {
             Report("Suche den Build");
             output = await Task.Run(() => BuildOutputLocator.Find(link), cts.Token);
-            var result = await Task.Run(() => _runner.ReadModelAsync(link, output, cts.Token, new Reporter(Report)), cts.Token);
-            if (result.Model is not { } model)
+            CachedModel? cached = null;
+            if (useCache && _cache is not null)
             {
-                Finish(ClrModelPhase.Failed, previous, result.Error ?? new ModelHostError(ClrModelErrorKind.HostFailed, "Kein Modell geliefert."), loadedAt);
-                return;
+                Report("Prüfe den Cache");
+                cached = await Task.Run(() => _cache.TryLoadAsync(link, output, cts.Token), cts.Token);
+            }
+
+            ModelExport model;
+            if (cached is not null)
+            {
+                model = cached.Model;
+                cachedAt = cached.ExportedAt;
+            }
+            else
+            {
+                var result = await Task.Run(() => _runner.ReadModelAsync(link, output, cts.Token, new Reporter(Report)), cts.Token);
+                if (result.Model is not { } exported)
+                {
+                    Finish(ClrModelPhase.Failed, previous, result.Error ?? new ModelHostError(ClrModelErrorKind.HostFailed, "Kein Modell geliefert."), loadedAt);
+                    return;
+                }
+
+                model = exported;
+                if (_cache is not null)
+                {
+                    await _cache.SaveAsync(link, output, model, cts.Token);
+                }
             }
 
             var mapping = await ClrModelMapping.BuildAsync(model, schema, cts.Token, new Reporter(Report));
@@ -231,7 +263,7 @@ public sealed class ClrModelManager : IDisposable
         if (connected != _profileId || link != State.Link)
         {
             _profileId = connected;
-            _ = LoadAsync();
+            _ = LoadAsync(useCache: true);
         }
     }
 

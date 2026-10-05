@@ -172,4 +172,31 @@ public sealed class ModelHostTests
         var status = model.Entities.Single(e => e.Name.EndsWith(".Auftrag", StringComparison.Ordinal)).Properties.Single(p => p.Name == "Status");
         Assert.Equal<(string, string?, string?)>(("Versandt", "VERSANDT", versandt), status.Values!.Select(v => (v.Name, v.ProviderValue, v.DisplayName)).ElementAt(1));
     }
+
+    /// <summary>WP-16: the real exported model goes through the cache unchanged, for the build output it came from.</summary>
+    [Fact]
+    public async Task The_exported_model_survives_the_cache()
+    {
+        var link = SampleLink();
+        var output = BuildOutputLocator.Find(link);
+        var model = (await Runner().ReadModelAsync(link, output, Ct)).Model!;
+        var directory = Directory.CreateTempSubdirectory("ferret-modelcache-").FullName;
+        try
+        {
+            var host = Path.Combine(Root, "src", "FerretSharp.ModelHost", "bin", Configuration, "net8.0", "FerretSharp.ModelHost.dll");
+            var cache = new ModelCache(directory, host, System.Globalization.CultureInfo.GetCultureInfo("de-DE"));
+            await cache.SaveAsync(link, output, model, Ct);
+
+            var cached = await cache.TryLoadAsync(link, BuildOutputLocator.Find(link), Ct);
+
+            Assert.NotNull(cached);
+            Assert.Equal(
+                System.Text.Json.JsonSerializer.Serialize(model, ModelHostResult.JsonOptions),
+                System.Text.Json.JsonSerializer.Serialize(cached.Model, ModelHostResult.JsonOptions));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
 }

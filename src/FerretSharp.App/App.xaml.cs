@@ -78,7 +78,9 @@ public partial class App : Application
         builder.Services.AddSingleton<IDialogService, DialogService>();
         builder.Services.AddSingleton<IFileSaveService, FileSaveService>();
         builder.Services.AddSingleton<IFileOpenService, FileOpenService>();
-        builder.Services.AddSingleton<IModelHostRunner>(new ModelHostRunner(Path.Combine(AppContext.BaseDirectory, "modelhost", "FerretSharp.ModelHost.dll")));
+        var modelHost = Path.Combine(AppContext.BaseDirectory, "modelhost", "FerretSharp.ModelHost.dll");
+        builder.Services.AddSingleton<IModelHostRunner>(new ModelHostRunner(modelHost));
+        builder.Services.AddSingleton(new ModelCache(paths.ModelCacheDirectory, modelHost));
         builder.Services.AddSingleton<ClrModelManager>();
         builder.Services.AddSingleton<PresentationService>();
         builder.Services.AddSingleton<LinqConsoleService>();
