@@ -739,7 +739,8 @@ table.columns td.clr-type .converter { display: block; color: var(--muted); font
 /* filter value of an enum or bool column: a member list */
 .valpick { position: relative; min-width: 0; flex: 1; display: flex; }
 .valpick-field { display: flex; align-items: center; gap: 6px; width: 100%; min-width: 0; text-align: left; cursor: pointer; }
-.valpick-field.empty .valpick-text { color: var(--faint); }
+/* Not ".empty": that global class is the absolutely positioned empty state (CLAUDE.md, section 11). */
+.valpick-unset .valpick-text { color: var(--faint); }
 .valpick-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .valpick-caret { flex: none; color: var(--muted); font-size: 11px; }
 .valpick-pop { min-width: 100%; width: max-content; max-width: 420px; max-height: 320px; overflow-y: auto; padding: 4px; }

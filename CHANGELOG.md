@@ -12,6 +12,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ### Fixed
 - "+ Filter" picked an enum column as the first text column with "enthält", so its member list did not appear; it now prefers text columns without members and starts enum columns with "=".
+- The member list of an enum filter sat lower than the rest of the filter row while no value was picked (since 2.2.0).
 
 ## [2.2.0] - 2026-10-05
 
