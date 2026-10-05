@@ -156,4 +156,48 @@ public sealed class ClrModelMappingTests
     [InlineData("Shop.Outer+Inner", "Inner")]
     [InlineData("System.Collections.Generic.Dictionary`2", "Dictionary")]
     public void Short_names_drop_the_namespace(string clrType, string expected) => Assert.Equal(expected, ClrModelMapping.ShortName(clrType));
+
+    private static ForeignKeyExport Fk(string principal, string[] properties, string[] principalProperties, string? navigation) =>
+        new(properties, principal, principalProperties, navigation, null, false);
+
+    [Fact]
+    public async Task Model_foreign_keys_become_relationships_between_the_mapped_tables()
+    {
+        _columns["AUFTRAG"] = ["AUFTRAG_ID", "BEARBEITER_ID"];
+        _columns["MITARBEITER"] = ["ID"];
+        _columns["V_AUFTRAG"] = ["AUFTRAG_ID", "BEARBEITER_ID"];
+        var schema = await SchemaAsync(
+            new TableSummary(Owner, "AUFTRAG", TableKind.Table), new TableSummary(Owner, "MITARBEITER", TableKind.Table),
+            new TableSummary(Owner, "V_MITARBEITER", TableKind.View), new TableSummary(Owner, "V_AUFTRAG", TableKind.View));
+        _columns["V_MITARBEITER"] = ["ID"];
+        var auftrag = Entity("Shop.Auftrag", "AUFTRAG", Prop("AuftragId", "AUFTRAG_ID"), Prop("BearbeiterId", "BEARBEITER_ID"))
+            with { View = "V_AUFTRAG", ForeignKeys = [Fk("Shop.Mitarbeiter", ["BearbeiterId"], ["Id"], "Bearbeiter")] };
+        // The principal is on a table and a view: relationships lead to its table.
+        var mitarbeiter = Entity("Shop.Mitarbeiter", "MITARBEITER", Prop("Id", "ID")) with { View = "V_MITARBEITER" };
+
+        var mapping = await ClrModelMapping.BuildAsync(Model(auftrag, mitarbeiter), schema, Ct);
+
+        Assert.Equal(
+            [
+                ("Auftrag.Bearbeiter", "APP.V_AUFTRAG", "BEARBEITER_ID", "APP.MITARBEITER", "ID"),
+                ("Auftrag.Bearbeiter", "APP.AUFTRAG", "BEARBEITER_ID", "APP.MITARBEITER", "ID"),
+            ],
+            mapping.ForeignKeys.Select(f => (f.Name, f.From.ToString(), string.Join(",", f.FromColumns), f.To.ToString(), string.Join(",", f.ToColumns))));
+        Assert.All(mapping.ForeignKeys, f => Assert.Equal(FkSource.ClrModel, f.Source));
+    }
+
+    [Fact]
+    public async Task Owned_links_and_relationships_over_unmapped_properties_are_left_out()
+    {
+        _columns["KUNDEN"] = ["ID", "STRASSE", "ADRESSE_ID"];
+        var schema = await SchemaAsync(new TableSummary(Owner, "KUNDEN", TableKind.Table));
+        var owned = Entity("Shop.Adresse", "KUNDEN", Prop("KundeId", "ID"), Prop("Strasse", "STRASSE", "string"))
+            with { IsOwned = true, ForeignKeys = [Fk("Shop.Kunde", ["KundeId"], ["Id"], null)] };
+        var kunde = Entity("Shop.Kunde", "KUNDEN", Prop("Id", "ID"), Prop("Email", "EMAIL", "string"))
+            with { ForeignKeys = [Fk("Shop.Gone", ["Id"], ["Id"], "Gone"), Fk("Shop.Kunde", ["Email"], ["Id"], "Self")] };
+
+        var mapping = await ClrModelMapping.BuildAsync(Model(owned, kunde), schema, Ct);
+
+        Assert.Empty(mapping.ForeignKeys);
+    }
 }

@@ -86,12 +86,16 @@ public sealed record TableDetails(
     string? Definition = null,
     bool DefinitionTruncated = false);
 
-/// <summary>Where a relationship comes from. <c>ClrModel</c> (EF Core navigations) follows in v3.</summary>
+/// <summary>Where a relationship comes from.</summary>
 public enum FkSource
 {
+    /// <summary>A foreign key constraint in the database.</summary>
     Declared,
     Manual,
     Convention,
+
+    /// <summary>A relationship of the linked project's EF Core model without a constraint in the database (WP-12).</summary>
+    ClrModel,
 }
 
 /// <summary>A (possibly composite) relationship; columns are listed in matching order.</summary>

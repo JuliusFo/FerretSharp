@@ -41,7 +41,14 @@ public sealed class ClrModelMapping
         Entities = entities;
         Issues = issues;
         _byTable = entities.GroupBy(e => e.Table.Ref).ToDictionary(g => g.Key, g => g.ToList());
+        ForeignKeys = RelationshipsOf(entities);
     }
+
+    /// <summary>
+    /// The model's relationships as foreign keys between tables (<see cref="FkSource.ClrModel"/>), named after the
+    /// navigation (<c>Auftrag.Kunde</c>). Whether the database declares them too is up to <see cref="SchemaCache"/>.
+    /// </summary>
+    public IReadOnlyList<ForeignKeyInfo> ForeignKeys { get; }
 
     public ModelExport Model { get; }
 
@@ -180,6 +187,58 @@ public sealed class ClrModelMapping
         }
 
         return new ClrModelMapping(model, entities, issues);
+    }
+
+    /// <summary>
+    /// Every model foreign key whose properties all map to columns, from each table or view of the dependent entity to
+    /// the principal's table (its view if it has no table). Left out: links of a table to itself over the same columns
+    /// (owned types and table splitting share the owner's table and key) and duplicates (derived types sharing a table).
+    /// </summary>
+    private static List<ForeignKeyInfo> RelationshipsOf(List<EntityMapping> entities)
+    {
+        var byName = entities.ToLookup(e => e.Entity.Name, StringComparer.Ordinal);
+        var result = new List<ForeignKeyInfo>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var dependent in entities)
+        {
+            foreach (var fk in dependent.Entity.ForeignKeys)
+            {
+                var principal = byName[fk.PrincipalEntity].OrderBy(e => e.Table.Kind == TableKind.Table ? 0 : 1).FirstOrDefault();
+                if (principal is null
+                    || Columns(dependent, fk.Properties) is not { } from
+                    || Columns(principal, fk.PrincipalProperties) is not { } to
+                    || (dependent.Table.Ref == principal.Table.Ref && from.SequenceEqual(to, StringComparer.Ordinal)))
+                {
+                    continue;
+                }
+
+                if (seen.Add($"{dependent.Table.Ref}\0{principal.Table.Ref}\0{string.Join('\0', from)}\0{string.Join('\0', to)}"))
+                {
+                    var name = $"{ShortName(dependent.Entity.ClrType)}.{fk.Navigation ?? string.Join("+", fk.Properties)}";
+                    result.Add(new ForeignKeyInfo(name, dependent.Table.Ref, from, principal.Table.Ref, to, FkSource.ClrModel));
+                }
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>The columns of the given properties of an entity, or null if one of them has no column.</summary>
+    private static List<string>? Columns(EntityMapping entity, IReadOnlyList<string> properties)
+    {
+        var columns = new List<string>(properties.Count);
+        foreach (var property in properties)
+        {
+            var column = entity.Properties.FirstOrDefault(p => p.Value.Name == property).Key;
+            if (column is null)
+            {
+                return null;
+            }
+
+            columns.Add(column);
+        }
+
+        return columns.Count > 0 ? columns : null;
     }
 
     /// <summary>
