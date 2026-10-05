@@ -6,6 +6,8 @@ const grids = new Map();
 const editStates = new Map();
 // Per grid: column metadata by column id; updateColumns changes these objects in place (the column defs refer to them).
 const metas = new Map();
+// Per grid: header height (with the line for C# names), null for the default.
+const headerHeights = new Map();
 // Keys a member list (enum editor) handles itself while editing.
 const listKeys = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End']);
 const media = window.matchMedia('(prefers-color-scheme: dark)');
@@ -18,7 +20,7 @@ function registerModules() {
   modulesRegistered = true;
 }
 
-function theme() {
+function theme(headerHeight) {
   const dark = media.matches;
   return agGrid.themeQuartz
     .withPart(dark ? agGrid.colorSchemeDark : agGrid.colorSchemeLight)
@@ -28,7 +30,8 @@ function theme() {
       headerFontSize: 12,
       headerFontWeight: 600,
       rowHeight: ROW_HEIGHT,
-      headerHeight: 46,
+      // A line more for C# names (WP-12): the header height is a theme parameter, as a grid option it would reset the row height.
+      headerHeight: headerHeight || 46,
       spacing: 6,
       wrapperBorder: false,
       wrapperBorderRadius: 0,
@@ -44,7 +47,7 @@ function theme() {
     });
 }
 
-media.addEventListener('change', () => grids.forEach(api => api.setGridOption('theme', theme())));
+media.addEventListener('change', () => grids.forEach((api, id) => api.setGridOption('theme', theme(headerHeights.get(id)))));
 
 /**
  * Header: name, Oracle type, NOT NULL, PK/FK badges, sort arrow. With a C# model (WP-12) a line between them shows the
@@ -53,7 +56,7 @@ media.addEventListener('change', () => grids.forEach(api => api.setGridOption('t
 class FerretHeader {
   init(params) {
     this.params = params;
-    const meta = params.meta;
+    const meta = params.getMeta();
     this.eGui = document.createElement('div');
     this.eGui.className = 'fs-header' + (meta.numeric ? ' num' : '');
     this.eGui.innerHTML =
@@ -310,6 +313,7 @@ function reportPinned(api, dotnet) {
  * sorts: [{ colId, sort }] initial sort state.
  * firstRow: rough scroll position to restore (0 = top); the block containing it is loaded on demand.
  * editable: whether the workspace may write (v2); the columns say whether they can be edited at all.
+ * headerHeight: with the line for C# names (WP-12); null for the theme default.
  */
 export function create(elementId, dotnet, columns, sorts, firstRow, editable, headerHeight) {
   registerModules();
@@ -339,6 +343,7 @@ export function create(elementId, dotnet, columns, sorts, firstRow, editable, he
   editStates.set(elementId, editState);
   const metaById = new Map(columns.map(meta => [meta.id, meta]));
   metas.set(elementId, metaById);
+  headerHeights.set(elementId, headerHeight);
   const columnDefs = columns.map(meta => ({
     colId: meta.id,
     field: meta.id,
@@ -366,7 +371,8 @@ export function create(elementId, dotnet, columns, sorts, firstRow, editable, he
     tooltipValueGetter: p => (p.value === null || p.value === undefined ? null
       : p.data?.__u?.includes(meta.id) ? `${p.value}\n${meta.unknownText}` : p.value),
     headerComponent: FerretHeader,
-    headerComponentParams: { meta },
+    // A function, not the object: AG Grid deep-copies plain objects of the column def, and updateColumns changes meta in place.
+    headerComponentParams: { getMeta: () => meta },
     pinned: meta.pinned ? 'left' : null,
     // The primary key always stays pinned at the very left; other columns can also be pinned by dragging them there.
     lockPinned: meta.pk,
@@ -447,10 +453,8 @@ export function create(elementId, dotnet, columns, sorts, firstRow, editable, he
   }, true);
 
   const api = agGrid.createGrid(element, {
-    theme: theme(),
+    theme: theme(headerHeight),
     columnDefs,
-    // A line more for C# names (WP-12); otherwise the height the theme sets.
-    headerHeight: headerHeight || undefined,
     defaultColDef: { resizable: true, minWidth: 70 },
     rowModelType: 'infinite',
     cacheBlockSize: BLOCK_SIZE,
@@ -624,6 +628,7 @@ export function destroy(elementId) {
   grids.get(elementId)?.destroy();
   grids.delete(elementId);
   metas.delete(elementId);
+  headerHeights.delete(elementId);
   editStates.delete(elementId);
 }
 
@@ -640,6 +645,7 @@ export function updateColumns(elementId, columns, headerHeight) {
     const current = byId.get(meta.id);
     if (current) Object.assign(current, meta);
   }
-  api.setGridOption('headerHeight', headerHeight || undefined);
+  headerHeights.set(elementId, headerHeight);
+  api.setGridOption('theme', theme(headerHeight));
   api.refreshHeader();
 }
