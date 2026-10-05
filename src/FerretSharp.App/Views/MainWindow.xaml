@@ -7,6 +7,8 @@
         Icon="/Assets/ferretsharp.ico"
         Width="1440"
         Height="900"
+        MinWidth="960"
+        MinHeight="560"
         WindowStartupLocation="CenterScreen">
     <blazor:BlazorWebView x:Name="WebView" HostPage="wwwroot\index.html">
         <blazor:BlazorWebView.RootComponents>

@@ -125,7 +125,16 @@ button:disabled { cursor: default; opacity: .5; }
   background: var(--surface); border-top: 1px solid var(--border);
 }
 .statusbar .spacer { flex: 1; }
-.statusbar .item { display: flex; align-items: center; gap: 6px; }
+.statusbar .item { display: flex; align-items: center; gap: 6px; flex: none; white-space: nowrap; }
+.statusbar .status-btn, .statusbar .status-group { flex: none; }
+/* Less important details give way first when the window is narrow (full text in the tooltip). */
+.statusbar .item.shrink { display: block; flex: 0 1 auto; min-width: 24px; overflow: hidden; text-overflow: ellipsis; }
+.statusbar .item.shrink-more { flex-shrink: 4; }
+.statusbar { container-type: inline-size; }
+/* Truncated to two letters they say nothing: hide server version and schema when space runs out. */
+@container (max-width: 1150px) { .statusbar:has(.status-group) .item.shrink-more { display: none; } }
+@container (max-width: 760px) { .statusbar .item.shrink-more { display: none; } }
+.status-group { display: flex; align-items: center; gap: 4px; }
 
 .empty { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; color: var(--muted); padding: 24px; }
 .empty h2 { margin: 0 0 6px; font-size: 20px; font-weight: 600; color: var(--text); }
