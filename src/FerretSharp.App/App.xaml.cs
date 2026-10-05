@@ -81,6 +81,7 @@ public partial class App : Application
         builder.Services.AddSingleton<IModelHostRunner>(new ModelHostRunner(Path.Combine(AppContext.BaseDirectory, "modelhost", "FerretSharp.ModelHost.dll")));
         builder.Services.AddSingleton<ClrModelManager>();
         builder.Services.AddSingleton<PresentationService>();
+        builder.Services.AddSingleton<LinqConsoleService>();
         builder.Services.AddSingleton<ExitGuard>();
         builder.Services.AddSingleton<MainWindow>();
 
@@ -121,6 +122,8 @@ public partial class App : Application
     /// </summary>
     private void CloseConnection()
     {
+        // The LINQ console's helper process ends with the app (it would also end once the pipe breaks).
+        _host?.Services.GetService<LinqConsoleService>()?.Dispose();
         if (_host?.Services.GetService<ActiveConnection>() is not { } active)
         {
             return;

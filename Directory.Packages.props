@@ -27,6 +27,8 @@
        project's EF Core, and .NET binds to a higher assembly version, never to a lower one. -->
   <ItemGroup Label="ModelHost">
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.0" />
+    <!-- LINQ console (WP-13): C# scripting in the user's project. Shipped with the host (the project does not bring it). -->
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.11.0" />
   </ItemGroup>
 
   <ItemGroup Label="Tests">

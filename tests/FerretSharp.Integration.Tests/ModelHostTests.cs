@@ -15,10 +15,10 @@ public sealed class ModelHostTests
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private static ClrProjectLink SampleLink(string? context = null) =>
+    internal static ClrProjectLink SampleLink(string? context = null) =>
         new(Path.Combine(Root, "samples", "FerretSharp.SampleModel.Data", "FerretSharp.SampleModel.Data.csproj"), Configuration, context);
 
-    private static ModelHostRunner Runner(string culture = "de-DE") =>
+    internal static ModelHostRunner Runner(string culture = "de-DE") =>
         new(Path.Combine(Root, "src", "FerretSharp.ModelHost", "bin", Configuration, "net8.0", "FerretSharp.ModelHost.dll"),
             culture: System.Globalization.CultureInfo.GetCultureInfo(culture));
 

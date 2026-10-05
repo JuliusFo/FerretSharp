@@ -1,0 +1,433 @@
+@* LINQ console tab (WP-13, ADR 0011): C# against the linked project's DbContext. The model host turns it into the SQL
+   EF would send; FerretSharp runs that in the workspace's session – reading always, writing (ExecuteUpdate/Delete) only
+   on writable workspaces and only after the user pressed "Ausführen" below the statement. *@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Query
+@using FerretSharp.UI.State
+@implements IDisposable
+@inject LinqConsoleService Console
+@inject WorkspaceManager Workspaces
+@inject ActiveConnection Active
+@inject ILogger<LinqView> Logger
+
+<div class="linqview">
+    <div class="tab-toolbar">
+        @Icons.Code
+        <span class="linq-title">@Tab.Title</span>
+        <span class="linq-console @ConsoleClass" title="@ConsoleTitle">@ConsoleText</span>
+        <span class="spacer"></span>
+        @if (_running)
+        {
+            <span class="spinner small"></span>
+            <button class="btn ghost" @onclick="Cancel">Abbrechen</button>
+        }
+        <button class="btn primary" disabled="@(_running || Console.State.Phase == LinqConsolePhase.NotLinked)" @onclick="RunAsync"
+                title="Code übersetzen und das SQL im Workspace ausführen (lesend; Schreiben erst nach Bestätigung)">
+            ▶ Ausführen <kbd>Ctrl ↵</kbd>
+        </button>
+    </div>
+
+    <div class="linq-editors">
+        <div class="linq-label">
+            Variablen
+            <span class="hint">Werte, die die Query braucht – z. B. <code>var kundeId = 4711;</code>. <code>_context</code>, <code>db</code> und <code>ct</code> kennt FerretSharp selbst.</span>
+        </div>
+        <MonacoEditor @ref="_variablesEditor" Minimal="true" Class="linq-variables" Text="@Tab.Variables" OnChange="OnVariablesChanged"
+                      Markers="Markers(LinqProtocol.VariablesSection)" Placeholder="// var kundeId = 4711;" />
+        <div class="linq-label">
+            Query
+            <span class="hint">Direkt aus dem Code kopieren; <code>return</code> liefert das Ergebnis.</span>
+        </div>
+        <MonacoEditor @ref="_codeEditor" Class="linq-code" Text="@Tab.Code" OnChange="OnCodeChanged" Markers="Markers(LinqProtocol.CodeSection)"
+                      Placeholder="return await db.Kunden.Where(k => k.KundeId == kundeId).ToListAsync(ct);" />
+    </div>
+
+    <div class="linq-output">
+        @if (_error is not null)
+        {
+            <div class="tab-error" title="@_errorDetail">@_error</div>
+        }
+
+        @if (Tab.LastRun is { } run)
+        {
+            @if (run.UnknownNames.Count > 0)
+            {
+                <div class="linq-notice">
+                    <strong>@(run.UnknownNames.Count == 1 ? "Ein Name ist unbekannt" : $"{run.UnknownNames.Count} Namen sind unbekannt")</strong>
+                    – Vorschlag für die Variablen (Werte anpassen, dann erneut ausführen):
+                    <pre class="linq-declarations">@string.Join("\n", run.UnknownNames.Select(u => u.Declaration))</pre>
+                    <button class="btn" @onclick="AdoptDeclarationsAsync">In die Variablen übernehmen</button>
+                </div>
+            }
+
+            var problems = run.Diagnostics.OrderByDescending(d => d.Severity == "error").ToList();
+            @if (problems.Count > 0)
+            {
+                <ul class="linq-diagnostics">
+                    @foreach (var d in problems)
+                    {
+                        var diagnostic = d;
+                        <li class="@diagnostic.Severity" @onclick="() => RevealAsync(diagnostic)" title="Zur Stelle springen">
+                            <span class="where">@(diagnostic.Section == LinqProtocol.CodeSection ? "Query" : "Variablen") @diagnostic.Line:@diagnostic.Column</span>
+                            <span class="id">@diagnostic.Id</span>
+                            @diagnostic.Message
+                        </li>
+                    }
+                </ul>
+            }
+
+            @if (run.Commands.Count == 0 && run.UnknownNames.Count == 0 && !run.HasErrors)
+            {
+                <div class="linq-notice muted">
+                    Kein SQL – der Code hat keine Abfrage ausgeführt.
+                    @if (run.Exception is { } thrown)
+                    {
+                        <span class="error">Ausnahme: @thrown</span>
+                    }
+                </div>
+            }
+
+            @if (run.Commands.Count > 0)
+            {
+                var command = run.Commands[Math.Clamp(Tab.SelectedCommand, 0, run.Commands.Count - 1)];
+                var kind = LinqStatements.KindOf(command);
+                <div class="linq-commands">
+                    @if (run.Commands.Count > 1)
+                    {
+                        @for (var i = 0; i < run.Commands.Count; i++)
+                        {
+                            var index = i;
+                            <button class="chip-btn @(index == Tab.SelectedCommand ? "active" : "")" @onclick="() => SelectCommand(index)">
+                                @(index + 1) · @FirstWord(run.Commands[index].Sql)
+                            </button>
+                        }
+                    }
+                    <span class="muted">@(run.ResultType is { } type ? $"Ergebnis {type} · " : "")übersetzt in @Ms(run.Elapsed)</span>
+                    <span class="spacer"></span>
+                    <button class="btn ghost" @onclick="() => _showSql = !_showSql">@Icons.Code @(_showSql ? "SQL ausblenden" : "SQL")</button>
+                </div>
+
+                @if (_showSql || kind != LinqCommandKind.Query)
+                {
+                    <div class="linq-sql">
+                        <SqlCode Sql="@command.Sql" Class="linq-sql-code" />
+                        @if (command.Parameters.Count > 0)
+                        {
+                            <div class="linq-params">
+                                @foreach (var p in command.Parameters)
+                                {
+                                    <span><code>:@p.Name</code> = @(p.Value ?? "NULL") <span class="muted">@p.OracleType</span></span>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+
+                @switch (kind)
+                {
+                    case LinqCommandKind.Query when _query is not null:
+                        <div class="grid-host">
+                            <SqlResultGrid @key="_runKey" WorkspaceId="Tab.WorkspaceId" Query="_query" OnStatus="OnGridStatus" />
+                        </div>
+                        <div class="tab-footer">
+                            @if (_grid is { } grid)
+                            {
+                                @if (grid.Loading)
+                                {
+                                    <span><span class="spinner small"></span> Lade …</span>
+                                }
+                                else if (grid.Error is { } gridError)
+                                {
+                                    <span class="error" title="@gridError.Statement?.Sql">@gridError.Display</span>
+                                    <button class="btn ghost" @onclick="() => Shell.ShowError(gridError)">Details</button>
+                                    @if (gridError.ErrorCode == "ORA-00904")
+                                    {
+                                        @* The model maps a column the database does not have (yet): the model page lists such drift. *@
+                                        <button class="btn ghost" title="Das C#-Modell kennt eine Spalte, die es in der Datenbank nicht gibt"
+                                                @onclick="Shell.ShowModel">Modell-Abgleich öffnen</button>
+                                    }
+                                }
+                                else
+                                {
+                                    <span><strong>@(grid.AllLoaded ? "" : "≥ ")@grid.RowsLoaded.ToString("N0", CultureInfo.CurrentCulture)</strong> Zeilen</span>
+                                    @if (grid.Elapsed is { } elapsed)
+                                    {
+                                        <span>@Ms(elapsed)</span>
+                                    }
+                                    @if (grid.DataAsOf is { } asOf)
+                                    {
+                                        <span title="Schreibgeschützter Workspace: Stand der READ ONLY-Transaktion">Stand @asOf.ToLocalTime().ToString("HH:mm:ss", CultureInfo.InvariantCulture)</span>
+                                    }
+                                }
+                            }
+                            <span class="spacer"></span>
+                            <span class="muted">Session des Workspaces – eigene, nicht committete Änderungen sind sichtbar</span>
+                        </div>
+                        break;
+                    case LinqCommandKind.Write:
+                        <div class="linq-write">
+                            @if (_writtenRows is { } written)
+                            {
+                                <p><strong>@(written == 1 ? "1 Zeile" : $"{written:N0} Zeilen") geändert</strong> – in der Transaktion des Workspaces. Committen oder verwerfen über die Statusleiste.</p>
+                            }
+                            else if (Workspaces.IsWritable(Tab.WorkspaceId))
+                            {
+                                <p>Dieses Statement ändert Daten. Es läuft in der Transaktion des Workspaces und bleibt bis zum Commit für andere unsichtbar.</p>
+                                <button class="btn danger-solid" disabled="@_running" @onclick="WriteAsync">Im Workspace ausführen</button>
+                            }
+                            else
+                            {
+                                <p>Der Workspace ist schreibgeschützt – das Statement wird nicht ausgeführt.</p>
+                                <button class="btn" @onclick="() => Shell.RequestUnlock(Tab.WorkspaceId)">Workspace freischalten …</button>
+                            }
+                        </div>
+                        break;
+                    case LinqCommandKind.Unsupported:
+                        <div class="linq-notice muted">
+                            FerretSharp führt nur Abfragen sowie UPDATE und DELETE aus <code>ExecuteUpdate</code>/<code>ExecuteDelete</code> aus –
+                            dieses Kommando wird nur angezeigt.
+                        </div>
+                        break;
+                }
+            }
+        }
+        else if (_error is null)
+        {
+            <EmptyState Title="LINQ gegen den DbContext"
+                        Text="Eine Query aus dem Code einfügen und mit Ctrl+Enter ausführen. FerretSharp zeigt das SQL, das EF daraus macht, und das Ergebnis aus der Session dieses Workspaces." />
+        }
+    </div>
+</div>
+
+@code {
+    private MonacoEditor? _variablesEditor;
+    private MonacoEditor? _codeEditor;
+    private CancellationTokenSource? _cts;
+    private bool _running;
+    private bool _showSql;
+    private string? _error;
+    private string? _errorDetail;
+    private QuerySpec? _query;
+    private int _runKey;
+    private SqlGridStatus? _grid;
+    private int? _writtenRows;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public LinqTab Tab { get; set; } = null!;
+
+    protected override void OnInitialized()
+    {
+        Console.Changed += OnConsoleChanged;
+        Shell.TabCommandRequested += OnTabCommand;
+        _ = Console.WarmUpAsync(); // the host loads the model while the user writes
+        if (Tab.LastRun is not null)
+        {
+            ShowCommand(); // mounted again (workspace switch): show the last result
+        }
+    }
+
+    private string ConsoleText => Console.State switch
+    {
+        { Phase: LinqConsolePhase.NotLinked } => "kein C#-Projekt verknüpft",
+        { Phase: LinqConsolePhase.Starting, Step: { } step } => step + " …",
+        { Phase: LinqConsolePhase.Starting } => "startet …",
+        { Phase: LinqConsolePhase.Ready } => "bereit",
+        { Phase: LinqConsolePhase.Failed, Error: { } error } => "Fehler: " + error.Message,
+        _ => "startet beim Ausführen",
+    };
+
+    private string ConsoleClass => Console.State.Phase switch
+    {
+        LinqConsolePhase.Ready => "ready",
+        LinqConsolePhase.Failed or LinqConsolePhase.NotLinked => "failed",
+        _ => "",
+    };
+
+    private string ConsoleTitle => Console.State.Error?.Detail is { } detail
+        ? detail
+        : "Der Hilfsprozess lädt das Projekt einmal und übersetzt dann jede Query in das SQL, das EF senden würde – ohne Datenbank.";
+
+    private IReadOnlyList<LinqDiagnostic> Markers(string section) =>
+        Tab.LastRun?.Diagnostics.Where(d => d.Section == section).ToList() ?? (IReadOnlyList<LinqDiagnostic>)[];
+
+    private void OnVariablesChanged(string text)
+    {
+        Tab.Variables = text;
+        Shell.MarkDirty();
+    }
+
+    private void OnCodeChanged(string text)
+    {
+        Tab.Code = text;
+        Shell.MarkDirty();
+    }
+
+    private void OnTabCommand(WorkspaceTab tab, TabCommand command)
+    {
+        if (tab != Tab)
+        {
+            return;
+        }
+
+        switch (command)
+        {
+            case TabCommand.ApplyFilters or TabCommand.Refresh:
+                _ = InvokeAsync(RunAsync);
+                break;
+            case TabCommand.FindColumn when _codeEditor is not null:
+                _ = InvokeAsync(_codeEditor.FindAsync);
+                break;
+        }
+    }
+
+    private async Task RunAsync()
+    {
+        if (_running)
+        {
+            return;
+        }
+
+        // The editors report changes debounced: take what they hold right now.
+        Tab.Code = await (_codeEditor?.GetTextAsync() ?? Task.FromResult<string?>(null)) ?? Tab.Code;
+        Tab.Variables = await (_variablesEditor?.GetTextAsync() ?? Task.FromResult<string?>(null)) ?? Tab.Variables;
+        Shell.MarkDirty();
+
+        _running = true;
+        _error = null;
+        _errorDetail = null;
+        _writtenRows = null;
+        _cts = new CancellationTokenSource();
+        StateHasChanged();
+        try
+        {
+            var code = Tab.Code;
+            var variables = Tab.Variables;
+            var token = _cts.Token;
+            Tab.LastRun = await Task.Run(() => Console.RunAsync(code, variables, token), token);
+            Tab.SelectedCommand = Math.Max(0, Tab.LastRun.Commands.ToList().FindIndex(c => LinqStatements.KindOf(c) != LinqCommandKind.Unsupported));
+            ShowCommand();
+        }
+        catch (OperationCanceledException)
+        {
+            _error = "Abgebrochen.";
+        }
+        catch (ClrModelException ex)
+        {
+            _error = ex.Message;
+            _errorDetail = ex.Detail;
+        }
+        finally
+        {
+            _running = false;
+            _cts?.Dispose();
+            _cts = null;
+            // Started from a shortcut (Ctrl+Enter), not a UI event: Blazor does not render on its own afterwards.
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>The selected command: a query goes to a new result grid.</summary>
+    private void ShowCommand()
+    {
+        _writtenRows = null;
+        _grid = null;
+        if (Tab.LastRun is { Commands.Count: > 0 } run)
+        {
+            var command = run.Commands[Math.Clamp(Tab.SelectedCommand, 0, run.Commands.Count - 1)];
+            _query = LinqStatements.KindOf(command) == LinqCommandKind.Query ? LinqStatements.ToQuery(command) : null;
+            _runKey++;
+        }
+        else
+        {
+            _query = null;
+        }
+    }
+
+    private void SelectCommand(int index)
+    {
+        Tab.SelectedCommand = index;
+        ShowCommand();
+    }
+
+    private void Cancel() => _cts?.Cancel();
+
+    private void OnGridStatus(SqlGridStatus status) => _grid = status;
+
+    /// <summary>ExecuteUpdate/ExecuteDelete: the user confirmed by pressing the button below the statement.</summary>
+    private async Task WriteAsync()
+    {
+        if (Tab.LastRun is not { } run || !Workspaces.IsWritable(Tab.WorkspaceId))
+        {
+            return;
+        }
+
+        var statement = LinqStatements.ToQuery(run.Commands[Tab.SelectedCommand]);
+        _running = true;
+        _error = null;
+        try
+        {
+            var editor = await Workspaces.GetEditorAsync(Tab.WorkspaceId, CancellationToken.None);
+            _writtenRows = await Task.Run(() => editor.ExecuteAsync(statement, CancellationToken.None));
+            // Table tabs of the workspace may show the changed rows: they fetch them again from the transaction.
+            foreach (var tab in Shell.Workspaces.FirstOrDefault(w => w.WorkspaceId == Tab.WorkspaceId)?.TableTabs ?? [])
+            {
+                Shell.RequestTabCommand(tab, TabCommand.Reload);
+            }
+
+            Shell.NotifyChanged(); // status bar: open transaction, commit/rollback
+        }
+        catch (DatabaseException ex)
+        {
+            QueryErrorLog.Log(Logger, ex, Active.Profile);
+            Shell.ReportFailure(ex);
+            _error = ex.Display;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _running = false;
+        }
+    }
+
+    /// <summary>Appends the suggested declarations to the variables and puts the cursor on the first of them.</summary>
+    private async Task AdoptDeclarationsAsync()
+    {
+        if (Tab.LastRun is not { UnknownNames.Count: > 0 } run || _variablesEditor is null)
+        {
+            return;
+        }
+
+        var existing = (await _variablesEditor.GetTextAsync() ?? Tab.Variables).TrimEnd();
+        var firstLine = existing.Length == 0 ? 1 : existing.Split('\n').Length + 1;
+        Tab.Variables = (existing.Length == 0 ? "" : existing + "\n") + string.Join("\n", run.UnknownNames.Select(u => u.Declaration));
+        await _variablesEditor.SetTextAsync(Tab.Variables);
+        Tab.LastRun = run with { UnknownNames = [] };
+        Shell.MarkDirty();
+        await _variablesEditor.RevealAsync(firstLine, 1);
+    }
+
+    private Task RevealAsync(LinqDiagnostic diagnostic) =>
+        (diagnostic.Section == LinqProtocol.CodeSection ? _codeEditor : _variablesEditor)?.RevealAsync(diagnostic.Line, diagnostic.Column) ?? Task.CompletedTask;
+
+    private static string FirstWord(string sql) => sql.TrimStart().Split([' ', '\n', '\r'], 2)[0].ToUpperInvariant();
+
+    private static string Ms(TimeSpan elapsed) => elapsed.TotalMilliseconds < 1000
+        ? $"{elapsed.TotalMilliseconds:0} ms"
+        : $"{elapsed.TotalSeconds.ToString("0.0", CultureInfo.CurrentCulture)} s";
+
+    private void OnConsoleChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Console.Changed -= OnConsoleChanged;
+        Shell.TabCommandRequested -= OnTabCommand;
+        _cts?.Cancel();
+    }
+}

@@ -17,7 +17,8 @@ internal static class ContextFactory
 
     private const BindingFlags Constructors = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
 
-    public static (DbContext Context, string CreatedBy) Create(Type contextType, IReadOnlyList<Type> types)
+    /// <param name="configure">Further options (interceptors of the LINQ console); not applied to a design-time factory's context.</param>
+    public static (DbContext Context, string CreatedBy) Create(Type contextType, IReadOnlyList<Type> types, Action<DbContextOptionsBuilder>? configure = null)
     {
         var factoryInterface = typeof(IDesignTimeDbContextFactory<>).MakeGenericType(contextType);
         if (types.FirstOrDefault(t => factoryInterface.IsAssignableFrom(t) && !t.IsAbstract && t.GetConstructor(Type.EmptyTypes) is not null) is { } factory)
@@ -35,6 +36,7 @@ internal static class ContextFactory
         {
             var builder = (DbContextOptionsBuilder)Activator.CreateInstance(typeof(DbContextOptionsBuilder<>).MakeGenericType(contextType))!;
             UseOracle(builder);
+            configure?.Invoke(builder);
             return ((DbContext)optionsConstructor.Invoke([builder.Options]), "options");
         }
 

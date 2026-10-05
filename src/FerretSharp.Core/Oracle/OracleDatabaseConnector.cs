@@ -71,6 +71,9 @@ public sealed class OracleDatabaseConnector : IDatabaseConnector
 
         public Task<LobRead> ReadLobAsync(TableDetails table, RowKey key, int column, CancellationToken cancellationToken) =>
             OracleErrors.Guard(() => inner.ReadLobAsync(table, key, column, cancellationToken));
+
+        public Task<SqlPage> ReadSqlAsync(QuerySpec query, int skip, int take, CancellationToken cancellationToken) =>
+            OracleErrors.Guard(() => inner.ReadSqlAsync(query, skip, take, cancellationToken));
     }
 
     /// <summary>Keeps OracleException out of the layers above.</summary>

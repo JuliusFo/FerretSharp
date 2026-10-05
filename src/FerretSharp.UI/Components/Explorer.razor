@@ -45,7 +45,7 @@
                         var t = table;
                         var entity = Presentation.ShownEntityNameOf(t.Ref);
                         var front = entity is not null && Presentation.Names == ClrNameDisplay.Front;
-                        <button class="table-item @(Shell.ActiveTab?.Table.Ref == t.Ref ? "active" : "") @(IsOpen(t) ? "open" : "") @(t.IsInvalid ? "invalid" : "")" title="@Tooltip(t, entity)"
+                        <button class="table-item @((Shell.ActiveTab as TableTab)?.Table.Ref == t.Ref ? "active" : "") @(IsOpen(t) ? "open" : "") @(t.IsInvalid ? "invalid" : "")" title="@Tooltip(t, entity)"
                                 @onclick="() => Shell.OpenTable(t)">
                             @Icons.For(t.Kind)
                             <span class="name">@(front ? entity : t.DisplayName)</span>
@@ -123,7 +123,7 @@
         return result;
     }
 
-    private bool IsOpen(TableSummary table) => Shell.Tabs.Any(t => t.Table.Ref == table.Ref);
+    private bool IsOpen(TableSummary table) => Shell.Tabs.OfType<TableTab>().Any(t => t.Table.Ref == table.Ref);
 
     private static int SortKey(char letter) => letter == LetterIndexBar.Other ? int.MaxValue : letter;
 

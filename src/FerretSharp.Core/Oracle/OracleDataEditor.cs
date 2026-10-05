@@ -103,6 +103,33 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
             return true;
         });
 
+    public Task<int> ExecuteAsync(QuerySpec statement, CancellationToken cancellationToken) =>
+        OracleErrors.Guard(async () =>
+        {
+            if (session.Transaction.Mode == TransactionMode.ReadOnly)
+            {
+                // Oracle would refuse as well (ORA-01456); this way the message names the reason.
+                throw new InvalidOperationException("Der Workspace ist schreibgeschützt – erst freischalten, dann schreiben.");
+            }
+
+            if (session.Transaction.Mode == TransactionMode.None)
+            {
+                await session.BeginTransactionAsync(cancellationToken);
+            }
+
+            var savepoint = "FS_LINQ_" + (++_counter).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            await session.SavepointAsync(savepoint, cancellationToken);
+            try
+            {
+                return (await session.ExecuteNonQueryAsync(statement.Sql, statement.Parameters, cancellationToken)).Rows;
+            }
+            catch (Exception ex) when (ex is OracleStatementException or OperationCanceledException or InvalidOperationException)
+            {
+                await session.RollbackToSavepointAsync(savepoint, CancellationToken.None);
+                throw;
+            }
+        });
+
     private async Task ApplyAsync(
         TableDetails table, PendingOperation operation, FlushOptions options,
         Dictionary<Guid, RowKey> newKeys, Dictionary<Guid, RowData> inserted, CancellationToken cancellationToken)

@@ -16,11 +16,14 @@ public sealed class WorkspaceTabs(Guid workspaceId)
 {
     public Guid WorkspaceId { get; } = workspaceId;
 
-    public List<TableTab> Tabs { get; } = [];
+    public List<WorkspaceTab> Tabs { get; } = [];
 
-    public TableTab? ActiveTab { get; set; }
+    public WorkspaceTab? ActiveTab { get; set; }
 
     public int ActiveIndex => ActiveTab is null ? -1 : Tabs.IndexOf(ActiveTab);
+
+    /// <summary>The table tabs (editing, FK navigation); LINQ tabs have no rows of their own.</summary>
+    public IEnumerable<TableTab> TableTabs => Tabs.OfType<TableTab>();
 }
 
 /// <summary>
@@ -43,7 +46,7 @@ public sealed class ShellState
     public event Action<ConnectionProfile>? ConnectRequested;
 
     /// <summary>Global shortcuts for the active tab (Ctrl+Enter, F5); handled by its tab view.</summary>
-    public event Action<TableTab, TabCommand>? TabCommandRequested;
+    public event Action<WorkspaceTab, TabCommand>? TabCommandRequested;
 
     public ShellPage Page { get; private set; } = ShellPage.Connections;
 
@@ -52,9 +55,9 @@ public sealed class ShellState
 
     public WorkspaceTabs? ActiveWorkspace { get; private set; }
 
-    public IReadOnlyList<TableTab> Tabs => ActiveWorkspace?.Tabs ?? [];
+    public IReadOnlyList<WorkspaceTab> Tabs => ActiveWorkspace?.Tabs ?? [];
 
-    public TableTab? ActiveTab => ActiveWorkspace?.ActiveTab;
+    public WorkspaceTab? ActiveTab => ActiveWorkspace?.ActiveTab;
 
     public ConnectionDialogRequest? ConnectionDialog { get; private set; }
 
@@ -138,7 +141,7 @@ public sealed class ShellState
             return null;
         }
 
-        var tab = workspace.Tabs.FirstOrDefault(t => t.Table.Ref == table.Ref);
+        var tab = workspace.Tabs.OfType<TableTab>().FirstOrDefault(t => t.Table.Ref == table.Ref);
         Set(() =>
         {
             if (tab is null)
@@ -170,11 +173,11 @@ public sealed class ShellState
             return null;
         }
 
-        var tab = new TableTab(workspace.WorkspaceId, table) { AppliedFilters = filters, Visited = true, Origin = workspace.ActiveTab };
+        var tab = new TableTab(workspace.WorkspaceId, table) { AppliedFilters = filters, Visited = true, Origin = workspace.ActiveTab as TableTab };
         tab.FilterRows.AddRange(filters.Select(FilterRow.From));
         Set(() =>
         {
-            if (workspace.ActiveTab is { } origin)
+            if (workspace.ActiveTab is TableTab origin)
             {
                 origin.Forward = null; // a new jump replaces the way forward, like in a browser
             }
@@ -187,10 +190,31 @@ public sealed class ShellState
         return tab;
     }
 
+    /// <summary>Opens a new LINQ console tab ("LINQ 1", "LINQ 2" …) after the active tab (WP-13).</summary>
+    public LinqTab? OpenLinq(string? code = null)
+    {
+        if (ActiveWorkspace is not { } workspace)
+        {
+            return null;
+        }
+
+        var titles = workspace.Tabs.OfType<LinqTab>().Select(t => t.Title).ToHashSet(StringComparer.Ordinal);
+        var number = Enumerable.Range(1, int.MaxValue).First(n => !titles.Contains($"LINQ {n}"));
+        var tab = new LinqTab(workspace.WorkspaceId, $"LINQ {number}") { Code = code ?? "", Visited = true };
+        Set(() =>
+        {
+            var index = workspace.ActiveTab is { } active ? workspace.Tabs.IndexOf(active) + 1 : workspace.Tabs.Count;
+            workspace.Tabs.Insert(index, tab);
+            workspace.ActiveTab = tab;
+            Page = ShellPage.Explorer;
+        });
+        return tab;
+    }
+
     /// <summary>"Zurück" (Alt+←): activates the tab the active one was opened from by an FK jump.</summary>
     public void GoBack()
     {
-        if (ActiveTab is { } tab && Page == ShellPage.Explorer && tab.BackTarget(Tabs) is { } target)
+        if (ActiveTab is TableTab tab && Page == ShellPage.Explorer && tab.BackTarget(Tabs.ToList()) is { } target)
         {
             target.Forward = tab;
             ActivateTab(target);
@@ -200,13 +224,13 @@ public sealed class ShellState
     /// <summary>"Vor" (Alt+→): returns to the tab the user went back from.</summary>
     public void GoForward()
     {
-        if (ActiveTab is { } tab && Page == ShellPage.Explorer && tab.ForwardTarget(Tabs) is { } target)
+        if (ActiveTab is TableTab tab && Page == ShellPage.Explorer && tab.ForwardTarget(Tabs.ToList()) is { } target)
         {
             ActivateTab(target);
         }
     }
 
-    public void ActivateTab(TableTab tab) => Set(() =>
+    public void ActivateTab(WorkspaceTab tab) => Set(() =>
     {
         if (ActiveWorkspace is { } workspace && workspace.Tabs.Contains(tab))
         {
@@ -215,7 +239,7 @@ public sealed class ShellState
         }
     });
 
-    public void CloseTab(TableTab tab) => Set(() =>
+    public void CloseTab(WorkspaceTab tab) => Set(() =>
     {
         if (ActiveWorkspace is not { } workspace)
         {
@@ -242,7 +266,7 @@ public sealed class ShellState
     {
         foreach (var workspace in _workspaces)
         {
-            workspace.Tabs.RemoveAll(t => predicate(t));
+            workspace.Tabs.RemoveAll(t => t is TableTab table && predicate(table));
             if (workspace.ActiveTab is not null && !workspace.Tabs.Contains(workspace.ActiveTab))
             {
                 workspace.ActiveTab = workspace.Tabs.LastOrDefault();
@@ -260,7 +284,7 @@ public sealed class ShellState
     }
 
     /// <summary>A command for a particular tab, also an inactive one (reload after writing, commit, rollback).</summary>
-    public void RequestTabCommand(TableTab tab, TabCommand command) => TabCommandRequested?.Invoke(tab, command);
+    public void RequestTabCommand(WorkspaceTab tab, TabCommand command) => TabCommandRequested?.Invoke(tab, command);
 
     /// <summary>Set while the user is asked what happens to uncommitted changes before leaving (dialog in the shell).</summary>
     public LeaveRequest? PendingLeave { get; private set; }
@@ -343,18 +367,27 @@ public sealed class ShellState
     {
         var result = new WorkspaceTabs(workspace.Id);
         var restored = new Dictionary<int, TableTab>(); // saved index → tab
-        TableTab? active = null;
+        WorkspaceTab? active = null;
         for (var i = 0; i < workspace.Tabs.Count; i++)
         {
             var state = workspace.Tabs[i];
-            if (schema.Find(state.Table) is not { } table)
+            WorkspaceTab tab;
+            if (state.Linq is { } linq)
+            {
+                tab = LinqTab.Restore(workspace.Id, linq);
+            }
+            else if (schema.Find(state.Table) is { } table)
+            {
+                var tableTab = TableTab.Restore(workspace.Id, table, state);
+                restored[i] = tableTab;
+                tab = tableTab;
+            }
+            else
             {
                 continue; // dropped, or no longer reachable through a synonym
             }
 
-            var tab = TableTab.Restore(workspace.Id, table, state);
             result.Tabs.Add(tab);
-            restored[i] = tab;
             if (i == workspace.ActiveTabIndex)
             {
                 active = tab;

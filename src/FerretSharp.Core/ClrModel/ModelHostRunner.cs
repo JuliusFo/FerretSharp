@@ -15,6 +15,12 @@ public interface IModelHostRunner
 
     /// <summary><c>dotnet build</c> of the linked project in its configuration.</summary>
     Task<DotNetRun> BuildAsync(ClrProjectLink link, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Starts the model host as LINQ console (ADR 0011) and waits until it has loaded the project and built the model.
+    /// </summary>
+    /// <exception cref="ClrModelException">The host could not start or reported an error while loading.</exception>
+    Task<ILinqConsole> StartConsoleAsync(ClrProjectLink link, BuildOutput output, CancellationToken cancellationToken, IProgress<string>? progress = null);
 }
 
 /// <summary>Exit code and output (stdout and stderr interleaved) of a <c>dotnet</c> call.</summary>
@@ -52,18 +58,7 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
             await File.WriteAllTextAsync(runtimeConfig, RuntimeConfig(output), cancellationToken);
             var result = Path.Combine(work.FullName, "model.json");
 
-            var arguments = new List<string> { "exec", "--runtimeconfig", runtimeConfig, "--depsfile", output.DepsFile };
-            foreach (var folder in output.PackageFolders)
-            {
-                arguments.Add("--additionalprobingpath");
-                arguments.Add(folder);
-            }
-
-            arguments.AddRange([modelHostPath, "--assembly", output.Assembly, "--output", result, "--culture", (culture ?? CultureInfo.CurrentUICulture).Name]);
-            if (link.ContextType is { Length: > 0 } context)
-            {
-                arguments.AddRange(["--context", context]);
-            }
+            var arguments = HostArguments(link, output, runtimeConfig, ["--output", result]);
 
             progress?.Report("Starte den Hilfsprozess");
             var run = await DotNetCli.RunAsync(arguments, Path.GetDirectoryName(output.Assembly)!, _timeout, cancellationToken, line =>
@@ -102,6 +97,41 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
         }
     }
 
+    public async Task<ILinqConsole> StartConsoleAsync(ClrProjectLink link, BuildOutput output, CancellationToken cancellationToken, IProgress<string>? progress = null)
+    {
+        if (!File.Exists(modelHostPath))
+        {
+            throw new ClrModelException(ClrModelErrorKind.HostFailed, $"FerretSharp.ModelHost fehlt: {modelHostPath}");
+        }
+
+        var work = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "FerretSharp", "modelhost", Guid.NewGuid().ToString("N")));
+        var runtimeConfig = Path.Combine(work.FullName, "modelhost.runtimeconfig.json");
+        await File.WriteAllTextAsync(runtimeConfig, RuntimeConfig(output), cancellationToken);
+        var pipe = "ferretsharp-linq-" + Guid.NewGuid().ToString("N");
+        return await LinqConsoleHost.StartAsync(
+            HostArguments(link, output, runtimeConfig, ["--console", pipe]), Path.GetDirectoryName(output.Assembly)!, pipe, work, output,
+            _timeout, progress, cancellationToken);
+    }
+
+    /// <summary><c>dotnet exec</c> with the project's deps.json and runtime, then the host and its arguments.</summary>
+    private List<string> HostArguments(ClrProjectLink link, BuildOutput output, string runtimeConfig, IEnumerable<string> mode)
+    {
+        var arguments = new List<string> { "exec", "--runtimeconfig", runtimeConfig, "--depsfile", output.DepsFile };
+        foreach (var folder in output.PackageFolders)
+        {
+            arguments.Add("--additionalprobingpath");
+            arguments.Add(folder);
+        }
+
+        arguments.AddRange([modelHostPath, "--assembly", output.Assembly, .. mode, "--culture", (culture ?? CultureInfo.CurrentUICulture).Name]);
+        if (link.ContextType is { Length: > 0 } context)
+        {
+            arguments.AddRange(["--context", context]);
+        }
+
+        return arguments;
+    }
+
     public Task<DotNetRun> BuildAsync(ClrProjectLink link, CancellationToken cancellationToken) =>
         DotNetCli.RunAsync(["build", link.ProjectFile, "-c", link.Configuration, "-nologo", "-v", "q"],
             Path.GetDirectoryName(link.ProjectFile)!, TimeSpan.FromMinutes(10), cancellationToken);
@@ -137,8 +167,36 @@ public static class DotNetCli
     private const int MaxOutput = 200_000;
 
     /// <param name="onOutputLine">Called for every line on stdout as it arrives (any thread).</param>
-    public static async Task<DotNetRun> RunAsync(
-        IEnumerable<string> arguments, string workingDirectory, TimeSpan timeout, CancellationToken cancellationToken, Action<string>? onOutputLine = null)
+    /// <summary>Starts <c>dotnet</c> and returns while it runs (the LINQ console); lines arrive on any thread.</summary>
+    public static Process Start(IEnumerable<string> arguments, string workingDirectory, Action<string> onOutputLine, Action<string> onErrorLine)
+    {
+        var process = new Process { StartInfo = StartInfo(arguments, workingDirectory) };
+        process.OutputDataReceived += (_, e) =>
+        {
+            if (e.Data is { } line)
+            {
+                onOutputLine(line);
+            }
+        };
+        process.ErrorDataReceived += (_, e) =>
+        {
+            if (e.Data is { } line)
+            {
+                onErrorLine(line);
+            }
+        };
+        if (!process.Start())
+        {
+            process.Dispose();
+            throw new ClrModelException(ClrModelErrorKind.DotNetMissing, "dotnet ließ sich nicht starten.");
+        }
+
+        process.BeginOutputReadLine();
+        process.BeginErrorReadLine();
+        return process;
+    }
+
+    private static ProcessStartInfo StartInfo(IEnumerable<string> arguments, string workingDirectory)
     {
         var start = new ProcessStartInfo(FindDotNet())
         {
@@ -159,8 +217,13 @@ public static class DotNetCli
         start.Environment["DOTNET_CLI_UI_LANGUAGE"] = "en";
         start.Environment["DOTNET_NOLOGO"] = "1";
         start.Environment["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1";
+        return start;
+    }
 
-        using var process = new Process { StartInfo = start };
+    public static async Task<DotNetRun> RunAsync(
+        IEnumerable<string> arguments, string workingDirectory, TimeSpan timeout, CancellationToken cancellationToken, Action<string>? onOutputLine = null)
+    {
+        using var process = new Process { StartInfo = StartInfo(arguments, workingDirectory) };
         var output = new StringBuilder();
         void Append(string? line)
         {
