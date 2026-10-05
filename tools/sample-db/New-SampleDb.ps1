@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
     Creates a local Oracle sample database for FerretSharp in Docker (Oracle 23 Free) and fills it with the sample
-    schema: 01-schema.sql, 02-data.sql, 03-vertrag.sql (in this order, as the application user FERRET).
+    schema: all *.sql files in name order (01-schema.sql, 02-data.sql …), as the application user FERRET.
 
 .DESCRIPTION
     The container listens on 127.0.0.1:<Port> only and restarts with Docker (--restart unless-stopped), so the port

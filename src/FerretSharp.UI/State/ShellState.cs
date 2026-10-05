@@ -9,7 +9,7 @@ public enum ConnectionDialogMode { New, Edit, Duplicate }
 
 public sealed record ConnectionDialogRequest(ConnectionDialogMode Mode, ConnectionProfile? Profile);
 
-public enum ShellPage { Connections, Explorer, Settings }
+public enum ShellPage { Connections, Explorer, Settings, Model }
 
 /// <summary>Tabs of one open workspace.</summary>
 public sealed class WorkspaceTabs(Guid workspaceId)
@@ -94,6 +94,13 @@ public sealed class ShellState
     {
         SwitcherOpen = false;
         Page = ShellPage.Settings;
+    });
+
+    /// <summary>The C# model of the connection's linked project and its differences to the schema (WP-11).</summary>
+    public void ShowModel() => Set(() =>
+    {
+        SwitcherOpen = false;
+        Page = ShellPage.Model;
     });
 
     /// <summary>

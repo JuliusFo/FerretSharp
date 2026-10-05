@@ -17,8 +17,9 @@ recreates it (all data is lost), `-Port`, `-Name` and `-Password` override the d
 | `02-data.sql` | 150,000 customers (umlauts, `&`, `%`, `_`, NULLs), 50,000 orders with some CLOBs |
 | `03-vertrag.sql` | VERTRAG: 71 columns, 20,000 rows, several FKs |
 | `04-object-details.sql` | comments, check constraints (one disabled), indexes (function-based, descending), a view on VERTRAG, an invalid view, optimizer statistics |
+| `05-clr-model.sql` | KUNDEN.GESPERRT (`J`/`N`) and KUNDEN.KUNDENART for the C# sample model (`samples/FerretSharp.SampleModel`, WP-11) |
 
-`04-object-details.sql` can also be added to an existing sample database:
+`04-object-details.sql` and `05-clr-model.sql` can also be added to an existing sample database (same commands with the other file name):
 
 ```powershell
 docker cp tools/sample-db/04-object-details.sql ferret-sample:/tmp/

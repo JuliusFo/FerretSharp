@@ -2,7 +2,7 @@
 
 > Projektanweisungen für Claude Code. Bitte vollständig lesen, bevor ein Arbeitspaket umgesetzt wird.
 > Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-05 (v1 komplett bis 1.7; v2: WP-08 → 1.8.0, WP-09 → 1.9.0, WP-10 → 2.0.0; nächste Version v3)
+> Stand: 2026-10-05 (v1 komplett bis 1.7; v2: WP-08 → 1.8.0, WP-09 → 1.9.0, WP-10 → 2.0.0; v3: WP-11 umgesetzt → 2.1.0)
 
 ## 1. Ziel
 
@@ -457,6 +457,12 @@ Die Arbeitspakete werden zu Beginn von v3 mit dem Nutzer verfeinert. Grober Zusc
 - EF-Core-Modell laden (Entity ↔ Tabelle, Property ↔ Spalte, Value Converter/Enums, Navigations, Owned Types). DbContext-Erzeugung wie `dotnet ef` (`IDesignTimeDbContextFactory`, sonst Host-Builder/Default-Konstruktor).
 - **ADR zu Beginn:** In-Process (`AssemblyLoadContext` + `AssemblyDependencyResolver`) vs. Out-of-Process (Hilfsprozess im Kontext des Zielprojekts wie `dotnet ef`, exportiert das Modell als JSON). Tendenz Out-of-Process wegen Versionskonflikten bei EF-Core-/Oracle-Provider-Assemblies; WP-13 (LINQ-Konsole) fließt in die Entscheidung ein.
 - Modell landet als Annotation-Schicht im Core (siehe Abschnitt 2), nicht als EF-Abhängigkeit von `FerretSharp.Core`.
+- Umgesetzt (Release 2.1.0, ADR 0009). Ausgangslage beim Nutzer: DB-first von Hand (erst DB ändern, dann Entity/Konfiguration), keine Migrations, Namenskonvention im Code (Tabellen groß, `KundenId` → `KUNDEN_ID`), **eigene Value Converter**, ein DbContext in einer Klassenbibliothek (Konstruktor `DbContextOptions`), Entities in einem anderen Projekt, EF Core 8 (3.1/5-Projekte werden gerade umgestellt).
+  - Entscheidung nach Abwägung mit dem Nutzer: **kompilierter DbContext statt statischer Quelltext-Analyse** – eigene Converter (bool ↔ J/N, Enum-Kürzel) lassen sich statisch nicht auswerten, Enum-Filter wären still falsch. **Hilfsprozess statt In-Process** (Runtime/Versionen des Projekts, Absturzsicherheit). Minimum EF Core 8.
+  - `FerretSharp.ModelHost` (net8.0, gegen EF Core 8.0.0 nur kompiliert, `ExcludeAssets="runtime"`; `UseOracle` per Reflection, also unabhängig von der Provider-Version): `dotnet exec --runtimeconfig <erzeugt> --depsfile <Projekt>.deps.json --additionalprobingpath <NuGet-Ordner aus obj/project.assets.json>`. Context: `IDesignTimeDbContextFactory` → eigene Options mit Platzhalter-Connection-String + `DbContextOptions`-Konstruktor → parameterlos. Liest `IDesignTimeModel`, schreibt JSON in eine Datei (nicht stdout). Wertetabellen für Enums/konvertierte bools über den Converter des Projekts (`ConvertToProvider`). Format `ModelExport` als gemeinsame Quelldatei (Core + ModelHost). Liegt im App-Output unter `modelhost/` (App.csproj: ProjectReference ohne Output, `Private="false"`, RID/Ausgabeordner entfernt, Kopier-Targets für Build und Publish).
+  - Core (`ClrModel/`): `ClrProjectLink` im `ConnectionProfile` (`ClrProject`), `BuildOutputLocator` (bin/&lt;Konfiguration&gt; oder Artifacts-Layout, Zielframework aus `runtimeTarget`, veralteter Build über neuere `.cs`/`.csproj` auch in referenzierten Projekten), `ModelHostRunner`/`DotNetCli` (installiertes `dotnet`, Timeout, Prozessbaum beenden), `ClrModelMapping` (Annotation-Schicht: Entity/Property je Tabelle/Spalte, Synonyme, Abweichungen), `ClrModelManager` (lädt nach dem Verbinden im Hintergrund, bei Änderung der Verknüpfung, „Neu laden“, „Neu bauen“).
+  - UI: Abschnitt „C#-Modell“ im Verbindungsdialog (Projekt, Build-Konfiguration, DbContext), Statusleiste „C# · N Entities“, Seite „C#-Modell“ (`ShellPage.Model`) mit Abgleich, Spalten-Ansicht mit Property, C#-Typ und Converter.
+  - `samples/FerretSharp.SampleModel` bildet den Stil des Nutzers nach (eigene `Directory.Build.props`/`Directory.Packages.props`, erbt nichts von FerretSharp); `ModelHostTests` laufen dagegen ohne DB. `tools/sample-db/05-clr-model.sql` ergänzt KUNDEN.GESPERRT (J/N) und KUNDENART.
 
 #### WP-12 Schema-Anreicherung
 - Grid und Explorer zeigen optional Entity-/Property-Namen; Enums mit C#-Namen in Grid und Filter (Dropdown statt Zahl).

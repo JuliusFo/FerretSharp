@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Runs in the user's project (dotnet exec with its deps.json), not in FerretSharp: net8.0, EF Core only to compile
+       against. ADR 0009. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>FerretSharp.ModelHost</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Compile only: at run time the user's EF Core assemblies are used (none are copied next to the host). -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" ExcludeAssets="runtime" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\FerretSharp.Core\ClrModel\ModelExport.cs" Link="ModelExport.cs" />
+  </ItemGroup>
+
+</Project>

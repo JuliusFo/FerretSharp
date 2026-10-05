@@ -677,3 +677,45 @@ button.badge-btn:hover { filter: brightness(1.08); }
 .lob-image { margin-bottom: 8px; text-align: center; }
 .lob-image img { max-width: 100%; max-height: 40vh; border-radius: 6px; background: repeating-conic-gradient(#ccc 0 25%, #fff 0 50%) 0 0 / 16px 16px; }
 .lob-null { padding: 28px; border: 1px dashed var(--border-strong); border-radius: 8px; color: var(--muted); font-style: italic; text-align: center; }
+
+/* Connection dialog: C# model (WP-11) */
+.form-grid .form-section { grid-column: 1 / -1; margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--border); font-weight: 600; }
+.form-grid .form-section .hint { font-weight: 400; }
+.field-with-button { display: flex; gap: 6px; }
+.field-with-button .field { flex: 1; min-width: 0; }
+.form-grid .field.narrow { width: 140px; }
+
+/* C# model (WP-11): status bar entry and model page */
+.statusbar .status-link { border: 0; background: transparent; color: inherit; font: inherit; padding: 0; cursor: pointer; }
+.statusbar .status-link:hover { color: var(--text); text-decoration: underline; }
+.statusbar .status-link.error { color: var(--danger); }
+.statusbar .status-link.warn { color: #c07a00; }
+.model-page .page-head .hint { min-width: 0; }
+.ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.model-facts { display: grid; grid-template-columns: 110px 1fr; gap: 8px 14px; margin: 0; padding: 14px 16px; }
+.model-facts dt { color: var(--muted); font-weight: 500; }
+.model-facts dd { margin: 0; min-width: 0; }
+.model-facts .hint { font-size: 12px; }
+.settings-note.warn { background: rgba(192, 122, 0, 0.12); }
+.model-status { display: flex; align-items: center; gap: 8px; padding: 0 16px 14px; color: var(--muted); }
+.model-error { margin: 0 16px 12px; }
+.model-log { margin: 0 16px 14px; max-height: 320px; overflow: auto; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); font: 12px/1.45 var(--mono); white-space: pre-wrap; }
+.model-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 14px 16px 6px; }
+.model-chip { padding: 3px 9px; border: 1px solid var(--border); border-radius: 999px; font-size: 12px; }
+.model-chip.warn { border-color: #c07a00; color: #c07a00; }
+.model-issues { padding: 8px 16px 6px; }
+.model-issues h3 { margin: 6px 0 2px; font-size: 13px; font-weight: 600; }
+.model-issues h3 .count { margin-left: 4px; padding: 0 6px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-weight: 500; }
+.model-issues .hint { font-size: 12px; }
+.model-issues ul { margin: 6px 0 8px; padding-left: 18px; }
+.model-issues li { margin: 2px 0; font-family: var(--mono); font-size: 12.5px; }
+.model-issues li .link-btn { margin-left: 6px; font-family: inherit; }
+.model-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.model-table th, .model-table td { padding: 6px 16px; border-top: 1px solid var(--border); text-align: left; vertical-align: top; }
+.model-table th { color: var(--muted); font-weight: 500; font-size: 12px; }
+.model-table .num { text-align: right; white-space: nowrap; }
+.model-table .small { font-size: 12px; color: var(--muted); }
+.structure-columns-head .entity-name { color: var(--muted); font-size: 12.5px; }
+.structure-columns-head .entity-name strong { color: var(--text); font-family: var(--mono); font-weight: 600; }
+table.columns td.property { color: var(--accent); }
+table.columns td.clr-type .converter { display: block; color: var(--muted); font-size: 11px; }

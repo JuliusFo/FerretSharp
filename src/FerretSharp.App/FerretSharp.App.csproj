@@ -28,6 +28,33 @@
   <ItemGroup>
     <ProjectReference Include="..\FerretSharp.Core\FerretSharp.Core.csproj" />
     <ProjectReference Include="..\FerretSharp.UI\FerretSharp.UI.csproj" />
+    <!-- Built, not referenced: it runs in the user's project with its runtime (ADR 0009). Neither the app's runtime
+         identifier nor its output folder must reach it. -->
+    <ProjectReference Include="..\FerretSharp.ModelHost\FerretSharp.ModelHost.csproj" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" Private="false"
+                      GlobalPropertiesToRemove="$(ModelHostRemovedProperties)" />
   </ItemGroup>
+
+  <PropertyGroup>
+    <ModelHostRemovedProperties>RuntimeIdentifier;SelfContained;OutputPath;OutDir;PublishDir;_CommandLineDefinedOutputPath</ModelHostRemovedProperties>
+  </PropertyGroup>
+
+  <!-- FerretSharp.ModelHost ships in the subfolder "modelhost" (build and publish). -->
+  <Target Name="CollectModelHost">
+    <MSBuild Projects="..\FerretSharp.ModelHost\FerretSharp.ModelHost.csproj" Targets="GetTargetPath" RemoveProperties="$(ModelHostRemovedProperties)">
+      <Output TaskParameter="TargetOutputs" ItemName="_ModelHostTarget" />
+    </MSBuild>
+    <ItemGroup>
+      <_ModelHostFiles Include="@(_ModelHostTarget->'%(RootDir)%(Directory)FerretSharp.ModelHost.dll')" />
+      <_ModelHostFiles Include="@(_ModelHostTarget->'%(RootDir)%(Directory)FerretSharp.ModelHost.pdb')" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="CopyModelHost" AfterTargets="Build" DependsOnTargets="CollectModelHost">
+    <Copy SourceFiles="@(_ModelHostFiles)" DestinationFolder="$(OutDir)modelhost" SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="PublishModelHost" AfterTargets="Publish" DependsOnTargets="CollectModelHost">
+    <Copy SourceFiles="@(_ModelHostFiles)" DestinationFolder="$(PublishDir)modelhost" SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>

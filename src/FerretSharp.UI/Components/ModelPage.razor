@@ -1,0 +1,240 @@
+@* The C# model of the active connection's linked project (WP-11): where it comes from, reload/rebuild, and how it
+   matches the database – entities without table, properties without column, columns without property. *@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Schema
+@using FerretSharp.UI.State
+@implements IDisposable
+@inject ClrModelManager Models
+@inject ActiveConnection Active
+@inject ConnectionManager Connections
+
+<div class="settings-page model-page">
+    <div class="page-head">
+        <h1>C#-Modell</h1>
+        @if (State.Link is { } headLink)
+        {
+            <span class="hint mono ellipsis" title="@headLink.ProjectFile">@headLink.ProjectName</span>
+        }
+        <span class="grow"></span>
+        @if (State.Link is not null)
+        {
+            <button class="btn" disabled="@(Busy)" @onclick="Models.LoadAsync">Neu laden</button>
+            <button class="btn" disabled="@(Busy)" title="dotnet build, danach neu laden" @onclick="BuildAsync">
+                @if (Models.IsBuilding)
+                {
+                    <span class="spinner small"></span>
+                }
+                Neu bauen
+            </button>
+        }
+        @if (Profile is { } profile)
+        {
+            <button class="btn ghost" @onclick="() => Shell.EditConnection(profile)">Verbindung bearbeiten …</button>
+        }
+        <button class="btn ghost" @onclick="Shell.ShowExplorer">Zurück</button>
+    </div>
+
+    @if (State.Link is not { } link)
+    {
+        <section class="settings-section">
+            <h2>Kein Projekt verknüpft</h2>
+            <div class="settings-note">
+                Im Verbindungsdialog unter „C#-Modell“ die <code>.csproj</code> des Projekts mit dem DbContext eintragen. FerretSharp liest
+                das EF-Core-Modell (ab EF Core 8) dann aus dem vorhandenen Build: Entity- und Property-Namen, C#-Typen, Converter und
+                Navigations – ohne den Startcode der Anwendung und ohne Datenbankverbindung.
+            </div>
+        </section>
+    }
+    else
+    {
+        <section class="settings-section">
+            <h2>Projekt</h2>
+            <dl class="model-facts">
+                <dt>Projekt</dt>
+                <dd class="mono">@link.ProjectFile</dd>
+                @if (State.Output is { } output)
+                {
+                    <dt>Build</dt>
+                    <dd>
+                        @link.Configuration · .NET @output.TargetFramework · gebaut @output.BuiltAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm", CultureInfo.CurrentCulture)
+                        <div class="hint mono ellipsis" title="@output.Assembly">@output.Assembly</div>
+                    </dd>
+                }
+                @if (State.Mapping?.Model is { } model)
+                {
+                    <dt>DbContext</dt>
+                    <dd>
+                        <span class="mono">@model.ContextType</span> · EF Core @model.EfVersion
+                        <div class="hint">@CreatedBy(model.CreatedBy) – ohne Startcode der Anwendung, ohne Datenbankverbindung</div>
+                    </dd>
+                }
+            </dl>
+
+            @if (State.Output is { IsStale: true } stale)
+            {
+                <div class="settings-note warn">
+                    Der Quelltext ist neuer als der Build (<span class="mono">@Path.GetFileName(stale.NewerSource)</span>) – „Neu bauen“ übernimmt die Änderungen.
+                </div>
+            }
+
+            @if (State.Phase == ClrModelPhase.Loading)
+            {
+                <div class="model-status"><span class="spinner small"></span> Lese das Modell …</div>
+            }
+            else if (State is { Phase: ClrModelPhase.Failed, Error: { } error })
+            {
+                <div class="test-result error model-error">
+                    <span>@error.Message</span>
+                    @if (error.Detail is { Length: > 0 })
+                    {
+                        <button class="link-btn" @onclick="() => _showDetail = !_showDetail">@(_showDetail ? "Details ausblenden" : "Details")</button>
+                    }
+                </div>
+                @if (_showDetail && error.Detail is { } detail)
+                {
+                    <pre class="model-log">@detail</pre>
+                }
+            }
+
+            @if (Models.LastBuild is { Succeeded: false } build && !Models.IsBuilding)
+            {
+                <div class="test-result error model-error"><span>Build fehlgeschlagen (Exit-Code @build.ExitCode).</span></div>
+                <pre class="model-log">@build.Output</pre>
+            }
+        </section>
+
+        @if (State.Mapping is { } mapping)
+        {
+            var entities = mapping.Model.Entities.Count(e => e.Table is not null || e.View is not null);
+            var properties = mapping.Entities.Sum(e => e.Entity.Properties.Count(p => p.Column is not null));
+            var mapped = mapping.Entities.Sum(e => e.Properties.Count);
+            <section class="settings-section">
+                <h2>Abgleich mit der Datenbank</h2>
+                <div class="model-summary">
+                    <span class="model-chip">@mapping.Entities.Count von @entities Entities zugeordnet</span>
+                    <span class="model-chip">@mapped von @properties Properties zugeordnet</span>
+                    <span class="model-chip @(Count(mapping, MappingIssueKind.ColumnWithoutProperty) > 0 ? "warn" : "")">@Count(mapping, MappingIssueKind.ColumnWithoutProperty) Spalten ohne Property</span>
+                    @if (State.LoadedAt is { } loadedAt)
+                    {
+                        <span class="hint">Stand @loadedAt.ToString("HH:mm:ss", CultureInfo.CurrentCulture)</span>
+                    }
+                </div>
+
+                @if (mapping.Issues.Count == 0)
+                {
+                    <div class="settings-note">Modell und Datenbank stimmen überein.</div>
+                }
+
+                @foreach (var (kind, title, hint) in IssueGroups)
+                {
+                    var issues = mapping.Issues.Where(i => i.Kind == kind).ToList();
+                    if (issues.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    <div class="model-issues">
+                        <h3>@title <span class="count">@issues.Count</span></h3>
+                        <div class="hint">@hint</div>
+                        <ul>
+                            @foreach (var issue in issues)
+                            {
+                                <li>
+                                    @issue.Message
+                                    @if (issue.Table is { } issueTable && Schema?.Find(issueTable) is { } summary)
+                                    {
+                                        <button class="link-btn" @onclick="() => Open(summary)">öffnen</button>
+                                    }
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                }
+            </section>
+
+            <section class="settings-section">
+                <h2>Entities</h2>
+                <table class="model-table">
+                    <thead><tr><th>Entity</th><th>Tabelle</th><th class="num">Properties</th><th>Converter</th></tr></thead>
+                    <tbody>
+                        @foreach (var entity in mapping.Model.Entities.OrderBy(e => ClrModelMapping.ShortName(e.ClrType), StringComparer.Ordinal))
+                        {
+                            var located = mapping.Entities.FirstOrDefault(m => m.Entity == entity);
+                            <tr>
+                                <td title="@entity.ClrType">@ClrModelMapping.ShortName(entity.ClrType)@(entity.IsOwned ? " (owned)" : "")</td>
+                                <td>
+                                    @if (located is not null)
+                                    {
+                                        <button class="link-btn mono" @onclick="() => Open(located.Table)">@located.Table.DisplayName</button>
+                                    }
+                                    else
+                                    {
+                                        <span class="mono muted">@(entity.Table ?? entity.View ?? "–")</span>
+                                    }
+                                </td>
+                                <td class="num">@(located?.Properties.Count ?? 0) / @entity.Properties.Count(p => p.Column is not null)</td>
+                                <td class="mono small">@string.Join(", ", entity.Properties.Where(p => p.Converter is not null).Select(p => $"{p.Name}: {p.Converter}"))</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </section>
+        }
+    }
+</div>
+
+@code {
+    private bool _showDetail;
+
+    private static readonly (MappingIssueKind Kind, string Title, string Hint)[] IssueGroups =
+    [
+        (MappingIssueKind.EntityWithoutTable, "Entities ohne Tabelle", "Im Modell, aber nicht in der Datenbank – noch nicht angelegt, gelöscht oder in einem anderen Schema."),
+        (MappingIssueKind.PropertyWithoutColumn, "Properties ohne Spalte", "Abfragen auf diese Entities scheitern, solange die Spalte fehlt."),
+        (MappingIssueKind.CaseMismatch, "Abweichende Groß-/Kleinschreibung", "EF Core quotet Namen auf Oracle – so geschrieben findet eine Abfrage das Objekt nicht."),
+        (MappingIssueKind.ColumnWithoutProperty, "Spalten ohne Property", "In der Datenbank, aber nicht im Modell – z. B. nach einer Änderung an der Tabelle, die in der Entity noch fehlt."),
+    ];
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    private ClrModelState State => Models.State;
+
+    private bool Busy => Models.IsBuilding || State.Phase == ClrModelPhase.Loading;
+
+    private SchemaCache? Schema => Active.Schema;
+
+    private ConnectionProfile? Profile => Active.Profile is { } active ? Connections.Profiles.FirstOrDefault(p => p.Id == active.Id) ?? active : null;
+
+    protected override void OnInitialized()
+    {
+        Models.Changed += OnChanged;
+        Active.Changed += OnChanged;
+    }
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    private Task BuildAsync() => Models.BuildAsync();
+
+    private void Open(TableSummary table)
+    {
+        Shell.ShowExplorer();
+        Shell.OpenTable(table, TabMode.Structure);
+    }
+
+    private static int Count(ClrModelMapping mapping, MappingIssueKind kind) => mapping.Issues.Count(i => i.Kind == kind);
+
+    private static string CreatedBy(string createdBy) => createdBy switch
+    {
+        "factory" => "Erzeugt über die IDesignTimeDbContextFactory des Projekts",
+        "options" => "Erzeugt mit eigenen Options über den DbContextOptions-Konstruktor",
+        "parameterless" => "Erzeugt über den parameterlosen Konstruktor",
+        _ => createdBy,
+    };
+
+    public void Dispose()
+    {
+        Models.Changed -= OnChanged;
+        Active.Changed -= OnChanged;
+    }
+}

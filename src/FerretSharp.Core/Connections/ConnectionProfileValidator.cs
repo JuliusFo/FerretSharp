@@ -9,6 +9,7 @@ public static class ConnectionField
     public const string ServiceOrSid = nameof(ServiceOrSid);
     public const string Alias = nameof(Alias);
     public const string User = nameof(User);
+    public const string ClrProject = nameof(ClrProject);
 }
 
 public static class ConnectionProfileValidator
@@ -57,6 +58,11 @@ public static class ConnectionProfileValidator
                 }
 
                 break;
+        }
+
+        if (profile.ClrProject is { } project && !project.ProjectFile.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
+        {
+            errors[ConnectionField.ClrProject] = "Bitte die .csproj des Projekts mit dem DbContext angeben.";
         }
 
         return errors;

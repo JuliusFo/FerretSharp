@@ -1,4 +1,5 @@
 using System.Globalization;
+using FerretSharp.Core.ClrModel;
 using FerretSharp.Core.Connections;
 
 namespace FerretSharp.UI.State;
@@ -59,6 +60,14 @@ public sealed class ConnectionForm
 
     public bool ReadOnly { get; private set; }
 
+    /// <summary>The .csproj with the DbContext (C# model, WP-11); empty = none.</summary>
+    public string ClrProjectFile { get; set; } = "";
+
+    public string ClrConfiguration { get; set; } = "Debug";
+
+    /// <summary>DbContext type if the project has several; empty = its only one.</summary>
+    public string ClrContextType { get; set; } = "";
+
     /// <summary>Once the user toggled read-only, changing the kind no longer overrides it.</summary>
     public bool ReadOnlyTouched { get; private set; }
 
@@ -88,6 +97,9 @@ public sealed class ConnectionForm
             User = profile.User,
             DefaultSchema = profile.DefaultSchema ?? "",
             ReadOnlyTouched = true,
+            ClrProjectFile = profile.ClrProject?.ProjectFile ?? "",
+            ClrConfiguration = profile.ClrProject?.Configuration ?? "Debug",
+            ClrContextType = profile.ClrProject?.ContextType ?? "",
         };
         form._kind = profile.Kind;
         form.ReadOnly = profile.ReadOnly;
@@ -136,7 +148,10 @@ public sealed class ConnectionForm
             address = new TnsAliasAddress(Alias.Trim(), NullIfBlank(TnsAdminPath));
         }
 
-        var profile = new ConnectionProfile(Id, Name.Trim(), Kind, address, User.Trim(), NullIfBlank(DefaultSchema), ReadOnly, NullIfBlank(Group));
+        var clrProject = NullIfBlank(ClrProjectFile.Trim('"')) is { } projectFile
+            ? new ClrProjectLink(projectFile, NullIfBlank(ClrConfiguration) ?? "Debug", NullIfBlank(ClrContextType))
+            : null;
+        var profile = new ConnectionProfile(Id, Name.Trim(), Kind, address, User.Trim(), NullIfBlank(DefaultSchema), ReadOnly, NullIfBlank(Group), clrProject);
         foreach (var (field, message) in ConnectionProfileValidator.Validate(profile))
         {
             errors[field] = message;

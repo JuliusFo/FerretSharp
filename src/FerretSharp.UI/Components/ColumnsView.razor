@@ -1,10 +1,12 @@
 @* "Spalten" view: the columns with type, NULL, default, flags and comment, filterable (Ctrl+F); for views also the definition. *@
+@using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
 @implements IAsyncDisposable
 @inject ActiveConnection Active
 @inject IJSRuntime JS
+@inject ClrModelManager Models
 
 @{
     var fkColumns = (Active.Schema?.OutgoingOf(Details.Table.Ref) ?? [])
@@ -14,6 +16,9 @@
     // Filtering keeps the schema order: this is a table of the columns, not a list of search hits.
     var shown = ColumnSearch.Find(Details.Columns, _columnQuery).Order().Select(i => Details.Columns[i]).ToList();
     var filtering = !string.IsNullOrWhiteSpace(_columnQuery);
+    // C# model of the linked project (WP-11): entity of this table and the property of each column.
+    var mapping = Models.Mapping;
+    var entity = mapping?.EntityOf(Details.Table.Ref);
 }
 
 <section>
@@ -22,6 +27,12 @@
             Spalten
             <span class="count">@(filtering ? $"{shown.Count} von {Details.Columns.Count}" : Details.Columns.Count.ToString(CultureInfo.CurrentCulture))</span>
         </h2>
+        @if (entity is not null)
+        {
+            <span class="entity-name" title="@entity.Entity.ClrType – aus dem C#-Modell">
+                Entity <strong>@ClrModelMapping.ShortName(entity.Entity.ClrType)</strong>
+            </span>
+        }
         <label class="structure-filter">
             @Icons.Search
             <input @ref="_filterInput" placeholder="Spalten filtern … (Ctrl+F)" spellcheck="false" autocomplete="off"
@@ -30,12 +41,19 @@
     </div>
     <table class="columns">
         <thead>
-            <tr><th class="num">#</th><th>Name</th><th>Typ</th><th>Null</th><th>Default</th><th></th><th>Kommentar</th></tr>
+            <tr>
+                <th class="num">#</th><th>Name</th><th>Typ</th>
+                @if (entity is not null)
+                {
+                    <th>Property</th><th>C#-Typ</th>
+                }
+                <th>Null</th><th>Default</th><th></th><th>Kommentar</th>
+            </tr>
         </thead>
         <tbody>
             @if (shown.Count == 0)
             {
-                <tr><td colspan="7" class="muted">Keine Spalte passt zu „@_columnQuery“.</td></tr>
+                <tr><td colspan="@(entity is null ? 7 : 9)" class="muted">Keine Spalte passt zu „@_columnQuery“.</td></tr>
             }
             @foreach (var column in shown)
             {
@@ -57,6 +75,30 @@
                         }
                     </td>
                     <td class="mono">@column.DisplayType</td>
+                    @if (entity is not null)
+                    {
+                        var property = mapping!.PropertyOf(Details.Table.Ref, column.Name);
+                        @if (property is null)
+                        {
+                            <td class="muted" title="Keine Property im C#-Modell">–</td>
+                            <td></td>
+                        }
+                        else
+                        {
+                            <td class="mono property">@property.Name@(property.IsShadow ? " (Shadow)" : "")</td>
+                            <td class="mono clr-type" title="@ValuesTitle(property)">
+                                @property.ClrType@(property.Nullable && property.ClrType != "string" ? "?" : "")
+                                @if (property.Converter is { } converter)
+                                {
+                                    <span class="converter">@converter</span>
+                                }
+                                else if (property.Values is not null)
+                                {
+                                    <span class="converter">Enum als Zahl</span>
+                                }
+                            </td>
+                        }
+                    }
                     <td>@(column.Nullable ? "" : "NOT NULL")</td>
                     <td class="mono default" title="@(column.IsVirtual ? "Ausdruck der virtuellen Spalte" : null)">@column.Default</td>
                     <td class="flags">@Flags(column)</td>
@@ -87,6 +129,15 @@
     [Parameter, EditorRequired]
     public TableDetails Details { get; set; } = null!;
 
+    protected override void OnInitialized() => Models.Changed += OnModelChanged;
+
+    private void OnModelChanged() => InvokeAsync(StateHasChanged);
+
+    /// <summary>Enum members (or true/false) with what the project stores for them, as a tooltip.</summary>
+    private static string? ValuesTitle(PropertyExport property) => property.Values is { } values
+        ? string.Join("\n", values.Select(v => $"{v.Name} = {v.ProviderValue ?? "?"}"))
+        : null;
+
     private static string Flags(ColumnInfo column) => string.Join(" · ", new[]
     {
         column.IsIdentity ? "IDENTITY" : null,
@@ -111,6 +162,7 @@
 
     public async ValueTask DisposeAsync()
     {
+        Models.Changed -= OnModelChanged;
         if (_dom is not null)
         {
             try

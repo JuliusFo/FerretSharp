@@ -2,7 +2,12 @@
   <Folder Name="/src/">
     <Project Path="src/FerretSharp.App/FerretSharp.App.csproj" />
     <Project Path="src/FerretSharp.Core/FerretSharp.Core.csproj" />
+    <Project Path="src/FerretSharp.ModelHost/FerretSharp.ModelHost.csproj" />
     <Project Path="src/FerretSharp.UI/FerretSharp.UI.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/FerretSharp.SampleModel.Data/FerretSharp.SampleModel.Data.csproj" />
+    <Project Path="samples/FerretSharp.SampleModel.Entities/FerretSharp.SampleModel.Entities.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/FerretSharp.Core.Tests/FerretSharp.Core.Tests.csproj" />

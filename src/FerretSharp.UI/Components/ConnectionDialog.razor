@@ -3,6 +3,7 @@
 @implements IDisposable
 @inject ConnectionManager Connections
 @inject IConnectionTester Tester
+@inject IFileOpenService Files
 
 <div class="modal-backdrop" @onkeydown="OnKeyDown">
     <div class="modal dialog" role="dialog" aria-label="@Title">
@@ -116,6 +117,32 @@
                 Schreibgeschützt
                 <span class="hint">· Oracle selbst lehnt Änderungen ab (READ ONLY-Transaktion)</span>
             </label>
+
+            <div class="form-section">C#-Modell <span class="hint">· optional: Entity- und Property-Namen aus dem eigenen EF-Core-Projekt</span></div>
+
+            <label for="cn-clr">Projekt</label>
+            <div>
+                <div class="field-with-button">
+                    <input id="cn-clr" class="field mono @Invalid(ConnectionField.ClrProject)" @bind="Form.ClrProjectFile" @bind:event="oninput"
+                           placeholder="…\Data\Data.csproj – das Projekt mit dem DbContext" spellcheck="false" />
+                    <button class="btn" title="Projektdatei auswählen" @onclick="PickProjectAsync">…</button>
+                </div>
+                <FieldError Errors="Errors" Field="@ConnectionField.ClrProject" />
+                <div class="hint small">FerretSharp liest das Modell aus dem vorhandenen Build (EF Core 8 oder neuer) – ohne den Startcode der Anwendung und ohne Datenbankverbindung.</div>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(Form.ClrProjectFile))
+            {
+                <label for="cn-clr-config">Build</label>
+                <select id="cn-clr-config" class="field narrow" @bind="Form.ClrConfiguration">
+                    <option value="Debug">Debug</option>
+                    <option value="Release">Release</option>
+                </select>
+
+                <label for="cn-clr-context">DbContext</label>
+                <input id="cn-clr-context" class="field mono" @bind="Form.ClrContextType" @bind:event="oninput"
+                       placeholder="leer = der einzige DbContext im Projekt" spellcheck="false" />
+            }
         </div>
 
         @if (_testing || _testResult is not null || _testCancelled)
@@ -241,6 +268,14 @@
     }
 
     private string Invalid(string field) => Errors.ContainsKey(field) ? "invalid" : "";
+
+    private async Task PickProjectAsync()
+    {
+        if (await Files.PickAsync("C#-Projekt", ["csproj"], Form.ClrProjectFile) is { } path)
+        {
+            Form.ClrProjectFile = path;
+        }
+    }
 
     private async Task TestAsync()
     {
