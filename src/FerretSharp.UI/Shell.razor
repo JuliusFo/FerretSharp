@@ -9,6 +9,7 @@
 @inject ConnectionKeepAlive KeepAlive
 @inject FerretSharp.Core.Settings.AppSettingsService Settings
 @inject ExitGuard ExitGuard
+@inject FerretSharp.Core.ClrModel.ClrModelManager Models
 @inject IJSRuntime JS
 
 <CascadingValue Value="_state" IsFixed="true">
@@ -135,6 +136,10 @@
                         {
                             <SettingsPage OnBack="LeaveSettings" />
                         }
+                        else if (_state.Page == ShellPage.Model && Active.IsConnected)
+                        {
+                            <ModelPage />
+                        }
                         else if (!ShowExplorer)
                         {
                             <ConnectionsPage />
@@ -211,6 +216,7 @@
                                 }
                             }
                         }
+                        @ModelStatus()
                         <span class="item shrink shrink-more" title="Oracle @Active.ServerVersion">Oracle @Active.ServerVersion</span>
                         <span class="item shrink shrink-more" title="Schema @Active.Schema?.Owner · @(Active.Schema?.Tables.Count ?? 0) Objekte">Schema @Active.Schema?.Owner · @(Active.Schema?.Tables.Count ?? 0) Objekte</span>
                         <button class="status-btn" @onclick="DisconnectAsync">Trennen</button>
@@ -384,6 +390,36 @@
         </text>;
     }
 
+    /// <summary>Status bar: the C# model of the linked project (WP-11); opens the model page.</summary>
+    private RenderFragment ModelStatus()
+    {
+        var state = Models.State;
+        if (state.Link is null)
+        {
+            return @<text></text>;
+        }
+
+        if (state.Phase == FerretSharp.Core.ClrModel.ClrModelPhase.Loading)
+        {
+            return @<button class="item status-link" title="Lese das C#-Modell …" @onclick="_state.ShowModel"><span class="spinner small"></span> C#-Modell</button>;
+        }
+
+        if (state.Phase == FerretSharp.Core.ClrModel.ClrModelPhase.Failed)
+        {
+            return @<button class="item status-link error" title="@state.Error?.Message" @onclick="_state.ShowModel"><span class="dot err"></span> C#-Modell</button>;
+        }
+
+        if (state.Mapping is not { } mapping)
+        {
+            return @<text></text>;
+        }
+
+        var stale = state.Output?.IsStale == true;
+        var text = $"C# · {mapping.Entities.Count} Entities" + (mapping.Issues.Count > 0 ? $" · {mapping.Issues.Count} Abw." : "") + (stale ? " · Build veraltet" : "");
+        var title = (stale ? "Der Quelltext ist neuer als der Build. " : "") + $"{mapping.Issues.Count} Abweichungen zwischen Modell und Datenbank – Details";
+        return @<button class="item status-link shrink @(stale ? "warn" : "")" title="@title" @onclick="_state.ShowModel">@text</button>;
+    }
+
     private static string Age(TimeSpan age) => age.TotalMinutes < 1 ? "< 1 min" : $"{(int)age.TotalMinutes} min";
 
     private string WorkspaceName(Guid workspaceId) => Workspaces.Find(workspaceId)?.Name ?? "Workspace";
@@ -524,6 +560,7 @@
         Connections.Changed += OnChanged;
         Active.Changed += OnConnectionOrWorkspacesChanged;
         Workspaces.Changed += OnConnectionOrWorkspacesChanged;
+        Models.Changed += OnChanged;
         KeepAlive.ConnectionLost += OnKeepAliveLost;
         KeepAlive.Start();
         await Connections.LoadAsync(CancellationToken.None);
@@ -784,6 +821,7 @@
         Connections.Changed -= OnChanged;
         Active.Changed -= OnConnectionOrWorkspacesChanged;
         Workspaces.Changed -= OnConnectionOrWorkspacesChanged;
+        Models.Changed -= OnChanged;
         KeepAlive.ConnectionLost -= OnKeepAliveLost;
         if (_shortcuts is not null)
         {

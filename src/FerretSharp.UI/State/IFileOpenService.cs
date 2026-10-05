@@ -11,4 +11,9 @@ public interface IFileOpenService
     /// <param name="maxBytes">Files larger than this are not read (<see cref="OpenedFile.Content"/> null).</param>
     /// <returns>The file, or null if the user cancelled.</returns>
     Task<OpenedFile?> OpenAsync(string filter, IReadOnlyList<string> extensions, long maxBytes);
+
+    /// <summary>Only the path of a file to use, without reading it (e.g. the .csproj of the C# model).</summary>
+    /// <param name="initialPath">File or folder the dialog starts in; null = the dialog's default.</param>
+    /// <returns>The full path, or null if the user cancelled.</returns>
+    Task<string?> PickAsync(string filter, IReadOnlyList<string> extensions, string? initialPath = null);
 }
