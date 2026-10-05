@@ -33,6 +33,15 @@ public interface IDatabaseConnection : IAsyncDisposable
     /// rejects DML. Every new query (first page) starts a new snapshot.
     /// </summary>
     Task UseReadOnlySnapshotsAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Unlocks the session (WP-10): ends the read-only transaction, writing becomes possible. Locking again needs the
+    /// writing transaction to be committed or rolled back first.
+    /// </summary>
+    Task StopReadOnlySnapshotsAsync(CancellationToken cancellationToken);
+
+    /// <summary>Locked by <see cref="UseReadOnlySnapshotsAsync"/>: Oracle rejects any DML.</summary>
+    bool UsesReadOnlySnapshots { get; }
 }
 
 public interface IDatabaseConnector

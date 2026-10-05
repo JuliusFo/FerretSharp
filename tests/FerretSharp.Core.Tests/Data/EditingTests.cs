@@ -93,7 +93,7 @@ public class EditingTests
     [InlineData("NAME", false, null)]
     [InlineData("ID", false, "nur bei neuen Zeilen")]
     [InlineData("ID", true, null)]
-    [InlineData("NOTIZ", false, "lässt sich hier nicht bearbeiten")]
+    [InlineData("NOTIZ", false, null)] // whole value in the LOB editor
     [InlineData("LFD", true, "Identity")]
     [InlineData("GROSS", false, "Virtuelle Spalte")]
     public void Editable_columns(string column, bool newRow, string? reason)
@@ -108,6 +108,10 @@ public class EditingTests
             Assert.Contains(reason, actual);
         }
     }
+
+    [Fact]
+    public void Special_types_are_not_editable() =>
+        Assert.Contains("lässt sich hier nicht bearbeiten", OracleTypeMapper.NotEditableReason(Kunden, Col("X", "XMLTYPE"), false));
 
     [Fact]
     public void Views_and_tables_without_key_are_read_only()
@@ -293,5 +297,98 @@ public class EditingTests
         Assert.Empty(tracker.PendingOperations());
         Assert.Equal(1, tracker.FlushedCount);
         Assert.Equal(20m, tracker.Find(row.Key)!.ValueOf(I("BETRAG")));
+    }
+
+    // ---------- LOB editor (WP-10) ----------
+
+    private static readonly ColumnInfo Bild = Col("BILD", "BLOB");
+
+    [Fact]
+    public void Lob_values_are_checked_as_whole_text_or_bytes()
+    {
+        Assert.True(OracleTypeMapper.IsLob(C("NOTIZ")));
+        Assert.True(OracleTypeMapper.IsLob(Bild));
+        Assert.False(OracleTypeMapper.IsLob(C("NAME")));
+
+        Assert.Equal("lang", OracleTypeMapper.CheckContent(C("NOTIZ"), "lang").Value);
+        Assert.Equal(ParsedValue.Ok(null), OracleTypeMapper.CheckContent(C("NOTIZ"), "")); // '' is NULL
+        Assert.Equal([1, 2], (byte[])OracleTypeMapper.CheckContent(Bild, new byte[] { 1, 2 }).Value!);
+        Assert.Contains("erwartet Bytes", OracleTypeMapper.CheckContent(Bild, "text").Error);
+        Assert.Contains("NOT NULL", OracleTypeMapper.CheckContent(Col("PFLICHT", "CLOB", nullable: false), null).Error);
+
+        Assert.Equal(OracleTypeHint.Clob, OracleTypeMapper.BindType(C("NOTIZ")));
+        Assert.Equal(OracleTypeHint.NClob, OracleTypeMapper.BindType(Col("N", "NCLOB")));
+        Assert.Equal(OracleTypeHint.Blob, OracleTypeMapper.BindType(Bild));
+    }
+
+    [Fact]
+    public void A_lob_known_by_preview_and_length_equals_the_whole_value_it_starts()
+    {
+        var text = new string('a', 300);
+        var preview = new LobValue(text[..200], 300);
+
+        Assert.True(OracleTypeMapper.ValuesEqual(preview, text));
+        Assert.False(OracleTypeMapper.ValuesEqual(preview, text + "b"));
+        Assert.False(OracleTypeMapper.ValuesEqual(preview, "b" + text[1..]));
+        Assert.True(OracleTypeMapper.ValuesEqual(new LobValue(null, 3), new byte[] { 1, 2, 3 }));
+        Assert.Equal(preview, LobValue.FromContent(text));
+    }
+
+    [Fact]
+    public void Lob_cells_are_not_edited_as_text_but_as_a_whole_against_the_loaded_value()
+    {
+        var tracker = new ChangeTracker(Kunden);
+        var row = Row(1, "Anna") with { Values = [1m, "Anna", null, null, null, null, null, new LobValue("alt", 3), 1m, "ANNA"] };
+
+        Assert.Contains("LOB-Editor", tracker.SetValue(row, I("NOTIZ"), "neu").Error);
+
+        var result = tracker.SetContent(row, I("NOTIZ"), loaded: "alt", value: "ganz neu");
+
+        Assert.True(result.IsValid);
+        var update = Assert.Single(tracker.PendingOperations());
+        Assert.Equal("ganz neu", update.Values[I("NOTIZ")]);
+        Assert.Equal("alt", update.Expected[I("NOTIZ")]); // the whole loaded value, not the preview
+        Assert.Equal(OracleTypeHint.Clob, DmlBuilder.Update(Kunden, update.Key, update.Values).Parameters[0].Type);
+
+        tracker.SetContent(row, I("NOTIZ"), loaded: "alt", value: "alt");
+        Assert.Empty(tracker.PendingOperations()); // back to what the database holds
+    }
+
+    [Fact]
+    public void New_rows_take_lob_values_and_empty_means_null()
+    {
+        var tracker = new ChangeTracker(Kunden);
+        var added = tracker.AddRow();
+        tracker.SetValue(added, I("ID"), "7");
+
+        Assert.True(tracker.SetContent(added, I("NOTIZ"), "Text").IsValid);
+        Assert.Equal("Text", Assert.Single(tracker.PendingOperations()).Values[I("NOTIZ")]);
+
+        Assert.True(tracker.SetContent(added, I("NOTIZ"), "").IsValid);
+        Assert.False(Assert.Single(tracker.PendingOperations()).Values.ContainsKey(I("NOTIZ")));
+        Assert.Contains("erwartet Text", tracker.SetContent(added, I("NOTIZ"), new byte[] { 1 }).Error);
+    }
+
+    [Fact]
+    public void Whole_lob_values_show_as_preview_in_the_grid_and_shortened_in_dialogs()
+    {
+        var text = new string('x', 1200);
+
+        Assert.Equal(new string('x', 200) + " …", CellFormatter.Format(C("NOTIZ"), text));
+        Assert.Equal("‹BLOB 3 B›", CellFormatter.Format(Bild, new byte[] { 1, 2, 3 }));
+
+        var bind = BindValues.Format(new QueryParameter("v7", text, OracleTypeHint.Clob), mask: false);
+        Assert.Equal("'" + new string('x', BindValues.MaxTextLength) + "' … (1.200 Zeichen)", bind);
+        Assert.EndsWith("… (100 Bytes)", BindValues.Format(new QueryParameter("v8", new byte[100], OracleTypeHint.Blob), mask: false));
+    }
+
+    [Fact]
+    public void Whole_lob_is_selected_by_row_key_as_a_plain_query()
+    {
+        var spec = QueryBuilder.BuildSelectLob(Kunden, new RowKey.PrimaryKey([4711m]), I("NOTIZ"));
+
+        Assert.Equal("SELECT \"NOTIZ\"\n  FROM \"APP\".\"KUNDEN\"\n WHERE \"ID\" = :k0", spec.Sql);
+        Assert.Equal(4711m, Assert.Single(spec.Parameters).Value);
+        Assert.True(OracleSession.IsReadOnlyStatement(spec.Sql));
     }
 }

@@ -20,6 +20,15 @@ public enum OracleTypeHint
 
     /// <summary>A ROWID returned by <c>RETURNING ROWID INTO</c> (output parameter).</summary>
     RowId,
+
+    /// <summary>CLOB; the value is the whole text (LOB editor, WP-10).</summary>
+    Clob,
+
+    /// <summary>NCLOB (national character set); the value is the whole text.</summary>
+    NClob,
+
+    /// <summary>BLOB; the value is the whole content as a byte array.</summary>
+    Blob,
 }
 
 /// <summary>Driver-neutral bind variable; mapped to <c>OracleParameter</c> by <c>OracleSession</c>.</summary>

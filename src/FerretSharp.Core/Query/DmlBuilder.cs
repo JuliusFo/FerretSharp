@@ -118,7 +118,7 @@ public static class DmlBuilder
     }
 
     /// <summary>PK columns (in key order) or ROWID; a row without key cannot be written.</summary>
-    private static string KeyCondition(TableDetails table, RowKey key, List<QueryParameter> parameters)
+    internal static string KeyCondition(TableDetails table, RowKey key, List<QueryParameter> parameters)
     {
         switch (key)
         {

@@ -21,6 +21,7 @@ public sealed class WorkspaceManager(
     private readonly SemaphoreSlim _saveGate = new(1, 1);
     private readonly Dictionary<Guid, Task<IDatabaseConnection>> _sessions = [];
     private readonly HashSet<Guid> _dirty = [];
+    private readonly HashSet<Guid> _unlocked = [];
     private List<Workspace> _workspaces = [];
     private Guid? _activeId;
     private ConnectionProfile? _profile;
@@ -88,6 +89,112 @@ public sealed class WorkspaceManager(
         lock (_lock)
         {
             return _sessions.GetValueOrDefault(workspaceId) is { IsCompletedSuccessfully: true } session ? session.Result.Transaction : null;
+        }
+    }
+
+    /// <summary>
+    /// Whether the workspace may write: always on profiles without the read-only lock, on locked profiles (Prod by
+    /// default) only after <see cref="UnlockAsync"/>.
+    /// </summary>
+    public bool IsWritable(Guid workspaceId)
+    {
+        lock (_lock)
+        {
+            return _profile is { } profile && (!profile.ReadOnly || _unlocked.Contains(workspaceId));
+        }
+    }
+
+    /// <summary>A workspace of a read-only profile that the user unlocked for writing (shown prominently).</summary>
+    public bool IsUnlocked(Guid workspaceId)
+    {
+        lock (_lock)
+        {
+            return _profile is { ReadOnly: true } && _unlocked.Contains(workspaceId);
+        }
+    }
+
+    /// <summary>
+    /// Unlocks one workspace of a read-only profile for writing (WP-10): its session leaves the read-only transaction.
+    /// Per workspace and never saved – closing the workspace, disconnecting or reconnecting locks it again.
+    /// </summary>
+    public async Task UnlockAsync(Guid workspaceId, CancellationToken cancellationToken)
+    {
+        lock (_lock)
+        {
+            if (_profile is not { ReadOnly: true } || !_unlocked.Add(workspaceId))
+            {
+                return;
+            }
+        }
+
+        try
+        {
+            // A session opened from now on stays unlocked; one already open (or opening) is unlocked here.
+            var connection = await GetConnectionAsync(workspaceId, cancellationToken);
+            await connection.StopReadOnlySnapshotsAsync(cancellationToken);
+        }
+        catch
+        {
+            lock (_lock)
+            {
+                _unlocked.Remove(workspaceId);
+            }
+
+            throw;
+        }
+
+        RaiseChanged();
+    }
+
+    /// <summary>
+    /// Locks an unlocked workspace again: its session goes back into a read-only transaction. A writing transaction
+    /// must be committed or rolled back first.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">A writing transaction is still open.</exception>
+    public async Task LockAsync(Guid workspaceId, CancellationToken cancellationToken)
+    {
+        Task<IDatabaseConnection>? session;
+        lock (_lock)
+        {
+            if (!_unlocked.Contains(workspaceId))
+            {
+                return;
+            }
+
+            session = _sessions.GetValueOrDefault(workspaceId);
+            if (session is { IsCompletedSuccessfully: true } && session.Result.Transaction.Mode == TransactionMode.ReadWrite)
+            {
+                throw new InvalidOperationException("Erst committen oder verwerfen, dann sperren.");
+            }
+
+            _unlocked.Remove(workspaceId);
+        }
+
+        try
+        {
+            if (session is not null)
+            {
+                var connection = await session;
+                await connection.UseReadOnlySnapshotsAsync(cancellationToken);
+            }
+        }
+        catch (Exception ex) when (ex is DatabaseException or OperationCanceledException)
+        {
+            // A session that could not be locked again is never used again: the next one starts locked.
+            lock (_lock)
+            {
+                if (_sessions.GetValueOrDefault(workspaceId) == session)
+                {
+                    _sessions.Remove(workspaceId);
+                }
+            }
+
+            _ = DisposeSessionAsync(session!);
+            throw;
+        }
+        finally
+        {
+            RaiseChanged();
         }
     }
 
@@ -166,6 +273,7 @@ public sealed class WorkspaceManager(
             _workspaces = [];
             _activeId = null;
             _dirty.Clear();
+            _unlocked.Clear();
             LoadErrors = [];
             _lifetime.Dispose();
         }
@@ -258,6 +366,7 @@ public sealed class WorkspaceManager(
             }
 
             _sessions.Remove(workspaceId, out session);
+            _unlocked.Remove(workspaceId); // reopened later, it starts locked again
         }
 
         await FlushAsync();
@@ -352,7 +461,7 @@ public sealed class WorkspaceManager(
             if (!_sessions.TryGetValue(workspaceId, out session!) || session.IsFaulted || session.IsCanceled)
             {
                 var token = _lifetime.Token;
-                session = Task.Run(() => OpenSessionAsync(profile, workspace.Name, token), CancellationToken.None);
+                session = Task.Run(() => OpenSessionAsync(profile, workspaceId, workspace.Name, token), CancellationToken.None);
                 _sessions[workspaceId] = session;
             }
         }
@@ -407,12 +516,12 @@ public sealed class WorkspaceManager(
 
     public ValueTask DisposeAsync() => new(DetachAsync());
 
-    private async Task<IDatabaseConnection> OpenSessionAsync(ConnectionProfile profile, string action, CancellationToken cancellationToken)
+    private async Task<IDatabaseConnection> OpenSessionAsync(ConnectionProfile profile, Guid workspaceId, string action, CancellationToken cancellationToken)
     {
         var password = connections.GetPassword(profile.Id)
             ?? throw new DatabaseException("Für diese Verbindung ist kein Passwort gespeichert. Bitte unter „Bearbeiten“ eingeben.");
         var connection = await connector.OpenAsync(profile, password, action, cancellationToken);
-        if (!profile.ReadOnly)
+        if (!profile.ReadOnly || IsUnlocked(workspaceId))
         {
             return connection;
         }

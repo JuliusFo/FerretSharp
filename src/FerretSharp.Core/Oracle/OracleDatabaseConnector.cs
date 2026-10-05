@@ -48,6 +48,15 @@ public sealed class OracleDatabaseConnector : IDatabaseConnector
                 return true;
             });
 
+        public Task StopReadOnlySnapshotsAsync(CancellationToken cancellationToken) =>
+            OracleErrors.Guard(async () =>
+            {
+                await session.StopReadOnlySnapshotsAsync(cancellationToken);
+                return true;
+            });
+
+        public bool UsesReadOnlySnapshots => session.UsesReadOnlySnapshots;
+
         public ValueTask DisposeAsync() => session.DisposeAsync();
     }
 
@@ -59,6 +68,9 @@ public sealed class OracleDatabaseConnector : IDatabaseConnector
 
         public Task<long> CountAsync(TableDetails table, IReadOnlyList<FilterCondition> filters, CancellationToken cancellationToken) =>
             OracleErrors.Guard(() => inner.CountAsync(table, filters, cancellationToken));
+
+        public Task<LobRead> ReadLobAsync(TableDetails table, RowKey key, int column, CancellationToken cancellationToken) =>
+            OracleErrors.Guard(() => inner.ReadLobAsync(table, key, column, cancellationToken));
     }
 
     /// <summary>Keeps OracleException out of the layers above.</summary>

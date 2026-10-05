@@ -127,6 +127,18 @@ public static class QueryBuilder
         return new SelectQuery(sql, builder.Parameters, columns, RowKeyOf(table), HasRowId: true);
     }
 
+    /// <summary>
+    /// The whole value of one LOB column of one row (LOB editor, WP-10), found by its row key. The session fetches LOBs
+    /// completely; the caller checks the length first (<see cref="Data.LobLimits"/>).
+    /// </summary>
+    public static QuerySpec BuildSelectLob(TableDetails table, Data.RowKey key, int column)
+    {
+        var parameters = new List<QueryParameter>();
+        var sql = $"SELECT {OracleIdentifier.Quote(table.Columns[column].Name)}\n  FROM {OracleIdentifier.Qualify(table.Table.Owner, table.Table.Name)}"
+                  + $"\n WHERE {DmlBuilder.KeyCondition(table, key, parameters)}";
+        return new QuerySpec(sql, parameters);
+    }
+
     private static List<string> SelectList(Builder builder, IReadOnlyList<ResultColumn> columns, bool hasRowId)
     {
         var select = new List<string>();

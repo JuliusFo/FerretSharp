@@ -29,6 +29,10 @@ public sealed class RowChange
     private readonly Dictionary<int, object?> _pending = [];
     private readonly Dictionary<int, object?> _flushed = [];
 
+    // Whole values read later than the row (LOB editor): the reference for the concurrency check instead of the
+    // preview the row was loaded with.
+    private readonly Dictionary<int, object?> _loaded = [];
+
     internal RowChange(RowKey key, IReadOnlyList<object?>? original)
     {
         Key = key;
@@ -65,7 +69,13 @@ public sealed class RowChange
         : Original?[column];
 
     /// <summary>What the database holds in the workspace's transaction (before the pending change).</summary>
-    public object? ExpectedOf(int column) => _flushed.TryGetValue(column, out var flushed) ? flushed : Original?[column];
+    public object? ExpectedOf(int column) =>
+        _flushed.TryGetValue(column, out var flushed) ? flushed
+        : _loaded.TryGetValue(column, out var loaded) ? loaded
+        : Original?[column];
+
+    /// <summary>The whole value of a column as read from the database in the workspace's transaction (LOB editor).</summary>
+    internal void SetLoaded(int column, object? value) => _loaded[column] = value;
 
     public ChangeStage? StageOf(int column) =>
         _pending.ContainsKey(column) ? ChangeStage.Pending
@@ -205,6 +215,11 @@ public sealed class ChangeTracker(TableDetails table)
             return new EditResult(null, reason);
         }
 
+        if (OracleTypeMapper.IsLob(info))
+        {
+            return new EditResult(null, $"{info.DisplayType} im LOB-Editor bearbeiten (Doppelklick).");
+        }
+
         if (!OracleTypeMapper.IsEditableValue(row.Values[column]))
         {
             return new EditResult(null, "Zahlen mit mehr als 28 Stellen lassen sich hier nicht bearbeiten.");
@@ -244,6 +259,73 @@ public sealed class ChangeTracker(TableDetails table)
         }
 
         newRow.Set(column, parsed.IsValid ? parsed.Value : null, equalsExpected: false);
+        return new EditResult(newRow, null);
+    }
+
+    /// <summary>
+    /// Sets the whole value of a LOB column of a loaded row (LOB editor, WP-10). <paramref name="loaded"/> is the whole
+    /// value the editor read from the database: the concurrency check compares against it, not against the preview.
+    /// </summary>
+    public EditResult SetContent(RowData row, int column, object? loaded, object? value)
+    {
+        var info = Table.Columns[column];
+        if (!OracleTypeMapper.IsLob(info))
+        {
+            return new EditResult(null, $"{info.Name} ist keine LOB-Spalte.");
+        }
+
+        if (OracleTypeMapper.NotEditableReason(Table, info, newRow: false) is { } reason)
+        {
+            return new EditResult(null, reason);
+        }
+
+        var existing = _byKey.GetValueOrDefault(row.Key);
+        if (existing?.Deleted is not null)
+        {
+            return new EditResult(null, "Die Zeile ist zum Löschen markiert.");
+        }
+
+        var checkedValue = OracleTypeMapper.CheckContent(info, value);
+        if (!checkedValue.IsValid)
+        {
+            return new EditResult(null, checkedValue.Error);
+        }
+
+        var change = existing ?? new RowChange(row.Key, row.Values);
+        change.SetLoaded(column, loaded);
+        change.Set(column, checkedValue.Value, OracleTypeMapper.ValuesEqual(checkedValue.Value, change.ExpectedOf(column)));
+        Keep(change);
+        return new EditResult(change, null);
+    }
+
+    /// <summary>Sets the whole value of a LOB column of a new row that is not inserted yet.</summary>
+    public EditResult SetContent(RowChange newRow, int column, object? value)
+    {
+        var info = Table.Columns[column];
+        if (!OracleTypeMapper.IsLob(info))
+        {
+            return new EditResult(null, $"{info.Name} ist keine LOB-Spalte.");
+        }
+
+        if (OracleTypeMapper.NotEditableReason(Table, info, newRow: true) is { } reason)
+        {
+            return new EditResult(null, reason);
+        }
+
+        // Like SetValue on a new row: empty stays allowed, a missing NOT NULL value is reported by Oracle on insert.
+        if (value is null or string { Length: 0 })
+        {
+            newRow.Set(column, null, equalsExpected: false);
+            return new EditResult(newRow, null);
+        }
+
+        var checkedValue = OracleTypeMapper.CheckContent(info, value);
+        if (!checkedValue.IsValid)
+        {
+            return new EditResult(null, checkedValue.Error);
+        }
+
+        newRow.Set(column, checkedValue.Value, equalsExpected: false);
         return new EditResult(newRow, null);
     }
 
