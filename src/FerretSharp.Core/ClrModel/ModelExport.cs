@@ -50,6 +50,7 @@ public sealed record ModelExport(
 /// <param name="Name">Entity name as EF knows it (for shared-type entities not the CLR name).</param>
 /// <param name="ClrType">Full CLR type name, e.g. <c>Shop.Entities.Kunde</c>.</param>
 /// <param name="Table">Mapped table; null if mapped to a view only or not at all (keyless query types).</param>
+/// <param name="DbSet">Name of the context's <c>DbSet</c> property for the entity (<c>Kunden</c>); null without one (optional, added in 3.0).</param>
 public sealed record EntityExport(
     string Name,
     string ClrType,
@@ -61,7 +62,8 @@ public sealed record EntityExport(
     string? ViewSchema,
     IReadOnlyList<PropertyExport> Properties,
     IReadOnlyList<string> PrimaryKey,
-    IReadOnlyList<ForeignKeyExport> ForeignKeys);
+    IReadOnlyList<ForeignKeyExport> ForeignKeys,
+    string? DbSet = null);
 
 /// <param name="ClrType">C# type as written, without nullability: <c>int</c>, <c>string</c>, <c>AuftragStatus</c>.</param>
 /// <param name="ClrTypeFull">Full CLR name, e.g. <c>Shop.Entities.AuftragStatus</c>.</param>

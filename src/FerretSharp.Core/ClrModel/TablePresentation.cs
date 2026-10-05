@@ -53,6 +53,15 @@ public sealed class TablePresentation
 
     public PropertyExport? PropertyOf(int column) => _properties[column];
 
+    /// <summary>
+    /// The column's property belongs to <see cref="Entity"/> itself – not to an owned type or another entity sharing the
+    /// table (generated code can only set the entity's own properties).
+    /// </summary>
+    public bool IsEntityProperty(int column) =>
+        _properties[column] is { } property
+        && Entity!.Properties.TryGetValue(Details.Columns[column].Name, out var own)
+        && ReferenceEquals(own, property);
+
     /// <summary>Members of an enum or converted bool column; null for other columns.</summary>
     public ValueTable? ValuesOf(int column) => _values[column];
 

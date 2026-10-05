@@ -1,6 +1,4 @@
-using FerretSharp.Core.Query;
-
-namespace FerretSharp.UI.State;
+namespace FerretSharp.Core.Query;
 
 public static class OperatorLabels
 {

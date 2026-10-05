@@ -29,7 +29,7 @@ public sealed class ValueTable
     private readonly ColumnCategory _category;
     private readonly Dictionary<object, ValueMapping> _byValue = [];
     private readonly Dictionary<string, ValueOption> _byMember = new(StringComparer.Ordinal);
-    private readonly List<(long Value, string Name)>? _flags;
+    private readonly List<(long Value, ValueMapping Mapping)>? _flags;
 
     private ValueTable(PropertyExport property, ColumnInfo column)
     {
@@ -110,6 +110,18 @@ public sealed class ValueTable
         return FlagNames(value) is { } names ? new PresentedValue($"{names} ({raw})") : new PresentedValue(raw, Unknown: true);
     }
 
+    /// <summary>
+    /// The C# members of a flags combination (<c>Lesen</c>, <c>Schreiben</c> for 3), smallest first; null if the value is
+    /// no combination of members (or the enum is no flags enum stored as its number).
+    /// </summary>
+    public IReadOnlyList<string>? FlagMembers(object? value) => CombinedMembers(value)?.Select(m => m.Name).ToList();
+
+    /// <summary>
+    /// The enum is stored as its number (no converter of the project): every number is a valid C# value then, also one
+    /// without a member (<c>(Kundenart)7</c>).
+    /// </summary>
+    public bool StoredAsNumber => !IsBool && Property.Converter is null && _category == ColumnCategory.Number;
+
     /// <summary>The member's display text (<c>[Display(Name = …)]</c>) if it has one, else its C# name.</summary>
     private static string Shown(ValueMapping mapping) => mapping.DisplayName ?? mapping.Name;
 
@@ -138,14 +150,14 @@ public sealed class ValueTable
     private string Format(object key) => CellFormatter.Format(_column, key) ?? "";
 
     /// <summary>Members of a flags enum stored as its number (EF's default), to name combinations.</summary>
-    private static List<(long Value, string Name)>? FlagsOf(PropertyExport property)
+    private static List<(long Value, ValueMapping Mapping)>? FlagsOf(PropertyExport property)
     {
         if (!property.IsFlagsEnum || property.Values is not { } values)
         {
             return null;
         }
 
-        var flags = new List<(long, string)>();
+        var flags = new List<(long, ValueMapping)>();
         foreach (var mapping in values)
         {
             if (!long.TryParse(mapping.ClrValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var clr)
@@ -158,14 +170,17 @@ public sealed class ValueTable
 
             if (clr != 0)
             {
-                flags.Add((clr, Shown(mapping)));
+                flags.Add((clr, mapping));
             }
         }
 
         return flags.OrderByDescending(f => f.Item1).ToList();
     }
 
-    private string? FlagNames(object? value)
+    private string? FlagNames(object? value) => CombinedMembers(value) is { } members ? string.Join(" | ", members.Select(Shown)) : null;
+
+    /// <summary>The members a flags value combines, smallest first; null if it is no combination of members.</summary>
+    private List<ValueMapping>? CombinedMembers(object? value)
     {
         if (_flags is null || KeyOf(value) is not decimal d || d != decimal.Truncate(d) || d <= 0 || d > long.MaxValue)
         {
@@ -173,16 +188,17 @@ public sealed class ValueTable
         }
 
         var rest = (long)d;
-        var names = new List<string>();
-        foreach (var (flag, name) in _flags)
+        var members = new List<ValueMapping>();
+        foreach (var (flag, mapping) in _flags)
         {
             if ((rest & flag) == flag)
             {
-                names.Add(name);
+                members.Add(mapping);
                 rest &= ~flag;
             }
         }
 
-        return rest == 0 && names.Count > 0 ? string.Join(" | ", Enumerable.Reverse(names)) : null;
+        members.Reverse();
+        return rest == 0 && members.Count > 0 ? members : null;
     }
 }
