@@ -1,0 +1,101 @@
+@* A Monaco editor (ADR 0011) for C# in the LINQ console; markers show Roslyn's diagnostics. The text belongs to the
+   parent: changes come back through OnChange, SetTextAsync replaces it (suggested declarations). *@
+@using FerretSharp.Core.ClrModel
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div id="@_id" class="monaco-host @Class"></div>
+
+@code {
+    private readonly string _id = "monaco-" + Guid.NewGuid().ToString("N");
+    private IJSObjectReference? _module;
+    private DotNetObjectReference<MonacoEditor>? _selfRef;
+    private IReadOnlyList<LinqDiagnostic>? _shownMarkers;
+
+    /// <summary>Text when the editor is created; afterwards the editor owns it.</summary>
+    [Parameter]
+    public string Text { get; set; } = "";
+
+    [Parameter]
+    public EventCallback<string> OnChange { get; set; }
+
+    /// <summary>No line numbers, no folding: for the few lines of variables.</summary>
+    [Parameter]
+    public bool Minimal { get; set; }
+
+    [Parameter]
+    public string? Placeholder { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    /// <summary>Diagnostics of this editor's section.</summary>
+    [Parameter]
+    public IReadOnlyList<LinqDiagnostic> Markers { get; set; } = [];
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _selfRef = DotNetObjectReference.Create(this);
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/monaco.js");
+            await _module.InvokeVoidAsync("create", _id, _selfRef, Text, new { language = "csharp", minimal = Minimal, placeholder = Placeholder });
+        }
+
+        if (_module is not null && !ReferenceEquals(_shownMarkers, Markers))
+        {
+            _shownMarkers = Markers;
+            await _module.InvokeVoidAsync("setMarkers", _id, Markers.Select(m => new
+            {
+                line = m.Line, column = m.Column, endLine = m.EndLine, endColumn = m.EndColumn, severity = m.Severity, message = $"{m.Id}: {m.Message}",
+            }));
+        }
+    }
+
+    [JSInvokable]
+    public Task OnTextChanged(string elementId, string text) => OnChange.InvokeAsync(text);
+
+    public async Task SetTextAsync(string text)
+    {
+        if (_module is not null)
+        {
+            await _module.InvokeVoidAsync("setText", _id, text);
+        }
+    }
+
+    /// <summary>The current text, also what the debounce has not reported yet (run right after typing).</summary>
+    public async Task<string?> GetTextAsync() => _module is null ? null : await _module.InvokeAsync<string?>("getText", _id);
+
+    public async Task RevealAsync(int line, int column)
+    {
+        if (_module is not null)
+        {
+            await _module.InvokeVoidAsync("reveal", _id, line, column);
+        }
+    }
+
+    public async Task FindAsync()
+    {
+        if (_module is not null)
+        {
+            await _module.InvokeVoidAsync("find", _id);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_module is not null)
+        {
+            try
+            {
+                await _module.InvokeVoidAsync("destroy", _id);
+                await _module.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+
+        _selfRef?.Dispose();
+    }
+}

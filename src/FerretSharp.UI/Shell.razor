@@ -85,33 +85,50 @@
                         @if (Active.IsConnected)
                         {
                             <div class="workarea @(ShowExplorer ? "" : "hidden")">
-                                @if (_state.Tabs.Count > 0)
+                                @if (_state.Tabs.Count > 0 || HasLinkedProject)
                                 {
                                     <nav class="tabs">
                                         @foreach (var tab in _state.Tabs)
                                         {
-                                            var t = tab;
-                                            // Several tabs of one table (FK jumps) are told apart by their filters.
-                                            var summary = _state.Tabs.Count(o => o.Table.Ref == t.Table.Ref) > 1 ? t.FilterSummary(presentation: PresentationOf(t)) : null;
-                                            <div class="tab @(t == _state.ActiveTab ? "active" : "")" title="@TabTooltip(t)"
-                                                 @onclick="() => _state.ActivateTab(t)" @onmouseup="e => CloseOnMiddleClick(e, t)">
-                                                @Icons.For(t.Table.Kind)
-                                                <span class="tab-name">@t.Table.DisplayName</span>
-                                                @if (t.Changes is { HasChanges: true } tabChanges)
-                                                {
-                                                    <span class="dot @(tabChanges.PendingCount > 0 ? "pending" : "flushed")"
-                                                          title="@($"{tabChanges.PendingCount} ausstehend · {tabChanges.FlushedCount} geschrieben")"></span>
-                                                }
-                                                @if (summary is not null)
-                                                {
-                                                    <span class="tab-filter">@summary</span>
-                                                }
-                                                else if (t.ActiveFilterCount > 0)
-                                                {
-                                                    <span class="filter-pill">@t.ActiveFilterCount Filter</span>
-                                                }
-                                                <button class="tab-close" title="Schließen" @onclick:stopPropagation="true" @onclick="() => CloseTab(t)">✕</button>
-                                            </div>
+                                            var w = tab;
+                                            @if (w is TableTab t)
+                                            {
+                                                // Several tabs of one table (FK jumps) are told apart by their filters.
+                                                var summary = _state.Tabs.OfType<TableTab>().Count(o => o.Table.Ref == t.Table.Ref) > 1 ? t.FilterSummary(presentation: PresentationOf(t)) : null;
+                                                <div class="tab @(t == _state.ActiveTab ? "active" : "")" title="@TabTooltip(t)"
+                                                     @onclick="() => _state.ActivateTab(t)" @onmouseup="e => CloseOnMiddleClick(e, t)">
+                                                    @Icons.For(t.Table.Kind)
+                                                    <span class="tab-name">@t.Table.DisplayName</span>
+                                                    @if (t.Changes is { HasChanges: true } tabChanges)
+                                                    {
+                                                        <span class="dot @(tabChanges.PendingCount > 0 ? "pending" : "flushed")"
+                                                              title="@($"{tabChanges.PendingCount} ausstehend · {tabChanges.FlushedCount} geschrieben")"></span>
+                                                    }
+                                                    @if (summary is not null)
+                                                    {
+                                                        <span class="tab-filter">@summary</span>
+                                                    }
+                                                    else if (t.ActiveFilterCount > 0)
+                                                    {
+                                                        <span class="filter-pill">@t.ActiveFilterCount Filter</span>
+                                                    }
+                                                    <button class="tab-close" title="Schließen" @onclick:stopPropagation="true" @onclick="() => CloseTab(t)">✕</button>
+                                                </div>
+                                            }
+                                            else if (w is LinqTab linq)
+                                            {
+                                                <div class="tab linq @(linq == _state.ActiveTab ? "active" : "")" title="LINQ-Konsole – C# gegen den DbContext des verknüpften Projekts"
+                                                     @onclick="() => _state.ActivateTab(linq)" @onmouseup="e => CloseOnMiddleClick(e, linq)">
+                                                    @Icons.Code
+                                                    <span class="tab-name">@linq.Title</span>
+                                                    <button class="tab-close" title="Schließen" @onclick:stopPropagation="true" @onclick="() => CloseTab(linq)">✕</button>
+                                                </div>
+                                            }
+                                        }
+                                        @if (HasLinkedProject)
+                                        {
+                                            <button class="tab-new" title="Neue LINQ-Konsole: C# gegen den DbContext des verknüpften Projekts (Ctrl+Shift+L)"
+                                                    @onclick="() => _state.OpenLinq()">+ LINQ</button>
                                         }
                                     </nav>
                                 }
@@ -121,13 +138,22 @@
                                         foreach (var tab in workspace.Tabs.Where(t => t.Visited))
                                         {
                                             <div class="page @(workspace == _state.ActiveWorkspace && tab == workspace.ActiveTab ? "active" : "")" @key="tab.Id">
-                                                <TabView Tab="tab" />
+                                                @if (tab is TableTab tableTab)
+                                                {
+                                                    <TabView Tab="tableTab" />
+                                                }
+                                                else if (tab is LinqTab linqTab)
+                                                {
+                                                    <LinqView Tab="linqTab" />
+                                                }
                                             </div>
                                         }
                                     }
                                     @if (_state.Tabs.Count == 0)
                                     {
-                                        <EmptyState Title="Tabelle auswählen" Text="Links eine Tabelle oder View wählen. Ctrl+Enter wendet Filter an, F5 lädt neu." />
+                                        <EmptyState Title="Tabelle auswählen" Text="@(HasLinkedProject
+                                            ? "Links eine Tabelle oder View wählen – oder mit „+ LINQ“ eine Query aus dem C#-Code ausführen. Ctrl+Enter wendet Filter an, F5 lädt neu."
+                                            : "Links eine Tabelle oder View wählen. Ctrl+Enter wendet Filter an, F5 lädt neu.")" />
                                     }
                                 </div>
                             </div>
@@ -340,6 +366,7 @@
     private const string ForwardShortcut = "alt+arrowright";
     private const string FlushShortcut = "ctrl+s"; // write pending changes (no commit)
     private const string CommitShortcut = "ctrl+shift+enter";
+    private const string LinqShortcut = "ctrl+shift+l"; // new LINQ console (WP-13)
 
     /// <summary>An open writing transaction older than this is shown as a warning: it holds row locks.</summary>
     private static readonly TimeSpan LongTransaction = TimeSpan.FromMinutes(10);
@@ -361,6 +388,9 @@
     private ErrorBoundary? _errorBoundary;
     private IJSObjectReference? _shortcuts;
     private DotNetObjectReference<Shell>? _selfRef;
+
+    /// <summary>The active connection has a C# project: LINQ consoles can be opened (WP-13).</summary>
+    private bool HasLinkedProject => Models.State.Link is not null;
 
     private bool ShowExplorer => _state.Page == ShellPage.Explorer && Active.Status != ConnectionStatus.Disconnected;
 
@@ -577,7 +607,7 @@
             _shortcuts = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/shortcuts.js");
             await _shortcuts.InvokeVoidAsync("register", _selfRef, new[]
             {
-                SwitcherShortcut, ApplyFiltersShortcut, RefreshShortcut, FindColumnShortcut, BackShortcut, ForwardShortcut, FlushShortcut, CommitShortcut,
+                SwitcherShortcut, ApplyFiltersShortcut, RefreshShortcut, FindColumnShortcut, BackShortcut, ForwardShortcut, FlushShortcut, CommitShortcut, LinqShortcut,
             });
         }
     }
@@ -623,6 +653,9 @@
             case ForwardShortcut:
                 _state.GoForward();
                 break;
+            case LinqShortcut when HasLinkedProject && _state.Page == ShellPage.Explorer:
+                _state.OpenLinq();
+                break;
         }
     }
 
@@ -638,7 +671,7 @@
     private FerretSharp.Core.ClrModel.TablePresentation? PresentationOf(TableTab tab) =>
         tab.Details is { } details ? Presentations.For(details) : null;
 
-    private void CloseOnMiddleClick(MouseEventArgs e, TableTab tab)
+    private void CloseOnMiddleClick(MouseEventArgs e, WorkspaceTab tab)
     {
         if (e.Button == 1)
         {
@@ -647,11 +680,11 @@
     }
 
     /// <summary>A tab with pending changes asks first; its flushed changes stay in the workspace's transaction.</summary>
-    private void CloseTab(TableTab tab)
+    private void CloseTab(WorkspaceTab tab)
     {
-        if (tab.Changes is { PendingCount: > 0 })
+        if (tab is TableTab { Changes.PendingCount: > 0 } table)
         {
-            _confirmCloseTab = tab;
+            _confirmCloseTab = table;
         }
         else
         {

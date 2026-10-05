@@ -43,18 +43,23 @@
     <MSBuild Projects="..\FerretSharp.ModelHost\FerretSharp.ModelHost.csproj" Targets="GetTargetPath" RemoveProperties="$(ModelHostRemovedProperties)">
       <Output TaskParameter="TargetOutputs" ItemName="_ModelHostTarget" />
     </MSBuild>
+    <PropertyGroup>
+      <_ModelHostDirectory>@(_ModelHostTarget->'%(RootDir)%(Directory)')</_ModelHostDirectory>
+    </PropertyGroup>
+    <!-- The host and what it brings itself (Roslyn for the LINQ console, with its message translations in culture
+         folders); EF Core and the provider come from the user's project. -->
     <ItemGroup>
-      <_ModelHostFiles Include="@(_ModelHostTarget->'%(RootDir)%(Directory)FerretSharp.ModelHost.dll')" />
-      <_ModelHostFiles Include="@(_ModelHostTarget->'%(RootDir)%(Directory)FerretSharp.ModelHost.pdb')" />
+      <_ModelHostFiles Include="$(_ModelHostDirectory)**\*.dll" />
+      <_ModelHostFiles Include="$(_ModelHostDirectory)FerretSharp.ModelHost.pdb" />
     </ItemGroup>
   </Target>
 
   <Target Name="CopyModelHost" AfterTargets="Build" DependsOnTargets="CollectModelHost">
-    <Copy SourceFiles="@(_ModelHostFiles)" DestinationFolder="$(OutDir)modelhost" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_ModelHostFiles)" DestinationFiles="@(_ModelHostFiles->'$(OutDir)modelhost\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
   </Target>
 
   <Target Name="PublishModelHost" AfterTargets="Publish" DependsOnTargets="CollectModelHost">
-    <Copy SourceFiles="@(_ModelHostFiles)" DestinationFolder="$(PublishDir)modelhost" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_ModelHostFiles)" DestinationFiles="@(_ModelHostFiles->'$(PublishDir)modelhost\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
   </Target>
 
 </Project>

@@ -47,22 +47,11 @@ public sealed class FilterRow
 }
 
 /// <summary>An open table in the content area of a workspace.</summary>
-public sealed class TableTab(Guid workspaceId, TableSummary table)
+public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTab(workspaceId, "grid-")
 {
-    public string Id { get; } = "grid-" + Guid.NewGuid().ToString("N");
-
-    /// <summary>The workspace whose session runs this tab's queries.</summary>
-    public Guid WorkspaceId { get; } = workspaceId;
-
     public TableSummary Table { get; } = table;
 
     public TabMode Mode { get; set; } = TabMode.Data;
-
-    /// <summary>
-    /// Set once the tab has been shown. Restored tabs are mounted (and query) only when first shown, so reopening
-    /// a workspace with many tabs does not fire all their queries at once.
-    /// </summary>
-    public bool Visited { get; set; }
 
     /// <summary>Rough scroll position: first visible row, only if it was loaded.</summary>
     public int? FirstVisibleRow { get; set; }
@@ -112,7 +101,7 @@ public sealed class TableTab(Guid workspaceId, TableSummary table)
     /// Where "Zurück" leads: the origin tab, or – if that was closed – the nearest open tab further back along the
     /// chain of jumps. Null if there is none.
     /// </summary>
-    public TableTab? BackTarget(IReadOnlyCollection<TableTab> open)
+    public TableTab? BackTarget(IReadOnlyCollection<WorkspaceTab> open)
     {
         var seen = new HashSet<TableTab> { this };
         for (var tab = Origin; tab is not null && seen.Add(tab); tab = tab.Origin)
@@ -126,7 +115,7 @@ public sealed class TableTab(Guid workspaceId, TableSummary table)
         return null;
     }
 
-    public TableTab? ForwardTarget(IReadOnlyCollection<TableTab> open) => Forward is { } tab && open.Contains(tab) ? tab : null;
+    public TableTab? ForwardTarget(IReadOnlyCollection<WorkspaceTab> open) => Forward is { } tab && open.Contains(tab) ? tab : null;
 
     /// <summary>The table's structure once the tab has loaded it (for labels outside the tab, e.g. its header).</summary>
     public TableDetails? Details { get; set; }
@@ -147,14 +136,14 @@ public sealed class TableTab(Guid workspaceId, TableSummary table)
         .Select(f => $"{f.Column} {OperatorLabels.Label(f.Op)} {string.Join("; ", f.Values.Select(v => presentation?.FilterValueText(f.Column, v) ?? v))}".TrimEnd());
 
     /// <param name="workspaceTabs">The tabs of the workspace in order, to save the origin as an index.</param>
-    public TabState ToState(IReadOnlyList<TableTab> workspaceTabs) => new(
+    public override TabState ToState(IReadOnlyList<WorkspaceTab> workspaceTabs) => new(
         Table.Ref, Mode, FilterRows.Select(r => r.ToCondition()).ToList(), AppliedFilters, Sorts, FirstVisibleRow)
     {
         PinnedColumns = PinnedColumns,
         OriginTab = BackTarget(workspaceTabs) is { } origin ? IndexOf(workspaceTabs, origin) : null,
     };
 
-    private static int IndexOf(IReadOnlyList<TableTab> tabs, TableTab tab)
+    private static int IndexOf(IReadOnlyList<WorkspaceTab> tabs, WorkspaceTab tab)
     {
         for (var i = 0; i < tabs.Count; i++)
         {

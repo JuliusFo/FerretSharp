@@ -178,6 +178,12 @@ internal static class ModelReader
             return keyword;
         }
 
+        // Projections of the LINQ console (new { a.Id, a.Name }): the compiler's name says nothing, the properties do.
+        if (type.Name.StartsWith("<>f__AnonymousType", StringComparison.Ordinal))
+        {
+            return "{ " + string.Join(", ", type.GetProperties().Select(p => p.Name)) + " }";
+        }
+
         if (!type.IsGenericType)
         {
             return type.Name;

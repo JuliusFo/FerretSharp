@@ -34,6 +34,18 @@ public sealed record TabState(
 
     /// <summary>Index of the tab (in the same workspace) this one was opened from by an FK jump, for "Zurück"; null if none.</summary>
     public int? OriginTab { get; init; }
+
+    /// <summary>
+    /// Set for a LINQ console tab (WP-13); <see cref="Table"/> is then <see cref="LinqTabState.NoTable"/>. An older
+    /// FerretSharp finds no such table and drops the tab, as it does with tables that are gone.
+    /// </summary>
+    public LinqTabState? Linq { get; init; }
+}
+
+/// <summary>A LINQ console tab: its title, the code and the variables the code uses.</summary>
+public sealed record LinqTabState(string Title, string Code, string Variables)
+{
+    public static readonly TableRef NoTable = new("", "");
 }
 
 /// <summary>

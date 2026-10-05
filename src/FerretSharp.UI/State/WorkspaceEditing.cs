@@ -48,7 +48,7 @@ public sealed class WorkspaceEditing(ShellState shell, WorkspaceManager workspac
     public FlushProblem? Problem { get; private set; }
 
     public static IEnumerable<ChangeTracker> Trackers(WorkspaceTabs workspace) =>
-        workspace.Tabs.Select(t => t.Changes).OfType<ChangeTracker>();
+        workspace.TableTabs.Select(t => t.Changes).OfType<ChangeTracker>();
 
     public EditSummary SummaryOf(WorkspaceTabs workspace) => new(
         Trackers(workspace).Sum(t => t.PendingCount),
@@ -117,7 +117,7 @@ public sealed class WorkspaceEditing(ShellState shell, WorkspaceManager workspac
     {
         var wait = settings.Current.LockWaitSeconds;
         var parts = new List<string>();
-        foreach (var tab in workspace.Tabs.Where(t => t.Changes?.PendingCount > 0))
+        foreach (var tab in workspace.TableTabs.Where(t => t.Changes?.PendingCount > 0))
         {
             var tracker = tab.Changes!;
             parts.Add($"-- {tab.Table.Owner}.{tab.Table.Name}");
@@ -174,7 +174,7 @@ public sealed class WorkspaceEditing(ShellState shell, WorkspaceManager workspac
 
     private async Task<bool> FlushCoreAsync(WorkspaceTabs workspace, bool duringCommit)
     {
-        var tabs = workspace.Tabs.Where(t => t.Changes?.PendingCount > 0).ToList();
+        var tabs = workspace.TableTabs.Where(t => t.Changes?.PendingCount > 0).ToList();
         if (tabs.Count == 0)
         {
             return true;
@@ -215,7 +215,7 @@ public sealed class WorkspaceEditing(ShellState shell, WorkspaceManager workspac
 
     private void Finish(WorkspaceTabs workspace)
     {
-        foreach (var tab in workspace.Tabs.Where(t => t.Changes is not null))
+        foreach (var tab in workspace.TableTabs.Where(t => t.Changes is not null))
         {
             tab.Changes!.Clear();
             shell.RequestTabCommand(tab, TabCommand.Reload);

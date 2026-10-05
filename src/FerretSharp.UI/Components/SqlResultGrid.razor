@@ -1,0 +1,251 @@
+@* Result of a query FerretSharp did not build (LINQ console, ADR 0011): read in the workspace's session page by page,
+   shown with the same grid bridge as tables – read-only, unsorted (the query's own ORDER BY counts). *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Data
+@using FerretSharp.Core.Query
+@using FerretSharp.Core.Schema
+@using FerretSharp.UI.State
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject WorkspaceManager Workspaces
+@inject ActiveConnection Active
+@inject ILogger<SqlResultGrid> Logger
+
+<div id="@_id" class="ag-host"></div>
+
+@code {
+    private const int PageSize = 500; // BLOCK_SIZE in grid.js
+    private const int MaxCachedBlocks = 40;
+
+    private readonly string _id = "sqlgrid-" + Guid.NewGuid().ToString("N");
+    private readonly Dictionary<int, IReadOnlyList<IReadOnlyList<object?>>> _blocks = [];
+    private IJSObjectReference? _module;
+    private IJSObjectReference? _dom;
+    private DotNetObjectReference<SqlResultGrid>? _selfRef;
+    private IReadOnlyList<SqlColumn> _columns = [];
+    private SqlPage? _firstPage;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public Guid WorkspaceId { get; set; }
+
+    /// <summary>The query; a new instance runs it again.</summary>
+    [Parameter, EditorRequired]
+    public QuerySpec Query { get; set; } = null!;
+
+    /// <summary>After every page or failure.</summary>
+    [Parameter]
+    public EventCallback<SqlGridStatus> OnStatus { get; set; }
+
+    public sealed record GridPage(IReadOnlyList<Dictionary<string, object?>> Rows, int LastRow);
+
+    public sealed record GridSort(string ColId, string Sort);
+
+    private int _rowsLoaded;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        _selfRef = DotNetObjectReference.Create(this);
+        _module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/grid.js");
+        await StartAsync();
+    }
+
+    /// <summary>Runs the query: the first page gives the columns, then the grid is (re)built and fetches the rest itself.</summary>
+    private async Task StartAsync()
+    {
+        _blocks.Clear();
+        _rowsLoaded = 0;
+        await Status(new SqlGridStatus(true, 0, false, null, null, null));
+        try
+        {
+            var data = await Workspaces.GetDataAsync(WorkspaceId, CancellationToken.None);
+            var query = Query;
+            _firstPage = await Task.Run(() => data.ReadSqlAsync(query, 0, PageSize, CancellationToken.None));
+        }
+        catch (DatabaseException ex)
+        {
+            QueryErrorLog.Log(Logger, ex, Active.Profile);
+            Shell.ReportFailure(ex);
+            await Status(new SqlGridStatus(false, 0, false, null, null, ex));
+            return;
+        }
+        catch (InvalidOperationException ex)
+        {
+            await Status(new SqlGridStatus(false, 0, false, null, null, new DatabaseException(ex.Message)));
+            return;
+        }
+
+        _columns = _firstPage.Columns;
+        var columns = _columns.Select((c, i) =>
+        {
+            var category = ColumnCategories.Of(c.Column);
+            return new
+            {
+                id = "c" + i.ToString(CultureInfo.InvariantCulture),
+                name = c.Name,
+                label = c.Name,
+                type = c.Column.DisplayType,
+                category = category.ToString(),
+                nullable = c.Column.Nullable,
+                numeric = category == ColumnCategory.Number,
+                sortable = false,
+                pinned = false,
+                editable = false,
+                editableNew = false,
+                lob = false,
+            };
+        }).ToList();
+        if (_module is not null)
+        {
+            await _module.InvokeVoidAsync("create", _id, _selfRef, columns, Array.Empty<object>(), 0, false, null);
+        }
+    }
+
+    private Task Status(SqlGridStatus status) => OnStatus.InvokeAsync(status);
+
+    [JSInvokable]
+    public async Task<GridPage> GetRows(int startRow, int endRow, GridSort[] sortModel)
+    {
+        SqlPage page;
+        if (startRow == 0 && _firstPage is { } first)
+        {
+            page = first;
+            _firstPage = null;
+        }
+        else
+        {
+            try
+            {
+                var data = await Workspaces.GetDataAsync(WorkspaceId, CancellationToken.None);
+                var query = Query;
+                page = await Task.Run(() => data.ReadSqlAsync(query, startRow, endRow - startRow, CancellationToken.None));
+            }
+            catch (DatabaseException ex)
+            {
+                QueryErrorLog.Log(Logger, ex, Active.Profile);
+                Shell.ReportFailure(ex);
+                await Status(new SqlGridStatus(false, _rowsLoaded, false, null, null, ex));
+                throw;
+            }
+        }
+
+        KeepBlock(startRow, page.Rows);
+        _rowsLoaded = Math.Max(_rowsLoaded, startRow + page.Rows.Count);
+        await Status(new SqlGridStatus(false, _rowsLoaded, page.IsLastPage, page.Elapsed, page.DataAsOf, null));
+        var rows = page.Rows.Select(values =>
+        {
+            var cells = new Dictionary<string, object?>(values.Count);
+            for (var i = 0; i < values.Count; i++)
+            {
+                cells["c" + i.ToString(CultureInfo.InvariantCulture)] = CellFormatter.Format(_columns[i].Column, values[i]);
+            }
+
+            return cells;
+        }).ToList();
+        return new GridPage(rows, page.IsLastPage ? startRow + page.Rows.Count : -1);
+    }
+
+    /// <summary>Ctrl+C: the focused cell, or the selected rows as a table (tab-separated, with a header line).</summary>
+    [JSInvokable]
+    public async Task OnCopy(int rowIndex, string colId, int[] selectedRows)
+    {
+        string text;
+        if (selectedRows.Length > 1)
+        {
+            var rows = selectedRows.Order().Select(RowAt).OfType<IReadOnlyList<object?>>().Select(r => new RowData(RowKey.None.Instance, r)).ToList();
+            text = DelimitedExport.Build(AsTable(), rows, DelimitedExport.ClipboardSeparator).Text;
+        }
+        else if (RowAt(rowIndex) is { } row)
+        {
+            var column = int.Parse(colId[1..], CultureInfo.InvariantCulture);
+            text = DelimitedExport.CellText(_columns[column].Column, row[column]).Text;
+        }
+        else
+        {
+            return;
+        }
+
+        _dom ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
+        if (!await _dom.InvokeAsync<bool>("copyText", text))
+        {
+            Shell.Notify("Die Zwischenablage ist nicht verfügbar.");
+        }
+    }
+
+    /// <summary>The result as a table for the export helpers (columns only; it has no key).</summary>
+    private TableDetails AsTable() => new(new TableSummary("", "LINQ", TableKind.View), _columns.Select(c => c.Column).ToList(), [], [], false);
+
+    // grid.js calls these for table grids; a result has no pinning to save, no menus and no editing.
+    [JSInvokable]
+    public void OnScrolled(int firstVisibleRow)
+    {
+    }
+
+    [JSInvokable]
+    public void OnPinnedChanged(string[] colIds)
+    {
+    }
+
+    [JSInvokable]
+    public void OnHeaderContextMenu(string colId, double x, double y, double viewportWidth, double viewportHeight)
+    {
+    }
+
+    [JSInvokable]
+    public void OnCellContextMenu(int rowIndex, string colId, int[] selectedRows, double x, double y, double viewportWidth, double viewportHeight)
+    {
+    }
+
+    [JSInvokable]
+    public object[] OnDeleteKey(int[] rowIndexes, string[] newIds) => [];
+
+    private void KeepBlock(int startRow, IReadOnlyList<IReadOnlyList<object?>> rows)
+    {
+        _blocks[startRow] = rows;
+        while (_blocks.Count > MaxCachedBlocks)
+        {
+            _blocks.Remove(_blocks.Keys.MaxBy(start => Math.Abs(start - startRow)));
+        }
+    }
+
+    private IReadOnlyList<object?>? RowAt(int index)
+    {
+        foreach (var (start, rows) in _blocks)
+        {
+            if (index >= start && index < start + rows.Count)
+            {
+                return rows[index - start];
+            }
+        }
+
+        return null;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        foreach (var module in new[] { _module, _dom }.OfType<IJSObjectReference>())
+        {
+            try
+            {
+                if (module == _module)
+                {
+                    await module.InvokeVoidAsync("destroy", _id);
+                }
+
+                await module.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+
+        _selfRef?.Dispose();
+    }
+}

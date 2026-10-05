@@ -751,3 +751,45 @@ table.columns td.clr-type .converter { display: block; color: var(--muted); font
 .valpick-name { flex: 1; white-space: nowrap; }
 .valpick-db { font: 11px var(--mono); color: var(--faint); white-space: nowrap; padding-left: 12px; }
 .valpick-item.unknown .valpick-name { color: var(--danger); }
+
+/* ---------- LINQ console (WP-13) ---------- */
+.tab.linq .icon { color: var(--clr); }
+.tab-new { flex: none; align-self: center; margin: 0 8px; height: 26px; padding: 0 10px; border: 1px dashed var(--border-strong); border-radius: 6px; background: transparent; color: var(--muted); font-size: 12px; }
+.tab-new:hover { color: var(--clr); border-color: var(--clr); background: var(--clr-weak); }
+.linqview { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.linqview > .tab-toolbar .icon { color: var(--clr); }
+.linq-title { font: 600 13px var(--mono); }
+.linq-console { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.linq-console::before { content: "C#-Konsole: "; color: var(--faint); }
+.linq-console.ready { color: var(--test); }
+.linq-console.failed { color: var(--danger); }
+.linq-editors { flex: none; display: flex; flex-direction: column; padding: 6px 12px 10px; gap: 4px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.linq-label { display: flex; align-items: baseline; gap: 10px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+.linq-label .hint { font-size: 11.5px; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--faint); }
+.linq-label code { font-size: 11px; }
+.monaco-host { border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
+.monaco-host.linq-variables { height: 62px; }
+.monaco-host.linq-code { height: clamp(110px, 22vh, 300px); }
+.linq-output { flex: 1; display: flex; flex-direction: column; min-height: 0; position: relative; }
+.linq-notice { padding: 10px 12px; border-bottom: 1px solid var(--border); background: var(--clr-weak); font-size: 12.5px; user-select: text; }
+.linq-notice.muted { background: var(--surface); color: var(--muted); }
+.linq-notice .error { color: var(--danger); margin-left: 8px; }
+.linq-declarations { margin: 8px 0; padding: 8px 10px; border-radius: 6px; background: var(--surface); border: 1px solid var(--border); font: 12px/1.5 var(--mono); white-space: pre-wrap; }
+.linq-diagnostics { list-style: none; margin: 0; padding: 4px 0; border-bottom: 1px solid var(--border); max-height: 140px; overflow-y: auto; font-size: 12.5px; user-select: text; }
+.linq-diagnostics li { display: flex; gap: 10px; align-items: baseline; padding: 3px 12px; cursor: pointer; }
+.linq-diagnostics li:hover { background: var(--hover); }
+.linq-diagnostics li.error { color: var(--danger); }
+.linq-diagnostics li.warning { color: #b7791f; }
+.linq-diagnostics .where { font: 11.5px var(--mono); color: var(--muted); flex: none; min-width: 90px; }
+.linq-diagnostics .id { font: 11px var(--mono); color: var(--faint); flex: none; }
+.linq-commands { display: flex; align-items: center; gap: 8px; flex: none; padding: 6px 12px; border-bottom: 1px solid var(--border); font-size: 12px; }
+.linq-commands .spacer { flex: 1; }
+.chip-btn { height: 24px; padding: 0 9px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--muted); font: 11.5px var(--mono); }
+.chip-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-weak); }
+.linq-sql { flex: none; max-height: 20vh; overflow: auto; border-bottom: 1px solid var(--border); }
+.linq-output .grid-host { min-height: 160px; }
+.linq-sql pre, .linq-sql .linq-sql-code { margin: 0; }
+.linq-params { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 6px 14px 8px; font-size: 12px; background: var(--surface-2); user-select: text; }
+.linq-params .muted { color: var(--faint); font-size: 11px; }
+.linq-write { padding: 14px 16px; font-size: 13px; }
+.linq-write p { margin: 0 0 10px; max-width: 760px; }
