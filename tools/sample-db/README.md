@@ -18,8 +18,9 @@ recreates it (all data is lost), `-Port`, `-Name` and `-Password` override the d
 | `03-vertrag.sql` | VERTRAG: 71 columns, 20,000 rows, several FKs |
 | `04-object-details.sql` | comments, check constraints (one disabled), indexes (function-based, descending), a view on VERTRAG, an invalid view, optimizer statistics |
 | `05-clr-model.sql` | KUNDEN.GESPERRT (`J`/`N`) and KUNDEN.KUNDENART for the C# sample model (`samples/FerretSharp.SampleModel`, WP-11) |
+| `06-clr-relations.sql` | AUFTRAG.BEARBEITER_ID → MITARBEITER without FK constraint: a relationship only the C# sample model knows (WP-12) |
 
-`04-object-details.sql` and `05-clr-model.sql` can also be added to an existing sample database (same commands with the other file name):
+`04-object-details.sql`, `05-clr-model.sql` and `06-clr-relations.sql` can also be added to an existing sample database (same commands with the other file name):
 
 ```powershell
 docker cp tools/sample-db/04-object-details.sql ferret-sample:/tmp/

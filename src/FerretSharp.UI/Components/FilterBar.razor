@@ -1,6 +1,8 @@
+@using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
 @using FerretSharp.UI.State
+@inject PresentationService Presentations
 
 <div class="filterbar">
     @if (Tab.FilterRows.Count == 0)
@@ -12,12 +14,15 @@
     }
     else
     {
+        var presentation = Presentations.For(Details);
         <div class="filter-rows">
             @foreach (var row in Tab.FilterRows)
             {
                 var r = row;
                 var column = Details.Columns.FirstOrDefault(c => c.Name == r.Column);
                 var category = column is null ? ColumnCategory.Unsupported : ColumnCategories.Of(column);
+                // Enum and converted bool columns of the C# model (WP-12): members to pick instead of typing.
+                var values = column is null ? null : presentation.ValuesOf(IndexOf(column));
                 var valueCount = FilterRules.ValueCount(r.Op);
                 <div @key="r" class="filter-row @(r.Error is null ? "" : "invalid") @(r.Enabled ? "" : "disabled")">
                     <input type="checkbox" class="row-toggle" checked="@r.Enabled" title="Filter aktiv"
@@ -25,8 +30,8 @@
                     <ColumnPicker Details="Details" Value="@r.Column" OnChange="name => ChangeColumn(r, name)" AutoFocus="r == _newRow" />
                     @* Keyed by category: with other options the browser would show the first one while the kept operator
                        (e.g. "=" from DATE to VARCHAR2) did not change, so Blazor would not set the value again. *@
-                    <select @key="category" class="field op" value="@r.Op" @onchange="e => { r.Op = Enum.Parse<FilterOperator>((string)e.Value!); Shell.MarkDirty(); }">
-                        @foreach (var op in FilterRules.OperatorsFor(category))
+                    <select @key="(category, values is null)" class="field op" value="@r.Op" @onchange="e => { r.Op = Enum.Parse<FilterOperator>((string)e.Value!); Shell.MarkDirty(); }">
+                        @foreach (var op in Operators(category, values, r.Op))
                         {
                             <option value="@op">@OperatorLabels.Label(op)</option>
                         }
@@ -35,6 +40,11 @@
                         @if (valueCount == 0)
                         {
                             <div class="field value disabled">—</div>
+                        }
+                        else if (values is not null && r.Op is FilterOperator.Equals or FilterOperator.NotEquals or FilterOperator.In)
+                        {
+                            <ValuePicker Values="values" Value="@r.Value" Multiple="r.Op == FilterOperator.In"
+                                         OnChange="v => { r.Value = v; r.Error = null; Shell.MarkDirty(); }" />
                         }
                         else if (valueCount == 2)
                         {
@@ -109,16 +119,69 @@
 
     private void ChangeColumn(FilterRow row, string name)
     {
+        var values = ValuesOf(row.Column);
         row.Column = name;
         row.Error = null;
         var column = Details.Columns.FirstOrDefault(c => c.Name == row.Column);
-        var allowed = column is null ? [] : FilterRules.OperatorsFor(ColumnCategories.Of(column));
+        var newValues = ValuesOf(name);
+        var allowed = column is null ? [] : Operators(ColumnCategories.Of(column), newValues, null);
         if (!allowed.Contains(row.Op))
         {
             row.Op = allowed.FirstOrDefault();
         }
 
+        // From or to a member list: a value typed for the other column would only be in the way.
+        if ((values is null) != (newValues is null) || !ReferenceEquals(values?.Property, newValues?.Property))
+        {
+            row.Value = "";
+            row.Value2 = "";
+        }
+
         Shell.MarkDirty();
+    }
+
+    /// <summary>Operators of an enum or bool column: equality, "in" and the NULL checks (as far as the type allows them).</summary>
+    private static readonly FilterOperator[] MemberOperators =
+        [FilterOperator.Equals, FilterOperator.NotEquals, FilterOperator.In, FilterOperator.IsNull, FilterOperator.IsNotNull];
+
+    /// <summary>
+    /// Operators offered for a column; for members only those of <see cref="MemberOperators"/>. An operator the row
+    /// already has (from before the model was loaded) stays in the list, so the select shows it.
+    /// </summary>
+    private static IReadOnlyList<FilterOperator> Operators(ColumnCategory category, ValueTable? values, FilterOperator? current)
+    {
+        var all = FilterRules.OperatorsFor(category);
+        if (values is null)
+        {
+            return all;
+        }
+
+        var members = MemberOperators.Where(all.Contains).ToList();
+        if (current is { } op && all.Contains(op) && !members.Contains(op))
+        {
+            members.Add(op);
+        }
+
+        return members;
+    }
+
+    private ValueTable? ValuesOf(string column)
+    {
+        var index = IndexOf(Details.Columns.FirstOrDefault(c => c.Name == column));
+        return index < 0 ? null : Presentations.For(Details).ValuesOf(index);
+    }
+
+    private int IndexOf(ColumnInfo? column)
+    {
+        for (var i = 0; column is not null && i < Details.Columns.Count; i++)
+        {
+            if (Details.Columns[i] == column)
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     private async Task OnKeyDown(KeyboardEventArgs e)

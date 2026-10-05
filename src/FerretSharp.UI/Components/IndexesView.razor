@@ -11,7 +11,8 @@ else
     <DetailStatus Loading="Loading && Data is null" Error="Error" Text="Lade Indizes …" />
     @if (Data is { } indexes)
     {
-        var unindexed = IndexAdvice.UnindexedForeignKeys(Active.Schema?.OutgoingOf(Table.Ref) ?? [], indexes);
+        // Declared foreign keys only; relationships of the C# model have no constraint to speak of.
+        var unindexed = IndexAdvice.UnindexedForeignKeys(Active.Schema?.OutgoingOf(Table.Ref).Where(f => f.Source == FkSource.Declared) ?? [], indexes);
         @if (unindexed.Count > 0)
         {
             <div class="advice" role="note">

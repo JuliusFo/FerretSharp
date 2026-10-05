@@ -1,3 +1,4 @@
+using FerretSharp.Core.ClrModel;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
 using FerretSharp.Core.Query;
@@ -127,14 +128,23 @@ public sealed class TableTab(Guid workspaceId, TableSummary table)
 
     public TableTab? ForwardTarget(IReadOnlyCollection<TableTab> open) => Forward is { } tab && open.Contains(tab) ? tab : null;
 
-    /// <summary>Short form of the active filters ("KUNDE_ID = 4711"), to tell several tabs of one table apart.</summary>
-    public string? FilterSummary(int maxLength = 40)
+    /// <summary>The table's structure once the tab has loaded it (for labels outside the tab, e.g. its header).</summary>
+    public TableDetails? Details { get; set; }
+
+    /// <summary>
+    /// Short form of the active filters ("KUNDE_ID = 4711"), to tell several tabs of one table apart. With a C# model
+    /// enum and bool values read as their members ("KUNDENART = Gewerbe").
+    /// </summary>
+    public string? FilterSummary(int maxLength = 40, TablePresentation? presentation = null)
     {
-        var text = string.Join(", ", AppliedFilters
-            .Where(f => f.Enabled)
-            .Select(f => $"{f.Column} {OperatorLabels.Label(f.Op)} {string.Join("; ", f.Values)}".TrimEnd()));
+        var text = string.Join(", ", FilterTexts(presentation));
         return text.Length == 0 ? null : text.Length <= maxLength ? text : text[..(maxLength - 1)].TrimEnd() + "…";
     }
+
+    /// <summary>The active filters, one text each.</summary>
+    public IEnumerable<string> FilterTexts(TablePresentation? presentation = null) => AppliedFilters
+        .Where(f => f.Enabled)
+        .Select(f => $"{f.Column} {OperatorLabels.Label(f.Op)} {string.Join("; ", f.Values.Select(v => presentation?.FilterValueText(f.Column, v) ?? v))}".TrimEnd());
 
     /// <param name="workspaceTabs">The tabs of the workspace in order, to save the origin as an index.</param>
     public TabState ToState(IReadOnlyList<TableTab> workspaceTabs) => new(

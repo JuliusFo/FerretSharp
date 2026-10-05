@@ -10,6 +10,7 @@
 @inject FerretSharp.Core.Settings.AppSettingsService Settings
 @inject ExitGuard ExitGuard
 @inject FerretSharp.Core.ClrModel.ClrModelManager Models
+@inject PresentationService Presentations
 @inject IJSRuntime JS
 
 <CascadingValue Value="_state" IsFixed="true">
@@ -91,7 +92,7 @@
                                         {
                                             var t = tab;
                                             // Several tabs of one table (FK jumps) are told apart by their filters.
-                                            var summary = _state.Tabs.Count(o => o.Table.Ref == t.Table.Ref) > 1 ? t.FilterSummary() : null;
+                                            var summary = _state.Tabs.Count(o => o.Table.Ref == t.Table.Ref) > 1 ? t.FilterSummary(presentation: PresentationOf(t)) : null;
                                             <div class="tab @(t == _state.ActiveTab ? "active" : "")" title="@TabTooltip(t)"
                                                  @onclick="() => _state.ActivateTab(t)" @onmouseup="e => CloseOnMiddleClick(e, t)">
                                                 @Icons.For(t.Table.Kind)
@@ -561,6 +562,7 @@
         Active.Changed += OnConnectionOrWorkspacesChanged;
         Workspaces.Changed += OnConnectionOrWorkspacesChanged;
         Models.Changed += OnChanged;
+        Presentations.Changed += OnChanged;
         KeepAlive.ConnectionLost += OnKeepAliveLost;
         KeepAlive.Start();
         await Connections.LoadAsync(CancellationToken.None);
@@ -625,13 +627,16 @@
     }
 
     /// <summary>Owner.table plus the active filters, so several tabs of the same table can be told apart.</summary>
-    private static string TabTooltip(TableTab tab)
+    private string TabTooltip(TableTab tab)
     {
-        var filters = tab.AppliedFilters.Where(f => f.Enabled)
-            .Select(f => $"{f.Column} {OperatorLabels.Label(f.Op)} {string.Join("; ", f.Values)}".TrimEnd())
-            .ToList();
-        return $"{tab.Table.Owner}.{tab.Table.Name}" + (filters.Count > 0 ? Environment.NewLine + string.Join(Environment.NewLine, filters) : "");
+        var filters = tab.FilterTexts(PresentationOf(tab)).ToList();
+        var entity = Presentations.ShownEntityNameOf(tab.Table.Ref) is { } name ? $" · Entity {name}" : "";
+        return $"{tab.Table.Owner}.{tab.Table.Name}{entity}" + (filters.Count > 0 ? Environment.NewLine + string.Join(Environment.NewLine, filters) : "");
     }
+
+    /// <summary>Enum and bool filter values by their C# names, once the tab knows its table's structure.</summary>
+    private FerretSharp.Core.ClrModel.TablePresentation? PresentationOf(TableTab tab) =>
+        tab.Details is { } details ? Presentations.For(details) : null;
 
     private void CloseOnMiddleClick(MouseEventArgs e, TableTab tab)
     {
@@ -822,6 +827,7 @@
         Active.Changed -= OnConnectionOrWorkspacesChanged;
         Workspaces.Changed -= OnConnectionOrWorkspacesChanged;
         Models.Changed -= OnChanged;
+        Presentations.Changed -= OnChanged;
         KeepAlive.ConnectionLost -= OnKeepAliveLost;
         if (_shortcuts is not null)
         {

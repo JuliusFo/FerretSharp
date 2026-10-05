@@ -4,9 +4,10 @@
 @using FerretSharp.Core.Schema
 @implements IAsyncDisposable
 @inject IJSRuntime JS
+@inject FerretSharp.UI.State.PresentationService Presentations
 
 <div class="colpick">
-    <input @ref="_input" class="field col" value="@(_open ? _query : Value)" spellcheck="false" autocomplete="off"
+    <input @ref="_input" class="field col" value="@(_open ? _query : Shown)" spellcheck="false" autocomplete="off"
            title="@Title" @onfocus="OpenAsync" @onclick="OpenIfClosedAsync" @onblur="Close" @oninput="OnInput" @onkeydown="OnKeyDownAsync" />
     @if (_open)
     {
@@ -55,7 +56,12 @@
         }
     }
 
-    private string? Title => CurrentIndex is { } i ? Details.Columns[i].DisplayType : null;
+    /// <summary>The selected column as labelled (its property name first if C# names come first, WP-12).</summary>
+    private string Shown => CurrentIndex is { } i ? Presentations.For(Details).LabelOf(i).Name : Value;
+
+    private string? Title => CurrentIndex is { } i && Presentations.For(Details).LabelOf(i) is var label
+        ? string.Join(" · ", new[] { label.AlternateName, label.ClrType, Details.Columns[i].DisplayType }.OfType<string>())
+        : null;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -78,7 +84,7 @@
     {
         _open = true;
         _typed = false;
-        _query = Value;
+        _query = Shown;
         _dom ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
         await _dom.InvokeVoidAsync("focusAndSelect", _input);
     }

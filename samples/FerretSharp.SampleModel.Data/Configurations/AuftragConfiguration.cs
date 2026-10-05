@@ -13,6 +13,7 @@ public sealed class AuftragConfiguration : IEntityTypeConfiguration<Auftrag>
         builder.Property(a => a.Status).HasConversion(new UpperCaseEnumConverter<AuftragStatus>()).HasMaxLength(20);
         builder.Property(a => a.Notiz).HasColumnType("CLOB");
         builder.HasOne(a => a.Kunde).WithMany(k => k.Auftraege).HasForeignKey(a => a.KundeId);
+        builder.HasOne(a => a.Bearbeiter).WithMany().HasForeignKey(a => a.BearbeiterId);
     }
 }
 

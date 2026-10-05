@@ -109,6 +109,12 @@ public sealed class ModelHostTests
         var toKunde = auftrag.ForeignKeys.Single(f => f.PrincipalEntity.EndsWith(".Kunde", StringComparison.Ordinal));
         Assert.Equal(["KundeId"], toKunde.Properties);
         Assert.Equal(("Kunde", "Auftraege"), (toKunde.Navigation, toKunde.InverseNavigation));
+        // A navigation without FK constraint in the database (WP-12: navigable "aus C#-Modell").
+        var toBearbeiter = auftrag.ForeignKeys.Single(f => f.PrincipalEntity.EndsWith(".Mitarbeiter", StringComparison.Ordinal));
+        Assert.Equal(["BearbeiterId"], toBearbeiter.Properties);
+        Assert.Equal(["Id"], toBearbeiter.PrincipalProperties);
+        Assert.Equal("Bearbeiter", toBearbeiter.Navigation);
+        Assert.Equal("BEARBEITER_ID", auftrag.Properties.Single(p => p.Name == "BearbeiterId").Column);
 
         var position = model.Entities.Single(e => e.Name.EndsWith(".AuftragPosition", StringComparison.Ordinal));
         Assert.Equal("AUFTRAG_POSITION", position.Table);

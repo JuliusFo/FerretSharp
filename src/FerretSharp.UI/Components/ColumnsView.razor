@@ -71,7 +71,14 @@
                         }
                         @foreach (var fk in fkColumns[column.Name])
                         {
-                            <span class="fs-badge fk" title="@fk.Name → @fk.To">FK</span>
+                            @if (fk.Source == FkSource.ClrModel)
+                            {
+                                <span class="fs-badge fk model" title="@fk.Name → @fk.To (aus dem C#-Modell, ohne Constraint)">FK</span>
+                            }
+                            else
+                            {
+                                <span class="fs-badge fk" title="@fk.Name → @fk.To">FK</span>
+                            }
                         }
                     </td>
                     <td class="mono">@column.DisplayType</td>
@@ -87,7 +94,7 @@
                         {
                             <td class="mono property">@property.Name@(property.IsShadow ? " (Shadow)" : "")</td>
                             <td class="mono clr-type" title="@ValuesTitle(property)">
-                                @property.ClrType@(property.Nullable && property.ClrType != "string" ? "?" : "")
+                                @TablePresentation.ClrTypeText(property)
                                 @if (property.Converter is { } converter)
                                 {
                                     <span class="converter">@converter</span>

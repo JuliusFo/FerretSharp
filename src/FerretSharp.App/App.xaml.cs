@@ -80,6 +80,7 @@ public partial class App : Application
         builder.Services.AddSingleton<IFileOpenService, FileOpenService>();
         builder.Services.AddSingleton<IModelHostRunner>(new ModelHostRunner(Path.Combine(AppContext.BaseDirectory, "modelhost", "FerretSharp.ModelHost.dll")));
         builder.Services.AddSingleton<ClrModelManager>();
+        builder.Services.AddSingleton<PresentationService>();
         builder.Services.AddSingleton<ExitGuard>();
         builder.Services.AddSingleton<MainWindow>();
 

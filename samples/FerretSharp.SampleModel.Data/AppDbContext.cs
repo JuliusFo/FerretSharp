@@ -26,6 +26,8 @@ public class AppDbContext : DbContext
 
     public DbSet<Kategorie> Kategorien => Set<Kategorie>();
 
+    public DbSet<Mitarbeiter> Mitarbeiter => Set<Mitarbeiter>();
+
     public DbSet<Newsletter> Newsletter => Set<Newsletter>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

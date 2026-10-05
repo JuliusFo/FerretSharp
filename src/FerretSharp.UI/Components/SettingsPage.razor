@@ -1,4 +1,4 @@
-@* App settings: appearance (light/dark) and the connection keep-alive. *@
+@* App settings: appearance (light/dark), C# names of a linked project and the connection behaviour. *@
 @using FerretSharp.Core.Settings
 @using FerretSharp.UI.State
 @inject IThemeService Theme
@@ -34,6 +34,29 @@
                 Die Auswahl wird gespeichert und gilt ab dem nächsten Start ohne diesen Parameter.
             </div>
         }
+    </section>
+
+    <section class="settings-section">
+        <h2>C#-Modell</h2>
+        <div class="settings-row">
+            <div class="settings-label">
+                <span>C#-Namen</span>
+                <span class="hint">
+                    Entity- und Property-Namen des verknüpften Projekts im Explorer, im Tabellenkopf und in der Spaltensuche:
+                    neben den Oracle-Namen oder statt ihrer vorne. Enum-Werte zeigt FerretSharp immer mit ihrem C#-Namen;
+                    SQL bleibt bei den Namen der Datenbank.
+                </span>
+            </div>
+            <div class="segmented" role="radiogroup" aria-label="C#-Namen">
+                @foreach (var (mode, label) in NameModes)
+                {
+                    var value = mode;
+                    <button class="seg @(Settings.Current.ClrNames == value ? "active" : "")" role="radio"
+                            aria-checked="@(Settings.Current.ClrNames == value ? "true" : "false")"
+                            @onclick="() => SetClrNamesAsync(value)">@label</button>
+                }
+            </div>
+        </div>
     </section>
 
     <section class="settings-section">
@@ -105,6 +128,21 @@
     }
 
     private static readonly int[] WaitOptions = [1, 3, 5, 10, 30];
+
+    private static readonly (ClrNameDisplay Mode, string Label)[] NameModes =
+        [(ClrNameDisplay.Off, "Aus"), (ClrNameDisplay.Beside, "Daneben"), (ClrNameDisplay.Front, "Vorne")];
+
+    private async Task SetClrNamesAsync(ClrNameDisplay mode)
+    {
+        try
+        {
+            await Settings.UpdateAsync(s => s with { ClrNames = mode }, CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Shell.Notify($"Einstellung angewendet, aber nicht gespeichert: {ex.Message}");
+        }
+    }
 
     private async Task SetLockWaitAsync(int seconds)
     {
