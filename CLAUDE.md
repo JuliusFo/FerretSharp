@@ -2,7 +2,7 @@
 
 > Projektanweisungen für Claude Code. Bitte vollständig lesen, bevor ein Arbeitspaket umgesetzt wird.
 > Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-05 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0; WP-14 → 2.4.0)
+> Stand: 2026-10-05 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0; WP-14 → 2.4.0; WP-15 → 3.0.0, v3 abgeschlossen)
 
 ## 1. Ziel
 
@@ -514,6 +514,13 @@ Entscheidungen des Nutzers (2026-10-05):
 #### WP-15 Code-Generierung → Release v3.0.0
 - Aktive Filter als LINQ kopieren (`.Where(x => x.KundeId == 4711)`).
 - Markierte Zeilen als C#-Objektinitialisierer, `HasData()`-Seed oder Bogus-Fixture kopieren.
+- Umgesetzt (Release 3.0.0, ADR 0013). Entscheidungen des Nutzers: eine Zeile als `var kunde = new Kunde { … };`, mehrere als `List<Kunde> kunden = [ new() { … }, … ];`, NULL-Werte weggelassen; LINQ findet **dieselben Zeilen wie das Grid** (`x.Name.ToUpper().Contains("MEIER")`, Datum ohne Uhrzeit als Tagesbereich); Lücken (Spalte ohne Property, Wert ohne Member, eigener Converter, nur als Vorschau geladener LOB) als **Kommentar im Code plus Hinweis**; dazu „In LINQ-Konsole öffnen“, `HasData` und „Als C#-Wert kopieren“; **kein Bogus**.
+  - Core (`ClrModel/`): `CSharpCode` (Literal je Property-Typ: Enum-Member, Flags `A | B`, als Zahl gespeichertes Enum ohne Member als `(Kundenart)7`, `decimal` mit `m`, `DateTime`-Konstruktor nur so genau wie nötig, `Guid` aus RAW(16) in .NET-Byte-Reihenfolge, `byte[]` als `Convert.FromHexString`), `LinqFilter` (Semantik wie `QueryBuilder`: „≠“ als `!=`, Strings über `string.Compare`, „in“ als `new T[] { … }.Contains(x.P)`, Shadow-Properties über `EF.Property<T>`; `Source` = `db.Kunden` bzw. `db.Set<Kunde>()`), `CSharpRows` (Initializer, `HasData` – Zeilen mit Shadow-Werten als anonyme Objekte; nicht für keyless, View-only, Owned –, einzelne Zelle). `TablePresentation.IsEntityProperty`: Properties anderer Entity-Typen derselben Tabelle (Owned, Table-Splitting) werden nur kommentiert. `OperatorLabels` liegt jetzt in `Core/Query`.
+  - Modell-Export: `EntityExport.DbSet` (optional, Formatversion bleibt 1) aus den `DbSet<T>`-Properties des Contexts.
+  - UI: „C# ▾“ an der Filterleiste (`LinqMenu`, nur mit Entity) – übersetzt die gültigen bearbeiteten Filter, sonst die angewendeten (wie „SQL“); „In LINQ-Konsole öffnen“ legt einen LINQ-Tab mit `db.Kunden.Where(…)` an (ohne `return`: der letzte Ausdruck des Scripts ist das Ergebnis). Kontextmenü: „Als C#-Wert kopieren“ (Tooltip zeigt den Wert bzw. den Grund), Gruppe „C# · Kunde · N Zeilen“ mit „Als C#-Objekte kopieren“/„Als HasData kopieren“. Das Kontextmenü rückt nach dem Rendern nach oben, wenn es unten aus dem Fenster ragt (`dom.js keepInViewport`; die Höhe in .NET ist nur geschätzt).
+  - Tests: Unit-Tests je Typ/Operator; ein Integrationstest erzeugt LINQ und Initializer gegen das exportierte Beispielmodell, kompiliert beides in der LINQ-Konsole und prüft das SQL von EF (`UPPER(`, `'J'`, `IN (1, 3)`). E2E: Trefferzahlen Grid = Konsole (`.Count()`), u. a. Text in Kleinschreibung + „zwischen“ mit Tagesgrenzen.
+  - E2E-Kniff: Kopieren ohne die Zwischenablage des Nutzers zu berühren – im WebView per CDP `navigator.clipboard` durch eine Mitschrift ersetzen (`Object.defineProperty(navigator, 'clipboard', { value: { writeText: async t => window.__copied.push(t) } })`) und das Kopierte dort lesen.
+  - Beispielmodell: Abfragen über `Kunde` scheitern auf der Beispiel-DB absichtlich mit ORA-00904 (`Kunde.Email` ohne Spalte, Drift für den Abgleich) – für Konsolen-Tests `.Count()` oder eine andere Entity (`Auftraege`) nehmen.
 
 ## 9. Offene UX-Fragen
 - Shortcut-Belegung für Commit/Rollback (Abschnitt 7) – vorläufig, Nutzerfeedback einholen.
