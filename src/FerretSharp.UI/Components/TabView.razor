@@ -6,6 +6,7 @@
 @implements IDisposable
 @inject ActiveConnection Active
 @inject WorkspaceManager Workspaces
+@inject PresentationService Presentations
 @inject ILogger<TabView> Logger
 
 <div class="tabview">
@@ -242,8 +243,13 @@
             ? "Sortierung: alle Spalten"
             : "Sortierung: Row-Key";
 
-    private static string NavLabel(TableTab tab) =>
-        tab.FilterSummary(maxLength: 80) is { } filters ? $"{tab.Table.DisplayName} ({filters})" : tab.Table.DisplayName;
+    private string NavLabel(TableTab tab) =>
+        tab.FilterSummary(maxLength: 80, tab.Details is { } details ? Presentations.For(details) : null) is { } filters
+            ? $"{tab.Table.DisplayName} ({filters})"
+            : tab.Table.DisplayName;
+
+    /// <summary>The C# model or the name setting changed: filter bar (member lists) and labels follow.</summary>
+    private void OnPresentationChanged() => InvokeAsync(StateHasChanged);
 
     private string RowKeyText =>_details is null ? "" : QueryBuilder.RowKeyOf(_details) switch
     {
@@ -255,6 +261,7 @@
     protected override async Task OnInitializedAsync()
     {
         Shell.TabCommandRequested += OnTabCommand;
+        Presentations.Changed += OnPresentationChanged;
         if (Active.Schema is not { } schema)
         {
             return;
@@ -264,6 +271,7 @@
         {
             var table = Tab.Table;
             _details = await Task.Run(() => schema.GetDetailsAsync(table, CancellationToken.None));
+            Tab.Details = _details;
         }
         catch (DatabaseException ex)
         {
@@ -449,6 +457,7 @@
     public void Dispose()
     {
         Shell.TabCommandRequested -= OnTabCommand;
+        Presentations.Changed -= OnPresentationChanged;
         _countCts?.Cancel();
     }
 }

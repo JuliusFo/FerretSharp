@@ -32,6 +32,8 @@ public sealed class ArtikelConfiguration : StammdatenConfiguration<Artikel>
 
 public sealed class HerstellerConfiguration : StammdatenConfiguration<Hersteller>;
 
+public sealed class MitarbeiterConfiguration : StammdatenConfiguration<Mitarbeiter>;
+
 public sealed class KategorieConfiguration : StammdatenConfiguration<Kategorie>
 {
     protected override void ConfigureEntity(EntityTypeBuilder<Kategorie> builder) => builder.ToTable("Kategorie");

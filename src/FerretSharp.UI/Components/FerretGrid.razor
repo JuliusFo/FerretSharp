@@ -1,3 +1,4 @@
+@using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
 @using FerretSharp.Core.Oracle
@@ -8,6 +9,7 @@
 @inject IJSRuntime JS
 @inject ActiveConnection Active
 @inject WorkspaceManager Workspaces
+@inject PresentationService Presentations
 @inject ILogger<FerretGrid> Logger
 
 <div id="@Tab.Id" class="ag-host"></div>
@@ -20,6 +22,11 @@
     private bool _editable;
     private IJSObjectReference? _dom;
     private DotNetObjectReference<FerretGrid>? _selfRef;
+    private TablePresentation? _presentation;
+    private int _presentationVersion;
+
+    /// <summary>Header height with the line for C# names (WP-12); the theme's 46 px otherwise.</summary>
+    private const int ClrHeaderHeight = 62;
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -69,7 +76,6 @@
             return;
         }
 
-        var foreignKeyColumns = Active.Schema?.OutgoingOf(Details.Table.Ref).SelectMany(f => f.FromColumns).ToHashSet() ?? [];
         Tab.PinnedColumns = ColumnPinning.Normalize(Details, Tab.PinnedColumns); // columns may have been dropped since
         _editable = CanEdit;
         if (_editable)
@@ -78,32 +84,10 @@
         }
 
         Workspaces.Changed += OnWorkspacesChanged;
-        var columns = ColumnPinning.DisplayOrder(Details, Tab.PinnedColumns).Select(i =>
-        {
-            var c = Details.Columns[i];
-            var category = ColumnCategories.Of(c);
-            return new
-            {
-                id = ColumnId(i),
-                name = c.Name,
-                type = c.DisplayType,
-                category = category.ToString(),
-                nullable = c.Nullable,
-                pk = Details.PrimaryKey.Contains(c.Name),
-                fk = foreignKeyColumns.Contains(c.Name),
-                numeric = category == ColumnCategory.Number,
-                sortable = ColumnCategories.IsSortable(category),
-                pinned = ColumnPinning.IsPinned(Details, Tab.PinnedColumns, c.Name),
-                comment = c.Comment,
-                // Whether the column can be edited at all; whether the workspace may write is switched in grid.js (setEditable).
-                editable = !OracleTypeMapper.IsLob(c) && OracleTypeMapper.NotEditableReason(Details, c, newRow: false) is null,
-                editableNew = !OracleTypeMapper.IsLob(c) && OracleTypeMapper.NotEditableReason(Details, c, newRow: true) is null,
-                // LOBs open the LOB editor instead (also to read them whole on a locked workspace).
-                lob = OracleTypeMapper.IsLob(c),
-                // Long texts (and their line breaks) are edited in a larger box.
-                multiline = category == ColumnCategory.Text && (c.Length ?? 0) > 200,
-            };
-        }).ToList();
+        Presentations.Changed += OnPresentationChanged;
+        _presentationVersion = Presentations.Version;
+        _presentation = Presentations.For(Details);
+        var columns = ColumnPinning.DisplayOrder(Details, Tab.PinnedColumns).Select(ColumnMeta).ToList();
         var sorts = Tab.Sorts
             .Select(s => new { colId = ColumnId(IndexOf(s.Column)), sort = s.Descending ? "desc" : "asc" })
             .Where(s => s.colId != "c-1")
@@ -111,12 +95,79 @@
 
         _selfRef = DotNetObjectReference.Create(this);
         _module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/grid.js");
-        await _module.InvokeVoidAsync("create", Tab.Id, _selfRef, columns, sorts, Tab.FirstVisibleRow ?? 0, _editable);
+        await _module.InvokeVoidAsync("create", Tab.Id, _selfRef, columns, sorts, Tab.FirstVisibleRow ?? 0, _editable, HeaderHeight);
         if (Tab.Changes?.NewRows.Count > 0)
         {
             await SetNewRowsAsync(); // the tab was mounted again (workspace switch) with new rows still unsaved
         }
     }
+
+    /// <summary>How columns and values are shown: plain, or with the C# model (WP-12).</summary>
+    public TablePresentation Presentation => _presentation ??= Presentations.For(Details);
+
+    private int? HeaderHeight => Presentation.ShowsClrNames ? ClrHeaderHeight : null;
+
+    /// <summary>What grid.js needs to know about a column (header, editing, member list).</summary>
+    private object ColumnMeta(int i)
+    {
+        var c = Details.Columns[i];
+        var category = ColumnCategories.Of(c);
+        var label = Presentation.LabelOf(i);
+        var values = Presentation.ValuesOf(i);
+        var foreignKeys = Active.Schema?.OutgoingOf(Details.Table.Ref).Where(f => f.FromColumns.Contains(c.Name)).ToList() ?? [];
+        return new
+        {
+            id = ColumnId(i),
+            name = c.Name,
+            label = label.Name,
+            alternate = label.AlternateName,
+            clrType = label.ClrType,
+            clrLine = Presentation.ShowsClrNames,
+            type = c.DisplayType,
+            category = category.ToString(),
+            nullable = c.Nullable,
+            pk = Details.PrimaryKey.Contains(c.Name),
+            fk = foreignKeys.Any(f => f.Source == FkSource.Declared),
+            fkModel = foreignKeys.Any(f => f.Source == FkSource.ClrModel),
+            numeric = category == ColumnCategory.Number && values is null,
+            sortable = ColumnCategories.IsSortable(category),
+            pinned = ColumnPinning.IsPinned(Details, Tab.PinnedColumns, c.Name),
+            comment = c.Comment,
+            // Whether the column can be edited at all; whether the workspace may write is switched in grid.js (setEditable).
+            editable = !OracleTypeMapper.IsLob(c) && OracleTypeMapper.NotEditableReason(Details, c, newRow: false) is null,
+            editableNew = !OracleTypeMapper.IsLob(c) && OracleTypeMapper.NotEditableReason(Details, c, newRow: true) is null,
+            // LOBs open the LOB editor instead (also to read them whole on a locked workspace).
+            lob = OracleTypeMapper.IsLob(c),
+            // Long texts (and their line breaks) are edited in a larger box.
+            multiline = category == ColumnCategory.Text && (c.Length ?? 0) > 200,
+            // Enum and converted bool columns: the members to pick from, and why a value without a member is marked.
+            options = values?.Options,
+            unknownText = values?.UnknownText,
+        };
+    }
+
+    /// <summary>
+    /// The C# model was loaded (or unlinked) or the name setting changed: relabel the columns in place and redraw the
+    /// rows, whose values may now read differently. Model relationships may add FK badges too.
+    /// </summary>
+    private void OnPresentationChanged() => _ = InvokeAsync(async () =>
+    {
+        if (_module is null || Presentations.Version == _presentationVersion)
+        {
+            return;
+        }
+
+        _presentationVersion = Presentations.Version;
+        _presentation = Presentations.For(Details);
+        try
+        {
+            await _module.InvokeVoidAsync("updateColumns", Tab.Id, Enumerable.Range(0, Details.Columns.Count).Select(ColumnMeta).ToList(), HeaderHeight);
+            await ReloadAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    });
 
     /// <summary>Fetches the loaded rows again where they are (after writing, commit, rollback) and redraws the new rows.</summary>
     public async Task ReloadAsync()
@@ -238,20 +289,28 @@
     /// <summary>
     /// A grid row: display texts by column id, with pending/flushed values of the tab's changes laid over the loaded
     /// ones. Extra fields for grid.js: <c>__s</c> stage per column ("p" pending, "f" flushed), <c>__d</c> deleted
-    /// ("p"/"f"), <c>__ro</c> columns whose value cannot be edited, <c>__new</c> id of a new row.
+    /// ("p"/"f"), <c>__ro</c> columns whose value cannot be edited, <c>__u</c> columns whose value is no member of
+    /// their enum (WP-12), <c>__new</c> id of a new row.
     /// </summary>
     private Dictionary<string, object?> GridRow(RowData row) => GridRow(Tab.Changes?.Find(row.Key), row.Values);
 
     private Dictionary<string, object?> GridRow(RowChange? change, IReadOnlyList<object?>? values)
     {
-        var cells = new Dictionary<string, object?>(Details.Columns.Count + 4);
+        var cells = new Dictionary<string, object?>(Details.Columns.Count + 5);
         var stages = new Dictionary<string, string>();
         var readOnly = new List<string>();
+        var unknown = new List<string>();
         for (var i = 0; i < Details.Columns.Count; i++)
         {
             var id = ColumnId(i);
             var value = change is not null ? change.ValueOf(i) : values?[i];
-            cells[id] = CellFormatter.Format(Details.Columns[i], value);
+            var presented = Presentation.Present(i, value);
+            cells[id] = presented.Text;
+            if (presented.Unknown)
+            {
+                unknown.Add(id);
+            }
+
             if (change?.StageOf(i) is { } stage)
             {
                 stages[id] = stage == ChangeStage.Pending ? "p" : "f";
@@ -278,6 +337,11 @@
             cells["__ro"] = readOnly;
         }
 
+        if (unknown.Count > 0)
+        {
+            cells["__u"] = unknown;
+        }
+
         if (change is { IsNew: true, IsInserted: false })
         {
             cells["__new"] = change.Id.ToString("N");
@@ -296,13 +360,19 @@
         var column = ColumnIndex(colId);
         if (NewRow(newId) is { } added)
         {
-            return OracleTypeMapper.EditText(Details.Columns[column], added.ValueOf(column));
+            return EditText(column, added.ValueOf(column));
         }
 
         return RowAt(rowIndex) is { } row
-            ? OracleTypeMapper.EditText(Details.Columns[column], Tab.Changes?.Find(row.Key)?.ValueOf(column) ?? row.Values[column])
+            ? EditText(column, Tab.Changes?.Find(row.Key)?.ValueOf(column) ?? row.Values[column])
             : null;
     }
+
+    /// <summary>The edit text; for enum and bool columns the member's database value as the member list has it.</summary>
+    private string EditText(int column, object? value) =>
+        Presentation.ValuesOf(column)?.Find(value) is { } member
+            ? Presentation.ValuesOf(column)!.Options.First(o => o.Name == member.Name).Value
+            : OracleTypeMapper.EditText(Details.Columns[column], value);
 
     /// <summary>Enter in the editor: the message if the text cannot be taken; the editor then stays open.</summary>
     [JSInvokable]
@@ -551,7 +621,7 @@
         var selected = selectedRows.Order().Select(RowAt).ToList();
         var column = int.Parse(colId[1..], CultureInfo.InvariantCulture);
         await OnContextMenu.InvokeAsync(new GridContextMenuRequest(
-            row, column, CellFormatter.Format(Details.Columns[column], row.Values[column]),
+            row, column, Presentation.Present(column, row.Values[column]).Text,
             selected.OfType<RowData>().ToList(), selected.Count(r => r is null), x, y, viewportWidth, viewportHeight, selectedRows.Order().ToList(), rowIndex));
     }
 
@@ -654,6 +724,7 @@
     public async ValueTask DisposeAsync()
     {
         Workspaces.Changed -= OnWorkspacesChanged;
+        Presentations.Changed -= OnPresentationChanged;
         if (_dom is not null)
         {
             try

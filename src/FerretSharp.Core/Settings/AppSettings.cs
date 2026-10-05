@@ -8,6 +8,19 @@ public enum ThemeMode
     Dark,
 }
 
+/// <summary>Where the C# model's entity and property names appear next to table and column names (WP-12).</summary>
+public enum ClrNameDisplay
+{
+    /// <summary>Only database names.</summary>
+    Off,
+
+    /// <summary>Database name first, the C# name beside it in a subdued style (default).</summary>
+    Beside,
+
+    /// <summary>The C# name first, the database name beside it.</summary>
+    Front,
+}
+
 /// <summary>User preferences of the app (not per connection). Saved as <c>settings.json</c> in the data directory.</summary>
 public sealed record AppSettings
 {
@@ -26,6 +39,9 @@ public sealed record AppSettings
     /// (<c>SELECT … FOR UPDATE WAIT n</c>, 1–60).
     /// </summary>
     public int LockWaitSeconds { get; init; } = Query.DmlBuilder.DefaultLockWaitSeconds;
+
+    /// <summary>Entity and property names of a linked C# project beside the database names (explorer, grid, column search).</summary>
+    public ClrNameDisplay ClrNames { get; init; } = ClrNameDisplay.Beside;
 }
 
 /// <summary>
@@ -48,6 +64,9 @@ public sealed class AppSettingsService(SettingsStore store, AppSettings initial)
         }
     }
 
+    /// <summary>A setting changed (raised before saving, on the caller's thread).</summary>
+    public event Action? Changed;
+
     /// <summary>Applies the change at once and saves all settings.</summary>
     /// <exception cref="IOException">The file could not be written; the change stays in effect for this session.</exception>
     public async Task UpdateAsync(Func<AppSettings, AppSettings> change, CancellationToken cancellationToken)
@@ -58,6 +77,7 @@ public sealed class AppSettingsService(SettingsStore store, AppSettings initial)
             snapshot = _current = change(_current);
         }
 
+        Changed?.Invoke();
         await store.SaveAsync(snapshot, cancellationToken);
     }
 }

@@ -10,7 +10,12 @@ public class Auftrag
 
     public string? Notiz { get; set; }
 
+    /// <summary>Wer den Auftrag bearbeitet; in der DB ohne FK-Constraint (nur das Modell kennt die Beziehung).</summary>
+    public int? BearbeiterId { get; set; }
+
     public Kunde Kunde { get; set; } = null!;
+
+    public Mitarbeiter? Bearbeiter { get; set; }
 
     public List<AuftragPosition> Positionen { get; set; } = [];
 }

@@ -5,10 +5,13 @@ namespace FerretSharp.Core.Schema;
 /// <summary>
 /// Schema metadata for one connection: object list (own objects plus synonym targets) and foreign keys are loaded
 /// up front, column details lazily per table (ALL_TAB_COLUMNS is slow on large databases). <see cref="RefreshAsync"/>
-/// drops everything.
+/// drops everything except relationships of other sources (<see cref="SetForeignKeys"/>).
 /// </summary>
 public sealed class SchemaCache(ISchemaReader reader, string owner)
 {
+    private readonly Lock _foreignKeyLock = new();
+    private readonly Dictionary<FkSource, IReadOnlyList<ForeignKeyInfo>> _otherSources = [];
+    private IReadOnlyList<ForeignKeyInfo> _declared = [];
     private ConcurrentDictionary<TableRef, Lazy<Task<TableDetails>>> _details = new();
     private Dictionary<TableRef, TableSummary> _byRef = [];
     private ILookup<TableRef, ForeignKeyInfo> _outgoing = Array.Empty<ForeignKeyInfo>().ToLookup(f => f.From);
@@ -19,7 +22,27 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
     /// <summary>Own objects and synonym targets, one entry per real object, sorted by display name.</summary>
     public IReadOnlyList<TableSummary> Tables { get; private set; } = [];
 
+    /// <summary>Declared foreign keys, then relationships of other sources that no declared one covers.</summary>
     public IReadOnlyList<ForeignKeyInfo> ForeignKeys { get; private set; } = [];
+
+    /// <summary>
+    /// Replaces the relationships of a source other than <see cref="FkSource.Declared"/> (the C# model's navigations).
+    /// One that a declared foreign key already covers (same tables, same column pairs) is left out; this is checked
+    /// again whenever the schema is reloaded.
+    /// </summary>
+    public void SetForeignKeys(FkSource source, IReadOnlyList<ForeignKeyInfo> foreignKeys)
+    {
+        if (source == FkSource.Declared)
+        {
+            throw new ArgumentException("Declared foreign keys come from the database.", nameof(source));
+        }
+
+        lock (_foreignKeyLock)
+        {
+            _otherSources[source] = foreignKeys;
+            CombineForeignKeys();
+        }
+    }
 
     public DateTimeOffset? LoadedAt { get; private set; }
 
@@ -37,13 +60,40 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
         }
 
         Tables = tables;
-        ForeignKeys = foreignKeys;
         _byRef = tables.ToDictionary(t => t.Ref);
-        _outgoing = foreignKeys.ToLookup(f => f.From);
-        _incoming = foreignKeys.ToLookup(f => f.To);
+        lock (_foreignKeyLock)
+        {
+            _declared = foreignKeys;
+            CombineForeignKeys();
+        }
+
         _details = new ConcurrentDictionary<TableRef, Lazy<Task<TableDetails>>>();
         LoadedAt = DateTimeOffset.Now;
     }
+
+    private void CombineForeignKeys()
+    {
+        var declared = _declared.Select(PairsOf).ToHashSet();
+        var all = _declared.ToList();
+        foreach (var (_, foreignKeys) in _otherSources.OrderBy(s => s.Key))
+        {
+            foreach (var fk in foreignKeys)
+            {
+                if (declared.Add(PairsOf(fk)))
+                {
+                    all.Add(fk);
+                }
+            }
+        }
+
+        ForeignKeys = all;
+        _outgoing = all.ToLookup(f => f.From);
+        _incoming = all.ToLookup(f => f.To);
+    }
+
+    /// <summary>A relationship by what it connects: both tables and the column pairs in a fixed order.</summary>
+    private static string PairsOf(ForeignKeyInfo fk) =>
+        $"{fk.From}\0{fk.To}\0" + string.Join('\0', fk.FromColumns.Zip(fk.ToColumns, (from, to) => from + "\u0001" + to).Order(StringComparer.Ordinal));
 
     public Task RefreshAsync(CancellationToken cancellationToken) => LoadAsync(cancellationToken);
 

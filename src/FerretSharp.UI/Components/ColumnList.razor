@@ -1,10 +1,13 @@
 @* Matching columns with a keyboard highlight. The search input belongs to the parent (ColumnPicker, ColumnJump),
    which forwards the arrow keys and Enter via Move and PickHighlightedAsync. *@
+@using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
+@using FerretSharp.UI.State
 @implements IAsyncDisposable
 @inject ActiveConnection Active
+@inject PresentationService Presentations
 @inject IJSRuntime JS
 
 <div class="col-list">
@@ -16,9 +19,14 @@
     {
         var position = i;
         var column = Details.Columns[_matches[i]];
+        var label = _presentation.LabelOf(_matches[i]);
         <div id="@ItemId(position)" class="col-item @(position == _highlight ? "highlight" : "") @(_matches[i] == Current ? "current" : "")" title="@column.Comment"
              @onmousedown="() => PickAsync(position)" @onmousedown:preventDefault="true" @onmouseenter="() => _highlight = position">
-            <span class="col-item-name">@column.Name</span>
+            <span class="col-item-name">@label.Name</span>
+            @if (label.AlternateName is { } alternate)
+            {
+                <span class="col-item-clr">@alternate</span>
+            }
             @if (Details.PrimaryKey.Contains(column.Name))
             {
                 <span class="fs-badge pk">PK</span>
@@ -27,7 +35,7 @@
             {
                 <span class="fs-badge fk">FK</span>
             }
-            <span class="col-item-type">@column.DisplayType</span>
+            <span class="col-item-type">@(label.ClrType is { } clrType ? $"{clrType} · {column.DisplayType}" : column.DisplayType)</span>
         </div>
     }
 </div>
@@ -35,6 +43,7 @@
 @code {
     private readonly string _id = "cols-" + Guid.NewGuid().ToString("N");
     private IReadOnlyList<int> _matches = [];
+    private TablePresentation _presentation = null!;
     private HashSet<string> _foreignKeyColumns = [];
     private string? _lastQuery;
     private int _highlight;
@@ -56,8 +65,11 @@
 
     private string ItemId(int position) => _id + "-" + position.ToString(CultureInfo.InvariantCulture);
 
-    protected override void OnInitialized() =>
+    protected override void OnInitialized()
+    {
         _foreignKeyColumns = Active.Schema?.OutgoingOf(Details.Table.Ref).SelectMany(f => f.FromColumns).ToHashSet() ?? [];
+        _presentation = Presentations.For(Details);
+    }
 
     protected override void OnParametersSet()
     {
@@ -67,7 +79,8 @@
         }
 
         _lastQuery = Query;
-        _matches = ColumnSearch.Find(Details.Columns, Query);
+        // Property names of the C# model are found too (WP-12).
+        _matches = ColumnSearch.Find(Details.Columns, Query, _presentation.SearchNameOf);
         var current = string.IsNullOrWhiteSpace(Query) && Current is { } c ? IndexOf(c) : -1;
         _highlight = Math.Max(current, 0);
         _scrollToHighlight = true;

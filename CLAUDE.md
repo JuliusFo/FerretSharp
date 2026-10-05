@@ -2,7 +2,7 @@
 
 > Projektanweisungen für Claude Code. Bitte vollständig lesen, bevor ein Arbeitspaket umgesetzt wird.
 > Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-05 (v1 komplett bis 1.7; v2: WP-08 → 1.8.0, WP-09 → 1.9.0, WP-10 → 2.0.0; v3: WP-11 umgesetzt → 2.1.0)
+> Stand: 2026-10-05 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0)
 
 ## 1. Ziel
 
@@ -41,7 +41,7 @@ Regeln für **v1**:
 
 Vorbereitung auf **v3** (gilt ab WP-01):
 - Schema-Records bleiben reine DB-Sicht. Zusätzliche Metadaten (Entity-/Property-Name, CLR-Typ, Enum-Mapping) kommen später über eine separate, nach (Owner, Tabelle, Spalte) adressierte **Annotation-Schicht** hinzu – nicht durch Aufbohren von `TableDetails`/`ColumnInfo`.
-- Anzeige und Eingabe von Zellwerten sowie Spaltenbeschriftungen laufen über einen austauschbaren Präsentations-Service (z. B. `IColumnPresentation`), damit v3 Enum-Namen und Property-Namen einhängen kann, ohne Grid/FilterBar umzubauen.
+- Anzeige und Eingabe von Zellwerten sowie Spaltenbeschriftungen laufen über eine austauschbare Präsentationsschicht (seit WP-12 `TablePresentation`, in der UI über den `PresentationService`), damit Enum-Namen und Property-Namen eingehängt werden, ohne Grid/FilterBar umzubauen.
 - FK-Quellen sind ein Enum (`Declared`, `Manual`, `Convention`, später `ClrModel`), kein `bool IsVirtual`.
 - Das Filtermodell (Spalte, Operator, Werte) bleibt so einfach, dass es sich 1:1 in einen LINQ-`Where`-Ausdruck übersetzen lässt.
 
@@ -169,7 +169,7 @@ record ColumnInfo(string Name, string DataType, int? Length, bool CharSemantics,
                   bool Nullable, bool IsIdentity, string? Default, int Position);    // DisplayType: "VARCHAR2(50 CHAR)", "NUMBER(12,2)", "INTEGER" …
 record TableRef(string Owner, string Name);                                           // exakter Dictionary-Name
 record ForeignKeyInfo(string Name, TableRef From, IReadOnlyList<string> FromColumns, TableRef To, IReadOnlyList<string> ToColumns, FkSource Source);
-enum FkSource { Declared, Manual, Convention /* v3: ClrModel */ }
+enum FkSource { Declared, Manual, Convention, ClrModel }   // ClrModel: Navigations des C#-Modells ohne Constraint (WP-12)
 ```
 - `ForeignKeyInfo` trägt Owner (`TableRef`), damit FKs über Schemagrenzen nicht verloren gehen.
 - **Synonyme** (WP-04b): `ISchemaReader.GetSynonymTargetsAsync` liefert Tabellen/Views/MViews anderer Schemas, die über private Synonyme des Schemas oder öffentliche Synonyme erreichbar sind – nur Ziele mit Zugriff (`ALL_OBJECTS`), keine Oracle-Schemas (`ALL_USERS.ORACLE_MAINTAINED`), keine DB-Links. `TableSummary` beschreibt immer das **echte Objekt**, `Synonym` und `DisplayName` den Namen, unter dem der Nutzer es kennt. `SchemaCache.Merge`: eigene Objekte vor Synonymen, privat vor öffentlich, ein Eintrag pro echtem Objekt. FKs werden für alle beteiligten Owner geladen. Synonymketten (Synonym auf Synonym) werden nicht aufgelöst (Backlog). Ist im Profil ein Schema eingetragen, zählen die privaten Synonyme dieses Schemas, nicht die des Login-Users – so löst auch Oracle mit `CURRENT_SCHEMA` auf (entschieden, bleibt so). Gemessen: 27.889 öffentliche Synonyme (davon 20.000 eigene, die Hälfte ohne Zugriff) → Verbinden 2,5 s kalt, 0,5–0,8 s warm (ohne: 0,1 s); kein Handlungsbedarf.
@@ -330,7 +330,7 @@ Blazor kennt **kein `auxclick`-Event**: `@onauxclick` wird kommentarlos als HTML
 
 **Kein `@ondblclick` verwenden.** Der WPF-Host (`WebView2CompositionControl`) reicht beim zweiten Klick eines echten Doppelklicks das Mouse-down doppelt an die WebView weiter: Chromium zählt `detail` 1 → 2 → 3, der zweite `click` kommt mit `detail=3`, und `dblclick` feuert nie. Doppelklick deshalb über `@onclick` mit `e.Detail >= 2` erkennen (Workspace-Chip, Verbindungszeile). Fiel lange nicht auf, weil die E2E-Tests Doppelklicks synthetisch bzw. per CDP direkt in die WebView schickten, also am Host vorbei. Gefunden durch den Nutzer in v1.1.0.
 
-**Mausinteraktionen mit echter Windows-Eingabe prüfen** (`SendInput` über `realclick.ps1` im Scratchpad: `ClientToScreen` des Fensters + CSS-Position × `devicePixelRatio`), nicht nur per CDP. Nur so läuft die Eingabe durch den WPF-Host wie beim Nutzer. Dabei immer nur **eine** App-Instanz mit Debug-Port starten: Zwei Instanzen teilen sich das WebView2-Datenverzeichnis, und unterschiedliche Browser-Argumente (z. B. zwei Debug-Ports) lassen die zweite beim Start mit `0x8007139F` abstürzen.
+**Mausinteraktionen mit echter Windows-Eingabe prüfen** (`SendInput` über `realclick.ps1` im Scratchpad: `ClientToScreen` des Fensters + CSS-Position × `devicePixelRatio`), nicht nur per CDP. Nur so läuft die Eingabe durch den WPF-Host wie beim Nutzer. Dabei immer nur **eine** App-Instanz mit Debug-Port starten: Zwei Instanzen teilen sich das WebView2-Datenverzeichnis, und unterschiedliche Browser-Argumente (z. B. zwei Debug-Ports) lassen die zweite beim Start mit `0x8007139F` abstürzen. Vorher prüfen, dass der Klick ankommt (z. B. `mousedown`-Listener per CDP): Holt Windows das App-Fenster nicht in den Vordergrund (`SetForegroundWindow` wird verweigert, wenn der Nutzer gerade woanders arbeitet), landet der Klick im Fenster, das dort oben liegt – dann abbrechen statt weiterklicken (in WP-12 passiert). Screenshots (`PrintWindow`) enthalten die 31 px hohe Titelleiste: Bildkoordinaten ≠ CSS-Koordinaten, Klickziele immer per `getBoundingClientRect` bestimmen.
 
 ## 8. Arbeitspakete
 
@@ -464,10 +464,22 @@ Die Arbeitspakete werden zu Beginn von v3 mit dem Nutzer verfeinert. Grober Zusc
   - UI: Abschnitt „C#-Modell“ im Verbindungsdialog (Projekt, Build-Konfiguration, DbContext), Statusleiste „C# · N Entities“, Seite „C#-Modell“ (`ShellPage.Model`) mit Abgleich, Spalten-Ansicht mit Property, C#-Typ und Converter.
   - `samples/FerretSharp.SampleModel` bildet den Stil des Nutzers nach (eigene `Directory.Build.props`/`Directory.Packages.props`, erbt nichts von FerretSharp); `ModelHostTests` laufen dagegen ohne DB. `tools/sample-db/05-clr-model.sql` ergänzt KUNDEN.GESPERRT (J/N) und KUNDENART.
 
-#### WP-12 Schema-Anreicherung
-- Grid und Explorer zeigen optional Entity-/Property-Namen; Enums mit C#-Namen in Grid und Filter (Dropdown statt Zahl).
-- Navigation Properties als zusätzliche FK-Quelle (`FkSource.ClrModel`) in der FK-Navigation.
-- Sprung zur Entity-Klasse in Visual Studio (z. B. über `devenv /Edit <Datei>` in die laufende Instanz).
+  - Nachträge: 2.1.1 – Entities mit `ToView` bekommen durch die Konvention des Nutzers zusätzlich einen Tabellennamen; EF fragt dann über die View ab (Tabelle nur für SaveChanges). Abgleich prüft deshalb View vor Tabelle, `PropertyExport.ViewColumn` trägt die Spaltennamen der View, `MappedEntityCount` zählt jede Entity einmal. 2.1.2 – Abgleich liest Spaltennamen mit **einer** Abfrage pro Schema (`ISchemaReader.GetColumnNamesAsync`, großer `FetchSize`) statt drei Abfragen pro Tabelle: beim Nutzer (425 Entities, ~4000 Properties, DB über Kunden-VPN) von > 3 min auf 12 s. ModelHost meldet Schritte als `##ferretsharp-progress`-Zeilen auf stdout; Modell-Seite und Statusleiste zeigen den aktuellen Schritt mit Laufzeit, danach die Dauer jedes Schritts.
+  - Erkenntnis beim Nutzer: Der Oracle-Provider quotet alle Namen (`"a"."Chargenr"`), Spalten mit gemischter Schreibweise im Modell (z. B. `Chargenr` gegen `CHARGENR`) führen bei der ersten Abfrage zu ORA-00904 – der Abgleich meldet sie zu Recht als „Abweichende Groß-/Kleinschreibung“.
+
+#### WP-12 Schema-Anreicherung → Release 2.2.0
+Entscheidungen des Nutzers (2026-10-05):
+- **Namen:** Der Oracle-Name bleibt vorne (der Nutzer sucht über Oracle-Namen), C#-Namen dezent daneben. Umschaltbar über eine Einstellung **„C#-Namen: aus · daneben (Standard) · vorne“** („vorne“ tauscht Haupt- und Nebenbeschriftung). Explorer: Entity-Name als zweite Beschriftung, Suche findet DB- und C#-Namen. Grid-Kopf: unter dem Spaltennamen `KundeId · int`; Spaltensuche (Ctrl+F) und Spaltenauswahl im Filter finden auch Property-Namen; Tab-Tooltip mit Entity. SQL-Vorschau bleibt immer bei DB-Namen. Ohne verknüpftes Projekt ändert sich nichts.
+- **Enums und konvertierte Werte** über die Wertetabellen (`PropertyExport.Values`, berechnet mit den Convertern des Projekts): Anzeige im Grid als **„Gewerbe (2)“** (C#-Name und DB-Wert); Bools mit Converter als **`true`/`false`**; Werte, die es im Enum nicht gibt, bleiben roh und werden markiert. Filter: Enum-Spalten bekommen ein Dropdown mit den Members (Operatoren `=`, `≠`, „in“), FerretSharp übersetzt in den DB-Wert. Editieren (seit 1.9): Dropdown, geschrieben wird der DB-Wert.
+- **Navigations als FK-Quelle** (`FkSource.ClrModel`): Beziehungen aus dem Modell ohne FK-Constraint in der DB kommen beim Nutzer **häufig** vor → volle Priorität. In der FK-Navigation (Kontextmenü) nutzbar, markiert „aus C#-Modell“, deklarierte FKs nicht doppelt; eigener Abschnitt in der Ansicht „Constraints“.
+- **Nicht in WP-12** (Entscheidung des Nutzers, Backlog): Sprung zur Entity-Klasse in Visual Studio und „Namen kopieren“.
+- Arbeitsweise des Nutzers (für spätere Pakete wichtig): pro Datenbank ein eigener Klon des DbContext-Repos auf dem passenden Branch (Prod-DB → release-Branch, Test-DB → test-Branch, Dev-DB → dev-Branch), jeweils als C#-Projekt der Verbindung verknüpft; entwickelt wird in einem weiteren, eigenen Klon.
+- Umgesetzt (Release 2.2.0, ADR 0010):
+  - Core (`ClrModel/`): `TablePresentation` (Beschriftung `ColumnLabel`, Zellanzeige `Present`, Wertoptionen, Entity-Name; `Plain` = bisherige DB-Sicht), `ValueTable` (DB-Wert ↔ Member, Zahlen als `decimal`, CHAR ohne Padding, unbekannte Werte markiert, Flags-Enums zerlegt), `ClrModelMapping.ForeignKeys` (Navigation → `ForeignKeyInfo` mit `FkSource.ClrModel`, Name `Auftrag.Bearbeiter`; Owned/Table-Splitting-Selbstbezüge und Duplikate fallen weg). `SchemaCache.SetForeignKeys(source, …)`: weitere FK-Quellen, ein deklarierter FK über dieselben Spaltenpaare gewinnt (auch nach Schema-Refresh). `ColumnSearch.Find(…, alternateName)` mit C#-Wortgrenzen. `AppSettings.ClrNames` (`ClrNameDisplay`), `AppSettingsService.Changed`.
+  - Entscheidung beim Umsetzen: Filter und Edits tragen **DB-Werte** (`2`, `J`); QueryBuilder/DML bleiben unverändert, gespeicherte Filter funktionieren ohne Modell. „aus“ blendet nur Namen aus (Beschriftung, Suche), Enum-Werte bleiben. Kopieren/Export liefern DB-Werte. Index-Hinweis nur für deklarierte FKs.
+  - UI: `PresentationService` (State/, meldet nur echte Änderungen von Modell oder Einstellung), Explorer (Entity rechts, „vorne“ tauscht), Grid-Kopf mit dritter Zeile (62 px), `FerretSelectEditor` (Member-Liste; Enter oder Mausauswahl übernimmt), `ValuePicker` (Filterwert, „in“ als Mehrfachauswahl), Kontextmenü „aus C#-Modell“, Abschnitt „Beziehungen aus dem C#-Modell“ in „Constraints“, FK-Badge in Modellfarbe (`--clr`). Lädt das Modell nach dem Grid oder ändert sich die Einstellung, ändert `updateColumns` (grid.js) die Spalten an Ort und Stelle und lädt die Zeilen neu.
+  - AG-Grid-Fallen (gefunden im E2E): Einfache Objekte in Column-Defs (`headerComponentParams`) werden beim Zusammenführen mit `defaultColDef` **tief kopiert** – veränderliche Metadaten als Funktion übergeben (`getMeta`). Die Kopfhöhe als Grid-Option (`headerHeight`) setzt die Zeilenhöhe auf 42 px zurück – nur als Theme-Parameter setzen.
+  - Beispiel: `Auftrag.Bearbeiter` → `Mitarbeiter` ohne Constraint (`tools/sample-db/06-clr-relations.sql`); `ferret-sample` des Nutzers braucht das Skript noch (README in `tools/sample-db`).
 
 #### WP-13 LINQ-Konsole
 - Roslyn-Scripting gegen den geladenen DbContext, Ergebnis im Grid, generiertes SQL (`ToQueryString()`) daneben.

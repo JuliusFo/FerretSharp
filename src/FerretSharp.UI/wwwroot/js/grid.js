@@ -4,6 +4,12 @@
 const grids = new Map();
 // Per grid: whether its workspace may write (switched by setEditable when the workspace is unlocked or locked).
 const editStates = new Map();
+// Per grid: column metadata by column id; updateColumns changes these objects in place (the column defs refer to them).
+const metas = new Map();
+// Per grid: header height (with the line for C# names), null for the default.
+const headerHeights = new Map();
+// Keys a member list (enum editor) handles itself while editing.
+const listKeys = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End']);
 const media = window.matchMedia('(prefers-color-scheme: dark)');
 let modulesRegistered = false;
 
@@ -14,7 +20,7 @@ function registerModules() {
   modulesRegistered = true;
 }
 
-function theme() {
+function theme(headerHeight) {
   const dark = media.matches;
   return agGrid.themeQuartz
     .withPart(dark ? agGrid.colorSchemeDark : agGrid.colorSchemeLight)
@@ -24,7 +30,8 @@ function theme() {
       headerFontSize: 12,
       headerFontWeight: 600,
       rowHeight: ROW_HEIGHT,
-      headerHeight: 46,
+      // A line more for C# names (WP-12): the header height is a theme parameter, as a grid option it would reset the row height.
+      headerHeight: headerHeight || 46,
       spacing: 6,
       wrapperBorder: false,
       wrapperBorderRadius: 0,
@@ -40,23 +47,31 @@ function theme() {
     });
 }
 
-media.addEventListener('change', () => grids.forEach(api => api.setGridOption('theme', theme())));
+media.addEventListener('change', () => grids.forEach((api, id) => api.setGridOption('theme', theme(headerHeights.get(id)))));
 
-/** Header: name, Oracle type, NOT NULL, PK/FK badges, sort arrow. */
+/**
+ * Header: name, Oracle type, NOT NULL, PK/FK badges, sort arrow. With a C# model (WP-12) a line between them shows the
+ * other name and the C# type (`KundeId · int`); `meta.clrLine` says whether the table has that line at all.
+ */
 class FerretHeader {
   init(params) {
     this.params = params;
-    const meta = params.meta;
+    const meta = params.getMeta();
     this.eGui = document.createElement('div');
     this.eGui.className = 'fs-header' + (meta.numeric ? ' num' : '');
     this.eGui.innerHTML =
       '<div class="fs-h-top"><span class="fs-h-name"></span><span class="fs-h-badges"></span><span class="fs-h-sort"></span></div>' +
+      (meta.clrLine ? '<div class="fs-h-clr"></div>' : '') +
       '<div class="fs-h-type"></div>';
-    this.eGui.querySelector('.fs-h-name').textContent = meta.name;
+    this.eGui.querySelector('.fs-h-name').textContent = meta.label;
+    if (meta.clrLine) {
+      this.eGui.querySelector('.fs-h-clr').textContent = [meta.alternate, meta.clrType].filter(Boolean).join(' · ');
+    }
     this.eGui.querySelector('.fs-h-type').textContent = meta.type + (meta.nullable ? '' : ' · NOT NULL');
     const badges = this.eGui.querySelector('.fs-h-badges');
     if (meta.pk) badges.insertAdjacentHTML('beforeend', '<span class="fs-badge pk">PK</span>');
     if (meta.fk) badges.insertAdjacentHTML('beforeend', '<span class="fs-badge fk">FK</span>');
+    else if (meta.fkModel) badges.insertAdjacentHTML('beforeend', '<span class="fs-badge fk model" title="Beziehung aus dem C#-Modell, ohne Constraint in der Datenbank">FK</span>');
     this.sortEl = this.eGui.querySelector('.fs-h-sort');
     if (meta.sortable) {
       this.eGui.addEventListener('click', e => params.progressSort(e.shiftKey));
@@ -65,7 +80,8 @@ class FerretHeader {
       this.updateSort();
     }
     // Column comment (ALL_COL_COMMENTS) as tooltip.
-    this.eGui.title = [meta.comment, meta.sortable ? null : 'Nach diesem Typ kann nicht sortiert werden'].filter(Boolean).join('\n');
+    this.eGui.title = [meta.alternate ? `${meta.label} · ${meta.alternate}` : null, meta.comment,
+      meta.sortable ? null : 'Nach diesem Typ kann nicht sortiert werden'].filter(Boolean).join('\n');
   }
   updateSort() {
     const sort = this.params.column.getSort();
@@ -168,6 +184,79 @@ class FerretCellEditor {
   isPopup() { return !!this.params.meta.multiline; }
 }
 
+/**
+ * Cell editor for enum and converted bool columns (WP-12): a list of the members; the value is the database value, so
+ * .NET checks and writes it like typed text. Picking with the mouse takes the value at once; with the keyboard Enter
+ * does (arrow keys on the closed list already change the selection).
+ */
+class FerretSelectEditor {
+  init(params) {
+    this.params = params;
+    const meta = params.meta;
+    params.state.retry = null;
+    this.eGui = document.createElement('div');
+    this.eGui.className = 'fs-editor';
+    this.select = document.createElement('select');
+    this.select.className = 'fs-editor-input fs-editor-select';
+    if (meta.nullable || params.node.rowPinned) this.addOption('', 'NULL');
+    for (const option of meta.options) this.addOption(option.value, option.label);
+    this.eGui.appendChild(this.select);
+    this.select.disabled = true;
+    const clear = params.eventKey === 'Backspace' || params.eventKey === 'Delete';
+    params.state.dotnet.invokeMethodAsync('GetEditText', params.node.rowPinned ? -1 : params.node.rowIndex, params.data?.__new ?? null, params.column.getColId())
+      .then(text => {
+        const value = clear ? '' : text ?? '';
+        // A value without a member stays selectable, so leaving the editor does not change it.
+        if (![...this.select.options].some(o => o.value === value)) this.addOption(value, `${value} (kein Member)`);
+        this.select.value = value;
+        this.select.disabled = false;
+        this.loaded = true;
+        this.select.focus();
+      })
+      .catch(() => { this.select.disabled = false; });
+  }
+  addOption(value, label) {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = label;
+    this.select.appendChild(option);
+  }
+  async commit() {
+    const params = this.params;
+    const error = await params.state.dotnet.invokeMethodAsync('ValidateEdit',
+      params.node.rowPinned ? -1 : params.node.rowIndex, params.data?.__new ?? null, params.column.getColId(), this.select.value);
+    if (error) {
+      let label = this.eGui.querySelector('.fs-editor-error');
+      if (!label) {
+        label = document.createElement('div');
+        label.className = 'fs-editor-error';
+        this.eGui.appendChild(label);
+      }
+      label.textContent = error;
+    } else {
+      params.stopEditing();
+    }
+  }
+  afterGuiAttached() {
+    let pointer = false;
+    this.select.addEventListener('pointerdown', () => { pointer = true; });
+    this.select.addEventListener('change', () => { if (pointer) this.commit(); });
+    this.select.addEventListener('keydown', e => {
+      pointer = false;
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      e.stopPropagation();
+      this.commit();
+    });
+    this.select.focus();
+  }
+  getGui() { return this.eGui; }
+  getValue() { return this.select.value; }
+  // Left before the current value arrived: nothing was chosen.
+  isCancelAfterEnd() { return !this.loaded; }
+  isPopup() { return false; }
+}
+
 /** Identifies a cell across redraws: new rows by their id, loaded rows by index. */
 function cellKey(node, colId) {
   return (node.data?.__new ?? `r${node.rowIndex}`) + '|' + colId;
@@ -219,12 +308,14 @@ function reportPinned(api, dotnet) {
 }
 
 /**
- * columns: [{ id, name, type, category, nullable, pk, fk, numeric, sortable, pinned }] in display order.
+ * columns: [{ id, name, label, alternate, clrType, clrLine, type, category, nullable, pk, fk, fkModel, numeric, sortable, pinned,
+ *   options, unknownText, … }] in display order (see FerretGrid.ColumnMeta).
  * sorts: [{ colId, sort }] initial sort state.
  * firstRow: rough scroll position to restore (0 = top); the block containing it is loaded on demand.
  * editable: whether the workspace may write (v2); the columns say whether they can be edited at all.
+ * headerHeight: with the line for C# names (WP-12); null for the theme default.
  */
-export function create(elementId, dotnet, columns, sorts, firstRow, editable) {
+export function create(elementId, dotnet, columns, sorts, firstRow, editable, headerHeight) {
   registerModules();
   destroy(elementId);
   let restoreRow = firstRow > 0 ? firstRow : null;
@@ -251,6 +342,8 @@ export function create(elementId, dotnet, columns, sorts, firstRow, editable) {
   const editState = { dotnet, retry: null, enabled: !!editable };
   editStates.set(elementId, editState);
   const metaById = new Map(columns.map(meta => [meta.id, meta]));
+  metas.set(elementId, metaById);
+  headerHeights.set(elementId, headerHeight);
   const columnDefs = columns.map(meta => ({
     colId: meta.id,
     field: meta.id,
@@ -259,23 +352,27 @@ export function create(elementId, dotnet, columns, sorts, firstRow, editable) {
     sortable: meta.sortable,
     sort: sortById.get(meta.id)?.sort ?? null,
     sortIndex: sortById.get(meta.id)?.index ?? null,
-    cellClass: meta.numeric ? 'fs-num' : meta.category === 'Date' || meta.category.startsWith('Timestamp') ? 'fs-date' : undefined,
+    cellClass: () => meta.numeric ? 'fs-num' : meta.category === 'Date' || meta.category.startsWith('Timestamp') ? 'fs-date' : undefined,
     cellRenderer: renderCell,
     // Editing (v2): new rows (pinned at the top) may fill the key; loaded rows not deleted and not too large a number.
     editable: p => !editState.enabled ? false : p.node.rowPinned === 'top'
       ? meta.editableNew
       : meta.editable && !!p.data && !p.data.__d && !(p.data.__ro ?? []).includes(meta.id),
-    cellEditor: FerretCellEditor,
-    cellEditorParams: { meta, state: editState },
+    // Enum and bool columns of a C# model pick from their members (the model may arrive after the grid was built).
+    cellEditorSelector: () => ({ component: meta.options ? FerretSelectEditor : FerretCellEditor, params: { meta, state: editState } }),
     cellClassRules: {
+      'fs-unknown': p => !!p.data?.__u?.includes(meta.id),
       'fs-pending': p => p.data?.__s?.[meta.id] === 'p',
       'fs-flushed': p => p.data?.__s?.[meta.id] === 'f',
     },
     // While editing, Enter belongs to the editor (check in .NET first, Shift+Enter: new line in the multi-line box).
-    suppressKeyboardEvent: p => p.editing && p.event.key === 'Enter',
-    tooltipValueGetter: p => (p.value === null || p.value === undefined ? null : p.value),
+    // The member list keeps the arrow keys while editing.
+    suppressKeyboardEvent: p => p.editing && (p.event.key === 'Enter' || (!!meta.options && listKeys.has(p.event.key))),
+    tooltipValueGetter: p => (p.value === null || p.value === undefined ? null
+      : p.data?.__u?.includes(meta.id) ? `${p.value}\n${meta.unknownText}` : p.value),
     headerComponent: FerretHeader,
-    headerComponentParams: { meta },
+    // A function, not the object: AG Grid deep-copies plain objects of the column def, and updateColumns changes meta in place.
+    headerComponentParams: { getMeta: () => meta },
     pinned: meta.pinned ? 'left' : null,
     // The primary key always stays pinned at the very left; other columns can also be pinned by dragging them there.
     lockPinned: meta.pk,
@@ -356,7 +453,7 @@ export function create(elementId, dotnet, columns, sorts, firstRow, editable) {
   }, true);
 
   const api = agGrid.createGrid(element, {
-    theme: theme(),
+    theme: theme(headerHeight),
     columnDefs,
     defaultColDef: { resizable: true, minWidth: 70 },
     rowModelType: 'infinite',
@@ -530,5 +627,25 @@ export function setEditable(elementId, enabled) {
 export function destroy(elementId) {
   grids.get(elementId)?.destroy();
   grids.delete(elementId);
+  metas.delete(elementId);
+  headerHeights.delete(elementId);
   editStates.delete(elementId);
+}
+
+/**
+ * The C# model arrived or the name setting changed (WP-12): new labels, badges, member lists and header height, without
+ * rebuilding the grid (widths, order, sorting and scroll position stay). The rows are reloaded by .NET afterwards.
+ */
+export function updateColumns(elementId, columns, headerHeight) {
+  const api = grids.get(elementId);
+  const byId = metas.get(elementId);
+  if (!api || !byId) return;
+  api.stopEditing(true);
+  for (const meta of columns) {
+    const current = byId.get(meta.id);
+    if (current) Object.assign(current, meta);
+  }
+  headerHeights.set(elementId, headerHeight);
+  api.setGridOption('theme', theme(headerHeight));
+  api.refreshHeader();
 }

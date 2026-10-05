@@ -166,7 +166,13 @@
                  disabled="@(!jump.IsAvailable)" title="@Tooltip(jump)" @onclick="() => JumpAsync(jump)">
             <span class="ctx-arrow">@arrow</span>
             <span class="ctx-target">
-                <span class="ctx-table">@TableLabel(jump.Table)</span>
+                <span class="ctx-table">
+                    @TableLabel(jump.Table)
+                    @if (jump.ForeignKey.Source == FkSource.ClrModel)
+                    {
+                        <span class="ctx-source">aus C#-Modell</span>
+                    }
+                </span>
                 <span class="ctx-meta">@(jump.Unavailable ?? jump.Condition)</span>
             </span>
             @switch (count)
@@ -263,7 +269,8 @@
 
     private static string Tooltip(FkJump jump) =>
         $"{jump.ForeignKey.Name}: {jump.ForeignKey.From}({string.Join(", ", jump.ForeignKey.FromColumns)}) → " +
-        $"{jump.ForeignKey.To}({string.Join(", ", jump.ForeignKey.ToColumns)})";
+        $"{jump.ForeignKey.To}({string.Join(", ", jump.ForeignKey.ToColumns)})" +
+        (jump.ForeignKey.Source == FkSource.ClrModel ? Environment.NewLine + "Beziehung aus dem C#-Modell – in der Datenbank gibt es dafür keinen Constraint." : "");
 
     private async Task JumpAsync(FkJump jump)
     {

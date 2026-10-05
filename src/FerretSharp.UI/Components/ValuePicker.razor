@@ -1,0 +1,146 @@
+@* Filter value of an enum or converted bool column (WP-12): pick members by their C# name; the filter gets their
+   database values, so the SQL stays as before. "in" picks several (checkboxes), "=" and "≠" one. Values that are no
+   member (typed before the model was loaded, from an FK jump) stay and can be removed. *@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.UI.State
+
+<div class="valpick">
+    <button type="button" class="field value valpick-field @(Selected.Count == 0 ? "empty" : "")" title="@Summary"
+            @onclick="Toggle" @onkeydown="OnKeyDown" @onkeydown:preventDefault="_open">
+        <span class="valpick-text">@(Selected.Count == 0 ? (Multiple ? "Werte wählen …" : "Wert wählen …") : Summary)</span>
+        <span class="valpick-caret">▾</span>
+    </button>
+    @if (_open)
+    {
+        <div class="popover-backdrop" @onclick="Close"></div>
+        <div class="popover valpick-pop" role="listbox" aria-multiselectable="@(Multiple ? "true" : "false")">
+            @for (var i = 0; i < _items.Count; i++)
+            {
+                var item = _items[i];
+                var position = i;
+                var selected = Selected.Contains(item.Value);
+                <div class="valpick-item @(position == _highlight ? "highlight" : "") @(selected ? "selected" : "") @(item.Unknown ? "unknown" : "")"
+                     role="option" aria-selected="@(selected ? "true" : "false")"
+                     @onmousedown="() => PickAsync(item)" @onmousedown:preventDefault="true" @onmouseenter="() => _highlight = position">
+                    @if (Multiple)
+                    {
+                        <input type="checkbox" tabindex="-1" checked="@selected" />
+                    }
+                    <span class="valpick-name">@item.Name</span>
+                    <span class="valpick-db">@item.Detail</span>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private sealed record Item(string Name, string Value, string? Detail, bool Unknown);
+
+    private List<Item> _items = [];
+    private bool _open;
+    private int _highlight;
+
+    [Parameter, EditorRequired]
+    public ValueTable Values { get; set; } = null!;
+
+    /// <summary>The filter text: one database value, or several separated by <see cref="FilterRow.ListSeparator"/>.</summary>
+    [Parameter, EditorRequired]
+    public string Value { get; set; } = "";
+
+    /// <summary>"in": several values.</summary>
+    [Parameter]
+    public bool Multiple { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnChange { get; set; }
+
+    /// <summary>The selected values as option values (normalized: "2,0" becomes "2").</summary>
+    private List<string> Selected => Value
+        .Split(FilterRow.ListSeparator, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+        .Select(v => Values.FindOption(v)?.Value ?? v)
+        .Distinct(StringComparer.Ordinal)
+        .Take(Multiple ? int.MaxValue : 1)
+        .ToList();
+
+    private string Summary => string.Join(", ", Selected.Select(v => Values.Options.FirstOrDefault(o => o.Value == v)?.Name ?? v));
+
+    protected override void OnParametersSet()
+    {
+        var unknown = Selected.Where(v => Values.Options.All(o => o.Value != v)).Select(v => new Item(v, v, "kein Member", true));
+        _items = Values.Options.Select(o => new Item(o.Name, o.Value, o.Value, false)).Concat(unknown).ToList();
+    }
+
+    private void Toggle()
+    {
+        if (_open)
+        {
+            Close();
+            return;
+        }
+
+        _open = true;
+        var first = Selected.FirstOrDefault();
+        _highlight = Math.Max(0, _items.FindIndex(i => i.Value == first));
+    }
+
+    private void Close() => _open = false;
+
+    private async Task PickAsync(Item item)
+    {
+        List<string> values;
+        if (Multiple)
+        {
+            values = Selected;
+            if (!values.Remove(item.Value))
+            {
+                values.Add(item.Value);
+            }
+
+            // Keep the members' order, unknown values last.
+            values = _items.Select(i => i.Value).Where(values.Contains).ToList();
+        }
+        else
+        {
+            values = [item.Value];
+            Close();
+        }
+
+        await OnChange.InvokeAsync(string.Join(FilterRow.ListSeparator + " ", values));
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (!_open)
+        {
+            // Enter and Space click the button anyway.
+            if (e.Key == "ArrowDown")
+            {
+                Toggle();
+            }
+
+            return;
+        }
+
+        switch (e.Key)
+        {
+            case "ArrowDown":
+                _highlight = Math.Min(_highlight + 1, _items.Count - 1);
+                break;
+            case "ArrowUp":
+                _highlight = Math.Max(_highlight - 1, 0);
+                break;
+            case "Enter" or " " when _items.Count > 0:
+                await PickAsync(_items[_highlight]);
+                if (e.Key == "Enter" && Multiple)
+                {
+                    Close();
+                }
+
+                break;
+            case "Escape" or "Tab":
+                Close();
+                break;
+        }
+    }
+}

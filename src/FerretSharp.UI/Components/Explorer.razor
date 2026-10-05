@@ -1,8 +1,10 @@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Schema
+@using FerretSharp.Core.Settings
 @using FerretSharp.UI.State
 @implements IAsyncDisposable
 @inject ActiveConnection Active
+@inject PresentationService Presentation
 @inject IJSRuntime JS
 
 <aside class="sidebar explorer">
@@ -41,10 +43,16 @@
                     @foreach (var table in tables)
                     {
                         var t = table;
-                        <button class="table-item @(Shell.ActiveTab?.Table.Ref == t.Ref ? "active" : "") @(IsOpen(t) ? "open" : "") @(t.IsInvalid ? "invalid" : "")" title="@Tooltip(t)"
+                        var entity = Presentation.ShownEntityNameOf(t.Ref);
+                        var front = entity is not null && Presentation.Names == ClrNameDisplay.Front;
+                        <button class="table-item @(Shell.ActiveTab?.Table.Ref == t.Ref ? "active" : "") @(IsOpen(t) ? "open" : "") @(t.IsInvalid ? "invalid" : "")" title="@Tooltip(t, entity)"
                                 @onclick="() => Shell.OpenTable(t)">
                             @Icons.For(t.Kind)
-                            <span class="name">@t.DisplayName</span>
+                            <span class="name">@(front ? entity : t.DisplayName)</span>
+                            @if (entity is not null)
+                            {
+                                <span class="clr-name">@(front ? t.DisplayName : entity)</span>
+                            }
                             @if (t.Synonym is not null)
                             {
                                 <span class="kind-tag syn">SYN</span>
@@ -78,6 +86,7 @@
     {
         Active.Changed += OnChanged;
         Shell.Changed += OnChanged;
+        Presentation.Changed += OnChanged;
     }
 
     private SortedDictionary<char, List<TableSummary>> Groups()
@@ -93,9 +102,11 @@
         foreach (var table in Schema.Tables)
         {
             var query = _query.Trim();
+            // The entity name is found as well, unless C# names are switched off.
             if (query.Length > 0
                 && !table.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase)
-                && !table.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
+                && !table.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
+                && Presentation.ShownEntityNameOf(table.Ref)?.Contains(query, StringComparison.OrdinalIgnoreCase) != true)
             {
                 continue;
             }
@@ -147,6 +158,12 @@
         }
     }
 
+    private static string Tooltip(TableSummary table, string? entity)
+    {
+        var text = Tooltip(table);
+        return entity is null ? text : $"{text}{Environment.NewLine}Entity {entity}";
+    }
+
     private static string Tooltip(TableSummary table)
     {
         var kind = table.Kind switch
@@ -174,6 +191,7 @@
     {
         Active.Changed -= OnChanged;
         Shell.Changed -= OnChanged;
+        Presentation.Changed -= OnChanged;
         if (_dom is not null)
         {
             try

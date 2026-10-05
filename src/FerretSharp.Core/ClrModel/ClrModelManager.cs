@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using FerretSharp.Core.Connections;
+using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.ClrModel;
 
@@ -88,6 +89,7 @@ public sealed class ClrModelManager : IDisposable
         var schema = _active.Schema;
         if (link is null || schema is null || !_active.IsConnected)
         {
+            schema?.SetForeignKeys(FkSource.ClrModel, []); // unlinked: the model's relationships go too
             Set(ClrModelState.None, cts);
             return;
         }
@@ -120,6 +122,8 @@ public sealed class ClrModelManager : IDisposable
             }
 
             var mapping = await ClrModelMapping.BuildAsync(model, schema, cts.Token, new Reporter(Report));
+            cts.Token.ThrowIfCancellationRequested();
+            schema.SetForeignKeys(FkSource.ClrModel, mapping.ForeignKeys);
             Finish(ClrModelPhase.Loaded, mapping, null, DateTimeOffset.Now);
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
