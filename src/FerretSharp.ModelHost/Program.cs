@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Reflection;
 using System.Runtime.Loader;
 using System.Text.Json;
@@ -11,7 +12,7 @@ namespace FerretSharp.ModelHost;
 /// Reads the EF Core model of a user's project (ADR 0009). Started by FerretSharp with <c>dotnet exec</c> and the
 /// project's deps.json, so the project's runtime, EF Core and provider are used. Writes a <see cref="ModelHostResult"/>
 /// as JSON to <c>--output</c> (not stdout: the project's code may write to the console).
-/// <code>FerretSharp.ModelHost --assembly &lt;Data.dll&gt; --output &lt;result.json&gt; [--context &lt;type name&gt;]</code>
+/// <code>FerretSharp.ModelHost --assembly &lt;Data.dll&gt; --output &lt;result.json&gt; [--context &lt;type name&gt;] [--culture &lt;de-DE&gt;]</code>
 /// Exit code 0 with a model, 1 with an error in the result, 2 if not even the result could be written.
 /// </summary>
 internal static class Program
@@ -19,6 +20,19 @@ internal static class Program
     private static int Main(string[] args)
     {
         var options = Arguments.Parse(args);
+        // Display names of enum members come from the project's resources in this culture (FerretSharp's UI language).
+        if (options.Culture is { Length: > 0 } culture)
+        {
+            try
+            {
+                CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(culture);
+            }
+            catch (CultureNotFoundException)
+            {
+                // unknown culture: keep the system's
+            }
+        }
+
         if (options.Output is null)
         {
             Console.Error.WriteLine("--output fehlt.");
@@ -60,7 +74,10 @@ internal static class Program
         // Project references (e.g. the entities) lie next to the assembly; NuGet packages come from the deps.json.
         AssemblyLoadContext.Default.Resolving += (context, name) =>
         {
-            var candidate = Path.Combine(directory, name.Name + ".dll");
+            // Satellite assemblies (resources of a culture) lie in a folder named after it: de\X.resources.dll.
+            var candidate = string.IsNullOrEmpty(name.CultureName)
+                ? Path.Combine(directory, name.Name + ".dll")
+                : Path.Combine(directory, name.CultureName, name.Name + ".dll");
             return File.Exists(candidate) ? context.LoadFromAssemblyPath(candidate) : null;
         };
 
@@ -158,7 +175,7 @@ internal static class Program
     internal static ModelHostResult Fail(string kind, string message, Exception? ex = null) =>
         new(null, new ModelHostError(kind, message, ex?.ToString()));
 
-    private sealed record Arguments(string? Assembly, string? Output, string? Context)
+    private sealed record Arguments(string? Assembly, string? Output, string? Context, string? Culture)
     {
         public static Arguments Parse(string[] args)
         {
@@ -168,7 +185,7 @@ internal static class Program
                 return index >= 0 && index + 1 < args.Length ? args[index + 1] : null;
             }
 
-            return new Arguments(Value("--assembly"), Value("--output"), Value("--context"));
+            return new Arguments(Value("--assembly"), Value("--output"), Value("--context"), Value("--culture"));
         }
     }
 }

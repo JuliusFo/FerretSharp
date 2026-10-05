@@ -29,7 +29,10 @@ public sealed record DotNetRun(int ExitCode, string Output)
 /// runtime, EF Core and Oracle provider are used, not FerretSharp's.
 /// </summary>
 /// <param name="modelHostPath">Path of <c>FerretSharp.ModelHost.dll</c> (shipped with FerretSharp).</param>
-public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = null) : IModelHostRunner
+/// <param name="culture">
+/// Language of the enum display names the host reads from the project's resources; FerretSharp's UI culture by default.
+/// </param>
+public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = null, CultureInfo? culture = null) : IModelHostRunner
 {
     public static readonly TimeSpan DefaultTimeout = TimeSpan.FromMinutes(2);
 
@@ -56,7 +59,7 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
                 arguments.Add(folder);
             }
 
-            arguments.AddRange([modelHostPath, "--assembly", output.Assembly, "--output", result]);
+            arguments.AddRange([modelHostPath, "--assembly", output.Assembly, "--output", result, "--culture", (culture ?? CultureInfo.CurrentUICulture).Name]);
             if (link.ContextType is { Length: > 0 } context)
             {
                 arguments.AddRange(["--context", context]);

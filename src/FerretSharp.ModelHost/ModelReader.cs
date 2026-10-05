@@ -1,4 +1,6 @@
+using System.ComponentModel.DataAnnotations;
 using System.Globalization;
+using System.Reflection;
 using FerretSharp.Core.ClrModel;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -90,10 +92,13 @@ internal static class ModelReader
         {
             var integral = Enum.GetUnderlyingType(type);
             return Enum.GetValues(type).Cast<object>()
-                .Select(value => new ValueMapping(
-                    Enum.GetName(type, value) ?? value.ToString()!,
-                    Invariant(Convert.ChangeType(value, integral, CultureInfo.InvariantCulture)) ?? "",
-                    Provider(converter, value, () => Convert.ChangeType(value, integral, CultureInfo.InvariantCulture))))
+                .Select(value => Enum.GetName(type, value) ?? value.ToString()!)
+                .Select(name => (Name: name, Value: Enum.Parse(type, name)))
+                .Select(member => new ValueMapping(
+                    member.Name,
+                    Invariant(Convert.ChangeType(member.Value, integral, CultureInfo.InvariantCulture)) ?? "",
+                    Provider(converter, member.Value, () => Convert.ChangeType(member.Value, integral, CultureInfo.InvariantCulture)),
+                    DisplayName(type, member.Name)))
                 .ToList();
         }
 
@@ -104,6 +109,23 @@ internal static class ModelReader
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// <c>[Display(Name = …)]</c> of an enum member; with <c>ResourceType</c> the text comes from the project's resources
+    /// in the current UI culture (satellite assemblies included). Null without the attribute or if the resource is missing.
+    /// </summary>
+    private static string? DisplayName(Type type, string member)
+    {
+        try
+        {
+            var text = type.GetField(member, BindingFlags.Public | BindingFlags.Static)?.GetCustomAttribute<DisplayAttribute>()?.GetName();
+            return string.IsNullOrWhiteSpace(text) ? null : text;
+        }
+        catch (Exception)
+        {
+            return null; // ResourceType without that property, resources not loadable: the member name stays
+        }
     }
 
     private static string? Provider(ValueConverter? converter, object value, Func<object> fallback)

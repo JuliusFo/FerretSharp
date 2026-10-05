@@ -6,15 +6,17 @@ using FerretSharp.Core.Schema;
 namespace FerretSharp.Core.ClrModel;
 
 /// <summary>A member of an enum (or true/false of a converted bool) to pick in the filter or the cell editor.</summary>
-/// <param name="Name">C# name: <c>Gewerbe</c>, <c>true</c>.</param>
+/// <param name="Name">The name shown: the member's <c>[Display]</c> text if it has one (<c>Fertigungsauftrag</c>), else the C# name (<c>Gewerbe</c>, <c>true</c>).</param>
 /// <param name="Value">The database value as filter and edit text (invariant numbers, texts as stored): <c>2</c>, <c>J</c>.</param>
 /// <param name="Label">Shown in lists: <c>Gewerbe (2)</c>, <c>true</c>.</param>
-public sealed record ValueOption(string Name, string Value, string Label);
+/// <param name="Member">The C# member name if <paramref name="Name"/> is a display text (<c>ProductionOrder</c>); null otherwise.</param>
+public sealed record ValueOption(string Name, string Value, string Label, string? Member = null);
 
 /// <summary>A cell value as the C# model sees it.</summary>
 /// <param name="Text">Display text; null for NULL.</param>
 /// <param name="Unknown">The value is no member of the enum (or neither true nor false): shown raw and marked.</param>
-public sealed record PresentedValue(string? Text, bool Unknown = false);
+/// <param name="Tooltip">More about the value, e.g. the C# member behind a display text (<c>AuftragStatus.ProductionOrder</c>).</param>
+public sealed record PresentedValue(string? Text, bool Unknown = false, string? Tooltip = null);
 
 /// <summary>
 /// The values of an enum or converted bool property (<see cref="PropertyExport.Values"/>, computed with the project's own
@@ -26,6 +28,7 @@ public sealed class ValueTable
     private readonly ColumnInfo _column;
     private readonly ColumnCategory _category;
     private readonly Dictionary<object, ValueMapping> _byValue = [];
+    private readonly Dictionary<string, ValueOption> _byMember = new(StringComparer.Ordinal);
     private readonly List<(long Value, string Name)>? _flags;
 
     private ValueTable(PropertyExport property, ColumnInfo column)
@@ -41,7 +44,10 @@ public sealed class ValueTable
                 continue; // a member stored as NULL, a value the column cannot hold, or an alias of another member
             }
 
-            options.Add(new ValueOption(mapping.Name, ValueText(key), IsBool ? mapping.Name : $"{mapping.Name} ({Format(key)})"));
+            var option = new ValueOption(Shown(mapping), ValueText(key), IsBool ? Shown(mapping) : $"{Shown(mapping)} ({Format(key)})",
+                mapping.DisplayName is null ? null : mapping.Name);
+            options.Add(option);
+            _byMember.TryAdd(mapping.Name, option);
         }
 
         Options = options;
@@ -77,8 +83,11 @@ public sealed class ValueTable
         object? key = _category == ColumnCategory.Number
             ? FilterRules.TryParseNumber(text, out var number) ? number : null
             : KeyOf(text);
-        return key is null || !_byValue.TryGetValue(key, out var mapping) ? null : Options.FirstOrDefault(o => o.Name == mapping.Name);
+        return key is null || !_byValue.TryGetValue(key, out var mapping) ? null : _byMember.GetValueOrDefault(mapping.Name);
     }
+
+    /// <summary>The option of a raw database value (to preselect it in the cell editor); null without a member.</summary>
+    public ValueOption? OptionOf(object? value) => Find(value) is { } mapping ? _byMember.GetValueOrDefault(mapping.Name) : null;
 
     /// <summary>
     /// <c>Gewerbe (2)</c> for an enum, <c>true</c>/<c>false</c> for a bool; flags combinations as <c>Lesen | Schreiben (3)</c>.
@@ -94,11 +103,15 @@ public sealed class ValueTable
 
         if (Find(value) is { } mapping)
         {
-            return new PresentedValue(IsBool ? mapping.Name : $"{mapping.Name} ({raw})");
+            return new PresentedValue(IsBool ? Shown(mapping) : $"{Shown(mapping)} ({raw})",
+                Tooltip: mapping.DisplayName is null ? null : $"{Property.ClrType}.{mapping.Name}");
         }
 
         return FlagNames(value) is { } names ? new PresentedValue($"{names} ({raw})") : new PresentedValue(raw, Unknown: true);
     }
+
+    /// <summary>The member's display text (<c>[Display(Name = …)]</c>) if it has one, else its C# name.</summary>
+    private static string Shown(ValueMapping mapping) => mapping.DisplayName ?? mapping.Name;
 
     /// <summary>Why a value is marked: for the tooltip of an unknown cell.</summary>
     public string UnknownText => IsBool
@@ -145,7 +158,7 @@ public sealed class ValueTable
 
             if (clr != 0)
             {
-                flags.Add((clr, mapping.Name));
+                flags.Add((clr, Shown(mapping)));
             }
         }
 

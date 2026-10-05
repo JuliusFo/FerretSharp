@@ -142,7 +142,7 @@
 
     /// <summary>Enum members (or true/false) with what the project stores for them, as a tooltip.</summary>
     private static string? ValuesTitle(PropertyExport property) => property.Values is { } values
-        ? string.Join("\n", values.Select(v => $"{v.Name} = {v.ProviderValue ?? "?"}"))
+        ? string.Join("\n", values.Select(v => $"{v.Name}{(v.DisplayName is { } display ? $" „{display}“" : "")} = {v.ProviderValue ?? "?"}"))
         : null;
 
     private static string Flags(ColumnInfo column) => string.Join(" · ", new[]
