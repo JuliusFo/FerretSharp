@@ -2,7 +2,7 @@
 
 > Projektanweisungen für Claude Code. Bitte vollständig lesen, bevor ein Arbeitspaket umgesetzt wird.
 > Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-05 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0)
+> Stand: 2026-10-05 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1)
 
 ## 1. Ziel
 
@@ -480,6 +480,7 @@ Entscheidungen des Nutzers (2026-10-05):
   - UI: `PresentationService` (State/, meldet nur echte Änderungen von Modell oder Einstellung), Explorer (Entity rechts, „vorne“ tauscht), Grid-Kopf mit dritter Zeile (62 px), `FerretSelectEditor` (Member-Liste; Enter oder Mausauswahl übernimmt), `ValuePicker` (Filterwert, „in“ als Mehrfachauswahl), Kontextmenü „aus C#-Modell“, Abschnitt „Beziehungen aus dem C#-Modell“ in „Constraints“, FK-Badge in Modellfarbe (`--clr`). Lädt das Modell nach dem Grid oder ändert sich die Einstellung, ändert `updateColumns` (grid.js) die Spalten an Ort und Stelle und lädt die Zeilen neu.
   - AG-Grid-Fallen (gefunden im E2E): Einfache Objekte in Column-Defs (`headerComponentParams`) werden beim Zusammenführen mit `defaultColDef` **tief kopiert** – veränderliche Metadaten als Funktion übergeben (`getMeta`). Die Kopfhöhe als Grid-Option (`headerHeight`) setzt die Zeilenhöhe auf 42 px zurück – nur als Theme-Parameter setzen.
   - Beispiel: `Auftrag.Bearbeiter` → `Mitarbeiter` ohne Constraint (`tools/sample-db/06-clr-relations.sql`); `ferret-sample` des Nutzers braucht das Skript noch (README in `tools/sample-db`).
+  - Nachtrag 2.2.1 – **Enum-Anzeigenamen** (der Nutzer setzt `[Display(ResourceType = typeof(…Resources), Name = nameof(…))]` an seine Enum-Member): Der ModelHost liest `DisplayAttribute.GetName()` je Member (`ValueMapping.DisplayName`, optional, Format-Version unverändert) in der UI-Kultur von FerretSharp (`--culture`, vom Runner übergeben). Satelliten-Assemblies (`bin\de\X.resources.dll`) stehen bei Projektverweisen nicht in der deps.json – der `Resolving`-Handler des Hosts sucht sie im Kultur-Unterordner. Entscheidung des Nutzers: Anzeige nur mit Display-Text („Fertigungsauftrag (0)“), Member-Name im Zell-Tooltip, in der Filter-Liste und in der Spalten-Ansicht; gilt auch bei „C#-Namen: aus“ (wie alle Enum-Werte). Nur Enums, keine Property-Anzeigenamen. Beispiel: `AuftragStatus` mit `EnumTexts.resx` (neutral Englisch) + `EnumTexts.de.resx`, `Kundenart.Behoerde` mit `[Display(Name = "Behörde")]`. `.Designer.cs`-Dateien gelten als generiert und brauchen `#nullable enable`.
 
 #### WP-13 LINQ-Konsole
 - Roslyn-Scripting gegen den geladenen DbContext, Ergebnis im Grid, generiertes SQL (`ToQueryString()`) daneben.
