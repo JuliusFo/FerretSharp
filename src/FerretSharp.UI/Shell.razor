@@ -7,6 +7,8 @@
 @inject WorkspaceManager Workspaces
 @inject RecentConnections Recent
 @inject ConnectionKeepAlive KeepAlive
+@inject FerretSharp.Core.Settings.AppSettingsService Settings
+@inject ExitGuard ExitGuard
 @inject IJSRuntime JS
 
 <CascadingValue Value="_state" IsFixed="true">
@@ -26,13 +28,11 @@
             <div class="topbar-right">
                 <button class="icon-btn ghost @(_state.Page == ShellPage.Settings ? "active" : "")" title="Einstellungen"
                         @onclick="ToggleSettings">@Icons.Settings</button>
-                @if (IsProdActive)
+                @if (Active.Profile is { } badgeProfile && Active.Status != ConnectionStatus.Disconnected)
                 {
-                    <span class="badge badge-prod" title="@ReadOnlyTooltip">PROD · READ-ONLY</span>
-                }
-                else
-                {
-                    <span class="badge" title="@ReadOnlyTooltip">READ-ONLY</span>
+                    <span class="badge @(IsProdActive ? "badge-prod" : "") @(badgeProfile.ReadOnly ? "" : "editable")" title="@ReadOnlyTooltip">
+                        @(IsProdActive ? "PROD · " : "")@(badgeProfile.ReadOnly ? "READ-ONLY" : "BEARBEITBAR")
+                    </span>
                 }
             </div>
         </header>
@@ -50,7 +50,7 @@
                     }
                     <span class="muted">„Neu verbinden“ stellt alle Workspaces mit ihren Tabs und Filtern wieder her.</span>
                 </span>
-                <button class="btn primary" @onclick="() => _state.Connect(lostProfile)">Neu verbinden</button>
+                <button class="btn primary" @onclick="() => Reconnect(lostProfile)">Neu verbinden</button>
                 <button class="btn ghost" @onclick="() => _state.ShowError(lost)">Details</button>
                 <button class="btn ghost" @onclick="DisconnectAsync">Trennen</button>
             </div>
@@ -82,6 +82,11 @@
                                                  @onclick="() => _state.ActivateTab(t)" @onmouseup="e => CloseOnMiddleClick(e, t)">
                                                 @Icons.For(t.Table.Kind)
                                                 <span class="tab-name">@t.Table.DisplayName</span>
+                                                @if (t.Changes is { HasChanges: true } tabChanges)
+                                                {
+                                                    <span class="dot @(tabChanges.PendingCount > 0 ? "pending" : "flushed")"
+                                                          title="@($"{tabChanges.PendingCount} ausstehend · {tabChanges.FlushedCount} geschrieben")"></span>
+                                                }
                                                 @if (summary is not null)
                                                 {
                                                     <span class="tab-filter">@summary</span>
@@ -90,7 +95,7 @@
                                                 {
                                                     <span class="filter-pill">@t.ActiveFilterCount Filter</span>
                                                 }
-                                                <button class="tab-close" title="Schließen" @onclick:stopPropagation="true" @onclick="() => _state.CloseTab(t)">✕</button>
+                                                <button class="tab-close" title="Schließen" @onclick:stopPropagation="true" @onclick="() => CloseTab(t)">✕</button>
                                             </div>
                                         }
                                     </nav>
@@ -167,7 +172,7 @@
                     case ConnectionStatus.Connected when _state.ConnectionLost is not null:
                         <span class="item error"><span class="dot err"></span> Verbindung verloren</span>
                         <span class="item">@Active.Profile?.Name</span>
-                        <button class="status-btn" @onclick="() => _state.Connect(Active.Profile!)">Neu verbinden</button>
+                        <button class="status-btn" @onclick="() => Reconnect(Active.Profile!)">Neu verbinden</button>
                         break;
                     case ConnectionStatus.Connected:
                         <span class="item"><span class="dot ok"></span> Verbunden</span>
@@ -178,6 +183,10 @@
                             @if (Active.Profile?.ReadOnly == true)
                             {
                                 <span class="item" title="Die Workspace-Sessions laufen in einer READ ONLY-Transaktion: Oracle selbst lehnt jede Änderung ab.">schreibgeschützt (Oracle)</span>
+                            }
+                            else if (_state.ActiveWorkspace is { } editTabs && _editing.SummaryOf(editTabs) is { HasWork: true } edits)
+                            {
+                                @EditStatus(editTabs, edits)
                             }
                         }
                         <span class="item">Oracle @Active.ServerVersion</span>
@@ -232,6 +241,51 @@
         </div>
     }
 
+    @if (_editing.Problem is { } problem)
+    {
+        <WriteProblemDialog @key="problem" Problem="problem" Wait="Settings.Current.LockWaitSeconds" OnChoice="_editing.ResolveAsync" />
+    }
+
+    @if (_state.PendingLeave is { } leave)
+    {
+        <LeaveDialog @key="leave" Request="leave" Busy="_editing.Busy"
+                     Items="@(leave.WorkspaceIds.Select(id => (WorkspaceName(id), _editing.SummaryOf(_state.Workspaces.First(w => w.WorkspaceId == id)))).ToList())"
+                     OnCommit="() => LeaveAsync(commit: true)" OnDiscard="() => LeaveAsync(commit: false)" OnCancel="_state.CloseLeave" />
+    }
+
+    @if (_confirmRollback is { } rollbackTabs)
+    {
+        <ConfirmDialog Title="Rollback" ConfirmLabel="Alles verwerfen" Danger="true"
+                       OnConfirm="() => RollbackAsync(rollbackTabs)" OnCancel="() => _confirmRollback = null">
+            Alle Änderungen in <strong>@WorkspaceName(rollbackTabs.WorkspaceId)</strong> verwerfen – die geschriebenen
+            (Rollback der Transaktion) und die ausstehenden? Das lässt sich nicht rückgängig machen.
+        </ConfirmDialog>
+    }
+
+    @if (_confirmCommit is { } commitTabs)
+    {
+        <ConfirmDialog Title="Commit auf Produktion" ConfirmLabel="Committen" Danger="true"
+                       OnConfirm="() => CommitAsync(commitTabs)" OnCancel="() => _confirmCommit = null">
+            Die Änderungen in <strong>@WorkspaceName(commitTabs.WorkspaceId)</strong>
+            (@_editing.SummaryOf(commitTabs).Pending ausstehend · @_editing.SummaryOf(commitTabs).Flushed geschrieben)
+            werden in <strong>@Active.Profile?.Name</strong> committed und sind danach für alle sichtbar.
+        </ConfirmDialog>
+    }
+
+    @if (_confirmCloseTab is { } closingTab)
+    {
+        <ConfirmDialog Title="Tab schließen" ConfirmLabel="Verwerfen und schließen" Danger="true"
+                       OnConfirm="() => ConfirmCloseTab(closingTab)" OnCancel="() => _confirmCloseTab = null">
+            <strong>@closingTab.Table.DisplayName</strong> hat @closingTab.Changes!.PendingCount ausstehende Änderung(en), die noch nicht
+            geschrieben sind. Sie gehen beim Schließen verloren. Bereits geschriebene Änderungen bleiben in der Transaktion des Workspaces.
+        </ConfirmDialog>
+    }
+
+    @if (_pendingSql is { } pendingSql)
+    {
+        <SqlPreview Sql="@pendingSql" Parameters="NoParameters" Error="@null" OnClose="() => _pendingSql = null" />
+    }
+
     @if (_state.PendingDelete is { } pending)
     {
         <ConfirmDialog Title="Verbindung löschen" ConfirmLabel="Löschen" Danger="true"
@@ -249,11 +303,25 @@
     private const string FindColumnShortcut = "ctrl+f"; // the browser's find would miss columns the grid has not rendered
     private const string BackShortcut = "alt+arrowleft"; // also keeps the WebView from navigating back
     private const string ForwardShortcut = "alt+arrowright";
+    private const string FlushShortcut = "ctrl+s"; // write pending changes (no commit)
+    private const string CommitShortcut = "ctrl+shift+enter";
+
+    /// <summary>An open writing transaction older than this is shown as a warning: it holds row locks.</summary>
+    private static readonly TimeSpan LongTransaction = TimeSpan.FromMinutes(10);
 
     private static readonly string Version =
         "v" + (typeof(Shell).Assembly.GetName().Version?.ToString(3) ?? "0.0.0");
 
+    private static readonly IReadOnlyList<FerretSharp.Core.Query.QueryParameter> NoParameters = [];
+
     private readonly ShellState _state = new();
+    private WorkspaceEditing _editing = null!;
+    private WorkspaceTabs? _confirmRollback;
+    private WorkspaceTabs? _confirmCommit;
+    private TableTab? _confirmCloseTab;
+    private string? _pendingSql;
+    private bool _connectionGone; // "Neu verbinden" after a loss: the old transactions no longer exist
+    private Timer? _ticker;
     private Notice? _scheduledNotice;
     private ErrorBoundary? _errorBoundary;
     private IJSObjectReference? _shortcuts;
@@ -266,10 +334,112 @@
 
     private string ReadOnlyTooltip => Active.Profile?.ReadOnly == true
         ? "Schreibgeschützte Verbindung: Oracle selbst lehnt jede Änderung ab (READ ONLY-Transaktion)."
-        : "FerretSharp ändert keine Daten – Bearbeiten kommt mit v2.";
+        : "Bearbeiten möglich: Änderungen laufen in einer Transaktion pro Workspace und sind für andere erst nach dem Commit sichtbar.";
+
+    /// <summary>Status bar segment of the active workspace while it has uncommitted work.</summary>
+    private RenderFragment EditStatus(WorkspaceTabs workspace, EditSummary edits)
+    {
+        var age = edits.Transaction is { Mode: TransactionMode.ReadWrite, StartedAt: { } started } ? DateTimeOffset.Now - started : (TimeSpan?)null;
+        return @<text>
+            <span class="item tx @(age > LongTransaction ? "warn" : "")"
+                  title="@(age > LongTransaction ? "Die Transaktion ist lange offen und hält Zeilensperren – andere warten auf diese Zeilen." : "Ausstehend: nur hier. Geschrieben: in der Transaktion, Zeilen gesperrt, für andere unsichtbar bis zum Commit.")">
+                <span class="dot @(edits.Pending > 0 ? "pending" : "flushed")"></span>
+                @(age is { } a ? $"Tx seit {Age(a)} · " : "")@edits.Pending ausstehend · @edits.Flushed geschrieben
+            </span>
+            <button class="status-btn" title="Ausstehende Änderungen schreiben (Ctrl+S) – noch kein Commit" disabled="@(_editing.Busy || edits.Pending == 0)" @onclick="() => _editing.FlushAsync(workspace)">Schreiben</button>
+            <button class="status-btn" title="Letzten Schreibvorgang zurücknehmen" disabled="@(_editing.Busy || !edits.CanUndo)" @onclick="() => _editing.UndoLastAsync(workspace)">↶</button>
+            <button class="status-btn" title="Ausstehende Änderungen als SQL anzeigen" disabled="@(edits.Pending == 0)" @onclick="() => _pendingSql = _editing.DescribePending(workspace)">SQL</button>
+            <button class="status-btn commit" title="Schreiben und committen (Ctrl+Shift+Enter)" disabled="@_editing.Busy" @onclick="() => RequestCommit(workspace)">Commit</button>
+            <button class="status-btn danger" title="Alles verwerfen" disabled="@_editing.Busy" @onclick="() => _confirmRollback = workspace">Rollback</button>
+        </text>;
+    }
+
+    private static string Age(TimeSpan age) => age.TotalMinutes < 1 ? "< 1 min" : $"{(int)age.TotalMinutes} min";
+
+    private string WorkspaceName(Guid workspaceId) => Workspaces.Find(workspaceId)?.Name ?? "Workspace";
+
+    /// <summary>Commits right away, on Prod only after a confirmation.</summary>
+    private Task RequestCommit(WorkspaceTabs workspace)
+    {
+        if (IsProdActive)
+        {
+            _confirmCommit = workspace;
+            StateHasChanged(); // also reached from the shortcut, outside a Blazor event
+            return Task.CompletedTask;
+        }
+
+        return _editing.CommitAsync(workspace);
+    }
+
+    private async Task CommitAsync(WorkspaceTabs workspace)
+    {
+        _confirmCommit = null;
+        await _editing.CommitAsync(workspace);
+    }
+
+    private async Task RollbackAsync(WorkspaceTabs workspace)
+    {
+        _confirmRollback = null;
+        await _editing.RollbackAsync(workspace);
+    }
+
+    /// <summary>Asks before <paramref name="then"/> if workspaces have uncommitted work; runs it right away otherwise.</summary>
+    private Task GuardAsync(string what, IReadOnlyList<WorkspaceTabs> scope, Func<Task> then)
+    {
+        var withWork = scope.Where(w => _editing.SummaryOf(w).HasWork).Select(w => w.WorkspaceId).ToList();
+        if (withWork.Count == 0 || _state.ConnectionLost is not null || _connectionGone)
+        {
+            return then();
+        }
+
+        _state.ConfirmLeave(new LeaveRequest(what, withWork, then));
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Leave dialog: commit or discard every listed workspace, then continue (only if all succeeded).</summary>
+    private async Task LeaveAsync(bool commit)
+    {
+        if (_state.PendingLeave is not { } leave)
+        {
+            return;
+        }
+
+        foreach (var id in leave.WorkspaceIds)
+        {
+            if (_state.Workspaces.FirstOrDefault(w => w.WorkspaceId == id) is not { } workspace)
+            {
+                continue;
+            }
+
+            if (!(commit ? await _editing.CommitAsync(workspace) : await _editing.RollbackAsync(workspace)))
+            {
+                _state.CloseLeave(); // a write problem dialog (or error) explains why; nothing is left behind half done
+                return;
+            }
+        }
+
+        _state.CloseLeave();
+        await leave.Continue();
+    }
 
     protected override async Task OnInitializedAsync()
     {
+        _editing = new WorkspaceEditing(_state, Workspaces, Active, Settings);
+        _state.Guard = (what, ids, then) => GuardAsync(what, _state.Workspaces.Where(w => ids.Contains(w.WorkspaceId)).ToList(), then);
+        ExitGuard.CanExit = () => _editing.WithWork().Count == 0 || _state.ConnectionLost is not null;
+        ExitGuard.RequestExit = () => InvokeAsync(() => GuardAsync("FerretSharp beenden", _state.Workspaces, () =>
+        {
+            ExitGuard.ApproveExit();
+            return Task.CompletedTask;
+        }));
+        // The age of an open transaction in the status bar.
+        _ticker = new Timer(_ => InvokeAsync(() =>
+        {
+            if (_editing.WithWork().Count > 0)
+            {
+                StateHasChanged();
+            }
+        }), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
         _state.Changed += OnChanged;
         _state.Dirty += SaveTabs;
         _state.ConnectRequested += OnConnectRequested;
@@ -288,15 +458,30 @@
         {
             _selfRef = DotNetObjectReference.Create(this);
             _shortcuts = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/shortcuts.js");
-            await _shortcuts.InvokeVoidAsync("register", _selfRef, new[] { SwitcherShortcut, ApplyFiltersShortcut, RefreshShortcut, FindColumnShortcut, BackShortcut, ForwardShortcut });
+            await _shortcuts.InvokeVoidAsync("register", _selfRef, new[]
+            {
+                SwitcherShortcut, ApplyFiltersShortcut, RefreshShortcut, FindColumnShortcut, BackShortcut, ForwardShortcut, FlushShortcut, CommitShortcut,
+            });
         }
     }
 
     [JSInvokable]
     public void OnShortcut(string combo)
     {
-        if (_state.ConnectionDialog is not null || _state.PendingDelete is not null || _state.ErrorDetails is not null)
+        if (_state.ConnectionDialog is not null || _state.PendingDelete is not null || _state.ErrorDetails is not null
+            || _state.PendingLeave is not null || _editing.Problem is not null || _confirmRollback is not null || _confirmCommit is not null || _confirmCloseTab is not null)
         {
+            return;
+        }
+
+        // Writing and committing need an editable connection and an active workspace.
+        if (combo is FlushShortcut or CommitShortcut)
+        {
+            if (Active.Profile?.ReadOnly == false && _state.ActiveWorkspace is { } workspace && _state.Page == ShellPage.Explorer)
+            {
+                _ = combo == FlushShortcut ? _editing.FlushAsync(workspace) : RequestCommit(workspace);
+            }
+
             return;
         }
 
@@ -336,16 +521,51 @@
     {
         if (e.Button == 1)
         {
+            CloseTab(tab);
+        }
+    }
+
+    /// <summary>A tab with pending changes asks first; its flushed changes stay in the workspace's transaction.</summary>
+    private void CloseTab(TableTab tab)
+    {
+        if (tab.Changes is { PendingCount: > 0 })
+        {
+            _confirmCloseTab = tab;
+        }
+        else
+        {
             _state.CloseTab(tab);
         }
     }
 
-    /// <summary>Runs off the UI thread; ActiveConnection reports progress through its Changed event.</summary>
-    private void OnConnectRequested(ConnectionProfile profile)
+    private void ConfirmCloseTab(TableTab tab)
     {
-        SaveTabs();
-        _state.ClearWorkspaces();
-        _ = Task.Run(() => Active.ConnectAsync(profile, CancellationToken.None));
+        _confirmCloseTab = null;
+        _state.CloseTab(tab);
+    }
+
+    /// <summary>Runs off the UI thread; ActiveConnection reports progress through its Changed event.</summary>
+    /// <summary>Connecting closes the current connection: uncommitted work is confirmed first (not after it was lost).</summary>
+    private void OnConnectRequested(ConnectionProfile profile) => InvokeAsync(() =>
+        GuardAsync($"Verbindung zu {profile.Name} öffnen", _state.Workspaces, () =>
+        {
+            _connectionGone = false;
+            SaveTabs();
+            _state.ClearWorkspaces();
+            _ = Task.Run(() => Active.ConnectAsync(profile, CancellationToken.None));
+            return Task.CompletedTask;
+        }));
+
+    /// <summary>"Neu verbinden" after the connection was lost: its transactions are gone, nothing left to confirm.</summary>
+    private void Reconnect(ConnectionProfile profile)
+    {
+        _connectionGone = true;
+        foreach (var workspace in _state.Workspaces)
+        {
+            _editing.Forget(workspace.WorkspaceId);
+        }
+
+        _state.Connect(profile);
     }
 
     /// <summary>Hands the tabs of every open workspace to the manager, which saves what changed (debounced).</summary>
@@ -414,7 +634,9 @@
         }
     }
 
-    private async Task DisconnectAsync()
+    private Task DisconnectAsync() => GuardAsync("Verbindung trennen", _state.Workspaces, DisconnectCoreAsync);
+
+    private async Task DisconnectCoreAsync()
     {
         SaveTabs();
         _state.ClearConnectionLost();
@@ -423,14 +645,23 @@
         _state.ShowConnections();
     }
 
-    private async Task DeleteAsync(ConnectionProfile profile)
+    private Task DeleteAsync(ConnectionProfile profile)
     {
         _state.CancelDelete();
-        if (Active.Profile?.Id == profile.Id)
+        if (Active.Profile?.Id != profile.Id)
         {
-            await DisconnectAsync();
+            return DeleteCoreAsync(profile);
         }
 
+        return GuardAsync("Verbindung löschen", _state.Workspaces, async () =>
+        {
+            await DisconnectCoreAsync();
+            await DeleteCoreAsync(profile);
+        });
+    }
+
+    private async Task DeleteCoreAsync(ConnectionProfile profile)
+    {
         await Connections.DeleteAsync(profile.Id, CancellationToken.None);
         await Workspaces.DeleteForConnectionAsync(profile.Id);
     }
@@ -461,6 +692,13 @@
 
     public async ValueTask DisposeAsync()
     {
+        if (_ticker is not null)
+        {
+            await _ticker.DisposeAsync();
+        }
+
+        ExitGuard.CanExit = null;
+        ExitGuard.RequestExit = null;
         _state.Changed -= OnChanged;
         _state.Dirty -= SaveTabs;
         _state.ConnectRequested -= OnConnectRequested;

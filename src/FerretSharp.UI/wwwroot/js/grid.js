@@ -78,6 +78,99 @@ class FerretHeader {
   }
 }
 
+/**
+ * Cell editor (v2): starts with the full value from .NET (the grid shows shortened texts and grouped numbers), or
+ * with the typed character, or – after a rejected value – with that value and the message below it. Long text
+ * columns get a multi-line box (Shift+Enter: new line, Enter: done).
+ */
+class FerretCellEditor {
+  init(params) {
+    this.params = params;
+    const meta = params.meta;
+    const state = params.state;
+    const retry = state.retry && state.retry.key === cellKey(params.node, params.column.getColId()) ? state.retry : null;
+    state.retry = null;
+
+    this.eGui = document.createElement('div');
+    this.eGui.className = 'fs-editor' + (meta.multiline ? ' multiline' : '');
+    this.input = document.createElement(meta.multiline ? 'textarea' : 'input');
+    this.input.className = 'fs-editor-input';
+    this.input.spellcheck = false;
+    this.eGui.appendChild(this.input);
+    if (retry) {
+      this.input.value = retry.text;
+      const error = document.createElement('div');
+      error.className = 'fs-editor-error';
+      error.textContent = retry.error;
+      this.eGui.appendChild(error);
+    } else if (params.eventKey && params.eventKey.length === 1) {
+      this.input.value = params.eventKey; // typing starts editing: replace the value
+    } else if (params.eventKey === 'Backspace' || params.eventKey === 'Delete') {
+      this.input.value = '';
+    } else {
+      this.input.disabled = true;
+      state.dotnet.invokeMethodAsync('GetEditText', params.node.rowPinned ? -1 : params.node.rowIndex, params.data?.__new ?? null, params.column.getColId())
+        .then(text => {
+          this.input.disabled = false;
+          this.input.value = text ?? '';
+          this.input.focus();
+          this.input.select();
+        })
+        .catch(() => { this.input.disabled = false; });
+    }
+  }
+  /**
+   * Enter (not Shift+Enter in the multi-line box): .NET checks the value first; the editor only closes when it is
+   * valid, otherwise it stays open with the message below it. The grid ignores Enter while editing
+   * (suppressKeyboardEvent), so this is the only way Enter ends an edit.
+   */
+  listenForEnter() {
+    const params = this.params;
+    this.input.addEventListener('keydown', async e => {
+      if (e.key !== 'Enter' || (params.meta.multiline && e.shiftKey)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const error = await params.state.dotnet.invokeMethodAsync('ValidateEdit',
+        params.node.rowPinned ? -1 : params.node.rowIndex, params.data?.__new ?? null, params.column.getColId(), this.input.value);
+      if (error) {
+        this.showError(error);
+      } else {
+        params.stopEditing();
+      }
+    });
+    this.input.addEventListener('input', () => this.showError(null));
+  }
+  showError(message) {
+    let label = this.eGui.querySelector('.fs-editor-error');
+    if (!message) {
+      label?.remove();
+      return;
+    }
+
+    if (!label) {
+      label = document.createElement('div');
+      label.className = 'fs-editor-error';
+      this.eGui.appendChild(label);
+    }
+
+    label.textContent = message;
+  }
+  getGui() { return this.eGui; }
+  afterGuiAttached() {
+    this.listenForEnter();
+    this.input.focus();
+    if (!this.params.eventKey || this.params.eventKey.length !== 1) this.input.select();
+    else this.input.setSelectionRange(this.input.value.length, this.input.value.length);
+  }
+  getValue() { return this.input.value; }
+  isPopup() { return !!this.params.meta.multiline; }
+}
+
+/** Identifies a cell across redraws: new rows by their id, loaded rows by index. */
+function cellKey(node, colId) {
+  return (node.data?.__new ?? `r${node.rowIndex}`) + '|' + colId;
+}
+
 function renderCell(params) {
   if (!params.data) return '';
   const value = params.value;
@@ -152,6 +245,7 @@ export function create(elementId, dotnet, columns, sorts, firstRow) {
   }
 
   const sortById = new Map(sorts.map((s, i) => [s.colId, { sort: s.sort, index: i }]));
+  const editState = { dotnet, retry: null };
   const columnDefs = columns.map(meta => ({
     colId: meta.id,
     field: meta.id,
@@ -162,6 +256,18 @@ export function create(elementId, dotnet, columns, sorts, firstRow) {
     sortIndex: sortById.get(meta.id)?.index ?? null,
     cellClass: meta.numeric ? 'fs-num' : meta.category === 'Date' || meta.category.startsWith('Timestamp') ? 'fs-date' : undefined,
     cellRenderer: renderCell,
+    // Editing (v2): new rows (pinned at the top) may fill the key; loaded rows not deleted and not too large a number.
+    editable: p => p.node.rowPinned === 'top'
+      ? meta.editableNew
+      : meta.editable && !!p.data && !p.data.__d && !(p.data.__ro ?? []).includes(meta.id),
+    cellEditor: FerretCellEditor,
+    cellEditorParams: { meta, state: editState },
+    cellClassRules: {
+      'fs-pending': p => p.data?.__s?.[meta.id] === 'p',
+      'fs-flushed': p => p.data?.__s?.[meta.id] === 'f',
+    },
+    // While editing, Enter belongs to the editor (check in .NET first, Shift+Enter: new line in the multi-line box).
+    suppressKeyboardEvent: p => p.editing && p.event.key === 'Enter',
     tooltipValueGetter: p => (p.value === null || p.value === undefined ? null : p.value),
     headerComponent: FerretHeader,
     headerComponentParams: { meta },
@@ -185,10 +291,22 @@ export function create(elementId, dotnet, columns, sorts, firstRow) {
   // Ctrl+C: the focused cell, or the selected rows if there are several (AG Grid Community has no clipboard).
   // Text marked with the mouse inside one cell is copied by the browser as usual.
   element.addEventListener('keydown', e => {
+    // Del (not while editing): mark the selected rows for deletion – pending until written, can be reverted.
+    if (e.key === 'Delete' && !e.ctrlKey && !e.altKey && api.getEditingCells().length === 0) {
+      const loaded = api.getSelectedNodes().map(n => n.rowIndex).filter(i => i != null);
+      const focused = api.getFocusedCell();
+      const pinned = focused?.rowPinned === 'top' ? [api.getPinnedTopRow(focused.rowIndex)?.data?.__new].filter(Boolean) : [];
+      if (loaded.length > 0 || pinned.length > 0) {
+        e.preventDefault();
+        dotnet.invokeMethodAsync('OnDeleteKey', loaded, pinned).then(updates => applyUpdates(api, updates)).catch(() => {});
+      }
+      return;
+    }
+
     if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'c') return;
     if (textMarkedInOneCell()) return;
     const cell = api.getFocusedCell();
-    if (!cell || cell.rowIndex == null) return;
+    if (!cell || cell.rowIndex == null || cell.rowPinned) return;
     e.preventDefault();
     const selected = api.getSelectedNodes().map(n => n.rowIndex).filter(i => i != null);
     dotnet.invokeMethodAsync('OnCopy', cell.rowIndex, cell.column.getColId(), selected).catch(() => {});
@@ -196,6 +314,19 @@ export function create(elementId, dotnet, columns, sorts, firstRow) {
 
   // Shift+click selects a range of rows; without this the browser would also mark text across the cells.
   element.addEventListener('mousedown', e => { if (e.shiftKey) e.preventDefault(); }, true);
+
+  // Double click starts editing. The WPF host passes the second mouse-down of a real double click twice, so the
+  // browser never raises dblclick (CLAUDE.md, section 7) – AG Grid's own double-click editing would not react.
+  element.addEventListener('click', e => {
+    if (e.detail < 2 || api.getEditingCells().length > 0) return;
+    const cell = e.target.closest?.('.ag-cell');
+    const rowElement = cell?.closest('.ag-row');
+    const colId = cell?.getAttribute('col-id');
+    const rowIndex = Number(rowElement?.getAttribute('row-index'));
+    if (!colId || Number.isNaN(rowIndex)) return;
+    const pinned = rowElement.closest('.ag-floating-top') ? 'top' : undefined;
+    api.startEditingCell({ rowIndex, colKey: colId, rowPinned: pinned });
+  });
 
   const api = agGrid.createGrid(element, {
     theme: theme(),
@@ -213,6 +344,34 @@ export function create(elementId, dotnet, columns, sorts, firstRow) {
     tooltipShowDelay: 700,
     suppressMultiSort: false,
     animateRows: false,
+    // Editing: the grid only reports the input; .NET checks it and sends the row back (no business logic here).
+    readOnlyEdit: true,
+    singleClickEdit: false,
+    stopEditingWhenCellsLoseFocus: true,
+    pinnedTopRowData: [],
+    rowClassRules: {
+      'fs-row-deleted': p => !!p.data?.__d,
+      'fs-row-new': p => p.node.rowPinned === 'top',
+    },
+    onCellEditRequest: async e => {
+      const colId = e.column.getColId();
+      const text = e.newValue ?? '';
+      try {
+        const result = await dotnet.invokeMethodAsync('OnCellEdit', e.node.rowPinned ? -1 : e.node.rowIndex, e.data?.__new ?? null, colId, text);
+        if (result.error) {
+          // Left with Tab or a click elsewhere: reopen the editor with the rejected text and the reason.
+          editState.retry = { key: cellKey(e.node, colId), text, error: result.error };
+          setTimeout(() => {
+            api.stopEditing(true);
+            api.startEditingCell({ rowIndex: e.node.rowIndex, colKey: colId, rowPinned: e.node.rowPinned ?? undefined });
+          });
+        } else if (result.row) {
+          e.node.setData(result.row);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    },
     onBodyScrollEnd: () => dotnet.invokeMethodAsync('OnScrolled', firstVisibleRow(api)).catch(() => {}),
     // Pinned or reordered within the pinned area by dragging (changes from setPinned have source 'api').
     onColumnPinned: e => { if (e.source?.startsWith('ui')) reportPinned(api, dotnet); },
@@ -220,7 +379,7 @@ export function create(elementId, dotnet, columns, sorts, firstRow) {
     // The menu itself is a Blazor component; the grid only reports where the user right-clicked.
     // Right-click on a selected row keeps the selection (export of several rows), otherwise selects just this row.
     onCellContextMenu: e => {
-      if (e.rowIndex == null || !e.data || !e.event) return;
+      if (e.rowIndex == null || !e.data || !e.event || e.node.rowPinned) return; // new rows: Del removes them
       if (!e.node.isSelected()) e.node.setSelected(true, true);
       const selected = api.getSelectedNodes().map(n => n.rowIndex).filter(i => i != null);
       dotnet.invokeMethodAsync('OnCellContextMenu', e.rowIndex, e.column.getColId(), selected,
@@ -242,6 +401,40 @@ export function create(elementId, dotnet, columns, sorts, firstRow) {
   });
 
   grids.set(elementId, api);
+}
+
+function applyUpdates(api, updates) {
+  for (const update of updates ?? []) {
+    api.getDisplayedRowAtIndex(update.rowIndex)?.setData(update.row);
+  }
+}
+
+/** Redraws loaded rows after delete/revert from the context menu: [{ rowIndex, row }]. */
+export function updateRows(elementId, updates) {
+  const api = grids.get(elementId);
+  if (api) applyUpdates(api, updates);
+}
+
+/** New rows that are not inserted yet, pinned at the top. */
+export function setNewRows(elementId, rows) {
+  grids.get(elementId)?.setGridOption('pinnedTopRowData', rows);
+}
+
+/** Starts editing a cell; <paramref name="pinned"/>: index among the new rows at the top. */
+export function startEditing(elementId, rowIndex, colId, pinned) {
+  const api = grids.get(elementId);
+  if (!api) return;
+  api.ensureColumnVisible(colId);
+  api.setFocusedCell(rowIndex, colId, pinned ? 'top' : undefined);
+  api.startEditingCell({ rowIndex, colKey: colId, rowPinned: pinned ? 'top' : undefined });
+}
+
+/** Fetches the cached blocks again without moving (after writing): the rows show what the transaction holds. */
+export function reload(elementId) {
+  const api = grids.get(elementId);
+  if (!api) return;
+  api.stopEditing(true);
+  api.refreshInfiniteCache();
 }
 
 /** Drops all cached blocks and reloads from the first row (filters changed, F5). */

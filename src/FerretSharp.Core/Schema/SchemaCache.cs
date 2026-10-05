@@ -82,6 +82,9 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
     public Task<string> GetDdlAsync(TableSummary table, CancellationToken cancellationToken) =>
         reader.GetDdlAsync(table, cancellationToken);
 
+    public Task<IReadOnlyList<Data.LockHolder>?> GetLockHoldersAsync(TableRef table, CancellationToken cancellationToken) =>
+        reader.GetLockHoldersAsync(table, cancellationToken);
+
     /// <summary>Relationships where <paramref name="table"/> references other tables.</summary>
     public IEnumerable<ForeignKeyInfo> OutgoingOf(TableRef table) => _outgoing[table];
 

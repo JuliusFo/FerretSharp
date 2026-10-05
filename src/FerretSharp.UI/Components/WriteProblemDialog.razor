@@ -1,0 +1,132 @@
+@* A write stopped (v2): lock conflict, concurrent change, deleted row or Oracle refusal – the user decides how to go on. *@
+@using FerretSharp.Core.Data
+@using FerretSharp.UI.State
+
+<div class="modal-backdrop">
+    <div class="modal dialog write-problem" role="alertdialog" aria-label="@Title">
+        <header><span>@Title</span></header>
+        <div class="dialog-body">
+            <p class="problem-row">
+                <span class="mono">@Problem.Tab.Table.DisplayName</span> · @RowText
+            </p>
+            @switch (Problem.Error)
+            {
+                case LockConflictException:
+                    <p>
+                        Eine andere Session hält die Zeile gesperrt (hat sie geändert, aber noch nicht committed).
+                        FerretSharp hat @Wait Sekunden gewartet.
+                    </p>
+                    @if (Problem.Holders is { Count: > 0 } holders)
+                    {
+                        <table class="columns holders">
+                            <thead><tr><th>Session</th><th>Benutzer</th><th>Rechner</th><th>Programm / Workspace</th></tr></thead>
+                            <tbody>
+                                @foreach (var holder in holders)
+                                {
+                                    <tr>
+                                        <td class="mono">@holder.Sid</td>
+                                        <td>@holder.User@(holder.OsUser is { } os ? $" ({os})" : "")</td>
+                                        <td>@holder.Machine</td>
+                                        <td>@(holder.Module == "FerretSharp" ? $"FerretSharp · Workspace „{holder.Action}“" : holder.Module ?? holder.Program)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                        <p class="muted">Sessions mit Sperren auf der Tabelle – welche genau die Zeile hält, verrät Oracle nicht.</p>
+                    }
+                    else if (Problem.Holders is null)
+                    {
+                        <p class="muted">Wer sperrt, lässt sich ohne Leserechte auf V$SESSION (SELECT_CATALOG_ROLE) nicht ermitteln.</p>
+                    }
+                    break;
+                case ConcurrencyConflictException conflict:
+                    <p>Jemand hat die Zeile geändert, nachdem sie hier geladen wurde:</p>
+                    <table class="columns">
+                        <thead><tr><th>Spalte</th><th>Beim Laden</th><th>Jetzt in der DB</th><th>Deine Änderung</th></tr></thead>
+                        <tbody>
+                            @foreach (var difference in conflict.Differences)
+                            {
+                                var column = Problem.Tab.Changes!.Table.Columns[difference.Column];
+                                <tr>
+                                    <td class="mono">@column.Name</td>
+                                    <td>@Show(column, difference.Expected)</td>
+                                    <td><strong>@Show(column, difference.Actual)</strong></td>
+                                    <td>@Show(column, Problem.Error.Operation.Values.GetValueOrDefault(difference.Column))</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                    break;
+                case RowGoneException:
+                    <p>Die Zeile gibt es nicht mehr – jemand hat sie gelöscht und committed.</p>
+                    break;
+                default:
+                    <p>@Problem.Error.Message</p>
+                    break;
+            }
+            @if (Problem.DuringCommit)
+            {
+                <p class="muted">Committed ist noch nichts. Nach der Entscheidung geht es mit dem Commit weiter.</p>
+            }
+        </div>
+        <footer>
+            <span class="spacer"></span>
+            <button class="btn ghost" @ref="_cancel" @onclick="() => OnChoice.InvokeAsync(ProblemChoice.Cancel)">
+                @(Problem.Error is WriteFailedException ? "OK" : "Abbrechen")
+            </button>
+            @switch (Problem.Error)
+            {
+                case LockConflictException:
+                    <button class="btn primary" @onclick="() => OnChoice.InvokeAsync(ProblemChoice.Retry)">Erneut versuchen</button>
+                    break;
+                case ConcurrencyConflictException:
+                    <button class="btn" @onclick="() => OnChoice.InvokeAsync(ProblemChoice.Discard)">Meine Änderung verwerfen</button>
+                    <button class="btn danger-solid" @onclick="() => OnChoice.InvokeAsync(ProblemChoice.Overwrite)">Überschreiben</button>
+                    break;
+                case RowGoneException:
+                    <button class="btn primary" @onclick="() => OnChoice.InvokeAsync(ProblemChoice.Discard)">Änderung verwerfen</button>
+                    break;
+            }
+        </footer>
+    </div>
+</div>
+
+@code {
+    private ElementReference _cancel;
+
+    [Parameter, EditorRequired]
+    public FlushProblem Problem { get; set; } = null!;
+
+    [Parameter]
+    public int Wait { get; set; }
+
+    [Parameter]
+    public EventCallback<ProblemChoice> OnChoice { get; set; }
+
+    private string Title => Problem.Error switch
+    {
+        LockConflictException => "Zeile ist gesperrt",
+        ConcurrencyConflictException => "Inzwischen geändert",
+        RowGoneException => "Zeile gelöscht",
+        _ => "Schreiben abgelehnt",
+    };
+
+    private string RowText => Problem.Error.Operation switch
+    {
+        { Kind: OperationKind.Insert } => "neue Zeile",
+        { Key: RowKey.PrimaryKey pk } => "Zeile " + string.Join(", ", pk.Values.Select(v => Show(null, v))),
+        { Kind: OperationKind.Delete } => "zu löschende Zeile",
+        _ => "geänderte Zeile",
+    };
+
+    private static string Show(Core.Schema.ColumnInfo? column, object? value) =>
+        value is null ? "NULL" : column is null ? Convert.ToString(value, CultureInfo.CurrentCulture) ?? "" : CellFormatter.Format(column, value) ?? "NULL";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await _cancel.FocusAsync();
+        }
+    }
+}

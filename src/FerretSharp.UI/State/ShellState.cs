@@ -252,6 +252,23 @@ public sealed class ShellState
         }
     }
 
+    /// <summary>A command for a particular tab, also an inactive one (reload after writing, commit, rollback).</summary>
+    public void RequestTabCommand(TableTab tab, TabCommand command) => TabCommandRequested?.Invoke(tab, command);
+
+    /// <summary>Set while the user is asked what happens to uncommitted changes before leaving (dialog in the shell).</summary>
+    public LeaveRequest? PendingLeave { get; private set; }
+
+    /// <summary>Set by the shell: asks before leaving workspaces with uncommitted changes, then runs the action.</summary>
+    public Func<string, IReadOnlyList<Guid>, Func<Task>, Task>? Guard { get; set; }
+
+    /// <summary>Runs <paramref name="then"/> – after asking, if the workspaces have uncommitted changes.</summary>
+    public Task GuardAsync(string what, IReadOnlyList<Guid> workspaceIds, Func<Task> then) => Guard?.Invoke(what, workspaceIds, then) ?? then();
+
+    /// <summary>Asks before <paramref name="request"/> continues: commit, discard or cancel.</summary>
+    public void ConfirmLeave(LeaveRequest request) => Set(() => PendingLeave = request);
+
+    public void CloseLeave() => Set(() => PendingLeave = null);
+
     public void NotifyChanged()
     {
         Changed?.Invoke();
@@ -344,7 +361,14 @@ public sealed class ShellState
     }
 }
 
-public enum TabCommand { ApplyFilters, Refresh, FindColumn }
+/// <summary><see cref="Reload"/>: fetch the loaded rows again in place (after writing) – unlike <see cref="Refresh"/>, which starts at the top.</summary>
+public enum TabCommand { ApplyFilters, Refresh, FindColumn, Reload }
+
+/// <summary>Leaving workspaces with uncommitted changes (close, disconnect, switch connection, exit).</summary>
+/// <param name="What">What is about to happen, e.g. "Workspace schließen".</param>
+/// <param name="WorkspaceIds">Workspaces whose changes are at stake.</param>
+/// <param name="Continue">Runs after the changes were committed or discarded.</param>
+public sealed record LeaveRequest(string What, IReadOnlyList<Guid> WorkspaceIds, Func<Task> Continue);
 
 /// <param name="Warnings">Shown below the text, e.g. LOB values that were not exported.</param>
 public sealed record Notice(string Text, IReadOnlyList<string> Warnings, DateTimeOffset At);

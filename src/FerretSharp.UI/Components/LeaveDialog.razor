@@ -1,0 +1,57 @@
+@* Uncommitted changes before closing a workspace, disconnecting, switching the connection or exiting (v2). *@
+@using FerretSharp.UI.State
+
+<div class="modal-backdrop">
+    <div class="modal dialog confirm" role="alertdialog" aria-label="Nicht committete Änderungen">
+        <header><span>Nicht committete Änderungen</span></header>
+        <div class="dialog-body">
+            <p>@Request.What: Diese Änderungen sind noch nicht committed und gingen sonst verloren.</p>
+            <ul class="leave-list">
+                @foreach (var (name, summary) in Items)
+                {
+                    <li>
+                        <strong>@name</strong> –
+                        @(summary.Pending > 0 ? $"{summary.Pending} ausstehend" : null)@(summary.Pending > 0 && summary.Flushed > 0 ? ", " : null)@(summary.Flushed > 0 ? $"{summary.Flushed} geschrieben" : null)@(summary.Pending == 0 && summary.Flushed == 0 ? "offene Transaktion" : null)
+                    </li>
+                }
+            </ul>
+        </div>
+        <footer>
+            <button class="btn ghost" @ref="_cancel" @onclick="OnCancel" disabled="@Busy">Abbrechen</button>
+            <span class="spacer"></span>
+            <button class="btn danger-solid" @onclick="OnDiscard" disabled="@Busy">Verwerfen</button>
+            <button class="btn primary" @onclick="OnCommit" disabled="@Busy">Committen</button>
+        </footer>
+    </div>
+</div>
+
+@code {
+    private ElementReference _cancel;
+
+    [Parameter, EditorRequired]
+    public LeaveRequest Request { get; set; } = null!;
+
+    /// <summary>Workspace name and counts.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<(string Name, EditSummary Summary)> Items { get; set; } = [];
+
+    [Parameter]
+    public bool Busy { get; set; }
+
+    [Parameter]
+    public EventCallback OnCommit { get; set; }
+
+    [Parameter]
+    public EventCallback OnDiscard { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await _cancel.FocusAsync();
+        }
+    }
+}

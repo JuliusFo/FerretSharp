@@ -205,11 +205,12 @@
         }
     }
 
+    /// <summary>Closing ends the workspace's session: uncommitted changes are committed or discarded first.</summary>
     private async Task CloseAsync(Workspace workspace)
     {
         if (Workspaces.Open.Count > 1)
         {
-            await Workspaces.CloseAsync(workspace.Id);
+            await Shell.GuardAsync($"Workspace „{workspace.Name}“ schließen", [workspace.Id], () => Workspaces.CloseAsync(workspace.Id));
         }
     }
 
