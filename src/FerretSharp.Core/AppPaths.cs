@@ -28,4 +28,7 @@ public sealed class AppPaths
     public string WorkspacesDirectory => Path.Combine(Root, "workspaces");
 
     public string SettingsFile => Path.Combine(Root, "settings.json");
+
+    /// <summary>Exported C# models of linked projects, reused while their build is unchanged (WP-16).</summary>
+    public string ModelCacheDirectory => Path.Combine(Root, "cache", "models");
 }

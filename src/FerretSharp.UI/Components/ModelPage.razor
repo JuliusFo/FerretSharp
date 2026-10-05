@@ -74,6 +74,12 @@
                     <dt>Ladezeit</dt>
                     <dd>
                         @Duration(TimeSpan.FromTicks(steps.Sum(s => s.Duration.Ticks)))
+                        @if (State.CachedAt is { } cachedAt)
+                        {
+                            <span class="model-chip" title="Der Build ist unverändert, das Modell wurde ohne Hilfsprozess geladen. „Neu laden“ liest es aus dem Projekt.">
+                                aus dem Cache · exportiert @cachedAt.ToString("dd.MM.yyyy HH:mm", CultureInfo.CurrentCulture)
+                            </span>
+                        }
                         <div class="hint">@string.Join(" · ", steps.Select(s => $"{s.Name} {Duration(s.Duration)}"))</div>
                     </dd>
                 }

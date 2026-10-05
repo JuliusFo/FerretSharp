@@ -28,7 +28,8 @@ Es wird in Versionen ausgeliefert. Jede Version ist für sich benutzbar.
 | **v1 – Read-only Browser** | Connections, Schema, Grid, Filter, Workspaces, FK-Navigation, Export | WP-01 … WP-07 |
 | **v2 – Sandbox-Editing** | Transaktionsmodell, Editieren, Commit/Rollback, Lock-Handling, Prod-Freischaltung | WP-08 … WP-10 |
 | **v3 – .NET-Integration** | DbContext-Modell laden, Schema-Anreicherung (Entities, Enums, Navigations), LINQ-Konsole, Explain-Plan (Grid und LINQ), Code-Generierung | WP-11 … WP-15 |
-| **v4+** | Backlog (Abschnitt 10) | – |
+| **v4 – Komfort & SQL** | Modell-Cache, freier SQL-Editor (weitere Pakete aus dem Backlog nach Absprache) | WP-16 … |
+| **v5+** | Backlog (Abschnitt 10) | – |
 
 Regeln für **v1**:
 - Es gibt **keinen** Codepfad, der DML/DDL erzeugt oder ausführt. `IDataAccess` und `OracleSession` bieten in v1 nur lesende Methoden (kein öffentliches `ExecuteNonQuery`). Einzige Ausnahme: INSERT-Statements als **Text-Export** (werden nie ausgeführt).
@@ -521,6 +522,22 @@ Entscheidungen des Nutzers (2026-10-05):
   - Tests: Unit-Tests je Typ/Operator; ein Integrationstest erzeugt LINQ und Initializer gegen das exportierte Beispielmodell, kompiliert beides in der LINQ-Konsole und prüft das SQL von EF (`UPPER(`, `'J'`, `IN (1, 3)`). E2E: Trefferzahlen Grid = Konsole (`.Count()`), u. a. Text in Kleinschreibung + „zwischen“ mit Tagesgrenzen.
   - E2E-Kniff: Kopieren ohne die Zwischenablage des Nutzers zu berühren – im WebView per CDP `navigator.clipboard` durch eine Mitschrift ersetzen (`Object.defineProperty(navigator, 'clipboard', { value: { writeText: async t => window.__copied.push(t) } })`) und das Kopierte dort lesen.
   - Beispielmodell: Abfragen über `Kunde` scheitern auf der Beispiel-DB absichtlich mit ORA-00904 (`Kunde.Email` ohne Spalte, Drift für den Abgleich) – für Konsolen-Tests `.Count()` oder eine andere Entity (`Auftraege`) nehmen.
+
+### v4 – Komfort & SQL
+
+Pakete aus dem Backlog, nach v3 mit dem Nutzer ausgewählt (2026-10-05). Versionen: Minor-Releases 3.x (nichts Inkompatibles).
+
+#### WP-16 Modell-Cache → Release 3.1.0
+- Das exportierte C#-Modell wird gespeichert und wiederverwendet, solange sich die Build-Ausgabe nicht geändert hat – beim Verbinden entfällt dann der Hilfsprozess (beim Nutzer ~12 s, meist `OnModelCreating`); nur die Spaltenabfrage bleibt.
+- Entscheidung des Nutzers: **dem Fingerabdruck vertrauen** (keine Prüfung im Hintergrund). „Neu laden“ und „Neu bauen“ umgehen den Cache.
+- Fingerabdruck: Verknüpfung (Projekt, Konfiguration, DbContext), UI-Kultur (Display-Texte der Enums), Formatversion und ModelHost (Größe/Änderungszeit der DLL), Name/Größe/Änderungszeit aller `.dll`/`.exe`/`.json` im Build-Ordner samt Unterordnern (Sprachordner, referenzierte Projekte; Paketversionen stehen in der `deps.json`).
+
+#### WP-17 Freier SQL-Editor → Release 3.2.0
+Entscheidungen des Nutzers (2026-10-05):
+- **SELECT + DML:** SELECT/WITH überall (gesperrte Workspaces im READ-ONLY-Snapshot); INSERT/UPDATE/DELETE/MERGE nur auf schreibbaren Workspaces in deren Transaktion (Commit/Rollback wie beim Editieren, auf Prod mit Bestätigung). DDL, PL/SQL-Blöcke, CALL, COMMIT/ROLLBACK/SAVEPOINT, ALTER SESSION werden mit Begründung abgewiesen.
+- **Ausführen:** Ctrl+Enter führt das Statement am Cursor aus (getrennt durch `;` oder Leerzeile), markierter Text hat Vorrang; ein Ergebnis-Grid.
+- **Komfort:** Bind-Variablen (`:kundeId` → Eingabefelder, gebunden), Autovervollständigung (Tabellen/Views/Synonyme, Spalten der Tabellen/Aliase im Statement, C#-Namen als Zusatz), Abfrage-Verlauf je Verbindung, Export des Ergebnisses wie im Grid.
+- Umsetzung (geplant): SQL-Tab im Workspace wie der LINQ-Tab (gespeichert → ersetzt „gespeicherte Abfragen“), Monaco mit SQL-Hervorhebung, `SqlResultGrid`, „Plan“. Statement-Klassifizierer im Core; die Lesesperre bleibt, alles andere über einen eigenen engen Weg an `OracleSession`. Grenze (dokumentieren): Funktionen mit autonomer Transaktion können aus einem SELECT heraus schreiben.
 
 ## 9. Offene UX-Fragen
 - Shortcut-Belegung für Commit/Rollback (Abschnitt 7) – vorläufig, Nutzerfeedback einholen.
