@@ -4,6 +4,7 @@ using System.Windows.Threading;
 using FerretSharp.App.Services;
 using FerretSharp.App.Views;
 using FerretSharp.Core;
+using FerretSharp.Core.ClrModel;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Oracle;
 using FerretSharp.Core.Settings;
@@ -77,6 +78,8 @@ public partial class App : Application
         builder.Services.AddSingleton<IDialogService, DialogService>();
         builder.Services.AddSingleton<IFileSaveService, FileSaveService>();
         builder.Services.AddSingleton<IFileOpenService, FileOpenService>();
+        builder.Services.AddSingleton<IModelHostRunner>(new ModelHostRunner(Path.Combine(AppContext.BaseDirectory, "modelhost", "FerretSharp.ModelHost.dll")));
+        builder.Services.AddSingleton<ClrModelManager>();
         builder.Services.AddSingleton<ExitGuard>();
         builder.Services.AddSingleton<MainWindow>();
 

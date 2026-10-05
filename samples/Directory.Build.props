@@ -1,0 +1,13 @@
+<Project>
+
+  <!-- The samples stand in for a user's own .NET project (EF Core 8, DB-first by hand). They do not inherit
+       FerretSharp's build settings: this file stops MSBuild's search for Directory.Build.props here. -->
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+</Project>

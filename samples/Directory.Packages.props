@@ -1,0 +1,12 @@
+<Project>
+
+  <!-- Package versions of the samples (a user's project), independent of FerretSharp's own. -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageVersion Include="Oracle.EntityFrameworkCore" Version="8.23.26301" />
+  </ItemGroup>
+
+</Project>
