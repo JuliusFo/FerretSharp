@@ -5,6 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [2.1.2] - 2026-10-05
+
+### Changed
+- C# model: the comparison with the database reads the column names of a whole schema in one query instead of three queries per table – for a model with 425 entities over a VPN that was several minutes.
+- While the model loads, the model page and the status bar show the current step ("Baue das Modell (OnModelCreating)", "Lese die Spaltennamen (…)") with its running time; afterwards the model page lists how long each step took.
+
 ## [2.1.1] - 2026-10-05
 
 ### Fixed

@@ -10,7 +10,8 @@ namespace FerretSharp.Core.ClrModel;
 public interface IModelHostRunner
 {
     /// <summary>Runs the model host on the build output; failures come back as <see cref="ModelHostResult.Error"/>.</summary>
-    Task<ModelHostResult> ReadModelAsync(ClrProjectLink link, BuildOutput output, CancellationToken cancellationToken);
+    /// <param name="progress">The step the host is in ('Baue das Modell (OnModelCreating)'); may be called on any thread.</param>
+    Task<ModelHostResult> ReadModelAsync(ClrProjectLink link, BuildOutput output, CancellationToken cancellationToken, IProgress<string>? progress = null);
 
     /// <summary><c>dotnet build</c> of the linked project in its configuration.</summary>
     Task<DotNetRun> BuildAsync(ClrProjectLink link, CancellationToken cancellationToken);
@@ -34,7 +35,7 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
 
     private readonly TimeSpan _timeout = timeout ?? DefaultTimeout;
 
-    public async Task<ModelHostResult> ReadModelAsync(ClrProjectLink link, BuildOutput output, CancellationToken cancellationToken)
+    public async Task<ModelHostResult> ReadModelAsync(ClrProjectLink link, BuildOutput output, CancellationToken cancellationToken, IProgress<string>? progress = null)
     {
         if (!File.Exists(modelHostPath))
         {
@@ -61,7 +62,14 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
                 arguments.AddRange(["--context", context]);
             }
 
-            var run = await DotNetCli.RunAsync(arguments, Path.GetDirectoryName(output.Assembly)!, _timeout, cancellationToken);
+            progress?.Report("Starte den Hilfsprozess");
+            var run = await DotNetCli.RunAsync(arguments, Path.GetDirectoryName(output.Assembly)!, _timeout, cancellationToken, line =>
+            {
+                if (line.StartsWith(ModelHostResult.ProgressPrefix, StringComparison.Ordinal))
+                {
+                    progress?.Report(line[ModelHostResult.ProgressPrefix.Length..]);
+                }
+            });
             if (File.Exists(result))
             {
                 await using var stream = File.OpenRead(result);
@@ -125,7 +133,9 @@ public static class DotNetCli
 {
     private const int MaxOutput = 200_000;
 
-    public static async Task<DotNetRun> RunAsync(IEnumerable<string> arguments, string workingDirectory, TimeSpan timeout, CancellationToken cancellationToken)
+    /// <param name="onOutputLine">Called for every line on stdout as it arrives (any thread).</param>
+    public static async Task<DotNetRun> RunAsync(
+        IEnumerable<string> arguments, string workingDirectory, TimeSpan timeout, CancellationToken cancellationToken, Action<string>? onOutputLine = null)
     {
         var start = new ProcessStartInfo(FindDotNet())
         {
@@ -165,7 +175,14 @@ public static class DotNetCli
             }
         }
 
-        process.OutputDataReceived += (_, e) => Append(e.Data);
+        process.OutputDataReceived += (_, e) =>
+        {
+            Append(e.Data);
+            if (e.Data is { } line)
+            {
+                onOutputLine?.Invoke(line);
+            }
+        };
         process.ErrorDataReceived += (_, e) => Append(e.Data);
         if (!process.Start())
         {

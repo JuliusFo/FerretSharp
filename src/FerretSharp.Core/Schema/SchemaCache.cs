@@ -85,6 +85,10 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
     public Task<IReadOnlyList<Data.LockHolder>?> GetLockHoldersAsync(TableRef table, CancellationToken cancellationToken) =>
         reader.GetLockHoldersAsync(table, cancellationToken);
 
+    /// <summary>Column names of all objects of a schema in one query (not cached: the C# model comparison reads them once).</summary>
+    public Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetColumnNamesAsync(string owner, CancellationToken cancellationToken) =>
+        reader.GetColumnNamesAsync(owner, cancellationToken);
+
     /// <summary>Relationships where <paramref name="table"/> references other tables.</summary>
     public IEnumerable<ForeignKeyInfo> OutgoingOf(TableRef table) => _outgoing[table];
 

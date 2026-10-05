@@ -69,6 +69,14 @@
                         <div class="hint">@CreatedBy(model.CreatedBy) – ohne Startcode der Anwendung, ohne Datenbankverbindung</div>
                     </dd>
                 }
+                @if (State.Phase != ClrModelPhase.Loading && State.Steps is { Count: > 0 } steps)
+                {
+                    <dt>Ladezeit</dt>
+                    <dd>
+                        @Duration(TimeSpan.FromTicks(steps.Sum(s => s.Duration.Ticks)))
+                        <div class="hint">@string.Join(" · ", steps.Select(s => $"{s.Name} {Duration(s.Duration)}"))</div>
+                    </dd>
+                }
             </dl>
 
             @if (State.Output is { IsStale: true } stale)
@@ -80,7 +88,11 @@
 
             @if (State.Phase == ClrModelPhase.Loading)
             {
-                <div class="model-status"><span class="spinner small"></span> Lese das Modell …</div>
+                <div class="model-status">
+                    <span class="spinner small"></span>
+                    <span>@(State.Step ?? "Lese das Modell") …</span>
+                    <span class="hint">@Elapsed(State.StepStartedAt)@(State.LoadStartedAt is { } started ? $" · insgesamt {Elapsed(started)}" : "")</span>
+                </div>
             }
             else if (State is { Phase: ClrModelPhase.Failed, Error: { } error })
             {
@@ -207,11 +219,27 @@
 
     private ConnectionProfile? Profile => Active.Profile is { } active ? Connections.Profiles.FirstOrDefault(p => p.Id == active.Id) ?? active : null;
 
+    private Timer? _ticker;
+
     protected override void OnInitialized()
     {
         Models.Changed += OnChanged;
         Active.Changed += OnChanged;
+        // The seconds while loading.
+        _ticker = new Timer(_ =>
+        {
+            if (Models.State.Phase == ClrModelPhase.Loading)
+            {
+                OnChanged();
+            }
+        }, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
     }
+
+    private static string Elapsed(DateTimeOffset? since) => since is { } start ? Duration(DateTimeOffset.Now - start) : "";
+
+    private static string Duration(TimeSpan duration) => duration.TotalSeconds < 10
+        ? duration.TotalSeconds.ToString("0.0", CultureInfo.CurrentCulture) + " s"
+        : duration.TotalSeconds < 120 ? $"{duration.TotalSeconds:0} s" : $"{(int)duration.TotalMinutes} min {duration.Seconds} s";
 
     private void OnChanged() => InvokeAsync(StateHasChanged);
 
@@ -235,6 +263,7 @@
 
     public void Dispose()
     {
+        _ticker?.Dispose();
         Models.Changed -= OnChanged;
         Active.Changed -= OnChanged;
     }

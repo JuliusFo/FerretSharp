@@ -66,7 +66,9 @@ public sealed class ClrModelMapping
     /// Matches every entity to its table or view (exact name; a synonym of the default schema; otherwise in another
     /// letter case, reported) and every property to its column, and lists the differences.
     /// </summary>
-    public static async Task<ClrModelMapping> BuildAsync(ModelExport model, SchemaCache schema, CancellationToken cancellationToken)
+    /// <param name="progress">The current step, for the model page.</param>
+    public static async Task<ClrModelMapping> BuildAsync(
+        ModelExport model, SchemaCache schema, CancellationToken cancellationToken, IProgress<string>? progress = null)
     {
         var entities = new List<EntityMapping>();
         var issues = new List<MappingIssue>();
@@ -123,11 +125,19 @@ public sealed class ClrModelMapping
             located.Add((entity, caseOnly, columnOf));
         }
 
+        // One query per schema for all column names: one per table took minutes for a large model over a VPN.
+        var columnsByOwner = new Dictionary<string, IReadOnlyDictionary<string, IReadOnlyList<string>>>(StringComparer.Ordinal);
+        foreach (var owner in located.Select(l => l.Table.Owner).Distinct(StringComparer.Ordinal))
+        {
+            progress?.Report($"Lese die Spaltennamen ({owner})");
+            columnsByOwner[owner] = await schema.GetColumnNamesAsync(owner, cancellationToken);
+        }
+
+        progress?.Report("Gleiche Modell und Datenbank ab");
         foreach (var group in located.GroupBy(l => l.Table.Ref))
         {
             var table = group.First().Table;
-            var details = await schema.GetDetailsAsync(table, cancellationToken);
-            var columns = details.Columns.Select(c => c.Name).ToList();
+            var columns = columnsByOwner[table.Owner].GetValueOrDefault(table.Name) ?? [];
             var mapped = new HashSet<string>(StringComparer.Ordinal);
 
             foreach (var (entity, _, columnOf) in group)
