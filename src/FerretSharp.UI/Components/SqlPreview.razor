@@ -1,7 +1,7 @@
 @using FerretSharp.Core.Query
 
 <div class="modal-backdrop" @onclick="OnClose" @onkeydown="OnKeyDown">
-    <div class="modal dialog sql-dialog" @onclick:stopPropagation="true" role="dialog" aria-label="Generiertes SQL">
+    <div class="modal dialog sql-dialog" @onclick:stopPropagation="true" role="dialog" aria-label="Generiertes SQL" tabindex="-1" @ref="_dialog">
         <header>
             <span>@Title</span>
             <span class="spacer"></span>
@@ -33,6 +33,7 @@
 
 @code {
     private bool _copied;
+    private ElementReference _dialog;
 
     [Inject]
     private IJSRuntime JS { get; set; } = null!;
@@ -51,6 +52,14 @@
 
     [Parameter]
     public EventCallback OnClose { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await _dialog.FocusAsync(); // Escape closes
+        }
+    }
 
     private async Task CopyAsync()
     {

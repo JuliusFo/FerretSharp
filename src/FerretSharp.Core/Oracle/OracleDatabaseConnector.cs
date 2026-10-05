@@ -39,6 +39,8 @@ public sealed class OracleDatabaseConnector : IDatabaseConnector
 
         public TransactionInfo Transaction => session.Transaction;
 
+        public IDataEditor Editor { get; } = new OracleDataEditor(session);
+
         public Task UseReadOnlySnapshotsAsync(CancellationToken cancellationToken) =>
             OracleErrors.Guard(async () =>
             {
@@ -88,6 +90,9 @@ public sealed class OracleDatabaseConnector : IDatabaseConnector
 
         public Task<string> GetDdlAsync(TableSummary table, CancellationToken cancellationToken) =>
             OracleErrors.Guard(() => inner.GetDdlAsync(table, cancellationToken));
+
+        public Task<IReadOnlyList<LockHolder>?> GetLockHoldersAsync(TableRef table, CancellationToken cancellationToken) =>
+            OracleErrors.Guard(() => inner.GetLockHoldersAsync(table, cancellationToken));
     }
 }
 

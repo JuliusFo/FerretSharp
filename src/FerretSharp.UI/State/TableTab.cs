@@ -1,4 +1,5 @@
 using FerretSharp.Core.Connections;
+using FerretSharp.Core.Data;
 using FerretSharp.Core.Query;
 using FerretSharp.Core.Schema;
 using FerretSharp.Core.Workspaces;
@@ -84,6 +85,12 @@ public sealed class TableTab(Guid workspaceId, TableSummary table)
 
     /// <summary>Snapshot the shown data comes from (read-only profiles); null without one.</summary>
     public DateTimeOffset? DataAsOf { get; set; }
+
+    /// <summary>
+    /// Edits of this tab (v2); null while the table cannot be edited (read-only connection, view, no row key) or
+    /// its structure is not loaded yet. Not saved with the workspace: uncommitted work is confirmed before leaving.
+    /// </summary>
+    public ChangeTracker? Changes { get; set; }
 
     public long? TotalCount { get; set; }
 

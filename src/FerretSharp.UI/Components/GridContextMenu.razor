@@ -24,6 +24,22 @@
         <button class="menu-item" @onclick="TogglePinAsync">@(Pinned ? "Spalte lösen" : "Spalte links anheften")</button>
     }
 
+    @if (Tab.Changes is { } changes)
+    {
+        var selected = Request.Selected.Select(r => changes.Find(r.Key)).ToList();
+        <div class="group-head-btn static">Bearbeiten · @RowsText(Request.Selected.Count)</div>
+        @if (selected.Any(c => c?.Deleted is null))
+        {
+            <button class="menu-item danger" title="Wird mit „Schreiben“ (Ctrl+S) gelöscht" @onclick="() => EditRowsAsync(OnDeleteRows)">Zeile löschen</button>
+        }
+        @if (selected.Any(c => c is { HasPending: true }))
+        {
+            <button class="menu-item" title="Ausstehende Änderungen dieser Zeilen verwerfen (auch ein noch nicht geschriebenes Löschen)" @onclick="() => EditRowsAsync(OnRevertRows)">
+                Ausstehende Änderungen verwerfen
+            </button>
+        }
+    }
+
     <div class="group-head-btn static">Export · @RowsText(Request.Selected.Count)</div>
     <button class="menu-item" title="Tabulator-getrennt mit Kopfzeile – lässt sich direkt in Excel einfügen" @onclick="CopyTableAsync">Als Tabelle kopieren</button>
     <button class="menu-item" title="INSERT-Statements (werden nie ausgeführt)" @onclick="CopyInsertAsync">Als INSERT kopieren</button>
@@ -87,6 +103,21 @@
 
     [Parameter]
     public EventCallback<int> OnTogglePin { get; set; }
+
+    /// <summary>Grid row indexes of the selected rows to mark for deletion.</summary>
+    [Parameter]
+    public EventCallback<IReadOnlyList<int>> OnDeleteRows { get; set; }
+
+    /// <summary>Grid row indexes of the selected rows whose pending changes to drop.</summary>
+    [Parameter]
+    public EventCallback<IReadOnlyList<int>> OnRevertRows { get; set; }
+
+    private async Task EditRowsAsync(EventCallback<IReadOnlyList<int>> action)
+    {
+        var rows = Request.SelectedIndexes ?? [];
+        await CloseAsync();
+        await action.InvokeAsync(rows);
+    }
 
     private ColumnInfo Column => Details.Columns[Request.Column];
 

@@ -9,6 +9,7 @@ namespace FerretSharp.UI.State;
 /// <param name="Selected">Raw values of all selected rows in grid order (export).</param>
 /// <param name="MissingRows">Selected rows whose block is no longer cached; they cannot be exported.</param>
 /// <param name="X">Mouse position in CSS pixels, relative to the viewport.</param>
+/// <param name="SelectedIndexes">Grid row indexes of the selected rows (delete/revert from the menu).</param>
 public sealed record GridContextMenuRequest(
     RowData Row, int Column, string? CellText, IReadOnlyList<RowData> Selected, int MissingRows,
-    double X, double Y, double ViewportWidth, double ViewportHeight);
+    double X, double Y, double ViewportWidth, double ViewportHeight, IReadOnlyList<int>? SelectedIndexes = null);

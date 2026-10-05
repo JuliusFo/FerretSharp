@@ -57,6 +57,24 @@
                 }
             </div>
         </div>
+        <div class="settings-row">
+            <div class="settings-label">
+                <span>Warten auf gesperrte Zeilen</span>
+                <span class="hint">
+                    Hält eine andere Session eine Zeile gesperrt, die du schreiben willst, wartet FerretSharp so lange und
+                    zeigt dann, wer sperrt (<code>SELECT … FOR UPDATE WAIT n</code>).
+                </span>
+            </div>
+            <div class="segmented" role="radiogroup" aria-label="Warten auf gesperrte Zeilen">
+                @foreach (var seconds in WaitOptions)
+                {
+                    var value = seconds;
+                    <button class="seg @(Settings.Current.LockWaitSeconds == value ? "active" : "")" role="radio"
+                            aria-checked="@(Settings.Current.LockWaitSeconds == value ? "true" : "false")"
+                            @onclick="() => SetLockWaitAsync(value)">@value s</button>
+                }
+            </div>
+        </div>
     </section>
 </div>
 
@@ -79,6 +97,20 @@
         try
         {
             await Theme.SetModeAsync(mode);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Shell.Notify($"Einstellung angewendet, aber nicht gespeichert: {ex.Message}");
+        }
+    }
+
+    private static readonly int[] WaitOptions = [1, 3, 5, 10, 30];
+
+    private async Task SetLockWaitAsync(int seconds)
+    {
+        try
+        {
+            await Settings.UpdateAsync(s => s with { LockWaitSeconds = seconds }, CancellationToken.None);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

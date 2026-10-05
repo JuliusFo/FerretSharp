@@ -35,6 +35,10 @@
         <span class="spacer"></span>
         @if (Tab.Mode == TabMode.Data && _details is not null)
         {
+            @if (Tab.Changes is not null)
+            {
+                <button class="btn ghost" title="Neue Zeile oben im Grid anlegen – wird mit „Schreiben“ (Ctrl+S) eingefügt" @onclick="() => _grid?.AddRowAsync() ?? Task.CompletedTask">+ Zeile</button>
+            }
             <ColumnJump @ref="_jump" Details="_details" OnJump="c => _pendingJump = c" />
         }
         @if (_details is not null && Tab.Mode != TabMode.Structure)
@@ -152,7 +156,9 @@
 @if (_menu is { } menu && _details is not null)
 {
     <GridContextMenu @key="menu" Request="menu" Tab="Tab" Details="_details" OnClose="() => _menu = null"
-                     Pinned="@(_grid?.IsPinned(menu.Column) == true)" OnTogglePin="TogglePinAsync" />
+                     Pinned="@(_grid?.IsPinned(menu.Column) == true)" OnTogglePin="TogglePinAsync"
+                     OnDeleteRows="rows => _grid?.ChangeRowsAsync(rows, delete: true) ?? Task.CompletedTask"
+                     OnRevertRows="rows => _grid?.ChangeRowsAsync(rows, delete: false) ?? Task.CompletedTask" />
 }
 
 @if (_columnMenu is { } columnMenu && _details is not null)
@@ -391,6 +397,9 @@
                     break;
                 case TabCommand.Refresh:
                     await RefreshViewAsync();
+                    break;
+                case TabCommand.Reload when _grid is not null:
+                    await _grid.ReloadAsync();
                     break;
                 case TabCommand.FindColumn when Tab.Mode == TabMode.Data:
                     _jump?.Open();

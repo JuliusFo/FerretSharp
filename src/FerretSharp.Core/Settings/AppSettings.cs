@@ -20,6 +20,12 @@ public sealed record AppSettings
     /// and firewalls do not drop idle connections. Keeps sessions alive against a database <c>IDLE_TIME</c> as well.
     /// </summary>
     public bool KeepAlive { get; init; } = true;
+
+    /// <summary>
+    /// Seconds to wait for a row another session has locked before writing gives up with a lock conflict
+    /// (<c>SELECT … FOR UPDATE WAIT n</c>, 1–60).
+    /// </summary>
+    public int LockWaitSeconds { get; init; } = Query.DmlBuilder.DefaultLockWaitSeconds;
 }
 
 /// <summary>

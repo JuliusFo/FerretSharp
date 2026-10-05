@@ -76,6 +76,7 @@ public partial class App : Application
         builder.Services.AddSingleton<IThemeService, ThemeService>();
         builder.Services.AddSingleton<IDialogService, DialogService>();
         builder.Services.AddSingleton<IFileSaveService, FileSaveService>();
+        builder.Services.AddSingleton<ExitGuard>();
         builder.Services.AddSingleton<MainWindow>();
 
         _host = builder.Build();

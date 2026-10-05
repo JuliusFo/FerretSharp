@@ -25,6 +25,9 @@ public interface IDatabaseConnection : IAsyncDisposable
 
     TransactionInfo Transaction { get; }
 
+    /// <summary>Writing in this session's transaction (v2); refused by Oracle on a locked session.</summary>
+    IDataEditor Editor { get; }
+
     /// <summary>
     /// Locks the session for a read-only profile: it runs in <c>SET TRANSACTION READ ONLY</c> from now on, so Oracle
     /// rejects DML. Every new query (first page) starts a new snapshot.

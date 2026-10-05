@@ -1,5 +1,6 @@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
+@using FerretSharp.Core.Oracle
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
 @using FerretSharp.UI.State
@@ -40,7 +41,13 @@
 
     public sealed record GridSort(string ColId, string Sort);
 
-    public sealed record GridPage(IReadOnlyList<Dictionary<string, string?>> Rows, int LastRow);
+    public sealed record GridPage(IReadOnlyList<Dictionary<string, object?>> Rows, int LastRow);
+
+    /// <summary>Result of an edit for grid.js: the redrawn row, or the message to show in the reopened editor.</summary>
+    public sealed record GridEdit(Dictionary<string, object?>? Row, string? Error);
+
+    /// <summary>Rows to redraw after deleting/reverting (by row index) and the new rows at the top.</summary>
+    public sealed record GridRowUpdate(int RowIndex, Dictionary<string, object?> Row);
 
     private static string ColumnId(int index) => "c" + index.ToString(CultureInfo.InvariantCulture);
 
@@ -55,6 +62,10 @@
 
         var foreignKeyColumns = Active.Schema?.OutgoingOf(Details.Table.Ref).SelectMany(f => f.FromColumns).ToHashSet() ?? [];
         Tab.PinnedColumns = ColumnPinning.Normalize(Details, Tab.PinnedColumns); // columns may have been dropped since
+        if (CanEdit)
+        {
+            Tab.Changes ??= new ChangeTracker(Details);
+        }
         var columns = ColumnPinning.DisplayOrder(Details, Tab.PinnedColumns).Select(i =>
         {
             var c = Details.Columns[i];
@@ -72,6 +83,10 @@
                 sortable = ColumnCategories.IsSortable(category),
                 pinned = ColumnPinning.IsPinned(Details, Tab.PinnedColumns, c.Name),
                 comment = c.Comment,
+                editable = CanEdit && OracleTypeMapper.NotEditableReason(Details, c, newRow: false) is null,
+                editableNew = CanEdit && OracleTypeMapper.NotEditableReason(Details, c, newRow: true) is null,
+                // Long texts (and their line breaks) are edited in a larger box.
+                multiline = category == ColumnCategory.Text && (c.Length ?? 0) > 200,
             };
         }).ToList();
         var sorts = Tab.Sorts
@@ -82,6 +97,20 @@
         _selfRef = DotNetObjectReference.Create(this);
         _module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/grid.js");
         await _module.InvokeVoidAsync("create", Tab.Id, _selfRef, columns, sorts, Tab.FirstVisibleRow ?? 0);
+        if (Tab.Changes?.NewRows.Count > 0)
+        {
+            await SetNewRowsAsync(); // the tab was mounted again (workspace switch) with new rows still unsaved
+        }
+    }
+
+    /// <summary>Fetches the loaded rows again where they are (after writing, commit, rollback) and redraws the new rows.</summary>
+    public async Task ReloadAsync()
+    {
+        if (_module is not null)
+        {
+            await _module.InvokeVoidAsync("reload", Tab.Id);
+            await SetNewRowsAsync();
+        }
     }
 
     /// <summary>Reloads from the first row, e.g. after filters changed.</summary>
@@ -101,6 +130,224 @@
             await _module.InvokeVoidAsync("setRowCount", Tab.Id, (int)Math.Min(count, int.MaxValue));
         }
     }
+
+    /// <summary>
+    /// Editing is possible on connections without the read-only lock, for tables with a row key (v2, WP-09). Prod
+    /// stays locked until it is unlocked (WP-10).
+    /// </summary>
+    public bool CanEdit => Active.Profile?.ReadOnly == false
+                           && Details.Table.Kind == TableKind.Table
+                           && QueryBuilder.RowKeyOf(Details) != RowKeyKind.None;
+
+    /// <summary>
+    /// A grid row: display texts by column id, with pending/flushed values of the tab's changes laid over the loaded
+    /// ones. Extra fields for grid.js: <c>__s</c> stage per column ("p" pending, "f" flushed), <c>__d</c> deleted
+    /// ("p"/"f"), <c>__ro</c> columns whose value cannot be edited, <c>__new</c> id of a new row.
+    /// </summary>
+    private Dictionary<string, object?> GridRow(RowData row) => GridRow(Tab.Changes?.Find(row.Key), row.Values);
+
+    private Dictionary<string, object?> GridRow(RowChange? change, IReadOnlyList<object?>? values)
+    {
+        var cells = new Dictionary<string, object?>(Details.Columns.Count + 4);
+        var stages = new Dictionary<string, string>();
+        var readOnly = new List<string>();
+        for (var i = 0; i < Details.Columns.Count; i++)
+        {
+            var id = ColumnId(i);
+            var value = change is not null ? change.ValueOf(i) : values?[i];
+            cells[id] = CellFormatter.Format(Details.Columns[i], value);
+            if (change?.StageOf(i) is { } stage)
+            {
+                stages[id] = stage == ChangeStage.Pending ? "p" : "f";
+            }
+
+            if (!OracleTypeMapper.IsEditableValue(value))
+            {
+                readOnly.Add(id);
+            }
+        }
+
+        if (stages.Count > 0)
+        {
+            cells["__s"] = stages;
+        }
+
+        if (change?.Deleted is { } deleted)
+        {
+            cells["__d"] = deleted == ChangeStage.Pending ? "p" : "f";
+        }
+
+        if (readOnly.Count > 0)
+        {
+            cells["__ro"] = readOnly;
+        }
+
+        if (change is { IsNew: true, IsInserted: false })
+        {
+            cells["__new"] = change.Id.ToString("N");
+        }
+
+        return cells;
+    }
+
+    private RowChange? NewRow(string? newId) =>
+        newId is null ? null : Tab.Changes?.NewRows.FirstOrDefault(r => r.Id.ToString("N") == newId);
+
+    /// <summary>Full value of a cell for the editor (pending value if any); null if it cannot be edited.</summary>
+    [JSInvokable]
+    public string? GetEditText(int rowIndex, string? newId, string colId)
+    {
+        var column = ColumnIndex(colId);
+        if (NewRow(newId) is { } added)
+        {
+            return OracleTypeMapper.EditText(Details.Columns[column], added.ValueOf(column));
+        }
+
+        return RowAt(rowIndex) is { } row
+            ? OracleTypeMapper.EditText(Details.Columns[column], Tab.Changes?.Find(row.Key)?.ValueOf(column) ?? row.Values[column])
+            : null;
+    }
+
+    /// <summary>Enter in the editor: the message if the text cannot be taken; the editor then stays open.</summary>
+    [JSInvokable]
+    public string? ValidateEdit(int rowIndex, string? newId, string colId, string text)
+    {
+        var column = Details.Columns[ColumnIndex(colId)];
+        if (NewRow(newId) is not null)
+        {
+            // Empty stays allowed while filling a new row (see ChangeTracker.SetValue).
+            return string.IsNullOrEmpty(text) ? null : OracleTypeMapper.Parse(column, text).Error;
+        }
+
+        return RowAt(rowIndex) is null
+            ? "Die Zeile ist nicht mehr geladen – bitte neu laden (F5)."
+            : OracleTypeMapper.Parse(column, text).Error;
+    }
+
+    /// <summary>The user finished editing a cell: check the text in .NET and keep it as a pending change.</summary>
+    [JSInvokable]
+    public GridEdit OnCellEdit(int rowIndex, string? newId, string colId, string text)
+    {
+        if (Tab.Changes is not { } changes)
+        {
+            return new GridEdit(null, "Diese Tabelle lässt sich hier nicht bearbeiten.");
+        }
+
+        var column = ColumnIndex(colId);
+        EditResult result;
+        if (NewRow(newId) is { } added)
+        {
+            result = changes.SetValue(added, column, text);
+            ChangesMade();
+            return new GridEdit(result.IsValid ? GridRow(added, null) : null, result.Error);
+        }
+
+        if (RowAt(rowIndex) is not { } row)
+        {
+            return new GridEdit(null, "Die Zeile ist nicht mehr geladen – bitte neu laden (F5).");
+        }
+
+        result = changes.SetValue(row, column, text);
+        ChangesMade();
+        return new GridEdit(result.IsValid ? GridRow(row) : null, result.Error);
+    }
+
+    /// <summary>Del in the grid: marks the selected loaded rows for deletion; new rows disappear.</summary>
+    [JSInvokable]
+    public async Task<GridRowUpdate[]> OnDeleteKey(int[] rowIndexes, string[] newIds)
+    {
+        if (Tab.Changes is not { } changes)
+        {
+            return [];
+        }
+
+        foreach (var added in newIds.Select(NewRow).OfType<RowChange>().ToList())
+        {
+            changes.Delete(added);
+        }
+
+        var updates = new List<GridRowUpdate>();
+        foreach (var index in rowIndexes)
+        {
+            if (RowAt(index) is { } row)
+            {
+                changes.Delete(row);
+                updates.Add(new GridRowUpdate(index, GridRow(row)));
+            }
+        }
+
+        if (newIds.Length > 0)
+        {
+            await SetNewRowsAsync();
+        }
+
+        ChangesMade();
+        return updates.ToArray();
+    }
+
+    /// <summary>Deletes or reverts rows from the context menu; redraws them.</summary>
+    public async Task ChangeRowsAsync(IReadOnlyList<int> rowIndexes, bool delete)
+    {
+        if (Tab.Changes is not { } changes || _module is null)
+        {
+            return;
+        }
+
+        var updates = new List<GridRowUpdate>();
+        foreach (var index in rowIndexes)
+        {
+            if (RowAt(index) is not { } row)
+            {
+                continue;
+            }
+
+            if (delete)
+            {
+                changes.Delete(row);
+            }
+            else
+            {
+                changes.Revert(row.Key);
+            }
+
+            updates.Add(new GridRowUpdate(index, GridRow(row)));
+        }
+
+        await _module.InvokeVoidAsync("updateRows", Tab.Id, updates);
+        ChangesMade();
+    }
+
+    /// <summary>Adds an empty new row at the top and starts editing its first editable cell.</summary>
+    public async Task AddRowAsync()
+    {
+        if (Tab.Changes is not { } changes || _module is null)
+        {
+            return;
+        }
+
+        changes.AddRow();
+        await SetNewRowsAsync();
+        var first = ColumnPinning.DisplayOrder(Details, Tab.PinnedColumns)
+            .FirstOrDefault(i => OracleTypeMapper.NotEditableReason(Details, Details.Columns[i], newRow: true) is null, -1);
+        if (first >= 0)
+        {
+            await _module.InvokeVoidAsync("startEditing", Tab.Id, changes.NewRows.Count - 1, ColumnId(first), true);
+        }
+
+        ChangesMade();
+    }
+
+    /// <summary>The new (not yet inserted) rows, pinned at the top of the grid.</summary>
+    public async Task SetNewRowsAsync()
+    {
+        if (_module is not null)
+        {
+            await _module.InvokeVoidAsync("setNewRows", Tab.Id, (Tab.Changes?.NewRows ?? []).Select(r => GridRow(r, null)).ToList());
+        }
+    }
+
+    /// <summary>The changes of the tab changed: the status bar and the tab header show counts.</summary>
+    private void ChangesMade() => Shell.NotifyChanged();
 
     /// <summary>Scrolls the column into view, highlights it briefly and focuses its cell in the first visible row.</summary>
     public async Task JumpToColumnAsync(int column)
@@ -162,18 +409,7 @@
             var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, CancellationToken.None);
             var page = await Task.Run(() => data.ReadPageAsync(details, filters, sorts, new PageSpec(startRow, endRow - startRow), CancellationToken.None));
 
-            var rows = new List<Dictionary<string, string?>>(page.Rows.Count);
-            foreach (var row in page.Rows)
-            {
-                var cells = new Dictionary<string, string?>(details.Columns.Count);
-                for (var i = 0; i < details.Columns.Count; i++)
-                {
-                    cells[ColumnId(i)] = CellFormatter.Format(details.Columns[i], row.Values[i]);
-                }
-
-                rows.Add(cells);
-            }
-
+            var rows = page.Rows.Select(GridRow).ToList();
             KeepBlock(startRow, page.Rows);
             Tab.RowsLoaded = Math.Max(Tab.RowsLoaded, startRow + page.Rows.Count);
             Tab.AllRowsLoaded |= page.IsLastPage;
@@ -220,7 +456,7 @@
         var column = int.Parse(colId[1..], CultureInfo.InvariantCulture);
         await OnContextMenu.InvokeAsync(new GridContextMenuRequest(
             row, column, CellFormatter.Format(Details.Columns[column], row.Values[column]),
-            selected.OfType<RowData>().ToList(), selected.Count(r => r is null), x, y, viewportWidth, viewportHeight));
+            selected.OfType<RowData>().ToList(), selected.Count(r => r is null), x, y, viewportWidth, viewportHeight, selectedRows.Order().ToList()));
     }
 
     /// <summary>
