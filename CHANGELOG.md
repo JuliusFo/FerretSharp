@@ -5,7 +5,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- Unlock a workspace of a "Schreibgeschützt" connection (Prod by default) for writing: via the READ-ONLY badge, "Freischalten …" in the status bar or the workspace's "⋯" menu. On Prod you confirm by typing the connection's name. Only that workspace is unlocked – the others stay protected by Oracle – and it is never saved: closing the workspace, disconnecting or reconnecting locks it again. "Sperren" locks it manually after asking to commit or discard open changes.
+- An unlocked workspace is unmistakable: striped "PROD · FREIGESCHALTET" badge, open padlock on its workspace chip, "freigeschaltet" in the status bar. Its tabs reload on unlock, since they showed the read-only snapshot.
+- LOB editor for CLOB, NCLOB and BLOB cells (double-click, Enter or "Inhalt öffnen …" in the context menu): the whole value, not just the grid preview. Texts up to 10 MB can be edited directly; any LOB up to 100 MB can be saved to a file or replaced from a file (text files as UTF-8, UTF-16 or Windows-1252), or set to NULL. BLOBs show a hex view and images (PNG, JPEG, GIF, BMP, WebP) as a preview. On locked workspaces the editor opens read-only – handy to read a long CLOB or save a BLOB.
+- LOB changes are pending changes like cell edits (write, commit, undo, rollback); the concurrency check compares the whole value as it was when the editor opened.
+
+### Changed
+- Long values in SQL previews, error dialogs and logs are shortened (texts after 500 characters, binary values after 64 bytes, with their full length).
+
 ### Fixed
+- Double-clicking a cell of a new row (pinned at the top) did not start editing in the app (since 1.9.0).
 - The status bar no longer wraps into two cramped lines in narrower windows: entries stay on one line, connection, workspace, server version and schema are shortened with "…" (full text as tooltip), and server version and schema give way entirely when space runs out.
 - The window cannot be made smaller than 960 × 560.
 
