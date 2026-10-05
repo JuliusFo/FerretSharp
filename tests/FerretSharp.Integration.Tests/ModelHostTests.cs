@@ -18,8 +18,9 @@ public sealed class ModelHostTests
     private static ClrProjectLink SampleLink(string? context = null) =>
         new(Path.Combine(Root, "samples", "FerretSharp.SampleModel.Data", "FerretSharp.SampleModel.Data.csproj"), Configuration, context);
 
-    private static ModelHostRunner Runner() =>
-        new(Path.Combine(Root, "src", "FerretSharp.ModelHost", "bin", Configuration, "net8.0", "FerretSharp.ModelHost.dll"));
+    private static ModelHostRunner Runner(string culture = "de-DE") =>
+        new(Path.Combine(Root, "src", "FerretSharp.ModelHost", "bin", Configuration, "net8.0", "FerretSharp.ModelHost.dll"),
+            culture: System.Globalization.CultureInfo.GetCultureInfo(culture));
 
     private sealed class StepCollector : IProgress<string>
     {
@@ -149,5 +150,23 @@ public sealed class ModelHostTests
         var result = await new ModelHostRunner(Path.Combine(Root, "gibt-es-nicht.dll")).ReadModelAsync(link, BuildOutputLocator.Find(link), Ct);
 
         Assert.Equal(ClrModelErrorKind.HostFailed, result.Error!.Kind);
+    }
+
+    [Theory]
+    [InlineData("de-DE", "Versendet")]
+    [InlineData("en-US", "Shipped")]
+    public async Task Enum_display_names_come_from_the_projects_resources_in_the_ui_culture(string culture, string versandt)
+    {
+        var link = SampleLink();
+        var result = await Runner(culture).ReadModelAsync(link, BuildOutputLocator.Find(link), Ct);
+
+        var model = result.Model!;
+        var kundenart = model.Entities.Single(e => e.ClrType.EndsWith(".Kunde", StringComparison.Ordinal)).Properties.Single(p => p.Name == "Kundenart");
+        // [Display(Name = "Behörde")] without resources; members without the attribute have none.
+        Assert.Equal([null, null, "Behörde"], kundenart.Values!.Select(v => v.DisplayName));
+
+        // [Display(ResourceType = typeof(EnumTexts), Name = …)]: neutral resources in the assembly, German ones in de\ (satellite).
+        var status = model.Entities.Single(e => e.Name.EndsWith(".Auftrag", StringComparison.Ordinal)).Properties.Single(p => p.Name == "Status");
+        Assert.Equal<(string, string?, string?)>(("Versandt", "VERSANDT", versandt), status.Values!.Select(v => (v.Name, v.ProviderValue, v.DisplayName)).ElementAt(1));
     }
 }

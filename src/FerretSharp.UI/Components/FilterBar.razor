@@ -95,11 +95,12 @@
 
     private void AddRow()
     {
-        // Prefer the first text column: "contains" on a name is the most common quick filter.
-        var column = Details.Columns.FirstOrDefault(c => ColumnCategories.Of(c) == ColumnCategory.Text && !Details.PrimaryKey.Contains(c.Name))
+        // Prefer the first text column: "contains" on a name is the most common quick filter. Enum columns (C# model)
+        // are no names; they get their member list with "=".
+        var column = Details.Columns.FirstOrDefault(c => ColumnCategories.Of(c) == ColumnCategory.Text && !Details.PrimaryKey.Contains(c.Name) && ValuesOf(c.Name) is null)
                      ?? Details.Columns[0];
         var row = new FilterRow { Column = column.Name };
-        row.Op = FilterRules.OperatorsFor(ColumnCategories.Of(column))[0];
+        row.Op = Operators(ColumnCategories.Of(column), ValuesOf(column.Name), null)[0];
         Tab.FilterRows.Add(row);
         _newRow = row;
         Shell.MarkDirty();

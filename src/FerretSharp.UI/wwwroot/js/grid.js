@@ -369,7 +369,8 @@ export function create(elementId, dotnet, columns, sorts, firstRow, editable, he
     // The member list keeps the arrow keys while editing.
     suppressKeyboardEvent: p => p.editing && (p.event.key === 'Enter' || (!!meta.options && listKeys.has(p.event.key))),
     tooltipValueGetter: p => (p.value === null || p.value === undefined ? null
-      : p.data?.__u?.includes(meta.id) ? `${p.value}\n${meta.unknownText}` : p.value),
+      : p.data?.__u?.includes(meta.id) ? `${p.value}\n${meta.unknownText}`
+      : p.data?.__t?.[meta.id] ? `${p.value}\n${p.data.__t[meta.id]}` : p.value),
     headerComponent: FerretHeader,
     // A function, not the object: AG Grid deep-copies plain objects of the column def, and updateColumns changes meta in place.
     headerComponentParams: { getMeta: () => meta },

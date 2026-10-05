@@ -5,6 +5,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-10-05
+
+### Added
+- Enum members with `[Display(Name = …)]` show that text instead of the member name: "Fertigungsauftrag (0)". With `ResourceType` the text comes from the project's resources in FerretSharp's UI language (satellite assemblies such as `de\…resources.dll` included). The member name stays in the cell tooltip (`Auftragsart.ProductionOrder`), in the filter's member list and in the "Spalten" view.
+
+### Fixed
+- "+ Filter" picked an enum column as the first text column with "enthält", so its member list did not appear; it now prefers text columns without members and starts enum columns with "=".
+- `tools/sample-db/06-clr-relations.sql` failed on a fresh sample database (MITARBEITER already had rows).
+
 ## [2.2.0] - 2026-10-05
 
 ### Added

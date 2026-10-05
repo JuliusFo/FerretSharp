@@ -68,7 +68,9 @@
     protected override void OnParametersSet()
     {
         var unknown = Selected.Where(v => Values.Options.All(o => o.Value != v)).Select(v => new Item(v, v, "kein Member", true));
-        _items = Values.Options.Select(o => new Item(o.Name, o.Value, o.Value, false)).Concat(unknown).ToList();
+        // A display text shows its C# member beside the stored value, so it can be found in the code.
+        _items = Values.Options.Select(o => new Item(o.Name, o.Value, o.Member is { } member ? $"{member} · {o.Value}" : o.Value, false))
+            .Concat(unknown).ToList();
     }
 
     private void Toggle()

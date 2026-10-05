@@ -290,7 +290,8 @@
     /// A grid row: display texts by column id, with pending/flushed values of the tab's changes laid over the loaded
     /// ones. Extra fields for grid.js: <c>__s</c> stage per column ("p" pending, "f" flushed), <c>__d</c> deleted
     /// ("p"/"f"), <c>__ro</c> columns whose value cannot be edited, <c>__u</c> columns whose value is no member of
-    /// their enum (WP-12), <c>__new</c> id of a new row.
+    /// their enum (WP-12), <c>__t</c> extra tooltip per column (the C# member behind a display text), <c>__new</c> id
+    /// of a new row.
     /// </summary>
     private Dictionary<string, object?> GridRow(RowData row) => GridRow(Tab.Changes?.Find(row.Key), row.Values);
 
@@ -300,6 +301,7 @@
         var stages = new Dictionary<string, string>();
         var readOnly = new List<string>();
         var unknown = new List<string>();
+        Dictionary<string, string>? tooltips = null;
         for (var i = 0; i < Details.Columns.Count; i++)
         {
             var id = ColumnId(i);
@@ -309,6 +311,11 @@
             if (presented.Unknown)
             {
                 unknown.Add(id);
+            }
+
+            if (presented.Tooltip is { } tooltip)
+            {
+                (tooltips ??= [])[id] = tooltip;
             }
 
             if (change?.StageOf(i) is { } stage)
@@ -342,6 +349,11 @@
             cells["__u"] = unknown;
         }
 
+        if (tooltips is not null)
+        {
+            cells["__t"] = tooltips;
+        }
+
         if (change is { IsNew: true, IsInserted: false })
         {
             cells["__new"] = change.Id.ToString("N");
@@ -370,8 +382,8 @@
 
     /// <summary>The edit text; for enum and bool columns the member's database value as the member list has it.</summary>
     private string EditText(int column, object? value) =>
-        Presentation.ValuesOf(column)?.Find(value) is { } member
-            ? Presentation.ValuesOf(column)!.Options.First(o => o.Name == member.Name).Value
+        Presentation.ValuesOf(column)?.OptionOf(value) is { } option
+            ? option.Value
             : OracleTypeMapper.EditText(Details.Columns[column], value);
 
     /// <summary>Enter in the editor: the message if the text cannot be taken; the editor then stays open.</summary>

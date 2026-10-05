@@ -87,7 +87,11 @@ public sealed record PropertyExport(
 /// <param name="Name">Enum member (<c>Offen</c>) or <c>true</c>/<c>false</c>.</param>
 /// <param name="ClrValue">The C# value, invariant: the enum's number, <c>True</c>/<c>False</c>.</param>
 /// <param name="ProviderValue">What is stored in the database, invariant text (<c>OFFEN</c>, <c>J</c>, <c>2</c>); null for NULL.</param>
-public sealed record ValueMapping(string Name, string ClrValue, string? ProviderValue);
+/// <param name="DisplayName">
+/// The member's <c>[Display(Name = …)]</c>, resolved through its <c>ResourceType</c> in the host's UI culture; null without
+/// one (or if it could not be resolved).
+/// </param>
+public sealed record ValueMapping(string Name, string ClrValue, string? ProviderValue, string? DisplayName = null);
 
 /// <param name="Properties">The dependent's FK properties.</param>
 /// <param name="Navigation">Navigation on the dependent (<c>Auftrag.Kunde</c>); null without one.</param>
