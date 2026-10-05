@@ -2,7 +2,7 @@
 
 > Projektanweisungen für Claude Code. Bitte vollständig lesen, bevor ein Arbeitspaket umgesetzt wird.
 > Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-05 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0; WP-14 → 2.4.0; WP-15 → 3.0.0, v3 abgeschlossen)
+> Stand: 2026-10-05 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0; WP-14 → 2.4.0; WP-15 → 3.0.0, v3 abgeschlossen; v4: WP-16 → 3.1.0)
 
 ## 1. Ziel
 
@@ -531,6 +531,8 @@ Pakete aus dem Backlog, nach v3 mit dem Nutzer ausgewählt (2026-10-05). Version
 - Das exportierte C#-Modell wird gespeichert und wiederverwendet, solange sich die Build-Ausgabe nicht geändert hat – beim Verbinden entfällt dann der Hilfsprozess (beim Nutzer ~12 s, meist `OnModelCreating`); nur die Spaltenabfrage bleibt.
 - Entscheidung des Nutzers: **dem Fingerabdruck vertrauen** (keine Prüfung im Hintergrund). „Neu laden“ und „Neu bauen“ umgehen den Cache.
 - Fingerabdruck: Verknüpfung (Projekt, Konfiguration, DbContext), UI-Kultur (Display-Texte der Enums), Formatversion und ModelHost (Größe/Änderungszeit der DLL), Name/Größe/Änderungszeit aller `.dll`/`.exe`/`.json` im Build-Ordner samt Unterordnern (Sprachordner, referenzierte Projekte; Paketversionen stehen in der `deps.json`).
+- Umgesetzt (Release 3.1.0): `ModelCache` (Core/ClrModel) – eine Datei je Verknüpfung unter `<Datenordner>\cache\models\<Hash>.json` (Fingerabdruck, Exportzeit, Modell), atomar über `.tmp` + `Move` geschrieben; unlesbare/fremde Dateien zählen als „kein Cache“. `ClrModelManager`: Verbinden/Verknüpfung geändert → mit Cache (Schritt „Prüfe den Cache“), `LoadAsync()` („Neu laden“, nach „Neu bauen“) → ohne, speichert danach neu. `ClrModelState.CachedAt` → Modell-Seite „aus dem Cache · exportiert …“. E2E Beispielprojekt: Modell 0,1 s statt ~0,9 s Hilfsprozess (beim Nutzer erwartet: ~12 s → Sekundenbruchteile plus Spaltenabfrage).
+- Nebenbei behoben: Trennen mit offenem Grid warf eine unbehandelte `ObjectDisposedException` im UI-Thread (seit 2.2.0): `FerretGrid` reagierte auf „Modell entladen“, während es gerade abgebaut wurde. Handler prüfen jetzt `_disposed` und fangen `ObjectDisposedException` neben `JSDisconnectedException`. Gefunden im Log der E2E-Instanz – **nach E2E-Läufen das Log der Testinstanz auf `[ERR]` prüfen**.
 
 #### WP-17 Freier SQL-Editor → Release 3.2.0
 Entscheidungen des Nutzers (2026-10-05):

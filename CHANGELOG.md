@@ -5,6 +5,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-10-05
+
+### Added
+- Model cache: the C# model of a linked project is kept after it was read and reused on the next connect as long as the build output is unchanged (assemblies, deps.json, satellite assemblies, UI language) – no helper process, no `OnModelCreating` run; only the column comparison with the database remains. The model page shows "aus dem Cache · exportiert …". "Neu laden" and "Neu bauen" always read the project again.
+
+### Fixed
+- Disconnecting while a table tab was open could raise an unexpected error (the grid reacted to the model being unloaded while it was closing).
+
 ## [3.0.0] - 2026-10-05
 
 Completes v3 – the bridge to your C#/EF Core project: model, names and enums in the grid, LINQ console, execution plans and now code generation.
