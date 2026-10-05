@@ -1,4 +1,5 @@
 @* Right-click menu of a grid cell: copy the value, jump along foreign keys (outgoing and incoming with counts). *@
+@using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
 @using FerretSharp.Core.Oracle
@@ -10,6 +11,7 @@
 @inject WorkspaceManager Workspaces
 @inject IJSRuntime JS
 @inject IFileSaveService Files
+@inject PresentationService Presentations
 
 <div class="popover-backdrop" @onclick="CloseAsync" @oncontextmenu="CloseAsync" @oncontextmenu:preventDefault="true"></div>
 <div id="@_id" class="popover ctx-menu" style="@Position" tabindex="-1" @onkeydown="OnKeyDown" @oncontextmenu:preventDefault="true">
@@ -20,6 +22,12 @@
     <button class="menu-item" disabled="@(Request.CellText is null)" @onclick="CopyAsync">
         Wert kopieren @if (_copied) { <span class="ctx-meta">kopiert</span> }
     </button>
+    @if (_cell is { } cell)
+    {
+        <button class="menu-item" disabled="@(cell.Code is null)" title="@(cell.Problem ?? cell.Code)" @onclick="() => CopyCSharpValueAsync(cell.Code!)">
+            Als C#-Wert kopieren
+        </button>
+    }
     @if (OracleTypeMapper.IsLob(Column))
     {
         <button class="menu-item" title="Den ganzen Wert ansehen, als Datei speichern@(CanEdit ? " oder ändern" : "") (auch Doppelklick)" @onclick="OpenLobAsync">
@@ -52,6 +60,14 @@
     <button class="menu-item" title="INSERT-Statements (werden nie ausgeführt)" @onclick="CopyInsertAsync">Als INSERT kopieren</button>
     <button class="menu-item" title="Semikolon-getrennt, UTF-8 – öffnet sich direkt in Excel" @onclick="SaveCsvAsync">Als CSV speichern …</button>
     <button class="menu-item" @onclick="SaveInsertAsync">Als INSERT-Skript speichern …</button>
+
+    @if (_presentation.Entity is not null)
+    {
+        var seed = CSharpRows.HasDataUnavailable(_presentation);
+        <div class="group-head-btn static">C# · @_presentation.EntityName · @RowsText(Request.Selected.Count)</div>
+        <button class="menu-item" title="Objektinitialisierer mit Property-Namen und Enum-Membern (NULL-Werte weggelassen)" @onclick="CopyObjectsAsync">Als C#-Objekte kopieren</button>
+        <button class="menu-item" disabled="@(seed is not null)" title="@(seed ?? "builder.HasData(…) für die IEntityTypeConfiguration")" @onclick="CopySeedAsync">Als HasData kopieren</button>
+    }
 
     @if (_outgoing.Count > 0)
     {
@@ -88,6 +104,10 @@
     private IReadOnlyList<FkJump> _incoming = [];
     private IJSObjectReference? _dom;
     private bool _copied;
+    private TablePresentation _presentation = null!;
+
+    /// <summary>The clicked cell as C# (WP-15); null if the table has no entity.</summary>
+    private CSharpValue? _cell;
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -154,7 +174,7 @@
     {
         get
         {
-            var height = 292 + ItemHeight * (_outgoing.Count + _incoming.Count);
+            var height = 292 + ItemHeight * (_outgoing.Count + _incoming.Count) + (_cell is null ? 0 : 128);
             var left = Math.Max(8, Math.Min(Request.X, Request.ViewportWidth - MenuWidth - 8));
             var top = Math.Max(8, Math.Min(Request.Y, Request.ViewportHeight - height - 8));
             return FormattableString.Invariant($"position: fixed; left: {left:0}px; top: {top:0}px; width: {MenuWidth:0}px;");
@@ -194,6 +214,8 @@
 
     protected override void OnInitialized()
     {
+        _presentation = Presentations.For(Details);
+        _cell = _presentation.Entity is null ? null : CSharpRows.Cell(_presentation, Request.Column, Request.Row.Values[Request.Column]);
         if (Active.Schema is not { } schema)
         {
             return;
@@ -218,6 +240,7 @@
         {
             _dom = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
             await _dom.InvokeVoidAsync("focusById", _id); // Escape closes
+            await _dom.InvokeVoidAsync("keepInViewport", _id); // the height below is an estimate
         }
     }
 
@@ -311,6 +334,21 @@
         CopyExportAsync(DelimitedExport.Build(Details, Request.Selected, DelimitedExport.ClipboardSeparator), "als Tabelle kopiert");
 
     private Task CopyInsertAsync() => CopyExportAsync(InsertExport.Build(Details, Request.Selected), "als INSERT kopiert");
+
+    private Task CopyObjectsAsync() => CopyExportAsync(CSharpRows.Initializers(_presentation, Request.Selected), "als C#-Objekte kopiert");
+
+    private Task CopySeedAsync() => CopyExportAsync(CSharpRows.HasData(_presentation, Request.Selected), "als HasData kopiert");
+
+    private async Task CopyCSharpValueAsync(string code)
+    {
+        var copied = _dom is not null && await _dom.InvokeAsync<bool>("copyText", code);
+        var shell = Shell;
+        await CloseAsync();
+        if (!copied)
+        {
+            shell.Notify("Die Zwischenablage ist nicht verfügbar.");
+        }
+    }
 
     private Task SaveCsvAsync() =>
         SaveExportAsync(DelimitedExport.Build(Details, Request.Selected, DelimitedExport.CsvSeparator), ".csv", "CSV (Semikolon)", utf8Bom: true);

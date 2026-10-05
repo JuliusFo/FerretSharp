@@ -17,9 +17,19 @@ internal static class ModelReader
             .OfType<System.Reflection.AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion.Split('+')[0]
             ?? typeof(DbContext).Assembly.GetName().Version?.ToString() ?? "?";
 
+        // DbSet properties of the context, for generated code (db.Kunden instead of db.Set<Kunde>()); the first one wins.
+        var dbSets = new Dictionary<Type, string>();
+        foreach (var property in contextType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+        {
+            if (property.PropertyType.IsGenericType && property.PropertyType.GetGenericTypeDefinition() == typeof(DbSet<>))
+            {
+                dbSets.TryAdd(property.PropertyType.GetGenericArguments()[0], property.Name);
+            }
+        }
+
         var entities = model.GetEntityTypes()
             .OrderBy(e => e.Name, StringComparer.Ordinal)
-            .Select(ReadEntity)
+            .Select(e => ReadEntity(e) with { DbSet = e.HasSharedClrType ? null : dbSets.GetValueOrDefault(e.ClrType) })
             .ToList();
         return new ModelExport(ModelExport.CurrentFormatVersion, efVersion, contextType.FullName ?? contextType.Name, createdBy,
             model.GetDefaultSchema(), entities);

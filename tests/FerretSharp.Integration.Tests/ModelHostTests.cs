@@ -90,6 +90,7 @@ public sealed class ModelHostTests
         Assert.Equal("KUNDEN", kunde.Table); // DbSet name, upper-cased by the convention in code
         Assert.Null(kunde.Schema);
         Assert.Equal(["KundeId"], kunde.PrimaryKey);
+        Assert.Equal("Kunden", kunde.DbSet);
         Assert.Equal("KUNDE_ID", kunde.Properties.Single(p => p.Name == "KundeId").Column);
         Assert.Equal("ERSTELLT_AM", kunde.Properties.Single(p => p.Name == "ErstelltAm").Column);
 
@@ -103,6 +104,7 @@ public sealed class ModelHostTests
 
         var auftrag = model.Entities.Single(e => e.Name.EndsWith(".Auftrag", StringComparison.Ordinal));
         Assert.Equal("AUFTRAG", auftrag.Table);
+        Assert.Equal("Auftraege", auftrag.DbSet);
         var status = auftrag.Properties.Single(p => p.Name == "Status");
         Assert.Equal("UpperCaseEnumConverter<AuftragStatus>", status.Converter);
         Assert.Equal(["Offen=OFFEN", "Versandt=VERSANDT", "Storniert=STORNIERT", "Abgeschlossen=ABGESCHLOSSEN"],
@@ -125,6 +127,7 @@ public sealed class ModelHostTests
         var view = model.Entities.Single(e => e.Name.EndsWith(".KundeAuftraegeView", StringComparison.Ordinal));
         Assert.Equal(("V_KUNDEN_AUFTRAEGE", "KUNDE_AUFTRAEGE_VIEW"), (view.View, view.Table));
         Assert.Equal("KUNDE_ID", view.Properties.Single(p => p.Name == "KundeId").ViewColumn);
+        Assert.Null(view.DbSet); // configured without a DbSet property
 
         // Generic base configuration: the shared master data columns.
         var kategorie = model.Entities.Single(e => e.Name.EndsWith(".Kategorie", StringComparison.Ordinal));

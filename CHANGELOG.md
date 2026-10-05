@@ -5,6 +5,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-10-05
+
+Completes v3 – the bridge to your C#/EF Core project: model, names and enums in the grid, LINQ console, execution plans and now code generation.
+
+### Added
+- "C# ▾" at the filter bar (tables with an entity): "Als LINQ kopieren" turns the filters into `.Where(x => …)` over the entity – property names, enum members and `true`/`false` instead of database values (`x.Kundenart == Kundenart.Gewerbe && !x.Gesperrt`). The expression finds the same rows as the grid: text searches ignore case (`x.Name.ToUpper().Contains("MEIER")`), a date without time covers the whole day, "≠" includes NULL. "In LINQ-Konsole öffnen" opens a new LINQ tab with `db.Kunden.Where(…)`, ready to run.
+- Grid context menu: "Als C#-Objekte kopieren" writes the selected rows as object initializers (`var kunde = new Kunde { … };`, several rows as `List<Kunde> kunden = [ new() { … } ];`, NULL values left out), "Als HasData kopieren" as `builder.HasData(…)` seed for an `IEntityTypeConfiguration`, "Als C#-Wert kopieren" a single cell (`Kundenart.Gewerbe`, `1234.50m`, `new DateTime(2026, 10, 5)`).
+- What has no C# form – a column without property, a value without enum member, a value of another custom converter, a CLOB loaded only as preview – stays in the code as a comment, and the message lists it.
+
+### Changed
+- The model export carries each entity's `DbSet` name (used for `db.Kunden` and list names).
+
+### Fixed
+- The grid's context menu could reach below the window when opened low on the screen; it now moves up.
+
 ## [2.4.0] - 2026-10-05
 
 ### Added

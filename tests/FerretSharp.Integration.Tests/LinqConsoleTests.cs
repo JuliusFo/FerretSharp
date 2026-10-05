@@ -1,4 +1,9 @@
 using FerretSharp.Core.ClrModel;
+using FerretSharp.Core.Data;
+using FerretSharp.Core.Query;
+using FerretSharp.Core.Schema;
+using FerretSharp.Core.Settings;
+using NSubstitute;
 
 namespace FerretSharp.Integration.Tests;
 
@@ -100,5 +105,72 @@ public sealed class LinqConsoleTests : IAsyncLifetime
         Assert.Contains("COUNT(*)", Assert.Single(count.Commands).Sql);
         // EF expected a row for COUNT; the empty answer of the capture is what it complains about – not shown as a failure.
         Assert.NotNull(count.Exception);
+    }
+
+    /// <summary>
+    /// Code generation (WP-15) against the real model: the LINQ for the grid's filters compiles in the console and EF
+    /// sends the same conditions as the grid (case-insensitive LIKE, whole day, J/N); generated initializers compile.
+    /// </summary>
+    [Fact]
+    public async Task Generated_filters_and_initializers_compile_against_the_project()
+    {
+        var presentation = await SampleKundenAsync();
+        var filters = new[]
+        {
+            FilterCondition.Of("NAME", FilterOperator.Contains, "meier"),
+            FilterCondition.Of("ERSTELLT_AM", FilterOperator.Equals, "01.10.2026"),
+            FilterCondition.Of("KUNDENART", FilterOperator.In, "1", "3"),
+            FilterCondition.Of("GESPERRT", FilterOperator.Equals, "J"),
+            FilterCondition.Of("UMSATZ", FilterOperator.Gt, "1.000,5"),
+        };
+
+        var query = LinqFilter.Build(presentation, filters, LinqFilter.Source(presentation));
+        Assert.Empty(query.Warnings);
+        var result = await _console.RunAsync(query.Text, "", Ct);
+
+        Assert.False(result.HasErrors, string.Join("\n", result.Diagnostics));
+        var sql = Assert.Single(result.Commands).Sql;
+        Assert.Contains("UPPER(", sql);
+        Assert.Contains("\"GESPERRT\" = 'J'", sql);
+        Assert.Contains("\"KUNDENART\" IN (1, 3)", sql);
+
+        var row = new RowData(new RowKey.PrimaryKey([4711m]),
+            [4711m, "Meier \"GmbH\"\r\nZweigstelle", "ABC", new DateTime(2026, 10, 5, 14, 2, 13), 1234.50m, 7m, "J", 3m, 12m]);
+        var initializer = CSharpRows.Initializers(presentation, [row, row]);
+        Assert.Equal(["ANZAHL: keine Property (2 Zeilen) – als Kommentar."], initializer.Warnings); // in the table, not in the entity
+        var compiled = await _console.RunAsync(initializer.Text + "\nreturn kunden.Count;", "", Ct);
+        Assert.False(compiled.HasErrors, initializer.Text + "\n" + string.Join("\n", compiled.Diagnostics));
+        Assert.Equal("int", compiled.ResultType);
+    }
+
+    /// <summary>KUNDEN of the sample database (tools/sample-db 01 + 05) with the model the host exports.</summary>
+    private static async Task<TablePresentation> SampleKundenAsync()
+    {
+        var link = ModelHostTests.SampleLink();
+        var model = (await ModelHostTests.Runner().ReadModelAsync(link, BuildOutputLocator.Find(link), Ct)).Model!;
+        const string owner = "APP";
+        var kunden = new TableDetails(new TableSummary(owner, "KUNDEN", TableKind.Table),
+            [
+                new("KUNDE_ID", "NUMBER", null, false, 10, 0, false, false, null, 1),
+                new("NAME", "VARCHAR2", 100, true, null, null, false, false, null, 2),
+                new("KUERZEL", "CHAR", 3, false, null, null, true, false, null, 3),
+                new("ERSTELLT_AM", "DATE", null, false, null, null, false, false, null, 4),
+                new("UMSATZ", "NUMBER", null, false, 12, 2, true, false, null, 5),
+                new("ANZAHL", "NUMBER", null, false, 38, 0, true, false, null, 6),
+                new("GESPERRT", "CHAR", 1, false, null, null, false, false, null, 7),
+                new("KUNDENART", "NUMBER", null, false, 2, 0, false, false, null, 8),
+                new("ADRESSE_ID", "NUMBER", null, false, 10, 0, true, false, null, 9),
+            ],
+            ["KUNDE_ID"], [], false);
+        var reader = Substitute.For<ISchemaReader>();
+        reader.GetTablesAsync(owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyList<TableSummary>)[kunden.Table]);
+        reader.GetSynonymTargetsAsync(owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyList<TableSummary>)[]);
+        reader.GetForeignKeysAsync(owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyList<ForeignKeyInfo>)[]);
+        reader.GetColumnNamesAsync(owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyDictionary<string, IReadOnlyList<string>>)
+            new Dictionary<string, IReadOnlyList<string>> { ["KUNDEN"] = kunden.Columns.Select(c => c.Name).ToList() });
+        var schema = new SchemaCache(reader, owner);
+        await schema.LoadAsync(Ct);
+        var mapping = await ClrModelMapping.BuildAsync(model, schema, Ct);
+        return TablePresentation.Create(kunden, mapping, ClrNameDisplay.Beside);
     }
 }

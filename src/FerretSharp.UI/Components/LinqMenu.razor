@@ -1,0 +1,98 @@
+@* "C# ▾" at the filter bar (WP-15): the filters as LINQ over the entity – copied or opened in a new LINQ console. *@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Data
+@using FerretSharp.Core.Query
+@using FerretSharp.Core.Schema
+@using FerretSharp.UI.State
+@implements IAsyncDisposable
+@inject PresentationService Presentations
+@inject IJSRuntime JS
+
+<button class="btn ghost" title="Die Filter als LINQ über die Entity @Presentations.For(Details).EntityName" @onclick="Open">C# ▾</button>
+
+@if (_open)
+{
+    <div class="overlay" @onclick="Close" @oncontextmenu="Close" @oncontextmenu:preventDefault="true"></div>
+    <div class="menu linq-menu" style="left:@Px(_x);top:@Px(_y)">
+        <button class="menu-item" title="Where-Ausdruck mit Property-Namen und Enum-Membern; findet dieselben Zeilen wie das Grid" @onclick="CopyAsync">Als LINQ kopieren</button>
+        <button class="menu-item" title="Neue LINQ-Konsole mit der Abfrage über die Entity (Ctrl+Enter führt aus)" @onclick="OpenConsole">In LINQ-Konsole öffnen</button>
+    </div>
+}
+
+@code {
+    private const double MenuWidth = 220;
+
+    private bool _open;
+    private double _x;
+    private double _y;
+    private IJSObjectReference? _dom;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public TableDetails Details { get; set; } = null!;
+
+    /// <summary>The filters to translate (as the SQL preview takes them: edited if valid, else applied).</summary>
+    [Parameter, EditorRequired]
+    public Func<IReadOnlyList<FilterCondition>> Filters { get; set; } = null!;
+
+    private void Open(MouseEventArgs e)
+    {
+        _x = Math.Max(8, e.ClientX - MenuWidth + 40);
+        _y = e.ClientY + 14;
+        _open = true;
+    }
+
+    private void Close() => _open = false;
+
+    private ExportText Build(string? source = null)
+    {
+        var presentation = Presentations.For(Details);
+        return LinqFilter.Build(presentation, Filters(), source is null ? null : LinqFilter.Source(presentation));
+    }
+
+    private async Task CopyAsync()
+    {
+        _open = false;
+        var linq = Build();
+        if (linq.Text.Length == 0)
+        {
+            Shell.Notify("Keine aktiven Filter – nichts zu kopieren.");
+            return;
+        }
+
+        _dom ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
+        var copied = await _dom.InvokeAsync<bool>("copyText", linq.Text);
+        Shell.Notify(copied ? $"{FiltersText(linq.Rows)} als LINQ kopiert." : "Die Zwischenablage ist nicht verfügbar.", linq.Warnings);
+    }
+
+    private void OpenConsole()
+    {
+        _open = false;
+        var linq = Build(source: "db");
+        Shell.OpenLinq(linq.Text);
+        if (linq.Warnings.Count > 0)
+        {
+            Shell.Notify($"{FiltersText(linq.Rows)} in die LINQ-Konsole übernommen.", linq.Warnings);
+        }
+    }
+
+    private static string FiltersText(int count) => count == 1 ? "1 Filter" : $"{count} Filter";
+
+    private static string Px(double value) => value.ToString("0", CultureInfo.InvariantCulture) + "px";
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_dom is not null)
+        {
+            try
+            {
+                await _dom.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+    }
+}

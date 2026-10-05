@@ -557,6 +557,7 @@ table.binds td { font-family: var(--mono); }
 .menu-sep { height: 1px; margin: 5px 4px; background: var(--border); }
 .menu-item:disabled { opacity: .55; cursor: default; }
 .menu-item:disabled:hover { background: transparent; }
+.menu.linq-menu { width: 220px; }
 
 /* ---------- errors, connection loss, notices ---------- */
 .link-btn { border: 0; padding: 0 0 0 8px; background: transparent; color: inherit; text-decoration: underline; cursor: pointer; font-size: inherit; }
