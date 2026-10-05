@@ -415,7 +415,7 @@
         }
 
         var stale = state.Output?.IsStale == true;
-        var text = $"C# · {mapping.Entities.Count} Entities" + (mapping.Issues.Count > 0 ? $" · {mapping.Issues.Count} Abw." : "") + (stale ? " · Build veraltet" : "");
+        var text = $"C# · {mapping.MappedEntityCount} Entities" + (mapping.Issues.Count > 0 ? $" · {mapping.Issues.Count} Abw." : "") + (stale ? " · Build veraltet" : "");
         var title = (stale ? "Der Quelltext ist neuer als der Build. " : "") + $"{mapping.Issues.Count} Abweichungen zwischen Modell und Datenbank – Details";
         return @<button class="item status-link shrink @(stale ? "warn" : "")" title="@title" @onclick="_state.ShowModel">@text</button>;
     }

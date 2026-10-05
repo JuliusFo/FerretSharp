@@ -5,6 +5,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-10-05
+
+### Fixed
+- C# model: an entity mapped to a view (`ToView`) was reported as "Tabelle … gibt es nicht" when a naming convention also gave it a table name. EF Core queries the view in that case (the table only serves SaveChanges), so FerretSharp now matches the view first, with the view's column names, and counts such an entity once.
+
 ## [2.1.0] - 2026-10-05
 
 ### Added
