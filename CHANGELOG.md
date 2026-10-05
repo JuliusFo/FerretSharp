@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Fixed
+- The status bar no longer wraps into two cramped lines in narrower windows: entries stay on one line, connection, workspace, server version and schema are shortened with "…" (full text as tooltip), and server version and schema give way entirely when space runs out.
+- The window cannot be made smaller than 960 × 560.
+
 ## [1.9.0] - 2026-10-05
 
 ### Added

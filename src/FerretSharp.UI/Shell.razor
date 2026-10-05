@@ -176,10 +176,10 @@
                         break;
                     case ConnectionStatus.Connected:
                         <span class="item"><span class="dot ok"></span> Verbunden</span>
-                        <span class="item">@Active.Profile?.Name</span>
+                        <span class="item shrink" title="@Active.Profile?.Name">@Active.Profile?.Name</span>
                         @if (Workspaces.Active is { } workspace)
                         {
-                            <span class="item" title="Jeder Workspace fragt über eine eigene Oracle-Session ab (ACTION = Workspace-Name).">Workspace „@workspace.Name“ · eigene Session</span>
+                            <span class="item shrink" title="Workspace „@workspace.Name“ – fragt über eine eigene Oracle-Session ab (ACTION = Workspace-Name).">Workspace „@workspace.Name“</span>
                             @if (Active.Profile?.ReadOnly == true)
                             {
                                 <span class="item" title="Die Workspace-Sessions laufen in einer READ ONLY-Transaktion: Oracle selbst lehnt jede Änderung ab.">schreibgeschützt (Oracle)</span>
@@ -189,8 +189,8 @@
                                 @EditStatus(editTabs, edits)
                             }
                         }
-                        <span class="item">Oracle @Active.ServerVersion</span>
-                        <span class="item">Schema @Active.Schema?.Owner · @(Active.Schema?.Tables.Count ?? 0) Objekte</span>
+                        <span class="item shrink shrink-more" title="Oracle @Active.ServerVersion">Oracle @Active.ServerVersion</span>
+                        <span class="item shrink shrink-more" title="Schema @Active.Schema?.Owner · @(Active.Schema?.Tables.Count ?? 0) Objekte">Schema @Active.Schema?.Owner · @(Active.Schema?.Tables.Count ?? 0) Objekte</span>
                         <button class="status-btn" @onclick="DisconnectAsync">Trennen</button>
                         break;
                     case ConnectionStatus.Connecting:
@@ -346,11 +346,13 @@
                 <span class="dot @(edits.Pending > 0 ? "pending" : "flushed")"></span>
                 @(age is { } a ? $"Tx seit {Age(a)} · " : "")@edits.Pending ausstehend · @edits.Flushed geschrieben
             </span>
+            <span class="status-group">
             <button class="status-btn" title="Ausstehende Änderungen schreiben (Ctrl+S) – noch kein Commit" disabled="@(_editing.Busy || edits.Pending == 0)" @onclick="() => _editing.FlushAsync(workspace)">Schreiben</button>
             <button class="status-btn" title="Letzten Schreibvorgang zurücknehmen" disabled="@(_editing.Busy || !edits.CanUndo)" @onclick="() => _editing.UndoLastAsync(workspace)">↶</button>
             <button class="status-btn" title="Ausstehende Änderungen als SQL anzeigen" disabled="@(edits.Pending == 0)" @onclick="() => _pendingSql = _editing.DescribePending(workspace)">SQL</button>
             <button class="status-btn commit" title="Schreiben und committen (Ctrl+Shift+Enter)" disabled="@_editing.Busy" @onclick="() => RequestCommit(workspace)">Commit</button>
             <button class="status-btn danger" title="Alles verwerfen" disabled="@_editing.Busy" @onclick="() => _confirmRollback = workspace">Rollback</button>
+            </span>
         </text>;
     }
 
