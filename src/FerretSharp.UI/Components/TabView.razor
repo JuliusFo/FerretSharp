@@ -1,4 +1,5 @@
 @using FerretSharp.Core.Connections
+@using FerretSharp.Core.Data
 @using FerretSharp.Core.Oracle
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
@@ -63,7 +64,7 @@
     else
     {
         <div class="tab-data @(Tab.Mode == TabMode.Data ? "" : "hidden")">
-            <FilterBar Tab="Tab" Details="_details" OnApply="ApplyFiltersAsync" OnShowSql="ShowSql" />
+            <FilterBar Tab="Tab" Details="_details" OnApply="ApplyFiltersAsync" OnShowSql="ShowSql" OnShowPlan="ShowPlan" />
             @if (Tab.Error is not null)
             {
                 <div class="tab-error">
@@ -185,8 +186,14 @@
     <SqlPreview Sql="@sql.Sql" Parameters="sql.Parameters" Error="@sql.Error" OnClose="() => _sql = null" />
 }
 
+@if (_plan is { } planQuery)
+{
+    <PlanDialog Query="planQuery.FirstPage" WholeQuery="planQuery.Whole" WorkspaceId="Tab.WorkspaceId" Title="@Tab.Table.DisplayName" OnClose="() => _plan = null" />
+}
+
 @code {
     private TableDetails? _details;
+    private (QuerySpec FirstPage, QuerySpec Whole)? _plan;
     private DatabaseException? _loadError;
     private FerretGrid? _grid;
     private CancellationTokenSource? _countCts;
@@ -415,6 +422,27 @@
         {
             var query = QueryBuilder.BuildSelect(_details, filters, Tab.Sorts, new PageSpec(0, 500));
             _sql = (query.Sql, query.Parameters, null);
+        }
+        catch (QueryValidationException ex)
+        {
+            _sql = ("", [], ex.Message);
+        }
+    }
+
+    /// <summary>The plan of the grid's query: the applied filters and sorting, first page (WP-14).</summary>
+    private void ShowPlan()
+    {
+        if (_details is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var query = QueryBuilder.BuildSelect(_details, Tab.AppliedFilters, Tab.Sorts, new PageSpec(0, IDataAccess.ActualPlanPageSize));
+            // "Ganzes Ergebnis" means all rows of the filter, not the grid's first page: the same query without the limit.
+            var whole = QueryBuilder.BuildSelect(_details, Tab.AppliedFilters, Tab.Sorts, new PageSpec(0, int.MaxValue));
+            _plan = (new QuerySpec(query.Sql, query.Parameters), new QuerySpec(whole.Sql, whole.Parameters));
         }
         catch (QueryValidationException ex)
         {
