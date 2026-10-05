@@ -29,11 +29,14 @@ internal static class ModelReader
         var schema = entity.GetSchema();
         var view = entity.GetViewName();
         var viewSchema = entity.GetViewSchema();
+        // An entity can be mapped to a table and a view at once: queries use the view, SaveChanges the table. Column names
+        // may differ between them, so both are read.
         StoreObjectIdentifier? store = table is not null ? StoreObjectIdentifier.Table(table, schema)
             : view is not null ? StoreObjectIdentifier.View(view, viewSchema)
             : null;
+        StoreObjectIdentifier? viewStore = view is not null ? StoreObjectIdentifier.View(view, viewSchema) : null;
 
-        var properties = entity.GetProperties().Select(p => ReadProperty(p, store)).ToList();
+        var properties = entity.GetProperties().Select(p => ReadProperty(p, store, viewStore)).ToList();
         var foreignKeys = entity.GetForeignKeys().Select(fk => new ForeignKeyExport(
             fk.Properties.Select(p => p.Name).ToList(),
             fk.PrincipalEntityType.Name,
@@ -56,7 +59,7 @@ internal static class ModelReader
             foreignKeys);
     }
 
-    private static PropertyExport ReadProperty(IProperty property, StoreObjectIdentifier? store)
+    private static PropertyExport ReadProperty(IProperty property, StoreObjectIdentifier? store, StoreObjectIdentifier? viewStore)
     {
         var clrType = property.ClrType;
         var underlying = Nullable.GetUnderlyingType(clrType) ?? clrType;
@@ -76,7 +79,8 @@ internal static class ModelReader
             userConverter is null ? null : TypeName(userConverter.GetType()),
             converter is null ? null : TypeName(converter.ProviderClrType),
             underlying.IsEnum && underlying.IsDefined(typeof(FlagsAttribute), false),
-            Values(underlying, userConverter, converter));
+            Values(underlying, userConverter, converter),
+            viewStore is { } v ? property.GetColumnName(v) : null);
     }
 
     /// <summary>Every enum member (and true/false of a converted bool) with the value the project stores for it.</summary>

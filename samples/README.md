@@ -7,6 +7,7 @@ ADR 0009). It is written like a real "database first, by hand" project with EF C
 - `FerretSharp.SampleModel.Data` – `AppDbContext(DbContextOptions options)`, one `IEntityTypeConfiguration` per entity, a
   generic base configuration, own value converters (bool ↔ `'J'`/`'N'`, enum ↔ upper-case name) and a naming convention
   in code (`KundeId` → `KUNDE_ID`, tables upper case).
+- `KundeAuftraegeView` on the view V_KUNDEN_AUFTRAEGE (`ToView` plus key); the convention gives it a table name too, as in the user's project.
 - Deliberate drift for the comparison: `Kunde.Email` has no column, `KUNDEN.ANZAHL` no property, `Newsletter` no table.
 
 It maps the sample database (`tools/sample-db`, including `05-clr-model.sql`). The folder has its own

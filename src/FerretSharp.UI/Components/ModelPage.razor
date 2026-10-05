@@ -107,12 +107,13 @@
         @if (State.Mapping is { } mapping)
         {
             var entities = mapping.Model.Entities.Count(e => e.Table is not null || e.View is not null);
-            var properties = mapping.Entities.Sum(e => e.Entity.Properties.Count(p => p.Column is not null));
-            var mapped = mapping.Entities.Sum(e => e.Properties.Count);
+            var first = mapping.Entities.DistinctBy(e => e.Entity).ToList();
+            var properties = first.Sum(e => e.Entity.Properties.Count(p => p.Column is not null));
+            var mapped = first.Sum(e => e.Properties.Count);
             <section class="settings-section">
                 <h2>Abgleich mit der Datenbank</h2>
                 <div class="model-summary">
-                    <span class="model-chip">@mapping.Entities.Count von @entities Entities zugeordnet</span>
+                    <span class="model-chip">@mapping.MappedEntityCount von @entities Entities zugeordnet</span>
                     <span class="model-chip">@mapped von @properties Properties zugeordnet</span>
                     <span class="model-chip @(Count(mapping, MappingIssueKind.ColumnWithoutProperty) > 0 ? "warn" : "")">@Count(mapping, MappingIssueKind.ColumnWithoutProperty) Spalten ohne Property</span>
                     @if (State.LoadedAt is { } loadedAt)
@@ -170,7 +171,7 @@
                                     }
                                     else
                                     {
-                                        <span class="mono muted">@(entity.Table ?? entity.View ?? "–")</span>
+                                        <span class="mono muted">@(entity.View ?? entity.Table ?? "–")</span>
                                     }
                                 </td>
                                 <td class="num">@(located?.Properties.Count ?? 0) / @entity.Properties.Count(p => p.Column is not null)</td>

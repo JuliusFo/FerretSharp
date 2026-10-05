@@ -14,10 +14,9 @@ public static partial class OracleNamingConvention
     {
         foreach (var entity in modelBuilder.Model.GetEntityTypes())
         {
-            if (entity.GetTableName() is { } table)
-            {
-                entity.SetTableName(ToOracleName(table));
-            }
+            // Every entity gets an upper-case table name – also those mapped to a view (as in the user's project): EF then
+            // queries the view and would use the table only for SaveChanges.
+            entity.SetTableName(ToOracleName(entity.GetTableName() ?? entity.ClrType.Name));
 
             foreach (var property in entity.GetProperties())
             {

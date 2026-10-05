@@ -59,10 +59,11 @@ public sealed record EntityExport(
 
 /// <param name="ClrType">C# type as written, without nullability: <c>int</c>, <c>string</c>, <c>AuftragStatus</c>.</param>
 /// <param name="ClrTypeFull">Full CLR name, e.g. <c>Shop.Entities.AuftragStatus</c>.</param>
-/// <param name="Column">Column in the entity's table (or view).</param>
+/// <param name="Column">Column in the entity's table (in its view if it has no table).</param>
 /// <param name="Converter">Value converter type, e.g. <c>JaNeinConverter</c>; null without one.</param>
 /// <param name="ProviderClrType">Type the converter stores, e.g. <c>string</c>.</param>
 /// <param name="Values">For enums and converted bools: every C# value with its database value.</param>
+/// <param name="ViewColumn">Column in the entity's view, if it is mapped to one (queries use the view, SaveChanges the table).</param>
 public sealed record PropertyExport(
     string Name,
     string ClrType,
@@ -74,7 +75,8 @@ public sealed record PropertyExport(
     string? Converter,
     string? ProviderClrType,
     bool IsFlagsEnum,
-    IReadOnlyList<ValueMapping>? Values);
+    IReadOnlyList<ValueMapping>? Values,
+    string? ViewColumn = null);
 
 /// <param name="Name">Enum member (<c>Offen</c>) or <c>true</c>/<c>false</c>.</param>
 /// <param name="ClrValue">The C# value, invariant: the enum's number, <c>True</c>/<c>False</c>.</param>

@@ -86,6 +86,11 @@ public sealed class ModelHostTests
         Assert.Equal("AUFTRAG_POSITION", position.Table);
         Assert.Equal(["AuftragId", "PosNr"], position.PrimaryKey);
 
+        // An entity on a view; the convention gives every entity a table name, so it has both (as in the user's project).
+        var view = model.Entities.Single(e => e.Name.EndsWith(".KundeAuftraegeView", StringComparison.Ordinal));
+        Assert.Equal(("V_KUNDEN_AUFTRAEGE", "KUNDE_AUFTRAEGE_VIEW"), (view.View, view.Table));
+        Assert.Equal("KUNDE_ID", view.Properties.Single(p => p.Name == "KundeId").ViewColumn);
+
         // Generic base configuration: the shared master data columns.
         var kategorie = model.Entities.Single(e => e.Name.EndsWith(".Kategorie", StringComparison.Ordinal));
         Assert.Equal("KATEGORIE", kategorie.Table);

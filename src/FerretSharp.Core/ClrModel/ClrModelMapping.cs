@@ -45,8 +45,11 @@ public sealed class ClrModelMapping
 
     public ModelExport Model { get; }
 
-    /// <summary>Entities found in the schema.</summary>
+    /// <summary>Entities found in the schema – one entry per table or view (an entity on both has two).</summary>
     public IReadOnlyList<EntityMapping> Entities { get; }
+
+    /// <summary>How many entities were found in the schema (each counted once).</summary>
+    public int MappedEntityCount => Entities.Select(e => e.Entity).Distinct().Count();
 
     public IReadOnlyList<MappingIssue> Issues { get; }
 
@@ -69,34 +72,55 @@ public sealed class ClrModelMapping
         var issues = new List<MappingIssue>();
         var defaultOwner = model.DefaultSchema ?? schema.Owner;
 
-        var located = new List<(EntityExport Entity, TableSummary Table)>();
+        var located = new List<(EntityExport Entity, TableSummary Table, Func<PropertyExport, string?> ColumnOf)>();
         foreach (var entity in model.Entities)
         {
-            var name = entity.Table ?? entity.View;
-            if (name is null)
+            // Queries use the view if the entity has one; a table beside it serves SaveChanges only. Conventions often give
+            // every entity a table name, also those on views – that table not existing is no difference worth reporting.
+            var candidates = new List<(string Name, string Owner, bool IsView, Func<PropertyExport, string?> ColumnOf)>();
+            if (entity.View is { } viewName)
+            {
+                candidates.Add((viewName, entity.ViewSchema ?? defaultOwner, true, p => p.ViewColumn ?? p.Column));
+            }
+
+            if (entity.Table is { } tableName)
+            {
+                candidates.Add((tableName, entity.Schema ?? defaultOwner, false, p => p.Column));
+            }
+
+            if (candidates.Count == 0)
             {
                 continue; // keyless types on raw SQL, shared-type entities without a table: nothing to show
             }
 
-            var owner = (entity.Table is not null ? entity.Schema : entity.ViewSchema) ?? defaultOwner;
-            var table = Locate(schema, owner, name, defaultOwner);
-            if (table is null)
+            var found = 0;
+            foreach (var candidate in candidates)
             {
-                var caseOnly = schema.Tables.FirstOrDefault(t => string.Equals(t.Owner, owner, StringComparison.OrdinalIgnoreCase)
-                                                                 && string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase));
-                if (caseOnly is null)
+                if (Locate(schema, candidate.Owner, candidate.Name, defaultOwner) is { } exact)
                 {
-                    issues.Add(new MappingIssue(MappingIssueKind.EntityWithoutTable, entity.Name, null, new TableRef(owner, name), null,
-                        $"{ShortName(entity.ClrType)}: {(entity.Table is null ? "View" : "Tabelle")} {Qualified(owner, name, defaultOwner)} gibt es nicht."));
-                    continue;
+                    located.Add((entity, exact, candidate.ColumnOf));
+                    found++;
                 }
-
-                issues.Add(new MappingIssue(MappingIssueKind.CaseMismatch, entity.Name, null, caseOnly.Ref, null,
-                    $"{ShortName(entity.ClrType)}: im Modell „{name}“, in der Datenbank „{caseOnly.Name}“ – EF Core quotet Namen, Abfragen fänden die Tabelle so nicht."));
-                table = caseOnly;
             }
 
-            located.Add((entity, table));
+            if (found > 0)
+            {
+                continue;
+            }
+
+            var (name, owner, isView, columnOf) = candidates[0];
+            var caseOnly = schema.Tables.FirstOrDefault(t => string.Equals(t.Owner, owner, StringComparison.OrdinalIgnoreCase)
+                                                             && string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase));
+            if (caseOnly is null)
+            {
+                issues.Add(new MappingIssue(MappingIssueKind.EntityWithoutTable, entity.Name, null, new TableRef(owner, name), null,
+                    $"{ShortName(entity.ClrType)}: {(isView ? "View" : "Tabelle")} {Qualified(owner, name, defaultOwner)} gibt es nicht."));
+                continue;
+            }
+
+            issues.Add(new MappingIssue(MappingIssueKind.CaseMismatch, entity.Name, null, caseOnly.Ref, null,
+                $"{ShortName(entity.ClrType)}: im Modell „{name}“, in der Datenbank „{caseOnly.Name}“ – EF Core quotet Namen, Abfragen fänden {(isView ? "die View" : "die Tabelle")} so nicht."));
+            located.Add((entity, caseOnly, columnOf));
         }
 
         foreach (var group in located.GroupBy(l => l.Table.Ref))
@@ -106,23 +130,28 @@ public sealed class ClrModelMapping
             var columns = details.Columns.Select(c => c.Name).ToList();
             var mapped = new HashSet<string>(StringComparer.Ordinal);
 
-            foreach (var (entity, _) in group)
+            foreach (var (entity, _, columnOf) in group)
             {
                 var properties = new Dictionary<string, PropertyExport>(StringComparer.Ordinal);
-                foreach (var property in entity.Properties.Where(p => p.Column is not null))
+                foreach (var property in entity.Properties)
                 {
-                    var column = columns.FirstOrDefault(c => c == property.Column);
-                    if (column is null && columns.FirstOrDefault(c => string.Equals(c, property.Column, StringComparison.OrdinalIgnoreCase)) is { } caseOnly)
+                    if (columnOf(property) is not { } modelColumn)
+                    {
+                        continue;
+                    }
+
+                    var column = columns.FirstOrDefault(c => c == modelColumn);
+                    if (column is null && columns.FirstOrDefault(c => string.Equals(c, modelColumn, StringComparison.OrdinalIgnoreCase)) is { } caseOnly)
                     {
                         issues.Add(new MappingIssue(MappingIssueKind.CaseMismatch, entity.Name, property.Name, table.Ref, caseOnly,
-                            $"{ShortName(entity.ClrType)}.{property.Name}: im Modell Spalte „{property.Column}“, in der Datenbank „{caseOnly}“."));
+                            $"{ShortName(entity.ClrType)}.{property.Name}: im Modell Spalte „{modelColumn}“, in der Datenbank „{caseOnly}“."));
                         column = caseOnly;
                     }
 
                     if (column is null)
                     {
-                        issues.Add(new MappingIssue(MappingIssueKind.PropertyWithoutColumn, entity.Name, property.Name, table.Ref, property.Column,
-                            $"{ShortName(entity.ClrType)}.{property.Name}: Spalte {table.DisplayName}.{property.Column} gibt es nicht."));
+                        issues.Add(new MappingIssue(MappingIssueKind.PropertyWithoutColumn, entity.Name, property.Name, table.Ref, modelColumn,
+                            $"{ShortName(entity.ClrType)}.{property.Name}: Spalte {table.DisplayName}.{modelColumn} gibt es nicht."));
                         continue;
                     }
 

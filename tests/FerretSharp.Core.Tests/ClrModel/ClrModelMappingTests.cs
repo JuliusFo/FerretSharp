@@ -114,6 +114,43 @@ public sealed class ClrModelMappingTests
         Assert.Equal("Fremd: Tabelle ANDERS.FREMD gibt es nicht.", Assert.Single(mapping.Issues).Message);
     }
 
+    [Fact]
+    public async Task An_entity_on_a_view_is_matched_to_the_view_even_if_a_convention_gave_it_a_table_name()
+    {
+        // As in the user's project: ToView("GEP_MATBESTAND_VIEW") plus a naming convention that sets a table name for every
+        // entity. EF queries the view; the table (which does not exist) would only serve SaveChanges.
+        _columns["GEP_MATBESTAND_VIEW"] = ["MAT_ID", "BESTAND"];
+        var schema = await SchemaAsync(new TableSummary(Owner, "GEP_MATBESTAND_VIEW", TableKind.View));
+        var entity = Entity("Shop.GepMatbestandView", "GEPMATBESTANDVIEW",
+                Prop("MatId", "MATID") with { ViewColumn = "MAT_ID" }, Prop("Bestand", "BESTAND") with { ViewColumn = "BESTAND" })
+            with { View = "GEP_MATBESTAND_VIEW" };
+
+        var mapping = await ClrModelMapping.BuildAsync(Model(entity), schema, Ct);
+
+        var view = new TableRef(Owner, "GEP_MATBESTAND_VIEW");
+        Assert.Equal("Shop.GepMatbestandView", mapping.EntityOf(view)!.Entity.ClrType);
+        Assert.Equal("MatId", mapping.PropertyOf(view, "MAT_ID")!.Name); // the view's column name, not the table's
+        Assert.Empty(mapping.Issues);
+        Assert.Equal(1, mapping.MappedEntityCount);
+    }
+
+    [Fact]
+    public async Task An_entity_on_a_table_and_a_view_maps_to_both_and_counts_once_a_missing_view_is_reported()
+    {
+        _columns["KUNDEN"] = ["ID"];
+        _columns["V_KUNDEN"] = ["ID"];
+        var schema = await SchemaAsync(new TableSummary(Owner, "KUNDEN", TableKind.Table), new TableSummary(Owner, "V_KUNDEN", TableKind.View));
+        var both = Entity("Shop.Kunde", "KUNDEN", Prop("Id", "ID")) with { View = "V_KUNDEN" };
+        var neither = Entity("Shop.Alt", "ALT", Prop("Id", "ID")) with { View = "V_ALT" };
+
+        var mapping = await ClrModelMapping.BuildAsync(Model(both, neither), schema, Ct);
+
+        Assert.NotNull(mapping.EntityOf(new TableRef(Owner, "KUNDEN")));
+        Assert.NotNull(mapping.EntityOf(new TableRef(Owner, "V_KUNDEN")));
+        Assert.Equal(1, mapping.MappedEntityCount);
+        Assert.Equal("Alt: View V_ALT gibt es nicht.", Assert.Single(mapping.Issues).Message);
+    }
+
     [Theory]
     [InlineData("Shop.Entities.Kunde", "Kunde")]
     [InlineData("Shop.Outer+Inner", "Inner")]
