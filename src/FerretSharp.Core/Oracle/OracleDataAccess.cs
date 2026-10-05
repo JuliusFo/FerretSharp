@@ -58,6 +58,99 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
         }, cancellationToken);
     }
 
+    /// <remarks>Like <see cref="ReadPageAsync"/>: the first page starts a new snapshot in a locked session, later pages stay in it.</remarks>
+    public async Task<SqlPage> ReadSqlAsync(QuerySpec query, int skip, int take, CancellationToken cancellationToken)
+    {
+        if (skip == 0)
+        {
+            await session.RefreshSnapshotAsync(cancellationToken);
+        }
+
+        var stopwatch = Stopwatch.StartNew();
+        var (columns, rows, last) = await session.ExecuteReaderAsync(query.Sql, query.Parameters, async (reader, ct) =>
+        {
+            var oracle = (OracleDataReader)reader;
+            var schema = oracle.GetSchemaTable();
+            var columns = Enumerable.Range(0, oracle.FieldCount).Select(i => new SqlColumn(oracle.GetName(i), ColumnOf(oracle, i, schema?.Rows[i]))).ToList();
+            for (var skipped = 0; skipped < skip; skipped++)
+            {
+                if (!await reader.ReadAsync(ct))
+                {
+                    return (columns, new List<IReadOnlyList<object?>>(), true);
+                }
+            }
+
+            var rows = new List<IReadOnlyList<object?>>(Math.Min(take, 1000));
+            while (rows.Count < take && await reader.ReadAsync(ct))
+            {
+                var values = new object?[columns.Count];
+                for (var i = 0; i < values.Length; i++)
+                {
+                    values[i] = oracle.IsDBNull(i) ? null : ReadValue(oracle, i, columns[i].Column);
+                }
+
+                rows.Add(values);
+            }
+
+            // One row more tells whether this was the last page.
+            return (columns, rows, rows.Count < take || !await reader.ReadAsync(ct));
+        }, cancellationToken);
+
+        var snapshot = session.Transaction is { Mode: TransactionMode.ReadOnly } transaction ? transaction.StartedAt : null;
+        return new SqlPage(columns, rows, last, stopwatch.Elapsed, snapshot);
+    }
+
+    /// <summary>
+    /// A column of a free query as <see cref="ColumnInfo"/>, so it formats like a table column: the Oracle type name
+    /// from the driver's type, precision and scale from the reader's schema.
+    /// </summary>
+    internal static ColumnInfo ColumnOf(OracleDataReader reader, int ordinal, System.Data.DataRow? schema)
+    {
+        int? Int(string name) => schema?[name] is int value ? value : schema?[name] is short small ? small : null;
+        var precision = Int("NumericPrecision");
+        var scale = Int("NumericScale");
+        var size = Int("ColumnSize");
+        var dataType = DataTypeName(reader.GetDataTypeName(ordinal), scale);
+        // NUMBER without precision reports 0 (or 38) and scale -127/0: unknown, as ALL_TAB_COLUMNS would have it.
+        if (dataType == "NUMBER" && precision is 0 or 38)
+        {
+            precision = null;
+            scale = scale is 0 ? 0 : null;
+        }
+
+        return new ColumnInfo(reader.GetName(ordinal), dataType,
+            dataType is "VARCHAR2" or "NVARCHAR2" or "CHAR" or "NCHAR" or "RAW" ? size : null, CharSemantics: false,
+            dataType is "NUMBER" ? precision : null, dataType is "NUMBER" or "FLOAT" ? (scale is < 0 ? null : scale) : scale,
+            Nullable: schema?["AllowDBNull"] is not false, IsIdentity: false, Default: null, Position: ordinal + 1);
+    }
+
+    /// <summary>ODP.NET type names (<c>Decimal</c>, <c>TimeStampTZ</c>) as Oracle names (<c>NUMBER</c>, <c>TIMESTAMP(6) WITH TIME ZONE</c>).</summary>
+    internal static string DataTypeName(string driverType, int? scale) => driverType switch
+    {
+        "Decimal" or "Int16" or "Int32" or "Int64" or "Byte" or "Double" or "Single" => "NUMBER",
+        "BinaryDouble" => "BINARY_DOUBLE",
+        "BinaryFloat" => "BINARY_FLOAT",
+        "Varchar2" => "VARCHAR2",
+        "NVarchar2" => "NVARCHAR2",
+        "Char" => "CHAR",
+        "NChar" => "NCHAR",
+        "Date" => "DATE",
+        "TimeStamp" => $"TIMESTAMP({scale ?? 6})",
+        "TimeStampTZ" => $"TIMESTAMP({scale ?? 6}) WITH TIME ZONE",
+        "TimeStampLTZ" => $"TIMESTAMP({scale ?? 6}) WITH LOCAL TIME ZONE",
+        "IntervalDS" => "INTERVAL DAY TO SECOND",
+        "IntervalYM" => "INTERVAL YEAR TO MONTH",
+        "Raw" => "RAW",
+        "LongRaw" => "LONG RAW",
+        "Long" => "LONG",
+        "Clob" => "CLOB",
+        "NClob" => "NCLOB",
+        "Blob" => "BLOB",
+        "Boolean" => "BOOLEAN",
+        "XmlType" => "XMLTYPE",
+        _ => driverType.ToUpperInvariant(),
+    };
+
     public async Task<LobRead> ReadLobAsync(TableDetails table, RowKey key, int column, CancellationToken cancellationToken)
     {
         var query = QueryBuilder.BuildSelectLob(table, key, column);

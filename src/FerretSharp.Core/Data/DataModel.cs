@@ -79,7 +79,24 @@ public interface IDataAccess
     /// the workspace's session, so it includes the workspace's own uncommitted changes.
     /// </summary>
     Task<LobRead> ReadLobAsync(TableDetails table, RowKey key, int column, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// A query FerretSharp did not build (LINQ console, ADR 0011): run as it is – only plain queries pass the session's
+    /// read-only tripwire – and read rows <paramref name="skip"/> to <paramref name="skip"/> + <paramref name="take"/>.
+    /// Later pages run the query again and skip rows: wrapping it (<c>SELECT * FROM (…)</c>) fails on the duplicate column
+    /// names of EF's joins.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The statement is not a plain query.</exception>
+    Task<SqlPage> ReadSqlAsync(QuerySpec query, int skip, int take, CancellationToken cancellationToken);
 }
+
+/// <summary>A result column of a free query; <see cref="Column"/> is derived from the driver's type, for formatting.</summary>
+public sealed record SqlColumn(string Name, ColumnInfo Column);
+
+/// <param name="Rows">Values in <paramref name="Columns"/> order (LOBs whole, <see cref="BigNumber"/> beyond 28 digits).</param>
+/// <param name="DataAsOf">Start of the read-only snapshot (locked workspaces); null otherwise.</param>
+public sealed record SqlPage(
+    IReadOnlyList<SqlColumn> Columns, IReadOnlyList<IReadOnlyList<object?>> Rows, bool IsLastPage, TimeSpan Elapsed, DateTimeOffset? DataAsOf = null);
 
 /// <summary>Result of <see cref="IDataAccess.ReadLobAsync"/>; <see cref="Found"/> is false if the row is gone.</summary>
 public sealed record LobRead(bool Found, object? Value);
