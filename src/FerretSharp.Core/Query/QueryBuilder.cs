@@ -98,7 +98,37 @@ public static class QueryBuilder
         var builder = new Builder(table);
         var hasRowId = table.Table.Kind != TableKind.View;
         var columns = table.Columns.Select(c => new ResultColumn(c, ProjectionOf(c))).ToList();
+        var select = SelectList(builder, columns, hasRowId);
 
+        var sql = new StringBuilder()
+            .Append("SELECT ").AppendJoin(",\n       ", select)
+            .Append("\n  FROM ").Append(OracleIdentifier.Qualify(table.Table.Owner, table.Table.Name)).Append(' ').Append(Alias)
+            .Append(builder.Where(filters))
+            .Append("\n ORDER BY ").AppendJoin(", ", builder.OrderBy(sorts))
+            .Append("\nOFFSET :p_offset ROWS FETCH NEXT :p_limit ROWS ONLY")
+            .ToString();
+
+        builder.Parameters.Add(new QueryParameter("p_offset", page.Offset, OracleTypeHint.Number));
+        builder.Parameters.Add(new QueryParameter("p_limit", page.Limit, OracleTypeHint.Number));
+        return new SelectQuery(sql, builder.Parameters, columns, RowKeyOf(table), hasRowId);
+    }
+
+    /// <summary>The row a ROWID points to, with the same result columns as <see cref="BuildSelect"/> (reload after INSERT).</summary>
+    public static SelectQuery BuildSelectByRowId(TableDetails table, string rowId)
+    {
+        var builder = new Builder(table);
+        var columns = table.Columns.Select(c => new ResultColumn(c, ProjectionOf(c))).ToList();
+        var sql = new StringBuilder()
+            .Append("SELECT ").AppendJoin(",\n       ", SelectList(builder, columns, hasRowId: true))
+            .Append("\n  FROM ").Append(OracleIdentifier.Qualify(table.Table.Owner, table.Table.Name)).Append(' ').Append(Alias)
+            .Append("\n WHERE ").Append(Alias).Append(".ROWID = :p_rowid")
+            .ToString();
+        builder.Parameters.Add(new QueryParameter("p_rowid", rowId, OracleTypeHint.Varchar2));
+        return new SelectQuery(sql, builder.Parameters, columns, RowKeyOf(table), HasRowId: true);
+    }
+
+    private static List<string> SelectList(Builder builder, IReadOnlyList<ResultColumn> columns, bool hasRowId)
+    {
         var select = new List<string>();
         if (hasRowId)
         {
@@ -117,17 +147,7 @@ public static class QueryBuilder
             });
         }
 
-        var sql = new StringBuilder()
-            .Append("SELECT ").AppendJoin(",\n       ", select)
-            .Append("\n  FROM ").Append(OracleIdentifier.Qualify(table.Table.Owner, table.Table.Name)).Append(' ').Append(Alias)
-            .Append(builder.Where(filters))
-            .Append("\n ORDER BY ").AppendJoin(", ", builder.OrderBy(sorts))
-            .Append("\nOFFSET :p_offset ROWS FETCH NEXT :p_limit ROWS ONLY")
-            .ToString();
-
-        builder.Parameters.Add(new QueryParameter("p_offset", page.Offset, OracleTypeHint.Number));
-        builder.Parameters.Add(new QueryParameter("p_limit", page.Limit, OracleTypeHint.Number));
-        return new SelectQuery(sql, builder.Parameters, columns, RowKeyOf(table), hasRowId);
+        return select;
     }
 
     public static QuerySpec BuildCount(TableDetails table, IReadOnlyList<FilterCondition> filters)

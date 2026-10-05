@@ -1,5 +1,6 @@
 using System.Data.Common;
 using System.Globalization;
+using FerretSharp.Core.Data;
 using FerretSharp.Core.Query;
 using FerretSharp.Core.Schema;
 
@@ -173,6 +174,17 @@ public sealed class OracleSchemaReader(OracleSession session) : ISchemaReader
          WHERE d.referenced_owner = :owner AND d.referenced_name = :name
            AND d.referenced_type IN ('TABLE', 'VIEW', 'MATERIALIZED VIEW')
          ORDER BY d.type, d.owner, d.name
+        """;
+
+    // TM locks on the table by other sessions; row locks themselves are not listed by Oracle.
+    private const string LockHoldersSql = """
+        SELECT DISTINCT s.sid, s.username, s.osuser, s.machine, s.program, s.module, s.action, s.logon_time
+          FROM v$locked_object lo
+          JOIN v$session s ON s.sid = lo.session_id
+          JOIN all_objects o ON o.object_id = lo.object_id
+         WHERE o.owner = :owner AND o.object_name = :name AND o.object_type = 'TABLE'
+           AND s.sid <> SYS_CONTEXT('USERENV', 'SID')
+         ORDER BY s.sid
         """;
 
     // A function call in a plain query: DBMS_METADATA only reads. Object type names use underscores here.
@@ -474,6 +486,29 @@ public sealed class OracleSchemaReader(OracleSession session) : ISchemaReader
         var objectType = ObjectType(table.Kind).Replace(' ', '_');
         return session.ExecuteReaderAsync(DdlSql, [new("object_type", objectType), new("name", table.Name), new("owner", table.Owner)], async (reader, ct) =>
             await reader.ReadAsync(ct) && !reader.IsDBNull(0) ? reader.GetString(0).Trim() : "", cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<LockHolder>?> GetLockHoldersAsync(TableRef table, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await session.ExecuteReaderAsync(LockHoldersSql, [new("owner", table.Owner), new("name", table.Name)], async (reader, ct) =>
+            {
+                var result = new List<LockHolder>();
+                while (await reader.ReadAsync(ct))
+                {
+                    result.Add(new LockHolder(
+                        GetInt(reader, 0) ?? 0, GetText(reader, 1), GetText(reader, 2), GetText(reader, 3), GetText(reader, 4),
+                        GetText(reader, 5), GetText(reader, 6), GetDate(reader, 7)));
+                }
+
+                return (IReadOnlyList<LockHolder>?)result;
+            }, cancellationToken);
+        }
+        catch (OracleStatementException ex) when (ex.Oracle?.Number is 942 or 1031)
+        {
+            return null; // no access to the V$ views
+        }
     }
 
     /// <summary>A descending column is stored as the quoted column name ("NAME"); anything else is a real expression.</summary>

@@ -21,6 +21,9 @@ internal sealed class OracleStatementException(string sql, IReadOnlyList<QueryPa
     public OracleException? Oracle { get; } = inner;
 }
 
+/// <param name="Outputs">Output parameters by name (<c>RETURNING ROWID INTO :p_rowid</c>), as text.</param>
+internal sealed record NonQueryResult(int Rows, IReadOnlyDictionary<string, object?> Outputs);
+
 /// <summary>Values shown in <c>V$SESSION</c> (MODULE, ACTION, CLIENT_INFO) to identify who holds a session.</summary>
 public sealed record SessionContext(string Module, string Action, string? ClientInfo = null);
 
@@ -49,6 +52,7 @@ public sealed class OracleSession : IAsyncDisposable
 
     private static readonly Regex WriteStart = new(@"\A(?:INSERT|UPDATE|DELETE)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     private static readonly Regex SavepointName = new(@"\A[A-Z][A-Z0-9_]{0,29}\z", RegexOptions.CultureInvariant);
+    private static readonly Regex LockEnd = new(@"\bFOR\s+UPDATE\s+(?:WAIT\s+\d{1,3}|NOWAIT)\z", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     /// <summary>ORA-01013: user requested cancel of current operation.</summary>
     internal const int UserCancelledErrorNumber = 1013;
 
@@ -386,8 +390,8 @@ public sealed class OracleSession : IAsyncDisposable
     /// The only way to write: a single INSERT/UPDATE/DELETE (<see cref="IsWriteStatement"/>) inside an open
     /// transaction – never autocommit, never DDL. In a locked session Oracle rejects it (ORA-01456).
     /// </summary>
-    /// <returns>Affected rows.</returns>
-    internal async Task<int> ExecuteNonQueryAsync(string sql, IReadOnlyList<QueryParameter> parameters, CancellationToken cancellationToken)
+    /// <returns>Affected rows and the values of output parameters (<c>RETURNING … INTO</c>).</returns>
+    internal async Task<NonQueryResult> ExecuteNonQueryAsync(string sql, IReadOnlyList<QueryParameter> parameters, CancellationToken cancellationToken)
     {
         if (!IsWriteStatement(sql))
         {
@@ -406,7 +410,11 @@ public sealed class OracleSession : IAsyncDisposable
             await using var cancelRegistration = cancellationToken.Register(static c => ((OracleCommand)c!).Cancel(), command);
             try
             {
-                return await command.ExecuteNonQueryAsync(cancellationToken);
+                var rows = await command.ExecuteNonQueryAsync(cancellationToken);
+                var outputs = command.Parameters.Cast<OracleParameter>()
+                    .Where(p => p.Direction == ParameterDirection.Output)
+                    .ToDictionary(p => p.ParameterName, p => p.Value is DBNull or null ? null : (object?)p.Value.ToString());
+                return new NonQueryResult(rows, outputs);
             }
             catch (OracleException ex) when (ex.Number == UserCancelledErrorNumber)
             {
@@ -422,6 +430,44 @@ public sealed class OracleSession : IAsyncDisposable
             Interlocked.Exchange(ref _lastRoundTrip, Environment.TickCount64);
             _gate.Release();
         }
+    }
+
+    /// <summary>
+    /// Locks rows before writing them: only <c>SELECT … FOR UPDATE WAIT n</c> / <c>NOWAIT</c>
+    /// (<see cref="IsLockStatement"/>) and only inside a writing transaction – a lock outside one would be released
+    /// at once. Waiting longer than n seconds ends with ORA-30006.
+    /// </summary>
+    internal async Task<T> ExecuteLockingReaderAsync<T>(
+        string sql, IReadOnlyList<QueryParameter> parameters, Func<DbDataReader, CancellationToken, Task<T>> read, CancellationToken cancellationToken)
+    {
+        if (!IsLockStatement(sql))
+        {
+            throw new InvalidOperationException("Gesperrt wird nur mit SELECT … FOR UPDATE WAIT n.");
+        }
+
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            if (_transaction is null || Transaction.Mode != TransactionMode.ReadWrite)
+            {
+                throw new InvalidOperationException("Zeilen werden nur innerhalb einer schreibenden Transaktion gesperrt.");
+            }
+
+            return await ReadCoreAsync(sql, parameters, read, cancellationToken);
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _lastRoundTrip, Environment.TickCount64);
+            _gate.Release();
+        }
+    }
+
+    /// <summary>A single SELECT ending in FOR UPDATE WAIT n or FOR UPDATE NOWAIT – never one that waits forever.</summary>
+    internal static bool IsLockStatement(string sql)
+    {
+        var body = sql[LeadingComments.Match(sql).Length..];
+        var withoutLiterals = StringLiterals.Replace(body, "''").TrimEnd().TrimEnd(';');
+        return QueryStart.IsMatch(body) && LockEnd.IsMatch(withoutLiterals) && !withoutLiterals.Contains(';', StringComparison.Ordinal);
     }
 
     /// <summary>Rolls back an open transaction first: nothing uncommitted may survive by accident.</summary>
@@ -570,9 +616,17 @@ public sealed class OracleSession : IAsyncDisposable
 
     private static OracleParameter ToOracleParameter(QueryParameter parameter)
     {
+        if (parameter.Output)
+        {
+            return new OracleParameter(parameter.Name, OracleDbType.Varchar2, 4000) { Direction = ParameterDirection.Output };
+        }
+
         var result = new OracleParameter(parameter.Name, parameter.Value ?? DBNull.Value);
         switch (parameter.Type)
         {
+            case OracleTypeHint.NVarchar2:
+                result.OracleDbType = OracleDbType.NVarchar2;
+                break;
             case OracleTypeHint.Varchar2:
                 result.OracleDbType = OracleDbType.Varchar2;
                 break;

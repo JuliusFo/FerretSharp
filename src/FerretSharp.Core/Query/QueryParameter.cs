@@ -14,8 +14,15 @@ public enum OracleTypeHint
 
     /// <summary>Binary (RAW columns); the value is a byte array.</summary>
     Raw,
+
+    /// <summary>National character set (NVARCHAR2/NCHAR), so characters outside the database character set survive.</summary>
+    NVarchar2,
+
+    /// <summary>A ROWID returned by <c>RETURNING ROWID INTO</c> (output parameter).</summary>
+    RowId,
 }
 
 /// <summary>Driver-neutral bind variable; mapped to <c>OracleParameter</c> by <c>OracleSession</c>.</summary>
 /// <param name="Name">Name without the leading colon.</param>
-public sealed record QueryParameter(string Name, object? Value, OracleTypeHint Type = OracleTypeHint.Auto);
+/// <param name="Output">Filled by the statement (<c>RETURNING … INTO :name</c>); <see cref="Value"/> is ignored.</param>
+public sealed record QueryParameter(string Name, object? Value, OracleTypeHint Type = OracleTypeHint.Auto, bool Output = false);

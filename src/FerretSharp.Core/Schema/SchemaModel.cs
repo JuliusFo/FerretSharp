@@ -136,4 +136,10 @@ public interface ISchemaReader
     /// answers ORA-31603 (object not found).
     /// </summary>
     Task<string> GetDdlAsync(TableSummary table, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Sessions (other than this one) holding locks on the table – for the lock conflict dialog. Null if the user
+    /// may not read <c>V$LOCKED_OBJECT</c>/<c>V$SESSION</c> (needs <c>SELECT_CATALOG_ROLE</c> or grants).
+    /// </summary>
+    Task<IReadOnlyList<Data.LockHolder>?> GetLockHoldersAsync(TableRef table, CancellationToken cancellationToken);
 }

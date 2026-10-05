@@ -332,7 +332,14 @@ public sealed class WorkspaceManager(
     /// Data access on the workspace's own session, opened on first use. A failed open is not cached, so the next
     /// call tries again. Cancelling <paramref name="cancellationToken"/> only stops waiting; the open continues.
     /// </summary>
-    public async Task<IDataAccess> GetDataAsync(Guid workspaceId, CancellationToken cancellationToken)
+    public async Task<IDataAccess> GetDataAsync(Guid workspaceId, CancellationToken cancellationToken) =>
+        (await GetConnectionAsync(workspaceId, cancellationToken)).Data;
+
+    /// <summary>Writing on the workspace's session (same transaction as its queries, so they see the flushed changes).</summary>
+    public async Task<IDataEditor> GetEditorAsync(Guid workspaceId, CancellationToken cancellationToken) =>
+        (await GetConnectionAsync(workspaceId, cancellationToken)).Editor;
+
+    private async Task<IDatabaseConnection> GetConnectionAsync(Guid workspaceId, CancellationToken cancellationToken)
     {
         Task<IDatabaseConnection> session;
         lock (_lock)
@@ -350,8 +357,7 @@ public sealed class WorkspaceManager(
             }
         }
 
-        var connection = await session.WaitAsync(cancellationToken);
-        return connection.Data;
+        return await session.WaitAsync(cancellationToken);
     }
 
     /// <summary>Writes all pending changes now.</summary>

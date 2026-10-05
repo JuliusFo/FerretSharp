@@ -58,7 +58,7 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
         }, cancellationToken);
     }
 
-    private static RowData ReadRow(OracleDataReader reader, SelectQuery query, TableDetails table)
+    internal static RowData ReadRow(OracleDataReader reader, SelectQuery query, TableDetails table)
     {
         var ordinal = 0;
         string? rowId = null;
@@ -105,7 +105,7 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
         return new RowData(key, values);
     }
 
-    private static object? ReadValue(OracleDataReader reader, int ordinal, ColumnInfo column)
+    internal static object? ReadValue(OracleDataReader reader, int ordinal, ColumnInfo column)
     {
         switch (ColumnCategories.Of(column))
         {
