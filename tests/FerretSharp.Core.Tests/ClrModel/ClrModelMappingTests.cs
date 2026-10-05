@@ -26,12 +26,9 @@ public sealed class ClrModelMappingTests
         _reader.GetTablesAsync(Owner, Arg.Any<CancellationToken>()).Returns(tables.Where(t => t.Synonym is null).ToList());
         _reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns(tables.Where(t => t.Synonym is not null).ToList());
         _reader.GetForeignKeysAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
-        _reader.GetDetailsAsync(Arg.Any<TableSummary>(), Arg.Any<CancellationToken>()).Returns(call =>
-        {
-            var table = call.Arg<TableSummary>();
-            var columns = _columns[table.Name].Select((c, i) => new ColumnInfo(c, "NUMBER", null, false, 10, 0, true, false, null, i + 1)).ToList();
-            return new TableDetails(table, columns, [], [], false);
-        });
+        // The comparison reads all column names of a schema at once, never the details of each table.
+        _reader.GetColumnNamesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(_ =>
+            (IReadOnlyDictionary<string, IReadOnlyList<string>>)_columns.ToDictionary(c => c.Key, c => c.Value));
         var schema = new SchemaCache(_reader, Owner);
         await schema.LoadAsync(Ct);
         return schema;
@@ -59,6 +56,9 @@ public sealed class ClrModelMappingTests
                 (MappingIssueKind.ColumnWithoutProperty, "KUNDEN.ANZAHL: keine Property in Kunde."),
             ],
             mapping.Issues.Select(i => (i.Kind, i.Message)));
+        // One query for the schema's column names, none per table (minutes for 400 tables over a VPN).
+        await _reader.Received(1).GetColumnNamesAsync(Owner, Arg.Any<CancellationToken>());
+        await _reader.DidNotReceive().GetDetailsAsync(Arg.Any<TableSummary>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

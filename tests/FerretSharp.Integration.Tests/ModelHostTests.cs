@@ -21,6 +21,30 @@ public sealed class ModelHostTests
     private static ModelHostRunner Runner() =>
         new(Path.Combine(Root, "src", "FerretSharp.ModelHost", "bin", Configuration, "net8.0", "FerretSharp.ModelHost.dll"));
 
+    private sealed class StepCollector : IProgress<string>
+    {
+        private readonly List<string> _steps = [];
+
+        public IReadOnlyList<string> Steps
+        {
+            get
+            {
+                lock (_steps)
+                {
+                    return _steps.ToList();
+                }
+            }
+        }
+
+        public void Report(string value)
+        {
+            lock (_steps)
+            {
+                _steps.Add(value);
+            }
+        }
+    }
+
     private static string FindRoot()
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
@@ -49,9 +73,13 @@ public sealed class ModelHostTests
     public async Task Reads_the_sample_model_with_naming_convention_converters_and_navigations()
     {
         var link = SampleLink();
-        var result = await Runner().ReadModelAsync(link, BuildOutputLocator.Find(link), Ct);
+        var steps = new StepCollector();
+        var result = await Runner().ReadModelAsync(link, BuildOutputLocator.Find(link), Ct, steps);
 
         Assert.Null(result.Error);
+        // The host reports its steps on stdout as they happen (shown on the model page with their durations).
+        Assert.Equal(["Starte den Hilfsprozess", "Lade die Assemblies", "Erzeuge den DbContext", "Baue das Modell (OnModelCreating)", "Lese das Modell aus"],
+            steps.Steps);
         var model = result.Model!;
         Assert.StartsWith("8.0.", model.EfVersion);
         Assert.Equal("options", model.CreatedBy); // our options and the DbContextOptions constructor, no start-up code

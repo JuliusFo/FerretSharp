@@ -122,6 +122,19 @@ public class OracleSchemaReaderTests(OracleContainerFixture oracle) : IAsyncLife
     }
 
     [Fact]
+    public async Task Column_names_of_the_whole_schema_come_in_one_query_in_column_order()
+    {
+        var columns = await Reader.GetColumnNamesAsync(_owner, Ct);
+
+        Assert.Equal(["Id", "Wert", "raw col"], columns["MixedCase"]);
+        Assert.Equal(["KUNDE_ID", "NAME", "ANZAHL"], columns["V_KUNDEN_AUFTRAEGE"]); // views too
+        Assert.Equal(
+            (await Reader.GetDetailsAsync(new TableSummary(_owner, "KUNDEN", TableKind.Table), Ct)).Columns.Select(c => c.Name),
+            columns["KUNDEN"]);
+        Assert.Contains("MV_UMSATZ", columns.Keys);
+    }
+
+    [Fact]
     public async Task View_has_columns_but_no_primary_key()
     {
         var details = await Reader.GetDetailsAsync(new TableSummary(_owner, "V_KUNDEN_AUFTRAEGE", TableKind.View), Ct);

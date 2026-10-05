@@ -105,6 +105,9 @@ public sealed class OracleDatabaseConnector : IDatabaseConnector
 
         public Task<IReadOnlyList<LockHolder>?> GetLockHoldersAsync(TableRef table, CancellationToken cancellationToken) =>
             OracleErrors.Guard(() => inner.GetLockHoldersAsync(table, cancellationToken));
+
+        public Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetColumnNamesAsync(string owner, CancellationToken cancellationToken) =>
+            OracleErrors.Guard(() => inner.GetColumnNamesAsync(owner, cancellationToken));
     }
 }
 

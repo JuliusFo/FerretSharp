@@ -401,7 +401,7 @@
 
         if (state.Phase == FerretSharp.Core.ClrModel.ClrModelPhase.Loading)
         {
-            return @<button class="item status-link" title="Lese das C#-Modell …" @onclick="_state.ShowModel"><span class="spinner small"></span> C#-Modell</button>;
+            return @<button class="item status-link shrink" title="@(state.Step ?? "Lese das C#-Modell") …" @onclick="_state.ShowModel"><span class="spinner small"></span> C# · @(state.Step ?? "lädt") …</button>;
         }
 
         if (state.Phase == FerretSharp.Core.ClrModel.ClrModelPhase.Failed)

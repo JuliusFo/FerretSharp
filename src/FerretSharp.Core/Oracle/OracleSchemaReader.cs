@@ -67,6 +67,14 @@ public sealed class OracleSchemaReader(OracleSession session) : ISchemaReader
         """;
 
     // ALL_TAB_COLS without hidden columns is exactly ALL_TAB_COLUMNS, plus VIRTUAL_COLUMN.
+    // All column names of a schema at once (C# model comparison): one round trip instead of one per table.
+    private const string ColumnNamesSql = """
+        SELECT table_name, column_name
+          FROM all_tab_cols
+         WHERE owner = :owner AND hidden_column = 'NO'
+         ORDER BY table_name, column_id
+        """;
+
     private const string ColumnsSql = """
         SELECT c.column_name, c.data_type, c.char_used, c.char_length, c.data_length, c.data_precision, c.data_scale,
                c.nullable, c.identity_column, c.data_default, c.column_id, cm.comments, c.virtual_column, c.default_on_null
@@ -487,6 +495,30 @@ public sealed class OracleSchemaReader(OracleSession session) : ISchemaReader
         return session.ExecuteReaderAsync(DdlSql, [new("object_type", objectType), new("name", table.Name), new("owner", table.Owner)], async (reader, ct) =>
             await reader.ReadAsync(ct) && !reader.IsDBNull(0) ? reader.GetString(0).Trim() : "", cancellationToken);
     }
+
+    public Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetColumnNamesAsync(string owner, CancellationToken cancellationToken) =>
+        session.ExecuteReaderAsync(ColumnNamesSql, [new("owner", owner)], async (reader, ct) =>
+        {
+            // Thousands of rows: fetch them in a few round trips, not in the default 128 KB portions (slow over a VPN).
+            if (reader is global::Oracle.ManagedDataAccess.Client.OracleDataReader oracle && oracle.RowSize > 0)
+            {
+                oracle.FetchSize = oracle.RowSize * 5000;
+            }
+
+            var result = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+            while (await reader.ReadAsync(ct))
+            {
+                var table = reader.GetString(0);
+                if (!result.TryGetValue(table, out var columns))
+                {
+                    result[table] = columns = [];
+                }
+
+                columns.Add(reader.GetString(1));
+            }
+
+            return (IReadOnlyDictionary<string, IReadOnlyList<string>>)result.ToDictionary(e => e.Key, e => (IReadOnlyList<string>)e.Value, StringComparer.Ordinal);
+        }, cancellationToken);
 
     public async Task<IReadOnlyList<LockHolder>?> GetLockHoldersAsync(TableRef table, CancellationToken cancellationToken)
     {

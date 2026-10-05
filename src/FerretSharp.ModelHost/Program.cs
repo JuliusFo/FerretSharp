@@ -35,6 +35,7 @@ internal static class Program
             result = Fail(ModelHostErrorKind.Unexpected, ex.Message, ex);
         }
 
+
         try
         {
             File.WriteAllText(options.Output, JsonSerializer.Serialize(result, ModelHostResult.JsonOptions));
@@ -63,6 +64,7 @@ internal static class Program
             return File.Exists(candidate) ? context.LoadFromAssemblyPath(candidate) : null;
         };
 
+        Step("Lade die Assemblies");
         Assembly assembly;
         Type[] types;
         try
@@ -95,6 +97,7 @@ internal static class Program
         }
 
         var contextType = contexts[0];
+        Step("Erzeuge den DbContext");
         DbContext context;
         string createdBy;
         try
@@ -114,6 +117,7 @@ internal static class Program
         using (context)
         {
             Microsoft.EntityFrameworkCore.Metadata.IModel model;
+            Step("Baue das Modell (OnModelCreating)");
             try
             {
                 // Builds the model: OnModelCreating, conventions, configurations – no database connection.
@@ -125,8 +129,16 @@ internal static class Program
                 return Fail(ModelHostErrorKind.ModelBuildFailed, $"Das Modell von {contextType.Name} ließ sich nicht bauen: {inner.Message}", inner);
             }
 
+            Step("Lese das Modell aus");
             return new ModelHostResult(ModelReader.Read(model, contextType, createdBy), null);
         }
+    }
+
+    /// <summary>Starts a step: reported to FerretSharp as a progress line on stdout (FerretSharp measures the durations).</summary>
+    private static void Step(string name)
+    {
+        Console.Out.WriteLine(ModelHostResult.ProgressPrefix + name);
+        Console.Out.Flush();
     }
 
     private static Type[] LoadableTypes(Assembly assembly)

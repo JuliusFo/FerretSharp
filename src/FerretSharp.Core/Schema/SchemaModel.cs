@@ -142,4 +142,10 @@ public interface ISchemaReader
     /// may not read <c>V$LOCKED_OBJECT</c>/<c>V$SESSION</c> (needs <c>SELECT_CATALOG_ROLE</c> or grants).
     /// </summary>
     Task<IReadOnlyList<Data.LockHolder>?> GetLockHoldersAsync(TableRef table, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The column names of every table, view and materialized view of a schema in one query (C# model comparison, where
+    /// one query per table costs minutes over a slow network). Table name → columns in column order.
+    /// </summary>
+    Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetColumnNamesAsync(string owner, CancellationToken cancellationToken);
 }
