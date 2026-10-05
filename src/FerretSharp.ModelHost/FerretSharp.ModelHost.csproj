@@ -12,10 +12,13 @@
   <ItemGroup>
     <!-- Compile only: at run time the user's EF Core assemblies are used (none are copied next to the host). -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" ExcludeAssets="runtime" PrivateAssets="all" />
+    <!-- Shipped next to the host and resolved from its folder (the project's deps.json does not know it). -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" />
   </ItemGroup>
 
   <ItemGroup>
     <Compile Include="..\FerretSharp.Core\ClrModel\ModelExport.cs" Link="ModelExport.cs" />
+    <Compile Include="..\FerretSharp.Core\ClrModel\LinqProtocol.cs" Link="LinqProtocol.cs" />
   </ItemGroup>
 
 </Project>
