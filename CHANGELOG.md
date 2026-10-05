@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-10-05
+
 ### Added
 - C# model (start of v3): link a connection to the .NET project with your DbContext ("C#-Modell" in the connection dialog). FerretSharp reads the EF Core model (EF Core 8 or newer) from the existing build – with your own conventions and value converters, without running your application's start-up code and without a database connection. It runs in a helper process with your project's runtime, EF Core and Oracle provider.
 - Model page (status bar "C# · N Entities"): project, build, DbContext and EF Core version; "Neu laden" and "Neu bauen" (`dotnet build`); a hint when the source code is newer than the build.
