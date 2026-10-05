@@ -2,7 +2,7 @@
 
 > Projektanweisungen für Claude Code. Bitte vollständig lesen, bevor ein Arbeitspaket umgesetzt wird.
 > Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-05 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1)
+> Stand: 2026-10-05 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0)
 
 ## 1. Ziel
 
@@ -62,7 +62,7 @@ Versionierung: SemVer, Git-Tag `vX.Y.Z` pro Release, `CHANGELOG.md` pflegen. Fea
 | Logging | `Microsoft.Extensions.Logging` + **Serilog** (`Serilog.Extensions.Hosting`, `Serilog.Sinks.File`) | Datei unter `%APPDATA%\FerretSharp\logs`. Keine Bind-Werte von Prod-Verbindungen loggen (maskieren). |
 | Grid | **AG Grid Community 34.3.1** (MIT) über JS-Interop, **Infinite Row Model** | Datenblöcke à 500 und Sortierung kommen aus .NET (`IDataAccess`), gekapselt in `FerretGrid` + `wwwroot/js/grid.js`. Zellen gehen als fertig formatierte Strings über die Grenze (null = NULL), Spalten-IDs `c0`, `c1` … (Oracle-Namen dürfen Punkte enthalten). **Lokal im Repo** unter `FerretSharp.UI/wwwroot/lib/ag-grid/` (Herkunft/Hash in der README dort, kein CDN). Enterprise-Features (Kontextmenü, Zellbereich) nicht verwenden – eigene Lösungen in Blazor. |
 | Layout | Tabs + Seitenleiste in Blazor | Kein Docking-Framework. |
-| SQL-Anzeige | eigener Highlighter in Razor (siehe Prototyp `TableView.razor`) | Vollwertiger Editor (Monaco) erst mit dem freien SQL-Editor (Backlog). |
+| SQL-Anzeige | eigener Highlighter in Razor (siehe Prototyp `TableView.razor`) | Editor für C# in der LINQ-Konsole: **Monaco 0.57** (ADR 0011, lokal unter `wwwroot/lib/monaco/`); für den freien SQL-Editor (Backlog) wiederverwendbar. |
 | Oracle | `Oracle.ManagedDataAccess.Core` (23.x) | rein managed, kein Instant Client; **durchgängig async** mit `CancellationToken`. |
 | Oracle-Version | Ziel **19c+**; 12.2 sollte funktionieren | `OFFSET/FETCH`, `ALL_TAB_IDENTITY_COLS` erst ab 12c. Kein ROWNUM-Fallback. |
 | Tests | **xUnit v3** auf **Microsoft Testing Platform** + NSubstitute; Integration: **Testcontainers.Oracle** | Kein VSTest (`Microsoft.NET.Test.Sdk`/`xunit.runner.visualstudio` nicht verwenden). Image `gvenzl/oracle-free:23-slim-faststart`. Benötigt Docker. |
@@ -320,6 +320,7 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 | Ctrl+P | Tabelle suchen (Backlog) | – |
 | Ctrl+S | Pending-Änderungen flushen (kein Commit) | v1.9 |
 | Ctrl+Shift+Enter | Commit (auf Prod immer mit Bestätigung) | v1.9 |
+| Ctrl+Shift+L | Neue LINQ-Konsole (mit verknüpftem C#-Projekt); im LINQ-Tab führen Ctrl+Enter und F5 aus, Ctrl+F sucht im Editor | 2.3 |
 | – | Rollback nur über Button, mit Bestätigung | v2 |
 
 `Esc` bleibt dem Grid vorbehalten (Zelleingabe abbrechen) bzw. schließt Menüs/Dialoge. Globale Shortcuts registriert die `Shell` über `wwwroot/js/shortcuts.js` (Capture-Listener → `OnShortcut` in .NET); `F12` öffnet im Debug-Build die DevTools.
@@ -490,6 +491,13 @@ Entscheidungen des Nutzers (2026-10-05):
   - Extension-Methoden, Helfer und Enums des Projekts müssen verfügbar sein → Scripting im Kontext der Projekt-Assemblies (Argument für Out-of-Process im ADR aus WP-11).
 - Idealerweise auf der Connection/Transaktion des Workspaces, damit eigene uncommittete Änderungen sichtbar sind (beeinflusst das ADR aus WP-11).
 - Prod-Schutz gilt auch hier: Ausführung in `SET TRANSACTION READ ONLY`, solange nicht freigeschaltet; `SaveChanges` sowie `ExecuteUpdate`/`ExecuteDelete` nur nach Freischaltung.
+- Umgesetzt (Release 2.3.0, ADR 0011). Entscheidungen des Nutzers: **SQL abfangen, FerretSharp führt aus** (nicht der Hilfsprozess mit eigener Connection), **Tab im Workspace**, **Monaco** als Editor, `ExecuteUpdate`/`ExecuteDelete` **nur auf schreibbaren Workspaces**.
+  - Spike vorab: Der Oracle-EF-Provider läuft ohne Datenbank, wenn Interceptors das Öffnen der Verbindung und jedes Kommando unterdrücken (`CommandCapture`: zeichnet SQL und Parameter mit `OracleDbType` auf, gibt EF ein leeres Ergebnis). Roslyn läuft im Projektprozess nur bis **4.11**: ab 4.12 kommt `System.Reflection.Metadata` 9.0 mit, das in einer .NET-8-Runtime nicht neben der Framework-Version 8.0 ladbar ist (`FileLoadException`).
+  - ModelHost: Konsolenmodus `--console <pipe>` (Named Pipe, JSON-Zeilen `LinqRequest`/`LinqResponse`, gemeinsame Datei `LinqProtocol.cs`); `LinqConsole` kompiliert Variablen + Code mit Globals (`__Context`, `__Token`), erkennt CS0103-Namen: Kontext (`name.DbSet` oder übliche Namen) und Token werden automatisch deklariert, die übrigen bekommen Vorschläge aus der Verwendung (`TypeSuggestion`, erst **nach** dem Deklarieren des Kontexts – sonst haben die Lambdas keine Typen). Ein `IQueryable`-Ergebnis wird aufgezählt, damit das Kommando entsteht. Ein Interceptor-Exemplar für die ganze Lebensdauer (neue Exemplare je Context ließen EF jedes Mal einen neuen internen Service-Provider bauen). Resolver lädt aus dem Host-Ordner (`typeof(Program).Assembly.Location`; `AppContext.BaseDirectory` ist bei `dotnet exec --depsfile` nicht verlässlich).
+  - Core: `LinqConsoleHost` (Prozess + Pipe; Reader/Writer erst nach dem Verbinden anlegen – `AutoFlush` schreibt sofort, eine unverbundene Pipe wirft), `LinqConsoleService` (ein Host pro verknüpftem Projekt, Neustart nach neuem Build, Ende beim Entknüpfen/Trennen/Beenden; reagiert nur auf echte Link-Änderungen, nicht auf jeden Ladeschritt des Modells), `LinqStatements` (Kommando → `QuerySpec`, Werte zurück in CLR-Typen, `OracleDbType` → `OracleTypeHint`; nur SELECT/WITH lesen, nur UPDATE/DELETE schreiben, PL/SQL-Blöcke nie). `IDataAccess.ReadSqlAsync` (Seiten durch erneutes Ausführen und Überspringen – `SELECT * FROM (…)` scheitert an doppelten Spaltennamen der EF-Joins, ORA-00918; Spaltentypen aus dem Treiber), `IDataEditor.ExecuteAsync` (Transaktion bei Bedarf beginnen, eigener Savepoint `FS_LINQ_n`, gesperrte Workspaces abgelehnt).
+  - UI: Tabs sind jetzt `WorkspaceTab` (`TableTab` | `LinqTab`); LINQ-Tabs werden mit `TabState.Linq` gespeichert (Tabelle `LinqTabState.NoTable` – ältere Versionen verwerfen sie wie verschwundene Tabellen). `LinqView` (Editoren, Hinweise, Diagnosen, Kommandos, SQL, Ergebnis), `MonacoEditor` + `js/monaco.js`, `SqlResultGrid` (dieselbe AG-Grid-Brücke, ohne Editieren/Sortieren). Ctrl+Enter/F5 führen aus (globale Shortcuts in der Capture-Phase erreichen auch den Editor; danach `StateHasChanged`, weil kein UI-Ereignis rendert), Ctrl+F öffnet die Suche des Editors, Ctrl+Shift+L öffnet eine Konsole.
+  - Monaco 0.57.0 lokal unter `wwwroot/lib/monaco/` (README mit Herkunft/Integrity), AMD-Build `min/vs` ohne die Sprachdienste TS/CSS/HTML/JSON und ohne fremde Übersetzungen (6 MB). **Falle:** `vs/nls/lang/de.js` ist kein AMD-Modul (setzt nur Globals) – über `'vs/nls': { availableLanguages }` angefordert, wartet der Loader ewig; deshalb als normales Script vor dem Editor laden.
+  - App: Der `modelhost`-Ordner enthält jetzt alle DLLs des Hosts samt Sprachordnern (Roslyn-Meldungen auf Deutsch); `CloseConnection` beendet den Konsolen-Prozess. Stirbt FerretSharp hart, endet der Host nach einigen Sekunden über die abgebrochene Pipe.
 
 #### WP-14 Explain-Plan
 - Plan-Dialog für die Grid-Abfrage (Button neben „SQL“ an der Filterleiste) und für LINQ-Queries aus der Konsole; der Nutzer wählt die Variante:

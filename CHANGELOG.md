@@ -5,6 +5,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-10-05
+
+### Added
+- LINQ console (Ctrl+Shift+L or "+ LINQ" in the tab bar, with a linked C# project): a workspace tab with a C# editor (Monaco) for a query and the variables it uses. FerretSharp turns the code into exactly the SQL your project's EF Core would send – with your converters, enums and extension methods – and runs it in the workspace's session, so your own uncommitted changes are visible and locked workspaces stay read-only. The result appears in a grid, the SQL with its typed parameters beside it.
+- Queries copied from code: names for the context (`_context`, `db`, `dbContext` …) and the cancellation token (`ct`, `cancellationToken`) are recognised automatically; other unknown names come back as declarations typed from how they are used (`int customerId = 0;`, `var request = new { From = DateTime.Today };`, `List<int> ids = new List<int> { };`), to adopt into the variables with one click.
+- Compiler errors (in German) are marked in the editor and listed below it; a click jumps to the spot. A missing column (ORA-00904) offers the model comparison.
+- `ExecuteUpdate`/`ExecuteDelete`: shown as SQL first; "Im Workspace ausführen" runs it in the workspace's transaction (commit or roll back in the status bar), only on writable workspaces.
+- LINQ tabs are saved with the workspace. The console's helper process starts in the background when a LINQ tab opens and again after a new build.
+
+### Changed
+- FerretSharp ships Roslyn 4.11 and Monaco 0.57 (ADR 0011).
+
 ## [2.2.1] - 2026-10-05
 
 ### Added
