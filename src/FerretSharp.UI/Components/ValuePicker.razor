@@ -5,7 +5,7 @@
 @using FerretSharp.UI.State
 
 <div class="valpick">
-    <button type="button" class="field value valpick-field @(Selected.Count == 0 ? "empty" : "")" title="@Summary"
+    <button type="button" class="field value valpick-field @(Selected.Count == 0 ? "valpick-unset" : "")" title="@Summary"
             @onclick="Toggle" @onkeydown="OnKeyDown" @onkeydown:preventDefault="_open">
         <span class="valpick-text">@(Selected.Count == 0 ? (Multiple ? "Werte wählen …" : "Wert wählen …") : Summary)</span>
         <span class="valpick-caret">▾</span>
