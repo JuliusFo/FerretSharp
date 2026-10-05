@@ -269,6 +269,18 @@ public sealed class ShellState
 
     public void CloseLeave() => Set(() => PendingLeave = null);
 
+    /// <summary>Workspace the user wants to unlock for writing; the shell asks first (WP-10).</summary>
+    public Guid? PendingUnlock { get; private set; }
+
+    public void RequestUnlock(Guid workspaceId) => Set(() => PendingUnlock = workspaceId);
+
+    public void CloseUnlock() => Set(() => PendingUnlock = null);
+
+    /// <summary>Set by the shell: locks an unlocked workspace again (after commit/discard of open changes).</summary>
+    public Func<Guid, Task>? LockWorkspace { get; set; }
+
+    public Task LockWorkspaceAsync(Guid workspaceId) => LockWorkspace?.Invoke(workspaceId) ?? Task.CompletedTask;
+
     public void NotifyChanged()
     {
         Changed?.Invoke();

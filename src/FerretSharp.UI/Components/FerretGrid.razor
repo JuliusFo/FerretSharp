@@ -17,6 +17,7 @@
 
     private readonly Dictionary<int, IReadOnlyList<RowData>> _blocks = [];
     private IJSObjectReference? _module;
+    private bool _editable;
     private IJSObjectReference? _dom;
     private DotNetObjectReference<FerretGrid>? _selfRef;
 
@@ -38,6 +39,14 @@
 
     [Parameter]
     public EventCallback<ColumnMenuRequest> OnColumnMenu { get; set; }
+
+    /// <summary>Double click (or Enter) on a LOB cell: open the LOB editor.</summary>
+    [Parameter]
+    public EventCallback<LobRequest> OnLobOpen { get; set; }
+
+    /// <summary>Writing became possible or impossible (workspace unlocked or locked again).</summary>
+    [Parameter]
+    public EventCallback OnEditableChanged { get; set; }
 
     public sealed record GridSort(string ColId, string Sort);
 
@@ -62,10 +71,13 @@
 
         var foreignKeyColumns = Active.Schema?.OutgoingOf(Details.Table.Ref).SelectMany(f => f.FromColumns).ToHashSet() ?? [];
         Tab.PinnedColumns = ColumnPinning.Normalize(Details, Tab.PinnedColumns); // columns may have been dropped since
-        if (CanEdit)
+        _editable = CanEdit;
+        if (_editable)
         {
             Tab.Changes ??= new ChangeTracker(Details);
         }
+
+        Workspaces.Changed += OnWorkspacesChanged;
         var columns = ColumnPinning.DisplayOrder(Details, Tab.PinnedColumns).Select(i =>
         {
             var c = Details.Columns[i];
@@ -83,8 +95,11 @@
                 sortable = ColumnCategories.IsSortable(category),
                 pinned = ColumnPinning.IsPinned(Details, Tab.PinnedColumns, c.Name),
                 comment = c.Comment,
-                editable = CanEdit && OracleTypeMapper.NotEditableReason(Details, c, newRow: false) is null,
-                editableNew = CanEdit && OracleTypeMapper.NotEditableReason(Details, c, newRow: true) is null,
+                // Whether the column can be edited at all; whether the workspace may write is switched in grid.js (setEditable).
+                editable = !OracleTypeMapper.IsLob(c) && OracleTypeMapper.NotEditableReason(Details, c, newRow: false) is null,
+                editableNew = !OracleTypeMapper.IsLob(c) && OracleTypeMapper.NotEditableReason(Details, c, newRow: true) is null,
+                // LOBs open the LOB editor instead (also to read them whole on a locked workspace).
+                lob = OracleTypeMapper.IsLob(c),
                 // Long texts (and their line breaks) are edited in a larger box.
                 multiline = category == ColumnCategory.Text && (c.Length ?? 0) > 200,
             };
@@ -96,7 +111,7 @@
 
         _selfRef = DotNetObjectReference.Create(this);
         _module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/grid.js");
-        await _module.InvokeVoidAsync("create", Tab.Id, _selfRef, columns, sorts, Tab.FirstVisibleRow ?? 0);
+        await _module.InvokeVoidAsync("create", Tab.Id, _selfRef, columns, sorts, Tab.FirstVisibleRow ?? 0, _editable);
         if (Tab.Changes?.NewRows.Count > 0)
         {
             await SetNewRowsAsync(); // the tab was mounted again (workspace switch) with new rows still unsaved
@@ -132,12 +147,93 @@
     }
 
     /// <summary>
-    /// Editing is possible on connections without the read-only lock, for tables with a row key (v2, WP-09). Prod
-    /// stays locked until it is unlocked (WP-10).
+    /// Editing is possible in workspaces that may write – connections without the read-only lock, or a workspace the
+    /// user unlocked (WP-10) – for tables with a row key (v2, WP-09).
     /// </summary>
-    public bool CanEdit => Active.Profile?.ReadOnly == false
+    public bool CanEdit => Workspaces.IsWritable(Tab.WorkspaceId)
                            && Details.Table.Kind == TableKind.Table
                            && QueryBuilder.RowKeyOf(Details) != RowKeyKind.None;
+
+    /// <summary>Unlocking or locking the workspace switches editing in the grid on or off without reloading it.</summary>
+    private void OnWorkspacesChanged() => _ = InvokeAsync(async () =>
+    {
+        if (CanEdit == _editable || _module is null)
+        {
+            return;
+        }
+
+        _editable = CanEdit;
+        if (_editable)
+        {
+            Tab.Changes ??= new ChangeTracker(Details);
+        }
+        else if (Tab.Changes is { HasChanges: false })
+        {
+            Tab.Changes = null; // locked again (after commit or rollback): nothing to keep
+        }
+
+        try
+        {
+            await _module.InvokeVoidAsync("setEditable", Tab.Id, _editable);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+
+        await OnEditableChanged.InvokeAsync();
+    });
+
+    /// <summary>A LOB cell to open in the LOB editor: a loaded row (with its grid index) or a new row.</summary>
+    public sealed record LobRequest(int RowIndex, RowData? Row, RowChange? NewRow, int Column);
+
+    /// <summary>Double click or Enter on a LOB cell (grid.js).</summary>
+    [JSInvokable]
+    public async Task OnLobCell(int rowIndex, string? newId, string colId)
+    {
+        var column = ColumnIndex(colId);
+        if (NewRow(newId) is { } added)
+        {
+            await OnLobOpen.InvokeAsync(new LobRequest(-1, null, added, column));
+        }
+        else if (RowAt(rowIndex) is { } row)
+        {
+            await OnLobOpen.InvokeAsync(new LobRequest(rowIndex, row, null, column));
+        }
+    }
+
+    /// <summary>Opens the LOB editor for a cell of a loaded row (context menu).</summary>
+    public Task OpenLobAsync(int rowIndex, int column) =>
+        RowAt(rowIndex) is { } row ? OnLobOpen.InvokeAsync(new LobRequest(rowIndex, row, null, column)) : Task.CompletedTask;
+
+    /// <summary>The LOB editor's result: the whole new value; <paramref name="loaded"/> is what it read from the database.</summary>
+    public async Task<string?> SetLobAsync(LobRequest request, object? loaded, object? value)
+    {
+        if (Tab.Changes is not { } changes || _module is null)
+        {
+            return "Diese Tabelle lässt sich hier nicht bearbeiten.";
+        }
+
+        EditResult result;
+        if (request.NewRow is { } added)
+        {
+            result = changes.SetContent(added, request.Column, value);
+            if (result.IsValid)
+            {
+                await SetNewRowsAsync();
+            }
+        }
+        else
+        {
+            result = changes.SetContent(request.Row!, request.Column, loaded, value);
+            if (result.IsValid)
+            {
+                await _module.InvokeVoidAsync("updateRows", Tab.Id, new[] { new GridRowUpdate(request.RowIndex, GridRow(request.Row!)) });
+            }
+        }
+
+        ChangesMade();
+        return result.Error;
+    }
 
     /// <summary>
     /// A grid row: display texts by column id, with pending/flushed values of the tab's changes laid over the loaded
@@ -456,7 +552,7 @@
         var column = int.Parse(colId[1..], CultureInfo.InvariantCulture);
         await OnContextMenu.InvokeAsync(new GridContextMenuRequest(
             row, column, CellFormatter.Format(Details.Columns[column], row.Values[column]),
-            selected.OfType<RowData>().ToList(), selected.Count(r => r is null), x, y, viewportWidth, viewportHeight, selectedRows.Order().ToList()));
+            selected.OfType<RowData>().ToList(), selected.Count(r => r is null), x, y, viewportWidth, viewportHeight, selectedRows.Order().ToList(), rowIndex));
     }
 
     /// <summary>
@@ -557,6 +653,7 @@
 
     public async ValueTask DisposeAsync()
     {
+        Workspaces.Changed -= OnWorkspacesChanged;
         if (_dom is not null)
         {
             try

@@ -12,4 +12,4 @@ namespace FerretSharp.UI.State;
 /// <param name="SelectedIndexes">Grid row indexes of the selected rows (delete/revert from the menu).</param>
 public sealed record GridContextMenuRequest(
     RowData Row, int Column, string? CellText, IReadOnlyList<RowData> Selected, int MissingRows,
-    double X, double Y, double ViewportWidth, double ViewportHeight, IReadOnlyList<int>? SelectedIndexes = null);
+    double X, double Y, double ViewportWidth, double ViewportHeight, IReadOnlyList<int>? SelectedIndexes = null, int RowIndex = -1);

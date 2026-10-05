@@ -1,6 +1,7 @@
 @* Right-click menu of a grid cell: copy the value, jump along foreign keys (outgoing and incoming with counts). *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
+@using FerretSharp.Core.Oracle
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
 @using FerretSharp.UI.State
@@ -19,12 +20,18 @@
     <button class="menu-item" disabled="@(Request.CellText is null)" @onclick="CopyAsync">
         Wert kopieren @if (_copied) { <span class="ctx-meta">kopiert</span> }
     </button>
+    @if (OracleTypeMapper.IsLob(Column))
+    {
+        <button class="menu-item" title="Den ganzen Wert ansehen, als Datei speichern@(CanEdit ? " oder ändern" : "") (auch Doppelklick)" @onclick="OpenLobAsync">
+            Inhalt öffnen …
+        </button>
+    }
     @if (!Details.PrimaryKey.Contains(Column.Name))
     {
         <button class="menu-item" @onclick="TogglePinAsync">@(Pinned ? "Spalte lösen" : "Spalte links anheften")</button>
     }
 
-    @if (Tab.Changes is { } changes)
+    @if (CanEdit && Tab.Changes is { } changes)
     {
         var selected = Request.Selected.Select(r => changes.Find(r.Key)).ToList();
         <div class="group-head-btn static">Bearbeiten · @RowsText(Request.Selected.Count)</div>
@@ -111,6 +118,19 @@
     /// <summary>Grid row indexes of the selected rows whose pending changes to drop.</summary>
     [Parameter]
     public EventCallback<IReadOnlyList<int>> OnRevertRows { get; set; }
+
+    /// <summary>The workspace may write and the table can be edited (rows can be deleted, changes reverted).</summary>
+    [Parameter]
+    public bool CanEdit { get; set; }
+
+    [Parameter]
+    public EventCallback OnOpenLob { get; set; }
+
+    private async Task OpenLobAsync()
+    {
+        await CloseAsync();
+        await OnOpenLob.InvokeAsync();
+    }
 
     private async Task EditRowsAsync(EventCallback<IReadOnlyList<int>> action)
     {

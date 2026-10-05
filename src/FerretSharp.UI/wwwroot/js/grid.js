@@ -2,6 +2,8 @@
 // including sorting, comes from .NET; cells arrive as display strings (null = SQL NULL). No business logic here.
 
 const grids = new Map();
+// Per grid: whether its workspace may write (switched by setEditable when the workspace is unlocked or locked).
+const editStates = new Map();
 const media = window.matchMedia('(prefers-color-scheme: dark)');
 let modulesRegistered = false;
 
@@ -220,8 +222,9 @@ function reportPinned(api, dotnet) {
  * columns: [{ id, name, type, category, nullable, pk, fk, numeric, sortable, pinned }] in display order.
  * sorts: [{ colId, sort }] initial sort state.
  * firstRow: rough scroll position to restore (0 = top); the block containing it is loaded on demand.
+ * editable: whether the workspace may write (v2); the columns say whether they can be edited at all.
  */
-export function create(elementId, dotnet, columns, sorts, firstRow) {
+export function create(elementId, dotnet, columns, sorts, firstRow, editable) {
   registerModules();
   destroy(elementId);
   let restoreRow = firstRow > 0 ? firstRow : null;
@@ -245,7 +248,9 @@ export function create(elementId, dotnet, columns, sorts, firstRow) {
   }
 
   const sortById = new Map(sorts.map((s, i) => [s.colId, { sort: s.sort, index: i }]));
-  const editState = { dotnet, retry: null };
+  const editState = { dotnet, retry: null, enabled: !!editable };
+  editStates.set(elementId, editState);
+  const metaById = new Map(columns.map(meta => [meta.id, meta]));
   const columnDefs = columns.map(meta => ({
     colId: meta.id,
     field: meta.id,
@@ -257,7 +262,7 @@ export function create(elementId, dotnet, columns, sorts, firstRow) {
     cellClass: meta.numeric ? 'fs-num' : meta.category === 'Date' || meta.category.startsWith('Timestamp') ? 'fs-date' : undefined,
     cellRenderer: renderCell,
     // Editing (v2): new rows (pinned at the top) may fill the key; loaded rows not deleted and not too large a number.
-    editable: p => p.node.rowPinned === 'top'
+    editable: p => !editState.enabled ? false : p.node.rowPinned === 'top'
       ? meta.editableNew
       : meta.editable && !!p.data && !p.data.__d && !(p.data.__ro ?? []).includes(meta.id),
     cellEditor: FerretCellEditor,
@@ -322,11 +327,33 @@ export function create(elementId, dotnet, columns, sorts, firstRow) {
     const cell = e.target.closest?.('.ag-cell');
     const rowElement = cell?.closest('.ag-row');
     const colId = cell?.getAttribute('col-id');
-    const rowIndex = Number(rowElement?.getAttribute('row-index'));
-    if (!colId || Number.isNaN(rowIndex)) return;
-    const pinned = rowElement.closest('.ag-floating-top') ? 'top' : undefined;
-    api.startEditingCell({ rowIndex, colKey: colId, rowPinned: pinned });
+    // New rows pinned at the top carry row-index="t-0", "t-1" …
+    const rawIndex = rowElement?.getAttribute('row-index') ?? '';
+    const pinned = rawIndex.startsWith('t-') ? 'top' : undefined;
+    const rowIndex = Number(pinned ? rawIndex.slice(2) : rawIndex);
+    if (!colId || rawIndex === '' || Number.isNaN(rowIndex)) return;
+    if (metaById.get(colId)?.lob) {
+      openLob(rowIndex, pinned ? api.getPinnedTopRow(rowIndex)?.data?.__new : null, colId);
+    } else {
+      api.startEditingCell({ rowIndex, colKey: colId, rowPinned: pinned });
+    }
   });
+
+  // LOB cells are not edited in the cell: double click or Enter opens the LOB editor (a Blazor dialog) – also on a
+  // locked workspace, to read the whole value.
+  function openLob(rowIndex, newId, colId) {
+    dotnet.invokeMethodAsync('OnLobCell', newId ? -1 : rowIndex, newId ?? null, colId).catch(() => {});
+  }
+
+  element.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' || e.ctrlKey || e.altKey || e.shiftKey || api.getEditingCells().length > 0) return;
+    const cell = api.getFocusedCell();
+    if (!cell || !metaById.get(cell.column.getColId())?.lob) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const newId = cell.rowPinned === 'top' ? api.getPinnedTopRow(cell.rowIndex)?.data?.__new : null;
+    openLob(cell.rowIndex, newId, cell.column.getColId());
+  }, true);
 
   const api = agGrid.createGrid(element, {
     theme: theme(),
@@ -493,7 +520,15 @@ export function setRowCount(elementId, count) {
   grids.get(elementId)?.setRowCount(count, true);
 }
 
+/** The workspace was unlocked or locked again: editing on or off, without reloading the grid. */
+export function setEditable(elementId, enabled) {
+  const state = editStates.get(elementId);
+  if (state) state.enabled = enabled;
+  if (!enabled) grids.get(elementId)?.stopEditing(true);
+}
+
 export function destroy(elementId) {
   grids.get(elementId)?.destroy();
   grids.delete(elementId);
+  editStates.delete(elementId);
 }
