@@ -5,6 +5,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-10-05
+
+### Added
+- C# names: with a linked project, the explorer shows each table's entity and the grid header each column's property and C# type (`KundeId · int`) beside the Oracle names. New setting "C#-Namen: Aus · Daneben · Vorne" ("Vorne" puts the C# names first). The tab tooltip names the entity.
+- The column search (Ctrl+F), the filter's column picker and the explorer search also find property and entity names.
+- Enum and converted bool columns show their members: "Gewerbe (2)", `true`/`false`. Values without a member stay as stored and are marked (wavy underline, tooltip).
+- Filtering such a column offers its members (`=`, `≠`, "in Liste" with several); the filter queries the stored values, so the SQL is the same as before. Tab titles and tooltips show the member names.
+- Editing such a column: the cell editor is a list of the members (Enter or a mouse pick takes the value); FerretSharp writes the stored value.
+- Relationships of the C# model without a FK constraint in the database: navigable from the cell context menu like declared foreign keys (marked "aus C#-Modell"), shown as FK badge in the grid header and the "Spalten" view, and listed in the "Constraints" view under "Beziehungen aus dem C#-Modell". A declared constraint over the same columns takes precedence.
+- Sample model: `Auftrag.Bearbeiter` → `Mitarbeiter`, a relationship without constraint (`tools/sample-db/06-clr-relations.sql`).
+
 ## [2.1.2] - 2026-10-05
 
 ### Changed
