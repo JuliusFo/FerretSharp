@@ -80,10 +80,10 @@ public sealed class SessionTransactionTests(OracleContainerFixture oracle) : IAs
         await using var session = await OpenAsync();
         await session.UseReadOnlySnapshotsAsync(Ct);
 
-        var error = await Assert.ThrowsAsync<OracleStatementException>(
+        var error = await Assert.ThrowsAsync<DatabaseException>(
             () => session.ExecuteNonQueryAsync("INSERT INTO TXS VALUES (99, 'verboten')", [], Ct));
 
-        Assert.Equal(1456, error.Oracle?.Number); // may not perform insert/delete/update operation inside a READ ONLY transaction
+        Assert.Equal("ORA-01456", error.ErrorCode); // may not perform insert/delete/update operation inside a READ ONLY transaction
         Assert.Equal(TransactionMode.ReadOnly, session.Transaction.Mode);
         Assert.Equal(0, await CountRawAsync("ID = 99"));
     }

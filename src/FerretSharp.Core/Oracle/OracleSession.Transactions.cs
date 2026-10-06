@@ -1,0 +1,279 @@
+using System.Data;
+using System.Data.Common;
+using System.Text.RegularExpressions;
+using FerretSharp.Core.Connections;
+using FerretSharp.Core.Query;
+using Oracle.ManagedDataAccess.Client;
+
+namespace FerretSharp.Core.Oracle;
+
+/// <summary>Transactions of the session (ADR 0006): read-only snapshots of locked sessions, writing transactions, the write path.</summary>
+public sealed partial class OracleSession
+{
+    /// <summary>Label of transaction control in errors (there is no statement text).</summary>
+    private const string TransactionControl = "(Transaktionssteuerung)";
+
+    private static readonly Regex SavepointName = new(@"\A[A-Z][A-Z0-9_]{0,29}\z", RegexOptions.CultureInvariant);
+
+    /// <summary>The ODP.NET transaction and what it is – one field, so the two cannot disagree.</summary>
+    private OpenTransaction? _open;
+
+    /// <summary>Locked: always in a read-only transaction (also when restarting one failed), writing transactions are refused.</summary>
+    private bool _readOnlySnapshots;
+
+    private sealed record OpenTransaction(OracleTransaction Handle, TransactionInfo Info);
+
+    public TransactionInfo Transaction => _open?.Info ?? TransactionInfo.None;
+
+    /// <summary>Locked: always in a read-only transaction, writing transactions are refused.</summary>
+    public bool UsesReadOnlySnapshots => _readOnlySnapshots;
+
+    /// <summary>
+    /// Locks the session: from now on it always runs in a read-only transaction, so Oracle rejects any DML
+    /// (ORA-01456). Used for profiles marked read-only (Prod by default).
+    /// </summary>
+    public Task UseReadOnlySnapshotsAsync(CancellationToken cancellationToken) =>
+        ExclusiveAsync(async () =>
+        {
+            if (Transaction.Mode == TransactionMode.ReadWrite)
+            {
+                throw new RefusedException("Eine schreibende Transaktion ist offen.");
+            }
+
+            _readOnlySnapshots = true;
+            await RestartSnapshotCoreAsync(cancellationToken);
+        }, cancellationToken);
+
+    /// <summary>
+    /// Unlocks the session (WP-10, the user's explicit decision): ends the read-only transaction; afterwards it may open
+    /// a writing transaction like a session of an editable profile. Does nothing if the session is not locked.
+    /// </summary>
+    public Task StopReadOnlySnapshotsAsync(CancellationToken cancellationToken) =>
+        ExclusiveAsync(async () =>
+        {
+            if (!_readOnlySnapshots)
+            {
+                return;
+            }
+
+            await EndTransactionCoreAsync(rollback: true);
+            _readOnlySnapshots = false;
+        }, cancellationToken);
+
+    /// <summary>Starts a new snapshot (new read-only transaction) in a locked session; does nothing otherwise.</summary>
+    public Task RefreshSnapshotAsync(CancellationToken cancellationToken) =>
+        _readOnlySnapshots ? ExclusiveAsync(() => RestartSnapshotCoreAsync(cancellationToken), cancellationToken) : Task.CompletedTask;
+
+    /// <summary>Opens a transaction that may write (WP-09). Refused in a locked session.</summary>
+    public Task BeginTransactionAsync(CancellationToken cancellationToken) =>
+        ExclusiveAsync(() =>
+        {
+            if (_readOnlySnapshots)
+            {
+                throw new RefusedException("Die Verbindung ist schreibgeschützt.");
+            }
+
+            if (_open is not null)
+            {
+                throw new RefusedException("Es ist bereits eine Transaktion offen.");
+            }
+
+            _open = new OpenTransaction(BeginCoreTransaction(TransactionControl), new TransactionInfo(TransactionMode.ReadWrite, DateTimeOffset.Now));
+            return Task.CompletedTask;
+        }, cancellationToken);
+
+    /// <summary>Marks a point in the writing transaction that <see cref="RollbackToSavepointAsync"/> returns to.</summary>
+    public Task SavepointAsync(string name, CancellationToken cancellationToken) =>
+        InWritingTransactionAsync(name, transaction => transaction.Save(name), cancellationToken);
+
+    /// <summary>Undoes everything since the savepoint; the transaction stays open.</summary>
+    public Task RollbackToSavepointAsync(string name, CancellationToken cancellationToken) =>
+        InWritingTransactionAsync(name, transaction => transaction.Rollback(name), cancellationToken);
+
+    /// <summary>Commits the writing transaction.</summary>
+    public Task CommitAsync(CancellationToken cancellationToken) =>
+        ExclusiveAsync(async () =>
+        {
+            var transaction = WritingTransaction();
+            try
+            {
+                await TransactionControlAsync(() => transaction.CommitAsync(cancellationToken));
+            }
+            catch (OracleStatementException ex) when (
+                ex.Oracle is null or { Number: OracleErrorCodes.TransactionRolledBack } || _connection.State != ConnectionState.Open)
+            {
+                // Oracle rolled the transaction back (deferred constraint violated) or the session is gone: nothing is open any more.
+                await EndTransactionQuietlyAsync();
+                throw;
+            }
+
+            await EndTransactionCoreAsync(rollback: false);
+        }, cancellationToken);
+
+    /// <summary>
+    /// Rolls the transaction back. A locked session then continues in a new snapshot; otherwise there is no
+    /// transaction afterwards.
+    /// </summary>
+    public Task RollbackAsync(CancellationToken cancellationToken) =>
+        ExclusiveAsync(() => _readOnlySnapshots ? RestartSnapshotCoreAsync(cancellationToken) : EndTransactionCoreAsync(rollback: true), cancellationToken);
+
+    /// <summary>
+    /// The only way to write: a single INSERT/UPDATE/DELETE/MERGE (<see cref="IsWriteStatement"/>) inside an open
+    /// transaction – never autocommit, never DDL. In a locked session Oracle rejects it (ORA-01456).
+    /// </summary>
+    /// <returns>Affected rows and the values of output parameters (<c>RETURNING … INTO</c>).</returns>
+    internal async Task<NonQueryResult> ExecuteNonQueryAsync(string sql, IReadOnlyList<QueryParameter> parameters, CancellationToken cancellationToken)
+    {
+        if (!IsWriteStatement(sql))
+        {
+            throw new InvalidOperationException("Geschrieben wird nur mit einzelnen INSERT-, UPDATE-, DELETE- oder MERGE-Statements.");
+        }
+
+        return await ExclusiveAsync(() =>
+        {
+            if (_open is null)
+            {
+                throw new RefusedException("Geschrieben wird nur innerhalb einer Transaktion.");
+            }
+
+            return RunAsync(sql, parameters, async (command, ct) =>
+                new NonQueryResult(await command.ExecuteNonQueryAsync(ct), OracleParameters.Outputs(command)), cancellationToken);
+        }, cancellationToken);
+    }
+
+    /// <summary>
+    /// Locks rows before writing them: only <c>SELECT … FOR UPDATE WAIT n</c> / <c>NOWAIT</c>
+    /// (<see cref="IsLockStatement"/>) and only inside a writing transaction – a lock outside one would be released
+    /// at once. Waiting longer than n seconds ends with ORA-30006.
+    /// </summary>
+    internal async Task<T> ExecuteLockingReaderAsync<T>(
+        string sql, IReadOnlyList<QueryParameter> parameters, Func<DbDataReader, CancellationToken, Task<T>> read, CancellationToken cancellationToken)
+    {
+        if (!IsLockStatement(sql))
+        {
+            throw new InvalidOperationException("Gesperrt wird nur mit SELECT … FOR UPDATE WAIT n.");
+        }
+
+        return await ExclusiveAsync(() =>
+        {
+            if (Transaction.Mode != TransactionMode.ReadWrite)
+            {
+                throw new RefusedException("Zeilen werden nur innerhalb einer schreibenden Transaktion gesperrt.");
+            }
+
+            return ReadCoreAsync(sql, parameters, read, cancellationToken);
+        }, cancellationToken);
+    }
+
+    /// <summary>Ends the current transaction (if any) and starts a read-only one. Caller holds the gate.</summary>
+    private async Task RestartSnapshotCoreAsync(CancellationToken cancellationToken)
+    {
+        await EndTransactionCoreAsync(rollback: true);
+        const string sql = "SET TRANSACTION READ ONLY";
+        var transaction = BeginCoreTransaction(sql);
+        try
+        {
+            await RunAsync(sql, [], (command, ct) => command.ExecuteNonQueryAsync(ct), cancellationToken);
+        }
+        catch
+        {
+            await transaction.DisposeAsync();
+            throw;
+        }
+
+        _open = new OpenTransaction(transaction, new TransactionInfo(TransactionMode.ReadOnly, DateTimeOffset.Now));
+    }
+
+    /// <summary>
+    /// Starts an ODP.NET transaction. After a fatal error ODP.NET has closed the connection, and BeginTransaction would
+    /// throw a bare <see cref="InvalidOperationException"/>; report that as a lost connection like <see cref="CreateCommand"/>.
+    /// </summary>
+    private OracleTransaction BeginCoreTransaction(string sql)
+    {
+        if (_connection.State != ConnectionState.Open)
+        {
+            throw new OracleStatementException(sql, [], null);
+        }
+
+        try
+        {
+            return _connection.BeginTransaction();
+        }
+        catch (OracleException ex)
+        {
+            throw new OracleStatementException(sql, [], ex);
+        }
+    }
+
+    /// <summary>Ends the transaction after a failure; a second error must not hide the first.</summary>
+    private async Task EndTransactionQuietlyAsync()
+    {
+        try
+        {
+            await EndTransactionCoreAsync(rollback: true);
+        }
+        catch (Exception ex) when (ex is OracleException or InvalidOperationException)
+        {
+            // Connection gone: Oracle rolls back on its own.
+        }
+    }
+
+    /// <summary>Caller holds the gate (or the session is being disposed).</summary>
+    private async Task EndTransactionCoreAsync(bool rollback)
+    {
+        if (_open is not { Handle: var transaction })
+        {
+            return;
+        }
+
+        _open = null;
+        try
+        {
+            if (rollback && _connection.State == ConnectionState.Open)
+            {
+                await transaction.RollbackAsync();
+            }
+        }
+        finally
+        {
+            await transaction.DisposeAsync();
+        }
+    }
+
+    /// <summary>The open writing transaction; refused without one. Caller holds the gate.</summary>
+    private OracleTransaction WritingTransaction() =>
+        _open is { Info.Mode: TransactionMode.ReadWrite, Handle: var transaction }
+            ? transaction
+            : throw new RefusedException("Es ist keine schreibende Transaktion offen.");
+
+    private Task InWritingTransactionAsync(string savepoint, Action<OracleTransaction> action, CancellationToken cancellationToken)
+    {
+        if (!SavepointName.IsMatch(savepoint))
+        {
+            throw new ArgumentException($"Ungültiger Savepoint-Name: {savepoint}", nameof(savepoint));
+        }
+
+        return ExclusiveAsync(() =>
+        {
+            var transaction = WritingTransaction();
+            return TransactionControlAsync(() =>
+            {
+                action(transaction);
+                return Task.CompletedTask;
+            });
+        }, cancellationToken);
+    }
+
+    /// <summary>Oracle errors of transaction control carry a label instead of a statement, like those of queries.</summary>
+    private static async Task TransactionControlAsync(Func<Task> action)
+    {
+        try
+        {
+            await action();
+        }
+        catch (OracleException ex)
+        {
+            throw new OracleStatementException(TransactionControl, [], ex);
+        }
+    }
+}
