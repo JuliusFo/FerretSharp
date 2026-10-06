@@ -71,11 +71,8 @@ public sealed class WorkspaceStoreTests : IDisposable
         {
             Tabs =
             [
-                new TabState(LinqTabState.NoTable, TabMode.Data, [], [], [])
-                {
-                    Sql = new SqlTabState("SQL 1", "SELECT * FROM kunden WHERE id = :id;\n\nSELECT 1 FROM dual",
-                        [new SqlVariable("id", SqlVariableType.Number, "4711"), new SqlVariable("von", SqlVariableType.Date, "01.10.2026")]),
-                },
+                TabState.OfSql(new SqlTabState("SQL 1", "SELECT * FROM kunden WHERE id = :id;\n\nSELECT 1 FROM dual",
+                    [new SqlVariable("id", SqlVariableType.Number, "4711"), new SqlVariable("von", SqlVariableType.Date, "01.10.2026")])),
             ],
         };
 
