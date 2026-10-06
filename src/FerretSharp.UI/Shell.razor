@@ -381,6 +381,7 @@
     private const string CommitShortcut = "ctrl+shift+enter";
     private const string LinqShortcut = "ctrl+shift+l"; // new LINQ console (WP-13)
     private const string SqlShortcut = "ctrl+shift+q"; // new SQL editor (WP-17)
+    private const string ScriptShortcut = "alt+x"; // SQL editor: run the whole script (as in DBeaver)
 
     /// <summary>An open writing transaction older than this is shown as a warning: it holds row locks.</summary>
     private static readonly TimeSpan LongTransaction = TimeSpan.FromMinutes(10);
@@ -622,7 +623,7 @@
             await _shortcuts.InvokeVoidAsync("register", _selfRef, new[]
             {
                 SwitcherShortcut, ApplyFiltersShortcut, RefreshShortcut, FindColumnShortcut, BackShortcut, ForwardShortcut, FlushShortcut, CommitShortcut, LinqShortcut,
-                SqlShortcut,
+                SqlShortcut, ScriptShortcut,
             });
         }
     }
@@ -667,6 +668,9 @@
                 break;
             case ForwardShortcut:
                 _state.GoForward();
+                break;
+            case ScriptShortcut when _state.Page == ShellPage.Explorer:
+                _state.RequestTabCommand(TabCommand.RunScript);
                 break;
             case SqlShortcut when Active.IsConnected && _state.Page == ShellPage.Explorer:
                 _state.OpenSql();

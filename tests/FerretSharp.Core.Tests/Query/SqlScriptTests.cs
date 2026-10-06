@@ -88,6 +88,18 @@ public sealed class SqlScriptTests
         Assert.Equal(2, SqlScript.CountStatements("SELECT 1 FROM dual; SELECT 2 FROM dual"));
     }
 
+    [Fact]
+    public void A_script_runs_the_selected_statements_or_all_with_their_positions()
+    {
+        const string text = "SELECT 1 FROM dual;\nUPDATE t SET x = 1;\n\nDELETE FROM t";
+
+        Assert.Equal(["SELECT 1 FROM dual", "UPDATE t SET x = 1", "DELETE FROM t"], SqlScript.StatementsIn(text, 5, 5).Select(s => s.Text));
+        var selected = SqlScript.StatementsIn(text, text.IndexOf("UPDATE", StringComparison.Ordinal), text.Length);
+        Assert.Equal(["UPDATE t SET x = 1", "DELETE FROM t"], selected.Select(s => s.Text));
+        Assert.All(selected, s => Assert.Equal(s.Text, text.Substring(s.Start, s.Length)));
+        Assert.Empty(SqlScript.StatementsIn("  -- nur ein Kommentar\n", 0, 0));
+    }
+
     [Theory]
     [InlineData("select * from t", SqlStatementKind.Query)]
     [InlineData("/* hint */ WITH x AS (SELECT 1 FROM dual) SELECT * FROM x", SqlStatementKind.Query)]

@@ -442,7 +442,7 @@ public sealed class ShellState
 }
 
 /// <summary><see cref="Reload"/>: fetch the loaded rows again in place (after writing) – unlike <see cref="Refresh"/>, which starts at the top.</summary>
-public enum TabCommand { ApplyFilters, Refresh, FindColumn, Reload }
+public enum TabCommand { ApplyFilters, Refresh, FindColumn, Reload, RunScript }
 
 /// <summary>Leaving workspaces with uncommitted changes (close, disconnect, switch connection, exit).</summary>
 /// <param name="What">What is about to happen, e.g. "Workspace schließen".</param>

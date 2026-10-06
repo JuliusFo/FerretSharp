@@ -340,8 +340,24 @@ public static class SqlScript
         return after is not null && !BlankLine.IsMatch(text[cursor..after.Start]) ? after : null;
     }
 
-    /// <summary>How many statements a selection holds (the SQL editor runs one at a time).</summary>
+    /// <summary>How many statements a selection holds.</summary>
     public static int CountStatements(string text) => Split(text).Count;
+
+    /// <summary>
+    /// What "Skript ausführen" (Alt+X) runs: the statements of the selection if it holds more than whitespace, otherwise
+    /// all of the text – with positions in <paramref name="text"/>.
+    /// </summary>
+    public static IReadOnlyList<SqlStatement> StatementsIn(string text, int selectionStart, int selectionEnd)
+    {
+        selectionStart = Math.Clamp(selectionStart, 0, text.Length);
+        selectionEnd = Math.Clamp(selectionEnd, selectionStart, text.Length);
+        if (selectionEnd > selectionStart && Split(text[selectionStart..selectionEnd]) is { Count: > 0 } selected)
+        {
+            return selected.Select(s => s with { Start = s.Start + selectionStart }).ToList();
+        }
+
+        return Split(text);
+    }
 
     public static SqlStatementInfo Analyze(string statement)
     {

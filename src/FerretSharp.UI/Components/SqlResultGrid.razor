@@ -19,7 +19,8 @@
 }
 
 @code {
-    private const int PageSize = 500; // BLOCK_SIZE in grid.js
+    /// <summary>Rows per block (BLOCK_SIZE in grid.js); a preloaded first page must have this size.</summary>
+    public const int PageSize = 500;
     private const int MaxCachedBlocks = 40;
 
     private readonly string _id = "sqlgrid-" + Guid.NewGuid().ToString("N");
@@ -43,6 +44,13 @@
     /// <summary>After every page or failure.</summary>
     [Parameter]
     public EventCallback<SqlGridStatus> OnStatus { get; set; }
+
+    /// <summary>
+    /// The first <see cref="PageSize"/> rows, already read (SQL editor: when the statement ran); null = read them here.
+    /// Later pages are read when scrolled to.
+    /// </summary>
+    [Parameter]
+    public SqlPage? FirstPage { get; set; }
 
     /// <summary>The single table the query reads: target of "Als INSERT kopieren" (WP-17); null disables it.</summary>
     [Parameter]
@@ -80,9 +88,16 @@
         await Status(new SqlGridStatus(true, 0, false, null, null, null));
         try
         {
-            var data = await Workspaces.GetDataAsync(WorkspaceId, CancellationToken.None);
-            var query = Query;
-            _firstPage = await Task.Run(() => data.ReadSqlAsync(query, 0, PageSize, CancellationToken.None));
+            if (FirstPage is { } preloaded)
+            {
+                _firstPage = preloaded;
+            }
+            else
+            {
+                var data = await Workspaces.GetDataAsync(WorkspaceId, CancellationToken.None);
+                var query = Query;
+                _firstPage = await Task.Run(() => data.ReadSqlAsync(query, 0, PageSize, CancellationToken.None));
+            }
         }
         catch (DatabaseException ex)
         {
