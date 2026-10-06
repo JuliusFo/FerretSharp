@@ -1,0 +1,84 @@
+@* Inline rename of a tab title (SQL and LINQ tabs): opens with the whole name selected; Enter or leaving the field takes
+   it, Esc cancels. Like the rename of the workspace chips. *@
+@using FerretSharp.Core.Workspaces
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<input class="title-edit @Class" @ref="_input" maxlength="@Workspace.MaxNameLength" @bind="_text" @bind:event="oninput"
+       @onkeydown="OnKeyDownAsync" @onblur="CommitAsync" @onclick:stopPropagation="true" @onmouseup:stopPropagation="true" />
+
+@code {
+    private ElementReference _input;
+    private IJSObjectReference? _dom;
+    private string _text = "";
+    private bool _done;
+    private bool _disposed;
+
+    [Parameter, EditorRequired]
+    public string Value { get; set; } = "";
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    /// <summary>The name as typed; the caller normalizes it (empty or too long changes nothing).</summary>
+    [Parameter]
+    public EventCallback<string> OnCommit { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    protected override void OnInitialized() => _text = Value;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Select the whole name, so typing replaces it.
+            _dom = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
+            if (_disposed)
+            {
+                await _dom.DisposeAsync(); // closed while the module loaded
+                return;
+            }
+
+            await _dom.InvokeVoidAsync("focusAndSelect", _input);
+        }
+    }
+
+    private async Task OnKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await CommitAsync();
+        }
+        else if (e.Key == "Escape" && !_done)
+        {
+            _done = true; // the blur that follows when the field goes away must not commit
+            await OnCancel.InvokeAsync();
+        }
+    }
+
+    private async Task CommitAsync()
+    {
+        if (!_done)
+        {
+            _done = true;
+            await OnCommit.InvokeAsync(_text);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        if (_dom is not null)
+        {
+            try
+            {
+                await _dom.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+    }
+}

@@ -5,6 +5,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.4.0] - 2026-10-06
+
+### Added
+- Rename SQL and LINQ tabs: double-click the tab, or click the title in the tab's toolbar. Enter or leaving the field keeps the name, Esc cancels; up to 40 characters. The name is saved with the workspace.
+
 ## [3.3.1] - 2026-10-06
 
 ### Changed

@@ -235,6 +235,15 @@ public sealed class ShellState
         return tab;
     }
 
+    /// <summary>Renames a SQL or LINQ tab (saved with the workspace); an empty or too long name changes nothing.</summary>
+    public void RenameTab(ITitledTab tab, string? name)
+    {
+        if (Workspace.NormalizeName(name) is { } title && title != tab.Title)
+        {
+            Set(() => tab.Title = title);
+        }
+    }
+
     /// <summary>"Zurück" (Alt+←): activates the tab the active one was opened from by an FK jump.</summary>
     public void GoBack()
     {

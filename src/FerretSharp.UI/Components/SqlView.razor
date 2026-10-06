@@ -18,7 +18,14 @@
 <div class="sqlview">
     <div class="tab-toolbar">
         @Icons.Database
-        <span class="linq-title">@Tab.Title</span>
+        @if (_renaming)
+        {
+            <TitleEditor Value="@Tab.Title" Class="linq-title" OnCommit="name => { _renaming = false; Shell.RenameTab(Tab, name); }" OnCancel="() => _renaming = false" />
+        }
+        else
+        {
+            <button class="linq-title title-btn" title="Umbenennen" @onclick="() => _renaming = true">@Tab.Title</button>
+        }
         <span class="muted">@(Workspaces.IsWritable(Tab.WorkspaceId) ? "lesen und schreiben" : "nur lesen – Workspace schreibgeschützt")</span>
         <span class="spacer"></span>
         <button class="btn ghost @(_historyOpen ? "active" : "")" title="Zuletzt ausgeführte Statements dieser Verbindung" @onclick="ToggleHistoryAsync">Verlauf</button>
@@ -236,6 +243,7 @@
     private CancellationTokenSource? _cts;
     private bool _running;
     private bool _planOpen;
+    private bool _renaming; // the title in the toolbar is being edited
     private string? _error;
     private bool _needsUnlock;
     private string? _notice;

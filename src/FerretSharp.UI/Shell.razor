@@ -116,19 +116,19 @@
                                         }
                                         else if (w is LinqTab linq)
                                         {
-                                            <div class="tab linq @(linq == _state.ActiveTab ? "active" : "")" title="LINQ-Konsole – C# gegen den DbContext des verknüpften Projekts"
-                                                 @onclick="() => _state.ActivateTab(linq)" @onmouseup="e => CloseOnMiddleClick(e, linq)">
+                                            <div class="tab linq @(linq == _state.ActiveTab ? "active" : "")" title="@(_renamingTab == linq ? null : "LINQ-Konsole – C# gegen den DbContext des verknüpften Projekts · Doppelklick: umbenennen")"
+                                                 @onclick="e => OnTitledTabClick(e, linq)" @onmouseup="e => CloseOnMiddleClick(e, linq)">
                                                 @Icons.Code
-                                                <span class="tab-name">@linq.Title</span>
+                                                @TabTitle(linq)
                                                 <button class="tab-close" title="Schließen" @onclick:stopPropagation="true" @onclick="() => CloseTab(linq)">✕</button>
                                             </div>
                                         }
                                         else if (w is SqlTab sql)
                                         {
-                                            <div class="tab sql @(sql == _state.ActiveTab ? "active" : "")" title="SQL-Editor – Statements in der Session dieses Workspaces"
-                                                 @onclick="() => _state.ActivateTab(sql)" @onmouseup="e => CloseOnMiddleClick(e, sql)">
+                                            <div class="tab sql @(sql == _state.ActiveTab ? "active" : "")" title="@(_renamingTab == sql ? null : "SQL-Editor – Statements in der Session dieses Workspaces · Doppelklick: umbenennen")"
+                                                 @onclick="e => OnTitledTabClick(e, sql)" @onmouseup="e => CloseOnMiddleClick(e, sql)">
                                                 @Icons.Database
-                                                <span class="tab-name">@sql.Title</span>
+                                                @TabTitle(sql)
                                                 <button class="tab-close" title="Schließen" @onclick:stopPropagation="true" @onclick="() => CloseTab(sql)">✕</button>
                                             </div>
                                         }
@@ -692,6 +692,27 @@
     /// <summary>Enum and bool filter values by their C# names, once the tab knows its table's structure.</summary>
     private FerretSharp.Core.ClrModel.TablePresentation? PresentationOf(TableTab tab) =>
         tab.Details is { } details ? Presentations.For(details) : null;
+
+    /// <summary>The SQL or LINQ tab whose title is being edited in the tab bar.</summary>
+    private WorkspaceTab? _renamingTab;
+
+    /// <summary>
+    /// Double click renames a SQL or LINQ tab. Not via @ondblclick: in the WPF host a real double click never fires it
+    /// (see CLAUDE.md, like the workspace chips).
+    /// </summary>
+    private void OnTitledTabClick(MouseEventArgs e, WorkspaceTab tab)
+    {
+        _state.ActivateTab(tab);
+        if (e.Detail >= 2)
+        {
+            _renamingTab = tab;
+        }
+    }
+
+    private RenderFragment TabTitle<T>(T tab) where T : WorkspaceTab, ITitledTab => _renamingTab == tab
+        ? @<TitleEditor Value="@tab.Title" Class="tab-rename" OnCommit="name => { _renamingTab = null; _state.RenameTab(tab, name); }"
+                        OnCancel="() => _renamingTab = null" />
+        : @<span class="tab-name">@tab.Title</span>;
 
     private void CloseOnMiddleClick(MouseEventArgs e, WorkspaceTab tab)
     {
