@@ -2,7 +2,7 @@
 
 > Projektanweisungen für Claude Code. Bitte vollständig lesen, bevor ein Arbeitspaket umgesetzt wird.
 > Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-05 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0; WP-14 → 2.4.0; WP-15 → 3.0.0, v3 abgeschlossen; v4: WP-16 → 3.1.0)
+> Stand: 2026-10-06 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0; WP-14 → 2.4.0; WP-15 → 3.0.0, v3 abgeschlossen; v4: WP-16 → 3.1.0, WP-17 → 3.2.0)
 
 ## 1. Ziel
 
@@ -63,7 +63,7 @@ Versionierung: SemVer, Git-Tag `vX.Y.Z` pro Release, `CHANGELOG.md` pflegen. Fea
 | Logging | `Microsoft.Extensions.Logging` + **Serilog** (`Serilog.Extensions.Hosting`, `Serilog.Sinks.File`) | Datei unter `%APPDATA%\FerretSharp\logs`. Keine Bind-Werte von Prod-Verbindungen loggen (maskieren). |
 | Grid | **AG Grid Community 34.3.1** (MIT) über JS-Interop, **Infinite Row Model** | Datenblöcke à 500 und Sortierung kommen aus .NET (`IDataAccess`), gekapselt in `FerretGrid` + `wwwroot/js/grid.js`. Zellen gehen als fertig formatierte Strings über die Grenze (null = NULL), Spalten-IDs `c0`, `c1` … (Oracle-Namen dürfen Punkte enthalten). **Lokal im Repo** unter `FerretSharp.UI/wwwroot/lib/ag-grid/` (Herkunft/Hash in der README dort, kein CDN). Enterprise-Features (Kontextmenü, Zellbereich) nicht verwenden – eigene Lösungen in Blazor. |
 | Layout | Tabs + Seitenleiste in Blazor | Kein Docking-Framework. |
-| SQL-Anzeige | eigener Highlighter in Razor (siehe Prototyp `TableView.razor`) | Editor für C# in der LINQ-Konsole: **Monaco 0.57** (ADR 0011, lokal unter `wwwroot/lib/monaco/`); für den freien SQL-Editor (Backlog) wiederverwendbar. |
+| SQL-Anzeige | eigener Highlighter in Razor (siehe Prototyp `TableView.razor`) | Editor für C# in der LINQ-Konsole: **Monaco 0.57** (ADR 0011, lokal unter `wwwroot/lib/monaco/`); auch im freien SQL-Editor (WP-17, mit SQL-Autovervollständigung aus .NET). |
 | Oracle | `Oracle.ManagedDataAccess.Core` (23.x) | rein managed, kein Instant Client; **durchgängig async** mit `CancellationToken`. |
 | Oracle-Version | Ziel **19c+**; 12.2 sollte funktionieren | `OFFSET/FETCH`, `ALL_TAB_IDENTITY_COLS` erst ab 12c. Kein ROWNUM-Fallback. |
 | Tests | **xUnit v3** auf **Microsoft Testing Platform** + NSubstitute; Integration: **Testcontainers.Oracle** | Kein VSTest (`Microsoft.NET.Test.Sdk`/`xunit.runner.visualstudio` nicht verwenden). Image `gvenzl/oracle-free:23-slim-faststart`. Benötigt Docker. |
@@ -151,7 +151,7 @@ record TabState(TableRef Table, TabMode Mode, FilterRows, AppliedFilters, Sorts,
 ```
 - `PinnedColumns`: vom Nutzer angeheftete Spalten in Anheft-Reihenfolge, **pro Tab** (Entscheidung des Nutzers; ein FK-Sprung öffnet den neuen Tab ohne Pins). Der PK ist immer angeheftet und steht nicht in der Liste. Logik in `ColumnPinning` (Workspaces/): PK in Schema-Reihenfolge → angeheftete Spalten → Rest; gelöschte Spalten fallen beim Öffnen weg.
 - `OriginTab` (v1.6): Index des Tabs, aus dem ein FK-Sprung kam, für „Zurück“ (Alt+←). Zur Laufzeit hält `TableTab.Origin` die Referenz; ist der Ursprung geschlossen, führt „Zurück“ zum nächsten offenen Tab weiter hinten in der Sprungkette (`BackTarget`). „Vor“ (Alt+→, `TableTab.Forward`) wird nicht gespeichert; ein neuer Sprung aus einem Tab löscht dessen „Vor“ (wie im Browser). Mehrere Tabs derselben Tabelle zeigen im Titel die Kurzform ihrer Filter (`FilterSummary`).
-- `SavedQuery` entfällt in v1 (kein SQL-Editor), siehe Backlog.
+- `SavedQuery` entfällt: Seit 3.2 werden SQL-Tabs (Text und Variablen) mit dem Workspace gespeichert.
 - Zur Laufzeit hält jeder offene Workspace eine **eigene** Session (eigene Connection, ab v2 eigene Transaktion), geöffnet beim ersten Datenzugriff (`WorkspaceManager.GetDataAsync`). Das Schema lädt eine separate Explorer-Session (ADR 0005).
 - Connection-String mit `Pooling=false`: Die Sessions leben lange, und eine Connection mit offener Transaktion darf nie in einen Pool zurückgehen.
 - Beim Öffnen `ModuleName = "FerretSharp"`, `ActionName = <Workspace-Name>`, `ClientInfo` setzen → in `V$SESSION` ist erkennbar, welcher Workspace eine Sperre hält. Umbenennen setzt ACTION neu. Werte werden nach ASCII transliteriert (Abschnitt 6).
@@ -322,6 +322,7 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 | Ctrl+S | Pending-Änderungen flushen (kein Commit) | v1.9 |
 | Ctrl+Shift+Enter | Commit (auf Prod immer mit Bestätigung) | v1.9 |
 | Ctrl+Shift+L | Neue LINQ-Konsole (mit verknüpftem C#-Projekt); im LINQ-Tab führen Ctrl+Enter und F5 aus, Ctrl+F sucht im Editor | 2.3 |
+| Ctrl+Shift+Q | Neuer SQL-Editor; im SQL-Tab führen Ctrl+Enter und F5 das Statement am Cursor aus, Ctrl+F sucht, Ctrl+Leertaste schlägt Tabellen/Spalten vor | 3.2 |
 | – | Rollback nur über Button, mit Bestätigung | v2 |
 
 `Esc` bleibt dem Grid vorbehalten (Zelleingabe abbrechen) bzw. schließt Menüs/Dialoge. Globale Shortcuts registriert die `Shell` über `wwwroot/js/shortcuts.js` (Capture-Listener → `OnShortcut` in .NET); `F12` öffnet im Debug-Build die DevTools.
@@ -539,7 +540,12 @@ Entscheidungen des Nutzers (2026-10-05):
 - **SELECT + DML:** SELECT/WITH überall (gesperrte Workspaces im READ-ONLY-Snapshot); INSERT/UPDATE/DELETE/MERGE nur auf schreibbaren Workspaces in deren Transaktion (Commit/Rollback wie beim Editieren, auf Prod mit Bestätigung). DDL, PL/SQL-Blöcke, CALL, COMMIT/ROLLBACK/SAVEPOINT, ALTER SESSION werden mit Begründung abgewiesen.
 - **Ausführen:** Ctrl+Enter führt das Statement am Cursor aus (getrennt durch `;` oder Leerzeile), markierter Text hat Vorrang; ein Ergebnis-Grid.
 - **Komfort:** Bind-Variablen (`:kundeId` → Eingabefelder, gebunden), Autovervollständigung (Tabellen/Views/Synonyme, Spalten der Tabellen/Aliase im Statement, C#-Namen als Zusatz), Abfrage-Verlauf je Verbindung, Export des Ergebnisses wie im Grid.
-- Umsetzung (geplant): SQL-Tab im Workspace wie der LINQ-Tab (gespeichert → ersetzt „gespeicherte Abfragen“), Monaco mit SQL-Hervorhebung, `SqlResultGrid`, „Plan“. Statement-Klassifizierer im Core; die Lesesperre bleibt, alles andere über einen eigenen engen Weg an `OracleSession`. Grenze (dokumentieren): Funktionen mit autonomer Transaktion können aus einem SELECT heraus schreiben.
+- Weitere Entscheidungen (2026-10-06): **Bestätigung vor DML** auf Prod immer, sonst nur bei UPDATE/DELETE ohne WHERE; **Verlauf** speichert Bind-Werte, außer bei Prod-Verbindungen (dort nur die Namen), max. 500 Einträge je Verbindung; **„In SQL-Editor öffnen“** in der SQL-Vorschau eines Tabellen-Tabs (Statement + Binds als Variablen); Kürzel **Ctrl+Shift+Q** für einen neuen SQL-Tab. FOR UPDATE wird abgewiesen (Sperren nur beim Editieren). `IsWriteStatement` nimmt zusätzlich MERGE (ADR).
+- Umgesetzt (Release 3.2.0, ADR 0014):
+  - Core (Query/): `SqlScript` (Tokenizer mit Kommentaren, `'…'`/`N'…'`/`q'[…]'`, `"Namen"`, Binds, zweistelligen Operatoren; `Split` an `;`/Leerzeile/`/`-Zeile – Kommentare direkt darüber gehören zum Statement; `StatementAt` = Markierung, sonst das Statement am Cursor bzw. das davor ohne Leerzeile dazwischen; `Analyze` → `SqlStatementInfo` mit Art, Binds, WHERE auf oberster Ebene, FOR UPDATE, Tabellen mit Aliasen, Bind↔Spalte und deutscher `Rejection`), `SqlBinds` (Variablen → `QueryParameter`, `Reconcile`, `TypeFor(column)`, `FromParameter`), `SqlCompletion` (Kontext aus Tokens vor dem Cursor; im Kommentar/Literal nichts – geprüft durch Anhängen eines Worts). Workspaces/: `SqlHistoryStore`, `SqlTabState` (`TabState.Sql`, Tabelle `LinqTabState.NoTable`). `IsWriteStatement` + MERGE, Savepoint `FS_EXEC_n`. `ReadSqlAsync` gibt CLOB/BLOB als `LobValue` (Vorschau) zurück – nur für LOB-Spalten, `FromContent` würde jeden String umwandeln.
+  - UI: `SqlTab` + `SqlRun` (State/), `SqlView` (Toolbar mit Verlauf/Plan/Ausführen, Monaco `Language="sql"` mit `Completion`, Variablen-Raster, Verlauf als Seitenleiste – Klick hängt das Statement nach einer Leerzeile an und übernimmt die Werte –, Ergebnis-Grid oder DML-Meldung, `ConfirmDialog`, Fehler mit Marker auf dem Namen aus ORA-00904/00942). Die DML-Meldung merkt sich den Start der Transaktion (`SqlRun.Transaction`) und sagt nach Commit/Rollback „inzwischen beendet“ (die Transaktion beginnt erst in `ExecuteAsync`, ein Zeitvergleich mit dem Ausführungsbeginn war falsch). `ResultMenu` (Kontextmenü für `SqlResultGrid`, auch in der LINQ-Konsole: Wert, Tabelle, INSERT – nur bei genau einer Tabelle –, CSV). `SqlPreview` „In SQL-Editor öffnen“. Shell: „+ SQL“ immer in der Tab-Leiste, Ctrl+Shift+Q, Verlauf beim Löschen der Verbindung entfernen. Icon `Database`.
+  - monaco.js: Completion-Provider je Sprache, der über die Model-URI das .NET-Objekt des Editors fragt (Art als Text, `sortText` = Rang + Position, damit Spalten in Schema-Reihenfolge stehen); `getRunContext` (Text + Offsets), `flash`, `setOffsetMarkers`, `revealOffset`. Offsets sind UTF-16 wie .NET-Strings; immer Text und Offsets aus demselben `getRunContext` verwenden (Monaco normalisiert Zeilenenden).
+  - E2E-Kniffe: Skript über `monaco.editor.getModels()…setValue` setzen (simuliertes Tippen kollidiert mit automatisch schließenden Klammern), Cursor über `getEditors()…setPosition`, Vorschläge über `editor.trigger('…', 'editor.action.triggerSuggest')`, Liste aus `.suggest-widget .monaco-list-row[aria-label]`. Ctrl+Shift+Q per `Input.dispatchKeyEvent` mit `key: 'Q'`, Modifiers 10.
 
 ## 9. Offene UX-Fragen
 - Shortcut-Belegung für Commit/Rollback (Abschnitt 7) – vorläufig, Nutzerfeedback einholen.
@@ -548,7 +554,6 @@ Entscheidungen des Nutzers (2026-10-05):
 ## 10. Backlog (nach v3)
 
 - Fuzzy-Suche in der Tabellenliste (Ctrl+P-Stil), Gruppierung nach Präfix.
-- Freier SQL-Editor mit Ergebnis-Grid (auf gesperrten Sessions nur in `SET TRANSACTION READ ONLY`, da SELECT-only nicht per Parsing garantierbar ist).
 - Keyset-Paging für sehr große Tabellen; exakte Scroll-Wiederherstellung.
 - Verbindungsoptionen: TCPS/Wallet, Proxy-User, Kerberos/OS-Auth.
 - Installer/Auto-Update (Velopack).

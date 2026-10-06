@@ -5,6 +5,10 @@
         <header>
             <span>@Title</span>
             <span class="spacer"></span>
+            @if (OnOpenInEditor.HasDelegate && Error is null)
+            {
+                <button class="btn" title="Neuer SQL-Editor mit diesem Statement; die Bind-Werte werden zu Variablen" @onclick="OnOpenInEditor">In SQL-Editor öffnen</button>
+            }
             <button class="btn" @onclick="CopyAsync">@(_copied ? "Kopiert ✓" : "Kopieren")</button>
             <button class="icon-btn ghost" title="Schließen" @onclick="OnClose">✕</button>
         </header>
@@ -52,6 +56,10 @@
 
     [Parameter]
     public EventCallback OnClose { get; set; }
+
+    /// <summary>"In SQL-Editor öffnen" (WP-17); without a handler the button is not shown.</summary>
+    [Parameter]
+    public EventCallback OnOpenInEditor { get; set; }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

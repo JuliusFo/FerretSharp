@@ -50,7 +50,7 @@ public sealed class OracleSession : IAsyncDisposable
     /// <summary>New snapshots tried per query before the error is reported (ORA-01466 waits 1, 2, 3 s).</summary>
     private const int MaxSnapshotRetries = 3;
 
-    private static readonly Regex WriteStart = new(@"\A(?:INSERT|UPDATE|DELETE)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    private static readonly Regex WriteStart = new(@"\A(?:INSERT|UPDATE|DELETE|MERGE)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     private static readonly Regex SavepointName = new(@"\A[A-Z][A-Z0-9_]{0,29}\z", RegexOptions.CultureInvariant);
     private static readonly Regex LockEnd = new(@"\bFOR\s+UPDATE\s+(?:WAIT\s+\d{1,3}|NOWAIT)\z", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     /// <summary>ORA-01013: user requested cancel of current operation.</summary>
@@ -79,8 +79,8 @@ public sealed class OracleSession : IAsyncDisposable
     }
 
     /// <summary>
-    /// A single INSERT, UPDATE or DELETE (after whitespace and comments). Never DDL: it would commit implicitly, also
-    /// inside a read-only transaction.
+    /// A single INSERT, UPDATE, DELETE or MERGE (after whitespace and comments; MERGE since the SQL editor, ADR 0014).
+    /// Never DDL: it would commit implicitly, also inside a read-only transaction.
     /// </summary>
     internal static bool IsWriteStatement(string sql)
     {
@@ -410,7 +410,7 @@ public sealed class OracleSession : IAsyncDisposable
     }
 
     /// <summary>
-    /// The only way to write: a single INSERT/UPDATE/DELETE (<see cref="IsWriteStatement"/>) inside an open
+    /// The only way to write: a single INSERT/UPDATE/DELETE/MERGE (<see cref="IsWriteStatement"/>) inside an open
     /// transaction – never autocommit, never DDL. In a locked session Oracle rejects it (ORA-01456).
     /// </summary>
     /// <returns>Affected rows and the values of output parameters (<c>RETURNING … INTO</c>).</returns>
@@ -418,7 +418,7 @@ public sealed class OracleSession : IAsyncDisposable
     {
         if (!IsWriteStatement(sql))
         {
-            throw new InvalidOperationException("Geschrieben wird nur mit einzelnen INSERT-, UPDATE- oder DELETE-Statements.");
+            throw new InvalidOperationException("Geschrieben wird nur mit einzelnen INSERT-, UPDATE-, DELETE- oder MERGE-Statements.");
         }
 
         await _gate.WaitAsync(cancellationToken);

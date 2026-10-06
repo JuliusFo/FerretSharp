@@ -31,4 +31,7 @@ public sealed class AppPaths
 
     /// <summary>Exported C# models of linked projects, reused while their build is unchanged (WP-16).</summary>
     public string ModelCacheDirectory => Path.Combine(Root, "cache", "models");
+
+    /// <summary>The SQL editor's history, one file per connection (WP-17).</summary>
+    public string SqlHistoryDirectory => Path.Combine(Root, "history");
 }

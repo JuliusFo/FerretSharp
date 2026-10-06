@@ -1,6 +1,7 @@
-@* A Monaco editor (ADR 0011) for C# in the LINQ console; markers show Roslyn's diagnostics. The text belongs to the
-   parent: changes come back through OnChange, SetTextAsync replaces it (suggested declarations). *@
+@* A Monaco editor (ADR 0011): C# in the LINQ console (markers show Roslyn's diagnostics), SQL in the SQL editor
+   (completion from .NET). The text belongs to the parent: changes come back through OnChange, SetTextAsync replaces it. *@
 @using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Query
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 
@@ -33,13 +34,22 @@
     [Parameter]
     public IReadOnlyList<LinqDiagnostic> Markers { get; set; } = [];
 
+    /// <summary>Monaco language id: <c>csharp</c> or <c>sql</c>.</summary>
+    [Parameter]
+    public string Language { get; set; } = "csharp";
+
+    /// <summary>Completion items for (text, cursor offset); null = no completion from .NET.</summary>
+    [Parameter]
+    public Func<string, int, Task<IReadOnlyList<SqlCompletionItem>>>? Completion { get; set; }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
             _selfRef = DotNetObjectReference.Create(this);
             _module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/monaco.js");
-            await _module.InvokeVoidAsync("create", _id, _selfRef, Text, new { language = "csharp", minimal = Minimal, placeholder = Placeholder });
+            await _module.InvokeVoidAsync("create", _id, _selfRef, Text,
+                new { language = Language, minimal = Minimal, placeholder = Placeholder, completion = Completion is not null });
         }
 
         if (_module is not null && !ReferenceEquals(_shownMarkers, Markers))
@@ -54,6 +64,54 @@
 
     [JSInvokable]
     public Task OnTextChanged(string elementId, string text) => OnChange.InvokeAsync(text);
+
+    /// <summary>Monaco's completion provider asks; the kind goes as text (Table, Column …) for the icon.</summary>
+    [JSInvokable]
+    public async Task<object[]> OnComplete(string elementId, string text, int offset)
+    {
+        if (Completion is null)
+        {
+            return [];
+        }
+
+        var items = await Completion(text, offset);
+        return items.Select(i => (object)new { label = i.Label, insertText = i.InsertText, kind = i.Kind.ToString(), detail = i.Detail, rank = i.Rank }).ToArray();
+    }
+
+    /// <summary>The text with selection start and end (equal without a selection) as offsets.</summary>
+    public async Task<EditorRunContext?> GetRunContextAsync() =>
+        _module is null ? null : await _module.InvokeAsync<EditorRunContext?>("getRunContext", _id);
+
+    /// <summary>Briefly highlights a range (the statement that runs).</summary>
+    public async Task FlashAsync(int start, int length)
+    {
+        if (_module is not null)
+        {
+            await _module.InvokeVoidAsync("flash", _id, start, length);
+        }
+    }
+
+    /// <summary>Marks ranges by text offset (SQL errors); an empty list clears them.</summary>
+    public async Task SetOffsetMarkersAsync(IEnumerable<EditorMarker> markers)
+    {
+        if (_module is not null)
+        {
+            await _module.InvokeVoidAsync("setOffsetMarkers", _id,
+                markers.Select(m => new { start = m.Start, length = m.Length, severity = m.Severity, message = m.Message }));
+        }
+    }
+
+    public async Task RevealOffsetAsync(int offset)
+    {
+        if (_module is not null)
+        {
+            await _module.InvokeVoidAsync("revealOffset", _id, offset);
+        }
+    }
+
+    public sealed record EditorRunContext(string Text, int Start, int End);
+
+    public sealed record EditorMarker(int Start, int Length, string Severity, string Message);
 
     public async Task SetTextAsync(string text)
     {

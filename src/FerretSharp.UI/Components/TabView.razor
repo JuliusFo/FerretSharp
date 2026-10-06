@@ -183,7 +183,8 @@
 
 @if (_sql is { } sql)
 {
-    <SqlPreview Sql="@sql.Sql" Parameters="sql.Parameters" Error="@sql.Error" OnClose="() => _sql = null" />
+    <SqlPreview Sql="@sql.Sql" Parameters="sql.Parameters" Error="@sql.Error" OnClose="() => _sql = null"
+                OnOpenInEditor="() => OpenInSqlEditor(sql.Sql, sql.Parameters)" />
 }
 
 @if (_plan is { } planQuery)
@@ -407,6 +408,13 @@
     }
 
     private void CancelCount() => _countCts?.Cancel();
+
+    /// <summary>"In SQL-Editor öffnen": the statement in a new SQL tab, its bind values as variables (WP-17).</summary>
+    private void OpenInSqlEditor(string sql, IReadOnlyList<QueryParameter> parameters)
+    {
+        _sql = null;
+        Shell.OpenSql(sql + ";\n", parameters.Select(SqlBinds.FromParameter).ToList());
+    }
 
     /// <summary>Shows the statement for the filters as currently edited (or the applied ones if the edit is invalid).</summary>
     private void ShowSql()

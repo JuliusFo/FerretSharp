@@ -40,7 +40,13 @@ public sealed record TabState(
     /// FerretSharp finds no such table and drops the tab, as it does with tables that are gone.
     /// </summary>
     public LinqTabState? Linq { get; init; }
+
+    /// <summary>Set for a SQL editor tab (WP-17); <see cref="Table"/> is then <see cref="LinqTabState.NoTable"/> as well.</summary>
+    public SqlTabState? Sql { get; init; }
 }
+
+/// <summary>A SQL editor tab: its title, the script and the bind variables with their types and values.</summary>
+public sealed record SqlTabState(string Title, string Text, IReadOnlyList<Query.SqlVariable> Variables);
 
 /// <summary>A LINQ console tab: its title, the code and the variables the code uses.</summary>
 public sealed record LinqTabState(string Title, string Code, string Variables)

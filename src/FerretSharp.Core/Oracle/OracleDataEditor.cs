@@ -117,7 +117,7 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
                 await session.BeginTransactionAsync(cancellationToken);
             }
 
-            var savepoint = "FS_LINQ_" + (++_counter).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var savepoint = "FS_EXEC_" + (++_counter).ToString(System.Globalization.CultureInfo.InvariantCulture);
             await session.SavepointAsync(savepoint, cancellationToken);
             try
             {

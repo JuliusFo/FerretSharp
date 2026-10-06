@@ -1,0 +1,629 @@
+@* SQL editor tab (WP-17, ADR 0014): a script; Ctrl+Enter runs the statement at the cursor (or the selection) in the
+   workspace's session. Queries go through the read path into a result grid, INSERT/UPDATE/DELETE/MERGE through the write
+   path into the workspace's transaction (only on writable workspaces, confirmed on Prod and without WHERE); everything else
+   is refused with a reason. *@
+@using System.Text.RegularExpressions
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Query
+@using FerretSharp.Core.Schema
+@using FerretSharp.Core.Workspaces
+@using FerretSharp.UI.State
+@implements IDisposable
+@inject WorkspaceManager Workspaces
+@inject ActiveConnection Active
+@inject PresentationService Presentations
+@inject SqlHistoryStore History
+@inject ILogger<SqlView> Logger
+
+<div class="sqlview">
+    <div class="tab-toolbar">
+        @Icons.Database
+        <span class="linq-title">@Tab.Title</span>
+        <span class="muted">@(Workspaces.IsWritable(Tab.WorkspaceId) ? "lesen und schreiben" : "nur lesen – Workspace schreibgeschützt")</span>
+        <span class="spacer"></span>
+        <button class="btn ghost @(_historyOpen ? "active" : "")" title="Zuletzt ausgeführte Statements dieser Verbindung" @onclick="ToggleHistoryAsync">Verlauf</button>
+        @if (Tab.LastRun is { Info.IsQuery: true } && _error is null)
+        {
+            <button class="btn ghost" title="Ausführungsplan des zuletzt ausgeführten Statements – geschätzt oder tatsächlich" @onclick="() => _planOpen = true">Plan</button>
+        }
+        @if (_running)
+        {
+            <span class="spinner small"></span>
+            <button class="btn ghost" @onclick="Cancel">Abbrechen</button>
+        }
+        <button class="btn primary" disabled="@_running" @onclick="RunAsync"
+                title="Das Statement am Cursor ausführen (oder die Markierung); Statements trennt ; oder eine Leerzeile">
+            ▶ Ausführen <kbd>Ctrl ↵</kbd>
+        </button>
+    </div>
+
+    <div class="sql-main">
+        <div class="sql-editors">
+            <MonacoEditor @ref="_editor" Language="sql" Class="sql-code" Text="@Tab.Text" OnChange="OnTextChanged" Completion="CompleteAsync"
+                          Placeholder="SELECT * FROM kunden WHERE kunde_id = :id;" />
+            @if (Tab.Variables.Count > 0)
+            {
+                <div class="linq-label">
+                    Variablen
+                    <span class="hint">Werte wie im Filter (1.234,5 · 05.10.2026 14:00 · ISO); gebunden, nie in das SQL eingesetzt.</span>
+                </div>
+                <div class="sql-variables">
+                    @foreach (var variable in Tab.Variables)
+                    {
+                        var v = variable;
+                        var used = _binds.Contains(v.Name, StringComparer.OrdinalIgnoreCase);
+                        <div class="sql-variable @(used ? "" : "unused")" title="@(used ? null : "Im Skript nicht mehr verwendet")">
+                            <code>:@v.Name</code>
+                            <select class="field" value="@v.Type" @onchange="e => SetVariable(v, Enum.Parse<SqlVariableType>((string)e.Value!), v.Value)">
+                                @foreach (var type in Enum.GetValues<SqlVariableType>())
+                                {
+                                    <option value="@type">@TypeText(type)</option>
+                                }
+                            </select>
+                            @if (v.Type != SqlVariableType.Null)
+                            {
+                                <input class="field" value="@v.Value" placeholder="@Placeholder(v.Type)" spellcheck="false"
+                                       @onchange="e => SetVariable(v, v.Type, Text(e))" />
+                            }
+                            @if (!used)
+                            {
+                                <button class="icon-btn ghost" title="Variable entfernen" @onclick="() => RemoveVariable(v)">✕</button>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        @if (_historyOpen)
+        {
+            <aside class="sql-history">
+                <input class="field" placeholder="Verlauf durchsuchen …" value="@_historySearch" @oninput="SetSearch" />
+                <div class="sql-history-list">
+                    @foreach (var entry in FilteredHistory)
+                    {
+                        var e = entry;
+                        <button class="sql-history-item @(e.Error is null ? "" : "failed")" title="@e.Sql" @onclick="() => AdoptAsync(e)">
+                            <span class="sql-history-sql">@OneLine(e.Sql)</span>
+                            <span class="sql-history-meta">@e.ExecutedAt.ToLocalTime().ToString("dd.MM. HH:mm", CultureInfo.CurrentCulture) · @Outcome(e)</span>
+                        </button>
+                    }
+                    @if (!FilteredHistory.Any())
+                    {
+                        <div class="ctx-empty">@(_history.Count == 0 ? "Noch nichts ausgeführt." : "Kein Treffer.")</div>
+                    }
+                </div>
+            </aside>
+        }
+    </div>
+
+    <div class="linq-output">
+        @if (_notice is not null)
+        {
+            <div class="linq-notice muted">@_notice</div>
+        }
+
+        @if (_error is not null)
+        {
+            <div class="tab-error">
+                <span>@_error</span>
+                @if (_failure is { } failure)
+                {
+                    <button class="link-btn" @onclick="() => Shell.ShowError(failure)">Details</button>
+                }
+                @if (_needsUnlock)
+                {
+                    <button class="link-btn" @onclick="() => Shell.RequestUnlock(Tab.WorkspaceId)">Workspace freischalten …</button>
+                }
+            </div>
+        }
+
+        @if (Tab.LastRun is { } run && _error is null)
+        {
+            @if (run.Info.IsQuery)
+            {
+                <div class="grid-host">
+                    <SqlResultGrid @key="_runKey" WorkspaceId="Tab.WorkspaceId" Query="run.Query" OnStatus="OnGridStatus"
+                                   InsertTarget="InsertTarget(run.Info)" ExportName="@ExportName(run.Info)" />
+                </div>
+                <div class="tab-footer">
+                    @if (_grid is { } grid)
+                    {
+                        @if (grid.Loading)
+                        {
+                            <span><span class="spinner small"></span> Lade …</span>
+                        }
+                        else if (grid.Error is null)
+                        {
+                            <span><strong>@(grid.AllLoaded ? "" : "≥ ")@grid.RowsLoaded.ToString("N0", CultureInfo.CurrentCulture)</strong> Zeilen</span>
+                            @if (grid.Elapsed is { } elapsed)
+                            {
+                                <span>@Ms(elapsed)</span>
+                            }
+                            @if (grid.DataAsOf is { } asOf)
+                            {
+                                <span title="Schreibgeschützter Workspace: Stand der READ ONLY-Transaktion">Stand @asOf.ToLocalTime().ToString("HH:mm:ss", CultureInfo.InvariantCulture)</span>
+                            }
+                        }
+                    }
+                    <span class="spacer"></span>
+                    <span class="muted">Session des Workspaces – eigene, nicht committete Änderungen sind sichtbar</span>
+                </div>
+            }
+            else if (run.Changed is { } changed)
+            {
+                <div class="linq-write">
+                    @if (TransactionStillOpen(run))
+                    {
+                        <p><strong>@(changed == 1 ? "1 Zeile" : $"{changed:N0} Zeilen") geändert</strong> (@run.Info.FirstWord) – in der Transaktion des Workspaces.
+                            Für andere unsichtbar bis zum Commit; committen oder verwerfen über die Statusleiste.</p>
+                    }
+                    else
+                    {
+                        <p class="muted">@(changed == 1 ? "1 Zeile" : $"{changed:N0} Zeilen") geändert (@run.Info.FirstWord) – die Transaktion ist inzwischen beendet (Commit oder Rollback).</p>
+                    }
+                </div>
+            }
+        }
+        else if (_error is null && _notice is null)
+        {
+            <EmptyState Title="SQL im Workspace"
+                        Text="Statements schreiben, mit ; oder einer Leerzeile trennen und mit Ctrl+Enter das Statement am Cursor ausführen. SELECT läuft immer, INSERT, UPDATE, DELETE und MERGE nur auf schreibbaren Workspaces in deren Transaktion. Ctrl+Leertaste schlägt Tabellen und Spalten vor." />
+        }
+    </div>
+</div>
+
+@if (_confirm is { } pending)
+{
+    <ConfirmDialog Title="@(pending.Info.AffectsAllRows ? "Alle Zeilen ändern?" : "Auf Prod schreiben?")" ConfirmLabel="Ausführen" Danger="true"
+                   OnConfirm="() => ConfirmWriteAsync(pending)" OnCancel="() => _confirm = null">
+        @if (pending.Info.AffectsAllRows)
+        {
+            <p>@pending.Info.FirstWord ohne WHERE betrifft <strong>alle Zeilen</strong> der Tabelle.</p>
+        }
+        @if (IsProd)
+        {
+            <p>Die Verbindung <strong>@Active.Profile?.Name</strong> ist eine Produktionsdatenbank.</p>
+        }
+        <p>Das Statement läuft in der Transaktion des Workspaces und bleibt bis zum Commit für andere unsichtbar.</p>
+        <SqlCode Sql="@pending.Statement.Text" />
+    </ConfirmDialog>
+}
+
+@if (_planOpen && Tab.LastRun is { Info.IsQuery: true } planned)
+{
+    <PlanDialog Query="planned.Query" WorkspaceId="Tab.WorkspaceId" Title="@Tab.Title" OnClose="() => _planOpen = false" />
+}
+
+@code {
+    private static readonly Regex QuotedName = new("\"([^\"]+)\"", RegexOptions.CultureInvariant);
+
+    private MonacoEditor? _editor;
+    private CancellationTokenSource? _cts;
+    private bool _running;
+    private bool _planOpen;
+    private string? _error;
+    private DatabaseException? _failure;
+    private bool _needsUnlock;
+    private string? _notice;
+    private int _runKey;
+    private SqlGridStatus? _grid;
+    private bool _historyLogged;
+    private SqlRun? _confirm;
+    private bool _historyOpen;
+    private string _historySearch = "";
+    private IReadOnlyList<SqlHistoryEntry> _history = [];
+
+    /// <summary>The binds of the whole script, in order (unused variables are shown dimmed).</summary>
+    private IReadOnlyList<string> _binds = [];
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public SqlTab Tab { get; set; } = null!;
+
+    private bool IsProd => Active.Profile?.Kind == ConnectionKind.Prod;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Shell.TabCommandRequested += OnTabCommand;
+        Workspaces.Changed += OnWorkspacesChanged;
+        await UpdateVariablesAsync(Tab.Text);
+    }
+
+    private void OnTabCommand(WorkspaceTab tab, TabCommand command)
+    {
+        if (tab != Tab)
+        {
+            return;
+        }
+
+        switch (command)
+        {
+            case TabCommand.ApplyFilters or TabCommand.Refresh:
+                _ = InvokeAsync(RunAsync);
+                break;
+            case TabCommand.FindColumn when _editor is not null:
+                _ = InvokeAsync(_editor.FindAsync);
+                break;
+        }
+    }
+
+    private void OnWorkspacesChanged() => InvokeAsync(StateHasChanged); // writable or locked: toolbar text, unlock hint
+
+    private async Task OnTextChanged(string text)
+    {
+        Tab.Text = text;
+        Shell.MarkDirty();
+        await UpdateVariablesAsync(text);
+    }
+
+    /// <summary>Variables follow the binds of the script; new ones get the type of the column they are compared with.</summary>
+    private async Task UpdateVariablesAsync(string text)
+    {
+        var statements = SqlScript.Split(text).Select(s => SqlScript.Analyze(s.Text)).ToList();
+        _binds = statements.SelectMany(s => s.Binds).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var known = Tab.Variables.Select(v => v.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var suggestions = new Dictionary<string, SqlVariableType>(StringComparer.OrdinalIgnoreCase);
+        foreach (var bind in _binds.Where(b => !known.Contains(b)))
+        {
+            if (statements.FirstOrDefault(s => s.BindUses.Any(u => string.Equals(u.Bind, bind, StringComparison.OrdinalIgnoreCase))) is { } info
+                && await SuggestAsync(info, bind) is { } type)
+            {
+                suggestions[bind] = type;
+            }
+        }
+
+        var variables = SqlBinds.Reconcile(_binds, Tab.Variables, b => suggestions.TryGetValue(b, out var t) ? t : null);
+        if (!variables.SequenceEqual(Tab.Variables))
+        {
+            Tab.Variables = variables;
+            Shell.MarkDirty();
+        }
+    }
+
+    /// <summary>The type of the column a bind is compared with, if the schema knows it.</summary>
+    private async Task<SqlVariableType?> SuggestAsync(SqlStatementInfo info, string bind)
+    {
+        if (Active.Schema is not { } schema)
+        {
+            return null;
+        }
+
+        var use = info.BindUses.First(u => string.Equals(u.Bind, bind, StringComparison.OrdinalIgnoreCase));
+        var candidates = use.Qualifier is { } qualifier
+            ? info.Tables.Where(t => t.Alias == qualifier || (t.Alias is null && t.Name == qualifier))
+            : info.Tables;
+        foreach (var reference in candidates)
+        {
+            if (SqlCompletion.Resolve(schema, reference) is not { } table)
+            {
+                continue;
+            }
+
+            try
+            {
+                var details = await schema.GetDetailsAsync(table, CancellationToken.None);
+                if (details.Columns.FirstOrDefault(c => c.Name == use.Column) is { } column)
+                {
+                    return SqlBinds.TypeFor(column);
+                }
+            }
+            catch (DatabaseException)
+            {
+                return null; // only a suggestion
+            }
+        }
+
+        return null;
+    }
+
+    private void SetVariable(SqlVariable variable, SqlVariableType type, string value)
+    {
+        Tab.Variables = Tab.Variables.Select(v => ReferenceEquals(v, variable) ? v with { Type = type, Value = value } : v).ToList();
+        Shell.MarkDirty();
+    }
+
+    private void RemoveVariable(SqlVariable variable)
+    {
+        Tab.Variables = Tab.Variables.Where(v => !ReferenceEquals(v, variable)).ToList();
+        Shell.MarkDirty();
+    }
+
+    private async Task RunAsync()
+    {
+        if (_running || _editor is null || await _editor.GetRunContextAsync() is not { } context)
+        {
+            return;
+        }
+
+        Tab.Text = context.Text;
+        Shell.MarkDirty();
+        await UpdateVariablesAsync(context.Text);
+        _error = null;
+        _failure = null;
+        _needsUnlock = false;
+        _notice = null;
+        await _editor.SetOffsetMarkersAsync([]);
+
+        var statement = SqlScript.StatementAt(context.Text, context.Start, context.End);
+        if (statement is null)
+        {
+            _error = "Kein Statement am Cursor – Statements trennt ; oder eine Leerzeile.";
+            StateHasChanged();
+            return;
+        }
+
+        if (context.End > context.Start && SqlScript.CountStatements(context.Text[context.Start..context.End]) is var count and > 1)
+        {
+            _notice = $"Die Markierung enthält {count} Statements – ausgeführt wird das erste.";
+        }
+
+        var info = SqlScript.Analyze(statement.Text);
+        if (info.Rejection is { } rejection)
+        {
+            _error = rejection;
+            StateHasChanged();
+            return;
+        }
+
+        QuerySpec query;
+        try
+        {
+            query = SqlBinds.Bind(statement.Text, info.Binds, Tab.Variables);
+        }
+        catch (SqlBindException ex)
+        {
+            _error = ex.Message;
+            StateHasChanged();
+            return;
+        }
+
+        await _editor.FlashAsync(statement.Start, statement.Length);
+        var run = new SqlRun(statement, info, query, DateTimeOffset.Now);
+        if (info.IsQuery)
+        {
+            Tab.LastRun = run;
+            _grid = null;
+            _historyLogged = false;
+            _runKey++;
+        }
+        else if (!Workspaces.IsWritable(Tab.WorkspaceId))
+        {
+            _error = $"{info.FirstWord} ändert Daten – der Workspace ist schreibgeschützt.";
+            _needsUnlock = true;
+        }
+        else if (IsProd || info.AffectsAllRows)
+        {
+            _confirm = run;
+        }
+        else
+        {
+            await WriteAsync(run);
+        }
+
+        StateHasChanged(); // started from a shortcut, not a UI event
+    }
+
+    private async Task ConfirmWriteAsync(SqlRun run)
+    {
+        _confirm = null;
+        await WriteAsync(run);
+    }
+
+    /// <summary>INSERT, UPDATE, DELETE, MERGE in the workspace's transaction (begun if there is none).</summary>
+    private async Task WriteAsync(SqlRun run)
+    {
+        _running = true;
+        _cts = new CancellationTokenSource();
+        var token = _cts.Token;
+        StateHasChanged();
+        try
+        {
+            var editor = await Workspaces.GetEditorAsync(Tab.WorkspaceId, token);
+            var changed = await Task.Run(() => editor.ExecuteAsync(run.Query, token), token);
+            Tab.LastRun = run with { Changed = changed, Transaction = Workspaces.TransactionOf(Tab.WorkspaceId)?.StartedAt };
+            // Table tabs of the workspace may show the changed rows: they fetch them again from the transaction.
+            foreach (var tab in Shell.Workspaces.FirstOrDefault(w => w.WorkspaceId == Tab.WorkspaceId)?.TableTabs ?? [])
+            {
+                Shell.RequestTabCommand(tab, TabCommand.Reload);
+            }
+
+            Shell.NotifyChanged(); // status bar: open transaction, commit/rollback
+            await LogAsync(run, changed, false, true, null);
+        }
+        catch (OperationCanceledException)
+        {
+            _error = "Abgebrochen – das Statement wurde zurückgenommen.";
+        }
+        catch (DatabaseException ex)
+        {
+            await FailAsync(run, ex);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _running = false;
+            _cts?.Dispose();
+            _cts = null;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnGridStatus(SqlGridStatus status)
+    {
+        _grid = status;
+        if (status.Loading || _historyLogged || Tab.LastRun is not { } run)
+        {
+            return;
+        }
+
+        _historyLogged = true;
+        if (status.Error is { } error)
+        {
+            await FailAsync(run, error, reported: true);
+        }
+        else
+        {
+            await LogAsync(run, status.RowsLoaded, !status.AllLoaded, false, null, status.Elapsed);
+        }
+    }
+
+    /// <summary>Shows a database error, marks the name it complains about, logs it; the grid reports its own failures.</summary>
+    private async Task FailAsync(SqlRun run, DatabaseException ex, bool reported = false)
+    {
+        if (!reported)
+        {
+            QueryErrorLog.Log(Logger, ex, Active.Profile);
+            Shell.ReportFailure(ex);
+        }
+
+        _error = ex.Display;
+        _failure = ex;
+        Tab.LastRun = run with { Changed = null };
+        if (_editor is not null && ex.ErrorCode is "ORA-00904" or "ORA-00942" && QuotedName.Matches(ex.Message) is { Count: > 0 } names)
+        {
+            var name = names[^1].Groups[1].Value;
+            var at = Regex.Match(run.Statement.Text, $@"(?<![\w$#""]){Regex.Escape(name)}(?![\w$#])", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+            if (at.Success)
+            {
+                await _editor.SetOffsetMarkersAsync([new MonacoEditor.EditorMarker(run.Statement.Start + at.Index, at.Length, "error", ex.Display)]);
+            }
+        }
+
+        await LogAsync(run, null, false, false, ex.Display);
+        StateHasChanged();
+    }
+
+    private async Task LogAsync(SqlRun run, int? rows, bool moreRows, bool changed, string? error, TimeSpan? elapsed = null)
+    {
+        if (Active.Profile is not { } profile)
+        {
+            return;
+        }
+
+        var variables = Tab.Variables.Where(v => run.Info.Binds.Contains(v.Name, StringComparer.OrdinalIgnoreCase)).ToList();
+        var entry = new SqlHistoryEntry(run.Statement.Text, run.At, elapsed ?? DateTimeOffset.Now - run.At, rows, moreRows, changed, error, variables);
+        try
+        {
+            _history = await History.AddAsync(profile.Id, IsProd ? entry.WithoutValues() : entry, CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Logger.LogWarning(ex, "SQL history could not be written");
+        }
+    }
+
+    private async Task ToggleHistoryAsync()
+    {
+        _historyOpen = !_historyOpen;
+        if (_historyOpen && Active.Profile is { } profile)
+        {
+            _history = await History.LoadAsync(profile.Id, CancellationToken.None);
+        }
+    }
+
+    private void SetSearch(ChangeEventArgs e) => _historySearch = Text(e);
+
+    private static string Text(ChangeEventArgs e) => (string?)e.Value ?? string.Empty;
+
+    private IEnumerable<SqlHistoryEntry> FilteredHistory => _history.Where(e =>
+        _historySearch.Split(' ', StringSplitOptions.RemoveEmptyEntries).All(w => e.Sql.Contains(w, StringComparison.OrdinalIgnoreCase)));
+
+    /// <summary>Appends the statement after a blank line, adopts its variables and puts the cursor there.</summary>
+    private async Task AdoptAsync(SqlHistoryEntry entry)
+    {
+        if (_editor is null)
+        {
+            return;
+        }
+
+        var current = (await _editor.GetRunContextAsync())?.Text ?? Tab.Text;
+        var trimmed = current.TrimEnd();
+        var prefix = trimmed.Length == 0 ? "" : trimmed + "\n\n"; // the blank line separates; the script stays as written
+        Tab.Text = prefix + entry.Sql + ";\n";
+        Tab.Variables = [.. Tab.Variables.Where(v => !entry.Variables.Any(e => string.Equals(e.Name, v.Name, StringComparison.OrdinalIgnoreCase))),
+            .. entry.Variables.Where(v => v.Value.Length > 0 || !Tab.Variables.Any(t => string.Equals(t.Name, v.Name, StringComparison.OrdinalIgnoreCase)))];
+        await _editor.SetTextAsync(Tab.Text);
+        await UpdateVariablesAsync(Tab.Text);
+        Shell.MarkDirty();
+        await _editor.RevealOffsetAsync(prefix.Length);
+    }
+
+    /// <summary>Completion for the statement around the cursor (also one still being written).</summary>
+    private async Task<IReadOnlyList<SqlCompletionItem>> CompleteAsync(string text, int cursor)
+    {
+        if (Active.Schema is not { } schema)
+        {
+            return [];
+        }
+
+        var statement = SqlScript.StatementAt(text, cursor, cursor);
+        var (slice, offset) = statement is not null && statement.Start <= cursor
+            ? (text[statement.Start..Math.Max(statement.End, cursor)], cursor - statement.Start)
+            : ("", 0);
+        try
+        {
+            return await SqlCompletion.ItemsAsync(slice, offset, schema, Presentations.For, Presentations.EntityNameOf, CancellationToken.None);
+        }
+        catch (DatabaseException)
+        {
+            return [];
+        }
+    }
+
+    /// <summary>The table a query reads if it reads exactly one: target of "Als INSERT kopieren".</summary>
+    private TableSummary? InsertTarget(SqlStatementInfo info) =>
+        info.Tables is [{ Depth: 0 } only] && Active.Schema is { } schema ? SqlCompletion.Resolve(schema, only) : null;
+
+    private string ExportName(SqlStatementInfo info) => InsertTarget(info)?.DisplayName ?? Tab.Title;
+
+    /// <summary>The writing transaction the statement ran in is still open (not committed or rolled back since).</summary>
+    private bool TransactionStillOpen(SqlRun run) =>
+        run.Transaction is { } ranIn && Workspaces.TransactionOf(Tab.WorkspaceId) is { Mode: TransactionMode.ReadWrite, StartedAt: { } started } && started == ranIn;
+
+    private void Cancel() => _cts?.Cancel();
+
+    private static string TypeText(SqlVariableType type) => type switch
+    {
+        SqlVariableType.Text => "Text",
+        SqlVariableType.Char => "Text (CHAR)",
+        SqlVariableType.Number => "Zahl",
+        SqlVariableType.Date => "Datum",
+        SqlVariableType.Raw => "Hex (RAW)",
+        _ => "NULL",
+    };
+
+    private static string Placeholder(SqlVariableType type) => type switch
+    {
+        SqlVariableType.Number => "4711",
+        SqlVariableType.Date => "05.10.2026 14:00",
+        SqlVariableType.Raw => "CAFE01",
+        _ => "",
+    };
+
+    private static string OneLine(string sql) => Regex.Replace(sql, @"\s+", " ").Trim();
+
+    private static string Outcome(SqlHistoryEntry entry) => entry switch
+    {
+        { Error: { } error } => error.Split(':')[0],
+        { Changed: true, Rows: { } rows } => $"{rows:N0} geändert",
+        { Rows: { } rows } => $"{(entry.MoreRows ? "≥ " : "")}{rows:N0} Zeilen",
+        _ => "",
+    };
+
+    private static string Ms(TimeSpan elapsed) => elapsed.TotalMilliseconds < 1000
+        ? $"{elapsed.TotalMilliseconds:0} ms"
+        : $"{elapsed.TotalSeconds.ToString("0.0", CultureInfo.CurrentCulture)} s";
+
+    public void Dispose()
+    {
+        Shell.TabCommandRequested -= OnTabCommand;
+        Workspaces.Changed -= OnWorkspacesChanged;
+        _cts?.Cancel();
+    }
+}

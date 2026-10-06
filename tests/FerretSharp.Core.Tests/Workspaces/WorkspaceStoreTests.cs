@@ -65,6 +65,29 @@ public sealed class WorkspaceStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task Sql_tabs_keep_script_and_typed_variables()
+    {
+        var workspace = Sample() with
+        {
+            Tabs =
+            [
+                new TabState(LinqTabState.NoTable, TabMode.Data, [], [], [])
+                {
+                    Sql = new SqlTabState("SQL 1", "SELECT * FROM kunden WHERE id = :id;\n\nSELECT 1 FROM dual",
+                        [new SqlVariable("id", SqlVariableType.Number, "4711"), new SqlVariable("von", SqlVariableType.Date, "01.10.2026")]),
+                },
+            ],
+        };
+
+        await _store.SaveAsync(workspace, Ct);
+        var sql = Assert.Single(Assert.Single((await _store.LoadAsync(_connectionId, Ct)).Workspaces).Tabs).Sql;
+
+        Assert.NotNull(sql);
+        Assert.Equal(("SQL 1", "SELECT * FROM kunden WHERE id = :id;\n\nSELECT 1 FROM dual"), (sql.Title, sql.Text));
+        Assert.Equal(workspace.Tabs[0].Sql!.Variables, sql.Variables);
+    }
+
+    [Fact]
     public async Task Tabs_saved_before_column_pinning_load_without_pinned_columns()
     {
         Directory.CreateDirectory(_directory);

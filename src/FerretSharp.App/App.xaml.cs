@@ -81,6 +81,7 @@ public partial class App : Application
         var modelHost = Path.Combine(AppContext.BaseDirectory, "modelhost", "FerretSharp.ModelHost.dll");
         builder.Services.AddSingleton<IModelHostRunner>(new ModelHostRunner(modelHost));
         builder.Services.AddSingleton(new ModelCache(paths.ModelCacheDirectory, modelHost));
+        builder.Services.AddSingleton(new SqlHistoryStore(paths.SqlHistoryDirectory));
         builder.Services.AddSingleton<ClrModelManager>();
         builder.Services.AddSingleton<PresentationService>();
         builder.Services.AddSingleton<LinqConsoleService>();
