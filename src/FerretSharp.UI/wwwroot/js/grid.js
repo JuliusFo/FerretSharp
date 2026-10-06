@@ -309,13 +309,17 @@ function reportPinned(api, dotnet) {
 
 /**
  * columns: [{ id, name, label, alternate, clrType, clrLine, type, category, nullable, pk, fk, fkModel, numeric, sortable, pinned,
- *   options, unknownText, … }] in display order (see FerretGrid.ColumnMeta).
- * sorts: [{ colId, sort }] initial sort state.
- * firstRow: rough scroll position to restore (0 = top); the block containing it is loaded on demand.
- * editable: whether the workspace may write (v2); the columns say whether they can be edited at all.
- * headerHeight: with the line for C# names (WP-12); null for the theme default.
+ *   options, unknownText, … }] in display order (GridColumn in .NET).
+ * options (GridOptions in .NET):
+ *   sorts: [{ colId, sort }] initial sort state.
+ *   firstRow: rough scroll position to restore (0 = top); the block containing it is loaded on demand.
+ *   editable: whether the workspace may write (v2); the columns say whether they can be edited at all.
+ *   headerHeight: with the line for C# names (WP-12); null for the theme default.
+ *   table: a table tab – header menu, Del, pinning and scroll position are reported to .NET. A query result only
+ *     answers GetRows, OnCopy and OnCellContextMenu.
  */
-export function create(elementId, dotnet, columns, sorts, firstRow, editable, headerHeight) {
+export function create(elementId, dotnet, columns, options) {
+  const { sorts, firstRow, editable, headerHeight, table } = options;
   registerModules();
   destroy(elementId);
   let restoreRow = firstRow > 0 ? firstRow : null;
@@ -386,7 +390,7 @@ export function create(elementId, dotnet, columns, sorts, firstRow, editable, he
   element.addEventListener('contextmenu', e => {
     e.preventDefault();
     const colId = e.target.closest?.('.ag-header-cell')?.getAttribute('col-id');
-    if (colId) {
+    if (colId && table) {
       dotnet.invokeMethodAsync('OnHeaderContextMenu', colId, e.clientX, e.clientY, window.innerWidth, window.innerHeight).catch(() => {});
     }
   });
@@ -395,7 +399,7 @@ export function create(elementId, dotnet, columns, sorts, firstRow, editable, he
   // Text marked with the mouse inside one cell is copied by the browser as usual.
   element.addEventListener('keydown', e => {
     // Del (not while editing): mark the selected rows for deletion – pending until written, can be reverted.
-    if (e.key === 'Delete' && !e.ctrlKey && !e.altKey && api.getEditingCells().length === 0) {
+    if (table && e.key === 'Delete' && !e.ctrlKey && !e.altKey && api.getEditingCells().length === 0) {
       const loaded = api.getSelectedNodes().map(n => n.rowIndex).filter(i => i != null);
       const focused = api.getFocusedCell();
       const pinned = focused?.rowPinned === 'top' ? [api.getPinnedTopRow(focused.rowIndex)?.data?.__new].filter(Boolean) : [];
@@ -497,10 +501,10 @@ export function create(elementId, dotnet, columns, sorts, firstRow, editable, he
         console.error(err);
       }
     },
-    onBodyScrollEnd: () => dotnet.invokeMethodAsync('OnScrolled', firstVisibleRow(api)).catch(() => {}),
+    onBodyScrollEnd: () => { if (table) dotnet.invokeMethodAsync('OnScrolled', firstVisibleRow(api)).catch(() => {}); },
     // Pinned or reordered within the pinned area by dragging (changes from setPinned have source 'api').
-    onColumnPinned: e => { if (e.source?.startsWith('ui')) reportPinned(api, dotnet); },
-    onColumnMoved: e => { if (e.finished && e.source?.startsWith('ui') && e.column?.getPinned()) reportPinned(api, dotnet); },
+    onColumnPinned: e => { if (table && e.source?.startsWith('ui')) reportPinned(api, dotnet); },
+    onColumnMoved: e => { if (table && e.finished && e.source?.startsWith('ui') && e.column?.getPinned()) reportPinned(api, dotnet); },
     // The menu itself is a Blazor component; the grid only reports where the user right-clicked.
     // Right-click on a selected row keeps the selection (export of several rows), otherwise selects just this row.
     onCellContextMenu: e => {

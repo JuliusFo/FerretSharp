@@ -21,13 +21,10 @@
 @code {
     /// <summary>Rows per block (BLOCK_SIZE in grid.js); a preloaded first page must have this size.</summary>
     public const int PageSize = 500;
-    private const int MaxCachedBlocks = 40;
 
     private readonly string _id = "sqlgrid-" + Guid.NewGuid().ToString("N");
-    private readonly Dictionary<int, IReadOnlyList<IReadOnlyList<object?>>> _blocks = [];
-    private IJSObjectReference? _module;
-    private IJSObjectReference? _dom;
-    private DotNetObjectReference<SqlResultGrid>? _selfRef;
+    private readonly RowBlocks _blocks = new();
+    private GridBridge _grid = null!;
     private IReadOnlyList<SqlColumn> _columns = [];
     private SqlPage? _firstPage;
 
@@ -62,54 +59,23 @@
 
     private GridContextMenuRequest? _menu;
 
-    /// <param name="Failed">The block could not be read (the status says why): grid.js fails it (see FerretGrid.GridPage).</param>
-    public sealed record GridPage(IReadOnlyList<Dictionary<string, object?>> Rows, int LastRow, bool Failed = false)
-    {
-        public static readonly GridPage Failure = new([], -1, true);
-    }
-
-    public sealed record GridSort(string ColId, string Sort);
-
     private int _rowsLoaded;
 
     /// <summary>Snapshot of the first page (locked workspaces) and whether a later page came from another one.</summary>
     private DateTimeOffset? _dataAsOf;
     private bool _snapshotMoved;
 
-    /// <summary>Set first thing in <see cref="DisposeAsync"/>: a start still awaiting must not create the grid afterwards.</summary>
+    /// <summary>Set first thing in <see cref="DisposeAsync"/>: a start still awaiting must not report its status.</summary>
     private bool _disposed;
+
+    protected override void OnInitialized() => _grid = new GridBridge(JS, _id, DotNetObjectReference.Create(this));
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender)
-        {
-            return;
-        }
-
-        _selfRef = DotNetObjectReference.Create(this);
-        var module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/grid.js");
-        if (_disposed)
-        {
-            // Replaced while the module loaded: DisposeAsync found no module, and the query need not run at all.
-            try
-            {
-                await module.DisposeAsync();
-            }
-            catch (JSDisconnectedException)
-            {
-            }
-
-            return;
-        }
-
-        _module = module;
-        try
+        // Replaced while grid.js loaded: the query need not run at all.
+        if (firstRender && await _grid.LoadAsync())
         {
             await StartAsync();
-        }
-        catch (Exception ex) when (_disposed && ex is ObjectDisposedException or JSDisconnectedException)
-        {
-            // Replaced while starting (a script shows each new result): the grid is gone, nothing to show.
         }
     }
 
@@ -141,26 +107,12 @@
         var columns = _columns.Select((c, i) =>
         {
             var category = ColumnCategories.Of(c.Column);
-            return new
+            return new GridColumn(GridColumn.IdOf(i), c.Name, c.Name, c.Column.DisplayType, category.ToString(), c.Column.Nullable)
             {
-                id = "c" + i.ToString(CultureInfo.InvariantCulture),
-                name = c.Name,
-                label = c.Name,
-                type = c.Column.DisplayType,
-                category = category.ToString(),
-                nullable = c.Column.Nullable,
-                numeric = category == ColumnCategory.Number,
-                sortable = false,
-                pinned = false,
-                editable = false,
-                editableNew = false,
-                lob = false,
+                Numeric = category == ColumnCategory.Number,
             };
         }).ToList();
-        if (_module is not null && !_disposed)
-        {
-            await _module.InvokeVoidAsync("create", _id, _selfRef, columns, Array.Empty<object>(), 0, false, null);
-        }
+        await _grid.CreateAsync(columns, new GridOptions([], 0, Editable: false, HeaderHeight: null, Table: false));
     }
 
     /// <summary>A grid already replaced reports nothing: its status would overwrite the one of the grid shown now.</summary>
@@ -189,7 +141,7 @@
             page = read;
         }
 
-        KeepBlock(startRow, page.Rows);
+        _blocks.Keep(startRow, page.Rows.Select(values => new RowData(RowKey.None.Instance, values)).ToList());
         _rowsLoaded = Math.Max(_rowsLoaded, startRow + page.Rows.Count);
         (_dataAsOf, _snapshotMoved) = Snapshots.Next(startRow, _dataAsOf, _snapshotMoved, page.DataAsOf);
         await Status(new SqlGridStatus(false, _rowsLoaded, page.IsLastPage, page.Elapsed, _dataAsOf, null, _snapshotMoved));
@@ -198,7 +150,7 @@
             var cells = new Dictionary<string, object?>(values.Count);
             for (var i = 0; i < values.Count; i++)
             {
-                cells["c" + i.ToString(CultureInfo.InvariantCulture)] = CellFormatter.Format(_columns[i].Column, values[i]);
+                cells[GridColumn.IdOf(i)] = CellFormatter.Format(_columns[i].Column, values[i]);
             }
 
             return cells;
@@ -213,106 +165,45 @@
         string text;
         if (selectedRows.Length > 1)
         {
-            var rows = selectedRows.Order().Select(RowAt).OfType<IReadOnlyList<object?>>().Select(r => new RowData(RowKey.None.Instance, r)).ToList();
+            var rows = selectedRows.Order().Select(_blocks.At).OfType<RowData>().ToList();
             text = DelimitedExport.Build(AsTable(), rows, DelimitedExport.ClipboardSeparator).Text;
         }
-        else if (RowAt(rowIndex) is { } row)
+        else if (_blocks.At(rowIndex) is { } row)
         {
-            var column = int.Parse(colId[1..], CultureInfo.InvariantCulture);
-            text = DelimitedExport.CellText(_columns[column].Column, row[column]).Text;
+            var column = GridColumn.IndexOf(colId);
+            text = DelimitedExport.CellText(_columns[column].Column, row.Values[column]).Text;
         }
         else
         {
             return;
         }
 
-        _dom ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
-        if (!await _dom.InvokeAsync<bool>("copyText", text))
-        {
-            Shell.Notify("Die Zwischenablage ist nicht verfügbar.");
-        }
+        await _grid.CopyTextAsync(Shell, text);
     }
 
     /// <summary>The result as a table for the export helpers (columns only; it has no key).</summary>
     private TableDetails AsTable() => new(new TableSummary("", ExportName, TableKind.View), _columns.Select(c => c.Column).ToList(), [], [], false);
 
-    // grid.js calls these for table grids; a result has no pinning to save, no menus and no editing.
-    [JSInvokable]
-    public void OnScrolled(int firstVisibleRow)
-    {
-    }
-
-    [JSInvokable]
-    public void OnPinnedChanged(string[] colIds)
-    {
-    }
-
-    [JSInvokable]
-    public void OnHeaderContextMenu(string colId, double x, double y, double viewportWidth, double viewportHeight)
-    {
-    }
-
     /// <summary>Right click: the export menu for the clicked row, or for the selection if the row is part of it.</summary>
     [JSInvokable]
     public Task OnCellContextMenu(int rowIndex, string colId, int[] selectedRows, double x, double y, double viewportWidth, double viewportHeight)
     {
-        if (RowAt(rowIndex) is not { } row)
+        if (_blocks.At(rowIndex) is not { } row)
         {
             return Task.CompletedTask;
         }
 
-        var column = int.Parse(colId[1..], CultureInfo.InvariantCulture);
+        var column = GridColumn.IndexOf(colId);
         var indexes = selectedRows.Contains(rowIndex) ? selectedRows.Order().ToArray() : [rowIndex];
-        var selected = indexes.Select(RowAt).OfType<IReadOnlyList<object?>>().Select(r => new RowData(RowKey.None.Instance, r)).ToList();
-        _menu = new GridContextMenuRequest(new RowData(RowKey.None.Instance, row), column, CellFormatter.Format(_columns[column].Column, row[column]),
+        var selected = indexes.Select(_blocks.At).OfType<RowData>().ToList();
+        _menu = new GridContextMenuRequest(row, column, CellFormatter.Format(_columns[column].Column, row.Values[column]),
             selected, indexes.Length - selected.Count, x, y, viewportWidth, viewportHeight);
         return InvokeAsync(StateHasChanged);
     }
 
-    [JSInvokable]
-    public object[] OnDeleteKey(int[] rowIndexes, string[] newIds) => [];
-
-    private void KeepBlock(int startRow, IReadOnlyList<IReadOnlyList<object?>> rows)
-    {
-        _blocks[startRow] = rows;
-        while (_blocks.Count > MaxCachedBlocks)
-        {
-            _blocks.Remove(_blocks.Keys.MaxBy(start => Math.Abs(start - startRow)));
-        }
-    }
-
-    private IReadOnlyList<object?>? RowAt(int index)
-    {
-        foreach (var (start, rows) in _blocks)
-        {
-            if (index >= start && index < start + rows.Count)
-            {
-                return rows[index - start];
-            }
-        }
-
-        return null;
-    }
-
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         _disposed = true;
-        foreach (var module in new[] { _module, _dom }.OfType<IJSObjectReference>())
-        {
-            try
-            {
-                if (module == _module)
-                {
-                    await module.InvokeVoidAsync("destroy", _id);
-                }
-
-                await module.DisposeAsync();
-            }
-            catch (JSDisconnectedException)
-            {
-            }
-        }
-
-        _selfRef?.Dispose();
+        return _grid.DisposeAsync();
     }
 }
