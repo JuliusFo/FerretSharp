@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Changed
+- SQL editor completion: at the end of a line, tables, views, synonyms and clause keywords (`WHERE`, `ORDER BY`, `IS NOT NULL` …) are inserted with a space after them, so you can type on right away. Columns, values and functions (`NULL`, `DESC`, `NVL` …) stay without one – a comma, parenthesis or operator usually follows – and nothing gets a space when text already follows on the line.
+
 ## [3.3.0] - 2026-10-06
 
 ### Added

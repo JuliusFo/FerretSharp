@@ -192,8 +192,53 @@ public sealed class SqlCompletionTests
     private static async Task<IReadOnlyList<SqlCompletionItem>> ItemsAsync(string marked)
     {
         var cursor = marked.IndexOf('|', StringComparison.Ordinal);
-        return await SqlCompletion.ItemsAsync(marked.Remove(cursor, 1), cursor, await SchemaAsync(), TablePresentation.Plain,
+        var text = marked.Remove(cursor, 1);
+        return await SqlCompletion.ItemsAsync(text, cursor, SqlCompletion.AtLineEnd(text, cursor), await SchemaAsync(), TablePresentation.Plain,
             table => table.Name == "KUNDEN" ? "Kunde" : null, TestContext.Current.CancellationToken);
+    }
+
+    [Theory]
+    [InlineData("SELECT * FROM ku|", true)]
+    [InlineData("SELECT * FROM ku|\r\nWHERE 1 = 1", true)]
+    [InlineData("SELECT * FROM ku|\nWHERE 1 = 1", true)]
+    [InlineData("SELECT * FROM ku| WHERE 1 = 1", false)]
+    [InlineData("SELECT * FROM ku|;", false)]
+    [InlineData("SELECT * FROM ku|nden", false)]
+    [InlineData("SELECT * FROM ku|)", false)]
+    public void A_space_follows_only_at_the_end_of_a_line(string marked, bool expected)
+    {
+        var cursor = marked.IndexOf('|', StringComparison.Ordinal);
+        Assert.Equal(expected, SqlCompletion.AtLineEnd(marked.Remove(cursor, 1), cursor));
+    }
+
+    [Fact]
+    public async Task Tables_and_clause_keywords_end_with_a_space_at_the_end_of_a_line()
+    {
+        var tables = await ItemsAsync("SELECT * FROM ku|");
+        var elsewhere = await ItemsAsync("SELECT * FROM kunden WHERE |");
+
+        Assert.All(tables, i => Assert.EndsWith(" ", i.InsertText, StringComparison.Ordinal));
+        Assert.Equal("KUNDEN ", tables.Single(i => i.Label == "KUNDEN").InsertText);
+        Assert.Equal("ORDER BY ", elsewhere.Single(i => i.Label == "ORDER BY").InsertText);
+        Assert.Equal("IS NOT NULL ", elsewhere.Single(i => i.Label == "IS NOT NULL").InsertText);
+    }
+
+    [Fact]
+    public async Task Columns_values_and_functions_get_no_space()
+    {
+        var items = await ItemsAsync("SELECT * FROM kunden WHERE |");
+
+        Assert.All(items.Where(i => i.Kind == SqlCompletionKind.Column), i => Assert.DoesNotContain(" ", i.InsertText, StringComparison.Ordinal));
+        Assert.Equal(["NULL", "DESC", "COUNT(*)", "SYSDATE", "NVL"],
+            new[] { "NULL", "DESC", "COUNT(*)", "SYSDATE", "NVL" }.Select(k => items.Single(i => i.Label == k).InsertText));
+    }
+
+    [Fact]
+    public async Task Nothing_gets_a_space_when_text_follows_on_the_line()
+    {
+        var items = await ItemsAsync("SELECT * FROM ku| WHERE 1 = 1");
+
+        Assert.Equal("KUNDEN", items.Single(i => i.Label == "KUNDEN").InsertText);
     }
 
     [Theory]
