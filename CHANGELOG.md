@@ -5,6 +5,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.5.0] - 2026-10-06
+
+### Added
+- Completion in the LINQ console, from your project's compiled model: after `db.` the DbSets, after `k.` in a lambda the entity's properties with their types, after `db.Kunden.` the LINQ and EF Core methods (`Where`, `Include`, `ToListAsync` …), after `Kundenart.` the enum members with their values, in `new Kunde { … }` the properties not set yet; otherwise your variables, the project's types and C# keywords. Works in the query and in the variables, also in copied code using `_context`. Ctrl+Space opens the list; nothing is suggested in strings and comments or while naming a new variable.
+
 ## [3.4.0] - 2026-10-06
 
 ### Added
