@@ -92,9 +92,10 @@ public interface IDataEditor
     Task RollbackAsync(CancellationToken cancellationToken);
 
     /// <summary>
-    /// One UPDATE or DELETE from the LINQ console (ADR 0011) in the workspace's transaction, begun if there is none;
-    /// on failure rolled back to its own savepoint. Not part of <see cref="FlushCount"/>: undoing a grid write stays with
-    /// the grid. Like any UPDATE it waits for rows another session has locked – cancel through the token.
+    /// One INSERT, UPDATE, DELETE or MERGE – from the LINQ console (ADR 0011) or the SQL editor (ADR 0014) – in the
+    /// workspace's transaction, begun if there is none; on failure rolled back to its own savepoint. Not part of
+    /// <see cref="FlushCount"/>: undoing a grid write stays with the grid. Like any UPDATE it waits for rows another
+    /// session has locked – cancel through the token.
     /// </summary>
     /// <returns>Affected rows.</returns>
     Task<int> ExecuteAsync(QuerySpec statement, CancellationToken cancellationToken);

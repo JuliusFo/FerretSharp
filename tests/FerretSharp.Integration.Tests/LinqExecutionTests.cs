@@ -87,8 +87,9 @@ public sealed class LinqExecutionTests(OracleContainerFixture oracle) : IAsyncLi
         Assert.True(second.IsLastPage);
         Assert.Empty(beyond.Rows);
         Assert.True(beyond.IsLastPage);
-        // The CLOB arrives whole; the grid shortens it for display.
-        Assert.Equal(5000, Assert.IsType<string>(first.Rows.Single(r => (decimal)r[0]! == 1m)[3]).Length);
+        // The CLOB arrives as in the table grid: a preview and its length (WP-17).
+        var clob = Assert.IsType<LobValue>(first.Rows.Single(r => (decimal)r[0]! == 1m)[3]);
+        Assert.Equal((5000L, QueryBuilder.ClobPreviewLength), (clob.Length, clob.Preview!.Length));
     }
 
     [Fact]

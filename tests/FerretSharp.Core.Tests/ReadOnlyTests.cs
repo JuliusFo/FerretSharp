@@ -89,6 +89,7 @@ public class ReadOnlyTests
     [InlineData("  update t set c = :p0 where id = :p1")]
     [InlineData("-- flush\nDELETE FROM t WHERE ROWID = :rid")]
     [InlineData("UPDATE t SET c = 'a;b' WHERE id = 1")]
+    [InlineData("MERGE INTO t USING s ON (t.id = s.id) WHEN MATCHED THEN UPDATE SET c = s.c")] // SQL editor (ADR 0014)
     public void Write_path_accepts_single_dml(string sql) => Assert.True(OracleSession.IsWriteStatement(sql), sql);
 
     [Theory]
@@ -98,7 +99,7 @@ public class ReadOnlyTests
     [InlineData("ALTER TABLE t ADD c NUMBER")]
     [InlineData("GRANT SELECT ON t TO x")]
     [InlineData("COMMENT ON TABLE t IS 'x'")]
-    [InlineData("MERGE INTO t USING s ON (1 = 1) WHEN MATCHED THEN UPDATE SET c = 1")]
+    [InlineData("MERGE INTO t USING s ON (1 = 1) WHEN MATCHED THEN UPDATE SET c = 1; DROP TABLE t")]
     [InlineData("BEGIN DELETE FROM t; END;")]
     [InlineData("SELECT * FROM t")]
     [InlineData("COMMIT")]

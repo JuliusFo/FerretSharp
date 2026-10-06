@@ -86,7 +86,10 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
                 var values = new object?[columns.Count];
                 for (var i = 0; i < values.Length; i++)
                 {
-                    values[i] = oracle.IsDBNull(i) ? null : ReadValue(oracle, i, columns[i].Column);
+                    // LOBs as in the table grid: a preview and the length (the session reads them whole – free queries
+                    // cannot be rewritten to DBMS_LOB.SUBSTR like generated ones).
+                    var value = oracle.IsDBNull(i) ? null : ReadValue(oracle, i, columns[i].Column);
+                    values[i] = ColumnCategories.Of(columns[i].Column) is ColumnCategory.Clob or ColumnCategory.Blob ? LobValue.FromContent(value) : value;
                 }
 
                 rows.Add(values);
