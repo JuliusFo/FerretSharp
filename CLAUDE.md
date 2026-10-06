@@ -28,7 +28,7 @@ Es wird in Versionen ausgeliefert. Jede Version ist für sich benutzbar.
 | **v1 – Read-only Browser** | Connections, Schema, Grid, Filter, Workspaces, FK-Navigation, Export | WP-01 … WP-07 |
 | **v2 – Sandbox-Editing** | Transaktionsmodell, Editieren, Commit/Rollback, Lock-Handling, Prod-Freischaltung | WP-08 … WP-10 |
 | **v3 – .NET-Integration** | DbContext-Modell laden, Schema-Anreicherung (Entities, Enums, Navigations), LINQ-Konsole, Explain-Plan (Grid und LINQ), Code-Generierung | WP-11 … WP-15 |
-| **v4 – Komfort & SQL** | Modell-Cache, freier SQL-Editor, Skripte (weitere Pakete aus dem Backlog nach Absprache) | WP-16 … |
+| **v4 – Komfort & SQL** | Modell-Cache, freier SQL-Editor, Skripte; geplant: DDL im SQL-Editor, Tabellen-Designer (weitere Pakete aus dem Backlog nach Absprache) | WP-16 … WP-20 |
 | **v5+** | Backlog (Abschnitt 10) | – |
 
 Regeln für **v1**:
@@ -555,6 +555,23 @@ Auftrag des Nutzers (2026-10-06): „das Ausführen eines ganzen Skripts und den
 - Gefunden im E2E: Ein Skript ersetzt das Ergebnis-Grid nach jedem Statement; ein Grid, das noch startete, griff danach auf seine freigegebene `DotNetObjectReference` zu → `ObjectDisposedException` → `ErrorBoundary` → `RecoverFromError` schließt **alle Tabs**. `SqlResultGrid` hat jetzt `_disposed` (vor `create` geprüft, verspätete Ausnahme gefangen, kein Status mehr nach dem Abbauen). Gleiches Muster wie `FerretGrid` in 3.1.0 – **Komponenten mit JS-Interop prüfen nach jedem `await` im Start, ob sie schon abgebaut sind.**
 - Altfehler: „Löschen“ im Verbindungsdialog löschte nur das Profil (Workspaces und SQL-Verlauf blieben; die aktive Verbindung blieb verbunden). Jetzt übergibt der Dialog an `ShellState.RequestDelete` – derselbe Ablauf wie das „⋯“-Menü (Bestätigung, bei aktiver Verbindung Trennen mit Schutz vor offenen Änderungen inkl. Transaktionen aus dem SQL-Editor, Workspaces und Verlauf entfernen).
 - E2E: Alt in `Input.dispatchKeyEvent` ist Modifier **1** (2 = Ctrl, 4 = Meta, 8 = Shift).
+
+#### WP-19 DDL im SQL-Editor (geplant)
+Wunsch des Nutzers (2026-10-06): Tabellen anlegen und ändern, passend zum DB-first-Ablauf („erst DB ändern, dann Entity“). Erste Stufe: DDL im SQL-Editor (und in Skripten) zulassen. Entscheidungen des Nutzers:
+- **Wo:** auf allen schreibbaren Workspaces – Profile ohne „Schreibgeschützt“ sowie **auch Prod nach dem Freischalten** (WP-10). Gesperrte Workspaces nie (READ-ONLY-Transaktion schützt nicht vor DDL, deshalb weiter Abweisung im Editor).
+- **Ausführen:** FerretSharp führt das DDL aus (nicht nur erzeugen/kopieren).
+- **Offene Transaktion:** Hat der Workspace eine Transaktion, wird eine **Meldung** ausgegeben und die **Transaktion abgebrochen** (Rollback der nicht committeten Änderungen), bevor das DDL läuft – sonst würde DDL sie still mitcommitten. Klären beim Start: Rollback nach Bestätigung (Dialog zeigt, was verworfen wird) oder DDL nicht ausführen?
+- Vorschlag zur Umsetzung (beim Start mit dem Nutzer abstimmen):
+  - Eigener enger Weg an `OracleSession` (z. B. `ExecuteDdlAsync`, `internal`): nur ein einzelnes DDL-Statement (`SqlStatementKind.Ddl`), nur ohne offene Transaktion, nie in einer gesperrten Session; `IsWriteStatement` und die Leseschranke bleiben unverändert. `ReadOnlyTests` erweitern. ADR.
+  - Weiterhin abgewiesen: PL/SQL-Blöcke, `ALTER SESSION/SYSTEM`, `COMMIT`/`ROLLBACK`, `TRUNCATE`? (implizites Löschen ohne Rollback – mit dem Nutzer klären).
+  - Bestätigung vor jedem DDL (zeigt das Statement; auf Prod immer, mit Verbindungsname); in Skripten eine Bestätigung für alle DDL-Statements. DDL ist **nicht** rückgängig zu machen – im Dialog so sagen.
+  - Danach Schema-Cache neu laden (Explorer, Spalten-Ansichten, Autovervollständigung) und das C#-Modell neu abgleichen; Hinweis auf neue „Spalten ohne Property“.
+  - Verlauf: DDL-Statements wie DML aufnehmen.
+
+#### WP-20 Tabellen-Designer + Entity aus Tabelle (geplant, nach WP-19)
+- Spalten-Ansicht eines Tabs bearbeitbar: Spalte hinzufügen, Typ/Länge/Precision, NULL, Default, Kommentar ändern, umbenennen, löschen; PK, Unique, FK, Indizes; neue Tabelle anlegen. FerretSharp erzeugt das DDL und zeigt es **vor** dem Ausführen (ausführen über den Weg aus WP-19 oder nur kopieren, z. B. als Skript fürs Repo).
+- Oracle-Fallen im Designer abfangen: NOT NULL auf Spalte mit NULL-Werten (vorher zählen), Typänderung gefüllter Spalten (oft nur über neue Spalte + Umkopieren), VARCHAR2 BYTE/CHAR-Semantik, Index für neue FKs vorschlagen (`IndexAdvice`), Identity/Default ON NULL.
+- Verzahnung mit dem C#-Modell (Backlog-Idee „Entity aus Tabelle erzeugen“): nach der Änderung Property-Zeile bzw. Entity + `IEntityTypeConfiguration` im Stil des Projekts (Namenskonvention, J/N-Converter) zum Kopieren.
 
 ## 9. Offene UX-Fragen
 - Shortcut-Belegung für Commit/Rollback (Abschnitt 7) – vorläufig, Nutzerfeedback einholen.
