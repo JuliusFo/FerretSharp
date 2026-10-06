@@ -424,12 +424,14 @@ public sealed class WorkspaceManagerTests
         Assert.Null(_manager.Profile);
     }
 
-    [Fact]
-    public async Task Save_failure_is_reported_and_retried()
+    [Theory]
+    [InlineData("io")]
+    [InlineData("json")] // not only IO: any failed save keeps the changes for the next attempt
+    public async Task Save_failure_is_reported_and_retried(string kind)
     {
         await _manager.AttachAsync(_profile, Ct);
         var id = _manager.Active!.Id;
-        _store.FailNextSave = new IOException("Datei gesperrt");
+        _store.FailNextSave = kind == "io" ? new IOException("Datei gesperrt") : new System.Text.Json.JsonException("Datei gesperrt");
 
         _manager.UpdateTabs(id, [Tab("KUNDEN")], 0);
         await _manager.FlushAsync();

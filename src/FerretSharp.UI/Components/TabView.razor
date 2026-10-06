@@ -111,6 +111,10 @@
                     <span title="Schreibgeschützte Verbindung: Oracle liefert die Daten aus einer READ ONLY-Transaktion mit dem Stand dieses Zeitpunkts. Jede neue Abfrage (Filter, Sortierung, F5) holt einen neuen Stand; weitere Seiten bleiben im selben Stand.">
                         Stand @asOf.ToString("T", CultureInfo.CurrentCulture)
                     </span>
+                    @if (Tab.SnapshotMoved)
+                    {
+                        <span class="warn" title="@SnapshotTexts.Moved">Stand hat sich geändert – F5 lädt neu</span>
+                    }
                 }
                 <span>@SortText</span>
                 @if (_countError is not null)

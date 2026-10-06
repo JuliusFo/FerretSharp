@@ -6,17 +6,21 @@ namespace FerretSharp.Core.Data;
 /// <summary>Identifies a row for navigation (v1) and later for UPDATE/DELETE (v2). See CLAUDE.md 5.5.</summary>
 public abstract record RowKey
 {
-    /// <summary>Compares by value: two keys with the same column values are equal.</summary>
+    /// <summary>
+    /// Compares by value: two keys with the same column values are equal. RAW values (<c>byte[]</c>, e.g. GUIDs as
+    /// EF Core stores them) compare by content – every read returns a new array, and the change tracker must still
+    /// find the row after a reload.
+    /// </summary>
     public sealed record PrimaryKey(IReadOnlyList<object?> Values) : RowKey
     {
-        public bool Equals(PrimaryKey? other) => other is not null && Values.SequenceEqual(other.Values);
+        public bool Equals(PrimaryKey? other) => other is not null && Values.SequenceEqual(other.Values, KeyValueComparer.Instance);
 
         public override int GetHashCode()
         {
             var hash = new HashCode();
             foreach (var value in Values)
             {
-                hash.Add(value);
+                hash.Add(value, KeyValueComparer.Instance);
             }
 
             return hash.ToHashCode();
@@ -28,6 +32,27 @@ public abstract record RowKey
     public sealed record None : RowKey
     {
         public static readonly None Instance = new();
+    }
+
+    /// <summary>Key values: <c>byte[]</c> by content, everything else by <see cref="object.Equals(object, object)"/>.</summary>
+    private sealed class KeyValueComparer : IEqualityComparer<object?>
+    {
+        public static readonly KeyValueComparer Instance = new();
+
+        public new bool Equals(object? x, object? y) =>
+            x is byte[] a && y is byte[] b ? a.AsSpan().SequenceEqual(b) : object.Equals(x, y);
+
+        public int GetHashCode(object? value)
+        {
+            if (value is not byte[] bytes)
+            {
+                return value?.GetHashCode() ?? 0;
+            }
+
+            var hash = new HashCode();
+            hash.AddBytes(bytes);
+            return hash.ToHashCode();
+        }
     }
 }
 

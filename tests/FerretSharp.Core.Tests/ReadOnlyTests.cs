@@ -23,6 +23,12 @@ public class ReadOnlyTests
     [InlineData("SELECT ';' AS semicolon, 'FOR UPDATE' AS text FROM DUAL")]
     [InlineData("SELECT * FROM t;")]
     [InlineData("SELECT \"FOR\" FROM t WHERE \"UPDATE_DATE\" > :p0")]
+    // SQL editor (WP-17): comments and literals the editor accepts must not look like a second statement or a lock
+    [InlineData("SELECT * FROM t -- the end;\nWHERE id = 1")]
+    [InlineData("SELECT * FROM t /* not for update */")]
+    [InlineData("SELECT q'[a;b]', q'{for update}' FROM DUAL")]
+    [InlineData("SELECT \"A;B\" FROM t")]
+    [InlineData("SELECT * FROM t;;")]
     public void Plain_queries_are_allowed(string sql) => Assert.True(OracleSession.IsReadOnlyStatement(sql), sql);
 
     [Theory]
@@ -45,6 +51,11 @@ public class ReadOnlyTests
     [InlineData("/* SELECT */ DELETE FROM t")]
     [InlineData("SELECTED_ROWS")]
     [InlineData("")]
+    [InlineData("-- only a comment")]
+    [InlineData("SELECT * FROM t /* ; */ ; DELETE FROM t")]
+    [InlineData("SELECT q'[x]' FROM t; DELETE FROM t")]
+    [InlineData("SELECT * FROM t FOR /* lock */ UPDATE")]
+    [InlineData("(SELECT * FROM t)")]
     public void Everything_else_is_refused(string sql) => Assert.False(OracleSession.IsReadOnlyStatement(sql), sql);
 
     private static readonly string[] WritingNames = ["NonQuery", "Scalar", "Insert", "Update", "Delete", "Merge", "Flush", "Write"];
@@ -106,6 +117,8 @@ public class ReadOnlyTests
     [InlineData("DELETE FROM t; DROP TABLE t")]
     [InlineData("/* DELETE */ DROP TABLE t")]
     [InlineData("")]
+    [InlineData("DELETE FROM t WHERE c = q'[;]'; DROP TABLE t")]
+    [InlineData("DELETE FROM t -- ;\n; DROP TABLE t")]
     public void Write_path_refuses_ddl_plsql_and_everything_else(string sql) => Assert.False(OracleSession.IsWriteStatement(sql), sql);
 
     [Fact]

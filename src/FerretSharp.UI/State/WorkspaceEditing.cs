@@ -8,9 +8,25 @@ namespace FerretSharp.UI.State;
 
 /// <summary>Counts for the status bar of one workspace.</summary>
 /// <param name="Transaction">The workspace session's transaction; null while the session is not open.</param>
-public sealed record EditSummary(int Pending, int Flushed, TransactionInfo? Transaction, bool CanUndo)
+/// <param name="Actions">Uncommitted writes – grid flushes and SQL/LINQ statements –, oldest first.</param>
+public sealed record EditSummary(int Pending, int Flushed, TransactionInfo? Transaction, IReadOnlyList<WriteAction> Actions)
 {
     public bool HasWork => Pending > 0 || Flushed > 0 || Transaction?.Mode == TransactionMode.ReadWrite;
+
+    public bool CanUndo => Actions.Count > 0;
+}
+
+/// <summary>What became of a statement's write in the workspace's transaction (SQL editor, LINQ console).</summary>
+public enum WriteFate
+{
+    /// <summary>Still uncommitted in the transaction.</summary>
+    Open,
+
+    /// <summary>Taken back with ↶; the transaction is still open.</summary>
+    Undone,
+
+    /// <summary>The transaction ended since: commit or rollback.</summary>
+    Ended,
 }
 
 /// <summary>A write stopped; shown as a dialog until the user decides.</summary>
@@ -35,11 +51,13 @@ public enum ProblemChoice
 /// <summary>
 /// Writing for the open workspaces (v2, WP-09): the transaction belongs to the workspace's session, the changes to
 /// its tabs. Ctrl+S writes the pending changes of all tabs (one savepoint per tab), commit writes what is pending
-/// and commits, rollback discards everything, undo takes back the last write. Owned by the shell.
+/// and commits, rollback discards everything, undo takes back the last write – of the grid or a statement, since they
+/// share the transaction (<see cref="IDataEditor.Actions"/>). Owned by the shell.
 /// </summary>
 public sealed class WorkspaceEditing(ShellState shell, WorkspaceManager workspaces, ActiveConnection active, AppSettingsService settings)
 {
-    private readonly Dictionary<Guid, Stack<(TableTab Tab, FlushBatch Batch)>> _undo = [];
+    /// <summary>Per workspace: the grid writes with what to restore when undone, in the order written.</summary>
+    private readonly Dictionary<Guid, List<(Guid ActionId, TableTab Tab, FlushBatch Batch)>> _batches = [];
     private readonly Dictionary<Guid, HashSet<Guid>> _overwrite = [];
 
     /// <summary>A write, commit or rollback is running (buttons disabled).</summary>
@@ -54,7 +72,20 @@ public sealed class WorkspaceEditing(ShellState shell, WorkspaceManager workspac
         Trackers(workspace).Sum(t => t.PendingCount),
         Trackers(workspace).Sum(t => t.FlushedCount),
         workspaces.TransactionOf(workspace.WorkspaceId),
-        _undo.GetValueOrDefault(workspace.WorkspaceId)?.Count > 0);
+        workspaces.ActionsOf(workspace.WorkspaceId));
+
+    /// <summary>What became of a statement's write (<paramref name="action"/>, run in the transaction that began at <paramref name="transactionStart"/>).</summary>
+    public static WriteFate FateOf(WorkspaceManager workspaces, Guid workspaceId, Guid action, DateTimeOffset? transactionStart)
+    {
+        if (workspaces.ActionsOf(workspaceId).Any(a => a.Id == action))
+        {
+            return WriteFate.Open;
+        }
+
+        return workspaces.TransactionOf(workspaceId) is { Mode: TransactionMode.ReadWrite, StartedAt: var started } && started == transactionStart
+            ? WriteFate.Undone
+            : WriteFate.Ended;
+    }
 
     /// <summary>Workspaces whose changes would be lost (pending, flushed or an open writing transaction).</summary>
     public IReadOnlyList<WorkspaceTabs> WithWork() => shell.Workspaces.Where(w => SummaryOf(w).HasWork).ToList();
@@ -73,7 +104,17 @@ public sealed class WorkspaceEditing(ShellState shell, WorkspaceManager workspac
         var editor = await workspaces.GetEditorAsync(workspace.WorkspaceId, CancellationToken.None);
         if (editor.Transaction.Mode == TransactionMode.ReadWrite)
         {
-            await editor.CommitAsync(CancellationToken.None);
+            try
+            {
+                await editor.CommitAsync(CancellationToken.None);
+            }
+            catch (DatabaseException) when (editor.Transaction.Mode != TransactionMode.ReadWrite)
+            {
+                // Oracle rolled the transaction back (ORA-02091, deferred constraint) or the session is gone: nothing
+                // written is in the database – it becomes pending again instead of vanishing from the grid.
+                RestorePending(workspace);
+                throw;
+            }
         }
 
         Finish(workspace);
@@ -95,20 +136,43 @@ public sealed class WorkspaceEditing(ShellState shell, WorkspaceManager workspac
         return true;
     });
 
-    /// <summary>Takes back the last write: rollback to its savepoint, its changes become pending again.</summary>
+    /// <summary>
+    /// Takes back the last write: rollback to its savepoint. A grid write's changes become pending again; a statement's
+    /// rows are as before it (the tabs reload, its result says "zurückgenommen").
+    /// </summary>
     public Task<bool> UndoLastAsync(WorkspaceTabs workspace) => RunAsync(async () =>
     {
-        if (_undo.GetValueOrDefault(workspace.WorkspaceId) is not { Count: > 0 } stack)
+        if (workspaces.ActionsOf(workspace.WorkspaceId).Count == 0)
         {
             return false;
         }
 
         var editor = await workspaces.GetEditorAsync(workspace.WorkspaceId, CancellationToken.None);
-        await editor.UndoLastFlushAsync(CancellationToken.None);
-        var (tab, batch) = stack.Pop();
-        tab.Changes?.UndoFlush(batch);
-        shell.RequestTabCommand(tab, TabCommand.Reload);
-        shell.Notify("Letzter Schreibvorgang zurückgenommen – die Änderungen sind wieder ausstehend.");
+        if (await editor.UndoLastAsync(CancellationToken.None) is not { } action)
+        {
+            return false;
+        }
+
+        var batches = Batches(workspace.WorkspaceId);
+        if (batches.FindLastIndex(b => b.ActionId == action.Id) is >= 0 and var index)
+        {
+            var (_, tab, batch) = batches[index];
+            batches.RemoveAt(index);
+            tab.Changes?.UndoFlush(batch);
+            shell.RequestTabCommand(tab, TabCommand.Reload);
+            shell.Notify($"Zurückgenommen: {action.Display} – die Änderungen sind wieder ausstehend.");
+        }
+        else
+        {
+            // A statement: any table tab of the workspace may show rows it had changed.
+            foreach (var tab in workspace.TableTabs)
+            {
+                shell.RequestTabCommand(tab, TabCommand.Reload);
+            }
+
+            shell.Notify($"Zurückgenommen: {action.Display}.");
+        }
+
         return true;
     });
 
@@ -164,7 +228,7 @@ public sealed class WorkspaceEditing(ShellState shell, WorkspaceManager workspac
     /// <summary>After the connection was lost or closed: nothing of it can be committed any more.</summary>
     public void Forget(Guid workspaceId)
     {
-        _undo.Remove(workspaceId);
+        _batches.Remove(workspaceId);
         _overwrite.Remove(workspaceId);
         if (Problem?.WorkspaceId == workspaceId)
         {
@@ -190,7 +254,10 @@ public sealed class WorkspaceEditing(ShellState shell, WorkspaceManager workspac
             {
                 var result = await editor.FlushAsync(tracker.Table, operations, options, CancellationToken.None);
                 var batch = tracker.MarkFlushed(operations, result.NewKeys);
-                Undo(workspace.WorkspaceId).Push((tab, batch));
+                if (result.Action is { } action)
+                {
+                    Batches(workspace.WorkspaceId).Add((action.Id, tab, batch));
+                }
             }
             catch (FlushException ex)
             {
@@ -211,6 +278,21 @@ public sealed class WorkspaceEditing(ShellState shell, WorkspaceManager workspac
 
         Overwrites(workspace.WorkspaceId).Clear();
         return true;
+    }
+
+    /// <summary>The transaction ended without commit: every write is taken back, newest first, like undo.</summary>
+    private void RestorePending(WorkspaceTabs workspace)
+    {
+        if (!_batches.Remove(workspace.WorkspaceId, out var batches))
+        {
+            return;
+        }
+
+        foreach (var (_, tab, batch) in Enumerable.Reverse(batches))
+        {
+            tab.Changes?.UndoFlush(batch);
+            shell.RequestTabCommand(tab, TabCommand.Reload);
+        }
     }
 
     private void Finish(WorkspaceTabs workspace)
@@ -248,6 +330,10 @@ public sealed class WorkspaceEditing(ShellState shell, WorkspaceManager workspac
             shell.Notify(ex.Message);
             return false;
         }
+        catch (OperationCanceledException)
+        {
+            return false; // the workspace's session was closed meanwhile
+        }
         finally
         {
             Busy = false;
@@ -267,8 +353,8 @@ public sealed class WorkspaceEditing(ShellState shell, WorkspaceManager workspac
         }
     }
 
-    private Stack<(TableTab, FlushBatch)> Undo(Guid workspaceId) =>
-        _undo.TryGetValue(workspaceId, out var stack) ? stack : _undo[workspaceId] = new Stack<(TableTab, FlushBatch)>();
+    private List<(Guid ActionId, TableTab Tab, FlushBatch Batch)> Batches(Guid workspaceId) =>
+        _batches.TryGetValue(workspaceId, out var list) ? list : _batches[workspaceId] = [];
 
     private HashSet<Guid> Overwrites(Guid workspaceId) =>
         _overwrite.TryGetValue(workspaceId, out var set) ? set : _overwrite[workspaceId] = [];

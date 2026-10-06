@@ -73,8 +73,14 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
 
     public TimeSpan? LastQueryTime { get; set; }
 
-    /// <summary>Snapshot the shown data comes from (read-only profiles); null without one.</summary>
+    /// <summary>Snapshot the shown data comes from (read-only profiles): the one of the first page; null without one.</summary>
     public DateTimeOffset? DataAsOf { get; set; }
+
+    /// <summary>
+    /// A later page came from another snapshot than the first: another tab of the workspace started a new one meanwhile
+    /// (the session has one snapshot for all its tabs). Rows may then repeat or be missing at the page border.
+    /// </summary>
+    public bool SnapshotMoved { get; set; }
 
     /// <summary>
     /// Edits of this tab (v2); null while the table cannot be edited (read-only connection, view, no row key) or

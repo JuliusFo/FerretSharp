@@ -1,5 +1,6 @@
 @* Root component hosted by the BlazorWebView. *@
 @using FerretSharp.Core.Connections
+@using FerretSharp.Core.Data
 @using FerretSharp.UI.State
 @implements IAsyncDisposable
 @inject ConnectionManager Connections
@@ -147,18 +148,20 @@
                                         foreach (var tab in workspace.Tabs.Where(t => t.Visited))
                                         {
                                             <div class="page @(workspace == _state.ActiveWorkspace && tab == workspace.ActiveTab ? "active" : "")" @key="tab.Id">
-                                                @if (tab is TableTab tableTab)
-                                                {
-                                                    <TabView Tab="tableTab" />
-                                                }
-                                                else if (tab is LinqTab linqTab)
-                                                {
-                                                    <LinqView Tab="linqTab" />
-                                                }
-                                                else if (tab is SqlTab sqlTab)
-                                                {
-                                                    <SqlView Tab="sqlTab" />
-                                                }
+                                                <TabFrame OnClose="() => CloseTab(tab)">
+                                                    @if (tab is TableTab tableTab)
+                                                    {
+                                                        <TabView Tab="tableTab" />
+                                                    }
+                                                    else if (tab is LinqTab linqTab)
+                                                    {
+                                                        <LinqView Tab="linqTab" />
+                                                    }
+                                                    else if (tab is SqlTab sqlTab)
+                                                    {
+                                                        <SqlView Tab="sqlTab" />
+                                                    }
+                                                </TabFrame>
                                             </div>
                                         }
                                     }
@@ -211,7 +214,10 @@
                     </ChildContent>
                     <ErrorContent Context="exception">
                         <EmptyState Title="Da ist etwas schiefgelaufen" Text="@exception.Message" IsError="true">
-                            <button class="btn" @onclick="RecoverFromError">Weiter</button>
+                            <div class="button-row">
+                                <button class="btn primary" @onclick="RecoverFromError">Weiter</button>
+                                <button class="btn" title="Falls „Weiter“ wieder hierher führt" @onclick="CloseTabsAfterErrorAsync">Tabs schließen</button>
+                            </div>
                         </EmptyState>
                     </ErrorContent>
                 </ErrorBoundary>
@@ -426,15 +432,27 @@
                 <span class="dot @(edits.Pending > 0 ? "pending" : "flushed")"></span>
                 @(age is { } a ? $"Tx seit {Age(a)} · " : "")@edits.Pending ausstehend · @edits.Flushed geschrieben
             </span>
+            @if (edits.Actions.Count > 0)
+            {
+                <span class="item tx" title="@ActionsTooltip(edits.Actions)">@(edits.Actions.Count == 1 ? "1 Aktion" : $"{edits.Actions.Count} Aktionen") nicht committet</span>
+            }
             <span class="status-group">
             <button class="status-btn" title="Ausstehende Änderungen schreiben (Ctrl+S) – noch kein Commit" disabled="@(_editing.Busy || edits.Pending == 0)" @onclick="() => _editing.FlushAsync(workspace)">Schreiben</button>
-            <button class="status-btn" title="Letzten Schreibvorgang zurücknehmen" disabled="@(_editing.Busy || !edits.CanUndo)" @onclick="() => _editing.UndoLastAsync(workspace)">↶</button>
+            <button class="status-btn" title="@(edits.Actions is [.., var last] ? $"Zurücknehmen: {last.Display} ({SourceOf(last)})" : "Nichts zurückzunehmen")"
+                    disabled="@(_editing.Busy || !edits.CanUndo)" @onclick="() => _editing.UndoLastAsync(workspace)">↶</button>
             <button class="status-btn" title="Ausstehende Änderungen als SQL anzeigen" disabled="@(edits.Pending == 0)" @onclick="() => _pendingSql = _editing.DescribePending(workspace)">SQL</button>
             <button class="status-btn commit" title="Schreiben und committen (Ctrl+Shift+Enter)" disabled="@_editing.Busy" @onclick="() => RequestCommit(workspace)">Commit</button>
             <button class="status-btn danger" title="Alles verwerfen" disabled="@_editing.Busy" @onclick="() => _confirmRollback = workspace">Rollback</button>
             </span>
         </text>;
     }
+
+    /// <summary>The uncommitted writes, newest first – ↶ takes back the first one listed.</summary>
+    private static string ActionsTooltip(IReadOnlyList<WriteAction> actions) =>
+        "Nicht committet, neueste zuerst (↶ nimmt die oberste zurück):" + Environment.NewLine
+        + string.Join(Environment.NewLine, actions.Reverse().Select(a => $"{a.At.ToLocalTime():HH:mm:ss}  {a.Display} ({SourceOf(a)})"));
+
+    private static string SourceOf(WriteAction action) => action.Kind == WriteActionKind.Grid ? "Grid" : "SQL/LINQ";
 
     /// <summary>Status bar: the C# model of the linked project (WP-11); opens the model page.</summary>
     private RenderFragment ModelStatus()
@@ -628,12 +646,15 @@
         }
     }
 
+    /// <param name="modalOpen">
+    /// A dialog is open (shortcuts.js looks for a visible <c>.modal-backdrop</c>, which every dialog renders): shortcuts must
+    /// not act behind it – Ctrl+S while the LOB editor is open, F5 behind the plan dialog. Asking the page instead of
+    /// listing the dialogs here also covers the dialogs that tabs open themselves.
+    /// </param>
     [JSInvokable]
-    public void OnShortcut(string combo)
+    public void OnShortcut(string combo, bool modalOpen)
     {
-        if (_state.ConnectionDialog is not null || _state.PendingDelete is not null || _state.ErrorDetails is not null
-            || _state.PendingLeave is not null || _editing.Problem is not null || _confirmRollback is not null || _confirmCommit is not null || _confirmCloseTab is not null
-            || _state.PendingUnlock is not null)
+        if (modalOpen)
         {
             return;
         }
@@ -864,11 +885,17 @@
         SqlHistory.Delete(profile.Id);
     }
 
-    private void RecoverFromError()
-    {
-        _state.CloseAllTabs();
-        _errorBoundary?.Recover();
-    }
+    /// <summary>Errors of a tab's view stay in its <see cref="TabFrame"/>; this one is outside the tabs – show them again.</summary>
+    private void RecoverFromError() => _errorBoundary?.Recover();
+
+    /// <summary>If the tab bar itself keeps failing: close the active workspace's tabs, asking first if they hold changes.</summary>
+    private Task CloseTabsAfterErrorAsync() =>
+        GuardAsync("Tabs schließen", _state.ActiveWorkspace is { } active ? [active] : [], () =>
+        {
+            _state.CloseAllTabs();
+            _errorBoundary?.Recover();
+            return Task.CompletedTask;
+        });
 
     private void OnChanged()
     {

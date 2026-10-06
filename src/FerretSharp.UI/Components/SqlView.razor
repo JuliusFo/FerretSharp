@@ -179,6 +179,10 @@
                             @if (grid.DataAsOf is { } asOf)
                             {
                                 <span title="Schreibgeschützter Workspace: Stand der READ ONLY-Transaktion">Stand @asOf.ToLocalTime().ToString("HH:mm:ss", CultureInfo.InvariantCulture)</span>
+                                @if (grid.SnapshotMoved)
+                                {
+                                    <span class="warn" title="@SnapshotTexts.Moved">Stand hat sich geändert – neu ausführen</span>
+                                }
                             }
                         }
                     }
@@ -189,14 +193,18 @@
             else if (run.Changed is { } changed)
             {
                 <div class="linq-write">
-                    @if (TransactionStillOpen(run))
+                    @switch (FateOf(run))
                     {
-                        <p><strong>@(changed == 1 ? "1 Zeile" : $"{changed:N0} Zeilen") geändert</strong> (@run.Info.FirstWord) – in der Transaktion des Workspaces.
-                            Für andere unsichtbar bis zum Commit; committen oder verwerfen über die Statusleiste.</p>
-                    }
-                    else
-                    {
-                        <p class="muted">@(changed == 1 ? "1 Zeile" : $"{changed:N0} Zeilen") geändert (@run.Info.FirstWord) – die Transaktion ist inzwischen beendet (Commit oder Rollback).</p>
+                        case WriteFate.Open:
+                            <p><strong>@(changed == 1 ? "1 Zeile" : $"{changed:N0} Zeilen") geändert</strong> (@run.Info.FirstWord) – in der Transaktion des Workspaces.
+                                Für andere unsichtbar bis zum Commit; committen, verwerfen oder zurücknehmen (↶) über die Statusleiste.</p>
+                            break;
+                        case WriteFate.Undone:
+                            <p class="muted">@(changed == 1 ? "1 Zeile" : $"{changed:N0} Zeilen") geändert (@run.Info.FirstWord) – inzwischen zurückgenommen (↶).</p>
+                            break;
+                        default:
+                            <p class="muted">@(changed == 1 ? "1 Zeile" : $"{changed:N0} Zeilen") geändert (@run.Info.FirstWord) – die Transaktion ist inzwischen beendet (Commit oder Rollback).</p>
+                            break;
                     }
                 </div>
             }
@@ -575,9 +583,9 @@
             }
 
             var editor = await Workspaces.GetEditorAsync(Tab.WorkspaceId, token);
-            var changed = await Task.Run(() => editor.ExecuteAsync(run.Query, token), token);
-            await LogAsync(run, changed, false, true, null);
-            return run with { Changed = changed, Transaction = Workspaces.TransactionOf(Tab.WorkspaceId)?.StartedAt };
+            var action = await Task.Run(() => editor.ExecuteAsync(run.Query, token), token);
+            await LogAsync(run, action.Rows, false, true, null);
+            return run with { Changed = action.Rows, Transaction = Workspaces.TransactionOf(Tab.WorkspaceId)?.StartedAt, Action = action.Id };
         }
         catch (OperationCanceledException)
         {
@@ -716,9 +724,9 @@
 
     private string ExportName(SqlStatementInfo info) => InsertTarget(info)?.DisplayName ?? Tab.Title;
 
-    /// <summary>The writing transaction the statement ran in is still open (not committed or rolled back since).</summary>
-    private bool TransactionStillOpen(SqlRun run) =>
-        run.Transaction is { } ranIn && Workspaces.TransactionOf(Tab.WorkspaceId) is { Mode: TransactionMode.ReadWrite, StartedAt: { } started } && started == ranIn;
+    /// <summary>Whether the statement's write is still uncommitted, was taken back (↶) or ended with commit or rollback.</summary>
+    private WriteFate FateOf(SqlRun run) =>
+        run.Action is { } action ? WorkspaceEditing.FateOf(Workspaces, Tab.WorkspaceId, action, run.Transaction) : WriteFate.Ended;
 
     private void Cancel() => _cts?.Cancel();
 

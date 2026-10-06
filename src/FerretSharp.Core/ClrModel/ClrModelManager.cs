@@ -170,6 +170,12 @@ public sealed class ClrModelManager : IDisposable
         {
             Finish(ClrModelPhase.Failed, previous, new ModelHostError(ClrModelErrorKind.HostFailed, $"Spalten ließen sich nicht lesen: {ex.Display}"), loadedAt);
         }
+        catch (Exception ex)
+        {
+            // Runs in the background (nobody awaits it): anything unexpected – a deps.json rewritten by a build running right
+            // now, a truncated result file – must end in "Failed", never leave the state at "Loading".
+            Finish(ClrModelPhase.Failed, previous, new ModelHostError(ClrModelErrorKind.HostFailed, $"Das Modell ließ sich nicht laden: {ex.Message}"), loadedAt);
+        }
     }
 
     /// <summary>Durations of the steps of one load: a step lasts until the next one starts.</summary>
@@ -230,7 +236,7 @@ public sealed class ClrModelManager : IDisposable
         {
             LastBuild = await Task.Run(() => _runner.BuildAsync(link, CancellationToken.None));
         }
-        catch (ClrModelException ex)
+        catch (Exception ex) when (ex is ClrModelException or IOException or System.ComponentModel.Win32Exception)
         {
             LastBuild = new DotNetRun(-1, ex.Message);
         }

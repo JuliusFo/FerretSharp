@@ -180,6 +180,13 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
             Set(new LinqConsoleState(LinqConsolePhase.Stopped));
             throw;
         }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or System.ComponentModel.Win32Exception)
+        {
+            // A deps.json being rewritten by a build, dotnet not startable …: a failure like the others, not "Starting" forever.
+            var error = new ClrModelException(ClrModelErrorKind.HostFailed, $"Die LINQ-Konsole ließ sich nicht starten: {ex.Message}");
+            Set(new LinqConsoleState(LinqConsolePhase.Failed, Error: error.ToError()));
+            throw error;
+        }
     }
 
     /// <summary>The project was built again since the host loaded it: its assemblies are stale.</summary>

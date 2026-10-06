@@ -5,6 +5,30 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.6.0] - 2026-10-06
+
+Stability release after a code review, with one undo for all writes of a workspace.
+
+### Changed
+- An error inside a tab now replaces only that tab with "In diesem Tab ist etwas schiefgelaufen" and offers "Neu laden" and "Tab schließen"; filters, SQL text and pending changes are kept. Before, any such error closed all tabs and dropped unsaved changes without asking.
+- Undo (↶) takes back the last write of the workspace, whoever made it: a grid write or a statement from the SQL editor or the LINQ console. They share the workspace's transaction, and undoing an older grid write used to take every later statement along without saying so. The status bar shows how many writes are not committed yet ("2 Aktionen nicht committet", the list as tooltip, newest first), ↶ names what it takes back, and the SQL editor and LINQ console say when their statement was taken back.
+- Read-only workspaces: a tab whose later rows come from a newer snapshot than its first page – because another tab of the workspace started a new query meanwhile – says so in its footer ("Stand hat sich geändert"); F5 or running again reads everything from one snapshot.
+- Keyboard shortcuts do nothing while any dialog is open – also the dialogs a tab opens itself (SQL preview, plan, LOB editor). Before, Ctrl+S could write behind the LOB editor and F5 reload behind the plan dialog.
+
+### Fixed
+- Tables with a RAW primary key (GUIDs as EF Core stores them): after a reload, pending changes no longer matched their rows; editing a row again could write it twice and report a false conflict.
+- Closing a workspace, disconnecting or quitting while a query ran could close the connection under the running statement; the statement is now cancelled first.
+- A commit that Oracle rolls back (a deferred constraint failing at commit) no longer leaves FerretSharp believing the transaction is open; the written changes become pending again.
+- A write that failed with an unexpected error is now always rolled back completely; a lost connection during that rollback shows the reconnect banner.
+- A read-only (Prod) workspace stays in its read-only snapshot after a failed snapshot restart, and a lost connection there is reported as such.
+- Comments, `q'[…]'` literals and quoted names no longer make a valid query look like two statements or like `FOR UPDATE`; EF Core queries with `TagWith()` comments run in the LINQ console.
+- Loading the C# model or starting the LINQ console no longer hangs at "Lädt …"/"Starte …" when the build output is being rewritten or `dotnet` cannot start; the error is shown instead.
+- Cancelling one request (e.g. an abandoned completion) no longer cancels other tabs loading the same table's columns.
+- Workspace saving keeps changes for the next attempt on any error, and tab changes made while disconnecting are saved too.
+- The SQL history is no longer overwritten when its file is locked for a moment or comes from a newer FerretSharp.
+- Closing a SQL or LINQ tab while its statement runs, or a table tab while its grid starts, no longer raises an error.
+- LINQ console: with the generated SQL shown, the result's footer could cover the status bar in smaller windows; the SQL now shrinks and scrolls instead.
+
 ## [3.5.0] - 2026-10-06
 
 ### Added

@@ -83,6 +83,7 @@ public sealed class SqlTab(Guid workspaceId, string title) : WorkspaceTab(worksp
 /// <param name="Changed">DML: rows changed; null for queries and failures.</param>
 /// <param name="Transaction">DML: start of the workspace transaction it ran in – to tell whether that one is still open.</param>
 /// <param name="Error">Why it failed (or "Abgebrochen."); the script stopped here.</param>
+/// <param name="Action">DML: its write in the transaction – undo (↶) may take it back (<c>WorkspaceEditing.FateOf</c>).</param>
 public sealed record SqlRun(
     int Number,
     Core.Query.SqlStatement Statement,
@@ -92,4 +93,5 @@ public sealed record SqlRun(
     Core.Data.SqlPage? FirstPage = null,
     int? Changed = null,
     DateTimeOffset? Transaction = null,
-    Core.Connections.DatabaseException? Error = null);
+    Core.Connections.DatabaseException? Error = null,
+    Guid? Action = null);

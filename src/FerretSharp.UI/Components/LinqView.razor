@@ -3,6 +3,7 @@
    on writable workspaces and only after the user pressed "Ausführen" below the statement. *@
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
+@using FerretSharp.Core.Data
 @using FerretSharp.Core.Query
 @using FerretSharp.UI.State
 @implements IDisposable
@@ -170,6 +171,10 @@
                                     @if (grid.DataAsOf is { } asOf)
                                     {
                                         <span title="Schreibgeschützter Workspace: Stand der READ ONLY-Transaktion">Stand @asOf.ToLocalTime().ToString("HH:mm:ss", CultureInfo.InvariantCulture)</span>
+                                        @if (grid.SnapshotMoved)
+                                        {
+                                            <span class="warn" title="@SnapshotTexts.Moved">Stand hat sich geändert – neu ausführen</span>
+                                        }
                                     }
                                 }
                             }
@@ -179,9 +184,21 @@
                         break;
                     case LinqCommandKind.Write:
                         <div class="linq-write">
-                            @if (_writtenRows is { } written)
+                            @if (_written is { } written)
                             {
-                                <p><strong>@(written == 1 ? "1 Zeile" : $"{written:N0} Zeilen") geändert</strong> – in der Transaktion des Workspaces. Committen oder verwerfen über die Statusleiste.</p>
+                                var rows = written.Rows == 1 ? "1 Zeile" : $"{written.Rows:N0} Zeilen";
+                                @switch (WorkspaceEditing.FateOf(Workspaces, Tab.WorkspaceId, written.Id, _writtenIn))
+                                {
+                                    case WriteFate.Open:
+                                        <p><strong>@rows geändert</strong> – in der Transaktion des Workspaces. Committen, verwerfen oder zurücknehmen (↶) über die Statusleiste.</p>
+                                        break;
+                                    case WriteFate.Undone:
+                                        <p class="muted">@rows geändert – inzwischen zurückgenommen (↶).</p>
+                                        break;
+                                    default:
+                                        <p class="muted">@rows geändert – die Transaktion ist inzwischen beendet (Commit oder Rollback).</p>
+                                        break;
+                                }
                             }
                             else if (Workspaces.IsWritable(Tab.WorkspaceId))
                             {
@@ -230,7 +247,10 @@
     private QuerySpec? _query;
     private int _runKey;
     private SqlGridStatus? _grid;
-    private int? _writtenRows;
+    private WriteAction? _written;
+
+    /// <summary>Start of the transaction <see cref="_written"/> ran in (to tell undo from commit/rollback).</summary>
+    private DateTimeOffset? _writtenIn;
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -331,7 +351,7 @@
         _running = true;
         _error = null;
         _errorDetail = null;
-        _writtenRows = null;
+        _written = null;
         _cts = new CancellationTokenSource();
         StateHasChanged();
         try
@@ -365,7 +385,7 @@
     /// <summary>The selected command: a query goes to a new result grid.</summary>
     private void ShowCommand()
     {
-        _writtenRows = null;
+        _written = null;
         _grid = null;
         if (Tab.LastRun is { Commands.Count: > 0 } run)
         {
@@ -403,7 +423,8 @@
         try
         {
             var editor = await Workspaces.GetEditorAsync(Tab.WorkspaceId, CancellationToken.None);
-            _writtenRows = await Task.Run(() => editor.ExecuteAsync(statement, CancellationToken.None));
+            _written = await Task.Run(() => editor.ExecuteAsync(statement, CancellationToken.None));
+            _writtenIn = Workspaces.TransactionOf(Tab.WorkspaceId)?.StartedAt;
             // Table tabs of the workspace may show the changed rows: they fetch them again from the transaction.
             foreach (var tab in Shell.Workspaces.FirstOrDefault(w => w.WorkspaceId == Tab.WorkspaceId)?.TableTabs ?? [])
             {

@@ -136,5 +136,8 @@ public class DmlBuilderTests
     [InlineData("SELECT a FROM t FOR UPDATE WAIT 3; DELETE FROM t")]
     [InlineData("DELETE FROM t")]
     [InlineData("SELECT 'FOR UPDATE WAIT 3' FROM t")]
+    [InlineData("SELECT a FROM t FOR UPDATE WAIT 1000")]
+    [InlineData("SELECT a FROM t FOR UPDATE WAIT 1.5")]
+    [InlineData("SELECT a FROM t -- FOR UPDATE NOWAIT")]
     public void Lock_guard_refuses_everything_else(string sql) => Assert.False(OracleSession.IsLockStatement(sql), sql);
 }

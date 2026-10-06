@@ -92,6 +92,15 @@ public sealed class WorkspaceManager(
         }
     }
 
+    /// <summary>The uncommitted writes of the workspace's transaction (status bar, undo); empty while the session is not open.</summary>
+    public IReadOnlyList<WriteAction> ActionsOf(Guid workspaceId)
+    {
+        lock (_lock)
+        {
+            return _sessions.GetValueOrDefault(workspaceId) is { IsCompletedSuccessfully: true } session ? session.Result.Editor.Actions : [];
+        }
+    }
+
     /// <summary>
     /// Whether the workspace may write: always on profiles without the read-only lock, on locked profiles (Prod by
     /// default) only after <see cref="UnlockAsync"/>.
@@ -267,8 +276,12 @@ public sealed class WorkspaceManager(
             await DisposeSessionAsync(session);
         }
 
+        // Rolling back can take a while; tab changes recorded meanwhile are saved too.
+        await FlushAsync();
         lock (_lock)
         {
+            _saveTimer?.Dispose();
+            _saveTimer = null;
             _profile = null;
             _workspaces = [];
             _activeId = null;
@@ -491,8 +504,9 @@ public sealed class WorkspaceManager(
                 {
                     await store.SaveAsync(workspace, CancellationToken.None);
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                catch (Exception ex)
                 {
+                    // Any failure (locked file, a value that does not serialize …): keep the changes for the next save and say so.
                     lock (_lock)
                     {
                         _dirty.Add(workspace.Id);

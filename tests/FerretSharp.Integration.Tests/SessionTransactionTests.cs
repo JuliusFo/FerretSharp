@@ -202,6 +202,41 @@ public sealed class SessionTransactionTests(OracleContainerFixture oracle) : IAs
         await ExecuteAsync(cleanup, "DELETE FROM TXS WHERE ID = 41");
     }
 
+    /// <summary>
+    /// A deferred constraint fails only at commit (ORA-02091) – Oracle has rolled the transaction back by then. The
+    /// session and the editor must not claim an open transaction afterwards (undo would end in ORA-01086).
+    /// </summary>
+    [Fact]
+    public async Task Failed_commit_that_oracle_rolled_back_leaves_no_transaction()
+    {
+        var name = "TXS_DEF_" + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
+        await using var writer = await OpenRawAsync();
+        await ExecuteAsync(writer, $"CREATE TABLE {name} (ID NUMBER CONSTRAINT {name}_UQ UNIQUE DEFERRABLE INITIALLY DEFERRED)");
+        try
+        {
+            await using var session = await OpenAsync();
+            IDataEditor editor = new OracleDataEditor(session);
+            await editor.ExecuteAsync(new QuerySpec($"INSERT INTO {name} VALUES (1)", []), Ct);
+            await editor.ExecuteAsync(new QuerySpec($"INSERT INTO {name} VALUES (1)", []), Ct); // fine until commit
+
+            var error = await Assert.ThrowsAsync<DatabaseException>(() => editor.CommitAsync(Ct));
+
+            Assert.Equal("ORA-02091", error.ErrorCode);
+            Assert.Equal(TransactionMode.None, session.Transaction.Mode);
+            Assert.Equal(TransactionMode.None, editor.Transaction.Mode);
+            await editor.ExecuteAsync(new QuerySpec($"INSERT INTO {name} VALUES (2)", []), Ct); // a new transaction starts
+            await editor.CommitAsync(Ct);
+
+            await using var check = writer.CreateCommand();
+            check.CommandText = $"SELECT COUNT(*) FROM {name}";
+            Assert.Equal(1, Convert.ToInt32(await check.ExecuteScalarAsync(Ct)));
+        }
+        finally
+        {
+            await ExecuteAsync(writer, $"DROP TABLE {name} PURGE");
+        }
+    }
+
     [Fact]
     public async Task Disposing_a_session_rolls_its_open_transaction_back()
     {

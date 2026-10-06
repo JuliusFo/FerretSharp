@@ -243,7 +243,7 @@ public sealed class LinqConsoleHost : ILinqConsole
         TryDelete(_work);
     }
 
-    private static void TryDelete(DirectoryInfo directory)
+    internal static void TryDelete(DirectoryInfo directory)
     {
         try
         {

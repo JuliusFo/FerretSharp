@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text.RegularExpressions;
 using FerretSharp.Core.Query;
 
 namespace FerretSharp.Core.ClrModel;
@@ -18,12 +17,13 @@ public enum LinqCommandKind
 }
 
 /// <summary>Captured commands (ADR 0011) as FerretSharp statements: the SQL as EF wrote it, the parameters with their values.</summary>
-public static partial class LinqStatements
+public static class LinqStatements
 {
     public static LinqCommandKind KindOf(CapturedCommand command) => command.Kind switch
     {
-        LinqProtocol.Reader or LinqProtocol.Scalar when QueryStart().IsMatch(command.Sql) => LinqCommandKind.Query,
-        LinqProtocol.NonQuery when WriteStart().IsMatch(command.Sql) => LinqCommandKind.Write,
+        // Same tokenizer as the SQL editor and the session guards: EF puts TagWith() comments before the statement.
+        LinqProtocol.Reader or LinqProtocol.Scalar when SqlScript.Analyze(command.Sql).IsQuery => LinqCommandKind.Query,
+        LinqProtocol.NonQuery when SqlScript.Analyze(command.Sql).Kind is SqlStatementKind.Update or SqlStatementKind.Delete => LinqCommandKind.Write,
         _ => LinqCommandKind.Unsupported,
     };
 
@@ -80,10 +80,4 @@ public static partial class LinqStatements
         "Blob" => OracleTypeHint.Blob,
         _ => OracleTypeHint.Auto,
     };
-
-    [GeneratedRegex(@"\A\s*(?:SELECT|WITH)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex QueryStart();
-
-    [GeneratedRegex(@"\A\s*(?:UPDATE|DELETE)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex WriteStart();
 }

@@ -144,6 +144,29 @@ public sealed class SqlHistoryStoreTests : IDisposable
         Assert.Empty(await new SqlHistoryStore(_directory).LoadAsync(Connection, Ct));
     }
 
+    [Fact]
+    public async Task A_newer_or_locked_file_is_not_overwritten()
+    {
+        var path = Path.Combine(_directory, Connection.ToString("D") + ".json");
+        const string newer = """{ "version": 2, "entries": [] }""";
+        await File.WriteAllTextAsync(path, newer, Ct);
+        var store = new SqlHistoryStore(_directory);
+
+        var history = await store.AddAsync(Connection, Entry("SELECT 1 FROM dual"), Ct);
+
+        Assert.Single(history); // shown for now …
+        Assert.Equal(newer, await File.ReadAllTextAsync(path, Ct)); // … but the newer version's file stays
+
+        File.Delete(path);
+        await store.AddAsync(Connection, Entry("SELECT 1 FROM dual"), Ct);
+        await using (new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            Assert.Single(await store.AddAsync(Connection, Entry("SELECT 2 FROM dual"), Ct));
+        }
+
+        Assert.Equal(["SELECT 1 FROM dual"], (await store.LoadAsync(Connection, Ct)).Select(e => e.Sql));
+    }
+
     public void Dispose()
     {
         try

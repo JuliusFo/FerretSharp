@@ -116,7 +116,7 @@ public sealed class SqlEditorExecutionTests(OracleContainerFixture oracle) : IAs
         await using var connection = await OpenAsync("SQL merge");
         var count = new QuerySpec("SELECT COUNT(*) FROM sx_kunde WHERE status = 'NEU' OR name = 'Erste; neu'", []);
 
-        var rows = await connection.Editor.ExecuteAsync(Prepare(Script, "MERGE"), Ct);
+        var rows = (await connection.Editor.ExecuteAsync(Prepare(Script, "MERGE"), Ct)).Rows;
 
         Assert.Equal(2, rows); // id 1 updated, id 42 inserted
         Assert.Equal(TransactionMode.ReadWrite, connection.Editor.Transaction.Mode);

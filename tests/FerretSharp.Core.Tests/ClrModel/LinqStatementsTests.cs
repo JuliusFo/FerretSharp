@@ -15,6 +15,9 @@ public sealed class LinqStatementsTests
     [InlineData(LinqProtocol.NonQuery, "DELETE FROM \"AUFTRAG\" \"a\" WHERE \"a\".\"KUNDE_ID\" = 5", LinqCommandKind.Write)]
     [InlineData(LinqProtocol.NonQuery, "BEGIN INSERT INTO \"KUNDEN\" VALUES (1); END;", LinqCommandKind.Unsupported)]
     [InlineData(LinqProtocol.Reader, "DELETE FROM \"AUFTRAG\"", LinqCommandKind.Unsupported)]
+    [InlineData(LinqProtocol.Reader, "-- Offene Aufträge\n\nSELECT \"a\".\"ID\" FROM \"AUFTRAG\" \"a\"", LinqCommandKind.Query)] // TagWith()
+    [InlineData(LinqProtocol.NonQuery, "-- Stornieren\nDELETE FROM \"AUFTRAG\" \"a\"", LinqCommandKind.Write)]
+    [InlineData(LinqProtocol.Reader, "SELECT \"a\".\"ID\" FROM \"AUFTRAG\" \"a\" FOR UPDATE", LinqCommandKind.Unsupported)]
     public void Commands_are_queries_writes_or_unsupported(string kind, string sql, LinqCommandKind expected) =>
         Assert.Equal(expected, LinqStatements.KindOf(Command(kind, sql)));
 
