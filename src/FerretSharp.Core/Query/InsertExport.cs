@@ -12,6 +12,9 @@ namespace FerretSharp.Core.Query;
 /// </summary>
 public static class InsertExport
 {
+    /// <summary>Comments are German like the rest of the UI, independent of the machine's culture.</summary>
+    private static readonly CultureInfo German = CultureInfo.GetCultureInfo("de-DE");
+
     public static ExportText Build(TableDetails table, IReadOnlyList<RowData> rows)
     {
         var warnings = new ExportWarnings();
@@ -65,8 +68,8 @@ public static class InsertExport
         LobValue { Length: 0, Preview: null } => "EMPTY_BLOB()",
         LobValue { Length: 0 } => "EMPTY_CLOB()",
         LobValue { Preview: { } preview } clob when preview.Length == clob.Length => Text(column, preview),
-        LobValue { Preview: null } blob => Skipped(column, warnings, $"{blob.Length:N0} Bytes", "nur die Länge geladen"),
-        LobValue clob => Skipped(column, warnings, $"{clob.Length:N0} Zeichen", "nur die Vorschau geladen"),
+        LobValue { Preview: null } blob => Skipped(column, warnings, blob.Length.ToString("N0", German) + " Bytes", "nur die Länge geladen"),
+        LobValue clob => Skipped(column, warnings, clob.Length.ToString("N0", German) + " Zeichen", "nur die Vorschau geladen"),
         NotNullMarker marker => Skipped(column, warnings, marker.DataType, "Typ wird nicht exportiert"),
         _ => Skipped(column, warnings, value.GetType().Name, "Typ wird nicht exportiert"),
     };

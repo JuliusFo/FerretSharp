@@ -38,7 +38,8 @@ public sealed class BuildOutputLocatorTests : IDisposable
         var packages = Directory.CreateDirectory(Path.Combine(_root.FullName, "packages"));
         Directory.CreateDirectory(Path.Combine(_root.FullName, "Shop.Data", "obj"));
         File.WriteAllText(Path.Combine(_root.FullName, "Shop.Data", "obj", "project.assets.json"),
-            $$"""{ "packageFolders": { "{{packages.FullName.Replace("\\", "\\\\")}}\\": {} } }""");
+            // NuGet writes the folder with a trailing separator – '\' on Windows, '/' elsewhere (CI runs on Linux too).
+            $$"""{ "packageFolders": { {{System.Text.Json.JsonSerializer.Serialize(packages.FullName + Path.DirectorySeparatorChar)}}: {} } }""");
 
         var output = BuildOutputLocator.Find(new ClrProjectLink(project));
 
