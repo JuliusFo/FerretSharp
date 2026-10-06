@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using FerretSharp.Core.IO;
 
 namespace FerretSharp.Core.Connections;
 
@@ -65,15 +66,7 @@ public sealed class ConnectionStore(string filePath) : IConnectionStore
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(FilePath))!);
-
-            var tempFile = FilePath + ".tmp";
-            await using (var stream = File.Create(tempFile))
-            {
-                await JsonSerializer.SerializeAsync(stream, new ConnectionsDocument(CurrentVersion, profiles), JsonOptions, cancellationToken);
-            }
-
-            File.Move(tempFile, FilePath, overwrite: true);
+            await AtomicJsonFile.WriteAsync(FilePath, new ConnectionsDocument(CurrentVersion, profiles), JsonOptions, cancellationToken);
         }
         finally
         {

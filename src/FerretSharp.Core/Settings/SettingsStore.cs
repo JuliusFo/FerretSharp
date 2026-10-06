@@ -1,5 +1,6 @@
 using System.Text.Json;
 using FerretSharp.Core.Connections;
+using FerretSharp.Core.IO;
 
 namespace FerretSharp.Core.Settings;
 
@@ -55,14 +56,7 @@ public sealed class SettingsStore(string filePath)
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(FilePath))!);
-            var tempFile = FilePath + ".tmp";
-            await using (var stream = File.Create(tempFile))
-            {
-                await JsonSerializer.SerializeAsync(stream, new SettingsDocument(CurrentVersion, settings), ConnectionStore.JsonOptions, cancellationToken);
-            }
-
-            File.Move(tempFile, FilePath, overwrite: true);
+            await AtomicJsonFile.WriteAsync(FilePath, new SettingsDocument(CurrentVersion, settings), ConnectionStore.JsonOptions, cancellationToken);
         }
         finally
         {

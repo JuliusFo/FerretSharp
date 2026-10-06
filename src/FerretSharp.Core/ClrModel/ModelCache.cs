@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using FerretSharp.Core.IO;
 
 namespace FerretSharp.Core.ClrModel;
 
@@ -51,22 +52,14 @@ public sealed class ModelCache(string directory, string modelHostPath, CultureIn
     /// <summary>Stores a freshly exported model; failures to write are ignored (the cache is only a shortcut).</summary>
     public async Task SaveAsync(ClrProjectLink link, BuildOutput output, ModelExport model, CancellationToken cancellationToken)
     {
-        var path = FileOf(link);
-        var temp = path + ".tmp";
         try
         {
-            System.IO.Directory.CreateDirectory(Directory);
-            await using (var stream = File.Create(temp))
-            {
-                await JsonSerializer.SerializeAsync(stream, new CacheFile(FileVersion, Fingerprint(link, output), DateTimeOffset.Now, model),
-                    ModelHostResult.JsonOptions, cancellationToken);
-            }
-
-            File.Move(temp, path, overwrite: true);
+            await AtomicJsonFile.WriteAsync(FileOf(link), new CacheFile(FileVersion, Fingerprint(link, output), DateTimeOffset.Now, model),
+                ModelHostResult.JsonOptions, cancellationToken);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            TryDelete(temp);
+            // the cache is only a shortcut
         }
     }
 
@@ -107,17 +100,6 @@ public sealed class ModelCache(string directory, string modelHostPath, CultureIn
     {
         var info = new FileInfo(file);
         return info.Exists ? $"{info.Length}|{info.LastWriteTimeUtc.Ticks}" : "missing";
-    }
-
-    private static void TryDelete(string path)
-    {
-        try
-        {
-            File.Delete(path);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-        }
     }
 
     private sealed record CacheFile(int Version, string Fingerprint, DateTimeOffset ExportedAt, ModelExport Model);

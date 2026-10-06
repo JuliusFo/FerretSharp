@@ -1,4 +1,5 @@
 using System.Text.Json;
+using FerretSharp.Core.IO;
 
 namespace FerretSharp.Core.Connections;
 
@@ -58,14 +59,7 @@ public sealed class RecentConnections(string filePath, TimeProvider? timeProvide
                 .Select(kv => new Entry(kv.Key, kv.Value))
                 .ToList();
 
-            Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(filePath))!);
-            var tempFile = filePath + ".tmp";
-            await using (var stream = File.Create(tempFile))
-            {
-                await JsonSerializer.SerializeAsync(stream, new Document(1, entries), ConnectionStore.JsonOptions, cancellationToken);
-            }
-
-            File.Move(tempFile, filePath, overwrite: true);
+            await AtomicJsonFile.WriteAsync(filePath, new Document(1, entries), ConnectionStore.JsonOptions, cancellationToken);
             _lastUsed = entries.ToDictionary(e => e.Id, e => e.LastUsed);
         }
         finally
