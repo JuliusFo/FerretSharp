@@ -28,6 +28,7 @@ Stability release after a code review, with one undo for all writes of a workspa
 - The SQL history is no longer overwritten when its file is locked for a moment or comes from a newer FerretSharp.
 - Closing a SQL or LINQ tab while its statement runs, or a table tab while its grid starts, no longer raises an error.
 - LINQ console: with the generated SQL shown, the result's footer could cover the status bar in smaller windows; the SQL now shrinks and scrolls instead.
+- INSERT export: the sizes in the comments for LOBs that were not exported followed the Windows number format (`2,048 Bytes` on an English system); they are German now like all other texts.
 
 ## [3.5.0] - 2026-10-06
 

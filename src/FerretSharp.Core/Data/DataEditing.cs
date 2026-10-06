@@ -33,7 +33,9 @@ public enum WriteActionKind
 public sealed record WriteAction(Guid Id, WriteActionKind Kind, string Description, int Rows, DateTimeOffset At)
 {
     /// <summary>"UPDATE AUFTRAG · 12 Zeilen"; a grid write counts its rows in the description already.</summary>
-    public string Display => Kind == WriteActionKind.Grid ? Description : $"{Description} · {(Rows == 1 ? "1 Zeile" : $"{Rows:N0} Zeilen")}";
+    public string Display => Kind == WriteActionKind.Grid
+        ? Description
+        : $"{Description} · {(Rows == 1 ? "1 Zeile" : Rows.ToString("N0", System.Globalization.CultureInfo.GetCultureInfo("de-DE")) + " Zeilen")}";
 }
 
 /// <summary>A flush stopped at <see cref="Operation"/>; everything of this flush has been rolled back to its savepoint.</summary>
