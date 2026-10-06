@@ -46,7 +46,7 @@ Vorbereitung auf **v3** (gilt ab WP-01):
 - FK-Quellen sind ein Enum (`Declared`, `Manual`, `Convention`, später `ClrModel`), kein `bool IsVirtual`.
 - Das Filtermodell (Spalte, Operator, Werte) bleibt so einfach, dass es sich 1:1 in einen LINQ-`Where`-Ausdruck übersetzen lässt.
 
-Versionierung: SemVer, Git-Tag `vX.Y.Z` pro Release, `CHANGELOG.md` pflegen. Features der nächsten Version werden **nicht** vorgezogen, sondern in `docs/backlog.md` notiert.
+Versionierung: SemVer, Git-Tag `vX.Y.Z` pro Release (der Push des Tags veröffentlicht das GitHub-Release – erst taggen, wenn der CHANGELOG-Abschnitt steht), `CHANGELOG.md` pflegen. Features der nächsten Version werden **nicht** vorgezogen, sondern in `docs/backlog.md` notiert.
 
 ## 3. Stack (entschieden – Änderungen nur per ADR in `docs/decisions/`)
 
@@ -70,8 +70,8 @@ Versionierung: SemVer, Git-Tag `vX.Y.Z` pro Release, `CHANGELOG.md` pflegen. Fea
 | Persistenz | JSON-Dateien (`System.Text.Json`) | Polymorphie über `[JsonPolymorphic]`/`[JsonDerivedType]`; keine `object`-Properties (werden zu `JsonElement`). |
 | Secrets | Windows Credential Manager via **`Meziantou.Framework.Win32.CredentialManager`** | Implementierung liegt im **App**-Projekt (Windows-only), Core kennt nur `ISecretStore`. Passwörter nie im JSON. |
 | Paketquellen | repo-lokales `nuget.config` (nur nuget.org) | Auf dem Entwicklungsrechner ist global zusätzlich eine DevExpress-Quelle eingerichtet; CPM verlangt dann Source Mapping. |
-| CI | vorerst keine (nur lokal) | Sobald das Hosting feststeht: Linux-Job (Core + Unit- + Integrationstests), Windows-Job (ganze Solution). |
-| Distribution | `dotnet publish src/FerretSharp.App -c Release -r win-x64 --self-contained -o <ziel>` | Ordner-Deployment (kein Single-File). Installer/Auto-Update (Velopack) = Backlog. |
+| CI | **GitHub Actions** (`.github/workflows/ci.yml`, seit 3.5.0) | Bei Push auf `main` und PRs: Linux-Job (Core und UI bauen, Unit- und Integrationstests mit Testcontainers; .NET-8-Runtime für den ModelHost), Windows-Job (ganze Solution mit `-warnaserror`, Unit-Tests – der Runner hat nur Windows-Container). |
+| Distribution | `dotnet publish src/FerretSharp.App -c Release -r win-x64 --self-contained -o <ziel>` | Ordner-Deployment (kein Single-File). **GitHub-Releases** über `.github/workflows/release.yml`: Push eines Tags `vX.Y.Z` → prüft die Version gegen `Directory.Build.props`, baut, zippt (`FerretSharp-X.Y.Z-win-x64.zip`) und legt das Release mit dem Abschnitt aus `CHANGELOG.md` an; für bestehende Tags von Hand starten (`workflow_dispatch` mit Tag). Installer/Auto-Update (Velopack) = Backlog. |
 
 **Nicht** verwenden: Entity Framework für den generischen Zugriff (kennt Schema nur über DbContext). EF-Integration ist ein späteres, optionales Feature (siehe Backlog).
 
@@ -101,10 +101,13 @@ FerretSharp.slnx
 ├─ tests/
 │  ├─ FerretSharp.Core.Tests/          # schnell, ohne DB
 │  └─ FerretSharp.Integration.Tests/   # Testcontainers, überspringt sauber, wenn kein Docker verfügbar
+├─ .github/workflows/               # ci.yml (Build + Tests), release.yml (Tag → GitHub-Release)
 ├─ tools/icon/New-AppIcon.ps1          # erzeugt das App-Icon: „FS“, F dunkel/S blau, kantige Buchstaben (eigene Formen, keine Schrift) auf runder heller Kachel; .ico mit 16–256 px
 ├─ docs/
 │  ├─ decisions/                       # ADRs, eine Datei pro Entscheidung
+│  ├─ images/                          # Screenshots der README (je hell/dunkel, Beispiel-DB) und social-preview.png
 │  └─ backlog.md
+├─ README.md                          # Englisch (GitHub-Startseite); LICENSE (MIT)
 ├─ CLAUDE.md
 ├─ CHANGELOG.md
 ├─ global.json
@@ -348,7 +351,7 @@ Jedes Paket: eigener Branch `wp/NN-kurzname`, am Ende `dotnet build -warnaserror
 - Globale Exception-Handler (`DispatcherUnhandledException`, `AppDomain.UnhandledException`, `TaskScheduler.UnobservedTaskException`) → loggen + Fehlerdialog.
 - WPF-Host mit `BlazorWebView`, Root-Komponente `Shell` aus `FerretSharp.UI` (Topbar, Explorer links, Inhaltsbereich, Statusleiste), Design-Tokens hell/dunkel, dunkle Titelleiste, `--theme`-Override, `ErrorBoundary`.
 - Testprojekte: Unit (Dummy-Test), Integration (Testcontainers-Smoke-Test `SELECT 1 FROM DUAL`, überspringt ohne Docker).
-- CI-Workflow: zurückgestellt, bis das Hosting feststeht (siehe `docs/backlog.md`).
+- CI-Workflow: zunächst zurückgestellt; seit 3.5.0 GitHub Actions (Abschnitt 3).
 - ADRs: 0001 .NET 10, 0002 Versionierung (read-only first, .NET-Integration in v3), 0003 Theme WPF-UI (ersetzt), 0004 Blazor Hybrid.
 - **Fertig wenn:** App startet und loggt; beide Testprojekte laufen; `dotnet build src/FerretSharp.Core` und `src/FerretSharp.UI` laufen unter Linux.
 
@@ -628,6 +631,7 @@ Wunsch des Nutzers (2026-10-06): Tabellen anlegen und ändern, passend zum DB-fi
 - UI end-to-end prüfen, ohne die echten Nutzerdaten anzufassen: App mit `--data-dir=<scratch>` und `--theme=dark|light` starten, Umgebungsvariable `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9333` setzen und die Seite per Chrome DevTools Protocol (`Runtime.evaluate`) bedienen; Screenshots per `PrintWindow` vom App-Fenster. Für eine Test-DB einen eigenen Container starten (`gvenzl/oracle-free:23-slim-faststart`, `APP_USER`/`APP_USER_PASSWORD`) und danach gezielt per Name entfernen – am einfachsten mit `tools/sample-db/New-SampleDb.ps1 -Name <eigener Name> -Port <freier Port>` (Beispielschema inkl. VERTRAG mit 71 Spalten). Der Container `ferret-sample` auf Port 1522 ist die Beispiel-DB des Nutzers (in seinen echten Verbindungen eingetragen) – nicht anfassen. Im Credential Manager angelegte Test-Einträge über die App wieder löschen. Läuft schon eine FerretSharp-Instanz des Nutzers (z. B. aus Visual Studio), teilt sich eine zweite Instanz deren WebView2-Datenordner und stürzt mit Debug-Port mit `0x8007139F` ab → zusätzlich `WEBVIEW2_USER_DATA_FOLDER=<scratch>` setzen und in einen eigenen Ordner bauen (`dotnet build src/FerretSharp.App -o <scratch>`), weil der Debug-Output dann gesperrt ist.
 - E2E: Rechtsklick und Mittelklick mit `Input.dispatchMouseEvent` (echte Maus), die Zwischenablage über `Get-Clipboard` prüfen. **Kein `navigator.clipboard.readText()`** im WebView aufrufen: Es öffnet eine Berechtigungsabfrage, die als zusätzliches CDP-Target (`edge://permission-request-dialog/`) vor der App-Seite in `/json` steht; das CDP-Skript wählt deshalb das Target mit der URL `https://0.0.0.1/`.
 - **Native Dialoge (Speichern unter) nicht per UI Automation bedienen**: Sie öffnen sich in den echten Ordnern des Nutzers (Dokumente, OneDrive). Ein Fehlgriff traf dort einen Ordner-Eintrag statt des Dateinamenfelds, und der Dialog speicherte die Testdatei im Dokumente-Ordner (in WP-07 passiert, Datei wurde ins Scratchpad verschoben). Export-Inhalte über die Zwischenablage prüfen; den Speichern-Pfad höchstens bis zum Öffnen des Dialogs testen.
+- README-Screenshots (`docs/images/`, je `-light`/`-dark`): eigene Instanz mit Beispiel-DB und verknüpftem `samples`-Projekt, Fenster per `SetWindowPos` auf 1440×900 (ohne Aktivieren), `PrintWindow`, dann auf den Client-Bereich zuschneiden (x 8–1431, y 31–891 bei 100 % Skalierung: unsichtbare Ränder und Titelleiste weg). Theme über `--theme`, die App stellt Workspaces und Tabs nach dem Neustart wieder her (Ergebnisse neu ausführen). `docs/images/social-preview.png` (1280×640) lädt der Nutzer von Hand unter Settings → Social preview hoch (keine API).
 - Statements per PowerShell-Pipe an `docker exec … sqlplus` bekommen ein BOM vorangestellt (SP2-0734) → `docker exec <name> bash -c "echo '…' | sqlplus …"` oder Skriptdatei per `docker cp`.
 - Farbige Button-Varianten (`.btn.primary`, `.btn.danger-solid`) müssen im `:hover` ihren Hintergrund selbst setzen: `.btn:hover:not(:disabled)` setzt `--hover` und gewinnt sonst (Fehler in v1.0.0: Text beim Hover unlesbar). Text auf farbigen Flächen immer über Tokens (`--accent-text`, `--danger-text`), die im Dark Mode dunkel sind. Prüfen mit echtem Hover (`Input.dispatchMouseEvent` mouseMoved) und berechnetem Kontrast, nicht nur per Screenshot.
 - CSS-Klassennamen in Komponenten nicht mit globalen Klassen kollidieren lassen (`.empty` ist der Leerzustand mit `position: absolute; inset: 0` – so überdeckte in WP-06 ein Menüeintrag das ganze Kontextmenü).
