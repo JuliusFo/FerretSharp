@@ -2,7 +2,7 @@
 
 > Projektanweisungen für Claude Code. Bitte vollständig lesen, bevor ein Arbeitspaket umgesetzt wird.
 > Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-06 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0; WP-14 → 2.4.0; WP-15 → 3.0.0, v3 abgeschlossen; v4: WP-16 → 3.1.0, WP-17 → 3.2.0)
+> Stand: 2026-10-06 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0; WP-14 → 2.4.0; WP-15 → 3.0.0, v3 abgeschlossen; v4: WP-16 → 3.1.0, WP-17 → 3.2.0, WP-18 → 3.3.0)
 
 ## 1. Ziel
 
@@ -28,7 +28,7 @@ Es wird in Versionen ausgeliefert. Jede Version ist für sich benutzbar.
 | **v1 – Read-only Browser** | Connections, Schema, Grid, Filter, Workspaces, FK-Navigation, Export | WP-01 … WP-07 |
 | **v2 – Sandbox-Editing** | Transaktionsmodell, Editieren, Commit/Rollback, Lock-Handling, Prod-Freischaltung | WP-08 … WP-10 |
 | **v3 – .NET-Integration** | DbContext-Modell laden, Schema-Anreicherung (Entities, Enums, Navigations), LINQ-Konsole, Explain-Plan (Grid und LINQ), Code-Generierung | WP-11 … WP-15 |
-| **v4 – Komfort & SQL** | Modell-Cache, freier SQL-Editor (weitere Pakete aus dem Backlog nach Absprache) | WP-16 … |
+| **v4 – Komfort & SQL** | Modell-Cache, freier SQL-Editor, Skripte (weitere Pakete aus dem Backlog nach Absprache) | WP-16 … |
 | **v5+** | Backlog (Abschnitt 10) | – |
 
 Regeln für **v1**:
@@ -323,6 +323,7 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 | Ctrl+Shift+Enter | Commit (auf Prod immer mit Bestätigung) | v1.9 |
 | Ctrl+Shift+L | Neue LINQ-Konsole (mit verknüpftem C#-Projekt); im LINQ-Tab führen Ctrl+Enter und F5 aus, Ctrl+F sucht im Editor | 2.3 |
 | Ctrl+Shift+Q | Neuer SQL-Editor; im SQL-Tab führen Ctrl+Enter und F5 das Statement am Cursor aus, Ctrl+F sucht, Ctrl+Leertaste schlägt Tabellen/Spalten vor | 3.2 |
+| Alt+X | Im SQL-Tab: das ganze Skript (bzw. die markierten Statements) nacheinander ausführen | 3.3 |
 | – | Rollback nur über Button, mit Bestätigung | v2 |
 
 `Esc` bleibt dem Grid vorbehalten (Zelleingabe abbrechen) bzw. schließt Menüs/Dialoge. Globale Shortcuts registriert die `Shell` über `wwwroot/js/shortcuts.js` (Capture-Listener → `OnShortcut` in .NET); `F12` öffnet im Debug-Build die DevTools.
@@ -546,6 +547,14 @@ Entscheidungen des Nutzers (2026-10-05):
   - UI: `SqlTab` + `SqlRun` (State/), `SqlView` (Toolbar mit Verlauf/Plan/Ausführen, Monaco `Language="sql"` mit `Completion`, Variablen-Raster, Verlauf als Seitenleiste – Klick hängt das Statement nach einer Leerzeile an und übernimmt die Werte –, Ergebnis-Grid oder DML-Meldung, `ConfirmDialog`, Fehler mit Marker auf dem Namen aus ORA-00904/00942). Die DML-Meldung merkt sich den Start der Transaktion (`SqlRun.Transaction`) und sagt nach Commit/Rollback „inzwischen beendet“ (die Transaktion beginnt erst in `ExecuteAsync`, ein Zeitvergleich mit dem Ausführungsbeginn war falsch). `ResultMenu` (Kontextmenü für `SqlResultGrid`, auch in der LINQ-Konsole: Wert, Tabelle, INSERT – nur bei genau einer Tabelle –, CSV). `SqlPreview` „In SQL-Editor öffnen“. Shell: „+ SQL“ immer in der Tab-Leiste, Ctrl+Shift+Q, Verlauf beim Löschen der Verbindung entfernen. Icon `Database`.
   - monaco.js: Completion-Provider je Sprache, der über die Model-URI das .NET-Objekt des Editors fragt (Art als Text, `sortText` = Rang + Position, damit Spalten in Schema-Reihenfolge stehen); `getRunContext` (Text + Offsets), `flash`, `setOffsetMarkers`, `revealOffset`. Offsets sind UTF-16 wie .NET-Strings; immer Text und Offsets aus demselben `getRunContext` verwenden (Monaco normalisiert Zeilenenden).
   - E2E-Kniffe: Skript über `monaco.editor.getModels()…setValue` setzen (simuliertes Tippen kollidiert mit automatisch schließenden Klammern), Cursor über `getEditors()…setPosition`, Vorschläge über `editor.trigger('…', 'editor.action.triggerSuggest')`, Liste aus `.suggest-widget .monaco-list-row[aria-label]`. Ctrl+Shift+Q per `Input.dispatchKeyEvent` mit `key: 'Q'`, Modifiers 10.
+
+#### WP-18 Skript ausführen & Verbindung löschen → Release 3.3.0
+Auftrag des Nutzers (2026-10-06): „das Ausführen eines ganzen Skripts und den Altfehler“ (Verbindungsdialog „Löschen“). Details nicht vorgegeben → einfachste sichere Variante, Fragen in der Zusammenfassung.
+- **Alt+X** (wie DBeaver) bzw. „▶▶ Skript“: alle Statements, bei Markierung nur die markierten (`SqlScript.StatementsIn`). **Erst prüfen, dann ausführen:** Abweisungen, DML auf schreibgeschütztem Workspace und fehlende/falsche Werte stoppen vorher („Statement 3 – nichts ausgeführt: …“, Marker am Statement). **Eine** Bestätigung für das Skript (Prod mit DML, UPDATE/DELETE ohne WHERE). Nacheinander, **Halt beim ersten Fehler**; Geschriebenes bleibt in der Transaktion (Hinweis). Je Statement ein Ergebnis-Chip (`SqlTab.Runs`/`SelectedRun`, `SqlRun.Number`/`FirstPage`/`Error`).
+- Abfragen lesen ihre **erste Seite beim Ausführen** (`SqlRun.FirstPage` → `SqlResultGrid.FirstPage`), damit ein SELECT vor einem UPDATE den Stand davor zeigt; weitere Seiten liest das Grid später neu. Ctrl+Enter nimmt denselben Weg – dadurch wirkt „Abbrechen“ jetzt auch bei lang laufenden SELECTs. Verlauf wird beim Ausführen geschrieben, nicht mehr über den Grid-Status.
+- Gefunden im E2E: Ein Skript ersetzt das Ergebnis-Grid nach jedem Statement; ein Grid, das noch startete, griff danach auf seine freigegebene `DotNetObjectReference` zu → `ObjectDisposedException` → `ErrorBoundary` → `RecoverFromError` schließt **alle Tabs**. `SqlResultGrid` hat jetzt `_disposed` (vor `create` geprüft, verspätete Ausnahme gefangen, kein Status mehr nach dem Abbauen). Gleiches Muster wie `FerretGrid` in 3.1.0 – **Komponenten mit JS-Interop prüfen nach jedem `await` im Start, ob sie schon abgebaut sind.**
+- Altfehler: „Löschen“ im Verbindungsdialog löschte nur das Profil (Workspaces und SQL-Verlauf blieben; die aktive Verbindung blieb verbunden). Jetzt übergibt der Dialog an `ShellState.RequestDelete` – derselbe Ablauf wie das „⋯“-Menü (Bestätigung, bei aktiver Verbindung Trennen mit Schutz vor offenen Änderungen inkl. Transaktionen aus dem SQL-Editor, Workspaces und Verlauf entfernen).
+- E2E: Alt in `Input.dispatchKeyEvent` ist Modifier **1** (2 = Ctrl, 4 = Meta, 8 = Shift).
 
 ## 9. Offene UX-Fragen
 - Shortcut-Belegung für Commit/Rollback (Abschnitt 7) – vorläufig, Nutzerfeedback einholen.
