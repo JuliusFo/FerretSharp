@@ -12,6 +12,7 @@
 @inject FerretSharp.Core.ClrModel.ClrModelManager Models
 @inject PresentationService Presentations
 @inject IJSRuntime JS
+@inject FerretSharp.Core.Workspaces.SqlHistoryStore SqlHistory
 
 <CascadingValue Value="_state" IsFixed="true">
     <div class="app @(IsProdActive ? "is-prod" : "")">
@@ -85,53 +86,61 @@
                         @if (Active.IsConnected)
                         {
                             <div class="workarea @(ShowExplorer ? "" : "hidden")">
-                                @if (_state.Tabs.Count > 0 || HasLinkedProject)
-                                {
-                                    <nav class="tabs">
-                                        @foreach (var tab in _state.Tabs)
+                                <nav class="tabs">
+                                    @foreach (var tab in _state.Tabs)
+                                    {
+                                        var w = tab;
+                                        @if (w is TableTab t)
                                         {
-                                            var w = tab;
-                                            @if (w is TableTab t)
-                                            {
-                                                // Several tabs of one table (FK jumps) are told apart by their filters.
-                                                var summary = _state.Tabs.OfType<TableTab>().Count(o => o.Table.Ref == t.Table.Ref) > 1 ? t.FilterSummary(presentation: PresentationOf(t)) : null;
-                                                <div class="tab @(t == _state.ActiveTab ? "active" : "")" title="@TabTooltip(t)"
-                                                     @onclick="() => _state.ActivateTab(t)" @onmouseup="e => CloseOnMiddleClick(e, t)">
-                                                    @Icons.For(t.Table.Kind)
-                                                    <span class="tab-name">@t.Table.DisplayName</span>
-                                                    @if (t.Changes is { HasChanges: true } tabChanges)
-                                                    {
-                                                        <span class="dot @(tabChanges.PendingCount > 0 ? "pending" : "flushed")"
-                                                              title="@($"{tabChanges.PendingCount} ausstehend · {tabChanges.FlushedCount} geschrieben")"></span>
-                                                    }
-                                                    @if (summary is not null)
-                                                    {
-                                                        <span class="tab-filter">@summary</span>
-                                                    }
-                                                    else if (t.ActiveFilterCount > 0)
-                                                    {
-                                                        <span class="filter-pill">@t.ActiveFilterCount Filter</span>
-                                                    }
-                                                    <button class="tab-close" title="Schließen" @onclick:stopPropagation="true" @onclick="() => CloseTab(t)">✕</button>
-                                                </div>
-                                            }
-                                            else if (w is LinqTab linq)
-                                            {
-                                                <div class="tab linq @(linq == _state.ActiveTab ? "active" : "")" title="LINQ-Konsole – C# gegen den DbContext des verknüpften Projekts"
-                                                     @onclick="() => _state.ActivateTab(linq)" @onmouseup="e => CloseOnMiddleClick(e, linq)">
-                                                    @Icons.Code
-                                                    <span class="tab-name">@linq.Title</span>
-                                                    <button class="tab-close" title="Schließen" @onclick:stopPropagation="true" @onclick="() => CloseTab(linq)">✕</button>
-                                                </div>
-                                            }
+                                            // Several tabs of one table (FK jumps) are told apart by their filters.
+                                            var summary = _state.Tabs.OfType<TableTab>().Count(o => o.Table.Ref == t.Table.Ref) > 1 ? t.FilterSummary(presentation: PresentationOf(t)) : null;
+                                            <div class="tab @(t == _state.ActiveTab ? "active" : "")" title="@TabTooltip(t)"
+                                                 @onclick="() => _state.ActivateTab(t)" @onmouseup="e => CloseOnMiddleClick(e, t)">
+                                                @Icons.For(t.Table.Kind)
+                                                <span class="tab-name">@t.Table.DisplayName</span>
+                                                @if (t.Changes is { HasChanges: true } tabChanges)
+                                                {
+                                                    <span class="dot @(tabChanges.PendingCount > 0 ? "pending" : "flushed")"
+                                                          title="@($"{tabChanges.PendingCount} ausstehend · {tabChanges.FlushedCount} geschrieben")"></span>
+                                                }
+                                                @if (summary is not null)
+                                                {
+                                                    <span class="tab-filter">@summary</span>
+                                                }
+                                                else if (t.ActiveFilterCount > 0)
+                                                {
+                                                    <span class="filter-pill">@t.ActiveFilterCount Filter</span>
+                                                }
+                                                <button class="tab-close" title="Schließen" @onclick:stopPropagation="true" @onclick="() => CloseTab(t)">✕</button>
+                                            </div>
                                         }
-                                        @if (HasLinkedProject)
+                                        else if (w is LinqTab linq)
                                         {
-                                            <button class="tab-new" title="Neue LINQ-Konsole: C# gegen den DbContext des verknüpften Projekts (Ctrl+Shift+L)"
-                                                    @onclick="() => _state.OpenLinq()">+ LINQ</button>
+                                            <div class="tab linq @(linq == _state.ActiveTab ? "active" : "")" title="LINQ-Konsole – C# gegen den DbContext des verknüpften Projekts"
+                                                 @onclick="() => _state.ActivateTab(linq)" @onmouseup="e => CloseOnMiddleClick(e, linq)">
+                                                @Icons.Code
+                                                <span class="tab-name">@linq.Title</span>
+                                                <button class="tab-close" title="Schließen" @onclick:stopPropagation="true" @onclick="() => CloseTab(linq)">✕</button>
+                                            </div>
                                         }
-                                    </nav>
-                                }
+                                        else if (w is SqlTab sql)
+                                        {
+                                            <div class="tab sql @(sql == _state.ActiveTab ? "active" : "")" title="SQL-Editor – Statements in der Session dieses Workspaces"
+                                                 @onclick="() => _state.ActivateTab(sql)" @onmouseup="e => CloseOnMiddleClick(e, sql)">
+                                                @Icons.Database
+                                                <span class="tab-name">@sql.Title</span>
+                                                <button class="tab-close" title="Schließen" @onclick:stopPropagation="true" @onclick="() => CloseTab(sql)">✕</button>
+                                            </div>
+                                        }
+                                    }
+                                    <button class="tab-new" title="Neuer SQL-Editor: Statements in der Session dieses Workspaces (Ctrl+Shift+Q)"
+                                            @onclick="() => _state.OpenSql()">+ SQL</button>
+                                    @if (HasLinkedProject)
+                                    {
+                                        <button class="tab-new" title="Neue LINQ-Konsole: C# gegen den DbContext des verknüpften Projekts (Ctrl+Shift+L)"
+                                                @onclick="() => _state.OpenLinq()">+ LINQ</button>
+                                    }
+                                </nav>
                                 <div class="pages">
                                     @foreach (var workspace in _state.Workspaces)
                                     {
@@ -146,14 +155,18 @@
                                                 {
                                                     <LinqView Tab="linqTab" />
                                                 }
+                                                else if (tab is SqlTab sqlTab)
+                                                {
+                                                    <SqlView Tab="sqlTab" />
+                                                }
                                             </div>
                                         }
                                     }
                                     @if (_state.Tabs.Count == 0)
                                     {
                                         <EmptyState Title="Tabelle auswählen" Text="@(HasLinkedProject
-                                            ? "Links eine Tabelle oder View wählen – oder mit „+ LINQ“ eine Query aus dem C#-Code ausführen. Ctrl+Enter wendet Filter an, F5 lädt neu."
-                                            : "Links eine Tabelle oder View wählen. Ctrl+Enter wendet Filter an, F5 lädt neu.")" />
+                                            ? "Links eine Tabelle oder View wählen – oder mit „+ SQL“ (Ctrl+Shift+Q) SQL schreiben, mit „+ LINQ“ eine Query aus dem C#-Code ausführen. Ctrl+Enter wendet Filter an, F5 lädt neu."
+                                            : "Links eine Tabelle oder View wählen – oder mit „+ SQL“ (Ctrl+Shift+Q) SQL schreiben. Ctrl+Enter wendet Filter an, F5 lädt neu.")" />
                                     }
                                 </div>
                             </div>
@@ -367,6 +380,7 @@
     private const string FlushShortcut = "ctrl+s"; // write pending changes (no commit)
     private const string CommitShortcut = "ctrl+shift+enter";
     private const string LinqShortcut = "ctrl+shift+l"; // new LINQ console (WP-13)
+    private const string SqlShortcut = "ctrl+shift+q"; // new SQL editor (WP-17)
 
     /// <summary>An open writing transaction older than this is shown as a warning: it holds row locks.</summary>
     private static readonly TimeSpan LongTransaction = TimeSpan.FromMinutes(10);
@@ -608,6 +622,7 @@
             await _shortcuts.InvokeVoidAsync("register", _selfRef, new[]
             {
                 SwitcherShortcut, ApplyFiltersShortcut, RefreshShortcut, FindColumnShortcut, BackShortcut, ForwardShortcut, FlushShortcut, CommitShortcut, LinqShortcut,
+                SqlShortcut,
             });
         }
     }
@@ -652,6 +667,9 @@
                 break;
             case ForwardShortcut:
                 _state.GoForward();
+                break;
+            case SqlShortcut when Active.IsConnected && _state.Page == ShellPage.Explorer:
+                _state.OpenSql();
                 break;
             case LinqShortcut when HasLinkedProject && _state.Page == ShellPage.Explorer:
                 _state.OpenLinq();
@@ -818,6 +836,7 @@
     {
         await Connections.DeleteAsync(profile.Id, CancellationToken.None);
         await Workspaces.DeleteForConnectionAsync(profile.Id);
+        SqlHistory.Delete(profile.Id);
     }
 
     private void RecoverFromError()

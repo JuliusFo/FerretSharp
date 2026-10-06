@@ -33,6 +33,10 @@ internal static class Icons
     public static readonly MarkupString Key = Svg(
         """<circle cx="5.5" cy="10.5" r="3"/><path d="m7.6 8.4 5.9-5.9M11.5 4.5l1.5 1.5"/>""");
 
+    /// <summary>Cylinder: the SQL editor (WP-17).</summary>
+    public static readonly MarkupString Database = Svg(
+        """<ellipse cx="8" cy="4" rx="5.5" ry="2"/><path d="M2.5 4v8c0 1.1 2.5 2 5.5 2s5.5-.9 5.5-2V4M2.5 8c0 1.1 2.5 2 5.5 2s5.5-.9 5.5-2"/>""");
+
     /// <summary>Open padlock: a workspace unlocked for writing (WP-10).</summary>
     public static readonly MarkupString Unlocked = Svg(
         """<rect x="3" y="7.5" width="10" height="6.5" rx="1.5"/><path d="M5.5 7.5V5a2.5 2.5 0 0 1 4.9-.7"/>""", 1.6);

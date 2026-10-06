@@ -211,6 +211,30 @@ public sealed class ShellState
         return tab;
     }
 
+    /// <summary>
+    /// Opens a new SQL editor tab ("SQL 1", "SQL 2" …) after the active tab (WP-17), optionally with a statement and its
+    /// variables ("In SQL-Editor öffnen" from a table tab's SQL preview).
+    /// </summary>
+    public SqlTab? OpenSql(string? text = null, IReadOnlyList<Core.Query.SqlVariable>? variables = null)
+    {
+        if (ActiveWorkspace is not { } workspace)
+        {
+            return null;
+        }
+
+        var titles = workspace.Tabs.OfType<SqlTab>().Select(t => t.Title).ToHashSet(StringComparer.Ordinal);
+        var number = Enumerable.Range(1, int.MaxValue).First(n => !titles.Contains($"SQL {n}"));
+        var tab = new SqlTab(workspace.WorkspaceId, $"SQL {number}") { Text = text ?? "", Variables = variables ?? [], Visited = true };
+        Set(() =>
+        {
+            var index = workspace.ActiveTab is { } active ? workspace.Tabs.IndexOf(active) + 1 : workspace.Tabs.Count;
+            workspace.Tabs.Insert(index, tab);
+            workspace.ActiveTab = tab;
+            Page = ShellPage.Explorer;
+        });
+        return tab;
+    }
+
     /// <summary>"Zurück" (Alt+←): activates the tab the active one was opened from by an FK jump.</summary>
     public void GoBack()
     {
@@ -375,6 +399,10 @@ public sealed class ShellState
             if (state.Linq is { } linq)
             {
                 tab = LinqTab.Restore(workspace.Id, linq);
+            }
+            else if (state.Sql is { } sql)
+            {
+                tab = SqlTab.Restore(workspace.Id, sql);
             }
             else if (schema.Find(state.Table) is { } table)
             {

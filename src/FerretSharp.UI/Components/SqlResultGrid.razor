@@ -1,4 +1,4 @@
-@* Result of a query FerretSharp did not build (LINQ console, ADR 0011): read in the workspace's session page by page,
+@* Result of a query FerretSharp did not build (LINQ console, ADR 0011; SQL editor, WP-17): read in the workspace's session page by page,
    shown with the same grid bridge as tables – read-only, unsorted (the query's own ORDER BY counts). *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
@@ -12,6 +12,11 @@
 @inject ILogger<SqlResultGrid> Logger
 
 <div id="@_id" class="ag-host"></div>
+
+@if (_menu is { } menu)
+{
+    <ResultMenu Request="menu" Result="AsTable()" InsertTarget="InsertTarget" ExportName="@ExportName" OnClose="() => _menu = null" />
+}
 
 @code {
     private const int PageSize = 500; // BLOCK_SIZE in grid.js
@@ -38,6 +43,16 @@
     /// <summary>After every page or failure.</summary>
     [Parameter]
     public EventCallback<SqlGridStatus> OnStatus { get; set; }
+
+    /// <summary>The single table the query reads: target of "Als INSERT kopieren" (WP-17); null disables it.</summary>
+    [Parameter]
+    public TableSummary? InsertTarget { get; set; }
+
+    /// <summary>File name offered when saving the result as CSV.</summary>
+    [Parameter]
+    public string ExportName { get; set; } = "Ergebnis";
+
+    private GridContextMenuRequest? _menu;
 
     public sealed record GridPage(IReadOnlyList<Dictionary<string, object?>> Rows, int LastRow);
 
@@ -180,7 +195,7 @@
     }
 
     /// <summary>The result as a table for the export helpers (columns only; it has no key).</summary>
-    private TableDetails AsTable() => new(new TableSummary("", "LINQ", TableKind.View), _columns.Select(c => c.Column).ToList(), [], [], false);
+    private TableDetails AsTable() => new(new TableSummary("", ExportName, TableKind.View), _columns.Select(c => c.Column).ToList(), [], [], false);
 
     // grid.js calls these for table grids; a result has no pinning to save, no menus and no editing.
     [JSInvokable]
@@ -198,9 +213,21 @@
     {
     }
 
+    /// <summary>Right click: the export menu for the clicked row, or for the selection if the row is part of it.</summary>
     [JSInvokable]
-    public void OnCellContextMenu(int rowIndex, string colId, int[] selectedRows, double x, double y, double viewportWidth, double viewportHeight)
+    public Task OnCellContextMenu(int rowIndex, string colId, int[] selectedRows, double x, double y, double viewportWidth, double viewportHeight)
     {
+        if (RowAt(rowIndex) is not { } row)
+        {
+            return Task.CompletedTask;
+        }
+
+        var column = int.Parse(colId[1..], CultureInfo.InvariantCulture);
+        var indexes = selectedRows.Contains(rowIndex) ? selectedRows.Order().ToArray() : [rowIndex];
+        var selected = indexes.Select(RowAt).OfType<IReadOnlyList<object?>>().Select(r => new RowData(RowKey.None.Instance, r)).ToList();
+        _menu = new GridContextMenuRequest(new RowData(RowKey.None.Instance, row), column, CellFormatter.Format(_columns[column].Column, row[column]),
+            selected, indexes.Length - selected.Count, x, y, viewportWidth, viewportHeight);
+        return InvokeAsync(StateHasChanged);
     }
 
     [JSInvokable]

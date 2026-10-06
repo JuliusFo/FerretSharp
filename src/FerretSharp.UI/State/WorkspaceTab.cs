@@ -44,3 +44,33 @@ public sealed class LinqTab(Guid workspaceId, string title) : WorkspaceTab(works
     public static LinqTab Restore(Guid workspaceId, LinqTabState state) =>
         new(workspaceId, state.Title) { Code = state.Code, Variables = state.Variables };
 }
+
+/// <summary>A SQL editor tab (WP-17, ADR 0014): a script whose statement at the cursor runs in the workspace's session.</summary>
+public sealed class SqlTab(Guid workspaceId, string title) : WorkspaceTab(workspaceId, "sql-")
+{
+    public string Title { get; set; } = title;
+
+    public string Text { get; set; } = "";
+
+    /// <summary>Bind variables in order of use, with type and value; unused ones are kept at the end.</summary>
+    public IReadOnlyList<Core.Query.SqlVariable> Variables { get; set; } = [];
+
+    /// <summary>The last run (statement, result or outcome). Not saved.</summary>
+    public SqlRun? LastRun { get; set; }
+
+    public override TabState ToState(IReadOnlyList<WorkspaceTab> workspaceTabs) =>
+        new(LinqTabState.NoTable, TabMode.Data, [], [], []) { Sql = new SqlTabState(Title, Text, Variables) };
+
+    public static SqlTab Restore(Guid workspaceId, SqlTabState state) =>
+        new(workspaceId, state.Title) { Text = state.Text, Variables = state.Variables };
+}
+
+/// <summary>A statement the SQL editor ran (or refused) and what came of it.</summary>
+/// <param name="Query">The bound statement: shown in the result grid for a query, executed once for DML.</param>
+/// <param name="Changed">DML: rows changed; null for queries and failures.</param>
+public sealed record SqlRun(
+    Core.Query.SqlStatement Statement,
+    Core.Query.SqlStatementInfo Info,
+    Core.Query.QuerySpec Query,
+    DateTimeOffset At,
+    int? Changed = null);
