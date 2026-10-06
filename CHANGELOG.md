@@ -5,6 +5,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+Internal restructuring (R2) without new features; a few things behave more consistently now.
+
+### Changed
+- LINQ console: on a Prod workspace, `ExecuteUpdate`/`ExecuteDelete` asks once more before writing ("Ändern auf Produktion"), like DML in the SQL editor. A running write can be cancelled with "Abbrechen".
+- SQL editor: an error while scrolling to later rows of a result offers "Details" in the footer, like the LINQ console.
+
+### Fixed
+- A lost connection while writing grid changes now shows the reconnect banner instead of a write error.
+- A block of rows that fails to load (e.g. after the connection was lost) no longer leaves an "Unobserved task exception" in the log.
+- After clicking next to a confirmation or dialog, Esc closes it again.
+- A JSON file (connections, settings, workspaces, SQL history) that could not be written completely no longer leaves a `.tmp` file behind.
+
 ## [3.6.0] - 2026-10-06
 
 Stability release after a code review, with one undo for all writes of a workspace.
