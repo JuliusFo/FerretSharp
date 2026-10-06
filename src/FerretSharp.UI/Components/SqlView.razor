@@ -118,7 +118,7 @@
             </div>
         }
 
-        @if (Tab.Runs.Count > 1)
+        @if (Tab.Runs.Count > 1 && _error is null)
         {
             <div class="linq-commands sql-runs">
                 @for (var i = 0; i < Tab.Runs.Count; i++)
@@ -164,7 +164,7 @@
                         }
                         else
                         {
-                            <span><strong>@(grid.AllLoaded ? "" : "≥ ")@grid.RowsLoaded.ToString("N0", CultureInfo.CurrentCulture)</strong> Zeilen</span>
+                            <span><strong>@(grid.AllLoaded ? "" : "≥ ")@grid.RowsLoaded.ToString("N0", CultureInfo.CurrentCulture)</strong> @(grid is { AllLoaded: true, RowsLoaded: 1 } ? "Zeile" : "Zeilen")</span>
                             @if (grid.Elapsed is { } elapsed)
                             {
                                 <span>@Ms(elapsed)</span>
@@ -464,7 +464,7 @@
 
             if (query is null)
             {
-                _error = single ? problem : $"Statement {i + 1}: {problem} – nichts ausgeführt.";
+                _error = single ? problem : $"Statement {i + 1} – nichts ausgeführt: {problem}";
                 await _editor!.SetOffsetMarkersAsync([new MonacoEditor.EditorMarker(statement.Start, statement.Length, "warning", _error!)]);
                 StateHasChanged();
                 return;
@@ -618,6 +618,7 @@
     {
         { Error: not null } => "Fehler",
         { Changed: { } changed } => $"{changed:N0} geändert",
+        { FirstPage: { IsLastPage: true, Rows.Count: 1 } } => "1 Zeile",
         { FirstPage: { } page } => $"{(page.IsLastPage ? "" : "≥ ")}{page.Rows.Count:N0} Zeilen",
         _ => "",
     };
