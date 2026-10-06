@@ -79,7 +79,22 @@
         }
 
         _selfRef = DotNetObjectReference.Create(this);
-        _module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/grid.js");
+        var module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/grid.js");
+        if (_disposed)
+        {
+            // Replaced while the module loaded: DisposeAsync found no module, and the query need not run at all.
+            try
+            {
+                await module.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+
+            return;
+        }
+
+        _module = module;
         try
         {
             await StartAsync();

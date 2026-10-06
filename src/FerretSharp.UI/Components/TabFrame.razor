@@ -1,0 +1,27 @@
+@* One tab's error boundary: an exception in a tab's view (grid, editor, dialog of the tab) replaces only that tab, not
+   every tab of every workspace. What the tab holds – filters, SQL text, pending changes – lives on in its WorkspaceTab;
+   "Neu laden" mounts the view again, "Tab schließen" asks first if there are pending changes. *@
+
+<ErrorBoundary @ref="_boundary">
+    <ChildContent>@ChildContent</ChildContent>
+    <ErrorContent Context="exception">
+        <EmptyState Title="In diesem Tab ist etwas schiefgelaufen" Text="@exception.Message" IsError="true">
+            <div class="button-row">
+                <button class="btn primary" @onclick="Recover">Neu laden</button>
+                <button class="btn" @onclick="OnClose">Tab schließen</button>
+            </div>
+        </EmptyState>
+    </ErrorContent>
+</ErrorBoundary>
+
+@code {
+    private ErrorBoundary? _boundary;
+
+    [Parameter, EditorRequired]
+    public RenderFragment ChildContent { get; set; } = default!;
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private void Recover() => _boundary?.Recover();
+}

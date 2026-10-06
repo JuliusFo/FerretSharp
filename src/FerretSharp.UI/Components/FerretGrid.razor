@@ -97,11 +97,37 @@
             .ToList();
 
         _selfRef = DotNetObjectReference.Create(this);
-        _module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/grid.js");
-        await _module.InvokeVoidAsync("create", Tab.Id, _selfRef, columns, sorts, Tab.FirstVisibleRow ?? 0, _editable, HeaderHeight);
-        if (Tab.Changes?.NewRows.Count > 0)
+        var module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/grid.js");
+        if (_disposed)
         {
-            await SetNewRowsAsync(); // the tab was mounted again (workspace switch) with new rows still unsaved
+            // Closed while the module loaded (closing the tab, switching connections): DisposeAsync found no module.
+            await DisposeQuietlyAsync(module);
+            return;
+        }
+
+        _module = module;
+        try
+        {
+            await _module.InvokeVoidAsync("create", Tab.Id, _selfRef, columns, sorts, Tab.FirstVisibleRow ?? 0, _editable, HeaderHeight);
+            if (Tab.Changes?.NewRows.Count > 0)
+            {
+                await SetNewRowsAsync(); // the tab was mounted again (workspace switch) with new rows still unsaved
+            }
+        }
+        catch (Exception ex) when (_disposed && ex is ObjectDisposedException or JSDisconnectedException)
+        {
+            // closed while the grid was created: DisposeAsync destroyed it, nothing to show
+        }
+    }
+
+    private static async Task DisposeQuietlyAsync(IJSObjectReference module)
+    {
+        try
+        {
+            await module.DisposeAsync();
+        }
+        catch (JSDisconnectedException)
+        {
         }
     }
 
@@ -761,7 +787,7 @@
                 await _module.InvokeVoidAsync("destroy", Tab.Id);
                 await _module.DisposeAsync();
             }
-            catch (JSDisconnectedException)
+            catch (Exception ex) when (ex is JSDisconnectedException or ObjectDisposedException)
             {
             }
         }

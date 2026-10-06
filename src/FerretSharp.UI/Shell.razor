@@ -147,18 +147,20 @@
                                         foreach (var tab in workspace.Tabs.Where(t => t.Visited))
                                         {
                                             <div class="page @(workspace == _state.ActiveWorkspace && tab == workspace.ActiveTab ? "active" : "")" @key="tab.Id">
-                                                @if (tab is TableTab tableTab)
-                                                {
-                                                    <TabView Tab="tableTab" />
-                                                }
-                                                else if (tab is LinqTab linqTab)
-                                                {
-                                                    <LinqView Tab="linqTab" />
-                                                }
-                                                else if (tab is SqlTab sqlTab)
-                                                {
-                                                    <SqlView Tab="sqlTab" />
-                                                }
+                                                <TabFrame OnClose="() => CloseTab(tab)">
+                                                    @if (tab is TableTab tableTab)
+                                                    {
+                                                        <TabView Tab="tableTab" />
+                                                    }
+                                                    else if (tab is LinqTab linqTab)
+                                                    {
+                                                        <LinqView Tab="linqTab" />
+                                                    }
+                                                    else if (tab is SqlTab sqlTab)
+                                                    {
+                                                        <SqlView Tab="sqlTab" />
+                                                    }
+                                                </TabFrame>
                                             </div>
                                         }
                                     }
@@ -211,7 +213,10 @@
                     </ChildContent>
                     <ErrorContent Context="exception">
                         <EmptyState Title="Da ist etwas schiefgelaufen" Text="@exception.Message" IsError="true">
-                            <button class="btn" @onclick="RecoverFromError">Weiter</button>
+                            <div class="button-row">
+                                <button class="btn primary" @onclick="RecoverFromError">Weiter</button>
+                                <button class="btn" title="Falls „Weiter“ wieder hierher führt" @onclick="CloseTabsAfterErrorAsync">Tabs schließen</button>
+                            </div>
                         </EmptyState>
                     </ErrorContent>
                 </ErrorBoundary>
@@ -628,12 +633,15 @@
         }
     }
 
+    /// <param name="modalOpen">
+    /// A dialog is open (shortcuts.js looks for a visible <c>.modal-backdrop</c>, which every dialog renders): shortcuts must
+    /// not act behind it – Ctrl+S while the LOB editor is open, F5 behind the plan dialog. Asking the page instead of
+    /// listing the dialogs here also covers the dialogs that tabs open themselves.
+    /// </param>
     [JSInvokable]
-    public void OnShortcut(string combo)
+    public void OnShortcut(string combo, bool modalOpen)
     {
-        if (_state.ConnectionDialog is not null || _state.PendingDelete is not null || _state.ErrorDetails is not null
-            || _state.PendingLeave is not null || _editing.Problem is not null || _confirmRollback is not null || _confirmCommit is not null || _confirmCloseTab is not null
-            || _state.PendingUnlock is not null)
+        if (modalOpen)
         {
             return;
         }
@@ -864,11 +872,17 @@
         SqlHistory.Delete(profile.Id);
     }
 
-    private void RecoverFromError()
-    {
-        _state.CloseAllTabs();
-        _errorBoundary?.Recover();
-    }
+    /// <summary>Errors of a tab's view stay in its <see cref="TabFrame"/>; this one is outside the tabs – show them again.</summary>
+    private void RecoverFromError() => _errorBoundary?.Recover();
+
+    /// <summary>If the tab bar itself keeps failing: close the active workspace's tabs, asking first if they hold changes.</summary>
+    private Task CloseTabsAfterErrorAsync() =>
+        GuardAsync("Tabs schließen", _state.ActiveWorkspace is { } active ? [active] : [], () =>
+        {
+            _state.CloseAllTabs();
+            _errorBoundary?.Recover();
+            return Task.CompletedTask;
+        });
 
     private void OnChanged()
     {
