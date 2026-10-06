@@ -99,21 +99,28 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
 
     public TableSummary? Find(TableRef table) => _byRef.GetValueOrDefault(table);
 
-    /// <summary>Loads details once per table; a failed or cancelled load is not cached.</summary>
+    /// <summary>
+    /// Loads details once per table; a failed load is not cached. Callers share the load, so it does not run with any
+    /// one caller's token: a cancelled caller (closed tab, abandoned completion) stops waiting, the others get the result.
+    /// </summary>
     public async Task<TableDetails> GetDetailsAsync(TableSummary table, CancellationToken cancellationToken)
     {
         var details = _details;
-        var entry = details.GetOrAdd(table.Ref, _ => new Lazy<Task<TableDetails>>(() => reader.GetDetailsAsync(table, cancellationToken)));
+        var entry = details.GetOrAdd(table.Ref, _ => new Lazy<Task<TableDetails>>(() => ReadDetailsAsync(table)));
+        var load = entry.Value;
         try
         {
-            return await entry.Value;
+            return await load.WaitAsync(cancellationToken);
         }
-        catch
+        catch when (load.IsFaulted || load.IsCanceled)
         {
             details.TryRemove(new KeyValuePair<TableRef, Lazy<Task<TableDetails>>>(table.Ref, entry));
             throw;
         }
     }
+
+    /// <summary>Async, so even a reader that throws at once ends up in the task (the Lazy must not cache an exception).</summary>
+    private async Task<TableDetails> ReadDetailsAsync(TableSummary table) => await reader.GetDetailsAsync(table, CancellationToken.None);
 
     // Detail views (not cached here: each tab keeps what it loaded until it is reloaded).
 

@@ -73,7 +73,17 @@ public sealed class WorkspaceEditing(ShellState shell, WorkspaceManager workspac
         var editor = await workspaces.GetEditorAsync(workspace.WorkspaceId, CancellationToken.None);
         if (editor.Transaction.Mode == TransactionMode.ReadWrite)
         {
-            await editor.CommitAsync(CancellationToken.None);
+            try
+            {
+                await editor.CommitAsync(CancellationToken.None);
+            }
+            catch (DatabaseException) when (editor.Transaction.Mode != TransactionMode.ReadWrite)
+            {
+                // Oracle rolled the transaction back (ORA-02091, deferred constraint) or the session is gone: nothing
+                // written is in the database – it becomes pending again instead of vanishing from the grid.
+                RestorePending(workspace);
+                throw;
+            }
         }
 
         Finish(workspace);
@@ -213,6 +223,21 @@ public sealed class WorkspaceEditing(ShellState shell, WorkspaceManager workspac
         return true;
     }
 
+    /// <summary>The transaction ended without commit: every write is taken back, newest first, like undo.</summary>
+    private void RestorePending(WorkspaceTabs workspace)
+    {
+        if (_undo.GetValueOrDefault(workspace.WorkspaceId) is not { } stack)
+        {
+            return;
+        }
+
+        while (stack.TryPop(out var write))
+        {
+            write.Tab.Changes?.UndoFlush(write.Batch);
+            shell.RequestTabCommand(write.Tab, TabCommand.Reload);
+        }
+    }
+
     private void Finish(WorkspaceTabs workspace)
     {
         foreach (var tab in workspace.TableTabs.Where(t => t.Changes is not null))
@@ -247,6 +272,10 @@ public sealed class WorkspaceEditing(ShellState shell, WorkspaceManager workspac
         {
             shell.Notify(ex.Message);
             return false;
+        }
+        catch (OperationCanceledException)
+        {
+            return false; // the workspace's session was closed meanwhile
         }
         finally
         {

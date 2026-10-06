@@ -267,8 +267,12 @@ public sealed class WorkspaceManager(
             await DisposeSessionAsync(session);
         }
 
+        // Rolling back can take a while; tab changes recorded meanwhile are saved too.
+        await FlushAsync();
         lock (_lock)
         {
+            _saveTimer?.Dispose();
+            _saveTimer = null;
             _profile = null;
             _workspaces = [];
             _activeId = null;
@@ -491,8 +495,9 @@ public sealed class WorkspaceManager(
                 {
                     await store.SaveAsync(workspace, CancellationToken.None);
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                catch (Exception ex)
                 {
+                    // Any failure (locked file, a value that does not serialize …): keep the changes for the next save and say so.
                     lock (_lock)
                     {
                         _dirty.Add(workspace.Id);

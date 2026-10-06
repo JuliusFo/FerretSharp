@@ -84,6 +84,11 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
         {
             return new ModelHostResult(null, ex.ToError());
         }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or System.ComponentModel.Win32Exception)
+        {
+            // dotnet not startable, a temp file not writable, a truncated result: an error like the others, as promised
+            return Fail(ClrModelErrorKind.HostFailed, $"FerretSharp.ModelHost ließ sich nicht ausführen: {ex.Message}");
+        }
         finally
         {
             try
@@ -106,7 +111,16 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
 
         var work = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "FerretSharp", "modelhost", Guid.NewGuid().ToString("N")));
         var runtimeConfig = Path.Combine(work.FullName, "modelhost.runtimeconfig.json");
-        await File.WriteAllTextAsync(runtimeConfig, RuntimeConfig(output), cancellationToken);
+        try
+        {
+            await File.WriteAllTextAsync(runtimeConfig, RuntimeConfig(output), cancellationToken);
+        }
+        catch
+        {
+            LinqConsoleHost.TryDelete(work); // from here on the console owns the folder
+            throw;
+        }
+
         var pipe = "ferretsharp-linq-" + Guid.NewGuid().ToString("N");
         return await LinqConsoleHost.StartAsync(
             HostArguments(link, output, runtimeConfig, ["--console", pipe]), Path.GetDirectoryName(output.Assembly)!, pipe, work, output,

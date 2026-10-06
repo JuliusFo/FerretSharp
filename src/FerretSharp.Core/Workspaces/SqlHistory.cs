@@ -42,7 +42,7 @@ public sealed class SqlHistoryStore(string directory)
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            return await ReadAsync(connectionId, cancellationToken);
+            return (await ReadAsync(connectionId, cancellationToken)).Entries;
         }
         finally
         {
@@ -50,13 +50,17 @@ public sealed class SqlHistoryStore(string directory)
         }
     }
 
-    /// <returns>The history with the new entry.</returns>
+    /// <returns>
+    /// The history with the new entry. A file that could not be read for the moment (locked) or comes from a newer
+    /// FerretSharp is not overwritten – the entry is then only returned, not stored.
+    /// </returns>
     public async Task<IReadOnlyList<SqlHistoryEntry>> AddAsync(Guid connectionId, SqlHistoryEntry entry, CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            var entries = (await ReadAsync(connectionId, cancellationToken)).ToList();
+            var (stored, canWrite) = await ReadAsync(connectionId, cancellationToken);
+            var entries = stored.ToList();
             if (entries.Count > 0 && Same(entries[0].Sql, entry.Sql))
             {
                 entries.RemoveAt(0);
@@ -66,6 +70,11 @@ public sealed class SqlHistoryStore(string directory)
             if (entries.Count > MaxEntries)
             {
                 entries.RemoveRange(MaxEntries, entries.Count - MaxEntries);
+            }
+
+            if (!canWrite)
+            {
+                return entries;
             }
 
             System.IO.Directory.CreateDirectory(Directory);
@@ -97,23 +106,33 @@ public sealed class SqlHistoryStore(string directory)
         }
     }
 
-    private async Task<IReadOnlyList<SqlHistoryEntry>> ReadAsync(Guid connectionId, CancellationToken cancellationToken)
+    /// <returns>The entries, and whether the file may be replaced by a new one.</returns>
+    private async Task<(IReadOnlyList<SqlHistoryEntry> Entries, bool CanWrite)> ReadAsync(Guid connectionId, CancellationToken cancellationToken)
     {
         var path = FileOf(connectionId);
         if (!File.Exists(path))
         {
-            return [];
+            return ([], true);
         }
 
         try
         {
             await using var stream = File.OpenRead(path);
             var file = await JsonSerializer.DeserializeAsync<HistoryFile>(stream, Options, cancellationToken);
-            return file is { Version: FileVersion } ? file.Entries : [];
+            return file switch
+            {
+                { Version: FileVersion } => (file.Entries, true),
+                { Version: > FileVersion } => ([], false), // a newer FerretSharp's history stays as it is
+                _ => ([], true),
+            };
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return []; // a broken history is no reason to stop working; the next entry writes a new file
+            return ([], false); // locked for the moment (virus scanner, backup): try again with the next entry
+        }
+        catch (JsonException)
+        {
+            return ([], true); // a broken history is no reason to stop working; the next entry writes a new file
         }
     }
 

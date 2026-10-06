@@ -93,6 +93,26 @@ public class SchemaCacheTests
     }
 
     [Fact]
+    public async Task Cancelled_caller_does_not_cancel_the_shared_detail_load()
+    {
+        var loaded = new TaskCompletionSource<TableDetails>();
+        _reader.GetDetailsAsync(Kunden, Arg.Any<CancellationToken>()).Returns(loaded.Task);
+        var cache = new SchemaCache(_reader, Owner);
+        await cache.LoadAsync(Ct);
+        using var completion = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+
+        var abandoned = cache.GetDetailsAsync(Kunden, completion.Token);
+        var grid = cache.GetDetailsAsync(Kunden, Ct);
+        await completion.CancelAsync();
+        loaded.SetResult(new TableDetails(Kunden, [], [], [], false));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => abandoned);
+        Assert.Same(Kunden, (await grid).Table);
+        Assert.Same(Kunden, (await cache.GetDetailsAsync(Kunden, Ct)).Table); // still cached
+        await _reader.Received(1).GetDetailsAsync(Kunden, CancellationToken.None);
+    }
+
+    [Fact]
     public async Task Synonym_targets_are_listed_and_their_schemas_foreign_keys_loaded()
     {
         var produkt = new TableSummary("ERP", "PRODUKT", TableKind.Table, new SynonymInfo(Owner, "S_PRODUKT"));
