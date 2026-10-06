@@ -41,7 +41,7 @@ public sealed record SelectQuery(
 
 /// <summary>Invalid filters or sorts; <see cref="Errors"/> maps the filter index (or -1 for sorting) to a message.</summary>
 public sealed class QueryValidationException(IReadOnlyDictionary<int, string> errors)
-    : Exception(string.Join(" ", errors.Values))
+    : Connections.RefusedException(string.Join(" ", errors.Values))
 {
     public IReadOnlyDictionary<int, string> Errors { get; } = errors;
 }

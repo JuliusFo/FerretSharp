@@ -132,7 +132,7 @@ public sealed class SqlEditorExecutionTests(OracleContainerFixture oracle) : IAs
         await connection.UseReadOnlySnapshotsAsync(Ct);
 
         var page = await connection.Data.ReadSqlAsync(new QuerySpec("SELECT COUNT(*) FROM sx_kunde", []), 0, 1, Ct);
-        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => connection.Editor.ExecuteAsync(Prepare(Script, "MERGE"), Ct));
+        var error = await Assert.ThrowsAsync<RefusedException>(() => connection.Editor.ExecuteAsync(Prepare(Script, "MERGE"), Ct));
 
         Assert.NotNull(page.DataAsOf);
         Assert.Contains("schreibgeschützt", error.Message);

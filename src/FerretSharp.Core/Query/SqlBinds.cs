@@ -102,6 +102,45 @@ public static class SqlBinds
         _ => SqlVariableType.Text,
     };
 
+    /// <summary>
+    /// The type of the column <paramref name="bind"/> is compared with in <paramref name="info"/> (<c>k.KUNDE_ID = :id</c>),
+    /// if the schema knows it – a suggestion for a new variable; null if unknown or the column could not be read.
+    /// </summary>
+    public static async Task<SqlVariableType?> SuggestTypeAsync(
+        SqlStatementInfo info, string bind, SchemaCache schema, CancellationToken cancellationToken)
+    {
+        if (info.BindUses.FirstOrDefault(u => string.Equals(u.Bind, bind, StringComparison.OrdinalIgnoreCase)) is not { } use)
+        {
+            return null;
+        }
+
+        var candidates = use.Qualifier is { } qualifier
+            ? info.Tables.Where(t => t.Alias == qualifier || (t.Alias is null && t.Name == qualifier))
+            : info.Tables;
+        foreach (var reference in candidates)
+        {
+            if (SqlCompletion.Resolve(schema, reference) is not { } table)
+            {
+                continue;
+            }
+
+            try
+            {
+                var details = await schema.GetDetailsAsync(table, cancellationToken);
+                if (details.Columns.FirstOrDefault(c => c.Name == use.Column) is { } column)
+                {
+                    return TypeFor(column);
+                }
+            }
+            catch (Connections.DatabaseException)
+            {
+                return null; // only a suggestion
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>A parameter of a generated statement as editor variable ("In SQL-Editor öffnen").</summary>
     public static SqlVariable FromParameter(QueryParameter parameter) => parameter.Value switch
     {

@@ -281,3 +281,39 @@ Auftrag des Nutzers (2026-10-06): das Projekt auf nötige Refactorings prüfen (
     - Grid-Änderung schreiben, dann `UPDATE` im SQL-Tab: „2 Aktionen“. Erstes ↶ nimmt das Statement zurück, der SQL-Tab meldet „zurückgenommen“. Zweites ↶ macht die Grid-Änderung wieder ausstehend.
     - Gesperrter Workspace: KUNDEN laden, 30 Zeilen von außen vorne einfügen, AUFTRAG öffnen, in KUNDEN weiterscrollen. Der Hinweis erscheint und verschwindet nach F5.
     - Log ohne `[ERR]`.
+
+### R2 Struktur-Refactoring (keine neuen Features)
+Vereinbart nach dem Review (2026-10-06), umgesetzt 2026-10-07 in kleinen Schritten, jeder mit grünen Tests und E2E. Ziel: Lesbarkeit und eine Stelle je Aufgabe; Verhalten nur dort geändert, wo zwei Wege bisher verschieden reagierten (CHANGELOG, „Unreleased“).
+- Fehlerarten (Core):
+  - `RefusedException` (abgeleitet von `InvalidOperationException`) für Ablehnungen, die der Nutzer sehen soll: Session-Sperren, `DmlBuilder`, `QueryValidationException`, `PlanUnavailableException`. `WorkspaceClosedException` = Workspace nicht geöffnet (zählt in der UI wie ein Abbruch). Ein normales `InvalidOperationException` bleibt ein Programmierfehler.
+- Datenbankaufrufe aus der UI (`State/DbCalls.cs`):
+  - `RunDbAsync` (auf dem Threadpool) und `CallDbAsync` (auf dem Aufrufer) liefern `DbResult` (Wert, Fehler, abgebrochen, `IsRefusal`). Abbruch und geschlossener Workspace sind kein Fehler; ein `DatabaseException` wird geloggt (`QueryErrorLog`) und bei Verbindungsverlust an das Banner gemeldet; eine Ablehnung wird zu einem `DatabaseException` ohne ORA-Code.
+  - `ShowFailure`: Ablehnung als Toast, sonst Fehlerdialog. Umgestellt: Detailansichten, Explorer, Tab-Zählung, LOB-Dialog, Plan, Kontextmenü, SQL/LINQ, Grids, Freischalten/Sperren, `WorkspaceEditing`.
+  - `[JSInvokable]`-Methoden werfen nicht nach JS: Blazor ließe die Ausnahme unbeobachtet (`[ERR] Unobserved task exception`). `GetRows` liefert `GridPage.Failure`, `grid.js` ruft dann `failCallback`.
+- Dialoge: `ModalFrame` (Hintergrund, Rolle, Esc, Klick daneben, Fokus) für alle neun Dialoge. Ein Klick neben einen Dialog, der davon nicht schließt, holt den Fokus zurück – vorher wirkte Esc danach nicht mehr.
+- `Shell.razor` (950 → 361 Zeilen):
+  - `WorkspaceLifecycle` (kaskadiert): Freischalten/Sperren, Commit/Rollback mit Bestätigung, Verlassen mit offenen Änderungen (`GuardAsync`), Tab schließen, Verbinden/Trennen/Löschen, Beenden (`CanExit`).
+  - Komponenten `TabBar`, `StatusBar` (eigener Ticker), `WorkspaceBadge`, `ConnectionLostBanner`, `DialogHost` (alle Shell-Dialoge und der Toast).
+- `OracleSession` (842 → 361 + 279 + 62 Zeilen):
+  - Teile `OracleSession.Transactions.cs` (ein Zustandstyp `OpenTransaction` statt verstreuter Felder) und `OracleSession.Explain.cs`.
+  - `ExclusiveAsync` (Gate + Übersetzung) und `RunAsync` (Kommando, Abbruch, Fehler) als einzige Wege; Oracle-Fehler werden in `OracleErrors.Translate` an einer Stelle zu `DatabaseException`, ORA-Codes stehen benannt in `OracleErrorCodes`. Die Decorator-Klassen in `OracleDatabaseConnector` entfallen.
+  - `OracleDataEditor`: ein Verbindungsverlust beim Schreiben bleibt ein Verbindungsverlust (Banner), statt als Schreibfehler gemeldet zu werden.
+- `WorkspaceManager` (639 → 477) als Register und Fassade über `WorkspaceSessions` (Sessions, Freischaltungen, Öffnen/Schließen) und `WorkspaceSaver` (verzögertes Speichern, wirft nie). Öffentliche API unverändert.
+- SQL-Editor und LINQ-Konsole:
+  - `SqlScriptPlan` (Core): prüft vor dem Ausführen jedes Statements (erlaubt, schreibbarer Workspace, Werte aller Binds), entscheidet über die Bestätigung und findet die Stelle eines ORA-00904/00942 im Text. `SqlBinds.SuggestTypeAsync` schlägt den Typ einer Variable nach der verglichenen Spalte vor. Unit-Tests `SqlScriptPlanTests`.
+  - Gemeinsame Komponenten `ResultFooter` (Zeilen, Zeit, Stand, Fehler mit „Details“) und `TabTitle` (umbenennen).
+  - LINQ-Konsole: `ExecuteUpdate`/`ExecuteDelete` auf Prod mit derselben Bestätigung wie DML im SQL-Editor, abbrechbar.
+- Grid-Brücke:
+  - `GridBridge` (UI/State): lädt `grid.js`, baut das Grid, ruft es nur, solange die Komponente lebt (danach nichts, auch während eines laufenden Aufrufs), räumt auf, Zwischenablage. `GridColumn` (typisierte Spalten-Metadaten statt anonymer Objekte), `GridOptions`, gemeinsame `GridPage`/`GridSort`/`GridEdit`/`GridRowUpdate`.
+  - `RowBlocks` (Core/Data, Unit-Tests): die Rohzeilen der geladenen Blöcke, gleiche Grenze wie AG Grid (40).
+  - `grid.js create(elementId, dotnet, columns, options)`: `options.table` schaltet Kopfmenü, Entf, Anheften und Scroll-Position ein. `SqlResultGrid` braucht keine leeren `[JSInvokable]`-Stubs mehr.
+- Klein:
+  - `AtomicJsonFile` (Core/IO): Schreiben über `.tmp` in den sechs JSON-Speichern; bei Fehlern bleibt die alte Datei, die temporäre wird entfernt.
+  - `ModelHostRunner.PrepareAsync`: Prüfung und runtimeconfig für beide Starts (Modell lesen, LINQ-Konsole).
+  - `TabState.OfSql`/`OfLinq`.
+- Bewusst nicht umgesetzt: `TabState` als Union mit Mapper. Nur drei Stellen unterscheiden die Tab-Arten; der Umbau hätte Dateiformat-Mapper und viele Tests bewegt, ohne Fehlerquellen zu entfernen.
+- E2E (eigene Instanz, eigene Test-DB, echte Maus per CDP):
+  - Dialoge (Esc, Klick daneben), Plan, Zählung, Kontextmenü mit FK-Zählung, LOB-Dialog, SQL-Fehler mit Markierung, abgewiesene Schreibversuche, Tab-Leiste, Badge, Statusleiste, Verlassen-/Rollback-Dialoge, Toast, Verbindungsabbruch mit Banner und Neu verbinden.
+  - Tabellen-Grid: Kopf- und Zellenmenü, Ctrl+C (Zelle und drei Zeilen als Tabelle), Anheften per Ziehen und per Menü, Scroll-Position gespeichert, Entf, Editieren mit Validierung, Rollback. SQL-Ergebnis: kein Kopfmenü, Ergebnis-Menü, Ctrl+C, Entf/Doppelklick ohne Wirkung, Nachladen des zweiten Blocks.
+  - LINQ-Konsole (Prod-Bestätigung, Abbrechen) nicht per E2E geprüft: braucht ein verknüpftes C#-Projekt.
+  - Log ohne `[ERR]`.

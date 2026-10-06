@@ -1,0 +1,179 @@
+@* The status bar (R2, out of Shell.razor): connection, workspace and its lock, uncommitted changes with write/undo/
+   commit/rollback, the C# model, saving problems. *@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Data
+@using FerretSharp.UI.State
+@implements IAsyncDisposable
+@inject ConnectionManager Connections
+@inject ActiveConnection Active
+@inject WorkspaceManager Workspaces
+@inject ClrModelManager Models
+
+<footer class="statusbar">
+    @if (Connections.LoadError is { } loadError)
+    {
+        <span class="item error" title="@loadError"><span class="dot err"></span> Verbindungen konnten nicht geladen werden</span>
+    }
+    else
+    {
+        @switch (Active.Status)
+        {
+            case ConnectionStatus.Connected when Shell.ConnectionLost is not null:
+                <span class="item error"><span class="dot err"></span> Verbindung verloren</span>
+                <span class="item">@Active.Profile?.Name</span>
+                <button class="status-btn" @onclick="() => Lifecycle.Reconnect(Active.Profile!)">Neu verbinden</button>
+                break;
+            case ConnectionStatus.Connected:
+                <span class="item"><span class="dot ok"></span> Verbunden</span>
+                <span class="item shrink" title="@Active.Profile?.Name">@Active.Profile?.Name</span>
+                @if (Workspaces.Active is { } workspace)
+                {
+                    <span class="item shrink" title="Workspace „@workspace.Name“ – fragt über eine eigene Oracle-Session ab (ACTION = Workspace-Name).">Workspace „@workspace.Name“</span>
+                    @if (Active.Profile?.ReadOnly == true && !Workspaces.IsUnlocked(workspace.Id))
+                    {
+                        <span class="item" title="Die Workspace-Sessions laufen in einer READ ONLY-Transaktion: Oracle selbst lehnt jede Änderung ab.">schreibgeschützt (Oracle)</span>
+                        <button class="status-btn" title="Diesen Workspace zum Schreiben freischalten" @onclick="() => Shell.RequestUnlock(workspace.Id)">Freischalten …</button>
+                    }
+                    else
+                    {
+                        @if (Workspaces.IsUnlocked(workspace.Id))
+                        {
+                            <span class="item unlocked-item" title="Oracle schützt diesen Workspace nicht mehr; die anderen Workspaces bleiben gesperrt.">freigeschaltet</span>
+                            <button class="status-btn" title="Wieder sperren (offene Änderungen vorher committen oder verwerfen)" @onclick="() => Lifecycle.LockAsync(workspace.Id)">Sperren</button>
+                        }
+                        @if (Shell.ActiveWorkspace is { } editTabs && Editing.SummaryOf(editTabs) is { HasWork: true } edits)
+                        {
+                            @EditStatus(editTabs, edits)
+                        }
+                    }
+                }
+                @ModelStatus()
+                <span class="item shrink shrink-more" title="Oracle @Active.ServerVersion">Oracle @Active.ServerVersion</span>
+                <span class="item shrink shrink-more" title="Schema @Active.Schema?.Owner · @(Active.Schema?.Tables.Count ?? 0) Objekte">Schema @Active.Schema?.Owner · @(Active.Schema?.Tables.Count ?? 0) Objekte</span>
+                <button class="status-btn" @onclick="Lifecycle.DisconnectAsync">Trennen</button>
+                break;
+            case ConnectionStatus.Connecting:
+                <span class="item"><span class="spinner small"></span> Verbinde mit @Active.Profile?.Name …</span>
+                break;
+            case ConnectionStatus.Failed:
+                <span class="item error"><span class="dot err"></span> Verbindung fehlgeschlagen</span>
+                break;
+            default:
+                <span class="item"><span class="dot"></span> Nicht verbunden</span>
+                break;
+        }
+    }
+    @if (Workspaces.SaveError is { } saveError)
+    {
+        <span class="item error" title="@saveError"><span class="dot err"></span> Workspace nicht gespeichert</span>
+    }
+    @if (Workspaces.LoadErrors.Count > 0)
+    {
+        <span class="item error" title="@string.Join(Environment.NewLine, Workspaces.LoadErrors)">
+            <span class="dot err"></span> @(Workspaces.LoadErrors.Count == 1 ? "1 Workspace-Datei" : $"{Workspaces.LoadErrors.Count} Workspace-Dateien") nicht lesbar
+        </span>
+    }
+    <span class="spacer"></span>
+    <span class="item">@Version</span>
+</footer>
+
+@code {
+    /// <summary>An open writing transaction older than this is shown as a warning: it holds row locks.</summary>
+    private static readonly TimeSpan LongTransaction = TimeSpan.FromMinutes(10);
+
+    private static readonly string Version = "v" + (typeof(StatusBar).Assembly.GetName().Version?.ToString(3) ?? "0.0.0");
+
+    private Timer? _ticker;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    /// <summary>A parameter (not only cascaded), so the bar renders again whenever the shell does.</summary>
+    [Parameter, EditorRequired]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
+    private WorkspaceEditing Editing => Lifecycle.Editing;
+
+    /// <summary>The age of an open transaction counts up.</summary>
+    protected override void OnInitialized() =>
+        _ticker = new Timer(_ => InvokeAsync(() =>
+        {
+            if (Editing.WithWork().Count > 0)
+            {
+                StateHasChanged();
+            }
+        }), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+
+    /// <summary>The segment of the active workspace while it has uncommitted work.</summary>
+    private RenderFragment EditStatus(WorkspaceTabs workspace, EditSummary edits)
+    {
+        var age = edits.Transaction is { Mode: TransactionMode.ReadWrite, StartedAt: { } started } ? DateTimeOffset.Now - started : (TimeSpan?)null;
+        return @<text>
+            <span class="item tx @(age > LongTransaction ? "warn" : "")"
+                  title="@(age > LongTransaction ? "Die Transaktion ist lange offen und hält Zeilensperren – andere warten auf diese Zeilen." : "Ausstehend: nur hier. Geschrieben: in der Transaktion, Zeilen gesperrt, für andere unsichtbar bis zum Commit.")">
+                <span class="dot @(edits.Pending > 0 ? "pending" : "flushed")"></span>
+                @(age is { } a ? $"Tx seit {Age(a)} · " : "")@edits.Pending ausstehend · @edits.Flushed geschrieben
+            </span>
+            @if (edits.Actions.Count > 0)
+            {
+                <span class="item tx" title="@ActionsTooltip(edits.Actions)">@(edits.Actions.Count == 1 ? "1 Aktion" : $"{edits.Actions.Count} Aktionen") nicht committet</span>
+            }
+            <span class="status-group">
+            <button class="status-btn" title="Ausstehende Änderungen schreiben (Ctrl+S) – noch kein Commit" disabled="@(Editing.Busy || edits.Pending == 0)" @onclick="() => Editing.FlushAsync(workspace)">Schreiben</button>
+            <button class="status-btn" title="@(edits.Actions is [.., var last] ? $"Zurücknehmen: {last.Display} ({SourceOf(last)})" : "Nichts zurückzunehmen")"
+                    disabled="@(Editing.Busy || !edits.CanUndo)" @onclick="() => Editing.UndoLastAsync(workspace)">↶</button>
+            <button class="status-btn" title="Ausstehende Änderungen als SQL anzeigen" disabled="@(edits.Pending == 0)" @onclick="() => Lifecycle.ShowPendingSql(workspace)">SQL</button>
+            <button class="status-btn commit" title="Schreiben und committen (Ctrl+Shift+Enter)" disabled="@Editing.Busy" @onclick="() => Lifecycle.RequestCommitAsync(workspace)">Commit</button>
+            <button class="status-btn danger" title="Alles verwerfen" disabled="@Editing.Busy" @onclick="() => Lifecycle.RequestRollback(workspace)">Rollback</button>
+            </span>
+        </text>;
+    }
+
+    /// <summary>The uncommitted writes, newest first – ↶ takes back the first one listed.</summary>
+    private static string ActionsTooltip(IReadOnlyList<WriteAction> actions) =>
+        "Nicht committet, neueste zuerst (↶ nimmt die oberste zurück):" + Environment.NewLine
+        + string.Join(Environment.NewLine, actions.Reverse().Select(a => $"{a.At.ToLocalTime():HH:mm:ss}  {a.Display} ({SourceOf(a)})"));
+
+    private static string SourceOf(WriteAction action) => action.Kind == WriteActionKind.Grid ? "Grid" : "SQL/LINQ";
+
+    private static string Age(TimeSpan age) => age.TotalMinutes < 1 ? "< 1 min" : $"{(int)age.TotalMinutes} min";
+
+    /// <summary>The C# model of the linked project (WP-11); opens the model page.</summary>
+    private RenderFragment ModelStatus()
+    {
+        var state = Models.State;
+        if (state.Link is null)
+        {
+            return @<text></text>;
+        }
+
+        if (state.Phase == ClrModelPhase.Loading)
+        {
+            return @<button class="item status-link shrink" title="@(state.Step ?? "Lese das C#-Modell") …" @onclick="Shell.ShowModel"><span class="spinner small"></span> C# · @(state.Step ?? "lädt") …</button>;
+        }
+
+        if (state.Phase == ClrModelPhase.Failed)
+        {
+            return @<button class="item status-link error" title="@state.Error?.Message" @onclick="Shell.ShowModel"><span class="dot err"></span> C#-Modell</button>;
+        }
+
+        if (state.Mapping is not { } mapping)
+        {
+            return @<text></text>;
+        }
+
+        var stale = state.Output?.IsStale == true;
+        var text = $"C# · {mapping.MappedEntityCount} Entities" + (mapping.Issues.Count > 0 ? $" · {mapping.Issues.Count} Abw." : "") + (stale ? " · Build veraltet" : "");
+        var title = (stale ? "Der Quelltext ist neuer als der Build. " : "") + $"{mapping.Issues.Count} Abweichungen zwischen Modell und Datenbank – Details";
+        return @<button class="item status-link shrink @(stale ? "warn" : "")" title="@title" @onclick="Shell.ShowModel">@text</button>;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_ticker is not null)
+        {
+            await _ticker.DisposeAsync();
+        }
+    }
+}

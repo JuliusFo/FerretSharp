@@ -15,16 +15,11 @@
 <div id="@Tab.Id" class="ag-host"></div>
 
 @code {
-    private const int MaxCachedBlocks = 40; // maxBlocksInCache in grid.js
+    private readonly RowBlocks _blocks = new();
 
-    private readonly Dictionary<int, IReadOnlyList<RowData>> _blocks = [];
-    private IJSObjectReference? _module;
-
-    /// <summary>Set first thing in <see cref="DisposeAsync"/>: queued change handlers must not touch the released module.</summary>
-    private bool _disposed;
+    /// <summary>grid.js; does nothing once disposed, so queued change handlers cannot touch the released module.</summary>
+    private GridBridge _grid = null!;
     private bool _editable;
-    private IJSObjectReference? _dom;
-    private DotNetObjectReference<FerretGrid>? _selfRef;
     private TablePresentation? _presentation;
     private int _presentationVersion;
 
@@ -58,19 +53,11 @@
     [Parameter]
     public EventCallback OnEditableChanged { get; set; }
 
-    public sealed record GridSort(string ColId, string Sort);
+    private static string ColumnId(int index) => GridColumn.IdOf(index);
 
-    public sealed record GridPage(IReadOnlyList<Dictionary<string, object?>> Rows, int LastRow);
+    private static int ColumnIndex(string colId) => GridColumn.IndexOf(colId);
 
-    /// <summary>Result of an edit for grid.js: the redrawn row, or the message to show in the reopened editor.</summary>
-    public sealed record GridEdit(Dictionary<string, object?>? Row, string? Error);
-
-    /// <summary>Rows to redraw after deleting/reverting (by row index) and the new rows at the top.</summary>
-    public sealed record GridRowUpdate(int RowIndex, Dictionary<string, object?> Row);
-
-    private static string ColumnId(int index) => "c" + index.ToString(CultureInfo.InvariantCulture);
-
-    private static int ColumnIndex(string colId) => int.Parse(colId[1..], CultureInfo.InvariantCulture);
+    protected override void OnInitialized() => _grid = new GridBridge(JS, Tab.Id, DotNetObjectReference.Create(this));
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -92,42 +79,15 @@
         _presentation = Presentations.For(Details);
         var columns = ColumnPinning.DisplayOrder(Details, Tab.PinnedColumns).Select(ColumnMeta).ToList();
         var sorts = Tab.Sorts
-            .Select(s => new { colId = ColumnId(IndexOf(s.Column)), sort = s.Descending ? "desc" : "asc" })
-            .Where(s => s.colId != "c-1")
+            .Where(s => IndexOf(s.Column) >= 0)
+            .Select(s => new GridSort(ColumnId(IndexOf(s.Column)), s.Descending ? "desc" : "asc"))
             .ToList();
 
-        _selfRef = DotNetObjectReference.Create(this);
-        var module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/grid.js");
-        if (_disposed)
+        // Closed while grid.js loaded or the grid was created (closing the tab, switching connections): nothing to show.
+        await _grid.CreateAsync(columns, new GridOptions(sorts, Tab.FirstVisibleRow ?? 0, _editable, HeaderHeight, Table: true));
+        if (Tab.Changes?.NewRows.Count > 0)
         {
-            // Closed while the module loaded (closing the tab, switching connections): DisposeAsync found no module.
-            await DisposeQuietlyAsync(module);
-            return;
-        }
-
-        _module = module;
-        try
-        {
-            await _module.InvokeVoidAsync("create", Tab.Id, _selfRef, columns, sorts, Tab.FirstVisibleRow ?? 0, _editable, HeaderHeight);
-            if (Tab.Changes?.NewRows.Count > 0)
-            {
-                await SetNewRowsAsync(); // the tab was mounted again (workspace switch) with new rows still unsaved
-            }
-        }
-        catch (Exception ex) when (_disposed && ex is ObjectDisposedException or JSDisconnectedException)
-        {
-            // closed while the grid was created: DisposeAsync destroyed it, nothing to show
-        }
-    }
-
-    private static async Task DisposeQuietlyAsync(IJSObjectReference module)
-    {
-        try
-        {
-            await module.DisposeAsync();
-        }
-        catch (JSDisconnectedException)
-        {
+            await SetNewRowsAsync(); // the tab was mounted again (workspace switch) with new rows still unsaved
         }
     }
 
@@ -137,41 +97,33 @@
     private int? HeaderHeight => Presentation.ShowsClrNames ? ClrHeaderHeight : null;
 
     /// <summary>What grid.js needs to know about a column (header, editing, member list).</summary>
-    private object ColumnMeta(int i)
+    private GridColumn ColumnMeta(int i)
     {
         var c = Details.Columns[i];
         var category = ColumnCategories.Of(c);
         var label = Presentation.LabelOf(i);
         var values = Presentation.ValuesOf(i);
         var foreignKeys = Active.Schema?.OutgoingOf(Details.Table.Ref).Where(f => f.FromColumns.Contains(c.Name)).ToList() ?? [];
-        return new
+        var lob = OracleTypeMapper.IsLob(c);
+        return new GridColumn(ColumnId(i), c.Name, label.Name, c.DisplayType, category.ToString(), c.Nullable)
         {
-            id = ColumnId(i),
-            name = c.Name,
-            label = label.Name,
-            alternate = label.AlternateName,
-            clrType = label.ClrType,
-            clrLine = Presentation.ShowsClrNames,
-            type = c.DisplayType,
-            category = category.ToString(),
-            nullable = c.Nullable,
-            pk = Details.PrimaryKey.Contains(c.Name),
-            fk = foreignKeys.Any(f => f.Source == FkSource.Declared),
-            fkModel = foreignKeys.Any(f => f.Source == FkSource.ClrModel),
-            numeric = category == ColumnCategory.Number && values is null,
-            sortable = ColumnCategories.IsSortable(category),
-            pinned = ColumnPinning.IsPinned(Details, Tab.PinnedColumns, c.Name),
-            comment = c.Comment,
-            // Whether the column can be edited at all; whether the workspace may write is switched in grid.js (setEditable).
-            editable = !OracleTypeMapper.IsLob(c) && OracleTypeMapper.NotEditableReason(Details, c, newRow: false) is null,
-            editableNew = !OracleTypeMapper.IsLob(c) && OracleTypeMapper.NotEditableReason(Details, c, newRow: true) is null,
-            // LOBs open the LOB editor instead (also to read them whole on a locked workspace).
-            lob = OracleTypeMapper.IsLob(c),
-            // Long texts (and their line breaks) are edited in a larger box.
-            multiline = category == ColumnCategory.Text && (c.Length ?? 0) > 200,
-            // Enum and converted bool columns: the members to pick from, and why a value without a member is marked.
-            options = values?.Options,
-            unknownText = values?.UnknownText,
+            Alternate = label.AlternateName,
+            ClrType = label.ClrType,
+            ClrLine = Presentation.ShowsClrNames,
+            Pk = Details.PrimaryKey.Contains(c.Name),
+            Fk = foreignKeys.Any(f => f.Source == FkSource.Declared),
+            FkModel = foreignKeys.Any(f => f.Source == FkSource.ClrModel),
+            Numeric = category == ColumnCategory.Number && values is null,
+            Sortable = ColumnCategories.IsSortable(category),
+            Pinned = ColumnPinning.IsPinned(Details, Tab.PinnedColumns, c.Name),
+            Comment = c.Comment,
+            // LOBs are not edited in the cell: they open the LOB editor (also to read them whole on a locked workspace).
+            Editable = !lob && OracleTypeMapper.NotEditableReason(Details, c, newRow: false) is null,
+            EditableNew = !lob && OracleTypeMapper.NotEditableReason(Details, c, newRow: true) is null,
+            Lob = lob,
+            Multiline = category == ColumnCategory.Text && (c.Length ?? 0) > 200,
+            Options = values?.Options,
+            UnknownText = values?.UnknownText,
         };
     }
 
@@ -181,30 +133,24 @@
     /// </summary>
     private void OnPresentationChanged() => _ = InvokeAsync(async () =>
     {
-        if (_disposed || _module is null || Presentations.Version == _presentationVersion)
+        if (!_grid.IsCreated || Presentations.Version == _presentationVersion)
         {
             return;
         }
 
         _presentationVersion = Presentations.Version;
         _presentation = Presentations.For(Details);
-        try
+        if (await _grid.CallAsync("updateColumns", Enumerable.Range(0, Details.Columns.Count).Select(ColumnMeta).ToList(), HeaderHeight))
         {
-            await _module.InvokeVoidAsync("updateColumns", Tab.Id, Enumerable.Range(0, Details.Columns.Count).Select(ColumnMeta).ToList(), HeaderHeight);
             await ReloadAsync();
-        }
-        catch (Exception ex) when (ex is JSDisconnectedException or ObjectDisposedException)
-        {
-            // disposed while the handler waited (closing the tab, disconnecting)
         }
     });
 
     /// <summary>Fetches the loaded rows again where they are (after writing, commit, rollback) and redraws the new rows.</summary>
     public async Task ReloadAsync()
     {
-        if (_module is not null)
+        if (await _grid.CallAsync("reload"))
         {
-            await _module.InvokeVoidAsync("reload", Tab.Id);
             await SetNewRowsAsync();
         }
     }
@@ -213,19 +159,10 @@
     public async Task RefreshAsync()
     {
         Tab.TotalCount = null;
-        if (_module is not null)
-        {
-            await _module.InvokeVoidAsync("refresh", Tab.Id);
-        }
+        await _grid.CallAsync("refresh");
     }
 
-    public async Task SetRowCountAsync(long count)
-    {
-        if (_module is not null)
-        {
-            await _module.InvokeVoidAsync("setRowCount", Tab.Id, (int)Math.Min(count, int.MaxValue));
-        }
-    }
+    public Task SetRowCountAsync(long count) => _grid.CallAsync("setRowCount", (int)Math.Min(count, int.MaxValue));
 
     /// <summary>
     /// Editing is possible in workspaces that may write – connections without the read-only lock, or a workspace the
@@ -238,7 +175,7 @@
     /// <summary>Unlocking or locking the workspace switches editing in the grid on or off without reloading it.</summary>
     private void OnWorkspacesChanged() => _ = InvokeAsync(async () =>
     {
-        if (_disposed || CanEdit == _editable || _module is null)
+        if (!_grid.IsCreated || CanEdit == _editable)
         {
             return;
         }
@@ -253,16 +190,10 @@
             Tab.Changes = null; // locked again (after commit or rollback): nothing to keep
         }
 
-        try
+        if (await _grid.CallAsync("setEditable", _editable))
         {
-            await _module.InvokeVoidAsync("setEditable", Tab.Id, _editable);
+            await OnEditableChanged.InvokeAsync();
         }
-        catch (Exception ex) when (ex is JSDisconnectedException or ObjectDisposedException)
-        {
-            return; // disposed while the handler waited
-        }
-
-        await OnEditableChanged.InvokeAsync();
     });
 
     /// <summary>A LOB cell to open in the LOB editor: a loaded row (with its grid index) or a new row.</summary>
@@ -277,7 +208,7 @@
         {
             await OnLobOpen.InvokeAsync(new LobRequest(-1, null, added, column));
         }
-        else if (RowAt(rowIndex) is { } row)
+        else if (_blocks.At(rowIndex) is { } row)
         {
             await OnLobOpen.InvokeAsync(new LobRequest(rowIndex, row, null, column));
         }
@@ -285,12 +216,12 @@
 
     /// <summary>Opens the LOB editor for a cell of a loaded row (context menu).</summary>
     public Task OpenLobAsync(int rowIndex, int column) =>
-        RowAt(rowIndex) is { } row ? OnLobOpen.InvokeAsync(new LobRequest(rowIndex, row, null, column)) : Task.CompletedTask;
+        _blocks.At(rowIndex) is { } row ? OnLobOpen.InvokeAsync(new LobRequest(rowIndex, row, null, column)) : Task.CompletedTask;
 
     /// <summary>The LOB editor's result: the whole new value; <paramref name="loaded"/> is what it read from the database.</summary>
     public async Task<string?> SetLobAsync(LobRequest request, object? loaded, object? value)
     {
-        if (Tab.Changes is not { } changes || _module is null)
+        if (Tab.Changes is not { } changes)
         {
             return "Diese Tabelle lässt sich hier nicht bearbeiten.";
         }
@@ -309,7 +240,7 @@
             result = changes.SetContent(request.Row!, request.Column, loaded, value);
             if (result.IsValid)
             {
-                await _module.InvokeVoidAsync("updateRows", Tab.Id, new[] { new GridRowUpdate(request.RowIndex, GridRow(request.Row!)) });
+                await _grid.CallAsync("updateRows", new[] { new GridRowUpdate(request.RowIndex, GridRow(request.Row!)) });
             }
         }
 
@@ -406,7 +337,7 @@
             return EditText(column, added.ValueOf(column));
         }
 
-        return RowAt(rowIndex) is { } row
+        return _blocks.At(rowIndex) is { } row
             ? EditText(column, Tab.Changes?.Find(row.Key)?.ValueOf(column) ?? row.Values[column])
             : null;
     }
@@ -428,7 +359,7 @@
             return string.IsNullOrEmpty(text) ? null : OracleTypeMapper.Parse(column, text).Error;
         }
 
-        return RowAt(rowIndex) is null
+        return _blocks.At(rowIndex) is null
             ? "Die Zeile ist nicht mehr geladen – bitte neu laden (F5)."
             : OracleTypeMapper.Parse(column, text).Error;
     }
@@ -451,7 +382,7 @@
             return new GridEdit(result.IsValid ? GridRow(added, null) : null, result.Error);
         }
 
-        if (RowAt(rowIndex) is not { } row)
+        if (_blocks.At(rowIndex) is not { } row)
         {
             return new GridEdit(null, "Die Zeile ist nicht mehr geladen – bitte neu laden (F5).");
         }
@@ -478,7 +409,7 @@
         var updates = new List<GridRowUpdate>();
         foreach (var index in rowIndexes)
         {
-            if (RowAt(index) is { } row)
+            if (_blocks.At(index) is { } row)
             {
                 changes.Delete(row);
                 updates.Add(new GridRowUpdate(index, GridRow(row)));
@@ -497,7 +428,7 @@
     /// <summary>Deletes or reverts rows from the context menu; redraws them.</summary>
     public async Task ChangeRowsAsync(IReadOnlyList<int> rowIndexes, bool delete)
     {
-        if (Tab.Changes is not { } changes || _module is null)
+        if (Tab.Changes is not { } changes)
         {
             return;
         }
@@ -505,7 +436,7 @@
         var updates = new List<GridRowUpdate>();
         foreach (var index in rowIndexes)
         {
-            if (RowAt(index) is not { } row)
+            if (_blocks.At(index) is not { } row)
             {
                 continue;
             }
@@ -522,14 +453,14 @@
             updates.Add(new GridRowUpdate(index, GridRow(row)));
         }
 
-        await _module.InvokeVoidAsync("updateRows", Tab.Id, updates);
+        await _grid.CallAsync("updateRows", updates);
         ChangesMade();
     }
 
     /// <summary>Adds an empty new row at the top and starts editing its first editable cell.</summary>
     public async Task AddRowAsync()
     {
-        if (Tab.Changes is not { } changes || _module is null)
+        if (Tab.Changes is not { } changes || !_grid.IsCreated)
         {
             return;
         }
@@ -540,32 +471,20 @@
             .FirstOrDefault(i => OracleTypeMapper.NotEditableReason(Details, Details.Columns[i], newRow: true) is null, -1);
         if (first >= 0)
         {
-            await _module.InvokeVoidAsync("startEditing", Tab.Id, changes.NewRows.Count - 1, ColumnId(first), true);
+            await _grid.CallAsync("startEditing", changes.NewRows.Count - 1, ColumnId(first), true);
         }
 
         ChangesMade();
     }
 
     /// <summary>The new (not yet inserted) rows, pinned at the top of the grid.</summary>
-    public async Task SetNewRowsAsync()
-    {
-        if (_module is not null)
-        {
-            await _module.InvokeVoidAsync("setNewRows", Tab.Id, (Tab.Changes?.NewRows ?? []).Select(r => GridRow(r, null)).ToList());
-        }
-    }
+    public Task SetNewRowsAsync() => _grid.CallAsync("setNewRows", (Tab.Changes?.NewRows ?? []).Select(r => GridRow(r, null)).ToList());
 
     /// <summary>The changes of the tab changed: the status bar and the tab header show counts.</summary>
     private void ChangesMade() => Shell.NotifyChanged();
 
     /// <summary>Scrolls the column into view, highlights it briefly and focuses its cell in the first visible row.</summary>
-    public async Task JumpToColumnAsync(int column)
-    {
-        if (_module is not null)
-        {
-            await _module.InvokeVoidAsync("jumpToColumn", Tab.Id, ColumnId(column));
-        }
-    }
+    public Task JumpToColumnAsync(int column) => _grid.CallAsync("jumpToColumn", ColumnId(column));
 
     public bool IsPinned(int column) => ColumnPinning.IsPinned(Details, Tab.PinnedColumns, Details.Columns[column].Name);
 
@@ -574,14 +493,11 @@
     {
         Tab.PinnedColumns = ColumnPinning.Toggle(Details, Tab.PinnedColumns, Details.Columns[column].Name);
         Shell.MarkDirty();
-        if (_module is not null)
-        {
-            var pinned = ColumnPinning.DisplayOrder(Details, Tab.PinnedColumns)
-                .Where(i => IsPinned(i))
-                .Select(ColumnId)
-                .ToList();
-            await _module.InvokeVoidAsync("setPinned", Tab.Id, pinned);
-        }
+        var pinned = ColumnPinning.DisplayOrder(Details, Tab.PinnedColumns)
+            .Where(i => IsPinned(i))
+            .Select(ColumnId)
+            .ToList();
+        await _grid.CallAsync("setPinned", pinned);
     }
 
     /// <summary>The user pinned, released or reordered pinned columns by dragging; <paramref name="colIds"/> in display order.</summary>
@@ -600,7 +516,7 @@
     public async Task<GridPage> GetRows(int startRow, int endRow, GridSort[] sortModel)
     {
         Tab.Sorts = sortModel
-            .Select(s => new SortSpec(Details.Columns[int.Parse(s.ColId[1..], CultureInfo.InvariantCulture)].Name, s.Sort == "desc"))
+            .Select(s => new SortSpec(Details.Columns[ColumnIndex(s.ColId)].Name, s.Sort == "desc"))
             .ToList();
         if (startRow == 0)
         {
@@ -613,39 +529,31 @@
         var details = Details;
         var filters = Tab.AppliedFilters;
         var sorts = Tab.Sorts;
-        try
+        var result = await Shell.RunDbAsync(Logger, Active.Profile, async () =>
         {
             var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, CancellationToken.None);
-            var page = await Task.Run(() => data.ReadPageAsync(details, filters, sorts, new PageSpec(startRow, endRow - startRow), CancellationToken.None));
-
-            var rows = page.Rows.Select(GridRow).ToList();
-            KeepBlock(startRow, page.Rows);
-            Tab.RowsLoaded = Math.Max(Tab.RowsLoaded, startRow + page.Rows.Count);
-            Tab.AllRowsLoaded |= page.IsLastPage;
-            Tab.LastQueryTime = page.Elapsed;
-            (Tab.DataAsOf, Tab.SnapshotMoved) = Snapshots.Next(startRow, Tab.DataAsOf, Tab.SnapshotMoved, page.DataAsOf);
-            Tab.Error = null;
-            Tab.Failure = null;
-            await OnPageLoaded.InvokeAsync();
-
-            return new GridPage(rows, page.IsLastPage ? startRow + page.Rows.Count : -1);
-        }
-        catch (DatabaseException ex)
+            return await data.ReadPageAsync(details, filters, sorts, new PageSpec(startRow, endRow - startRow), CancellationToken.None);
+        });
+        if (result.Value is not { } page)
         {
-            QueryErrorLog.Log(Logger, ex, Active.Profile);
-            Tab.Error = ex.Display;
-            Tab.Failure = ex;
-            Shell.ReportFailure(ex);
+            // The footer shows why ("Details" only for a statement that ran); grid.js fails the block.
+            Tab.Error = result.Error?.Display;
+            Tab.Failure = result.IsRefusal ? null : result.Error;
             await OnPageLoaded.InvokeAsync();
-            throw;
+            return GridPage.Failure;
         }
-        catch (QueryValidationException ex)
-        {
-            Tab.Error = ex.Message;
-            Tab.Failure = null;
-            await OnPageLoaded.InvokeAsync();
-            throw;
-        }
+
+        var rows = page.Rows.Select(GridRow).ToList();
+        _blocks.Keep(startRow, page.Rows);
+        Tab.RowsLoaded = Math.Max(Tab.RowsLoaded, startRow + page.Rows.Count);
+        Tab.AllRowsLoaded |= page.IsLastPage;
+        Tab.LastQueryTime = page.Elapsed;
+        (Tab.DataAsOf, Tab.SnapshotMoved) = Snapshots.Next(startRow, Tab.DataAsOf, Tab.SnapshotMoved, page.DataAsOf);
+        Tab.Error = null;
+        Tab.Failure = null;
+        await OnPageLoaded.InvokeAsync();
+
+        return new GridPage(rows, page.IsLastPage ? startRow + page.Rows.Count : -1);
     }
 
     /// <summary>
@@ -656,13 +564,13 @@
     public async Task OnCellContextMenu(
         int rowIndex, string colId, int[] selectedRows, double x, double y, double viewportWidth, double viewportHeight)
     {
-        if (RowAt(rowIndex) is not { } row || !colId.StartsWith('c'))
+        if (_blocks.At(rowIndex) is not { } row || !colId.StartsWith('c'))
         {
             return;
         }
 
-        var selected = selectedRows.Order().Select(RowAt).ToList();
-        var column = int.Parse(colId[1..], CultureInfo.InvariantCulture);
+        var selected = selectedRows.Order().Select(_blocks.At).ToList();
+        var column = ColumnIndex(colId);
         await OnContextMenu.InvokeAsync(new GridContextMenuRequest(
             row, column, Presentation.Present(column, row.Values[column]).Text,
             selected.OfType<RowData>().ToList(), selected.Count(r => r is null), x, y, viewportWidth, viewportHeight, selectedRows.Order().ToList(), rowIndex));
@@ -677,7 +585,7 @@
     {
         if (selectedRows.Length > 1)
         {
-            var selected = selectedRows.Order().Select(RowAt).ToList();
+            var selected = selectedRows.Order().Select(_blocks.At).ToList();
             var rows = selected.OfType<RowData>().ToList();
             var table = DelimitedExport.Build(Details, rows, DelimitedExport.ClipboardSeparator);
             var missing = selected.Count - rows.Count;
@@ -692,12 +600,12 @@
             return;
         }
 
-        if (RowAt(rowIndex) is not { } row || !colId.StartsWith('c'))
+        if (_blocks.At(rowIndex) is not { } row || !colId.StartsWith('c'))
         {
             return;
         }
 
-        var index = int.Parse(colId[1..], CultureInfo.InvariantCulture);
+        var index = ColumnIndex(colId);
         var cell = DelimitedExport.CellText(Details.Columns[index], row.Values[index]);
         if (await CopyTextAsync(cell.Text) && cell.Warnings.Count > 0)
         {
@@ -705,40 +613,7 @@
         }
     }
 
-    private async Task<bool> CopyTextAsync(string text)
-    {
-        _dom ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
-        if (await _dom.InvokeAsync<bool>("copyText", text))
-        {
-            return true;
-        }
-
-        Shell.Notify("Die Zwischenablage ist nicht verfügbar.");
-        return false;
-    }
-
-    /// <summary>Raw rows of a loaded block, kept as long as AG Grid keeps the block (same limit as in grid.js).</summary>
-    private void KeepBlock(int startRow, IReadOnlyList<RowData> rows)
-    {
-        _blocks[startRow] = rows;
-        while (_blocks.Count > MaxCachedBlocks)
-        {
-            _blocks.Remove(_blocks.Keys.MaxBy(start => Math.Abs(start - startRow)));
-        }
-    }
-
-    private RowData? RowAt(int index)
-    {
-        foreach (var (start, rows) in _blocks)
-        {
-            if (index >= start && index < start + rows.Count)
-            {
-                return rows[index - start];
-            }
-        }
-
-        return null;
-    }
+    private Task<bool> CopyTextAsync(string text) => _grid.CopyTextAsync(Shell, text);
 
     /// <summary>Remembers the first visible row (rough scroll position), but only rows that were actually loaded.</summary>
     [JSInvokable]
@@ -764,34 +639,10 @@
         return -1;
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        _disposed = true;
         Workspaces.Changed -= OnWorkspacesChanged;
         Presentations.Changed -= OnPresentationChanged;
-        if (_dom is not null)
-        {
-            try
-            {
-                await _dom.DisposeAsync();
-            }
-            catch (JSDisconnectedException)
-            {
-            }
-        }
-
-        if (_module is not null)
-        {
-            try
-            {
-                await _module.InvokeVoidAsync("destroy", Tab.Id);
-                await _module.DisposeAsync();
-            }
-            catch (Exception ex) when (ex is JSDisconnectedException or ObjectDisposedException)
-            {
-            }
-        }
-
-        _selfRef?.Dispose();
+        return _grid.DisposeAsync();
     }
 }

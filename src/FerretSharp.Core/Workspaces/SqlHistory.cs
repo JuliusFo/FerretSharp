@@ -1,4 +1,5 @@
 using System.Text.Json;
+using FerretSharp.Core.IO;
 using FerretSharp.Core.Query;
 
 namespace FerretSharp.Core.Workspaces;
@@ -77,15 +78,7 @@ public sealed class SqlHistoryStore(string directory)
                 return entries;
             }
 
-            System.IO.Directory.CreateDirectory(Directory);
-            var path = FileOf(connectionId);
-            var temp = path + ".tmp";
-            await using (var stream = File.Create(temp))
-            {
-                await JsonSerializer.SerializeAsync(stream, new HistoryFile(FileVersion, entries), Options, cancellationToken);
-            }
-
-            File.Move(temp, path, overwrite: true);
+            await AtomicJsonFile.WriteAsync(FileOf(connectionId), new HistoryFile(FileVersion, entries), Options, cancellationToken);
             return entries;
         }
         finally

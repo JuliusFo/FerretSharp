@@ -1,5 +1,6 @@
 using System.Text.Json;
 using FerretSharp.Core.Connections;
+using FerretSharp.Core.IO;
 
 namespace FerretSharp.Core.Workspaces;
 
@@ -59,15 +60,7 @@ public sealed class WorkspaceStore(string directory) : IWorkspaceStore
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            Directory.CreateDirectory(DirectoryPath);
-            var file = PathOf(workspace.Id);
-            var tempFile = file + ".tmp";
-            await using (var stream = File.Create(tempFile))
-            {
-                await JsonSerializer.SerializeAsync(stream, new WorkspaceDocument(CurrentVersion, workspace), ConnectionStore.JsonOptions, cancellationToken);
-            }
-
-            File.Move(tempFile, file, overwrite: true);
+            await AtomicJsonFile.WriteAsync(PathOf(workspace.Id), new WorkspaceDocument(CurrentVersion, workspace), ConnectionStore.JsonOptions, cancellationToken);
         }
         finally
         {

@@ -3,6 +3,7 @@ using FerretSharp.Core.Data;
 using FerretSharp.Core.Query;
 using FerretSharp.Core.Settings;
 using FerretSharp.Core.Workspaces;
+using Microsoft.Extensions.Logging;
 
 namespace FerretSharp.UI.State;
 
@@ -54,7 +55,8 @@ public enum ProblemChoice
 /// and commits, rollback discards everything, undo takes back the last write – of the grid or a statement, since they
 /// share the transaction (<see cref="IDataEditor.Actions"/>). Owned by the shell.
 /// </summary>
-public sealed class WorkspaceEditing(ShellState shell, WorkspaceManager workspaces, ActiveConnection active, AppSettingsService settings)
+public sealed class WorkspaceEditing(
+    ShellState shell, WorkspaceManager workspaces, ActiveConnection active, AppSettingsService settings, ILogger<WorkspaceEditing> logger)
 {
     /// <summary>Per workspace: the grid writes with what to restore when undone, in the order written.</summary>
     private readonly Dictionary<Guid, List<(Guid ActionId, TableTab Tab, FlushBatch Batch)>> _batches = [];
@@ -317,22 +319,8 @@ public sealed class WorkspaceEditing(ShellState shell, WorkspaceManager workspac
         shell.NotifyChanged();
         try
         {
-            return await action();
-        }
-        catch (DatabaseException ex)
-        {
-            shell.ReportFailure(ex);
-            shell.ShowError(ex);
-            return false;
-        }
-        catch (InvalidOperationException ex)
-        {
-            shell.Notify(ex.Message);
-            return false;
-        }
-        catch (OperationCanceledException)
-        {
-            return false; // the workspace's session was closed meanwhile
+            var result = await shell.CallDbAsync(logger, active.Profile, action);
+            return shell.ShowFailure(result) && result.Value;
         }
         finally
         {

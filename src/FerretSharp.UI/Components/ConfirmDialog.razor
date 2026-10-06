@@ -1,14 +1,12 @@
-<div class="modal-backdrop" @onkeydown="OnKeyDown">
-    <div class="modal dialog confirm" role="alertdialog" aria-label="@Title">
-        <header><span>@Title</span></header>
-        <div class="dialog-body">@ChildContent</div>
-        <footer>
-            <span class="spacer"></span>
-            <button class="btn ghost" @ref="_cancelButton" @onclick="OnCancel">Abbrechen</button>
-            <button class="btn @(Danger ? "danger-solid" : "primary")" @onclick="OnConfirm">@ConfirmLabel</button>
-        </footer>
-    </div>
-</div>
+<ModalFrame Label="@Title" Class="confirm" Alert="true" OnCancel="OnCancel">
+    <header><span>@Title</span></header>
+    <div class="dialog-body">@ChildContent</div>
+    <footer>
+        <span class="spacer"></span>
+        <button class="btn ghost" @ref="_cancelButton" @onclick="OnCancel">Abbrechen</button>
+        <button class="btn @(Danger ? "danger-solid" : "primary")" @onclick="OnConfirm">@ConfirmLabel</button>
+    </footer>
+</ModalFrame>
 
 @code {
     private ElementReference _cancelButton;
@@ -37,14 +35,6 @@
         if (firstRender)
         {
             await _cancelButton.FocusAsync();
-        }
-    }
-
-    private async Task OnKeyDown(KeyboardEventArgs e)
-    {
-        if (e.Key == "Escape")
-        {
-            await OnCancel.InvokeAsync();
         }
     }
 }

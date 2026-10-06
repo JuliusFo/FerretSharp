@@ -2,7 +2,7 @@
 
 > Projektanweisungen für Claude Code. Bitte vollständig lesen, bevor ein Arbeitspaket umgesetzt wird.
 > Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-06 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0; WP-14 → 2.4.0; WP-15 → 3.0.0, v3 abgeschlossen; v4: WP-16 → 3.1.0, WP-17 → 3.2.0, WP-18 → 3.3.0, Leerzeichen nach Vorschlägen 3.3.1, Tabs umbenennen 3.4.0; WP-19 → 3.5.0; Stabilisierung R1 → 3.6.0, Protokolle nach `docs/work-packages.md`)
+> Stand: 2026-10-07 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0; WP-14 → 2.4.0; WP-15 → 3.0.0, v3 abgeschlossen; v4: WP-16 → 3.1.0, WP-17 → 3.2.0, WP-18 → 3.3.0, Leerzeichen nach Vorschlägen 3.3.1, Tabs umbenennen 3.4.0; WP-19 → 3.5.0; Stabilisierung R1 → 3.6.0, Protokolle nach `docs/work-packages.md`; Struktur-Refactoring R2 → 3.6.1)
 
 ## 1. Ziel
 
@@ -61,7 +61,7 @@ Versionierung: SemVer, Git-Tag `vX.Y.Z` pro Release (der Push des Tags veröffen
 | JS-Interop | ein ES-Modul pro Thema in `FerretSharp.UI/wwwroot/js`, Aufruf über `IJSObjectReference` | JS bleibt dünn (Grid-Brücke, Zwischenablage, Scrollen, Fokus). **Keine Geschäftslogik in JS.** |
 | Hosting/DI | `Microsoft.Extensions.Hosting` | DI, Konfiguration, Logging ab WP-01. Die BlazorWebView nutzt den Service Provider des Hosts. |
 | Logging | `Microsoft.Extensions.Logging` + **Serilog** (`Serilog.Extensions.Hosting`, `Serilog.Sinks.File`) | Datei unter `%APPDATA%\FerretSharp\logs`. Keine Bind-Werte von Prod-Verbindungen loggen (maskieren). |
-| Grid | **AG Grid Community 34.3.1** (MIT) über JS-Interop, **Infinite Row Model** | Datenblöcke à 500 und Sortierung kommen aus .NET (`IDataAccess`), gekapselt in `FerretGrid` + `wwwroot/js/grid.js`. Zellen gehen als fertig formatierte Strings über die Grenze (null = NULL), Spalten-IDs `c0`, `c1` … (Oracle-Namen dürfen Punkte enthalten). **Lokal im Repo** unter `FerretSharp.UI/wwwroot/lib/ag-grid/` (Herkunft/Hash in der README dort, kein CDN). Enterprise-Features (Kontextmenü, Zellbereich) nicht verwenden – eigene Lösungen in Blazor. |
+| Grid | **AG Grid Community 34.3.1** (MIT) über JS-Interop, **Infinite Row Model** | Datenblöcke à 500 und Sortierung kommen aus .NET (`IDataAccess`), gekapselt in `FerretGrid` (Tabellen) bzw. `SqlResultGrid` (SQL/LINQ) über `GridBridge` + `wwwroot/js/grid.js`; Spalten als `GridColumn`, Rohzeilen der geladenen Blöcke in `RowBlocks`. Zellen gehen als fertig formatierte Strings über die Grenze (null = NULL), Spalten-IDs `c0`, `c1` … (Oracle-Namen dürfen Punkte enthalten). **Lokal im Repo** unter `FerretSharp.UI/wwwroot/lib/ag-grid/` (Herkunft/Hash in der README dort, kein CDN). Enterprise-Features (Kontextmenü, Zellbereich) nicht verwenden – eigene Lösungen in Blazor. |
 | Layout | Tabs + Seitenleiste in Blazor | Kein Docking-Framework. |
 | SQL-Anzeige | eigener Highlighter in Razor (siehe Prototyp `TableView.razor`) | Editor für C# in der LINQ-Konsole: **Monaco 0.57** (ADR 0011, lokal unter `wwwroot/lib/monaco/`); auch im freien SQL-Editor (WP-17, mit SQL-Autovervollständigung aus .NET). |
 | Oracle | `Oracle.ManagedDataAccess.Core` (23.x) | rein managed, kein Instant Client; **durchgängig async** mit `CancellationToken`. |
@@ -84,11 +84,12 @@ FerretSharp.slnx
 │  │  ├─ Connections/                  # ConnectionProfile, OracleAddress, ConnectionStore, ISecretStore
 │  │  ├─ Schema/                       # SchemaCache, TableSummary, TableDetails, ColumnInfo, ForeignKeyInfo, ISchemaReader
 │  │  ├─ Query/                        # FilterCondition, FilterOperator, QueryBuilder, QuerySpec, QueryParameter, SortSpec, PageSpec
-│  │  ├─ Data/                         # RowSet, RowKey, IDataAccess   (v2: RowChange, ChangeTracker)
+│  │  ├─ Data/                         # RowSet, RowKey, IDataAccess, RowBlocks   (v2: RowChange, ChangeTracker)
+│  │  ├─ IO/                           # AtomicJsonFile (Schreiben über .tmp für alle JSON-Speicher)
 │  │  ├─ Workspaces/                   # Workspace, WorkspaceStore, TabState
 │  │  └─ Oracle/                       # OracleSession, OracleSchemaReader, OracleDataAccess, OracleTypeMapper, OracleIdentifier
 │  ├─ FerretSharp.UI/                  # net10.0, Razor Class Library – plattformneutral, KEIN WPF/Windows
-│  │  ├─ Shell.razor                   # Root-Komponente (Topbar, Explorer, Tabs, Statusleiste)
+│  │  ├─ Shell.razor                   # Root-Komponente: Layout, Seiten, Shortcuts (Leisten und Dialoge als eigene Komponenten)
 │  │  ├─ Components/                   # LetterIndexBar, FilterBar, FerretGrid, SqlPreview, ContextMenu, Dialoge …
 │  │  ├─ State/                        # UI-Zustand (aktiver Workspace, Tabs), Services-Interfaces für den Host
 │  │  └─ wwwroot/                      # css/ferretsharp.css, js/*.js (ES-Module), lib/ag-grid/
@@ -332,7 +333,12 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 
 `Esc` bleibt dem Grid vorbehalten (Zelleingabe abbrechen) bzw. schließt Menüs/Dialoge. Globale Shortcuts registriert die `Shell` über `wwwroot/js/shortcuts.js` (Capture-Listener → `OnShortcut` in .NET); `F12` öffnet im Debug-Build die DevTools.
 
-UI-Muster: Dialoge und Bestätigungen fordern Komponenten über den kaskadierten `ShellState` an. Komponenten ohne Parameter rendern bei Parent-Updates **nicht** neu → sie abonnieren `ShellState.Changed` bzw. `ConnectionManager.Changed`/`WorkspaceManager.Changed` selbst. Tab-Zustand, der kein Neurendern braucht (Tippen im Filter, Scrollen, Sortieren), meldet `ShellState.MarkDirty()`; die Shell reicht dann die Tabs aller offenen Workspaces an `WorkspaceManager.UpdateTabs` weiter (speichert nur bei Änderung).
+UI-Muster (seit R2):
+- Dialoge und Bestätigungen fordern Komponenten über den kaskadierten `ShellState` an. Was mit Workspaces und ihren Änderungen passiert (Commit, Rollback, Sperren/Freischalten, Verbinden, Trennen, Löschen, Tab schließen, „vorher fragen“ über `GuardAsync`), liegt im ebenfalls kaskadierten `WorkspaceLifecycle`. Die Shell besteht aus `TabBar`, `StatusBar`, `WorkspaceBadge`, `ConnectionLostBanner` und `DialogHost`; diese bekommen das Lifecycle-Objekt als Parameter, damit sie mit der Shell neu rendern.
+- Jeder Dialog nutzt `ModalFrame` (Hintergrund, Rolle, Esc, Klick daneben nur bei reinen Anzeige-Dialogen, Fokus).
+- DB-Aufrufe aus Komponenten laufen über `Shell.RunDbAsync(Logger, Active.Profile, …)` (bzw. `CallDbAsync` auf dem UI-Thread). Das ergibt einheitlich `DbResult` mit Fehler (geloggt, Verbindungsverlust gemeldet), Ablehnung (`RefusedException` → Meldung) oder Abbruch (still). Fachliche Ablehnungen im Core sind `RefusedException`, Programmierfehler-Sperren bleiben `InvalidOperationException`.
+- JSInvokable-Methoden werfen keine Ausnahmen an JS zurück (Blazor lässt die Task unbeobachtet → `[ERR]` im Log), sondern melden Fehler im Ergebnis (`GridPage.Failed`).
+- Komponenten ohne Parameter rendern bei Parent-Updates **nicht** neu → sie abonnieren `ShellState.Changed` bzw. `ConnectionManager.Changed`/`WorkspaceManager.Changed` selbst. Tab-Zustand, der kein Neurendern braucht (Tippen im Filter, Scrollen, Sortieren), meldet `ShellState.MarkDirty()`; der Lifecycle reicht dann die Tabs aller offenen Workspaces an `WorkspaceManager.UpdateTabs` weiter (speichert nur bei Änderung).
 
 Blazor kennt **kein `auxclick`-Event**: `@onauxclick` wird kommentarlos als HTML-Attribut ausgegeben und tut nichts (so war Mittelklick-Schließen der Tabs seit WP-04 wirkungslos). Mittelklick über `@onmouseup` mit `e.Button == 1`.
 
@@ -370,6 +376,7 @@ Umsetzungsprotokolle (was gebaut wurde, Entscheidungen des Nutzers, Nachträge, 
 | WP-18 | Skript ausführen, Verbindung löschen; Tabs umbenennen | 3.3.0–3.4.0 | – |
 | WP-19 | LINQ-Autovervollständigung | 3.5.0 | 0015 |
 | R1 | Stabilisierung nach Code-Review, gemeinsamer Undo-Stapel | 3.6.0 | – |
+| R2 | Struktur-Refactoring (DB-Aufrufe, Dialoge, Shell, Session, Grid-Brücke) | 3.6.1 | – |
 
 **Kontext des Nutzers** (wichtig für die kommenden Pakete):
 - DB-first von Hand: erst die DB ändern, dann Entity/Konfiguration; keine Migrations. Namenskonvention im Code (Tabellen groß, `KundenId` → `KUNDEN_ID`), **eigene Value Converter** (bool ↔ J/N, Enum-Kürzel), Enum-Member mit `[Display(ResourceType = …, Name = …)]`. Ein DbContext in einer Klassenbibliothek (Konstruktor `DbContextOptions`), Entities in einem anderen Projekt, EF Core 8.
@@ -378,7 +385,7 @@ Umsetzungsprotokolle (was gebaut wurde, Entscheidungen des Nutzers, Nachträge, 
 - Der Oracle-EF-Provider quotet alle Namen: Spalten mit gemischter Schreibweise im Modell (`Chargenr` gegen `CHARGENR`) ergeben ORA-00904.
 
 **Fallen aus den bisherigen Paketen** (Einzelheiten in `docs/work-packages.md`):
-- Komponenten mit JS-Interop prüfen nach jedem `await` im Start und in Handlern, ob sie schon abgebaut sind (`_disposed`), und rufen danach kein JS mehr auf (Muster: `MonacoEditor.CallAsync`). Ausnahmen in einer Tab-Ansicht fängt seit 3.6.0 `TabFrame` (ErrorBoundary je Tab); vorher schloss jede Ausnahme alle Tabs.
+- Komponenten mit JS-Interop prüfen nach jedem `await` im Start und in Handlern, ob sie schon abgebaut sind (`_disposed`), und rufen danach kein JS mehr auf (Muster: `MonacoEditor.CallAsync`, `GridBridge.CallAsync`). Ausnahmen in einer Tab-Ansicht fängt seit 3.6.0 `TabFrame` (ErrorBoundary je Tab); vorher schloss jede Ausnahme alle Tabs.
 - `OracleSession` ist der einzige Besitzer der Connection: Dispose bricht das laufende Kommando ab und wartet auf das Gate; Wartende bekommen danach `OperationCanceledException`. Die Statement-Sperren (`StatementGuard`) nutzen den Tokenizer des SQL-Editors (`SqlScript.Tokenize`).
 - AG Grid: Objekte in Column-Defs (`headerComponentParams`) werden mit `defaultColDef` **tief kopiert** – veränderliche Metadaten als Funktion (`getMeta`). Kopfhöhe nur als Theme-Parameter, nicht als `headerHeight` (setzt die Zeilenhöhe zurück). Angeheftete Zeilen haben `row-index="t-0"`.
 - Monaco: `vs/nls/lang/de.js` ist kein AMD-Modul → als normales Script laden. Offsets sind UTF-16; Text und Offsets immer aus demselben `getRunContext`.
@@ -389,9 +396,6 @@ Umsetzungsprotokolle (was gebaut wurde, Entscheidungen des Nutzers, Nachträge, 
 ### Geplant (v4)
 
 Pakete aus dem Backlog, nach v3 mit dem Nutzer ausgewählt (2026-10-05). Versionen: Minor-Releases 3.x (nichts Inkompatibles).
-
-#### R2 Struktur-Refactoring (geplant, vor WP-20)
-Vereinbart nach dem Code-Review (2026-10-06): reine Umbauten ohne Verhaltensänderung, in kleinen Schritten mit grünen Tests. Liste und Begründung im R1-Abschnitt von `docs/work-packages.md` („Offen für R2“). Reihenfolge: einheitliche DB-Fehlerbehandlung in der UI (`DbCall`) und `ModalFrame` → `WorkspaceLifecycle` aus `Shell.razor` (TabBar, StatusBar, DialogHost) → `OracleSession` (ein Zustandstyp für Transaktion/Snapshot, `ExclusiveAsync`) und `WorkspaceManager` aufteilen → `SqlScriptRunner` für SQL- und LINQ-Tab → gemeinsame Grid-Brücke (zuletzt, braucht E2E mit echter Maus).
 
 #### WP-20 Schema-Vergleich (geplant)
 Wunsch des Nutzers (2026-10-06), vor DDL und Tabellen-Designer. Anlass: DB-first von Hand über mehrere Umgebungen – „ALTER auf Test vergessen?“.

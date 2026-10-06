@@ -15,14 +15,7 @@
 <div class="linqview">
     <div class="tab-toolbar">
         @Icons.Code
-        @if (_renaming)
-        {
-            <TitleEditor Value="@Tab.Title" Class="linq-title" OnCommit="name => { _renaming = false; Shell.RenameTab(Tab, name); }" OnCancel="() => _renaming = false" />
-        }
-        else
-        {
-            <button class="linq-title title-btn" title="Umbenennen" @onclick="() => _renaming = true">@Tab.Title</button>
-        }
+        <TabTitle Tab="Tab" />
         <span class="linq-console @ConsoleClass" title="@ConsoleTitle">@ConsoleText</span>
         <span class="spacer"></span>
         @if (_running)
@@ -111,7 +104,7 @@
                             </button>
                         }
                     }
-                    <span class="muted">@(run.ResultType is { } type ? $"Ergebnis {type} · " : "")übersetzt in @Ms(run.Elapsed)</span>
+                    <span class="muted">@(run.ResultType is { } type ? $"Ergebnis {type} · " : "")übersetzt in @ResultFooter.Ms(run.Elapsed)</span>
                     <span class="spacer"></span>
                     @if (kind == LinqCommandKind.Query && _query is not null)
                     {
@@ -143,44 +136,16 @@
                         <div class="grid-host">
                             <SqlResultGrid @key="_runKey" WorkspaceId="Tab.WorkspaceId" Query="_query" OnStatus="OnGridStatus" />
                         </div>
-                        <div class="tab-footer">
-                            @if (_grid is { } grid)
-                            {
-                                @if (grid.Loading)
+                        <ResultFooter Status="_grid">
+                            <ErrorActions Context="error">
+                                @if (error.ErrorCode == "ORA-00904")
                                 {
-                                    <span><span class="spinner small"></span> Lade …</span>
+                                    @* The model maps a column the database does not have (yet): the model page lists such drift. *@
+                                    <button class="btn ghost" title="Das C#-Modell kennt eine Spalte, die es in der Datenbank nicht gibt"
+                                            @onclick="Shell.ShowModel">Modell-Abgleich öffnen</button>
                                 }
-                                else if (grid.Error is { } gridError)
-                                {
-                                    <span class="error" title="@gridError.Statement?.Sql">@gridError.Display</span>
-                                    <button class="btn ghost" @onclick="() => Shell.ShowError(gridError)">Details</button>
-                                    @if (gridError.ErrorCode == "ORA-00904")
-                                    {
-                                        @* The model maps a column the database does not have (yet): the model page lists such drift. *@
-                                        <button class="btn ghost" title="Das C#-Modell kennt eine Spalte, die es in der Datenbank nicht gibt"
-                                                @onclick="Shell.ShowModel">Modell-Abgleich öffnen</button>
-                                    }
-                                }
-                                else
-                                {
-                                    <span><strong>@(grid.AllLoaded ? "" : "≥ ")@grid.RowsLoaded.ToString("N0", CultureInfo.CurrentCulture)</strong> Zeilen</span>
-                                    @if (grid.Elapsed is { } elapsed)
-                                    {
-                                        <span>@Ms(elapsed)</span>
-                                    }
-                                    @if (grid.DataAsOf is { } asOf)
-                                    {
-                                        <span title="Schreibgeschützter Workspace: Stand der READ ONLY-Transaktion">Stand @asOf.ToLocalTime().ToString("HH:mm:ss", CultureInfo.InvariantCulture)</span>
-                                        @if (grid.SnapshotMoved)
-                                        {
-                                            <span class="warn" title="@SnapshotTexts.Moved">Stand hat sich geändert – neu ausführen</span>
-                                        }
-                                    }
-                                }
-                            }
-                            <span class="spacer"></span>
-                            <span class="muted">Session des Workspaces – eigene, nicht committete Änderungen sind sichtbar</span>
-                        </div>
+                            </ErrorActions>
+                        </ResultFooter>
                         break;
                     case LinqCommandKind.Write:
                         <div class="linq-write">
@@ -203,7 +168,7 @@
                             else if (Workspaces.IsWritable(Tab.WorkspaceId))
                             {
                                 <p>Dieses Statement ändert Daten. Es läuft in der Transaktion des Workspaces und bleibt bis zum Commit für andere unsichtbar.</p>
-                                <button class="btn danger-solid" disabled="@_running" @onclick="WriteAsync">Im Workspace ausführen</button>
+                                <button class="btn danger-solid" disabled="@_running" @onclick="RequestWriteAsync">Im Workspace ausführen</button>
                             }
                             else
                             {
@@ -229,6 +194,14 @@
     </div>
 </div>
 
+@if (_confirmWrite && Active.Profile is { } prodProfile)
+{
+    <ConfirmDialog Title="Ändern auf Produktion" ConfirmLabel="Ausführen" Danger="true" OnConfirm="WriteAsync" OnCancel="() => _confirmWrite = false">
+        Das Statement aus <strong>@Tab.Title</strong> ändert Daten in <strong>@prodProfile.Name</strong> – in der Transaktion des Workspaces,
+        sichtbar für andere erst nach dem Commit.
+    </ConfirmDialog>
+}
+
 @if (_planOpen && _query is { } planQuery)
 {
     <PlanDialog Query="planQuery" WorkspaceId="Tab.WorkspaceId" Title="@($"{Tab.Title} · Kommando {Tab.SelectedCommand + 1}")" OnClose="() => _planOpen = false" />
@@ -237,9 +210,9 @@
 @code {
     private MonacoEditor? _variablesEditor;
     private bool _planOpen;
-    private bool _renaming; // the title in the toolbar is being edited
     private MonacoEditor? _codeEditor;
     private CancellationTokenSource? _cts;
+    private bool _confirmWrite; // Prod: asked before writing
     private bool _running;
     private bool _showSql;
     private string? _error;
@@ -409,9 +382,22 @@
 
     private void OnGridStatus(SqlGridStatus status) => _grid = status;
 
-    /// <summary>ExecuteUpdate/ExecuteDelete: the user confirmed by pressing the button below the statement.</summary>
+    /// <summary>The button below the statement; on Prod it asks once more, like DML in the SQL editor (WP-17).</summary>
+    private Task RequestWriteAsync()
+    {
+        if (Active.Profile?.Kind == ConnectionKind.Prod)
+        {
+            _confirmWrite = true;
+            return Task.CompletedTask;
+        }
+
+        return WriteAsync();
+    }
+
+    /// <summary>ExecuteUpdate/ExecuteDelete: the user confirmed by pressing the button below the statement. "Abbrechen" stops it.</summary>
     private async Task WriteAsync()
     {
+        _confirmWrite = false;
         if (Tab.LastRun is not { } run || !Workspaces.IsWritable(Tab.WorkspaceId))
         {
             return;
@@ -420,33 +406,32 @@
         var statement = LinqStatements.ToQuery(run.Commands[Tab.SelectedCommand]);
         _running = true;
         _error = null;
-        try
+        using var cts = _cts = new CancellationTokenSource();
+        var token = cts.Token;
+        var result = await Shell.RunDbAsync(Logger, Active.Profile, async () =>
+            await (await Workspaces.GetEditorAsync(Tab.WorkspaceId, token)).ExecuteAsync(statement, token), token);
+        _running = false;
+        _cts = null;
+        if (result.Cancelled)
         {
-            var editor = await Workspaces.GetEditorAsync(Tab.WorkspaceId, CancellationToken.None);
-            _written = await Task.Run(() => editor.ExecuteAsync(statement, CancellationToken.None));
-            _writtenIn = Workspaces.TransactionOf(Tab.WorkspaceId)?.StartedAt;
-            // Table tabs of the workspace may show the changed rows: they fetch them again from the transaction.
-            foreach (var tab in Shell.Workspaces.FirstOrDefault(w => w.WorkspaceId == Tab.WorkspaceId)?.TableTabs ?? [])
-            {
-                Shell.RequestTabCommand(tab, TabCommand.Reload);
-            }
+            _error = "Abgebrochen – das Statement wurde zurückgenommen.";
+            return;
+        }
 
-            Shell.NotifyChanged(); // status bar: open transaction, commit/rollback
-        }
-        catch (DatabaseException ex)
+        _error = result.Error?.Display;
+        if (result.Value is not { } written)
         {
-            QueryErrorLog.Log(Logger, ex, Active.Profile);
-            Shell.ReportFailure(ex);
-            _error = ex.Display;
+            return;
         }
-        catch (InvalidOperationException ex)
+
+        (_written, _writtenIn) = (written, Workspaces.TransactionOf(Tab.WorkspaceId)?.StartedAt);
+        // Table tabs of the workspace may show the changed rows: they fetch them again from the transaction.
+        foreach (var tab in Shell.Workspaces.FirstOrDefault(w => w.WorkspaceId == Tab.WorkspaceId)?.TableTabs ?? [])
         {
-            _error = ex.Message;
+            Shell.RequestTabCommand(tab, TabCommand.Reload);
         }
-        finally
-        {
-            _running = false;
-        }
+
+        Shell.NotifyChanged(); // status bar: open transaction, commit/rollback
     }
 
     /// <summary>Appends the suggested declarations to the variables and puts the cursor on the first of them.</summary>
@@ -470,10 +455,6 @@
         (diagnostic.Section == LinqProtocol.CodeSection ? _codeEditor : _variablesEditor)?.RevealAsync(diagnostic.Line, diagnostic.Column) ?? Task.CompletedTask;
 
     private static string FirstWord(string sql) => sql.TrimStart().Split([' ', '\n', '\r'], 2)[0].ToUpperInvariant();
-
-    private static string Ms(TimeSpan elapsed) => elapsed.TotalMilliseconds < 1000
-        ? $"{elapsed.TotalMilliseconds:0} ms"
-        : $"{elapsed.TotalSeconds.ToString("0.0", CultureInfo.CurrentCulture)} s";
 
     private void OnConsoleChanged() => InvokeAsync(StateHasChanged);
 

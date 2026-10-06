@@ -12,6 +12,7 @@
 @inject IJSRuntime JS
 @inject IFileSaveService Files
 @inject PresentationService Presentations
+@inject ILogger<GridContextMenu> Logger
 
 <div class="popover-backdrop" @onclick="CloseAsync" @oncontextmenu="CloseAsync" @oncontextmenu:preventDefault="true"></div>
 <div id="@_id" class="popover ctx-menu" style="@Position" tabindex="-1" @onkeydown="OnKeyDown" @oncontextmenu:preventDefault="true">
@@ -250,27 +251,20 @@
         var token = _cts.Token;
         foreach (var jump in _counts.Keys.ToList())
         {
-            CountState state;
-            try
+            var result = await Shell.RunDbAsync(Logger, Active.Profile, async () =>
             {
-                var target = await Task.Run(() => schema.GetDetailsAsync(SummaryOf(jump.Table), token), token);
+                var target = await schema.GetDetailsAsync(SummaryOf(jump.Table), token);
                 var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, token);
-                var count = await Task.Run(() => FkNavigation.CountAsync(data, target, jump, FkNavigation.CountTimeout, token), token);
-                state = count is { } n ? new CountState.Done(n) : new CountState.TimedOut();
-            }
-            catch (OperationCanceledException)
+                return await FkNavigation.CountAsync(data, target, jump, FkNavigation.CountTimeout, token);
+            }, token);
+            if (result.Cancelled)
             {
                 return;
             }
-            catch (DatabaseException ex)
-            {
-                state = new CountState.Failed(ex.Display);
-                Shell.ReportFailure(ex);
-            }
-            catch (Exception ex) when (ex is QueryValidationException or InvalidOperationException)
-            {
-                state = new CountState.Failed(ex.Message);
-            }
+
+            CountState state = result.Error is { } error ? new CountState.Failed(error.Display)
+                : result.Value is { } n ? new CountState.Done(n)
+                : new CountState.TimedOut();
 
             _counts[jump] = state;
             await InvokeAsync(StateHasChanged);

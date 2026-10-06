@@ -374,7 +374,7 @@ public sealed class EditingTests(OracleContainerFixture oracle) : IAsyncLifetime
         var tracker = new ChangeTracker(table);
         tracker.SetValue(tracker.AddRow(), I(table, "ID"), "800");
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => FlushAsync(a, tracker));
+        await Assert.ThrowsAsync<RefusedException>(() => FlushAsync(a, tracker));
     }
 
     /// <summary>As SYSTEM (same password as the app user in the gvenzl image); new sessions get the role.</summary>

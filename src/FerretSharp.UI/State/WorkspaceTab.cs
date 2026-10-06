@@ -45,7 +45,7 @@ public sealed class LinqTab(Guid workspaceId, string title) : WorkspaceTab(works
     public int SelectedCommand { get; set; }
 
     public override TabState ToState(IReadOnlyList<WorkspaceTab> workspaceTabs) =>
-        new(LinqTabState.NoTable, TabMode.Data, [], [], []) { Linq = new LinqTabState(Title, Code, Variables) };
+        TabState.OfLinq(new LinqTabState(Title, Code, Variables));
 
     public static LinqTab Restore(Guid workspaceId, LinqTabState state) =>
         new(workspaceId, state.Title) { Code = state.Code, Variables = state.Variables };
@@ -70,7 +70,7 @@ public sealed class SqlTab(Guid workspaceId, string title) : WorkspaceTab(worksp
     public SqlRun? ShownRun => Runs.Count == 0 ? null : Runs[Math.Clamp(SelectedRun, 0, Runs.Count - 1)];
 
     public override TabState ToState(IReadOnlyList<WorkspaceTab> workspaceTabs) =>
-        new(LinqTabState.NoTable, TabMode.Data, [], [], []) { Sql = new SqlTabState(Title, Text, Variables) };
+        TabState.OfSql(new SqlTabState(Title, Text, Variables));
 
     public static SqlTab Restore(Guid workspaceId, SqlTabState state) =>
         new(workspaceId, state.Title) { Text = state.Text, Variables = state.Variables };

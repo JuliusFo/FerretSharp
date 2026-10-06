@@ -1,0 +1,27 @@
+@* The title of a SQL or LINQ tab in its toolbar (R2: was in both views): a click renames it. *@
+@using FerretSharp.UI.State
+
+@if (_renaming)
+{
+    <TitleEditor Value="@Tab.Title" Class="linq-title" OnCommit="Rename" OnCancel="() => _renaming = false" />
+}
+else
+{
+    <button class="linq-title title-btn" title="Umbenennen" @onclick="() => _renaming = true">@Tab.Title</button>
+}
+
+@code {
+    private bool _renaming;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public ITitledTab Tab { get; set; } = null!;
+
+    private void Rename(string name)
+    {
+        _renaming = false;
+        Shell.RenameTab(Tab, name);
+    }
+}

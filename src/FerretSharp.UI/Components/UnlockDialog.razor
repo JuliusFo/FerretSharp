@@ -2,35 +2,33 @@
    (the user's decision), elsewhere a plain confirmation is enough. *@
 @using FerretSharp.Core.Connections
 
-<div class="modal-backdrop" @onkeydown="OnKeyDown">
-    <div class="modal dialog confirm unlock-dialog" role="alertdialog" aria-label="Schreiben freischalten">
-        <header><span>Schreiben freischalten</span></header>
-        <div class="dialog-body">
-            <p>
-                Workspace <strong>„@WorkspaceName“</strong> auf <strong>@Profile.Name</strong> freischalten?
-                Danach lassen sich dort Zeilen ändern, einfügen und löschen – Oracle schützt diesen Workspace nicht mehr.
-            </p>
-            <ul class="unlock-facts">
-                <li>Änderungen werden erst mit <strong>Commit</strong> für andere sichtbar@(IsProd ? " (auf Prod mit Rückfrage)" : "").</li>
-                <li>Die anderen Workspaces dieser Verbindung bleiben gesperrt.</li>
-                <li>Wieder gesperrt wird mit „Sperren“, beim Schließen des Workspaces und beim Trennen.</li>
-            </ul>
-            @if (IsProd)
-            {
-                <label class="unlock-confirm">
-                    Zum Bestätigen den Namen der Verbindung eintippen: <strong>@Profile.Name</strong>
-                    <input @ref="_input" class="field" spellcheck="false" autocomplete="off" @bind="_typed" @bind:event="oninput"
-                           @onkeydown="OnInputKeyDown" aria-label="Name der Verbindung" />
-                </label>
-            }
-        </div>
-        <footer>
-            <span class="spacer"></span>
-            <button class="btn ghost" @ref="_cancelButton" @onclick="OnCancel">Abbrechen</button>
-            <button class="btn danger-solid" disabled="@(!Confirmed)" @onclick="ConfirmAsync">Freischalten</button>
-        </footer>
+<ModalFrame Label="Schreiben freischalten" Class="confirm unlock-dialog" Alert="true" OnCancel="OnCancel">
+    <header><span>Schreiben freischalten</span></header>
+    <div class="dialog-body">
+        <p>
+            Workspace <strong>„@WorkspaceName“</strong> auf <strong>@Profile.Name</strong> freischalten?
+            Danach lassen sich dort Zeilen ändern, einfügen und löschen – Oracle schützt diesen Workspace nicht mehr.
+        </p>
+        <ul class="unlock-facts">
+            <li>Änderungen werden erst mit <strong>Commit</strong> für andere sichtbar@(IsProd ? " (auf Prod mit Rückfrage)" : "").</li>
+            <li>Die anderen Workspaces dieser Verbindung bleiben gesperrt.</li>
+            <li>Wieder gesperrt wird mit „Sperren“, beim Schließen des Workspaces und beim Trennen.</li>
+        </ul>
+        @if (IsProd)
+        {
+            <label class="unlock-confirm">
+                Zum Bestätigen den Namen der Verbindung eintippen: <strong>@Profile.Name</strong>
+                <input @ref="_input" class="field" spellcheck="false" autocomplete="off" @bind="_typed" @bind:event="oninput"
+                       @onkeydown="OnInputKeyDown" aria-label="Name der Verbindung" />
+            </label>
+        }
     </div>
-</div>
+    <footer>
+        <span class="spacer"></span>
+        <button class="btn ghost" @ref="_cancelButton" @onclick="OnCancel">Abbrechen</button>
+        <button class="btn danger-solid" disabled="@(!Confirmed)" @onclick="ConfirmAsync">Freischalten</button>
+    </footer>
+</ModalFrame>
 
 @code {
     private ElementReference _input;
@@ -76,14 +74,6 @@
         if (e.Key == "Enter")
         {
             await ConfirmAsync();
-        }
-    }
-
-    private async Task OnKeyDown(KeyboardEventArgs e)
-    {
-        if (e.Key == "Escape")
-        {
-            await OnCancel.InvokeAsync();
         }
     }
 }

@@ -30,9 +30,6 @@ internal static class OraclePlans
     /// <summary>Probes the rights the actual plan needs before running anything.</summary>
     public const string RightsProbe = "SELECT (SELECT COUNT(*) FROM V$SQL WHERE ROWNUM = 1) + (SELECT COUNT(*) FROM V$SQL_PLAN_STATISTICS_ALL WHERE ROWNUM = 1) FROM DUAL";
 
-    /// <summary>ORA-00942 (no such view – no rights) and ORA-01031 (insufficient privileges).</summary>
-    public static bool IsMissingRights(OracleStatementException ex) => ex.Oracle?.Number is 942 or 1031;
-
     public static async Task<IReadOnlyList<PlanStep>> ReadAsync(DbDataReader reader, bool actual, CancellationToken cancellationToken)
     {
         var steps = new List<PlanStep>();

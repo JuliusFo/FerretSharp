@@ -46,19 +46,12 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
 
     public async Task<ModelHostResult> ReadModelAsync(ClrProjectLink link, BuildOutput output, CancellationToken cancellationToken, IProgress<string>? progress = null)
     {
-        if (!File.Exists(modelHostPath))
-        {
-            return Fail(ClrModelErrorKind.HostFailed, $"FerretSharp.ModelHost fehlt: {modelHostPath}");
-        }
-
-        var work = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "FerretSharp", "modelhost", Guid.NewGuid().ToString("N")));
+        HostLaunch? launch = null;
         try
         {
-            var runtimeConfig = Path.Combine(work.FullName, "modelhost.runtimeconfig.json");
-            await File.WriteAllTextAsync(runtimeConfig, RuntimeConfig(output), cancellationToken);
-            var result = Path.Combine(work.FullName, "model.json");
-
-            var arguments = HostArguments(link, output, runtimeConfig, ["--output", result]);
+            launch = await PrepareAsync(output, cancellationToken);
+            var result = Path.Combine(launch.Work.FullName, "model.json");
+            var arguments = HostArguments(link, output, launch, ["--output", result]);
 
             progress?.Report("Starte den Hilfsprozess");
             var run = await DotNetCli.RunAsync(arguments, Path.GetDirectoryName(output.Assembly)!, _timeout, cancellationToken, line =>
@@ -91,18 +84,31 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
         }
         finally
         {
-            try
+            if (launch is not null)
             {
-                work.Delete(recursive: true);
-            }
-            catch (IOException)
-            {
-                // a file still in use by a killed process: the temp folder is cleaned up by Windows later
+                LinqConsoleHost.TryDelete(launch.Work);
             }
         }
     }
 
     public async Task<ILinqConsole> StartConsoleAsync(ClrProjectLink link, BuildOutput output, CancellationToken cancellationToken, IProgress<string>? progress = null)
+    {
+        var launch = await PrepareAsync(output, cancellationToken); // from here on the console owns the folder
+        var pipe = "ferretsharp-linq-" + Guid.NewGuid().ToString("N");
+        return await LinqConsoleHost.StartAsync(
+            HostArguments(link, output, launch, ["--console", pipe]), Path.GetDirectoryName(output.Assembly)!, pipe, launch.Work, output,
+            _timeout, progress, cancellationToken);
+    }
+
+    /// <summary>A start of the host: its own temp folder, with the runtimeconfig for the project's runtime in it.</summary>
+    private sealed record HostLaunch(DirectoryInfo Work, string RuntimeConfig);
+
+    /// <summary>
+    /// Checks the host is there and writes the runtimeconfig into a new temp folder (R2: was in both starts); the folder
+    /// is removed again if that fails.
+    /// </summary>
+    /// <exception cref="ClrModelException">FerretSharp.ModelHost is missing.</exception>
+    private async Task<HostLaunch> PrepareAsync(BuildOutput output, CancellationToken cancellationToken)
     {
         if (!File.Exists(modelHostPath))
         {
@@ -114,23 +120,19 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
         try
         {
             await File.WriteAllTextAsync(runtimeConfig, RuntimeConfig(output), cancellationToken);
+            return new HostLaunch(work, runtimeConfig);
         }
         catch
         {
-            LinqConsoleHost.TryDelete(work); // from here on the console owns the folder
+            LinqConsoleHost.TryDelete(work);
             throw;
         }
-
-        var pipe = "ferretsharp-linq-" + Guid.NewGuid().ToString("N");
-        return await LinqConsoleHost.StartAsync(
-            HostArguments(link, output, runtimeConfig, ["--console", pipe]), Path.GetDirectoryName(output.Assembly)!, pipe, work, output,
-            _timeout, progress, cancellationToken);
     }
 
     /// <summary><c>dotnet exec</c> with the project's deps.json and runtime, then the host and its arguments.</summary>
-    private List<string> HostArguments(ClrProjectLink link, BuildOutput output, string runtimeConfig, IEnumerable<string> mode)
+    private List<string> HostArguments(ClrProjectLink link, BuildOutput output, HostLaunch launch, IEnumerable<string> mode)
     {
-        var arguments = new List<string> { "exec", "--runtimeconfig", runtimeConfig, "--depsfile", output.DepsFile };
+        var arguments = new List<string> { "exec", "--runtimeconfig", launch.RuntimeConfig, "--depsfile", output.DepsFile };
         foreach (var folder in output.PackageFolders)
         {
             arguments.Add("--additionalprobingpath");

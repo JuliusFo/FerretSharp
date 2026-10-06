@@ -192,7 +192,7 @@ public sealed class WorkspaceManagerTests
         var connection = Assert.Single(_opened).Connection;
         connection.Transaction.Returns(new TransactionInfo(TransactionMode.ReadWrite, _time.GetUtcNow()));
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _manager.LockAsync(id, Ct));
+        await Assert.ThrowsAsync<RefusedException>(() => _manager.LockAsync(id, Ct));
         Assert.True(_manager.IsWritable(id));
 
         connection.Transaction.Returns(TransactionInfo.None);
@@ -363,7 +363,7 @@ public sealed class WorkspaceManagerTests
         Assert.False(_store.Saved[second.Id].IsOpen);
         Assert.Single(_store.Saved[second.Id].Tabs);
         await _opened[0].Connection.Received(1).DisposeAsync();
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _manager.GetDataAsync(second.Id, Ct));
+        await Assert.ThrowsAsync<WorkspaceClosedException>(() => _manager.GetDataAsync(second.Id, Ct));
     }
 
     [Fact]
@@ -371,7 +371,7 @@ public sealed class WorkspaceManagerTests
     {
         await _manager.AttachAsync(_profile, Ct);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _manager.CloseAsync(_manager.Active!.Id));
+        await Assert.ThrowsAsync<RefusedException>(() => _manager.CloseAsync(_manager.Active!.Id));
     }
 
     [Fact]
@@ -396,7 +396,7 @@ public sealed class WorkspaceManagerTests
         var first = _manager.Active!;
         await _manager.CreateAsync();
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _manager.DeleteAsync(first.Id));
+        await Assert.ThrowsAsync<RefusedException>(() => _manager.DeleteAsync(first.Id));
         await _manager.CloseAsync(first.Id);
         await _manager.DeleteAsync(first.Id);
 

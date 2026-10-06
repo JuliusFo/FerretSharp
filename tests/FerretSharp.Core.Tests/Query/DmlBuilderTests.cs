@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
 using FerretSharp.Core.Oracle;
 using FerretSharp.Core.Query;
@@ -87,8 +88,8 @@ public class DmlBuilderTests
     [Fact]
     public void Rows_without_key_or_with_null_key_cannot_be_written()
     {
-        Assert.Throws<InvalidOperationException>(() => DmlBuilder.Delete(Notizen, RowKey.None.Instance));
-        Assert.Throws<InvalidOperationException>(() => DmlBuilder.Delete(Position, new RowKey.PrimaryKey(["A1", null])));
+        Assert.Throws<RefusedException>(() => DmlBuilder.Delete(Notizen, RowKey.None.Instance));
+        Assert.Throws<RefusedException>(() => DmlBuilder.Delete(Position, new RowKey.PrimaryKey(["A1", null])));
     }
 
     [Fact]

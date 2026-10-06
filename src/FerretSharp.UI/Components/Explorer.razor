@@ -6,6 +6,7 @@
 @inject ActiveConnection Active
 @inject PresentationService Presentation
 @inject IJSRuntime JS
+@inject ILogger<Explorer> Logger
 
 <aside class="sidebar explorer">
     <div class="sidebar-head">
@@ -142,20 +143,14 @@
 
         _refreshing = true;
         _refreshError = null;
-        try
+        var result = await Shell.RunDbAsync(Logger, Active.Profile, () => schema.RefreshAsync(CancellationToken.None));
+        _refreshing = false;
+        if (result.Succeeded)
         {
-            await Task.Run(() => schema.RefreshAsync(CancellationToken.None));
             Shell.RemoveTabsWhere(tab => schema.Find(tab.Table.Ref) is null);
         }
-        catch (DatabaseException ex)
-        {
-            _refreshError = ex.Display;
-            Shell.ReportFailure(ex);
-        }
-        finally
-        {
-            _refreshing = false;
-        }
+
+        _refreshError = result.Error?.Display;
     }
 
     private static string Tooltip(TableSummary table, string? entity)

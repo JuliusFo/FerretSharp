@@ -1,5 +1,6 @@
 using System.Data.Common;
 using System.Globalization;
+using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
 using FerretSharp.Core.Query;
 using FerretSharp.Core.Schema;
@@ -550,7 +551,7 @@ public sealed class OracleSchemaReader(OracleSession session) : ISchemaReader
                 return (IReadOnlyList<LockHolder>?)result;
             }, cancellationToken);
         }
-        catch (OracleStatementException ex) when (ex.Oracle?.Number is 942 or 1031)
+        catch (DatabaseException ex) when (ex.IsAny(OracleErrorCodes.MissingRights))
         {
             return null; // no access to the V$ views
         }

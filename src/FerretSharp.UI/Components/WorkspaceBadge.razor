@@ -1,0 +1,49 @@
+@* The badge at the top right (R2, out of Shell.razor): READ-ONLY / BEARBEITBAR, on read-only profiles a switch for the
+   lock of the active workspace (WP-10). *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.UI.State
+@inject ActiveConnection Active
+@inject WorkspaceManager Workspaces
+
+@if (Active.Profile is { } profile && Active.Status != ConnectionStatus.Disconnected)
+{
+    @if (profile.ReadOnly && Active.IsConnected && Workspaces.Active is { } workspace)
+    {
+        var unlocked = Workspaces.IsUnlocked(workspace.Id);
+        <button class="badge badge-btn @(Lifecycle.IsProd ? "badge-prod" : "") @(unlocked ? "unlocked" : "")"
+                title="@(unlocked ? $"Workspace „{workspace.Name}“ ist zum Schreiben freigeschaltet – klicken zum Sperren." : $"{Tooltip(profile)} Klicken, um den Workspace „{workspace.Name}“ zum Schreiben freizuschalten.")"
+                @onclick="() => Toggle(workspace.Id, unlocked)">
+            @(Lifecycle.IsProd ? "PROD · " : "")@(unlocked ? "FREIGESCHALTET" : "READ-ONLY")
+        </button>
+    }
+    else
+    {
+        <span class="badge @(Lifecycle.IsProd ? "badge-prod" : "") @(profile.ReadOnly ? "" : "editable")" title="@Tooltip(profile)">
+            @(Lifecycle.IsProd ? "PROD · " : "")@(profile.ReadOnly ? "READ-ONLY" : "BEARBEITBAR")
+        </span>
+    }
+}
+
+@code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    /// <summary>A parameter (not only cascaded), so the badge renders again whenever the shell does.</summary>
+    [Parameter, EditorRequired]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
+    private static string Tooltip(ConnectionProfile profile) => profile.ReadOnly
+        ? "Schreibgeschützte Verbindung: Oracle selbst lehnt jede Änderung ab (READ ONLY-Transaktion)."
+        : "Bearbeiten möglich: Änderungen laufen in einer Transaktion pro Workspace und sind für andere erst nach dem Commit sichtbar.";
+
+    private Task Toggle(Guid workspaceId, bool unlocked)
+    {
+        if (unlocked)
+        {
+            return Lifecycle.LockAsync(workspaceId);
+        }
+
+        Shell.RequestUnlock(workspaceId);
+        return Task.CompletedTask;
+    }
+}

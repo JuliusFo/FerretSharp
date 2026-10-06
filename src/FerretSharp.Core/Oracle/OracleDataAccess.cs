@@ -110,7 +110,7 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
         {
             await session.ExecuteReaderAsync(OraclePlans.RightsProbe, [], async (reader, ct) => await reader.ReadAsync(ct), cancellationToken);
         }
-        catch (OracleStatementException ex) when (OraclePlans.IsMissingRights(ex))
+        catch (DatabaseException ex) when (ex.IsAny(OracleErrorCodes.MissingRights))
         {
             throw new PlanUnavailableException(
                 "Für den tatsächlichen Plan fehlen Leserechte auf V$SQL und V$SQL_PLAN_STATISTICS_ALL – ein DBA kann sie geben: " +

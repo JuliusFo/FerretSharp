@@ -80,10 +80,10 @@ public sealed class SessionTransactionTests(OracleContainerFixture oracle) : IAs
         await using var session = await OpenAsync();
         await session.UseReadOnlySnapshotsAsync(Ct);
 
-        var error = await Assert.ThrowsAsync<OracleStatementException>(
+        var error = await Assert.ThrowsAsync<DatabaseException>(
             () => session.ExecuteNonQueryAsync("INSERT INTO TXS VALUES (99, 'verboten')", [], Ct));
 
-        Assert.Equal(1456, error.Oracle?.Number); // may not perform insert/delete/update operation inside a READ ONLY transaction
+        Assert.Equal("ORA-01456", error.ErrorCode); // may not perform insert/delete/update operation inside a READ ONLY transaction
         Assert.Equal(TransactionMode.ReadOnly, session.Transaction.Mode);
         Assert.Equal(0, await CountRawAsync("ID = 99"));
     }
@@ -254,13 +254,13 @@ public sealed class SessionTransactionTests(OracleContainerFixture oracle) : IAs
     {
         await using var session = await OpenAsync();
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => session.ExecuteNonQueryAsync("INSERT INTO TXS VALUES (60, 'auto')", [], Ct));
+        await Assert.ThrowsAsync<RefusedException>(() => session.ExecuteNonQueryAsync("INSERT INTO TXS VALUES (60, 'auto')", [], Ct));
         await session.BeginTransactionAsync(Ct);
         await Assert.ThrowsAsync<InvalidOperationException>(() => session.ExecuteNonQueryAsync("DROP TABLE TXS", [], Ct));
         await session.RollbackAsync(Ct);
 
         await session.UseReadOnlySnapshotsAsync(Ct);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => session.BeginTransactionAsync(Ct));
+        await Assert.ThrowsAsync<RefusedException>(() => session.BeginTransactionAsync(Ct));
         await session.RollbackAsync(Ct); // locked: continues in a new snapshot
         Assert.Equal(TransactionMode.ReadOnly, session.Transaction.Mode);
         Assert.Equal(0, await CountRawAsync("ID = 60"));

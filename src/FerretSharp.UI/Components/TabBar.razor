@@ -1,0 +1,125 @@
+@* The tabs of the active workspace (R2, out of Shell.razor): table tabs with their filters and change dot, SQL and LINQ
+   tabs that can be renamed, and the buttons for new SQL/LINQ tabs. *@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.UI.State
+@inject PresentationService Presentations
+@inject ClrModelManager Models
+
+<nav class="tabs">
+    @foreach (var tab in Shell.Tabs)
+    {
+        var tooltip = tab switch
+        {
+            TableTab table => TabTooltip(table),
+            _ when _renaming == tab => null,
+            LinqTab => "LINQ-Konsole – C# gegen den DbContext des verknüpften Projekts · Doppelklick: umbenennen",
+            _ => "SQL-Editor – Statements in der Session dieses Workspaces · Doppelklick: umbenennen",
+        };
+        <div class="tab @KindClass(tab) @(tab == Shell.ActiveTab ? "active" : "")" title="@tooltip"
+             @onclick="e => OnClick(e, tab)" @onmouseup="e => CloseOnMiddleClick(e, tab)">
+            @switch (tab)
+            {
+                case TableTab table:
+                    @Icons.For(table.Table.Kind)
+                    <span class="tab-name">@table.Table.DisplayName</span>
+                    @if (table.Changes is { HasChanges: true } changes)
+                    {
+                        <span class="dot @(changes.PendingCount > 0 ? "pending" : "flushed")"
+                              title="@($"{changes.PendingCount} ausstehend · {changes.FlushedCount} geschrieben")"></span>
+                    }
+                    @if (FilterSummaryOf(table) is { } summary)
+                    {
+                        <span class="tab-filter">@summary</span>
+                    }
+                    else if (table.ActiveFilterCount > 0)
+                    {
+                        <span class="filter-pill">@table.ActiveFilterCount Filter</span>
+                    }
+                    break;
+                case ITitledTab titled:
+                    @(tab is LinqTab ? Icons.Code : Icons.Database)
+                    @if (_renaming == tab)
+                    {
+                        <TitleEditor Value="@titled.Title" Class="tab-rename" OnCommit="name => Rename(tab, name)" OnCancel="() => _renaming = null" />
+                    }
+                    else
+                    {
+                        <span class="tab-name">@titled.Title</span>
+                    }
+                    break;
+            }
+            <button class="tab-close" title="Schließen" @onclick:stopPropagation="true" @onclick="() => Lifecycle.CloseTab(tab)">✕</button>
+        </div>
+    }
+    <button class="tab-new" title="Neuer SQL-Editor: Statements in der Session dieses Workspaces (Ctrl+Shift+Q)"
+            @onclick="() => Shell.OpenSql()">+ SQL</button>
+    @if (Models.State.Link is not null)
+    {
+        <button class="tab-new" title="Neue LINQ-Konsole: C# gegen den DbContext des verknüpften Projekts (Ctrl+Shift+L)"
+                @onclick="() => Shell.OpenLinq()">+ LINQ</button>
+    }
+</nav>
+
+@code {
+    /// <summary>The SQL or LINQ tab whose title is being edited.</summary>
+    private WorkspaceTab? _renaming;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    /// <summary>A parameter (not only cascaded), so the bar renders again whenever the shell does.</summary>
+    [Parameter, EditorRequired]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
+    private static string KindClass(WorkspaceTab tab) => tab switch
+    {
+        LinqTab => "linq",
+        SqlTab => "sql",
+        _ => "",
+    };
+
+    /// <summary>
+    /// Double click renames a SQL or LINQ tab. Not via @@ondblclick: in the WPF host a real double click never fires it
+    /// (see CLAUDE.md, like the workspace chips).
+    /// </summary>
+    private void OnClick(MouseEventArgs e, WorkspaceTab tab)
+    {
+        Shell.ActivateTab(tab);
+        if (tab is ITitledTab && e.Detail >= 2)
+        {
+            _renaming = tab;
+        }
+    }
+
+    private void Rename(WorkspaceTab tab, string name)
+    {
+        _renaming = null;
+        if (tab is ITitledTab titled)
+        {
+            Shell.RenameTab(titled, name);
+        }
+    }
+
+    private void CloseOnMiddleClick(MouseEventArgs e, WorkspaceTab tab)
+    {
+        if (e.Button == 1)
+        {
+            Lifecycle.CloseTab(tab);
+        }
+    }
+
+    /// <summary>Several tabs of one table (FK jumps) are told apart by their filters.</summary>
+    private string? FilterSummaryOf(TableTab tab) =>
+        Shell.Tabs.OfType<TableTab>().Count(o => o.Table.Ref == tab.Table.Ref) > 1 ? tab.FilterSummary(presentation: PresentationOf(tab)) : null;
+
+    /// <summary>Owner.table plus the active filters, so several tabs of the same table can be told apart.</summary>
+    private string TabTooltip(TableTab tab)
+    {
+        var filters = tab.FilterTexts(PresentationOf(tab)).ToList();
+        var entity = Presentations.ShownEntityNameOf(tab.Table.Ref) is { } name ? $" · Entity {name}" : "";
+        return $"{tab.Table.Owner}.{tab.Table.Name}{entity}" + (filters.Count > 0 ? Environment.NewLine + string.Join(Environment.NewLine, filters) : "");
+    }
+
+    /// <summary>Enum and bool filter values by their C# names, once the tab knows its table's structure.</summary>
+    private TablePresentation? PresentationOf(TableTab tab) => tab.Details is { } details ? Presentations.For(details) : null;
+}
