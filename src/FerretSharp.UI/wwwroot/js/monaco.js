@@ -1,6 +1,6 @@
 // Bridge to the Monaco editor (vendored AMD build, ADR 0011) for the LINQ console and the SQL editor. Loads the editor
 // once with German UI texts, follows light/dark, reports text changes to .NET, shows diagnostics as markers and asks .NET
-// for completion items (SQL editor). No logic here.
+// for completion items (SQL editor, LINQ console). No logic here.
 
 const base = './_content/FerretSharp.UI/lib/monaco/vs';
 const editors = new Map();
@@ -85,7 +85,14 @@ function registerProvider(monaco, language) {
   if (providers.has(language)) return;
   providers.add(language);
   const kinds = monaco.languages.CompletionItemKind;
-  const kindOf = { Table: kinds.Class, View: kinds.Interface, Synonym: kinds.Reference, Column: kinds.Field, Keyword: kinds.Keyword };
+  const kindOf = {
+    // SQL editor
+    Table: kinds.Class, View: kinds.Interface, Synonym: kinds.Reference, Column: kinds.Field, Keyword: kinds.Keyword,
+    // LINQ console
+    Property: kinds.Property, Field: kinds.Field, Method: kinds.Method, ExtensionMethod: kinds.Function, Class: kinds.Class,
+    Struct: kinds.Struct, Interface: kinds.Interface, Enum: kinds.Enum, EnumMember: kinds.EnumMember, Variable: kinds.Variable,
+    Namespace: kinds.Module, Event: kinds.Event,
+  };
   monaco.languages.registerCompletionItemProvider(language, {
     triggerCharacters: ['.'],
     provideCompletionItems: async (model, position) => {

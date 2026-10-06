@@ -11,7 +11,23 @@ public static class LinqProtocol
 
     /// <summary>Request kinds.</summary>
     public const string Run = "run";
+    public const string Complete = "complete";
     public const string Shutdown = "shutdown";
+
+    /// <summary>Kinds of completion items (the editor picks the icon).</summary>
+    public const string Property = "Property";
+    public const string Field = "Field";
+    public const string Method = "Method";
+    public const string ExtensionMethod = "ExtensionMethod";
+    public const string Class = "Class";
+    public const string Struct = "Struct";
+    public const string Interface = "Interface";
+    public const string Enum = "Enum";
+    public const string EnumMember = "EnumMember";
+    public const string Variable = "Variable";
+    public const string Namespace = "Namespace";
+    public const string Event = "Event";
+    public const string Keyword = "Keyword";
 
     /// <summary>Command kinds, as EF executes them.</summary>
     public const string Reader = "reader";
@@ -23,12 +39,21 @@ public static class LinqProtocol
     public const string VariablesSection = "variables";
 }
 
-/// <param name="Kind"><see cref="LinqProtocol.Run"/> or <see cref="LinqProtocol.Shutdown"/>.</param>
+/// <param name="Kind"><see cref="LinqProtocol.Run"/>, <see cref="LinqProtocol.Complete"/> or <see cref="LinqProtocol.Shutdown"/>.</param>
 /// <param name="Variables">Declarations the user keeps apart from the query (<c>var customerId = 4711;</c>).</param>
-public sealed record LinqRequest(string Kind, int Id, string? Code = null, string? Variables = null);
+/// <param name="Section">Completion: the section the cursor is in (<see cref="LinqProtocol.CodeSection"/> or <see cref="LinqProtocol.VariablesSection"/>).</param>
+/// <param name="Offset">Completion: the cursor as offset (UTF-16) into that section's text.</param>
+public sealed record LinqRequest(string Kind, int Id, string? Code = null, string? Variables = null, string? Section = null, int Offset = 0);
 
 /// <summary>Answer to a request; <see cref="Id"/> 0 is sent once when the host is ready (or failed to start).</summary>
-public sealed record LinqResponse(int Id, LinqRunResult? Run = null, ModelHostError? Error = null);
+public sealed record LinqResponse(int Id, LinqRunResult? Run = null, ModelHostError? Error = null, IReadOnlyList<LinqCompletionItem>? Completion = null);
+
+/// <param name="Label">What the list shows: <c>Kunden</c>, <c>Where</c>, <c>List&lt;T&gt;</c>.</param>
+/// <param name="InsertText">What goes into the editor: the name (<c>@class</c> for a keyword used as name).</param>
+/// <param name="Kind">One of the kinds in <see cref="LinqProtocol"/> (<see cref="LinqProtocol.Property"/> …).</param>
+/// <param name="Detail">Type or signature: <c>DbSet&lt;Kunde&gt;</c>, <c>IQueryable&lt;Kunde&gt; Where(Expression&lt;…&gt; predicate) (+1)</c>.</param>
+/// <param name="Rank">Lower comes first: members of the type itself, inherited ones, extension methods, those of <c>object</c>.</param>
+public sealed record LinqCompletionItem(string Label, string InsertText, string Kind, string? Detail, int Rank);
 
 /// <param name="Diagnostics">Compiler errors and warnings, positioned in the user's sections.</param>
 /// <param name="UnknownNames">Names the code uses but nobody declares, with a suggested declaration; the code did not run.</param>

@@ -107,6 +107,106 @@ public sealed class LinqConsoleTests : IAsyncLifetime
         Assert.NotNull(count.Exception);
     }
 
+    /// <summary>Completion (WP-19) with the cursor at <c>|</c> in the code, or in the variables if the marker is there.</summary>
+    private async Task<IReadOnlyList<LinqCompletionItem>> CompleteAsync(string code, string variables = "")
+    {
+        var inVariables = variables.Contains('|', StringComparison.Ordinal);
+        var marked = inVariables ? variables : code;
+        var offset = marked.IndexOf('|', StringComparison.Ordinal);
+        Assert.True(offset >= 0, "no cursor");
+        var text = marked.Remove(offset, 1);
+        return inVariables
+            ? await _console.CompleteAsync(code, text, LinqProtocol.VariablesSection, offset, Ct)
+            : await _console.CompleteAsync(text, variables, LinqProtocol.CodeSection, offset, Ct);
+    }
+
+    [Fact]
+    public async Task After_the_context_come_its_dbsets_first()
+    {
+        var items = await CompleteAsync("return db.|");
+
+        var kunden = Assert.Single(items, i => i.Label == "Kunden");
+        Assert.Equal((LinqProtocol.Property, "DbSet<Kunde>", 0), (kunden.Kind, kunden.Detail, kunden.Rank));
+        Assert.Contains(items, i => i.Label == "Auftraege" && i.Rank == 0);
+        Assert.Contains(items, i => i is { Label: "SaveChanges", Kind: LinqProtocol.Method, Rank: 1 });
+        Assert.DoesNotContain(items, i => i.Label.StartsWith("__", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task In_an_unfinished_lambda_come_the_entitys_properties()
+    {
+        var items = await CompleteAsync("return db.Kunden.Where(k => k.|\n");
+
+        Assert.Equal("int", Assert.Single(items, i => i.Label == "KundeId").Detail);
+        Assert.Equal("Kundenart", Assert.Single(items, i => i.Label == "Kundenart").Detail);
+        Assert.Equal(LinqProtocol.Property, Assert.Single(items, i => i.Label == "Name").Kind);
+        Assert.Contains(items, i => i is { Label: "ToString", Rank: 3 });
+    }
+
+    [Fact]
+    public async Task A_typed_word_still_gets_the_members_and_linq_and_ef_extensions()
+    {
+        var items = await CompleteAsync("var x = 1;\nreturn await db.Kunden.Wh|.ToListAsync(ct);");
+
+        var where = Assert.Single(items, i => i.Label == "Where");
+        Assert.Equal((LinqProtocol.ExtensionMethod, 2), (where.Kind, where.Rank));
+        Assert.Contains("(+", where.Detail, StringComparison.Ordinal);
+        // The overload C# picks for a DbSet: Queryable's, with an expression.
+        Assert.StartsWith("IQueryable<Kunde> Where<Kunde>(Expression<Func<Kunde, bool>> predicate)", where.Detail, StringComparison.Ordinal);
+        Assert.Contains(items, i => i is { Label: "Include", Kind: LinqProtocol.ExtensionMethod });
+        Assert.Contains(items, i => i is { Label: "ToListAsync", Kind: LinqProtocol.ExtensionMethod });
+    }
+
+    [Fact]
+    public async Task After_an_enum_come_its_members_also_in_the_variables()
+    {
+        var code = await CompleteAsync("return db.Kunden.Where(k => k.Kundenart == Kundenart.|);");
+        var variables = await CompleteAsync("return 1;", "var status = AuftragStatus.|");
+
+        Assert.Equal("Kundenart = 2", Assert.Single(code, i => i.Label == "Gewerbe").Detail);
+        Assert.All(code, i => Assert.Equal(LinqProtocol.EnumMember, i.Kind));
+        Assert.Contains(variables, i => i is { Label: "Offen", Kind: LinqProtocol.EnumMember });
+    }
+
+    [Fact]
+    public async Task Copied_code_gets_the_dbsets_after_an_undeclared_context()
+    {
+        var items = await CompleteAsync("var kunden = await _context.|\n    .ToListAsync(cancellationToken);");
+
+        Assert.Contains(items, i => i.Label == "Kunden");
+    }
+
+    [Fact]
+    public async Task Without_a_dot_come_variables_project_types_and_keywords()
+    {
+        var items = await CompleteAsync("return db.Kunden.Where(k => k.KundeId == ku|", "var kundeId = 4711;");
+
+        Assert.Equal((LinqProtocol.Variable, "int"), (Assert.Single(items, i => i.Label == "kundeId").Kind, items.Single(i => i.Label == "kundeId").Detail));
+        Assert.Contains(items, i => i.Label == "k" && i.Kind == LinqProtocol.Variable);
+        Assert.Contains(items, i => i is { Label: "Kunde", Kind: LinqProtocol.Class });
+        Assert.Contains(items, i => i is { Label: "Kundenart", Kind: LinqProtocol.Enum });
+        Assert.Contains(items, i => i is { Label: "DateTime", Kind: LinqProtocol.Struct });
+        Assert.Contains(items, i => i is { Label: "await", Kind: LinqProtocol.Keyword });
+        Assert.DoesNotContain(items, i => i.Label is "Console" or "__Context");
+    }
+
+    [Fact]
+    public async Task In_an_object_initializer_come_the_properties_not_set_yet()
+    {
+        var items = await CompleteAsync("var kunde = new Kunde { Name = \"Meier\", | };\nreturn kunde;");
+
+        Assert.Contains(items, i => i.Label == "KundeId");
+        Assert.DoesNotContain(items, i => i.Label == "Name");
+        Assert.All(items, i => Assert.Contains(i.Kind, new[] { LinqProtocol.Property, LinqProtocol.Field }));
+    }
+
+    [Theory]
+    [InlineData("return db.Kunden.Where(k => k.Name == \"db.|\");")]
+    [InlineData("// db.|\nreturn 1;")]
+    [InlineData("/* db.| */ return 1;")]
+    [InlineData("var neu|")]
+    public async Task Nothing_in_strings_comments_and_new_names(string code) => Assert.Empty(await CompleteAsync(code));
+
     /// <summary>
     /// Code generation (WP-15) against the real model: the LINQ for the grid's filters compiles in the console and EF
     /// sends the same conditions as the grid (case-insensitive LIKE, whole day, J/N); generated initializers compile.

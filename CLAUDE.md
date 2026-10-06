@@ -2,7 +2,7 @@
 
 > Projektanweisungen für Claude Code. Bitte vollständig lesen, bevor ein Arbeitspaket umgesetzt wird.
 > Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-06 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0; WP-14 → 2.4.0; WP-15 → 3.0.0, v3 abgeschlossen; v4: WP-16 → 3.1.0, WP-17 → 3.2.0, WP-18 → 3.3.0, Leerzeichen nach Vorschlägen 3.3.1, Tabs umbenennen 3.4.0)
+> Stand: 2026-10-06 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0; WP-14 → 2.4.0; WP-15 → 3.0.0, v3 abgeschlossen; v4: WP-16 → 3.1.0, WP-17 → 3.2.0, WP-18 → 3.3.0, Leerzeichen nach Vorschlägen 3.3.1, Tabs umbenennen 3.4.0; WP-19 → 3.5.0)
 
 ## 1. Ziel
 
@@ -28,7 +28,7 @@ Es wird in Versionen ausgeliefert. Jede Version ist für sich benutzbar.
 | **v1 – Read-only Browser** | Connections, Schema, Grid, Filter, Workspaces, FK-Navigation, Export | WP-01 … WP-07 |
 | **v2 – Sandbox-Editing** | Transaktionsmodell, Editieren, Commit/Rollback, Lock-Handling, Prod-Freischaltung | WP-08 … WP-10 |
 | **v3 – .NET-Integration** | DbContext-Modell laden, Schema-Anreicherung (Entities, Enums, Navigations), LINQ-Konsole, Explain-Plan (Grid und LINQ), Code-Generierung | WP-11 … WP-15 |
-| **v4 – Komfort & SQL** | Modell-Cache, freier SQL-Editor, Skripte; geplant: Schema-Vergleich, Formularansicht, DDL im SQL-Editor, Tabellen-Designer (weitere Pakete aus dem Backlog nach Absprache) | WP-16 … WP-22 |
+| **v4 – Komfort & SQL** | Modell-Cache, freier SQL-Editor, Skripte, LINQ-Autovervollständigung; geplant: Schema-Vergleich, Formularansicht, DDL im SQL-Editor, Tabellen-Designer (weitere Pakete aus dem Backlog nach Absprache) | WP-16 … WP-23 |
 | **v5+** | Backlog (Abschnitt 10) | – |
 
 Regeln für **v1**:
@@ -321,7 +321,7 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 | Ctrl+P | Tabelle suchen (Backlog) | – |
 | Ctrl+S | Pending-Änderungen flushen (kein Commit) | v1.9 |
 | Ctrl+Shift+Enter | Commit (auf Prod immer mit Bestätigung) | v1.9 |
-| Ctrl+Shift+L | Neue LINQ-Konsole (mit verknüpftem C#-Projekt); im LINQ-Tab führen Ctrl+Enter und F5 aus, Ctrl+F sucht im Editor | 2.3 |
+| Ctrl+Shift+L | Neue LINQ-Konsole (mit verknüpftem C#-Projekt); im LINQ-Tab führen Ctrl+Enter und F5 aus, Ctrl+F sucht im Editor, Ctrl+Leertaste schlägt Member/Typen vor (3.5) | 2.3 |
 | Ctrl+Shift+Q | Neuer SQL-Editor; im SQL-Tab führen Ctrl+Enter und F5 das Statement am Cursor aus, Ctrl+F sucht, Ctrl+Leertaste schlägt Tabellen/Spalten vor | 3.2 |
 | Alt+X | Im SQL-Tab: das ganze Skript (bzw. die markierten Statements) nacheinander ausführen | 3.3 |
 | – | Rollback nur über Button, mit Bestätigung | v2 |
@@ -558,20 +558,31 @@ Auftrag des Nutzers (2026-10-06): „das Ausführen eines ganzen Skripts und den
 - Nachtrag 3.3.1 (Wunsch des Nutzers): Vorschläge im SQL-Editor enden mit einem Leerzeichen, wenn der Cursor am Zeilen-/Textende steht (`SqlCompletion.AtLineEnd`) – nur Tabellen/Views/Synonyme und Schlüsselwörter, nicht Spalten und nicht Werte/Funktionen (`ValueKeywords`: `NULL`, `DESC`, `NVL` …), weil dort meist `,`, `(` oder `)` folgt.
 - Nachtrag 3.4.0 (Wunsch des Nutzers): SQL- und LINQ-Tabs umbenennen – Doppelklick auf den Tab (`e.Detail >= 2`) oder Klick auf den Titel in der Toolbar; `TitleEditor` (Enter/Blur übernimmt, Esc bricht ab), `ITitledTab`, `ShellState.RenameTab` (max. 40 Zeichen wie Workspace-Namen, `Workspace.NormalizeName`). Tabellen-Tabs heißen weiter wie ihre Tabelle.
 
-#### WP-19 Schema-Vergleich (geplant)
+#### WP-19 LINQ-Autovervollständigung → Release 3.5.0
+Wunsch des Nutzers (2026-10-06), als eigenes Paket vor dem Schema-Vergleich. Bis dahin hatte die LINQ-Konsole nur Monacos C#-Hervorhebung (lexikalisch) und Wort-Vorschläge aus dem Text.
+- Umgesetzt (Release 3.5.0, ADR 0015): Vorschläge aus dem Roslyn-Semantic-Model im Hilfsprozess, ohne `Microsoft.CodeAnalysis.Features` (zusätzliche Assemblies im Projektprozess, Roslyn dort ohnehin auf 4.11 festgelegt).
+  - ModelHost: `LinqCompletion` – nach `x.` Member des Typs inkl. Extension-Methoden (`LookupSymbols(…, includeReducedExtensionMethods: true)`), bei unfertigen Lambdas über den Typ des Parameters; nach `Typ.` statische Member, bei Enums nur die Member; in `new T { … }` die noch nicht gesetzten Properties; sonst Variablen/Parameter, Typen aus den Namespaces des Modells, einige .NET-Typen (`CommonTypes`) und C#-Schlüsselwörter. Nichts in Strings/Kommentaren und beim Benennen neuer Variablen; `[EditorBrowsable(Never)]` verborgen; Überladungen als ein Eintrag „(+n)“; Rang: eigene Member → geerbte → Extension-Methoden → `object`. `LinqConsole.Complete` deklariert Kontext/Token wie beim Ausführen (nur Binden dieser Namen prüfen, keine Diagnose).
+  - Falle: Roslyn sieht eine Position am Textende als *hinter* einem unfertigen Lambda – dessen Parameter fehlen dann. Ohne Punkt deshalb am Anfang des getippten Worts nachschlagen.
+  - Core: `LinqProtocol.Complete`, `LinqCompletionItem`, `ILinqConsole.CompleteAsync` (Timeout 10 s, gemeinsamer Anfrageweg `RequestAsync`), `LinqConsoleService.CompleteAsync` – nur bei bereitem, freiem Host (`WaitAsync(0)`), sonst leere Liste; nach neuem Build Neustart im Hintergrund.
+  - UI: `MonacoEditor.CompletionItem` (Art als Text) für SQL- und LINQ-Editor, beide LINQ-Editoren (Variablen, Query) mit Provider; Icons je Art in `monaco.js`.
+  - Tests: `LinqConsoleTests` gegen das Beispielprojekt (DbSets, Lambda-Parameter, Extension-Methoden, Enum-Member auch in den Variablen, kopierter Code mit `_context`, Objektinitialisierer, nichts in Strings/Kommentaren/neuen Namen).
+  - Überladungen: Das Detail zeigt die Variante, die C# bei einer Query nimmt (`Queryable.Where` mit `Expression<…>` vor `Enumerable.Where`). Typen im Detail nur mit Namen (`ToDisplayString` mit `NameOnly`) – `ToMinimalDisplayString` qualifiziert alles, was das Script nicht importiert (`System.Linq.Expressions.Expression<…>`).
+  - E2E (Beispielprojekt): ~220 ms je Anfrage, die erste ~600 ms. Liefert der Host nichts (in Strings, Host nicht bereit), zeigt Monaco seine Wort-Vorschläge aus dem Text – nur bei Ctrl+Leertaste, automatisch nicht in Strings/Kommentaren. E2E-Kniff: `editor.trigger('…', 'editor.action.triggerSuggest')` erst nach > 250 ms (Debounce), damit .NET den anderen Abschnitt kennt; Ausdrücke mit Anführungszeichen über eine Datei an das CDP-Skript geben – PowerShell 5.1 verliert sie bei Argumenten für `node`.
+
+#### WP-20 Schema-Vergleich (geplant)
 Wunsch des Nutzers (2026-10-06), vor DDL und Tabellen-Designer. Anlass: DB-first von Hand über mehrere Umgebungen – „ALTER auf Test vergessen?“.
 - Zwei Verbindungen (z. B. Dev ↔ Test ↔ Prod) bzw. deren Schemas vergleichen: fehlende/zusätzliche Tabellen, Views, MViews; Spalten (Typ, Länge/CHAR-Semantik, Precision/Scale, NULL, Default, Identity, virtuell); PK/Unique/FK/Check-Constraints; Indizes; optional Kommentare, View-Definitionen, Sequenzen.
-- Ergebnis als Baum/Liste mit Filter (nur Unterschiede, nach Art), je Abweichung beide Seiten nebeneinander; DDL-Vorschlag als Text, um die eine Seite an die andere anzugleichen (Ausführen erst mit WP-21).
+- Ergebnis als Baum/Liste mit Filter (nur Unterschiede, nach Art), je Abweichung beide Seiten nebeneinander; DDL-Vorschlag als Text, um die eine Seite an die andere anzugleichen (Ausführen erst mit WP-22).
 - Architektur: Es gibt genau eine aktive Verbindung (`ActiveConnection`) – für die Gegenseite eine eigene, kurzlebige Explorer-Session (nur Dictionary-Lesen über `ISchemaReader`, Passwort aus dem `ISecretStore`). Vergleichslogik im Core (`SchemaDiff`) mit Unit-Tests gegen zwei Fake-Reader; Integrationstest mit zwei Schemas im Container.
 - Zu klären beim Start: Auswahl der Gegenseite (Verbindung + Schema; auch zwei Schemas derselben DB?), Umfang der Objektarten, Behandlung von Synonymen, Groß-/Kleinschreibung bei Namen, Ignorierregeln (z. B. Storage, systemgenerierte Constraint-Namen `SYS_C…`), wo die Ansicht lebt (eigene Seite wie „C#-Modell“ oder Tab), Export des Ergebnisses.
 
-#### WP-20 Formularansicht einer Zeile (geplant)
+#### WP-21 Formularansicht einer Zeile (geplant)
 Wunsch des Nutzers (2026-10-06), vor DDL und Tabellen-Designer. Für breite Tabellen (VERTRAG mit 71 Spalten).
 - Eine Zeile senkrecht: Spalte → Wert, mit Oracle-Typ, C#-Property/Typ, Enum-Member, NULL kursiv; Suche/Filter über Spaltennamen (wie Ctrl+F, auch C#-Namen); FK-Werte als Links (Sprung wie im Kontextmenü); LOBs öffnen den LOB-Dialog; Vor/Zurück durch die geladenen Zeilen des Grids.
 - Auf schreibbaren Workspaces editierbar über denselben `ChangeTracker` wie das Grid (Validierung in .NET, Zellfarben Ausstehend/Geschrieben, Schreiben mit Ctrl+S).
 - Zu klären beim Start: Darstellung (Seitenleiste rechts neben dem Grid, eigene Ansicht im Tab-Umschalter oder Dialog), Auslöser (Kontextmenü „Als Formular“, Tastenkürzel; Doppelklick ist schon Editieren), Mehrfachauswahl (Zeilen nebeneinander vergleichen?), Spalten ausblenden/leere ausblenden.
 
-#### WP-21 DDL im SQL-Editor (geplant)
+#### WP-22 DDL im SQL-Editor (geplant)
 Wunsch des Nutzers (2026-10-06): Tabellen anlegen und ändern, passend zum DB-first-Ablauf („erst DB ändern, dann Entity“). Erste Stufe: DDL im SQL-Editor (und in Skripten) zulassen. Entscheidungen des Nutzers:
 - **Wo:** auf allen schreibbaren Workspaces – Profile ohne „Schreibgeschützt“ sowie **auch Prod nach dem Freischalten** (WP-10). Gesperrte Workspaces nie (READ-ONLY-Transaktion schützt nicht vor DDL, deshalb weiter Abweisung im Editor).
 - **Ausführen:** FerretSharp führt das DDL aus (nicht nur erzeugen/kopieren).
@@ -583,8 +594,8 @@ Wunsch des Nutzers (2026-10-06): Tabellen anlegen und ändern, passend zum DB-fi
   - Danach Schema-Cache neu laden (Explorer, Spalten-Ansichten, Autovervollständigung) und das C#-Modell neu abgleichen; Hinweis auf neue „Spalten ohne Property“.
   - Verlauf: DDL-Statements wie DML aufnehmen.
 
-#### WP-22 Tabellen-Designer + Entity aus Tabelle (geplant, nach WP-21)
-- Spalten-Ansicht eines Tabs bearbeitbar: Spalte hinzufügen, Typ/Länge/Precision, NULL, Default, Kommentar ändern, umbenennen, löschen; PK, Unique, FK, Indizes; neue Tabelle anlegen. FerretSharp erzeugt das DDL und zeigt es **vor** dem Ausführen (ausführen über den Weg aus WP-21 oder nur kopieren, z. B. als Skript fürs Repo).
+#### WP-23 Tabellen-Designer + Entity aus Tabelle (geplant, nach WP-22)
+- Spalten-Ansicht eines Tabs bearbeitbar: Spalte hinzufügen, Typ/Länge/Precision, NULL, Default, Kommentar ändern, umbenennen, löschen; PK, Unique, FK, Indizes; neue Tabelle anlegen. FerretSharp erzeugt das DDL und zeigt es **vor** dem Ausführen (ausführen über den Weg aus WP-22 oder nur kopieren, z. B. als Skript fürs Repo).
 - Oracle-Fallen im Designer abfangen: NOT NULL auf Spalte mit NULL-Werten (vorher zählen), Typänderung gefüllter Spalten (oft nur über neue Spalte + Umkopieren), VARCHAR2 BYTE/CHAR-Semantik, Index für neue FKs vorschlagen (`IndexAdvice`), Identity/Default ON NULL.
 - Verzahnung mit dem C#-Modell (Backlog-Idee „Entity aus Tabelle erzeugen“): nach der Änderung Property-Zeile bzw. Entity + `IEntityTypeConfiguration` im Stil des Projekts (Namenskonvention, J/N-Converter) zum Kopieren.
 
