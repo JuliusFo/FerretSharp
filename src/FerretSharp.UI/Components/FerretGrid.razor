@@ -623,7 +623,7 @@
             Tab.RowsLoaded = Math.Max(Tab.RowsLoaded, startRow + page.Rows.Count);
             Tab.AllRowsLoaded |= page.IsLastPage;
             Tab.LastQueryTime = page.Elapsed;
-            Tab.DataAsOf = page.DataAsOf;
+            (Tab.DataAsOf, Tab.SnapshotMoved) = Snapshots.Next(startRow, Tab.DataAsOf, Tab.SnapshotMoved, page.DataAsOf);
             Tab.Error = null;
             Tab.Failure = null;
             await OnPageLoaded.InvokeAsync();

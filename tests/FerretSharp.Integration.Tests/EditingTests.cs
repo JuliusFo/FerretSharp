@@ -274,7 +274,7 @@ public sealed class EditingTests(OracleContainerFixture oracle) : IAsyncLifetime
         Assert.StartsWith("Eindeutigkeit verletzt", error.Message);
         Assert.Same(duplicate, error.Operation.Change);
         Assert.Equal("bleibt", (await RowAsync(a, table, 600))!.Values[I(table, "TXT")]); // the update before it is undone too
-        Assert.Equal(0, a.Editor.FlushCount);
+        Assert.Empty(a.Editor.Actions);
 
         tracker.Delete(duplicate);
         var check = (await RowAsync(a, table, 600))!;
@@ -299,9 +299,9 @@ public sealed class EditingTests(OracleContainerFixture oracle) : IAsyncLifetime
         await FlushAsync(a, tracker);
         tracker.SetValue((await RowAsync(a, table, 701))!, I(table, "TXT"), "zweiter");
         var second = await FlushAsync(a, tracker);
-        Assert.Equal(2, a.Editor.FlushCount);
+        Assert.Equal(2, a.Editor.Actions.Count);
 
-        await a.Editor.UndoLastFlushAsync(Ct);
+        Assert.Equal(WriteActionKind.Grid, (await a.Editor.UndoLastAsync(Ct))?.Kind);
         tracker.UndoFlush(second);
 
         Assert.Equal("erster", (await RowAsync(a, table, 700))!.Values[I(table, "TXT")]);
@@ -311,6 +311,40 @@ public sealed class EditingTests(OracleContainerFixture oracle) : IAsyncLifetime
         await a.Editor.RollbackAsync(Ct);
         Assert.Equal(TransactionMode.None, a.Editor.Transaction.Mode);
         Assert.Equal("a", (await RowAsync(a, table, 700))!.Values[I(table, "TXT")]);
+    }
+
+    /// <summary>
+    /// Grid writes and SQL statements share the transaction: a rollback to the grid's savepoint would take the later
+    /// statement along. Undo therefore always takes back the newest action, whoever wrote it.
+    /// </summary>
+    [Fact]
+    public async Task Undo_takes_back_the_newest_action_also_a_statement_after_a_grid_write()
+    {
+        await ExecuteAsync("INSERT INTO ED_TYPES (ID, TXT) VALUES (710, 'a')");
+        await ExecuteAsync("INSERT INTO ED_TYPES (ID, TXT) VALUES (711, 'a')");
+        await using var a = await OpenAsync("Workspace A");
+        var table = await DetailsAsync(a, "ED_TYPES");
+        var tracker = new ChangeTracker(table);
+
+        tracker.SetValue((await RowAsync(a, table, 710))!, I(table, "TXT"), "grid");
+        await FlushAsync(a, tracker);
+        var statement = await a.Editor.ExecuteAsync(new QuerySpec("UPDATE ED_TYPES SET TXT = 'sql' WHERE ID = 711", []), Ct);
+
+        Assert.Equal(
+            [(WriteActionKind.Grid, "ED_TYPES: 1 geändert", 1), (WriteActionKind.Statement, "UPDATE ED_TYPES", 1)],
+            a.Editor.Actions.Select(x => (x.Kind, x.Description, x.Rows)));
+
+        Assert.Equal(statement.Id, (await a.Editor.UndoLastAsync(Ct))?.Id); // the statement, not the older grid write
+        Assert.Equal("grid", (await RowAsync(a, table, 710))!.Values[I(table, "TXT")]);
+        Assert.Equal("a", (await RowAsync(a, table, 711))!.Values[I(table, "TXT")]);
+
+        Assert.Equal(WriteActionKind.Grid, (await a.Editor.UndoLastAsync(Ct))?.Kind);
+        Assert.Equal("a", (await RowAsync(a, table, 710))!.Values[I(table, "TXT")]);
+        Assert.Empty(a.Editor.Actions);
+        Assert.Null(await a.Editor.UndoLastAsync(Ct));
+
+        await a.Editor.RollbackAsync(Ct);
+        Assert.Empty(a.Editor.Actions);
     }
 
     [Fact]

@@ -68,6 +68,10 @@
 
     private int _rowsLoaded;
 
+    /// <summary>Snapshot of the first page (locked workspaces) and whether a later page came from another one.</summary>
+    private DateTimeOffset? _dataAsOf;
+    private bool _snapshotMoved;
+
     /// <summary>Set first thing in <see cref="DisposeAsync"/>: a start still awaiting must not create the grid afterwards.</summary>
     private bool _disposed;
 
@@ -194,7 +198,8 @@
 
         KeepBlock(startRow, page.Rows);
         _rowsLoaded = Math.Max(_rowsLoaded, startRow + page.Rows.Count);
-        await Status(new SqlGridStatus(false, _rowsLoaded, page.IsLastPage, page.Elapsed, page.DataAsOf, null));
+        (_dataAsOf, _snapshotMoved) = Snapshots.Next(startRow, _dataAsOf, _snapshotMoved, page.DataAsOf);
+        await Status(new SqlGridStatus(false, _rowsLoaded, page.IsLastPage, page.Elapsed, _dataAsOf, null, _snapshotMoved));
         var rows = page.Rows.Select(values =>
         {
             var cells = new Dictionary<string, object?>(values.Count);

@@ -109,7 +109,7 @@ public sealed class LinqExecutionTests(OracleContainerFixture oracle) : IAsyncLi
             [new QueryParameter("kunde_0", 2, OracleTypeHint.Number)]);
         var status = new QuerySpec("SELECT COUNT(*) FROM \"LX_AUFTRAG\" WHERE \"STATUS\" = 'STORNIERT'", []);
 
-        var rows = await connection.Editor.ExecuteAsync(update, Ct);
+        var rows = (await connection.Editor.ExecuteAsync(update, Ct)).Rows;
 
         Assert.Equal(3, rows); // orders 1, 3 and 5
         Assert.Equal(TransactionMode.ReadWrite, connection.Editor.Transaction.Mode);

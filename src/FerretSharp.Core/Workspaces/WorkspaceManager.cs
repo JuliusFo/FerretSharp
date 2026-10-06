@@ -92,6 +92,15 @@ public sealed class WorkspaceManager(
         }
     }
 
+    /// <summary>The uncommitted writes of the workspace's transaction (status bar, undo); empty while the session is not open.</summary>
+    public IReadOnlyList<WriteAction> ActionsOf(Guid workspaceId)
+    {
+        lock (_lock)
+        {
+            return _sessions.GetValueOrDefault(workspaceId) is { IsCompletedSuccessfully: true } session ? session.Result.Editor.Actions : [];
+        }
+    }
+
     /// <summary>
     /// Whether the workspace may write: always on profiles without the read-only lock, on locked profiles (Prod by
     /// default) only after <see cref="UnlockAsync"/>.

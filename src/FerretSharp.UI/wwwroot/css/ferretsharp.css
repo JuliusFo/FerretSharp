@@ -457,6 +457,7 @@ code.condition { font: 12px var(--mono); white-space: pre-wrap; }
 .tab-footer strong { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
 .tab-footer .spacer { flex: 1; }
 .tab-footer .error { color: var(--danger); }
+.tab-footer .warn { color: #c07a00; }
 .tab-footer > span { display: inline-flex; align-items: center; gap: 6px; }
 
 /* ---------- filter bar ---------- */
