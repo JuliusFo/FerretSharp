@@ -18,14 +18,7 @@
 <div class="sqlview">
     <div class="tab-toolbar">
         @Icons.Database
-        @if (_renaming)
-        {
-            <TitleEditor Value="@Tab.Title" Class="linq-title" OnCommit="name => { _renaming = false; Shell.RenameTab(Tab, name); }" OnCancel="() => _renaming = false" />
-        }
-        else
-        {
-            <button class="linq-title title-btn" title="Umbenennen" @onclick="() => _renaming = true">@Tab.Title</button>
-        }
+        <TabTitle Tab="Tab" />
         <span class="muted">@(Workspaces.IsWritable(Tab.WorkspaceId) ? "lesen und schreiben" : "nur lesen – Workspace schreibgeschützt")</span>
         <span class="spacer"></span>
         <button class="btn ghost @(_historyOpen ? "active" : "")" title="Zuletzt ausgeführte Statements dieser Verbindung" @onclick="ToggleHistoryAsync">Verlauf</button>
@@ -158,37 +151,7 @@
                     <SqlResultGrid @key="@($"{_runKey}-{Tab.SelectedRun}")" WorkspaceId="Tab.WorkspaceId" Query="run.Query" FirstPage="run.FirstPage"
                                    OnStatus="OnGridStatus" InsertTarget="InsertTarget(run.Info)" ExportName="@ExportName(run.Info)" />
                 </div>
-                <div class="tab-footer">
-                    @if (_grid is { } grid)
-                    {
-                        @if (grid.Loading)
-                        {
-                            <span><span class="spinner small"></span> Lade …</span>
-                        }
-                        else if (grid.Error is { } pageError)
-                        {
-                            <span class="error" title="@pageError.Statement?.Sql">@pageError.Display</span>
-                        }
-                        else
-                        {
-                            <span><strong>@(grid.AllLoaded ? "" : "≥ ")@grid.RowsLoaded.ToString("N0", CultureInfo.CurrentCulture)</strong> @(grid is { AllLoaded: true, RowsLoaded: 1 } ? "Zeile" : "Zeilen")</span>
-                            @if (grid.Elapsed is { } elapsed)
-                            {
-                                <span>@Ms(elapsed)</span>
-                            }
-                            @if (grid.DataAsOf is { } asOf)
-                            {
-                                <span title="Schreibgeschützter Workspace: Stand der READ ONLY-Transaktion">Stand @asOf.ToLocalTime().ToString("HH:mm:ss", CultureInfo.InvariantCulture)</span>
-                                @if (grid.SnapshotMoved)
-                                {
-                                    <span class="warn" title="@SnapshotTexts.Moved">Stand hat sich geändert – neu ausführen</span>
-                                }
-                            }
-                        }
-                    }
-                    <span class="spacer"></span>
-                    <span class="muted">Session des Workspaces – eigene, nicht committete Änderungen sind sichtbar</span>
-                </div>
+                <ResultFooter Status="_grid" />
             }
             else if (run.Changed is { } changed)
             {
@@ -245,13 +208,10 @@
 }
 
 @code {
-    private static readonly Regex QuotedName = new("\"([^\"]+)\"", RegexOptions.CultureInvariant);
-
     private MonacoEditor? _editor;
     private CancellationTokenSource? _cts;
     private bool _running;
     private bool _planOpen;
-    private bool _renaming; // the title in the toolbar is being edited
     private string? _error;
     private bool _needsUnlock;
     private string? _notice;
@@ -321,7 +281,7 @@
         foreach (var bind in _binds.Where(b => !known.Contains(b)))
         {
             if (statements.FirstOrDefault(s => s.BindUses.Any(u => string.Equals(u.Bind, bind, StringComparison.OrdinalIgnoreCase))) is { } info
-                && await SuggestAsync(info, bind) is { } type)
+                && Active.Schema is { } schema && await SqlBinds.SuggestTypeAsync(info, bind, schema, CancellationToken.None) is { } type)
             {
                 suggestions[bind] = type;
             }
@@ -333,42 +293,6 @@
             Tab.Variables = variables;
             Shell.MarkDirty();
         }
-    }
-
-    /// <summary>The type of the column a bind is compared with, if the schema knows it.</summary>
-    private async Task<SqlVariableType?> SuggestAsync(SqlStatementInfo info, string bind)
-    {
-        if (Active.Schema is not { } schema)
-        {
-            return null;
-        }
-
-        var use = info.BindUses.First(u => string.Equals(u.Bind, bind, StringComparison.OrdinalIgnoreCase));
-        var candidates = use.Qualifier is { } qualifier
-            ? info.Tables.Where(t => t.Alias == qualifier || (t.Alias is null && t.Name == qualifier))
-            : info.Tables;
-        foreach (var reference in candidates)
-        {
-            if (SqlCompletion.Resolve(schema, reference) is not { } table)
-            {
-                continue;
-            }
-
-            try
-            {
-                var details = await schema.GetDetailsAsync(table, CancellationToken.None);
-                if (details.Columns.FirstOrDefault(c => c.Name == use.Column) is { } column)
-                {
-                    return SqlBinds.TypeFor(column);
-                }
-            }
-            catch (DatabaseException)
-            {
-                return null; // only a suggestion
-            }
-        }
-
-        return null;
     }
 
     private void SetVariable(SqlVariable variable, SqlVariableType type, string value)
@@ -450,46 +374,17 @@
     /// </summary>
     private async Task StartAsync(IReadOnlyList<SqlStatement> statements, bool single)
     {
-        var runs = new List<SqlRun>();
-        for (var i = 0; i < statements.Count; i++)
+        var plan = SqlScriptPlan.Prepare(statements, Tab.Variables, Workspaces.IsWritable(Tab.WorkspaceId), single);
+        if (plan.Problem is { } problem)
         {
-            var statement = statements[i];
-            var info = SqlScript.Analyze(statement.Text);
-            string? problem = null;
-            QuerySpec? query = null;
-            if (info.Rejection is { } rejection)
-            {
-                problem = rejection;
-            }
-            else if (!info.IsQuery && !Workspaces.IsWritable(Tab.WorkspaceId))
-            {
-                problem = $"{info.FirstWord} ändert Daten – der Workspace ist schreibgeschützt.";
-                _needsUnlock = true;
-            }
-            else
-            {
-                try
-                {
-                    query = SqlBinds.Bind(statement.Text, info.Binds, Tab.Variables);
-                }
-                catch (SqlBindException ex)
-                {
-                    problem = ex.Message;
-                }
-            }
-
-            if (query is null)
-            {
-                _error = single ? problem : $"Statement {i + 1} – nichts ausgeführt: {problem}";
-                await _editor!.SetOffsetMarkersAsync([new MonacoEditor.EditorMarker(statement.Start, statement.Length, "warning", _error!)]);
-                StateHasChanged();
-                return;
-            }
-
-            runs.Add(new SqlRun(single ? 0 : i + 1, statement, info, query, DateTimeOffset.Now));
+            (_error, _needsUnlock) = (problem.Message, problem.NeedsUnlock);
+            await _editor!.SetOffsetMarkersAsync([new MonacoEditor.EditorMarker(problem.Statement.Start, problem.Statement.Length, "warning", problem.Message)]);
+            StateHasChanged();
+            return;
         }
 
-        if (runs.Any(r => r.Info.AffectsAllRows) || (IsProd && runs.Any(r => r.Info.IsDml)))
+        var runs = plan.Statements.Select(s => new SqlRun(s.Number, s.Statement, s.Info, s.Query, DateTimeOffset.Now)).ToList();
+        if (plan.NeedsConfirmation(IsProd))
         {
             _confirm = runs;
             StateHasChanged(); // started from a shortcut, not a UI event
@@ -626,14 +521,9 @@
     /// <summary>Marks the name an ORA-00904/00942 complains about, if it is in the statement.</summary>
     private async Task MarkAsync(SqlRun run, DatabaseException ex)
     {
-        if (_editor is not null && ex.ErrorCode is "ORA-00904" or "ORA-00942" && QuotedName.Matches(ex.Message) is { Count: > 0 } names)
+        if (_editor is not null && SqlScriptPlan.LocateError(run.Statement.Text, ex.ErrorCode, ex.Message) is var (start, length))
         {
-            var name = names[^1].Groups[1].Value;
-            var at = Regex.Match(run.Statement.Text, $@"(?<![\w$#""]){Regex.Escape(name)}(?![\w$#])", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-            if (at.Success)
-            {
-                await _editor.SetOffsetMarkersAsync([new MonacoEditor.EditorMarker(run.Statement.Start + at.Index, at.Length, "error", ex.Display)]);
-            }
+            await _editor.SetOffsetMarkersAsync([new MonacoEditor.EditorMarker(run.Statement.Start + start, length, "error", ex.Display)]);
         }
     }
 
@@ -766,10 +656,6 @@
         { Rows: { } rows } => $"{(entry.MoreRows ? "≥ " : "")}{rows:N0} Zeilen",
         _ => "",
     };
-
-    private static string Ms(TimeSpan elapsed) => elapsed.TotalMilliseconds < 1000
-        ? $"{elapsed.TotalMilliseconds:0} ms"
-        : $"{elapsed.TotalSeconds.ToString("0.0", CultureInfo.CurrentCulture)} s";
 
     public void Dispose()
     {

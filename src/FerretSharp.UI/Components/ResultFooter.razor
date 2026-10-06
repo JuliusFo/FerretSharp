@@ -1,0 +1,55 @@
+@* The footer below a result grid of the SQL editor or the LINQ console (R2: was in both views): loading, the error of a
+   later page (with details), rows, time, the read-only snapshot and whether it moved. *@
+@using FerretSharp.UI.State
+
+<div class="tab-footer">
+    @if (Status is { } grid)
+    {
+        @if (grid.Loading)
+        {
+            <span><span class="spinner small"></span> Lade …</span>
+        }
+        else if (grid.Error is { } error)
+        {
+            <span class="error" title="@error.Statement?.Sql">@error.Display</span>
+            <button class="btn ghost" @onclick="() => Shell.ShowError(error)">Details</button>
+            @ErrorActions?.Invoke(error)
+        }
+        else
+        {
+            <span><strong>@(grid.AllLoaded ? "" : "≥ ")@grid.RowsLoaded.ToString("N0", CultureInfo.CurrentCulture)</strong> @(grid is { AllLoaded: true, RowsLoaded: 1 } ? "Zeile" : "Zeilen")</span>
+            @if (grid.Elapsed is { } elapsed)
+            {
+                <span>@Ms(elapsed)</span>
+            }
+            @if (grid.DataAsOf is { } asOf)
+            {
+                <span title="Schreibgeschützter Workspace: Stand der READ ONLY-Transaktion">Stand @asOf.ToLocalTime().ToString("HH:mm:ss", CultureInfo.InvariantCulture)</span>
+                @if (grid.SnapshotMoved)
+                {
+                    <span class="warn" title="@SnapshotTexts.Moved">Stand hat sich geändert – neu ausführen</span>
+                }
+            }
+        }
+    }
+    <span class="spacer"></span>
+    <span class="muted">Session des Workspaces – eigene, nicht committete Änderungen sind sichtbar</span>
+</div>
+
+@code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    /// <summary>The grid's state; null before it reported anything.</summary>
+    [Parameter]
+    public SqlGridStatus? Status { get; set; }
+
+    /// <summary>More buttons next to an error (the LINQ console links the model drift for ORA-00904).</summary>
+    [Parameter]
+    public RenderFragment<FerretSharp.Core.Connections.DatabaseException>? ErrorActions { get; set; }
+
+    /// <summary>"12 ms" below a second, "1,4 s" above.</summary>
+    public static string Ms(TimeSpan elapsed) => elapsed.TotalMilliseconds < 1000
+        ? $"{elapsed.TotalMilliseconds:0} ms"
+        : $"{elapsed.TotalSeconds.ToString("0.0", CultureInfo.CurrentCulture)} s";
+}
