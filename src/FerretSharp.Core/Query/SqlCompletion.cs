@@ -14,7 +14,7 @@ public enum SqlCompletionKind
 }
 
 /// <param name="Label">What the list shows (<c>KUNDEN</c>, <c>KUNDE_ID</c>).</param>
-/// <param name="InsertText">What goes into the editor: the name, quoted where Oracle needs it (<c>"Auftrag"</c>, <c>"DATE"</c>).</param>
+/// <param name="InsertText">What goes into the editor: the name, quoted where Oracle needs it (<c>"Auftrag"</c>, <c>"DATE"</c>), maybe with a space after it.</param>
 /// <param name="Detail">Type and C# names: <c>NUMBER(10) · KundeId · int</c>, <c>Tabelle · Entity Kunde</c>.</param>
 /// <param name="Rank">Lower comes first: columns of the table before the dot, then other columns, tables, keywords.</param>
 public sealed record SqlCompletionItem(string Label, string InsertText, SqlCompletionKind Kind, string? Detail, int Rank);
@@ -50,6 +50,13 @@ public static class SqlCompletion
         "DELETE FROM", "MERGE INTO", "USING", "WITH", "SYSDATE", "SYSTIMESTAMP", "TRUNC", "NVL", "TO_DATE", "TO_CHAR", "UPPER",
     ];
 
+    /// <summary>Keywords that are values or functions: a comma, a parenthesis or an operator usually follows, not a space.</summary>
+    private static readonly HashSet<string> ValueKeywords = new(StringComparer.Ordinal)
+    {
+        "NULL", "ASC", "DESC", "END", "COUNT(*)", "FETCH FIRST 100 ROWS ONLY", "SYSDATE", "SYSTIMESTAMP", "TRUNC", "NVL", "TO_DATE",
+        "TO_CHAR", "UPPER",
+    };
+
     private static readonly HashSet<string> TableContext = new(StringComparer.OrdinalIgnoreCase)
     {
         "FROM", "JOIN", "INTO", "UPDATE", "USING", "TABLE",
@@ -63,9 +70,26 @@ public static class SqlCompletion
 
     /// <param name="statement">The statement around the cursor (the one Ctrl+Enter would run).</param>
     /// <param name="offset">Cursor position in <paramref name="statement"/>.</param>
+    /// <param name="atLineEnd">
+    /// Nothing follows the cursor on its line (<see cref="AtLineEnd"/>): tables and clause keywords then end with a space, so
+    /// typing goes on with the alias or the next word. Columns never do – a comma, parenthesis or operator usually follows.
+    /// </param>
     /// <param name="present">The presentation of a table (C# names); <see cref="TablePresentation.Plain"/> without a model.</param>
     /// <param name="entityOf">The entity name of a table, for the detail of table items; null without one.</param>
     public static async Task<IReadOnlyList<SqlCompletionItem>> ItemsAsync(
+        string statement, int offset, bool atLineEnd, SchemaCache schema, Func<TableDetails, TablePresentation> present,
+        Func<TableRef, string?> entityOf, CancellationToken cancellationToken)
+    {
+        var items = await ItemsAsync(statement, offset, schema, present, entityOf, cancellationToken);
+        return atLineEnd
+            ? items.Select(i => i.Kind != SqlCompletionKind.Column && !ValueKeywords.Contains(i.InsertText) ? i with { InsertText = i.InsertText + " " } : i).ToList()
+            : items;
+    }
+
+    /// <summary>The cursor is at the end of the text or of its line – already followed by a space, a comma or a word, a completion needs no space.</summary>
+    public static bool AtLineEnd(string text, int cursor) => cursor >= text.Length || text[cursor] is '\r' or '\n';
+
+    private static async Task<IReadOnlyList<SqlCompletionItem>> ItemsAsync(
         string statement, int offset, SchemaCache schema, Func<TableDetails, TablePresentation> present, Func<TableRef, string?> entityOf,
         CancellationToken cancellationToken)
     {

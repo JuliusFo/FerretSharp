@@ -692,7 +692,7 @@
             : ("", 0);
         try
         {
-            return await SqlCompletion.ItemsAsync(slice, offset, schema, Presentations.For, Presentations.EntityNameOf, CancellationToken.None);
+            return await SqlCompletion.ItemsAsync(slice, offset, SqlCompletion.AtLineEnd(text, cursor), schema,Presentations.For, Presentations.EntityNameOf, CancellationToken.None);
         }
         catch (DatabaseException)
         {
