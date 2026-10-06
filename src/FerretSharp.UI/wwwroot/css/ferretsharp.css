@@ -792,7 +792,8 @@ table.columns td.clr-type .converter { display: block; color: var(--muted); font
 .linq-commands .spacer { flex: 1; }
 .chip-btn { height: 24px; padding: 0 9px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--muted); font: 11.5px var(--mono); }
 .chip-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-weak); }
-.linq-sql { flex: none; max-height: 20vh; overflow: auto; border-bottom: 1px solid var(--border); }
+/* Shrinks (and scrolls) before the grid's minimum height pushes the footer over the status bar. */
+.linq-sql { flex: 0 1 auto; min-height: 48px; max-height: 20vh; overflow: auto; border-bottom: 1px solid var(--border); }
 .linq-output .grid-host { min-height: 160px; }
 .linq-sql pre, .linq-sql .linq-sql-code { margin: 0; }
 .linq-params { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 6px 14px 8px; font-size: 12px; background: var(--surface-2); user-select: text; }
