@@ -2,7 +2,7 @@
 
 > Projektanweisungen für Claude Code. Bitte vollständig lesen, bevor ein Arbeitspaket umgesetzt wird.
 > Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-06 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0; WP-14 → 2.4.0; WP-15 → 3.0.0, v3 abgeschlossen; v4: WP-16 → 3.1.0, WP-17 → 3.2.0, WP-18 → 3.3.0, Leerzeichen nach Vorschlägen 3.3.1)
+> Stand: 2026-10-06 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0; WP-14 → 2.4.0; WP-15 → 3.0.0, v3 abgeschlossen; v4: WP-16 → 3.1.0, WP-17 → 3.2.0, WP-18 → 3.3.0, Leerzeichen nach Vorschlägen 3.3.1, Tabs umbenennen 3.4.0)
 
 ## 1. Ziel
 
@@ -556,6 +556,7 @@ Auftrag des Nutzers (2026-10-06): „das Ausführen eines ganzen Skripts und den
 - Altfehler: „Löschen“ im Verbindungsdialog löschte nur das Profil (Workspaces und SQL-Verlauf blieben; die aktive Verbindung blieb verbunden). Jetzt übergibt der Dialog an `ShellState.RequestDelete` – derselbe Ablauf wie das „⋯“-Menü (Bestätigung, bei aktiver Verbindung Trennen mit Schutz vor offenen Änderungen inkl. Transaktionen aus dem SQL-Editor, Workspaces und Verlauf entfernen).
 - E2E: Alt in `Input.dispatchKeyEvent` ist Modifier **1** (2 = Ctrl, 4 = Meta, 8 = Shift).
 - Nachtrag 3.3.1 (Wunsch des Nutzers): Vorschläge im SQL-Editor enden mit einem Leerzeichen, wenn der Cursor am Zeilen-/Textende steht (`SqlCompletion.AtLineEnd`) – nur Tabellen/Views/Synonyme und Schlüsselwörter, nicht Spalten und nicht Werte/Funktionen (`ValueKeywords`: `NULL`, `DESC`, `NVL` …), weil dort meist `,`, `(` oder `)` folgt.
+- Nachtrag 3.4.0 (Wunsch des Nutzers): SQL- und LINQ-Tabs umbenennen – Doppelklick auf den Tab (`e.Detail >= 2`) oder Klick auf den Titel in der Toolbar; `TitleEditor` (Enter/Blur übernimmt, Esc bricht ab), `ITitledTab`, `ShellState.RenameTab` (max. 40 Zeichen wie Workspace-Namen, `Workspace.NormalizeName`). Tabellen-Tabs heißen weiter wie ihre Tabelle.
 
 #### WP-19 Schema-Vergleich (geplant)
 Wunsch des Nutzers (2026-10-06), vor DDL und Tabellen-Designer. Anlass: DB-first von Hand über mehrere Umgebungen – „ALTER auf Test vergessen?“.
