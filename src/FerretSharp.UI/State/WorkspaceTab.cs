@@ -68,9 +68,11 @@ public sealed class SqlTab(Guid workspaceId, string title) : WorkspaceTab(worksp
 /// <summary>A statement the SQL editor ran (or refused) and what came of it.</summary>
 /// <param name="Query">The bound statement: shown in the result grid for a query, executed once for DML.</param>
 /// <param name="Changed">DML: rows changed; null for queries and failures.</param>
+/// <param name="Transaction">DML: start of the workspace transaction it ran in – to tell whether that one is still open.</param>
 public sealed record SqlRun(
     Core.Query.SqlStatement Statement,
     Core.Query.SqlStatementInfo Info,
     Core.Query.QuerySpec Query,
     DateTimeOffset At,
-    int? Changed = null);
+    int? Changed = null,
+    DateTimeOffset? Transaction = null);

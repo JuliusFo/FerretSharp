@@ -794,6 +794,7 @@ table.columns td.clr-type .converter { display: block; color: var(--muted); font
 .linq-params .muted { color: var(--faint); font-size: 11px; }
 .linq-write { padding: 14px 16px; font-size: 13px; }
 .linq-write p { margin: 0 0 10px; max-width: 760px; }
+.linq-write p.muted { color: var(--muted); }
 
 /* ---------- SQL editor (WP-17) ---------- */
 .tab.sql .icon { color: var(--accent); }

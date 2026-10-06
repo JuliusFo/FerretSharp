@@ -153,8 +153,15 @@
             else if (run.Changed is { } changed)
             {
                 <div class="linq-write">
-                    <p><strong>@(changed == 1 ? "1 Zeile" : $"{changed:N0} Zeilen") geändert</strong> (@run.Info.FirstWord) – in der Transaktion des Workspaces.
-                        Für andere unsichtbar bis zum Commit; committen oder verwerfen über die Statusleiste.</p>
+                    @if (TransactionStillOpen(run))
+                    {
+                        <p><strong>@(changed == 1 ? "1 Zeile" : $"{changed:N0} Zeilen") geändert</strong> (@run.Info.FirstWord) – in der Transaktion des Workspaces.
+                            Für andere unsichtbar bis zum Commit; committen oder verwerfen über die Statusleiste.</p>
+                    }
+                    else
+                    {
+                        <p class="muted">@(changed == 1 ? "1 Zeile" : $"{changed:N0} Zeilen") geändert (@run.Info.FirstWord) – die Transaktion ist inzwischen beendet (Commit oder Rollback).</p>
+                    }
                 </div>
             }
         }
@@ -416,7 +423,7 @@
         {
             var editor = await Workspaces.GetEditorAsync(Tab.WorkspaceId, token);
             var changed = await Task.Run(() => editor.ExecuteAsync(run.Query, token), token);
-            Tab.LastRun = run with { Changed = changed };
+            Tab.LastRun = run with { Changed = changed, Transaction = Workspaces.TransactionOf(Tab.WorkspaceId)?.StartedAt };
             // Table tabs of the workspace may show the changed rows: they fetch them again from the transaction.
             foreach (var tab in Shell.Workspaces.FirstOrDefault(w => w.WorkspaceId == Tab.WorkspaceId)?.TableTabs ?? [])
             {
@@ -527,7 +534,7 @@
     private IEnumerable<SqlHistoryEntry> FilteredHistory => _history.Where(e =>
         _historySearch.Split(' ', StringSplitOptions.RemoveEmptyEntries).All(w => e.Sql.Contains(w, StringComparison.OrdinalIgnoreCase)));
 
-    /// <summary>Appends the statement after a blank line (the script stays), adopts its variables and puts the cursor there.</summary>
+    /// <summary>Appends the statement after a blank line, adopts its variables and puts the cursor there.</summary>
     private async Task AdoptAsync(SqlHistoryEntry entry)
     {
         if (_editor is null)
@@ -537,7 +544,7 @@
 
         var current = (await _editor.GetRunContextAsync())?.Text ?? Tab.Text;
         var trimmed = current.TrimEnd();
-        var prefix = trimmed.Length == 0 ? "" : trimmed + (trimmed.EndsWith(';') ? "" : ";") + "\n\n";
+        var prefix = trimmed.Length == 0 ? "" : trimmed + "\n\n"; // the blank line separates; the script stays as written
         Tab.Text = prefix + entry.Sql + ";\n";
         Tab.Variables = [.. Tab.Variables.Where(v => !entry.Variables.Any(e => string.Equals(e.Name, v.Name, StringComparison.OrdinalIgnoreCase))),
             .. entry.Variables.Where(v => v.Value.Length > 0 || !Tab.Variables.Any(t => string.Equals(t.Name, v.Name, StringComparison.OrdinalIgnoreCase)))];
@@ -574,6 +581,10 @@
         info.Tables is [{ Depth: 0 } only] && Active.Schema is { } schema ? SqlCompletion.Resolve(schema, only) : null;
 
     private string ExportName(SqlStatementInfo info) => InsertTarget(info)?.DisplayName ?? Tab.Title;
+
+    /// <summary>The writing transaction the statement ran in is still open (not committed or rolled back since).</summary>
+    private bool TransactionStillOpen(SqlRun run) =>
+        run.Transaction is { } ranIn && Workspaces.TransactionOf(Tab.WorkspaceId) is { Mode: TransactionMode.ReadWrite, StartedAt: { } started } && started == ranIn;
 
     private void Cancel() => _cts?.Cancel();
 

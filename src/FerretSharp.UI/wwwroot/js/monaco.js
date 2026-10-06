@@ -100,12 +100,13 @@ function registerProvider(monaco, language) {
         return { suggestions: [] };
       }
       return {
-        suggestions: items.map(i => ({
+        // sortText keeps the order .NET chose (columns in schema order); Monaco still ranks by how well they match.
+        suggestions: items.map((i, index) => ({
           label: { label: i.label, description: i.detail ?? undefined },
           kind: kindOf[i.kind] ?? kinds.Text,
           insertText: i.insertText,
           detail: i.detail ?? undefined,
-          sortText: `${i.rank}${i.label}`,
+          sortText: `${i.rank}${String(index).padStart(5, '0')}`,
           range,
         })),
       };
