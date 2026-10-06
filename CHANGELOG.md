@@ -5,6 +5,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.2.0] - 2026-10-06
+
+### Added
+- SQL editor: "+ SQL" in the tab bar or Ctrl+Shift+Q opens a workspace tab for your own SQL. Separate statements with `;`, a blank line or a line with only `/`; Ctrl+Enter (or F5) runs the statement at the cursor – or the selection – in the workspace's session. The tab is saved with the workspace, script and variables included.
+- Queries run everywhere (on read-only workspaces in their snapshot) and show their result in a grid with row count, time and "Plan". INSERT, UPDATE, DELETE and MERGE run only on writable workspaces, in their transaction – commit or roll back in the status bar. On Prod, and for UPDATE/DELETE without WHERE, FerretSharp asks first. DDL, PL/SQL blocks, COMMIT/ROLLBACK, ALTER SESSION and FOR UPDATE are refused with the reason.
+- Bind variables: `:kundeId` gets a field below the editor with a type (text, text for CHAR columns, number, date, hex, NULL) – suggested from the column it is compared with – and values typed as in the filter bar. Values are bound, never pasted into the SQL.
+- Completion (Ctrl+Space, or after `alias.`): tables, views and synonyms with their entity after FROM/JOIN/INTO/UPDATE, the columns of a table or alias in schema order with type and C# property, names quoted where Oracle needs it.
+- History per connection: the last 500 statements with time, rows or error; a click adds the statement to the script with its variables (on Prod connections without values).
+- Result grids (SQL editor and LINQ console) get a context menu: copy the value, copy the rows as table or as INSERT (when the query reads one table), save as CSV.
+- "In SQL-Editor öffnen" in the SQL preview of a table tab: the grid's statement in a new SQL tab, its bind values as variables.
+
+### Changed
+- Free queries (SQL editor, LINQ console) show CLOB/BLOB values as preview with length, like the table grid.
+
 ## [3.1.0] - 2026-10-05
 
 ### Added
