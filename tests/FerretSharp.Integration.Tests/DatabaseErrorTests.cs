@@ -55,6 +55,48 @@ public sealed class DatabaseErrorTests(OracleContainerFixture oracle)
         Assert.NotNull(second.Statement);
     }
 
+    /// <summary>
+    /// A locked session restarts its snapshot on the first page; after a kill that must be reported as connection
+    /// loss – and the next read must not fall back to autocommit (no snapshot, no ORA-01456) but fail the same way.
+    /// </summary>
+    [Fact]
+    public async Task Killed_locked_session_is_reported_as_connection_lost_and_stays_locked()
+    {
+        var action = "Kill locked " + Guid.NewGuid().ToString("N")[..8];
+        await using var connection = await OpenAsync(action);
+        await SampleSchema.EnsureCreatedAsync(oracle.RequireConnectionString(), Ct);
+        var (profile, _) = oracle.RequireProfile();
+        var grid = await connection.Schema.GetDetailsAsync(new TableSummary(profile.EffectiveSchema, "GRID_TEST", TableKind.Table), Ct);
+        await connection.UseReadOnlySnapshotsAsync(Ct);
+
+        await KillAsync(action);
+
+        var first = await Assert.ThrowsAsync<DatabaseException>(() => connection.Data.ReadPageAsync(grid, [], [], new PageSpec(0, 10), Ct));
+        var second = await Assert.ThrowsAsync<DatabaseException>(() => connection.Data.ReadPageAsync(grid, [], [], new PageSpec(10, 10), Ct));
+
+        Assert.True(first.IsConnectionLost, first.Display);
+        Assert.True(second.IsConnectionLost, second.Display);
+        Assert.True(connection.UsesReadOnlySnapshots);
+    }
+
+    /// <summary>Closing a workspace while its grid reads: the statement is cancelled, the session closes promptly.</summary>
+    [Fact]
+    public async Task Disposing_cancels_a_running_query_and_refuses_later_calls()
+    {
+        var connection = await OpenAsync("Dispose test");
+        var slow = new QuerySpec("SELECT COUNT(*) FROM ALL_OBJECTS a CROSS JOIN ALL_OBJECTS b CROSS JOIN ALL_OBJECTS c", []);
+        var running = connection.Data.ReadSqlAsync(slow, 0, 1, Ct);
+        await Task.Delay(1000, Ct);
+
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        await connection.DisposeAsync();
+
+        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(9), $"Dispose took {stopwatch.Elapsed}");
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => running);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => connection.Data.ReadSqlAsync(new QuerySpec("SELECT 1 FROM DUAL", []), 0, 1, Ct));
+        await connection.DisposeAsync(); // twice is fine
+    }
+
     [Fact]
     public async Task Keep_alive_ping_skips_a_recently_used_session_and_finds_a_killed_one()
     {

@@ -50,44 +50,22 @@ public sealed class OracleSession : IAsyncDisposable
     /// <summary>New snapshots tried per query before the error is reported (ORA-01466 waits 1, 2, 3 s).</summary>
     private const int MaxSnapshotRetries = 3;
 
-    private static readonly Regex WriteStart = new(@"\A(?:INSERT|UPDATE|DELETE|MERGE)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     private static readonly Regex SavepointName = new(@"\A[A-Z][A-Z0-9_]{0,29}\z", RegexOptions.CultureInvariant);
-    private static readonly Regex LockEnd = new(@"\bFOR\s+UPDATE\s+(?:WAIT\s+\d{1,3}|NOWAIT)\z", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
     /// <summary>ORA-01013: user requested cancel of current operation.</summary>
     internal const int UserCancelledErrorNumber = 1013;
 
-    private static readonly Regex LeadingComments = new(@"\A(?:\s+|--[^\n]*(?:\n|\z)|/\*.*?\*/)*", RegexOptions.Singleline | RegexOptions.CultureInvariant);
-    private static readonly Regex QueryStart = new(@"\A(?:SELECT|WITH)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-    private static readonly Regex StringLiterals = new("'(?:[^']|'')*'", RegexOptions.CultureInvariant);
-    private static readonly Regex ForUpdate = new(@"\bFOR\s+UPDATE\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    /// <summary>ORA-02091: transaction rolled back (a deferred constraint failed at commit).</summary>
+    internal const int TransactionRolledBackErrorNumber = 2091;
+
+    /// <summary>A single plain query (SELECT/WITH, no FOR UPDATE) – the only kind the read path runs. See <see cref="StatementGuard"/>.</summary>
+    internal static bool IsReadOnlyStatement(string sql) => StatementGuard.IsQuery(sql);
 
     /// <summary>
-    /// A plain query: starts with SELECT or WITH (after whitespace and comments), no several statements and no
-    /// FOR UPDATE (row locks). Not a SQL parser – a guard against programming mistakes, since all SQL comes from
-    /// <c>QueryBuilder</c> and <c>OracleSchemaReader</c>. Values are always bind variables, never part of the text.
+    /// A single INSERT, UPDATE, DELETE or MERGE (MERGE since the SQL editor, ADR 0014). Never DDL: it would commit
+    /// implicitly, also inside a read-only transaction.
     /// </summary>
-    internal static bool IsReadOnlyStatement(string sql)
-    {
-        var body = sql[LeadingComments.Match(sql).Length..];
-        if (!QueryStart.IsMatch(body))
-        {
-            return false;
-        }
-
-        var withoutLiterals = StringLiterals.Replace(body, "''");
-        return !ForUpdate.IsMatch(withoutLiterals) && !withoutLiterals.TrimEnd().TrimEnd(';').Contains(';', StringComparison.Ordinal);
-    }
-
-    /// <summary>
-    /// A single INSERT, UPDATE, DELETE or MERGE (after whitespace and comments; MERGE since the SQL editor, ADR 0014).
-    /// Never DDL: it would commit implicitly, also inside a read-only transaction.
-    /// </summary>
-    internal static bool IsWriteStatement(string sql)
-    {
-        var body = sql[LeadingComments.Match(sql).Length..];
-        var withoutLiterals = StringLiterals.Replace(body, "''");
-        return WriteStart.IsMatch(body) && !withoutLiterals.TrimEnd().TrimEnd(';').Contains(';', StringComparison.Ordinal);
-    }
+    internal static bool IsWriteStatement(string sql) => StatementGuard.IsWrite(sql);
 
     /// <summary>
     /// Characters of LONG columns fetched with the row (<c>ALL_TAB_COLUMNS.DATA_DEFAULT</c>, <c>ALL_VIEWS.TEXT</c>).
@@ -95,10 +73,19 @@ public sealed class OracleSession : IAsyncDisposable
     /// </summary>
     internal const int LongFetchSize = 32767;
 
+    /// <summary>Label of transaction control in errors (there is no statement text).</summary>
+    private const string TransactionControl = "(Transaktionssteuerung)";
+
+    /// <summary>How long disposing waits for a running command after cancelling it, before closing anyway.</summary>
+    private static readonly TimeSpan DisposeWait = TimeSpan.FromSeconds(10);
+
     private readonly OracleConnection _connection;
+
+    /// <summary>Serializes all use of <see cref="_connection"/>; never disposed (callers may still be waiting on it).</summary>
     private readonly SemaphoreSlim _gate = new(1, 1);
     private long _lastRoundTrip = Environment.TickCount64;
     private volatile bool _disposed;
+    private volatile OracleCommand? _running;
     private OracleTransaction? _transaction;
     private bool _readOnlySnapshots;
 
@@ -145,14 +132,14 @@ public sealed class OracleSession : IAsyncDisposable
     /// <summary>Changes ACTION in <c>V$SESSION</c> (e.g. after renaming a workspace); sent with the next round trip.</summary>
     public async Task SetActionAsync(string action, CancellationToken cancellationToken)
     {
-        await _gate.WaitAsync(cancellationToken);
+        await EnterAsync(cancellationToken);
         try
         {
             _connection.ActionName = ToSessionAttribute(action);
         }
         finally
         {
-            _gate.Release();
+            Exit();
         }
     }
 
@@ -238,9 +225,15 @@ public sealed class OracleSession : IAsyncDisposable
             throw new InvalidOperationException("Über diesen Weg laufen nur lesende Abfragen (SELECT/WITH ohne FOR UPDATE).");
         }
 
-        await _gate.WaitAsync(cancellationToken);
+        await EnterAsync(cancellationToken);
         try
         {
+            if (_readOnlySnapshots && _transaction is null)
+            {
+                // An earlier snapshot restart failed (lost connection, cancelled): a locked session never reads in autocommit.
+                await RestartSnapshotCoreAsync(cancellationToken);
+            }
+
             for (var attempt = 1; ; attempt++)
             {
                 try
@@ -262,8 +255,7 @@ public sealed class OracleSession : IAsyncDisposable
         }
         finally
         {
-            Interlocked.Exchange(ref _lastRoundTrip, Environment.TickCount64);
-            _gate.Release();
+            Exit();
         }
     }
 
@@ -273,7 +265,7 @@ public sealed class OracleSession : IAsyncDisposable
     /// </summary>
     public async Task UseReadOnlySnapshotsAsync(CancellationToken cancellationToken)
     {
-        await _gate.WaitAsync(cancellationToken);
+        await EnterAsync(cancellationToken);
         try
         {
             if (_transaction is not null && Transaction.Mode == TransactionMode.ReadWrite)
@@ -286,7 +278,7 @@ public sealed class OracleSession : IAsyncDisposable
         }
         finally
         {
-            _gate.Release();
+            Exit();
         }
     }
 
@@ -296,7 +288,7 @@ public sealed class OracleSession : IAsyncDisposable
     /// </summary>
     public async Task StopReadOnlySnapshotsAsync(CancellationToken cancellationToken)
     {
-        await _gate.WaitAsync(cancellationToken);
+        await EnterAsync(cancellationToken);
         try
         {
             if (!_readOnlySnapshots)
@@ -309,7 +301,7 @@ public sealed class OracleSession : IAsyncDisposable
         }
         finally
         {
-            _gate.Release();
+            Exit();
         }
     }
 
@@ -321,21 +313,21 @@ public sealed class OracleSession : IAsyncDisposable
             return;
         }
 
-        await _gate.WaitAsync(cancellationToken);
+        await EnterAsync(cancellationToken);
         try
         {
             await RestartSnapshotCoreAsync(cancellationToken);
         }
         finally
         {
-            _gate.Release();
+            Exit();
         }
     }
 
     /// <summary>Opens a transaction that may write (WP-09). Refused in a locked session.</summary>
     public async Task BeginTransactionAsync(CancellationToken cancellationToken)
     {
-        await _gate.WaitAsync(cancellationToken);
+        await EnterAsync(cancellationToken);
         try
         {
             if (_readOnlySnapshots)
@@ -348,12 +340,12 @@ public sealed class OracleSession : IAsyncDisposable
                 throw new InvalidOperationException("Es ist bereits eine Transaktion offen.");
             }
 
-            _transaction = _connection.BeginTransaction();
+            _transaction = BeginCoreTransaction(TransactionControl);
             Transaction = new TransactionInfo(TransactionMode.ReadWrite, DateTimeOffset.Now);
         }
         finally
         {
-            _gate.Release();
+            Exit();
         }
     }
 
@@ -368,7 +360,7 @@ public sealed class OracleSession : IAsyncDisposable
     /// <summary>Commits the writing transaction.</summary>
     public async Task CommitAsync(CancellationToken cancellationToken)
     {
-        await _gate.WaitAsync(cancellationToken);
+        await EnterAsync(cancellationToken);
         try
         {
             if (_transaction is null || Transaction.Mode != TransactionMode.ReadWrite)
@@ -376,12 +368,22 @@ public sealed class OracleSession : IAsyncDisposable
                 throw new InvalidOperationException("Es ist keine schreibende Transaktion offen.");
             }
 
-            await GuardAsync(() => _transaction.CommitAsync(cancellationToken));
+            try
+            {
+                await GuardAsync(() => _transaction.CommitAsync(cancellationToken));
+            }
+            catch (OracleStatementException ex) when (ex.Oracle is null or { Number: TransactionRolledBackErrorNumber } || _connection.State != ConnectionState.Open)
+            {
+                // Oracle rolled the transaction back (deferred constraint violated) or the session is gone: nothing is open any more.
+                await EndTransactionQuietlyAsync();
+                throw;
+            }
+
             await EndTransactionCoreAsync(rollback: false);
         }
         finally
         {
-            _gate.Release();
+            Exit();
         }
     }
 
@@ -391,7 +393,7 @@ public sealed class OracleSession : IAsyncDisposable
     /// </summary>
     public async Task RollbackAsync(CancellationToken cancellationToken)
     {
-        await _gate.WaitAsync(cancellationToken);
+        await EnterAsync(cancellationToken);
         try
         {
             if (_readOnlySnapshots)
@@ -405,7 +407,7 @@ public sealed class OracleSession : IAsyncDisposable
         }
         finally
         {
-            _gate.Release();
+            Exit();
         }
     }
 
@@ -421,7 +423,7 @@ public sealed class OracleSession : IAsyncDisposable
             throw new InvalidOperationException("Geschrieben wird nur mit einzelnen INSERT-, UPDATE-, DELETE- oder MERGE-Statements.");
         }
 
-        await _gate.WaitAsync(cancellationToken);
+        await EnterAsync(cancellationToken);
         try
         {
             if (_transaction is null)
@@ -450,8 +452,7 @@ public sealed class OracleSession : IAsyncDisposable
         }
         finally
         {
-            Interlocked.Exchange(ref _lastRoundTrip, Environment.TickCount64);
-            _gate.Release();
+            Exit();
         }
     }
 
@@ -468,7 +469,7 @@ public sealed class OracleSession : IAsyncDisposable
             throw new InvalidOperationException("Gesperrt wird nur mit SELECT … FOR UPDATE WAIT n.");
         }
 
-        await _gate.WaitAsync(cancellationToken);
+        await EnterAsync(cancellationToken);
         try
         {
             if (_transaction is null || Transaction.Mode != TransactionMode.ReadWrite)
@@ -480,34 +481,83 @@ public sealed class OracleSession : IAsyncDisposable
         }
         finally
         {
-            Interlocked.Exchange(ref _lastRoundTrip, Environment.TickCount64);
-            _gate.Release();
+            Exit();
         }
     }
 
     /// <summary>A single SELECT ending in FOR UPDATE WAIT n or FOR UPDATE NOWAIT – never one that waits forever.</summary>
-    internal static bool IsLockStatement(string sql)
-    {
-        var body = sql[LeadingComments.Match(sql).Length..];
-        var withoutLiterals = StringLiterals.Replace(body, "''").TrimEnd().TrimEnd(';');
-        return QueryStart.IsMatch(body) && LockEnd.IsMatch(withoutLiterals) && !withoutLiterals.Contains(';', StringComparison.Ordinal);
-    }
+    internal static bool IsLockStatement(string sql) => StatementGuard.IsLock(sql);
 
-    /// <summary>Rolls back an open transaction first: nothing uncommitted may survive by accident.</summary>
+    /// <summary>
+    /// Rolls back an open transaction first: nothing uncommitted may survive by accident. A running command (grid page,
+    /// keep-alive ping) is cancelled and finishes before the connection closes – <see cref="OracleConnection"/> is not
+    /// thread-safe. Callers still waiting for the session get an <see cref="OperationCanceledException"/>.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
-        _disposed = true;
-        try
+        if (_disposed)
         {
-            await EndTransactionCoreAsync(rollback: true);
-        }
-        catch (Exception ex) when (ex is OracleException or InvalidOperationException)
-        {
-            // Connection already gone: Oracle rolls back on its own.
+            return;
         }
 
-        await _connection.DisposeAsync();
-        _gate.Dispose();
+        _disposed = true;
+        CancelRunningCommand();
+        var entered = await _gate.WaitAsync(DisposeWait);
+        try
+        {
+            // If the command did not stop in time, closing the connection ends the session, and Oracle rolls back.
+            if (entered)
+            {
+                await EndTransactionQuietlyAsync();
+            }
+        }
+        finally
+        {
+            await _connection.DisposeAsync();
+            if (entered)
+            {
+                _gate.Release();
+            }
+        }
+    }
+
+    private void CancelRunningCommand()
+    {
+        try
+        {
+            _running?.Cancel();
+        }
+        catch (Exception ex) when (ex is OracleException or InvalidOperationException or ObjectDisposedException)
+        {
+            // the command already finished
+        }
+    }
+
+    /// <summary>
+    /// Takes the gate. Once the session is disposed (workspace closed, disconnected), the call is abandoned like a
+    /// cancelled one – also for callers that were already waiting; nobody is interested in its result any more.
+    /// </summary>
+    private async Task EnterAsync(CancellationToken cancellationToken)
+    {
+        if (!_disposed)
+        {
+            await _gate.WaitAsync(cancellationToken);
+            if (!_disposed)
+            {
+                return;
+            }
+
+            _gate.Release();
+        }
+
+        throw new OperationCanceledException("The session was closed.");
+    }
+
+    private void Exit()
+    {
+        _running = null;
+        Interlocked.Exchange(ref _lastRoundTrip, Environment.TickCount64);
+        _gate.Release();
     }
 
     /// <summary>
@@ -525,10 +575,10 @@ public sealed class OracleSession : IAsyncDisposable
             throw new InvalidOperationException("Nur Abfragen (SELECT/WITH) lassen sich erklären.");
         }
 
-        await _gate.WaitAsync(cancellationToken);
+        await EnterAsync(cancellationToken);
         try
         {
-            if (_transaction is not null && Transaction.Mode == TransactionMode.ReadOnly)
+            if (_readOnlySnapshots || Transaction.Mode == TransactionMode.ReadOnly)
             {
                 throw new InvalidOperationException("In einer READ ONLY-Transaktion lehnt Oracle EXPLAIN PLAN ab.");
             }
@@ -576,8 +626,7 @@ public sealed class OracleSession : IAsyncDisposable
         }
         finally
         {
-            Interlocked.Exchange(ref _lastRoundTrip, Environment.TickCount64);
-            _gate.Release();
+            Exit();
         }
     }
 
@@ -623,6 +672,7 @@ public sealed class OracleSession : IAsyncDisposable
             command.Parameters.Add(ToOracleParameter(parameter));
         }
 
+        _running = command; // cancelled by DisposeAsync
         return command;
     }
 
@@ -631,7 +681,7 @@ public sealed class OracleSession : IAsyncDisposable
     {
         await EndTransactionCoreAsync(rollback: true);
         const string sql = "SET TRANSACTION READ ONLY";
-        var transaction = _connection.BeginTransaction();
+        var transaction = BeginCoreTransaction(sql);
         try
         {
             await using var command = CreateCommand(sql, []);
@@ -645,6 +695,40 @@ public sealed class OracleSession : IAsyncDisposable
 
         _transaction = transaction;
         Transaction = new TransactionInfo(TransactionMode.ReadOnly, DateTimeOffset.Now);
+    }
+
+    /// <summary>
+    /// Starts an ODP.NET transaction. After a fatal error ODP.NET has closed the connection, and BeginTransaction would
+    /// throw a bare <see cref="InvalidOperationException"/>; report that as a lost connection like <see cref="CreateCommand"/>.
+    /// </summary>
+    private OracleTransaction BeginCoreTransaction(string sql)
+    {
+        if (_connection.State != ConnectionState.Open)
+        {
+            throw new OracleStatementException(sql, [], null);
+        }
+
+        try
+        {
+            return _connection.BeginTransaction();
+        }
+        catch (OracleException ex)
+        {
+            throw new OracleStatementException(sql, [], ex);
+        }
+    }
+
+    /// <summary>Ends the transaction after a failure; a second error must not hide the first.</summary>
+    private async Task EndTransactionQuietlyAsync()
+    {
+        try
+        {
+            await EndTransactionCoreAsync(rollback: true);
+        }
+        catch (Exception ex) when (ex is OracleException or InvalidOperationException)
+        {
+            // Connection gone: Oracle rolls back on its own.
+        }
     }
 
     /// <summary>Caller holds the gate (or the session is being disposed).</summary>
@@ -677,7 +761,7 @@ public sealed class OracleSession : IAsyncDisposable
             throw new ArgumentException($"Ungültiger Savepoint-Name: {savepoint}", nameof(savepoint));
         }
 
-        await _gate.WaitAsync(cancellationToken);
+        await EnterAsync(cancellationToken);
         try
         {
             if (_transaction is null || Transaction.Mode != TransactionMode.ReadWrite)
@@ -694,12 +778,12 @@ public sealed class OracleSession : IAsyncDisposable
         }
         finally
         {
-            _gate.Release();
+            Exit();
         }
     }
 
     /// <summary>Oracle errors of transaction control become <see cref="OracleStatementException"/> like those of queries.</summary>
-    private static async Task GuardAsync(Func<Task> action, string sql = "(Transaktionssteuerung)")
+    private static async Task GuardAsync(Func<Task> action, string sql = TransactionControl)
     {
         try
         {

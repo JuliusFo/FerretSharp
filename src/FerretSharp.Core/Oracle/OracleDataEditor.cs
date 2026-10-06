@@ -37,16 +37,10 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
             {
                 await session.BeginTransactionAsync(cancellationToken);
             }
-
-            return true;
         });
 
         var savepoint = "FS_FLUSH_" + (++_counter).ToString(System.Globalization.CultureInfo.InvariantCulture);
-        await OracleErrors.Guard(async () =>
-        {
-            await session.SavepointAsync(savepoint, cancellationToken);
-            return true;
-        });
+        await OracleErrors.Guard(() => session.SavepointAsync(savepoint, cancellationToken));
 
         var newKeys = new Dictionary<Guid, RowKey>();
         var inserted = new Dictionary<Guid, RowData>();
@@ -56,9 +50,10 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
             {
                 await ApplyAsync(table, operation, options, newKeys, inserted, cancellationToken);
             }
-            catch (Exception ex) when (ex is FlushException or OperationCanceledException or OracleStatementException or InvalidOperationException)
+            catch (Exception ex)
             {
-                await session.RollbackToSavepointAsync(savepoint, CancellationToken.None);
+                // Whatever failed – Oracle, a value that cannot be read back, cancellation –, nothing of this flush may stay.
+                await RollBackFlushAsync(savepoint);
                 if (ex is OracleStatementException statement && OracleErrors.Translate(statement) is { } error)
                 {
                     throw LockErrors.Contains(error.ErrorCode ?? "")
@@ -84,15 +79,23 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
 
             await session.RollbackToSavepointAsync(savepoint, cancellationToken);
             _savepoints.Pop();
-            return true;
         });
 
     public Task CommitAsync(CancellationToken cancellationToken) =>
         OracleErrors.Guard(async () =>
         {
-            await session.CommitAsync(cancellationToken);
-            _savepoints.Clear();
-            return true;
+            try
+            {
+                await session.CommitAsync(cancellationToken);
+            }
+            finally
+            {
+                // A failed commit can end the transaction as well (ORA-02091); its savepoints are gone then.
+                if (session.Transaction.Mode == TransactionMode.None)
+                {
+                    _savepoints.Clear();
+                }
+            }
         });
 
     public Task RollbackAsync(CancellationToken cancellationToken) =>
@@ -100,7 +103,6 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
         {
             await session.RollbackAsync(cancellationToken);
             _savepoints.Clear();
-            return true;
         });
 
     public Task<int> ExecuteAsync(QuerySpec statement, CancellationToken cancellationToken) =>
@@ -123,12 +125,28 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
             {
                 return (await session.ExecuteNonQueryAsync(statement.Sql, statement.Parameters, cancellationToken)).Rows;
             }
-            catch (Exception ex) when (ex is OracleStatementException or OperationCanceledException or InvalidOperationException)
+            catch
             {
-                await session.RollbackToSavepointAsync(savepoint, CancellationToken.None);
+                await RollBackFlushAsync(savepoint);
                 throw;
             }
         });
+
+    /// <summary>
+    /// Back to the savepoint after a failed write. If even that fails, the session is in doubt (usually the connection is
+    /// gone): that error is reported instead – as <see cref="DatabaseException"/>, so a lost connection is noticed.
+    /// </summary>
+    private async Task RollBackFlushAsync(string savepoint)
+    {
+        try
+        {
+            await session.RollbackToSavepointAsync(savepoint, CancellationToken.None);
+        }
+        catch (Exception ex) when (OracleErrors.Translate(ex) is { } translated)
+        {
+            throw translated;
+        }
+    }
 
     private async Task ApplyAsync(
         TableDetails table, PendingOperation operation, FlushOptions options,

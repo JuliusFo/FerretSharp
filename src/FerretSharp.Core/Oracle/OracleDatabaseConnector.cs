@@ -42,18 +42,10 @@ public sealed class OracleDatabaseConnector : IDatabaseConnector
         public IDataEditor Editor { get; } = new OracleDataEditor(session);
 
         public Task UseReadOnlySnapshotsAsync(CancellationToken cancellationToken) =>
-            OracleErrors.Guard(async () =>
-            {
-                await session.UseReadOnlySnapshotsAsync(cancellationToken);
-                return true;
-            });
+            OracleErrors.Guard(() => session.UseReadOnlySnapshotsAsync(cancellationToken));
 
         public Task StopReadOnlySnapshotsAsync(CancellationToken cancellationToken) =>
-            OracleErrors.Guard(async () =>
-            {
-                await session.StopReadOnlySnapshotsAsync(cancellationToken);
-                return true;
-            });
+            OracleErrors.Guard(() => session.StopReadOnlySnapshotsAsync(cancellationToken));
 
         public bool UsesReadOnlySnapshots => session.UsesReadOnlySnapshots;
 
@@ -143,6 +135,18 @@ internal static class OracleErrors
         try
         {
             return await action();
+        }
+        catch (Exception ex) when (Translate(ex) is { } translated)
+        {
+            throw translated;
+        }
+    }
+
+    public static async Task Guard(Func<Task> action)
+    {
+        try
+        {
+            await action();
         }
         catch (Exception ex) when (Translate(ex) is { } translated)
         {
