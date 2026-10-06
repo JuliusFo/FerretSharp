@@ -2,7 +2,7 @@
 
 > Projektanweisungen für Claude Code. Bitte vollständig lesen, bevor ein Arbeitspaket umgesetzt wird.
 > Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-06 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0; WP-14 → 2.4.0; WP-15 → 3.0.0, v3 abgeschlossen; v4: WP-16 → 3.1.0, WP-17 → 3.2.0, WP-18 → 3.3.0)
+> Stand: 2026-10-06 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0; WP-14 → 2.4.0; WP-15 → 3.0.0, v3 abgeschlossen; v4: WP-16 → 3.1.0, WP-17 → 3.2.0, WP-18 → 3.3.0, Leerzeichen nach Vorschlägen 3.3.1)
 
 ## 1. Ziel
 
@@ -555,6 +555,7 @@ Auftrag des Nutzers (2026-10-06): „das Ausführen eines ganzen Skripts und den
 - Gefunden im E2E: Ein Skript ersetzt das Ergebnis-Grid nach jedem Statement; ein Grid, das noch startete, griff danach auf seine freigegebene `DotNetObjectReference` zu → `ObjectDisposedException` → `ErrorBoundary` → `RecoverFromError` schließt **alle Tabs**. `SqlResultGrid` hat jetzt `_disposed` (vor `create` geprüft, verspätete Ausnahme gefangen, kein Status mehr nach dem Abbauen). Gleiches Muster wie `FerretGrid` in 3.1.0 – **Komponenten mit JS-Interop prüfen nach jedem `await` im Start, ob sie schon abgebaut sind.**
 - Altfehler: „Löschen“ im Verbindungsdialog löschte nur das Profil (Workspaces und SQL-Verlauf blieben; die aktive Verbindung blieb verbunden). Jetzt übergibt der Dialog an `ShellState.RequestDelete` – derselbe Ablauf wie das „⋯“-Menü (Bestätigung, bei aktiver Verbindung Trennen mit Schutz vor offenen Änderungen inkl. Transaktionen aus dem SQL-Editor, Workspaces und Verlauf entfernen).
 - E2E: Alt in `Input.dispatchKeyEvent` ist Modifier **1** (2 = Ctrl, 4 = Meta, 8 = Shift).
+- Nachtrag 3.3.1 (Wunsch des Nutzers): Vorschläge im SQL-Editor enden mit einem Leerzeichen, wenn der Cursor am Zeilen-/Textende steht (`SqlCompletion.AtLineEnd`) – nur Tabellen/Views/Synonyme und Schlüsselwörter, nicht Spalten und nicht Werte/Funktionen (`ValueKeywords`: `NULL`, `DESC`, `NVL` …), weil dort meist `,`, `(` oder `)` folgt.
 
 #### WP-19 Schema-Vergleich (geplant)
 Wunsch des Nutzers (2026-10-06), vor DDL und Tabellen-Designer. Anlass: DB-first von Hand über mehrere Umgebungen – „ALTER auf Test vergessen?“.
