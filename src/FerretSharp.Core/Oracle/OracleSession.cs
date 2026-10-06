@@ -270,7 +270,7 @@ public sealed class OracleSession : IAsyncDisposable
         {
             if (_transaction is not null && Transaction.Mode == TransactionMode.ReadWrite)
             {
-                throw new InvalidOperationException("Eine schreibende Transaktion ist offen.");
+                throw new RefusedException("Eine schreibende Transaktion ist offen.");
             }
 
             _readOnlySnapshots = true;
@@ -332,12 +332,12 @@ public sealed class OracleSession : IAsyncDisposable
         {
             if (_readOnlySnapshots)
             {
-                throw new InvalidOperationException("Die Verbindung ist schreibgeschützt.");
+                throw new RefusedException("Die Verbindung ist schreibgeschützt.");
             }
 
             if (_transaction is not null)
             {
-                throw new InvalidOperationException("Es ist bereits eine Transaktion offen.");
+                throw new RefusedException("Es ist bereits eine Transaktion offen.");
             }
 
             _transaction = BeginCoreTransaction(TransactionControl);
@@ -365,7 +365,7 @@ public sealed class OracleSession : IAsyncDisposable
         {
             if (_transaction is null || Transaction.Mode != TransactionMode.ReadWrite)
             {
-                throw new InvalidOperationException("Es ist keine schreibende Transaktion offen.");
+                throw new RefusedException("Es ist keine schreibende Transaktion offen.");
             }
 
             try
@@ -428,7 +428,7 @@ public sealed class OracleSession : IAsyncDisposable
         {
             if (_transaction is null)
             {
-                throw new InvalidOperationException("Geschrieben wird nur innerhalb einer Transaktion.");
+                throw new RefusedException("Geschrieben wird nur innerhalb einer Transaktion.");
             }
 
             await using var command = CreateCommand(sql, parameters);
@@ -474,7 +474,7 @@ public sealed class OracleSession : IAsyncDisposable
         {
             if (_transaction is null || Transaction.Mode != TransactionMode.ReadWrite)
             {
-                throw new InvalidOperationException("Zeilen werden nur innerhalb einer schreibenden Transaktion gesperrt.");
+                throw new RefusedException("Zeilen werden nur innerhalb einer schreibenden Transaktion gesperrt.");
             }
 
             return await ReadCoreAsync(sql, parameters, read, cancellationToken);
@@ -580,7 +580,7 @@ public sealed class OracleSession : IAsyncDisposable
         {
             if (_readOnlySnapshots || Transaction.Mode == TransactionMode.ReadOnly)
             {
-                throw new InvalidOperationException("In einer READ ONLY-Transaktion lehnt Oracle EXPLAIN PLAN ab.");
+                throw new RefusedException("In einer READ ONLY-Transaktion lehnt Oracle EXPLAIN PLAN ab.");
             }
 
             var id = "FS" + Guid.NewGuid().ToString("N")[..24]; // STATEMENT_ID is a literal, at most 30 characters
@@ -766,7 +766,7 @@ public sealed class OracleSession : IAsyncDisposable
         {
             if (_transaction is null || Transaction.Mode != TransactionMode.ReadWrite)
             {
-                throw new InvalidOperationException("Es ist keine schreibende Transaktion offen.");
+                throw new RefusedException("Es ist keine schreibende Transaktion offen.");
             }
 
             var transaction = _transaction;

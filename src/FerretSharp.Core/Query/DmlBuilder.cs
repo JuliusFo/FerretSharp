@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
 using FerretSharp.Core.Oracle;
 using FerretSharp.Core.Schema;
@@ -129,7 +130,7 @@ public static class DmlBuilder
                     var column = table.Columns.First(c => c.Name == table.PrimaryKey[i]);
                     if (pk.Values[i] is null)
                     {
-                        throw new InvalidOperationException($"Primärschlüssel {column.Name} ist NULL.");
+                        throw new RefusedException($"Primärschlüssel {column.Name} ist NULL.");
                     }
 
                     var name = "k" + i.ToString(CultureInfo.InvariantCulture);
@@ -142,7 +143,7 @@ public static class DmlBuilder
                 parameters.Add(new QueryParameter("k_rowid", rowId.Value, OracleTypeHint.Varchar2));
                 return "ROWID = :k_rowid";
             default:
-                throw new InvalidOperationException("Die Zeile hat keinen Schlüssel und lässt sich nicht schreiben.");
+                throw new RefusedException("Die Zeile hat keinen Schlüssel und lässt sich nicht schreiben.");
         }
     }
 }

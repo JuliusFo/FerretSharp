@@ -124,7 +124,7 @@ public sealed class LinqExecutionTests(OracleContainerFixture oracle) : IAsyncLi
         await using var connection = await OpenAsync("LINQ locked");
         await connection.UseReadOnlySnapshotsAsync(Ct);
 
-        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => connection.Editor.ExecuteAsync(
+        var error = await Assert.ThrowsAsync<RefusedException>(() => connection.Editor.ExecuteAsync(
             new QuerySpec("""UPDATE "LX_AUFTRAG" "a" SET "a"."STATUS" = N'STORNIERT'""", []), Ct));
 
         Assert.Contains("schreibgeschützt", error.Message);

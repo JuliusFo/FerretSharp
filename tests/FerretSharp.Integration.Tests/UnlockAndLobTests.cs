@@ -84,7 +84,7 @@ public sealed class UnlockAndLobTests(OracleContainerFixture oracle) : IAsyncLif
         var row = tracker.AddRow();
         tracker.SetValue(row, I(table, "ID"), "1");
         tracker.SetValue(row, I(table, "TXT"), "freigeschaltet");
-        await Assert.ThrowsAsync<InvalidOperationException>(() => FlushAsync(session, tracker)); // locked: no writing transaction
+        await Assert.ThrowsAsync<RefusedException>(() => FlushAsync(session, tracker)); // locked: no writing transaction
 
         await session.StopReadOnlySnapshotsAsync(Ct);
         Assert.False(session.UsesReadOnlySnapshots);
@@ -99,7 +99,7 @@ public sealed class UnlockAndLobTests(OracleContainerFixture oracle) : IAsyncLif
         Assert.Equal(TransactionMode.ReadOnly, session.Transaction.Mode);
         var again = new ChangeTracker(table);
         again.SetValue(await RowAsync(session, table, 1), I(table, "TXT"), "gesperrt");
-        await Assert.ThrowsAsync<InvalidOperationException>(() => FlushAsync(session, again));
+        await Assert.ThrowsAsync<RefusedException>(() => FlushAsync(session, again));
     }
 
     [Fact]

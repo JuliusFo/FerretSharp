@@ -173,7 +173,7 @@ public sealed class WorkspaceManager(
             session = _sessions.GetValueOrDefault(workspaceId);
             if (session is { IsCompletedSuccessfully: true } && session.Result.Transaction.Mode == TransactionMode.ReadWrite)
             {
-                throw new InvalidOperationException("Erst committen oder verwerfen, dann sperren.");
+                throw new RefusedException("Erst committen oder verwerfen, dann sperren.");
             }
 
             _unlocked.Remove(workspaceId);
@@ -367,7 +367,7 @@ public sealed class WorkspaceManager(
 
             if (open.Count == 1)
             {
-                throw new InvalidOperationException("Der letzte offene Workspace kann nicht geschlossen werden.");
+                throw new RefusedException("Der letzte offene Workspace kann nicht geschlossen werden.");
             }
 
             Put(open[index] with { IsOpen = false });
@@ -420,7 +420,7 @@ public sealed class WorkspaceManager(
 
             if (workspace.IsOpen)
             {
-                throw new InvalidOperationException("Nur geschlossene Workspaces können gelöscht werden.");
+                throw new RefusedException("Nur geschlossene Workspaces können gelöscht werden.");
             }
 
             _workspaces.Remove(workspace);
@@ -468,7 +468,7 @@ public sealed class WorkspaceManager(
         {
             if (Get(workspaceId) is not { IsOpen: true } workspace || _profile is not { } profile)
             {
-                throw new InvalidOperationException("Der Workspace ist nicht geöffnet.");
+                throw new WorkspaceClosedException();
             }
 
             if (!_sessions.TryGetValue(workspaceId, out session!) || session.IsFaulted || session.IsCanceled)
@@ -628,7 +628,7 @@ public sealed class WorkspaceManager(
     {
         if (_profile is null)
         {
-            throw new InvalidOperationException("Keine Verbindung aktiv.");
+            throw new RefusedException("Keine Verbindung aktiv.");
         }
     }
 

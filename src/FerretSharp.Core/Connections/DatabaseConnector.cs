@@ -76,3 +76,14 @@ public sealed class DatabaseException(string message, string? errorCode = null, 
     /// <summary>"ORA-00942: Tabelle … ist nicht vorhanden" or just the message.</summary>
     public string Display => ErrorCode is null ? Message : $"{ErrorCode}: {Message}";
 }
+
+/// <summary>
+/// FerretSharp refuses an operation for a reason the user should read (German message): a locked workspace, an open
+/// transaction, a row without key … Neither a database error nor a bug – the UI shows the message as it is. Derives from
+/// <see cref="InvalidOperationException"/>, which these refusals were before (existing handlers keep working); plain
+/// <see cref="InvalidOperationException"/>s stay for guards against programming mistakes.
+/// </summary>
+public class RefusedException(string message) : InvalidOperationException(message);
+
+/// <summary>The workspace is not open (any more): closed or disconnected while a call for it was on its way.</summary>
+public sealed class WorkspaceClosedException() : RefusedException("Der Workspace ist nicht geöffnet.");

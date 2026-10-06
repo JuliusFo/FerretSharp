@@ -116,7 +116,7 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
             if (session.Transaction.Mode == TransactionMode.ReadOnly)
             {
                 // Oracle would refuse as well (ORA-01456); this way the message names the reason.
-                throw new InvalidOperationException("Der Workspace ist schreibgeschützt – erst freischalten, dann schreiben.");
+                throw new RefusedException("Der Workspace ist schreibgeschützt – erst freischalten, dann schreiben.");
             }
 
             await BeginIfNeededAsync(cancellationToken);
@@ -224,7 +224,7 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
                 var insert = DmlBuilder.Insert(table, operation.Values);
                 var result = await session.ExecuteNonQueryAsync(insert.Sql, insert.Parameters, cancellationToken);
                 var rowId = result.Outputs.GetValueOrDefault(DmlBuilder.RowIdOutput) as string
-                            ?? throw new InvalidOperationException("Oracle hat keine ROWID für die neue Zeile geliefert.");
+                            ?? throw new RefusedException("Oracle hat keine ROWID für die neue Zeile geliefert.");
 
                 // Reload: defaults, identity values and triggers decide what was stored – and the row's real key.
                 var query = QueryBuilder.BuildSelectByRowId(table, rowId);
