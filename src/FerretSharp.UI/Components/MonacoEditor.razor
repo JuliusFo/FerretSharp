@@ -1,7 +1,6 @@
-@* A Monaco editor (ADR 0011): C# in the LINQ console (markers show Roslyn's diagnostics), SQL in the SQL editor
-   (completion from .NET). The text belongs to the parent: changes come back through OnChange, SetTextAsync replaces it. *@
+@* A Monaco editor (ADR 0011): C# in the LINQ console (markers show Roslyn's diagnostics), SQL in the SQL editor; both
+   with completion from .NET. The text belongs to the parent: changes come back through OnChange, SetTextAsync replaces it. *@
 @using FerretSharp.Core.ClrModel
-@using FerretSharp.Core.Query
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 
@@ -40,7 +39,11 @@
 
     /// <summary>Completion items for (text, cursor offset); null = no completion from .NET.</summary>
     [Parameter]
-    public Func<string, int, Task<IReadOnlyList<SqlCompletionItem>>>? Completion { get; set; }
+    public Func<string, int, Task<IReadOnlyList<CompletionItem>>>? Completion { get; set; }
+
+    /// <param name="Kind">Picks the icon: SQL (<c>Table</c>, <c>Column</c> …) or C# (<c>Property</c>, <c>ExtensionMethod</c> …).</param>
+    /// <param name="Rank">Lower comes first; Monaco still ranks by how well an item matches what was typed.</param>
+    public sealed record CompletionItem(string Label, string InsertText, string Kind, string? Detail, int Rank);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -75,7 +78,7 @@
         }
 
         var items = await Completion(text, offset);
-        return items.Select(i => (object)new { label = i.Label, insertText = i.InsertText, kind = i.Kind.ToString(), detail = i.Detail, rank = i.Rank }).ToArray();
+        return items.Select(i => (object)new { label = i.Label, insertText = i.InsertText, kind = i.Kind, detail = i.Detail, rank = i.Rank }).ToArray();
     }
 
     /// <summary>The text with selection start and end (equal without a selection) as offsets.</summary>

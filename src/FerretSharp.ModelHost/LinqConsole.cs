@@ -43,6 +43,7 @@ internal sealed class LinqConsole
     private readonly CommandCapture _capture = new();
     private readonly ScriptOptions _options;
     private readonly HashSet<string> _contextMembers;
+    private readonly HashSet<string> _projectNamespaces;
 
     private LinqConsole(Type contextType, Type[] types)
     {
@@ -59,7 +60,9 @@ internal sealed class LinqConsole
             .Select(t => t.Namespace)
             .Append(contextType.Namespace)
             .OfType<string>()
-            .Distinct(StringComparer.Ordinal);
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        _projectNamespaces = namespaces.Where(n => !n.StartsWith("System", StringComparison.Ordinal)).ToHashSet(StringComparer.Ordinal);
         _options = ScriptOptions.Default
             .AddReferences(AppDomain.CurrentDomain.GetAssemblies().Where(a => !a.IsDynamic && a.Location.Length > 0))
             .AddImports(["System", "System.Linq", "System.Collections.Generic", "System.Threading", "System.Threading.Tasks", "Microsoft.EntityFrameworkCore", .. namespaces])
@@ -105,7 +108,9 @@ internal sealed class LinqConsole
 
             try
             {
-                Send(new LinqResponse(request.Id, console.Run(request.Code ?? "", request.Variables ?? "")));
+                Send(request.Kind == LinqProtocol.Complete
+                    ? new LinqResponse(request.Id, Completion: console.Complete(request.Code ?? "", request.Variables ?? "", request.Section, request.Offset))
+                    : new LinqResponse(request.Id, console.Run(request.Code ?? "", request.Variables ?? "")));
             }
             catch (Exception ex)
             {
@@ -134,7 +139,7 @@ internal sealed class LinqConsole
         {
             if (IsContext(first.Tree, name))
             {
-                prelude.Add($"var {name} = (global::{_contextType.FullName!.Replace('+', '.')})__Context;");
+                prelude.Add(ContextDeclaration(name));
                 auto.Add(name);
             }
             else if (TokenNames.Contains(name))
@@ -190,6 +195,48 @@ internal sealed class LinqConsole
     }
 
     /// <summary>
+    /// Completion at the cursor (WP-19): the script as for a run – the context and a token declared where the code uses
+    /// them undeclared, so <c>_context.</c> in copied code offers the DbSets – and the semantic model asked there.
+    /// </summary>
+    /// <param name="section">The section the cursor is in; the other one is part of the script around it.</param>
+    /// <param name="offset">The cursor in that section's text.</param>
+    internal IReadOnlyList<LinqCompletionItem> Complete(string code, string variables, string? section, int offset)
+    {
+        var bare = CSharpScript.Create(ScriptText([], variables, code), _options, typeof(LinqGlobals)).GetCompilation();
+        var tree = bare.SyntaxTrees.First();
+        var model = bare.GetSemanticModel(tree);
+        var prelude = new List<string>();
+        foreach (var name in tree.GetRoot().DescendantNodes().OfType<IdentifierNameSyntax>()
+                     .GroupBy(n => n.Identifier.Text, StringComparer.Ordinal)
+                     .Where(g => model.GetSymbolInfo(g.First()) is { Symbol: null, CandidateSymbols.Length: 0 })
+                     .Select(g => g.Key))
+        {
+            if (IsContext(tree, name))
+            {
+                prelude.Add(ContextDeclaration(name));
+            }
+            else if (TokenNames.Contains(name))
+            {
+                prelude.Add($"var {name} = __Token;");
+            }
+        }
+
+        var text = ScriptText(prelude, variables, code);
+        var compilation = prelude.Count == 0 ? bare : CSharpScript.Create(text, _options, typeof(LinqGlobals)).GetCompilation();
+        var sectionText = section == LinqProtocol.VariablesSection ? variables : code;
+        var start = PreludeText(prelude).Length + (section == LinqProtocol.VariablesSection ? 0 : variables.Length + 1);
+        var position = start + Math.Clamp(offset, 0, sectionText.Length);
+        var syntax = compilation.SyntaxTrees.First();
+        return LinqCompletion.Items(compilation.GetSemanticModel(syntax), position, _projectNamespaces);
+    }
+
+    private string ContextDeclaration(string name) => $"var {name} = (global::{_contextType.FullName!.Replace('+', '.')})__Context;";
+
+    private static string PreludeText(IReadOnlyList<string> prelude) => string.Concat(prelude.Select(p => p + "\n"));
+
+    private static string ScriptText(IReadOnlyList<string> prelude, string variables, string code) => PreludeText(prelude) + variables + "\n" + code;
+
+    /// <summary>
     /// What the code returned: a task is awaited; a query that was not executed (<c>IQueryable</c>) is enumerated, so EF
     /// sends – and the capture records – its command.
     /// </summary>
@@ -242,7 +289,7 @@ internal sealed class LinqConsole
     private Analysis Analyze(string code, string variables, IReadOnlyList<string> prelude)
     {
         var layout = new Layout(prelude.Count, variables.Split('\n').Length);
-        var text = string.Concat(prelude.Select(p => p + "\n")) + variables + "\n" + code;
+        var text = ScriptText(prelude, variables, code);
         var script = CSharpScript.Create(text, _options, typeof(LinqGlobals));
         var compilation = script.GetCompilation();
         var diagnostics = compilation.GetDiagnostics()

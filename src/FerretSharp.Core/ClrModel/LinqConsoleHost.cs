@@ -17,6 +17,12 @@ public interface ILinqConsole : IAsyncDisposable
     /// <summary>Compiles and runs the code in the host; nothing reaches the database.</summary>
     /// <exception cref="ClrModelException">The host did not answer in time or has died (it is then stopped).</exception>
     Task<LinqRunResult> RunAsync(string code, string variables, CancellationToken cancellationToken);
+
+    /// <summary>Completion items at the cursor (WP-19): members after a dot, otherwise variables, types and keywords.</summary>
+    /// <param name="section"><see cref="LinqProtocol.CodeSection"/> or <see cref="LinqProtocol.VariablesSection"/>: where the cursor is.</param>
+    /// <param name="offset">The cursor in that section's text.</param>
+    /// <exception cref="ClrModelException">The host did not answer in time or has died (it is then stopped).</exception>
+    Task<IReadOnlyList<LinqCompletionItem>> CompleteAsync(string code, string variables, string section, int offset, CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -122,7 +128,29 @@ public sealed class LinqConsoleHost : ILinqConsole
         }
     }
 
+    /// <summary>Completion compiles the script once or twice: a few hundred milliseconds even for a large project.</summary>
+    public static readonly TimeSpan CompleteTimeout = TimeSpan.FromSeconds(10);
+
     public async Task<LinqRunResult> RunAsync(string code, string variables, CancellationToken cancellationToken)
+    {
+        var response = await RequestAsync(new LinqRequest(LinqProtocol.Run, 0, code, variables), RunTimeout,
+            $"Der Code lief länger als {RunTimeout.TotalSeconds:0} s – der Hilfsprozess wurde beendet und startet beim nächsten Mal neu.", cancellationToken);
+        return response.Run ?? throw Failure(response);
+    }
+
+    public async Task<IReadOnlyList<LinqCompletionItem>> CompleteAsync(string code, string variables, string section, int offset, CancellationToken cancellationToken)
+    {
+        var response = await RequestAsync(new LinqRequest(LinqProtocol.Complete, 0, code, variables, section, offset), CompleteTimeout,
+            $"Die Vorschläge brauchten länger als {CompleteTimeout.TotalSeconds:0} s – der Hilfsprozess wurde beendet und startet beim nächsten Mal neu.", cancellationToken);
+        return response.Completion ?? throw Failure(response);
+    }
+
+    private static ClrModelException Failure(LinqResponse response) =>
+        new(response.Error?.Kind ?? ClrModelErrorKind.HostFailed, response.Error?.Message ?? "Keine Antwort.", response.Error?.Detail);
+
+    /// <summary>One request at a time; the id is assigned here.</summary>
+    /// <param name="timeoutMessage">What the user reads if the host does not answer within <paramref name="timeout"/>.</param>
+    private async Task<LinqResponse> RequestAsync(LinqRequest request, TimeSpan timeout, string timeoutMessage, CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken);
         try
@@ -133,15 +161,12 @@ public sealed class LinqConsoleHost : ILinqConsole
             }
 
             var id = ++_nextId;
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeout.CancelAfter(RunTimeout);
+            using var limit = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            limit.CancelAfter(timeout);
             try
             {
-                await _writer.WriteLineAsync(JsonSerializer.Serialize(new LinqRequest(LinqProtocol.Run, id, code, variables), LinqProtocol.JsonOptions)
-                    .AsMemory(), timeout.Token);
-                var response = await ReadResponseAsync(id, timeout.Token);
-                return response.Run ?? throw new ClrModelException(
-                    response.Error?.Kind ?? ClrModelErrorKind.HostFailed, response.Error?.Message ?? "Keine Antwort.", response.Error?.Detail);
+                await _writer.WriteLineAsync(JsonSerializer.Serialize(request with { Id = id }, LinqProtocol.JsonOptions).AsMemory(), limit.Token);
+                return await ReadResponseAsync(id, limit.Token);
             }
             catch (Exception ex) when (ex is OperationCanceledException or IOException)
             {
@@ -149,10 +174,7 @@ public sealed class LinqConsoleHost : ILinqConsole
                 Kill();
                 cancellationToken.ThrowIfCancellationRequested();
                 throw new ClrModelException(ClrModelErrorKind.Timeout,
-                    ex is IOException
-                        ? "Der Hilfsprozess der LINQ-Konsole ist abgestürzt."
-                        : $"Der Code lief länger als {RunTimeout.TotalSeconds:0} s – der Hilfsprozess wurde beendet und startet beim nächsten Mal neu.",
-                    ErrorOutput);
+                    ex is IOException ? "Der Hilfsprozess der LINQ-Konsole ist abgestürzt." : timeoutMessage, ErrorOutput);
             }
         }
         finally

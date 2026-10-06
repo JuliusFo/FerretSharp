@@ -97,6 +97,58 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
         }
     }
 
+    /// <summary>
+    /// Completion items (WP-19) – only from a console that is ready and idle: suggestions never wait for a start or a run,
+    /// they are simply empty then. After a new build the host restarts in the background (as the next run would).
+    /// Errors give an empty list too (a dead host is stopped, the next run restarts it).
+    /// </summary>
+    public async Task<IReadOnlyList<LinqCompletionItem>> CompleteAsync(string code, string variables, string section, int offset)
+    {
+        if (!await _gate.WaitAsync(0))
+        {
+            return [];
+        }
+
+        var restart = false;
+        try
+        {
+            if (_console is not { IsAlive: true } console || _consoleLink != _models.State.Link)
+            {
+                return [];
+            }
+
+            if (IsNewerBuild(console.Output))
+            {
+                // The user is writing in the console: load the new build now rather than at the next run.
+                restart = true;
+                return [];
+            }
+
+            try
+            {
+                return await console.CompleteAsync(code, variables, section, offset, CancellationToken.None);
+            }
+            catch (ClrModelException)
+            {
+                if (!console.IsAlive)
+                {
+                    await StopAsync();
+                    Set(new LinqConsoleState(LinqConsolePhase.Stopped));
+                }
+
+                return [];
+            }
+        }
+        finally
+        {
+            _gate.Release();
+            if (restart)
+            {
+                _ = WarmUpAsync();
+            }
+        }
+    }
+
     private async Task<ILinqConsole> EnsureAsync(CancellationToken cancellationToken)
     {
         var link = _models.State.Link ?? throw new ClrModelException(ClrModelErrorKind.ProjectNotFound,

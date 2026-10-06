@@ -40,13 +40,13 @@
             Variablen
             <span class="hint">Werte, die die Query braucht – z. B. <code>var kundeId = 4711;</code>. <code>_context</code>, <code>db</code> und <code>ct</code> kennt FerretSharp selbst.</span>
         </div>
-        <MonacoEditor @ref="_variablesEditor" Minimal="true" Class="linq-variables" Text="@Tab.Variables" OnChange="OnVariablesChanged"
+        <MonacoEditor @ref="_variablesEditor" Minimal="true" Class="linq-variables" Text="@Tab.Variables" OnChange="OnVariablesChanged" Completion="CompleteVariablesAsync"
                       Markers="Markers(LinqProtocol.VariablesSection)" Placeholder="// var kundeId = 4711;" />
         <div class="linq-label">
             Query
             <span class="hint">Direkt aus dem Code kopieren; <code>return</code> liefert das Ergebnis.</span>
         </div>
-        <MonacoEditor @ref="_codeEditor" Class="linq-code" Text="@Tab.Code" OnChange="OnCodeChanged" Markers="Markers(LinqProtocol.CodeSection)"
+        <MonacoEditor @ref="_codeEditor" Class="linq-code" Text="@Tab.Code" OnChange="OnCodeChanged" Completion="CompleteCodeAsync" Markers="Markers(LinqProtocol.CodeSection)"
                       Placeholder="return await db.Kunden.Where(k => k.KundeId == kundeId).ToListAsync(ct);" />
     </div>
 
@@ -283,6 +283,19 @@
     {
         Tab.Code = text;
         Shell.MarkDirty();
+    }
+
+    /// <summary>Completion from the console's host (WP-19); the other section comes from the tab (at most 250 ms old).</summary>
+    private Task<IReadOnlyList<MonacoEditor.CompletionItem>> CompleteCodeAsync(string code, int offset) =>
+        CompleteAsync(code, Tab.Variables, LinqProtocol.CodeSection, offset);
+
+    private Task<IReadOnlyList<MonacoEditor.CompletionItem>> CompleteVariablesAsync(string variables, int offset) =>
+        CompleteAsync(Tab.Code, variables, LinqProtocol.VariablesSection, offset);
+
+    private async Task<IReadOnlyList<MonacoEditor.CompletionItem>> CompleteAsync(string code, string variables, string section, int offset)
+    {
+        var items = await Console.CompleteAsync(code, variables, section, offset);
+        return items.Select(i => new MonacoEditor.CompletionItem(i.Label, i.InsertText, i.Kind, i.Detail, i.Rank)).ToList();
     }
 
     private void OnTabCommand(WorkspaceTab tab, TabCommand command)

@@ -687,7 +687,7 @@
     }
 
     /// <summary>Completion for the statement around the cursor (also one still being written).</summary>
-    private async Task<IReadOnlyList<SqlCompletionItem>> CompleteAsync(string text, int cursor)
+    private async Task<IReadOnlyList<MonacoEditor.CompletionItem>> CompleteAsync(string text, int cursor)
     {
         if (Active.Schema is not { } schema)
         {
@@ -700,7 +700,9 @@
             : ("", 0);
         try
         {
-            return await SqlCompletion.ItemsAsync(slice, offset, SqlCompletion.AtLineEnd(text, cursor), schema,Presentations.For, Presentations.EntityNameOf, CancellationToken.None);
+            var items = await SqlCompletion.ItemsAsync(slice, offset, SqlCompletion.AtLineEnd(text, cursor), schema, Presentations.For,
+                Presentations.EntityNameOf, CancellationToken.None);
+            return items.Select(i => new MonacoEditor.CompletionItem(i.Label, i.InsertText, i.Kind.ToString(), i.Detail, i.Rank)).ToList();
         }
         catch (DatabaseException)
         {
