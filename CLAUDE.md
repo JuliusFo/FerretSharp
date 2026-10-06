@@ -28,7 +28,7 @@ Es wird in Versionen ausgeliefert. Jede Version ist für sich benutzbar.
 | **v1 – Read-only Browser** | Connections, Schema, Grid, Filter, Workspaces, FK-Navigation, Export | WP-01 … WP-07 |
 | **v2 – Sandbox-Editing** | Transaktionsmodell, Editieren, Commit/Rollback, Lock-Handling, Prod-Freischaltung | WP-08 … WP-10 |
 | **v3 – .NET-Integration** | DbContext-Modell laden, Schema-Anreicherung (Entities, Enums, Navigations), LINQ-Konsole, Explain-Plan (Grid und LINQ), Code-Generierung | WP-11 … WP-15 |
-| **v4 – Komfort & SQL** | Modell-Cache, freier SQL-Editor, Skripte; geplant: DDL im SQL-Editor, Tabellen-Designer (weitere Pakete aus dem Backlog nach Absprache) | WP-16 … WP-20 |
+| **v4 – Komfort & SQL** | Modell-Cache, freier SQL-Editor, Skripte; geplant: Schema-Vergleich, Formularansicht, DDL im SQL-Editor, Tabellen-Designer (weitere Pakete aus dem Backlog nach Absprache) | WP-16 … WP-22 |
 | **v5+** | Backlog (Abschnitt 10) | – |
 
 Regeln für **v1**:
@@ -556,7 +556,20 @@ Auftrag des Nutzers (2026-10-06): „das Ausführen eines ganzen Skripts und den
 - Altfehler: „Löschen“ im Verbindungsdialog löschte nur das Profil (Workspaces und SQL-Verlauf blieben; die aktive Verbindung blieb verbunden). Jetzt übergibt der Dialog an `ShellState.RequestDelete` – derselbe Ablauf wie das „⋯“-Menü (Bestätigung, bei aktiver Verbindung Trennen mit Schutz vor offenen Änderungen inkl. Transaktionen aus dem SQL-Editor, Workspaces und Verlauf entfernen).
 - E2E: Alt in `Input.dispatchKeyEvent` ist Modifier **1** (2 = Ctrl, 4 = Meta, 8 = Shift).
 
-#### WP-19 DDL im SQL-Editor (geplant)
+#### WP-19 Schema-Vergleich (geplant)
+Wunsch des Nutzers (2026-10-06), vor DDL und Tabellen-Designer. Anlass: DB-first von Hand über mehrere Umgebungen – „ALTER auf Test vergessen?“.
+- Zwei Verbindungen (z. B. Dev ↔ Test ↔ Prod) bzw. deren Schemas vergleichen: fehlende/zusätzliche Tabellen, Views, MViews; Spalten (Typ, Länge/CHAR-Semantik, Precision/Scale, NULL, Default, Identity, virtuell); PK/Unique/FK/Check-Constraints; Indizes; optional Kommentare, View-Definitionen, Sequenzen.
+- Ergebnis als Baum/Liste mit Filter (nur Unterschiede, nach Art), je Abweichung beide Seiten nebeneinander; DDL-Vorschlag als Text, um die eine Seite an die andere anzugleichen (Ausführen erst mit WP-21).
+- Architektur: Es gibt genau eine aktive Verbindung (`ActiveConnection`) – für die Gegenseite eine eigene, kurzlebige Explorer-Session (nur Dictionary-Lesen über `ISchemaReader`, Passwort aus dem `ISecretStore`). Vergleichslogik im Core (`SchemaDiff`) mit Unit-Tests gegen zwei Fake-Reader; Integrationstest mit zwei Schemas im Container.
+- Zu klären beim Start: Auswahl der Gegenseite (Verbindung + Schema; auch zwei Schemas derselben DB?), Umfang der Objektarten, Behandlung von Synonymen, Groß-/Kleinschreibung bei Namen, Ignorierregeln (z. B. Storage, systemgenerierte Constraint-Namen `SYS_C…`), wo die Ansicht lebt (eigene Seite wie „C#-Modell“ oder Tab), Export des Ergebnisses.
+
+#### WP-20 Formularansicht einer Zeile (geplant)
+Wunsch des Nutzers (2026-10-06), vor DDL und Tabellen-Designer. Für breite Tabellen (VERTRAG mit 71 Spalten).
+- Eine Zeile senkrecht: Spalte → Wert, mit Oracle-Typ, C#-Property/Typ, Enum-Member, NULL kursiv; Suche/Filter über Spaltennamen (wie Ctrl+F, auch C#-Namen); FK-Werte als Links (Sprung wie im Kontextmenü); LOBs öffnen den LOB-Dialog; Vor/Zurück durch die geladenen Zeilen des Grids.
+- Auf schreibbaren Workspaces editierbar über denselben `ChangeTracker` wie das Grid (Validierung in .NET, Zellfarben Ausstehend/Geschrieben, Schreiben mit Ctrl+S).
+- Zu klären beim Start: Darstellung (Seitenleiste rechts neben dem Grid, eigene Ansicht im Tab-Umschalter oder Dialog), Auslöser (Kontextmenü „Als Formular“, Tastenkürzel; Doppelklick ist schon Editieren), Mehrfachauswahl (Zeilen nebeneinander vergleichen?), Spalten ausblenden/leere ausblenden.
+
+#### WP-21 DDL im SQL-Editor (geplant)
 Wunsch des Nutzers (2026-10-06): Tabellen anlegen und ändern, passend zum DB-first-Ablauf („erst DB ändern, dann Entity“). Erste Stufe: DDL im SQL-Editor (und in Skripten) zulassen. Entscheidungen des Nutzers:
 - **Wo:** auf allen schreibbaren Workspaces – Profile ohne „Schreibgeschützt“ sowie **auch Prod nach dem Freischalten** (WP-10). Gesperrte Workspaces nie (READ-ONLY-Transaktion schützt nicht vor DDL, deshalb weiter Abweisung im Editor).
 - **Ausführen:** FerretSharp führt das DDL aus (nicht nur erzeugen/kopieren).
@@ -568,8 +581,8 @@ Wunsch des Nutzers (2026-10-06): Tabellen anlegen und ändern, passend zum DB-fi
   - Danach Schema-Cache neu laden (Explorer, Spalten-Ansichten, Autovervollständigung) und das C#-Modell neu abgleichen; Hinweis auf neue „Spalten ohne Property“.
   - Verlauf: DDL-Statements wie DML aufnehmen.
 
-#### WP-20 Tabellen-Designer + Entity aus Tabelle (geplant, nach WP-19)
-- Spalten-Ansicht eines Tabs bearbeitbar: Spalte hinzufügen, Typ/Länge/Precision, NULL, Default, Kommentar ändern, umbenennen, löschen; PK, Unique, FK, Indizes; neue Tabelle anlegen. FerretSharp erzeugt das DDL und zeigt es **vor** dem Ausführen (ausführen über den Weg aus WP-19 oder nur kopieren, z. B. als Skript fürs Repo).
+#### WP-22 Tabellen-Designer + Entity aus Tabelle (geplant, nach WP-21)
+- Spalten-Ansicht eines Tabs bearbeitbar: Spalte hinzufügen, Typ/Länge/Precision, NULL, Default, Kommentar ändern, umbenennen, löschen; PK, Unique, FK, Indizes; neue Tabelle anlegen. FerretSharp erzeugt das DDL und zeigt es **vor** dem Ausführen (ausführen über den Weg aus WP-21 oder nur kopieren, z. B. als Skript fürs Repo).
 - Oracle-Fallen im Designer abfangen: NOT NULL auf Spalte mit NULL-Werten (vorher zählen), Typänderung gefüllter Spalten (oft nur über neue Spalte + Umkopieren), VARCHAR2 BYTE/CHAR-Semantik, Index für neue FKs vorschlagen (`IndexAdvice`), Identity/Default ON NULL.
 - Verzahnung mit dem C#-Modell (Backlog-Idee „Entity aus Tabelle erzeugen“): nach der Änderung Property-Zeile bzw. Entity + `IEntityTypeConfiguration` im Stil des Projekts (Namenskonvention, J/N-Converter) zum Kopieren.
 
