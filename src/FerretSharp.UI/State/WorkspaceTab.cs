@@ -22,8 +22,14 @@ public abstract class WorkspaceTab(Guid workspaceId, string idPrefix)
     public abstract TabState ToState(IReadOnlyList<WorkspaceTab> workspaceTabs);
 }
 
+/// <summary>A tab with a title of its own ("SQL 1", "Kunden suchen") that the user can rename – unlike a table tab, named after its table.</summary>
+public interface ITitledTab
+{
+    string Title { get; set; }
+}
+
 /// <summary>A LINQ console tab (WP-13, ADR 0011): C# against the linked project's DbContext, run in the workspace's session.</summary>
-public sealed class LinqTab(Guid workspaceId, string title) : WorkspaceTab(workspaceId, "linq-")
+public sealed class LinqTab(Guid workspaceId, string title) : WorkspaceTab(workspaceId, "linq-"), ITitledTab
 {
     public string Title { get; set; } = title;
 
@@ -46,7 +52,7 @@ public sealed class LinqTab(Guid workspaceId, string title) : WorkspaceTab(works
 }
 
 /// <summary>A SQL editor tab (WP-17, ADR 0014): a script whose statement at the cursor runs in the workspace's session.</summary>
-public sealed class SqlTab(Guid workspaceId, string title) : WorkspaceTab(workspaceId, "sql-")
+public sealed class SqlTab(Guid workspaceId, string title) : WorkspaceTab(workspaceId, "sql-"), ITitledTab
 {
     public string Title { get; set; } = title;
 

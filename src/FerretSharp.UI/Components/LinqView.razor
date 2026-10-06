@@ -14,7 +14,14 @@
 <div class="linqview">
     <div class="tab-toolbar">
         @Icons.Code
-        <span class="linq-title">@Tab.Title</span>
+        @if (_renaming)
+        {
+            <TitleEditor Value="@Tab.Title" Class="linq-title" OnCommit="name => { _renaming = false; Shell.RenameTab(Tab, name); }" OnCancel="() => _renaming = false" />
+        }
+        else
+        {
+            <button class="linq-title title-btn" title="Umbenennen" @onclick="() => _renaming = true">@Tab.Title</button>
+        }
         <span class="linq-console @ConsoleClass" title="@ConsoleTitle">@ConsoleText</span>
         <span class="spacer"></span>
         @if (_running)
@@ -213,6 +220,7 @@
 @code {
     private MonacoEditor? _variablesEditor;
     private bool _planOpen;
+    private bool _renaming; // the title in the toolbar is being edited
     private MonacoEditor? _codeEditor;
     private CancellationTokenSource? _cts;
     private bool _running;
