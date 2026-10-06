@@ -6,27 +6,34 @@ namespace FerretSharp.Core.Workspaces;
 
 /// <summary>
 /// Workspaces of the connected profile: which are open, which is active, and one database session per open
-/// workspace (ACTION = workspace name), opened on first use. Changes are saved shortly after they happen
-/// (<see cref="SaveDelay"/>) and immediately on structural changes (create, close, reopen, detach).
+/// workspace (ACTION = workspace name), opened on first use (<see cref="WorkspaceSessions"/>). Changes are saved shortly
+/// after they happen (<see cref="SaveDelay"/>) and immediately on structural changes (create, close, reopen, detach)
+/// (<see cref="WorkspaceSaver"/>).
 /// </summary>
-public sealed class WorkspaceManager(
-    IWorkspaceStore store, ConnectionManager connections, IDatabaseConnector connector, TimeProvider? timeProvider = null) : IAsyncDisposable
+public sealed class WorkspaceManager : IAsyncDisposable
 {
     public static readonly TimeSpan SaveDelay = TimeSpan.FromSeconds(1);
 
     private const string DefaultNamePrefix = "Workspace ";
 
-    private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
+    private readonly IWorkspaceStore _store;
+    private readonly TimeProvider _time;
+    private readonly WorkspaceSessions _sessions;
+    private readonly WorkspaceSaver _saver;
+
+    /// <summary>Guards the registry; taken before the sessions' own lock, never the other way round.</summary>
     private readonly Lock _lock = new();
-    private readonly SemaphoreSlim _saveGate = new(1, 1);
-    private readonly Dictionary<Guid, Task<IDatabaseConnection>> _sessions = [];
-    private readonly HashSet<Guid> _dirty = [];
-    private readonly HashSet<Guid> _unlocked = [];
     private List<Workspace> _workspaces = [];
     private Guid? _activeId;
     private ConnectionProfile? _profile;
-    private CancellationTokenSource _lifetime = new();
-    private ITimer? _saveTimer;
+
+    public WorkspaceManager(IWorkspaceStore store, ConnectionManager connections, IDatabaseConnector connector, TimeProvider? timeProvider = null)
+    {
+        _store = store;
+        _time = timeProvider ?? TimeProvider.System;
+        _sessions = new WorkspaceSessions(connections, connector);
+        _saver = new WorkspaceSaver(store, _time, Current, RaiseChanged);
+    }
 
     /// <summary>Raised when the set of workspaces, their names or the active one changed; may fire on a background thread.</summary>
     public event Action? Changed;
@@ -81,46 +88,22 @@ public sealed class WorkspaceManager(
     public IReadOnlyList<string> LoadErrors { get; private set; } = [];
 
     /// <summary>Set while a workspace could not be saved; cleared after the next successful save.</summary>
-    public string? SaveError { get; private set; }
+    public string? SaveError => _saver.Error;
 
     /// <summary>Transaction of the workspace's session; null while the session is not open (yet).</summary>
-    public TransactionInfo? TransactionOf(Guid workspaceId)
-    {
-        lock (_lock)
-        {
-            return _sessions.GetValueOrDefault(workspaceId) is { IsCompletedSuccessfully: true } session ? session.Result.Transaction : null;
-        }
-    }
+    public TransactionInfo? TransactionOf(Guid workspaceId) => _sessions.Connection(workspaceId)?.Transaction;
 
     /// <summary>The uncommitted writes of the workspace's transaction (status bar, undo); empty while the session is not open.</summary>
-    public IReadOnlyList<WriteAction> ActionsOf(Guid workspaceId)
-    {
-        lock (_lock)
-        {
-            return _sessions.GetValueOrDefault(workspaceId) is { IsCompletedSuccessfully: true } session ? session.Result.Editor.Actions : [];
-        }
-    }
+    public IReadOnlyList<WriteAction> ActionsOf(Guid workspaceId) => _sessions.Connection(workspaceId)?.Editor.Actions ?? [];
 
     /// <summary>
     /// Whether the workspace may write: always on profiles without the read-only lock, on locked profiles (Prod by
     /// default) only after <see cref="UnlockAsync"/>.
     /// </summary>
-    public bool IsWritable(Guid workspaceId)
-    {
-        lock (_lock)
-        {
-            return _profile is { } profile && (!profile.ReadOnly || _unlocked.Contains(workspaceId));
-        }
-    }
+    public bool IsWritable(Guid workspaceId) => _sessions.IsWritable(workspaceId);
 
     /// <summary>A workspace of a read-only profile that the user unlocked for writing (shown prominently).</summary>
-    public bool IsUnlocked(Guid workspaceId)
-    {
-        lock (_lock)
-        {
-            return _profile is { ReadOnly: true } && _unlocked.Contains(workspaceId);
-        }
-    }
+    public bool IsUnlocked(Guid workspaceId) => _sessions.IsUnlocked(workspaceId);
 
     /// <summary>
     /// Unlocks one workspace of a read-only profile for writing (WP-10): its session leaves the read-only transaction.
@@ -128,12 +111,9 @@ public sealed class WorkspaceManager(
     /// </summary>
     public async Task UnlockAsync(Guid workspaceId, CancellationToken cancellationToken)
     {
-        lock (_lock)
+        if (!_sessions.MarkUnlocked(workspaceId))
         {
-            if (_profile is not { ReadOnly: true } || !_unlocked.Add(workspaceId))
-            {
-                return;
-            }
+            return;
         }
 
         try
@@ -144,11 +124,7 @@ public sealed class WorkspaceManager(
         }
         catch
         {
-            lock (_lock)
-            {
-                _unlocked.Remove(workspaceId);
-            }
-
+            _sessions.MarkLocked(workspaceId);
             throw;
         }
 
@@ -159,47 +135,12 @@ public sealed class WorkspaceManager(
     /// Locks an unlocked workspace again: its session goes back into a read-only transaction. A writing transaction
     /// must be committed or rolled back first.
     /// </summary>
-    /// <exception cref="InvalidOperationException">A writing transaction is still open.</exception>
+    /// <exception cref="RefusedException">A writing transaction is still open.</exception>
     public async Task LockAsync(Guid workspaceId, CancellationToken cancellationToken)
     {
-        Task<IDatabaseConnection>? session;
-        lock (_lock)
-        {
-            if (!_unlocked.Contains(workspaceId))
-            {
-                return;
-            }
-
-            session = _sessions.GetValueOrDefault(workspaceId);
-            if (session is { IsCompletedSuccessfully: true } && session.Result.Transaction.Mode == TransactionMode.ReadWrite)
-            {
-                throw new RefusedException("Erst committen oder verwerfen, dann sperren.");
-            }
-
-            _unlocked.Remove(workspaceId);
-        }
-
         try
         {
-            if (session is not null)
-            {
-                var connection = await session;
-                await connection.UseReadOnlySnapshotsAsync(cancellationToken);
-            }
-        }
-        catch (Exception ex) when (ex is DatabaseException or OperationCanceledException)
-        {
-            // A session that could not be locked again is never used again: the next one starts locked.
-            lock (_lock)
-            {
-                if (_sessions.GetValueOrDefault(workspaceId) == session)
-                {
-                    _sessions.Remove(workspaceId);
-                }
-            }
-
-            _ = DisposeSessionAsync(session!);
-            throw;
+            await _sessions.LockAsync(workspaceId, cancellationToken);
         }
         finally
         {
@@ -208,19 +149,13 @@ public sealed class WorkspaceManager(
     }
 
     /// <summary>Workspace sessions that are open (for the keep-alive); sessions still opening or failed are left out.</summary>
-    public IReadOnlyList<IDatabaseConnection> OpenSessions()
-    {
-        lock (_lock)
-        {
-            return _sessions.Values.Where(s => s.IsCompletedSuccessfully).Select(s => s.Result).ToList();
-        }
-    }
+    public IReadOnlyList<IDatabaseConnection> OpenSessions() => _sessions.Open();
 
     public Workspace? Find(Guid workspaceId)
     {
         lock (_lock)
         {
-            return _workspaces.FirstOrDefault(w => w.Id == workspaceId);
+            return Get(workspaceId);
         }
     }
 
@@ -231,11 +166,11 @@ public sealed class WorkspaceManager(
     public async Task AttachAsync(ConnectionProfile profile, CancellationToken cancellationToken)
     {
         await DetachAsync();
-        var result = await store.LoadAsync(profile.Id, cancellationToken);
+        var result = await _store.LoadAsync(profile.Id, cancellationToken);
         lock (_lock)
         {
             _profile = profile;
-            _lifetime = new CancellationTokenSource();
+            _sessions.Attach(profile);
             _workspaces = result.Workspaces.ToList();
             LoadErrors = result.Errors;
 
@@ -257,7 +192,7 @@ public sealed class WorkspaceManager(
     /// <summary>Saves pending changes and closes all workspace sessions.</summary>
     public async Task DetachAsync()
     {
-        List<Task<IDatabaseConnection>> sessions;
+        IReadOnlyList<Task<IDatabaseConnection>> sessions;
         lock (_lock)
         {
             if (_profile is null)
@@ -265,30 +200,24 @@ public sealed class WorkspaceManager(
                 return;
             }
 
-            _lifetime.Cancel();
-            sessions = _sessions.Values.ToList();
-            _sessions.Clear();
+            sessions = _sessions.Detach();
         }
 
         await FlushAsync();
         foreach (var session in sessions)
         {
-            await DisposeSessionAsync(session);
+            await WorkspaceSessions.CloseAsync(session);
         }
 
         // Rolling back can take a while; tab changes recorded meanwhile are saved too.
         await FlushAsync();
         lock (_lock)
         {
-            _saveTimer?.Dispose();
-            _saveTimer = null;
+            _saver.Reset();
             _profile = null;
             _workspaces = [];
             _activeId = null;
-            _dirty.Clear();
-            _unlocked.Clear();
             LoadErrors = [];
-            _lifetime.Dispose();
         }
 
         RaiseChanged();
@@ -322,7 +251,7 @@ public sealed class WorkspaceManager(
 
             Put(workspace with { LastActive = _time.GetUtcNow() });
             _activeId = workspaceId;
-            ScheduleSave();
+            _saver.Schedule();
         }
 
         RaiseChanged();
@@ -340,13 +269,13 @@ public sealed class WorkspaceManager(
             }
 
             Put(workspace with { Name = normalized });
-            ScheduleSave();
-            session = _sessions.GetValueOrDefault(workspaceId);
+            _saver.Schedule();
+            session = _sessions.Find(workspaceId);
         }
 
         if (session is not null)
         {
-            _ = SetActionAsync(session, normalized);
+            _ = WorkspaceSessions.SetActionAsync(session, normalized);
         }
 
         RaiseChanged();
@@ -378,15 +307,14 @@ public sealed class WorkspaceManager(
                 _activeId = next.Id;
             }
 
-            _sessions.Remove(workspaceId, out session);
-            _unlocked.Remove(workspaceId); // reopened later, it starts locked again
+            session = _sessions.Remove(workspaceId);
         }
 
         await FlushAsync();
         RaiseChanged();
         if (session is not null)
         {
-            await DisposeSessionAsync(session);
+            await WorkspaceSessions.CloseAsync(session);
         }
     }
 
@@ -424,15 +352,15 @@ public sealed class WorkspaceManager(
             }
 
             _workspaces.Remove(workspace);
-            _dirty.Remove(workspaceId);
+            _saver.Forget(workspaceId);
         }
 
-        await store.DeleteAsync(workspaceId, CancellationToken.None);
+        await _store.DeleteAsync(workspaceId, CancellationToken.None);
         RaiseChanged();
     }
 
     /// <summary>Removes the stored workspaces of a deleted connection.</summary>
-    public Task DeleteForConnectionAsync(Guid connectionId) => store.DeleteForConnectionAsync(connectionId, CancellationToken.None);
+    public Task DeleteForConnectionAsync(Guid connectionId) => _store.DeleteForConnectionAsync(connectionId, CancellationToken.None);
 
     /// <summary>Records the current tabs of a workspace; saved after <see cref="SaveDelay"/> if anything differs.</summary>
     public void UpdateTabs(Guid workspaceId, IReadOnlyList<TabState> tabs, int activeTabIndex)
@@ -446,7 +374,7 @@ public sealed class WorkspaceManager(
             }
 
             Put(workspace with { Tabs = tabs, ActiveTabIndex = activeTabIndex });
-            ScheduleSave();
+            _saver.Schedule();
         }
     }
 
@@ -461,121 +389,34 @@ public sealed class WorkspaceManager(
     public async Task<IDataEditor> GetEditorAsync(Guid workspaceId, CancellationToken cancellationToken) =>
         (await GetConnectionAsync(workspaceId, cancellationToken)).Editor;
 
+    /// <summary>Writes all pending changes now.</summary>
+    public Task FlushAsync() => _saver.FlushAsync();
+
+    public ValueTask DisposeAsync() => new(DetachAsync());
+
     private async Task<IDatabaseConnection> GetConnectionAsync(Guid workspaceId, CancellationToken cancellationToken)
     {
         Task<IDatabaseConnection> session;
         lock (_lock)
         {
-            if (Get(workspaceId) is not { IsOpen: true } workspace || _profile is not { } profile)
+            // Under the registry's lock: a workspace being closed right now cannot get a new session.
+            if (Get(workspaceId) is not { IsOpen: true } workspace || _profile is null)
             {
                 throw new WorkspaceClosedException();
             }
 
-            if (!_sessions.TryGetValue(workspaceId, out session!) || session.IsFaulted || session.IsCanceled)
-            {
-                var token = _lifetime.Token;
-                session = Task.Run(() => OpenSessionAsync(profile, workspaceId, workspace.Name, token), CancellationToken.None);
-                _sessions[workspaceId] = session;
-            }
+            session = _sessions.GetOrOpen(workspaceId, workspace.Name);
         }
 
         return await session.WaitAsync(cancellationToken);
     }
 
-    /// <summary>Writes all pending changes now.</summary>
-    public async Task FlushAsync()
+    /// <summary>The current state of the given workspaces, for the saver.</summary>
+    private IReadOnlyList<Workspace> Current(IReadOnlyCollection<Guid> workspaceIds)
     {
-        await _saveGate.WaitAsync();
-        try
+        lock (_lock)
         {
-            List<Workspace> pending;
-            lock (_lock)
-            {
-                _saveTimer?.Dispose();
-                _saveTimer = null;
-                pending = _workspaces.Where(w => _dirty.Contains(w.Id)).ToList();
-                _dirty.Clear();
-            }
-
-            string? error = null;
-            foreach (var workspace in pending)
-            {
-                try
-                {
-                    await store.SaveAsync(workspace, CancellationToken.None);
-                }
-                catch (Exception ex)
-                {
-                    // Any failure (locked file, a value that does not serialize …): keep the changes for the next save and say so.
-                    lock (_lock)
-                    {
-                        _dirty.Add(workspace.Id);
-                    }
-
-                    error = $"Workspace „{workspace.Name}“ konnte nicht gespeichert werden: {ex.Message}";
-                }
-            }
-
-            if (SaveError != error)
-            {
-                SaveError = error;
-                RaiseChanged();
-            }
-        }
-        finally
-        {
-            _saveGate.Release();
-        }
-    }
-
-    public ValueTask DisposeAsync() => new(DetachAsync());
-
-    private async Task<IDatabaseConnection> OpenSessionAsync(ConnectionProfile profile, Guid workspaceId, string action, CancellationToken cancellationToken)
-    {
-        var password = connections.GetPassword(profile.Id)
-            ?? throw new DatabaseException("Für diese Verbindung ist kein Passwort gespeichert. Bitte unter „Bearbeiten“ eingeben.");
-        var connection = await connector.OpenAsync(profile, password, action, cancellationToken);
-        if (!profile.ReadOnly || IsUnlocked(workspaceId))
-        {
-            return connection;
-        }
-
-        // Read-only profile (Prod by default): Oracle itself rejects DML in this session.
-        try
-        {
-            await connection.UseReadOnlySnapshotsAsync(cancellationToken);
-            return connection;
-        }
-        catch
-        {
-            await connection.DisposeAsync();
-            throw;
-        }
-    }
-
-    private static async Task SetActionAsync(Task<IDatabaseConnection> session, string action)
-    {
-        try
-        {
-            var connection = await session;
-            await connection.SetActionAsync(action, CancellationToken.None);
-        }
-        catch (Exception ex) when (ex is DatabaseException or OperationCanceledException or ObjectDisposedException)
-        {
-            // The session failed to open or was closed meanwhile; a new one picks up the current name.
-        }
-    }
-
-    private static async Task DisposeSessionAsync(Task<IDatabaseConnection> session)
-    {
-        try
-        {
-            var connection = await session;
-            await connection.DisposeAsync();
-        }
-        catch (Exception ex) when (ex is DatabaseException or OperationCanceledException)
-        {
-            // Never opened: nothing to close.
+            return _workspaces.Where(w => workspaceIds.Contains(w.Id)).ToList();
         }
     }
 
@@ -618,11 +459,8 @@ public sealed class WorkspaceManager(
             _workspaces[index] = workspace;
         }
 
-        _dirty.Add(workspace.Id);
+        _saver.MarkDirty(workspace.Id);
     }
-
-    private void ScheduleSave() =>
-        _saveTimer ??= _time.CreateTimer(_ => _ = FlushAsync(), null, SaveDelay, Timeout.InfiniteTimeSpan);
 
     private void RequireAttached()
     {
