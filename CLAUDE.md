@@ -2,7 +2,7 @@
 
 > Projektanweisungen für Claude Code. Bitte vollständig lesen, bevor ein Arbeitspaket umgesetzt wird.
 > Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-06 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0; WP-14 → 2.4.0; WP-15 → 3.0.0, v3 abgeschlossen; v4: WP-16 → 3.1.0, WP-17 → 3.2.0, WP-18 → 3.3.0, Leerzeichen nach Vorschlägen 3.3.1, Tabs umbenennen 3.4.0; WP-19 → 3.5.0; Stabilisierung R1 → 3.5.1, Protokolle nach `docs/work-packages.md`)
+> Stand: 2026-10-06 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0; WP-14 → 2.4.0; WP-15 → 3.0.0, v3 abgeschlossen; v4: WP-16 → 3.1.0, WP-17 → 3.2.0, WP-18 → 3.3.0, Leerzeichen nach Vorschlägen 3.3.1, Tabs umbenennen 3.4.0; WP-19 → 3.5.0; Stabilisierung R1 → 3.6.0, Protokolle nach `docs/work-packages.md`)
 
 ## 1. Ziel
 
@@ -237,7 +237,7 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 ```
 - `ChangeTracker` sammelt pro Tab.
 - `OracleDataAccess.FlushAsync(changes, session, ct)` (bewusst nicht „Apply“, um Verwechslung mit dem Filter-Apply zu vermeiden):
-  - pro Flush einen `SAVEPOINT` → einzelne Flushes lassen sich zurücknehmen. Seit 3.5.1 sind Grid-Schreibvorgänge und SQL-/LINQ-Statements gemeinsam die `IDataEditor.Actions` der Transaktion; Undo nimmt immer die neueste zurück (ein Savepoint verwirft alles danach, auch fremde Statements).
+  - pro Flush einen `SAVEPOINT` → einzelne Flushes lassen sich zurücknehmen. Seit 3.6.0 sind Grid-Schreibvorgänge und SQL-/LINQ-Statements gemeinsam die `IDataEditor.Actions` der Transaktion; Undo nimmt immer die neueste zurück (ein Savepoint verwirft alles danach, auch fremde Statements).
   - vor jedem Update/Delete `SELECT … FOR UPDATE WAIT n` (n konfigurierbar, Default 3 s) → `ORA-30006` (Oracle 23: `ORA-00054`) statt endlosem Warten
   - `UPDATE t SET c=:v WHERE <RowKey>` (+ optional Original-Werte im WHERE für Concurrency, konfigurierbar)
   - `INSERT INTO t (...) VALUES (...) RETURNING ROWID INTO :rid` (bzw. PK)
@@ -369,7 +369,7 @@ Umsetzungsprotokolle (was gebaut wurde, Entscheidungen des Nutzers, Nachträge, 
 | WP-17 | Freier SQL-Editor | 3.2.0 | 0014 |
 | WP-18 | Skript ausführen, Verbindung löschen; Tabs umbenennen | 3.3.0–3.4.0 | – |
 | WP-19 | LINQ-Autovervollständigung | 3.5.0 | 0015 |
-| R1 | Stabilisierung nach Code-Review (keine neuen Features) | 3.5.1 | – |
+| R1 | Stabilisierung nach Code-Review, gemeinsamer Undo-Stapel | 3.6.0 | – |
 
 **Kontext des Nutzers** (wichtig für die kommenden Pakete):
 - DB-first von Hand: erst die DB ändern, dann Entity/Konfiguration; keine Migrations. Namenskonvention im Code (Tabellen groß, `KundenId` → `KUNDEN_ID`), **eigene Value Converter** (bool ↔ J/N, Enum-Kürzel), Enum-Member mit `[Display(ResourceType = …, Name = …)]`. Ein DbContext in einer Klassenbibliothek (Konstruktor `DbContextOptions`), Entities in einem anderen Projekt, EF Core 8.
@@ -378,7 +378,7 @@ Umsetzungsprotokolle (was gebaut wurde, Entscheidungen des Nutzers, Nachträge, 
 - Der Oracle-EF-Provider quotet alle Namen: Spalten mit gemischter Schreibweise im Modell (`Chargenr` gegen `CHARGENR`) ergeben ORA-00904.
 
 **Fallen aus den bisherigen Paketen** (Einzelheiten in `docs/work-packages.md`):
-- Komponenten mit JS-Interop prüfen nach jedem `await` im Start und in Handlern, ob sie schon abgebaut sind (`_disposed`), und rufen danach kein JS mehr auf (Muster: `MonacoEditor.CallAsync`). Ausnahmen in einer Tab-Ansicht fängt seit 3.5.1 `TabFrame` (ErrorBoundary je Tab); vorher schloss jede Ausnahme alle Tabs.
+- Komponenten mit JS-Interop prüfen nach jedem `await` im Start und in Handlern, ob sie schon abgebaut sind (`_disposed`), und rufen danach kein JS mehr auf (Muster: `MonacoEditor.CallAsync`). Ausnahmen in einer Tab-Ansicht fängt seit 3.6.0 `TabFrame` (ErrorBoundary je Tab); vorher schloss jede Ausnahme alle Tabs.
 - `OracleSession` ist der einzige Besitzer der Connection: Dispose bricht das laufende Kommando ab und wartet auf das Gate; Wartende bekommen danach `OperationCanceledException`. Die Statement-Sperren (`StatementGuard`) nutzen den Tokenizer des SQL-Editors (`SqlScript.Tokenize`).
 - AG Grid: Objekte in Column-Defs (`headerComponentParams`) werden mit `defaultColDef` **tief kopiert** – veränderliche Metadaten als Funktion (`getMeta`). Kopfhöhe nur als Theme-Parameter, nicht als `headerHeight` (setzt die Zeilenhöhe zurück). Angeheftete Zeilen haben `row-index="t-0"`.
 - Monaco: `vs/nls/lang/de.js` ist kein AMD-Modul → als normales Script laden. Offsets sind UTF-16; Text und Offsets immer aus demselben `getRunContext`.

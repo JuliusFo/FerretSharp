@@ -5,9 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
-## [3.5.1] - 2026-10-06
+## [3.6.0] - 2026-10-06
 
-Stability release after a code review: no new features.
+Stability release after a code review, with one undo for all writes of a workspace.
 
 ### Changed
 - An error inside a tab now replaces only that tab with "In diesem Tab ist etwas schiefgelaufen" and offers "Neu laden" and "Tab schließen"; filters, SQL text and pending changes are kept. Before, any such error closed all tabs and dropped unsaved changes without asking.

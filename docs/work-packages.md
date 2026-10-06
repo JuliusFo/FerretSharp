@@ -1,6 +1,6 @@
 # Arbeitspakete – Umsetzungsprotokolle
 
-Was in den abgeschlossenen Paketen gebaut und entschieden wurde, mit Nachträgen, Fallen und E2E-Erkenntnissen. Aus der `CLAUDE.md` ausgelagert (Stand 3.5.1), damit sie kurz bleibt; dort stehen die Übersicht, die geplanten Pakete und die übergreifend wichtigen Fallen. Begründungen der Entscheidungen: `docs/decisions/`. „Abschnitt N“ meint die `CLAUDE.md`.
+Was in den abgeschlossenen Paketen gebaut und entschieden wurde, mit Nachträgen, Fallen und E2E-Erkenntnissen. Aus der `CLAUDE.md` ausgelagert (Stand 3.6.0), damit sie kurz bleibt; dort stehen die Übersicht, die geplanten Pakete und die übergreifend wichtigen Fallen. Begründungen der Entscheidungen: `docs/decisions/`. „Abschnitt N“ meint die `CLAUDE.md`.
 
 ## v1 – Read-only Browser
 
@@ -233,7 +233,7 @@ Wunsch des Nutzers (2026-10-06), als eigenes Paket vor dem Schema-Vergleich. Bis
 
 ## Stabilisierung
 
-### R1 Stabilisierung nach Code-Review → Release 3.5.1
+### R1 Stabilisierung nach Code-Review → Release 3.6.0
 Auftrag des Nutzers (2026-10-06): das Projekt auf nötige Refactorings prüfen („Stabilität, Lesbarkeit“). Review in drei Bereichen (UI, Oracle/Data, Query/Workspaces/C#-Modell); vereinbart: erst ein Stabilisierungspaket (R1, nur Fehlerbehebungen), dann ein Strukturpaket (R2), dann WP-20.
 - Core/Oracle:
   - `OracleSession.DisposeAsync` bricht das laufende Kommando ab (`_running`), wartet bis 10 s auf das Gate und rollt dann zurück. Das Gate wird nie mehr freigegeben (`Dispose`). Wer danach noch wartet oder kommt, bekommt `OperationCanceledException` (`EnterAsync`/`Exit`).
