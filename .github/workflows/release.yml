@@ -1,0 +1,74 @@
+# Publishes a GitHub release when a version tag (v1.2.3) is pushed: self-contained win-x64 build as a zip (folder
+# deployment, the files at the zip's root), release notes from the tag's section in CHANGELOG.md.
+# For a tag that already exists: run it by hand (Actions → Release → Run workflow) with the tag.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to release, e.g. v3.5.0
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  TAG: ${{ inputs.tag || github.ref_name }}
+
+jobs:
+  release:
+    name: Build and publish
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Check the version
+        run: |
+          if ($env:TAG -notmatch '^v(\d+\.\d+\.\d+)$') { throw "Not a version tag: $env:TAG" }
+          $version = $Matches[1]
+          $declared = ([xml](Get-Content Directory.Build.props)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+          if ($declared -ne $version) { throw "Tag $env:TAG does not match <Version>$declared</Version> in Directory.Build.props." }
+          "VERSION=$version" >> $env:GITHUB_ENV
+
+      - name: Unit tests
+        run: dotnet test tests/FerretSharp.Core.Tests
+
+      - name: Publish
+        run: dotnet publish src/FerretSharp.App -c Release -r win-x64 --self-contained -o "publish/FerretSharp-$env:VERSION-win-x64"
+
+      - name: Zip
+        run: Compress-Archive -Path "publish/FerretSharp-$env:VERSION-win-x64/*" -DestinationPath "FerretSharp-$env:VERSION-win-x64.zip"
+
+      - name: Release notes from CHANGELOG.md
+        run: |
+          $lines = Get-Content CHANGELOG.md -Encoding utf8
+          $heading = $lines | Select-String -Pattern "^## \[$([regex]::Escape($env:VERSION))\]" | Select-Object -First 1
+          if (-not $heading) { throw "CHANGELOG.md has no section [$env:VERSION]." }
+          $section = @()
+          foreach ($line in $lines[$heading.LineNumber..($lines.Count - 1)]) {
+            if ($line -match '^## \[') { break }
+            $section += $line
+          }
+          $notes = ($section -join "`n").Trim()
+          $notes += "`n`n---`n**Download:** ``FerretSharp-$env:VERSION-win-x64.zip`` – unzip anywhere and start ``FerretSharp.exe`` (Windows 10/11, x64; the WebView2 runtime is part of Windows)."
+          Set-Content notes.md $notes -Encoding utf8
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create $env:TAG "FerretSharp-$env:VERSION-win-x64.zip" --title "FerretSharp $env:VERSION" --notes-file notes.md --verify-tag

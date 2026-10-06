@@ -1,0 +1,64 @@
+# Build and tests on every push to main and every pull request.
+# Linux: Core and UI must build without Windows APIs (CLAUDE.md, section 4); unit tests and the integration tests,
+# which start Oracle Free in Docker (Testcontainers) and run the model host against the sample project (net8.0).
+# Windows: the whole solution including the WPF host; unit tests only (the runner's Docker runs Windows containers).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  linux:
+    name: Core, UI and tests (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+          # Runtime for the model host, which runs in the sample project's .NET 8.
+          dotnet-version: 8.0.x
+
+      - name: Build Core and UI
+        run: |
+          dotnet build src/FerretSharp.Core -warnaserror
+          dotnet build src/FerretSharp.UI -warnaserror
+
+      - name: Unit tests
+        run: dotnet test tests/FerretSharp.Core.Tests
+
+      - name: Integration tests (Oracle in Docker)
+        run: dotnet test tests/FerretSharp.Integration.Tests
+
+  windows:
+    name: Solution (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Build
+        run: dotnet build -warnaserror
+
+      - name: Unit tests
+        run: dotnet test tests/FerretSharp.Core.Tests --no-build
