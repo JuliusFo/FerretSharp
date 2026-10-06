@@ -515,6 +515,10 @@ export function create(elementId, dotnet, columns, sorts, firstRow, editable, he
         try {
           const sortModel = params.sortModel.map(s => ({ colId: s.colId, sort: s.sort }));
           const page = await dotnet.invokeMethodAsync('GetRows', params.startRow, params.endRow, sortModel);
+          if (page.failed) {
+            params.failCallback(); // .NET shows why (footer, status)
+            return;
+          }
           params.successCallback(page.rows, page.lastRow);
           if (restoreRow !== null) restoreScroll(params.startRow, params.startRow + page.rows.length, page.lastRow);
         } catch (e) {

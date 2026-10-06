@@ -79,7 +79,7 @@
             <div class="menu-sep"></div>
             @if (Workspaces.IsUnlocked(target.Id))
             {
-                <button class="menu-item" title="Offene Änderungen vorher committen oder verwerfen" @onclick="() => RunActionAsync(() => Shell.LockWorkspaceAsync(target.Id))">Wieder sperren</button>
+                <button class="menu-item" title="Offene Änderungen vorher committen oder verwerfen" @onclick="() => RunActionAsync(() => Lifecycle.LockAsync(target.Id))">Wieder sperren</button>
             }
             else
             {
@@ -110,6 +110,10 @@
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
+
+    /// <summary>Closing and locking a workspace ask about its uncommitted changes first.</summary>
+    [CascadingParameter]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
 
     protected override void OnInitialized() => Workspaces.Changed += OnChanged;
 
@@ -228,7 +232,7 @@
     {
         if (Workspaces.Open.Count > 1)
         {
-            await Shell.GuardAsync($"Workspace „{workspace.Name}“ schließen", [workspace.Id], () => Workspaces.CloseAsync(workspace.Id));
+            await Lifecycle.GuardAsync($"Workspace „{workspace.Name}“ schließen", [workspace.Id], () => Workspaces.CloseAsync(workspace.Id));
         }
     }
 

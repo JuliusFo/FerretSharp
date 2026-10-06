@@ -62,7 +62,11 @@
 
     private GridContextMenuRequest? _menu;
 
-    public sealed record GridPage(IReadOnlyList<Dictionary<string, object?>> Rows, int LastRow);
+    /// <param name="Failed">The block could not be read (the status says why): grid.js fails it (see FerretGrid.GridPage).</param>
+    public sealed record GridPage(IReadOnlyList<Dictionary<string, object?>> Rows, int LastRow, bool Failed = false)
+    {
+        public static readonly GridPage Failure = new([], -1, true);
+    }
 
     public sealed record GridSort(string ColId, string Sort);
 
@@ -179,7 +183,7 @@
             if (result.Value is not { } read)
             {
                 await Status(new SqlGridStatus(false, _rowsLoaded, false, null, null, result.Error));
-                throw (Exception?)result.Error ?? new OperationCanceledException(); // grid.js fails the block
+                return GridPage.Failure;
             }
 
             page = read;

@@ -319,31 +319,12 @@ public sealed class ShellState
     /// <summary>A command for a particular tab, also an inactive one (reload after writing, commit, rollback).</summary>
     public void RequestTabCommand(WorkspaceTab tab, TabCommand command) => TabCommandRequested?.Invoke(tab, command);
 
-    /// <summary>Set while the user is asked what happens to uncommitted changes before leaving (dialog in the shell).</summary>
-    public LeaveRequest? PendingLeave { get; private set; }
-
-    /// <summary>Set by the shell: asks before leaving workspaces with uncommitted changes, then runs the action.</summary>
-    public Func<string, IReadOnlyList<Guid>, Func<Task>, Task>? Guard { get; set; }
-
-    /// <summary>Runs <paramref name="then"/> – after asking, if the workspaces have uncommitted changes.</summary>
-    public Task GuardAsync(string what, IReadOnlyList<Guid> workspaceIds, Func<Task> then) => Guard?.Invoke(what, workspaceIds, then) ?? then();
-
-    /// <summary>Asks before <paramref name="request"/> continues: commit, discard or cancel.</summary>
-    public void ConfirmLeave(LeaveRequest request) => Set(() => PendingLeave = request);
-
-    public void CloseLeave() => Set(() => PendingLeave = null);
-
     /// <summary>Workspace the user wants to unlock for writing; the shell asks first (WP-10).</summary>
     public Guid? PendingUnlock { get; private set; }
 
     public void RequestUnlock(Guid workspaceId) => Set(() => PendingUnlock = workspaceId);
 
     public void CloseUnlock() => Set(() => PendingUnlock = null);
-
-    /// <summary>Set by the shell: locks an unlocked workspace again (after commit/discard of open changes).</summary>
-    public Func<Guid, Task>? LockWorkspace { get; set; }
-
-    public Task LockWorkspaceAsync(Guid workspaceId) => LockWorkspace?.Invoke(workspaceId) ?? Task.CompletedTask;
 
     public void NotifyChanged()
     {

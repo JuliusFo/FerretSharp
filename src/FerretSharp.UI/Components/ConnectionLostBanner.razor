@@ -1,0 +1,33 @@
+@* The banner when the connection is gone (R2, out of Shell.razor): what was lost, reconnect, details, disconnect. *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.UI.State
+@inject ActiveConnection Active
+@inject WorkspaceManager Workspaces
+
+@if (Shell.ConnectionLost is { } lost && Active.IsConnected && Active.Profile is { } profile)
+{
+    <div class="lost-banner" role="alert">
+        <span class="dot err"></span>
+        <span class="grow">
+            <strong>Verbindung zur Datenbank verloren.</strong>
+            @lost.Display
+            @if (Workspaces.Active is { } workspace && Workspaces.TransactionOf(workspace.Id) is { Mode: TransactionMode.ReadWrite })
+            {
+                <strong> Die offene Transaktion ist verloren – nicht committete Änderungen sind weg.</strong>
+            }
+            <span class="muted">„Neu verbinden“ stellt alle Workspaces mit ihren Tabs und Filtern wieder her.</span>
+        </span>
+        <button class="btn primary" @onclick="() => Lifecycle.Reconnect(profile)">Neu verbinden</button>
+        <button class="btn ghost" @onclick="() => Shell.ShowError(lost)">Details</button>
+        <button class="btn ghost" @onclick="Lifecycle.DisconnectAsync">Trennen</button>
+    </div>
+}
+
+@code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    /// <summary>A parameter (not only cascaded), so the banner renders again whenever the shell does.</summary>
+    [Parameter, EditorRequired]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+}

@@ -1,0 +1,120 @@
+@* The dialogs and the toast of the shell (R2, out of Shell.razor): what ShellState and WorkspaceLifecycle ask for. Dialogs
+   of a tab (plan, LOB, SQL preview) stay with the tab. *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Settings
+@using FerretSharp.UI.State
+@inject ActiveConnection Active
+@inject AppSettingsService Settings
+
+@if (Shell.ConnectionDialog is { } request)
+{
+    <ConnectionDialog @key="request" Request="request" OnClose="Shell.CloseConnectionDialog" />
+}
+
+@if (Shell.ErrorDetails is { } error)
+{
+    <ErrorDialog @key="error" Error="error" Mask="@(Active.Profile?.Kind == ConnectionKind.Prod)" OnClose="Shell.CloseError" />
+}
+
+@if (Shell.Notice is { } notice)
+{
+    <div class="toast @(notice.Warnings.Count > 0 ? "warn" : "")" role="status" @key="notice">
+        <div class="toast-text">@notice.Text</div>
+        @foreach (var warning in notice.Warnings)
+        {
+            <div class="toast-warning">⚠ @warning</div>
+        }
+        <button class="icon-btn ghost toast-close" title="Schließen" @onclick="() => Shell.DismissNotice(notice)">✕</button>
+    </div>
+}
+
+@if (Editing.Problem is { } problem)
+{
+    <WriteProblemDialog @key="problem" Problem="problem" Wait="Settings.Current.LockWaitSeconds" OnChoice="Editing.ResolveAsync" />
+}
+
+@if (Lifecycle.PendingLeave is { } leave)
+{
+    <LeaveDialog @key="leave" Request="leave" Busy="Editing.Busy"
+                 Items="@(leave.WorkspaceIds.Select(id => (Lifecycle.WorkspaceName(id), Editing.SummaryOf(Shell.Workspaces.First(w => w.WorkspaceId == id)))).ToList())"
+                 OnCommit="() => Lifecycle.LeaveAsync(commit: true)" OnDiscard="() => Lifecycle.LeaveAsync(commit: false)" OnCancel="Lifecycle.CancelLeave" />
+}
+
+@if (Lifecycle.ConfirmRollback is { } rollbackTabs)
+{
+    <ConfirmDialog Title="Rollback" ConfirmLabel="Alles verwerfen" Danger="true"
+                   OnConfirm="() => Lifecycle.RollbackAsync(rollbackTabs)" OnCancel="Lifecycle.CancelConfirmation">
+        Alle Änderungen in <strong>@Lifecycle.WorkspaceName(rollbackTabs.WorkspaceId)</strong> verwerfen – die geschriebenen
+        (Rollback der Transaktion) und die ausstehenden? Das lässt sich nicht rückgängig machen.
+    </ConfirmDialog>
+}
+
+@if (Lifecycle.ConfirmCommit is { } commitTabs)
+{
+    <ConfirmDialog Title="Commit auf Produktion" ConfirmLabel="Committen" Danger="true"
+                   OnConfirm="() => Lifecycle.CommitAsync(commitTabs)" OnCancel="Lifecycle.CancelConfirmation">
+        Die Änderungen in <strong>@Lifecycle.WorkspaceName(commitTabs.WorkspaceId)</strong>
+        (@Editing.SummaryOf(commitTabs).Pending ausstehend · @Editing.SummaryOf(commitTabs).Flushed geschrieben)
+        werden in <strong>@Active.Profile?.Name</strong> committed und sind danach für alle sichtbar.
+    </ConfirmDialog>
+}
+
+@if (Shell.PendingUnlock is { } unlockId && Active.Profile is { } unlockProfile && Shell.Workspaces.Any(w => w.WorkspaceId == unlockId))
+{
+    <UnlockDialog @key="unlockId" Profile="unlockProfile" WorkspaceName="@Lifecycle.WorkspaceName(unlockId)"
+                  OnConfirm="() => Lifecycle.UnlockAsync(unlockId)" OnCancel="Shell.CloseUnlock" />
+}
+
+@if (Lifecycle.ConfirmCloseTab is { } closingTab)
+{
+    <ConfirmDialog Title="Tab schließen" ConfirmLabel="Verwerfen und schließen" Danger="true"
+                   OnConfirm="() => Lifecycle.CloseTabConfirmed(closingTab)" OnCancel="Lifecycle.CancelConfirmation">
+        <strong>@closingTab.Table.DisplayName</strong> hat @closingTab.Changes!.PendingCount ausstehende Änderung(en), die noch nicht
+        geschrieben sind. Sie gehen beim Schließen verloren. Bereits geschriebene Änderungen bleiben in der Transaktion des Workspaces.
+    </ConfirmDialog>
+}
+
+@if (Lifecycle.PendingSql is { } pendingSql)
+{
+    <SqlPreview Sql="@pendingSql" Parameters="NoParameters" Error="@null" OnClose="Lifecycle.ClosePendingSql" />
+}
+
+@if (Shell.PendingDelete is { } pending)
+{
+    <ConfirmDialog Title="Verbindung löschen" ConfirmLabel="Löschen" Danger="true"
+                   OnConfirm="() => Lifecycle.DeleteAsync(pending)" OnCancel="Shell.CancelDelete">
+        Verbindung <strong>@pending.Name</strong> (@pending.Address.Display) wirklich löschen?
+        Das gespeicherte Passwort wird ebenfalls entfernt.
+    </ConfirmDialog>
+}
+
+@code {
+    private static readonly IReadOnlyList<FerretSharp.Core.Query.QueryParameter> NoParameters = [];
+
+    private Notice? _scheduledNotice;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    /// <summary>A parameter (not only cascaded), so the dialogs render again whenever the shell does.</summary>
+    [Parameter, EditorRequired]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
+    private WorkspaceEditing Editing => Lifecycle.Editing;
+
+    /// <summary>Toasts disappear by themselves; with warnings they stay longer.</summary>
+    protected override void OnParametersSet()
+    {
+        if (Shell.Notice is { } notice && notice != _scheduledNotice)
+        {
+            _scheduledNotice = notice;
+            _ = DismissLaterAsync(notice);
+        }
+    }
+
+    private async Task DismissLaterAsync(Notice notice)
+    {
+        await Task.Delay(notice.Warnings.Count > 0 ? TimeSpan.FromSeconds(12) : TimeSpan.FromSeconds(5));
+        await InvokeAsync(() => Shell.DismissNotice(notice));
+    }
+}

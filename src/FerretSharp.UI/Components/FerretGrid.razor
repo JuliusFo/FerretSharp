@@ -60,7 +60,12 @@
 
     public sealed record GridSort(string ColId, string Sort);
 
-    public sealed record GridPage(IReadOnlyList<Dictionary<string, object?>> Rows, int LastRow);
+    /// <param name="Failed">The block could not be read (the footer says why): grid.js fails it instead of an exception
+    /// crossing the interop boundary, which Blazor would leave unobserved.</param>
+    public sealed record GridPage(IReadOnlyList<Dictionary<string, object?>> Rows, int LastRow, bool Failed = false)
+    {
+        public static readonly GridPage Failure = new([], -1, true);
+    }
 
     /// <summary>Result of an edit for grid.js: the redrawn row, or the message to show in the reopened editor.</summary>
     public sealed record GridEdit(Dictionary<string, object?>? Row, string? Error);
@@ -620,11 +625,11 @@
         });
         if (result.Value is not { } page)
         {
-            // grid.js fails the block; the footer shows why ("Details" only for a statement that ran).
+            // The footer shows why ("Details" only for a statement that ran); grid.js fails the block.
             Tab.Error = result.Error?.Display;
             Tab.Failure = result.IsRefusal ? null : result.Error;
             await OnPageLoaded.InvokeAsync();
-            throw (Exception?)result.Error ?? new OperationCanceledException();
+            return GridPage.Failure;
         }
 
         var rows = page.Rows.Select(GridRow).ToList();
