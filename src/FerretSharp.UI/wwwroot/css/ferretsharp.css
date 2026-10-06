@@ -806,6 +806,9 @@ table.columns td.clr-type .converter { display: block; color: var(--muted); font
 .sql-editors { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 8px 12px 10px; }
 .monaco-host.sql-code { height: clamp(140px, 30vh, 420px); }
 .fs-ran-statement { background: var(--accent-weak); }
+.sql-runs { flex-wrap: wrap; }
+.chip-btn.failed { color: var(--danger); border-color: var(--danger); }
+.chip-btn.failed.active { background: var(--danger-weak); }
 .sql-variables { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 6px 14px; }
 .sql-variable { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .sql-variable code { flex: none; min-width: 90px; font-size: 12px; overflow: hidden; text-overflow: ellipsis; }

@@ -5,6 +5,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.3.0] - 2026-10-06
+
+### Added
+- Run a whole script: Alt+X or "▶▶ Skript" in the SQL editor runs all statements – or the selected ones – one after the other. Everything is checked first (allowed statements, a writable workspace for INSERT/UPDATE/DELETE/MERGE, values for all variables): if something does not fit, nothing runs and the message names the statement. One confirmation covers the whole script on Prod or for UPDATE/DELETE without WHERE. The script stops at the first error; what it already wrote stays in the workspace's transaction. Each statement gets a result chip; a query shows the rows as they were when it ran, also if a later statement of the script changed them.
+
+### Changed
+- "Abbrechen" in the SQL editor now also stops a long-running query (Ctrl+Enter and scripts read the first page themselves).
+
+### Fixed
+- "Löschen" in the connection dialog deleted only the connection: its workspaces and SQL history stayed behind, and deleting the active connection left FerretSharp connected to it. It now works like "Löschen …" in the "⋯" menu – confirm, disconnect first (asking about uncommitted changes), remove workspaces and history.
+- Results of a SQL script could close all tabs: a result grid replaced while it was still starting raised an error.
+- "1 Zeilen" in the SQL editor's results.
+
 ## [3.2.0] - 2026-10-06
 
 ### Added

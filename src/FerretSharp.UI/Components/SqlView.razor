@@ -22,15 +22,19 @@
         <span class="muted">@(Workspaces.IsWritable(Tab.WorkspaceId) ? "lesen und schreiben" : "nur lesen – Workspace schreibgeschützt")</span>
         <span class="spacer"></span>
         <button class="btn ghost @(_historyOpen ? "active" : "")" title="Zuletzt ausgeführte Statements dieser Verbindung" @onclick="ToggleHistoryAsync">Verlauf</button>
-        @if (Tab.LastRun is { Info.IsQuery: true } && _error is null)
+        @if (Tab.ShownRun is { Info.IsQuery: true, Error: null } && _error is null)
         {
-            <button class="btn ghost" title="Ausführungsplan des zuletzt ausgeführten Statements – geschätzt oder tatsächlich" @onclick="() => _planOpen = true">Plan</button>
+            <button class="btn ghost" title="Ausführungsplan des angezeigten Statements – geschätzt oder tatsächlich" @onclick="() => _planOpen = true">Plan</button>
         }
         @if (_running)
         {
             <span class="spinner small"></span>
             <button class="btn ghost" @onclick="Cancel">Abbrechen</button>
         }
+        <button class="btn" disabled="@_running" @onclick="RunScriptAsync"
+                title="Alle Statements nacheinander ausführen (oder die markierten); beim ersten Fehler hält das Skript an">
+            ▶▶ Skript <kbd>Alt X</kbd>
+        </button>
         <button class="btn primary" disabled="@_running" @onclick="RunAsync"
                 title="Das Statement am Cursor ausführen (oder die Markierung); Statements trennt ; oder eine Leerzeile">
             ▶ Ausführen <kbd>Ctrl ↵</kbd>
@@ -107,10 +111,6 @@
         {
             <div class="tab-error">
                 <span>@_error</span>
-                @if (_failure is { } failure)
-                {
-                    <button class="link-btn" @onclick="() => Shell.ShowError(failure)">Details</button>
-                }
                 @if (_needsUnlock)
                 {
                     <button class="link-btn" @onclick="() => Shell.RequestUnlock(Tab.WorkspaceId)">Workspace freischalten …</button>
@@ -118,13 +118,38 @@
             </div>
         }
 
-        @if (Tab.LastRun is { } run && _error is null)
+        @if (Tab.Runs.Count > 1 && _error is null)
         {
-            @if (run.Info.IsQuery)
+            <div class="linq-commands sql-runs">
+                @for (var i = 0; i < Tab.Runs.Count; i++)
+                {
+                    var index = i;
+                    var item = Tab.Runs[i];
+                    <button class="chip-btn @(index == Tab.SelectedRun ? "active" : "") @(item.Error is null ? "" : "failed")"
+                            title="@item.Statement.Text" @onclick="() => SelectRun(index)">
+                        @item.Number · @item.Info.FirstWord · @RunOutcome(item)
+                    </button>
+                }
+            </div>
+        }
+
+        @if (Tab.ShownRun is { } run && _error is null)
+        {
+            @if (run.Error is { } failure)
+            {
+                <div class="tab-error">
+                    <span>@(run.Number > 0 ? $"Statement {run.Number}: " : "")@failure.Display</span>
+                    @if (failure.ErrorCode is not null)
+                    {
+                        <button class="link-btn" @onclick="() => Shell.ShowError(failure)">Details</button>
+                    }
+                </div>
+            }
+            else if (run.Info.IsQuery)
             {
                 <div class="grid-host">
-                    <SqlResultGrid @key="_runKey" WorkspaceId="Tab.WorkspaceId" Query="run.Query" OnStatus="OnGridStatus"
-                                   InsertTarget="InsertTarget(run.Info)" ExportName="@ExportName(run.Info)" />
+                    <SqlResultGrid @key="@($"{_runKey}-{Tab.SelectedRun}")" WorkspaceId="Tab.WorkspaceId" Query="run.Query" FirstPage="run.FirstPage"
+                                   OnStatus="OnGridStatus" InsertTarget="InsertTarget(run.Info)" ExportName="@ExportName(run.Info)" />
                 </div>
                 <div class="tab-footer">
                     @if (_grid is { } grid)
@@ -133,9 +158,13 @@
                         {
                             <span><span class="spinner small"></span> Lade …</span>
                         }
-                        else if (grid.Error is null)
+                        else if (grid.Error is { } pageError)
                         {
-                            <span><strong>@(grid.AllLoaded ? "" : "≥ ")@grid.RowsLoaded.ToString("N0", CultureInfo.CurrentCulture)</strong> Zeilen</span>
+                            <span class="error" title="@pageError.Statement?.Sql">@pageError.Display</span>
+                        }
+                        else
+                        {
+                            <span><strong>@(grid.AllLoaded ? "" : "≥ ")@grid.RowsLoaded.ToString("N0", CultureInfo.CurrentCulture)</strong> @(grid is { AllLoaded: true, RowsLoaded: 1 } ? "Zeile" : "Zeilen")</span>
                             @if (grid.Elapsed is { } elapsed)
                             {
                                 <span>@Ms(elapsed)</span>
@@ -165,32 +194,37 @@
                 </div>
             }
         }
-        else if (_error is null && _notice is null)
+        else if (_error is null && _notice is null && Tab.Runs.Count == 0)
         {
             <EmptyState Title="SQL im Workspace"
-                        Text="Statements schreiben, mit ; oder einer Leerzeile trennen und mit Ctrl+Enter das Statement am Cursor ausführen. SELECT läuft immer, INSERT, UPDATE, DELETE und MERGE nur auf schreibbaren Workspaces in deren Transaktion. Ctrl+Leertaste schlägt Tabellen und Spalten vor." />
+                        Text="Statements schreiben, mit ; oder einer Leerzeile trennen und mit Ctrl+Enter das Statement am Cursor ausführen – Alt+X führt das ganze Skript aus. SELECT läuft immer, INSERT, UPDATE, DELETE und MERGE nur auf schreibbaren Workspaces in deren Transaktion. Ctrl+Leertaste schlägt Tabellen und Spalten vor." />
         }
     </div>
 </div>
 
 @if (_confirm is { } pending)
 {
-    <ConfirmDialog Title="@(pending.Info.AffectsAllRows ? "Alle Zeilen ändern?" : "Auf Prod schreiben?")" ConfirmLabel="Ausführen" Danger="true"
-                   OnConfirm="() => ConfirmWriteAsync(pending)" OnCancel="() => _confirm = null">
-        @if (pending.Info.AffectsAllRows)
+    var allRows = pending.Where(r => r.Info.AffectsAllRows).ToList();
+    var writes = pending.Where(r => r.Info.IsDml).ToList();
+    <ConfirmDialog Title="@(allRows.Count > 0 ? "Alle Zeilen ändern?" : "Auf Prod schreiben?")" ConfirmLabel="Ausführen" Danger="true"
+                   OnConfirm="() => ConfirmAsync(pending)" OnCancel="() => _confirm = null">
+        @foreach (var r in allRows)
         {
-            <p>@pending.Info.FirstWord ohne WHERE betrifft <strong>alle Zeilen</strong> der Tabelle.</p>
+            <p>@StatementLabel(r)@r.Info.FirstWord ohne WHERE betrifft <strong>alle Zeilen</strong> der Tabelle.</p>
         }
         @if (IsProd)
         {
-            <p>Die Verbindung <strong>@Active.Profile?.Name</strong> ist eine Produktionsdatenbank.</p>
+            <p>Die Verbindung <strong>@Active.Profile?.Name</strong> ist eine Produktionsdatenbank@(pending.Count > 1 ? $" – das Skript ändert Daten in {(writes.Count == 1 ? "einem Statement" : $"{writes.Count} Statements")}" : "").</p>
         }
-        <p>Das Statement läuft in der Transaktion des Workspaces und bleibt bis zum Commit für andere unsichtbar.</p>
-        <SqlCode Sql="@pending.Statement.Text" />
+        <p>@(pending.Count > 1 ? "Das Skript läuft" : "Das Statement läuft") in der Transaktion des Workspaces und bleibt bis zum Commit für andere unsichtbar.</p>
+        @foreach (var r in (allRows.Count > 0 ? allRows : writes).Take(3))
+        {
+            <SqlCode Sql="@r.Statement.Text" />
+        }
     </ConfirmDialog>
 }
 
-@if (_planOpen && Tab.LastRun is { Info.IsQuery: true } planned)
+@if (_planOpen && Tab.ShownRun is { Info.IsQuery: true } planned)
 {
     <PlanDialog Query="planned.Query" WorkspaceId="Tab.WorkspaceId" Title="@Tab.Title" OnClose="() => _planOpen = false" />
 }
@@ -203,13 +237,12 @@
     private bool _running;
     private bool _planOpen;
     private string? _error;
-    private DatabaseException? _failure;
     private bool _needsUnlock;
     private string? _notice;
     private int _runKey;
     private SqlGridStatus? _grid;
-    private bool _historyLogged;
-    private SqlRun? _confirm;
+
+    private IReadOnlyList<SqlRun>? _confirm;
     private bool _historyOpen;
     private string _historySearch = "";
     private IReadOnlyList<SqlHistoryEntry> _history = [];
@@ -241,6 +274,9 @@
 
         switch (command)
         {
+            case TabCommand.RunScript:
+                _ = InvokeAsync(RunScriptAsync);
+                break;
             case TabCommand.ApplyFilters or TabCommand.Refresh:
                 _ = InvokeAsync(RunAsync);
                 break;
@@ -331,21 +367,13 @@
         Shell.MarkDirty();
     }
 
+    /// <summary>Ctrl+Enter: the statement at the cursor, or the first one of the selection.</summary>
     private async Task RunAsync()
     {
-        if (_running || _editor is null || await _editor.GetRunContextAsync() is not { } context)
+        if (await PrepareAsync() is not { } context)
         {
             return;
         }
-
-        Tab.Text = context.Text;
-        Shell.MarkDirty();
-        await UpdateVariablesAsync(context.Text);
-        _error = null;
-        _failure = null;
-        _needsUnlock = false;
-        _notice = null;
-        await _editor.SetOffsetMarkersAsync([]);
 
         var statement = SqlScript.StatementAt(context.Text, context.Start, context.End);
         if (statement is null)
@@ -357,73 +385,158 @@
 
         if (context.End > context.Start && SqlScript.CountStatements(context.Text[context.Start..context.End]) is var count and > 1)
         {
-            _notice = $"Die Markierung enthält {count} Statements – ausgeführt wird das erste.";
+            _notice = $"Die Markierung enthält {count} Statements – ausgeführt wird das erste (Alt+X führt alle aus).";
         }
 
-        var info = SqlScript.Analyze(statement.Text);
-        if (info.Rejection is { } rejection)
-        {
-            _error = rejection;
-            StateHasChanged();
-            return;
-        }
-
-        QuerySpec query;
-        try
-        {
-            query = SqlBinds.Bind(statement.Text, info.Binds, Tab.Variables);
-        }
-        catch (SqlBindException ex)
-        {
-            _error = ex.Message;
-            StateHasChanged();
-            return;
-        }
-
-        await _editor.FlashAsync(statement.Start, statement.Length);
-        var run = new SqlRun(statement, info, query, DateTimeOffset.Now);
-        if (info.IsQuery)
-        {
-            Tab.LastRun = run;
-            _grid = null;
-            _historyLogged = false;
-            _runKey++;
-        }
-        else if (!Workspaces.IsWritable(Tab.WorkspaceId))
-        {
-            _error = $"{info.FirstWord} ändert Daten – der Workspace ist schreibgeschützt.";
-            _needsUnlock = true;
-        }
-        else if (IsProd || info.AffectsAllRows)
-        {
-            _confirm = run;
-        }
-        else
-        {
-            await WriteAsync(run);
-        }
-
-        StateHasChanged(); // started from a shortcut, not a UI event
+        await StartAsync([statement], single: true);
     }
 
-    private async Task ConfirmWriteAsync(SqlRun run)
+    /// <summary>Alt+X: all statements (of the selection, if there is one), one after the other.</summary>
+    private async Task RunScriptAsync()
+    {
+        if (await PrepareAsync() is not { } context)
+        {
+            return;
+        }
+
+        var statements = SqlScript.StatementsIn(context.Text, context.Start, context.End);
+        if (statements.Count == 0)
+        {
+            _error = "Keine Statements im Skript.";
+            StateHasChanged();
+            return;
+        }
+
+        await StartAsync(statements, single: false);
+    }
+
+    /// <summary>Takes the editor's text and variables as they are right now and clears the last problems.</summary>
+    private async Task<MonacoEditor.EditorRunContext?> PrepareAsync()
+    {
+        if (_running || _editor is null || await _editor.GetRunContextAsync() is not { } context)
+        {
+            return null;
+        }
+
+        Tab.Text = context.Text;
+        Shell.MarkDirty();
+        await UpdateVariablesAsync(context.Text);
+        _error = null;
+        _needsUnlock = false;
+        _notice = null;
+        await _editor.SetOffsetMarkersAsync([]);
+        return context;
+    }
+
+    /// <summary>
+    /// Checks every statement before anything runs – allowed, writable workspace for DML, values for all binds – so a script
+    /// never stops halfway over something that was clear beforehand. Then asks if needed (Prod, UPDATE/DELETE without WHERE).
+    /// </summary>
+    private async Task StartAsync(IReadOnlyList<SqlStatement> statements, bool single)
+    {
+        var runs = new List<SqlRun>();
+        for (var i = 0; i < statements.Count; i++)
+        {
+            var statement = statements[i];
+            var info = SqlScript.Analyze(statement.Text);
+            string? problem = null;
+            QuerySpec? query = null;
+            if (info.Rejection is { } rejection)
+            {
+                problem = rejection;
+            }
+            else if (!info.IsQuery && !Workspaces.IsWritable(Tab.WorkspaceId))
+            {
+                problem = $"{info.FirstWord} ändert Daten – der Workspace ist schreibgeschützt.";
+                _needsUnlock = true;
+            }
+            else
+            {
+                try
+                {
+                    query = SqlBinds.Bind(statement.Text, info.Binds, Tab.Variables);
+                }
+                catch (SqlBindException ex)
+                {
+                    problem = ex.Message;
+                }
+            }
+
+            if (query is null)
+            {
+                _error = single ? problem : $"Statement {i + 1} – nichts ausgeführt: {problem}";
+                await _editor!.SetOffsetMarkersAsync([new MonacoEditor.EditorMarker(statement.Start, statement.Length, "warning", _error!)]);
+                StateHasChanged();
+                return;
+            }
+
+            runs.Add(new SqlRun(single ? 0 : i + 1, statement, info, query, DateTimeOffset.Now));
+        }
+
+        if (runs.Any(r => r.Info.AffectsAllRows) || (IsProd && runs.Any(r => r.Info.IsDml)))
+        {
+            _confirm = runs;
+            StateHasChanged(); // started from a shortcut, not a UI event
+            return;
+        }
+
+        await ExecuteAsync(runs);
+    }
+
+    private async Task ConfirmAsync(IReadOnlyList<SqlRun> runs)
     {
         _confirm = null;
-        await WriteAsync(run);
+        await ExecuteAsync(runs);
     }
 
-    /// <summary>INSERT, UPDATE, DELETE, MERGE in the workspace's transaction (begun if there is none).</summary>
-    private async Task WriteAsync(SqlRun run)
+    /// <summary>Runs the statements one after the other in the workspace's session; the first failure stops the rest.</summary>
+    private async Task ExecuteAsync(IReadOnlyList<SqlRun> runs)
     {
         _running = true;
         _cts = new CancellationTokenSource();
         var token = _cts.Token;
+        Tab.Runs = [];
+        Tab.SelectedRun = 0;
+        _grid = null;
+        _runKey++;
+        var (first, last) = (runs[0].Statement, runs[^1].Statement);
+        await _editor!.FlashAsync(first.Start, last.End - first.Start);
         StateHasChanged();
+
+        var results = new List<SqlRun>();
         try
         {
-            var editor = await Workspaces.GetEditorAsync(Tab.WorkspaceId, token);
-            var changed = await Task.Run(() => editor.ExecuteAsync(run.Query, token), token);
-            Tab.LastRun = run with { Changed = changed, Transaction = Workspaces.TransactionOf(Tab.WorkspaceId)?.StartedAt };
+            foreach (var run in runs)
+            {
+                var result = await RunOneAsync(run, token);
+                results.Add(result);
+                Tab.Runs = results.ToList();
+                Tab.SelectedRun = results.Count - 1;
+                _grid = null;
+                StateHasChanged();
+                if (result.Error is not null)
+                {
+                    break;
+                }
+            }
+        }
+        finally
+        {
+            _running = false;
+            _cts.Dispose();
+            _cts = null;
+        }
+
+        var wrote = results.Any(r => r.Changed is not null);
+        if (results.Count < runs.Count)
+        {
+            var rest = runs.Count - results.Count;
+            _notice = $"Das Skript hat bei Statement {results[^1].Number} angehalten – {(rest == 1 ? "ein weiteres Statement" : $"{rest} weitere Statements")} nicht ausgeführt."
+                      + (wrote ? " Was schon geschrieben ist, bleibt in der Transaktion (Rollback über die Statusleiste)." : "");
+        }
+
+        if (wrote)
+        {
             // Table tabs of the workspace may show the changed rows: they fetch them again from the transaction.
             foreach (var tab in Shell.Workspaces.FirstOrDefault(w => w.WorkspaceId == Tab.WorkspaceId)?.TableTabs ?? [])
             {
@@ -431,60 +544,63 @@
             }
 
             Shell.NotifyChanged(); // status bar: open transaction, commit/rollback
+        }
+
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// One statement: a query reads its first page right away (a later statement of the script must not change what it
+    /// shows), DML runs in the workspace's transaction. Failures come back in <see cref="SqlRun.Error"/>.
+    /// </summary>
+    private async Task<SqlRun> RunOneAsync(SqlRun run, CancellationToken token)
+    {
+        run = run with { At = DateTimeOffset.Now };
+        try
+        {
+            if (run.Info.IsQuery)
+            {
+                var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, token);
+                var page = await Task.Run(() => data.ReadSqlAsync(run.Query, 0, SqlResultGrid.PageSize, token), token);
+                await LogAsync(run, page.Rows.Count, !page.IsLastPage, false, null, page.Elapsed);
+                return run with { FirstPage = page };
+            }
+
+            var editor = await Workspaces.GetEditorAsync(Tab.WorkspaceId, token);
+            var changed = await Task.Run(() => editor.ExecuteAsync(run.Query, token), token);
             await LogAsync(run, changed, false, true, null);
+            return run with { Changed = changed, Transaction = Workspaces.TransactionOf(Tab.WorkspaceId)?.StartedAt };
         }
         catch (OperationCanceledException)
         {
-            _error = "Abgebrochen – das Statement wurde zurückgenommen.";
+            return run with { Error = new DatabaseException(run.Info.IsQuery ? "Abgebrochen." : "Abgebrochen – das Statement wurde zurückgenommen.") };
         }
         catch (DatabaseException ex)
         {
-            await FailAsync(run, ex);
+            QueryErrorLog.Log(Logger, ex, Active.Profile);
+            Shell.ReportFailure(ex);
+            await MarkAsync(run, ex);
+            await LogAsync(run, null, false, false, ex.Display);
+            return run with { Error = ex };
         }
         catch (InvalidOperationException ex)
         {
-            _error = ex.Message;
-        }
-        finally
-        {
-            _running = false;
-            _cts?.Dispose();
-            _cts = null;
-            StateHasChanged();
+            return run with { Error = new DatabaseException(ex.Message) };
         }
     }
 
-    private async Task OnGridStatus(SqlGridStatus status)
+    private void SelectRun(int index)
     {
-        _grid = status;
-        if (status.Loading || _historyLogged || Tab.LastRun is not { } run)
-        {
-            return;
-        }
-
-        _historyLogged = true;
-        if (status.Error is { } error)
-        {
-            await FailAsync(run, error, reported: true);
-        }
-        else
-        {
-            await LogAsync(run, status.RowsLoaded, !status.AllLoaded, false, null, status.Elapsed);
-        }
+        Tab.SelectedRun = index;
+        _grid = null;
     }
 
-    /// <summary>Shows a database error, marks the name it complains about, logs it; the grid reports its own failures.</summary>
-    private async Task FailAsync(SqlRun run, DatabaseException ex, bool reported = false)
-    {
-        if (!reported)
-        {
-            QueryErrorLog.Log(Logger, ex, Active.Profile);
-            Shell.ReportFailure(ex);
-        }
+    /// <summary>Later pages of a result are read by the grid; it reports them (and their failures) here.</summary>
+    private void OnGridStatus(SqlGridStatus status) => _grid = status;
 
-        _error = ex.Display;
-        _failure = ex;
-        Tab.LastRun = run with { Changed = null };
+    /// <summary>Marks the name an ORA-00904/00942 complains about, if it is in the statement.</summary>
+    private async Task MarkAsync(SqlRun run, DatabaseException ex)
+    {
         if (_editor is not null && ex.ErrorCode is "ORA-00904" or "ORA-00942" && QuotedName.Matches(ex.Message) is { Count: > 0 } names)
         {
             var name = names[^1].Groups[1].Value;
@@ -494,10 +610,18 @@
                 await _editor.SetOffsetMarkersAsync([new MonacoEditor.EditorMarker(run.Statement.Start + at.Index, at.Length, "error", ex.Display)]);
             }
         }
-
-        await LogAsync(run, null, false, false, ex.Display);
-        StateHasChanged();
     }
+
+    private static string StatementLabel(SqlRun run) => run.Number > 0 ? $"Statement {run.Number}: " : "";
+
+    private static string RunOutcome(SqlRun run) => run switch
+    {
+        { Error: not null } => "Fehler",
+        { Changed: { } changed } => $"{changed:N0} geändert",
+        { FirstPage: { IsLastPage: true, Rows.Count: 1 } } => "1 Zeile",
+        { FirstPage: { } page } => $"{(page.IsLastPage ? "" : "≥ ")}{page.Rows.Count:N0} Zeilen",
+        _ => "",
+    };
 
     private async Task LogAsync(SqlRun run, int? rows, bool moreRows, bool changed, string? error, TimeSpan? elapsed = null)
     {

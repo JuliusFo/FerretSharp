@@ -55,8 +55,13 @@ public sealed class SqlTab(Guid workspaceId, string title) : WorkspaceTab(worksp
     /// <summary>Bind variables in order of use, with type and value; unused ones are kept at the end.</summary>
     public IReadOnlyList<Core.Query.SqlVariable> Variables { get; set; } = [];
 
-    /// <summary>The last run (statement, result or outcome). Not saved.</summary>
-    public SqlRun? LastRun { get; set; }
+    /// <summary>The statements of the last run – one for Ctrl+Enter, several for a script (Alt+X). Not saved.</summary>
+    public IReadOnlyList<SqlRun> Runs { get; set; } = [];
+
+    /// <summary>Index into <see cref="Runs"/> of the result shown.</summary>
+    public int SelectedRun { get; set; }
+
+    public SqlRun? ShownRun => Runs.Count == 0 ? null : Runs[Math.Clamp(SelectedRun, 0, Runs.Count - 1)];
 
     public override TabState ToState(IReadOnlyList<WorkspaceTab> workspaceTabs) =>
         new(LinqTabState.NoTable, TabMode.Data, [], [], []) { Sql = new SqlTabState(Title, Text, Variables) };
@@ -65,14 +70,20 @@ public sealed class SqlTab(Guid workspaceId, string title) : WorkspaceTab(worksp
         new(workspaceId, state.Title) { Text = state.Text, Variables = state.Variables };
 }
 
-/// <summary>A statement the SQL editor ran (or refused) and what came of it.</summary>
-/// <param name="Query">The bound statement: shown in the result grid for a query, executed once for DML.</param>
+/// <summary>A statement the SQL editor ran and what came of it.</summary>
+/// <param name="Number">Position in the script (1, 2 …); 0 for a single statement (Ctrl+Enter).</param>
+/// <param name="Query">The bound statement: read for a query (more pages later by the result grid), executed once for DML.</param>
+/// <param name="FirstPage">A query's first page, read when the statement ran – a later UPDATE of the script does not change it.</param>
 /// <param name="Changed">DML: rows changed; null for queries and failures.</param>
 /// <param name="Transaction">DML: start of the workspace transaction it ran in – to tell whether that one is still open.</param>
+/// <param name="Error">Why it failed (or "Abgebrochen."); the script stopped here.</param>
 public sealed record SqlRun(
+    int Number,
     Core.Query.SqlStatement Statement,
     Core.Query.SqlStatementInfo Info,
     Core.Query.QuerySpec Query,
     DateTimeOffset At,
+    Core.Data.SqlPage? FirstPage = null,
     int? Changed = null,
-    DateTimeOffset? Transaction = null);
+    DateTimeOffset? Transaction = null,
+    Core.Connections.DatabaseException? Error = null);
