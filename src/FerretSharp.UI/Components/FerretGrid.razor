@@ -613,39 +613,31 @@
         var details = Details;
         var filters = Tab.AppliedFilters;
         var sorts = Tab.Sorts;
-        try
+        var result = await Shell.RunDbAsync(Logger, Active.Profile, async () =>
         {
             var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, CancellationToken.None);
-            var page = await Task.Run(() => data.ReadPageAsync(details, filters, sorts, new PageSpec(startRow, endRow - startRow), CancellationToken.None));
-
-            var rows = page.Rows.Select(GridRow).ToList();
-            KeepBlock(startRow, page.Rows);
-            Tab.RowsLoaded = Math.Max(Tab.RowsLoaded, startRow + page.Rows.Count);
-            Tab.AllRowsLoaded |= page.IsLastPage;
-            Tab.LastQueryTime = page.Elapsed;
-            (Tab.DataAsOf, Tab.SnapshotMoved) = Snapshots.Next(startRow, Tab.DataAsOf, Tab.SnapshotMoved, page.DataAsOf);
-            Tab.Error = null;
-            Tab.Failure = null;
-            await OnPageLoaded.InvokeAsync();
-
-            return new GridPage(rows, page.IsLastPage ? startRow + page.Rows.Count : -1);
-        }
-        catch (DatabaseException ex)
+            return await data.ReadPageAsync(details, filters, sorts, new PageSpec(startRow, endRow - startRow), CancellationToken.None);
+        });
+        if (result.Value is not { } page)
         {
-            QueryErrorLog.Log(Logger, ex, Active.Profile);
-            Tab.Error = ex.Display;
-            Tab.Failure = ex;
-            Shell.ReportFailure(ex);
+            // grid.js fails the block; the footer shows why ("Details" only for a statement that ran).
+            Tab.Error = result.Error?.Display;
+            Tab.Failure = result.IsRefusal ? null : result.Error;
             await OnPageLoaded.InvokeAsync();
-            throw;
+            throw (Exception?)result.Error ?? new OperationCanceledException();
         }
-        catch (QueryValidationException ex)
-        {
-            Tab.Error = ex.Message;
-            Tab.Failure = null;
-            await OnPageLoaded.InvokeAsync();
-            throw;
-        }
+
+        var rows = page.Rows.Select(GridRow).ToList();
+        KeepBlock(startRow, page.Rows);
+        Tab.RowsLoaded = Math.Max(Tab.RowsLoaded, startRow + page.Rows.Count);
+        Tab.AllRowsLoaded |= page.IsLastPage;
+        Tab.LastQueryTime = page.Elapsed;
+        (Tab.DataAsOf, Tab.SnapshotMoved) = Snapshots.Next(startRow, Tab.DataAsOf, Tab.SnapshotMoved, page.DataAsOf);
+        Tab.Error = null;
+        Tab.Failure = null;
+        await OnPageLoaded.InvokeAsync();
+
+        return new GridPage(rows, page.IsLastPage ? startRow + page.Rows.Count : -1);
     }
 
     /// <summary>

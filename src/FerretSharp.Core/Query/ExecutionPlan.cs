@@ -211,4 +211,4 @@ public static partial class Plans
 }
 
 /// <summary>A plan that cannot be read here, with the reason for the user (missing V$ rights, a locked session).</summary>
-public sealed class PlanUnavailableException(string message, Exception? inner = null) : Exception(message, inner);
+public sealed class PlanUnavailableException(string message, Exception? inner = null) : Connections.RefusedException(message, inner);

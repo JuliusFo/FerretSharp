@@ -1,43 +1,40 @@
 @using FerretSharp.Core.Query
 
-<div class="modal-backdrop" @onclick="OnClose" @onkeydown="OnKeyDown">
-    <div class="modal dialog sql-dialog" @onclick:stopPropagation="true" role="dialog" aria-label="Generiertes SQL" tabindex="-1" @ref="_dialog">
-        <header>
-            <span>@Title</span>
-            <span class="spacer"></span>
-            @if (OnOpenInEditor.HasDelegate && Error is null)
-            {
-                <button class="btn" title="Neuer SQL-Editor mit diesem Statement; die Bind-Werte werden zu Variablen" @onclick="OnOpenInEditor">In SQL-Editor öffnen</button>
-            }
-            <button class="btn" @onclick="CopyAsync">@(_copied ? "Kopiert ✓" : "Kopieren")</button>
-            <button class="icon-btn ghost" title="Schließen" @onclick="OnClose">✕</button>
-        </header>
-        @if (Error is not null)
+<ModalFrame Label="Generiertes SQL" Class="sql-dialog" OnCancel="OnClose" CloseOnBackdrop="true" FocusOnOpen="true">
+    <header>
+        <span>@Title</span>
+        <span class="spacer"></span>
+        @if (OnOpenInEditor.HasDelegate && Error is null)
         {
-            <div class="test-result error"><span>@Error</span></div>
+            <button class="btn" title="Neuer SQL-Editor mit diesem Statement; die Bind-Werte werden zu Variablen" @onclick="OnOpenInEditor">In SQL-Editor öffnen</button>
         }
-        else
+        <button class="btn" @onclick="CopyAsync">@(_copied ? "Kopiert ✓" : "Kopieren")</button>
+        <button class="icon-btn ghost" title="Schließen" @onclick="OnClose">✕</button>
+    </header>
+    @if (Error is not null)
+    {
+        <div class="test-result error"><span>@Error</span></div>
+    }
+    else
+    {
+        <SqlCode Sql="@Sql" />
+        @if (Parameters.Count > 0)
         {
-            <SqlCode Sql="@Sql" />
-            @if (Parameters.Count > 0)
-            {
-                <table class="binds">
-                    <thead><tr><th>Bind-Variable</th><th>Wert</th><th>Typ</th></tr></thead>
-                    <tbody>
-                        @foreach (var p in Parameters)
-                        {
-                            <tr><td>:@p.Name</td><td>@BindValues.Format(p, mask: false)</td><td>@p.Type</td></tr>
-                        }
-                    </tbody>
-                </table>
-            }
+            <table class="binds">
+                <thead><tr><th>Bind-Variable</th><th>Wert</th><th>Typ</th></tr></thead>
+                <tbody>
+                    @foreach (var p in Parameters)
+                    {
+                        <tr><td>:@p.Name</td><td>@BindValues.Format(p, mask: false)</td><td>@p.Type</td></tr>
+                    }
+                </tbody>
+            </table>
         }
-    </div>
-</div>
+    }
+</ModalFrame>
 
 @code {
     private bool _copied;
-    private ElementReference _dialog;
 
     [Inject]
     private IJSRuntime JS { get; set; } = null!;
@@ -61,25 +58,9 @@
     [Parameter]
     public EventCallback OnOpenInEditor { get; set; }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            await _dialog.FocusAsync(); // Escape closes
-        }
-    }
-
     private async Task CopyAsync()
     {
         await JS.InvokeVoidAsync("navigator.clipboard.writeText", Sql);
         _copied = true;
-    }
-
-    private async Task OnKeyDown(KeyboardEventArgs e)
-    {
-        if (e.Key == "Escape")
-        {
-            await OnClose.InvokeAsync();
-        }
     }
 }

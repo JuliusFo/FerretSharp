@@ -14,6 +14,8 @@
 @inject PresentationService Presentations
 @inject IJSRuntime JS
 @inject FerretSharp.Core.Workspaces.SqlHistoryStore SqlHistory
+@inject ILoggerFactory LoggerFactory
+@inject ILogger<Shell> Logger
 
 <CascadingValue Value="_state" IsFixed="true">
     <div class="app @(IsProdActive ? "is-prod" : "")">
@@ -498,40 +500,26 @@
     private async Task UnlockAsync(Guid workspaceId)
     {
         _state.CloseUnlock();
-        try
+        if (!_state.ShowFailure(await _state.RunDbAsync(Logger, Active.Profile, () => Workspaces.UnlockAsync(workspaceId, CancellationToken.None))))
         {
-            await Workspaces.UnlockAsync(workspaceId, CancellationToken.None);
-            foreach (var tab in _state.Workspaces.FirstOrDefault(w => w.WorkspaceId == workspaceId)?.Tabs ?? [])
-            {
-                _state.RequestTabCommand(tab, TabCommand.Reload);
-            }
+            return;
+        }
 
-            _state.Notify($"Workspace „{WorkspaceName(workspaceId)}“ ist zum Schreiben freigeschaltet.");
-        }
-        catch (DatabaseException ex)
+        foreach (var tab in _state.Workspaces.FirstOrDefault(w => w.WorkspaceId == workspaceId)?.Tabs ?? [])
         {
-            _state.ReportFailure(ex);
-            _state.ShowError(ex);
+            _state.RequestTabCommand(tab, TabCommand.Reload);
         }
+
+        _state.Notify($"Workspace „{WorkspaceName(workspaceId)}“ ist zum Schreiben freigeschaltet.");
     }
 
     /// <summary>Locks the workspace again – after asking what happens to its uncommitted changes.</summary>
     private Task LockWorkspaceAsync(Guid workspaceId) =>
         GuardAsync("Workspace sperren", _state.Workspaces.Where(w => w.WorkspaceId == workspaceId).ToList(), async () =>
         {
-            try
+            if (_state.ShowFailure(await _state.RunDbAsync(Logger, Active.Profile, () => Workspaces.LockAsync(workspaceId, CancellationToken.None))))
             {
-                await Workspaces.LockAsync(workspaceId, CancellationToken.None);
                 _state.Notify($"Workspace „{WorkspaceName(workspaceId)}“ ist wieder schreibgeschützt.");
-            }
-            catch (InvalidOperationException ex)
-            {
-                _state.Notify(ex.Message);
-            }
-            catch (DatabaseException ex)
-            {
-                _state.ReportFailure(ex);
-                _state.ShowError(ex);
             }
         });
 
@@ -601,7 +589,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _editing = new WorkspaceEditing(_state, Workspaces, Active, Settings);
+        _editing = new WorkspaceEditing(_state, Workspaces, Active, Settings, LoggerFactory.CreateLogger<WorkspaceEditing>());
         _state.Guard = (what, ids, then) => GuardAsync(what, _state.Workspaces.Where(w => ids.Contains(w.WorkspaceId)).ToList(), then);
         _state.LockWorkspace = LockWorkspaceAsync;
         ExitGuard.CanExit = () => _editing.WithWork().Count == 0 || _state.ConnectionLost is not null;

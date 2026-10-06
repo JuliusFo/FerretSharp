@@ -1,0 +1,67 @@
+@* The frame of every dialog (R2): backdrop, the dialog box with its role and label, Escape and – for dialogs that only
+   show something – a click outside to close. One place, so all dialogs behave alike; the shortcut lock (shortcuts.js
+   looks for a visible .modal-backdrop) sees each of them. *@
+
+<div class="modal-backdrop" @onclick="OnBackdropClickAsync" @onkeydown="OnKeyDownAsync">
+    <div class="modal dialog @Class" @onclick:stopPropagation="true" role="@(Alert ? "alertdialog" : "dialog")" aria-label="@Label"
+         tabindex="-1" @ref="_box">
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    private ElementReference _box;
+
+    [Parameter, EditorRequired]
+    public RenderFragment ChildContent { get; set; } = default!;
+
+    /// <summary>Read by screen readers; usually the dialog's title.</summary>
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = "";
+
+    /// <summary>More classes of the dialog box (size, layout: <c>confirm</c>, <c>sql-dialog</c> …).</summary>
+    [Parameter]
+    public string? Class { get; set; }
+
+    /// <summary>A question that needs an answer (confirmations, warnings) rather than a window to work in.</summary>
+    [Parameter]
+    public bool Alert { get; set; }
+
+    /// <summary>
+    /// Escape (and, with <see cref="CloseOnBackdrop"/>, a click outside) asks to close. Without it only the dialog's own
+    /// buttons close it – for decisions that must be made. The dialog may still refuse (unsaved input).
+    /// </summary>
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    /// <summary>A click outside closes too: only for dialogs that show something, never for input or confirmations.</summary>
+    [Parameter]
+    public bool CloseOnBackdrop { get; set; }
+
+    /// <summary>Puts the focus on the dialog box when it opens, so Escape works before anything inside was clicked.</summary>
+    [Parameter]
+    public bool FocusOnOpen { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && FocusOnOpen)
+        {
+            await _box.FocusAsync();
+        }
+    }
+
+    /// <summary>A click outside either closes or keeps the focus in the dialog – otherwise it lands on the page, and Escape is lost.</summary>
+    private async Task OnBackdropClickAsync()
+    {
+        if (CloseOnBackdrop)
+        {
+            await OnCancel.InvokeAsync();
+        }
+        else
+        {
+            await _box.FocusAsync();
+        }
+    }
+
+    private Task OnKeyDownAsync(KeyboardEventArgs e) => e.Key == "Escape" ? OnCancel.InvokeAsync() : Task.CompletedTask;
+}

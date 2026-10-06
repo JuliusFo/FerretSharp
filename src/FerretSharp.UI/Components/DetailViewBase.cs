@@ -54,30 +54,14 @@ public abstract class DetailViewBase<T> : ComponentBase, IDisposable where T : c
         var cts = _cts = new CancellationTokenSource();
         Loading = true;
         Error = null;
-        try
+        var result = await Shell.RunDbAsync(LoggerFactory.CreateLogger(GetType()), Active.Profile, () => LoadAsync(schema, cts.Token), cts.Token);
+        if (cts.IsCancellationRequested)
         {
-            var data = await Task.Run(() => LoadAsync(schema, cts.Token), cts.Token);
-            if (!cts.IsCancellationRequested)
-            {
-                Data = data;
-            }
+            return; // a newer load took over
         }
-        catch (OperationCanceledException)
-        {
-        }
-        catch (DatabaseException ex)
-        {
-            QueryErrorLog.Log(LoggerFactory.CreateLogger(GetType()), ex, Active.Profile);
-            Error = ex;
-            Shell.ReportFailure(ex);
-        }
-        finally
-        {
-            if (ReferenceEquals(_cts, cts))
-            {
-                Loading = false;
-            }
-        }
+
+        (Data, Error) = result.Succeeded ? (result.Value, null) : (Data, result.Error);
+        Loading = false;
     }
 
     public void Dispose()

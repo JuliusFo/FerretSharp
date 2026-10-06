@@ -115,30 +115,22 @@
         _blocks.Clear();
         _rowsLoaded = 0;
         await Status(new SqlGridStatus(true, 0, false, null, null, null));
-        try
+        if (FirstPage is { } preloaded)
         {
-            if (FirstPage is { } preloaded)
-            {
-                _firstPage = preloaded;
-            }
-            else
-            {
-                var data = await Workspaces.GetDataAsync(WorkspaceId, CancellationToken.None);
-                var query = Query;
-                _firstPage = await Task.Run(() => data.ReadSqlAsync(query, 0, PageSize, CancellationToken.None));
-            }
+            _firstPage = preloaded;
         }
-        catch (DatabaseException ex)
+        else
         {
-            QueryErrorLog.Log(Logger, ex, Active.Profile);
-            Shell.ReportFailure(ex);
-            await Status(new SqlGridStatus(false, 0, false, null, null, ex));
-            return;
-        }
-        catch (InvalidOperationException ex)
-        {
-            await Status(new SqlGridStatus(false, 0, false, null, null, new DatabaseException(ex.Message)));
-            return;
+            var query = Query;
+            var result = await Shell.RunDbAsync(Logger, Active.Profile, async () =>
+                await (await Workspaces.GetDataAsync(WorkspaceId, CancellationToken.None)).ReadSqlAsync(query, 0, PageSize, CancellationToken.None));
+            if (result.Value is not { } first)
+            {
+                await Status(new SqlGridStatus(false, 0, false, null, null, result.Error));
+                return;
+            }
+
+            _firstPage = first;
         }
 
         _columns = _firstPage.Columns;
@@ -181,19 +173,16 @@
         }
         else
         {
-            try
+            var query = Query;
+            var result = await Shell.RunDbAsync(Logger, Active.Profile, async () =>
+                await (await Workspaces.GetDataAsync(WorkspaceId, CancellationToken.None)).ReadSqlAsync(query, startRow, endRow - startRow, CancellationToken.None));
+            if (result.Value is not { } read)
             {
-                var data = await Workspaces.GetDataAsync(WorkspaceId, CancellationToken.None);
-                var query = Query;
-                page = await Task.Run(() => data.ReadSqlAsync(query, startRow, endRow - startRow, CancellationToken.None));
+                await Status(new SqlGridStatus(false, _rowsLoaded, false, null, null, result.Error));
+                throw (Exception?)result.Error ?? new OperationCanceledException(); // grid.js fails the block
             }
-            catch (DatabaseException ex)
-            {
-                QueryErrorLog.Log(Logger, ex, Active.Profile);
-                Shell.ReportFailure(ex);
-                await Status(new SqlGridStatus(false, _rowsLoaded, false, null, null, ex));
-                throw;
-            }
+
+            page = read;
         }
 
         KeepBlock(startRow, page.Rows);

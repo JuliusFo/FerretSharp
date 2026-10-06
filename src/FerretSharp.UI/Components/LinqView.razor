@@ -420,33 +420,23 @@
         var statement = LinqStatements.ToQuery(run.Commands[Tab.SelectedCommand]);
         _running = true;
         _error = null;
-        try
+        var result = await Shell.RunDbAsync(Logger, Active.Profile, async () =>
+            await (await Workspaces.GetEditorAsync(Tab.WorkspaceId, CancellationToken.None)).ExecuteAsync(statement, CancellationToken.None));
+        _running = false;
+        _error = result.Error?.Display;
+        if (result.Value is not { } written)
         {
-            var editor = await Workspaces.GetEditorAsync(Tab.WorkspaceId, CancellationToken.None);
-            _written = await Task.Run(() => editor.ExecuteAsync(statement, CancellationToken.None));
-            _writtenIn = Workspaces.TransactionOf(Tab.WorkspaceId)?.StartedAt;
-            // Table tabs of the workspace may show the changed rows: they fetch them again from the transaction.
-            foreach (var tab in Shell.Workspaces.FirstOrDefault(w => w.WorkspaceId == Tab.WorkspaceId)?.TableTabs ?? [])
-            {
-                Shell.RequestTabCommand(tab, TabCommand.Reload);
-            }
+            return;
+        }
 
-            Shell.NotifyChanged(); // status bar: open transaction, commit/rollback
-        }
-        catch (DatabaseException ex)
+        (_written, _writtenIn) = (written, Workspaces.TransactionOf(Tab.WorkspaceId)?.StartedAt);
+        // Table tabs of the workspace may show the changed rows: they fetch them again from the transaction.
+        foreach (var tab in Shell.Workspaces.FirstOrDefault(w => w.WorkspaceId == Tab.WorkspaceId)?.TableTabs ?? [])
         {
-            QueryErrorLog.Log(Logger, ex, Active.Profile);
-            Shell.ReportFailure(ex);
-            _error = ex.Display;
+            Shell.RequestTabCommand(tab, TabCommand.Reload);
         }
-        catch (InvalidOperationException ex)
-        {
-            _error = ex.Message;
-        }
-        finally
-        {
-            _running = false;
-        }
+
+        Shell.NotifyChanged(); // status bar: open transaction, commit/rollback
     }
 
     /// <summary>Appends the suggested declarations to the variables and puts the cursor on the first of them.</summary>

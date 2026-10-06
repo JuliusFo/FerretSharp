@@ -279,17 +279,12 @@
             return;
         }
 
-        try
+        var table = Tab.Table;
+        var result = await Shell.RunDbAsync(Logger, Active.Profile, () => schema.GetDetailsAsync(table, CancellationToken.None));
+        _loadError = result.Error;
+        if (result.Succeeded)
         {
-            var table = Tab.Table;
-            _details = await Task.Run(() => schema.GetDetailsAsync(table, CancellationToken.None));
-            Tab.Details = _details;
-        }
-        catch (DatabaseException ex)
-        {
-            QueryErrorLog.Log(Logger, ex, Active.Profile);
-            _loadError = ex;
-            Shell.ReportFailure(ex);
+            _details = Tab.Details = result.Value;
         }
     }
 
@@ -381,33 +376,25 @@
         _countError = null;
         var details = _details;
         var filters = Tab.AppliedFilters;
-        try
+        var result = await Shell.RunDbAsync(Logger, Active.Profile, async () =>
         {
             var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, cts.Token);
-            var count = await Task.Run(() => data.CountAsync(details, filters, cts.Token), cts.Token);
-            Tab.TotalCount = count;
+            return await data.CountAsync(details, filters, cts.Token);
+        }, cts.Token);
+        if (ReferenceEquals(_countCts, cts))
+        {
+            _countCts = null;
+        }
+
+        cts.Dispose();
+        _countError = result.Error;
+        if (result.Succeeded)
+        {
+            Tab.TotalCount = result.Value;
             if (_grid is not null)
             {
-                await _grid.SetRowCountAsync(count);
+                await _grid.SetRowCountAsync(result.Value);
             }
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        catch (DatabaseException ex)
-        {
-            QueryErrorLog.Log(Logger, ex, Active.Profile);
-            _countError = ex;
-            Shell.ReportFailure(ex);
-        }
-        finally
-        {
-            if (ReferenceEquals(_countCts, cts))
-            {
-                _countCts = null;
-            }
-
-            cts.Dispose();
         }
     }
 

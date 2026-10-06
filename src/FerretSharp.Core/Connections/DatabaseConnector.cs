@@ -83,7 +83,7 @@ public sealed class DatabaseException(string message, string? errorCode = null, 
 /// <see cref="InvalidOperationException"/>, which these refusals were before (existing handlers keep working); plain
 /// <see cref="InvalidOperationException"/>s stay for guards against programming mistakes.
 /// </summary>
-public class RefusedException(string message) : InvalidOperationException(message);
+public class RefusedException(string message, Exception? inner = null) : InvalidOperationException(message, inner);
 
 /// <summary>The workspace is not open (any more): closed or disconnected while a call for it was on its way.</summary>
 public sealed class WorkspaceClosedException() : RefusedException("Der Workspace ist nicht geöffnet.");
