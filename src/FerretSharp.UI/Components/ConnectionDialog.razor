@@ -178,7 +178,7 @@
         <footer>
             @if (!Form.IsNew)
             {
-                <button class="btn ghost danger" @onclick="DeleteAsync">@(_confirmDelete ? "Wirklich löschen?" : "Löschen")</button>
+                <button class="btn ghost danger" @onclick="DeleteAsync">Löschen …</button>
             }
             <span class="spacer"></span>
             @if (_testing)
@@ -203,10 +203,12 @@
     private bool _testing;
     private bool _testCancelled;
     private bool _saving;
-    private bool _confirmDelete;
     private string? _saveError;
     private ConnectionTestResult? _testResult;
     private CancellationTokenSource? _testCts;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
 
     [Parameter, EditorRequired]
     public ConnectionDialogRequest Request { get; set; } = new(ConnectionDialogMode.New, null);
@@ -339,16 +341,18 @@
         }
     }
 
+    /// <summary>
+    /// Hands over to the shell's delete (as the "⋯" menu does): it confirms, disconnects first if this is the active
+    /// connection (guarding open changes) and removes the connection's workspaces and SQL history too.
+    /// </summary>
     private async Task DeleteAsync()
     {
-        if (!_confirmDelete)
-        {
-            _confirmDelete = true;
-            return;
-        }
-
-        await Connections.DeleteAsync(Form.Id, CancellationToken.None);
+        var profile = Connections.Profiles.FirstOrDefault(p => p.Id == Form.Id);
         await CloseAsync();
+        if (profile is not null)
+        {
+            Shell.RequestDelete(profile);
+        }
     }
 
     private async Task CancelAsync() => await CloseAsync();
