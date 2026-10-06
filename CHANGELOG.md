@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.6.1] - 2026-10-07
+
 Internal restructuring (R2) without new features; a few things behave more consistently now.
 
 ### Changed
