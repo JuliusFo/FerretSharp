@@ -11,6 +11,8 @@ Stability release after a code review: no new features.
 
 ### Changed
 - An error inside a tab now replaces only that tab with "In diesem Tab ist etwas schiefgelaufen" and offers "Neu laden" and "Tab schließen"; filters, SQL text and pending changes are kept. Before, any such error closed all tabs and dropped unsaved changes without asking.
+- Undo (↶) takes back the last write of the workspace, whoever made it: a grid write or a statement from the SQL editor or the LINQ console. They share the workspace's transaction, and undoing an older grid write used to take every later statement along without saying so. The status bar shows how many writes are not committed yet ("2 Aktionen nicht committet", the list as tooltip, newest first), ↶ names what it takes back, and the SQL editor and LINQ console say when their statement was taken back.
+- Read-only workspaces: a tab whose later rows come from a newer snapshot than its first page – because another tab of the workspace started a new query meanwhile – says so in its footer ("Stand hat sich geändert"); F5 or running again reads everything from one snapshot.
 - Keyboard shortcuts do nothing while any dialog is open – also the dialogs a tab opens itself (SQL preview, plan, LOB editor). Before, Ctrl+S could write behind the LOB editor and F5 reload behind the plan dialog.
 
 ### Fixed

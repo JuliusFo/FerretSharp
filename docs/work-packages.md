@@ -264,6 +264,20 @@ Auftrag des Nutzers (2026-10-06): das Projekt auf nötige Refactorings prüfen (
   - Aufteilung von `OracleSession` (Zustandstyp für die Transaktion, `ExclusiveAsync`) und `WorkspaceManager`
   - `SqlScriptRunner` für SQL- und LINQ-Tab, gemeinsame Grid-Brücke, `AtomicJsonFile`, `ModelHostLaunch`
   - `TabState` als Union mit Mapper (Dateiformat bleibt)
-- Verdachtsfälle ohne Änderung:
-  - Undo eines Grid-Schreibvorgangs nimmt spätere SQL-/LINQ-DML derselben Transaktion mit zurück.
-  - Ein neuer Snapshot in Tab B kann das Nachladen in Tab A desselben gesperrten Workspaces verschieben.
+- Nachtrag: zwei Verdachtsfälle aus dem Review bestätigt und behoben (Entscheidungen des Nutzers):
+  - **Gemeinsamer Undo-Stapel** (Variante „c“, mit Zähler):
+    - Problem: Undo eines Grid-Schreibvorgangs (`ROLLBACK TO SAVEPOINT FS_FLUSH_n`) nahm still auch spätere SQL-/LINQ-DML derselben Transaktion mit zurück. Oracle kann Savepoints nicht selektiv zurückrollen.
+    - `IDataEditor.Actions` (`WriteAction`: Art Grid/Statement, Beschreibung, Zeilen, Zeit) ersetzt `FlushCount`. `UndoLastAsync` nimmt immer die neueste Aktion zurück, egal von wem, und liefert sie zurück. `ExecuteAsync` gibt die `WriteAction` zurück.
+    - `WorkspaceEditing` ordnet Grid-Batches über die Aktions-Id zu. Bei einem Statement lädt es alle Tabellen-Tabs neu.
+    - Statusleiste: „N Aktionen nicht committet“ mit Liste im Tooltip; ↶ nennt, was es zurücknimmt.
+    - SQL-Editor und LINQ-Konsole zeigen „inzwischen zurückgenommen (↶)“ bzw. „Transaktion beendet“ (`WorkspaceEditing.FateOf`).
+    - Integrationstest `Undo_takes_back_the_newest_action_also_a_statement_after_a_grid_write`.
+  - **Snapshot-Hinweis** (Variante „a“):
+    - Die Session hat einen Snapshot für alle Tabs. Eine erste Seite in Tab B startet einen neuen; in Tab A nachgeladene Seiten kommen dann aus einem anderen Stand.
+    - `Snapshots.Next` (Core/Data, Unit-Tests) merkt den Stand der ersten Seite je Grid und markiert spätere Seiten aus einem anderen Stand.
+    - Fußzeile: „Stand hat sich geändert – F5 lädt neu“ (Tabellen-Tab) bzw. „– neu ausführen“ (SQL/LINQ).
+    - Echte Konsistenz je Tab (`AS OF SCN`) bewusst nicht umgesetzt.
+  - E2E (eigene Instanz, eigene Test-DB):
+    - Grid-Änderung schreiben, dann `UPDATE` im SQL-Tab: „2 Aktionen“. Erstes ↶ nimmt das Statement zurück, der SQL-Tab meldet „zurückgenommen“. Zweites ↶ macht die Grid-Änderung wieder ausstehend.
+    - Gesperrter Workspace: KUNDEN laden, 30 Zeilen von außen vorne einfügen, AUFTRAG öffnen, in KUNDEN weiterscrollen. Der Hinweis erscheint und verschwindet nach F5.
+    - Log ohne `[ERR]`.

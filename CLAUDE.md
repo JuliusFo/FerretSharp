@@ -237,7 +237,7 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 ```
 - `ChangeTracker` sammelt pro Tab.
 - `OracleDataAccess.FlushAsync(changes, session, ct)` (bewusst nicht „Apply“, um Verwechslung mit dem Filter-Apply zu vermeiden):
-  - pro Flush einen `SAVEPOINT` → einzelne Flushes lassen sich zurücknehmen
+  - pro Flush einen `SAVEPOINT` → einzelne Flushes lassen sich zurücknehmen. Seit 3.5.1 sind Grid-Schreibvorgänge und SQL-/LINQ-Statements gemeinsam die `IDataEditor.Actions` der Transaktion; Undo nimmt immer die neueste zurück (ein Savepoint verwirft alles danach, auch fremde Statements).
   - vor jedem Update/Delete `SELECT … FOR UPDATE WAIT n` (n konfigurierbar, Default 3 s) → `ORA-30006` (Oracle 23: `ORA-00054`) statt endlosem Warten
   - `UPDATE t SET c=:v WHERE <RowKey>` (+ optional Original-Werte im WHERE für Concurrency, konfigurierbar)
   - `INSERT INTO t (...) VALUES (...) RETURNING ROWID INTO :rid` (bzw. PK)
