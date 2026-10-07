@@ -2,7 +2,7 @@
 
 > Projektanweisungen für Claude Code. Bitte vollständig lesen, bevor ein Arbeitspaket umgesetzt wird.
 > Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-07 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0; WP-14 → 2.4.0; WP-15 → 3.0.0, v3 abgeschlossen; v4: WP-16 → 3.1.0, WP-17 → 3.2.0, WP-18 → 3.3.0, Leerzeichen nach Vorschlägen 3.3.1, Tabs umbenennen 3.4.0; WP-19 → 3.5.0; Stabilisierung R1 → 3.6.0, Protokolle nach `docs/work-packages.md`; Struktur-Refactoring R2 → 3.6.1)
+> Stand: 2026-10-07 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0; WP-14 → 2.4.0; WP-15 → 3.0.0, v3 abgeschlossen; v4: WP-16 → 3.1.0, WP-17 → 3.2.0, WP-18 → 3.3.0, Leerzeichen nach Vorschlägen 3.3.1, Tabs umbenennen 3.4.0; WP-19 → 3.5.0; Stabilisierung R1 → 3.6.0, Protokolle nach `docs/work-packages.md`; Struktur-Refactoring R2 → 3.6.1; WP-20 umgesetzt, noch ohne Release)
 
 ## 1. Ziel
 
@@ -28,7 +28,7 @@ Es wird in Versionen ausgeliefert. Jede Version ist für sich benutzbar.
 | **v1 – Read-only Browser** | Connections, Schema, Grid, Filter, Workspaces, FK-Navigation, Export | WP-01 … WP-07 |
 | **v2 – Sandbox-Editing** | Transaktionsmodell, Editieren, Commit/Rollback, Lock-Handling, Prod-Freischaltung | WP-08 … WP-10 |
 | **v3 – .NET-Integration** | DbContext-Modell laden, Schema-Anreicherung (Entities, Enums, Navigations), LINQ-Konsole, Explain-Plan (Grid und LINQ), Code-Generierung | WP-11 … WP-15 |
-| **v4 – Komfort & SQL** | Modell-Cache, freier SQL-Editor, Skripte, LINQ-Autovervollständigung; geplant: Schema-Vergleich, Formularansicht, DDL im SQL-Editor, Tabellen-Designer (weitere Pakete aus dem Backlog nach Absprache) | WP-16 … WP-23 |
+| **v4 – Komfort & SQL** | Modell-Cache, freier SQL-Editor, Skripte, LINQ-Autovervollständigung, Schema-Vergleich; geplant: Formularansicht, DDL im SQL-Editor, Tabellen-Designer (weitere Pakete aus dem Backlog nach Absprache) | WP-16 … WP-23 |
 | **v5+** | Backlog (Abschnitt 10) | – |
 
 Regeln für **v1**:
@@ -87,6 +87,7 @@ FerretSharp.slnx
 │  │  ├─ Data/                         # RowSet, RowKey, IDataAccess, RowBlocks   (v2: RowChange, ChangeTracker)
 │  │  ├─ IO/                           # AtomicJsonFile (Schreiben über .tmp für alle JSON-Speicher)
 │  │  ├─ Workspaces/                   # Workspace, WorkspaceStore, TabState
+│  │  ├─ Compare/                      # Schema-Vergleich (WP-20): SchemaSnapshot, SchemaDiff, SchemaDdl, gespeicherte Vergleiche
 │  │  └─ Oracle/                       # OracleSession, OracleSchemaReader, OracleDataAccess, OracleTypeMapper, OracleIdentifier
 │  ├─ FerretSharp.UI/                  # net10.0, Razor Class Library – plattformneutral, KEIN WPF/Windows
 │  │  ├─ Shell.razor                   # Root-Komponente: Layout, Seiten, Shortcuts (Leisten und Dialoge als eigene Komponenten)
@@ -377,6 +378,7 @@ Umsetzungsprotokolle (was gebaut wurde, Entscheidungen des Nutzers, Nachträge, 
 | WP-19 | LINQ-Autovervollständigung | 3.5.0 | 0015 |
 | R1 | Stabilisierung nach Code-Review, gemeinsamer Undo-Stapel | 3.6.0 | – |
 | R2 | Struktur-Refactoring (DB-Aufrufe, Dialoge, Shell, Session, Grid-Brücke) | 3.6.1 | – |
+| WP-20 | Schema-Vergleich: N Schemas als Matrix, gespeicherte Vergleiche, DDL-Vorschlag | noch offen | – |
 
 **Kontext des Nutzers** (wichtig für die kommenden Pakete):
 - DB-first von Hand: erst die DB ändern, dann Entity/Konfiguration; keine Migrations. Namenskonvention im Code (Tabellen groß, `KundenId` → `KUNDEN_ID`), **eigene Value Converter** (bool ↔ J/N, Enum-Kürzel), Enum-Member mit `[Display(ResourceType = …, Name = …)]`. Ein DbContext in einer Klassenbibliothek (Konstruktor `DbContextOptions`), Entities in einem anderen Projekt, EF Core 8.
@@ -390,29 +392,13 @@ Umsetzungsprotokolle (was gebaut wurde, Entscheidungen des Nutzers, Nachträge, 
 - AG Grid: Objekte in Column-Defs (`headerComponentParams`) werden mit `defaultColDef` **tief kopiert** – veränderliche Metadaten als Funktion (`getMeta`). Kopfhöhe nur als Theme-Parameter, nicht als `headerHeight` (setzt die Zeilenhöhe zurück). Angeheftete Zeilen haben `row-index="t-0"`.
 - Monaco: `vs/nls/lang/de.js` ist kein AMD-Modul → als normales Script laden. Offsets sind UTF-16; Text und Offsets immer aus demselben `getRunContext`.
 - ModelHost: Roslyn im Projektprozess nur bis 4.11 (ab 4.12 `System.Reflection.Metadata` 9.0, nicht ladbar in .NET 8); `AppContext.BaseDirectory` ist unter `dotnet exec --depsfile` nicht verlässlich (`typeof(Program).Assembly.Location`); Satelliten-Assemblies stehen nicht in der deps.json; ein Interceptor-Exemplar für die ganze Lebensdauer. Roslyn sieht eine Position am Textende als hinter einem unfertigen Lambda.
+- Dictionary über ein ganzes Schema (WP-20): Constraints gelöschter Tabellen bleiben im Papierkorb unter `BIN$…` in `ALL_CONSTRAINTS` → owner-weite Abfragen nach der Objektliste filtern. Eine `LONG`-Spalte (`DATA_DEFAULT`) zählt mit 32.767 Byte in `OracleDataReader.RowSize` → Fetch-Größe deckeln (`FetchManyRows`, 16 MB). `DEFAULT ON NULL` entfernen nimmt in Oracle 23 auch NOT NULL weg.
 - `EXPLAIN PLAN` geht nicht in einer READ-ONLY-Transaktion (ORA-01456) → Explorer-Session. `ReadSqlAsync` blättert durch erneutes Ausführen (`SELECT * FROM (…)` scheitert an doppelten Spaltennamen der EF-Joins, ORA-00918).
 - E2E: CDP-Klicks sind keine Nutzergeste (`navigator.clipboard.writeText` schlägt fehl) → Zwischenablage per CDP durch eine Mitschrift ersetzen. Text im LOB-Dialog geht erst beim `change` nach .NET → mit echter Maus übernehmen. Monaco über `getModels()…setValue`/`setPosition` füttern, `triggerSuggest` erst nach > 250 ms. `Input.dispatchKeyEvent`-Modifier: Alt 1, Ctrl 2, Meta 4, Shift 8. Ausdrücke mit Anführungszeichen über eine Datei an `node` geben (PowerShell 5.1 verliert sie). Nach E2E-Läufen das Log der Testinstanz auf `[ERR]` prüfen. Abfragen über `Kunde` im Beispielmodell scheitern absichtlich mit ORA-00904 (Drift).
 
 ### Geplant (v4)
 
 Pakete aus dem Backlog, nach v3 mit dem Nutzer ausgewählt (2026-10-05). Versionen: Minor-Releases 3.x (nichts Inkompatibles).
-
-#### WP-20 Schema-Vergleich (geplant)
-Wunsch des Nutzers (2026-10-06), vor DDL und Tabellen-Designer. Anlass: DB-first von Hand über mehrere Umgebungen – „ALTER auf Test vergessen?“.
-- **N Schemas** (Entscheidung des Nutzers, 2026-10-07): beliebig viele Verbindungen bzw. Schemas (z. B. Dev, Test, Prod, Kunden-DBs) in einem Vergleich; zwei Seiten sind der Sonderfall N = 2. Verglichen werden fehlende/zusätzliche Tabellen, Views, MViews; Spalten (Typ, Länge/CHAR-Semantik, Precision/Scale, NULL, Default, Identity, virtuell); PK/Unique/FK/Check-Constraints; Indizes. Erste Stufe: Tabellen, Spalten, Constraints, Indizes; später optional Kommentare, View-Definitionen, Sequenzen.
-- Ansicht als **Matrix**: Zeilen = Objekte (Tabelle, aufklappbar Spalten/Constraints/Indizes), Spalten = Umgebungen, Zelle gleich/abweichend/fehlt. Je Objekt werden die Umgebungen nach gleicher Definition gruppiert („`KUNDEN.EMAIL`: Dev + Test `VARCHAR2(200)`, Prod `VARCHAR2(100)`“), ohne feste Referenz; optional eine Umgebung als Referenz, die anderen werden daran gemessen. Filter: nur Unterschiede, nach Objektart. Kein paarweiser Vergleich aller gegen alle.
-- DDL-Vorschlag bleibt **paarweise** (Referenz → Ziel, in der Matrix gewählt), als Text; Ausführen erst mit WP-22.
-- Architektur: Es gibt genau eine aktive Verbindung (`ActiveConnection`) – für jede weitere Seite eine eigene, kurzlebige Explorer-Session (nur Dictionary-Lesen über `ISchemaReader`, Passwort aus dem `ISecretStore`, fehlt es: nachfragen). Je Seite ein `SchemaSnapshot` (normalisiert, später auch als Datei speicherbar, z. B. „Prod vor dem Release“); die Vergleichslogik im Core (`SchemaDiff`) arbeitet nur auf Snapshots. Unit-Tests gegen Fake-Reader/Snapshots; Integrationstest mit mehreren Schemas im Container.
-- Laden: Seiten parallel, Fortschritt je Seite, abbrechbar; fällt eine Seite aus (VPN, Rechte), bleibt der Rest nutzbar. `ALL_TAB_COLS` ist auf großen DBs langsam.
-- Entschieden (2026-10-07, Vorschläge so übernommen):
-  - Seiten: je Seite Verbindung + optional Schema (Vorgabe: Schema des Profils); auch mehrere Schemas derselben DB, die sich dann eine Session teilen.
-  - Synonyme: nur echte Objekte des Schemas; fehlende Synonyme evtl. später als eigene Objektart.
-  - Namen exakt vergleichen (für Oracle und EF mit Quoting verschieden); gibt es einen Namen nur in anderer Schreibweise, als eigene Abweichung markieren.
-  - Ignoriert: Storage, Tablespace, Statistiken immer. Systemgenerierte Constraint-/Indexnamen (`SYS_C…`, `SYS_IL…`) nach Inhalt (Spalten, Bedingung) statt Namen vergleichen. Spaltenreihenfolge abschaltbar, standardmäßig aus.
-  - Ansicht: eigene Seite wie „C#-Modell“ (gehört zu keinem Workspace und keiner Transaktion).
-  - Export (erste Stufe): Matrix als Text/Markdown in die Zwischenablage, DDL-Vorschlag als Skript; CSV/HTML nur bei Bedarf.
-  - Gespeicherte Vergleiche (Seiten, Referenz, Filter), z. B. „ERP: Dev/Test/Prod“, zum Wiederöffnen.
-  - Snapshots als Datei: später; der Core wird dafür vorbereitet.
 
 #### WP-21 Formularansicht einer Zeile (geplant)
 Wunsch des Nutzers (2026-10-06), vor DDL und Tabellen-Designer. Für breite Tabellen (VERTRAG mit 71 Spalten).

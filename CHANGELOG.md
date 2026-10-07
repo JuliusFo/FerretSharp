@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- Schema comparison: compare any number of connections or schemas (e.g. Dev, Test, Prod) in one matrix – tables, views and materialized views with their columns (type, length with BYTE/CHAR, precision, NULL, default, identity, virtual), primary keys, unique, foreign key and check constraints, and indexes. Sides with the same definition share a colour; optionally one side is the reference the others are measured against. Names that exist only in another letter case are marked; constraints and indexes Oracle named (`SYS_C…`) are matched by content. Each side loads in its own short-lived session, in parallel; a side that fails does not stop the others. Filters (only differences, kind, search), copy as Markdown, and comparisons can be saved to open again ("ERP: Dev/Test/Prod").
+- DDL proposal from the comparison: the statements that make one side look like another, to copy. Drops, renames and changes that need care are only commented out, with a warning. FerretSharp does not run them.
+
 ## [3.6.1] - 2026-10-07
 
 Internal restructuring (R2) without new features; a few things behave more consistently now.
