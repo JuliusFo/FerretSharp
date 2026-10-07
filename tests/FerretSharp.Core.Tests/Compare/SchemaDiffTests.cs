@@ -210,11 +210,22 @@ public class SchemaDiffTests
     [InlineData("  nvl(a,\n   0)", "nvl(a, 0)")]
     [InlineData("NULL ", null)]
     [InlineData("null", "")]
+    [InlineData("sysdate", "SYSDATE")]
+    [InlineData("nvl(a, 'x')", "NVL(A, 'x')")]
     public void Default_text_is_normalized(string left, string? right)
     {
         var row = Row(Compare(Schema(Table("T", [Col("C", defaultValue: left)])), Schema(Table("T", [Col("C", defaultValue: right)]))), "T/col/C");
 
         Assert.Equal([Same, Same], States(row));
+    }
+
+    [Fact]
+    public void Letter_case_inside_literals_counts()
+    {
+        var row = Row(Compare(Schema(Table("T", [Col("C", defaultValue: "'Ja'")])), Schema(Table("T", [Col("C", defaultValue: "'JA'")]))), "T/col/C");
+
+        Assert.Equal([Different, Different], States(row));
+        Assert.Equal("NUMBER NULL DEFAULT 'Ja'", row.Cells[0].Definition);
     }
 
     [Fact]

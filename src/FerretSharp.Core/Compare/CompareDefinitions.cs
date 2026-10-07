@@ -146,7 +146,9 @@ internal static class CompareDefinitions
     /// <summary>
     /// An expression as Oracle stored it (default, virtual column, check condition, index expression), trimmed and with
     /// runs of whitespace outside string literals and quoted identifiers collapsed to one space: <c>DATA_DEFAULT</c>
-    /// keeps whatever spaces and line breaks the DDL had.
+    /// keeps whatever spaces and line breaks the DDL had. Outside literals and quoted identifiers the text is upper case
+    /// (decision of the user, 2026-10-07): Oracle treats <c>sysdate</c> and <c>SYSDATE</c> alike but stores the
+    /// expression as typed. Only for comparing and showing – the DDL proposal copies the original text.
     /// </summary>
     public static string Normalize(string expression)
     {
@@ -181,9 +183,11 @@ internal static class CompareDefinitions
             if (ch is '\'' or '"')
             {
                 quote = ch;
+                text.Append(ch);
+                continue;
             }
 
-            text.Append(ch);
+            text.Append(char.ToUpperInvariant(ch));
         }
 
         return text.ToString();
