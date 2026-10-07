@@ -51,6 +51,35 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
+    /// <summary>
+    /// Connects and waits for the model load that connecting starts in the background. While it runs it reads the deps.json
+    /// (<c>File.OpenRead</c>), so a test that rewrites the file or deletes the folder at that moment fails with a sharing
+    /// violation; a load cancelled by <see cref="ClrModelManager.LoadAsync()"/> keeps reading until its step ends.
+    /// </summary>
+    private async Task ConnectAsync()
+    {
+        var settled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        void OnChanged()
+        {
+            if (_models.State.Phase != ClrModelPhase.Loading)
+            {
+                settled.TrySetResult();
+            }
+        }
+
+        _models.Changed += OnChanged;
+        try
+        {
+            await _active.ConnectAsync(_profile, Ct);
+            OnChanged();
+            await settled.Task.WaitAsync(TimeSpan.FromSeconds(10), Ct);
+        }
+        finally
+        {
+            _models.Changed -= OnChanged;
+        }
+    }
+
     public async ValueTask DisposeAsync()
     {
         _models.Dispose();
@@ -61,7 +90,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
     [Fact]
     public async Task A_deps_json_that_cannot_be_read_fails_the_model_load()
     {
-        await _active.ConnectAsync(_profile, Ct);
+        await ConnectAsync();
         File.WriteAllText(_deps, "{ halb geschrieben");
 
         await _models.LoadAsync();
@@ -73,7 +102,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
     [Fact]
     public async Task An_unexpected_runner_failure_fails_the_model_load()
     {
-        await _active.ConnectAsync(_profile, Ct);
+        await ConnectAsync();
         _runner.ReadModelAsync(Arg.Any<ClrProjectLink>(), Arg.Any<BuildOutput>(), Arg.Any<CancellationToken>(), Arg.Any<IProgress<string>?>())
             .ThrowsAsync(new InvalidOperationException("kaputt"));
 
@@ -86,7 +115,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
     [Fact]
     public async Task A_console_that_cannot_start_fails_with_a_message()
     {
-        await _active.ConnectAsync(_profile, Ct);
+        await ConnectAsync();
         await _models.LoadAsync();
         using var consoles = new LinqConsoleService(_runner, _models);
         _runner.StartConsoleAsync(Arg.Any<ClrProjectLink>(), Arg.Any<BuildOutput>(), Arg.Any<CancellationToken>(), Arg.Any<IProgress<string>?>())
@@ -97,5 +126,23 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
 
         Assert.Contains("dotnet fehlt", error.Message);
         Assert.Equal(LinqConsolePhase.Failed, consoles.State.Phase);
+    }
+
+    [Fact]
+    public async Task An_idle_console_of_a_connection_in_the_background_is_stopped()
+    {
+        await ConnectAsync();
+        await _models.LoadAsync();
+        var console = Substitute.For<ILinqConsole>();
+        _runner.StartConsoleAsync(Arg.Any<ClrProjectLink>(), Arg.Any<BuildOutput>(), Arg.Any<CancellationToken>(), Arg.Any<IProgress<string>?>())
+            .Returns(console);
+        await using var consoles = new LinqConsoleService(_runner, _models);
+
+        Assert.False(await consoles.StopIdleAsync()); // nothing running yet
+        await consoles.WarmUpAsync();
+
+        Assert.True(await consoles.StopIdleAsync());
+        await console.Received(1).DisposeAsync();
+        Assert.Equal(LinqConsolePhase.Stopped, consoles.State.Phase);
     }
 }

@@ -1,4 +1,4 @@
-@* Right-click menu of a grid cell: copy the value, jump along foreign keys (outgoing and incoming with counts). *@
+@* Right-click menu of a grid cell: copy the value, jump along foreign keys from the selected rows (outgoing and incoming with counts). *@
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
@@ -7,11 +7,8 @@
 @using FerretSharp.Core.Schema
 @using FerretSharp.UI.State
 @implements IAsyncDisposable
-@inject ActiveConnection Active
-@inject WorkspaceManager Workspaces
 @inject IJSRuntime JS
 @inject IFileSaveService Files
-@inject PresentationService Presentations
 @inject ILogger<GridContextMenu> Logger
 
 <div class="popover-backdrop" @onclick="CloseAsync" @oncontextmenu="CloseAsync" @oncontextmenu:preventDefault="true"></div>
@@ -72,7 +69,7 @@
 
     @if (_outgoing.Count > 0)
     {
-        <div class="group-head-btn static">Verweist auf</div>
+        <div class="group-head-btn static">Verweist auf@(JumpRowsText)</div>
         @foreach (var jump in _outgoing)
         {
             @JumpItem(jump, "→", null)
@@ -81,7 +78,7 @@
 
     @if (_incoming.Count > 0)
     {
-        <div class="group-head-btn static">Referenziert von</div>
+        <div class="group-head-btn static">Referenziert von@(JumpRowsText)</div>
         @foreach (var jump in _incoming)
         {
             @JumpItem(jump, "←", _counts.GetValueOrDefault(jump))
@@ -92,9 +89,22 @@
     {
         <div class="ctx-empty">Keine Fremdschlüssel an dieser Tabelle.</div>
     }
+    else if (Request.MissingRows > 0)
+    {
+        <div class="ctx-note">@RowsText(Request.MissingRows) der Auswahl nicht mehr geladen – bei den Sprüngen nicht berücksichtigt.</div>
+    }
 </div>
 
 @code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceManager Workspaces { get; set; } = null!;
+
+    [CascadingParameter]
+    public PresentationService Presentations { get; set; } = null!;
+
     private const double MenuWidth = 400;
     private const double ItemHeight = 44;
 
@@ -162,6 +172,15 @@
 
     private ColumnInfo Column => Details.Columns[Request.Column];
 
+    /// <summary>
+    /// FK jumps start from all selected rows (a right-click into a selection keeps it); rows no longer loaded are left
+    /// out and mentioned below the jumps.
+    /// </summary>
+    private IReadOnlyList<RowData> JumpRows => Request.Selected.Count > 0 ? Request.Selected : [Request.Row];
+
+    /// <summary>" · 3 Zeilen" after the jump headings if several rows are selected; nothing for one row.</summary>
+    private string JumpRowsText => Request.Selected.Count + Request.MissingRows > 1 ? $" · {RowsText(JumpRows.Count)}" : "";
+
     private abstract record CountState
     {
         public sealed record Loading : CountState;
@@ -175,7 +194,7 @@
     {
         get
         {
-            var height = 292 + ItemHeight * (_outgoing.Count + _incoming.Count) + (_cell is null ? 0 : 128);
+            var height = 292 + ItemHeight * (_outgoing.Count + _incoming.Count) + (_cell is null ? 0 : 128) + (Request.MissingRows > 0 ? 40 : 0);
             var left = Math.Max(8, Math.Min(Request.X, Request.ViewportWidth - MenuWidth - 8));
             var top = Math.Max(8, Math.Min(Request.Y, Request.ViewportHeight - height - 8));
             return FormattableString.Invariant($"position: fixed; left: {left:0}px; top: {top:0}px; width: {MenuWidth:0}px;");
@@ -194,7 +213,7 @@
                         <span class="ctx-source">aus C#-Modell</span>
                     }
                 </span>
-                <span class="ctx-meta">@(jump.Unavailable ?? jump.Condition)</span>
+                <span class="ctx-meta @(jump.IsAvailable ? "" : "wrap")">@(jump.Unavailable ?? jump.Condition)</span>
             </span>
             @switch (count)
             {
@@ -223,7 +242,7 @@
         }
 
         var row = Details.Table.Ref;
-        var jumps = FkNavigation.JumpsFor(Details, Request.Row, schema.OutgoingOf(row), schema.IncomingOf(row));
+        var jumps = FkNavigation.JumpsFor(Details, JumpRows, schema.OutgoingOf(row), schema.IncomingOf(row));
         // FKs over the clicked column first: that is usually the one the user means.
         _outgoing = jumps.Where(j => j.Direction == JumpDirection.Outgoing).OrderByDescending(InvolvesColumn).ToList();
         _incoming = jumps.Where(j => j.Direction == JumpDirection.Incoming).OrderByDescending(InvolvesColumn).ToList();
@@ -287,7 +306,9 @@
     private static string Tooltip(FkJump jump) =>
         $"{jump.ForeignKey.Name}: {jump.ForeignKey.From}({string.Join(", ", jump.ForeignKey.FromColumns)}) → " +
         $"{jump.ForeignKey.To}({string.Join(", ", jump.ForeignKey.ToColumns)})" +
-        (jump.ForeignKey.Source == FkSource.ClrModel ? Environment.NewLine + "Beziehung aus dem C#-Modell – in der Datenbank gibt es dafür keinen Constraint." : "");
+        (jump.ForeignKey.Source == FkSource.ClrModel ? Environment.NewLine + "Beziehung aus dem C#-Modell – in der Datenbank gibt es dafür keinen Constraint." : "") +
+        (jump.SkippedNote is { } skipped ? Environment.NewLine + skipped + "." : "") +
+        (jump.Unavailable is { } reason ? Environment.NewLine + reason : "");
 
     private async Task JumpAsync(FkJump jump)
     {

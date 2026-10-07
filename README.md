@@ -43,6 +43,8 @@ developer works with an Oracle database day to day:
 
 ### Browse
 
+- Several connections open at once, one shown: switch from DEV to PROD and back (<kbd>Alt</kbd>+<kbd>O</kbd>) without
+  disconnecting – tabs, grids and open transactions stay as they were.
 - Explorer with letter index and search; tables, views, materialized views and objects reachable through synonyms.
 - Fast grid for large tables (blocks of 500 rows, server-side sorting, deterministic paging), `NULL` shown as such,
   exact numbers beyond `decimal`, LOB previews, pinned columns, column search (Ctrl+F).
@@ -149,6 +151,7 @@ files.
 | Keys | Action |
 |---|---|
 | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd> | Switch connection |
+| <kbd>Alt</kbd>+<kbd>O</kbd> | Back to the previous open connection (it stays connected in the background) |
 | <kbd>Ctrl</kbd>+<kbd>Enter</kbd> | Apply filters · run the statement at the cursor (SQL) · run the code (LINQ) |
 | <kbd>F5</kbd> | Refresh |
 | <kbd>Ctrl</kbd>+<kbd>F</kbd> | Find a column · search in the editor |

@@ -592,10 +592,12 @@ table.binds td { font-family: var(--mono); }
 .ctx-target { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .ctx-table { font: 600 12.5px var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ctx-meta { font: 11.5px var(--mono); color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ctx-meta.wrap { white-space: normal; }
 .ctx-count { flex: none; min-width: 26px; padding: 1px 7px; border-radius: 9px; background: var(--accent-weak); color: var(--accent); font-size: 11.5px; font-weight: 600; text-align: center; font-variant-numeric: tabular-nums; }
 .ctx-jump.no-rows .ctx-count, .ctx-count.muted { background: var(--surface-2); color: var(--faint); }
 .ctx-count.error { background: var(--danger-weak); color: var(--danger); }
 .ctx-empty { padding: 8px 10px; color: var(--faint); }
+.ctx-note { padding: 6px 10px 4px; color: var(--faint); font-size: 11.5px; line-height: 1.4; }
 .btn.danger-solid { background: var(--danger); border-color: var(--danger); color: var(--danger-text); font-weight: 600; }
 .btn.danger-solid:hover:not(:disabled) { background: var(--danger); filter: brightness(1.07); }
 .dialog.confirm { width: min(460px, 94vw); }
@@ -902,3 +904,8 @@ table.compare-matrix td.different.g3 { background: rgba(48, 164, 108, 0.14); }
 .compare-none { padding: 18px 16px; color: var(--muted); }
 .compare-ddl-dialog header select { height: 28px; max-width: 260px; }
 .compare-ddl-note { margin: 0; padding: 8px 16px; border-bottom: 1px solid var(--border); }
+.scope-explorer { display: contents; }
+.scope-explorer.hidden { display: none; }
+.connected-tag.lost { background: var(--danger-weak); color: var(--danger); }
+.connected-tag.tx { background: rgba(192, 122, 0, 0.14); color: #c07a00; }
+.conn-row .btn.small { height: 22px; padding: 0 8px; font-size: 11.5px; }

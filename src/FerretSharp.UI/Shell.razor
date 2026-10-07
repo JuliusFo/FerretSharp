@@ -1,17 +1,16 @@
 @* Root component hosted by the BlazorWebView: layout, pages, keyboard shortcuts. What happens to workspaces and their
-   changes is WorkspaceLifecycle's job; the bars and dialogs are components of their own (R2). *@
+   changes is WorkspaceLifecycle's job; the bars and dialogs are components of their own (R2). Several connections can be
+   open (WP-24): the explorer and the tabs of each stay mounted under its own ConnectionScopeView; the bars, dialogs and
+   pages follow the shown one (keyed, so they start fresh when another is shown). *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.UI.State
 @implements IAsyncDisposable
 @inject ConnectionManager Connections
-@inject ActiveConnection Active
-@inject WorkspaceManager Workspaces
+@inject ConnectionHub Hub
 @inject RecentConnections Recent
 @inject ConnectionKeepAlive KeepAlive
 @inject FerretSharp.Core.Settings.AppSettingsService Settings
 @inject ExitGuard ExitGuard
-@inject FerretSharp.Core.ClrModel.ClrModelManager Models
-@inject PresentationService Presentations
 @inject IJSRuntime JS
 @inject FerretSharp.Core.Workspaces.SqlHistoryStore SqlHistory
 @inject ILoggerFactory LoggerFactory
@@ -20,6 +19,7 @@
 <CascadingValue Value="_lifecycle" IsFixed="true">
     <div class="app @(_lifecycle.IsProd ? "is-prod" : "")">
         <header class="topbar">
+            <ConnectionScopeView @key='(Shown, "header")' Scope="Shown">
             <div class="brand">Ferret<span>Sharp</span></div>
             @if (Active.Status != ConnectionStatus.Disconnected)
             {
@@ -38,27 +38,42 @@
                         @onclick="() => ToggleSidePage(ShellPage.Settings)">@Icons.Settings</button>
                 <WorkspaceBadge Lifecycle="_lifecycle" />
             </div>
+            </ConnectionScopeView>
         </header>
 
-        <ConnectionLostBanner Lifecycle="_lifecycle" />
+        <ConnectionScopeView @key='(Shown, "banner")' Scope="Shown">
+            <ConnectionLostBanner Lifecycle="_lifecycle" />
+        </ConnectionScopeView>
 
         <div class="body">
-            @if (ShowExplorer && Active.IsConnected)
+            @foreach (var scope in Hub.Open)
             {
-                <Explorer />
+                <div class="scope-explorer @(scope == Hub.Current && ShowExplorer && scope.Active.IsConnected ? "" : "hidden")" @key="scope.Id">
+                    @if (scope.Active.IsConnected)
+                    {
+                        <ConnectionScopeView Scope="scope">
+                            <Explorer />
+                        </ConnectionScopeView>
+                    }
+                </div>
             }
 
             <main class="content">
                 <ErrorBoundary @ref="_errorBoundary">
                     <ChildContent>
-                        @* Tabs of all open workspaces stay mounted while connected (also behind the overview), so grids keep
-                           their state. Restored tabs mount when first shown. *@
-                        @if (Active.IsConnected)
+                        @* Tabs of all open workspaces of all open connections stay mounted (also behind the overview and while
+                           another connection is shown), so grids keep their state. Restored tabs mount when first shown. *@
+                        @if (Hub.Open.Count > 0)
                         {
-                            <div class="workarea @(ShowExplorer ? "" : "hidden")">
-                                <TabBar Lifecycle="_lifecycle" />
+                            <div class="workarea @(ShowExplorer && Active.IsConnected ? "" : "hidden")">
+                                <ConnectionScopeView @key='(Shown, "tabbar")' Scope="Shown">
+                                    <TabBar Lifecycle="_lifecycle" />
+                                </ConnectionScopeView>
                                 <div class="pages">
-                                    @foreach (var workspace in _state.Workspaces)
+                                    @foreach (var scope in Hub.Open)
+                                    {
+                                    <ConnectionScopeView @key="scope.Id" Scope="scope">
+                                    @foreach (var workspace in _state.AllWorkspaces.Where(w => w.ConnectionId == scope.Id))
                                     {
                                         foreach (var tab in workspace.Tabs.Where(t => t.Visited))
                                         {
@@ -80,6 +95,8 @@
                                             </div>
                                         }
                                     }
+                                    </ConnectionScopeView>
+                                    }
                                     @if (_state.Tabs.Count == 0)
                                     {
                                         <EmptyState Title="Tabelle auswählen" Text="@(HasLinkedProject
@@ -90,6 +107,7 @@
                             </div>
                         }
 
+                        <ConnectionScopeView @key='(Shown, "pages")' Scope="Shown">
                         @if (_state.Page == ShellPage.Settings)
                         {
                             <SettingsPage OnBack="LeaveSidePage" />
@@ -130,6 +148,7 @@
                                 </div>
                             </EmptyState>
                         }
+                        </ConnectionScopeView>
                     </ChildContent>
                     <ErrorContent Context="exception">
                         <EmptyState Title="Da ist etwas schiefgelaufen" Text="@exception.Message" IsError="true">
@@ -143,10 +162,14 @@
             </main>
         </div>
 
-        <StatusBar Lifecycle="_lifecycle" />
+        <ConnectionScopeView @key='(Shown, "status")' Scope="Shown">
+            <StatusBar Lifecycle="_lifecycle" />
+        </ConnectionScopeView>
     </div>
 
-    <DialogHost Lifecycle="_lifecycle" />
+    <ConnectionScopeView @key='(Shown, "dialogs")' Scope="Shown">
+        <DialogHost Lifecycle="_lifecycle" />
+    </ConnectionScopeView>
 </CascadingValue>
 </CascadingValue>
 
@@ -162,6 +185,7 @@
     private const string LinqShortcut = "ctrl+shift+l"; // new LINQ console (WP-13)
     private const string SqlShortcut = "ctrl+shift+q"; // new SQL editor (WP-17)
     private const string ScriptShortcut = "alt+x"; // SQL editor: run the whole script (as in DBeaver)
+    private const string PreviousConnectionShortcut = "alt+o"; // back to the connection shown before (WP-24)
 
     private readonly ShellState _state = new();
     private WorkspaceEditing _editing = null!;
@@ -169,28 +193,36 @@
     private ErrorBoundary? _errorBoundary;
     private IJSObjectReference? _shortcuts;
     private DotNetObjectReference<Shell>? _selfRef;
+    /// <summary>Per open connection the handler subscribed to its events (WP-24), to unsubscribe when it closes.</summary>
+    private readonly Dictionary<ConnectionScope, Action> _subscribed = [];
+
+    /// <summary>The connection shown at the last switch: its lost state is kept while another one is shown.</summary>
+    private ConnectionScope? _lastShown;
+
     /// <summary>Where settings or the schema comparison were opened from, to go back there.</summary>
     private ShellPage _pageBefore = ShellPage.Connections;
 
-    /// <summary>The active connection has a C# project: LINQ consoles can be opened (WP-13).</summary>
-    private bool HasLinkedProject => Models.State.Link is not null;
+    /// <summary>The connection the bars and pages show (an idle one if none is open).</summary>
+    private ConnectionScope Shown => Hub.Shown;
+
+    private ActiveConnection Active => Shown.Active;
+
+    /// <summary>The shown connection has a C# project: LINQ consoles can be opened (WP-13).</summary>
+    private bool HasLinkedProject => Shown.Models.State.Link is not null;
 
     private bool ShowExplorer => _state.Page == ShellPage.Explorer && Active.Status != ConnectionStatus.Disconnected;
 
     protected override async Task OnInitializedAsync()
     {
-        _editing = new WorkspaceEditing(_state, Workspaces, Active, Settings, LoggerFactory.CreateLogger<WorkspaceEditing>());
-        _lifecycle = new WorkspaceLifecycle(_state, Workspaces, Active, Connections, SqlHistory, _editing, LoggerFactory.CreateLogger<WorkspaceLifecycle>());
+        _editing = new WorkspaceEditing(_state, Hub, Settings, LoggerFactory.CreateLogger<WorkspaceEditing>());
+        _lifecycle = new WorkspaceLifecycle(_state, Hub, Connections, SqlHistory, _editing, LoggerFactory.CreateLogger<WorkspaceLifecycle>());
         ExitGuard.CanExit = () => _lifecycle.CanExit;
         ExitGuard.RequestExit = () => InvokeAsync(() => _lifecycle.RequestExitAsync(ExitGuard.ApproveExit));
         _state.Changed += OnChanged;
         _state.Dirty += _lifecycle.SaveTabs;
         _state.ConnectRequested += OnConnectRequested;
         Connections.Changed += OnChanged;
-        Active.Changed += OnConnectionOrWorkspacesChanged;
-        Workspaces.Changed += OnConnectionOrWorkspacesChanged;
-        Models.Changed += OnChanged;
-        Presentations.Changed += OnChanged;
+        Hub.Changed += OnHubChanged;
         KeepAlive.ConnectionLost += OnKeepAliveLost;
         KeepAlive.Start();
         await Connections.LoadAsync(CancellationToken.None);
@@ -206,7 +238,7 @@
             await _shortcuts.InvokeVoidAsync("register", _selfRef, new[]
             {
                 SwitcherShortcut, ApplyFiltersShortcut, RefreshShortcut, FindColumnShortcut, BackShortcut, ForwardShortcut, FlushShortcut, CommitShortcut, LinqShortcut,
-                SqlShortcut, ScriptShortcut,
+                SqlShortcut, ScriptShortcut, PreviousConnectionShortcut,
             });
         }
     }
@@ -226,7 +258,7 @@
         // Writing and committing need an editable connection and an active workspace.
         if (combo is FlushShortcut or CommitShortcut)
         {
-            if (_state.ActiveWorkspace is { } workspace && Workspaces.IsWritable(workspace.WorkspaceId) && _state.Page == ShellPage.Explorer)
+            if (_state.ActiveWorkspace is { } workspace && Shown.Workspaces.IsWritable(workspace.WorkspaceId) && _state.Page == ShellPage.Explorer)
             {
                 _ = combo == FlushShortcut ? _editing.FlushAsync(workspace) : _lifecycle.RequestCommitAsync(workspace);
             }
@@ -263,28 +295,104 @@
             case LinqShortcut when HasLinkedProject && _state.Page == ShellPage.Explorer:
                 _state.OpenLinq();
                 break;
+            case PreviousConnectionShortcut:
+                if (Hub.ShowPrevious())
+                {
+                    _state.ShowExplorer();
+                }
+
+                break;
         }
     }
 
     /// <summary>Raised by <see cref="ShellState.Connect"/> from anywhere; the lifecycle asks about open changes first.</summary>
     private void OnConnectRequested(ConnectionProfile profile) => InvokeAsync(() => _lifecycle.ConnectAsync(profile));
 
-    private void OnConnectionOrWorkspacesChanged() => InvokeAsync(() =>
+    /// <summary>
+    /// A connection was opened, closed or shown (WP-24): follow its events, and on a switch let the tabs and the lost
+    /// banner follow the shown connection.
+    /// </summary>
+    private void OnHubChanged() => InvokeAsync(() =>
     {
-        if (Active.IsConnected && Active.Schema is { } schema && Workspaces.Profile?.Id == Active.Profile?.Id)
+        var open = Hub.Open;
+        foreach (var scope in open.Where(s => !_subscribed.ContainsKey(s)))
         {
-            _state.SyncWorkspaces(Workspaces.Open, Workspaces.Active?.Id, schema);
+            Action handler = () => OnScopeChanged(scope);
+            _subscribed[scope] = handler;
+            scope.Active.Changed += handler;
+            scope.Workspaces.Changed += handler;
+            scope.Models.Changed += OnChanged;
+            scope.Presentations.Changed += OnChanged;
+
+            // It connects in the background and may have reported before this handler was attached.
+            OnScopeChanged(scope);
         }
-        else if (_state.Workspaces.Count > 0)
+
+        foreach (var (scope, handler) in _subscribed.Where(e => !open.Contains(e.Key)).ToList())
         {
-            _state.ClearWorkspaces();
+            Unsubscribe(scope, handler);
+        }
+
+        if (_lastShown != Hub.Current)
+        {
+            if (_lastShown is not null && open.Contains(_lastShown))
+            {
+                _lastShown.Lost = _state.ConnectionLost;
+            }
+
+            _lastShown = Hub.Current;
+            _state.ShowConnection(Hub.Current?.Id);
+            _state.RestoreConnectionLost(Hub.Current?.Lost);
         }
 
         StateHasChanged();
     });
 
-    /// <summary>The keep-alive found a session gone: same banner as a failed query, without waiting for the next click.</summary>
-    private void OnKeepAliveLost(DatabaseException error) => InvokeAsync(() => _state.ReportFailure(error));
+    private void Unsubscribe(ConnectionScope scope, Action handler)
+    {
+        scope.Active.Changed -= handler;
+        scope.Workspaces.Changed -= handler;
+        scope.Models.Changed -= OnChanged;
+        scope.Presentations.Changed -= OnChanged;
+        _subscribed.Remove(scope);
+    }
+
+    /// <summary>A connection (shown or not) connected, failed or its workspaces changed: align its tabs.</summary>
+    private void OnScopeChanged(ConnectionScope scope) => InvokeAsync(() =>
+    {
+        if (!Hub.Open.Contains(scope))
+        {
+            return; // closed meanwhile
+        }
+
+        if (scope.Active.IsConnected && scope.Active.Schema is { } schema && scope.Workspaces.Profile?.Id == scope.Id)
+        {
+            _state.SyncWorkspaces(scope.Id, scope.Workspaces.Open, scope.Workspaces.Active?.Id, schema);
+        }
+        else if (_state.AllWorkspaces.Any(w => w.ConnectionId == scope.Id))
+        {
+            _state.ClearWorkspaces(scope.Id);
+        }
+
+        StateHasChanged();
+    });
+
+    /// <summary>
+    /// The keep-alive found a session gone: for the shown connection the same banner as a failed query, without waiting
+    /// for the next click; a connection in the background is marked in the switcher.
+    /// </summary>
+    private void OnKeepAliveLost(ActiveConnection connection, DatabaseException error) => InvokeAsync(() =>
+    {
+        if (Hub.Current?.Active == connection)
+        {
+            _state.ReportFailure(error);
+        }
+        else if (Hub.Open.FirstOrDefault(s => s.Active == connection) is { } scope)
+        {
+            scope.Lost ??= error;
+            StateHasChanged();
+        }
+    });
 
     /// <summary>Settings and the schema comparison: open from anywhere, the same button goes back.</summary>
     private void ToggleSidePage(ShellPage page)
@@ -357,10 +465,12 @@
         _state.Dirty -= _lifecycle.SaveTabs;
         _state.ConnectRequested -= OnConnectRequested;
         Connections.Changed -= OnChanged;
-        Active.Changed -= OnConnectionOrWorkspacesChanged;
-        Workspaces.Changed -= OnConnectionOrWorkspacesChanged;
-        Models.Changed -= OnChanged;
-        Presentations.Changed -= OnChanged;
+        Hub.Changed -= OnHubChanged;
+        foreach (var (scope, handler) in _subscribed.ToList())
+        {
+            Unsubscribe(scope, handler);
+        }
+
         KeepAlive.ConnectionLost -= OnKeepAliveLost;
         if (_shortcuts is not null)
         {

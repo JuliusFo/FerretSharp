@@ -3,7 +3,6 @@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Settings
 @using FerretSharp.UI.State
-@inject ActiveConnection Active
 @inject AppSettingsService Settings
 
 @if (Shell.ConnectionDialog is { } request)
@@ -89,6 +88,9 @@
 }
 
 @code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
     private static readonly IReadOnlyList<FerretSharp.Core.Query.QueryParameter> NoParameters = [];
 
     private Notice? _scheduledNotice;

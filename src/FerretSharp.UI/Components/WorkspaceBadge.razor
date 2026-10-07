@@ -2,8 +2,6 @@
    lock of the active workspace (WP-10). *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.UI.State
-@inject ActiveConnection Active
-@inject WorkspaceManager Workspaces
 
 @if (Active.Profile is { } profile && Active.Status != ConnectionStatus.Disconnected)
 {
@@ -25,6 +23,12 @@
 }
 
 @code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceManager Workspaces { get; set; } = null!;
+
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
 

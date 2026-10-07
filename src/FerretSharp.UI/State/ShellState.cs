@@ -12,9 +12,12 @@ public sealed record ConnectionDialogRequest(ConnectionDialogMode Mode, Connecti
 public enum ShellPage { Connections, Explorer, Settings, Model, Compare }
 
 /// <summary>Tabs of one open workspace.</summary>
-public sealed class WorkspaceTabs(Guid workspaceId)
+/// <param name="connectionId">The connection the workspace belongs to (WP-24: several can be open).</param>
+public sealed class WorkspaceTabs(Guid workspaceId, Guid connectionId)
 {
     public Guid WorkspaceId { get; } = workspaceId;
+
+    public Guid ConnectionId { get; } = connectionId;
 
     public List<WorkspaceTab> Tabs { get; } = [];
 
@@ -34,6 +37,9 @@ public sealed class ShellState
 {
     private readonly List<WorkspaceTabs> _workspaces = [];
 
+    /// <summary>Per open connection its active workspace, kept while the connection is in the background.</summary>
+    private readonly Dictionary<Guid, Guid> _activeByConnection = [];
+
     public event Action? Changed;
 
     /// <summary>
@@ -50,8 +56,17 @@ public sealed class ShellState
 
     public ShellPage Page { get; private set; } = ShellPage.Connections;
 
-    /// <summary>Open workspaces in bar order.</summary>
-    public IReadOnlyList<WorkspaceTabs> Workspaces => _workspaces;
+    /// <summary>Open workspaces of all open connections (their tabs stay mounted); per connection in bar order.</summary>
+    public IReadOnlyList<WorkspaceTabs> AllWorkspaces => _workspaces;
+
+    /// <summary>Open workspaces of the shown connection, in bar order.</summary>
+    public IReadOnlyList<WorkspaceTabs> Workspaces => _workspaces.Where(w => w.ConnectionId == CurrentConnection).ToList();
+
+    /// <summary>A workspace's tabs, whichever connection it belongs to.</summary>
+    public WorkspaceTabs? FindWorkspace(Guid workspaceId) => _workspaces.FirstOrDefault(w => w.WorkspaceId == workspaceId);
+
+    /// <summary>The connection shown (WP-24); null if none.</summary>
+    public Guid? CurrentConnection { get; private set; }
 
     public WorkspaceTabs? ActiveWorkspace { get; private set; }
 
@@ -74,12 +89,12 @@ public sealed class ShellState
     /// <summary>Short-lived message (export done, warnings), shown as a toast.</summary>
     public Notice? Notice { get; private set; }
 
+    /// <summary>Shows the connection, opening it if needed (WP-24). Whether it was lost is the lifecycle's business: switching away keeps it.</summary>
     public void Connect(ConnectionProfile profile)
     {
         Set(() =>
         {
             SwitcherOpen = false;
-            ConnectionLost = null;
             Page = ShellPage.Explorer;
         });
         ConnectRequested?.Invoke(profile);
@@ -114,31 +129,63 @@ public sealed class ShellState
     });
 
     /// <summary>
-    /// Aligns the tabs with the open workspaces: restores tabs of newly opened ones from their saved state (tables
-    /// that no longer exist are dropped), forgets closed ones and follows the active workspace.
+    /// Aligns the tabs of one connection with its open workspaces: restores tabs of newly opened ones from their saved
+    /// state (tables that no longer exist are dropped), forgets closed ones and follows its active workspace. Other
+    /// connections' workspaces stay as they are.
     /// </summary>
-    public void SyncWorkspaces(IReadOnlyList<Workspace> open, Guid? activeId, SchemaCache schema) => Set(() =>
+    public void SyncWorkspaces(Guid connectionId, IReadOnlyList<Workspace> open, Guid? activeId, SchemaCache schema) => Set(() =>
     {
-        var existing = _workspaces.ToDictionary(w => w.WorkspaceId);
-        _workspaces.Clear();
-        foreach (var workspace in open)
+        var existing = _workspaces.Where(w => w.ConnectionId == connectionId).ToDictionary(w => w.WorkspaceId);
+        var at = _workspaces.FindIndex(w => w.ConnectionId == connectionId);
+        _workspaces.RemoveAll(w => w.ConnectionId == connectionId);
+        var synced = open.Select(workspace => existing.GetValueOrDefault(workspace.Id) ?? Restore(workspace, connectionId, schema)).ToList();
+        _workspaces.InsertRange(at < 0 ? _workspaces.Count : at, synced);
+
+        var active = synced.FirstOrDefault(w => w.WorkspaceId == activeId) ?? synced.FirstOrDefault();
+        if (active is null)
         {
-            _workspaces.Add(existing.GetValueOrDefault(workspace.Id) ?? Restore(workspace, schema));
+            _activeByConnection.Remove(connectionId);
+        }
+        else
+        {
+            _activeByConnection[connectionId] = active.WorkspaceId;
         }
 
-        ActiveWorkspace = _workspaces.FirstOrDefault(w => w.WorkspaceId == activeId) ?? _workspaces.FirstOrDefault();
+        if (connectionId == CurrentConnection)
+        {
+            FollowCurrent();
+        }
+    });
+
+    /// <summary>Forgets the workspace tabs of a connection (disconnected). Their state is saved by then.</summary>
+    public void ClearWorkspaces(Guid connectionId) => Set(() =>
+    {
+        _workspaces.RemoveAll(w => w.ConnectionId == connectionId);
+        _activeByConnection.Remove(connectionId);
+        if (connectionId == CurrentConnection)
+        {
+            FollowCurrent();
+        }
+    });
+
+    /// <summary>Another connection is shown (WP-24): its active workspace and tabs become the active ones.</summary>
+    public void ShowConnection(Guid? connectionId) => Set(() =>
+    {
+        CurrentConnection = connectionId;
+        SwitcherOpen = false;
+        FollowCurrent();
+    });
+
+    private void FollowCurrent()
+    {
+        ActiveWorkspace = CurrentConnection is { } id && _activeByConnection.TryGetValue(id, out var active)
+            ? _workspaces.FirstOrDefault(w => w.WorkspaceId == active)
+            : null;
         if (ActiveWorkspace?.ActiveTab is { } tab)
         {
             tab.Visited = true;
         }
-    });
-
-    /// <summary>Forgets all workspace tabs (disconnect, switching connections). Their state is saved by then.</summary>
-    public void ClearWorkspaces() => Set(() =>
-    {
-        _workspaces.Clear();
-        ActiveWorkspace = null;
-    });
+    }
 
     /// <summary>Activates the tab of <paramref name="table"/> in the active workspace or opens a new one.</summary>
     public TableTab? OpenTable(TableSummary table, TabMode? mode = null)
@@ -369,6 +416,9 @@ public sealed class ShellState
 
     public void ClearConnectionLost() => Set(() => ConnectionLost = null);
 
+    /// <summary>Switching connections (WP-24): the banner shows whether the shown connection is lost.</summary>
+    public void RestoreConnectionLost(DatabaseException? error) => Set(() => ConnectionLost = error);
+
     public void Notify(string text, IReadOnlyList<string>? warnings = null) =>
         Set(() => Notice = new Notice(text, warnings ?? [], DateTimeOffset.UtcNow));
 
@@ -384,9 +434,9 @@ public sealed class ShellState
 
     public void CloseSwitcher() => Set(() => SwitcherOpen = false);
 
-    private static WorkspaceTabs Restore(Workspace workspace, SchemaCache schema)
+    private static WorkspaceTabs Restore(Workspace workspace, Guid connectionId, SchemaCache schema)
     {
-        var result = new WorkspaceTabs(workspace.Id);
+        var result = new WorkspaceTabs(workspace.Id, connectionId);
         var restored = new Dictionary<int, TableTab>(); // saved index → tab
         WorkspaceTab? active = null;
         for (var i = 0; i < workspace.Tabs.Count; i++)

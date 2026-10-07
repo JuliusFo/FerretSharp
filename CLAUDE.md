@@ -2,7 +2,7 @@
 
 > Projektanweisungen für Claude Code. Bitte vollständig lesen, bevor ein Arbeitspaket umgesetzt wird.
 > Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-07 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0; WP-14 → 2.4.0; WP-15 → 3.0.0, v3 abgeschlossen; v4: WP-16 → 3.1.0, WP-17 → 3.2.0, WP-18 → 3.3.0, Leerzeichen nach Vorschlägen 3.3.1, Tabs umbenennen 3.4.0; WP-19 → 3.5.0; Stabilisierung R1 → 3.6.0, Protokolle nach `docs/work-packages.md`; Struktur-Refactoring R2 → 3.6.1; WP-20 → 3.7.0)
+> Stand: 2026-10-07 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0; WP-14 → 2.4.0; WP-15 → 3.0.0, v3 abgeschlossen; v4: WP-16 → 3.1.0, WP-17 → 3.2.0, WP-18 → 3.3.0, Leerzeichen nach Vorschlägen 3.3.1, Tabs umbenennen 3.4.0; WP-19 → 3.5.0; Stabilisierung R1 → 3.6.0, Protokolle nach `docs/work-packages.md`; Struktur-Refactoring R2 → 3.6.1; WP-20 → 3.7.0; WP-24 → 3.8.0; FK-Sprung mit mehreren Zeilen → 3.9.0)
 
 ## 1. Ziel
 
@@ -63,7 +63,7 @@ Versionierung: SemVer, Git-Tag `vX.Y.Z` pro Release (der Push des Tags veröffen
 | Logging | `Microsoft.Extensions.Logging` + **Serilog** (`Serilog.Extensions.Hosting`, `Serilog.Sinks.File`) | Datei unter `%APPDATA%\FerretSharp\logs`. Keine Bind-Werte von Prod-Verbindungen loggen (maskieren). |
 | Grid | **AG Grid Community 34.3.1** (MIT) über JS-Interop, **Infinite Row Model** | Datenblöcke à 500 und Sortierung kommen aus .NET (`IDataAccess`), gekapselt in `FerretGrid` (Tabellen) bzw. `SqlResultGrid` (SQL/LINQ) über `GridBridge` + `wwwroot/js/grid.js`; Spalten als `GridColumn`, Rohzeilen der geladenen Blöcke in `RowBlocks`. Zellen gehen als fertig formatierte Strings über die Grenze (null = NULL), Spalten-IDs `c0`, `c1` … (Oracle-Namen dürfen Punkte enthalten). **Lokal im Repo** unter `FerretSharp.UI/wwwroot/lib/ag-grid/` (Herkunft/Hash in der README dort, kein CDN). Enterprise-Features (Kontextmenü, Zellbereich) nicht verwenden – eigene Lösungen in Blazor. |
 | Layout | Tabs + Seitenleiste in Blazor | Kein Docking-Framework. |
-| SQL-Anzeige | eigener Highlighter in Razor (siehe Prototyp `TableView.razor`) | Editor für C# in der LINQ-Konsole: **Monaco 0.57** (ADR 0011, lokal unter `wwwroot/lib/monaco/`); auch im freien SQL-Editor (WP-17, mit SQL-Autovervollständigung aus .NET). |
+| SQL-Anzeige | eigener Highlighter in Razor (`SqlCode`) | Editor für C# in der LINQ-Konsole: **Monaco 0.57** (ADR 0011, lokal unter `wwwroot/lib/monaco/`); auch im freien SQL-Editor (WP-17, mit SQL-Autovervollständigung aus .NET). |
 | Oracle | `Oracle.ManagedDataAccess.Core` (23.x) | rein managed, kein Instant Client; **durchgängig async** mit `CancellationToken`. |
 | Oracle-Version | Ziel **19c+**; 12.2 sollte funktionieren | `OFFSET/FETCH`, `ALL_TAB_IDENTITY_COLS` erst ab 12c. Kein ROWNUM-Fallback. |
 | Tests | **xUnit v3** auf **Microsoft Testing Platform** + NSubstitute; Integration: **Testcontainers.Oracle** | Kein VSTest (`Microsoft.NET.Test.Sdk`/`xunit.runner.visualstudio` nicht verwenden). Image `gvenzl/oracle-free:23-slim-faststart`. Benötigt Docker. |
@@ -124,7 +124,6 @@ Regeln:
 - Was nur der Host kann (Credential Manager, native Datei-Dialoge, Fenster), definiert die UI/Core als Interface; die Implementierung liegt in `FerretSharp.App`.
 - Alles, was Oracle-spezifisch ist, liegt hinter Interfaces (`ISchemaReader`, `IDataAccess`), damit Unit-Tests mit Mocks laufen.
 - SQL-Strings entstehen ausschließlich in `Query/` (QueryBuilder) und `Oracle/` (Schema-Reader, Session-Setup, v2: DML). Komponenten in `FerretSharp.UI` enthalten kein SQL (Ausnahme: reine Anzeige eines vom QueryBuilder erzeugten Statements).
-- Der Prototyp auf Branch `spike/blazor-hybrid` (`prototypes/FerretSharp.Prototype.Blazor`) ist Referenz für Look & Feel und die AG-Grid-Brücke – Code daraus übernehmen und sauber in die Architektur einpassen, nicht 1:1 kopieren (Fake-Daten, SQL im UI).
 - `QueryBuilder` kennt den Oracle-Treiber nicht: Er liefert eigene `QueryParameter`, das Mapping auf `OracleParameter` passiert in `OracleSession`.
 
 ## 5. Domänenmodell
@@ -187,7 +186,7 @@ enum FkSource { Declared, Manual, Convention, ClrModel }   // ClrModel: Navigati
 - `DATA_DEFAULT` ist `LONG` → `OracleSession` setzt `InitialLONGFetchSize` (4000).
 - **Immer nach `OWNER` filtern.** `ALL_TAB_COLUMNS` ist auf großen Datenbanken langsam → Tabellenliste und alle FKs des Schemas beim Connect laden, Spalten/Keys lazy pro Tabelle (`SchemaCache`). Cachen, manuell refreshbar.
 - Schema-Name aus dem Profil wird normalisiert (`OracleIdentifier.Normalize`): `erp` → `ERP`, `"Erp"` bleibt `Erp`.
-- Verbindungsaufbau: `ActiveConnection` (genau eine aktive Verbindung) öffnet die Explorer-Session über `IDatabaseConnector`, lädt den `SchemaCache`, hängt die Workspaces an (`WorkspaceManager.AttachAsync`) und merkt die Nutzung in `recent.json` (`RecentConnections`). Trennen speichert die Workspaces und schließt alle Sessions. Oracle-Fehler kommen als `DatabaseException` mit ORA-Code an.
+- Verbindungsaufbau: Seit WP-24 können mehrere Verbindungen offen sein, eine davon sichtbar (`ConnectionHub` in UI/State: je offene Verbindung ein DI-Scope `ConnectionScope` mit eigener `ActiveConnection`, `WorkspaceManager`, `ClrModelManager`, `PresentationService`, `LinqConsoleService`; `Current`/`Previous`/`Shown`, `Idle` als Platzhalter ohne Verbindung). Je Verbindung öffnet `ActiveConnection` die Explorer-Session über `IDatabaseConnector`, lädt den `SchemaCache`, hängt die Workspaces an (`WorkspaceManager.AttachAsync`) und merkt die Nutzung in `recent.json` (`RecentConnections`). Trennen speichert die Workspaces und schließt alle Sessions. Oracle-Fehler kommen als `DatabaseException` mit ORA-Code an.
 
 ### 5.4 Filter & Query
 ```csharp
@@ -300,7 +299,7 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 │           │ 2 Flushed · Tx seit 4 min · [Flush][Commit][Rollback]│
 └───────────┴─────────────────────────────────────────────────────┘
 ```
-- **Verbindungen** (es sind im Alltag 12+): oben links nur die aktive Verbindung als Umschalter. Klick oder `Ctrl+Shift+O` öffnet ein Popover mit Suche, „Zuletzt verwendet“ (ab WP-03), einklappbaren Gruppen und Pfeiltasten-/Enter-Bedienung; „⋯“ je Zeile → Bearbeiten, Duplizieren, Löschen (mit Bestätigung).
+- **Verbindungen** (es sind im Alltag 12+): oben links nur die sichtbare Verbindung als Umschalter. Seit WP-24 bleiben gewechselte Verbindungen im Hintergrund offen (Abschnitt „Offen“ im Umschalter mit „angezeigt“/„verbunden“/„N Aktionen offen“/„Verbindung verloren“ und „Trennen“); `Alt+O` springt zur vorigen. Nicht committete Arbeit im Hintergrund steht in der Statusleiste; eine im Hintergrund verlorene Verbindung wird beim Wechsel mit Banner gezeigt (neu verbunden erst über „Neu verbinden“). Klick oder `Ctrl+Shift+O` öffnet ein Popover mit Suche, „Zuletzt verwendet“ (ab WP-03), einklappbaren Gruppen und Pfeiltasten-/Enter-Bedienung; „⋯“ je Zeile → Bearbeiten, Duplizieren, Löschen (mit Bestätigung).
 - **Startseite „Verbindungen“**: Übersicht aller Verbindungen nach Gruppen (Name, Umgebung, Adresse, Benutzer → Schema, „⋯“-Menü). Erscheint, solange keine Verbindung aktiv ist, und über „Alle Verbindungen verwalten …“ im Popover. Doppelklick verbindet (ab WP-03; bis dahin: bearbeiten).
 - **Chips in der Topbar** sind die Workspaces der aktiven Verbindung (WP-05), nicht die Verbindungen.
 - Tabellenliste alphabetisch (Tabellen und Views unterscheidbar), Buchstabenleiste links: Klick springt zur ersten Tabelle mit diesem Buchstaben; Buchstaben ohne Treffer ausgegraut. (Fuzzy-Suche = Backlog.)
@@ -312,13 +311,13 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 - Native `<select>`, deren Optionen sich ändern (Operator je Spaltentyp), brauchen `@key` auf die Optionsmenge: Bleibt der Wert gleich, setzt Blazor ihn nicht neu, und der Browser zeigt die erste Option (in v1.5 gefunden).
 - Kontextmenü (FK-Navigation, Kopieren) und Dialoge sind Blazor-Komponenten; AG Grid meldet nur das `cellContextMenu`-Event (Zeilenindex, Spalte, Mausposition), `grid.js` unterdrückt das WebView-Kontextmenü im Grid (`GridContextMenu`).
 - Ansichten eines Tabs (v1.7, flach nebeneinander, Entscheidung des Nutzers): Daten | Spalten | Constraints | Indizes | Abhängigkeiten | DDL (`TabMode`, gespeichert). Über allen Nicht-Daten-Ansichten steht `ObjectHeader` (Kommentar, Status, Daten, Statistik). Jede Ansicht mountet beim ersten Öffnen und bleibt dann (wie das Grid); die Detailansichten erben von `DetailViewBase<T>` (Laden auf der Explorer-Session, Abbruch, Fehler, Neuladen über `Version` = F5). Ab etwa zehn Einträgen die seltenen unter „Mehr ▾“ zusammenfassen.
-- Look & Feel und Interaktionen: siehe Prototyp (Branch `spike/blazor-hybrid`).
 
 **Shortcuts**
 
 | Taste | Aktion | Version |
 |---|---|---|
 | Ctrl+Shift+O | Verbindungs-Umschalter öffnen | v1 |
+| Alt+O | Zur vorigen offenen Verbindung wechseln (ohne Trennen) | WP-24 |
 | Ctrl+Enter | Filter anwenden | v1 |
 | Ctrl+C | Im Grid: Wert der fokussierten Zelle; bei mehreren markierten Zeilen diese als Tabelle (Tab-getrennt, mit Kopfzeile). Mit der Maus markierter Text innerhalb einer Zelle wird normal kopiert. Kopiert wird immer der volle Wert (`DelimitedExport.CellText`), nicht der gekürzte Anzeigetext. | v1.3 |
 | F5 | Refresh (v2 in Read-only-Tx: neue Transaktion) | v1 |
@@ -339,6 +338,7 @@ UI-Muster (seit R2):
 - Jeder Dialog nutzt `ModalFrame` (Hintergrund, Rolle, Esc, Klick daneben nur bei reinen Anzeige-Dialogen, Fokus).
 - DB-Aufrufe aus Komponenten laufen über `Shell.RunDbAsync(Logger, Active.Profile, …)` (bzw. `CallDbAsync` auf dem UI-Thread). Das ergibt einheitlich `DbResult` mit Fehler (geloggt, Verbindungsverlust gemeldet), Ablehnung (`RefusedException` → Meldung) oder Abbruch (still). Fachliche Ablehnungen im Core sind `RefusedException`, Programmierfehler-Sperren bleiben `InvalidOperationException`.
 - JSInvokable-Methoden werfen keine Ausnahmen an JS zurück (Blazor lässt die Task unbeobachtet → `[ERR]` im Log), sondern melden Fehler im Ergebnis (`GridPage.Failed`).
+- Dienste einer Verbindung (`ActiveConnection`, `WorkspaceManager`, `ClrModelManager`, `PresentationService`, `LinqConsoleService`) sind **Scoped** und kommen als `[CascadingParameter]` über `ConnectionScopeView`, **nie per `@inject`** (sonst bekäme die Komponente die Instanz des WebView-Scopes, eine Geisterverbindung). Explorer und Tab-Seiten jeder offenen Verbindung stehen unter deren eigenem `ConnectionScopeView` und bleiben gemountet; Leisten, Dialoge und Seiten hängen an `Hub.Shown` und sind darauf gekeyt (Geschwister brauchen verschiedene Keys). Aktionen auf einem Workspace laufen über `ConnectionHub.OwnerOf(workspaceId)`.
 - Komponenten ohne Parameter rendern bei Parent-Updates **nicht** neu → sie abonnieren `ShellState.Changed` bzw. `ConnectionManager.Changed`/`WorkspaceManager.Changed` selbst. Tab-Zustand, der kein Neurendern braucht (Tippen im Filter, Scrollen, Sortieren), meldet `ShellState.MarkDirty()`; der Lifecycle reicht dann die Tabs aller offenen Workspaces an `WorkspaceManager.UpdateTabs` weiter (speichert nur bei Änderung).
 
 Blazor kennt **kein `auxclick`-Event**: `@onauxclick` wird kommentarlos als HTML-Attribut ausgegeben und tut nichts (so war Mittelklick-Schließen der Tabs seit WP-04 wirkungslos). Mittelklick über `@onmouseup` mit `e.Button == 1`.
@@ -379,6 +379,8 @@ Umsetzungsprotokolle (was gebaut wurde, Entscheidungen des Nutzers, Nachträge, 
 | R1 | Stabilisierung nach Code-Review, gemeinsamer Undo-Stapel | 3.6.0 | – |
 | R2 | Struktur-Refactoring (DB-Aufrufe, Dialoge, Shell, Session, Grid-Brücke) | 3.6.1 | – |
 | WP-20 | Schema-Vergleich: N Schemas als Matrix, gespeicherte Vergleiche, DDL-Vorschlag | 3.7.0 | – |
+| WP-24 | Mehrere offene Verbindungen, eine sichtbar (Alt+O zur vorigen) | 3.8.0 | – |
+| Klein | FK-Sprung mit mehreren markierten Zeilen (`in`-Filter) | 3.9.0 | – |
 
 **Kontext des Nutzers** (wichtig für die kommenden Pakete):
 - DB-first von Hand: erst die DB ändern, dann Entity/Konfiguration; keine Migrations. Namenskonvention im Code (Tabellen groß, `KundenId` → `KUNDEN_ID`), **eigene Value Converter** (bool ↔ J/N, Enum-Kürzel), Enum-Member mit `[Display(ResourceType = …, Name = …)]`. Ein DbContext in einer Klassenbibliothek (Konstruktor `DbContextOptions`), Entities in einem anderen Projekt, EF Core 8.
@@ -404,7 +406,7 @@ Pakete aus dem Backlog, nach v3 mit dem Nutzer ausgewählt (2026-10-05). Version
 Wunsch des Nutzers (2026-10-06), vor DDL und Tabellen-Designer. Für breite Tabellen (VERTRAG mit 71 Spalten).
 - Eine Zeile senkrecht: Spalte → Wert, mit Oracle-Typ, C#-Property/Typ, Enum-Member, NULL kursiv; Suche/Filter über Spaltennamen (wie Ctrl+F, auch C#-Namen); FK-Werte als Links (Sprung wie im Kontextmenü); LOBs öffnen den LOB-Dialog; Vor/Zurück durch die geladenen Zeilen des Grids.
 - Auf schreibbaren Workspaces editierbar über denselben `ChangeTracker` wie das Grid (Validierung in .NET, Zellfarben Ausstehend/Geschrieben, Schreiben mit Ctrl+S).
-- Zu klären beim Start: Darstellung (Seitenleiste rechts neben dem Grid, eigene Ansicht im Tab-Umschalter oder Dialog), Auslöser (Kontextmenü „Als Formular“, Tastenkürzel; Doppelklick ist schon Editieren), Mehrfachauswahl (Zeilen nebeneinander vergleichen?), Spalten ausblenden/leere ausblenden.
+- Zu klären beim Start: Darstellung (Seitenleiste rechts neben dem Grid, eigene Ansicht im Tab-Umschalter oder Dialog), Auslöser (Kontextmenü „Als Formular“, Tastenkürzel; Doppelklick ist schon Editieren), Mehrfachauswahl (Zeilen nebeneinander vergleichen? – Backlog-Eintrag „Audit-/Historientabellen“ mitdenken), Spalten ausblenden/leere ausblenden.
 
 #### WP-22 DDL im SQL-Editor (geplant)
 Wunsch des Nutzers (2026-10-06): Tabellen anlegen und ändern, passend zum DB-first-Ablauf („erst DB ändern, dann Entity“). Erste Stufe: DDL im SQL-Editor (und in Skripten) zulassen. Entscheidungen des Nutzers:
@@ -420,8 +422,23 @@ Wunsch des Nutzers (2026-10-06): Tabellen anlegen und ändern, passend zum DB-fi
 
 #### WP-23 Tabellen-Designer + Entity aus Tabelle (geplant, nach WP-22)
 - Spalten-Ansicht eines Tabs bearbeitbar: Spalte hinzufügen, Typ/Länge/Precision, NULL, Default, Kommentar ändern, umbenennen, löschen; PK, Unique, FK, Indizes; neue Tabelle anlegen. FerretSharp erzeugt das DDL und zeigt es **vor** dem Ausführen (ausführen über den Weg aus WP-22 oder nur kopieren, z. B. als Skript fürs Repo).
+- Indizes setzen (Wunsch der Kollegen des Nutzers, 2026-10-07; bleibt in WP-23, Entscheidung des Nutzers): „Index anlegen“ in der Indizes-Ansicht (Spalten, optional UNIQUE), beim Hinweis „Fremdschlüssel ohne Index“ ein Klick „Index dafür anlegen“.
 - Oracle-Fallen im Designer abfangen: NOT NULL auf Spalte mit NULL-Werten (vorher zählen), Typänderung gefüllter Spalten (oft nur über neue Spalte + Umkopieren), VARCHAR2 BYTE/CHAR-Semantik, Index für neue FKs vorschlagen (`IndexAdvice`), Identity/Default ON NULL.
 - Verzahnung mit dem C#-Modell (Backlog-Idee „Entity aus Tabelle erzeugen“): nach der Änderung Property-Zeile bzw. Entity + `IEntityTypeConfiguration` im Stil des Projekts (Namenskonvention, J/N-Converter) zum Kopieren.
+
+
+#### WP-25 Tastenkürzel einstellbar (geplant)
+Wunsch der Kollegen des Nutzers (2026-10-07). Unabhängig von den anderen Paketen.
+- Eigene Seite bzw. eigener Bereich in den Einstellungen (Entscheidung des Nutzers: aufgeräumt, nicht zwischen die übrigen Einstellungen): **alle** Kürzel als Liste – die änderbaren mit „Ändern“ (Taste drücken) und „Zurücksetzen“, die festen ausgegraut mit Hinweis (auch die wichtigsten von Monaco: Suchen, Vorschläge; Esc im Grid). Dient zugleich als Übersicht, welche Aktion welches Kürzel hat.
+- Konflikte erkennen und melden; Kürzel, die Windows/WebView abfangen (`Alt+Shift` Sprachwechsel, `Ctrl+Alt` = AltGr, `Alt+F4`), ablehnen oder warnen.
+- Speichern in `AppSettings`; `Shell` registriert die Kürzel aus den Einstellungen bei `shortcuts.js` (heute Konstanten in `Shell.razor`); Anzeige der Kürzel in Tooltips/Buttons (`<kbd>`) aus derselben Quelle.
+
+#### WP-26 Audit-/Historientabellen aus einer Vorlage (geplant, nach WP-22/WP-23)
+Wunsch der Kollegen des Nutzers (2026-10-07): beim Anlegen einer Tabelle die Historientabelle und den Trigger gleich mit erzeugen, für bestehende Tabellen nachziehen. Entscheidung des Nutzers: das Schema kommt aus einer **Vorlagendatei**, nicht fest aus dem Code – damit FerretSharp auch außerhalb seiner Firma passt.
+- Eingebaute, dokumentierte Standardvorlage; in den Einstellungen ein Pfad zu einer eigenen Vorlage (z. B. im Repo der Firma); später evtl. je Verbindung überschreibbar.
+- Vorlage = SQL mit Platzhaltern (Tabelle, Historientabelle, Spalten mit Typen, Listen für `:OLD.`/`:NEW.`, Wiederholung über die Spalten); eigene minimale Syntax statt einer Template-Bibliothek (neue Abhängigkeit bräuchte ein ADR). Die Firmenvorlage des Nutzers (Tabelle + Trigger) dient als Testfall.
+- Nachziehen: Spalte in `KUNDEN` neu → fehlt in `KUNDEN_HIST`/Trigger veraltet → `ALTER` + `CREATE OR REPLACE TRIGGER` vorschlagen (Vergleichslogik aus WP-20 wiederverwenden). Passt zum Backlog-Eintrag „Audit-/Historientabellen: Unterschiede hervorheben“ (Muster 1).
+- Trigger enthalten PL/SQL – WP-22 weist PL/SQL-Blöcke ab; für `CREATE [OR REPLACE] TRIGGER` aus der Vorlage braucht es eine bewusste, enge Ausnahme (beim Start von WP-22/26 mit dem Nutzer entscheiden, ADR).
 
 ## 9. Offene UX-Fragen
 - Shortcut-Belegung für Commit/Rollback (Abschnitt 7) – vorläufig, Nutzerfeedback einholen.
@@ -434,7 +451,8 @@ Wunsch des Nutzers (2026-10-06): Tabellen anlegen und ändern, passend zum DB-fi
 - Verbindungsoptionen: TCPS/Wallet, Proxy-User, Kerberos/OS-Auth.
 - Installer/Auto-Update (Velopack).
 - Migrations-Cockpit (Pending Migrations, Schema-Diff Modell ↔ DB).
-- Plugins als C#-Scripts (Roslyn).
+- Plugins als C#-Scripts (Roslyn). Auch von Kollegen des Nutzers gewünscht (2026-10-07) – **wartet auf konkrete Anwendungsfälle** (der Nutzer fragt nach); ohne sie keine Plugin-Schnittstelle (müsste stabil bleiben).
+- Flyway (Kollegen des Nutzers, 2026-10-07; sie nutzen Flyway bereits, manche Eigenheiten nerven) – **wartet auf Details**, was genau stört. Vorschlag bisher: kein Nachbau des Migrationslaufs, sondern `flyway_schema_history` je Umgebung lesen (auch als Zeile im Schema-Vergleich) und DDL-Vorschläge/Designer-Ergebnisse als nächste `V…__….sql` im Repo-Ordner speichern.
 - Team-Workspace im Repo (`.ferretsharp/`), Verbindungen ohne Passwörter.
 - AG Grid auf aktuelle Major-Version (36+) heben, sobald die API-Änderungen geprüft sind.
 - Web-Host (`FerretSharp.DevHost`, Blazor Server) mit Fake-Daten, um die UI im Browser mit Hot Reload zu entwickeln und automatisiert zu prüfen.

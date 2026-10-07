@@ -2,8 +2,8 @@
 @using FerretSharp.UI.State
 @implements IAsyncDisposable
 @inject ConnectionManager Connections
-@inject ActiveConnection Active
 @inject RecentConnections Recent
+@inject ConnectionHub Hub
 @inject IJSRuntime JS
 
 <div class="switcher">
@@ -50,6 +50,15 @@
                     <div class="popover-empty">Keine Verbindung passt zu „@_query“.</div>
                 }
 
+                @if (_open.Count > 0)
+                {
+                    <div class="group-head-btn static" title="Bleiben verbunden, auch wenn eine andere angezeigt wird – Alt+O wechselt zur vorigen">Offen</div>
+                    @foreach (var profile in _open)
+                    {
+                        @Row(profile, index++)
+                    }
+                }
+
                 @if (_recent.Count > 0)
                 {
                     <div class="group-head-btn static">Zuletzt verwendet</div>
@@ -88,6 +97,9 @@
 </div>
 
 @code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
     private const int RecentCount = 3;
 
     private readonly HashSet<string> _collapsed = [];
@@ -99,10 +111,14 @@
     private int _highlight;
     private IReadOnlyList<ConnectionGroup> _groups = [];
     private IReadOnlyList<ConnectionProfile> _recent = [];
+    private IReadOnlyList<ConnectionProfile> _open = [];
     private List<ConnectionProfile> _visible = [];
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
 
     private bool Searching => !string.IsNullOrWhiteSpace(_query);
 
@@ -112,13 +128,30 @@
             <span class="dot"></span>
             <span class="name">
                 @p.Name
-                @if (Active.Profile?.Id == p.Id && Active.IsConnected)
+                @if (Hub.Find(p.Id) is { } scope)
                 {
-                    <span class="connected-tag">verbunden</span>
+                    @if (scope.Lost is not null)
+                    {
+                        <span class="connected-tag lost" title="@scope.Lost.Message">Verbindung verloren</span>
+                    }
+                    else if (scope.Active.IsConnected)
+                    {
+                        <span class="connected-tag" title="@(scope == Hub.Current ? "Wird angezeigt" : "Im Hintergrund verbunden")">@(scope == Hub.Current ? "angezeigt" : "verbunden")</span>
+                    }
+
+                    @if (scope.UncommittedActions is > 0 and var actions)
+                    {
+                        <span class="connected-tag tx" title="Nicht committete Änderungen in dieser Verbindung">@(actions == 1 ? "1 Aktion offen" : $"{actions} Aktionen offen")</span>
+                    }
                 }
             </span>
             <span class="kind-badge">@ConnectionKindInfo.Short(p.Kind)</span>
             <span class="addr">@p.Address.Display</span>
+            @if (Hub.Find(p.Id) is { } openScope)
+            {
+                <button class="btn ghost small" title="Diese Verbindung trennen (fragt vorher nach offenen Änderungen)"
+                        @onclick="() => DisconnectAsync(openScope)" @onclick:stopPropagation="true">Trennen</button>
+            }
             <ConnectionActionsMenu Profile="p" OnAction="Shell.CloseSwitcher" />
         </div>;
 
@@ -127,14 +160,17 @@
         Shell.Changed += OnStateChanged;
         Connections.Changed += OnStateChanged;
         Active.Changed += OnStateChanged;
+        Hub.Changed += OnStateChanged;
     }
 
     /// <summary>Recent, groups and the flat list of visible rows (for keyboard navigation), rebuilt on every render.</summary>
     private void Recompute()
     {
-        _recent = Searching ? [] : Recent.MostRecent(Connections.Profiles, RecentCount);
+        _open = Searching ? [] : Hub.Open.Select(s => s.Profile).OfType<ConnectionProfile>().ToList();
+        _recent = Searching ? [] : Recent.MostRecent(Connections.Profiles.Where(p => !Hub.IsOpen(p.Id)), RecentCount);
         _groups = ConnectionSearch.Group(Connections.Profiles, _query);
-        _visible = _recent
+        _visible = _open
+            .Concat(_recent)
             .Concat(_groups.Where(g => Searching || !_collapsed.Contains(g.Name ?? "")).SelectMany(g => g.Profiles))
             .ToList();
         _highlight = Math.Clamp(_highlight, 0, Math.Max(0, _visible.Count - 1));
@@ -190,6 +226,12 @@
 
     private void Activate(ConnectionProfile profile) => Shell.Connect(profile);
 
+    private async Task DisconnectAsync(ConnectionScope scope)
+    {
+        Shell.CloseSwitcher();
+        await Lifecycle.DisconnectAsync(scope);
+    }
+
     private void NewConnection()
     {
         Shell.CloseSwitcher();
@@ -222,6 +264,7 @@
         Shell.Changed -= OnStateChanged;
         Connections.Changed -= OnStateChanged;
         Active.Changed -= OnStateChanged;
+        Hub.Changed -= OnStateChanged;
         if (_dom is not null)
         {
             try

@@ -7,8 +7,6 @@
 @using FerretSharp.UI.State
 @implements IAsyncDisposable
 @inject IJSRuntime JS
-@inject WorkspaceManager Workspaces
-@inject ActiveConnection Active
 @inject ILogger<SqlResultGrid> Logger
 
 <div id="@_id" class="ag-host"></div>
@@ -19,6 +17,12 @@
 }
 
 @code {
+    [CascadingParameter]
+    public WorkspaceManager Workspaces { get; set; } = null!;
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
     /// <summary>Rows per block (BLOCK_SIZE in grid.js); a preloaded first page must have this size.</summary>
     public const int PageSize = 500;
 

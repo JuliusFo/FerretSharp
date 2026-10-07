@@ -5,6 +5,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.9.0] - 2026-10-07
+
+### Added
+- FK navigation from several selected rows: with more than one row selected, "Verweist auf"/"Referenziert von" in the context menu jump from all of them at once – the new tab filters the key with `in (…)` over their distinct values (e.g. select some orders → "KUNDEN" shows their customers; select customers → "AUFTRAG" shows all their orders), editable in the filter bar and saved with the workspace. The headings show the number of rows, the counts of referencing rows cover all of them. Rows without a key value are skipped (named in the tooltip); rows no longer loaded are not included (noted in the menu). Rows that all share one key jump with `=` as before. Keys over several columns jump from several rows only if all rows share the key (the filter has no tuple `in`); at most 1,000 distinct values. Also for relations from the C# model.
+
+## [3.8.0] - 2026-10-07
+
+### Added
+- Several connections open at once, one shown: switching to another connection no longer disconnects the current one – its explorer, tabs, grids, sessions and open transactions stay as they were in the background (e.g. developing on DEV while looking something up on PROD). <kbd>Alt</kbd>+<kbd>O</kbd> jumps back to the connection shown before. The connection switcher lists the open connections with their state and a "Trennen" button each; uncommitted work in a connection in the background is shown in the status bar; a connection lost in the background is marked and shown with the reconnect banner when you switch to it. Quitting asks about uncommitted work of all connections. LINQ helper processes of connections that stay in the background for 15 minutes are ended and start again when needed.
+
 ## [3.7.0] - 2026-10-07
 
 ### Added

@@ -6,7 +6,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <AnalysisLevel>latest</AnalysisLevel>
     <Product>FerretSharp</Product>
-    <Version>3.7.0</Version>
+    <Version>3.9.0</Version>
   </PropertyGroup>
 
 </Project>

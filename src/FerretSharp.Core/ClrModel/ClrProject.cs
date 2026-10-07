@@ -183,7 +183,7 @@ public static partial class BuildOutputLocator
     /// <summary>The deps.json lists <c>Microsoft.EntityFrameworkCore</c>; without it the host cannot load any EF type.</summary>
     internal static bool ReferencesEfCore(string depsFile)
     {
-        using var stream = new FileStream(depsFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var stream = OpenShared(depsFile);
         using var json = JsonDocument.Parse(stream);
         return json.RootElement.TryGetProperty("libraries", out var libraries)
             && libraries.EnumerateObject().Any(l => l.Name.StartsWith("Microsoft.EntityFrameworkCore/", StringComparison.OrdinalIgnoreCase));
@@ -192,7 +192,7 @@ public static partial class BuildOutputLocator
     /// <summary><c>"runtimeTarget": { "name": ".NETCoreApp,Version=v8.0" }</c> → 8.0.</summary>
     internal static Version RuntimeTarget(string depsFile)
     {
-        using var stream = new FileStream(depsFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var stream = OpenShared(depsFile);
         using var json = JsonDocument.Parse(stream);
         var name = json.RootElement.TryGetProperty("runtimeTarget", out var target) && target.TryGetProperty("name", out var value)
             ? value.GetString() ?? ""
@@ -207,6 +207,13 @@ public static partial class BuildOutputLocator
         return new Version(int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture), int.Parse(match.Groups[2].Value, CultureInfo.InvariantCulture));
     }
 
+    /// <summary>
+    /// Opens a file that a build or restore may be writing right now without getting in its way: <c>File.OpenRead</c> denies
+    /// writers while the file is open, so a <c>dotnet build</c> rewriting it at that moment would fail.
+    /// </summary>
+    private static FileStream OpenShared(string path) =>
+        new(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+
     /// <summary>From <c>obj/project.assets.json</c>; otherwise <c>NUGET_PACKAGES</c> or the user's default folder.</summary>
     private static IReadOnlyList<string> PackageFolders(string projectDirectory)
     {
@@ -215,7 +222,7 @@ public static partial class BuildOutputLocator
         {
             try
             {
-                using var stream = File.OpenRead(assets);
+                using var stream = OpenShared(assets);
                 using var json = JsonDocument.Parse(stream);
                 if (json.RootElement.TryGetProperty("packageFolders", out var folders))
                 {
