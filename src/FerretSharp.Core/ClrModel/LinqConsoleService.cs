@@ -72,6 +72,34 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
         }
     }
 
+    /// <summary>
+    /// Ends the host process if it is idle (WP-24: its connection has been in the background for a while; the next run
+    /// starts it again, from the model cache). A host that is busy stays. True if a host was stopped.
+    /// </summary>
+    public async Task<bool> StopIdleAsync()
+    {
+        if (!await _gate.WaitAsync(0))
+        {
+            return false;
+        }
+
+        try
+        {
+            if (_console is null)
+            {
+                return false;
+            }
+
+            await StopAsync();
+            Set(_models.State.Link is null ? LinqConsoleState.NotLinked : new LinqConsoleState(LinqConsolePhase.Stopped));
+            return true;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
     /// <exception cref="ClrModelException">No project linked, the host could not start or did not answer.</exception>
     public async Task<LinqRunResult> RunAsync(string code, string variables, CancellationToken cancellationToken)
     {

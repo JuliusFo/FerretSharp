@@ -2,7 +2,6 @@
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
 @using FerretSharp.UI.State
-@inject PresentationService Presentations
 
 <div class="filterbar">
     @if (Tab.FilterRows.Count == 0)
@@ -85,6 +84,9 @@
 </div>
 
 @code {
+    [CascadingParameter]
+    public PresentationService Presentations { get; set; } = null!;
+
     /// <summary>The row added last; its column picker gets the focus, so the user can type the column right away.</summary>
     private FilterRow? _newRow;
 

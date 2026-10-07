@@ -70,8 +70,11 @@ public partial class App : Application
         builder.Services.AddSingleton(new RecentConnections(paths.RecentConnectionsFile));
         builder.Services.AddSingleton<IDatabaseConnector, OracleDatabaseConnector>();
         builder.Services.AddSingleton<IWorkspaceStore>(new WorkspaceStore(paths.WorkspacesDirectory));
-        builder.Services.AddSingleton<WorkspaceManager>();
-        builder.Services.AddSingleton<ActiveConnection>();
+        // Per open connection (WP-24): a DI scope each, created by the ConnectionHub; components get them cascaded.
+        builder.Services.AddScoped<WorkspaceManager>();
+        builder.Services.AddScoped<ActiveConnection>();
+        builder.Services.AddSingleton<ConnectionHub>();
+        builder.Services.AddSingleton<IOpenConnections>(services => services.GetRequiredService<ConnectionHub>());
         builder.Services.AddSingleton<ConnectionKeepAlive>();
         builder.Services.AddSingleton(new AppSettingsService(settingsStore, settings));
         builder.Services.AddSingleton(theme);
@@ -86,9 +89,9 @@ public partial class App : Application
         builder.Services.AddSingleton(new ComparisonStore(paths.ComparisonsFile));
         builder.Services.AddSingleton<SchemaCompareLoader>();
         builder.Services.AddSingleton<SchemaCompareService>();
-        builder.Services.AddSingleton<ClrModelManager>();
-        builder.Services.AddSingleton<PresentationService>();
-        builder.Services.AddSingleton<LinqConsoleService>();
+        builder.Services.AddScoped<ClrModelManager>();
+        builder.Services.AddScoped<PresentationService>();
+        builder.Services.AddScoped<LinqConsoleService>();
         builder.Services.AddSingleton<ExitGuard>();
         builder.Services.AddSingleton<MainWindow>();
 
@@ -124,23 +127,22 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// Saves the workspaces and closes all Oracle sessions. Runs synchronously (off the dispatcher) before anything
-    /// is awaited in <see cref="OnExit"/>, because the process may end at the first await.
+    /// Saves the workspaces and closes all Oracle sessions of all open connections, and ends their LINQ helper processes.
+    /// Runs synchronously (off the dispatcher) before anything is awaited in <see cref="OnExit"/>, because the process
+    /// may end at the first await.
     /// </summary>
     private void CloseConnection()
     {
-        // The LINQ console's helper process ends with the app (it would also end once the pipe breaks).
-        _host?.Services.GetService<LinqConsoleService>()?.Dispose();
-        if (_host?.Services.GetService<ActiveConnection>() is not { } active)
+        if (_host?.Services.GetService<ConnectionHub>() is not { } hub)
         {
             return;
         }
 
         try
         {
-            if (!Task.Run(() => active.DisposeAsync().AsTask()).Wait(TimeSpan.FromSeconds(5)))
+            if (!Task.Run(() => hub.DisposeAsync().AsTask()).Wait(TimeSpan.FromSeconds(5)))
             {
-                _logger?.LogWarning("Closing the connection did not finish within 5 seconds");
+                _logger?.LogWarning("Closing the connections did not finish within 5 seconds");
             }
         }
         catch (AggregateException ex)

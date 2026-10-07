@@ -2,7 +2,7 @@
 @using FerretSharp.UI.State
 @implements IDisposable
 @inject ConnectionManager Connections
-@inject ActiveConnection Active
+@inject ConnectionHub Hub
 @inject RecentConnections Recent
 
 <div class="connections-page">
@@ -51,9 +51,9 @@
                                 <span class="dot"></span>
                                 <span class="name">
                                     @p.Name
-                                    @if (Active.Profile?.Id == p.Id && Active.IsConnected)
+                                    @if (Hub.Find(p.Id) is { Active.IsConnected: true } scope)
                                     {
-                                        <span class="connected-tag">verbunden</span>
+                                        <span class="connected-tag">@(scope == Hub.Current ? "angezeigt" : "verbunden")</span>
                                     }
                                 </span>
                                 <span class="kind-badge">@ConnectionKindInfo.Short(p.Kind)</span>
@@ -71,6 +71,9 @@
 </div>
 
 @code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
     private readonly HashSet<string> _collapsed = [];
     private string _query = "";
 
@@ -90,6 +93,7 @@
     {
         Connections.Changed += OnConnectionsChanged;
         Active.Changed += OnConnectionsChanged;
+        Hub.Changed += OnConnectionsChanged;
     }
 
     private string LastUsedText(ConnectionProfile profile)
@@ -124,5 +128,6 @@
     {
         Connections.Changed -= OnConnectionsChanged;
         Active.Changed -= OnConnectionsChanged;
+        Hub.Changed -= OnConnectionsChanged;
     }
 }

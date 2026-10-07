@@ -5,8 +5,6 @@
 @using FerretSharp.Core.Oracle
 @using FerretSharp.Core.Schema
 @using FerretSharp.UI.State
-@inject WorkspaceManager Workspaces
-@inject ActiveConnection Active
 @inject IFileSaveService SaveFiles
 @inject IFileOpenService OpenFiles
 @inject ILogger<LobEditorDialog> Logger
@@ -95,6 +93,12 @@
 </ModalFrame>
 
 @code {
+    [CascadingParameter]
+    public WorkspaceManager Workspaces { get; set; } = null!;
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
     private const int HexBytes = 1024;
     private const int MaxImagePreview = 5 * 1024 * 1024;
 

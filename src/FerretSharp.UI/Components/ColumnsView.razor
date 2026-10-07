@@ -4,9 +4,7 @@
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
 @implements IAsyncDisposable
-@inject ActiveConnection Active
 @inject IJSRuntime JS
-@inject ClrModelManager Models
 
 @{
     var fkColumns = (Active.Schema?.OutgoingOf(Details.Table.Ref) ?? [])
@@ -129,6 +127,12 @@
 }
 
 @code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public ClrModelManager Models { get; set; } = null!;
+
     private ElementReference _filterInput;
     private IJSObjectReference? _dom;
     private string _columnQuery = "";

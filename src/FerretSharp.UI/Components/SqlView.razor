@@ -9,9 +9,6 @@
 @using FerretSharp.Core.Workspaces
 @using FerretSharp.UI.State
 @implements IDisposable
-@inject WorkspaceManager Workspaces
-@inject ActiveConnection Active
-@inject PresentationService Presentations
 @inject SqlHistoryStore History
 @inject ILogger<SqlView> Logger
 
@@ -208,6 +205,15 @@
 }
 
 @code {
+    [CascadingParameter]
+    public WorkspaceManager Workspaces { get; set; } = null!;
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public PresentationService Presentations { get; set; } = null!;
+
     private MonacoEditor? _editor;
     private CancellationTokenSource? _cts;
     private bool _running;

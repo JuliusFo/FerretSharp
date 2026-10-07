@@ -7,9 +7,6 @@
 @using FerretSharp.Core.Query
 @using FerretSharp.UI.State
 @implements IDisposable
-@inject LinqConsoleService Console
-@inject WorkspaceManager Workspaces
-@inject ActiveConnection Active
 @inject ILogger<LinqView> Logger
 
 <div class="linqview">
@@ -208,6 +205,15 @@
 }
 
 @code {
+    [CascadingParameter]
+    public LinqConsoleService Console { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceManager Workspaces { get; set; } = null!;
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
     private MonacoEditor? _variablesEditor;
     private bool _planOpen;
     private MonacoEditor? _codeEditor;

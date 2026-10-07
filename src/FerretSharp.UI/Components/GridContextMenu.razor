@@ -7,11 +7,8 @@
 @using FerretSharp.Core.Schema
 @using FerretSharp.UI.State
 @implements IAsyncDisposable
-@inject ActiveConnection Active
-@inject WorkspaceManager Workspaces
 @inject IJSRuntime JS
 @inject IFileSaveService Files
-@inject PresentationService Presentations
 @inject ILogger<GridContextMenu> Logger
 
 <div class="popover-backdrop" @onclick="CloseAsync" @oncontextmenu="CloseAsync" @oncontextmenu:preventDefault="true"></div>
@@ -95,6 +92,15 @@
 </div>
 
 @code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceManager Workspaces { get; set; } = null!;
+
+    [CascadingParameter]
+    public PresentationService Presentations { get; set; } = null!;
+
     private const double MenuWidth = 400;
     private const double ItemHeight = 44;
 
