@@ -30,7 +30,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
         var output = Directory.CreateDirectory(Path.Combine(_root.FullName, "Shop.Data", "bin", "Debug", "net8.0"));
         File.WriteAllText(Path.Combine(output.FullName, "Shop.Data.dll"), "");
         _deps = Path.Combine(output.FullName, "Shop.Data.deps.json");
-        File.WriteAllText(_deps, """{ "runtimeTarget": { "name": ".NETCoreApp,Version=v8.0" } }""");
+        File.WriteAllText(_deps, """{ "runtimeTarget": { "name": ".NETCoreApp,Version=v8.0" }, "libraries": { "Microsoft.EntityFrameworkCore/8.0.0": {} } }""");
         _profile = TestProfiles.HostPort() with { ClrProject = new ClrProjectLink(project) };
 
         var secrets = new InMemorySecretStore();

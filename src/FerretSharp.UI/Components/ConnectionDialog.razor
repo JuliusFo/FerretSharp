@@ -1,3 +1,4 @@
+@using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.UI.State
 @implements IDisposable
@@ -229,7 +230,19 @@
     private string PasswordPlaceholder => !HasStoredPassword ? ""
         : Request.Mode == ConnectionDialogMode.Duplicate ? "wie im Original" : "unverändert";
 
-    private IReadOnlyDictionary<string, string> Errors => _submitted ? Validate() : new Dictionary<string, string>();
+    private IReadOnlyDictionary<string, string> Errors => _submitted ? Validate() : EarlyErrors();
+
+    /// <summary>Before the first submit only the linked project is judged, and only once the file exists (not while typing the path).</summary>
+    private Dictionary<string, string> EarlyErrors()
+    {
+        var errors = new Dictionary<string, string>();
+        if (File.Exists(Form.ClrProjectFile.Trim().Trim('"')) && Validate() is var all && all.TryGetValue(ConnectionField.ClrProject, out var message))
+        {
+            errors[ConnectionField.ClrProject] = message;
+        }
+
+        return errors;
+    }
 
     protected override void OnInitialized()
     {
@@ -264,8 +277,26 @@
             errors[PasswordField] = "Passwort fehlt.";
         }
 
+        if (errors.ContainsKey(ConnectionField.ClrProject) is false && Form.ToProfile().Profile.ClrProject is { } link)
+        {
+            // Reads the build output from disk, so once per project/configuration (Validate runs on every render).
+            if (_clrChecked != link)
+            {
+                _clrChecked = link;
+                _clrProblem = BuildOutputLocator.Check(link);
+            }
+
+            if (_clrProblem is not null)
+            {
+                errors[ConnectionField.ClrProject] = _clrProblem;
+            }
+        }
+
         return errors;
     }
+
+    private ClrProjectLink? _clrChecked;
+    private string? _clrProblem;
 
     private string Invalid(string field) => Errors.ContainsKey(field) ? "invalid" : "";
 
@@ -280,6 +311,7 @@
     private async Task TestAsync()
     {
         _submitted = true;
+        _clrChecked = null;
         if (Validate().Count > 0)
         {
             return;
@@ -314,6 +346,7 @@
     private async Task SaveAsync()
     {
         _submitted = true;
+        _clrChecked = null;
         _saveError = null;
         if (Validate().Count > 0)
         {

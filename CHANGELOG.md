@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- Connection dialog: the linked C# project is checked as soon as its file is entered – a missing project, a too old framework or a project without EF Core (e.g. the entities project instead of the one with the DbContext) is reported right away instead of failing later with "Could not load Microsoft.EntityFrameworkCore". A project that is not built yet is accepted. Contributed by @ulbpccc.
+
 ## [3.9.0] - 2026-10-07
 
 ### Added
