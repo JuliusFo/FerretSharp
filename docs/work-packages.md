@@ -259,7 +259,7 @@ Wunsch des Nutzers (2026-10-06), vor DDL und Tabellen-Designer. Anlass: DB-first
 - Entscheidungen des Nutzers nach dem ersten Durchlauf (2026-10-07): Ausdrücke (Defaults, Checks, Index-Ausdrücke) außerhalb von Literalen und gequoteten Namen in Großbuchstaben vergleichen (`sysdate` = `SYSDATE`; nur Vergleich und Anzeige, der DDL-Vorschlag übernimmt den Originaltext). Umbenannte Constraints/Indizes zählen weiter nicht als Abweichung (die Zelle zeigt „als NAME“).
 - Offen/Backlog: Leerzeichen um Operatoren zählen weiter (`a+b` ≠ `a + b`); Status INVALID gehört nicht zum Snapshot; View-Definitionen, Kommentare, Sequenzen, Synonyme; Snapshots als Datei; Identity ALWAYS/BY DEFAULT, GTT `ON COMMIT`, Partitionierung nicht im Snapshot; DDL ausführen erst mit WP-22.
 
-### WP-24 Mehrere offene Verbindungen → Release offen
+### WP-24 Mehrere offene Verbindungen → Release 3.8.0
 Wunsch des Nutzers (2026-10-07): beim Entwickeln auf DEV arbeiten und für kurze Anrufe auf PROD nachsehen – ohne DEV zu trennen und ohne zweite Instanz. Entschieden: **mehrere Verbindungen gleichzeitig offen, eine davon sichtbar** (keine gemischten Tabs verschiedener Verbindungen in einem Fenster – der Prod-Rahmen muss eindeutig bleiben).
 - Der Verbindungs-Umschalter wechselt die sichtbare Verbindung ohne Trennen; offene Verbindungen sind dort markiert (verbunden, offene Transaktion). Trennen ausdrücklich je Verbindung.
 - Im Hintergrund bleibt alles erhalten: Workspaces, Sessions, offene Transaktionen, ausstehende Änderungen der Tabs (`TableTab`/`ChangeTracker` im Speicher; Grids laden beim Zurückkehren neu).
@@ -275,7 +275,7 @@ Wunsch des Nutzers (2026-10-07): beim Entwickeln auf DEV arbeiten und für kurze
 - E2E (eigener Container `ferret-wp24`, zwei Verbindungen „WP24 Dev“/„WP24 Prod“ auf dasselbe Schema): DEV mit geschriebener Änderung → PROD (roter Rahmen, Hinweis „WP24 Dev: nicht committet“) → `Alt+O` zurück: **dasselbe Grid** (Markierung am DOM-Element blieb), geschriebene Zelle und Transaktion erhalten → Umschalter „Offen“ mit Tags → PROD trennen (sofort) → DEV trennen fragt (Verwerfen rollt zurück, in der DB geprüft). Keep-alive: PROD-Sessions per `ALTER SYSTEM KILL SESSION` beendet, DEV angezeigt → nach dem nächsten Tick „Verbindung verloren“ im Umschalter; Wechsel zeigt das Banner, „Neu verbinden“ stellt PROD samt Tab wieder her, DEV unberührt. Log ohne `[ERR]`.
   - Gefunden und behoben: doppelte `@key` bei Geschwister-`ConnectionScopeView`s (Absturz beim Start); fehlender Abgleich, wenn die Verbindung vor dem Abonnieren verbunden war (kein aktiver Workspace); stilles Neuverbinden einer im Hintergrund verlorenen Verbindung beim Wechsel (jetzt Banner).
   - Nicht per E2E: LINQ-Hilfsprozess nach 15 min (braucht verknüpftes Projekt; Unit-Test für `StopIdleAsync`).
-- Falle: `ClrModelLoadingTests.A_deps_json_that_cannot_be_read_fails_the_model_load` flackert (auch auf main, Wettlauf mit dem automatischen Laden nach dem Verbinden) – als eigene Aufgabe vorgeschlagen.
+- Falle: `ClrModelLoadingTests.A_deps_json_that_cannot_be_read_fails_the_model_load` flackerte (auch auf main, Wettlauf mit dem automatischen Laden nach dem Verbinden) – in einer eigenen Session behoben (`fix/flaky-model-load-test`: Tests warten auf das Laden, Build-Dateien werden ohne Sperre gelesen).
 
 ## Stabilisierung
 
