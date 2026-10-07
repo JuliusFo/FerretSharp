@@ -401,6 +401,12 @@ Umsetzungsprotokolle (was gebaut wurde, Entscheidungen des Nutzers, Nachträge, 
 
 Pakete aus dem Backlog, nach v3 mit dem Nutzer ausgewählt (2026-10-05). Versionen: Minor-Releases 3.x (nichts Inkompatibles).
 
+#### Klein: FK-Sprung mit mehreren markierten Zeilen (geplant, als nächstes – vor WP-21)
+Feedback der Kollegen des Nutzers (2026-10-07): Sind mehrere Zeilen markiert, soll der FK-Sprung trotzdem gehen – ein Tab mit allen Werten im Filter.
+- Ausgehend (`AUFTRAG` markiert → „→ KUNDEN“): neuer Tab mit `KUNDE_ID in (…)` aus den markierten Zeilen; doppelte Werte und NULL fallen weg; mehr als 1000 Werte teilt der `QueryBuilder` schon auf. Eingehend (Kunden markiert → „Aufträge dieser Kunden“) ebenso, auch für Beziehungen aus dem C#-Modell.
+- Zählung im Kontextmenü (wie heute bei einer Zeile) für die markierten Zeilen; nicht geladene markierte Zeilen wie beim Kopieren melden.
+- FKs über mehrere Spalten: Das Filtermodell kann `(A, B) in (…)` nicht ausdrücken (Abschnitt 2: muss 1:1 in LINQ übersetzbar bleiben) → Eintrag bei Mehrfachauswahl ausgegraut mit Hinweis. Zu klären: ob das beim Nutzer vorkommt.
+
 #### WP-21 Formularansicht einer Zeile (geplant)
 Wunsch des Nutzers (2026-10-06), vor DDL und Tabellen-Designer. Für breite Tabellen (VERTRAG mit 71 Spalten).
 - Eine Zeile senkrecht: Spalte → Wert, mit Oracle-Typ, C#-Property/Typ, Enum-Member, NULL kursiv; Suche/Filter über Spaltennamen (wie Ctrl+F, auch C#-Namen); FK-Werte als Links (Sprung wie im Kontextmenü); LOBs öffnen den LOB-Dialog; Vor/Zurück durch die geladenen Zeilen des Grids.
@@ -421,9 +427,23 @@ Wunsch des Nutzers (2026-10-06): Tabellen anlegen und ändern, passend zum DB-fi
 
 #### WP-23 Tabellen-Designer + Entity aus Tabelle (geplant, nach WP-22)
 - Spalten-Ansicht eines Tabs bearbeitbar: Spalte hinzufügen, Typ/Länge/Precision, NULL, Default, Kommentar ändern, umbenennen, löschen; PK, Unique, FK, Indizes; neue Tabelle anlegen. FerretSharp erzeugt das DDL und zeigt es **vor** dem Ausführen (ausführen über den Weg aus WP-22 oder nur kopieren, z. B. als Skript fürs Repo).
+- Indizes setzen (Wunsch der Kollegen des Nutzers, 2026-10-07; bleibt in WP-23, Entscheidung des Nutzers): „Index anlegen“ in der Indizes-Ansicht (Spalten, optional UNIQUE), beim Hinweis „Fremdschlüssel ohne Index“ ein Klick „Index dafür anlegen“.
 - Oracle-Fallen im Designer abfangen: NOT NULL auf Spalte mit NULL-Werten (vorher zählen), Typänderung gefüllter Spalten (oft nur über neue Spalte + Umkopieren), VARCHAR2 BYTE/CHAR-Semantik, Index für neue FKs vorschlagen (`IndexAdvice`), Identity/Default ON NULL.
 - Verzahnung mit dem C#-Modell (Backlog-Idee „Entity aus Tabelle erzeugen“): nach der Änderung Property-Zeile bzw. Entity + `IEntityTypeConfiguration` im Stil des Projekts (Namenskonvention, J/N-Converter) zum Kopieren.
 
+
+#### WP-25 Tastenkürzel einstellbar (geplant)
+Wunsch der Kollegen des Nutzers (2026-10-07). Unabhängig von den anderen Paketen.
+- Eigene Seite bzw. eigener Bereich in den Einstellungen (Entscheidung des Nutzers: aufgeräumt, nicht zwischen die übrigen Einstellungen): **alle** Kürzel als Liste – die änderbaren mit „Ändern“ (Taste drücken) und „Zurücksetzen“, die festen ausgegraut mit Hinweis (auch die wichtigsten von Monaco: Suchen, Vorschläge; Esc im Grid). Dient zugleich als Übersicht, welche Aktion welches Kürzel hat.
+- Konflikte erkennen und melden; Kürzel, die Windows/WebView abfangen (`Alt+Shift` Sprachwechsel, `Ctrl+Alt` = AltGr, `Alt+F4`), ablehnen oder warnen.
+- Speichern in `AppSettings`; `Shell` registriert die Kürzel aus den Einstellungen bei `shortcuts.js` (heute Konstanten in `Shell.razor`); Anzeige der Kürzel in Tooltips/Buttons (`<kbd>`) aus derselben Quelle.
+
+#### WP-26 Audit-/Historientabellen aus einer Vorlage (geplant, nach WP-22/WP-23)
+Wunsch der Kollegen des Nutzers (2026-10-07): beim Anlegen einer Tabelle die Historientabelle und den Trigger gleich mit erzeugen, für bestehende Tabellen nachziehen. Entscheidung des Nutzers: das Schema kommt aus einer **Vorlagendatei**, nicht fest aus dem Code – damit FerretSharp auch außerhalb seiner Firma passt.
+- Eingebaute, dokumentierte Standardvorlage; in den Einstellungen ein Pfad zu einer eigenen Vorlage (z. B. im Repo der Firma); später evtl. je Verbindung überschreibbar.
+- Vorlage = SQL mit Platzhaltern (Tabelle, Historientabelle, Spalten mit Typen, Listen für `:OLD.`/`:NEW.`, Wiederholung über die Spalten); eigene minimale Syntax statt einer Template-Bibliothek (neue Abhängigkeit bräuchte ein ADR). Die Firmenvorlage des Nutzers (Tabelle + Trigger) dient als Testfall.
+- Nachziehen: Spalte in `KUNDEN` neu → fehlt in `KUNDEN_HIST`/Trigger veraltet → `ALTER` + `CREATE OR REPLACE TRIGGER` vorschlagen (Vergleichslogik aus WP-20 wiederverwenden). Passt zum Backlog-Eintrag „Audit-/Historientabellen: Unterschiede hervorheben“ (Muster 1).
+- Trigger enthalten PL/SQL – WP-22 weist PL/SQL-Blöcke ab; für `CREATE [OR REPLACE] TRIGGER` aus der Vorlage braucht es eine bewusste, enge Ausnahme (beim Start von WP-22/26 mit dem Nutzer entscheiden, ADR).
 
 ## 9. Offene UX-Fragen
 - Shortcut-Belegung für Commit/Rollback (Abschnitt 7) – vorläufig, Nutzerfeedback einholen.
@@ -436,7 +456,8 @@ Wunsch des Nutzers (2026-10-06): Tabellen anlegen und ändern, passend zum DB-fi
 - Verbindungsoptionen: TCPS/Wallet, Proxy-User, Kerberos/OS-Auth.
 - Installer/Auto-Update (Velopack).
 - Migrations-Cockpit (Pending Migrations, Schema-Diff Modell ↔ DB).
-- Plugins als C#-Scripts (Roslyn).
+- Plugins als C#-Scripts (Roslyn). Auch von Kollegen des Nutzers gewünscht (2026-10-07) – **wartet auf konkrete Anwendungsfälle** (der Nutzer fragt nach); ohne sie keine Plugin-Schnittstelle (müsste stabil bleiben).
+- Flyway (Kollegen des Nutzers, 2026-10-07; sie nutzen Flyway bereits, manche Eigenheiten nerven) – **wartet auf Details**, was genau stört. Vorschlag bisher: kein Nachbau des Migrationslaufs, sondern `flyway_schema_history` je Umgebung lesen (auch als Zeile im Schema-Vergleich) und DDL-Vorschläge/Designer-Ergebnisse als nächste `V…__….sql` im Repo-Ordner speichern.
 - Team-Workspace im Repo (`.ferretsharp/`), Verbindungen ohne Passwörter.
 - AG Grid auf aktuelle Major-Version (36+) heben, sobald die API-Änderungen geprüft sind.
 - Web-Host (`FerretSharp.DevHost`, Blazor Server) mit Fake-Daten, um die UI im Browser mit Hot Reload zu entwickeln und automatisiert zu prüfen.
