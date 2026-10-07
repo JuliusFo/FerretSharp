@@ -131,7 +131,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
     [Fact]
     public async Task An_idle_console_of_a_connection_in_the_background_is_stopped()
     {
-        await _active.ConnectAsync(_profile, Ct);
+        await ConnectAsync();
         await _models.LoadAsync();
         var console = Substitute.For<ILinqConsole>();
         _runner.StartConsoleAsync(Arg.Any<ClrProjectLink>(), Arg.Any<BuildOutput>(), Arg.Any<CancellationToken>(), Arg.Any<IProgress<string>?>())
