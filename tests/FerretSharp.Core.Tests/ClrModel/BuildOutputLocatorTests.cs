@@ -20,10 +20,10 @@ public sealed class BuildOutputLocatorTests : IDisposable
         return file;
     }
 
-    private static string Built(string project, string assembly, string framework = ".NETCoreApp,Version=v8.0", string configuration = "Debug", string tfm = "net8.0")
+    private static string Built(string project, string assembly, string framework = ".NETCoreApp,Version=v8.0", string configuration = "Debug", string tfm = "net8.0", bool efCore = true)
     {
         var output = Directory.CreateDirectory(Path.Combine(Path.GetDirectoryName(project)!, "bin", configuration, tfm));
-        File.WriteAllText(Path.Combine(output.FullName, assembly + ".deps.json"), $$"""{ "runtimeTarget": { "name": "{{framework}}" } }""");
+        File.WriteAllText(Path.Combine(output.FullName, assembly + ".deps.json"), $$"""{ "runtimeTarget": { "name": "{{framework}}" }, "libraries": { {{(efCore ? "\"Microsoft.EntityFrameworkCore/8.0.0\": {}" : "")}} } }""");
         var dll = Path.Combine(output.FullName, assembly + ".dll");
         File.WriteAllText(dll, "");
         return dll;
@@ -47,6 +47,30 @@ public sealed class BuildOutputLocatorTests : IDisposable
         Assert.Equal(new Version(8, 0), output.TargetFramework);
         Assert.Equal([packages.FullName + Path.DirectorySeparatorChar], output.PackageFolders);
         Assert.False(output.IsStale);
+    }
+
+    [Fact]
+    public void A_project_without_ef_core_is_refused_with_a_hint()
+    {
+        var project = Project("Shop.Entities");
+        Built(project, "Shop.Entities", efCore: false);
+
+        Assert.Equal(ClrModelErrorKind.NoEfCore, Assert.Throws<ClrModelException>(() => BuildOutputLocator.Find(new ClrProjectLink(project))).Kind);
+    }
+
+    [Fact]
+    public void Check_reports_a_project_that_cannot_work_but_accepts_one_that_is_not_built_yet()
+    {
+        var noEf = Project("Shop.Entities");
+        Built(noEf, "Shop.Entities", efCore: false);
+        var notBuilt = Project("Shop.Data");
+        var good = Project("Shop.Good");
+        Built(good, "Shop.Good");
+
+        Assert.Contains("EF Core", BuildOutputLocator.Check(new ClrProjectLink(noEf)));
+        Assert.Null(BuildOutputLocator.Check(new ClrProjectLink(notBuilt)));
+        Assert.Null(BuildOutputLocator.Check(new ClrProjectLink(good)));
+        Assert.NotNull(BuildOutputLocator.Check(new ClrProjectLink(Path.Combine(_root.FullName, "gone.csproj"))));
     }
 
     [Fact]

@@ -30,6 +30,7 @@ public static class ClrModelErrorKind
     public const string ProjectNotFound = "ProjectNotFound";
     public const string NotBuilt = "NotBuilt";
     public const string UnsupportedFramework = "UnsupportedFramework";
+    public const string NoEfCore = "NoEfCore";
     public const string DotNetMissing = "DotNetMissing";
     public const string HostFailed = "HostFailed";
     public const string Timeout = "Timeout";
@@ -62,7 +63,32 @@ public static partial class BuildOutputLocator
     /// <summary>EF Core 8 needs .NET 8; the model host is built for it (ADR 0009).</summary>
     public static readonly Version MinimumFramework = new(8, 0);
 
-    public static BuildOutput Find(ClrProjectLink link)
+    /// <summary>
+    /// Early check for the connection dialog: a message if the linked project cannot work (missing, no EF Core, too old),
+    /// null if it can – also when it is not built yet, which is no reason to refuse the link. Does not scan the sources.
+    /// </summary>
+    public static string? Check(ClrProjectLink link)
+    {
+        try
+        {
+            Find(link, checkSources: false);
+            return null;
+        }
+        catch (ClrModelException ex) when (ex.Kind == ClrModelErrorKind.NotBuilt)
+        {
+            return null;
+        }
+        catch (ClrModelException ex)
+        {
+            return ex.Message;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Xml.XmlException or JsonException)
+        {
+            return $"Das Projekt lässt sich nicht lesen: {ex.Message}";
+        }
+    }
+
+    public static BuildOutput Find(ClrProjectLink link, bool checkSources = true)
     {
         if (!File.Exists(link.ProjectFile))
         {
@@ -90,8 +116,14 @@ public static partial class BuildOutputLocator
                 $"{assemblyName} ist für .NET {framework} gebaut – FerretSharp liest Modelle ab EF Core 8 (.NET 8).");
         }
 
+        if (!ReferencesEfCore(deps))
+        {
+            throw new ClrModelException(ClrModelErrorKind.NoEfCore,
+                $"{assemblyName} referenziert EF Core nicht – verknüpfe das Projekt, das den DbContext enthält (nicht nur die Entities).");
+        }
+
         var builtAt = File.GetLastWriteTimeUtc(assembly);
-        var newer = SourceDirectories(projectDirectory, project)
+        var newer = !checkSources ? null : SourceDirectories(projectDirectory, project)
             .SelectMany(SourceFiles)
             .Select(f => (File: f, At: File.GetLastWriteTimeUtc(f)))
             .Where(f => f.At > builtAt)
@@ -148,10 +180,19 @@ public static partial class BuildOutputLocator
         }
     }
 
+    /// <summary>The deps.json lists <c>Microsoft.EntityFrameworkCore</c>; without it the host cannot load any EF type.</summary>
+    internal static bool ReferencesEfCore(string depsFile)
+    {
+        using var stream = new FileStream(depsFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var json = JsonDocument.Parse(stream);
+        return json.RootElement.TryGetProperty("libraries", out var libraries)
+            && libraries.EnumerateObject().Any(l => l.Name.StartsWith("Microsoft.EntityFrameworkCore/", StringComparison.OrdinalIgnoreCase));
+    }
+
     /// <summary><c>"runtimeTarget": { "name": ".NETCoreApp,Version=v8.0" }</c> → 8.0.</summary>
     internal static Version RuntimeTarget(string depsFile)
     {
-        using var stream = File.OpenRead(depsFile);
+        using var stream = new FileStream(depsFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
         using var json = JsonDocument.Parse(stream);
         var name = json.RootElement.TryGetProperty("runtimeTarget", out var target) && target.TryGetProperty("name", out var value)
             ? value.GetString() ?? ""
