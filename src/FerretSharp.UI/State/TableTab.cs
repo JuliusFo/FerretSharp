@@ -11,7 +11,7 @@ namespace FerretSharp.UI.State;
 public sealed class FilterRow
 {
     /// <summary>Separator for IN lists; a comma would clash with German decimal commas.</summary>
-    public const char ListSeparator = ';';
+    public const char ListSeparator = FilterCondition.ListSeparator;
 
     public string Column { get; set; } = "";
 

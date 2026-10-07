@@ -26,6 +26,9 @@ public enum FilterOperator
 /// </summary>
 public sealed record FilterCondition(string Column, FilterOperator Op, IReadOnlyList<string> Values, bool Enabled = true)
 {
+    /// <summary>Separates the values of an IN list in the filter bar; a comma would clash with German decimal commas.</summary>
+    public const char ListSeparator = ';';
+
     public static FilterCondition Of(string column, FilterOperator op, params string[] values) => new(column, op, values);
 }
 
