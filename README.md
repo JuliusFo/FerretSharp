@@ -96,6 +96,14 @@ developer works with an Oracle database day to day:
   <img src="docs/images/explain-plan-light.png" alt="Execution plan dialog">
 </picture>
 
+### Schema comparison
+
+- Compare any number of connections or schemas – Dev, Test, Prod, customer databases – in one matrix: tables, views,
+  columns (type, length, NULL, default, identity), keys, foreign keys, checks and indexes. Sides with the same definition
+  share a colour; names Oracle generated (`SYS_C…`) are matched by content.
+- "Forgot the ALTER on Test?": a DDL proposal aligns one side with another, to copy – drops and renames only as
+  commented-out hints. Comparisons can be saved and copied as Markdown.
+
 ### .NET and EF Core
 
 <picture>
