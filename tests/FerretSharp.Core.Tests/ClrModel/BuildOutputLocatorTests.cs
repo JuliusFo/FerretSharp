@@ -102,6 +102,24 @@ public sealed class BuildOutputLocatorTests : IDisposable
     }
 
     [Fact]
+    public void Build_files_are_read_without_locking_out_a_build_writing_them()
+    {
+        var project = Project("Shop.Data");
+        var dll = Built(project, "Shop.Data");
+        var obj = Directory.CreateDirectory(Path.Combine(Path.GetDirectoryName(project)!, "obj"));
+        var assets = Path.Combine(obj.FullName, "project.assets.json");
+        File.WriteAllText(assets, """{ "packageFolders": {} }""");
+
+        // Sharing is symmetric: a read that succeeds while a writer has the file open also lets a writer open it while FerretSharp reads.
+        using var deps = new FileStream(Path.ChangeExtension(dll, ".deps.json"), FileMode.Open, FileAccess.Write, FileShare.ReadWrite);
+        using var restore = new FileStream(assets, FileMode.Open, FileAccess.Write, FileShare.ReadWrite);
+
+        var output = BuildOutputLocator.Find(new ClrProjectLink(project));
+
+        Assert.Equal(new Version(8, 0), output.TargetFramework);
+    }
+
+    [Fact]
     public void The_runtime_config_rolls_forward_to_a_newer_runtime()
     {
         var output = new BuildOutput("a.dll", "a.deps.json", new Version(9, 0), DateTime.UtcNow, [], [], null);
