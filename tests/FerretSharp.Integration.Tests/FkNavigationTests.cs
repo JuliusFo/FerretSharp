@@ -6,7 +6,10 @@ using Oracle.ManagedDataAccess.Client;
 
 namespace FerretSharp.Integration.Tests;
 
-/// <summary>FK navigation against Oracle: composite keys, RAW(16) keys (GUIDs as EF Core stores them), counts with timeout.</summary>
+/// <summary>
+/// FK navigation against Oracle: composite keys, RAW(16) keys (GUIDs as EF Core stores them), several rows, counts
+/// with timeout.
+/// </summary>
 public sealed class FkNavigationTests(OracleContainerFixture oracle) : IAsyncLifetime
 {
     private static readonly SemaphoreSlim SetupGate = new(1, 1);
@@ -145,6 +148,22 @@ public sealed class FkNavigationTests(OracleContainerFixture oracle) : IAsyncLif
         Assert.Equal(3, byKey);
         Assert.Equal(2, byGuid);
         Assert.Equal([1m, 2m, 3m], (await FollowAsync(incoming["FK_NAV_POS_KOPF"])).Select(r => r.Values[0]));
+    }
+
+    [Fact]
+    public async Task Jump_from_several_rows_counts_and_finds_the_rows_of_all_their_keys()
+    {
+        var kopf = await DetailsAsync("NAV_KOPF");
+        var rows = (await _data.ReadPageAsync(kopf, [], [], new PageSpec(0, 10), Ct)).Rows;
+        var incoming = FkNavigation.JumpsFor(kopf, rows, [], _schema.IncomingOf(kopf.Table.Ref)).ToDictionary(j => j.ForeignKey.Name);
+        var positions = await DetailsAsync("NAV_POS");
+
+        var byGuid = incoming["FK_NAV_POS_GUID"];
+
+        Assert.Equal(FilterOperator.In, Assert.Single(byGuid.Filters).Op);
+        Assert.Equal(3, await FkNavigation.CountAsync(_data, positions, byGuid, FkNavigation.CountTimeout, Ct));
+        Assert.Equal([1m, 2m, 4m], (await FollowAsync(byGuid)).Select(r => r.Values[0]));
+        Assert.Equal("Bei mehreren Zeilen nur für Schlüssel aus einer Spalte möglich.", incoming["FK_NAV_POS_KOPF"].Unavailable);
     }
 
     [Fact]
