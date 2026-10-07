@@ -32,8 +32,10 @@
                 <WorkspaceBar />
             }
             <div class="topbar-right">
+                <button class="icon-btn ghost @(_state.Page == ShellPage.Compare ? "active" : "")" title="Schema-Vergleich"
+                        @onclick="() => ToggleSidePage(ShellPage.Compare)">@Icons.Compare</button>
                 <button class="icon-btn ghost @(_state.Page == ShellPage.Settings ? "active" : "")" title="Einstellungen"
-                        @onclick="ToggleSettings">@Icons.Settings</button>
+                        @onclick="() => ToggleSidePage(ShellPage.Settings)">@Icons.Settings</button>
                 <WorkspaceBadge Lifecycle="_lifecycle" />
             </div>
         </header>
@@ -90,7 +92,11 @@
 
                         @if (_state.Page == ShellPage.Settings)
                         {
-                            <SettingsPage OnBack="LeaveSettings" />
+                            <SettingsPage OnBack="LeaveSidePage" />
+                        }
+                        else if (_state.Page == ShellPage.Compare)
+                        {
+                            <SchemaComparePage OnBack="LeaveSidePage" />
                         }
                         else if (_state.Page == ShellPage.Model && Active.IsConnected)
                         {
@@ -163,7 +169,8 @@
     private ErrorBoundary? _errorBoundary;
     private IJSObjectReference? _shortcuts;
     private DotNetObjectReference<Shell>? _selfRef;
-    private ShellPage _pageBeforeSettings = ShellPage.Connections;
+    /// <summary>Where settings or the schema comparison were opened from, to go back there.</summary>
+    private ShellPage _pageBefore = ShellPage.Connections;
 
     /// <summary>The active connection has a C# project: LINQ consoles can be opened (WP-13).</summary>
     private bool HasLinkedProject => Models.State.Link is not null;
@@ -279,23 +286,34 @@
     /// <summary>The keep-alive found a session gone: same banner as a failed query, without waiting for the next click.</summary>
     private void OnKeepAliveLost(DatabaseException error) => InvokeAsync(() => _state.ReportFailure(error));
 
-    private void ToggleSettings()
+    /// <summary>Settings and the schema comparison: open from anywhere, the same button goes back.</summary>
+    private void ToggleSidePage(ShellPage page)
     {
-        if (_state.Page == ShellPage.Settings)
+        if (_state.Page == page)
         {
-            LeaveSettings();
+            LeaveSidePage();
+            return;
+        }
+
+        if (_state.Page is not (ShellPage.Settings or ShellPage.Compare))
+        {
+            _pageBefore = _state.Page;
+        }
+
+        if (page == ShellPage.Compare)
+        {
+            _state.ShowCompare();
         }
         else
         {
-            _pageBeforeSettings = _state.Page;
             _state.ShowSettings();
         }
     }
 
     /// <summary>Back to where the user came from; the explorer only if still connected.</summary>
-    private void LeaveSettings()
+    private void LeaveSidePage()
     {
-        if (_pageBeforeSettings == ShellPage.Explorer && Active.Status != ConnectionStatus.Disconnected)
+        if (_pageBefore == ShellPage.Explorer && Active.Status != ConnectionStatus.Disconnected)
         {
             _state.ShowExplorer();
         }

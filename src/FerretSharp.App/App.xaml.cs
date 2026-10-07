@@ -5,6 +5,7 @@ using FerretSharp.App.Services;
 using FerretSharp.App.Views;
 using FerretSharp.Core;
 using FerretSharp.Core.ClrModel;
+using FerretSharp.Core.Compare;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Oracle;
 using FerretSharp.Core.Settings;
@@ -82,6 +83,9 @@ public partial class App : Application
         builder.Services.AddSingleton<IModelHostRunner>(new ModelHostRunner(modelHost));
         builder.Services.AddSingleton(new ModelCache(paths.ModelCacheDirectory, modelHost));
         builder.Services.AddSingleton(new SqlHistoryStore(paths.SqlHistoryDirectory));
+        builder.Services.AddSingleton(new ComparisonStore(paths.ComparisonsFile));
+        builder.Services.AddSingleton<SchemaCompareLoader>();
+        builder.Services.AddSingleton<SchemaCompareService>();
         builder.Services.AddSingleton<ClrModelManager>();
         builder.Services.AddSingleton<PresentationService>();
         builder.Services.AddSingleton<LinqConsoleService>();

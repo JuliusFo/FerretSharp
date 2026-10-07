@@ -1,0 +1,38 @@
+@* One cell of the schema comparison matrix: the side's definition, coloured by its group; a dash where it is missing. *@
+@using FerretSharp.Core.Compare
+
+<td class="cell @Css" title="@Title">
+    @if (Cell.State == CellState.Missing)
+    {
+        <span>–</span>
+    }
+    else
+    {
+        <span class="mono">@Cell.Definition</span>
+        @if (Cell.Name is { } name)
+        {
+            <span class="compare-alias">als @name</span>
+        }
+    }
+</td>
+
+@code {
+    [Parameter, EditorRequired]
+    public CompareCell Cell { get; set; } = null!;
+
+    private string Css => Cell.State switch
+    {
+        CellState.Missing => "missing",
+        CellState.OtherCase => "other-case",
+        CellState.Different => $"different g{Math.Min(Cell.Group, 3)}",
+        _ => "same",
+    };
+
+    private string Title => Cell.State switch
+    {
+        CellState.Missing => "Fehlt auf dieser Seite",
+        CellState.OtherCase => $"Nur in anderer Schreibweise vorhanden: {Cell.Name}",
+        CellState.Different => $"Abweichend (Variante {Cell.Group + 1})",
+        _ => "Gleich",
+    };
+}

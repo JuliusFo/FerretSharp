@@ -1,0 +1,118 @@
+@* DDL proposal of the schema comparison (WP-20): which side to align to which, the script to copy. FerretSharp does not
+   run it (that comes with WP-22). *@
+@using FerretSharp.Core.Compare
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<ModalFrame Label="DDL-Vorschlag" Class="sql-dialog compare-ddl-dialog" OnCancel="OnClose" CloseOnBackdrop="true" FocusOnOpen="true">
+    <header>
+        <span>DDL-Vorschlag</span>
+        <select title="Diese Seite wird angeglichen" @bind="_target" @bind:after="Build">
+            @for (var i = 0; i < Labels.Count; i++)
+            {
+                <option value="@i" disabled="@(i == _reference)">@Labels[i]</option>
+            }
+        </select>
+        <span>angleichen an</span>
+        <select title="So soll es aussehen" @bind="_reference" @bind:after="Build">
+            @for (var i = 0; i < Labels.Count; i++)
+            {
+                <option value="@i" disabled="@(i == _target)">@Labels[i]</option>
+            }
+        </select>
+        <span class="spacer"></span>
+        <button class="btn" disabled="@(_proposal is not { Steps.Count: > 0 })" @onclick="CopyAsync">@(_copied ? "Kopiert ✓" : "Kopieren")</button>
+        <button class="icon-btn ghost" title="Schließen" @onclick="OnClose">✕</button>
+    </header>
+    <div class="settings-note compare-ddl-note">
+        Nur ein Vorschlag zum Kopieren – FerretSharp führt ihn nicht aus. DDL lässt sich nicht zurücknehmen; Schritte mit ⚠ vorher prüfen.
+    </div>
+    @if (_error is { } error)
+    {
+        <div class="test-result error"><span>@error</span></div>
+    }
+    else if (_proposal is { } proposal)
+    {
+        @if (proposal.Steps.Count == 0)
+        {
+            <div class="compare-none">Keine Unterschiede zwischen diesen beiden Seiten.</div>
+        }
+        else
+        {
+            <SqlCode Sql="@proposal.Script" />
+        }
+    }
+</ModalFrame>
+
+@code {
+    private int _reference;
+    private int _target = 1;
+    private DdlProposal? _proposal;
+    private string? _error;
+    private bool _copied;
+    private IJSObjectReference? _dom;
+
+    [CascadingParameter]
+    public FerretSharp.UI.State.ShellState Shell { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public SchemaComparison Comparison { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<string> Labels { get; set; } = [];
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    protected override void OnInitialized()
+    {
+        // The reference of the comparison, aligning the first other side to it.
+        _reference = Comparison.Options.Reference ?? 0;
+        _target = _reference == 0 ? 1 : 0;
+        Build();
+    }
+
+    private void Build()
+    {
+        _copied = false;
+        try
+        {
+            _proposal = SchemaDdl.Align(Comparison, _reference, _target);
+            _error = null;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            // A bug in the proposal must not take the page down; the comparison itself stays usable.
+            (_proposal, _error) = (null, $"Der DDL-Vorschlag ließ sich nicht erzeugen: {ex.Message}");
+        }
+    }
+
+    private async Task CopyAsync()
+    {
+        if (_proposal is null)
+        {
+            return;
+        }
+
+        _dom ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
+        _copied = await _dom.InvokeAsync<bool>("copyText", _proposal.Script);
+        if (!_copied)
+        {
+            Shell.Notify("Die Zwischenablage ist nicht verfügbar.");
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_dom is not null)
+        {
+            try
+            {
+                await _dom.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+    }
+}
