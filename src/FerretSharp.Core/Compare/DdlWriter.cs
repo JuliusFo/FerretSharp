@@ -257,8 +257,24 @@ internal sealed class DdlWriter(int referenceSide, int targetSide, string refere
                 reference.DefaultOnNull && target.Nullable ? "DEFAULT ON NULL macht die Spalte NOT NULL: schlägt fehl, wenn sie NULL-Werte enthält." : Join(ExpressionWarnings(reference.Default)));
         }
 
-        // DEFAULT ON NULL brings NOT NULL along (nothing to write); dropping ON NULL leaves the column NOT NULL.
-        if (!reference.IsIdentity && !reference.DefaultOnNull && reference.Nullable != target.Nullable)
+        // DEFAULT ON NULL brings NOT NULL along (nothing to write). Taking ON NULL away takes NOT NULL with it (Oracle 23,
+        // in the integration test); whether older versions keep it is not known, so the follow-up is written for both.
+        if (!reference.IsIdentity && !reference.DefaultOnNull && target.DefaultOnNull)
+        {
+            written++;
+            if (reference.Nullable)
+            {
+                // A follow-up of the DEFAULT step, so it stays next to it rather than among the hints at the end.
+                Add(Phase.Columns, table, $"-- {alter} ({column} NULL)",
+                    "Nur nötig, wenn die Spalte nach dem Entfernen von DEFAULT ON NULL noch NOT NULL ist (Oracle 23 hebt beides zusammen auf).");
+            }
+            else
+            {
+                Add(Phase.Columns, table, $"{alter} ({column} NOT NULL)",
+                    "Schlägt fehl, wenn die Tabelle Zeilen mit NULL in dieser Spalte hat. ORA-01442: die Spalte ist schon NOT NULL – Schritt überspringen.");
+            }
+        }
+        else if (!reference.IsIdentity && !reference.DefaultOnNull && reference.Nullable != target.Nullable)
         {
             written++;
             Add(Phase.Columns, table, reference.Nullable ? $"{alter} ({column} NULL)" : $"{alter} ({column} NOT NULL)",
@@ -507,10 +523,13 @@ internal sealed class DdlWriter(int referenceSide, int targetSide, string refere
         constraint.Type is ConstraintType.PrimaryKey or ConstraintType.Unique or ConstraintType.ForeignKey
         || constraint.Type == ConstraintType.Check && !constraint.IsColumnNotNull;
 
-    /// <summary>The reference's index with exactly the key's columns (unique, plain, ascending): the one Oracle uses for it.</summary>
+    /// <summary>
+    /// The reference's index with exactly the key's columns (plain, ascending): the one Oracle uses for it. Unique, except
+    /// for a deferrable key – Oracle cannot use a unique index for it (ORA-14196) and creates a non-unique one.
+    /// </summary>
     private static IndexInfo? BackingIndex(ObjectSnapshot table, ConstraintInfo constraint) =>
         constraint.Type is ConstraintType.PrimaryKey or ConstraintType.Unique
-            ? table.Indexes.FirstOrDefault(i => i.Unique && i.Columns.All(c => !c.IsExpression && !c.Descending)
+            ? table.Indexes.FirstOrDefault(i => (i.Unique || constraint.Deferrable) && i.Columns.All(c => !c.IsExpression && !c.Descending)
                 && i.Columns.Select(c => c.Name).SequenceEqual(constraint.Columns, StringComparer.Ordinal))
             : null;
 

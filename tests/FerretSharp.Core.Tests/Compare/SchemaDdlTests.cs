@@ -124,6 +124,20 @@ public class SchemaDdlTests
     }
 
     [Fact]
+    public void Deferrable_key_brings_its_non_unique_index()
+    {
+        // A deferrable key cannot use a unique index (ORA-14196): its index in the reference is a normal one.
+        var table = Table("KUNDE", [Id], [PrimaryKey("PK_KUNDE", "ID") with { Deferrable = true }], [Index(Ref, "KUNDE_ID_IX", On("ID"))]);
+
+        var proposal = Align(table, null);
+
+        Assert.Equal(
+            "ALTER TABLE \"TEST\".\"KUNDE\" ADD CONSTRAINT \"PK_KUNDE\" PRIMARY KEY (\"ID\") DEFERRABLE USING INDEX (CREATE INDEX \"TEST\".\"KUNDE_ID_IX\" ON \"TEST\".\"KUNDE\" (\"ID\"))",
+            proposal.Steps[1].Sql);
+        Assert.Equal(2, proposal.Steps.Count);
+    }
+
+    [Fact]
     public void Foreign_key_to_another_schema_keeps_its_owner()
     {
         var table = Table("AUFTRAG", [Id], [ForeignKey("FK_LAND", ["ID"], new TableRef("STAMM", "LAND"), ["ID"], "SET NULL", deferred: true)]);
@@ -316,13 +330,26 @@ public class SchemaDdlTests
     }
 
     [Fact]
-    public void Dropping_default_on_null_also_allows_null_again()
+    public void Dropping_default_on_null_leaves_null_to_a_hint()
     {
+        // Oracle 23 takes NOT NULL away with ON NULL; MODIFY NULL would then fail with ORA-01451.
         var proposal = Align(
             Kunde(Column("C", "CHAR", 1, @default: "'N'")),
             Kunde(Column("C", "CHAR", 1, @default: "'N'", defaultOnNull: true)));
 
-        Assert.Equal(["ALTER TABLE \"TEST\".\"KUNDE\" MODIFY (\"C\" DEFAULT 'N')", "ALTER TABLE \"TEST\".\"KUNDE\" MODIFY (\"C\" NULL)"], Sql(proposal));
+        Assert.Equal(["ALTER TABLE \"TEST\".\"KUNDE\" MODIFY (\"C\" DEFAULT 'N')", "-- ALTER TABLE \"TEST\".\"KUNDE\" MODIFY (\"C\" NULL)"], Sql(proposal));
+        Assert.Contains("Oracle 23", proposal.Steps[1].Warning);
+    }
+
+    [Fact]
+    public void Dropping_default_on_null_of_a_not_null_column_sets_not_null_again()
+    {
+        var proposal = Align(
+            Kunde(Column("C", "CHAR", 1, @default: "'N'", nullable: false)),
+            Kunde(Column("C", "CHAR", 1, @default: "'N'", defaultOnNull: true)));
+
+        Assert.Equal(["ALTER TABLE \"TEST\".\"KUNDE\" MODIFY (\"C\" DEFAULT 'N')", "ALTER TABLE \"TEST\".\"KUNDE\" MODIFY (\"C\" NOT NULL)"], Sql(proposal));
+        Assert.Contains("ORA-01442", proposal.Steps[1].Warning);
     }
 
     [Fact]
