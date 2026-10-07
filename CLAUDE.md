@@ -398,6 +398,15 @@ Umsetzungsprotokolle (was gebaut wurde, Entscheidungen des Nutzers, Nachträge, 
 
 Pakete aus dem Backlog, nach v3 mit dem Nutzer ausgewählt (2026-10-05). Versionen: Minor-Releases 3.x (nichts Inkompatibles).
 
+#### WP-24 Mehrere offene Verbindungen (geplant, als nächstes – vor WP-21, Entscheidung des Nutzers 2026-10-07)
+Wunsch des Nutzers (2026-10-07): beim Entwickeln auf DEV arbeiten und für kurze Anrufe auf PROD nachsehen – ohne DEV zu trennen und ohne zweite Instanz. Entschieden: **mehrere Verbindungen gleichzeitig offen, eine davon sichtbar** (keine gemischten Tabs verschiedener Verbindungen in einem Fenster – der Prod-Rahmen muss eindeutig bleiben).
+- Der Verbindungs-Umschalter wechselt die sichtbare Verbindung ohne Trennen; offene Verbindungen sind dort markiert (verbunden, offene Transaktion). Trennen ausdrücklich je Verbindung.
+- Im Hintergrund bleibt alles erhalten: Workspaces, Sessions, offene Transaktionen, ausstehende Änderungen der Tabs (`TableTab`/`ChangeTracker` im Speicher; Grids laden beim Zurückkehren neu).
+- Prod-Rahmen, Topbar, Explorer und Statusleiste folgen der sichtbaren Verbindung. Offene Transaktionen anderer Verbindungen bleiben sichtbar (z. B. Hinweis in der Statusleiste „DEV: 3 Aktionen nicht committet“), damit nichts vergessen wird; Beenden fragt für alle.
+- Keep-alive für alle offenen Verbindungen; Verbindungsverlust im Hintergrund als Markierung im Umschalter, das Banner bei der sichtbaren.
+- Architektur: `ActiveConnection` wird zu einer Liste offener Verbindungen mit einer aktuellen; je Verbindung eigener `SchemaCache`, Workspaces (`WorkspaceManager` heute an genau ein Profil gehängt), C#-Modell/Präsentation und LINQ-Hilfsprozess (diese lazy, ein Hilfsprozess je Verbindung kostet Speicher). UI-Komponenten hängen sich an die aktuelle Verbindung statt an den Singleton. Schema-Vergleich unberührt (eigene Sessions).
+- Zu klären beim Start: Tastenkürzel zum schnellen Wechsel (z. B. zwischen den letzten beiden), ob offene Verbindungen nach einem Neustart wieder geöffnet werden, Obergrenze offener Verbindungen, Darstellung im Umschalter/Topbar, ob der LINQ-Hilfsprozess einer Hintergrund-Verbindung nach einer Weile beendet wird.
+
 #### WP-21 Formularansicht einer Zeile (geplant)
 Wunsch des Nutzers (2026-10-06), vor DDL und Tabellen-Designer. Für breite Tabellen (VERTRAG mit 71 Spalten).
 - Eine Zeile senkrecht: Spalte → Wert, mit Oracle-Typ, C#-Property/Typ, Enum-Member, NULL kursiv; Suche/Filter über Spaltennamen (wie Ctrl+F, auch C#-Namen); FK-Werte als Links (Sprung wie im Kontextmenü); LOBs öffnen den LOB-Dialog; Vor/Zurück durch die geladenen Zeilen des Grids.
@@ -421,14 +430,6 @@ Wunsch des Nutzers (2026-10-06): Tabellen anlegen und ändern, passend zum DB-fi
 - Oracle-Fallen im Designer abfangen: NOT NULL auf Spalte mit NULL-Werten (vorher zählen), Typänderung gefüllter Spalten (oft nur über neue Spalte + Umkopieren), VARCHAR2 BYTE/CHAR-Semantik, Index für neue FKs vorschlagen (`IndexAdvice`), Identity/Default ON NULL.
 - Verzahnung mit dem C#-Modell (Backlog-Idee „Entity aus Tabelle erzeugen“): nach der Änderung Property-Zeile bzw. Entity + `IEntityTypeConfiguration` im Stil des Projekts (Namenskonvention, J/N-Converter) zum Kopieren.
 
-#### WP-24 Mehrere offene Verbindungen (geplant, Priorität beim nächsten Paket klären)
-Wunsch des Nutzers (2026-10-07): beim Entwickeln auf DEV arbeiten und für kurze Anrufe auf PROD nachsehen – ohne DEV zu trennen und ohne zweite Instanz. Entschieden: **mehrere Verbindungen gleichzeitig offen, eine davon sichtbar** (keine gemischten Tabs verschiedener Verbindungen in einem Fenster – der Prod-Rahmen muss eindeutig bleiben).
-- Der Verbindungs-Umschalter wechselt die sichtbare Verbindung ohne Trennen; offene Verbindungen sind dort markiert (verbunden, offene Transaktion). Trennen ausdrücklich je Verbindung.
-- Im Hintergrund bleibt alles erhalten: Workspaces, Sessions, offene Transaktionen, ausstehende Änderungen der Tabs (`TableTab`/`ChangeTracker` im Speicher; Grids laden beim Zurückkehren neu).
-- Prod-Rahmen, Topbar, Explorer und Statusleiste folgen der sichtbaren Verbindung. Offene Transaktionen anderer Verbindungen bleiben sichtbar (z. B. Hinweis in der Statusleiste „DEV: 3 Aktionen nicht committet“), damit nichts vergessen wird; Beenden fragt für alle.
-- Keep-alive für alle offenen Verbindungen; Verbindungsverlust im Hintergrund als Markierung im Umschalter, das Banner bei der sichtbaren.
-- Architektur: `ActiveConnection` wird zu einer Liste offener Verbindungen mit einer aktuellen; je Verbindung eigener `SchemaCache`, Workspaces (`WorkspaceManager` heute an genau ein Profil gehängt), C#-Modell/Präsentation und LINQ-Hilfsprozess (diese lazy, ein Hilfsprozess je Verbindung kostet Speicher). UI-Komponenten hängen sich an die aktuelle Verbindung statt an den Singleton. Schema-Vergleich unberührt (eigene Sessions).
-- Zu klären beim Start: Tastenkürzel zum schnellen Wechsel (z. B. zwischen den letzten beiden), ob offene Verbindungen nach einem Neustart wieder geöffnet werden, Obergrenze offener Verbindungen, Darstellung im Umschalter/Topbar, ob der LINQ-Hilfsprozess einer Hintergrund-Verbindung nach einer Weile beendet wird.
 
 ## 9. Offene UX-Fragen
 - Shortcut-Belegung für Commit/Rollback (Abschnitt 7) – vorläufig, Nutzerfeedback einholen.
