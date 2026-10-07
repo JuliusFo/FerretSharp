@@ -13,43 +13,86 @@ public enum JumpDirection
     Incoming,
 }
 
-/// <summary>A jump from one row along a foreign key.</summary>
+/// <summary>A jump from one or more rows along a foreign key.</summary>
 /// <param name="Table">Table to open: the referenced table (outgoing) or the referencing one (incoming).</param>
-/// <param name="Filters">Equality filters on the key columns of <paramref name="Table"/>; empty if unavailable.</param>
-/// <param name="Unavailable">Why the jump is not possible (NULL key, unsupported type); null if it is.</param>
+/// <param name="Filters">
+/// Filters on the key columns of <paramref name="Table"/>: equality per column if all rows share one key, otherwise
+/// one IN list; empty if unavailable.
+/// </param>
+/// <param name="Unavailable">Why the jump is not possible (NULL key, unsupported type, too many values); null if it is.</param>
+/// <param name="Rows">Rows the jump was built from.</param>
+/// <param name="SkippedRows">Rows left out because their key is NULL.</param>
 public sealed record FkJump(
-    ForeignKeyInfo ForeignKey, JumpDirection Direction, TableRef Table, IReadOnlyList<FilterCondition> Filters, string? Unavailable)
+    ForeignKeyInfo ForeignKey, JumpDirection Direction, TableRef Table, IReadOnlyList<FilterCondition> Filters, string? Unavailable,
+    int Rows = 1, int SkippedRows = 0)
 {
+    private const int ShownValues = 3;
+
     public bool IsAvailable => Unavailable is null;
 
-    /// <summary>The key condition, e.g. <c>KUNDE_ID = 4711</c>.</summary>
-    public string Condition => string.Join(", ", Filters.Select(f => $"{f.Column} = {f.Values[0]}"));
+    /// <summary>The key condition, e.g. <c>KUNDE_ID = 4711</c> or <c>KUNDE_ID in (4711; 4712; 4713; …) · 5 Werte</c>.</summary>
+    public string Condition => string.Join(", ", Filters.Select(f => f.Op == FilterOperator.In
+        ? $"{f.Column} in ({string.Join("; ", f.Values.Take(ShownValues))}{(f.Values.Count > ShownValues ? "; …" : "")})" +
+          $" · {f.Values.Count.ToString("N0", FkNavigation.German)} Werte"
+        : $"{f.Column} = {f.Values[0]}"));
+
+    /// <summary>E.g. "2 Zeilen ohne Wert übersprungen"; null if every row had a key.</summary>
+    public string? SkippedNote => SkippedRows switch
+    {
+        0 => null,
+        1 => "1 Zeile ohne Wert übersprungen",
+        _ => $"{SkippedRows.ToString("N0", FkNavigation.German)} Zeilen ohne Wert übersprungen",
+    };
 }
 
 /// <summary>
-/// FK navigation: turns a row's key values into filters for the related table. Filter values are written from the
-/// raw values (never from the German display text, where "1.234" would read as 1.234) in a form the filter parses
-/// back exactly.
+/// FK navigation: turns the key values of one or more rows into filters for the related table. Filter values are
+/// written from the raw values (never from the German display text, where "1.234" would read as 1.234) in a form the
+/// filter parses back exactly.
 /// </summary>
 public static class FkNavigation
 {
     /// <summary>Incoming counts give up after this; FK columns are often not indexed.</summary>
     public static readonly TimeSpan CountTimeout = TimeSpan.FromSeconds(5);
 
+    /// <summary>
+    /// A jump from several rows lists at most this many distinct values (one IN list; ORA-01795). More would make the
+    /// filter bar, the tab title and the workspace file unwieldy.
+    /// </summary>
+    public const int MaxValues = 1000;
+
+    internal static readonly CultureInfo German = CultureInfo.GetCultureInfo("de-DE");
+
     /// <summary>Outgoing jumps first, then incoming ones; each group ordered by table and constraint name.</summary>
     public static IReadOnlyList<FkJump> JumpsFor(
         TableDetails table, RowData row, IEnumerable<ForeignKeyInfo> outgoing, IEnumerable<ForeignKeyInfo> incoming) =>
-        outgoing.Select(fk => Outgoing(table, row, fk)).OrderBy(Key, StringComparer.Ordinal)
-            .Concat(incoming.Select(fk => Incoming(table, row, fk)).OrderBy(Key, StringComparer.Ordinal))
+        JumpsFor(table, [row], outgoing, incoming);
+
+    /// <inheritdoc cref="JumpsFor(TableDetails, RowData, IEnumerable{ForeignKeyInfo}, IEnumerable{ForeignKeyInfo})"/>
+    /// <param name="rows">The selected rows (at least one), in selection order.</param>
+    public static IReadOnlyList<FkJump> JumpsFor(
+        TableDetails table, IReadOnlyList<RowData> rows, IEnumerable<ForeignKeyInfo> outgoing, IEnumerable<ForeignKeyInfo> incoming) =>
+        outgoing.Select(fk => Outgoing(table, rows, fk)).OrderBy(Key, StringComparer.Ordinal)
+            .Concat(incoming.Select(fk => Incoming(table, rows, fk)).OrderBy(Key, StringComparer.Ordinal))
             .ToList();
 
     /// <summary><paramref name="row"/> belongs to <c>fk.From</c>; opens <c>fk.To</c> where its key equals the row's FK values.</summary>
-    public static FkJump Outgoing(TableDetails table, RowData row, ForeignKeyInfo fk) =>
-        Build(table, row, fk, JumpDirection.Outgoing, fk.FromColumns, fk.To, fk.ToColumns);
+    public static FkJump Outgoing(TableDetails table, RowData row, ForeignKeyInfo fk) => Outgoing(table, [row], fk);
+
+    /// <summary>
+    /// <paramref name="rows"/> belong to <c>fk.From</c>; opens <c>fk.To</c> where its key is one of the rows' FK values.
+    /// </summary>
+    public static FkJump Outgoing(TableDetails table, IReadOnlyList<RowData> rows, ForeignKeyInfo fk) =>
+        Build(table, rows, fk, JumpDirection.Outgoing, fk.FromColumns, fk.To, fk.ToColumns);
 
     /// <summary><paramref name="row"/> belongs to <c>fk.To</c>; opens <c>fk.From</c> where its FK columns equal the row's key.</summary>
-    public static FkJump Incoming(TableDetails table, RowData row, ForeignKeyInfo fk) =>
-        Build(table, row, fk, JumpDirection.Incoming, fk.ToColumns, fk.From, fk.FromColumns);
+    public static FkJump Incoming(TableDetails table, RowData row, ForeignKeyInfo fk) => Incoming(table, [row], fk);
+
+    /// <summary>
+    /// <paramref name="rows"/> belong to <c>fk.To</c>; opens <c>fk.From</c> where its FK columns hold one of the rows' keys.
+    /// </summary>
+    public static FkJump Incoming(TableDetails table, IReadOnlyList<RowData> rows, ForeignKeyInfo fk) =>
+        Build(table, rows, fk, JumpDirection.Incoming, fk.ToColumns, fk.From, fk.FromColumns);
 
     /// <summary>
     /// Filter text that parses back to exactly <paramref name="value"/>: invariant numbers, ISO dates, hex for RAW.
@@ -92,35 +135,98 @@ public static class FkNavigation
         }
     }
 
+    /// <summary>
+    /// Rows with a NULL in a key column are skipped. If all remaining rows share one key: equality per column (as for a
+    /// single row); otherwise one IN list – only for single-column keys, since the filter model has no tuple IN (it has
+    /// to translate 1:1 into a LINQ <c>Where</c>).
+    /// </summary>
     private static FkJump Build(
-        TableDetails table, RowData row, ForeignKeyInfo fk, JumpDirection direction,
+        TableDetails table, IReadOnlyList<RowData> rows, ForeignKeyInfo fk, JumpDirection direction,
         IReadOnlyList<string> rowColumns, TableRef target, IReadOnlyList<string> targetColumns)
     {
-        var filters = new List<FilterCondition>(rowColumns.Count);
-        string? unavailable = null;
-        for (var i = 0; i < rowColumns.Count && unavailable is null; i++)
+        var skipped = 0;
+        FkJump Unavailable(string reason) => new(fk, direction, target, [], reason, rows.Count, skipped);
+
+        var indexes = new int[rowColumns.Count];
+        for (var i = 0; i < rowColumns.Count; i++)
         {
-            var index = IndexOf(table, rowColumns[i]);
-            if (index < 0)
+            indexes[i] = IndexOf(table, rowColumns[i]);
+            if (indexes[i] < 0)
             {
-                unavailable = $"Spalte {rowColumns[i]} fehlt.";
-            }
-            else if (row.Values[index] is not { } value)
-            {
-                unavailable = $"{rowColumns[i]} ist NULL.";
-            }
-            else if (FilterValue(table.Columns[index], value) is { } text)
-            {
-                filters.Add(FilterCondition.Of(targetColumns[i], FilterOperator.Equals, text));
-            }
-            else
-            {
-                unavailable = $"Sprung über {table.Columns[index].DisplayType} nicht möglich.";
+                return Unavailable($"Spalte {rowColumns[i]} fehlt.");
             }
         }
 
-        return new FkJump(fk, direction, target, unavailable is null ? filters : [], unavailable);
+        var keys = new List<string[]>(rows.Count);
+        string? nullColumn = null;
+        foreach (var row in rows)
+        {
+            string[]? key = new string[indexes.Length];
+            for (var i = 0; i < indexes.Length && key is not null; i++)
+            {
+                var index = indexes[i];
+                if (row.Values[index] is not { } value)
+                {
+                    nullColumn ??= rowColumns[i];
+                    key = null;
+                }
+                else if (FilterValue(table.Columns[index], value) is { } text)
+                {
+                    key[i] = text;
+                }
+                else
+                {
+                    return Unavailable($"Sprung über {table.Columns[index].DisplayType} nicht möglich.");
+                }
+            }
+
+            if (key is null)
+            {
+                skipped++;
+            }
+            else
+            {
+                keys.Add(key);
+            }
+        }
+
+        if (keys.Count == 0)
+        {
+            return Unavailable(rows.Count == 1 ? $"{nullColumn} ist NULL."
+                : rowColumns.Count == 1 ? $"{rowColumns[0]} ist in allen {Number(rows.Count)} Zeilen NULL."
+                : $"Schlüssel ({string.Join(", ", rowColumns)}) ist in allen {Number(rows.Count)} Zeilen NULL.");
+        }
+
+        List<FilterCondition> filters;
+        if (keys.All(k => k.SequenceEqual(keys[0], StringComparer.Ordinal)))
+        {
+            filters = [.. targetColumns.Select((column, i) => FilterCondition.Of(column, FilterOperator.Equals, keys[0][i]))];
+        }
+        else if (rowColumns.Count > 1)
+        {
+            return Unavailable("Bei mehreren Zeilen nur für Schlüssel aus einer Spalte möglich.");
+        }
+        else
+        {
+            var values = keys.Select(k => k[0]).Distinct(StringComparer.Ordinal).ToArray();
+            if (values.Length > MaxValues)
+            {
+                return Unavailable($"{Number(values.Length)} verschiedene Werte – höchstens {Number(MaxValues)} möglich.");
+            }
+
+            // The filter bar splits an IN list at the separator; such a value would not survive editing the filter.
+            if (values.Any(v => v.Contains(FilterCondition.ListSeparator, StringComparison.Ordinal)))
+            {
+                return Unavailable($"Ein Wert enthält „{FilterCondition.ListSeparator}“ – bei mehreren Werten nicht möglich.");
+            }
+
+            filters = [FilterCondition.Of(targetColumns[0], FilterOperator.In, values)];
+        }
+
+        return new FkJump(fk, direction, target, filters, null, rows.Count, skipped);
     }
+
+    private static string Number(int count) => count.ToString("N0", German);
 
     private static string Key(FkJump jump) => $"{jump.Table.Name}\0{jump.Table.Owner}\0{jump.ForeignKey.Name}";
 
