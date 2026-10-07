@@ -421,7 +421,8 @@ internal sealed class DdlWriter(int referenceSide, int targetSide, string refere
         }
 
         // An index Oracle creates for a key added in this proposal (or that the key brings along via USING INDEX).
-        var backs = referenceTable.Constraints.FirstOrDefault(c => c.Type is ConstraintType.PrimaryKey or ConstraintType.Unique && created(c) && BackingIndex(referenceTable, c) == index);
+        var backs = referenceTable.Constraints.FirstOrDefault(c => c.Type is ConstraintType.PrimaryKey or ConstraintType.Unique && created(c)
+            && string.Equals(BackingIndex(referenceTable, c)?.Name, index.Name, StringComparison.Ordinal)); // payloads need not be the snapshot's instances
         if (backs is not null)
         {
             return;

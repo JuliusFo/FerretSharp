@@ -550,6 +550,23 @@ public class SchemaDdlTests
     }
 
     [Fact]
+    public void Backing_index_is_recognized_when_the_cells_carry_copies()
+    {
+        var comparison = Of(
+            Snapshot(Ref, Table("KUNDE", [Id, Column("NR", "NUMBER")], [Unique("UQ_NR", "NR")], [UniqueIndex(Ref, "UQ_NR", On("NR"))])),
+            Snapshot(Tgt, Table("KUNDE", [Id, Column("NR", "NUMBER")])));
+        var row = comparison.Objects[0];
+        var children = row.Children.Select(c => c with
+        {
+            Cells = c.Cells.Select(cell => cell.Index is { } index ? cell with { Index = index with { Columns = index.Columns.ToList() } } : cell).ToList(),
+        }).ToList();
+
+        var proposal = SchemaDdl.Align(comparison with { Objects = [row with { Children = children }] }, 0, 1);
+
+        Assert.Equal(["ALTER TABLE \"TEST\".\"KUNDE\" ADD CONSTRAINT \"UQ_NR\" UNIQUE (\"NR\")"], Sql(proposal));
+    }
+
+    [Fact]
     public void Domain_index_is_only_a_hint()
     {
         var step = Single(Align(
