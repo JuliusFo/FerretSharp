@@ -63,7 +63,7 @@ Versionierung: SemVer, Git-Tag `vX.Y.Z` pro Release (der Push des Tags veröffen
 | Logging | `Microsoft.Extensions.Logging` + **Serilog** (`Serilog.Extensions.Hosting`, `Serilog.Sinks.File`) | Datei unter `%APPDATA%\FerretSharp\logs`. Keine Bind-Werte von Prod-Verbindungen loggen (maskieren). |
 | Grid | **AG Grid Community 34.3.1** (MIT) über JS-Interop, **Infinite Row Model** | Datenblöcke à 500 und Sortierung kommen aus .NET (`IDataAccess`), gekapselt in `FerretGrid` (Tabellen) bzw. `SqlResultGrid` (SQL/LINQ) über `GridBridge` + `wwwroot/js/grid.js`; Spalten als `GridColumn`, Rohzeilen der geladenen Blöcke in `RowBlocks`. Zellen gehen als fertig formatierte Strings über die Grenze (null = NULL), Spalten-IDs `c0`, `c1` … (Oracle-Namen dürfen Punkte enthalten). **Lokal im Repo** unter `FerretSharp.UI/wwwroot/lib/ag-grid/` (Herkunft/Hash in der README dort, kein CDN). Enterprise-Features (Kontextmenü, Zellbereich) nicht verwenden – eigene Lösungen in Blazor. |
 | Layout | Tabs + Seitenleiste in Blazor | Kein Docking-Framework. |
-| SQL-Anzeige | eigener Highlighter in Razor (siehe Prototyp `TableView.razor`) | Editor für C# in der LINQ-Konsole: **Monaco 0.57** (ADR 0011, lokal unter `wwwroot/lib/monaco/`); auch im freien SQL-Editor (WP-17, mit SQL-Autovervollständigung aus .NET). |
+| SQL-Anzeige | eigener Highlighter in Razor (`SqlCode`) | Editor für C# in der LINQ-Konsole: **Monaco 0.57** (ADR 0011, lokal unter `wwwroot/lib/monaco/`); auch im freien SQL-Editor (WP-17, mit SQL-Autovervollständigung aus .NET). |
 | Oracle | `Oracle.ManagedDataAccess.Core` (23.x) | rein managed, kein Instant Client; **durchgängig async** mit `CancellationToken`. |
 | Oracle-Version | Ziel **19c+**; 12.2 sollte funktionieren | `OFFSET/FETCH`, `ALL_TAB_IDENTITY_COLS` erst ab 12c. Kein ROWNUM-Fallback. |
 | Tests | **xUnit v3** auf **Microsoft Testing Platform** + NSubstitute; Integration: **Testcontainers.Oracle** | Kein VSTest (`Microsoft.NET.Test.Sdk`/`xunit.runner.visualstudio` nicht verwenden). Image `gvenzl/oracle-free:23-slim-faststart`. Benötigt Docker. |
@@ -124,7 +124,6 @@ Regeln:
 - Was nur der Host kann (Credential Manager, native Datei-Dialoge, Fenster), definiert die UI/Core als Interface; die Implementierung liegt in `FerretSharp.App`.
 - Alles, was Oracle-spezifisch ist, liegt hinter Interfaces (`ISchemaReader`, `IDataAccess`), damit Unit-Tests mit Mocks laufen.
 - SQL-Strings entstehen ausschließlich in `Query/` (QueryBuilder) und `Oracle/` (Schema-Reader, Session-Setup, v2: DML). Komponenten in `FerretSharp.UI` enthalten kein SQL (Ausnahme: reine Anzeige eines vom QueryBuilder erzeugten Statements).
-- Der Prototyp auf Branch `spike/blazor-hybrid` (`prototypes/FerretSharp.Prototype.Blazor`) ist Referenz für Look & Feel und die AG-Grid-Brücke – Code daraus übernehmen und sauber in die Architektur einpassen, nicht 1:1 kopieren (Fake-Daten, SQL im UI).
 - `QueryBuilder` kennt den Oracle-Treiber nicht: Er liefert eigene `QueryParameter`, das Mapping auf `OracleParameter` passiert in `OracleSession`.
 
 ## 5. Domänenmodell
@@ -312,7 +311,6 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 - Native `<select>`, deren Optionen sich ändern (Operator je Spaltentyp), brauchen `@key` auf die Optionsmenge: Bleibt der Wert gleich, setzt Blazor ihn nicht neu, und der Browser zeigt die erste Option (in v1.5 gefunden).
 - Kontextmenü (FK-Navigation, Kopieren) und Dialoge sind Blazor-Komponenten; AG Grid meldet nur das `cellContextMenu`-Event (Zeilenindex, Spalte, Mausposition), `grid.js` unterdrückt das WebView-Kontextmenü im Grid (`GridContextMenu`).
 - Ansichten eines Tabs (v1.7, flach nebeneinander, Entscheidung des Nutzers): Daten | Spalten | Constraints | Indizes | Abhängigkeiten | DDL (`TabMode`, gespeichert). Über allen Nicht-Daten-Ansichten steht `ObjectHeader` (Kommentar, Status, Daten, Statistik). Jede Ansicht mountet beim ersten Öffnen und bleibt dann (wie das Grid); die Detailansichten erben von `DetailViewBase<T>` (Laden auf der Explorer-Session, Abbruch, Fehler, Neuladen über `Version` = F5). Ab etwa zehn Einträgen die seltenen unter „Mehr ▾“ zusammenfassen.
-- Look & Feel und Interaktionen: siehe Prototyp (Branch `spike/blazor-hybrid`).
 
 **Shortcuts**
 
