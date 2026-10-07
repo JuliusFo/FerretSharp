@@ -11,11 +11,12 @@
 <div class="settings-page compare-page">
     <div class="page-head">
         <h1>Schema-Vergleich</h1>
-        <select class="compare-saved" title="Gespeicherte Vergleiche" @onchange="OpenSaved">
-            <option value="" selected="@(!Compare.IsSaved)">@(Compare.IsSaved ? "Neuer Vergleich" : "– nicht gespeichert –")</option>
+        @* value, not selected=: after the user picked an option the browser ignores the attribute (CLAUDE.md section 7). *@
+        <select class="compare-saved" title="Gespeicherte Vergleiche" value="@(Compare.IsSaved ? Compare.Current.Id.ToString() : "")" @onchange="OpenSaved">
+            <option value="">@(Compare.IsSaved ? "Neuer Vergleich" : "– nicht gespeichert –")</option>
             @foreach (var saved in Compare.Saved)
             {
-                <option value="@saved.Id" selected="@(saved.Id == Compare.Current.Id)">@saved.Name</option>
+                <option value="@saved.Id">@saved.Name</option>
             }
         </select>
         <button class="btn" @onclick="() => StartSaving(asNew: false)">Speichern …</button>
@@ -43,11 +44,11 @@
                 var profile = Connections.Profiles.FirstOrDefault(p => p.Id == state.Side.ConnectionId);
                 <div class="compare-side">
                     <span class="compare-side-no">@(index + 1)</span>
-                    <select title="Verbindung" disabled="@Compare.Loading" @onchange="e => SetConnection(index, e.Value as string)">
-                        <option value="" selected="@(profile is null)">Verbindung wählen …</option>
+                    <select title="Verbindung" disabled="@Compare.Loading" value="@(profile?.Id.ToString() ?? "")" @onchange="e => SetConnection(index, e.Value as string)">
+                        <option value="">Verbindung wählen …</option>
                         @foreach (var p in Connections.Profiles)
                         {
-                            <option value="@p.Id" selected="@(p.Id == state.Side.ConnectionId)">@p.Name</option>
+                            <option value="@p.Id">@p.Name</option>
                         }
                     </select>
                     <input class="compare-schema mono" placeholder="@(profile?.EffectiveSchema ?? "Schema")" title="Schema (leer: das der Verbindung)"
