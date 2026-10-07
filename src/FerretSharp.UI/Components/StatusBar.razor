@@ -6,9 +6,7 @@
 @using FerretSharp.UI.State
 @implements IAsyncDisposable
 @inject ConnectionManager Connections
-@inject ActiveConnection Active
-@inject WorkspaceManager Workspaces
-@inject ClrModelManager Models
+@inject ConnectionHub Hub
 
 <footer class="statusbar">
     @if (Connections.LoadError is { } loadError)
@@ -75,10 +73,25 @@
         </span>
     }
     <span class="spacer"></span>
+    @foreach (var other in Hub.Open.Where(s => s != Hub.Current && HasWork(s)))
+    {
+        @* WP-24: uncommitted work in a connection in the background must not be forgotten. *@
+        <button class="status-link warn" title="Nicht committete Änderungen in „@other.Profile?.Name“ – klicken zum Wechseln"
+                @onclick="() => Show(other)">@other.Profile?.Name: nicht committet</button>
+    }
     <span class="item">@Version</span>
 </footer>
 
 @code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceManager Workspaces { get; set; } = null!;
+
+    [CascadingParameter]
+    public ClrModelManager Models { get; set; } = null!;
+
     /// <summary>An open writing transaction older than this is shown as a warning: it holds row locks.</summary>
     private static readonly TimeSpan LongTransaction = TimeSpan.FromMinutes(10);
 
@@ -95,11 +108,20 @@
 
     private WorkspaceEditing Editing => Lifecycle.Editing;
 
+    private bool HasWork(ConnectionScope scope) =>
+        Shell.AllWorkspaces.Where(w => w.ConnectionId == scope.Id).Any(w => Editing.SummaryOf(w).HasWork);
+
+    private void Show(ConnectionScope scope)
+    {
+        Hub.Show(scope);
+        Shell.ShowExplorer();
+    }
+
     /// <summary>The age of an open transaction counts up.</summary>
     protected override void OnInitialized() =>
         _ticker = new Timer(_ => InvokeAsync(() =>
         {
-            if (Editing.WithWork().Count > 0)
+            if (Editing.WithWork().Count > 0) // all connections
             {
                 StateHasChanged();
             }

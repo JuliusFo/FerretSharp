@@ -2,8 +2,6 @@
    tabs that can be renamed, and the buttons for new SQL/LINQ tabs. *@
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.UI.State
-@inject PresentationService Presentations
-@inject ClrModelManager Models
 
 <nav class="tabs">
     @foreach (var tab in Shell.Tabs)
@@ -61,6 +59,12 @@
 </nav>
 
 @code {
+    [CascadingParameter]
+    public PresentationService Presentations { get; set; } = null!;
+
+    [CascadingParameter]
+    public ClrModelManager Models { get; set; } = null!;
+
     /// <summary>The SQL or LINQ tab whose title is being edited.</summary>
     private WorkspaceTab? _renaming;
 

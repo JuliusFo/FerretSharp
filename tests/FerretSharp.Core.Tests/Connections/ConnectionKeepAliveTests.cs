@@ -31,8 +31,10 @@ public sealed class ConnectionKeepAliveTests : IDisposable
         _workspaces = new WorkspaceManager(new InMemoryWorkspaceStore(), connections, _connector);
         _active = new ActiveConnection(connections, _connector, new RecentConnections(Path.Combine(_directory, "recent.json")), _workspaces);
         _settings = new AppSettingsService(new SettingsStore(Path.Combine(_directory, "settings.json")), AppSettings.Default);
-        _keepAlive = new ConnectionKeepAlive(_active, _settings, _time);
-        _keepAlive.ConnectionLost += _lost.Add;
+        var open = Substitute.For<IOpenConnections>();
+        open.All.Returns([_active]);
+        _keepAlive = new ConnectionKeepAlive(open, _settings, _time);
+        _keepAlive.ConnectionLost += (_, error) => _lost.Add(error);
 
         var reader = Substitute.For<ISchemaReader>();
         reader.GetTablesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);

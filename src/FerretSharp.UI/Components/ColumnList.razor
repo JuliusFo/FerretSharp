@@ -6,8 +6,6 @@
 @using FerretSharp.Core.Schema
 @using FerretSharp.UI.State
 @implements IAsyncDisposable
-@inject ActiveConnection Active
-@inject PresentationService Presentations
 @inject IJSRuntime JS
 
 <div class="col-list">
@@ -41,6 +39,12 @@
 </div>
 
 @code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public PresentationService Presentations { get; set; } = null!;
+
     private readonly string _id = "cols-" + Guid.NewGuid().ToString("N");
     private IReadOnlyList<int> _matches = [];
     private TablePresentation _presentation = null!;

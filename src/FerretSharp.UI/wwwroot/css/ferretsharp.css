@@ -902,3 +902,8 @@ table.compare-matrix td.different.g3 { background: rgba(48, 164, 108, 0.14); }
 .compare-none { padding: 18px 16px; color: var(--muted); }
 .compare-ddl-dialog header select { height: 28px; max-width: 260px; }
 .compare-ddl-note { margin: 0; padding: 8px 16px; border-bottom: 1px solid var(--border); }
+.scope-explorer { display: contents; }
+.scope-explorer.hidden { display: none; }
+.connected-tag.lost { background: var(--danger-weak); color: var(--danger); }
+.connected-tag.tx { background: rgba(192, 122, 0, 0.14); color: #c07a00; }
+.conn-row .btn.small { height: 22px; padding: 0 8px; font-size: 11.5px; }

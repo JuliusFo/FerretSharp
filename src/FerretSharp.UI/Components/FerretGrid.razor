@@ -7,14 +7,20 @@
 @using FerretSharp.UI.State
 @implements IAsyncDisposable
 @inject IJSRuntime JS
-@inject ActiveConnection Active
-@inject WorkspaceManager Workspaces
-@inject PresentationService Presentations
 @inject ILogger<FerretGrid> Logger
 
 <div id="@Tab.Id" class="ag-host"></div>
 
 @code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceManager Workspaces { get; set; } = null!;
+
+    [CascadingParameter]
+    public PresentationService Presentations { get; set; } = null!;
+
     private readonly RowBlocks _blocks = new();
 
     /// <summary>grid.js; does nothing once disposed, so queued change handlers cannot touch the released module.</summary>

@@ -5,8 +5,6 @@
 @using FerretSharp.Core.Schema
 @using FerretSharp.UI.State
 @implements IDisposable
-@inject ClrModelManager Models
-@inject ActiveConnection Active
 @inject ConnectionManager Connections
 
 <div class="settings-page model-page">
@@ -204,6 +202,12 @@
 </div>
 
 @code {
+    [CascadingParameter]
+    public ClrModelManager Models { get; set; } = null!;
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
     private bool _showDetail;
 
     private static readonly (MappingIssueKind Kind, string Title, string Hint)[] IssueGroups =

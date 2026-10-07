@@ -2,7 +2,7 @@
 
 > Projektanweisungen für Claude Code. Bitte vollständig lesen, bevor ein Arbeitspaket umgesetzt wird.
 > Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-07 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0; WP-14 → 2.4.0; WP-15 → 3.0.0, v3 abgeschlossen; v4: WP-16 → 3.1.0, WP-17 → 3.2.0, WP-18 → 3.3.0, Leerzeichen nach Vorschlägen 3.3.1, Tabs umbenennen 3.4.0; WP-19 → 3.5.0; Stabilisierung R1 → 3.6.0, Protokolle nach `docs/work-packages.md`; Struktur-Refactoring R2 → 3.6.1; WP-20 → 3.7.0)
+> Stand: 2026-10-07 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0; WP-14 → 2.4.0; WP-15 → 3.0.0, v3 abgeschlossen; v4: WP-16 → 3.1.0, WP-17 → 3.2.0, WP-18 → 3.3.0, Leerzeichen nach Vorschlägen 3.3.1, Tabs umbenennen 3.4.0; WP-19 → 3.5.0; Stabilisierung R1 → 3.6.0, Protokolle nach `docs/work-packages.md`; Struktur-Refactoring R2 → 3.6.1; WP-20 → 3.7.0; WP-24 → 3.8.0)
 
 ## 1. Ziel
 
@@ -186,7 +186,7 @@ enum FkSource { Declared, Manual, Convention, ClrModel }   // ClrModel: Navigati
 - `DATA_DEFAULT` ist `LONG` → `OracleSession` setzt `InitialLONGFetchSize` (4000).
 - **Immer nach `OWNER` filtern.** `ALL_TAB_COLUMNS` ist auf großen Datenbanken langsam → Tabellenliste und alle FKs des Schemas beim Connect laden, Spalten/Keys lazy pro Tabelle (`SchemaCache`). Cachen, manuell refreshbar.
 - Schema-Name aus dem Profil wird normalisiert (`OracleIdentifier.Normalize`): `erp` → `ERP`, `"Erp"` bleibt `Erp`.
-- Verbindungsaufbau: `ActiveConnection` (genau eine aktive Verbindung) öffnet die Explorer-Session über `IDatabaseConnector`, lädt den `SchemaCache`, hängt die Workspaces an (`WorkspaceManager.AttachAsync`) und merkt die Nutzung in `recent.json` (`RecentConnections`). Trennen speichert die Workspaces und schließt alle Sessions. Oracle-Fehler kommen als `DatabaseException` mit ORA-Code an.
+- Verbindungsaufbau: Seit WP-24 können mehrere Verbindungen offen sein, eine davon sichtbar (`ConnectionHub` in UI/State: je offene Verbindung ein DI-Scope `ConnectionScope` mit eigener `ActiveConnection`, `WorkspaceManager`, `ClrModelManager`, `PresentationService`, `LinqConsoleService`; `Current`/`Previous`/`Shown`, `Idle` als Platzhalter ohne Verbindung). Je Verbindung öffnet `ActiveConnection` die Explorer-Session über `IDatabaseConnector`, lädt den `SchemaCache`, hängt die Workspaces an (`WorkspaceManager.AttachAsync`) und merkt die Nutzung in `recent.json` (`RecentConnections`). Trennen speichert die Workspaces und schließt alle Sessions. Oracle-Fehler kommen als `DatabaseException` mit ORA-Code an.
 
 ### 5.4 Filter & Query
 ```csharp
@@ -299,7 +299,7 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 │           │ 2 Flushed · Tx seit 4 min · [Flush][Commit][Rollback]│
 └───────────┴─────────────────────────────────────────────────────┘
 ```
-- **Verbindungen** (es sind im Alltag 12+): oben links nur die aktive Verbindung als Umschalter. Klick oder `Ctrl+Shift+O` öffnet ein Popover mit Suche, „Zuletzt verwendet“ (ab WP-03), einklappbaren Gruppen und Pfeiltasten-/Enter-Bedienung; „⋯“ je Zeile → Bearbeiten, Duplizieren, Löschen (mit Bestätigung).
+- **Verbindungen** (es sind im Alltag 12+): oben links nur die sichtbare Verbindung als Umschalter. Seit WP-24 bleiben gewechselte Verbindungen im Hintergrund offen (Abschnitt „Offen“ im Umschalter mit „angezeigt“/„verbunden“/„N Aktionen offen“/„Verbindung verloren“ und „Trennen“); `Alt+O` springt zur vorigen. Nicht committete Arbeit im Hintergrund steht in der Statusleiste; eine im Hintergrund verlorene Verbindung wird beim Wechsel mit Banner gezeigt (neu verbunden erst über „Neu verbinden“). Klick oder `Ctrl+Shift+O` öffnet ein Popover mit Suche, „Zuletzt verwendet“ (ab WP-03), einklappbaren Gruppen und Pfeiltasten-/Enter-Bedienung; „⋯“ je Zeile → Bearbeiten, Duplizieren, Löschen (mit Bestätigung).
 - **Startseite „Verbindungen“**: Übersicht aller Verbindungen nach Gruppen (Name, Umgebung, Adresse, Benutzer → Schema, „⋯“-Menü). Erscheint, solange keine Verbindung aktiv ist, und über „Alle Verbindungen verwalten …“ im Popover. Doppelklick verbindet (ab WP-03; bis dahin: bearbeiten).
 - **Chips in der Topbar** sind die Workspaces der aktiven Verbindung (WP-05), nicht die Verbindungen.
 - Tabellenliste alphabetisch (Tabellen und Views unterscheidbar), Buchstabenleiste links: Klick springt zur ersten Tabelle mit diesem Buchstaben; Buchstaben ohne Treffer ausgegraut. (Fuzzy-Suche = Backlog.)
@@ -317,6 +317,7 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 | Taste | Aktion | Version |
 |---|---|---|
 | Ctrl+Shift+O | Verbindungs-Umschalter öffnen | v1 |
+| Alt+O | Zur vorigen offenen Verbindung wechseln (ohne Trennen) | WP-24 |
 | Ctrl+Enter | Filter anwenden | v1 |
 | Ctrl+C | Im Grid: Wert der fokussierten Zelle; bei mehreren markierten Zeilen diese als Tabelle (Tab-getrennt, mit Kopfzeile). Mit der Maus markierter Text innerhalb einer Zelle wird normal kopiert. Kopiert wird immer der volle Wert (`DelimitedExport.CellText`), nicht der gekürzte Anzeigetext. | v1.3 |
 | F5 | Refresh (v2 in Read-only-Tx: neue Transaktion) | v1 |
@@ -337,6 +338,7 @@ UI-Muster (seit R2):
 - Jeder Dialog nutzt `ModalFrame` (Hintergrund, Rolle, Esc, Klick daneben nur bei reinen Anzeige-Dialogen, Fokus).
 - DB-Aufrufe aus Komponenten laufen über `Shell.RunDbAsync(Logger, Active.Profile, …)` (bzw. `CallDbAsync` auf dem UI-Thread). Das ergibt einheitlich `DbResult` mit Fehler (geloggt, Verbindungsverlust gemeldet), Ablehnung (`RefusedException` → Meldung) oder Abbruch (still). Fachliche Ablehnungen im Core sind `RefusedException`, Programmierfehler-Sperren bleiben `InvalidOperationException`.
 - JSInvokable-Methoden werfen keine Ausnahmen an JS zurück (Blazor lässt die Task unbeobachtet → `[ERR]` im Log), sondern melden Fehler im Ergebnis (`GridPage.Failed`).
+- Dienste einer Verbindung (`ActiveConnection`, `WorkspaceManager`, `ClrModelManager`, `PresentationService`, `LinqConsoleService`) sind **Scoped** und kommen als `[CascadingParameter]` über `ConnectionScopeView`, **nie per `@inject`** (sonst bekäme die Komponente die Instanz des WebView-Scopes, eine Geisterverbindung). Explorer und Tab-Seiten jeder offenen Verbindung stehen unter deren eigenem `ConnectionScopeView` und bleiben gemountet; Leisten, Dialoge und Seiten hängen an `Hub.Shown` und sind darauf gekeyt (Geschwister brauchen verschiedene Keys). Aktionen auf einem Workspace laufen über `ConnectionHub.OwnerOf(workspaceId)`.
 - Komponenten ohne Parameter rendern bei Parent-Updates **nicht** neu → sie abonnieren `ShellState.Changed` bzw. `ConnectionManager.Changed`/`WorkspaceManager.Changed` selbst. Tab-Zustand, der kein Neurendern braucht (Tippen im Filter, Scrollen, Sortieren), meldet `ShellState.MarkDirty()`; der Lifecycle reicht dann die Tabs aller offenen Workspaces an `WorkspaceManager.UpdateTabs` weiter (speichert nur bei Änderung).
 
 Blazor kennt **kein `auxclick`-Event**: `@onauxclick` wird kommentarlos als HTML-Attribut ausgegeben und tut nichts (so war Mittelklick-Schließen der Tabs seit WP-04 wirkungslos). Mittelklick über `@onmouseup` mit `e.Button == 1`.
@@ -377,6 +379,7 @@ Umsetzungsprotokolle (was gebaut wurde, Entscheidungen des Nutzers, Nachträge, 
 | R1 | Stabilisierung nach Code-Review, gemeinsamer Undo-Stapel | 3.6.0 | – |
 | R2 | Struktur-Refactoring (DB-Aufrufe, Dialoge, Shell, Session, Grid-Brücke) | 3.6.1 | – |
 | WP-20 | Schema-Vergleich: N Schemas als Matrix, gespeicherte Vergleiche, DDL-Vorschlag | 3.7.0 | – |
+| WP-24 | Mehrere offene Verbindungen, eine sichtbar (Alt+O zur vorigen) | 3.8.0 | – |
 
 **Kontext des Nutzers** (wichtig für die kommenden Pakete):
 - DB-first von Hand: erst die DB ändern, dann Entity/Konfiguration; keine Migrations. Namenskonvention im Code (Tabellen groß, `KundenId` → `KUNDEN_ID`), **eigene Value Converter** (bool ↔ J/N, Enum-Kürzel), Enum-Member mit `[Display(ResourceType = …, Name = …)]`. Ein DbContext in einer Klassenbibliothek (Konstruktor `DbContextOptions`), Entities in einem anderen Projekt, EF Core 8.
@@ -397,15 +400,6 @@ Umsetzungsprotokolle (was gebaut wurde, Entscheidungen des Nutzers, Nachträge, 
 ### Geplant (v4)
 
 Pakete aus dem Backlog, nach v3 mit dem Nutzer ausgewählt (2026-10-05). Versionen: Minor-Releases 3.x (nichts Inkompatibles).
-
-#### WP-24 Mehrere offene Verbindungen (geplant, als nächstes – vor WP-21, Entscheidung des Nutzers 2026-10-07)
-Wunsch des Nutzers (2026-10-07): beim Entwickeln auf DEV arbeiten und für kurze Anrufe auf PROD nachsehen – ohne DEV zu trennen und ohne zweite Instanz. Entschieden: **mehrere Verbindungen gleichzeitig offen, eine davon sichtbar** (keine gemischten Tabs verschiedener Verbindungen in einem Fenster – der Prod-Rahmen muss eindeutig bleiben).
-- Der Verbindungs-Umschalter wechselt die sichtbare Verbindung ohne Trennen; offene Verbindungen sind dort markiert (verbunden, offene Transaktion). Trennen ausdrücklich je Verbindung.
-- Im Hintergrund bleibt alles erhalten: Workspaces, Sessions, offene Transaktionen, ausstehende Änderungen der Tabs (`TableTab`/`ChangeTracker` im Speicher; Grids laden beim Zurückkehren neu).
-- Prod-Rahmen, Topbar, Explorer und Statusleiste folgen der sichtbaren Verbindung. Offene Transaktionen anderer Verbindungen bleiben sichtbar (z. B. Hinweis in der Statusleiste „DEV: 3 Aktionen nicht committet“), damit nichts vergessen wird; Beenden fragt für alle.
-- Keep-alive für alle offenen Verbindungen; Verbindungsverlust im Hintergrund als Markierung im Umschalter, das Banner bei der sichtbaren.
-- Architektur: `ActiveConnection` wird zu einer Liste offener Verbindungen mit einer aktuellen; je Verbindung eigener `SchemaCache`, Workspaces (`WorkspaceManager` heute an genau ein Profil gehängt), C#-Modell/Präsentation und LINQ-Hilfsprozess (diese lazy, ein Hilfsprozess je Verbindung kostet Speicher). UI-Komponenten hängen sich an die aktuelle Verbindung statt an den Singleton. Schema-Vergleich unberührt (eigene Sessions).
-- Zu klären beim Start: Tastenkürzel zum schnellen Wechsel (z. B. zwischen den letzten beiden), ob offene Verbindungen nach einem Neustart wieder geöffnet werden, Obergrenze offener Verbindungen, Darstellung im Umschalter/Topbar, ob der LINQ-Hilfsprozess einer Hintergrund-Verbindung nach einer Weile beendet wird.
 
 #### WP-21 Formularansicht einer Zeile (geplant)
 Wunsch des Nutzers (2026-10-06), vor DDL und Tabellen-Designer. Für breite Tabellen (VERTRAG mit 71 Spalten).

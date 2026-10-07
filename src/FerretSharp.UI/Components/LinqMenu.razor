@@ -5,7 +5,6 @@
 @using FerretSharp.Core.Schema
 @using FerretSharp.UI.State
 @implements IAsyncDisposable
-@inject PresentationService Presentations
 @inject IJSRuntime JS
 
 <button class="btn ghost" title="Die Filter als LINQ über die Entity @Presentations.For(Details).EntityName" @onclick="Open">C# ▾</button>
@@ -20,6 +19,9 @@
 }
 
 @code {
+    [CascadingParameter]
+    public PresentationService Presentations { get; set; } = null!;
+
     private const double MenuWidth = 220;
 
     private bool _open;

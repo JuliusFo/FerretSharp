@@ -2,7 +2,6 @@
 @using FerretSharp.Core.Workspaces
 @using FerretSharp.UI.State
 @implements IAsyncDisposable
-@inject WorkspaceManager Workspaces
 @inject IJSRuntime JS
 
 <div class="workspaces">
@@ -100,6 +99,9 @@
 }
 
 @code {
+    [CascadingParameter]
+    public WorkspaceManager Workspaces { get; set; } = null!;
+
     private ElementReference _renameInput;
     private Guid? _renaming;
     private bool _focusRename;

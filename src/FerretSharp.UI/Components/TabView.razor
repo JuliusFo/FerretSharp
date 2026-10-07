@@ -5,9 +5,6 @@
 @using FerretSharp.Core.Schema
 @using FerretSharp.UI.State
 @implements IDisposable
-@inject ActiveConnection Active
-@inject WorkspaceManager Workspaces
-@inject PresentationService Presentations
 @inject ILogger<TabView> Logger
 
 <div class="tabview">
@@ -197,6 +194,15 @@
 }
 
 @code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceManager Workspaces { get; set; } = null!;
+
+    [CascadingParameter]
+    public PresentationService Presentations { get; set; } = null!;
+
     private TableDetails? _details;
     private (QuerySpec FirstPage, QuerySpec Whole)? _plan;
     private DatabaseException? _loadError;
