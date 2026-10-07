@@ -1,0 +1,420 @@
+@* Schema comparison (WP-20): N connections or schemas side by side as a matrix – objects as rows, sides as columns.
+   Its own page: it belongs to no workspace and no transaction and opens its own short-lived sessions. *@
+@using FerretSharp.Core.Compare
+@using FerretSharp.Core.Connections
+@using FerretSharp.UI.State
+@implements IAsyncDisposable
+@inject SchemaCompareService Compare
+@inject ConnectionManager Connections
+@inject IJSRuntime JS
+
+<div class="settings-page compare-page">
+    <div class="page-head">
+        <h1>Schema-Vergleich</h1>
+        @* value, not selected=: after the user picked an option the browser ignores the attribute (CLAUDE.md section 7). *@
+        <select class="compare-saved" title="Gespeicherte Vergleiche" value="@(Compare.IsSaved ? Compare.Current.Id.ToString() : "")" @onchange="OpenSaved">
+            <option value="">@(Compare.IsSaved ? "Neuer Vergleich" : "– nicht gespeichert –")</option>
+            @foreach (var saved in Compare.Saved)
+            {
+                <option value="@saved.Id">@saved.Name</option>
+            }
+        </select>
+        <button class="btn" @onclick="() => StartSaving(asNew: false)">Speichern …</button>
+        @if (Compare.IsSaved)
+        {
+            <button class="btn ghost" @onclick="() => StartSaving(asNew: true)">Kopie speichern …</button>
+            <button class="btn ghost" @onclick="() => _confirmDelete = true">Löschen</button>
+        }
+        <span class="grow"></span>
+        <button class="btn ghost" @onclick="OnBack">Zurück</button>
+    </div>
+
+    @if (Compare.StoreError is { } storeError)
+    {
+        <div class="test-result error compare-store-error"><span>@storeError</span></div>
+    }
+
+    <section class="settings-section">
+        <h2>Seiten</h2>
+        <div class="compare-sides">
+            @for (var i = 0; i < Compare.Sides.Count; i++)
+            {
+                var index = i;
+                var state = Compare.Sides[index];
+                var profile = Connections.Profiles.FirstOrDefault(p => p.Id == state.Side.ConnectionId);
+                <div class="compare-side">
+                    <span class="compare-side-no">@(index + 1)</span>
+                    <select title="Verbindung" disabled="@Compare.Loading" value="@(profile?.Id.ToString() ?? "")" @onchange="e => SetConnection(index, e.Value as string)">
+                        <option value="">Verbindung wählen …</option>
+                        @foreach (var p in Connections.Profiles)
+                        {
+                            <option value="@p.Id">@p.Name</option>
+                        }
+                    </select>
+                    <input class="compare-schema mono" placeholder="@(profile?.EffectiveSchema ?? "Schema")" title="Schema (leer: das der Verbindung)"
+                           value="@state.Side.Schema" disabled="@Compare.Loading" @onchange="e => SetSchema(index, e.Value as string)" />
+                    <label class="compare-ref" title="Die anderen Seiten werden an dieser gemessen">
+                        <input type="checkbox" checked="@(Compare.Current.Reference == index)" @onchange="e => SetReference(index, e.Value is true)" />
+                        Referenz
+                    </label>
+                    <span class="compare-side-status">
+                        @if (state.Loading)
+                        {
+                            <span class="spinner small"></span> @(state.Step ?? "Warte")
+                        }
+                        else if (state.NeedsPassword && profile is not null)
+                        {
+                            <input type="password" class="compare-password" placeholder="Passwort für @profile.Name" title="Nur für diesen Vergleich, wird nicht gespeichert"
+                                   value="@_passwords.GetValueOrDefault(profile.Id)" @onchange="e => _passwords[profile.Id] = e.Value as string ?? string.Empty" />
+                            <button class="btn" @onclick="() => UsePassword(profile.Id)">Laden</button>
+                        }
+                        else if (state.Error is { } error)
+                        {
+                            <span class="error" title="@error.Message">@error.Display</span>
+                        }
+                        else if (state.Snapshot is { } snapshot)
+                        {
+                            <span class="muted">
+                                @snapshot.Objects.Count.ToString("N0", CultureInfo.CurrentCulture) Objekte ·
+                                @snapshot.ReadAt.ToLocalTime().ToString("HH:mm", CultureInfo.CurrentCulture)
+                            </span>
+                            @if (snapshot.Objects.Count == 0)
+                            {
+                                <span class="warn" title="Schema leer, falsch geschrieben oder für diesen Benutzer nicht sichtbar">leer</span>
+                            }
+                        }
+                    </span>
+                    <button class="icon-btn ghost" title="Seite entfernen" disabled="@(Compare.Sides.Count <= 1 || Compare.Loading)"
+                            @onclick="() => RemoveSide(index)">✕</button>
+                </div>
+            }
+            <div class="compare-actions">
+                <button class="btn ghost" disabled="@Compare.Loading" @onclick="AddSide">+ Seite</button>
+                <label class="check" title="Unterschiedliche Reihenfolge der Spalten als Abweichung zeigen">
+                    <input type="checkbox" checked="@Compare.Current.ColumnOrder" @onchange="e => SetColumnOrder(e.Value is true)" />
+                    Spaltenreihenfolge vergleichen
+                </label>
+                <span class="grow"></span>
+                @if (Compare.Loading)
+                {
+                    <button class="btn" @onclick="Compare.Cancel">Abbrechen</button>
+                }
+                else
+                {
+                    <button class="btn primary" disabled="@(!CanCompare)" @onclick="() => Compare.CompareAsync()">Vergleichen</button>
+                }
+            </div>
+        </div>
+    </section>
+
+    @if (Compare.Result is { } result)
+    {
+        <section class="settings-section compare-result">
+            <div class="compare-toolbar">
+                <label class="check">
+                    <input type="checkbox" checked="@Compare.Current.OnlyDifferences" @onchange="e => SetOnlyDifferences(e.Value is true)" />
+                    Nur Unterschiede
+                </label>
+                @foreach (var (label, kinds) in KindFilters)
+                {
+                    <label class="check">
+                        <input type="checkbox" checked="@IsShown(kinds)" @onchange="e => SetKinds(kinds, e.Value is true)" />
+                        @label
+                    </label>
+                }
+                <input class="compare-search" placeholder="Objekt suchen" @bind="_search" @bind:event="oninput" />
+                <span class="grow"></span>
+                <span class="muted">@Summary(result)</span>
+                <button class="btn" @onclick="CopyMarkdownAsync">Als Markdown kopieren</button>
+                <button class="btn" disabled="@(result.Sides.Count < 2)" @onclick="() => _ddl = true">DDL-Vorschlag …</button>
+            </div>
+            <div class="compare-matrix-wrap">
+                <table class="compare-matrix">
+                    <thead>
+                        <tr>
+                            <th>Objekt</th>
+                            @for (var i = 0; i < result.Sides.Count; i++)
+                            {
+                                <th class="@(result.Options.Reference == i ? "ref" : "")">@Labels[i]@(result.Options.Reference == i ? " (Referenz)" : "")</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in VisibleObjects(result))
+                        {
+                            var open = _open.Contains(row.Key);
+                            var children = Children(row).ToList();
+                            <tr class="object @(row.HasDifferences ? "differs" : "")" @onclick="() => Toggle(row.Key)">
+                                <td class="name">
+                                    <span class="twisty">@(children.Count > 0 ? open ? "▾" : "▸" : "")</span>
+                                    @Icons.For(KindOf(row))
+                                    <span class="mono">@row.Name</span>
+                                    @if (!row.Differs && row.HasDifferences)
+                                    {
+                                        <span class="compare-count">@children.Count(c => c.Differs)</span>
+                                    }
+                                </td>
+                                @foreach (var cell in row.Cells)
+                                {
+                                    <CompareCellView Cell="cell" />
+                                }
+                            </tr>
+                            @if (open)
+                            {
+                                @foreach (var child in children)
+                                {
+                                    <tr class="child @(child.Differs ? "differs" : "")">
+                                        <td class="name mono" title="@KindText(child.Kind)"><span class="kind">@KindShort(child.Kind)</span>@child.Name</td>
+                                        @foreach (var cell in child.Cells)
+                                        {
+                                            <CompareCellView Cell="cell" />
+                                        }
+                                    </tr>
+                                }
+                            }
+                        }
+                    </tbody>
+                </table>
+                @if (!VisibleObjects(result).Any())
+                {
+                    <div class="compare-none">@(result.Objects.Any(o => o.HasDifferences) ? "Kein Objekt passt zu den Filtern." : "Keine Unterschiede.")</div>
+                }
+            </div>
+        </section>
+    }
+</div>
+
+@if (_saving)
+{
+    <ModalFrame Label="Vergleich speichern" Class="compare-save-dialog" OnCancel="() => _saving = false" FocusOnOpen="true">
+        <header><span>@(_saveAsNew ? "Kopie speichern" : "Vergleich speichern")</span></header>
+        <div class="dialog-body form-grid">
+            <label for="cmp-name">Name</label>
+            <input id="cmp-name" class="field" maxlength="@SavedComparison.MaxNameLength" @bind="_saveName" @bind:event="oninput" placeholder="z. B. ERP: Dev/Test/Prod" />
+        </div>
+        <footer>
+            <span class="spacer"></span>
+            <button class="btn ghost" @onclick="() => _saving = false">Abbrechen</button>
+            <button class="btn primary" disabled="@string.IsNullOrWhiteSpace(_saveName)" @onclick="SaveAsync">Speichern</button>
+        </footer>
+    </ModalFrame>
+}
+
+@if (_confirmDelete)
+{
+    <ConfirmDialog Title="Vergleich löschen" ConfirmLabel="Löschen" Danger="true" OnConfirm="DeleteAsync" OnCancel="() => _confirmDelete = false">
+        Den gespeicherten Vergleich <strong>@Compare.Current.Name</strong> löschen? Die Verbindungen bleiben.
+    </ConfirmDialog>
+}
+
+@if (_ddl && Compare.Result is { } ddlResult)
+{
+    <SchemaDdlDialog Comparison="ddlResult" Labels="Labels" OnClose="() => _ddl = false" />
+}
+
+@code {
+    private static readonly (string Label, CompareKind[] Kinds)[] KindFilters =
+    [
+        ("Objekte", [CompareKind.Table, CompareKind.View, CompareKind.MaterializedView]),
+        ("Spalten", [CompareKind.Column]),
+        ("Constraints", [CompareKind.PrimaryKey, CompareKind.Unique, CompareKind.ForeignKey, CompareKind.Check]),
+        ("Indizes", [CompareKind.Index]),
+    ];
+
+    private readonly HashSet<string> _open = [];
+    private readonly Dictionary<Guid, string> _passwords = new();
+    private IJSObjectReference? _dom;
+    private string _search = "";
+    private bool _saving;
+    private bool _saveAsNew;
+    private string _saveName = "";
+    private bool _confirmDelete;
+    private bool _ddl;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnBack { get; set; }
+
+    private bool CanCompare => Compare.Sides.Count > 0 && Compare.Sides.All(s => s.Side.ConnectionId != Guid.Empty);
+
+    /// <summary>Headers of the matrix columns (the sides that loaded).</summary>
+    private IReadOnlyList<string> Labels => Compare.ResultSides.Select(i => Compare.Label(Compare.Sides[i].Side)).ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Compare.Changed += OnChanged;
+        await Compare.EnsureLoadedAsync();
+    }
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private void OpenSaved(ChangeEventArgs e)
+    {
+        _open.Clear();
+        if (Guid.TryParse(e.Value as string, out var id) && Compare.Saved.FirstOrDefault(s => s.Id == id) is { } saved)
+        {
+            Compare.Open(saved);
+        }
+        else
+        {
+            Compare.New();
+        }
+    }
+
+    private void SetConnection(int index, string? value)
+    {
+        var sides = Compare.Current.Sides.ToList();
+        sides[index] = new CompareSide(Guid.TryParse(value, out var id) ? id : Guid.Empty, sides[index].Schema);
+        Compare.SetSides(sides, Compare.Current.Reference);
+    }
+
+    private void SetSchema(int index, string? value)
+    {
+        var sides = Compare.Current.Sides.ToList();
+        sides[index] = sides[index] with { Schema = string.IsNullOrWhiteSpace(value) ? null : value.Trim() };
+        Compare.SetSides(sides, Compare.Current.Reference);
+    }
+
+    private void AddSide() => Compare.SetSides([.. Compare.Current.Sides, new CompareSide(Guid.Empty)], Compare.Current.Reference);
+
+    private void RemoveSide(int index)
+    {
+        var reference = Compare.Current.Reference is { } r ? r == index ? null : r > index ? r - 1 : r : (int?)null;
+        Compare.SetSides(Compare.Current.Sides.Where((_, i) => i != index).ToList(), reference);
+    }
+
+    private void SetReference(int index, bool on) =>
+        Compare.SetOptions(on ? index : null, Compare.Current.ColumnOrder, Compare.Current.OnlyDifferences, Compare.Current.Kinds);
+
+    private void SetColumnOrder(bool on) =>
+        Compare.SetOptions(Compare.Current.Reference, on, Compare.Current.OnlyDifferences, Compare.Current.Kinds);
+
+    private void SetOnlyDifferences(bool on) =>
+        Compare.SetOptions(Compare.Current.Reference, Compare.Current.ColumnOrder, on, Compare.Current.Kinds);
+
+    private bool IsShown(CompareKind[] kinds) => Compare.Current.Kinds is not { } shown || kinds.All(shown.Contains);
+
+    private void SetKinds(CompareKind[] kinds, bool on)
+    {
+        var shown = (Compare.Current.Kinds ?? KindFilters.SelectMany(f => f.Kinds).ToList()).Except(kinds).ToList();
+        if (on)
+        {
+            shown.AddRange(kinds);
+        }
+
+        var all = shown.Count == KindFilters.Sum(f => f.Kinds.Length);
+        Compare.SetOptions(Compare.Current.Reference, Compare.Current.ColumnOrder, Compare.Current.OnlyDifferences, all ? null : shown);
+    }
+
+    private async Task UsePassword(Guid connectionId)
+    {
+        if (_passwords.GetValueOrDefault(connectionId) is { Length: > 0 } password)
+        {
+            Compare.SetPassword(connectionId, password);
+            _passwords.Remove(connectionId);
+            await Compare.CompareAsync(onlyMissing: true);
+        }
+    }
+
+    private IEnumerable<CompareRow> VisibleObjects(SchemaComparison result) =>
+        result.Objects.Where(row =>
+            CompareExport.Shown(row, Compare.Current.OnlyDifferences, Compare.Current.Kinds)
+            && (_search.Length == 0 || row.Name.Contains(_search.Trim(), StringComparison.OrdinalIgnoreCase)));
+
+    private IEnumerable<CompareRow> Children(CompareRow row) =>
+        row.Children.Where(c => (!Compare.Current.OnlyDifferences || c.Differs) && (Compare.Current.Kinds is not { } kinds || kinds.Contains(c.Kind)));
+
+    private void Toggle(string key)
+    {
+        if (!_open.Remove(key))
+        {
+            _open.Add(key);
+        }
+    }
+
+    private static string Summary(SchemaComparison result)
+    {
+        var objects = result.Objects.Count(o => o.HasDifferences);
+        return objects == 0 ? "keine Unterschiede" : objects == 1 ? "1 Objekt mit Unterschieden" : $"{objects:N0} Objekte mit Unterschieden";
+    }
+
+    private static FerretSharp.Core.Schema.TableKind KindOf(CompareRow row) => row.Kind switch
+    {
+        CompareKind.View => FerretSharp.Core.Schema.TableKind.View,
+        CompareKind.MaterializedView => FerretSharp.Core.Schema.TableKind.MaterializedView,
+        _ => FerretSharp.Core.Schema.TableKind.Table,
+    };
+
+    private static string KindShort(CompareKind kind) => kind switch
+    {
+        CompareKind.Column => "",
+        CompareKind.PrimaryKey => "PK",
+        CompareKind.Unique => "UQ",
+        CompareKind.ForeignKey => "FK",
+        CompareKind.Check => "CK",
+        CompareKind.Index => "IX",
+        _ => "",
+    };
+
+    private static string KindText(CompareKind kind) => kind switch
+    {
+        CompareKind.Column => "Spalte",
+        CompareKind.PrimaryKey => "Primärschlüssel",
+        CompareKind.Unique => "Unique-Constraint",
+        CompareKind.ForeignKey => "Fremdschlüssel",
+        CompareKind.Check => "Check-Constraint",
+        CompareKind.Index => "Index",
+        _ => "",
+    };
+
+    private async Task CopyMarkdownAsync()
+    {
+        if (Compare.Result is not { } result)
+        {
+            return;
+        }
+
+        var text = CompareExport.Markdown(result, Labels, Compare.Current.OnlyDifferences, Compare.Current.Kinds);
+        _dom ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
+        Shell.Notify(await _dom.InvokeAsync<bool>("copyText", text) ? "Vergleich als Markdown kopiert." : "Die Zwischenablage ist nicht verfügbar.");
+    }
+
+    private void StartSaving(bool asNew)
+    {
+        (_saving, _saveAsNew) = (true, asNew);
+        _saveName = asNew ? $"{Compare.Current.Name} (Kopie)" : Compare.Current.Name;
+    }
+
+    private async Task SaveAsync()
+    {
+        _saving = false;
+        await Compare.SaveAsync(_saveName, _saveAsNew);
+        if (Compare.StoreError is null)
+        {
+            Shell.Notify($"„{Compare.Current.Name}“ gespeichert.");
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        _confirmDelete = false;
+        await Compare.DeleteAsync(Compare.Current.Id);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Compare.Changed -= OnChanged;
+        if (_dom is not null)
+        {
+            try
+            {
+                await _dom.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+    }
+}

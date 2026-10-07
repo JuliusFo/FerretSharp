@@ -856,3 +856,49 @@ table.plan td.warn { color: #b7791f; font-weight: 600; }
 table.plan tr.inactive td { opacity: .45; }
 /* Dialogs take the focus so Escape closes them; the browser's focus ring around the whole dialog is not wanted. */
 .modal:focus { outline: none; }
+
+/* Schema comparison (WP-20) */
+.compare-page .settings-section, .compare-page .page-head { max-width: none; }
+.compare-saved { min-width: 220px; height: 30px; }
+.compare-store-error { margin: 0 0 12px; }
+.compare-sides { display: flex; flex-direction: column; gap: 8px; padding: 12px 16px; }
+.compare-side { display: flex; align-items: center; gap: 10px; }
+.compare-side-no { width: 18px; color: var(--faint); text-align: right; }
+.compare-side select { width: 240px; height: 30px; }
+.compare-schema { width: 160px; height: 30px; padding: 0 8px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface); color: var(--text); }
+.compare-ref { display: flex; align-items: center; gap: 6px; color: var(--muted); white-space: nowrap; }
+.compare-side-status { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.compare-side-status .error { color: var(--danger); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.compare-side-status .warn { color: #c07a00; }
+.compare-password { width: 220px; height: 30px; padding: 0 8px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface); color: var(--text); }
+.compare-actions { display: flex; align-items: center; gap: 14px; padding-top: 4px; }
+.compare-result { display: flex; flex-direction: column; min-height: 0; }
+.compare-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; padding: 10px 16px; border-bottom: 1px solid var(--border); }
+.compare-search { width: 200px; height: 28px; padding: 0 8px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface); color: var(--text); }
+.compare-matrix-wrap { overflow: auto; max-height: calc(100vh - 330px); }
+table.compare-matrix { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 12.5px; }
+table.compare-matrix th { position: sticky; top: 0; z-index: 1; padding: 7px 10px; background: var(--surface-2); border-bottom: 1px solid var(--border); text-align: left; font-weight: 600; white-space: nowrap; }
+table.compare-matrix th.ref { color: var(--accent); }
+table.compare-matrix td { padding: 5px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+table.compare-matrix td.name { white-space: nowrap; }
+table.compare-matrix tr.object { cursor: pointer; }
+table.compare-matrix tr.object:hover td { background: var(--hover); }
+table.compare-matrix tr.object td.name .mono { font-weight: 600; }
+table.compare-matrix tr.object .icon { vertical-align: -2px; margin-right: 6px; color: var(--muted); }
+table.compare-matrix tr.child td.name { padding-left: 36px; color: var(--muted); }
+table.compare-matrix tr.child.differs td.name { color: var(--text); }
+table.compare-matrix .twisty { display: inline-block; width: 14px; color: var(--faint); }
+table.compare-matrix .kind { display: inline-block; min-width: 24px; margin-right: 6px; color: var(--faint); font-size: 10.5px; font-weight: 600; }
+table.compare-matrix td.cell { max-width: 420px; overflow-wrap: anywhere; }
+table.compare-matrix td.same { color: var(--muted); }
+table.compare-matrix td.missing { color: var(--danger); background: var(--danger-weak); text-align: center; }
+table.compare-matrix td.other-case { background: rgba(192, 122, 0, 0.12); }
+table.compare-matrix td.different.g0 { background: var(--accent-weak); }
+table.compare-matrix td.different.g1 { background: rgba(192, 122, 0, 0.14); }
+table.compare-matrix td.different.g2 { background: var(--clr-weak); }
+table.compare-matrix td.different.g3 { background: rgba(48, 164, 108, 0.14); }
+.compare-alias { margin-left: 6px; color: #c07a00; font-size: 11.5px; }
+.compare-count { margin-left: 8px; padding: 0 6px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 11px; }
+.compare-none { padding: 18px 16px; color: var(--muted); }
+.compare-ddl-dialog header select { height: 28px; max-width: 260px; }
+.compare-ddl-note { margin: 0; padding: 8px 16px; border-bottom: 1px solid var(--border); }
