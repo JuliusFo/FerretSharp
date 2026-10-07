@@ -2,7 +2,7 @@
 
 > Projektanweisungen für Claude Code. Bitte vollständig lesen, bevor ein Arbeitspaket umgesetzt wird.
 > Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-07 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0; WP-14 → 2.4.0; WP-15 → 3.0.0, v3 abgeschlossen; v4: WP-16 → 3.1.0, WP-17 → 3.2.0, WP-18 → 3.3.0, Leerzeichen nach Vorschlägen 3.3.1, Tabs umbenennen 3.4.0; WP-19 → 3.5.0; Stabilisierung R1 → 3.6.0, Protokolle nach `docs/work-packages.md`; Struktur-Refactoring R2 → 3.6.1; WP-20 → 3.7.0; WP-24 → 3.8.0; FK-Sprung mit mehreren Zeilen unreleased)
+> Stand: 2026-10-07 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0; WP-14 → 2.4.0; WP-15 → 3.0.0, v3 abgeschlossen; v4: WP-16 → 3.1.0, WP-17 → 3.2.0, WP-18 → 3.3.0, Leerzeichen nach Vorschlägen 3.3.1, Tabs umbenennen 3.4.0; WP-19 → 3.5.0; Stabilisierung R1 → 3.6.0, Protokolle nach `docs/work-packages.md`; Struktur-Refactoring R2 → 3.6.1; WP-20 → 3.7.0; WP-24 → 3.8.0; FK-Sprung mit mehreren Zeilen → 3.9.0)
 
 ## 1. Ziel
 
@@ -380,7 +380,7 @@ Umsetzungsprotokolle (was gebaut wurde, Entscheidungen des Nutzers, Nachträge, 
 | R2 | Struktur-Refactoring (DB-Aufrufe, Dialoge, Shell, Session, Grid-Brücke) | 3.6.1 | – |
 | WP-20 | Schema-Vergleich: N Schemas als Matrix, gespeicherte Vergleiche, DDL-Vorschlag | 3.7.0 | – |
 | WP-24 | Mehrere offene Verbindungen, eine sichtbar (Alt+O zur vorigen) | 3.8.0 | – |
-| Klein | FK-Sprung mit mehreren markierten Zeilen (`in`-Filter) | Unreleased | – |
+| Klein | FK-Sprung mit mehreren markierten Zeilen (`in`-Filter) | 3.9.0 | – |
 
 **Kontext des Nutzers** (wichtig für die kommenden Pakete):
 - DB-first von Hand: erst die DB ändern, dann Entity/Konfiguration; keine Migrations. Namenskonvention im Code (Tabellen groß, `KundenId` → `KUNDEN_ID`), **eigene Value Converter** (bool ↔ J/N, Enum-Kürzel), Enum-Member mit `[Display(ResourceType = …, Name = …)]`. Ein DbContext in einer Klassenbibliothek (Konstruktor `DbContextOptions`), Entities in einem anderen Projekt, EF Core 8.

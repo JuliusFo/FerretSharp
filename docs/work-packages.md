@@ -277,7 +277,7 @@ Wunsch des Nutzers (2026-10-07): beim Entwickeln auf DEV arbeiten und für kurze
   - Nicht per E2E: LINQ-Hilfsprozess nach 15 min (braucht verknüpftes Projekt; Unit-Test für `StopIdleAsync`).
 - Falle: `ClrModelLoadingTests.A_deps_json_that_cannot_be_read_fails_the_model_load` flackerte (auch auf main, Wettlauf mit dem automatischen Laden nach dem Verbinden) – in einer eigenen Session behoben (`fix/flaky-model-load-test`: Tests warten auf das Laden, Build-Dateien werden ohne Sperre gelesen).
 
-### Klein: FK-Sprung mit mehreren markierten Zeilen (unreleased)
+### Klein: FK-Sprung mit mehreren markierten Zeilen → Release 3.9.0
 Feedback der Kollegen des Nutzers (2026-10-07): Sind mehrere Zeilen markiert, soll der FK-Sprung trotzdem gehen – ein Tab mit allen Werten im Filter. Plan mit dem Nutzer abgestimmt; beim Start bestätigt: höchstens **1000 verschiedene Werte** (eine IN-Liste; darüber würden Filterleiste, Tab-Titel und Workspace-Datei unhandlich).
 - Core (`FkNavigation`, Überladungen mit `IReadOnlyList<RowData>`; die Einzelzeilen-Varianten rufen sie mit einer Zeile auf, Verhalten und Texte unverändert):
   - Je FK die Schlüssel aller markierten Zeilen in Markierungsreihenfolge, Werte wie bisher über `FilterValue` aus den Rohwerten. Zeilen mit NULL in einer Schlüsselspalte fallen weg (`FkJump.SkippedRows`, `SkippedNote` „2 Zeilen ohne Wert übersprungen“); alle NULL → nicht verfügbar („KUNDE_ID ist in allen 3 Zeilen NULL.“). Ein Typ ohne exakte Gleichheit macht den Sprung wie bisher unmöglich.
