@@ -18,6 +18,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Builds comparisons by hand for the DDL proposal tests (shared with the unit tests). -->
+    <Compile Include="..\FerretSharp.Core.Tests\Compare\TestComparison.cs" Link="Compare\TestComparison.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\FerretSharp.Core\FerretSharp.Core.csproj" />
     <!-- Built first, not referenced: the model host runs against the sample project in a process of its own (ModelHostTests). -->
     <ProjectReference Include="..\..\src\FerretSharp.ModelHost\FerretSharp.ModelHost.csproj" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
