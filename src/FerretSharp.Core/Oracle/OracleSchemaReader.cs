@@ -521,6 +521,10 @@ public sealed class OracleSchemaReader(OracleSession session) : ISchemaReader
             return (IReadOnlyDictionary<string, IReadOnlyList<string>>)result.ToDictionary(e => e.Key, e => (IReadOnlyList<string>)e.Value, StringComparer.Ordinal);
         }, cancellationToken);
 
+    /// <summary>Placeholder of the WP-20 contract – replaced by the implementation.</summary>
+    public Task<Compare.SchemaSnapshot> ReadSnapshotAsync(string owner, IProgress<string>? progress, CancellationToken cancellationToken) =>
+        throw new NotImplementedException();
+
     public async Task<ExecutionPlan> ExplainAsync(QuerySpec query, CancellationToken cancellationToken)
     {
         try

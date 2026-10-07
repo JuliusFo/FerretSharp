@@ -154,6 +154,13 @@ public interface ISchemaReader
     Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetColumnNamesAsync(string owner, CancellationToken cancellationToken);
 
     /// <summary>
+    /// The structure of a whole schema for the schema comparison (WP-20): tables, views and materialized views with
+    /// columns, constraints and indexes, in a few queries for the whole schema (not one per table: slow over a VPN).
+    /// </summary>
+    /// <param name="progress">The step being read ('Spalten', 'Constraints' …); may be called on any thread.</param>
+    Task<Compare.SchemaSnapshot> ReadSnapshotAsync(string owner, IProgress<string>? progress, CancellationToken cancellationToken);
+
+    /// <summary>
     /// The optimizer's estimated plan of a query (ADR 0012), without running it and without bind values. On the
     /// explorer session, which has no transaction: Oracle refuses EXPLAIN PLAN in a read-only one.
     /// </summary>
