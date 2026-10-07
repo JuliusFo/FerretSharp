@@ -404,7 +404,7 @@ Pakete aus dem Backlog, nach v3 mit dem Nutzer ausgewählt (2026-10-05). Version
 Wunsch des Nutzers (2026-10-06), vor DDL und Tabellen-Designer. Für breite Tabellen (VERTRAG mit 71 Spalten).
 - Eine Zeile senkrecht: Spalte → Wert, mit Oracle-Typ, C#-Property/Typ, Enum-Member, NULL kursiv; Suche/Filter über Spaltennamen (wie Ctrl+F, auch C#-Namen); FK-Werte als Links (Sprung wie im Kontextmenü); LOBs öffnen den LOB-Dialog; Vor/Zurück durch die geladenen Zeilen des Grids.
 - Auf schreibbaren Workspaces editierbar über denselben `ChangeTracker` wie das Grid (Validierung in .NET, Zellfarben Ausstehend/Geschrieben, Schreiben mit Ctrl+S).
-- Zu klären beim Start: Darstellung (Seitenleiste rechts neben dem Grid, eigene Ansicht im Tab-Umschalter oder Dialog), Auslöser (Kontextmenü „Als Formular“, Tastenkürzel; Doppelklick ist schon Editieren), Mehrfachauswahl (Zeilen nebeneinander vergleichen?), Spalten ausblenden/leere ausblenden.
+- Zu klären beim Start: Darstellung (Seitenleiste rechts neben dem Grid, eigene Ansicht im Tab-Umschalter oder Dialog), Auslöser (Kontextmenü „Als Formular“, Tastenkürzel; Doppelklick ist schon Editieren), Mehrfachauswahl (Zeilen nebeneinander vergleichen? – Backlog-Eintrag „Audit-/Historientabellen“ mitdenken), Spalten ausblenden/leere ausblenden.
 
 #### WP-22 DDL im SQL-Editor (geplant)
 Wunsch des Nutzers (2026-10-06): Tabellen anlegen und ändern, passend zum DB-first-Ablauf („erst DB ändern, dann Entity“). Erste Stufe: DDL im SQL-Editor (und in Skripten) zulassen. Entscheidungen des Nutzers:
