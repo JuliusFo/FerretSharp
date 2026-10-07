@@ -213,7 +213,7 @@
                         <span class="ctx-source">aus C#-Modell</span>
                     }
                 </span>
-                <span class="ctx-meta">@(jump.Unavailable ?? jump.Condition)</span>
+                <span class="ctx-meta @(jump.IsAvailable ? "" : "wrap")">@(jump.Unavailable ?? jump.Condition)</span>
             </span>
             @switch (count)
             {
@@ -307,7 +307,8 @@
         $"{jump.ForeignKey.Name}: {jump.ForeignKey.From}({string.Join(", ", jump.ForeignKey.FromColumns)}) → " +
         $"{jump.ForeignKey.To}({string.Join(", ", jump.ForeignKey.ToColumns)})" +
         (jump.ForeignKey.Source == FkSource.ClrModel ? Environment.NewLine + "Beziehung aus dem C#-Modell – in der Datenbank gibt es dafür keinen Constraint." : "") +
-        (jump.SkippedNote is { } skipped ? Environment.NewLine + skipped + "." : "");
+        (jump.SkippedNote is { } skipped ? Environment.NewLine + skipped + "." : "") +
+        (jump.Unavailable is { } reason ? Environment.NewLine + reason : "");
 
     private async Task JumpAsync(FkJump jump)
     {
