@@ -2,7 +2,7 @@
 
 > Projektanweisungen für Claude Code. Bitte vollständig lesen, bevor ein Arbeitspaket umgesetzt wird.
 > Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-07 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0; WP-14 → 2.4.0; WP-15 → 3.0.0, v3 abgeschlossen; v4: WP-16 → 3.1.0, WP-17 → 3.2.0, WP-18 → 3.3.0, Leerzeichen nach Vorschlägen 3.3.1, Tabs umbenennen 3.4.0; WP-19 → 3.5.0; Stabilisierung R1 → 3.6.0, Protokolle nach `docs/work-packages.md`; Struktur-Refactoring R2 → 3.6.1; WP-20 → 3.7.0; WP-24 → 3.8.0)
+> Stand: 2026-10-07 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0; WP-14 → 2.4.0; WP-15 → 3.0.0, v3 abgeschlossen; v4: WP-16 → 3.1.0, WP-17 → 3.2.0, WP-18 → 3.3.0, Leerzeichen nach Vorschlägen 3.3.1, Tabs umbenennen 3.4.0; WP-19 → 3.5.0; Stabilisierung R1 → 3.6.0, Protokolle nach `docs/work-packages.md`; Struktur-Refactoring R2 → 3.6.1; WP-20 → 3.7.0; WP-24 → 3.8.0; FK-Sprung mit mehreren Zeilen unreleased)
 
 ## 1. Ziel
 
@@ -380,6 +380,7 @@ Umsetzungsprotokolle (was gebaut wurde, Entscheidungen des Nutzers, Nachträge, 
 | R2 | Struktur-Refactoring (DB-Aufrufe, Dialoge, Shell, Session, Grid-Brücke) | 3.6.1 | – |
 | WP-20 | Schema-Vergleich: N Schemas als Matrix, gespeicherte Vergleiche, DDL-Vorschlag | 3.7.0 | – |
 | WP-24 | Mehrere offene Verbindungen, eine sichtbar (Alt+O zur vorigen) | 3.8.0 | – |
+| Klein | FK-Sprung mit mehreren markierten Zeilen (`in`-Filter) | Unreleased | – |
 
 **Kontext des Nutzers** (wichtig für die kommenden Pakete):
 - DB-first von Hand: erst die DB ändern, dann Entity/Konfiguration; keine Migrations. Namenskonvention im Code (Tabellen groß, `KundenId` → `KUNDEN_ID`), **eigene Value Converter** (bool ↔ J/N, Enum-Kürzel), Enum-Member mit `[Display(ResourceType = …, Name = …)]`. Ein DbContext in einer Klassenbibliothek (Konstruktor `DbContextOptions`), Entities in einem anderen Projekt, EF Core 8.
@@ -400,12 +401,6 @@ Umsetzungsprotokolle (was gebaut wurde, Entscheidungen des Nutzers, Nachträge, 
 ### Geplant (v4)
 
 Pakete aus dem Backlog, nach v3 mit dem Nutzer ausgewählt (2026-10-05). Versionen: Minor-Releases 3.x (nichts Inkompatibles).
-
-#### Klein: FK-Sprung mit mehreren markierten Zeilen (geplant, als nächstes – vor WP-21)
-Feedback der Kollegen des Nutzers (2026-10-07): Sind mehrere Zeilen markiert, soll der FK-Sprung trotzdem gehen – ein Tab mit allen Werten im Filter.
-- Ausgehend (`AUFTRAG` markiert → „→ KUNDEN“): neuer Tab mit `KUNDE_ID in (…)` aus den markierten Zeilen; doppelte Werte und NULL fallen weg; mehr als 1000 Werte teilt der `QueryBuilder` schon auf. Eingehend (Kunden markiert → „Aufträge dieser Kunden“) ebenso, auch für Beziehungen aus dem C#-Modell.
-- Zählung im Kontextmenü (wie heute bei einer Zeile) für die markierten Zeilen; nicht geladene markierte Zeilen wie beim Kopieren melden.
-- FKs über mehrere Spalten: Das Filtermodell kann `(A, B) in (…)` nicht ausdrücken (Abschnitt 2: muss 1:1 in LINQ übersetzbar bleiben) → Eintrag bei Mehrfachauswahl ausgegraut mit Hinweis. Zu klären: ob das beim Nutzer vorkommt.
 
 #### WP-21 Formularansicht einer Zeile (geplant)
 Wunsch des Nutzers (2026-10-06), vor DDL und Tabellen-Designer. Für breite Tabellen (VERTRAG mit 71 Spalten).
