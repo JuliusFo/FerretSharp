@@ -404,7 +404,15 @@ Wunsch des Nutzers (2026-10-06), vor DDL und Tabellen-Designer. Anlass: DB-first
 - DDL-Vorschlag bleibt **paarweise** (Referenz → Ziel, in der Matrix gewählt), als Text; Ausführen erst mit WP-22.
 - Architektur: Es gibt genau eine aktive Verbindung (`ActiveConnection`) – für jede weitere Seite eine eigene, kurzlebige Explorer-Session (nur Dictionary-Lesen über `ISchemaReader`, Passwort aus dem `ISecretStore`, fehlt es: nachfragen). Je Seite ein `SchemaSnapshot` (normalisiert, später auch als Datei speicherbar, z. B. „Prod vor dem Release“); die Vergleichslogik im Core (`SchemaDiff`) arbeitet nur auf Snapshots. Unit-Tests gegen Fake-Reader/Snapshots; Integrationstest mit mehreren Schemas im Container.
 - Laden: Seiten parallel, Fortschritt je Seite, abbrechbar; fällt eine Seite aus (VPN, Rechte), bleibt der Rest nutzbar. `ALL_TAB_COLS` ist auf großen DBs langsam.
-- Zu klären beim Start: Auswahl der Seiten (Verbindung + Schema; auch mehrere Schemas derselben DB), Behandlung von Synonymen, Groß-/Kleinschreibung bei Namen, Ignorierregeln (Storage, systemgenerierte Constraint-Namen `SYS_C…` – bei N Seiten besonders wichtig), wo die Ansicht lebt (eigene Seite wie „C#-Modell“ oder Tab), Export des Ergebnisses.
+- Entschieden (2026-10-07, Vorschläge so übernommen):
+  - Seiten: je Seite Verbindung + optional Schema (Vorgabe: Schema des Profils); auch mehrere Schemas derselben DB, die sich dann eine Session teilen.
+  - Synonyme: nur echte Objekte des Schemas; fehlende Synonyme evtl. später als eigene Objektart.
+  - Namen exakt vergleichen (für Oracle und EF mit Quoting verschieden); gibt es einen Namen nur in anderer Schreibweise, als eigene Abweichung markieren.
+  - Ignoriert: Storage, Tablespace, Statistiken immer. Systemgenerierte Constraint-/Indexnamen (`SYS_C…`, `SYS_IL…`) nach Inhalt (Spalten, Bedingung) statt Namen vergleichen. Spaltenreihenfolge abschaltbar, standardmäßig aus.
+  - Ansicht: eigene Seite wie „C#-Modell“ (gehört zu keinem Workspace und keiner Transaktion).
+  - Export (erste Stufe): Matrix als Text/Markdown in die Zwischenablage, DDL-Vorschlag als Skript; CSV/HTML nur bei Bedarf.
+  - Gespeicherte Vergleiche (Seiten, Referenz, Filter), z. B. „ERP: Dev/Test/Prod“, zum Wiederöffnen.
+  - Snapshots als Datei: später; der Core wird dafür vorbereitet.
 
 #### WP-21 Formularansicht einer Zeile (geplant)
 Wunsch des Nutzers (2026-10-06), vor DDL und Tabellen-Designer. Für breite Tabellen (VERTRAG mit 71 Spalten).
