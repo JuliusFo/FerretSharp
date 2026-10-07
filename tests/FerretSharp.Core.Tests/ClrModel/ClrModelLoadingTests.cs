@@ -98,4 +98,22 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
         Assert.Contains("dotnet fehlt", error.Message);
         Assert.Equal(LinqConsolePhase.Failed, consoles.State.Phase);
     }
+
+    [Fact]
+    public async Task An_idle_console_of_a_connection_in_the_background_is_stopped()
+    {
+        await _active.ConnectAsync(_profile, Ct);
+        await _models.LoadAsync();
+        var console = Substitute.For<ILinqConsole>();
+        _runner.StartConsoleAsync(Arg.Any<ClrProjectLink>(), Arg.Any<BuildOutput>(), Arg.Any<CancellationToken>(), Arg.Any<IProgress<string>?>())
+            .Returns(console);
+        await using var consoles = new LinqConsoleService(_runner, _models);
+
+        Assert.False(await consoles.StopIdleAsync()); // nothing running yet
+        await consoles.WarmUpAsync();
+
+        Assert.True(await consoles.StopIdleAsync());
+        await console.Received(1).DisposeAsync();
+        Assert.Equal(LinqConsolePhase.Stopped, consoles.State.Phase);
+    }
 }

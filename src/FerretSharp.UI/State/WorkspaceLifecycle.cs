@@ -208,8 +208,9 @@ public sealed class WorkspaceLifecycle(
 
     /// <summary>
     /// Shows the connection, opening it if it is not open yet (WP-24): the connection shown so far stays open in the
-    /// background with its workspaces and transactions, so there is nothing to ask. A connection that failed or was lost
-    /// is connected again (<see cref="Reconnect"/> asked nothing either: its transactions are gone).
+    /// background with its workspaces and transactions, so there is nothing to ask. A connection found lost in the
+    /// background is only shown – with the banner, so the user sees that its uncommitted work is gone – and connected
+    /// again through <see cref="Reconnect"/>; a failed one is connected again right away.
     /// </summary>
     public Task ConnectAsync(ConnectionProfile profile)
     {
@@ -217,11 +218,6 @@ public sealed class WorkspaceLifecycle(
         SaveTabs();
         if (hub.Find(profile.Id) is { Lost: not null } lost)
         {
-            // "Neu verbinden": the old sessions and their workspace tabs are gone; the workspaces are restored again.
-            lost.Lost = null;
-            shell.ClearConnectionLost();
-            shell.ClearWorkspaces(lost.Id);
-            _ = Task.Run(() => lost.Active.ConnectAsync(profile, CancellationToken.None));
             hub.Show(lost);
             return Task.CompletedTask;
         }
@@ -231,21 +227,31 @@ public sealed class WorkspaceLifecycle(
         return Task.CompletedTask;
     }
 
-    /// <summary>"Neu verbinden" after the connection was lost: its transactions are gone, nothing left to confirm.</summary>
+    /// <summary>
+    /// "Neu verbinden" after the connection was lost: its transactions are gone, nothing left to confirm. Its old
+    /// sessions and workspace tabs are dropped; the workspaces are restored from what was saved.
+    /// </summary>
     public void Reconnect(ConnectionProfile profile)
     {
         _connectionGone = true;
-        foreach (var workspace in shell.Workspaces)
+        if (hub.Find(profile.Id) is not { } scope)
+        {
+            shell.Connect(profile);
+            return;
+        }
+
+        foreach (var workspace in WorkspacesOf(scope))
         {
             editing.Forget(workspace.WorkspaceId);
         }
 
-        if (hub.Find(profile.Id) is { } scope)
-        {
-            scope.Lost ??= shell.ConnectionLost ?? new DatabaseException("Verbindung verloren");
-        }
-
-        shell.Connect(profile);
+        SaveTabs();
+        scope.Lost = null;
+        shell.ClearConnectionLost();
+        shell.ClearWorkspaces(scope.Id);
+        hub.Show(scope);
+        shell.ShowExplorer();
+        _ = Task.Run(() => scope.Active.ConnectAsync(profile, CancellationToken.None));
     }
 
     /// <summary>Disconnects the shown connection (after asking about its uncommitted work); another open one is shown.</summary>

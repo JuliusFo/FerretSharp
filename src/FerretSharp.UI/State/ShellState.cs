@@ -89,12 +89,12 @@ public sealed class ShellState
     /// <summary>Short-lived message (export done, warnings), shown as a toast.</summary>
     public Notice? Notice { get; private set; }
 
+    /// <summary>Shows the connection, opening it if needed (WP-24). Whether it was lost is the lifecycle's business: switching away keeps it.</summary>
     public void Connect(ConnectionProfile profile)
     {
         Set(() =>
         {
             SwitcherOpen = false;
-            ConnectionLost = null;
             Page = ShellPage.Explorer;
         });
         ConnectRequested?.Invoke(profile);
