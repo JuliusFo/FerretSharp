@@ -109,14 +109,22 @@ public static partial class BuildOutputLocator
                 $"Kein Build von {assemblyName} ({link.Configuration}) gefunden – bitte das Projekt bauen.");
 
         var assembly = Path.Combine(Path.GetDirectoryName(deps)!, assemblyName + ".dll");
-        var framework = RuntimeTarget(deps);
+        Version framework;
+        bool efCore;
+        using (var stream = OpenShared(deps))
+        using (var json = JsonDocument.Parse(stream))
+        {
+            framework = RuntimeTarget(json.RootElement);
+            efCore = ReferencesEfCore(json.RootElement);
+        }
+
         if (framework < MinimumFramework)
         {
             throw new ClrModelException(ClrModelErrorKind.UnsupportedFramework,
                 $"{assemblyName} ist für .NET {framework} gebaut – FerretSharp liest Modelle ab EF Core 8 (.NET 8).");
         }
 
-        if (!ReferencesEfCore(deps))
+        if (!efCore)
         {
             throw new ClrModelException(ClrModelErrorKind.NoEfCore,
                 $"{assemblyName} referenziert EF Core nicht – verknüpfe das Projekt, das den DbContext enthält (nicht nur die Entities).");
@@ -181,20 +189,14 @@ public static partial class BuildOutputLocator
     }
 
     /// <summary>The deps.json lists <c>Microsoft.EntityFrameworkCore</c>; without it the host cannot load any EF type.</summary>
-    internal static bool ReferencesEfCore(string depsFile)
-    {
-        using var stream = OpenShared(depsFile);
-        using var json = JsonDocument.Parse(stream);
-        return json.RootElement.TryGetProperty("libraries", out var libraries)
-            && libraries.EnumerateObject().Any(l => l.Name.StartsWith("Microsoft.EntityFrameworkCore/", StringComparison.OrdinalIgnoreCase));
-    }
+    private static bool ReferencesEfCore(JsonElement deps) =>
+        deps.TryGetProperty("libraries", out var libraries)
+        && libraries.EnumerateObject().Any(l => l.Name.StartsWith("Microsoft.EntityFrameworkCore/", StringComparison.OrdinalIgnoreCase));
 
     /// <summary><c>"runtimeTarget": { "name": ".NETCoreApp,Version=v8.0" }</c> → 8.0.</summary>
-    internal static Version RuntimeTarget(string depsFile)
+    private static Version RuntimeTarget(JsonElement deps)
     {
-        using var stream = OpenShared(depsFile);
-        using var json = JsonDocument.Parse(stream);
-        var name = json.RootElement.TryGetProperty("runtimeTarget", out var target) && target.TryGetProperty("name", out var value)
+        var name = deps.TryGetProperty("runtimeTarget", out var target) && target.TryGetProperty("name", out var value)
             ? value.GetString() ?? ""
             : "";
         var match = FrameworkVersion().Match(name);
