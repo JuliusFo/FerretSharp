@@ -89,6 +89,17 @@ public class EditingTests
         Assert.Equal("1234,5", OracleTypeMapper.EditText(C("BETRAG"), 1234.5m));
     }
 
+    [Fact]
+    public void A_timestamp_typed_as_the_grid_shows_it_parses()
+    {
+        var value = new DateTime(2026, 10, 7, 9, 52, 50).AddTicks(756630);
+        var shown = CellFormatter.Format(C("TS"), value)!;
+
+        Assert.Equal("07.10.2026 09:52:50,075663", shown);
+        Assert.Equal(value, OracleTypeMapper.Parse(C("TS"), shown).Value);
+        Assert.Equal(new DateTime(2026, 10, 8, 12, 0, 0, 500), OracleTypeMapper.Parse(C("TS"), "08.10.2026 12:00:00,5").Value);
+    }
+
     [Theory]
     [InlineData("NAME", false, null)]
     [InlineData("ID", false, "nur bei neuen Zeilen")]
