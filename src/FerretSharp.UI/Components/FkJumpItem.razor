@@ -1,0 +1,54 @@
+@* One FK jump as a menu entry (R3b; was written twice, in the grid's cell menu and the form): arrow, target table,
+   "aus C#-Modell", the condition (or why the jump is not possible) and – for incoming jumps – the row count. *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Query
+@using FerretSharp.Core.Schema
+
+<button class="menu-item ctx-jump @(Related ? "related" : "") @(Count is FkCount.Done { Count: 0 } ? "no-rows" : "")"
+        disabled="@(!Jump.IsAvailable)" title="@FkTargets.Tooltip(Jump)" @onclick="() => OnJump.InvokeAsync(Jump)">
+    <span class="ctx-arrow">@(Jump.Direction == JumpDirection.Outgoing ? "→" : "←")</span>
+    <span class="ctx-target">
+        <span class="ctx-table">
+            @FkTargets.Label(Active, Jump.Table)
+            @if (Jump.ForeignKey.Source == FkSource.ClrModel)
+            {
+                <span class="ctx-source">aus C#-Modell</span>
+            }
+        </span>
+        <span class="ctx-meta @(Jump.IsAvailable ? "" : "wrap")">@(Jump.Unavailable ?? Jump.Condition)</span>
+    </span>
+    @switch (Count)
+    {
+        case FkCount.Loading:
+            <span class="spinner small"></span>
+            break;
+        case FkCount.Done done:
+            <span class="ctx-count">@done.Count.ToString("N0", CultureInfo.CurrentCulture)</span>
+            break;
+        case FkCount.TimedOut:
+            <span class="ctx-count muted" title="Zählen nach @FkNavigation.CountTimeout.TotalSeconds s abgebrochen">&gt; @FkNavigation.CountTimeout.TotalSeconds s</span>
+            break;
+        case FkCount.Failed failed:
+            <span class="ctx-count error" title="@failed.Message">!</span>
+            break;
+    }
+</button>
+
+@code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public FkJump Jump { get; set; } = null!;
+
+    /// <summary>The rows behind an incoming jump; null for outgoing ones (not counted).</summary>
+    [Parameter]
+    public FkCount? Count { get; set; }
+
+    /// <summary>The jump goes over the clicked column: highlighted, it is usually the one meant.</summary>
+    [Parameter]
+    public bool Related { get; set; }
+
+    [Parameter]
+    public EventCallback<FkJump> OnJump { get; set; }
+}

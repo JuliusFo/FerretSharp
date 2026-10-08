@@ -180,11 +180,7 @@ public sealed class WorkspaceEditing(
         }
         else
         {
-            // A statement: any table tab of the workspace may show rows it had changed.
-            foreach (var tab in workspace.TableTabs)
-            {
-                shell.RequestTabCommand(tab, TabCommand.Reload);
-            }
+            shell.ReloadTableTabs(workspace.WorkspaceId); // a statement: any of them may show rows it had changed
 
             shell.Notify($"Zurückgenommen: {action.Display}.");
         }
@@ -250,10 +246,7 @@ public sealed class WorkspaceEditing(
     {
         RestorePending(workspace);
         Forget(workspace.WorkspaceId);
-        foreach (var tab in workspace.TableTabs)
-        {
-            shell.RequestTabCommand(tab, TabCommand.Reload);
-        }
+        shell.ReloadTableTabs(workspace.WorkspaceId);
     }
 
     public void Forget(Guid workspaceId)

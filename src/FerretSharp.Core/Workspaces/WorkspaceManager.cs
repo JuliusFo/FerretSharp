@@ -1,7 +1,8 @@
-using FerretSharp.Core.IO;
 using System.Text.Json;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
+using FerretSharp.Core.IO;
+using FerretSharp.Core.Query;
 
 namespace FerretSharp.Core.Workspaces;
 
@@ -407,6 +408,14 @@ public sealed class WorkspaceManager : IAsyncDisposable
     /// </summary>
     public async Task<IDataAccess> GetDataAsync(Guid workspaceId, CancellationToken cancellationToken) =>
         (await GetConnectionAsync(workspaceId, cancellationToken)).Data;
+
+    /// <summary>A page of a free query (SQL editor, LINQ console) on the workspace's session.</summary>
+    public async Task<SqlPage> ReadSqlAsync(Guid workspaceId, QuerySpec query, int skip, int take, CancellationToken cancellationToken) =>
+        await (await GetDataAsync(workspaceId, cancellationToken)).ReadSqlAsync(query, skip, take, cancellationToken);
+
+    /// <summary>A writing statement (SQL editor, LINQ console) in the workspace's transaction; see <see cref="IDataEditor.ExecuteAsync"/>.</summary>
+    public async Task<WriteAction> ExecuteAsync(Guid workspaceId, QuerySpec statement, CancellationToken cancellationToken) =>
+        await (await GetEditorAsync(workspaceId, cancellationToken)).ExecuteAsync(statement, cancellationToken);
 
     /// <summary>Writing on the workspace's session (same transaction as its queries, so they see the flushed changes).</summary>
     public async Task<IDataEditor> GetEditorAsync(Guid workspaceId, CancellationToken cancellationToken) =>

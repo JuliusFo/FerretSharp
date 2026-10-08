@@ -124,36 +124,7 @@
                 <div class="form-section">Referenziert von</div>
                 @foreach (var jump in _incoming)
                 {
-                    var count = _counts.Of(jump);
-                    <button class="menu-item ctx-jump @(count is FkCount.Done { Count: 0 } ? "no-rows" : "")" disabled="@(!jump.IsAvailable)"
-                            title="@FkTargets.Tooltip(jump)" @onclick="() => Jump(jump)">
-                        <span class="ctx-arrow">←</span>
-                        <span class="ctx-target">
-                            <span class="ctx-table">
-                                @FkTargets.Label(Active, jump.Table)
-                                @if (jump.ForeignKey.Source == FkSource.ClrModel)
-                                {
-                                    <span class="ctx-source">aus C#-Modell</span>
-                                }
-                            </span>
-                            <span class="ctx-meta @(jump.IsAvailable ? "" : "wrap")">@(jump.Unavailable ?? jump.Condition)</span>
-                        </span>
-                        @switch (count)
-                        {
-                            case FkCount.Loading:
-                                <span class="spinner small"></span>
-                                break;
-                            case FkCount.Done done:
-                                <span class="ctx-count">@done.Count.ToString("N0", CultureInfo.CurrentCulture)</span>
-                                break;
-                            case FkCount.TimedOut:
-                                <span class="ctx-count muted" title="Zählen nach @FkNavigation.CountTimeout.TotalSeconds s abgebrochen">&gt; @FkNavigation.CountTimeout.TotalSeconds s</span>
-                                break;
-                            case FkCount.Failed failed:
-                                <span class="ctx-count error" title="@failed.Message">!</span>
-                                break;
-                        }
-                    </button>
+                    <FkJumpItem Jump="jump" Count="_counts.Of(jump)" OnJump="Jump" />
                 }
             </div>
         }

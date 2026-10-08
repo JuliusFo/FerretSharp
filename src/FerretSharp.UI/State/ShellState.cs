@@ -389,6 +389,18 @@ public sealed class ShellState
     /// <summary>A command for a particular tab, also an inactive one (reload after writing, commit, rollback).</summary>
     public void RequestTabCommand(WorkspaceTab tab, TabCommand command) => TabCommandRequested?.Invoke(tab, command);
 
+    /// <summary>
+    /// After a write in the workspace's transaction (a statement, undo, a lost session): its table tabs fetch the loaded rows
+    /// again, they may show changed ones. Whichever connection it belongs to.
+    /// </summary>
+    public void ReloadTableTabs(Guid workspaceId)
+    {
+        foreach (var tab in FindWorkspace(workspaceId)?.TableTabs ?? [])
+        {
+            RequestTabCommand(tab, TabCommand.Reload);
+        }
+    }
+
     /// <summary>Workspace the user wants to unlock for writing; the shell asks first (WP-10).</summary>
     public Guid? PendingUnlock { get; private set; }
 

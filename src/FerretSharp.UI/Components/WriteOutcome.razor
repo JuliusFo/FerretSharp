@@ -1,0 +1,30 @@
+@* What became of a statement's write in the workspace's transaction (R3b; was written twice, in the SQL editor and the
+   LINQ console): still open, taken back with ↶, or ended by commit or rollback. *@
+
+@switch (Fate)
+{
+    case WriteFate.Open:
+        <p><strong>@RowsText geändert</strong>@Detail – in der Transaktion des Workspaces.
+            Für andere unsichtbar bis zum Commit; committen, verwerfen oder zurücknehmen (↶) über die Statusleiste.</p>
+        break;
+    case WriteFate.Undone:
+        <p class="muted">@RowsText geändert@Detail – inzwischen zurückgenommen (↶).</p>
+        break;
+    default:
+        <p class="muted">@RowsText geändert@Detail – die Transaktion ist inzwischen beendet (Commit oder Rollback).</p>
+        break;
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public int Rows { get; set; }
+
+    [Parameter, EditorRequired]
+    public WriteFate Fate { get; set; }
+
+    /// <summary>After the row count, e.g. " (UPDATE · 12 ms)"; empty if there is nothing to add.</summary>
+    [Parameter]
+    public string Detail { get; set; } = "";
+
+    private string RowsText => Rows == 1 ? "1 Zeile" : $"{Rows:N0} Zeilen";
+}

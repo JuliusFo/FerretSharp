@@ -1,10 +1,8 @@
 @* Right-click menu of a column header: pin the column to the left or release it. *@
 @using FerretSharp.Core.Schema
-@implements IAsyncDisposable
-@inject IJSRuntime JS
 
-<div class="popover-backdrop" @onclick="CloseAsync" @oncontextmenu="CloseAsync" @oncontextmenu:preventDefault="true"></div>
-<div id="@_id" class="popover ctx-menu" style="@Position" tabindex="-1" @onkeydown="OnKeyDown" @oncontextmenu:preventDefault="true">
+<PopoverMenu X="Request.X" Y="Request.Y" ViewportWidth="Request.ViewportWidth" ViewportHeight="Request.ViewportHeight"
+             Width="280" EstimatedHeight="90" OnClose="OnClose">
     <div class="ctx-head">
         <span class="ctx-col">@Column.Name</span>
         <span class="ctx-value">@Column.DisplayType</span>
@@ -17,18 +15,9 @@
     {
         <button class="menu-item" @onclick="ToggleAsync">@(Pinned ? "Spalte lösen" : "Spalte links anheften")</button>
     }
-</div>
+</PopoverMenu>
 
 @code {
-    private const double MenuWidth = 280;
-    private const double MenuHeight = 90;
-
-    private readonly string _id = "colmenu-" + Guid.NewGuid().ToString("N");
-    private DomModule? _dom;
-
-    /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
-    private DomModule Dom => _dom ??= new(JS);
-
     [Parameter, EditorRequired]
     public ColumnMenuRequest Request { get; set; } = null!;
 
@@ -47,43 +36,9 @@
 
     private ColumnInfo Column => Details.Columns[Request.Column];
 
-    /// <summary>At the mouse position, kept inside the window.</summary>
-    private string Position
-    {
-        get
-        {
-            var left = Math.Max(8, Math.Min(Request.X, Request.ViewportWidth - MenuWidth - 8));
-            var top = Math.Max(8, Math.Min(Request.Y, Request.ViewportHeight - MenuHeight - 8));
-            return FormattableString.Invariant($"position: fixed; left: {left:0}px; top: {top:0}px; width: {MenuWidth:0}px;");
-        }
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            await Dom.InvokeVoidAsync("focusById", _id); // Escape closes
-        }
-    }
-
     private async Task ToggleAsync()
     {
         await OnClose.InvokeAsync();
         await OnTogglePin.InvokeAsync(Request.Column);
-    }
-
-    private async Task OnKeyDown(KeyboardEventArgs e)
-    {
-        if (e.Key == "Escape")
-        {
-            await CloseAsync();
-        }
-    }
-
-    private Task CloseAsync() => OnClose.InvokeAsync();
-
-    public async ValueTask DisposeAsync()
-    {
-        await Dom.DisposeAsync();
     }
 }

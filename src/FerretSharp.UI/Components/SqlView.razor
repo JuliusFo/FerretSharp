@@ -154,19 +154,7 @@
             else if (run.Changed is { } changed)
             {
                 <div class="linq-write">
-                    @switch (FateOf(run))
-                    {
-                        case WriteFate.Open:
-                            <p><strong>@(changed == 1 ? "1 Zeile" : $"{changed:N0} Zeilen") geändert</strong> (@run.Info.FirstWord@Duration(run)) – in der Transaktion des Workspaces.
-                                Für andere unsichtbar bis zum Commit; committen, verwerfen oder zurücknehmen (↶) über die Statusleiste.</p>
-                            break;
-                        case WriteFate.Undone:
-                            <p class="muted">@(changed == 1 ? "1 Zeile" : $"{changed:N0} Zeilen") geändert (@run.Info.FirstWord@Duration(run)) – inzwischen zurückgenommen (↶).</p>
-                            break;
-                        default:
-                            <p class="muted">@(changed == 1 ? "1 Zeile" : $"{changed:N0} Zeilen") geändert (@run.Info.FirstWord@Duration(run)) – die Transaktion ist inzwischen beendet (Commit oder Rollback).</p>
-                            break;
-                    }
+                    <WriteOutcome Rows="changed" Fate="FateOf(run)" Detail="@($" ({run.Info.FirstWord}{Duration(run)})")" />
                 </div>
             }
         }
@@ -498,11 +486,7 @@
 
         if (wrote)
         {
-            // Table tabs of the workspace may show the changed rows: they fetch them again from the transaction.
-            foreach (var tab in Shell.FindWorkspace(Tab.WorkspaceId)?.TableTabs ?? [])
-            {
-                Shell.RequestTabCommand(tab, TabCommand.Reload);
-            }
+            Shell.ReloadTableTabs(Tab.WorkspaceId); // they may show the changed rows
 
             Shell.NotifyChanged(); // status bar: open transaction, commit/rollback
         }
@@ -521,7 +505,7 @@
         if (run.Info.IsQuery)
         {
             var read = await Shell.RunDbAsync(Logger, Active, async () =>
-                await (await Workspaces.GetDataAsync(Tab.WorkspaceId, token)).ReadSqlAsync(query, 0, SqlResultGrid.PageSize, token), token);
+                await Workspaces.ReadSqlAsync(Tab.WorkspaceId, query, 0, SqlResultGrid.PageSize, token), token);
             if (read.Value is not { } page)
             {
                 return await FailedAsync(run, read);
@@ -532,7 +516,7 @@
         }
 
         var written = await Shell.RunDbAsync(Logger, Active, async () =>
-            await (await Workspaces.GetEditorAsync(Tab.WorkspaceId, token)).ExecuteAsync(query, token), token);
+            await Workspaces.ExecuteAsync(Tab.WorkspaceId, query, token), token);
         if (written.Value is not { } action)
         {
             return await FailedAsync(run, written);

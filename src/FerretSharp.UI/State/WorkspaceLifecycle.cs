@@ -59,11 +59,7 @@ public sealed class WorkspaceLifecycle(
             return;
         }
 
-        foreach (var tab in shell.FindWorkspace(workspaceId)?.Tabs ?? [])
-        {
-            shell.RequestTabCommand(tab, TabCommand.Reload);
-        }
-
+        shell.ReloadTableTabs(workspaceId);
         shell.Notify($"Workspace „{WorkspaceName(workspaceId)}“ ist zum Schreiben freigeschaltet.");
     }
 
