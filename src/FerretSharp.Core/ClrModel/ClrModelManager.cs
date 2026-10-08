@@ -50,6 +50,9 @@ public sealed class ClrModelManager : IDisposable
     private readonly ModelCache? _cache;
     private readonly Lock _lock = new();
     private CancellationTokenSource? _loading;
+
+    /// <summary>Cancelled on dispose (connection closed): a running build is ended instead of going on for up to ten minutes.</summary>
+    private readonly CancellationTokenSource _lifetime = new();
     private Guid? _profileId;
 
     /// <param name="cache">Exported models to reuse while the build is unchanged (WP-16); null = always run the host.</param>
@@ -234,7 +237,11 @@ public sealed class ClrModelManager : IDisposable
         Changed?.Invoke();
         try
         {
-            LastBuild = await Task.Run(() => _runner.BuildAsync(link, CancellationToken.None));
+            LastBuild = await Task.Run(() => _runner.BuildAsync(link, _lifetime.Token));
+        }
+        catch (OperationCanceledException)
+        {
+            return null; // closed meanwhile; nobody waits for the result
         }
         catch (Exception ex) when (ex is ClrModelException or IOException or System.ComponentModel.Win32Exception)
         {
@@ -256,6 +263,7 @@ public sealed class ClrModelManager : IDisposable
 
     public void Dispose()
     {
+        _lifetime.Cancel();
         _active.Changed -= OnConnectionChanged;
         _connections.Changed -= OnConnectionChanged;
         _loading?.Cancel();

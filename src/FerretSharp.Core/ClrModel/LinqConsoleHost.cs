@@ -168,13 +168,18 @@ public sealed class LinqConsoleHost : ILinqConsole
                 await _writer.WriteLineAsync(JsonSerializer.Serialize(request with { Id = id }, LinqProtocol.JsonOptions).AsMemory(), limit.Token);
                 return await ReadResponseAsync(id, limit.Token);
             }
-            catch (Exception ex) when (ex is OperationCanceledException or IOException)
+            catch (Exception ex) when (ex is OperationCanceledException or IOException or JsonException)
             {
-                // The host may still be busy with the old request: its answers would no longer match. Start afresh.
+                // The host may still be busy with the old request, or the pipe is out of step (an unreadable line): its
+                // answers would no longer match. Start afresh.
                 Kill();
                 cancellationToken.ThrowIfCancellationRequested();
-                throw new ClrModelException(ClrModelErrorKind.Timeout,
-                    ex is IOException ? "Der Hilfsprozess der LINQ-Konsole ist abgestürzt." : timeoutMessage, ErrorOutput);
+                throw new ClrModelException(ClrModelErrorKind.Timeout, ex switch
+                {
+                    IOException => "Der Hilfsprozess der LINQ-Konsole ist abgestürzt.",
+                    JsonException => "Der Hilfsprozess der LINQ-Konsole hat unlesbar geantwortet und wurde beendet – er startet beim nächsten Mal neu.",
+                    _ => timeoutMessage,
+                }, ErrorOutput);
             }
         }
         finally
@@ -210,14 +215,7 @@ public sealed class LinqConsoleHost : ILinqConsole
     private void Kill()
     {
         _dead = true;
-        try
-        {
-            _process.Kill(entireProcessTree: true);
-        }
-        catch (InvalidOperationException)
-        {
-            // already exited
-        }
+        DotNetCli.KillTree(_process);
     }
 
     public async ValueTask DisposeAsync()
@@ -249,9 +247,9 @@ public sealed class LinqConsoleHost : ILinqConsole
         {
             directory.Delete(recursive: true);
         }
-        catch (IOException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // a file still in use by a killed process: the temp folder is cleaned up by Windows later
+            // a file still in use by a host being killed: removed on a later start (ModelHostRunner.DeleteStaleWorkFolders)
         }
     }
 }

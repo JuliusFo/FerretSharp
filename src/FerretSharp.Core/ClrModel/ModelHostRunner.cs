@@ -100,6 +100,36 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
             _timeout, progress, cancellationToken);
     }
 
+    /// <summary>Set once old work folders were removed in this process.</summary>
+    private static int _staleFoldersRemoved;
+
+    /// <summary>
+    /// Work folders of earlier runs that could not be deleted then (a file still held by a host that was being killed):
+    /// removed once per process, if older than <paramref name="age"/> – a younger one may belong to another FerretSharp.
+    /// </summary>
+    internal static void DeleteStaleWorkFolders(string root, TimeSpan age)
+    {
+        try
+        {
+            if (!Directory.Exists(root))
+            {
+                return;
+            }
+
+            foreach (var folder in new DirectoryInfo(root).EnumerateDirectories())
+            {
+                if (DateTime.UtcNow - folder.LastWriteTimeUtc > age)
+                {
+                    LinqConsoleHost.TryDelete(folder);
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // housekeeping only
+        }
+    }
+
     /// <summary>A start of the host: its own temp folder, with the runtimeconfig for the project's runtime in it.</summary>
     private sealed record HostLaunch(DirectoryInfo Work, string RuntimeConfig);
 
@@ -115,7 +145,13 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
             throw new ClrModelException(ClrModelErrorKind.HostFailed, $"FerretSharp.ModelHost fehlt: {modelHostPath}");
         }
 
-        var work = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "FerretSharp", "modelhost", Guid.NewGuid().ToString("N")));
+        var root = Path.Combine(Path.GetTempPath(), "FerretSharp", "modelhost");
+        if (Interlocked.Exchange(ref _staleFoldersRemoved, 1) == 0)
+        {
+            DeleteStaleWorkFolders(root, TimeSpan.FromDays(1));
+        }
+
+        var work = Directory.CreateDirectory(Path.Combine(root, Guid.NewGuid().ToString("N")));
         var runtimeConfig = Path.Combine(work.FullName, "modelhost.runtimeconfig.json");
         try
         {
@@ -149,7 +185,7 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
     }
 
     public Task<DotNetRun> BuildAsync(ClrProjectLink link, CancellationToken cancellationToken) =>
-        DotNetCli.RunAsync(["build", link.ProjectFile, "-c", link.Configuration, "-nologo", "-v", "q"],
+        DotNetCli.RunAsync(["build", link.ProjectFile, "-c", link.Configuration, "-nologo", "-v", "q", "-nodeReuse:false"],
             Path.GetDirectoryName(link.ProjectFile)!, TimeSpan.FromMinutes(10), cancellationToken);
 
     /// <summary>
@@ -182,7 +218,6 @@ public static class DotNetCli
 {
     private const int MaxOutput = 200_000;
 
-    /// <param name="onOutputLine">Called for every line on stdout as it arrives (any thread).</param>
     /// <summary>Starts <c>dotnet</c> and returns while it runs (the LINQ console); lines arrive on any thread.</summary>
     public static Process Start(IEnumerable<string> arguments, string workingDirectory, Action<string> onOutputLine, Action<string> onErrorLine)
     {
@@ -282,23 +317,39 @@ public static class DotNetCli
         }
         catch (OperationCanceledException)
         {
-            try
+            KillTree(process);
+            cancellationToken.ThrowIfCancellationRequested();
+            string captured;
+            lock (output)
             {
-                process.Kill(entireProcessTree: true);
-            }
-            catch (InvalidOperationException)
-            {
-                // already exited
+                captured = output.ToString();
             }
 
-            cancellationToken.ThrowIfCancellationRequested();
-            throw new ClrModelException(ClrModelErrorKind.Timeout, $"dotnet hat nach {timeout.TotalSeconds:0} s nicht geantwortet und wurde beendet.");
+            // What it wrote up to then says where it hung (restore, a build step, the project's code).
+            throw new ClrModelException(ClrModelErrorKind.Timeout, $"dotnet hat nach {timeout.TotalSeconds:0} s nicht geantwortet und wurde beendet.", captured);
         }
 
         process.WaitForExit(); // flushes the asynchronous output readers
         lock (output)
         {
             return new DotNetRun(process.ExitCode, output.ToString());
+        }
+    }
+
+    /// <summary>
+    /// Ends the process and everything it started (MSBuild nodes, the project's code) and waits briefly for it to go. Never
+    /// throws: it may have exited already, or Windows may refuse to end a child.
+    /// </summary>
+    public static void KillTree(Process process)
+    {
+        try
+        {
+            process.Kill(entireProcessTree: true);
+            process.WaitForExit(2000);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or AggregateException or NotSupportedException)
+        {
+            // already exited, or a child that is not ours to end
         }
     }
 
