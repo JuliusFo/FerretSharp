@@ -218,12 +218,13 @@ kbd { font: 600 10px var(--mono); padding: 1px 5px; border-radius: 4px; border: 
 .chev.closed { transform: rotate(-90deg); }
 
 .conn-row {
-  display: grid; grid-template-columns: 8px minmax(0, 1fr) 44px minmax(0, 1fr) 28px; align-items: center; gap: 10px;
+  display: grid; grid-template-columns: 8px minmax(0, 1fr) 44px minmax(0, 1fr) 64px 28px; align-items: center; gap: 8px;
   height: 34px; padding: 0 4px 0 10px; border-radius: 7px; cursor: pointer;
 }
 .conn-row.highlight { background: var(--accent-weak); }
 .conn-row .name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .conn-row .addr { font: 12px var(--mono); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conn-disconnect { display: flex; justify-content: flex-end; min-width: 0; }
 
 .kind-badge { font-size: 10px; font-weight: 700; letter-spacing: .05em; color: var(--muted); }
 .kind-prod .kind-badge { color: var(--prod); }
