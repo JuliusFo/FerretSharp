@@ -35,3 +35,4 @@ Weg 3 (Entscheidung des Nutzers nach Abwägung, ausschlaggebend: eigene Converte
 - Voraussetzung ist ein erfolgreicher Build und ein installiertes .NET (`dotnet` im PATH) mit der Runtime des Projekts.
 - Der Modellaufbau des Nutzers (`OnModelCreating`) läuft im Hilfsprozess; Abstürze dort sind Fehlermeldungen, keine App-Abstürze.
 - WP-13 (LINQ-Konsole) baut auf demselben Hilfsprozess auf; ein eigener Connection String des Projekts darf dort nie benutzt werden.
+- Nachtrag (ADR 0016): Der Hilfsprozess läuft nicht mehr direkt aus dem Build-Output, sondern aus einer Schattenkopie (sonst sperrt er die DLLs gegen den nächsten Build); ein Watcher auf den Build-Output lädt das Modell nach einem Build neu.
