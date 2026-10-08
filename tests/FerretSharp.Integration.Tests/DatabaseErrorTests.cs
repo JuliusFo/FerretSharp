@@ -1,3 +1,4 @@
+using System.Globalization;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Oracle;
 using FerretSharp.Core.Query;
@@ -133,6 +134,20 @@ public sealed class DatabaseErrorTests(OracleContainerFixture oracle)
 
         await using var kill = connection.CreateCommand();
         kill.CommandText = $"ALTER SYSTEM KILL SESSION '{session}' IMMEDIATE";
-        await kill.ExecuteNonQueryAsync(Ct);
+        try
+        {
+            await kill.ExecuteNonQueryAsync(Ct);
+        }
+        catch (OracleException ex) when (ex.Number == 31)
+        {
+            // ORA-00031 "session marked for kill": Oracle could not end it at once (a loaded test container) – wait until it is gone.
+            await using var gone = connection.CreateCommand();
+            gone.CommandText = "SELECT COUNT(*) FROM V$SESSION WHERE ACTION = :a AND STATUS <> 'KILLED'";
+            gone.Parameters.Add(new OracleParameter("a", action));
+            for (var waited = 0; Convert.ToInt32(await gone.ExecuteScalarAsync(Ct), CultureInfo.InvariantCulture) > 0 && waited < 30; waited++)
+            {
+                await Task.Delay(1000, Ct);
+            }
+        }
     }
 }

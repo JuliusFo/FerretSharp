@@ -15,8 +15,9 @@ public abstract class DetailViewBase<T> : ComponentBase, IDisposable where T : c
     private int? _loadedVersion;
     private CancellationTokenSource? _cts;
 
-    [Inject]
-    protected ActiveConnection Active { get; set; } = null!;
+    /// <summary>The tab's connection – cascaded by its ConnectionScopeView, never injected (that would be the WebView scope's, without schema).</summary>
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
 
     [Inject]
     private ILoggerFactory LoggerFactory { get; set; } = null!;

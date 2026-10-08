@@ -235,6 +235,20 @@ public sealed class WorkspaceEditing(
     }
 
     /// <summary>After the connection was lost or closed: nothing of it can be committed any more.</summary>
+    /// <summary>
+    /// The workspace's session was given up (<see cref="WorkspaceLifecycle.ResetSessionAsync"/>) and its transaction with it:
+    /// grid writes become pending again (as after a failed commit), every table tab reloads.
+    /// </summary>
+    public void SessionReset(WorkspaceTabs workspace)
+    {
+        RestorePending(workspace);
+        Forget(workspace.WorkspaceId);
+        foreach (var tab in workspace.TableTabs)
+        {
+            shell.RequestTabCommand(tab, TabCommand.Reload);
+        }
+    }
+
     public void Forget(Guid workspaceId)
     {
         _batches.Remove(workspaceId);

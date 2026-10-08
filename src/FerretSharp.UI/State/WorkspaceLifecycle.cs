@@ -67,6 +67,25 @@ public sealed class WorkspaceLifecycle(
         shell.Notify($"Workspace „{WorkspaceName(workspaceId)}“ ist zum Schreiben freigeschaltet.");
     }
 
+    /// <summary>
+    /// "Session trennen" – a statement does not react to cancelling (<c>RunProgress</c> asked first if writes would be lost):
+    /// closes the workspace's session, the statement ends as cancelled. What was written in its transaction is gone, grid
+    /// writes become pending again; the next database access opens a new session.
+    /// </summary>
+    public async Task ResetSessionAsync(Guid workspaceId)
+    {
+        // The session leaves the workspace at once (and the statement is let go); closing it may take a few seconds more.
+        var closing = ScopeOf(workspaceId).Workspaces.ResetSessionAsync(workspaceId);
+        if (shell.FindWorkspace(workspaceId) is { } workspace)
+        {
+            editing.SessionReset(workspace);
+        }
+
+        shell.Notify($"Session von „{WorkspaceName(workspaceId)}“ getrennt – beim nächsten Zugriff öffnet sich eine neue.");
+        shell.NotifyChanged(); // status bar: the transaction is gone
+        await closing;
+    }
+
     /// <summary>Locks the workspace again – after asking what happens to its uncommitted changes.</summary>
     public Task LockAsync(Guid workspaceId) =>
         GuardAsync("Workspace sperren", [workspaceId], async () =>

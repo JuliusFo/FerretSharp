@@ -5,6 +5,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- Run progress where the result will appear, in the SQL editor and the LINQ console: what runs, for how long (ticking each second), in a script "Statement 3 von 7", and a prominent "Abbrechen". After pressing it the panel says "Wird abgebrochen …"; if Oracle has not reacted after 5 seconds (e.g. a VPN swallowed the cancel), "Session trennen …" closes the workspace's session and lets the statement go at once – after saying what is discarded (statement changes of the open transaction; grid changes already written become pending again). The next access opens a new session.
+- Durations: the statements of a script (chips) and "N Zeilen geändert" show how long they took; a cancelled statement is marked "abgebrochen" instead of "Fehler".
+- Every SQL block has a copy button in its top right corner: view definition, DDL, the SQL of the LINQ console, SQL preview, DDL proposal of the schema comparison, statements in confirmations and the error dialog. It replaces the "Kopieren" buttons of the DDL view, the SQL preview and the DDL proposal.
+
+### Fixed
+- The detail views Constraints, Indizes, Abhängigkeiten and DDL stayed empty, and the object header lacked its details (since 3.8.0): they asked an empty connection instead of the tab's.
+- LINQ console: "Abbrechen" stopped only the translation of the C# code, not the query itself.
+- Closing a workspace or disconnecting while a statement hung on a connection that had gone silent could freeze the window; such a connection now closes in the background.
+
 ## [3.13.0] - 2026-10-08
 
 ### Added

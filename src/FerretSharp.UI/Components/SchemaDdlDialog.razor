@@ -1,8 +1,6 @@
 @* DDL proposal of the schema comparison (WP-20): which side to align to which, the script to copy. FerretSharp does not
    run it (that comes with WP-22). *@
 @using FerretSharp.Core.Compare
-@implements IAsyncDisposable
-@inject IJSRuntime JS
 
 <ModalFrame Label="DDL-Vorschlag" Class="sql-dialog compare-ddl-dialog" OnCancel="OnClose" CloseOnBackdrop="true" FocusOnOpen="true">
     <header>
@@ -21,7 +19,6 @@
             }
         </select>
         <span class="spacer"></span>
-        <button class="btn" disabled="@(_proposal is not { Steps.Count: > 0 })" @onclick="CopyAsync">@(_copied ? "Kopiert ✓" : "Kopieren")</button>
         <button class="icon-btn ghost" title="Schließen" @onclick="OnClose">✕</button>
     </header>
     <div class="settings-note compare-ddl-note">
@@ -49,11 +46,6 @@
     private int _target = 1;
     private DdlProposal? _proposal;
     private string? _error;
-    private bool _copied;
-    private IJSObjectReference? _dom;
-
-    [CascadingParameter]
-    public FerretSharp.UI.State.ShellState Shell { get; set; } = null!;
 
     [Parameter, EditorRequired]
     public SchemaComparison Comparison { get; set; } = null!;
@@ -74,7 +66,6 @@
 
     private void Build()
     {
-        _copied = false;
         try
         {
             _proposal = SchemaDdl.Align(Comparison, _reference, _target);
@@ -84,35 +75,6 @@
         {
             // A bug in the proposal must not take the page down; the comparison itself stays usable.
             (_proposal, _error) = (null, $"Der DDL-Vorschlag ließ sich nicht erzeugen: {ex.Message}");
-        }
-    }
-
-    private async Task CopyAsync()
-    {
-        if (_proposal is null)
-        {
-            return;
-        }
-
-        _dom ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
-        _copied = await _dom.InvokeAsync<bool>("copyText", _proposal.Script);
-        if (!_copied)
-        {
-            Shell.Notify("Die Zwischenablage ist nicht verfügbar.");
-        }
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (_dom is not null)
-        {
-            try
-            {
-                await _dom.DisposeAsync();
-            }
-            catch (JSDisconnectedException)
-            {
-            }
         }
     }
 }

@@ -23,11 +23,6 @@
         {
             <button class="btn ghost" title="Ausführungsplan des angezeigten Statements – geschätzt oder tatsächlich" @onclick="() => _planOpen = true">Plan</button>
         }
-        @if (_running)
-        {
-            <span class="spinner small"></span>
-            <button class="btn ghost" @onclick="Cancel">Abbrechen</button>
-        }
         <button class="btn" disabled="@_running" @onclick="RunScriptAsync"
                 title="Alle Statements nacheinander ausführen (oder die markierten); beim ersten Fehler hält das Skript an">
             ▶▶ Skript <kbd>Alt X</kbd>
@@ -115,22 +110,28 @@
             </div>
         }
 
-        @if (Tab.Runs.Count > 1 && _error is null)
+        @if ((Tab.Runs.Count > 1 || (_running && _total > 1 && Tab.Runs.Count > 0)) && _error is null)
         {
             <div class="linq-commands sql-runs">
                 @for (var i = 0; i < Tab.Runs.Count; i++)
                 {
                     var index = i;
                     var item = Tab.Runs[i];
-                    <button class="chip-btn @(index == Tab.SelectedRun ? "active" : "") @(item.Error is null ? "" : "failed")"
+                    <button class="chip-btn @(index == Tab.SelectedRun ? "active" : "") @(item.Error is null || item.Cancelled ? "" : "failed")"
                             title="@item.Statement.Text" @onclick="() => SelectRun(index)">
-                        @item.Number · @item.Info.FirstWord · @RunOutcome(item)
+                        @item.Number · @item.Info.FirstWord · @RunOutcome(item)@Duration(item)
                     </button>
                 }
             </div>
         }
 
-        @if (Tab.ShownRun is { } run && _error is null)
+        @if (_running && _current is { } current)
+        {
+            <RunProgress @key="current" WorkspaceId="Tab.WorkspaceId" Started="_currentStarted" OnCancel="Cancel"
+                         Title="@(_total > 1 ? $"Statement {current.Number} von {_total} · {current.Info.FirstWord}" : current.Info.IsQuery ? "Abfrage läuft" : $"{current.Info.FirstWord} läuft")"
+                         Detail="@current.Statement.Text" ScriptStarted="@(_total > 1 ? _scriptStarted : null)" />
+        }
+        else if (Tab.ShownRun is { } run && _error is null)
         {
             @if (run.Error is { } failure)
             {
@@ -156,14 +157,14 @@
                     @switch (FateOf(run))
                     {
                         case WriteFate.Open:
-                            <p><strong>@(changed == 1 ? "1 Zeile" : $"{changed:N0} Zeilen") geändert</strong> (@run.Info.FirstWord) – in der Transaktion des Workspaces.
+                            <p><strong>@(changed == 1 ? "1 Zeile" : $"{changed:N0} Zeilen") geändert</strong> (@run.Info.FirstWord@Duration(run)) – in der Transaktion des Workspaces.
                                 Für andere unsichtbar bis zum Commit; committen, verwerfen oder zurücknehmen (↶) über die Statusleiste.</p>
                             break;
                         case WriteFate.Undone:
-                            <p class="muted">@(changed == 1 ? "1 Zeile" : $"{changed:N0} Zeilen") geändert (@run.Info.FirstWord) – inzwischen zurückgenommen (↶).</p>
+                            <p class="muted">@(changed == 1 ? "1 Zeile" : $"{changed:N0} Zeilen") geändert (@run.Info.FirstWord@Duration(run)) – inzwischen zurückgenommen (↶).</p>
                             break;
                         default:
-                            <p class="muted">@(changed == 1 ? "1 Zeile" : $"{changed:N0} Zeilen") geändert (@run.Info.FirstWord) – die Transaktion ist inzwischen beendet (Commit oder Rollback).</p>
+                            <p class="muted">@(changed == 1 ? "1 Zeile" : $"{changed:N0} Zeilen") geändert (@run.Info.FirstWord@Duration(run)) – die Transaktion ist inzwischen beendet (Commit oder Rollback).</p>
                             break;
                     }
                 </div>
@@ -217,6 +218,12 @@
     private MonacoEditor? _editor;
     private CancellationTokenSource? _cts;
     private bool _running;
+
+    /// <summary>While running: the statement at work, since when, and of how many (a script).</summary>
+    private SqlRun? _current;
+    private DateTimeOffset _currentStarted;
+    private DateTimeOffset _scriptStarted;
+    private int _total;
     private bool _planOpen;
     private string? _error;
     private bool _needsUnlock;
@@ -416,6 +423,7 @@
         Tab.SelectedRun = 0;
         _grid = null;
         _runKey++;
+        (_total, _scriptStarted) = (runs.Count, DateTimeOffset.Now);
         var (first, last) = (runs[0].Statement, runs[^1].Statement);
         await _editor!.FlashAsync(first.Start, last.End - first.Start);
         StateHasChanged();
@@ -425,6 +433,8 @@
         {
             foreach (var run in runs)
             {
+                (_current, _currentStarted) = (run, DateTimeOffset.Now);
+                StateHasChanged();
                 var result = await RunOneAsync(run, token);
                 results.Add(result);
                 Tab.Runs = results.ToList();
@@ -440,6 +450,7 @@
         finally
         {
             _running = false;
+            _current = null;
             _cts.Dispose();
             _cts = null;
         }
@@ -484,7 +495,7 @@
             }
 
             await LogAsync(run, page.Rows.Count, !page.IsLastPage, false, null, page.Elapsed);
-            return run with { FirstPage = page };
+            return run with { FirstPage = page, Elapsed = DateTimeOffset.Now - run.At };
         }
 
         var written = await Shell.RunDbAsync(Logger, Active.Profile, async () =>
@@ -495,15 +506,26 @@
         }
 
         await LogAsync(run, action.Rows, false, true, null);
-        return run with { Changed = action.Rows, Transaction = Workspaces.TransactionOf(Tab.WorkspaceId)?.StartedAt, Action = action.Id };
+        return run with
+        {
+            Changed = action.Rows,
+            Transaction = Workspaces.TransactionOf(Tab.WorkspaceId)?.StartedAt,
+            Action = action.Id,
+            Elapsed = DateTimeOffset.Now - run.At,
+        };
     }
 
     /// <summary>A failed or cancelled statement: an error Oracle reported is marked in the editor and goes into the history.</summary>
     private async Task<SqlRun> FailedAsync<T>(SqlRun run, DbResult<T> result)
     {
+        run = run with { Elapsed = DateTimeOffset.Now - run.At };
         if (result.Error is not { } error)
         {
-            return run with { Error = new DatabaseException(run.Info.IsQuery ? "Abgebrochen." : "Abgebrochen – das Statement wurde zurückgenommen.") };
+            return run with
+            {
+                Error = new DatabaseException(run.Info.IsQuery ? "Abgebrochen." : "Abgebrochen – das Statement wurde zurückgenommen."),
+                Cancelled = true,
+            };
         }
 
         if (!result.IsRefusal)
@@ -537,12 +559,16 @@
 
     private static string RunOutcome(SqlRun run) => run switch
     {
+        { Cancelled: true } => "abgebrochen",
         { Error: not null } => "Fehler",
         { Changed: { } changed } => $"{changed:N0} geändert",
         { FirstPage: { IsLastPage: true, Rows.Count: 1 } } => "1 Zeile",
         { FirstPage: { } page } => $"{(page.IsLastPage ? "" : "≥ ")}{page.Rows.Count:N0} Zeilen",
         _ => "",
     };
+
+    /// <summary>" · 0,4 s" after a run's outcome; nothing while unknown.</summary>
+    private static string Duration(SqlRun run) => run.Elapsed is { } elapsed ? " · " + ResultFooter.Ms(elapsed) : "";
 
     private async Task LogAsync(SqlRun run, int? rows, bool moreRows, bool changed, string? error, TimeSpan? elapsed = null)
     {

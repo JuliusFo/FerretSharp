@@ -84,6 +84,8 @@ public sealed class SqlTab(Guid workspaceId, string title) : WorkspaceTab(worksp
 /// <param name="Transaction">DML: start of the workspace transaction it ran in – to tell whether that one is still open.</param>
 /// <param name="Error">Why it failed (or "Abgebrochen."); the script stopped here.</param>
 /// <param name="Action">DML: its write in the transaction – undo (↶) may take it back (<c>WorkspaceEditing.FateOf</c>).</param>
+/// <param name="Elapsed">From start to result (a query: its first page) as the user waited for it; null while it runs.</param>
+/// <param name="Cancelled">Stopped by "Abbrechen" (or the session was given up); <see cref="Error"/> says so.</param>
 public sealed record SqlRun(
     int Number,
     Core.Query.SqlStatement Statement,
@@ -94,4 +96,6 @@ public sealed record SqlRun(
     int? Changed = null,
     DateTimeOffset? Transaction = null,
     Core.Connections.DatabaseException? Error = null,
-    Guid? Action = null);
+    Guid? Action = null,
+    TimeSpan? Elapsed = null,
+    bool Cancelled = false);
