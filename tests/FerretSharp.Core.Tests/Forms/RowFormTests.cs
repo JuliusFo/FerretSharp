@@ -228,6 +228,11 @@ public sealed class RowComparisonTests
         Assert.True(Field(fields, "NAME").Differs);
         Assert.True(Field(fields, "KUNDENART").Differs);
         Assert.Equal(["Gewerbe (2)", "Privat (1)", "Gewerbe (2)"], Field(fields, "KUNDENART").Cells.Select(c => c.Value.Text));
+        // Only the odd one out is marked; all different: everything but the first row.
+        Assert.Equal([false, true, false], Field(fields, "KUNDENART").Cells.Select(c => c.Deviates));
+        Assert.Equal([false, false, true], Field(fields, "NAME").Cells.Select(c => c.Deviates));
+        Assert.Equal([false, true, true], Field(fields, "KUNDE_ID").Cells.Select(c => c.Deviates));
+        Assert.All(Field(fields, "ERSTELLT_AM").Cells, c => Assert.False(c.Deviates));
         Assert.False(Field(fields, "ERSTELLT_AM").Differs);
         Assert.False(Field(fields, "EXTERN_ID").Differs); // RAW by content, every read is a new array
         Assert.False(Field(fields, "NOTIZ").Differs); // LOBs by preview and length

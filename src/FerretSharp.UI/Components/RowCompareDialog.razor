@@ -1,0 +1,124 @@
+@* Selected rows side by side (WP-21): one column per row, one line per table column, deviating values marked.
+   Read-only – values as the grid shows them, including pending changes. A row's heading leads back to the grid and
+   opens that row in the form. *@
+@using FerretSharp.Core.Data
+@using FerretSharp.Core.Forms
+@using FerretSharp.Core.Schema
+@using FerretSharp.UI.State
+
+<ModalFrame Label="@($"Vergleich {Details.Table.DisplayName}")" Class="compare-rows-dialog" OnCancel="OnClose" CloseOnBackdrop="true" FocusOnOpen="true">
+    @{
+        var presentation = Presentations.For(Details);
+        var fields = RowComparison.Compare(Details, presentation, Rows.Select(r => r.Row).ToList(), Tab.PinnedColumns);
+        var view = RowComparison.Visible(fields, presentation, new CompareFilter(_query, _hideEmpty, _onlyDifferences));
+        var differing = fields.Count(f => f.Differs);
+    }
+    <header>
+        <span>Vergleich · @RowsText(Rows.Count) · @Details.Table.DisplayName</span>
+        <label class="structure-filter">
+            @Icons.Search
+            <input placeholder="Spalten suchen …" spellcheck="false" autocomplete="off" @bind="_query" @bind:event="oninput" />
+        </label>
+        <label class="check"><input type="checkbox" checked="@_onlyDifferences" @onchange="e => _onlyDifferences = e.Value is true" /> Nur Unterschiede</label>
+        <label class="check" title="Spalten, die in allen Zeilen NULL sind"><input type="checkbox" checked="@_hideEmpty" @onchange="e => _hideEmpty = e.Value is true" /> Leere ausblenden</label>
+        <span class="muted">
+            @(differing == 1 ? "1 Spalte unterschiedlich" : $"{differing} Spalten unterschiedlich")@(view.Fields.Count < view.Total ? $" · {view.Fields.Count} von {view.Total} gezeigt" : "")
+        </span>
+        <span class="spacer"></span>
+        <button class="icon-btn ghost" title="Schließen" @onclick="OnClose">✕</button>
+    </header>
+    <div class="dialog-body compare-rows-body">
+        <table class="compare-rows">
+            <thead>
+                <tr>
+                    <th class="cr-col">Spalte</th>
+                    @foreach (var (index, row) in Rows)
+                    {
+                        <th>
+                            <button class="link-btn cr-row" title="Im Grid zeigen und im Formular öffnen" @onclick="() => OnShow.InvokeAsync(index)">Zeile @((index + 1).ToString("N0", CultureInfo.CurrentCulture))</button>
+                            @if (row.KeyText(Details) is { } key)
+                            {
+                                <span class="cr-key">@key</span>
+                            }
+                        </th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @if (view.Fields.Count == 0)
+                {
+                    <tr><td class="muted" colspan="@(Rows.Count + 1)">@(_onlyDifferences && differing == 0 ? "Die Zeilen sind gleich." : "Keine Spalte passt.")</td></tr>
+                }
+                @foreach (var field in view.Fields)
+                {
+                    <tr class="@(field.Differs ? "differs" : "")">
+                        <th class="cr-col" title="@ColumnTitle(field)">
+                            <span class="cr-name">@field.Label.Name</span>
+                            @if (field.Label.AlternateName is { } alternate)
+                            {
+                                <span class="cr-alt">@alternate</span>
+                            }
+                            <span class="cr-type">@field.Info.DisplayType</span>
+                        </th>
+                        @foreach (var cell in field.Cells)
+                        {
+                            <td class="@(cell.Deviates ? "deviates" : "") @StageClass(cell.Stage) @(cell.IsNull ? "fs-null" : "")" title="@cell.Value.Tooltip">@(cell.Value.Text ?? "NULL")</td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <footer>
+        <span class="muted">
+            Abweichende Werte markiert · Werte wie im Grid, mit ausstehenden Änderungen@(Missing > 0 ? $" · {RowsText(Missing)} der Auswahl nicht mehr geladen" : "")
+        </span>
+        <span class="spacer"></span>
+        <button class="btn" @onclick="OnClose">Schließen</button>
+    </footer>
+</ModalFrame>
+
+@code {
+    [CascadingParameter]
+    public PresentationService Presentations { get; set; } = null!;
+
+    private string _query = "";
+    private bool _onlyDifferences;
+    private bool _hideEmpty;
+
+    [Parameter, EditorRequired]
+    public TableTab Tab { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public TableDetails Details { get; set; } = null!;
+
+    /// <summary>The compared rows with their grid index, in grid order.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<(int Index, FormRow Row)> Rows { get; set; } = [];
+
+    /// <summary>Selected rows whose block is no longer loaded: not compared.</summary>
+    [Parameter]
+    public int Missing { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    /// <summary>A row's heading: back to the grid, that row in the form.</summary>
+    [Parameter]
+    public EventCallback<int> OnShow { get; set; }
+
+    private static string RowsText(int rows) => rows == 1 ? "1 Zeile" : $"{rows:N0} Zeilen";
+
+    private static string StageClass(ChangeStage? stage) => stage switch
+    {
+        ChangeStage.Pending => "ff-pending",
+        ChangeStage.Flushed => "ff-flushed",
+        _ => "",
+    };
+
+    private static string ColumnTitle(CompareField field) => string.Join("\n", new[]
+    {
+        field.Info.Name + (field.Label.ClrType is { } type ? $" · {field.Label.AlternateName ?? field.Label.Name} · {type}" : ""),
+        field.Info.Comment,
+    }.OfType<string>());
+}

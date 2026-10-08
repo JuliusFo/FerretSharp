@@ -111,7 +111,7 @@ public static class RowForm
                     presentation.LabelOf(i),
                     presentation.Present(i, raw),
                     raw,
-                    options?.OptionOf(raw)?.Value ?? OracleTypeMapper.EditText(info, raw),
+                    EditTextOf(presentation, i, raw),
                     row.Change?.StageOf(i),
                     ReadOnlyReason(table, info, row, raw, writable),
                     table.PrimaryKey.Contains(info.Name),
@@ -122,6 +122,13 @@ public static class RowForm
             })
             .ToList();
     }
+
+    /// <summary>
+    /// The text an editor starts with: the full value (no shortening, no thousands separators, empty for NULL); for enum
+    /// and bool columns the member's database value, as the member list has it.
+    /// </summary>
+    public static string EditTextOf(TablePresentation presentation, int column, object? raw) =>
+        presentation.ValuesOf(column)?.OptionOf(raw)?.Value ?? OracleTypeMapper.EditText(presentation.Details.Columns[column], raw);
 
     /// <summary>Rows referencing this one, per incoming foreign key; none for a new row (nothing can reference it yet).</summary>
     public static IReadOnlyList<FkJump> Incoming(TableDetails table, FormRow row, IEnumerable<ForeignKeyInfo> incoming) =>

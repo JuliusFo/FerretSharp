@@ -1,0 +1,215 @@
+@* One field of the form (WP-21): label with type and badges, the value (editable like a grid cell: Enter or leaving the
+   field takes it, Esc drops it), FK links, LOB button and model mismatches. The typed text lives here and in the
+   panel's drafts; the panel checks and keeps it through the grid's ChangeTracker. *@
+@using FerretSharp.Core.Data
+@using FerretSharp.Core.Forms
+@using FerretSharp.Core.Query
+@using FerretSharp.Core.Schema
+@using FerretSharp.UI.State
+
+<div class="form-field @StageClass @(Highlight ? "focused" : "") @(Field.IsEditable ? "" : "ro")" id="@Id">
+    <div class="ff-label" title="@LabelTitle">
+        <div class="ff-name-line">
+            <span class="ff-name">@Field.Label.Name</span>
+            @if (Field.IsPrimaryKey)
+            {
+                <span class="fs-badge pk">PK</span>
+            }
+            else if (Field.IsUnique)
+            {
+                <span class="fs-badge uk">UK</span>
+            }
+            @if (Field.Jumps.Count > 0)
+            {
+                <span class="fs-badge fk @(Field.Jumps.All(j => j.ForeignKey.Source == FkSource.ClrModel) ? "model" : "")">FK</span>
+            }
+        </div>
+        @if (Field.Label.AlternateName is not null || Field.Label.ClrType is not null)
+        {
+            <div class="ff-alt">@string.Join(" · ", new[] { Field.Label.AlternateName, Field.Label.ClrType }.OfType<string>())</div>
+        }
+        <div class="ff-type">
+            @Field.Info.DisplayType@(Field.Info.Nullable ? "" : " · NOT NULL")
+            @if (Field.Mismatches.Count > 0)
+            {
+                var worst = Field.Mismatches.Min(m => m.Severity);
+                <span class="mismatch-sev @ModelMismatches.Css(worst)"
+                      title="@string.Join("\n", Field.Mismatches.Select(m => $"{ModelMismatches.KindText(m.Kind)}: {m.Message}"))">@string.Join(" · ", Field.Mismatches.Select(m => ModelMismatches.KindText(m.Kind)).Distinct())</span>
+            }
+        </div>
+    </div>
+
+    <div class="ff-value">
+        @if (Field.IsLob)
+        {
+            <div class="ff-ro ff-lob">
+                <span class="@(Field.IsNull ? "fs-null" : "")">@(Field.Value.Text ?? "NULL")</span>
+            </div>
+            <button class="btn small" title="@(Field.IsEditable ? "Den ganzen Wert ansehen oder ändern" : "Den ganzen Wert ansehen")" @onclick="() => OnLob(Field.Column)">Inhalt öffnen …</button>
+        }
+        else if (!Field.IsEditable)
+        {
+            <div class="ff-ro @(Field.IsNull ? "fs-null" : "") @(Field.Value.Unknown ? "fs-unknown-text" : "") @(Field.IsMultiline ? "multiline" : "")"
+                 title="@ReadOnlyTitle">@(Field.Value.Text ?? "NULL")</div>
+        }
+        else if (Field.Options is { } options)
+        {
+            var current = _text;
+            <select class="field ff-input" @key="(RowVersion, Field.EditText)" value="@current" @onchange="PickAsync" title="@ValueTitle">
+                @if (Field.Info.Nullable || IsNewRow)
+                {
+                    <option value="">NULL</option>
+                }
+                @foreach (var option in options.Options)
+                {
+                    <option value="@option.Value">@option.Label</option>
+                }
+                @if (current.Length > 0 && options.Options.All(o => o.Value != current))
+                {
+                    <option value="@current">@current (kein Member)</option>
+                }
+            </select>
+        }
+        else if (Field.IsMultiline)
+        {
+            <textarea class="field ff-input multiline" spellcheck="false" placeholder="NULL" value="@_text" rows="3"
+                      @oninput="OnInput" @onblur="CommitAsync" @onkeydown="OnKeyDownAsync"></textarea>
+        }
+        else
+        {
+            <input class="field ff-input @(Field.Value.Unknown ? "fs-unknown-text" : "")" spellcheck="false" autocomplete="off" placeholder="NULL"
+                   value="@_text" title="@ValueTitle" @oninput="OnInput" @onblur="CommitAsync" @onkeydown="OnKeyDownAsync" />
+        }
+
+        @foreach (var jump in Field.Jumps.Where(j => j.IsAvailable))
+        {
+            <button class="link-btn ff-jump" title="@($"{jump.Condition}\n{FkTargets.Tooltip(jump)}")" @onclick="() => OnJump(jump)">
+                → @TableLabel(jump.Table)@(jump.ForeignKey.Source == FkSource.ClrModel ? " (C#)" : "")
+            </button>
+        }
+
+        @if (Error is not null && !_typedSinceError)
+        {
+            <div class="ff-error">@Error</div>
+        }
+    </div>
+
+    <button class="icon-btn ghost ff-copy" title="Wert kopieren (voller Wert)" disabled="@Field.IsNull" @onclick="() => OnCopy(Field)">⧉</button>
+</div>
+
+@code {
+    private string _text = "";
+    private bool _typedSinceError;
+
+    [Parameter, EditorRequired]
+    public FormField Field { get; set; } = null!;
+
+    /// <summary>Text typed but not taken yet (kept by the panel across re-renders); null if none.</summary>
+    [Parameter]
+    public string? Draft { get; set; }
+
+    /// <summary>Why the typed text was not taken; shown below the field until the user types again.</summary>
+    [Parameter]
+    public string? Error { get; set; }
+
+    /// <summary>The column has the focus in the grid.</summary>
+    [Parameter]
+    public bool Highlight { get; set; }
+
+    [Parameter]
+    public bool IsNewRow { get; set; }
+
+    /// <summary>Changes when another row is shown: inputs start over.</summary>
+    [Parameter]
+    public int RowVersion { get; set; }
+
+    [Parameter, EditorRequired]
+    public string Id { get; set; } = "";
+
+    /// <summary>Typing: the panel keeps the text without re-rendering itself.</summary>
+    [Parameter, EditorRequired]
+    public Action<int, string> OnTyped { get; set; } = null!;
+
+    /// <summary>Enter, leaving the field, picking a member: the panel checks and keeps the text; returns the message if it cannot.</summary>
+    [Parameter, EditorRequired]
+    public Func<int, string, string?> OnCommit { get; set; } = null!;
+
+    /// <summary>Esc: the typed text is dropped.</summary>
+    [Parameter, EditorRequired]
+    public Action<int> OnDiscard { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public Action<FkJump> OnJump { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public Action<int> OnLob { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public Action<FormField> OnCopy { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public Func<TableRef, string> TableLabel { get; set; } = null!;
+
+    protected override void OnParametersSet()
+    {
+        _text = Draft ?? Field.EditText;
+        _typedSinceError = false;
+    }
+
+    private string StageClass => Field.Stage switch
+    {
+        ChangeStage.Pending => "ff-pending",
+        ChangeStage.Flushed => "ff-flushed",
+        _ => "",
+    };
+
+    /// <summary>The comment (decision of the user: as tooltip), the other name and the default.</summary>
+    private string LabelTitle => string.Join("\n", new[]
+    {
+        Field.Label.AlternateName is { } alternate ? $"{Field.Label.Name} · {alternate}" : Field.Info.Name,
+        Field.Info.Default is { Length: > 0 } d ? "Default: " + d.Trim() : null,
+        Field.Info.Comment,
+    }.OfType<string>());
+
+    private string? ValueTitle => Field.Value.Tooltip ?? (Field.Value.Unknown && Field.Options is { } o ? o.UnknownText : null);
+
+    private string ReadOnlyTitle => string.Join("\n", new[] { ValueTitle, Field.ReadOnlyReason }.OfType<string>());
+
+    private void OnInput(ChangeEventArgs e)
+    {
+        _text = e.Value as string ?? "";
+        _typedSinceError = true;
+        OnTyped(Field.Column, _text);
+    }
+
+    private Task CommitAsync()
+    {
+        if (_text != Field.EditText || Draft is not null)
+        {
+            OnCommit(Field.Column, _text);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task PickAsync(ChangeEventArgs e)
+    {
+        _text = e.Value as string ?? "";
+        OnCommit(Field.Column, _text);
+        return Task.CompletedTask;
+    }
+
+    private async Task OnKeyDownAsync(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "Enter" when !Field.IsMultiline && !e.AltKey && !e.CtrlKey:
+                await CommitAsync();
+                break;
+            case "Escape":
+                _text = Field.EditText;
+                OnDiscard(Field.Column);
+                break;
+        }
+    }
+}

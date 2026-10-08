@@ -1,0 +1,715 @@
+@* Form view of one row (WP-21), beside the grid: every column of the row the grid has focused, one below the other.
+   The grid leads – ▲ ▼ move its focus, so blocks load as usual and both always show the same row. Edits go through the
+   tab's ChangeTracker like cell edits: pending until Ctrl+S, flushed until commit. *@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Data
+@using FerretSharp.Core.Forms
+@using FerretSharp.Core.Query
+@using FerretSharp.Core.Schema
+@using FerretSharp.UI.State
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject ILogger<RowFormPanel> Logger
+
+<aside class="form-panel" style="@WidthStyle" @ref="_panel" @onkeydown="OnKeyDownAsync">
+    <div class="form-resize" @ref="_handle" title="Breite ändern" @onpointerdown="StartResizeAsync"></div>
+    <header class="form-head">
+        <button class="icon-btn ghost" title="Vorige Zeile (Alt+↑)" disabled="@(!CanMove(-1))" @onclick="() => MoveAsync(-1)">▲</button>
+        <button class="icon-btn ghost" title="Nächste Zeile (Alt+↓)" disabled="@(!CanMove(1))" @onclick="() => MoveAsync(1)">▼</button>
+        <span class="form-pos">
+            @if (_cell is { } cell)
+            {
+                <strong>@PositionText(cell)</strong>
+                @if (CurrentRow?.KeyText(Details) is { } key)
+                {
+                    <span class="form-key" title="Primärschlüssel">@string.Join(", ", Details.PrimaryKey) @key</span>
+                }
+            }
+            else
+            {
+                <span class="muted">Formular</span>
+            }
+        </span>
+        <span class="spacer"></span>
+        <button class="icon-btn ghost" title="Formular schließen (Alt+Enter)" @onclick="OnClose">✕</button>
+    </header>
+
+    <div class="form-tools">
+        <label class="structure-filter">
+            @Icons.Search
+            <input @ref="_search" placeholder="Felder suchen … (Ctrl+F)" spellcheck="false" autocomplete="off"
+                   @bind="_query" @bind:event="oninput" @onkeydown="OnSearchKeyDown" />
+        </label>
+        <div class="form-switches">
+            <label class="check" title="Felder ohne Wert (NULL) ausblenden – geänderte bleiben sichtbar; gilt für diesen Tab">
+                <input type="checkbox" checked="@Tab.FormHideEmpty" @onchange="e => SetHideEmpty(e.Value is true)" /> Leere ausblenden
+            </label>
+            <label class="check" title="Nur Felder mit ausstehenden oder geschriebenen Änderungen">
+                <input type="checkbox" checked="@_onlyChanged" @onchange="e => _onlyChanged = e.Value is true" /> Nur geänderte
+            </label>
+        </div>
+    </div>
+
+    @{
+        var row = CurrentRow;
+        var presentation = Presentations.For(Details);
+        IReadOnlyList<FormField> fields = row is null || Grid is null
+            ? []
+            : RowForm.Fields(Details, presentation, row, Writable, Active.Schema?.OutgoingOf(Details.Table.Ref) ?? [], Models.Mapping, Tab.PinnedColumns);
+        var view = RowForm.Visible(fields, presentation, new FormFilter(_query, Tab.FormHideEmpty, _onlyChanged));
+    }
+
+    @if (row is not null)
+    {
+        <div class="form-count">
+            @if (view.Fields.Count == view.Total)
+            {
+                <span>@view.Total Felder</span>
+            }
+            else
+            {
+                <span>@view.Fields.Count von @view.Total Feldern</span>
+                @if (view.EmptyHidden > 0)
+                {
+                    <span> · @view.EmptyHidden leere ausgeblendet</span>
+                }
+            }
+        </div>
+        @if (row.Change?.Deleted is not null)
+        {
+            <div class="form-note danger">
+                Zum Löschen markiert@(row.Change.Deleted == ChangeStage.Flushed ? " (geschrieben)" : "").
+                @if (row.Change.Deleted == ChangeStage.Pending && _cell is { IsNew: false } at)
+                {
+                    <button class="link-btn" @onclick="() => RevertAsync(at.RowIndex)">Verwerfen</button>
+                }
+            </div>
+        }
+        else if (row.IsNew)
+        {
+            <div class="form-note">Neue Zeile – wird mit „Schreiben“ (Ctrl+S) eingefügt.</div>
+        }
+        else if (Details.Table.Kind == TableKind.Table && !Workspaces.IsWritable(Tab.WorkspaceId))
+        {
+            <div class="form-note">Schreibgeschützt – zum Ändern den Workspace freischalten.</div>
+        }
+    }
+
+    <div class="form-fields" @ref="_fields">
+        @if (Grid is null || _cell is null)
+        {
+            <div class="form-empty">@(_lost ?? "Im Grid eine Zeile wählen (Klick oder Pfeiltasten).")</div>
+        }
+        else if (row is null)
+        {
+            <div class="form-empty"><span class="spinner small"></span> Lade Zeile …</div>
+        }
+        else if (view.Fields.Count == 0)
+        {
+            <div class="form-empty">Kein Feld passt@(string.IsNullOrWhiteSpace(_query) ? "" : $" zu „{_query}“").</div>
+        }
+        else
+        {
+            @foreach (var field in view.Fields)
+            {
+                <FormFieldView @key="(_rowVersion, field.Column)" Field="field" Id="@FieldId(field.Column)" RowVersion="_rowVersion"
+                               IsNewRow="row.IsNew" Highlight="@(field.Column == _highlight)"
+                               Draft="@_drafts.GetValueOrDefault(field.Column)" Error="@_errors.GetValueOrDefault(field.Column)"
+                               OnTyped="Typed" OnCommit="CommitFromField" OnDiscard="Discard" OnJump="Jump" OnLob="OpenLob" OnCopy="Copy"
+                               TableLabel="t => FkTargets.Label(Active, t)" />
+            }
+        }
+
+        @if (row is not null && _incoming.Count > 0)
+        {
+            <div class="form-incoming">
+                <div class="form-section">Referenziert von</div>
+                @foreach (var jump in _incoming)
+                {
+                    var count = _counts.Of(jump);
+                    <button class="menu-item ctx-jump @(count is FkCount.Done { Count: 0 } ? "no-rows" : "")" disabled="@(!jump.IsAvailable)"
+                            title="@FkTargets.Tooltip(jump)" @onclick="() => Jump(jump)">
+                        <span class="ctx-arrow">←</span>
+                        <span class="ctx-target">
+                            <span class="ctx-table">
+                                @FkTargets.Label(Active, jump.Table)
+                                @if (jump.ForeignKey.Source == FkSource.ClrModel)
+                                {
+                                    <span class="ctx-source">aus C#-Modell</span>
+                                }
+                            </span>
+                            <span class="ctx-meta @(jump.IsAvailable ? "" : "wrap")">@(jump.Unavailable ?? jump.Condition)</span>
+                        </span>
+                        @switch (count)
+                        {
+                            case FkCount.Loading:
+                                <span class="spinner small"></span>
+                                break;
+                            case FkCount.Done done:
+                                <span class="ctx-count">@done.Count.ToString("N0", CultureInfo.CurrentCulture)</span>
+                                break;
+                            case FkCount.TimedOut:
+                                <span class="ctx-count muted" title="Zählen nach @FkNavigation.CountTimeout.TotalSeconds s abgebrochen">&gt; @FkNavigation.CountTimeout.TotalSeconds s</span>
+                                break;
+                            case FkCount.Failed failed:
+                                <span class="ctx-count error" title="@failed.Message">!</span>
+                                break;
+                        }
+                    </button>
+                }
+            </div>
+        }
+    </div>
+</aside>
+
+@code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceManager Workspaces { get; set; } = null!;
+
+    [CascadingParameter]
+    public PresentationService Presentations { get; set; } = null!;
+
+    [CascadingParameter]
+    public ClrModelManager Models { get; set; } = null!;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    /// <summary>Default width; the user drags the left edge (saved per tab).</summary>
+    public const int DefaultWidth = 440;
+
+    private const int MinWidth = 300;
+    private const double MaxFraction = 0.75;
+
+    /// <summary>Incoming counts start once the row stays this long (arrowing through rows would count each one).</summary>
+    private static readonly TimeSpan CountDelay = TimeSpan.FromMilliseconds(400);
+
+    private readonly string _idPrefix = "ff-" + Guid.NewGuid().ToString("N")[..8] + "-";
+    private readonly Dictionary<int, string> _drafts = [];
+    private readonly Dictionary<int, string> _errors = [];
+    private readonly FkCounts _counts = new();
+    private ElementReference _panel;
+    private ElementReference _handle;
+    private ElementReference _search;
+    private ElementReference _fields;
+    private IJSObjectReference? _dom;
+    private FerretGrid? _subscribed;
+    private bool _disposed;
+
+    /// <summary>The shown grid position; null if none (nothing chosen yet, or the row is gone).</summary>
+    private FerretGrid.GridCell? _cell;
+
+    /// <summary>Key of the shown loaded row, to find it again after writing or reloading; null until loaded (and for views without key).</summary>
+    private RowKey? _key;
+
+    /// <summary>The shown new row (not inserted yet); followed when it is inserted.</summary>
+    private RowChange? _newRow;
+
+    /// <summary>Why no row is shown (it was reloaded away).</summary>
+    private string? _lost;
+
+    private int? _highlight;
+    private int _rowVersion;
+    private string _query = "";
+    private bool _onlyChanged;
+    private bool _revealHighlight;
+    private bool _focusFirstField;
+    private bool _focusSearch;
+    private IReadOnlyList<FkJump> _incoming = [];
+    private CancellationTokenSource? _countCts;
+
+    [Parameter, EditorRequired]
+    public TableTab Tab { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public TableDetails Details { get; set; } = null!;
+
+    /// <summary>The tab's grid; null until it has rendered.</summary>
+    [Parameter]
+    public FerretGrid? Grid { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    /// <summary>The workspace may write and the tab tracks changes – as the grid's editing.</summary>
+    private bool Writable => Grid?.CanEdit == true && Tab.Changes is not null;
+
+    private FormRow? CurrentRow => _cell is { } cell && Grid is not null ? Grid.RowOf(cell) : null;
+
+    private string WidthStyle => FormattableString.Invariant($"width: {Tab.FormWidth ?? DefaultWidth}px;");
+
+    private string FieldId(int column) => _idPrefix + column.ToString(CultureInfo.InvariantCulture);
+
+    protected override void OnInitialized() => Shell.BeforeWrite += OnBeforeWrite;
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(Grid, _subscribed))
+        {
+            return;
+        }
+
+        if (_subscribed is not null)
+        {
+            _subscribed.FocusChanged -= OnFocusChanged;
+            _subscribed.RowsChanged -= OnRowsChanged;
+        }
+
+        _subscribed = Grid;
+        if (Grid is null)
+        {
+            return;
+        }
+
+        Grid.FocusChanged += OnFocusChanged;
+        Grid.RowsChanged += OnRowsChanged;
+        if (Grid.Focused is { } focused)
+        {
+            Show(focused);
+        }
+        else
+        {
+            // Opened before any cell had the focus: the first visible row.
+            var first = new FerretGrid.GridCell(Tab.FirstVisibleRow ?? 0, null, null);
+            Show(first);
+            _ = Grid.FocusRowAsync(first, keepFocus: true);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (_revealHighlight && _highlight is { } column)
+        {
+            _revealHighlight = false;
+            await CallDomAsync("scrollIntoViewById", FieldId(column), "nearest");
+        }
+
+        if (_focusFirstField && CurrentRow is { IsNew: true })
+        {
+            _focusFirstField = false;
+            await CallDomAsync("focusFirstInput", _fields);
+        }
+
+        if (_focusSearch)
+        {
+            _focusSearch = false;
+            await CallDomAsync("focusAndSelect", _search);
+        }
+    }
+
+    /// <summary>Ctrl+F while the focus is in the form: its search instead of the grid's column jump.</summary>
+    public async Task<bool> ContainsFocusAsync() =>
+        !_disposed && await DomAsync() is { } dom && await dom.InvokeAsync<bool>("containsFocus", _panel);
+
+    public void FocusSearch()
+    {
+        _focusSearch = true;
+        StateHasChanged();
+    }
+
+    /// <summary>"+ Zeile" with the form open: the new row is filled here, starting with its first editable field.</summary>
+    public void FocusFirstFieldOfNewRow() => _focusFirstField = true;
+
+    /// <summary>The grid's column jump (Ctrl+F) chose a column: the form shows that field too.</summary>
+    public void RevealColumn(int column)
+    {
+        _highlight = column;
+        _revealHighlight = true;
+        StateHasChanged();
+    }
+
+    /// <summary>Shows another grid position; typed values of the previous row were taken before.</summary>
+    private void Show(FerretGrid.GridCell cell)
+    {
+        _cell = cell;
+        _lost = null;
+        _highlight = cell.Column ?? _highlight;
+        var row = Grid?.RowOf(cell);
+        _key = row?.Loaded?.Key;
+        _newRow = cell.IsNew ? row?.Change : null;
+        _drafts.Clear();
+        _errors.Clear();
+        _rowVersion++;
+        StartCounts();
+    }
+
+    private bool SameRow(FerretGrid.GridCell cell) =>
+        _cell is { } shown && shown.NewId == cell.NewId && (cell.IsNew || shown.RowIndex == cell.RowIndex);
+
+    private void OnFocusChanged() => _ = InvokeAsync(() =>
+    {
+        if (_disposed || Grid?.Focused is not { } cell)
+        {
+            return;
+        }
+
+        if (!SameRow(cell))
+        {
+            CommitDrafts();
+            Show(cell);
+        }
+        else if (cell.Column is { } column && column != _highlight)
+        {
+            _highlight = column;
+            _revealHighlight = true;
+        }
+
+        StateHasChanged();
+    });
+
+    /// <summary>Rows were loaded or redrawn: the shown row may have moved (after writing), become loaded, or be gone.</summary>
+    private void OnRowsChanged() => _ = InvokeAsync(() =>
+    {
+        if (_disposed || Grid is null || _cell is not { } cell)
+        {
+            return;
+        }
+
+        if (_newRow is { } added)
+        {
+            if (Grid.CellOf(added, cell.Column) is { } at)
+            {
+                _cell = at;
+            }
+            else if (added.IsInserted && Grid.IndexOf(added.Key) is { } index)
+            {
+                // Inserted by writing: from now on a loaded row like any other.
+                _newRow = null;
+                _key = added.Key;
+                _cell = new FerretGrid.GridCell(index, null, cell.Column);
+                _ = Grid.FocusRowAsync(_cell, keepFocus: true);
+            }
+            else if (!added.IsInserted || Grid.RowAt(0) is not null)
+            {
+                _cell = null;
+                _newRow = null;
+                _lost = added.IsInserted
+                    ? "Die eingefügte Zeile steht nicht im geladenen Bereich des Grids – im Grid eine Zeile wählen."
+                    : "Die neue Zeile wurde entfernt.";
+            }
+        }
+        else if (Grid.RowAt(cell.RowIndex) is { } at)
+        {
+            if (_key is null)
+            {
+                _key = at.Loaded!.Key; // the block arrived after the row was chosen
+                StartCounts();
+            }
+            else if (_key is not RowKey.None && !Equals(at.Loaded!.Key, _key))
+            {
+                if (Grid.IndexOf(_key) is { } index)
+                {
+                    _cell = cell with { RowIndex = index };
+                    _ = Grid.FocusRowAsync(_cell, keepFocus: true);
+                }
+                else
+                {
+                    _cell = null;
+                    _lost = "Die Zeile ist nicht mehr geladen – im Grid eine Zeile wählen.";
+                }
+            }
+        }
+
+        StateHasChanged();
+    });
+
+    private string PositionText(FerretGrid.GridCell cell)
+    {
+        if (cell.IsNew)
+        {
+            return "Neue Zeile";
+        }
+
+        var total = Tab.AllRowsLoaded ? Tab.RowsLoaded.ToString("N0", CultureInfo.CurrentCulture)
+            : Tab.TotalCount is { } count ? count.ToString("N0", CultureInfo.CurrentCulture)
+            : "≥ " + Tab.RowsLoaded.ToString("N0", CultureInfo.CurrentCulture);
+        return $"Zeile {(cell.RowIndex + 1).ToString("N0", CultureInfo.CurrentCulture)} von {total}";
+    }
+
+    private IReadOnlyList<RowChange> NewRows => Tab.Changes?.NewRows ?? [];
+
+    /// <summary>Where ▲ ▼ lead: the new rows at the top first, then the loaded rows; null at either end.</summary>
+    private FerretGrid.GridCell? Target(int delta)
+    {
+        if (_cell is not { } cell || Grid is null)
+        {
+            return null;
+        }
+
+        var newRows = NewRows;
+        if (cell.IsNew)
+        {
+            var i = newRows.ToList().FindIndex(r => r.Id.ToString("N") == cell.NewId) + delta;
+            return i < 0 ? null
+                : i < newRows.Count ? Grid.CellOf(newRows[i], cell.Column)
+                : new FerretGrid.GridCell(0, null, cell.Column);
+        }
+
+        var target = cell.RowIndex + delta;
+        if (target < 0)
+        {
+            return newRows.Count > 0 ? Grid.CellOf(newRows[^1], cell.Column) : null;
+        }
+
+        var last = Tab.AllRowsLoaded ? Tab.RowsLoaded - 1 : Tab.TotalCount is { } total ? (int)Math.Min(total - 1, int.MaxValue) : int.MaxValue;
+        return target > last ? null : new FerretGrid.GridCell(target, null, cell.Column);
+    }
+
+    private bool CanMove(int delta) => Target(delta) is not null;
+
+    private async Task MoveAsync(int delta)
+    {
+        if (Target(delta) is not { } target || Grid is null)
+        {
+            return;
+        }
+
+        CommitDrafts();
+        Show(target);
+        await Grid.FocusRowAsync(target, keepFocus: true);
+    }
+
+    private async Task OnKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (!e.AltKey || e.CtrlKey || e.ShiftKey)
+        {
+            return;
+        }
+
+        switch (e.Key)
+        {
+            case "ArrowUp":
+                await MoveAsync(-1);
+                break;
+            case "ArrowDown":
+                await MoveAsync(1);
+                break;
+            case "Enter":
+                CommitDrafts();
+                await OnClose.InvokeAsync();
+                break;
+        }
+    }
+
+    private void OnSearchKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            _query = "";
+        }
+    }
+
+    private void SetHideEmpty(bool hide)
+    {
+        Tab.FormHideEmpty = hide;
+        Shell.MarkDirty();
+    }
+
+    private void Typed(int column, string text) => _drafts[column] = text;
+
+    private string? CommitFromField(int column, string text)
+    {
+        var error = Commit(column, text);
+        StateHasChanged();
+        return error;
+    }
+
+    private void Discard(int column)
+    {
+        _drafts.Remove(column);
+        _errors.Remove(column);
+        StateHasChanged();
+    }
+
+    /// <summary>Checks a typed text and keeps it as a pending change, like a cell edit; the message if it cannot be taken.</summary>
+    private string? Commit(int column, string text)
+    {
+        if (_cell is not { } cell || Grid?.RowOf(cell) is not { } row)
+        {
+            return null;
+        }
+
+        if (text == RowForm.EditTextOf(Presentations.For(Details), column, row.ValueOf(column)))
+        {
+            _drafts.Remove(column);
+            _errors.Remove(column);
+            return null;
+        }
+
+        var error = Grid.EditFromForm(cell, column, text);
+        if (error is null)
+        {
+            _drafts.Remove(column);
+            _errors.Remove(column);
+        }
+        else
+        {
+            _drafts[column] = text;
+            _errors[column] = error;
+        }
+
+        return error;
+    }
+
+    /// <summary>Takes every typed text; the first column whose text could not be taken, or null.</summary>
+    private int? CommitDrafts()
+    {
+        int? failed = null;
+        foreach (var (column, text) in _drafts.ToList())
+        {
+            if (Commit(column, text) is not null)
+            {
+                failed ??= column;
+            }
+        }
+
+        return failed;
+    }
+
+    /// <summary>Ctrl+S or commit of this tab's workspace: typed values go along; an invalid one stops writing.</summary>
+    private string? OnBeforeWrite(Guid workspaceId)
+    {
+        if (_disposed || workspaceId != Tab.WorkspaceId || _drafts.Count == 0)
+        {
+            return null;
+        }
+
+        var failed = CommitDrafts();
+        _ = InvokeAsync(StateHasChanged);
+        return failed is { } column
+            ? $"Nichts geschrieben – {Details.Columns[column].Name}: {_errors.GetValueOrDefault(column)}"
+            : null;
+    }
+
+    private void Jump(FkJump jump)
+    {
+        CommitDrafts();
+        Shell.OpenFiltered(FkTargets.SummaryOf(Active, jump.Table), jump.Filters);
+    }
+
+    private void OpenLob(int column)
+    {
+        if (_cell is { } cell && Grid is not null)
+        {
+            CommitDrafts();
+            _ = Grid.OpenLobAsync(cell, column);
+        }
+    }
+
+    private void Copy(FormField field) => _ = Grid?.CopyValueAsync(field.Info, field.Raw);
+
+    private Task RevertAsync(int rowIndex) => Grid?.ChangeRowsAsync([rowIndex], delete: false) ?? Task.CompletedTask;
+
+    /// <summary>Incoming FK counts for the shown row, once it stays a moment; moving on cancels them.</summary>
+    private void StartCounts()
+    {
+        _countCts?.Cancel();
+        _countCts?.Dispose();
+        _countCts = new CancellationTokenSource();
+        _incoming = [];
+        _ = CountLaterAsync(_countCts.Token);
+    }
+
+    private async Task CountLaterAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(CountDelay, token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        await InvokeAsync(async () =>
+        {
+            if (_disposed || token.IsCancellationRequested || CurrentRow is not { IsNew: false } row)
+            {
+                return;
+            }
+
+            _incoming = RowForm.Incoming(Details, row, Active.Schema?.IncomingOf(Details.Table.Ref) ?? []);
+            StateHasChanged();
+            await _counts.CountAsync(Shell, Logger, Active, Workspaces, Tab.WorkspaceId, _incoming, () => InvokeAsync(StateHasChanged), token);
+        });
+    }
+
+    private async Task StartResizeAsync(PointerEventArgs e)
+    {
+        if (e.Button != 0 || await DomAsync() is not { } dom)
+        {
+            return;
+        }
+
+        var width = await dom.InvokeAsync<int>("dragWidth", _handle, _panel, e.PointerId, e.ClientX, MinWidth, MaxFraction);
+        if (!_disposed && width > 0)
+        {
+            Tab.FormWidth = width;
+            Shell.MarkDirty();
+        }
+    }
+
+    private async Task<IJSObjectReference?> DomAsync()
+    {
+        if (_dom is null && !_disposed)
+        {
+            var dom = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
+            if (_disposed)
+            {
+                await dom.DisposeAsync();
+                return null;
+            }
+
+            _dom = dom;
+        }
+
+        return _disposed ? null : _dom;
+    }
+
+    private async Task CallDomAsync(string identifier, params object?[] args)
+    {
+        if (await DomAsync() is { } dom)
+        {
+            try
+            {
+                await dom.InvokeVoidAsync(identifier, args);
+            }
+            catch (Exception ex) when (_disposed && ex is JSDisconnectedException or ObjectDisposedException)
+            {
+            }
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        Shell.BeforeWrite -= OnBeforeWrite;
+        if (_subscribed is not null)
+        {
+            _subscribed.FocusChanged -= OnFocusChanged;
+            _subscribed.RowsChanged -= OnRowsChanged;
+        }
+
+        _countCts?.Cancel();
+        _countCts?.Dispose();
+        if (_dom is not null)
+        {
+            try
+            {
+                await _dom.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+    }
+}

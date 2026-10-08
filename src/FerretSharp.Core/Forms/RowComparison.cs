@@ -7,7 +7,11 @@ using FerretSharp.Core.Workspaces;
 namespace FerretSharp.Core.Forms;
 
 /// <summary>One value of a compared row.</summary>
-public sealed record CompareCell(PresentedValue Value, object? Raw, ChangeStage? Stage)
+/// <param name="Deviates">
+/// Differs from the most frequent value of the column (on a tie: from the first row's) – the cell to mark. With two rows
+/// the second one is marked; with three, only the odd one out.
+/// </param>
+public sealed record CompareCell(PresentedValue Value, object? Raw, ChangeStage? Stage, bool Deviates = false)
 {
     public bool IsNull => Raw is null;
 }
@@ -39,11 +43,31 @@ public static class RowComparison
         ColumnPinning.DisplayOrder(table, pinned)
             .Select(i =>
             {
-                var cells = rows.Select(r => r.ValueOf(i)).Select((raw, r) => new CompareCell(presentation.Present(i, raw), raw, rows[r].Change?.StageOf(i))).ToList();
-                var differs = cells.Skip(1).Any(c => !OracleTypeMapper.ValuesEqual(cells[0].Raw, c.Raw));
-                return new CompareField(i, table.Columns[i], presentation.LabelOf(i), cells, differs);
+                var values = rows.Select(r => r.ValueOf(i)).ToList();
+                var common = MostFrequent(values);
+                var cells = values
+                    .Select((raw, r) => new CompareCell(presentation.Present(i, raw), raw, rows[r].Change?.StageOf(i), !OracleTypeMapper.ValuesEqual(common, raw)))
+                    .ToList();
+                return new CompareField(i, table.Columns[i], presentation.LabelOf(i), cells, cells.Any(c => c.Deviates));
             })
             .ToList();
+
+    /// <summary>The value most rows hold; on a tie the one that occurs first. Few rows: pairwise is fine.</summary>
+    private static object? MostFrequent(IReadOnlyList<object?> values)
+    {
+        object? best = null;
+        var bestCount = 0;
+        foreach (var value in values)
+        {
+            var count = values.Count(v => OracleTypeMapper.ValuesEqual(value, v));
+            if (count > bestCount)
+            {
+                (best, bestCount) = (value, count);
+            }
+        }
+
+        return best;
+    }
 
     /// <summary>The columns matching the search and the switches; "leere" are columns NULL in every row.</summary>
     public static FormView<CompareField> Visible(IReadOnlyList<CompareField> fields, TablePresentation presentation, CompareFilter filter)
