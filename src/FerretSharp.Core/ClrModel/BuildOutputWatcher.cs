@@ -51,9 +51,30 @@ public sealed class BuildOutputWatcher : IDisposable
 
     private void OnChanged(object sender, FileSystemEventArgs e)
     {
-        if (!_depsOnly || e.FullPath.EndsWith(".deps.json", StringComparison.OrdinalIgnoreCase))
+        if (!_depsOnly || e.FullPath.EndsWith(".deps.json", StringComparison.OrdinalIgnoreCase) || HasDepsFile(e))
         {
             Touch();
+        }
+    }
+
+    /// <summary>
+    /// A folder created by the first build (<c>bin/Debug/net8.0</c>) that already holds a deps.json. On Linux (inotify) a new
+    /// subfolder is watched only once its creation was reported; a file written into it before that is never reported.
+    /// </summary>
+    private static bool HasDepsFile(FileSystemEventArgs e)
+    {
+        if (e.ChangeType != WatcherChangeTypes.Created || !System.IO.Directory.Exists(e.FullPath))
+        {
+            return false;
+        }
+
+        try
+        {
+            return System.IO.Directory.EnumerateFiles(e.FullPath, "*.deps.json", SearchOption.AllDirectories).Any();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false; // deleted again or being rewritten: a later event follows
         }
     }
 
