@@ -2,6 +2,7 @@
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
+@using FerretSharp.Core.Forms
 @using FerretSharp.Core.Oracle
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
@@ -35,6 +36,18 @@
     @if (!Details.PrimaryKey.Contains(Column.Name))
     {
         <button class="menu-item" @onclick="TogglePinAsync">@(Pinned ? "Spalte lösen" : "Spalte links anheften")</button>
+    }
+    @if (CompareCount > 1)
+    {
+        <button class="menu-item" disabled="@(CompareCount > RowComparison.MaxRows)"
+                title="@(CompareCount > RowComparison.MaxRows ? $"Höchstens {RowComparison.MaxRows} Zeilen nebeneinander" : "Die markierten Zeilen nebeneinander, Unterschiede markiert (Alt+Enter)")"
+                @onclick="CompareAsync">
+            Markierte vergleichen <span class="ctx-meta">@RowsText(CompareCount)</span>
+        </button>
+    }
+    else
+    {
+        <button class="menu-item" title="Alle Spalten der Zeile untereinander, neben dem Grid (Alt+Enter)" @onclick="OpenFormAsync">Als Formular</button>
     }
 
     @if (CanEdit && Tab.Changes is { } changes)
@@ -81,7 +94,7 @@
         <div class="group-head-btn static">Referenziert von@(JumpRowsText)</div>
         @foreach (var jump in _incoming)
         {
-            @JumpItem(jump, "←", _counts.GetValueOrDefault(jump))
+            @JumpItem(jump, "←", _counts.Of(jump))
         }
     }
 
@@ -110,7 +123,7 @@
 
     private readonly string _id = "ctx-" + Guid.NewGuid().ToString("N");
     private readonly CancellationTokenSource _cts = new();
-    private readonly Dictionary<FkJump, CountState> _counts = [];
+    private readonly FkCounts _counts = new();
     private IReadOnlyList<FkJump> _outgoing = [];
     private IReadOnlyList<FkJump> _incoming = [];
     private IJSObjectReference? _dom;
@@ -157,6 +170,30 @@
     [Parameter]
     public EventCallback OnOpenLob { get; set; }
 
+    /// <summary>Shows the clicked row in the form beside the grid (WP-21).</summary>
+    [Parameter]
+    public EventCallback OnOpenForm { get; set; }
+
+    /// <summary>Compares the selected rows (grid indexes) side by side (WP-21).</summary>
+    [Parameter]
+    public EventCallback<IReadOnlyList<int>> OnCompare { get; set; }
+
+    /// <summary>Loaded selected rows; the comparison needs their values.</summary>
+    private int CompareCount => Request.Selected.Count;
+
+    private async Task OpenFormAsync()
+    {
+        await CloseAsync();
+        await OnOpenForm.InvokeAsync();
+    }
+
+    private async Task CompareAsync()
+    {
+        var rows = Request.SelectedIndexes ?? [];
+        await CloseAsync();
+        await OnCompare.InvokeAsync(rows);
+    }
+
     private async Task OpenLobAsync()
     {
         await CloseAsync();
@@ -181,29 +218,21 @@
     /// <summary>" · 3 Zeilen" after the jump headings if several rows are selected; nothing for one row.</summary>
     private string JumpRowsText => Request.Selected.Count + Request.MissingRows > 1 ? $" · {RowsText(JumpRows.Count)}" : "";
 
-    private abstract record CountState
-    {
-        public sealed record Loading : CountState;
-        public sealed record Done(long Count) : CountState;
-        public sealed record TimedOut : CountState;
-        public sealed record Failed(string Message) : CountState;
-    }
-
     /// <summary>At the mouse position, kept inside the window.</summary>
     private string Position
     {
         get
         {
-            var height = 292 + ItemHeight * (_outgoing.Count + _incoming.Count) + (_cell is null ? 0 : 128) + (Request.MissingRows > 0 ? 40 : 0);
+            var height = 336 + ItemHeight * (_outgoing.Count + _incoming.Count) + (_cell is null ? 0 : 128) + (Request.MissingRows > 0 ? 40 : 0);
             var left = Math.Max(8, Math.Min(Request.X, Request.ViewportWidth - MenuWidth - 8));
             var top = Math.Max(8, Math.Min(Request.Y, Request.ViewportHeight - height - 8));
             return FormattableString.Invariant($"position: fixed; left: {left:0}px; top: {top:0}px; width: {MenuWidth:0}px;");
         }
     }
 
-    private RenderFragment JumpItem(FkJump jump, string arrow, CountState? count) =>
-        @<button class="menu-item ctx-jump @(InvolvesColumn(jump) ? "related" : "") @(count is CountState.Done { Count: 0 } ? "no-rows" : "")"
-                 disabled="@(!jump.IsAvailable)" title="@Tooltip(jump)" @onclick="() => JumpAsync(jump)">
+    private RenderFragment JumpItem(FkJump jump, string arrow, FkCount? count) =>
+        @<button class="menu-item ctx-jump @(InvolvesColumn(jump) ? "related" : "") @(count is FkCount.Done { Count: 0 } ? "no-rows" : "")"
+                 disabled="@(!jump.IsAvailable)" title="@FkTargets.Tooltip(jump)" @onclick="() => JumpAsync(jump)">
             <span class="ctx-arrow">@arrow</span>
             <span class="ctx-target">
                 <span class="ctx-table">
@@ -217,16 +246,16 @@
             </span>
             @switch (count)
             {
-                case CountState.Loading:
+                case FkCount.Loading:
                     <span class="spinner small"></span>
                     break;
-                case CountState.Done done:
+                case FkCount.Done done:
                     <span class="ctx-count">@done.Count.ToString("N0", CultureInfo.CurrentCulture)</span>
                     break;
-                case CountState.TimedOut:
+                case FkCount.TimedOut:
                     <span class="ctx-count muted" title="Zählen nach @FkNavigation.CountTimeout.TotalSeconds s abgebrochen">&gt; @FkNavigation.CountTimeout.TotalSeconds s</span>
                     break;
-                case CountState.Failed failed:
+                case FkCount.Failed failed:
                     <span class="ctx-count error" title="@failed.Message">!</span>
                     break;
             }
@@ -246,12 +275,8 @@
         // FKs over the clicked column first: that is usually the one the user means.
         _outgoing = jumps.Where(j => j.Direction == JumpDirection.Outgoing).OrderByDescending(InvolvesColumn).ToList();
         _incoming = jumps.Where(j => j.Direction == JumpDirection.Incoming).OrderByDescending(InvolvesColumn).ToList();
-        foreach (var jump in _incoming.Where(j => j.IsAvailable))
-        {
-            _counts[jump] = new CountState.Loading();
-        }
-
-        _ = CountAllAsync(schema);
+        // One after the other: they share the workspace's session. Closing the menu cancels the rest.
+        _ = _counts.CountAsync(Shell, Logger, Active, Workspaces, Tab.WorkspaceId, _incoming, () => InvokeAsync(StateHasChanged), _cts.Token);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -264,51 +289,12 @@
         }
     }
 
-    /// <summary>One after the other: they share the workspace's session. Closing the menu cancels the rest.</summary>
-    private async Task CountAllAsync(SchemaCache schema)
-    {
-        var token = _cts.Token;
-        foreach (var jump in _counts.Keys.ToList())
-        {
-            var result = await Shell.RunDbAsync(Logger, Active.Profile, async () =>
-            {
-                var target = await schema.GetDetailsAsync(SummaryOf(jump.Table), token);
-                var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, token);
-                return await FkNavigation.CountAsync(data, target, jump, FkNavigation.CountTimeout, token);
-            }, token);
-            if (result.Cancelled)
-            {
-                return;
-            }
-
-            CountState state = result.Error is { } error ? new CountState.Failed(error.Display)
-                : result.Value is { } n ? new CountState.Done(n)
-                : new CountState.TimedOut();
-
-            _counts[jump] = state;
-            await InvokeAsync(StateHasChanged);
-        }
-    }
-
     private bool InvolvesColumn(FkJump jump) =>
         (jump.Direction == JumpDirection.Outgoing ? jump.ForeignKey.FromColumns : jump.ForeignKey.ToColumns).Contains(Column.Name);
 
-    /// <summary>Tables outside the browsed schemas (e.g. a referencing table in another schema) are opened by name.</summary>
-    private TableSummary SummaryOf(TableRef table) =>
-        Active.Schema?.Find(table) ?? new TableSummary(table.Owner, table.Name, TableKind.Table);
+    private TableSummary SummaryOf(TableRef table) => FkTargets.SummaryOf(Active, table);
 
-    private string TableLabel(TableRef table)
-    {
-        var summary = SummaryOf(table);
-        return summary.Synonym is not null || table.Owner == Active.Schema?.Owner ? summary.DisplayName : table.ToString();
-    }
-
-    private static string Tooltip(FkJump jump) =>
-        $"{jump.ForeignKey.Name}: {jump.ForeignKey.From}({string.Join(", ", jump.ForeignKey.FromColumns)}) → " +
-        $"{jump.ForeignKey.To}({string.Join(", ", jump.ForeignKey.ToColumns)})" +
-        (jump.ForeignKey.Source == FkSource.ClrModel ? Environment.NewLine + "Beziehung aus dem C#-Modell – in der Datenbank gibt es dafür keinen Constraint." : "") +
-        (jump.SkippedNote is { } skipped ? Environment.NewLine + skipped + "." : "") +
-        (jump.Unavailable is { } reason ? Environment.NewLine + reason : "");
+    private string TableLabel(TableRef table) => FkTargets.Label(Active, table);
 
     private async Task JumpAsync(FkJump jump)
     {

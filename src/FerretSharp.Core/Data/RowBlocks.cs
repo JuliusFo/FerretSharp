@@ -36,6 +36,31 @@ public sealed class RowBlocks
         return null;
     }
 
+    /// <summary>
+    /// Grid index of the row with this key among the kept blocks (the form finds its row again after writing or
+    /// reloading, WP-21); null if it is not kept or the rows have no key.
+    /// </summary>
+    public int? IndexOf(RowKey key)
+    {
+        if (key is RowKey.None)
+        {
+            return null;
+        }
+
+        foreach (var (start, rows) in _blocks)
+        {
+            for (var i = 0; i < rows.Count; i++)
+            {
+                if (rows[i].Key.Equals(key))
+                {
+                    return start + i;
+                }
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>A new query (filter, sort order): the kept blocks are stale.</summary>
     public void Clear() => _blocks.Clear();
 }

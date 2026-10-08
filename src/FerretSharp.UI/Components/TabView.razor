@@ -1,5 +1,6 @@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
+@using FerretSharp.Core.Forms
 @using FerretSharp.Core.Oracle
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
@@ -37,8 +38,12 @@
         {
             @if (Tab.Changes is not null && _grid?.CanEdit == true)
             {
-                <button class="btn ghost" title="Neue Zeile oben im Grid anlegen – wird mit „Schreiben“ (Ctrl+S) eingefügt" @onclick="() => _grid?.AddRowAsync() ?? Task.CompletedTask">+ Zeile</button>
+                <button class="btn ghost" title="Neue Zeile oben im Grid anlegen – wird mit „Schreiben“ (Ctrl+S) eingefügt" @onclick="AddRowAsync">+ Zeile</button>
             }
+            <button class="btn ghost @(Tab.FormOpen ? "active" : "")" aria-pressed="@(Tab.FormOpen ? "true" : "false")"
+                    title="Die Zeile des Grids als Formular daneben (Alt+Enter im Grid; bei mehreren markierten Zeilen: vergleichen)" @onclick="ToggleForm">
+                Formular <kbd>Alt Enter</kbd>
+            </button>
             <ColumnJump @ref="_jump" Details="_details" OnJump="c => _pendingJump = c" />
         }
         @if (_details is not null && Tab.Mode != TabMode.Structure)
@@ -72,10 +77,16 @@
                     }
                 </div>
             }
-            <div class="grid-host">
-                <FerretGrid @ref="_grid" Tab="Tab" Details="_details" OnPageLoaded="StateHasChanged"
-                            OnContextMenu="r => _menu = r" OnColumnMenu="r => _columnMenu = r"
-                            OnLobOpen="r => _lob = r" OnEditableChanged="StateHasChanged" />
+            <div class="grid-split">
+                <div class="grid-host">
+                    <FerretGrid @ref="_grid" Tab="Tab" Details="_details" OnPageLoaded="StateHasChanged"
+                                OnContextMenu="r => _menu = r" OnColumnMenu="r => _columnMenu = r"
+                                OnLobOpen="r => _lob = r" OnEditableChanged="StateHasChanged" OnFormRequested="OnFormRequested" />
+                </div>
+                @if (Tab.FormOpen)
+                {
+                    <RowFormPanel @ref="_form" Tab="Tab" Details="_details" Grid="_grid" OnClose="CloseFormAsync" />
+                }
             </div>
             <footer class="tab-footer">
                 @* RowsLoaded is the highest loaded position (blocks load where the user scrolls), so it is a lower bound. *@
@@ -165,7 +176,14 @@
                      Pinned="@(_grid?.IsPinned(menu.Column) == true)" OnTogglePin="TogglePinAsync"
                      OnDeleteRows="rows => _grid?.ChangeRowsAsync(rows, delete: true) ?? Task.CompletedTask"
                      OnRevertRows="rows => _grid?.ChangeRowsAsync(rows, delete: false) ?? Task.CompletedTask"
-                     OnOpenLob="() => _grid?.OpenLobAsync(menu.RowIndex, menu.Column) ?? Task.CompletedTask" />
+                     OnOpenLob="() => _grid?.OpenLobAsync(menu.RowIndex, menu.Column) ?? Task.CompletedTask"
+                     OnOpenForm="() => OpenFormAsync(menu.RowIndex, menu.Column)" OnCompare="Compare" />
+}
+
+@if (_compare is { } compare && _details is not null)
+{
+    <RowCompareDialog Tab="Tab" Details="_details" Rows="compare.Rows" Missing="compare.Missing"
+                      OnClose="() => _compare = null" OnShow="ShowComparedRowAsync" />
 }
 
 @if (_lob is { } lob && _details is not null)
@@ -234,6 +252,8 @@
     }
     private ColumnMenuRequest? _columnMenu;
     private ColumnJump? _jump;
+    private RowFormPanel? _form;
+    private (IReadOnlyList<(int Index, FormRow Row)> Rows, int Missing)? _compare;
     private ColumnsView? _columns;
     private int? _pendingJump; // scrolled to after the search list has closed, so the grid cell keeps the focus
     private readonly HashSet<TabMode> _visited = [];
@@ -303,6 +323,7 @@
         {
             _pendingJump = null;
             await _grid.JumpToColumnAsync(column);
+            _form?.RevealColumn(column);
         }
     }
 
@@ -360,6 +381,100 @@
         if (_grid is not null)
         {
             await _grid.RefreshAsync();
+        }
+    }
+
+    /// <summary>The form beside the grid (WP-21): open or close; saved with the tab.</summary>
+    private void ToggleForm()
+    {
+        Tab.FormOpen = !Tab.FormOpen;
+        Shell.MarkDirty();
+    }
+
+    private Task CloseFormAsync()
+    {
+        Tab.FormOpen = false;
+        Shell.MarkDirty();
+        return _grid?.FocusRowAsync(_grid.Focused ?? new FerretGrid.GridCell(0, null, null), keepFocus: false) ?? Task.CompletedTask;
+    }
+
+    /// <summary>Opens the form on a row (context menu, a compared row's heading).</summary>
+    private async Task OpenFormAsync(int rowIndex, int? column)
+    {
+        Tab.FormOpen = true;
+        Shell.MarkDirty();
+        StateHasChanged();
+        if (_grid is not null)
+        {
+            await _grid.FocusRowAsync(new FerretGrid.GridCell(rowIndex, null, column), keepFocus: false);
+        }
+    }
+
+    /// <summary>Alt+Enter in the grid: several selected rows are compared, otherwise the form opens or closes.</summary>
+    private Task OnFormRequested(FerretGrid.FormRequest request)
+    {
+        if (request.Selected.Count > 1)
+        {
+            Compare(request.Selected);
+            return Task.CompletedTask;
+        }
+
+        if (Tab.FormOpen)
+        {
+            return CloseFormAsync();
+        }
+
+        Tab.FormOpen = true;
+        Shell.MarkDirty();
+        return Task.CompletedTask;
+    }
+
+    /// <summary>The selected rows side by side; rows no longer loaded are counted, not compared.</summary>
+    private void Compare(IReadOnlyList<int> selected)
+    {
+        if (_grid is null)
+        {
+            return;
+        }
+
+        if (selected.Count > RowComparison.MaxRows)
+        {
+            Shell.Notify($"Höchstens {RowComparison.MaxRows} Zeilen lassen sich vergleichen – {selected.Count} sind markiert.");
+            return;
+        }
+
+        var rows = selected.Select(i => (Index: i, Row: _grid.RowAt(i))).Where(r => r.Row is not null).Select(r => (r.Index, r.Row!)).ToList();
+        if (rows.Count < 2)
+        {
+            Shell.Notify("Zum Vergleichen mindestens zwei geladene Zeilen markieren.");
+            return;
+        }
+
+        _compare = (rows, selected.Count - rows.Count);
+    }
+
+    private Task ShowComparedRowAsync(int rowIndex)
+    {
+        _compare = null;
+        return OpenFormAsync(rowIndex, null);
+    }
+
+    /// <summary>"+ Zeile": with the form open the new row is filled there, otherwise in the grid.</summary>
+    private async Task AddRowAsync()
+    {
+        if (_grid is null)
+        {
+            return;
+        }
+
+        if (Tab.FormOpen && _form is not null)
+        {
+            _form.FocusFirstFieldOfNewRow();
+            await _grid.AddRowAsync(inGrid: false);
+        }
+        else
+        {
+            await _grid.AddRowAsync();
         }
     }
 
@@ -476,7 +591,15 @@
                     await _grid.ReloadAsync();
                     break;
                 case TabCommand.FindColumn when Tab.Mode == TabMode.Data:
-                    _jump?.Open();
+                    if (_form is not null && await _form.ContainsFocusAsync())
+                    {
+                        _form.FocusSearch();
+                    }
+                    else
+                    {
+                        _jump?.Open();
+                    }
+
                     break;
                 case TabCommand.FindColumn when Tab.Mode == TabMode.Structure && _columns is not null:
                     await _columns.FocusFilterAsync();

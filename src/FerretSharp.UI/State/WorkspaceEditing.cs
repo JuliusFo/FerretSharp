@@ -99,10 +99,11 @@ public sealed class WorkspaceEditing(
     public IReadOnlyList<WorkspaceTabs> WithWork() => shell.AllWorkspaces.Where(w => SummaryOf(w).HasWork).ToList();
 
     /// <summary>Writes the pending changes of all tabs; false if a problem stopped it (see <see cref="Problem"/>).</summary>
-    public Task<bool> FlushAsync(WorkspaceTabs workspace) => RunAsync(workspace, () => FlushCoreAsync(workspace, duringCommit: false));
+    public Task<bool> FlushAsync(WorkspaceTabs workspace) =>
+        StoppedByForm(workspace) ? Task.FromResult(false) : RunAsync(workspace, () => FlushCoreAsync(workspace, duringCommit: false));
 
     /// <summary>Writes what is pending, then commits; false if a write problem stopped it.</summary>
-    public Task<bool> CommitAsync(WorkspaceTabs workspace) => RunAsync(workspace, async () =>
+    public Task<bool> CommitAsync(WorkspaceTabs workspace) => StoppedByForm(workspace) ? Task.FromResult(false) : RunAsync(workspace, async () =>
     {
         if (!await FlushCoreAsync(workspace, duringCommit: true))
         {
@@ -285,6 +286,18 @@ public sealed class WorkspaceEditing(
         }
 
         Overwrites(workspace.WorkspaceId).Clear();
+        return true;
+    }
+
+    /// <summary>A form holds a typed value that cannot be taken (WP-21): nothing is written, the field shows why.</summary>
+    private bool StoppedByForm(WorkspaceTabs workspace)
+    {
+        if (shell.PrepareWrite(workspace.WorkspaceId) is not { } reason)
+        {
+            return false;
+        }
+
+        shell.Notify(reason);
         return true;
     }
 

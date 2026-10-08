@@ -29,6 +29,7 @@ public sealed class WorkspaceStoreTests : IDisposable
                 FirstVisibleRow: 1200)
             {
                 PinnedColumns = ["NAME", "ORT"],
+                Form = new FormTabState(Open: true, Width: 520, HideEmpty: true),
             },
             new TabState(new TableRef("OTHER", "Quoted.Name"), TabMode.Structure, [], [], []) { OriginTab = 0 },
         ],
@@ -62,6 +63,8 @@ public sealed class WorkspaceStoreTests : IDisposable
         Assert.Equal(TabMode.Structure, loaded.Tabs[1].Mode);
         Assert.Null(loaded.Tabs[1].FirstVisibleRow);
         Assert.Empty(loaded.Tabs[1].PinnedColumns);
+        Assert.Equal(new FormTabState(true, 520, true), tab.Form);
+        Assert.Null(loaded.Tabs[1].Form);
     }
 
     [Fact]
@@ -99,6 +102,7 @@ public sealed class WorkspaceStoreTests : IDisposable
         Assert.Equal(new TableRef("APP", "KUNDEN"), tab.Table);
         Assert.Empty(tab.PinnedColumns);
         Assert.Null(tab.OriginTab);
+        Assert.Null(tab.Form);
     }
 
     [Fact]

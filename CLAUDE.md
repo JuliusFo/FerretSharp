@@ -2,7 +2,7 @@
 
 > Projektanweisungen für Claude Code. Bitte vollständig lesen, bevor ein Arbeitspaket umgesetzt wird.
 > Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-08 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0; WP-14 → 2.4.0; WP-15 → 3.0.0, v3 abgeschlossen; v4: WP-16 → 3.1.0, WP-17 → 3.2.0, WP-18 → 3.3.0, Leerzeichen nach Vorschlägen 3.3.1, Tabs umbenennen 3.4.0; WP-19 → 3.5.0; Stabilisierung R1 → 3.6.0, Protokolle nach `docs/work-packages.md`; Struktur-Refactoring R2 → 3.6.1; WP-20 → 3.7.0; WP-24 → 3.8.0; FK-Sprung mit mehreren Zeilen → 3.9.0; WP-27 Modell-Abgleich Typen/NULL/Längen → 3.10.0)
+> Stand: 2026-10-08 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0; WP-14 → 2.4.0; WP-15 → 3.0.0, v3 abgeschlossen; v4: WP-16 → 3.1.0, WP-17 → 3.2.0, WP-18 → 3.3.0, Leerzeichen nach Vorschlägen 3.3.1, Tabs umbenennen 3.4.0; WP-19 → 3.5.0; Stabilisierung R1 → 3.6.0, Protokolle nach `docs/work-packages.md`; Struktur-Refactoring R2 → 3.6.1; WP-20 → 3.7.0; WP-24 → 3.8.0; FK-Sprung mit mehreren Zeilen → 3.9.0; WP-27 Modell-Abgleich Typen/NULL/Längen → 3.10.0; WP-21 Formularansicht und Zeilenvergleich, noch ohne Release)
 
 ## 1. Ziel
 
@@ -87,6 +87,7 @@ FerretSharp.slnx
 │  │  ├─ Data/                         # RowSet, RowKey, IDataAccess, RowBlocks   (v2: RowChange, ChangeTracker)
 │  │  ├─ IO/                           # AtomicJsonFile (Schreiben über .tmp für alle JSON-Speicher)
 │  │  ├─ Workspaces/                   # Workspace, WorkspaceStore, TabState
+│  │  ├─ Forms/                        # Formularansicht einer Zeile (WP-21): RowForm, RowComparison
 │  │  ├─ Compare/                      # Schema-Vergleich (WP-20): SchemaSnapshot, SchemaDiff, SchemaDdl, gespeicherte Vergleiche
 │  │  └─ Oracle/                       # OracleSession, OracleSchemaReader, OracleDataAccess, OracleTypeMapper, OracleIdentifier
 │  ├─ FerretSharp.UI/                  # net10.0, Razor Class Library – plattformneutral, KEIN WPF/Windows
@@ -152,9 +153,10 @@ record Workspace(Guid Id, Guid ConnectionId, string Name) {   // z. B. "Bug 3711
     IReadOnlyList<TabState> Tabs; int ActiveTabIndex;
     bool IsOpen; int Order; DateTimeOffset LastActive;
 }
-record TabState(TableRef Table, TabMode Mode, FilterRows, AppliedFilters, Sorts, int? FirstVisibleRow) { PinnedColumns, OriginTab }
+record TabState(TableRef Table, TabMode Mode, FilterRows, AppliedFilters, Sorts, int? FirstVisibleRow) { PinnedColumns, OriginTab, Form }
 ```
 - `PinnedColumns`: vom Nutzer angeheftete Spalten in Anheft-Reihenfolge, **pro Tab** (Entscheidung des Nutzers; ein FK-Sprung öffnet den neuen Tab ohne Pins). Der PK ist immer angeheftet und steht nicht in der Liste. Logik in `ColumnPinning` (Workspaces/): PK in Schema-Reihenfolge → angeheftete Spalten → Rest; gelöschte Spalten fallen beim Öffnen weg.
+- `Form` (WP-21): Formular neben dem Grid offen, Breite, „Leere ausblenden“ – je Tab (Entscheidung des Nutzers); null, solange das Formular im Tab nie offen war.
 - `OriginTab` (v1.6): Index des Tabs, aus dem ein FK-Sprung kam, für „Zurück“ (Alt+←). Zur Laufzeit hält `TableTab.Origin` die Referenz; ist der Ursprung geschlossen, führt „Zurück“ zum nächsten offenen Tab weiter hinten in der Sprungkette (`BackTarget`). „Vor“ (Alt+→, `TableTab.Forward`) wird nicht gespeichert; ein neuer Sprung aus einem Tab löscht dessen „Vor“ (wie im Browser). Mehrere Tabs derselben Tabelle zeigen im Titel die Kurzform ihrer Filter (`FilterSummary`).
 - `SavedQuery` entfällt: Seit 3.2 werden SQL-Tabs (Text und Variablen) mit dem Workspace gespeichert.
 - Zur Laufzeit hält jeder offene Workspace eine **eigene** Session (eigene Connection, ab v2 eigene Transaktion), geöffnet beim ersten Datenzugriff (`WorkspaceManager.GetDataAsync`). Das Schema lädt eine separate Explorer-Session (ADR 0005).
@@ -311,6 +313,7 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 - Native `<select>`, deren Optionen sich ändern (Operator je Spaltentyp), brauchen `@key` auf die Optionsmenge: Bleibt der Wert gleich, setzt Blazor ihn nicht neu, und der Browser zeigt die erste Option (in v1.5 gefunden).
 - Kontextmenü (FK-Navigation, Kopieren) und Dialoge sind Blazor-Komponenten; AG Grid meldet nur das `cellContextMenu`-Event (Zeilenindex, Spalte, Mausposition), `grid.js` unterdrückt das WebView-Kontextmenü im Grid (`GridContextMenu`).
 - Ansichten eines Tabs (v1.7, flach nebeneinander, Entscheidung des Nutzers): Daten | Spalten | Constraints | Indizes | Abhängigkeiten | DDL (`TabMode`, gespeichert). Über allen Nicht-Daten-Ansichten steht `ObjectHeader` (Kommentar, Status, Daten, Statistik). Jede Ansicht mountet beim ersten Öffnen und bleibt dann (wie das Grid); die Detailansichten erben von `DetailViewBase<T>` (Laden auf der Explorer-Session, Abbruch, Fehler, Neuladen über `Version` = F5). Ab etwa zehn Einträgen die seltenen unter „Mehr ▾“ zusammenfassen.
+- Formularansicht (WP-21, Entscheidungen des Nutzers): eine Zeile als **Seitenleiste rechts neben dem Grid** (`RowFormPanel`, Breite ziehbar), der Vergleich markierter Zeilen als **Dialog** (`RowCompareDialog`, nur lesen, 2–20 Zeilen). **Das Grid führt:** Das Formular zeigt die Zeile der fokussierten Zelle (`FerretGrid.Focused`/`FocusChanged`), ▲ ▼ bewegen nur den Fokus im Grid (`focusRow` in grid.js) – Blöcke lädt AG Grid wie gewohnt, nach Schreiben/Neuladen findet das Formular die Zeile über `RowBlocks.IndexOf(RowKey)` wieder. Felder kommen aus `RowForm` (Core/Forms), Editieren über `FerretGrid.EditFromForm` (derselbe Kern wie `OnCellEdit`, synchron). Getippte, noch nicht bestätigte Werte übernimmt `ShellState.BeforeWrite` vor Ctrl+S/Commit. FK-Sprünge aus dem Formular nehmen den aktuellen (auch ausstehenden) Wert; eingehende FKs zählt `FkCounts` (gemeinsam mit dem Kontextmenü) erst, wenn die Zeile 400 ms gewählt bleibt. Spaltenkommentar nur als Tooltip.
 
 **Shortcuts**
 
@@ -329,6 +332,8 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 | Ctrl+Shift+L | Neue LINQ-Konsole (mit verknüpftem C#-Projekt); im LINQ-Tab führen Ctrl+Enter und F5 aus, Ctrl+F sucht im Editor, Ctrl+Leertaste schlägt Member/Typen vor (3.5) | 2.3 |
 | Ctrl+Shift+Q | Neuer SQL-Editor; im SQL-Tab führen Ctrl+Enter und F5 das Statement am Cursor aus, Ctrl+F sucht, Ctrl+Leertaste schlägt Tabellen/Spalten vor | 3.2 |
 | Alt+X | Im SQL-Tab: das ganze Skript (bzw. die markierten Statements) nacheinander ausführen | 3.3 |
+| Alt+Enter | Im Grid: Formular der fokussierten Zeile öffnen/schließen; bei mehreren markierten Zeilen: vergleichen. Im Formular: schließen. Nur lokal (nicht in `shortcuts.js`), damit Monaco seine Tasten behält | WP-21 |
+| Alt+↑ / Alt+↓ | Im Formular: vorige/nächste Zeile (bewegt den Fokus im Grid; im Grid selbst reichen ↑/↓). Nur lokal | WP-21 |
 | – | Rollback nur über Button, mit Bestätigung | v2 |
 
 `Esc` bleibt dem Grid vorbehalten (Zelleingabe abbrechen) bzw. schließt Menüs/Dialoge. Globale Shortcuts registriert die `Shell` über `wwwroot/js/shortcuts.js` (Capture-Listener → `OnShortcut` in .NET); `F12` öffnet im Debug-Build die DevTools.
@@ -382,6 +387,7 @@ Umsetzungsprotokolle (was gebaut wurde, Entscheidungen des Nutzers, Nachträge, 
 | WP-24 | Mehrere offene Verbindungen, eine sichtbar (Alt+O zur vorigen) | 3.8.0 | – |
 | Klein | FK-Sprung mit mehreren markierten Zeilen (`in`-Filter) | 3.9.0 | – |
 | WP-27 | Abgleich C#-Modell ↔ DB: Typ, NULL, Länge, Stellen (`ColumnTypeCheck`, Export-Format 2) | 3.10.0 | – |
+| WP-21 | Formularansicht einer Zeile (Seitenleiste, editierbar über den `ChangeTracker`), Vergleich markierter Zeilen (Dialog) | – | – |
 
 **Kontext des Nutzers** (wichtig für die kommenden Pakete):
 - DB-first von Hand: erst die DB ändern, dann Entity/Konfiguration; keine Migrations. Namenskonvention im Code (Tabellen groß, `KundenId` → `KUNDEN_ID`), **eigene Value Converter** (bool ↔ J/N, Enum-Kürzel), Enum-Member mit `[Display(ResourceType = …, Name = …)]`. Ein DbContext in einer Klassenbibliothek (Konstruktor `DbContextOptions`), Entities in einem anderen Projekt, EF Core 8.
@@ -393,6 +399,7 @@ Umsetzungsprotokolle (was gebaut wurde, Entscheidungen des Nutzers, Nachträge, 
 - Komponenten mit JS-Interop prüfen nach jedem `await` im Start und in Handlern, ob sie schon abgebaut sind (`_disposed`), und rufen danach kein JS mehr auf (Muster: `MonacoEditor.CallAsync`, `GridBridge.CallAsync`). Ausnahmen in einer Tab-Ansicht fängt seit 3.6.0 `TabFrame` (ErrorBoundary je Tab); vorher schloss jede Ausnahme alle Tabs.
 - `OracleSession` ist der einzige Besitzer der Connection: Dispose bricht das laufende Kommando ab und wartet auf das Gate; Wartende bekommen danach `OperationCanceledException`. Die Statement-Sperren (`StatementGuard`) nutzen den Tokenizer des SQL-Editors (`SqlScript.Tokenize`).
 - AG Grid: Objekte in Column-Defs (`headerComponentParams`) werden mit `defaultColDef` **tief kopiert** – veränderliche Metadaten als Funktion (`getMeta`). Kopfhöhe nur als Theme-Parameter, nicht als `headerHeight` (setzt die Zeilenhöhe zurück). Angeheftete Zeilen haben `row-index="t-0"`.
+- `GridBridge.CallAsync(…, params object?[] args)`: Eine Liste als einziges Argument immer als `List<…>` übergeben, **kein Array** – ein `GridRowUpdate[]` wird wegen Array-Kovarianz selbst zum params-Array, grid.js bekommt dann ein Objekt statt einer Liste (so zeichnete „Übernehmen“ im LOB-Dialog seit 3.6.1 die Zeile nicht neu; in WP-21 gefunden).
 - Monaco: `vs/nls/lang/de.js` ist kein AMD-Modul → als normales Script laden. Offsets sind UTF-16; Text und Offsets immer aus demselben `getRunContext`.
 - C#-Modell gegen die DB (WP-27) nur mit **konfigurierten** Facetten vergleichen: Die Provider-Vorgaben (`NVARCHAR2(2000)`, `NUMBER(10)` für `int`) beschreiben nicht die Absicht des Projekts und erzeugen Massen an Abweichungen. Für NULL `ColumnNullable` (EFs Spaltensicht) statt `Nullable` der Property (TPH, Owned).
 - ModelHost: Roslyn im Projektprozess nur bis 4.11 (ab 4.12 `System.Reflection.Metadata` 9.0, nicht ladbar in .NET 8); `AppContext.BaseDirectory` ist unter `dotnet exec --depsfile` nicht verlässlich (`typeof(Program).Assembly.Location`); Satelliten-Assemblies stehen nicht in der deps.json; ein Interceptor-Exemplar für die ganze Lebensdauer. Roslyn sieht eine Position am Textende als hinter einem unfertigen Lambda.
@@ -403,12 +410,6 @@ Umsetzungsprotokolle (was gebaut wurde, Entscheidungen des Nutzers, Nachträge, 
 ### Geplant (v4)
 
 Pakete aus dem Backlog, nach v3 mit dem Nutzer ausgewählt (2026-10-05). Versionen: Minor-Releases 3.x (nichts Inkompatibles).
-
-#### WP-21 Formularansicht einer Zeile (geplant)
-Wunsch des Nutzers (2026-10-06), vor DDL und Tabellen-Designer. Für breite Tabellen (VERTRAG mit 71 Spalten).
-- Eine Zeile senkrecht: Spalte → Wert, mit Oracle-Typ, C#-Property/Typ, Enum-Member, NULL kursiv; Suche/Filter über Spaltennamen (wie Ctrl+F, auch C#-Namen); FK-Werte als Links (Sprung wie im Kontextmenü); LOBs öffnen den LOB-Dialog; Vor/Zurück durch die geladenen Zeilen des Grids.
-- Auf schreibbaren Workspaces editierbar über denselben `ChangeTracker` wie das Grid (Validierung in .NET, Zellfarben Ausstehend/Geschrieben, Schreiben mit Ctrl+S).
-- Zu klären beim Start: Darstellung (Seitenleiste rechts neben dem Grid, eigene Ansicht im Tab-Umschalter oder Dialog), Auslöser (Kontextmenü „Als Formular“, Tastenkürzel; Doppelklick ist schon Editieren), Mehrfachauswahl (Zeilen nebeneinander vergleichen? – Backlog-Eintrag „Audit-/Historientabellen“ mitdenken), Spalten ausblenden/leere ausblenden.
 
 #### WP-22 DDL im SQL-Editor (geplant)
 Wunsch des Nutzers (2026-10-06): Tabellen anlegen und ändern, passend zum DB-first-Ablauf („erst DB ändern, dann Entity“). Erste Stufe: DDL im SQL-Editor (und in Skripten) zulassen. Entscheidungen des Nutzers:

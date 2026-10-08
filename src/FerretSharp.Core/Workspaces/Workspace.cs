@@ -44,12 +44,19 @@ public sealed record TabState(
     /// <summary>Set for a SQL editor tab (WP-17); <see cref="Table"/> is then <see cref="LinqTabState.NoTable"/> as well.</summary>
     public SqlTabState? Sql { get; init; }
 
+    /// <summary>The form beside the grid (WP-21); null if it was never opened in the tab.</summary>
+    public FormTabState? Form { get; init; }
+
     /// <summary>A LINQ console tab in the file format of table tabs.</summary>
     public static TabState OfLinq(LinqTabState linq) => new(LinqTabState.NoTable, TabMode.Data, [], [], []) { Linq = linq };
 
     /// <summary>A SQL editor tab in the file format of table tabs.</summary>
     public static TabState OfSql(SqlTabState sql) => new(LinqTabState.NoTable, TabMode.Data, [], [], []) { Sql = sql };
 }
+
+/// <summary>The form view of a table tab (WP-21): whether the panel is open, its width and "leere ausblenden".</summary>
+/// <param name="Width">Width of the panel in CSS pixels; null for the default.</param>
+public sealed record FormTabState(bool Open, int? Width = null, bool HideEmpty = false);
 
 /// <summary>A SQL editor tab: its title, the script and the bind variables with their types and values.</summary>
 public sealed record SqlTabState(string Title, string Text, IReadOnlyList<Query.SqlVariable> Variables);

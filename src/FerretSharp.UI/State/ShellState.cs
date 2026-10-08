@@ -54,6 +54,21 @@ public sealed class ShellState
     /// <summary>Global shortcuts for the active tab (Ctrl+Enter, F5); handled by its tab view.</summary>
     public event Action<WorkspaceTab, TabCommand>? TabCommandRequested;
 
+    /// <summary>
+    /// Right before a workspace writes or commits (Ctrl+S, commit): the forms take over values typed but not yet
+    /// confirmed (WP-21), so they are not silently left out. A handler returns why writing must not start (a typed
+    /// value is invalid); null if it may.
+    /// </summary>
+    public event Func<Guid, string?>? BeforeWrite;
+
+    /// <summary>Runs every <see cref="BeforeWrite"/> handler for the workspace; the first reason against writing, or null.</summary>
+    public string? PrepareWrite(Guid workspaceId) =>
+        (BeforeWrite?.GetInvocationList() ?? [])
+            .Cast<Func<Guid, string?>>()
+            .Select(handler => handler(workspaceId))
+            .ToList()
+            .FirstOrDefault(reason => reason is not null);
+
     public ShellPage Page { get; private set; } = ShellPage.Connections;
 
     /// <summary>Open workspaces of all open connections (their tabs stay mounted); per connection in bar order.</summary>

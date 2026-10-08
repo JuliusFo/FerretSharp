@@ -37,6 +37,24 @@ public sealed class RowBlocksTests
     }
 
     [Fact]
+    public void Rows_are_found_again_by_their_key()
+    {
+        var blocks = new RowBlocks();
+        blocks.Keep(0, [new RowData(new RowKey.PrimaryKey([1m]), [1]), new RowData(new RowKey.RowId("AAAB"), [2])]);
+        blocks.Keep(500, [new RowData(new RowKey.PrimaryKey([new byte[] { 0xCA, 0xFE }]), [3])]);
+
+        Assert.Equal(0, blocks.IndexOf(new RowKey.PrimaryKey([1m])));
+        Assert.Equal(1, blocks.IndexOf(new RowKey.RowId("AAAB")));
+        Assert.Equal(500, blocks.IndexOf(new RowKey.PrimaryKey([new byte[] { 0xCA, 0xFE }]))); // RAW keys by content
+        Assert.Null(blocks.IndexOf(new RowKey.PrimaryKey([2m])));
+        Assert.Null(new RowBlocks { }.IndexOf(new RowKey.PrimaryKey([1m])));
+
+        var keyless = new RowBlocks();
+        keyless.Keep(0, Block(0, 3));
+        Assert.Null(keyless.IndexOf(RowKey.None.Instance)); // views without key: every row has None
+    }
+
+    [Fact]
     public void Reading_a_block_again_replaces_it_and_clear_forgets_all()
     {
         var blocks = new RowBlocks();

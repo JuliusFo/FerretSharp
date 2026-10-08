@@ -447,6 +447,30 @@ export function create(elementId, dotnet, columns, options) {
     dotnet.invokeMethodAsync('OnLobCell', newId ? -1 : rowIndex, newId ?? null, colId).catch(() => {});
   }
 
+  // Alt+Enter (Windows' "properties"): the form of the focused row, or the comparison of the selected rows (WP-21).
+  // Only in the grid, not a global shortcut – the SQL and LINQ editors keep their keys.
+  element.addEventListener('keydown', e => {
+    if (!table || e.key !== 'Enter' || !e.altKey || e.ctrlKey || e.shiftKey || api.getEditingCells().length > 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const cell = api.getFocusedCell();
+    const newId = cell?.rowPinned === 'top' ? api.getPinnedTopRow(cell.rowIndex)?.data?.__new : null;
+    const selected = api.getSelectedNodes().map(n => n.rowIndex).filter(i => i != null);
+    dotnet.invokeMethodAsync('OnFormKey', cell && !cell.rowPinned ? cell.rowIndex : -1, newId ?? null, selected).catch(() => {});
+  }, true);
+
+  // The form follows the focused cell; arrow keys move it fast, so only the last position within a moment is reported.
+  let focusTimer = null;
+  function reportFocus(e) {
+    if (!table || e.rowIndex == null) return;
+    // e.api: the event may come while createGrid still runs (before `api` is assigned).
+    const newId = e.rowPinned === 'top' ? e.api.getPinnedTopRow(e.rowIndex)?.data?.__new : null;
+    if (e.rowPinned && !newId) return;
+    const colId = typeof e.column === 'string' ? e.column : e.column?.getColId?.() ?? null;
+    clearTimeout(focusTimer);
+    focusTimer = setTimeout(() => dotnet.invokeMethodAsync('OnFocused', e.rowPinned ? -1 : e.rowIndex, newId ?? null, colId).catch(() => {}), 60);
+  }
+
   element.addEventListener('keydown', e => {
     if (e.key !== 'Enter' || e.ctrlKey || e.altKey || e.shiftKey || api.getEditingCells().length > 0) return;
     const cell = api.getFocusedCell();
@@ -502,6 +526,7 @@ export function create(elementId, dotnet, columns, options) {
       }
     },
     onBodyScrollEnd: () => { if (table) dotnet.invokeMethodAsync('OnScrolled', firstVisibleRow(api)).catch(() => {}); },
+    onCellFocused: reportFocus,
     // Pinned or reordered within the pinned area by dragging (changes from setPinned have source 'api').
     onColumnPinned: e => { if (table && e.source?.startsWith('ui')) reportPinned(api, dotnet); },
     onColumnMoved: e => { if (table && e.finished && e.source?.startsWith('ui') && e.column?.getPinned()) reportPinned(api, dotnet); },
@@ -560,6 +585,25 @@ export function startEditing(elementId, rowIndex, colId, pinned) {
   api.ensureColumnVisible(colId);
   api.setFocusedCell(rowIndex, colId, pinned ? 'top' : undefined);
   api.startEditingCell({ rowIndex, colKey: colId, rowPinned: pinned ? 'top' : undefined });
+}
+
+/**
+ * Moves the focused cell to a row (the form's ▲ ▼, WP-21); a block not loaded yet is fetched. colId null keeps the
+ * focused column. pinned: rowIndex counts the new rows at the top. keepFocus: the keyboard focus stays where it was
+ * (in the form), the grid only shows the row.
+ */
+export function focusRow(elementId, rowIndex, colId, pinned, keepFocus) {
+  const api = grids.get(elementId);
+  if (!api) return;
+  const column = colId ?? api.getFocusedCell()?.column.getColId() ?? api.getAllDisplayedColumns()[0]?.getColId();
+  if (!column) return;
+  const active = document.activeElement;
+  if (!pinned) api.ensureIndexVisible(rowIndex);
+  api.ensureColumnVisible(column);
+  api.setFocusedCell(rowIndex, column, pinned ? 'top' : undefined);
+  if (keepFocus && active && active !== document.body && !document.getElementById(elementId)?.contains(active)) {
+    active.focus();
+  }
 }
 
 /** Fetches the cached blocks again without moving (after writing): the rows show what the transaction holds. */
