@@ -33,6 +33,7 @@ Was in den abgeschlossenen Paketen gebaut und entschieden wurde, mit Nachträgen
 | WP-27 | Abgleich C#-Modell ↔ DB: Typ, NULL, Länge, Stellen (`ColumnTypeCheck`, Export-Format 2) | 3.10.0 | – |
 | WP-21 | Formularansicht einer Zeile (Seitenleiste, editierbar über den `ChangeTracker`), Vergleich markierter Zeilen (Dialog) | 3.11.0 | – |
 | R3a | Fehlerbehebung nach dem Review 3.14.0 (Verbindungsverlust je Verbindung, Schreiben serialisiert, UI-Testprojekt) | 3.14.1 | – |
+| R3b | Struktur-Refactoring nach dem Review 3.14.0 (Schema-Reader, Typwissen, SessionGate, UI-Bausteine, State) | 3.15.0 | – |
 
 Kleinere Releases ohne eigenes Paket (Fixes, Komfort) stehen nur im `CHANGELOG.md`.
 
@@ -471,3 +472,28 @@ Review am 2026-10-08 mit vier parallelen Agenten (UI-Komponenten, UI-State, Core
   - Nicht per E2E: LOB-Dateifehler (native Dialoge nicht automatisieren, CLAUDE.md), C#-Namen im Spaltenwähler (braucht ein verknüpftes Projekt; der Reflection-Test deckt die Ursache ab).
   - Log: nur die erwartete Warnung zur beendeten Session, kein `[ERR]`. Testverbindungen über die App gelöscht (Credential Manager geprüft), Container entfernt.
 - Offen für R3b (Struktur, aus dem Review): `Fire`-Helfer gegen unbeobachtete fire-and-forget-Aufrufe und `.catch(() => {})` in grid.js; `DomModule` statt 16 handgeschriebener dom.js-Importe; `PopoverMenu` für Kontext-/Ergebnismenü; `ShellState` aufteilen (`TabRegistry`, `ShellDialogs`), `ConnectionLifecycle` aus `WorkspaceLifecycle`; `OracleSchemaReader` (SQL-Paare zusammenlegen, Lesehelfer, partial nach Thema, `ReadOnlyTests` auf alle SQL-Konstanten); `OracleTypes` als eine Stelle für Typwissen; `SessionGate` testbar herauslösen; ModelHost-Prozessbehandlung (Kill mit Warten, Temp-Aufräumen, „Neu bauen“ abbrechbar, `-nodeReuse:false`); `ConnectionHub.OpenAsync` nicht vom Threadpool aus. Vor WP-22: `DdlStep` mit Art und Risiko; zu Beginn von WP-23: `DdlWriter` in `TableDdl` + Vergleichs-Adapter teilen.
+
+### R3b Struktur-Refactoring nach dem Review 3.14.0
+Die Strukturpunkte (Teile B und C) des Reviews vom 2026-10-08, ohne neue Features. Core zuerst mit Tests, dann UI-Infrastruktur, UI-Struktur und State; je Schritt ein Commit mit grünen Tests.
+- Core:
+  - `OracleSchemaReader` als `partial` nach Thema (Katalog mit den gemeinsamen Select-Listen, `ObjectDetails`, `Snapshot`, `Diagnostics`). Tabellen- und Schema-Statements entstehen aus derselben Select-Liste plus WHERE/ORDER; die schlanke Spaltenliste des Modell-Abgleichs wird aus der vollen gebaut (`static readonly`, Ersetzen von `data_default`/`comments` durch `NULL`), ein Test sichert gleiche Positionen. `OracleReading` (`ReadListAsync`, typisierte Getter, `FetchManyRows`) ersetzt ein Dutzend Leseschleifen, auch in `OraclePlans`.
+  - `EXPLAIN`: die `PLAN_TABLE`-Abfrage ist eine benannte Konstante; „keine Abfrage“ ist eine `RefusedException`, `ExplainAsync` fängt nur noch Ablehnungen. `ReadOnlyTests` prüfen alle SELECT/WITH-Texte in `Core/Oracle` (vorher nur `…Sql`-Felder einer Klasse).
+  - `Schema/OracleTypes`: `DisplayType`/`DdlType` nebeneinander, `IsCharacter`, `HasLength`, `LengthInBytes`, `Family`, `IsLobOrLong`; genutzt von Schema-Records, DDL-Vorschlag, Modell-Abgleich, Werte-Parser und Ergebnisspalten.
+  - `SessionGate` aus `OracleSession`: Serialisierung, Schließen, liegengelassene Arbeit, Fehlerübersetzung – sechs Unit-Tests mit Fake-Arbeit, die den Abbruch ignoriert (bisher nur von Hand mit TCP-Proxy nachstellbar).
+  - ModelHost: `DotNetCli.KillTree` (Prozessbaum, kurz warten, wirft nie); Timeout-Fehler mit Ausgabe; `-nodeReuse:false`; „Neu bauen“ wird beim Dispose des `ClrModelManager` abgebrochen; LINQ-Konsole startet nach einer unlesbaren Antwort neu; alte Temp-Ordner (> 1 Tag) werden beim ersten Start entfernt; der Host endet mit `Environment.Exit`.
+  - Kleinkram: `TableDetails.IndexOf`, `SyncProgress<T>`, eigene Dateien für `DotNetCli`, `ClrModelException`, `BuildOutput`, `DatabaseException`; `IO/JsonFiles.Options`; `SqlBindException : RefusedException`; FK-Zählung nach Timeout beobachtet; NUMBER mit > 28 Nachkommastellen bleibt exakt; Parameter werden mit dem Kommando entsorgt; `WorkspaceManager.ReadSqlAsync`/`ExecuteAsync`; `Workspace.FirstFreeName` für „Workspace N“, „SQL N“, „LINQ N“.
+- UI-Infrastruktur:
+  - `FerretComponent.Fire`/`GuardAsync`: Arbeit außerhalb von Event-Handlern (JS-Callbacks des Grids, Shortcuts, Zählungen) meldet Ausnahmen an die ErrorBoundary des Tabs; grid.js loggt gescheiterte Aufrufe (`callFailed`).
+  - `DomModule` statt 16 handgeschriebener dom.js-Importe (nur drei waren gegen Dispose geschützt); `FerretSharp.UI.State` global in `_Imports.razor`.
+  - `PopoverMenu` (Rahmen der drei Kontextmenüs), `ExportActions` (Kopieren/Speichern mit einheitlichen Meldungen, „Wert nicht kopiert.“), `FkJumpItem`, `WriteOutcome`, `ShellState.ReloadTableTabs`.
+- UI-Struktur:
+  - `SqlView` → `SqlVariablesEditor`, `SqlHistoryPanel` (Suche jetzt `SearchBox`); `TabView` → `TabFooter` (Zählen, Sortierung, Row-Key).
+  - `GridRows` (Zeilenformat für grid.js, mit Tests), `FormCursor` (Zeilenverfolgung des Formulars, `IFormGrid`, mit Tests; `GridCell` liegt jetzt in `State`).
+  - grid.js: ein `keydown`-Verteiler (Entf, Ctrl+C, Alt+Enter, Enter auf LOB) statt drei; `rowArgs`, `newIdOf`, `showEditorError`.
+  - `ConnectionDialog` validiert einmal je Render (vorher bis zu 18-mal, mit Dateisystemzugriff).
+- State:
+  - `ConnectionHub.Show(profile)` öffnet und zeigt auf dem UI-Thread unter dem Lock; nur das Verbinden läuft im Hintergrund (vorher lief alles auf dem Threadpool). Idle-Timer der LINQ-Hosts fängt und loggt.
+  - `ShellState` und `WorkspaceLifecycle` als `partial` aufgeteilt (`ShellState.Tabs.cs`, `WorkspaceLifecycle.Connections.cs`); API unverändert. `ConnectionHub.ScopeOfWorkspace`/`ScopeOf(WorkspaceTabs)` statt zweier Kopien.
+- Bewusst nicht umgesetzt: gebündeltes Speichern der Tabs (`SaveTabs` nur für geänderte Workspaces, Vorschlag aus dem Review) – ein Verzögern hätte beim Beenden die letzten Änderungen verlieren können, der Aufwand ist bei üblichen Tab-Zahlen nicht messbar. `ShellState`/`WorkspaceLifecycle` nur als `partial` statt eigener Klassen (`TabRegistry`, `ConnectionLifecycle`): die Komponenten bleiben unverändert, die Dateien sind trotzdem nach Aufgabe getrennt.
+- Weiter offen (bei WP-22/23): `DdlStep` mit Art und Risiko; `DdlWriter` in `TableDdl` und Vergleichs-Adapter teilen; Tests für den Prozess-Weg des ModelHost (Fake-Host).
+- Prüfung: Build mit `-warnaserror`, 1028 Tests grün (Core 863, UI 24, Integration 141). E2E mit eigenem Container `ferret-r3b` und zwei Verbindungen: Zählen in der Fußzeile, Zell-Kontextmenü (Kopieren, als Tabelle, FK-Sprünge mit Zählung, Esc), Ctrl+C, Alt+Enter ins Formular und ▼ (Grid-Fokus folgt), Entf und Verwerfen, Spaltenkopf-Menü (Anheften), Enter auf CLOB-Zelle (LOB-Dialog), SQL-Editor mit Variable (Typvorschlag, gebunden), Ergebnis-Menü, Verlauf (Suche, Esc, Übernehmen), Verbindungswechsel und Alt+O. Log ohne Warnungen; Testverbindungen über die App gelöscht, Container entfernt.
