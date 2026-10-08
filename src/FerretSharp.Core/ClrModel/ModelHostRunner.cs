@@ -33,7 +33,12 @@ public interface IModelHostRunner
 /// <param name="culture">
 /// Language of the enum display names the host reads from the project's resources; FerretSharp's UI culture by default.
 /// </param>
-public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = null, CultureInfo? culture = null) : IModelHostRunner
+/// <param name="shadow">
+/// Copies of the build output the host runs from, so a build of the project is never blocked by a DLL the host has
+/// loaded (ADR 0016); null = run from the build output itself.
+/// </param>
+public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = null, CultureInfo? culture = null, BuildOutputShadow? shadow = null)
+    : IModelHostRunner
 {
     public static readonly TimeSpan DefaultTimeout = TimeSpan.FromMinutes(2);
 
@@ -44,12 +49,12 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
         HostLaunch? launch = null;
         try
         {
-            launch = await PrepareAsync(output, cancellationToken);
+            launch = await PrepareAsync(output, progress, cancellationToken);
             var result = Path.Combine(launch.Work.FullName, "model.json");
-            var arguments = HostArguments(link, output, launch, ["--output", result]);
+            var arguments = HostArguments(link, launch, ["--output", result]);
 
             progress?.Report("Starte den Hilfsprozess");
-            var run = await DotNetCli.RunAsync(arguments, Path.GetDirectoryName(output.Assembly)!, _timeout, cancellationToken, line =>
+            var run = await DotNetCli.RunAsync(arguments, launch.AppDirectory, _timeout, cancellationToken, background: true, onOutputLine: line =>
             {
                 if (line.StartsWith(ModelHostResult.ProgressPrefix, StringComparison.Ordinal))
                 {
@@ -81,6 +86,7 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
         {
             if (launch is not null)
             {
+                launch.Lease?.Dispose();
                 LinqConsoleHost.TryDelete(launch.Work);
             }
         }
@@ -88,10 +94,10 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
 
     public async Task<ILinqConsole> StartConsoleAsync(ClrProjectLink link, BuildOutput output, CancellationToken cancellationToken, IProgress<string>? progress = null)
     {
-        var launch = await PrepareAsync(output, cancellationToken); // from here on the console owns the folder
+        var launch = await PrepareAsync(output, progress, cancellationToken); // from here on the console owns the folder and the copy
         var pipe = "ferretsharp-linq-" + Guid.NewGuid().ToString("N");
         return await LinqConsoleHost.StartAsync(
-            HostArguments(link, output, launch, ["--console", pipe]), Path.GetDirectoryName(output.Assembly)!, pipe, launch.Work, output,
+            HostArguments(link, launch, ["--console", pipe]), launch.AppDirectory, pipe, launch.Work, launch.Lease, output,
             _timeout, progress, cancellationToken);
     }
 
@@ -128,15 +134,19 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
         }
     }
 
-    /// <summary>A start of the host: its own temp folder, with the runtimeconfig for the project's runtime in it.</summary>
-    private sealed record HostLaunch(DirectoryInfo Work, string RuntimeConfig);
+    /// <summary>
+    /// A start of the host: its own temp folder with the runtimeconfig for the project's runtime, and the copy of the
+    /// build output it runs from (the output itself without a shadow).
+    /// </summary>
+    private sealed record HostLaunch(
+        DirectoryInfo Work, string RuntimeConfig, ShadowLease? Lease, string AppDirectory, string Assembly, string DepsFile, IReadOnlyList<string> PackageFolders);
 
     /// <summary>
-    /// Checks the host is there and writes the runtimeconfig into a new temp folder (R2: was in both starts); the folder
-    /// is removed again if that fails.
+    /// Checks the host is there, writes the runtimeconfig into a new temp folder (R2: was in both starts) and takes a copy
+    /// of the build output; the folder is removed again if that fails.
     /// </summary>
-    /// <exception cref="ClrModelException">FerretSharp.ModelHost is missing.</exception>
-    private async Task<HostLaunch> PrepareAsync(BuildOutput output, CancellationToken cancellationToken)
+    /// <exception cref="ClrModelException">FerretSharp.ModelHost is missing, or the output could not be copied.</exception>
+    private async Task<HostLaunch> PrepareAsync(BuildOutput output, IProgress<string>? progress, CancellationToken cancellationToken)
     {
         if (!File.Exists(modelHostPath))
         {
@@ -154,7 +164,13 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
         try
         {
             await File.WriteAllTextAsync(runtimeConfig, RuntimeConfig(output), cancellationToken);
-            return new HostLaunch(work, runtimeConfig);
+            if (shadow is null)
+            {
+                return new HostLaunch(work, runtimeConfig, null, Path.GetDirectoryName(output.Assembly)!, output.Assembly, output.DepsFile, output.PackageFolders);
+            }
+
+            var lease = await shadow.AcquireAsync(output, progress, cancellationToken);
+            return new HostLaunch(work, runtimeConfig, lease, lease.Directory, lease.Assembly, lease.DepsFile, output.PackageFolders);
         }
         catch
         {
@@ -164,16 +180,16 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
     }
 
     /// <summary><c>dotnet exec</c> with the project's deps.json and runtime, then the host and its arguments.</summary>
-    private List<string> HostArguments(ClrProjectLink link, BuildOutput output, HostLaunch launch, IEnumerable<string> mode)
+    private List<string> HostArguments(ClrProjectLink link, HostLaunch launch, IEnumerable<string> mode)
     {
-        var arguments = new List<string> { "exec", "--runtimeconfig", launch.RuntimeConfig, "--depsfile", output.DepsFile };
-        foreach (var folder in output.PackageFolders)
+        var arguments = new List<string> { "exec", "--runtimeconfig", launch.RuntimeConfig, "--depsfile", launch.DepsFile };
+        foreach (var folder in launch.PackageFolders)
         {
             arguments.Add("--additionalprobingpath");
             arguments.Add(folder);
         }
 
-        arguments.AddRange([modelHostPath, "--assembly", output.Assembly, .. mode, "--culture", (culture ?? CultureInfo.CurrentUICulture).Name]);
+        arguments.AddRange([modelHostPath, "--assembly", launch.Assembly, .. mode, "--culture", (culture ?? CultureInfo.CurrentUICulture).Name]);
         if (link.ContextType is { Length: > 0 } context)
         {
             arguments.AddRange(["--context", context]);

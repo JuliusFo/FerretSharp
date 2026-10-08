@@ -26,6 +26,19 @@ public sealed class LinqConsoleTests : IAsyncLifetime
     public async ValueTask DisposeAsync() => await _console.DisposeAsync();
 
     [Fact]
+    public void The_running_console_does_not_lock_the_projects_build_output()
+    {
+        // The host runs from a copy (ADR 0016): a build of the linked project can overwrite its DLLs meanwhile.
+        var output = BuildOutputLocator.Find(ModelHostTests.SampleLink());
+
+        foreach (var file in new[] { output.Assembly, Path.Combine(Path.GetDirectoryName(output.Assembly)!, "FerretSharp.SampleModel.Entities.dll") })
+        {
+            using var stream = new FileStream(file, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            Assert.True(stream.Length > 0);
+        }
+    }
+
+    [Fact]
     public async Task A_query_becomes_the_projects_sql_with_typed_parameters()
     {
         var result = await _console.RunAsync(

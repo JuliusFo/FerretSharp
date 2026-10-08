@@ -18,9 +18,15 @@ public sealed class ModelHostTests
     internal static ClrProjectLink SampleLink(string? context = null) =>
         new(Path.Combine(Root, "samples", "FerretSharp.SampleModel.Data", "FerretSharp.SampleModel.Data.csproj"), Configuration, context);
 
+    /// <summary>One shadow for all tests, as in the app: hosts on the same build share a copy (ADR 0016).</summary>
+    internal static readonly BuildOutputShadow Shadow = new(Path.Combine(AppContext.BaseDirectory, "shadow"));
+
+    internal static string ModelHostPath => Path.Combine(Root, "src", "FerretSharp.ModelHost", "bin", Configuration, "net8.0", "FerretSharp.ModelHost.dll");
+
+    internal static string RepositoryRoot => Root;
+
     internal static ModelHostRunner Runner(string culture = "de-DE") =>
-        new(Path.Combine(Root, "src", "FerretSharp.ModelHost", "bin", Configuration, "net8.0", "FerretSharp.ModelHost.dll"),
-            culture: System.Globalization.CultureInfo.GetCultureInfo(culture));
+        new(ModelHostPath, culture: System.Globalization.CultureInfo.GetCultureInfo(culture), shadow: Shadow);
 
     private sealed class StepCollector : IProgress<string>
     {
@@ -79,7 +85,7 @@ public sealed class ModelHostTests
 
         Assert.Null(result.Error);
         // The host reports its steps on stdout as they happen (shown on the model page with their durations).
-        Assert.Equal(["Starte den Hilfsprozess", "Lade die Assemblies", "Erzeuge den DbContext", "Baue das Modell (OnModelCreating)", "Lese das Modell aus"],
+        Assert.Equal([BuildOutputShadow.CopyStep, "Starte den Hilfsprozess", "Lade die Assemblies", "Erzeuge den DbContext", "Baue das Modell (OnModelCreating)", "Lese das Modell aus"],
             steps.Steps);
         var model = result.Model!;
         Assert.StartsWith("8.0.", model.EfVersion);
@@ -191,8 +197,7 @@ public sealed class ModelHostTests
         var output = BuildOutputLocator.Find(link);
         var model = (await Runner().ReadModelAsync(link, output, Ct)).Model!;
         using var folder = new TestFolder();
-        var host = Path.Combine(Root, "src", "FerretSharp.ModelHost", "bin", Configuration, "net8.0", "FerretSharp.ModelHost.dll");
-        var cache = new ModelCache(folder.Path, host, System.Globalization.CultureInfo.GetCultureInfo("de-DE"));
+        var cache = new ModelCache(folder.Path, ModelHostPath, System.Globalization.CultureInfo.GetCultureInfo("de-DE"));
         await cache.SaveAsync(link, output, model, Ct);
 
         var cached = await cache.TryLoadAsync(link, BuildOutputLocator.Find(link), Ct);

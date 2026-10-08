@@ -30,6 +30,7 @@ Weg 2 (Entscheidung des Nutzers):
 - Monaco ist eine neue Abhängigkeit des UI-Projekts (CLAUDE.md, Abschnitt 3); der eigene SQL-Highlighter bleibt für die SQL-Anzeige.
 - Das abgefangene SQL wird ohne Umbau ausgeführt; Seiten nach der ersten werden durch erneutes Ausführen und Überspringen gelesen (ein `SELECT * FROM (…)` scheitert an doppelten Spaltennamen der EF-Joins, ORA-00918).
 - `SaveChanges` und Objektgraphen sind nicht Teil von WP-13.
+- Nachtrag (ADR 0016): Die Konsole läuft aus einer Schattenkopie des Build-Outputs. Nach einem Build startet ein neuer Hilfsprozess im Hintergrund; der alte beantwortet Ausführungen, bis der neue bereit ist. Der Start läuft nicht auf dem UI-Thread und lässt sich abbrechen.
 
 ## Nachtrag WP-28 (2026-10-08)
 

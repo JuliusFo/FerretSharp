@@ -43,6 +43,17 @@ public sealed class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task Ui_stall_diagnostics_are_off_by_default_and_round_trip()
+    {
+        await File.WriteAllTextAsync(_store.FilePath, """{ "version": 1, "settings": { "theme": "dark" } }""", Ct);
+        Assert.False((await _store.LoadAsync(Ct)).DiagnoseUiStalls);
+
+        await _store.SaveAsync(new AppSettings { DiagnoseUiStalls = true }, Ct);
+
+        Assert.True((await _store.LoadAsync(Ct)).DiagnoseUiStalls);
+    }
+
+    [Fact]
     public async Task Service_keeps_changes_of_different_settings_and_saves_all_of_them()
     {
         var service = new AppSettingsService(_store, AppSettings.Default);

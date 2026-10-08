@@ -133,6 +133,7 @@
 }
 
 @code {
+    private int _presentationVersion;
     [CascadingParameter]
     public ActiveConnection Active { get; set; } = null!;
 
@@ -144,14 +145,30 @@
 
     /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
     private DomModule Dom => _dom ??= new(JS);
+
+    [CascadingParameter]
+    public PresentationService Presentations { get; set; } = null!;
     private string _columnQuery = "";
 
     [Parameter, EditorRequired]
     public TableDetails Details { get; set; } = null!;
 
-    protected override void OnInitialized() => Models.Changed += OnModelChanged;
+    /// <summary>A newly loaded model that changes this table (not every loading step, not every table after a build).</summary>
+    protected override void OnInitialized()
+    {
+        _presentationVersion = Presentations.Version;
+        Presentations.Changed += OnModelChanged;
+    }
 
-    private void OnModelChanged() => InvokeAsync(StateHasChanged);
+    private void OnModelChanged() => InvokeAsync(() =>
+    {
+        if (Presentations.ChangedSince(_presentationVersion, Details.Table.Ref))
+        {
+            StateHasChanged();
+        }
+
+        _presentationVersion = Presentations.Version;
+    });
 
     /// <summary>Enum members (or true/false) with what the project stores for them, as a tooltip.</summary>
     private static string? ValuesTitle(PropertyExport property) => property.Values is { } values
@@ -176,7 +193,7 @@
 
     public async ValueTask DisposeAsync()
     {
-        Models.Changed -= OnModelChanged;
+        Presentations.Changed -= OnModelChanged;
         await Dom.DisposeAsync();
     }
 }

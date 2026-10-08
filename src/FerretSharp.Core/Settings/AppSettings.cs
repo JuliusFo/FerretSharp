@@ -40,6 +40,13 @@ public sealed record AppSettings
     /// </summary>
     public int LockWaitSeconds { get; init; } = Query.DmlBuilder.DefaultLockWaitSeconds;
 
+    /// <summary>
+    /// Log when the UI thread does not respond for a noticeable time, with what caused it, and the stacks of all threads for
+    /// long stalls if the <c>dotnet-stack</c> tool is installed (ADR 0016). Off by default: a tool for finding the cause of
+    /// a stall, not for every day.
+    /// </summary>
+    public bool DiagnoseUiStalls { get; init; }
+
     /// <summary>Entity and property names of a linked C# project beside the database names (explorer, grid, column search).</summary>
     public ClrNameDisplay ClrNames { get; init; } = ClrNameDisplay.Beside;
 

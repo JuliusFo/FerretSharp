@@ -116,6 +116,30 @@
                 </div>
             </div>
         </section>
+
+        <section class="settings-section">
+            <h2>Diagnose</h2>
+            <div class="settings-row">
+                <div class="settings-label">
+                    <span>Hänger der Oberfläche protokollieren</span>
+                    <span class="hint">
+                        Schreibt ins Log, wenn die Oberfläche länger als 0,3 s nicht reagiert, und womit FerretSharp da beschäftigt
+                        war. Ist das .NET-Werkzeug <code>dotnet-stack</code> installiert, kommen bei Hängern über 1,5 s die Stacks
+                        aller Threads als <code>stall-*.txt</code> in den Log-Ordner. Zum Eingrenzen von Hängern gedacht, nicht für
+                        den Alltag.
+                    </span>
+                </div>
+                <div class="segmented" role="radiogroup" aria-label="Hänger der Oberfläche protokollieren">
+                    @foreach (var (on, label) in OnOff)
+                    {
+                        var value = on;
+                        <button class="seg @(Settings.Current.DiagnoseUiStalls == value ? "active" : "")" role="radio"
+                                aria-checked="@(Settings.Current.DiagnoseUiStalls == value ? "true" : "false")"
+                                @onclick="() => SetDiagnoseUiStallsAsync(value)">@label</button>
+                    }
+                </div>
+            </div>
+        </section>
     }
 </div>
 
@@ -183,6 +207,18 @@
         try
         {
             await Settings.UpdateAsync(s => s with { KeepAlive = on }, CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Shell.Notify($"Einstellung angewendet, aber nicht gespeichert: {ex.Message}");
+        }
+    }
+
+    private async Task SetDiagnoseUiStallsAsync(bool on)
+    {
+        try
+        {
+            await Settings.UpdateAsync(s => s with { DiagnoseUiStalls = on }, CancellationToken.None);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

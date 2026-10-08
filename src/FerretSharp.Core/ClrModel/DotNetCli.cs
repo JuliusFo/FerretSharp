@@ -14,7 +14,9 @@ public static class DotNetCli
 {
     private const int MaxOutput = 200_000;
 
-    /// <summary>Starts <c>dotnet</c> and returns while it runs (the LINQ console); lines arrive on any thread.</summary>
+    /// <summary>
+    /// Starts <c>dotnet</c> below normal priority and returns while it runs (the LINQ console); lines arrive on any thread.
+    /// </summary>
     public static Process Start(IEnumerable<string> arguments, string workingDirectory, Action<string> onOutputLine, Action<string> onErrorLine)
     {
         var process = new Process { StartInfo = StartInfo(arguments, workingDirectory) };
@@ -38,6 +40,7 @@ public static class DotNetCli
             throw new ClrModelException(ClrModelErrorKind.DotNetMissing, "dotnet ließ sich nicht starten.");
         }
 
+        Lower(process);
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
         return process;
@@ -67,8 +70,13 @@ public static class DotNetCli
         return start;
     }
 
+    /// <param name="background">
+    /// The model host: below normal priority (building a large model keeps cores busy for seconds, the UI must stay fluid),
+    /// and ended alone on a timeout – it has no children (ADR 0016).
+    /// </param>
     public static async Task<DotNetRun> RunAsync(
-        IEnumerable<string> arguments, string workingDirectory, TimeSpan timeout, CancellationToken cancellationToken, Action<string>? onOutputLine = null)
+        IEnumerable<string> arguments, string workingDirectory, TimeSpan timeout, CancellationToken cancellationToken,
+        Action<string>? onOutputLine = null, bool background = false)
     {
         using var process = new Process { StartInfo = StartInfo(arguments, workingDirectory) };
         var output = new StringBuilder();
@@ -102,6 +110,11 @@ public static class DotNetCli
             throw new ClrModelException(ClrModelErrorKind.DotNetMissing, "dotnet ließ sich nicht starten.");
         }
 
+        if (background)
+        {
+            Lower(process);
+        }
+
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
 
@@ -113,7 +126,15 @@ public static class DotNetCli
         }
         catch (OperationCanceledException)
         {
-            KillTree(process);
+            if (background)
+            {
+                Kill(process); // also when a newer build supersedes a model export
+            }
+            else
+            {
+                KillTree(process);
+            }
+
             cancellationToken.ThrowIfCancellationRequested();
             string captured;
             lock (output)
@@ -134,7 +155,9 @@ public static class DotNetCli
 
     /// <summary>
     /// Ends the process and everything it started (MSBuild nodes, the project's code) and waits briefly for it to go. Never
-    /// throws: it may have exited already, or Windows may refuse to end a child.
+    /// throws: it may have exited already, or Windows may refuse to end a child. Only for <c>dotnet build</c>: finding the
+    /// children looks at every process of the system and throws for each protected one – under the Visual Studio debugger
+    /// every such exception stops the whole process (ADR 0016: the UI froze for up to 12 s after each console restart).
     /// </summary>
     public static void KillTree(Process process)
     {
@@ -146,6 +169,41 @@ public static class DotNetCli
         catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or AggregateException or NotSupportedException)
         {
             // already exited, or a child that is not ours to end
+        }
+    }
+
+    /// <summary>
+    /// Ends a model host (it starts no processes of its own) and waits briefly for it to go. Never throws: it may have
+    /// exited meanwhile.
+    /// </summary>
+    public static void Kill(Process process)
+    {
+        try
+        {
+            if (!process.HasExited)
+            {
+                process.Kill();
+                process.WaitForExit(2000);
+            }
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or NotSupportedException)
+        {
+            // exited meanwhile, or already terminating
+        }
+    }
+
+    /// <summary>
+    /// The model host below normal priority: it competes for the CPU with FerretSharp's UI (WPF and the WebView).
+    /// </summary>
+    private static void Lower(Process process)
+    {
+        try
+        {
+            process.PriorityClass = ProcessPriorityClass.BelowNormal;
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or PlatformNotSupportedException)
+        {
+            // already exited, or not allowed: it runs at normal priority
         }
     }
 

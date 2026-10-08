@@ -5,6 +5,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Fixed
+- The linked C# project can be built while FerretSharp is connected and a LINQ console is open: the model host now runs from a copy of the build output instead of locking its DLLs ("The file is locked by: .NET Host"). After the first start, a new build only copies the files it changed.
+- Reloading the model after a build no longer makes the window stutter or holds up typing in the LINQ editor: the model and the new console load one after the other, at lower priority, and only the views of tables whose entities actually changed render again (open grids fetch their rows again only then).
+- The window no longer freezes for seconds right after the LINQ console has loaded a new build: the previous helper process is ended directly instead of searching all processes of the system for its children (very slow under a debugger).
+- Opening a LINQ tab no longer freezes the window: the console starts in the background with visible steps ("Kopiere die Build-Ausgabe", "Starte den Hilfsprozess", "Baue das Modell") and can be cancelled.
+
+### Changed
+- A new build of the linked project is picked up automatically: the status bar shows "Build geändert – Modell wird neu geladen", entities, properties, enums and navigations are reloaded, and the LINQ console restarts in the background – the previous model and console keep working until the new ones are ready. No reconnecting needed.
+- Copies of build outputs that no FerretSharp has used for a week are removed at start (projects no longer linked, builds long replaced).
+- New setting *Einstellungen › Allgemein › Hänger der Oberfläche protokollieren* (off by default): UI stalls over 300 ms are logged with what caused them (UI work, garbage collection, memory); stalls over 1.5 s also get the stacks of all threads in the log folder if the `dotnet-stack` tool is installed. The steps of loading the C# model and the LINQ console are always logged.
+
 ## [3.17.0] - 2026-10-08
 
 ### Added
