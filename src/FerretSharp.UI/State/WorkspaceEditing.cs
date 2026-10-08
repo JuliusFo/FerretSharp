@@ -352,7 +352,7 @@ public sealed class WorkspaceEditing(
         shell.NotifyChanged();
         try
         {
-            var result = await shell.CallDbAsync(logger, ScopeOf(workspace.WorkspaceId).Profile, action);
+            var result = await shell.CallDbAsync(logger, ScopeOf(workspace.WorkspaceId).Active, action);
             return shell.ShowFailure(result) && result.Value;
         }
         finally

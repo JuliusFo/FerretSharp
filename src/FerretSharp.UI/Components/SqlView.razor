@@ -487,7 +487,7 @@
         var query = run.Query;
         if (run.Info.IsQuery)
         {
-            var read = await Shell.RunDbAsync(Logger, Active.Profile, async () =>
+            var read = await Shell.RunDbAsync(Logger, Active, async () =>
                 await (await Workspaces.GetDataAsync(Tab.WorkspaceId, token)).ReadSqlAsync(query, 0, SqlResultGrid.PageSize, token), token);
             if (read.Value is not { } page)
             {
@@ -498,7 +498,7 @@
             return run with { FirstPage = page, Elapsed = DateTimeOffset.Now - run.At };
         }
 
-        var written = await Shell.RunDbAsync(Logger, Active.Profile, async () =>
+        var written = await Shell.RunDbAsync(Logger, Active, async () =>
             await (await Workspaces.GetEditorAsync(Tab.WorkspaceId, token)).ExecuteAsync(query, token), token);
         if (written.Value is not { } action)
         {

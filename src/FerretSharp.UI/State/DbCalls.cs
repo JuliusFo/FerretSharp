@@ -27,16 +27,19 @@ public readonly record struct DbResult<T>(T? Value, DatabaseException? Error, bo
 public static class DbCalls
 {
     /// <param name="logger">The component's logger (the log names where it failed).</param>
-    /// <param name="profile">The active connection's profile: bind values of Prod connections are not logged.</param>
+    /// <param name="connection">
+    /// The connection the call goes to (the cascaded one): bind values of Prod connections are not logged, and a lost session
+    /// is reported to it, so its banner shows – also for a connection in the background (WP-24).
+    /// </param>
     public static Task<DbResult<T>> RunDbAsync<T>(
-        this ShellState shell, ILogger logger, ConnectionProfile? profile, Func<Task<T>> call, CancellationToken cancellationToken = default) =>
-        shell.CallDbAsync(logger, profile, () => Task.Run(call, cancellationToken));
+        this ShellState shell, ILogger logger, ActiveConnection? connection, Func<Task<T>> call, CancellationToken cancellationToken = default) =>
+        shell.CallDbAsync(logger, connection, () => Task.Run(call, cancellationToken));
 
     /// <summary>
     /// Like <see cref="RunDbAsync{T}"/>, but on the caller's thread: for a sequence that changes UI state between its database
     /// calls (writing, commit – <see cref="WorkspaceEditing"/>). The database calls themselves are asynchronous.
     /// </summary>
-    public static async Task<DbResult<T>> CallDbAsync<T>(this ShellState shell, ILogger logger, ConnectionProfile? profile, Func<Task<T>> call)
+    public static async Task<DbResult<T>> CallDbAsync<T>(this ShellState shell, ILogger logger, ActiveConnection? connection, Func<Task<T>> call)
     {
         try
         {
@@ -48,8 +51,12 @@ public static class DbCalls
         }
         catch (DatabaseException ex)
         {
-            QueryErrorLog.Log(logger, ex, profile);
-            shell.ReportFailure(ex);
+            QueryErrorLog.Log(logger, ex, connection?.Profile);
+            if (connection?.ReportLost(ex) == true)
+            {
+                shell.NotifyChanged();
+            }
+
             return new DbResult<T>(default, ex, false);
         }
         catch (RefusedException ex)
@@ -81,8 +88,8 @@ public static class DbCalls
 
     /// <inheritdoc cref="RunDbAsync{T}"/>
     public static Task<DbResult<bool>> RunDbAsync(
-        this ShellState shell, ILogger logger, ConnectionProfile? profile, Func<Task> call, CancellationToken cancellationToken = default) =>
-        shell.RunDbAsync(logger, profile, async () =>
+        this ShellState shell, ILogger logger, ActiveConnection? connection, Func<Task> call, CancellationToken cancellationToken = default) =>
+        shell.RunDbAsync(logger, connection, async () =>
         {
             await call();
             return true;

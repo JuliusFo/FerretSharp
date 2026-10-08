@@ -12,5 +12,6 @@
   <Folder Name="/tests/">
     <Project Path="tests/FerretSharp.Core.Tests/FerretSharp.Core.Tests.csproj" />
     <Project Path="tests/FerretSharp.Integration.Tests/FerretSharp.Integration.Tests.csproj" />
+    <Project Path="tests/FerretSharp.UI.Tests/FerretSharp.UI.Tests.csproj" />
   </Folder>
 </Solution>

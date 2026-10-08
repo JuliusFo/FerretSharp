@@ -163,7 +163,7 @@
                 return;
             }
 
-            var result = await Shell.RunDbAsync(Logger, Active.Profile, async () =>
+            var result = await Shell.RunDbAsync(Logger, Active, async () =>
             {
                 var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, CancellationToken.None);
                 return await data.ReadLobAsync(Details, row.Key, Request.Column, CancellationToken.None);

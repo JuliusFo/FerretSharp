@@ -433,7 +433,7 @@
 
         var query = _query = LinqStatements.ToQuery(command);
         Begin(RunPhase.Reading);
-        var result = await Shell.RunDbAsync(Logger, Active.Profile, async () =>
+        var result = await Shell.RunDbAsync(Logger, Active, async () =>
             await (await Workspaces.GetDataAsync(Tab.WorkspaceId, token)).ReadSqlAsync(query, 0, SqlResultGrid.PageSize, token), token);
         if (result.Cancelled)
         {
@@ -488,7 +488,7 @@
         await RunningAsync(async token =>
         {
             Begin(RunPhase.Writing);
-            result = await Shell.RunDbAsync(Logger, Active.Profile, async () =>
+            result = await Shell.RunDbAsync(Logger, Active, async () =>
                 await (await Workspaces.GetEditorAsync(Tab.WorkspaceId, token)).ExecuteAsync(statement, token), token);
         });
         var elapsed = DateTimeOffset.Now - _phaseStarted;

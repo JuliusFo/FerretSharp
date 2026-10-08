@@ -98,9 +98,6 @@ public sealed class ShellState
     /// <summary>Shown in the error dialog (code, message, statement).</summary>
     public DatabaseException? ErrorDetails { get; private set; }
 
-    /// <summary>Set when a query found the session gone; the shell offers to reconnect.</summary>
-    public DatabaseException? ConnectionLost { get; private set; }
-
     /// <summary>Short-lived message (export done, warnings), shown as a toast.</summary>
     public Notice? Notice { get; private set; }
 
@@ -341,9 +338,10 @@ public sealed class ShellState
         }
     });
 
+    /// <summary>Closes a tab of any open workspace (an error in a background connection's tab offers to close it too).</summary>
     public void CloseTab(WorkspaceTab tab) => Set(() =>
     {
-        if (ActiveWorkspace is not { } workspace)
+        if (FindWorkspace(tab.WorkspaceId) is not { } workspace)
         {
             return;
         }
@@ -363,10 +361,13 @@ public sealed class ShellState
         ActiveWorkspace?.ActiveTab = null;
     });
 
-    /// <summary>Drops tabs whose table no longer exists (after a schema refresh), in all workspaces.</summary>
-    public void RemoveTabsWhere(Func<TableTab, bool> predicate) => Set(() =>
+    /// <summary>
+    /// Drops tabs whose table no longer exists (after a schema refresh) in the workspaces of that connection only – another
+    /// connection's schema may well have the table.
+    /// </summary>
+    public void RemoveTabsWhere(Guid connectionId, Func<TableTab, bool> predicate) => Set(() =>
     {
-        foreach (var workspace in _workspaces)
+        foreach (var workspace in _workspaces.Where(w => w.ConnectionId == connectionId))
         {
             workspace.Tabs.RemoveAll(t => t is TableTab table && predicate(table));
             if (workspace.ActiveTab is not null && !workspace.Tabs.Contains(workspace.ActiveTab))
@@ -419,20 +420,6 @@ public sealed class ShellState
     public void ShowError(DatabaseException error) => Set(() => ErrorDetails = error);
 
     public void CloseError() => Set(() => ErrorDetails = null);
-
-    /// <summary>Every database failure of the UI goes through here, so a lost connection is reported once and loudly.</summary>
-    public void ReportFailure(DatabaseException error)
-    {
-        if (error.IsConnectionLost && ConnectionLost is null)
-        {
-            Set(() => ConnectionLost = error);
-        }
-    }
-
-    public void ClearConnectionLost() => Set(() => ConnectionLost = null);
-
-    /// <summary>Switching connections (WP-24): the banner shows whether the shown connection is lost.</summary>
-    public void RestoreConnectionLost(DatabaseException? error) => Set(() => ConnectionLost = error);
 
     public void Notify(string text, IReadOnlyList<string>? warnings = null) =>
         Set(() => Notice = new Notice(text, warnings ?? [], DateTimeOffset.UtcNow));

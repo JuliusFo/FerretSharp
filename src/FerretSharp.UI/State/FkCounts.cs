@@ -47,7 +47,7 @@ public sealed class FkCounts
 
         foreach (var jump in _states.Keys.ToList())
         {
-            var result = await shell.RunDbAsync(logger, active.Profile, async () =>
+            var result = await shell.RunDbAsync(logger, active, async () =>
             {
                 var target = await schema.GetDetailsAsync(FkTargets.SummaryOf(active, jump.Table), token);
                 var data = await workspaces.GetDataAsync(workspaceId, token);

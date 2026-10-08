@@ -13,11 +13,12 @@ namespace FerretSharp.UI.State;
 public sealed class ConnectionScope : IAsyncDisposable
 {
     private readonly AsyncServiceScope _scope;
+    private readonly ConnectionProfile? _openedWith;
 
     internal ConnectionScope(AsyncServiceScope scope, ConnectionProfile? profile)
     {
         _scope = scope;
-        Profile = profile;
+        _openedWith = profile;
         Active = scope.ServiceProvider.GetRequiredService<ActiveConnection>();
         Workspaces = scope.ServiceProvider.GetRequiredService<WorkspaceManager>();
         Models = scope.ServiceProvider.GetRequiredService<ClrModelManager>();
@@ -25,10 +26,13 @@ public sealed class ConnectionScope : IAsyncDisposable
         Linq = scope.ServiceProvider.GetRequiredService<LinqConsoleService>();
     }
 
-    /// <summary>The profile it was opened with (also while connecting or after a failure); null for <see cref="ConnectionHub.Idle"/>.</summary>
-    public ConnectionProfile? Profile { get; }
+    /// <summary>
+    /// The profile it is connected with – after an edit and reconnect the new one (Prod masking must follow it) – or the
+    /// one it was opened with while not connected; null for <see cref="ConnectionHub.Idle"/>.
+    /// </summary>
+    public ConnectionProfile? Profile => Active.Profile ?? _openedWith;
 
-    public Guid Id => Profile?.Id ?? Guid.Empty;
+    public Guid Id => _openedWith?.Id ?? Guid.Empty;
 
     public ActiveConnection Active { get; }
 
@@ -41,7 +45,7 @@ public sealed class ConnectionScope : IAsyncDisposable
     public LinqConsoleService Linq { get; }
 
     /// <summary>The session was found gone (query or keep-alive); the banner offers to reconnect once it is shown.</summary>
-    public DatabaseException? Lost { get; set; }
+    public DatabaseException? Lost => Active.Lost;
 
     /// <summary>When it went to the background; null while shown.</summary>
     public DateTimeOffset? HiddenSince { get; internal set; }

@@ -658,7 +658,7 @@
         var details = Details;
         var filters = Tab.AppliedFilters;
         var sorts = Tab.Sorts;
-        var result = await Shell.RunDbAsync(Logger, Active.Profile, async () =>
+        var result = await Shell.RunDbAsync(Logger, Active, async () =>
         {
             var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, CancellationToken.None);
             return await data.ReadPageAsync(details, filters, sorts, new PageSpec(startRow, endRow - startRow), CancellationToken.None);

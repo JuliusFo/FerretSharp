@@ -41,7 +41,9 @@ jobs:
           dotnet build src/FerretSharp.UI -warnaserror
 
       - name: Unit tests
-        run: dotnet test tests/FerretSharp.Core.Tests
+        run: |
+          dotnet test tests/FerretSharp.Core.Tests
+          dotnet test tests/FerretSharp.UI.Tests
 
       - name: Integration tests (Oracle in Docker)
         run: dotnet test tests/FerretSharp.Integration.Tests
@@ -61,4 +63,6 @@ jobs:
         run: dotnet build -warnaserror
 
       - name: Unit tests
-        run: dotnet test tests/FerretSharp.Core.Tests --no-build
+        run: |
+          dotnet test tests/FerretSharp.Core.Tests --no-build
+          dotnet test tests/FerretSharp.UI.Tests --no-build
