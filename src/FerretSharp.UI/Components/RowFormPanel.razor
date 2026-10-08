@@ -419,7 +419,7 @@
         var newRows = NewRows;
         if (cell.IsNew)
         {
-            var i = newRows.ToList().FindIndex(r => r.Id.ToString("N") == cell.NewId) + delta;
+            var i = GridRows.NewRowIndex(Tab.Changes, cell.NewId) + delta;
             return i < 0 ? null
                 : i < newRows.Count ? Grid.CellOf(newRows[i], cell.Column)
                 : new FerretGrid.GridCell(0, null, cell.Column);

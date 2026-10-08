@@ -289,75 +289,9 @@
     /// </summary>
     private Dictionary<string, object?> GridRow(RowData row) => GridRow(Tab.Changes?.Find(row.Key), row.Values);
 
-    private Dictionary<string, object?> GridRow(RowChange? change, IReadOnlyList<object?>? values)
-    {
-        var cells = new Dictionary<string, object?>(Details.Columns.Count + 5);
-        var stages = new Dictionary<string, string>();
-        var readOnly = new List<string>();
-        var unknown = new List<string>();
-        Dictionary<string, string>? tooltips = null;
-        for (var i = 0; i < Details.Columns.Count; i++)
-        {
-            var id = ColumnId(i);
-            var value = change is not null ? change.ValueOf(i) : values?[i];
-            var presented = Presentation.Present(i, value);
-            cells[id] = presented.Text;
-            if (presented.Unknown)
-            {
-                unknown.Add(id);
-            }
+    private Dictionary<string, object?> GridRow(RowChange? change, IReadOnlyList<object?>? values) => GridRows.Build(Presentation, change, values);
 
-            if (presented.Tooltip is { } tooltip)
-            {
-                (tooltips ??= [])[id] = tooltip;
-            }
-
-            if (change?.StageOf(i) is { } stage)
-            {
-                stages[id] = stage == ChangeStage.Pending ? "p" : "f";
-            }
-
-            if (!OracleTypeMapper.IsEditableValue(value))
-            {
-                readOnly.Add(id);
-            }
-        }
-
-        if (stages.Count > 0)
-        {
-            cells["__s"] = stages;
-        }
-
-        if (change?.Deleted is { } deleted)
-        {
-            cells["__d"] = deleted == ChangeStage.Pending ? "p" : "f";
-        }
-
-        if (readOnly.Count > 0)
-        {
-            cells["__ro"] = readOnly;
-        }
-
-        if (unknown.Count > 0)
-        {
-            cells["__u"] = unknown;
-        }
-
-        if (tooltips is not null)
-        {
-            cells["__t"] = tooltips;
-        }
-
-        if (change is { IsNew: true, IsInserted: false })
-        {
-            cells["__new"] = change.Id.ToString("N");
-        }
-
-        return cells;
-    }
-
-    private RowChange? NewRow(string? newId) =>
-        newId is null ? null : Tab.Changes?.NewRows.FirstOrDefault(r => r.Id.ToString("N") == newId);
+    private RowChange? NewRow(string? newId) => GridRows.NewRow(Tab.Changes, newId);
 
     /// <summary>Full value of a cell for the editor (pending value if any); null if it cannot be edited.</summary>
     [JSInvokable]
@@ -471,7 +405,7 @@
 
     /// <summary>The grid position of a new row that is not inserted yet; null if it is gone (inserted or removed).</summary>
     public GridCell? CellOf(RowChange newRow, int? column) =>
-        Tab.Changes?.NewRows.Contains(newRow) == true ? new GridCell(-1, newRow.Id.ToString("N"), column) : null;
+        Tab.Changes?.NewRows.Contains(newRow) == true ? new GridCell(-1, GridRows.NewRowId(newRow), column) : null;
 
     /// <summary>
     /// Moves the grid's focus to a row (the form's ▲ ▼); a block not loaded yet is fetched. <paramref name="keepFocus"/>:
@@ -480,7 +414,7 @@
     public Task FocusRowAsync(GridCell cell, bool keepFocus)
     {
         var pinned = cell.IsNew;
-        var index = pinned ? Tab.Changes?.NewRows.ToList().FindIndex(r => r.Id.ToString("N") == cell.NewId) ?? -1 : cell.RowIndex;
+        var index = pinned ? GridRows.NewRowIndex(Tab.Changes, cell.NewId) : cell.RowIndex;
         if (index < 0)
         {
             return Task.CompletedTask;
@@ -590,7 +524,7 @@
             .FirstOrDefault(i => OracleTypeMapper.NotEditableReason(Details, Details.Columns[i], newRow: true) is null, -1);
         if (!inGrid)
         {
-            Focused = new GridCell(-1, added.Id.ToString("N"), first >= 0 ? first : null);
+            Focused = new GridCell(-1, GridRows.NewRowId(added), first >= 0 ? first : null);
             FocusChanged?.Invoke();
             await _grid.CallAsync("focusRow", changes.NewRows.Count - 1, first >= 0 ? ColumnId(first) : null, true, true);
         }
