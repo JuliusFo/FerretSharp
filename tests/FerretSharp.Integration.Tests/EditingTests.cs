@@ -301,7 +301,7 @@ public sealed class EditingTests(OracleContainerFixture oracle) : IAsyncLifetime
         var second = await FlushAsync(a, tracker);
         Assert.Equal(2, a.Editor.Actions.Count);
 
-        Assert.Equal(WriteActionKind.Grid, (await a.Editor.UndoLastAsync(Ct))?.Kind);
+        Assert.Equal(WriteActionKind.Grid, (await a.Editor.UndoLastAsync(null, Ct))?.Kind);
         tracker.UndoFlush(second);
 
         Assert.Equal("erster", (await RowAsync(a, table, 700))!.Values[I(table, "TXT")]);
@@ -334,17 +334,67 @@ public sealed class EditingTests(OracleContainerFixture oracle) : IAsyncLifetime
             [(WriteActionKind.Grid, "ED_TYPES: 1 geändert", 1), (WriteActionKind.Statement, "UPDATE ED_TYPES", 1)],
             a.Editor.Actions.Select(x => (x.Kind, x.Description, x.Rows)));
 
-        Assert.Equal(statement.Id, (await a.Editor.UndoLastAsync(Ct))?.Id); // the statement, not the older grid write
+        Assert.Equal(statement.Id, (await a.Editor.UndoLastAsync(null, Ct))?.Id); // the statement, not the older grid write
         Assert.Equal("grid", (await RowAsync(a, table, 710))!.Values[I(table, "TXT")]);
         Assert.Equal("a", (await RowAsync(a, table, 711))!.Values[I(table, "TXT")]);
 
-        Assert.Equal(WriteActionKind.Grid, (await a.Editor.UndoLastAsync(Ct))?.Kind);
+        Assert.Equal(WriteActionKind.Grid, (await a.Editor.UndoLastAsync(null, Ct))?.Kind);
         Assert.Equal("a", (await RowAsync(a, table, 710))!.Values[I(table, "TXT")]);
         Assert.Empty(a.Editor.Actions);
-        Assert.Null(await a.Editor.UndoLastAsync(Ct));
+        Assert.Null(await a.Editor.UndoLastAsync(null, Ct));
 
         await a.Editor.RollbackAsync(Ct);
         Assert.Empty(a.Editor.Actions);
+    }
+
+    /// <summary>
+    /// ↶ names the action it takes back; a statement written meanwhile (the SQL editor ran on) makes it refuse instead of
+    /// silently taking back something else (R3a).
+    /// </summary>
+    [Fact]
+    public async Task Undo_of_an_action_that_is_no_longer_the_newest_is_refused()
+    {
+        await ExecuteAsync("INSERT INTO ED_TYPES (ID, TXT) VALUES (720, 'a')");
+        await using var a = await OpenAsync("Workspace A");
+        var table = await DetailsAsync(a, "ED_TYPES");
+        var tracker = new ChangeTracker(table);
+        tracker.SetValue((await RowAsync(a, table, 720))!, I(table, "TXT"), "grid");
+        await FlushAsync(a, tracker);
+        var seen = a.Editor.Actions[^1];
+        await a.Editor.ExecuteAsync(new QuerySpec("UPDATE ED_TYPES SET TXT = 'sql' WHERE ID = 720", []), Ct);
+
+        await Assert.ThrowsAsync<RefusedException>(() => a.Editor.UndoLastAsync(seen.Id, Ct));
+
+        Assert.Equal(2, a.Editor.Actions.Count);
+        Assert.Equal("sql", (await RowAsync(a, table, 720))!.Values[I(table, "TXT")]);
+        await a.Editor.RollbackAsync(Ct);
+    }
+
+    /// <summary>
+    /// A grid flush and a SQL statement of the same workspace at the same time: both begin the transaction if needed and
+    /// record their action – before R3a one could fail ("bereits eine Transaktion offen") or lose its action.
+    /// </summary>
+    [Fact]
+    public async Task Concurrent_flush_and_statement_both_become_actions_of_one_transaction()
+    {
+        await ExecuteAsync("INSERT INTO ED_TYPES (ID, TXT) VALUES (730, 'a')");
+        await ExecuteAsync("INSERT INTO ED_TYPES (ID, TXT) VALUES (731, 'a')");
+        await using var a = await OpenAsync("Workspace A");
+        var table = await DetailsAsync(a, "ED_TYPES");
+        var tracker = new ChangeTracker(table);
+        tracker.SetValue((await RowAsync(a, table, 730))!, I(table, "TXT"), "grid");
+
+        await Task.WhenAll(
+            FlushAsync(a, tracker),
+            a.Editor.ExecuteAsync(new QuerySpec("UPDATE ED_TYPES SET TXT = 'sql' WHERE ID = 731", []), Ct));
+
+        Assert.Equal(2, a.Editor.Actions.Count);
+        Assert.Equal(TransactionMode.ReadWrite, a.Editor.Transaction.Mode);
+        await a.Editor.UndoLastAsync(null, Ct);
+        await a.Editor.UndoLastAsync(null, Ct);
+        Assert.Equal("a", (await RowAsync(a, table, 730))!.Values[I(table, "TXT")]);
+        Assert.Equal("a", (await RowAsync(a, table, 731))!.Values[I(table, "TXT")]);
+        await a.Editor.RollbackAsync(Ct);
     }
 
     [Fact]

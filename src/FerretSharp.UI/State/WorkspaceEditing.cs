@@ -149,7 +149,8 @@ public sealed class WorkspaceEditing(
     /// Takes back the last write: rollback to its savepoint. A grid write's changes become pending again; a statement's
     /// rows are as before it (the tabs reload, its result says "zurückgenommen").
     /// </summary>
-    public Task<bool> UndoLastAsync(WorkspaceTabs workspace) => RunAsync(workspace, async () =>
+    /// <param name="expected">The action the ↶ button named; refused if another one was written meanwhile.</param>
+    public Task<bool> UndoLastAsync(WorkspaceTabs workspace, Guid? expected = null) => RunAsync(workspace, async () =>
     {
         if (WorkspacesOf(workspace.WorkspaceId).ActionsOf(workspace.WorkspaceId).Count == 0)
         {
@@ -157,7 +158,7 @@ public sealed class WorkspaceEditing(
         }
 
         var editor = await WorkspacesOf(workspace.WorkspaceId).GetEditorAsync(workspace.WorkspaceId, CancellationToken.None);
-        if (await editor.UndoLastAsync(CancellationToken.None) is not { } action)
+        if (await editor.UndoLastAsync(expected, CancellationToken.None) is not { } action)
         {
             return false;
         }

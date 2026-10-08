@@ -98,6 +98,30 @@ public sealed class DatabaseErrorTests(OracleContainerFixture oracle)
         await connection.DisposeAsync(); // twice is fine
     }
 
+    /// <summary>
+    /// A writing transaction whose session was killed: undo (rollback to savepoint) and commit report the lost connection –
+    /// not a bare driver error – and nothing counts as open afterwards (R3a).
+    /// </summary>
+    [Fact]
+    public async Task Killed_writing_session_is_reported_as_connection_lost_on_undo_and_commit()
+    {
+        var action = "Kill write " + Guid.NewGuid().ToString("N")[..8];
+        await using var connection = await OpenAsync(action);
+        await SampleSchema.EnsureCreatedAsync(oracle.RequireConnectionString(), Ct);
+        await connection.Editor.ExecuteAsync(new QuerySpec("DELETE FROM GRID_TEST WHERE 1 = 0", []), Ct);
+        Assert.Single(connection.Editor.Actions);
+
+        await KillAsync(action);
+
+        var undo = await Assert.ThrowsAsync<DatabaseException>(() => connection.Editor.UndoLastAsync(null, Ct));
+        var commit = await Assert.ThrowsAsync<DatabaseException>(() => connection.Editor.CommitAsync(Ct));
+
+        Assert.True(undo.IsConnectionLost, undo.Display);
+        Assert.True(commit.IsConnectionLost, commit.Display);
+        Assert.Equal(TransactionMode.None, connection.Editor.Transaction.Mode);
+        Assert.Empty(connection.Editor.Actions);
+    }
+
     [Fact]
     public async Task Keep_alive_ping_skips_a_recently_used_session_and_finds_a_killed_one()
     {
