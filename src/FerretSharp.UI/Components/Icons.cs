@@ -9,6 +9,10 @@ internal static class Icons
     public static readonly MarkupString Search = Svg(
         """<circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/>""", 1.6);
 
+    /// <summary>Small cross: clears a search field.</summary>
+    public static readonly MarkupString Clear = Svg(
+        """<path d="m4.5 4.5 7 7M11.5 4.5l-7 7"/>""", 1.6);
+
     public static readonly MarkupString Table = Svg(
         """<rect x="2" y="2.5" width="12" height="11" rx="2"/><path d="M2 6.5h12M6.5 6.5v7"/>""");
 

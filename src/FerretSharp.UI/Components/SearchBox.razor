@@ -1,0 +1,104 @@
+@* A search field with a clear button (✕ while it has text). Escape with text clears it and goes no further, so a popover
+   or dialog around it closes only on the next Escape (dom.js clearOnEscape); without text Escape reaches them as before.
+   The class picks the look of the surrounding box: "search", "popover-search" or "structure-filter". *@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<label class="@Class">
+    @Icons.Search
+    <input @ref="_input" placeholder="@Placeholder" spellcheck="false" autocomplete="off" disabled="@Disabled"
+           value="@Value" @oninput="OnInputAsync" />
+    @if (Value.Length > 0 && !Disabled)
+    {
+        @* mousedown without default: the field keeps the focus. *@
+        <button type="button" class="search-clear" tabindex="-1" title="Suche leeren (Esc)" @onmousedown:preventDefault
+                @onclick="ClearAsync">@Icons.Clear</button>
+    }
+    @ChildContent
+</label>
+
+@code {
+    private ElementReference _input;
+    private IJSObjectReference? _dom;
+    private bool _disposed;
+
+    [Parameter]
+    public string Value { get; set; } = "";
+
+    [Parameter]
+    public EventCallback<string> ValueChanged { get; set; }
+
+    [Parameter]
+    public string? Placeholder { get; set; }
+
+    [Parameter]
+    public string Class { get; set; } = "search";
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    /// <summary>Shown after the field, e.g. a shortcut hint or a count.</summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>The input element, for focusing it (and selecting its text) from the parent.</summary>
+    public ElementReference Input => _input;
+
+    public ValueTask FocusAsync() => _input.FocusAsync();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        try
+        {
+            var dom = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
+            if (_disposed)
+            {
+                await dom.DisposeAsync();
+                return;
+            }
+
+            _dom = dom;
+            await dom.InvokeVoidAsync("clearOnEscape", _input);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    private Task OnInputAsync(ChangeEventArgs e) => SetAsync(e.Value?.ToString() ?? "");
+
+    private async Task ClearAsync()
+    {
+        await SetAsync("");
+        if (!_disposed)
+        {
+            await _input.FocusAsync();
+        }
+    }
+
+    private Task SetAsync(string value)
+    {
+        Value = value;
+        return ValueChanged.InvokeAsync(value);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        if (_dom is not null)
+        {
+            try
+            {
+                await _dom.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+    }
+}

@@ -8,10 +8,7 @@
 <div class="connections-page">
     <div class="page-head">
         <h1>Verbindungen <span class="count">@Connections.Profiles.Count</span></h1>
-        <div class="search grow">
-            @Icons.Search
-            <input placeholder="Suchen nach Name, Gruppe, Host, Benutzer …" @bind="_query" @bind:event="oninput" />
-        </div>
+        <SearchBox @bind-Value="_query" Class="search grow" Placeholder="Suchen nach Name, Gruppe, Host, Benutzer …" />
         <button class="btn primary" @onclick="Shell.NewConnection"><span class="plus">+</span> Neue Verbindung</button>
     </div>
 

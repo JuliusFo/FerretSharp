@@ -15,10 +15,7 @@
                 <span class="@(_refreshing ? "spin" : "")">@Icons.Refresh</span>
             </button>
         </div>
-        <div class="search">
-            @Icons.Search
-            <input placeholder="Tabelle suchen …" @bind="_query" @bind:event="oninput" disabled="@(Schema is null)" />
-        </div>
+        <SearchBox @bind-Value="_query" Placeholder="Tabelle suchen …" Disabled="@(Schema is null)" />
     </div>
 
     @if (_refreshError is not null)

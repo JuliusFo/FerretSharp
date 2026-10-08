@@ -15,10 +15,7 @@
     }
     <header>
         <span>Vergleich · @RowsText(Rows.Count) · @Details.Table.DisplayName</span>
-        <label class="structure-filter">
-            @Icons.Search
-            <input placeholder="Spalten suchen …" spellcheck="false" autocomplete="off" @bind="_query" @bind:event="oninput" />
-        </label>
+        <SearchBox Class="structure-filter" Placeholder="Spalten suchen …" @bind-Value="_query" />
         <label class="check"><input type="checkbox" checked="@_onlyDifferences" @onchange="e => _onlyDifferences = e.Value is true" /> Nur Unterschiede</label>
         <label class="check" title="Spalten, die in allen Zeilen NULL sind"><input type="checkbox" checked="@_hideEmpty" @onchange="e => _hideEmpty = e.Value is true" /> Leere ausblenden</label>
         <span class="muted">

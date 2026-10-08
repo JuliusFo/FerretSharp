@@ -31,11 +31,7 @@
                 Entity <strong>@ClrModelMapping.ShortName(entity.Entity.ClrType)</strong>
             </span>
         }
-        <label class="structure-filter">
-            @Icons.Search
-            <input @ref="_filterInput" placeholder="Spalten filtern … (Ctrl+F)" spellcheck="false" autocomplete="off"
-                   @bind="_columnQuery" @bind:event="oninput" @onkeydown="OnFilterKeyDown" />
-        </label>
+        <SearchBox @ref="_filter" Class="structure-filter" Placeholder="Spalten filtern … (Ctrl+F)" @bind-Value="_columnQuery" />
     </div>
     <table class="columns">
         <thead>
@@ -142,7 +138,7 @@
     [CascadingParameter]
     public ClrModelManager Models { get; set; } = null!;
 
-    private ElementReference _filterInput;
+    private SearchBox? _filter;
     private IJSObjectReference? _dom;
     private string _columnQuery = "";
 
@@ -169,14 +165,9 @@
     public async Task FocusFilterAsync()
     {
         _dom ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
-        await _dom.InvokeVoidAsync("focusAndSelect", _filterInput);
-    }
-
-    private void OnFilterKeyDown(KeyboardEventArgs e)
-    {
-        if (e.Key == "Escape")
+        if (_filter is not null)
         {
-            _columnQuery = "";
+            await _dom.InvokeVoidAsync("focusAndSelect", _filter.Input);
         }
     }
 
