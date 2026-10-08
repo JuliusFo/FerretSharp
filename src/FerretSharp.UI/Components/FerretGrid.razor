@@ -10,6 +10,7 @@
 @implements IFormGrid
 @inject IJSRuntime JS
 @inject ILogger<FerretGrid> Logger
+@inject ShortcutService Shortcuts
 
 <div id="@Tab.Id" class="ag-host"></div>
 
@@ -320,7 +321,7 @@
         }
 
         return _blocks.At(rowIndex) is null
-            ? "Die Zeile ist nicht mehr geladen – bitte neu laden (F5)."
+            ? $"Die Zeile ist nicht mehr geladen – bitte neu laden{Shortcuts.Hint(ShortcutAction.Refresh)}."
             : OracleTypeMapper.Parse(column, text).Error;
     }
 
@@ -361,7 +362,7 @@
 
         if (newId is not null || _blocks.At(rowIndex) is not { } row)
         {
-            return new GridEdit(null, "Die Zeile ist nicht mehr geladen – bitte neu laden (F5).");
+            return new GridEdit(null, $"Die Zeile ist nicht mehr geladen – bitte neu laden{Shortcuts.Hint(ShortcutAction.Refresh)}.");
         }
 
         result = changes.SetValue(row, column, text);

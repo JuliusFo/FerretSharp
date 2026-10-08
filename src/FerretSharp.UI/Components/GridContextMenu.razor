@@ -11,6 +11,7 @@
 @inject IJSRuntime JS
 @inject IFileSaveService Files
 @inject ILogger<GridContextMenu> Logger
+@inject ShortcutService Shortcuts
 
 <PopoverMenu X="Request.X" Y="Request.Y" ViewportWidth="Request.ViewportWidth" ViewportHeight="Request.ViewportHeight"
              Width="MenuWidth" EstimatedHeight="EstimatedHeight" OnClose="CloseAsync">
@@ -38,14 +39,14 @@
     @if (CompareCount > 1)
     {
         <button class="menu-item" disabled="@(CompareCount > RowComparison.MaxRows)"
-                title="@(CompareCount > RowComparison.MaxRows ? $"Höchstens {RowComparison.MaxRows} Zeilen nebeneinander" : "Die markierten Zeilen nebeneinander, Unterschiede markiert (Alt+Enter)")"
+                title="@(CompareCount > RowComparison.MaxRows ? $"Höchstens {RowComparison.MaxRows} Zeilen nebeneinander" : $"Die markierten Zeilen nebeneinander, Unterschiede markiert{Shortcuts.Hint(ShortcutAction.ToggleForm)}")"
                 @onclick="CompareAsync">
             Markierte vergleichen <span class="ctx-meta">@RowsText(CompareCount)</span>
         </button>
     }
     else
     {
-        <button class="menu-item" title="Alle Spalten der Zeile untereinander, neben dem Grid (Alt+Enter)" @onclick="OpenFormAsync">Als Formular</button>
+        <button class="menu-item" title="Alle Spalten der Zeile untereinander, neben dem Grid@(Shortcuts.Hint(ShortcutAction.ToggleForm))" @onclick="OpenFormAsync">Als Formular</button>
     }
 
     @if (CanEdit && Tab.Changes is { } changes)
@@ -54,7 +55,7 @@
         <div class="group-head-btn static">Bearbeiten · @RowsText(Request.Selected.Count)</div>
         @if (selected.Any(c => c?.Deleted is null))
         {
-            <button class="menu-item danger" title="Wird mit „Schreiben“ (Ctrl+S) gelöscht" @onclick="() => EditRowsAsync(OnDeleteRows)">Zeile löschen</button>
+            <button class="menu-item danger" title="Wird mit „Schreiben“@(Shortcuts.Hint(ShortcutAction.Flush)) gelöscht" @onclick="() => EditRowsAsync(OnDeleteRows)">Zeile löschen</button>
         }
         @if (selected.Any(c => c is { HasPending: true }))
         {

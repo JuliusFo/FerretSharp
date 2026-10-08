@@ -5,6 +5,7 @@
 @using FerretSharp.Core.Schema
 @implements IAsyncDisposable
 @inject IJSRuntime JS
+@inject ShortcutService Shortcuts
 
 <button class="btn ghost" title="Die Filter als LINQ über die Entity @Presentations.For(Details).EntityName" @onclick="Open">C# ▾</button>
 
@@ -13,7 +14,7 @@
     <div class="overlay" @onclick="Close" @oncontextmenu="Close" @oncontextmenu:preventDefault="true"></div>
     <div class="menu linq-menu" style="left:@Px(_x);top:@Px(_y)">
         <button class="menu-item" title="Where-Ausdruck mit Property-Namen und Enum-Membern; findet dieselben Zeilen wie das Grid" @onclick="CopyAsync">Als LINQ kopieren</button>
-        <button class="menu-item" title="Neue LINQ-Konsole mit der Abfrage über die Entity (Ctrl+Enter führt aus)" @onclick="OpenConsole">In LINQ-Konsole öffnen</button>
+        <button class="menu-item" title="Neue LINQ-Konsole mit der Abfrage über die Entity@(Shortcuts.Label(ShortcutAction.ApplyFilters) is { } key ? $" ({key} führt aus)" : "")" @onclick="OpenConsole">In LINQ-Konsole öffnen</button>
     </div>
 }
 

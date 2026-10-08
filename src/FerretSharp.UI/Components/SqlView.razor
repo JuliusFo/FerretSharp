@@ -10,6 +10,7 @@
 @implements IDisposable
 @inject SqlHistoryStore History
 @inject ILogger<SqlView> Logger
+@inject ShortcutService Shortcuts
 
 <div class="sqlview">
     <div class="tab-toolbar">
@@ -24,11 +25,11 @@
         }
         <button class="btn" disabled="@Busy" @onclick="RunScriptAsync"
                 title="Alle Statements nacheinander ausführen (oder die markierten); beim ersten Fehler hält das Skript an">
-            ▶▶ Skript <kbd>Alt X</kbd>
+            ▶▶ Skript <Kbd Action="ShortcutAction.RunScript" />
         </button>
         <button class="btn primary" disabled="@Busy" @onclick="RunAsync"
                 title="Das Statement am Cursor ausführen (oder die Markierung); Statements trennt ; oder eine Leerzeile">
-            ▶ Ausführen <kbd>Ctrl ↵</kbd>
+            ▶ Ausführen <Kbd Action="ShortcutAction.ApplyFilters" />
         </button>
     </div>
 
@@ -113,7 +114,7 @@
         else if (_error is null && _notice is null && Tab.Runs.Count == 0)
         {
             <EmptyState Title="SQL im Workspace"
-                        Text="Statements schreiben, mit ; oder einer Leerzeile trennen und mit Ctrl+Enter das Statement am Cursor ausführen – Alt+X führt das ganze Skript aus. SELECT läuft immer, INSERT, UPDATE, DELETE und MERGE nur auf schreibbaren Workspaces in deren Transaktion. Ctrl+Leertaste schlägt Tabellen und Spalten vor." />
+                        Text="@($"Statements schreiben, mit ; oder einer Leerzeile trennen und{Shortcuts.With(ShortcutAction.ApplyFilters)} das Statement am Cursor ausführen – {ScriptKey} führt das ganze Skript aus. SELECT läuft immer, INSERT, UPDATE, DELETE und MERGE nur auf schreibbaren Workspaces in deren Transaktion. Ctrl+Leertaste schlägt Tabellen und Spalten vor.")" />
         }
     </div>
 </div>
@@ -146,6 +147,9 @@
 }
 
 @code {
+    /// <summary>How to run the whole script: its shortcut, or the button if it has none (WP-25).</summary>
+    private string ScriptKey => Shortcuts.Label(ShortcutAction.RunScript) ?? "„Skript“";
+
     [CascadingParameter]
     public WorkspaceManager Workspaces { get; set; } = null!;
 
@@ -302,7 +306,7 @@
 
         if (context.End > context.Start && SqlScript.CountStatements(context.Text[context.Start..context.End]) is var count and > 1)
         {
-            _notice = $"Die Markierung enthält {count} Statements – ausgeführt wird das erste (Alt+X führt alle aus).";
+            _notice = $"Die Markierung enthält {count} Statements – ausgeführt wird das erste ({ScriptKey} führt alle aus).";
         }
 
         await StartAsync([statement], single: true);

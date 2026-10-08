@@ -8,6 +8,7 @@
 @inherits FerretComponent
 @implements IDisposable
 @inject ILogger<LinqView> Logger
+@inject ShortcutService Shortcuts
 
 <div class="linqview">
     <div class="tab-toolbar">
@@ -17,7 +18,7 @@
         <span class="spacer"></span>
         <button class="btn primary" disabled="@(_running || Console.State.Phase == LinqConsolePhase.NotLinked)" @onclick="RunAsync"
                 title="Code übersetzen und das SQL im Workspace ausführen (lesend; Schreiben erst nach Bestätigung)">
-            ▶ Ausführen <kbd>Ctrl ↵</kbd>
+            ▶ Ausführen <Kbd Action="ShortcutAction.ApplyFilters" />
         </button>
     </div>
 
@@ -187,7 +188,7 @@
         else if (_error is null)
         {
             <EmptyState Title="LINQ gegen den DbContext"
-                        Text="Eine Query aus dem Code einfügen und mit Ctrl+Enter ausführen. FerretSharp zeigt das SQL, das EF daraus macht, und das Ergebnis aus der Session dieses Workspaces." />
+                        Text="@($"Eine Query aus dem Code einfügen und{Shortcuts.With(ShortcutAction.ApplyFilters)} ausführen. FerretSharp zeigt das SQL, das EF daraus macht, und das Ergebnis aus der Session dieses Workspaces.")" />
         }
     </div>
 </div>

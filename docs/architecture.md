@@ -155,7 +155,9 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 
 ## 3. Shortcuts
 
-| Taste | Aktion | Version |
+Seit WP-25 (3.16.0) unter Einstellungen › Tastenkürzel änderbar; die Tabelle zeigt die Standardbelegung (`ShortcutMap.Definitions`, fest: `ShortcutMap.Fixed`).
+
+| Taste (Standard) | Aktion | Version |
 |---|---|---|
 | Ctrl+Shift+O | Verbindungs-Umschalter öffnen | v1 |
 | Alt+O | Zur vorigen offenen Verbindung wechseln (ohne Trennen) | WP-24 |
@@ -174,4 +176,11 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 | Alt+↑ / Alt+↓ | Im Formular: vorige/nächste Zeile (bewegt den Fokus im Grid; im Grid selbst reichen ↑/↓). Nur lokal | WP-21 |
 | – | Rollback nur über Button, mit Bestätigung | v2 |
 
-`Esc` bleibt dem Grid vorbehalten (Zelleingabe abbrechen) bzw. schließt Menüs/Dialoge. Globale Shortcuts registriert die `Shell` über `wwwroot/js/shortcuts.js` (Capture-Listener → `OnShortcut` in .NET); `F12` öffnet im Debug-Build die DevTools.
+`Esc` bleibt dem Grid vorbehalten (Zelleingabe abbrechen) bzw. schließt Menüs/Dialoge. `F12` öffnet im Debug-Build die DevTools.
+
+Technik (WP-25):
+- `KeyChord` (Core/Settings): Textform `ctrl+shift+alt+<KeyboardEvent.key klein>` (`space`, `plus`), wie `comboOf` in `shortcuts.js` sie bildet; `settings.json` speichert in `AppSettings.Shortcuts` (`ShortcutOverrides`) nur Abweichungen je Aktionsname, leer = nicht belegt, unbekannte Einträge bleiben erhalten.
+- `ShortcutMap.Check`: abgelehnt werden von Windows/WebView belegte Kombinationen (Alt+F4, Alt+Leertaste, F12, Ctrl+Shift+I …), Ctrl+Alt (= AltGr) und Tasten ohne Ctrl/Alt außer F-Tasten; Konflikt mit einer anderen Aktion → „Übernehmen“ nimmt sie dort weg; Warnung bei Tasten der Editoren/des Grids (Ctrl+Z, Ctrl+Leertaste …) und bei Alt+Shift.
+- Globale Kürzel registriert die `Shell` über `shortcuts.js` (Capture-Listener → `OnShortcut` → `ShortcutMap.ActionFor`), neu bei jeder Änderung (`ShortcutService.Changed`). Lokal: die Formular-Taste liest `grid.js` aus `shortcuts.js` (`setLocal`/`localCombo`), das Formular prüft seine Tasten über `ShortcutService.Is`.
+- Anzeige nie als festen Text: `<Kbd Action="…" />`, `Shortcuts.Hint(…)` („ (Ctrl+S)“) und `Shortcuts.With(…)` („ mit Ctrl+Enter“) – leer, wenn die Aktion nicht belegt ist.
+- Grenze: `e.key` ist das Zeichen der Tastaturbelegung (Ctrl+Shift+7 heißt auf deutscher Tastatur „Ctrl+/“); Aufnahme und Erkennung stimmen trotzdem überein.

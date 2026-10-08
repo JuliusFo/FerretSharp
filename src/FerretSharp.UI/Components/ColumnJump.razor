@@ -1,9 +1,10 @@
 @* Ctrl+F in the data view: find a column by name and scroll the grid to it. *@
 @using FerretSharp.Core.Schema
+@inject ShortcutService Shortcuts
 
 <div class="coljump">
-    <button class="btn ghost"title="Spalte suchen und hinspringen (Ctrl+F)" @onclick="Open">
-        @Icons.Search Spalte <kbd>Ctrl F</kbd>
+    <button class="btn ghost"title="Spalte suchen und hinspringen@(Shortcuts.Hint(ShortcutAction.FindColumn))" @onclick="Open">
+        @Icons.Search Spalte <Kbd Action="ShortcutAction.FindColumn" />
     </button>
     @if (_open)
     {

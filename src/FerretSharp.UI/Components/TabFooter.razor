@@ -5,6 +5,7 @@
 @using FerretSharp.Core.Schema
 @implements IDisposable
 @inject ILogger<TabFooter> Logger
+@inject ShortcutService Shortcuts
 
 <footer class="tab-footer">
     @* RowsLoaded is the highest loaded position (blocks load where the user scrolls), so it is a lower bound. *@
@@ -34,12 +35,12 @@
     }
     @if (Tab.DataAsOf is { } asOf)
     {
-        <span title="Schreibgeschützte Verbindung: Oracle liefert die Daten aus einer READ ONLY-Transaktion mit dem Stand dieses Zeitpunkts. Jede neue Abfrage (Filter, Sortierung, F5) holt einen neuen Stand; weitere Seiten bleiben im selben Stand.">
+        <span title="Schreibgeschützte Verbindung: Oracle liefert die Daten aus einer READ ONLY-Transaktion mit dem Stand dieses Zeitpunkts. Jede neue Abfrage (Filter, Sortierung, @(Shortcuts.Label(ShortcutAction.Refresh) ?? "Neu laden")) holt einen neuen Stand; weitere Seiten bleiben im selben Stand.">
             Stand @asOf.ToString("T", CultureInfo.CurrentCulture)
         </span>
         @if (Tab.SnapshotMoved)
         {
-            <span class="warn" title="@SnapshotTexts.Moved">Stand hat sich geändert – F5 lädt neu</span>
+            <span class="warn" title="@SnapshotTexts.Moved">Stand hat sich geändert – @(Shortcuts.Label(ShortcutAction.Refresh) is { } key ? $"{key} lädt neu" : "neu laden")</span>
         }
     }
     <span>@SortText</span>

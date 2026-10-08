@@ -42,6 +42,12 @@ public sealed record AppSettings
 
     /// <summary>Entity and property names of a linked C# project beside the database names (explorer, grid, column search).</summary>
     public ClrNameDisplay ClrNames { get; init; } = ClrNameDisplay.Beside;
+
+    /// <summary>
+    /// Shortcuts that differ from the defaults (WP-25): action name → key combination (<c>ctrl+shift+o</c>), empty for
+    /// none. Read through <see cref="ShortcutMap"/>.
+    /// </summary>
+    public ShortcutOverrides Shortcuts { get; init; } = ShortcutOverrides.Empty;
 }
 
 /// <summary>

@@ -77,6 +77,7 @@ public partial class App : Application
         builder.Services.AddSingleton<IOpenConnections>(services => services.GetRequiredService<ConnectionHub>());
         builder.Services.AddSingleton<ConnectionKeepAlive>();
         builder.Services.AddSingleton(new AppSettingsService(settingsStore, settings));
+        builder.Services.AddSingleton<ShortcutService>();
         builder.Services.AddSingleton(theme);
         builder.Services.AddSingleton<IThemeService, ThemeService>();
         builder.Services.AddSingleton<IDialogService, DialogService>();
