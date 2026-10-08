@@ -6,7 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 ## [Unreleased]
 
 ### Added
-- Table search in the explorer: a ✕ in the field clears the search and leaves the cursor in it; <kbd>Esc</kbd> in the field clears it as well.
+- Search fields with a ✕ that clears them and leaves the cursor in the field: table search in the explorer, connection overview, connection switcher, column search (<kbd>Ctrl</kbd>+<kbd>F</kbd>), column filter of the structure view, form search and the row comparison. <kbd>Esc</kbd> in a field with text clears it; only the next <kbd>Esc</kbd> closes the switcher, the column search or the comparison (before, the first one closed them and the text was lost).
 
 ### Fixed
 - The red frame of a Prod connection was hidden once connected: it was drawn below the top bar, explorer, tabs and status bar, so at most a strip beside an empty tab area remained (since 1.0.0). It now lies on top of everything, also over dialogs and menus, and follows the shown connection when switching.
