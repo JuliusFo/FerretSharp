@@ -38,17 +38,22 @@ public sealed partial class OracleSchemaReader(OracleSession session) : ISchemaR
          WHERE owner = :owner AND status = 'INVALID' AND object_type IN ('VIEW', 'MATERIALIZED VIEW')
         """;
 
-    // Private synonyms of the schema and public synonyms; targets must be tables/views/mviews the session can see
-    // (ALL_OBJECTS), outside the schema itself and outside Oracle-maintained schemas (filters thousands of SYS
-    // synonyms). An mview shows up in ALL_OBJECTS as TABLE and MATERIALIZED VIEW, hence MAX over a rank.
+    // Private synonyms of the schema and public synonyms; targets must be tables/views/mviews or PL/SQL units the
+    // session can see (ALL_OBJECTS), outside the schema itself and outside Oracle-maintained schemas (filters thousands
+    // of SYS synonyms). One query for both, so ALL_SYNONYMS is read once (WP-28). An mview shows up in ALL_OBJECTS as
+    // TABLE and MATERIALIZED VIEW, a package as PACKAGE and PACKAGE BODY, hence MAX over a rank; the body only adds
+    // its status.
     private const string SynonymsSql = """
         SELECT s.owner, s.synonym_name, s.table_owner, s.table_name,
-               MAX(CASE o.object_type WHEN 'MATERIALIZED VIEW' THEN 3 WHEN 'VIEW' THEN 2 ELSE 1 END) AS kind,
-               MAX(CASE WHEN o.status = 'INVALID' AND o.object_type <> 'TABLE' THEN 1 ELSE 0 END) AS invalid
+               MAX(CASE o.object_type WHEN 'MATERIALIZED VIEW' THEN 3 WHEN 'VIEW' THEN 2 WHEN 'TABLE' THEN 1
+                   WHEN 'PACKAGE' THEN 11 WHEN 'PROCEDURE' THEN 12 WHEN 'FUNCTION' THEN 13 ELSE 0 END) AS kind,
+               MAX(CASE WHEN o.status = 'INVALID' AND o.object_type IN ('VIEW', 'MATERIALIZED VIEW') THEN 1 ELSE 0 END) AS invalid,
+               MAX(CASE WHEN o.object_type IN ('PACKAGE', 'PROCEDURE', 'FUNCTION') THEN o.status END) AS unit_status,
+               MAX(CASE WHEN o.object_type = 'PACKAGE BODY' THEN o.status END) AS body_status
           FROM all_synonyms s
           JOIN all_objects o
             ON o.owner = s.table_owner AND o.object_name = s.table_name
-           AND o.object_type IN ('TABLE', 'VIEW', 'MATERIALIZED VIEW')
+           AND o.object_type IN ('TABLE', 'VIEW', 'MATERIALIZED VIEW', 'PACKAGE', 'PACKAGE BODY', 'PROCEDURE', 'FUNCTION')
           JOIN all_users u
             ON u.username = s.table_owner AND u.oracle_maintained = 'N'
          WHERE s.db_link IS NULL
@@ -182,20 +187,27 @@ public sealed partial class OracleSchemaReader(OracleSession session) : ISchemaR
         return tables;
     }
 
-    public async Task<IReadOnlyList<TableSummary>> GetSynonymTargetsAsync(string owner, CancellationToken cancellationToken) =>
-        await session.ReadListAsync(SynonymsSql, [new("owner", owner)], reader =>
+    public async Task<SynonymTargets> GetSynonymTargetsAsync(string owner, CancellationToken cancellationToken)
+    {
+        var rows = await session.ReadListAsync(SynonymsSql, [new("owner", owner)], reader =>
         {
-            var kind = Int(reader, 4) switch
+            var synonym = new SynonymInfo(reader.GetString(0), reader.GetString(1));
+            var (targetOwner, name) = (reader.GetString(2), reader.GetString(3));
+            object? target = Int(reader, 4) switch
             {
-                3 => TableKind.MaterializedView,
-                2 => TableKind.View,
-                _ => TableKind.Table,
+                3 => new TableSummary(targetOwner, name, TableKind.MaterializedView, synonym) { IsInvalid = Int(reader, 5) == 1 },
+                2 => new TableSummary(targetOwner, name, TableKind.View, synonym) { IsInvalid = Int(reader, 5) == 1 },
+                1 => new TableSummary(targetOwner, name, TableKind.Table, synonym),
+                11 => new PlSqlObjectSummary(targetOwner, name, PlSqlKind.Package, Text(reader, 6) ?? "N/A", Text(reader, 7), synonym),
+                12 => new PlSqlObjectSummary(targetOwner, name, PlSqlKind.Procedure, Text(reader, 6) ?? "N/A", null, synonym),
+                13 => new PlSqlObjectSummary(targetOwner, name, PlSqlKind.Function, Text(reader, 6) ?? "N/A", null, synonym),
+                _ => null, // only a package body is visible
             };
-            return new TableSummary(reader.GetString(2), reader.GetString(3), kind, new SynonymInfo(reader.GetString(0), reader.GetString(1)))
-            {
-                IsInvalid = Int(reader, 5) == 1,
-            };
+            return target;
         }, cancellationToken);
+
+        return new SynonymTargets(rows.OfType<TableSummary>().ToList(), rows.OfType<PlSqlObjectSummary>().ToList());
+    }
 
     public async Task<IReadOnlyList<ForeignKeyInfo>> GetForeignKeysAsync(string owner, CancellationToken cancellationToken)
     {

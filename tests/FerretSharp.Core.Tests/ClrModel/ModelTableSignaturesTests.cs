@@ -33,7 +33,7 @@ public sealed class ModelTableSignaturesTests
         {
             var reader = Substitute.For<ISchemaReader>();
             reader.GetTablesAsync(Owner, Arg.Any<CancellationToken>()).Returns([new TableSummary(Owner, "KUNDEN", TableKind.Table), new TableSummary(Owner, "AUFTRAG", TableKind.Table)]);
-            reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns([]);
+            reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns(SynonymTargets.None);
             reader.GetForeignKeysAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
             static IReadOnlyList<ColumnInfo> Columns(params string[] names) =>
                 names.Select((name, i) => new ColumnInfo(name, "NUMBER", null, false, 10, 0, false, false, null, i + 1)).ToList();

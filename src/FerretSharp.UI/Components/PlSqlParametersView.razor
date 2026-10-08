@@ -1,0 +1,77 @@
+@* "Parameter" of a PL/SQL unit (WP-28): per procedure/function (overloads separately) name, direction, type and whether
+   it has a default – from ALL_PROCEDURES/ALL_ARGUMENTS, so only what the specification declares. *@
+@using FerretSharp.Core.Schema
+@inherits PlSqlViewBase<IReadOnlyList<PlSqlSubprogram>>
+
+<DetailStatus Loading="Loading && Data is null" Error="Error" Text="Lade Parameter …" />
+
+@if (Data is { } subprograms)
+{
+    @if (subprograms.Count == 0)
+    {
+        <p class="muted">@(Unit.Kind == PlSqlKind.Package ? "Die Spezifikation deklariert keine Prozeduren oder Funktionen." : "Keine Angaben zu Parametern gefunden.")</p>
+    }
+    @foreach (var s in subprograms)
+    {
+        <section class="subprogram">
+            <h2>
+                <span class="chip">@(s.IsFunction ? "FUNCTION" : "PROCEDURE")</span>
+                <span class="mono">@s.Name</span>
+                @if (s.Overload is { } overload)
+                {
+                    <span class="muted" title="Gleicher Name, andere Parameter (Überladung)">Überladung @overload</span>
+                }
+                @if (s.ReturnType is { } returns)
+                {
+                    <span class="muted">RETURN <span class="mono">@returns</span></span>
+                }
+            </h2>
+            @if (s.Parameters.Count == 0)
+            {
+                <p class="muted">Ohne Parameter.</p>
+            }
+            else
+            {
+                <table class="columns parameters">
+                    <thead>
+                        <tr><th>#</th><th>Name</th><th>Richtung</th><th>Typ</th><th>Default</th></tr>
+                    </thead>
+                    <tbody>
+                        @for (var i = 0; i < s.Parameters.Count; i++)
+                        {
+                            var p = s.Parameters[i];
+                            <tr>
+                                <td class="num">@(i + 1)</td>
+                                <td class="name">@p.Name</td>
+                                <td><span class="chip direction">@Direction(p.Direction)</span></td>
+                                <td class="mono">@p.Type</td>
+                                <td>
+                                    @if (p.HasDefault)
+                                    {
+                                        <span title="Der Parameter hat einen Default – den Ausdruck kennt das Dictionary nicht, er steht im Quelltext.">ja</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </section>
+    }
+    @if (Unit.Kind == PlSqlKind.Package)
+    {
+        <p class="muted">Nur was die Spezifikation deklariert; private Unterprogramme des Bodys stehen nicht im Dictionary. Typen mit <code>%TYPE</code> zeigt Oracle aufgelöst.</p>
+    }
+}
+
+@code {
+    private static string Direction(PlSqlDirection direction) => direction switch
+    {
+        PlSqlDirection.Out => "OUT",
+        PlSqlDirection.InOut => "IN OUT",
+        _ => "IN",
+    };
+
+    protected override Task<IReadOnlyList<PlSqlSubprogram>> LoadAsync(SchemaCache schema, CancellationToken cancellationToken) =>
+        schema.GetSubprogramsAsync(Unit, cancellationToken);
+}

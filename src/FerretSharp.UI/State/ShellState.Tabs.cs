@@ -187,6 +187,41 @@ public sealed partial class ShellState
         return InsertAfterActive(workspace, new SqlTab(workspace.WorkspaceId, title) { Text = text ?? "", Variables = variables ?? [], Visited = true });
     }
 
+    /// <summary>
+    /// Activates the tab of a PL/SQL unit in the active workspace or opens a new one after the active tab (WP-28),
+    /// optionally on a view or at a line of its source (a compile error, a search hit).
+    /// </summary>
+    public PlSqlTab? OpenPlSql(PlSqlObjectSummary unit, PlSqlView? view = null, SourcePosition? at = null)
+    {
+        if (ActiveWorkspace is not { } workspace)
+        {
+            return null;
+        }
+
+        var tab = workspace.Tabs.OfType<PlSqlTab>().FirstOrDefault(t => t.Unit.Ref == unit.Ref);
+        if (tab is null)
+        {
+            tab = InsertAfterActive(workspace, new PlSqlTab(workspace.WorkspaceId, unit) { Visited = true });
+        }
+
+        Set(() =>
+        {
+            if (at is not null)
+            {
+                tab.ShowSource(at.Part, at.Line, at.Column);
+            }
+            else if (view is { } v && tab.Views.Contains(v))
+            {
+                tab.View = v;
+            }
+
+            tab.Visited = true;
+            workspace.ActiveTab = tab;
+            Page = ShellPage.Explorer;
+        });
+        return tab;
+    }
+
     /// <summary>A new tab right after the active one (or at the end), activated, with the explorer shown.</summary>
     private T InsertAfterActive<T>(WorkspaceTabs workspace, T tab) where T : WorkspaceTab
     {
@@ -264,11 +299,22 @@ public sealed partial class ShellState
     /// Drops tabs whose table no longer exists (after a schema refresh) in the workspaces of that connection only – another
     /// connection's schema may well have the table.
     /// </summary>
-    public void RemoveTabsWhere(Guid connectionId, Func<TableTab, bool> predicate) => Set(() =>
+    public void RemoveTabsWhere(Guid connectionId, Func<TableTab, bool> predicate) =>
+        RemoveWhere(connectionId, t => t is TableTab table && predicate(table));
+
+    /// <summary>After a schema refresh: drops the table and PL/SQL tabs of the connection whose object is gone.</summary>
+    public void RemoveVanishedTabs(Guid connectionId, SchemaCache schema) => RemoveWhere(connectionId, tab => tab switch
+    {
+        TableTab table => schema.Find(table.Table.Ref) is null,
+        PlSqlTab plSql => schema.FindPlSql(plSql.Unit.Ref) is null,
+        _ => false,
+    });
+
+    private void RemoveWhere(Guid connectionId, Predicate<WorkspaceTab> predicate) => Set(() =>
     {
         foreach (var workspace in _workspaces.Where(w => w.ConnectionId == connectionId))
         {
-            workspace.Tabs.RemoveAll(t => t is TableTab table && predicate(table));
+            workspace.Tabs.RemoveAll(predicate);
             if (workspace.ActiveTab is not null && !workspace.Tabs.Contains(workspace.ActiveTab))
             {
                 workspace.ActiveTab = workspace.Tabs.LastOrDefault();
@@ -316,6 +362,15 @@ public sealed partial class ShellState
             else if (state.Sql is { } sql)
             {
                 tab = SqlTab.Restore(workspace.Id, sql);
+            }
+            else if (state.PlSql is { } plSql)
+            {
+                if (schema.FindPlSql(plSql.Ref) is not { } unit)
+                {
+                    continue; // dropped, or no longer reachable through a synonym
+                }
+
+                tab = PlSqlTab.Restore(workspace.Id, unit, plSql);
             }
             else if (schema.Find(state.Table) is { } table)
             {

@@ -38,18 +38,84 @@ function script(src) {
 
 function theme() { return media.matches ? 'vs-dark' : 'vs'; }
 
+// PL/SQL colouring for the source of packages, procedures and triggers (WP-28): Monaco's own 'sql' follows T-SQL and
+// knows neither ELSIF nor LOOP nor PACKAGE. Only tokens – no logic.
+const plsqlKeywords = [
+  'ACCESSIBLE', 'AFTER', 'AGGREGATE', 'ALL', 'ALTER', 'AND', 'ANY', 'ARRAY', 'AS', 'ASC', 'AUTHID', 'AUTONOMOUS_TRANSACTION',
+  'BEFORE', 'BEGIN', 'BETWEEN', 'BODY', 'BULK', 'BY', 'CALL', 'CASE', 'CLOSE', 'COLLECT', 'COMMIT', 'COMPOUND', 'CONSTANT',
+  'CONTINUE', 'CREATE', 'CROSS', 'CURRENT_USER', 'CURSOR', 'DECLARE', 'DEFAULT', 'DEFINER', 'DELETE', 'DESC', 'DETERMINISTIC',
+  'DISTINCT', 'EACH', 'EDITIONABLE', 'ELSE', 'ELSIF', 'END', 'ERRORS', 'EXCEPTION', 'EXCEPTION_INIT', 'EXCEPTIONS', 'EXECUTE',
+  'EXISTS', 'EXIT', 'FETCH', 'FOR', 'FORALL', 'FROM', 'FULL', 'FUNCTION', 'GOTO', 'GROUP', 'HAVING', 'IF', 'IMMEDIATE', 'IN',
+  'INDEX', 'INDICES', 'INNER', 'INSERT', 'INSTEAD', 'INTERSECT', 'INTO', 'IS', 'JOIN', 'LEFT', 'LIKE', 'LIMIT', 'LOOP', 'MERGE',
+  'MINUS', 'NEW', 'NOCOPY', 'NOT', 'NULL', 'OF', 'OLD', 'ON', 'OPEN', 'OR', 'ORDER', 'OTHERS', 'OUT', 'OUTER', 'OVER', 'PACKAGE',
+  'PARALLEL_ENABLE', 'PARENT', 'PARTITION', 'PIPE', 'PIPELINED', 'PRAGMA', 'PRIOR', 'PROCEDURE', 'RAISE', 'RECORD', 'REF',
+  'REFERENCING', 'REPLACE', 'RESULT_CACHE', 'RETURN', 'RETURNING', 'REVERSE', 'RIGHT', 'ROLLBACK', 'ROW', 'ROWTYPE', 'SAVEPOINT',
+  'SELECT', 'SERIALLY_REUSABLE', 'SET', 'SQL', 'STATEMENT', 'SUBTYPE', 'TABLE', 'THEN', 'TO', 'TRIGGER', 'TYPE', 'UNION', 'UPDATE',
+  'USING', 'VALUES', 'VARRAY', 'VIEW', 'WHEN', 'WHERE', 'WHILE', 'WITH', 'WRAPPED',
+];
+const plsqlTypes = [
+  'BFILE', 'BINARY_DOUBLE', 'BINARY_FLOAT', 'BINARY_INTEGER', 'BLOB', 'BOOLEAN', 'CHAR', 'CLOB', 'DATE', 'DECIMAL', 'FLOAT',
+  'INTEGER', 'INTERVAL', 'LONG', 'NATURAL', 'NCHAR', 'NCLOB', 'NUMBER', 'NVARCHAR2', 'PLS_INTEGER', 'POSITIVE', 'RAW', 'ROWID',
+  'SIMPLE_INTEGER', 'SYS_REFCURSOR', 'TIMESTAMP', 'UROWID', 'VARCHAR', 'VARCHAR2', 'XMLTYPE',
+];
+const plsqlConstants = ['TRUE', 'FALSE', 'SQLCODE', 'SQLERRM', 'SYSDATE', 'SYSTIMESTAMP', 'USER'];
+
+function registerPlSql(monaco) {
+  if (monaco.languages.getLanguages().some(l => l.id === 'plsql')) return;
+  monaco.languages.register({ id: 'plsql' });
+  monaco.languages.setLanguageConfiguration('plsql', {
+    comments: { lineComment: '--', blockComment: ['/*', '*/'] },
+    brackets: [['(', ')']],
+  });
+  monaco.languages.setMonarchTokensProvider('plsql', {
+    ignoreCase: true,
+    keywords: plsqlKeywords,
+    typeKeywords: plsqlTypes,
+    constants: plsqlConstants,
+    tokenizer: {
+      root: [
+        [/--.*$/, 'comment'],
+        [/\/\*/, 'comment', '@comment'],
+        [/[qQ]'\[/, 'string', '@qBracket'],
+        [/[qQ]'\(/, 'string', '@qParen'],
+        [/[qQ]'\{/, 'string', '@qBrace'],
+        [/[qQ]'</, 'string', '@qAngle'],
+        [/[nN]?'/, 'string', '@string'],
+        [/"[^"]*"/, 'identifier'],
+        [/:[a-zA-Z_][\w$#]*/, 'variable'],
+        [/\d+(\.\d+)?([eE][+-]?\d+)?/, 'number'],
+        [/[a-zA-Z_][\w$#]*/, { cases: { '@keywords': 'keyword', '@typeKeywords': 'type', '@constants': 'constant', '@default': 'identifier' } }],
+        [/[;,.()]/, 'delimiter'],
+        [/:=|=>|\|\||<>|!=|<=|>=|[=<>+\-*/%]/, 'operator'],
+      ],
+      comment: [[/\*\//, 'comment', '@pop'], [/./, 'comment']],
+      string: [[/''/, 'string'], [/'/, 'string', '@pop'], [/[^']+/, 'string']],
+      qBracket: [[/\]'/, 'string', '@pop'], [/./, 'string']],
+      qParen: [[/\)'/, 'string', '@pop'], [/./, 'string']],
+      qBrace: [[/\}'/, 'string', '@pop'], [/./, 'string']],
+      qAngle: [[/>'/, 'string', '@pop'], [/./, 'string']],
+    },
+  });
+}
+
 media.addEventListener('change', () => { if (window.monaco) window.monaco.editor.setTheme(theme()); });
 
 /**
  * Creates an editor in the element. options: { language, minimal (no line numbers/minimap, for the variables),
- * placeholder }. Text changes reach .NET through OnTextChanged(id, text), debounced.
+ * placeholder, readOnly (PL/SQL source: view only) }. Text changes reach .NET through OnTextChanged(id, text), debounced.
  */
 export async function create(elementId, dotnet, text, options) {
   const monaco = await load();
+  if (options.language === 'plsql') registerPlSql(monaco);
   destroy(elementId);
   const element = document.getElementById(elementId);
   if (!element) return;
   const editor = monaco.editor.create(element, {
+    readOnly: !!options.readOnly,
+    domReadOnly: !!options.readOnly,
+    readOnlyMessage: { value: 'Nur zum Ansehen – FerretSharp ändert keinen PL/SQL-Quelltext.' },
+    // Monaco hides markers in read-only editors by default ('editable'); the compile errors must show.
+    renderValidationDecorations: 'on',
     value: text ?? '',
     language: options.language ?? 'csharp',
     theme: theme(),
@@ -198,6 +264,7 @@ export function setMarkers(elementId, markers) {
 export function reveal(elementId, line, column) {
   const editor = editors.get(elementId);
   if (!editor) return;
+  editor.layout(); // the view may just have become visible (PL/SQL tab switched to this part)
   editor.setPosition({ lineNumber: line, column });
   editor.revealLineInCenterIfOutsideViewport(line);
   editor.focus();

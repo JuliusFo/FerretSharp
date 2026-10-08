@@ -20,6 +20,8 @@ internal sealed class TestApp : IAsyncDisposable
 {
     public static readonly TableSummary Kunden = new("APP_USER", "KUNDEN", TableKind.Table);
 
+    public static readonly PlSqlObjectSummary Rechnung = new("APP_USER", "PKG_RECHNUNG", PlSqlKind.Package, "VALID", "VALID");
+
     private readonly TestFolder _folder = new();
     private readonly ServiceProvider _services;
 
@@ -98,6 +100,9 @@ internal sealed class TestApp : IAsyncDisposable
         return tab;
     }
 
+    /// <summary>What the database lists as PL/SQL units (on connect and on a schema refresh).</summary>
+    public IReadOnlyList<PlSqlObjectSummary> PlSqlObjects { get; set; } = [Rechnung];
+
     public static DatabaseException LostError() => new("ORA-03113: end-of-file on communication channel", "ORA-03113");
 
     /// <summary>What a commit of any workspace session does; completes at once unless a test holds it.</summary>
@@ -107,7 +112,8 @@ internal sealed class TestApp : IAsyncDisposable
     {
         var reader = Substitute.For<ISchemaReader>();
         reader.GetTablesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([Kunden]);
-        reader.GetSynonymTargetsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
+        reader.GetSynonymTargetsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(SynonymTargets.None);
+        reader.GetPlSqlObjectsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(_ => PlSqlObjects);
         reader.GetForeignKeysAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
         var editor = Substitute.For<IDataEditor>();
         editor.Transaction.Returns(new TransactionInfo(TransactionMode.ReadWrite, DateTimeOffset.Now));

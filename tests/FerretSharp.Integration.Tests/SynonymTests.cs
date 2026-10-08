@@ -40,7 +40,7 @@ public class SynonymTests(OracleContainerFixture oracle) : IAsyncLifetime
     public async Task Lists_accessible_synonym_targets_in_other_schemas_only()
     {
         var targets = await Reader.GetSynonymTargetsAsync(_owner, Ct);
-        var bySynonym = targets.ToDictionary(t => t.DisplayName);
+        var bySynonym = targets.Tables.ToDictionary(t => t.DisplayName);
 
         Assert.Equal(new TableSummary(Other, "PRODUKT", TableKind.Table, new SynonymInfo(_owner, "S_PRODUKT")), bySynonym["S_PRODUKT"]);
         Assert.Equal(new TableSummary(Other, "KATEGORIE", TableKind.Table, new SynonymInfo("PUBLIC", "FERRET_KATEGORIE")), bySynonym["FERRET_KATEGORIE"]);
@@ -49,7 +49,7 @@ public class SynonymTests(OracleContainerFixture oracle) : IAsyncLifetime
         Assert.DoesNotContain("FERRET_KUNDEN", bySynonym.Keys); // points into the own schema
         Assert.DoesNotContain("FERRET_GEHEIM", bySynonym.Keys); // no SELECT grant
         Assert.DoesNotContain("DUAL", bySynonym.Keys);          // Oracle-maintained target
-        Assert.All(targets, t => Assert.NotEqual(_owner, t.Owner));
+        Assert.All(targets.Tables, t => Assert.NotEqual(_owner, t.Owner));
     }
 
     [Fact]

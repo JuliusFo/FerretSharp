@@ -277,7 +277,7 @@ public sealed class LinqConsoleTests : IAsyncLifetime
             ["KUNDE_ID"], [], false);
         var reader = Substitute.For<ISchemaReader>();
         reader.GetTablesAsync(owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyList<TableSummary>)[kunden.Table]);
-        reader.GetSynonymTargetsAsync(owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyList<TableSummary>)[]);
+        reader.GetSynonymTargetsAsync(owner, Arg.Any<CancellationToken>()).Returns(SynonymTargets.None);
         reader.GetForeignKeysAsync(owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyList<ForeignKeyInfo>)[]);
         reader.GetColumnsAsync(owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyDictionary<string, IReadOnlyList<ColumnInfo>>)
             new Dictionary<string, IReadOnlyList<ColumnInfo>> { ["KUNDEN"] = kunden.Columns });

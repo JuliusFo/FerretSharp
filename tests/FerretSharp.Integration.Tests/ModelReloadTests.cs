@@ -46,7 +46,7 @@ public sealed class ModelReloadTests : IAsyncLifetime
         var reader = Substitute.For<ISchemaReader>();
         connection.Schema.Returns(reader);
         reader.GetTablesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
-        reader.GetSynonymTargetsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
+        reader.GetSynonymTargetsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(SynonymTargets.None);
         reader.GetForeignKeysAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
         connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(connection);
         var workspaces = new WorkspaceManager(new WorkspaceStore(Path.Combine(_folder.Path, "workspaces")), connections, connector);

@@ -36,6 +36,7 @@ Wird automatisch geladen, sobald Dateien unter `src/FerretSharp.UI/` gelesen wer
 
 ## Monaco
 - `vs/nls/lang/de.js` ist kein AMD-Modul → als normales Script laden. Offsets sind UTF-16; Text und Offsets immer aus demselben `getRunContext`.
+- Nur-Lesen (PL/SQL-Quelltext, WP-28): Marker erscheinen nur mit `renderValidationDecorations: 'on'` (Standard `'editable'` blendet sie aus). `executeEdits` (also `SetTextAsync`) tut in einem Nur-Lesen-Editor nichts → neuer Text über einen neuen Editor (`@key` auf die Daten). Ein `RevealAsync`, bevor der Editor erzeugt ist, merkt sich `MonacoEditor` und führt es nach `create` aus; `reveal` ruft vorher `layout()`, weil die Ansicht gerade erst sichtbar geworden sein kann.
 
 ## CSS
 - Farbige Button-Varianten (`.btn.primary`, `.btn.danger-solid`) müssen im `:hover` ihren Hintergrund selbst setzen: `.btn:hover:not(:disabled)` setzt `--hover` und gewinnt sonst (Fehler in v1.0.0: Text beim Hover unlesbar). Text auf farbigen Flächen immer über Tokens (`--accent-text`, `--danger-text`), die im Dark Mode dunkel sind. Prüfen mit echtem Hover (`Input.dispatchMouseEvent` mouseMoved) und berechnetem Kontrast, nicht nur per Screenshot.

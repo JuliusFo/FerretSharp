@@ -1,4 +1,4 @@
-@* The tabs of the active workspace (R2, out of Shell.razor): table tabs with their filters and change dot, SQL and LINQ
+@* The tabs of the active workspace (R2, out of Shell.razor): table tabs with their filters and change dot, PL/SQL tabs, SQL and LINQ
    tabs that can be renamed, and the buttons for new SQL/LINQ tabs. *@
 @using FerretSharp.Core.ClrModel
 @implements IDisposable
@@ -10,6 +10,7 @@
         var tooltip = tab switch
         {
             TableTab table => TabTooltip(table),
+            PlSqlTab plSql => $"{ExplorerList.KindLabel(plSql.Unit.Kind)} {plSql.Unit.Owner}.{plSql.Unit.Name} – nur ansehen",
             _ when _renaming == tab => null,
             LinqTab => "LINQ-Konsole – C# gegen den DbContext des verknüpften Projekts · Doppelklick: umbenennen",
             _ => "SQL-Editor – Statements in der Session dieses Workspaces · Doppelklick: umbenennen",
@@ -33,6 +34,14 @@
                     else if (table.ActiveFilterCount > 0)
                     {
                         <span class="filter-pill">@table.ActiveFilterCount Filter</span>
+                    }
+                    break;
+                case PlSqlTab plSql:
+                    @Icons.For(plSql.Unit.Kind)
+                    <span class="tab-name">@plSql.Unit.DisplayName</span>
+                    @if (plSql.Unit.IsInvalid)
+                    {
+                        <span class="dot err" title="Ungültig (INVALID)"></span>
                     }
                     break;
                 case ITitledTab titled:
@@ -80,6 +89,7 @@
     {
         LinqTab => "linq",
         SqlTab => "sql",
+        PlSqlTab => "plsql",
         _ => "",
     };
 

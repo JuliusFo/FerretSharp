@@ -64,6 +64,30 @@ internal static class Icons
         _ => Table,
     };
 
+    /// <summary>Box: a PL/SQL package (WP-28).</summary>
+    public static readonly MarkupString Package = Svg(
+        """<path d="m8 1.5 5.5 3v7L8 14.5l-5.5-3v-7L8 1.5Z"/><path d="M2.5 4.5 8 7.5l5.5-3M8 7.5v7"/>""");
+
+    /// <summary>Triangle: a stored procedure.</summary>
+    public static readonly MarkupString Procedure = Svg(
+        """<path d="M4.5 3v10l8-5-8-5Z"/>""");
+
+    /// <summary>ƒ: a stored function.</summary>
+    public static readonly MarkupString Function = Svg(
+        """<path d="M11 2.5c-2 0-3 1-3.3 3L6.3 11c-.4 1.8-1.3 2.5-3 2.5M5 6.5h6"/>""", 1.5);
+
+    /// <summary>Lightning: a trigger.</summary>
+    public static readonly MarkupString Trigger = Svg(
+        """<path d="M9 1.5 3.5 9h4l-1 5.5L12.5 7h-4l.5-5.5Z"/>""");
+
+    public static MarkupString For(PlSqlKind kind) => kind switch
+    {
+        PlSqlKind.Package => Package,
+        PlSqlKind.Procedure => Procedure,
+        PlSqlKind.Function => Function,
+        _ => Trigger,
+    };
+
     private static MarkupString Svg(string paths, double strokeWidth = 1.4) =>
         new($"""<svg class="icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="{strokeWidth.ToString(System.Globalization.CultureInfo.InvariantCulture)}" stroke-linecap="round" stroke-linejoin="round">{paths}</svg>""");
 }

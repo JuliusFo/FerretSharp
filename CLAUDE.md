@@ -1,7 +1,7 @@
 # FerretSharp – Oracle explorer for .NET developers
 
 > Projektanweisungen für Claude Code. Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-08, Release 3.16.0 (Historie: `CHANGELOG.md`).
+> Stand: 2026-10-08, Release 3.17.0 (Historie: `CHANGELOG.md`).
 
 ## Wo steht was
 
@@ -38,7 +38,7 @@ Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erkl
 | **v1 – Read-only Browser** (bis 1.7) | Connections, Schema, Grid, Filter, Workspaces, FK-Navigation, Export | WP-01 … WP-07 |
 | **v2 – Sandbox-Editing** (1.8–2.0) | Transaktionsmodell, Editieren, Commit/Rollback, Lock-Handling, Prod-Freischaltung | WP-08 … WP-10 |
 | **v3 – .NET-Integration** (2.1–3.0) | DbContext-Modell, Schema-Anreicherung, LINQ-Konsole, Explain-Plan, Code-Generierung | WP-11 … WP-15 |
-| **v4 – Komfort & SQL** (3.x) | Modell-Cache, SQL-Editor, Skripte, Schema-Vergleich, mehrere Verbindungen, Formularansicht; geplant: DDL, Tabellen-Designer (`docs/roadmap.md`) | WP-16 … |
+| **v4 – Komfort & SQL** (3.x) | Modell-Cache, SQL-Editor, Skripte, Schema-Vergleich, mehrere Verbindungen, Formularansicht, Tastenkürzel, PL/SQL ansehen; geplant: DDL, Tabellen-Designer (`docs/roadmap.md`) | WP-16 … |
 
 **Lesen und Schreiben sind getrennt (ADR 0006):**
 - Leseweg: `OracleSession.ExecuteReaderAsync` lehnt alles außer reinen Abfragen ab (`IsReadOnlyStatement`: nach Leerraum/Kommentaren `SELECT`/`WITH`, kein `FOR UPDATE`, nur ein Statement) – eine Stolperfalle gegen Programmierfehler, kein SQL-Parser.
@@ -142,4 +142,4 @@ Regeln:
 - **WP-22** DDL im SQL-Editor (auf schreibbaren Workspaces, Rollback offener Transaktionen nur nach Bestätigung, `TRUNCATE` bleibt abgewiesen).
 - **WP-23** Tabellen-Designer + Entity aus Tabelle, Indizes anlegen (nach WP-22).
 - **WP-26** Audit-/Historientabellen aus einer Vorlagendatei (nach WP-22/23).
-- **WP-28** Prozeduren, Funktionen und Packages ansehen (Quelltext, Parameter, Fehler; nur lesend, unabhängig).
+- PL/SQL ausführen und bearbeiten (Stufen 2/3 nach WP-28) stehen im Backlog; Bearbeiten hängt an der PL/SQL-Entscheidung von WP-22/26.

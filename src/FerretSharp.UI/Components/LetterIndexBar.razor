@@ -10,7 +10,7 @@
 
 @code {
     /// <summary>Group key for names that do not start with A–Z (quoted identifiers like "1_Import" or "Übersicht").</summary>
-    public const char Other = '#';
+    public const char Other = ExplorerList.Other;
 
     private static readonly char[] Letters = [.. Enumerable.Range('A', 26).Select(c => (char)c), Other];
 
@@ -20,7 +20,7 @@
     [Parameter]
     public EventCallback<char> OnJump { get; set; }
 
-    public static char KeyOf(string name) => name.Length > 0 && name[0] is >= 'A' and <= 'Z' ? name[0] : Other;
+    public static char KeyOf(string name) => ExplorerList.KeyOf(name);
 
     private static string Title(char letter) => letter == Other ? "Sonstige (Sonderzeichen, Ziffern, Kleinbuchstaben)" : letter.ToString();
 }

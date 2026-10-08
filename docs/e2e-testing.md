@@ -11,6 +11,7 @@ Aus der `CLAUDE.md` ausgelagert (Stand 3.14.0). Vor jedem E2E-Lauf lesen. Die Si
 
 ## Echte Eingabe statt synthetischer Events
 - Mausinteraktionen mit echter Windows-Eingabe prüfen (`SendInput` über `realclick.ps1` im Scratchpad: `ClientToScreen` des Fensters + CSS-Position × `devicePixelRatio`), nicht nur per CDP. Nur so läuft die Eingabe durch den WPF-Host wie beim Nutzer (siehe `@ondblclick`/`auxclick` in `src/FerretSharp.UI/CLAUDE.md`).
+- `realclick.ps1`: Die `INPUT`-Struktur muss auf x64 genau 40 Byte haben (`type` + `MOUSEINPUT`, **kein** zusätzliches Füllfeld) – sonst lehnt `SendInput` mit Fehler 87 ab und es kommt still kein Klick an (in WP-28 gefunden). Rückgabewert von `SendInput` prüfen und vor dem Klick abbrechen, wenn `GetForegroundWindow()` nicht das App-Fenster ist.
 - Vorher prüfen, dass der Klick ankommt (z. B. `mousedown`-Listener per CDP): Holt Windows das App-Fenster nicht in den Vordergrund (`SetForegroundWindow` wird verweigert, wenn der Nutzer gerade woanders arbeitet), landet der Klick im Fenster, das dort oben liegt – dann abbrechen statt weiterklicken (in WP-12 passiert).
 - Screenshots (`PrintWindow`) enthalten die 31 px hohe Titelleiste: Bildkoordinaten ≠ CSS-Koordinaten, Klickziele immer per `getBoundingClientRect` bestimmen.
 - Rechtsklick und Mittelklick mit `Input.dispatchMouseEvent` (echte Maus). `Input.dispatchKeyEvent`-Modifier: Alt 1, Ctrl 2, Meta 4, Shift 8.

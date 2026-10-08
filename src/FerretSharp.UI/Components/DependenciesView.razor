@@ -6,53 +6,11 @@
 
 @if (Data is { } dependencies)
 {
-    <section>
-        <h2>Verwendet <span class="count">@dependencies.Uses.Count</span></h2>
-        @if (dependencies.Uses.Count == 0)
-        {
-            <p class="muted">@(Table.Kind == TableKind.Table ? "Eine Tabelle verwendet keine anderen Objekte." : "Keine Abhängigkeiten gefunden.")</p>
-        }
-        @foreach (var d in dependencies.Uses)
-        {
-            @Row(d)
-        }
-    </section>
-
-    <section>
-        <h2>Wird verwendet von <span class="count">@dependencies.UsedBy.Count</span></h2>
-        @if (dependencies.UsedBy.Count == 0)
-        {
-            <p class="muted">Kein Objekt verwendet @Table.DisplayName.</p>
-        }
-        @foreach (var d in dependencies.UsedBy)
-        {
-            @Row(d)
-        }
-    </section>
-
-    <p class="muted">Es erscheinen nur Objekte, auf die @(Active.Profile?.User ?? "der Benutzer") Zugriff hat.</p>
+    <DependencyList Dependencies="dependencies" Owner="@Table.Owner" Subject="@Table.DisplayName"
+                    NoUses="@(Table.Kind == TableKind.Table ? "Eine Tabelle verwendet keine anderen Objekte." : "Keine Abhängigkeiten gefunden.")" />
 }
 
 @code {
-    private RenderFragment Row(DependencyInfo d) =>
-        @<div class="relation dependency">
-            <span class="chip">@d.Type</span>
-            @if (IsBrowsable(d) && Active.Schema?.Find(new TableRef(d.Owner, d.Name)) is not null)
-            {
-                <TableLink Target="new TableRef(d.Owner, d.Name)" />
-            }
-            else
-            {
-                <span class="mono">@(d.Owner == Table.Owner ? d.Name : $"{d.Owner}.{d.Name}")</span>
-            }
-            @if (d.IsInvalid)
-            {
-                <span class="chip invalid" title="@InvalidStatusText.For(d.Type)">UNGÜLTIG</span>
-            }
-        </div>;
-
-    private static bool IsBrowsable(DependencyInfo d) => d.Type is "TABLE" or "VIEW" or "MATERIALIZED VIEW";
-
     protected override Task<ObjectDependencies> LoadAsync(SchemaCache schema, CancellationToken cancellationToken) =>
         schema.GetDependenciesAsync(Table, cancellationToken);
 }

@@ -30,7 +30,7 @@ public sealed class ClrModelMappingTests
     private async Task<SchemaCache> SchemaAsync(params TableSummary[] tables)
     {
         _reader.GetTablesAsync(Owner, Arg.Any<CancellationToken>()).Returns(tables.Where(t => t.Synonym is null).ToList());
-        _reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns(tables.Where(t => t.Synonym is not null).ToList());
+        _reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns(new SynonymTargets(tables.Where(t => t.Synonym is not null).ToList(), []));
         _reader.GetForeignKeysAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
         // The comparison reads all columns of a schema at once, never the details of each table. Tables given by name
         // only get NUMBER(10) NOT NULL columns.

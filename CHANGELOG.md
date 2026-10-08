@@ -15,6 +15,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 - A new build of the linked project is picked up automatically: the status bar shows "Build geändert – Modell wird neu geladen", entities, properties, enums and navigations are reloaded, and the LINQ console restarts in the background – the previous model and console keep working until the new ones are ready. No reconnecting needed.
 - UI stalls over 300 ms are logged with what caused them (UI work, garbage collection, memory); stalls over 1.5 s also get the stacks of all threads in the log folder if the `dotnet-stack` tool is installed. The steps of loading the C# model and the LINQ console are logged too.
 
+## [3.17.0] - 2026-10-08
+
+### Added
+- Packages, procedures, functions and triggers can be looked at (WP-28, view only – nothing is run or compiled):
+  - The explorer switches between "Tabellen" and "PL/SQL". Invalid objects are red (the switch counts them), disabled triggers grey; the name search tells when the other section has hits ("3 Treffer unter PL/SQL").
+  - A PL/SQL tab shows a header (status of specification and body, dates, AUTHID; for a trigger its timing, event, table and WHEN condition) and the views Spezifikation/Quelltext, Body, Parameter, Fehler and Abhängigkeiten. F5 reloads.
+  - Source in a read-only editor with PL/SQL colouring, line numbers, Ctrl+F and the compile errors underlined; wrapped code shows a notice instead of its unreadable text.
+  - Parameters per procedure and function, overloads separately: direction, type (e.g. `KUNDEN%ROWTYPE`, `SYS_REFCURSOR`) and whether there is a default.
+  - Compile errors and warnings with line and column; a click shows the place in the source.
+  - "Quelltext" next to the search field searches all PL/SQL of the schema (Enter; up to 500 lines, cancellable); a hit opens the object at its line.
+  - Packages, procedures and functions of other schemas reached through synonyms appear like tables do. The body of another schema's package is only visible with the DEBUG privilege on it – the tab says so.
+- Dependencies (of tables, views and PL/SQL) link to packages, procedures, functions and triggers; a package body opens the body.
+- `tools/sample-db/07-plsql.sql`: PL/SQL for the sample database.
+
 ## [3.16.0] - 2026-10-08
 
 ### Added

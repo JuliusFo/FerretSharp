@@ -1,0 +1,80 @@
+@* Source of one part of a PL/SQL unit (WP-28): read-only Monaco with PL/SQL colouring and the compile errors as markers.
+   Wrapped code and source the session may not see get a notice instead. *@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Schema
+@inherits PlSqlViewBase<PlSqlSource>
+
+<DetailStatus Loading="Loading && Data is null" Error="Error" Text="Lade Quelltext …" />
+
+@if (Data is { } source)
+{
+    @if (source.IsEmpty)
+    {
+        <div class="structure plsql-notice">
+            <p class="muted">@EmptyText</p>
+        </div>
+    }
+    else if (source.IsWrapped && !_showWrapped)
+    {
+        <div class="structure plsql-notice">
+            <p><strong>Verschlüsselt (wrapped).</strong> Der Quelltext wurde mit dem Wrap-Werkzeug von Oracle unlesbar gemacht
+               und lässt sich nicht zurückverwandeln. Parameter und Abhängigkeiten stehen trotzdem in den anderen Ansichten.</p>
+            <button class="btn" @onclick="() => _showWrapped = true">Rohtext trotzdem anzeigen</button>
+        </div>
+    }
+    else
+    {
+        <div class="plsql-source">
+            <MonacoEditor @ref="_editor" @key="source" Text="@source.Text" Language="@(source.IsWrapped ? "plaintext" : "plsql")" ReadOnly="true"
+                          Class="plsql-code" Markers="_markers" />
+        </div>
+    }
+}
+
+@code {
+    private MonacoEditor? _editor;
+    private bool _showWrapped;
+    private IReadOnlyList<LinqDiagnostic> _markers = [];
+    private (PlSqlSource? Source, IReadOnlyList<PlSqlError>? Errors) _markersFor;
+
+    [Parameter, EditorRequired]
+    public PlSqlTab Tab { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public PlSqlPart Part { get; set; }
+
+    /// <summary>Compile errors of the unit (both parts), loaded by the tab.</summary>
+    [Parameter]
+    public IReadOnlyList<PlSqlError> Errors { get; set; } = [];
+
+    private string EmptyText => Part == PlSqlPart.Body
+        ? Unit.Owner == Active.Schema?.Owner
+            ? "Das Package hat keinen Body."
+            : "Kein Body sichtbar. Den Body eines Packages in einem anderen Schema zeigt Oracle nur mit dem Recht DEBUG darauf (oder dem Eigentümer); EXECUTE reicht nur für die Spezifikation."
+        : "Kein Quelltext sichtbar – das Objekt wurde gelöscht, oder dem Benutzer fehlen die Rechte darauf.";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+        if (Data is { } source && (!ReferenceEquals(_markersFor.Source, source) || !ReferenceEquals(_markersFor.Errors, Errors)))
+        {
+            _markersFor = (source, Errors);
+            _markers = PlSqlMarkers.For(Errors, Part, source.Lines);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Tab.Reveal is { } at && at.Part == Part && _editor is not null && Tab.View == PlSqlTab.SourceView(Part))
+        {
+            Tab.Reveal = null;
+            await _editor.RevealAsync(at.Line, at.Column);
+        }
+    }
+
+    /// <summary>Ctrl+F: the editor's find widget.</summary>
+    public Task FindAsync() => _editor?.FindAsync() ?? Task.CompletedTask;
+
+    protected override Task<PlSqlSource> LoadAsync(SchemaCache schema, CancellationToken cancellationToken) =>
+        schema.GetSourceAsync(Unit, Part, cancellationToken);
+}
