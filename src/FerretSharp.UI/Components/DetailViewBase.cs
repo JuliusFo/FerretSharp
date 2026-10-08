@@ -7,10 +7,11 @@ using Microsoft.Extensions.Logging;
 namespace FerretSharp.UI.Components;
 
 /// <summary>
-/// A detail view of a tab (header, constraints, indexes …): loads its data from the schema reader on the explorer
-/// session when first shown and again whenever <see cref="Version"/> changes (F5); a newer load cancels an older one.
+/// A view that loads its data from the schema reader on the explorer session when first shown and again whenever
+/// <see cref="Version"/> changes (F5); a newer load cancels an older one. Base of the detail views of a table tab
+/// (<see cref="DetailViewBase{T}"/>) and of a PL/SQL tab (<see cref="PlSqlViewBase{T}"/>).
 /// </summary>
-public abstract class DetailViewBase<T> : ComponentBase, IDisposable where T : class
+public abstract class LoadingViewBase<T> : ComponentBase, IDisposable where T : class
 {
     private int? _loadedVersion;
     private CancellationTokenSource? _cts;
@@ -25,9 +26,6 @@ public abstract class DetailViewBase<T> : ComponentBase, IDisposable where T : c
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
 
-    [Parameter, EditorRequired]
-    public TableDetails Details { get; set; } = null!;
-
     /// <summary>Incremented by the tab to reload.</summary>
     [Parameter]
     public int Version { get; set; }
@@ -38,9 +36,12 @@ public abstract class DetailViewBase<T> : ComponentBase, IDisposable where T : c
 
     protected bool Loading { get; private set; }
 
-    protected TableSummary Table => Details.Table;
-
     protected abstract Task<T> LoadAsync(SchemaCache schema, CancellationToken cancellationToken);
+
+    /// <summary>After a load succeeded (on the UI thread, before rendering).</summary>
+    protected virtual void OnLoaded(T data)
+    {
+    }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -63,12 +64,32 @@ public abstract class DetailViewBase<T> : ComponentBase, IDisposable where T : c
 
         (Data, Error) = result.Succeeded ? (result.Value, null) : (Data, result.Error);
         Loading = false;
+        if (result.Succeeded && result.Value is { } data)
+        {
+            OnLoaded(data);
+        }
     }
 
-    public void Dispose()
+    public virtual void Dispose()
     {
         _cts?.Cancel();
         _cts?.Dispose();
         GC.SuppressFinalize(this);
     }
+}
+
+/// <summary>A detail view of a table tab (header, constraints, indexes …).</summary>
+public abstract class DetailViewBase<T> : LoadingViewBase<T> where T : class
+{
+    [Parameter, EditorRequired]
+    public TableDetails Details { get; set; } = null!;
+
+    protected TableSummary Table => Details.Table;
+}
+
+/// <summary>A view of a PL/SQL tab (WP-28): header, source, parameters, dependencies.</summary>
+public abstract class PlSqlViewBase<T> : LoadingViewBase<T> where T : class
+{
+    [Parameter, EditorRequired]
+    public PlSqlObjectSummary Unit { get; set; } = null!;
 }

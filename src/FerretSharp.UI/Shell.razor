@@ -91,6 +91,10 @@
                                                     {
                                                         <SqlView Tab="sqlTab" />
                                                     }
+                                                    else if (tab is PlSqlTab plSqlTab)
+                                                    {
+                                                        <PlSqlTabView Tab="plSqlTab" />
+                                                    }
                                                 </TabFrame>
                                             </div>
                                         }

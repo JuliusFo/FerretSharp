@@ -3,7 +3,10 @@ using FerretSharp.Core.Workspaces;
 
 namespace FerretSharp.UI.State;
 
-/// <summary>A tab of a workspace: a table (<see cref="TableTab"/>) or a LINQ console (<see cref="LinqTab"/>).</summary>
+/// <summary>
+/// A tab of a workspace: a table (<see cref="TableTab"/>), a LINQ console (<see cref="LinqTab"/>), a SQL editor
+/// (<see cref="SqlTab"/>) or a PL/SQL unit (<see cref="PlSqlTab"/>).
+/// </summary>
 public abstract class WorkspaceTab(Guid workspaceId, string idPrefix)
 {
     /// <summary>Unique element id (the grid's host element of a table tab).</summary>
@@ -75,6 +78,52 @@ public sealed class SqlTab(Guid workspaceId, string title) : WorkspaceTab(worksp
     public static SqlTab Restore(Guid workspaceId, SqlTabState state) =>
         new(workspaceId, state.Title) { Text = state.Text, Variables = state.Variables };
 }
+
+/// <summary>
+/// A PL/SQL tab (WP-28, view only): a package, procedure, function or trigger with its source, parameters, compile errors
+/// and dependencies. Read on the explorer session like the detail views of a table.
+/// </summary>
+public sealed class PlSqlTab(Guid workspaceId, Core.Schema.PlSqlObjectSummary unit) : WorkspaceTab(workspaceId, "plsql-")
+{
+    public Core.Schema.PlSqlObjectSummary Unit { get; } = unit;
+
+    public PlSqlView View { get; set; } = PlSqlView.Source;
+
+    /// <summary>A line to show once the source of the part is there (a compile error, a search hit); taken by the source view.</summary>
+    public SourcePosition? Reveal { get; set; }
+
+    /// <summary>The views this kind of unit has, in toolbar order: packages have a body, triggers no parameters.</summary>
+    public IReadOnlyList<PlSqlView> Views => Unit.Kind switch
+    {
+        Core.Schema.PlSqlKind.Package => [PlSqlView.Source, PlSqlView.Body, PlSqlView.Parameters, PlSqlView.Errors, PlSqlView.Dependencies],
+        Core.Schema.PlSqlKind.Trigger => [PlSqlView.Source, PlSqlView.Errors, PlSqlView.Dependencies],
+        _ => [PlSqlView.Source, PlSqlView.Parameters, PlSqlView.Errors, PlSqlView.Dependencies],
+    };
+
+    /// <summary>Shows a part's source at a line: switches to that view and leaves the position for the source view.</summary>
+    public void ShowSource(Core.Schema.PlSqlPart part, int line, int column = 1)
+    {
+        View = SourceView(part);
+        Reveal = new SourcePosition(part, line, column);
+    }
+
+    public static PlSqlView SourceView(Core.Schema.PlSqlPart part) => part == Core.Schema.PlSqlPart.Body ? PlSqlView.Body : PlSqlView.Source;
+
+    public override TabState ToState(IReadOnlyList<WorkspaceTab> workspaceTabs) =>
+        TabState.OfPlSql(new PlSqlTabState(Unit.Owner, Unit.Name, Unit.Kind, View));
+
+    /// <summary>The tab of a saved state; a view the kind does not have falls back to the source.</summary>
+    public static PlSqlTab Restore(Guid workspaceId, Core.Schema.PlSqlObjectSummary unit, PlSqlTabState state)
+    {
+        var tab = new PlSqlTab(workspaceId, unit);
+        tab.View = tab.Views.Contains(state.View) ? state.View : PlSqlView.Source;
+        return tab;
+    }
+}
+
+/// <param name="Line">From 1, as in <c>ALL_SOURCE.LINE</c>.</param>
+/// <param name="Column">From 1.</param>
+public sealed record SourcePosition(Core.Schema.PlSqlPart Part, int Line, int Column);
 
 /// <summary>A statement the SQL editor ran and what came of it.</summary>
 /// <param name="Number">Position in the script (1, 2 …); 0 for a single statement (Ctrl+Enter).</param>

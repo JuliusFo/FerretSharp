@@ -1,0 +1,86 @@
+@* Both directions of ALL_DEPENDENCIES for the "Abhängigkeiten" views of tables and PL/SQL units: tables, views and
+   PL/SQL units the schema knows (own or through a synonym) are links. *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Schema
+
+<section>
+    <h2>Verwendet <span class="count">@Dependencies.Uses.Count</span></h2>
+    @if (Dependencies.Uses.Count == 0)
+    {
+        <p class="muted">@NoUses</p>
+    }
+    @foreach (var d in Dependencies.Uses)
+    {
+        @Row(d)
+    }
+</section>
+
+<section>
+    <h2>Wird verwendet von <span class="count">@Dependencies.UsedBy.Count</span></h2>
+    @if (Dependencies.UsedBy.Count == 0)
+    {
+        <p class="muted">Kein Objekt verwendet @Subject.</p>
+    }
+    @foreach (var d in Dependencies.UsedBy)
+    {
+        @Row(d)
+    }
+</section>
+
+<p class="muted">Es erscheinen nur Objekte, auf die @(Active.Profile?.User ?? "der Benutzer") Zugriff hat.</p>
+
+@code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public ObjectDependencies Dependencies { get; set; } = null!;
+
+    /// <summary>Owner of the object shown: names of the same schema go without owner.</summary>
+    [Parameter, EditorRequired]
+    public string Owner { get; set; } = "";
+
+    /// <summary>The name of the object shown ("Kein Objekt verwendet …").</summary>
+    [Parameter, EditorRequired]
+    public string Subject { get; set; } = "";
+
+    [Parameter]
+    public string NoUses { get; set; } = "Keine Abhängigkeiten gefunden.";
+
+    private RenderFragment Row(DependencyInfo d) =>
+        @<div class="relation dependency">
+            <span class="chip">@d.Type</span>
+            @if (IsTable(d) && Active.Schema?.Find(new TableRef(d.Owner, d.Name)) is not null)
+            {
+                <TableLink Target="new TableRef(d.Owner, d.Name)" />
+            }
+            else if (Active.Schema?.FindPlSql(d.Owner, d.Name, d.Type) is { } unit)
+            {
+                <button class="link" title="@PlSqlTitle(unit, d.Type)" @onclick="() => OpenPlSql(unit, d.Type)">@PlSqlLabel(unit)</button>
+            }
+            else
+            {
+                <span class="mono">@(d.Owner == Owner ? d.Name : $"{d.Owner}.{d.Name}")</span>
+            }
+            @if (d.IsInvalid)
+            {
+                <span class="chip invalid" title="@InvalidStatusText.For(d.Type)">UNGÜLTIG</span>
+            }
+        </div>;
+
+    private static bool IsTable(DependencyInfo d) => d.Type is "TABLE" or "VIEW" or "MATERIALIZED VIEW";
+
+    /// <summary>A package body opens the body view, everything else the source (a package: its specification).</summary>
+    private void OpenPlSql(PlSqlObjectSummary unit, string objectType) =>
+        Shell.OpenPlSql(unit, PlSqlKinds.Of(objectType) is { Part: PlSqlPart.Body } ? PlSqlView.Body : PlSqlView.Source);
+
+    private string PlSqlLabel(PlSqlObjectSummary unit) =>
+        unit.Synonym is not null || unit.Owner == Active.Schema?.Owner ? unit.DisplayName : unit.Ref.ToString();
+
+    private static string PlSqlTitle(PlSqlObjectSummary unit, string objectType) =>
+        (objectType == "PACKAGE BODY" ? "Body anzeigen" : "Quelltext anzeigen") +
+        (unit.Synonym is { } synonym ? $" – Synonym {synonym.Name} für {unit.Ref}" : "");
+}
