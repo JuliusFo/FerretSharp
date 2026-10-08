@@ -2,6 +2,7 @@
    tabs that can be renamed, and the buttons for new SQL/LINQ tabs. *@
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.UI.State
+@implements IDisposable
 @inject PresentationService Presentations
 @inject ClrModelManager Models
 
@@ -122,4 +123,11 @@
 
     /// <summary>Enum and bool filter values by their C# names, once the tab knows its table's structure.</summary>
     private TablePresentation? PresentationOf(TableTab tab) => tab.Details is { } details ? Presentations.For(details) : null;
+
+    /// <summary>A new model or name setting: titles and tooltips follow (the shell no longer renders for it).</summary>
+    protected override void OnInitialized() => Presentations.Changed += OnPresentationChanged;
+
+    private void OnPresentationChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Presentations.Changed -= OnPresentationChanged;
 }

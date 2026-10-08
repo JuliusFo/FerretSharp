@@ -137,10 +137,24 @@
     [Parameter, EditorRequired]
     public TableDetails Details { get; set; } = null!;
 
-    /// <summary>A newly loaded model (not every loading step: every mounted structure view would render each time).</summary>
-    protected override void OnInitialized() => Presentations.Changed += OnModelChanged;
+    /// <summary>A newly loaded model that changes this table (not every loading step, not every table after a build).</summary>
+    protected override void OnInitialized()
+    {
+        _presentationVersion = Presentations.Version;
+        Presentations.Changed += OnModelChanged;
+    }
 
-    private void OnModelChanged() => InvokeAsync(StateHasChanged);
+    private void OnModelChanged() => InvokeAsync(() =>
+    {
+        if (Presentations.ChangedSince(_presentationVersion, Details.Table.Ref))
+        {
+            StateHasChanged();
+        }
+
+        _presentationVersion = Presentations.Version;
+    });
+
+    private int _presentationVersion;
 
     /// <summary>Enum members (or true/false) with what the project stores for them, as a tooltip.</summary>
     private static string? ValuesTitle(PropertyExport property) => property.Values is { } values

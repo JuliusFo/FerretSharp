@@ -260,8 +260,21 @@
             ? $"{tab.Table.DisplayName} ({filters})"
             : tab.Table.DisplayName;
 
-    /// <summary>The C# model or the name setting changed: filter bar (member lists) and labels follow.</summary>
-    private void OnPresentationChanged() => InvokeAsync(StateHasChanged);
+    /// <summary>
+    /// The C# model or the name setting changed: filter bar (member lists) and labels follow – only if this table reads
+    /// differently (after a build most tables do not, and every mounted tab of every workspace would render).
+    /// </summary>
+    private void OnPresentationChanged() => InvokeAsync(() =>
+    {
+        if (Presentations.ChangedSince(_presentationVersion, Tab.Table.Ref))
+        {
+            StateHasChanged();
+        }
+
+        _presentationVersion = Presentations.Version;
+    });
+
+    private int _presentationVersion;
 
     private string RowKeyText =>_details is null ? "" : QueryBuilder.RowKeyOf(_details) switch
     {
@@ -273,6 +286,7 @@
     protected override async Task OnInitializedAsync()
     {
         Shell.TabCommandRequested += OnTabCommand;
+        _presentationVersion = Presentations.Version;
         Presentations.Changed += OnPresentationChanged;
         if (Active.Schema is not { } schema)
         {

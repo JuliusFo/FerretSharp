@@ -87,8 +87,22 @@
     {
         Active.Changed += OnChanged;
         Shell.Changed += OnChanged;
-        Presentation.Changed += OnChanged;
+        _presentationVersion = Presentation.Version;
+        Presentation.Changed += OnPresentationChanged;
     }
+
+    /// <summary>Renders the whole table list again only if the entity names beside the tables changed.</summary>
+    private void OnPresentationChanged() => InvokeAsync(() =>
+    {
+        if (Presentation.NamesChangedSince(_presentationVersion))
+        {
+            StateHasChanged();
+        }
+
+        _presentationVersion = Presentation.Version;
+    });
+
+    private int _presentationVersion;
 
     private SortedDictionary<char, List<TableSummary>> Groups()
     {
@@ -186,7 +200,7 @@
     {
         Active.Changed -= OnChanged;
         Shell.Changed -= OnChanged;
-        Presentation.Changed -= OnChanged;
+        Presentation.Changed -= OnPresentationChanged;
         if (_dom is not null)
         {
             try

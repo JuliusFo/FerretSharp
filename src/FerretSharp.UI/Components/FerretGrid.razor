@@ -139,8 +139,14 @@
             return;
         }
 
+        var touched = Presentations.ChangedSince(_presentationVersion, Details.Table.Ref);
         _presentationVersion = Presentations.Version;
-        _presentation = Presentations.For(Details);
+        _presentation = Presentations.For(Details); // the same reading, but no longer holding the previous model
+        if (!touched)
+        {
+            return;
+        }
+
         var columns = Enumerable.Range(0, Details.Columns.Count).Select(ColumnMeta).ToList();
         // A new build reloads the whole model; most tables read exactly as before – their rows are not fetched again.
         var shown = ShownColumns(columns);

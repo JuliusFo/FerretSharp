@@ -11,7 +11,6 @@
 @inject FerretSharp.Core.Settings.AppSettingsService Settings
 @inject ExitGuard ExitGuard
 @inject FerretSharp.Core.ClrModel.ClrModelManager Models
-@inject PresentationService Presentations
 @inject IJSRuntime JS
 @inject FerretSharp.Core.Workspaces.SqlHistoryStore SqlHistory
 @inject ILoggerFactory LoggerFactory
@@ -190,7 +189,6 @@
         Active.Changed += OnConnectionOrWorkspacesChanged;
         Workspaces.Changed += OnConnectionOrWorkspacesChanged;
         Models.Changed += OnModelsChanged;
-        Presentations.Changed += OnChanged;
         KeepAlive.ConnectionLost += OnKeepAliveLost;
         KeepAlive.Start();
         await Connections.LoadAsync(CancellationToken.None);
@@ -377,7 +375,6 @@
         Active.Changed -= OnConnectionOrWorkspacesChanged;
         Workspaces.Changed -= OnConnectionOrWorkspacesChanged;
         Models.Changed -= OnModelsChanged;
-        Presentations.Changed -= OnChanged;
         KeepAlive.ConnectionLost -= OnKeepAliveLost;
         if (_shortcuts is not null)
         {
