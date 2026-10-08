@@ -1,0 +1,171 @@
+@* A PL/SQL tab (WP-28, view only): header and the views Quelltext/Spezifikation | Body | Parameter | Fehler |
+   Abhängigkeiten. Everything is read on the explorer session; views mount when first shown and stay, F5 reloads them. *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Schema
+@inherits FerretComponent
+@implements IDisposable
+@inject ILogger<PlSqlTabView> Logger
+@inject ShortcutService Shortcuts
+
+<div class="tabview plsql-tab">
+    <div class="tab-toolbar">
+        <div class="segmented small" role="tablist">
+            @foreach (var view in Tab.Views)
+            {
+                var v = view;
+                <button class="seg @(Tab.View == v ? "active" : "")" role="tab" aria-selected="@(Tab.View == v ? "true" : "false")"
+                        @onclick="() => SetView(v)">
+                    @Label(v)
+                    @if (v == PlSqlView.Errors && _errors is { Count: > 0 } errors)
+                    {
+                        <span class="seg-count @(errors.Any(e => !e.IsWarning) ? "bad" : "")">@errors.Count</span>
+                    }
+                </button>
+            }
+        </div>
+        <span class="toolbar-title">
+            @if (Tab.Unit.Synonym is { } synonym)
+            {
+                @($"{(synonym.IsPublic ? "öffentliches Synonym" : "Synonym")} {synonym.Name} → ")
+            }
+            @Tab.Unit.Owner.@Tab.Unit.Name
+        </span>
+        <span class="spacer"></span>
+        <span class="muted readonly-hint" title="PL/SQL ausführen, bearbeiten und kompilieren gehört nicht zu FerretSharp.">nur ansehen</span>
+        <button class="icon-btn ghost" title="Neu laden@(Shortcuts.Hint(ShortcutAction.Refresh))" @onclick="Reload">@Icons.Refresh</button>
+    </div>
+
+    <div class="tab-details">
+        <PlSqlHeader Unit="Tab.Unit" Version="_version" />
+        @if (_errorsError is { } failure)
+        {
+            <DetailStatus Error="failure" />
+        }
+        <div class="details-body">
+            @foreach (var view in Tab.Views.Where(_visited.Contains))
+            {
+                <div class="structure @(view is PlSqlView.Source or PlSqlView.Body ? "source-host" : "") @(Tab.View == view ? "" : "hidden")" @key="view">
+                    @switch (view)
+                    {
+                        case PlSqlView.Source:
+                            <PlSqlSourceView @ref="_spec" Unit="Tab.Unit" Tab="Tab" Part="PlSqlPart.Spec" Errors="_errors ?? []" Version="_version" />
+                            break;
+                        case PlSqlView.Body:
+                            <PlSqlSourceView @ref="_body" Unit="Tab.Unit" Tab="Tab" Part="PlSqlPart.Body" Errors="_errors ?? []" Version="_version" />
+                            break;
+                        case PlSqlView.Parameters:
+                            <PlSqlParametersView Unit="Tab.Unit" Version="_version" />
+                            break;
+                        case PlSqlView.Errors:
+                            <PlSqlErrorsView Unit="Tab.Unit" Errors="_errors" OnShow="ShowError" />
+                            <DetailStatus Loading="_errors is null && _errorsError is null" Text="Lade Fehler …" />
+                            break;
+                        case PlSqlView.Dependencies:
+                            <PlSqlDependenciesView Unit="Tab.Unit" Version="_version" />
+                            break;
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public PlSqlTab Tab { get; set; } = null!;
+
+    private readonly HashSet<PlSqlView> _visited = [];
+    private int _version; // F5: incremented, the views reload
+    private int? _errorsVersion;
+    private IReadOnlyList<PlSqlError>? _errors;
+    private DatabaseException? _errorsError;
+    private PlSqlSourceView? _spec;
+    private PlSqlSourceView? _body;
+
+    private string Label(PlSqlView view) => view switch
+    {
+        PlSqlView.Source => Tab.Unit.Kind == PlSqlKind.Package ? "Spezifikation" : "Quelltext",
+        PlSqlView.Body => "Body",
+        PlSqlView.Parameters => "Parameter",
+        PlSqlView.Errors => "Fehler",
+        _ => "Abhängigkeiten",
+    };
+
+    protected override void OnInitialized() => Shell.TabCommandRequested += OnTabCommand;
+
+    /// <summary>The view may also change from outside (a dependency link, a search hit).</summary>
+    protected override async Task OnParametersSetAsync()
+    {
+        _visited.Add(Tab.View);
+        await LoadErrorsAsync();
+    }
+
+    /// <summary>The compile errors: the count in the toolbar, markers in the source, the "Fehler" view.</summary>
+    private async Task LoadErrorsAsync()
+    {
+        if (_errorsVersion == _version || Active.Schema is not { } schema)
+        {
+            return;
+        }
+
+        _errorsVersion = _version;
+        _errorsError = null;
+        var unit = Tab.Unit;
+        var result = await Shell.RunDbAsync(Logger, Active, () => schema.GetErrorsAsync(unit, CancellationToken.None));
+        (_errors, _errorsError) = result.Succeeded ? (result.Value, null) : (_errors ?? [], result.Error);
+    }
+
+    private void SetView(PlSqlView view)
+    {
+        Tab.View = view;
+        _visited.Add(view);
+        Shell.NotifyChanged();
+    }
+
+    private void ShowError(PlSqlError error)
+    {
+        Tab.ShowSource(error.Part, error.Line, error.Column);
+        _visited.Add(Tab.View);
+        Shell.NotifyChanged();
+    }
+
+    private async Task Reload()
+    {
+        _version++;
+        await LoadErrorsAsync();
+    }
+
+    private void OnTabCommand(WorkspaceTab tab, TabCommand command)
+    {
+        if (tab != Tab)
+        {
+            return;
+        }
+
+        Fire(async () =>
+        {
+            switch (command)
+            {
+                case TabCommand.Refresh:
+                    await Reload();
+                    break;
+                case TabCommand.FindColumn when Tab.View == PlSqlView.Source && _spec is not null:
+                    await _spec.FindAsync();
+                    break;
+                case TabCommand.FindColumn when Tab.View == PlSqlView.Body && _body is not null:
+                    await _body.FindAsync();
+                    break;
+            }
+
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose() => Shell.TabCommandRequested -= OnTabCommand;
+}

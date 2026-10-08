@@ -1045,3 +1045,46 @@ table.compare-rows td.ff-flushed { box-shadow: inset 2px 0 0 var(--accent); back
 .shortcut-message > span:first-child { flex: 1; }
 .settings-note.error { background: var(--danger-weak); }
 .shortcut-reset-all { max-width: 1100px; margin: 12px auto 0; display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+
+/* PL/SQL ansehen (WP-28) */
+.explorer-sections { display: flex; justify-self: stretch; }
+.explorer-sections .seg { flex: 1; justify-content: center; }
+.seg-count { font-size: 10px; font-weight: 700; line-height: 14px; padding: 0 5px; border-radius: 7px; background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); }
+.seg-count.bad { background: var(--danger-weak); border-color: transparent; color: var(--danger); }
+.explorer-search { display: flex; align-items: center; gap: 6px; }
+.explorer-search > label { flex: 1; min-width: 0; }
+.explorer-search .source-toggle { flex: none; height: 28px; padding: 0 8px; font-size: 12px; }
+.explorer-search .source-toggle.active { color: var(--accent); background: var(--accent-weak); }
+.other-hits { align-self: flex-start; font-size: 12px; }
+.table-item.disabled-unit .name, .table-item.disabled-unit .icon { opacity: .55; }
+.source-hits { padding-left: 8px; }
+.source-hits .hits-summary { padding: 2px 6px 6px; font-size: 12px; }
+.hit-group { margin-bottom: 8px; }
+.hit-head { display: flex; align-items: center; gap: 6px; padding: 4px 6px; font: 600 12px var(--mono); }
+.hit-head .icon { flex: none; color: var(--muted); }
+.hit-head .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.source-hit { display: flex; gap: 8px; width: 100%; padding: 3px 6px 3px 14px; border: 0; border-radius: 6px; background: transparent; color: var(--text); text-align: left; font: 11.5px var(--mono); cursor: pointer; }
+.source-hit:hover:not(:disabled) { background: var(--hover); }
+.source-hit .line-no { flex: none; min-width: 34px; text-align: right; color: var(--faint); font-variant-numeric: tabular-nums; }
+.source-hit .line-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.details-body > .structure.source-host { padding: 0; overflow: hidden; }
+.source-host > .structure-loading, .source-host > .detail-error { margin: 22px 28px; }
+.plsql-source { position: absolute; inset: 0; }
+.monaco-host.plsql-code { height: 100%; border: 0; border-radius: 0; }
+.plsql-notice p { max-width: 760px; line-height: 1.5; }
+.plsql-tab .readonly-hint { font-size: 11.5px; margin-right: 4px; }
+.trigger-meta code { font-family: var(--mono); font-size: 12px; }
+.structure .subprogram h2 { display: flex; align-items: center; gap: 8px; text-transform: none; letter-spacing: 0; }
+.structure .subprogram h2 .mono { font-size: 13px; font-weight: 600; color: var(--text); }
+.structure .subprogram h2 .muted { font-weight: 500; }
+table.parameters .chip.direction { display: inline-block; min-width: 46px; text-align: center; }
+.relation.plsql-error { width: 100%; text-align: left; font: inherit; color: var(--text); cursor: pointer; }
+.relation.plsql-error:hover { background: var(--hover); }
+.relation.plsql-error .position { white-space: nowrap; color: var(--muted); }
+.relation.plsql-error .message { font-family: var(--mono); font-size: 12px; white-space: normal; }
+table.parameters { table-layout: fixed; }
+table.parameters th:nth-child(1) { width: 36px; }
+table.parameters th:nth-child(2) { width: 32%; }
+table.parameters th:nth-child(3) { width: 96px; }
+table.parameters th:nth-child(5) { width: 80px; }
+table.parameters td { overflow: hidden; text-overflow: ellipsis; }

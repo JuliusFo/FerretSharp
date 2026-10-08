@@ -1,0 +1,39 @@
+@* "Fehler" of a PL/SQL unit (WP-28): compile errors and warnings from ALL_ERRORS; a click shows the place in the source. *@
+@using FerretSharp.Core.Schema
+
+@if (Errors is { } errors)
+{
+    <section>
+        <h2>Fehler <span class="count">@errors.Count</span></h2>
+        @if (errors.Count == 0)
+        {
+            <p class="muted">@(Unit.IsInvalid
+                ? "Keine Fehler gespeichert. Ungültig ist das Objekt wohl, weil sich etwas geändert hat, das es verwendet – Oracle kompiliert es beim nächsten Aufruf neu."
+                : "Keine Kompilierfehler.")</p>
+        }
+        @foreach (var e in errors)
+        {
+            <button class="relation plsql-error @(e.IsWarning ? "warning" : "")" title="Im Quelltext zeigen" @onclick="() => OnShow.InvokeAsync(e)">
+                <span class="chip @(e.IsWarning ? "" : "invalid")">@(e.IsWarning ? "WARNUNG" : "FEHLER")</span>
+                @if (Unit.Kind == PlSqlKind.Package)
+                {
+                    <span class="muted">@(e.Part == PlSqlPart.Body ? "Body" : "Spezifikation")</span>
+                }
+                <span class="mono position">Zeile @e.Line, Spalte @e.Column</span>
+                <span class="message">@e.Text</span>
+            </button>
+        }
+    </section>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public PlSqlObjectSummary Unit { get; set; } = null!;
+
+    /// <summary>Null while loading.</summary>
+    [Parameter]
+    public IReadOnlyList<PlSqlError>? Errors { get; set; }
+
+    [Parameter]
+    public EventCallback<PlSqlError> OnShow { get; set; }
+}

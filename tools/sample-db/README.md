@@ -19,8 +19,9 @@ recreates it (all data is lost), `-Port`, `-Name` and `-Password` override the d
 | `04-object-details.sql` | comments, check constraints (one disabled), indexes (function-based, descending), a view on VERTRAG, an invalid view, optimizer statistics |
 | `05-clr-model.sql` | KUNDEN.GESPERRT (`J`/`N`) and KUNDEN.KUNDENART for the C# sample model (`samples/FerretSharp.SampleModel`, WP-11) |
 | `06-clr-relations.sql` | AUFTRAG.BEARBEITER_ID → MITARBEITER without FK constraint: a relationship only the C# sample model knows (WP-12) |
+| `07-plsql.sql` | PL/SQL to look at (WP-28): PKG_RECHNUNG with overloads, a function and a procedure, PKG_ALT whose body does not compile, a wrapped procedure, PKG_KONSTANTEN with 6,000 lines, a trigger on RECHNUNG and a disabled one on AUFTRAG |
 
-`04-object-details.sql`, `05-clr-model.sql` and `06-clr-relations.sql` can also be added to an existing sample database (same commands with the other file name):
+`04-object-details.sql` to `07-plsql.sql` can also be added to an existing sample database (same commands with the other file name):
 
 ```powershell
 docker cp tools/sample-db/04-object-details.sql ferret-sample:/tmp/
