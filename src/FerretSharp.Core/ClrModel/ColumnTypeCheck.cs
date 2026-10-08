@@ -175,7 +175,10 @@ public static class ColumnTypeCheck
                 : (MismatchSeverity.Warning, "Die Spalte erlaubt NULL, im Modell Pflicht – EF Core wirft beim Lesen einer Zeile mit NULL.");
         }
 
-        if (!readOnly && !column.Nullable && modelNullable && !column.IsIdentity && !column.DefaultOnNull && !column.IsVirtual)
+        // A string or byte[] optional in the model is no difference on Oracle: an empty value is NULL there, so a required
+        // property does not keep NULL out of the column either – reading a NOT NULL column into it is fine.
+        if (!readOnly && !column.Nullable && modelNullable && property.ClrType is not ("string" or "byte[]")
+            && !column.IsIdentity && !column.DefaultOnNull && !column.IsVirtual)
         {
             return (MismatchSeverity.Warning, "Die Spalte ist NOT NULL, im Modell optional – SaveChanges mit NULL scheitert (ORA-01400).");
         }
