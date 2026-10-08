@@ -72,7 +72,12 @@ button:disabled { cursor: default; opacity: .5; }
 
 /* ---------- shell ---------- */
 .app { display: flex; flex-direction: column; height: 100vh; }
-.app.is-prod { box-shadow: inset 0 0 0 2px var(--prod); }
+/* An overlay, not a shadow on .app: an inset shadow is painted below the children, and their backgrounds hid it.
+   Above popovers and dialogs (the warning stays visible while confirming), below the Blazor error bar; only 2px. */
+.app.is-prod::after {
+  content: ""; position: fixed; inset: 0; z-index: 90; pointer-events: none;
+  box-shadow: inset 0 0 0 2px var(--prod);
+}
 
 .topbar {
   display: flex; align-items: center; gap: 16px; flex: none;
