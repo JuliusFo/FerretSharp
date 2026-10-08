@@ -123,9 +123,23 @@ internal sealed class TestApp : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await _services.DisposeAsync();
-        if (Directory.Exists(_directory))
+
+        // A reconnect runs in the background (Task.Run) and may still write recent.json while we delete: retry, then
+        // leave the temp folder behind rather than failing the test (seen on Linux CI after 3.15.0).
+        for (var attempt = 1; Directory.Exists(_directory); attempt++)
         {
-            Directory.Delete(_directory, recursive: true);
+            try
+            {
+                Directory.Delete(_directory, recursive: true);
+            }
+            catch (IOException) when (attempt < 5)
+            {
+                await Task.Delay(50);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                return;
+            }
         }
     }
 }
