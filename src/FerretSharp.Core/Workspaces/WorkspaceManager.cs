@@ -460,17 +460,7 @@ public sealed class WorkspaceManager : IAsyncDisposable
         new(Guid.NewGuid(), _profile!.Id, name) { Order = NextOrder(), LastActive = _time.GetUtcNow() };
 
     /// <summary>"Workspace N" with the smallest N not in use.</summary>
-    private string NextName()
-    {
-        var used = _workspaces.Select(w => w.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var n = 1;
-        while (used.Contains(DefaultNamePrefix + n))
-        {
-            n++;
-        }
-
-        return DefaultNamePrefix + n;
-    }
+    private string NextName() => Workspace.FirstFreeName(DefaultNamePrefix, _workspaces.Select(w => w.Name));
 
     private int NextOrder() => _workspaces.Where(w => w.IsOpen).Select(w => w.Order + 1).DefaultIfEmpty(0).Max();
 

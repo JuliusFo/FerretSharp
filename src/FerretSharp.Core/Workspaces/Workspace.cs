@@ -96,4 +96,20 @@ public sealed record Workspace(Guid Id, Guid ConnectionId, string Name)
         var trimmed = name?.Trim() ?? "";
         return trimmed.Length is > 0 and <= MaxNameLength ? trimmed : null;
     }
+
+    /// <summary>
+    /// "Workspace 2", "SQL 3": the prefix with the smallest number from 1 on that none of <paramref name="taken"/> has
+    /// (ignoring case). After "Workspace 1" was renamed, the next new one is "Workspace 1" again.
+    /// </summary>
+    public static string FirstFreeName(string prefix, IEnumerable<string> taken)
+    {
+        var used = taken.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var n = 1;
+        while (used.Contains(prefix + n))
+        {
+            n++;
+        }
+
+        return prefix + n;
+    }
 }
