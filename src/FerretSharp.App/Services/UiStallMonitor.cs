@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 using System.Reflection;
 using System.Windows.Threading;
 using Microsoft.Extensions.Logging;
@@ -21,8 +22,13 @@ public sealed class UiStallMonitor : IDisposable
     /// <summary>WPF's own name of an operation (declaring type and method of its delegate), for the log only.</summary>
     private static readonly PropertyInfo? OperationName = typeof(DispatcherOperation).GetProperty("Name", BindingFlags.Instance | BindingFlags.NonPublic);
 
+    /// <summary>A stall this long gets the stacks of all threads written next to the log (with dotnet-stack, if installed).</summary>
+    private static readonly TimeSpan StackAfter = TimeSpan.FromMilliseconds(1500);
+
     private readonly Dispatcher _dispatcher;
     private readonly ILogger<UiStallMonitor> _logger;
+    private readonly string _logDirectory;
+    private DateTime _lastStacks = DateTime.MinValue;
     private readonly CancellationTokenSource _stop = new();
     private readonly Dictionary<DispatcherOperation, long> _running = [];
     private readonly List<string> _longOperations = [];
@@ -30,10 +36,12 @@ public sealed class UiStallMonitor : IDisposable
     private TimeSpan _operationTime;
     private readonly Lock _lock = new();
 
-    public UiStallMonitor(Dispatcher dispatcher, ILogger<UiStallMonitor> logger)
+    /// <param name="logDirectory">Where the stacks of a long stall are written.</param>
+    public UiStallMonitor(Dispatcher dispatcher, ILogger<UiStallMonitor> logger, string logDirectory)
     {
         _dispatcher = dispatcher;
         _logger = logger;
+        _logDirectory = logDirectory;
     }
 
     public void Start()
@@ -92,7 +100,13 @@ public sealed class UiStallMonitor : IDisposable
                 var watch = Stopwatch.StartNew();
                 // Normal, the priority of Blazor's work: WPF holds back Input-priority operations by itself (half a second even
                 // on an idle window), which made the probe report stalls that were none.
-                await _dispatcher.InvokeAsync(static () => { }, DispatcherPriority.Normal, _stop.Token);
+                var probe = _dispatcher.InvokeAsync(static () => { }, DispatcherPriority.Normal, _stop.Token).Task;
+                if (await Task.WhenAny(probe, Task.Delay(StackAfter, _stop.Token)) != probe)
+                {
+                    await WriteStacksAsync(); // while the UI thread is still stuck
+                }
+
+                await probe;
                 if (watch.Elapsed >= Threshold)
                 {
                     Report(watch.Elapsed, GC.GetTotalPauseDuration() - pauseBefore, GC.CollectionCount(0) - gen0Before, GC.CollectionCount(2) - gen2Before);
@@ -121,6 +135,42 @@ public sealed class UiStallMonitor : IDisposable
             + "heap {Heap} MB, working set {WorkingSet} MB, system memory load {Load:0}%; {Hosts}",
             (int)stall.TotalMilliseconds, operations, (int)gcPause.TotalMilliseconds, gen0, gen2, GC.GetTotalMemory(false) / (1024 * 1024),
             Environment.WorkingSet / (1024 * 1024), load, ModelHosts());
+    }
+
+    /// <summary>
+    /// Runs <c>dotnet-stack report</c> on this process (a .NET global tool: <c>dotnet tool install -g dotnet-stack</c>) and
+    /// writes the stacks of all threads to <c>stall-*.txt</c> in the log folder – at most once a minute. Without the tool,
+    /// nothing happens.
+    /// </summary>
+    private async Task WriteStacksAsync()
+    {
+        var tool = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".dotnet", "tools", "dotnet-stack.exe");
+        if (!File.Exists(tool) || DateTime.UtcNow - _lastStacks < TimeSpan.FromMinutes(1))
+        {
+            return;
+        }
+
+        _lastStacks = DateTime.UtcNow;
+        var file = Path.Combine(_logDirectory, $"stall-{DateTime.Now:yyyyMMdd-HHmmss}.txt");
+        try
+        {
+            using var process = Process.Start(new ProcessStartInfo(tool, new[] { "report", "--process-id", Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture) })
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            })!;
+            var output = process.StandardOutput.ReadToEndAsync();
+            var error = process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(30));
+            await File.WriteAllTextAsync(file, await output + await error);
+            _logger.LogWarning("UI thread stuck for more than {Milliseconds} ms – stacks written to {File}", (int)StackAfter.TotalMilliseconds, file);
+        }
+        catch (Exception ex) when (ex is IOException or TimeoutException or System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            _logger.LogWarning("dotnet-stack failed: {Error}", ex.Message);
+        }
     }
 
     /// <summary>The dotnet processes (model host, LINQ console, also build servers) with their memory and priority.</summary>
