@@ -15,6 +15,20 @@ export function selectIfFocused(element) {
   if (element && document.activeElement === element) element.select();
 }
 
+/**
+ * Escape in a search field with text clears it and goes no further: stopped at the field, Blazor's handlers above it
+ * (a popover's or dialog's Escape) never see it, so they act only on the next Escape. The input event updates the binding.
+ */
+export function clearOnEscape(input) {
+  input?.addEventListener('keydown', e => {
+    if (e.key !== 'Escape' || e.isComposing || input.value === '') return;
+    e.stopPropagation();
+    e.preventDefault();
+    input.value = '';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+}
+
 export function focusById(id) {
   document.getElementById(id)?.focus();
 }

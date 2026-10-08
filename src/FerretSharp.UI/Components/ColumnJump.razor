@@ -9,12 +9,9 @@
     {
         <div class="popover-backdrop" @onclick="Close"></div>
         <div class="popover coljump-pop" @onkeydown="OnKeyDownAsync">
-            <div class="popover-search">
-                @Icons.Search
-                <input @ref="_input" placeholder="Spalte suchen …" spellcheck="false" autocomplete="off"
-                       @bind="_query" @bind:event="oninput" />
+            <SearchBox @ref="_search" Class="popover-search" Placeholder="Spalte suchen …" @bind-Value="_query">
                 <span class="coljump-count">@Details.Columns.Count Spalten</span>
-            </div>
+            </SearchBox>
             <div class="popover-list">
                 <ColumnList @ref="_list" Details="Details" Query="@_query" OnPick="PickAsync" />
             </div>
@@ -23,7 +20,7 @@
 </div>
 
 @code {
-    private ElementReference _input;
+    private SearchBox? _search;
     private ColumnList? _list;
     private bool _open;
     private bool _focus;
@@ -46,10 +43,10 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (_focus && _open)
+        if (_focus && _open && _search is not null)
         {
             _focus = false;
-            await _input.FocusAsync();
+            await _search.FocusAsync();
         }
     }
 

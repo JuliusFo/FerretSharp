@@ -37,11 +37,7 @@
     </header>
 
     <div class="form-tools">
-        <label class="structure-filter">
-            @Icons.Search
-            <input @ref="_search" placeholder="Felder suchen … (Ctrl+F)" spellcheck="false" autocomplete="off"
-                   @bind="_query" @bind:event="oninput" @onkeydown="OnSearchKeyDown" />
-        </label>
+        <SearchBox @ref="_search" Class="structure-filter" Placeholder="Felder suchen … (Ctrl+F)" @bind-Value="_query" />
         <div class="form-switches">
             <label class="check" title="Felder ohne Wert (NULL) ausblenden – geänderte bleiben sichtbar; gilt für diesen Tab">
                 <input type="checkbox" checked="@Tab.FormHideEmpty" @onchange="e => SetHideEmpty(e.Value is true)" /> Leere ausblenden
@@ -195,7 +191,7 @@
     private readonly FkCounts _counts = new();
     private ElementReference _panel;
     private ElementReference _handle;
-    private ElementReference _search;
+    private SearchBox? _search;
     private ElementReference _fields;
     private IJSObjectReference? _dom;
     private FerretGrid? _subscribed;
@@ -300,10 +296,10 @@
             await CallDomAsync("focusFirstInput", _fields);
         }
 
-        if (_focusSearch)
+        if (_focusSearch && _search is not null)
         {
             _focusSearch = false;
-            await CallDomAsync("focusAndSelect", _search);
+            await CallDomAsync("focusAndSelect", _search.Input);
         }
     }
 
@@ -498,14 +494,6 @@
                 CommitDrafts();
                 await OnClose.InvokeAsync();
                 break;
-        }
-    }
-
-    private void OnSearchKeyDown(KeyboardEventArgs e)
-    {
-        if (e.Key == "Escape")
-        {
-            _query = "";
         }
     }
 
