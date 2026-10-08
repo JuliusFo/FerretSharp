@@ -51,6 +51,9 @@ developer works with an Oracle database day to day:
 - Composable filters in the style of TablePlus – column, operator, value – translated into bound SQL; see the generated
   statement and its execution plan at any time.
 - Object details per table: columns, constraints, indexes (with a hint for unindexed foreign keys), dependencies, DDL.
+- PL/SQL to look at: packages, procedures, functions and triggers with their source (read-only, coloured, compile
+  errors marked), parameters per subprogram and overload, compile errors and dependencies – and a search through all
+  PL/SQL of the schema. Nothing is run or compiled.
 - Form view for wide tables: the focused row beside the grid, one field per column (searchable, empty ones hidden on
   request, editable like the grid); select several rows and compare them side by side with the differences marked
   (<kbd>Alt</kbd>+<kbd>Enter</kbd>).

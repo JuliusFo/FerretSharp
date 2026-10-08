@@ -30,3 +30,7 @@ Weg 2 (Entscheidung des Nutzers):
 - Monaco ist eine neue Abhängigkeit des UI-Projekts (CLAUDE.md, Abschnitt 3); der eigene SQL-Highlighter bleibt für die SQL-Anzeige.
 - Das abgefangene SQL wird ohne Umbau ausgeführt; Seiten nach der ersten werden durch erneutes Ausführen und Überspringen gelesen (ein `SELECT * FROM (…)` scheitert an doppelten Spaltennamen der EF-Joins, ORA-00918).
 - `SaveChanges` und Objektgraphen sind nicht Teil von WP-13.
+
+## Nachtrag WP-28 (2026-10-08)
+
+Monaco zeigt jetzt auch den PL/SQL-Quelltext gespeicherter Objekte an, **nur lesend** (`readOnly`, `renderValidationDecorations: 'on'`, damit die Kompilierfehler als Marker sichtbar bleiben). Entscheidung des Nutzers: Monaco statt des eigenen Highlighters `SqlCode`, weil Packages Tausende Zeilen haben (Monaco virtualisiert, `SqlCode` erzeugt ein Element je Token) und Zeilennummern, Ctrl+F und Sprung zur Fehlerzeile gebraucht werden. Monacos eingebaute Sprache `sql` folgt T-SQL; für PL/SQL registriert `monaco.js` eine eigene kleine Monarch-Grammatik `plsql` (Schlüsselwörter, Typen, Kommentare, Strings inkl. `q'[…]'`) – reine Darstellung, keine Logik. Keine neue Abhängigkeit.
