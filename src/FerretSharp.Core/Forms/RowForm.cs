@@ -31,7 +31,7 @@ public sealed record FormRow(RowData? Loaded, RowChange? Change)
         }
 
         var texts = table.PrimaryKey
-            .Select(name => table.Columns.ToList().FindIndex(c => c.Name == name))
+            .Select(table.IndexOf)
             .Where(i => i >= 0)
             .Select(i => CellFormatter.Format(table.Columns[i], ValueOf(i)) ?? "NULL");
         return string.Join(" · ", texts);

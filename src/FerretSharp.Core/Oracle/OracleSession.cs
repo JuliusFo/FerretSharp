@@ -302,6 +302,15 @@ public sealed partial class OracleSession : IAsyncDisposable
         {
             throw new OracleStatementException(sql, parameters, ex);
         }
+        finally
+        {
+            // Disposing the command leaves its parameters alone; a LOB bind (LOB editor) may hold a temporary LOB that
+            // would otherwise stay in TEMP until the finalizer runs – in sessions that live for hours.
+            foreach (OracleParameter parameter in command.Parameters)
+            {
+                parameter.Dispose();
+            }
+        }
     }
 
     /// <summary>A query; the reader goes to <paramref name="read"/>. Caller holds the gate.</summary>

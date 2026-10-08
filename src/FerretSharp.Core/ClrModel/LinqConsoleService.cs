@@ -193,7 +193,7 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
             var output = await Task.Run(() => BuildOutputLocator.Find(link), cancellationToken);
             var build = File.GetLastWriteTimeUtc(output.Assembly);
             var console = await _runner.StartConsoleAsync(link, output, cancellationToken,
-                new Reporter(step => Set(new LinqConsoleState(LinqConsolePhase.Starting, step))));
+                new SyncProgress<string>(step => Set(new LinqConsoleState(LinqConsolePhase.Starting, step))));
             (_console, _consoleLink, _consoleBuild) = (console, link, build);
             Set(new LinqConsoleState(LinqConsolePhase.Ready));
             return console;
@@ -297,11 +297,5 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
     {
         _models.Changed -= OnModelsChanged;
         Task.Run(StopAsync).Wait(TimeSpan.FromSeconds(3));
-    }
-
-    /// <summary>Calls back on whatever thread reports.</summary>
-    private sealed class Reporter(Action<string> report) : IProgress<string>
-    {
-        public void Report(string value) => report(value);
     }
 }

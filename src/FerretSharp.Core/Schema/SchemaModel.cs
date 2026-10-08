@@ -74,7 +74,22 @@ public sealed record TableDetails(
     IReadOnlyList<IReadOnlyList<string>> UniqueKeys,
     bool IsIndexOrganized,
     string? Definition = null,
-    bool DefinitionTruncated = false);
+    bool DefinitionTruncated = false)
+{
+    /// <summary>The position of a column by its exact dictionary name in <see cref="Columns"/>; -1 if the table has none.</summary>
+    public int IndexOf(string column)
+    {
+        for (var i = 0; i < Columns.Count; i++)
+        {
+            if (Columns[i].Name == column)
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+}
 
 /// <summary>Where a relationship comes from.</summary>
 public enum FkSource

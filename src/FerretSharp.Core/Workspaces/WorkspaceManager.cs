@@ -1,3 +1,4 @@
+using FerretSharp.Core.IO;
 using System.Text.Json;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
@@ -444,7 +445,7 @@ public sealed class WorkspaceManager : IAsyncDisposable
 
     /// <summary>Records hold lists, so record equality would compare references; the JSON form is what gets saved anyway.</summary>
     private static bool SameTabs(IReadOnlyList<TabState> a, IReadOnlyList<TabState> b) =>
-        JsonSerializer.Serialize(a, ConnectionStore.JsonOptions) == JsonSerializer.Serialize(b, ConnectionStore.JsonOptions);
+        JsonSerializer.Serialize(a, JsonFiles.Options) == JsonSerializer.Serialize(b, JsonFiles.Options);
 
     private Workspace NewWorkspace(string name) =>
         new(Guid.NewGuid(), _profile!.Id, name) { Order = NextOrder(), LastActive = _time.GetUtcNow() };

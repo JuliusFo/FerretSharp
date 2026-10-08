@@ -142,7 +142,7 @@ public sealed class ClrModelManager : IDisposable
             }
             else
             {
-                var result = await Task.Run(() => _runner.ReadModelAsync(link, output, cts.Token, new Reporter(Report)), cts.Token);
+                var result = await Task.Run(() => _runner.ReadModelAsync(link, output, cts.Token, new SyncProgress<string>(Report)), cts.Token);
                 if (result.Model is not { } exported)
                 {
                     Finish(ClrModelPhase.Failed, previous, result.Error ?? new ModelHostError(ClrModelErrorKind.HostFailed, "Kein Modell geliefert."), loadedAt);
@@ -156,7 +156,7 @@ public sealed class ClrModelManager : IDisposable
                 }
             }
 
-            var mapping = await ClrModelMapping.BuildAsync(model, schema, cts.Token, new Reporter(Report));
+            var mapping = await ClrModelMapping.BuildAsync(model, schema, cts.Token, new SyncProgress<string>(Report));
             cts.Token.ThrowIfCancellationRequested();
             schema.SetForeignKeys(FkSource.ClrModel, mapping.ForeignKeys);
             Finish(ClrModelPhase.Loaded, mapping, null, DateTimeOffset.Now);
@@ -217,12 +217,6 @@ public sealed class ClrModelManager : IDisposable
                 _current = null;
             }
         }
-    }
-
-    /// <summary>Calls back on whatever thread reports (unlike <see cref="Progress{T}"/>, which posts to a captured context).</summary>
-    private sealed class Reporter(Action<string> report) : IProgress<string>
-    {
-        public void Report(string value) => report(value);
     }
 
     /// <summary><c>dotnet build</c> of the linked project, then reads the model again if the build succeeded.</summary>

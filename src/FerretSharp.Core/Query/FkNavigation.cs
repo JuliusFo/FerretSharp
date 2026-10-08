@@ -131,7 +131,12 @@ public static class FkNavigation
         finally
         {
             // Dispose only once the statement has ended; its cancel registration uses the token.
-            _ = count.ContinueWith(_ => cts.Dispose(), CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+            // A count that fails after the timeout (connection lost) is observed here, not left as an unobserved task exception.
+            _ = count.ContinueWith(finished =>
+            {
+                _ = finished.Exception;
+                cts.Dispose();
+            }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
         }
     }
 
@@ -150,7 +155,7 @@ public static class FkNavigation
         var indexes = new int[rowColumns.Count];
         for (var i = 0; i < rowColumns.Count; i++)
         {
-            indexes[i] = IndexOf(table, rowColumns[i]);
+            indexes[i] = table.IndexOf(rowColumns[i]);
             if (indexes[i] < 0)
             {
                 return Unavailable($"Spalte {rowColumns[i]} fehlt.");
@@ -229,17 +234,4 @@ public static class FkNavigation
     private static string Number(int count) => count.ToString("N0", German);
 
     private static string Key(FkJump jump) => $"{jump.Table.Name}\0{jump.Table.Owner}\0{jump.ForeignKey.Name}";
-
-    private static int IndexOf(TableDetails table, string column)
-    {
-        for (var i = 0; i < table.Columns.Count; i++)
-        {
-            if (table.Columns[i].Name == column)
-            {
-                return i;
-            }
-        }
-
-        return -1;
-    }
 }

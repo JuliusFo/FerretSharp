@@ -60,7 +60,7 @@ public sealed class WorkspaceStore(string directory) : IWorkspaceStore
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            await AtomicJsonFile.WriteAsync(PathOf(workspace.Id), new WorkspaceDocument(CurrentVersion, workspace), ConnectionStore.JsonOptions, cancellationToken);
+            await AtomicJsonFile.WriteAsync(PathOf(workspace.Id), new WorkspaceDocument(CurrentVersion, workspace), JsonFiles.Options, cancellationToken);
         }
         finally
         {
@@ -115,7 +115,7 @@ public sealed class WorkspaceStore(string directory) : IWorkspaceStore
             try
             {
                 await using var stream = File.OpenRead(file);
-                var document = await JsonSerializer.DeserializeAsync<WorkspaceDocument>(stream, ConnectionStore.JsonOptions, cancellationToken);
+                var document = await JsonSerializer.DeserializeAsync<WorkspaceDocument>(stream, JsonFiles.Options, cancellationToken);
                 if (document?.Workspace is null)
                 {
                     result.Add((file, null, $"{Path.GetFileName(file)} ist leer."));
