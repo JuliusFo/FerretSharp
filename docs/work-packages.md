@@ -32,6 +32,7 @@ Was in den abgeschlossenen Paketen gebaut und entschieden wurde, mit Nachträgen
 | Klein | FK-Sprung mit mehreren markierten Zeilen (`in`-Filter) | 3.9.0 | – |
 | WP-27 | Abgleich C#-Modell ↔ DB: Typ, NULL, Länge, Stellen (`ColumnTypeCheck`, Export-Format 2) | 3.10.0 | – |
 | WP-21 | Formularansicht einer Zeile (Seitenleiste, editierbar über den `ChangeTracker`), Vergleich markierter Zeilen (Dialog) | 3.11.0 | – |
+| R3a | Fehlerbehebung nach dem Review 3.14.0 (Verbindungsverlust je Verbindung, Schreiben serialisiert, UI-Testprojekt) | 3.14.1 | – |
 
 Kleinere Releases ohne eigenes Paket (Fixes, Komfort) stehen nur im `CHANGELOG.md`.
 
@@ -441,3 +442,24 @@ Vereinbart nach dem Review (2026-10-06), umgesetzt 2026-10-07 in kleinen Schritt
   - Tabellen-Grid: Kopf- und Zellenmenü, Ctrl+C (Zelle und drei Zeilen als Tabelle), Anheften per Ziehen und per Menü, Scroll-Position gespeichert, Entf, Editieren mit Validierung, Rollback. SQL-Ergebnis: kein Kopfmenü, Ergebnis-Menü, Ctrl+C, Entf/Doppelklick ohne Wirkung, Nachladen des zweiten Blocks.
   - LINQ-Konsole (Prod-Bestätigung, Abbrechen) nicht per E2E geprüft: braucht ein verknüpftes C#-Projekt.
   - Log ohne `[ERR]`.
+
+### R3a Fehlerbehebung nach dem Review 3.14.0
+Review am 2026-10-08 mit vier parallelen Agenten (UI-Komponenten, UI-State, Core Oracle/Query/Data, Compare/ClrModel/ModelHost) über alles seit R2. Teil A (Fehler) hier umgesetzt, je mit Test; Struktur-Punkte (Teile B–D) bleiben für R3b bzw. den Start von WP-22/23 (Liste im Review-Ergebnis der Session, Kurzfassung unten).
+- Verbindungsverlust je Verbindung (WP-24 hatte noch einen globalen Zustand):
+  - `ActiveConnection.Lost`/`ReportLost`/`ClearLost` statt `ShellState.ConnectionLost`; `ConnectionScope.Lost` liest nur noch. `Set` (jeder Statuswechsel) setzt `Lost` zurück.
+  - `RunDbAsync`/`CallDbAsync` nehmen die `ActiveConnection` statt des Profils (Maskierung aus deren aktuellem Profil, Verlust an genau diese Verbindung). Alle 17 Aufrufer übergeben die kaskadierte bzw. die des Workspaces.
+  - `GuardAsync`/`CanExit` lassen nur Workspaces einer verlorenen Verbindung aus; `_connectionGone` entfällt (blieb nach „Neu verbinden“ für immer gesetzt).
+  - `DialogHost`: Verlassen-Dialog sucht Workspaces aller Verbindungen (`FindWorkspace`) – vorher Ausnahme beim Beenden mit Arbeit im Hintergrund, außerhalb der ErrorBoundary.
+  - `ShellState.RemoveTabsWhere(connectionId, …)` und `CloseTab` über den Workspace des Tabs.
+  - `ConnectionScope.Profile` folgt dem verbundenen Profil; `RequestCommitAsync` fragt nach der Prod-Art der Verbindung des Workspaces.
+- `ColumnPicker` injizierte `PresentationService` (Geisterverbindung). Neuer Test `ConnectionServiceInjectionTests` schlägt bei jedem `[Inject]` eines Verbindungsdienstes an (geprüft: ohne Fix rot).
+- SQL-Editor: `_starting` wird synchron gesetzt (`StartOnceAsync`), `Busy` umfasst Starten, Laufen und offene Bestätigung; die CTS bleibt lokal zum Lauf. Nach dem Schreiben laden SQL- und LINQ-Tab die Tabellen-Tabs ihres eigenen Workspaces neu (auch im Hintergrund).
+- Schreiben (Core):
+  - `OracleDataEditor` serialisiert Flush, Statement, Undo, Commit, Rollback (`SemaphoreSlim`), entfernt Undo-Einträge per Referenz, Savepoint-Zähler per `Interlocked`.
+  - `IDataEditor.UndoLastAsync(expected, ct)`: ↶ übergibt die Aktion aus dem Tooltip; ist inzwischen eine andere die neueste → `RefusedException`.
+  - Savepoints als Kommandos (`SAVEPOINT x`, `ROLLBACK TO SAVEPOINT x` über `RunAsync`) statt der blockierenden `OracleTransaction.Save/Rollback(name)`: asynchron, beim Dispose abbrechbar, Verbindungsverlust wie bei jedem Statement. `TransactionControlAsync` meldet eine geschlossene Connection als verloren.
+  - Integrationstests: abgewiesenes veraltetes Undo, gleichzeitiger Flush + Statement, gekillte schreibende Session (Undo und Commit melden Verbindungsverlust, danach keine Transaktion).
+- Kleinere Fehler: `NUMBER(*,s)` in `DisplayType`; gemeinsame Regel `IndexInfo.GeneratedName` (`SYS_…`) für Vergleich und DDL-Vorschlag (die Test-Attrappe `TestComparison` kannte auch nur `SYS_C`); `FilterRules.TryParseDateWithOffset` (aus `OracleTypeMapper`), SQL-Variablen vom Typ Datum mit Offset → `TimeStampTZ`, `FromParameter` für `DateTimeOffset`; `ComparisonStore` liest und überschreibt keine Datei eines neueren Formats; LOB-Dialog fängt Dateifehler; `ConnectionHub.DisposeAsync` speichert erst alle Workspaces, dann parallel trennen; `WorkspaceEditing.IsBusy(workspaceId)` statt eines globalen `Busy`.
+- Neues Testprojekt `tests/FerretSharp.UI.Tests` (xUnit v3, in Solution und CI): `TestApp` verdrahtet `ConnectionHub` mit DI-Scopes wie die App, In-Memory-Stores (aus Core.Tests verlinkt) und einer Attrappen-DB; prüft die State-Klassen ohne Rendern.
+- Prüfung: Build mit `-warnaserror`, 976 Tests grün (Core, UI, Integration mit Oracle-Container). App-Start mit eigenem Datenordner ohne Warnungen im Log. **Kein E2E** der geänderten UI (Banner bei zwei Verbindungen, Doppel-Start im SQL-Editor, LOB-Dateifehler) – vom Nutzer zu prüfen.
+- Offen für R3b (Struktur, aus dem Review): `Fire`-Helfer gegen unbeobachtete fire-and-forget-Aufrufe und `.catch(() => {})` in grid.js; `DomModule` statt 16 handgeschriebener dom.js-Importe; `PopoverMenu` für Kontext-/Ergebnismenü; `ShellState` aufteilen (`TabRegistry`, `ShellDialogs`), `ConnectionLifecycle` aus `WorkspaceLifecycle`; `OracleSchemaReader` (SQL-Paare zusammenlegen, Lesehelfer, partial nach Thema, `ReadOnlyTests` auf alle SQL-Konstanten); `OracleTypes` als eine Stelle für Typwissen; `SessionGate` testbar herauslösen; ModelHost-Prozessbehandlung (Kill mit Warten, Temp-Aufräumen, „Neu bauen“ abbrechbar, `-nodeReuse:false`); `ConnectionHub.OpenAsync` nicht vom Threadpool aus. Vor WP-22: `DdlStep` mit Art und Risiko; zu Beginn von WP-23: `DdlWriter` in `TableDdl` + Vergleichs-Adapter teilen.
