@@ -250,4 +250,33 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
 
         Assert.Equal(LinqConsolePhase.Stopped, consoles.State.Phase);
     }
+
+    [Fact]
+    public async Task After_a_build_the_console_restarts_only_once_the_model_is_reloaded()
+    {
+        WatchBuildsQuickly();
+        var reads = 0;
+        var second = new TaskCompletionSource<ModelHostResult>();
+        _runner.ReadModelAsync(Arg.Any<ClrProjectLink>(), Arg.Any<BuildOutput>(), Arg.Any<CancellationToken>(), Arg.Any<IProgress<string>?>())
+            .Returns(_ => Interlocked.Increment(ref reads) == 1 ? Task.FromResult(Model()) : second.Task);
+        await _active.ConnectAsync(_profile, Ct);
+        await WaitUntil(() => _models.State.Phase == ClrModelPhase.Loaded);
+        await using var consoles = new LinqConsoleService(_runner, _models);
+        var old = Console("alt");
+        var fresh = Console("neu");
+        _runner.StartConsoleAsync(Arg.Any<ClrProjectLink>(), Arg.Any<BuildOutput>(), Arg.Any<CancellationToken>(), Arg.Any<IProgress<string>?>())
+            .Returns(Task.FromResult(old), Task.FromResult(fresh));
+        await consoles.WarmUpAsync();
+
+        await File.WriteAllTextAsync(_dll, "neuer Build", Ct);
+
+        // Two hosts building a large model at the same time made the UI stutter: the console waits for the model.
+        await WaitUntil(() => _models.State is { Phase: ClrModelPhase.Loading, BuildChanged: true });
+        await Task.Delay(300, Ct);
+        Assert.True(consoles.State.IsReloading);
+        await _runner.Received(1).StartConsoleAsync(Arg.Any<ClrProjectLink>(), Arg.Any<BuildOutput>(), Arg.Any<CancellationToken>(), Arg.Any<IProgress<string>?>());
+        second.SetResult(Model());
+        await WaitUntil(() => consoles.State is { Phase: LinqConsolePhase.Ready, Step: null });
+        Assert.Equal("neu", (await consoles.RunAsync("x", "", Ct)).ResultType);
+    }
 }

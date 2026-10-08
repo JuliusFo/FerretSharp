@@ -59,7 +59,7 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
             var arguments = HostArguments(link, launch, ["--output", result]);
 
             progress?.Report("Starte den Hilfsprozess");
-            var run = await DotNetCli.RunAsync(arguments, launch.AppDirectory, _timeout, cancellationToken, line =>
+            var run = await DotNetCli.RunAsync(arguments, launch.AppDirectory, _timeout, cancellationToken, background: true, onOutputLine: line =>
             {
                 if (line.StartsWith(ModelHostResult.ProgressPrefix, StringComparison.Ordinal))
                 {
@@ -198,8 +198,9 @@ public static class DotNetCli
 {
     private const int MaxOutput = 200_000;
 
-    /// <param name="onOutputLine">Called for every line on stdout as it arrives (any thread).</param>
-    /// <summary>Starts <c>dotnet</c> and returns while it runs (the LINQ console); lines arrive on any thread.</summary>
+    /// <summary>
+    /// Starts <c>dotnet</c> below normal priority and returns while it runs (the LINQ console); lines arrive on any thread.
+    /// </summary>
     public static Process Start(IEnumerable<string> arguments, string workingDirectory, Action<string> onOutputLine, Action<string> onErrorLine)
     {
         var process = new Process { StartInfo = StartInfo(arguments, workingDirectory) };
@@ -223,6 +224,7 @@ public static class DotNetCli
             throw new ClrModelException(ClrModelErrorKind.DotNetMissing, "dotnet ließ sich nicht starten.");
         }
 
+        Lower(process);
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
         return process;
@@ -252,8 +254,12 @@ public static class DotNetCli
         return start;
     }
 
+    /// <param name="background">
+    /// Below normal priority (the model host): building a large model keeps cores busy for seconds, the UI must stay fluid.
+    /// </param>
     public static async Task<DotNetRun> RunAsync(
-        IEnumerable<string> arguments, string workingDirectory, TimeSpan timeout, CancellationToken cancellationToken, Action<string>? onOutputLine = null)
+        IEnumerable<string> arguments, string workingDirectory, TimeSpan timeout, CancellationToken cancellationToken,
+        Action<string>? onOutputLine = null, bool background = false)
     {
         using var process = new Process { StartInfo = StartInfo(arguments, workingDirectory) };
         var output = new StringBuilder();
@@ -287,6 +293,11 @@ public static class DotNetCli
             throw new ClrModelException(ClrModelErrorKind.DotNetMissing, "dotnet ließ sich nicht starten.");
         }
 
+        if (background)
+        {
+            Lower(process);
+        }
+
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
 
@@ -315,6 +326,22 @@ public static class DotNetCli
         lock (output)
         {
             return new DotNetRun(process.ExitCode, output.ToString());
+        }
+    }
+
+    /// <summary>
+    /// The model host below normal priority: it competes for the CPU with FerretSharp's UI (WPF and the WebView), and two
+    /// of them may build a model at the same time (ADR 0016).
+    /// </summary>
+    private static void Lower(Process process)
+    {
+        try
+        {
+            process.PriorityClass = ProcessPriorityClass.BelowNormal;
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or PlatformNotSupportedException)
+        {
+            // already exited, or not allowed: it runs at normal priority
         }
     }
 

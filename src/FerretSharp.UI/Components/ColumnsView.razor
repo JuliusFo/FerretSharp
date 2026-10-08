@@ -7,6 +7,7 @@
 @inject ActiveConnection Active
 @inject IJSRuntime JS
 @inject ClrModelManager Models
+@inject FerretSharp.UI.State.PresentationService Presentations
 
 @{
     var fkColumns = (Active.Schema?.OutgoingOf(Details.Table.Ref) ?? [])
@@ -136,7 +137,8 @@
     [Parameter, EditorRequired]
     public TableDetails Details { get; set; } = null!;
 
-    protected override void OnInitialized() => Models.Changed += OnModelChanged;
+    /// <summary>A newly loaded model (not every loading step: every mounted structure view would render each time).</summary>
+    protected override void OnInitialized() => Presentations.Changed += OnModelChanged;
 
     private void OnModelChanged() => InvokeAsync(StateHasChanged);
 
@@ -169,7 +171,7 @@
 
     public async ValueTask DisposeAsync()
     {
-        Models.Changed -= OnModelChanged;
+        Presentations.Changed -= OnModelChanged;
         if (_dom is not null)
         {
             try

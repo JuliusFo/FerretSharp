@@ -95,8 +95,9 @@
 
     private WorkspaceEditing Editing => Lifecycle.Editing;
 
-    /// <summary>The age of an open transaction counts up.</summary>
-    protected override void OnInitialized() =>
+    /// <summary>The age of an open transaction counts up; the C# model's loading steps show (the shell no longer renders for them).</summary>
+    protected override void OnInitialized()
+    {
         _ticker = new Timer(_ => InvokeAsync(() =>
         {
             if (Editing.WithWork().Count > 0)
@@ -104,6 +105,10 @@
                 StateHasChanged();
             }
         }), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+        Models.Changed += OnModelChanged;
+    }
+
+    private void OnModelChanged() => InvokeAsync(StateHasChanged);
 
     /// <summary>The segment of the active workspace while it has uncommitted work.</summary>
     private RenderFragment EditStatus(WorkspaceTabs workspace, EditSummary edits)
@@ -176,6 +181,7 @@
 
     public async ValueTask DisposeAsync()
     {
+        Models.Changed -= OnModelChanged;
         if (_ticker is not null)
         {
             await _ticker.DisposeAsync();

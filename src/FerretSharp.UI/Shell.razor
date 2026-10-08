@@ -189,7 +189,7 @@
         Connections.Changed += OnChanged;
         Active.Changed += OnConnectionOrWorkspacesChanged;
         Workspaces.Changed += OnConnectionOrWorkspacesChanged;
-        Models.Changed += OnChanged;
+        Models.Changed += OnModelsChanged;
         Presentations.Changed += OnChanged;
         KeepAlive.ConnectionLost += OnKeepAliveLost;
         KeepAlive.Start();
@@ -349,6 +349,23 @@
 
     private void OnChanged() => InvokeAsync(StateHasChanged);
 
+    /// <summary>
+    /// The model manager reports every loading step; the shell (and with it every mounted tab of every workspace) renders
+    /// only when a project gets linked or unlinked ("+ LINQ"). The status bar and the model page follow the steps
+    /// themselves, a loaded model arrives through the presentation service.
+    /// </summary>
+    private void OnModelsChanged()
+    {
+        var linked = HasLinkedProject;
+        if (linked != _linked)
+        {
+            _linked = linked;
+            OnChanged();
+        }
+    }
+
+    private bool _linked;
+
     public async ValueTask DisposeAsync()
     {
         ExitGuard.CanExit = null;
@@ -359,7 +376,7 @@
         Connections.Changed -= OnChanged;
         Active.Changed -= OnConnectionOrWorkspacesChanged;
         Workspaces.Changed -= OnConnectionOrWorkspacesChanged;
-        Models.Changed -= OnChanged;
+        Models.Changed -= OnModelsChanged;
         Presentations.Changed -= OnChanged;
         KeepAlive.ConnectionLost -= OnKeepAliveLost;
         if (_shortcuts is not null)

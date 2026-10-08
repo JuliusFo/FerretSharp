@@ -59,6 +59,12 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
     /// <summary>The build output a background restart failed for (not tried again until the output changes).</summary>
     private IReadOnlyDictionary<string, FileStamp>? _failedFiles;
 
+    /// <summary>
+    /// A build changed the output while the model was (about to be) reloaded: the console restarts once the model state
+    /// has moved on from this one, so two hosts never build the model at the same time.
+    /// </summary>
+    private ClrModelState? _restartAfter;
+
     public LinqConsoleService(IModelHostRunner runner, ClrModelManager models)
     {
         _runner = runner;
@@ -258,8 +264,27 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
         }
     }
 
-    /// <summary>A build changed the output: load it in the background if a console runs (otherwise the next start takes it).</summary>
-    private void OnBuildOutputChanged() => StartRestart(supersede: true);
+    /// <summary>
+    /// A build changed the output: load it in the background if a console runs (otherwise the next start takes it) – after
+    /// the model has been reloaded, which the model manager starts at the same time. Building a large model takes seconds
+    /// of CPU; two hosts doing it at once made the UI stutter.
+    /// </summary>
+    private void OnBuildOutputChanged()
+    {
+        if (_console is not { IsAlive: true })
+        {
+            return;
+        }
+
+        lock (_lock)
+        {
+            _restart?.Cancel(); // a restart on the previous build is outdated
+            _restartAfter = _models.State;
+        }
+
+        Set(new LinqConsoleState(LinqConsolePhase.Ready, ReloadPrefix + "wartet auf das Modell"));
+        OnModelsChanged();
+    }
 
     /// <param name="supersede">A newer build: cancel a restart still running. Otherwise only start one if none runs.</param>
     private void StartRestart(bool supersede)
@@ -377,13 +402,31 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
     /// </summary>
     private void OnModelsChanged()
     {
-        var link = _models.State.Link;
+        var state = _models.State;
+        var link = state.Link;
+        var restart = false;
+        lock (_lock)
+        {
+            if (_restartAfter is { } after && !ReferenceEquals(after, state) && state.Phase != ClrModelPhase.Loading)
+            {
+                _restartAfter = null;
+                restart = link == _seenLink;
+            }
+        }
+
+        if (restart)
+        {
+            StartRestart(supersede: true);
+        }
+
         lock (_lock)
         {
             if (link == _seenLink)
             {
                 return;
             }
+
+            _restartAfter = null;
 
             _seenLink = link;
             _restart?.Cancel();

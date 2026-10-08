@@ -279,8 +279,29 @@
              + "Nach einem Build lädt er die neue Version automatisch.",
     };
 
-    private IReadOnlyList<LinqDiagnostic> Markers(string section) =>
-        Tab.LastRun?.Diagnostics.Where(d => d.Section == section).ToList() ?? (IReadOnlyList<LinqDiagnostic>)[];
+    /// <summary>
+    /// The run's diagnostics of a section – the same list until the next run: the editor sends markers to Monaco whenever
+    /// it gets another list, and the tab renders on every console state change.
+    /// </summary>
+    private IReadOnlyList<LinqDiagnostic> Markers(string section)
+    {
+        if (!ReferenceEquals(_markersOf, Tab.LastRun))
+        {
+            _markersOf = Tab.LastRun;
+            _markers.Clear();
+        }
+
+        if (!_markers.TryGetValue(section, out var markers))
+        {
+            markers = Tab.LastRun?.Diagnostics.Where(d => d.Section == section).ToList() ?? [];
+            _markers[section] = markers;
+        }
+
+        return markers;
+    }
+
+    private LinqRunResult? _markersOf;
+    private readonly Dictionary<string, IReadOnlyList<LinqDiagnostic>> _markers = [];
 
     private void OnVariablesChanged(string text)
     {

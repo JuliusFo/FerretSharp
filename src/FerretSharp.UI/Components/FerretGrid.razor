@@ -77,6 +77,7 @@
         Presentations.Changed += OnPresentationChanged;
         _presentationVersion = Presentations.Version;
         _presentation = Presentations.For(Details);
+        _shownColumns = ShownColumns(Enumerable.Range(0, Details.Columns.Count).Select(ColumnMeta).ToList());
         var columns = ColumnPinning.DisplayOrder(Details, Tab.PinnedColumns).Select(ColumnMeta).ToList();
         var sorts = Tab.Sorts
             .Where(s => IndexOf(s.Column) >= 0)
@@ -140,11 +141,25 @@
 
         _presentationVersion = Presentations.Version;
         _presentation = Presentations.For(Details);
-        if (await _grid.CallAsync("updateColumns", Enumerable.Range(0, Details.Columns.Count).Select(ColumnMeta).ToList(), HeaderHeight))
+        var columns = Enumerable.Range(0, Details.Columns.Count).Select(ColumnMeta).ToList();
+        // A new build reloads the whole model; most tables read exactly as before – their rows are not fetched again.
+        var shown = ShownColumns(columns);
+        if (shown == _shownColumns)
+        {
+            return;
+        }
+
+        _shownColumns = shown;
+        if (await _grid.CallAsync("updateColumns", columns, HeaderHeight))
         {
             await ReloadAsync();
         }
     });
+
+    /// <summary>The column metadata the grid shows, in schema order (to skip presentation changes that change nothing).</summary>
+    private string? _shownColumns;
+
+    private string ShownColumns(IReadOnlyList<GridColumn> columns) => System.Text.Json.JsonSerializer.Serialize(new { columns, HeaderHeight });
 
     /// <summary>Fetches the loaded rows again where they are (after writing, commit, rollback) and redraws the new rows.</summary>
     public async Task ReloadAsync()
