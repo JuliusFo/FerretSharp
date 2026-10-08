@@ -72,6 +72,8 @@ public sealed class SqlBindsTests
             new("p_3", "AB", OracleTypeHint.Char),
             new("p_4", new byte[] { 1, 2 }, OracleTypeHint.Raw),
             new("p_5", "%meier%", OracleTypeHint.Varchar2),
+            new("p_6", new DateTimeOffset(2026, 10, 8, 12, 0, 0, TimeSpan.FromHours(2)), OracleTypeHint.TimeStampTZ),
+            new("p_7", new DateTimeOffset(2026, 10, 8, 12, 0, 0, 250, TimeSpan.FromHours(-5.5)), OracleTypeHint.TimeStampTZ),
         ];
 
         var variables = parameters.Select(SqlBinds.FromParameter).ToList();

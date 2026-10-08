@@ -55,6 +55,11 @@ public sealed class ComparisonStore(string filePath)
 
             await using var stream = File.OpenRead(filePath);
             var document = await JsonSerializer.DeserializeAsync<Document>(stream, ConnectionStore.JsonOptions, cancellationToken);
+            if (document?.Version > CurrentVersion)
+            {
+                throw new IOException(NewerFormat(document.Version));
+            }
+
             return document?.Comparisons ?? [];
         }
         catch (JsonException ex)
@@ -72,6 +77,12 @@ public sealed class ComparisonStore(string filePath)
         await _gate.WaitAsync(cancellationToken);
         try
         {
+            // A file of a newer FerretSharp (used again after a downgrade) would lose what this version does not know.
+            if (await VersionOnDiskAsync(cancellationToken) is { } version && version > CurrentVersion)
+            {
+                throw new IOException(NewerFormat(version) + " Sie wird nicht überschrieben.");
+            }
+
             await AtomicJsonFile.WriteAsync(filePath, new Document(CurrentVersion, comparisons), ConnectionStore.JsonOptions, cancellationToken);
         }
         finally
@@ -80,5 +91,28 @@ public sealed class ComparisonStore(string filePath)
         }
     }
 
+    private string NewerFormat(int version) => $"{filePath} stammt aus einer neueren FerretSharp-Version (Format {version}).";
+
+    /// <summary>The format of the file there; null if there is none or it cannot be read (then it may be replaced).</summary>
+    private async Task<int?> VersionOnDiskAsync(CancellationToken cancellationToken)
+    {
+        if (!File.Exists(filePath))
+        {
+            return null;
+        }
+
+        try
+        {
+            await using var stream = File.OpenRead(filePath);
+            return (await JsonSerializer.DeserializeAsync<VersionOnly>(stream, ConnectionStore.JsonOptions, cancellationToken))?.Version;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
     private sealed record Document(int Version, IReadOnlyList<SavedComparison> Comparisons);
+
+    private sealed record VersionOnly(int Version);
 }

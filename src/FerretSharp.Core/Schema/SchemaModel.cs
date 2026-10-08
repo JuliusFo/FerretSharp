@@ -69,6 +69,7 @@ public sealed record ColumnInfo(
         "NUMBER" when Precision is { } p && Scale is { } s and not 0 => $"NUMBER({p},{s})",
         "NUMBER" when Precision is { } p => $"NUMBER({p})",
         "NUMBER" when Scale is 0 => "INTEGER",
+        "NUMBER" when Scale is { } s => $"NUMBER(*,{s})", // a scale without precision is a different type than plain NUMBER
         "FLOAT" when Precision is { } p => $"FLOAT({p})",
         _ => DataType,
     };

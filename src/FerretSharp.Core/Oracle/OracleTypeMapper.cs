@@ -214,38 +214,18 @@ public static class OracleTypeMapper
     /// </summary>
     private static ParsedValue ParseWithOffset(string text)
     {
-        var trimmed = text.Trim();
-        if (OffsetSuffix.Match(trimmed) is { Success: true } match
-            && FilterRules.TryParseDate(match.Groups["time"].Value, out var time, out _))
+        switch (FilterRules.TryParseDateWithOffset(text, out var value, out var offset))
         {
-            return TryOffset(match.Groups["offset"].Value, out var offset)
-                ? ParsedValue.Ok(new DateTimeOffset(time, offset))
-                : ParsedValue.Fail($"„{match.Groups["offset"].Value}“ ist kein Zeitzonen-Offset (zwischen -12:00 und +14:00, z. B. +02:00).");
+            case true:
+                return ParsedValue.Ok(value);
+            case false:
+                return ParsedValue.Fail($"„{offset}“ ist kein Zeitzonen-Offset (zwischen -12:00 und +14:00, z. B. +02:00).");
         }
 
         // No offset (or a date like 2026-10-08, whose "-08" only looks like one).
-        return FilterRules.TryParseDate(trimmed, out var local, out _)
+        return FilterRules.TryParseDate(text.Trim(), out var local, out _)
             ? ParsedValue.Ok(new DateTimeOffset(local, TimeZoneInfo.Local.GetUtcOffset(local)))
             : ParsedValue.Fail($"„{text}“ ist kein Zeitstempel mit Zeitzone (TT.MM.JJJJ hh:mm:ss[,ffffff] [+hh:mm]).");
-    }
-
-    private static readonly System.Text.RegularExpressions.Regex OffsetSuffix = new(
-        @"^(?<time>.+?)\s*(?<offset>Z|[+-]\d{1,2}(?::?\d{2})?)$",
-        System.Text.RegularExpressions.RegexOptions.CultureInvariant | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
-    private static bool TryOffset(string text, out TimeSpan offset)
-    {
-        offset = TimeSpan.Zero;
-        if (text is "Z" or "z")
-        {
-            return true;
-        }
-
-        var digits = text[1..].Replace(":", "", StringComparison.Ordinal);
-        var hours = int.Parse(digits.Length > 2 ? digits[..^2] : digits, System.Globalization.CultureInfo.InvariantCulture);
-        var minutes = digits.Length > 2 ? int.Parse(digits[^2..], System.Globalization.CultureInfo.InvariantCulture) : 0;
-        offset = new TimeSpan(hours, minutes, 0) * (text[0] == '-' ? -1 : 1);
-        return minutes < 60 && offset >= TimeSpan.FromHours(-12) && offset <= TimeSpan.FromHours(14);
     }
 
     private static ParsedValue ParseRaw(ColumnInfo column, string text)

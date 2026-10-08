@@ -157,4 +157,29 @@ public sealed class SchemaCompareLoaderTests
             Directory.Delete(Path.GetDirectoryName(file)!, recursive: true);
         }
     }
+
+    /// <summary>A file of a newer FerretSharp (after a downgrade) is reported and kept, not overwritten as format 1.</summary>
+    [Fact]
+    public async Task Comparisons_of_a_newer_format_are_neither_read_nor_overwritten()
+    {
+        var directory = Directory.CreateTempSubdirectory("ferret-comparisons-").FullName;
+        var file = Path.Combine(directory, "comparisons.json");
+        try
+        {
+            const string newer = """{ "version": 2, "comparisons": [], "somethingNew": true }""";
+            await File.WriteAllTextAsync(file, newer, Ct);
+            var store = new ComparisonStore(file);
+
+            var load = await Assert.ThrowsAsync<IOException>(() => store.LoadAsync(Ct));
+            var save = await Assert.ThrowsAsync<IOException>(() => store.SaveAsync([], Ct));
+
+            Assert.Contains("neueren FerretSharp-Version", load.Message);
+            Assert.Contains("nicht überschrieben", save.Message);
+            Assert.Equal(newer, await File.ReadAllTextAsync(file, Ct));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
 }

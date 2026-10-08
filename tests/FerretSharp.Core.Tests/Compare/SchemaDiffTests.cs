@@ -166,6 +166,7 @@ public class SchemaDiffTests
         ["length"] = (Text("C", 50), Text("C", 60), "VARCHAR2(50 CHAR) NULL", "VARCHAR2(60 CHAR) NULL"),
         ["precision"] = (Col("C", precision: 10, scale: 0), Col("C", precision: 12, scale: 0), "NUMBER(10) NULL", "NUMBER(12) NULL"),
         ["scale"] = (Col("C", precision: 12, scale: 2), Col("C", precision: 12, scale: 3), "NUMBER(12,2) NULL", "NUMBER(12,3) NULL"),
+        ["scale without precision"] = (Col("C", scale: 2), Col("C"), "NUMBER(*,2) NULL", "NUMBER NULL"),
         ["nullability"] = (Text("C", 5, nullable: false), Text("C", 5), "VARCHAR2(5 CHAR) NOT NULL", "VARCHAR2(5 CHAR) NULL"),
         ["default"] = (Col("C", defaultValue: "0"), Col("C", defaultValue: "1"), "NUMBER NULL DEFAULT 0", "NUMBER NULL DEFAULT 1"),
         ["no default"] = (Col("C", defaultValue: "0"), Col("C"), "NUMBER NULL DEFAULT 0", "NUMBER NULL"),
@@ -184,6 +185,7 @@ public class SchemaDiffTests
     [InlineData("length")]
     [InlineData("precision")]
     [InlineData("scale")]
+    [InlineData("scale without precision")]
     [InlineData("nullability")]
     [InlineData("default")]
     [InlineData("no default")]
