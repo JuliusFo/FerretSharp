@@ -544,6 +544,17 @@ pre.sql .bind { color: #c2410c; }
 pre.sql .ident { color: var(--accent); }
 pre.sql .comment { color: var(--faint); font-style: italic; }
 pre.sql.definition { max-height: 360px; border: 1px solid var(--border); border-radius: 8px; }
+/* SqlCode's copy button in the block's top right corner; the text keeps clear of it. */
+.sql-block { position: relative; }
+.sql-block > pre.sql { padding-right: 52px; }
+.sql-copy {
+  position: absolute; top: 8px; right: 16px; height: 26px; min-width: 26px; padding: 0 6px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--muted); font-size: 12px;
+}
+.sql-copy:hover { color: var(--text); background: var(--hover); }
+.sql-copy.copied { color: var(--text); }
+.sql-copy.copied svg { color: var(--test); }
 pre.sql.ddl { max-height: none; overflow: visible; border: 1px solid var(--border); border-radius: 8px; }
 .structure table + p.muted, .structure pre + p.muted, .structure p.muted + p.muted { margin-top: 8px; }
 @media (prefers-color-scheme: dark) {
