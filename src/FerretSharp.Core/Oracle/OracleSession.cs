@@ -43,16 +43,20 @@ public sealed partial class OracleSession : IAsyncDisposable
 
     private readonly OracleConnection _connection;
 
-    /// <summary>Serializes all use of <see cref="_connection"/>; never disposed (callers may still be waiting on it).</summary>
-    private readonly SemaphoreSlim _gate = new(1, 1);
-
-    /// <summary>Cancelled when disposing starts: lets go of callers at once (never disposed, like the gate).</summary>
-    private readonly CancellationTokenSource _closing = new();
+    /// <summary>Serializes all use of <see cref="_connection"/> and lets callers go when the session is disposed.</summary>
+    private readonly SessionGate _gate;
     private long _lastRoundTrip = Environment.TickCount64;
-    private volatile bool _disposed;
     private volatile OracleCommand? _running;
 
-    private OracleSession(OracleConnection connection) => _connection = connection;
+    private OracleSession(OracleConnection connection)
+    {
+        _connection = connection;
+        _gate = new SessionGate(OracleErrors.Translate, () =>
+        {
+            _running = null;
+            Interlocked.Exchange(ref _lastRoundTrip, Environment.TickCount64);
+        });
+    }
 
     public string ServerVersion => _connection.ServerVersion;
 
@@ -159,7 +163,7 @@ public sealed partial class OracleSession : IAsyncDisposable
     public async Task<bool> PingIfIdleAsync(TimeSpan idleFor, CancellationToken cancellationToken)
     {
         var idle = TimeSpan.FromMilliseconds(Environment.TickCount64 - Interlocked.Read(ref _lastRoundTrip));
-        if (_disposed || _gate.CurrentCount == 0 || idle < idleFor)
+        if (_gate.IsClosed || _gate.IsBusy || idle < idleFor)
         {
             return false;
         }
@@ -227,15 +231,14 @@ public sealed partial class OracleSession : IAsyncDisposable
     /// </summary>
     public async ValueTask DisposeAsync()
     {
-        if (_disposed)
+        if (_gate.IsClosed)
         {
             return;
         }
 
-        _disposed = true;
-        await _closing.CancelAsync();
+        await _gate.BeginCloseAsync();
         CancelRunningCommand();
-        if (!await _gate.WaitAsync(DisposeWait))
+        if (!await _gate.EnterAfterCloseAsync(DisposeWait))
         {
             // ODP.NET closes synchronously, and on a connection that went silent it blocks until TCP gives up – never on
             // the caller's (UI) thread. Closing ends the session; Oracle rolls back.
@@ -267,77 +270,9 @@ public sealed partial class OracleSession : IAsyncDisposable
     /// <summary>
     /// Every use of the connection: takes the gate (once the session is disposed, the call is abandoned like a cancelled
     /// one – also for callers that were already waiting), runs <paramref name="body"/>, translates Oracle errors into
-    /// <see cref="DatabaseException"/> – the one place they are translated – and releases the gate.
+    /// <see cref="DatabaseException"/> – the one place they are translated – and releases the gate. See <see cref="SessionGate"/>.
     /// </summary>
-    private async Task<T> ExclusiveAsync<T>(Func<Task<T>> body, CancellationToken cancellationToken)
-    {
-        if (_disposed)
-        {
-            throw Closed();
-        }
-
-        using (var waiting = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _closing.Token))
-        {
-            try
-            {
-                await _gate.WaitAsync(waiting.Token);
-            }
-            catch (OperationCanceledException) when (_closing.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
-            {
-                throw Closed();
-            }
-        }
-
-        Task<T>? work = null;
-        var abandoned = false;
-        try
-        {
-            if (_disposed)
-            {
-                throw Closed();
-            }
-
-            work = body();
-            return await work.WaitAsync(_closing.Token);
-        }
-        catch (OperationCanceledException) when (work is { IsCompleted: false } && _closing.IsCancellationRequested)
-        {
-            // Disposed while the command hangs (it ignores the cancel): the caller is let go now; the command keeps the
-            // gate until it ends, so nothing else touches the connection meanwhile.
-            abandoned = true;
-            _ = work.ContinueWith(finished =>
-            {
-                _ = finished.Exception; // observed: the session is gone, nobody waits for it
-                Release();
-            }, CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default);
-            throw Closed();
-        }
-        catch (Exception ex) when (_disposed && ex is not OperationCanceledException)
-        {
-            // Closed while the command ran: whatever the driver throws now is the closing itself, not a lost connection.
-            throw new OperationCanceledException("The session was closed.", ex);
-        }
-        catch (Exception ex) when (OracleErrors.Translate(ex) is { } translated)
-        {
-            throw translated;
-        }
-        finally
-        {
-            if (!abandoned)
-            {
-                Release();
-            }
-        }
-    }
-
-    private void Release()
-    {
-        _running = null;
-        Interlocked.Exchange(ref _lastRoundTrip, Environment.TickCount64);
-        _gate.Release();
-    }
-
-    private static OperationCanceledException Closed() => new("The session was closed.");
+    private Task<T> ExclusiveAsync<T>(Func<Task<T>> body, CancellationToken cancellationToken) => _gate.RunAsync(body, cancellationToken);
 
     private Task ExclusiveAsync(Func<Task> body, CancellationToken cancellationToken) =>
         ExclusiveAsync(async () =>
