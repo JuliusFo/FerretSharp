@@ -38,7 +38,7 @@
                             <button class="link-btn cr-row" title="Im Grid zeigen und im Formular öffnen" @onclick="() => OnShow.InvokeAsync(index)">Zeile @((index + 1).ToString("N0", CultureInfo.CurrentCulture))</button>
                             @if (row.KeyText(Details) is { } key)
                             {
-                                <span class="cr-key">@key</span>
+                                <span class="cr-key" title="@string.Join(", ", Details.PrimaryKey)">@key</span>
                             }
                         </th>
                     }

@@ -94,7 +94,10 @@
         }
     </div>
 
-    <button class="icon-btn ghost ff-copy" title="Wert kopieren (voller Wert)" disabled="@Field.IsNull" @onclick="() => OnCopy(Field)">⧉</button>
+    @if (!Field.IsNull)
+    {
+        <button class="icon-btn ghost ff-copy" title="Wert kopieren (voller Wert)" @onclick="() => OnCopy(Field)">⧉</button>
+    }
 </div>
 
 @code {

@@ -124,7 +124,9 @@ public sealed class GridBridge(IJSRuntime js, string elementId, IDisposable self
 
     /// <summary>
     /// Calls an export of grid.js for this grid (the element id goes first); false if not loaded or disposed (also while
-    /// the call ran).
+    /// the call ran). Pass a list, not an array, as a single argument: an array of a reference type would become the
+    /// params array itself (array covariance), and grid.js got one row instead of the list (LOB editor since 3.6.1,
+    /// found in WP-21).
     /// </summary>
     public async Task<bool> CallAsync(string identifier, params object?[] args)
     {

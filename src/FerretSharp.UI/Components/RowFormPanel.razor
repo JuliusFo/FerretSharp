@@ -12,7 +12,8 @@
 @inject IJSRuntime JS
 @inject ILogger<RowFormPanel> Logger
 
-<aside class="form-panel" style="@WidthStyle" @ref="_panel" @onkeydown="OnKeyDownAsync">
+@* tabindex: a click on a label keeps the focus in the form, so Ctrl+F opens its search, not the grid's column jump. *@
+<aside class="form-panel" style="@WidthStyle" tabindex="-1" @ref="_panel" @onkeydown="OnKeyDownAsync">
     <div class="form-resize" @ref="_handle" title="Breite ändern" @onpointerdown="StartResizeAsync"></div>
     <header class="form-head">
         <button class="icon-btn ghost" title="Vorige Zeile (Alt+↑)" disabled="@(!CanMove(-1))" @onclick="() => MoveAsync(-1)">▲</button>

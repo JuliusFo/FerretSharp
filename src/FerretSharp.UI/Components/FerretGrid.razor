@@ -270,7 +270,7 @@
             result = changes.SetContent(request.Row!, request.Column, loaded, value);
             if (result.IsValid)
             {
-                await _grid.CallAsync("updateRows", new[] { new GridRowUpdate(request.RowIndex, GridRow(request.Row!)) });
+                await _grid.CallAsync("updateRows", new List<GridRowUpdate> { new(request.RowIndex, GridRow(request.Row!)) });
             }
         }
 
@@ -407,7 +407,8 @@
         var edit = Edit(cell.RowIndex, cell.NewId, column, text);
         if (edit.Row is { } row)
         {
-            _ = cell.IsNew ? SetNewRowsAsync() : _grid.CallAsync("updateRows", new[] { new GridRowUpdate(cell.RowIndex, row) });
+            // A list, not an array: an array would become the params array of CallAsync itself (one object per row for grid.js).
+            _ = cell.IsNew ? SetNewRowsAsync() : _grid.CallAsync("updateRows", new List<GridRowUpdate> { new(cell.RowIndex, row) });
         }
 
         return edit.Error;
