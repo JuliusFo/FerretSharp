@@ -1,0 +1,203 @@
+@* Where the result will appear while a statement runs (SQL editor, LINQ console): what runs, for how long (ticking each
+   second), "Abbrechen". A cancel Oracle does not answer within a few seconds (a VPN may swallow it) offers to give up the
+   workspace's session – after saying what that discards. One instance per statement (keyed by the caller). *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Data
+@using FerretSharp.UI.State
+@implements IDisposable
+
+<div class="run-progress" role="status">
+    <div class="run-head">
+        <span class="spinner"></span>
+        <strong>@Title</strong>
+        <span class="run-clock" title="Laufzeit">@Clock(Now - Started)</span>
+    </div>
+    @if (Detail is not null)
+    {
+        <div class="run-detail" title="@Detail">@Flat(Detail)</div>
+    }
+    @if (ScriptStarted is { } script)
+    {
+        <div class="run-meta">Skript läuft seit @Clock(Now - script)</div>
+    }
+
+    <div class="run-actions">
+        @if (_resetting)
+        {
+            <span class="run-meta"><span class="spinner small"></span> Trenne die Session …</span>
+        }
+        else if (_cancelledAt is null)
+        {
+            @if (OnCancel.HasDelegate)
+            {
+                <button class="btn" @onclick="CancelAsync">Abbrechen</button>
+            }
+        }
+        else if (!Stuck)
+        {
+            <span class="run-meta">Wird abgebrochen …</span>
+        }
+        else if (_confirmReset)
+        {
+            <div class="run-stuck">
+                <p>@LossText</p>
+                <div class="run-buttons">
+                    <button class="btn danger-solid" @onclick="ResetAsync">Session trennen</button>
+                    <button class="btn" @onclick="() => _confirmReset = false">Weiter warten</button>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="run-stuck">
+                <p>Oracle reagiert seit @Clock(Now - _cancelledAt.Value) nicht auf den Abbruch – vielleicht hängt die Verbindung (VPN, Firewall).
+                    @(Database ? "Die Session des Workspaces zu trennen beendet das Statement sicher." : "")</p>
+                @if (Database)
+                {
+                    <div class="run-buttons">
+                        <button class="btn danger" title="Schließt die Verbindung dieses Workspaces; beim nächsten Zugriff öffnet sich eine neue"
+                                @onclick="AskResetAsync">Session trennen …</button>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    /// <summary>How long a cancel may take before giving up the session is offered.</summary>
+    private static readonly TimeSpan StuckAfter = TimeSpan.FromSeconds(5);
+
+    private readonly CancellationTokenSource _ticks = new();
+    private DateTimeOffset? _cancelledAt;
+    private bool _confirmReset;
+    private bool _resetting;
+
+    [CascadingParameter]
+    public WorkspaceManager Workspaces { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public Guid WorkspaceId { get; set; }
+
+    /// <summary>"Abfrage läuft", "Statement 3 von 7 · UPDATE".</summary>
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    /// <summary>The statement in one line (cut off by the layout).</summary>
+    [Parameter]
+    public string? Detail { get; set; }
+
+    [Parameter, EditorRequired]
+    public DateTimeOffset Started { get; set; }
+
+    /// <summary>Start of the whole script (several statements); null for one statement.</summary>
+    [Parameter]
+    public DateTimeOffset? ScriptStarted { get; set; }
+
+    /// <summary>Asks the caller to cancel; without a handler there is no button.</summary>
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    /// <summary>The database is at work (not the C# translation): giving up the session can end it.</summary>
+    [Parameter]
+    public bool Database { get; set; } = true;
+
+    private static DateTimeOffset Now => DateTimeOffset.Now;
+
+    private bool Stuck => _cancelledAt is { } at && Now - at >= StuckAfter;
+
+    protected override void OnInitialized() => _ = TickAsync(_ticks.Token);
+
+    /// <summary>Renders once a second: the clock, and "Session trennen" once the cancel is overdue.</summary>
+    private async Task TickAsync(CancellationToken token)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(token))
+            {
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private async Task CancelAsync()
+    {
+        _cancelledAt = Now;
+        await OnCancel.InvokeAsync();
+    }
+
+    /// <summary>Asks only if something would be lost: statement writes of the open transaction.</summary>
+    private Task AskResetAsync()
+    {
+        if (LostActions.Count > 0)
+        {
+            _confirmReset = true;
+            return Task.CompletedTask;
+        }
+
+        return ResetAsync();
+    }
+
+    private async Task ResetAsync()
+    {
+        _confirmReset = false;
+        _resetting = true;
+        await Lifecycle.ResetSessionAsync(WorkspaceId);
+        _resetting = false; // normally the statement has ended and this panel is gone by now
+    }
+
+    /// <summary>The uncommitted writes of the workspace's transaction (read without the session, which is busy).</summary>
+    private IReadOnlyList<WriteAction> LostActions =>
+        Workspaces.TransactionOf(WorkspaceId) is { Mode: TransactionMode.ReadWrite } ? Workspaces.ActionsOf(WorkspaceId) : [];
+
+    private string LossText
+    {
+        get
+        {
+            var actions = LostActions;
+            var statements = actions.Count(a => a.Kind != WriteActionKind.Grid);
+            var grid = actions.Count - statements;
+            var parts = new List<string>
+            {
+                $"Die offene Transaktion des Workspaces ({(actions.Count == 1 ? "1 Änderung" : $"{actions.Count} Änderungen")}) wird verworfen – "
+                + "Oracle rollt sie zurück, sobald der Server die getrennte Verbindung bemerkt; bis dahin bleiben ihre Zeilen gesperrt.",
+            };
+            if (statements > 0)
+            {
+                parts.Add(statements == 1 ? "Was ein Statement geändert hat, ist danach weg." : $"Was {statements} Statements geändert haben, ist danach weg.");
+            }
+
+            if (grid > 0)
+            {
+                parts.Add("Im Grid geschriebene Änderungen werden wieder ausstehend.");
+            }
+
+            return string.Join(" ", parts);
+        }
+    }
+
+    /// <summary>The statement in one line: line breaks and runs of blanks become one blank.</summary>
+    private static string Flat(string sql) => string.Join(' ', sql.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+
+    /// <summary>"0:07", "12:45", "1:02:03".</summary>
+    public static string Clock(TimeSpan elapsed)
+    {
+        var seconds = Math.Max(0, (long)elapsed.TotalSeconds);
+        return seconds >= 3600
+            ? $"{seconds / 3600}:{seconds / 60 % 60:00}:{seconds % 60:00}"
+            : $"{seconds / 60}:{seconds % 60:00}";
+    }
+
+    public void Dispose()
+    {
+        _ticks.Cancel();
+        _ticks.Dispose();
+    }
+}

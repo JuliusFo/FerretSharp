@@ -15,11 +15,6 @@
         <TabTitle Tab="Tab" />
         <span class="linq-console @ConsoleClass" title="@ConsoleTitle">@ConsoleText</span>
         <span class="spacer"></span>
-        @if (_running)
-        {
-            <span class="spinner small"></span>
-            <button class="btn ghost" @onclick="Cancel">Abbrechen</button>
-        }
         <button class="btn primary" disabled="@(_running || Console.State.Phase == LinqConsolePhase.NotLinked)" @onclick="RunAsync"
                 title="Code übersetzen und das SQL im Workspace ausführen (lesend; Schreiben erst nach Bestätigung)">
             ▶ Ausführen <kbd>Ctrl ↵</kbd>
@@ -47,7 +42,12 @@
             <div class="tab-error" title="@_errorDetail">@_error</div>
         }
 
-        @if (Tab.LastRun is { } run)
+        @if (_running && _phase == RunPhase.Translating)
+        {
+            <RunProgress @key="_phaseStarted" WorkspaceId="Tab.WorkspaceId" Title="C#-Code wird übersetzt" Started="_phaseStarted"
+                         OnCancel="Cancel" Database="false" />
+        }
+        else if (Tab.LastRun is { } run)
         {
             @if (run.UnknownNames.Count > 0)
             {
@@ -96,7 +96,7 @@
                         @for (var i = 0; i < run.Commands.Count; i++)
                         {
                             var index = i;
-                            <button class="chip-btn @(index == Tab.SelectedCommand ? "active" : "")" @onclick="() => SelectCommand(index)">
+                            <button class="chip-btn @(index == Tab.SelectedCommand ? "active" : "")" disabled="@_running" @onclick="() => SelectCommandAsync(index)">
                                 @(index + 1) · @FirstWord(run.Commands[index].Sql)
                             </button>
                         }
@@ -129,10 +129,17 @@
 
                 @switch (kind)
                 {
+                    case LinqCommandKind.Query when _query is not null && _running && _phase == RunPhase.Reading:
+                        <RunProgress @key="_phaseStarted" WorkspaceId="Tab.WorkspaceId" Title="Abfrage läuft" Started="_phaseStarted"
+                                     Detail="@command.Sql" OnCancel="Cancel" />
+                        break;
                     case LinqCommandKind.Query when _query is not null:
-                        <div class="grid-host">
-                            <SqlResultGrid @key="_runKey" WorkspaceId="Tab.WorkspaceId" Query="_query" OnStatus="OnGridStatus" />
-                        </div>
+                        @if (_firstPage is not null)
+                        {
+                            <div class="grid-host">
+                                <SqlResultGrid @key="_runKey" WorkspaceId="Tab.WorkspaceId" Query="_query" FirstPage="_firstPage" OnStatus="OnGridStatus" />
+                            </div>
+                        }
                         <ResultFooter Status="_grid">
                             <ErrorActions Context="error">
                                 @if (error.ErrorCode == "ORA-00904")
@@ -146,19 +153,25 @@
                         break;
                     case LinqCommandKind.Write:
                         <div class="linq-write">
-                            @if (_written is { } written)
+                            @if (_running && _phase == RunPhase.Writing)
+                            {
+                                <RunProgress @key="_phaseStarted" WorkspaceId="Tab.WorkspaceId" Title="@($"{FirstWord(command.Sql)} läuft")" Started="_phaseStarted"
+                                             Detail="@command.Sql" OnCancel="Cancel" />
+                            }
+                            else if (_written is { } written)
                             {
                                 var rows = written.Rows == 1 ? "1 Zeile" : $"{written.Rows:N0} Zeilen";
+                                var took = _writtenElapsed is { } elapsed ? $" ({ResultFooter.Ms(elapsed)})" : "";
                                 @switch (WorkspaceEditing.FateOf(Workspaces, Tab.WorkspaceId, written.Id, _writtenIn))
                                 {
                                     case WriteFate.Open:
-                                        <p><strong>@rows geändert</strong> – in der Transaktion des Workspaces. Committen, verwerfen oder zurücknehmen (↶) über die Statusleiste.</p>
+                                        <p><strong>@rows geändert</strong>@took – in der Transaktion des Workspaces. Committen, verwerfen oder zurücknehmen (↶) über die Statusleiste.</p>
                                         break;
                                     case WriteFate.Undone:
-                                        <p class="muted">@rows geändert – inzwischen zurückgenommen (↶).</p>
+                                        <p class="muted">@rows geändert@took – inzwischen zurückgenommen (↶).</p>
                                         break;
                                     default:
-                                        <p class="muted">@rows geändert – die Transaktion ist inzwischen beendet (Commit oder Rollback).</p>
+                                        <p class="muted">@rows geändert@took – die Transaktion ist inzwischen beendet (Commit oder Rollback).</p>
                                         break;
                                 }
                             }
@@ -227,9 +240,24 @@
     private int _runKey;
     private SqlGridStatus? _grid;
     private WriteAction? _written;
+    private TimeSpan? _writtenElapsed;
+
+    /// <summary>The selected query's first page, read here (cancellable, shown by <see cref="RunProgress"/>); the grid reads the rest.</summary>
+    private SqlPage? _firstPage;
+
+    /// <summary>What the running work is at, and since when (one <see cref="RunProgress"/> per phase).</summary>
+    private RunPhase _phase;
+    private DateTimeOffset _phaseStarted;
 
     /// <summary>Start of the transaction <see cref="_written"/> ran in (to tell undo from commit/rollback).</summary>
     private DateTimeOffset? _writtenIn;
+
+    private enum RunPhase
+    {
+        Translating,
+        Reading,
+        Writing,
+    }
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -237,14 +265,14 @@
     [Parameter, EditorRequired]
     public LinqTab Tab { get; set; } = null!;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         Console.Changed += OnConsoleChanged;
         Shell.TabCommandRequested += OnTabCommand;
         _ = Console.WarmUpAsync(); // the host loads the model while the user writes
         if (Tab.LastRun is not null)
         {
-            ShowCommand(); // mounted again (workspace switch): show the last result
+            await RunningAsync(ShowCommandAsync); // mounted again (workspace switch): show the last result
         }
     }
 
@@ -327,61 +355,106 @@
         Tab.Variables = await (_variablesEditor?.GetTextAsync() ?? Task.FromResult<string?>(null)) ?? Tab.Variables;
         Shell.MarkDirty();
 
-        _running = true;
         _error = null;
         _errorDetail = null;
         _written = null;
-        _cts = new CancellationTokenSource();
-        StateHasChanged();
+        await RunningAsync(async token =>
+        {
+            try
+            {
+                Begin(RunPhase.Translating);
+                var code = Tab.Code;
+                var variables = Tab.Variables;
+                Tab.LastRun = await Task.Run(() => Console.RunAsync(code, variables, token), token);
+                Tab.SelectedCommand = Math.Max(0, Tab.LastRun.Commands.ToList().FindIndex(c => LinqStatements.KindOf(c) != LinqCommandKind.Unsupported));
+            }
+            catch (OperationCanceledException)
+            {
+                _error = "Abgebrochen.";
+                return;
+            }
+            catch (ClrModelException ex)
+            {
+                _error = ex.Message;
+                _errorDetail = ex.Detail;
+                return;
+            }
+
+            await ShowCommandAsync(token);
+        });
+    }
+
+    /// <summary>
+    /// Runs <paramref name="work"/> as the tab's one running thing: the run buttons are disabled, <see cref="RunProgress"/>
+    /// shows it (<see cref="Begin"/>), "Abbrechen" cancels its token.
+    /// </summary>
+    private async Task RunningAsync(Func<CancellationToken, Task> work)
+    {
+        if (_running)
+        {
+            return;
+        }
+
+        _running = true;
+        using var cts = _cts = new CancellationTokenSource();
         try
         {
-            var code = Tab.Code;
-            var variables = Tab.Variables;
-            var token = _cts.Token;
-            Tab.LastRun = await Task.Run(() => Console.RunAsync(code, variables, token), token);
-            Tab.SelectedCommand = Math.Max(0, Tab.LastRun.Commands.ToList().FindIndex(c => LinqStatements.KindOf(c) != LinqCommandKind.Unsupported));
-            ShowCommand();
-        }
-        catch (OperationCanceledException)
-        {
-            _error = "Abgebrochen.";
-        }
-        catch (ClrModelException ex)
-        {
-            _error = ex.Message;
-            _errorDetail = ex.Detail;
+            await work(cts.Token);
         }
         finally
         {
             _running = false;
-            _cts?.Dispose();
             _cts = null;
             // Started from a shortcut (Ctrl+Enter), not a UI event: Blazor does not render on its own afterwards.
             StateHasChanged();
         }
     }
 
-    /// <summary>The selected command: a query goes to a new result grid.</summary>
-    private void ShowCommand()
+    private void Begin(RunPhase phase)
     {
-        _written = null;
-        _grid = null;
-        if (Tab.LastRun is { Commands.Count: > 0 } run)
-        {
-            var command = run.Commands[Math.Clamp(Tab.SelectedCommand, 0, run.Commands.Count - 1)];
-            _query = LinqStatements.KindOf(command) == LinqCommandKind.Query ? LinqStatements.ToQuery(command) : null;
-            _runKey++;
-        }
-        else
-        {
-            _query = null;
-        }
+        (_phase, _phaseStarted) = (phase, DateTimeOffset.Now);
+        StateHasChanged();
     }
 
-    private void SelectCommand(int index)
+    /// <summary>
+    /// The selected command: a query reads its first page here – cancellable, with the run panel – and goes to a new
+    /// result grid, which reads the later pages.
+    /// </summary>
+    private async Task ShowCommandAsync(CancellationToken token)
     {
+        (_written, _grid, _firstPage, _query) = (null, null, null, null);
+        _runKey++;
+        if (Tab.LastRun is not { Commands.Count: > 0 } run
+            || run.Commands[Math.Clamp(Tab.SelectedCommand, 0, run.Commands.Count - 1)] is not { } command
+            || LinqStatements.KindOf(command) != LinqCommandKind.Query)
+        {
+            return;
+        }
+
+        var query = _query = LinqStatements.ToQuery(command);
+        Begin(RunPhase.Reading);
+        var result = await Shell.RunDbAsync(Logger, Active.Profile, async () =>
+            await (await Workspaces.GetDataAsync(Tab.WorkspaceId, token)).ReadSqlAsync(query, 0, SqlResultGrid.PageSize, token), token);
+        if (result.Cancelled)
+        {
+            _error = token.IsCancellationRequested ? "Abfrage abgebrochen." : null;
+            return;
+        }
+
+        _firstPage = result.Value;
+        _grid = result.Error is { } error ? new SqlGridStatus(false, 0, false, null, null, error) : null;
+    }
+
+    private Task SelectCommandAsync(int index)
+    {
+        if (_running)
+        {
+            return Task.CompletedTask;
+        }
+
         Tab.SelectedCommand = index;
-        ShowCommand();
+        _error = null;
+        return RunningAsync(ShowCommandAsync);
     }
 
     private void Cancel() => _cts?.Cancel();
@@ -410,14 +483,15 @@
         }
 
         var statement = LinqStatements.ToQuery(run.Commands[Tab.SelectedCommand]);
-        _running = true;
         _error = null;
-        using var cts = _cts = new CancellationTokenSource();
-        var token = cts.Token;
-        var result = await Shell.RunDbAsync(Logger, Active.Profile, async () =>
-            await (await Workspaces.GetEditorAsync(Tab.WorkspaceId, token)).ExecuteAsync(statement, token), token);
-        _running = false;
-        _cts = null;
+        DbResult<WriteAction> result = default;
+        await RunningAsync(async token =>
+        {
+            Begin(RunPhase.Writing);
+            result = await Shell.RunDbAsync(Logger, Active.Profile, async () =>
+                await (await Workspaces.GetEditorAsync(Tab.WorkspaceId, token)).ExecuteAsync(statement, token), token);
+        });
+        var elapsed = DateTimeOffset.Now - _phaseStarted;
         if (result.Cancelled)
         {
             _error = "Abgebrochen – das Statement wurde zurückgenommen.";
@@ -430,7 +504,7 @@
             return;
         }
 
-        (_written, _writtenIn) = (written, Workspaces.TransactionOf(Tab.WorkspaceId)?.StartedAt);
+        (_written, _writtenIn, _writtenElapsed) = (written, Workspaces.TransactionOf(Tab.WorkspaceId)?.StartedAt, elapsed);
         // Table tabs of the workspace may show the changed rows: they fetch them again from the transaction.
         foreach (var tab in Shell.Workspaces.FirstOrDefault(w => w.WorkspaceId == Tab.WorkspaceId)?.TableTabs ?? [])
         {
