@@ -107,7 +107,7 @@ internal sealed class TestApp : IAsyncDisposable
     {
         var reader = Substitute.For<ISchemaReader>();
         reader.GetTablesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([Kunden]);
-        reader.GetSynonymTargetsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
+        reader.GetSynonymTargetsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(SynonymTargets.None);
         reader.GetForeignKeysAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
         var editor = Substitute.For<IDataEditor>();
         editor.Transaction.Returns(new TransactionInfo(TransactionMode.ReadWrite, DateTimeOffset.Now));

@@ -14,6 +14,7 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
     private IReadOnlyList<ForeignKeyInfo> _declared = [];
     private ConcurrentDictionary<TableRef, Lazy<Task<TableDetails>>> _details = new();
     private Dictionary<TableRef, TableSummary> _byRef = [];
+    private Dictionary<PlSqlRef, PlSqlObjectSummary> _plSqlByRef = [];
     private ILookup<TableRef, ForeignKeyInfo> _outgoing = Array.Empty<ForeignKeyInfo>().ToLookup(f => f.From);
     private ILookup<TableRef, ForeignKeyInfo> _incoming = Array.Empty<ForeignKeyInfo>().ToLookup(f => f.To);
 
@@ -21,6 +22,9 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
 
     /// <summary>Own objects and synonym targets, one entry per real object, sorted by display name.</summary>
     public IReadOnlyList<TableSummary> Tables { get; private set; } = [];
+
+    /// <summary>Own packages, procedures, functions and triggers plus synonym targets, one entry per unit, sorted by display name (WP-28).</summary>
+    public IReadOnlyList<PlSqlObjectSummary> PlSqlObjects { get; private set; } = [];
 
     /// <summary>Declared foreign keys, then relationships of other sources that no declared one covers.</summary>
     public IReadOnlyList<ForeignKeyInfo> ForeignKeys { get; private set; } = [];
@@ -50,7 +54,8 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
     {
         var own = await reader.GetTablesAsync(Owner, cancellationToken);
         var synonymTargets = await reader.GetSynonymTargetsAsync(Owner, cancellationToken);
-        var tables = Merge(own, synonymTargets);
+        var tables = Merge(own, synonymTargets.Tables);
+        var plSql = Merge(await reader.GetPlSqlObjectsAsync(Owner, cancellationToken), synonymTargets.PlSql);
 
         // Foreign keys of every schema that contributes objects, so relationships work across synonyms too.
         var foreignKeys = new List<ForeignKeyInfo>();
@@ -61,6 +66,8 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
 
         Tables = tables;
         _byRef = tables.ToDictionary(t => t.Ref);
+        PlSqlObjects = plSql;
+        _plSqlByRef = plSql.ToDictionary(o => o.Ref);
         lock (_foreignKeyLock)
         {
             _declared = foreignKeys;
@@ -98,6 +105,12 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
     public Task RefreshAsync(CancellationToken cancellationToken) => LoadAsync(cancellationToken);
 
     public TableSummary? Find(TableRef table) => _byRef.GetValueOrDefault(table);
+
+    public PlSqlObjectSummary? FindPlSql(PlSqlRef unit) => _plSqlByRef.GetValueOrDefault(unit);
+
+    /// <summary>The PL/SQL unit behind an object of the dependency list (a package body leads to its package); null for other objects.</summary>
+    public PlSqlObjectSummary? FindPlSql(string owner, string name, string objectType) =>
+        PlSqlKinds.Of(objectType) is { } kind ? FindPlSql(new PlSqlRef(owner, name, kind.Kind)) : null;
 
     /// <summary>
     /// Loads details once per table; a failed load is not cached. Callers share the load, so it does not run with any
@@ -139,6 +152,27 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
     public Task<string> GetDdlAsync(TableSummary table, CancellationToken cancellationToken) =>
         reader.GetDdlAsync(table, cancellationToken);
 
+    // PL/SQL views (WP-28), not cached either.
+
+    public Task<PlSqlObjectInfo> GetPlSqlInfoAsync(PlSqlObjectSummary unit, CancellationToken cancellationToken) =>
+        reader.GetPlSqlInfoAsync(unit, cancellationToken);
+
+    public Task<PlSqlSource> GetSourceAsync(PlSqlObjectSummary unit, PlSqlPart part, CancellationToken cancellationToken) =>
+        reader.GetSourceAsync(unit, part, cancellationToken);
+
+    public Task<IReadOnlyList<PlSqlSubprogram>> GetSubprogramsAsync(PlSqlObjectSummary unit, CancellationToken cancellationToken) =>
+        reader.GetSubprogramsAsync(unit, cancellationToken);
+
+    public Task<IReadOnlyList<PlSqlError>> GetErrorsAsync(PlSqlObjectSummary unit, CancellationToken cancellationToken) =>
+        reader.GetErrorsAsync(unit, cancellationToken);
+
+    public Task<ObjectDependencies> GetDependenciesAsync(PlSqlObjectSummary unit, CancellationToken cancellationToken) =>
+        reader.GetDependenciesAsync(unit, cancellationToken);
+
+    /// <summary>Lines of the schema's own PL/SQL containing the text (owner filter: synonym targets are not searched).</summary>
+    public Task<IReadOnlyList<SourceHit>> SearchSourceAsync(string text, int limit, CancellationToken cancellationToken) =>
+        reader.SearchSourceAsync(Owner, text, limit, cancellationToken);
+
     public Task<IReadOnlyList<Data.LockHolder>?> GetLockHoldersAsync(TableRef table, CancellationToken cancellationToken) =>
         reader.GetLockHoldersAsync(table, cancellationToken);
 
@@ -160,17 +194,26 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
     /// Own objects win over synonyms to them; several synonyms for the same object collapse into one entry,
     /// preferring a private synonym over a public one.
     /// </summary>
-    internal static IReadOnlyList<TableSummary> Merge(IReadOnlyList<TableSummary> own, IReadOnlyList<TableSummary> synonymTargets)
+    internal static IReadOnlyList<TableSummary> Merge(IReadOnlyList<TableSummary> own, IReadOnlyList<TableSummary> synonymTargets) =>
+        Merge(own, synonymTargets, t => t.Ref, t => t.Synonym, t => t.DisplayName, t => t.Owner);
+
+    /// <summary>The same for PL/SQL units.</summary>
+    internal static IReadOnlyList<PlSqlObjectSummary> Merge(IReadOnlyList<PlSqlObjectSummary> own, IReadOnlyList<PlSqlObjectSummary> synonymTargets) =>
+        Merge(own, synonymTargets, o => o.Ref, o => o.Synonym, o => o.DisplayName, o => o.Owner);
+
+    private static IReadOnlyList<T> Merge<T, TKey>(
+        IReadOnlyList<T> own, IReadOnlyList<T> synonymTargets,
+        Func<T, TKey> key, Func<T, SynonymInfo?> synonym, Func<T, string> displayName, Func<T, string> owner) where TKey : notnull
     {
-        var ownRefs = own.Select(t => t.Ref).ToHashSet();
+        var ownRefs = own.Select(key).ToHashSet();
         var viaSynonym = synonymTargets
-            .Where(t => !ownRefs.Contains(t.Ref))
-            .GroupBy(t => t.Ref)
-            .Select(g => g.OrderBy(t => t.Synonym?.IsPublic ?? false).ThenBy(t => t.DisplayName, StringComparer.Ordinal).First());
+            .Where(t => !ownRefs.Contains(key(t)))
+            .GroupBy(key)
+            .Select(g => g.OrderBy(t => synonym(t)?.IsPublic ?? false).ThenBy(displayName, StringComparer.Ordinal).First());
 
         return own.Concat(viaSynonym)
-            .OrderBy(t => t.DisplayName, StringComparer.Ordinal)
-            .ThenBy(t => t.Owner, StringComparer.Ordinal)
+            .OrderBy(displayName, StringComparer.Ordinal)
+            .ThenBy(owner, StringComparer.Ordinal)
             .ToList();
     }
 }

@@ -77,7 +77,7 @@ public sealed class SqlScriptPlanTests
         var kunden = new TableSummary("APP", "KUNDEN", TableKind.Table);
         var reader = Substitute.For<ISchemaReader>();
         reader.GetTablesAsync("APP", Arg.Any<CancellationToken>()).Returns((IReadOnlyList<TableSummary>)[kunden]);
-        reader.GetSynonymTargetsAsync("APP", Arg.Any<CancellationToken>()).Returns((IReadOnlyList<TableSummary>)[]);
+        reader.GetSynonymTargetsAsync("APP", Arg.Any<CancellationToken>()).Returns(SynonymTargets.None);
         reader.GetForeignKeysAsync("APP", Arg.Any<CancellationToken>()).Returns((IReadOnlyList<ForeignKeyInfo>)[]);
         reader.GetDetailsAsync(kunden, Arg.Any<CancellationToken>()).Returns(new TableDetails(kunden,
             [
