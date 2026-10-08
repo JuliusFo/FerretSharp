@@ -2,6 +2,7 @@ using FerretSharp.Core.ClrModel;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Workspaces;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace FerretSharp.UI.State;
 
@@ -67,7 +68,8 @@ public sealed class ConnectionScope : IAsyncDisposable
 /// the current one (Alt+O jumps there). A LINQ host of a connection in the background for <see cref="LinqIdleTime"/> is
 /// ended (it holds a .NET process with the model) and starts again when needed.
 /// </summary>
-public sealed class ConnectionHub(IServiceScopeFactory scopes, TimeProvider? timeProvider = null) : IOpenConnections, IAsyncDisposable
+public sealed class ConnectionHub(IServiceScopeFactory scopes, TimeProvider? timeProvider = null, ILogger<ConnectionHub>? logger = null)
+    : IOpenConnections, IAsyncDisposable
 {
     public static readonly TimeSpan LinqIdleTime = TimeSpan.FromMinutes(15);
 
@@ -116,31 +118,42 @@ public sealed class ConnectionHub(IServiceScopeFactory scopes, TimeProvider? tim
     public bool IsOpen(Guid profileId) => Find(profileId) is not null;
 
     /// <summary>
-    /// Shows the connection, opening it first if needed (connecting runs in the background: <see cref="ActiveConnection.Status"/>).
-    /// A failed connection is connected again.
+    /// Shows the connection, opening a scope for it first if needed. Synchronous and meant for the UI thread (R3b): the list
+    /// of open connections and <see cref="Current"/> change only there, while the UI renders them. Connecting is the
+    /// caller's next step, in the background, if <see cref="NeedsConnect"/>.
     /// </summary>
-    public async Task OpenAsync(ConnectionProfile profile)
+    public ConnectionScope Show(ConnectionProfile profile)
     {
-        if (Find(profile.Id) is { } open)
-        {
-            Show(open);
-            if (open.Active.Status is ConnectionStatus.Failed or ConnectionStatus.Disconnected)
-            {
-                await open.Active.ConnectAsync(profile, CancellationToken.None);
-            }
-
-            return;
-        }
-
-        var scope = new ConnectionScope(scopes.CreateAsyncScope(), profile);
+        ConnectionScope scope;
         lock (_lock)
         {
-            _open = [.. _open, scope];
+            if (_open.FirstOrDefault(s => s.Id == profile.Id) is { } open)
+            {
+                scope = open;
+            }
+            else
+            {
+                scope = new ConnectionScope(scopes.CreateAsyncScope(), profile);
+                _open = [.. _open, scope];
+            }
         }
 
         Show(scope);
-        _timer ??= _time.CreateTimer(_ => _ = StopIdleLinqHostsAsync(), null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
-        await scope.Active.ConnectAsync(profile, CancellationToken.None);
+        _timer ??= _time.CreateTimer(_ => _ = StopIdleLinqHostsQuietlyAsync(), null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
+        return scope;
+    }
+
+    /// <summary>Not connected yet, or the last attempt failed: the caller of <see cref="Show(ConnectionProfile)"/> connects it.</summary>
+    public static bool NeedsConnect(ConnectionScope scope) => scope.Active.Status is ConnectionStatus.Failed or ConnectionStatus.Disconnected;
+
+    /// <summary><see cref="Show(ConnectionProfile)"/>, then connects if needed (failures end in <see cref="ConnectionStatus.Failed"/>).</summary>
+    public async Task OpenAsync(ConnectionProfile profile)
+    {
+        var scope = Show(profile);
+        if (NeedsConnect(scope))
+        {
+            await scope.Active.ConnectAsync(profile, CancellationToken.None);
+        }
     }
 
     /// <summary>Shows an open connection; the one shown before becomes <see cref="Previous"/>.</summary>
@@ -212,6 +225,19 @@ public sealed class ConnectionHub(IServiceScopeFactory scopes, TimeProvider? tim
         foreach (var scope in Open.Where(s => s.HiddenSince is { } since && now - since >= LinqIdleTime))
         {
             await scope.Linq.StopIdleAsync();
+        }
+    }
+
+    /// <summary>The timer's call: a connection closed meanwhile (its services disposed) must not end in an unobserved exception.</summary>
+    private async Task StopIdleLinqHostsQuietlyAsync()
+    {
+        try
+        {
+            await StopIdleLinqHostsAsync();
+        }
+        catch (Exception ex) when (ex is ObjectDisposedException or InvalidOperationException or IOException)
+        {
+            logger?.LogDebug(ex, "Stopping idle LINQ hosts failed");
         }
     }
 

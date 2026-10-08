@@ -239,8 +239,14 @@ public sealed class WorkspaceLifecycle(
             return Task.CompletedTask;
         }
 
-        // Off the UI thread; ActiveConnection reports progress through its Changed event and never throws.
-        _ = Task.Run(() => hub.OpenAsync(profile));
+        // Showing (and opening the scope) here on the UI thread; only connecting runs in the background – ActiveConnection
+        // reports progress through its Changed event and never throws.
+        var scope = hub.Show(profile);
+        if (ConnectionHub.NeedsConnect(scope))
+        {
+            _ = Task.Run(() => scope.Active.ConnectAsync(profile, CancellationToken.None));
+        }
+
         return Task.CompletedTask;
     }
 
