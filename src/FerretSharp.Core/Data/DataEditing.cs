@@ -112,8 +112,12 @@ public interface IDataEditor
     Task<FlushResult> FlushAsync(TableDetails table, IReadOnlyList<PendingOperation> operations, FlushOptions options, CancellationToken cancellationToken);
 
     /// <summary>Rolls back to the savepoint of the last of <see cref="Actions"/>; the transaction stays open.</summary>
+    /// <param name="expected">
+    /// The action the user chose to take back (the ↶ tooltip names it); if another one has become the last meanwhile,
+    /// a <see cref="Connections.RefusedException"/> instead. Null: whichever is last.
+    /// </param>
     /// <returns>The action taken back; null if there is none.</returns>
-    Task<WriteAction?> UndoLastAsync(CancellationToken cancellationToken);
+    Task<WriteAction?> UndoLastAsync(Guid? expected, CancellationToken cancellationToken);
 
     Task CommitAsync(CancellationToken cancellationToken);
 

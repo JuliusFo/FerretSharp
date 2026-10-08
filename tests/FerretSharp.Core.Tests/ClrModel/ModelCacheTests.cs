@@ -6,7 +6,7 @@ namespace FerretSharp.Core.Tests.ClrModel;
 
 public sealed class ModelCacheTests : IDisposable
 {
-    private readonly string _root = Directory.CreateTempSubdirectory("ferret-modelcache-").FullName;
+    private readonly TestFolder _folder = new();
     private readonly string _bin;
     private readonly string _host;
     private readonly BuildOutput _output;
@@ -19,23 +19,23 @@ public sealed class ModelCacheTests : IDisposable
 
     public ModelCacheTests()
     {
-        _bin = Directory.CreateDirectory(Path.Combine(_root, "bin", "Debug", "net8.0")).FullName;
+        _bin = Directory.CreateDirectory(_folder.Combine("bin", "Debug", "net8.0")).FullName;
         Write(Path.Combine(_bin, "Shop.Data.dll"), "data");
         Write(Path.Combine(_bin, "Shop.Entities.dll"), "entities");
         Write(Path.Combine(_bin, "Shop.Data.deps.json"), "{}");
         Write(Path.Combine(_bin, "Shop.Data.pdb"), "pdb");
-        _host = Path.Combine(_root, "host", "FerretSharp.ModelHost.dll");
+        _host = _folder.Combine("host", "FerretSharp.ModelHost.dll");
         Directory.CreateDirectory(Path.GetDirectoryName(_host)!);
         Write(_host, "host");
         _output = new BuildOutput(Path.Combine(_bin, "Shop.Data.dll"), Path.Combine(_bin, "Shop.Data.deps.json"), new Version(8, 0),
             DateTime.UtcNow, [], [], null);
-        _link = new ClrProjectLink(Path.Combine(_root, "Shop.Data.csproj"));
+        _link = new ClrProjectLink(_folder.Combine("Shop.Data.csproj"));
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     private ModelCache Cache(string culture = "de-DE") =>
-        new(Path.Combine(_root, "cache"), _host, CultureInfo.GetCultureInfo(culture));
+        new(_folder.Combine("cache"), _host, CultureInfo.GetCultureInfo(culture));
 
     private static void Write(string path, string content)
     {
@@ -56,7 +56,7 @@ public sealed class ModelCacheTests : IDisposable
         Assert.NotNull(cached);
         Assert.Equal(Json(Model), Json(cached.Model));
         Assert.InRange(cached.ExportedAt, before.AddSeconds(-1), DateTimeOffset.Now.AddSeconds(1));
-        Assert.Single(Directory.GetFiles(Path.Combine(_root, "cache"))); // no temp file left
+        Assert.Single(Directory.GetFiles(_folder.Combine("cache"))); // no temp file left
     }
 
     [Fact]
@@ -117,7 +117,7 @@ public sealed class ModelCacheTests : IDisposable
     public async Task A_broken_file_is_no_model()
     {
         await Cache().SaveAsync(_link, _output, Model, Ct);
-        var file = Assert.Single(Directory.GetFiles(Path.Combine(_root, "cache")));
+        var file = Assert.Single(Directory.GetFiles(_folder.Combine("cache")));
         await File.WriteAllTextAsync(file, "{ not json", Ct);
 
         Assert.Null(await Cache().TryLoadAsync(_link, _output, Ct));
@@ -131,14 +131,5 @@ public sealed class ModelCacheTests : IDisposable
         Assert.Null(await Cache().TryLoadAsync(_link, _output, Ct));
     }
 
-    public void Dispose()
-    {
-        try
-        {
-            Directory.Delete(_root, recursive: true);
-        }
-        catch (IOException)
-        {
-        }
-    }
+    public void Dispose() => _folder.Dispose();
 }

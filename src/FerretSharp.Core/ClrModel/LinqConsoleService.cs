@@ -101,6 +101,41 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
         }
     }
 
+    /// <summary>
+    /// Ends the host process if it is idle (WP-24: its connection has been in the background for a while; the next run
+    /// starts it again, from the model cache). A host that is busy stays. True if a host was stopped. A restart for a new
+    /// build is dropped too: the next start reads the newest build anyway.
+    /// </summary>
+    public async Task<bool> StopIdleAsync()
+    {
+        if (!await _gate.WaitAsync(0))
+        {
+            return false;
+        }
+
+        try
+        {
+            if (_console is null)
+            {
+                return false;
+            }
+
+            lock (_lock)
+            {
+                _restart?.Cancel();
+                _restartAfter = null;
+            }
+
+            await StopAsync();
+            Set(_models.State.Link is null ? LinqConsoleState.NotLinked : new LinqConsoleState(LinqConsolePhase.Stopped));
+            return true;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
     /// <summary>Cancels a start in progress ("Abbrechen" while the console loads the project); the next run starts again.</summary>
     public void CancelStart()
     {
@@ -239,7 +274,7 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
     {
         var output = BuildOutputLocator.Find(link);
         var files = BuildFiles.List(Path.GetDirectoryName(output.Assembly)!);
-        var console = await _runner.StartConsoleAsync(link, output, cancellationToken, new Reporter(report));
+        var console = await _runner.StartConsoleAsync(link, output, cancellationToken, new SyncProgress<string>(report));
         return (console, files);
     }
 
@@ -482,11 +517,5 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
             _restart?.Cancel();
             _starting?.Cancel();
         }
-    }
-
-    /// <summary>Calls back on whatever thread reports.</summary>
-    private sealed class Reporter(Action<string> report) : IProgress<string>
-    {
-        public void Report(string value) => report(value);
     }
 }

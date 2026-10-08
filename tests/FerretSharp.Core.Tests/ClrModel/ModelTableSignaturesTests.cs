@@ -35,10 +35,12 @@ public sealed class ModelTableSignaturesTests
             reader.GetTablesAsync(Owner, Arg.Any<CancellationToken>()).Returns([new TableSummary(Owner, "KUNDEN", TableKind.Table), new TableSummary(Owner, "AUFTRAG", TableKind.Table)]);
             reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns([]);
             reader.GetForeignKeysAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
-            reader.GetColumnNamesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(new Dictionary<string, IReadOnlyList<string>>
+            static IReadOnlyList<ColumnInfo> Columns(params string[] names) =>
+                names.Select((name, i) => new ColumnInfo(name, "NUMBER", null, false, 10, 0, false, false, null, i + 1)).ToList();
+            reader.GetColumnsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(new Dictionary<string, IReadOnlyList<ColumnInfo>>
             {
-                ["KUNDEN"] = ["KUNDE_ID", "NAME", "EMAIL"],
-                ["AUFTRAG"] = ["ID", "KUNDE_ID", "STATUS"],
+                ["KUNDEN"] = Columns("KUNDE_ID", "NAME", "EMAIL"),
+                ["AUFTRAG"] = Columns("ID", "KUNDE_ID", "STATUS"),
             });
             _schema = new SchemaCache(reader, Owner);
             await _schema.LoadAsync(Ct);

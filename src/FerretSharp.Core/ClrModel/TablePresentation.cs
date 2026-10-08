@@ -91,24 +91,11 @@ public sealed class TablePresentation
     /// </summary>
     public string FilterValueText(string column, string value)
     {
-        var index = IndexOf(column);
+        var index = Details.IndexOf(column);
         return index >= 0 && _values[index]?.FindOption(value) is { } option ? option.Name : value;
     }
 
     /// <summary>The C# type as written in the entity: <c>int?</c>, <c>string</c>, <c>Kundenart</c>.</summary>
     public static string ClrTypeText(PropertyExport property) =>
         property.ClrType + (property.Nullable && property.ClrType != "string" && !property.ClrType.EndsWith("[]", StringComparison.Ordinal) ? "?" : "");
-
-    private int IndexOf(string column)
-    {
-        for (var i = 0; i < Details.Columns.Count; i++)
-        {
-            if (Details.Columns[i].Name == column)
-            {
-                return i;
-            }
-        }
-
-        return -1;
-    }
 }

@@ -15,8 +15,9 @@ public abstract class DetailViewBase<T> : ComponentBase, IDisposable where T : c
     private int? _loadedVersion;
     private CancellationTokenSource? _cts;
 
-    [Inject]
-    protected ActiveConnection Active { get; set; } = null!;
+    /// <summary>The tab's connection – cascaded by its ConnectionScopeView, never injected (that would be the WebView scope's, without schema).</summary>
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
 
     [Inject]
     private ILoggerFactory LoggerFactory { get; set; } = null!;
@@ -54,7 +55,7 @@ public abstract class DetailViewBase<T> : ComponentBase, IDisposable where T : c
         var cts = _cts = new CancellationTokenSource();
         Loading = true;
         Error = null;
-        var result = await Shell.RunDbAsync(LoggerFactory.CreateLogger(GetType()), Active.Profile, () => LoadAsync(schema, cts.Token), cts.Token);
+        var result = await Shell.RunDbAsync(LoggerFactory.CreateLogger(GetType()), Active, () => LoadAsync(schema, cts.Token), cts.Token);
         if (cts.IsCancellationRequested)
         {
             return; // a newer load took over

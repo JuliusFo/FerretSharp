@@ -7,7 +7,7 @@ using Oracle.ManagedDataAccess.Client;
 namespace FerretSharp.Core.Oracle;
 
 /// <summary>
-/// Writes pending changes in the workspace session's transaction (CLAUDE.md 5.6): savepoint per flush, then per row
+/// Writes pending changes in the workspace session's transaction (docs/architecture.md 1.6): savepoint per flush, then per row
 /// <c>SELECT … FOR UPDATE WAIT n</c> (lock + current values for the concurrency check), then the DML. Any failure
 /// rolls the flush back to its savepoint, so a flush is all or nothing.
 /// </summary>
@@ -17,6 +17,13 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
     private volatile Entry[] _actions = [];
     private int _counter;
 
+    /// <summary>
+    /// One write at a time – flush, statement, undo, commit, rollback. Each takes several turns at the session (begin,
+    /// savepoint, DML, then the action list): a grid flush and a statement of the SQL editor running at once could both
+    /// begin a transaction or lose an action, and an undo could take back a write that was still running.
+    /// </summary>
+    private readonly SemaphoreSlim _writing = new(1, 1);
+
     private sealed record Entry(WriteAction Action, string Savepoint);
 
     public TransactionInfo Transaction => session.Transaction;
@@ -25,16 +32,17 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
     public IReadOnlyList<WriteAction> Actions =>
         session.Transaction.Mode == TransactionMode.ReadWrite ? _actions.Select(e => e.Action).ToList() : [];
 
-    public async Task<FlushResult> FlushAsync(
+    public Task<FlushResult> FlushAsync(
+        TableDetails table, IReadOnlyList<PendingOperation> operations, FlushOptions options, CancellationToken cancellationToken) =>
+        operations.Count == 0
+            ? Task.FromResult(FlushResult.Empty)
+            : OneAtATimeAsync(() => FlushCoreAsync(table, operations, options, cancellationToken), cancellationToken);
+
+    private async Task<FlushResult> FlushCoreAsync(
         TableDetails table, IReadOnlyList<PendingOperation> operations, FlushOptions options, CancellationToken cancellationToken)
     {
-        if (operations.Count == 0)
-        {
-            return FlushResult.Empty;
-        }
-
         await BeginIfNeededAsync(cancellationToken);
-        var savepoint = "FS_FLUSH_" + (++_counter).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var savepoint = NextSavepoint("FS_FLUSH_");
         await session.SavepointAsync(savepoint, cancellationToken);
 
         var newKeys = new Dictionary<Guid, RowKey>();
@@ -69,41 +77,72 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
     /// Takes back the newest action, whoever wrote it: a savepoint cannot be rolled back selectively – everything after
     /// it goes, so undo always takes the last action and never reaches past a statement to an older grid write.
     /// </summary>
-    public async Task<WriteAction?> UndoLastAsync(CancellationToken cancellationToken)
-    {
-        if (Actions.Count == 0 || _actions is not [.., var last])
+    public Task<WriteAction?> UndoLastAsync(Guid? expected, CancellationToken cancellationToken) =>
+        OneAtATimeAsync(async () =>
         {
-            return null;
-        }
+            if (Actions.Count == 0 || _actions is not [.., var last])
+            {
+                return null;
+            }
 
-        await session.RollbackToSavepointAsync(last.Savepoint, cancellationToken);
-        _actions = _actions[..^1];
-        return last.Action;
-    }
+            if (expected is { } id && last.Action.Id != id)
+            {
+                // Written meanwhile (a statement that was still running): ↶ would take back something the user did not pick.
+                throw new RefusedException($"Inzwischen wurde weiter geschrieben – ↶ nimmt jetzt „{last.Action.Display}“ zurück. Bitte noch einmal wählen.");
+            }
 
-    public async Task CommitAsync(CancellationToken cancellationToken)
+            await session.RollbackToSavepointAsync(last.Savepoint, cancellationToken);
+            Remove(last);
+            return (WriteAction?)last.Action;
+        }, cancellationToken);
+
+    public Task CommitAsync(CancellationToken cancellationToken) =>
+        OneAtATimeAsync(async () =>
+        {
+            try
+            {
+                await session.CommitAsync(cancellationToken);
+            }
+            finally
+            {
+                // A failed commit can end the transaction as well (ORA-02091); its savepoints are gone then.
+                if (session.Transaction.Mode == TransactionMode.None)
+                {
+                    _actions = [];
+                }
+            }
+
+            return true;
+        }, cancellationToken);
+
+    public Task RollbackAsync(CancellationToken cancellationToken) =>
+        OneAtATimeAsync(async () =>
+        {
+            await session.RollbackAsync(cancellationToken);
+            _actions = [];
+            return true;
+        }, cancellationToken);
+
+    public Task<WriteAction> ExecuteAsync(QuerySpec statement, CancellationToken cancellationToken) =>
+        OneAtATimeAsync(() => ExecuteCoreAsync(statement, cancellationToken), cancellationToken);
+
+    private async Task<T> OneAtATimeAsync<T>(Func<Task<T>> write, CancellationToken cancellationToken)
     {
+        await _writing.WaitAsync(cancellationToken);
         try
         {
-            await session.CommitAsync(cancellationToken);
+            return await write();
         }
         finally
         {
-            // A failed commit can end the transaction as well (ORA-02091); its savepoints are gone then.
-            if (session.Transaction.Mode == TransactionMode.None)
-            {
-                _actions = [];
-            }
+            _writing.Release();
         }
     }
 
-    public async Task RollbackAsync(CancellationToken cancellationToken)
-    {
-        await session.RollbackAsync(cancellationToken);
-        _actions = [];
-    }
+    private string NextSavepoint(string prefix) =>
+        prefix + Interlocked.Increment(ref _counter).ToString(System.Globalization.CultureInfo.InvariantCulture);
 
-    public async Task<WriteAction> ExecuteAsync(QuerySpec statement, CancellationToken cancellationToken)
+    private async Task<WriteAction> ExecuteCoreAsync(QuerySpec statement, CancellationToken cancellationToken)
     {
         if (session.Transaction.Mode == TransactionMode.ReadOnly)
         {
@@ -112,7 +151,7 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
         }
 
         await BeginIfNeededAsync(cancellationToken);
-        var savepoint = "FS_EXEC_" + (++_counter).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var savepoint = NextSavepoint("FS_EXEC_");
         await session.SavepointAsync(savepoint, cancellationToken);
         int rows;
         try
@@ -141,6 +180,9 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
     }
 
     private void Add(WriteAction action, string savepoint) => _actions = [.. _actions, new Entry(action, savepoint)];
+
+    /// <summary>By identity, not by position: what was rolled back is exactly this entry.</summary>
+    private void Remove(Entry entry) => _actions = _actions.Where(e => !ReferenceEquals(e, entry)).ToArray();
 
     /// <summary>"KUNDEN: 2 geändert, 1 neu, 1 gelöscht".</summary>
     internal static string DescribeFlush(TableDetails table, IReadOnlyList<PendingOperation> operations)

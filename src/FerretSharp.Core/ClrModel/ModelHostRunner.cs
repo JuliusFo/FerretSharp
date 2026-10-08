@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using FerretSharp.Core.IO;
 
 namespace FerretSharp.Core.ClrModel;
 
@@ -21,12 +22,6 @@ public interface IModelHostRunner
     /// </summary>
     /// <exception cref="ClrModelException">The host could not start or reported an error while loading.</exception>
     Task<ILinqConsole> StartConsoleAsync(ClrProjectLink link, BuildOutput output, CancellationToken cancellationToken, IProgress<string>? progress = null);
-}
-
-/// <summary>Exit code and output (stdout and stderr interleaved) of a <c>dotnet</c> call.</summary>
-public sealed record DotNetRun(int ExitCode, string Output)
-{
-    public bool Succeeded => ExitCode == 0;
 }
 
 /// <summary>
@@ -106,6 +101,39 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
             _timeout, progress, cancellationToken);
     }
 
+    /// <summary>Each start of the host gets a work folder of its own below this one; nothing else is ever deleted.</summary>
+    internal static string WorkRoot { get; } = Path.Combine(Path.GetTempPath(), "FerretSharp", "modelhost");
+
+    /// <summary>Set once old work folders were removed in this process.</summary>
+    private static int _staleFoldersRemoved;
+
+    /// <summary>
+    /// Work folders of earlier runs that could not be deleted then (a file still held by a host that was being killed):
+    /// removed once per process, if older than <paramref name="age"/> – a younger one may belong to another FerretSharp.
+    /// </summary>
+    internal static void DeleteStaleWorkFolders(string root, TimeSpan age)
+    {
+        try
+        {
+            if (!Directory.Exists(root))
+            {
+                return;
+            }
+
+            foreach (var folder in new DirectoryInfo(root).EnumerateDirectories())
+            {
+                if (DateTime.UtcNow - folder.LastWriteTimeUtc > age)
+                {
+                    SafeDelete.TryDirectoryBelow(root, folder.FullName);
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // housekeeping only
+        }
+    }
+
     /// <summary>
     /// A start of the host: its own temp folder with the runtimeconfig for the project's runtime, and the copy of the
     /// build output it runs from (the output itself without a shadow).
@@ -125,7 +153,13 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
             throw new ClrModelException(ClrModelErrorKind.HostFailed, $"FerretSharp.ModelHost fehlt: {modelHostPath}");
         }
 
-        var work = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "FerretSharp", "modelhost", Guid.NewGuid().ToString("N")));
+        var root = WorkRoot;
+        if (Interlocked.Exchange(ref _staleFoldersRemoved, 1) == 0)
+        {
+            DeleteStaleWorkFolders(root, TimeSpan.FromDays(1));
+        }
+
+        var work = Directory.CreateDirectory(Path.Combine(root, Guid.NewGuid().ToString("N")));
         var runtimeConfig = Path.Combine(work.FullName, "modelhost.runtimeconfig.json");
         try
         {
@@ -165,7 +199,7 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
     }
 
     public Task<DotNetRun> BuildAsync(ClrProjectLink link, CancellationToken cancellationToken) =>
-        DotNetCli.RunAsync(["build", link.ProjectFile, "-c", link.Configuration, "-nologo", "-v", "q"],
+        DotNetCli.RunAsync(["build", link.ProjectFile, "-c", link.Configuration, "-nologo", "-v", "q", "-nodeReuse:false"],
             Path.GetDirectoryName(link.ProjectFile)!, TimeSpan.FromMinutes(10), cancellationToken);
 
     /// <summary>
@@ -191,196 +225,4 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
     }
 
     private static ModelHostResult Fail(string kind, string message, string? detail = null) => new(null, new ModelHostError(kind, message, detail));
-}
-
-/// <summary>Runs the installed <c>dotnet</c> (FerretSharp itself is self-contained and brings none).</summary>
-public static class DotNetCli
-{
-    private const int MaxOutput = 200_000;
-
-    /// <summary>
-    /// Starts <c>dotnet</c> below normal priority and returns while it runs (the LINQ console); lines arrive on any thread.
-    /// </summary>
-    public static Process Start(IEnumerable<string> arguments, string workingDirectory, Action<string> onOutputLine, Action<string> onErrorLine)
-    {
-        var process = new Process { StartInfo = StartInfo(arguments, workingDirectory) };
-        process.OutputDataReceived += (_, e) =>
-        {
-            if (e.Data is { } line)
-            {
-                onOutputLine(line);
-            }
-        };
-        process.ErrorDataReceived += (_, e) =>
-        {
-            if (e.Data is { } line)
-            {
-                onErrorLine(line);
-            }
-        };
-        if (!process.Start())
-        {
-            process.Dispose();
-            throw new ClrModelException(ClrModelErrorKind.DotNetMissing, "dotnet ließ sich nicht starten.");
-        }
-
-        Lower(process);
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
-        return process;
-    }
-
-    private static ProcessStartInfo StartInfo(IEnumerable<string> arguments, string workingDirectory)
-    {
-        var start = new ProcessStartInfo(FindDotNet())
-        {
-            WorkingDirectory = workingDirectory,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8,
-        };
-        foreach (var argument in arguments)
-        {
-            start.ArgumentList.Add(argument);
-        }
-
-        // English tool messages, no telemetry banner, no first-run experience in the output.
-        start.Environment["DOTNET_CLI_UI_LANGUAGE"] = "en";
-        start.Environment["DOTNET_NOLOGO"] = "1";
-        start.Environment["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1";
-        return start;
-    }
-
-    /// <param name="background">
-    /// Below normal priority (the model host): building a large model keeps cores busy for seconds, the UI must stay fluid.
-    /// </param>
-    public static async Task<DotNetRun> RunAsync(
-        IEnumerable<string> arguments, string workingDirectory, TimeSpan timeout, CancellationToken cancellationToken,
-        Action<string>? onOutputLine = null, bool background = false)
-    {
-        using var process = new Process { StartInfo = StartInfo(arguments, workingDirectory) };
-        var output = new StringBuilder();
-        void Append(string? line)
-        {
-            if (line is null)
-            {
-                return;
-            }
-
-            lock (output)
-            {
-                if (output.Length < MaxOutput)
-                {
-                    output.AppendLine(line);
-                }
-            }
-        }
-
-        process.OutputDataReceived += (_, e) =>
-        {
-            Append(e.Data);
-            if (e.Data is { } line)
-            {
-                onOutputLine?.Invoke(line);
-            }
-        };
-        process.ErrorDataReceived += (_, e) => Append(e.Data);
-        if (!process.Start())
-        {
-            throw new ClrModelException(ClrModelErrorKind.DotNetMissing, "dotnet ließ sich nicht starten.");
-        }
-
-        if (background)
-        {
-            Lower(process);
-        }
-
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
-
-        using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutSource.CancelAfter(timeout);
-        try
-        {
-            await process.WaitForExitAsync(timeoutSource.Token);
-        }
-        catch (OperationCanceledException)
-        {
-            // dotnet build leaves compiler and MSBuild processes behind; the model host has no children. The tree kill
-            // walks every process of the system and throws for each protected one – under a debugger every such
-            // exception stops all threads, which froze the UI for seconds whenever a superseded model load ended.
-            DotNetCli.Kill(process, entireProcessTree: !background);
-            cancellationToken.ThrowIfCancellationRequested();
-            throw new ClrModelException(ClrModelErrorKind.Timeout, $"dotnet hat nach {timeout.TotalSeconds:0} s nicht geantwortet und wurde beendet.");
-        }
-
-        process.WaitForExit(); // flushes the asynchronous output readers
-        lock (output)
-        {
-            return new DotNetRun(process.ExitCode, output.ToString());
-        }
-    }
-
-    /// <summary>
-    /// The model host below normal priority: it competes for the CPU with FerretSharp's UI (WPF and the WebView), and two
-    /// of them may build a model at the same time (ADR 0016).
-    /// </summary>
-    private static void Lower(Process process)
-    {
-        try
-        {
-            process.PriorityClass = ProcessPriorityClass.BelowNormal;
-        }
-        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or PlatformNotSupportedException)
-        {
-            // already exited, or not allowed: it runs at normal priority
-        }
-    }
-
-    /// <summary>Ends a process that may have exited meanwhile.</summary>
-    /// <param name="entireProcessTree">Also its children – expensive (every process of the system is looked at).</param>
-    internal static void Kill(Process process, bool entireProcessTree)
-    {
-        try
-        {
-            if (!process.HasExited)
-            {
-                process.Kill(entireProcessTree);
-            }
-        }
-        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
-        {
-            // exited meanwhile, or already terminating
-        }
-    }
-
-    /// <summary>The <c>dotnet</c> muxer: <c>DOTNET_HOST_PATH</c>, the PATH, then the default install location.</summary>
-    public static string FindDotNet()
-    {
-        var name = OperatingSystem.IsWindows() ? "dotnet.exe" : "dotnet";
-        if (Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") is { Length: > 0 } host && File.Exists(host))
-        {
-            return host;
-        }
-
-        foreach (var directory in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
-        {
-            var candidate = Path.Combine(directory.Trim('"'), name);
-            if (File.Exists(candidate))
-            {
-                return candidate;
-            }
-        }
-
-        var installed = OperatingSystem.IsWindows()
-            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "dotnet", name)
-            : "/usr/share/dotnet/dotnet";
-        return File.Exists(installed)
-            ? installed
-            : throw new ClrModelException(ClrModelErrorKind.DotNetMissing,
-                "dotnet wurde nicht gefunden – für das C#-Modell muss ein .NET SDK oder eine .NET-Runtime installiert sein.");
-    }
 }

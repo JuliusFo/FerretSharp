@@ -1,8 +1,7 @@
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
-@using FerretSharp.UI.State
-@inject PresentationService Presentations
+@inject ShortcutService Shortcuts
 
 <div class="filterbar">
     @if (Tab.FilterRows.Count == 0)
@@ -79,12 +78,15 @@
             <button class="btn ghost" @onclick="OnShowSql">@Icons.Code SQL</button>
             <button class="btn ghost" title="Ausführungsplan der Abfrage – geschätzt oder tatsächlich" @onclick="OnShowPlan">Plan</button>
             <button class="btn ghost" @onclick="ClearAsync">Leeren</button>
-            <button class="btn primary" @onclick="OnApply">Anwenden <kbd>Ctrl ↵</kbd></button>
+            <button class="btn primary" @onclick="OnApply">Anwenden <Kbd Action="ShortcutAction.ApplyFilters" /></button>
         </div>
     }
 </div>
 
 @code {
+    [CascadingParameter]
+    public PresentationService Presentations { get; set; } = null!;
+
     /// <summary>The row added last; its column picker gets the focus, so the user can type the column right away.</summary>
     private FilterRow? _newRow;
 

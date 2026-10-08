@@ -8,7 +8,7 @@ using FerretSharp.Core.Schema;
 namespace FerretSharp.Core.Query;
 
 /// <summary>
-/// Builds the statements that write pending changes (v2, WP-09, CLAUDE.md 5.6): lock the row with
+/// Builds the statements that write pending changes (v2, WP-09, docs/architecture.md 1.6): lock the row with
 /// <c>SELECT … FOR UPDATE WAIT n</c> (returns its current values for the concurrency check), then UPDATE/DELETE by
 /// row key or INSERT … RETURNING ROWID. Identifiers quoted, values always bound; nothing here runs anything.
 /// </summary>

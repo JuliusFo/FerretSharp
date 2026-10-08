@@ -56,14 +56,25 @@ public enum ProblemChoice
 /// share the transaction (<see cref="IDataEditor.Actions"/>). Owned by the shell.
 /// </summary>
 public sealed class WorkspaceEditing(
-    ShellState shell, WorkspaceManager workspaces, ActiveConnection active, AppSettingsService settings, ILogger<WorkspaceEditing> logger)
+    ShellState shell, ConnectionHub hub, AppSettingsService settings, ILogger<WorkspaceEditing> logger)
 {
+    /// <summary>The connection a workspace belongs to (WP-24: several can be open; a background one may still finish a write).</summary>
+    private ConnectionScope ScopeOf(Guid workspaceId) => hub.ScopeOfWorkspace(workspaceId);
+
+    private WorkspaceManager WorkspacesOf(Guid workspaceId) => ScopeOf(workspaceId).Workspaces;
+
     /// <summary>Per workspace: the grid writes with what to restore when undone, in the order written.</summary>
     private readonly Dictionary<Guid, List<(Guid ActionId, TableTab Tab, FlushBatch Batch)>> _batches = [];
     private readonly Dictionary<Guid, HashSet<Guid>> _overwrite = [];
 
-    /// <summary>A write, commit or rollback is running (buttons disabled).</summary>
-    public bool Busy { get; private set; }
+    /// <summary>Workspaces with a write, commit or rollback running (their buttons are disabled).</summary>
+    private readonly HashSet<Guid> _busy = [];
+
+    /// <summary>
+    /// A write, commit or rollback of this workspace is running. Per workspace (WP-24): a slow commit on one connection must
+    /// not silently swallow Ctrl+S in another.
+    /// </summary>
+    public bool IsBusy(Guid workspaceId) => _busy.Contains(workspaceId);
 
     public FlushProblem? Problem { get; private set; }
 
@@ -73,8 +84,8 @@ public sealed class WorkspaceEditing(
     public EditSummary SummaryOf(WorkspaceTabs workspace) => new(
         Trackers(workspace).Sum(t => t.PendingCount),
         Trackers(workspace).Sum(t => t.FlushedCount),
-        workspaces.TransactionOf(workspace.WorkspaceId),
-        workspaces.ActionsOf(workspace.WorkspaceId));
+        hub.ScopeOf(workspace).Workspaces.TransactionOf(workspace.WorkspaceId),
+        hub.ScopeOf(workspace).Workspaces.ActionsOf(workspace.WorkspaceId));
 
     /// <summary>What became of a statement's write (<paramref name="action"/>, run in the transaction that began at <paramref name="transactionStart"/>).</summary>
     public static WriteFate FateOf(WorkspaceManager workspaces, Guid workspaceId, Guid action, DateTimeOffset? transactionStart)
@@ -90,20 +101,22 @@ public sealed class WorkspaceEditing(
     }
 
     /// <summary>Workspaces whose changes would be lost (pending, flushed or an open writing transaction).</summary>
-    public IReadOnlyList<WorkspaceTabs> WithWork() => shell.Workspaces.Where(w => SummaryOf(w).HasWork).ToList();
+    /// <summary>Workspaces with uncommitted work, of all open connections (quitting asks for all).</summary>
+    public IReadOnlyList<WorkspaceTabs> WithWork() => shell.AllWorkspaces.Where(w => SummaryOf(w).HasWork).ToList();
 
     /// <summary>Writes the pending changes of all tabs; false if a problem stopped it (see <see cref="Problem"/>).</summary>
-    public Task<bool> FlushAsync(WorkspaceTabs workspace) => RunAsync(() => FlushCoreAsync(workspace, duringCommit: false));
+    public Task<bool> FlushAsync(WorkspaceTabs workspace) =>
+        StoppedByForm(workspace) ? Task.FromResult(false) : RunAsync(workspace, () => FlushCoreAsync(workspace, duringCommit: false));
 
     /// <summary>Writes what is pending, then commits; false if a write problem stopped it.</summary>
-    public Task<bool> CommitAsync(WorkspaceTabs workspace) => RunAsync(async () =>
+    public Task<bool> CommitAsync(WorkspaceTabs workspace) => StoppedByForm(workspace) ? Task.FromResult(false) : RunAsync(workspace, async () =>
     {
         if (!await FlushCoreAsync(workspace, duringCommit: true))
         {
             return false;
         }
 
-        var editor = await workspaces.GetEditorAsync(workspace.WorkspaceId, CancellationToken.None);
+        var editor = await WorkspacesOf(workspace.WorkspaceId).GetEditorAsync(workspace.WorkspaceId, CancellationToken.None);
         if (editor.Transaction.Mode == TransactionMode.ReadWrite)
         {
             try
@@ -125,11 +138,11 @@ public sealed class WorkspaceEditing(
     });
 
     /// <summary>Discards everything: flushed changes (rollback) and pending ones.</summary>
-    public Task<bool> RollbackAsync(WorkspaceTabs workspace) => RunAsync(async () =>
+    public Task<bool> RollbackAsync(WorkspaceTabs workspace) => RunAsync(workspace, async () =>
     {
-        if (workspaces.TransactionOf(workspace.WorkspaceId) is { Mode: TransactionMode.ReadWrite })
+        if (WorkspacesOf(workspace.WorkspaceId).TransactionOf(workspace.WorkspaceId) is { Mode: TransactionMode.ReadWrite })
         {
-            var editor = await workspaces.GetEditorAsync(workspace.WorkspaceId, CancellationToken.None);
+            var editor = await WorkspacesOf(workspace.WorkspaceId).GetEditorAsync(workspace.WorkspaceId, CancellationToken.None);
             await editor.RollbackAsync(CancellationToken.None);
         }
 
@@ -142,15 +155,16 @@ public sealed class WorkspaceEditing(
     /// Takes back the last write: rollback to its savepoint. A grid write's changes become pending again; a statement's
     /// rows are as before it (the tabs reload, its result says "zurückgenommen").
     /// </summary>
-    public Task<bool> UndoLastAsync(WorkspaceTabs workspace) => RunAsync(async () =>
+    /// <param name="expected">The action the ↶ button named; refused if another one was written meanwhile.</param>
+    public Task<bool> UndoLastAsync(WorkspaceTabs workspace, Guid? expected = null) => RunAsync(workspace, async () =>
     {
-        if (workspaces.ActionsOf(workspace.WorkspaceId).Count == 0)
+        if (WorkspacesOf(workspace.WorkspaceId).ActionsOf(workspace.WorkspaceId).Count == 0)
         {
             return false;
         }
 
-        var editor = await workspaces.GetEditorAsync(workspace.WorkspaceId, CancellationToken.None);
-        if (await editor.UndoLastAsync(CancellationToken.None) is not { } action)
+        var editor = await WorkspacesOf(workspace.WorkspaceId).GetEditorAsync(workspace.WorkspaceId, CancellationToken.None);
+        if (await editor.UndoLastAsync(expected, CancellationToken.None) is not { } action)
         {
             return false;
         }
@@ -166,11 +180,7 @@ public sealed class WorkspaceEditing(
         }
         else
         {
-            // A statement: any table tab of the workspace may show rows it had changed.
-            foreach (var tab in workspace.TableTabs)
-            {
-                shell.RequestTabCommand(tab, TabCommand.Reload);
-            }
+            shell.ReloadTableTabs(workspace.WorkspaceId); // a statement: any of them may show rows it had changed
 
             shell.Notify($"Zurückgenommen: {action.Display}.");
         }
@@ -203,7 +213,7 @@ public sealed class WorkspaceEditing(
 
         Problem = null;
         shell.NotifyChanged();
-        var workspace = shell.Workspaces.FirstOrDefault(w => w.WorkspaceId == problem.WorkspaceId);
+        var workspace = shell.FindWorkspace(problem.WorkspaceId);
         if (workspace is null || choice == ProblemChoice.Cancel)
         {
             return;
@@ -228,6 +238,17 @@ public sealed class WorkspaceEditing(
     }
 
     /// <summary>After the connection was lost or closed: nothing of it can be committed any more.</summary>
+    /// <summary>
+    /// The workspace's session was given up (<see cref="WorkspaceLifecycle.ResetSessionAsync"/>) and its transaction with it:
+    /// grid writes become pending again (as after a failed commit), every table tab reloads.
+    /// </summary>
+    public void SessionReset(WorkspaceTabs workspace)
+    {
+        RestorePending(workspace);
+        Forget(workspace.WorkspaceId);
+        shell.ReloadTableTabs(workspace.WorkspaceId);
+    }
+
     public void Forget(Guid workspaceId)
     {
         _batches.Remove(workspaceId);
@@ -246,7 +267,7 @@ public sealed class WorkspaceEditing(
             return true;
         }
 
-        var editor = await workspaces.GetEditorAsync(workspace.WorkspaceId, CancellationToken.None);
+        var editor = await WorkspacesOf(workspace.WorkspaceId).GetEditorAsync(workspace.WorkspaceId, CancellationToken.None);
         var options = new FlushOptions(settings.Current.LockWaitSeconds, Overwrites(workspace.WorkspaceId));
         foreach (var tab in tabs)
         {
@@ -264,7 +285,7 @@ public sealed class WorkspaceEditing(
             catch (FlushException ex)
             {
                 IReadOnlyList<LockHolder>? holders = null;
-                if (ex is LockConflictException && active.Schema is { } schema)
+                if (ex is LockConflictException && ScopeOf(workspace.WorkspaceId).Active.Schema is { } schema)
                 {
                     holders = await TryAsync(() => schema.GetLockHoldersAsync(tracker.Table.Table.Ref, CancellationToken.None));
                 }
@@ -279,6 +300,18 @@ public sealed class WorkspaceEditing(
         }
 
         Overwrites(workspace.WorkspaceId).Clear();
+        return true;
+    }
+
+    /// <summary>A form holds a typed value that cannot be taken (WP-21): nothing is written, the field shows why.</summary>
+    private bool StoppedByForm(WorkspaceTabs workspace)
+    {
+        if (shell.PrepareWrite(workspace.WorkspaceId) is not { } reason)
+        {
+            return false;
+        }
+
+        shell.Notify(reason);
         return true;
     }
 
@@ -308,23 +341,22 @@ public sealed class WorkspaceEditing(
         Forget(workspace.WorkspaceId);
     }
 
-    private async Task<bool> RunAsync(Func<Task<bool>> action)
+    private async Task<bool> RunAsync(WorkspaceTabs workspace, Func<Task<bool>> action)
     {
-        if (Busy)
+        if (!_busy.Add(workspace.WorkspaceId))
         {
             return false;
         }
 
-        Busy = true;
         shell.NotifyChanged();
         try
         {
-            var result = await shell.CallDbAsync(logger, active.Profile, action);
+            var result = await shell.CallDbAsync(logger, ScopeOf(workspace.WorkspaceId).Active, action);
             return shell.ShowFailure(result) && result.Value;
         }
         finally
         {
-            Busy = false;
+            _busy.Remove(workspace.WorkspaceId);
             shell.NotifyChanged();
         }
     }

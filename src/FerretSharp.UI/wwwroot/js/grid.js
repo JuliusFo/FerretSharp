@@ -1,6 +1,8 @@
 // Bridge to AG Grid Community (global `agGrid`, loaded by index.html). Infinite row model: every block of rows,
 // including sorting, comes from .NET; cells arrive as display strings (null = SQL NULL). No business logic here.
 
+import { comboOf, localCombo } from './shortcuts.js';
+
 const grids = new Map();
 // Per grid: whether its workspace may write (switched by setEditable when the workspace is unlocked or locked).
 const editStates = new Map();
@@ -12,6 +14,33 @@ const headerHeights = new Map();
 const listKeys = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End']);
 const media = window.matchMedia('(prefers-color-scheme: dark)');
 let modulesRegistered = false;
+
+// A call into .NET that failed. Errors of the handlers themselves reach the tab's error boundary on the .NET side (FerretComponent);
+// what is left here is the transport – mostly a grid whose component is already gone. Logged, not hidden.
+const callFailed = e => console.debug('FerretSharp: grid call to .NET failed', e);
+
+// How .NET names a row: the index of a loaded row, or -1 and the id of a new row pinned at the top.
+const rowArgs = (node, data) => [node.rowPinned ? -1 : node.rowIndex, data?.__new ?? null];
+
+// The id of the new row behind a cell pinned at the top (a focused cell, a cell event); null for loaded rows.
+const newIdOf = (api, cell) => cell?.rowPinned === 'top' ? api.getPinnedTopRow(cell.rowIndex)?.data?.__new ?? null : null;
+
+// The message below a cell editor; null removes it.
+function showEditorError(gui, message) {
+  let label = gui.querySelector('.fs-editor-error');
+  if (!message) {
+    label?.remove();
+    return;
+  }
+
+  if (!label) {
+    label = document.createElement('div');
+    label.className = 'fs-editor-error';
+    gui.appendChild(label);
+  }
+
+  label.textContent = message;
+}
 
 function registerModules() {
   if (!modulesRegistered && agGrid.ModuleRegistry && agGrid.AllCommunityModule) {
@@ -127,7 +156,7 @@ class FerretCellEditor {
       this.input.value = '';
     } else {
       this.input.disabled = true;
-      state.dotnet.invokeMethodAsync('GetEditText', params.node.rowPinned ? -1 : params.node.rowIndex, params.data?.__new ?? null, params.column.getColId())
+      state.dotnet.invokeMethodAsync('GetEditText', ...rowArgs(params.node, params.data), params.column.getColId())
         .then(text => {
           this.input.disabled = false;
           this.input.value = text ?? '';
@@ -149,7 +178,7 @@ class FerretCellEditor {
       e.preventDefault();
       e.stopPropagation();
       const error = await params.state.dotnet.invokeMethodAsync('ValidateEdit',
-        params.node.rowPinned ? -1 : params.node.rowIndex, params.data?.__new ?? null, params.column.getColId(), this.input.value);
+        ...rowArgs(params.node, params.data), params.column.getColId(), this.input.value);
       if (error) {
         this.showError(error);
       } else {
@@ -158,21 +187,7 @@ class FerretCellEditor {
     });
     this.input.addEventListener('input', () => this.showError(null));
   }
-  showError(message) {
-    let label = this.eGui.querySelector('.fs-editor-error');
-    if (!message) {
-      label?.remove();
-      return;
-    }
-
-    if (!label) {
-      label = document.createElement('div');
-      label.className = 'fs-editor-error';
-      this.eGui.appendChild(label);
-    }
-
-    label.textContent = message;
-  }
+  showError(message) { showEditorError(this.eGui, message); }
   getGui() { return this.eGui; }
   afterGuiAttached() {
     this.listenForEnter();
@@ -203,7 +218,7 @@ class FerretSelectEditor {
     this.eGui.appendChild(this.select);
     this.select.disabled = true;
     const clear = params.eventKey === 'Backspace' || params.eventKey === 'Delete';
-    params.state.dotnet.invokeMethodAsync('GetEditText', params.node.rowPinned ? -1 : params.node.rowIndex, params.data?.__new ?? null, params.column.getColId())
+    params.state.dotnet.invokeMethodAsync('GetEditText', ...rowArgs(params.node, params.data), params.column.getColId())
       .then(text => {
         const value = clear ? '' : text ?? '';
         // A value without a member stays selectable, so leaving the editor does not change it.
@@ -224,15 +239,9 @@ class FerretSelectEditor {
   async commit() {
     const params = this.params;
     const error = await params.state.dotnet.invokeMethodAsync('ValidateEdit',
-      params.node.rowPinned ? -1 : params.node.rowIndex, params.data?.__new ?? null, params.column.getColId(), this.select.value);
+      ...rowArgs(params.node, params.data), params.column.getColId(), this.select.value);
     if (error) {
-      let label = this.eGui.querySelector('.fs-editor-error');
-      if (!label) {
-        label = document.createElement('div');
-        label.className = 'fs-editor-error';
-        this.eGui.appendChild(label);
-      }
-      label.textContent = error;
+      showEditorError(this.eGui, error);
     } else {
       params.stopEditing();
     }
@@ -304,7 +313,7 @@ function firstVisibleRow(api) {
 
 /** Pinned columns in display order (primary key first); .NET drops the always pinned primary key. */
 function reportPinned(api, dotnet) {
-  dotnet.invokeMethodAsync('OnPinnedChanged', api.getDisplayedLeftColumns().map(c => c.getColId())).catch(() => {});
+  dotnet.invokeMethodAsync('OnPinnedChanged', api.getDisplayedLeftColumns().map(c => c.getColId())).catch(callFailed);
 }
 
 /**
@@ -391,39 +400,44 @@ export function create(elementId, dotnet, columns, options) {
     e.preventDefault();
     const colId = e.target.closest?.('.ag-header-cell')?.getAttribute('col-id');
     if (colId && table) {
-      dotnet.invokeMethodAsync('OnHeaderContextMenu', colId, e.clientX, e.clientY, window.innerWidth, window.innerHeight).catch(() => {});
+      dotnet.invokeMethodAsync('OnHeaderContextMenu', colId, e.clientX, e.clientY, window.innerWidth, window.innerHeight).catch(callFailed);
     }
   });
 
+  // The grid's keys, in the capture phase (before AG Grid): each handler says whether the key was its.
+  element.addEventListener('keydown', e => onDeleteKey(e) || onCopyKey(e) || onFormKey(e) || onLobKey(e), true);
+
+  const selectedRows = () => api.getSelectedNodes().map(n => n.rowIndex).filter(i => i != null);
+
+  // Del (not while editing): mark the selected rows for deletion – pending until written, can be reverted.
+  function onDeleteKey(e) {
+    if (!table || e.key !== 'Delete' || e.ctrlKey || e.altKey || api.getEditingCells().length > 0) return false;
+    const loaded = selectedRows();
+    const pinned = [newIdOf(api, api.getFocusedCell())].filter(Boolean);
+    if (loaded.length > 0 || pinned.length > 0) {
+      e.preventDefault();
+      dotnet.invokeMethodAsync('OnDeleteKey', loaded, pinned).then(updates => applyUpdates(api, updates)).catch(callFailed);
+    }
+    return true;
+  }
+
   // Ctrl+C: the focused cell, or the selected rows if there are several (AG Grid Community has no clipboard).
   // Text marked with the mouse inside one cell is copied by the browser as usual.
-  element.addEventListener('keydown', e => {
-    // Del (not while editing): mark the selected rows for deletion – pending until written, can be reverted.
-    if (table && e.key === 'Delete' && !e.ctrlKey && !e.altKey && api.getEditingCells().length === 0) {
-      const loaded = api.getSelectedNodes().map(n => n.rowIndex).filter(i => i != null);
-      const focused = api.getFocusedCell();
-      const pinned = focused?.rowPinned === 'top' ? [api.getPinnedTopRow(focused.rowIndex)?.data?.__new].filter(Boolean) : [];
-      if (loaded.length > 0 || pinned.length > 0) {
-        e.preventDefault();
-        dotnet.invokeMethodAsync('OnDeleteKey', loaded, pinned).then(updates => applyUpdates(api, updates)).catch(() => {});
-      }
-      return;
-    }
-
-    if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'c') return;
-    if (textMarkedInOneCell()) return;
+  function onCopyKey(e) {
+    if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'c') return false;
+    if (textMarkedInOneCell()) return true;
     const cell = api.getFocusedCell();
-    if (!cell || cell.rowIndex == null || cell.rowPinned) return;
+    if (!cell || cell.rowIndex == null || cell.rowPinned) return true;
     e.preventDefault();
-    const selected = api.getSelectedNodes().map(n => n.rowIndex).filter(i => i != null);
-    dotnet.invokeMethodAsync('OnCopy', cell.rowIndex, cell.column.getColId(), selected).catch(() => {});
-  }, true);
+    dotnet.invokeMethodAsync('OnCopy', cell.rowIndex, cell.column.getColId(), selectedRows()).catch(callFailed);
+    return true;
+  }
 
   // Shift+click selects a range of rows; without this the browser would also mark text across the cells.
   element.addEventListener('mousedown', e => { if (e.shiftKey) e.preventDefault(); }, true);
 
   // Double click starts editing. The WPF host passes the second mouse-down of a real double click twice, so the
-  // browser never raises dblclick (CLAUDE.md, section 7) – AG Grid's own double-click editing would not react.
+  // browser never raises dblclick (src/FerretSharp.UI/CLAUDE.md) – AG Grid's own double-click editing would not react.
   element.addEventListener('click', e => {
     if (e.detail < 2 || api.getEditingCells().length > 0) return;
     const cell = e.target.closest?.('.ag-cell');
@@ -444,18 +458,43 @@ export function create(elementId, dotnet, columns, options) {
   // LOB cells are not edited in the cell: double click or Enter opens the LOB editor (a Blazor dialog) – also on a
   // locked workspace, to read the whole value.
   function openLob(rowIndex, newId, colId) {
-    dotnet.invokeMethodAsync('OnLobCell', newId ? -1 : rowIndex, newId ?? null, colId).catch(() => {});
+    dotnet.invokeMethodAsync('OnLobCell', newId ? -1 : rowIndex, newId ?? null, colId).catch(callFailed);
   }
 
-  element.addEventListener('keydown', e => {
-    if (e.key !== 'Enter' || e.ctrlKey || e.altKey || e.shiftKey || api.getEditingCells().length > 0) return;
-    const cell = api.getFocusedCell();
-    if (!cell || !metaById.get(cell.column.getColId())?.lob) return;
+  // Alt+Enter by default (Windows' "properties", changeable since WP-25): the form of the focused row, or the comparison
+  // of the selected rows (WP-21). Only in the grid, not a global shortcut – the SQL and LINQ editors keep their keys.
+  function onFormKey(e) {
+    const formKey = localCombo('form');
+    if (!table || !formKey || comboOf(e) !== formKey || api.getEditingCells().length > 0) return false;
     e.preventDefault();
     e.stopPropagation();
-    const newId = cell.rowPinned === 'top' ? api.getPinnedTopRow(cell.rowIndex)?.data?.__new : null;
-    openLob(cell.rowIndex, newId, cell.column.getColId());
-  }, true);
+    const cell = api.getFocusedCell();
+    dotnet.invokeMethodAsync('OnFormKey', cell && !cell.rowPinned ? cell.rowIndex : -1, newIdOf(api, cell), selectedRows()).catch(callFailed);
+    return true;
+  }
+
+  // The form follows the focused cell; arrow keys move it fast, so only the last position within a moment is reported.
+  let focusTimer = null;
+  function reportFocus(e) {
+    if (!table || e.rowIndex == null) return;
+    // e.api: the event may come while createGrid still runs (before `api` is assigned).
+    const newId = newIdOf(e.api, e);
+    if (e.rowPinned && !newId) return;
+    const colId = typeof e.column === 'string' ? e.column : e.column?.getColId?.() ?? null;
+    clearTimeout(focusTimer);
+    focusTimer = setTimeout(() => dotnet.invokeMethodAsync('OnFocused', e.rowPinned ? -1 : e.rowIndex, newId ?? null, colId).catch(callFailed), 60);
+  }
+
+  // Enter on a LOB cell opens the LOB editor (see openLob).
+  function onLobKey(e) {
+    if (e.key !== 'Enter' || e.ctrlKey || e.altKey || e.shiftKey || api.getEditingCells().length > 0) return false;
+    const cell = api.getFocusedCell();
+    if (!cell || !metaById.get(cell.column.getColId())?.lob) return false;
+    e.preventDefault();
+    e.stopPropagation();
+    openLob(cell.rowIndex, newIdOf(api, cell), cell.column.getColId());
+    return true;
+  }
 
   const api = agGrid.createGrid(element, {
     theme: theme(headerHeight),
@@ -486,7 +525,7 @@ export function create(elementId, dotnet, columns, options) {
       const colId = e.column.getColId();
       const text = e.newValue ?? '';
       try {
-        const result = await dotnet.invokeMethodAsync('OnCellEdit', e.node.rowPinned ? -1 : e.node.rowIndex, e.data?.__new ?? null, colId, text);
+        const result = await dotnet.invokeMethodAsync('OnCellEdit', ...rowArgs(e.node, e.data), colId, text);
         if (result.error) {
           // Left with Tab or a click elsewhere: reopen the editor with the rejected text and the reason.
           editState.retry = { key: cellKey(e.node, colId), text, error: result.error };
@@ -501,7 +540,8 @@ export function create(elementId, dotnet, columns, options) {
         console.error(err);
       }
     },
-    onBodyScrollEnd: () => { if (table) dotnet.invokeMethodAsync('OnScrolled', firstVisibleRow(api)).catch(() => {}); },
+    onBodyScrollEnd: () => { if (table) dotnet.invokeMethodAsync('OnScrolled', firstVisibleRow(api)).catch(callFailed); },
+    onCellFocused: reportFocus,
     // Pinned or reordered within the pinned area by dragging (changes from setPinned have source 'api').
     onColumnPinned: e => { if (table && e.source?.startsWith('ui')) reportPinned(api, dotnet); },
     onColumnMoved: e => { if (table && e.finished && e.source?.startsWith('ui') && e.column?.getPinned()) reportPinned(api, dotnet); },
@@ -512,7 +552,7 @@ export function create(elementId, dotnet, columns, options) {
       if (!e.node.isSelected()) e.node.setSelected(true, true);
       const selected = api.getSelectedNodes().map(n => n.rowIndex).filter(i => i != null);
       dotnet.invokeMethodAsync('OnCellContextMenu', e.rowIndex, e.column.getColId(), selected,
-        e.event.clientX, e.event.clientY, window.innerWidth, window.innerHeight).catch(() => {});
+        e.event.clientX, e.event.clientY, window.innerWidth, window.innerHeight).catch(callFailed);
     },
     datasource: {
       getRows: async params => {
@@ -560,6 +600,25 @@ export function startEditing(elementId, rowIndex, colId, pinned) {
   api.ensureColumnVisible(colId);
   api.setFocusedCell(rowIndex, colId, pinned ? 'top' : undefined);
   api.startEditingCell({ rowIndex, colKey: colId, rowPinned: pinned ? 'top' : undefined });
+}
+
+/**
+ * Moves the focused cell to a row (the form's ▲ ▼, WP-21); a block not loaded yet is fetched. colId null keeps the
+ * focused column. pinned: rowIndex counts the new rows at the top. keepFocus: the keyboard focus stays where it was
+ * (in the form), the grid only shows the row.
+ */
+export function focusRow(elementId, rowIndex, colId, pinned, keepFocus) {
+  const api = grids.get(elementId);
+  if (!api) return;
+  const column = colId ?? api.getFocusedCell()?.column.getColId() ?? api.getAllDisplayedColumns()[0]?.getColId();
+  if (!column) return;
+  const active = document.activeElement;
+  if (!pinned) api.ensureIndexVisible(rowIndex);
+  api.ensureColumnVisible(column);
+  api.setFocusedCell(rowIndex, column, pinned ? 'top' : undefined);
+  if (keepFocus && active && active !== document.body && !document.getElementById(elementId)?.contains(active)) {
+    active.focus();
+  }
 }
 
 /** Fetches the cached blocks again without moving (after writing): the rows show what the transaction holds. */

@@ -5,13 +5,13 @@ namespace FerretSharp.Core.Tests.ClrModel;
 /// <summary>Finding the build output of a linked project in a fake project folder (no build involved).</summary>
 public sealed class BuildOutputLocatorTests : IDisposable
 {
-    private readonly DirectoryInfo _root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "fs-locator-" + Guid.NewGuid().ToString("N")));
+    private readonly TestFolder _folder = new();
 
-    public void Dispose() => _root.Delete(recursive: true);
+    public void Dispose() => _folder.Dispose();
 
     private string Project(string name, string body = "", string sdk = "Microsoft.NET.Sdk")
     {
-        var directory = Directory.CreateDirectory(Path.Combine(_root.FullName, name));
+        var directory = Directory.CreateDirectory(_folder.Combine(name));
         var file = Path.Combine(directory.FullName, name + ".csproj");
         File.WriteAllText(file, $"<Project Sdk=\"{sdk}\"><PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup>{body}</Project>");
         File.WriteAllText(Path.Combine(directory.FullName, "Context.cs"), "class C {}");
@@ -20,10 +20,10 @@ public sealed class BuildOutputLocatorTests : IDisposable
         return file;
     }
 
-    private static string Built(string project, string assembly, string framework = ".NETCoreApp,Version=v8.0", string configuration = "Debug", string tfm = "net8.0")
+    private static string Built(string project, string assembly, string framework = ".NETCoreApp,Version=v8.0", string configuration = "Debug", string tfm = "net8.0", bool efCore = true)
     {
         var output = Directory.CreateDirectory(Path.Combine(Path.GetDirectoryName(project)!, "bin", configuration, tfm));
-        File.WriteAllText(Path.Combine(output.FullName, assembly + ".deps.json"), $$"""{ "runtimeTarget": { "name": "{{framework}}" } }""");
+        File.WriteAllText(Path.Combine(output.FullName, assembly + ".deps.json"), $$"""{ "runtimeTarget": { "name": "{{framework}}" }, "libraries": { {{(efCore ? "\"Microsoft.EntityFrameworkCore/8.0.0\": {}" : "")}} } }""");
         var dll = Path.Combine(output.FullName, assembly + ".dll");
         File.WriteAllText(dll, "");
         return dll;
@@ -35,9 +35,9 @@ public sealed class BuildOutputLocatorTests : IDisposable
         var project = Project("Shop.Data");
         var dll = Built(project, "Shop.Data");
         Built(project, "Shop.Data", configuration: "Release");
-        var packages = Directory.CreateDirectory(Path.Combine(_root.FullName, "packages"));
-        Directory.CreateDirectory(Path.Combine(_root.FullName, "Shop.Data", "obj"));
-        File.WriteAllText(Path.Combine(_root.FullName, "Shop.Data", "obj", "project.assets.json"),
+        var packages = Directory.CreateDirectory(_folder.Combine("packages"));
+        Directory.CreateDirectory(_folder.Combine("Shop.Data", "obj"));
+        File.WriteAllText(_folder.Combine("Shop.Data", "obj", "project.assets.json"),
             // NuGet writes the folder with a trailing separator – '\' on Windows, '/' elsewhere (CI runs on Linux too).
             $$"""{ "packageFolders": { {{System.Text.Json.JsonSerializer.Serialize(packages.FullName + Path.DirectorySeparatorChar)}}: {} } }""");
 
@@ -47,6 +47,30 @@ public sealed class BuildOutputLocatorTests : IDisposable
         Assert.Equal(new Version(8, 0), output.TargetFramework);
         Assert.Equal([packages.FullName + Path.DirectorySeparatorChar], output.PackageFolders);
         Assert.False(output.IsStale);
+    }
+
+    [Fact]
+    public void A_project_without_ef_core_is_refused_with_a_hint()
+    {
+        var project = Project("Shop.Entities");
+        Built(project, "Shop.Entities", efCore: false);
+
+        Assert.Equal(ClrModelErrorKind.NoEfCore, Assert.Throws<ClrModelException>(() => BuildOutputLocator.Find(new ClrProjectLink(project))).Kind);
+    }
+
+    [Fact]
+    public void Check_reports_a_project_that_cannot_work_but_accepts_one_that_is_not_built_yet()
+    {
+        var noEf = Project("Shop.Entities");
+        Built(noEf, "Shop.Entities", efCore: false);
+        var notBuilt = Project("Shop.Data");
+        var good = Project("Shop.Good");
+        Built(good, "Shop.Good");
+
+        Assert.Contains("EF Core", BuildOutputLocator.Check(new ClrProjectLink(noEf)));
+        Assert.Null(BuildOutputLocator.Check(new ClrProjectLink(notBuilt)));
+        Assert.Null(BuildOutputLocator.Check(new ClrProjectLink(good)));
+        Assert.NotNull(BuildOutputLocator.Check(new ClrProjectLink(_folder.Combine("gone.csproj"))));
     }
 
     [Fact]
@@ -85,7 +109,7 @@ public sealed class BuildOutputLocatorTests : IDisposable
     public void Missing_project_missing_build_and_old_frameworks_are_explained()
     {
         Assert.Equal(ClrModelErrorKind.ProjectNotFound,
-            Assert.Throws<ClrModelException>(() => BuildOutputLocator.Find(new ClrProjectLink(Path.Combine(_root.FullName, "x.csproj")))).Kind);
+            Assert.Throws<ClrModelException>(() => BuildOutputLocator.Find(new ClrProjectLink(_folder.Combine("x.csproj")))).Kind);
 
         var notBuilt = Project("Shop.Neu");
         var error = Assert.Throws<ClrModelException>(() => BuildOutputLocator.Find(new ClrProjectLink(notBuilt)));
@@ -99,6 +123,24 @@ public sealed class BuildOutputLocatorTests : IDisposable
         var standard = Project("Shop.Std");
         Built(standard, "Shop.Std", ".NETStandard,Version=v2.0", tfm: "netstandard2.0");
         Assert.Equal(ClrModelErrorKind.UnsupportedFramework, Assert.Throws<ClrModelException>(() => BuildOutputLocator.Find(new ClrProjectLink(standard))).Kind);
+    }
+
+    [Fact]
+    public void Build_files_are_read_without_locking_out_a_build_writing_them()
+    {
+        var project = Project("Shop.Data");
+        var dll = Built(project, "Shop.Data");
+        var obj = Directory.CreateDirectory(Path.Combine(Path.GetDirectoryName(project)!, "obj"));
+        var assets = Path.Combine(obj.FullName, "project.assets.json");
+        File.WriteAllText(assets, """{ "packageFolders": {} }""");
+
+        // Sharing is symmetric: a read that succeeds while a writer has the file open also lets a writer open it while FerretSharp reads.
+        using var deps = new FileStream(Path.ChangeExtension(dll, ".deps.json"), FileMode.Open, FileAccess.Write, FileShare.ReadWrite);
+        using var restore = new FileStream(assets, FileMode.Open, FileAccess.Write, FileShare.ReadWrite);
+
+        var output = BuildOutputLocator.Find(new ClrProjectLink(project));
+
+        Assert.Equal(new Version(8, 0), output.TargetFramework);
     }
 
     [Fact]

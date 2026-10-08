@@ -6,11 +6,16 @@ namespace FerretSharp.Core.Tests.Workspaces;
 
 public sealed class WorkspaceStoreTests : IDisposable
 {
-    private readonly string _directory = Path.Combine(Path.GetTempPath(), "ferret-tests", Guid.NewGuid().ToString("N"), "workspaces");
+    private readonly TestFolder _folder = new();
+    private readonly string _directory;
     private readonly WorkspaceStore _store;
     private readonly Guid _connectionId = Guid.NewGuid();
 
-    public WorkspaceStoreTests() => _store = new WorkspaceStore(_directory);
+    public WorkspaceStoreTests()
+    {
+        _directory = _folder.Combine("workspaces"); // created by the store
+        _store = new WorkspaceStore(_directory);
+    }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -29,6 +34,7 @@ public sealed class WorkspaceStoreTests : IDisposable
                 FirstVisibleRow: 1200)
             {
                 PinnedColumns = ["NAME", "ORT"],
+                Form = new FormTabState(Open: true, Width: 520, HideEmpty: true),
             },
             new TabState(new TableRef("OTHER", "Quoted.Name"), TabMode.Structure, [], [], []) { OriginTab = 0 },
         ],
@@ -62,6 +68,8 @@ public sealed class WorkspaceStoreTests : IDisposable
         Assert.Equal(TabMode.Structure, loaded.Tabs[1].Mode);
         Assert.Null(loaded.Tabs[1].FirstVisibleRow);
         Assert.Empty(loaded.Tabs[1].PinnedColumns);
+        Assert.Equal(new FormTabState(true, 520, true), tab.Form);
+        Assert.Null(loaded.Tabs[1].Form);
     }
 
     [Fact]
@@ -99,6 +107,7 @@ public sealed class WorkspaceStoreTests : IDisposable
         Assert.Equal(new TableRef("APP", "KUNDEN"), tab.Table);
         Assert.Empty(tab.PinnedColumns);
         Assert.Null(tab.OriginTab);
+        Assert.Null(tab.Form);
     }
 
     [Fact]
@@ -197,12 +206,5 @@ public sealed class WorkspaceStoreTests : IDisposable
         Assert.Null(Workspace.NormalizeName(new string('x', Workspace.MaxNameLength + 1)));
     }
 
-    public void Dispose()
-    {
-        var root = Path.GetDirectoryName(_directory)!;
-        if (Directory.Exists(root))
-        {
-            Directory.Delete(root, recursive: true);
-        }
-    }
+    public void Dispose() => _folder.Dispose();
 }

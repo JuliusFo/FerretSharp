@@ -1,6 +1,6 @@
-@* App settings: appearance (light/dark), C# names of a linked project and the connection behaviour. *@
+@* App settings: appearance (light/dark), C# names of a linked project and the connection behaviour; the shortcuts as a
+   section of their own (WP-25). *@
 @using FerretSharp.Core.Settings
-@using FerretSharp.UI.State
 @inject IThemeService Theme
 @inject AppSettingsService Settings
 
@@ -11,97 +11,119 @@
         <button class="btn ghost" @onclick="Back">Zurück</button>
     </div>
 
-    <section class="settings-section">
-        <h2>Darstellung</h2>
-        <div class="settings-row">
-            <div class="settings-label">
-                <span>Farbschema</span>
-                <span class="hint">„System“ folgt der Windows-Einstellung.</span>
-            </div>
-            <div class="segmented" role="radiogroup" aria-label="Farbschema">
-                @foreach (var (mode, label) in Modes)
-                {
-                    var m = mode;
-                    <button class="seg @(Theme.Mode == m ? "active" : "")" role="radio" aria-checked="@(Theme.Mode == m ? "true" : "false")"
-                            @onclick="() => SetAsync(m)">@label</button>
-                }
-            </div>
+    <div class="page-head settings-tabs">
+        <div class="segmented" role="tablist" aria-label="Bereich">
+            @foreach (var (shortcuts, label) in Sections)
+            {
+                var value = shortcuts;
+                <button class="seg @(_shortcuts == value ? "active" : "")" role="tab" aria-selected="@(_shortcuts == value ? "true" : "false")"
+                        @onclick="() => _shortcuts = value">@label</button>
+            }
         </div>
-        @if (Theme.SessionOverride is { } forced)
-        {
-            <div class="settings-note">
-                Diese Sitzung wurde mit <code>--theme=@forced</code> gestartet und bleibt deshalb @(forced == "dark" ? "dunkel" : "hell").
-                Die Auswahl wird gespeichert und gilt ab dem nächsten Start ohne diesen Parameter.
-            </div>
-        }
-    </section>
+    </div>
 
-    <section class="settings-section">
-        <h2>C#-Modell</h2>
-        <div class="settings-row">
-            <div class="settings-label">
-                <span>C#-Namen</span>
-                <span class="hint">
-                    Entity- und Property-Namen des verknüpften Projekts im Explorer, im Tabellenkopf und in der Spaltensuche:
-                    neben den Oracle-Namen oder statt ihrer vorne. Enum-Werte zeigt FerretSharp immer mit ihrem C#-Namen;
-                    SQL bleibt bei den Namen der Datenbank.
-                </span>
+    @if (_shortcuts)
+    {
+        <ShortcutSettings />
+    }
+    else
+    {
+        <section class="settings-section">
+            <h2>Darstellung</h2>
+            <div class="settings-row">
+                <div class="settings-label">
+                    <span>Farbschema</span>
+                    <span class="hint">„System“ folgt der Windows-Einstellung.</span>
+                </div>
+                <div class="segmented" role="radiogroup" aria-label="Farbschema">
+                    @foreach (var (mode, label) in Modes)
+                    {
+                        var m = mode;
+                        <button class="seg @(Theme.Mode == m ? "active" : "")" role="radio" aria-checked="@(Theme.Mode == m ? "true" : "false")"
+                                @onclick="() => SetAsync(m)">@label</button>
+                    }
+                </div>
             </div>
-            <div class="segmented" role="radiogroup" aria-label="C#-Namen">
-                @foreach (var (mode, label) in NameModes)
-                {
-                    var value = mode;
-                    <button class="seg @(Settings.Current.ClrNames == value ? "active" : "")" role="radio"
-                            aria-checked="@(Settings.Current.ClrNames == value ? "true" : "false")"
-                            @onclick="() => SetClrNamesAsync(value)">@label</button>
-                }
-            </div>
-        </div>
-    </section>
+            @if (Theme.SessionOverride is { } forced)
+            {
+                <div class="settings-note">
+                    Diese Sitzung wurde mit <code>--theme=@forced</code> gestartet und bleibt deshalb @(forced == "dark" ? "dunkel" : "hell").
+                    Die Auswahl wird gespeichert und gilt ab dem nächsten Start ohne diesen Parameter.
+                </div>
+            }
+        </section>
 
-    <section class="settings-section">
-        <h2>Verbindung</h2>
-        <div class="settings-row">
-            <div class="settings-label">
-                <span>Verbindung im Leerlauf prüfen</span>
-                <span class="hint">
-                    Fragt ruhende Sessions alle 2 Minuten kurz ab (<code>SELECT 1 FROM DUAL</code>). Ein Verbindungsabbruch
-                    wird so sofort gemeldet, und Firewalls trennen ruhende Verbindungen nicht. Hält die Sessions aber auch
-                    gegen ein <code>IDLE_TIME</code>-Limit der Datenbank offen.
-                </span>
+        <section class="settings-section">
+            <h2>C#-Modell</h2>
+            <div class="settings-row">
+                <div class="settings-label">
+                    <span>C#-Namen</span>
+                    <span class="hint">
+                        Entity- und Property-Namen des verknüpften Projekts im Explorer, im Tabellenkopf und in der Spaltensuche:
+                        neben den Oracle-Namen oder statt ihrer vorne. Enum-Werte zeigt FerretSharp immer mit ihrem C#-Namen;
+                        SQL bleibt bei den Namen der Datenbank.
+                    </span>
+                </div>
+                <div class="segmented" role="radiogroup" aria-label="C#-Namen">
+                    @foreach (var (mode, label) in NameModes)
+                    {
+                        var value = mode;
+                        <button class="seg @(Settings.Current.ClrNames == value ? "active" : "")" role="radio"
+                                aria-checked="@(Settings.Current.ClrNames == value ? "true" : "false")"
+                                @onclick="() => SetClrNamesAsync(value)">@label</button>
+                    }
+                </div>
             </div>
-            <div class="segmented" role="radiogroup" aria-label="Verbindung im Leerlauf prüfen">
-                @foreach (var (on, label) in OnOff)
-                {
-                    var value = on;
-                    <button class="seg @(Settings.Current.KeepAlive == value ? "active" : "")" role="radio"
-                            aria-checked="@(Settings.Current.KeepAlive == value ? "true" : "false")"
-                            @onclick="() => SetKeepAliveAsync(value)">@label</button>
-                }
+        </section>
+
+        <section class="settings-section">
+            <h2>Verbindung</h2>
+            <div class="settings-row">
+                <div class="settings-label">
+                    <span>Verbindung im Leerlauf prüfen</span>
+                    <span class="hint">
+                        Fragt ruhende Sessions alle 2 Minuten kurz ab (<code>SELECT 1 FROM DUAL</code>). Ein Verbindungsabbruch
+                        wird so sofort gemeldet, und Firewalls trennen ruhende Verbindungen nicht. Hält die Sessions aber auch
+                        gegen ein <code>IDLE_TIME</code>-Limit der Datenbank offen.
+                    </span>
+                </div>
+                <div class="segmented" role="radiogroup" aria-label="Verbindung im Leerlauf prüfen">
+                    @foreach (var (on, label) in OnOff)
+                    {
+                        var value = on;
+                        <button class="seg @(Settings.Current.KeepAlive == value ? "active" : "")" role="radio"
+                                aria-checked="@(Settings.Current.KeepAlive == value ? "true" : "false")"
+                                @onclick="() => SetKeepAliveAsync(value)">@label</button>
+                    }
+                </div>
             </div>
-        </div>
-        <div class="settings-row">
-            <div class="settings-label">
-                <span>Warten auf gesperrte Zeilen</span>
-                <span class="hint">
-                    Hält eine andere Session eine Zeile gesperrt, die du schreiben willst, wartet FerretSharp so lange und
-                    zeigt dann, wer sperrt (<code>SELECT … FOR UPDATE WAIT n</code>).
-                </span>
+            <div class="settings-row">
+                <div class="settings-label">
+                    <span>Warten auf gesperrte Zeilen</span>
+                    <span class="hint">
+                        Hält eine andere Session eine Zeile gesperrt, die du schreiben willst, wartet FerretSharp so lange und
+                        zeigt dann, wer sperrt (<code>SELECT … FOR UPDATE WAIT n</code>).
+                    </span>
+                </div>
+                <div class="segmented" role="radiogroup" aria-label="Warten auf gesperrte Zeilen">
+                    @foreach (var seconds in WaitOptions)
+                    {
+                        var value = seconds;
+                        <button class="seg @(Settings.Current.LockWaitSeconds == value ? "active" : "")" role="radio"
+                                aria-checked="@(Settings.Current.LockWaitSeconds == value ? "true" : "false")"
+                                @onclick="() => SetLockWaitAsync(value)">@value s</button>
+                    }
+                </div>
             </div>
-            <div class="segmented" role="radiogroup" aria-label="Warten auf gesperrte Zeilen">
-                @foreach (var seconds in WaitOptions)
-                {
-                    var value = seconds;
-                    <button class="seg @(Settings.Current.LockWaitSeconds == value ? "active" : "")" role="radio"
-                            aria-checked="@(Settings.Current.LockWaitSeconds == value ? "true" : "false")"
-                            @onclick="() => SetLockWaitAsync(value)">@value s</button>
-                }
-            </div>
-        </div>
-    </section>
+        </section>
+    }
 </div>
 
 @code {
+    private static readonly (bool Shortcuts, string Label)[] Sections = [(false, "Allgemein"), (true, "Tastenkürzel")];
+
+    private bool _shortcuts;
+
     private static readonly (ThemeMode Mode, string Label)[] Modes =
         [(ThemeMode.System, "System"), (ThemeMode.Light, "Hell"), (ThemeMode.Dark, "Dunkel")];
 

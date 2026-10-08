@@ -43,13 +43,20 @@ public sealed partial class OracleSession : IAsyncDisposable
 
     private readonly OracleConnection _connection;
 
-    /// <summary>Serializes all use of <see cref="_connection"/>; never disposed (callers may still be waiting on it).</summary>
-    private readonly SemaphoreSlim _gate = new(1, 1);
+    /// <summary>Serializes all use of <see cref="_connection"/> and lets callers go when the session is disposed.</summary>
+    private readonly SessionGate _gate;
     private long _lastRoundTrip = Environment.TickCount64;
-    private volatile bool _disposed;
     private volatile OracleCommand? _running;
 
-    private OracleSession(OracleConnection connection) => _connection = connection;
+    private OracleSession(OracleConnection connection)
+    {
+        _connection = connection;
+        _gate = new SessionGate(OracleErrors.Translate, () =>
+        {
+            _running = null;
+            Interlocked.Exchange(ref _lastRoundTrip, Environment.TickCount64);
+        });
+    }
 
     public string ServerVersion => _connection.ServerVersion;
 
@@ -156,7 +163,7 @@ public sealed partial class OracleSession : IAsyncDisposable
     public async Task<bool> PingIfIdleAsync(TimeSpan idleFor, CancellationToken cancellationToken)
     {
         var idle = TimeSpan.FromMilliseconds(Environment.TickCount64 - Interlocked.Read(ref _lastRoundTrip));
-        if (_disposed || _gate.CurrentCount == 0 || idle < idleFor)
+        if (_gate.IsClosed || _gate.IsBusy || idle < idleFor)
         {
             return false;
         }
@@ -218,69 +225,54 @@ public sealed partial class OracleSession : IAsyncDisposable
     /// <summary>
     /// Rolls back an open transaction first: nothing uncommitted may survive by accident. A running command (grid page,
     /// keep-alive ping) is cancelled and finishes before the connection closes – <see cref="OracleConnection"/> is not
-    /// thread-safe. Callers still waiting for the session get an <see cref="OperationCanceledException"/>.
+    /// thread-safe. Callers – the one whose command runs and those waiting for the session – get an
+    /// <see cref="OperationCanceledException"/> at once. Takes at most <see cref="DisposeWait"/>: a command that ignores the
+    /// cancel (a VPN that went silent) is left behind, and its connection closes in the background.
     /// </summary>
     public async ValueTask DisposeAsync()
     {
-        if (_disposed)
+        if (_gate.IsClosed)
         {
             return;
         }
 
-        _disposed = true;
+        await _gate.BeginCloseAsync();
         CancelRunningCommand();
-        var entered = await _gate.WaitAsync(DisposeWait);
+        if (!await _gate.EnterAfterCloseAsync(DisposeWait))
+        {
+            // ODP.NET closes synchronously, and on a connection that went silent it blocks until TCP gives up – never on
+            // the caller's (UI) thread. Closing ends the session; Oracle rolls back.
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _connection.DisposeAsync();
+                }
+                catch (Exception ex) when (ex is OracleException or InvalidOperationException or ObjectDisposedException)
+                {
+                    // the connection is gone either way
+                }
+            });
+            return;
+        }
+
         try
         {
-            // If the command did not stop in time, closing the connection ends the session, and Oracle rolls back.
-            if (entered)
-            {
-                await EndTransactionQuietlyAsync();
-            }
+            await EndTransactionQuietlyAsync();
         }
         finally
         {
             await _connection.DisposeAsync();
-            if (entered)
-            {
-                _gate.Release();
-            }
+            _gate.Release();
         }
     }
 
     /// <summary>
     /// Every use of the connection: takes the gate (once the session is disposed, the call is abandoned like a cancelled
     /// one – also for callers that were already waiting), runs <paramref name="body"/>, translates Oracle errors into
-    /// <see cref="DatabaseException"/> – the one place they are translated – and releases the gate.
+    /// <see cref="DatabaseException"/> – the one place they are translated – and releases the gate. See <see cref="SessionGate"/>.
     /// </summary>
-    private async Task<T> ExclusiveAsync<T>(Func<Task<T>> body, CancellationToken cancellationToken)
-    {
-        if (_disposed)
-        {
-            throw new OperationCanceledException("The session was closed.");
-        }
-
-        await _gate.WaitAsync(cancellationToken);
-        try
-        {
-            if (_disposed)
-            {
-                throw new OperationCanceledException("The session was closed.");
-            }
-
-            return await body();
-        }
-        catch (Exception ex) when (OracleErrors.Translate(ex) is { } translated)
-        {
-            throw translated;
-        }
-        finally
-        {
-            _running = null;
-            Interlocked.Exchange(ref _lastRoundTrip, Environment.TickCount64);
-            _gate.Release();
-        }
-    }
+    private Task<T> ExclusiveAsync<T>(Func<Task<T>> body, CancellationToken cancellationToken) => _gate.RunAsync(body, cancellationToken);
 
     private Task ExclusiveAsync(Func<Task> body, CancellationToken cancellationToken) =>
         ExclusiveAsync(async () =>
@@ -309,6 +301,15 @@ public sealed partial class OracleSession : IAsyncDisposable
         catch (OracleException ex)
         {
             throw new OracleStatementException(sql, parameters, ex);
+        }
+        finally
+        {
+            // Disposing the command leaves its parameters alone; a LOB bind (LOB editor) may hold a temporary LOB that
+            // would otherwise stay in TEMP until the finalizer runs – in sessions that live for hours.
+            foreach (OracleParameter parameter in command.Parameters)
+            {
+                parameter.Dispose();
+            }
         }
     }
 

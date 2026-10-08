@@ -508,6 +508,20 @@ public class SchemaDdlTests
         Assert.Contains("SYS_C0099", step.Warning);
     }
 
+    /// <summary>
+    /// Automatic indexing names its indexes <c>SYS_AI_…</c>: the comparison matches them by content, and the proposal must
+    /// agree – no rename hint and no copied generated name (before R3a only <c>SYS_C…</c> counted here).
+    /// </summary>
+    [Fact]
+    public void Automatic_indexes_with_different_generated_names_are_not_a_difference()
+    {
+        var proposal = Align(
+            Table("KUNDE", [Id, Column("NR", "NUMBER")], [], [Index(Ref, "SYS_AI_8f2k1x", On("NR"))]),
+            Table("KUNDE", [Id, Column("NR", "NUMBER")], [], [Index(Tgt, "SYS_AI_3q9zz0", On("NR"))]));
+
+        Assert.Empty(proposal.Steps);
+    }
+
     [Fact]
     public void Index_on_columns_the_target_indexes_under_another_name_is_a_rename_hint()
     {

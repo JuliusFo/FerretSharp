@@ -131,17 +131,42 @@ public class ReadOnlyTests
         Assert.Equal(["ExecuteReaderAsync"], executing);
     }
 
-    /// <summary>All SQL text constants of the Oracle layer (data dictionary queries) must pass the guard.</summary>
+    /// <summary>
+    /// Every query text of the Oracle layer – constants and static fields of any type there that start with SELECT or WITH
+    /// (data dictionary, plans, V$ views, the schema snapshot) – must pass the guard. Not only fields named …Sql of one
+    /// class: before R3b the plan statements and the snapshot's built statement were not checked.
+    /// </summary>
     [Fact]
-    public void Schema_reader_statements_are_plain_queries()
+    public void Oracle_layer_query_texts_are_plain_queries()
     {
-        var statements = typeof(OracleSchemaReader).GetFields(BindingFlags.NonPublic | BindingFlags.Static)
-            .Where(f => f.FieldType == typeof(string) && f.Name.EndsWith("Sql", StringComparison.Ordinal))
-            .Select(f => (f.Name, Sql: (string)f.GetValue(null)!))
+        var statements = typeof(OracleSession).Assembly.GetTypes()
+            .Where(t => t.Namespace == typeof(OracleSession).Namespace)
+            .SelectMany(t => t.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+                .Where(f => f.FieldType == typeof(string))
+                .Select(f => (Name: $"{t.Name}.{f.Name}", Sql: (string?)f.GetValue(null))))
+            .Where(s => s.Sql?.TrimStart() is { } sql
+                        && (sql.StartsWith("SELECT", StringComparison.OrdinalIgnoreCase) || sql.StartsWith("WITH", StringComparison.OrdinalIgnoreCase)))
             .ToList();
 
-        Assert.NotEmpty(statements);
-        Assert.All(statements, s => Assert.True(OracleSession.IsReadOnlyStatement(s.Sql), s.Name));
+        Assert.Contains(statements, s => s.Name == "OraclePlans.ActualSteps");
+        Assert.Contains(statements, s => s.Name == "OracleSession.PlanTableSql");
+        Assert.Contains(statements, s => s.Name == "OracleSchemaReader.SchemaColumnsSql");
+        Assert.All(statements, s => Assert.True(OracleSession.IsReadOnlyStatement(s.Sql!), s.Name));
+    }
+
+    /// <summary>
+    /// The light column list of the C# model comparison reads with the same mapping as the full one: built from it, so it
+    /// keeps every position (before R3b it was a hand copy).
+    /// </summary>
+    [Fact]
+    public void Schema_columns_statement_keeps_the_positions_of_the_column_list()
+    {
+        static string Field(string name) =>
+            (string)typeof(OracleSchemaReader).GetField(name, BindingFlags.NonPublic | BindingFlags.Static)!.GetValue(null)!;
+        static int Commas(string sql) => sql[..sql.IndexOf("FROM", StringComparison.Ordinal)].Count(c => c == ',');
+
+        Assert.Equal(Commas(Field("ColumnsSelect")), Commas(Field("SchemaColumnsSql")));
+        Assert.DoesNotContain("data_default", Field("SchemaColumnsSql"), StringComparison.Ordinal);
     }
 
     private static ColumnInfo Col(string name, string type) => new(name, type, 20, false, null, null, true, false, null, 0);

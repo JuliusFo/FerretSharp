@@ -11,7 +11,7 @@ namespace FerretSharp.Core.Tests.Connections;
 
 public sealed class ConnectionKeepAliveTests : IDisposable
 {
-    private readonly string _directory = Path.Combine(Path.GetTempPath(), "ferret-tests", Guid.NewGuid().ToString("N"));
+    private readonly TestFolder _folder = new();
     private readonly IDatabaseConnector _connector = Substitute.For<IDatabaseConnector>();
     private readonly IDatabaseConnection _explorer = Substitute.For<IDatabaseConnection>();
     private readonly IDatabaseConnection _workspaceSession = Substitute.For<IDatabaseConnection>();
@@ -29,10 +29,12 @@ public sealed class ConnectionKeepAliveTests : IDisposable
         secrets.SetPassword(_profile.Id, "pw");
         var connections = new ConnectionManager(Substitute.For<IConnectionStore>(), secrets);
         _workspaces = new WorkspaceManager(new InMemoryWorkspaceStore(), connections, _connector);
-        _active = new ActiveConnection(connections, _connector, new RecentConnections(Path.Combine(_directory, "recent.json")), _workspaces);
-        _settings = new AppSettingsService(new SettingsStore(Path.Combine(_directory, "settings.json")), AppSettings.Default);
-        _keepAlive = new ConnectionKeepAlive(_active, _settings, _time);
-        _keepAlive.ConnectionLost += _lost.Add;
+        _active = new ActiveConnection(connections, _connector, new RecentConnections(_folder.Combine("recent.json")), _workspaces);
+        _settings = new AppSettingsService(new SettingsStore(_folder.Combine("settings.json")), AppSettings.Default);
+        var open = Substitute.For<IOpenConnections>();
+        open.All.Returns([_active]);
+        _keepAlive = new ConnectionKeepAlive(open, _settings, _time);
+        _keepAlive.ConnectionLost += (_, error) => _lost.Add(error);
 
         var reader = Substitute.For<ISchemaReader>();
         reader.GetTablesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
@@ -124,9 +126,6 @@ public sealed class ConnectionKeepAliveTests : IDisposable
     public void Dispose()
     {
         _keepAlive.Dispose();
-        if (Directory.Exists(_directory))
-        {
-            Directory.Delete(_directory, recursive: true);
-        }
+        _folder.Dispose();
     }
 }

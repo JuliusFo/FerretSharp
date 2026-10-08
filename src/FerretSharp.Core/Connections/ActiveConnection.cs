@@ -42,6 +42,36 @@ public sealed class ActiveConnection(
 
     public bool IsConnected => Status == ConnectionStatus.Connected;
 
+    /// <summary>
+    /// A session of this connection was found gone (a statement or the keep-alive) while it counts as connected: its
+    /// transactions are lost, the banner offers to connect again. Kept per connection (WP-24: a connection in the
+    /// background can be lost while another one is shown); cleared when it connects again or disconnects.
+    /// </summary>
+    public DatabaseException? Lost { get; private set; }
+
+    /// <summary>Records a lost session (first one wins); other errors are ignored. True if this changed <see cref="Lost"/>.</summary>
+    public bool ReportLost(DatabaseException error)
+    {
+        if (!error.IsConnectionLost || !IsConnected || Lost is not null)
+        {
+            return false;
+        }
+
+        Lost = error;
+        Changed?.Invoke();
+        return true;
+    }
+
+    /// <summary>"Neu verbinden" was chosen: the banner goes away right away, before the old sessions are closed.</summary>
+    public void ClearLost()
+    {
+        if (Lost is not null)
+        {
+            Lost = null;
+            Changed?.Invoke();
+        }
+    }
+
     /// <summary>Closes any current connection, then opens <paramref name="profile"/>. Failures end in <see cref="ConnectionStatus.Failed"/>.</summary>
     public async Task ConnectAsync(ConnectionProfile profile, CancellationToken cancellationToken)
     {
@@ -196,6 +226,7 @@ public sealed class ActiveConnection(
         Status = status;
         Profile = profile;
         Error = error;
+        Lost = null;
         Changed?.Invoke();
     }
 }

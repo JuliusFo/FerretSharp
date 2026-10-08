@@ -4,10 +4,8 @@
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
 @implements IAsyncDisposable
-@inject ActiveConnection Active
 @inject IJSRuntime JS
-@inject ClrModelManager Models
-@inject FerretSharp.UI.State.PresentationService Presentations
+@inject ShortcutService Shortcuts
 
 @{
     var fkColumns = (Active.Schema?.OutgoingOf(Details.Table.Ref) ?? [])
@@ -34,11 +32,7 @@
                 Entity <strong>@ClrModelMapping.ShortName(entity.Entity.ClrType)</strong>
             </span>
         }
-        <label class="structure-filter">
-            @Icons.Search
-            <input @ref="_filterInput" placeholder="Spalten filtern … (Ctrl+F)" spellcheck="false" autocomplete="off"
-                   @bind="_columnQuery" @bind:event="oninput" @onkeydown="OnFilterKeyDown" />
-        </label>
+        <SearchBox @ref="_filter" Class="structure-filter" Placeholder="@($"Spalten filtern …{Shortcuts.Hint(ShortcutAction.FindColumn)}")" @bind-Value="_columnQuery" />
     </div>
     <table class="columns">
         <thead>
@@ -93,7 +87,16 @@
                         }
                         else
                         {
-                            <td class="mono property">@property.Name@(property.IsShadow ? " (Shadow)" : "")</td>
+                            var mismatches = mapping.MismatchesOf(Details.Table.Ref, column.Name).ToList();
+                            <td class="mono property">
+                                @property.Name@(property.IsShadow ? " (Shadow)" : "")
+                                @if (mismatches.Count > 0)
+                                {
+                                    var worst = mismatches.Min(m => m.Severity);
+                                    <span class="mismatch-sev @ModelMismatches.Css(worst)"
+                                          title="@string.Join("\n", mismatches.Select(m => $"{ModelMismatches.KindText(m.Kind)}: {m.Message}"))">@string.Join(" · ", mismatches.Select(m => ModelMismatches.KindText(m.Kind)))</span>
+                                }
+                            </td>
                             <td class="mono clr-type" title="@ValuesTitle(property)">
                                 @TablePresentation.ClrTypeText(property)
                                 @if (property.Converter is { } converter)
@@ -131,8 +134,20 @@
 
 @code {
     private int _presentationVersion;
-    private ElementReference _filterInput;
-    private IJSObjectReference? _dom;
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public ClrModelManager Models { get; set; } = null!;
+
+    private SearchBox? _filter;
+    private DomModule? _dom;
+
+    /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
+    private DomModule Dom => _dom ??= new(JS);
+
+    [CascadingParameter]
+    public PresentationService Presentations { get; set; } = null!;
     private string _columnQuery = "";
 
     [Parameter, EditorRequired]
@@ -170,30 +185,15 @@
     /// <summary>Ctrl+F: focuses the column filter and selects its text.</summary>
     public async Task FocusFilterAsync()
     {
-        _dom ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
-        await _dom.InvokeVoidAsync("focusAndSelect", _filterInput);
-    }
-
-    private void OnFilterKeyDown(KeyboardEventArgs e)
-    {
-        if (e.Key == "Escape")
+        if (_filter is not null)
         {
-            _columnQuery = "";
+            await Dom.InvokeVoidAsync("focusAndSelect", _filter.Input);
         }
     }
 
     public async ValueTask DisposeAsync()
     {
         Presentations.Changed -= OnModelChanged;
-        if (_dom is not null)
-        {
-            try
-            {
-                await _dom.DisposeAsync();
-            }
-            catch (JSDisconnectedException)
-            {
-            }
-        }
+        await Dom.DisposeAsync();
     }
 }

@@ -4,12 +4,10 @@
 @using FerretSharp.Core.Data
 @using FerretSharp.Core.Oracle
 @using FerretSharp.Core.Schema
-@using FerretSharp.UI.State
-@inject WorkspaceManager Workspaces
-@inject ActiveConnection Active
 @inject IFileSaveService SaveFiles
 @inject IFileOpenService OpenFiles
 @inject ILogger<LobEditorDialog> Logger
+@inject ShortcutService Shortcuts
 
 <ModalFrame Label="@Column.Name" Class="lob-dialog" OnCancel="CancelAsync" FocusOnOpen="true">
     <header>
@@ -85,7 +83,7 @@
         @if (CanEdit && !_loading && _error is null)
         {
             <button class="btn ghost" @onclick="OnClose">Abbrechen</button>
-            <button class="btn primary" title="Als ausstehende Änderung übernehmen – geschrieben wird mit „Schreiben“ (Ctrl+S)" @onclick="ApplyAsync">Übernehmen</button>
+            <button class="btn primary" title="Als ausstehende Änderung übernehmen – geschrieben wird mit „Schreiben“@(Shortcuts.Hint(ShortcutAction.Flush))" @onclick="ApplyAsync">Übernehmen</button>
         }
         else
         {
@@ -95,6 +93,12 @@
 </ModalFrame>
 
 @code {
+    [CascadingParameter]
+    public WorkspaceManager Workspaces { get; set; } = null!;
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
     private const int HexBytes = 1024;
     private const int MaxImagePreview = 5 * 1024 * 1024;
 
@@ -159,7 +163,7 @@
                 return;
             }
 
-            var result = await Shell.RunDbAsync(Logger, Active.Profile, async () =>
+            var result = await Shell.RunDbAsync(Logger, Active, async () =>
             {
                 var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, CancellationToken.None);
                 return await data.ReadLobAsync(Details, row.Key, Request.Column, CancellationToken.None);
@@ -172,7 +176,7 @@
 
             if (!read.Found)
             {
-                _error = "Die Zeile gibt es nicht mehr – bitte neu laden (F5).";
+                _error = $"Die Zeile gibt es nicht mehr – bitte neu laden{Shortcuts.Hint(ShortcutAction.Refresh)}.";
                 return;
             }
 
@@ -219,23 +223,41 @@
     private async Task SaveToFileAsync()
     {
         var name = $"{Details.Table.Name}_{Column.Name}";
-        string? path = Current switch
+        try
         {
-            string text => await SaveFiles.SaveTextAsync(name + ".txt", "Textdatei", text, utf8Bom: false),
-            byte[] bytes => await SaveFiles.SaveBytesAsync($"{name}.{LobContent.Detect(bytes).Extension}", "Datei", bytes),
-            _ => null,
-        };
-        if (path is not null)
+            string? path = Current switch
+            {
+                string text => await SaveFiles.SaveTextAsync(name + ".txt", "Textdatei", text, utf8Bom: false),
+                byte[] bytes => await SaveFiles.SaveBytesAsync($"{name}.{LobContent.Detect(bytes).Extension}", "Datei", bytes),
+                _ => null,
+            };
+            if (path is not null)
+            {
+                Shell.Notify($"Gespeichert: {path}");
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            Shell.Notify($"Gespeichert: {path}");
+            // A file open in another program, no permission: the dialog stays, the value is not lost.
+            _notice = $"Speichern fehlgeschlagen: {ex.Message}";
         }
     }
 
     private async Task LoadFromFileAsync()
     {
-        var file = IsBlob
-            ? await OpenFiles.OpenAsync("Alle Dateien", [], LobLimits.MaxLoadLength)
-            : await OpenFiles.OpenAsync("Textdateien", ["txt", "xml", "json", "csv", "sql", "html"], LobLimits.MaxLoadLength);
+        OpenedFile? file;
+        try
+        {
+            file = IsBlob
+                ? await OpenFiles.OpenAsync("Alle Dateien", [], LobLimits.MaxLoadLength)
+                : await OpenFiles.OpenAsync("Textdateien", ["txt", "xml", "json", "csv", "sql", "html"], LobLimits.MaxLoadLength);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _notice = $"Laden fehlgeschlagen: {ex.Message}";
+            return;
+        }
+
         if (file is null)
         {
             return;

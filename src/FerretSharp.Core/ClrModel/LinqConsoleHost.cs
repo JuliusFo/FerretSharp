@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
+using FerretSharp.Core.IO;
 
 namespace FerretSharp.Core.ClrModel;
 
@@ -172,13 +173,18 @@ public sealed class LinqConsoleHost : ILinqConsole
                 await _writer.WriteLineAsync(JsonSerializer.Serialize(request with { Id = id }, LinqProtocol.JsonOptions).AsMemory(), limit.Token);
                 return await ReadResponseAsync(id, limit.Token);
             }
-            catch (Exception ex) when (ex is OperationCanceledException or IOException)
+            catch (Exception ex) when (ex is OperationCanceledException or IOException or JsonException)
             {
-                // The host may still be busy with the old request: its answers would no longer match. Start afresh.
+                // The host may still be busy with the old request, or the pipe is out of step (an unreadable line): its
+                // answers would no longer match. Start afresh.
                 Kill();
                 cancellationToken.ThrowIfCancellationRequested();
-                throw new ClrModelException(ClrModelErrorKind.Timeout,
-                    ex is IOException ? "Der Hilfsprozess der LINQ-Konsole ist abgestürzt." : timeoutMessage, ErrorOutput);
+                throw new ClrModelException(ClrModelErrorKind.Timeout, ex switch
+                {
+                    IOException => "Der Hilfsprozess der LINQ-Konsole ist abgestürzt.",
+                    JsonException => "Der Hilfsprozess der LINQ-Konsole hat unlesbar geantwortet und wurde beendet – er startet beim nächsten Mal neu.",
+                    _ => timeoutMessage,
+                }, ErrorOutput);
             }
         }
         finally
@@ -216,7 +222,7 @@ public sealed class LinqConsoleHost : ILinqConsole
         _dead = true;
         // The host has no child processes: no tree kill, which walks every process of the system and throws for each
         // protected one (under a debugger each of those exceptions froze the UI – after every console restart).
-        DotNetCli.Kill(_process, entireProcessTree: false);
+        DotNetCli.Kill(_process);
     }
 
     public async ValueTask DisposeAsync()
@@ -253,15 +259,9 @@ public sealed class LinqConsoleHost : ILinqConsole
         TryDelete(_work);
     }
 
-    internal static void TryDelete(DirectoryInfo directory)
-    {
-        try
-        {
-            directory.Delete(recursive: true);
-        }
-        catch (IOException)
-        {
-            // a file still in use by a killed process: the temp folder is cleaned up by Windows later
-        }
-    }
+    /// <summary>
+    /// Removes a work folder of the host (only ever below <see cref="ModelHostRunner.WorkRoot"/>). A file still in use by a
+    /// host being killed keeps it: removed on a later start (<see cref="ModelHostRunner.DeleteStaleWorkFolders"/>).
+    /// </summary>
+    internal static void TryDelete(DirectoryInfo directory) => SafeDelete.TryDirectoryBelow(ModelHostRunner.WorkRoot, directory.FullName);
 }

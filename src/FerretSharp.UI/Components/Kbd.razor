@@ -1,0 +1,19 @@
+@* A shortcut as <kbd>, from the settings (WP-25): follows changes, shows nothing if the action has none. *@
+@implements IDisposable
+@inject ShortcutService Shortcuts
+
+@if (Shortcuts.Map.Chord(Action) is { } chord)
+{
+    <kbd>@chord.KbdLabel</kbd>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public ShortcutAction Action { get; set; }
+
+    protected override void OnInitialized() => Shortcuts.Changed += OnChanged;
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Shortcuts.Changed -= OnChanged;
+}

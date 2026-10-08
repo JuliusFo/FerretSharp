@@ -1,24 +1,23 @@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
+@using FerretSharp.Core.Forms
 @using FerretSharp.Core.Oracle
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
-@using FerretSharp.UI.State
+@inherits FerretComponent
 @implements IDisposable
-@inject ActiveConnection Active
-@inject WorkspaceManager Workspaces
-@inject PresentationService Presentations
 @inject ILogger<TabView> Logger
+@inject ShortcutService Shortcuts
 
 <div class="tabview">
     <div class="tab-toolbar">
         @if (Tab.BackTarget(Shell.Tabs) is { } back)
         {
-            <button class="btn ghost nav-btn" title="@($"Zurück zu {NavLabel(back)} (Alt+←)")" @onclick="Shell.GoBack">← @back.Table.DisplayName</button>
+            <button class="btn ghost nav-btn" title="@($"Zurück zu {NavLabel(back)}{Shortcuts.Hint(ShortcutAction.Back)}")" @onclick="Shell.GoBack">← @back.Table.DisplayName</button>
         }
         @if (Tab.ForwardTarget(Shell.Tabs) is { } forward)
         {
-            <button class="btn ghost nav-btn" title="@($"Vor zu {NavLabel(forward)} (Alt+→)")" @onclick="Shell.GoForward">@forward.Table.DisplayName →</button>
+            <button class="btn ghost nav-btn" title="@($"Vor zu {NavLabel(forward)}{Shortcuts.Hint(ShortcutAction.Forward)}")" @onclick="Shell.GoForward">@forward.Table.DisplayName →</button>
         }
         <div class="segmented small" role="tablist">
             @foreach (var (mode, label) in Modes)
@@ -40,13 +39,17 @@
         {
             @if (Tab.Changes is not null && _grid?.CanEdit == true)
             {
-                <button class="btn ghost" title="Neue Zeile oben im Grid anlegen – wird mit „Schreiben“ (Ctrl+S) eingefügt" @onclick="() => _grid?.AddRowAsync() ?? Task.CompletedTask">+ Zeile</button>
+                <button class="btn ghost" title="Neue Zeile oben im Grid anlegen – wird mit „Schreiben“@(Shortcuts.Hint(ShortcutAction.Flush)) eingefügt" @onclick="AddRowAsync">+ Zeile</button>
             }
+            <button class="btn ghost @(Tab.FormOpen ? "active" : "")" aria-pressed="@(Tab.FormOpen ? "true" : "false")"
+                    title="Die Zeile des Grids als Formular daneben@(Shortcuts.Label(ShortcutAction.ToggleForm) is { } key ? $" ({key} im Grid; bei mehreren markierten Zeilen: vergleichen)" : "")" @onclick="ToggleForm">
+                Formular <Kbd Action="ShortcutAction.ToggleForm" />
+            </button>
             <ColumnJump @ref="_jump" Details="_details" OnJump="c => _pendingJump = c" />
         }
         @if (_details is not null && Tab.Mode != TabMode.Structure)
         {
-            <button class="icon-btn ghost" title="Neu laden (F5)" @onclick="RefreshViewAsync">@Icons.Refresh</button>
+            <button class="icon-btn ghost" title="Neu laden@(Shortcuts.Hint(ShortcutAction.Refresh))" @onclick="RefreshViewAsync">@Icons.Refresh</button>
         }
     </div>
 
@@ -75,55 +78,18 @@
                     }
                 </div>
             }
-            <div class="grid-host">
-                <FerretGrid @ref="_grid" Tab="Tab" Details="_details" OnPageLoaded="StateHasChanged"
-                            OnContextMenu="r => _menu = r" OnColumnMenu="r => _columnMenu = r"
-                            OnLobOpen="r => _lob = r" OnEditableChanged="StateHasChanged" />
+            <div class="grid-split">
+                <div class="grid-host">
+                    <FerretGrid @ref="_grid" Tab="Tab" Details="_details" OnPageLoaded="StateHasChanged"
+                                OnContextMenu="r => _menu = r" OnColumnMenu="r => _columnMenu = r"
+                                OnLobOpen="r => _lob = r" OnEditableChanged="StateHasChanged" OnFormRequested="OnFormRequested" />
+                </div>
+                @if (Tab.FormOpen)
+                {
+                    <RowFormPanel @ref="_form" Tab="Tab" Details="_details" Grid="_grid" OnClose="CloseFormAsync" />
+                }
             </div>
-            <footer class="tab-footer">
-                @* RowsLoaded is the highest loaded position (blocks load where the user scrolls), so it is a lower bound. *@
-                @if (Tab.AllRowsLoaded)
-                {
-                    <span><strong>@Tab.RowsLoaded.ToString("N0", CultureInfo.CurrentCulture)</strong> Zeilen</span>
-                }
-                else if (Tab.TotalCount is null)
-                {
-                    <span>≥ <strong>@Tab.RowsLoaded.ToString("N0", CultureInfo.CurrentCulture)</strong> Zeilen</span>
-                }
-                @if (Tab.TotalCount is { } total && !Tab.AllRowsLoaded)
-                {
-                    <span>Gesamt <strong>@total.ToString("N0", CultureInfo.CurrentCulture)</strong></span>
-                }
-                else if (_countCts is not null)
-                {
-                    <span><span class="spinner small"></span> Zähle … <button class="status-btn" @onclick="CancelCount">Abbrechen</button></span>
-                }
-                else if (!Tab.AllRowsLoaded)
-                {
-                    <button class="status-btn" @onclick="CountAsync">Zeilen zählen</button>
-                }
-                @if (Tab.LastQueryTime is { } time)
-                {
-                    <span>@time.TotalMilliseconds.ToString("N0", CultureInfo.CurrentCulture) ms</span>
-                }
-                @if (Tab.DataAsOf is { } asOf)
-                {
-                    <span title="Schreibgeschützte Verbindung: Oracle liefert die Daten aus einer READ ONLY-Transaktion mit dem Stand dieses Zeitpunkts. Jede neue Abfrage (Filter, Sortierung, F5) holt einen neuen Stand; weitere Seiten bleiben im selben Stand.">
-                        Stand @asOf.ToString("T", CultureInfo.CurrentCulture)
-                    </span>
-                    @if (Tab.SnapshotMoved)
-                    {
-                        <span class="warn" title="@SnapshotTexts.Moved">Stand hat sich geändert – F5 lädt neu</span>
-                    }
-                }
-                <span>@SortText</span>
-                @if (_countError is not null)
-                {
-                    <span class="error">@_countError.Display <button class="link-btn" @onclick="() => Shell.ShowError(_countError)">Details</button></span>
-                }
-                <span class="spacer"></span>
-                <span>Row-Key: @RowKeyText</span>
-            </footer>
+            <TabFooter @ref="_footer" Tab="Tab" Details="_details" Grid="_grid" />
         </div>
 
         @* Detail views mount when first shown and then stay (like the grid), so switching back costs no query. *@
@@ -168,7 +134,14 @@
                      Pinned="@(_grid?.IsPinned(menu.Column) == true)" OnTogglePin="TogglePinAsync"
                      OnDeleteRows="rows => _grid?.ChangeRowsAsync(rows, delete: true) ?? Task.CompletedTask"
                      OnRevertRows="rows => _grid?.ChangeRowsAsync(rows, delete: false) ?? Task.CompletedTask"
-                     OnOpenLob="() => _grid?.OpenLobAsync(menu.RowIndex, menu.Column) ?? Task.CompletedTask" />
+                     OnOpenLob="() => _grid?.OpenLobAsync(menu.RowIndex, menu.Column) ?? Task.CompletedTask"
+                     OnOpenForm="() => OpenFormAsync(menu.RowIndex, menu.Column)" OnCompare="Compare" />
+}
+
+@if (_compare is { } compare && _details is not null)
+{
+    <RowCompareDialog Tab="Tab" Details="_details" Rows="compare.Rows" Missing="compare.Missing"
+                      OnClose="() => _compare = null" OnShow="ShowComparedRowAsync" />
 }
 
 @if (_lob is { } lob && _details is not null)
@@ -198,12 +171,21 @@
 
 @code {
     private int _presentationVersion;
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceManager Workspaces { get; set; } = null!;
+
+    [CascadingParameter]
+    public PresentationService Presentations { get; set; } = null!;
+
     private TableDetails? _details;
     private (QuerySpec FirstPage, QuerySpec Whole)? _plan;
     private DatabaseException? _loadError;
     private FerretGrid? _grid;
-    private CancellationTokenSource? _countCts;
-    private DatabaseException? _countError;
+    private TabFooter? _footer;
     private (string Sql, IReadOnlyList<QueryParameter> Parameters, string? Error)? _sql;
     private GridContextMenuRequest? _menu;
     private FerretGrid.LobRequest? _lob;
@@ -229,6 +211,8 @@
     }
     private ColumnMenuRequest? _columnMenu;
     private ColumnJump? _jump;
+    private RowFormPanel? _form;
+    private (IReadOnlyList<(int Index, FormRow Row)> Rows, int Missing)? _compare;
     private ColumnsView? _columns;
     private int? _pendingJump; // scrolled to after the search list has closed, so the grid cell keeps the focus
     private readonly HashSet<TabMode> _visited = [];
@@ -250,12 +234,6 @@
     [Parameter, EditorRequired]
     public TableTab Tab { get; set; } = null!;
 
-    private string SortText => Tab.Sorts.Count > 0
-        ? "Sortierung: " + string.Join(", ", Tab.Sorts.Select(s => s.Column + (s.Descending ? " ↓" : " ↑")))
-        : _details is not null && QueryBuilder.RowKeyOf(_details) == RowKeyKind.None
-            ? "Sortierung: alle Spalten"
-            : "Sortierung: Row-Key";
-
     private string NavLabel(TableTab tab) =>
         tab.FilterSummary(maxLength: 80, tab.Details is { } details ? Presentations.For(details) : null) is { } filters
             ? $"{tab.Table.DisplayName} ({filters})"
@@ -275,13 +253,6 @@
         _presentationVersion = Presentations.Version;
     });
 
-    private string RowKeyText =>_details is null ? "" : QueryBuilder.RowKeyOf(_details) switch
-    {
-        RowKeyKind.PrimaryKey => "PK " + string.Join(", ", _details.PrimaryKey),
-        RowKeyKind.RowId => _details.IsIndexOrganized ? "UROWID" : "ROWID",
-        _ => "keiner (View ohne Schlüssel)",
-    };
-
     protected override async Task OnInitializedAsync()
     {
         Shell.TabCommandRequested += OnTabCommand;
@@ -293,7 +264,7 @@
         }
 
         var table = Tab.Table;
-        var result = await Shell.RunDbAsync(Logger, Active.Profile, () => schema.GetDetailsAsync(table, CancellationToken.None));
+        var result = await Shell.RunDbAsync(Logger, Active, () => schema.GetDetailsAsync(table, CancellationToken.None));
         _loadError = result.Error;
         if (result.Succeeded)
         {
@@ -310,6 +281,7 @@
         {
             _pendingJump = null;
             await _grid.JumpToColumnAsync(column);
+            _form?.RevealColumn(column);
         }
     }
 
@@ -358,8 +330,7 @@
 
     private async Task RefreshAsync()
     {
-        CancelCount();
-        _countError = null;
+        _footer?.Reset();
         Tab.Error = null;
         Tab.Failure = null;
         Tab.FirstVisibleRow = null;
@@ -370,6 +341,100 @@
         }
     }
 
+    /// <summary>The form beside the grid (WP-21): open or close; saved with the tab.</summary>
+    private void ToggleForm()
+    {
+        Tab.FormOpen = !Tab.FormOpen;
+        Shell.MarkDirty();
+    }
+
+    private Task CloseFormAsync()
+    {
+        Tab.FormOpen = false;
+        Shell.MarkDirty();
+        return _grid?.FocusRowAsync(_grid.Focused ?? new GridCell(0, null, null), keepFocus: false) ?? Task.CompletedTask;
+    }
+
+    /// <summary>Opens the form on a row (context menu, a compared row's heading).</summary>
+    private async Task OpenFormAsync(int rowIndex, int? column)
+    {
+        Tab.FormOpen = true;
+        Shell.MarkDirty();
+        StateHasChanged();
+        if (_grid is not null)
+        {
+            await _grid.FocusRowAsync(new GridCell(rowIndex, null, column), keepFocus: false);
+        }
+    }
+
+    /// <summary>Alt+Enter in the grid: several selected rows are compared, otherwise the form opens or closes.</summary>
+    private Task OnFormRequested(FerretGrid.FormRequest request)
+    {
+        if (request.Selected.Count > 1)
+        {
+            Compare(request.Selected);
+            return Task.CompletedTask;
+        }
+
+        if (Tab.FormOpen)
+        {
+            return CloseFormAsync();
+        }
+
+        Tab.FormOpen = true;
+        Shell.MarkDirty();
+        return Task.CompletedTask;
+    }
+
+    /// <summary>The selected rows side by side; rows no longer loaded are counted, not compared.</summary>
+    private void Compare(IReadOnlyList<int> selected)
+    {
+        if (_grid is null)
+        {
+            return;
+        }
+
+        if (selected.Count > RowComparison.MaxRows)
+        {
+            Shell.Notify($"Höchstens {RowComparison.MaxRows} Zeilen lassen sich vergleichen – {selected.Count} sind markiert.");
+            return;
+        }
+
+        var rows = selected.Select(i => (Index: i, Row: _grid.RowAt(i))).Where(r => r.Row is not null).Select(r => (r.Index, r.Row!)).ToList();
+        if (rows.Count < 2)
+        {
+            Shell.Notify("Zum Vergleichen mindestens zwei geladene Zeilen markieren.");
+            return;
+        }
+
+        _compare = (rows, selected.Count - rows.Count);
+    }
+
+    private Task ShowComparedRowAsync(int rowIndex)
+    {
+        _compare = null;
+        return OpenFormAsync(rowIndex, null);
+    }
+
+    /// <summary>"+ Zeile": with the form open the new row is filled there, otherwise in the grid.</summary>
+    private async Task AddRowAsync()
+    {
+        if (_grid is null)
+        {
+            return;
+        }
+
+        if (Tab.FormOpen && _form is not null)
+        {
+            _form.FocusFirstFieldOfNewRow();
+            await _grid.AddRowAsync(inGrid: false);
+        }
+        else
+        {
+            await _grid.AddRowAsync();
+        }
+    }
+
     private async Task TogglePinAsync(int column)
     {
         if (_grid is not null)
@@ -377,41 +442,6 @@
             await _grid.TogglePinAsync(column);
         }
     }
-
-    private async Task CountAsync()
-    {
-        if (_details is null)
-        {
-            return;
-        }
-
-        var cts = _countCts = new CancellationTokenSource();
-        _countError = null;
-        var details = _details;
-        var filters = Tab.AppliedFilters;
-        var result = await Shell.RunDbAsync(Logger, Active.Profile, async () =>
-        {
-            var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, cts.Token);
-            return await data.CountAsync(details, filters, cts.Token);
-        }, cts.Token);
-        if (ReferenceEquals(_countCts, cts))
-        {
-            _countCts = null;
-        }
-
-        cts.Dispose();
-        _countError = result.Error;
-        if (result.Succeeded)
-        {
-            Tab.TotalCount = result.Value;
-            if (_grid is not null)
-            {
-                await _grid.SetRowCountAsync(result.Value);
-            }
-        }
-    }
-
-    private void CancelCount() => _countCts?.Cancel();
 
     /// <summary>"In SQL-Editor öffnen": the statement in a new SQL tab, its bind values as variables (WP-17).</summary>
     private void OpenInSqlEditor(string sql, IReadOnlyList<QueryParameter> parameters)
@@ -469,7 +499,7 @@
             return;
         }
 
-        _ = InvokeAsync(async () =>
+        Fire(async () =>
         {
             switch (command)
             {
@@ -483,7 +513,15 @@
                     await _grid.ReloadAsync();
                     break;
                 case TabCommand.FindColumn when Tab.Mode == TabMode.Data:
-                    _jump?.Open();
+                    if (_form is not null && await _form.ContainsFocusAsync())
+                    {
+                        _form.FocusSearch();
+                    }
+                    else
+                    {
+                        _jump?.Open();
+                    }
+
                     break;
                 case TabCommand.FindColumn when Tab.Mode == TabMode.Structure && _columns is not null:
                     await _columns.FocusFilterAsync();
@@ -498,6 +536,5 @@
     {
         Shell.TabCommandRequested -= OnTabCommand;
         Presentations.Changed -= OnPresentationChanged;
-        _countCts?.Cancel();
     }
 }

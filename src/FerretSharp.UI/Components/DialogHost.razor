@@ -2,8 +2,6 @@
    of a tab (plan, LOB, SQL preview) stay with the tab. *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Settings
-@using FerretSharp.UI.State
-@inject ActiveConnection Active
 @inject AppSettingsService Settings
 
 @if (Shell.ConnectionDialog is { } request)
@@ -35,8 +33,8 @@
 
 @if (Lifecycle.PendingLeave is { } leave)
 {
-    <LeaveDialog @key="leave" Request="leave" Busy="Editing.Busy"
-                 Items="@(leave.WorkspaceIds.Select(id => (Lifecycle.WorkspaceName(id), Editing.SummaryOf(Shell.Workspaces.First(w => w.WorkspaceId == id)))).ToList())"
+    <LeaveDialog @key="leave" Request="leave" Busy="leave.WorkspaceIds.Any(Editing.IsBusy)"
+                 Items="@LeaveItems(leave)"
                  OnCommit="() => Lifecycle.LeaveAsync(commit: true)" OnDiscard="() => Lifecycle.LeaveAsync(commit: false)" OnCancel="Lifecycle.CancelLeave" />
 }
 
@@ -89,6 +87,9 @@
 }
 
 @code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
     private static readonly IReadOnlyList<FerretSharp.Core.Query.QueryParameter> NoParameters = [];
 
     private Notice? _scheduledNotice;
@@ -101,6 +102,17 @@
     public WorkspaceLifecycle Lifecycle { get; set; } = null!;
 
     private WorkspaceEditing Editing => Lifecycle.Editing;
+
+    /// <summary>
+    /// The workspaces the leave dialog lists – of any open connection (exiting, disconnecting one in the background), not
+    /// only the shown one's.
+    /// </summary>
+    private IReadOnlyList<(string Name, EditSummary Summary)> LeaveItems(LeaveRequest leave) =>
+        leave.WorkspaceIds
+            .Select(Shell.FindWorkspace)
+            .OfType<WorkspaceTabs>()
+            .Select(w => (Lifecycle.WorkspaceName(w.WorkspaceId), Editing.SummaryOf(w)))
+            .ToList();
 
     /// <summary>Toasts disappear by themselves; with warnings they stay longer.</summary>
     protected override void OnParametersSet()

@@ -1,5 +1,5 @@
-using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json;
 using FerretSharp.Core.IO;
 
 namespace FerretSharp.Core.Connections;
@@ -18,13 +18,6 @@ public sealed class ConnectionStore(string filePath) : IConnectionStore
 {
     public const int CurrentVersion = 1;
 
-    internal static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
-    {
-        WriteIndented = true,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
-    };
-
     private readonly SemaphoreSlim _gate = new(1, 1);
 
     public string FilePath { get; } = filePath;
@@ -40,7 +33,7 @@ public sealed class ConnectionStore(string filePath) : IConnectionStore
             }
 
             await using var stream = File.OpenRead(FilePath);
-            var document = await JsonSerializer.DeserializeAsync<ConnectionsDocument>(stream, JsonOptions, cancellationToken)
+            var document = await JsonSerializer.DeserializeAsync<ConnectionsDocument>(stream, JsonFiles.Options, cancellationToken)
                            ?? throw new ConnectionStoreException($"{FilePath} ist leer.");
 
             if (document.Version > CurrentVersion)
@@ -66,7 +59,7 @@ public sealed class ConnectionStore(string filePath) : IConnectionStore
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            await AtomicJsonFile.WriteAsync(FilePath, new ConnectionsDocument(CurrentVersion, profiles), JsonOptions, cancellationToken);
+            await AtomicJsonFile.WriteAsync(FilePath, new ConnectionsDocument(CurrentVersion, profiles), JsonFiles.Options, cancellationToken);
         }
         finally
         {

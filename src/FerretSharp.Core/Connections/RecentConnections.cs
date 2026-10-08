@@ -34,7 +34,7 @@ public sealed class RecentConnections(string filePath, TimeProvider? timeProvide
             }
 
             await using var stream = File.OpenRead(filePath);
-            var document = await JsonSerializer.DeserializeAsync<Document>(stream, ConnectionStore.JsonOptions, cancellationToken);
+            var document = await JsonSerializer.DeserializeAsync<Document>(stream, JsonFiles.Options, cancellationToken);
             _lastUsed = document?.Entries.ToDictionary(e => e.Id, e => e.LastUsed) ?? [];
         }
         catch (JsonException)
@@ -59,7 +59,7 @@ public sealed class RecentConnections(string filePath, TimeProvider? timeProvide
                 .Select(kv => new Entry(kv.Key, kv.Value))
                 .ToList();
 
-            await AtomicJsonFile.WriteAsync(filePath, new Document(1, entries), ConnectionStore.JsonOptions, cancellationToken);
+            await AtomicJsonFile.WriteAsync(filePath, new Document(1, entries), JsonFiles.Options, cancellationToken);
             _lastUsed = entries.ToDictionary(e => e.Id, e => e.LastUsed);
         }
         finally

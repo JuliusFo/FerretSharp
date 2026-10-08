@@ -1,10 +1,7 @@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Schema
 @using FerretSharp.Core.Settings
-@using FerretSharp.UI.State
 @implements IAsyncDisposable
-@inject ActiveConnection Active
-@inject PresentationService Presentation
 @inject IJSRuntime JS
 @inject ILogger<Explorer> Logger
 
@@ -17,10 +14,7 @@
                 <span class="@(_refreshing ? "spin" : "")">@Icons.Refresh</span>
             </button>
         </div>
-        <div class="search">
-            @Icons.Search
-            <input placeholder="Tabelle suchen …" @bind="_query" @bind:event="oninput" disabled="@(Schema is null)" />
-        </div>
+        <SearchBox @bind-Value="_query" Placeholder="Tabelle suchen …" Disabled="@(Schema is null)" />
     </div>
 
     @if (_refreshError is not null)
@@ -72,7 +66,20 @@
 
 @code {
     private int _presentationVersion;
-    private IJSObjectReference? _dom;
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    /// <summary>The connection this explorer belongs to: a schema refresh only touches its workspaces' tabs.</summary>
+    [CascadingParameter]
+    public ConnectionScope Scope { get; set; } = null!;
+
+    [CascadingParameter]
+    public PresentationService Presentation { get; set; } = null!;
+
+    private DomModule? _dom;
+
+    /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
+    private DomModule Dom => _dom ??= new(JS);
     private string _query = "";
     private bool _refreshing;
     private string? _refreshError;
@@ -143,8 +150,7 @@
 
     private async Task JumpAsync(char letter)
     {
-        _dom ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
-        await _dom.InvokeVoidAsync("scrollIntoViewById", $"tbl-grp-{(letter == LetterIndexBar.Other ? "other" : letter.ToString())}", "start");
+        await Dom.InvokeVoidAsync("scrollIntoViewById", $"tbl-grp-{(letter == LetterIndexBar.Other ? "other" : letter.ToString())}", "start");
     }
 
     private async Task RefreshAsync()
@@ -156,11 +162,11 @@
 
         _refreshing = true;
         _refreshError = null;
-        var result = await Shell.RunDbAsync(Logger, Active.Profile, () => schema.RefreshAsync(CancellationToken.None));
+        var result = await Shell.RunDbAsync(Logger, Active, () => schema.RefreshAsync(CancellationToken.None));
         _refreshing = false;
         if (result.Succeeded)
         {
-            Shell.RemoveTabsWhere(tab => schema.Find(tab.Table.Ref) is null);
+            Shell.RemoveTabsWhere(Scope.Id, tab => schema.Find(tab.Table.Ref) is null);
         }
 
         _refreshError = result.Error?.Display;
@@ -200,15 +206,6 @@
         Active.Changed -= OnChanged;
         Shell.Changed -= OnChanged;
         Presentation.Changed -= OnPresentationChanged;
-        if (_dom is not null)
-        {
-            try
-            {
-                await _dom.DisposeAsync();
-            }
-            catch (JSDisconnectedException)
-            {
-            }
-        }
+        await Dom.DisposeAsync();
     }
 }

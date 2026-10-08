@@ -1,8 +1,6 @@
 @* Workspaces of the active connection: click activates, double-click or "⋯" renames, × or middle-click closes. *@
 @using FerretSharp.Core.Workspaces
-@using FerretSharp.UI.State
 @implements IAsyncDisposable
-@inject WorkspaceManager Workspaces
 @inject IJSRuntime JS
 
 <div class="workspaces">
@@ -100,10 +98,16 @@
 }
 
 @code {
+    [CascadingParameter]
+    public WorkspaceManager Workspaces { get; set; } = null!;
+
     private ElementReference _renameInput;
     private Guid? _renaming;
     private bool _focusRename;
-    private IJSObjectReference? _dom;
+    private DomModule? _dom;
+
+    /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
+    private DomModule Dom => _dom ??= new(JS);
     private string _renameText = "";
     private bool _menuOpen;
     private Workspace? _pendingDelete;
@@ -123,8 +127,7 @@
         {
             _focusRename = false;
             // Select the whole name, so typing replaces it.
-            _dom ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
-            await _dom.InvokeVoidAsync("focusAndSelect", _renameInput);
+            await Dom.InvokeVoidAsync("focusAndSelect", _renameInput);
         }
 
         if (_focusActions && _actionsFor is not null)
@@ -184,7 +187,7 @@
 
     /// <summary>
     /// Double click renames. Not via @ondblclick: in the WPF host a real double click reaches the WebView with a
-    /// duplicated mousedown, the click count jumps to 3 and dblclick never fires (see CLAUDE.md).
+    /// duplicated mousedown, the click count jumps to 3 and dblclick never fires (see src/FerretSharp.UI/CLAUDE.md).
     /// </summary>
     private void OnChipClick(MouseEventArgs e, Workspace workspace)
     {
@@ -280,15 +283,6 @@
     public async ValueTask DisposeAsync()
     {
         Workspaces.Changed -= OnChanged;
-        if (_dom is not null)
-        {
-            try
-            {
-                await _dom.DisposeAsync();
-            }
-            catch (JSDisconnectedException)
-            {
-            }
-        }
+        await Dom.DisposeAsync();
     }
 }

@@ -1,20 +1,29 @@
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
+@using FerretSharp.Core.Forms
 @using FerretSharp.Core.Oracle
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
-@using FerretSharp.UI.State
+@inherits FerretComponent
 @implements IAsyncDisposable
+@implements IFormGrid
 @inject IJSRuntime JS
-@inject ActiveConnection Active
-@inject WorkspaceManager Workspaces
-@inject PresentationService Presentations
 @inject ILogger<FerretGrid> Logger
+@inject ShortcutService Shortcuts
 
 <div id="@Tab.Id" class="ag-host"></div>
 
 @code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceManager Workspaces { get; set; } = null!;
+
+    [CascadingParameter]
+    public PresentationService Presentations { get; set; } = null!;
+
     private readonly RowBlocks _blocks = new();
 
     /// <summary>grid.js; does nothing once disposed, so queued change handlers cannot touch the released module.</summary>
@@ -52,6 +61,22 @@
     /// <summary>Writing became possible or impossible (workspace unlocked or locked again).</summary>
     [Parameter]
     public EventCallback OnEditableChanged { get; set; }
+
+    /// <summary>Alt+Enter in the grid: the form of the focused row, or the comparison of the selected rows (WP-21).</summary>
+    [Parameter]
+    public EventCallback<FormRequest> OnFormRequested { get; set; }
+
+    /// <summary>Alt+Enter: where the focus was and which rows were selected (grid indexes, in grid order).</summary>
+    public sealed record FormRequest(GridCell? Focused, IReadOnlyList<int> Selected);
+
+    /// <summary>The cell with the focus (click, arrow keys, the form's ▲ ▼); null before any.</summary>
+    public GridCell? Focused { get; private set; }
+
+    /// <summary>The focused cell moved: the form follows its row (WP-21).</summary>
+    public event Action? FocusChanged;
+
+    /// <summary>Rows were loaded, redrawn or changed: what the form shows may have changed.</summary>
+    public event Action? RowsChanged;
 
     private static string ColumnId(int index) => GridColumn.IdOf(index);
 
@@ -222,7 +247,9 @@
 
     /// <summary>Double click or Enter on a LOB cell (grid.js).</summary>
     [JSInvokable]
-    public async Task OnLobCell(int rowIndex, string? newId, string colId)
+    public Task OnLobCell(int rowIndex, string? newId, string colId) => GuardAsync(() => OnLobCellCoreAsync(rowIndex, newId, colId));
+
+    private async Task OnLobCellCoreAsync(int rowIndex, string? newId, string colId)
     {
         var column = ColumnIndex(colId);
         if (NewRow(newId) is { } added)
@@ -261,7 +288,7 @@
             result = changes.SetContent(request.Row!, request.Column, loaded, value);
             if (result.IsValid)
             {
-                await _grid.CallAsync("updateRows", new[] { new GridRowUpdate(request.RowIndex, GridRow(request.Row!)) });
+                await _grid.CallAsync("updateRows", new List<GridRowUpdate> { new(request.RowIndex, GridRow(request.Row!)) });
             }
         }
 
@@ -278,75 +305,9 @@
     /// </summary>
     private Dictionary<string, object?> GridRow(RowData row) => GridRow(Tab.Changes?.Find(row.Key), row.Values);
 
-    private Dictionary<string, object?> GridRow(RowChange? change, IReadOnlyList<object?>? values)
-    {
-        var cells = new Dictionary<string, object?>(Details.Columns.Count + 5);
-        var stages = new Dictionary<string, string>();
-        var readOnly = new List<string>();
-        var unknown = new List<string>();
-        Dictionary<string, string>? tooltips = null;
-        for (var i = 0; i < Details.Columns.Count; i++)
-        {
-            var id = ColumnId(i);
-            var value = change is not null ? change.ValueOf(i) : values?[i];
-            var presented = Presentation.Present(i, value);
-            cells[id] = presented.Text;
-            if (presented.Unknown)
-            {
-                unknown.Add(id);
-            }
+    private Dictionary<string, object?> GridRow(RowChange? change, IReadOnlyList<object?>? values) => GridRows.Build(Presentation, change, values);
 
-            if (presented.Tooltip is { } tooltip)
-            {
-                (tooltips ??= [])[id] = tooltip;
-            }
-
-            if (change?.StageOf(i) is { } stage)
-            {
-                stages[id] = stage == ChangeStage.Pending ? "p" : "f";
-            }
-
-            if (!OracleTypeMapper.IsEditableValue(value))
-            {
-                readOnly.Add(id);
-            }
-        }
-
-        if (stages.Count > 0)
-        {
-            cells["__s"] = stages;
-        }
-
-        if (change?.Deleted is { } deleted)
-        {
-            cells["__d"] = deleted == ChangeStage.Pending ? "p" : "f";
-        }
-
-        if (readOnly.Count > 0)
-        {
-            cells["__ro"] = readOnly;
-        }
-
-        if (unknown.Count > 0)
-        {
-            cells["__u"] = unknown;
-        }
-
-        if (tooltips is not null)
-        {
-            cells["__t"] = tooltips;
-        }
-
-        if (change is { IsNew: true, IsInserted: false })
-        {
-            cells["__new"] = change.Id.ToString("N");
-        }
-
-        return cells;
-    }
-
-    private RowChange? NewRow(string? newId) =>
-        newId is null ? null : Tab.Changes?.NewRows.FirstOrDefault(r => r.Id.ToString("N") == newId);
+    private RowChange? NewRow(string? newId) => GridRows.NewRow(Tab.Changes, newId);
 
     /// <summary>Full value of a cell for the editor (pending value if any); null if it cannot be edited.</summary>
     [JSInvokable]
@@ -381,20 +342,37 @@
         }
 
         return _blocks.At(rowIndex) is null
-            ? "Die Zeile ist nicht mehr geladen – bitte neu laden (F5)."
+            ? $"Die Zeile ist nicht mehr geladen – bitte neu laden{Shortcuts.Hint(ShortcutAction.Refresh)}."
             : OracleTypeMapper.Parse(column, text).Error;
     }
 
     /// <summary>The user finished editing a cell: check the text in .NET and keep it as a pending change.</summary>
     [JSInvokable]
-    public GridEdit OnCellEdit(int rowIndex, string? newId, string colId, string text)
+    public GridEdit OnCellEdit(int rowIndex, string? newId, string colId, string text) => Edit(rowIndex, newId, ColumnIndex(colId), text);
+
+    /// <summary>
+    /// A value typed in the form (WP-21): checked and kept like a cell edit, the grid redraws the row. Returns the
+    /// message if the text cannot be taken. Synchronous, so the form can hand over typed values right before writing.
+    /// </summary>
+    public string? EditFromForm(GridCell cell, int column, string text)
+    {
+        var edit = Edit(cell.RowIndex, cell.NewId, column, text);
+        if (edit.Row is { } row)
+        {
+            // A list, not an array: an array would become the params array of CallAsync itself (one object per row for grid.js).
+            Fire(() => cell.IsNew ? SetNewRowsAsync() : _grid.CallAsync("updateRows", new List<GridRowUpdate> { new(cell.RowIndex, row) }));
+        }
+
+        return edit.Error;
+    }
+
+    private GridEdit Edit(int rowIndex, string? newId, int column, string text)
     {
         if (Tab.Changes is not { } changes)
         {
             return new GridEdit(null, "Diese Tabelle lässt sich hier nicht bearbeiten.");
         }
 
-        var column = ColumnIndex(colId);
         EditResult result;
         if (NewRow(newId) is { } added)
         {
@@ -403,9 +381,9 @@
             return new GridEdit(result.IsValid ? GridRow(added, null) : null, result.Error);
         }
 
-        if (_blocks.At(rowIndex) is not { } row)
+        if (newId is not null || _blocks.At(rowIndex) is not { } row)
         {
-            return new GridEdit(null, "Die Zeile ist nicht mehr geladen – bitte neu laden (F5).");
+            return new GridEdit(null, $"Die Zeile ist nicht mehr geladen – bitte neu laden{Shortcuts.Hint(ShortcutAction.Refresh)}.");
         }
 
         result = changes.SetValue(row, column, text);
@@ -413,9 +391,76 @@
         return new GridEdit(result.IsValid ? GridRow(row) : null, result.Error);
     }
 
+    /// <summary>The focused cell moved (grid.js reports the last position after a short pause).</summary>
+    [JSInvokable]
+    public void OnFocused(int rowIndex, string? newId, string? colId)
+    {
+        Focused = new GridCell(rowIndex, newId, colId is not null && colId.StartsWith('c') ? ColumnIndex(colId) : null);
+        FocusChanged?.Invoke();
+    }
+
+    /// <summary>Alt+Enter in the grid (WP-21).</summary>
+    [JSInvokable]
+    public Task OnFormKey(int rowIndex, string? newId, int[] selectedRows)
+    {
+        var focused = rowIndex < 0 && newId is null ? null : new GridCell(rowIndex, newId, Focused?.Column);
+        return GuardAsync(() => OnFormRequested.InvokeAsync(new FormRequest(focused, selectedRows.Order().ToList())));
+    }
+
+    /// <summary>The row at a grid position with the tab's changes; null if its block is not (or no longer) loaded.</summary>
+    public FormRow? RowOf(GridCell cell) =>
+        cell.IsNew
+            ? NewRow(cell.NewId) is { } added ? new FormRow(null, added) : null
+            : RowAt(cell.RowIndex);
+
+    /// <summary>A loaded row with the tab's changes; null if its block is not (or no longer) loaded.</summary>
+    public FormRow? RowAt(int rowIndex) => _blocks.At(rowIndex) is { } row ? new FormRow(row, Tab.Changes?.Find(row.Key)) : null;
+
+    /// <summary>Grid index of a loaded row by its key (the form finds its row again after writing or reloading).</summary>
+    public int? IndexOf(RowKey key) => _blocks.IndexOf(key);
+
+    /// <summary>The grid position of a new row that is not inserted yet; null if it is gone (inserted or removed).</summary>
+    public GridCell? CellOf(RowChange newRow, int? column) =>
+        Tab.Changes?.NewRows.Contains(newRow) == true ? new GridCell(-1, GridRows.NewRowId(newRow), column) : null;
+
+    /// <summary>
+    /// Moves the grid's focus to a row (the form's ▲ ▼); a block not loaded yet is fetched. <paramref name="keepFocus"/>:
+    /// the keyboard stays in the form.
+    /// </summary>
+    public Task FocusRowAsync(GridCell cell, bool keepFocus)
+    {
+        var pinned = cell.IsNew;
+        var index = pinned ? GridRows.NewRowIndex(Tab.Changes, cell.NewId) : cell.RowIndex;
+        if (index < 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        Focused = cell with { RowIndex = pinned ? -1 : index };
+        return _grid.CallAsync("focusRow", index, cell.Column is { } column ? ColumnId(column) : null, pinned, keepFocus);
+    }
+
+    /// <summary>Opens the LOB editor for a cell of the form's row (loaded or new).</summary>
+    public Task OpenLobAsync(GridCell cell, int column) =>
+        cell.IsNew
+            ? NewRow(cell.NewId) is { } added ? OnLobOpen.InvokeAsync(new LobRequest(-1, null, added, column)) : Task.CompletedTask
+            : OpenLobAsync(cell.RowIndex, column);
+
+    /// <summary>Copies the full value of a cell, like Ctrl+C (the form's "Wert kopieren").</summary>
+    public async Task CopyValueAsync(ColumnInfo column, object? value)
+    {
+        var cell = DelimitedExport.CellText(column, value);
+        if (await CopyTextAsync(cell.Text))
+        {
+            Shell.Notify(cell.Warnings.Count > 0 ? "Wert nicht kopiert." : $"{column.Name} kopiert.", cell.Warnings);
+        }
+    }
+
     /// <summary>Del in the grid: marks the selected loaded rows for deletion; new rows disappear.</summary>
     [JSInvokable]
-    public async Task<GridRowUpdate[]> OnDeleteKey(int[] rowIndexes, string[] newIds)
+    public Task<GridRowUpdate[]> OnDeleteKey(int[] rowIndexes, string[] newIds) => GuardAsync(() => OnDeleteKeyCoreAsync(rowIndexes, newIds), []);
+
+    private async Task<GridRowUpdate[]> OnDeleteKeyCoreAsync(int[] rowIndexes, string[] newIds)
     {
         if (Tab.Changes is not { } changes)
         {
@@ -478,19 +523,28 @@
         ChangesMade();
     }
 
-    /// <summary>Adds an empty new row at the top and starts editing its first editable cell.</summary>
-    public async Task AddRowAsync()
+    /// <summary>
+    /// Adds an empty new row at the top and starts editing its first editable cell – or, with
+    /// <paramref name="inGrid"/> false (the form is open, WP-21), only focuses the row: it is filled in the form.
+    /// </summary>
+    public async Task AddRowAsync(bool inGrid = true)
     {
         if (Tab.Changes is not { } changes || !_grid.IsCreated)
         {
             return;
         }
 
-        changes.AddRow();
+        var added = changes.AddRow();
         await SetNewRowsAsync();
         var first = ColumnPinning.DisplayOrder(Details, Tab.PinnedColumns)
             .FirstOrDefault(i => OracleTypeMapper.NotEditableReason(Details, Details.Columns[i], newRow: true) is null, -1);
-        if (first >= 0)
+        if (!inGrid)
+        {
+            Focused = new GridCell(-1, GridRows.NewRowId(added), first >= 0 ? first : null);
+            FocusChanged?.Invoke();
+            await _grid.CallAsync("focusRow", changes.NewRows.Count - 1, first >= 0 ? ColumnId(first) : null, true, true);
+        }
+        else if (first >= 0)
         {
             await _grid.CallAsync("startEditing", changes.NewRows.Count - 1, ColumnId(first), true);
         }
@@ -499,10 +553,18 @@
     }
 
     /// <summary>The new (not yet inserted) rows, pinned at the top of the grid.</summary>
-    public Task SetNewRowsAsync() => _grid.CallAsync("setNewRows", (Tab.Changes?.NewRows ?? []).Select(r => GridRow(r, null)).ToList());
+    public async Task SetNewRowsAsync()
+    {
+        await _grid.CallAsync("setNewRows", (Tab.Changes?.NewRows ?? []).Select(r => GridRow(r, null)).ToList());
+        RowsChanged?.Invoke();
+    }
 
-    /// <summary>The changes of the tab changed: the status bar and the tab header show counts.</summary>
-    private void ChangesMade() => Shell.NotifyChanged();
+    /// <summary>The changes of the tab changed: the status bar and the tab header show counts, the form its values.</summary>
+    private void ChangesMade()
+    {
+        Shell.NotifyChanged();
+        RowsChanged?.Invoke();
+    }
 
     /// <summary>Scrolls the column into view, highlights it briefly and focuses its cell in the first visible row.</summary>
     public Task JumpToColumnAsync(int column) => _grid.CallAsync("jumpToColumn", ColumnId(column));
@@ -530,8 +592,8 @@
     }
 
     [JSInvokable]
-    public async Task OnHeaderContextMenu(string colId, double x, double y, double viewportWidth, double viewportHeight) =>
-        await OnColumnMenu.InvokeAsync(new ColumnMenuRequest(ColumnIndex(colId), x, y, viewportWidth, viewportHeight));
+    public Task OnHeaderContextMenu(string colId, double x, double y, double viewportWidth, double viewportHeight) =>
+        GuardAsync(() => OnColumnMenu.InvokeAsync(new ColumnMenuRequest(ColumnIndex(colId), x, y, viewportWidth, viewportHeight)));
 
     [JSInvokable]
     public async Task<GridPage> GetRows(int startRow, int endRow, GridSort[] sortModel)
@@ -550,7 +612,7 @@
         var details = Details;
         var filters = Tab.AppliedFilters;
         var sorts = Tab.Sorts;
-        var result = await Shell.RunDbAsync(Logger, Active.Profile, async () =>
+        var result = await Shell.RunDbAsync(Logger, Active, async () =>
         {
             var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, CancellationToken.None);
             return await data.ReadPageAsync(details, filters, sorts, new PageSpec(startRow, endRow - startRow), CancellationToken.None);
@@ -573,6 +635,7 @@
         Tab.Error = null;
         Tab.Failure = null;
         await OnPageLoaded.InvokeAsync();
+        RowsChanged?.Invoke();
 
         return new GridPage(rows, page.IsLastPage ? startRow + page.Rows.Count : -1);
     }
@@ -582,7 +645,11 @@
     /// are the selected row indexes (the clicked row is always among them); rows no longer cached are counted as missing.
     /// </summary>
     [JSInvokable]
-    public async Task OnCellContextMenu(
+    public Task OnCellContextMenu(
+        int rowIndex, string colId, int[] selectedRows, double x, double y, double viewportWidth, double viewportHeight) =>
+        GuardAsync(() => OnCellContextMenuCoreAsync(rowIndex, colId, selectedRows, x, y, viewportWidth, viewportHeight));
+
+    private async Task OnCellContextMenuCoreAsync(
         int rowIndex, string colId, int[] selectedRows, double x, double y, double viewportWidth, double viewportHeight)
     {
         if (_blocks.At(rowIndex) is not { } row || !colId.StartsWith('c'))
@@ -602,7 +669,9 @@
     /// focused cell – always from the raw values, not the display text.
     /// </summary>
     [JSInvokable]
-    public async Task OnCopy(int rowIndex, string colId, int[] selectedRows)
+    public Task OnCopy(int rowIndex, string colId, int[] selectedRows) => GuardAsync(() => OnCopyCoreAsync(rowIndex, colId, selectedRows));
+
+    private async Task OnCopyCoreAsync(int rowIndex, string colId, int[] selectedRows)
     {
         if (selectedRows.Length > 1)
         {

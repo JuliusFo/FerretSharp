@@ -14,7 +14,7 @@ public sealed class ModelReloadTests : IAsyncLifetime
 {
     private static readonly TimeSpan Patience = TimeSpan.FromMinutes(2);
 
-    private readonly DirectoryInfo _root = Directory.CreateTempSubdirectory("ferret-reload-");
+    private readonly TestFolder _folder = new();
     private string _project = null!;
     private ConnectionProfile _profile = null!;
     private ActiveConnection _active = null!;
@@ -23,14 +23,14 @@ public sealed class ModelReloadTests : IAsyncLifetime
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private string Kunde => Path.Combine(_root.FullName, "samples", "FerretSharp.SampleModel.Entities", "Kunde.cs");
+    private string Kunde => Path.Combine(_folder.Path, "samples", "FerretSharp.SampleModel.Entities", "Kunde.cs");
 
     public async ValueTask InitializeAsync()
     {
         var repository = ModelHostTests.RepositoryRoot;
-        CopyProject(Path.Combine(repository, "samples"), Path.Combine(_root.FullName, "samples"));
-        File.Copy(Path.Combine(repository, "nuget.config"), Path.Combine(_root.FullName, "nuget.config"));
-        _project = Path.Combine(_root.FullName, "samples", "FerretSharp.SampleModel.Data", "FerretSharp.SampleModel.Data.csproj");
+        CopyProject(Path.Combine(repository, "samples"), Path.Combine(_folder.Path, "samples"));
+        File.Copy(Path.Combine(repository, "nuget.config"), Path.Combine(_folder.Path, "nuget.config"));
+        _project = Path.Combine(_folder.Path, "samples", "FerretSharp.SampleModel.Data", "FerretSharp.SampleModel.Data.csproj");
         var build = await BuildAsync();
         Assert.True(build.Succeeded, build.Output);
 
@@ -49,8 +49,8 @@ public sealed class ModelReloadTests : IAsyncLifetime
         reader.GetSynonymTargetsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
         reader.GetForeignKeysAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
         connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(connection);
-        var workspaces = new WorkspaceManager(new WorkspaceStore(Path.Combine(_root.FullName, "workspaces")), connections, connector);
-        _active = new ActiveConnection(connections, connector, new RecentConnections(Path.Combine(_root.FullName, "recent.json")), workspaces);
+        var workspaces = new WorkspaceManager(new WorkspaceStore(Path.Combine(_folder.Path, "workspaces")), connections, connector);
+        _active = new ActiveConnection(connections, connector, new RecentConnections(Path.Combine(_folder.Path, "recent.json")), workspaces);
         _models = new ClrModelManager(ModelHostTests.Runner(), _active, connections, buildQuiet: TimeSpan.FromMilliseconds(500));
         _consoles = new LinqConsoleService(ModelHostTests.Runner(), _models);
     }
@@ -60,14 +60,7 @@ public sealed class ModelReloadTests : IAsyncLifetime
         await _consoles.DisposeAsync();
         _models.Dispose();
         await _active.DisposeAsync();
-        try
-        {
-            _root.Delete(recursive: true);
-        }
-        catch (IOException)
-        {
-            // a build server still holding a file: the temp folder is cleaned up later
-        }
+        _folder.Dispose();
     }
 
     /// <summary>The project's own folders without bin and obj.</summary>
@@ -89,7 +82,7 @@ public sealed class ModelReloadTests : IAsyncLifetime
     }
 
     private Task<DotNetRun> BuildAsync() =>
-        DotNetCli.RunAsync(["build", _project, "-c", "Debug", "-nologo", "--disable-build-servers"], _root.FullName, TimeSpan.FromMinutes(5), Ct);
+        DotNetCli.RunAsync(["build", _project, "-c", "Debug", "-nologo", "--disable-build-servers"], _folder.Path, TimeSpan.FromMinutes(5), Ct);
 
     private static async Task WaitUntil(Func<Task<bool>> condition, string what)
     {

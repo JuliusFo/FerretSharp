@@ -8,7 +8,6 @@
         {
             <button class="btn" title="Neuer SQL-Editor mit diesem Statement; die Bind-Werte werden zu Variablen" @onclick="OnOpenInEditor">In SQL-Editor öffnen</button>
         }
-        <button class="btn" @onclick="CopyAsync">@(_copied ? "Kopiert ✓" : "Kopieren")</button>
         <button class="icon-btn ghost" title="Schließen" @onclick="OnClose">✕</button>
     </header>
     @if (Error is not null)
@@ -34,11 +33,6 @@
 </ModalFrame>
 
 @code {
-    private bool _copied;
-
-    [Inject]
-    private IJSRuntime JS { get; set; } = null!;
-
     [Parameter]
     public string Title { get; set; } = "Generiertes SQL";
 
@@ -57,10 +51,4 @@
     /// <summary>"In SQL-Editor öffnen" (WP-17); without a handler the button is not shown.</summary>
     [Parameter]
     public EventCallback OnOpenInEditor { get; set; }
-
-    private async Task CopyAsync()
-    {
-        await JS.InvokeVoidAsync("navigator.clipboard.writeText", Sql);
-        _copied = true;
-    }
 }

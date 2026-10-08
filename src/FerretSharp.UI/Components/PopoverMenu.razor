@@ -1,0 +1,75 @@
+@* The frame of a right-click menu (R3b, what ModalFrame is for dialogs): a backdrop that closes on a click or another
+   right-click, the menu at the mouse position kept inside the window, focus on it so Escape closes. Used by the
+   grid's cell and header menus and the result menu of SQL/LINQ. *@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div class="popover-backdrop" @onclick="CloseAsync" @oncontextmenu="CloseAsync" @oncontextmenu:preventDefault="true"></div>
+<div id="@_id" class="popover ctx-menu" style="@Position" tabindex="-1" @onkeydown="OnKeyDown" @oncontextmenu:preventDefault="true">
+    @ChildContent
+</div>
+
+@code {
+    private readonly string _id = "ctx-" + Guid.NewGuid().ToString("N");
+
+    /// <summary>Mouse position and window size of the click.</summary>
+    [Parameter, EditorRequired]
+    public double X { get; set; }
+
+    [Parameter, EditorRequired]
+    public double Y { get; set; }
+
+    [Parameter, EditorRequired]
+    public double ViewportWidth { get; set; }
+
+    [Parameter, EditorRequired]
+    public double ViewportHeight { get; set; }
+
+    [Parameter]
+    public double Width { get; set; } = 320;
+
+    /// <summary>An estimate for the first placement; dom.js keepInViewport corrects it once rendered.</summary>
+    [Parameter]
+    public double EstimatedHeight { get; set; } = 230;
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    private DomModule? _dom;
+
+    private DomModule Dom => _dom ??= new(JS);
+
+    private string Position
+    {
+        get
+        {
+            var left = Math.Max(8, Math.Min(X, ViewportWidth - Width - 8));
+            var top = Math.Max(8, Math.Min(Y, ViewportHeight - EstimatedHeight - 8));
+            return FormattableString.Invariant($"position: fixed; left: {left:0}px; top: {top:0}px; width: {Width:0}px;");
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Dom.InvokeVoidAsync("focusById", _id); // Escape closes
+            await Dom.InvokeVoidAsync("keepInViewport", _id);
+        }
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await CloseAsync();
+        }
+    }
+
+    private Task CloseAsync() => OnClose.InvokeAsync();
+
+    public ValueTask DisposeAsync() => Dom.DisposeAsync();
+}

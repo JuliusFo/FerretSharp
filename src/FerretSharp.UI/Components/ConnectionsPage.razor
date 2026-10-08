@@ -1,17 +1,13 @@
 @using FerretSharp.Core.Connections
-@using FerretSharp.UI.State
 @implements IDisposable
 @inject ConnectionManager Connections
-@inject ActiveConnection Active
+@inject ConnectionHub Hub
 @inject RecentConnections Recent
 
 <div class="connections-page">
     <div class="page-head">
         <h1>Verbindungen <span class="count">@Connections.Profiles.Count</span></h1>
-        <div class="search grow">
-            @Icons.Search
-            <input placeholder="Suchen nach Name, Gruppe, Host, Benutzer …" @bind="_query" @bind:event="oninput" />
-        </div>
+        <SearchBox @bind-Value="_query" Class="search grow" Placeholder="Suchen nach Name, Gruppe, Host, Benutzer …" />
         <button class="btn primary" @onclick="Shell.NewConnection"><span class="plus">+</span> Neue Verbindung</button>
     </div>
 
@@ -51,9 +47,9 @@
                                 <span class="dot"></span>
                                 <span class="name">
                                     @p.Name
-                                    @if (Active.Profile?.Id == p.Id && Active.IsConnected)
+                                    @if (Hub.Find(p.Id) is { Active.IsConnected: true } scope)
                                     {
-                                        <span class="connected-tag">verbunden</span>
+                                        <span class="connected-tag">@(scope == Hub.Current ? "angezeigt" : "verbunden")</span>
                                     }
                                 </span>
                                 <span class="kind-badge">@ConnectionKindInfo.Short(p.Kind)</span>
@@ -71,13 +67,16 @@
 </div>
 
 @code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
     private readonly HashSet<string> _collapsed = [];
     private string _query = "";
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
 
-    /// <summary>Not @ondblclick: in the WPF host a real double click never raises dblclick (see CLAUDE.md).</summary>
+    /// <summary>Not @ondblclick: in the WPF host a real double click never raises dblclick (see src/FerretSharp.UI/CLAUDE.md).</summary>
     private void ConnectOnDoubleClick(MouseEventArgs e, ConnectionProfile profile)
     {
         if (e.Detail >= 2)
@@ -90,6 +89,7 @@
     {
         Connections.Changed += OnConnectionsChanged;
         Active.Changed += OnConnectionsChanged;
+        Hub.Changed += OnConnectionsChanged;
     }
 
     private string LastUsedText(ConnectionProfile profile)
@@ -124,5 +124,6 @@
     {
         Connections.Changed -= OnConnectionsChanged;
         Active.Changed -= OnConnectionsChanged;
+        Hub.Changed -= OnConnectionsChanged;
     }
 }

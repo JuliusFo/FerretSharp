@@ -9,7 +9,7 @@ namespace FerretSharp.Core.Tests.Connections;
 
 public sealed class ActiveConnectionTests : IDisposable
 {
-    private readonly string _directory = Path.Combine(Path.GetTempPath(), "ferret-tests", Guid.NewGuid().ToString("N"));
+    private readonly TestFolder _folder = new();
     private readonly InMemorySecretStore _secrets = new();
     private readonly IDatabaseConnector _connector = Substitute.For<IDatabaseConnector>();
     private readonly IDatabaseConnection _connection = Substitute.For<IDatabaseConnection>();
@@ -22,7 +22,7 @@ public sealed class ActiveConnectionTests : IDisposable
 
     public ActiveConnectionTests()
     {
-        _recent = new RecentConnections(Path.Combine(_directory, "recent.json"));
+        _recent = new RecentConnections(_folder.Combine("recent.json"));
         var connections = new ConnectionManager(Substitute.For<IConnectionStore>(), _secrets);
         _workspaces = new WorkspaceManager(_workspaceStore, connections, _connector);
         _active = new ActiveConnection(connections, _connector, _recent, _workspaces);
@@ -146,11 +146,47 @@ public sealed class ActiveConnectionTests : IDisposable
         await _connection.Received(1).DisposeAsync();
     }
 
+    [Fact]
+    public async Task Lost_session_is_recorded_once_and_cleared_by_connecting_again()
+    {
+        await _active.ConnectAsync(_profile, Ct);
+        var first = new DatabaseException("connection lost", "ORA-03113");
+        var changes = 0;
+        _active.Changed += () => changes++;
+
+        Assert.False(_active.ReportLost(new DatabaseException("no such table", "ORA-00942")));
+        Assert.True(_active.ReportLost(first));
+        Assert.False(_active.ReportLost(new DatabaseException("again", "ORA-03135")));
+
+        Assert.Same(first, _active.Lost);
+        Assert.Equal(1, changes);
+
+        await _active.ConnectAsync(_profile, Ct);
+
+        Assert.Null(_active.Lost);
+    }
+
+    [Fact]
+    public void Lost_session_is_ignored_while_not_connected()
+    {
+        Assert.False(_active.ReportLost(new DatabaseException("connection lost", "ORA-03113")));
+        Assert.Null(_active.Lost);
+    }
+
+    [Fact]
+    public async Task Clear_lost_removes_the_banner_state_right_away()
+    {
+        await _active.ConnectAsync(_profile, Ct);
+        _active.ReportLost(new DatabaseException("connection lost", "ORA-03113"));
+
+        _active.ClearLost();
+
+        Assert.Null(_active.Lost);
+        Assert.True(_active.IsConnected);
+    }
+
     public void Dispose()
     {
-        if (Directory.Exists(_directory))
-        {
-            Directory.Delete(_directory, recursive: true);
-        }
+        _folder.Dispose();
     }
 }

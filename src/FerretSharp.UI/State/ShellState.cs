@@ -11,29 +11,13 @@ public sealed record ConnectionDialogRequest(ConnectionDialogMode Mode, Connecti
 
 public enum ShellPage { Connections, Explorer, Settings, Model, Compare }
 
-/// <summary>Tabs of one open workspace.</summary>
-public sealed class WorkspaceTabs(Guid workspaceId)
-{
-    public Guid WorkspaceId { get; } = workspaceId;
-
-    public List<WorkspaceTab> Tabs { get; } = [];
-
-    public WorkspaceTab? ActiveTab { get; set; }
-
-    public int ActiveIndex => ActiveTab is null ? -1 : Tabs.IndexOf(ActiveTab);
-
-    /// <summary>The table tabs (editing, FK navigation); LINQ tabs have no rows of their own.</summary>
-    public IEnumerable<TableTab> TableTabs => Tabs.OfType<TableTab>();
-}
-
 /// <summary>
-/// Shell-level UI state shared via a cascading value: current page, tabs per open workspace, dialogs.
-/// Components request actions here instead of knowing about each other.
+/// Shell-level UI state shared via a cascading value: current page, dialogs, notices, the events between components –
+/// and the tabs per open workspace (<c>ShellState.Tabs.cs</c>). Components request actions here instead of knowing about
+/// each other.
 /// </summary>
-public sealed class ShellState
+public sealed partial class ShellState
 {
-    private readonly List<WorkspaceTabs> _workspaces = [];
-
     public event Action? Changed;
 
     /// <summary>
@@ -48,16 +32,22 @@ public sealed class ShellState
     /// <summary>Global shortcuts for the active tab (Ctrl+Enter, F5); handled by its tab view.</summary>
     public event Action<WorkspaceTab, TabCommand>? TabCommandRequested;
 
+    /// <summary>
+    /// Right before a workspace writes or commits (Ctrl+S, commit): the forms take over values typed but not yet
+    /// confirmed (WP-21), so they are not silently left out. A handler returns why writing must not start (a typed
+    /// value is invalid); null if it may.
+    /// </summary>
+    public event Func<Guid, string?>? BeforeWrite;
+
+    /// <summary>Runs every <see cref="BeforeWrite"/> handler for the workspace; the first reason against writing, or null.</summary>
+    public string? PrepareWrite(Guid workspaceId) =>
+        (BeforeWrite?.GetInvocationList() ?? [])
+            .Cast<Func<Guid, string?>>()
+            .Select(handler => handler(workspaceId))
+            .ToList()
+            .FirstOrDefault(reason => reason is not null);
+
     public ShellPage Page { get; private set; } = ShellPage.Connections;
-
-    /// <summary>Open workspaces in bar order.</summary>
-    public IReadOnlyList<WorkspaceTabs> Workspaces => _workspaces;
-
-    public WorkspaceTabs? ActiveWorkspace { get; private set; }
-
-    public IReadOnlyList<WorkspaceTab> Tabs => ActiveWorkspace?.Tabs ?? [];
-
-    public WorkspaceTab? ActiveTab => ActiveWorkspace?.ActiveTab;
 
     public ConnectionDialogRequest? ConnectionDialog { get; private set; }
 
@@ -68,18 +58,15 @@ public sealed class ShellState
     /// <summary>Shown in the error dialog (code, message, statement).</summary>
     public DatabaseException? ErrorDetails { get; private set; }
 
-    /// <summary>Set when a query found the session gone; the shell offers to reconnect.</summary>
-    public DatabaseException? ConnectionLost { get; private set; }
-
     /// <summary>Short-lived message (export done, warnings), shown as a toast.</summary>
     public Notice? Notice { get; private set; }
 
+    /// <summary>Shows the connection, opening it if needed (WP-24). Whether it was lost is the lifecycle's business: switching away keeps it.</summary>
     public void Connect(ConnectionProfile profile)
     {
         Set(() =>
         {
             SwitcherOpen = false;
-            ConnectionLost = null;
             Page = ShellPage.Explorer;
         });
         ConnectRequested?.Invoke(profile);
@@ -113,219 +100,6 @@ public sealed class ShellState
         Page = ShellPage.Model;
     });
 
-    /// <summary>
-    /// Aligns the tabs with the open workspaces: restores tabs of newly opened ones from their saved state (tables
-    /// that no longer exist are dropped), forgets closed ones and follows the active workspace.
-    /// </summary>
-    public void SyncWorkspaces(IReadOnlyList<Workspace> open, Guid? activeId, SchemaCache schema) => Set(() =>
-    {
-        var existing = _workspaces.ToDictionary(w => w.WorkspaceId);
-        _workspaces.Clear();
-        foreach (var workspace in open)
-        {
-            _workspaces.Add(existing.GetValueOrDefault(workspace.Id) ?? Restore(workspace, schema));
-        }
-
-        ActiveWorkspace = _workspaces.FirstOrDefault(w => w.WorkspaceId == activeId) ?? _workspaces.FirstOrDefault();
-        if (ActiveWorkspace?.ActiveTab is { } tab)
-        {
-            tab.Visited = true;
-        }
-    });
-
-    /// <summary>Forgets all workspace tabs (disconnect, switching connections). Their state is saved by then.</summary>
-    public void ClearWorkspaces() => Set(() =>
-    {
-        _workspaces.Clear();
-        ActiveWorkspace = null;
-    });
-
-    /// <summary>Activates the tab of <paramref name="table"/> in the active workspace or opens a new one.</summary>
-    public TableTab? OpenTable(TableSummary table, TabMode? mode = null)
-    {
-        if (ActiveWorkspace is not { } workspace)
-        {
-            return null;
-        }
-
-        var tab = workspace.Tabs.OfType<TableTab>().FirstOrDefault(t => t.Table.Ref == table.Ref);
-        Set(() =>
-        {
-            if (tab is null)
-            {
-                tab = new TableTab(workspace.WorkspaceId, table);
-                workspace.Tabs.Add(tab);
-            }
-
-            if (mode is { } m)
-            {
-                tab.Mode = m;
-            }
-
-            tab.Visited = true;
-            workspace.ActiveTab = tab;
-            Page = ShellPage.Explorer;
-        });
-        return tab;
-    }
-
-    /// <summary>
-    /// Opens a new tab (also if the table is already open) with the filters applied – used for FK jumps, so the tab
-    /// the user came from keeps its own filters. It is placed right after the active tab.
-    /// </summary>
-    public TableTab? OpenFiltered(TableSummary table, IReadOnlyList<FilterCondition> filters)
-    {
-        if (ActiveWorkspace is not { } workspace)
-        {
-            return null;
-        }
-
-        var tab = new TableTab(workspace.WorkspaceId, table) { AppliedFilters = filters, Visited = true, Origin = workspace.ActiveTab as TableTab };
-        tab.FilterRows.AddRange(filters.Select(FilterRow.From));
-        Set(() =>
-        {
-            if (workspace.ActiveTab is TableTab origin)
-            {
-                origin.Forward = null; // a new jump replaces the way forward, like in a browser
-            }
-
-            var index = workspace.ActiveTab is { } active ? workspace.Tabs.IndexOf(active) + 1 : workspace.Tabs.Count;
-            workspace.Tabs.Insert(index, tab);
-            workspace.ActiveTab = tab;
-            Page = ShellPage.Explorer;
-        });
-        return tab;
-    }
-
-    /// <summary>Opens a new LINQ console tab ("LINQ 1", "LINQ 2" …) after the active tab (WP-13).</summary>
-    public LinqTab? OpenLinq(string? code = null)
-    {
-        if (ActiveWorkspace is not { } workspace)
-        {
-            return null;
-        }
-
-        var titles = workspace.Tabs.OfType<LinqTab>().Select(t => t.Title).ToHashSet(StringComparer.Ordinal);
-        var number = Enumerable.Range(1, int.MaxValue).First(n => !titles.Contains($"LINQ {n}"));
-        var tab = new LinqTab(workspace.WorkspaceId, $"LINQ {number}") { Code = code ?? "", Visited = true };
-        Set(() =>
-        {
-            var index = workspace.ActiveTab is { } active ? workspace.Tabs.IndexOf(active) + 1 : workspace.Tabs.Count;
-            workspace.Tabs.Insert(index, tab);
-            workspace.ActiveTab = tab;
-            Page = ShellPage.Explorer;
-        });
-        return tab;
-    }
-
-    /// <summary>
-    /// Opens a new SQL editor tab ("SQL 1", "SQL 2" …) after the active tab (WP-17), optionally with a statement and its
-    /// variables ("In SQL-Editor öffnen" from a table tab's SQL preview).
-    /// </summary>
-    public SqlTab? OpenSql(string? text = null, IReadOnlyList<Core.Query.SqlVariable>? variables = null)
-    {
-        if (ActiveWorkspace is not { } workspace)
-        {
-            return null;
-        }
-
-        var titles = workspace.Tabs.OfType<SqlTab>().Select(t => t.Title).ToHashSet(StringComparer.Ordinal);
-        var number = Enumerable.Range(1, int.MaxValue).First(n => !titles.Contains($"SQL {n}"));
-        var tab = new SqlTab(workspace.WorkspaceId, $"SQL {number}") { Text = text ?? "", Variables = variables ?? [], Visited = true };
-        Set(() =>
-        {
-            var index = workspace.ActiveTab is { } active ? workspace.Tabs.IndexOf(active) + 1 : workspace.Tabs.Count;
-            workspace.Tabs.Insert(index, tab);
-            workspace.ActiveTab = tab;
-            Page = ShellPage.Explorer;
-        });
-        return tab;
-    }
-
-    /// <summary>Renames a SQL or LINQ tab (saved with the workspace); an empty or too long name changes nothing.</summary>
-    public void RenameTab(ITitledTab tab, string? name)
-    {
-        if (Workspace.NormalizeName(name) is { } title && title != tab.Title)
-        {
-            Set(() => tab.Title = title);
-        }
-    }
-
-    /// <summary>"Zurück" (Alt+←): activates the tab the active one was opened from by an FK jump.</summary>
-    public void GoBack()
-    {
-        if (ActiveTab is TableTab tab && Page == ShellPage.Explorer && tab.BackTarget(Tabs.ToList()) is { } target)
-        {
-            target.Forward = tab;
-            ActivateTab(target);
-        }
-    }
-
-    /// <summary>"Vor" (Alt+→): returns to the tab the user went back from.</summary>
-    public void GoForward()
-    {
-        if (ActiveTab is TableTab tab && Page == ShellPage.Explorer && tab.ForwardTarget(Tabs.ToList()) is { } target)
-        {
-            ActivateTab(target);
-        }
-    }
-
-    public void ActivateTab(WorkspaceTab tab) => Set(() =>
-    {
-        if (ActiveWorkspace is { } workspace && workspace.Tabs.Contains(tab))
-        {
-            tab.Visited = true;
-            workspace.ActiveTab = tab;
-        }
-    });
-
-    public void CloseTab(WorkspaceTab tab) => Set(() =>
-    {
-        if (ActiveWorkspace is not { } workspace)
-        {
-            return;
-        }
-
-        var index = workspace.Tabs.IndexOf(tab);
-        workspace.Tabs.Remove(tab);
-        if (workspace.ActiveTab == tab)
-        {
-            workspace.ActiveTab = workspace.Tabs.Count == 0 ? null : workspace.Tabs[Math.Min(index, workspace.Tabs.Count - 1)];
-            workspace.ActiveTab?.Visited = true;
-        }
-    });
-
-    public void CloseAllTabs() => Set(() =>
-    {
-        ActiveWorkspace?.Tabs.Clear();
-        ActiveWorkspace?.ActiveTab = null;
-    });
-
-    /// <summary>Drops tabs whose table no longer exists (after a schema refresh), in all workspaces.</summary>
-    public void RemoveTabsWhere(Func<TableTab, bool> predicate) => Set(() =>
-    {
-        foreach (var workspace in _workspaces)
-        {
-            workspace.Tabs.RemoveAll(t => t is TableTab table && predicate(table));
-            if (workspace.ActiveTab is not null && !workspace.Tabs.Contains(workspace.ActiveTab))
-            {
-                workspace.ActiveTab = workspace.Tabs.LastOrDefault();
-                workspace.ActiveTab?.Visited = true;
-            }
-        }
-    });
-
-    public void RequestTabCommand(TabCommand command)
-    {
-        if (ActiveTab is { } tab && Page == ShellPage.Explorer)
-        {
-            TabCommandRequested?.Invoke(tab, command);
-        }
-    }
-
-    /// <summary>A command for a particular tab, also an inactive one (reload after writing, commit, rollback).</summary>
-    public void RequestTabCommand(WorkspaceTab tab, TabCommand command) => TabCommandRequested?.Invoke(tab, command);
-
     /// <summary>Workspace the user wants to unlock for writing; the shell asks first (WP-10).</summary>
     public Guid? PendingUnlock { get; private set; }
 
@@ -358,17 +132,6 @@ public sealed class ShellState
 
     public void CloseError() => Set(() => ErrorDetails = null);
 
-    /// <summary>Every database failure of the UI goes through here, so a lost connection is reported once and loudly.</summary>
-    public void ReportFailure(DatabaseException error)
-    {
-        if (error.IsConnectionLost && ConnectionLost is null)
-        {
-            Set(() => ConnectionLost = error);
-        }
-    }
-
-    public void ClearConnectionLost() => Set(() => ConnectionLost = null);
-
     public void Notify(string text, IReadOnlyList<string>? warnings = null) =>
         Set(() => Notice = new Notice(text, warnings ?? [], DateTimeOffset.UtcNow));
 
@@ -384,62 +147,12 @@ public sealed class ShellState
 
     public void CloseSwitcher() => Set(() => SwitcherOpen = false);
 
-    private static WorkspaceTabs Restore(Workspace workspace, SchemaCache schema)
-    {
-        var result = new WorkspaceTabs(workspace.Id);
-        var restored = new Dictionary<int, TableTab>(); // saved index → tab
-        WorkspaceTab? active = null;
-        for (var i = 0; i < workspace.Tabs.Count; i++)
-        {
-            var state = workspace.Tabs[i];
-            WorkspaceTab tab;
-            if (state.Linq is { } linq)
-            {
-                tab = LinqTab.Restore(workspace.Id, linq);
-            }
-            else if (state.Sql is { } sql)
-            {
-                tab = SqlTab.Restore(workspace.Id, sql);
-            }
-            else if (schema.Find(state.Table) is { } table)
-            {
-                var tableTab = TableTab.Restore(workspace.Id, table, state);
-                restored[i] = tableTab;
-                tab = tableTab;
-            }
-            else
-            {
-                continue; // dropped, or no longer reachable through a synonym
-            }
-
-            result.Tabs.Add(tab);
-            if (i == workspace.ActiveTabIndex)
-            {
-                active = tab;
-            }
-        }
-
-        foreach (var (i, tab) in restored)
-        {
-            if (workspace.Tabs[i].OriginTab is { } origin && origin != i)
-            {
-                tab.Origin = restored.GetValueOrDefault(origin);
-            }
-        }
-
-        result.ActiveTab = active ?? result.Tabs.FirstOrDefault();
-        return result;
-    }
-
     private void Set(Action change)
     {
         change();
         NotifyChanged();
     }
 }
-
-/// <summary><see cref="Reload"/>: fetch the loaded rows again in place (after writing) – unlike <see cref="Refresh"/>, which starts at the top.</summary>
-public enum TabCommand { ApplyFilters, Refresh, FindColumn, Reload, RunScript }
 
 /// <summary>Leaving workspaces with uncommitted changes (close, disconnect, switch connection, exit).</summary>
 /// <param name="What">What is about to happen, e.g. "Workspace schließen".</param>

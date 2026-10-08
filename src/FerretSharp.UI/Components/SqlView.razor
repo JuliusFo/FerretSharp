@@ -2,18 +2,15 @@
    workspace's session. Queries go through the read path into a result grid, INSERT/UPDATE/DELETE/MERGE through the write
    path into the workspace's transaction (only on writable workspaces, confirmed on Prod and without WHERE); everything else
    is refused with a reason. *@
-@using System.Text.RegularExpressions
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
 @using FerretSharp.Core.Workspaces
-@using FerretSharp.UI.State
+@inherits FerretComponent
 @implements IDisposable
-@inject WorkspaceManager Workspaces
-@inject ActiveConnection Active
-@inject PresentationService Presentations
 @inject SqlHistoryStore History
 @inject ILogger<SqlView> Logger
+@inject ShortcutService Shortcuts
 
 <div class="sqlview">
     <div class="tab-toolbar">
@@ -26,18 +23,13 @@
         {
             <button class="btn ghost" title="Ausführungsplan des angezeigten Statements – geschätzt oder tatsächlich" @onclick="() => _planOpen = true">Plan</button>
         }
-        @if (_running)
-        {
-            <span class="spinner small"></span>
-            <button class="btn ghost" @onclick="Cancel">Abbrechen</button>
-        }
-        <button class="btn" disabled="@_running" @onclick="RunScriptAsync"
+        <button class="btn" disabled="@Busy" @onclick="RunScriptAsync"
                 title="Alle Statements nacheinander ausführen (oder die markierten); beim ersten Fehler hält das Skript an">
-            ▶▶ Skript <kbd>Alt X</kbd>
+            ▶▶ Skript <Kbd Action="ShortcutAction.RunScript" />
         </button>
-        <button class="btn primary" disabled="@_running" @onclick="RunAsync"
+        <button class="btn primary" disabled="@Busy" @onclick="RunAsync"
                 title="Das Statement am Cursor ausführen (oder die Markierung); Statements trennt ; oder eine Leerzeile">
-            ▶ Ausführen <kbd>Ctrl ↵</kbd>
+            ▶ Ausführen <Kbd Action="ShortcutAction.ApplyFilters" />
         </button>
     </div>
 
@@ -45,59 +37,12 @@
         <div class="sql-editors">
             <MonacoEditor @ref="_editor" Language="sql" Class="sql-code" Text="@Tab.Text" OnChange="OnTextChanged" Completion="CompleteAsync"
                           Placeholder="SELECT * FROM kunden WHERE kunde_id = :id;" />
-            @if (Tab.Variables.Count > 0)
-            {
-                <div class="linq-label">
-                    Variablen
-                    <span class="hint">Werte wie im Filter (1.234,5 · 05.10.2026 14:00 · ISO); gebunden, nie in das SQL eingesetzt.</span>
-                </div>
-                <div class="sql-variables">
-                    @foreach (var variable in Tab.Variables)
-                    {
-                        var v = variable;
-                        var used = _binds.Contains(v.Name, StringComparer.OrdinalIgnoreCase);
-                        <div class="sql-variable @(used ? "" : "unused")" title="@(used ? null : "Im Skript nicht mehr verwendet")">
-                            <code>:@v.Name</code>
-                            <select class="field" value="@v.Type" @onchange="e => SetVariable(v, Enum.Parse<SqlVariableType>((string)e.Value!), v.Value)">
-                                @foreach (var type in Enum.GetValues<SqlVariableType>())
-                                {
-                                    <option value="@type">@TypeText(type)</option>
-                                }
-                            </select>
-                            @if (v.Type != SqlVariableType.Null)
-                            {
-                                <input class="field" value="@v.Value" placeholder="@Placeholder(v.Type)" spellcheck="false"
-                                       @onchange="e => SetVariable(v, v.Type, Text(e))" />
-                            }
-                            @if (!used)
-                            {
-                                <button class="icon-btn ghost" title="Variable entfernen" @onclick="() => RemoveVariable(v)">✕</button>
-                            }
-                        </div>
-                    }
-                </div>
-            }
+            <SqlVariablesEditor Variables="Tab.Variables" Binds="_binds" OnChange="SetVariables" />
         </div>
 
         @if (_historyOpen)
         {
-            <aside class="sql-history">
-                <input class="field" placeholder="Verlauf durchsuchen …" value="@_historySearch" @oninput="SetSearch" />
-                <div class="sql-history-list">
-                    @foreach (var entry in FilteredHistory)
-                    {
-                        var e = entry;
-                        <button class="sql-history-item @(e.Error is null ? "" : "failed")" title="@e.Sql" @onclick="() => AdoptAsync(e)">
-                            <span class="sql-history-sql">@OneLine(e.Sql)</span>
-                            <span class="sql-history-meta">@e.ExecutedAt.ToLocalTime().ToString("dd.MM. HH:mm", CultureInfo.CurrentCulture) · @Outcome(e)</span>
-                        </button>
-                    }
-                    @if (!FilteredHistory.Any())
-                    {
-                        <div class="ctx-empty">@(_history.Count == 0 ? "Noch nichts ausgeführt." : "Kein Treffer.")</div>
-                    }
-                </div>
-            </aside>
+            <SqlHistoryPanel Entries="_history" OnAdopt="AdoptAsync" />
         }
     </div>
 
@@ -118,22 +63,28 @@
             </div>
         }
 
-        @if (Tab.Runs.Count > 1 && _error is null)
+        @if ((Tab.Runs.Count > 1 || (_running && _total > 1 && Tab.Runs.Count > 0)) && _error is null)
         {
             <div class="linq-commands sql-runs">
                 @for (var i = 0; i < Tab.Runs.Count; i++)
                 {
                     var index = i;
                     var item = Tab.Runs[i];
-                    <button class="chip-btn @(index == Tab.SelectedRun ? "active" : "") @(item.Error is null ? "" : "failed")"
+                    <button class="chip-btn @(index == Tab.SelectedRun ? "active" : "") @(item.Error is null || item.Cancelled ? "" : "failed")"
                             title="@item.Statement.Text" @onclick="() => SelectRun(index)">
-                        @item.Number · @item.Info.FirstWord · @RunOutcome(item)
+                        @item.Number · @item.Info.FirstWord · @RunOutcome(item)@Duration(item)
                     </button>
                 }
             </div>
         }
 
-        @if (Tab.ShownRun is { } run && _error is null)
+        @if (_running && _current is { } current)
+        {
+            <RunProgress @key="current" WorkspaceId="Tab.WorkspaceId" Started="_currentStarted" OnCancel="Cancel"
+                         Title="@(_total > 1 ? $"Statement {current.Number} von {_total} · {current.Info.FirstWord}" : current.Info.IsQuery ? "Abfrage läuft" : $"{current.Info.FirstWord} läuft")"
+                         Detail="@current.Statement.Text" ScriptStarted="@(_total > 1 ? _scriptStarted : null)" />
+        }
+        else if (Tab.ShownRun is { } run && _error is null)
         {
             @if (run.Error is { } failure)
             {
@@ -156,26 +107,14 @@
             else if (run.Changed is { } changed)
             {
                 <div class="linq-write">
-                    @switch (FateOf(run))
-                    {
-                        case WriteFate.Open:
-                            <p><strong>@(changed == 1 ? "1 Zeile" : $"{changed:N0} Zeilen") geändert</strong> (@run.Info.FirstWord) – in der Transaktion des Workspaces.
-                                Für andere unsichtbar bis zum Commit; committen, verwerfen oder zurücknehmen (↶) über die Statusleiste.</p>
-                            break;
-                        case WriteFate.Undone:
-                            <p class="muted">@(changed == 1 ? "1 Zeile" : $"{changed:N0} Zeilen") geändert (@run.Info.FirstWord) – inzwischen zurückgenommen (↶).</p>
-                            break;
-                        default:
-                            <p class="muted">@(changed == 1 ? "1 Zeile" : $"{changed:N0} Zeilen") geändert (@run.Info.FirstWord) – die Transaktion ist inzwischen beendet (Commit oder Rollback).</p>
-                            break;
-                    }
+                    <WriteOutcome Rows="changed" Fate="FateOf(run)" Detail="@($" ({run.Info.FirstWord}{Duration(run)})")" />
                 </div>
             }
         }
         else if (_error is null && _notice is null && Tab.Runs.Count == 0)
         {
             <EmptyState Title="SQL im Workspace"
-                        Text="Statements schreiben, mit ; oder einer Leerzeile trennen und mit Ctrl+Enter das Statement am Cursor ausführen – Alt+X führt das ganze Skript aus. SELECT läuft immer, INSERT, UPDATE, DELETE und MERGE nur auf schreibbaren Workspaces in deren Transaktion. Ctrl+Leertaste schlägt Tabellen und Spalten vor." />
+                        Text="@($"Statements schreiben, mit ; oder einer Leerzeile trennen und{Shortcuts.With(ShortcutAction.ApplyFilters)} das Statement am Cursor ausführen – {ScriptKey} führt das ganze Skript aus. SELECT läuft immer, INSERT, UPDATE, DELETE und MERGE nur auf schreibbaren Workspaces in deren Transaktion. Ctrl+Leertaste schlägt Tabellen und Spalten vor.")" />
         }
     </div>
 </div>
@@ -208,9 +147,35 @@
 }
 
 @code {
+    /// <summary>How to run the whole script: its shortcut, or the button if it has none (WP-25).</summary>
+    private string ScriptKey => Shortcuts.Label(ShortcutAction.RunScript) ?? "„Skript“";
+
+    [CascadingParameter]
+    public WorkspaceManager Workspaces { get; set; } = null!;
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public PresentationService Presentations { get; set; } = null!;
+
     private MonacoEditor? _editor;
     private CancellationTokenSource? _cts;
     private bool _running;
+
+    /// <summary>
+    /// Set synchronously by Ctrl+Enter / Alt+X / the buttons until the statements ran (or were refused or await the
+    /// confirmation): preparing awaits the editor and the schema, and a second start in that window ran DML twice.
+    /// </summary>
+    private bool _starting;
+
+    private bool Busy => _starting || _running || _confirm is not null;
+
+    /// <summary>While running: the statement at work, since when, and of how many (a script).</summary>
+    private SqlRun? _current;
+    private DateTimeOffset _currentStarted;
+    private DateTimeOffset _scriptStarted;
+    private int _total;
     private bool _planOpen;
     private string? _error;
     private bool _needsUnlock;
@@ -220,7 +185,6 @@
 
     private IReadOnlyList<SqlRun>? _confirm;
     private bool _historyOpen;
-    private string _historySearch = "";
     private IReadOnlyList<SqlHistoryEntry> _history = [];
 
     /// <summary>The binds of the whole script, in order (unused variables are shown dimmed).</summary>
@@ -251,13 +215,13 @@
         switch (command)
         {
             case TabCommand.RunScript:
-                _ = InvokeAsync(RunScriptAsync);
+                Fire(RunScriptAsync);
                 break;
             case TabCommand.ApplyFilters or TabCommand.Refresh:
-                _ = InvokeAsync(RunAsync);
+                Fire(RunAsync);
                 break;
             case TabCommand.FindColumn when _editor is not null:
-                _ = InvokeAsync(_editor.FindAsync);
+                Fire(_editor.FindAsync);
                 break;
         }
     }
@@ -295,20 +259,37 @@
         }
     }
 
-    private void SetVariable(SqlVariable variable, SqlVariableType type, string value)
+    private void SetVariables(IReadOnlyList<SqlVariable> variables)
     {
-        Tab.Variables = Tab.Variables.Select(v => ReferenceEquals(v, variable) ? v with { Type = type, Value = value } : v).ToList();
+        Tab.Variables = variables;
         Shell.MarkDirty();
     }
 
-    private void RemoveVariable(SqlVariable variable)
+    private Task RunAsync() => StartOnceAsync(RunCoreAsync);
+
+    private Task RunScriptAsync() => StartOnceAsync(RunScriptCoreAsync);
+
+    /// <summary>One run at a time: a start while another one prepares, runs or waits for its confirmation is ignored.</summary>
+    private async Task StartOnceAsync(Func<Task> start)
     {
-        Tab.Variables = Tab.Variables.Where(v => !ReferenceEquals(v, variable)).ToList();
-        Shell.MarkDirty();
+        if (Busy)
+        {
+            return;
+        }
+
+        _starting = true;
+        try
+        {
+            await start();
+        }
+        finally
+        {
+            _starting = false;
+        }
     }
 
     /// <summary>Ctrl+Enter: the statement at the cursor, or the first one of the selection.</summary>
-    private async Task RunAsync()
+    private async Task RunCoreAsync()
     {
         if (await PrepareAsync() is not { } context)
         {
@@ -325,14 +306,14 @@
 
         if (context.End > context.Start && SqlScript.CountStatements(context.Text[context.Start..context.End]) is var count and > 1)
         {
-            _notice = $"Die Markierung enthält {count} Statements – ausgeführt wird das erste (Alt+X führt alle aus).";
+            _notice = $"Die Markierung enthält {count} Statements – ausgeführt wird das erste ({ScriptKey} führt alle aus).";
         }
 
         await StartAsync([statement], single: true);
     }
 
     /// <summary>Alt+X: all statements (of the selection, if there is one), one after the other.</summary>
-    private async Task RunScriptAsync()
+    private async Task RunScriptCoreAsync()
     {
         if (await PrepareAsync() is not { } context)
         {
@@ -353,7 +334,7 @@
     /// <summary>Takes the editor's text and variables as they are right now and clears the last problems.</summary>
     private async Task<MonacoEditor.EditorRunContext?> PrepareAsync()
     {
-        if (_running || _editor is null || await _editor.GetRunContextAsync() is not { } context)
+        if (_editor is null || await _editor.GetRunContextAsync() is not { } context)
         {
             return null;
         }
@@ -404,12 +385,13 @@
     private async Task ExecuteAsync(IReadOnlyList<SqlRun> runs)
     {
         _running = true;
-        _cts = new CancellationTokenSource();
-        var token = _cts.Token;
+        using var cts = _cts = new CancellationTokenSource();
+        var token = cts.Token;
         Tab.Runs = [];
         Tab.SelectedRun = 0;
         _grid = null;
         _runKey++;
+        (_total, _scriptStarted) = (runs.Count, DateTimeOffset.Now);
         var (first, last) = (runs[0].Statement, runs[^1].Statement);
         await _editor!.FlashAsync(first.Start, last.End - first.Start);
         StateHasChanged();
@@ -419,6 +401,8 @@
         {
             foreach (var run in runs)
             {
+                (_current, _currentStarted) = (run, DateTimeOffset.Now);
+                StateHasChanged();
                 var result = await RunOneAsync(run, token);
                 results.Add(result);
                 Tab.Runs = results.ToList();
@@ -434,8 +418,11 @@
         finally
         {
             _running = false;
-            _cts.Dispose();
-            _cts = null;
+            _current = null;
+            if (ReferenceEquals(_cts, cts))
+            {
+                _cts = null;
+            }
         }
 
         var wrote = results.Any(r => r.Changed is not null);
@@ -448,11 +435,7 @@
 
         if (wrote)
         {
-            // Table tabs of the workspace may show the changed rows: they fetch them again from the transaction.
-            foreach (var tab in Shell.Workspaces.FirstOrDefault(w => w.WorkspaceId == Tab.WorkspaceId)?.TableTabs ?? [])
-            {
-                Shell.RequestTabCommand(tab, TabCommand.Reload);
-            }
+            Shell.ReloadTableTabs(Tab.WorkspaceId); // they may show the changed rows
 
             Shell.NotifyChanged(); // status bar: open transaction, commit/rollback
         }
@@ -470,34 +453,45 @@
         var query = run.Query;
         if (run.Info.IsQuery)
         {
-            var read = await Shell.RunDbAsync(Logger, Active.Profile, async () =>
-                await (await Workspaces.GetDataAsync(Tab.WorkspaceId, token)).ReadSqlAsync(query, 0, SqlResultGrid.PageSize, token), token);
+            var read = await Shell.RunDbAsync(Logger, Active, async () =>
+                await Workspaces.ReadSqlAsync(Tab.WorkspaceId, query, 0, SqlResultGrid.PageSize, token), token);
             if (read.Value is not { } page)
             {
                 return await FailedAsync(run, read);
             }
 
             await LogAsync(run, page.Rows.Count, !page.IsLastPage, false, null, page.Elapsed);
-            return run with { FirstPage = page };
+            return run with { FirstPage = page, Elapsed = DateTimeOffset.Now - run.At };
         }
 
-        var written = await Shell.RunDbAsync(Logger, Active.Profile, async () =>
-            await (await Workspaces.GetEditorAsync(Tab.WorkspaceId, token)).ExecuteAsync(query, token), token);
+        var written = await Shell.RunDbAsync(Logger, Active, async () =>
+            await Workspaces.ExecuteAsync(Tab.WorkspaceId, query, token), token);
         if (written.Value is not { } action)
         {
             return await FailedAsync(run, written);
         }
 
         await LogAsync(run, action.Rows, false, true, null);
-        return run with { Changed = action.Rows, Transaction = Workspaces.TransactionOf(Tab.WorkspaceId)?.StartedAt, Action = action.Id };
+        return run with
+        {
+            Changed = action.Rows,
+            Transaction = Workspaces.TransactionOf(Tab.WorkspaceId)?.StartedAt,
+            Action = action.Id,
+            Elapsed = DateTimeOffset.Now - run.At,
+        };
     }
 
     /// <summary>A failed or cancelled statement: an error Oracle reported is marked in the editor and goes into the history.</summary>
     private async Task<SqlRun> FailedAsync<T>(SqlRun run, DbResult<T> result)
     {
+        run = run with { Elapsed = DateTimeOffset.Now - run.At };
         if (result.Error is not { } error)
         {
-            return run with { Error = new DatabaseException(run.Info.IsQuery ? "Abgebrochen." : "Abgebrochen – das Statement wurde zurückgenommen.") };
+            return run with
+            {
+                Error = new DatabaseException(run.Info.IsQuery ? "Abgebrochen." : "Abgebrochen – das Statement wurde zurückgenommen."),
+                Cancelled = true,
+            };
         }
 
         if (!result.IsRefusal)
@@ -531,12 +525,16 @@
 
     private static string RunOutcome(SqlRun run) => run switch
     {
+        { Cancelled: true } => "abgebrochen",
         { Error: not null } => "Fehler",
         { Changed: { } changed } => $"{changed:N0} geändert",
         { FirstPage: { IsLastPage: true, Rows.Count: 1 } } => "1 Zeile",
         { FirstPage: { } page } => $"{(page.IsLastPage ? "" : "≥ ")}{page.Rows.Count:N0} Zeilen",
         _ => "",
     };
+
+    /// <summary>" · 0,4 s" after a run's outcome; nothing while unknown.</summary>
+    private static string Duration(SqlRun run) => run.Elapsed is { } elapsed ? " · " + ResultFooter.Ms(elapsed) : "";
 
     private async Task LogAsync(SqlRun run, int? rows, bool moreRows, bool changed, string? error, TimeSpan? elapsed = null)
     {
@@ -565,13 +563,6 @@
             _history = await History.LoadAsync(profile.Id, CancellationToken.None);
         }
     }
-
-    private void SetSearch(ChangeEventArgs e) => _historySearch = Text(e);
-
-    private static string Text(ChangeEventArgs e) => (string?)e.Value ?? string.Empty;
-
-    private IEnumerable<SqlHistoryEntry> FilteredHistory => _history.Where(e =>
-        _historySearch.Split(' ', StringSplitOptions.RemoveEmptyEntries).All(w => e.Sql.Contains(w, StringComparison.OrdinalIgnoreCase)));
 
     /// <summary>Appends the statement after a blank line, adopts its variables and puts the cursor there.</summary>
     private async Task AdoptAsync(SqlHistoryEntry entry)
@@ -628,34 +619,6 @@
         run.Action is { } action ? WorkspaceEditing.FateOf(Workspaces, Tab.WorkspaceId, action, run.Transaction) : WriteFate.Ended;
 
     private void Cancel() => _cts?.Cancel();
-
-    private static string TypeText(SqlVariableType type) => type switch
-    {
-        SqlVariableType.Text => "Text",
-        SqlVariableType.Char => "Text (CHAR)",
-        SqlVariableType.Number => "Zahl",
-        SqlVariableType.Date => "Datum",
-        SqlVariableType.Raw => "Hex (RAW)",
-        _ => "NULL",
-    };
-
-    private static string Placeholder(SqlVariableType type) => type switch
-    {
-        SqlVariableType.Number => "4711",
-        SqlVariableType.Date => "05.10.2026 14:00",
-        SqlVariableType.Raw => "CAFE01",
-        _ => "",
-    };
-
-    private static string OneLine(string sql) => Regex.Replace(sql, @"\s+", " ").Trim();
-
-    private static string Outcome(SqlHistoryEntry entry) => entry switch
-    {
-        { Error: { } error } => error.Split(':')[0],
-        { Changed: true, Rows: { } rows } => $"{rows:N0} geändert",
-        { Rows: { } rows } => $"{(entry.MoreRows ? "≥ " : "")}{rows:N0} Zeilen",
-        _ => "",
-    };
 
     public void Dispose()
     {

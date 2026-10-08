@@ -72,6 +72,8 @@ public sealed class SqlBindsTests
             new("p_3", "AB", OracleTypeHint.Char),
             new("p_4", new byte[] { 1, 2 }, OracleTypeHint.Raw),
             new("p_5", "%meier%", OracleTypeHint.Varchar2),
+            new("p_6", new DateTimeOffset(2026, 10, 8, 12, 0, 0, TimeSpan.FromHours(2)), OracleTypeHint.TimeStampTZ),
+            new("p_7", new DateTimeOffset(2026, 10, 8, 12, 0, 0, 250, TimeSpan.FromHours(-5.5)), OracleTypeHint.TimeStampTZ),
         ];
 
         var variables = parameters.Select(SqlBinds.FromParameter).ToList();
@@ -84,7 +86,7 @@ public sealed class SqlBindsTests
 
 public sealed class SqlHistoryStoreTests : IDisposable
 {
-    private readonly string _directory = Directory.CreateTempSubdirectory("ferret-history-").FullName;
+    private readonly TestFolder _folder = new();
     private static readonly Guid Connection = Guid.NewGuid();
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -95,12 +97,12 @@ public sealed class SqlHistoryStoreTests : IDisposable
     [Fact]
     public async Task Newest_first_repeats_replace_their_last_entry_and_values_survive()
     {
-        var store = new SqlHistoryStore(_directory);
+        var store = new SqlHistoryStore(_folder.Path);
         await store.AddAsync(Connection, Entry("SELECT 1 FROM dual"), Ct);
         await store.AddAsync(Connection, Entry("SELECT 2 FROM dual", new SqlVariable("id", SqlVariableType.Number, "4711")), Ct);
         await store.AddAsync(Connection, Entry(" SELECT 2 FROM dual "), Ct);
 
-        var history = await new SqlHistoryStore(_directory).LoadAsync(Connection, Ct);
+        var history = await new SqlHistoryStore(_folder.Path).LoadAsync(Connection, Ct);
 
         Assert.Equal([" SELECT 2 FROM dual ", "SELECT 1 FROM dual"], history.Select(e => e.Sql));
         Assert.Empty(await store.LoadAsync(Guid.NewGuid(), Ct));
@@ -109,7 +111,7 @@ public sealed class SqlHistoryStoreTests : IDisposable
     [Fact]
     public async Task At_most_500_entries()
     {
-        var store = new SqlHistoryStore(_directory);
+        var store = new SqlHistoryStore(_folder.Path);
         for (var i = 0; i < SqlHistoryStore.MaxEntries + 3; i++)
         {
             await store.AddAsync(Connection, Entry($"SELECT {i} FROM dual"), Ct);
@@ -124,7 +126,7 @@ public sealed class SqlHistoryStoreTests : IDisposable
     [Fact]
     public async Task Variables_round_trip_and_prod_entries_keep_no_values()
     {
-        var store = new SqlHistoryStore(_directory);
+        var store = new SqlHistoryStore(_folder.Path);
         var entry = Entry("SELECT * FROM t WHERE id = :id", new SqlVariable("id", SqlVariableType.Number, "4711"));
         await store.AddAsync(Connection, entry.WithoutValues(), Ct);
 
@@ -138,19 +140,18 @@ public sealed class SqlHistoryStoreTests : IDisposable
     [Fact]
     public async Task A_broken_file_is_an_empty_history()
     {
-        Directory.CreateDirectory(_directory);
-        await File.WriteAllTextAsync(Path.Combine(_directory, Connection.ToString("D") + ".json"), "{ kaputt", Ct);
+        await File.WriteAllTextAsync(_folder.Combine(Connection.ToString("D") + ".json"), "{ kaputt", Ct);
 
-        Assert.Empty(await new SqlHistoryStore(_directory).LoadAsync(Connection, Ct));
+        Assert.Empty(await new SqlHistoryStore(_folder.Path).LoadAsync(Connection, Ct));
     }
 
     [Fact]
     public async Task A_newer_or_locked_file_is_not_overwritten()
     {
-        var path = Path.Combine(_directory, Connection.ToString("D") + ".json");
+        var path = _folder.Combine(Connection.ToString("D") + ".json");
         const string newer = """{ "version": 2, "entries": [] }""";
         await File.WriteAllTextAsync(path, newer, Ct);
-        var store = new SqlHistoryStore(_directory);
+        var store = new SqlHistoryStore(_folder.Path);
 
         var history = await store.AddAsync(Connection, Entry("SELECT 1 FROM dual"), Ct);
 
@@ -167,16 +168,7 @@ public sealed class SqlHistoryStoreTests : IDisposable
         Assert.Equal(["SELECT 1 FROM dual"], (await store.LoadAsync(Connection, Ct)).Select(e => e.Sql));
     }
 
-    public void Dispose()
-    {
-        try
-        {
-            Directory.Delete(_directory, recursive: true);
-        }
-        catch (IOException)
-        {
-        }
-    }
+    public void Dispose() => _folder.Dispose();
 }
 
 public sealed class SqlCompletionTests

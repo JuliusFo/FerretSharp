@@ -1,10 +1,8 @@
 @* The tabs of the active workspace (R2, out of Shell.razor): table tabs with their filters and change dot, SQL and LINQ
    tabs that can be renamed, and the buttons for new SQL/LINQ tabs. *@
 @using FerretSharp.Core.ClrModel
-@using FerretSharp.UI.State
 @implements IDisposable
-@inject PresentationService Presentations
-@inject ClrModelManager Models
+@inject ShortcutService Shortcuts
 
 <nav class="tabs">
     @foreach (var tab in Shell.Tabs)
@@ -52,16 +50,22 @@
             <button class="tab-close" title="Schließen" @onclick:stopPropagation="true" @onclick="() => Lifecycle.CloseTab(tab)">✕</button>
         </div>
     }
-    <button class="tab-new" title="Neuer SQL-Editor: Statements in der Session dieses Workspaces (Ctrl+Shift+Q)"
+    <button class="tab-new" title="Neuer SQL-Editor: Statements in der Session dieses Workspaces@(Shortcuts.Hint(ShortcutAction.NewSql))"
             @onclick="() => Shell.OpenSql()">+ SQL</button>
     @if (Models.State.Link is not null)
     {
-        <button class="tab-new" title="Neue LINQ-Konsole: C# gegen den DbContext des verknüpften Projekts (Ctrl+Shift+L)"
+        <button class="tab-new" title="Neue LINQ-Konsole: C# gegen den DbContext des verknüpften Projekts@(Shortcuts.Hint(ShortcutAction.NewLinq))"
                 @onclick="() => Shell.OpenLinq()">+ LINQ</button>
     }
 </nav>
 
 @code {
+    [CascadingParameter]
+    public PresentationService Presentations { get; set; } = null!;
+
+    [CascadingParameter]
+    public ClrModelManager Models { get; set; } = null!;
+
     /// <summary>The SQL or LINQ tab whose title is being edited.</summary>
     private WorkspaceTab? _renaming;
 
@@ -81,7 +85,7 @@
 
     /// <summary>
     /// Double click renames a SQL or LINQ tab. Not via @@ondblclick: in the WPF host a real double click never fires it
-    /// (see CLAUDE.md, like the workspace chips).
+    /// (see src/FerretSharp.UI/CLAUDE.md, like the workspace chips).
     /// </summary>
     private void OnClick(MouseEventArgs e, WorkspaceTab tab)
     {
@@ -124,10 +128,31 @@
     /// <summary>Enum and bool filter values by their C# names, once the tab knows its table's structure.</summary>
     private TablePresentation? PresentationOf(TableTab tab) => tab.Details is { } details ? Presentations.For(details) : null;
 
+    /// <summary>The presentation subscribed to: the shown connection's, which changes on a switch.</summary>
+    private PresentationService? _presentations;
+
     /// <summary>A new model or name setting: titles and tooltips follow (the shell no longer renders for it).</summary>
-    protected override void OnInitialized() => Presentations.Changed += OnPresentationChanged;
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_presentations, Presentations))
+        {
+            if (_presentations is not null)
+            {
+                _presentations.Changed -= OnPresentationChanged;
+            }
+
+            _presentations = Presentations;
+            _presentations.Changed += OnPresentationChanged;
+        }
+    }
 
     private void OnPresentationChanged() => InvokeAsync(StateHasChanged);
 
-    public void Dispose() => Presentations.Changed -= OnPresentationChanged;
+    public void Dispose()
+    {
+        if (_presentations is not null)
+        {
+            _presentations.Changed -= OnPresentationChanged;
+        }
+    }
 }

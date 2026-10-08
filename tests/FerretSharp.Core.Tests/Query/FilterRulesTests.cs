@@ -30,6 +30,7 @@ public class FilterRulesTests
     [InlineData("01.10.2026 14:30", 2026, 10, 1, 14, 30, false)]
     [InlineData("2026-10-01", 2026, 10, 1, 0, 0, true)]
     [InlineData("2026-10-01T08:15:00", 2026, 10, 1, 8, 15, false)]
+    [InlineData("01.10.2026 14:30:00,0", 2026, 10, 1, 14, 30, false)]
     public void Parses_dates_and_detects_date_only(string text, int y, int m, int d, int h, int min, bool dateOnly)
     {
         Assert.True(FilterRules.TryParseDate(text, out var value, out var isDateOnly));

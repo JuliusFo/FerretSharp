@@ -4,7 +4,7 @@ using FerretSharp.Core.Schema;
 namespace FerretSharp.Core.Data;
 
 /// <summary>
-/// Where a change is (CLAUDE.md 5.6): <see cref="Pending"/> only in the tab, <see cref="Flushed"/> executed in the
+/// Where a change is (docs/architecture.md 1.6): <see cref="Pending"/> only in the tab, <see cref="Flushed"/> executed in the
 /// workspace's transaction (rows locked, invisible to others until commit).
 /// </summary>
 public enum ChangeStage
@@ -181,7 +181,7 @@ public sealed record EditResult(RowChange? Change, string? Error)
 }
 
 /// <summary>
-/// Changes of one tab (CLAUDE.md 5.6): pending until written, then flushed until commit. Existing rows are tracked by
+/// Changes of one tab (docs/architecture.md 1.6): pending until written, then flushed until commit. Existing rows are tracked by
 /// row key, so the changes survive reloading (F5, filters) and are laid over the fresh rows again.
 /// </summary>
 public sealed class ChangeTracker(TableDetails table)

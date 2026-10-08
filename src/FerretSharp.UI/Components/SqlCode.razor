@@ -1,11 +1,37 @@
-@* Read-only SQL with lightweight syntax highlighting (keywords, strings, binds, quoted identifiers). *@
+@* Read-only SQL with lightweight syntax highlighting (keywords, strings, binds, quoted identifiers) and a copy button in
+   its top right corner – every SQL block can be copied the same way. *@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
 
-<pre class="sql @Class">@foreach (var (text, css) in Tokens)
+<div class="sql-block">
+    <pre class="sql @Class">@foreach (var (text, css) in Tokens)
     {
         if (css is null) { @text } else { <span class="@css">@text</span> }
     }</pre>
+    <button type="button" class="sql-copy @(_copied ? "copied" : "")" title="SQL kopieren" @onclick="CopyAsync">
+        @if (_copied)
+        {
+            @Icons.Check<span>Kopiert</span>
+        }
+        else
+        {
+            @Icons.Copy
+        }
+    </button>
+</div>
 
 @code {
+    private DomModule? _dom;
+
+    /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
+    private DomModule Dom => _dom ??= new(JS);
+    private bool _copied;
+    private bool _disposed;
+
+    /// <summary>Notices (clipboard unavailable); absent outside the shell.</summary>
+    [CascadingParameter]
+    public FerretSharp.UI.State.ShellState? Shell { get; set; }
+
     private static readonly HashSet<string> Keywords = new(StringComparer.OrdinalIgnoreCase)
     {
         "SELECT", "FROM", "WHERE", "AND", "OR", "ORDER", "BY", "DESC", "ASC", "OFFSET", "ROWS", "FETCH", "NEXT", "ONLY",
@@ -44,6 +70,43 @@
 
             return _tokens;
         }
+    }
+
+    /// <summary>Copies the whole statement; the button says "Kopiert" for a moment.</summary>
+    private async Task CopyAsync()
+    {
+        try
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            if (!await Dom.CopyTextAsync(Sql))
+            {
+                Shell?.Notify("Die Zwischenablage ist nicht verfügbar.");
+                return;
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            return;
+        }
+
+        _copied = true;
+        StateHasChanged();
+        await Task.Delay(1500);
+        if (!_disposed)
+        {
+            _copied = false;
+            StateHasChanged();
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        await Dom.DisposeAsync();
     }
 
     private static List<(string Text, string? Css)> Highlight(string sql)

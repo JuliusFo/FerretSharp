@@ -88,7 +88,7 @@ public sealed record GridRowUpdate(int RowIndex, Dictionary<string, object?> Row
 public sealed class GridBridge(IJSRuntime js, string elementId, IDisposable selfReference) : IAsyncDisposable
 {
     private IJSObjectReference? _module;
-    private IJSObjectReference? _dom;
+    private readonly DomModule _dom = new(js);
     private bool _disposed;
 
     /// <summary>The grid was created and the component still lives.</summary>
@@ -124,7 +124,9 @@ public sealed class GridBridge(IJSRuntime js, string elementId, IDisposable self
 
     /// <summary>
     /// Calls an export of grid.js for this grid (the element id goes first); false if not loaded or disposed (also while
-    /// the call ran).
+    /// the call ran). Pass a list, not an array, as a single argument: an array of a reference type would become the
+    /// params array itself (array covariance), and grid.js got one row instead of the list (LOB editor since 3.6.1,
+    /// found in WP-21).
     /// </summary>
     public async Task<bool> CallAsync(string identifier, params object?[] args)
     {
@@ -145,17 +147,7 @@ public sealed class GridBridge(IJSRuntime js, string elementId, IDisposable self
     }
 
     /// <summary>Copies text to the clipboard; false (with a note) if the clipboard is not available.</summary>
-    public async Task<bool> CopyTextAsync(ShellState shell, string text)
-    {
-        _dom ??= await js.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
-        if (await _dom.InvokeAsync<bool>("copyText", text))
-        {
-            return true;
-        }
-
-        shell.Notify("Die Zwischenablage ist nicht verfügbar.");
-        return false;
-    }
+    public Task<bool> CopyTextAsync(ShellState shell, string text) => _dom.CopyTextAsync(shell, text);
 
     public async ValueTask DisposeAsync()
     {
@@ -174,11 +166,7 @@ public sealed class GridBridge(IJSRuntime js, string elementId, IDisposable self
             await DisposeQuietlyAsync(_module);
         }
 
-        if (_dom is not null)
-        {
-            await DisposeQuietlyAsync(_dom);
-        }
-
+        await _dom.DisposeAsync();
         selfReference.Dispose();
     }
 

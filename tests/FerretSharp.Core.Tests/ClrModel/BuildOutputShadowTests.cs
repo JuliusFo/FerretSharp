@@ -8,26 +8,26 @@ namespace FerretSharp.Core.Tests.ClrModel;
 /// </summary>
 public sealed class BuildOutputShadowTests : IDisposable
 {
-    private readonly DirectoryInfo _root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "fs-shadow-" + Guid.NewGuid().ToString("N")));
+    private readonly TestFolder _folder = new();
     private readonly string _output;
     private readonly BuildOutput _build;
     private readonly BuildOutputShadow _shadow;
 
     public BuildOutputShadowTests()
     {
-        _output = Directory.CreateDirectory(Path.Combine(_root.FullName, "Shop.Data", "bin", "Debug", "net8.0")).FullName;
+        _output = Directory.CreateDirectory(_folder.Combine("Shop.Data", "bin", "Debug", "net8.0")).FullName;
         Write("Shop.Data.dll", "data v1");
         Write("Shop.Entities.dll", "entities v1");
         Write("Shop.Data.deps.json", "{}");
         Write(Path.Combine("de", "Shop.Data.resources.dll"), "de v1");
         _build = new BuildOutput(Path.Combine(_output, "Shop.Data.dll"), Path.Combine(_output, "Shop.Data.deps.json"), new Version(8, 0),
             DateTime.UtcNow, [], [], null);
-        _shadow = new BuildOutputShadow(Path.Combine(_root.FullName, "shadow"), attempts: 2, TimeSpan.FromMilliseconds(10));
+        _shadow = new BuildOutputShadow(_folder.Combine("shadow"), attempts: 2, TimeSpan.FromMilliseconds(10));
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    public void Dispose() => _root.Delete(recursive: true);
+    public void Dispose() => _folder.Dispose();
 
     /// <summary>Writes a file of the build output with a distinct write time (as a build does).</summary>
     private void Write(string relative, string content, int minutes = 0)

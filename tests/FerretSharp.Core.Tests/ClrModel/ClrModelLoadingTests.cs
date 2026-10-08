@@ -16,7 +16,7 @@ namespace FerretSharp.Core.Tests.ClrModel;
 /// </summary>
 public sealed class ClrModelLoadingTests : IAsyncDisposable
 {
-    private readonly DirectoryInfo _root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "fs-model-" + Guid.NewGuid().ToString("N")));
+    private readonly TestFolder _folder = new();
     private readonly IModelHostRunner _runner = Substitute.For<IModelHostRunner>();
     private readonly ActiveConnection _active;
     private readonly ConnectionManager _connections;
@@ -27,14 +27,14 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
 
     public ClrModelLoadingTests()
     {
-        var project = Path.Combine(Directory.CreateDirectory(Path.Combine(_root.FullName, "Shop.Data")).FullName, "Shop.Data.csproj");
+        var project = Path.Combine(Directory.CreateDirectory(_folder.Combine("Shop.Data")).FullName, "Shop.Data.csproj");
         File.WriteAllText(project, "<Project Sdk=\"Microsoft.NET.Sdk\" />");
         File.SetLastWriteTimeUtc(project, DateTime.UtcNow.AddHours(-1));
-        var output = Directory.CreateDirectory(Path.Combine(_root.FullName, "Shop.Data", "bin", "Debug", "net8.0"));
+        var output = Directory.CreateDirectory(_folder.Combine("Shop.Data", "bin", "Debug", "net8.0"));
         _dll = Path.Combine(output.FullName, "Shop.Data.dll");
         File.WriteAllText(_dll, "");
         _deps = Path.Combine(output.FullName, "Shop.Data.deps.json");
-        File.WriteAllText(_deps, """{ "runtimeTarget": { "name": ".NETCoreApp,Version=v8.0" } }""");
+        File.WriteAllText(_deps, """{ "runtimeTarget": { "name": ".NETCoreApp,Version=v8.0" }, "libraries": { "Microsoft.EntityFrameworkCore/8.0.0": {} } }""");
         _profile = TestProfiles.HostPort() with { ClrProject = new ClrProjectLink(project) };
 
         var secrets = new InMemorySecretStore();
@@ -49,7 +49,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
         reader.GetForeignKeysAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
         connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(connection);
         var workspaces = new WorkspaceManager(new InMemoryWorkspaceStore(), connections, connector);
-        _active = new ActiveConnection(connections, connector, new RecentConnections(Path.Combine(_root.FullName, "recent.json")), workspaces);
+        _active = new ActiveConnection(connections, connector, new RecentConnections(_folder.Combine("recent.json")), workspaces);
         // No reloads by the watcher here (a test writing a broken deps.json would race with them); see WatchBuildsQuickly.
         _models = new ClrModelManager(_runner, _active, connections, buildQuiet: TimeSpan.FromHours(1));
     }
@@ -84,18 +84,46 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
+    /// <summary>
+    /// Connects and waits for the model load that connecting starts in the background. While it runs it reads the deps.json
+    /// (<c>File.OpenRead</c>), so a test that rewrites the file or deletes the folder at that moment fails with a sharing
+    /// violation; a load cancelled by <see cref="ClrModelManager.LoadAsync()"/> keeps reading until its step ends.
+    /// </summary>
+    private async Task ConnectAsync()
+    {
+        var settled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        void OnChanged()
+        {
+            if (_models.State.Phase != ClrModelPhase.Loading)
+            {
+                settled.TrySetResult();
+            }
+        }
+
+        _models.Changed += OnChanged;
+        try
+        {
+            await _active.ConnectAsync(_profile, Ct);
+            OnChanged();
+            await settled.Task.WaitAsync(TimeSpan.FromSeconds(10), Ct);
+        }
+        finally
+        {
+            _models.Changed -= OnChanged;
+        }
+    }
+
     public async ValueTask DisposeAsync()
     {
         _models.Dispose();
         await _active.DisposeAsync();
-        _root.Delete(recursive: true);
+        _folder.Dispose();
     }
 
     [Fact]
     public async Task A_deps_json_that_cannot_be_read_fails_the_model_load()
     {
-        await _active.ConnectAsync(_profile, Ct);
-        await WaitUntil(() => _models.State.Phase is ClrModelPhase.Loaded or ClrModelPhase.Failed); // the load on connecting reads it too
+        await ConnectAsync();
         File.WriteAllText(_deps, "{ halb geschrieben");
 
         await _models.LoadAsync();
@@ -107,7 +135,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
     [Fact]
     public async Task An_unexpected_runner_failure_fails_the_model_load()
     {
-        await _active.ConnectAsync(_profile, Ct);
+        await ConnectAsync();
         _runner.ReadModelAsync(Arg.Any<ClrProjectLink>(), Arg.Any<BuildOutput>(), Arg.Any<CancellationToken>(), Arg.Any<IProgress<string>?>())
             .ThrowsAsync(new InvalidOperationException("kaputt"));
 
@@ -120,7 +148,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
     [Fact]
     public async Task A_console_that_cannot_start_fails_with_a_message()
     {
-        await _active.ConnectAsync(_profile, Ct);
+        await ConnectAsync();
         await _models.LoadAsync();
         using var consoles = new LinqConsoleService(_runner, _models);
         _runner.StartConsoleAsync(Arg.Any<ClrProjectLink>(), Arg.Any<BuildOutput>(), Arg.Any<CancellationToken>(), Arg.Any<IProgress<string>?>())
@@ -131,6 +159,24 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
 
         Assert.Contains("dotnet fehlt", error.Message);
         Assert.Equal(LinqConsolePhase.Failed, consoles.State.Phase);
+    }
+
+    [Fact]
+    public async Task An_idle_console_of_a_connection_in_the_background_is_stopped()
+    {
+        await ConnectAsync();
+        await _models.LoadAsync();
+        var console = Substitute.For<ILinqConsole>();
+        _runner.StartConsoleAsync(Arg.Any<ClrProjectLink>(), Arg.Any<BuildOutput>(), Arg.Any<CancellationToken>(), Arg.Any<IProgress<string>?>())
+            .Returns(console);
+        await using var consoles = new LinqConsoleService(_runner, _models);
+
+        Assert.False(await consoles.StopIdleAsync()); // nothing running yet
+        await consoles.WarmUpAsync();
+
+        Assert.True(await consoles.StopIdleAsync());
+        await console.Received(1).DisposeAsync();
+        Assert.Equal(LinqConsolePhase.Stopped, consoles.State.Phase);
     }
 
     [Fact]

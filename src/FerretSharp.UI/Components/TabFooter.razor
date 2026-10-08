@@ -1,0 +1,129 @@
+@* The footer of a table tab (R3b, out of TabView): rows loaded, total count (counted on request, cancellable), query time,
+   snapshot time of a locked workspace, sort order and the row key. *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Query
+@using FerretSharp.Core.Schema
+@implements IDisposable
+@inject ILogger<TabFooter> Logger
+@inject ShortcutService Shortcuts
+
+<footer class="tab-footer">
+    @* RowsLoaded is the highest loaded position (blocks load where the user scrolls), so it is a lower bound. *@
+    @if (Tab.AllRowsLoaded)
+    {
+        <span><strong>@Tab.RowsLoaded.ToString("N0", CultureInfo.CurrentCulture)</strong> Zeilen</span>
+    }
+    else if (Tab.TotalCount is null)
+    {
+        <span>≥ <strong>@Tab.RowsLoaded.ToString("N0", CultureInfo.CurrentCulture)</strong> Zeilen</span>
+    }
+    @if (Tab.TotalCount is { } total && !Tab.AllRowsLoaded)
+    {
+        <span>Gesamt <strong>@total.ToString("N0", CultureInfo.CurrentCulture)</strong></span>
+    }
+    else if (_countCts is not null)
+    {
+        <span><span class="spinner small"></span> Zähle … <button class="status-btn" @onclick="CancelCount">Abbrechen</button></span>
+    }
+    else if (!Tab.AllRowsLoaded)
+    {
+        <button class="status-btn" @onclick="CountAsync">Zeilen zählen</button>
+    }
+    @if (Tab.LastQueryTime is { } time)
+    {
+        <span>@time.TotalMilliseconds.ToString("N0", CultureInfo.CurrentCulture) ms</span>
+    }
+    @if (Tab.DataAsOf is { } asOf)
+    {
+        <span title="Schreibgeschützte Verbindung: Oracle liefert die Daten aus einer READ ONLY-Transaktion mit dem Stand dieses Zeitpunkts. Jede neue Abfrage (Filter, Sortierung, @(Shortcuts.Label(ShortcutAction.Refresh) ?? "Neu laden")) holt einen neuen Stand; weitere Seiten bleiben im selben Stand.">
+            Stand @asOf.ToString("T", CultureInfo.CurrentCulture)
+        </span>
+        @if (Tab.SnapshotMoved)
+        {
+            <span class="warn" title="@SnapshotTexts.Moved">Stand hat sich geändert – @(Shortcuts.Label(ShortcutAction.Refresh) is { } key ? $"{key} lädt neu" : "neu laden")</span>
+        }
+    }
+    <span>@SortText</span>
+    @if (_countError is { } countError)
+    {
+        <span class="error">@countError.Display <button class="link-btn" @onclick="() => Shell.ShowError(countError)">Details</button></span>
+    }
+    <span class="spacer"></span>
+    <span>Row-Key: @RowKeyText</span>
+</footer>
+
+@code {
+    private CancellationTokenSource? _countCts;
+    private DatabaseException? _countError;
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceManager Workspaces { get; set; } = null!;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public TableTab Tab { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public TableDetails Details { get; set; } = null!;
+
+    /// <summary>Learns the counted total, so its scrollbar fits (null before the grid exists).</summary>
+    [Parameter]
+    public FerretGrid? Grid { get; set; }
+
+    /// <summary>A new query (filter, sort, F5): a count still running belongs to the old one; its error goes too.</summary>
+    public void Reset()
+    {
+        CancelCount();
+        _countError = null;
+    }
+
+    private string SortText => Tab.Sorts.Count > 0
+        ? "Sortierung: " + string.Join(", ", Tab.Sorts.Select(s => s.Column + (s.Descending ? " ↓" : " ↑")))
+        : QueryBuilder.RowKeyOf(Details) == RowKeyKind.None
+            ? "Sortierung: alle Spalten"
+            : "Sortierung: Row-Key";
+
+    private string RowKeyText => QueryBuilder.RowKeyOf(Details) switch
+    {
+        RowKeyKind.PrimaryKey => "PK " + string.Join(", ", Details.PrimaryKey),
+        RowKeyKind.RowId => Details.IsIndexOrganized ? "UROWID" : "ROWID",
+        _ => "keiner (View ohne Schlüssel)",
+    };
+
+    private async Task CountAsync()
+    {
+        var cts = _countCts = new CancellationTokenSource();
+        _countError = null;
+        var details = Details;
+        var filters = Tab.AppliedFilters;
+        var result = await Shell.RunDbAsync(Logger, Active, async () =>
+        {
+            var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, cts.Token);
+            return await data.CountAsync(details, filters, cts.Token);
+        }, cts.Token);
+        if (ReferenceEquals(_countCts, cts))
+        {
+            _countCts = null;
+        }
+
+        cts.Dispose();
+        _countError = result.Error;
+        if (result.Succeeded)
+        {
+            Tab.TotalCount = result.Value;
+            if (Grid is not null)
+            {
+                await Grid.SetRowCountAsync(result.Value);
+            }
+        }
+    }
+
+    private void CancelCount() => _countCts?.Cancel();
+
+    public void Dispose() => _countCts?.Cancel();
+}

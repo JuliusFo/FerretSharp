@@ -3,10 +3,7 @@
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Schema
-@using FerretSharp.UI.State
 @implements IDisposable
-@inject ClrModelManager Models
-@inject ActiveConnection Active
 @inject ConnectionManager Connections
 
 <div class="settings-page model-page">
@@ -134,6 +131,10 @@
                     <span class="model-chip">@mapping.MappedEntityCount von @entities Entities zugeordnet</span>
                     <span class="model-chip">@mapped von @properties Properties zugeordnet</span>
                     <span class="model-chip @(Count(mapping, MappingIssueKind.ColumnWithoutProperty) > 0 ? "warn" : "")">@Count(mapping, MappingIssueKind.ColumnWithoutProperty) Spalten ohne Property</span>
+                    @{
+                        var serious = mapping.ColumnMismatches.Count(m => m.Severity != MismatchSeverity.Hint);
+                    }
+                    <span class="model-chip @(serious > 0 ? "warn" : "")" title="Typ, NULL, Länge, Stellen – Hinweise nicht mitgezählt">@serious Abweichungen bei Typ/NULL/Länge</span>
                     @if (State.LoadedAt is { } loadedAt)
                     {
                         <span class="hint">Stand @loadedAt.ToString("HH:mm:ss", CultureInfo.CurrentCulture)</span>
@@ -142,7 +143,7 @@
 
                 @if (mapping.Issues.Count == 0)
                 {
-                    <div class="settings-note">Modell und Datenbank stimmen überein.</div>
+                    <div class="settings-note">Alle Entities, Properties und Spalten sind einander zugeordnet.</div>
                 }
 
                 @foreach (var (kind, title, hint) in IssueGroups)
@@ -171,6 +172,8 @@
                     </div>
                 }
             </section>
+
+            <ModelMismatches Mapping="mapping" OnOpen="Open" />
 
             <section class="settings-section">
                 <h2>Entities</h2>
@@ -204,6 +207,12 @@
 </div>
 
 @code {
+    [CascadingParameter]
+    public ClrModelManager Models { get; set; } = null!;
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
     private bool _showDetail;
 
     private static readonly (MappingIssueKind Kind, string Title, string Hint)[] IssueGroups =

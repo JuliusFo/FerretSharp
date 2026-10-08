@@ -77,6 +77,16 @@ internal sealed class WorkspaceSessions(ConnectionManager connections, IDatabase
         }
     }
 
+    /// <summary>The session is given up (it hangs): it leaves the pool (closed by the caller); the unlock stays for the next one.</summary>
+    public Task<IDatabaseConnection>? Drop(Guid workspaceId)
+    {
+        lock (_lock)
+        {
+            _sessions.Remove(workspaceId, out var session);
+            return session;
+        }
+    }
+
     /// <summary>Sessions that are open (for the keep-alive); those still opening or failed are left out.</summary>
     public IReadOnlyList<IDatabaseConnection> Open()
     {

@@ -26,6 +26,7 @@ public static class BindValues
         DateTime dt => dt.TimeOfDay == TimeSpan.Zero
             ? dt.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
             : dt.ToString("yyyy-MM-dd HH:mm:ss.FFFFFFF", CultureInfo.InvariantCulture),
+        DateTimeOffset dto => dto.ToString("yyyy-MM-dd HH:mm:ss.FFFFFFF zzz", CultureInfo.InvariantCulture),
         IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
         var other => other.ToString() ?? "",
     };

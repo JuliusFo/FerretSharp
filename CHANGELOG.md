@@ -15,6 +15,106 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 - A new build of the linked project is picked up automatically: the status bar shows "Build geändert – Modell wird neu geladen", entities, properties, enums and navigations are reloaded, and the LINQ console restarts in the background – the previous model and console keep working until the new ones are ready. No reconnecting needed.
 - UI stalls over 300 ms are logged with what caused them (UI work, garbage collection, memory); stalls over 1.5 s also get the stacks of all threads in the log folder if the `dotnet-stack` tool is installed. The steps of loading the C# model and the LINQ console are logged too.
 
+## [3.16.0] - 2026-10-08
+
+### Added
+- Keyboard shortcuts can be changed (WP-25): *Einstellungen › Tastenkürzel* lists every shortcut – "Ändern" and press the new keys, "Zurücksetzen", "Alle zurücksetzen" – and the fixed ones greyed out, so it doubles as the overview of all keys. Keys Windows takes (Alt+F4, AltGr = Ctrl+Alt) or that would block typing are refused; a key another action has can be taken over; a warning tells when the editors lose one of theirs (Ctrl+Z, Ctrl+Space …). Changes apply at once; tooltips, key hints on buttons and messages show the keys in effect.
+
+### Changed
+- The settings page has two sections, "Allgemein" and "Tastenkürzel".
+- FerretSharp's own JSON files keep umlauts and "+" readable instead of escaping them.
+- Folders are only ever deleted below a fixed root: the model host's temp folders and all test folders go through one guarded helper that refuses a drive root, the root itself or a path outside it; a test keeps code, tests and scripts from deleting folders any other way.
+
+## [3.15.0] - 2026-10-08
+
+### Changed
+- Internal restructuring for stability and maintainability (R3b), without new features: the schema reader split by topic with shared column lists, Oracle type rules in one place, the session's gate unit-tested, sturdier handling of the C# model's helper processes, shared building blocks for menus, export actions, FK jumps and SQL/LINQ write results, the SQL editor's variables and history as components of their own, and the form's row following unit-tested.
+- The search field of the SQL history is a search box like all others (✕ clears it, Escape too).
+
+### Fixed
+- Errors in work started outside a click (grid callbacks, shortcuts, background counts) now show in the tab instead of disappearing.
+- Building the linked C# project ("Neu bauen") is cancelled when the connection closes, leaves no MSBuild processes behind, and a build that times out shows its output.
+- The model host no longer waits for its timeout when the project's code leaves threads running; temp folders a killed host left behind are removed on a later start.
+- A NUMBER with more than 28 decimal places is shown exactly (was 0).
+- Opening the same connection twice in quick succession could open it twice.
+- The SQL history says "1 Zeile".
+
+## [3.14.1] - 2026-10-08
+
+### Fixed
+- Several open connections: a lost session is now tracked per connection. Before, a connection lost in the background showed the banner on the healthy one shown – whose "Neu verbinden" then dropped its open transaction without asking –, and after one "Neu verbinden" closing, locking, disconnecting or quitting no longer asked about uncommitted changes at all.
+- Quitting with uncommitted changes in a connection in the background failed with an error instead of asking.
+- Reloading the schema of one connection closed tabs of another connection whose tables it does not have.
+- The column picker of the filter bar never showed C# property names.
+- SQL editor: pressing Ctrl+Enter (or Alt+X, or the button) again right after starting could run the statements twice.
+- Writing in the grid while a SQL or LINQ statement of the same workspace was running could fail ("bereits eine Transaktion offen") or lose a step of the undo list; ↶ during a running statement could take back the wrong step. ↶ now takes back exactly what its tooltip names, or says that something was written meanwhile.
+- Undo and writing no longer freeze the window on a connection that went silent; a connection lost during a writing transaction is reported as lost on undo and commit.
+- Schema comparison: `NUMBER(*,2)` and `NUMBER` counted as equal; indexes from automatic indexing (`SYS_AI_…`) got rename hints or copied generated names in the DDL proposal.
+- "In SQL-Editor öffnen" for a statement on a TIMESTAMP WITH TIME ZONE column: the value became a text variable. Date variables now also take an offset (`2026-10-08 12:00:00 +02:00`).
+- LOB dialog: a file that cannot be written or read (open in another program, no permission) is reported in the dialog instead of replacing the tab with an error.
+- Quitting with several open connections: the workspaces of all of them are saved before the sessions close, so one hanging connection no longer keeps the others' tabs from being saved.
+- A slow commit in one workspace no longer blocks writing and committing in the others.
+- Saved schema comparisons of a newer FerretSharp version are no longer overwritten.
+
+## [3.14.0] - 2026-10-08
+
+### Added
+- Run progress where the result will appear, in the SQL editor and the LINQ console: what runs, for how long (ticking each second), in a script "Statement 3 von 7", and a prominent "Abbrechen". After pressing it the panel says "Wird abgebrochen …"; if Oracle has not reacted after 5 seconds (e.g. a VPN swallowed the cancel), "Session trennen …" closes the workspace's session and lets the statement go at once – after saying what is discarded (statement changes of the open transaction; grid changes already written become pending again). The next access opens a new session.
+- Durations: the statements of a script (chips) and "N Zeilen geändert" show how long they took; a cancelled statement is marked "abgebrochen" instead of "Fehler".
+- Every SQL block has a copy button in its top right corner: view definition, DDL, the SQL of the LINQ console, SQL preview, DDL proposal of the schema comparison, statements in confirmations and the error dialog. It replaces the "Kopieren" buttons of the DDL view, the SQL preview and the DDL proposal.
+
+### Fixed
+- The detail views Constraints, Indizes, Abhängigkeiten and DDL stayed empty, and the object header lacked its details (since 3.8.0): they asked an empty connection instead of the tab's.
+- LINQ console: "Abbrechen" stopped only the translation of the C# code, not the query itself.
+- Closing a workspace or disconnecting while a statement hung on a connection that had gone silent could freeze the window; such a connection now closes in the background.
+
+## [3.13.0] - 2026-10-08
+
+### Added
+- Search fields with a ✕ that clears them and leaves the cursor in the field: table search in the explorer, connection overview, connection switcher, column search (<kbd>Ctrl</kbd>+<kbd>F</kbd>), column filter of the structure view, form search and the row comparison. <kbd>Esc</kbd> in a field with text clears it; only the next <kbd>Esc</kbd> closes the switcher, the column search or the comparison (before, the first one closed them and the text was lost).
+
+### Fixed
+- The red frame of a Prod connection was hidden once connected: it was drawn below the top bar, explorer, tabs and status bar, so at most a strip beside an empty tab area remained (since 1.0.0). It now lies on top of everything, also over dialogs and menus, and follows the shown connection when switching.
+
+## [3.12.0] - 2026-10-08
+
+### Added
+- Editing `TIMESTAMP WITH TIME ZONE` and `TIMESTAMP WITH LOCAL TIME ZONE` columns, in the grid and the form (excluded since 1.9.0). Values with time zone take an offset at the end – `08.10.2026 12:00:00 +02:00`, `-0530`, `Z` or ISO `2026-10-08T12:00:00+02:00` – and keep it as given; without one the time zone of this computer applies, as Oracle takes the session's time zone. The same instant with another offset counts as a change. Values stored with a region name (`Europe/Berlin`) show and keep it until edited; an edited value is stored with its offset. `LOCAL TIME ZONE` values are times in the session's time zone, without offset (as Oracle shows them).
+
+### Fixed
+- Timestamps typed as the grid shows them, with a decimal comma (`08.10.2026 12:00:00,5`), were rejected as "kein Zeitstempel" when editing and as "kein Datum" in filters – only a decimal point was accepted. Both work now.
+
+## [3.11.1] - 2026-10-08
+
+### Fixed
+- Connection switcher: in the rows of open connections the "Trennen" button was cut off and the "⋯" menu slipped into the line below, over the next heading or row (since 3.8.0).
+
+## [3.11.0] - 2026-10-08
+
+### Added
+- Form view of a row: "Formular" in the tab toolbar, <kbd>Alt</kbd>+<kbd>Enter</kbd> in the grid or "Als Formular" in the context menu shows the row of the focused cell beside the grid, one field per column – handy for wide tables. Each field shows the column (and the C# property with its type, if a project is linked), the Oracle type, NOT NULL, PK/UK/FK badges and differences to the C# model; the column comment is the label's tooltip. Enum and bool values read as their members. The form follows the grid: arrow keys in the grid, ▲ ▼ or <kbd>Alt</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd> in the form move through the rows, also into blocks not loaded yet; the column focused in the grid is highlighted. Search the fields (also by C# name, <kbd>Ctrl</kbd>+<kbd>F</kbd> while in the form), hide empty fields (remembered per tab) or show only changed ones. Foreign keys are links that open the referenced row in a new tab (with the value just typed, if changed); referencing tables are listed below with their row counts. LOB fields open the LOB editor. The panel's width can be dragged and is remembered per tab, as is whether it is open.
+- Editing in the form on writable workspaces, like in the grid: <kbd>Enter</kbd> or leaving a field checks the value and keeps it as a pending change (the grid shows it at once), <kbd>Esc</kbd> drops the typed text, enum and bool columns pick from their members. A value typed but not yet confirmed is taken along by <kbd>Ctrl</kbd>+<kbd>S</kbd> or commit; an invalid one stops writing with the reason at the field. "+ Zeile" with the form open fills the new row in the form. On locked workspaces, views and rows marked for deletion the form only shows the values.
+- Compare selected rows: with several rows selected, <kbd>Alt</kbd>+<kbd>Enter</kbd> or "Markierte vergleichen" in the context menu shows them side by side (up to 20), one line per column, with the values that deviate from the others marked (compared on the values as stored, including pending changes). "Nur Unterschiede", hiding columns that are empty in all rows and a search; a row's heading leads back to the grid and opens that row in the form.
+
+### Fixed
+- LOB editor: "Übernehmen" on a loaded row kept the new value as a pending change but did not show it in the grid until the rows were reloaded (since 3.6.1).
+
+## [3.10.0] - 2026-10-08
+
+### Added
+- C# model comparison also checks types, NULL, lengths and precision: a new section "Typen, NULL und Längen" on the model page lists every property whose column does not fit it, with C# type, Oracle type and the consequence, as error (every query fails, e.g. `DateTimeOffset` on `DATE`, `bool` without J/N converter on `CHAR(1)`), warning (fails or loses data for some values: a nullable column for a required property – EF Core throws on reading NULL; a NOT NULL column for an optional property – ORA-01400, not for strings and byte arrays: Oracle stores an empty value as NULL, so a required one would not help either; `HasMaxLength(200)` on `VARCHAR2(100)` – ORA-12899; too many digits or decimals) or hint (differs without an error to expect, e.g. BYTE semantics with the same length). It compares what the database stores (after the converter) and only facets the project configures (`HasMaxLength`, `HasPrecision`, `HasColumnType`, required/nullable), so provider defaults raise nothing; nullability follows EF's own view of the column (TPH, owned types); views are checked for reading only. Filter by severity and search; the column links open the table's "Spalten" view, which marks the column with the same messages. The status bar counts errors and warnings with the other differences. The model cache is read once more from the project after the update (new export format).
+- Connection dialog: the linked C# project is checked as soon as its file is entered – a missing project, a too old framework or a project without EF Core (e.g. the entities project instead of the one with the DbContext) is reported right away instead of failing later with "Could not load Microsoft.EntityFrameworkCore". A project that is not built yet is accepted. Contributed by @ulbpccc.
+
+## [3.9.0] - 2026-10-07
+
+### Added
+- FK navigation from several selected rows: with more than one row selected, "Verweist auf"/"Referenziert von" in the context menu jump from all of them at once – the new tab filters the key with `in (…)` over their distinct values (e.g. select some orders → "KUNDEN" shows their customers; select customers → "AUFTRAG" shows all their orders), editable in the filter bar and saved with the workspace. The headings show the number of rows, the counts of referencing rows cover all of them. Rows without a key value are skipped (named in the tooltip); rows no longer loaded are not included (noted in the menu). Rows that all share one key jump with `=` as before. Keys over several columns jump from several rows only if all rows share the key (the filter has no tuple `in`); at most 1,000 distinct values. Also for relations from the C# model.
+
+## [3.8.0] - 2026-10-07
+
+### Added
+- Several connections open at once, one shown: switching to another connection no longer disconnects the current one – its explorer, tabs, grids, sessions and open transactions stay as they were in the background (e.g. developing on DEV while looking something up on PROD). <kbd>Alt</kbd>+<kbd>O</kbd> jumps back to the connection shown before. The connection switcher lists the open connections with their state and a "Trennen" button each; uncommitted work in a connection in the background is shown in the status bar; a connection lost in the background is marked and shown with the reconnect banner when you switch to it. Quitting asks about uncommitted work of all connections. LINQ helper processes of connections that stay in the background for 15 minutes are ended and start again when needed.
+
 ## [3.7.0] - 2026-10-07
 
 ### Added

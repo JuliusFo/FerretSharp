@@ -72,6 +72,178 @@ public class FkNavigationTests
         Assert.Equal([JumpDirection.Outgoing, JumpDirection.Outgoing, JumpDirection.Incoming], jumps.Select(j => j.Direction));
     }
 
+    private static readonly TableDetails Kunden = new(
+        new TableSummary("APP", "KUNDEN", TableKind.Table), [Col("ID", "NUMBER", 10, 0), Col("NAME", "VARCHAR2", length: 50)], ["ID"], [], false);
+
+    /// <summary>AUFTRAG rows (MANDANT, AUFTRAG_NR, KUNDE_ID, NOTIZ) with the given customer ids.</summary>
+    private static RowData[] Orders(params decimal?[] kundeIds) =>
+        kundeIds.Select((id, i) => Row(1m, 4711m + i, id, null)).ToArray();
+
+    [Fact]
+    public void Several_rows_jump_with_an_in_filter_over_their_distinct_values_in_selection_order()
+    {
+        var jump = FkNavigation.Outgoing(Auftrag, Orders(815m, 4711m, 815m, 12m), AuftragKunde);
+
+        Assert.True(jump.IsAvailable);
+        var filter = Assert.Single(jump.Filters);
+        Assert.Equal(("ID", FilterOperator.In), (filter.Column, filter.Op));
+        Assert.Equal(["815", "4711", "12"], filter.Values);
+        Assert.Equal(4, jump.Rows);
+        Assert.Equal("ID in (815; 4711; 12) · 3 Werte", jump.Condition);
+        Assert.Null(jump.SkippedNote);
+    }
+
+    [Fact]
+    public void Condition_of_a_long_value_list_shows_the_first_values_and_the_count()
+    {
+        var jump = FkNavigation.Outgoing(Auftrag, Orders(1m, 2m, 3m, 4m, 5m), AuftragKunde);
+
+        Assert.Equal("ID in (1; 2; 3; …) · 5 Werte", jump.Condition);
+    }
+
+    [Fact]
+    public void Several_rows_with_the_same_value_jump_with_an_equality_filter()
+    {
+        var jump = FkNavigation.Outgoing(Auftrag, Orders(815m, 815m), AuftragKunde);
+
+        var filter = Assert.Single(jump.Filters);
+        Assert.Equal(("ID", FilterOperator.Equals, "815"), (filter.Column, filter.Op, filter.Values.Single()));
+        Assert.Equal("ID = 815", jump.Condition);
+    }
+
+    [Fact]
+    public void Rows_without_a_value_are_skipped_and_reported()
+    {
+        var jump = FkNavigation.Outgoing(Auftrag, Orders(815m, null, 4711m, null), AuftragKunde);
+
+        Assert.True(jump.IsAvailable);
+        Assert.Equal(["815", "4711"], Assert.Single(jump.Filters).Values);
+        Assert.Equal(2, jump.SkippedRows);
+        Assert.Equal("2 Zeilen ohne Wert übersprungen", jump.SkippedNote);
+    }
+
+    [Fact]
+    public void One_skipped_row_is_reported_in_singular()
+    {
+        var jump = FkNavigation.Outgoing(Auftrag, Orders(815m, null), AuftragKunde);
+
+        Assert.Equal("ID = 815", jump.Condition);
+        Assert.Equal("1 Zeile ohne Wert übersprungen", jump.SkippedNote);
+    }
+
+    [Fact]
+    public void Jump_is_unavailable_if_no_selected_row_has_a_value()
+    {
+        var jump = FkNavigation.Outgoing(Auftrag, Orders(null, null, null), AuftragKunde);
+
+        Assert.False(jump.IsAvailable);
+        Assert.Equal("KUNDE_ID ist in allen 3 Zeilen NULL.", jump.Unavailable);
+        Assert.Empty(jump.Filters);
+    }
+
+    [Fact]
+    public void Several_rows_over_a_type_without_exact_equality_are_not_navigable()
+    {
+        var messwert = new TableDetails(
+            new TableSummary("APP", "MESSWERT", TableKind.Table), [Col("ID", "NUMBER", 10, 0), Col("FAKTOR", "BINARY_DOUBLE")], ["ID"], [], false);
+        var fk = new ForeignKeyInfo("FK_MESSWERT_FAKTOR", messwert.Table.Ref, ["FAKTOR"], new TableRef("APP", "FAKTOR"), ["WERT"], FkSource.Declared);
+
+        var jump = FkNavigation.Outgoing(messwert, [Row(1m, 1.5d), Row(2m, 2.5d)], fk);
+
+        Assert.False(jump.IsAvailable);
+        Assert.Equal("Sprung über BINARY_DOUBLE nicht möglich.", jump.Unavailable);
+    }
+
+    [Fact]
+    public void Composite_key_that_is_the_same_in_all_rows_jumps_with_equality_filters()
+    {
+        var jump = FkNavigation.Incoming(Auftrag, [Row(1m, 4711m, 815m, null), Row(1m, 4711m, 999m, null)], PositionAuftrag);
+
+        Assert.True(jump.IsAvailable);
+        Assert.Equal(
+            [("POS_MANDANT", FilterOperator.Equals, "1"), ("POS_AUFTRAG", FilterOperator.Equals, "4711")],
+            jump.Filters.Select(f => (f.Column, f.Op, f.Values.Single())));
+    }
+
+    [Fact]
+    public void Composite_key_that_differs_between_rows_is_not_navigable()
+    {
+        var jump = FkNavigation.Incoming(Auftrag, [Row(1m, 4711m, 815m, null), Row(1m, 4712m, 815m, null)], PositionAuftrag);
+
+        Assert.False(jump.IsAvailable);
+        Assert.Equal("Bei mehreren Zeilen nur für Schlüssel aus einer Spalte möglich.", jump.Unavailable);
+    }
+
+    [Fact]
+    public void Composite_key_skips_rows_where_one_column_is_null()
+    {
+        var jump = FkNavigation.Incoming(Auftrag, [Row(1m, 4711m, 815m, null), Row(null, 4712m, 815m, null)], PositionAuftrag);
+
+        Assert.Equal("POS_MANDANT = 1, POS_AUFTRAG = 4711", jump.Condition);
+        Assert.Equal(1, jump.SkippedRows);
+    }
+
+    [Fact]
+    public void At_most_1000_distinct_values()
+    {
+        var thousand = FkNavigation.Outgoing(Auftrag, Orders([.. Enumerable.Range(1, 1000).Select(i => (decimal?)i)]), AuftragKunde);
+        var more = FkNavigation.Outgoing(Auftrag, Orders([.. Enumerable.Range(1, 1001).Select(i => (decimal?)i)]), AuftragKunde);
+
+        Assert.Equal(1000, Assert.Single(thousand.Filters).Values.Count);
+        Assert.EndsWith("· 1.000 Werte", thousand.Condition);
+        Assert.False(more.IsAvailable);
+        Assert.Equal("1.001 verschiedene Werte – höchstens 1.000 möglich.", more.Unavailable);
+    }
+
+    [Fact]
+    public void Duplicates_do_not_count_towards_the_limit()
+    {
+        var jump = FkNavigation.Outgoing(Auftrag, Orders([.. Enumerable.Range(1, 1500).Select(i => (decimal?)(i % 10))]), AuftragKunde);
+
+        Assert.Equal(10, Assert.Single(jump.Filters).Values.Count);
+    }
+
+    [Fact]
+    public void Text_value_containing_the_list_separator_cannot_be_part_of_a_list()
+    {
+        var table = new TableDetails(
+            new TableSummary("APP", "T", TableKind.Table), [Col("ID", "NUMBER", 10, 0), Col("CODE", "VARCHAR2", length: 20)], ["ID"], [], false);
+        var fk = new ForeignKeyInfo("FK_T_CODE", table.Table.Ref, ["CODE"], new TableRef("APP", "CODES"), ["CODE"], FkSource.Declared);
+
+        var list = FkNavigation.Outgoing(table, [Row(1m, "A;B"), Row(2m, "C")], fk);
+        var same = FkNavigation.Outgoing(table, [Row(1m, "A;B"), Row(2m, "A;B")], fk);
+
+        Assert.False(list.IsAvailable);
+        Assert.Equal("Ein Wert enthält „;“ – bei mehreren Werten nicht möglich.", list.Unavailable);
+        Assert.Equal("CODE = A;B", same.Condition);
+    }
+
+    [Fact]
+    public void Incoming_jump_from_several_rows_over_a_relation_of_the_csharp_model()
+    {
+        var bearbeiter = new ForeignKeyInfo("Auftrag.Kunde", AuftragRef, ["KUNDE_ID"], KundenRef, ["ID"], FkSource.ClrModel);
+
+        var jumps = FkNavigation.JumpsFor(Kunden, [Row(815m, "A"), Row(4711m, "B")], [], [bearbeiter]);
+
+        var jump = Assert.Single(jumps);
+        Assert.Equal((JumpDirection.Incoming, AuftragRef, FkSource.ClrModel), (jump.Direction, jump.Table, jump.ForeignKey.Source));
+        Assert.Equal("KUNDE_ID in (815; 4711) · 2 Werte", jump.Condition);
+    }
+
+    /// <summary>The list must validate and bind each value like the single-row filter does.</summary>
+    [Fact]
+    public void In_filter_of_a_jump_validates_and_binds_every_value()
+    {
+        var jump = FkNavigation.Incoming(Kunden, [Row(815m, "A"), Row(4711m, "B"), Row(12m, "C")], AuftragKunde);
+        var filter = Assert.Single(jump.Filters);
+
+        var query = QueryBuilder.BuildCount(Auftrag, jump.Filters);
+
+        Assert.Null(FilterRules.Validate(Auftrag.Columns[2], filter));
+        Assert.Contains(" IN (", query.Sql);
+        Assert.Equal([815m, 4711m, 12m], query.Parameters.Select(p => p.Value));
+    }
+
     public static TheoryData<string, object> RoundTripValues() => new()
     {
         { "NUMBER", 4711m },

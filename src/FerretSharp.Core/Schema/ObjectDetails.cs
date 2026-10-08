@@ -77,6 +77,14 @@ public sealed record IndexInfo(
     bool Visible)
 {
     public bool IsUnusable => Status == "UNUSABLE";
+
+    /// <summary>
+    /// Oracle named it: <c>SYS_C…</c> for the index of a key, <c>SYS_AI_…</c> from automatic indexing and the like. Such
+    /// indexes are matched by content and their names are never copied (schema comparison and DDL proposal alike).
+    /// </summary>
+    public bool GeneratedName => IsGenerated(Name);
+
+    public static bool IsGenerated(string name) => name.StartsWith("SYS_", StringComparison.Ordinal);
 }
 
 /// <param name="Type"><c>ALL_OBJECTS.OBJECT_TYPE</c>, e.g. TABLE, VIEW, PACKAGE BODY, SYNONYM.</param>

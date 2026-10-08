@@ -1,6 +1,8 @@
 using System.Text.Json;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
+using FerretSharp.Core.IO;
+using FerretSharp.Core.Query;
 
 namespace FerretSharp.Core.Workspaces;
 
@@ -318,6 +320,28 @@ public sealed class WorkspaceManager : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Gives up the workspace's session, e.g. when a statement does not react to cancelling: closes its connection (Oracle
+    /// rolls back an open transaction; a statement still running there ends as cancelled). The workspace stays open and
+    /// unlocked; its next database access opens a new session.
+    /// </summary>
+    public async Task ResetSessionAsync(Guid workspaceId)
+    {
+        Task<IDatabaseConnection>? session;
+        lock (_lock)
+        {
+            session = _sessions.Drop(workspaceId);
+        }
+
+        if (session is null)
+        {
+            return;
+        }
+
+        RaiseChanged();
+        await WorkspaceSessions.CloseAsync(session);
+    }
+
     /// <summary>Opens a closed workspace again (at the end of the bar) and activates it.</summary>
     public async Task ReopenAsync(Guid workspaceId)
     {
@@ -385,6 +409,14 @@ public sealed class WorkspaceManager : IAsyncDisposable
     public async Task<IDataAccess> GetDataAsync(Guid workspaceId, CancellationToken cancellationToken) =>
         (await GetConnectionAsync(workspaceId, cancellationToken)).Data;
 
+    /// <summary>A page of a free query (SQL editor, LINQ console) on the workspace's session.</summary>
+    public async Task<SqlPage> ReadSqlAsync(Guid workspaceId, QuerySpec query, int skip, int take, CancellationToken cancellationToken) =>
+        await (await GetDataAsync(workspaceId, cancellationToken)).ReadSqlAsync(query, skip, take, cancellationToken);
+
+    /// <summary>A writing statement (SQL editor, LINQ console) in the workspace's transaction; see <see cref="IDataEditor.ExecuteAsync"/>.</summary>
+    public async Task<WriteAction> ExecuteAsync(Guid workspaceId, QuerySpec statement, CancellationToken cancellationToken) =>
+        await (await GetEditorAsync(workspaceId, cancellationToken)).ExecuteAsync(statement, cancellationToken);
+
     /// <summary>Writing on the workspace's session (same transaction as its queries, so they see the flushed changes).</summary>
     public async Task<IDataEditor> GetEditorAsync(Guid workspaceId, CancellationToken cancellationToken) =>
         (await GetConnectionAsync(workspaceId, cancellationToken)).Editor;
@@ -422,23 +454,13 @@ public sealed class WorkspaceManager : IAsyncDisposable
 
     /// <summary>Records hold lists, so record equality would compare references; the JSON form is what gets saved anyway.</summary>
     private static bool SameTabs(IReadOnlyList<TabState> a, IReadOnlyList<TabState> b) =>
-        JsonSerializer.Serialize(a, ConnectionStore.JsonOptions) == JsonSerializer.Serialize(b, ConnectionStore.JsonOptions);
+        JsonSerializer.Serialize(a, JsonFiles.Options) == JsonSerializer.Serialize(b, JsonFiles.Options);
 
     private Workspace NewWorkspace(string name) =>
         new(Guid.NewGuid(), _profile!.Id, name) { Order = NextOrder(), LastActive = _time.GetUtcNow() };
 
     /// <summary>"Workspace N" with the smallest N not in use.</summary>
-    private string NextName()
-    {
-        var used = _workspaces.Select(w => w.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var n = 1;
-        while (used.Contains(DefaultNamePrefix + n))
-        {
-            n++;
-        }
-
-        return DefaultNamePrefix + n;
-    }
+    private string NextName() => Workspace.FirstFreeName(DefaultNamePrefix, _workspaces.Select(w => w.Name));
 
     private int NextOrder() => _workspaces.Where(w => w.IsOpen).Select(w => w.Order + 1).DefaultIfEmpty(0).Max();
 

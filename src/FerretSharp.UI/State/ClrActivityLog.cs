@@ -1,26 +1,29 @@
 using FerretSharp.Core.ClrModel;
 using Microsoft.Extensions.Logging;
 
-namespace FerretSharp.App.Services;
+namespace FerretSharp.UI.State;
 
 /// <summary>
-/// Logs the steps of loading the C# model and starting the LINQ console, so the times of UI stalls in the log can be
-/// matched with what happened then (ADR 0016).
+/// Logs the steps of loading the C# model and starting the LINQ console of one open connection, so the times of UI
+/// stalls in the log can be matched with what happened then (ADR 0016). Created and disposed with the connection's scope.
 /// </summary>
 public sealed class ClrActivityLog : IDisposable
 {
     private readonly ClrModelManager _models;
     private readonly LinqConsoleService _console;
-    private readonly ILogger<ClrActivityLog> _logger;
+    private readonly ILogger _logger;
+    private readonly string _connection;
     private readonly Lock _lock = new();
     private string? _model;
     private string? _consoleState;
 
-    public ClrActivityLog(ClrModelManager models, LinqConsoleService console, ILogger<ClrActivityLog> logger)
+    /// <param name="connection">The connection's name, in every line.</param>
+    public ClrActivityLog(ClrModelManager models, LinqConsoleService console, ILogger logger, string connection)
     {
         _models = models;
         _console = console;
         _logger = logger;
+        _connection = connection;
         _models.Changed += OnModelChanged;
         _console.Changed += OnConsoleChanged;
     }
@@ -31,7 +34,7 @@ public sealed class ClrActivityLog : IDisposable
         var text = $"{state.Phase}{(state.BuildChanged ? " (build changed)" : "")}{(state.Step is { } step ? ": " + step : "")}";
         if (Changed(ref _model, text))
         {
-            _logger.LogInformation("C# model {State}", text);
+            _logger.LogInformation("{Connection}: C# model {State}", _connection, text);
         }
     }
 
@@ -41,7 +44,7 @@ public sealed class ClrActivityLog : IDisposable
         var text = $"{state.Phase}{(state.Step is { } step ? ": " + step : "")}{(state.Error is { } error ? " – " + error.Message : "")}";
         if (Changed(ref _consoleState, text))
         {
-            _logger.LogInformation("LINQ console {State}", text);
+            _logger.LogInformation("{Connection}: LINQ console {State}", _connection, text);
         }
     }
 

@@ -1,31 +1,28 @@
-@* Right-click menu of a grid cell: copy the value, jump along foreign keys (outgoing and incoming with counts). *@
+@* Right-click menu of a grid cell: copy the value, jump along foreign keys from the selected rows (outgoing and incoming with counts). *@
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
+@using FerretSharp.Core.Forms
 @using FerretSharp.Core.Oracle
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
-@using FerretSharp.UI.State
+@inherits FerretComponent
 @implements IAsyncDisposable
-@inject ActiveConnection Active
-@inject WorkspaceManager Workspaces
 @inject IJSRuntime JS
 @inject IFileSaveService Files
-@inject PresentationService Presentations
 @inject ILogger<GridContextMenu> Logger
+@inject ShortcutService Shortcuts
 
-<div class="popover-backdrop" @onclick="CloseAsync" @oncontextmenu="CloseAsync" @oncontextmenu:preventDefault="true"></div>
-<div id="@_id" class="popover ctx-menu" style="@Position" tabindex="-1" @onkeydown="OnKeyDown" @oncontextmenu:preventDefault="true">
+<PopoverMenu X="Request.X" Y="Request.Y" ViewportWidth="Request.ViewportWidth" ViewportHeight="Request.ViewportHeight"
+             Width="MenuWidth" EstimatedHeight="EstimatedHeight" OnClose="CloseAsync">
     <div class="ctx-head">
         <span class="ctx-col">@Column.Name</span>
         <span class="ctx-value @(Request.CellText is null ? "fs-null" : "")">@(Request.CellText ?? "NULL")</span>
     </div>
-    <button class="menu-item" disabled="@(Request.CellText is null)" @onclick="CopyAsync">
-        Wert kopieren @if (_copied) { <span class="ctx-meta">kopiert</span> }
-    </button>
+    <button class="menu-item" disabled="@(Request.CellText is null)" @onclick="() => Export.CopyValueAsync(Column, Request.Row.Values[Request.Column])">Wert kopieren</button>
     @if (_cell is { } cell)
     {
-        <button class="menu-item" disabled="@(cell.Code is null)" title="@(cell.Problem ?? cell.Code)" @onclick="() => CopyCSharpValueAsync(cell.Code!)">
+        <button class="menu-item" disabled="@(cell.Code is null)" title="@(cell.Problem ?? cell.Code)" @onclick="() => Export.CopyTextAsync(cell.Code!)">
             Als C#-Wert kopieren
         </button>
     }
@@ -39,6 +36,18 @@
     {
         <button class="menu-item" @onclick="TogglePinAsync">@(Pinned ? "Spalte lösen" : "Spalte links anheften")</button>
     }
+    @if (CompareCount > 1)
+    {
+        <button class="menu-item" disabled="@(CompareCount > RowComparison.MaxRows)"
+                title="@(CompareCount > RowComparison.MaxRows ? $"Höchstens {RowComparison.MaxRows} Zeilen nebeneinander" : $"Die markierten Zeilen nebeneinander, Unterschiede markiert{Shortcuts.Hint(ShortcutAction.ToggleForm)}")"
+                @onclick="CompareAsync">
+            Markierte vergleichen <span class="ctx-meta">@RowsText(CompareCount)</span>
+        </button>
+    }
+    else
+    {
+        <button class="menu-item" title="Alle Spalten der Zeile untereinander, neben dem Grid@(Shortcuts.Hint(ShortcutAction.ToggleForm))" @onclick="OpenFormAsync">Als Formular</button>
+    }
 
     @if (CanEdit && Tab.Changes is { } changes)
     {
@@ -46,7 +55,7 @@
         <div class="group-head-btn static">Bearbeiten · @RowsText(Request.Selected.Count)</div>
         @if (selected.Any(c => c?.Deleted is null))
         {
-            <button class="menu-item danger" title="Wird mit „Schreiben“ (Ctrl+S) gelöscht" @onclick="() => EditRowsAsync(OnDeleteRows)">Zeile löschen</button>
+            <button class="menu-item danger" title="Wird mit „Schreiben“@(Shortcuts.Hint(ShortcutAction.Flush)) gelöscht" @onclick="() => EditRowsAsync(OnDeleteRows)">Zeile löschen</button>
         }
         @if (selected.Any(c => c is { HasPending: true }))
         {
@@ -72,19 +81,19 @@
 
     @if (_outgoing.Count > 0)
     {
-        <div class="group-head-btn static">Verweist auf</div>
+        <div class="group-head-btn static">Verweist auf@(JumpRowsText)</div>
         @foreach (var jump in _outgoing)
         {
-            @JumpItem(jump, "→", null)
+            <FkJumpItem Jump="jump" Related="InvolvesColumn(jump)" OnJump="JumpAsync" />
         }
     }
 
     @if (_incoming.Count > 0)
     {
-        <div class="group-head-btn static">Referenziert von</div>
+        <div class="group-head-btn static">Referenziert von@(JumpRowsText)</div>
         @foreach (var jump in _incoming)
         {
-            @JumpItem(jump, "←", _counts.GetValueOrDefault(jump))
+            <FkJumpItem Jump="jump" Count="_counts.Of(jump)" Related="InvolvesColumn(jump)" OnJump="JumpAsync" />
         }
     }
 
@@ -92,19 +101,36 @@
     {
         <div class="ctx-empty">Keine Fremdschlüssel an dieser Tabelle.</div>
     }
-</div>
+    else if (Request.MissingRows > 0)
+    {
+        <div class="ctx-note">@RowsText(Request.MissingRows) der Auswahl nicht mehr geladen – bei den Sprüngen nicht berücksichtigt.</div>
+    }
+</PopoverMenu>
 
 @code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceManager Workspaces { get; set; } = null!;
+
+    [CascadingParameter]
+    public PresentationService Presentations { get; set; } = null!;
+
     private const double MenuWidth = 400;
     private const double ItemHeight = 44;
 
-    private readonly string _id = "ctx-" + Guid.NewGuid().ToString("N");
     private readonly CancellationTokenSource _cts = new();
-    private readonly Dictionary<FkJump, CountState> _counts = [];
+    private readonly FkCounts _counts = new();
     private IReadOnlyList<FkJump> _outgoing = [];
     private IReadOnlyList<FkJump> _incoming = [];
-    private IJSObjectReference? _dom;
-    private bool _copied;
+    private DomModule? _dom;
+    private ExportActions? _export;
+
+    /// <summary>dom.js for the clipboard, imported on first use (<see cref="DomModule"/>).</summary>
+    private DomModule Dom => _dom ??= new(JS);
+
+    private ExportActions Export => _export ??= new(Shell, Dom, Files, Request.MissingRows, CloseAsync);
     private TablePresentation _presentation = null!;
 
     /// <summary>The clicked cell as C# (WP-15); null if the table has no entity.</summary>
@@ -147,6 +173,30 @@
     [Parameter]
     public EventCallback OnOpenLob { get; set; }
 
+    /// <summary>Shows the clicked row in the form beside the grid (WP-21).</summary>
+    [Parameter]
+    public EventCallback OnOpenForm { get; set; }
+
+    /// <summary>Compares the selected rows (grid indexes) side by side (WP-21).</summary>
+    [Parameter]
+    public EventCallback<IReadOnlyList<int>> OnCompare { get; set; }
+
+    /// <summary>Loaded selected rows; the comparison needs their values.</summary>
+    private int CompareCount => Request.Selected.Count;
+
+    private async Task OpenFormAsync()
+    {
+        await CloseAsync();
+        await OnOpenForm.InvokeAsync();
+    }
+
+    private async Task CompareAsync()
+    {
+        var rows = Request.SelectedIndexes ?? [];
+        await CloseAsync();
+        await OnCompare.InvokeAsync(rows);
+    }
+
     private async Task OpenLobAsync()
     {
         await CloseAsync();
@@ -162,56 +212,17 @@
 
     private ColumnInfo Column => Details.Columns[Request.Column];
 
-    private abstract record CountState
-    {
-        public sealed record Loading : CountState;
-        public sealed record Done(long Count) : CountState;
-        public sealed record TimedOut : CountState;
-        public sealed record Failed(string Message) : CountState;
-    }
+    /// <summary>
+    /// FK jumps start from all selected rows (a right-click into a selection keeps it); rows no longer loaded are left
+    /// out and mentioned below the jumps.
+    /// </summary>
+    private IReadOnlyList<RowData> JumpRows => Request.Selected.Count > 0 ? Request.Selected : [Request.Row];
 
-    /// <summary>At the mouse position, kept inside the window.</summary>
-    private string Position
-    {
-        get
-        {
-            var height = 292 + ItemHeight * (_outgoing.Count + _incoming.Count) + (_cell is null ? 0 : 128);
-            var left = Math.Max(8, Math.Min(Request.X, Request.ViewportWidth - MenuWidth - 8));
-            var top = Math.Max(8, Math.Min(Request.Y, Request.ViewportHeight - height - 8));
-            return FormattableString.Invariant($"position: fixed; left: {left:0}px; top: {top:0}px; width: {MenuWidth:0}px;");
-        }
-    }
+    /// <summary>" · 3 Zeilen" after the jump headings if several rows are selected; nothing for one row.</summary>
+    private string JumpRowsText => Request.Selected.Count + Request.MissingRows > 1 ? $" · {RowsText(JumpRows.Count)}" : "";
 
-    private RenderFragment JumpItem(FkJump jump, string arrow, CountState? count) =>
-        @<button class="menu-item ctx-jump @(InvolvesColumn(jump) ? "related" : "") @(count is CountState.Done { Count: 0 } ? "no-rows" : "")"
-                 disabled="@(!jump.IsAvailable)" title="@Tooltip(jump)" @onclick="() => JumpAsync(jump)">
-            <span class="ctx-arrow">@arrow</span>
-            <span class="ctx-target">
-                <span class="ctx-table">
-                    @TableLabel(jump.Table)
-                    @if (jump.ForeignKey.Source == FkSource.ClrModel)
-                    {
-                        <span class="ctx-source">aus C#-Modell</span>
-                    }
-                </span>
-                <span class="ctx-meta">@(jump.Unavailable ?? jump.Condition)</span>
-            </span>
-            @switch (count)
-            {
-                case CountState.Loading:
-                    <span class="spinner small"></span>
-                    break;
-                case CountState.Done done:
-                    <span class="ctx-count">@done.Count.ToString("N0", CultureInfo.CurrentCulture)</span>
-                    break;
-                case CountState.TimedOut:
-                    <span class="ctx-count muted" title="Zählen nach @FkNavigation.CountTimeout.TotalSeconds s abgebrochen">&gt; @FkNavigation.CountTimeout.TotalSeconds s</span>
-                    break;
-                case CountState.Failed failed:
-                    <span class="ctx-count error" title="@failed.Message">!</span>
-                    break;
-            }
-        </button>;
+    /// <summary>For the first placement; dom.js keepInViewport corrects it once rendered.</summary>
+    private double EstimatedHeight => 336 + ItemHeight * (_outgoing.Count + _incoming.Count) + (_cell is null ? 0 : 128) + (Request.MissingRows > 0 ? 40 : 0);
 
     protected override void OnInitialized()
     {
@@ -223,97 +234,24 @@
         }
 
         var row = Details.Table.Ref;
-        var jumps = FkNavigation.JumpsFor(Details, Request.Row, schema.OutgoingOf(row), schema.IncomingOf(row));
+        var jumps = FkNavigation.JumpsFor(Details, JumpRows, schema.OutgoingOf(row), schema.IncomingOf(row));
         // FKs over the clicked column first: that is usually the one the user means.
         _outgoing = jumps.Where(j => j.Direction == JumpDirection.Outgoing).OrderByDescending(InvolvesColumn).ToList();
         _incoming = jumps.Where(j => j.Direction == JumpDirection.Incoming).OrderByDescending(InvolvesColumn).ToList();
-        foreach (var jump in _incoming.Where(j => j.IsAvailable))
-        {
-            _counts[jump] = new CountState.Loading();
-        }
-
-        _ = CountAllAsync(schema);
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            _dom = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
-            await _dom.InvokeVoidAsync("focusById", _id); // Escape closes
-            await _dom.InvokeVoidAsync("keepInViewport", _id); // the height below is an estimate
-        }
-    }
-
-    /// <summary>One after the other: they share the workspace's session. Closing the menu cancels the rest.</summary>
-    private async Task CountAllAsync(SchemaCache schema)
-    {
+        // One after the other: they share the workspace's session. Closing the menu cancels the rest.
         var token = _cts.Token;
-        foreach (var jump in _counts.Keys.ToList())
-        {
-            var result = await Shell.RunDbAsync(Logger, Active.Profile, async () =>
-            {
-                var target = await schema.GetDetailsAsync(SummaryOf(jump.Table), token);
-                var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, token);
-                return await FkNavigation.CountAsync(data, target, jump, FkNavigation.CountTimeout, token);
-            }, token);
-            if (result.Cancelled)
-            {
-                return;
-            }
-
-            CountState state = result.Error is { } error ? new CountState.Failed(error.Display)
-                : result.Value is { } n ? new CountState.Done(n)
-                : new CountState.TimedOut();
-
-            _counts[jump] = state;
-            await InvokeAsync(StateHasChanged);
-        }
+        Fire(() => _counts.CountAsync(Shell, Logger, Active, Workspaces, Tab.WorkspaceId, _incoming, () => InvokeAsync(StateHasChanged), token));
     }
 
     private bool InvolvesColumn(FkJump jump) =>
         (jump.Direction == JumpDirection.Outgoing ? jump.ForeignKey.FromColumns : jump.ForeignKey.ToColumns).Contains(Column.Name);
 
-    /// <summary>Tables outside the browsed schemas (e.g. a referencing table in another schema) are opened by name.</summary>
-    private TableSummary SummaryOf(TableRef table) =>
-        Active.Schema?.Find(table) ?? new TableSummary(table.Owner, table.Name, TableKind.Table);
-
-    private string TableLabel(TableRef table)
-    {
-        var summary = SummaryOf(table);
-        return summary.Synonym is not null || table.Owner == Active.Schema?.Owner ? summary.DisplayName : table.ToString();
-    }
-
-    private static string Tooltip(FkJump jump) =>
-        $"{jump.ForeignKey.Name}: {jump.ForeignKey.From}({string.Join(", ", jump.ForeignKey.FromColumns)}) → " +
-        $"{jump.ForeignKey.To}({string.Join(", ", jump.ForeignKey.ToColumns)})" +
-        (jump.ForeignKey.Source == FkSource.ClrModel ? Environment.NewLine + "Beziehung aus dem C#-Modell – in der Datenbank gibt es dafür keinen Constraint." : "");
+    private TableSummary SummaryOf(TableRef table) => FkTargets.SummaryOf(Active, table);
 
     private async Task JumpAsync(FkJump jump)
     {
         Shell.OpenFiltered(SummaryOf(jump.Table), jump.Filters);
         await CloseAsync();
-    }
-
-    /// <summary>The full value (like Ctrl+C), not the shortened display text.</summary>
-    private async Task CopyAsync()
-    {
-        if (Request.CellText is null || _dom is null)
-        {
-            return;
-        }
-
-        var cell = DelimitedExport.CellText(Column, Request.Row.Values[Request.Column]);
-        _copied = await _dom.InvokeAsync<bool>("copyText", cell.Text);
-        if (_copied)
-        {
-            var shell = Shell;
-            await CloseAsync();
-            if (cell.Warnings.Count > 0)
-            {
-                shell.Notify("Wert nicht kopiert.", cell.Warnings);
-            }
-        }
     }
 
     private async Task TogglePinAsync()
@@ -322,69 +260,23 @@
         await OnTogglePin.InvokeAsync(Request.Column);
     }
 
-    private static string RowsText(int rows) => rows == 1 ? "1 Zeile" : $"{rows:N0} Zeilen";
+    private static string RowsText(int rows) => ExportActions.RowsText(rows);
 
     private Task CopyTableAsync() =>
-        CopyExportAsync(DelimitedExport.Build(Details, Request.Selected, DelimitedExport.ClipboardSeparator), "als Tabelle kopiert");
+        Export.CopyAsync(DelimitedExport.Build(Details, Request.Selected, DelimitedExport.ClipboardSeparator), "als Tabelle kopiert");
 
-    private Task CopyInsertAsync() => CopyExportAsync(InsertExport.Build(Details, Request.Selected), "als INSERT kopiert");
+    private Task CopyInsertAsync() => Export.CopyAsync(InsertExport.Build(Details, Request.Selected), "als INSERT kopiert");
 
-    private Task CopyObjectsAsync() => CopyExportAsync(CSharpRows.Initializers(_presentation, Request.Selected), "als C#-Objekte kopiert");
+    private Task CopyObjectsAsync() => Export.CopyAsync(CSharpRows.Initializers(_presentation, Request.Selected), "als C#-Objekte kopiert");
 
-    private Task CopySeedAsync() => CopyExportAsync(CSharpRows.HasData(_presentation, Request.Selected), "als HasData kopiert");
-
-    private async Task CopyCSharpValueAsync(string code)
-    {
-        var copied = _dom is not null && await _dom.InvokeAsync<bool>("copyText", code);
-        var shell = Shell;
-        await CloseAsync();
-        if (!copied)
-        {
-            shell.Notify("Die Zwischenablage ist nicht verfügbar.");
-        }
-    }
+    private Task CopySeedAsync() => Export.CopyAsync(CSharpRows.HasData(_presentation, Request.Selected), "als HasData kopiert");
 
     private Task SaveCsvAsync() =>
-        SaveExportAsync(DelimitedExport.Build(Details, Request.Selected, DelimitedExport.CsvSeparator), ".csv", "CSV (Semikolon)", utf8Bom: true);
+        Export.SaveAsync(
+            DelimitedExport.Build(Details, Request.Selected, DelimitedExport.CsvSeparator), Details.Table.DisplayName + ".csv", "CSV (Semikolon)", utf8Bom: true);
 
-    private Task SaveInsertAsync() => SaveExportAsync(InsertExport.Build(Details, Request.Selected), ".sql", "SQL-Skript", utf8Bom: false);
-
-    private async Task CopyExportAsync(ExportText export, string done)
-    {
-        var copied = _dom is not null && await _dom.InvokeAsync<bool>("copyText", export.Text);
-        await CloseAsync();
-        Shell.Notify(copied ? $"{RowsText(export.Rows)} {done}." : "Die Zwischenablage ist nicht verfügbar.", Warnings(export));
-    }
-
-    /// <summary>The menu closes first; the native dialog is modal.</summary>
-    private async Task SaveExportAsync(ExportText export, string extension, string filter, bool utf8Bom)
-    {
-        var shell = Shell;
-        await CloseAsync();
-        try
-        {
-            if (await Files.SaveTextAsync(Details.Table.DisplayName + extension, filter, export.Text, utf8Bom) is { } path)
-            {
-                shell.Notify($"{RowsText(export.Rows)} gespeichert: {path}", Warnings(export));
-            }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            shell.Notify($"Speichern fehlgeschlagen: {ex.Message}");
-        }
-    }
-
-    private IReadOnlyList<string> Warnings(ExportText export) => Request.MissingRows == 0
-        ? export.Warnings
-        : [.. export.Warnings, $"{RowsText(Request.MissingRows)} der Auswahl nicht mehr geladen – nicht exportiert."];
-
-    private async Task OnKeyDown(KeyboardEventArgs e)
-    {
-        if (e.Key == "Escape")
-        {
-            await CloseAsync();
-        }
-    }
+    private Task SaveInsertAsync() =>
+        Export.SaveAsync(InsertExport.Build(Details, Request.Selected), Details.Table.DisplayName + ".sql", "SQL-Skript", utf8Bom: false);
 
     private async Task CloseAsync()
     {
@@ -396,15 +288,6 @@
     {
         await _cts.CancelAsync();
         _cts.Dispose();
-        if (_dom is not null)
-        {
-            try
-            {
-                await _dom.DisposeAsync();
-            }
-            catch (JSDisconnectedException)
-            {
-            }
-        }
+        await Dom.DisposeAsync();
     }
 }

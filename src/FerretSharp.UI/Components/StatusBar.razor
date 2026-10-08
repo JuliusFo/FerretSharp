@@ -3,12 +3,10 @@
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
-@using FerretSharp.UI.State
 @implements IAsyncDisposable
 @inject ConnectionManager Connections
-@inject ActiveConnection Active
-@inject WorkspaceManager Workspaces
-@inject ClrModelManager Models
+@inject ConnectionHub Hub
+@inject ShortcutService Shortcuts
 
 <footer class="statusbar">
     @if (Connections.LoadError is { } loadError)
@@ -19,7 +17,7 @@
     {
         @switch (Active.Status)
         {
-            case ConnectionStatus.Connected when Shell.ConnectionLost is not null:
+            case ConnectionStatus.Connected when Active.Lost is not null:
                 <span class="item error"><span class="dot err"></span> Verbindung verloren</span>
                 <span class="item">@Active.Profile?.Name</span>
                 <button class="status-btn" @onclick="() => Lifecycle.Reconnect(Active.Profile!)">Neu verbinden</button>
@@ -75,10 +73,25 @@
         </span>
     }
     <span class="spacer"></span>
+    @foreach (var other in Hub.Open.Where(s => s != Hub.Current && HasWork(s)))
+    {
+        @* WP-24: uncommitted work in a connection in the background must not be forgotten. *@
+        <button class="status-link warn" title="Nicht committete Änderungen in „@other.Profile?.Name“ – klicken zum Wechseln"
+                @onclick="() => Show(other)">@other.Profile?.Name: nicht committet</button>
+    }
     <span class="item">@Version</span>
 </footer>
 
 @code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceManager Workspaces { get; set; } = null!;
+
+    [CascadingParameter]
+    public ClrModelManager Models { get; set; } = null!;
+
     /// <summary>An open writing transaction older than this is shown as a warning: it holds row locks.</summary>
     private static readonly TimeSpan LongTransaction = TimeSpan.FromMinutes(10);
 
@@ -95,17 +108,41 @@
 
     private WorkspaceEditing Editing => Lifecycle.Editing;
 
-    /// <summary>The age of an open transaction counts up; the C# model's loading steps show (the shell no longer renders for them).</summary>
-    protected override void OnInitialized()
+    private bool HasWork(ConnectionScope scope) =>
+        Shell.AllWorkspaces.Where(w => w.ConnectionId == scope.Id).Any(w => Editing.SummaryOf(w).HasWork);
+
+    private void Show(ConnectionScope scope)
     {
+        Hub.Show(scope);
+        Shell.ShowExplorer();
+    }
+
+    /// <summary>The age of an open transaction counts up.</summary>
+    protected override void OnInitialized() =>
         _ticker = new Timer(_ => InvokeAsync(() =>
         {
-            if (Editing.WithWork().Count > 0)
+            if (Editing.WithWork().Count > 0) // all connections
             {
                 StateHasChanged();
             }
         }), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
-        Models.Changed += OnModelChanged;
+
+    /// <summary>The model subscribed to: the shown connection's, which changes on a switch.</summary>
+    private ClrModelManager? _models;
+
+    /// <summary>The C# model's loading steps show (the shell no longer renders for them).</summary>
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_models, Models))
+        {
+            if (_models is not null)
+            {
+                _models.Changed -= OnModelChanged;
+            }
+
+            _models = Models;
+            _models.Changed += OnModelChanged;
+        }
     }
 
     private void OnModelChanged() => InvokeAsync(StateHasChanged);
@@ -125,12 +162,12 @@
                 <span class="item tx" title="@ActionsTooltip(edits.Actions)">@(edits.Actions.Count == 1 ? "1 Aktion" : $"{edits.Actions.Count} Aktionen") nicht committet</span>
             }
             <span class="status-group">
-            <button class="status-btn" title="Ausstehende Änderungen schreiben (Ctrl+S) – noch kein Commit" disabled="@(Editing.Busy || edits.Pending == 0)" @onclick="() => Editing.FlushAsync(workspace)">Schreiben</button>
+            <button class="status-btn" title="Ausstehende Änderungen schreiben@(Shortcuts.Hint(ShortcutAction.Flush)) – noch kein Commit" disabled="@(Editing.IsBusy(workspace.WorkspaceId) || edits.Pending == 0)" @onclick="() => Editing.FlushAsync(workspace)">Schreiben</button>
             <button class="status-btn" title="@(edits.Actions is [.., var last] ? $"Zurücknehmen: {last.Display} ({SourceOf(last)})" : "Nichts zurückzunehmen")"
-                    disabled="@(Editing.Busy || !edits.CanUndo)" @onclick="() => Editing.UndoLastAsync(workspace)">↶</button>
+                    disabled="@(Editing.IsBusy(workspace.WorkspaceId) || !edits.CanUndo)" @onclick="() => Editing.UndoLastAsync(workspace, edits.Actions is [.., var newest] ? newest.Id : null)">↶</button>
             <button class="status-btn" title="Ausstehende Änderungen als SQL anzeigen" disabled="@(edits.Pending == 0)" @onclick="() => Lifecycle.ShowPendingSql(workspace)">SQL</button>
-            <button class="status-btn commit" title="Schreiben und committen (Ctrl+Shift+Enter)" disabled="@Editing.Busy" @onclick="() => Lifecycle.RequestCommitAsync(workspace)">Commit</button>
-            <button class="status-btn danger" title="Alles verwerfen" disabled="@Editing.Busy" @onclick="() => Lifecycle.RequestRollback(workspace)">Rollback</button>
+            <button class="status-btn commit" title="Schreiben und committen@(Shortcuts.Hint(ShortcutAction.Commit))" disabled="@Editing.IsBusy(workspace.WorkspaceId)" @onclick="() => Lifecycle.RequestCommitAsync(workspace)">Commit</button>
+            <button class="status-btn danger" title="Alles verwerfen" disabled="@Editing.IsBusy(workspace.WorkspaceId)" @onclick="() => Lifecycle.RequestRollback(workspace)">Rollback</button>
             </span>
         </text>;
     }
@@ -174,14 +211,20 @@
         }
 
         var stale = state.Output?.IsStale == true;
-        var text = $"C# · {mapping.MappedEntityCount} Entities" + (mapping.Issues.Count > 0 ? $" · {mapping.Issues.Count} Abw." : "") + (stale ? " · Build veraltet" : "");
-        var title = (stale ? "Der Quelltext ist neuer als der Build. " : "") + $"{mapping.Issues.Count} Abweichungen zwischen Modell und Datenbank – Details";
+        // Names and type/NULL/length mismatches that matter; hints only on the model page.
+        var differences = mapping.Issues.Count + mapping.ColumnMismatches.Count(m => m.Severity != MismatchSeverity.Hint);
+        var text = $"C# · {mapping.MappedEntityCount} Entities" + (differences > 0 ? $" · {differences} Abw." : "") + (stale ? " · Build veraltet" : "");
+        var title = (stale ? "Der Quelltext ist neuer als der Build. " : "") + $"{differences} Abweichungen zwischen Modell und Datenbank – Details";
         return @<button class="item status-link shrink @(stale ? "warn" : "")" title="@title" @onclick="Shell.ShowModel">@text</button>;
     }
 
     public async ValueTask DisposeAsync()
     {
-        Models.Changed -= OnModelChanged;
+        if (_models is not null)
+        {
+            _models.Changed -= OnModelChanged;
+        }
+
         if (_ticker is not null)
         {
             await _ticker.DisposeAsync();

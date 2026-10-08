@@ -9,18 +9,24 @@ namespace FerretSharp.UI.State;
 /// the confirmations they need), unlocking and locking, connecting, disconnecting, deleting a connection, closing tabs –
 /// and before anything that would drop changes, asking first (<see cref="GuardAsync(string, IReadOnlyList{WorkspaceTabs}, Func{Task})"/>).
 /// Owned by the shell and cascaded; the dialogs it asks for are shown by <c>DialogHost</c>. Runs on the UI thread.
+/// WP-24: several connections can be open; actions on a workspace go to its connection, the rest to the shown one.
 /// </summary>
-public sealed class WorkspaceLifecycle(
+public sealed partial class WorkspaceLifecycle(
     ShellState shell,
-    WorkspaceManager workspaces,
-    ActiveConnection active,
+    ConnectionHub hub,
     ConnectionManager connections,
     SqlHistoryStore history,
     WorkspaceEditing editing,
     ILogger<WorkspaceLifecycle> logger)
 {
-    /// <summary>"Neu verbinden" after a loss: the old transactions no longer exist, there is nothing to ask about.</summary>
-    private bool _connectionGone;
+    /// <summary>The shown connection (an idle one if none is open).</summary>
+    private ActiveConnection active => hub.Shown.Active;
+
+
+    private ConnectionScope ScopeOf(Guid workspaceId) => hub.ScopeOfWorkspace(workspaceId);
+
+    /// <summary>The workspace's connection was found lost: its transaction is gone, there is nothing left to ask about.</summary>
+    private bool IsLost(Guid workspaceId) => ScopeOf(workspaceId).Lost is not null;
 
     public WorkspaceEditing Editing => editing;
 
@@ -42,30 +48,45 @@ public sealed class WorkspaceLifecycle(
     /// <summary>The active connection is Prod: commits are confirmed, the frame is red.</summary>
     public bool IsProd => active.Profile?.Kind == ConnectionKind.Prod && active.Status is ConnectionStatus.Connected or ConnectionStatus.Connecting;
 
-    public string WorkspaceName(Guid workspaceId) => workspaces.Find(workspaceId)?.Name ?? "Workspace";
+    public string WorkspaceName(Guid workspaceId) => ScopeOf(workspaceId).Workspaces.Find(workspaceId)?.Name ?? "Workspace";
 
     /// <summary>Unlocks the workspace (WP-10) and reloads its tabs: they showed the read-only snapshot.</summary>
     public async Task UnlockAsync(Guid workspaceId)
     {
         shell.CloseUnlock();
-        if (!shell.ShowFailure(await shell.RunDbAsync(logger, active.Profile, () => workspaces.UnlockAsync(workspaceId, CancellationToken.None))))
+        if (!shell.ShowFailure(await shell.RunDbAsync(logger, ScopeOf(workspaceId).Active, () => ScopeOf(workspaceId).Workspaces.UnlockAsync(workspaceId, CancellationToken.None))))
         {
             return;
         }
 
-        foreach (var tab in shell.Workspaces.FirstOrDefault(w => w.WorkspaceId == workspaceId)?.Tabs ?? [])
+        shell.ReloadTableTabs(workspaceId);
+        shell.Notify($"Workspace „{WorkspaceName(workspaceId)}“ ist zum Schreiben freigeschaltet.");
+    }
+
+    /// <summary>
+    /// "Session trennen" – a statement does not react to cancelling (<c>RunProgress</c> asked first if writes would be lost):
+    /// closes the workspace's session, the statement ends as cancelled. What was written in its transaction is gone, grid
+    /// writes become pending again; the next database access opens a new session.
+    /// </summary>
+    public async Task ResetSessionAsync(Guid workspaceId)
+    {
+        // The session leaves the workspace at once (and the statement is let go); closing it may take a few seconds more.
+        var closing = ScopeOf(workspaceId).Workspaces.ResetSessionAsync(workspaceId);
+        if (shell.FindWorkspace(workspaceId) is { } workspace)
         {
-            shell.RequestTabCommand(tab, TabCommand.Reload);
+            editing.SessionReset(workspace);
         }
 
-        shell.Notify($"Workspace „{WorkspaceName(workspaceId)}“ ist zum Schreiben freigeschaltet.");
+        shell.Notify($"Session von „{WorkspaceName(workspaceId)}“ getrennt – beim nächsten Zugriff öffnet sich eine neue.");
+        shell.NotifyChanged(); // status bar: the transaction is gone
+        await closing;
     }
 
     /// <summary>Locks the workspace again – after asking what happens to its uncommitted changes.</summary>
     public Task LockAsync(Guid workspaceId) =>
         GuardAsync("Workspace sperren", [workspaceId], async () =>
         {
-            if (shell.ShowFailure(await shell.RunDbAsync(logger, active.Profile, () => workspaces.LockAsync(workspaceId, CancellationToken.None))))
+            if (shell.ShowFailure(await shell.RunDbAsync(logger, ScopeOf(workspaceId).Active, () => ScopeOf(workspaceId).Workspaces.LockAsync(workspaceId, CancellationToken.None))))
             {
                 shell.Notify($"Workspace „{WorkspaceName(workspaceId)}“ ist wieder schreibgeschützt.");
             }
@@ -74,7 +95,7 @@ public sealed class WorkspaceLifecycle(
     /// <summary>Commits right away, on Prod only after a confirmation.</summary>
     public Task RequestCommitAsync(WorkspaceTabs workspace)
     {
-        if (!IsProd)
+        if (ScopeOf(workspace.WorkspaceId).Profile?.Kind != ConnectionKind.Prod)
         {
             return editing.CommitAsync(workspace);
         }
@@ -123,13 +144,16 @@ public sealed class WorkspaceLifecycle(
 
     /// <summary>Runs <paramref name="then"/> – after asking, if the workspaces have uncommitted changes.</summary>
     public Task GuardAsync(string what, IReadOnlyList<Guid> workspaceIds, Func<Task> then) =>
-        GuardAsync(what, shell.Workspaces.Where(w => workspaceIds.Contains(w.WorkspaceId)).ToList(), then);
+        GuardAsync(what, shell.AllWorkspaces.Where(w => workspaceIds.Contains(w.WorkspaceId)).ToList(), then);
 
-    /// <summary>Asks before <paramref name="then"/> if workspaces have uncommitted work; runs it right away otherwise.</summary>
+    /// <summary>
+    /// Asks before <paramref name="then"/> if workspaces have uncommitted work; runs it right away otherwise. Workspaces of a
+    /// lost connection are left out: their transactions are gone, committing is impossible (each connection on its own, WP-24).
+    /// </summary>
     public Task GuardAsync(string what, IReadOnlyList<WorkspaceTabs> scope, Func<Task> then)
     {
-        var withWork = scope.Where(w => editing.SummaryOf(w).HasWork).Select(w => w.WorkspaceId).ToList();
-        if (withWork.Count == 0 || shell.ConnectionLost is not null || _connectionGone)
+        var withWork = scope.Where(w => !IsLost(w.WorkspaceId) && editing.SummaryOf(w).HasWork).Select(w => w.WorkspaceId).ToList();
+        if (withWork.Count == 0)
         {
             return then();
         }
@@ -149,7 +173,7 @@ public sealed class WorkspaceLifecycle(
 
         foreach (var id in leave.WorkspaceIds)
         {
-            if (shell.Workspaces.FirstOrDefault(w => w.WorkspaceId == id) is not { } workspace)
+            if (shell.FindWorkspace(id) is not { } workspace)
             {
                 continue;
             }
@@ -191,79 +215,12 @@ public sealed class WorkspaceLifecycle(
         shell.CloseTab(tab);
     }
 
-    /// <summary>Hands the tabs of every open workspace to the manager, which saves what changed (debounced).</summary>
+    /// <summary>Hands the tabs of every open workspace (all connections) to its manager, which saves what changed (debounced).</summary>
     public void SaveTabs()
     {
-        foreach (var workspace in shell.Workspaces)
+        foreach (var workspace in shell.AllWorkspaces)
         {
-            workspaces.UpdateTabs(workspace.WorkspaceId, workspace.Tabs.Select(t => t.ToState(workspace.Tabs)).ToList(), workspace.ActiveIndex);
+            hub.ScopeOf(workspace).Workspaces.UpdateTabs(workspace.WorkspaceId, workspace.Tabs.Select(t => t.ToState(workspace.Tabs)).ToList(), workspace.ActiveIndex);
         }
-    }
-
-    /// <summary>Connecting closes the current connection: uncommitted work is confirmed first (not after it was lost).</summary>
-    public Task ConnectAsync(ConnectionProfile profile) =>
-        GuardAsync($"Verbindung zu {profile.Name} öffnen", shell.Workspaces, () =>
-        {
-            _connectionGone = false;
-            SaveTabs();
-            shell.ClearWorkspaces();
-            // Off the UI thread; ActiveConnection reports progress through its Changed event and never throws.
-            _ = Task.Run(() => active.ConnectAsync(profile, CancellationToken.None));
-            return Task.CompletedTask;
-        });
-
-    /// <summary>"Neu verbinden" after the connection was lost: its transactions are gone, nothing left to confirm.</summary>
-    public void Reconnect(ConnectionProfile profile)
-    {
-        _connectionGone = true;
-        foreach (var workspace in shell.Workspaces)
-        {
-            editing.Forget(workspace.WorkspaceId);
-        }
-
-        shell.Connect(profile);
-    }
-
-    public Task DisconnectAsync() => GuardAsync("Verbindung trennen", shell.Workspaces, DisconnectCoreAsync);
-
-    public Task DeleteAsync(ConnectionProfile profile)
-    {
-        shell.CancelDelete();
-        if (active.Profile?.Id != profile.Id)
-        {
-            return DeleteCoreAsync(profile);
-        }
-
-        return GuardAsync("Verbindung löschen", shell.Workspaces, async () =>
-        {
-            await DisconnectCoreAsync();
-            await DeleteCoreAsync(profile);
-        });
-    }
-
-    /// <summary>Quitting with uncommitted work asks first (the window's closing handler, <see cref="ExitGuard"/>).</summary>
-    public bool CanExit => editing.WithWork().Count == 0 || shell.ConnectionLost is not null;
-
-    public Task RequestExitAsync(Action approve) =>
-        GuardAsync("FerretSharp beenden", shell.Workspaces, () =>
-        {
-            approve();
-            return Task.CompletedTask;
-        });
-
-    private async Task DisconnectCoreAsync()
-    {
-        SaveTabs();
-        shell.ClearConnectionLost();
-        await active.DisconnectAsync();
-        shell.ClearWorkspaces();
-        shell.ShowConnections();
-    }
-
-    private async Task DeleteCoreAsync(ConnectionProfile profile)
-    {
-        await connections.DeleteAsync(profile.Id, CancellationToken.None);
-        await workspaces.DeleteForConnectionAsync(profile.Id);
-        history.Delete(profile.Id);
     }
 }

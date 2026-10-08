@@ -44,7 +44,8 @@ public sealed record ModelExport(
     string? DefaultSchema,
     IReadOnlyList<EntityExport> Entities)
 {
-    public const int CurrentFormatVersion = 1;
+    /// <summary>2: column facets of properties (3.10) – a cached model of version 1 is read again from the project.</summary>
+    public const int CurrentFormatVersion = 2;
 }
 
 /// <param name="Name">Entity name as EF knows it (for shared-type entities not the CLR name).</param>
@@ -72,6 +73,16 @@ public sealed record EntityExport(
 /// <param name="ProviderClrType">Type the converter stores, e.g. <c>string</c>.</param>
 /// <param name="Values">For enums and converted bools: every C# value with its database value.</param>
 /// <param name="ViewColumn">Column in the entity's view, if it is mapped to one (queries use the view, SaveChanges the table).</param>
+/// <param name="MaxLength">
+/// Configured maximum length (<c>HasMaxLength</c>, <c>[MaxLength]</c>, a length in <c>HasColumnType</c>); null if not
+/// configured – the provider's default store type says nothing about the project's intent.
+/// </param>
+/// <param name="Precision">Configured precision (<c>HasPrecision</c>, <c>[Precision]</c>, <c>HasColumnType("NUMBER(12,2)")</c>).</param>
+/// <param name="Scale">Configured scale, as <paramref name="Precision"/>.</param>
+/// <param name="ColumnNullable">
+/// Whether EF treats <see cref="Column"/> as nullable – unlike <see cref="Nullable"/> this includes table sharing
+/// (properties of derived types in a TPH table, optional owned types). Null if unknown.
+/// </param>
 public sealed record PropertyExport(
     string Name,
     string ClrType,
@@ -84,7 +95,11 @@ public sealed record PropertyExport(
     string? ProviderClrType,
     bool IsFlagsEnum,
     IReadOnlyList<ValueMapping>? Values,
-    string? ViewColumn = null);
+    string? ViewColumn = null,
+    int? MaxLength = null,
+    int? Precision = null,
+    int? Scale = null,
+    bool? ColumnNullable = null);
 
 /// <param name="Name">Enum member (<c>Offen</c>) or <c>true</c>/<c>false</c>.</param>
 /// <param name="ClrValue">The C# value, invariant: the enum's number, <c>True</c>/<c>False</c>.</param>

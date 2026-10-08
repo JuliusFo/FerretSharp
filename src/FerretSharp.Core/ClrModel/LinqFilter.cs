@@ -89,7 +89,7 @@ public static class LinqFilter
 
     private static CSharpValue Condition(TablePresentation presentation, FilterCondition filter)
     {
-        var index = IndexOf(presentation.Details, filter.Column);
+        var index = presentation.Details.IndexOf(filter.Column);
         if (index < 0)
         {
             return CSharpValue.Fails("Spalte gibt es nicht mehr");
@@ -112,19 +112,6 @@ public static class LinqFilter
             : $"{Parameter}.{CSharpCode.Identifier(property.Name)}";
         var builder = new ConditionBuilder(property, values, column, member);
         return builder.Build(filter);
-    }
-
-    private static int IndexOf(TableDetails details, string column)
-    {
-        for (var i = 0; i < details.Columns.Count; i++)
-        {
-            if (details.Columns[i].Name == column)
-            {
-                return i;
-            }
-        }
-
-        return -1;
     }
 
     private sealed class ConditionBuilder(PropertyExport property, ValueTable? values, ColumnInfo column, string m)

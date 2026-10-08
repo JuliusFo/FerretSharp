@@ -11,7 +11,7 @@ namespace FerretSharp.UI.State;
 public sealed class FilterRow
 {
     /// <summary>Separator for IN lists; a comma would clash with German decimal commas.</summary>
-    public const char ListSeparator = ';';
+    public const char ListSeparator = FilterCondition.ListSeparator;
 
     public string Column { get; set; } = "";
 
@@ -123,6 +123,15 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
 
     public TableTab? ForwardTarget(IReadOnlyCollection<WorkspaceTab> open) => Forward is { } tab && open.Contains(tab) ? tab : null;
 
+    /// <summary>The form beside the grid is open (WP-21); saved with the workspace.</summary>
+    public bool FormOpen { get; set; }
+
+    /// <summary>Width of the form in CSS pixels; null for the default.</summary>
+    public int? FormWidth { get; set; }
+
+    /// <summary>"Leere ausblenden" in the form, per tab (decision of the user).</summary>
+    public bool FormHideEmpty { get; set; }
+
     /// <summary>The table's structure once the tab has loaded it (for labels outside the tab, e.g. its header).</summary>
     public TableDetails? Details { get; set; }
 
@@ -147,6 +156,7 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
     {
         PinnedColumns = PinnedColumns,
         OriginTab = BackTarget(workspaceTabs) is { } origin ? IndexOf(workspaceTabs, origin) : null,
+        Form = FormOpen || FormWidth is not null || FormHideEmpty ? new FormTabState(FormOpen, FormWidth, FormHideEmpty) : null,
     };
 
     private static int IndexOf(IReadOnlyList<WorkspaceTab> tabs, WorkspaceTab tab)
@@ -171,6 +181,9 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
             Sorts = state.Sorts,
             FirstVisibleRow = state.FirstVisibleRow,
             PinnedColumns = state.PinnedColumns,
+            FormOpen = state.Form?.Open ?? false,
+            FormWidth = state.Form?.Width,
+            FormHideEmpty = state.Form?.HideEmpty ?? false,
         };
         tab.FilterRows.AddRange(state.FilterRows.Select(FilterRow.From));
         return tab;

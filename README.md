@@ -43,12 +43,17 @@ developer works with an Oracle database day to day:
 
 ### Browse
 
+- Several connections open at once, one shown: switch from DEV to PROD and back (<kbd>Alt</kbd>+<kbd>O</kbd>) without
+  disconnecting – tabs, grids and open transactions stay as they were.
 - Explorer with letter index and search; tables, views, materialized views and objects reachable through synonyms.
 - Fast grid for large tables (blocks of 500 rows, server-side sorting, deterministic paging), `NULL` shown as such,
   exact numbers beyond `decimal`, LOB previews, pinned columns, column search (Ctrl+F).
 - Composable filters in the style of TablePlus – column, operator, value – translated into bound SQL; see the generated
   statement and its execution plan at any time.
 - Object details per table: columns, constraints, indexes (with a hint for unindexed foreign keys), dependencies, DDL.
+- Form view for wide tables: the focused row beside the grid, one field per column (searchable, empty ones hidden on
+  request, editable like the grid); select several rows and compare them side by side with the differences marked
+  (<kbd>Alt</kbd>+<kbd>Enter</kbd>).
 - Copy rows as table, `INSERT` statements or C# object initializers; save as CSV or SQL script.
 
 <table>
@@ -146,9 +151,12 @@ files.
 
 ## Keyboard shortcuts
 
+The defaults – every one of them can be changed under *Einstellungen › Tastenkürzel*, which also lists the fixed keys.
+
 | Keys | Action |
 |---|---|
 | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd> | Switch connection |
+| <kbd>Alt</kbd>+<kbd>O</kbd> | Back to the previous open connection (it stays connected in the background) |
 | <kbd>Ctrl</kbd>+<kbd>Enter</kbd> | Apply filters · run the statement at the cursor (SQL) · run the code (LINQ) |
 | <kbd>F5</kbd> | Refresh |
 | <kbd>Ctrl</kbd>+<kbd>F</kbd> | Find a column · search in the editor |

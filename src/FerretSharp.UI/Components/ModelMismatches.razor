@@ -1,0 +1,116 @@
+@* Model page: properties whose column does not fit them – type, NULL, length, precision (ColumnTypeCheck). *@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Schema
+
+<section class="settings-section">
+    <h2>Typen, NULL und Längen</h2>
+    @if (Mapping.ColumnMismatches.Count == 0)
+    {
+        <div class="settings-note">Alle zugeordneten Properties passen zu ihren Spalten.</div>
+    }
+    else
+    {
+        var shown = Mapping.ColumnMismatches.Where(m => _severities.Contains(m.Severity) && Matches(m)).ToList();
+        <div class="settings-note">
+            Verglichen wird, was die Datenbank speichert (nach dem Converter), und nur, was im Projekt konfiguriert ist
+            (<code>HasMaxLength</code>, <code>HasPrecision</code>, <code>HasColumnType</code>, <code>IsRequired</code>/Nullable).
+            Views werden nur gelesen: dort zählen Typ und NULL.
+        </div>
+        <div class="compare-toolbar mismatch-toolbar">
+            @foreach (var (severity, label) in Severities)
+            {
+                var count = Mapping.ColumnMismatches.Count(m => m.Severity == severity);
+                <label class="check">
+                    <input type="checkbox" checked="@_severities.Contains(severity)" disabled="@(count == 0)"
+                           @onchange="e => Toggle(severity, e.Value is true)" />
+                    <span class="mismatch-sev @Css(severity)">@label</span> @count
+                </label>
+            }
+            <input class="compare-search" placeholder="Entity, Property, Spalte" spellcheck="false" @bind="_search" @bind:event="oninput" />
+            <span class="grow"></span>
+            <span class="muted">@shown.Count von @Mapping.ColumnMismatches.Count</span>
+        </div>
+        <table class="model-table mismatch-table">
+            <thead><tr><th></th><th>Property</th><th>C#</th><th>Spalte</th><th>Oracle</th><th>Folge</th></tr></thead>
+            <tbody>
+                @foreach (var mismatch in shown)
+                {
+                    <tr>
+                        <td><span class="mismatch-sev @Css(mismatch.Severity)" title="@Title(mismatch.Severity)">@KindText(mismatch.Kind)</span></td>
+                        <td class="mono" title="@mismatch.Entity.ClrType">@($"{ClrModelMapping.ShortName(mismatch.Entity.ClrType)}.{mismatch.Property.Name}")</td>
+                        <td class="mono">@ColumnTypeCheck.Describe(mismatch.Property)</td>
+                        <td><button class="link-btn mono" @onclick="() => OnOpen.InvokeAsync(mismatch.Table)">@($"{mismatch.Table.DisplayName}.{mismatch.Column.Name}")</button></td>
+                        <td class="mono">@mismatch.Column.DisplayType@(mismatch.Column.Nullable ? "" : " NOT NULL")</td>
+                        <td>@mismatch.Message</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public ClrModelMapping Mapping { get; set; } = null!;
+
+    /// <summary>Opens the table's structure (the "Spalten" view).</summary>
+    [Parameter]
+    public EventCallback<TableSummary> OnOpen { get; set; }
+
+    private static readonly (MismatchSeverity Severity, string Label)[] Severities =
+    [
+        (MismatchSeverity.Error, "Fehler"),
+        (MismatchSeverity.Warning, "Warnungen"),
+        (MismatchSeverity.Hint, "Hinweise"),
+    ];
+
+    private readonly HashSet<MismatchSeverity> _severities = [MismatchSeverity.Error, MismatchSeverity.Warning, MismatchSeverity.Hint];
+    private string _search = "";
+
+    private void Toggle(MismatchSeverity severity, bool shown)
+    {
+        if (shown)
+        {
+            _severities.Add(severity);
+        }
+        else
+        {
+            _severities.Remove(severity);
+        }
+    }
+
+    /// <summary>Every word in entity, property, table or column (like the search of the schema comparison).</summary>
+    private bool Matches(ColumnMismatch mismatch)
+    {
+        var words = _search.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length == 0)
+        {
+            return true;
+        }
+
+        var text = $"{ClrModelMapping.ShortName(mismatch.Entity.ClrType)}.{mismatch.Property.Name} {mismatch.Table.DisplayName}.{mismatch.Column.Name}";
+        return words.All(w => text.Contains(w, StringComparison.OrdinalIgnoreCase));
+    }
+
+    public static string Css(MismatchSeverity severity) => severity switch
+    {
+        MismatchSeverity.Error => "error",
+        MismatchSeverity.Warning => "warn",
+        _ => "hint",
+    };
+
+    public static string Title(MismatchSeverity severity) => severity switch
+    {
+        MismatchSeverity.Error => "Fehler: jede Abfrage der Property scheitert",
+        MismatchSeverity.Warning => "Warnung: scheitert oder verliert Daten bei bestimmten Werten",
+        _ => "Hinweis: Modell und Datenbank weichen ab, ohne dass ein Fehler zu erwarten ist",
+    };
+
+    public static string KindText(ColumnMismatchKind kind) => kind switch
+    {
+        ColumnMismatchKind.Type => "Typ",
+        ColumnMismatchKind.Nullability => "NULL",
+        ColumnMismatchKind.Length => "Länge",
+        _ => "Stellen",
+    };
+}

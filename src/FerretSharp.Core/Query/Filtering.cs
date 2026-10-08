@@ -26,6 +26,9 @@ public enum FilterOperator
 /// </summary>
 public sealed record FilterCondition(string Column, FilterOperator Op, IReadOnlyList<string> Values, bool Enabled = true)
 {
+    /// <summary>Separates the values of an IN list in the filter bar; a comma would clash with German decimal commas.</summary>
+    public const char ListSeparator = ';';
+
     public static FilterCondition Of(string column, FilterOperator op, params string[] values) => new(column, op, values);
 }
 
@@ -59,9 +62,11 @@ public static class FilterRules
 
     private static readonly FilterOperator[] NullOnly = [FilterOperator.IsNull, FilterOperator.IsNotNull];
 
+    // German notation also with a decimal comma: the grid shows timestamps that way (14:30:05,123456), and users
+    // type what they see (was rejected as "kein Zeitstempel" until 3.11.2).
     private static readonly string[] DateFormats =
     [
-        "d.M.yyyy", "d.M.yyyy H:mm", "d.M.yyyy H:mm:ss", "d.M.yyyy H:mm:ss.FFFFFFF",
+        "d.M.yyyy", "d.M.yyyy H:mm", "d.M.yyyy H:mm:ss", "d.M.yyyy H:mm:ss.FFFFFFF", "d.M.yyyy H:mm:ss,FFFFFFF",
         "yyyy-MM-dd", "yyyy-MM-dd H:mm", "yyyy-MM-dd H:mm:ss", "yyyy-MM-dd H:mm:ss.FFFFFFF",
         "yyyy-MM-ddTH:mm", "yyyy-MM-ddTH:mm:ss", "yyyy-MM-ddTH:mm:ss.FFFFFFF",
     ];
@@ -156,6 +161,52 @@ public static class FilterRules
             value = [];
             return false;
         }
+    }
+
+    /// <summary>
+    /// A time with an explicit offset at the end – <c>+02:00</c>, <c>-0530</c>, <c>+2</c> or <c>Z</c>, with or without a
+    /// blank before it (ISO <c>2026-10-08T12:00:00+02:00</c>), the time as <see cref="TryParseDate"/> takes it. Region names
+    /// (<c>Europe/Berlin</c>) are not taken. Shared by editing TIMESTAMP WITH TIME ZONE and the SQL editor's variables.
+    /// </summary>
+    /// <param name="offsetText">The offset as typed, for the message when it is out of range.</param>
+    /// <returns>True: parsed. False: the offset is none (out of range). Null: no offset at the end – the text may still be a
+    /// plain date (<c>2026-10-08</c>, whose "-08" only looks like one).</returns>
+    public static bool? TryParseDateWithOffset(string text, out DateTimeOffset value, out string offsetText)
+    {
+        value = default;
+        offsetText = "";
+        if (OffsetSuffix.Match(text.Trim()) is not { Success: true } match || !TryParseDate(match.Groups["time"].Value, out var time, out _))
+        {
+            return null;
+        }
+
+        offsetText = match.Groups["offset"].Value;
+        if (!TryOffset(offsetText, out var offset))
+        {
+            return false;
+        }
+
+        value = new DateTimeOffset(time, offset);
+        return true;
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex OffsetSuffix = new(
+        @"^(?<time>.+?)\s*(?<offset>Z|[+-]\d{1,2}(?::?\d{2})?)$",
+        System.Text.RegularExpressions.RegexOptions.CultureInvariant | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    private static bool TryOffset(string text, out TimeSpan offset)
+    {
+        offset = TimeSpan.Zero;
+        if (text is "Z" or "z")
+        {
+            return true;
+        }
+
+        var digits = text[1..].Replace(":", "", StringComparison.Ordinal);
+        var hours = int.Parse(digits.Length > 2 ? digits[..^2] : digits, CultureInfo.InvariantCulture);
+        var minutes = digits.Length > 2 ? int.Parse(digits[^2..], CultureInfo.InvariantCulture) : 0;
+        offset = new TimeSpan(hours, minutes, 0) * (text[0] == '-' ? -1 : 1);
+        return minutes < 60 && offset >= TimeSpan.FromHours(-12) && offset <= TimeSpan.FromHours(14);
     }
 
     /// <param name="dateOnly">True if no time was given (equality then means "the whole day").</param>

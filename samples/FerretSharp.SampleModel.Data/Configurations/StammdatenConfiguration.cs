@@ -27,6 +27,8 @@ public sealed class ArtikelConfiguration : StammdatenConfiguration<Artikel>
     {
         builder.HasOne(a => a.Hersteller).WithMany().HasForeignKey(a => a.HerstellerId);
         builder.HasOne(a => a.Kategorie).WithMany().HasForeignKey(a => a.KategorieId);
+        // Drift: 200 characters in the model, ARTIKEL.BEZEICHNUNG is VARCHAR2(100 CHAR) (model page, "Typen, NULL und Längen").
+        builder.Property(a => a.Bezeichnung).HasMaxLength(200);
     }
 }
 

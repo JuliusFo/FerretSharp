@@ -4,10 +4,7 @@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
 @using FerretSharp.Core.Query
-@using FerretSharp.UI.State
 @implements IAsyncDisposable
-@inject ActiveConnection Active
-@inject WorkspaceManager Workspaces
 @inject IJSRuntime JS
 @inject ILogger<PlanDialog> Logger
 
@@ -128,6 +125,12 @@
 </ModalFrame>
 
 @code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceManager Workspaces { get; set; } = null!;
+
     private CancellationTokenSource? _cts;
     private PlanSource _source = PlanSource.Estimated;
     private bool _wholeResult;
@@ -136,7 +139,10 @@
     private ExecutionPlan? _plan;
     private string? _error;
     private int _version;
-    private IJSObjectReference? _dom;
+    private DomModule? _dom;
+
+    /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
+    private DomModule Dom => _dom ??= new(JS);
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -183,7 +189,7 @@
         var whole = _wholeResult;
         var query = whole && source == PlanSource.Actual ? WholeQuery ?? Query : Query;
         var token = cts.Token;
-        var result = await Shell.RunDbAsync(Logger, Active.Profile, async () => source == PlanSource.Estimated
+        var result = await Shell.RunDbAsync(Logger, Active, async () => source == PlanSource.Estimated
             ? await (Active.Schema ?? throw new PlanUnavailableException("Nicht verbunden.")).ExplainAsync(query, token)
             : await (await Workspaces.GetDataAsync(WorkspaceId, token)).ExplainActualAsync(query, whole, token), token);
         var plan = result.Value;
@@ -212,8 +218,7 @@
     {
         if (_plan is not null)
         {
-            _dom ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
-            _copied = await _dom.InvokeAsync<bool>("copyText", Plans.Format(_plan));
+            _copied = await Dom.CopyTextAsync(Plans.Format(_plan));
             if (!_copied)
             {
                 Shell.Notify("Die Zwischenablage ist nicht verfügbar.");
@@ -246,15 +251,6 @@
     public async ValueTask DisposeAsync()
     {
         _cts?.Cancel();
-        if (_dom is not null)
-        {
-            try
-            {
-                await _dom.DisposeAsync();
-            }
-            catch (JSDisconnectedException)
-            {
-            }
-        }
+        await Dom.DisposeAsync();
     }
 }

@@ -52,6 +52,9 @@ public class CellFormatterTests
     [InlineData("1234567890123456789012345678", typeof(decimal))]
     [InlineData("123456789012345678901234567890123456", typeof(BigNumber))]
     [InlineData("0.12345678901234567890123456789012", typeof(BigNumber))]
+    [InlineData("0.0000000000000000000000000000001", typeof(BigNumber))] // one digit, but 31 places: decimal would round to 0
+    [InlineData("-0.0000000000000000000000000001", typeof(decimal))]
+    [InlineData("1E-130", typeof(BigNumber))]
     public void Numbers_beyond_decimal_precision_stay_exact(string invariant, Type expected)
     {
         Assert.IsType(expected, OracleDataAccess.ToNumber(invariant));
