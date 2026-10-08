@@ -1,6 +1,7 @@
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
+@inject ShortcutService Shortcuts
 
 <div class="filterbar">
     @if (Tab.FilterRows.Count == 0)
@@ -77,7 +78,7 @@
             <button class="btn ghost" @onclick="OnShowSql">@Icons.Code SQL</button>
             <button class="btn ghost" title="Ausführungsplan der Abfrage – geschätzt oder tatsächlich" @onclick="OnShowPlan">Plan</button>
             <button class="btn ghost" @onclick="ClearAsync">Leeren</button>
-            <button class="btn primary" @onclick="OnApply">Anwenden <kbd>Ctrl ↵</kbd></button>
+            <button class="btn primary" @onclick="OnApply">Anwenden <Kbd Action="ShortcutAction.ApplyFilters" /></button>
         </div>
     }
 </div>

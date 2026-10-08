@@ -5,6 +5,7 @@
 @using FerretSharp.Core.Schema
 @implements IAsyncDisposable
 @inject IJSRuntime JS
+@inject ShortcutService Shortcuts
 
 @{
     var fkColumns = (Active.Schema?.OutgoingOf(Details.Table.Ref) ?? [])
@@ -31,7 +32,7 @@
                 Entity <strong>@ClrModelMapping.ShortName(entity.Entity.ClrType)</strong>
             </span>
         }
-        <SearchBox @ref="_filter" Class="structure-filter" Placeholder="Spalten filtern … (Ctrl+F)" @bind-Value="_columnQuery" />
+        <SearchBox @ref="_filter" Class="structure-filter" Placeholder="@($"Spalten filtern …{Shortcuts.Hint(ShortcutAction.FindColumn)}")" @bind-Value="_columnQuery" />
     </div>
     <table class="columns">
         <thead>

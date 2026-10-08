@@ -1,6 +1,8 @@
 // Bridge to AG Grid Community (global `agGrid`, loaded by index.html). Infinite row model: every block of rows,
 // including sorting, comes from .NET; cells arrive as display strings (null = SQL NULL). No business logic here.
 
+import { comboOf, localCombo } from './shortcuts.js';
+
 const grids = new Map();
 // Per grid: whether its workspace may write (switched by setEditable when the workspace is unlocked or locked).
 const editStates = new Map();
@@ -459,10 +461,11 @@ export function create(elementId, dotnet, columns, options) {
     dotnet.invokeMethodAsync('OnLobCell', newId ? -1 : rowIndex, newId ?? null, colId).catch(callFailed);
   }
 
-  // Alt+Enter (Windows' "properties"): the form of the focused row, or the comparison of the selected rows (WP-21).
-  // Only in the grid, not a global shortcut – the SQL and LINQ editors keep their keys.
+  // Alt+Enter by default (Windows' "properties", changeable since WP-25): the form of the focused row, or the comparison
+  // of the selected rows (WP-21). Only in the grid, not a global shortcut – the SQL and LINQ editors keep their keys.
   function onFormKey(e) {
-    if (!table || e.key !== 'Enter' || !e.altKey || e.ctrlKey || e.shiftKey || api.getEditingCells().length > 0) return false;
+    const formKey = localCombo('form');
+    if (!table || !formKey || comboOf(e) !== formKey || api.getEditingCells().length > 0) return false;
     e.preventDefault();
     e.stopPropagation();
     const cell = api.getFocusedCell();

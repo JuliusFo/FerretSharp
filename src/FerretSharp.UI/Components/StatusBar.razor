@@ -6,6 +6,7 @@
 @implements IAsyncDisposable
 @inject ConnectionManager Connections
 @inject ConnectionHub Hub
+@inject ShortcutService Shortcuts
 
 <footer class="statusbar">
     @if (Connections.LoadError is { } loadError)
@@ -141,11 +142,11 @@
                 <span class="item tx" title="@ActionsTooltip(edits.Actions)">@(edits.Actions.Count == 1 ? "1 Aktion" : $"{edits.Actions.Count} Aktionen") nicht committet</span>
             }
             <span class="status-group">
-            <button class="status-btn" title="Ausstehende Änderungen schreiben (Ctrl+S) – noch kein Commit" disabled="@(Editing.IsBusy(workspace.WorkspaceId) || edits.Pending == 0)" @onclick="() => Editing.FlushAsync(workspace)">Schreiben</button>
+            <button class="status-btn" title="Ausstehende Änderungen schreiben@(Shortcuts.Hint(ShortcutAction.Flush)) – noch kein Commit" disabled="@(Editing.IsBusy(workspace.WorkspaceId) || edits.Pending == 0)" @onclick="() => Editing.FlushAsync(workspace)">Schreiben</button>
             <button class="status-btn" title="@(edits.Actions is [.., var last] ? $"Zurücknehmen: {last.Display} ({SourceOf(last)})" : "Nichts zurückzunehmen")"
                     disabled="@(Editing.IsBusy(workspace.WorkspaceId) || !edits.CanUndo)" @onclick="() => Editing.UndoLastAsync(workspace, edits.Actions is [.., var newest] ? newest.Id : null)">↶</button>
             <button class="status-btn" title="Ausstehende Änderungen als SQL anzeigen" disabled="@(edits.Pending == 0)" @onclick="() => Lifecycle.ShowPendingSql(workspace)">SQL</button>
-            <button class="status-btn commit" title="Schreiben und committen (Ctrl+Shift+Enter)" disabled="@Editing.IsBusy(workspace.WorkspaceId)" @onclick="() => Lifecycle.RequestCommitAsync(workspace)">Commit</button>
+            <button class="status-btn commit" title="Schreiben und committen@(Shortcuts.Hint(ShortcutAction.Commit))" disabled="@Editing.IsBusy(workspace.WorkspaceId)" @onclick="() => Lifecycle.RequestCommitAsync(workspace)">Commit</button>
             <button class="status-btn danger" title="Alles verwerfen" disabled="@Editing.IsBusy(workspace.WorkspaceId)" @onclick="() => Lifecycle.RequestRollback(workspace)">Rollback</button>
             </span>
         </text>;

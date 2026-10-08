@@ -7,16 +7,17 @@
 @inherits FerretComponent
 @implements IDisposable
 @inject ILogger<TabView> Logger
+@inject ShortcutService Shortcuts
 
 <div class="tabview">
     <div class="tab-toolbar">
         @if (Tab.BackTarget(Shell.Tabs) is { } back)
         {
-            <button class="btn ghost nav-btn" title="@($"Zurück zu {NavLabel(back)} (Alt+←)")" @onclick="Shell.GoBack">← @back.Table.DisplayName</button>
+            <button class="btn ghost nav-btn" title="@($"Zurück zu {NavLabel(back)}{Shortcuts.Hint(ShortcutAction.Back)}")" @onclick="Shell.GoBack">← @back.Table.DisplayName</button>
         }
         @if (Tab.ForwardTarget(Shell.Tabs) is { } forward)
         {
-            <button class="btn ghost nav-btn" title="@($"Vor zu {NavLabel(forward)} (Alt+→)")" @onclick="Shell.GoForward">@forward.Table.DisplayName →</button>
+            <button class="btn ghost nav-btn" title="@($"Vor zu {NavLabel(forward)}{Shortcuts.Hint(ShortcutAction.Forward)}")" @onclick="Shell.GoForward">@forward.Table.DisplayName →</button>
         }
         <div class="segmented small" role="tablist">
             @foreach (var (mode, label) in Modes)
@@ -38,17 +39,17 @@
         {
             @if (Tab.Changes is not null && _grid?.CanEdit == true)
             {
-                <button class="btn ghost" title="Neue Zeile oben im Grid anlegen – wird mit „Schreiben“ (Ctrl+S) eingefügt" @onclick="AddRowAsync">+ Zeile</button>
+                <button class="btn ghost" title="Neue Zeile oben im Grid anlegen – wird mit „Schreiben“@(Shortcuts.Hint(ShortcutAction.Flush)) eingefügt" @onclick="AddRowAsync">+ Zeile</button>
             }
             <button class="btn ghost @(Tab.FormOpen ? "active" : "")" aria-pressed="@(Tab.FormOpen ? "true" : "false")"
-                    title="Die Zeile des Grids als Formular daneben (Alt+Enter im Grid; bei mehreren markierten Zeilen: vergleichen)" @onclick="ToggleForm">
-                Formular <kbd>Alt Enter</kbd>
+                    title="Die Zeile des Grids als Formular daneben@(Shortcuts.Label(ShortcutAction.ToggleForm) is { } key ? $" ({key} im Grid; bei mehreren markierten Zeilen: vergleichen)" : "")" @onclick="ToggleForm">
+                Formular <Kbd Action="ShortcutAction.ToggleForm" />
             </button>
             <ColumnJump @ref="_jump" Details="_details" OnJump="c => _pendingJump = c" />
         }
         @if (_details is not null && Tab.Mode != TabMode.Structure)
         {
-            <button class="icon-btn ghost" title="Neu laden (F5)" @onclick="RefreshViewAsync">@Icons.Refresh</button>
+            <button class="icon-btn ghost" title="Neu laden@(Shortcuts.Hint(ShortcutAction.Refresh))" @onclick="RefreshViewAsync">@Icons.Refresh</button>
         }
     </div>
 

@@ -11,13 +11,14 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject ILogger<RowFormPanel> Logger
+@inject ShortcutService Shortcuts
 
 @* tabindex: a click on a label keeps the focus in the form, so Ctrl+F opens its search, not the grid's column jump. *@
 <aside class="form-panel" style="@WidthStyle" tabindex="-1" @ref="_panel" @onkeydown="OnKeyDownAsync">
     <div class="form-resize" @ref="_handle" title="Breite ändern" @onpointerdown="StartResizeAsync"></div>
     <header class="form-head">
-        <button class="icon-btn ghost" title="Vorige Zeile (Alt+↑)" disabled="@(!CanMove(-1))" @onclick="() => MoveAsync(-1)">▲</button>
-        <button class="icon-btn ghost" title="Nächste Zeile (Alt+↓)" disabled="@(!CanMove(1))" @onclick="() => MoveAsync(1)">▼</button>
+        <button class="icon-btn ghost" title="Vorige Zeile@(Shortcuts.Hint(ShortcutAction.FormPrevious))" disabled="@(!CanMove(-1))" @onclick="() => MoveAsync(-1)">▲</button>
+        <button class="icon-btn ghost" title="Nächste Zeile@(Shortcuts.Hint(ShortcutAction.FormNext))" disabled="@(!CanMove(1))" @onclick="() => MoveAsync(1)">▼</button>
         <span class="form-pos">
             @if (Cell is { } cell)
             {
@@ -33,11 +34,11 @@
             }
         </span>
         <span class="spacer"></span>
-        <button class="icon-btn ghost" title="Formular schließen (Alt+Enter)" @onclick="OnClose">✕</button>
+        <button class="icon-btn ghost" title="Formular schließen@(Shortcuts.Hint(ShortcutAction.ToggleForm))" @onclick="OnClose">✕</button>
     </header>
 
     <div class="form-tools">
-        <SearchBox @ref="_search" Class="structure-filter" Placeholder="Felder suchen … (Ctrl+F)" @bind-Value="_query" />
+        <SearchBox @ref="_search" Class="structure-filter" Placeholder="@($"Felder suchen …{Shortcuts.Hint(ShortcutAction.FindColumn)}")" @bind-Value="_query" />
         <div class="form-switches">
             <label class="check" title="Felder ohne Wert (NULL) ausblenden – geänderte bleiben sichtbar; gilt für diesen Tab">
                 <input type="checkbox" checked="@Tab.FormHideEmpty" @onchange="e => SetHideEmpty(e.Value is true)" /> Leere ausblenden
@@ -85,7 +86,7 @@
         }
         else if (row.IsNew)
         {
-            <div class="form-note">Neue Zeile – wird mit „Schreiben“ (Ctrl+S) eingefügt.</div>
+            <div class="form-note">Neue Zeile – wird mit „Schreiben“@(Shortcuts.Hint(ShortcutAction.Flush)) eingefügt.</div>
         }
         else if (Details.Table.Kind == TableKind.Table && !Workspaces.IsWritable(Tab.WorkspaceId))
         {
@@ -381,25 +382,21 @@
         await Grid.FocusRowAsync(target, keepFocus: true);
     }
 
+    /// <summary>The form's own keys (Alt+↑/↓/Enter by default, changeable since WP-25) – not global, Monaco keeps them.</summary>
     private async Task OnKeyDownAsync(KeyboardEventArgs e)
     {
-        if (!e.AltKey || e.CtrlKey || e.ShiftKey)
+        if (Shortcuts.Is(ShortcutAction.FormPrevious, e))
         {
-            return;
+            await MoveAsync(-1);
         }
-
-        switch (e.Key)
+        else if (Shortcuts.Is(ShortcutAction.FormNext, e))
         {
-            case "ArrowUp":
-                await MoveAsync(-1);
-                break;
-            case "ArrowDown":
-                await MoveAsync(1);
-                break;
-            case "Enter":
-                CommitDrafts();
-                await OnClose.InvokeAsync();
-                break;
+            await MoveAsync(1);
+        }
+        else if (Shortcuts.Is(ShortcutAction.ToggleForm, e))
+        {
+            CommitDrafts();
+            await OnClose.InvokeAsync();
         }
     }
 

@@ -4,10 +4,11 @@
 @inject RecentConnections Recent
 @inject ConnectionHub Hub
 @inject IJSRuntime JS
+@inject ShortcutService Shortcuts
 
 <div class="switcher">
     <button class="switcher-btn @(Shell.SwitcherOpen ? "open" : "") @(Active.Profile is { } ap ? ConnectionKindInfo.CssClass(ap.Kind) : "")"
-            title="Verbindung wählen (Ctrl+Shift+O)" @onclick="Toggle">
+            title="Verbindung wählen@(Shortcuts.Hint(ShortcutAction.ConnectionSwitcher))" @onclick="Toggle">
         @if (Active.Status == ConnectionStatus.Connecting)
         {
             <span class="spinner small"></span>
@@ -34,7 +35,7 @@
         <div class="popover switcher-pop" @onkeydown="OnKeyDown">
             <SearchBox @ref="_search" Class="popover-search" Placeholder="Verbindung suchen …"
                        @bind-Value="_query" @bind-Value:after="() => _highlight = 0">
-                <kbd>Ctrl Shift O</kbd>
+                <Kbd Action="ShortcutAction.ConnectionSwitcher" />
             </SearchBox>
 
             <div class="popover-list">
@@ -50,7 +51,7 @@
 
                 @if (_open.Count > 0)
                 {
-                    <div class="group-head-btn static" title="Bleiben verbunden, auch wenn eine andere angezeigt wird – Alt+O wechselt zur vorigen">Offen</div>
+                    <div class="group-head-btn static" title="Bleiben verbunden, auch wenn eine andere angezeigt wird@(Shortcuts.Label(ShortcutAction.PreviousConnection) is { } key ? $" – {key} wechselt zur vorigen" : "")">Offen</div>
                     @foreach (var profile in _open)
                     {
                         @Row(profile, index++)

@@ -7,6 +7,7 @@
 @inject IFileSaveService SaveFiles
 @inject IFileOpenService OpenFiles
 @inject ILogger<LobEditorDialog> Logger
+@inject ShortcutService Shortcuts
 
 <ModalFrame Label="@Column.Name" Class="lob-dialog" OnCancel="CancelAsync" FocusOnOpen="true">
     <header>
@@ -82,7 +83,7 @@
         @if (CanEdit && !_loading && _error is null)
         {
             <button class="btn ghost" @onclick="OnClose">Abbrechen</button>
-            <button class="btn primary" title="Als ausstehende Änderung übernehmen – geschrieben wird mit „Schreiben“ (Ctrl+S)" @onclick="ApplyAsync">Übernehmen</button>
+            <button class="btn primary" title="Als ausstehende Änderung übernehmen – geschrieben wird mit „Schreiben“@(Shortcuts.Hint(ShortcutAction.Flush))" @onclick="ApplyAsync">Übernehmen</button>
         }
         else
         {
@@ -175,7 +176,7 @@
 
             if (!read.Found)
             {
-                _error = "Die Zeile gibt es nicht mehr – bitte neu laden (F5).";
+                _error = $"Die Zeile gibt es nicht mehr – bitte neu laden{Shortcuts.Hint(ShortcutAction.Refresh)}.";
                 return;
             }
 

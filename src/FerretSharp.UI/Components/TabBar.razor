@@ -1,6 +1,7 @@
 @* The tabs of the active workspace (R2, out of Shell.razor): table tabs with their filters and change dot, SQL and LINQ
    tabs that can be renamed, and the buttons for new SQL/LINQ tabs. *@
 @using FerretSharp.Core.ClrModel
+@inject ShortcutService Shortcuts
 
 <nav class="tabs">
     @foreach (var tab in Shell.Tabs)
@@ -48,11 +49,11 @@
             <button class="tab-close" title="Schließen" @onclick:stopPropagation="true" @onclick="() => Lifecycle.CloseTab(tab)">✕</button>
         </div>
     }
-    <button class="tab-new" title="Neuer SQL-Editor: Statements in der Session dieses Workspaces (Ctrl+Shift+Q)"
+    <button class="tab-new" title="Neuer SQL-Editor: Statements in der Session dieses Workspaces@(Shortcuts.Hint(ShortcutAction.NewSql))"
             @onclick="() => Shell.OpenSql()">+ SQL</button>
     @if (Models.State.Link is not null)
     {
-        <button class="tab-new" title="Neue LINQ-Konsole: C# gegen den DbContext des verknüpften Projekts (Ctrl+Shift+L)"
+        <button class="tab-new" title="Neue LINQ-Konsole: C# gegen den DbContext des verknüpften Projekts@(Shortcuts.Hint(ShortcutAction.NewLinq))"
                 @onclick="() => Shell.OpenLinq()">+ LINQ</button>
     }
 </nav>
