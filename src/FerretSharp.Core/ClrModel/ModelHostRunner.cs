@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using FerretSharp.Core.IO;
 
 namespace FerretSharp.Core.ClrModel;
 
@@ -94,6 +95,9 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
             _timeout, progress, cancellationToken);
     }
 
+    /// <summary>Each start of the host gets a work folder of its own below this one; nothing else is ever deleted.</summary>
+    internal static string WorkRoot { get; } = Path.Combine(Path.GetTempPath(), "FerretSharp", "modelhost");
+
     /// <summary>Set once old work folders were removed in this process.</summary>
     private static int _staleFoldersRemoved;
 
@@ -114,7 +118,7 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
             {
                 if (DateTime.UtcNow - folder.LastWriteTimeUtc > age)
                 {
-                    LinqConsoleHost.TryDelete(folder);
+                    SafeDelete.TryDirectoryBelow(root, folder.FullName);
                 }
             }
         }
@@ -139,7 +143,7 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
             throw new ClrModelException(ClrModelErrorKind.HostFailed, $"FerretSharp.ModelHost fehlt: {modelHostPath}");
         }
 
-        var root = Path.Combine(Path.GetTempPath(), "FerretSharp", "modelhost");
+        var root = WorkRoot;
         if (Interlocked.Exchange(ref _staleFoldersRemoved, 1) == 0)
         {
             DeleteStaleWorkFolders(root, TimeSpan.FromDays(1));

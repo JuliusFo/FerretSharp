@@ -190,23 +190,16 @@ public sealed class ModelHostTests
         var link = SampleLink();
         var output = BuildOutputLocator.Find(link);
         var model = (await Runner().ReadModelAsync(link, output, Ct)).Model!;
-        var directory = Directory.CreateTempSubdirectory("ferret-modelcache-").FullName;
-        try
-        {
-            var host = Path.Combine(Root, "src", "FerretSharp.ModelHost", "bin", Configuration, "net8.0", "FerretSharp.ModelHost.dll");
-            var cache = new ModelCache(directory, host, System.Globalization.CultureInfo.GetCultureInfo("de-DE"));
-            await cache.SaveAsync(link, output, model, Ct);
+        using var folder = new TestFolder();
+        var host = Path.Combine(Root, "src", "FerretSharp.ModelHost", "bin", Configuration, "net8.0", "FerretSharp.ModelHost.dll");
+        var cache = new ModelCache(folder.Path, host, System.Globalization.CultureInfo.GetCultureInfo("de-DE"));
+        await cache.SaveAsync(link, output, model, Ct);
 
-            var cached = await cache.TryLoadAsync(link, BuildOutputLocator.Find(link), Ct);
+        var cached = await cache.TryLoadAsync(link, BuildOutputLocator.Find(link), Ct);
 
-            Assert.NotNull(cached);
-            Assert.Equal(
-                System.Text.Json.JsonSerializer.Serialize(model, ModelHostResult.JsonOptions),
-                System.Text.Json.JsonSerializer.Serialize(cached.Model, ModelHostResult.JsonOptions));
-        }
-        finally
-        {
-            Directory.Delete(directory, recursive: true);
-        }
+        Assert.NotNull(cached);
+        Assert.Equal(
+            System.Text.Json.JsonSerializer.Serialize(model, ModelHostResult.JsonOptions),
+            System.Text.Json.JsonSerializer.Serialize(cached.Model, ModelHostResult.JsonOptions));
     }
 }

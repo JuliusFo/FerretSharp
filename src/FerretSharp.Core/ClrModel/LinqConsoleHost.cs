@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
+using FerretSharp.Core.IO;
 
 namespace FerretSharp.Core.ClrModel;
 
@@ -241,15 +242,9 @@ public sealed class LinqConsoleHost : ILinqConsole
         TryDelete(_work);
     }
 
-    internal static void TryDelete(DirectoryInfo directory)
-    {
-        try
-        {
-            directory.Delete(recursive: true);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            // a file still in use by a host being killed: removed on a later start (ModelHostRunner.DeleteStaleWorkFolders)
-        }
-    }
+    /// <summary>
+    /// Removes a work folder of the host (only ever below <see cref="ModelHostRunner.WorkRoot"/>). A file still in use by a
+    /// host being killed keeps it: removed on a later start (<see cref="ModelHostRunner.DeleteStaleWorkFolders"/>).
+    /// </summary>
+    internal static void TryDelete(DirectoryInfo directory) => SafeDelete.TryDirectoryBelow(ModelHostRunner.WorkRoot, directory.FullName);
 }

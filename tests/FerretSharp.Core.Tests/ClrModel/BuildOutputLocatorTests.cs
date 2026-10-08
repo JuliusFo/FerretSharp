@@ -5,13 +5,13 @@ namespace FerretSharp.Core.Tests.ClrModel;
 /// <summary>Finding the build output of a linked project in a fake project folder (no build involved).</summary>
 public sealed class BuildOutputLocatorTests : IDisposable
 {
-    private readonly DirectoryInfo _root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "fs-locator-" + Guid.NewGuid().ToString("N")));
+    private readonly TestFolder _folder = new();
 
-    public void Dispose() => _root.Delete(recursive: true);
+    public void Dispose() => _folder.Dispose();
 
     private string Project(string name, string body = "", string sdk = "Microsoft.NET.Sdk")
     {
-        var directory = Directory.CreateDirectory(Path.Combine(_root.FullName, name));
+        var directory = Directory.CreateDirectory(_folder.Combine(name));
         var file = Path.Combine(directory.FullName, name + ".csproj");
         File.WriteAllText(file, $"<Project Sdk=\"{sdk}\"><PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup>{body}</Project>");
         File.WriteAllText(Path.Combine(directory.FullName, "Context.cs"), "class C {}");
@@ -35,9 +35,9 @@ public sealed class BuildOutputLocatorTests : IDisposable
         var project = Project("Shop.Data");
         var dll = Built(project, "Shop.Data");
         Built(project, "Shop.Data", configuration: "Release");
-        var packages = Directory.CreateDirectory(Path.Combine(_root.FullName, "packages"));
-        Directory.CreateDirectory(Path.Combine(_root.FullName, "Shop.Data", "obj"));
-        File.WriteAllText(Path.Combine(_root.FullName, "Shop.Data", "obj", "project.assets.json"),
+        var packages = Directory.CreateDirectory(_folder.Combine("packages"));
+        Directory.CreateDirectory(_folder.Combine("Shop.Data", "obj"));
+        File.WriteAllText(_folder.Combine("Shop.Data", "obj", "project.assets.json"),
             // NuGet writes the folder with a trailing separator – '\' on Windows, '/' elsewhere (CI runs on Linux too).
             $$"""{ "packageFolders": { {{System.Text.Json.JsonSerializer.Serialize(packages.FullName + Path.DirectorySeparatorChar)}}: {} } }""");
 
@@ -70,7 +70,7 @@ public sealed class BuildOutputLocatorTests : IDisposable
         Assert.Contains("EF Core", BuildOutputLocator.Check(new ClrProjectLink(noEf)));
         Assert.Null(BuildOutputLocator.Check(new ClrProjectLink(notBuilt)));
         Assert.Null(BuildOutputLocator.Check(new ClrProjectLink(good)));
-        Assert.NotNull(BuildOutputLocator.Check(new ClrProjectLink(Path.Combine(_root.FullName, "gone.csproj"))));
+        Assert.NotNull(BuildOutputLocator.Check(new ClrProjectLink(_folder.Combine("gone.csproj"))));
     }
 
     [Fact]
@@ -109,7 +109,7 @@ public sealed class BuildOutputLocatorTests : IDisposable
     public void Missing_project_missing_build_and_old_frameworks_are_explained()
     {
         Assert.Equal(ClrModelErrorKind.ProjectNotFound,
-            Assert.Throws<ClrModelException>(() => BuildOutputLocator.Find(new ClrProjectLink(Path.Combine(_root.FullName, "x.csproj")))).Kind);
+            Assert.Throws<ClrModelException>(() => BuildOutputLocator.Find(new ClrProjectLink(_folder.Combine("x.csproj")))).Kind);
 
         var notBuilt = Project("Shop.Neu");
         var error = Assert.Throws<ClrModelException>(() => BuildOutputLocator.Find(new ClrProjectLink(notBuilt)));

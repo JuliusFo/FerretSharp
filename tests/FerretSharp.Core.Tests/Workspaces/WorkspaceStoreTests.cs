@@ -6,11 +6,16 @@ namespace FerretSharp.Core.Tests.Workspaces;
 
 public sealed class WorkspaceStoreTests : IDisposable
 {
-    private readonly string _directory = Path.Combine(Path.GetTempPath(), "ferret-tests", Guid.NewGuid().ToString("N"), "workspaces");
+    private readonly TestFolder _folder = new();
+    private readonly string _directory;
     private readonly WorkspaceStore _store;
     private readonly Guid _connectionId = Guid.NewGuid();
 
-    public WorkspaceStoreTests() => _store = new WorkspaceStore(_directory);
+    public WorkspaceStoreTests()
+    {
+        _directory = _folder.Combine("workspaces"); // created by the store
+        _store = new WorkspaceStore(_directory);
+    }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -201,12 +206,5 @@ public sealed class WorkspaceStoreTests : IDisposable
         Assert.Null(Workspace.NormalizeName(new string('x', Workspace.MaxNameLength + 1)));
     }
 
-    public void Dispose()
-    {
-        var root = Path.GetDirectoryName(_directory)!;
-        if (Directory.Exists(root))
-        {
-            Directory.Delete(root, recursive: true);
-        }
-    }
+    public void Dispose() => _folder.Dispose();
 }

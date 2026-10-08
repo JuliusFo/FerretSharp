@@ -9,7 +9,7 @@ namespace FerretSharp.Core.Tests.Connections;
 
 public sealed class ActiveConnectionTests : IDisposable
 {
-    private readonly string _directory = Path.Combine(Path.GetTempPath(), "ferret-tests", Guid.NewGuid().ToString("N"));
+    private readonly TestFolder _folder = new();
     private readonly InMemorySecretStore _secrets = new();
     private readonly IDatabaseConnector _connector = Substitute.For<IDatabaseConnector>();
     private readonly IDatabaseConnection _connection = Substitute.For<IDatabaseConnection>();
@@ -22,7 +22,7 @@ public sealed class ActiveConnectionTests : IDisposable
 
     public ActiveConnectionTests()
     {
-        _recent = new RecentConnections(Path.Combine(_directory, "recent.json"));
+        _recent = new RecentConnections(_folder.Combine("recent.json"));
         var connections = new ConnectionManager(Substitute.For<IConnectionStore>(), _secrets);
         _workspaces = new WorkspaceManager(_workspaceStore, connections, _connector);
         _active = new ActiveConnection(connections, _connector, _recent, _workspaces);
@@ -187,9 +187,6 @@ public sealed class ActiveConnectionTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_directory))
-        {
-            Directory.Delete(_directory, recursive: true);
-        }
+        _folder.Dispose();
     }
 }

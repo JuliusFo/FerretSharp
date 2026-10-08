@@ -17,6 +17,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\Shared\TestFolder.cs" Link="Shared\TestFolder.cs" />
+    <Using Include="FerretSharp.Testing" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\FerretSharp.Core\FerretSharp.Core.csproj" />
   </ItemGroup>
 

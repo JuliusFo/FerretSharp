@@ -5,10 +5,10 @@ namespace FerretSharp.Core.Tests.Connections;
 
 public sealed class RecentConnectionsTests : IDisposable
 {
-    private readonly string _directory = Path.Combine(Path.GetTempPath(), "ferret-tests", Guid.NewGuid().ToString("N"));
+    private readonly TestFolder _folder = new();
     private readonly FakeTimeProvider _time = new(new DateTimeOffset(2026, 10, 1, 9, 0, 0, TimeSpan.Zero));
 
-    private string FilePath => Path.Combine(_directory, "recent.json");
+    private string FilePath => _folder.Combine("recent.json");
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -19,7 +19,6 @@ public sealed class RecentConnectionsTests : IDisposable
         await recent.LoadAsync(Ct);
         Assert.Empty(recent.LastUsed);
 
-        Directory.CreateDirectory(_directory);
         await File.WriteAllTextAsync(FilePath, "garbage", Ct);
         await recent.LoadAsync(Ct);
         Assert.Empty(recent.LastUsed);
@@ -46,9 +45,6 @@ public sealed class RecentConnectionsTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_directory))
-        {
-            Directory.Delete(_directory, recursive: true);
-        }
+        _folder.Dispose();
     }
 }

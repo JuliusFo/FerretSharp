@@ -16,6 +16,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\Shared\TestFolder.cs" Link="Shared\TestFolder.cs" />
+    <Using Include="FerretSharp.Testing" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- The in-memory stores of the Core tests, shared instead of copied. -->
     <Compile Include="..\FerretSharp.Core.Tests\Fakes\*.cs" Link="Fakes\%(Filename)%(Extension)" />
   </ItemGroup>

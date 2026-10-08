@@ -4,10 +4,10 @@ namespace FerretSharp.Core.Tests.Settings;
 
 public sealed class SettingsStoreTests : IDisposable
 {
-    private readonly string _directory = Path.Combine(Path.GetTempPath(), "ferret-tests", Guid.NewGuid().ToString("N"));
+    private readonly TestFolder _folder = new();
     private readonly SettingsStore _store;
 
-    public SettingsStoreTests() => _store = new SettingsStore(Path.Combine(_directory, "settings.json"));
+    public SettingsStoreTests() => _store = new SettingsStore(_folder.Combine("settings.json"));
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -34,7 +34,6 @@ public sealed class SettingsStoreTests : IDisposable
     [Fact]
     public async Task Keep_alive_is_on_by_default_also_in_files_written_before_it_existed()
     {
-        Directory.CreateDirectory(_directory);
         await File.WriteAllTextAsync(_store.FilePath, """{ "version": 1, "settings": { "theme": "dark" } }""", Ct);
 
         var settings = await _store.LoadAsync(Ct);
@@ -71,7 +70,6 @@ public sealed class SettingsStoreTests : IDisposable
     [InlineData("""{ "version": 1, "settings": { "theme": "purple" } }""")]
     public async Task Broken_or_newer_files_are_reported(string content)
     {
-        Directory.CreateDirectory(_directory);
         await File.WriteAllTextAsync(_store.FilePath, content, Ct);
 
         await Assert.ThrowsAsync<SettingsStoreException>(() => _store.LoadAsync(Ct));
@@ -79,9 +77,6 @@ public sealed class SettingsStoreTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_directory))
-        {
-            Directory.Delete(_directory, recursive: true);
-        }
+        _folder.Dispose();
     }
 }

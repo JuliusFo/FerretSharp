@@ -123,6 +123,7 @@ Regeln:
 - **Fertig heißt:** `dotnet build -warnaserror` und `dotnet test` grün, ADR bei nicht-trivialen Entscheidungen, Protokoll in `docs/work-packages.md`, Eintrag im `CHANGELOG.md`. Danach eine kurze Zusammenfassung auf Deutsch (was gebaut, was offen, was zu testen).
 - **Commits** klein und thematisch, Conventional Commits (`feat:`, `fix:`, `test:`, `docs:`, `refactor:`).
 - **Core zuerst mit Tests, dann UI.** Unit-Tests laufen ohne DB (Mocks). Alles, was eine echte DB braucht, gehört in `FerretSharp.Integration.Tests` und muss sich ohne Docker sauber überspringen.
+- **Ordner rekursiv löschen nur über `SafeDelete.DirectoryBelow(root, path)`** (Core/IO: nur strikt unter einer festen Wurzel, nie Wurzel, Laufwerk oder relativer Pfad), in Tests über `TestFolder` (`tests/Shared`). Nie einen Pfad aus Einstellungen, Umgebungsvariablen oder Eingaben ungeprüft löschen; auch keine `Remove-Item -Recurse`/`rm -r`/`RemoveDir` in Skripten. `SafeDeleteTests` durchsucht Code, Tests und Skripte danach.
 - **UI end-to-end prüfen, ohne echte Nutzerdaten anzufassen** (Ablauf: `docs/e2e-testing.md`):
   - App nur mit `--data-dir=<scratch>` starten; eigene Test-DB-Container per Name anlegen und wieder entfernen.
   - Der Container `ferret-sample` auf Port 1522 ist die Beispiel-DB des Nutzers – **nicht anfassen**.
