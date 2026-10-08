@@ -87,6 +87,8 @@ public partial class App : Application
         // The host runs from copies of the build output, so the linked project can be built meanwhile (ADR 0016).
         var shadow = new BuildOutputShadow(Path.Combine(Path.GetTempPath(), AppPaths.AppFolderName, "shadow"));
         builder.Services.AddSingleton<IModelHostRunner>(new ModelHostRunner(modelHost, shadow: shadow));
+        // Copies of projects no longer linked or builds long replaced; in the background, it never throws.
+        _ = Task.Run(() => shadow.DeleteUnusedAsync(BuildOutputShadow.UnusedAfter, CancellationToken.None));
         builder.Services.AddSingleton(new ModelCache(paths.ModelCacheDirectory, modelHost));
         builder.Services.AddSingleton(new SqlHistoryStore(paths.SqlHistoryDirectory));
         builder.Services.AddSingleton(new ComparisonStore(paths.ComparisonsFile));

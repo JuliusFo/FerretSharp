@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using FerretSharp.Core.IO;
 
 namespace FerretSharp.Core.ClrModel;
 
@@ -80,6 +81,9 @@ public sealed class ShadowLease : IDisposable
 /// </summary>
 public sealed class BuildOutputShadow
 {
+    /// <summary>Copies unused this long are removed at the start of FerretSharp (<see cref="DeleteUnusedAsync"/>).</summary>
+    public static readonly TimeSpan UnusedAfter = TimeSpan.FromDays(7);
+
     /// <summary>New slots tried beyond the existing ones before giving up (all in use: something is wrong).</summary>
     private const int MaxNewSlots = 8;
 
@@ -172,6 +176,92 @@ public sealed class BuildOutputShadow
         {
             _gate.Release();
         }
+    }
+
+    /// <summary>
+    /// Removes copies no FerretSharp process has used for <paramref name="age"/> – of projects no longer linked, or builds
+    /// long replaced – with their lock files, and output folders left empty. A copy in use (by this process, or by another
+    /// one holding its lock file) stays. Housekeeping: never throws, a copy that cannot be deleted stays for next time.
+    /// </summary>
+    /// <returns>The number of copies removed.</returns>
+    public async Task<int> DeleteUnusedAsync(TimeSpan age, CancellationToken cancellationToken)
+    {
+        await _gate.WaitAsync(cancellationToken); // no copy is claimed meanwhile in this process
+        try
+        {
+            if (!System.IO.Directory.Exists(Directory))
+            {
+                return 0;
+            }
+
+            var removed = 0;
+            foreach (var root in System.IO.Directory.EnumerateDirectories(Directory))
+            {
+                removed += DeleteUnusedSlots(root, age);
+                if (!System.IO.Directory.EnumerateFileSystemEntries(root).Any())
+                {
+                    SafeDelete.TryDirectoryBelow(Directory, root);
+                }
+            }
+
+            return removed;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return 0;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    /// <summary>The unused copies of one output folder: slot folders with or without a lock file.</summary>
+    private int DeleteUnusedSlots(string root, TimeSpan age)
+    {
+        var removed = 0;
+        var slots = System.IO.Directory.EnumerateDirectories(root)
+            .Concat(System.IO.Directory.EnumerateFiles(root, "*.lock").Select(f => f[..^".lock".Length]))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        foreach (var slot in slots)
+        {
+            lock (_lock)
+            {
+                if (_leased.ContainsKey(slot))
+                {
+                    continue;
+                }
+            }
+
+            var lockPath = slot + ".lock";
+            // The lock file's write time is the last use (Claim writes it); a copy without one counts by its own time.
+            var lastUse = File.Exists(lockPath) ? File.GetLastWriteTimeUtc(lockPath) : System.IO.Directory.GetLastWriteTimeUtc(slot);
+            if (DateTime.UtcNow - lastUse < age)
+            {
+                continue;
+            }
+
+            try
+            {
+                // Held while deleting: another FerretSharp process cannot claim the copy meanwhile; one using it holds it.
+                using (new FileStream(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None, 1, FileOptions.DeleteOnClose))
+                {
+                    if (!SafeDelete.TryDirectoryBelow(Directory, slot))
+                    {
+                        continue;
+                    }
+                }
+
+                removed++;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // in use by another FerretSharp process
+            }
+        }
+
+        return removed;
     }
 
     /// <summary>A slot in use by this process with exactly these files.</summary>

@@ -142,6 +142,77 @@ public sealed class BuildOutputShadowTests : IDisposable
         Assert.True(BuildFiles.Same(BuildFiles.List(_output), BuildFiles.List(lease.Directory)));
     }
 
+    /// <summary>A released copy whose last use (the write time of its lock file) lies this far back.</summary>
+    private async Task<string> UnusedCopyAsync(TimeSpan ago)
+    {
+        string directory;
+        using (var lease = await _shadow.AcquireAsync(_build, null, Ct))
+        {
+            directory = lease.Directory;
+        }
+
+        File.SetLastWriteTimeUtc(directory + ".lock", DateTime.UtcNow - ago);
+        return directory;
+    }
+
+    [Fact]
+    public async Task Copies_unused_for_a_week_are_removed_with_their_lock_and_empty_output_folder()
+    {
+        var directory = await UnusedCopyAsync(TimeSpan.FromDays(8));
+        var root = Path.GetDirectoryName(directory)!;
+
+        Assert.Equal(1, await _shadow.DeleteUnusedAsync(BuildOutputShadow.UnusedAfter, Ct));
+
+        Assert.False(Directory.Exists(directory));
+        Assert.False(File.Exists(directory + ".lock"));
+        Assert.False(Directory.Exists(root));
+        Assert.True(File.Exists(_build.Assembly)); // the build output itself is never touched
+    }
+
+    [Fact]
+    public async Task Recently_used_copies_stay()
+    {
+        var directory = await UnusedCopyAsync(TimeSpan.FromDays(2));
+
+        Assert.Equal(0, await _shadow.DeleteUnusedAsync(BuildOutputShadow.UnusedAfter, Ct));
+
+        Assert.True(File.Exists(Path.Combine(directory, "Shop.Data.dll")));
+    }
+
+    [Fact]
+    public async Task A_copy_in_use_stays_however_old()
+    {
+        using var lease = await _shadow.AcquireAsync(_build, null, Ct);
+        File.SetLastWriteTimeUtc(lease.Directory + ".lock", DateTime.UtcNow.AddDays(-30));
+        var other = await UnusedCopyAsync(TimeSpan.FromDays(30)); // the same build: shares the copy in use
+
+        Assert.Equal(lease.Directory, other);
+        Assert.Equal(0, await _shadow.DeleteUnusedAsync(BuildOutputShadow.UnusedAfter, Ct));
+        Assert.True(File.Exists(lease.Assembly));
+    }
+
+    [Fact]
+    public async Task A_copy_another_ferretsharp_uses_stays()
+    {
+        var directory = await UnusedCopyAsync(TimeSpan.FromDays(30));
+        var lockFile = directory + ".lock";
+        var lastUse = File.GetLastWriteTimeUtc(lockFile);
+
+        using (new FileStream(lockFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+        {
+            Assert.Equal(0, await _shadow.DeleteUnusedAsync(BuildOutputShadow.UnusedAfter, Ct));
+        }
+
+        Assert.True(File.Exists(Path.Combine(directory, "Shop.Data.dll")));
+        Assert.Equal(lastUse, File.GetLastWriteTimeUtc(lockFile));
+    }
+
+    [Fact]
+    public async Task Nothing_to_remove_without_any_copies()
+    {
+        Assert.Equal(0, await _shadow.DeleteUnusedAsync(BuildOutputShadow.UnusedAfter, Ct));
+    }
+
     /// <summary>Synchronous, unlike <see cref="Progress{T}"/>.</summary>
     private sealed class Progress(List<string> steps) : IProgress<string>
     {
