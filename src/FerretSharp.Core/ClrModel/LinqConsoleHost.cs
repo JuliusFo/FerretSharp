@@ -214,14 +214,9 @@ public sealed class LinqConsoleHost : ILinqConsole
     private void Kill()
     {
         _dead = true;
-        try
-        {
-            _process.Kill(entireProcessTree: true);
-        }
-        catch (InvalidOperationException)
-        {
-            // already exited
-        }
+        // The host has no child processes: no tree kill, which walks every process of the system and throws for each
+        // protected one (under a debugger each of those exceptions froze the UI – after every console restart).
+        DotNetCli.Kill(_process, entireProcessTree: false);
     }
 
     public async ValueTask DisposeAsync()

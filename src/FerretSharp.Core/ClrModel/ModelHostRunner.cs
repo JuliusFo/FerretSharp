@@ -309,15 +309,10 @@ public static class DotNetCli
         }
         catch (OperationCanceledException)
         {
-            try
-            {
-                process.Kill(entireProcessTree: true);
-            }
-            catch (InvalidOperationException)
-            {
-                // already exited
-            }
-
+            // dotnet build leaves compiler and MSBuild processes behind; the model host has no children. The tree kill
+            // walks every process of the system and throws for each protected one – under a debugger every such
+            // exception stops all threads, which froze the UI for seconds whenever a superseded model load ended.
+            DotNetCli.Kill(process, entireProcessTree: !background);
             cancellationToken.ThrowIfCancellationRequested();
             throw new ClrModelException(ClrModelErrorKind.Timeout, $"dotnet hat nach {timeout.TotalSeconds:0} s nicht geantwortet und wurde beendet.");
         }
@@ -342,6 +337,23 @@ public static class DotNetCli
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or PlatformNotSupportedException)
         {
             // already exited, or not allowed: it runs at normal priority
+        }
+    }
+
+    /// <summary>Ends a process that may have exited meanwhile.</summary>
+    /// <param name="entireProcessTree">Also its children – expensive (every process of the system is looked at).</param>
+    internal static void Kill(Process process, bool entireProcessTree)
+    {
+        try
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree);
+            }
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            // exited meanwhile, or already terminating
         }
     }
 

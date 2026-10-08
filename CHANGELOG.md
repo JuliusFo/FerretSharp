@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 ### Fixed
 - The linked C# project can be built while FerretSharp is connected and a LINQ console is open: the model host now runs from a copy of the build output instead of locking its DLLs ("The file is locked by: .NET Host"). After the first start, a new build only copies the files it changed.
 - Reloading the model after a build no longer makes the window stutter or holds up typing in the LINQ editor: the model and the new console load one after the other, at lower priority, and only the views of tables whose entities actually changed render again (open grids fetch their rows again only then).
+- The window no longer freezes for seconds right after the LINQ console has loaded a new build: the previous helper process is ended directly instead of searching all processes of the system for its children (very slow under a debugger).
 - Opening a LINQ tab no longer freezes the window: the console starts in the background with visible steps ("Kopiere die Build-Ausgabe", "Starte den Hilfsprozess", "Baue das Modell") and can be cancelled.
 
 ### Changed
