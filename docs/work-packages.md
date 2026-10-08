@@ -1,6 +1,39 @@
 # Arbeitspakete – Umsetzungsprotokolle
 
-Was in den abgeschlossenen Paketen gebaut und entschieden wurde, mit Nachträgen, Fallen und E2E-Erkenntnissen. Aus der `CLAUDE.md` ausgelagert (Stand 3.6.0), damit sie kurz bleibt; dort stehen die Übersicht, die geplanten Pakete und die übergreifend wichtigen Fallen. Begründungen der Entscheidungen: `docs/decisions/`. „Abschnitt N“ meint die `CLAUDE.md`.
+Was in den abgeschlossenen Paketen gebaut und entschieden wurde, mit Nachträgen, Fallen und E2E-Erkenntnissen. Aus der `CLAUDE.md` ausgelagert (Stand 3.6.0), damit sie kurz bleibt. Geplante Pakete: `docs/roadmap.md`; übergreifende Fallen: `src/FerretSharp.Core/CLAUDE.md`, `src/FerretSharp.UI/CLAUDE.md`, `docs/e2e-testing.md`. Begründungen der Entscheidungen: `docs/decisions/`. „Abschnitt N“ meint die `CLAUDE.md` zum Zeitpunkt des Pakets (bis 3.14.0: 5 Domänenmodell und 7 UI-Konzept → `docs/architecture.md`, 6 Oracle-Fallstricke → `src/FerretSharp.Core/CLAUDE.md`, 11 Arbeitsweise → `CLAUDE.md` bzw. `docs/e2e-testing.md`).
+
+## Übersicht
+
+| Paket | Inhalt | Release | ADR |
+|---|---|---|---|
+| WP-01 | Solution-Gerüst, Host, Theme, Testprojekte | – | 0001–0004 |
+| WP-02 | Connections, Credential Manager, `OracleSession` | – | – |
+| WP-03 | Schema-Cache, Explorer, Buchstabenleiste | – | – |
+| WP-04/04b | Grid (AG Grid), Paging, Filter, `QueryBuilder`; Views & Synonyme | – | – |
+| WP-05 | Workspaces (eigene Session je Workspace, Persistenz) | – | 0005 |
+| WP-06 | FK-Navigation (deklarierte FKs, neuer Tab je Sprung) | – | – |
+| WP-07 | Export, Fehlerdialoge, Verbindungsabbruch | 1.0.0 | – |
+| WP-08 | Transaktionsmodell, Read-only-Snapshots | 1.8.0 | 0006 |
+| WP-09 | Editieren, `ChangeTracker`, Sperrkonflikte | 1.9.0 | 0007 |
+| WP-10 | Prod-Freischaltung je Workspace, LOB-Editor | 2.0.0 | 0008 |
+| WP-11 | C#-Projekt verknüpfen, ModelHost (Hilfsprozess) | 2.1.0 | 0009 |
+| WP-12 | C#-Namen, Enum-Werte, Navigations als FK-Quelle | 2.2.0 | 0010 |
+| WP-13 | LINQ-Konsole (SQL abfangen, FerretSharp führt aus) | 2.3.0 | 0011 |
+| WP-14 | Explain-Plan (geschätzt/tatsächlich) | 2.4.0 | 0012 |
+| WP-15 | Code-Generierung (LINQ, Initializer, HasData) | 3.0.0 | 0013 |
+| WP-16 | Modell-Cache | 3.1.0 | – |
+| WP-17 | Freier SQL-Editor | 3.2.0 | 0014 |
+| WP-18 | Skript ausführen, Verbindung löschen; Tabs umbenennen | 3.3.0–3.4.0 | – |
+| WP-19 | LINQ-Autovervollständigung | 3.5.0 | 0015 |
+| R1 | Stabilisierung nach Code-Review, gemeinsamer Undo-Stapel | 3.6.0 | – |
+| R2 | Struktur-Refactoring (DB-Aufrufe, Dialoge, Shell, Session, Grid-Brücke) | 3.6.1 | – |
+| WP-20 | Schema-Vergleich: N Schemas als Matrix, gespeicherte Vergleiche, DDL-Vorschlag | 3.7.0 | – |
+| WP-24 | Mehrere offene Verbindungen, eine sichtbar (Alt+O zur vorigen) | 3.8.0 | – |
+| Klein | FK-Sprung mit mehreren markierten Zeilen (`in`-Filter) | 3.9.0 | – |
+| WP-27 | Abgleich C#-Modell ↔ DB: Typ, NULL, Länge, Stellen (`ColumnTypeCheck`, Export-Format 2) | 3.10.0 | – |
+| WP-21 | Formularansicht einer Zeile (Seitenleiste, editierbar über den `ChangeTracker`), Vergleich markierter Zeilen (Dialog) | 3.11.0 | – |
+
+Kleinere Releases ohne eigenes Paket (Fixes, Komfort) stehen nur im `CHANGELOG.md`.
 
 ## v1 – Read-only Browser
 

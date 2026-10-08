@@ -1,7 +1,7 @@
 # Backlog
 
 Ideen und Themen, die während der Arbeit auftauchen, aber nicht zum aktuellen Arbeitspaket gehören.
-Geplante Versionen und Arbeitspakete stehen in `CLAUDE.md`; hier landet alles, was noch nicht eingeplant ist.
+Geplante Arbeitspakete stehen in `docs/roadmap.md`; hier landet alles, was noch nicht eingeplant ist.
 
 - Synonymketten auflösen (Synonym auf Synonym, auch über mehrere Schemas); bisher werden nur direkte Synonyme auf Tabellen/Views/MViews gezeigt.
 - Oberfläche für die Workspace-Notizen (Feld `Workspace.Notes` existiert bereits).
@@ -28,7 +28,7 @@ Geplante Versionen und Arbeitspakete stehen in `CLAUDE.md`; hier landet alles, w
 - Code-Generierung (Fortsetzung von WP-15): Owned-Typen als verschachtelte Initializer (`Adresse = new() { … }`) statt Kommentar; eigene Converter (außer Enum/Bool) über den Hilfsprozess umrechnen (`ConvertFromProvider`), statt den DB-Wert zu kommentieren; „Alle Zeilen des Filters als C#“ (nicht nur geladene/markierte); Sortierung als `OrderBy`/`ThenBy` mitgeben; Initializer in Property-Reihenfolge der Klasse statt Spaltenreihenfolge. Bogus-Fixtures wurden bewusst nicht gebaut (wenig Nutzen) – nur auf Nachfrage.
 - Entity aus Tabelle erzeugen (C#-Modell; eingeplant mit WP-23): Entity-Klasse + `IEntityTypeConfiguration` im Stil des verknüpften Projekts (Namenskonvention, J/N über den eigenen Converter, Längen/Precision aus dem Schema, PK, FKs als Navigations-Vorschlag); dazu einzelne Property-Zeile für „Spalte ohne Property“ auf der Modell-Seite. Stil aus vorhandenen Entities/Configurations des Projekts ableiten (Converter-Typen stehen im Modell-Export).
 - Live-SQL der eigenen Anwendung: zuletzt ausgeführte Statements der Sessions der App (Filter nach `PROGRAM`/`MODULE`/Benutzer) aus `V$SQL`/`V$SESSION` (nur lesend, braucht `SELECT_CATALOG_ROLE` wie der tatsächliche Plan), Tabellen den Entities zugeordnet, mit Ausführungen, Dauer, Plan. „EF-Logging ohne Code-Änderung“. AWR/ASH nicht (Diagnostics-Pack-Lizenz).
-- SQL-Editor (Fortsetzung von WP-17/18): Skript bei Fehler wahlweise fortsetzen statt anhalten; (DDL: siehe WP-22 in CLAUDE.md); LOBs freier Abfragen nur als Vorschau holen statt ganz (eigene `InitialLOBFetchSize` für den Lesepfad); Enum-/C#-Namen im Ergebnis, wenn eine Abfrage genau eine Tabelle mit Entity liest und die Spalten unverändert übernimmt; DML-Zählung in der Statusleiste („N Zeilen per SQL geändert“, bisher nur „Tx seit …“); Formatieren (Einrücken/Großschreibung der Schlüsselwörter).
+- SQL-Editor (Fortsetzung von WP-17/18): Skript bei Fehler wahlweise fortsetzen statt anhalten; (DDL: siehe WP-22 in `docs/roadmap.md`); LOBs freier Abfragen nur als Vorschau holen statt ganz (eigene `InitialLOBFetchSize` für den Lesepfad); Enum-/C#-Namen im Ergebnis, wenn eine Abfrage genau eine Tabelle mit Entity liest und die Spalten unverändert übernimmt; DML-Zählung in der Statusleiste („N Zeilen per SQL geändert“, bisher nur „Tx seit …“); Formatieren (Einrücken/Großschreibung der Schlüsselwörter).
 - Schema-Vergleich, zweite Stufe (nach WP-20, Release 3.7.0): Status INVALID von Views/MViews in den Snapshot (heute erscheinen ihre Spalten mit Typ `UNDEFINED` als Abweichung), View-Definitionen, Kommentare, Sequenzen, fehlende Synonyme als eigene Objektart; Snapshots als Datei speichern („Prod vor dem Release“); Identity ALWAYS/BY DEFAULT, GTT `ON COMMIT` und Partitionierung im Snapshot (der DDL-Vorschlag warnt bisher nur); DDL ausführen mit WP-22.
 - Abgleich C#-Modell ↔ Datenbank, Fortsetzung von WP-27 (Typen, NULL, Längen): nach Rückmeldung zur Menge beim Nutzer evtl. `NUMBER` ohne Precision bei Ganzzahlen als abschaltbaren Hinweis; Precision/Scale nicht konfigurierter `decimal` gegen die Facetten, mit denen der Oracle-Provider Parameter bindet (vorher prüfen, ob er rundet); Unicode (`IsUnicode(false)` gegen `NVARCHAR2`); Abweichungen ignorieren können (je Property, gespeichert pro Verbindung).
 - Internationalisierung (Wunsch des Nutzers 2026-10-07, niedrige Priorität – erst, wenn FerretSharp jemand außer dem Nutzer verwenden soll): nur Deutsch und Englisch, `IStringLocalizer` mit resx in der RCL (geht in Blazor Hybrid). Texte stecken auch im Core (Validierungs- und Ablehnungsmeldungen, Bestätigungen) – die müssten als Schlüssel/Ressourcen hinüber. UI-Sprache und Formatkultur (Eingabe und Anzeige von Zahlen/Daten, heute deutsch: „1.234,5“, `TT.MM.JJJJ`) getrennt einstellbar machen. Danach muss jedes neue Feature zweisprachig gepflegt werden.
@@ -45,3 +45,17 @@ Geplante Versionen und Arbeitspakete stehen in `CLAUDE.md`; hier landet alles, w
   - Code-Generierung (WP-15) und „Entity aus Tabelle“ (WP-23) direkt ins Projekt einfügen statt über die Zwischenablage.
   - Sperrkonflikt-Dialog: „Gesperrt von deiner Debug-Session in VS“, wenn die debuggte App am Breakpoint die Zeile hält.
   - Kosten: zweites Produkt (eigene Versionierung, Build, Release), nichts für Rider. Start klein: erst die Schnittstelle in FerretSharp, dann eine Extension mit Sprung in beide Richtungen und „Query mit Debugger-Werten“; Diagnosen danach.
+
+## Größere Themen (bis 3.14.0 in der `CLAUDE.md` geführt)
+
+- Fuzzy-Suche in der Tabellenliste (Ctrl+P-Stil), Gruppierung nach Präfix.
+- Keyset-Paging für sehr große Tabellen; exakte Scroll-Wiederherstellung.
+- Verbindungsoptionen: TCPS/Wallet, Proxy-User, Kerberos/OS-Auth.
+- Installer/Auto-Update (Velopack).
+- Migrations-Cockpit (Pending Migrations, Schema-Diff Modell ↔ DB).
+- Plugins als C#-Scripts (Roslyn). Auch von Kollegen des Nutzers gewünscht (2026-10-07) – **wartet auf konkrete Anwendungsfälle** (der Nutzer fragt nach); ohne sie keine Plugin-Schnittstelle (müsste stabil bleiben).
+- Flyway (Kollegen des Nutzers, 2026-10-07; sie nutzen Flyway bereits, manche Eigenheiten nerven) – **wartet auf Details**, was genau stört. Vorschlag bisher: kein Nachbau des Migrationslaufs, sondern `flyway_schema_history` je Umgebung lesen (auch als Zeile im Schema-Vergleich) und DDL-Vorschläge/Designer-Ergebnisse als nächste `V…__….sql` im Repo-Ordner speichern.
+- Team-Workspace im Repo (`.ferretsharp/`), Verbindungen ohne Passwörter.
+- AG Grid auf aktuelle Major-Version (36+) heben, sobald die API-Änderungen geprüft sind.
+- Web-Host (`FerretSharp.DevHost`, Blazor Server) mit Fake-Daten, um die UI im Browser mit Hot Reload zu entwickeln und automatisiert zu prüfen.
+- bUnit-Tests für UI-Komponenten.
