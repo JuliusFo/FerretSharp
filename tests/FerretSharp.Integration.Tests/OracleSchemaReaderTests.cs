@@ -122,16 +122,17 @@ public class OracleSchemaReaderTests(OracleContainerFixture oracle) : IAsyncLife
     }
 
     [Fact]
-    public async Task Column_names_of_the_whole_schema_come_in_one_query_in_column_order()
+    public async Task Columns_of_the_whole_schema_come_in_one_query_in_column_order()
     {
-        var columns = await Reader.GetColumnNamesAsync(_owner, Ct);
+        var columns = await Reader.GetColumnsAsync(_owner, Ct);
 
-        Assert.Equal(["Id", "Wert", "raw col"], columns["MixedCase"]);
-        Assert.Equal(["KUNDE_ID", "NAME", "ANZAHL"], columns["V_KUNDEN_AUFTRAEGE"]); // views too
-        Assert.Equal(
-            (await Reader.GetDetailsAsync(new TableSummary(_owner, "KUNDEN", TableKind.Table), Ct)).Columns.Select(c => c.Name),
-            columns["KUNDEN"]);
+        Assert.Equal(["Id", "Wert", "raw col"], columns["MixedCase"].Select(c => c.Name));
+        Assert.Equal(["KUNDE_ID", "NAME", "ANZAHL"], columns["V_KUNDEN_AUFTRAEGE"].Select(c => c.Name)); // views too
         Assert.Contains("MV_UMSATZ", columns.Keys);
+        // The same as per table, without default and comment (the default is a LONG: 32 KB per row in the fetch size).
+        var details = await Reader.GetDetailsAsync(new TableSummary(_owner, "KUNDEN", TableKind.Table), Ct);
+        Assert.Equal(details.Columns.Select(c => c with { Default = null, Comment = null }), columns["KUNDEN"]);
+        Assert.Contains(columns["KUNDEN"], c => c is { Name: "NAME", DisplayType: "VARCHAR2(100 CHAR)", Nullable: false });
     }
 
     [Fact]

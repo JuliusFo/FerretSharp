@@ -148,10 +148,11 @@ public interface ISchemaReader
     Task<IReadOnlyList<Data.LockHolder>?> GetLockHoldersAsync(TableRef table, CancellationToken cancellationToken);
 
     /// <summary>
-    /// The column names of every table, view and materialized view of a schema in one query (C# model comparison, where
-    /// one query per table costs minutes over a slow network). Table name → columns in column order.
+    /// The columns of every table, view and materialized view of a schema in one query (C# model comparison, where one
+    /// query per table costs minutes over a slow network). Table name → columns in column order, without
+    /// <see cref="ColumnInfo.Default"/> and <see cref="ColumnInfo.Comment"/>.
     /// </summary>
-    Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetColumnNamesAsync(string owner, CancellationToken cancellationToken);
+    Task<IReadOnlyDictionary<string, IReadOnlyList<ColumnInfo>>> GetColumnsAsync(string owner, CancellationToken cancellationToken);
 
     /// <summary>
     /// The structure of a whole schema for the schema comparison (WP-20): tables, views and materialized views with

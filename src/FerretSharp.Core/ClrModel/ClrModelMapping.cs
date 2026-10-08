@@ -35,14 +35,24 @@ public sealed class ClrModelMapping
 {
     private readonly Dictionary<TableRef, List<EntityMapping>> _byTable;
 
-    private ClrModelMapping(ModelExport model, List<EntityMapping> entities, List<MappingIssue> issues)
+    private readonly ILookup<(TableRef Table, string Column), ColumnMismatch> _mismatchesByColumn;
+
+    private ClrModelMapping(ModelExport model, List<EntityMapping> entities, List<MappingIssue> issues, List<ColumnMismatch> mismatches)
     {
         Model = model;
         Entities = entities;
         Issues = issues;
+        ColumnMismatches = mismatches;
         _byTable = entities.GroupBy(e => e.Table.Ref).ToDictionary(g => g.Key, g => g.ToList());
+        _mismatchesByColumn = mismatches.ToLookup(m => (m.Table.Ref, m.Column.Name));
         ForeignKeys = RelationshipsOf(entities);
     }
+
+    /// <summary>Properties whose column does not fit them (type, NULL, length, precision), most severe first.</summary>
+    public IReadOnlyList<ColumnMismatch> ColumnMismatches { get; }
+
+    /// <summary>The mismatches of one column (several entities may share it).</summary>
+    public IEnumerable<ColumnMismatch> MismatchesOf(TableRef table, string column) => _mismatchesByColumn[(table, column)];
 
     /// <summary>
     /// The model's relationships as foreign keys between tables (<see cref="FkSource.ClrModel"/>), named after the
@@ -71,7 +81,8 @@ public sealed class ClrModelMapping
 
     /// <summary>
     /// Matches every entity to its table or view (exact name; a synonym of the default schema; otherwise in another
-    /// letter case, reported) and every property to its column, and lists the differences.
+    /// letter case, reported) and every property to its column, and lists the differences – also of type, NULL, length
+    /// and precision (<see cref="ColumnTypeCheck"/>).
     /// </summary>
     /// <param name="progress">The current step, for the model page.</param>
     public static async Task<ClrModelMapping> BuildAsync(
@@ -132,19 +143,21 @@ public sealed class ClrModelMapping
             located.Add((entity, caseOnly, columnOf));
         }
 
-        // One query per schema for all column names: one per table took minutes for a large model over a VPN.
-        var columnsByOwner = new Dictionary<string, IReadOnlyDictionary<string, IReadOnlyList<string>>>(StringComparer.Ordinal);
+        // One query per schema for all columns: one per table took minutes for a large model over a VPN.
+        var columnsByOwner = new Dictionary<string, IReadOnlyDictionary<string, IReadOnlyList<ColumnInfo>>>(StringComparer.Ordinal);
         foreach (var owner in located.Select(l => l.Table.Owner).Distinct(StringComparer.Ordinal))
         {
-            progress?.Report($"Lese die Spaltennamen ({owner})");
-            columnsByOwner[owner] = await schema.GetColumnNamesAsync(owner, cancellationToken);
+            progress?.Report($"Lese die Spalten ({owner})");
+            columnsByOwner[owner] = await schema.GetColumnsAsync(owner, cancellationToken);
         }
 
         progress?.Report("Gleiche Modell und Datenbank ab");
+        var mismatches = new List<ColumnMismatch>();
         foreach (var group in located.GroupBy(l => l.Table.Ref))
         {
             var table = group.First().Table;
-            var columns = columnsByOwner[table.Owner].GetValueOrDefault(table.Name) ?? [];
+            var columnInfos = columnsByOwner[table.Owner].GetValueOrDefault(table.Name) ?? [];
+            var columns = columnInfos.Select(c => c.Name).ToList();
             var mapped = new HashSet<string>(StringComparer.Ordinal);
 
             foreach (var (entity, _, columnOf) in group)
@@ -174,6 +187,9 @@ public sealed class ClrModelMapping
 
                     properties.TryAdd(column, property);
                     mapped.Add(column);
+                    // Views and materialized views are only read; SaveChanges writes to the entity's table.
+                    mismatches.AddRange(ColumnTypeCheck.Check(entity, property, table, columnInfos.First(c => c.Name == column),
+                        readOnly: table.Kind != TableKind.Table));
                 }
 
                 entities.Add(new EntityMapping(entity, table, properties));
@@ -186,7 +202,12 @@ public sealed class ClrModelMapping
             }
         }
 
-        return new ClrModelMapping(model, entities, issues);
+        var ordered = mismatches
+            .OrderBy(m => m.Severity)
+            .ThenBy(m => ShortName(m.Entity.ClrType), StringComparer.Ordinal)
+            .ThenBy(m => m.Column.Position)
+            .ToList();
+        return new ClrModelMapping(model, entities, issues, ordered);
     }
 
     /// <summary>

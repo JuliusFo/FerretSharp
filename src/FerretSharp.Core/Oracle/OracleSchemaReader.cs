@@ -68,15 +68,6 @@ public sealed class OracleSchemaReader(OracleSession session) : ISchemaReader
          ORDER BY c.constraint_name, cc.position
         """;
 
-    // ALL_TAB_COLS without hidden columns is exactly ALL_TAB_COLUMNS, plus VIRTUAL_COLUMN.
-    // All column names of a schema at once (C# model comparison): one round trip instead of one per table.
-    private const string ColumnNamesSql = """
-        SELECT table_name, column_name
-          FROM all_tab_cols
-         WHERE owner = :owner AND hidden_column = 'NO'
-         ORDER BY table_name, column_id
-        """;
-
     // The select lists of columns, constraints and indexes are shared by the per-table statements and the schema
     // snapshot (whole owner), so both read with the same mapping; the table name comes last (…TableOrdinal).
     private const string ColumnsSelect = """
@@ -94,6 +85,18 @@ public sealed class OracleSchemaReader(OracleSession session) : ISchemaReader
         {ColumnsSelect}
          WHERE c.owner = :owner AND c.table_name = :name AND c.hidden_column = 'NO'
          ORDER BY c.column_id
+        """;
+
+    // ALL_TAB_COLS without hidden columns is exactly ALL_TAB_COLUMNS, plus VIRTUAL_COLUMN.
+    // All columns of a schema at once (C# model comparison): one round trip instead of one per table. The select list of
+    // ColumnsSelect without the LONG default (counts 32 KB per row in the fetch size) and the comments it does not need.
+    private const string SchemaColumnsSql = """
+        SELECT c.column_name, c.data_type, c.char_used, c.char_length, c.data_length, c.data_precision, c.data_scale,
+               c.nullable, c.identity_column, NULL, c.column_id, NULL, c.virtual_column, c.default_on_null,
+               c.table_name
+          FROM all_tab_cols c
+         WHERE c.owner = :owner AND c.hidden_column = 'NO'
+         ORDER BY c.table_name, c.column_id
         """;
 
     private const string KeysSql = """
@@ -604,23 +607,19 @@ public sealed class OracleSchemaReader(OracleSession session) : ISchemaReader
             await reader.ReadAsync(ct) && !reader.IsDBNull(0) ? reader.GetString(0).Trim() : "", cancellationToken);
     }
 
-    public Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetColumnNamesAsync(string owner, CancellationToken cancellationToken) =>
-        session.ExecuteReaderAsync(ColumnNamesSql, [new("owner", owner)], async (reader, ct) =>
+    public Task<IReadOnlyDictionary<string, IReadOnlyList<ColumnInfo>>> GetColumnsAsync(string owner, CancellationToken cancellationToken) =>
+        session.ExecuteReaderAsync(SchemaColumnsSql, [new("owner", owner)], async (reader, ct) =>
         {
             FetchManyRows(reader);
-            var result = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+            var result = new Dictionary<string, List<ColumnInfo>>(StringComparer.Ordinal);
             while (await reader.ReadAsync(ct))
             {
-                var table = reader.GetString(0);
-                if (!result.TryGetValue(table, out var columns))
-                {
-                    result[table] = columns = [];
-                }
-
-                columns.Add(reader.GetString(1));
+                var list = ListOf(result, reader.GetString(ColumnsTableOrdinal));
+                list.Add(ReadColumn(reader, list.Count + 1));
             }
 
-            return (IReadOnlyDictionary<string, IReadOnlyList<string>>)result.ToDictionary(e => e.Key, e => (IReadOnlyList<string>)e.Value, StringComparer.Ordinal);
+            return (IReadOnlyDictionary<string, IReadOnlyList<ColumnInfo>>)result.ToDictionary(
+                e => e.Key, e => (IReadOnlyList<ColumnInfo>)e.Value, StringComparer.Ordinal);
         }, cancellationToken);
 
     public async Task<SchemaSnapshot> ReadSnapshotAsync(string owner, IProgress<string>? progress, CancellationToken cancellationToken)

@@ -110,8 +110,8 @@ public sealed class TablePresentationTests
             (IReadOnlyList<TableSummary>)[]);
         NSubstitute.SubstituteExtensions.Returns(reader.GetForeignKeysAsync(Owner, NSubstitute.Arg.Any<CancellationToken>()),
             (IReadOnlyList<ForeignKeyInfo>)[]);
-        NSubstitute.SubstituteExtensions.Returns(reader.GetColumnNamesAsync(Owner, NSubstitute.Arg.Any<CancellationToken>()),
-            (IReadOnlyDictionary<string, IReadOnlyList<string>>)new Dictionary<string, IReadOnlyList<string>> { ["KUNDEN"] = ["KUNDE_ID", "KUNDENART", "ANZAHL"] });
+        NSubstitute.SubstituteExtensions.Returns(reader.GetColumnsAsync(Owner, NSubstitute.Arg.Any<CancellationToken>()),
+            (IReadOnlyDictionary<string, IReadOnlyList<ColumnInfo>>)new Dictionary<string, IReadOnlyList<ColumnInfo>> { ["KUNDEN"] = Kunden.Columns });
         var schema = new SchemaCache(reader, Owner);
         await schema.LoadAsync(TestContext.Current.CancellationToken);
         var entity = new EntityExport("Shop.Kunde", "Shop.Kunde", false, null, "KUNDEN", null, null, null,
