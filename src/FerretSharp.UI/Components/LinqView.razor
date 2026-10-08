@@ -506,7 +506,7 @@
 
         (_written, _writtenIn, _writtenElapsed) = (written, Workspaces.TransactionOf(Tab.WorkspaceId)?.StartedAt, elapsed);
         // Table tabs of the workspace may show the changed rows: they fetch them again from the transaction.
-        foreach (var tab in Shell.Workspaces.FirstOrDefault(w => w.WorkspaceId == Tab.WorkspaceId)?.TableTabs ?? [])
+        foreach (var tab in Shell.FindWorkspace(Tab.WorkspaceId)?.TableTabs ?? [])
         {
             Shell.RequestTabCommand(tab, TabCommand.Reload);
         }

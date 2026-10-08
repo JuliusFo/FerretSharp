@@ -23,11 +23,11 @@
         {
             <button class="btn ghost" title="Ausführungsplan des angezeigten Statements – geschätzt oder tatsächlich" @onclick="() => _planOpen = true">Plan</button>
         }
-        <button class="btn" disabled="@_running" @onclick="RunScriptAsync"
+        <button class="btn" disabled="@Busy" @onclick="RunScriptAsync"
                 title="Alle Statements nacheinander ausführen (oder die markierten); beim ersten Fehler hält das Skript an">
             ▶▶ Skript <kbd>Alt X</kbd>
         </button>
-        <button class="btn primary" disabled="@_running" @onclick="RunAsync"
+        <button class="btn primary" disabled="@Busy" @onclick="RunAsync"
                 title="Das Statement am Cursor ausführen (oder die Markierung); Statements trennt ; oder eine Leerzeile">
             ▶ Ausführen <kbd>Ctrl ↵</kbd>
         </button>
@@ -219,6 +219,14 @@
     private CancellationTokenSource? _cts;
     private bool _running;
 
+    /// <summary>
+    /// Set synchronously by Ctrl+Enter / Alt+X / the buttons until the statements ran (or were refused or await the
+    /// confirmation): preparing awaits the editor and the schema, and a second start in that window ran DML twice.
+    /// </summary>
+    private bool _starting;
+
+    private bool Busy => _starting || _running || _confirm is not null;
+
     /// <summary>While running: the statement at work, since when, and of how many (a script).</summary>
     private SqlRun? _current;
     private DateTimeOffset _currentStarted;
@@ -320,8 +328,31 @@
         Shell.MarkDirty();
     }
 
+    private Task RunAsync() => StartOnceAsync(RunCoreAsync);
+
+    private Task RunScriptAsync() => StartOnceAsync(RunScriptCoreAsync);
+
+    /// <summary>One run at a time: a start while another one prepares, runs or waits for its confirmation is ignored.</summary>
+    private async Task StartOnceAsync(Func<Task> start)
+    {
+        if (Busy)
+        {
+            return;
+        }
+
+        _starting = true;
+        try
+        {
+            await start();
+        }
+        finally
+        {
+            _starting = false;
+        }
+    }
+
     /// <summary>Ctrl+Enter: the statement at the cursor, or the first one of the selection.</summary>
-    private async Task RunAsync()
+    private async Task RunCoreAsync()
     {
         if (await PrepareAsync() is not { } context)
         {
@@ -345,7 +376,7 @@
     }
 
     /// <summary>Alt+X: all statements (of the selection, if there is one), one after the other.</summary>
-    private async Task RunScriptAsync()
+    private async Task RunScriptCoreAsync()
     {
         if (await PrepareAsync() is not { } context)
         {
@@ -366,7 +397,7 @@
     /// <summary>Takes the editor's text and variables as they are right now and clears the last problems.</summary>
     private async Task<MonacoEditor.EditorRunContext?> PrepareAsync()
     {
-        if (_running || _editor is null || await _editor.GetRunContextAsync() is not { } context)
+        if (_editor is null || await _editor.GetRunContextAsync() is not { } context)
         {
             return null;
         }
@@ -417,8 +448,8 @@
     private async Task ExecuteAsync(IReadOnlyList<SqlRun> runs)
     {
         _running = true;
-        _cts = new CancellationTokenSource();
-        var token = _cts.Token;
+        using var cts = _cts = new CancellationTokenSource();
+        var token = cts.Token;
         Tab.Runs = [];
         Tab.SelectedRun = 0;
         _grid = null;
@@ -451,8 +482,10 @@
         {
             _running = false;
             _current = null;
-            _cts.Dispose();
-            _cts = null;
+            if (ReferenceEquals(_cts, cts))
+            {
+                _cts = null;
+            }
         }
 
         var wrote = results.Any(r => r.Changed is not null);
@@ -466,7 +499,7 @@
         if (wrote)
         {
             // Table tabs of the workspace may show the changed rows: they fetch them again from the transaction.
-            foreach (var tab in Shell.Workspaces.FirstOrDefault(w => w.WorkspaceId == Tab.WorkspaceId)?.TableTabs ?? [])
+            foreach (var tab in Shell.FindWorkspace(Tab.WorkspaceId)?.TableTabs ?? [])
             {
                 Shell.RequestTabCommand(tab, TabCommand.Reload);
             }
