@@ -147,11 +147,15 @@
             </span>
             <span class="kind-badge">@ConnectionKindInfo.Short(p.Kind)</span>
             <span class="addr">@p.Address.Display</span>
-            @if (Hub.Find(p.Id) is { } openScope)
-            {
-                <button class="btn ghost small" title="Diese Verbindung trennen (fragt vorher nach offenen Änderungen)"
-                        @onclick="() => DisconnectAsync(openScope)" @onclick:stopPropagation="true">Trennen</button>
-            }
+            @* Every row has the slot, empty for closed connections: the grid keeps its columns (an extra button pushed
+               "⋯" into a second grid line that overlapped the row below). *@
+            <span class="conn-disconnect">
+                @if (Hub.Find(p.Id) is { } openScope)
+                {
+                    <button class="btn ghost small" title="Diese Verbindung trennen (fragt vorher nach offenen Änderungen)"
+                            @onclick="() => DisconnectAsync(openScope)" @onclick:stopPropagation="true">Trennen</button>
+                }
+            </span>
             <ConnectionActionsMenu Profile="p" OnAction="Shell.CloseSwitcher" />
         </div>;
 
