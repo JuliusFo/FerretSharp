@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.14.1] - 2026-10-08
+
 ### Fixed
 - Several open connections: a lost session is now tracked per connection. Before, a connection lost in the background showed the banner on the healthy one shown – whose "Neu verbinden" then dropped its open transaction without asking –, and after one "Neu verbinden" closing, locking, disconnecting or quitting no longer asked about uncommitted changes at all.
 - Quitting with uncommitted changes in a connection in the background failed with an error instead of asking.
