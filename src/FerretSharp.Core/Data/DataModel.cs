@@ -3,7 +3,7 @@ using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.Data;
 
-/// <summary>Identifies a row for navigation (v1) and later for UPDATE/DELETE (v2). See CLAUDE.md 5.5.</summary>
+/// <summary>Identifies a row for navigation (v1) and later for UPDATE/DELETE (v2). See docs/architecture.md 1.5.</summary>
 public abstract record RowKey
 {
     /// <summary>

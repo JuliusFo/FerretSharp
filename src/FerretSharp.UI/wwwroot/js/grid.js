@@ -423,7 +423,7 @@ export function create(elementId, dotnet, columns, options) {
   element.addEventListener('mousedown', e => { if (e.shiftKey) e.preventDefault(); }, true);
 
   // Double click starts editing. The WPF host passes the second mouse-down of a real double click twice, so the
-  // browser never raises dblclick (CLAUDE.md, section 7) – AG Grid's own double-click editing would not react.
+  // browser never raises dblclick (src/FerretSharp.UI/CLAUDE.md) – AG Grid's own double-click editing would not react.
   element.addEventListener('click', e => {
     if (e.detail < 2 || api.getEditingCells().length > 0) return;
     const cell = e.target.closest?.('.ag-cell');

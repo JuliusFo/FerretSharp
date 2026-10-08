@@ -77,7 +77,7 @@
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
 
-    /// <summary>Not @ondblclick: in the WPF host a real double click never raises dblclick (see CLAUDE.md).</summary>
+    /// <summary>Not @ondblclick: in the WPF host a real double click never raises dblclick (see src/FerretSharp.UI/CLAUDE.md).</summary>
     private void ConnectOnDoubleClick(MouseEventArgs e, ConnectionProfile profile)
     {
         if (e.Detail >= 2)

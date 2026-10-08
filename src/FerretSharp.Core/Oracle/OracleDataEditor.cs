@@ -7,7 +7,7 @@ using Oracle.ManagedDataAccess.Client;
 namespace FerretSharp.Core.Oracle;
 
 /// <summary>
-/// Writes pending changes in the workspace session's transaction (CLAUDE.md 5.6): savepoint per flush, then per row
+/// Writes pending changes in the workspace session's transaction (docs/architecture.md 1.6): savepoint per flush, then per row
 /// <c>SELECT … FOR UPDATE WAIT n</c> (lock + current values for the concurrency check), then the DML. Any failure
 /// rolls the flush back to its savepoint, so a flush is all or nothing.
 /// </summary>
