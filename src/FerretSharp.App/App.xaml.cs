@@ -80,7 +80,9 @@ public partial class App : Application
         builder.Services.AddSingleton<IFileSaveService, FileSaveService>();
         builder.Services.AddSingleton<IFileOpenService, FileOpenService>();
         var modelHost = Path.Combine(AppContext.BaseDirectory, "modelhost", "FerretSharp.ModelHost.dll");
-        builder.Services.AddSingleton<IModelHostRunner>(new ModelHostRunner(modelHost));
+        // The host runs from copies of the build output, so the linked project can be built meanwhile (ADR 0016).
+        var shadow = new BuildOutputShadow(Path.Combine(Path.GetTempPath(), AppPaths.AppFolderName, "shadow"));
+        builder.Services.AddSingleton<IModelHostRunner>(new ModelHostRunner(modelHost, shadow: shadow));
         builder.Services.AddSingleton(new ModelCache(paths.ModelCacheDirectory, modelHost));
         builder.Services.AddSingleton(new SqlHistoryStore(paths.SqlHistoryDirectory));
         builder.Services.AddSingleton(new ComparisonStore(paths.ComparisonsFile));
