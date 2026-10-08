@@ -5,6 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- Table search in the explorer: a ✕ in the field clears the search and leaves the cursor in it; <kbd>Esc</kbd> in the field clears it as well.
+
+### Fixed
+- The red frame of a Prod connection was hidden once connected: it was drawn below the top bar, explorer, tabs and status bar, so at most a strip beside an empty tab area remained (since 1.0.0). It now lies on top of everything, also over dialogs and menus, and follows the shown connection when switching.
+
 ## [3.12.0] - 2026-10-08
 
 ### Added
