@@ -305,7 +305,7 @@ Backlog-Eintrag des Nutzers (2026-10-07, „Kandidat direkt nach WP-20“), gest
 - Tests: Unit (`ColumnTypeCheckTests`, Mapping mit typisierten Spalten), Integration (Spaltenabfrage gegen `GetDetailsAsync`, ModelHost exportiert die Facetten des Beispielprojekts inkl. `HasColumnType("CHAR(1)")`, Abgleich gegen echte Spalten).
 - E2E (eigener Container `ferret-wp27`, Beispielprojekt verknüpft, hell/dunkel): Abschnitt mit drei Einträgen, Filter je Schwere und Suche, Link öffnet ARTIKEL in „Spalten“ mit Kürzel und Tooltip, Statusleiste „4 Abw.“, erneutes Verbinden lädt das Modell im neuen Format aus dem Cache. Log ohne `[ERR]`.
 
-### WP-21 Formularansicht einer Zeile → noch kein Release
+### WP-21 Formularansicht einer Zeile → Release 3.11.0
 Wunsch des Nutzers (2026-10-06), für breite Tabellen (VERTRAG mit 71 Spalten); Plan mit dem Nutzer abgestimmt (2026-10-08). Entscheidungen des Nutzers:
 - **Darstellung:** eine Zeile als Seitenleiste rechts neben dem Grid; der **Vergleich markierter Zeilen als Dialog** (nur lesen, Blättern braucht er nicht). Wichtig war dem Nutzer vor allem der Vergleich von zwei oder mehr Zeilen – in der Seitenleiste wäre er zu eng.
 - **Auslöser:** Kontextmenü („Als Formular“ bzw. „Markierte vergleichen · N Zeilen“), Toolbar-Schalter „Formular“, Alt+Enter lokal im Grid (eine Zeile → Formular, mehrere → Vergleich).
