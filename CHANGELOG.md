@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.16.0] - 2026-10-08
+
 ### Added
 - Keyboard shortcuts can be changed (WP-25): *Einstellungen › Tastenkürzel* lists every shortcut – "Ändern" and press the new keys, "Zurücksetzen", "Alle zurücksetzen" – and the fixed ones greyed out, so it doubles as the overview of all keys. Keys Windows takes (Alt+F4, AltGr = Ctrl+Alt) or that would block typing are refused; a key another action has can be taken over; a warning tells when the editors lose one of theirs (Ctrl+Z, Ctrl+Space …). Changes apply at once; tooltips, key hints on buttons and messages show the keys in effect.
 
