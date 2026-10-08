@@ -143,3 +143,4 @@ Regeln:
 - **WP-23** Tabellen-Designer + Entity aus Tabelle, Indizes anlegen (nach WP-22).
 - **WP-25** Tastenkürzel einstellbar (unabhängig).
 - **WP-26** Audit-/Historientabellen aus einer Vorlagendatei (nach WP-22/23).
+- **WP-28** Prozeduren, Funktionen und Packages ansehen (Quelltext, Parameter, Fehler; nur lesend, unabhängig).
