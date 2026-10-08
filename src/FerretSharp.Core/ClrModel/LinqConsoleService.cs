@@ -15,27 +15,49 @@ public enum LinqConsolePhase
     Failed,
 }
 
-/// <param name="Step">While starting: what the host is doing ("Baue das Modell (OnModelCreating)").</param>
+/// <param name="Step">
+/// While starting: what the host is doing ("Baue das Modell (OnModelCreating)"). When ready: a new build is being loaded
+/// in the background ("Build geändert – …"); the console keeps answering with the previous one meanwhile.
+/// </param>
+/// <param name="Error">
+/// When failed: why the start failed. When ready: the new build could not be loaded, the console still runs the previous one.
+/// </param>
 public sealed record LinqConsoleState(LinqConsolePhase Phase, string? Step = null, ModelHostError? Error = null)
 {
     public static readonly LinqConsoleState NotLinked = new(LinqConsolePhase.NotLinked);
+
+    /// <summary>Ready, and a new build is loading in the background.</summary>
+    public bool IsReloading => Phase == LinqConsolePhase.Ready && Step is not null;
 }
 
 /// <summary>
 /// The LINQ console of the active connection's linked project (ADR 0011): one host process, started on first use (or
-/// when a LINQ tab opens), started again after a new build, stopped when the link changes or the connection ends. All
-/// LINQ tabs share it; runs go one at a time.
+/// when a LINQ tab opens), stopped when the link changes or the connection ends. All LINQ tabs share it; runs go one at a
+/// time. After a build (ADR 0016) a new host starts in the background; the old one answers until the new one is ready.
+/// Every start runs off the caller's thread and can be cancelled.
 /// </summary>
 public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
 {
+    /// <summary>Prefix of <see cref="LinqConsoleState.Step"/> while a new build loads in the background.</summary>
+    public const string ReloadPrefix = "Build geändert – ";
+
     private readonly IModelHostRunner _runner;
     private readonly ClrModelManager _models;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private ILinqConsole? _console;
     private ClrProjectLink? _consoleLink;
-    private DateTime _consoleBuild;
-    private readonly Lock _linkLock = new();
+
+    /// <summary>The files of the build output the running host was started from.</summary>
+    private IReadOnlyDictionary<string, FileStamp>? _consoleFiles;
+
+    private readonly Lock _lock = new();
     private ClrProjectLink? _seenLink;
+    private CancellationTokenSource? _starting;
+    private CancellationTokenSource? _restart;
+    private Task _restartTask = Task.CompletedTask;
+
+    /// <summary>The build output a background restart failed for (not tried again until the output changes).</summary>
+    private IReadOnlyDictionary<string, FileStamp>? _failedFiles;
 
     public LinqConsoleService(IModelHostRunner runner, ClrModelManager models)
     {
@@ -43,6 +65,7 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
         _models = models;
         _seenLink = models.State.Link;
         _models.Changed += OnModelsChanged;
+        _models.BuildOutputChanged += OnBuildOutputChanged;
         State = models.State.Link is null ? LinqConsoleState.NotLinked : new LinqConsoleState(LinqConsolePhase.Stopped);
     }
 
@@ -66,9 +89,18 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
                 _gate.Release();
             }
         }
-        catch (ClrModelException)
+        catch (Exception ex) when (ex is ClrModelException or OperationCanceledException)
         {
             // shown through State; the next run tries again
+        }
+    }
+
+    /// <summary>Cancels a start in progress ("Abbrechen" while the console loads the project); the next run starts again.</summary>
+    public void CancelStart()
+    {
+        lock (_lock)
+        {
+            _starting?.Cancel();
         }
     }
 
@@ -99,8 +131,7 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
 
     /// <summary>
     /// Completion items (WP-19) – only from a console that is ready and idle: suggestions never wait for a start or a run,
-    /// they are simply empty then. After a new build the host restarts in the background (as the next run would).
-    /// Errors give an empty list too (a dead host is stopped, the next run restarts it).
+    /// they are simply empty then. Errors give an empty list too (a dead host is stopped, the next run restarts it).
     /// </summary>
     public async Task<IReadOnlyList<LinqCompletionItem>> CompleteAsync(string code, string variables, string section, int offset)
     {
@@ -109,18 +140,10 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
             return [];
         }
 
-        var restart = false;
         try
         {
             if (_console is not { IsAlive: true } console || _consoleLink != _models.State.Link)
             {
-                return [];
-            }
-
-            if (IsNewerBuild(console.Output))
-            {
-                // The user is writing in the console: load the new build now rather than at the next run.
-                restart = true;
                 return [];
             }
 
@@ -142,31 +165,39 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
         finally
         {
             _gate.Release();
-            if (restart)
-            {
-                _ = WarmUpAsync();
-            }
         }
     }
 
+    /// <summary>The running console, or a newly started one (under the gate).</summary>
     private async Task<ILinqConsole> EnsureAsync(CancellationToken cancellationToken)
     {
         var link = _models.State.Link ?? throw new ClrModelException(ClrModelErrorKind.ProjectNotFound,
             "Für diese Verbindung ist kein C#-Projekt verknüpft (Verbindung bearbeiten → C#-Modell).");
-        if (_console is { IsAlive: true } running && _consoleLink == link && !IsNewerBuild(running.Output))
+        if (_console is { IsAlive: true } running && _consoleLink == link)
         {
+            if (IsNewerBuild(running))
+            {
+                // The watcher missed the build (or could not watch): load it in the background, this run takes the old one.
+                StartRestart(supersede: false);
+            }
+
             return running;
         }
 
         await StopAsync();
+        using var start = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        lock (_lock)
+        {
+            _restart?.Cancel(); // this start reads the newest build anyway
+            _starting = start;
+        }
+
         Set(new LinqConsoleState(LinqConsolePhase.Starting, "Suche den Build"));
         try
         {
-            var output = await Task.Run(() => BuildOutputLocator.Find(link), cancellationToken);
-            var build = File.GetLastWriteTimeUtc(output.Assembly);
-            var console = await _runner.StartConsoleAsync(link, output, cancellationToken,
-                new Reporter(step => Set(new LinqConsoleState(LinqConsolePhase.Starting, step))));
-            (_console, _consoleLink, _consoleBuild) = (console, link, build);
+            var (console, files) = await Task.Run(
+                () => StartHostAsync(link, step => Set(new LinqConsoleState(LinqConsolePhase.Starting, step)), start.Token), start.Token);
+            (_console, _consoleLink, _consoleFiles) = (console, link, files);
             Set(new LinqConsoleState(LinqConsolePhase.Ready));
             return console;
         }
@@ -180,25 +211,151 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
             Set(new LinqConsoleState(LinqConsolePhase.Stopped));
             throw;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or System.ComponentModel.Win32Exception)
+        catch (Exception ex) when (IsStartFailure(ex))
         {
             // A deps.json being rewritten by a build, dotnet not startable …: a failure like the others, not "Starting" forever.
-            var error = new ClrModelException(ClrModelErrorKind.HostFailed, $"Die LINQ-Konsole ließ sich nicht starten: {ex.Message}");
+            var error = StartError(ex);
             Set(new LinqConsoleState(LinqConsolePhase.Failed, Error: error.ToError()));
             throw error;
         }
+        finally
+        {
+            lock (_lock)
+            {
+                _starting = null;
+            }
+        }
     }
 
-    /// <summary>The project was built again since the host loaded it: its assemblies are stale.</summary>
-    private bool IsNewerBuild(BuildOutput output)
+    /// <summary>Finds the build and starts a host on it (on a pool thread: nothing of it may run on the UI thread).</summary>
+    private async Task<(ILinqConsole Console, IReadOnlyDictionary<string, FileStamp> Files)> StartHostAsync(
+        ClrProjectLink link, Action<string> report, CancellationToken cancellationToken)
+    {
+        var output = BuildOutputLocator.Find(link);
+        var files = BuildFiles.List(Path.GetDirectoryName(output.Assembly)!);
+        var console = await _runner.StartConsoleAsync(link, output, cancellationToken, new Reporter(report));
+        return (console, files);
+    }
+
+    private static bool IsStartFailure(Exception ex) =>
+        ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or System.ComponentModel.Win32Exception;
+
+    private static ClrModelException StartError(Exception ex) =>
+        ex as ClrModelException ?? new ClrModelException(ClrModelErrorKind.HostFailed, $"Die LINQ-Konsole ließ sich nicht starten: {ex.Message}");
+
+    /// <summary>The build output differs from the one the host was started from (and from one that failed to load).</summary>
+    private bool IsNewerBuild(ILinqConsole console)
     {
         try
         {
-            return File.GetLastWriteTimeUtc(output.Assembly) > _consoleBuild;
+            var files = BuildFiles.List(Path.GetDirectoryName(console.Output.Assembly)!);
+            return _consoleFiles is { } started && !BuildFiles.Same(started, files)
+                   && (_failedFiles is not { } failed || !BuildFiles.Same(failed, files));
         }
-        catch (IOException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return true;
+            return false; // being written right now: the watcher reports the end of the build
+        }
+    }
+
+    /// <summary>A build changed the output: load it in the background if a console runs (otherwise the next start takes it).</summary>
+    private void OnBuildOutputChanged() => StartRestart(supersede: true);
+
+    /// <param name="supersede">A newer build: cancel a restart still running. Otherwise only start one if none runs.</param>
+    private void StartRestart(bool supersede)
+    {
+        lock (_lock)
+        {
+            if (!supersede && !_restartTask.IsCompleted)
+            {
+                return;
+            }
+
+            _restart?.Cancel();
+            var cts = _restart = new CancellationTokenSource();
+            _restartTask = Task.Run(() => RestartAsync(cts));
+        }
+    }
+
+    /// <summary>
+    /// Starts a host on the new build next to the running one and swaps them once it is ready; runs meanwhile go to the old
+    /// one. If the new build cannot be loaded, the old host stays (with the error in the state).
+    /// </summary>
+    private async Task RestartAsync(CancellationTokenSource cts)
+    {
+        var link = _consoleLink;
+        if (link is null || _console is not { IsAlive: true } || _models.State.Link != link)
+        {
+            return; // not running: the next start reads the new build
+        }
+
+        void Reloading(string step)
+        {
+            if (!cts.IsCancellationRequested)
+            {
+                Set(new LinqConsoleState(LinqConsolePhase.Ready, ReloadPrefix + step));
+            }
+        }
+
+        Reloading("lade neu");
+        ILinqConsole? started = null;
+        IReadOnlyDictionary<string, FileStamp>? files = null;
+        try
+        {
+            (started, files) = await StartHostAsync(link, Reloading, cts.Token);
+            ILinqConsole? old;
+            await _gate.WaitAsync(cts.Token);
+            try
+            {
+                if (_models.State.Link != link || (_consoleLink is not null && _consoleLink != link))
+                {
+                    return; // the link changed meanwhile: the new host belongs to the old one too
+                }
+
+                old = _console;
+                (_console, _consoleLink, _consoleFiles, _failedFiles) = (started, link, files, null);
+                started = null;
+            }
+            finally
+            {
+                _gate.Release();
+            }
+
+            Set(new LinqConsoleState(LinqConsolePhase.Ready));
+            if (old is not null)
+            {
+                await old.DisposeAsync();
+            }
+        }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested)
+        {
+            // superseded by a newer build, a foreground start, another link or the end
+        }
+        catch (Exception ex) when (ex is ClrModelException || IsStartFailure(ex))
+        {
+            var error = StartError(ex);
+            _failedFiles = files ?? TryList(link);
+            Set(new LinqConsoleState(LinqConsolePhase.Ready, Error: new ModelHostError(error.Kind,
+                $"Der neue Build ließ sich nicht laden, die Konsole nutzt weiter den vorherigen: {error.Message}", error.Detail)));
+        }
+        finally
+        {
+            if (started is not null)
+            {
+                await started.DisposeAsync();
+            }
+        }
+    }
+
+    private static IReadOnlyDictionary<string, FileStamp>? TryList(ClrProjectLink link)
+    {
+        try
+        {
+            return BuildFiles.List(Path.GetDirectoryName(BuildOutputLocator.Find(link).Assembly)!);
+        }
+        catch (Exception ex) when (ex is ClrModelException || IsStartFailure(ex))
+        {
+            return null;
         }
     }
 
@@ -207,6 +364,7 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
         var console = _console;
         _console = null;
         _consoleLink = null;
+        _consoleFiles = null;
         if (console is not null)
         {
             await console.DisposeAsync();
@@ -220,7 +378,7 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
     private void OnModelsChanged()
     {
         var link = _models.State.Link;
-        lock (_linkLock)
+        lock (_lock)
         {
             if (link == _seenLink)
             {
@@ -228,6 +386,8 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
             }
 
             _seenLink = link;
+            _restart?.Cancel();
+            _starting?.Cancel();
         }
 
         _ = Task.Run(async () =>
@@ -260,15 +420,26 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
 
     public async ValueTask DisposeAsync()
     {
-        _models.Changed -= OnModelsChanged;
+        Unsubscribe();
         await StopAsync();
     }
 
     /// <summary>For a synchronous shutdown (the host's service provider): stops the host process, waiting at most 3 s.</summary>
     public void Dispose()
     {
-        _models.Changed -= OnModelsChanged;
+        Unsubscribe();
         Task.Run(StopAsync).Wait(TimeSpan.FromSeconds(3));
+    }
+
+    private void Unsubscribe()
+    {
+        _models.Changed -= OnModelsChanged;
+        _models.BuildOutputChanged -= OnBuildOutputChanged;
+        lock (_lock)
+        {
+            _restart?.Cancel();
+            _starting?.Cancel();
+        }
     }
 
     /// <summary>Calls back on whatever thread reports.</summary>

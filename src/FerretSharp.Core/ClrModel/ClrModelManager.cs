@@ -18,6 +18,7 @@ public enum ClrModelPhase
 /// <param name="Step">While loading: what is being done right now, since <paramref name="StepStartedAt"/>.</param>
 /// <param name="Steps">The steps of the last load with their durations (also of a failed one).</param>
 /// <param name="CachedAt">The model came from the cache (WP-16): when the model host exported it; null if it ran now.</param>
+/// <param name="BuildChanged">While loading: the load was started because the build output changed (ADR 0016).</param>
 public sealed record ClrModelState(
     ClrModelPhase Phase,
     ClrProjectLink? Link,
@@ -29,7 +30,8 @@ public sealed record ClrModelState(
     DateTimeOffset? StepStartedAt = null,
     DateTimeOffset? LoadStartedAt = null,
     IReadOnlyList<LoadStep>? Steps = null,
-    DateTimeOffset? CachedAt = null)
+    DateTimeOffset? CachedAt = null,
+    bool BuildChanged = false)
 {
     public static readonly ClrModelState None = new(ClrModelPhase.None, null, null, null, null, null);
 }
@@ -39,8 +41,9 @@ public sealed record LoadStep(string Name, TimeSpan Duration);
 
 /// <summary>
 /// The C# model of the active connection's linked project (WP-11): loaded in the background after connecting, again on
-/// request ("Neu laden", after "Neu bauen") and when the link changes. Nothing of it touches the database except reading
-/// column lists through the schema cache.
+/// request ("Neu laden", after "Neu bauen"), when the link changes and when a build changed the output (ADR 0016: a
+/// watcher on the output folder; the previous model stays usable meanwhile). Nothing of it touches the database except
+/// reading column lists through the schema cache.
 /// </summary>
 public sealed class ClrModelManager : IDisposable
 {
@@ -49,22 +52,35 @@ public sealed class ClrModelManager : IDisposable
     private readonly ConnectionManager _connections;
     private readonly ModelCache? _cache;
     private readonly Lock _lock = new();
+    private readonly TimeSpan _buildQuiet;
     private CancellationTokenSource? _loading;
     private Guid? _profileId;
+    private BuildOutputWatcher? _watcher;
+
+    /// <summary>The files of the build output the current model was read from (to ignore watcher events without a change).</summary>
+    private IReadOnlyDictionary<string, FileStamp>? _loadedFiles;
 
     /// <param name="cache">Exported models to reuse while the build is unchanged (WP-16); null = always run the host.</param>
-    public ClrModelManager(IModelHostRunner runner, ActiveConnection active, ConnectionManager connections, ModelCache? cache = null)
+    /// <param name="buildQuiet">How long the build output must be unchanged before the model is reloaded.</param>
+    public ClrModelManager(IModelHostRunner runner, ActiveConnection active, ConnectionManager connections, ModelCache? cache = null, TimeSpan? buildQuiet = null)
     {
         _runner = runner;
         _active = active;
         _connections = connections;
         _cache = cache;
+        _buildQuiet = buildQuiet ?? BuildOutputWatcher.DefaultQuiet;
         _active.Changed += OnConnectionChanged;
         _connections.Changed += OnConnectionChanged;
     }
 
     /// <summary>May fire on a background thread.</summary>
     public event Action? Changed;
+
+    /// <summary>
+    /// A build changed the output of the linked project (after the build finished writing); the model reloads. Fires on a
+    /// background thread; the LINQ console restarts on it.
+    /// </summary>
+    public event Action? BuildOutputChanged;
 
     public ClrModelState State { get; private set; } = ClrModelState.None;
 
@@ -81,10 +97,11 @@ public sealed class ClrModelManager : IDisposable
         _active.Profile is { } profile ? (_connections.Profiles.FirstOrDefault(p => p.Id == profile.Id) ?? profile).ClrProject : null;
 
     /// <summary>Reads the model again from the project ("Neu laden"), not from the cache; a load still running is cancelled.</summary>
-    public Task LoadAsync() => LoadAsync(useCache: false);
+    public Task LoadAsync() => LoadAsync(useCache: false, buildChanged: false);
 
-    /// <param name="useCache">Take the cached model if the build output is unchanged (connecting, link changed).</param>
-    private async Task LoadAsync(bool useCache)
+    /// <param name="useCache">Take the cached model if the build output is unchanged (connecting, link changed, new build).</param>
+    /// <param name="buildChanged">Started by the watcher: the status bar says why the model reloads.</param>
+    private Task LoadAsync(bool useCache, bool buildChanged)
     {
         CancellationTokenSource cts;
         lock (_lock)
@@ -93,11 +110,18 @@ public sealed class ClrModelManager : IDisposable
             _loading = cts = new CancellationTokenSource();
         }
 
+        // Entirely off the caller's thread: mapping a large model (hundreds of entities) must not stall the UI.
+        return Task.Run(() => LoadAsync(useCache, buildChanged, cts));
+    }
+
+    private async Task LoadAsync(bool useCache, bool buildChanged, CancellationTokenSource cts)
+    {
         var link = CurrentLink;
         var schema = _active.Schema;
         if (link is null || schema is null || !_active.IsConnected)
         {
             schema?.SetForeignKeys(FkSource.ClrModel, []); // unlinked: the model's relationships go too
+            Watch(null, null, cts);
             Set(ClrModelState.None, cts);
             return;
         }
@@ -112,7 +136,7 @@ public sealed class ClrModelManager : IDisposable
         {
             steps.Start(step);
             Set(new ClrModelState(ClrModelPhase.Loading, link, output ?? State.Output, previous, null, loadedAt,
-                step, DateTimeOffset.Now, steps.StartedAt), cts);
+                step, DateTimeOffset.Now, steps.StartedAt, BuildChanged: buildChanged), cts);
         }
 
         DateTimeOffset? cachedAt = null;
@@ -123,12 +147,21 @@ public sealed class ClrModelManager : IDisposable
         try
         {
             Report("Suche den Build");
-            output = await Task.Run(() => BuildOutputLocator.Find(link), cts.Token);
+            try
+            {
+                output = BuildOutputLocator.Find(link);
+            }
+            finally
+            {
+                // Also without a build: the first one is noticed.
+                Watch(link, output, cts);
+            }
+
             CachedModel? cached = null;
             if (useCache && _cache is not null)
             {
                 Report("Prüfe den Cache");
-                cached = await Task.Run(() => _cache.TryLoadAsync(link, output, cts.Token), cts.Token);
+                cached = await _cache.TryLoadAsync(link, output, cts.Token);
             }
 
             ModelExport model;
@@ -139,7 +172,7 @@ public sealed class ClrModelManager : IDisposable
             }
             else
             {
-                var result = await Task.Run(() => _runner.ReadModelAsync(link, output, cts.Token, new Reporter(Report)), cts.Token);
+                var result = await _runner.ReadModelAsync(link, output, cts.Token, new Reporter(Report));
                 if (result.Model is not { } exported)
                 {
                     Finish(ClrModelPhase.Failed, previous, result.Error ?? new ModelHostError(ClrModelErrorKind.HostFailed, "Kein Modell geliefert."), loadedAt);
@@ -259,6 +292,96 @@ public sealed class ClrModelManager : IDisposable
         _active.Changed -= OnConnectionChanged;
         _connections.Changed -= OnConnectionChanged;
         _loading?.Cancel();
+        Watch(null, null, owner: null);
+    }
+
+    /// <summary>
+    /// Watches the output folder of the build being read (or the project folder until there is one); remembers its files
+    /// to tell a real change from events without one. Null link: stops watching.
+    /// </summary>
+    /// <param name="owner">The load asking; a load superseded meanwhile changes nothing. Null: always (dispose).</param>
+    private void Watch(ClrProjectLink? link, BuildOutput? output, CancellationTokenSource? owner)
+    {
+        var (directory, depsOnly) = link is null ? (null, false)
+            : output is not null ? (Path.GetDirectoryName(Path.GetFullPath(output.DepsFile)), false)
+            : (Path.GetDirectoryName(Path.GetFullPath(link.ProjectFile)), true);
+        IReadOnlyDictionary<string, FileStamp>? files = null;
+        if (directory is not null && !depsOnly)
+        {
+            try
+            {
+                files = BuildFiles.List(directory);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // a build deleting the folder right now: the next event reloads anyway
+            }
+        }
+
+        BuildOutputWatcher? old = null;
+        lock (_lock)
+        {
+            if (owner is not null && !ReferenceEquals(_loading, owner))
+            {
+                return;
+            }
+
+            _loadedFiles = files;
+            if (_watcher is { } current && current.Directory == directory && current.DepsOnly == depsOnly)
+            {
+                return;
+            }
+
+            old = _watcher;
+            _watcher = null;
+            if (directory is not null && Directory.Exists(directory))
+            {
+                try
+                {
+                    _watcher = new BuildOutputWatcher(directory, depsOnly, _buildQuiet, () => OnBuildOutputChanged(link!));
+                }
+                catch (Exception ex) when (ex is IOException or ArgumentException or PlatformNotSupportedException)
+                {
+                    // no watcher: "Neu laden" and the console's own check still see a new build
+                }
+            }
+        }
+
+        old?.Dispose();
+    }
+
+    /// <summary>The watcher saw a finished build: reload the model (from the cache if the output is the same after all).</summary>
+    private void OnBuildOutputChanged(ClrProjectLink link)
+    {
+        if (!_active.IsConnected || CurrentLink != link)
+        {
+            return;
+        }
+
+        BuildOutputWatcher? watcher;
+        IReadOnlyDictionary<string, FileStamp>? loaded;
+        lock (_lock)
+        {
+            (watcher, loaded) = (_watcher, _loadedFiles);
+        }
+
+        if (watcher is { DepsOnly: false } && loaded is not null)
+        {
+            try
+            {
+                if (BuildFiles.Same(loaded, BuildFiles.List(watcher.Directory)))
+                {
+                    return; // touched, not changed (e.g. an up-to-date build)
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // changing right now: reload
+            }
+        }
+
+        BuildOutputChanged?.Invoke();
+        _ = LoadAsync(useCache: true, buildChanged: true);
     }
 
     /// <summary>Connected (to another profile), disconnected, or the link of the active profile changed.</summary>
@@ -269,7 +392,7 @@ public sealed class ClrModelManager : IDisposable
         if (connected != _profileId || link != State.Link)
         {
             _profileId = connected;
-            _ = LoadAsync(useCache: true);
+            _ = LoadAsync(useCache: true, buildChanged: false);
         }
     }
 
