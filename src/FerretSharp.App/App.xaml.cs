@@ -97,7 +97,8 @@ public partial class App : Application
         builder.Services.AddScoped<LinqConsoleService>();
         builder.Services.AddSingleton<ExitGuard>();
         builder.Services.AddSingleton<MainWindow>();
-        builder.Services.AddSingleton(sp => new UiStallMonitor(Dispatcher, sp.GetRequiredService<ILogger<UiStallMonitor>>(), paths.LogsDirectory));
+        builder.Services.AddSingleton(sp => new UiStallMonitor(
+            Dispatcher, sp.GetRequiredService<ILogger<UiStallMonitor>>(), paths.LogsDirectory, sp.GetRequiredService<AppSettingsService>()));
 
         _host = builder.Build();
         _logger = _host.Services.GetRequiredService<ILogger<App>>();

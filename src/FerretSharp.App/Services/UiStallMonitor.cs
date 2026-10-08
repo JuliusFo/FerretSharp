@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Windows.Threading;
+using FerretSharp.Core.Settings;
 using Microsoft.Extensions.Logging;
 
 namespace FerretSharp.App.Services;
@@ -13,7 +14,7 @@ namespace FerretSharp.App.Services;
 /// thread; Blazor handles WebView messages inline, outside of operations), garbage collection pauses and the system's
 /// memory load, and the dotnet processes (model host, LINQ console) with their memory. A stall over 1.5 s also gets the
 /// stacks of all threads – that is how the process tree kill was found, whose exceptions stopped the whole process under
-/// the debugger.
+/// the debugger. Runs only while the setting "Hänger der Oberfläche protokollieren" is on (off by default).
 /// </summary>
 public sealed class UiStallMonitor : IDisposable
 {
@@ -30,7 +31,10 @@ public sealed class UiStallMonitor : IDisposable
     private readonly Dispatcher _dispatcher;
     private readonly ILogger<UiStallMonitor> _logger;
     private readonly string _logDirectory;
-    private readonly CancellationTokenSource _stop = new();
+    private readonly AppSettingsService _settings;
+
+    /// <summary>The running monitor; null while the setting is off (on the UI thread, like the settings page).</summary>
+    private CancellationTokenSource? _run;
     private readonly Lock _lock = new();
     private readonly Dictionary<DispatcherOperation, long> _running = [];
     private readonly List<string> _longOperations = [];
@@ -39,20 +43,55 @@ public sealed class UiStallMonitor : IDisposable
     private DateTime _lastStacks = DateTime.MinValue;
 
     /// <param name="logDirectory">Where the stacks of a long stall are written.</param>
-    public UiStallMonitor(Dispatcher dispatcher, ILogger<UiStallMonitor> logger, string logDirectory)
+    public UiStallMonitor(Dispatcher dispatcher, ILogger<UiStallMonitor> logger, string logDirectory, AppSettingsService settings)
     {
         _dispatcher = dispatcher;
         _logger = logger;
         _logDirectory = logDirectory;
+        _settings = settings;
     }
 
+    /// <summary>Follows the setting from now on: runs while it is on.</summary>
     public void Start()
     {
-        // Hooks fire on the UI thread itself; they only take times.
-        _dispatcher.Hooks.OperationStarted += OnOperationStarted;
-        _dispatcher.Hooks.OperationCompleted += OnOperationEnded;
-        _dispatcher.Hooks.OperationAborted += OnOperationEnded;
-        _ = Task.Run(RunAsync);
+        _settings.Changed += OnSettingsChanged;
+        Apply();
+    }
+
+    private void OnSettingsChanged() => _dispatcher.BeginInvoke(Apply);
+
+    private void Apply()
+    {
+        var on = _settings.Current.DiagnoseUiStalls;
+        if (on && _run is null)
+        {
+            // Hooks fire on the UI thread itself; they only take times.
+            _dispatcher.Hooks.OperationStarted += OnOperationStarted;
+            _dispatcher.Hooks.OperationCompleted += OnOperationEnded;
+            _dispatcher.Hooks.OperationAborted += OnOperationEnded;
+            var run = _run = new CancellationTokenSource();
+            _ = Task.Run(() => RunAsync(run.Token));
+            _logger.LogInformation("UI stall diagnostics on");
+        }
+        else if (!on && _run is not null)
+        {
+            Stop();
+            _logger.LogInformation("UI stall diagnostics off");
+        }
+    }
+
+    private void Stop()
+    {
+        _run?.Cancel();
+        _run?.Dispose();
+        _run = null;
+        _dispatcher.Hooks.OperationStarted -= OnOperationStarted;
+        _dispatcher.Hooks.OperationCompleted -= OnOperationEnded;
+        _dispatcher.Hooks.OperationAborted -= OnOperationEnded;
+        lock (_lock)
+        {
+            _running.Clear();
+        }
     }
 
     private void OnOperationStarted(object? sender, DispatcherHookEventArgs e)
@@ -83,13 +122,13 @@ public sealed class UiStallMonitor : IDisposable
         }
     }
 
-    private async Task RunAsync()
+    private async Task RunAsync(CancellationToken stop)
     {
         try
         {
-            while (!_stop.IsCancellationRequested)
+            while (!stop.IsCancellationRequested)
             {
-                await Task.Delay(Interval, _stop.Token);
+                await Task.Delay(Interval, stop);
                 var pauseBefore = GC.GetTotalPauseDuration();
                 var gen2Before = GC.CollectionCount(2);
                 var gen0Before = GC.CollectionCount(0);
@@ -102,8 +141,8 @@ public sealed class UiStallMonitor : IDisposable
                 var watch = Stopwatch.StartNew();
                 // Normal, the priority of Blazor's work: WPF holds back Input-priority operations by itself (half a second even
                 // on an idle window), which made the probe report stalls that were none.
-                var probe = _dispatcher.InvokeAsync(static () => { }, DispatcherPriority.Normal, _stop.Token).Task;
-                if (await Task.WhenAny(probe, Task.Delay(StackAfter, _stop.Token)) != probe)
+                var probe = _dispatcher.InvokeAsync(static () => { }, DispatcherPriority.Normal, stop).Task;
+                if (await Task.WhenAny(probe, Task.Delay(StackAfter, stop)) != probe)
                 {
                     await WriteStacksAsync(); // while the UI thread is still stuck
                 }
@@ -117,7 +156,7 @@ public sealed class UiStallMonitor : IDisposable
         }
         catch (OperationCanceledException)
         {
-            // shutting down
+            // switched off or shutting down
         }
     }
 
@@ -208,9 +247,7 @@ public sealed class UiStallMonitor : IDisposable
 
     public void Dispose()
     {
-        _stop.Cancel();
-        _dispatcher.Hooks.OperationStarted -= OnOperationStarted;
-        _dispatcher.Hooks.OperationCompleted -= OnOperationEnded;
-        _dispatcher.Hooks.OperationAborted -= OnOperationEnded;
+        _settings.Changed -= OnSettingsChanged;
+        Stop();
     }
 }
