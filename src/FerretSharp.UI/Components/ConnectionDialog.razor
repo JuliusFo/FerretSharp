@@ -5,6 +5,11 @@
 @inject IConnectionTester Tester
 @inject IFileOpenService Files
 
+@{
+    // Once per render: validating builds the profile and may look at the file system (the linked project).
+    var errors = Errors;
+}
+
 <ModalFrame Label="@Title" OnCancel="CloseAsync">
     <header>
         <span>@Title</span>
@@ -14,9 +19,9 @@
     <div class="dialog-body form-grid">
         <label for="cn-name">Name</label>
         <div>
-            <input id="cn-name" class="field @Invalid(ConnectionField.Name)" @ref="_nameInput"
+            <input id="cn-name" class="field @Invalid(errors, ConnectionField.Name)" @ref="_nameInput"
                    @bind="Form.Name" @bind:event="oninput" placeholder="z. B. ERP Test" />
-            <FieldError Errors="Errors" Field="@ConnectionField.Name" />
+            <FieldError Errors="errors" Field="@ConnectionField.Name" />
         </div>
 
         <label for="cn-group">Gruppe</label>
@@ -53,12 +58,12 @@
             <label for="cn-host">Host</label>
             <div>
                 <div class="row">
-                    <input id="cn-host" class="field grow @Invalid(ConnectionField.Host)" @bind="Form.Host" @bind:event="oninput" placeholder="db01.example.com" />
+                    <input id="cn-host" class="field grow @Invalid(errors, ConnectionField.Host)" @bind="Form.Host" @bind:event="oninput" placeholder="db01.example.com" />
                     <span class="row-label">Port</span>
-                    <input class="field port @Invalid(ConnectionField.Port)" @bind="Form.Port" @bind:event="oninput" />
+                    <input class="field port @Invalid(errors, ConnectionField.Port)" @bind="Form.Port" @bind:event="oninput" />
                 </div>
-                <FieldError Errors="Errors" Field="@ConnectionField.Host" />
-                <FieldError Errors="Errors" Field="@ConnectionField.Port" />
+                <FieldError Errors="errors" Field="@ConnectionField.Host" />
+                <FieldError Errors="errors" Field="@ConnectionField.Port" />
             </div>
 
             <label>Datenbank</label>
@@ -70,22 +75,22 @@
                     </div>
                     @if (Form.UseSid)
                     {
-                        <input class="field grow @Invalid(ConnectionField.ServiceOrSid)" @bind="Form.Sid" @bind:event="oninput" placeholder="ORCL" />
+                        <input class="field grow @Invalid(errors, ConnectionField.ServiceOrSid)" @bind="Form.Sid" @bind:event="oninput" placeholder="ORCL" />
                     }
                     else
                     {
-                        <input class="field grow @Invalid(ConnectionField.ServiceOrSid)" @bind="Form.ServiceName" @bind:event="oninput" placeholder="ORCLPDB1" />
+                        <input class="field grow @Invalid(errors, ConnectionField.ServiceOrSid)" @bind="Form.ServiceName" @bind:event="oninput" placeholder="ORCLPDB1" />
                     }
                 </div>
-                <FieldError Errors="Errors" Field="@ConnectionField.ServiceOrSid" />
+                <FieldError Errors="errors" Field="@ConnectionField.ServiceOrSid" />
             </div>
         }
         else
         {
             <label for="cn-alias">TNS-Alias</label>
             <div>
-                <input id="cn-alias" class="field @Invalid(ConnectionField.Alias)" @bind="Form.Alias" @bind:event="oninput" placeholder="ERP_TEST" />
-                <FieldError Errors="Errors" Field="@ConnectionField.Alias" />
+                <input id="cn-alias" class="field @Invalid(errors, ConnectionField.Alias)" @bind="Form.Alias" @bind:event="oninput" placeholder="ERP_TEST" />
+                <FieldError Errors="errors" Field="@ConnectionField.Alias" />
             </div>
 
             <label for="cn-tns">TNS_ADMIN</label>
@@ -95,15 +100,15 @@
 
         <label for="cn-user">Benutzer</label>
         <div>
-            <input id="cn-user" class="field @Invalid(ConnectionField.User)" @bind="Form.User" @bind:event="oninput" autocomplete="off" />
-            <FieldError Errors="Errors" Field="@ConnectionField.User" />
+            <input id="cn-user" class="field @Invalid(errors, ConnectionField.User)" @bind="Form.User" @bind:event="oninput" autocomplete="off" />
+            <FieldError Errors="errors" Field="@ConnectionField.User" />
         </div>
 
         <label for="cn-password">Passwort</label>
         <div>
-            <input id="cn-password" type="password" class="field @Invalid(PasswordField)" @bind="Form.Password" @bind:event="oninput"
+            <input id="cn-password" type="password" class="field @Invalid(errors, PasswordField)" @bind="Form.Password" @bind:event="oninput"
                    placeholder="@PasswordPlaceholder" autocomplete="new-password" />
-            <FieldError Errors="Errors" Field="@PasswordField" />
+            <FieldError Errors="errors" Field="@PasswordField" />
             <div class="hint small">Wird im Windows-Anmeldeinformationsspeicher abgelegt, nie in der Verbindungsdatei.</div>
         </div>
 
@@ -122,11 +127,11 @@
         <label for="cn-clr">Projekt</label>
         <div>
             <div class="field-with-button">
-                <input id="cn-clr" class="field mono @Invalid(ConnectionField.ClrProject)" @bind="Form.ClrProjectFile" @bind:event="oninput"
+                <input id="cn-clr" class="field mono @Invalid(errors, ConnectionField.ClrProject)" @bind="Form.ClrProjectFile" @bind:event="oninput"
                        placeholder="…\Data\Data.csproj – das Projekt mit dem DbContext" spellcheck="false" />
                 <button class="btn" title="Projektdatei auswählen" @onclick="PickProjectAsync">…</button>
             </div>
-            <FieldError Errors="Errors" Field="@ConnectionField.ClrProject" />
+            <FieldError Errors="errors" Field="@ConnectionField.ClrProject" />
             <div class="hint small">FerretSharp liest das Modell aus dem vorhandenen Build (EF Core 8 oder neuer) – ohne den Startcode der Anwendung und ohne Datenbankverbindung.</div>
         </div>
 
@@ -297,7 +302,7 @@
     private ClrProjectLink? _clrChecked;
     private string? _clrProblem;
 
-    private string Invalid(string field) => Errors.ContainsKey(field) ? "invalid" : "";
+    private static string Invalid(IReadOnlyDictionary<string, string> errors, string field) => errors.ContainsKey(field) ? "invalid" : "";
 
     private async Task PickProjectAsync()
     {
