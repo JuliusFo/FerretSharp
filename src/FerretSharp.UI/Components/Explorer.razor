@@ -17,7 +17,14 @@
         </div>
         <div class="search">
             @Icons.Search
-            <input placeholder="Tabelle suchen …" @bind="_query" @bind:event="oninput" disabled="@(Schema is null)" />
+            <input @ref="_search" placeholder="Tabelle suchen …" @bind="_query" @bind:event="oninput" @onkeydown="OnSearchKey"
+                   disabled="@(Schema is null)" />
+            @if (_query.Length > 0)
+            {
+                @* mousedown without default: the field keeps the focus. *@
+                <button class="search-clear" tabindex="-1" title="Suche leeren (Esc)" @onmousedown:preventDefault
+                        @onclick="ClearSearch">@Icons.Clear</button>
+            }
         </div>
     </div>
 
@@ -76,6 +83,7 @@
     public PresentationService Presentation { get; set; } = null!;
 
     private IJSObjectReference? _dom;
+    private ElementReference _search;
     private string _query = "";
     private bool _refreshing;
     private string? _refreshError;
@@ -126,6 +134,20 @@
         }
 
         return result;
+    }
+
+    private void OnSearchKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            _query = "";
+        }
+    }
+
+    private async Task ClearSearch()
+    {
+        _query = "";
+        await _search.FocusAsync();
     }
 
     private bool IsOpen(TableSummary table) => Shell.Tabs.OfType<TableTab>().Any(t => t.Table.Ref == table.Ref);
