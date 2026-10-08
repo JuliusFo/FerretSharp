@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.15.0] - 2026-10-08
+
 ### Changed
 - Internal restructuring for stability and maintainability (R3b), without new features: the schema reader split by topic with shared column lists, Oracle type rules in one place, the session's gate unit-tested, sturdier handling of the C# model's helper processes, shared building blocks for menus, export actions, FK jumps and SQL/LINQ write results, the SQL editor's variables and history as components of their own, and the form's row following unit-tested.
 - The search field of the SQL history is a search box like all others (✕ clears it, Escape too).
