@@ -203,6 +203,45 @@ public sealed class WorkspaceManagerTests
     }
 
     [Fact]
+    public async Task Resetting_the_session_closes_it_and_the_next_use_opens_a_new_one_still_unlocked()
+    {
+        await _manager.AttachAsync(_profile with { ReadOnly = true }, Ct);
+        var id = _manager.Active!.Id;
+        await _manager.UnlockAsync(id, Ct);
+        var first = Assert.Single(_opened).Connection;
+        var changed = 0;
+        _manager.Changed += () => changed++;
+
+        await _manager.ResetSessionAsync(id);
+
+        await first.Received(1).DisposeAsync();
+        Assert.Null(_manager.TransactionOf(id));
+        Assert.True(_manager.IsUnlocked(id));
+        Assert.True(changed > 0);
+
+        await _manager.GetDataAsync(id, Ct);
+        Assert.Equal(2, _opened.Count);
+        await _opened[1].Connection.DidNotReceive().UseReadOnlySnapshotsAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Resetting_leaves_the_other_workspaces_sessions_alone()
+    {
+        await _manager.AttachAsync(_profile, Ct);
+        var first = _manager.Active!.Id;
+        var second = (await _manager.CreateAsync()).Id;
+        await _manager.GetDataAsync(first, Ct);
+        await _manager.GetDataAsync(second, Ct);
+
+        await _manager.ResetSessionAsync(second);
+        await _manager.ResetSessionAsync(second); // nothing open any more: nothing to do
+
+        await _opened[0].Connection.DidNotReceive().DisposeAsync();
+        await _opened[1].Connection.Received(1).DisposeAsync();
+        Assert.Single(_manager.OpenSessions());
+    }
+
+    [Fact]
     public async Task Disconnecting_or_closing_the_workspace_locks_it_again()
     {
         var locked = _profile with { ReadOnly = true };

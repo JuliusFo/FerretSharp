@@ -318,6 +318,28 @@ public sealed class WorkspaceManager : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Gives up the workspace's session, e.g. when a statement does not react to cancelling: closes its connection (Oracle
+    /// rolls back an open transaction; a statement still running there ends as cancelled). The workspace stays open and
+    /// unlocked; its next database access opens a new session.
+    /// </summary>
+    public async Task ResetSessionAsync(Guid workspaceId)
+    {
+        Task<IDatabaseConnection>? session;
+        lock (_lock)
+        {
+            session = _sessions.Drop(workspaceId);
+        }
+
+        if (session is null)
+        {
+            return;
+        }
+
+        RaiseChanged();
+        await WorkspaceSessions.CloseAsync(session);
+    }
+
     /// <summary>Opens a closed workspace again (at the end of the bar) and activates it.</summary>
     public async Task ReopenAsync(Guid workspaceId)
     {
