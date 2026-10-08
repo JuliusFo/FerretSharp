@@ -41,6 +41,7 @@
     {
         { Error: { } error } => error.Split(':')[0],
         { Changed: true, Rows: { } rows } => $"{rows:N0} geändert",
+        { Rows: 1, MoreRows: false } => "1 Zeile",
         { Rows: { } rows } => $"{(entry.MoreRows ? "≥ " : "")}{rows:N0} Zeilen",
         _ => "",
     };
