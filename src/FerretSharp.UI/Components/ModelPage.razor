@@ -96,7 +96,7 @@
             {
                 <div class="model-status">
                     <span class="spinner small"></span>
-                    <span>@(State.Step ?? "Lese das Modell") …</span>
+                    <span>@(State.BuildChanged ? "Build geändert – " : "")@(State.Step ?? "Lese das Modell") …</span>
                     <span class="hint">@Elapsed(State.StepStartedAt)@(State.LoadStartedAt is { } started ? $" · insgesamt {Elapsed(started)}" : "")</span>
                 </div>
             }

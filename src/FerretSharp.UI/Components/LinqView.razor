@@ -16,7 +16,15 @@
     <div class="tab-toolbar">
         @Icons.Code
         <TabTitle Tab="Tab" />
+        @if (Console.State.Phase == LinqConsolePhase.Starting || Console.State.IsReloading)
+        {
+            <span class="spinner small"></span>
+        }
         <span class="linq-console @ConsoleClass" title="@ConsoleTitle">@ConsoleText</span>
+        @if (Console.State.Phase == LinqConsolePhase.Starting && !_running)
+        {
+            <button class="btn ghost" title="Den Start des Hilfsprozesses abbrechen – „Ausführen“ startet ihn erneut" @onclick="Console.CancelStart">Abbrechen</button>
+        }
         <span class="spacer"></span>
         @if (_running)
         {
@@ -247,21 +255,29 @@
         { Phase: LinqConsolePhase.NotLinked } => "kein C#-Projekt verknüpft",
         { Phase: LinqConsolePhase.Starting, Step: { } step } => step + " …",
         { Phase: LinqConsolePhase.Starting } => "startet …",
+        { Phase: LinqConsolePhase.Ready, Step: { } step } => step + " …",
+        { Phase: LinqConsolePhase.Ready, Error: not null } => "bereit (vorheriger Build)",
         { Phase: LinqConsolePhase.Ready } => "bereit",
         { Phase: LinqConsolePhase.Failed, Error: { } error } => "Fehler: " + error.Message,
         _ => "startet beim Ausführen",
     };
 
-    private string ConsoleClass => Console.State.Phase switch
+    private string ConsoleClass => Console.State switch
     {
-        LinqConsolePhase.Ready => "ready",
-        LinqConsolePhase.Failed or LinqConsolePhase.NotLinked => "failed",
+        { Phase: LinqConsolePhase.Ready, Error: not null } => "warn",
+        { Phase: LinqConsolePhase.Ready } => "ready",
+        { Phase: LinqConsolePhase.Failed or LinqConsolePhase.NotLinked } => "failed",
         _ => "",
     };
 
-    private string ConsoleTitle => Console.State.Error?.Detail is { } detail
-        ? detail
-        : "Der Hilfsprozess lädt das Projekt einmal und übersetzt dann jede Query in das SQL, das EF senden würde – ohne Datenbank.";
+    private string ConsoleTitle => Console.State switch
+    {
+        { Phase: LinqConsolePhase.Ready, Error: { } error } => error.Message + (error.Detail is { } detail ? Environment.NewLine + Environment.NewLine + detail : ""),
+        { Error.Detail: { } detail } => detail,
+        { IsReloading: true } => "Ein neuer Build wird im Hintergrund geladen; bis er bereit ist, übersetzt die Konsole mit dem vorherigen.",
+        _ => "Der Hilfsprozess lädt das Projekt einmal und übersetzt dann jede Query in das SQL, das EF senden würde – ohne Datenbank. "
+             + "Nach einem Build lädt er die neue Version automatisch.",
+    };
 
     private IReadOnlyList<LinqDiagnostic> Markers(string section) =>
         Tab.LastRun?.Diagnostics.Where(d => d.Section == section).ToList() ?? (IReadOnlyList<LinqDiagnostic>)[];

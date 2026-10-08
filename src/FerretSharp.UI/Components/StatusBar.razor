@@ -148,6 +148,11 @@
             return @<text></text>;
         }
 
+        if (state is { Phase: ClrModelPhase.Loading, BuildChanged: true })
+        {
+            return @<button class="item status-link shrink warn" title="Der Build hat sich geändert – @(state.Step ?? "Lese das C#-Modell") … Bis das neue Modell bereit ist, gilt das bisherige." @onclick="Shell.ShowModel"><span class="spinner small"></span> C# · Build geändert – Modell wird neu geladen …</button>;
+        }
+
         if (state.Phase == ClrModelPhase.Loading)
         {
             return @<button class="item status-link shrink" title="@(state.Step ?? "Lese das C#-Modell") …" @onclick="Shell.ShowModel"><span class="spinner small"></span> C# · @(state.Step ?? "lädt") …</button>;
