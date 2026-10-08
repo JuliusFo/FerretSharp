@@ -56,6 +56,9 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
     private CancellationTokenSource? _restart;
     private Task _restartTask = Task.CompletedTask;
 
+    /// <summary>Set (under the lock) when the connection closes: no restart starts or swaps hosts after that.</summary>
+    private volatile bool _disposed;
+
     /// <summary>The build output a background restart failed for (not tried again until the output changes).</summary>
     private IReadOnlyDictionary<string, FileStamp>? _failedFiles;
 
@@ -326,7 +329,7 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
     {
         lock (_lock)
         {
-            if (!supersede && !_restartTask.IsCompleted)
+            if (_disposed || (!supersede && !_restartTask.IsCompleted))
             {
                 return;
             }
@@ -367,9 +370,11 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
             await _gate.WaitAsync(cts.Token);
             try
             {
-                if (_models.State.Link != link || (_consoleLink is not null && _consoleLink != link))
+                if (_disposed || _models.State.Link != link || (_consoleLink is not null && _consoleLink != link))
                 {
-                    return; // the link changed meanwhile: the new host belongs to the old one too
+                    // The connection closed meanwhile (the new host would outlive it), or the link changed: the new host
+                    // belongs to the old one too.
+                    return;
                 }
 
                 old = _console;
@@ -497,25 +502,48 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
 
     public async ValueTask DisposeAsync()
     {
-        Unsubscribe();
+        await EndRestartAsync(Unsubscribe());
         await StopAsync();
     }
 
     /// <summary>For a synchronous shutdown (the host's service provider): stops the host process, waiting at most 3 s.</summary>
     public void Dispose()
     {
-        Unsubscribe();
-        Task.Run(StopAsync).Wait(TimeSpan.FromSeconds(3));
+        var restart = Unsubscribe();
+        Task.Run(async () =>
+        {
+            await EndRestartAsync(restart);
+            await StopAsync();
+        }).Wait(TimeSpan.FromSeconds(3));
     }
 
-    private void Unsubscribe()
+    /// <summary>Stops listening, cancels a start and a restart in the background; returns the restart to wait for.</summary>
+    private Task Unsubscribe()
     {
         _models.Changed -= OnModelsChanged;
         _models.BuildOutputChanged -= OnBuildOutputChanged;
         lock (_lock)
         {
+            _disposed = true;
             _restart?.Cancel();
             _starting?.Cancel();
+            return _restartTask;
+        }
+    }
+
+    /// <summary>
+    /// A restart that is about to swap hosts must not do so after the console was stopped: the new host would run on
+    /// unnoticed, holding its copy of the build output. Cancelled, it ends quickly; it is not waited for forever.
+    /// </summary>
+    private static async Task EndRestartAsync(Task restart)
+    {
+        try
+        {
+            await restart.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        catch (TimeoutException)
+        {
+            // the restart checks _disposed before swapping and disposes its host itself
         }
     }
 }

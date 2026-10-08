@@ -252,6 +252,33 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task A_restart_that_ends_after_the_connection_closed_leaves_no_host_running()
+    {
+        WatchBuildsQuickly();
+        _runner.ReadModelAsync(Arg.Any<ClrProjectLink>(), Arg.Any<BuildOutput>(), Arg.Any<CancellationToken>(), Arg.Any<IProgress<string>?>())
+            .Returns(Model());
+        await _active.ConnectAsync(_profile, Ct);
+        await WaitUntil(() => _models.State.Phase == ClrModelPhase.Loaded);
+        var consoles = new LinqConsoleService(_runner, _models);
+        var old = Console("alt");
+        var started = new TaskCompletionSource<ILinqConsole>();
+        _runner.StartConsoleAsync(Arg.Any<ClrProjectLink>(), Arg.Any<BuildOutput>(), Arg.Any<CancellationToken>(), Arg.Any<IProgress<string>?>())
+            .Returns(Task.FromResult(old), started.Task);
+        await consoles.WarmUpAsync();
+        await File.WriteAllTextAsync(_dll, "neuer Build", Ct);
+        await WaitUntil(() => consoles.State is { IsReloading: true, Step: not null } && consoles.State.Step.EndsWith("lade neu", StringComparison.Ordinal));
+
+        // The connection closes while the new host is still starting; the start then completes anyway.
+        var closing = consoles.DisposeAsync().AsTask();
+        var fresh = Console("neu");
+        started.SetResult(fresh);
+        await closing;
+
+        await WaitUntil(() => fresh.ReceivedCalls().Any(c => c.GetMethodInfo().Name == nameof(ILinqConsole.DisposeAsync)));
+        Assert.Contains(old.ReceivedCalls(), c => c.GetMethodInfo().Name == nameof(ILinqConsole.DisposeAsync));
+    }
+
+    [Fact]
     public async Task A_new_build_that_cannot_be_loaded_keeps_the_old_console()
     {
         WatchBuildsQuickly();
