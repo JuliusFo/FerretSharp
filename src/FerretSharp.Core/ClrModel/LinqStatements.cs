@@ -74,6 +74,8 @@ public static class LinqStatements
         "Int16" or "Int32" or "Int64" or "Decimal" or "Byte" => OracleTypeHint.Number,
         "Date" => OracleTypeHint.Date,
         "TimeStamp" => OracleTypeHint.TimeStamp,
+        "TimeStampTZ" => OracleTypeHint.TimeStampTZ,
+        "TimeStampLTZ" => OracleTypeHint.TimeStampLTZ,
         "Raw" => OracleTypeHint.Raw,
         "Clob" => OracleTypeHint.Clob,
         "NClob" => OracleTypeHint.NClob,

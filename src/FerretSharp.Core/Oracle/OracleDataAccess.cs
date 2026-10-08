@@ -260,10 +260,11 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
         {
             case ColumnCategory.Number when column.DataType is "NUMBER" or "FLOAT" or "INTEGER":
                 return ToNumber(NormalizeDecimalSeparator(reader.GetOracleDecimal(ordinal).ToString()));
-            case ColumnCategory.Timestamp when column.DataType.Contains("LOCAL", StringComparison.Ordinal):
-                return reader.GetOracleTimeStampLTZ(ordinal).Value;
             case ColumnCategory.Timestamp:
                 return reader.GetOracleTimeStamp(ordinal).Value;
+            case ColumnCategory.TimestampWithTimeZone when OracleTypeMapper.IsLocalTimeZone(column):
+                // Stored in the database's time zone, read in the session's: a time without offset, as Oracle shows it.
+                return reader.GetOracleTimeStampLTZ(ordinal).Value;
             case ColumnCategory.TimestampWithTimeZone:
                 var tz = reader.GetOracleTimeStampTZ(ordinal);
                 return new DateTimeOffset(DateTime.SpecifyKind(tz.Value, DateTimeKind.Unspecified), tz.GetTimeZoneOffset());

@@ -29,6 +29,12 @@ public enum OracleTypeHint
 
     /// <summary>BLOB; the value is the whole content as a byte array.</summary>
     Blob,
+
+    /// <summary>TIMESTAMP WITH TIME ZONE; the value is a <see cref="DateTimeOffset"/> (time and offset are stored).</summary>
+    TimeStampTZ,
+
+    /// <summary>TIMESTAMP WITH LOCAL TIME ZONE; the value is a <see cref="DateTime"/> in the session's time zone.</summary>
+    TimeStampLTZ,
 }
 
 /// <summary>Driver-neutral bind variable; mapped to <c>OracleParameter</c> by <c>OracleSession</c>.</summary>

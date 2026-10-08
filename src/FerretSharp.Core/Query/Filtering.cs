@@ -62,9 +62,11 @@ public static class FilterRules
 
     private static readonly FilterOperator[] NullOnly = [FilterOperator.IsNull, FilterOperator.IsNotNull];
 
+    // German notation also with a decimal comma: the grid shows timestamps that way (14:30:05,123456), and users
+    // type what they see (was rejected as "kein Zeitstempel" until 3.11.2).
     private static readonly string[] DateFormats =
     [
-        "d.M.yyyy", "d.M.yyyy H:mm", "d.M.yyyy H:mm:ss", "d.M.yyyy H:mm:ss.FFFFFFF",
+        "d.M.yyyy", "d.M.yyyy H:mm", "d.M.yyyy H:mm:ss", "d.M.yyyy H:mm:ss.FFFFFFF", "d.M.yyyy H:mm:ss,FFFFFFF",
         "yyyy-MM-dd", "yyyy-MM-dd H:mm", "yyyy-MM-dd H:mm:ss", "yyyy-MM-dd H:mm:ss.FFFFFFF",
         "yyyy-MM-ddTH:mm", "yyyy-MM-ddTH:mm:ss", "yyyy-MM-ddTH:mm:ss.FFFFFFF",
     ];
