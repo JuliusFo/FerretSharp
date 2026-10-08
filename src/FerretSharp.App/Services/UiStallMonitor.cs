@@ -1,22 +1,77 @@
 using System.Diagnostics;
+using System.Reflection;
 using System.Windows.Threading;
 using Microsoft.Extensions.Logging;
 
 namespace FerretSharp.App.Services;
 
 /// <summary>
-/// Logs when the UI thread does not get to input for a noticeable time. The WebView's input and frames pass through the
-/// WPF dispatcher, so a busy dispatcher makes typing in the editors stall; the log says when and for how long (to tell
-/// that apart from a busy CPU, which this does not report).
+/// Logs when the UI thread does not get to its work for a noticeable time. The WebView's input and frames pass through the
+/// WPF dispatcher, so a busy dispatcher makes typing in the editors stall. A stall is logged with what tells its causes
+/// apart: the time spent in dispatcher operations and those that ran long (FerretSharp's work on the UI thread – time
+/// not spent in operations went to window messages such as the WebView's), garbage collection pauses and the system's
+/// memory load (all threads stopped, paging), and the dotnet processes (model host, LINQ console) with their memory.
 /// </summary>
-public sealed class UiStallMonitor(Dispatcher dispatcher, ILogger<UiStallMonitor> logger) : IDisposable
+public sealed class UiStallMonitor : IDisposable
 {
     private static readonly TimeSpan Interval = TimeSpan.FromMilliseconds(250);
     private static readonly TimeSpan Threshold = TimeSpan.FromMilliseconds(300);
+    private static readonly TimeSpan LongOperation = TimeSpan.FromMilliseconds(100);
 
+    /// <summary>WPF's own name of an operation (declaring type and method of its delegate), for the log only.</summary>
+    private static readonly PropertyInfo? OperationName = typeof(DispatcherOperation).GetProperty("Name", BindingFlags.Instance | BindingFlags.NonPublic);
+
+    private readonly Dispatcher _dispatcher;
+    private readonly ILogger<UiStallMonitor> _logger;
     private readonly CancellationTokenSource _stop = new();
+    private readonly Dictionary<DispatcherOperation, long> _running = [];
+    private readonly List<string> _longOperations = [];
+    private int _operations;
+    private TimeSpan _operationTime;
+    private readonly Lock _lock = new();
 
-    public void Start() => _ = Task.Run(RunAsync);
+    public UiStallMonitor(Dispatcher dispatcher, ILogger<UiStallMonitor> logger)
+    {
+        _dispatcher = dispatcher;
+        _logger = logger;
+    }
+
+    public void Start()
+    {
+        // Hooks fire on the UI thread itself; they only take times.
+        _dispatcher.Hooks.OperationStarted += OnOperationStarted;
+        _dispatcher.Hooks.OperationCompleted += OnOperationEnded;
+        _dispatcher.Hooks.OperationAborted += OnOperationEnded;
+        _ = Task.Run(RunAsync);
+    }
+
+    private void OnOperationStarted(object? sender, DispatcherHookEventArgs e)
+    {
+        lock (_lock)
+        {
+            _running[e.Operation] = Stopwatch.GetTimestamp();
+        }
+    }
+
+    private void OnOperationEnded(object? sender, DispatcherHookEventArgs e)
+    {
+        lock (_lock)
+        {
+            if (!_running.Remove(e.Operation, out var started))
+            {
+                return;
+            }
+
+            var took = Stopwatch.GetElapsedTime(started);
+            _operations++;
+            _operationTime += took;
+            if (took >= LongOperation && _longOperations.Count < 20)
+            {
+                var name = OperationName?.GetValue(e.Operation) as string ?? "?";
+                _longOperations.Add($"{name} [{e.Operation.Priority}] {(int)took.TotalMilliseconds} ms");
+            }
+        }
+    }
 
     private async Task RunAsync()
     {
@@ -25,11 +80,22 @@ public sealed class UiStallMonitor(Dispatcher dispatcher, ILogger<UiStallMonitor
             while (!_stop.IsCancellationRequested)
             {
                 await Task.Delay(Interval, _stop.Token);
+                var pauseBefore = GC.GetTotalPauseDuration();
+                var gen2Before = GC.CollectionCount(2);
+                var gen0Before = GC.CollectionCount(0);
+                lock (_lock)
+                {
+                    _longOperations.Clear();
+                    (_operations, _operationTime) = (0, TimeSpan.Zero);
+                }
+
                 var watch = Stopwatch.StartNew();
-                await dispatcher.InvokeAsync(static () => { }, DispatcherPriority.Input, _stop.Token);
+                // Normal, the priority of Blazor's work: WPF holds back Input-priority operations by itself (half a second even
+                // on an idle window), which made the probe report stalls that were none.
+                await _dispatcher.InvokeAsync(static () => { }, DispatcherPriority.Normal, _stop.Token);
                 if (watch.Elapsed >= Threshold)
                 {
-                    logger.LogWarning("UI thread did not get to input for {Milliseconds} ms", (int)watch.Elapsed.TotalMilliseconds);
+                    Report(watch.Elapsed, GC.GetTotalPauseDuration() - pauseBefore, GC.CollectionCount(0) - gen0Before, GC.CollectionCount(2) - gen2Before);
                 }
             }
         }
@@ -39,9 +105,59 @@ public sealed class UiStallMonitor(Dispatcher dispatcher, ILogger<UiStallMonitor
         }
     }
 
+    private void Report(TimeSpan stall, TimeSpan gcPause, int gen0, int gen2)
+    {
+        string operations;
+        lock (_lock)
+        {
+            operations = $"{_operations} ops, {(int)_operationTime.TotalMilliseconds} ms in total; long: "
+                         + (_longOperations.Count == 0 ? "none" : string.Join("; ", _longOperations));
+        }
+
+        var memory = GC.GetGCMemoryInfo();
+        var load = memory.TotalAvailableMemoryBytes > 0 ? 100.0 * memory.MemoryLoadBytes / memory.TotalAvailableMemoryBytes : 0;
+        _logger.LogWarning(
+            "UI thread did not respond for {Milliseconds} ms – dispatcher work: {Operations}; GC pause {GcPause} ms (gen0 {Gen0}, gen2 {Gen2}), "
+            + "heap {Heap} MB, working set {WorkingSet} MB, system memory load {Load:0}%; {Hosts}",
+            (int)stall.TotalMilliseconds, operations, (int)gcPause.TotalMilliseconds, gen0, gen2, GC.GetTotalMemory(false) / (1024 * 1024),
+            Environment.WorkingSet / (1024 * 1024), load, ModelHosts());
+    }
+
+    /// <summary>The dotnet processes (model host, LINQ console, also build servers) with their memory and priority.</summary>
+    private static string ModelHosts()
+    {
+        try
+        {
+            var hosts = Process.GetProcessesByName("dotnet")
+                .Select(p =>
+                {
+                    using (p)
+                    {
+                        try
+                        {
+                            return (Mb: p.WorkingSet64 / (1024 * 1024), Priority: p.PriorityClass.ToString());
+                        }
+                        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+                        {
+                            return (Mb: -1L, Priority: "?");
+                        }
+                    }
+                })
+                .Where(h => h.Mb >= 0)
+                .ToList();
+            return hosts.Count == 0 ? "no dotnet processes" : $"dotnet processes: {string.Join(", ", hosts.Select(h => $"{h.Mb} MB ({h.Priority})"))}";
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            return "dotnet processes: ?";
+        }
+    }
+
     public void Dispose()
     {
         _stop.Cancel();
-        _stop.Dispose();
+        _dispatcher.Hooks.OperationStarted -= OnOperationStarted;
+        _dispatcher.Hooks.OperationCompleted -= OnOperationEnded;
+        _dispatcher.Hooks.OperationAborted -= OnOperationEnded;
     }
 }

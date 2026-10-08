@@ -94,6 +94,7 @@ public partial class App : Application
         builder.Services.AddSingleton<ExitGuard>();
         builder.Services.AddSingleton<MainWindow>();
         builder.Services.AddSingleton(sp => new UiStallMonitor(Dispatcher, sp.GetRequiredService<ILogger<UiStallMonitor>>()));
+        builder.Services.AddSingleton<ClrActivityLog>();
 
         _host = builder.Build();
         _logger = _host.Services.GetRequiredService<ILogger<App>>();
@@ -110,6 +111,7 @@ public partial class App : Application
         MainWindow = window;
         window.Show();
         _host.Services.GetRequiredService<UiStallMonitor>().Start();
+        _host.Services.GetRequiredService<ClrActivityLog>();
     }
 
     protected override async void OnExit(ExitEventArgs e)

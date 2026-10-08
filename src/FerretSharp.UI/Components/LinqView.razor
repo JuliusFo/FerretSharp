@@ -324,8 +324,12 @@
 
     private async Task<IReadOnlyList<MonacoEditor.CompletionItem>> CompleteAsync(string code, string variables, string section, int offset)
     {
-        var items = await Console.CompleteAsync(code, variables, section, offset);
-        return items.Select(i => new MonacoEditor.CompletionItem(i.Label, i.InsertText, i.Kind, i.Detail, i.Rank)).ToList();
+        // Off the UI thread: reading the host's answer (up to 3000 items at the start of a word) must not hold up typing.
+        return await Task.Run(async () =>
+        {
+            var items = await Console.CompleteAsync(code, variables, section, offset);
+            return (IReadOnlyList<MonacoEditor.CompletionItem>)items.Select(i => new MonacoEditor.CompletionItem(i.Label, i.InsertText, i.Kind, i.Detail, i.Rank)).ToList();
+        });
     }
 
     private void OnTabCommand(WorkspaceTab tab, TabCommand command)
