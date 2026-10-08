@@ -397,8 +397,8 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
     }
 
     /// <summary>
-    /// The link changed (other connection, other project, unlinked): a running host belongs to the old one. The model
-    /// manager also reports every loading step; those leave the console alone.
+    /// The model manager reports every loading step. A load after a build that has ended starts the waiting restart; a
+    /// changed link (other connection, other project, unlinked) stops the running host, which belongs to the old one.
     /// </summary>
     private void OnModelsChanged()
     {
@@ -427,7 +427,6 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
             }
 
             _restartAfter = null;
-
             _seenLink = link;
             _restart?.Cancel();
             _starting?.Cancel();

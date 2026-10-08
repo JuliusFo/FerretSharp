@@ -78,7 +78,7 @@ public sealed class ClrModelManager : IDisposable
 
     /// <summary>
     /// A build changed the output of the linked project (after the build finished writing); the model reloads. Fires on a
-    /// background thread; the LINQ console restarts on it.
+    /// background thread; the LINQ console restarts once that load has ended.
     /// </summary>
     public event Action? BuildOutputChanged;
 

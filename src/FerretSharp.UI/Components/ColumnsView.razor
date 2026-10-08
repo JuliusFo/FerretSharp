@@ -130,6 +130,7 @@
 }
 
 @code {
+    private int _presentationVersion;
     private ElementReference _filterInput;
     private IJSObjectReference? _dom;
     private string _columnQuery = "";
@@ -153,8 +154,6 @@
 
         _presentationVersion = Presentations.Version;
     });
-
-    private int _presentationVersion;
 
     /// <summary>Enum members (or true/false) with what the project stores for them, as a tooltip.</summary>
     private static string? ValuesTitle(PropertyExport property) => property.Values is { } values

@@ -216,6 +216,8 @@
 }
 
 @code {
+    private LinqRunResult? _markersOf;
+    private readonly Dictionary<string, IReadOnlyList<LinqDiagnostic>> _markers = [];
     private MonacoEditor? _variablesEditor;
     private bool _planOpen;
     private MonacoEditor? _codeEditor;
@@ -299,10 +301,6 @@
 
         return markers;
     }
-
-    private LinqRunResult? _markersOf;
-    private readonly Dictionary<string, IReadOnlyList<LinqDiagnostic>> _markers = [];
-
     private void OnVariablesChanged(string text)
     {
         Tab.Variables = text;

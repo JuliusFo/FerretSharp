@@ -7,11 +7,13 @@ using Microsoft.Extensions.Logging;
 namespace FerretSharp.App.Services;
 
 /// <summary>
-/// Logs when the UI thread does not get to its work for a noticeable time. The WebView's input and frames pass through the
-/// WPF dispatcher, so a busy dispatcher makes typing in the editors stall. A stall is logged with what tells its causes
-/// apart: the time spent in dispatcher operations and those that ran long (FerretSharp's work on the UI thread – time
-/// not spent in operations went to window messages such as the WebView's), garbage collection pauses and the system's
-/// memory load (all threads stopped, paging), and the dotnet processes (model host, LINQ console) with their memory.
+/// Logs when the UI thread does not get to its work for a noticeable time (ADR 0016). The WebView's input and frames pass
+/// through the WPF dispatcher, so a stuck UI thread makes typing in the editors stall. A stall is logged with what tells
+/// its causes apart: the time spent in dispatcher operations and those that ran long (FerretSharp's work on the UI
+/// thread; Blazor handles WebView messages inline, outside of operations), garbage collection pauses and the system's
+/// memory load, and the dotnet processes (model host, LINQ console) with their memory. A stall over 1.5 s also gets the
+/// stacks of all threads – that is how the process tree kill was found, whose exceptions stopped the whole process under
+/// the debugger.
 /// </summary>
 public sealed class UiStallMonitor : IDisposable
 {
@@ -28,13 +30,13 @@ public sealed class UiStallMonitor : IDisposable
     private readonly Dispatcher _dispatcher;
     private readonly ILogger<UiStallMonitor> _logger;
     private readonly string _logDirectory;
-    private DateTime _lastStacks = DateTime.MinValue;
     private readonly CancellationTokenSource _stop = new();
+    private readonly Lock _lock = new();
     private readonly Dictionary<DispatcherOperation, long> _running = [];
     private readonly List<string> _longOperations = [];
     private int _operations;
     private TimeSpan _operationTime;
-    private readonly Lock _lock = new();
+    private DateTime _lastStacks = DateTime.MinValue;
 
     /// <param name="logDirectory">Where the stacks of a long stall are written.</param>
     public UiStallMonitor(Dispatcher dispatcher, ILogger<UiStallMonitor> logger, string logDirectory)
@@ -163,7 +165,16 @@ public sealed class UiStallMonitor : IDisposable
             })!;
             var output = process.StandardOutput.ReadToEndAsync();
             var error = process.StandardError.ReadToEndAsync();
-            await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(30));
+            try
+            {
+                await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(30));
+            }
+            catch (TimeoutException)
+            {
+                process.Kill(); // never left behind
+                throw;
+            }
+
             await File.WriteAllTextAsync(file, await output + await error);
             _logger.LogWarning("UI thread stuck for more than {Milliseconds} ms – stacks written to {File}", (int)StackAfter.TotalMilliseconds, file);
         }
@@ -173,33 +184,25 @@ public sealed class UiStallMonitor : IDisposable
         }
     }
 
-    /// <summary>The dotnet processes (model host, LINQ console, also build servers) with their memory and priority.</summary>
+    /// <summary>
+    /// The dotnet processes (model host, LINQ console, build servers) with their memory – from the process list, without
+    /// opening them (opening a protected process throws, and under a debugger every exception stops the whole process).
+    /// </summary>
     private static string ModelHosts()
     {
+        var processes = Process.GetProcessesByName("dotnet");
         try
         {
-            var hosts = Process.GetProcessesByName("dotnet")
-                .Select(p =>
-                {
-                    using (p)
-                    {
-                        try
-                        {
-                            return (Mb: p.WorkingSet64 / (1024 * 1024), Priority: p.PriorityClass.ToString());
-                        }
-                        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
-                        {
-                            return (Mb: -1L, Priority: "?");
-                        }
-                    }
-                })
-                .Where(h => h.Mb >= 0)
-                .ToList();
-            return hosts.Count == 0 ? "no dotnet processes" : $"dotnet processes: {string.Join(", ", hosts.Select(h => $"{h.Mb} MB ({h.Priority})"))}";
+            return processes.Length == 0
+                ? "no dotnet processes"
+                : "dotnet processes: " + string.Join(", ", processes.Select(p => $"{p.WorkingSet64 / (1024 * 1024)} MB"));
         }
-        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+        finally
         {
-            return "dotnet processes: ?";
+            foreach (var process in processes)
+            {
+                process.Dispose();
+            }
         }
     }
 

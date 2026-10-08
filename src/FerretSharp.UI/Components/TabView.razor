@@ -197,6 +197,7 @@
 }
 
 @code {
+    private int _presentationVersion;
     private TableDetails? _details;
     private (QuerySpec FirstPage, QuerySpec Whole)? _plan;
     private DatabaseException? _loadError;
@@ -273,8 +274,6 @@
 
         _presentationVersion = Presentations.Version;
     });
-
-    private int _presentationVersion;
 
     private string RowKeyText =>_details is null ? "" : QueryBuilder.RowKeyOf(_details) switch
     {
