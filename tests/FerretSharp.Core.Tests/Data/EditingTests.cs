@@ -89,6 +89,67 @@ public class EditingTests
         Assert.Equal("1234,5", OracleTypeMapper.EditText(C("BETRAG"), 1234.5m));
     }
 
+    private static readonly ColumnInfo Tz = Col("TZ", "TIMESTAMP(6) WITH TIME ZONE", scale: 6);
+    private static readonly ColumnInfo Ltz = Col("LTZ", "TIMESTAMP(6) WITH LOCAL TIME ZONE", scale: 6);
+
+    [Theory]
+    [InlineData("08.10.2026 12:00:00 +02:00", 2)]
+    [InlineData("08.10.2026 12:00:00,5 +02:00", 2)]
+    [InlineData("08.10.2026 12:00:00-05:30", -5.5)]
+    [InlineData("08.10.2026 12:00 +0530", 5.5)]
+    [InlineData("08.10.2026 12:00:00 +2", 2)]
+    [InlineData("2026-10-08T12:00:00+02:00", 2)]
+    [InlineData("2026-10-08 12:00:00 Z", 0)]
+    public void Timestamps_with_time_zone_take_an_offset(string text, double hours)
+    {
+        var parsed = (DateTimeOffset)OracleTypeMapper.Parse(Tz, text).Value!;
+
+        Assert.Equal(new DateTime(2026, 10, 8, 12, 0, 0), parsed.DateTime.AddTicks(-(parsed.DateTime.Ticks % TimeSpan.TicksPerSecond)));
+        Assert.Equal(TimeSpan.FromHours(hours), parsed.Offset);
+    }
+
+    [Fact]
+    public void Without_an_offset_the_time_zone_of_this_computer_applies()
+    {
+        var parsed = (DateTimeOffset)OracleTypeMapper.Parse(Tz, "08.10.2026 12:00").Value!;
+        Assert.Equal(new DateTime(2026, 10, 8, 12, 0, 0), parsed.DateTime);
+        Assert.Equal(TimeZoneInfo.Local.GetUtcOffset(new DateTime(2026, 10, 8, 12, 0, 0)), parsed.Offset);
+
+        // A date alone: its "-08" is no offset.
+        Assert.Equal(new DateTime(2026, 10, 8), ((DateTimeOffset)OracleTypeMapper.Parse(Tz, "2026-10-08").Value!).DateTime);
+    }
+
+    [Theory]
+    [InlineData("08.10.2026 12:00 +15:00", "kein Zeitzonen-Offset")]
+    [InlineData("08.10.2026 12:00 +02:75", "kein Zeitzonen-Offset")]
+    [InlineData("08.10.2026 12:00 Europe/Berlin", "kein Zeitstempel mit Zeitzone")]
+    [InlineData("morgen", "kein Zeitstempel mit Zeitzone")]
+    public void Invalid_timestamps_with_time_zone_are_explained(string text, string message) =>
+        Assert.Contains(message, OracleTypeMapper.Parse(Tz, text).Error);
+
+    [Fact]
+    public void Timestamps_with_time_zone_are_editable_bind_and_compare_with_their_offset()
+    {
+        var table = new TableDetails(new TableSummary("APP", "ZEITEN", TableKind.Table), [Col("ID", "NUMBER", nullable: false), Tz, Ltz], ["ID"], [], false);
+        Assert.Null(OracleTypeMapper.NotEditableReason(table, Tz, newRow: false));
+        Assert.Null(OracleTypeMapper.NotEditableReason(table, Ltz, newRow: false));
+        Assert.Equal(OracleTypeHint.TimeStampTZ, OracleTypeMapper.BindType(Tz));
+        Assert.Equal(OracleTypeHint.TimeStampLTZ, OracleTypeMapper.BindType(Ltz));
+
+        // LOCAL TIME ZONE is a time in the session's time zone, without offset.
+        Assert.Equal(new DateTime(2026, 10, 8, 12, 0, 0, 500), OracleTypeMapper.Parse(Ltz, "08.10.2026 12:00:00,5").Value);
+
+        var berlin = new DateTimeOffset(2026, 10, 8, 12, 0, 0, TimeSpan.FromHours(2));
+        Assert.True(OracleTypeMapper.ValuesEqual(berlin, new DateTimeOffset(2026, 10, 8, 12, 0, 0, TimeSpan.FromHours(2))));
+        Assert.False(OracleTypeMapper.ValuesEqual(berlin, berlin.ToOffset(TimeSpan.Zero))); // same instant, another value
+
+        // The edit text and the display parse back to the same value.
+        var value = new DateTimeOffset(new DateTime(2026, 10, 8, 12, 0, 0).AddTicks(1234560), TimeSpan.FromHours(-5));
+        Assert.Equal(value, OracleTypeMapper.Parse(Tz, OracleTypeMapper.EditText(Tz, value)).Value);
+        Assert.Equal(value, OracleTypeMapper.Parse(Tz, CellFormatter.Format(Tz, value)!).Value);
+        Assert.Equal("08.10.2026 12:00:00,123456 -05:00", CellFormatter.Format(Tz, value));
+    }
+
     [Fact]
     public void A_timestamp_typed_as_the_grid_shows_it_parses()
     {

@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- Editing `TIMESTAMP WITH TIME ZONE` and `TIMESTAMP WITH LOCAL TIME ZONE` columns, in the grid and the form (excluded since 1.9.0). Values with time zone take an offset at the end – `08.10.2026 12:00:00 +02:00`, `-0530`, `Z` or ISO `2026-10-08T12:00:00+02:00` – and keep it as given; without one the time zone of this computer applies, as Oracle takes the session's time zone. The same instant with another offset counts as a change. Values stored with a region name (`Europe/Berlin`) show and keep it until edited; an edited value is stored with its offset. `LOCAL TIME ZONE` values are times in the session's time zone, without offset (as Oracle shows them).
+
 ### Fixed
 - Timestamps typed as the grid shows them, with a decimal comma (`08.10.2026 12:00:00,5`), were rejected as "kein Zeitstempel" when editing and as "kein Datum" in filters – only a decimal point was accepted. Both work now.
 

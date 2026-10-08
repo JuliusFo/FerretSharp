@@ -54,14 +54,20 @@ public static class OracleTypeMapper
         return IsEditableType(column) || IsLob(column) ? null : $"{column.DisplayType} lässt sich hier nicht bearbeiten.";
     }
 
-    /// <summary>VARCHAR2/NVARCHAR2/CHAR/NCHAR, NUMBER/FLOAT/INTEGER, DATE, TIMESTAMP (without time zone), RAW.</summary>
+    /// <summary>VARCHAR2/NVARCHAR2/CHAR/NCHAR, NUMBER/FLOAT/INTEGER, DATE, TIMESTAMP (also WITH [LOCAL] TIME ZONE), RAW.</summary>
     public static bool IsEditableType(ColumnInfo column) => ColumnCategories.Of(column) switch
     {
         ColumnCategory.Text => column.DataType is "VARCHAR2" or "NVARCHAR2" or "CHAR" or "NCHAR",
         ColumnCategory.Number => column.DataType is "NUMBER" or "FLOAT" or "INTEGER",
-        ColumnCategory.Date or ColumnCategory.Timestamp or ColumnCategory.Raw => true,
+        ColumnCategory.Date or ColumnCategory.Timestamp or ColumnCategory.TimestampWithTimeZone or ColumnCategory.Raw => true,
         _ => false,
     };
+
+    /// <summary>
+    /// TIMESTAMP WITH LOCAL TIME ZONE: stored in the database's time zone, read and written in the session's – a time
+    /// without offset (<see cref="DateTime"/>). TIMESTAMP WITH TIME ZONE keeps its offset (<see cref="DateTimeOffset"/>).
+    /// </summary>
+    public static bool IsLocalTimeZone(ColumnInfo column) => column.DataType.Contains("LOCAL TIME ZONE", StringComparison.Ordinal);
 
     /// <summary>CLOB, NCLOB, BLOB: edited as a whole in the LOB editor (WP-10), not in the cell.</summary>
     public static bool IsLob(ColumnInfo column) => ColumnCategories.Of(column) is ColumnCategory.Clob or ColumnCategory.Blob;
@@ -113,6 +119,10 @@ public static class OracleTypeMapper
             ColumnCategory.Timestamp => FilterRules.TryParseDate(text, out var timestamp, out _)
                 ? ParsedValue.Ok(timestamp)
                 : ParsedValue.Fail($"„{text}“ ist kein Zeitstempel (TT.MM.JJJJ hh:mm:ss[,ffffff])."),
+            ColumnCategory.TimestampWithTimeZone when IsLocalTimeZone(column) => FilterRules.TryParseDate(text, out var local, out _)
+                ? ParsedValue.Ok(local)
+                : ParsedValue.Fail($"„{text}“ ist kein Zeitstempel (TT.MM.JJJJ hh:mm:ss[,ffffff])."),
+            ColumnCategory.TimestampWithTimeZone => ParseWithOffset(text),
             ColumnCategory.Raw => ParseRaw(column, text),
             _ => ParsedValue.Fail($"{column.DisplayType} lässt sich hier nicht bearbeiten."),
         };
@@ -131,6 +141,8 @@ public static class OracleTypeMapper
         (LobValue { Preview: null } lob, byte[] bytes) => lob.Length == bytes.Length,
         (byte[] bytes, LobValue { Preview: null } lob) => lob.Length == bytes.Length,
         (DateTime x, DateTime y) => x == y,
+        // The same instant with another offset is another value for TIMESTAMP WITH TIME ZONE (Equals compares instants).
+        (DateTimeOffset x, DateTimeOffset y) => x.EqualsExact(y),
         _ => Equals(a, b),
     };
 
@@ -147,6 +159,8 @@ public static class OracleTypeMapper
         "NCLOB" => OracleTypeHint.NClob,
         "BLOB" => OracleTypeHint.Blob,
         _ when ColumnCategories.Of(column) == ColumnCategory.Timestamp => OracleTypeHint.TimeStamp,
+        _ when ColumnCategories.Of(column) == ColumnCategory.TimestampWithTimeZone =>
+            IsLocalTimeZone(column) ? OracleTypeHint.TimeStampLTZ : OracleTypeHint.TimeStampTZ,
         _ => OracleTypeHint.Auto,
     };
 
@@ -190,6 +204,48 @@ public static class OracleTypeMapper
         }
 
         return ParsedValue.Ok(value);
+    }
+
+    /// <summary>
+    /// A time with an optional offset at the end – <c>+02:00</c>, <c>-0530</c>, <c>+2</c> or <c>Z</c>, with or without a
+    /// blank before it (ISO <c>2026-10-08T12:00:00+02:00</c>). Without one the time zone of this computer applies for that
+    /// date, as Oracle takes the session's time zone for a time without one. Region names (<c>Europe/Berlin</c>) are not
+    /// taken: the value keeps an offset.
+    /// </summary>
+    private static ParsedValue ParseWithOffset(string text)
+    {
+        var trimmed = text.Trim();
+        if (OffsetSuffix.Match(trimmed) is { Success: true } match
+            && FilterRules.TryParseDate(match.Groups["time"].Value, out var time, out _))
+        {
+            return TryOffset(match.Groups["offset"].Value, out var offset)
+                ? ParsedValue.Ok(new DateTimeOffset(time, offset))
+                : ParsedValue.Fail($"„{match.Groups["offset"].Value}“ ist kein Zeitzonen-Offset (zwischen -12:00 und +14:00, z. B. +02:00).");
+        }
+
+        // No offset (or a date like 2026-10-08, whose "-08" only looks like one).
+        return FilterRules.TryParseDate(trimmed, out var local, out _)
+            ? ParsedValue.Ok(new DateTimeOffset(local, TimeZoneInfo.Local.GetUtcOffset(local)))
+            : ParsedValue.Fail($"„{text}“ ist kein Zeitstempel mit Zeitzone (TT.MM.JJJJ hh:mm:ss[,ffffff] [+hh:mm]).");
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex OffsetSuffix = new(
+        @"^(?<time>.+?)\s*(?<offset>Z|[+-]\d{1,2}(?::?\d{2})?)$",
+        System.Text.RegularExpressions.RegexOptions.CultureInvariant | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    private static bool TryOffset(string text, out TimeSpan offset)
+    {
+        offset = TimeSpan.Zero;
+        if (text is "Z" or "z")
+        {
+            return true;
+        }
+
+        var digits = text[1..].Replace(":", "", StringComparison.Ordinal);
+        var hours = int.Parse(digits.Length > 2 ? digits[..^2] : digits, System.Globalization.CultureInfo.InvariantCulture);
+        var minutes = digits.Length > 2 ? int.Parse(digits[^2..], System.Globalization.CultureInfo.InvariantCulture) : 0;
+        offset = new TimeSpan(hours, minutes, 0) * (text[0] == '-' ? -1 : 1);
+        return minutes < 60 && offset >= TimeSpan.FromHours(-12) && offset <= TimeSpan.FromHours(14);
     }
 
     private static ParsedValue ParseRaw(ColumnInfo column, string text)
