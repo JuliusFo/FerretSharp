@@ -17,7 +17,7 @@
     {
         @switch (Active.Status)
         {
-            case ConnectionStatus.Connected when Shell.ConnectionLost is not null:
+            case ConnectionStatus.Connected when Active.Lost is not null:
                 <span class="item error"><span class="dot err"></span> Verbindung verloren</span>
                 <span class="item">@Active.Profile?.Name</span>
                 <button class="status-btn" @onclick="() => Lifecycle.Reconnect(Active.Profile!)">Neu verbinden</button>
@@ -142,12 +142,12 @@
                 <span class="item tx" title="@ActionsTooltip(edits.Actions)">@(edits.Actions.Count == 1 ? "1 Aktion" : $"{edits.Actions.Count} Aktionen") nicht committet</span>
             }
             <span class="status-group">
-            <button class="status-btn" title="Ausstehende Änderungen schreiben (Ctrl+S) – noch kein Commit" disabled="@(Editing.Busy || edits.Pending == 0)" @onclick="() => Editing.FlushAsync(workspace)">Schreiben</button>
+            <button class="status-btn" title="Ausstehende Änderungen schreiben (Ctrl+S) – noch kein Commit" disabled="@(Editing.IsBusy(workspace.WorkspaceId) || edits.Pending == 0)" @onclick="() => Editing.FlushAsync(workspace)">Schreiben</button>
             <button class="status-btn" title="@(edits.Actions is [.., var last] ? $"Zurücknehmen: {last.Display} ({SourceOf(last)})" : "Nichts zurückzunehmen")"
-                    disabled="@(Editing.Busy || !edits.CanUndo)" @onclick="() => Editing.UndoLastAsync(workspace)">↶</button>
+                    disabled="@(Editing.IsBusy(workspace.WorkspaceId) || !edits.CanUndo)" @onclick="() => Editing.UndoLastAsync(workspace, edits.Actions is [.., var newest] ? newest.Id : null)">↶</button>
             <button class="status-btn" title="Ausstehende Änderungen als SQL anzeigen" disabled="@(edits.Pending == 0)" @onclick="() => Lifecycle.ShowPendingSql(workspace)">SQL</button>
-            <button class="status-btn commit" title="Schreiben und committen (Ctrl+Shift+Enter)" disabled="@Editing.Busy" @onclick="() => Lifecycle.RequestCommitAsync(workspace)">Commit</button>
-            <button class="status-btn danger" title="Alles verwerfen" disabled="@Editing.Busy" @onclick="() => Lifecycle.RequestRollback(workspace)">Rollback</button>
+            <button class="status-btn commit" title="Schreiben und committen (Ctrl+Shift+Enter)" disabled="@Editing.IsBusy(workspace.WorkspaceId)" @onclick="() => Lifecycle.RequestCommitAsync(workspace)">Commit</button>
+            <button class="status-btn danger" title="Alles verwerfen" disabled="@Editing.IsBusy(workspace.WorkspaceId)" @onclick="() => Lifecycle.RequestRollback(workspace)">Rollback</button>
             </span>
         </text>;
     }

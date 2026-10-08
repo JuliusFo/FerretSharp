@@ -55,7 +55,7 @@ public abstract class DetailViewBase<T> : ComponentBase, IDisposable where T : c
         var cts = _cts = new CancellationTokenSource();
         Loading = true;
         Error = null;
-        var result = await Shell.RunDbAsync(LoggerFactory.CreateLogger(GetType()), Active.Profile, () => LoadAsync(schema, cts.Token), cts.Token);
+        var result = await Shell.RunDbAsync(LoggerFactory.CreateLogger(GetType()), Active, () => LoadAsync(schema, cts.Token), cts.Token);
         if (cts.IsCancellationRequested)
         {
             return; // a newer load took over

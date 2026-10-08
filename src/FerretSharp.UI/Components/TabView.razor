@@ -306,7 +306,7 @@
         }
 
         var table = Tab.Table;
-        var result = await Shell.RunDbAsync(Logger, Active.Profile, () => schema.GetDetailsAsync(table, CancellationToken.None));
+        var result = await Shell.RunDbAsync(Logger, Active, () => schema.GetDetailsAsync(table, CancellationToken.None));
         _loadError = result.Error;
         if (result.Succeeded)
         {
@@ -497,7 +497,7 @@
         _countError = null;
         var details = _details;
         var filters = Tab.AppliedFilters;
-        var result = await Shell.RunDbAsync(Logger, Active.Profile, async () =>
+        var result = await Shell.RunDbAsync(Logger, Active, async () =>
         {
             var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, cts.Token);
             return await data.CountAsync(details, filters, cts.Token);

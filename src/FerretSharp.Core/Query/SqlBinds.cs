@@ -60,6 +60,9 @@ public static class SqlBinds
                 return new QueryParameter(name, number, OracleTypeHint.Number);
             case SqlVariableType.Number:
                 throw new SqlBindException(text.Length == 0 ? $":{name}: Zahl fehlt (für NULL den Typ NULL wählen)." : $":{name}: „{text}“ ist keine Zahl.");
+            case SqlVariableType.Date when FilterRules.TryParseDateWithOffset(text, out var stamp, out _) == true:
+                // With an offset (TIMESTAMP WITH TIME ZONE, e.g. from "In SQL-Editor öffnen"): the offset is kept.
+                return new QueryParameter(name, stamp, OracleTypeHint.TimeStampTZ);
             case SqlVariableType.Date when FilterRules.TryParseDate(text, out var date, out _):
                 return new QueryParameter(name, date, date.Ticks % TimeSpan.TicksPerSecond == 0 ? OracleTypeHint.Date : OracleTypeHint.TimeStamp);
             case SqlVariableType.Date:
@@ -149,6 +152,8 @@ public static class SqlBinds
             Convert.ToString(parameter.Value, CultureInfo.InvariantCulture)!),
         DateTime date => new SqlVariable(parameter.Name, SqlVariableType.Date,
             date.ToString(date.Ticks % TimeSpan.TicksPerSecond == 0 ? "yyyy-MM-dd HH:mm:ss" : "yyyy-MM-dd HH:mm:ss.fffffff", CultureInfo.InvariantCulture)),
+        DateTimeOffset stamp => new SqlVariable(parameter.Name, SqlVariableType.Date,
+            stamp.ToString(stamp.Ticks % TimeSpan.TicksPerSecond == 0 ? "yyyy-MM-dd HH:mm:ss zzz" : "yyyy-MM-dd HH:mm:ss.fffffff zzz", CultureInfo.InvariantCulture)),
         byte[] bytes => new SqlVariable(parameter.Name, SqlVariableType.Raw, Convert.ToHexString(bytes)),
         string text => new SqlVariable(parameter.Name, parameter.Type == OracleTypeHint.Char ? SqlVariableType.Char : SqlVariableType.Text, text),
         _ => new SqlVariable(parameter.Name, SqlVariableType.Text, Convert.ToString(parameter.Value, CultureInfo.InvariantCulture) ?? ""),

@@ -96,7 +96,7 @@
         else
         {
             var query = Query;
-            var result = await Shell.RunDbAsync(Logger, Active.Profile, async () =>
+            var result = await Shell.RunDbAsync(Logger, Active, async () =>
                 await (await Workspaces.GetDataAsync(WorkspaceId, CancellationToken.None)).ReadSqlAsync(query, 0, PageSize, CancellationToken.None));
             if (result.Value is not { } first)
             {
@@ -134,7 +134,7 @@
         else
         {
             var query = Query;
-            var result = await Shell.RunDbAsync(Logger, Active.Profile, async () =>
+            var result = await Shell.RunDbAsync(Logger, Active, async () =>
                 await (await Workspaces.GetDataAsync(WorkspaceId, CancellationToken.None)).ReadSqlAsync(query, startRow, endRow - startRow, CancellationToken.None));
             if (result.Value is not { } read)
             {

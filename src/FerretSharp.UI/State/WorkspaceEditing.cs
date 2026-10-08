@@ -67,8 +67,14 @@ public sealed class WorkspaceEditing(
     private readonly Dictionary<Guid, List<(Guid ActionId, TableTab Tab, FlushBatch Batch)>> _batches = [];
     private readonly Dictionary<Guid, HashSet<Guid>> _overwrite = [];
 
-    /// <summary>A write, commit or rollback is running (buttons disabled).</summary>
-    public bool Busy { get; private set; }
+    /// <summary>Workspaces with a write, commit or rollback running (their buttons are disabled).</summary>
+    private readonly HashSet<Guid> _busy = [];
+
+    /// <summary>
+    /// A write, commit or rollback of this workspace is running. Per workspace (WP-24): a slow commit on one connection must
+    /// not silently swallow Ctrl+S in another.
+    /// </summary>
+    public bool IsBusy(Guid workspaceId) => _busy.Contains(workspaceId);
 
     public FlushProblem? Problem { get; private set; }
 
@@ -149,7 +155,8 @@ public sealed class WorkspaceEditing(
     /// Takes back the last write: rollback to its savepoint. A grid write's changes become pending again; a statement's
     /// rows are as before it (the tabs reload, its result says "zurückgenommen").
     /// </summary>
-    public Task<bool> UndoLastAsync(WorkspaceTabs workspace) => RunAsync(workspace, async () =>
+    /// <param name="expected">The action the ↶ button named; refused if another one was written meanwhile.</param>
+    public Task<bool> UndoLastAsync(WorkspaceTabs workspace, Guid? expected = null) => RunAsync(workspace, async () =>
     {
         if (WorkspacesOf(workspace.WorkspaceId).ActionsOf(workspace.WorkspaceId).Count == 0)
         {
@@ -157,7 +164,7 @@ public sealed class WorkspaceEditing(
         }
 
         var editor = await WorkspacesOf(workspace.WorkspaceId).GetEditorAsync(workspace.WorkspaceId, CancellationToken.None);
-        if (await editor.UndoLastAsync(CancellationToken.None) is not { } action)
+        if (await editor.UndoLastAsync(expected, CancellationToken.None) is not { } action)
         {
             return false;
         }
@@ -343,21 +350,20 @@ public sealed class WorkspaceEditing(
 
     private async Task<bool> RunAsync(WorkspaceTabs workspace, Func<Task<bool>> action)
     {
-        if (Busy)
+        if (!_busy.Add(workspace.WorkspaceId))
         {
             return false;
         }
 
-        Busy = true;
         shell.NotifyChanged();
         try
         {
-            var result = await shell.CallDbAsync(logger, ScopeOf(workspace.WorkspaceId).Profile, action);
+            var result = await shell.CallDbAsync(logger, ScopeOf(workspace.WorkspaceId).Active, action);
             return shell.ShowFailure(result) && result.Value;
         }
         finally
         {
-            Busy = false;
+            _busy.Remove(workspace.WorkspaceId);
             shell.NotifyChanged();
         }
     }

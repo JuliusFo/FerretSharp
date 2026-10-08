@@ -95,7 +95,8 @@ FerretSharp.slnx
 │  │  └─ wwwroot/              # css/, js/ (ES-Module), lib/ag-grid, lib/monaco
 │  ├─ FerretSharp.ModelHost/   # Hilfsprozess im Kontext des C#-Projekts des Nutzers (.NET 8, ADR 0009)
 │  └─ FerretSharp.App/         # net10.0-windows10.0.19041.0 – schlanker WPF-Host (Generic Host, Serilog, Host-Dienste)
-├─ tests/FerretSharp.Core.Tests/ (ohne DB), tests/FerretSharp.Integration.Tests/ (Testcontainers, überspringt ohne Docker)
+├─ tests/                      # Core.Tests und UI.Tests (ohne DB; UI.Tests prüfen die State-Klassen ohne Rendern, `TestApp`),
+│                              # Integration.Tests (Testcontainers, überspringt ohne Docker)
 ├─ samples/                    # Beispielmodell (DbContext + Entities) zur Beispiel-DB
 ├─ tools/                      # icon/New-AppIcon.ps1 (App-Icon generiert, nicht von Hand bearbeiten), sample-db/New-SampleDb.ps1
 └─ docs/                       # siehe „Wo steht was“; images/ für README-Screenshots

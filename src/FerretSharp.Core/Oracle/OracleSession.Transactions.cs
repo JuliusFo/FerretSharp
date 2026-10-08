@@ -84,11 +84,11 @@ public sealed partial class OracleSession
 
     /// <summary>Marks a point in the writing transaction that <see cref="RollbackToSavepointAsync"/> returns to.</summary>
     public Task SavepointAsync(string name, CancellationToken cancellationToken) =>
-        InWritingTransactionAsync(name, transaction => transaction.Save(name), cancellationToken);
+        InWritingTransactionAsync(name, "SAVEPOINT " + name, cancellationToken);
 
     /// <summary>Undoes everything since the savepoint; the transaction stays open.</summary>
     public Task RollbackToSavepointAsync(string name, CancellationToken cancellationToken) =>
-        InWritingTransactionAsync(name, transaction => transaction.Rollback(name), cancellationToken);
+        InWritingTransactionAsync(name, "ROLLBACK TO SAVEPOINT " + name, cancellationToken);
 
     /// <summary>Commits the writing transaction.</summary>
     public Task CommitAsync(CancellationToken cancellationToken) =>
@@ -246,27 +246,38 @@ public sealed partial class OracleSession
             ? transaction
             : throw new RefusedException("Es ist keine schreibende Transaktion offen.");
 
-    private Task InWritingTransactionAsync(string savepoint, Action<OracleTransaction> action, CancellationToken cancellationToken)
+    /// <summary>
+    /// Savepoints as statements on the session's transaction, not through <see cref="OracleTransaction.Save"/>/<c>Rollback(name)</c>:
+    /// those block the calling (UI) thread and cannot be cancelled – on a connection that went silent the window froze.
+    /// As commands they run asynchronously, are cancelled on dispose and report a lost connection like any statement.
+    /// The name is checked against <see cref="SavepointName"/>, so the text is safe to build.
+    /// </summary>
+    private Task InWritingTransactionAsync(string savepoint, string sql, CancellationToken cancellationToken)
     {
         if (!SavepointName.IsMatch(savepoint))
         {
             throw new ArgumentException($"Ungültiger Savepoint-Name: {savepoint}", nameof(savepoint));
         }
 
-        return ExclusiveAsync(() =>
+        return ExclusiveAsync(async () =>
         {
-            var transaction = WritingTransaction();
-            return TransactionControlAsync(() =>
-            {
-                action(transaction);
-                return Task.CompletedTask;
-            });
+            _ = WritingTransaction();
+            await RunAsync(sql, [], (command, ct) => command.ExecuteNonQueryAsync(ct), cancellationToken);
         }, cancellationToken);
     }
 
-    /// <summary>Oracle errors of transaction control carry a label instead of a statement, like those of queries.</summary>
-    private static async Task TransactionControlAsync(Func<Task> action)
+    /// <summary>
+    /// Oracle errors of transaction control carry a label instead of a statement, like those of queries. A connection that
+    /// is already closed (ODP.NET closes it after a fatal error and then throws a bare <see cref="InvalidOperationException"/>)
+    /// is reported as lost, like <see cref="CreateCommand"/> does.
+    /// </summary>
+    private async Task TransactionControlAsync(Func<Task> action)
     {
+        if (_connection.State != ConnectionState.Open)
+        {
+            throw new OracleStatementException(TransactionControl, [], null);
+        }
+
         try
         {
             await action();
@@ -274,6 +285,10 @@ public sealed partial class OracleSession
         catch (OracleException ex)
         {
             throw new OracleStatementException(TransactionControl, [], ex);
+        }
+        catch (InvalidOperationException) when (_connection.State != ConnectionState.Open)
+        {
+            throw new OracleStatementException(TransactionControl, [], null);
         }
     }
 }

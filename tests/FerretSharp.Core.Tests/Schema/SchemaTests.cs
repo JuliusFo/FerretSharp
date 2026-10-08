@@ -18,6 +18,7 @@ public class ColumnInfoTests
     [InlineData("NUMBER", null, false, 12, 2, "NUMBER(12,2)")]
     [InlineData("NUMBER", null, false, null, 0, "INTEGER")]
     [InlineData("NUMBER", null, false, null, null, "NUMBER")]
+    [InlineData("NUMBER", null, false, null, 2, "NUMBER(*,2)")]
     [InlineData("TIMESTAMP(6)", null, false, null, 6, "TIMESTAMP(6)")]
     [InlineData("DATE", null, false, null, null, "DATE")]
     public void Display_type_matches_ddl_notation(string type, int? length, bool charSemantics, int? precision, int? scale, string expected)

@@ -201,7 +201,7 @@ public static class SchemaDiff
             .Where(i => i.IndexType != "IOT - TOP")
             .Select(i => new Item<IndexInfo>(
                 i.Name,
-                i.Name.StartsWith("SYS_", StringComparison.Ordinal),
+                i.GeneratedName,
                 CompareDefinitions.IndexSignature(i),
                 CompareDefinitions.IndexDescription(i),
                 CompareDefinitions.Index(i),

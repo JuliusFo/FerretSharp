@@ -25,8 +25,8 @@ public sealed class WorkspaceLifecycle(
 
     private ConnectionScope ScopeOf(Guid workspaceId) => hub.OwnerOf(workspaceId) ?? hub.Shown;
 
-    /// <summary>"Neu verbinden" after a loss: the old transactions no longer exist, there is nothing to ask about.</summary>
-    private bool _connectionGone;
+    /// <summary>The workspace's connection was found lost: its transaction is gone, there is nothing left to ask about.</summary>
+    private bool IsLost(Guid workspaceId) => ScopeOf(workspaceId).Lost is not null;
 
     public WorkspaceEditing Editing => editing;
 
@@ -54,7 +54,7 @@ public sealed class WorkspaceLifecycle(
     public async Task UnlockAsync(Guid workspaceId)
     {
         shell.CloseUnlock();
-        if (!shell.ShowFailure(await shell.RunDbAsync(logger, ScopeOf(workspaceId).Profile, () => ScopeOf(workspaceId).Workspaces.UnlockAsync(workspaceId, CancellationToken.None))))
+        if (!shell.ShowFailure(await shell.RunDbAsync(logger, ScopeOf(workspaceId).Active, () => ScopeOf(workspaceId).Workspaces.UnlockAsync(workspaceId, CancellationToken.None))))
         {
             return;
         }
@@ -90,7 +90,7 @@ public sealed class WorkspaceLifecycle(
     public Task LockAsync(Guid workspaceId) =>
         GuardAsync("Workspace sperren", [workspaceId], async () =>
         {
-            if (shell.ShowFailure(await shell.RunDbAsync(logger, ScopeOf(workspaceId).Profile, () => ScopeOf(workspaceId).Workspaces.LockAsync(workspaceId, CancellationToken.None))))
+            if (shell.ShowFailure(await shell.RunDbAsync(logger, ScopeOf(workspaceId).Active, () => ScopeOf(workspaceId).Workspaces.LockAsync(workspaceId, CancellationToken.None))))
             {
                 shell.Notify($"Workspace „{WorkspaceName(workspaceId)}“ ist wieder schreibgeschützt.");
             }
@@ -99,7 +99,7 @@ public sealed class WorkspaceLifecycle(
     /// <summary>Commits right away, on Prod only after a confirmation.</summary>
     public Task RequestCommitAsync(WorkspaceTabs workspace)
     {
-        if (!IsProd)
+        if (ScopeOf(workspace.WorkspaceId).Profile?.Kind != ConnectionKind.Prod)
         {
             return editing.CommitAsync(workspace);
         }
@@ -150,11 +150,14 @@ public sealed class WorkspaceLifecycle(
     public Task GuardAsync(string what, IReadOnlyList<Guid> workspaceIds, Func<Task> then) =>
         GuardAsync(what, shell.AllWorkspaces.Where(w => workspaceIds.Contains(w.WorkspaceId)).ToList(), then);
 
-    /// <summary>Asks before <paramref name="then"/> if workspaces have uncommitted work; runs it right away otherwise.</summary>
+    /// <summary>
+    /// Asks before <paramref name="then"/> if workspaces have uncommitted work; runs it right away otherwise. Workspaces of a
+    /// lost connection are left out: their transactions are gone, committing is impossible (each connection on its own, WP-24).
+    /// </summary>
     public Task GuardAsync(string what, IReadOnlyList<WorkspaceTabs> scope, Func<Task> then)
     {
-        var withWork = scope.Where(w => editing.SummaryOf(w).HasWork).Select(w => w.WorkspaceId).ToList();
-        if (withWork.Count == 0 || shell.ConnectionLost is not null || _connectionGone)
+        var withWork = scope.Where(w => !IsLost(w.WorkspaceId) && editing.SummaryOf(w).HasWork).Select(w => w.WorkspaceId).ToList();
+        if (withWork.Count == 0)
         {
             return then();
         }
@@ -233,7 +236,6 @@ public sealed class WorkspaceLifecycle(
     /// </summary>
     public Task ConnectAsync(ConnectionProfile profile)
     {
-        _connectionGone = false;
         SaveTabs();
         if (hub.Find(profile.Id) is { Lost: not null } lost)
         {
@@ -252,7 +254,6 @@ public sealed class WorkspaceLifecycle(
     /// </summary>
     public void Reconnect(ConnectionProfile profile)
     {
-        _connectionGone = true;
         if (hub.Find(profile.Id) is not { } scope)
         {
             shell.Connect(profile);
@@ -265,8 +266,7 @@ public sealed class WorkspaceLifecycle(
         }
 
         SaveTabs();
-        scope.Lost = null;
-        shell.ClearConnectionLost();
+        scope.Active.ClearLost();
         shell.ClearWorkspaces(scope.Id);
         hub.Show(scope);
         shell.ShowExplorer();
@@ -296,7 +296,7 @@ public sealed class WorkspaceLifecycle(
     }
 
     /// <summary>Quitting with uncommitted work in any open connection asks first (the window's closing handler, <see cref="ExitGuard"/>).</summary>
-    public bool CanExit => editing.WithWork().Count == 0 || shell.ConnectionLost is not null;
+    public bool CanExit => editing.WithWork().All(w => IsLost(w.WorkspaceId));
 
     public Task RequestExitAsync(Action approve) =>
         GuardAsync("FerretSharp beenden", shell.AllWorkspaces, () =>
@@ -310,11 +310,6 @@ public sealed class WorkspaceLifecycle(
     private async Task DisconnectCoreAsync(ConnectionScope scope)
     {
         SaveTabs();
-        if (hub.Current == scope)
-        {
-            shell.ClearConnectionLost();
-        }
-
         foreach (var workspace in WorkspacesOf(scope))
         {
             editing.Forget(workspace.WorkspaceId);

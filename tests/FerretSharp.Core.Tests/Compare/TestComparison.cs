@@ -6,7 +6,7 @@ namespace FerretSharp.Core.Tests.Compare;
 /// <summary>
 /// Builds comparisons for the DDL tests the way <see cref="SchemaDiff"/> describes them: rows per object with columns,
 /// constraints and indexes as children, names exact (other case as <see cref="CellState.OtherCase"/>), generated
-/// constraint and index names (<c>SYS_C…</c>) matched by content. Deliberately small – not the real <see cref="SchemaDiff"/>.
+/// constraint (<c>SYS_C…</c>) and index names (<c>SYS_…</c>) matched by content. Deliberately small – not the real <see cref="SchemaDiff"/>.
 /// Also linked into the integration tests.
 /// </summary>
 public static class TestComparison
@@ -41,7 +41,7 @@ public static class TestComparison
                     KindOf);
                 var indexes = Rows(
                     items.Select(o => (o?.Indexes ?? []).Select(i =>
-                        (Key: Generated(i.Name) ? IndexDefinition(i) : i.Name, Name: Generated(i.Name) ? IndexDefinition(i) : i.Name, Item: i))).ToList(),
+                        (Key: i.GeneratedName ? IndexDefinition(i) : i.Name, Name: i.GeneratedName ? IndexDefinition(i) : i.Name, Item: i))).ToList(),
                     IndexDefinition,
                     (cell, i) => cell with { Index = i },
                     reference,

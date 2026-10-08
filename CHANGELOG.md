@@ -5,6 +5,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Fixed
+- Several open connections: a lost session is now tracked per connection. Before, a connection lost in the background showed the banner on the healthy one shown – whose "Neu verbinden" then dropped its open transaction without asking –, and after one "Neu verbinden" closing, locking, disconnecting or quitting no longer asked about uncommitted changes at all.
+- Quitting with uncommitted changes in a connection in the background failed with an error instead of asking.
+- Reloading the schema of one connection closed tabs of another connection whose tables it does not have.
+- The column picker of the filter bar never showed C# property names.
+- SQL editor: pressing Ctrl+Enter (or Alt+X, or the button) again right after starting could run the statements twice.
+- Writing in the grid while a SQL or LINQ statement of the same workspace was running could fail ("bereits eine Transaktion offen") or lose a step of the undo list; ↶ during a running statement could take back the wrong step. ↶ now takes back exactly what its tooltip names, or says that something was written meanwhile.
+- Undo and writing no longer freeze the window on a connection that went silent; a connection lost during a writing transaction is reported as lost on undo and commit.
+- Schema comparison: `NUMBER(*,2)` and `NUMBER` counted as equal; indexes from automatic indexing (`SYS_AI_…`) got rename hints or copied generated names in the DDL proposal.
+- "In SQL-Editor öffnen" for a statement on a TIMESTAMP WITH TIME ZONE column: the value became a text variable. Date variables now also take an offset (`2026-10-08 12:00:00 +02:00`).
+- LOB dialog: a file that cannot be written or read (open in another program, no permission) is reported in the dialog instead of replacing the tab with an error.
+- Quitting with several open connections: the workspaces of all of them are saved before the sessions close, so one hanging connection no longer keeps the others' tabs from being saved.
+- A slow commit in one workspace no longer blocks writing and committing in the others.
+- Saved schema comparisons of a newer FerretSharp version are no longer overwritten.
+
 ## [3.14.0] - 2026-10-08
 
 ### Added

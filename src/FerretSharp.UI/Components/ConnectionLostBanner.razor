@@ -2,7 +2,7 @@
 @using FerretSharp.Core.Connections
 @using FerretSharp.UI.State
 
-@if (Shell.ConnectionLost is { } lost && Active.IsConnected && Active.Profile is { } profile)
+@if (Active.Lost is { } lost && Active.IsConnected && Active.Profile is { } profile)
 {
     <div class="lost-banner" role="alert">
         <span class="dot err"></span>

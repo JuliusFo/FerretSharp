@@ -446,7 +446,7 @@ internal sealed class DdlWriter(int referenceSide, int targetSide, string refere
     }
 
     /// <summary>
-    /// Indexes need a name. An index whose name Oracle generated in the reference (<c>SYS_C…</c>, e.g. left behind by a
+    /// Indexes need a name. An index whose name Oracle generated in the reference (<c>SYS_…</c>, e.g. left behind by a
     /// dropped key) gets a readable one instead of copying the generated name, which could clash with a later one.
     /// </summary>
     private static string IndexName(ObjectSnapshot table, IndexInfo index)
@@ -537,7 +537,7 @@ internal sealed class DdlWriter(int referenceSide, int targetSide, string refere
     private static bool SameColumns(IndexInfo a, IndexInfo b) =>
         a.Columns.Count == b.Columns.Count && a.Columns.Zip(b.Columns).All(p => p.First == p.Second);
 
-    private static bool IsGeneratedName(string name) => name.StartsWith("SYS_C", StringComparison.Ordinal);
+    private static bool IsGeneratedName(string name) => IndexInfo.IsGenerated(name);
 
     private static bool Widens(ColumnInfo reference, ColumnInfo target) =>
         reference.DataType == target.DataType && reference.CharSemantics == target.CharSemantics

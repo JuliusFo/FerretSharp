@@ -196,9 +196,6 @@
     /// <summary>Per open connection the handler subscribed to its events (WP-24), to unsubscribe when it closes.</summary>
     private readonly Dictionary<ConnectionScope, Action> _subscribed = [];
 
-    /// <summary>The connection shown at the last switch: its lost state is kept while another one is shown.</summary>
-    private ConnectionScope? _lastShown;
-
     /// <summary>Where settings or the schema comparison were opened from, to go back there.</summary>
     private ShellPage _pageBefore = ShellPage.Connections;
 
@@ -309,8 +306,8 @@
     private void OnConnectRequested(ConnectionProfile profile) => InvokeAsync(() => _lifecycle.ConnectAsync(profile));
 
     /// <summary>
-    /// A connection was opened, closed or shown (WP-24): follow its events, and on a switch let the tabs and the lost
-    /// banner follow the shown connection.
+    /// A connection was opened, closed or shown (WP-24): follow its events, and on a switch let the tabs follow the shown
+    /// connection (the lost banner reads the shown connection's own state).
     /// </summary>
     private void OnHubChanged() => InvokeAsync(() =>
     {
@@ -333,16 +330,9 @@
             Unsubscribe(scope, handler);
         }
 
-        if (_lastShown != Hub.Current)
+        if (_state.CurrentConnection != Hub.Current?.Id)
         {
-            if (_lastShown is not null && open.Contains(_lastShown))
-            {
-                _lastShown.Lost = _state.ConnectionLost;
-            }
-
-            _lastShown = Hub.Current;
             _state.ShowConnection(Hub.Current?.Id);
-            _state.RestoreConnectionLost(Hub.Current?.Lost);
         }
 
         StateHasChanged();
@@ -378,18 +368,13 @@
     });
 
     /// <summary>
-    /// The keep-alive found a session gone: for the shown connection the same banner as a failed query, without waiting
-    /// for the next click; a connection in the background is marked in the switcher.
+    /// The keep-alive found a session gone: the same banner as a failed query, without waiting for the next click (a
+    /// connection in the background is marked in the switcher and shows the banner once it is shown).
     /// </summary>
     private void OnKeepAliveLost(ActiveConnection connection, DatabaseException error) => InvokeAsync(() =>
     {
-        if (Hub.Current?.Active == connection)
+        if (connection.ReportLost(error))
         {
-            _state.ReportFailure(error);
-        }
-        else if (Hub.Open.FirstOrDefault(s => s.Active == connection) is { } scope)
-        {
-            scope.Lost ??= error;
             StateHasChanged();
         }
     });

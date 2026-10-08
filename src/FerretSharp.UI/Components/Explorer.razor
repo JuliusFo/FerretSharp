@@ -69,6 +69,10 @@
     [CascadingParameter]
     public ActiveConnection Active { get; set; } = null!;
 
+    /// <summary>The connection this explorer belongs to: a schema refresh only touches its workspaces' tabs.</summary>
+    [CascadingParameter]
+    public ConnectionScope Scope { get; set; } = null!;
+
     [CascadingParameter]
     public PresentationService Presentation { get; set; } = null!;
 
@@ -144,11 +148,11 @@
 
         _refreshing = true;
         _refreshError = null;
-        var result = await Shell.RunDbAsync(Logger, Active.Profile, () => schema.RefreshAsync(CancellationToken.None));
+        var result = await Shell.RunDbAsync(Logger, Active, () => schema.RefreshAsync(CancellationToken.None));
         _refreshing = false;
         if (result.Succeeded)
         {
-            Shell.RemoveTabsWhere(tab => schema.Find(tab.Table.Ref) is null);
+            Shell.RemoveTabsWhere(Scope.Id, tab => schema.Find(tab.Table.Ref) is null);
         }
 
         _refreshError = result.Error?.Display;
