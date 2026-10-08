@@ -28,7 +28,7 @@ public sealed class SettingsStore(string filePath)
             }
 
             await using var stream = File.OpenRead(FilePath);
-            var document = await JsonSerializer.DeserializeAsync<SettingsDocument>(stream, ConnectionStore.JsonOptions, cancellationToken);
+            var document = await JsonSerializer.DeserializeAsync<SettingsDocument>(stream, JsonFiles.Options, cancellationToken);
             if (document?.Settings is null)
             {
                 throw new SettingsStoreException($"{FilePath} ist leer.");
@@ -56,7 +56,7 @@ public sealed class SettingsStore(string filePath)
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            await AtomicJsonFile.WriteAsync(FilePath, new SettingsDocument(CurrentVersion, settings), ConnectionStore.JsonOptions, cancellationToken);
+            await AtomicJsonFile.WriteAsync(FilePath, new SettingsDocument(CurrentVersion, settings), JsonFiles.Options, cancellationToken);
         }
         finally
         {

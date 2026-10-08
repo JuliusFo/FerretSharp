@@ -4,7 +4,6 @@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
-@using FerretSharp.UI.State
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 
@@ -52,7 +51,10 @@
     private string? _lastQuery;
     private int _highlight;
     private bool _scrollToHighlight;
-    private IJSObjectReference? _dom;
+    private DomModule? _dom;
+
+    /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
+    private DomModule Dom => _dom ??= new(JS);
 
     [Parameter, EditorRequired]
     public TableDetails Details { get; set; } = null!;
@@ -95,8 +97,7 @@
         if (_scrollToHighlight && _matches.Count > 0)
         {
             _scrollToHighlight = false;
-            _dom ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
-            await _dom.InvokeVoidAsync("scrollIntoViewById", ItemId(_highlight));
+            await Dom.InvokeVoidAsync("scrollIntoViewById", ItemId(_highlight));
         }
     }
 
@@ -136,15 +137,6 @@
 
     public async ValueTask DisposeAsync()
     {
-        if (_dom is not null)
-        {
-            try
-            {
-                await _dom.DisposeAsync();
-            }
-            catch (JSDisconnectedException)
-            {
-            }
-        }
+        await Dom.DisposeAsync();
     }
 }

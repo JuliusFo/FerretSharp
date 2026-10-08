@@ -21,7 +21,10 @@
 </div>
 
 @code {
-    private IJSObjectReference? _dom;
+    private DomModule? _dom;
+
+    /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
+    private DomModule Dom => _dom ??= new(JS);
     private bool _copied;
     private bool _disposed;
 
@@ -74,13 +77,12 @@
     {
         try
         {
-            _dom ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
             if (_disposed)
             {
                 return;
             }
 
-            if (!await _dom.InvokeAsync<bool>("copyText", Sql))
+            if (!await Dom.CopyTextAsync(Sql))
             {
                 Shell?.Notify("Die Zwischenablage ist nicht verfügbar.");
                 return;
@@ -104,16 +106,7 @@
     public async ValueTask DisposeAsync()
     {
         _disposed = true;
-        if (_dom is not null)
-        {
-            try
-            {
-                await _dom.DisposeAsync();
-            }
-            catch (JSDisconnectedException)
-            {
-            }
-        }
+        await Dom.DisposeAsync();
     }
 
     private static List<(string Text, string? Css)> Highlight(string sql)

@@ -1,7 +1,6 @@
 @* The badge at the top right (R2, out of Shell.razor): READ-ONLY / BEARBEITBAR, on read-only profiles a switch for the
    lock of the active workspace (WP-10). *@
 @using FerretSharp.Core.Connections
-@using FerretSharp.UI.State
 
 @if (Active.Profile is { } profile && Active.Status != ConnectionStatus.Disconnected)
 {

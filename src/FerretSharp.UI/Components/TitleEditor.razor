@@ -9,10 +9,12 @@
 
 @code {
     private ElementReference _input;
-    private IJSObjectReference? _dom;
+    private DomModule? _dom;
+
+    /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
+    private DomModule Dom => _dom ??= new(JS);
     private string _text = "";
     private bool _done;
-    private bool _disposed;
 
     [Parameter, EditorRequired]
     public string Value { get; set; } = "";
@@ -34,14 +36,7 @@
         if (firstRender)
         {
             // Select the whole name, so typing replaces it.
-            _dom = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
-            if (_disposed)
-            {
-                await _dom.DisposeAsync(); // closed while the module loaded
-                return;
-            }
-
-            await _dom.InvokeVoidAsync("focusAndSelect", _input);
+            await Dom.InvokeVoidAsync("focusAndSelect", _input);
         }
     }
 
@@ -69,16 +64,6 @@
 
     public async ValueTask DisposeAsync()
     {
-        _disposed = true;
-        if (_dom is not null)
-        {
-            try
-            {
-                await _dom.DisposeAsync();
-            }
-            catch (JSDisconnectedException)
-            {
-            }
-        }
+        await Dom.DisposeAsync();
     }
 }

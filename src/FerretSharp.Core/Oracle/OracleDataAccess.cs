@@ -160,7 +160,7 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
         }
 
         return new ColumnInfo(reader.GetName(ordinal), dataType,
-            dataType is "VARCHAR2" or "NVARCHAR2" or "CHAR" or "NCHAR" or "RAW" ? size : null, CharSemantics: false,
+            OracleTypes.HasLength(dataType) ? size : null, CharSemantics: false,
             dataType is "NUMBER" ? precision : null, dataType is "NUMBER" or "FLOAT" ? (scale is < 0 ? null : scale) : scale,
             Nullable: schema?["AllowDBNull"] is not false, IsIdentity: false, Default: null, Position: ordinal + 1);
     }
@@ -282,11 +282,16 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
     internal static string NormalizeDecimalSeparator(string text) =>
         text.Contains(',', StringComparison.Ordinal) ? text.Replace(',', '.') : text;
 
-    /// <summary>decimal when it holds the exact value, otherwise <see cref="BigNumber"/> (NUMBER has up to 38 digits).</summary>
+    /// <summary>
+    /// decimal when it holds the exact value, otherwise <see cref="BigNumber"/>: NUMBER has up to 38 significant digits, and
+    /// a tiny value may have more than the 28 decimal places of decimal (0.000…0001 would round to 0).
+    /// </summary>
     internal static object ToNumber(string invariant)
     {
         var digits = invariant.Count(char.IsAsciiDigit) - LeadingZeros(invariant);
-        return digits <= MaxDecimalDigits && decimal.TryParse(invariant, NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
+        var places = invariant.IndexOf('.', StringComparison.Ordinal) is >= 0 and var dot ? invariant.Length - dot - 1 : 0;
+        return digits <= MaxDecimalDigits && places <= MaxDecimalDigits && !invariant.Contains('E', StringComparison.OrdinalIgnoreCase)
+               && decimal.TryParse(invariant, NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
             ? value
             : new BigNumber(invariant);
     }
@@ -309,16 +314,6 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
         return count;
     }
 
-    private static int IndexOf(TableDetails table, string column)
-    {
-        for (var i = 0; i < table.Columns.Count; i++)
-        {
-            if (table.Columns[i].Name == column)
-            {
-                return i;
-            }
-        }
-
-        throw new InvalidOperationException($"Primary key column {column} not in column list.");
-    }
+    private static int IndexOf(TableDetails table, string column) =>
+        table.IndexOf(column) is >= 0 and var index ? index : throw new InvalidOperationException($"Primary key column {column} not in column list.");
 }

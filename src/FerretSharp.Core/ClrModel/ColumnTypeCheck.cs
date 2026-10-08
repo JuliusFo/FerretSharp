@@ -189,13 +189,13 @@ public static class ColumnTypeCheck
     private static (MismatchSeverity Severity, string Message)? LengthProblem(StoredKind kind, PropertyExport property, ColumnInfo column)
     {
         if (property.MaxLength is not { } maxLength || column.Length is not { } length
-            || !(kind is StoredKind.Text or StoredKind.Char && column.DataType is "VARCHAR2" or "NVARCHAR2" or "CHAR" or "NCHAR"
+            || !(kind is StoredKind.Text or StoredKind.Char && OracleTypes.IsCharacter(column.DataType)
                  || kind == StoredKind.Bytes && column.DataType == "RAW"))
         {
             return null;
         }
 
-        var bytes = column.DataType is "VARCHAR2" or "CHAR" && !column.CharSemantics || column.DataType == "RAW";
+        var bytes = OracleTypes.LengthInBytes(column);
         var unit = column.DataType == "RAW" ? "Byte" : "Zeichen";
         if (maxLength > length)
         {

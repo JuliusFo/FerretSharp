@@ -2,20 +2,18 @@
 @using FerretSharp.Core.Data
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
-@using FerretSharp.UI.State
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject IFileSaveService Files
 
-<div class="popover-backdrop" @onclick="CloseAsync" @oncontextmenu="CloseAsync" @oncontextmenu:preventDefault="true"></div>
-<div id="@_id" class="popover ctx-menu" style="@Position" tabindex="-1" @onkeydown="OnKeyDown" @oncontextmenu:preventDefault="true">
+<PopoverMenu X="Request.X" Y="Request.Y" ViewportWidth="Request.ViewportWidth" ViewportHeight="Request.ViewportHeight" OnClose="CloseAsync">
     <div class="ctx-head">
         <span class="ctx-col">@Column.Name</span>
         <span class="ctx-value @(Request.CellText is null ? "fs-null" : "")">@(Request.CellText ?? "NULL")</span>
     </div>
-    <button class="menu-item" disabled="@(Request.CellText is null)" @onclick="CopyValueAsync">Wert kopieren</button>
+    <button class="menu-item" disabled="@(Request.CellText is null)" @onclick="() => Export.CopyValueAsync(Column, Request.Row.Values[Request.Column])">Wert kopieren</button>
 
-    <div class="group-head-btn static">Export · @RowsText(Request.Selected.Count)</div>
+    <div class="group-head-btn static">Export · @ExportActions.RowsText(Request.Selected.Count)</div>
     <button class="menu-item" title="Tabulator-getrennt mit Kopfzeile – lässt sich direkt in Excel einfügen" @onclick="CopyTableAsync">Als Tabelle kopieren</button>
     <button class="menu-item" disabled="@(InsertTarget is null)" @onclick="CopyInsertAsync"
             title="@(InsertTarget is { } target
@@ -24,13 +22,16 @@
         Als INSERT kopieren
     </button>
     <button class="menu-item" title="Semikolon-getrennt, UTF-8 – öffnet sich direkt in Excel" @onclick="SaveCsvAsync">Als CSV speichern …</button>
-</div>
+</PopoverMenu>
 
 @code {
-    private const double MenuWidth = 320;
+    private DomModule? _dom;
+    private ExportActions? _export;
 
-    private readonly string _id = "resultmenu-" + Guid.NewGuid().ToString("N");
-    private IJSObjectReference? _dom;
+    /// <summary>dom.js for the clipboard, imported on first use (<see cref="DomModule"/>).</summary>
+    private DomModule Dom => _dom ??= new(JS);
+
+    private ExportActions Export => _export ??= new(Shell, Dom, Files, Request.MissingRows, CloseAsync);
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -55,99 +56,17 @@
 
     private ColumnInfo Column => Result.Columns[Request.Column];
 
-    private string Position
-    {
-        get
-        {
-            var left = Math.Max(8, Math.Min(Request.X, Request.ViewportWidth - MenuWidth - 8));
-            var top = Math.Max(8, Math.Min(Request.Y, Request.ViewportHeight - 230));
-            return FormattableString.Invariant($"position: fixed; left: {left:0}px; top: {top:0}px; width: {MenuWidth:0}px;");
-        }
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            _dom = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
-            await _dom.InvokeVoidAsync("focusById", _id); // Escape closes
-            await _dom.InvokeVoidAsync("keepInViewport", _id);
-        }
-    }
-
-    private static string RowsText(int rows) => rows == 1 ? "1 Zeile" : $"{rows:N0} Zeilen";
-
-    private async Task CopyValueAsync()
-    {
-        var cell = DelimitedExport.CellText(Column, Request.Row.Values[Request.Column]);
-        var copied = _dom is not null && await _dom.InvokeAsync<bool>("copyText", cell.Text);
-        var shell = Shell;
-        await CloseAsync();
-        if (!copied || cell.Warnings.Count > 0)
-        {
-            shell.Notify(copied ? "Wert nicht vollständig kopiert." : "Die Zwischenablage ist nicht verfügbar.", cell.Warnings);
-        }
-    }
-
     private Task CopyTableAsync() =>
-        CopyExportAsync(DelimitedExport.Build(Result, Request.Selected, DelimitedExport.ClipboardSeparator), "als Tabelle kopiert");
+        Export.CopyAsync(DelimitedExport.Build(Result, Request.Selected, DelimitedExport.ClipboardSeparator), "als Tabelle kopiert");
 
     private Task CopyInsertAsync() => InsertTarget is { } target
-        ? CopyExportAsync(InsertExport.Build(Result with { Table = target }, Request.Selected), "als INSERT kopiert")
+        ? Export.CopyAsync(InsertExport.Build(Result with { Table = target }, Request.Selected), "als INSERT kopiert")
         : Task.CompletedTask;
 
-    private async Task CopyExportAsync(ExportText export, string done)
-    {
-        var copied = _dom is not null && await _dom.InvokeAsync<bool>("copyText", export.Text);
-        var shell = Shell;
-        await CloseAsync();
-        shell.Notify(copied ? $"{RowsText(export.Rows)} {done}." : "Die Zwischenablage ist nicht verfügbar.", Warnings(export));
-    }
-
-    /// <summary>The menu closes first; the native dialog is modal.</summary>
-    private async Task SaveCsvAsync()
-    {
-        var export = DelimitedExport.Build(Result, Request.Selected, DelimitedExport.CsvSeparator);
-        var shell = Shell;
-        await CloseAsync();
-        try
-        {
-            if (await Files.SaveTextAsync(ExportName + ".csv", "CSV (Semikolon)", export.Text, utf8Bom: true) is { } path)
-            {
-                shell.Notify($"{RowsText(export.Rows)} gespeichert: {path}", Warnings(export));
-            }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            shell.Notify($"Speichern fehlgeschlagen: {ex.Message}");
-        }
-    }
-
-    private IReadOnlyList<string> Warnings(ExportText export) => Request.MissingRows == 0
-        ? export.Warnings
-        : [.. export.Warnings, $"{RowsText(Request.MissingRows)} der Auswahl nicht mehr geladen – nicht exportiert."];
-
-    private async Task OnKeyDown(KeyboardEventArgs e)
-    {
-        if (e.Key == "Escape")
-        {
-            await CloseAsync();
-        }
-    }
+    private Task SaveCsvAsync() =>
+        Export.SaveAsync(DelimitedExport.Build(Result, Request.Selected, DelimitedExport.CsvSeparator), ExportName + ".csv", "CSV (Semikolon)", utf8Bom: true);
 
     private Task CloseAsync() => OnClose.InvokeAsync();
 
-    public async ValueTask DisposeAsync()
-    {
-        if (_dom is not null)
-        {
-            try
-            {
-                await _dom.DisposeAsync();
-            }
-            catch (JSDisconnectedException)
-            {
-            }
-        }
-    }
+    public ValueTask DisposeAsync() => Dom.DisposeAsync();
 }

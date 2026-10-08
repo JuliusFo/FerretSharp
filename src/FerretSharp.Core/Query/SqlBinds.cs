@@ -22,7 +22,7 @@ public enum SqlVariableType
 public sealed record SqlVariable(string Name, SqlVariableType Type, string Value);
 
 /// <summary>A variable whose value does not fit its type, or one that is missing.</summary>
-public sealed class SqlBindException(string message) : Exception(message);
+public sealed class SqlBindException(string message) : Connections.RefusedException(message);
 
 /// <summary>
 /// Bind variables of the free SQL editor (WP-17): values as typed (German or invariant numbers, German or ISO dates, as

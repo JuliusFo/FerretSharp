@@ -4,7 +4,6 @@
 @using FerretSharp.Core.Data
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
-@using FerretSharp.UI.State
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject ILogger<SqlResultGrid> Logger
@@ -97,7 +96,7 @@
         {
             var query = Query;
             var result = await Shell.RunDbAsync(Logger, Active, async () =>
-                await (await Workspaces.GetDataAsync(WorkspaceId, CancellationToken.None)).ReadSqlAsync(query, 0, PageSize, CancellationToken.None));
+                await Workspaces.ReadSqlAsync(WorkspaceId, query, 0, PageSize, CancellationToken.None));
             if (result.Value is not { } first)
             {
                 await Status(new SqlGridStatus(false, 0, false, null, null, result.Error));
@@ -135,7 +134,7 @@
         {
             var query = Query;
             var result = await Shell.RunDbAsync(Logger, Active, async () =>
-                await (await Workspaces.GetDataAsync(WorkspaceId, CancellationToken.None)).ReadSqlAsync(query, startRow, endRow - startRow, CancellationToken.None));
+                await Workspaces.ReadSqlAsync(WorkspaceId, query, startRow, endRow - startRow, CancellationToken.None));
             if (result.Value is not { } read)
             {
                 await Status(new SqlGridStatus(false, _rowsLoaded, false, null, null, result.Error));

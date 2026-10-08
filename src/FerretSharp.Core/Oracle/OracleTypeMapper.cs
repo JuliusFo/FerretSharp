@@ -57,7 +57,7 @@ public static class OracleTypeMapper
     /// <summary>VARCHAR2/NVARCHAR2/CHAR/NCHAR, NUMBER/FLOAT/INTEGER, DATE, TIMESTAMP (also WITH [LOCAL] TIME ZONE), RAW.</summary>
     public static bool IsEditableType(ColumnInfo column) => ColumnCategories.Of(column) switch
     {
-        ColumnCategory.Text => column.DataType is "VARCHAR2" or "NVARCHAR2" or "CHAR" or "NCHAR",
+        ColumnCategory.Text => OracleTypes.IsCharacter(column.DataType),
         ColumnCategory.Number => column.DataType is "NUMBER" or "FLOAT" or "INTEGER",
         ColumnCategory.Date or ColumnCategory.Timestamp or ColumnCategory.TimestampWithTimeZone or ColumnCategory.Raw => true,
         _ => false,
@@ -172,7 +172,7 @@ public static class OracleTypeMapper
         }
 
         // BYTE semantics count bytes of the database character set; AL32UTF8 is assumed (Oracle reports ORA-12899 otherwise).
-        var byteSemantics = column.DataType is "VARCHAR2" or "CHAR" && !column.CharSemantics;
+        var byteSemantics = OracleTypes.LengthInBytes(column);
         var length = byteSemantics ? Encoding.UTF8.GetByteCount(text) : text.Length;
         return length <= max
             ? ParsedValue.Ok(text)

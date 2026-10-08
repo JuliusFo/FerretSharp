@@ -1,6 +1,5 @@
 @* The banner when the connection is gone (R2, out of Shell.razor): what was lost, reconnect, details, disconnect. *@
 @using FerretSharp.Core.Connections
-@using FerretSharp.UI.State
 
 @if (Active.Lost is { } lost && Active.IsConnected && Active.Profile is { } profile)
 {

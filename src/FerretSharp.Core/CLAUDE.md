@@ -24,6 +24,7 @@ Wird automatisch geladen, sobald Dateien unter `src/FerretSharp.Core/` gelesen w
 - **ODP.NET (managed, 23.26) verliert die Session, wenn `ActionName`/`ClientInfo` Nicht-ASCII enthalten**: Der nächste Roundtrip endet mit ORA-12537, die Connection ist weg (schon ein einzelnes „Ä“ reicht; per Integrationstest gefunden). `OracleSession.ToSessionAttribute` transliteriert deshalb (ä → ae, ß → ss, é → e, – → -, sonst `?`) und kürzt auf 64 Zeichen. Gilt für jeden Wert, der in MODULE/ACTION/CLIENT_INFO landet.
 - Alles async mit `CancellationToken`; Abbruch löst `OracleCommand.Cancel()` aus (Token-Registration). Lang laufende Abfragen (`COUNT(*)`, FK-Counts) sind in der UI abbrechbar.
 - Verbindungsabbruch (Idle-Timeout, Firewall, `IDLE_TIME`-Profil) erkennen und laut melden. Seit v1.6 pingt `ConnectionKeepAlive` alle 2 min die Sessions, die mindestens 1 min ruhten (laufende werden übersprungen, Ping-Timeout 30 s), und meldet einen Abbruch sofort über das Banner. Abschaltbar in den Einstellungen (`AppSettings.KeepAlive`; alle Einstellungen laufen über `AppSettingsService`, damit sich Änderungen nicht gegenseitig überschreiben). Nebenwirkung, vom Nutzer so entschieden: Die Sessions bleiben auch gegen ein `IDLE_TIME`-Limit offen – in v2 bei offenen Transaktionen neu bewerten. In v2 gehen dabei uncommittete Änderungen verloren → das muss der Nutzer klar sehen.
+- Das Gate der Session (ein Aufrufer zur Zeit, Schließen lässt alle sofort los, Arbeit, die den Abbruch ignoriert, behält das Gate bis zum Ende) ist `SessionGate` – mit Unit-Tests ohne DB (R3b). `OracleSession` steckt nur die Oracle-Fehlerübersetzung und die Roundtrip-Zeit hinein.
 - `OracleSession` ist der einzige Besitzer der Connection: Dispose bricht das laufende Kommando ab und wartet auf das Gate; alle Aufrufer (auch der des laufenden Kommandos) bekommen sofort `OperationCanceledException`. ODP.NET schließt eine Connection **synchron** und blockiert auf einer still gewordenen Verbindung (VPN) bis TCP aufgibt – deshalb nie auf dem UI-Thread: Ignoriert das Kommando den Abbruch, behält es das Gate, und die Connection schließt im Hintergrund. Nachstellen ohne VPN: TCP-Proxy vor dem Test-Container, der auf Kommando alle Daten verwirft. Die Statement-Sperren (`StatementGuard`) nutzen den Tokenizer des SQL-Editors (`SqlScript.Tokenize`).
 
 **Transaktionen (v2)**
@@ -33,6 +34,12 @@ Wird automatisch geladen, sobald Dateien unter `src/FerretSharp.Core/` gelesen w
 - `SET TRANSACTION READ ONLY` nur innerhalb einer ODP.NET-Transaktion (`BeginTransaction`) – ohne sie committet ODP.NET sofort und der Schutz ist weg. DDL läuft auch in einer Read-only-Transaktion (implizites Commit). Belegt in `TransactionBehaviorTests`.
 - Concurrency-Check optional über `ORA_ROWSCN` (nur zuverlässig bei `ROWDEPENDENCIES`-Tabellen) oder Original-Werte im WHERE.
 - `EXPLAIN PLAN` geht nicht in einer READ-ONLY-Transaktion (ORA-01456) → Explorer-Session. `ReadSqlAsync` blättert durch erneutes Ausführen (`SELECT * FROM (…)` scheitert an doppelten Spaltennamen der EF-Joins, ORA-00918).
+
+**Code im Oracle-Layer (R3b)**
+- `OracleSchemaReader` ist nach Thema aufgeteilt (`.cs` Katalog und gemeinsame Select-Listen, `.ObjectDetails.cs`, `.Snapshot.cs`, `.Diagnostics.cs`). Statements für eine Tabelle und für das ganze Schema entstehen aus **derselben** Select-Liste plus WHERE/ORDER – nie eine Spaltenliste von Hand kopieren (`ReadColumn` liest nach Position).
+- Zeilen lesen über `OracleReading` (`ReadListAsync`, `Text`/`Int`/`Long`/`Date`, `FetchManyRows`).
+- Typwissen (Anzeige, DDL, Länge in Bytes, Familien, LOB/LONG) nur in `Schema/OracleTypes`.
+- `ReadOnlyTests` prüfen jeden SELECT/WITH-Text (Konstante oder statisches Feld) aller Typen in `Core/Oracle` gegen die Lesesperre.
 
 **Dictionary & Performance**
 - `ALL_*`-Views immer nach `OWNER` filtern (`docs/architecture.md` 1.3).

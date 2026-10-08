@@ -88,7 +88,7 @@ public sealed class SchemaCompareLoader(ConnectionManager connections, IDatabase
                 try
                 {
                     var snapshot = await connection.Schema.ReadSnapshotAsync(
-                        side.OwnerFor(profile), new Progress(step => progress?.Invoke(index, step)), cancellationToken);
+                        side.OwnerFor(profile), new SyncProgress<string>(step => progress?.Invoke(index, step)), cancellationToken);
                     results[index] = new SideResult(snapshot);
                 }
                 catch (DatabaseException ex)
@@ -107,11 +107,5 @@ public sealed class SchemaCompareLoader(ConnectionManager connections, IDatabase
                 }
             }
         }
-    }
-
-    /// <summary>Reports synchronously (<see cref="Progress{T}"/> would post to a captured context).</summary>
-    private sealed class Progress(Action<string> report) : IProgress<string>
-    {
-        public void Report(string value) => report(value);
     }
 }

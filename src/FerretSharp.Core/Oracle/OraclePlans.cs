@@ -1,6 +1,6 @@
 using System.Data.Common;
-using System.Globalization;
 using FerretSharp.Core.Query;
+using static FerretSharp.Core.Oracle.OracleReading;
 
 namespace FerretSharp.Core.Oracle;
 
@@ -56,11 +56,4 @@ internal static class OraclePlans
 
         return steps;
     }
-
-    private static string? Text(DbDataReader reader, int ordinal) => reader.IsDBNull(ordinal) ? null : reader.GetString(ordinal);
-
-    private static long? Long(DbDataReader reader, int ordinal) =>
-        reader.IsDBNull(ordinal) ? null : Convert.ToInt64(reader.GetValue(ordinal), CultureInfo.InvariantCulture);
-
-    private static int? Int(DbDataReader reader, int ordinal) => Long(reader, ordinal) is { } value ? (int)value : null;
 }

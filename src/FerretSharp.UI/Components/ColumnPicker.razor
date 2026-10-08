@@ -23,7 +23,10 @@
 
     private ElementReference _input;
     private ColumnList? _list;
-    private IJSObjectReference? _dom;
+    private DomModule? _dom;
+
+    /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
+    private DomModule Dom => _dom ??= new(JS);
     private bool _open;
     private bool _typed;
     private bool _selectName;
@@ -77,8 +80,7 @@
         if (_selectName)
         {
             _selectName = false;
-            _dom ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
-            await _dom.InvokeVoidAsync("selectIfFocused", _input);
+            await Dom.InvokeVoidAsync("selectIfFocused", _input);
         }
     }
 
@@ -88,8 +90,7 @@
         _open = true;
         _typed = false;
         _query = Shown;
-        _dom ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
-        await _dom.InvokeVoidAsync("focusAndSelect", _input);
+        await Dom.InvokeVoidAsync("focusAndSelect", _input);
     }
 
     /// <summary>A click into the still focused field after Escape or picking raises no focus event.</summary>
@@ -150,15 +151,6 @@
 
     public async ValueTask DisposeAsync()
     {
-        if (_dom is not null)
-        {
-            try
-            {
-                await _dom.DisposeAsync();
-            }
-            catch (JSDisconnectedException)
-            {
-            }
-        }
+        await Dom.DisposeAsync();
     }
 }

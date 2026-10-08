@@ -34,5 +34,20 @@ public sealed class ShellStateTabsTests : IAsyncDisposable
         Assert.DoesNotContain(tab, _app.WorkspaceOf(test).Tabs);
     }
 
+    [Fact]
+    public async Task New_sql_and_linq_tabs_take_the_first_free_number_after_the_active_tab()
+    {
+        await _app.OpenAsync(TestApp.Profile("Test"));
+
+        var first = _app.Shell.OpenSql()!;
+        var linq = _app.Shell.OpenLinq()!;
+        _app.Shell.ActivateTab(first);
+        var second = _app.Shell.OpenSql()!;
+
+        Assert.Equal(["SQL 1", "LINQ 1", "SQL 2"], new[] { first.Title, linq.Title, second.Title });
+        Assert.Equal([first, second, linq], _app.Shell.Tabs.ToList<WorkspaceTab>()); // right after the active one
+        Assert.Same(second, _app.Shell.ActiveTab);
+    }
+
     public ValueTask DisposeAsync() => _app.DisposeAsync();
 }

@@ -5,6 +5,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Changed
+- Internal restructuring for stability and maintainability (R3b), without new features: the schema reader split by topic with shared column lists, Oracle type rules in one place, the session's gate unit-tested, sturdier handling of the C# model's helper processes, shared building blocks for menus, export actions, FK jumps and SQL/LINQ write results, the SQL editor's variables and history as components of their own, and the form's row following unit-tested.
+- The search field of the SQL history is a search box like all others (✕ clears it, Escape too).
+
+### Fixed
+- Errors in work started outside a click (grid callbacks, shortcuts, background counts) now show in the tab instead of disappearing.
+- Building the linked C# project ("Neu bauen") is cancelled when the connection closes, leaves no MSBuild processes behind, and a build that times out shows its output.
+- The model host no longer waits for its timeout when the project's code leaves threads running; temp folders a killed host left behind are removed on a later start.
+- A NUMBER with more than 28 decimal places is shown exactly (was 0).
+- Opening the same connection twice in quick succession could open it twice.
+- The SQL history says "1 Zeile".
+
 ## [3.14.1] - 2026-10-08
 
 ### Fixed

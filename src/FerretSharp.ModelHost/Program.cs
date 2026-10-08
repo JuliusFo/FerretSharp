@@ -19,7 +19,13 @@ namespace FerretSharp.ModelHost;
 /// </summary>
 internal static class Program
 {
-    private static int Main(string[] args)
+    /// <summary>
+    /// Ends the process with the exit code even if the project's code left foreground threads running (a timer, a
+    /// background worker): FerretSharp would otherwise wait for its timeout and discard the result already written.
+    /// </summary>
+    private static void Main(string[] args) => Environment.Exit(Run(args));
+
+    private static int Run(string[] args)
     {
         var options = Arguments.Parse(args);
         // Display names of enum members come from the project's resources in this culture (FerretSharp's UI language).

@@ -43,7 +43,7 @@ Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erkl
 **Lesen und Schreiben sind getrennt (ADR 0006):**
 - Leseweg: `OracleSession.ExecuteReaderAsync` lehnt alles außer reinen Abfragen ab (`IsReadOnlyStatement`: nach Leerraum/Kommentaren `SELECT`/`WITH`, kein `FOR UPDATE`, nur ein Statement) – eine Stolperfalle gegen Programmierfehler, kein SQL-Parser.
 - Schreibweg: `OracleSession.ExecuteNonQueryAsync` ist `internal`, nimmt nur ein einzelnes INSERT/UPDATE/DELETE (`IsWriteStatement`, nie DDL) und nur in einer offenen Transaktion. Transaktionssteuerung (Begin, Savepoint, Commit, Rollback) nur an `OracleSession`.
-- `ReadOnlyTests` prüfen per Reflection, dass `IDataAccess`/`ISchemaReader`/`IDatabaseConnection` weder schreibende noch transaktionssteuernde Methoden anbieten und dass die Statements von `QueryBuilder` und `OracleSchemaReader` die Lesesperre passieren; ein Integrationstest zeigt, dass ein `DELETE` abgewiesen wird.
+- `ReadOnlyTests` prüfen per Reflection, dass `IDataAccess`/`ISchemaReader`/`IDatabaseConnection` weder schreibende noch transaktionssteuernde Methoden anbieten und dass die Statements des `QueryBuilder` und alle SELECT/WITH-Texte in `Core/Oracle` die Lesesperre passieren; ein Integrationstest zeigt, dass ein `DELETE` abgewiesen wird.
 - **Die Lesesperre nie aufweichen.** Ein neuer Weg (z. B. DDL in WP-22) bekommt eine eigene enge Methode, ein ADR und Tests.
 - Keine Garantie auf Datenbankseite: Hat der DB-User Schreibrechte, könnte ein Fehler schreiben (ohne Transaktion committet ODP.NET sofort; `SET TRANSACTION READ ONLY` schützt nicht vor DDL). Empfehlung an den Nutzer: für Prod einen User mit reinen SELECT-Grants.
 

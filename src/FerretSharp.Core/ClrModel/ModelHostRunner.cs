@@ -23,12 +23,6 @@ public interface IModelHostRunner
     Task<ILinqConsole> StartConsoleAsync(ClrProjectLink link, BuildOutput output, CancellationToken cancellationToken, IProgress<string>? progress = null);
 }
 
-/// <summary>Exit code and output (stdout and stderr interleaved) of a <c>dotnet</c> call.</summary>
-public sealed record DotNetRun(int ExitCode, string Output)
-{
-    public bool Succeeded => ExitCode == 0;
-}
-
 /// <summary>
 /// Starts <c>FerretSharp.ModelHost</c> like <c>dotnet ef</c> starts its tool: <c>dotnet exec</c> with the project's
 /// deps.json, a runtimeconfig for the project's runtime and the NuGet package folders as probing paths. So the project's
@@ -100,6 +94,36 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
             _timeout, progress, cancellationToken);
     }
 
+    /// <summary>Set once old work folders were removed in this process.</summary>
+    private static int _staleFoldersRemoved;
+
+    /// <summary>
+    /// Work folders of earlier runs that could not be deleted then (a file still held by a host that was being killed):
+    /// removed once per process, if older than <paramref name="age"/> – a younger one may belong to another FerretSharp.
+    /// </summary>
+    internal static void DeleteStaleWorkFolders(string root, TimeSpan age)
+    {
+        try
+        {
+            if (!Directory.Exists(root))
+            {
+                return;
+            }
+
+            foreach (var folder in new DirectoryInfo(root).EnumerateDirectories())
+            {
+                if (DateTime.UtcNow - folder.LastWriteTimeUtc > age)
+                {
+                    LinqConsoleHost.TryDelete(folder);
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // housekeeping only
+        }
+    }
+
     /// <summary>A start of the host: its own temp folder, with the runtimeconfig for the project's runtime in it.</summary>
     private sealed record HostLaunch(DirectoryInfo Work, string RuntimeConfig);
 
@@ -115,7 +139,13 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
             throw new ClrModelException(ClrModelErrorKind.HostFailed, $"FerretSharp.ModelHost fehlt: {modelHostPath}");
         }
 
-        var work = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "FerretSharp", "modelhost", Guid.NewGuid().ToString("N")));
+        var root = Path.Combine(Path.GetTempPath(), "FerretSharp", "modelhost");
+        if (Interlocked.Exchange(ref _staleFoldersRemoved, 1) == 0)
+        {
+            DeleteStaleWorkFolders(root, TimeSpan.FromDays(1));
+        }
+
+        var work = Directory.CreateDirectory(Path.Combine(root, Guid.NewGuid().ToString("N")));
         var runtimeConfig = Path.Combine(work.FullName, "modelhost.runtimeconfig.json");
         try
         {
@@ -149,7 +179,7 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
     }
 
     public Task<DotNetRun> BuildAsync(ClrProjectLink link, CancellationToken cancellationToken) =>
-        DotNetCli.RunAsync(["build", link.ProjectFile, "-c", link.Configuration, "-nologo", "-v", "q"],
+        DotNetCli.RunAsync(["build", link.ProjectFile, "-c", link.Configuration, "-nologo", "-v", "q", "-nodeReuse:false"],
             Path.GetDirectoryName(link.ProjectFile)!, TimeSpan.FromMinutes(10), cancellationToken);
 
     /// <summary>
@@ -175,157 +205,4 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
     }
 
     private static ModelHostResult Fail(string kind, string message, string? detail = null) => new(null, new ModelHostError(kind, message, detail));
-}
-
-/// <summary>Runs the installed <c>dotnet</c> (FerretSharp itself is self-contained and brings none).</summary>
-public static class DotNetCli
-{
-    private const int MaxOutput = 200_000;
-
-    /// <param name="onOutputLine">Called for every line on stdout as it arrives (any thread).</param>
-    /// <summary>Starts <c>dotnet</c> and returns while it runs (the LINQ console); lines arrive on any thread.</summary>
-    public static Process Start(IEnumerable<string> arguments, string workingDirectory, Action<string> onOutputLine, Action<string> onErrorLine)
-    {
-        var process = new Process { StartInfo = StartInfo(arguments, workingDirectory) };
-        process.OutputDataReceived += (_, e) =>
-        {
-            if (e.Data is { } line)
-            {
-                onOutputLine(line);
-            }
-        };
-        process.ErrorDataReceived += (_, e) =>
-        {
-            if (e.Data is { } line)
-            {
-                onErrorLine(line);
-            }
-        };
-        if (!process.Start())
-        {
-            process.Dispose();
-            throw new ClrModelException(ClrModelErrorKind.DotNetMissing, "dotnet ließ sich nicht starten.");
-        }
-
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
-        return process;
-    }
-
-    private static ProcessStartInfo StartInfo(IEnumerable<string> arguments, string workingDirectory)
-    {
-        var start = new ProcessStartInfo(FindDotNet())
-        {
-            WorkingDirectory = workingDirectory,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8,
-        };
-        foreach (var argument in arguments)
-        {
-            start.ArgumentList.Add(argument);
-        }
-
-        // English tool messages, no telemetry banner, no first-run experience in the output.
-        start.Environment["DOTNET_CLI_UI_LANGUAGE"] = "en";
-        start.Environment["DOTNET_NOLOGO"] = "1";
-        start.Environment["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1";
-        return start;
-    }
-
-    public static async Task<DotNetRun> RunAsync(
-        IEnumerable<string> arguments, string workingDirectory, TimeSpan timeout, CancellationToken cancellationToken, Action<string>? onOutputLine = null)
-    {
-        using var process = new Process { StartInfo = StartInfo(arguments, workingDirectory) };
-        var output = new StringBuilder();
-        void Append(string? line)
-        {
-            if (line is null)
-            {
-                return;
-            }
-
-            lock (output)
-            {
-                if (output.Length < MaxOutput)
-                {
-                    output.AppendLine(line);
-                }
-            }
-        }
-
-        process.OutputDataReceived += (_, e) =>
-        {
-            Append(e.Data);
-            if (e.Data is { } line)
-            {
-                onOutputLine?.Invoke(line);
-            }
-        };
-        process.ErrorDataReceived += (_, e) => Append(e.Data);
-        if (!process.Start())
-        {
-            throw new ClrModelException(ClrModelErrorKind.DotNetMissing, "dotnet ließ sich nicht starten.");
-        }
-
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
-
-        using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutSource.CancelAfter(timeout);
-        try
-        {
-            await process.WaitForExitAsync(timeoutSource.Token);
-        }
-        catch (OperationCanceledException)
-        {
-            try
-            {
-                process.Kill(entireProcessTree: true);
-            }
-            catch (InvalidOperationException)
-            {
-                // already exited
-            }
-
-            cancellationToken.ThrowIfCancellationRequested();
-            throw new ClrModelException(ClrModelErrorKind.Timeout, $"dotnet hat nach {timeout.TotalSeconds:0} s nicht geantwortet und wurde beendet.");
-        }
-
-        process.WaitForExit(); // flushes the asynchronous output readers
-        lock (output)
-        {
-            return new DotNetRun(process.ExitCode, output.ToString());
-        }
-    }
-
-    /// <summary>The <c>dotnet</c> muxer: <c>DOTNET_HOST_PATH</c>, the PATH, then the default install location.</summary>
-    public static string FindDotNet()
-    {
-        var name = OperatingSystem.IsWindows() ? "dotnet.exe" : "dotnet";
-        if (Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") is { Length: > 0 } host && File.Exists(host))
-        {
-            return host;
-        }
-
-        foreach (var directory in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
-        {
-            var candidate = Path.Combine(directory.Trim('"'), name);
-            if (File.Exists(candidate))
-            {
-                return candidate;
-            }
-        }
-
-        var installed = OperatingSystem.IsWindows()
-            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "dotnet", name)
-            : "/usr/share/dotnet/dotnet";
-        return File.Exists(installed)
-            ? installed
-            : throw new ClrModelException(ClrModelErrorKind.DotNetMissing,
-                "dotnet wurde nicht gefunden – für das C#-Modell muss ein .NET SDK oder eine .NET-Runtime installiert sein.");
-    }
 }

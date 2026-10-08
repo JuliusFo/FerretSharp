@@ -1,7 +1,6 @@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Schema
 @using FerretSharp.Core.Settings
-@using FerretSharp.UI.State
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject ILogger<Explorer> Logger
@@ -76,7 +75,10 @@
     [CascadingParameter]
     public PresentationService Presentation { get; set; } = null!;
 
-    private IJSObjectReference? _dom;
+    private DomModule? _dom;
+
+    /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
+    private DomModule Dom => _dom ??= new(JS);
     private string _query = "";
     private bool _refreshing;
     private string? _refreshError;
@@ -135,8 +137,7 @@
 
     private async Task JumpAsync(char letter)
     {
-        _dom ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
-        await _dom.InvokeVoidAsync("scrollIntoViewById", $"tbl-grp-{(letter == LetterIndexBar.Other ? "other" : letter.ToString())}", "start");
+        await Dom.InvokeVoidAsync("scrollIntoViewById", $"tbl-grp-{(letter == LetterIndexBar.Other ? "other" : letter.ToString())}", "start");
     }
 
     private async Task RefreshAsync()
@@ -192,15 +193,6 @@
         Active.Changed -= OnChanged;
         Shell.Changed -= OnChanged;
         Presentation.Changed -= OnChanged;
-        if (_dom is not null)
-        {
-            try
-            {
-                await _dom.DisposeAsync();
-            }
-            catch (JSDisconnectedException)
-            {
-            }
-        }
+        await Dom.DisposeAsync();
     }
 }

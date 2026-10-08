@@ -5,7 +5,7 @@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
 @using FerretSharp.Core.Query
-@using FerretSharp.UI.State
+@inherits FerretComponent
 @implements IDisposable
 @inject ILogger<LinqView> Logger
 
@@ -160,20 +160,8 @@
                             }
                             else if (_written is { } written)
                             {
-                                var rows = written.Rows == 1 ? "1 Zeile" : $"{written.Rows:N0} Zeilen";
                                 var took = _writtenElapsed is { } elapsed ? $" ({ResultFooter.Ms(elapsed)})" : "";
-                                @switch (WorkspaceEditing.FateOf(Workspaces, Tab.WorkspaceId, written.Id, _writtenIn))
-                                {
-                                    case WriteFate.Open:
-                                        <p><strong>@rows geändert</strong>@took – in der Transaktion des Workspaces. Committen, verwerfen oder zurücknehmen (↶) über die Statusleiste.</p>
-                                        break;
-                                    case WriteFate.Undone:
-                                        <p class="muted">@rows geändert@took – inzwischen zurückgenommen (↶).</p>
-                                        break;
-                                    default:
-                                        <p class="muted">@rows geändert@took – die Transaktion ist inzwischen beendet (Commit oder Rollback).</p>
-                                        break;
-                                }
+                                <WriteOutcome Rows="written.Rows" Fate="WorkspaceEditing.FateOf(Workspaces, Tab.WorkspaceId, written.Id, _writtenIn)" Detail="@took" />
                             }
                             else if (Workspaces.IsWritable(Tab.WorkspaceId))
                             {
@@ -269,7 +257,7 @@
     {
         Console.Changed += OnConsoleChanged;
         Shell.TabCommandRequested += OnTabCommand;
-        _ = Console.WarmUpAsync(); // the host loads the model while the user writes
+        Fire(Console.WarmUpAsync); // the host loads the model while the user writes
         if (Tab.LastRun is not null)
         {
             await RunningAsync(ShowCommandAsync); // mounted again (workspace switch): show the last result
@@ -335,10 +323,10 @@
         switch (command)
         {
             case TabCommand.ApplyFilters or TabCommand.Refresh:
-                _ = InvokeAsync(RunAsync);
+                Fire(RunAsync);
                 break;
             case TabCommand.FindColumn when _codeEditor is not null:
-                _ = InvokeAsync(_codeEditor.FindAsync);
+                Fire(_codeEditor.FindAsync);
                 break;
         }
     }
@@ -434,7 +422,7 @@
         var query = _query = LinqStatements.ToQuery(command);
         Begin(RunPhase.Reading);
         var result = await Shell.RunDbAsync(Logger, Active, async () =>
-            await (await Workspaces.GetDataAsync(Tab.WorkspaceId, token)).ReadSqlAsync(query, 0, SqlResultGrid.PageSize, token), token);
+            await Workspaces.ReadSqlAsync(Tab.WorkspaceId, query, 0, SqlResultGrid.PageSize, token), token);
         if (result.Cancelled)
         {
             _error = token.IsCancellationRequested ? "Abfrage abgebrochen." : null;
@@ -489,7 +477,7 @@
         {
             Begin(RunPhase.Writing);
             result = await Shell.RunDbAsync(Logger, Active, async () =>
-                await (await Workspaces.GetEditorAsync(Tab.WorkspaceId, token)).ExecuteAsync(statement, token), token);
+                await Workspaces.ExecuteAsync(Tab.WorkspaceId, statement, token), token);
         });
         var elapsed = DateTimeOffset.Now - _phaseStarted;
         if (result.Cancelled)
@@ -505,11 +493,7 @@
         }
 
         (_written, _writtenIn, _writtenElapsed) = (written, Workspaces.TransactionOf(Tab.WorkspaceId)?.StartedAt, elapsed);
-        // Table tabs of the workspace may show the changed rows: they fetch them again from the transaction.
-        foreach (var tab in Shell.FindWorkspace(Tab.WorkspaceId)?.TableTabs ?? [])
-        {
-            Shell.RequestTabCommand(tab, TabCommand.Reload);
-        }
+        Shell.ReloadTableTabs(Tab.WorkspaceId); // they may show the changed rows
 
         Shell.NotifyChanged(); // status bar: open transaction, commit/rollback
     }

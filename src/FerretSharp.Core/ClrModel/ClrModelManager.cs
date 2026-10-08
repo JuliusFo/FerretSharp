@@ -50,6 +50,9 @@ public sealed class ClrModelManager : IDisposable
     private readonly ModelCache? _cache;
     private readonly Lock _lock = new();
     private CancellationTokenSource? _loading;
+
+    /// <summary>Cancelled on dispose (connection closed): a running build is ended instead of going on for up to ten minutes.</summary>
+    private readonly CancellationTokenSource _lifetime = new();
     private Guid? _profileId;
 
     /// <param name="cache">Exported models to reuse while the build is unchanged (WP-16); null = always run the host.</param>
@@ -139,7 +142,7 @@ public sealed class ClrModelManager : IDisposable
             }
             else
             {
-                var result = await Task.Run(() => _runner.ReadModelAsync(link, output, cts.Token, new Reporter(Report)), cts.Token);
+                var result = await Task.Run(() => _runner.ReadModelAsync(link, output, cts.Token, new SyncProgress<string>(Report)), cts.Token);
                 if (result.Model is not { } exported)
                 {
                     Finish(ClrModelPhase.Failed, previous, result.Error ?? new ModelHostError(ClrModelErrorKind.HostFailed, "Kein Modell geliefert."), loadedAt);
@@ -153,7 +156,7 @@ public sealed class ClrModelManager : IDisposable
                 }
             }
 
-            var mapping = await ClrModelMapping.BuildAsync(model, schema, cts.Token, new Reporter(Report));
+            var mapping = await ClrModelMapping.BuildAsync(model, schema, cts.Token, new SyncProgress<string>(Report));
             cts.Token.ThrowIfCancellationRequested();
             schema.SetForeignKeys(FkSource.ClrModel, mapping.ForeignKeys);
             Finish(ClrModelPhase.Loaded, mapping, null, DateTimeOffset.Now);
@@ -216,12 +219,6 @@ public sealed class ClrModelManager : IDisposable
         }
     }
 
-    /// <summary>Calls back on whatever thread reports (unlike <see cref="Progress{T}"/>, which posts to a captured context).</summary>
-    private sealed class Reporter(Action<string> report) : IProgress<string>
-    {
-        public void Report(string value) => report(value);
-    }
-
     /// <summary><c>dotnet build</c> of the linked project, then reads the model again if the build succeeded.</summary>
     public async Task<DotNetRun?> BuildAsync()
     {
@@ -234,7 +231,11 @@ public sealed class ClrModelManager : IDisposable
         Changed?.Invoke();
         try
         {
-            LastBuild = await Task.Run(() => _runner.BuildAsync(link, CancellationToken.None));
+            LastBuild = await Task.Run(() => _runner.BuildAsync(link, _lifetime.Token));
+        }
+        catch (OperationCanceledException)
+        {
+            return null; // closed meanwhile; nobody waits for the result
         }
         catch (Exception ex) when (ex is ClrModelException or IOException or System.ComponentModel.Win32Exception)
         {
@@ -256,6 +257,7 @@ public sealed class ClrModelManager : IDisposable
 
     public void Dispose()
     {
+        _lifetime.Cancel();
         _active.Changed -= OnConnectionChanged;
         _connections.Changed -= OnConnectionChanged;
         _loading?.Cancel();

@@ -59,7 +59,7 @@ public sealed class WorkspaceEditing(
     ShellState shell, ConnectionHub hub, AppSettingsService settings, ILogger<WorkspaceEditing> logger)
 {
     /// <summary>The connection a workspace belongs to (WP-24: several can be open; a background one may still finish a write).</summary>
-    private ConnectionScope ScopeOf(Guid workspaceId) => hub.OwnerOf(workspaceId) ?? hub.Shown;
+    private ConnectionScope ScopeOf(Guid workspaceId) => hub.ScopeOfWorkspace(workspaceId);
 
     private WorkspaceManager WorkspacesOf(Guid workspaceId) => ScopeOf(workspaceId).Workspaces;
 
@@ -84,8 +84,8 @@ public sealed class WorkspaceEditing(
     public EditSummary SummaryOf(WorkspaceTabs workspace) => new(
         Trackers(workspace).Sum(t => t.PendingCount),
         Trackers(workspace).Sum(t => t.FlushedCount),
-        WorkspacesOf(workspace.WorkspaceId).TransactionOf(workspace.WorkspaceId),
-        WorkspacesOf(workspace.WorkspaceId).ActionsOf(workspace.WorkspaceId));
+        hub.ScopeOf(workspace).Workspaces.TransactionOf(workspace.WorkspaceId),
+        hub.ScopeOf(workspace).Workspaces.ActionsOf(workspace.WorkspaceId));
 
     /// <summary>What became of a statement's write (<paramref name="action"/>, run in the transaction that began at <paramref name="transactionStart"/>).</summary>
     public static WriteFate FateOf(WorkspaceManager workspaces, Guid workspaceId, Guid action, DateTimeOffset? transactionStart)
@@ -180,11 +180,7 @@ public sealed class WorkspaceEditing(
         }
         else
         {
-            // A statement: any table tab of the workspace may show rows it had changed.
-            foreach (var tab in workspace.TableTabs)
-            {
-                shell.RequestTabCommand(tab, TabCommand.Reload);
-            }
+            shell.ReloadTableTabs(workspace.WorkspaceId); // a statement: any of them may show rows it had changed
 
             shell.Notify($"Zurückgenommen: {action.Display}.");
         }
@@ -250,10 +246,7 @@ public sealed class WorkspaceEditing(
     {
         RestorePending(workspace);
         Forget(workspace.WorkspaceId);
-        foreach (var tab in workspace.TableTabs)
-        {
-            shell.RequestTabCommand(tab, TabCommand.Reload);
-        }
+        shell.ReloadTableTabs(workspace.WorkspaceId);
     }
 
     public void Forget(Guid workspaceId)
