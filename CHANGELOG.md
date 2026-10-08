@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.17.0] - 2026-10-08
+
 ### Added
 - Packages, procedures, functions and triggers can be looked at (WP-28, view only – nothing is run or compiled):
   - The explorer switches between "Tabellen" and "PL/SQL". Invalid objects are red (the switch counts them), disabled triggers grey; the name search tells when the other section has hits ("3 Treffer unter PL/SQL").

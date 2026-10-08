@@ -1,7 +1,7 @@
 # FerretSharp – Oracle explorer for .NET developers
 
 > Projektanweisungen für Claude Code. Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-08, Release 3.16.0 (Historie: `CHANGELOG.md`).
+> Stand: 2026-10-08, Release 3.17.0 (Historie: `CHANGELOG.md`).
 
 ## Wo steht was
 
