@@ -44,19 +44,21 @@ public sealed class ClrModelEnrichmentTests(OracleContainerFixture oracle) : IAs
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private static PropertyExport Prop(string name, string column, string type = "int", IReadOnlyList<ValueMapping>? values = null, string? converter = null) =>
-        new(name, type, type, false, false, column, null, converter, null, false, values);
+    private static PropertyExport Prop(string name, string column, string type = "int", IReadOnlyList<ValueMapping>? values = null,
+        string? converter = null, string? provider = null, bool nullable = false) =>
+        new(name, type, type, nullable, false, column, null, converter, provider, false, values);
 
     private static ModelExport Model() => new(1, "8.0.0", "Shop.Ctx", "options", null,
     [
         new EntityExport("Shop.Mitarbeiter", "Shop.Mitarbeiter", false, null, "ENR_MITARBEITER", null, null, null,
-            [Prop("Id", "ID"), Prop("Name", "NAME", "string")], ["Id"], []),
+            // Drift: required and 100 characters in the model, NAME VARCHAR2(50) allowing NULL in the database.
+            [Prop("Id", "ID"), Prop("Name", "NAME", "string") with { MaxLength = 100 }], ["Id"], []),
         new EntityExport("Shop.Aufgabe", "Shop.Aufgabe", false, null, "ENR_AUFGABE", null, null, null,
             [
                 Prop("Id", "ID"),
-                Prop("BearbeiterId", "BEARBEITER_ID"),
-                Prop("Art", "ART", "Aufgabenart", [new("Intern", "1", "1"), new("Kunde", "2", "2")]),
-                Prop("Erledigt", "ERLEDIGT", "bool", [new("false", "False", "N"), new("true", "True", "J")], "JaNeinConverter"),
+                Prop("BearbeiterId", "BEARBEITER_ID", nullable: true),
+                Prop("Art", "ART", "Aufgabenart", [new("Intern", "1", "1"), new("Kunde", "2", "2")], provider: "int"),
+                Prop("Erledigt", "ERLEDIGT", "bool", [new("false", "False", "N"), new("true", "True", "J")], "JaNeinConverter", "string"),
             ],
             ["Id"],
             [new ForeignKeyExport(["BearbeiterId"], "Shop.Mitarbeiter", ["Id"], "Bearbeiter", "Aufgaben", false)]),
@@ -163,5 +165,17 @@ public sealed class ClrModelEnrichmentTests(OracleContainerFixture oracle) : IAs
         Assert.Equal(2m, change.ValueOf(2));
         Assert.Equal("J", change.ValueOf(3));
         Assert.Equal("Kunde (2)", presentation.Present(2, change.ValueOf(2)).Text);
+    }
+
+    [Fact]
+    public void Columns_that_do_not_fit_their_property_are_found_in_the_dictionary()
+    {
+        Assert.Equal(
+            [
+                ("Name", ColumnMismatchKind.Nullability, MismatchSeverity.Warning),
+                ("Name", ColumnMismatchKind.Length, MismatchSeverity.Warning),
+            ],
+            _mapping.ColumnMismatches.Select(m => (m.Property.Name, m.Kind, m.Severity)));
+        Assert.Equal("VARCHAR2(50)", _mapping.ColumnMismatches[0].Column.DisplayType);
     }
 }

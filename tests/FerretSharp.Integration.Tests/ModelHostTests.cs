@@ -94,8 +94,18 @@ public sealed class ModelHostTests
         Assert.Equal("KUNDE_ID", kunde.Properties.Single(p => p.Name == "KundeId").Column);
         Assert.Equal("ERSTELLT_AM", kunde.Properties.Single(p => p.Name == "ErstelltAm").Column);
 
+        // Configured facets for the comparison with the columns; nothing configured stays null (not the provider's default).
+        var name = kunde.Properties.Single(p => p.Name == "Name");
+        Assert.Equal((100, false, false), (name.MaxLength, name.Nullable, name.ColumnNullable));
+        var umsatz = kunde.Properties.Single(p => p.Name == "Umsatz");
+        Assert.Equal((12, 2, true), (umsatz.Precision, umsatz.Scale, umsatz.ColumnNullable));
+        Assert.Equal(3, kunde.Properties.Single(p => p.Name == "Kuerzel").MaxLength);
+        var erstelltAm = kunde.Properties.Single(p => p.Name == "ErstelltAm");
+        Assert.Equal(((int?)null, (int?)null, (int?)null), (erstelltAm.MaxLength, erstelltAm.Precision, erstelltAm.Scale));
+
         var gesperrt = kunde.Properties.Single(p => p.Name == "Gesperrt");
         Assert.Equal(("bool", "JaNeinConverter", "string"), (gesperrt.ClrType, gesperrt.Converter, gesperrt.ProviderClrType));
+        Assert.Equal(1, gesperrt.MaxLength); // from HasColumnType("CHAR(1)")
         Assert.Equal([new ValueMapping("false", "False", "N"), new ValueMapping("true", "True", "J")], gesperrt.Values);
 
         var kundenart = kunde.Properties.Single(p => p.Name == "Kundenart");
