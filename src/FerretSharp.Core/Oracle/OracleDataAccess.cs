@@ -160,7 +160,7 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
         }
 
         return new ColumnInfo(reader.GetName(ordinal), dataType,
-            dataType is "VARCHAR2" or "NVARCHAR2" or "CHAR" or "NCHAR" or "RAW" ? size : null, CharSemantics: false,
+            OracleTypes.HasLength(dataType) ? size : null, CharSemantics: false,
             dataType is "NUMBER" ? precision : null, dataType is "NUMBER" or "FLOAT" ? (scale is < 0 ? null : scale) : scale,
             Nullable: schema?["AllowDBNull"] is not false, IsIdentity: false, Default: null, Position: ordinal + 1);
     }

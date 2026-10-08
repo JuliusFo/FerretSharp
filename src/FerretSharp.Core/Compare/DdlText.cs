@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text;
 using FerretSharp.Core.Oracle;
 using FerretSharp.Core.Schema;
@@ -13,39 +12,10 @@ internal static class DdlText
 {
     public static string Q(string name) => OracleIdentifier.Quote(name);
 
-    /// <summary>
-    /// The column type as written in DDL. Unlike <see cref="ColumnInfo.DisplayType"/> it always states BYTE or CHAR
-    /// (the session's <c>NLS_LENGTH_SEMANTICS</c> must not decide) and keeps a scale without precision (<c>NUMBER(*,2)</c>).
-    /// </summary>
-    public static string TypeOf(ColumnInfo column) => column.DataType switch
-    {
-        "VARCHAR2" or "CHAR" when column.Length is { } length => $"{column.DataType}({N(length)} {(column.CharSemantics ? "CHAR" : "BYTE")})",
-        "NVARCHAR2" or "NCHAR" or "RAW" when column.Length is { } length => $"{column.DataType}({N(length)})",
-        "NUMBER" when column.Precision is { } p && column.Scale is { } s and not 0 => $"NUMBER({N(p)},{N(s)})",
-        "NUMBER" when column.Precision is { } p => $"NUMBER({N(p)})",
-        "NUMBER" when column.Scale is 0 => "INTEGER",
-        "NUMBER" when column.Scale is { } s => $"NUMBER(*,{N(s)})",
-        "FLOAT" when column.Precision is { } p => $"FLOAT({N(p)})",
-        _ => column.DataType,
-    };
-
-    /// <summary>Type families between which <c>MODIFY</c> can change a type; anything else needs a new column.</summary>
-    public static string FamilyOf(string dataType) => dataType switch
-    {
-        "VARCHAR2" or "NVARCHAR2" or "CHAR" or "NCHAR" => "text",
-        "NUMBER" or "FLOAT" => "number",
-        "DATE" => "datetime",
-        _ when dataType.StartsWith("TIMESTAMP", StringComparison.Ordinal) => "datetime",
-        "RAW" => "raw",
-        _ => dataType, // LOBs, LONG, INTERVAL, object types …: only to the very same type
-    };
-
-    public static bool IsLob(string dataType) => dataType is "CLOB" or "NCLOB" or "BLOB" or "BFILE" or "LONG" or "LONG RAW";
-
     /// <summary><c>"NAME" type [AS (…) | identity | DEFAULT …] [NOT NULL]</c> for CREATE TABLE and ADD.</summary>
     public static string ColumnDefinition(ColumnInfo column)
     {
-        var sql = new StringBuilder($"{Q(column.Name)} {TypeOf(column)}");
+        var sql = new StringBuilder($"{Q(column.Name)} {OracleTypes.DdlType(column)}");
         if (column.IsVirtual)
         {
             sql.Append($" GENERATED ALWAYS AS ({column.Default}) VIRTUAL");
@@ -176,5 +146,4 @@ internal static class DdlText
         _ => "Tabelle",
     };
 
-    private static string N(int value) => value.ToString(CultureInfo.InvariantCulture);
 }

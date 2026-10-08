@@ -60,19 +60,8 @@ public sealed record ColumnInfo(
     bool IsVirtual = false,
     bool DefaultOnNull = false)
 {
-    /// <summary>Type as it would appear in DDL, e.g. <c>VARCHAR2(50 CHAR)</c>, <c>NUMBER(12,2)</c>, <c>DATE</c>.</summary>
-    public string DisplayType => DataType switch
-    {
-        "VARCHAR2" or "NVARCHAR2" or "CHAR" or "NCHAR" when Length is { } len =>
-            CharSemantics && DataType is "VARCHAR2" or "CHAR" ? $"{DataType}({len} CHAR)" : $"{DataType}({len})",
-        "RAW" when Length is { } len => $"RAW({len})",
-        "NUMBER" when Precision is { } p && Scale is { } s and not 0 => $"NUMBER({p},{s})",
-        "NUMBER" when Precision is { } p => $"NUMBER({p})",
-        "NUMBER" when Scale is 0 => "INTEGER",
-        "NUMBER" when Scale is { } s => $"NUMBER(*,{s})", // a scale without precision is a different type than plain NUMBER
-        "FLOAT" when Precision is { } p => $"FLOAT({p})",
-        _ => DataType,
-    };
+    /// <summary>The type as shown to the user, e.g. <c>VARCHAR2(50 CHAR)</c>, <c>NUMBER(12,2)</c>, <c>DATE</c> (<see cref="OracleTypes.DisplayType"/>).</summary>
+    public string DisplayType => OracleTypes.DisplayType(this);
 }
 
 /// <summary>Lazily loaded per table.</summary>

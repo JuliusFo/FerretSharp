@@ -231,12 +231,13 @@ internal sealed class DdlWriter(int referenceSide, int targetSide, string refere
             return;
         }
 
-        var referenceType = TypeOf(reference);
-        var targetType = TypeOf(target);
+        var referenceType = OracleTypes.DdlType(reference);
+        var targetType = OracleTypes.DdlType(target);
         if (!reference.IsVirtual && !string.Equals(referenceType, targetType, StringComparison.Ordinal))
         {
             written++;
-            if (FamilyOf(reference.DataType) != FamilyOf(target.DataType) || IsLob(reference.DataType) || IsLob(target.DataType))
+            if (OracleTypes.Family(reference.DataType) != OracleTypes.Family(target.DataType)
+                || OracleTypes.IsLobOrLong(reference.DataType) || OracleTypes.IsLobOrLong(target.DataType))
             {
                 Add(Phase.Hints, table, $"-- {Qualified(table)}.{column}: Typ {targetType} → {referenceType}",
                     $"Der Wechsel von {targetType} zu {referenceType} geht nur über eine neue Spalte: anlegen, Daten umkopieren, alte löschen, umbenennen.");
