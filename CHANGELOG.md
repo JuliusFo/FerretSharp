@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.11.1] - 2026-10-08
+
 ### Fixed
 - Connection switcher: in the rows of open connections the "Trennen" button was cut off and the "⋯" menu slipped into the line below, over the next heading or row (since 3.8.0).
 
