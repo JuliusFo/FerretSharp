@@ -34,6 +34,7 @@ Was in den abgeschlossenen Paketen gebaut und entschieden wurde, mit Nachträgen
 | WP-21 | Formularansicht einer Zeile (Seitenleiste, editierbar über den `ChangeTracker`), Vergleich markierter Zeilen (Dialog) | 3.11.0 | – |
 | WP-25 | Tastenkürzel einstellbar (Einstellungen › Tastenkürzel, Übersicht aller Kürzel) | 3.16.0 | – |
 | WP-28 | Prozeduren, Funktionen, Packages und Trigger ansehen (Quelltext, Parameter, Fehler, Abhängigkeiten, Quelltextsuche) | 3.17.0 | (0011) |
+| PR #3 | Schattenkopie der Build-Ausgabe für den ModelHost, Modell und LINQ-Konsole nach einem Build neu laden, Hänger-Diagnose als Einstellung (Beitrag von Phillip Ulbricht) | 3.18.0 | 0016 |
 | R3a | Fehlerbehebung nach dem Review 3.14.0 (Verbindungsverlust je Verbindung, Schreiben serialisiert, UI-Testprojekt) | 3.14.1 | – |
 | R3b | Struktur-Refactoring nach dem Review 3.14.0 (Schema-Reader, Typwissen, SessionGate, UI-Bausteine, State) | 3.15.0 | – |
 
