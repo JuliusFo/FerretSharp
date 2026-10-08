@@ -10,11 +10,17 @@ public sealed class ClrModelMappingTests
 
     private readonly ISchemaReader _reader = Substitute.For<ISchemaReader>();
     private readonly Dictionary<string, IReadOnlyList<string>> _columns = [];
+    private readonly Dictionary<string, IReadOnlyList<ColumnInfo>> _typedColumns = [];
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     private static PropertyExport Prop(string name, string? column, string type = "int") =>
         new(name, type, type, false, false, column, null, null, null, false, null);
+
+    private static ColumnInfo Column(
+        string name, string dataType, int? length = null, bool charSemantics = false, int? precision = null, int? scale = null,
+        bool nullable = false, bool identity = false, int position = 1) =>
+        new(name, dataType, length, charSemantics, precision, scale, nullable, identity, null, position);
 
     private static EntityExport Entity(string clrType, string? table, params PropertyExport[] properties) =>
         new(clrType, clrType, false, null, table, null, null, null, properties, [], []);
@@ -26,9 +32,13 @@ public sealed class ClrModelMappingTests
         _reader.GetTablesAsync(Owner, Arg.Any<CancellationToken>()).Returns(tables.Where(t => t.Synonym is null).ToList());
         _reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns(tables.Where(t => t.Synonym is not null).ToList());
         _reader.GetForeignKeysAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
-        // The comparison reads all column names of a schema at once, never the details of each table.
-        _reader.GetColumnNamesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(_ =>
-            (IReadOnlyDictionary<string, IReadOnlyList<string>>)_columns.ToDictionary(c => c.Key, c => c.Value));
+        // The comparison reads all columns of a schema at once, never the details of each table. Tables given by name
+        // only get NUMBER(10) NOT NULL columns.
+        _reader.GetColumnsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(_ =>
+            (IReadOnlyDictionary<string, IReadOnlyList<ColumnInfo>>)_columns
+                .ToDictionary(c => c.Key, c => (IReadOnlyList<ColumnInfo>)c.Value.Select((name, i) => Column(name, "NUMBER", precision: 10, scale: 0, position: i + 1)).ToList())
+                .Concat(_typedColumns)
+                .ToDictionary(c => c.Key, c => c.Value));
         var schema = new SchemaCache(_reader, Owner);
         await schema.LoadAsync(Ct);
         return schema;
@@ -56,8 +66,8 @@ public sealed class ClrModelMappingTests
                 (MappingIssueKind.ColumnWithoutProperty, "KUNDEN.ANZAHL: keine Property in Kunde."),
             ],
             mapping.Issues.Select(i => (i.Kind, i.Message)));
-        // One query for the schema's column names, none per table (minutes for 400 tables over a VPN).
-        await _reader.Received(1).GetColumnNamesAsync(Owner, Arg.Any<CancellationToken>());
+        // One query for the schema's columns, none per table (minutes for 400 tables over a VPN).
+        await _reader.Received(1).GetColumnsAsync(Owner, Arg.Any<CancellationToken>());
         await _reader.DidNotReceive().GetDetailsAsync(Arg.Any<TableSummary>(), Arg.Any<CancellationToken>());
     }
 
@@ -184,6 +194,39 @@ public sealed class ClrModelMappingTests
             ],
             mapping.ForeignKeys.Select(f => (f.Name, f.From.ToString(), string.Join(",", f.FromColumns), f.To.ToString(), string.Join(",", f.ToColumns))));
         Assert.All(mapping.ForeignKeys, f => Assert.Equal(FkSource.ClrModel, f.Source));
+    }
+
+    [Fact]
+    public async Task Columns_that_do_not_fit_their_property_are_listed_most_severe_first()
+    {
+        _typedColumns["KUNDEN"] =
+        [
+            Column("KUNDE_ID", "NUMBER", precision: 10, scale: 0, position: 1),
+            Column("NAME", "VARCHAR2", 50, charSemantics: true, nullable: true, position: 2),
+            Column("GESPERRT", "CHAR", 1, position: 3),
+        ];
+        _typedColumns["V_KUNDEN"] = [Column("NAME", "VARCHAR2", 50, charSemantics: true, nullable: true)];
+        var schema = await SchemaAsync(new TableSummary(Owner, "KUNDEN", TableKind.Table), new TableSummary(Owner, "V_KUNDEN", TableKind.View));
+        var kunde = Entity("Shop.Kunde", "KUNDEN",
+            Prop("KundeId", "KUNDE_ID"),
+            Prop("Name", "NAME", "string") with { MaxLength = 100 },
+            Prop("Gesperrt", "GESPERRT", "bool"));
+        var view = Entity("Shop.KundeView", null, Prop("Name", "NAME", "string") with { MaxLength = 100 }) with { View = "V_KUNDEN" };
+
+        var mapping = await ClrModelMapping.BuildAsync(Model(kunde, view), schema, Ct);
+
+        Assert.Equal(
+            [
+                ("Kunde", "GESPERRT", ColumnMismatchKind.Type, MismatchSeverity.Error),
+                ("Kunde", "NAME", ColumnMismatchKind.Nullability, MismatchSeverity.Warning),
+                ("Kunde", "NAME", ColumnMismatchKind.Length, MismatchSeverity.Warning),
+                // The view is only read: no length, and its NULL is a hint.
+                ("KundeView", "NAME", ColumnMismatchKind.Nullability, MismatchSeverity.Hint),
+            ],
+            mapping.ColumnMismatches.Select(m => (ClrModelMapping.ShortName(m.Entity.ClrType), m.Column.Name, m.Kind, m.Severity)));
+        Assert.Equal(2, mapping.MismatchesOf(new TableRef(Owner, "KUNDEN"), "NAME").Count());
+        Assert.Empty(mapping.MismatchesOf(new TableRef(Owner, "KUNDEN"), "KUNDE_ID"));
+        Assert.Empty(mapping.Issues);
     }
 
     [Fact]

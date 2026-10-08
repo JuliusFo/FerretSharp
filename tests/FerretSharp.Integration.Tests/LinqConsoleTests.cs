@@ -266,8 +266,8 @@ public sealed class LinqConsoleTests : IAsyncLifetime
         reader.GetTablesAsync(owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyList<TableSummary>)[kunden.Table]);
         reader.GetSynonymTargetsAsync(owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyList<TableSummary>)[]);
         reader.GetForeignKeysAsync(owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyList<ForeignKeyInfo>)[]);
-        reader.GetColumnNamesAsync(owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyDictionary<string, IReadOnlyList<string>>)
-            new Dictionary<string, IReadOnlyList<string>> { ["KUNDEN"] = kunden.Columns.Select(c => c.Name).ToList() });
+        reader.GetColumnsAsync(owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyDictionary<string, IReadOnlyList<ColumnInfo>>)
+            new Dictionary<string, IReadOnlyList<ColumnInfo>> { ["KUNDEN"] = kunden.Columns });
         var schema = new SchemaCache(reader, owner);
         await schema.LoadAsync(Ct);
         var mapping = await ClrModelMapping.BuildAsync(model, schema, Ct);

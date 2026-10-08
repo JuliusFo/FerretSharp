@@ -41,11 +41,11 @@ internal static class CodeGenerationModel
         reader.GetTablesAsync(Owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyList<TableSummary>)[Kunden.Table, View.Table]);
         reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyList<TableSummary>)[]);
         reader.GetForeignKeysAsync(Owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyList<ForeignKeyInfo>)[]);
-        reader.GetColumnNamesAsync(Owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyDictionary<string, IReadOnlyList<string>>)
-            new Dictionary<string, IReadOnlyList<string>>
+        reader.GetColumnsAsync(Owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyDictionary<string, IReadOnlyList<ColumnInfo>>)
+            new Dictionary<string, IReadOnlyList<ColumnInfo>>
             {
-                ["KUNDEN"] = Kunden.Columns.Select(c => c.Name).ToList(),
-                ["V_KUNDEN"] = ["KUNDE_ID"],
+                ["KUNDEN"] = Kunden.Columns,
+                ["V_KUNDEN"] = Kunden.Columns.Where(c => c.Name == "KUNDE_ID").ToList(),
             });
         var schema = new SchemaCache(reader, Owner);
         await schema.LoadAsync(TestContext.Current.CancellationToken);

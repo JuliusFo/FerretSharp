@@ -90,7 +90,16 @@
                         }
                         else
                         {
-                            <td class="mono property">@property.Name@(property.IsShadow ? " (Shadow)" : "")</td>
+                            var mismatches = mapping.MismatchesOf(Details.Table.Ref, column.Name).ToList();
+                            <td class="mono property">
+                                @property.Name@(property.IsShadow ? " (Shadow)" : "")
+                                @if (mismatches.Count > 0)
+                                {
+                                    var worst = mismatches.Min(m => m.Severity);
+                                    <span class="mismatch-sev @ModelMismatches.Css(worst)"
+                                          title="@string.Join("\n", mismatches.Select(m => $"{ModelMismatches.KindText(m.Kind)}: {m.Message}"))">@string.Join(" · ", mismatches.Select(m => ModelMismatches.KindText(m.Kind)))</span>
+                                }
+                            </td>
                             <td class="mono clr-type" title="@ValuesTitle(property)">
                                 @TablePresentation.ClrTypeText(property)
                                 @if (property.Converter is { } converter)

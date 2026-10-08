@@ -79,6 +79,11 @@ internal static class ModelReader
         var mapping = TryGet(property.FindTypeMapping);
         // EF converts enums with a converter of its own even without configuration (EnumToNumberConverter).
         var converter = userConverter ?? mapping?.Converter;
+        // Facets only as configured: the provider's defaults (NVARCHAR2(2000) for every string) would make every column
+        // differ. A configured store type (HasColumnType("NUMBER(12,2)")) carries its facets in the parsed type mapping.
+        var storeType = property.FindAnnotation(RelationalAnnotationNames.ColumnType)?.Value is string
+            ? TryGet(property.FindRelationalTypeMapping)
+            : null;
 
         return new PropertyExport(
             property.Name,
@@ -92,7 +97,24 @@ internal static class ModelReader
             converter is null ? null : TypeName(converter.ProviderClrType),
             underlying.IsEnum && underlying.IsDefined(typeof(FlagsAttribute), false),
             Values(underlying, userConverter, converter),
-            viewStore is { } v ? property.GetColumnName(v) : null);
+            viewStore is { } v ? property.GetColumnName(v) : null,
+            TryGetValue(property.GetMaxLength) ?? storeType?.Size,
+            TryGetValue(property.GetPrecision) ?? storeType?.Precision,
+            TryGetValue(property.GetScale) ?? storeType?.Scale,
+            store is { } nullableIn ? TryGetValue(() => (bool?)property.IsColumnNullable(nullableIn)) : null);
+    }
+
+    private static T? TryGetValue<T>(Func<T?> read)
+        where T : struct
+    {
+        try
+        {
+            return read();
+        }
+        catch (Exception)
+        {
+            return null;
+        }
     }
 
     /// <summary>Every enum member (and true/false of a converted bool) with the value the project stores for it.</summary>
