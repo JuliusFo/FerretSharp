@@ -137,49 +137,35 @@ public sealed class SchemaCompareLoaderTests
     [Fact]
     public async Task Saved_comparisons_survive_a_round_trip()
     {
-        var file = Path.Combine(Path.GetTempPath(), "ferretsharp-tests", Guid.NewGuid().ToString("N"), "comparisons.json");
-        try
-        {
-            var store = new ComparisonStore(file);
-            Assert.Empty(await store.LoadAsync(Ct));
-            var saved = new SavedComparison(Guid.NewGuid(), "ERP: Dev/Test/Prod", [new CompareSide(_dev.Id), new CompareSide(_test.Id, "ERP")],
-                Reference: 0, ColumnOrder: true, OnlyDifferences: false, Kinds: [CompareKind.Column, CompareKind.Index]);
+        using var folder = new TestFolder();
+        var store = new ComparisonStore(folder.Combine("data", "comparisons.json")); // the folder does not exist yet
+        Assert.Empty(await store.LoadAsync(Ct));
+        var saved = new SavedComparison(Guid.NewGuid(), "ERP: Dev/Test/Prod", [new CompareSide(_dev.Id), new CompareSide(_test.Id, "ERP")],
+            Reference: 0, ColumnOrder: true, OnlyDifferences: false, Kinds: [CompareKind.Column, CompareKind.Index]);
 
-            await store.SaveAsync([saved], Ct);
-            var loaded = Assert.Single(await store.LoadAsync(Ct));
+        await store.SaveAsync([saved], Ct);
+        var loaded = Assert.Single(await store.LoadAsync(Ct));
 
-            Assert.Equal(saved with { Sides = loaded.Sides, Kinds = loaded.Kinds }, loaded);
-            Assert.Equal(saved.Sides, loaded.Sides);
-            Assert.Equal(saved.Kinds, loaded.Kinds);
-        }
-        finally
-        {
-            Directory.Delete(Path.GetDirectoryName(file)!, recursive: true);
-        }
+        Assert.Equal(saved with { Sides = loaded.Sides, Kinds = loaded.Kinds }, loaded);
+        Assert.Equal(saved.Sides, loaded.Sides);
+        Assert.Equal(saved.Kinds, loaded.Kinds);
     }
 
     /// <summary>A file of a newer FerretSharp (after a downgrade) is reported and kept, not overwritten as format 1.</summary>
     [Fact]
     public async Task Comparisons_of_a_newer_format_are_neither_read_nor_overwritten()
     {
-        var directory = Directory.CreateTempSubdirectory("ferret-comparisons-").FullName;
-        var file = Path.Combine(directory, "comparisons.json");
-        try
-        {
-            const string newer = """{ "version": 2, "comparisons": [], "somethingNew": true }""";
-            await File.WriteAllTextAsync(file, newer, Ct);
-            var store = new ComparisonStore(file);
+        using var folder = new TestFolder();
+        var file = folder.Combine("comparisons.json");
+        const string newer = """{ "version": 2, "comparisons": [], "somethingNew": true }""";
+        await File.WriteAllTextAsync(file, newer, Ct);
+        var store = new ComparisonStore(file);
 
-            var load = await Assert.ThrowsAsync<IOException>(() => store.LoadAsync(Ct));
-            var save = await Assert.ThrowsAsync<IOException>(() => store.SaveAsync([], Ct));
+        var load = await Assert.ThrowsAsync<IOException>(() => store.LoadAsync(Ct));
+        var save = await Assert.ThrowsAsync<IOException>(() => store.SaveAsync([], Ct));
 
-            Assert.Contains("neueren FerretSharp-Version", load.Message);
-            Assert.Contains("nicht überschrieben", save.Message);
-            Assert.Equal(newer, await File.ReadAllTextAsync(file, Ct));
-        }
-        finally
-        {
-            Directory.Delete(directory, recursive: true);
-        }
+        Assert.Contains("neueren FerretSharp-Version", load.Message);
+        Assert.Contains("nicht überschrieben", save.Message);
+        Assert.Equal(newer, await File.ReadAllTextAsync(file, Ct));
     }
 }

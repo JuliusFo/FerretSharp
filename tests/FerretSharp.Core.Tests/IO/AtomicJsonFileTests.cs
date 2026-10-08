@@ -5,7 +5,7 @@ namespace FerretSharp.Core.Tests.IO;
 
 public sealed class AtomicJsonFileTests : IDisposable
 {
-    private readonly string _directory = Path.Combine(Path.GetTempPath(), "ferretsharp-tests", Guid.NewGuid().ToString("N"));
+    private readonly TestFolder _folder = new();
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -19,7 +19,7 @@ public sealed class AtomicJsonFileTests : IDisposable
     [Fact]
     public async Task Creates_the_directory_and_replaces_the_file()
     {
-        var path = Path.Combine(_directory, "sub", "doc.json");
+        var path = _folder.Combine("sub", "doc.json");
 
         await AtomicJsonFile.WriteAsync(path, new Doc(1, "eins"), JsonSerializerOptions.Web, Ct);
         await AtomicJsonFile.WriteAsync(path, new Doc(2, "zwei"), JsonSerializerOptions.Web, Ct);
@@ -31,7 +31,7 @@ public sealed class AtomicJsonFileTests : IDisposable
     [Fact]
     public async Task A_failed_write_keeps_the_old_file_and_removes_the_temporary_one()
     {
-        var path = Path.Combine(_directory, "doc.json");
+        var path = _folder.Combine("doc.json");
         await AtomicJsonFile.WriteAsync(path, new Doc(1, "eins"), JsonSerializerOptions.Web, Ct);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => AtomicJsonFile.WriteAsync(path, new Broken(), JsonSerializerOptions.Web, Ct));
@@ -42,9 +42,6 @@ public sealed class AtomicJsonFileTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_directory))
-        {
-            Directory.Delete(_directory, recursive: true);
-        }
+        _folder.Dispose();
     }
 }

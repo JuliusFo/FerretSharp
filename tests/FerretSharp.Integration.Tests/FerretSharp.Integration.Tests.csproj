@@ -18,6 +18,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\Shared\TestFolder.cs" Link="Shared\TestFolder.cs" />
+    <Using Include="FerretSharp.Testing" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Builds comparisons by hand for the DDL proposal tests (shared with the unit tests). -->
     <Compile Include="..\FerretSharp.Core.Tests\Compare\TestComparison.cs" Link="Compare\TestComparison.cs" />
   </ItemGroup>

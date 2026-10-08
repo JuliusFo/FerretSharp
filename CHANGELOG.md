@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Changed
+- Folders are only ever deleted below a fixed root: the model host's temp folders and all test folders go through one guarded helper that refuses a drive root, the root itself or a path outside it; a test keeps code, tests and scripts from deleting folders any other way.
+
 ## [3.15.0] - 2026-10-08
 
 ### Changed

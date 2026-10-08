@@ -15,7 +15,7 @@ namespace FerretSharp.Core.Tests.ClrModel;
 /// </summary>
 public sealed class ClrModelLoadingTests : IAsyncDisposable
 {
-    private readonly DirectoryInfo _root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "fs-model-" + Guid.NewGuid().ToString("N")));
+    private readonly TestFolder _folder = new();
     private readonly IModelHostRunner _runner = Substitute.For<IModelHostRunner>();
     private readonly ActiveConnection _active;
     private readonly ClrModelManager _models;
@@ -24,10 +24,10 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
 
     public ClrModelLoadingTests()
     {
-        var project = Path.Combine(Directory.CreateDirectory(Path.Combine(_root.FullName, "Shop.Data")).FullName, "Shop.Data.csproj");
+        var project = Path.Combine(Directory.CreateDirectory(_folder.Combine("Shop.Data")).FullName, "Shop.Data.csproj");
         File.WriteAllText(project, "<Project Sdk=\"Microsoft.NET.Sdk\" />");
         File.SetLastWriteTimeUtc(project, DateTime.UtcNow.AddHours(-1));
-        var output = Directory.CreateDirectory(Path.Combine(_root.FullName, "Shop.Data", "bin", "Debug", "net8.0"));
+        var output = Directory.CreateDirectory(_folder.Combine("Shop.Data", "bin", "Debug", "net8.0"));
         File.WriteAllText(Path.Combine(output.FullName, "Shop.Data.dll"), "");
         _deps = Path.Combine(output.FullName, "Shop.Data.deps.json");
         File.WriteAllText(_deps, """{ "runtimeTarget": { "name": ".NETCoreApp,Version=v8.0" }, "libraries": { "Microsoft.EntityFrameworkCore/8.0.0": {} } }""");
@@ -45,7 +45,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
         reader.GetForeignKeysAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
         connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(connection);
         var workspaces = new WorkspaceManager(new InMemoryWorkspaceStore(), connections, connector);
-        _active = new ActiveConnection(connections, connector, new RecentConnections(Path.Combine(_root.FullName, "recent.json")), workspaces);
+        _active = new ActiveConnection(connections, connector, new RecentConnections(_folder.Combine("recent.json")), workspaces);
         _models = new ClrModelManager(_runner, _active, connections);
     }
 
@@ -84,7 +84,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
     {
         _models.Dispose();
         await _active.DisposeAsync();
-        _root.Delete(recursive: true);
+        _folder.Dispose();
     }
 
     [Fact]

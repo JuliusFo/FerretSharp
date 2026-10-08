@@ -20,7 +20,7 @@ internal sealed class TestApp : IAsyncDisposable
 {
     public static readonly TableSummary Kunden = new("APP_USER", "KUNDEN", TableKind.Table);
 
-    private readonly string _directory = Path.Combine(Path.GetTempPath(), "ferret-ui-tests", Guid.NewGuid().ToString("N"));
+    private readonly TestFolder _folder = new();
     private readonly ServiceProvider _services;
 
     public TestApp()
@@ -33,11 +33,11 @@ internal sealed class TestApp : IAsyncDisposable
         services.AddSingleton<ISecretStore>(Secrets);
         services.AddSingleton(Substitute.For<IConnectionStore>());
         services.AddSingleton<ConnectionManager>();
-        services.AddSingleton(new RecentConnections(Path.Combine(_directory, "recent.json")));
+        services.AddSingleton(new RecentConnections(_folder.Combine("recent.json")));
         services.AddSingleton(connector);
         services.AddSingleton<IWorkspaceStore>(WorkspaceStore);
         services.AddSingleton(Substitute.For<IModelHostRunner>());
-        services.AddSingleton(new AppSettingsService(new SettingsStore(Path.Combine(_directory, "settings.json")), new AppSettings()));
+        services.AddSingleton(new AppSettingsService(new SettingsStore(_folder.Combine("settings.json")), new AppSettings()));
         services.AddScoped<WorkspaceManager>();
         services.AddScoped<ActiveConnection>();
         services.AddScoped<ClrModelManager>();
@@ -49,7 +49,7 @@ internal sealed class TestApp : IAsyncDisposable
         Hub = _services.GetRequiredService<ConnectionHub>();
         Editing = new WorkspaceEditing(Shell, Hub, _services.GetRequiredService<AppSettingsService>(), NullLogger<WorkspaceEditing>.Instance);
         Lifecycle = new WorkspaceLifecycle(
-            Shell, Hub, _services.GetRequiredService<ConnectionManager>(), new SqlHistoryStore(Path.Combine(_directory, "history")),
+            Shell, Hub, _services.GetRequiredService<ConnectionManager>(), new SqlHistoryStore(_folder.Combine("history")),
             Editing, NullLogger<WorkspaceLifecycle>.Instance);
     }
 
@@ -123,23 +123,6 @@ internal sealed class TestApp : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await _services.DisposeAsync();
-
-        // A reconnect runs in the background (Task.Run) and may still write recent.json while we delete: retry, then
-        // leave the temp folder behind rather than failing the test (seen on Linux CI after 3.15.0).
-        for (var attempt = 1; Directory.Exists(_directory); attempt++)
-        {
-            try
-            {
-                Directory.Delete(_directory, recursive: true);
-            }
-            catch (IOException) when (attempt < 5)
-            {
-                await Task.Delay(50);
-            }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-            {
-                return;
-            }
-        }
+        _folder.Dispose(); // retries: a reconnect may still write recent.json in the background
     }
 }

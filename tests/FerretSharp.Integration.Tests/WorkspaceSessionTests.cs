@@ -11,7 +11,7 @@ namespace FerretSharp.Integration.Tests;
 /// <summary>Workspaces against the container: every open workspace browses on its own session named after it.</summary>
 public sealed class WorkspaceSessionTests(OracleContainerFixture oracle) : IAsyncLifetime
 {
-    private readonly string _directory = Path.Combine(Path.GetTempPath(), "ferret-it", Guid.NewGuid().ToString("N"));
+    private readonly TestFolder _folder = new();
     private readonly List<OracleSession> _sessionsToClose = [];
     private WorkspaceManager _workspaces = null!;
     private ConnectionProfile _profile = null!;
@@ -34,7 +34,7 @@ public sealed class WorkspaceSessionTests(OracleContainerFixture oracle) : IAsyn
 
         var secrets = new SingleSecretStore(profile.Id, password);
         _workspaces = new WorkspaceManager(
-            new WorkspaceStore(_directory), new ConnectionManager(new NoConnectionStore(), secrets), new OracleDatabaseConnector());
+            new WorkspaceStore(_folder.Path), new ConnectionManager(new NoConnectionStore(), secrets), new OracleDatabaseConnector());
         await _workspaces.AttachAsync(profile, Ct);
     }
 
@@ -50,10 +50,7 @@ public sealed class WorkspaceSessionTests(OracleContainerFixture oracle) : IAsyn
             await session.DisposeAsync();
         }
 
-        if (Directory.Exists(_directory))
-        {
-            Directory.Delete(_directory, recursive: true);
-        }
+        _folder.Dispose();
     }
 
     private async Task<(string Action, string Sid)> SessionInfoAsync(Guid workspaceId)
