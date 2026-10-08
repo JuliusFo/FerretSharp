@@ -337,7 +337,7 @@
     {
         Tab.FormOpen = false;
         Shell.MarkDirty();
-        return _grid?.FocusRowAsync(_grid.Focused ?? new FerretGrid.GridCell(0, null, null), keepFocus: false) ?? Task.CompletedTask;
+        return _grid?.FocusRowAsync(_grid.Focused ?? new GridCell(0, null, null), keepFocus: false) ?? Task.CompletedTask;
     }
 
     /// <summary>Opens the form on a row (context menu, a compared row's heading).</summary>
@@ -348,7 +348,7 @@
         StateHasChanged();
         if (_grid is not null)
         {
-            await _grid.FocusRowAsync(new FerretGrid.GridCell(rowIndex, null, column), keepFocus: false);
+            await _grid.FocusRowAsync(new GridCell(rowIndex, null, column), keepFocus: false);
         }
     }
 

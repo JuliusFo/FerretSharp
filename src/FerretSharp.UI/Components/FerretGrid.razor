@@ -7,6 +7,7 @@
 @using FerretSharp.Core.Schema
 @inherits FerretComponent
 @implements IAsyncDisposable
+@implements IFormGrid
 @inject IJSRuntime JS
 @inject ILogger<FerretGrid> Logger
 
@@ -63,13 +64,6 @@
     /// <summary>Alt+Enter in the grid: the form of the focused row, or the comparison of the selected rows (WP-21).</summary>
     [Parameter]
     public EventCallback<FormRequest> OnFormRequested { get; set; }
-
-    /// <summary>A grid position: a loaded row by index, or a new row (pinned at the top) by its id.</summary>
-    /// <param name="Column">The focused column; null if unknown.</param>
-    public sealed record GridCell(int RowIndex, string? NewId, int? Column)
-    {
-        public bool IsNew => NewId is not null;
-    }
 
     /// <summary>Alt+Enter: where the focus was and which rows were selected (grid indexes, in grid order).</summary>
     public sealed record FormRequest(GridCell? Focused, IReadOnlyList<int> Selected);

@@ -19,7 +19,7 @@
         <button class="icon-btn ghost" title="Vorige Zeile (Alt+↑)" disabled="@(!CanMove(-1))" @onclick="() => MoveAsync(-1)">▲</button>
         <button class="icon-btn ghost" title="Nächste Zeile (Alt+↓)" disabled="@(!CanMove(1))" @onclick="() => MoveAsync(1)">▼</button>
         <span class="form-pos">
-            @if (_cell is { } cell)
+            @if (Cell is { } cell)
             {
                 <strong>@PositionText(cell)</strong>
                 @if (CurrentRow?.KeyText(Details) is { } key)
@@ -77,7 +77,7 @@
         {
             <div class="form-note danger">
                 Zum Löschen markiert@(row.Change.Deleted == ChangeStage.Flushed ? " (geschrieben)" : "").
-                @if (row.Change.Deleted == ChangeStage.Pending && _cell is { IsNew: false } at)
+                @if (row.Change.Deleted == ChangeStage.Pending && Cell is { IsNew: false } at)
                 {
                     <button class="link-btn" @onclick="() => RevertAsync(at.RowIndex)">Verwerfen</button>
                 }
@@ -94,9 +94,9 @@
     }
 
     <div class="form-fields" @ref="_fields">
-        @if (Grid is null || _cell is null)
+        @if (Grid is null || Cell is null)
         {
-            <div class="form-empty">@(_lost ?? "Im Grid eine Zeile wählen (Klick oder Pfeiltasten).")</div>
+            <div class="form-empty">@(_cursor?.Lost ?? "Im Grid eine Zeile wählen (Klick oder Pfeiltasten).")</div>
         }
         else if (row is null)
         {
@@ -171,17 +171,11 @@
     private FerretGrid? _subscribed;
     private bool _disposed;
 
+    /// <summary>The shown row, followed through the grid (<see cref="FormCursor"/>); null until the grid has rendered.</summary>
+    private FormCursor? _cursor;
+
     /// <summary>The shown grid position; null if none (nothing chosen yet, or the row is gone).</summary>
-    private FerretGrid.GridCell? _cell;
-
-    /// <summary>Key of the shown loaded row, to find it again after writing or reloading; null until loaded (and for views without key).</summary>
-    private RowKey? _key;
-
-    /// <summary>The shown new row (not inserted yet); followed when it is inserted.</summary>
-    private RowChange? _newRow;
-
-    /// <summary>Why no row is shown (it was reloaded away).</summary>
-    private string? _lost;
+    private GridCell? Cell => _cursor?.Cell;
 
     private int? _highlight;
     private int _rowVersion;
@@ -209,7 +203,7 @@
     /// <summary>The workspace may write and the tab tracks changes – as the grid's editing.</summary>
     private bool Writable => Grid?.CanEdit == true && Tab.Changes is not null;
 
-    private FormRow? CurrentRow => _cell is { } cell && Grid is not null ? Grid.RowOf(cell) : null;
+    private FormRow? CurrentRow => Cell is { } cell && Grid is not null ? Grid.RowOf(cell) : null;
 
     private string WidthStyle => FormattableString.Invariant($"width: {Tab.FormWidth ?? DefaultWidth}px;");
 
@@ -231,6 +225,7 @@
         }
 
         _subscribed = Grid;
+        _cursor = Grid is null ? null : new FormCursor(Grid);
         if (Grid is null)
         {
             return;
@@ -245,7 +240,7 @@
         else
         {
             // Opened before any cell had the focus: the first visible row.
-            var first = new FerretGrid.GridCell(Tab.FirstVisibleRow ?? 0, null, null);
+            var first = new GridCell(Tab.FirstVisibleRow ?? 0, null, null);
             Show(first);
             Fire(() => Grid.FocusRowAsync(first, keepFocus: true));
         }
@@ -299,22 +294,17 @@
     }
 
     /// <summary>Shows another grid position; typed values of the previous row were taken before.</summary>
-    private void Show(FerretGrid.GridCell cell)
+    private void Show(GridCell cell)
     {
-        _cell = cell;
-        _lost = null;
+        _cursor?.Show(cell);
         _highlight = cell.Column ?? _highlight;
-        var row = Grid?.RowOf(cell);
-        _key = row?.Loaded?.Key;
-        _newRow = cell.IsNew ? row?.Change : null;
         _drafts.Clear();
         _errors.Clear();
         _rowVersion++;
         StartCounts();
     }
 
-    private bool SameRow(FerretGrid.GridCell cell) =>
-        _cell is { } shown && shown.NewId == cell.NewId && (cell.IsNew || shown.RowIndex == cell.RowIndex);
+    private bool SameRow(GridCell cell) => _cursor?.Shows(cell) == true;
 
     private void OnFocusChanged() => _ = InvokeAsync(() =>
     {
@@ -340,60 +330,25 @@
     /// <summary>Rows were loaded or redrawn: the shown row may have moved (after writing), become loaded, or be gone.</summary>
     private void OnRowsChanged() => _ = InvokeAsync(() =>
     {
-        if (_disposed || Grid is null || _cell is not { } cell)
+        if (_disposed || Grid is null || _cursor is null)
         {
             return;
         }
 
-        if (_newRow is { } added)
+        switch (_cursor.RowsChanged())
         {
-            if (Grid.CellOf(added, cell.Column) is { } at)
-            {
-                _cell = at;
-            }
-            else if (added.IsInserted && Grid.IndexOf(added.Key) is { } index)
-            {
-                // Inserted by writing: from now on a loaded row like any other.
-                _newRow = null;
-                _key = added.Key;
-                _cell = new FerretGrid.GridCell(index, null, cell.Column);
-                Fire(() => Grid.FocusRowAsync(_cell, keepFocus: true));
-            }
-            else if (!added.IsInserted || Grid.RowAt(0) is not null)
-            {
-                _cell = null;
-                _newRow = null;
-                _lost = added.IsInserted
-                    ? "Die eingefügte Zeile steht nicht im geladenen Bereich des Grids – im Grid eine Zeile wählen."
-                    : "Die neue Zeile wurde entfernt.";
-            }
-        }
-        else if (Grid.RowAt(cell.RowIndex) is { } at)
-        {
-            if (_key is null)
-            {
-                _key = at.Loaded!.Key; // the block arrived after the row was chosen
+            case FormFollow.KeyKnown:
                 StartCounts();
-            }
-            else if (_key is not RowKey.None && !Equals(at.Loaded!.Key, _key))
-            {
-                if (Grid.IndexOf(_key) is { } index)
-                {
-                    _cell = cell with { RowIndex = index };
-                    Fire(() => Grid.FocusRowAsync(_cell, keepFocus: true));
-                }
-                else
-                {
-                    _cell = null;
-                    _lost = "Die Zeile ist nicht mehr geladen – im Grid eine Zeile wählen.";
-                }
-            }
+                break;
+            case FormFollow.Moved when _cursor.Cell is { } moved:
+                Fire(() => Grid.FocusRowAsync(moved, keepFocus: true));
+                break;
         }
 
         StateHasChanged();
     });
 
-    private string PositionText(FerretGrid.GridCell cell)
+    private string PositionText(GridCell cell)
     {
         if (cell.IsNew)
         {
@@ -409,31 +364,8 @@
     private IReadOnlyList<RowChange> NewRows => Tab.Changes?.NewRows ?? [];
 
     /// <summary>Where ▲ ▼ lead: the new rows at the top first, then the loaded rows; null at either end.</summary>
-    private FerretGrid.GridCell? Target(int delta)
-    {
-        if (_cell is not { } cell || Grid is null)
-        {
-            return null;
-        }
-
-        var newRows = NewRows;
-        if (cell.IsNew)
-        {
-            var i = GridRows.NewRowIndex(Tab.Changes, cell.NewId) + delta;
-            return i < 0 ? null
-                : i < newRows.Count ? Grid.CellOf(newRows[i], cell.Column)
-                : new FerretGrid.GridCell(0, null, cell.Column);
-        }
-
-        var target = cell.RowIndex + delta;
-        if (target < 0)
-        {
-            return newRows.Count > 0 ? Grid.CellOf(newRows[^1], cell.Column) : null;
-        }
-
-        var last = Tab.AllRowsLoaded ? Tab.RowsLoaded - 1 : Tab.TotalCount is { } total ? (int)Math.Min(total - 1, int.MaxValue) : int.MaxValue;
-        return target > last ? null : new FerretGrid.GridCell(target, null, cell.Column);
-    }
+    private GridCell? Target(int delta) => _cursor?.Target(delta, NewRows,
+        Tab.AllRowsLoaded ? Tab.RowsLoaded - 1 : Tab.TotalCount is { } total ? (int)Math.Min(total - 1, int.MaxValue) : int.MaxValue);
 
     private bool CanMove(int delta) => Target(delta) is not null;
 
@@ -496,7 +428,7 @@
     /// <summary>Checks a typed text and keeps it as a pending change, like a cell edit; the message if it cannot be taken.</summary>
     private string? Commit(int column, string text)
     {
-        if (_cell is not { } cell || Grid?.RowOf(cell) is not { } row)
+        if (Cell is not { } cell || Grid?.RowOf(cell) is not { } row)
         {
             return null;
         }
@@ -561,7 +493,7 @@
 
     private void OpenLob(int column)
     {
-        if (_cell is { } cell && Grid is not null)
+        if (Cell is { } cell && Grid is not null)
         {
             CommitDrafts();
             Fire(() => Grid.OpenLobAsync(cell, column));
