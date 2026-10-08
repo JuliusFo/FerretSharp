@@ -115,6 +115,15 @@ public sealed class ConnectionHub(IServiceScopeFactory scopes, TimeProvider? tim
     /// <summary>The connection a workspace belongs to.</summary>
     public ConnectionScope? OwnerOf(Guid workspaceId) => Open.FirstOrDefault(s => s.Workspaces.Find(workspaceId) is not null);
 
+    /// <summary>
+    /// The connection of a workspace for an action on it (lifecycle, editing). A workspace closed meanwhile falls back to
+    /// the shown connection, where the action then finds no workspace and ends quietly (<see cref="WorkspaceClosedException"/>).
+    /// </summary>
+    public ConnectionScope ScopeOfWorkspace(Guid workspaceId) => OwnerOf(workspaceId) ?? Shown;
+
+    /// <summary>The connection of a workspace's tabs: by its connection id, without searching every workspace list.</summary>
+    public ConnectionScope ScopeOf(WorkspaceTabs workspace) => Find(workspace.ConnectionId) ?? ScopeOfWorkspace(workspace.WorkspaceId);
+
     public bool IsOpen(Guid profileId) => Find(profileId) is not null;
 
     /// <summary>
