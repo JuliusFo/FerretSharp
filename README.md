@@ -151,6 +151,8 @@ files.
 
 ## Keyboard shortcuts
 
+The defaults – every one of them can be changed under *Einstellungen › Tastenkürzel*, which also lists the fixed keys.
+
 | Keys | Action |
 |---|---|
 | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd> | Switch connection |

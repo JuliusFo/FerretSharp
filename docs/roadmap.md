@@ -24,12 +24,6 @@ Wunsch des Nutzers (2026-10-06): Tabellen anlegen und ändern, passend zum DB-fi
 - Oracle-Fallen im Designer abfangen: NOT NULL auf Spalte mit NULL-Werten (vorher zählen), Typänderung gefüllter Spalten (oft nur über neue Spalte + Umkopieren), VARCHAR2 BYTE/CHAR-Semantik, Index für neue FKs vorschlagen (`IndexAdvice`), Identity/Default ON NULL.
 - Verzahnung mit dem C#-Modell (Backlog-Idee „Entity aus Tabelle erzeugen“): nach der Änderung Property-Zeile bzw. Entity + `IEntityTypeConfiguration` im Stil des Projekts (Namenskonvention, J/N-Converter) zum Kopieren.
 
-### WP-25 Tastenkürzel einstellbar
-Wunsch der Kollegen des Nutzers (2026-10-07). Unabhängig von den anderen Paketen.
-- Eigene Seite bzw. eigener Bereich in den Einstellungen (Entscheidung des Nutzers: aufgeräumt, nicht zwischen die übrigen Einstellungen): **alle** Kürzel als Liste – die änderbaren mit „Ändern“ (Taste drücken) und „Zurücksetzen“, die festen ausgegraut mit Hinweis (auch die wichtigsten von Monaco: Suchen, Vorschläge; Esc im Grid). Dient zugleich als Übersicht, welche Aktion welches Kürzel hat.
-- Konflikte erkennen und melden; Kürzel, die Windows/WebView abfangen (`Alt+Shift` Sprachwechsel, `Ctrl+Alt` = AltGr, `Alt+F4`), ablehnen oder warnen.
-- Speichern in `AppSettings`; `Shell` registriert die Kürzel aus den Einstellungen bei `shortcuts.js` (heute Konstanten in `Shell.razor`); Anzeige der Kürzel in Tooltips/Buttons (`<kbd>`) aus derselben Quelle. Heutige Belegung: `docs/architecture.md` Abschnitt 3.
-
 ### WP-26 Audit-/Historientabellen aus einer Vorlage (nach WP-22/WP-23)
 Wunsch der Kollegen des Nutzers (2026-10-07): beim Anlegen einer Tabelle die Historientabelle und den Trigger gleich mit erzeugen, für bestehende Tabellen nachziehen. Entscheidung des Nutzers: das Schema kommt aus einer **Vorlagendatei**, nicht fest aus dem Code – damit FerretSharp auch außerhalb seiner Firma passt.
 - Eingebaute, dokumentierte Standardvorlage; in den Einstellungen ein Pfad zu einer eigenen Vorlage (z. B. im Repo der Firma); später evtl. je Verbindung überschreibbar.
