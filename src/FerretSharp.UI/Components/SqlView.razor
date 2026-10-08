@@ -2,7 +2,6 @@
    workspace's session. Queries go through the read path into a result grid, INSERT/UPDATE/DELETE/MERGE through the write
    path into the workspace's transaction (only on writable workspaces, confirmed on Prod and without WHERE); everything else
    is refused with a reason. *@
-@using System.Text.RegularExpressions
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
@@ -37,59 +36,12 @@
         <div class="sql-editors">
             <MonacoEditor @ref="_editor" Language="sql" Class="sql-code" Text="@Tab.Text" OnChange="OnTextChanged" Completion="CompleteAsync"
                           Placeholder="SELECT * FROM kunden WHERE kunde_id = :id;" />
-            @if (Tab.Variables.Count > 0)
-            {
-                <div class="linq-label">
-                    Variablen
-                    <span class="hint">Werte wie im Filter (1.234,5 · 05.10.2026 14:00 · ISO); gebunden, nie in das SQL eingesetzt.</span>
-                </div>
-                <div class="sql-variables">
-                    @foreach (var variable in Tab.Variables)
-                    {
-                        var v = variable;
-                        var used = _binds.Contains(v.Name, StringComparer.OrdinalIgnoreCase);
-                        <div class="sql-variable @(used ? "" : "unused")" title="@(used ? null : "Im Skript nicht mehr verwendet")">
-                            <code>:@v.Name</code>
-                            <select class="field" value="@v.Type" @onchange="e => SetVariable(v, Enum.Parse<SqlVariableType>((string)e.Value!), v.Value)">
-                                @foreach (var type in Enum.GetValues<SqlVariableType>())
-                                {
-                                    <option value="@type">@TypeText(type)</option>
-                                }
-                            </select>
-                            @if (v.Type != SqlVariableType.Null)
-                            {
-                                <input class="field" value="@v.Value" placeholder="@Placeholder(v.Type)" spellcheck="false"
-                                       @onchange="e => SetVariable(v, v.Type, Text(e))" />
-                            }
-                            @if (!used)
-                            {
-                                <button class="icon-btn ghost" title="Variable entfernen" @onclick="() => RemoveVariable(v)">✕</button>
-                            }
-                        </div>
-                    }
-                </div>
-            }
+            <SqlVariablesEditor Variables="Tab.Variables" Binds="_binds" OnChange="SetVariables" />
         </div>
 
         @if (_historyOpen)
         {
-            <aside class="sql-history">
-                <input class="field" placeholder="Verlauf durchsuchen …" value="@_historySearch" @oninput="SetSearch" />
-                <div class="sql-history-list">
-                    @foreach (var entry in FilteredHistory)
-                    {
-                        var e = entry;
-                        <button class="sql-history-item @(e.Error is null ? "" : "failed")" title="@e.Sql" @onclick="() => AdoptAsync(e)">
-                            <span class="sql-history-sql">@OneLine(e.Sql)</span>
-                            <span class="sql-history-meta">@e.ExecutedAt.ToLocalTime().ToString("dd.MM. HH:mm", CultureInfo.CurrentCulture) · @Outcome(e)</span>
-                        </button>
-                    }
-                    @if (!FilteredHistory.Any())
-                    {
-                        <div class="ctx-empty">@(_history.Count == 0 ? "Noch nichts ausgeführt." : "Kein Treffer.")</div>
-                    }
-                </div>
-            </aside>
+            <SqlHistoryPanel Entries="_history" OnAdopt="AdoptAsync" />
         }
     </div>
 
@@ -229,7 +181,6 @@
 
     private IReadOnlyList<SqlRun>? _confirm;
     private bool _historyOpen;
-    private string _historySearch = "";
     private IReadOnlyList<SqlHistoryEntry> _history = [];
 
     /// <summary>The binds of the whole script, in order (unused variables are shown dimmed).</summary>
@@ -304,15 +255,9 @@
         }
     }
 
-    private void SetVariable(SqlVariable variable, SqlVariableType type, string value)
+    private void SetVariables(IReadOnlyList<SqlVariable> variables)
     {
-        Tab.Variables = Tab.Variables.Select(v => ReferenceEquals(v, variable) ? v with { Type = type, Value = value } : v).ToList();
-        Shell.MarkDirty();
-    }
-
-    private void RemoveVariable(SqlVariable variable)
-    {
-        Tab.Variables = Tab.Variables.Where(v => !ReferenceEquals(v, variable)).ToList();
+        Tab.Variables = variables;
         Shell.MarkDirty();
     }
 
@@ -615,13 +560,6 @@
         }
     }
 
-    private void SetSearch(ChangeEventArgs e) => _historySearch = Text(e);
-
-    private static string Text(ChangeEventArgs e) => (string?)e.Value ?? string.Empty;
-
-    private IEnumerable<SqlHistoryEntry> FilteredHistory => _history.Where(e =>
-        _historySearch.Split(' ', StringSplitOptions.RemoveEmptyEntries).All(w => e.Sql.Contains(w, StringComparison.OrdinalIgnoreCase)));
-
     /// <summary>Appends the statement after a blank line, adopts its variables and puts the cursor there.</summary>
     private async Task AdoptAsync(SqlHistoryEntry entry)
     {
@@ -677,34 +615,6 @@
         run.Action is { } action ? WorkspaceEditing.FateOf(Workspaces, Tab.WorkspaceId, action, run.Transaction) : WriteFate.Ended;
 
     private void Cancel() => _cts?.Cancel();
-
-    private static string TypeText(SqlVariableType type) => type switch
-    {
-        SqlVariableType.Text => "Text",
-        SqlVariableType.Char => "Text (CHAR)",
-        SqlVariableType.Number => "Zahl",
-        SqlVariableType.Date => "Datum",
-        SqlVariableType.Raw => "Hex (RAW)",
-        _ => "NULL",
-    };
-
-    private static string Placeholder(SqlVariableType type) => type switch
-    {
-        SqlVariableType.Number => "4711",
-        SqlVariableType.Date => "05.10.2026 14:00",
-        SqlVariableType.Raw => "CAFE01",
-        _ => "",
-    };
-
-    private static string OneLine(string sql) => Regex.Replace(sql, @"\s+", " ").Trim();
-
-    private static string Outcome(SqlHistoryEntry entry) => entry switch
-    {
-        { Error: { } error } => error.Split(':')[0],
-        { Changed: true, Rows: { } rows } => $"{rows:N0} geändert",
-        { Rows: { } rows } => $"{(entry.MoreRows ? "≥ " : "")}{rows:N0} Zeilen",
-        _ => "",
-    };
 
     public void Dispose()
     {

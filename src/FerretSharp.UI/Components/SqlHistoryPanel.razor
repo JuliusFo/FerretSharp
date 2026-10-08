@@ -1,0 +1,47 @@
+@* The history beside a SQL tab (R3b, out of SqlView): the connection's last statements, searchable; a click adopts one
+   into the script. *@
+@using System.Text.RegularExpressions
+@using FerretSharp.Core.Workspaces
+
+<aside class="sql-history">
+    <SearchBox @bind-Value="_search" Class="search" Placeholder="Verlauf durchsuchen …" />
+    <div class="sql-history-list">
+        @foreach (var entry in Filtered)
+        {
+            var e = entry;
+            <button class="sql-history-item @(e.Error is null ? "" : "failed")" title="@e.Sql" @onclick="() => OnAdopt.InvokeAsync(e)">
+                <span class="sql-history-sql">@OneLine(e.Sql)</span>
+                <span class="sql-history-meta">@e.ExecutedAt.ToLocalTime().ToString("dd.MM. HH:mm", CultureInfo.CurrentCulture) · @Outcome(e)</span>
+            </button>
+        }
+        @if (!Filtered.Any())
+        {
+            <div class="ctx-empty">@(Entries.Count == 0 ? "Noch nichts ausgeführt." : "Kein Treffer.")</div>
+        }
+    </div>
+</aside>
+
+@code {
+    private string _search = "";
+
+    /// <summary>Newest first.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<SqlHistoryEntry> Entries { get; set; } = [];
+
+    [Parameter]
+    public EventCallback<SqlHistoryEntry> OnAdopt { get; set; }
+
+    /// <summary>Every word must occur in the statement, in any order.</summary>
+    private IEnumerable<SqlHistoryEntry> Filtered => Entries.Where(e =>
+        _search.Split(' ', StringSplitOptions.RemoveEmptyEntries).All(w => e.Sql.Contains(w, StringComparison.OrdinalIgnoreCase)));
+
+    private static string OneLine(string sql) => Regex.Replace(sql, @"\s+", " ").Trim();
+
+    private static string Outcome(SqlHistoryEntry entry) => entry switch
+    {
+        { Error: { } error } => error.Split(':')[0],
+        { Changed: true, Rows: { } rows } => $"{rows:N0} geändert",
+        { Rows: { } rows } => $"{(entry.MoreRows ? "≥ " : "")}{rows:N0} Zeilen",
+        _ => "",
+    };
+}
