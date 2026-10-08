@@ -2,7 +2,7 @@
 
 > Projektanweisungen für Claude Code. Bitte vollständig lesen, bevor ein Arbeitspaket umgesetzt wird.
 > Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-07 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0; WP-14 → 2.4.0; WP-15 → 3.0.0, v3 abgeschlossen; v4: WP-16 → 3.1.0, WP-17 → 3.2.0, WP-18 → 3.3.0, Leerzeichen nach Vorschlägen 3.3.1, Tabs umbenennen 3.4.0; WP-19 → 3.5.0; Stabilisierung R1 → 3.6.0, Protokolle nach `docs/work-packages.md`; Struktur-Refactoring R2 → 3.6.1; WP-20 → 3.7.0; WP-24 → 3.8.0; FK-Sprung mit mehreren Zeilen → 3.9.0)
+> Stand: 2026-10-08 (v1 bis 1.7; v2: 1.8–2.0; v3: WP-11 → 2.1.0, Fixes 2.1.1/2.1.2; WP-12 → 2.2.0, Enum-Anzeigenamen 2.2.1; WP-13 → 2.3.0; WP-14 → 2.4.0; WP-15 → 3.0.0, v3 abgeschlossen; v4: WP-16 → 3.1.0, WP-17 → 3.2.0, WP-18 → 3.3.0, Leerzeichen nach Vorschlägen 3.3.1, Tabs umbenennen 3.4.0; WP-19 → 3.5.0; Stabilisierung R1 → 3.6.0, Protokolle nach `docs/work-packages.md`; Struktur-Refactoring R2 → 3.6.1; WP-20 → 3.7.0; WP-24 → 3.8.0; FK-Sprung mit mehreren Zeilen → 3.9.0; WP-27 Modell-Abgleich Typen/NULL/Längen, noch ohne Release)
 
 ## 1. Ziel
 
@@ -381,6 +381,7 @@ Umsetzungsprotokolle (was gebaut wurde, Entscheidungen des Nutzers, Nachträge, 
 | WP-20 | Schema-Vergleich: N Schemas als Matrix, gespeicherte Vergleiche, DDL-Vorschlag | 3.7.0 | – |
 | WP-24 | Mehrere offene Verbindungen, eine sichtbar (Alt+O zur vorigen) | 3.8.0 | – |
 | Klein | FK-Sprung mit mehreren markierten Zeilen (`in`-Filter) | 3.9.0 | – |
+| WP-27 | Abgleich C#-Modell ↔ DB: Typ, NULL, Länge, Stellen (`ColumnTypeCheck`, Export-Format 2) | – | – |
 
 **Kontext des Nutzers** (wichtig für die kommenden Pakete):
 - DB-first von Hand: erst die DB ändern, dann Entity/Konfiguration; keine Migrations. Namenskonvention im Code (Tabellen groß, `KundenId` → `KUNDEN_ID`), **eigene Value Converter** (bool ↔ J/N, Enum-Kürzel), Enum-Member mit `[Display(ResourceType = …, Name = …)]`. Ein DbContext in einer Klassenbibliothek (Konstruktor `DbContextOptions`), Entities in einem anderen Projekt, EF Core 8.
@@ -393,6 +394,7 @@ Umsetzungsprotokolle (was gebaut wurde, Entscheidungen des Nutzers, Nachträge, 
 - `OracleSession` ist der einzige Besitzer der Connection: Dispose bricht das laufende Kommando ab und wartet auf das Gate; Wartende bekommen danach `OperationCanceledException`. Die Statement-Sperren (`StatementGuard`) nutzen den Tokenizer des SQL-Editors (`SqlScript.Tokenize`).
 - AG Grid: Objekte in Column-Defs (`headerComponentParams`) werden mit `defaultColDef` **tief kopiert** – veränderliche Metadaten als Funktion (`getMeta`). Kopfhöhe nur als Theme-Parameter, nicht als `headerHeight` (setzt die Zeilenhöhe zurück). Angeheftete Zeilen haben `row-index="t-0"`.
 - Monaco: `vs/nls/lang/de.js` ist kein AMD-Modul → als normales Script laden. Offsets sind UTF-16; Text und Offsets immer aus demselben `getRunContext`.
+- C#-Modell gegen die DB (WP-27) nur mit **konfigurierten** Facetten vergleichen: Die Provider-Vorgaben (`NVARCHAR2(2000)`, `NUMBER(10)` für `int`) beschreiben nicht die Absicht des Projekts und erzeugen Massen an Abweichungen. Für NULL `ColumnNullable` (EFs Spaltensicht) statt `Nullable` der Property (TPH, Owned).
 - ModelHost: Roslyn im Projektprozess nur bis 4.11 (ab 4.12 `System.Reflection.Metadata` 9.0, nicht ladbar in .NET 8); `AppContext.BaseDirectory` ist unter `dotnet exec --depsfile` nicht verlässlich (`typeof(Program).Assembly.Location`); Satelliten-Assemblies stehen nicht in der deps.json; ein Interceptor-Exemplar für die ganze Lebensdauer. Roslyn sieht eine Position am Textende als hinter einem unfertigen Lambda.
 - Dictionary über ein ganzes Schema (WP-20): Constraints gelöschter Tabellen bleiben im Papierkorb unter `BIN$…` in `ALL_CONSTRAINTS` → owner-weite Abfragen nach der Objektliste filtern. Eine `LONG`-Spalte (`DATA_DEFAULT`) zählt mit 32.767 Byte in `OracleDataReader.RowSize` → Fetch-Größe deckeln (`FetchManyRows`, 16 MB). `DEFAULT ON NULL` entfernen nimmt in Oracle 23 auch NOT NULL weg.
 - `EXPLAIN PLAN` geht nicht in einer READ-ONLY-Transaktion (ORA-01456) → Explorer-Session. `ReadSqlAsync` blättert durch erneutes Ausführen (`SELECT * FROM (…)` scheitert an doppelten Spaltennamen der EF-Joins, ORA-00918).
