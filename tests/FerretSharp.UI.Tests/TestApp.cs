@@ -100,21 +100,28 @@ internal sealed class TestApp : IAsyncDisposable
 
     public static DatabaseException LostError() => new("ORA-03113: end-of-file on communication channel", "ORA-03113");
 
-    private static IDatabaseConnection NewConnection()
+    /// <summary>What a commit of any workspace session does; completes at once unless a test holds it.</summary>
+    public Func<Task>? OnCommit { get; set; }
+
+    private IDatabaseConnection NewConnection()
     {
         var reader = Substitute.For<ISchemaReader>();
         reader.GetTablesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([Kunden]);
         reader.GetSynonymTargetsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
         reader.GetForeignKeysAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
+        var editor = Substitute.For<IDataEditor>();
+        editor.Transaction.Returns(new TransactionInfo(TransactionMode.ReadWrite, DateTimeOffset.Now));
+        editor.Actions.Returns([]);
+        editor.CommitAsync(Arg.Any<CancellationToken>()).Returns(_ => OnCommit?.Invoke() ?? Task.CompletedTask);
         var connection = Substitute.For<IDatabaseConnection>();
         connection.Schema.Returns(reader);
+        connection.Editor.Returns(editor);
         connection.ServerVersion.Returns("23.26.0.0.0");
         return connection;
     }
 
     public async ValueTask DisposeAsync()
     {
-
         await _services.DisposeAsync();
         if (Directory.Exists(_directory))
         {

@@ -34,7 +34,7 @@
 
 @if (Lifecycle.PendingLeave is { } leave)
 {
-    <LeaveDialog @key="leave" Request="leave" Busy="Editing.Busy"
+    <LeaveDialog @key="leave" Request="leave" Busy="leave.WorkspaceIds.Any(Editing.IsBusy)"
                  Items="@LeaveItems(leave)"
                  OnCommit="() => Lifecycle.LeaveAsync(commit: true)" OnDiscard="() => Lifecycle.LeaveAsync(commit: false)" OnCancel="Lifecycle.CancelLeave" />
 }

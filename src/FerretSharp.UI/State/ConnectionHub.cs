@@ -215,13 +215,17 @@ public sealed class ConnectionHub(IServiceScopeFactory scopes, TimeProvider? tim
         }
     }
 
+    /// <summary>
+    /// On exit: first saves the workspaces of every connection, then closes all of them at once. Closing one session can
+    /// block for seconds on a VPN that went silent; the app waits only so long, and the workspaces of the connections after
+    /// it must not depend on that.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         _timer?.Dispose();
-        foreach (var scope in Open)
-        {
-            await scope.DisposeAsync();
-        }
+        var open = Open;
+        await Task.WhenAll(open.Select(s => s.Workspaces.FlushAsync()));
+        await Task.WhenAll(open.Select(s => s.DisposeAsync().AsTask()));
 
         lock (_lock)
         {

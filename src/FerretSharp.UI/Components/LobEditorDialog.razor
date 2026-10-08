@@ -223,23 +223,41 @@
     private async Task SaveToFileAsync()
     {
         var name = $"{Details.Table.Name}_{Column.Name}";
-        string? path = Current switch
+        try
         {
-            string text => await SaveFiles.SaveTextAsync(name + ".txt", "Textdatei", text, utf8Bom: false),
-            byte[] bytes => await SaveFiles.SaveBytesAsync($"{name}.{LobContent.Detect(bytes).Extension}", "Datei", bytes),
-            _ => null,
-        };
-        if (path is not null)
+            string? path = Current switch
+            {
+                string text => await SaveFiles.SaveTextAsync(name + ".txt", "Textdatei", text, utf8Bom: false),
+                byte[] bytes => await SaveFiles.SaveBytesAsync($"{name}.{LobContent.Detect(bytes).Extension}", "Datei", bytes),
+                _ => null,
+            };
+            if (path is not null)
+            {
+                Shell.Notify($"Gespeichert: {path}");
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            Shell.Notify($"Gespeichert: {path}");
+            // A file open in another program, no permission: the dialog stays, the value is not lost.
+            _notice = $"Speichern fehlgeschlagen: {ex.Message}";
         }
     }
 
     private async Task LoadFromFileAsync()
     {
-        var file = IsBlob
-            ? await OpenFiles.OpenAsync("Alle Dateien", [], LobLimits.MaxLoadLength)
-            : await OpenFiles.OpenAsync("Textdateien", ["txt", "xml", "json", "csv", "sql", "html"], LobLimits.MaxLoadLength);
+        OpenedFile? file;
+        try
+        {
+            file = IsBlob
+                ? await OpenFiles.OpenAsync("Alle Dateien", [], LobLimits.MaxLoadLength)
+                : await OpenFiles.OpenAsync("Textdateien", ["txt", "xml", "json", "csv", "sql", "html"], LobLimits.MaxLoadLength);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _notice = $"Laden fehlgeschlagen: {ex.Message}";
+            return;
+        }
+
         if (file is null)
         {
             return;

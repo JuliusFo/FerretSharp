@@ -67,8 +67,14 @@ public sealed class WorkspaceEditing(
     private readonly Dictionary<Guid, List<(Guid ActionId, TableTab Tab, FlushBatch Batch)>> _batches = [];
     private readonly Dictionary<Guid, HashSet<Guid>> _overwrite = [];
 
-    /// <summary>A write, commit or rollback is running (buttons disabled).</summary>
-    public bool Busy { get; private set; }
+    /// <summary>Workspaces with a write, commit or rollback running (their buttons are disabled).</summary>
+    private readonly HashSet<Guid> _busy = [];
+
+    /// <summary>
+    /// A write, commit or rollback of this workspace is running. Per workspace (WP-24): a slow commit on one connection must
+    /// not silently swallow Ctrl+S in another.
+    /// </summary>
+    public bool IsBusy(Guid workspaceId) => _busy.Contains(workspaceId);
 
     public FlushProblem? Problem { get; private set; }
 
@@ -344,12 +350,11 @@ public sealed class WorkspaceEditing(
 
     private async Task<bool> RunAsync(WorkspaceTabs workspace, Func<Task<bool>> action)
     {
-        if (Busy)
+        if (!_busy.Add(workspace.WorkspaceId))
         {
             return false;
         }
 
-        Busy = true;
         shell.NotifyChanged();
         try
         {
@@ -358,7 +363,7 @@ public sealed class WorkspaceEditing(
         }
         finally
         {
-            Busy = false;
+            _busy.Remove(workspace.WorkspaceId);
             shell.NotifyChanged();
         }
     }
