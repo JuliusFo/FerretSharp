@@ -5,7 +5,8 @@ namespace FerretSharp.Core.IO;
 
 /// <summary>
 /// How FerretSharp's own JSON files are written (connections, settings, workspaces, recent connections, saved comparisons):
-/// indented, camelCase, enums as text, nulls left out. One place, so the stores cannot drift apart.
+/// indented, camelCase, enums as text, nulls left out, umlauts and <c>+</c> as they are (files for people to read, not
+/// HTML). One place, so the stores cannot drift apart.
 /// </summary>
 internal static class JsonFiles
 {
@@ -14,5 +15,6 @@ internal static class JsonFiles
         WriteIndented = true,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 }
