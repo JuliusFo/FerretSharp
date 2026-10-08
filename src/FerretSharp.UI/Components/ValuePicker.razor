@@ -2,7 +2,6 @@
    database values, so the SQL stays as before. "in" picks several (checkboxes), "=" and "≠" one. Values that are no
    member (typed before the model was loaded, from an FK jump) stay and can be removed. *@
 @using FerretSharp.Core.ClrModel
-@using FerretSharp.UI.State
 
 <div class="valpick">
     <button type="button" class="field value valpick-field @(Selected.Count == 0 ? "valpick-unset" : "")" title="@Summary"

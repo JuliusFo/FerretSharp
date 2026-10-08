@@ -1,5 +1,4 @@
 @using FerretSharp.Core.Connections
-@using FerretSharp.UI.State
 @implements IAsyncDisposable
 @inject ConnectionManager Connections
 @inject RecentConnections Recent
@@ -103,7 +102,10 @@
 
     private readonly HashSet<string> _collapsed = [];
     private SearchBox? _search;
-    private IJSObjectReference? _dom;
+    private DomModule? _dom;
+
+    /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
+    private DomModule Dom => _dom ??= new(JS);
     private bool _scrollToHighlight;
     private bool _wasOpen;
     private string _query = "";
@@ -191,8 +193,7 @@
         if (_scrollToHighlight)
         {
             _scrollToHighlight = false;
-            _dom ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
-            await _dom.InvokeVoidAsync("scrollIntoViewById", $"conn-row-{_highlight}");
+            await Dom.InvokeVoidAsync("scrollIntoViewById", $"conn-row-{_highlight}");
         }
     }
 
@@ -268,15 +269,6 @@
         Connections.Changed -= OnStateChanged;
         Active.Changed -= OnStateChanged;
         Hub.Changed -= OnStateChanged;
-        if (_dom is not null)
-        {
-            try
-            {
-                await _dom.DisposeAsync();
-            }
-            catch (JSDisconnectedException)
-            {
-            }
-        }
+        await Dom.DisposeAsync();
     }
 }

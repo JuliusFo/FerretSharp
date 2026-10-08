@@ -3,7 +3,6 @@
 @using FerretSharp.Core.Data
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
-@using FerretSharp.UI.State
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 
@@ -27,7 +26,10 @@
     private bool _open;
     private double _x;
     private double _y;
-    private IJSObjectReference? _dom;
+    private DomModule? _dom;
+
+    /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
+    private DomModule Dom => _dom ??= new(JS);
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -64,8 +66,7 @@
             return;
         }
 
-        _dom ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
-        var copied = await _dom.InvokeAsync<bool>("copyText", linq.Text);
+        var copied = await Dom.CopyTextAsync(linq.Text);
         Shell.Notify(copied ? $"{FiltersText(linq.Rows)} als LINQ kopiert." : "Die Zwischenablage ist nicht verfügbar.", linq.Warnings);
     }
 
@@ -86,15 +87,6 @@
 
     public async ValueTask DisposeAsync()
     {
-        if (_dom is not null)
-        {
-            try
-            {
-                await _dom.DisposeAsync();
-            }
-            catch (JSDisconnectedException)
-            {
-            }
-        }
+        await Dom.DisposeAsync();
     }
 }

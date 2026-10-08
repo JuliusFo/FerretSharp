@@ -1,6 +1,5 @@
 @* Right-click menu of a column header: pin the column to the left or release it. *@
 @using FerretSharp.Core.Schema
-@using FerretSharp.UI.State
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 
@@ -25,7 +24,10 @@
     private const double MenuHeight = 90;
 
     private readonly string _id = "colmenu-" + Guid.NewGuid().ToString("N");
-    private IJSObjectReference? _dom;
+    private DomModule? _dom;
+
+    /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
+    private DomModule Dom => _dom ??= new(JS);
 
     [Parameter, EditorRequired]
     public ColumnMenuRequest Request { get; set; } = null!;
@@ -60,8 +62,7 @@
     {
         if (firstRender)
         {
-            _dom = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
-            await _dom.InvokeVoidAsync("focusById", _id); // Escape closes
+            await Dom.InvokeVoidAsync("focusById", _id); // Escape closes
         }
     }
 
@@ -83,15 +84,6 @@
 
     public async ValueTask DisposeAsync()
     {
-        if (_dom is not null)
-        {
-            try
-            {
-                await _dom.DisposeAsync();
-            }
-            catch (JSDisconnectedException)
-            {
-            }
-        }
+        await Dom.DisposeAsync();
     }
 }

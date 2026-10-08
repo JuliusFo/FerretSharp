@@ -7,7 +7,6 @@
 @using FerretSharp.Core.Forms
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
-@using FerretSharp.UI.State
 @inherits FerretComponent
 @implements IAsyncDisposable
 @inject IJSRuntime JS
@@ -194,7 +193,10 @@
     private ElementReference _handle;
     private SearchBox? _search;
     private ElementReference _fields;
-    private IJSObjectReference? _dom;
+    private DomModule? _dom;
+
+    /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
+    private DomModule Dom => _dom ??= new(JS);
     private FerretGrid? _subscribed;
     private bool _disposed;
 
@@ -288,25 +290,25 @@
         if (_revealHighlight && _highlight is { } column)
         {
             _revealHighlight = false;
-            await CallDomAsync("scrollIntoViewById", FieldId(column), "nearest");
+            await Dom.InvokeVoidAsync("scrollIntoViewById", FieldId(column), "nearest");
         }
 
         if (_focusFirstField && CurrentRow is { IsNew: true })
         {
             _focusFirstField = false;
-            await CallDomAsync("focusFirstInput", _fields);
+            await Dom.InvokeVoidAsync("focusFirstInput", _fields);
         }
 
         if (_focusSearch && _search is not null)
         {
             _focusSearch = false;
-            await CallDomAsync("focusAndSelect", _search.Input);
+            await Dom.InvokeVoidAsync("focusAndSelect", _search.Input);
         }
     }
 
     /// <summary>Ctrl+F while the focus is in the form: its search instead of the grid's column jump.</summary>
     public async Task<bool> ContainsFocusAsync() =>
-        !_disposed && await DomAsync() is { } dom && await dom.InvokeAsync<bool>("containsFocus", _panel);
+        await Dom.InvokeAsync<bool>("containsFocus", _panel);
 
     public void FocusSearch()
     {
@@ -636,47 +638,16 @@
 
     private async Task StartResizeAsync(PointerEventArgs e)
     {
-        if (e.Button != 0 || await DomAsync() is not { } dom)
+        if (e.Button != 0)
         {
             return;
         }
 
-        var width = await dom.InvokeAsync<int>("dragWidth", _handle, _panel, e.PointerId, e.ClientX, MinWidth, MaxFraction);
+        var width = await Dom.InvokeAsync<int>("dragWidth", _handle, _panel, e.PointerId, e.ClientX, MinWidth, MaxFraction);
         if (!_disposed && width > 0)
         {
             Tab.FormWidth = width;
             Shell.MarkDirty();
-        }
-    }
-
-    private async Task<IJSObjectReference?> DomAsync()
-    {
-        if (_dom is null && !_disposed)
-        {
-            var dom = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
-            if (_disposed)
-            {
-                await dom.DisposeAsync();
-                return null;
-            }
-
-            _dom = dom;
-        }
-
-        return _disposed ? null : _dom;
-    }
-
-    private async Task CallDomAsync(string identifier, params object?[] args)
-    {
-        if (await DomAsync() is { } dom)
-        {
-            try
-            {
-                await dom.InvokeVoidAsync(identifier, args);
-            }
-            catch (Exception ex) when (_disposed && ex is JSDisconnectedException or ObjectDisposedException)
-            {
-            }
         }
     }
 
@@ -692,15 +663,6 @@
 
         _countCts?.Cancel();
         _countCts?.Dispose();
-        if (_dom is not null)
-        {
-            try
-            {
-                await _dom.DisposeAsync();
-            }
-            catch (JSDisconnectedException)
-            {
-            }
-        }
+        await Dom.DisposeAsync();
     }
 }

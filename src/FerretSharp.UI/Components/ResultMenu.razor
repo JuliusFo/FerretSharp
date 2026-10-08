@@ -2,7 +2,6 @@
 @using FerretSharp.Core.Data
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
-@using FerretSharp.UI.State
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject IFileSaveService Files
@@ -30,7 +29,10 @@
     private const double MenuWidth = 320;
 
     private readonly string _id = "resultmenu-" + Guid.NewGuid().ToString("N");
-    private IJSObjectReference? _dom;
+    private DomModule? _dom;
+
+    /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
+    private DomModule Dom => _dom ??= new(JS);
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -69,9 +71,8 @@
     {
         if (firstRender)
         {
-            _dom = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
-            await _dom.InvokeVoidAsync("focusById", _id); // Escape closes
-            await _dom.InvokeVoidAsync("keepInViewport", _id);
+            await Dom.InvokeVoidAsync("focusById", _id); // Escape closes
+            await Dom.InvokeVoidAsync("keepInViewport", _id);
         }
     }
 
@@ -80,7 +81,7 @@
     private async Task CopyValueAsync()
     {
         var cell = DelimitedExport.CellText(Column, Request.Row.Values[Request.Column]);
-        var copied = _dom is not null && await _dom.InvokeAsync<bool>("copyText", cell.Text);
+        var copied = await Dom.CopyTextAsync(cell.Text);
         var shell = Shell;
         await CloseAsync();
         if (!copied || cell.Warnings.Count > 0)
@@ -98,7 +99,7 @@
 
     private async Task CopyExportAsync(ExportText export, string done)
     {
-        var copied = _dom is not null && await _dom.InvokeAsync<bool>("copyText", export.Text);
+        var copied = await Dom.CopyTextAsync(export.Text);
         var shell = Shell;
         await CloseAsync();
         shell.Notify(copied ? $"{RowsText(export.Rows)} {done}." : "Die Zwischenablage ist nicht verfügbar.", Warnings(export));
@@ -139,15 +140,6 @@
 
     public async ValueTask DisposeAsync()
     {
-        if (_dom is not null)
-        {
-            try
-            {
-                await _dom.DisposeAsync();
-            }
-            catch (JSDisconnectedException)
-            {
-            }
-        }
+        await Dom.DisposeAsync();
     }
 }

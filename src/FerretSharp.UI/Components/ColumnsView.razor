@@ -139,7 +139,10 @@
     public ClrModelManager Models { get; set; } = null!;
 
     private SearchBox? _filter;
-    private IJSObjectReference? _dom;
+    private DomModule? _dom;
+
+    /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
+    private DomModule Dom => _dom ??= new(JS);
     private string _columnQuery = "";
 
     [Parameter, EditorRequired]
@@ -164,25 +167,15 @@
     /// <summary>Ctrl+F: focuses the column filter and selects its text.</summary>
     public async Task FocusFilterAsync()
     {
-        _dom ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
         if (_filter is not null)
         {
-            await _dom.InvokeVoidAsync("focusAndSelect", _filter.Input);
+            await Dom.InvokeVoidAsync("focusAndSelect", _filter.Input);
         }
     }
 
     public async ValueTask DisposeAsync()
     {
         Models.Changed -= OnModelChanged;
-        if (_dom is not null)
-        {
-            try
-            {
-                await _dom.DisposeAsync();
-            }
-            catch (JSDisconnectedException)
-            {
-            }
-        }
+        await Dom.DisposeAsync();
     }
 }

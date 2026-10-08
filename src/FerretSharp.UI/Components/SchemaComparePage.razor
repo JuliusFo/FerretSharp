@@ -2,7 +2,6 @@
    Its own page: it belongs to no workspace and no transaction and opens its own short-lived sessions. *@
 @using FerretSharp.Core.Compare
 @using FerretSharp.Core.Connections
-@using FerretSharp.UI.State
 @implements IAsyncDisposable
 @inject SchemaCompareService Compare
 @inject ConnectionManager Connections
@@ -223,7 +222,10 @@
 
     private readonly HashSet<string> _open = [];
     private readonly Dictionary<Guid, string> _passwords = new();
-    private IJSObjectReference? _dom;
+    private DomModule? _dom;
+
+    /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
+    private DomModule Dom => _dom ??= new(JS);
     private string _search = "";
     private bool _saving;
     private bool _saveAsNew;
@@ -377,8 +379,7 @@
         }
 
         var text = CompareExport.Markdown(result, Labels, Compare.Current.OnlyDifferences, Compare.Current.Kinds);
-        _dom ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/dom.js");
-        Shell.Notify(await _dom.InvokeAsync<bool>("copyText", text) ? "Vergleich als Markdown kopiert." : "Die Zwischenablage ist nicht verfügbar.");
+        Shell.Notify(await Dom.CopyTextAsync(text) ? "Vergleich als Markdown kopiert." : "Die Zwischenablage ist nicht verfügbar.");
     }
 
     private void StartSaving(bool asNew)
@@ -406,15 +407,6 @@
     public async ValueTask DisposeAsync()
     {
         Compare.Changed -= OnChanged;
-        if (_dom is not null)
-        {
-            try
-            {
-                await _dom.DisposeAsync();
-            }
-            catch (JSDisconnectedException)
-            {
-            }
-        }
+        await Dom.DisposeAsync();
     }
 }
