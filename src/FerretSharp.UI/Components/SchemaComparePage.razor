@@ -11,7 +11,7 @@
 <div class="settings-page compare-page">
     <div class="page-head">
         <h1>Schema-Vergleich</h1>
-        @* value, not selected=: after the user picked an option the browser ignores the attribute (CLAUDE.md section 7). *@
+        @* value, not selected=: after the user picked an option the browser ignores the attribute (src/FerretSharp.UI/CLAUDE.md). *@
         <select class="compare-saved" title="Gespeicherte Vergleiche" value="@(Compare.IsSaved ? Compare.Current.Id.ToString() : "")" @onchange="OpenSaved">
             <option value="">@(Compare.IsSaved ? "Neuer Vergleich" : "– nicht gespeichert –")</option>
             @foreach (var saved in Compare.Saved)

@@ -35,7 +35,7 @@ public enum CellState
     OtherCase,
 }
 
-/// <summary>Options of a comparison (decisions of the user, CLAUDE.md WP-20).</summary>
+/// <summary>Options of a comparison (decisions of the user, docs/work-packages.md, WP-20).</summary>
 /// <param name="Reference">Index of the side the others are measured against; null = no reference, sides grouped by equal definition.</param>
 /// <param name="ColumnOrder">Whether the order of columns counts (default: no).</param>
 public sealed record CompareOptions(int? Reference = null, bool ColumnOrder = false);
