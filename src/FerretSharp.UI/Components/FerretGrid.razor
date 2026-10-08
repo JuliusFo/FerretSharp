@@ -6,6 +6,7 @@
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
 @using FerretSharp.UI.State
+@inherits FerretComponent
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject ILogger<FerretGrid> Logger
@@ -231,7 +232,9 @@
 
     /// <summary>Double click or Enter on a LOB cell (grid.js).</summary>
     [JSInvokable]
-    public async Task OnLobCell(int rowIndex, string? newId, string colId)
+    public Task OnLobCell(int rowIndex, string? newId, string colId) => GuardAsync(() => OnLobCellCoreAsync(rowIndex, newId, colId));
+
+    private async Task OnLobCellCoreAsync(int rowIndex, string? newId, string colId)
     {
         var column = ColumnIndex(colId);
         if (NewRow(newId) is { } added)
@@ -408,7 +411,7 @@
         if (edit.Row is { } row)
         {
             // A list, not an array: an array would become the params array of CallAsync itself (one object per row for grid.js).
-            _ = cell.IsNew ? SetNewRowsAsync() : _grid.CallAsync("updateRows", new List<GridRowUpdate> { new(cell.RowIndex, row) });
+            Fire(() => cell.IsNew ? SetNewRowsAsync() : _grid.CallAsync("updateRows", new List<GridRowUpdate> { new(cell.RowIndex, row) }));
         }
 
         return edit.Error;
@@ -452,7 +455,7 @@
     public Task OnFormKey(int rowIndex, string? newId, int[] selectedRows)
     {
         var focused = rowIndex < 0 && newId is null ? null : new GridCell(rowIndex, newId, Focused?.Column);
-        return OnFormRequested.InvokeAsync(new FormRequest(focused, selectedRows.Order().ToList()));
+        return GuardAsync(() => OnFormRequested.InvokeAsync(new FormRequest(focused, selectedRows.Order().ToList())));
     }
 
     /// <summary>The row at a grid position with the tab's changes; null if its block is not (or no longer) loaded.</summary>
@@ -506,7 +509,9 @@
 
     /// <summary>Del in the grid: marks the selected loaded rows for deletion; new rows disappear.</summary>
     [JSInvokable]
-    public async Task<GridRowUpdate[]> OnDeleteKey(int[] rowIndexes, string[] newIds)
+    public Task<GridRowUpdate[]> OnDeleteKey(int[] rowIndexes, string[] newIds) => GuardAsync(() => OnDeleteKeyCoreAsync(rowIndexes, newIds), []);
+
+    private async Task<GridRowUpdate[]> OnDeleteKeyCoreAsync(int[] rowIndexes, string[] newIds)
     {
         if (Tab.Changes is not { } changes)
         {
@@ -638,8 +643,8 @@
     }
 
     [JSInvokable]
-    public async Task OnHeaderContextMenu(string colId, double x, double y, double viewportWidth, double viewportHeight) =>
-        await OnColumnMenu.InvokeAsync(new ColumnMenuRequest(ColumnIndex(colId), x, y, viewportWidth, viewportHeight));
+    public Task OnHeaderContextMenu(string colId, double x, double y, double viewportWidth, double viewportHeight) =>
+        GuardAsync(() => OnColumnMenu.InvokeAsync(new ColumnMenuRequest(ColumnIndex(colId), x, y, viewportWidth, viewportHeight)));
 
     [JSInvokable]
     public async Task<GridPage> GetRows(int startRow, int endRow, GridSort[] sortModel)
@@ -691,7 +696,11 @@
     /// are the selected row indexes (the clicked row is always among them); rows no longer cached are counted as missing.
     /// </summary>
     [JSInvokable]
-    public async Task OnCellContextMenu(
+    public Task OnCellContextMenu(
+        int rowIndex, string colId, int[] selectedRows, double x, double y, double viewportWidth, double viewportHeight) =>
+        GuardAsync(() => OnCellContextMenuCoreAsync(rowIndex, colId, selectedRows, x, y, viewportWidth, viewportHeight));
+
+    private async Task OnCellContextMenuCoreAsync(
         int rowIndex, string colId, int[] selectedRows, double x, double y, double viewportWidth, double viewportHeight)
     {
         if (_blocks.At(rowIndex) is not { } row || !colId.StartsWith('c'))
@@ -711,7 +720,9 @@
     /// focused cell – always from the raw values, not the display text.
     /// </summary>
     [JSInvokable]
-    public async Task OnCopy(int rowIndex, string colId, int[] selectedRows)
+    public Task OnCopy(int rowIndex, string colId, int[] selectedRows) => GuardAsync(() => OnCopyCoreAsync(rowIndex, colId, selectedRows));
+
+    private async Task OnCopyCoreAsync(int rowIndex, string colId, int[] selectedRows)
     {
         if (selectedRows.Length > 1)
         {

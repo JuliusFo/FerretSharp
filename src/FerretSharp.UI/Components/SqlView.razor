@@ -8,6 +8,7 @@
 @using FerretSharp.Core.Schema
 @using FerretSharp.Core.Workspaces
 @using FerretSharp.UI.State
+@inherits FerretComponent
 @implements IDisposable
 @inject SqlHistoryStore History
 @inject ILogger<SqlView> Logger
@@ -272,13 +273,13 @@
         switch (command)
         {
             case TabCommand.RunScript:
-                _ = InvokeAsync(RunScriptAsync);
+                Fire(RunScriptAsync);
                 break;
             case TabCommand.ApplyFilters or TabCommand.Refresh:
-                _ = InvokeAsync(RunAsync);
+                Fire(RunAsync);
                 break;
             case TabCommand.FindColumn when _editor is not null:
-                _ = InvokeAsync(_editor.FindAsync);
+                Fire(_editor.FindAsync);
                 break;
         }
     }

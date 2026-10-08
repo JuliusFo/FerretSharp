@@ -5,6 +5,7 @@
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
 @using FerretSharp.UI.State
+@inherits FerretComponent
 @implements IDisposable
 @inject ILogger<TabView> Logger
 
@@ -577,7 +578,7 @@
             return;
         }
 
-        _ = InvokeAsync(async () =>
+        Fire(async () =>
         {
             switch (command)
             {

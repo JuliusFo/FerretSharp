@@ -13,6 +13,10 @@ const listKeys = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 
 const media = window.matchMedia('(prefers-color-scheme: dark)');
 let modulesRegistered = false;
 
+// A call into .NET that failed. Errors of the handlers themselves reach the tab's error boundary on the .NET side (FerretComponent);
+// what is left here is the transport – mostly a grid whose component is already gone. Logged, not hidden.
+const callFailed = e => console.debug('FerretSharp: grid call to .NET failed', e);
+
 function registerModules() {
   if (!modulesRegistered && agGrid.ModuleRegistry && agGrid.AllCommunityModule) {
     agGrid.ModuleRegistry.registerModules([agGrid.AllCommunityModule]);
@@ -304,7 +308,7 @@ function firstVisibleRow(api) {
 
 /** Pinned columns in display order (primary key first); .NET drops the always pinned primary key. */
 function reportPinned(api, dotnet) {
-  dotnet.invokeMethodAsync('OnPinnedChanged', api.getDisplayedLeftColumns().map(c => c.getColId())).catch(() => {});
+  dotnet.invokeMethodAsync('OnPinnedChanged', api.getDisplayedLeftColumns().map(c => c.getColId())).catch(callFailed);
 }
 
 /**
@@ -391,7 +395,7 @@ export function create(elementId, dotnet, columns, options) {
     e.preventDefault();
     const colId = e.target.closest?.('.ag-header-cell')?.getAttribute('col-id');
     if (colId && table) {
-      dotnet.invokeMethodAsync('OnHeaderContextMenu', colId, e.clientX, e.clientY, window.innerWidth, window.innerHeight).catch(() => {});
+      dotnet.invokeMethodAsync('OnHeaderContextMenu', colId, e.clientX, e.clientY, window.innerWidth, window.innerHeight).catch(callFailed);
     }
   });
 
@@ -405,7 +409,7 @@ export function create(elementId, dotnet, columns, options) {
       const pinned = focused?.rowPinned === 'top' ? [api.getPinnedTopRow(focused.rowIndex)?.data?.__new].filter(Boolean) : [];
       if (loaded.length > 0 || pinned.length > 0) {
         e.preventDefault();
-        dotnet.invokeMethodAsync('OnDeleteKey', loaded, pinned).then(updates => applyUpdates(api, updates)).catch(() => {});
+        dotnet.invokeMethodAsync('OnDeleteKey', loaded, pinned).then(updates => applyUpdates(api, updates)).catch(callFailed);
       }
       return;
     }
@@ -416,7 +420,7 @@ export function create(elementId, dotnet, columns, options) {
     if (!cell || cell.rowIndex == null || cell.rowPinned) return;
     e.preventDefault();
     const selected = api.getSelectedNodes().map(n => n.rowIndex).filter(i => i != null);
-    dotnet.invokeMethodAsync('OnCopy', cell.rowIndex, cell.column.getColId(), selected).catch(() => {});
+    dotnet.invokeMethodAsync('OnCopy', cell.rowIndex, cell.column.getColId(), selected).catch(callFailed);
   }, true);
 
   // Shift+click selects a range of rows; without this the browser would also mark text across the cells.
@@ -444,7 +448,7 @@ export function create(elementId, dotnet, columns, options) {
   // LOB cells are not edited in the cell: double click or Enter opens the LOB editor (a Blazor dialog) – also on a
   // locked workspace, to read the whole value.
   function openLob(rowIndex, newId, colId) {
-    dotnet.invokeMethodAsync('OnLobCell', newId ? -1 : rowIndex, newId ?? null, colId).catch(() => {});
+    dotnet.invokeMethodAsync('OnLobCell', newId ? -1 : rowIndex, newId ?? null, colId).catch(callFailed);
   }
 
   // Alt+Enter (Windows' "properties"): the form of the focused row, or the comparison of the selected rows (WP-21).
@@ -456,7 +460,7 @@ export function create(elementId, dotnet, columns, options) {
     const cell = api.getFocusedCell();
     const newId = cell?.rowPinned === 'top' ? api.getPinnedTopRow(cell.rowIndex)?.data?.__new : null;
     const selected = api.getSelectedNodes().map(n => n.rowIndex).filter(i => i != null);
-    dotnet.invokeMethodAsync('OnFormKey', cell && !cell.rowPinned ? cell.rowIndex : -1, newId ?? null, selected).catch(() => {});
+    dotnet.invokeMethodAsync('OnFormKey', cell && !cell.rowPinned ? cell.rowIndex : -1, newId ?? null, selected).catch(callFailed);
   }, true);
 
   // The form follows the focused cell; arrow keys move it fast, so only the last position within a moment is reported.
@@ -468,7 +472,7 @@ export function create(elementId, dotnet, columns, options) {
     if (e.rowPinned && !newId) return;
     const colId = typeof e.column === 'string' ? e.column : e.column?.getColId?.() ?? null;
     clearTimeout(focusTimer);
-    focusTimer = setTimeout(() => dotnet.invokeMethodAsync('OnFocused', e.rowPinned ? -1 : e.rowIndex, newId ?? null, colId).catch(() => {}), 60);
+    focusTimer = setTimeout(() => dotnet.invokeMethodAsync('OnFocused', e.rowPinned ? -1 : e.rowIndex, newId ?? null, colId).catch(callFailed), 60);
   }
 
   element.addEventListener('keydown', e => {
@@ -525,7 +529,7 @@ export function create(elementId, dotnet, columns, options) {
         console.error(err);
       }
     },
-    onBodyScrollEnd: () => { if (table) dotnet.invokeMethodAsync('OnScrolled', firstVisibleRow(api)).catch(() => {}); },
+    onBodyScrollEnd: () => { if (table) dotnet.invokeMethodAsync('OnScrolled', firstVisibleRow(api)).catch(callFailed); },
     onCellFocused: reportFocus,
     // Pinned or reordered within the pinned area by dragging (changes from setPinned have source 'api').
     onColumnPinned: e => { if (table && e.source?.startsWith('ui')) reportPinned(api, dotnet); },
@@ -537,7 +541,7 @@ export function create(elementId, dotnet, columns, options) {
       if (!e.node.isSelected()) e.node.setSelected(true, true);
       const selected = api.getSelectedNodes().map(n => n.rowIndex).filter(i => i != null);
       dotnet.invokeMethodAsync('OnCellContextMenu', e.rowIndex, e.column.getColId(), selected,
-        e.event.clientX, e.event.clientY, window.innerWidth, window.innerHeight).catch(() => {});
+        e.event.clientX, e.event.clientY, window.innerWidth, window.innerHeight).catch(callFailed);
     },
     datasource: {
       getRows: async params => {

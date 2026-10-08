@@ -8,6 +8,7 @@
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
 @using FerretSharp.UI.State
+@inherits FerretComponent
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject ILogger<RowFormPanel> Logger
@@ -273,7 +274,7 @@
             // Opened before any cell had the focus: the first visible row.
             var first = new FerretGrid.GridCell(Tab.FirstVisibleRow ?? 0, null, null);
             Show(first);
-            _ = Grid.FocusRowAsync(first, keepFocus: true);
+            Fire(() => Grid.FocusRowAsync(first, keepFocus: true));
         }
     }
 
@@ -383,7 +384,7 @@
                 _newRow = null;
                 _key = added.Key;
                 _cell = new FerretGrid.GridCell(index, null, cell.Column);
-                _ = Grid.FocusRowAsync(_cell, keepFocus: true);
+                Fire(() => Grid.FocusRowAsync(_cell, keepFocus: true));
             }
             else if (!added.IsInserted || Grid.RowAt(0) is not null)
             {
@@ -406,7 +407,7 @@
                 if (Grid.IndexOf(_key) is { } index)
                 {
                     _cell = cell with { RowIndex = index };
-                    _ = Grid.FocusRowAsync(_cell, keepFocus: true);
+                    Fire(() => Grid.FocusRowAsync(_cell, keepFocus: true));
                 }
                 else
                 {
@@ -590,7 +591,7 @@
         if (_cell is { } cell && Grid is not null)
         {
             CommitDrafts();
-            _ = Grid.OpenLobAsync(cell, column);
+            Fire(() => Grid.OpenLobAsync(cell, column));
         }
     }
 
@@ -605,7 +606,8 @@
         _countCts?.Dispose();
         _countCts = new CancellationTokenSource();
         _incoming = [];
-        _ = CountLaterAsync(_countCts.Token);
+        var token = _countCts.Token;
+        Fire(() => CountLaterAsync(token));
     }
 
     private async Task CountLaterAsync(CancellationToken token)

@@ -6,6 +6,7 @@
 @using FerretSharp.Core.Data
 @using FerretSharp.Core.Query
 @using FerretSharp.UI.State
+@inherits FerretComponent
 @implements IDisposable
 @inject ILogger<LinqView> Logger
 
@@ -269,7 +270,7 @@
     {
         Console.Changed += OnConsoleChanged;
         Shell.TabCommandRequested += OnTabCommand;
-        _ = Console.WarmUpAsync(); // the host loads the model while the user writes
+        Fire(Console.WarmUpAsync); // the host loads the model while the user writes
         if (Tab.LastRun is not null)
         {
             await RunningAsync(ShowCommandAsync); // mounted again (workspace switch): show the last result
@@ -335,10 +336,10 @@
         switch (command)
         {
             case TabCommand.ApplyFilters or TabCommand.Refresh:
-                _ = InvokeAsync(RunAsync);
+                Fire(RunAsync);
                 break;
             case TabCommand.FindColumn when _codeEditor is not null:
-                _ = InvokeAsync(_codeEditor.FindAsync);
+                Fire(_codeEditor.FindAsync);
                 break;
         }
     }

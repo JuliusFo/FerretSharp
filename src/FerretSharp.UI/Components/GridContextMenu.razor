@@ -7,6 +7,7 @@
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
 @using FerretSharp.UI.State
+@inherits FerretComponent
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject IFileSaveService Files
@@ -276,7 +277,8 @@
         _outgoing = jumps.Where(j => j.Direction == JumpDirection.Outgoing).OrderByDescending(InvolvesColumn).ToList();
         _incoming = jumps.Where(j => j.Direction == JumpDirection.Incoming).OrderByDescending(InvolvesColumn).ToList();
         // One after the other: they share the workspace's session. Closing the menu cancels the rest.
-        _ = _counts.CountAsync(Shell, Logger, Active, Workspaces, Tab.WorkspaceId, _incoming, () => InvokeAsync(StateHasChanged), _cts.Token);
+        var token = _cts.Token;
+        Fire(() => _counts.CountAsync(Shell, Logger, Active, Workspaces, Tab.WorkspaceId, _incoming, () => InvokeAsync(StateHasChanged), token));
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
