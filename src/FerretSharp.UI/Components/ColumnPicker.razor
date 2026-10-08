@@ -4,7 +4,6 @@
 @using FerretSharp.Core.Schema
 @implements IAsyncDisposable
 @inject IJSRuntime JS
-@inject FerretSharp.UI.State.PresentationService Presentations
 
 <div class="colpick">
     <input @ref="_input" class="field col" value="@(_open ? _query : Shown)" spellcheck="false" autocomplete="off"
@@ -18,6 +17,10 @@
 </div>
 
 @code {
+    /// <summary>The connection's presentation (C# names): cascaded, never @inject – that would be the WebView scope's, whose model never loads.</summary>
+    [CascadingParameter]
+    public FerretSharp.UI.State.PresentationService Presentations { get; set; } = null!;
+
     private ElementReference _input;
     private ColumnList? _list;
     private IJSObjectReference? _dom;
