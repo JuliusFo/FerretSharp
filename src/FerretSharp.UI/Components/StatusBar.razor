@@ -186,8 +186,10 @@
         }
 
         var stale = state.Output?.IsStale == true;
-        var text = $"C# · {mapping.MappedEntityCount} Entities" + (mapping.Issues.Count > 0 ? $" · {mapping.Issues.Count} Abw." : "") + (stale ? " · Build veraltet" : "");
-        var title = (stale ? "Der Quelltext ist neuer als der Build. " : "") + $"{mapping.Issues.Count} Abweichungen zwischen Modell und Datenbank – Details";
+        // Names and type/NULL/length mismatches that matter; hints only on the model page.
+        var differences = mapping.Issues.Count + mapping.ColumnMismatches.Count(m => m.Severity != MismatchSeverity.Hint);
+        var text = $"C# · {mapping.MappedEntityCount} Entities" + (differences > 0 ? $" · {differences} Abw." : "") + (stale ? " · Build veraltet" : "");
+        var title = (stale ? "Der Quelltext ist neuer als der Build. " : "") + $"{differences} Abweichungen zwischen Modell und Datenbank – Details";
         return @<button class="item status-link shrink @(stale ? "warn" : "")" title="@title" @onclick="Shell.ShowModel">@text</button>;
     }
 
