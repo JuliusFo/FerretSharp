@@ -1082,3 +1082,9 @@ table.parameters .chip.direction { display: inline-block; min-width: 46px; text-
 .relation.plsql-error:hover { background: var(--hover); }
 .relation.plsql-error .position { white-space: nowrap; color: var(--muted); }
 .relation.plsql-error .message { font-family: var(--mono); font-size: 12px; white-space: normal; }
+table.parameters { table-layout: fixed; }
+table.parameters th:nth-child(1) { width: 36px; }
+table.parameters th:nth-child(2) { width: 32%; }
+table.parameters th:nth-child(3) { width: 96px; }
+table.parameters th:nth-child(5) { width: 80px; }
+table.parameters td { overflow: hidden; text-overflow: ellipsis; }

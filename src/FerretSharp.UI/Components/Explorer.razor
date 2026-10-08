@@ -152,7 +152,7 @@
     private string Placeholder => _section switch
     {
         ExplorerSection.PlSql when _inSource => "Im Quelltext suchen … (Enter)",
-        ExplorerSection.PlSql => "Package, Prozedur … suchen",
+        ExplorerSection.PlSql => "PL/SQL suchen …",
         _ => "Tabelle suchen …",
     };
 

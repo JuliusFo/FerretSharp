@@ -114,6 +114,8 @@ export async function create(elementId, dotnet, text, options) {
     readOnly: !!options.readOnly,
     domReadOnly: !!options.readOnly,
     readOnlyMessage: { value: 'Nur zum Ansehen – FerretSharp ändert keinen PL/SQL-Quelltext.' },
+    // Monaco hides markers in read-only editors by default ('editable'); the compile errors must show.
+    renderValidationDecorations: 'on',
     value: text ?? '',
     language: options.language ?? 'csharp',
     theme: theme(),
