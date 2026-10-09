@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.ClrModel;
 
@@ -53,7 +54,7 @@ public static partial class BuildOutputLocator
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Xml.XmlException or JsonException)
         {
-            return $"Das Projekt lässt sich nicht lesen: {ex.Message}";
+            return TextFormat.Format(ClrModelText.ProjectNotReadable, ex.Message);
         }
     }
 
@@ -61,7 +62,7 @@ public static partial class BuildOutputLocator
     {
         if (!File.Exists(link.ProjectFile))
         {
-            throw new ClrModelException(ClrModelErrorKind.ProjectNotFound, $"Projektdatei nicht gefunden: {link.ProjectFile}");
+            throw new ClrModelException(ClrModelErrorKind.ProjectNotFound, TextFormat.Format(ClrModelText.ProjectFileNotFound, link.ProjectFile));
         }
 
         var projectDirectory = Path.GetDirectoryName(Path.GetFullPath(link.ProjectFile))!;
@@ -75,7 +76,7 @@ public static partial class BuildOutputLocator
             .OrderByDescending(File.GetLastWriteTimeUtc)
             .FirstOrDefault()
             ?? throw new ClrModelException(ClrModelErrorKind.NotBuilt,
-                $"Kein Build von {assemblyName} ({link.Configuration}) gefunden – bitte das Projekt bauen.");
+                TextFormat.Format(ClrModelText.NotBuilt, assemblyName, link.Configuration));
 
         var assembly = Path.Combine(Path.GetDirectoryName(deps)!, assemblyName + ".dll");
         Version framework;
@@ -90,13 +91,13 @@ public static partial class BuildOutputLocator
         if (framework < MinimumFramework)
         {
             throw new ClrModelException(ClrModelErrorKind.UnsupportedFramework,
-                $"{assemblyName} ist für .NET {framework} gebaut – FerretSharp liest Modelle ab EF Core 8 (.NET 8).");
+                TextFormat.Format(ClrModelText.FrameworkTooOld, assemblyName, framework));
         }
 
         if (!efCore)
         {
             throw new ClrModelException(ClrModelErrorKind.NoEfCore,
-                $"{assemblyName} referenziert EF Core nicht – verknüpfe das Projekt, das den DbContext enthält (nicht nur die Entities).");
+                TextFormat.Format(ClrModelText.NoEfCore, assemblyName));
         }
 
         var builtAt = File.GetLastWriteTimeUtc(assembly);
@@ -172,7 +173,7 @@ public static partial class BuildOutputLocator
         if (!name.StartsWith(".NETCoreApp", StringComparison.Ordinal) || !match.Success)
         {
             throw new ClrModelException(ClrModelErrorKind.UnsupportedFramework,
-                $"Unbekanntes Zielframework „{name}“ – FerretSharp liest Modelle ab EF Core 8 (.NET 8).");
+                TextFormat.Format(ClrModelText.UnknownFramework, name));
         }
 
         return new Version(int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture), int.Parse(match.Groups[2].Value, CultureInfo.InvariantCulture));

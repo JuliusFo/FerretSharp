@@ -1,3 +1,5 @@
+using FerretSharp.Core.Resources;
+
 namespace FerretSharp.Core.Settings;
 
 /// <summary>
@@ -19,7 +21,7 @@ public sealed record KeyChord(bool Ctrl, bool Shift, bool Alt, string Key)
     /// <summary>The text form, e.g. <c>ctrl+shift+o</c>.</summary>
     public string Text => string.Concat(Ctrl ? "ctrl+" : "", Shift ? "shift+" : "", Alt ? "alt+" : "", Key);
 
-    /// <summary>For tooltips and messages: <c>Ctrl+Shift+O</c>, <c>Alt+←</c>, <c>F5</c>.</summary>
+    /// <summary>For tooltips and messages: <c>Ctrl+Shift+O</c>, <c>Alt+←</c>, <c>F5</c>; key names in the UI language (Del/Entf).</summary>
     public string Label => string.Join("+", Parts());
 
     /// <summary>For <c>&lt;kbd&gt;</c>: <c>Ctrl Shift O</c>, <c>Ctrl ↵</c>.</summary>
@@ -104,15 +106,15 @@ public sealed record KeyChord(bool Ctrl, bool Shift, bool Alt, string Key)
         "arrowdown" => "↓",
         "enter" => "Enter",
         "escape" => "Esc",
-        "delete" => "Entf",
-        "backspace" => "Rücktaste",
-        "insert" => "Einfg",
-        "home" => "Pos1",
-        "end" => "Ende",
-        "pageup" => "Bild↑",
-        "pagedown" => "Bild↓",
+        "delete" => SettingsText.KeyDelete,
+        "backspace" => SettingsText.KeyBackspace,
+        "insert" => SettingsText.KeyInsert,
+        "home" => SettingsText.KeyHome,
+        "end" => SettingsText.KeyEnd,
+        "pageup" => SettingsText.KeyPageUp,
+        "pagedown" => SettingsText.KeyPageDown,
         "tab" => "Tab",
-        "space" => "Leertaste",
+        "space" => SettingsText.KeySpace,
         "plus" => "+",
         _ when key.Length == 1 => key.ToUpperInvariant(),
         _ when key.Length is 2 or 3 && key[0] == 'f' && char.IsAsciiDigit(key[1]) => key.ToUpperInvariant(),

@@ -9,12 +9,12 @@
         {
             <span class="muted">@Hint</span>
         }
-        <button class="link-btn" @onclick="() => Shell.ShowError(error)">Details</button>
+        <button class="link-btn" @onclick="() => Shell.ShowError(error)">@CommonText.Details</button>
     </div>
 }
 else if (Loading)
 {
-    <div class="structure-loading"><span class="spinner"></span> @Text</div>
+    <div class="structure-loading"><span class="spinner"></span> @(Text ?? SchemaViewText.Loading)</div>
 }
 
 @code {
@@ -27,8 +27,9 @@ else if (Loading)
     [Parameter]
     public DatabaseException? Error { get; set; }
 
+    /// <summary>What is loading (“Loading constraints …”); null for a plain “Loading …”.</summary>
     [Parameter]
-    public string Text { get; set; } = "Lade …";
+    public string? Text { get; set; }
 
     /// <summary>Explanation shown with the error, e.g. which privilege is missing.</summary>
     [Parameter]

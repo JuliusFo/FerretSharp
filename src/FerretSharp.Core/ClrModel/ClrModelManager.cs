@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using FerretSharp.Core.Connections;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.ClrModel;
@@ -149,7 +150,7 @@ public sealed class ClrModelManager : IDisposable
 
         try
         {
-            Report("Suche den Build");
+            Report(ClrModelText.StepFindBuild);
             try
             {
                 output = BuildOutputLocator.Find(link);
@@ -163,7 +164,7 @@ public sealed class ClrModelManager : IDisposable
             CachedModel? cached = null;
             if (useCache && _cache is not null)
             {
-                Report("Prüfe den Cache");
+                Report(ClrModelText.StepCheckCache);
                 cached = await _cache.TryLoadAsync(link, output, cts.Token);
             }
 
@@ -178,7 +179,7 @@ public sealed class ClrModelManager : IDisposable
                 var result = await _runner.ReadModelAsync(link, output, cts.Token, new SyncProgress<string>(Report));
                 if (result.Model is not { } exported)
                 {
-                    Finish(ClrModelPhase.Failed, previous, result.Error ?? new ModelHostError(ClrModelErrorKind.HostFailed, "Kein Modell geliefert."), loadedAt);
+                    Finish(ClrModelPhase.Failed, previous, result.Error ?? new ModelHostError(ClrModelErrorKind.HostFailed, ClrModelText.NoModelReturned), loadedAt);
                     return;
                 }
 
@@ -204,13 +205,13 @@ public sealed class ClrModelManager : IDisposable
         }
         catch (DatabaseException ex)
         {
-            Finish(ClrModelPhase.Failed, previous, new ModelHostError(ClrModelErrorKind.HostFailed, $"Spalten ließen sich nicht lesen: {ex.Display}"), loadedAt);
+            Finish(ClrModelPhase.Failed, previous, new ModelHostError(ClrModelErrorKind.HostFailed, TextFormat.Format(ClrModelText.ColumnsNotRead, ex.Display)), loadedAt);
         }
         catch (Exception ex)
         {
             // Runs in the background (nobody awaits it): anything unexpected – a deps.json rewritten by a build running right
             // now, a truncated result file – must end in "Failed", never leave the state at "Loading".
-            Finish(ClrModelPhase.Failed, previous, new ModelHostError(ClrModelErrorKind.HostFailed, $"Das Modell ließ sich nicht laden: {ex.Message}"), loadedAt);
+            Finish(ClrModelPhase.Failed, previous, new ModelHostError(ClrModelErrorKind.HostFailed, TextFormat.Format(ClrModelText.ModelNotLoaded, ex.Message)), loadedAt);
         }
     }
 

@@ -1,8 +1,10 @@
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
 using FerretSharp.Core.Query;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Settings;
 using FerretSharp.Core.Workspaces;
+using FerretSharp.UI.Resources;
 using Microsoft.Extensions.Logging;
 
 namespace FerretSharp.UI.State;
@@ -133,7 +135,7 @@ public sealed class WorkspaceEditing(
         }
 
         Finish(workspace);
-        shell.Notify("Änderungen committed.");
+        shell.Notify(GridText.Editing_Committed);
         return true;
     });
 
@@ -147,13 +149,13 @@ public sealed class WorkspaceEditing(
         }
 
         Finish(workspace);
-        shell.Notify("Änderungen verworfen (Rollback).");
+        shell.Notify(GridText.Editing_RolledBack);
         return true;
     });
 
     /// <summary>
     /// Takes back the last write: rollback to its savepoint. A grid write's changes become pending again; a statement's
-    /// rows are as before it (the tabs reload, its result says "zurückgenommen").
+    /// rows are as before it (the tabs reload, its result says "undone").
     /// </summary>
     /// <param name="expected">The action the ↶ button named; refused if another one was written meanwhile.</param>
     public Task<bool> UndoLastAsync(WorkspaceTabs workspace, Guid? expected = null) => RunAsync(workspace, async () =>
@@ -176,19 +178,19 @@ public sealed class WorkspaceEditing(
             batches.RemoveAt(index);
             tab.Changes?.UndoFlush(batch);
             shell.RequestTabCommand(tab, TabCommand.Reload);
-            shell.Notify($"Zurückgenommen: {action.Display} – die Änderungen sind wieder ausstehend.");
+            shell.Notify(TextFormat.Format(GridText.Editing_UndoneGrid, action.Display));
         }
         else
         {
             shell.ReloadTableTabs(workspace.WorkspaceId); // a statement: any of them may show rows it had changed
 
-            shell.Notify($"Zurückgenommen: {action.Display}.");
+            shell.Notify(TextFormat.Format(GridText.Editing_Undone, action.Display));
         }
 
         return true;
     });
 
-    /// <summary>The statements a write would run, with values (for "Änderungen als SQL anzeigen").</summary>
+    /// <summary>The statements a write would run, with values (for "Show changes as SQL").</summary>
     public string DescribePending(WorkspaceTabs workspace)
     {
         var wait = settings.Current.LockWaitSeconds;
@@ -200,7 +202,7 @@ public sealed class WorkspaceEditing(
             parts.AddRange(DmlBuilder.Describe(tracker.Table, tracker.PendingOperations(), wait).Select(s => BindValues.Describe(s, mask: false) + ";"));
         }
 
-        return parts.Count == 0 ? "-- Keine ausstehenden Änderungen." : string.Join(Environment.NewLine + Environment.NewLine, parts);
+        return parts.Count == 0 ? GridText.Editing_NoPending : string.Join(Environment.NewLine + Environment.NewLine, parts);
     }
 
     /// <summary>The user decided about <see cref="Problem"/>; writing (and committing) continues where useful.</summary>

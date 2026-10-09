@@ -23,7 +23,7 @@
             <div class="brand">Ferret<span>Sharp</span></div>
             @if (Active.Status != ConnectionStatus.Disconnected)
             {
-                <button class="icon-btn ghost @(_state.Page == ShellPage.Connections ? "active" : "")" title="Alle Verbindungen"
+                <button class="icon-btn ghost @(_state.Page == ShellPage.Connections ? "active" : "")" title="@ShellText.Shell_AllConnections"
                         @onclick="ToggleHome">@Icons.Home</button>
             }
             <ConnectionSwitcher />
@@ -32,9 +32,9 @@
                 <WorkspaceBar />
             }
             <div class="topbar-right">
-                <button class="icon-btn ghost @(_state.Page == ShellPage.Compare ? "active" : "")" title="Schema-Vergleich"
+                <button class="icon-btn ghost @(_state.Page == ShellPage.Compare ? "active" : "")" title="@ShellText.Shell_SchemaComparison"
                         @onclick="() => ToggleSidePage(ShellPage.Compare)">@Icons.Compare</button>
-                <button class="icon-btn ghost @(_state.Page == ShellPage.Settings ? "active" : "")" title="Einstellungen"
+                <button class="icon-btn ghost @(_state.Page == ShellPage.Settings ? "active" : "")" title="@ShellText.Shell_Settings"
                         @onclick="() => ToggleSidePage(ShellPage.Settings)">@Icons.Settings</button>
                 <WorkspaceBadge Lifecycle="_lifecycle" />
             </div>
@@ -103,7 +103,7 @@
                                     }
                                     @if (_state.Tabs.Count == 0)
                                     {
-                                        <EmptyState Title="Tabelle auswählen" Text="@NoTabText" />
+                                        <EmptyState Title="@ShellText.Shell_SelectTable" Text="@NoTabText" />
                                     }
                                 </div>
                             </div>
@@ -128,14 +128,14 @@
                         }
                         else if (Active.Status == ConnectionStatus.Connecting && Active.Profile is { } connecting)
                         {
-                            <EmptyState Title="@($"Verbinde mit {connecting.Name} …")" Text="@connecting.Address.Display">
+                            <EmptyState Title="@TextFormat.Format(ShellText.Connection_ConnectingTo, connecting.Name)"Text="@connecting.Address.Display">
                                 <span class="spinner"></span>
-                                <button class="btn" @onclick="Active.CancelPendingConnect">Abbrechen</button>
+                                <button class="btn" @onclick="Active.CancelPendingConnect">@CommonText.Cancel</button>
                             </EmptyState>
                         }
                         else if (Active.Status == ConnectionStatus.Failed && Active.Profile is { } failed)
                         {
-                            <EmptyState Title="@($"Verbindung zu {failed.Name} fehlgeschlagen")" IsError="true">
+                            <EmptyState Title="@TextFormat.Format(ShellText.Shell_ConnectionFailedTo, failed.Name)" IsError="true">
                                 <div class="error-detail">
                                     @if (Active.Error?.ErrorCode is { } errorCode)
                                     {
@@ -144,19 +144,19 @@
                                     <span>@Active.Error?.Message</span>
                                 </div>
                                 <div class="button-row">
-                                    <button class="btn primary" @onclick="() => _state.Connect(failed)">Erneut versuchen</button>
-                                    <button class="btn" @onclick="() => _state.EditConnection(failed)">Bearbeiten</button>
-                                    <button class="btn ghost" @onclick="_state.ShowConnections">Zur Übersicht</button>
+                                    <button class="btn primary" @onclick="() => _state.Connect(failed)">@ShellText.Shell_TryAgain</button>
+                                    <button class="btn" @onclick="() => _state.EditConnection(failed)">@ShellText.Connection_Edit</button>
+                                    <button class="btn ghost" @onclick="_state.ShowConnections">@ShellText.Shell_ToOverview</button>
                                 </div>
                             </EmptyState>
                         }
                         </ConnectionScopeView>
                     </ChildContent>
                     <ErrorContent Context="exception">
-                        <EmptyState Title="Da ist etwas schiefgelaufen" Text="@exception.Message" IsError="true">
+                        <EmptyState Title="@ShellText.Shell_SomethingWentWrong" Text="@exception.Message" IsError="true">
                             <div class="button-row">
-                                <button class="btn primary" @onclick="RecoverFromError">Weiter</button>
-                                <button class="btn" title="Falls „Weiter“ wieder hierher führt" @onclick="CloseTabsAfterErrorAsync">Tabs schließen</button>
+                                <button class="btn primary" @onclick="RecoverFromError">@ShellText.Shell_Continue</button>
+                                <button class="btn" title="@ShellText.Shell_CloseTabsTitle" @onclick="CloseTabsAfterErrorAsync">@ShellText.Shell_CloseTabs</button>
                             </div>
                         </EmptyState>
                     </ErrorContent>
@@ -183,6 +183,9 @@
     private IJSObjectReference? _shortcuts;
     private IJSObjectReference? _tooltips;
     private DotNetObjectReference<Shell>? _selfRef;
+    private DomModule? _dom;
+
+    private DomModule Dom => _dom ??= new(JS);
     /// <summary>Per open connection the handler subscribed to its events (WP-24), to unsubscribe when it closes.</summary>
     /// <summary>Per open connection: the handler for its connection and workspaces, and the one for its model.</summary>
     private readonly Dictionary<ConnectionScope, (Action Scope, Action Model)> _subscribed = [];
@@ -206,11 +209,10 @@
     {
         get
         {
-            var sql = $"mit „+ SQL“{Shortcuts.Hint(ShortcutAction.NewSql)} SQL schreiben";
-            var linq = HasLinkedProject ? ", mit „+ LINQ“ eine Query aus dem C#-Code ausführen" : "";
-            var apply = Shortcuts.Label(ShortcutAction.ApplyFilters) is { } a ? $" {a} wendet Filter an." : "";
-            var refresh = Shortcuts.Label(ShortcutAction.Refresh) is { } r ? $" {r} lädt neu." : "";
-            return $"Links eine Tabelle oder View wählen – oder {sql}{linq}.{apply}{refresh}";
+            var start = TextFormat.Format(HasLinkedProject ? ShellText.Shell_NoTabLinq : ShellText.Shell_NoTab, Shortcuts.Hint(ShortcutAction.NewSql));
+            var apply = Shortcuts.Label(ShortcutAction.ApplyFilters) is { } a ? " " + TextFormat.Format(ShellText.Shell_NoTabApplyFilters, a) : "";
+            var refresh = Shortcuts.Label(ShortcutAction.Refresh) is { } r ? " " + TextFormat.Format(ShellText.Shell_NoTabRefresh, r) : "";
+            return start + apply + refresh;
         }
     }
 
@@ -239,6 +241,8 @@
         if (firstRender)
         {
             _selfRef = DotNetObjectReference.Create(this);
+            await Dom.InvokeVoidAsync(
+                "setDocumentLanguage", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName, CommonText.UnexpectedErrorBar, CommonText.Reload);
             _shortcuts = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/shortcuts.js");
             await RegisterShortcutsAsync();
             _tooltips = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/tooltip.js");
@@ -487,7 +491,7 @@
 
     /// <summary>If the tab bar itself keeps failing: close the active workspace's tabs, asking first if they hold changes.</summary>
     private Task CloseTabsAfterErrorAsync() =>
-        _lifecycle.GuardAsync("Tabs schließen", _state.ActiveWorkspace is { } active ? [active] : [], () =>
+        _lifecycle.GuardAsync(ShellText.Shell_CloseTabs, _state.ActiveWorkspace is { } active ? [active] : [], () =>
         {
             _state.CloseAllTabs();
             _errorBoundary?.Recover();
@@ -536,6 +540,7 @@
             }
         }
 
+        await Dom.DisposeAsync();
         _selfRef?.Dispose();
     }
 }

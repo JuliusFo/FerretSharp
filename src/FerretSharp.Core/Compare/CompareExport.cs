@@ -1,4 +1,5 @@
 using System.Text;
+using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.Compare;
 
@@ -14,7 +15,7 @@ public static class CompareExport
     public static string Markdown(SchemaComparison comparison, IReadOnlyList<string> labels, bool onlyDifferences, IReadOnlyCollection<CompareKind>? kinds = null)
     {
         var text = new StringBuilder();
-        text.Append("| Objekt | ").AppendJoin(" | ", labels.Select(Escape)).Append(" |\n");
+        text.Append("| ").Append(Escape(CompareText.ExportObject)).Append(" | ").AppendJoin(" | ", labels.Select(Escape)).Append(" |\n");
         text.Append("|---|").Append(string.Concat(Enumerable.Repeat("---|", labels.Count))).Append('\n');
         foreach (var row in comparison.Objects.Where(r => Shown(r, onlyDifferences, kinds)))
         {
@@ -46,10 +47,10 @@ public static class CompareExport
         {
             CellState.Missing => "–",
             CellState.Different => $"**{Escape(cell.Definition ?? "")}**",
-            CellState.OtherCase => $"{Escape(cell.Definition ?? "")} (als „{Escape(cell.Name ?? "")}“)",
+            CellState.OtherCase => TextFormat.Format(CompareText.ExportOtherCase, Escape(cell.Definition ?? ""), Escape(cell.Name ?? "")),
             _ => Escape(cell.Definition ?? ""),
         };
-        return isReference && cell.State != CellState.Missing ? $"{text} (Referenz)" : text;
+        return isReference && cell.State != CellState.Missing ? TextFormat.Format(CompareText.ExportReference, text) : text;
     }
 
     private static string Escape(string text) => text.Replace("|", "\\|", StringComparison.Ordinal).ReplaceLineEndings(" ");

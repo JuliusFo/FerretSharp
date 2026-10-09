@@ -1,5 +1,6 @@
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Query;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.Data;
@@ -28,14 +29,14 @@ public enum WriteActionKind
 }
 
 /// <summary>One write in a workspace's open transaction, as the status bar lists it.</summary>
-/// <param name="Description">"KUNDEN: 2 geändert, 1 neu" or "UPDATE AUFTRAG".</param>
+/// <param name="Description">"CUSTOMERS: 2 changed, 1 new" or "UPDATE ORDERS".</param>
 /// <param name="Rows">Rows written (grid: operations; statement: rows Oracle reported).</param>
 public sealed record WriteAction(Guid Id, WriteActionKind Kind, string Description, int Rows, DateTimeOffset At)
 {
-    /// <summary>"UPDATE AUFTRAG · 12 Zeilen"; a grid write counts its rows in the description already.</summary>
+    /// <summary>"UPDATE ORDERS · 12 rows"; a grid write counts its rows in the description already.</summary>
     public string Display => Kind == WriteActionKind.Grid
         ? Description
-        : $"{Description} · {(Rows == 1 ? "1 Zeile" : Rows.ToString("N0", System.Globalization.CultureInfo.GetCultureInfo("de-DE")) + " Zeilen")}";
+        : TextFormat.Plural(System.Globalization.CultureInfo.GetCultureInfo("de-DE"), Rows, DataText.WriteActionRowsOne, DataText.WriteActionRowsOther, Description);
 }
 
 /// <summary>A flush stopped at <see cref="Operation"/>; everything of this flush has been rolled back to its savepoint.</summary>
@@ -46,7 +47,7 @@ public abstract class FlushException(PendingOperation operation, string message,
 
 /// <summary>Another session holds a lock on the row (ORA-30006 after the wait, ORA-00054).</summary>
 public sealed class LockConflictException(PendingOperation operation, DatabaseException error)
-    : FlushException(operation, "Die Zeile ist von einer anderen Session gesperrt.", error)
+    : FlushException(operation, DataText.RowLockedByOtherSession, error)
 {
     public DatabaseException Error { get; } = error;
 }
@@ -58,14 +59,14 @@ public sealed record ConcurrencyDifference(int Column, object? Expected, object?
 
 /// <summary>Someone changed a column the user is changing since it was loaded (lost update prevented).</summary>
 public sealed class ConcurrencyConflictException(PendingOperation operation, IReadOnlyList<ConcurrencyDifference> differences)
-    : FlushException(operation, "Die Zeile wurde inzwischen von jemand anderem geändert.")
+    : FlushException(operation, DataText.RowChangedByOthers)
 {
     public IReadOnlyList<ConcurrencyDifference> Differences { get; } = differences;
 }
 
 /// <summary>The row to update or delete no longer exists.</summary>
 public sealed class RowGoneException(PendingOperation operation)
-    : FlushException(operation, "Die Zeile gibt es nicht mehr – sie wurde inzwischen gelöscht.");
+    : FlushException(operation, DataText.RowGone);
 
 /// <summary>Oracle refused the statement (constraint, NOT NULL, value too large, privileges …).</summary>
 public sealed class WriteFailedException(PendingOperation operation, DatabaseException error)
@@ -76,16 +77,16 @@ public sealed class WriteFailedException(PendingOperation operation, DatabaseExc
     /// <summary>What the Oracle error means for the user; the original message follows.</summary>
     public static string Describe(DatabaseException error) => error.ErrorCode switch
     {
-        "ORA-00001" => "Eindeutigkeit verletzt – diesen Wert gibt es schon.",
-        "ORA-02290" => "Check-Constraint verletzt.",
-        "ORA-02291" => "Fremdschlüssel verletzt – den referenzierten Datensatz gibt es nicht.",
-        "ORA-02292" => "Fremdschlüssel verletzt – es gibt noch abhängige Datensätze.",
-        "ORA-01400" or "ORA-01407" => "Pflichtfeld fehlt (NOT NULL).",
-        "ORA-12899" => "Wert zu lang für die Spalte.",
-        "ORA-01438" => "Zahl zu groß für die Spalte.",
-        "ORA-01031" => "Keine Rechte, diese Tabelle zu ändern.",
-        "ORA-01456" => "Die Verbindung ist schreibgeschützt.",
-        _ => "Oracle hat die Änderung abgelehnt.",
+        "ORA-00001" => DataText.WriteFailedUnique,
+        "ORA-02290" => DataText.WriteFailedCheck,
+        "ORA-02291" => DataText.WriteFailedParentMissing,
+        "ORA-02292" => DataText.WriteFailedChildrenExist,
+        "ORA-01400" or "ORA-01407" => DataText.WriteFailedNotNull,
+        "ORA-12899" => DataText.WriteFailedValueTooLong,
+        "ORA-01438" => DataText.WriteFailedNumberTooLarge,
+        "ORA-01031" => DataText.WriteFailedNoPrivilege,
+        "ORA-01456" => DataText.WriteFailedReadOnly,
+        _ => DataText.WriteFailedOther,
     } + " " + error.Display;
 }
 

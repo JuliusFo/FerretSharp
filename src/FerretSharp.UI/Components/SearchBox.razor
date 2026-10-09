@@ -11,7 +11,7 @@
     @if (Value.Length > 0 && !Disabled)
     {
         @* mousedown without default: the field keeps the focus. *@
-        <button type="button" class="search-clear" tabindex="-1" title="Suche leeren (Esc)" @onmousedown:preventDefault
+        <button type="button" class="search-clear" tabindex="-1" title="@ShellText.SearchBox_Clear" @onmousedown:preventDefault
                 @onclick="ClearAsync">@Icons.Clear</button>
     }
     @ChildContent

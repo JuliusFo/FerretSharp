@@ -155,7 +155,7 @@ public sealed partial class ShellState
 }
 
 /// <summary>Leaving workspaces with uncommitted changes (close, disconnect, switch connection, exit).</summary>
-/// <param name="What">What is about to happen, e.g. "Workspace schließen".</param>
+/// <param name="What">What is about to happen, e.g. "Close workspace".</param>
 /// <param name="WorkspaceIds">Workspaces whose changes are at stake.</param>
 /// <param name="Continue">Runs after the changes were committed or discarded.</param>
 public sealed record LeaveRequest(string What, IReadOnlyList<Guid> WorkspaceIds, Func<Task> Continue);

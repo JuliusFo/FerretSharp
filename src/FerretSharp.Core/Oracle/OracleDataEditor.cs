@@ -1,6 +1,7 @@
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
 using FerretSharp.Core.Query;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 using Oracle.ManagedDataAccess.Client;
 
@@ -88,7 +89,7 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
             if (expected is { } id && last.Action.Id != id)
             {
                 // Written meanwhile (a statement that was still running): ↶ would take back something the user did not pick.
-                throw new RefusedException($"Inzwischen wurde weiter geschrieben – ↶ nimmt jetzt „{last.Action.Display}“ zurück. Bitte noch einmal wählen.");
+                throw new RefusedException(TextFormat.Format(OracleText.UndoWrittenMeanwhile, last.Action.Display));
             }
 
             await session.RollbackToSavepointAsync(last.Savepoint, cancellationToken);
@@ -147,7 +148,7 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
         if (session.Transaction.Mode == TransactionMode.ReadOnly)
         {
             // Oracle would refuse as well (ORA-01456); this way the message names the reason.
-            throw new RefusedException("Der Workspace ist schreibgeschützt – erst freischalten, dann schreiben.");
+            throw new RefusedException(OracleText.WorkspaceReadOnly);
         }
 
         await BeginIfNeededAsync(cancellationToken);
@@ -184,13 +185,13 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
     /// <summary>By identity, not by position: what was rolled back is exactly this entry.</summary>
     private void Remove(Entry entry) => _actions = _actions.Where(e => !ReferenceEquals(e, entry)).ToArray();
 
-    /// <summary>"KUNDEN: 2 geändert, 1 neu, 1 gelöscht".</summary>
+    /// <summary>"KUNDEN: 2 changed, 1 new, 1 deleted".</summary>
     internal static string DescribeFlush(TableDetails table, IReadOnlyList<PendingOperation> operations)
     {
-        var parts = new[] { (OperationKind.Update, "geändert"), (OperationKind.Insert, "neu"), (OperationKind.Delete, "gelöscht") }
+        var parts = new[] { (OperationKind.Update, OracleText.FlushChanged), (OperationKind.Insert, OracleText.FlushInserted), (OperationKind.Delete, OracleText.FlushDeleted) }
             .Select(p => (Count: operations.Count(o => o.Kind == p.Item1), Text: p.Item2))
             .Where(p => p.Count > 0)
-            .Select(p => $"{p.Count} {p.Text}");
+            .Select(p => TextFormat.Format(p.Text, p.Count));
         return $"{table.Table.DisplayName}: {string.Join(", ", parts)}";
     }
 
@@ -249,7 +250,7 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
                 var insert = DmlBuilder.Insert(table, operation.Values);
                 var result = await session.ExecuteNonQueryAsync(insert.Sql, insert.Parameters, cancellationToken);
                 var rowId = result.Outputs.GetValueOrDefault(DmlBuilder.RowIdOutput) as string
-                            ?? throw new RefusedException("Oracle hat keine ROWID für die neue Zeile geliefert.");
+                            ?? throw new RefusedException(OracleText.NoRowIdReturned);
 
                 // Reload: defaults, identity values and triggers decide what was stored – and the row's real key.
                 var query = QueryBuilder.BuildSelectByRowId(table, rowId);

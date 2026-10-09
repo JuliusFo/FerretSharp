@@ -1,4 +1,5 @@
 using FerretSharp.Core.Connections;
+using FerretSharp.Core.Resources;
 using Oracle.ManagedDataAccess.Client;
 
 namespace FerretSharp.Core.Oracle;
@@ -38,8 +39,7 @@ public static class OracleConnectionStringFactory
 
             if (string.IsNullOrWhiteSpace(tnsAdmin))
             {
-                throw new ConnectionConfigurationException(
-                    "Für TNS-Aliase wird der Ordner der tnsnames.ora benötigt: im Profil angeben oder die Umgebungsvariable TNS_ADMIN setzen.");
+                throw new ConnectionConfigurationException(OracleText.TnsAdminMissing);
             }
 
             builder["Tns_Admin"] = tnsAdmin;
@@ -54,6 +54,6 @@ public static class OracleConnectionStringFactory
         HostPortAddress { Sid: { Length: > 0 } sid } hp =>
             $"(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={hp.Host})(PORT={hp.Port}))(CONNECT_DATA=(SID={sid})))",
         TnsAliasAddress tns => tns.Alias,
-        _ => throw new ConnectionConfigurationException("Adresse unvollständig: Service Name oder SID fehlt."),
+        _ => throw new ConnectionConfigurationException(OracleText.AddressIncomplete),
     };
 }

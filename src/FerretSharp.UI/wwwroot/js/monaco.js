@@ -1,6 +1,7 @@
 // Bridge to the Monaco editor (vendored AMD build, ADR 0011) for the LINQ console and the SQL editor. Loads the editor
-// once with German UI texts, follows light/dark, reports text changes to .NET, shows diagnostics as markers and asks .NET
-// for completion items (SQL editor, LINQ console). No logic here.
+// once in the UI language (German texts for "de", Monaco's built-in English otherwise), follows light/dark, reports text
+// changes to .NET, shows diagnostics as markers and asks .NET for completion items (SQL editor, LINQ console). No logic
+// and no texts here: what the user reads comes from .NET.
 
 const base = './_content/FerretSharp.UI/lib/monaco/vs';
 const editors = new Map();
@@ -9,7 +10,11 @@ const providers = new Set(); // languages with a registered completion provider
 const media = window.matchMedia('(prefers-color-scheme: dark)');
 let loading = null;
 
-function load() {
+/**
+ * Loads Monaco once per page (it is global). uiLanguage is the two-letter UI language; it is fixed for the page (switching
+ * the language takes a restart), so the first editor decides.
+ */
+function load(uiLanguage) {
   if (window.monaco) return Promise.resolve(window.monaco);
   loading ??= (async () => {
     const style = document.createElement('link');
@@ -17,8 +22,8 @@ function load() {
     style.href = `${base}/editor/editor.main.css`;
     document.head.appendChild(style);
     // German UI texts: a plain script setting globals (no AMD module – asking the loader for it via 'vs/nls' never
-    // completes), so it goes in before the editor.
-    await script(`${base}/nls/lang/de.js`);
+    // completes), so it goes in before the editor. English is Monaco's built-in default.
+    if (uiLanguage === 'de') await script(`${base}/nls/lang/de.js`);
     await script(`${base}/loader.js`);
     window.require.config({ paths: { vs: base } });
     return await new Promise((resolve, reject) => window.require(['vs/editor/editor.main'], () => resolve(window.monaco), reject));
@@ -102,10 +107,11 @@ media.addEventListener('change', () => { if (window.monaco) window.monaco.editor
 
 /**
  * Creates an editor in the element. options: { language, minimal (no line numbers/minimap, for the variables),
- * placeholder, readOnly (PL/SQL source: view only) }. Text changes reach .NET through OnTextChanged(id, text), debounced.
+ * placeholder, readOnly (PL/SQL source: view only), readOnlyMessage (the hint when typing in it), uiLanguage (Monaco's
+ * own texts, see load) }. Text changes reach .NET through OnTextChanged(id, text), debounced.
  */
 export async function create(elementId, dotnet, text, options) {
-  const monaco = await load();
+  const monaco = await load(options.uiLanguage);
   if (options.language === 'plsql') registerPlSql(monaco);
   destroy(elementId);
   const element = document.getElementById(elementId);
@@ -113,7 +119,7 @@ export async function create(elementId, dotnet, text, options) {
   const editor = monaco.editor.create(element, {
     readOnly: !!options.readOnly,
     domReadOnly: !!options.readOnly,
-    readOnlyMessage: { value: 'Nur zum Ansehen – FerretSharp ändert keinen PL/SQL-Quelltext.' },
+    readOnlyMessage: options.readOnlyMessage ? { value: options.readOnlyMessage } : undefined,
     // Monaco hides markers in read-only editors by default ('editable'); the compile errors must show.
     renderValidationDecorations: 'on',
     value: text ?? '',

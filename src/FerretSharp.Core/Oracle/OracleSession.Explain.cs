@@ -1,6 +1,7 @@
 using System.Data.Common;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Query;
+using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.Oracle;
 
@@ -27,14 +28,14 @@ public sealed partial class OracleSession
     {
         if (!IsReadOnlyStatement(sql))
         {
-            throw new RefusedException("Nur Abfragen (SELECT/WITH) lassen sich erklären.");
+            throw new RefusedException(OracleText.ExplainOnlyQueries);
         }
 
         return await ExclusiveAsync(async () =>
         {
             if (_readOnlySnapshots || Transaction.Mode == TransactionMode.ReadOnly)
             {
-                throw new RefusedException("In einer READ ONLY-Transaktion lehnt Oracle EXPLAIN PLAN ab.");
+                throw new RefusedException(OracleText.ExplainInReadOnlyTransaction);
             }
 
             var id = "FS" + Guid.NewGuid().ToString("N")[..24]; // STATEMENT_ID is a literal, at most 30 characters

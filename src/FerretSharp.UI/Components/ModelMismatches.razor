@@ -3,18 +3,16 @@
 @using FerretSharp.Core.Schema
 
 <section class="settings-section">
-    <h2>Typen, NULL und Längen</h2>
+    <h2>@ModelViewText.Mismatches_Title</h2>
     @if (Mapping.ColumnMismatches.Count == 0)
     {
-        <div class="settings-note">Alle zugeordneten Properties passen zu ihren Spalten.</div>
+        <div class="settings-note">@ModelViewText.Mismatches_None</div>
     }
     else
     {
         var shown = Mapping.ColumnMismatches.Where(m => _severities.Contains(m.Severity) && Matches(m)).ToList();
         <div class="settings-note">
-            Verglichen wird, was die Datenbank speichert (nach dem Converter), und nur, was im Projekt konfiguriert ist
-            (<code>HasMaxLength</code>, <code>HasPrecision</code>, <code>HasColumnType</code>, <code>IsRequired</code>/Nullable).
-            Views werden nur gelesen: dort zählen Typ und NULL.
+            <Fmt Text="@ModelViewText.Mismatches_Note"><Arg0><code>HasMaxLength</code>, <code>HasPrecision</code>, <code>HasColumnType</code>, <code>IsRequired</code>/Nullable</Arg0></Fmt>
         </div>
         <div class="compare-toolbar mismatch-toolbar">
             @foreach (var (severity, label) in Severities)
@@ -26,12 +24,12 @@
                     <span class="mismatch-sev @Css(severity)">@label</span> @count
                 </label>
             }
-            <input class="compare-search" placeholder="Entity, Property, Spalte" spellcheck="false" @bind="_search" @bind:event="oninput" />
+            <input class="compare-search" placeholder="@ModelViewText.Mismatches_SearchPlaceholder" spellcheck="false" @bind="_search" @bind:event="oninput" />
             <span class="grow"></span>
-            <span class="muted">@shown.Count von @Mapping.ColumnMismatches.Count</span>
+            <span class="muted">@TextFormat.Format(ModelViewText.Mismatches_Shown, shown.Count, Mapping.ColumnMismatches.Count)</span>
         </div>
         <table class="model-table mismatch-table">
-            <thead><tr><th></th><th>Property</th><th>C#</th><th>Spalte</th><th>Oracle</th><th>Folge</th></tr></thead>
+            <thead><tr><th></th><th>@ModelViewText.Mismatches_HeadProperty</th><th>C#</th><th>@ModelViewText.Mismatches_HeadColumn</th><th>Oracle</th><th>@ModelViewText.Mismatches_HeadEffect</th></tr></thead>
             <tbody>
                 @foreach (var mismatch in shown)
                 {
@@ -53,15 +51,16 @@
     [Parameter, EditorRequired]
     public ClrModelMapping Mapping { get; set; } = null!;
 
-    /// <summary>Opens the table's structure (the "Spalten" view).</summary>
+    /// <summary>Opens the table's structure (the "Columns" view).</summary>
     [Parameter]
     public EventCallback<TableSummary> OnOpen { get; set; }
 
-    private static readonly (MismatchSeverity Severity, string Label)[] Severities =
+    // A property, not a static field: the labels follow the UI language.
+    private static (MismatchSeverity Severity, string Label)[] Severities =>
     [
-        (MismatchSeverity.Error, "Fehler"),
-        (MismatchSeverity.Warning, "Warnungen"),
-        (MismatchSeverity.Hint, "Hinweise"),
+        (MismatchSeverity.Error, ModelViewText.Mismatches_Errors),
+        (MismatchSeverity.Warning, ModelViewText.Mismatches_Warnings),
+        (MismatchSeverity.Hint, ModelViewText.Mismatches_Hints),
     ];
 
     private readonly HashSet<MismatchSeverity> _severities = [MismatchSeverity.Error, MismatchSeverity.Warning, MismatchSeverity.Hint];
@@ -101,16 +100,16 @@
 
     public static string Title(MismatchSeverity severity) => severity switch
     {
-        MismatchSeverity.Error => "Fehler: jede Abfrage der Property scheitert",
-        MismatchSeverity.Warning => "Warnung: scheitert oder verliert Daten bei bestimmten Werten",
-        _ => "Hinweis: Modell und Datenbank weichen ab, ohne dass ein Fehler zu erwarten ist",
+        MismatchSeverity.Error => ModelViewText.Mismatches_ErrorTitle,
+        MismatchSeverity.Warning => ModelViewText.Mismatches_WarningTitle,
+        _ => ModelViewText.Mismatches_HintTitle,
     };
 
     public static string KindText(ColumnMismatchKind kind) => kind switch
     {
-        ColumnMismatchKind.Type => "Typ",
+        ColumnMismatchKind.Type => ModelViewText.Mismatches_KindType,
         ColumnMismatchKind.Nullability => "NULL",
-        ColumnMismatchKind.Length => "Länge",
-        _ => "Stellen",
+        ColumnMismatchKind.Length => ModelViewText.Mismatches_KindLength,
+        _ => ModelViewText.Mismatches_KindPrecision,
     };
 }

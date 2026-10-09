@@ -3,6 +3,7 @@ using System.Data.Common;
 using System.Text.RegularExpressions;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Query;
+using FerretSharp.Core.Resources;
 using Oracle.ManagedDataAccess.Client;
 
 namespace FerretSharp.Core.Oracle;
@@ -37,7 +38,7 @@ public sealed partial class OracleSession
         {
             if (Transaction.Mode == TransactionMode.ReadWrite)
             {
-                throw new RefusedException("Eine schreibende Transaktion ist offen.");
+                throw new RefusedException(OracleText.WriteTransactionOpen);
             }
 
             _readOnlySnapshots = true;
@@ -70,12 +71,12 @@ public sealed partial class OracleSession
         {
             if (_readOnlySnapshots)
             {
-                throw new RefusedException("Die Verbindung ist schreibgeschützt.");
+                throw new RefusedException(OracleText.ConnectionReadOnly);
             }
 
             if (_open is not null)
             {
-                throw new RefusedException("Es ist bereits eine Transaktion offen.");
+                throw new RefusedException(OracleText.TransactionAlreadyOpen);
             }
 
             _open = new OpenTransaction(BeginCoreTransaction(TransactionControl), new TransactionInfo(TransactionMode.ReadWrite, DateTimeOffset.Now));
@@ -126,14 +127,14 @@ public sealed partial class OracleSession
     {
         if (!IsWriteStatement(sql))
         {
-            throw new InvalidOperationException("Geschrieben wird nur mit einzelnen INSERT-, UPDATE-, DELETE- oder MERGE-Statements.");
+            throw new InvalidOperationException("Writes only take a single INSERT, UPDATE, DELETE or MERGE statement.");
         }
 
         return await ExclusiveAsync(() =>
         {
             if (_open is null)
             {
-                throw new RefusedException("Geschrieben wird nur innerhalb einer Transaktion.");
+                throw new RefusedException(OracleText.WriteOnlyInTransaction);
             }
 
             return RunAsync(sql, parameters, async (command, ct) =>
@@ -151,14 +152,14 @@ public sealed partial class OracleSession
     {
         if (!IsLockStatement(sql))
         {
-            throw new InvalidOperationException("Gesperrt wird nur mit SELECT … FOR UPDATE WAIT n.");
+            throw new InvalidOperationException("Rows are only locked with SELECT … FOR UPDATE WAIT n.");
         }
 
         return await ExclusiveAsync(() =>
         {
             if (Transaction.Mode != TransactionMode.ReadWrite)
             {
-                throw new RefusedException("Zeilen werden nur innerhalb einer schreibenden Transaktion gesperrt.");
+                throw new RefusedException(OracleText.LockOnlyInWriteTransaction);
             }
 
             return ReadCoreAsync(sql, parameters, read, cancellationToken);
@@ -244,7 +245,7 @@ public sealed partial class OracleSession
     private OracleTransaction WritingTransaction() =>
         _open is { Info.Mode: TransactionMode.ReadWrite, Handle: var transaction }
             ? transaction
-            : throw new RefusedException("Es ist keine schreibende Transaktion offen.");
+            : throw new RefusedException(OracleText.NoWriteTransaction);
 
     /// <summary>
     /// Savepoints as statements on the session's transaction, not through <see cref="OracleTransaction.Save"/>/<c>Rollback(name)</c>:
@@ -256,7 +257,7 @@ public sealed partial class OracleSession
     {
         if (!SavepointName.IsMatch(savepoint))
         {
-            throw new ArgumentException($"Ungültiger Savepoint-Name: {savepoint}", nameof(savepoint));
+            throw new ArgumentException($"Invalid savepoint name: {savepoint}", nameof(savepoint));
         }
 
         return ExclusiveAsync(async () =>

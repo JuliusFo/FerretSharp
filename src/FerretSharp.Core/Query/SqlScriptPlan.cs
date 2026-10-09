@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.Query;
 
@@ -32,7 +33,7 @@ public sealed record SqlScriptPlan(IReadOnlyList<PlannedStatement> Statements, P
             QuerySpec? query = null;
             if (problem is null && !info.IsQuery && !writable)
             {
-                (problem, needsUnlock) = ($"{info.FirstWord} ändert Daten – der Workspace ist schreibgeschützt.", true);
+                (problem, needsUnlock) = (TextFormat.Format(QueryText.SqlPlanReadOnly, info.FirstWord), true);
             }
             else if (problem is null)
             {
@@ -48,7 +49,7 @@ public sealed record SqlScriptPlan(IReadOnlyList<PlannedStatement> Statements, P
 
             if (query is null)
             {
-                return new SqlScriptPlan([], new PlanProblem(statement, single ? problem! : $"Statement {i + 1} – nichts ausgeführt: {problem}", needsUnlock));
+                return new SqlScriptPlan([], new PlanProblem(statement, single ? problem! : TextFormat.Format(QueryText.SqlPlanStatementProblem, i + 1, problem), needsUnlock));
             }
 
             planned.Add(new PlannedStatement(single ? 0 : i + 1, statement, info, query));

@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using FerretSharp.Core.ClrModel;
+using FerretSharp.ModelHost.Resources;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
@@ -83,7 +84,7 @@ internal sealed class LinqConsole
         try
         {
             var (contextType, types) = load();
-            Program.Step("Baue das Modell (OnModelCreating)");
+            Program.Step(ModelHostText.StepBuildModel);
             console = new LinqConsole(contextType, types);
         }
         catch (ModelHostException ex)
@@ -312,7 +313,7 @@ internal sealed class LinqConsole
 
         var endLine = span.EndLinePosition.Line - (span.StartLinePosition.Line - line);
         return new LinqDiagnostic(section, line + 1, span.StartLinePosition.Character + 1, endLine + 1, span.EndLinePosition.Character + 1,
-            diagnostic.Severity == DiagnosticSeverity.Error ? "error" : "warning", diagnostic.Id, diagnostic.GetMessage());
+            diagnostic.Severity == DiagnosticSeverity.Error ? "error" : "warning", diagnostic.Id, diagnostic.GetMessage(ModelHostText.Culture));
     }
 
     internal sealed record Analysis(Script Script, Compilation Compilation, SyntaxTree Tree, IReadOnlyList<Diagnostic> Diagnostics, Layout Layout);

@@ -3,15 +3,15 @@
 @inject ShortcutService Shortcuts
 
 <div class="coljump">
-    <button class="btn ghost"title="Spalte suchen und hinspringen@(Shortcuts.Hint(ShortcutAction.FindColumn))" @onclick="Open">
-        @Icons.Search Spalte <Kbd Action="ShortcutAction.FindColumn" />
+    <button class="btn ghost" title="@TextFormat.Format(GridText.ColumnJump_Title, Shortcuts.Hint(ShortcutAction.FindColumn))" @onclick="Open">
+        @Icons.Search @GridText.ColumnJump_Button <Kbd Action="ShortcutAction.FindColumn" />
     </button>
     @if (_open)
     {
         <div class="popover-backdrop" @onclick="Close"></div>
         <div class="popover coljump-pop" @onkeydown="OnKeyDownAsync">
-            <SearchBox @ref="_search" Class="popover-search" Placeholder="Spalte suchen …" @bind-Value="_query">
-                <span class="coljump-count">@Details.Columns.Count Spalten</span>
+            <SearchBox @ref="_search" Class="popover-search" Placeholder="@GridText.ColumnJump_Search" @bind-Value="_query">
+                <span class="coljump-count">@TextFormat.Plural(Details.Columns.Count, GridText.ColumnJump_CountOne, GridText.ColumnJump_CountOther)</span>
             </SearchBox>
             <div class="popover-list">
                 <ColumnList @ref="_list" Details="Details" Query="@_query" OnPick="PickAsync" />

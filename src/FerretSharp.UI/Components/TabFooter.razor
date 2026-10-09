@@ -11,23 +11,23 @@
     @* RowsLoaded is the highest loaded position (blocks load where the user scrolls), so it is a lower bound. *@
     @if (Tab.AllRowsLoaded)
     {
-        <span><strong>@Tab.RowsLoaded.ToString("N0", CultureInfo.CurrentCulture)</strong> Zeilen</span>
+        <span><Fmt Text="@(Tab.RowsLoaded == 1 ? GridText.Footer_RowsOne : GridText.Footer_RowsOther)"><Arg0><strong>@Tab.RowsLoaded.ToString("N0", CultureInfo.CurrentCulture)</strong></Arg0></Fmt></span>
     }
     else if (Tab.TotalCount is null)
     {
-        <span>≥ <strong>@Tab.RowsLoaded.ToString("N0", CultureInfo.CurrentCulture)</strong> Zeilen</span>
+        <span><Fmt Text="@GridText.Footer_AtLeastRows"><Arg0><strong>@Tab.RowsLoaded.ToString("N0", CultureInfo.CurrentCulture)</strong></Arg0></Fmt></span>
     }
     @if (Tab.TotalCount is { } total && !Tab.AllRowsLoaded)
     {
-        <span>Gesamt <strong>@total.ToString("N0", CultureInfo.CurrentCulture)</strong></span>
+        <span><Fmt Text="@GridText.Footer_Total"><Arg0><strong>@total.ToString("N0", CultureInfo.CurrentCulture)</strong></Arg0></Fmt></span>
     }
     else if (_countCts is not null)
     {
-        <span><span class="spinner small"></span> Zähle … <button class="status-btn" @onclick="CancelCount">Abbrechen</button></span>
+        <span><span class="spinner small"></span> @GridText.Footer_Counting <button class="status-btn" @onclick="CancelCount">@CommonText.Cancel</button></span>
     }
     else if (!Tab.AllRowsLoaded)
     {
-        <button class="status-btn" @onclick="CountAsync">Zeilen zählen</button>
+        <button class="status-btn" @onclick="CountAsync">@GridText.Footer_CountRows</button>
     }
     @if (Tab.LastQueryTime is { } time)
     {
@@ -35,21 +35,21 @@
     }
     @if (Tab.DataAsOf is { } asOf)
     {
-        <span title="Schreibgeschützte Verbindung: Oracle liefert die Daten aus einer READ ONLY-Transaktion mit dem Stand dieses Zeitpunkts. Jede neue Abfrage (Filter, Sortierung, @(Shortcuts.Label(ShortcutAction.Refresh) ?? "Neu laden")) holt einen neuen Stand; weitere Seiten bleiben im selben Stand.">
-            Stand @asOf.ToString("T", CultureInfo.CurrentCulture)
+        <span title="@TextFormat.Format(GridText.Footer_SnapshotTitle, Shortcuts.Label(ShortcutAction.Refresh) ?? CommonText.Reload)">
+            @TextFormat.Format(GridText.Footer_Snapshot, asOf.ToString("T", CultureInfo.CurrentCulture))
         </span>
         @if (Tab.SnapshotMoved)
         {
-            <span class="warn" title="@SnapshotTexts.Moved">Stand hat sich geändert – @(Shortcuts.Label(ShortcutAction.Refresh) is { } key ? $"{key} lädt neu" : "neu laden")</span>
+            <span class="warn" title="@SnapshotTexts.Moved">@(Shortcuts.Label(ShortcutAction.Refresh) is { } key ? TextFormat.Format(GridText.Footer_SnapshotMovedKey, key) : GridText.Footer_SnapshotMoved)</span>
         }
     }
     <span>@SortText</span>
     @if (_countError is { } countError)
     {
-        <span class="error">@countError.Display <button class="link-btn" @onclick="() => Shell.ShowError(countError)">Details</button></span>
+        <span class="error">@countError.Display <button class="link-btn" @onclick="() => Shell.ShowError(countError)">@CommonText.Details</button></span>
     }
     <span class="spacer"></span>
-    <span>Row-Key: @RowKeyText</span>
+    <span>@TextFormat.Format(GridText.Footer_RowKey, RowKeyText)</span>
 </footer>
 
 @code {
@@ -83,16 +83,16 @@
     }
 
     private string SortText => Tab.Sorts.Count > 0
-        ? "Sortierung: " + string.Join(", ", Tab.Sorts.Select(s => s.Column + (s.Descending ? " ↓" : " ↑")))
+        ? TextFormat.Format(GridText.Footer_Sort, string.Join(", ", Tab.Sorts.Select(s => s.Column + (s.Descending ? " ↓" : " ↑"))))
         : QueryBuilder.RowKeyOf(Details) == RowKeyKind.None
-            ? "Sortierung: alle Spalten"
-            : "Sortierung: Row-Key";
+            ? GridText.Footer_SortAllColumns
+            : GridText.Footer_SortRowKey;
 
     private string RowKeyText => QueryBuilder.RowKeyOf(Details) switch
     {
         RowKeyKind.PrimaryKey => "PK " + string.Join(", ", Details.PrimaryKey),
         RowKeyKind.RowId => Details.IsIndexOrganized ? "UROWID" : "ROWID",
-        _ => "keiner (View ohne Schlüssel)",
+        _ => GridText.Footer_NoRowKey,
     };
 
     private async Task CountAsync()

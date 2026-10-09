@@ -1,0 +1,841 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Grid_TableNotEditable" xml:space="preserve">
+    <value>This table cannot be edited here.</value>
+  </data>
+  <data name="Grid_RowNotLoaded" xml:space="preserve">
+    <value>The row is no longer loaded – please reload{0}.</value>
+    <comment>{0}: the reload shortcut as " (F5)", or empty</comment>
+  </data>
+  <data name="Grid_RowGone" xml:space="preserve">
+    <value>The row no longer exists – please reload{0}.</value>
+    <comment>{0}: the reload shortcut as " (F5)", or empty</comment>
+  </data>
+  <data name="Grid_ValueNotCopied" xml:space="preserve">
+    <value>Value not copied.</value>
+    <comment>Notice; the reasons follow as warnings</comment>
+  </data>
+  <data name="Grid_ColumnCopied" xml:space="preserve">
+    <value>{0} copied.</value>
+    <comment>{0}: column name (its value was copied)</comment>
+  </data>
+  <data name="Grid_SelectedRowsNotCopiedOne" xml:space="preserve">
+    <value>{0} of the selected rows is no longer loaded – not copied.</value>
+    <comment>{0}: number of selected rows that are no longer loaded</comment>
+  </data>
+  <data name="Grid_SelectedRowsNotCopiedOther" xml:space="preserve">
+    <value>{0} of the selected rows are no longer loaded – not copied.</value>
+    <comment>{0}: number of selected rows that are no longer loaded</comment>
+  </data>
+  <data name="Grid_OpenContent" xml:space="preserve">
+    <value>Open content …</value>
+    <comment>Button/menu item: opens the LOB editor</comment>
+  </data>
+  <data name="Grid_PinColumnLeft" xml:space="preserve">
+    <value>Pin column to the left</value>
+    <comment>Menu item</comment>
+  </data>
+  <data name="Grid_UnpinColumn" xml:space="preserve">
+    <value>Unpin column</value>
+    <comment>Menu item</comment>
+  </data>
+  <data name="Grid_HideEmpty" xml:space="preserve">
+    <value>Hide empty</value>
+    <comment>Check box: hide fields/columns without a value</comment>
+  </data>
+  <data name="Grid_Discard" xml:space="preserve">
+    <value>Discard</value>
+    <comment>Button: discard the pending delete of the row</comment>
+  </data>
+  <data name="Grid_Column" xml:space="preserve">
+    <value>Column</value>
+    <comment>Table column heading</comment>
+  </data>
+  <data name="Grid_FkModelBadge" xml:space="preserve">
+    <value>Relationship from the C# model, without a constraint in the database</value>
+    <comment>Tooltip of the FK badge in a column header</comment>
+  </data>
+  <data name="Grid_NotSortable" xml:space="preserve">
+    <value>This type cannot be sorted</value>
+    <comment>Tooltip of a column header</comment>
+  </data>
+  <data name="Grid_ValueNoMember" xml:space="preserve">
+    <value>{0} (no member)</value>
+    <comment>{0}: a stored value that is no member of the column's C# enum</comment>
+  </data>
+  <data name="GridMenu_CopyAsCSharpValue" xml:space="preserve">
+    <value>Copy as C# value</value>
+    <comment>Menu item</comment>
+  </data>
+  <data name="GridMenu_OpenLobTitle" xml:space="preserve">
+    <value>View the whole value or save it as a file (also double-click)</value>
+    <comment>Tooltip</comment>
+  </data>
+  <data name="GridMenu_OpenLobTitleEdit" xml:space="preserve">
+    <value>View the whole value, save it as a file or change it (also double-click)</value>
+    <comment>Tooltip</comment>
+  </data>
+  <data name="GridMenu_CompareTooMany" xml:space="preserve">
+    <value>At most {0} rows side by side</value>
+    <comment>{0}: maximum number of rows to compare</comment>
+  </data>
+  <data name="GridMenu_CompareTitle" xml:space="preserve">
+    <value>The selected rows side by side, differences marked{0}</value>
+    <comment>{0}: the shortcut as " (Alt+Enter)", or empty</comment>
+  </data>
+  <data name="GridMenu_CompareSelected" xml:space="preserve">
+    <value>Compare selected</value>
+    <comment>Menu item: compare the selected rows</comment>
+  </data>
+  <data name="GridMenu_AsFormTitle" xml:space="preserve">
+    <value>All columns of the row listed vertically next to the grid{0}</value>
+    <comment>{0}: the shortcut as " (Alt+Enter)", or empty</comment>
+  </data>
+  <data name="GridMenu_AsForm" xml:space="preserve">
+    <value>Show as form</value>
+    <comment>Menu item: shows the row in the form view</comment>
+  </data>
+  <data name="GridMenu_EditGroup" xml:space="preserve">
+    <value>Edit · {0}</value>
+    <comment>Menu group heading; {0}: number of rows, e.g. "3 rows"</comment>
+  </data>
+  <data name="GridMenu_DeleteRowTitle" xml:space="preserve">
+    <value>Deleted when you click “Write”{0}</value>
+    <comment>“Write” is the status bar button; {0}: its shortcut as " (Ctrl+S)", or empty</comment>
+  </data>
+  <data name="GridMenu_DeleteRow" xml:space="preserve">
+    <value>Delete row</value>
+    <comment>Menu item</comment>
+  </data>
+  <data name="GridMenu_DiscardPendingTitle" xml:space="preserve">
+    <value>Discard the pending changes of these rows (including a delete not written yet)</value>
+    <comment>Tooltip</comment>
+  </data>
+  <data name="GridMenu_DiscardPending" xml:space="preserve">
+    <value>Discard pending changes</value>
+    <comment>Menu item</comment>
+  </data>
+  <data name="GridMenu_ExportGroup" xml:space="preserve">
+    <value>Export · {0}</value>
+    <comment>Menu group heading; {0}: number of rows, e.g. "3 rows"</comment>
+  </data>
+  <data name="GridMenu_CopyTableTitle" xml:space="preserve">
+    <value>Tab-separated with a header row – paste it straight into Excel</value>
+    <comment>Tooltip</comment>
+  </data>
+  <data name="GridMenu_CopyTable" xml:space="preserve">
+    <value>Copy as table</value>
+    <comment>Menu item</comment>
+  </data>
+  <data name="GridMenu_CopyInsertTitle" xml:space="preserve">
+    <value>INSERT statements (never run)</value>
+    <comment>Tooltip</comment>
+  </data>
+  <data name="GridMenu_CopyInsert" xml:space="preserve">
+    <value>Copy as INSERT</value>
+    <comment>Menu item</comment>
+  </data>
+  <data name="GridMenu_SaveCsvTitle" xml:space="preserve">
+    <value>Semicolon-separated, UTF-8 – opens straight in Excel</value>
+    <comment>Tooltip</comment>
+  </data>
+  <data name="GridMenu_SaveCsv" xml:space="preserve">
+    <value>Save as CSV …</value>
+    <comment>Menu item</comment>
+  </data>
+  <data name="GridMenu_SaveInsert" xml:space="preserve">
+    <value>Save as INSERT script …</value>
+    <comment>Menu item</comment>
+  </data>
+  <data name="GridMenu_CopyObjectsTitle" xml:space="preserve">
+    <value>Object initializers with property names and enum members (NULL values left out)</value>
+    <comment>Tooltip</comment>
+  </data>
+  <data name="GridMenu_CopyObjects" xml:space="preserve">
+    <value>Copy as C# objects</value>
+    <comment>Menu item</comment>
+  </data>
+  <data name="GridMenu_CopySeedTitle" xml:space="preserve">
+    <value>builder.HasData(…) for the IEntityTypeConfiguration</value>
+    <comment>Tooltip</comment>
+  </data>
+  <data name="GridMenu_CopySeed" xml:space="preserve">
+    <value>Copy as HasData</value>
+    <comment>Menu item</comment>
+  </data>
+  <data name="GridMenu_PointsTo" xml:space="preserve">
+    <value>Points to{0}</value>
+    <comment>Menu group heading of outgoing FK jumps; {0}: " · 3 rows" if several rows are selected, or empty</comment>
+  </data>
+  <data name="GridMenu_ReferencedBy" xml:space="preserve">
+    <value>Referenced by{0}</value>
+    <comment>Menu group heading of incoming FK jumps; {0}: " · 3 rows" if several rows are selected, or empty</comment>
+  </data>
+  <data name="GridMenu_NoForeignKeys" xml:space="preserve">
+    <value>No foreign keys on this table.</value>
+  </data>
+  <data name="GridMenu_MissingRows" xml:space="preserve">
+    <value>{0} of the selection no longer loaded – left out of the jumps.</value>
+    <comment>{0}: number of rows, e.g. "3 rows"</comment>
+  </data>
+  <data name="Export_RowsOne" xml:space="preserve">
+    <value>{0} row</value>
+    <comment>{0}: number of rows (1)</comment>
+  </data>
+  <data name="Export_RowsOther" xml:space="preserve">
+    <value>{0:N0} rows</value>
+    <comment>{0}: number of rows</comment>
+  </data>
+  <data name="Export_ClipboardUnavailable" xml:space="preserve">
+    <value>The clipboard is not available.</value>
+  </data>
+  <data name="Export_CopiedAsTableOne" xml:space="preserve">
+    <value>{0} row copied as a table.</value>
+    <comment>{0}: number of rows (1)</comment>
+  </data>
+  <data name="Export_CopiedAsTableOther" xml:space="preserve">
+    <value>{0:N0} rows copied as a table.</value>
+    <comment>{0}: number of rows</comment>
+  </data>
+  <data name="Export_CopiedAsInsertOne" xml:space="preserve">
+    <value>{0} row copied as INSERT.</value>
+    <comment>{0}: number of rows (1)</comment>
+  </data>
+  <data name="Export_CopiedAsInsertOther" xml:space="preserve">
+    <value>{0:N0} rows copied as INSERT.</value>
+    <comment>{0}: number of rows</comment>
+  </data>
+  <data name="Export_CopiedAsCSharpObjectsOne" xml:space="preserve">
+    <value>{0} row copied as C# objects.</value>
+    <comment>{0}: number of rows (1)</comment>
+  </data>
+  <data name="Export_CopiedAsCSharpObjectsOther" xml:space="preserve">
+    <value>{0:N0} rows copied as C# objects.</value>
+    <comment>{0}: number of rows</comment>
+  </data>
+  <data name="Export_CopiedAsHasDataOne" xml:space="preserve">
+    <value>{0} row copied as HasData.</value>
+    <comment>{0}: number of rows (1)</comment>
+  </data>
+  <data name="Export_CopiedAsHasDataOther" xml:space="preserve">
+    <value>{0:N0} rows copied as HasData.</value>
+    <comment>{0}: number of rows</comment>
+  </data>
+  <data name="Export_SavedOne" xml:space="preserve">
+    <value>{0} row saved: {1}</value>
+    <comment>{0}: number of rows (1); {1}: file path</comment>
+  </data>
+  <data name="Export_SavedOther" xml:space="preserve">
+    <value>{0:N0} rows saved: {1}</value>
+    <comment>{0}: number of rows; {1}: file path</comment>
+  </data>
+  <data name="Export_SaveFailed" xml:space="preserve">
+    <value>Saving failed: {0}</value>
+    <comment>{0}: error message of the file system</comment>
+  </data>
+  <data name="Export_MissingRows" xml:space="preserve">
+    <value>{0} of the selection no longer loaded – not exported.</value>
+    <comment>{0}: number of rows, e.g. "3 rows"</comment>
+  </data>
+  <data name="Export_CsvFilter" xml:space="preserve">
+    <value>CSV (semicolon)</value>
+    <comment>File type in the save dialog</comment>
+  </data>
+  <data name="Export_SqlScriptFilter" xml:space="preserve">
+    <value>SQL script</value>
+    <comment>File type in the save dialog</comment>
+  </data>
+  <data name="Form_ResizeWidth" xml:space="preserve">
+    <value>Change width</value>
+    <comment>Tooltip of the drag handle at the form's left edge</comment>
+  </data>
+  <data name="Form_PreviousRow" xml:space="preserve">
+    <value>Previous row{0}</value>
+    <comment>Tooltip; {0}: the shortcut as " (Alt+↑)", or empty</comment>
+  </data>
+  <data name="Form_NextRow" xml:space="preserve">
+    <value>Next row{0}</value>
+    <comment>Tooltip; {0}: the shortcut as " (Alt+↓)", or empty</comment>
+  </data>
+  <data name="Form_PrimaryKey" xml:space="preserve">
+    <value>Primary key</value>
+    <comment>Tooltip of the key values</comment>
+  </data>
+  <data name="Form_Title" xml:space="preserve">
+    <value>Form</value>
+    <comment>Heading of the form view while no row is shown</comment>
+  </data>
+  <data name="Form_Close" xml:space="preserve">
+    <value>Close form{0}</value>
+    <comment>Tooltip; {0}: the shortcut as " (Alt+Enter)", or empty</comment>
+  </data>
+  <data name="Form_SearchFields" xml:space="preserve">
+    <value>Search fields …{0}</value>
+    <comment>Placeholder; {0}: the shortcut as " (Ctrl+F)", or empty</comment>
+  </data>
+  <data name="Form_HideEmptyTitle" xml:space="preserve">
+    <value>Hide fields without a value (NULL) – changed ones stay visible; applies to this tab</value>
+    <comment>Tooltip</comment>
+  </data>
+  <data name="Form_OnlyChangedTitle" xml:space="preserve">
+    <value>Only fields with pending or written changes</value>
+    <comment>Tooltip</comment>
+  </data>
+  <data name="Form_OnlyChanged" xml:space="preserve">
+    <value>Only changed</value>
+    <comment>Check box: only changed fields</comment>
+  </data>
+  <data name="Form_FieldsOne" xml:space="preserve">
+    <value>{0} field</value>
+    <comment>{0}: number of fields (1)</comment>
+  </data>
+  <data name="Form_FieldsOther" xml:space="preserve">
+    <value>{0} fields</value>
+    <comment>{0}: number of fields</comment>
+  </data>
+  <data name="Form_FieldsShown" xml:space="preserve">
+    <value>{0} of {1} fields</value>
+    <comment>{0}: fields shown; {1}: all fields</comment>
+  </data>
+  <data name="Form_EmptyHidden" xml:space="preserve">
+    <value>{0} empty hidden</value>
+    <comment>{0}: number of empty fields hidden</comment>
+  </data>
+  <data name="Form_MarkedForDeletion" xml:space="preserve">
+    <value>Marked for deletion.</value>
+  </data>
+  <data name="Form_MarkedForDeletionWritten" xml:space="preserve">
+    <value>Marked for deletion (written).</value>
+    <comment>The delete is written in the session, not committed</comment>
+  </data>
+  <data name="Form_NewRowNote" xml:space="preserve">
+    <value>New row – inserted when you click “Write”{0}.</value>
+    <comment>“Write” is the status bar button; {0}: its shortcut as " (Ctrl+S)", or empty</comment>
+  </data>
+  <data name="Form_ReadOnly" xml:space="preserve">
+    <value>Read-only – unlock the workspace to make changes.</value>
+  </data>
+  <data name="Form_ChooseRow" xml:space="preserve">
+    <value>Select a row in the grid (click or arrow keys).</value>
+  </data>
+  <data name="Form_LoadingRow" xml:space="preserve">
+    <value>Loading row …</value>
+  </data>
+  <data name="Form_NoFieldMatches" xml:space="preserve">
+    <value>No field matches.</value>
+  </data>
+  <data name="Form_NoFieldMatchesQuery" xml:space="preserve">
+    <value>No field matches “{0}”.</value>
+    <comment>{0}: the search text</comment>
+  </data>
+  <data name="Form_ReferencedBy" xml:space="preserve">
+    <value>Referenced by</value>
+    <comment>Section heading: incoming FK jumps</comment>
+  </data>
+  <data name="Form_NewRow" xml:space="preserve">
+    <value>New row</value>
+    <comment>Position of the form on a row not inserted yet</comment>
+  </data>
+  <data name="Form_Position" xml:space="preserve">
+    <value>Row {0} of {1}</value>
+    <comment>{0}: row number; {1}: number of rows, possibly "≥ 500"</comment>
+  </data>
+  <data name="Form_NothingWritten" xml:space="preserve">
+    <value>Nothing written – {0}: {1}</value>
+    <comment>{0}: column name; {1}: why its typed value is invalid</comment>
+  </data>
+  <data name="Form_InsertedRowOutside" xml:space="preserve">
+    <value>The inserted row is not in the loaded range of the grid – select a row in the grid.</value>
+  </data>
+  <data name="Form_NewRowRemoved" xml:space="preserve">
+    <value>The new row was removed.</value>
+  </data>
+  <data name="Form_RowNotLoaded" xml:space="preserve">
+    <value>The row is no longer loaded – select a row in the grid.</value>
+  </data>
+  <data name="Form_ViewValue" xml:space="preserve">
+    <value>View the whole value</value>
+    <comment>Tooltip</comment>
+  </data>
+  <data name="Form_ViewOrChangeValue" xml:space="preserve">
+    <value>View or change the whole value</value>
+    <comment>Tooltip</comment>
+  </data>
+  <data name="Form_CopyValueTitle" xml:space="preserve">
+    <value>Copy value (full value)</value>
+    <comment>Tooltip</comment>
+  </data>
+  <data name="Form_Default" xml:space="preserve">
+    <value>Default: {0}</value>
+    <comment>{0}: the column's default expression</comment>
+  </data>
+  <data name="Compare_Label" xml:space="preserve">
+    <value>Comparison {0}</value>
+    <comment>Accessible label of the dialog; {0}: table name</comment>
+  </data>
+  <data name="Compare_Header" xml:space="preserve">
+    <value>Comparison · {0} · {1}</value>
+    <comment>Dialog heading; {0}: number of rows, e.g. "3 rows"; {1}: table name</comment>
+  </data>
+  <data name="Compare_SearchColumns" xml:space="preserve">
+    <value>Search columns …</value>
+    <comment>Placeholder</comment>
+  </data>
+  <data name="Compare_OnlyDifferences" xml:space="preserve">
+    <value>Only differences</value>
+    <comment>Check box</comment>
+  </data>
+  <data name="Compare_HideEmptyTitle" xml:space="preserve">
+    <value>Columns that are NULL in every row</value>
+    <comment>Tooltip of "Hide empty"</comment>
+  </data>
+  <data name="Compare_ColumnsDifferOne" xml:space="preserve">
+    <value>{0} column differs</value>
+    <comment>{0}: number of columns with different values (1)</comment>
+  </data>
+  <data name="Compare_ColumnsDifferOther" xml:space="preserve">
+    <value>{0} columns differ</value>
+    <comment>{0}: number of columns with different values</comment>
+  </data>
+  <data name="Compare_Shown" xml:space="preserve">
+    <value>{0} of {1} shown</value>
+    <comment>{0}: columns shown; {1}: all columns</comment>
+  </data>
+  <data name="Compare_ShowRowTitle" xml:space="preserve">
+    <value>Show in the grid and open in the form</value>
+    <comment>Tooltip of a row heading</comment>
+  </data>
+  <data name="Compare_Row" xml:space="preserve">
+    <value>Row {0:N0}</value>
+    <comment>{0}: row number in the grid</comment>
+  </data>
+  <data name="Compare_RowsEqual" xml:space="preserve">
+    <value>The rows are equal.</value>
+  </data>
+  <data name="Compare_NoColumnMatches" xml:space="preserve">
+    <value>No column matches.</value>
+  </data>
+  <data name="Compare_FooterNote" xml:space="preserve">
+    <value>Differing values marked · values as shown in the grid, including pending changes</value>
+  </data>
+  <data name="Compare_MissingRows" xml:space="preserve">
+    <value>{0} of the selection no longer loaded</value>
+    <comment>{0}: number of rows, e.g. "3 rows"</comment>
+  </data>
+  <data name="CompareCell_As" xml:space="preserve">
+    <value>as {0}</value>
+    <comment>{0}: the object's name on this side (another letter case or name)</comment>
+  </data>
+  <data name="CompareCell_Missing" xml:space="preserve">
+    <value>Missing on this side</value>
+    <comment>Tooltip</comment>
+  </data>
+  <data name="CompareCell_OtherCase" xml:space="preserve">
+    <value>Present only in a different letter case: {0}</value>
+    <comment>Tooltip; {0}: the name as written on this side</comment>
+  </data>
+  <data name="CompareCell_Different" xml:space="preserve">
+    <value>Different (variant {0})</value>
+    <comment>Tooltip; {0}: number of the variant (1, 2, …)</comment>
+  </data>
+  <data name="CompareCell_Same" xml:space="preserve">
+    <value>Same</value>
+    <comment>Tooltip: the definition is the same on both sides</comment>
+  </data>
+  <data name="Lob_Loading" xml:space="preserve">
+    <value>Loading the whole value …</value>
+  </data>
+  <data name="Lob_Changed" xml:space="preserve">
+    <value>changed</value>
+    <comment>Badge: the value was changed in the dialog</comment>
+  </data>
+  <data name="Lob_ReadOnly" xml:space="preserve">
+    <value>read-only</value>
+    <comment>Badge: the value cannot be changed</comment>
+  </data>
+  <data name="Lob_Preview" xml:space="preserve">
+    <value>Preview</value>
+    <comment>Alternative text of the image preview</comment>
+  </data>
+  <data name="Lob_EnterText" xml:space="preserve">
+    <value>Enter text</value>
+    <comment>Link button: start a text in place of NULL</comment>
+  </data>
+  <data name="Lob_TooLargeToEdit" xml:space="preserve">
+    <value>Too large to edit in the dialog (over {0}) – use “Save as file” and “Load from file”.</value>
+    <comment>{0}: size limit, e.g. "1 MB"</comment>
+  </data>
+  <data name="Lob_SaveToFile" xml:space="preserve">
+    <value>Save as file …</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Lob_LoadFromFile" xml:space="preserve">
+    <value>Load from file …</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Lob_SetNull" xml:space="preserve">
+    <value>Set to NULL</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Lob_ApplyTitle" xml:space="preserve">
+    <value>Apply as a pending change – written when you click “Write”{0}</value>
+    <comment>“Write” is the status bar button; {0}: its shortcut as " (Ctrl+S)", or empty</comment>
+  </data>
+  <data name="Lob_TooLargeToLoad" xml:space="preserve">
+    <value>The value is {0} – FerretSharp loads LOBs up to {1}.</value>
+    <comment>{0}: size of the value, e.g. "120 MB"; {1}: size limit</comment>
+  </data>
+  <data name="Lob_FileTooLarge" xml:space="preserve">
+    <value>“{0}” is {1} – FerretSharp loads LOBs up to {2}.</value>
+    <comment>{0}: file name; {1}: its size; {2}: size limit</comment>
+  </data>
+  <data name="Lob_TextFileFilter" xml:space="preserve">
+    <value>Text file</value>
+    <comment>File type in the save dialog</comment>
+  </data>
+  <data name="Lob_FileFilter" xml:space="preserve">
+    <value>File</value>
+    <comment>File type in the save dialog</comment>
+  </data>
+  <data name="Lob_TextFilesFilter" xml:space="preserve">
+    <value>Text files</value>
+    <comment>File type in the open dialog</comment>
+  </data>
+  <data name="Lob_Saved" xml:space="preserve">
+    <value>Saved: {0}</value>
+    <comment>{0}: file path</comment>
+  </data>
+  <data name="Lob_LoadFailed" xml:space="preserve">
+    <value>Loading failed: {0}</value>
+    <comment>{0}: error message of the file system</comment>
+  </data>
+  <data name="Lob_FromFile" xml:space="preserve">
+    <value>from “{0}”</value>
+    <comment>Note where the new value came from; {0}: file name</comment>
+  </data>
+  <data name="Lob_FromFileNotUtf8" xml:space="preserve">
+    <value>from “{0}” (not UTF-8 – read as Windows-1252)</value>
+    <comment>{0}: file name</comment>
+  </data>
+  <data name="Problem_LockConflictOne" xml:space="preserve">
+    <value>Another session holds a lock on the row (it changed the row but has not committed yet). FerretSharp waited {0} second.</value>
+    <comment>{0}: lock wait in seconds (1)</comment>
+  </data>
+  <data name="Problem_LockConflictOther" xml:space="preserve">
+    <value>Another session holds a lock on the row (it changed the row but has not committed yet). FerretSharp waited {0} seconds.</value>
+    <comment>{0}: lock wait in seconds</comment>
+  </data>
+  <data name="Problem_Session" xml:space="preserve">
+    <value>Session</value>
+    <comment>Table heading: Oracle session id</comment>
+  </data>
+  <data name="Problem_User" xml:space="preserve">
+    <value>User</value>
+    <comment>Table heading: database user (and OS user)</comment>
+  </data>
+  <data name="Problem_Machine" xml:space="preserve">
+    <value>Machine</value>
+    <comment>Table heading: client machine</comment>
+  </data>
+  <data name="Problem_ProgramWorkspace" xml:space="preserve">
+    <value>Program / workspace</value>
+    <comment>Table heading</comment>
+  </data>
+  <data name="Problem_FerretSharpWorkspace" xml:space="preserve">
+    <value>FerretSharp · workspace “{0}”</value>
+    <comment>{0}: workspace name of the locking FerretSharp session</comment>
+  </data>
+  <data name="Problem_LockHoldersNote" xml:space="preserve">
+    <value>Sessions with locks on the table – Oracle does not tell which one holds the row.</value>
+  </data>
+  <data name="Problem_LockHoldersUnknown" xml:space="preserve">
+    <value>Without read access to V$SESSION (SELECT_CATALOG_ROLE), FerretSharp cannot tell who holds the lock.</value>
+  </data>
+  <data name="Problem_ChangedMeanwhileText" xml:space="preserve">
+    <value>Someone changed the row after it was loaded here:</value>
+  </data>
+  <data name="Problem_WhenLoaded" xml:space="preserve">
+    <value>When loaded</value>
+    <comment>Table heading: value when the row was loaded</comment>
+  </data>
+  <data name="Problem_NowInDatabase" xml:space="preserve">
+    <value>Now in the database</value>
+    <comment>Table heading</comment>
+  </data>
+  <data name="Problem_YourChange" xml:space="preserve">
+    <value>Your change</value>
+    <comment>Table heading</comment>
+  </data>
+  <data name="Problem_RowGoneText" xml:space="preserve">
+    <value>The row no longer exists – someone deleted it and committed.</value>
+  </data>
+  <data name="Problem_DuringCommit" xml:space="preserve">
+    <value>Nothing has been committed yet. The commit continues once you decide.</value>
+  </data>
+  <data name="Problem_Retry" xml:space="preserve">
+    <value>Try again</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Problem_DiscardMine" xml:space="preserve">
+    <value>Discard my change</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Problem_Overwrite" xml:space="preserve">
+    <value>Overwrite</value>
+    <comment>Button: write the change anyway</comment>
+  </data>
+  <data name="Problem_DiscardChange" xml:space="preserve">
+    <value>Discard change</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Problem_LockedTitle" xml:space="preserve">
+    <value>Row is locked</value>
+    <comment>Dialog title</comment>
+  </data>
+  <data name="Problem_ChangedMeanwhile" xml:space="preserve">
+    <value>Changed in the meantime</value>
+    <comment>Dialog title</comment>
+  </data>
+  <data name="Problem_RowDeleted" xml:space="preserve">
+    <value>Row deleted</value>
+    <comment>Dialog title</comment>
+  </data>
+  <data name="Problem_WriteRefused" xml:space="preserve">
+    <value>Write refused</value>
+    <comment>Dialog title</comment>
+  </data>
+  <data name="Problem_NewRow" xml:space="preserve">
+    <value>new row</value>
+    <comment>Which row failed, after the table name</comment>
+  </data>
+  <data name="Problem_RowKey" xml:space="preserve">
+    <value>row {0}</value>
+    <comment>Which row failed, after the table name; {0}: primary key values</comment>
+  </data>
+  <data name="Problem_RowToDelete" xml:space="preserve">
+    <value>row to delete</value>
+    <comment>Which row failed, after the table name</comment>
+  </data>
+  <data name="Problem_ChangedRow" xml:space="preserve">
+    <value>changed row</value>
+    <comment>Which row failed, after the table name</comment>
+  </data>
+  <data name="Outcome_RowsChangedOne" xml:space="preserve">
+    <value>{0} row changed</value>
+    <comment>{0}: number of rows (1)</comment>
+  </data>
+  <data name="Outcome_RowsChangedOther" xml:space="preserve">
+    <value>{0:N0} rows changed</value>
+    <comment>{0}: number of rows</comment>
+  </data>
+  <data name="Outcome_Open" xml:space="preserve">
+    <value>{0}{1} – in the workspace’s transaction. Not visible to others until you commit; commit, discard or undo it (↶) in the status bar.</value>
+    <comment>{0}: "3 rows changed" (bold); {1}: details such as " (UPDATE · 12 ms)", or empty</comment>
+  </data>
+  <data name="Outcome_Undone" xml:space="preserve">
+    <value>{0}{1} – since undone (↶).</value>
+    <comment>{0}: "3 rows changed"; {1}: details such as " (UPDATE · 12 ms)", or empty</comment>
+  </data>
+  <data name="Outcome_Ended" xml:space="preserve">
+    <value>{0}{1} – the transaction has since ended (commit or rollback).</value>
+    <comment>{0}: "3 rows changed"; {1}: details such as " (UPDATE · 12 ms)", or empty</comment>
+  </data>
+  <data name="ColumnMenu_PkPinnedTitle" xml:space="preserve">
+    <value>The primary key always comes first</value>
+    <comment>Tooltip</comment>
+  </data>
+  <data name="ColumnMenu_PkPinned" xml:space="preserve">
+    <value>Pinned (primary key)</value>
+    <comment>Disabled menu item</comment>
+  </data>
+  <data name="ColumnJump_Title" xml:space="preserve">
+    <value>Find a column and jump to it{0}</value>
+    <comment>Tooltip; {0}: the shortcut as " (Ctrl+F)", or empty</comment>
+  </data>
+  <data name="ColumnJump_Button" xml:space="preserve">
+    <value>Column</value>
+    <comment>Button that opens the column search</comment>
+  </data>
+  <data name="ColumnJump_Search" xml:space="preserve">
+    <value>Find column …</value>
+    <comment>Placeholder</comment>
+  </data>
+  <data name="ColumnJump_CountOne" xml:space="preserve">
+    <value>{0} column</value>
+    <comment>{0}: number of columns of the table (1)</comment>
+  </data>
+  <data name="ColumnJump_CountOther" xml:space="preserve">
+    <value>{0} columns</value>
+    <comment>{0}: number of columns of the table</comment>
+  </data>
+  <data name="Filter_Add" xml:space="preserve">
+    <value>Filter</value>
+    <comment>Button "+ Filter": adds a filter row</comment>
+  </data>
+  <data name="Filter_NoFilter" xml:space="preserve">
+    <value>No filter – all rows</value>
+  </data>
+  <data name="Filter_PlanTitle" xml:space="preserve">
+    <value>Execution plan of the query – estimated or actual</value>
+    <comment>Tooltip</comment>
+  </data>
+  <data name="Filter_Plan" xml:space="preserve">
+    <value>Plan</value>
+    <comment>Button: shows the execution plan</comment>
+  </data>
+  <data name="Filter_Enabled" xml:space="preserve">
+    <value>Filter active</value>
+    <comment>Tooltip of the check box of a filter row</comment>
+  </data>
+  <data name="Filter_From" xml:space="preserve">
+    <value>from: {0}</value>
+    <comment>Placeholder of the first BETWEEN value; {0}: format hint, e.g. "DD.MM.YYYY [hh:mm]"</comment>
+  </data>
+  <data name="Filter_To" xml:space="preserve">
+    <value>to: {0}</value>
+    <comment>Placeholder of the second BETWEEN value; {0}: format hint, e.g. "DD.MM.YYYY [hh:mm]"</comment>
+  </data>
+  <data name="Filter_ListPlaceholder" xml:space="preserve">
+    <value>Separate values with ;</value>
+    <comment>Placeholder of an IN filter</comment>
+  </data>
+  <data name="Filter_Remove" xml:space="preserve">
+    <value>Remove</value>
+    <comment>Tooltip of the button that removes a filter row</comment>
+  </data>
+  <data name="Filter_AddTitle" xml:space="preserve">
+    <value>Add filter</value>
+    <comment>Tooltip</comment>
+  </data>
+  <data name="Filter_Clear" xml:space="preserve">
+    <value>Clear</value>
+    <comment>Button: removes all filters</comment>
+  </data>
+  <data name="Filter_Apply" xml:space="preserve">
+    <value>Apply</value>
+    <comment>Button: runs the query with the filters</comment>
+  </data>
+  <data name="Filter_NumberPlaceholder" xml:space="preserve">
+    <value>Number, e.g. 4711 or 12.5</value>
+    <comment>Placeholder; German or ISO input works, so 12.5 and 12,5 are both accepted</comment>
+  </data>
+  <data name="Filter_DatePlaceholder" xml:space="preserve">
+    <value>DD.MM.YYYY [hh:mm]</value>
+    <comment>Placeholder; the filter takes German date formats (or ISO)</comment>
+  </data>
+  <data name="Filter_RawPlaceholder" xml:space="preserve">
+    <value>Hex, e.g. CAFE01</value>
+    <comment>Placeholder for RAW columns</comment>
+  </data>
+  <data name="Filter_TextPlaceholder" xml:space="preserve">
+    <value>Text</value>
+    <comment>Placeholder for text columns</comment>
+  </data>
+  <data name="ValuePicker_ChooseValue" xml:space="preserve">
+    <value>Choose value …</value>
+  </data>
+  <data name="ValuePicker_ChooseValues" xml:space="preserve">
+    <value>Choose values …</value>
+  </data>
+  <data name="ValuePicker_NoMember" xml:space="preserve">
+    <value>no member</value>
+    <comment>A value that is no member of the C# enum</comment>
+  </data>
+  <data name="FkJump_FromModel" xml:space="preserve">
+    <value>from C# model</value>
+    <comment>The FK jump comes from a relationship of the C# model</comment>
+  </data>
+  <data name="FkJump_CountTimedOut" xml:space="preserve">
+    <value>Counting stopped after {0} s</value>
+    <comment>{0}: timeout in seconds</comment>
+  </data>
+  <data name="FkJump_ModelRelationship" xml:space="preserve">
+    <value>Relationship from the C# model – there is no constraint for it in the database.</value>
+  </data>
+  <data name="Footer_RowsOne" xml:space="preserve">
+    <value>{0} row</value>
+    <comment>{0}: number of rows loaded (bold)</comment>
+  </data>
+  <data name="Footer_RowsOther" xml:space="preserve">
+    <value>{0} rows</value>
+    <comment>{0}: number of rows loaded (bold)</comment>
+  </data>
+  <data name="Footer_AtLeastRows" xml:space="preserve">
+    <value>≥ {0} rows</value>
+    <comment>{0}: number of rows loaded so far (bold)</comment>
+  </data>
+  <data name="Footer_Total" xml:space="preserve">
+    <value>Total {0}</value>
+    <comment>{0}: counted number of rows (bold)</comment>
+  </data>
+  <data name="Footer_Counting" xml:space="preserve">
+    <value>Counting …</value>
+  </data>
+  <data name="Footer_CountRows" xml:space="preserve">
+    <value>Count rows</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Footer_SnapshotTitle" xml:space="preserve">
+    <value>Read-only connection: Oracle returns the data from a READ ONLY transaction as of this point in time. Every new query (filter, sort, {0}) gets a new snapshot; later pages come from the same snapshot.</value>
+    <comment>{0}: the reload shortcut (e.g. "F5") or "Reload"</comment>
+  </data>
+  <data name="Footer_Snapshot" xml:space="preserve">
+    <value>As of {0}</value>
+    <comment>{0}: time of the snapshot</comment>
+  </data>
+  <data name="Footer_SnapshotMovedKey" xml:space="preserve">
+    <value>Snapshot changed – press {0} to reload</value>
+    <comment>{0}: the reload shortcut, e.g. "F5"</comment>
+  </data>
+  <data name="Footer_SnapshotMoved" xml:space="preserve">
+    <value>Snapshot changed – reload</value>
+  </data>
+  <data name="Footer_RowKey" xml:space="preserve">
+    <value>Row key: {0}</value>
+    <comment>{0}: "PK" with the key columns, "ROWID" or none</comment>
+  </data>
+  <data name="Footer_Sort" xml:space="preserve">
+    <value>Sort: {0}</value>
+    <comment>{0}: sorted columns with ↑/↓</comment>
+  </data>
+  <data name="Footer_SortAllColumns" xml:space="preserve">
+    <value>Sort: all columns</value>
+  </data>
+  <data name="Footer_SortRowKey" xml:space="preserve">
+    <value>Sort: row key</value>
+  </data>
+  <data name="Footer_NoRowKey" xml:space="preserve">
+    <value>none (view without key)</value>
+    <comment>Row key of a view without key</comment>
+  </data>
+  <data name="Editing_Committed" xml:space="preserve">
+    <value>Changes committed.</value>
+  </data>
+  <data name="Editing_RolledBack" xml:space="preserve">
+    <value>Changes discarded (rollback).</value>
+  </data>
+  <data name="Editing_UndoneGrid" xml:space="preserve">
+    <value>Undone: {0} – the changes are pending again.</value>
+    <comment>{0}: the undone grid write (table and rows)</comment>
+  </data>
+  <data name="Editing_Undone" xml:space="preserve">
+    <value>Undone: {0}.</value>
+    <comment>{0}: the undone statement</comment>
+  </data>
+  <data name="Editing_NoPending" xml:space="preserve">
+    <value>-- No pending changes.</value>
+    <comment>SQL comment in the preview of the statements a write would run</comment>
+  </data>
+</root>

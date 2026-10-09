@@ -1,3 +1,4 @@
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.ClrModel;
@@ -134,12 +135,13 @@ public sealed class ClrModelMapping
             if (caseOnly is null)
             {
                 issues.Add(new MappingIssue(MappingIssueKind.EntityWithoutTable, entity.Name, null, new TableRef(owner, name), null,
-                    $"{ShortName(entity.ClrType)}: {(isView ? "View" : "Tabelle")} {Qualified(owner, name, defaultOwner)} gibt es nicht."));
+                    TextFormat.Format(isView ? ClrModelText.EntityWithoutView : ClrModelText.EntityWithoutTable,
+                        ShortName(entity.ClrType), Qualified(owner, name, defaultOwner))));
                 continue;
             }
 
             issues.Add(new MappingIssue(MappingIssueKind.CaseMismatch, entity.Name, null, caseOnly.Ref, null,
-                $"{ShortName(entity.ClrType)}: im Modell „{name}“, in der Datenbank „{caseOnly.Name}“ – EF Core quotet Namen, Abfragen fänden {(isView ? "die View" : "die Tabelle")} so nicht."));
+                TextFormat.Format(isView ? ClrModelText.ViewCaseMismatch : ClrModelText.TableCaseMismatch, ShortName(entity.ClrType), name, caseOnly.Name)));
             located.Add((entity, caseOnly, columnOf));
         }
 
@@ -147,11 +149,11 @@ public sealed class ClrModelMapping
         var columnsByOwner = new Dictionary<string, IReadOnlyDictionary<string, IReadOnlyList<ColumnInfo>>>(StringComparer.Ordinal);
         foreach (var owner in located.Select(l => l.Table.Owner).Distinct(StringComparer.Ordinal))
         {
-            progress?.Report($"Lese die Spalten ({owner})");
+            progress?.Report(TextFormat.Format(ClrModelText.StepReadColumns, owner));
             columnsByOwner[owner] = await schema.GetColumnsAsync(owner, cancellationToken);
         }
 
-        progress?.Report("Gleiche Modell und Datenbank ab");
+        progress?.Report(ClrModelText.StepCompare);
         var mismatches = new List<ColumnMismatch>();
         foreach (var group in located.GroupBy(l => l.Table.Ref))
         {
@@ -174,14 +176,14 @@ public sealed class ClrModelMapping
                     if (column is null && columns.FirstOrDefault(c => string.Equals(c, modelColumn, StringComparison.OrdinalIgnoreCase)) is { } caseOnly)
                     {
                         issues.Add(new MappingIssue(MappingIssueKind.CaseMismatch, entity.Name, property.Name, table.Ref, caseOnly,
-                            $"{ShortName(entity.ClrType)}.{property.Name}: im Modell Spalte „{modelColumn}“, in der Datenbank „{caseOnly}“."));
+                            TextFormat.Format(ClrModelText.ColumnCaseMismatch, ShortName(entity.ClrType), property.Name, modelColumn, caseOnly)));
                         column = caseOnly;
                     }
 
                     if (column is null)
                     {
                         issues.Add(new MappingIssue(MappingIssueKind.PropertyWithoutColumn, entity.Name, property.Name, table.Ref, modelColumn,
-                            $"{ShortName(entity.ClrType)}.{property.Name}: Spalte {table.DisplayName}.{modelColumn} gibt es nicht."));
+                            TextFormat.Format(ClrModelText.PropertyWithoutColumn, ShortName(entity.ClrType), property.Name, table.DisplayName, modelColumn)));
                         continue;
                     }
 
@@ -198,7 +200,7 @@ public sealed class ClrModelMapping
             foreach (var column in columns.Where(c => !mapped.Contains(c)))
             {
                 issues.Add(new MappingIssue(MappingIssueKind.ColumnWithoutProperty, group.First().Entity.Name, null, table.Ref, column,
-                    $"{table.DisplayName}.{column}: keine Property in {string.Join(", ", group.Select(g => ShortName(g.Entity.ClrType)))}."));
+                    TextFormat.Format(ClrModelText.ColumnWithoutProperty, table.DisplayName, column, string.Join(", ", group.Select(g => ShortName(g.Entity.ClrType))))));
             }
         }
 

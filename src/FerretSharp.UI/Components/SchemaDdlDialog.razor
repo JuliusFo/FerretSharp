@@ -2,27 +2,32 @@
    run it (that comes with WP-22). *@
 @using FerretSharp.Core.Compare
 
-<ModalFrame Label="DDL-Vorschlag" Class="sql-dialog compare-ddl-dialog" OnCancel="OnClose" CloseOnBackdrop="true" FocusOnOpen="true">
+<ModalFrame Label="@CompareViewText.CompareDdl_Title" Class="sql-dialog compare-ddl-dialog" OnCancel="OnClose" CloseOnBackdrop="true" FocusOnOpen="true">
     <header>
-        <span>DDL-Vorschlag</span>
-        <select title="Diese Seite wird angeglichen" @bind="_target" @bind:after="Build">
-            @for (var i = 0; i < Labels.Count; i++)
-            {
-                <option value="@i" disabled="@(i == _reference)">@Labels[i]</option>
-            }
-        </select>
-        <span>angleichen an</span>
-        <select title="So soll es aussehen" @bind="_reference" @bind:after="Build">
-            @for (var i = 0; i < Labels.Count; i++)
-            {
-                <option value="@i" disabled="@(i == _target)">@Labels[i]</option>
-            }
-        </select>
+        <span>@CompareViewText.CompareDdl_Title</span>
+        <Fmt Text="@CompareViewText.CompareDdl_AlignTo">
+            <Arg0>
+                <select title="@CompareViewText.CompareDdl_TargetTitle" @bind="_target" @bind:after="Build">
+                    @for (var i = 0; i < Labels.Count; i++)
+                    {
+                        <option value="@i" disabled="@(i == _reference)">@Labels[i]</option>
+                    }
+                </select>
+            </Arg0>
+            <Arg1>
+                <select title="@CompareViewText.CompareDdl_ReferenceTitle" @bind="_reference" @bind:after="Build">
+                    @for (var i = 0; i < Labels.Count; i++)
+                    {
+                        <option value="@i" disabled="@(i == _target)">@Labels[i]</option>
+                    }
+                </select>
+            </Arg1>
+        </Fmt>
         <span class="spacer"></span>
-        <button class="icon-btn ghost" title="Schließen" @onclick="OnClose">✕</button>
+        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="OnClose">✕</button>
     </header>
     <div class="settings-note compare-ddl-note">
-        Nur ein Vorschlag zum Kopieren – FerretSharp führt ihn nicht aus. DDL lässt sich nicht zurücknehmen; Schritte mit ⚠ vorher prüfen.
+        @CompareViewText.CompareDdl_Note
     </div>
     @if (_error is { } error)
     {
@@ -32,7 +37,7 @@
     {
         @if (proposal.Steps.Count == 0)
         {
-            <div class="compare-none">Keine Unterschiede zwischen diesen beiden Seiten.</div>
+            <div class="compare-none">@CompareViewText.CompareDdl_NoDifferences</div>
         }
         else
         {
@@ -74,7 +79,7 @@
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             // A bug in the proposal must not take the page down; the comparison itself stays usable.
-            (_proposal, _error) = (null, $"Der DDL-Vorschlag ließ sich nicht erzeugen: {ex.Message}");
+            (_proposal, _error) = (null, TextFormat.Format(CompareViewText.CompareDdl_Failed, ex.Message));
         }
     }
 }

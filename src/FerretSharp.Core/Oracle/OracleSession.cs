@@ -190,7 +190,7 @@ public sealed partial class OracleSession : IAsyncDisposable
         // Tripwire: ExecuteReader would run DML just as well, and without a transaction ODP.NET commits it at once.
         if (!IsReadOnlyStatement(sql))
         {
-            throw new InvalidOperationException("Über diesen Weg laufen nur lesende Abfragen (SELECT/WITH ohne FOR UPDATE).");
+            throw new InvalidOperationException("Only read-only queries (SELECT/WITH without FOR UPDATE) run this way.");
         }
 
         return await ExclusiveAsync(async () =>

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="StepLoadAssemblies" xml:space="preserve">
+    <value>Lade die Assemblies</value>
+  </data>
+  <data name="StepCreateContext" xml:space="preserve">
+    <value>Erzeuge den DbContext</value>
+  </data>
+  <data name="StepBuildModel" xml:space="preserve">
+    <value>Baue das Modell (OnModelCreating)</value>
+  </data>
+  <data name="StepReadModel" xml:space="preserve">
+    <value>Lese das Modell aus</value>
+  </data>
+  <data name="AssemblyNotFound" xml:space="preserve">
+    <value>Assembly nicht gefunden: {0}</value>
+  </data>
+  <data name="AssemblyArgumentMissing" xml:space="preserve">
+    <value>Assembly nicht gefunden: (--assembly fehlt)</value>
+  </data>
+  <data name="AssemblyNotLoadable" xml:space="preserve">
+    <value>{0} lässt sich nicht laden: {1}</value>
+  </data>
+  <data name="NoContext" xml:space="preserve">
+    <value>In {0} gibt es keinen DbContext.</value>
+  </data>
+  <data name="NoContextNamed" xml:space="preserve">
+    <value>In {0} gibt es keinen DbContext „{1}“.</value>
+  </data>
+  <data name="SeveralContexts" xml:space="preserve">
+    <value>Mehrere DbContexts – bitte einen angeben: {0}</value>
+  </data>
+  <data name="ContextNotCreated" xml:space="preserve">
+    <value>{0} ließ sich nicht erzeugen: {1}</value>
+  </data>
+  <data name="ModelNotBuilt" xml:space="preserve">
+    <value>Das Modell von {0} ließ sich nicht bauen: {1}</value>
+  </data>
+  <data name="ConstructorNeedsServices" xml:space="preserve">
+    <value>{0} braucht für seinen Konstruktor weitere Dienste ({1}). FerretSharp kann ihn nur mit DbContextOptions, ohne Parameter oder über eine IDesignTimeDbContextFactory erzeugen.</value>
+  </data>
+  <data name="NoOracleProvider" xml:space="preserve">
+    <value>Das Projekt verwendet Oracle.EntityFrameworkCore nicht (der Provider ist nicht zu finden).</value>
+  </data>
+  <data name="UseOracleMissing" xml:space="preserve">
+    <value>UseOracle(DbContextOptionsBuilder, string) fehlt in {0}.</value>
+  </data>
+  <data name="FillInTypeAndValue" xml:space="preserve">
+    <value>Typ und Wert eintragen</value>
+  </data>
+</root>

@@ -1,3 +1,5 @@
+using FerretSharp.Core.Resources;
+
 namespace FerretSharp.Core.Connections;
 
 /// <summary>Field keys used in validation results, so the UI can show errors next to the right input.</summary>
@@ -21,12 +23,12 @@ public static class ConnectionProfileValidator
 
         if (string.IsNullOrWhiteSpace(profile.Name))
         {
-            errors[ConnectionField.Name] = "Name fehlt.";
+            errors[ConnectionField.Name] = ConnectionText.NameMissing;
         }
 
         if (string.IsNullOrWhiteSpace(profile.User))
         {
-            errors[ConnectionField.User] = "Benutzer fehlt.";
+            errors[ConnectionField.User] = ConnectionText.UserMissing;
         }
 
         switch (profile.Address)
@@ -34,19 +36,19 @@ public static class ConnectionProfileValidator
             case HostPortAddress hp:
                 if (string.IsNullOrWhiteSpace(hp.Host))
                 {
-                    errors[ConnectionField.Host] = "Host fehlt.";
+                    errors[ConnectionField.Host] = ConnectionText.HostMissing;
                 }
 
                 if (hp.Port is < 1 or > 65535)
                 {
-                    errors[ConnectionField.Port] = "Port muss zwischen 1 und 65535 liegen.";
+                    errors[ConnectionField.Port] = ConnectionText.PortOutOfRange;
                 }
 
                 var hasService = !string.IsNullOrWhiteSpace(hp.ServiceName);
                 var hasSid = !string.IsNullOrWhiteSpace(hp.Sid);
                 if (hasService == hasSid)
                 {
-                    errors[ConnectionField.ServiceOrSid] = "Entweder Service Name oder SID angeben.";
+                    errors[ConnectionField.ServiceOrSid] = ConnectionText.ServiceOrSidRequired;
                 }
 
                 break;
@@ -54,7 +56,7 @@ public static class ConnectionProfileValidator
             case TnsAliasAddress tns:
                 if (string.IsNullOrWhiteSpace(tns.Alias))
                 {
-                    errors[ConnectionField.Alias] = "TNS-Alias fehlt.";
+                    errors[ConnectionField.Alias] = ConnectionText.TnsAliasMissing;
                 }
 
                 break;
@@ -62,7 +64,7 @@ public static class ConnectionProfileValidator
 
         if (profile.ClrProject is { } project && !project.ProjectFile.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
         {
-            errors[ConnectionField.ClrProject] = "Bitte die .csproj des Projekts mit dem DbContext angeben.";
+            errors[ConnectionField.ClrProject] = ConnectionText.ClrProjectNotCsproj;
         }
 
         return errors;

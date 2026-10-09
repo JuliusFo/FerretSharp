@@ -803,7 +803,7 @@ table.columns td.clr-type .converter { display: block; color: var(--muted); font
 .title-edit.linq-title { width: 260px; margin-left: -6px; }
 .title-edit.tab-rename { width: 150px; height: 22px; font: 12.5px var(--mono); }
 .linq-console { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.linq-console::before { content: "C#-Konsole: "; color: var(--faint); }
+.linq-console-label { color: var(--faint); }
 .linq-console.ready { color: var(--test); }
 .linq-console.failed { color: var(--danger); }
 .linq-console.warn { color: #c07a00; }

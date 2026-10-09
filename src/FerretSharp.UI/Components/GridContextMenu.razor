@@ -19,69 +19,69 @@
         <span class="ctx-col">@Column.Name</span>
         <span class="ctx-value @(Request.CellText is null ? "fs-null" : "")">@(Request.CellText ?? "NULL")</span>
     </div>
-    <button class="menu-item" disabled="@(Request.CellText is null)" @onclick="() => Export.CopyValueAsync(Column, Request.Row.Values[Request.Column])">Wert kopieren</button>
+    <button class="menu-item" disabled="@(Request.CellText is null)" @onclick="() => Export.CopyValueAsync(Column, Request.Row.Values[Request.Column])">@CommonText.CopyValue</button>
     @if (_cell is { } cell)
     {
         <button class="menu-item" disabled="@(cell.Code is null)" title="@(cell.Problem ?? cell.Code)" @onclick="() => Export.CopyTextAsync(cell.Code!)">
-            Als C#-Wert kopieren
+            @GridText.GridMenu_CopyAsCSharpValue
         </button>
     }
     @if (OracleTypeMapper.IsLob(Column))
     {
-        <button class="menu-item" title="Den ganzen Wert ansehen, als Datei speichern@(CanEdit ? " oder ändern" : "") (auch Doppelklick)" @onclick="OpenLobAsync">
-            Inhalt öffnen …
+        <button class="menu-item" title="@(CanEdit ? GridText.GridMenu_OpenLobTitleEdit : GridText.GridMenu_OpenLobTitle)" @onclick="OpenLobAsync">
+            @GridText.Grid_OpenContent
         </button>
     }
     @if (!Details.PrimaryKey.Contains(Column.Name))
     {
-        <button class="menu-item" @onclick="TogglePinAsync">@(Pinned ? "Spalte lösen" : "Spalte links anheften")</button>
+        <button class="menu-item" @onclick="TogglePinAsync">@(Pinned ? GridText.Grid_UnpinColumn : GridText.Grid_PinColumnLeft)</button>
     }
     @if (CompareCount > 1)
     {
         <button class="menu-item" disabled="@(CompareCount > RowComparison.MaxRows)"
-                title="@(CompareCount > RowComparison.MaxRows ? $"Höchstens {RowComparison.MaxRows} Zeilen nebeneinander" : $"Die markierten Zeilen nebeneinander, Unterschiede markiert{Shortcuts.Hint(ShortcutAction.ToggleForm)}")"
+                title="@(CompareCount > RowComparison.MaxRows ? TextFormat.Format(GridText.GridMenu_CompareTooMany, RowComparison.MaxRows) : TextFormat.Format(GridText.GridMenu_CompareTitle, Shortcuts.Hint(ShortcutAction.ToggleForm)))"
                 @onclick="CompareAsync">
-            Markierte vergleichen <span class="ctx-meta">@RowsText(CompareCount)</span>
+            @GridText.GridMenu_CompareSelected <span class="ctx-meta">@RowsText(CompareCount)</span>
         </button>
     }
     else
     {
-        <button class="menu-item" title="Alle Spalten der Zeile untereinander, neben dem Grid@(Shortcuts.Hint(ShortcutAction.ToggleForm))" @onclick="OpenFormAsync">Als Formular</button>
+        <button class="menu-item" title="@TextFormat.Format(GridText.GridMenu_AsFormTitle, Shortcuts.Hint(ShortcutAction.ToggleForm))" @onclick="OpenFormAsync">@GridText.GridMenu_AsForm</button>
     }
 
     @if (CanEdit && Tab.Changes is { } changes)
     {
         var selected = Request.Selected.Select(r => changes.Find(r.Key)).ToList();
-        <div class="group-head-btn static">Bearbeiten · @RowsText(Request.Selected.Count)</div>
+        <div class="group-head-btn static">@TextFormat.Format(GridText.GridMenu_EditGroup, RowsText(Request.Selected.Count))</div>
         @if (selected.Any(c => c?.Deleted is null))
         {
-            <button class="menu-item danger" title="Wird mit „Schreiben“@(Shortcuts.Hint(ShortcutAction.Flush)) gelöscht" @onclick="() => EditRowsAsync(OnDeleteRows)">Zeile löschen</button>
+            <button class="menu-item danger" title="@TextFormat.Format(GridText.GridMenu_DeleteRowTitle, Shortcuts.Hint(ShortcutAction.Flush))" @onclick="() => EditRowsAsync(OnDeleteRows)">@GridText.GridMenu_DeleteRow</button>
         }
         @if (selected.Any(c => c is { HasPending: true }))
         {
-            <button class="menu-item" title="Ausstehende Änderungen dieser Zeilen verwerfen (auch ein noch nicht geschriebenes Löschen)" @onclick="() => EditRowsAsync(OnRevertRows)">
-                Ausstehende Änderungen verwerfen
+            <button class="menu-item" title="@GridText.GridMenu_DiscardPendingTitle" @onclick="() => EditRowsAsync(OnRevertRows)">
+                @GridText.GridMenu_DiscardPending
             </button>
         }
     }
 
-    <div class="group-head-btn static">Export · @RowsText(Request.Selected.Count)</div>
-    <button class="menu-item" title="Tabulator-getrennt mit Kopfzeile – lässt sich direkt in Excel einfügen" @onclick="CopyTableAsync">Als Tabelle kopieren</button>
-    <button class="menu-item" title="INSERT-Statements (werden nie ausgeführt)" @onclick="CopyInsertAsync">Als INSERT kopieren</button>
-    <button class="menu-item" title="Semikolon-getrennt, UTF-8 – öffnet sich direkt in Excel" @onclick="SaveCsvAsync">Als CSV speichern …</button>
-    <button class="menu-item" @onclick="SaveInsertAsync">Als INSERT-Skript speichern …</button>
+    <div class="group-head-btn static">@TextFormat.Format(GridText.GridMenu_ExportGroup, RowsText(Request.Selected.Count))</div>
+    <button class="menu-item" title="@GridText.GridMenu_CopyTableTitle" @onclick="CopyTableAsync">@GridText.GridMenu_CopyTable</button>
+    <button class="menu-item" title="@GridText.GridMenu_CopyInsertTitle" @onclick="CopyInsertAsync">@GridText.GridMenu_CopyInsert</button>
+    <button class="menu-item" title="@GridText.GridMenu_SaveCsvTitle" @onclick="SaveCsvAsync">@GridText.GridMenu_SaveCsv</button>
+    <button class="menu-item" @onclick="SaveInsertAsync">@GridText.GridMenu_SaveInsert</button>
 
     @if (_presentation.Entity is not null)
     {
         var seed = CSharpRows.HasDataUnavailable(_presentation);
         <div class="group-head-btn static">C# · @_presentation.EntityName · @RowsText(Request.Selected.Count)</div>
-        <button class="menu-item" title="Objektinitialisierer mit Property-Namen und Enum-Membern (NULL-Werte weggelassen)" @onclick="CopyObjectsAsync">Als C#-Objekte kopieren</button>
-        <button class="menu-item" disabled="@(seed is not null)" title="@(seed ?? "builder.HasData(…) für die IEntityTypeConfiguration")" @onclick="CopySeedAsync">Als HasData kopieren</button>
+        <button class="menu-item" title="@GridText.GridMenu_CopyObjectsTitle" @onclick="CopyObjectsAsync">@GridText.GridMenu_CopyObjects</button>
+        <button class="menu-item" disabled="@(seed is not null)" title="@(seed ?? GridText.GridMenu_CopySeedTitle)" @onclick="CopySeedAsync">@GridText.GridMenu_CopySeed</button>
     }
 
     @if (_outgoing.Count > 0)
     {
-        <div class="group-head-btn static">Verweist auf@(JumpRowsText)</div>
+        <div class="group-head-btn static">@TextFormat.Format(GridText.GridMenu_PointsTo, JumpRowsText)</div>
         @foreach (var jump in _outgoing)
         {
             <FkJumpItem Jump="jump" Related="InvolvesColumn(jump)" OnJump="JumpAsync" />
@@ -90,7 +90,7 @@
 
     @if (_incoming.Count > 0)
     {
-        <div class="group-head-btn static">Referenziert von@(JumpRowsText)</div>
+        <div class="group-head-btn static">@TextFormat.Format(GridText.GridMenu_ReferencedBy, JumpRowsText)</div>
         @foreach (var jump in _incoming)
         {
             <FkJumpItem Jump="jump" Count="_counts.Of(jump)" Related="InvolvesColumn(jump)" OnJump="JumpAsync" />
@@ -99,11 +99,11 @@
 
     @if (_outgoing.Count == 0 && _incoming.Count == 0)
     {
-        <div class="ctx-empty">Keine Fremdschlüssel an dieser Tabelle.</div>
+        <div class="ctx-empty">@GridText.GridMenu_NoForeignKeys</div>
     }
     else if (Request.MissingRows > 0)
     {
-        <div class="ctx-note">@RowsText(Request.MissingRows) der Auswahl nicht mehr geladen – bei den Sprüngen nicht berücksichtigt.</div>
+        <div class="ctx-note">@TextFormat.Format(GridText.GridMenu_MissingRows, RowsText(Request.MissingRows))</div>
     }
 </PopoverMenu>
 
@@ -218,7 +218,7 @@
     /// </summary>
     private IReadOnlyList<RowData> JumpRows => Request.Selected.Count > 0 ? Request.Selected : [Request.Row];
 
-    /// <summary>" · 3 Zeilen" after the jump headings if several rows are selected; nothing for one row.</summary>
+    /// <summary>" · 3 rows" after the jump headings if several rows are selected; nothing for one row.</summary>
     private string JumpRowsText => Request.Selected.Count + Request.MissingRows > 1 ? $" · {RowsText(JumpRows.Count)}" : "";
 
     /// <summary>For the first placement; dom.js keepInViewport corrects it once rendered.</summary>
@@ -263,20 +263,20 @@
     private static string RowsText(int rows) => ExportActions.RowsText(rows);
 
     private Task CopyTableAsync() =>
-        Export.CopyAsync(DelimitedExport.Build(Details, Request.Selected, DelimitedExport.ClipboardSeparator), "als Tabelle kopiert");
+        Export.CopyAsync(DelimitedExport.Build(Details, Request.Selected, DelimitedExport.ClipboardSeparator), ExportCopy.Table);
 
-    private Task CopyInsertAsync() => Export.CopyAsync(InsertExport.Build(Details, Request.Selected), "als INSERT kopiert");
+    private Task CopyInsertAsync() => Export.CopyAsync(InsertExport.Build(Details, Request.Selected), ExportCopy.Insert);
 
-    private Task CopyObjectsAsync() => Export.CopyAsync(CSharpRows.Initializers(_presentation, Request.Selected), "als C#-Objekte kopiert");
+    private Task CopyObjectsAsync() => Export.CopyAsync(CSharpRows.Initializers(_presentation, Request.Selected), ExportCopy.CSharpObjects);
 
-    private Task CopySeedAsync() => Export.CopyAsync(CSharpRows.HasData(_presentation, Request.Selected), "als HasData kopiert");
+    private Task CopySeedAsync() => Export.CopyAsync(CSharpRows.HasData(_presentation, Request.Selected), ExportCopy.HasData);
 
     private Task SaveCsvAsync() =>
         Export.SaveAsync(
-            DelimitedExport.Build(Details, Request.Selected, DelimitedExport.CsvSeparator), Details.Table.DisplayName + ".csv", "CSV (Semikolon)", utf8Bom: true);
+            DelimitedExport.Build(Details, Request.Selected, DelimitedExport.CsvSeparator), Details.Table.DisplayName + ".csv", GridText.Export_CsvFilter, utf8Bom: true);
 
     private Task SaveInsertAsync() =>
-        Export.SaveAsync(InsertExport.Build(Details, Request.Selected), Details.Table.DisplayName + ".sql", "SQL-Skript", utf8Bom: false);
+        Export.SaveAsync(InsertExport.Build(Details, Request.Selected), Details.Table.DisplayName + ".sql", GridText.Export_SqlScriptFilter, utf8Bom: false);
 
     private async Task CloseAsync()
     {

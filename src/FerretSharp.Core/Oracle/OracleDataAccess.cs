@@ -4,6 +4,7 @@ using System.Globalization;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
 using FerretSharp.Core.Query;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 using Oracle.ManagedDataAccess.Client;
 
@@ -112,10 +113,7 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
         }
         catch (DatabaseException ex) when (ex.IsAny(OracleErrorCodes.MissingRights))
         {
-            throw new PlanUnavailableException(
-                "Für den tatsächlichen Plan fehlen Leserechte auf V$SQL und V$SQL_PLAN_STATISTICS_ALL – ein DBA kann sie geben: " +
-                "GRANT SELECT_CATALOG_ROLE TO <user> oder GRANT SELECT ON V_$SQL / V_$SQL_PLAN_STATISTICS_ALL TO <user>. " +
-                "Der geschätzte Plan geht ohne sie.", ex);
+            throw new PlanUnavailableException(OracleText.ActualPlanNoRights, ex);
         }
 
         var hinted = Plans.WithStatistics(query.Sql);
@@ -134,7 +132,7 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
         var sqlId = Plans.SqlId(hinted);
         var child = await session.ExecuteReaderAsync(OraclePlans.LatestChild, [new QueryParameter("sql_id", sqlId)], async (reader, ct) =>
             await reader.ReadAsync(ct) ? Convert.ToInt32(reader.GetValue(0), CultureInfo.InvariantCulture) : (int?)null, cancellationToken)
-            ?? throw new PlanUnavailableException($"Der Cursor {sqlId} ist nicht mehr im Shared Pool – bitte erneut versuchen.");
+            ?? throw new PlanUnavailableException(TextFormat.Format(OracleText.CursorGone, sqlId));
         var steps = await session.ExecuteReaderAsync(OraclePlans.ActualSteps,
             [new QueryParameter("sql_id", sqlId), new QueryParameter("child", child)],
             (reader, ct) => OraclePlans.ReadAsync(reader, actual: true, ct), cancellationToken);

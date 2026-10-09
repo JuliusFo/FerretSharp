@@ -10,7 +10,7 @@
         var w = workspace;
         var unlocked = Workspaces.IsUnlocked(w.Id);
         <div class="ws @(w.Id == activeId ? "active" : "") @(unlocked ? "unlocked" : "")"
-             title="@(_renaming == w.Id ? null : (unlocked ? "Zum Schreiben freigeschaltet · " : "") + "Doppelklick oder ⋯: umbenennen · Mittelklick: schließen")"
+             title="@(_renaming == w.Id ? null : unlocked ? $"{ShellText.Workspaces_UnlockedForWriting} · {ShellText.Workspaces_ChipTitle}" : ShellText.Workspaces_ChipTitle)"
              @onclick="e => OnChipClick(e, w)" @onmouseup="e => CloseOnMiddleClick(e, w)">
             @if (_renaming == w.Id)
             {
@@ -21,40 +21,40 @@
             {
                 @if (unlocked)
                 {
-                    <span class="ws-unlocked" aria-label="freigeschaltet">@Icons.Unlocked</span>
+                    <span class="ws-unlocked" aria-label="@ShellText.Workspace_Unlocked">@Icons.Unlocked</span>
                 }
                 <span class="ws-name">@w.Name</span>
-                <button class="ws-more" title="Aktionen" @onclick:stopPropagation="true" @onclick="e => OpenActions(e, w)">⋯</button>
+                <button class="ws-more" title="@ShellText.Actions" @onclick:stopPropagation="true" @onclick="e => OpenActions(e, w)">⋯</button>
             }
             @if (open.Count > 1 && _renaming != w.Id)
             {
-                <button class="ws-close" title="Workspace schließen (Zustand bleibt gespeichert)"
+                <button class="ws-close" title="@ShellText.Workspaces_CloseTitle"
                         @onclick:stopPropagation="true" @onclick="() => CloseAsync(w)">✕</button>
             }
         </div>
     }
 
     <div class="ws-menu-anchor">
-        <button class="ws-add @(_menuOpen ? "open" : "")" title="Workspace hinzufügen oder wieder öffnen" @onclick="ToggleMenu">+</button>
+        <button class="ws-add @(_menuOpen ? "open" : "")" title="@ShellText.Workspaces_AddTitle" @onclick="ToggleMenu">+</button>
         @if (_menuOpen)
         {
             <div class="popover-backdrop" @onclick="() => _menuOpen = false"></div>
             <div class="popover ws-pop" @onkeydown="OnMenuKeyDown">
                 <div class="popover-list">
-                    <button class="menu-item" @onclick="CreateAsync"><span class="plus">+</span> Neuer Workspace</button>
+                    <button class="menu-item" @onclick="CreateAsync"><span class="plus">+</span> @ShellText.Workspaces_New</button>
                     @{ var closed = Workspaces.Closed; }
                     @if (closed.Count > 0)
                     {
-                        <div class="group-head-btn static">Geschlossen</div>
+                        <div class="group-head-btn static">@ShellText.Workspaces_Closed</div>
                         @foreach (var workspace in closed)
                         {
                             var w = workspace;
                             <div class="ws-closed">
-                                <button class="menu-item" title="Wieder öffnen" @onclick="() => ReopenAsync(w)">
+                                <button class="menu-item" title="@ShellText.Workspaces_Reopen" @onclick="() => ReopenAsync(w)">
                                     <span class="ws-name">@w.Name</span>
                                     <span class="ws-meta">@TabCount(w) · @w.LastActive.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)</span>
                                 </button>
-                                <button class="icon-btn ghost ws-delete" title="Endgültig löschen" @onclick="() => _pendingDelete = w">✕</button>
+                                <button class="icon-btn ghost ws-delete" title="@ShellText.Workspaces_DeletePermanently" @onclick="() => _pendingDelete = w">✕</button>
                             </div>
                         }
                     }
@@ -68,32 +68,32 @@
 {
     <div class="overlay" @onclick="CloseActions" @oncontextmenu="CloseActions" @oncontextmenu:preventDefault="true"></div>
     <div class="menu" style="left:@Px(_actionsX);top:@Px(_actionsY)" tabindex="-1" @ref="_actionsMenu" @onkeydown="OnActionsKeyDown">
-        <button class="menu-item" @onclick="() => RunAction(() => StartRename(target))">Umbenennen</button>
+        <button class="menu-item" @onclick="() => RunAction(() => StartRename(target))">@ShellText.Rename</button>
         <button class="menu-item" disabled="@(Workspaces.Open.Count <= 1)"
-                title="@(Workspaces.Open.Count <= 1 ? "Der letzte offene Workspace bleibt offen." : "Zustand bleibt gespeichert, über + wieder öffnen")"
-                @onclick="() => RunActionAsync(() => CloseAsync(target))">Schließen</button>
+                title="@(Workspaces.Open.Count <= 1 ? ShellText.Workspaces_LastStaysOpen : ShellText.Workspaces_CloseHint)"
+                @onclick="() => RunActionAsync(() => CloseAsync(target))">@CommonText.Close</button>
         @if (Workspaces.Profile?.ReadOnly == true)
         {
             <div class="menu-sep"></div>
             @if (Workspaces.IsUnlocked(target.Id))
             {
-                <button class="menu-item" title="Offene Änderungen vorher committen oder verwerfen" @onclick="() => RunActionAsync(() => Lifecycle.LockAsync(target.Id))">Wieder sperren</button>
+                <button class="menu-item" title="@ShellText.Workspaces_LockTitle" @onclick="() => RunActionAsync(() => Lifecycle.LockAsync(target.Id))">@ShellText.Workspaces_LockAgain</button>
             }
             else
             {
-                <button class="menu-item danger" @onclick="() => RunAction(() => Shell.RequestUnlock(target.Id))">Schreiben freischalten …</button>
+                <button class="menu-item danger" @onclick="() => RunAction(() => Shell.RequestUnlock(target.Id))">@ShellText.Workspaces_Unlock</button>
             }
         }
         <div class="menu-sep"></div>
-        <button class="menu-item" @onclick="() => RunActionAsync(CreateAsync)"><span class="plus">+</span> Neuer Workspace</button>
+        <button class="menu-item" @onclick="() => RunActionAsync(CreateAsync)"><span class="plus">+</span> @ShellText.Workspaces_New</button>
     </div>
 }
 
 @if (_pendingDelete is { } pending)
 {
-    <ConfirmDialog Title="Workspace löschen" ConfirmLabel="Löschen" Danger="true"
+    <ConfirmDialog Title="@ShellText.Workspaces_DeleteTitle" ConfirmLabel="@CommonText.Delete" Danger="true"
                    OnConfirm="() => DeleteAsync(pending)" OnCancel="() => _pendingDelete = null">
-        Workspace <strong>@pending.Name</strong> mit @TabCount(pending) und allen Filtern endgültig löschen?
+        <Fmt Text="@ShellText.Workspaces_DeleteQuestion"><Arg0><strong>@pending.Name</strong></Arg0><Arg1>@TabCount(pending)</Arg1></Fmt>
     </ConfirmDialog>
 }
 
@@ -137,7 +137,7 @@
         }
     }
 
-    private static string TabCount(Workspace workspace) => workspace.Tabs.Count == 1 ? "1 Tab" : $"{workspace.Tabs.Count} Tabs";
+    private static string TabCount(Workspace workspace) => TextFormat.Plural(workspace.Tabs.Count, ShellText.Workspaces_TabsOne, ShellText.Workspaces_TabsOther);
 
     private Workspace? _actionsFor;
     private double _actionsX;
@@ -235,7 +235,7 @@
     {
         if (Workspaces.Open.Count > 1)
         {
-            await Lifecycle.GuardAsync($"Workspace „{workspace.Name}“ schließen", [workspace.Id], () => Workspaces.CloseAsync(workspace.Id));
+            await Lifecycle.GuardAsync(TextFormat.Format(ShellText.Workspaces_CloseWhat, workspace.Name), [workspace.Id], () => Workspaces.CloseAsync(workspace.Id));
         }
     }
 

@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Model_Title" xml:space="preserve">
+    <value>C#-Modell</value>
+  </data>
+  <data name="Model_Build" xml:space="preserve">
+    <value>Neu bauen</value>
+  </data>
+  <data name="Model_BuildTitle" xml:space="preserve">
+    <value>dotnet build, danach neu laden</value>
+  </data>
+  <data name="Model_EditConnection" xml:space="preserve">
+    <value>Verbindung bearbeiten …</value>
+  </data>
+  <data name="Model_NoProject" xml:space="preserve">
+    <value>Kein Projekt verknüpft</value>
+  </data>
+  <data name="Model_NoProjectHint" xml:space="preserve">
+    <value>Im Verbindungsdialog unter „C#-Modell“ die {0} des Projekts mit dem DbContext eintragen. FerretSharp liest das EF-Core-Modell (ab EF Core 8) dann aus dem vorhandenen Build: Entity- und Property-Namen, C#-Typen, Converter und Navigations – ohne den Startcode der Anwendung und ohne Datenbankverbindung.</value>
+  </data>
+  <data name="Model_Project" xml:space="preserve">
+    <value>Projekt</value>
+  </data>
+  <data name="Model_BuildLabel" xml:space="preserve">
+    <value>Build</value>
+  </data>
+  <data name="Model_BuildInfo" xml:space="preserve">
+    <value>{0} · .NET {1} · gebaut {2}</value>
+  </data>
+  <data name="Model_CreatedByHint" xml:space="preserve">
+    <value>{0} – ohne Startcode der Anwendung, ohne Datenbankverbindung</value>
+  </data>
+  <data name="Model_CreatedByFactory" xml:space="preserve">
+    <value>Erzeugt über die IDesignTimeDbContextFactory des Projekts</value>
+  </data>
+  <data name="Model_CreatedByOptions" xml:space="preserve">
+    <value>Erzeugt mit eigenen Options über den DbContextOptions-Konstruktor</value>
+  </data>
+  <data name="Model_CreatedByParameterless" xml:space="preserve">
+    <value>Erzeugt über den parameterlosen Konstruktor</value>
+  </data>
+  <data name="Model_LoadTime" xml:space="preserve">
+    <value>Ladezeit</value>
+  </data>
+  <data name="Model_CachedTitle" xml:space="preserve">
+    <value>Der Build ist unverändert, das Modell wurde ohne Hilfsprozess geladen. „Neu laden“ liest es aus dem Projekt.</value>
+  </data>
+  <data name="Model_Cached" xml:space="preserve">
+    <value>aus dem Cache · exportiert {0}</value>
+  </data>
+  <data name="Model_Stale" xml:space="preserve">
+    <value>Der Quelltext ist neuer als der Build ({0}) – „Neu bauen“ übernimmt die Änderungen.</value>
+  </data>
+  <data name="Model_ReadingModel" xml:space="preserve">
+    <value>Lese das Modell</value>
+  </data>
+  <data name="Model_BuildChangedStep" xml:space="preserve">
+    <value>Build geändert – {0} …</value>
+  </data>
+  <data name="Model_Step" xml:space="preserve">
+    <value>{0} …</value>
+  </data>
+  <data name="Model_ElapsedTotal" xml:space="preserve">
+    <value>{0} · insgesamt {1}</value>
+  </data>
+  <data name="Model_HideDetails" xml:space="preserve">
+    <value>Details ausblenden</value>
+  </data>
+  <data name="Model_BuildFailed" xml:space="preserve">
+    <value>Build fehlgeschlagen (Exit-Code {0}).</value>
+  </data>
+  <data name="Model_Matching" xml:space="preserve">
+    <value>Abgleich mit der Datenbank</value>
+  </data>
+  <data name="Model_EntitiesMapped" xml:space="preserve">
+    <value>{0} von {1} Entities zugeordnet</value>
+  </data>
+  <data name="Model_PropertiesMapped" xml:space="preserve">
+    <value>{0} von {1} Properties zugeordnet</value>
+  </data>
+  <data name="Model_ColumnsWithoutPropertyOne" xml:space="preserve">
+    <value>{0} Spalte ohne Property</value>
+  </data>
+  <data name="Model_ColumnsWithoutPropertyOther" xml:space="preserve">
+    <value>{0} Spalten ohne Property</value>
+  </data>
+  <data name="Model_MismatchesOne" xml:space="preserve">
+    <value>{0} Abweichung bei Typ/NULL/Länge</value>
+  </data>
+  <data name="Model_MismatchesOther" xml:space="preserve">
+    <value>{0} Abweichungen bei Typ/NULL/Länge</value>
+  </data>
+  <data name="Model_MismatchesTitle" xml:space="preserve">
+    <value>Typ, NULL, Länge, Stellen – Hinweise nicht mitgezählt</value>
+  </data>
+  <data name="Model_AsOf" xml:space="preserve">
+    <value>Stand {0}</value>
+  </data>
+  <data name="Model_AllMapped" xml:space="preserve">
+    <value>Alle Entities, Properties und Spalten sind einander zugeordnet.</value>
+  </data>
+  <data name="Model_Open" xml:space="preserve">
+    <value>öffnen</value>
+  </data>
+  <data name="Model_Entities" xml:space="preserve">
+    <value>Entities</value>
+  </data>
+  <data name="Model_HeadEntity" xml:space="preserve">
+    <value>Entity</value>
+  </data>
+  <data name="Model_HeadTable" xml:space="preserve">
+    <value>Tabelle</value>
+  </data>
+  <data name="Model_HeadProperties" xml:space="preserve">
+    <value>Properties</value>
+  </data>
+  <data name="Model_HeadConverter" xml:space="preserve">
+    <value>Converter</value>
+  </data>
+  <data name="Model_EntitiesWithoutTable" xml:space="preserve">
+    <value>Entities ohne Tabelle</value>
+  </data>
+  <data name="Model_EntitiesWithoutTableHint" xml:space="preserve">
+    <value>Im Modell, aber nicht in der Datenbank – noch nicht angelegt, gelöscht oder in einem anderen Schema.</value>
+  </data>
+  <data name="Model_PropertiesWithoutColumn" xml:space="preserve">
+    <value>Properties ohne Spalte</value>
+  </data>
+  <data name="Model_PropertiesWithoutColumnHint" xml:space="preserve">
+    <value>Abfragen auf diese Entities scheitern, solange die Spalte fehlt.</value>
+  </data>
+  <data name="Model_CaseMismatch" xml:space="preserve">
+    <value>Abweichende Groß-/Kleinschreibung</value>
+  </data>
+  <data name="Model_CaseMismatchHint" xml:space="preserve">
+    <value>EF Core quotet Namen auf Oracle – so geschrieben findet eine Abfrage das Objekt nicht.</value>
+  </data>
+  <data name="Model_ColumnsWithoutProperty" xml:space="preserve">
+    <value>Spalten ohne Property</value>
+  </data>
+  <data name="Model_ColumnsWithoutPropertyHint" xml:space="preserve">
+    <value>In der Datenbank, aber nicht im Modell – z. B. nach einer Änderung an der Tabelle, die in der Entity noch fehlt.</value>
+  </data>
+  <data name="Mismatches_Title" xml:space="preserve">
+    <value>Typen, NULL und Längen</value>
+  </data>
+  <data name="Mismatches_None" xml:space="preserve">
+    <value>Alle zugeordneten Properties passen zu ihren Spalten.</value>
+  </data>
+  <data name="Mismatches_Note" xml:space="preserve">
+    <value>Verglichen wird, was die Datenbank speichert (nach dem Converter), und nur, was im Projekt konfiguriert ist ({0}). Views werden nur gelesen: dort zählen Typ und NULL.</value>
+  </data>
+  <data name="Mismatches_Errors" xml:space="preserve">
+    <value>Fehler</value>
+  </data>
+  <data name="Mismatches_Warnings" xml:space="preserve">
+    <value>Warnungen</value>
+  </data>
+  <data name="Mismatches_Hints" xml:space="preserve">
+    <value>Hinweise</value>
+  </data>
+  <data name="Mismatches_SearchPlaceholder" xml:space="preserve">
+    <value>Entity, Property, Spalte</value>
+  </data>
+  <data name="Mismatches_Shown" xml:space="preserve">
+    <value>{0} von {1}</value>
+  </data>
+  <data name="Mismatches_HeadProperty" xml:space="preserve">
+    <value>Property</value>
+  </data>
+  <data name="Mismatches_HeadColumn" xml:space="preserve">
+    <value>Spalte</value>
+  </data>
+  <data name="Mismatches_HeadEffect" xml:space="preserve">
+    <value>Folge</value>
+  </data>
+  <data name="Mismatches_ErrorTitle" xml:space="preserve">
+    <value>Fehler: jede Abfrage der Property scheitert</value>
+  </data>
+  <data name="Mismatches_WarningTitle" xml:space="preserve">
+    <value>Warnung: scheitert oder verliert Daten bei bestimmten Werten</value>
+  </data>
+  <data name="Mismatches_HintTitle" xml:space="preserve">
+    <value>Hinweis: Modell und Datenbank weichen ab, ohne dass ein Fehler zu erwarten ist</value>
+  </data>
+  <data name="Mismatches_KindType" xml:space="preserve">
+    <value>Typ</value>
+  </data>
+  <data name="Mismatches_KindLength" xml:space="preserve">
+    <value>Länge</value>
+  </data>
+  <data name="Mismatches_KindPrecision" xml:space="preserve">
+    <value>Stellen</value>
+  </data>
+</root>

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.Data;
@@ -32,7 +33,7 @@ public static class DelimitedExport
     }
 
     /// <summary>
-    /// One cell for the clipboard (Ctrl+C, "Wert kopieren"): same notation as the table export and the full value –
+    /// One cell for the clipboard (Ctrl+C, "Copy value"): same notation as the table export and the full value –
     /// unlike the grid's display text, which shortens long texts, shows line breaks as ⏎ and groups thousands.
     /// NULL is an empty text; a LOB that was only loaded as preview is left out with a warning.
     /// </summary>
@@ -57,8 +58,8 @@ public static class DelimitedExport
         bool b => b ? "TRUE" : "FALSE",
         byte[] bytes => Convert.ToHexString(bytes),
         LobValue { Preview: { } preview } clob when preview.Length == clob.Length => preview,
-        LobValue lob => warnings.Skip(column, lob.Preview is null ? "nur die Länge geladen" : "nur die Vorschau geladen"),
-        NotNullMarker => warnings.Skip(column, "Typ wird nicht exportiert"),
+        LobValue lob => warnings.Skip(column, lob.Preview is null ? DataText.ExportReasonOnlyLength : DataText.ExportReasonOnlyPreview),
+        NotNullMarker => warnings.Skip(column, DataText.ExportReasonTypeNotExported),
         string s => s,
         _ => Convert.ToString(value, CultureInfo.InvariantCulture) ?? "",
     };
@@ -88,7 +89,7 @@ public static class DelimitedExport
     }
 }
 
-/// <summary>Collects skipped values per column, e.g. "NOTIZ (CLOB): 3 Werte nicht exportiert – nur die Vorschau geladen."</summary>
+/// <summary>Collects skipped values per column, e.g. "NOTE (CLOB): 3 values not exported – only the preview was loaded."</summary>
 internal sealed class ExportWarnings
 {
     private readonly Dictionary<(string Column, string Type, string Reason), int> _skipped = [];
@@ -102,6 +103,6 @@ internal sealed class ExportWarnings
     }
 
     public List<string> ToList() => _skipped
-        .Select(kv => $"{kv.Key.Column} ({kv.Key.Type}): {(kv.Value == 1 ? "1 Wert" : $"{kv.Value} Werte")} nicht exportiert – {kv.Key.Reason}.")
+        .Select(kv => TextFormat.Plural(kv.Value, DataText.ExportSkippedOne, DataText.ExportSkippedOther, kv.Key.Column, kv.Key.Type, kv.Key.Reason))
         .ToList();
 }

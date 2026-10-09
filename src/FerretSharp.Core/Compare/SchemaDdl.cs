@@ -1,4 +1,5 @@
 using System.Text;
+using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.Compare;
 
@@ -30,11 +31,11 @@ public sealed record DdlProposal(int Reference, int Target, IReadOnlyList<DdlSte
         get
         {
             var script = new StringBuilder();
-            script.AppendLine($"-- DDL-Vorschlag: {Side(TargetOwner, Target)} an die Referenz {Side(ReferenceOwner, Reference)} angleichen.");
-            script.AppendLine("-- Von FerretSharp erzeugt, nicht ausgeführt: vor dem Ausführen prüfen. Auskommentiertes bewusst entscheiden.");
+            script.AppendLine("-- " + TextFormat.Format(CompareText.ScriptHeader, Side(TargetOwner, Target), Side(ReferenceOwner, Reference)));
+            script.AppendLine("-- " + CompareText.ScriptGenerated);
             if (Steps.Count == 0)
             {
-                script.AppendLine("-- Keine Unterschiede.");
+                script.AppendLine("-- " + CompareText.ScriptNoDifferences);
             }
 
             foreach (var step in Steps)
@@ -66,7 +67,8 @@ public sealed record DdlProposal(int Reference, int Target, IReadOnlyList<DdlSte
         }
     }
 
-    private static string Side(string? owner, int index) => owner is null ? $"Seite {index + 1}" : $"{owner} (Seite {index + 1})";
+    private static string Side(string? owner, int index) =>
+        owner is null ? TextFormat.Format(CompareText.Side, index + 1) : TextFormat.Format(CompareText.SideWithOwner, owner, index + 1);
 
     private static IEnumerable<string> Lines(string? text) =>
         text is null ? [] : text.Split('\n').Select(line => line.TrimEnd('\r'));
