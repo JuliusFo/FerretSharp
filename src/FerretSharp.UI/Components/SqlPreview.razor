@@ -1,14 +1,14 @@
 @using FerretSharp.Core.Query
 
-<ModalFrame Label="Generiertes SQL" Class="sql-dialog" OnCancel="OnClose" CloseOnBackdrop="true" FocusOnOpen="true">
+<ModalFrame Label="@SqlEditorText.SqlPreview_Title" Class="sql-dialog" OnCancel="OnClose" CloseOnBackdrop="true" FocusOnOpen="true">
     <header>
         <span>@Title</span>
         <span class="spacer"></span>
         @if (OnOpenInEditor.HasDelegate && Error is null)
         {
-            <button class="btn" title="Neuer SQL-Editor mit diesem Statement; die Bind-Werte werden zu Variablen" @onclick="OnOpenInEditor">In SQL-Editor öffnen</button>
+            <button class="btn" title="@SqlEditorText.SqlPreview_OpenInEditorTitle" @onclick="OnOpenInEditor">@SqlEditorText.SqlPreview_OpenInEditor</button>
         }
-        <button class="icon-btn ghost" title="Schließen" @onclick="OnClose">✕</button>
+        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="OnClose">✕</button>
     </header>
     @if (Error is not null)
     {
@@ -20,7 +20,7 @@
         @if (Parameters.Count > 0)
         {
             <table class="binds">
-                <thead><tr><th>Bind-Variable</th><th>Wert</th><th>Typ</th></tr></thead>
+                <thead><tr><th>@SqlEditorText.SqlPreview_BindVariable</th><th>@SqlEditorText.SqlPreview_Value</th><th>@SqlEditorText.SqlPreview_Type</th></tr></thead>
                 <tbody>
                     @foreach (var p in Parameters)
                     {
@@ -34,7 +34,7 @@
 
 @code {
     [Parameter]
-    public string Title { get; set; } = "Generiertes SQL";
+    public string Title { get; set; } = SqlEditorText.SqlPreview_Title;
 
     [Parameter]
     public string Sql { get; set; } = "";
@@ -48,7 +48,7 @@
     [Parameter]
     public EventCallback OnClose { get; set; }
 
-    /// <summary>"In SQL-Editor öffnen" (WP-17); without a handler the button is not shown.</summary>
+    /// <summary>"Open in SQL editor" (WP-17); without a handler the button is not shown.</summary>
     [Parameter]
     public EventCallback OnOpenInEditor { get; set; }
 }

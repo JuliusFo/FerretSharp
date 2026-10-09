@@ -1,6 +1,8 @@
 using System.Globalization;
 using FerretSharp.Core.ClrModel;
 using FerretSharp.Core.Connections;
+using FerretSharp.Core.Resources;
+using FerretSharp.UI.Resources;
 
 namespace FerretSharp.UI.State;
 
@@ -83,7 +85,7 @@ public sealed class ConnectionForm
 
     /// <summary>A new connection prefilled from <paramref name="original"/>, reusing its stored password unless one is entered.</summary>
     public static ConnectionForm Duplicate(ConnectionProfile original) =>
-        Create(original, Guid.NewGuid(), isNew: true, original.Name + " (Kopie)");
+        Create(original, Guid.NewGuid(), isNew: true, TextFormat.Format(ShellText.ConnectionForm_CopyName, original.Name));
 
     private static ConnectionForm Create(ConnectionProfile profile, Guid id, bool isNew, string name)
     {

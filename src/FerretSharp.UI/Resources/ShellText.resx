@@ -1,0 +1,972 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Settings_Title" xml:space="preserve">
+    <value>Settings</value>
+    <comment>Page title</comment>
+  </data>
+  <data name="Settings_Sections" xml:space="preserve">
+    <value>Section</value>
+    <comment>Accessible label of the settings tabs</comment>
+  </data>
+  <data name="Settings_General" xml:space="preserve">
+    <value>General</value>
+    <comment>Settings tab</comment>
+  </data>
+  <data name="Settings_Shortcuts" xml:space="preserve">
+    <value>Shortcuts</value>
+    <comment>Settings tab</comment>
+  </data>
+  <data name="Settings_Appearance" xml:space="preserve">
+    <value>Appearance</value>
+    <comment>Settings section</comment>
+  </data>
+  <data name="Settings_Language" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="Settings_LanguageHint" xml:space="preserve">
+    <value>Takes effect at the next start. Enum names from the C# project keep the language of its resources.</value>
+  </data>
+  <data name="Settings_LanguageAfterRestart" xml:space="preserve">
+    <value>FerretSharp shows the selected language after a restart.</value>
+  </data>
+  <data name="Settings_ColorScheme" xml:space="preserve">
+    <value>Color scheme</value>
+  </data>
+  <data name="Settings_ColorSchemeHint" xml:space="preserve">
+    <value>“System” follows the Windows setting.</value>
+  </data>
+  <data name="Settings_ThemeSystem" xml:space="preserve">
+    <value>System</value>
+    <comment>Color scheme option</comment>
+  </data>
+  <data name="Settings_ThemeLight" xml:space="preserve">
+    <value>Light</value>
+    <comment>Color scheme option</comment>
+  </data>
+  <data name="Settings_ThemeDark" xml:space="preserve">
+    <value>Dark</value>
+    <comment>Color scheme option</comment>
+  </data>
+  <data name="Settings_ThemeForced" xml:space="preserve">
+    <value>This session was started with {0} and therefore stays {1}. The selection is saved and applies from the next start without this parameter.</value>
+    <comment>{0} = the command line argument (code), {1} = Settings_ThemeForcedDark or Settings_ThemeForcedLight</comment>
+  </data>
+  <data name="Settings_ThemeForcedDark" xml:space="preserve">
+    <value>dark</value>
+    <comment>Completes Settings_ThemeForced</comment>
+  </data>
+  <data name="Settings_ThemeForcedLight" xml:space="preserve">
+    <value>light</value>
+    <comment>Completes Settings_ThemeForced</comment>
+  </data>
+  <data name="Settings_ClrModel" xml:space="preserve">
+    <value>C# model</value>
+    <comment>Settings section</comment>
+  </data>
+  <data name="Settings_ClrNames" xml:space="preserve">
+    <value>C# names</value>
+  </data>
+  <data name="Settings_ClrNamesHint" xml:space="preserve">
+    <value>Entity and property names of the linked project in the explorer, the table header and the column search: beside the Oracle names, or in front in their place. FerretSharp always shows enum values with their C# name; SQL keeps the names of the database.</value>
+  </data>
+  <data name="Settings_ClrNamesBeside" xml:space="preserve">
+    <value>Beside</value>
+    <comment>C# names option</comment>
+  </data>
+  <data name="Settings_ClrNamesFront" xml:space="preserve">
+    <value>In front</value>
+    <comment>C# names option</comment>
+  </data>
+  <data name="Settings_Connection" xml:space="preserve">
+    <value>Connection</value>
+    <comment>Settings section</comment>
+  </data>
+  <data name="Settings_KeepAlive" xml:space="preserve">
+    <value>Check idle connections</value>
+  </data>
+  <data name="Settings_KeepAliveHint" xml:space="preserve">
+    <value>Sends a short query to idle sessions every 2 minutes ({0}). A lost connection is reported immediately, and firewalls do not drop idle connections. However, this also keeps sessions open despite an {1} limit of the database.</value>
+    <comment>{0} = SELECT 1 FROM DUAL (code), {1} = IDLE_TIME (code)</comment>
+  </data>
+  <data name="Settings_LockWait" xml:space="preserve">
+    <value>Wait for locked rows</value>
+  </data>
+  <data name="Settings_LockWaitHint" xml:space="preserve">
+    <value>If another session holds a lock on a row you want to write, FerretSharp waits this long and then shows who holds it ({0}).</value>
+    <comment>{0} = SELECT … FOR UPDATE WAIT n (code)</comment>
+  </data>
+  <data name="Settings_Diagnostics" xml:space="preserve">
+    <value>Diagnostics</value>
+    <comment>Settings section</comment>
+  </data>
+  <data name="Settings_DiagnoseUiStalls" xml:space="preserve">
+    <value>Log UI stalls</value>
+  </data>
+  <data name="Settings_DiagnoseUiStallsHint" xml:space="preserve">
+    <value>Writes to the log when the user interface does not respond for more than 0.3 s, and what FerretSharp was busy with. If the .NET tool {0} is installed, stalls over 1.5 s also write the stacks of all threads to the log folder as {1}. Meant for tracking down stalls, not for everyday use.</value>
+    <comment>{0} = dotnet-stack (code), {1} = stall-*.txt (code)</comment>
+  </data>
+  <data name="Settings_NotSaved" xml:space="preserve">
+    <value>Setting applied but not saved: {0}</value>
+    <comment>{0} = error message</comment>
+  </data>
+  <data name="Actions" xml:space="preserve">
+    <value>Actions</value>
+    <comment>Tooltip of the “⋯” menu button</comment>
+  </data>
+  <data name="Rename" xml:space="preserve">
+    <value>Rename</value>
+    <comment>Menu item and tooltip</comment>
+  </data>
+  <data name="CommitButton" xml:space="preserve">
+    <value>Commit</value>
+    <comment>Button in confirmations</comment>
+  </data>
+  <data name="DiscardAll" xml:space="preserve">
+    <value>Discard all</value>
+    <comment>Button and tooltip: rollback and drop pending changes</comment>
+  </data>
+  <data name="CloseTab" xml:space="preserve">
+    <value>Close tab</value>
+    <comment>Button and dialog title</comment>
+  </data>
+  <data name="Changes_PendingWritten" xml:space="preserve">
+    <value>{0} pending · {1} written</value>
+    <comment>{0} = number of pending changes, {1} = number of written changes</comment>
+  </data>
+  <data name="Changes_Pending" xml:space="preserve">
+    <value>{0} pending</value>
+    <comment>{0} = number of pending changes</comment>
+  </data>
+  <data name="Changes_Written" xml:space="preserve">
+    <value>{0} written</value>
+    <comment>{0} = number of written changes</comment>
+  </data>
+  <data name="Connection_Reconnect" xml:space="preserve">
+    <value>Reconnect</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Connection_Disconnect" xml:space="preserve">
+    <value>Disconnect</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Connection_Lost" xml:space="preserve">
+    <value>Connection lost</value>
+    <comment>Status</comment>
+  </data>
+  <data name="Connection_ConnectingTo" xml:space="preserve">
+    <value>Connecting to {0} …</value>
+    <comment>{0} = connection name</comment>
+  </data>
+  <data name="Connection_TagShown" xml:space="preserve">
+    <value>shown</value>
+    <comment>Tag on an open connection that is shown</comment>
+  </data>
+  <data name="Connection_TagConnected" xml:space="preserve">
+    <value>connected</value>
+    <comment>Tag on an open connection in the background</comment>
+  </data>
+  <data name="Connection_NoGroup" xml:space="preserve">
+    <value>No group</value>
+    <comment>Group heading for connections without a group</comment>
+  </data>
+  <data name="Connection_NoMatch" xml:space="preserve">
+    <value>No connection matches “{0}”.</value>
+    <comment>{0} = search text</comment>
+  </data>
+  <data name="Connection_New" xml:space="preserve">
+    <value>New connection</value>
+    <comment>Button and dialog title</comment>
+  </data>
+  <data name="Connection_Edit" xml:space="preserve">
+    <value>Edit</value>
+    <comment>Button / menu item: edit the connection</comment>
+  </data>
+  <data name="Connection_DeleteEllipsis" xml:space="preserve">
+    <value>Delete …</value>
+    <comment>Button / menu item: delete the connection (asks first)</comment>
+  </data>
+  <data name="Connection_Delete" xml:space="preserve">
+    <value>Delete connection</value>
+    <comment>Dialog title; also what is about to happen in the uncommitted changes dialog</comment>
+  </data>
+  <data name="ConnectionKind_Dev" xml:space="preserve">
+    <value>Development</value>
+    <comment>Connection kind</comment>
+  </data>
+  <data name="ConnectionKind_Test" xml:space="preserve">
+    <value>Test</value>
+    <comment>Connection kind</comment>
+  </data>
+  <data name="ConnectionKind_Prod" xml:space="preserve">
+    <value>Production</value>
+    <comment>Connection kind</comment>
+  </data>
+  <data name="ConnectionKind_Other" xml:space="preserve">
+    <value>Other</value>
+    <comment>Connection kind</comment>
+  </data>
+  <data name="ConnectionForm_CopyName" xml:space="preserve">
+    <value>{0} (copy)</value>
+    <comment>Name of a duplicated connection; {0} = name of the original</comment>
+  </data>
+  <data name="Shell_AllConnections" xml:space="preserve">
+    <value>All connections</value>
+    <comment>Tooltip of the home button</comment>
+  </data>
+  <data name="Shell_SchemaComparison" xml:space="preserve">
+    <value>Schema comparison</value>
+    <comment>Tooltip of the top bar button</comment>
+  </data>
+  <data name="Shell_Settings" xml:space="preserve">
+    <value>Settings</value>
+    <comment>Tooltip of the top bar button</comment>
+  </data>
+  <data name="Shell_SelectTable" xml:space="preserve">
+    <value>Select a table</value>
+    <comment>Heading of the empty explorer area</comment>
+  </data>
+  <data name="Shell_NoTab" xml:space="preserve">
+    <value>Pick a table or view on the left – or write SQL with “+ SQL”{0}.</value>
+    <comment>{0} = shortcut hint like “ (Ctrl+N)” or empty</comment>
+  </data>
+  <data name="Shell_NoTabLinq" xml:space="preserve">
+    <value>Pick a table or view on the left – or write SQL with “+ SQL”{0}, or run a query from the C# code with “+ LINQ”.</value>
+    <comment>{0} = shortcut hint like “ (Ctrl+N)” or empty</comment>
+  </data>
+  <data name="Shell_NoTabApplyFilters" xml:space="preserve">
+    <value>{0} applies filters.</value>
+    <comment>{0} = shortcut, e.g. Ctrl+Enter</comment>
+  </data>
+  <data name="Shell_NoTabRefresh" xml:space="preserve">
+    <value>{0} reloads.</value>
+    <comment>{0} = shortcut, e.g. F5</comment>
+  </data>
+  <data name="Shell_ConnectionFailedTo" xml:space="preserve">
+    <value>Connection to {0} failed</value>
+    <comment>{0} = connection name</comment>
+  </data>
+  <data name="Shell_TryAgain" xml:space="preserve">
+    <value>Try again</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Shell_ToOverview" xml:space="preserve">
+    <value>Back to overview</value>
+    <comment>Button: to the connections page</comment>
+  </data>
+  <data name="Shell_SomethingWentWrong" xml:space="preserve">
+    <value>Something went wrong</value>
+    <comment>Heading of the error state</comment>
+  </data>
+  <data name="Shell_Continue" xml:space="preserve">
+    <value>Continue</value>
+    <comment>Button after an error</comment>
+  </data>
+  <data name="Shell_CloseTabsTitle" xml:space="preserve">
+    <value>In case “Continue” leads back here</value>
+    <comment>Tooltip of Shell_CloseTabs</comment>
+  </data>
+  <data name="Shell_CloseTabs" xml:space="preserve">
+    <value>Close tabs</value>
+    <comment>Button; also what is about to happen in the uncommitted changes dialog</comment>
+  </data>
+  <data name="Status_ConnectionsNotLoaded" xml:space="preserve">
+    <value>Connections could not be loaded</value>
+  </data>
+  <data name="Status_Connected" xml:space="preserve">
+    <value>Connected</value>
+    <comment>Status</comment>
+  </data>
+  <data name="Status_WorkspaceTitle" xml:space="preserve">
+    <value>Workspace “{0}” – runs queries in its own Oracle session (ACTION = workspace name).</value>
+    <comment>{0} = workspace name</comment>
+  </data>
+  <data name="Status_Workspace" xml:space="preserve">
+    <value>Workspace “{0}”</value>
+    <comment>{0} = workspace name</comment>
+  </data>
+  <data name="Status_ReadOnlyTitle" xml:space="preserve">
+    <value>The workspace sessions run in a READ ONLY transaction: Oracle itself refuses every change.</value>
+  </data>
+  <data name="Status_ReadOnly" xml:space="preserve">
+    <value>read-only (Oracle)</value>
+    <comment>Status of the workspace</comment>
+  </data>
+  <data name="Status_UnlockTitle" xml:space="preserve">
+    <value>Unlock this workspace for writing</value>
+  </data>
+  <data name="Status_Unlock" xml:space="preserve">
+    <value>Unlock …</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Status_UnlockedTitle" xml:space="preserve">
+    <value>Oracle no longer protects this workspace; the other workspaces stay locked.</value>
+  </data>
+  <data name="Workspace_Unlocked" xml:space="preserve">
+    <value>unlocked</value>
+    <comment>State of a workspace that may write</comment>
+  </data>
+  <data name="Status_LockTitle" xml:space="preserve">
+    <value>Lock again (commit or discard open changes first)</value>
+  </data>
+  <data name="Status_Lock" xml:space="preserve">
+    <value>Lock</value>
+    <comment>Button: make the workspace read-only again</comment>
+  </data>
+  <data name="Status_SchemaObjectsOne" xml:space="preserve">
+    <value>Schema {1} · {0} object</value>
+    <comment>{0} = number of objects, {1} = schema owner</comment>
+  </data>
+  <data name="Status_SchemaObjectsOther" xml:space="preserve">
+    <value>Schema {1} · {0} objects</value>
+    <comment>{0} = number of objects, {1} = schema owner</comment>
+  </data>
+  <data name="Status_ConnectionFailed" xml:space="preserve">
+    <value>Connection failed</value>
+    <comment>Status</comment>
+  </data>
+  <data name="Status_NotConnected" xml:space="preserve">
+    <value>Not connected</value>
+    <comment>Status</comment>
+  </data>
+  <data name="Status_WorkspaceNotSaved" xml:space="preserve">
+    <value>Workspace not saved</value>
+  </data>
+  <data name="Status_WorkspaceFilesUnreadableOne" xml:space="preserve">
+    <value>{0} workspace file could not be read</value>
+    <comment>{0} = number of files</comment>
+  </data>
+  <data name="Status_WorkspaceFilesUnreadableOther" xml:space="preserve">
+    <value>{0} workspace files could not be read</value>
+    <comment>{0} = number of files</comment>
+  </data>
+  <data name="Status_OtherUncommittedTitle" xml:space="preserve">
+    <value>Uncommitted changes in “{0}” – click to switch</value>
+    <comment>{0} = connection name</comment>
+  </data>
+  <data name="Status_OtherUncommitted" xml:space="preserve">
+    <value>{0}: uncommitted</value>
+    <comment>{0} = connection name</comment>
+  </data>
+  <data name="Status_LongTransactionTitle" xml:space="preserve">
+    <value>The transaction has been open for a long time and holds row locks – others are waiting for these rows.</value>
+  </data>
+  <data name="Status_TransactionTitle" xml:space="preserve">
+    <value>Pending: only here. Written: in the transaction, rows locked, invisible to others until the commit.</value>
+  </data>
+  <data name="Status_TransactionAge" xml:space="preserve">
+    <value>Tx open {0} · {1} pending · {2} written</value>
+    <comment>{0} = age of the open transaction, e.g. “5 min”, {1} = pending changes, {2} = written changes</comment>
+  </data>
+  <data name="Status_ActionsUncommittedOne" xml:space="preserve">
+    <value>{0} uncommitted action</value>
+    <comment>{0} = number of SQL/grid write actions</comment>
+  </data>
+  <data name="Status_ActionsUncommittedOther" xml:space="preserve">
+    <value>{0} uncommitted actions</value>
+    <comment>{0} = number of SQL/grid write actions</comment>
+  </data>
+  <data name="Status_FlushTitle" xml:space="preserve">
+    <value>Write pending changes{0} – no commit yet</value>
+    <comment>{0} = shortcut hint like “ (Ctrl+S)” or empty</comment>
+  </data>
+  <data name="Status_Flush" xml:space="preserve">
+    <value>Write</value>
+    <comment>Button: write the pending changes into the transaction</comment>
+  </data>
+  <data name="Status_UndoTitle" xml:space="preserve">
+    <value>Undo: {0} ({1})</value>
+    <comment>{0} = the write action, {1} = its source (Grid or SQL/LINQ)</comment>
+  </data>
+  <data name="Status_NothingToUndo" xml:space="preserve">
+    <value>Nothing to undo</value>
+  </data>
+  <data name="Status_ShowPendingSql" xml:space="preserve">
+    <value>Show pending changes as SQL</value>
+  </data>
+  <data name="Status_CommitTitle" xml:space="preserve">
+    <value>Write and commit{0}</value>
+    <comment>{0} = shortcut hint like “ (Ctrl+Shift+S)” or empty</comment>
+  </data>
+  <data name="Status_ActionsTooltip" xml:space="preserve">
+    <value>Uncommitted, newest first (↶ undoes the top one):</value>
+    <comment>Heading of the list of uncommitted write actions</comment>
+  </data>
+  <data name="Status_ModelBuildChangedTitle" xml:space="preserve">
+    <value>The build has changed – {0} … Until the new model is ready, the previous one stays in use.</value>
+    <comment>{0} = the current loading step</comment>
+  </data>
+  <data name="Status_ModelReading" xml:space="preserve">
+    <value>Reading the C# model</value>
+    <comment>Loading step if none is known</comment>
+  </data>
+  <data name="Status_ModelBuildChanged" xml:space="preserve">
+    <value>C# · Build changed – reloading model …</value>
+  </data>
+  <data name="Status_ModelLoading" xml:space="preserve">
+    <value>loading</value>
+    <comment>Shown as “C# · loading …”</comment>
+  </data>
+  <data name="Status_ClrModel" xml:space="preserve">
+    <value>C# model</value>
+  </data>
+  <data name="Status_ModelEntities" xml:space="preserve">
+    <value>{0} entities</value>
+    <comment>{0} = number of mapped entities</comment>
+  </data>
+  <data name="Status_ModelMismatches" xml:space="preserve">
+    <value>{0} mism.</value>
+    <comment>{0} = number of mismatches between model and database (short)</comment>
+  </data>
+  <data name="Status_ModelBuildStale" xml:space="preserve">
+    <value>Build outdated</value>
+  </data>
+  <data name="Status_ModelSourceNewer" xml:space="preserve">
+    <value>The source code is newer than the build.</value>
+  </data>
+  <data name="Status_ModelMismatchesTitleOne" xml:space="preserve">
+    <value>{0} mismatch between model and database – details</value>
+    <comment>{0} = number of mismatches</comment>
+  </data>
+  <data name="Status_ModelMismatchesTitleOther" xml:space="preserve">
+    <value>{0} mismatches between model and database – details</value>
+    <comment>{0} = number of mismatches</comment>
+  </data>
+  <data name="ConnectionDialog_EditTitle" xml:space="preserve">
+    <value>Edit connection</value>
+    <comment>Dialog title</comment>
+  </data>
+  <data name="ConnectionDialog_DuplicateTitle" xml:space="preserve">
+    <value>Duplicate connection</value>
+    <comment>Dialog title</comment>
+  </data>
+  <data name="ConnectionDialog_Name" xml:space="preserve">
+    <value>Name</value>
+    <comment>Field label</comment>
+  </data>
+  <data name="ConnectionDialog_NamePlaceholder" xml:space="preserve">
+    <value>e.g. ERP Test</value>
+  </data>
+  <data name="ConnectionDialog_Group" xml:space="preserve">
+    <value>Group</value>
+    <comment>Field label</comment>
+  </data>
+  <data name="ConnectionDialog_GroupPlaceholder" xml:space="preserve">
+    <value>e.g. project or customer – optional</value>
+  </data>
+  <data name="ConnectionDialog_Environment" xml:space="preserve">
+    <value>Environment</value>
+    <comment>Field label: the connection kind</comment>
+  </data>
+  <data name="ConnectionDialog_Address" xml:space="preserve">
+    <value>Address</value>
+    <comment>Field label</comment>
+  </data>
+  <data name="ConnectionDialog_TnsAlias" xml:space="preserve">
+    <value>TNS alias</value>
+    <comment>Option and field label</comment>
+  </data>
+  <data name="ConnectionDialog_Database" xml:space="preserve">
+    <value>Database</value>
+    <comment>Field label</comment>
+  </data>
+  <data name="ConnectionDialog_TnsAdminPlaceholder" xml:space="preserve">
+    <value>Folder of tnsnames.ora – empty = environment variable TNS_ADMIN</value>
+  </data>
+  <data name="ConnectionDialog_User" xml:space="preserve">
+    <value>User</value>
+    <comment>Field label: the database user</comment>
+  </data>
+  <data name="ConnectionDialog_Password" xml:space="preserve">
+    <value>Password</value>
+    <comment>Field label</comment>
+  </data>
+  <data name="ConnectionDialog_PasswordHint" xml:space="preserve">
+    <value>Stored in the Windows Credential Manager, never in the connections file.</value>
+  </data>
+  <data name="ConnectionDialog_PasswordAsOriginal" xml:space="preserve">
+    <value>as in the original</value>
+    <comment>Password placeholder when duplicating</comment>
+  </data>
+  <data name="ConnectionDialog_PasswordUnchanged" xml:space="preserve">
+    <value>unchanged</value>
+    <comment>Password placeholder when editing</comment>
+  </data>
+  <data name="ConnectionDialog_PasswordMissing" xml:space="preserve">
+    <value>Password is missing.</value>
+  </data>
+  <data name="ConnectionDialog_SchemaPlaceholder" xml:space="preserve">
+    <value>empty = the user’s schema</value>
+  </data>
+  <data name="ConnectionDialog_ReadOnly" xml:space="preserve">
+    <value>Read-only</value>
+    <comment>Checkbox</comment>
+  </data>
+  <data name="ConnectionDialog_ReadOnlyHint" xml:space="preserve">
+    <value>· Oracle itself refuses changes (READ ONLY transaction)</value>
+  </data>
+  <data name="ConnectionDialog_ClrModel" xml:space="preserve">
+    <value>C# model</value>
+    <comment>Form section</comment>
+  </data>
+  <data name="ConnectionDialog_ClrModelHint" xml:space="preserve">
+    <value>· optional: entity and property names from your own EF Core project</value>
+  </data>
+  <data name="ConnectionDialog_Project" xml:space="preserve">
+    <value>Project</value>
+    <comment>Field label: the linked C# project</comment>
+  </data>
+  <data name="ConnectionDialog_ProjectPlaceholder" xml:space="preserve">
+    <value>…\Data\Data.csproj – the project with the DbContext</value>
+  </data>
+  <data name="ConnectionDialog_PickProject" xml:space="preserve">
+    <value>Choose project file</value>
+  </data>
+  <data name="ConnectionDialog_ProjectFilter" xml:space="preserve">
+    <value>C# project</value>
+    <comment>File dialog filter label</comment>
+  </data>
+  <data name="ConnectionDialog_ProjectHint" xml:space="preserve">
+    <value>FerretSharp reads the model from the existing build (EF Core 8 or later) – without the application’s startup code and without a database connection.</value>
+  </data>
+  <data name="ConnectionDialog_ContextPlaceholder" xml:space="preserve">
+    <value>empty = the only DbContext in the project</value>
+  </data>
+  <data name="ConnectionDialog_Connecting" xml:space="preserve">
+    <value>Connecting …</value>
+  </data>
+  <data name="ConnectionDialog_TestCanceled" xml:space="preserve">
+    <value>Test canceled.</value>
+  </data>
+  <data name="ConnectionDialog_TestOk" xml:space="preserve">
+    <value>Connected in {0} ms · Oracle {1}</value>
+    <comment>{0} = milliseconds, {1} = server version</comment>
+  </data>
+  <data name="ConnectionDialog_CancelTest" xml:space="preserve">
+    <value>Cancel test</value>
+    <comment>Button</comment>
+  </data>
+  <data name="ConnectionDialog_Test" xml:space="preserve">
+    <value>Test connection</value>
+    <comment>Button</comment>
+  </data>
+  <data name="ConnectionDialog_SaveFailed" xml:space="preserve">
+    <value>Saving failed: {0}</value>
+    <comment>{0} = error message</comment>
+  </data>
+  <data name="Switcher_ChooseConnection" xml:space="preserve">
+    <value>Choose a connection</value>
+    <comment>Button label and tooltip</comment>
+  </data>
+  <data name="Switcher_Search" xml:space="preserve">
+    <value>Search connections …</value>
+    <comment>Placeholder</comment>
+  </data>
+  <data name="Switcher_NoConnections" xml:space="preserve">
+    <value>No connections yet.</value>
+  </data>
+  <data name="Switcher_OpenTitle" xml:space="preserve">
+    <value>These stay connected while another connection is shown</value>
+    <comment>Tooltip of the “Open” group</comment>
+  </data>
+  <data name="Switcher_OpenTitleKey" xml:space="preserve">
+    <value>These stay connected while another connection is shown – {0} switches to the previous one</value>
+    <comment>{0} = shortcut, e.g. Alt+O</comment>
+  </data>
+  <data name="Switcher_Open" xml:space="preserve">
+    <value>Open</value>
+    <comment>Group heading: the open connections</comment>
+  </data>
+  <data name="Switcher_Recent" xml:space="preserve">
+    <value>Recently used</value>
+    <comment>Group heading</comment>
+  </data>
+  <data name="Switcher_ManageAll" xml:space="preserve">
+    <value>Manage all connections …</value>
+  </data>
+  <data name="Switcher_ShownTitle" xml:space="preserve">
+    <value>Shown</value>
+    <comment>Tooltip of the “shown” tag</comment>
+  </data>
+  <data name="Switcher_BackgroundTitle" xml:space="preserve">
+    <value>Connected in the background</value>
+    <comment>Tooltip of the “connected” tag</comment>
+  </data>
+  <data name="Switcher_UncommittedTitle" xml:space="preserve">
+    <value>Uncommitted changes in this connection</value>
+  </data>
+  <data name="Switcher_ActionsOpenOne" xml:space="preserve">
+    <value>{0} uncommitted action</value>
+    <comment>{0} = number of uncommitted write actions</comment>
+  </data>
+  <data name="Switcher_ActionsOpenOther" xml:space="preserve">
+    <value>{0} uncommitted actions</value>
+    <comment>{0} = number of uncommitted write actions</comment>
+  </data>
+  <data name="Switcher_DisconnectTitle" xml:space="preserve">
+    <value>Disconnect this connection (asks about open changes first)</value>
+  </data>
+  <data name="Connections_Title" xml:space="preserve">
+    <value>Connections</value>
+    <comment>Page title</comment>
+  </data>
+  <data name="Connections_Search" xml:space="preserve">
+    <value>Search by name, group, host, user …</value>
+    <comment>Placeholder</comment>
+  </data>
+  <data name="Connections_Welcome" xml:space="preserve">
+    <value>Welcome to FerretSharp</value>
+  </data>
+  <data name="Connections_WelcomeText" xml:space="preserve">
+    <value>Start by adding an Oracle connection.</value>
+  </data>
+  <data name="Connections_Add" xml:space="preserve">
+    <value>Add connection</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Connections_DoubleClickToConnect" xml:space="preserve">
+    <value>Double-click to connect</value>
+  </data>
+  <data name="Connections_TodayAt" xml:space="preserve">
+    <value>today {0:HH:mm}</value>
+    <comment>Last used; {0} = time</comment>
+  </data>
+  <data name="Connections_YesterdayAt" xml:space="preserve">
+    <value>yesterday {0:HH:mm}</value>
+    <comment>Last used; {0} = time</comment>
+  </data>
+  <data name="Connections_DaysAgo" xml:space="preserve">
+    <value>{0} days ago</value>
+    <comment>Last used; {0} = number of days (2 to 6)</comment>
+  </data>
+  <data name="ConnectionMenu_Connect" xml:space="preserve">
+    <value>Connect</value>
+    <comment>Menu item</comment>
+  </data>
+  <data name="ConnectionMenu_Duplicate" xml:space="preserve">
+    <value>Duplicate</value>
+    <comment>Menu item</comment>
+  </data>
+  <data name="LostBanner_Title" xml:space="preserve">
+    <value>Connection to the database lost.</value>
+  </data>
+  <data name="LostBanner_TransactionLost" xml:space="preserve">
+    <value>The open transaction is lost – uncommitted changes are gone.</value>
+  </data>
+  <data name="LostBanner_ReconnectRestores" xml:space="preserve">
+    <value>“Reconnect” restores all workspaces with their tabs and filters.</value>
+  </data>
+  <data name="Shortcuts_Intro" xml:space="preserve">
+    <value>Changes take effect at once. Click “Change” and press the new key combination; Esc cancels. Shortcuts use Ctrl, Alt or a function key; grayed-out ones are fixed.</value>
+  </data>
+  <data name="Shortcuts_PressKeys" xml:space="preserve">
+    <value>Press a key combination …</value>
+  </data>
+  <data name="Shortcuts_None" xml:space="preserve">
+    <value>not assigned</value>
+    <comment>A shortcut without keys</comment>
+  </data>
+  <data name="Shortcuts_Changed" xml:space="preserve">
+    <value>changed</value>
+    <comment>A shortcut that differs from the default</comment>
+  </data>
+  <data name="Shortcuts_Change" xml:space="preserve">
+    <value>Change</value>
+    <comment>Button: record a new key combination</comment>
+  </data>
+  <data name="Shortcuts_DefaultTitle" xml:space="preserve">
+    <value>Default: {0}</value>
+    <comment>{0} = the default key combination</comment>
+  </data>
+  <data name="Shortcuts_NotPossible" xml:space="preserve">
+    <value>{0} cannot be used: {1}</value>
+    <comment>{0} = key combination, {1} = reason</comment>
+  </data>
+  <data name="Shortcuts_Conflict" xml:space="preserve">
+    <value>{0} is already assigned to “{1}” – applying removes it there.</value>
+    <comment>{0} = key combination, {1} = the action it is assigned to</comment>
+  </data>
+  <data name="Shortcuts_FixedTitle" xml:space="preserve">
+    <value>Fixed – cannot be changed</value>
+  </data>
+  <data name="Shortcuts_Fixed" xml:space="preserve">
+    <value>fixed</value>
+    <comment>A shortcut that cannot be changed</comment>
+  </data>
+  <data name="Shortcuts_ResetAllQuestion" xml:space="preserve">
+    <value>Reset all shortcuts to the defaults?</value>
+  </data>
+  <data name="Shortcuts_ResetAll" xml:space="preserve">
+    <value>Reset all</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Workspaces_UnlockedForWriting" xml:space="preserve">
+    <value>Unlocked for writing</value>
+  </data>
+  <data name="Workspaces_ChipTitle" xml:space="preserve">
+    <value>Double-click or ⋯: rename · Middle-click: close</value>
+    <comment>Tooltip of a workspace chip</comment>
+  </data>
+  <data name="Workspaces_CloseTitle" xml:space="preserve">
+    <value>Close workspace (its state stays saved)</value>
+  </data>
+  <data name="Workspaces_AddTitle" xml:space="preserve">
+    <value>Add or reopen a workspace</value>
+  </data>
+  <data name="Workspaces_New" xml:space="preserve">
+    <value>New workspace</value>
+    <comment>Menu item</comment>
+  </data>
+  <data name="Workspaces_Closed" xml:space="preserve">
+    <value>Closed</value>
+    <comment>Group heading: closed workspaces</comment>
+  </data>
+  <data name="Workspaces_Reopen" xml:space="preserve">
+    <value>Reopen</value>
+  </data>
+  <data name="Workspaces_DeletePermanently" xml:space="preserve">
+    <value>Delete permanently</value>
+  </data>
+  <data name="Workspaces_TabsOne" xml:space="preserve">
+    <value>{0} tab</value>
+    <comment>{0} = number of tabs</comment>
+  </data>
+  <data name="Workspaces_TabsOther" xml:space="preserve">
+    <value>{0} tabs</value>
+    <comment>{0} = number of tabs</comment>
+  </data>
+  <data name="Workspaces_LastStaysOpen" xml:space="preserve">
+    <value>The last open workspace stays open.</value>
+  </data>
+  <data name="Workspaces_CloseHint" xml:space="preserve">
+    <value>Its state stays saved; reopen it with +</value>
+  </data>
+  <data name="Workspaces_LockTitle" xml:space="preserve">
+    <value>Commit or discard open changes first</value>
+  </data>
+  <data name="Workspaces_LockAgain" xml:space="preserve">
+    <value>Lock again</value>
+    <comment>Menu item</comment>
+  </data>
+  <data name="Workspaces_Unlock" xml:space="preserve">
+    <value>Unlock writing …</value>
+    <comment>Menu item</comment>
+  </data>
+  <data name="Workspaces_DeleteTitle" xml:space="preserve">
+    <value>Delete workspace</value>
+    <comment>Dialog title</comment>
+  </data>
+  <data name="Workspaces_DeleteQuestion" xml:space="preserve">
+    <value>Permanently delete workspace {0} with {1} and all filters?</value>
+    <comment>{0} = workspace name (bold), {1} = Workspaces_TabsOne/Other</comment>
+  </data>
+  <data name="Workspaces_CloseWhat" xml:space="preserve">
+    <value>Close workspace “{0}”</value>
+    <comment>What is about to happen in the uncommitted changes dialog; {0} = workspace name</comment>
+  </data>
+  <data name="Badge_UnlockedTitle" xml:space="preserve">
+    <value>Workspace “{0}” is unlocked for writing – click to lock.</value>
+    <comment>{0} = workspace name</comment>
+  </data>
+  <data name="Badge_ClickToUnlock" xml:space="preserve">
+    <value>{0} Click to unlock workspace “{1}” for writing.</value>
+    <comment>{0} = Badge_ReadOnlyTitle, {1} = workspace name</comment>
+  </data>
+  <data name="Badge_Unlocked" xml:space="preserve">
+    <value>UNLOCKED</value>
+    <comment>Badge, upper case</comment>
+  </data>
+  <data name="Badge_Editable" xml:space="preserve">
+    <value>EDITABLE</value>
+    <comment>Badge, upper case</comment>
+  </data>
+  <data name="Badge_ReadOnlyTitle" xml:space="preserve">
+    <value>Read-only connection: Oracle itself refuses every change (READ ONLY transaction).</value>
+  </data>
+  <data name="Badge_EditableTitle" xml:space="preserve">
+    <value>Editing possible: changes run in one transaction per workspace and become visible to others only after the commit.</value>
+  </data>
+  <data name="TabBar_PlSqlTitle" xml:space="preserve">
+    <value>{0} {1}.{2} – view only</value>
+    <comment>{0} = kind of the PL/SQL unit, {1} = owner, {2} = name</comment>
+  </data>
+  <data name="TabBar_LinqTitle" xml:space="preserve">
+    <value>LINQ console – C# against the DbContext of the linked project · Double-click: rename</value>
+  </data>
+  <data name="TabBar_SqlTitle" xml:space="preserve">
+    <value>SQL editor – statements in this workspace’s session · Double-click: rename</value>
+  </data>
+  <data name="TabBar_FiltersOne" xml:space="preserve">
+    <value>{0} filter</value>
+    <comment>{0} = number of active filters</comment>
+  </data>
+  <data name="TabBar_FiltersOther" xml:space="preserve">
+    <value>{0} filters</value>
+    <comment>{0} = number of active filters</comment>
+  </data>
+  <data name="TabBar_Invalid" xml:space="preserve">
+    <value>Invalid (INVALID)</value>
+  </data>
+  <data name="TabBar_NewSqlTitle" xml:space="preserve">
+    <value>New SQL editor: statements in this workspace’s session{0}</value>
+    <comment>{0} = shortcut hint like “ (Ctrl+N)” or empty</comment>
+  </data>
+  <data name="TabBar_NewLinqTitle" xml:space="preserve">
+    <value>New LINQ console: C# against the DbContext of the linked project{0}</value>
+    <comment>{0} = shortcut hint like “ (Ctrl+L)” or empty</comment>
+  </data>
+  <data name="Unlock_Title" xml:space="preserve">
+    <value>Unlock writing</value>
+    <comment>Dialog title</comment>
+  </data>
+  <data name="Unlock_Question" xml:space="preserve">
+    <value>Unlock workspace “{0}” on {1}? You can then change, insert and delete rows there – Oracle no longer protects this workspace.</value>
+    <comment>{0} = workspace name (bold), {1} = connection name (bold)</comment>
+  </data>
+  <data name="Unlock_CommitFact" xml:space="preserve">
+    <value>Changes become visible to others only with {0}.</value>
+    <comment>{0} = “Commit” (bold)</comment>
+  </data>
+  <data name="Unlock_CommitFactProd" xml:space="preserve">
+    <value>Changes become visible to others only with {0} (on Prod after a confirmation).</value>
+    <comment>{0} = “Commit” (bold)</comment>
+  </data>
+  <data name="Unlock_OthersStayLocked" xml:space="preserve">
+    <value>The other workspaces of this connection stay locked.</value>
+  </data>
+  <data name="Unlock_LockedAgainWhen" xml:space="preserve">
+    <value>It is locked again with “Lock”, when the workspace is closed, and when you disconnect.</value>
+  </data>
+  <data name="Unlock_TypeName" xml:space="preserve">
+    <value>To confirm, type the name of the connection: {0}</value>
+    <comment>{0} = connection name (bold)</comment>
+  </data>
+  <data name="Unlock_NameLabel" xml:space="preserve">
+    <value>Name of the connection</value>
+    <comment>Accessible label of the input</comment>
+  </data>
+  <data name="Unlock_Unlock" xml:space="preserve">
+    <value>Unlock</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Leave_Title" xml:space="preserve">
+    <value>Uncommitted changes</value>
+    <comment>Dialog title</comment>
+  </data>
+  <data name="Leave_Text" xml:space="preserve">
+    <value>{0}: These changes have not been committed yet and would otherwise be lost.</value>
+    <comment>{0} = what is about to happen, e.g. “Close workspace “Main””</comment>
+  </data>
+  <data name="Leave_PendingAndWritten" xml:space="preserve">
+    <value>{0} pending, {1} written</value>
+    <comment>{0} = pending changes, {1} = written changes</comment>
+  </data>
+  <data name="Leave_OpenTransaction" xml:space="preserve">
+    <value>open transaction</value>
+  </data>
+  <data name="Leave_Discard" xml:space="preserve">
+    <value>Discard</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Dialogs_RollbackQuestion" xml:space="preserve">
+    <value>Discard all changes in {0} – the written ones (rollback of the transaction) and the pending ones? This cannot be undone.</value>
+    <comment>{0} = workspace name (bold)</comment>
+  </data>
+  <data name="Dialogs_CommitProdTitle" xml:space="preserve">
+    <value>Commit on production</value>
+    <comment>Dialog title</comment>
+  </data>
+  <data name="Dialogs_CommitProdText" xml:space="preserve">
+    <value>The changes in {0} ({1} pending · {2} written) are committed in {3} and are then visible to everyone.</value>
+    <comment>{0} = workspace name (bold), {1} = pending changes, {2} = written changes, {3} = connection name (bold)</comment>
+  </data>
+  <data name="Dialogs_DiscardAndClose" xml:space="preserve">
+    <value>Discard and close</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Dialogs_CloseTabTextOne" xml:space="preserve">
+    <value>{1} has {0} pending change that has not been written yet. It is lost when you close the tab. Changes already written stay in the workspace’s transaction.</value>
+    <comment>{0} = number of pending changes, {1} = table name (bold)</comment>
+  </data>
+  <data name="Dialogs_CloseTabTextOther" xml:space="preserve">
+    <value>{1} has {0} pending changes that have not been written yet. They are lost when you close the tab. Changes already written stay in the workspace’s transaction.</value>
+    <comment>{0} = number of pending changes, {1} = table name (bold)</comment>
+  </data>
+  <data name="Dialogs_DeleteConnectionText" xml:space="preserve">
+    <value>Delete connection {0} ({1})? The stored password is removed as well.</value>
+    <comment>{0} = connection name (bold), {1} = address</comment>
+  </data>
+  <data name="ErrorDialog_Title" xml:space="preserve">
+    <value>Database error</value>
+    <comment>Dialog title</comment>
+  </data>
+  <data name="ErrorDialog_Copied" xml:space="preserve">
+    <value>Copied ✓</value>
+    <comment>Button after copying</comment>
+  </data>
+  <data name="ErrorDialog_ConnectionLostHint" xml:space="preserve">
+    <value>The connection to the database was lost (e.g. session ended, idle timeout, network). “Reconnect” restores all workspaces with their tabs.</value>
+  </data>
+  <data name="ErrorDialog_BindVariable" xml:space="preserve">
+    <value>Bind variable</value>
+    <comment>Column header</comment>
+  </data>
+  <data name="ErrorDialog_Value" xml:space="preserve">
+    <value>Value</value>
+    <comment>Column header</comment>
+  </data>
+  <data name="ErrorDialog_ValueMasked" xml:space="preserve">
+    <value>Value (Prod: masked)</value>
+    <comment>Column header when bind values are hidden</comment>
+  </data>
+  <data name="ErrorDialog_Type" xml:space="preserve">
+    <value>Type</value>
+    <comment>Column header</comment>
+  </data>
+  <data name="SearchBox_Clear" xml:space="preserve">
+    <value>Clear search (Esc)</value>
+  </data>
+  <data name="TabFrame_Error" xml:space="preserve">
+    <value>Something went wrong in this tab</value>
+    <comment>Heading of a tab’s error state</comment>
+  </data>
+  <data name="Lifecycle_Unlocked" xml:space="preserve">
+    <value>Workspace “{0}” is unlocked for writing.</value>
+    <comment>{0} = workspace name</comment>
+  </data>
+  <data name="Lifecycle_SessionReset" xml:space="preserve">
+    <value>Session of “{0}” disconnected – a new one opens on the next access.</value>
+    <comment>{0} = workspace name</comment>
+  </data>
+  <data name="Lifecycle_LockWhat" xml:space="preserve">
+    <value>Lock workspace</value>
+    <comment>What is about to happen in the uncommitted changes dialog</comment>
+  </data>
+  <data name="Lifecycle_Locked" xml:space="preserve">
+    <value>Workspace “{0}” is read-only again.</value>
+    <comment>{0} = workspace name</comment>
+  </data>
+  <data name="Lifecycle_DisconnectWhat" xml:space="preserve">
+    <value>Disconnect {0}</value>
+    <comment>What is about to happen in the uncommitted changes dialog; {0} = connection name</comment>
+  </data>
+  <data name="Lifecycle_ExitWhat" xml:space="preserve">
+    <value>Quit FerretSharp</value>
+    <comment>What is about to happen in the uncommitted changes dialog</comment>
+  </data>
+  <data name="Dom_ClipboardUnavailable" xml:space="preserve">
+    <value>The clipboard is not available.</value>
+  </data>
+</root>

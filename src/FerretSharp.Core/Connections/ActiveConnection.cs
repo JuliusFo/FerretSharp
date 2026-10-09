@@ -1,3 +1,4 @@
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 using FerretSharp.Core.Workspaces;
 
@@ -86,7 +87,7 @@ public sealed class ActiveConnection(
             Set(ConnectionStatus.Connecting, profile);
 
             var password = connections.GetPassword(profile.Id)
-                ?? throw new DatabaseException("Für diese Verbindung ist kein Passwort gespeichert. Bitte unter „Bearbeiten“ eingeben.");
+                ?? throw new DatabaseException(ConnectionText.NoPasswordSaved);
 
             _connection = await connector.OpenAsync(profile, password, ExplorerAction, cts.Token);
             var schema = new SchemaCache(_connection.Schema, profile.EffectiveSchema);

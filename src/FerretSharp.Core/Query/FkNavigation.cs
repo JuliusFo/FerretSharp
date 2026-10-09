@@ -1,5 +1,6 @@
 using System.Globalization;
 using FerretSharp.Core.Data;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.Query;
@@ -30,19 +31,16 @@ public sealed record FkJump(
 
     public bool IsAvailable => Unavailable is null;
 
-    /// <summary>The key condition, e.g. <c>KUNDE_ID = 4711</c> or <c>KUNDE_ID in (4711; 4712; 4713; …) · 5 Werte</c>.</summary>
+    /// <summary>The key condition, e.g. <c>KUNDE_ID = 4711</c> or <c>KUNDE_ID in (4711; 4712; 4713; …) · 5 values</c>.</summary>
     public string Condition => string.Join(", ", Filters.Select(f => f.Op == FilterOperator.In
-        ? $"{f.Column} in ({string.Join("; ", f.Values.Take(ShownValues))}{(f.Values.Count > ShownValues ? "; …" : "")})" +
-          $" · {f.Values.Count.ToString("N0", FkNavigation.German)} Werte"
+        ? TextFormat.Format(FkNavigation.German, QueryText.FkConditionInList, f.Column,
+            string.Join("; ", f.Values.Take(ShownValues)) + (f.Values.Count > ShownValues ? "; …" : ""), f.Values.Count)
         : $"{f.Column} = {f.Values[0]}"));
 
-    /// <summary>E.g. "2 Zeilen ohne Wert übersprungen"; null if every row had a key.</summary>
-    public string? SkippedNote => SkippedRows switch
-    {
-        0 => null,
-        1 => "1 Zeile ohne Wert übersprungen",
-        _ => $"{SkippedRows.ToString("N0", FkNavigation.German)} Zeilen ohne Wert übersprungen",
-    };
+    /// <summary>E.g. "2 rows without a value skipped"; null if every row had a key.</summary>
+    public string? SkippedNote => SkippedRows == 0
+        ? null
+        : TextFormat.Plural(FkNavigation.German, SkippedRows, QueryText.FkSkippedRowsOne, QueryText.FkSkippedRowsOther);
 }
 
 /// <summary>
@@ -158,7 +156,7 @@ public static class FkNavigation
             indexes[i] = table.IndexOf(rowColumns[i]);
             if (indexes[i] < 0)
             {
-                return Unavailable($"Spalte {rowColumns[i]} fehlt.");
+                return Unavailable(TextFormat.Format(QueryText.FkColumnMissing, rowColumns[i]));
             }
         }
 
@@ -181,7 +179,7 @@ public static class FkNavigation
                 }
                 else
                 {
-                    return Unavailable($"Sprung über {table.Columns[index].DisplayType} nicht möglich.");
+                    return Unavailable(TextFormat.Format(QueryText.FkJumpTypeNotSupported, table.Columns[index].DisplayType));
                 }
             }
 
@@ -197,9 +195,9 @@ public static class FkNavigation
 
         if (keys.Count == 0)
         {
-            return Unavailable(rows.Count == 1 ? $"{nullColumn} ist NULL."
-                : rowColumns.Count == 1 ? $"{rowColumns[0]} ist in allen {Number(rows.Count)} Zeilen NULL."
-                : $"Schlüssel ({string.Join(", ", rowColumns)}) ist in allen {Number(rows.Count)} Zeilen NULL.");
+            return Unavailable(rows.Count == 1 ? TextFormat.Format(QueryText.FkKeyIsNull, nullColumn)
+                : rowColumns.Count == 1 ? TextFormat.Format(German, QueryText.FkColumnNullInAllRows, rowColumns[0], rows.Count)
+                : TextFormat.Format(German, QueryText.FkKeyNullInAllRows, string.Join(", ", rowColumns), rows.Count));
         }
 
         List<FilterCondition> filters;
@@ -209,20 +207,20 @@ public static class FkNavigation
         }
         else if (rowColumns.Count > 1)
         {
-            return Unavailable("Bei mehreren Zeilen nur für Schlüssel aus einer Spalte möglich.");
+            return Unavailable(QueryText.FkSeveralRowsNeedSingleColumnKey);
         }
         else
         {
             var values = keys.Select(k => k[0]).Distinct(StringComparer.Ordinal).ToArray();
             if (values.Length > MaxValues)
             {
-                return Unavailable($"{Number(values.Length)} verschiedene Werte – höchstens {Number(MaxValues)} möglich.");
+                return Unavailable(TextFormat.Format(German, QueryText.FkTooManyValues, values.Length, MaxValues));
             }
 
             // The filter bar splits an IN list at the separator; such a value would not survive editing the filter.
             if (values.Any(v => v.Contains(FilterCondition.ListSeparator, StringComparison.Ordinal)))
             {
-                return Unavailable($"Ein Wert enthält „{FilterCondition.ListSeparator}“ – bei mehreren Werten nicht möglich.");
+                return Unavailable(TextFormat.Format(QueryText.FkValueContainsSeparator, FilterCondition.ListSeparator));
             }
 
             filters = [FilterCondition.Of(targetColumns[0], FilterOperator.In, values)];
@@ -230,8 +228,6 @@ public static class FkNavigation
 
         return new FkJump(fk, direction, target, filters, null, rows.Count, skipped);
     }
-
-    private static string Number(int count) => count.ToString("N0", German);
 
     private static string Key(FkJump jump) => $"{jump.Table.Name}\0{jump.Table.Owner}\0{jump.ForeignKey.Name}";
 }

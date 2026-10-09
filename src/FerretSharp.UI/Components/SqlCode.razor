@@ -8,10 +8,10 @@
     {
         if (css is null) { @text } else { <span class="@css">@text</span> }
     }</pre>
-    <button type="button" class="sql-copy @(_copied ? "copied" : "")" title="SQL kopieren" @onclick="CopyAsync">
+    <button type="button" class="sql-copy @(_copied ? "copied" : "")" title="@SqlEditorText.SqlCode_Copy" @onclick="CopyAsync">
         @if (_copied)
         {
-            @Icons.Check<span>Kopiert</span>
+            @Icons.Check<span>@SqlEditorText.Editor_Copied</span>
         }
         else
         {
@@ -72,7 +72,7 @@
         }
     }
 
-    /// <summary>Copies the whole statement; the button says "Kopiert" for a moment.</summary>
+    /// <summary>Copies the whole statement; the button says "Copied" for a moment.</summary>
     private async Task CopyAsync()
     {
         try
@@ -84,7 +84,7 @@
 
             if (!await Dom.CopyTextAsync(Sql))
             {
-                Shell?.Notify("Die Zwischenablage ist nicht verfügbar.");
+                Shell?.Notify(SqlEditorText.Editor_ClipboardUnavailable);
                 return;
             }
         }

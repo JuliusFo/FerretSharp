@@ -1,5 +1,6 @@
 using System.Text;
 using FerretSharp.Core.Data;
+using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.ClrModel;
 
@@ -17,9 +18,9 @@ public static class CSharpRows
     public static string? HasDataUnavailable(TablePresentation presentation) => presentation.Entity switch
     {
         null => LinqFilter.Unavailable(presentation),
-        { Entity.PrimaryKey.Count: 0 } => "HasData braucht einen Schlüssel – die Entity ist keyless.",
-        { Entity.Table: null } => "HasData geht nur für Entities auf Tabellen, nicht auf Views.",
-        { Entity.IsOwned: true } => "Owned-Typen werden über ihren Besitzer geseedet (OwnsOne(…).HasData).",
+        { Entity.PrimaryKey.Count: 0 } => ClrModelText.HasDataNoKey,
+        { Entity.Table: null } => ClrModelText.HasDataNoTable,
+        { Entity.IsOwned: true } => ClrModelText.HasDataOwned,
         _ => null,
     };
 
@@ -78,7 +79,7 @@ public static class CSharpRows
     public static CSharpValue Cell(TablePresentation presentation, int column, object? raw) =>
         presentation.PropertyOf(column) is { } property
             ? CSharpCode.Value(property, presentation.ValuesOf(column), presentation.Details.Columns[column], raw)
-            : CSharpValue.Fails($"{presentation.Details.Columns[column].Name} hat keine Property im C#-Modell.");
+            : CSharpValue.Fails(TextFormat.Format(ClrModelText.CellNoProperty, presentation.Details.Columns[column].Name));
 
     private static (string Entity, Notes Notes) Prepare(TablePresentation presentation)
     {
@@ -123,17 +124,17 @@ public static class CSharpRows
             var column = presentation.Details.Columns[i];
             if (presentation.PropertyOf(i) is not { } property)
             {
-                text.Append(inner).Append("// ").Append(column.Name).Append(" = ").Append(CSharpCode.Shown(column, raw))
-                    .Append(" (keine Property)\r\n");
-                notes.Add(column.Name, "keine Property");
+                text.Append(inner).Append("// ").Append(TextFormat.Format(ClrModelText.CommentNoProperty, column.Name, CSharpCode.Shown(column, raw)))
+                    .Append("\r\n");
+                notes.Add(column.Name, ClrModelText.NoProperty);
                 continue;
             }
 
             if (!presentation.IsEntityProperty(i))
             {
-                text.Append(inner).Append("// ").Append(column.Name).Append(" = ").Append(CSharpCode.Shown(column, raw))
-                    .Append(" (Property ").Append(property.Name).Append(" eines anderen Entity-Typs der Tabelle)\r\n");
-                notes.Add(column.Name, $"Property {property.Name} eines anderen Entity-Typs");
+                text.Append(inner).Append("// ")
+                    .Append(TextFormat.Format(ClrModelText.CommentOtherEntity, column.Name, CSharpCode.Shown(column, raw), property.Name)).Append("\r\n");
+                notes.Add(column.Name, TextFormat.Format(ClrModelText.NoteOtherEntity, property.Name));
                 continue;
             }
 
@@ -147,9 +148,9 @@ public static class CSharpRows
 
             if (property.IsShadow && !seed)
             {
-                text.Append(inner).Append("// ").Append(property.Name).Append(" = ").Append(value.Code)
-                    .Append(" (Shadow-Property)\r\n");
-                notes.Add(property.Name, "Shadow-Property, im Initializer nicht setzbar");
+                text.Append(inner).Append("// ").Append(TextFormat.Format(ClrModelText.CommentShadowProperty, property.Name, value.Code))
+                    .Append("\r\n");
+                notes.Add(property.Name, ClrModelText.NoteShadowProperty);
                 continue;
             }
 
@@ -170,11 +171,13 @@ public static class CSharpRows
         {
             const int max = 8;
             var notes = _counts.Take(max)
-                .Select(kv => $"{kv.Key.Member}: {kv.Key.Reason}{(kv.Value > 1 ? $" ({kv.Value} Zeilen)" : "")} – als Kommentar.")
+                .Select(kv => kv.Value > 1
+                    ? TextFormat.Format(ClrModelText.NoteAsCommentRows, kv.Key.Member, kv.Key.Reason, kv.Value)
+                    : TextFormat.Format(ClrModelText.NoteAsComment, kv.Key.Member, kv.Key.Reason))
                 .ToList();
             if (_counts.Count > max)
             {
-                notes.Add($"… und {_counts.Count - max} weitere, siehe Kommentare im Code.");
+                notes.Add(TextFormat.Format(ClrModelText.NotesMore, _counts.Count - max));
             }
 
             return notes;

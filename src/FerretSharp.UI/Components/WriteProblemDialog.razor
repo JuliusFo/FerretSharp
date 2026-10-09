@@ -10,14 +10,11 @@
         @switch (Problem.Error)
         {
             case LockConflictException:
-                <p>
-                    Eine andere Session hält die Zeile gesperrt (hat sie geändert, aber noch nicht committed).
-                    FerretSharp hat @Wait Sekunden gewartet.
-                </p>
+                <p>@TextFormat.Plural(Wait, GridText.Problem_LockConflictOne, GridText.Problem_LockConflictOther)</p>
                 @if (Problem.Holders is { Count: > 0 } holders)
                 {
                     <table class="columns holders">
-                        <thead><tr><th>Session</th><th>Benutzer</th><th>Rechner</th><th>Programm / Workspace</th></tr></thead>
+                        <thead><tr><th>@GridText.Problem_Session</th><th>@GridText.Problem_User</th><th>@GridText.Problem_Machine</th><th>@GridText.Problem_ProgramWorkspace</th></tr></thead>
                         <tbody>
                             @foreach (var holder in holders)
                             {
@@ -25,22 +22,22 @@
                                     <td class="mono">@holder.Sid</td>
                                     <td>@holder.User@(holder.OsUser is { } os ? $" ({os})" : "")</td>
                                     <td>@holder.Machine</td>
-                                    <td>@(holder.Module == "FerretSharp" ? $"FerretSharp · Workspace „{holder.Action}“" : holder.Module ?? holder.Program)</td>
+                                    <td>@(holder.Module == "FerretSharp" ? TextFormat.Format(GridText.Problem_FerretSharpWorkspace, holder.Action) : holder.Module ?? holder.Program)</td>
                                 </tr>
                             }
                         </tbody>
                     </table>
-                    <p class="muted">Sessions mit Sperren auf der Tabelle – welche genau die Zeile hält, verrät Oracle nicht.</p>
+                    <p class="muted">@GridText.Problem_LockHoldersNote</p>
                 }
                 else if (Problem.Holders is null)
                 {
-                    <p class="muted">Wer sperrt, lässt sich ohne Leserechte auf V$SESSION (SELECT_CATALOG_ROLE) nicht ermitteln.</p>
+                    <p class="muted">@GridText.Problem_LockHoldersUnknown</p>
                 }
                 break;
             case ConcurrencyConflictException conflict:
-                <p>Jemand hat die Zeile geändert, nachdem sie hier geladen wurde:</p>
+                <p>@GridText.Problem_ChangedMeanwhileText</p>
                 <table class="columns">
-                    <thead><tr><th>Spalte</th><th>Beim Laden</th><th>Jetzt in der DB</th><th>Deine Änderung</th></tr></thead>
+                    <thead><tr><th>@GridText.Grid_Column</th><th>@GridText.Problem_WhenLoaded</th><th>@GridText.Problem_NowInDatabase</th><th>@GridText.Problem_YourChange</th></tr></thead>
                     <tbody>
                         @foreach (var difference in conflict.Differences)
                         {
@@ -56,7 +53,7 @@
                 </table>
                 break;
             case RowGoneException:
-                <p>Die Zeile gibt es nicht mehr – jemand hat sie gelöscht und committed.</p>
+                <p>@GridText.Problem_RowGoneText</p>
                 break;
             default:
                 <p>@Problem.Error.Message</p>
@@ -64,25 +61,25 @@
         }
         @if (Problem.DuringCommit)
         {
-            <p class="muted">Committed ist noch nichts. Nach der Entscheidung geht es mit dem Commit weiter.</p>
+            <p class="muted">@GridText.Problem_DuringCommit</p>
         }
     </div>
     <footer>
         <span class="spacer"></span>
         <button class="btn ghost" @ref="_cancel" @onclick="() => OnChoice.InvokeAsync(ProblemChoice.Cancel)">
-            @(Problem.Error is WriteFailedException ? "OK" : "Abbrechen")
+            @(Problem.Error is WriteFailedException ? CommonText.Ok : CommonText.Cancel)
         </button>
         @switch (Problem.Error)
         {
             case LockConflictException:
-                <button class="btn primary" @onclick="() => OnChoice.InvokeAsync(ProblemChoice.Retry)">Erneut versuchen</button>
+                <button class="btn primary" @onclick="() => OnChoice.InvokeAsync(ProblemChoice.Retry)">@GridText.Problem_Retry</button>
                 break;
             case ConcurrencyConflictException:
-                <button class="btn" @onclick="() => OnChoice.InvokeAsync(ProblemChoice.Discard)">Meine Änderung verwerfen</button>
-                <button class="btn danger-solid" @onclick="() => OnChoice.InvokeAsync(ProblemChoice.Overwrite)">Überschreiben</button>
+                <button class="btn" @onclick="() => OnChoice.InvokeAsync(ProblemChoice.Discard)">@GridText.Problem_DiscardMine</button>
+                <button class="btn danger-solid" @onclick="() => OnChoice.InvokeAsync(ProblemChoice.Overwrite)">@GridText.Problem_Overwrite</button>
                 break;
             case RowGoneException:
-                <button class="btn primary" @onclick="() => OnChoice.InvokeAsync(ProblemChoice.Discard)">Änderung verwerfen</button>
+                <button class="btn primary" @onclick="() => OnChoice.InvokeAsync(ProblemChoice.Discard)">@GridText.Problem_DiscardChange</button>
                 break;
         }
     </footer>
@@ -102,18 +99,18 @@
 
     private string Title => Problem.Error switch
     {
-        LockConflictException => "Zeile ist gesperrt",
-        ConcurrencyConflictException => "Inzwischen geändert",
-        RowGoneException => "Zeile gelöscht",
-        _ => "Schreiben abgelehnt",
+        LockConflictException => GridText.Problem_LockedTitle,
+        ConcurrencyConflictException => GridText.Problem_ChangedMeanwhile,
+        RowGoneException => GridText.Problem_RowDeleted,
+        _ => GridText.Problem_WriteRefused,
     };
 
     private string RowText => Problem.Error.Operation switch
     {
-        { Kind: OperationKind.Insert } => "neue Zeile",
-        { Key: RowKey.PrimaryKey pk } => "Zeile " + string.Join(", ", pk.Values.Select(v => Show(null, v))),
-        { Kind: OperationKind.Delete } => "zu löschende Zeile",
-        _ => "geänderte Zeile",
+        { Kind: OperationKind.Insert } => GridText.Problem_NewRow,
+        { Key: RowKey.PrimaryKey pk } => TextFormat.Format(GridText.Problem_RowKey, string.Join(", ", pk.Values.Select(v => Show(null, v)))),
+        { Kind: OperationKind.Delete } => GridText.Problem_RowToDelete,
+        _ => GridText.Problem_ChangedRow,
     };
 
     private static string Show(Core.Schema.ColumnInfo? column, object? value) =>

@@ -1,18 +1,18 @@
-@* App settings: appearance (light/dark), C# names of a linked project and the connection behaviour; the shortcuts as a
-   section of their own (WP-25). *@
+@* App settings: appearance (language, light/dark), C# names of a linked project and the connection behaviour; the shortcuts
+   as a section of their own (WP-25). *@
 @using FerretSharp.Core.Settings
 @inject IThemeService Theme
 @inject AppSettingsService Settings
 
 <div class="settings-page">
     <div class="page-head">
-        <h1>Einstellungen</h1>
+        <h1>@ShellText.Settings_Title</h1>
         <span class="grow"></span>
-        <button class="btn ghost" @onclick="Back">Zurück</button>
+        <button class="btn ghost" @onclick="Back">@CommonText.Back</button>
     </div>
 
     <div class="page-head settings-tabs">
-        <div class="segmented" role="tablist" aria-label="Bereich">
+        <div class="segmented" role="tablist" aria-label="@ShellText.Settings_Sections">
             @foreach (var (shortcuts, label) in Sections)
             {
                 var value = shortcuts;
@@ -29,13 +29,32 @@
     else
     {
         <section class="settings-section">
-            <h2>Darstellung</h2>
+            <h2>@ShellText.Settings_Appearance</h2>
             <div class="settings-row">
                 <div class="settings-label">
-                    <span>Farbschema</span>
-                    <span class="hint">„System“ folgt der Windows-Einstellung.</span>
+                    <span>@ShellText.Settings_Language</span>
+                    <span class="hint">@ShellText.Settings_LanguageHint</span>
                 </div>
-                <div class="segmented" role="radiogroup" aria-label="Farbschema">
+                <div class="segmented" role="radiogroup" aria-label="@ShellText.Settings_Language">
+                    @foreach (var (language, label) in Languages)
+                    {
+                        var value = language;
+                        <button class="seg @(Settings.Current.Language == value ? "active" : "")" role="radio" lang="@UiLanguages.Culture(value).Name"
+                                aria-checked="@(Settings.Current.Language == value ? "true" : "false")"
+                                @onclick="() => SetLanguageAsync(value)">@label</button>
+                    }
+                </div>
+            </div>
+            @if (Settings.Current.Language != UiLanguages.Of(CultureInfo.CurrentUICulture))
+            {
+                <div class="settings-note">@ShellText.Settings_LanguageAfterRestart</div>
+            }
+            <div class="settings-row">
+                <div class="settings-label">
+                    <span>@ShellText.Settings_ColorScheme</span>
+                    <span class="hint">@ShellText.Settings_ColorSchemeHint</span>
+                </div>
+                <div class="segmented" role="radiogroup" aria-label="@ShellText.Settings_ColorScheme">
                     @foreach (var (mode, label) in Modes)
                     {
                         var m = mode;
@@ -47,24 +66,22 @@
             @if (Theme.SessionOverride is { } forced)
             {
                 <div class="settings-note">
-                    Diese Sitzung wurde mit <code>--theme=@forced</code> gestartet und bleibt deshalb @(forced == "dark" ? "dunkel" : "hell").
-                    Die Auswahl wird gespeichert und gilt ab dem nächsten Start ohne diesen Parameter.
+                    <Fmt Text="@ShellText.Settings_ThemeForced">
+                        <Arg0><code>--theme=@forced</code></Arg0>
+                        <Arg1>@(forced == "dark" ? ShellText.Settings_ThemeForcedDark : ShellText.Settings_ThemeForcedLight)</Arg1>
+                    </Fmt>
                 </div>
             }
         </section>
 
         <section class="settings-section">
-            <h2>C#-Modell</h2>
+            <h2>@ShellText.Settings_ClrModel</h2>
             <div class="settings-row">
                 <div class="settings-label">
-                    <span>C#-Namen</span>
-                    <span class="hint">
-                        Entity- und Property-Namen des verknüpften Projekts im Explorer, im Tabellenkopf und in der Spaltensuche:
-                        neben den Oracle-Namen oder statt ihrer vorne. Enum-Werte zeigt FerretSharp immer mit ihrem C#-Namen;
-                        SQL bleibt bei den Namen der Datenbank.
-                    </span>
+                    <span>@ShellText.Settings_ClrNames</span>
+                    <span class="hint">@ShellText.Settings_ClrNamesHint</span>
                 </div>
-                <div class="segmented" role="radiogroup" aria-label="C#-Namen">
+                <div class="segmented" role="radiogroup" aria-label="@ShellText.Settings_ClrNames">
                     @foreach (var (mode, label) in NameModes)
                     {
                         var value = mode;
@@ -77,17 +94,18 @@
         </section>
 
         <section class="settings-section">
-            <h2>Verbindung</h2>
+            <h2>@ShellText.Settings_Connection</h2>
             <div class="settings-row">
                 <div class="settings-label">
-                    <span>Verbindung im Leerlauf prüfen</span>
+                    <span>@ShellText.Settings_KeepAlive</span>
                     <span class="hint">
-                        Fragt ruhende Sessions alle 2 Minuten kurz ab (<code>SELECT 1 FROM DUAL</code>). Ein Verbindungsabbruch
-                        wird so sofort gemeldet, und Firewalls trennen ruhende Verbindungen nicht. Hält die Sessions aber auch
-                        gegen ein <code>IDLE_TIME</code>-Limit der Datenbank offen.
+                        <Fmt Text="@ShellText.Settings_KeepAliveHint">
+                            <Arg0><code>SELECT 1 FROM DUAL</code></Arg0>
+                            <Arg1><code>IDLE_TIME</code></Arg1>
+                        </Fmt>
                     </span>
                 </div>
-                <div class="segmented" role="radiogroup" aria-label="Verbindung im Leerlauf prüfen">
+                <div class="segmented" role="radiogroup" aria-label="@ShellText.Settings_KeepAlive">
                     @foreach (var (on, label) in OnOff)
                     {
                         var value = on;
@@ -99,13 +117,12 @@
             </div>
             <div class="settings-row">
                 <div class="settings-label">
-                    <span>Warten auf gesperrte Zeilen</span>
+                    <span>@ShellText.Settings_LockWait</span>
                     <span class="hint">
-                        Hält eine andere Session eine Zeile gesperrt, die du schreiben willst, wartet FerretSharp so lange und
-                        zeigt dann, wer sperrt (<code>SELECT … FOR UPDATE WAIT n</code>).
+                        <Fmt Text="@ShellText.Settings_LockWaitHint"><Arg0><code>SELECT … FOR UPDATE WAIT n</code></Arg0></Fmt>
                     </span>
                 </div>
-                <div class="segmented" role="radiogroup" aria-label="Warten auf gesperrte Zeilen">
+                <div class="segmented" role="radiogroup" aria-label="@ShellText.Settings_LockWait">
                     @foreach (var seconds in WaitOptions)
                     {
                         var value = seconds;
@@ -118,18 +135,18 @@
         </section>
 
         <section class="settings-section">
-            <h2>Diagnose</h2>
+            <h2>@ShellText.Settings_Diagnostics</h2>
             <div class="settings-row">
                 <div class="settings-label">
-                    <span>Hänger der Oberfläche protokollieren</span>
+                    <span>@ShellText.Settings_DiagnoseUiStalls</span>
                     <span class="hint">
-                        Schreibt ins Log, wenn die Oberfläche länger als 0,3 s nicht reagiert, und womit FerretSharp da beschäftigt
-                        war. Ist das .NET-Werkzeug <code>dotnet-stack</code> installiert, kommen bei Hängern über 1,5 s die Stacks
-                        aller Threads als <code>stall-*.txt</code> in den Log-Ordner. Zum Eingrenzen von Hängern gedacht, nicht für
-                        den Alltag.
+                        <Fmt Text="@ShellText.Settings_DiagnoseUiStallsHint">
+                            <Arg0><code>dotnet-stack</code></Arg0>
+                            <Arg1><code>stall-*.txt</code></Arg1>
+                        </Fmt>
                     </span>
                 </div>
-                <div class="segmented" role="radiogroup" aria-label="Hänger der Oberfläche protokollieren">
+                <div class="segmented" role="radiogroup" aria-label="@ShellText.Settings_DiagnoseUiStalls">
                     @foreach (var (on, label) in OnOff)
                     {
                         var value = on;
@@ -144,14 +161,18 @@
 </div>
 
 @code {
-    private static readonly (bool Shortcuts, string Label)[] Sections = [(false, "Allgemein"), (true, "Tastenkürzel")];
+    // Texts as properties, not static fields: a static field would keep the language of the first render.
+    private static (bool Shortcuts, string Label)[] Sections => [(false, ShellText.Settings_General), (true, ShellText.Settings_Shortcuts)];
 
     private bool _shortcuts;
 
-    private static readonly (ThemeMode Mode, string Label)[] Modes =
-        [(ThemeMode.System, "System"), (ThemeMode.Light, "Hell"), (ThemeMode.Dark, "Dunkel")];
+    // Each language under its own name, in every UI language.
+    private static readonly (UiLanguage Language, string Label)[] Languages = [(UiLanguage.English, "English"), (UiLanguage.German, "Deutsch")];
 
-    private static readonly (bool On, string Label)[] OnOff = [(true, "An"), (false, "Aus")];
+    private static (ThemeMode Mode, string Label)[] Modes =>
+        [(ThemeMode.System, ShellText.Settings_ThemeSystem), (ThemeMode.Light, ShellText.Settings_ThemeLight), (ThemeMode.Dark, ShellText.Settings_ThemeDark)];
+
+    private static (bool On, string Label)[] OnOff => [(true, CommonText.On), (false, CommonText.Off)];
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -169,60 +190,34 @@
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            Shell.Notify($"Einstellung angewendet, aber nicht gespeichert: {ex.Message}");
+            Shell.Notify(TextFormat.Format(ShellText.Settings_NotSaved, ex.Message));
         }
     }
 
     private static readonly int[] WaitOptions = [1, 3, 5, 10, 30];
 
-    private static readonly (ClrNameDisplay Mode, string Label)[] NameModes =
-        [(ClrNameDisplay.Off, "Aus"), (ClrNameDisplay.Beside, "Daneben"), (ClrNameDisplay.Front, "Vorne")];
+    private static (ClrNameDisplay Mode, string Label)[] NameModes =>
+        [(ClrNameDisplay.Off, CommonText.Off), (ClrNameDisplay.Beside, ShellText.Settings_ClrNamesBeside), (ClrNameDisplay.Front, ShellText.Settings_ClrNamesFront)];
 
-    private async Task SetClrNamesAsync(ClrNameDisplay mode)
+    private Task SetLanguageAsync(UiLanguage language) => UpdateAsync(s => s with { Language = language });
+
+    private Task SetClrNamesAsync(ClrNameDisplay mode) => UpdateAsync(s => s with { ClrNames = mode });
+
+    private Task SetLockWaitAsync(int seconds) => UpdateAsync(s => s with { LockWaitSeconds = seconds });
+
+    private Task SetKeepAliveAsync(bool on) => UpdateAsync(s => s with { KeepAlive = on });
+
+    private Task SetDiagnoseUiStallsAsync(bool on) => UpdateAsync(s => s with { DiagnoseUiStalls = on });
+
+    private async Task UpdateAsync(Func<AppSettings, AppSettings> change)
     {
         try
         {
-            await Settings.UpdateAsync(s => s with { ClrNames = mode }, CancellationToken.None);
+            await Settings.UpdateAsync(change, CancellationToken.None);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            Shell.Notify($"Einstellung angewendet, aber nicht gespeichert: {ex.Message}");
-        }
-    }
-
-    private async Task SetLockWaitAsync(int seconds)
-    {
-        try
-        {
-            await Settings.UpdateAsync(s => s with { LockWaitSeconds = seconds }, CancellationToken.None);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            Shell.Notify($"Einstellung angewendet, aber nicht gespeichert: {ex.Message}");
-        }
-    }
-
-    private async Task SetKeepAliveAsync(bool on)
-    {
-        try
-        {
-            await Settings.UpdateAsync(s => s with { KeepAlive = on }, CancellationToken.None);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            Shell.Notify($"Einstellung angewendet, aber nicht gespeichert: {ex.Message}");
-        }
-    }
-
-    private async Task SetDiagnoseUiStallsAsync(bool on)
-    {
-        try
-        {
-            await Settings.UpdateAsync(s => s with { DiagnoseUiStalls = on }, CancellationToken.None);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            Shell.Notify($"Einstellung angewendet, aber nicht gespeichert: {ex.Message}");
+            Shell.Notify(TextFormat.Format(ShellText.Settings_NotSaved, ex.Message));
         }
     }
 }

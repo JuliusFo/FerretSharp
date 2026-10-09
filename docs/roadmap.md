@@ -6,19 +6,6 @@ Aus der `CLAUDE.md` ausgelagert (Stand 3.14.0). Beim Start eines Pakets den Absc
 
 Pakete aus dem Backlog, nach v3 mit dem Nutzer ausgewählt (2026-10-05). Versionen: Minor-Releases 3.x (nichts Inkompatibles).
 
-### WP-29 Englische Oberfläche (vor WP-22)
-Wunsch des Nutzers (2026-10-09): README, CHANGELOG und Screenshots auf GitHub sind englisch, die Oberfläche bisher nur deutsch (Menüpfade wie „*Einstellungen › Tastenkürzel*“ mitten im englischen Text, deutsche Screenshots unter englischen Bildunterschriften). Vor WP-22, weil WP-22/23/26 viele neue Dialoge bringen, die dann gleich zweisprachig entstehen. Umfang (Zählung 3.18.1, grob): ~1.300–1.500 Texte – Razor ~800 (Text und `title`/`placeholder`/`aria-label`), UI-C# ~300, Core ~250 in 41 Dateien (meist `ClrModel`, `Query`, `Oracle`); 35 Testdateien prüfen deutsche Texte. JS, AG Grid und Monaco haben praktisch keine deutschen Texte. Entscheidungen des Nutzers:
-- **Sprachen:** Englisch und Deutsch. **Standard ist Englisch** (auch für bestehende Installationen ohne gespeicherte Wahl), Deutsch in den Einstellungen wählbar.
-- **Enum-Anzeigenamen aus dem C#-Projekt** (`[Display]`) wechseln nicht mit der Oberflächensprache: Das Projekt des Nutzers hat nur deutsche Übersetzungen. Der ModelHost bekommt weiter die Windows-Kultur (heute `CultureInfo.CurrentUICulture` in `ModelHostRunner` und im Schlüssel von `ModelCache` – vor dem Umstellen der UI-Kultur festhalten, sonst wechselt der Cache-Schlüssel und die Namen fallen auf die neutrale Ressource zurück).
-- **Formatkultur bleibt vorerst deutsch** („1.234,5“, `TT.MM.JJJJ`; 14 Core-Dateien mit `GetCultureInfo("de-DE")`, auch fürs Parsen von Filter- und Editierwerten). Getrennt einstellbar machen ist ein eigener Backlog-Eintrag.
-- Vorschlag zur Umsetzung (beim Start mit dem Nutzer abstimmen):
-  - RCL: `IStringLocalizer` mit resx (geht in Blazor Hybrid); Core: resx mit `ResourceManager` (keine Abhängigkeit auf Microsoft.Extensions.Localization, baut weiter unter Linux). Neutrale Ressource englisch, `.de.resx` deutsch.
-  - Die App setzt `CurrentUICulture` vor dem Start der WebView; Umstellen in den Einstellungen wirkt nach einem Neustart (einfachste Variante). Startschalter `--lang=en|de` wie `--theme`, für Screenshots ohne Änderung der Einstellungen.
-  - Interpolierte Texte als Formatstrings, Plural sauber („1 row“/„N rows“), Texte mit eingebettetem Markup zerlegen. Fachbegriffe einheitlich übersetzen (Workspace, Freischalten, Sandbox, „Spalte ohne Property“) – Glossar im Paketprotokoll.
-  - Tests: bestehende auf `de` festnageln, Tests für `en` ergänzen; ein Test, dass jeder Schlüssel in beiden Sprachen existiert.
-  - Danach: README mit englischen Menünamen, Screenshots in `docs/images/` neu auf Englisch (`docs/e2e-testing.md`). CHANGELOG ab dann mit englischen Menünamen; alte Einträge bleiben als Historie.
-  - Ab WP-29 wird jedes neue Feature zweisprachig gepflegt (in `CLAUDE.md`, Abschnitt 6, „Fertig heißt“ ergänzen).
-
 ### WP-22 DDL im SQL-Editor
 Wunsch des Nutzers (2026-10-06): Tabellen anlegen und ändern, passend zum DB-first-Ablauf („erst DB ändern, dann Entity“). Erste Stufe: DDL im SQL-Editor (und in Skripten) zulassen. Entscheidungen des Nutzers:
 - **Wo:** auf allen schreibbaren Workspaces – Profile ohne „Schreibgeschützt“ sowie **auch Prod nach dem Freischalten** (WP-10). Gesperrte Workspaces nie (READ-ONLY-Transaktion schützt nicht vor DDL, deshalb weiter Abweisung im Editor).

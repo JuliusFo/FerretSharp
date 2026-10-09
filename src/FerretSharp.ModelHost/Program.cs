@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Runtime.Loader;
 using System.Text.Json;
 using FerretSharp.Core.ClrModel;
+using FerretSharp.ModelHost.Resources;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 
@@ -11,10 +12,10 @@ namespace FerretSharp.ModelHost;
 /// <summary>
 /// Reads the EF Core model of a user's project (ADR 0009) or serves the LINQ console (ADR 0011). Started by FerretSharp
 /// with <c>dotnet exec</c> and the project's deps.json, so the project's runtime, EF Core and provider are used.
-/// <code>FerretSharp.ModelHost --assembly &lt;Data.dll&gt; --output &lt;result.json&gt; [--context &lt;type name&gt;] [--culture &lt;de-DE&gt;]</code>
+/// <code>FerretSharp.ModelHost --assembly &lt;Data.dll&gt; --output &lt;result.json&gt; [--context &lt;type name&gt;] [--culture &lt;de-DE&gt;] [--ui-culture &lt;de&gt;]</code>
 /// writes a <see cref="ModelHostResult"/> as JSON to <c>--output</c> (not stdout: the project's code may write to the
 /// console); exit code 0 with a model, 1 with an error in the result, 2 if not even the result could be written.
-/// <code>FerretSharp.ModelHost --assembly &lt;Data.dll&gt; --console &lt;pipe name&gt; [--context …] [--culture …]</code>
+/// <code>FerretSharp.ModelHost --assembly &lt;Data.dll&gt; --console &lt;pipe name&gt; [--context …] [--culture …] [--ui-culture …]</code>
 /// connects to FerretSharp's named pipe and answers <see cref="LinqRequest"/>s until told to shut down.
 /// </summary>
 internal static class Program
@@ -28,7 +29,12 @@ internal static class Program
     private static int Run(string[] args)
     {
         var options = Arguments.Parse(args);
-        // Display names of enum members come from the project's resources in this culture (FerretSharp's UI language).
+        // The host's own messages and steps: FerretSharp's UI language (WP-29). Only the texts' culture, not the thread's –
+        // that one is the Windows language below. A FerretSharp without --ui-culture gets English.
+        AssemblyLoadContext.Default.Resolving += ResolveOwnSatellite;
+        ModelHostText.Culture = UiCulture(options.UiCulture);
+
+        // Display names of enum members come from the project's resources in this culture (the Windows language).
         if (options.Culture is { Length: > 0 } culture)
         {
             try
@@ -48,7 +54,7 @@ internal static class Program
 
         if (options.Output is null)
         {
-            Console.Error.WriteLine("--output fehlt.");
+            Console.Error.WriteLine("--output is missing.");
             return 2;
         }
 
@@ -82,13 +88,13 @@ internal static class Program
     private static ModelHostResult ReadModel(Arguments options)
     {
         var (contextType, types) = LoadContextType(options);
-        Step("Erzeuge den DbContext");
+        Step(ModelHostText.StepCreateContext);
         var (context, createdBy) = CreateContext(contextType, types);
         using (context)
         {
-            Step("Baue das Modell (OnModelCreating)");
+            Step(ModelHostText.StepBuildModel);
             var model = BuildModel(context, contextType);
-            Step("Lese das Modell aus");
+            Step(ModelHostText.StepReadModel);
             return new ModelHostResult(ModelReader.Read(model, contextType, createdBy), null);
         }
     }
@@ -99,7 +105,9 @@ internal static class Program
     {
         if (options.Assembly is null || !File.Exists(options.Assembly))
         {
-            throw Error(ModelHostErrorKind.Arguments, $"Assembly nicht gefunden: {options.Assembly ?? "(--assembly fehlt)"}");
+            throw Error(ModelHostErrorKind.Arguments, options.Assembly is null
+                ? ModelHostText.AssemblyArgumentMissing
+                : Text(ModelHostText.AssemblyNotFound, options.Assembly));
         }
 
         var directory = Path.GetDirectoryName(Path.GetFullPath(options.Assembly))!;
@@ -122,7 +130,7 @@ internal static class Program
             return null;
         };
 
-        Step("Lade die Assemblies");
+        Step(ModelHostText.StepLoadAssemblies);
         Assembly assembly;
         Type[] types;
         try
@@ -132,7 +140,7 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            throw Error(ModelHostErrorKind.AssemblyNotLoadable, $"{Path.GetFileName(options.Assembly)} lässt sich nicht laden: {ex.Message}", ex);
+            throw Error(ModelHostErrorKind.AssemblyNotLoadable, Text(ModelHostText.AssemblyNotLoadable, Path.GetFileName(options.Assembly), ex.Message), ex);
         }
 
         var contexts = types.Where(t => typeof(DbContext).IsAssignableFrom(t) && t is { IsAbstract: false, IsGenericTypeDefinition: false }).ToList();
@@ -144,14 +152,14 @@ internal static class Program
         if (contexts.Count == 0)
         {
             throw Error(ModelHostErrorKind.NoContext, options.Context is null
-                ? $"In {assembly.GetName().Name} gibt es keinen DbContext."
-                : $"In {assembly.GetName().Name} gibt es keinen DbContext „{options.Context}“.");
+                ? Text(ModelHostText.NoContext, assembly.GetName().Name)
+                : Text(ModelHostText.NoContextNamed, assembly.GetName().Name, options.Context));
         }
 
         if (contexts.Count > 1)
         {
             throw Error(ModelHostErrorKind.SeveralContexts,
-                $"Mehrere DbContexts – bitte einen angeben: {string.Join(", ", contexts.Select(t => t.FullName))}");
+                Text(ModelHostText.SeveralContexts, string.Join(", ", contexts.Select(t => t.FullName))));
         }
 
         return (contexts[0], types);
@@ -171,7 +179,7 @@ internal static class Program
         catch (Exception ex)
         {
             var inner = Unwrap(ex);
-            throw Error(ModelHostErrorKind.ContextCreationFailed, $"{contextType.Name} ließ sich nicht erzeugen: {inner.Message}", inner);
+            throw Error(ModelHostErrorKind.ContextCreationFailed, Text(ModelHostText.ContextNotCreated, contextType.Name, inner.Message), inner);
         }
     }
 
@@ -186,7 +194,7 @@ internal static class Program
         catch (Exception ex)
         {
             var inner = Unwrap(ex);
-            throw Error(ModelHostErrorKind.ModelBuildFailed, $"Das Modell von {contextType.Name} ließ sich nicht bauen: {inner.Message}", inner);
+            throw Error(ModelHostErrorKind.ModelBuildFailed, Text(ModelHostText.ModelNotBuilt, contextType.Name, inner.Message), inner);
         }
     }
 
@@ -212,6 +220,45 @@ internal static class Program
     /// <summary>The host's own folder (with <c>dotnet exec --depsfile</c>, AppContext.BaseDirectory is not reliably it).</summary>
     private static readonly string HostDirectory = Path.GetDirectoryName(typeof(Program).Assembly.Location)!;
 
+    /// <summary>Fills the placeholders of a <see cref="ModelHostText"/> (numbers in the current culture, as before).</summary>
+    internal static string Text(string format, params object?[] args) => string.Format(CultureInfo.CurrentCulture, format, args);
+
+    /// <summary>
+    /// The language of the host's own texts: <c>--ui-culture</c>, English (the neutral resources) without it or for an
+    /// unknown culture.
+    /// </summary>
+    private static CultureInfo UiCulture(string? name)
+    {
+        if (name is { Length: > 0 })
+        {
+            try
+            {
+                return CultureInfo.GetCultureInfo(name);
+            }
+            catch (CultureNotFoundException)
+            {
+                // unknown culture (or invariant globalization): English
+            }
+        }
+
+        return CultureInfo.InvariantCulture;
+    }
+
+    /// <summary>
+    /// The host's own satellite assemblies (<c>de\FerretSharp.ModelHost.resources.dll</c>): the project's deps.json does not
+    /// know them, and messages may be needed before the project's assembly is loaded.
+    /// </summary>
+    private static Assembly? ResolveOwnSatellite(AssemblyLoadContext context, AssemblyName name)
+    {
+        if (string.IsNullOrEmpty(name.CultureName) || name.Name != typeof(Program).Assembly.GetName().Name + ".resources")
+        {
+            return null;
+        }
+
+        var candidate = Path.Combine(HostDirectory, name.CultureName, name.Name + ".dll");
+        return File.Exists(candidate) ? context.LoadFromAssemblyPath(candidate) : null;
+    }
+
     internal static Exception Unwrap(Exception ex) => ex is TargetInvocationException { InnerException: { } inner } ? Unwrap(inner) : ex;
 
     internal static ModelHostResult Fail(string kind, string message, Exception? ex = null) =>
@@ -220,7 +267,7 @@ internal static class Program
     private static ModelHostException Error(string kind, string message, Exception? ex = null) =>
         new(new ModelHostError(kind, message, ex?.ToString()));
 
-    internal sealed record Arguments(string? Assembly, string? Output, string? Context, string? Culture, string? Console)
+    internal sealed record Arguments(string? Assembly, string? Output, string? Context, string? Culture, string? Console, string? UiCulture)
     {
         public static Arguments Parse(string[] args)
         {
@@ -230,7 +277,7 @@ internal static class Program
                 return index >= 0 && index + 1 < args.Length ? args[index + 1] : null;
             }
 
-            return new Arguments(Value("--assembly"), Value("--output"), Value("--context"), Value("--culture"), Value("--console"));
+            return new Arguments(Value("--assembly"), Value("--output"), Value("--context"), Value("--culture"), Value("--console"), Value("--ui-culture"));
         }
     }
 }

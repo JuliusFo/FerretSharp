@@ -1,0 +1,260 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Compare_Title" xml:space="preserve">
+    <value>Schema comparison</value>
+    <comment>Page title</comment>
+  </data>
+  <data name="Compare_SavedTitle" xml:space="preserve">
+    <value>Saved comparisons</value>
+  </data>
+  <data name="Compare_New" xml:space="preserve">
+    <value>New comparison</value>
+    <comment>Option in the list of saved comparisons</comment>
+  </data>
+  <data name="Compare_NotSaved" xml:space="preserve">
+    <value>– not saved –</value>
+    <comment>Option in the list of saved comparisons while the current one is not saved</comment>
+  </data>
+  <data name="Compare_SaveEllipsis" xml:space="preserve">
+    <value>Save …</value>
+    <comment>Button: opens the save dialog</comment>
+  </data>
+  <data name="Compare_SaveCopyEllipsis" xml:space="preserve">
+    <value>Save copy …</value>
+    <comment>Button: opens the save dialog for a copy</comment>
+  </data>
+  <data name="Compare_Sides" xml:space="preserve">
+    <value>Sides</value>
+    <comment>Heading: the connections or schemas compared</comment>
+  </data>
+  <data name="Compare_Connection" xml:space="preserve">
+    <value>Connection</value>
+    <comment>Tooltip of the connection list of a side</comment>
+  </data>
+  <data name="Compare_ChooseConnection" xml:space="preserve">
+    <value>Choose a connection …</value>
+  </data>
+  <data name="Compare_SchemaPlaceholder" xml:space="preserve">
+    <value>Schema</value>
+    <comment>Placeholder of the schema field when no connection is chosen</comment>
+  </data>
+  <data name="Compare_SchemaTitle" xml:space="preserve">
+    <value>Schema (empty: the connection’s)</value>
+  </data>
+  <data name="Compare_ReferenceTitle" xml:space="preserve">
+    <value>The other sides are measured against this one</value>
+  </data>
+  <data name="Compare_Reference" xml:space="preserve">
+    <value>Reference</value>
+    <comment>Checkbox: this side is the reference</comment>
+  </data>
+  <data name="Compare_Waiting" xml:space="preserve">
+    <value>Waiting</value>
+    <comment>Status of a side before its loading step is known</comment>
+  </data>
+  <data name="Compare_PasswordFor" xml:space="preserve">
+    <value>Password for {0}</value>
+    <comment>{0} = connection name</comment>
+  </data>
+  <data name="Compare_PasswordTitle" xml:space="preserve">
+    <value>Only for this comparison, not saved</value>
+  </data>
+  <data name="Compare_Load" xml:space="preserve">
+    <value>Load</value>
+    <comment>Button: load the side with the password typed</comment>
+  </data>
+  <data name="Compare_SideLoadedOne" xml:space="preserve">
+    <value>{0:N0} object · {1}</value>
+    <comment>{0} = number of objects read, {1} = time they were read</comment>
+  </data>
+  <data name="Compare_SideLoadedOther" xml:space="preserve">
+    <value>{0:N0} objects · {1}</value>
+    <comment>{0} = number of objects read, {1} = time they were read</comment>
+  </data>
+  <data name="Compare_EmptyTitle" xml:space="preserve">
+    <value>Schema empty, misspelled or not visible to this user</value>
+  </data>
+  <data name="Compare_Empty" xml:space="preserve">
+    <value>empty</value>
+    <comment>Status of a side without objects</comment>
+  </data>
+  <data name="Compare_RemoveSide" xml:space="preserve">
+    <value>Remove side</value>
+  </data>
+  <data name="Compare_AddSide" xml:space="preserve">
+    <value>+ Side</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Compare_ColumnOrderTitle" xml:space="preserve">
+    <value>Show a different column order as a difference</value>
+  </data>
+  <data name="Compare_ColumnOrder" xml:space="preserve">
+    <value>Compare column order</value>
+    <comment>Checkbox</comment>
+  </data>
+  <data name="Compare_Run" xml:space="preserve">
+    <value>Compare</value>
+    <comment>Button: read the sides and compare them</comment>
+  </data>
+  <data name="Compare_OnlyDifferences" xml:space="preserve">
+    <value>Only differences</value>
+    <comment>Checkbox</comment>
+  </data>
+  <data name="Compare_FilterObjects" xml:space="preserve">
+    <value>Objects</value>
+    <comment>Filter checkbox: tables, views, materialized views</comment>
+  </data>
+  <data name="Compare_FilterColumns" xml:space="preserve">
+    <value>Columns</value>
+    <comment>Filter checkbox</comment>
+  </data>
+  <data name="Compare_FilterConstraints" xml:space="preserve">
+    <value>Constraints</value>
+    <comment>Filter checkbox</comment>
+  </data>
+  <data name="Compare_FilterIndexes" xml:space="preserve">
+    <value>Indexes</value>
+    <comment>Filter checkbox</comment>
+  </data>
+  <data name="Compare_SearchPlaceholder" xml:space="preserve">
+    <value>Search objects</value>
+  </data>
+  <data name="Compare_CopyMarkdown" xml:space="preserve">
+    <value>Copy as Markdown</value>
+  </data>
+  <data name="Compare_DdlProposalEllipsis" xml:space="preserve">
+    <value>DDL proposal …</value>
+    <comment>Button: opens the DDL proposal</comment>
+  </data>
+  <data name="Compare_HeadObject" xml:space="preserve">
+    <value>Object</value>
+    <comment>Header of the first matrix column</comment>
+  </data>
+  <data name="Compare_ReferenceHeader" xml:space="preserve">
+    <value>{0} (reference)</value>
+    <comment>Header of the reference side. {0} = label of the side</comment>
+  </data>
+  <data name="Compare_NoMatch" xml:space="preserve">
+    <value>No object matches the filters.</value>
+  </data>
+  <data name="Compare_NoDifferences" xml:space="preserve">
+    <value>No differences.</value>
+  </data>
+  <data name="Compare_SaveTitle" xml:space="preserve">
+    <value>Save comparison</value>
+    <comment>Dialog title</comment>
+  </data>
+  <data name="Compare_SaveCopyTitle" xml:space="preserve">
+    <value>Save copy</value>
+    <comment>Dialog title</comment>
+  </data>
+  <data name="Compare_Name" xml:space="preserve">
+    <value>Name</value>
+    <comment>Label of the name field</comment>
+  </data>
+  <data name="Compare_NamePlaceholder" xml:space="preserve">
+    <value>e.g. ERP: Dev/Test/Prod</value>
+  </data>
+  <data name="Compare_DeleteTitle" xml:space="preserve">
+    <value>Delete comparison</value>
+    <comment>Dialog title</comment>
+  </data>
+  <data name="Compare_DeleteQuestion" xml:space="preserve">
+    <value>Delete the saved comparison {0}? The connections are kept.</value>
+    <comment>{0} = name of the comparison (bold)</comment>
+  </data>
+  <data name="Compare_SummaryNone" xml:space="preserve">
+    <value>no differences</value>
+    <comment>Summary in the toolbar of the result</comment>
+  </data>
+  <data name="Compare_SummaryOne" xml:space="preserve">
+    <value>{0:N0} object with differences</value>
+    <comment>Summary in the toolbar of the result. {0} = number of objects</comment>
+  </data>
+  <data name="Compare_SummaryOther" xml:space="preserve">
+    <value>{0:N0} objects with differences</value>
+    <comment>Summary in the toolbar of the result. {0} = number of objects</comment>
+  </data>
+  <data name="Compare_KindColumn" xml:space="preserve">
+    <value>Column</value>
+    <comment>Kind of a row in the matrix (tooltip)</comment>
+  </data>
+  <data name="Compare_KindPrimaryKey" xml:space="preserve">
+    <value>Primary key</value>
+    <comment>Kind of a row in the matrix (tooltip)</comment>
+  </data>
+  <data name="Compare_KindUnique" xml:space="preserve">
+    <value>Unique constraint</value>
+    <comment>Kind of a row in the matrix (tooltip)</comment>
+  </data>
+  <data name="Compare_KindForeignKey" xml:space="preserve">
+    <value>Foreign key</value>
+    <comment>Kind of a row in the matrix (tooltip)</comment>
+  </data>
+  <data name="Compare_KindCheck" xml:space="preserve">
+    <value>Check constraint</value>
+    <comment>Kind of a row in the matrix (tooltip)</comment>
+  </data>
+  <data name="Compare_KindIndex" xml:space="preserve">
+    <value>Index</value>
+    <comment>Kind of a row in the matrix (tooltip)</comment>
+  </data>
+  <data name="Compare_CopiedMarkdown" xml:space="preserve">
+    <value>Comparison copied as Markdown.</value>
+  </data>
+  <data name="Compare_ClipboardUnavailable" xml:space="preserve">
+    <value>The clipboard is not available.</value>
+  </data>
+  <data name="Compare_CopyName" xml:space="preserve">
+    <value>{0} (copy)</value>
+    <comment>Proposed name of a copy. {0} = name of the comparison</comment>
+  </data>
+  <data name="Compare_Saved" xml:space="preserve">
+    <value>“{0}” saved.</value>
+    <comment>{0} = name of the comparison</comment>
+  </data>
+  <data name="Compare_MissingConnection" xml:space="preserve">
+    <value>(connection missing)</value>
+    <comment>Label of a side whose connection was deleted</comment>
+  </data>
+  <data name="Compare_SaveFailed" xml:space="preserve">
+    <value>Saving failed: {0}</value>
+    <comment>{0} = error message of the file system</comment>
+  </data>
+  <data name="CompareDdl_Title" xml:space="preserve">
+    <value>DDL proposal</value>
+    <comment>Dialog title</comment>
+  </data>
+  <data name="CompareDdl_AlignTo" xml:space="preserve">
+    <value>Align {0} to {1}</value>
+    <comment>{0} = list of the side to change, {1} = list of the side it should look like</comment>
+  </data>
+  <data name="CompareDdl_TargetTitle" xml:space="preserve">
+    <value>This side is aligned</value>
+  </data>
+  <data name="CompareDdl_ReferenceTitle" xml:space="preserve">
+    <value>What it should look like</value>
+  </data>
+  <data name="CompareDdl_Note" xml:space="preserve">
+    <value>Only a proposal to copy – FerretSharp does not run it. DDL cannot be undone; check steps marked ⚠ first.</value>
+  </data>
+  <data name="CompareDdl_NoDifferences" xml:space="preserve">
+    <value>No differences between these two sides.</value>
+  </data>
+  <data name="CompareDdl_Failed" xml:space="preserve">
+    <value>The DDL proposal could not be created: {0}</value>
+    <comment>{0} = error message</comment>
+  </data>
+</root>

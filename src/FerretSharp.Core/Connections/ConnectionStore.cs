@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using System.Text.Json;
 using FerretSharp.Core.IO;
+using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.Connections;
 
@@ -34,19 +35,18 @@ public sealed class ConnectionStore(string filePath) : IConnectionStore
 
             await using var stream = File.OpenRead(FilePath);
             var document = await JsonSerializer.DeserializeAsync<ConnectionsDocument>(stream, JsonFiles.Options, cancellationToken)
-                           ?? throw new ConnectionStoreException($"{FilePath} ist leer.");
+                           ?? throw new ConnectionStoreException(TextFormat.Format(ConnectionText.FileEmpty, FilePath));
 
             if (document.Version > CurrentVersion)
             {
-                throw new ConnectionStoreException(
-                    $"{FilePath} stammt aus einer neueren FerretSharp-Version (Format {document.Version}).");
+                throw new ConnectionStoreException(TextFormat.Format(ConnectionText.FileFromNewerVersion, FilePath, document.Version));
             }
 
             return document.Connections;
         }
         catch (JsonException ex)
         {
-            throw new ConnectionStoreException($"{FilePath} ist kein gültiges Verbindungs-JSON: {ex.Message}", ex);
+            throw new ConnectionStoreException(TextFormat.Format(ConnectionText.InvalidFile, FilePath, ex.Message), ex);
         }
         finally
         {

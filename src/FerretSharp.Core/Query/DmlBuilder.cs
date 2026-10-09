@@ -3,6 +3,7 @@ using System.Text;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
 using FerretSharp.Core.Oracle;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.Query;
@@ -26,7 +27,7 @@ public static class DmlBuilder
     {
         if (waitSeconds is < 0 or > MaxLockWaitSeconds)
         {
-            throw new ArgumentOutOfRangeException(nameof(waitSeconds), waitSeconds, $"0 bis {MaxLockWaitSeconds} Sekunden.");
+            throw new ArgumentOutOfRangeException(nameof(waitSeconds), waitSeconds, $"0 to {MaxLockWaitSeconds} seconds.");
         }
 
         var parameters = new List<QueryParameter>();
@@ -40,7 +41,7 @@ public static class DmlBuilder
     {
         if (values.Count == 0)
         {
-            throw new ArgumentException("Nichts zu ändern.", nameof(values));
+            throw new ArgumentException("Nothing to change.", nameof(values));
         }
 
         var parameters = new List<QueryParameter>();
@@ -84,7 +85,7 @@ public static class DmlBuilder
         return new QuerySpec($"INSERT INTO {Target(table)} ({columns})\nVALUES ({binds})\nRETURNING ROWID INTO :{RowIdOutput}", parameters);
     }
 
-    /// <summary>The statements a flush would run, in order (for "Änderungen als SQL anzeigen").</summary>
+    /// <summary>The statements a flush would run, in order (for "Show changes as SQL").</summary>
     public static IReadOnlyList<QuerySpec> Describe(TableDetails table, IReadOnlyList<PendingOperation> operations, int waitSeconds)
     {
         var statements = new List<QuerySpec>();
@@ -130,7 +131,7 @@ public static class DmlBuilder
                     var column = table.Columns.First(c => c.Name == table.PrimaryKey[i]);
                     if (pk.Values[i] is null)
                     {
-                        throw new RefusedException($"Primärschlüssel {column.Name} ist NULL.");
+                        throw new RefusedException(TextFormat.Format(QueryText.DmlPrimaryKeyNull, column.Name));
                     }
 
                     var name = "k" + i.ToString(CultureInfo.InvariantCulture);
@@ -143,7 +144,7 @@ public static class DmlBuilder
                 parameters.Add(new QueryParameter("k_rowid", rowId.Value, OracleTypeHint.Varchar2));
                 return "ROWID = :k_rowid";
             default:
-                throw new RefusedException("Die Zeile hat keinen Schlüssel und lässt sich nicht schreiben.");
+                throw new RefusedException(QueryText.DmlRowWithoutKey);
         }
     }
 }

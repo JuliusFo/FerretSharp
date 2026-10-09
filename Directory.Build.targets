@@ -1,0 +1,17 @@
+<Project>
+
+  <!-- Localized texts (WP-29, ADR 0017): Resources/<Area>Text.resx holds the English texts, <Area>Text.de.resx the German
+       ones. The build generates a class <Area>Text (namespace <RootNamespace>.Resources) with one property per text, so a
+       missing key is a compile error. Only the neutral file matches the pattern: "FooText.de.resx" does not end in "Text.resx". -->
+  <ItemGroup>
+    <EmbeddedResource Update="Resources\*Text.resx">
+      <StronglyTypedLanguage>CSharp</StronglyTypedLanguage>
+      <StronglyTypedNamespace>$(RootNamespace).Resources</StronglyTypedNamespace>
+      <StronglyTypedClassName>%(Filename)</StronglyTypedClassName>
+      <StronglyTypedManifestPrefix>$(RootNamespace).Resources</StronglyTypedManifestPrefix>
+      <StronglyTypedFileName>$(IntermediateOutputPath)%(Filename).g.cs</StronglyTypedFileName>
+      <PublicClass>true</PublicClass>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>

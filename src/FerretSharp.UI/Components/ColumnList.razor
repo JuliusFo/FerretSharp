@@ -10,7 +10,7 @@
 <div class="col-list">
     @if (_matches.Count == 0)
     {
-        <div class="popover-empty">Keine Spalte passt zu „@Query“.</div>
+        <div class="popover-empty">@TextFormat.Format(SchemaViewText.NoColumnMatches, Query)</div>
     }
     @for (var i = 0; i < _matches.Count; i++)
     {

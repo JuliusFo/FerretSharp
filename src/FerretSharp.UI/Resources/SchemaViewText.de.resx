@@ -1,0 +1,594 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Loading" xml:space="preserve">
+    <value>Lade …</value>
+  </data>
+  <data name="InvalidChip" xml:space="preserve">
+    <value>UNGÜLTIG</value>
+  </data>
+  <data name="NoColumnMatches" xml:space="preserve">
+    <value>Keine Spalte passt zu „{0}“.</value>
+  </data>
+  <data name="SynonymTo" xml:space="preserve">
+    <value>Synonym {0} → {1}</value>
+  </data>
+  <data name="PublicSynonymTo" xml:space="preserve">
+    <value>Öffentliches Synonym {0} → {1}</value>
+  </data>
+  <data name="PublicSynonymChip" xml:space="preserve">
+    <value>ÖFFENTLICHES SYNONYM</value>
+  </data>
+  <data name="Head_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="Head_Type" xml:space="preserve">
+    <value>Typ</value>
+  </data>
+  <data name="Head_Columns" xml:space="preserve">
+    <value>Spalten</value>
+  </data>
+  <data name="Head_Status" xml:space="preserve">
+    <value>Zustand</value>
+  </data>
+  <data name="Head_Default" xml:space="preserve">
+    <value>Default</value>
+  </data>
+  <data name="Kind_Package" xml:space="preserve">
+    <value>Package</value>
+  </data>
+  <data name="Kind_Procedure" xml:space="preserve">
+    <value>Prozedur</value>
+  </data>
+  <data name="Kind_Function" xml:space="preserve">
+    <value>Funktion</value>
+  </data>
+  <data name="Kind_Trigger" xml:space="preserve">
+    <value>Trigger</value>
+  </data>
+  <data name="Invalid_MaterializedView" xml:space="preserve">
+    <value>Ungültig (INVALID): muss neu kompiliert werden, z. B. nach einer Änderung an der Basistabelle. Abfragen funktionieren weiter.</value>
+  </data>
+  <data name="Invalid_View" xml:space="preserve">
+    <value>Ungültig (INVALID): Oracle kompiliert die View beim nächsten Zugriff neu. Schlägt das fehl (z. B. weil eine Spalte fehlt), liefert die Abfrage einen Fehler.</value>
+  </data>
+  <data name="Invalid_Other" xml:space="preserve">
+    <value>Ungültig (INVALID): wird beim nächsten Aufruf neu kompiliert. Schlägt das fehl, gibt es einen Fehler.</value>
+  </data>
+  <data name="Explorer_ReloadSchema" xml:space="preserve">
+    <value>Schema neu laden</value>
+  </data>
+  <data name="Explorer_Tables" xml:space="preserve">
+    <value>Tabellen</value>
+  </data>
+  <data name="Explorer_TablesTitle" xml:space="preserve">
+    <value>Tabellen, Views und Materialized Views</value>
+  </data>
+  <data name="Explorer_PlSqlTitle" xml:space="preserve">
+    <value>Packages, Prozeduren, Funktionen und Trigger – nur ansehen</value>
+  </data>
+  <data name="Explorer_InvalidObjects" xml:space="preserve">
+    <value>Ungültige Objekte</value>
+  </data>
+  <data name="Explorer_Source" xml:space="preserve">
+    <value>Quelltext</value>
+  </data>
+  <data name="Explorer_SourceSearchTitle" xml:space="preserve">
+    <value>Im Quelltext aller Packages, Prozeduren, Funktionen und Trigger des Schemas suchen (Enter)</value>
+  </data>
+  <data name="Explorer_NoTables" xml:space="preserve">
+    <value>Das Schema enthält keine Tabellen oder Views.</value>
+  </data>
+  <data name="Explorer_NoPlSql" xml:space="preserve">
+    <value>Das Schema enthält keine Packages, Prozeduren, Funktionen oder Trigger.</value>
+  </data>
+  <data name="Explorer_NothingFound" xml:space="preserve">
+    <value>Nichts gefunden für „{0}“.</value>
+  </data>
+  <data name="Explorer_ObjectCountOne" xml:space="preserve">
+    <value>{0:N0} Objekt</value>
+  </data>
+  <data name="Explorer_ObjectCountOther" xml:space="preserve">
+    <value>{0:N0} Objekte</value>
+  </data>
+  <data name="Explorer_SearchSourcePlaceholder" xml:space="preserve">
+    <value>Im Quelltext suchen … (Enter)</value>
+  </data>
+  <data name="Explorer_SearchPlSqlPlaceholder" xml:space="preserve">
+    <value>PL/SQL suchen …</value>
+  </data>
+  <data name="Explorer_SearchTablePlaceholder" xml:space="preserve">
+    <value>Tabelle suchen …</value>
+  </data>
+  <data name="Explorer_Searching" xml:space="preserve">
+    <value>Suche „{0}“ …</value>
+  </data>
+  <data name="Explorer_SourceSearchHint" xml:space="preserve">
+    <value>Text eingeben und Enter drücken: sucht in allen Zeilen der Packages, Prozeduren, Funktionen und Trigger von {0} (Groß-/Kleinschreibung egal, mindestens {1} Zeichen).</value>
+  </data>
+  <data name="Explorer_NoSourceHit" xml:space="preserve">
+    <value>Kein Quelltext enthält „{0}“.</value>
+  </data>
+  <data name="Explorer_HitsLimited" xml:space="preserve">
+    <value>Mehr als {0} Zeilen – die ersten {0}; Suche eingrenzen.</value>
+  </data>
+  <data name="Explorer_HitLinesOne" xml:space="preserve">
+    <value>{0} Zeile</value>
+  </data>
+  <data name="Explorer_HitLinesOther" xml:space="preserve">
+    <value>{0} Zeilen</value>
+  </data>
+  <data name="Explorer_HitsInPlSqlOne" xml:space="preserve">
+    <value>{0} Treffer unter PL/SQL</value>
+  </data>
+  <data name="Explorer_HitsInPlSqlOther" xml:space="preserve">
+    <value>{0} Treffer unter PL/SQL</value>
+  </data>
+  <data name="Explorer_HitsInTablesOne" xml:space="preserve">
+    <value>{0} Treffer unter Tabellen</value>
+  </data>
+  <data name="Explorer_HitsInTablesOther" xml:space="preserve">
+    <value>{0} Treffer unter Tabellen</value>
+  </data>
+  <data name="Explorer_SourceSearchTooShort" xml:space="preserve">
+    <value>Mindestens {0} Zeichen eingeben.</value>
+  </data>
+  <data name="Explorer_EntityTooltip" xml:space="preserve">
+    <value>Entity {0}</value>
+  </data>
+  <data name="Explorer_KindTable" xml:space="preserve">
+    <value>Tabelle</value>
+  </data>
+  <data name="Explorer_KindView" xml:space="preserve">
+    <value>View</value>
+  </data>
+  <data name="Explorer_KindMaterializedView" xml:space="preserve">
+    <value>Materialized View</value>
+  </data>
+  <data name="Explorer_SynonymTooltip" xml:space="preserve">
+    <value>Synonym → {0} ({1})</value>
+  </data>
+  <data name="Explorer_PublicSynonymTooltip" xml:space="preserve">
+    <value>Öffentliches Synonym → {0} ({1})</value>
+  </data>
+  <data name="Explorer_TriggerDisabled" xml:space="preserve">
+    <value>Deaktiviert: feuert nicht.</value>
+  </data>
+  <data name="Explorer_BodyInvalid" xml:space="preserve">
+    <value>Body {0}</value>
+  </data>
+  <data name="LetterIndex_Label" xml:space="preserve">
+    <value>Buchstabenindex</value>
+  </data>
+  <data name="LetterIndex_Other" xml:space="preserve">
+    <value>Sonstige (Sonderzeichen, Ziffern, Kleinbuchstaben)</value>
+  </data>
+  <data name="Tab_BackTo" xml:space="preserve">
+    <value>Zurück zu {0}{1}</value>
+  </data>
+  <data name="Tab_ForwardTo" xml:space="preserve">
+    <value>Vor zu {0}{1}</value>
+  </data>
+  <data name="Tab_ViewData" xml:space="preserve">
+    <value>Daten</value>
+  </data>
+  <data name="Tab_ViewColumns" xml:space="preserve">
+    <value>Spalten</value>
+  </data>
+  <data name="Tab_ViewConstraints" xml:space="preserve">
+    <value>Constraints</value>
+  </data>
+  <data name="Tab_ViewIndexes" xml:space="preserve">
+    <value>Indizes</value>
+  </data>
+  <data name="Tab_ViewDependencies" xml:space="preserve">
+    <value>Abhängigkeiten</value>
+  </data>
+  <data name="Tab_ViewDdl" xml:space="preserve">
+    <value>DDL</value>
+  </data>
+  <data name="Tab_AddRow" xml:space="preserve">
+    <value>+ Zeile</value>
+  </data>
+  <data name="Tab_AddRowTitle" xml:space="preserve">
+    <value>Neue Zeile oben im Grid anlegen – wird mit „Schreiben“{0} eingefügt</value>
+  </data>
+  <data name="Tab_Form" xml:space="preserve">
+    <value>Formular</value>
+  </data>
+  <data name="Tab_FormTitle" xml:space="preserve">
+    <value>Die Zeile des Grids als Formular daneben</value>
+  </data>
+  <data name="Tab_FormTitleWithKey" xml:space="preserve">
+    <value>Die Zeile des Grids als Formular daneben ({0} im Grid; bei mehreren markierten Zeilen: vergleichen)</value>
+  </data>
+  <data name="Tab_LoadingStructure" xml:space="preserve">
+    <value>Lade Struktur …</value>
+  </data>
+  <data name="Tab_TableNotEditable" xml:space="preserve">
+    <value>Diese Tabelle lässt sich nicht bearbeiten.</value>
+  </data>
+  <data name="Tab_WorkspaceReadOnly" xml:space="preserve">
+    <value>Der Workspace ist schreibgeschützt – zum Ändern freischalten.</value>
+  </data>
+  <data name="Tab_RowMarkedForDeletion" xml:space="preserve">
+    <value>Die Zeile ist zum Löschen markiert.</value>
+  </data>
+  <data name="Tab_CompareTooMany" xml:space="preserve">
+    <value>Höchstens {0} Zeilen lassen sich vergleichen – {1} sind markiert.</value>
+  </data>
+  <data name="Tab_CompareTooFew" xml:space="preserve">
+    <value>Zum Vergleichen mindestens zwei geladene Zeilen markieren.</value>
+  </data>
+  <data name="Columns_Heading" xml:space="preserve">
+    <value>Spalten</value>
+  </data>
+  <data name="Columns_FilteredCount" xml:space="preserve">
+    <value>{0} von {1}</value>
+  </data>
+  <data name="Columns_EntityTitle" xml:space="preserve">
+    <value>{0} – aus dem C#-Modell</value>
+  </data>
+  <data name="Columns_Entity" xml:space="preserve">
+    <value>Entity {0}</value>
+  </data>
+  <data name="Columns_FilterPlaceholder" xml:space="preserve">
+    <value>Spalten filtern …{0}</value>
+  </data>
+  <data name="Columns_Property" xml:space="preserve">
+    <value>Property</value>
+  </data>
+  <data name="Columns_ClrType" xml:space="preserve">
+    <value>C#-Typ</value>
+  </data>
+  <data name="Columns_Null" xml:space="preserve">
+    <value>Null</value>
+  </data>
+  <data name="Columns_Comment" xml:space="preserve">
+    <value>Kommentar</value>
+  </data>
+  <data name="Columns_PrimaryKey" xml:space="preserve">
+    <value>Primärschlüssel</value>
+  </data>
+  <data name="Columns_UniqueKey" xml:space="preserve">
+    <value>Unique Key</value>
+  </data>
+  <data name="Columns_FkFromModel" xml:space="preserve">
+    <value>{0} → {1} (aus dem C#-Modell, ohne Constraint)</value>
+  </data>
+  <data name="Columns_NoProperty" xml:space="preserve">
+    <value>Keine Property im C#-Modell</value>
+  </data>
+  <data name="Columns_EnumAsNumber" xml:space="preserve">
+    <value>Enum als Zahl</value>
+  </data>
+  <data name="Columns_VirtualExpression" xml:space="preserve">
+    <value>Ausdruck der virtuellen Spalte</value>
+  </data>
+  <data name="Columns_Definition" xml:space="preserve">
+    <value>Definition</value>
+  </data>
+  <data name="Columns_DefinitionTruncated" xml:space="preserve">
+    <value>Gekürzt – die Definition ist länger als 32.767 Zeichen.</value>
+  </data>
+  <data name="Columns_EnumValueWithDisplay" xml:space="preserve">
+    <value>{0} „{1}“ = {2}</value>
+  </data>
+  <data name="Constraints_Loading" xml:space="preserve">
+    <value>Lade Constraints …</value>
+  </data>
+  <data name="Constraints_Heading" xml:space="preserve">
+    <value>Constraints</value>
+  </data>
+  <data name="Constraints_None" xml:space="preserve">
+    <value>Keine Constraints.</value>
+  </data>
+  <data name="Constraints_Type" xml:space="preserve">
+    <value>Art</value>
+  </data>
+  <data name="Constraints_ConditionOrTarget" xml:space="preserve">
+    <value>Bedingung / Ziel</value>
+  </data>
+  <data name="Constraints_GeneratedName" xml:space="preserve">
+    <value>Von Oracle benannt</value>
+  </data>
+  <data name="Constraints_TypeOther" xml:space="preserve">
+    <value>SONSTIGE</value>
+  </data>
+  <data name="Constraints_NotNullOne" xml:space="preserve">
+    <value>{0} NOT-NULL-Constraint steht als „NOT NULL“ bei den Spalten.</value>
+  </data>
+  <data name="Constraints_NotNullOther" xml:space="preserve">
+    <value>{0} NOT-NULL-Constraints stehen als „NOT NULL“ bei den Spalten.</value>
+  </data>
+  <data name="Constraints_RowKey" xml:space="preserve">
+    <value>Row-Key: {0}</value>
+  </data>
+  <data name="Constraints_RowKeyPrimary" xml:space="preserve">
+    <value>Primärschlüssel ({0})</value>
+  </data>
+  <data name="Constraints_RowKeyNone" xml:space="preserve">
+    <value>keiner – nur lesbar</value>
+  </data>
+  <data name="Constraints_ReferencedBy" xml:space="preserve">
+    <value>Referenziert von</value>
+  </data>
+  <data name="Constraints_NoIncoming" xml:space="preserve">
+    <value>Keine Tabelle verweist hierher.</value>
+  </data>
+  <data name="Constraints_ModelRelations" xml:space="preserve">
+    <value>Beziehungen aus dem C#-Modell</value>
+  </data>
+  <data name="Constraints_ModelRelationsHint" xml:space="preserve">
+    <value>Navigations des verknüpften Projekts ohne FK-Constraint in der Datenbank – im Grid per Rechtsklick navigierbar.</value>
+  </data>
+  <data name="Constraints_Enabled" xml:space="preserve">
+    <value>aktiv</value>
+  </data>
+  <data name="Constraints_Disabled" xml:space="preserve">
+    <value>deaktiviert</value>
+  </data>
+  <data name="Constraints_NotValidated" xml:space="preserve">
+    <value>nicht validiert</value>
+  </data>
+  <data name="Indexes_ViewHasNone" xml:space="preserve">
+    <value>Views haben keine Indizes – Abfragen nutzen die Indizes der zugrunde liegenden Tabellen.</value>
+  </data>
+  <data name="Indexes_Loading" xml:space="preserve">
+    <value>Lade Indizes …</value>
+  </data>
+  <data name="Indexes_UnindexedFkOne" xml:space="preserve">
+    <value>{0} Fremdschlüssel ohne Index:</value>
+  </data>
+  <data name="Indexes_UnindexedFkOther" xml:space="preserve">
+    <value>{0} Fremdschlüssel ohne Index:</value>
+  </data>
+  <data name="Indexes_UnindexedFkHint" xml:space="preserve">
+    <value>Löschen oder Ändern des Schlüssels in der referenzierten Tabelle sperrt dann diese ganze Tabelle und durchsucht sie vollständig; auch Joins über den Fremdschlüssel werden langsam.</value>
+  </data>
+  <data name="Indexes_Heading" xml:space="preserve">
+    <value>Indizes</value>
+  </data>
+  <data name="Indexes_None" xml:space="preserve">
+    <value>Keine Indizes.</value>
+  </data>
+  <data name="Indexes_Unique" xml:space="preserve">
+    <value>Eindeutig</value>
+  </data>
+  <data name="Indexes_Valid" xml:space="preserve">
+    <value>gültig</value>
+  </data>
+  <data name="Indexes_Partitioned" xml:space="preserve">
+    <value>partitioniert</value>
+  </data>
+  <data name="Indexes_Invisible" xml:space="preserve">
+    <value>unsichtbar</value>
+  </data>
+  <data name="Dependencies_Loading" xml:space="preserve">
+    <value>Lade Abhängigkeiten …</value>
+  </data>
+  <data name="Dependencies_Uses" xml:space="preserve">
+    <value>Verwendet</value>
+  </data>
+  <data name="Dependencies_UsedBy" xml:space="preserve">
+    <value>Wird verwendet von</value>
+  </data>
+  <data name="Dependencies_NoUsedBy" xml:space="preserve">
+    <value>Kein Objekt verwendet {0}.</value>
+  </data>
+  <data name="Dependencies_NoneFound" xml:space="preserve">
+    <value>Keine Abhängigkeiten gefunden.</value>
+  </data>
+  <data name="Dependencies_TableUsesNothing" xml:space="preserve">
+    <value>Eine Tabelle verwendet keine anderen Objekte.</value>
+  </data>
+  <data name="Dependencies_OnlyAccessibleTo" xml:space="preserve">
+    <value>Es erscheinen nur Objekte, auf die {0} Zugriff hat.</value>
+  </data>
+  <data name="Dependencies_OnlyAccessible" xml:space="preserve">
+    <value>Es erscheinen nur Objekte, auf die der Benutzer Zugriff hat.</value>
+  </data>
+  <data name="Dependencies_ShowBody" xml:space="preserve">
+    <value>Body anzeigen</value>
+  </data>
+  <data name="Dependencies_ShowSource" xml:space="preserve">
+    <value>Quelltext anzeigen</value>
+  </data>
+  <data name="Dependencies_ShowBodyViaSynonym" xml:space="preserve">
+    <value>Body anzeigen – Synonym {0} für {1}</value>
+  </data>
+  <data name="Dependencies_ShowSourceViaSynonym" xml:space="preserve">
+    <value>Quelltext anzeigen – Synonym {0} für {1}</value>
+  </data>
+  <data name="Object_TableChip" xml:space="preserve">
+    <value>TABELLE</value>
+  </data>
+  <data name="Object_PartitionedChip" xml:space="preserve">
+    <value>PARTITIONIERT</value>
+  </data>
+  <data name="Object_TemporaryChip" xml:space="preserve">
+    <value>TEMPORÄR</value>
+  </data>
+  <data name="Object_Created" xml:space="preserve">
+    <value>angelegt {0}</value>
+  </data>
+  <data name="Object_LastDdl" xml:space="preserve">
+    <value>letzte DDL {0}</value>
+  </data>
+  <data name="Object_RowsEstimate" xml:space="preserve">
+    <value>≈ {0} Zeilen</value>
+  </data>
+  <data name="Object_RowsEstimateAnalyzed" xml:space="preserve">
+    <value>≈ {0} Zeilen (Statistik vom {1})</value>
+  </data>
+  <data name="Object_RowsEstimateTitle" xml:space="preserve">
+    <value>Laut Optimizer-Statistik – nicht exakt. Exakt: „Zeilen zählen“ in der Datenansicht.</value>
+  </data>
+  <data name="Object_NoStatistics" xml:space="preserve">
+    <value>keine Statistik</value>
+  </data>
+  <data name="Object_NoStatisticsTitle" xml:space="preserve">
+    <value>Für diese Tabelle wurden noch keine Optimizer-Statistiken erhoben.</value>
+  </data>
+  <data name="Object_Loading" xml:space="preserve">
+    <value>Lade Übersicht …</value>
+  </data>
+  <data name="Ddl_Loading" xml:space="preserve">
+    <value>Lade DDL …</value>
+  </data>
+  <data name="Ddl_NeedsCatalogRole" xml:space="preserve">
+    <value>Oracle liefert die DDL von Objekten anderer Schemas nur mit der Rolle SELECT_CATALOG_ROLE.</value>
+  </data>
+  <data name="Ddl_Source" xml:space="preserve">
+    <value>Aus {0} – Indizes, Trigger und Grants stehen nicht darin.</value>
+  </data>
+  <data name="TableLink_ShowStructure" xml:space="preserve">
+    <value>Struktur anzeigen</value>
+  </data>
+  <data name="TableLink_ShowStructureViaSynonym" xml:space="preserve">
+    <value>Synonym für {0} – Struktur anzeigen</value>
+  </data>
+  <data name="TableLink_OtherSchema" xml:space="preserve">
+    <value>Liegt in einem anderen Schema ohne Synonym</value>
+  </data>
+  <data name="PlSql_ViewSpecification" xml:space="preserve">
+    <value>Spezifikation</value>
+  </data>
+  <data name="PlSql_ViewSource" xml:space="preserve">
+    <value>Quelltext</value>
+  </data>
+  <data name="PlSql_ViewBody" xml:space="preserve">
+    <value>Body</value>
+  </data>
+  <data name="PlSql_ViewParameters" xml:space="preserve">
+    <value>Parameter</value>
+  </data>
+  <data name="PlSql_ViewErrors" xml:space="preserve">
+    <value>Fehler</value>
+  </data>
+  <data name="PlSql_ViewDependencies" xml:space="preserve">
+    <value>Abhängigkeiten</value>
+  </data>
+  <data name="PlSql_ViewOnly" xml:space="preserve">
+    <value>nur ansehen</value>
+  </data>
+  <data name="PlSql_ViewOnlyTitle" xml:space="preserve">
+    <value>PL/SQL ausführen, bearbeiten und kompilieren gehört nicht zu FerretSharp.</value>
+  </data>
+  <data name="PlSql_LoadingErrors" xml:space="preserve">
+    <value>Lade Fehler …</value>
+  </data>
+  <data name="PlSql_SpecInvalidChip" xml:space="preserve">
+    <value>SPEZIFIKATION UNGÜLTIG</value>
+  </data>
+  <data name="PlSql_BodyInvalidChip" xml:space="preserve">
+    <value>BODY UNGÜLTIG</value>
+  </data>
+  <data name="PlSql_DisabledChip" xml:space="preserve">
+    <value>DEAKTIVIERT</value>
+  </data>
+  <data name="PlSql_TriggerDisabledTitle" xml:space="preserve">
+    <value>Der Trigger ist abgeschaltet (ALTER TRIGGER … DISABLE) und feuert nicht.</value>
+  </data>
+  <data name="PlSql_TriggerOn" xml:space="preserve">
+    <value>auf {0}</value>
+  </data>
+  <data name="PlSql_SpecLastDdl" xml:space="preserve">
+    <value>Spezifikation {0}</value>
+  </data>
+  <data name="PlSql_BodyLastDdl" xml:space="preserve">
+    <value>Body {0}</value>
+  </data>
+  <data name="PlSql_NoBody" xml:space="preserve">
+    <value>kein Body</value>
+  </data>
+  <data name="PlSql_PackageHasNoBody" xml:space="preserve">
+    <value>Das Package hat keinen Body.</value>
+  </data>
+  <data name="PlSql_BodyNotVisibleTitle" xml:space="preserve">
+    <value>Kein Body sichtbar: Den Body eines Packages in einem anderen Schema zeigt Oracle nur mit dem Recht DEBUG darauf (oder dem Eigentümer).</value>
+  </data>
+  <data name="PlSql_BodyNotVisible" xml:space="preserve">
+    <value>Kein Body sichtbar. Den Body eines Packages in einem anderen Schema zeigt Oracle nur mit dem Recht DEBUG darauf (oder dem Eigentümer); EXECUTE reicht nur für die Spezifikation.</value>
+  </data>
+  <data name="PlSql_InvokerRights" xml:space="preserve">
+    <value>Läuft mit den Rechten des Aufrufers (invoker's rights).</value>
+  </data>
+  <data name="PlSql_DefinerRights" xml:space="preserve">
+    <value>Läuft mit den Rechten des Eigentümers (definer's rights).</value>
+  </data>
+  <data name="PlSql_LoadingSource" xml:space="preserve">
+    <value>Lade Quelltext …</value>
+  </data>
+  <data name="PlSql_WrappedTitle" xml:space="preserve">
+    <value>Verschlüsselt (wrapped).</value>
+  </data>
+  <data name="PlSql_Wrapped" xml:space="preserve">
+    <value>{0} Der Quelltext wurde mit dem Wrap-Werkzeug von Oracle unlesbar gemacht und lässt sich nicht zurückverwandeln. Parameter und Abhängigkeiten stehen trotzdem in den anderen Ansichten.</value>
+  </data>
+  <data name="PlSql_ShowWrapped" xml:space="preserve">
+    <value>Rohtext trotzdem anzeigen</value>
+  </data>
+  <data name="PlSql_SourceNotVisible" xml:space="preserve">
+    <value>Kein Quelltext sichtbar – das Objekt wurde gelöscht, oder dem Benutzer fehlen die Rechte darauf.</value>
+  </data>
+  <data name="PlSql_LoadingParameters" xml:space="preserve">
+    <value>Lade Parameter …</value>
+  </data>
+  <data name="PlSql_SpecDeclaresNothing" xml:space="preserve">
+    <value>Die Spezifikation deklariert keine Prozeduren oder Funktionen.</value>
+  </data>
+  <data name="PlSql_NoParameterInfo" xml:space="preserve">
+    <value>Keine Angaben zu Parametern gefunden.</value>
+  </data>
+  <data name="PlSql_OverloadTitle" xml:space="preserve">
+    <value>Gleicher Name, andere Parameter (Überladung)</value>
+  </data>
+  <data name="PlSql_Overload" xml:space="preserve">
+    <value>Überladung {0}</value>
+  </data>
+  <data name="PlSql_NoParameters" xml:space="preserve">
+    <value>Ohne Parameter.</value>
+  </data>
+  <data name="PlSql_Direction" xml:space="preserve">
+    <value>Richtung</value>
+  </data>
+  <data name="PlSql_HasDefaultTitle" xml:space="preserve">
+    <value>Der Parameter hat einen Default – den Ausdruck kennt das Dictionary nicht, er steht im Quelltext.</value>
+  </data>
+  <data name="PlSql_Yes" xml:space="preserve">
+    <value>ja</value>
+  </data>
+  <data name="PlSql_ParametersNote" xml:space="preserve">
+    <value>Nur was die Spezifikation deklariert; private Unterprogramme des Bodys stehen nicht im Dictionary. Typen mit {0} zeigt Oracle aufgelöst.</value>
+  </data>
+  <data name="PlSql_NoErrorsButInvalid" xml:space="preserve">
+    <value>Keine Fehler gespeichert. Ungültig ist das Objekt wohl, weil sich etwas geändert hat, das es verwendet – Oracle kompiliert es beim nächsten Aufruf neu.</value>
+  </data>
+  <data name="PlSql_NoCompileErrors" xml:space="preserve">
+    <value>Keine Kompilierfehler.</value>
+  </data>
+  <data name="PlSql_ShowInSource" xml:space="preserve">
+    <value>Im Quelltext zeigen</value>
+  </data>
+  <data name="PlSql_WarningChip" xml:space="preserve">
+    <value>WARNUNG</value>
+  </data>
+  <data name="PlSql_ErrorChip" xml:space="preserve">
+    <value>FEHLER</value>
+  </data>
+  <data name="PlSql_ErrorPosition" xml:space="preserve">
+    <value>Zeile {0}, Spalte {1}</value>
+  </data>
+</root>

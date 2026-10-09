@@ -8,7 +8,7 @@
 
 <div class="switcher">
     <button class="switcher-btn @(Shell.SwitcherOpen ? "open" : "") @(Active.Profile is { } ap ? ConnectionKindInfo.CssClass(ap.Kind) : "")"
-            title="Verbindung wählen@(Shortcuts.Hint(ShortcutAction.ConnectionSwitcher))" @onclick="Toggle">
+            title="@(ShellText.Switcher_ChooseConnection + Shortcuts.Hint(ShortcutAction.ConnectionSwitcher))" @onclick="Toggle">
         @if (Active.Status == ConnectionStatus.Connecting)
         {
             <span class="spinner small"></span>
@@ -24,7 +24,7 @@
         }
         else
         {
-            <span>Verbindung wählen</span>
+            <span>@ShellText.Switcher_ChooseConnection</span>
         }
         <span class="chev">▾</span>
     </button>
@@ -33,7 +33,7 @@
     {
         <div class="popover-backdrop" @onclick="Shell.CloseSwitcher"></div>
         <div class="popover switcher-pop" @onkeydown="OnKeyDown">
-            <SearchBox @ref="_search" Class="popover-search" Placeholder="Verbindung suchen …"
+            <SearchBox @ref="_search" Class="popover-search" Placeholder="@ShellText.Switcher_Search"
                        @bind-Value="_query" @bind-Value:after="() => _highlight = 0">
                 <Kbd Action="ShortcutAction.ConnectionSwitcher" />
             </SearchBox>
@@ -42,16 +42,16 @@
                 @{ Recompute(); var index = 0; }
                 @if (Connections.Profiles.Count == 0)
                 {
-                    <div class="popover-empty">Noch keine Verbindungen.</div>
+                    <div class="popover-empty">@ShellText.Switcher_NoConnections</div>
                 }
                 else if (_visible.Count == 0)
                 {
-                    <div class="popover-empty">Keine Verbindung passt zu „@_query“.</div>
+                    <div class="popover-empty">@TextFormat.Format(ShellText.Connection_NoMatch, _query)</div>
                 }
 
                 @if (_open.Count > 0)
                 {
-                    <div class="group-head-btn static" title="Bleiben verbunden, auch wenn eine andere angezeigt wird@(Shortcuts.Label(ShortcutAction.PreviousConnection) is { } key ? $" – {key} wechselt zur vorigen" : "")">Offen</div>
+                    <div class="group-head-btn static" title="@(Shortcuts.Label(ShortcutAction.PreviousConnection) is { } key ? TextFormat.Format(ShellText.Switcher_OpenTitleKey, key) : ShellText.Switcher_OpenTitle)">@ShellText.Switcher_Open</div>
                     @foreach (var profile in _open)
                     {
                         @Row(profile, index++)
@@ -60,7 +60,7 @@
 
                 @if (_recent.Count > 0)
                 {
-                    <div class="group-head-btn static">Zuletzt verwendet</div>
+                    <div class="group-head-btn static">@ShellText.Switcher_Recent</div>
                     @foreach (var profile in _recent)
                     {
                         @Row(profile, index++)
@@ -73,7 +73,7 @@
                     var collapsed = !Searching && _collapsed.Contains(key);
                     <button class="group-head-btn" @onclick="() => ToggleGroup(key)">
                         <span class="chev @(collapsed ? "closed" : "")">▾</span>
-                        <span>@(group.Name ?? "Ohne Gruppe")</span>
+                        <span>@(group.Name ?? ShellText.Connection_NoGroup)</span>
                         <span class="count">@group.Profiles.Count</span>
                     </button>
 
@@ -88,8 +88,8 @@
             </div>
 
             <div class="popover-footer">
-                <button class="menu-item" @onclick="NewConnection"><span class="plus">+</span> Neue Verbindung</button>
-                <button class="menu-item" @onclick="Shell.ShowConnections">Alle Verbindungen verwalten …</button>
+                <button class="menu-item" @onclick="NewConnection"><span class="plus">+</span> @ShellText.Connection_New</button>
+                <button class="menu-item" @onclick="Shell.ShowConnections">@ShellText.Switcher_ManageAll</button>
             </div>
         </div>
     }
@@ -134,16 +134,16 @@
                 {
                     @if (scope.Lost is not null)
                     {
-                        <span class="connected-tag lost" title="@scope.Lost.Message">Verbindung verloren</span>
+                        <span class="connected-tag lost" title="@scope.Lost.Message">@ShellText.Connection_Lost</span>
                     }
                     else if (scope.Active.IsConnected)
                     {
-                        <span class="connected-tag" title="@(scope == Hub.Current ? "Wird angezeigt" : "Im Hintergrund verbunden")">@(scope == Hub.Current ? "angezeigt" : "verbunden")</span>
+                        <span class="connected-tag" title="@(scope == Hub.Current ? ShellText.Switcher_ShownTitle : ShellText.Switcher_BackgroundTitle)">@(scope == Hub.Current ? ShellText.Connection_TagShown : ShellText.Connection_TagConnected)</span>
                     }
 
                     @if (scope.UncommittedActions is > 0 and var actions)
                     {
-                        <span class="connected-tag tx" title="Nicht committete Änderungen in dieser Verbindung">@(actions == 1 ? "1 Aktion offen" : $"{actions} Aktionen offen")</span>
+                        <span class="connected-tag tx" title="@ShellText.Switcher_UncommittedTitle">@TextFormat.Plural(actions, ShellText.Switcher_ActionsOpenOne, ShellText.Switcher_ActionsOpenOther)</span>
                     }
                 }
             </span>
@@ -154,8 +154,8 @@
             <span class="conn-disconnect">
                 @if (Hub.Find(p.Id) is { } openScope)
                 {
-                    <button class="btn ghost small" title="Diese Verbindung trennen (fragt vorher nach offenen Änderungen)"
-                            @onclick="() => DisconnectAsync(openScope)" @onclick:stopPropagation="true">Trennen</button>
+                    <button class="btn ghost small" title="@ShellText.Switcher_DisconnectTitle"
+                            @onclick="() => DisconnectAsync(openScope)" @onclick:stopPropagation="true">@ShellText.Connection_Disconnect</button>
                 }
             </span>
             <ConnectionActionsMenu Profile="p" OnAction="Shell.CloseSwitcher" />

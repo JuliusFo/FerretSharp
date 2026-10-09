@@ -1,5 +1,6 @@
 using System.Reflection;
 using FerretSharp.Core.ClrModel;
+using FerretSharp.ModelHost.Resources;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 
@@ -49,8 +50,7 @@ internal static class ContextFactory
             .Select(c => $"{contextType.Name}({string.Join(", ", c.GetParameters().Select(p => p.ParameterType.Name))})");
         throw new ModelHostException(new ModelHostError(
             ModelHostErrorKind.ConstructorNeedsServices,
-            $"{contextType.Name} braucht für seinen Konstruktor weitere Dienste ({string.Join("; ", signatures)}). " +
-            "FerretSharp kann ihn nur mit DbContextOptions, ohne Parameter oder über eine IDesignTimeDbContextFactory erzeugen."));
+            Program.Text(ModelHostText.ConstructorNeedsServices, contextType.Name, string.Join("; ", signatures))));
     }
 
     /// <summary>
@@ -67,7 +67,7 @@ internal static class ContextFactory
         catch (Exception ex) when (ex is FileNotFoundException or FileLoadException)
         {
             throw new ModelHostException(new ModelHostError(
-                ModelHostErrorKind.NoProvider, "Das Projekt verwendet Oracle.EntityFrameworkCore nicht (der Provider ist nicht zu finden).", ex.ToString()));
+                ModelHostErrorKind.NoProvider, ModelHostText.NoOracleProvider, ex.ToString()));
         }
 
         var useOracle = provider.GetType("Microsoft.EntityFrameworkCore.OracleDbContextOptionsExtensions")?
@@ -76,7 +76,7 @@ internal static class ContextFactory
                                  && m.GetParameters() is [var b, var c, ..]
                                  && b.ParameterType == typeof(DbContextOptionsBuilder) && c.ParameterType == typeof(string))
             ?? throw new ModelHostException(new ModelHostError(
-                ModelHostErrorKind.NoProvider, $"UseOracle(DbContextOptionsBuilder, string) fehlt in {provider.GetName()}."));
+                ModelHostErrorKind.NoProvider, Program.Text(ModelHostText.UseOracleMissing, provider.GetName())));
 
         var arguments = new object?[useOracle.GetParameters().Length];
         arguments[0] = builder;

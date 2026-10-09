@@ -28,6 +28,9 @@ public sealed record AppSettings
 
     public ThemeMode Theme { get; init; } = ThemeMode.System;
 
+    /// <summary>Language of the user interface (WP-29); takes effect at the next start. <c>--lang</c> overrides it for a session.</summary>
+    public UiLanguage Language { get; init; } = UiLanguage.English;
+
     /// <summary>
     /// Ping idle sessions regularly (<see cref="Connections.ConnectionKeepAlive"/>): a lost connection shows up at once,
     /// and firewalls do not drop idle connections. Keeps sessions alive against a database <c>IDLE_TIME</c> as well.

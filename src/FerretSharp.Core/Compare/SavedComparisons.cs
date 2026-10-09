@@ -1,6 +1,7 @@
 using System.Text.Json;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.IO;
+using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.Compare;
 
@@ -57,14 +58,14 @@ public sealed class ComparisonStore(string filePath)
             var document = await JsonSerializer.DeserializeAsync<Document>(stream, JsonFiles.Options, cancellationToken);
             if (document?.Version > CurrentVersion)
             {
-                throw new IOException(NewerFormat(document.Version));
+                throw new IOException(TextFormat.Format(CompareText.FileFromNewerVersion, filePath, document.Version));
             }
 
             return document?.Comparisons ?? [];
         }
         catch (JsonException ex)
         {
-            throw new IOException($"{filePath} ist keine gültige Datei mit Schema-Vergleichen: {ex.Message}", ex);
+            throw new IOException(TextFormat.Format(CompareText.InvalidFile, filePath, ex.Message), ex);
         }
         finally
         {
@@ -80,7 +81,7 @@ public sealed class ComparisonStore(string filePath)
             // A file of a newer FerretSharp (used again after a downgrade) would lose what this version does not know.
             if (await VersionOnDiskAsync(cancellationToken) is { } version && version > CurrentVersion)
             {
-                throw new IOException(NewerFormat(version) + " Sie wird nicht überschrieben.");
+                throw new IOException(TextFormat.Format(CompareText.FileFromNewerVersionNotOverwritten, filePath, version));
             }
 
             await AtomicJsonFile.WriteAsync(filePath, new Document(CurrentVersion, comparisons), JsonFiles.Options, cancellationToken);
@@ -91,7 +92,6 @@ public sealed class ComparisonStore(string filePath)
         }
     }
 
-    private string NewerFormat(int version) => $"{filePath} stammt aus einer neueren FerretSharp-Version (Format {version}).";
 
     /// <summary>The format of the file there; null if there is none or it cannot be read (then it may be replaced).</summary>
     private async Task<int?> VersionOnDiskAsync(CancellationToken cancellationToken)

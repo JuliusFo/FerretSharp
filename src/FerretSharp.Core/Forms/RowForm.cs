@@ -2,6 +2,7 @@ using FerretSharp.Core.ClrModel;
 using FerretSharp.Core.Data;
 using FerretSharp.Core.Oracle;
 using FerretSharp.Core.Query;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 using FerretSharp.Core.Workspaces;
 
@@ -165,14 +166,14 @@ public static class RowForm
 
         if (!writable)
         {
-            return "Der Workspace ist schreibgeschützt – zum Ändern freischalten.";
+            return DataText.WorkspaceReadOnlyUnlockToEdit;
         }
 
         if (row.Change?.Deleted is not null)
         {
-            return "Die Zeile ist zum Löschen markiert.";
+            return DataText.RowMarkedForDeletion;
         }
 
-        return OracleTypeMapper.IsEditableValue(raw) ? null : "Zahlen mit mehr als 28 Stellen lassen sich hier nicht bearbeiten.";
+        return OracleTypeMapper.IsEditableValue(raw) ? null : DataText.NumberTooPreciseToEdit;
     }
 }

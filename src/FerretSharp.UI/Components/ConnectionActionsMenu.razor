@@ -1,17 +1,17 @@
 @using FerretSharp.Core.Connections
 
-<button class="icon-btn ghost more" title="Aktionen" @onclick="Open" @onclick:stopPropagation="true" @ondblclick:stopPropagation="true">⋯</button>
+<button class="icon-btn ghost more" title="@ShellText.Actions" @onclick="Open" @onclick:stopPropagation="true" @ondblclick:stopPropagation="true">⋯</button>
 
 @if (_open)
 {
     <div class="overlay" @onclick="Close" @onclick:stopPropagation="true" @oncontextmenu="Close" @oncontextmenu:preventDefault="true"></div>
     <div class="menu" style="left:@Px(_x);top:@Px(_y)" @onclick:stopPropagation="true" @ondblclick:stopPropagation="true">
-        <button class="menu-item strong" @onclick="() => RunAsync(Shell.Connect)">Verbinden</button>
+        <button class="menu-item strong" @onclick="() => RunAsync(Shell.Connect)">@ShellText.ConnectionMenu_Connect</button>
         <div class="menu-sep"></div>
-        <button class="menu-item" @onclick="() => RunAsync(Shell.EditConnection)">Bearbeiten</button>
-        <button class="menu-item" @onclick="() => RunAsync(Shell.DuplicateConnection)">Duplizieren</button>
+        <button class="menu-item" @onclick="() => RunAsync(Shell.EditConnection)">@ShellText.Connection_Edit</button>
+        <button class="menu-item" @onclick="() => RunAsync(Shell.DuplicateConnection)">@ShellText.ConnectionMenu_Duplicate</button>
         <div class="menu-sep"></div>
-        <button class="menu-item danger" @onclick="() => RunAsync(Shell.RequestDelete)">Löschen …</button>
+        <button class="menu-item danger" @onclick="() => RunAsync(Shell.RequestDelete)">@ShellText.Connection_DeleteEllipsis</button>
     </div>
 }
 

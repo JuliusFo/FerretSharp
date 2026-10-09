@@ -7,14 +7,15 @@
 @inject IJSRuntime JS
 @inject ShortcutService Shortcuts
 
-<button class="btn ghost" title="Die Filter als LINQ über die Entity @Presentations.For(Details).EntityName" @onclick="Open">C# ▾</button>
+<button class="btn ghost" title="@TextFormat.Format(SqlEditorText.LinqMenu_Title, Presentations.For(Details).EntityName)" @onclick="Open">C# ▾</button>
 
 @if (_open)
 {
     <div class="overlay" @onclick="Close" @oncontextmenu="Close" @oncontextmenu:preventDefault="true"></div>
     <div class="menu linq-menu" style="left:@Px(_x);top:@Px(_y)">
-        <button class="menu-item" title="Where-Ausdruck mit Property-Namen und Enum-Membern; findet dieselben Zeilen wie das Grid" @onclick="CopyAsync">Als LINQ kopieren</button>
-        <button class="menu-item" title="Neue LINQ-Konsole mit der Abfrage über die Entity@(Shortcuts.Label(ShortcutAction.ApplyFilters) is { } key ? $" ({key} führt aus)" : "")" @onclick="OpenConsole">In LINQ-Konsole öffnen</button>
+        <button class="menu-item" title="@SqlEditorText.LinqMenu_CopyTitle" @onclick="CopyAsync">@SqlEditorText.LinqMenu_Copy</button>
+        <button class="menu-item" title="@(Shortcuts.Label(ShortcutAction.ApplyFilters) is { } key ? TextFormat.Format(SqlEditorText.LinqMenu_OpenConsoleTitleWithKey, key) : SqlEditorText.LinqMenu_OpenConsoleTitle)"
+                @onclick="OpenConsole">@SqlEditorText.LinqMenu_OpenConsole</button>
     </div>
 }
 
@@ -63,12 +64,14 @@
         var linq = Build();
         if (linq.Text.Length == 0)
         {
-            Shell.Notify("Keine aktiven Filter – nichts zu kopieren.");
+            Shell.Notify(SqlEditorText.LinqMenu_NoFilters);
             return;
         }
 
         var copied = await Dom.CopyTextAsync(linq.Text);
-        Shell.Notify(copied ? $"{FiltersText(linq.Rows)} als LINQ kopiert." : "Die Zwischenablage ist nicht verfügbar.", linq.Warnings);
+        Shell.Notify(copied
+            ? TextFormat.Plural(linq.Rows, SqlEditorText.LinqMenu_CopiedOne, SqlEditorText.LinqMenu_CopiedOther)
+            : SqlEditorText.Editor_ClipboardUnavailable, linq.Warnings);
     }
 
     private void OpenConsole()
@@ -78,11 +81,9 @@
         Shell.OpenLinq(linq.Text);
         if (linq.Warnings.Count > 0)
         {
-            Shell.Notify($"{FiltersText(linq.Rows)} in die LINQ-Konsole übernommen.", linq.Warnings);
+            Shell.Notify(TextFormat.Plural(linq.Rows, SqlEditorText.LinqMenu_AdoptedOne, SqlEditorText.LinqMenu_AdoptedOther), linq.Warnings);
         }
     }
-
-    private static string FiltersText(int count) => count == 1 ? "1 Filter" : $"{count} Filter";
 
     private static string Px(double value) => value.ToString("0", CultureInfo.InvariantCulture) + "px";
 

@@ -9,7 +9,7 @@ public static partial class QueryErrorLog
     /// <summary>Logs a failed query with its statement; bind values of Prod connections are masked.</summary>
     public static void Log(ILogger logger, DatabaseException error, ConnectionProfile? profile)
     {
-        var statement = error.Statement is { } s ? BindValues.Describe(s, profile?.Kind == ConnectionKind.Prod) : "(kein Statement)";
+        var statement = error.Statement is { } s ? BindValues.Describe(s, profile?.Kind == ConnectionKind.Prod) : "(no statement)";
         Failed(logger, error.Display, error.IsConnectionLost, statement);
     }
 

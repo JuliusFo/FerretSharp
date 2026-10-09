@@ -1,6 +1,6 @@
 @* Vertical A–Z (+ #) index; letters without entries are disabled. *@
 
-<nav class="letters" aria-label="Buchstabenindex">
+<nav class="letters" aria-label="@SchemaViewText.LetterIndex_Label">
     @foreach (var letter in Letters)
     {
         var l = letter;
@@ -22,5 +22,5 @@
 
     public static char KeyOf(string name) => ExplorerList.KeyOf(name);
 
-    private static string Title(char letter) => letter == Other ? "Sonstige (Sonderzeichen, Ziffern, Kleinbuchstaben)" : letter.ToString();
+    private static string Title(char letter) => letter == Other ? SchemaViewText.LetterIndex_Other : letter.ToString();
 }

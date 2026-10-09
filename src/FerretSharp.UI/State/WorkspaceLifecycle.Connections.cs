@@ -1,4 +1,6 @@
 using FerretSharp.Core.Connections;
+using FerretSharp.Core.Resources;
+using FerretSharp.UI.Resources;
 
 namespace FerretSharp.UI.State;
 
@@ -33,7 +35,7 @@ public sealed partial class WorkspaceLifecycle
     }
 
     /// <summary>
-    /// "Neu verbinden" after the connection was lost: its transactions are gone, nothing left to confirm. Its old
+    /// "Reconnect" after the connection was lost: its transactions are gone, nothing left to confirm. Its old
     /// sessions and workspace tabs are dropped; the workspaces are restored from what was saved.
     /// </summary>
     public void Reconnect(ConnectionProfile profile)
@@ -62,7 +64,7 @@ public sealed partial class WorkspaceLifecycle
 
     /// <summary>Disconnects an open connection, shown or not, after asking about its uncommitted work.</summary>
     public Task DisconnectAsync(ConnectionScope scope) =>
-        GuardAsync($"Verbindung {scope.Profile?.Name} trennen", WorkspacesOf(scope), () => DisconnectCoreAsync(scope));
+        GuardAsync(TextFormat.Format(ShellText.Lifecycle_DisconnectWhat, scope.Profile?.Name), WorkspacesOf(scope), () => DisconnectCoreAsync(scope));
 
     public Task DeleteAsync(ConnectionProfile profile)
     {
@@ -72,7 +74,7 @@ public sealed partial class WorkspaceLifecycle
             return DeleteCoreAsync(profile);
         }
 
-        return GuardAsync("Verbindung löschen", WorkspacesOf(scope), async () =>
+        return GuardAsync(ShellText.Connection_Delete, WorkspacesOf(scope), async () =>
         {
             await DisconnectCoreAsync(scope);
             await DeleteCoreAsync(profile);
@@ -83,7 +85,7 @@ public sealed partial class WorkspaceLifecycle
     public bool CanExit => editing.WithWork().All(w => IsLost(w.WorkspaceId));
 
     public Task RequestExitAsync(Action approve) =>
-        GuardAsync("FerretSharp beenden", shell.AllWorkspaces, () =>
+        GuardAsync(ShellText.Lifecycle_ExitWhat, shell.AllWorkspaces, () =>
         {
             approve();
             return Task.CompletedTask;

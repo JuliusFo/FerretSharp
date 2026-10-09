@@ -1,0 +1,720 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Loading" xml:space="preserve">
+    <value>Loading …</value>
+    <comment>Default text of the loading indicator of a detail view</comment>
+  </data>
+  <data name="InvalidChip" xml:space="preserve">
+    <value>INVALID</value>
+    <comment>Chip of an object with STATUS = 'INVALID' (upper case like the other chips)</comment>
+  </data>
+  <data name="NoColumnMatches" xml:space="preserve">
+    <value>No column matches “{0}”.</value>
+    <comment>{0} = the search text</comment>
+  </data>
+  <data name="SynonymTo" xml:space="preserve">
+    <value>Synonym {0} → {1}</value>
+    <comment>Toolbar title of a tab opened through a synonym. {0} = synonym name, {1} = OWNER.NAME of the real object</comment>
+  </data>
+  <data name="PublicSynonymTo" xml:space="preserve">
+    <value>Public synonym {0} → {1}</value>
+    <comment>Toolbar title of a tab opened through a public synonym. {0} = synonym name, {1} = OWNER.NAME of the real object</comment>
+  </data>
+  <data name="PublicSynonymChip" xml:space="preserve">
+    <value>PUBLIC SYNONYM</value>
+    <comment>Chip in the header of an object opened through a public synonym</comment>
+  </data>
+  <data name="Head_Name" xml:space="preserve">
+    <value>Name</value>
+    <comment>Table column header</comment>
+  </data>
+  <data name="Head_Type" xml:space="preserve">
+    <value>Type</value>
+    <comment>Table column header (data type, index type)</comment>
+  </data>
+  <data name="Head_Columns" xml:space="preserve">
+    <value>Columns</value>
+    <comment>Table column header</comment>
+  </data>
+  <data name="Head_Status" xml:space="preserve">
+    <value>Status</value>
+    <comment>Table column header (enabled, validated, usable …)</comment>
+  </data>
+  <data name="Head_Default" xml:space="preserve">
+    <value>Default</value>
+    <comment>Table column header (default value)</comment>
+  </data>
+  <data name="Kind_Package" xml:space="preserve">
+    <value>Package</value>
+    <comment>Kind of a PL/SQL unit (tooltip; upper case as chip)</comment>
+  </data>
+  <data name="Kind_Procedure" xml:space="preserve">
+    <value>Procedure</value>
+    <comment>Kind of a PL/SQL unit (tooltip; upper case as chip)</comment>
+  </data>
+  <data name="Kind_Function" xml:space="preserve">
+    <value>Function</value>
+    <comment>Kind of a PL/SQL unit (tooltip; upper case as chip)</comment>
+  </data>
+  <data name="Kind_Trigger" xml:space="preserve">
+    <value>Trigger</value>
+    <comment>Kind of a PL/SQL unit (tooltip; upper case as chip)</comment>
+  </data>
+  <data name="Invalid_MaterializedView" xml:space="preserve">
+    <value>INVALID: needs to be recompiled, e.g. after a change to the base table. Queries keep working.</value>
+  </data>
+  <data name="Invalid_View" xml:space="preserve">
+    <value>INVALID: Oracle recompiles the view on the next access. If that fails (e.g. because a column is missing), the query returns an error.</value>
+  </data>
+  <data name="Invalid_Other" xml:space="preserve">
+    <value>INVALID: recompiled on the next call. If that fails, the call returns an error.</value>
+  </data>
+  <data name="Explorer_ReloadSchema" xml:space="preserve">
+    <value>Reload schema</value>
+  </data>
+  <data name="Explorer_Tables" xml:space="preserve">
+    <value>Tables</value>
+    <comment>Explorer section (tab)</comment>
+  </data>
+  <data name="Explorer_TablesTitle" xml:space="preserve">
+    <value>Tables, views and materialized views</value>
+  </data>
+  <data name="Explorer_PlSqlTitle" xml:space="preserve">
+    <value>Packages, procedures, functions and triggers – view only</value>
+  </data>
+  <data name="Explorer_InvalidObjects" xml:space="preserve">
+    <value>Invalid objects</value>
+    <comment>Tooltip of the count of invalid PL/SQL objects</comment>
+  </data>
+  <data name="Explorer_Source" xml:space="preserve">
+    <value>Source</value>
+    <comment>Toggle button: search in the PL/SQL source instead of the names</comment>
+  </data>
+  <data name="Explorer_SourceSearchTitle" xml:space="preserve">
+    <value>Search the source of all packages, procedures, functions and triggers of the schema (Enter)</value>
+  </data>
+  <data name="Explorer_NoTables" xml:space="preserve">
+    <value>The schema has no tables or views.</value>
+  </data>
+  <data name="Explorer_NoPlSql" xml:space="preserve">
+    <value>The schema has no packages, procedures, functions or triggers.</value>
+  </data>
+  <data name="Explorer_NothingFound" xml:space="preserve">
+    <value>Nothing found for “{0}”.</value>
+    <comment>{0} = the search text</comment>
+  </data>
+  <data name="Explorer_ObjectCountOne" xml:space="preserve">
+    <value>{0:N0} object</value>
+    <comment>{0} = number of objects in the explorer section</comment>
+  </data>
+  <data name="Explorer_ObjectCountOther" xml:space="preserve">
+    <value>{0:N0} objects</value>
+    <comment>{0} = number of objects in the explorer section</comment>
+  </data>
+  <data name="Explorer_SearchSourcePlaceholder" xml:space="preserve">
+    <value>Search the source … (Enter)</value>
+  </data>
+  <data name="Explorer_SearchPlSqlPlaceholder" xml:space="preserve">
+    <value>Search PL/SQL …</value>
+  </data>
+  <data name="Explorer_SearchTablePlaceholder" xml:space="preserve">
+    <value>Search tables …</value>
+  </data>
+  <data name="Explorer_Searching" xml:space="preserve">
+    <value>Searching for “{0}” …</value>
+    <comment>{0} = the search text</comment>
+  </data>
+  <data name="Explorer_SourceSearchHint" xml:space="preserve">
+    <value>Type some text and press Enter: searches all lines of the packages, procedures, functions and triggers of {0} (case-insensitive, at least {1} characters).</value>
+    <comment>{0} = schema (owner), {1} = minimum length</comment>
+  </data>
+  <data name="Explorer_NoSourceHit" xml:space="preserve">
+    <value>No source contains “{0}”.</value>
+    <comment>{0} = the search text</comment>
+  </data>
+  <data name="Explorer_HitsLimited" xml:space="preserve">
+    <value>More than {0} lines – showing the first {0}; narrow the search.</value>
+    <comment>{0} = the limit of source lines</comment>
+  </data>
+  <data name="Explorer_HitLinesOne" xml:space="preserve">
+    <value>{0} line</value>
+    <comment>{0} = number of source lines found</comment>
+  </data>
+  <data name="Explorer_HitLinesOther" xml:space="preserve">
+    <value>{0} lines</value>
+    <comment>{0} = number of source lines found</comment>
+  </data>
+  <data name="Explorer_HitsInPlSqlOne" xml:space="preserve">
+    <value>{0} hit in PL/SQL</value>
+    <comment>Link to the other explorer section. {0} = number of hits</comment>
+  </data>
+  <data name="Explorer_HitsInPlSqlOther" xml:space="preserve">
+    <value>{0} hits in PL/SQL</value>
+    <comment>Link to the other explorer section. {0} = number of hits</comment>
+  </data>
+  <data name="Explorer_HitsInTablesOne" xml:space="preserve">
+    <value>{0} hit in tables</value>
+    <comment>Link to the other explorer section. {0} = number of hits</comment>
+  </data>
+  <data name="Explorer_HitsInTablesOther" xml:space="preserve">
+    <value>{0} hits in tables</value>
+    <comment>Link to the other explorer section. {0} = number of hits</comment>
+  </data>
+  <data name="Explorer_SourceSearchTooShort" xml:space="preserve">
+    <value>Enter at least {0} characters.</value>
+    <comment>{0} = minimum length</comment>
+  </data>
+  <data name="Explorer_EntityTooltip" xml:space="preserve">
+    <value>Entity {0}</value>
+    <comment>Tooltip line of a table. {0} = entity name of the C# model</comment>
+  </data>
+  <data name="Explorer_KindTable" xml:space="preserve">
+    <value>Table</value>
+    <comment>Kind in the tooltip of an explorer item</comment>
+  </data>
+  <data name="Explorer_KindView" xml:space="preserve">
+    <value>View</value>
+    <comment>Kind in the tooltip of an explorer item</comment>
+  </data>
+  <data name="Explorer_KindMaterializedView" xml:space="preserve">
+    <value>Materialized view</value>
+    <comment>Kind in the tooltip of an explorer item</comment>
+  </data>
+  <data name="Explorer_SynonymTooltip" xml:space="preserve">
+    <value>Synonym → {0} ({1})</value>
+    <comment>{0} = OWNER.NAME of the real object, {1} = its kind (Explorer_Kind…, Kind_…)</comment>
+  </data>
+  <data name="Explorer_PublicSynonymTooltip" xml:space="preserve">
+    <value>Public synonym → {0} ({1})</value>
+    <comment>{0} = OWNER.NAME of the real object, {1} = its kind (Explorer_Kind…, Kind_…)</comment>
+  </data>
+  <data name="Explorer_TriggerDisabled" xml:space="preserve">
+    <value>Disabled: does not fire.</value>
+    <comment>Tooltip line of a disabled trigger</comment>
+  </data>
+  <data name="Explorer_BodyInvalid" xml:space="preserve">
+    <value>Body {0}</value>
+    <comment>Tooltip line of a package whose body is invalid. {0} = Invalid_Other</comment>
+  </data>
+  <data name="LetterIndex_Label" xml:space="preserve">
+    <value>Letter index</value>
+    <comment>Accessible label of the A–Z bar</comment>
+  </data>
+  <data name="LetterIndex_Other" xml:space="preserve">
+    <value>Other (special characters, digits, lowercase letters)</value>
+    <comment>Tooltip of “#” in the A–Z bar</comment>
+  </data>
+  <data name="Tab_BackTo" xml:space="preserve">
+    <value>Back to {0}{1}</value>
+    <comment>{0} = table (with its filters), {1} = shortcut hint like “ (Alt+Left)” or empty</comment>
+  </data>
+  <data name="Tab_ForwardTo" xml:space="preserve">
+    <value>Forward to {0}{1}</value>
+    <comment>{0} = table (with its filters), {1} = shortcut hint like “ (Alt+Right)” or empty</comment>
+  </data>
+  <data name="Tab_ViewData" xml:space="preserve">
+    <value>Data</value>
+    <comment>View of a table tab</comment>
+  </data>
+  <data name="Tab_ViewColumns" xml:space="preserve">
+    <value>Columns</value>
+    <comment>View of a table tab</comment>
+  </data>
+  <data name="Tab_ViewConstraints" xml:space="preserve">
+    <value>Constraints</value>
+    <comment>View of a table tab</comment>
+  </data>
+  <data name="Tab_ViewIndexes" xml:space="preserve">
+    <value>Indexes</value>
+    <comment>View of a table tab</comment>
+  </data>
+  <data name="Tab_ViewDependencies" xml:space="preserve">
+    <value>Dependencies</value>
+    <comment>View of a table tab</comment>
+  </data>
+  <data name="Tab_ViewDdl" xml:space="preserve">
+    <value>DDL</value>
+    <comment>View of a table tab</comment>
+  </data>
+  <data name="Tab_AddRow" xml:space="preserve">
+    <value>+ Row</value>
+    <comment>Button: new row</comment>
+  </data>
+  <data name="Tab_AddRowTitle" xml:space="preserve">
+    <value>Add a new row at the top of the grid – inserted with “Write”{0}</value>
+    <comment>“Write” is the button in the status bar. {0} = shortcut hint like “ (Ctrl+S)” or empty</comment>
+  </data>
+  <data name="Tab_Form" xml:space="preserve">
+    <value>Form</value>
+    <comment>Button: the form view beside the grid</comment>
+  </data>
+  <data name="Tab_FormTitle" xml:space="preserve">
+    <value>Show the selected row as a form beside the grid</value>
+  </data>
+  <data name="Tab_FormTitleWithKey" xml:space="preserve">
+    <value>Show the selected row as a form beside the grid ({0} in the grid; with several rows selected: compare)</value>
+    <comment>{0} = shortcut like Alt+Enter</comment>
+  </data>
+  <data name="Tab_LoadingStructure" xml:space="preserve">
+    <value>Loading structure …</value>
+  </data>
+  <data name="Tab_TableNotEditable" xml:space="preserve">
+    <value>This table cannot be edited.</value>
+  </data>
+  <data name="Tab_WorkspaceReadOnly" xml:space="preserve">
+    <value>The workspace is read-only – unlock it to make changes.</value>
+  </data>
+  <data name="Tab_RowMarkedForDeletion" xml:space="preserve">
+    <value>The row is marked for deletion.</value>
+  </data>
+  <data name="Tab_CompareTooMany" xml:space="preserve">
+    <value>You can compare at most {0} rows – {1} are selected.</value>
+    <comment>{0} = maximum, {1} = rows selected</comment>
+  </data>
+  <data name="Tab_CompareTooFew" xml:space="preserve">
+    <value>Select at least two loaded rows to compare.</value>
+  </data>
+  <data name="Columns_Heading" xml:space="preserve">
+    <value>Columns</value>
+    <comment>Heading of the columns view</comment>
+  </data>
+  <data name="Columns_FilteredCount" xml:space="preserve">
+    <value>{0} of {1}</value>
+    <comment>{0} = columns shown, {1} = all columns</comment>
+  </data>
+  <data name="Columns_EntityTitle" xml:space="preserve">
+    <value>{0} – from the C# model</value>
+    <comment>{0} = full CLR type of the entity</comment>
+  </data>
+  <data name="Columns_Entity" xml:space="preserve">
+    <value>Entity {0}</value>
+    <comment>{0} = entity name (bold)</comment>
+  </data>
+  <data name="Columns_FilterPlaceholder" xml:space="preserve">
+    <value>Filter columns …{0}</value>
+    <comment>{0} = shortcut hint like “ (Ctrl+F)” or empty</comment>
+  </data>
+  <data name="Columns_Property" xml:space="preserve">
+    <value>Property</value>
+    <comment>Table column header</comment>
+  </data>
+  <data name="Columns_ClrType" xml:space="preserve">
+    <value>C# type</value>
+    <comment>Table column header</comment>
+  </data>
+  <data name="Columns_Null" xml:space="preserve">
+    <value>Null</value>
+    <comment>Table column header (NOT NULL or empty)</comment>
+  </data>
+  <data name="Columns_Comment" xml:space="preserve">
+    <value>Comment</value>
+    <comment>Table column header</comment>
+  </data>
+  <data name="Columns_PrimaryKey" xml:space="preserve">
+    <value>Primary key</value>
+  </data>
+  <data name="Columns_UniqueKey" xml:space="preserve">
+    <value>Unique key</value>
+  </data>
+  <data name="Columns_FkFromModel" xml:space="preserve">
+    <value>{0} → {1} (from the C# model, without constraint)</value>
+    <comment>{0} = relationship name, {1} = referenced table</comment>
+  </data>
+  <data name="Columns_NoProperty" xml:space="preserve">
+    <value>No property in the C# model</value>
+  </data>
+  <data name="Columns_EnumAsNumber" xml:space="preserve">
+    <value>Enum as number</value>
+    <comment>An enum property stored as its number (no converter)</comment>
+  </data>
+  <data name="Columns_VirtualExpression" xml:space="preserve">
+    <value>Expression of the virtual column</value>
+  </data>
+  <data name="Columns_Definition" xml:space="preserve">
+    <value>Definition</value>
+    <comment>Heading: the SQL definition of a view</comment>
+  </data>
+  <data name="Columns_DefinitionTruncated" xml:space="preserve">
+    <value>Truncated – the definition is longer than 32,767 characters.</value>
+  </data>
+  <data name="Columns_EnumValueWithDisplay" xml:space="preserve">
+    <value>{0} “{1}” = {2}</value>
+    <comment>Tooltip line of an enum member. {0} = member, {1} = its display name, {2} = value stored</comment>
+  </data>
+  <data name="Constraints_Loading" xml:space="preserve">
+    <value>Loading constraints …</value>
+  </data>
+  <data name="Constraints_Heading" xml:space="preserve">
+    <value>Constraints</value>
+    <comment>Heading</comment>
+  </data>
+  <data name="Constraints_None" xml:space="preserve">
+    <value>No constraints.</value>
+  </data>
+  <data name="Constraints_Type" xml:space="preserve">
+    <value>Type</value>
+    <comment>Table column header (PRIMARY KEY, CHECK …)</comment>
+  </data>
+  <data name="Constraints_ConditionOrTarget" xml:space="preserve">
+    <value>Condition / target</value>
+    <comment>Table column header</comment>
+  </data>
+  <data name="Constraints_GeneratedName" xml:space="preserve">
+    <value>Named by Oracle</value>
+  </data>
+  <data name="Constraints_TypeOther" xml:space="preserve">
+    <value>OTHER</value>
+    <comment>Constraint type not known to FerretSharp (upper case like PRIMARY KEY)</comment>
+  </data>
+  <data name="Constraints_NotNullOne" xml:space="preserve">
+    <value>{0} NOT NULL constraint is shown as “NOT NULL” in the Columns view.</value>
+    <comment>{0} = number of NOT NULL constraints</comment>
+  </data>
+  <data name="Constraints_NotNullOther" xml:space="preserve">
+    <value>{0} NOT NULL constraints are shown as “NOT NULL” in the Columns view.</value>
+    <comment>{0} = number of NOT NULL constraints</comment>
+  </data>
+  <data name="Constraints_RowKey" xml:space="preserve">
+    <value>Row key: {0}</value>
+    <comment>{0} = Constraints_RowKeyPrimary, ROWID, UROWID or Constraints_RowKeyNone</comment>
+  </data>
+  <data name="Constraints_RowKeyPrimary" xml:space="preserve">
+    <value>Primary key ({0})</value>
+    <comment>{0} = the key columns</comment>
+  </data>
+  <data name="Constraints_RowKeyNone" xml:space="preserve">
+    <value>none – read-only</value>
+  </data>
+  <data name="Constraints_ReferencedBy" xml:space="preserve">
+    <value>Referenced by</value>
+    <comment>Heading: incoming foreign keys</comment>
+  </data>
+  <data name="Constraints_NoIncoming" xml:space="preserve">
+    <value>No table references this one.</value>
+  </data>
+  <data name="Constraints_ModelRelations" xml:space="preserve">
+    <value>Relationships from the C# model</value>
+    <comment>Heading</comment>
+  </data>
+  <data name="Constraints_ModelRelationsHint" xml:space="preserve">
+    <value>Navigations of the linked project without an FK constraint in the database – you can follow them in the grid with a right-click.</value>
+  </data>
+  <data name="Constraints_Enabled" xml:space="preserve">
+    <value>enabled</value>
+    <comment>Constraint status</comment>
+  </data>
+  <data name="Constraints_Disabled" xml:space="preserve">
+    <value>disabled</value>
+    <comment>Constraint status</comment>
+  </data>
+  <data name="Constraints_NotValidated" xml:space="preserve">
+    <value>not validated</value>
+    <comment>Constraint status</comment>
+  </data>
+  <data name="Indexes_ViewHasNone" xml:space="preserve">
+    <value>Views have no indexes – queries use the indexes of the underlying tables.</value>
+  </data>
+  <data name="Indexes_Loading" xml:space="preserve">
+    <value>Loading indexes …</value>
+  </data>
+  <data name="Indexes_UnindexedFkOne" xml:space="preserve">
+    <value>{0} foreign key without an index:</value>
+    <comment>Followed by the foreign keys. {0} = number of foreign keys</comment>
+  </data>
+  <data name="Indexes_UnindexedFkOther" xml:space="preserve">
+    <value>{0} foreign keys without an index:</value>
+    <comment>Followed by the foreign keys. {0} = number of foreign keys</comment>
+  </data>
+  <data name="Indexes_UnindexedFkHint" xml:space="preserve">
+    <value>Deleting or changing the key in the referenced table then locks this entire table and scans all of it; joins over the foreign key are slow as well.</value>
+  </data>
+  <data name="Indexes_Heading" xml:space="preserve">
+    <value>Indexes</value>
+    <comment>Heading</comment>
+  </data>
+  <data name="Indexes_None" xml:space="preserve">
+    <value>No indexes.</value>
+  </data>
+  <data name="Indexes_Unique" xml:space="preserve">
+    <value>Unique</value>
+    <comment>Tooltip of the UNIQUE badge</comment>
+  </data>
+  <data name="Indexes_Valid" xml:space="preserve">
+    <value>valid</value>
+    <comment>Index status</comment>
+  </data>
+  <data name="Indexes_Partitioned" xml:space="preserve">
+    <value>partitioned</value>
+    <comment>Index status</comment>
+  </data>
+  <data name="Indexes_Invisible" xml:space="preserve">
+    <value>invisible</value>
+    <comment>Index status (not used by the optimizer)</comment>
+  </data>
+  <data name="Dependencies_Loading" xml:space="preserve">
+    <value>Loading dependencies …</value>
+  </data>
+  <data name="Dependencies_Uses" xml:space="preserve">
+    <value>Uses</value>
+    <comment>Heading: objects this one uses</comment>
+  </data>
+  <data name="Dependencies_UsedBy" xml:space="preserve">
+    <value>Used by</value>
+    <comment>Heading: objects that use this one</comment>
+  </data>
+  <data name="Dependencies_NoUsedBy" xml:space="preserve">
+    <value>No object uses {0}.</value>
+    <comment>{0} = name of the object shown</comment>
+  </data>
+  <data name="Dependencies_NoneFound" xml:space="preserve">
+    <value>No dependencies found.</value>
+  </data>
+  <data name="Dependencies_TableUsesNothing" xml:space="preserve">
+    <value>A table does not use other objects.</value>
+  </data>
+  <data name="Dependencies_OnlyAccessibleTo" xml:space="preserve">
+    <value>Only objects {0} has access to are shown.</value>
+    <comment>{0} = database user of the connection</comment>
+  </data>
+  <data name="Dependencies_OnlyAccessible" xml:space="preserve">
+    <value>Only objects the user has access to are shown.</value>
+  </data>
+  <data name="Dependencies_ShowBody" xml:space="preserve">
+    <value>Show body</value>
+  </data>
+  <data name="Dependencies_ShowSource" xml:space="preserve">
+    <value>Show source</value>
+  </data>
+  <data name="Dependencies_ShowBodyViaSynonym" xml:space="preserve">
+    <value>Show body – synonym {0} for {1}</value>
+    <comment>{0} = synonym name, {1} = OWNER.NAME of the real object</comment>
+  </data>
+  <data name="Dependencies_ShowSourceViaSynonym" xml:space="preserve">
+    <value>Show source – synonym {0} for {1}</value>
+    <comment>{0} = synonym name, {1} = OWNER.NAME of the real object</comment>
+  </data>
+  <data name="Object_TableChip" xml:space="preserve">
+    <value>TABLE</value>
+    <comment>Chip: kind of the object (VIEW and MATERIALIZED VIEW stay as they are)</comment>
+  </data>
+  <data name="Object_PartitionedChip" xml:space="preserve">
+    <value>PARTITIONED</value>
+    <comment>Chip</comment>
+  </data>
+  <data name="Object_TemporaryChip" xml:space="preserve">
+    <value>TEMPORARY</value>
+    <comment>Chip: global temporary table</comment>
+  </data>
+  <data name="Object_Created" xml:space="preserve">
+    <value>created {0}</value>
+    <comment>{0} = date and time</comment>
+  </data>
+  <data name="Object_LastDdl" xml:space="preserve">
+    <value>last DDL {0}</value>
+    <comment>{0} = date and time</comment>
+  </data>
+  <data name="Object_RowsEstimate" xml:space="preserve">
+    <value>≈ {0} rows</value>
+    <comment>{0} = number of rows from the optimizer statistics</comment>
+  </data>
+  <data name="Object_RowsEstimateAnalyzed" xml:space="preserve">
+    <value>≈ {0} rows (statistics from {1})</value>
+    <comment>{0} = number of rows from the optimizer statistics, {1} = date they were gathered</comment>
+  </data>
+  <data name="Object_RowsEstimateTitle" xml:space="preserve">
+    <value>According to the optimizer statistics – not exact. Exact: “Count rows” in the Data view.</value>
+    <comment>“Count rows” is the button in the footer of the data view</comment>
+  </data>
+  <data name="Object_NoStatistics" xml:space="preserve">
+    <value>no statistics</value>
+  </data>
+  <data name="Object_NoStatisticsTitle" xml:space="preserve">
+    <value>No optimizer statistics have been gathered for this table yet.</value>
+  </data>
+  <data name="Object_Loading" xml:space="preserve">
+    <value>Loading overview …</value>
+  </data>
+  <data name="Ddl_Loading" xml:space="preserve">
+    <value>Loading DDL …</value>
+  </data>
+  <data name="Ddl_NeedsCatalogRole" xml:space="preserve">
+    <value>Oracle returns the DDL of objects in other schemas only with the SELECT_CATALOG_ROLE role.</value>
+  </data>
+  <data name="Ddl_Source" xml:space="preserve">
+    <value>From {0} – indexes, triggers and grants are not included.</value>
+    <comment>{0} = DBMS_METADATA.GET_DDL (code)</comment>
+  </data>
+  <data name="TableLink_ShowStructure" xml:space="preserve">
+    <value>Show structure</value>
+  </data>
+  <data name="TableLink_ShowStructureViaSynonym" xml:space="preserve">
+    <value>Synonym for {0} – show structure</value>
+    <comment>{0} = OWNER.NAME of the real object</comment>
+  </data>
+  <data name="TableLink_OtherSchema" xml:space="preserve">
+    <value>In another schema without a synonym</value>
+  </data>
+  <data name="PlSql_ViewSpecification" xml:space="preserve">
+    <value>Specification</value>
+    <comment>View of a package tab; also the part of a compile error</comment>
+  </data>
+  <data name="PlSql_ViewSource" xml:space="preserve">
+    <value>Source</value>
+    <comment>View of a procedure, function or trigger tab</comment>
+  </data>
+  <data name="PlSql_ViewBody" xml:space="preserve">
+    <value>Body</value>
+    <comment>View of a package tab; also the part of a compile error</comment>
+  </data>
+  <data name="PlSql_ViewParameters" xml:space="preserve">
+    <value>Parameters</value>
+    <comment>View of a PL/SQL tab</comment>
+  </data>
+  <data name="PlSql_ViewErrors" xml:space="preserve">
+    <value>Errors</value>
+    <comment>View of a PL/SQL tab and its heading (compile errors)</comment>
+  </data>
+  <data name="PlSql_ViewDependencies" xml:space="preserve">
+    <value>Dependencies</value>
+    <comment>View of a PL/SQL tab</comment>
+  </data>
+  <data name="PlSql_ViewOnly" xml:space="preserve">
+    <value>view only</value>
+    <comment>Hint in the toolbar of a PL/SQL tab</comment>
+  </data>
+  <data name="PlSql_ViewOnlyTitle" xml:space="preserve">
+    <value>Running, editing and compiling PL/SQL is not part of FerretSharp.</value>
+  </data>
+  <data name="PlSql_LoadingErrors" xml:space="preserve">
+    <value>Loading errors …</value>
+  </data>
+  <data name="PlSql_SpecInvalidChip" xml:space="preserve">
+    <value>SPECIFICATION INVALID</value>
+    <comment>Chip</comment>
+  </data>
+  <data name="PlSql_BodyInvalidChip" xml:space="preserve">
+    <value>BODY INVALID</value>
+    <comment>Chip</comment>
+  </data>
+  <data name="PlSql_DisabledChip" xml:space="preserve">
+    <value>DISABLED</value>
+    <comment>Chip of a disabled trigger</comment>
+  </data>
+  <data name="PlSql_TriggerDisabledTitle" xml:space="preserve">
+    <value>The trigger is disabled (ALTER TRIGGER … DISABLE) and does not fire.</value>
+  </data>
+  <data name="PlSql_TriggerOn" xml:space="preserve">
+    <value>on {0}</value>
+    <comment>Trigger header: the table or object type it fires on. {0} = table link or object type</comment>
+  </data>
+  <data name="PlSql_SpecLastDdl" xml:space="preserve">
+    <value>specification {0}</value>
+    <comment>Last DDL of a package specification. {0} = date and time</comment>
+  </data>
+  <data name="PlSql_BodyLastDdl" xml:space="preserve">
+    <value>body {0}</value>
+    <comment>Last DDL of a package body. {0} = date and time</comment>
+  </data>
+  <data name="PlSql_NoBody" xml:space="preserve">
+    <value>no body</value>
+  </data>
+  <data name="PlSql_PackageHasNoBody" xml:space="preserve">
+    <value>The package has no body.</value>
+  </data>
+  <data name="PlSql_BodyNotVisibleTitle" xml:space="preserve">
+    <value>No body visible: Oracle shows the body of a package in another schema only with the DEBUG privilege on it (or to its owner).</value>
+  </data>
+  <data name="PlSql_BodyNotVisible" xml:space="preserve">
+    <value>No body visible. Oracle shows the body of a package in another schema only with the DEBUG privilege on it (or to its owner); EXECUTE is enough only for the specification.</value>
+  </data>
+  <data name="PlSql_InvokerRights" xml:space="preserve">
+    <value>Runs with the privileges of the caller (invoker’s rights).</value>
+  </data>
+  <data name="PlSql_DefinerRights" xml:space="preserve">
+    <value>Runs with the privileges of the owner (definer’s rights).</value>
+  </data>
+  <data name="PlSql_LoadingSource" xml:space="preserve">
+    <value>Loading source …</value>
+  </data>
+  <data name="PlSql_WrappedTitle" xml:space="preserve">
+    <value>Obfuscated (wrapped).</value>
+    <comment>Bold start of PlSql_Wrapped</comment>
+  </data>
+  <data name="PlSql_Wrapped" xml:space="preserve">
+    <value>{0} The source was made unreadable with Oracle’s wrap utility and cannot be restored. Parameters and dependencies are still shown in the other views.</value>
+    <comment>{0} = PlSql_WrappedTitle (bold)</comment>
+  </data>
+  <data name="PlSql_ShowWrapped" xml:space="preserve">
+    <value>Show raw text anyway</value>
+  </data>
+  <data name="PlSql_SourceNotVisible" xml:space="preserve">
+    <value>No source visible – the object was dropped, or the user lacks privileges on it.</value>
+  </data>
+  <data name="PlSql_LoadingParameters" xml:space="preserve">
+    <value>Loading parameters …</value>
+  </data>
+  <data name="PlSql_SpecDeclaresNothing" xml:space="preserve">
+    <value>The specification declares no procedures or functions.</value>
+  </data>
+  <data name="PlSql_NoParameterInfo" xml:space="preserve">
+    <value>No parameter information found.</value>
+  </data>
+  <data name="PlSql_OverloadTitle" xml:space="preserve">
+    <value>Same name, different parameters (overload)</value>
+  </data>
+  <data name="PlSql_Overload" xml:space="preserve">
+    <value>Overload {0}</value>
+    <comment>{0} = number of the overload</comment>
+  </data>
+  <data name="PlSql_NoParameters" xml:space="preserve">
+    <value>No parameters.</value>
+  </data>
+  <data name="PlSql_Direction" xml:space="preserve">
+    <value>Direction</value>
+    <comment>Table column header: IN, OUT, IN OUT</comment>
+  </data>
+  <data name="PlSql_HasDefaultTitle" xml:space="preserve">
+    <value>The parameter has a default value – the expression is not in the dictionary, only in the source.</value>
+  </data>
+  <data name="PlSql_Yes" xml:space="preserve">
+    <value>yes</value>
+    <comment>The parameter has a default</comment>
+  </data>
+  <data name="PlSql_ParametersNote" xml:space="preserve">
+    <value>Only what the specification declares; private subprograms of the body are not in the dictionary. Oracle shows types declared with {0} as the resolved type.</value>
+    <comment>{0} = %TYPE (code)</comment>
+  </data>
+  <data name="PlSql_NoErrorsButInvalid" xml:space="preserve">
+    <value>No errors stored. The object is probably invalid because something it uses has changed – Oracle recompiles it on the next call.</value>
+  </data>
+  <data name="PlSql_NoCompileErrors" xml:space="preserve">
+    <value>No compile errors.</value>
+  </data>
+  <data name="PlSql_ShowInSource" xml:space="preserve">
+    <value>Show in source</value>
+  </data>
+  <data name="PlSql_WarningChip" xml:space="preserve">
+    <value>WARNING</value>
+    <comment>Chip of a compile warning</comment>
+  </data>
+  <data name="PlSql_ErrorChip" xml:space="preserve">
+    <value>ERROR</value>
+    <comment>Chip of a compile error</comment>
+  </data>
+  <data name="PlSql_ErrorPosition" xml:space="preserve">
+    <value>Line {0}, column {1}</value>
+    <comment>Position of a compile error in the source. {0} = line, {1} = column</comment>
+  </data>
+</root>
