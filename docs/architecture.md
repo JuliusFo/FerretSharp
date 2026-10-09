@@ -162,6 +162,8 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 
 Seit WP-25 (3.16.0) unter Einstellungen › Tastenkürzel änderbar; die Tabelle zeigt die Standardbelegung (`ShortcutMap.Definitions`, fest: `ShortcutMap.Fixed`).
 
+**Neue Aktionen bekommen keine Standardtaste** (Entscheidung des Nutzers, nach 3.20; `Default` = null): Eine gespeicherte Taste einer anderen Aktion könnte schon darauf liegen, und bei doppelter Belegung gewinnt die erste Definition – die neue Vorgabe würde dem Nutzer seine Taste stillschweigend wegnehmen. Der Nutzer vergibt die Taste selbst. Die Standardtasten bis 3.20 bleiben, wie sie sind.
+
 | Taste (Standard) | Aktion | Version |
 |---|---|---|
 | Ctrl+Shift+O | Verbindungs-Umschalter öffnen | v1 |

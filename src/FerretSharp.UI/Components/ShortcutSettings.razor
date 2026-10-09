@@ -49,7 +49,7 @@
 
                         <button class="btn ghost" disabled="@(_recording is not null)" @onclick="() => RecordAsync(action)">@ShellText.Shortcuts_Change</button>
                         <button class="btn ghost" disabled="@(_recording is not null || Map.IsDefault(action))"
-                                title="@TextFormat.Format(ShellText.Shortcuts_DefaultTitle, definition.DefaultChord.Label)" @onclick="() => ResetAsync(action)">@CommonText.Reset</button>
+                                title="@TextFormat.Format(ShellText.Shortcuts_DefaultTitle, definition.DefaultChord?.Label ?? ShellText.Shortcuts_None)" @onclick="() => ResetAsync(action)">@CommonText.Reset</button>
                     }
                 </div>
             </div>
