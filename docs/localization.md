@@ -125,6 +125,10 @@ Ein Begriff, eine Übersetzung – überall gleich. Neue Fachbegriffe hier ergä
 | Überladung / verschlüsselt (wrapped) / Richtung (IN/OUT) | overload / obfuscated (wrapped) / direction | PL/SQL |
 | Schreiben (Knopf: ausstehende Änderungen in die Session schreiben) | Write | andere Texte nennen ihn „Write“ |
 | Aktion (Schreib-Aktion von Grid/SQL/LINQ im Undo-Stapel) | action | „3 uncommitted actions“ |
+| zurücknehmen / zurückgenommen (Aktion) | undo / undone | „Undone – can be redone“ |
+| wiederholen (Redo einer zurückgenommenen Aktion) | redo | Knopf „↷ Redo“ / „↷ Wiederholen“ |
+| bis hier zurücknehmen | undo up to here | Knopf „↶ Up to here“ / „↶ Bis hier“ |
+| Offene Änderungen (Panel) | open changes | |
 | Committen (Knopf in Bestätigungen) | Commit | |
 | freigeschaltet / FREIGESCHALTET / BEARBEITBAR (Badge) | unlocked / UNLOCKED / EDITABLE | READ-ONLY in beiden Sprachen |
 | schreibende Transaktion | write transaction | Gegenstück zur Lesetransaktion eines gesperrten Workspaces |
