@@ -1,0 +1,387 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="ProjectNotReadable" xml:space="preserve">
+    <value>The project cannot be read: {0}</value>
+    <comment>{0} = technical error message</comment>
+  </data>
+  <data name="ProjectFileNotFound" xml:space="preserve">
+    <value>Project file not found: {0}</value>
+    <comment>{0} = path of the .csproj file</comment>
+  </data>
+  <data name="NotBuilt" xml:space="preserve">
+    <value>No build of {0} ({1}) found – build the project first.</value>
+    <comment>{0} = assembly name, {1} = build configuration (Debug, Release)</comment>
+  </data>
+  <data name="FrameworkTooOld" xml:space="preserve">
+    <value>{0} is built for .NET {1} – FerretSharp needs EF Core 8 (.NET 8) or later to read a model.</value>
+    <comment>{0} = assembly name, {1} = .NET version (e.g. 6.0)</comment>
+  </data>
+  <data name="UnknownFramework" xml:space="preserve">
+    <value>Unknown target framework “{0}” – FerretSharp needs EF Core 8 (.NET 8) or later to read a model.</value>
+    <comment>{0} = target framework as written in the deps.json</comment>
+  </data>
+  <data name="NoEfCore" xml:space="preserve">
+    <value>{0} does not reference EF Core – link the project that contains the DbContext (not just the entities).</value>
+    <comment>{0} = assembly name</comment>
+  </data>
+  <data name="StepCopyBuildOutput" xml:space="preserve">
+    <value>Copying the build output</value>
+    <comment>Progress step while the C# model or the LINQ console loads</comment>
+  </data>
+  <data name="BuildOutputNotCopied" xml:space="preserve">
+    <value>The build output could not be copied – is a build running right now? {0}</value>
+    <comment>{0} = technical error message</comment>
+  </data>
+  <data name="ValueCustomConverter" xml:space="preserve">
+    <value>custom converter {0}, database value {1}</value>
+    <comment>Why a value has no C# literal, shown as a comment in generated code. {0} = converter type, {1} = value as Oracle literal</comment>
+  </data>
+  <data name="LobNotLoaded" xml:space="preserve">
+    <value>{0} with {1:N0} bytes not loaded</value>
+    <comment>Comment in generated code. {0} = Oracle type (BLOB, CLOB), {1} = length</comment>
+  </data>
+  <data name="LobPreviewOnly" xml:space="preserve">
+    <value>{0} only loaded as a preview ({1:N0} characters)</value>
+    <comment>Comment in generated code. {0} = Oracle type (CLOB), {1} = full length</comment>
+  </data>
+  <data name="ValueNotWritableAs" xml:space="preserve">
+    <value>{0} cannot be written as {1}</value>
+    <comment>Comment in generated code. {0} = value as Oracle literal, {1} = C# type</comment>
+  </data>
+  <data name="ValueNotTrueOrFalse" xml:space="preserve">
+    <value>{0} is neither true nor false ({1})</value>
+    <comment>Comment in generated code. {0} = value as Oracle literal, {1} = converter type</comment>
+  </data>
+  <data name="ValueNotTrueOrFalseConverter" xml:space="preserve">
+    <value>{0} is neither true nor false (converter)</value>
+    <comment>Comment in generated code, converter type unknown. {0} = value as Oracle literal</comment>
+  </data>
+  <data name="ValueNotMember" xml:space="preserve">
+    <value>{0} is not a value of {1}</value>
+    <comment>Comment in generated code. {0} = value as Oracle literal, {1} = enum type</comment>
+  </data>
+  <data name="HasDataNoKey" xml:space="preserve">
+    <value>HasData needs a key – the entity is keyless.</value>
+  </data>
+  <data name="HasDataNoTable" xml:space="preserve">
+    <value>HasData only works for entities on tables, not on views.</value>
+  </data>
+  <data name="HasDataOwned" xml:space="preserve">
+    <value>Owned types are seeded through their owner (OwnsOne(…).HasData).</value>
+  </data>
+  <data name="CellNoProperty" xml:space="preserve">
+    <value>{0} has no property in the C# model.</value>
+    <comment>{0} = column name</comment>
+  </data>
+  <data name="CommentNoProperty" xml:space="preserve">
+    <value>{0} = {1} (no property)</value>
+    <comment>Comment in generated code for a column without property. {0} = column name, {1} = value as Oracle literal</comment>
+  </data>
+  <data name="CommentOtherEntity" xml:space="preserve">
+    <value>{0} = {1} (property {2} of another entity type of the table)</value>
+    <comment>Comment in generated code. {0} = column name, {1} = value as Oracle literal, {2} = property name</comment>
+  </data>
+  <data name="CommentShadowProperty" xml:space="preserve">
+    <value>{0} = {1} (shadow property)</value>
+    <comment>Comment in generated code. {0} = property name, {1} = C# value</comment>
+  </data>
+  <data name="NoProperty" xml:space="preserve">
+    <value>no property</value>
+    <comment>Reason a column or filter is left out of generated code: the column has no property in the C# model</comment>
+  </data>
+  <data name="NoteOtherEntity" xml:space="preserve">
+    <value>property {0} of another entity type</value>
+    <comment>Reason a column is left out of generated code. {0} = property name</comment>
+  </data>
+  <data name="NoteShadowProperty" xml:space="preserve">
+    <value>shadow property, cannot be set in an initializer</value>
+    <comment>Reason a value is left out of generated code</comment>
+  </data>
+  <data name="NoteAsComment" xml:space="preserve">
+    <value>{0}: {1} – as a comment.</value>
+    <comment>Warning after generating code. {0} = column or property name, {1} = reason</comment>
+  </data>
+  <data name="NoteAsCommentRows" xml:space="preserve">
+    <value>{0}: {1} ({2} rows) – as a comment.</value>
+    <comment>Warning after generating code. {0} = column or property name, {1} = reason, {2} = number of rows (always 2 or more)</comment>
+  </data>
+  <data name="NotesMore" xml:space="preserve">
+    <value>… and {0} more, see the comments in the code.</value>
+    <comment>{0} = number of further warnings (1 or more)</comment>
+  </data>
+  <data name="StepFindBuild" xml:space="preserve">
+    <value>Looking for the build</value>
+    <comment>Progress step while the C# model or the LINQ console loads</comment>
+  </data>
+  <data name="StepCheckCache" xml:space="preserve">
+    <value>Checking the cache</value>
+    <comment>Progress step while the C# model loads</comment>
+  </data>
+  <data name="NoModelReturned" xml:space="preserve">
+    <value>No model returned.</value>
+  </data>
+  <data name="ColumnsNotRead" xml:space="preserve">
+    <value>Columns could not be read: {0}</value>
+    <comment>{0} = database error</comment>
+  </data>
+  <data name="ModelNotLoaded" xml:space="preserve">
+    <value>The model could not be loaded: {0}</value>
+    <comment>{0} = technical error message</comment>
+  </data>
+  <data name="EntityWithoutTable" xml:space="preserve">
+    <value>{0}: table {1} does not exist.</value>
+    <comment>Mismatch C# model ↔ database. {0} = entity name, {1} = table name</comment>
+  </data>
+  <data name="EntityWithoutView" xml:space="preserve">
+    <value>{0}: view {1} does not exist.</value>
+    <comment>Mismatch C# model ↔ database. {0} = entity name, {1} = view name</comment>
+  </data>
+  <data name="TableCaseMismatch" xml:space="preserve">
+    <value>{0}: “{1}” in the model, “{2}” in the database – EF Core quotes names, so queries would not find the table.</value>
+    <comment>{0} = entity name, {1} = table name in the model, {2} = table name in the database</comment>
+  </data>
+  <data name="ViewCaseMismatch" xml:space="preserve">
+    <value>{0}: “{1}” in the model, “{2}” in the database – EF Core quotes names, so queries would not find the view.</value>
+    <comment>{0} = entity name, {1} = view name in the model, {2} = view name in the database</comment>
+  </data>
+  <data name="StepReadColumns" xml:space="preserve">
+    <value>Reading the columns ({0})</value>
+    <comment>Progress step while the C# model loads. {0} = schema (owner)</comment>
+  </data>
+  <data name="StepCompare" xml:space="preserve">
+    <value>Comparing model and database</value>
+    <comment>Progress step while the C# model loads</comment>
+  </data>
+  <data name="ColumnCaseMismatch" xml:space="preserve">
+    <value>{0}.{1}: column “{2}” in the model, “{3}” in the database.</value>
+    <comment>{0} = entity name, {1} = property name, {2} = column name in the model, {3} = column name in the database</comment>
+  </data>
+  <data name="PropertyWithoutColumn" xml:space="preserve">
+    <value>{0}.{1}: column {2}.{3} does not exist.</value>
+    <comment>{0} = entity name, {1} = property name, {2} = table name, {3} = column name</comment>
+  </data>
+  <data name="ColumnWithoutProperty" xml:space="preserve">
+    <value>{0}.{1}: no property in {2}.</value>
+    <comment>{0} = table name, {1} = column name, {2} = entity names (comma-separated)</comment>
+  </data>
+  <data name="TypeMismatch" xml:space="preserve">
+    <value>The stored type does not fit the column {0}: reading fails.</value>
+    <comment>{0} = Oracle column type (VARCHAR2(10))</comment>
+  </data>
+  <data name="TypeMismatchConverter" xml:space="preserve">
+    <value>The stored type does not fit the column {0}: reading fails – is the converter missing (e.g. J/N)?</value>
+    <comment>{0} = Oracle column type (VARCHAR2(1)); bool property without value converter on a text column</comment>
+  </data>
+  <data name="DateTimeLosesZone" xml:space="preserve">
+    <value>DateTime loses the column's time zone – DateTimeOffset fits it.</value>
+  </data>
+  <data name="GuidRawLength" xml:space="preserve">
+    <value>A Guid has 16 bytes, the column RAW({0}).</value>
+    <comment>{0} = length of the RAW column</comment>
+  </data>
+  <data name="ViewColumnNullable" xml:space="preserve">
+    <value>The view's column allows NULL, the model requires a value – if it contains NULL, EF Core throws when reading. (Oracle always reports computed view columns as nullable.)</value>
+  </data>
+  <data name="MaterializedViewColumnNullable" xml:space="preserve">
+    <value>The materialized view's column allows NULL, the model requires a value – if it contains NULL, EF Core throws when reading. (Oracle always reports computed view columns as nullable.)</value>
+  </data>
+  <data name="ColumnNullable" xml:space="preserve">
+    <value>The column allows NULL, the model requires a value – EF Core throws when reading a row with NULL.</value>
+  </data>
+  <data name="ColumnNotNull" xml:space="preserve">
+    <value>The column is NOT NULL, optional in the model – SaveChanges with NULL fails (ORA-01400).</value>
+  </data>
+  <data name="LengthTooShortBytes" xml:space="preserve">
+    <value>Up to {0} bytes in the model, the column holds {1} – longer values fail when saving (ORA-12899).</value>
+    <comment>RAW column. {0} = maximum length in the model, {1} = column length</comment>
+  </data>
+  <data name="LengthTooShortChars" xml:space="preserve">
+    <value>Up to {0} characters in the model, the column holds {1} – longer values fail when saving (ORA-12899).</value>
+    <comment>Text column with CHAR semantics. {0} = maximum length in the model, {1} = column length</comment>
+  </data>
+  <data name="LengthTooShortCharsInBytes" xml:space="preserve">
+    <value>Up to {0} characters in the model, the column holds {1} bytes – longer values fail when saving (ORA-12899).</value>
+    <comment>Text column with BYTE semantics. {0} = maximum length in the model, {1} = column length in bytes</comment>
+  </data>
+  <data name="ByteSemantics" xml:space="preserve">
+    <value>The column counts bytes (BYTE semantics): {0} characters with umlauts or accents need more than {1} bytes (ORA-12899).</value>
+    <comment>{0} = maximum length in the model, {1} = column length in bytes</comment>
+  </data>
+  <data name="LengthLongerBytes" xml:space="preserve">
+    <value>Up to {0} bytes in the model, the column holds {1}.</value>
+    <comment>RAW column. {0} = maximum length in the model, {1} = column length</comment>
+  </data>
+  <data name="LengthLongerChars" xml:space="preserve">
+    <value>Up to {0} characters in the model, the column holds {1}.</value>
+    <comment>Text column. {0} = maximum length in the model, {1} = column length</comment>
+  </data>
+  <data name="IntegerFloatColumn" xml:space="preserve">
+    <value>Integer in the model, the column {0} can hold decimal places – reading fails or truncates.</value>
+    <comment>{0} = Oracle column type (FLOAT, BINARY_DOUBLE)</comment>
+  </data>
+  <data name="IntegerScale" xml:space="preserve">
+    <value>Integer in the model, the column has {0} decimal places – such values cannot be read.</value>
+    <comment>{0} = scale of the column</comment>
+  </data>
+  <data name="IntegerPrecision" xml:space="preserve">
+    <value>{0} holds {1} digits, the column {2} – larger values cannot be read.</value>
+    <comment>{0} = C# type (int, long), {1} = digits of the C# type, {2} = precision of the column</comment>
+  </data>
+  <data name="DecimalIntegerDigits" xml:space="preserve">
+    <value>({0},{1}) in the model, ({2},{3}) in the column – values with more than {4} digits before the decimal point fail when saving (ORA-01438).</value>
+    <comment>{0},{1} = precision and scale in the model, {2},{3} = precision and scale of the column, {4} = digits before the decimal point the column holds</comment>
+  </data>
+  <data name="DecimalScale" xml:space="preserve">
+    <value>{0} decimal places in the model, {1} in the column – Oracle rounds when saving.</value>
+    <comment>{0} = scale in the model, {1} = scale of the column</comment>
+  </data>
+  <data name="DecimalPrecisionDiffers" xml:space="preserve">
+    <value>({0},{1}) in the model, ({2},{3}) in the column.</value>
+    <comment>{0},{1} = precision and scale in the model, {2},{3} = precision and scale of the column</comment>
+  </data>
+  <data name="DecimalTooWide" xml:space="preserve">
+    <value>decimal holds {0} digits, the column {1} – larger values cannot be read.</value>
+    <comment>{0} = digits of decimal (28), {1} = precision of the column</comment>
+  </data>
+  <data name="DotNetNotStartable" xml:space="preserve">
+    <value>dotnet could not be started.</value>
+  </data>
+  <data name="DotNetTimeout" xml:space="preserve">
+    <value>dotnet did not respond within {0:0} s and was stopped.</value>
+    <comment>{0} = timeout in seconds</comment>
+  </data>
+  <data name="DotNetNotFound" xml:space="preserve">
+    <value>dotnet was not found – the C# model needs a .NET SDK or a .NET runtime to be installed.</value>
+  </data>
+  <data name="StepStartHelper" xml:space="preserve">
+    <value>Starting the helper process</value>
+    <comment>Progress step while the C# model or the LINQ console loads</comment>
+  </data>
+  <data name="HelperExitedAtStart" xml:space="preserve">
+    <value>The helper process exited while starting (exit code {0}).</value>
+    <comment>{0} = exit code</comment>
+  </data>
+  <data name="HelperStartTimeout" xml:space="preserve">
+    <value>The helper process did not respond within {0:0} s and was stopped.</value>
+    <comment>{0} = timeout in seconds</comment>
+  </data>
+  <data name="RunTimeout" xml:space="preserve">
+    <value>The code ran longer than {0:0} s – the helper process was stopped and restarts next time.</value>
+    <comment>LINQ console. {0} = timeout in seconds</comment>
+  </data>
+  <data name="CompleteTimeout" xml:space="preserve">
+    <value>The suggestions took longer than {0:0} s – the helper process was stopped and restarts next time.</value>
+    <comment>LINQ console code completion. {0} = timeout in seconds</comment>
+  </data>
+  <data name="NoAnswer" xml:space="preserve">
+    <value>No answer.</value>
+    <comment>The LINQ console's helper process answered without a result</comment>
+  </data>
+  <data name="ConsoleNotRunning" xml:space="preserve">
+    <value>The LINQ console's helper process is no longer running.</value>
+  </data>
+  <data name="ConsoleCrashed" xml:space="preserve">
+    <value>The LINQ console's helper process crashed.</value>
+  </data>
+  <data name="ConsoleUnreadable" xml:space="preserve">
+    <value>The LINQ console's helper process sent an unreadable answer and was stopped – it restarts next time.</value>
+  </data>
+  <data name="BuildChangedStep" xml:space="preserve">
+    <value>Build changed – {0}</value>
+    <comment>LINQ console status while a new build loads in the background. {0} = current step (e.g. “waiting for the model”, “Building the model (OnModelCreating)”)</comment>
+  </data>
+  <data name="ReloadWaitingForModel" xml:space="preserve">
+    <value>waiting for the model</value>
+    <comment>Step after “Build changed – ”: the LINQ console restarts once the C# model is reloaded</comment>
+  </data>
+  <data name="ReloadStarting" xml:space="preserve">
+    <value>reloading</value>
+    <comment>Step after “Build changed – ”: the LINQ console starts on the new build</comment>
+  </data>
+  <data name="NoProjectLinked" xml:space="preserve">
+    <value>No C# project is linked to this connection (edit the connection → C# model).</value>
+  </data>
+  <data name="ConsoleNotStarted" xml:space="preserve">
+    <value>The LINQ console could not be started: {0}</value>
+    <comment>{0} = technical error message</comment>
+  </data>
+  <data name="NewBuildNotLoaded" xml:space="preserve">
+    <value>The new build could not be loaded, the console keeps using the previous one: {0}</value>
+    <comment>{0} = error message</comment>
+  </data>
+  <data name="NoEntity" xml:space="preserve">
+    <value>No entity of the C# model for this table.</value>
+  </data>
+  <data name="FilterSkippedComment" xml:space="preserve">
+    <value>Not included: {0}</value>
+    <comment>Comment in generated LINQ code for a filter left out. {0} = filter and reason</comment>
+  </data>
+  <data name="FilterSkipped" xml:space="preserve">
+    <value>Not included: {0}.</value>
+    <comment>Warning after generating LINQ code. {0} = filter and reason (e.g. “STATUS = X: no property”)</comment>
+  </data>
+  <data name="ColumnGone" xml:space="preserve">
+    <value>column no longer exists</value>
+    <comment>Reason a filter is left out of generated LINQ code</comment>
+  </data>
+  <data name="PropertyOfOtherEntity" xml:space="preserve">
+    <value>property {0} belongs to another entity type of the table</value>
+    <comment>Reason a filter is left out of generated LINQ code. {0} = property name</comment>
+  </data>
+  <data name="OperatorStringOnly" xml:space="preserve">
+    <value>“{0}” only for string properties ({1})</value>
+    <comment>Reason a filter is left out of generated LINQ code. {0} = filter operator (contains), {1} = C# type of the property</comment>
+  </data>
+  <data name="OperatorNotForBool" xml:space="preserve">
+    <value>“{0}” does not work for bool</value>
+    <comment>Reason a filter is left out of generated LINQ code. {0} = filter operator</comment>
+  </data>
+  <data name="OperatorNotForDates" xml:space="preserve">
+    <value>“{0}” does not work for dates</value>
+    <comment>Reason a filter is left out of generated LINQ code. {0} = filter operator</comment>
+  </data>
+  <data name="NotADate" xml:space="preserve">
+    <value>“{0}” is not a date</value>
+    <comment>Reason a filter is left out of generated LINQ code. {0} = filter value</comment>
+  </data>
+  <data name="OperatorNotTranslated" xml:space="preserve">
+    <value>“{0}” is not translated</value>
+    <comment>Reason a filter is left out of generated LINQ code. {0} = filter operator</comment>
+  </data>
+  <data name="HostEndedWithoutResult" xml:space="preserve">
+    <value>FerretSharp.ModelHost exited without a result (exit code {0}).</value>
+    <comment>{0} = exit code</comment>
+  </data>
+  <data name="HostNotRunnable" xml:space="preserve">
+    <value>FerretSharp.ModelHost could not be run: {0}</value>
+    <comment>{0} = technical error message</comment>
+  </data>
+  <data name="HostMissing" xml:space="preserve">
+    <value>FerretSharp.ModelHost is missing: {0}</value>
+    <comment>{0} = expected path of FerretSharp.ModelHost.dll</comment>
+  </data>
+  <data name="UnknownNotTrueOrFalse" xml:space="preserve">
+    <value>Neither true nor false for {0}</value>
+    <comment>Tooltip of a cell whose value the bool converter does not know. {0} = converter type</comment>
+  </data>
+  <data name="UnknownNotTrueOrFalseConverter" xml:space="preserve">
+    <value>Neither true nor false for the converter</value>
+    <comment>Tooltip of a cell whose value the bool converter does not know (converter type unknown)</comment>
+  </data>
+  <data name="UnknownNotMember" xml:space="preserve">
+    <value>Not a value of {0}</value>
+    <comment>Tooltip of a cell whose value is no member of the enum. {0} = enum type</comment>
+  </data>
+</root>

@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="StepLoadAssemblies" xml:space="preserve">
+    <value>Loading the assemblies</value>
+    <comment>Progress step while the C# model or the LINQ console loads</comment>
+  </data>
+  <data name="StepCreateContext" xml:space="preserve">
+    <value>Creating the DbContext</value>
+    <comment>Progress step while the C# model loads</comment>
+  </data>
+  <data name="StepBuildModel" xml:space="preserve">
+    <value>Building the model (OnModelCreating)</value>
+    <comment>Progress step while the C# model or the LINQ console loads</comment>
+  </data>
+  <data name="StepReadModel" xml:space="preserve">
+    <value>Reading the model</value>
+    <comment>Progress step while the C# model loads</comment>
+  </data>
+  <data name="AssemblyNotFound" xml:space="preserve">
+    <value>Assembly not found: {0}</value>
+    <comment>{0} = path of the project's assembly</comment>
+  </data>
+  <data name="AssemblyArgumentMissing" xml:space="preserve">
+    <value>Assembly not found: (--assembly missing)</value>
+    <comment>The command line argument --assembly was not given</comment>
+  </data>
+  <data name="AssemblyNotLoadable" xml:space="preserve">
+    <value>{0} cannot be loaded: {1}</value>
+    <comment>{0} = file name of the assembly, {1} = technical error message</comment>
+  </data>
+  <data name="NoContext" xml:space="preserve">
+    <value>There is no DbContext in {0}.</value>
+    <comment>{0} = assembly name</comment>
+  </data>
+  <data name="NoContextNamed" xml:space="preserve">
+    <value>There is no DbContext “{1}” in {0}.</value>
+    <comment>{0} = assembly name, {1} = DbContext type name configured for the connection</comment>
+  </data>
+  <data name="SeveralContexts" xml:space="preserve">
+    <value>Several DbContexts – please specify one: {0}</value>
+    <comment>{0} = full names of the DbContext types, comma-separated</comment>
+  </data>
+  <data name="ContextNotCreated" xml:space="preserve">
+    <value>{0} could not be created: {1}</value>
+    <comment>{0} = DbContext type name, {1} = technical error message</comment>
+  </data>
+  <data name="ModelNotBuilt" xml:space="preserve">
+    <value>The model of {0} could not be built: {1}</value>
+    <comment>{0} = DbContext type name, {1} = technical error message</comment>
+  </data>
+  <data name="ConstructorNeedsServices" xml:space="preserve">
+    <value>{0} needs further services for its constructor ({1}). FerretSharp can only create it with DbContextOptions, without parameters or through an IDesignTimeDbContextFactory.</value>
+    <comment>{0} = DbContext type name, {1} = its constructor signatures, separated by semicolons</comment>
+  </data>
+  <data name="NoOracleProvider" xml:space="preserve">
+    <value>The project does not use Oracle.EntityFrameworkCore (the provider cannot be found).</value>
+  </data>
+  <data name="UseOracleMissing" xml:space="preserve">
+    <value>UseOracle(DbContextOptionsBuilder, string) is missing in {0}.</value>
+    <comment>{0} = assembly name of the Oracle EF Core provider with version</comment>
+  </data>
+  <data name="FillInTypeAndValue" xml:space="preserve">
+    <value>fill in type and value</value>
+    <comment>Comment in a generated variable declaration of the LINQ console: object? name = null; // fill in type and value</comment>
+  </data>
+</root>

@@ -120,4 +120,32 @@ public sealed class ColumnTypeCheckTests
         Assert.Equal("bool → string(1) (JaNeinConverter)",ColumnTypeCheck.Describe(Prop("bool", provider: "string", converter: "JaNeinConverter", maxLength: 1)));
         Assert.Equal("int?", ColumnTypeCheck.Describe(Prop("int", columnNullable: true)));
     }
+
+    /// <summary>WP-29: the length message names the unit of the model and of the column – one whole sentence per case.</summary>
+    [Fact]
+    public void Length_messages_name_the_units_in_both_languages()
+    {
+        string Message(PropertyExport property, ColumnInfo column)
+        {
+            var entity = new EntityExport("Shop.Kunde", "Shop.Kunde", false, null, "KUNDEN", null, null, null, [property], [], []);
+            return Assert.Single(ColumnTypeCheck.Check(entity, property, Table, column, readOnly: false)).Message;
+        }
+
+        var bytes = (Prop("byte[]", maxLength: 32), Col("RAW", 16));
+        var charsInBytes = (Prop("string", maxLength: 100), Col("VARCHAR2", 50));
+        var chars = (Prop("string", maxLength: 100), Col("VARCHAR2", 50, charSemantics: true));
+
+        Assert.Equal("Im Modell bis 32 Byte, die Spalte fasst 16 – längere Werte scheitern beim Speichern (ORA-12899).", Message(bytes.Item1, bytes.Item2));
+        Assert.Equal("Im Modell bis 100 Zeichen, die Spalte fasst 50 Byte – längere Werte scheitern beim Speichern (ORA-12899).",
+            Message(charsInBytes.Item1, charsInBytes.Item2));
+        Assert.Equal("Im Modell bis 100 Zeichen, die Spalte fasst 50 – längere Werte scheitern beim Speichern (ORA-12899).", Message(chars.Item1, chars.Item2));
+
+        using (UiCulture.Use("en"))
+        {
+            Assert.Equal("Up to 32 bytes in the model, the column holds 16 – longer values fail when saving (ORA-12899).", Message(bytes.Item1, bytes.Item2));
+            Assert.Equal("Up to 100 characters in the model, the column holds 50 bytes – longer values fail when saving (ORA-12899).",
+                Message(charsInBytes.Item1, charsInBytes.Item2));
+            Assert.Equal("Up to 100 characters in the model, the column holds 50 – longer values fail when saving (ORA-12899).", Message(chars.Item1, chars.Item2));
+        }
+    }
 }

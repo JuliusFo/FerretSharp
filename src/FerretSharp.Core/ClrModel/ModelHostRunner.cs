@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using FerretSharp.Core.IO;
+using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.ClrModel;
 
@@ -11,7 +12,7 @@ namespace FerretSharp.Core.ClrModel;
 public interface IModelHostRunner
 {
     /// <summary>Runs the model host on the build output; failures come back as <see cref="ModelHostResult.Error"/>.</summary>
-    /// <param name="progress">The step the host is in ('Baue das Modell (OnModelCreating)'); may be called on any thread.</param>
+    /// <param name="progress">The step the host is in ('Building the model (OnModelCreating)'); may be called on any thread.</param>
     Task<ModelHostResult> ReadModelAsync(ClrProjectLink link, BuildOutput output, CancellationToken cancellationToken, IProgress<string>? progress = null);
 
     /// <summary><c>dotnet build</c> of the linked project in its configuration.</summary>
@@ -31,7 +32,8 @@ public interface IModelHostRunner
 /// </summary>
 /// <param name="modelHostPath">Path of <c>FerretSharp.ModelHost.dll</c> (shipped with FerretSharp).</param>
 /// <param name="culture">
-/// Language of the enum display names the host reads from the project's resources; FerretSharp's UI culture by default.
+/// Language of the enum display names the host reads from the project's resources (the app passes the Windows UI culture);
+/// FerretSharp's UI culture by default. The host's own messages always follow FerretSharp's UI culture.
 /// </param>
 /// <param name="shadow">
 /// Copies of the build output the host runs from, so a build of the project is never blocked by a DLL the host has
@@ -53,7 +55,7 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
             var result = Path.Combine(launch.Work.FullName, "model.json");
             var arguments = HostArguments(link, launch, ["--output", result]);
 
-            progress?.Report("Starte den Hilfsprozess");
+            progress?.Report(ClrModelText.StepStartHelper);
             var run = await DotNetCli.RunAsync(arguments, launch.AppDirectory, _timeout, cancellationToken, background: true, onOutputLine: line =>
             {
                 if (line.StartsWith(ModelHostResult.ProgressPrefix, StringComparison.Ordinal))
@@ -71,7 +73,7 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
                 }
             }
 
-            return Fail(ClrModelErrorKind.HostFailed, $"FerretSharp.ModelHost ist ohne Ergebnis beendet (Exit-Code {run.ExitCode}).", run.Output);
+            return Fail(ClrModelErrorKind.HostFailed, TextFormat.Format(ClrModelText.HostEndedWithoutResult, run.ExitCode), run.Output);
         }
         catch (ClrModelException ex)
         {
@@ -80,7 +82,7 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or System.ComponentModel.Win32Exception)
         {
             // dotnet not startable, a temp file not writable, a truncated result: an error like the others, as promised
-            return Fail(ClrModelErrorKind.HostFailed, $"FerretSharp.ModelHost ließ sich nicht ausführen: {ex.Message}");
+            return Fail(ClrModelErrorKind.HostFailed, TextFormat.Format(ClrModelText.HostNotRunnable, ex.Message));
         }
         finally
         {
@@ -150,7 +152,7 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
     {
         if (!File.Exists(modelHostPath))
         {
-            throw new ClrModelException(ClrModelErrorKind.HostFailed, $"FerretSharp.ModelHost fehlt: {modelHostPath}");
+            throw new ClrModelException(ClrModelErrorKind.HostFailed, TextFormat.Format(ClrModelText.HostMissing, modelHostPath));
         }
 
         var root = WorkRoot;
@@ -189,7 +191,10 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
             arguments.Add(folder);
         }
 
-        arguments.AddRange([modelHostPath, "--assembly", launch.Assembly, .. mode, "--culture", (culture ?? CultureInfo.CurrentUICulture).Name]);
+        // --culture: the project's [Display] resources (the Windows language); --ui-culture: the host's own messages and
+        // steps, in FerretSharp's UI language at the time of the call (WP-29, ADR 0017).
+        arguments.AddRange([modelHostPath, "--assembly", launch.Assembly, .. mode, "--culture", (culture ?? CultureInfo.CurrentUICulture).Name,
+            "--ui-culture", CultureInfo.CurrentUICulture.Name]);
         if (link.ContextType is { Length: > 0 } context)
         {
             arguments.AddRange(["--context", context]);

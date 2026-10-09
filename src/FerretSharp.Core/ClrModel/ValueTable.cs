@@ -1,6 +1,7 @@
 using System.Globalization;
 using FerretSharp.Core.Data;
 using FerretSharp.Core.Query;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.ClrModel;
@@ -127,8 +128,10 @@ public sealed class ValueTable
 
     /// <summary>Why a value is marked: for the tooltip of an unknown cell.</summary>
     public string UnknownText => IsBool
-        ? $"Weder true noch false für {Property.Converter ?? "den Converter"}"
-        : $"Kein Wert von {Property.ClrType}";
+        ? Property.Converter is { } converter
+            ? TextFormat.Format(ClrModelText.UnknownNotTrueOrFalse, converter)
+            : ClrModelText.UnknownNotTrueOrFalseConverter
+        : TextFormat.Format(ClrModelText.UnknownNotMember, Property.ClrType);
 
     /// <summary>Lookup key: decimal for numbers, the text (CHAR without padding) otherwise.</summary>
     private object? KeyOf(object? value) => value switch

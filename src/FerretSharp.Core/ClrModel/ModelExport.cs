@@ -10,7 +10,7 @@ public sealed record ModelHostResult(ModelExport? Model, ModelHostError? Error)
     public static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = false };
 
     /// <summary>
-    /// Prefix of a progress line on the host's stdout (<c>##ferretsharp-progress Baue das Modell</c>); other output (the
+    /// Prefix of a progress line on the host's stdout (<c>##ferretsharp-progress Building the model</c>); other output (the
     /// project's own console writes) is ignored.
     /// </summary>
     public const string ProgressPrefix = "##ferretsharp-progress ";
