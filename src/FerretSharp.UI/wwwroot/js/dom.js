@@ -91,3 +91,8 @@ export async function copyText(text) {
     return false;
   }
 }
+
+/** The language of the page (WP-29): screen readers, spell checking and hyphenation follow it. */
+export function setDocumentLanguage(lang) {
+  document.documentElement.lang = lang;
+}

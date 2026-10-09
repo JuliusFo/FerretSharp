@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Settings_Title" xml:space="preserve">
+    <value>Settings</value>
+    <comment>Page title</comment>
+  </data>
+  <data name="Settings_Sections" xml:space="preserve">
+    <value>Section</value>
+    <comment>Accessible label of the settings tabs</comment>
+  </data>
+  <data name="Settings_General" xml:space="preserve">
+    <value>General</value>
+    <comment>Settings tab</comment>
+  </data>
+  <data name="Settings_Shortcuts" xml:space="preserve">
+    <value>Shortcuts</value>
+    <comment>Settings tab</comment>
+  </data>
+  <data name="Settings_Appearance" xml:space="preserve">
+    <value>Appearance</value>
+    <comment>Settings section</comment>
+  </data>
+  <data name="Settings_Language" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="Settings_LanguageHint" xml:space="preserve">
+    <value>Takes effect at the next start. Enum names from the C# project keep the language of its resources.</value>
+  </data>
+  <data name="Settings_LanguageAfterRestart" xml:space="preserve">
+    <value>FerretSharp shows the selected language after a restart.</value>
+  </data>
+  <data name="Settings_ColorScheme" xml:space="preserve">
+    <value>Color scheme</value>
+  </data>
+  <data name="Settings_ColorSchemeHint" xml:space="preserve">
+    <value>“System” follows the Windows setting.</value>
+  </data>
+  <data name="Settings_ThemeSystem" xml:space="preserve">
+    <value>System</value>
+    <comment>Color scheme option</comment>
+  </data>
+  <data name="Settings_ThemeLight" xml:space="preserve">
+    <value>Light</value>
+    <comment>Color scheme option</comment>
+  </data>
+  <data name="Settings_ThemeDark" xml:space="preserve">
+    <value>Dark</value>
+    <comment>Color scheme option</comment>
+  </data>
+  <data name="Settings_ThemeForced" xml:space="preserve">
+    <value>This session was started with {0} and therefore stays {1}. The selection is saved and applies from the next start without this parameter.</value>
+    <comment>{0} = the command line argument (code), {1} = Settings_ThemeForcedDark or Settings_ThemeForcedLight</comment>
+  </data>
+  <data name="Settings_ThemeForcedDark" xml:space="preserve">
+    <value>dark</value>
+    <comment>Completes Settings_ThemeForced</comment>
+  </data>
+  <data name="Settings_ThemeForcedLight" xml:space="preserve">
+    <value>light</value>
+    <comment>Completes Settings_ThemeForced</comment>
+  </data>
+  <data name="Settings_ClrModel" xml:space="preserve">
+    <value>C# model</value>
+    <comment>Settings section</comment>
+  </data>
+  <data name="Settings_ClrNames" xml:space="preserve">
+    <value>C# names</value>
+  </data>
+  <data name="Settings_ClrNamesHint" xml:space="preserve">
+    <value>Entity and property names of the linked project in the explorer, the table header and the column search: beside the Oracle names or in front instead of them. FerretSharp always shows enum values with their C# name; SQL keeps the names of the database.</value>
+  </data>
+  <data name="Settings_ClrNamesBeside" xml:space="preserve">
+    <value>Beside</value>
+    <comment>C# names option</comment>
+  </data>
+  <data name="Settings_ClrNamesFront" xml:space="preserve">
+    <value>In front</value>
+    <comment>C# names option</comment>
+  </data>
+  <data name="Settings_Connection" xml:space="preserve">
+    <value>Connection</value>
+    <comment>Settings section</comment>
+  </data>
+  <data name="Settings_KeepAlive" xml:space="preserve">
+    <value>Check idle connections</value>
+  </data>
+  <data name="Settings_KeepAliveHint" xml:space="preserve">
+    <value>Queries idle sessions briefly every 2 minutes ({0}). A lost connection is reported at once, and firewalls do not drop idle connections. It also keeps the sessions open against an {1} limit of the database, though.</value>
+    <comment>{0} = SELECT 1 FROM DUAL (code), {1} = IDLE_TIME (code)</comment>
+  </data>
+  <data name="Settings_LockWait" xml:space="preserve">
+    <value>Wait for locked rows</value>
+  </data>
+  <data name="Settings_LockWaitHint" xml:space="preserve">
+    <value>If another session holds a lock on a row you want to write, FerretSharp waits this long and then shows who holds it ({0}).</value>
+    <comment>{0} = SELECT … FOR UPDATE WAIT n (code)</comment>
+  </data>
+  <data name="Settings_Diagnostics" xml:space="preserve">
+    <value>Diagnostics</value>
+    <comment>Settings section</comment>
+  </data>
+  <data name="Settings_DiagnoseUiStalls" xml:space="preserve">
+    <value>Log UI stalls</value>
+  </data>
+  <data name="Settings_DiagnoseUiStallsHint" xml:space="preserve">
+    <value>Writes to the log when the user interface does not respond for more than 0.3 s, and what FerretSharp was busy with. If the .NET tool {0} is installed, stalls over 1.5 s also put the stacks of all threads into the log folder as {1}. Meant for narrowing down stalls, not for every day.</value>
+    <comment>{0} = dotnet-stack (code), {1} = stall-*.txt (code)</comment>
+  </data>
+  <data name="Settings_NotSaved" xml:space="preserve">
+    <value>Setting applied but not saved: {0}</value>
+    <comment>{0} = error message</comment>
+  </data>
+</root>

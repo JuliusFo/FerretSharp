@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <Compile Include="..\Shared\TestFolder.cs" Link="Shared\TestFolder.cs" />
+    <Compile Include="..\Shared\UiCulture.cs" Link="Shared\UiCulture.cs" />
     <Using Include="FerretSharp.Testing" />
   </ItemGroup>
 

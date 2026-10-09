@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Settings_Title" xml:space="preserve">
+    <value>Einstellungen</value>
+  </data>
+  <data name="Settings_Sections" xml:space="preserve">
+    <value>Bereich</value>
+  </data>
+  <data name="Settings_General" xml:space="preserve">
+    <value>Allgemein</value>
+  </data>
+  <data name="Settings_Shortcuts" xml:space="preserve">
+    <value>Tastenkürzel</value>
+  </data>
+  <data name="Settings_Appearance" xml:space="preserve">
+    <value>Darstellung</value>
+  </data>
+  <data name="Settings_Language" xml:space="preserve">
+    <value>Sprache</value>
+  </data>
+  <data name="Settings_LanguageHint" xml:space="preserve">
+    <value>Gilt ab dem nächsten Start. Enum-Namen aus dem C#-Projekt bleiben in der Sprache seiner Ressourcen.</value>
+  </data>
+  <data name="Settings_LanguageAfterRestart" xml:space="preserve">
+    <value>FerretSharp zeigt die gewählte Sprache nach einem Neustart.</value>
+  </data>
+  <data name="Settings_ColorScheme" xml:space="preserve">
+    <value>Farbschema</value>
+  </data>
+  <data name="Settings_ColorSchemeHint" xml:space="preserve">
+    <value>„System“ folgt der Windows-Einstellung.</value>
+  </data>
+  <data name="Settings_ThemeSystem" xml:space="preserve">
+    <value>System</value>
+  </data>
+  <data name="Settings_ThemeLight" xml:space="preserve">
+    <value>Hell</value>
+  </data>
+  <data name="Settings_ThemeDark" xml:space="preserve">
+    <value>Dunkel</value>
+  </data>
+  <data name="Settings_ThemeForced" xml:space="preserve">
+    <value>Diese Sitzung wurde mit {0} gestartet und bleibt deshalb {1}. Die Auswahl wird gespeichert und gilt ab dem nächsten Start ohne diesen Parameter.</value>
+  </data>
+  <data name="Settings_ThemeForcedDark" xml:space="preserve">
+    <value>dunkel</value>
+  </data>
+  <data name="Settings_ThemeForcedLight" xml:space="preserve">
+    <value>hell</value>
+  </data>
+  <data name="Settings_ClrModel" xml:space="preserve">
+    <value>C#-Modell</value>
+  </data>
+  <data name="Settings_ClrNames" xml:space="preserve">
+    <value>C#-Namen</value>
+  </data>
+  <data name="Settings_ClrNamesHint" xml:space="preserve">
+    <value>Entity- und Property-Namen des verknüpften Projekts im Explorer, im Tabellenkopf und in der Spaltensuche: neben den Oracle-Namen oder statt ihrer vorne. Enum-Werte zeigt FerretSharp immer mit ihrem C#-Namen; SQL bleibt bei den Namen der Datenbank.</value>
+  </data>
+  <data name="Settings_ClrNamesBeside" xml:space="preserve">
+    <value>Daneben</value>
+  </data>
+  <data name="Settings_ClrNamesFront" xml:space="preserve">
+    <value>Vorne</value>
+  </data>
+  <data name="Settings_Connection" xml:space="preserve">
+    <value>Verbindung</value>
+  </data>
+  <data name="Settings_KeepAlive" xml:space="preserve">
+    <value>Verbindung im Leerlauf prüfen</value>
+  </data>
+  <data name="Settings_KeepAliveHint" xml:space="preserve">
+    <value>Fragt ruhende Sessions alle 2 Minuten kurz ab ({0}). Ein Verbindungsabbruch wird so sofort gemeldet, und Firewalls trennen ruhende Verbindungen nicht. Hält die Sessions aber auch gegen ein {1}-Limit der Datenbank offen.</value>
+  </data>
+  <data name="Settings_LockWait" xml:space="preserve">
+    <value>Warten auf gesperrte Zeilen</value>
+  </data>
+  <data name="Settings_LockWaitHint" xml:space="preserve">
+    <value>Hält eine andere Session eine Zeile gesperrt, die du schreiben willst, wartet FerretSharp so lange und zeigt dann, wer sperrt ({0}).</value>
+  </data>
+  <data name="Settings_Diagnostics" xml:space="preserve">
+    <value>Diagnose</value>
+  </data>
+  <data name="Settings_DiagnoseUiStalls" xml:space="preserve">
+    <value>Hänger der Oberfläche protokollieren</value>
+  </data>
+  <data name="Settings_DiagnoseUiStallsHint" xml:space="preserve">
+    <value>Schreibt ins Log, wenn die Oberfläche länger als 0,3 s nicht reagiert, und womit FerretSharp da beschäftigt war. Ist das .NET-Werkzeug {0} installiert, kommen bei Hängern über 1,5 s die Stacks aller Threads als {1} in den Log-Ordner. Zum Eingrenzen von Hängern gedacht, nicht für den Alltag.</value>
+  </data>
+  <data name="Settings_NotSaved" xml:space="preserve">
+    <value>Einstellung angewendet, aber nicht gespeichert: {0}</value>
+  </data>
+</root>

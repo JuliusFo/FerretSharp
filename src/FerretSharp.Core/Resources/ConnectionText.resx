@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="NameMissing" xml:space="preserve">
+    <value>Name is missing.</value>
+  </data>
+  <data name="UserMissing" xml:space="preserve">
+    <value>User is missing.</value>
+  </data>
+  <data name="HostMissing" xml:space="preserve">
+    <value>Host is missing.</value>
+  </data>
+  <data name="PortOutOfRange" xml:space="preserve">
+    <value>Port must be between 1 and 65535.</value>
+  </data>
+  <data name="ServiceOrSidRequired" xml:space="preserve">
+    <value>Enter either a service name or a SID.</value>
+  </data>
+  <data name="TnsAliasMissing" xml:space="preserve">
+    <value>TNS alias is missing.</value>
+  </data>
+  <data name="ClrProjectNotCsproj" xml:space="preserve">
+    <value>Select the .csproj of the project with the DbContext.</value>
+  </data>
+</root>

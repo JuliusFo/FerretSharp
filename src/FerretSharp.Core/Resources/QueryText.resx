@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="OperatorContains" xml:space="preserve">
+    <value>contains</value>
+    <comment>Filter operator</comment>
+  </data>
+  <data name="OperatorStartsWith" xml:space="preserve">
+    <value>starts with</value>
+    <comment>Filter operator</comment>
+  </data>
+  <data name="OperatorEndsWith" xml:space="preserve">
+    <value>ends with</value>
+    <comment>Filter operator</comment>
+  </data>
+  <data name="OperatorBetween" xml:space="preserve">
+    <value>between</value>
+    <comment>Filter operator</comment>
+  </data>
+  <data name="OperatorIn" xml:space="preserve">
+    <value>in list</value>
+    <comment>Filter operator</comment>
+  </data>
+  <data name="OperatorIsNull" xml:space="preserve">
+    <value>is NULL</value>
+    <comment>Filter operator</comment>
+  </data>
+  <data name="OperatorIsNotNull" xml:space="preserve">
+    <value>is not NULL</value>
+    <comment>Filter operator</comment>
+  </data>
+</root>
