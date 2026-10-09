@@ -1,4 +1,4 @@
-@* "Spalten" view: the columns with type, NULL, default, flags and comment, filterable (Ctrl+F); for views also the definition. *@
+@* "Columns" view: the columns with type, NULL, default, flags and comment, filterable (Ctrl+F); for views also the definition. *@
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Query
@@ -23,32 +23,32 @@
 <section>
     <div class="structure-columns-head">
         <h2>
-            Spalten
-            <span class="count">@(filtering ? $"{shown.Count} von {Details.Columns.Count}" : Details.Columns.Count.ToString(CultureInfo.CurrentCulture))</span>
+            @SchemaViewText.Columns_Heading
+            <span class="count">@(filtering ? TextFormat.Format(SchemaViewText.Columns_FilteredCount, shown.Count, Details.Columns.Count) : Details.Columns.Count.ToString(CultureInfo.CurrentCulture))</span>
         </h2>
         @if (entity is not null)
         {
-            <span class="entity-name" title="@entity.Entity.ClrType – aus dem C#-Modell">
-                Entity <strong>@ClrModelMapping.ShortName(entity.Entity.ClrType)</strong>
+            <span class="entity-name" title="@TextFormat.Format(SchemaViewText.Columns_EntityTitle, entity.Entity.ClrType)">
+                <Fmt Text="@SchemaViewText.Columns_Entity"><Arg0><strong>@ClrModelMapping.ShortName(entity.Entity.ClrType)</strong></Arg0></Fmt>
             </span>
         }
-        <SearchBox @ref="_filter" Class="structure-filter" Placeholder="@($"Spalten filtern …{Shortcuts.Hint(ShortcutAction.FindColumn)}")" @bind-Value="_columnQuery" />
+        <SearchBox @ref="_filter" Class="structure-filter" Placeholder="@TextFormat.Format(SchemaViewText.Columns_FilterPlaceholder, Shortcuts.Hint(ShortcutAction.FindColumn))" @bind-Value="_columnQuery" />
     </div>
     <table class="columns">
         <thead>
             <tr>
-                <th class="num">#</th><th>Name</th><th>Typ</th>
+                <th class="num">#</th><th>@SchemaViewText.Head_Name</th><th>@SchemaViewText.Head_Type</th>
                 @if (entity is not null)
                 {
-                    <th>Property</th><th>C#-Typ</th>
+                    <th>@SchemaViewText.Columns_Property</th><th>@SchemaViewText.Columns_ClrType</th>
                 }
-                <th>Null</th><th>Default</th><th></th><th>Kommentar</th>
+                <th>@SchemaViewText.Columns_Null</th><th>@SchemaViewText.Head_Default</th><th></th><th>@SchemaViewText.Columns_Comment</th>
             </tr>
         </thead>
         <tbody>
             @if (shown.Count == 0)
             {
-                <tr><td colspan="@(entity is null ? 7 : 9)" class="muted">Keine Spalte passt zu „@_columnQuery“.</td></tr>
+                <tr><td colspan="@(entity is null ? 7 : 9)" class="muted">@TextFormat.Format(SchemaViewText.NoColumnMatches, _columnQuery)</td></tr>
             }
             @foreach (var column in shown)
             {
@@ -58,17 +58,17 @@
                         @column.Name
                         @if (Details.PrimaryKey.Contains(column.Name))
                         {
-                            <span class="fs-badge pk" title="Primärschlüssel">PK</span>
+                            <span class="fs-badge pk" title="@SchemaViewText.Columns_PrimaryKey">PK</span>
                         }
                         else if (uniqueColumns.Contains(column.Name))
                         {
-                            <span class="fs-badge uk" title="Unique Key">UK</span>
+                            <span class="fs-badge uk" title="@SchemaViewText.Columns_UniqueKey">UK</span>
                         }
                         @foreach (var fk in fkColumns[column.Name])
                         {
                             @if (fk.Source == FkSource.ClrModel)
                             {
-                                <span class="fs-badge fk model" title="@fk.Name → @fk.To (aus dem C#-Modell, ohne Constraint)">FK</span>
+                                <span class="fs-badge fk model" title="@TextFormat.Format(SchemaViewText.Columns_FkFromModel, fk.Name, fk.To)">FK</span>
                             }
                             else
                             {
@@ -82,7 +82,7 @@
                         var property = mapping!.PropertyOf(Details.Table.Ref, column.Name);
                         @if (property is null)
                         {
-                            <td class="muted" title="Keine Property im C#-Modell">–</td>
+                            <td class="muted" title="@SchemaViewText.Columns_NoProperty">–</td>
                             <td></td>
                         }
                         else
@@ -105,13 +105,13 @@
                                 }
                                 else if (property.Values is not null)
                                 {
-                                    <span class="converter">Enum als Zahl</span>
+                                    <span class="converter">@SchemaViewText.Columns_EnumAsNumber</span>
                                 }
                             </td>
                         }
                     }
                     <td>@(column.Nullable ? "" : "NOT NULL")</td>
-                    <td class="mono default" title="@(column.IsVirtual ? "Ausdruck der virtuellen Spalte" : null)">@column.Default</td>
+                    <td class="mono default" title="@(column.IsVirtual ? SchemaViewText.Columns_VirtualExpression : null)">@column.Default</td>
                     <td class="flags">@Flags(column)</td>
                     <td class="comment">@column.Comment</td>
                 </tr>
@@ -123,11 +123,11 @@
 @if (Details.Definition is { } definition)
 {
     <section>
-        <h2>Definition</h2>
+        <h2>@SchemaViewText.Columns_Definition</h2>
         <SqlCode Sql="@definition" Class="definition" />
         @if (Details.DefinitionTruncated)
         {
-            <p class="muted">Gekürzt – die Definition ist länger als 32.767 Zeichen.</p>
+            <p class="muted">@SchemaViewText.Columns_DefinitionTruncated</p>
         }
     </section>
 }
@@ -172,7 +172,9 @@
 
     /// <summary>Enum members (or true/false) with what the project stores for them, as a tooltip.</summary>
     private static string? ValuesTitle(PropertyExport property) => property.Values is { } values
-        ? string.Join("\n", values.Select(v => $"{v.Name}{(v.DisplayName is { } display ? $" „{display}“" : "")} = {v.ProviderValue ?? "?"}"))
+        ? string.Join("\n", values.Select(v => v.DisplayName is { } display
+            ? TextFormat.Format(SchemaViewText.Columns_EnumValueWithDisplay, v.Name, display, v.ProviderValue ?? "?")
+            : $"{v.Name} = {v.ProviderValue ?? "?"}"))
         : null;
 
     private static string Flags(ColumnInfo column) => string.Join(" · ", new[]
