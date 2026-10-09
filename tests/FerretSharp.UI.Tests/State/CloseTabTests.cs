@@ -2,7 +2,7 @@ using FerretSharp.UI.State;
 
 namespace FerretSharp.UI.Tests.State;
 
-/// <summary>Closing a tab asks first if something would be lost: pending changes, a value being typed, editor text.</summary>
+/// <summary>Closing a tab asks first if something would be lost: pending changes, a typed value, editor text.</summary>
 public sealed class CloseTabTests : IAsyncDisposable
 {
     private readonly TestApp _app = new();
@@ -32,15 +32,30 @@ public sealed class CloseTabTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task A_value_being_typed_asks_first()
+    public async Task A_value_being_typed_in_the_grid_asks_first()
     {
         var scope = await _app.OpenAsync(TestApp.Profile("Test"));
         var tab = _app.Shell.OpenTable(TestApp.Kunden)!;
 
         _app.Lifecycle.CloseTab(tab, cellEditing: true);
 
-        Assert.Equal(new CloseTabQuestion(tab, CloseTabLoss.CellInput), _app.Lifecycle.ConfirmCloseTab);
+        Assert.Equal(new CloseTabQuestion(tab, CloseTabLoss.TypedValue), _app.Lifecycle.ConfirmCloseTab);
         Assert.Contains(tab, _app.WorkspaceOf(scope).Tabs);
+    }
+
+    [Fact]
+    public async Task A_value_typed_in_the_form_asks_first_only_for_its_own_tab()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("Test"));
+        var withForm = _app.Shell.OpenTable(TestApp.Kunden)!;
+        var other = _app.Shell.OpenFiltered(TestApp.Kunden, [])!; // a second KUNDEN tab
+        _app.Shell.TypedValuesOf += tab => tab == withForm; // what RowFormPanel answers with a draft
+
+        _app.Lifecycle.CloseTab(other);
+        _app.Lifecycle.CloseTab(withForm);
+
+        Assert.Equal(new CloseTabQuestion(withForm, CloseTabLoss.TypedValue), _app.Lifecycle.ConfirmCloseTab);
+        Assert.Equal([withForm], _app.WorkspaceOf(scope).Tabs.ToList<WorkspaceTab>());
     }
 
     [Fact]

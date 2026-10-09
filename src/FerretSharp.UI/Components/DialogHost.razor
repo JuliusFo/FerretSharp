@@ -126,8 +126,8 @@
                     <Arg1><strong>@table.Table.DisplayName</strong></Arg1>
                 </Fmt>
                 break;
-            case { Loss: CloseTabLoss.CellInput, Tab: TableTab table }:
-                <Fmt Text="@ShellText.Dialogs_CloseTabCellInput"><Arg0><strong>@table.Table.DisplayName</strong></Arg0></Fmt>
+            case { Loss: CloseTabLoss.TypedValue, Tab: TableTab table }:
+                <Fmt Text="@ShellText.Dialogs_CloseTabTypedValue"><Arg0><strong>@table.Table.DisplayName</strong></Arg0></Fmt>
                 break;
             case { Tab: ITitledTab titled }:
                 <Fmt Text="@ShellText.Dialogs_CloseTabEditorText"><Arg0><strong>@titled.Title</strong></Arg0></Fmt>

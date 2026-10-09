@@ -210,7 +210,11 @@
 
     private string FieldId(int column) => _idPrefix + column.ToString(CultureInfo.InvariantCulture);
 
-    protected override void OnInitialized() => Shell.BeforeWrite += OnBeforeWrite;
+    protected override void OnInitialized()
+    {
+        Shell.BeforeWrite += OnBeforeWrite;
+        Shell.TypedValuesOf += OnTypedValues;
+    }
 
     protected override void OnParametersSet()
     {
@@ -467,6 +471,9 @@
         return failed;
     }
 
+    /// <summary>Closing this tab would lose the typed values (asked first).</summary>
+    private bool OnTypedValues(WorkspaceTab tab) => !_disposed && tab == Tab && _drafts.Count > 0;
+
     /// <summary>Ctrl+S or commit of this tab's workspace: typed values go along; an invalid one stops writing.</summary>
     private string? OnBeforeWrite(Guid workspaceId)
     {
@@ -555,6 +562,7 @@
     {
         _disposed = true;
         Shell.BeforeWrite -= OnBeforeWrite;
+        Shell.TypedValuesOf -= OnTypedValues;
         if (_subscribed is not null)
         {
             _subscribed.FocusChanged -= OnFocusChanged;

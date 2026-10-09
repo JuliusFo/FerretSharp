@@ -904,9 +904,9 @@
     <value>{1} has {0} pending changes that have not been written yet. They are lost when you close the tab. Changes already written stay in the workspace’s transaction.</value>
     <comment>{0} = number of pending changes, {1} = table name (bold)</comment>
   </data>
-  <data name="Dialogs_CloseTabCellInput" xml:space="preserve">
-    <value>A value is still being typed in {0}. It is lost when you close the tab. Changes already written stay in the workspace’s transaction.</value>
-    <comment>Closing a table tab with its shortcut while a grid cell is being edited; {0} = table name (bold)</comment>
+  <data name="Dialogs_CloseTabTypedValue" xml:space="preserve">
+    <value>{0} has a value that was typed but not confirmed yet. It is lost when you close the tab. Changes already written stay in the workspace’s transaction.</value>
+    <comment>Closing a table tab while a grid cell (shortcut only) or a form field holds a typed value; {0} = table name (bold)</comment>
   </data>
   <data name="Dialogs_CloseTabEditorText" xml:space="preserve">
     <value>The text in {0} is lost when you close the tab.</value>

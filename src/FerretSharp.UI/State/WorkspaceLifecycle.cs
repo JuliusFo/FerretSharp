@@ -263,13 +263,13 @@ public sealed partial class WorkspaceLifecycle(
     }
 
     /// <summary>
-    /// A tab that would lose something asks first: pending changes, a value still being typed in its grid
-    /// (<paramref name="cellEditing"/>, from the shortcut) or the text of a SQL or LINQ tab. Flushed changes stay in the
-    /// workspace's transaction.
+    /// A tab that would lose something asks first: pending changes, a value typed but not confirmed (in a grid cell being
+    /// edited – <paramref name="cellEditing"/>, from the shortcut – or in the form) or the text of a SQL or LINQ tab.
+    /// Flushed changes stay in the workspace's transaction.
     /// </summary>
     public void CloseTab(WorkspaceTab tab, bool cellEditing = false)
     {
-        if (CloseTabQuestion.For(tab, cellEditing) is { } question)
+        if (CloseTabQuestion.For(tab, cellEditing || shell.HasTypedValues(tab)) is { } question)
         {
             ConfirmCloseTab = question;
             shell.NotifyChanged();

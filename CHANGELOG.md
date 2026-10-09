@@ -9,7 +9,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 - *Close tab* as a shortcut action. It has no key yet: assign one under *Settings › Shortcuts*, e.g. Ctrl+W. Contributed by @ulbpccc.
 
 ### Changed
-- Closing a tab also asks first if the text of a SQL or LINQ tab would be lost, or – with the shortcut – a value still being typed in the grid.
+- Closing a tab also asks first if the text of a SQL or LINQ tab would be lost, or a value typed but not confirmed in the form – with the shortcut also one still being typed in a grid cell.
 - New shortcut actions come without a key from now on, so they never take one you already use for something else.
 
 ## [3.20.0] - 2026-10-09

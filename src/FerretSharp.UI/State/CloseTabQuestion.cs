@@ -6,8 +6,11 @@ public enum CloseTabLoss
     /// <summary>Pending changes of a table tab (not written yet).</summary>
     PendingChanges,
 
-    /// <summary>A value still being typed in a grid cell (only known to the shortcut: clicking ✕ takes the focus and ends the input).</summary>
-    CellInput,
+    /// <summary>
+    /// A value typed but not confirmed yet: in a grid cell being edited (only known to the shortcut: clicking ✕ takes the
+    /// focus and ends the input) or in a field of the form beside the grid.
+    /// </summary>
+    TypedValue,
 
     /// <summary>The text of a SQL or LINQ tab.</summary>
     EditorText,
@@ -17,10 +20,10 @@ public enum CloseTabLoss
 public sealed record CloseTabQuestion(WorkspaceTab Tab, CloseTabLoss Loss)
 {
     /// <summary>Why <paramref name="tab"/> must not close without asking; null if nothing would be lost.</summary>
-    public static CloseTabQuestion? For(WorkspaceTab tab, bool cellEditing) => tab switch
+    public static CloseTabQuestion? For(WorkspaceTab tab, bool typedValue) => tab switch
     {
         TableTab { Changes.PendingCount: > 0 } => new(tab, CloseTabLoss.PendingChanges),
-        TableTab when cellEditing => new(tab, CloseTabLoss.CellInput),
+        TableTab when typedValue => new(tab, CloseTabLoss.TypedValue),
         SqlTab sql when !string.IsNullOrWhiteSpace(sql.Text) => new(tab, CloseTabLoss.EditorText),
         LinqTab linq when !string.IsNullOrWhiteSpace(linq.Code) => new(tab, CloseTabLoss.EditorText),
         _ => null,
