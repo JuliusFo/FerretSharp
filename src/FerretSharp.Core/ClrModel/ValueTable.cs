@@ -188,7 +188,7 @@ public sealed class ValueTable
         var lines = set.Flags.Select(f => f.Member is null ? f.Label : $"{f.Label} · {Property.ClrType}.{f.Member}").ToList();
         if (set.Rest != 0)
         {
-            lines.Add($"{FlagsText(set.Rest)} (kein Member)");
+            lines.Add(TextFormat.Format(ClrModelText.FlagWithoutMember, FlagsText(set.Rest)));
         }
 
         return new PresentedValue($"{string.Join(", ", names)} ({raw})", Unknown: set.Rest != 0, Tooltip: string.Join("\n", lines));

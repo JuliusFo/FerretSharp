@@ -86,6 +86,9 @@ public sealed record GridTexts
 
     /// <summary>Option of a value that is no enum member; <c>{0}</c> is the value (replaced in grid.js).</summary>
     public string NoMember { get; init; } = GridText.Grid_ValueNoMember;
+
+    /// <summary>Summary of the flags editor when no flag is ticked.</summary>
+    public string NoFlag { get; init; } = GridText.Grid_NoFlag;
 }
 
 /// <summary>A sorted column as AG Grid reports it ("asc"/"desc").</summary>

@@ -330,7 +330,7 @@ class FerretFlagsEditor {
     for (const f of this.boxes) f.box.checked = bits !== null && (bits & f.bits) === f.bits;
     if (bits !== null && (bits & ~known) !== 0n) {
       const rest = bits & ~known;
-      this.boxes.push({ bits: rest, name: `${rest}`, box: this.addItem(`${rest} (kein Member)`, 'fs-unknown-text') });
+      this.boxes.push({ bits: rest, name: `${rest}`, box: this.addItem(this.params.state.texts.noMember.replace('{0}', rest), 'fs-unknown-text') });
       this.boxes.at(-1).box.checked = true;
     }
     this.updateSummary();
@@ -356,7 +356,7 @@ class FerretFlagsEditor {
     const names = this.boxes.filter(f => f.box.checked).map(f => f.name);
     this.summary.textContent = this.raw !== undefined ? this.raw
       : value === '' ? 'NULL'
-      : `${names.length ? names.join(', ') : 'kein Flag'} = ${value}`;
+      : `${names.length ? names.join(', ') : this.params.state.texts.noFlag} = ${value}`;
   }
   setEnabled(enabled) {
     for (const box of this.list.querySelectorAll('input')) box.disabled = !enabled;

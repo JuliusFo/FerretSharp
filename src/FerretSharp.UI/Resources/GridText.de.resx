@@ -654,4 +654,7 @@
   <data name="Editing_NoPending" xml:space="preserve">
     <value>-- Keine ausstehenden Änderungen.</value>
   </data>
+  <data name="Grid_NoFlag" xml:space="preserve">
+    <value>kein Flag</value>
+  </data>
 </root>

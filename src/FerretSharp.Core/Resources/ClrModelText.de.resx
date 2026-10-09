@@ -303,4 +303,7 @@
   <data name="UnknownNotMember" xml:space="preserve">
     <value>Kein Wert von {0}</value>
   </data>
+  <data name="FlagWithoutMember" xml:space="preserve">
+    <value>{0} (kein Member)</value>
+  </data>
 </root>
