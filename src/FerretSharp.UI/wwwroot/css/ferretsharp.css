@@ -770,6 +770,8 @@ table.columns td.clr-type .converter { display: block; color: var(--muted); font
 .fs-h-clr { font: 400 10.5px var(--mono); color: var(--clr); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .col-item-clr { font: 11px var(--mono); color: var(--clr); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 0 1 auto; margin-left: 6px; }
 .fs-badge.fk.model { background: var(--clr-weak); color: var(--clr); }
+/* cell tooltips have several lines (value, flags one per line, why a value is marked) */
+.ag-tooltip { white-space: pre-line; }
 .ag-cell.fs-unknown { color: var(--danger); text-decoration: underline wavy var(--danger); text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .ctx-source { margin-left: 6px; padding: 0 5px; border-radius: 4px; background: var(--clr-weak); color: var(--clr); font: 600 10px system-ui, sans-serif; vertical-align: 1px; }
 .fs-editor-select { width: 100%; height: 100%; border: 0; outline: none; background: var(--surface); color: var(--text); font: 13px "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; padding: 0 6px; }
