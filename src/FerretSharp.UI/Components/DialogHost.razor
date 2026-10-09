@@ -117,9 +117,11 @@
 {
     <ConfirmDialog Title="@ShellText.CloseTab" ConfirmLabel="@ShellText.Dialogs_DiscardAndClose" Danger="true"
                    OnConfirm="() => Lifecycle.CloseTabConfirmed(closing.Tab)" OnCancel="Lifecycle.CancelConfirmation">
+        @* Pending changes are counted now, not when asked: the dialog takes the focus from a cell or form field being
+           edited, which turns the typed value into a pending change. *@
         @switch (closing)
         {
-            case { Loss: CloseTabLoss.PendingChanges, Tab: TableTab table }:
+            case { Tab: TableTab { Changes.PendingCount: > 0 } table }:
                 var pendingCount = table.Changes!.PendingCount;
                 <Fmt Text="@(pendingCount == 1 ? ShellText.Dialogs_CloseTabTextOne : ShellText.Dialogs_CloseTabTextOther)">
                     <Arg0>@pendingCount</Arg0>

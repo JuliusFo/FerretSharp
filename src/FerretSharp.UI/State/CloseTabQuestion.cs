@@ -7,8 +7,9 @@ public enum CloseTabLoss
     PendingChanges,
 
     /// <summary>
-    /// A value typed but not confirmed yet: in a grid cell being edited (only known to the shortcut: clicking ✕ takes the
-    /// focus and ends the input) or in a field of the form beside the grid.
+    /// A value typed but not confirmed yet: in a grid cell being edited (asked from shortcuts.js by the shortcut and the
+    /// tab bar) or in a field of the form beside the grid. The dialog takes the focus, which usually turns the value into
+    /// a pending change – the dialog then counts pending changes instead.
     /// </summary>
     TypedValue,
 

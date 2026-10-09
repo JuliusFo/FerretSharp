@@ -1,8 +1,9 @@
 @* The tabs of the active workspace (R2, out of Shell.razor): table tabs with their filters and change dot, PL/SQL tabs, SQL and LINQ
    tabs that can be renamed, and the buttons for new SQL/LINQ tabs. *@
 @using FerretSharp.Core.ClrModel
-@implements IDisposable
+@implements IAsyncDisposable
 @inject ShortcutService Shortcuts
+@inject IJSRuntime JS
 
 <nav class="tabs">
     @foreach (var tab in Shell.Tabs)
@@ -56,7 +57,8 @@
                     }
                     break;
             }
-            <button class="tab-close" title="@TextFormat.Format(ShellText.TabBar_CloseTitle, Shortcuts.Hint(ShortcutAction.CloseTab))" @onclick:stopPropagation="true" @onclick="() => Lifecycle.CloseTab(tab)">✕</button>
+            <button class="tab-close" title="@TextFormat.Format(ShellText.TabBar_CloseTitle, Shortcuts.Hint(ShortcutAction.CloseTab))"
+                    @onmousedown:preventDefault="true" @onclick:stopPropagation="true" @onclick="() => CloseAsync(tab)">✕</button>
         </div>
     }
     <button class="tab-new" title="@TextFormat.Format(ShellText.TabBar_NewSqlTitle, Shortcuts.Hint(ShortcutAction.NewSql))"
@@ -77,6 +79,11 @@
 
     /// <summary>The SQL or LINQ tab whose title is being edited.</summary>
     private WorkspaceTab? _renaming;
+
+    /// <summary>shortcuts.js, imported on the first close of a table tab (is a grid cell being edited?).</summary>
+    private IJSObjectReference? _shortcuts;
+
+    private bool _disposed;
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -115,12 +122,41 @@
         }
     }
 
-    private void CloseOnMiddleClick(MouseEventArgs e, WorkspaceTab tab)
+    private async Task CloseOnMiddleClick(MouseEventArgs e, WorkspaceTab tab)
     {
         if (e.Button == 1)
         {
-            Lifecycle.CloseTab(tab);
+            await CloseAsync(tab);
         }
+    }
+
+    /// <summary>
+    /// ✕ or middle click. The ✕ leaves the focus where it is (mousedown without default): a grid cell being edited would
+    /// otherwise end its input only after the click had closed the tab. So the editor is still open here, shortcuts.js
+    /// can tell, and closing asks first instead of dropping the typed value.
+    /// </summary>
+    private async Task CloseAsync(WorkspaceTab tab)
+    {
+        var cellEditing = false;
+        if (tab is TableTab && tab == Shell.ActiveTab)
+        {
+            try
+            {
+                _shortcuts ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/shortcuts.js");
+                cellEditing = await _shortcuts.InvokeAsync<bool>("cellEditing");
+            }
+            catch (JSDisconnectedException)
+            {
+                return;
+            }
+
+            if (_disposed)
+            {
+                return;
+            }
+        }
+
+        Lifecycle.CloseTab(tab, cellEditing);
     }
 
     /// <summary>Several tabs of one table (FK jumps) are told apart by their filters.</summary>
@@ -158,11 +194,23 @@
 
     private void OnPresentationChanged() => InvokeAsync(StateHasChanged);
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
+        _disposed = true;
         if (_presentations is not null)
         {
             _presentations.Changed -= OnPresentationChanged;
+        }
+
+        if (_shortcuts is not null)
+        {
+            try
+            {
+                await _shortcuts.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
         }
     }
 }

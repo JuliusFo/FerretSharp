@@ -173,7 +173,7 @@ Seit WP-25 (3.16.0) unter Einstellungen › Tastenkürzel änderbar; die Tabelle
 | F5 | Refresh (v2 in Read-only-Tx: neue Transaktion) | v1 |
 | Ctrl+F | Datenansicht: Spalte suchen und hinspringen (Scrollen, Hervorheben, Fokus auf die Zelle der ersten sichtbaren Zeile); Strukturansicht: Spalten filtern (v1.6) | v1.5 |
 | Alt+← / Alt+→ | Zurück zum Tab, aus dem ein FK-Sprung kam / wieder vor (verhindert nebenbei die Zurück-Navigation der WebView) | v1.6 |
-| – (frei belegbar) | Aktiven Tab schließen; fragt vorher (auch beim ✕) bei ausstehenden Änderungen, bei einem eingegebenen, nicht bestätigten Wert (Zelle im Grid – nur per Kürzel, ✕ beendet die Eingabe –, Feld im Formular) und bei Text im SQL-/LINQ-Tab | 3.21 |
+| – (frei belegbar) | Aktiven Tab schließen; fragt vorher (auch beim ✕) bei ausstehenden Änderungen, bei einem eingegebenen, nicht bestätigten Wert (Zelle im Grid oder Feld im Formular) und bei Text im SQL-/LINQ-Tab | 3.21 |
 | Ctrl+P | Tabelle suchen (Backlog) | – |
 | Ctrl+S | Pending-Änderungen flushen (kein Commit) | v1.9 |
 | Ctrl+Shift+Enter | Commit (auf Prod immer mit Bestätigung) | v1.9 |
