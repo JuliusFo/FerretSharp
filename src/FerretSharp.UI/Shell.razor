@@ -181,6 +181,7 @@
     private WorkspaceLifecycle _lifecycle = null!;
     private ErrorBoundary? _errorBoundary;
     private IJSObjectReference? _shortcuts;
+    private IJSObjectReference? _tooltips;
     private DotNetObjectReference<Shell>? _selfRef;
     /// <summary>Per open connection the handler subscribed to its events (WP-24), to unsubscribe when it closes.</summary>
     /// <summary>Per open connection: the handler for its connection and workspaces, and the one for its model.</summary>
@@ -240,6 +241,8 @@
             _selfRef = DotNetObjectReference.Create(this);
             _shortcuts = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/shortcuts.js");
             await RegisterShortcutsAsync();
+            _tooltips = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/tooltip.js");
+            await _tooltips.InvokeVoidAsync("install");
         }
     }
 
@@ -515,6 +518,18 @@
             {
                 await _shortcuts.InvokeVoidAsync("unregister");
                 await _shortcuts.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+
+        if (_tooltips is not null)
+        {
+            try
+            {
+                await _tooltips.InvokeVoidAsync("uninstall");
+                await _tooltips.DisposeAsync();
             }
             catch (JSDisconnectedException)
             {

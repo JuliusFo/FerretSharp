@@ -1089,3 +1089,10 @@ table.parameters th:nth-child(2) { width: 32%; }
 table.parameters th:nth-child(3) { width: 96px; }
 table.parameters th:nth-child(5) { width: 80px; }
 table.parameters td { overflow: hidden; text-overflow: ellipsis; }
+
+/* Footer tooltips (tooltip.js): above the element, so they stay clear of the taskbar. */
+.footer-tip {
+  position: fixed; z-index: 1000; max-width: 420px; padding: 5px 9px; pointer-events: none;
+  font-size: 12px; line-height: 1.4; color: var(--text); white-space: pre-line;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 6px; box-shadow: var(--shadow);
+}
