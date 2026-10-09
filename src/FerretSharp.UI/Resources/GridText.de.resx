@@ -28,7 +28,7 @@
     <value>{0} kopiert.</value>
   </data>
   <data name="Grid_SelectedRowsNotCopiedOne" xml:space="preserve">
-    <value>{0} der markierten Zeilen sind nicht mehr geladen – nicht kopiert.</value>
+    <value>{0} der markierten Zeilen ist nicht mehr geladen – nicht kopiert.</value>
   </data>
   <data name="Grid_SelectedRowsNotCopiedOther" xml:space="preserve">
     <value>{0} der markierten Zeilen sind nicht mehr geladen – nicht kopiert.</value>
@@ -229,7 +229,7 @@
     <value>Nur geänderte</value>
   </data>
   <data name="Form_FieldsOne" xml:space="preserve">
-    <value>{0} Felder</value>
+    <value>{0} Feld</value>
   </data>
   <data name="Form_FieldsOther" xml:space="preserve">
     <value>{0} Felder</value>
@@ -412,10 +412,10 @@
     <value>aus „{0}“ (kein UTF-8 – als Windows-1252 gelesen)</value>
   </data>
   <data name="Problem_LockConflictOne" xml:space="preserve">
-    <value>Eine andere Session hält die Zeile gesperrt (hat sie geändert, aber noch nicht committed). FerretSharp hat {0} Sekunden gewartet.</value>
+    <value>Eine andere Session hält die Zeile gesperrt (hat sie geändert, aber noch nicht committet). FerretSharp hat {0} Sekunde gewartet.</value>
   </data>
   <data name="Problem_LockConflictOther" xml:space="preserve">
-    <value>Eine andere Session hält die Zeile gesperrt (hat sie geändert, aber noch nicht committed). FerretSharp hat {0} Sekunden gewartet.</value>
+    <value>Eine andere Session hält die Zeile gesperrt (hat sie geändert, aber noch nicht committet). FerretSharp hat {0} Sekunden gewartet.</value>
   </data>
   <data name="Problem_Session" xml:space="preserve">
     <value>Session</value>
@@ -451,7 +451,7 @@
     <value>Deine Änderung</value>
   </data>
   <data name="Problem_RowGoneText" xml:space="preserve">
-    <value>Die Zeile gibt es nicht mehr – jemand hat sie gelöscht und committed.</value>
+    <value>Die Zeile gibt es nicht mehr – jemand hat sie gelöscht und committet.</value>
   </data>
   <data name="Problem_DuringCommit" xml:space="preserve">
     <value>Committed ist noch nichts. Nach der Entscheidung geht es mit dem Commit weiter.</value>
@@ -523,7 +523,7 @@
     <value>Spalte suchen …</value>
   </data>
   <data name="ColumnJump_CountOne" xml:space="preserve">
-    <value>{0} Spalten</value>
+    <value>{0} Spalte</value>
   </data>
   <data name="ColumnJump_CountOther" xml:space="preserve">
     <value>{0} Spalten</value>
@@ -595,7 +595,7 @@
     <value>Beziehung aus dem C#-Modell – in der Datenbank gibt es dafür keinen Constraint.</value>
   </data>
   <data name="Footer_RowsOne" xml:space="preserve">
-    <value>{0} Zeilen</value>
+    <value>{0} Zeile</value>
   </data>
   <data name="Footer_RowsOther" xml:space="preserve">
     <value>{0} Zeilen</value>
@@ -640,7 +640,7 @@
     <value>keiner (View ohne Schlüssel)</value>
   </data>
   <data name="Editing_Committed" xml:space="preserve">
-    <value>Änderungen committed.</value>
+    <value>Änderungen committet.</value>
   </data>
   <data name="Editing_RolledBack" xml:space="preserve">
     <value>Änderungen verworfen (Rollback).</value>

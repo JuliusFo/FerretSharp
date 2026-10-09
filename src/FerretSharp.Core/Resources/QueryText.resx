@@ -91,7 +91,7 @@
     <comment>Why an FK jump is not possible. {0} = column name</comment>
   </data>
   <data name="FkJumpTypeNotSupported" xml:space="preserve">
-    <value>Cannot jump via {0}.</value>
+    <value>Cannot jump via {0} columns.</value>
     <comment>Why an FK jump is not possible. {0} = data type of the key column</comment>
   </data>
   <data name="FkKeyIsNull" xml:space="preserve">
@@ -126,7 +126,7 @@
     <value>No statement at the cursor.</value>
   </data>
   <data name="SqlRejectDdl" xml:space="preserve">
-    <value>The SQL editor does not run {0} (DDL): DDL commits implicitly – including the workspace's open transaction.</value>
+    <value>The SQL editor does not run {0} (DDL): DDL commits implicitly – including the workspace’s open transaction.</value>
     <comment>Why the SQL editor does not run a statement. {0} = first word of the statement, e.g. CREATE</comment>
   </data>
   <data name="SqlRejectPlSql" xml:space="preserve">
@@ -138,7 +138,7 @@
     <comment>Why the SQL editor does not run a statement. {0} = first word of the statement, e.g. COMMIT</comment>
   </data>
   <data name="SqlRejectSessionControl" xml:space="preserve">
-    <value>ALTER SESSION/SYSTEM changes the workspace's session and is not run.</value>
+    <value>ALTER SESSION/SYSTEM changes the workspace’s session and is not run.</value>
     <comment>Why the SQL editor does not run a statement</comment>
   </data>
   <data name="SqlRejectLock" xml:space="preserve">

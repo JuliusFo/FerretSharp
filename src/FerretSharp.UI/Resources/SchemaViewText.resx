@@ -137,7 +137,7 @@
     <comment>{0} = the search text</comment>
   </data>
   <data name="Explorer_SourceSearchHint" xml:space="preserve">
-    <value>Type a text and press Enter: searches all lines of the packages, procedures, functions and triggers of {0} (case-insensitive, at least {1} characters).</value>
+    <value>Type some text and press Enter: searches all lines of the packages, procedures, functions and triggers of {0} (case-insensitive, at least {1} characters).</value>
     <comment>{0} = schema (owner), {1} = minimum length</comment>
   </data>
   <data name="Explorer_NoSourceHit" xml:space="preserve">
@@ -261,10 +261,10 @@
     <comment>Button: the form view beside the grid</comment>
   </data>
   <data name="Tab_FormTitle" xml:space="preserve">
-    <value>The grid's row as a form beside it</value>
+    <value>Show the selected row as a form beside the grid</value>
   </data>
   <data name="Tab_FormTitleWithKey" xml:space="preserve">
-    <value>The grid's row as a form beside it ({0} in the grid; with several rows selected: compare)</value>
+    <value>Show the selected row as a form beside the grid ({0} in the grid; with several rows selected: compare)</value>
     <comment>{0} = shortcut like Alt+Enter</comment>
   </data>
   <data name="Tab_LoadingStructure" xml:space="preserve">
@@ -379,11 +379,11 @@
     <comment>Constraint type not known to FerretSharp (upper case like PRIMARY KEY)</comment>
   </data>
   <data name="Constraints_NotNullOne" xml:space="preserve">
-    <value>{0} NOT NULL constraint is shown as “NOT NULL” with the columns.</value>
+    <value>{0} NOT NULL constraint is shown as “NOT NULL” in the Columns view.</value>
     <comment>{0} = number of NOT NULL constraints</comment>
   </data>
   <data name="Constraints_NotNullOther" xml:space="preserve">
-    <value>{0} NOT NULL constraints are shown as “NOT NULL” with the columns.</value>
+    <value>{0} NOT NULL constraints are shown as “NOT NULL” in the Columns view.</value>
     <comment>{0} = number of NOT NULL constraints</comment>
   </data>
   <data name="Constraints_RowKey" xml:space="preserve">
@@ -534,7 +534,7 @@
     <comment>{0} = number of rows from the optimizer statistics, {1} = date they were gathered</comment>
   </data>
   <data name="Object_RowsEstimateTitle" xml:space="preserve">
-    <value>According to the optimizer statistics – not exact. Exact: “Count rows” in the data view.</value>
+    <value>According to the optimizer statistics – not exact. Exact: “Count rows” in the Data view.</value>
     <comment>“Count rows” is the button in the footer of the data view</comment>
   </data>
   <data name="Object_NoStatistics" xml:space="preserve">
@@ -640,10 +640,10 @@
     <value>No body visible. Oracle shows the body of a package in another schema only with the DEBUG privilege on it (or to its owner); EXECUTE is enough only for the specification.</value>
   </data>
   <data name="PlSql_InvokerRights" xml:space="preserve">
-    <value>Runs with the privileges of the caller (invoker's rights).</value>
+    <value>Runs with the privileges of the caller (invoker’s rights).</value>
   </data>
   <data name="PlSql_DefinerRights" xml:space="preserve">
-    <value>Runs with the privileges of the owner (definer's rights).</value>
+    <value>Runs with the privileges of the owner (definer’s rights).</value>
   </data>
   <data name="PlSql_LoadingSource" xml:space="preserve">
     <value>Loading source …</value>
@@ -653,7 +653,7 @@
     <comment>Bold start of PlSql_Wrapped</comment>
   </data>
   <data name="PlSql_Wrapped" xml:space="preserve">
-    <value>{0} The source was made unreadable with Oracle's wrap utility and cannot be turned back. Parameters and dependencies are still shown in the other views.</value>
+    <value>{0} The source was made unreadable with Oracle’s wrap utility and cannot be restored. Parameters and dependencies are still shown in the other views.</value>
     <comment>{0} = PlSql_WrappedTitle (bold)</comment>
   </data>
   <data name="PlSql_ShowWrapped" xml:space="preserve">
@@ -686,14 +686,14 @@
     <comment>Table column header: IN, OUT, IN OUT</comment>
   </data>
   <data name="PlSql_HasDefaultTitle" xml:space="preserve">
-    <value>The parameter has a default – the dictionary does not know the expression; it is in the source.</value>
+    <value>The parameter has a default value – the expression is not in the dictionary, only in the source.</value>
   </data>
   <data name="PlSql_Yes" xml:space="preserve">
     <value>yes</value>
     <comment>The parameter has a default</comment>
   </data>
   <data name="PlSql_ParametersNote" xml:space="preserve">
-    <value>Only what the specification declares; private subprograms of the body are not in the dictionary. Oracle shows types declared with {0} resolved.</value>
+    <value>Only what the specification declares; private subprograms of the body are not in the dictionary. Oracle shows types declared with {0} as the resolved type.</value>
     <comment>{0} = %TYPE (code)</comment>
   </data>
   <data name="PlSql_NoErrorsButInvalid" xml:space="preserve">

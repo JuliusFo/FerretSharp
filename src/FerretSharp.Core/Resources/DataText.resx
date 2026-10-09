@@ -38,11 +38,11 @@
     <comment>ORA-02290, followed by Oracle's message</comment>
   </data>
   <data name="WriteFailedParentMissing" xml:space="preserve">
-    <value>Foreign key violated – the referenced record does not exist.</value>
+    <value>Foreign key violated – the referenced row does not exist.</value>
     <comment>ORA-02291, followed by Oracle's message</comment>
   </data>
   <data name="WriteFailedChildrenExist" xml:space="preserve">
-    <value>Foreign key violated – dependent records still exist.</value>
+    <value>Foreign key violated – dependent rows still exist.</value>
     <comment>ORA-02292, followed by Oracle's message</comment>
   </data>
   <data name="WriteFailedNotNull" xml:space="preserve">
@@ -104,7 +104,7 @@
     <comment>Reason in an export warning (lower case, ends a sentence): only the first characters of the CLOB were loaded</comment>
   </data>
   <data name="ExportReasonTypeNotExported" xml:space="preserve">
-    <value>type is not exported</value>
+    <value>this type is not exported</value>
     <comment>Reason in an export warning (lower case, ends a sentence): values of this data type are not exported</comment>
   </data>
   <data name="LobEmpty" xml:space="preserve">

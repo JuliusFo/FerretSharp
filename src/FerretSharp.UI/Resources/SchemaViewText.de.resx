@@ -25,7 +25,7 @@
     <value>Synonym {0} → {1}</value>
   </data>
   <data name="PublicSynonymTo" xml:space="preserve">
-    <value>öffentliches Synonym {0} → {1}</value>
+    <value>Öffentliches Synonym {0} → {1}</value>
   </data>
   <data name="PublicSynonymChip" xml:space="preserve">
     <value>ÖFFENTLICHES SYNONYM</value>

@@ -142,7 +142,7 @@
     <value>Der gespeicherte Typ passt nicht zur Spalte {0}: Lesen scheitert.</value>
   </data>
   <data name="TypeMismatchConverter" xml:space="preserve">
-    <value>Der gespeicherte Typ passt nicht zur Spalte {0}: Lesen scheitert – fehlt der Converter (z. B. J/N)?.</value>
+    <value>Der gespeicherte Typ passt nicht zur Spalte {0}: Lesen scheitert – fehlt der Converter (z. B. J/N)?</value>
   </data>
   <data name="DateTimeLosesZone" xml:space="preserve">
     <value>DateTime verliert die Zeitzone der Spalte – DateTimeOffset passt dazu.</value>

@@ -79,7 +79,7 @@
     <value>C# names</value>
   </data>
   <data name="Settings_ClrNamesHint" xml:space="preserve">
-    <value>Entity and property names of the linked project in the explorer, the table header and the column search: beside the Oracle names or in front instead of them. FerretSharp always shows enum values with their C# name; SQL keeps the names of the database.</value>
+    <value>Entity and property names of the linked project in the explorer, the table header and the column search: beside the Oracle names, or in front in their place. FerretSharp always shows enum values with their C# name; SQL keeps the names of the database.</value>
   </data>
   <data name="Settings_ClrNamesBeside" xml:space="preserve">
     <value>Beside</value>
@@ -97,7 +97,7 @@
     <value>Check idle connections</value>
   </data>
   <data name="Settings_KeepAliveHint" xml:space="preserve">
-    <value>Queries idle sessions briefly every 2 minutes ({0}). A lost connection is reported at once, and firewalls do not drop idle connections. It also keeps the sessions open against an {1} limit of the database, though.</value>
+    <value>Sends a short query to idle sessions every 2 minutes ({0}). A lost connection is reported immediately, and firewalls do not drop idle connections. However, this also keeps sessions open despite an {1} limit of the database.</value>
     <comment>{0} = SELECT 1 FROM DUAL (code), {1} = IDLE_TIME (code)</comment>
   </data>
   <data name="Settings_LockWait" xml:space="preserve">
@@ -115,7 +115,7 @@
     <value>Log UI stalls</value>
   </data>
   <data name="Settings_DiagnoseUiStallsHint" xml:space="preserve">
-    <value>Writes to the log when the user interface does not respond for more than 0.3 s, and what FerretSharp was busy with. If the .NET tool {0} is installed, stalls over 1.5 s also put the stacks of all threads into the log folder as {1}. Meant for narrowing down stalls, not for every day.</value>
+    <value>Writes to the log when the user interface does not respond for more than 0.3 s, and what FerretSharp was busy with. If the .NET tool {0} is installed, stalls over 1.5 s also write the stacks of all threads to the log folder as {1}. Meant for tracking down stalls, not for everyday use.</value>
     <comment>{0} = dotnet-stack (code), {1} = stall-*.txt (code)</comment>
   </data>
   <data name="Settings_NotSaved" xml:space="preserve">
@@ -290,7 +290,7 @@
     <comment>Status</comment>
   </data>
   <data name="Status_WorkspaceTitle" xml:space="preserve">
-    <value>Workspace “{0}” – queries through its own Oracle session (ACTION = workspace name).</value>
+    <value>Workspace “{0}” – runs queries in its own Oracle session (ACTION = workspace name).</value>
     <comment>{0} = workspace name</comment>
   </data>
   <data name="Status_Workspace" xml:space="preserve">
@@ -405,7 +405,7 @@
     <comment>Heading of the list of uncommitted write actions</comment>
   </data>
   <data name="Status_ModelBuildChangedTitle" xml:space="preserve">
-    <value>The build has changed – {0} … Until the new model is ready, the previous one applies.</value>
+    <value>The build has changed – {0} … Until the new model is ready, the previous one stays in use.</value>
     <comment>{0} = the current loading step</comment>
   </data>
   <data name="Status_ModelReading" xml:space="preserve">
@@ -578,11 +578,11 @@
     <value>No connections yet.</value>
   </data>
   <data name="Switcher_OpenTitle" xml:space="preserve">
-    <value>Stay connected while another one is shown</value>
+    <value>These stay connected while another connection is shown</value>
     <comment>Tooltip of the “Open” group</comment>
   </data>
   <data name="Switcher_OpenTitleKey" xml:space="preserve">
-    <value>Stay connected while another one is shown – {0} switches to the previous one</value>
+    <value>These stay connected while another connection is shown – {0} switches to the previous one</value>
     <comment>{0} = shortcut, e.g. Alt+O</comment>
   </data>
   <data name="Switcher_Open" xml:space="preserve">
@@ -608,11 +608,11 @@
     <value>Uncommitted changes in this connection</value>
   </data>
   <data name="Switcher_ActionsOpenOne" xml:space="preserve">
-    <value>{0} open action</value>
+    <value>{0} uncommitted action</value>
     <comment>{0} = number of uncommitted write actions</comment>
   </data>
   <data name="Switcher_ActionsOpenOther" xml:space="preserve">
-    <value>{0} open actions</value>
+    <value>{0} uncommitted actions</value>
     <comment>{0} = number of uncommitted write actions</comment>
   </data>
   <data name="Switcher_DisconnectTitle" xml:space="preserve">
@@ -695,7 +695,7 @@
     <comment>{0} = key combination, {1} = reason</comment>
   </data>
   <data name="Shortcuts_Conflict" xml:space="preserve">
-    <value>{0} is already “{1}” – applying removes it there.</value>
+    <value>{0} is already assigned to “{1}” – applying removes it there.</value>
     <comment>{0} = key combination, {1} = the action it is assigned to</comment>
   </data>
   <data name="Shortcuts_FixedTitle" xml:space="preserve">
@@ -847,7 +847,7 @@
     <value>The other workspaces of this connection stay locked.</value>
   </data>
   <data name="Unlock_LockedAgainWhen" xml:space="preserve">
-    <value>It is locked again with “Lock”, when the workspace is closed and on disconnecting.</value>
+    <value>It is locked again with “Lock”, when the workspace is closed, and when you disconnect.</value>
   </data>
   <data name="Unlock_TypeName" xml:space="preserve">
     <value>To confirm, type the name of the connection: {0}</value>
@@ -897,15 +897,15 @@
     <comment>Button</comment>
   </data>
   <data name="Dialogs_CloseTabTextOne" xml:space="preserve">
-    <value>{1} has {0} pending change that has not been written yet. It is lost on closing. Changes already written stay in the workspace’s transaction.</value>
+    <value>{1} has {0} pending change that has not been written yet. It is lost when you close the tab. Changes already written stay in the workspace’s transaction.</value>
     <comment>{0} = number of pending changes, {1} = table name (bold)</comment>
   </data>
   <data name="Dialogs_CloseTabTextOther" xml:space="preserve">
-    <value>{1} has {0} pending changes that have not been written yet. They are lost on closing. Changes already written stay in the workspace’s transaction.</value>
+    <value>{1} has {0} pending changes that have not been written yet. They are lost when you close the tab. Changes already written stay in the workspace’s transaction.</value>
     <comment>{0} = number of pending changes, {1} = table name (bold)</comment>
   </data>
   <data name="Dialogs_DeleteConnectionText" xml:space="preserve">
-    <value>Really delete connection {0} ({1})? The stored password is removed as well.</value>
+    <value>Delete connection {0} ({1})? The stored password is removed as well.</value>
     <comment>{0} = connection name (bold), {1} = address</comment>
   </data>
   <data name="ErrorDialog_Title" xml:space="preserve">

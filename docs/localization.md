@@ -63,7 +63,7 @@ Texte, die bei der Erstellung gespeichert werden (Standardnamen für Tabs, Works
 
 **Deutsch:** wie bisher (du-Form, typografische Anführungszeichen „…“, Gedankenstrich –, Auslassung …). Beim Umziehen bestehender Texte den deutschen Wortlaut **unverändert** übernehmen – die Tests prüfen ihn.
 
-**Englisch:** US-Schreibweise (color, canceled), Satzanfang groß, sonst klein (Sentence case: „Copy value“, „Lock wait“, nicht „Copy Value“). Den Nutzer mit „you“ ansprechen, knapp, ohne Ausrufezeichen. Typografische Anführungszeichen “…”, Gedankenstrich – mit Leerzeichen wie im Deutschen, Auslassung …. Zahlen und Einheiten wie im Deutschen (`5 s`, `2 min`).
+**Englisch:** US-Schreibweise (color, canceled), Satzanfang groß, sonst klein (Sentence case: „Copy value“, „Lock wait“, nicht „Copy Value“). Den Nutzer mit „you“ ansprechen, knapp, ohne Ausrufezeichen. Typografische Anführungszeichen “…” und Apostroph ’ (nicht in Code-Bezeichnern), Gedankenstrich – mit Leerzeichen wie im Deutschen, Auslassung …. Bestätigungsfragen beginnen mit dem Verb („Delete connection X?“), ohne „Really“. Zahlen und Einheiten wie im Deutschen (`5 s`, `2 min`).
 
 ## Glossar
 

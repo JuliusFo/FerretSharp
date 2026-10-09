@@ -161,7 +161,7 @@
     <comment>Progress step while the C# model loads. {0} = schema (owner)</comment>
   </data>
   <data name="StepCompare" xml:space="preserve">
-    <value>Comparing model and database</value>
+    <value>Matching the model against the database</value>
     <comment>Progress step while the C# model loads</comment>
   </data>
   <data name="ColumnCaseMismatch" xml:space="preserve">
@@ -185,17 +185,17 @@
     <comment>{0} = Oracle column type (VARCHAR2(1)); bool property without value converter on a text column</comment>
   </data>
   <data name="DateTimeLosesZone" xml:space="preserve">
-    <value>DateTime loses the column's time zone – DateTimeOffset fits it.</value>
+    <value>DateTime loses the column’s time zone – DateTimeOffset keeps it.</value>
   </data>
   <data name="GuidRawLength" xml:space="preserve">
-    <value>A Guid has 16 bytes, the column RAW({0}).</value>
+    <value>A Guid has 16 bytes, the column is RAW({0}).</value>
     <comment>{0} = length of the RAW column</comment>
   </data>
   <data name="ViewColumnNullable" xml:space="preserve">
-    <value>The view's column allows NULL, the model requires a value – if it contains NULL, EF Core throws when reading. (Oracle always reports computed view columns as nullable.)</value>
+    <value>The view’s column allows NULL, the model requires a value – if it contains NULL, EF Core throws when reading. (Oracle always reports computed view columns as nullable.)</value>
   </data>
   <data name="MaterializedViewColumnNullable" xml:space="preserve">
-    <value>The materialized view's column allows NULL, the model requires a value – if it contains NULL, EF Core throws when reading. (Oracle always reports computed view columns as nullable.)</value>
+    <value>The materialized view’s column allows NULL, the model requires a value – if it contains NULL, EF Core throws when reading. (Oracle always reports computed view columns as nullable.)</value>
   </data>
   <data name="ColumnNullable" xml:space="preserve">
     <value>The column allows NULL, the model requires a value – EF Core throws when reading a row with NULL.</value>
@@ -236,7 +236,7 @@
     <comment>{0} = scale of the column</comment>
   </data>
   <data name="IntegerPrecision" xml:space="preserve">
-    <value>{0} holds {1} digits, the column {2} – larger values cannot be read.</value>
+    <value>{0} holds {1} digits, the column {2} digits – larger values cannot be read.</value>
     <comment>{0} = C# type (int, long), {1} = digits of the C# type, {2} = precision of the column</comment>
   </data>
   <data name="DecimalIntegerDigits" xml:space="preserve">
@@ -252,7 +252,7 @@
     <comment>{0},{1} = precision and scale in the model, {2},{3} = precision and scale of the column</comment>
   </data>
   <data name="DecimalTooWide" xml:space="preserve">
-    <value>decimal holds {0} digits, the column {1} – larger values cannot be read.</value>
+    <value>decimal holds {0} digits, the column {1} digits – larger values cannot be read.</value>
     <comment>{0} = digits of decimal (28), {1} = precision of the column</comment>
   </data>
   <data name="DotNetNotStartable" xml:space="preserve">
@@ -290,13 +290,13 @@
     <comment>The LINQ console's helper process answered without a result</comment>
   </data>
   <data name="ConsoleNotRunning" xml:space="preserve">
-    <value>The LINQ console's helper process is no longer running.</value>
+    <value>The LINQ console’s helper process is no longer running.</value>
   </data>
   <data name="ConsoleCrashed" xml:space="preserve">
-    <value>The LINQ console's helper process crashed.</value>
+    <value>The LINQ console’s helper process crashed.</value>
   </data>
   <data name="ConsoleUnreadable" xml:space="preserve">
-    <value>The LINQ console's helper process sent an unreadable answer and was stopped – it restarts next time.</value>
+    <value>The LINQ console’s helper process sent an unreadable answer and was stopped – it restarts next time.</value>
   </data>
   <data name="BuildChangedStep" xml:space="preserve">
     <value>Build changed – {0}</value>
@@ -318,7 +318,7 @@
     <comment>{0} = technical error message</comment>
   </data>
   <data name="NewBuildNotLoaded" xml:space="preserve">
-    <value>The new build could not be loaded, the console keeps using the previous one: {0}</value>
+    <value>The new build could not be loaded – the console keeps using the previous one: {0}</value>
     <comment>{0} = error message</comment>
   </data>
   <data name="NoEntity" xml:space="preserve">
@@ -341,7 +341,7 @@
     <comment>Reason a filter is left out of generated LINQ code. {0} = property name</comment>
   </data>
   <data name="OperatorStringOnly" xml:space="preserve">
-    <value>“{0}” only for string properties ({1})</value>
+    <value>“{0}” only works for string properties ({1})</value>
     <comment>Reason a filter is left out of generated LINQ code. {0} = filter operator (contains), {1} = C# type of the property</comment>
   </data>
   <data name="OperatorNotForBool" xml:space="preserve">
@@ -357,7 +357,7 @@
     <comment>Reason a filter is left out of generated LINQ code. {0} = filter value</comment>
   </data>
   <data name="OperatorNotTranslated" xml:space="preserve">
-    <value>“{0}” is not translated</value>
+    <value>“{0}” cannot be translated to LINQ</value>
     <comment>Reason a filter is left out of generated LINQ code. {0} = filter operator</comment>
   </data>
   <data name="HostEndedWithoutResult" xml:space="preserve">

@@ -60,7 +60,7 @@
     <comment>Shortcut action</comment>
   </data>
   <data name="ActionForward" xml:space="preserve">
-    <value>Forward again</value>
+    <value>Forward</value>
     <comment>Shortcut action (after Back)</comment>
   </data>
   <data name="ActionApplyFilters" xml:space="preserve">
@@ -101,14 +101,14 @@
     <comment>Shortcut action</comment>
   </data>
   <data name="HintFlush" xml:space="preserve">
-    <value>Writes into the transaction, without commit.</value>
+    <value>Writes to the transaction without committing.</value>
   </data>
   <data name="ActionCommit" xml:space="preserve">
     <value>Commit</value>
     <comment>Shortcut action</comment>
   </data>
   <data name="HintCommit" xml:space="preserve">
-    <value>Always with confirmation on Prod.</value>
+    <value>Always asks for confirmation on Prod.</value>
   </data>
   <data name="ActionNewSql" xml:space="preserve">
     <value>New SQL editor</value>
@@ -258,11 +258,11 @@
     <value>Without Ctrl or Alt, typing the key would no longer work – only F keys can be used alone.</value>
   </data>
   <data name="TakenFromEditor" xml:space="preserve">
-    <value>{0} is otherwise “{1}” – the shortcut wins, that function is lost there.</value>
+    <value>{0} is otherwise “{1}” – the shortcut takes precedence and that function is lost there.</value>
     <comment>{0}: key combination, e.g. Ctrl+D; {1}: what the key does in the editors or the grid (Editor…)</comment>
   </data>
   <data name="AltShiftSwitchesLanguage" xml:space="preserve">
-    <value>Alt+Shift switches the keyboard language in Windows when both are pressed alone – with another key it usually works, but it can get in the way.</value>
+    <value>Alt+Shift switches the input language in Windows when both are pressed alone – with another key it usually works, but it can get in the way.</value>
   </data>
   <data name="KeyDelete" xml:space="preserve">
     <value>Del</value>

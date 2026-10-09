@@ -100,7 +100,7 @@
     <comment>Menu item: compare the selected rows</comment>
   </data>
   <data name="GridMenu_AsFormTitle" xml:space="preserve">
-    <value>All columns of the row one below the other, beside the grid{0}</value>
+    <value>All columns of the row listed vertically next to the grid{0}</value>
     <comment>{0}: the shortcut as " (Alt+Enter)", or empty</comment>
   </data>
   <data name="GridMenu_AsForm" xml:space="preserve">
@@ -328,7 +328,7 @@
     <value>Read-only – unlock the workspace to make changes.</value>
   </data>
   <data name="Form_ChooseRow" xml:space="preserve">
-    <value>Choose a row in the grid (click or arrow keys).</value>
+    <value>Select a row in the grid (click or arrow keys).</value>
   </data>
   <data name="Form_LoadingRow" xml:space="preserve">
     <value>Loading row …</value>
@@ -357,13 +357,13 @@
     <comment>{0}: column name; {1}: why its typed value is invalid</comment>
   </data>
   <data name="Form_InsertedRowOutside" xml:space="preserve">
-    <value>The inserted row is not in the loaded range of the grid – choose a row in the grid.</value>
+    <value>The inserted row is not in the loaded range of the grid – select a row in the grid.</value>
   </data>
   <data name="Form_NewRowRemoved" xml:space="preserve">
     <value>The new row was removed.</value>
   </data>
   <data name="Form_RowNotLoaded" xml:space="preserve">
-    <value>The row is no longer loaded – choose a row in the grid.</value>
+    <value>The row is no longer loaded – select a row in the grid.</value>
   </data>
   <data name="Form_ViewValue" xml:space="preserve">
     <value>View the whole value</value>
@@ -428,7 +428,7 @@
     <value>No column matches.</value>
   </data>
   <data name="Compare_FooterNote" xml:space="preserve">
-    <value>Differing values marked · values as in the grid, with pending changes</value>
+    <value>Differing values marked · values as shown in the grid, including pending changes</value>
   </data>
   <data name="Compare_MissingRows" xml:space="preserve">
     <value>{0} of the selection no longer loaded</value>
@@ -443,7 +443,7 @@
     <comment>Tooltip</comment>
   </data>
   <data name="CompareCell_OtherCase" xml:space="preserve">
-    <value>Only present in another letter case: {0}</value>
+    <value>Present only in a different letter case: {0}</value>
     <comment>Tooltip; {0}: the name as written on this side</comment>
   </data>
   <data name="CompareCell_Different" xml:space="preserve">
@@ -582,7 +582,7 @@
     <value>The row no longer exists – someone deleted it and committed.</value>
   </data>
   <data name="Problem_DuringCommit" xml:space="preserve">
-    <value>Nothing is committed yet. Once you decide, the commit continues.</value>
+    <value>Nothing has been committed yet. The commit continues once you decide.</value>
   </data>
   <data name="Problem_Retry" xml:space="preserve">
     <value>Try again</value>
@@ -605,7 +605,7 @@
     <comment>Dialog title</comment>
   </data>
   <data name="Problem_ChangedMeanwhile" xml:space="preserve">
-    <value>Changed meanwhile</value>
+    <value>Changed in the meantime</value>
     <comment>Dialog title</comment>
   </data>
   <data name="Problem_RowDeleted" xml:space="preserve">
@@ -641,15 +641,15 @@
     <comment>{0}: number of rows</comment>
   </data>
   <data name="Outcome_Open" xml:space="preserve">
-    <value>{0}{1} – in the workspace’s transaction. Invisible to others until commit; commit, discard or undo it (↶) from the status bar.</value>
+    <value>{0}{1} – in the workspace’s transaction. Not visible to others until you commit; commit, discard or undo it (↶) in the status bar.</value>
     <comment>{0}: "3 rows changed" (bold); {1}: details such as " (UPDATE · 12 ms)", or empty</comment>
   </data>
   <data name="Outcome_Undone" xml:space="preserve">
-    <value>{0}{1} – undone since (↶).</value>
+    <value>{0}{1} – since undone (↶).</value>
     <comment>{0}: "3 rows changed"; {1}: details such as " (UPDATE · 12 ms)", or empty</comment>
   </data>
   <data name="Outcome_Ended" xml:space="preserve">
-    <value>{0}{1} – the transaction has ended since (commit or rollback).</value>
+    <value>{0}{1} – the transaction has since ended (commit or rollback).</value>
     <comment>{0}: "3 rows changed"; {1}: details such as " (UPDATE · 12 ms)", or empty</comment>
   </data>
   <data name="ColumnMenu_PkPinnedTitle" xml:space="preserve">
@@ -788,7 +788,7 @@
     <comment>Button</comment>
   </data>
   <data name="Footer_SnapshotTitle" xml:space="preserve">
-    <value>Read-only connection: Oracle returns the data from a READ ONLY transaction as of this point in time. Every new query (filter, sort, {0}) gets a new snapshot; further pages stay in the same snapshot.</value>
+    <value>Read-only connection: Oracle returns the data from a READ ONLY transaction as of this point in time. Every new query (filter, sort, {0}) gets a new snapshot; later pages come from the same snapshot.</value>
     <comment>{0}: the reload shortcut (e.g. "F5") or "Reload"</comment>
   </data>
   <data name="Footer_Snapshot" xml:space="preserve">
@@ -796,11 +796,11 @@
     <comment>{0}: time of the snapshot</comment>
   </data>
   <data name="Footer_SnapshotMovedKey" xml:space="preserve">
-    <value>Snapshot has changed – {0} reloads</value>
+    <value>Snapshot changed – press {0} to reload</value>
     <comment>{0}: the reload shortcut, e.g. "F5"</comment>
   </data>
   <data name="Footer_SnapshotMoved" xml:space="preserve">
-    <value>Snapshot has changed – reload</value>
+    <value>Snapshot changed – reload</value>
   </data>
   <data name="Footer_RowKey" xml:space="preserve">
     <value>Row key: {0}</value>

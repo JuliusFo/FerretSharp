@@ -541,7 +541,7 @@
     <value>„Neu verbinden“ stellt alle Workspaces mit ihren Tabs und Filtern wieder her.</value>
   </data>
   <data name="Shortcuts_Intro" xml:space="preserve">
-    <value>Änderungen gelten sofort. „Ändern“ und dann die neue Tastenkombination drücken, Esc bricht ab. Kürzel mit Ctrl, Alt oder eine F-Taste; ausgegraute sind fest.</value>
+    <value>Änderungen gelten sofort. „Ändern“ und dann die neue Tastenkombination drücken, Esc bricht ab. Kürzel mit Ctrl, Alt oder einer F-Taste; ausgegraute sind fest.</value>
   </data>
   <data name="Shortcuts_PressKeys" xml:space="preserve">
     <value>Tastenkombination drücken …</value>
@@ -703,7 +703,7 @@
     <value>Nicht committete Änderungen</value>
   </data>
   <data name="Leave_Text" xml:space="preserve">
-    <value>{0}: Diese Änderungen sind noch nicht committed und gingen sonst verloren.</value>
+    <value>{0}: Diese Änderungen sind noch nicht committet und gingen sonst verloren.</value>
   </data>
   <data name="Leave_PendingAndWritten" xml:space="preserve">
     <value>{0} ausstehend, {1} geschrieben</value>
@@ -721,7 +721,7 @@
     <value>Commit auf Produktion</value>
   </data>
   <data name="Dialogs_CommitProdText" xml:space="preserve">
-    <value>Die Änderungen in {0} ({1} ausstehend · {2} geschrieben) werden in {3} committed und sind danach für alle sichtbar.</value>
+    <value>Die Änderungen in {0} ({1} ausstehend · {2} geschrieben) werden in {3} committet und sind danach für alle sichtbar.</value>
   </data>
   <data name="Dialogs_DiscardAndClose" xml:space="preserve">
     <value>Verwerfen und schließen</value>

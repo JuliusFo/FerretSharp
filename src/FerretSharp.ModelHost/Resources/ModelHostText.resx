@@ -49,7 +49,7 @@
     <comment>{0} = assembly name, {1} = DbContext type name configured for the connection</comment>
   </data>
   <data name="SeveralContexts" xml:space="preserve">
-    <value>Several DbContexts – please specify one: {0}</value>
+    <value>Multiple DbContexts found – specify one: {0}</value>
     <comment>{0} = full names of the DbContext types, comma-separated</comment>
   </data>
   <data name="ContextNotCreated" xml:space="preserve">

@@ -36,7 +36,7 @@ public sealed class EnglishTextTests
         {
             Assert.Equal("Ctrl+Alt is AltGr on German keyboards (@, €, {) – it would catch characters while typing.",
                 map.Check(ShortcutAction.Refresh, KeyChord.Parse("ctrl+alt+r")!).Error);
-            Assert.Equal("Ctrl+D is otherwise “Select next match in the editors” – the shortcut wins, that function is lost there.",
+            Assert.Equal("Ctrl+D is otherwise “Select next match in the editors” – the shortcut takes precedence and that function is lost there.",
                 map.Check(ShortcutAction.Refresh, KeyChord.Parse("ctrl+d")!).Warning);
             Assert.Equal("F12 opens the developer tools.", map.Check(ShortcutAction.Refresh, KeyChord.Parse("f12")!).Error);
             Assert.Equal("Data", ShortcutMap.Definition(ShortcutAction.Refresh).Group);
@@ -67,7 +67,7 @@ public sealed class EnglishTextTests
         {
             var lines = proposal.Script.ReplaceLineEndings("\n").Split('\n');
 
-            Assert.Equal("-- DDL proposal: align TEST (side 2) with the reference DEV (side 1).", lines[0]);
+            Assert.Equal("-- DDL proposal: align TEST (side 2) to the reference DEV (side 1).", lines[0]);
             Assert.Equal("-- No differences.", lines[2]);
         }
     }

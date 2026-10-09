@@ -151,7 +151,7 @@
     <value>normale Spalte</value>
   </data>
   <data name="IdentityOrVirtualWarning" xml:space="preserve">
-    <value>Identity und virtuelle Spalten lassen sich nicht per MODIFY umstellen: neue Spalte anlegen und Daten umkopieren.</value>
+    <value>Identity- und virtuelle Spalten lassen sich nicht per MODIFY umstellen: neue Spalte anlegen und Daten umkopieren.</value>
   </data>
   <data name="TypeChangeHint" xml:space="preserve">
     <value>{0}: Typ {1} → {2}</value>

@@ -51,7 +51,7 @@
     <comment>Placeholder of the schema field when no connection is chosen</comment>
   </data>
   <data name="Compare_SchemaTitle" xml:space="preserve">
-    <value>Schema (empty: the connection's)</value>
+    <value>Schema (empty: the connection’s)</value>
   </data>
   <data name="Compare_ReferenceTitle" xml:space="preserve">
     <value>The other sides are measured against this one</value>
@@ -172,7 +172,7 @@
     <comment>Dialog title</comment>
   </data>
   <data name="Compare_DeleteQuestion" xml:space="preserve">
-    <value>Delete the saved comparison {0}? The connections stay.</value>
+    <value>Delete the saved comparison {0}? The connections are kept.</value>
     <comment>{0} = name of the comparison (bold)</comment>
   </data>
   <data name="Compare_SummaryNone" xml:space="preserve">

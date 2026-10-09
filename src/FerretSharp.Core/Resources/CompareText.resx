@@ -24,7 +24,7 @@
     <comment>{0}: connection name</comment>
   </data>
   <data name="InvalidFile" xml:space="preserve">
-    <value>{0} is not a valid file of schema comparisons: {1}</value>
+    <value>{0} is not a valid schema comparison file: {1}</value>
     <comment>{0}: file path; {1}: error message of the JSON reader</comment>
   </data>
   <data name="FileFromNewerVersion" xml:space="preserve">
@@ -32,7 +32,7 @@
     <comment>{0}: file path; {1}: format version number</comment>
   </data>
   <data name="FileFromNewerVersionNotOverwritten" xml:space="preserve">
-    <value>{0} comes from a newer version of FerretSharp (format {1}). It is not overwritten.</value>
+    <value>{0} comes from a newer version of FerretSharp (format {1}). It will not be overwritten.</value>
     <comment>{0}: file path; {1}: format version number</comment>
   </data>
   <data name="ExportObject" xml:space="preserve">
@@ -48,7 +48,7 @@
     <comment>Cell of the exported comparison on the reference side; {0}: the cell's text</comment>
   </data>
   <data name="ScriptHeader" xml:space="preserve">
-    <value>DDL proposal: align {0} with the reference {1}.</value>
+    <value>DDL proposal: align {0} to the reference {1}.</value>
     <comment>First comment line of the DDL script; {0}: target side, {1}: reference side (each like "TEST (side 2)")</comment>
   </data>
   <data name="ScriptGenerated" xml:space="preserve">
@@ -121,14 +121,14 @@
     <comment>Comment line in the DDL proposal; {0}: object name; {1}, {2}: object kinds (table, view, materialized view)</comment>
   </data>
   <data name="KindDiffersWarning" xml:space="preserve">
-    <value>Cannot be converted: drop the object in the target and create it again from the reference's DDL.</value>
+    <value>Cannot be converted: drop the object in the target and create it again from the reference’s DDL.</value>
   </data>
   <data name="ViewDefinitionNotCompared" xml:space="preserve">
-    <value>The definition of the view is not part of the comparison: copy it from the reference's DDL view.</value>
+    <value>The definition of the view is not part of the comparison: copy it from the reference’s DDL view.</value>
     <comment>"DDL view" is the DDL view of a tab</comment>
   </data>
   <data name="MaterializedViewDefinitionNotCompared" xml:space="preserve">
-    <value>The definition of the materialized view is not part of the comparison: copy it from the reference's DDL view.</value>
+    <value>The definition of the materialized view is not part of the comparison: copy it from the reference’s DDL view.</value>
     <comment>"DDL view" is the DDL view of a tab</comment>
   </data>
   <data name="ViewDiffers" xml:space="preserve">
@@ -136,10 +136,10 @@
     <comment>After a commented CREATE OR REPLACE VIEW in the DDL proposal; {0}: names of the differing columns</comment>
   </data>
   <data name="TemporaryTableOnCommit" xml:space="preserve">
-    <value>Temporary table: ON COMMIT is not known (default DELETE ROWS) – check it against the reference's DDL.</value>
+    <value>Temporary table: ON COMMIT is not known (default DELETE ROWS) – check it against the reference’s DDL.</value>
   </data>
   <data name="PartitioningNotCopied" xml:space="preserve">
-    <value>The partitioning is not copied – check it against the reference's DDL.</value>
+    <value>The partitioning is not copied – check it against the reference’s DDL.</value>
   </data>
   <data name="OrganizationDiffersHint" xml:space="preserve">
     <value>{0}: organization differs (reference: {1}, target: {2})</value>
@@ -220,7 +220,7 @@
     <comment>Comment line in the DDL proposal; {0}: table name; {1}: the reference's column order</comment>
   </data>
   <data name="ColumnOrderWarning" xml:space="preserve">
-    <value>Oracle cannot reorder columns; only by creating the table again.</value>
+    <value>Oracle cannot reorder columns except by creating the table again.</value>
   </data>
   <data name="RecreateKey" xml:space="preserve">
     <value>Is dropped and created again. If foreign keys refer to the key, the drop fails (ORA-02273).</value>
@@ -239,10 +239,10 @@
     <comment>Comment line in the DDL proposal; {0}: table name; {1}: index name; {2}: Oracle index type</comment>
   </data>
   <data name="IndexTypeNotCreated" xml:space="preserve">
-    <value>The proposal does not create this index type: copy it from the reference's DDL.</value>
+    <value>The proposal does not create this index type: copy it from the reference’s DDL.</value>
   </data>
   <data name="RebuildIndex" xml:space="preserve">
-    <value>Is dropped and built again. If it supports a key, the drop fails (ORA-02429).</value>
+    <value>Is dropped and rebuilt. If it supports a key, the drop fails (ORA-02429).</value>
   </data>
   <data name="ColumnsAlreadyIndexed" xml:space="preserve">
     <value>The columns are already indexed in the target ({0}); Oracle refuses a second index on them (ORA-01408).</value>
@@ -256,11 +256,11 @@
     <value>The partitioning of the index is not copied.</value>
   </data>
   <data name="IdentityOptionsUnknown" xml:space="preserve">
-    <value>Identity {0}: ALWAYS or BY DEFAULT and the options (start, increment) are not known – check them against the reference's DDL.</value>
+    <value>Identity {0}: ALWAYS or BY DEFAULT and the options (start, increment) are not known – check them against the reference’s DDL.</value>
     <comment>{0}: column name</comment>
   </data>
   <data name="ExpressionNamesReferenceSchema" xml:space="preserve">
-    <value>The expression names the reference's schema ({0}) – adjust it in the target.</value>
+    <value>The expression names the reference’s schema ({0}) – adjust it in the target.</value>
     <comment>{0}: schema of the reference</comment>
   </data>
   <data name="DropKey" xml:space="preserve">
@@ -270,7 +270,7 @@
     <value>Drops the foreign key: Oracle no longer checks the relationship.</value>
   </data>
   <data name="DropCheck" xml:space="preserve">
-    <value>Drops the check.</value>
+    <value>Drops the check constraint.</value>
     <comment>Check constraint</comment>
   </data>
 </root>

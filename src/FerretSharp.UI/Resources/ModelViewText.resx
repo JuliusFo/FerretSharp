@@ -31,7 +31,7 @@
     <comment>Heading</comment>
   </data>
   <data name="Model_NoProjectHint" xml:space="preserve">
-    <value>In the connection dialog, enter the {0} of the project with the DbContext under “C# model”. FerretSharp then reads the EF Core model (EF Core 8 or later) from the existing build: entity and property names, C# types, converters and navigations – without the application's startup code and without a database connection.</value>
+    <value>In the connection dialog, enter the {0} of the project with the DbContext under “C# model”. FerretSharp then reads the EF Core model (EF Core 8 or later) from the existing build: entity and property names, C# types, converters and navigations – without the application’s startup code and without a database connection.</value>
     <comment>{0} = .csproj (code). “C# model” is the section of the connection dialog</comment>
   </data>
   <data name="Model_Project" xml:space="preserve">
@@ -47,11 +47,11 @@
     <comment>{0} = configuration (Debug/Release), {1} = target framework, {2} = date and time of the build</comment>
   </data>
   <data name="Model_CreatedByHint" xml:space="preserve">
-    <value>{0} – without the application's startup code, without a database connection</value>
+    <value>{0} – without the application’s startup code, without a database connection</value>
     <comment>{0} = Model_CreatedBy… (how the DbContext was created)</comment>
   </data>
   <data name="Model_CreatedByFactory" xml:space="preserve">
-    <value>Created through the project's IDesignTimeDbContextFactory</value>
+    <value>Created through the project’s IDesignTimeDbContextFactory</value>
   </data>
   <data name="Model_CreatedByOptions" xml:space="preserve">
     <value>Created with its own options through the DbContextOptions constructor</value>
@@ -174,18 +174,18 @@
     <value>Queries on these entities fail as long as the column is missing.</value>
   </data>
   <data name="Model_CaseMismatch" xml:space="preserve">
-    <value>Different upper and lower case</value>
+    <value>Different letter case</value>
     <comment>Heading of an issue group</comment>
   </data>
   <data name="Model_CaseMismatchHint" xml:space="preserve">
-    <value>EF Core quotes names on Oracle – spelled like this, a query does not find the object.</value>
+    <value>EF Core quotes names on Oracle – with this spelling, queries do not find the object.</value>
   </data>
   <data name="Model_ColumnsWithoutProperty" xml:space="preserve">
     <value>Columns without property</value>
     <comment>Heading of an issue group</comment>
   </data>
   <data name="Model_ColumnsWithoutPropertyHint" xml:space="preserve">
-    <value>In the database but not in the model – e.g. after a change to the table that the entity does not have yet.</value>
+    <value>In the database but not in the model – e.g. after a table change that the entity does not reflect yet.</value>
   </data>
   <data name="Mismatches_Title" xml:space="preserve">
     <value>Types, NULL and lengths</value>
@@ -195,7 +195,7 @@
     <value>All mapped properties match their columns.</value>
   </data>
   <data name="Mismatches_Note" xml:space="preserve">
-    <value>What is compared is what the database stores (after the converter), and only what the project configures ({0}). Views are only read: there, type and NULL count.</value>
+    <value>Compares what the database stores (after the converter), and only what the project configures ({0}). Views are only read, so only type and NULL count there.</value>
     <comment>{0} = HasMaxLength, HasPrecision, HasColumnType, IsRequired/Nullable (code)</comment>
   </data>
   <data name="Mismatches_Errors" xml:space="preserve">
@@ -230,13 +230,13 @@
     <comment>Table column header: what the mismatch leads to</comment>
   </data>
   <data name="Mismatches_ErrorTitle" xml:space="preserve">
-    <value>Error: every query of the property fails</value>
+    <value>Error: every query that reads the property fails</value>
   </data>
   <data name="Mismatches_WarningTitle" xml:space="preserve">
     <value>Warning: fails or loses data for certain values</value>
   </data>
   <data name="Mismatches_HintTitle" xml:space="preserve">
-    <value>Hint: model and database differ, but no error is to be expected</value>
+    <value>Hint: model and database differ, but no error is expected</value>
   </data>
   <data name="Mismatches_KindType" xml:space="preserve">
     <value>Type</value>
