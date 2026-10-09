@@ -81,7 +81,7 @@ public sealed class ShortcutMap
         new(ShortcutAction.PreviousConnection, SettingsText.GroupNavigation, SettingsText.ActionPreviousConnection, "alt+o", ShortcutScope.Global, SettingsText.HintPreviousConnection),
         new(ShortcutAction.Back, SettingsText.GroupNavigation, SettingsText.ActionBack, "alt+arrowleft", ShortcutScope.Global),
         new(ShortcutAction.Forward, SettingsText.GroupNavigation, SettingsText.ActionForward, "alt+arrowright", ShortcutScope.Global),
-        new(ShortcutAction.CloseTab, SettingsText.GroupNavigation, SettingsText.ActionCloseTab, "ctrl+w", ShortcutScope.Global, SettingsText.HintCloseTab),
+        new(ShortcutAction.CloseTab, SettingsText.GroupNavigation, SettingsText.ActionCloseTab, null, ShortcutScope.Global, SettingsText.HintCloseTab),
         new(ShortcutAction.ApplyFilters, SettingsText.GroupData, SettingsText.ActionApplyFilters, "ctrl+enter", ShortcutScope.Global, SettingsText.HintRunInEditors),
         new(ShortcutAction.Refresh, SettingsText.GroupData, SettingsText.ActionRefresh, "f5", ShortcutScope.Global, SettingsText.HintRunInEditors),
         new(ShortcutAction.FindColumn, SettingsText.GroupData, SettingsText.ActionFindColumn, "ctrl+f", ShortcutScope.Global, SettingsText.HintFindColumn),

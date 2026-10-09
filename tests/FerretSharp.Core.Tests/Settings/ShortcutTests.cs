@@ -54,13 +54,14 @@ public sealed class ShortcutMapTests
 
         Assert.Equal(
             // ctrl+shift+u since WP-30 (change overview)
-            ["ctrl+shift+o", "alt+o", "alt+arrowleft", "alt+arrowright", "ctrl+w", "ctrl+enter", "f5", "ctrl+f", "ctrl+s", "ctrl+shift+enter", "ctrl+shift+u", "ctrl+shift+q", "ctrl+shift+l", "alt+x"],
+            ["ctrl+shift+o", "alt+o", "alt+arrowleft", "alt+arrowright", "ctrl+enter", "f5", "ctrl+f", "ctrl+s", "ctrl+shift+enter", "ctrl+shift+u", "ctrl+shift+q", "ctrl+shift+l", "alt+x"],
             map.GlobalCombos);
         Assert.Equal(Chord("alt+enter"), map.Chord(ShortcutAction.ToggleForm));
         Assert.Equal(Chord("alt+arrowup"), map.Chord(ShortcutAction.FormPrevious));
         Assert.Equal(Chord("alt+arrowdown"), map.Chord(ShortcutAction.FormNext));
         Assert.Equal(Chord("ctrl+z"), map.Chord(ShortcutAction.UndoEdit)); // WP-30, only in the grid
         Assert.Equal(Chord("ctrl+y"), map.Chord(ShortcutAction.RedoEdit));
+        Assert.Null(map.Chord(ShortcutAction.CloseTab)); // after 3.20: new actions start without a key
         Assert.False(map.HasChanges);
     }
 
