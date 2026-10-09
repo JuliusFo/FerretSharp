@@ -39,8 +39,8 @@ public sealed partial class WorkspaceLifecycle(
     /// <summary>Asking before a commit of this workspace on Prod.</summary>
     public WorkspaceTabs? ConfirmCommit { get; private set; }
 
-    /// <summary>Asking before closing a tab with pending changes.</summary>
-    public TableTab? ConfirmCloseTab { get; private set; }
+    /// <summary>Asking before closing a tab that would lose something (<see cref="CloseTabQuestion"/>).</summary>
+    public CloseTabQuestion? ConfirmCloseTab { get; private set; }
 
     /// <summary>Asking what happens to uncommitted changes before leaving: commit, discard or cancel.</summary>
     public LeaveRequest? PendingLeave { get; private set; }
@@ -262,12 +262,16 @@ public sealed partial class WorkspaceLifecycle(
         shell.NotifyChanged();
     }
 
-    /// <summary>A tab with pending changes asks first; its flushed changes stay in the workspace's transaction.</summary>
-    public void CloseTab(WorkspaceTab tab)
+    /// <summary>
+    /// A tab that would lose something asks first: pending changes, a value still being typed in its grid
+    /// (<paramref name="cellEditing"/>, from the shortcut) or the text of a SQL or LINQ tab. Flushed changes stay in the
+    /// workspace's transaction.
+    /// </summary>
+    public void CloseTab(WorkspaceTab tab, bool cellEditing = false)
     {
-        if (tab is TableTab { Changes.PendingCount: > 0 } table)
+        if (CloseTabQuestion.For(tab, cellEditing) is { } question)
         {
-            ConfirmCloseTab = table;
+            ConfirmCloseTab = question;
             shell.NotifyChanged();
         }
         else
@@ -276,7 +280,7 @@ public sealed partial class WorkspaceLifecycle(
         }
     }
 
-    public void CloseTabConfirmed(TableTab tab)
+    public void CloseTabConfirmed(WorkspaceTab tab)
     {
         ConfirmCloseTab = null;
         shell.CloseTab(tab);

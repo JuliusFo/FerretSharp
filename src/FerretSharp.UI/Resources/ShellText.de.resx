@@ -732,6 +732,12 @@
   <data name="Dialogs_CloseTabTextOther" xml:space="preserve">
     <value>{1} hat {0} ausstehende Änderungen, die noch nicht geschrieben sind. Sie gehen beim Schließen verloren. Bereits geschriebene Änderungen bleiben in der Transaktion des Workspaces.</value>
   </data>
+  <data name="Dialogs_CloseTabCellInput" xml:space="preserve">
+    <value>In {0} wird gerade ein Wert eingegeben. Er geht beim Schließen verloren. Bereits geschriebene Änderungen bleiben in der Transaktion des Workspaces.</value>
+  </data>
+  <data name="Dialogs_CloseTabEditorText" xml:space="preserve">
+    <value>Der Text in {0} geht beim Schließen verloren.</value>
+  </data>
   <data name="Dialogs_DeleteConnectionText" xml:space="preserve">
     <value>Verbindung {0} ({1}) wirklich löschen? Das gespeicherte Passwort wird ebenfalls entfernt.</value>
   </data>

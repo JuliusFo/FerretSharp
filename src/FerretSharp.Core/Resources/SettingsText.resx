@@ -68,7 +68,7 @@
     <comment>Shortcut action</comment>
   </data>
   <data name="HintCloseTab" xml:space="preserve">
-    <value>Asks first if the tab has pending changes.</value>
+    <value>Asks first if pending changes, a value being typed or the text of a SQL or LINQ tab would be lost.</value>
   </data>
   <data name="ActionApplyFilters" xml:space="preserve">
     <value>Apply filters</value>
