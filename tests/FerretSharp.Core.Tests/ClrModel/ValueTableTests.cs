@@ -107,7 +107,7 @@ public sealed class TablePresentationTests
         NSubstitute.SubstituteExtensions.Returns(reader.GetTablesAsync(Owner, NSubstitute.Arg.Any<CancellationToken>()),
             (IReadOnlyList<TableSummary>)[Kunden.Table]);
         NSubstitute.SubstituteExtensions.Returns(reader.GetSynonymTargetsAsync(Owner, NSubstitute.Arg.Any<CancellationToken>()),
-            (IReadOnlyList<TableSummary>)[]);
+            FerretSharp.Core.Schema.SynonymTargets.None);
         NSubstitute.SubstituteExtensions.Returns(reader.GetForeignKeysAsync(Owner, NSubstitute.Arg.Any<CancellationToken>()),
             (IReadOnlyList<ForeignKeyInfo>)[]);
         NSubstitute.SubstituteExtensions.Returns(reader.GetColumnsAsync(Owner, NSubstitute.Arg.Any<CancellationToken>()),

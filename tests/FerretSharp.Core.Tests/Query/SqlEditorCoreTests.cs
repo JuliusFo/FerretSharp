@@ -195,7 +195,7 @@ public sealed class SqlCompletionTests
     {
         var reader = Substitute.For<ISchemaReader>();
         reader.GetTablesAsync(Owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyList<TableSummary>)[Kunden.Table, Auftrag.Table]);
-        reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyList<TableSummary>)[Synonym]);
+        reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns(new SynonymTargets([Synonym], []));
         reader.GetForeignKeysAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((IReadOnlyList<ForeignKeyInfo>)[]);
         reader.GetDetailsAsync(Arg.Is<TableSummary>(t => t.Name == "KUNDEN"), Arg.Any<CancellationToken>()).Returns(Kunden);
         reader.GetDetailsAsync(Arg.Is<TableSummary>(t => t.Name == "AUFTRAG"), Arg.Any<CancellationToken>()).Returns(Auftrag);

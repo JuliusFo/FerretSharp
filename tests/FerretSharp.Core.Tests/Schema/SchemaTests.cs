@@ -42,7 +42,7 @@ public class SchemaCacheTests
     public SchemaCacheTests()
     {
         _reader.GetTablesAsync(Owner, Arg.Any<CancellationToken>()).Returns([Auftrag, Kunden]);
-        _reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns([]);
+        _reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns(SynonymTargets.None);
         _reader.GetForeignKeysAsync(Owner, Arg.Any<CancellationToken>()).Returns([AuftragKunde]);
         _reader.GetDetailsAsync(Arg.Any<TableSummary>(), Arg.Any<CancellationToken>())
             .Returns(ci => new TableDetails(ci.Arg<TableSummary>(), [], [], [], false));
@@ -119,7 +119,7 @@ public class SchemaCacheTests
         var produkt = new TableSummary("ERP", "PRODUKT", TableKind.Table, new SynonymInfo(Owner, "S_PRODUKT"));
         var kategorie = new TableSummary("ERP", "KATEGORIE", TableKind.Table, new SynonymInfo(SynonymInfo.PublicOwner, "KATEGORIE"));
         var produktKategorie = new ForeignKeyInfo("FK_PK", produkt.Ref, ["KAT_ID"], kategorie.Ref, ["ID"], FkSource.Declared);
-        _reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns([produkt, kategorie]);
+        _reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns(new SynonymTargets([produkt, kategorie], []));
         _reader.GetForeignKeysAsync("ERP", Arg.Any<CancellationToken>()).Returns([produktKategorie]);
         var cache = new SchemaCache(_reader, Owner);
 
@@ -175,7 +175,7 @@ public class SchemaCacheForeignKeySourceTests
     {
         _reader.GetTablesAsync(Owner, Arg.Any<CancellationToken>()).Returns(
             [new TableSummary(Owner, "AUFTRAG", TableKind.Table), new TableSummary(Owner, "KUNDEN", TableKind.Table), new TableSummary(Owner, "MITARBEITER", TableKind.Table)]);
-        _reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns([]);
+        _reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns(SynonymTargets.None);
         _reader.GetForeignKeysAsync(Owner, Arg.Any<CancellationToken>()).Returns(_ => _declared);
     }
 

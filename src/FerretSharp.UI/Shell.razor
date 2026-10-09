@@ -91,6 +91,10 @@
                                                     {
                                                         <SqlView Tab="sqlTab" />
                                                     }
+                                                    else if (tab is PlSqlTab plSqlTab)
+                                                    {
+                                                        <PlSqlTabView Tab="plSqlTab" />
+                                                    }
                                                 </TabFrame>
                                             </div>
                                         }
@@ -179,7 +183,11 @@
     private IJSObjectReference? _shortcuts;
     private DotNetObjectReference<Shell>? _selfRef;
     /// <summary>Per open connection the handler subscribed to its events (WP-24), to unsubscribe when it closes.</summary>
-    private readonly Dictionary<ConnectionScope, Action> _subscribed = [];
+    /// <summary>Per open connection: the handler for its connection and workspaces, and the one for its model.</summary>
+    private readonly Dictionary<ConnectionScope, (Action Scope, Action Model)> _subscribed = [];
+
+    /// <summary>Per open connection: whether a C# project is linked ("+ LINQ"), the only model state the shell renders.</summary>
+    private readonly Dictionary<ConnectionScope, bool> _linked = [];
 
     /// <summary>Where settings or the schema comparison were opened from, to go back there.</summary>
     private ShellPage _pageBefore = ShellPage.Connections;
@@ -341,11 +349,14 @@
         foreach (var scope in open.Where(s => !_subscribed.ContainsKey(s)))
         {
             Action handler = () => OnScopeChanged(scope);
-            _subscribed[scope] = handler;
+            Action model = () => OnModelChanged(scope);
+            _subscribed[scope] = (handler, model);
+            _linked[scope] = scope.Models.State.Link is not null;
             scope.Active.Changed += handler;
             scope.Workspaces.Changed += handler;
-            scope.Models.Changed += OnChanged;
-            scope.Presentations.Changed += OnChanged;
+            // Not every loading step, not the presentation: the shell renders every mounted tab of every workspace
+            // (ADR 0016). The status bar, model page and the views follow model and presentation themselves.
+            scope.Models.Changed += model;
 
             // It connects in the background and may have reported before this handler was attached.
             OnScopeChanged(scope);
@@ -364,14 +375,28 @@
         StateHasChanged();
     });
 
-    private void Unsubscribe(ConnectionScope scope, Action handler)
+    private void Unsubscribe(ConnectionScope scope, (Action Scope, Action Model) handlers)
     {
-        scope.Active.Changed -= handler;
-        scope.Workspaces.Changed -= handler;
-        scope.Models.Changed -= OnChanged;
-        scope.Presentations.Changed -= OnChanged;
+        scope.Active.Changed -= handlers.Scope;
+        scope.Workspaces.Changed -= handlers.Scope;
+        scope.Models.Changed -= handlers.Model;
         _subscribed.Remove(scope);
+        _linked.Remove(scope);
     }
+
+    /// <summary>
+    /// The model manager reports every loading step; the shell renders only when a project gets linked or unlinked
+    /// ("+ LINQ", the empty state's text).
+    /// </summary>
+    private void OnModelChanged(ConnectionScope scope) => InvokeAsync(() =>
+    {
+        var linked = scope.Models.State.Link is not null;
+        if (_linked.TryGetValue(scope, out var before) && before != linked)
+        {
+            _linked[scope] = linked;
+            StateHasChanged();
+        }
+    });
 
     /// <summary>A connection (shown or not) connected, failed or its workspaces changed: align its tabs.</summary>
     private void OnScopeChanged(ConnectionScope scope) => InvokeAsync(() =>

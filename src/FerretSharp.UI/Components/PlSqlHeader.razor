@@ -1,0 +1,95 @@
+@* Header of a PL/SQL tab (WP-28): name, kind, synonym, status of specification and body, dates, AUTHID; for a trigger
+   its table, timing, event and WHEN condition. *@
+@using FerretSharp.Core.Schema
+@inherits PlSqlViewBase<PlSqlObjectInfo>
+
+<div class="object-header">
+    <div class="structure-head">
+        <span class="structure-icon">@Icons.For(Unit.Kind)</span>
+        <h1>@Unit.DisplayName</h1>
+        <span class="chip">@ExplorerList.KindLabel(Unit.Kind).ToUpperInvariant()</span>
+        @if (Unit.Synonym is { } synonym)
+        {
+            <span class="chip syn">@(synonym.IsPublic ? "ÖFFENTLICHES SYNONYM" : "SYNONYM")</span>
+            <span class="muted">→ @Unit.Owner.@Unit.Name</span>
+        }
+        @{ var info = Data; }
+        @if ((info?.Status ?? Unit.Status) == "INVALID")
+        {
+            <span class="chip invalid" title="@InvalidStatusText.For(Unit.ObjectType())">@(Unit.Kind == PlSqlKind.Package ? "SPEZIFIKATION UNGÜLTIG" : "UNGÜLTIG")</span>
+        }
+        @if (Unit.Kind == PlSqlKind.Package && (info is null ? Unit.BodyStatus : info.BodyStatus) == "INVALID")
+        {
+            <span class="chip invalid" title="@InvalidStatusText.For("PACKAGE BODY")">BODY UNGÜLTIG</span>
+        }
+        @if (info?.Trigger is { Enabled: false } || (info is null && Unit.IsDisabled))
+        {
+            <span class="chip" title="Der Trigger ist abgeschaltet (ALTER TRIGGER … DISABLE) und feuert nicht.">DEAKTIVIERT</span>
+        }
+        @if (Unit.Synonym is null)
+        {
+            <span class="muted">@Unit.Owner</span>
+        }
+    </div>
+
+    @if (info is not null)
+    {
+        @if (info.Trigger is { } trigger)
+        {
+            <div class="object-meta trigger-meta">
+                <span>@trigger.Timing</span>
+                <span>@trigger.Event</span>
+                @if (trigger.Table is { } table)
+                {
+                    <span>auf <TableLink Target="table" /></span>
+                }
+                else
+                {
+                    <span>auf @trigger.BaseObjectType</span>
+                }
+                @if (trigger.When is { } when)
+                {
+                    <span>WHEN <code>@when</code></span>
+                }
+            </div>
+        }
+        <div class="object-meta">
+            @if (info.Created is { } created)
+            {
+                <span>angelegt @Format(created)</span>
+            }
+            @if (info.LastDdl is { } ddl)
+            {
+                <span>@(Unit.Kind == PlSqlKind.Package ? "Spezifikation" : "letzte DDL") @Format(ddl)</span>
+            }
+            @if (info.BodyLastDdl is { } bodyDdl)
+            {
+                <span>Body @Format(bodyDdl)</span>
+            }
+            else if (Unit.Kind == PlSqlKind.Package)
+            {
+                <span title="@NoBodyTitle">kein Body</span>
+            }
+            @if (info.AuthId is { } authId)
+            {
+                <span title="@AuthIdTitle(authId)">AUTHID @authId</span>
+            }
+        </div>
+    }
+    <DetailStatus Loading="Loading && Data is null" Error="Error" Text="Lade Übersicht …" />
+</div>
+
+@code {
+    private string NoBodyTitle => Unit.Owner == Active.Schema?.Owner
+        ? "Das Package hat keinen Body."
+        : "Kein Body sichtbar: Den Body eines Packages in einem anderen Schema zeigt Oracle nur mit dem Recht DEBUG darauf (oder dem Eigentümer).";
+
+    private static string AuthIdTitle(string authId) => authId == "CURRENT_USER"
+        ? "Läuft mit den Rechten des Aufrufers (invoker's rights)."
+        : "Läuft mit den Rechten des Eigentümers (definer's rights).";
+
+    private static string Format(DateTime value) => value.ToString("g", CultureInfo.CurrentCulture);
+
+    protected override Task<PlSqlObjectInfo> LoadAsync(SchemaCache schema, CancellationToken cancellationToken) =>
+        schema.GetPlSqlInfoAsync(Unit, cancellationToken);
+}

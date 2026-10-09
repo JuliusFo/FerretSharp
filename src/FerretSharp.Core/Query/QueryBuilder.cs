@@ -370,9 +370,6 @@ public static class QueryBuilder
 
         private string NextName() => "p" + Parameters.Count;
 
-        private static string EscapeLike(string value) =>
-            value.Replace("\\", "\\\\", StringComparison.Ordinal)
-                .Replace("%", "\\%", StringComparison.Ordinal)
-                .Replace("_", "\\_", StringComparison.Ordinal);
+        private static string EscapeLike(string value) => LikePattern.Escape(value);
     }
 }

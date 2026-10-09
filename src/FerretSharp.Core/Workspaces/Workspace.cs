@@ -47,16 +47,39 @@ public sealed record TabState(
     /// <summary>The form beside the grid (WP-21); null if it was never opened in the tab.</summary>
     public FormTabState? Form { get; init; }
 
+    /// <summary>Set for a PL/SQL tab (WP-28); <see cref="Table"/> is then <see cref="LinqTabState.NoTable"/> as well.</summary>
+    public PlSqlTabState? PlSql { get; init; }
+
     /// <summary>A LINQ console tab in the file format of table tabs.</summary>
     public static TabState OfLinq(LinqTabState linq) => new(LinqTabState.NoTable, TabMode.Data, [], [], []) { Linq = linq };
 
     /// <summary>A SQL editor tab in the file format of table tabs.</summary>
     public static TabState OfSql(SqlTabState sql) => new(LinqTabState.NoTable, TabMode.Data, [], [], []) { Sql = sql };
+
+    /// <summary>A PL/SQL tab in the file format of table tabs.</summary>
+    public static TabState OfPlSql(PlSqlTabState plSql) => new(LinqTabState.NoTable, TabMode.Data, [], [], []) { PlSql = plSql };
 }
 
 /// <summary>The form view of a table tab (WP-21): whether the panel is open, its width and "leere ausblenden".</summary>
 /// <param name="Width">Width of the panel in CSS pixels; null for the default.</param>
 public sealed record FormTabState(bool Open, int? Width = null, bool HideEmpty = false);
+
+/// <summary>The views of a PL/SQL tab (WP-28). <see cref="Source"/> is a package's specification.</summary>
+public enum PlSqlView
+{
+    Source,
+    Body,
+    Parameters,
+    Errors,
+    Dependencies,
+}
+
+/// <summary>A PL/SQL tab: the unit (the real object; a synonym is resolved again on restore) and the view shown.</summary>
+public sealed record PlSqlTabState(string Owner, string Name, PlSqlKind Kind, PlSqlView View)
+{
+    [System.Text.Json.Serialization.JsonIgnore]
+    public PlSqlRef Ref => new(Owner, Name, Kind);
+}
 
 /// <summary>A SQL editor tab: its title, the script and the bind variables with their types and values.</summary>
 public sealed record SqlTabState(string Title, string Text, IReadOnlyList<Query.SqlVariable> Variables);

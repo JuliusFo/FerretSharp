@@ -31,17 +31,6 @@ Wunsch der Kollegen des Nutzers (2026-10-07): beim Anlegen einer Tabelle die His
 - Nachziehen: Spalte in `KUNDEN` neu → fehlt in `KUNDEN_HIST`/Trigger veraltet → `ALTER` + `CREATE OR REPLACE TRIGGER` vorschlagen (Vergleichslogik aus WP-20 wiederverwenden). Passt zum Backlog-Eintrag „Audit-/Historientabellen: Unterschiede hervorheben“ (Muster 1).
 - Trigger enthalten PL/SQL – WP-22 weist PL/SQL-Blöcke ab; für `CREATE [OR REPLACE] TRIGGER` aus der Vorlage braucht es eine bewusste, enge Ausnahme (beim Start von WP-22/26 mit dem Nutzer entscheiden, ADR).
 
-### WP-28 Prozeduren, Funktionen und Packages ansehen
-Wunsch des Nutzers (2026-10-08). Unabhängig von den anderen Paketen. Entscheidung des Nutzers: **nur ansehen** (Stufe 1) – Ausführen und Bearbeiten sind nicht Teil des Pakets (siehe unten).
-- Explorer: Prozeduren, Funktionen, Packages (Spec und Body) des Schemas, unterscheidbar von Tabellen/Views; ungültige Objekte markiert (`ALL_OBJECTS.STATUS`).
-- Ansicht je Objekt im Tab: Quelltext (`ALL_SOURCE`, nach `LINE`), Parameter (`ALL_ARGUMENTS`: Name, Richtung IN/OUT/IN OUT, Typ, Default; bei Packages je Unterprogramm, Überladungen über `OVERLOAD`), Kompilierfehler (`ALL_ERRORS` mit Zeile/Spalte, Sprung in den Quelltext), Abhängigkeiten (vorhandene Ansicht wiederverwenden). Aus der Abhängigkeiten-Ansicht einer Tabelle per Klick zur Prozedur.
-- Rein lesend über die bestehende Lesesperre (`ISchemaReader`-Methoden nach dem Muster der Objekt-Details, Explorer-Session, Integrationstests mit einem kleinen Package im Test-Container). Schema-Liste wie Tabellen nach `OWNER` filtern; Objekte aus anderen Schemas über Synonyme wie bei Tabellen (beim Start klären).
-- Beim Start mit dem Nutzer klären: Platz im Explorer (eigene Gruppe oder gemischt mit Filter), Hervorhebung (PL/SQL-Schlüsselwörter in `SqlCode` oder Monaco nur lesend), Volltextsuche im Quelltext (`ALL_SOURCE`, kann auf großen Schemas langsam sein), ob Trigger und Typen gleich mitkommen (Trigger stehen im Backlog unter „Weitere Objekt-Details“).
-
-**Später, nicht in WP-28** (Stufen 2 und 3, Gespräch vom 2026-10-08):
-- *Ausführen* (Parameter-Dialog, OUT-Werte, `SYS_REFCURSOR` als Grid) braucht einen eigenen Schreibweg mit ADR – der SQL-Editor weist PL/SQL-Blöcke und `CALL`/`EXEC` heute ab, weil eine Prozedur selbst committen kann. Ideen dazu: (a) eigene Session nur für PL/SQL – ein Commit dort trifft nicht die Workspace-Transaktion, aber die Prozedur sieht deren nicht committete Änderungen nicht, wartet auf deren Zeilensperren und hinterlässt eine zweite offene Transaktion; (b) in der Workspace-Session mit `ALTER SESSION DISABLE COMMIT IN PROCEDURE` (COMMIT/ROLLBACK in Prozeduren → ORA-00034) plus Savepoint, als Aktion im Undo-Stapel – Lücken: autonome Transaktionen, DDL per `EXECUTE IMMEDIATE` (Verhalten per Integrationstest prüfen).
-- *Bearbeiten/Kompilieren* (`CREATE OR REPLACE PROCEDURE/PACKAGE`) gehört zu WP-22 und hängt an derselben PL/SQL-Entscheidung wie der Trigger in WP-26.
-
 ## Offene UX-Fragen
 - Shortcut-Belegung für Commit/Rollback – vorläufig, Nutzerfeedback einholen.
 - Workspaces: Standardname ist „Workspace N“ mit der kleinsten freien Nummer (nach Umbenennen von „Workspace 1“ heißt der nächste wieder „Workspace 1“). Shortcuts zum Wechseln (z. B. Ctrl+1…9) und eine Oberfläche für die Notizen fehlen noch.

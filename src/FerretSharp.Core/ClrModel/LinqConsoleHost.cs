@@ -40,16 +40,18 @@ public sealed class LinqConsoleHost : ILinqConsole
     private StreamReader _reader = StreamReader.Null;
     private StreamWriter _writer = StreamWriter.Null;
     private readonly DirectoryInfo _work;
+    private readonly IDisposable? _lease;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly StringBuilder _errors;
     private int _nextId;
     private bool _dead;
 
-    private LinqConsoleHost(Process process, NamedPipeServerStream pipe, DirectoryInfo work, BuildOutput output, StringBuilder errors)
+    private LinqConsoleHost(Process process, NamedPipeServerStream pipe, DirectoryInfo work, IDisposable? lease, BuildOutput output, StringBuilder errors)
     {
         _process = process;
         _pipe = pipe;
         _work = work;
+        _lease = lease;
         _errors = errors;
         Output = output;
     }
@@ -60,9 +62,10 @@ public sealed class LinqConsoleHost : ILinqConsole
 
     /// <param name="arguments">The <c>dotnet exec</c> arguments with <c>--console &lt;pipe&gt;</c>.</param>
     /// <param name="work">Temporary folder (runtimeconfig); deleted when the console ends.</param>
+    /// <param name="lease">The copy of the build output the host runs from; released once the host has exited.</param>
     /// <param name="startTimeout">Loading the project and building its model must finish within this.</param>
     internal static async Task<LinqConsoleHost> StartAsync(
-        IReadOnlyList<string> arguments, string workingDirectory, string pipeName, DirectoryInfo work, BuildOutput output,
+        IReadOnlyList<string> arguments, string workingDirectory, string pipeName, DirectoryInfo work, IDisposable? lease, BuildOutput output,
         TimeSpan startTimeout, IProgress<string>? progress, CancellationToken cancellationToken)
     {
         var pipe = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
@@ -90,7 +93,7 @@ public sealed class LinqConsoleHost : ILinqConsole
 
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(startTimeout);
-            var host = new LinqConsoleHost(process, pipe, work, output, errors);
+            var host = new LinqConsoleHost(process, pipe, work, lease, output, errors);
             try
             {
                 await pipe.WaitForConnectionAsync(timeout.Token).WaitAsync(timeout.Token);
@@ -124,6 +127,7 @@ public sealed class LinqConsoleHost : ILinqConsole
         catch when (process is null)
         {
             await pipe.DisposeAsync();
+            lease?.Dispose();
             TryDelete(work);
             throw;
         }
@@ -216,7 +220,9 @@ public sealed class LinqConsoleHost : ILinqConsole
     private void Kill()
     {
         _dead = true;
-        DotNetCli.KillTree(_process);
+        // The host has no child processes: no tree kill, which walks every process of the system and throws for each
+        // protected one (under a debugger each of those exceptions froze the UI – after every console restart).
+        DotNetCli.Kill(_process);
     }
 
     public async ValueTask DisposeAsync()
@@ -236,9 +242,20 @@ public sealed class LinqConsoleHost : ILinqConsole
         }
 
         Kill();
+        try
+        {
+            // The copy of the build output is reused for a later build: the host must have let go of its files first.
+            await _process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        catch (Exception ex) when (ex is TimeoutException or InvalidOperationException)
+        {
+            // does not end: the shadow copies into another slot while this one is still locked
+        }
+
         _process.Dispose();
         await _pipe.DisposeAsync();
         _gate.Dispose();
+        _lease?.Dispose();
         TryDelete(_work);
     }
 

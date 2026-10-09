@@ -93,6 +93,21 @@ public sealed class WorkspaceStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task PlSql_tabs_keep_unit_and_view()
+    {
+        var workspace = Sample() with { Tabs = [TabState.OfPlSql(new PlSqlTabState("APP", "PKG_RECHNUNG", PlSqlKind.Package, PlSqlView.Body))] };
+
+        await _store.SaveAsync(workspace, Ct);
+        var file = await File.ReadAllTextAsync(Directory.GetFiles(_directory).Single(), Ct);
+        var tab = Assert.Single(Assert.Single((await _store.LoadAsync(_connectionId, Ct)).Workspaces).Tabs);
+
+        Assert.Equal(new PlSqlTabState("APP", "PKG_RECHNUNG", PlSqlKind.Package, PlSqlView.Body), tab.PlSql);
+        Assert.Equal(LinqTabState.NoTable, tab.Table);
+        Assert.Contains("\"kind\": \"package\"", file, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"ref\"", file, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Tabs_saved_before_column_pinning_load_without_pinned_columns()
     {
         Directory.CreateDirectory(_directory);

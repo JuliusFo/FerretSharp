@@ -14,7 +14,31 @@
                 <span class="@(_refreshing ? "spin" : "")">@Icons.Refresh</span>
             </button>
         </div>
-        <SearchBox @bind-Value="_query" Placeholder="Tabelle suchen …" Disabled="@(Schema is null)" />
+        <div class="segmented small explorer-sections" role="tablist">
+            <button class="seg @(_section == ExplorerSection.Tables ? "active" : "")" role="tab" aria-selected="@(_section == ExplorerSection.Tables ? "true" : "false")"
+                    title="Tabellen, Views und Materialized Views" @onclick="() => SetSection(ExplorerSection.Tables)">Tabellen</button>
+            <button class="seg @(_section == ExplorerSection.PlSql ? "active" : "")" role="tab" aria-selected="@(_section == ExplorerSection.PlSql ? "true" : "false")"
+                    title="Packages, Prozeduren, Funktionen und Trigger – nur ansehen" @onclick="() => SetSection(ExplorerSection.PlSql)">
+                PL/SQL
+                @if (Schema is { } schema && schema.PlSqlObjects.Any(u => u.IsInvalid))
+                {
+                    <span class="seg-count bad" title="Ungültige Objekte">@schema.PlSqlObjects.Count(u => u.IsInvalid)</span>
+                }
+            </button>
+        </div>
+        <div class="explorer-search" @onkeydown="OnSearchKeyAsync">
+            <SearchBox @bind-Value="_query" Placeholder="@Placeholder" Disabled="@(Schema is null)" />
+            @if (_section == ExplorerSection.PlSql)
+            {
+                <button class="btn ghost source-toggle @(_inSource ? "active" : "")" aria-pressed="@(_inSource ? "true" : "false")"
+                        title="Im Quelltext aller Packages, Prozeduren, Funktionen und Trigger des Schemas suchen (Enter)" disabled="@(Schema is null)"
+                        @onclick="ToggleSourceSearch">Quelltext</button>
+            }
+        </div>
+        @if (OtherSectionHits() is { } other)
+        {
+            <button class="link-btn other-hits" @onclick="() => SetSection(other.Section)">@other.Text</button>
+        }
     </div>
 
     @if (_refreshError is not null)
@@ -22,49 +46,63 @@
         <div class="sidebar-error">@_refreshError</div>
     }
 
-    <div class="sidebar-body">
-        @{ var groups = Groups(); }
-        <LetterIndexBar Available="groups.Keys.ToHashSet()" OnJump="JumpAsync" />
-
-        <div class="table-list">
-            @if (Schema is not null && groups.Count == 0)
-            {
-                <div class="sidebar-empty">@(string.IsNullOrWhiteSpace(_query) ? "Das Schema enthält keine Tabellen oder Views." : $"Nichts gefunden für „{_query}“.")</div>
-            }
-            @foreach (var (letter, tables) in groups)
-            {
-                <div id="tbl-grp-@(letter == LetterIndexBar.Other ? "other" : letter.ToString())">
-                    <div class="group-head">@letter</div>
-                    @foreach (var table in tables)
-                    {
-                        var t = table;
-                        var entity = Presentation.ShownEntityNameOf(t.Ref);
-                        var front = entity is not null && Presentation.Names == ClrNameDisplay.Front;
-                        <button class="table-item @((Shell.ActiveTab as TableTab)?.Table.Ref == t.Ref ? "active" : "") @(IsOpen(t) ? "open" : "") @(t.IsInvalid ? "invalid" : "")" title="@Tooltip(t, entity)"
-                                @onclick="() => Shell.OpenTable(t)">
-                            @Icons.For(t.Kind)
-                            <span class="name">@(front ? entity : t.DisplayName)</span>
-                            @if (entity is not null)
-                            {
-                                <span class="clr-name">@(front ? t.DisplayName : entity)</span>
-                            }
-                            @if (t.Synonym is not null)
-                            {
-                                <span class="kind-tag syn">SYN</span>
-                            }
-                            @if (t.Kind != TableKind.Table)
-                            {
-                                <span class="kind-tag">@(t.Kind == TableKind.View ? "VIEW" : "MVIEW")</span>
-                            }
-                        </button>
-                    }
-                </div>
-            }
+    @if (_section == ExplorerSection.PlSql && _inSource)
+    {
+        <div class="sidebar-body">
+            <div class="table-list source-hits">
+                @SourceResults()
+            </div>
         </div>
-    </div>
+    }
+    else
+    {
+        <div class="sidebar-body">
+            @{ var letters = _section == ExplorerSection.Tables ? TableGroups() : null; }
+            @{ var units = _section == ExplorerSection.PlSql ? PlSqlGroups() : null; }
+            <LetterIndexBar Available="@((letters?.Keys.AsEnumerable() ?? units!.Keys).ToHashSet())" OnJump="JumpAsync" />
+
+            <div class="table-list">
+                @if (letters is not null)
+                {
+                    @if (Schema is not null && letters.Count == 0)
+                    {
+                        <div class="sidebar-empty">@(string.IsNullOrWhiteSpace(_query) ? "Das Schema enthält keine Tabellen oder Views." : $"Nichts gefunden für „{_query}“.")</div>
+                    }
+                    @foreach (var (letter, tables) in letters)
+                    {
+                        <div id="@GroupId(letter)">
+                            <div class="group-head">@letter</div>
+                            @foreach (var table in tables)
+                            {
+                                @TableItem(table)
+                            }
+                        </div>
+                    }
+                }
+                else if (units is not null)
+                {
+                    @if (Schema is not null && units.Count == 0)
+                    {
+                        <div class="sidebar-empty">@(string.IsNullOrWhiteSpace(_query) ? "Das Schema enthält keine Packages, Prozeduren, Funktionen oder Trigger." : $"Nichts gefunden für „{_query}“.")</div>
+                    }
+                    @foreach (var (letter, list) in units)
+                    {
+                        <div id="@GroupId(letter)">
+                            <div class="group-head">@letter</div>
+                            @foreach (var unit in list)
+                            {
+                                @PlSqlItem(unit)
+                            }
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    }
 </aside>
 
 @code {
+    private int _presentationVersion;
     [CascadingParameter]
     public ActiveConnection Active { get; set; } = null!;
 
@@ -83,62 +121,236 @@
     private bool _refreshing;
     private string? _refreshError;
 
+    /// <summary>Tables or PL/SQL; kept per connection while it is open (the explorer stays mounted), not saved.</summary>
+    private ExplorerSection _section;
+
+    /// <summary>In the PL/SQL section: the search field searches the source (Enter) instead of filtering by name.</summary>
+    private bool _inSource;
+    private string? _searchedFor;
+    private IReadOnlyList<SourceHit>? _hits;
+    private string? _searchError;
+    private CancellationTokenSource? _searchCts;
+
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
 
     private SchemaCache? Schema => Active.Schema;
 
-    private string CountText => Schema is null ? "" : Schema.Tables.Count == 1 ? "1 Objekt" : $"{Schema.Tables.Count:N0} Objekte";
+    private string CountText
+    {
+        get
+        {
+            if (Schema is not { } schema)
+            {
+                return "";
+            }
+
+            var count = _section == ExplorerSection.Tables ? schema.Tables.Count : schema.PlSqlObjects.Count;
+            return count == 1 ? "1 Objekt" : $"{count:N0} Objekte";
+        }
+    }
+
+    private string Placeholder => _section switch
+    {
+        ExplorerSection.PlSql when _inSource => "Im Quelltext suchen … (Enter)",
+        ExplorerSection.PlSql => "PL/SQL suchen …",
+        _ => "Tabelle suchen …",
+    };
 
     protected override void OnInitialized()
     {
         Active.Changed += OnChanged;
         Shell.Changed += OnChanged;
-        Presentation.Changed += OnChanged;
+        _presentationVersion = Presentation.Version;
+        Presentation.Changed += OnPresentationChanged;
     }
 
-    private SortedDictionary<char, List<TableSummary>> Groups()
+    /// <summary>Renders the whole table list again only if the entity names beside the tables changed.</summary>
+    private void OnPresentationChanged() => InvokeAsync(() =>
     {
-        // A–Z first, "#" (other) last.
-        var result = new SortedDictionary<char, List<TableSummary>>(
-            Comparer<char>.Create((a, b) => SortKey(a).CompareTo(SortKey(b))));
+        if (Presentation.NamesChangedSince(_presentationVersion))
+        {
+            StateHasChanged();
+        }
+
+        _presentationVersion = Presentation.Version;
+    });
+
+    private RenderFragment TableItem(TableSummary t)
+    {
+        var entity = Presentation.ShownEntityNameOf(t.Ref);
+        var front = entity is not null && Presentation.Names == ClrNameDisplay.Front;
+        return @<button class="table-item @((Shell.ActiveTab as TableTab)?.Table.Ref == t.Ref ? "active" : "") @(IsOpen(t) ? "open" : "") @(t.IsInvalid ? "invalid" : "")" title="@Tooltip(t, entity)"
+                        @onclick="() => Shell.OpenTable(t)">
+                    @Icons.For(t.Kind)
+                    <span class="name">@(front ? entity : t.DisplayName)</span>
+                    @if (entity is not null)
+                    {
+                        <span class="clr-name">@(front ? t.DisplayName : entity)</span>
+                    }
+                    @if (t.Synonym is not null)
+                    {
+                        <span class="kind-tag syn">SYN</span>
+                    }
+                    @if (t.Kind != TableKind.Table)
+                    {
+                        <span class="kind-tag">@(t.Kind == TableKind.View ? "VIEW" : "MVIEW")</span>
+                    }
+                </button>;
+    }
+
+    private RenderFragment PlSqlItem(PlSqlObjectSummary u) =>
+        @<button class="table-item @((Shell.ActiveTab as PlSqlTab)?.Unit.Ref == u.Ref ? "active" : "") @(IsOpen(u) ? "open" : "") @(u.IsInvalid ? "invalid" : "") @(u.IsDisabled ? "disabled-unit" : "")"
+                 title="@Tooltip(u)" @onclick="() => Shell.OpenPlSql(u)">
+            @Icons.For(u.Kind)
+            <span class="name">@u.DisplayName</span>
+            @if (u.Synonym is not null)
+            {
+                <span class="kind-tag syn">SYN</span>
+            }
+            <span class="kind-tag">@ExplorerList.Tag(u.Kind)</span>
+        </button>;
+
+    private RenderFragment SourceResults() => __builder =>
+    {
+        if (_searchCts is not null)
+        {
+            <div class="sidebar-empty">
+                <span class="spinner"></span> Suche „@_searchedFor“ …
+                <button class="btn ghost" @onclick="CancelSearch">Abbrechen</button>
+            </div>
+        }
+        else if (_searchError is not null)
+        {
+            <div class="sidebar-error">@_searchError</div>
+        }
+        else if (_hits is null)
+        {
+            <div class="sidebar-empty">Text eingeben und Enter drücken: sucht in allen Zeilen der Packages, Prozeduren, Funktionen und Trigger von @Schema?.Owner (Groß-/Kleinschreibung egal, mindestens @SourceSearch.MinLength Zeichen).</div>
+        }
+        else if (_hits.Count == 0)
+        {
+            <div class="sidebar-empty">Kein Quelltext enthält „@_searchedFor“.</div>
+        }
+        else
+        {
+            <div class="hits-summary muted">
+                @(_hits.Count >= SourceSearch.Limit ? $"Mehr als {SourceSearch.Limit} Zeilen – die ersten {SourceSearch.Limit}; Suche eingrenzen." : _hits.Count == 1 ? "1 Zeile" : $"{_hits.Count} Zeilen")
+            </div>
+            foreach (var group in SourceSearch.Group(_hits))
+            {
+                var unit = Schema?.FindPlSql(group.Key.Unit);
+                <div class="hit-group">
+                    <div class="hit-head" title="@group.Key.Unit">
+                        @Icons.For(group.Key.Unit.Kind)
+                        <span class="name">@group.Key.Unit.Name</span>
+                        @if (group.Key.Unit.Kind == PlSqlKind.Package)
+                        {
+                            <span class="kind-tag">@(group.Key.Part == PlSqlPart.Body ? "BODY" : "SPEC")</span>
+                        }
+                    </div>
+                    @foreach (var hit in group)
+                    {
+                        <button class="source-hit" title="@hit.Text.Trim()" disabled="@(unit is null)" @onclick="() => OpenHit(unit!, hit)">
+                            <span class="line-no">@hit.Line</span>
+                            <span class="line-text">@hit.Text.Trim()</span>
+                        </button>
+                    }
+                </div>
+            }
+        }
+    };
+
+    private SortedDictionary<char, List<TableSummary>> TableGroups()
+    {
         if (Schema is null)
         {
-            return result;
+            return ExplorerList.Group<TableSummary>([], t => t.DisplayName);
         }
 
-        foreach (var table in Schema.Tables)
+        // The entity name is found as well, unless C# names are switched off.
+        return ExplorerList.Group(Schema.Tables.Where(TableMatches), t => t.DisplayName);
+    }
+
+    private bool TableMatches(TableSummary table) =>
+        ExplorerList.Matches(_query, table.DisplayName, table.Name, Presentation.ShownEntityNameOf(table.Ref));
+
+    private SortedDictionary<char, List<PlSqlObjectSummary>> PlSqlGroups() =>
+        ExplorerList.Group(ExplorerList.Filter(Schema?.PlSqlObjects ?? [], _query), u => u.DisplayName);
+
+    /// <summary>"3 Treffer unter PL/SQL": the name search finds nothing here but something in the other section.</summary>
+    private (ExplorerSection Section, string Text)? OtherSectionHits()
+    {
+        if (Schema is not { } schema || string.IsNullOrWhiteSpace(_query) || _inSource && _section == ExplorerSection.PlSql)
         {
-            var query = _query.Trim();
-            // The entity name is found as well, unless C# names are switched off.
-            if (query.Length > 0
-                && !table.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase)
-                && !table.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
-                && Presentation.ShownEntityNameOf(table.Ref)?.Contains(query, StringComparison.OrdinalIgnoreCase) != true)
-            {
-                continue;
-            }
-
-            var key = LetterIndexBar.KeyOf(table.DisplayName);
-            if (!result.TryGetValue(key, out var list))
-            {
-                result[key] = list = [];
-            }
-
-            list.Add(table);
+            return null;
         }
 
-        return result;
+        var (other, count, label) = _section == ExplorerSection.Tables
+            ? (ExplorerSection.PlSql, ExplorerList.Filter(schema.PlSqlObjects, _query).Count(), "PL/SQL")
+            : (ExplorerSection.Tables, schema.Tables.Count(TableMatches), "Tabellen");
+        return count == 0 ? null : (other, $"{count} Treffer unter {label}");
     }
 
     private bool IsOpen(TableSummary table) => Shell.Tabs.OfType<TableTab>().Any(t => t.Table.Ref == table.Ref);
 
-    private static int SortKey(char letter) => letter == LetterIndexBar.Other ? int.MaxValue : letter;
+    private bool IsOpen(PlSqlObjectSummary unit) => Shell.Tabs.OfType<PlSqlTab>().Any(t => t.Unit.Ref == unit.Ref);
+
+    private static string GroupId(char letter) => $"tbl-grp-{(letter == LetterIndexBar.Other ? "other" : letter.ToString())}";
+
+    private void SetSection(ExplorerSection section) => _section = section;
+
+    private void ToggleSourceSearch() => _inSource = !_inSource;
 
     private async Task JumpAsync(char letter)
     {
-        await Dom.InvokeVoidAsync("scrollIntoViewById", $"tbl-grp-{(letter == LetterIndexBar.Other ? "other" : letter.ToString())}", "start");
+        await Dom.InvokeVoidAsync("scrollIntoViewById", GroupId(letter), "start");
     }
+
+    private async Task OnSearchKeyAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && _section == ExplorerSection.PlSql && _inSource)
+        {
+            await SearchSourceAsync();
+        }
+    }
+
+    /// <summary>Searches the schema's PL/SQL source on the explorer session; cancellable, at most <see cref="SourceSearch.Limit"/> lines.</summary>
+    private async Task SearchSourceAsync()
+    {
+        var text = _query.Trim();
+        if (Schema is not { } schema || _searchCts is not null)
+        {
+            return;
+        }
+
+        if (text.Length < SourceSearch.MinLength)
+        {
+            _searchError = $"Mindestens {SourceSearch.MinLength} Zeichen eingeben.";
+            return;
+        }
+
+        var cts = _searchCts = new CancellationTokenSource();
+        _searchedFor = text;
+        _searchError = null;
+        StateHasChanged();
+        var result = await Shell.RunDbAsync(Logger, Active, () => schema.SearchSourceAsync(text, SourceSearch.Limit, cts.Token), cts.Token);
+        _searchCts = null;
+        cts.Dispose();
+        if (result.Succeeded)
+        {
+            _hits = result.Value;
+        }
+        else if (result.Error is { } error)
+        {
+            _searchError = error.Display;
+        }
+    }
+
+    private void CancelSearch() => _searchCts?.Cancel();
+
+    private void OpenHit(PlSqlObjectSummary unit, SourceHit hit) =>
+        Shell.OpenPlSql(unit, at: new SourcePosition(hit.Part, hit.Line, SourceSearch.ColumnOf(hit.Text, _searchedFor ?? "")));
 
     private async Task RefreshAsync()
     {
@@ -153,7 +365,7 @@
         _refreshing = false;
         if (result.Succeeded)
         {
-            Shell.RemoveTabsWhere(Scope.Id, tab => schema.Find(tab.Table.Ref) is null);
+            Shell.RemoveVanishedTabs(Scope.Id, schema);
         }
 
         _refreshError = result.Error?.Display;
@@ -179,6 +391,29 @@
         return table.IsInvalid ? text + Environment.NewLine + InvalidStatusText.For(ObjectType(table.Kind)) : text;
     }
 
+    private static string Tooltip(PlSqlObjectSummary unit)
+    {
+        var kind = ExplorerList.KindLabel(unit.Kind);
+        var text = unit.Synonym is { } synonym
+            ? $"{(synonym.IsPublic ? "Öffentliches Synonym" : "Synonym")} → {unit.Owner}.{unit.Name} ({kind})"
+            : kind;
+        if (unit.IsDisabled)
+        {
+            text += Environment.NewLine + "Deaktiviert: feuert nicht.";
+        }
+
+        if (unit.Status == "INVALID")
+        {
+            text += Environment.NewLine + InvalidStatusText.For(unit.ObjectType());
+        }
+        else if (unit.BodyStatus == "INVALID")
+        {
+            text += Environment.NewLine + "Body " + InvalidStatusText.For("PACKAGE BODY");
+        }
+
+        return text;
+    }
+
     private static string ObjectType(TableKind kind) => kind switch
     {
         TableKind.View => "VIEW",
@@ -192,7 +427,8 @@
     {
         Active.Changed -= OnChanged;
         Shell.Changed -= OnChanged;
-        Presentation.Changed -= OnChanged;
+        Presentation.Changed -= OnPresentationChanged;
+        _searchCts?.Cancel();
         await Dom.DisposeAsync();
     }
 }

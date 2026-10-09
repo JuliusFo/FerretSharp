@@ -118,10 +118,38 @@ public interface ISchemaReader
     Task<IReadOnlyList<TableSummary>> GetTablesAsync(string owner, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Tables, views and materialized views of other (non-Oracle) schemas that <paramref name="owner"/> reaches through
-    /// its private synonyms or public synonyms, limited to objects the session may access. No DB-link synonyms.
+    /// Tables, views, materialized views and PL/SQL units (packages, procedures, functions) of other (non-Oracle)
+    /// schemas that <paramref name="owner"/> reaches through its private synonyms or public synonyms, limited to
+    /// objects the session may access. No DB-link synonyms.
     /// </summary>
-    Task<IReadOnlyList<TableSummary>> GetSynonymTargetsAsync(string owner, CancellationToken cancellationToken);
+    Task<SynonymTargets> GetSynonymTargetsAsync(string owner, CancellationToken cancellationToken);
+
+    /// <summary>Packages, procedures, functions and triggers of <paramref name="owner"/>, sorted by name (WP-28).</summary>
+    Task<IReadOnlyList<PlSqlObjectSummary>> GetPlSqlObjectsAsync(string owner, CancellationToken cancellationToken);
+
+    /// <summary>Status and dates of a PL/SQL unit (both parts of a package), its AUTHID or, for a trigger, event and table.</summary>
+    Task<PlSqlObjectInfo> GetPlSqlInfoAsync(PlSqlObjectSummary unit, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Source of one part from <c>ALL_SOURCE</c>, one entry per line. Empty if the part does not exist or the session may
+    /// not see it (another schema's package body needs the DEBUG privilege on it).
+    /// </summary>
+    Task<PlSqlSource> GetSourceAsync(PlSqlObjectSummary unit, PlSqlPart part, CancellationToken cancellationToken);
+
+    /// <summary>The procedures and functions of a unit with their parameters (<c>ALL_ARGUMENTS</c>), overloads separately; empty for a trigger.</summary>
+    Task<IReadOnlyList<PlSqlSubprogram>> GetSubprogramsAsync(PlSqlObjectSummary unit, CancellationToken cancellationToken);
+
+    /// <summary>Compile errors and warnings of both parts (<c>ALL_ERRORS</c>), specification first.</summary>
+    Task<IReadOnlyList<PlSqlError>> GetErrorsAsync(PlSqlObjectSummary unit, CancellationToken cancellationToken);
+
+    /// <summary>Dependencies of a PL/SQL unit in both directions, limited to objects the session may see.</summary>
+    Task<ObjectDependencies> GetDependenciesAsync(PlSqlObjectSummary unit, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Lines of the schema's PL/SQL source containing <paramref name="text"/> (ignoring case), at most
+    /// <paramref name="limit"/>, by object and line. Scans all source of the schema.
+    /// </summary>
+    Task<IReadOnlyList<SourceHit>> SearchSourceAsync(string owner, string text, int limit, CancellationToken cancellationToken);
 
     /// <summary>All declared foreign keys whose referencing table belongs to <paramref name="owner"/>.</summary>
     Task<IReadOnlyList<ForeignKeyInfo>> GetForeignKeysAsync(string owner, CancellationToken cancellationToken);

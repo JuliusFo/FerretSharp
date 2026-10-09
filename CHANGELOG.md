@@ -9,6 +9,33 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 - Sharp on every monitor: on a second monitor with a different display scale the window was blurry and drop-down lists (e.g. enum values in the grid) opened too small. The app is now per-monitor DPI aware.
 - Error messages in native dialogs have current Windows buttons instead of the classic look.
 
+## [3.18.0] - 2026-10-09
+
+### Fixed
+- The linked C# project can be built while FerretSharp is connected and a LINQ console is open: the model host now runs from a copy of the build output instead of locking its DLLs ("The file is locked by: .NET Host"). After the first start, a new build only copies the files it changed.
+- Reloading the model after a build no longer makes the window stutter or holds up typing in the LINQ editor: the model and the new console load one after the other, at lower priority, and only the views of tables whose entities actually changed render again (open grids fetch their rows again only then).
+- The window no longer freezes for seconds right after the LINQ console has loaded a new build: the previous helper process is ended directly instead of searching all processes of the system for its children (very slow under a debugger).
+- Opening a LINQ tab no longer freezes the window: the console starts in the background with visible steps ("Kopiere die Build-Ausgabe", "Starte den Hilfsprozess", "Baue das Modell") and can be cancelled.
+
+### Changed
+- A new build of the linked project is picked up automatically: the status bar shows "Build geändert – Modell wird neu geladen", entities, properties, enums and navigations are reloaded, and the LINQ console restarts in the background – the previous model and console keep working until the new ones are ready. No reconnecting needed.
+- Copies of build outputs that no FerretSharp has used for a week are removed at start (projects no longer linked, builds long replaced).
+- New setting *Einstellungen › Allgemein › Hänger der Oberfläche protokollieren* (off by default): UI stalls over 300 ms are logged with what caused them (UI work, garbage collection, memory); stalls over 1.5 s also get the stacks of all threads in the log folder if the `dotnet-stack` tool is installed. The steps of loading the C# model and the LINQ console are always logged.
+
+## [3.17.0] - 2026-10-08
+
+### Added
+- Packages, procedures, functions and triggers can be looked at (WP-28, view only – nothing is run or compiled):
+  - The explorer switches between "Tabellen" and "PL/SQL". Invalid objects are red (the switch counts them), disabled triggers grey; the name search tells when the other section has hits ("3 Treffer unter PL/SQL").
+  - A PL/SQL tab shows a header (status of specification and body, dates, AUTHID; for a trigger its timing, event, table and WHEN condition) and the views Spezifikation/Quelltext, Body, Parameter, Fehler and Abhängigkeiten. F5 reloads.
+  - Source in a read-only editor with PL/SQL colouring, line numbers, Ctrl+F and the compile errors underlined; wrapped code shows a notice instead of its unreadable text.
+  - Parameters per procedure and function, overloads separately: direction, type (e.g. `KUNDEN%ROWTYPE`, `SYS_REFCURSOR`) and whether there is a default.
+  - Compile errors and warnings with line and column; a click shows the place in the source.
+  - "Quelltext" next to the search field searches all PL/SQL of the schema (Enter; up to 500 lines, cancellable); a hit opens the object at its line.
+  - Packages, procedures and functions of other schemas reached through synonyms appear like tables do. The body of another schema's package is only visible with the DEBUG privilege on it – the tab says so.
+- Dependencies (of tables, views and PL/SQL) link to packages, procedures, functions and triggers; a package body opens the body.
+- `tools/sample-db/07-plsql.sql`: PL/SQL for the sample database.
+
 ## [3.16.0] - 2026-10-08
 
 ### Added

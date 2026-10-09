@@ -127,6 +127,26 @@
             }
         }), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
 
+    /// <summary>The model subscribed to: the shown connection's, which changes on a switch.</summary>
+    private ClrModelManager? _models;
+
+    /// <summary>The C# model's loading steps show (the shell no longer renders for them).</summary>
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_models, Models))
+        {
+            if (_models is not null)
+            {
+                _models.Changed -= OnModelChanged;
+            }
+
+            _models = Models;
+            _models.Changed += OnModelChanged;
+        }
+    }
+
+    private void OnModelChanged() => InvokeAsync(StateHasChanged);
+
     /// <summary>The segment of the active workspace while it has uncommitted work.</summary>
     private RenderFragment EditStatus(WorkspaceTabs workspace, EditSummary edits)
     {
@@ -170,6 +190,11 @@
             return @<text></text>;
         }
 
+        if (state is { Phase: ClrModelPhase.Loading, BuildChanged: true })
+        {
+            return @<button class="item status-link shrink warn" title="Der Build hat sich geändert – @(state.Step ?? "Lese das C#-Modell") … Bis das neue Modell bereit ist, gilt das bisherige." @onclick="Shell.ShowModel"><span class="spinner small"></span> C# · Build geändert – Modell wird neu geladen …</button>;
+        }
+
         if (state.Phase == ClrModelPhase.Loading)
         {
             return @<button class="item status-link shrink" title="@(state.Step ?? "Lese das C#-Modell") …" @onclick="Shell.ShowModel"><span class="spinner small"></span> C# · @(state.Step ?? "lädt") …</button>;
@@ -195,6 +220,11 @@
 
     public async ValueTask DisposeAsync()
     {
+        if (_models is not null)
+        {
+            _models.Changed -= OnModelChanged;
+        }
+
         if (_ticker is not null)
         {
             await _ticker.DisposeAsync();
