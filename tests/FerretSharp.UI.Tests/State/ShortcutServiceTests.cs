@@ -27,23 +27,8 @@ public sealed class ShortcutServiceTests : IDisposable
 
         Assert.Equal(1, changed);
         Assert.Equal(" (Ctrl+Shift+S)", _shortcuts.Hint(ShortcutAction.Flush));
-        Assert.Equal(" mit Ctrl+Shift+S", _shortcuts.With(ShortcutAction.Flush));
         Assert.Contains("ctrl+shift+s", _shortcuts.Map.GlobalCombos);
         Assert.Equal("ctrl+shift+s", _settings.Current.Shortcuts["Flush"]);
-    }
-
-    [Fact]
-    public async Task The_shortcut_in_a_sentence_follows_the_UI_language()
-    {
-        await _shortcuts.SetAsync(ShortcutAction.Flush, KeyChord.Parse("ctrl+shift+s"));
-
-        using (UiCulture.Use("en"))
-        {
-            Assert.Equal(" with Ctrl+Shift+S", _shortcuts.With(ShortcutAction.Flush));
-            Assert.Equal(" (Ctrl+Shift+S)", _shortcuts.Hint(ShortcutAction.Flush));
-        }
-
-        Assert.Equal(" mit Ctrl+Shift+S", _shortcuts.With(ShortcutAction.Flush));
     }
 
     [Fact]
@@ -63,7 +48,6 @@ public sealed class ShortcutServiceTests : IDisposable
         await _shortcuts.SetAsync(ShortcutAction.Refresh, null);
 
         Assert.Equal("", _shortcuts.Hint(ShortcutAction.Refresh));
-        Assert.Equal("", _shortcuts.With(ShortcutAction.Refresh));
         Assert.Null(_shortcuts.Label(ShortcutAction.Refresh));
         Assert.DoesNotContain("f5", _shortcuts.Map.GlobalCombos);
 

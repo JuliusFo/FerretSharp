@@ -32,9 +32,6 @@ public sealed class ShortcutService : IDisposable
     /// <summary>For a tooltip after the text: <c> (Ctrl+S)</c>, or nothing if the action has no shortcut.</summary>
     public string Hint(ShortcutAction action) => Label(action) is { } label ? $" ({label})" : "";
 
-    /// <summary>For a sentence: <c> with Ctrl+Enter</c> (in the UI language), or nothing if the action has no shortcut.</summary>
-    public string With(ShortcutAction action) => Label(action) is { } label ? " " + TextFormat.Format(ShellText.Shortcut_With, label) : "";
-
     /// <summary>Whether a key event (Blazor) is the action's shortcut.</summary>
     public bool Is(ShortcutAction action, KeyboardEventArgs e) =>
         _map.Chord(action) is { } chord && chord == KeyChord.FromEvent(e.Key, e.CtrlKey, e.ShiftKey, e.AltKey);

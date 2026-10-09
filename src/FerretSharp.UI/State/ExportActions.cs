@@ -71,25 +71,6 @@ public sealed class ExportActions(ShellState shell, DomModule dom, IFileSaveServ
         shell.Notify(copied ? CopiedText(kind, export.Rows) : GridText.Export_ClipboardUnavailable, Warnings(export));
     }
 
-    /// <summary>
-    /// Transitional (WP-29): the result menu of the SQL editor still passes the German end of the notice. Its two known
-    /// texts get the localized notice; switch the callers to <see cref="CopyAsync(ExportText, ExportCopy)"/> and remove this.
-    /// </summary>
-    /// <param name="done">"als Tabelle kopiert" – follows the number of rows in the notice.</param>
-    public Task CopyAsync(ExportText export, string done) => done switch
-    {
-        "als Tabelle kopiert" => CopyAsync(export, ExportCopy.Table),
-        "als INSERT kopiert" => CopyAsync(export, ExportCopy.Insert),
-        _ => CopyGluedAsync(export, done),
-    };
-
-    private async Task CopyGluedAsync(ExportText export, string done)
-    {
-        var copied = await dom.CopyTextAsync(export.Text);
-        await close();
-        shell.Notify(copied ? $"{RowsText(export.Rows)} {done}." : GridText.Export_ClipboardUnavailable, Warnings(export));
-    }
-
     /// <param name="fileName">Offered file name with extension.</param>
     /// <param name="filter">Label of the file type in the dialog, e.g. <c>CSV (semicolon)</c>.</param>
     public async Task SaveAsync(ExportText export, string fileName, string filter, bool utf8Bom)

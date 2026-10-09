@@ -538,10 +538,6 @@
   <data name="ResultMenu_CopyTable" xml:space="preserve">
     <value>Copy as table</value>
   </data>
-  <data name="ResultMenu_CopiedAsTable" xml:space="preserve">
-    <value>copied as table</value>
-    <comment>Follows the number of rows in the notice, e.g. “3 rows copied as table.”</comment>
-  </data>
   <data name="ResultMenu_CopyInsertTitle" xml:space="preserve">
     <value>INSERT INTO {0} with the result's column names as target columns (never run)</value>
     <comment>{0} = table name</comment>
@@ -552,19 +548,11 @@
   <data name="ResultMenu_CopyInsert" xml:space="preserve">
     <value>Copy as INSERT</value>
   </data>
-  <data name="ResultMenu_CopiedAsInsert" xml:space="preserve">
-    <value>copied as INSERT</value>
-    <comment>Follows the number of rows in the notice, e.g. “3 rows copied as INSERT.”</comment>
-  </data>
   <data name="ResultMenu_SaveCsvTitle" xml:space="preserve">
     <value>Semicolon-separated, UTF-8 – opens straight in Excel</value>
   </data>
   <data name="ResultMenu_SaveCsv" xml:space="preserve">
     <value>Save as CSV …</value>
-  </data>
-  <data name="ResultMenu_CsvFilter" xml:space="preserve">
-    <value>CSV (semicolon)</value>
-    <comment>File type in the save dialog</comment>
   </data>
   <data name="Footer_Loading" xml:space="preserve">
     <value>Loading …</value>

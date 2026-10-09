@@ -712,10 +712,6 @@
     <value>Reset all</value>
     <comment>Button</comment>
   </data>
-  <data name="Shortcut_With" xml:space="preserve">
-    <value>with {0}</value>
-    <comment>Within a sentence, e.g. “run with Ctrl+Enter”; {0} = key combination</comment>
-  </data>
   <data name="Workspaces_UnlockedForWriting" xml:space="preserve">
     <value>Unlocked for writing</value>
   </data>

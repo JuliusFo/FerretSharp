@@ -72,7 +72,7 @@ Ein Begriff, eine Übersetzung – überall gleich. Neue Fachbegriffe hier ergä
 | Deutsch | Englisch | Hinweis |
 |---|---|---|
 | Verbindung | connection | |
-| Verbindungsart Prod / Test / Dev / Andere | Prod / Test / Dev / Other | |
+| Verbindungsart (Feld „Umgebung“): Entwicklung / Test / Produktion / Sonstige | environment: Development / Test / Production / Other | Badges bleiben DEV / TEST / PROD |
 | Gruppe (Verbindung) | group | |
 | Neu verbinden / Trennen | reconnect / disconnect | |
 | Session trennen (Notausgang bei hängender Abfrage) | disconnect session | |
@@ -122,3 +122,31 @@ Ein Begriff, eine Übersetzung – überall gleich. Neue Fachbegriffe hier ergä
 | Build-Ausgabe | build output | |
 | PL/SQL: Spezifikation / Body / Quelltext / Parameter / Fehler | specification / body / source / parameters / errors | |
 | ungültig (INVALID) | invalid | |
+| Überladung / verschlüsselt (wrapped) / Richtung (IN/OUT) | overload / obfuscated (wrapped) / direction | PL/SQL |
+| Schreiben (Knopf: ausstehende Änderungen in die Session schreiben) | Write | andere Texte nennen ihn „Write“ |
+| Aktion (Schreib-Aktion von Grid/SQL/LINQ im Undo-Stapel) | action | „3 uncommitted actions“ |
+| Committen (Knopf in Bestätigungen) | Commit | |
+| freigeschaltet / FREIGESCHALTET / BEARBEITBAR (Badge) | unlocked / UNLOCKED / EDITABLE | READ-ONLY in beiden Sprachen |
+| schreibende Transaktion | write transaction | Gegenstück zur Lesetransaktion eines gesperrten Workspaces |
+| Stand (Lesestand eines gesperrten Workspaces) | snapshot; Fußzeile „As of 14:05:32“ | |
+| Tx seit 5 min (Statusleiste) | Tx open 5 min | |
+| Anwenden / Leeren (Filter) | Apply / Clear | |
+| anheften / lösen (Spalte) | pin / unpin | |
+| Verweist auf / Referenziert von (FK-Sprünge) | Points to / Referenced by | |
+| Primärschlüssel / Fremdschlüssel / Row-Key | primary key / foreign key / row key | |
+| Pflichtfeld / Eindeutigkeit verletzt | required value / unique constraint violated | Oracle-Fehler |
+| Recht (Oracle) / Eigentümer | privilege / owner | |
+| zum Löschen markiert | marked for deletion | |
+| LOB-Editor / Vorschau | LOB editor / preview | |
+| maskiert (Bind-Wert auf Prod) | masked | |
+| Bind-Variable | bind variable | |
+| Kommando (eines LINQ-Laufs) | command | |
+| Modell-Abgleich / Abgleich mit der Datenbank | model mismatches / matching against the database | |
+| zugeordnet (C#-Modell ↔ DB) | mapped | |
+| kein Member (Enum) | no member | |
+| Nachkommastellen / Stellen | decimal places / precision | |
+| Schritt (Ladeschritt) | step, als „-ing“-Satz: „Building the model (OnModelCreating)“ | |
+| Seite / Referenz / Ziel (Schema-Vergleich) | side / reference / target | |
+| angleichen an (DDL-Vorschlag) | align to | |
+| Schreibweise (nur Groß-/Kleinschreibung anders) | letter case | |
+| Tastennamen Entf / Einfg / Pos1 / Ende / Bild↑ / Bild↓ / Leertaste / Rücktaste | Del / Ins / Home / End / PgUp / PgDn / Space / Backspace | Ctrl, Shift, Alt, Enter, Esc, Tab in beiden Sprachen gleich |

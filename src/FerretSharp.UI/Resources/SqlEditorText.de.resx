@@ -453,9 +453,6 @@
   <data name="ResultMenu_CopyTable" xml:space="preserve">
     <value>Als Tabelle kopieren</value>
   </data>
-  <data name="ResultMenu_CopiedAsTable" xml:space="preserve">
-    <value>als Tabelle kopiert</value>
-  </data>
   <data name="ResultMenu_CopyInsertTitle" xml:space="preserve">
     <value>INSERT INTO {0} mit den Spaltennamen des Ergebnisses als Zielspalten (wird nie ausgeführt)</value>
   </data>
@@ -465,17 +462,11 @@
   <data name="ResultMenu_CopyInsert" xml:space="preserve">
     <value>Als INSERT kopieren</value>
   </data>
-  <data name="ResultMenu_CopiedAsInsert" xml:space="preserve">
-    <value>als INSERT kopiert</value>
-  </data>
   <data name="ResultMenu_SaveCsvTitle" xml:space="preserve">
     <value>Semikolon-getrennt, UTF-8 – öffnet sich direkt in Excel</value>
   </data>
   <data name="ResultMenu_SaveCsv" xml:space="preserve">
     <value>Als CSV speichern …</value>
-  </data>
-  <data name="ResultMenu_CsvFilter" xml:space="preserve">
-    <value>CSV (Semikolon)</value>
   </data>
   <data name="Footer_Loading" xml:space="preserve">
     <value>Lade …</value>

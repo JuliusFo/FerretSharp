@@ -576,9 +576,6 @@
   <data name="Shortcuts_ResetAll" xml:space="preserve">
     <value>Alle zurücksetzen</value>
   </data>
-  <data name="Shortcut_With" xml:space="preserve">
-    <value>mit {0}</value>
-  </data>
   <data name="Workspaces_UnlockedForWriting" xml:space="preserve">
     <value>Zum Schreiben freigeschaltet</value>
   </data>

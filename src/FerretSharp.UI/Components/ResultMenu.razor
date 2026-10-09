@@ -57,15 +57,15 @@
     private ColumnInfo Column => Result.Columns[Request.Column];
 
     private Task CopyTableAsync() =>
-        Export.CopyAsync(DelimitedExport.Build(Result, Request.Selected, DelimitedExport.ClipboardSeparator), SqlEditorText.ResultMenu_CopiedAsTable);
+        Export.CopyAsync(DelimitedExport.Build(Result, Request.Selected, DelimitedExport.ClipboardSeparator), ExportCopy.Table);
 
     private Task CopyInsertAsync() => InsertTarget is { } target
-        ? Export.CopyAsync(InsertExport.Build(Result with { Table = target }, Request.Selected), SqlEditorText.ResultMenu_CopiedAsInsert)
+        ? Export.CopyAsync(InsertExport.Build(Result with { Table = target }, Request.Selected), ExportCopy.Insert)
         : Task.CompletedTask;
 
     private Task SaveCsvAsync() =>
         Export.SaveAsync(DelimitedExport.Build(Result, Request.Selected, DelimitedExport.CsvSeparator), ExportName + ".csv",
-            SqlEditorText.ResultMenu_CsvFilter, utf8Bom: true);
+            GridText.Export_CsvFilter, utf8Bom: true);
 
     private Task CloseAsync() => OnClose.InvokeAsync();
 
