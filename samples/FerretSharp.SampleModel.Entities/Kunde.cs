@@ -20,6 +20,8 @@ public class Kunde
 
     public Kundenart Kundenart { get; set; }
 
+    public Kundenmerkmale Merkmale { get; set; }
+
     public int? AdresseId { get; set; }
 
     /// <summary>Drift: die Property gibt es, die Spalte (noch) nicht.</summary>

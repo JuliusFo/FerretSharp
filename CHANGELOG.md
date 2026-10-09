@@ -11,9 +11,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 ### Changed
 - Closing a tab also asks first if the text of a SQL or LINQ tab would be lost, or a value typed but not confirmed in the form.
 - New shortcut actions come without a key from now on, so they never take one you already use for something else.
+- Flags enums (`[Flags]`, stored as their number) are edited as a drop-down list of check boxes instead of a single-choice list, in the grid and in the form. NULL is a check box of its own where allowed; bits no member stands for stay ticked as a line of their own. Contributed by @ulbpccc.
+- Cells of a flags enum list every flag set (`Stammkunde, Lastschrift (5)`), also for a value that has a member of its own (`Premium = Stammkunde | Lastschrift`); the tooltip shows one flag per line. Members that combine others are no flags of their own. `0` without a member is a valid value, not marked.
+- Sample model: `Kunde.Merkmale` (flags enum `Kundenmerkmale`) with `tools/sample-db/08-clr-flags.sql`.
 
 ### Fixed
 - Closing a table tab with ✕ while a grid cell was being edited dropped the typed value without asking.
+- Cell tooltips with several lines (a value without member, the C# member behind a display text) ran their lines together; they now keep their line breaks.
 
 ## [3.20.0] - 2026-10-09
 

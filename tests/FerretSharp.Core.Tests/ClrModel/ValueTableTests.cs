@@ -1,5 +1,6 @@
 using FerretSharp.Core.ClrModel;
 using FerretSharp.Core.Data;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 using FerretSharp.Core.Settings;
 
@@ -67,16 +68,104 @@ public sealed class ValueTableTests
         Assert.Equal([new ValueOption("false", "N", "false"), new ValueOption("true", "J", "true")], table.Options);
     }
 
-    [Fact]
-    public void Flags_combinations_are_named_when_stored_as_their_number()
-    {
-        var rechte = Enum("Rechte", new("Keine", "0", "0"), new("Lesen", "1", "1"), new("Schreiben", "2", "2"), new("Loeschen", "4", "4"))
-            with { IsFlagsEnum = true };
-        var table = ValueTable.For(rechte, Number2)!;
+    private static readonly PropertyExport Rechte = Enum("Rechte",
+            new("Keine", "0", "0"), new("Lesen", "1", "1"), new("Schreiben", "2", "2"), new("LesenUndSchreiben", "3", "3"),
+            new("Loeschen", "4", "4", "Löschen"), new("Alle", "7", "7"))
+        with { IsFlagsEnum = true };
 
-        Assert.Equal(new PresentedValue("Lesen | Schreiben (3)"), table.Present(3m));
+    [Fact]
+    public void Flags_values_list_every_flag_set_also_for_a_value_with_a_member_of_its_own()
+    {
+        var table = ValueTable.For(Rechte, Number2)!;
+
+        Assert.Equal(new PresentedValue("Lesen, Schreiben (3)", Tooltip: "Lesen (1)\nSchreiben (2)"), table.Present(3m));
+        Assert.Equal(new PresentedValue("Lesen, Schreiben, Löschen (7)", Tooltip: "Lesen (1)\nSchreiben (2)\nLöschen (4) · Rechte.Loeschen"),
+            table.Present(7m));
+        Assert.Equal(new PresentedValue("Schreiben (2)", Tooltip: "Schreiben (2)"), table.Present(2m));
         Assert.Equal(new PresentedValue("Keine (0)"), table.Present(0m));
+    }
+
+    [Fact]
+    public void Flags_bits_without_a_member_are_listed_and_marked()
+    {
+        var table = ValueTable.For(Rechte, Number2)!;
+
+        Assert.Equal(new PresentedValue("Lesen, 8 (9)", Unknown: true, Tooltip: "Lesen (1)\n8 (kein Member)"), table.Present(9m));
         Assert.Equal(new PresentedValue("8", Unknown: true), table.Present(8m));
+        Assert.Equal(new PresentedValue("-1", Unknown: true), table.Present(-1m));
+        Assert.True(table.Present(1.5m).Unknown);
+    }
+
+    [Fact]
+    public void Flags_are_the_members_that_combine_no_others()
+    {
+        var table = ValueTable.For(Rechte, Number2)!;
+
+        Assert.Equal(["Lesen", "Schreiben", "Löschen"], table.Flags!.Select(f => f.Name));
+        Assert.Equal(["1", "2", "4"], table.Flags!.Select(f => f.Value));
+        Assert.Equal(["Lesen", "Löschen"], table.FlagsOfText("5")!.Flags.Select(f => f.Name));
+        Assert.Equal(0, table.FlagsOfText("5,0")!.Rest);
+        Assert.Null(table.FlagsOfText("x"));
+        // C# literals still take a member of its own (Rechte.Alle).
+        Assert.Equal(["Alle"], table.FlagMembers(7m));
+    }
+
+    [Theory]
+    [InlineData("1", "2", true, "3")]
+    [InlineData("3", "2", false, "1")]
+    [InlineData("", "4", true, "4")]
+    [InlineData("9", "8", false, "1")]
+    public void Ticking_a_flag_changes_the_edit_text(string text, string flag, bool set, string expected) =>
+        Assert.Equal(expected, ValueTable.For(Rechte, Number2)!.WithFlag(text, flag, set));
+
+    [Fact]
+    public void The_flags_editor_ticks_the_flags_set_and_adds_the_bits_without_a_member()
+    {
+        var edit = ValueTable.For(Rechte, Number2)!.FlagsEditOf("13", nullAllowed: true)!;
+
+        Assert.Equal(
+            [
+                new FlagBox("1", "Lesen (1)", "Lesen", Checked: true),
+                new FlagBox("2", "Schreiben (2)", "Schreiben", Checked: false),
+                new FlagBox("4", "Löschen (4)", "Löschen", Checked: true),
+                new FlagBox("8", TextFormat.Format(ClrModelText.FlagWithoutMember, "8"), "8", Checked: true, Unknown: true),
+            ],
+            edit.Boxes);
+        Assert.Equal(new FlagBox("", "NULL", "NULL", Checked: false), edit.Null);
+        Assert.Equal("13", edit.Text);
+        Assert.Null(edit.Raw);
+    }
+
+    [Fact]
+    public void The_flags_editor_offers_null_only_where_allowed_and_keeps_a_text_that_is_no_flags_value()
+    {
+        var table = ValueTable.For(Rechte, Number2)!;
+
+        var empty = table.FlagsEditOf("", nullAllowed: true)!;
+        Assert.True(empty.Null!.Checked);
+        Assert.DoesNotContain(empty.Boxes, b => b.Checked);
+
+        Assert.Null(table.FlagsEditOf("0", nullAllowed: false)!.Null);
+        Assert.Equal("1.5", table.FlagsEditOf("1.5", nullAllowed: false)!.Raw);
+        Assert.Null(ValueTable.For(Kundenart, Number2)!.FlagsEditOf("1", nullAllowed: true));
+    }
+
+    [Fact]
+    public void Flags_without_a_member_for_zero_show_zero_as_valid()
+    {
+        var table = ValueTable.For(Enum("Optionen", new("A", "1", "1"), new("B", "2", "2")) with { IsFlagsEnum = true }, Number2)!;
+
+        Assert.Equal(new PresentedValue("0"), table.Present(0m));
+        Assert.Equal(new PresentedValue("A, B (3)", Tooltip: "A (1)\nB (2)"), table.Present(3m));
+    }
+
+    [Fact]
+    public void Flags_stored_through_a_converter_or_as_text_are_no_flags()
+    {
+        var converted = Enum("Rechte", new("Lesen", "1", "L"), new("Schreiben", "2", "S")) with { IsFlagsEnum = true };
+        Assert.Null(ValueTable.For(converted, Status)!.Flags);
+        Assert.Null(ValueTable.For(Rechte, Status)!.Flags);
+        Assert.Null(ValueTable.For(Kundenart, Number2)!.Flags);
     }
 
     [Fact]

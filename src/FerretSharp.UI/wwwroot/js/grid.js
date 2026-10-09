@@ -274,6 +274,119 @@ class FerretSelectEditor {
   isPopup() { return false; }
 }
 
+/**
+ * Cell editor for flags enums stored as their number: a drop-down list of the flags to tick (and NULL where allowed).
+ * The boxes, which are ticked and the bits no member stands for come from .NET (GetFlagsEdit); here they are only shown
+ * and the ticked values added up. The sum is checked and written by .NET like typed text. Space or a click ticks, Enter
+ * takes the value, Esc drops it.
+ */
+class FerretFlagsEditor {
+  init(params) {
+    this.params = params;
+    params.state.retry = null;
+    this.eGui = document.createElement('div');
+    this.eGui.className = 'fs-editor fs-flags';
+    this.eGui.style.minWidth = `${Math.max(params.column.getActualWidth(), 220)}px`;
+    this.summary = document.createElement('div');
+    this.summary.className = 'fs-flags-summary';
+    this.list = document.createElement('div');
+    this.list.className = 'fs-flags-list';
+    this.list.setAttribute('role', 'listbox');
+    this.list.setAttribute('aria-multiselectable', 'true');
+    this.eGui.append(this.summary, this.list);
+    this.boxes = [];
+    this.list.addEventListener('change', e => this.onChange(e.target));
+    const clear = params.eventKey === 'Backspace' || params.eventKey === 'Delete';
+    params.state.dotnet.invokeMethodAsync('GetFlagsEdit', ...rowArgs(params.node, params.data), params.column.getColId())
+      .then(edit => {
+        if (!edit) return;
+        this.nullBox = edit.null ? this.addItem(edit.null, 'fs-null') : null;
+        this.boxes = edit.boxes.map(box => this.addItem(box, box.unknown ? 'fs-unknown-text' : null));
+        this.raw = edit.raw ?? undefined;
+        this.original = edit.text;
+        // Backspace or Delete opened the editor: start from NULL where it can be chosen.
+        if (clear && this.nullBox) this.onChange(this.nullBox.box, true);
+        this.updateSummary();
+        this.loaded = true;
+        this.focusFirst();
+      })
+      .catch(callFailed);
+  }
+  /** A box as .NET describes it ({ value, label, name, checked }); its value is what it adds to the sum. */
+  addItem(box, labelClass) {
+    const item = document.createElement('label');
+    item.className = 'fs-flags-item';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.checked = box.checked;
+    const text = document.createElement('span');
+    text.textContent = box.label;
+    if (labelClass) text.className = labelClass;
+    item.append(input, text);
+    this.list.appendChild(item);
+    return { box: input, bits: box.value === '' ? 0n : BigInt(box.value), name: box.name };
+  }
+  onChange(box, tick) {
+    if (tick) box.checked = true;
+    this.raw = undefined;
+    if (box === this.nullBox?.box) {
+      if (box.checked) for (const f of this.boxes) f.box.checked = false;
+    } else if (this.nullBox && box.checked) {
+      this.nullBox.box.checked = false;
+    }
+    this.changed = true;
+    showEditorError(this.eGui, null);
+    this.updateSummary();
+  }
+  value() {
+    if (!this.changed) return this.original;
+    if (this.nullBox?.box.checked) return '';
+    return this.boxes.filter(f => f.box.checked).reduce((all, f) => all | f.bits, 0n).toString();
+  }
+  updateSummary() {
+    const value = this.value();
+    const names = this.boxes.filter(f => f.box.checked).map(f => f.name);
+    this.summary.textContent = this.raw !== undefined ? this.raw
+      : value === '' ? 'NULL'
+      : `${names.length ? names.join(', ') : this.params.state.texts.noFlag} = ${value}`;
+  }
+  focusFirst() {
+    (this.list.querySelector('input:checked') ?? this.list.querySelector('input'))?.focus();
+  }
+  async commit() {
+    const params = this.params;
+    const error = await params.state.dotnet.invokeMethodAsync('ValidateEdit',
+      ...rowArgs(params.node, params.data), params.column.getColId(), this.value());
+    if (error) {
+      showEditorError(this.eGui, error);
+    } else {
+      params.stopEditing();
+    }
+  }
+  afterGuiAttached() {
+    this.list.addEventListener('keydown', e => {
+      const boxes = [...this.list.querySelectorAll('input')];
+      const index = boxes.indexOf(document.activeElement);
+      const move = { ArrowDown: 1, ArrowUp: -1, Home: -boxes.length, End: boxes.length }[e.key];
+      if (move !== undefined) {
+        e.preventDefault();
+        boxes[Math.max(0, Math.min(boxes.length - 1, index + move))]?.focus();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        e.stopPropagation();
+        this.commit();
+      }
+    });
+    this.focusFirst();
+  }
+  getGui() { return this.eGui; }
+  getValue() { return this.value(); }
+  // Left before the current value arrived: nothing was chosen.
+  isCancelAfterEnd() { return !this.loaded; }
+  isPopup() { return true; }
+  getPopupPosition() { return 'over'; }
+}
+
 /** Identifies a cell across redraws: new rows by their id, loaded rows by index. */
 function cellKey(node, colId) {
   return (node.data?.__new ?? `r${node.rowIndex}`) + '|' + colId;
@@ -380,8 +493,12 @@ export function create(elementId, dotnet, columns, options) {
     editable: p => !editState.enabled ? false : p.node.rowPinned === 'top'
       ? meta.editableNew
       : meta.editable && !!p.data && !p.data.__d && !(p.data.__ro ?? []).includes(meta.id),
-    // Enum and bool columns of a C# model pick from their members (the model may arrive after the grid was built).
-    cellEditorSelector: () => ({ component: meta.options ? FerretSelectEditor : FerretCellEditor, params: { meta, state: editState } }),
+    // Enum and bool columns of a C# model pick from their members, flags enums tick theirs (the model may arrive after
+    // the grid was built).
+    cellEditorSelector: () => ({
+      component: meta.flags ? FerretFlagsEditor : meta.options ? FerretSelectEditor : FerretCellEditor,
+      params: { meta, state: editState },
+    }),
     cellClassRules: {
       'fs-unknown': p => !!p.data?.__u?.includes(meta.id),
       'fs-pending': p => p.data?.__s?.[meta.id] === 'p',
@@ -391,8 +508,7 @@ export function create(elementId, dotnet, columns, options) {
     // The member list keeps the arrow keys while editing.
     suppressKeyboardEvent: p => p.editing && (p.event.key === 'Enter' || (!!meta.options && listKeys.has(p.event.key))),
     tooltipValueGetter: p => (p.value === null || p.value === undefined ? null
-      : p.data?.__u?.includes(meta.id) ? `${p.value}\n${meta.unknownText}`
-      : p.data?.__t?.[meta.id] ? `${p.value}\n${p.data.__t[meta.id]}` : p.value),
+      : [p.value, p.data?.__t?.[meta.id], p.data?.__u?.includes(meta.id) ? meta.unknownText : null].filter(Boolean).join('\n')),
     headerComponent: FerretHeader,
     // A function, not the object: AG Grid deep-copies plain objects of the column def, and updateColumns changes meta in place.
     headerComponentParams: { getMeta: () => meta, texts },

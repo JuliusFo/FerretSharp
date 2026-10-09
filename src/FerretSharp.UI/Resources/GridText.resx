@@ -838,6 +838,10 @@
     <value>-- No pending changes.</value>
     <comment>SQL comment in the preview of the statements a write would run</comment>
   </data>
+  <data name="Grid_NoFlag" xml:space="preserve">
+    <value>no flag</value>
+    <comment>Summary of the flags editor when no flag is ticked (value 0)</comment>
+  </data>
   <data name="Editing_UndoneMany" xml:space="preserve">
     <value>Undone: {0} actions – grid changes are pending again.</value>
     <comment>{0}: number of write actions undone (2 or more)</comment>
