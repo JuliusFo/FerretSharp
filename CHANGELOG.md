@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.20.0] - 2026-10-09
+
 ### Added
 - *Open changes* beside the tabs (WP-30, issue #7): click the counts in the status bar to see everything the active workspace has not committed.
   - *Pending* changes per tab with the row key and each changed column old → new; discard a single value, a row or the whole tab; jump to the row; show them as SQL.
