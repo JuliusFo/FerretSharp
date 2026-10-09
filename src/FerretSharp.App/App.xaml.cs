@@ -26,7 +26,7 @@ public partial class App : Application
     private IHost? _host;
     private ILogger<App>? _logger;
 
-    protected override async void OnStartup(StartupEventArgs e)
+    protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
@@ -42,20 +42,20 @@ public partial class App : Application
                 retainedFileCountLimit: 14)
             .CreateLogger();
 
-        // Settings decide the theme, which must be known before the window and the WebView exist (no white flash).
+        // Settings decide the theme, which must be known before the window and the WebView exist (no white flash), and the
+        // language. Read here, not in an async method: the UI culture belongs to the execution context, and a change made
+        // inside an async method is undone when it returns – Blazor would render in the Windows language again.
         var settingsStore = new SettingsStore(paths.SettingsFile);
         var settings = AppSettings.Default;
         string? settingsError = null;
         try
         {
-            settings = await settingsStore.LoadAsync(CancellationToken.None);
+            settings = Task.Run(() => settingsStore.LoadAsync(CancellationToken.None)).GetAwaiter().GetResult();
         }
         catch (Exception ex) when (ex is SettingsStoreException or IOException or UnauthorizedAccessException)
         {
             settingsError = ex.Message;
         }
-
-        var theme = WindowTheme.Create(e.Args, settings.Theme);
 
         // The UI language (WP-29, ADR 0017): only the UI culture changes, so numbers and dates keep their formats. The enum
         // display names of a linked C# project keep the Windows language (the projects may only have German resources).
@@ -63,7 +63,15 @@ public partial class App : Application
         CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.CurrentUICulture =
             UiLanguages.Culture(UiLanguages.FromArguments(e.Args) ?? settings.Language);
 
-        var builder = Host.CreateApplicationBuilder(e.Args);
+        Start(e.Args, paths, settingsStore, settings, settingsError, windowsUiCulture);
+    }
+
+    private async void Start(
+        string[] args, AppPaths paths, SettingsStore settingsStore, AppSettings settings, string? settingsError, CultureInfo windowsUiCulture)
+    {
+        var theme = WindowTheme.Create(args, settings.Theme);
+
+        var builder = Host.CreateApplicationBuilder(args);
         builder.Services.AddSerilog();
         builder.Services.Configure<ConsoleLifetimeOptions>(o => o.SuppressStatusMessages = true);
         builder.Services.AddWpfBlazorWebView();
