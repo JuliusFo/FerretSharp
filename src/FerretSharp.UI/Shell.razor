@@ -317,6 +317,9 @@
             case ShortcutAction.Forward:
                 _state.GoForward();
                 break;
+            case ShortcutAction.CloseTab when _state.Page == ShellPage.Explorer && _state.ActiveTab is { } tab:
+                _lifecycle.CloseTab(tab);
+                break;
             case ShortcutAction.RunScript when _state.Page == ShellPage.Explorer:
                 _state.RequestTabCommand(TabCommand.RunScript);
                 break;

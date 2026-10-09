@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- Ctrl+W closes the active tab (asks first if it has pending changes). The key can be changed under *Einstellungen › Tastenkürzel*.
+
 ## [3.18.1] - 2026-10-09
 
 ### Fixed

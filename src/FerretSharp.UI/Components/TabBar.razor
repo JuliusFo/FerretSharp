@@ -56,7 +56,7 @@
                     }
                     break;
             }
-            <button class="tab-close" title="Schließen" @onclick:stopPropagation="true" @onclick="() => Lifecycle.CloseTab(tab)">✕</button>
+            <button class="tab-close" title="Schließen@(Shortcuts.Hint(ShortcutAction.CloseTab))" @onclick:stopPropagation="true" @onclick="() => Lifecycle.CloseTab(tab)">✕</button>
         </div>
     }
     <button class="tab-new" title="Neuer SQL-Editor: Statements in der Session dieses Workspaces@(Shortcuts.Hint(ShortcutAction.NewSql))"

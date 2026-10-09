@@ -46,20 +46,24 @@ public sealed class ShortcutMapTests
 {
     private static KeyChord Chord(string text) => KeyChord.Parse(text)!;
 
-    /// <summary>Until WP-25 these were constants in Shell.razor, grid.js and RowFormPanel – the defaults keep them.</summary>
+    /// <summary>Until WP-25 these were constants in Shell.razor, grid.js and RowFormPanel – the defaults keep them (plus Ctrl+W, 3.19).</summary>
     [Fact]
     public void Defaults_are_the_keys_before_wp_25()
     {
         var map = new ShortcutMap();
 
         Assert.Equal(
-            ["ctrl+shift+o", "alt+o", "alt+arrowleft", "alt+arrowright", "ctrl+enter", "f5", "ctrl+f", "ctrl+s", "ctrl+shift+enter", "ctrl+shift+q", "ctrl+shift+l", "alt+x"],
+            ["ctrl+shift+o", "alt+o", "alt+arrowleft", "alt+arrowright", "ctrl+w", "ctrl+enter", "f5", "ctrl+f", "ctrl+s", "ctrl+shift+enter", "ctrl+shift+q", "ctrl+shift+l", "alt+x"],
             map.GlobalCombos);
         Assert.Equal(Chord("alt+enter"), map.Chord(ShortcutAction.ToggleForm));
         Assert.Equal(Chord("alt+arrowup"), map.Chord(ShortcutAction.FormPrevious));
         Assert.Equal(Chord("alt+arrowdown"), map.Chord(ShortcutAction.FormNext));
         Assert.False(map.HasChanges);
     }
+
+    [Fact]
+    public void Ctrl_w_closes_the_tab_everywhere() =>
+        Assert.Equal(ShortcutAction.CloseTab, new ShortcutMap().ActionFor("ctrl+w", ShortcutScope.Global));
 
     [Fact]
     public void Every_action_has_a_valid_unique_default()
