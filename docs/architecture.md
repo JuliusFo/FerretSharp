@@ -162,6 +162,8 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 
 Seit WP-25 (3.16.0) unter Einstellungen › Tastenkürzel änderbar; die Tabelle zeigt die Standardbelegung (`ShortcutMap.Definitions`, fest: `ShortcutMap.Fixed`).
 
+**Neue Aktionen bekommen keine Standardtaste** (Entscheidung des Nutzers, nach 3.20; `Default` = null): Eine gespeicherte Taste einer anderen Aktion könnte schon darauf liegen, und bei doppelter Belegung gewinnt die erste Definition – die neue Vorgabe würde dem Nutzer seine Taste stillschweigend wegnehmen. Der Nutzer vergibt die Taste selbst. Die Standardtasten bis 3.20 bleiben, wie sie sind.
+
 | Taste (Standard) | Aktion | Version |
 |---|---|---|
 | Ctrl+Shift+O | Verbindungs-Umschalter öffnen | v1 |
@@ -171,6 +173,7 @@ Seit WP-25 (3.16.0) unter Einstellungen › Tastenkürzel änderbar; die Tabelle
 | F5 | Refresh (v2 in Read-only-Tx: neue Transaktion) | v1 |
 | Ctrl+F | Datenansicht: Spalte suchen und hinspringen (Scrollen, Hervorheben, Fokus auf die Zelle der ersten sichtbaren Zeile); Strukturansicht: Spalten filtern (v1.6) | v1.5 |
 | Alt+← / Alt+→ | Zurück zum Tab, aus dem ein FK-Sprung kam / wieder vor (verhindert nebenbei die Zurück-Navigation der WebView) | v1.6 |
+| – (frei belegbar) | Aktiven Tab schließen; fragt vorher (auch beim ✕) bei ausstehenden Änderungen, bei einem eingegebenen, nicht bestätigten Wert (Zelle im Grid oder Feld im Formular) und bei Text im SQL-/LINQ-Tab | 3.21 |
 | Ctrl+P | Tabelle suchen (Backlog) | – |
 | Ctrl+S | Pending-Änderungen flushen (kein Commit) | v1.9 |
 | Ctrl+Shift+Enter | Commit (auf Prod immer mit Bestätigung) | v1.9 |

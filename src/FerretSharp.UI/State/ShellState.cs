@@ -48,6 +48,16 @@ public sealed partial class ShellState
             .ToList()
             .FirstOrDefault(reason => reason is not null);
 
+    /// <summary>
+    /// Whether a tab has values typed but not yet confirmed (the form beside the grid, WP-21): closing the tab would lose
+    /// them. A handler answers for its own tab only.
+    /// </summary>
+    public event Func<WorkspaceTab, bool>? TypedValuesOf;
+
+    /// <summary>Whether any <see cref="TypedValuesOf"/> handler has typed values for the tab.</summary>
+    public bool HasTypedValues(WorkspaceTab tab) =>
+        (TypedValuesOf?.GetInvocationList() ?? []).Cast<Func<WorkspaceTab, bool>>().Any(handler => handler(tab));
+
     public ShellPage Page { get; private set; } = ShellPage.Connections;
 
     public ConnectionDialogRequest? ConnectionDialog { get; private set; }

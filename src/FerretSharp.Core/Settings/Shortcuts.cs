@@ -9,6 +9,7 @@ public enum ShortcutAction
     PreviousConnection,
     Back,
     Forward,
+    CloseTab,
     ApplyFilters,
     Refresh,
     FindColumn,
@@ -41,10 +42,13 @@ public enum ShortcutScope
     Form,
 }
 
-/// <summary>A changeable shortcut: its default and how the settings page shows it.</summary>
-public sealed record ShortcutDefinition(ShortcutAction Action, string Group, string Label, string Default, ShortcutScope Scope, string? Hint = null)
+/// <summary>
+/// A changeable shortcut: its default and how the settings page shows it. <see cref="Default"/> is null for an action
+/// without a key until the user gives it one.
+/// </summary>
+public sealed record ShortcutDefinition(ShortcutAction Action, string Group, string Label, string? Default, ShortcutScope Scope, string? Hint = null)
 {
-    public KeyChord DefaultChord => KeyChord.Parse(Default)!;
+    public KeyChord? DefaultChord => Default is null ? null : KeyChord.Parse(Default)!;
 }
 
 /// <summary>A shortcut that cannot be changed – listed so the settings page is the one overview of all keys.</summary>
@@ -66,13 +70,18 @@ public sealed record ShortcutCheck(string? Error, ShortcutAction? Conflict, stri
 /// </summary>
 public sealed class ShortcutMap
 {
-    /// <summary>The changeable shortcuts; a property, not a field: labels and groups follow the UI language.</summary>
+    /// <summary>
+    /// The changeable shortcuts; a property, not a field: labels and groups follow the UI language. Actions added after
+    /// 3.20 get no default key (null): a stored shortcut of another action may already use it, and with duplicates the
+    /// first definition wins – the new default would silently take the key away.
+    /// </summary>
     public static IReadOnlyList<ShortcutDefinition> Definitions =>
     [
         new(ShortcutAction.ConnectionSwitcher, SettingsText.GroupNavigation, SettingsText.ActionConnectionSwitcher, "ctrl+shift+o", ShortcutScope.Global),
         new(ShortcutAction.PreviousConnection, SettingsText.GroupNavigation, SettingsText.ActionPreviousConnection, "alt+o", ShortcutScope.Global, SettingsText.HintPreviousConnection),
         new(ShortcutAction.Back, SettingsText.GroupNavigation, SettingsText.ActionBack, "alt+arrowleft", ShortcutScope.Global),
         new(ShortcutAction.Forward, SettingsText.GroupNavigation, SettingsText.ActionForward, "alt+arrowright", ShortcutScope.Global),
+        new(ShortcutAction.CloseTab, SettingsText.GroupNavigation, SettingsText.ActionCloseTab, null, ShortcutScope.Global, SettingsText.HintCloseTab),
         new(ShortcutAction.ApplyFilters, SettingsText.GroupData, SettingsText.ActionApplyFilters, "ctrl+enter", ShortcutScope.Global, SettingsText.HintRunInEditors),
         new(ShortcutAction.Refresh, SettingsText.GroupData, SettingsText.ActionRefresh, "f5", ShortcutScope.Global, SettingsText.HintRunInEditors),
         new(ShortcutAction.FindColumn, SettingsText.GroupData, SettingsText.ActionFindColumn, "ctrl+f", ShortcutScope.Global, SettingsText.HintFindColumn),
@@ -136,12 +145,20 @@ public sealed class ShortcutMap
         _ => null,
     };
 
+    private readonly IReadOnlyList<ShortcutDefinition> _definitions;
     private readonly Dictionary<ShortcutAction, KeyChord?> _chords = [];
 
     public ShortcutMap(ShortcutOverrides? overrides = null)
+        : this(Definitions, overrides)
     {
+    }
+
+    /// <summary>A map over other definitions than <see cref="Definitions"/> (tests).</summary>
+    internal ShortcutMap(IReadOnlyList<ShortcutDefinition> definitions, ShortcutOverrides? overrides = null)
+    {
+        _definitions = definitions;
         Overrides = overrides ?? ShortcutOverrides.Empty;
-        foreach (var definition in Definitions)
+        foreach (var definition in _definitions)
         {
             _chords[definition.Action] = definition.DefaultChord;
             if (Overrides.TryGetValue(definition.Action.ToString(), out var stored))
@@ -163,22 +180,24 @@ public sealed class ShortcutMap
 
     public static ShortcutDefinition Definition(ShortcutAction action) => Definitions.First(d => d.Action == action);
 
+    private ShortcutDefinition Own(ShortcutAction action) => _definitions.First(d => d.Action == action);
+
     /// <summary>The action's key combination; null if the user removed it.</summary>
     public KeyChord? Chord(ShortcutAction action) => _chords[action];
 
-    public bool IsDefault(ShortcutAction action) => _chords[action] == Definition(action).DefaultChord;
+    public bool IsDefault(ShortcutAction action) => _chords[action] == Own(action).DefaultChord;
 
-    public bool HasChanges => Definitions.Any(d => !IsDefault(d.Action));
+    public bool HasChanges => _definitions.Any(d => !IsDefault(d.Action));
 
     /// <summary>The text forms <c>shortcuts.js</c> catches everywhere.</summary>
     public IReadOnlyList<string> GlobalCombos =>
-        [.. Definitions.Where(d => d.Scope == ShortcutScope.Global).Select(d => _chords[d.Action]?.Text).OfType<string>()];
+        [.. _definitions.Where(d => d.Scope == ShortcutScope.Global).Select(d => _chords[d.Action]?.Text).OfType<string>()];
 
     /// <summary>The action a key combination triggers where it was caught; with stored duplicates the first one wins.</summary>
     public ShortcutAction? ActionFor(KeyChord? chord, params ShortcutScope[] scopes) =>
         chord is null
             ? null
-            : Definitions.FirstOrDefault(d => scopes.Contains(d.Scope) && _chords[d.Action] == chord)?.Action;
+            : _definitions.FirstOrDefault(d => scopes.Contains(d.Scope) && _chords[d.Action] == chord)?.Action;
 
     public ShortcutAction? ActionFor(string combo, params ShortcutScope[] scopes) => ActionFor(KeyChord.Parse(combo), scopes);
 
@@ -202,8 +221,8 @@ public sealed class ShortcutMap
             return new ShortcutCheck(SettingsText.NeedsCtrlOrAlt, null, null);
         }
 
-        var conflict = ignoreConflicts ? null : Definitions.FirstOrDefault(d => d.Action != action && _chords[d.Action] == chord)?.Action;
-        var warning = Definition(action).Scope == ShortcutScope.Global && TakenFromEditors(chord.Text) is { } taken
+        var conflict = ignoreConflicts ? null : _definitions.FirstOrDefault(d => d.Action != action && _chords[d.Action] == chord)?.Action;
+        var warning = Own(action).Scope == ShortcutScope.Global && TakenFromEditors(chord.Text) is { } taken
             ? TextFormat.Format(SettingsText.TakenFromEditor, chord.Label, taken)
             : chord.Shift && chord.Alt && !chord.Ctrl
                 ? SettingsText.AltShiftSwitchesLanguage
@@ -218,7 +237,7 @@ public sealed class ShortcutMap
     public ShortcutOverrides With(ShortcutAction action, KeyChord? chord)
     {
         var result = Overrides.ToDictionary();
-        if (chord is not null && Definitions.FirstOrDefault(d => d.Action != action && _chords[d.Action] == chord) is { } other)
+        if (chord is not null && _definitions.FirstOrDefault(d => d.Action != action && _chords[d.Action] == chord) is { } other)
         {
             Store(result, other.Action, null);
         }
@@ -239,9 +258,9 @@ public sealed class ShortcutMap
     public ShortcutOverrides Reset() =>
         ShortcutOverrides.From(Overrides.Where(e => !Enum.GetNames<ShortcutAction>().Contains(e.Key)));
 
-    private static void Store(Dictionary<string, string> overrides, ShortcutAction action, KeyChord? chord)
+    private void Store(Dictionary<string, string> overrides, ShortcutAction action, KeyChord? chord)
     {
-        if (chord == Definition(action).DefaultChord)
+        if (chord == Own(action).DefaultChord)
         {
             overrides.Remove(action.ToString());
         }

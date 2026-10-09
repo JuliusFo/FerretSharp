@@ -291,8 +291,9 @@
     /// A dialog is open (shortcuts.js looks for a visible <c>.modal-backdrop</c>, which every dialog renders through
     /// ModalFrame): shortcuts must not act behind it – Ctrl+S while the LOB editor is open, F5 behind the plan dialog.
     /// </param>
+    /// <param name="cellEditing">A grid cell of the visible tab is being edited: closing the tab would lose the value.</param>
     [JSInvokable]
-    public void OnShortcut(string combo, bool modalOpen)
+    public void OnShortcut(string combo, bool modalOpen, bool cellEditing)
     {
         if (modalOpen)
         {
@@ -331,6 +332,9 @@
                 break;
             case ShortcutAction.Forward:
                 _state.GoForward();
+                break;
+            case ShortcutAction.CloseTab when _state.Page == ShellPage.Explorer && _state.ActiveTab is { } tab:
+                _lifecycle.CloseTab(tab, cellEditing);
                 break;
             case ShortcutAction.RunScript when _state.Page == ShellPage.Explorer:
                 _state.RequestTabCommand(TabCommand.RunScript);

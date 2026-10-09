@@ -35,6 +35,7 @@ Wird automatisch geladen, sobald Dateien unter `src/FerretSharp.UI/` gelesen wer
 ## AG Grid
 - Objekte in Column-Defs (`headerComponentParams`) werden mit `defaultColDef` **tief kopiert** – veränderliche Metadaten als Funktion (`getMeta`). Kopfhöhe nur als Theme-Parameter, nicht als `headerHeight` (setzt die Zeilenhöhe zurück). Angeheftete Zeilen haben `row-index="t-0"`.
 - `GridBridge.CallAsync(…, params object?[] args)`: Eine Liste als einziges Argument immer als `List<…>` übergeben, **kein Array** – ein `GridRowUpdate[]` wird wegen Array-Kovarianz selbst zum params-Array, grid.js bekommt dann ein Objekt statt einer Liste (so zeichnete „Übernehmen“ im LOB-Dialog seit 3.6.1 die Zeile nicht neu; in WP-21 gefunden).
+- `stopEditingWhenCellsLoseFocus` beendet eine Zelleingabe erst **nach** dem Klick, der den Fokus weggenommen hat: Ein Knopf außerhalb des Grids, der sofort etwas tut (✕ eines Tabs), sieht weder offenen Editor noch ausstehende Änderung – der Wert ging verloren. Solche Knöpfe behalten den Fokus nicht (`@onmousedown:preventDefault`) und fragen `cellEditing()` aus `shortcuts.js` (in PR #5 per echter Maus gefunden; Unit-Tests merken das nicht).
 
 ## Monaco
 - Monacos eigene Texte (Suchen-Widget, Kontextmenü) folgen der UI-Sprache: `monaco.js` lädt `vs/nls/lang/de.js` nur bei deutscher Oberfläche (WP-29; Englisch ist Monacos Standard). Die Datei ist kein AMD-Modul → als normales Script laden. Offsets sind UTF-16; Text und Offsets immer aus demselben `getRunContext`.

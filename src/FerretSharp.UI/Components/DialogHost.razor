@@ -113,15 +113,28 @@
                   OnConfirm="() => Lifecycle.UnlockAsync(unlockId)" OnCancel="Shell.CloseUnlock" />
 }
 
-@if (Lifecycle.ConfirmCloseTab is { } closingTab)
+@if (Lifecycle.ConfirmCloseTab is { } closing)
 {
-    var pendingCount = closingTab.Changes!.PendingCount;
     <ConfirmDialog Title="@ShellText.CloseTab" ConfirmLabel="@ShellText.Dialogs_DiscardAndClose" Danger="true"
-                   OnConfirm="() => Lifecycle.CloseTabConfirmed(closingTab)" OnCancel="Lifecycle.CancelConfirmation">
-        <Fmt Text="@(pendingCount == 1 ? ShellText.Dialogs_CloseTabTextOne : ShellText.Dialogs_CloseTabTextOther)">
-            <Arg0>@pendingCount</Arg0>
-            <Arg1><strong>@closingTab.Table.DisplayName</strong></Arg1>
-        </Fmt>
+                   OnConfirm="() => Lifecycle.CloseTabConfirmed(closing.Tab)" OnCancel="Lifecycle.CancelConfirmation">
+        @* Pending changes are counted now, not when asked: the dialog takes the focus from a cell or form field being
+           edited, which turns the typed value into a pending change. *@
+        @switch (closing)
+        {
+            case { Tab: TableTab { Changes.PendingCount: > 0 } table }:
+                var pendingCount = table.Changes!.PendingCount;
+                <Fmt Text="@(pendingCount == 1 ? ShellText.Dialogs_CloseTabTextOne : ShellText.Dialogs_CloseTabTextOther)">
+                    <Arg0>@pendingCount</Arg0>
+                    <Arg1><strong>@table.Table.DisplayName</strong></Arg1>
+                </Fmt>
+                break;
+            case { Loss: CloseTabLoss.TypedValue, Tab: TableTab table }:
+                <Fmt Text="@ShellText.Dialogs_CloseTabTypedValue"><Arg0><strong>@table.Table.DisplayName</strong></Arg0></Fmt>
+                break;
+            case { Tab: ITitledTab titled }:
+                <Fmt Text="@ShellText.Dialogs_CloseTabEditorText"><Arg0><strong>@titled.Title</strong></Arg0></Fmt>
+                break;
+        }
     </ConfirmDialog>
 }
 

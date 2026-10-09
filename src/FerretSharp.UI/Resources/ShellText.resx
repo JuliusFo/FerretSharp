@@ -823,6 +823,10 @@
     <value>New LINQ console: C# against the DbContext of the linked project{0}</value>
     <comment>{0} = shortcut hint like “ (Ctrl+L)” or empty</comment>
   </data>
+  <data name="TabBar_CloseTitle" xml:space="preserve">
+    <value>Close{0}</value>
+    <comment>Tooltip of the tab’s ✕ button; {0} = shortcut hint like “ (Ctrl+W)” or empty</comment>
+  </data>
   <data name="Unlock_Title" xml:space="preserve">
     <value>Unlock writing</value>
     <comment>Dialog title</comment>
@@ -899,6 +903,14 @@
   <data name="Dialogs_CloseTabTextOther" xml:space="preserve">
     <value>{1} has {0} pending changes that have not been written yet. They are lost when you close the tab. Changes already written stay in the workspace’s transaction.</value>
     <comment>{0} = number of pending changes, {1} = table name (bold)</comment>
+  </data>
+  <data name="Dialogs_CloseTabTypedValue" xml:space="preserve">
+    <value>{0} has a value that was typed but not confirmed yet. It is lost when you close the tab. Changes already written stay in the workspace’s transaction.</value>
+    <comment>Closing a table tab while a grid cell (shortcut only) or a form field holds a typed value; {0} = table name (bold)</comment>
+  </data>
+  <data name="Dialogs_CloseTabEditorText" xml:space="preserve">
+    <value>The text in {0} is lost when you close the tab.</value>
+    <comment>Closing a SQL or LINQ tab that is not empty; {0} = tab title (bold)</comment>
   </data>
   <data name="Dialogs_DeleteConnectionText" xml:space="preserve">
     <value>Delete connection {0} ({1})? The stored password is removed as well.</value>

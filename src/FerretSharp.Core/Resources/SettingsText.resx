@@ -63,6 +63,13 @@
     <value>Forward</value>
     <comment>Shortcut action (after Back)</comment>
   </data>
+  <data name="ActionCloseTab" xml:space="preserve">
+    <value>Close tab</value>
+    <comment>Shortcut action</comment>
+  </data>
+  <data name="HintCloseTab" xml:space="preserve">
+    <value>Asks first if pending changes, a value typed but not confirmed or the text of a SQL or LINQ tab would be lost.</value>
+  </data>
   <data name="ActionApplyFilters" xml:space="preserve">
     <value>Apply filters</value>
     <comment>Shortcut action</comment>
