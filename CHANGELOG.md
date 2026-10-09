@@ -14,11 +14,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 - Flags enums (`[Flags]`, stored as their number) are edited as a drop-down list of check boxes instead of a single-choice list, in the grid and in the form. NULL is a check box of its own where allowed; bits no member stands for stay ticked as a line of their own. Contributed by @ulbpccc.
 - Cells of a flags enum list every flag set (`Stammkunde, Lastschrift (5)`), also for a value that has a member of its own (`Premium = Stammkunde | Lastschrift`); the tooltip shows one flag per line. Members that combine others are no flags of their own. `0` without a member is a valid value, not marked.
 - Sample model: `Kunde.Merkmale` (flags enum `Kundenmerkmale`) with `tools/sample-db/08-clr-flags.sql`.
+- All tooltips look the same and follow the app theme (light or dark) – those of buttons, headers and the status bar as well as those of grid cells.
 
 ### Fixed
 - Closing a table tab with ✕ while a grid cell was being edited dropped the typed value without asking.
 - Cell tooltips with several lines (a value without member, the C# member behind a display text) ran their lines together; they now keep their line breaks.
-- Tooltips in the status bar and the footers of tabs and results opened below the pointer and, with the window maximized, behind the Windows taskbar; they now open above the element. Contributed by @ulbpccc.
+- Tooltips near the bottom of the window (status bar, footers of tabs and results) opened below the pointer and, with the window maximized, behind the Windows taskbar; they now open above it where there is no room below. Contributed by @ulbpccc.
 
 ## [3.20.0] - 2026-10-09
 
