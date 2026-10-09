@@ -275,14 +275,14 @@ class FerretSelectEditor {
 }
 
 /**
- * Cell editor for flags enums stored as their number: a drop-down list of the single flags to tick (and NULL where
- * allowed). The value is the sum as the database stores it, checked and written by .NET like typed text. Bits no member
- * stands for stay ticked as a line of their own. Space or a click ticks, Enter takes the value, Esc drops it.
+ * Cell editor for flags enums stored as their number: a drop-down list of the flags to tick (and NULL where allowed).
+ * The boxes, which are ticked and the bits no member stands for come from .NET (GetFlagsEdit); here they are only shown
+ * and the ticked values added up. The sum is checked and written by .NET like typed text. Space or a click ticks, Enter
+ * takes the value, Esc drops it.
  */
 class FerretFlagsEditor {
   init(params) {
     this.params = params;
-    const meta = params.meta;
     params.state.retry = null;
     this.eGui = document.createElement('div');
     this.eGui.className = 'fs-editor fs-flags';
@@ -294,53 +294,45 @@ class FerretFlagsEditor {
     this.list.setAttribute('role', 'listbox');
     this.list.setAttribute('aria-multiselectable', 'true');
     this.eGui.append(this.summary, this.list);
-    this.nullBox = meta.nullable || params.node.rowPinned ? this.addItem('NULL', 'fs-null') : null;
-    this.boxes = meta.flags.map(flag => ({ bits: BigInt(flag.value), name: flag.name, box: this.addItem(flag.label) }));
+    this.boxes = [];
     this.list.addEventListener('change', e => this.onChange(e.target));
-    this.setEnabled(false);
     const clear = params.eventKey === 'Backspace' || params.eventKey === 'Delete';
-    params.state.dotnet.invokeMethodAsync('GetEditText', ...rowArgs(params.node, params.data), params.column.getColId())
-      .then(text => {
-        this.original = clear && this.nullBox ? '' : text ?? '';
-        this.show(this.original);
-        this.setEnabled(true);
+    params.state.dotnet.invokeMethodAsync('GetFlagsEdit', ...rowArgs(params.node, params.data), params.column.getColId())
+      .then(edit => {
+        if (!edit) return;
+        this.nullBox = edit.null ? this.addItem(edit.null, 'fs-null') : null;
+        this.boxes = edit.boxes.map(box => this.addItem(box, box.unknown ? 'fs-unknown-text' : null));
+        this.raw = edit.raw ?? undefined;
+        this.original = edit.text;
+        // Backspace or Delete opened the editor: start from NULL where it can be chosen.
+        if (clear && this.nullBox) this.onChange(this.nullBox.box, true);
+        this.updateSummary();
         this.loaded = true;
         this.focusFirst();
       })
-      .catch(() => this.setEnabled(true));
+      .catch(callFailed);
   }
-  addItem(label, labelClass) {
+  /** A box as .NET describes it ({ value, label, name, checked }); its value is what it adds to the sum. */
+  addItem(box, labelClass) {
     const item = document.createElement('label');
     item.className = 'fs-flags-item';
-    const box = document.createElement('input');
-    box.type = 'checkbox';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.checked = box.checked;
     const text = document.createElement('span');
-    text.textContent = label;
+    text.textContent = box.label;
     if (labelClass) text.className = labelClass;
-    item.append(box, text);
+    item.append(input, text);
     this.list.appendChild(item);
-    return box;
+    return { box: input, bits: box.value === '' ? 0n : BigInt(box.value), name: box.name };
   }
-  /** Ticks the flags of an edit text; a text that is no whole number (no flags value) is kept as it is. */
-  show(text) {
-    let bits = null;
-    try { bits = text === '' ? null : BigInt(text); } catch { this.raw = text; }
-    if (this.nullBox) this.nullBox.checked = bits === null && this.raw === undefined;
-    const known = this.boxes.reduce((all, f) => all | f.bits, 0n);
-    for (const f of this.boxes) f.box.checked = bits !== null && (bits & f.bits) === f.bits;
-    if (bits !== null && (bits & ~known) !== 0n) {
-      const rest = bits & ~known;
-      this.boxes.push({ bits: rest, name: `${rest}`, box: this.addItem(this.params.state.texts.noMember.replace('{0}', rest), 'fs-unknown-text') });
-      this.boxes.at(-1).box.checked = true;
-    }
-    this.updateSummary();
-  }
-  onChange(box) {
+  onChange(box, tick) {
+    if (tick) box.checked = true;
     this.raw = undefined;
-    if (box === this.nullBox) {
+    if (box === this.nullBox?.box) {
       if (box.checked) for (const f of this.boxes) f.box.checked = false;
     } else if (this.nullBox && box.checked) {
-      this.nullBox.checked = false;
+      this.nullBox.box.checked = false;
     }
     this.changed = true;
     showEditorError(this.eGui, null);
@@ -348,7 +340,7 @@ class FerretFlagsEditor {
   }
   value() {
     if (!this.changed) return this.original;
-    if (this.nullBox?.checked) return '';
+    if (this.nullBox?.box.checked) return '';
     return this.boxes.filter(f => f.box.checked).reduce((all, f) => all | f.bits, 0n).toString();
   }
   updateSummary() {
@@ -357,9 +349,6 @@ class FerretFlagsEditor {
     this.summary.textContent = this.raw !== undefined ? this.raw
       : value === '' ? 'NULL'
       : `${names.length ? names.join(', ') : this.params.state.texts.noFlag} = ${value}`;
-  }
-  setEnabled(enabled) {
-    for (const box of this.list.querySelectorAll('input')) box.disabled = !enabled;
   }
   focusFirst() {
     (this.list.querySelector('input:checked') ?? this.list.querySelector('input'))?.focus();

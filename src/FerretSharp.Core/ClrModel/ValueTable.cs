@@ -154,6 +154,30 @@ public sealed class ValueTable
     public static string FlagsText(long bits) => bits.ToString(CultureInfo.InvariantCulture);
 
     /// <summary>
+    /// What the flags editor (grid and form) shows for an edit text: a box per single flag, ticked if set, then the bits no
+    /// member stands for as a ticked box of their own, and NULL where <paramref name="nullAllowed"/>. Null if the enum is
+    /// no flags enum stored as its number.
+    /// </summary>
+    public FlagsEdit? FlagsEditOf(string text, bool nullAllowed)
+    {
+        if (Flags is null)
+        {
+            return null;
+        }
+
+        var set = text.Length == 0 ? null : FlagsOfText(text);
+        var boxes = Flags.Select(f => new FlagBox(f.Value, f.Label, f.Name, set?.Flags.Contains(f) == true)).ToList();
+        if (set is { Rest: not 0 and var rest })
+        {
+            var bits = FlagsText(rest);
+            boxes.Add(new FlagBox(bits, TextFormat.Format(ClrModelText.FlagWithoutMember, bits), bits, Checked: true, Unknown: true));
+        }
+
+        var none = nullAllowed ? new FlagBox("", "NULL", "NULL", Checked: text.Length == 0) : null;
+        return new FlagsEdit(text, none, boxes, text.Length > 0 && set is null ? text : null);
+    }
+
+    /// <summary>
     /// An edit text with a flag (its number as <see cref="ValueOption.Value"/>) ticked or not; NULL or a text that is no
     /// flags value starts from no flag.
     /// </summary>
@@ -305,3 +329,21 @@ public sealed class ValueTable
 /// <param name="Flags">The single flags set in it, smallest first.</param>
 /// <param name="Rest">Bits no member stands for (0 if none).</param>
 public sealed record FlagsValue(long Bits, IReadOnlyList<ValueOption> Flags, long Rest);
+
+/// <summary>
+/// The flags editor for an edit text (<see cref="ValueTable.FlagsEditOf"/>): grid and form only show it. The value is the
+/// sum of the ticked boxes' values, or NULL.
+/// </summary>
+/// <param name="Text">The edit text it was made from (the value if nothing is ticked differently).</param>
+/// <param name="Null">The NULL box; null where NULL cannot be chosen.</param>
+/// <param name="Boxes">The single flags, smallest first, then the bits without a member if the value has some.</param>
+/// <param name="Raw">An edit text that is no flags value (kept until a box is ticked); null otherwise.</param>
+public sealed record FlagsEdit(string Text, FlagBox? Null, IReadOnlyList<FlagBox> Boxes, string? Raw);
+
+/// <summary>A check box of the flags editor.</summary>
+/// <param name="Value">What it adds to the sum: the number, invariant (<c>4</c>); empty for NULL.</param>
+/// <param name="Label">Beside the box: <c>Zahlt per Lastschrift (4)</c>, <c>16 (no member)</c>.</param>
+/// <param name="Name">In the editor's summary: <c>Zahlt per Lastschrift</c>, <c>16</c>.</param>
+/// <param name="Checked">Ticked for the edit text.</param>
+/// <param name="Unknown">Bits no member stands for (marked).</param>
+public sealed record FlagBox(string Value, string Label, string Name, bool Checked, bool Unknown = false);

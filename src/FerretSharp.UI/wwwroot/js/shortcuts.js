@@ -10,9 +10,9 @@ const modifierKeys = new Set(['control', 'shift', 'alt', 'meta', 'altgraph', 'os
 // Every dialog renders a .modal-backdrop; those of tabs in the background are mounted but not displayed.
 const modalOpen = () => [...document.querySelectorAll('.modal-backdrop')].some(el => el.getClientRects().length > 0);
 
-// A grid cell being edited in the visible tab (the grids of tabs in the background are mounted but not displayed);
-// also asked by the tab bar before closing.
-export const cellEditing = () => [...document.querySelectorAll('.ag-cell-inline-editing')].some(el => el.getClientRects().length > 0);
+// A grid cell being edited in the visible tab, inline or in a popup (flags editor); the grids of tabs in the background
+// are mounted but not displayed. Also asked by the tab bar before closing.
+export const cellEditing = () => [...document.querySelectorAll('.ag-cell-inline-editing, .ag-cell-popup-editing')].some(el => el.getClientRects().length > 0);
 
 function keyOf(e) {
   if (e.key === ' ') return 'space';

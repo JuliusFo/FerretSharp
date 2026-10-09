@@ -1,5 +1,6 @@
 using FerretSharp.Core.ClrModel;
 using FerretSharp.Core.Data;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 using FerretSharp.Core.Settings;
 
@@ -116,6 +117,38 @@ public sealed class ValueTableTests
     [InlineData("9", "8", false, "1")]
     public void Ticking_a_flag_changes_the_edit_text(string text, string flag, bool set, string expected) =>
         Assert.Equal(expected, ValueTable.For(Rechte, Number2)!.WithFlag(text, flag, set));
+
+    [Fact]
+    public void The_flags_editor_ticks_the_flags_set_and_adds_the_bits_without_a_member()
+    {
+        var edit = ValueTable.For(Rechte, Number2)!.FlagsEditOf("13", nullAllowed: true)!;
+
+        Assert.Equal(
+            [
+                new FlagBox("1", "Lesen (1)", "Lesen", Checked: true),
+                new FlagBox("2", "Schreiben (2)", "Schreiben", Checked: false),
+                new FlagBox("4", "Löschen (4)", "Löschen", Checked: true),
+                new FlagBox("8", TextFormat.Format(ClrModelText.FlagWithoutMember, "8"), "8", Checked: true, Unknown: true),
+            ],
+            edit.Boxes);
+        Assert.Equal(new FlagBox("", "NULL", "NULL", Checked: false), edit.Null);
+        Assert.Equal("13", edit.Text);
+        Assert.Null(edit.Raw);
+    }
+
+    [Fact]
+    public void The_flags_editor_offers_null_only_where_allowed_and_keeps_a_text_that_is_no_flags_value()
+    {
+        var table = ValueTable.For(Rechte, Number2)!;
+
+        var empty = table.FlagsEditOf("", nullAllowed: true)!;
+        Assert.True(empty.Null!.Checked);
+        Assert.DoesNotContain(empty.Boxes, b => b.Checked);
+
+        Assert.Null(table.FlagsEditOf("0", nullAllowed: false)!.Null);
+        Assert.Equal("1.5", table.FlagsEditOf("1.5", nullAllowed: false)!.Raw);
+        Assert.Null(ValueTable.For(Kundenart, Number2)!.FlagsEditOf("1", nullAllowed: true));
+    }
 
     [Fact]
     public void Flags_without_a_member_for_zero_show_zero_as_valid()

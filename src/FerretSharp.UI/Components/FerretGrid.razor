@@ -149,7 +149,7 @@
             Lob = lob,
             Multiline = category == ColumnCategory.Text && (c.Length ?? 0) > 200,
             Options = values?.Options,
-            Flags = values?.Flags,
+            Flags = values?.Flags is not null,
             UnknownText = values?.UnknownText,
         };
     }
@@ -322,6 +322,19 @@
 
         return _blocks.At(rowIndex) is { } row
             ? EditText(column, Tab.Changes?.Find(row.Key)?.ValueOf(column) ?? row.Values[column])
+            : null;
+    }
+
+    /// <summary>
+    /// The flags editor of a cell (flags enum stored as its number): which boxes there are and which are ticked comes from
+    /// .NET, grid.js only shows them and adds up the ticked values. Null if the cell cannot be edited.
+    /// </summary>
+    [JSInvokable]
+    public FlagsEdit? GetFlagsEdit(int rowIndex, string? newId, string colId)
+    {
+        var column = ColumnIndex(colId);
+        return GetEditText(rowIndex, newId, colId) is { } text
+            ? Presentation.ValuesOf(column)?.FlagsEditOf(text, nullAllowed: Details.Columns[column].Nullable || newId is not null)
             : null;
     }
 
