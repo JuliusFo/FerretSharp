@@ -1,4 +1,6 @@
 using System.Globalization;
+using FerretSharp.Core.Data;
+using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.Query;
 
@@ -8,7 +10,7 @@ namespace FerretSharp.Core.Query;
 /// </summary>
 public static class BindValues
 {
-    public const string Masked = "‹maskiert›";
+    public static string Masked => QueryText.BindValueMasked;
 
     /// <summary>Longer texts (CLOB values) are shortened: a 10 MB value in an error dialog or log helps nobody.</summary>
     public const int MaxTextLength = 500;
@@ -19,9 +21,9 @@ public static class BindValues
     public static string Format(QueryParameter parameter, bool mask) => mask ? Masked : parameter.Value switch
     {
         null => "NULL",
-        string { Length: > MaxTextLength } s => Quote(s[..MaxTextLength]) + $" … ({s.Length.ToString("N0", German)} Zeichen)",
+        string { Length: > MaxTextLength } s => Quote(s[..MaxTextLength]) + $" … ({LobContent.CharacterCount(s.Length)})",
         string s => Quote(s),
-        byte[] { Length: > MaxBytes } bytes => $"HEXTORAW('{Convert.ToHexString(bytes, 0, MaxBytes)}') … ({bytes.Length.ToString("N0", German)} Bytes)",
+        byte[] { Length: > MaxBytes } bytes => $"HEXTORAW('{Convert.ToHexString(bytes, 0, MaxBytes)}') … ({LobContent.ByteCount(bytes.Length)})",
         byte[] bytes => $"HEXTORAW('{Convert.ToHexString(bytes)}')",
         DateTime dt => dt.TimeOfDay == TimeSpan.Zero
             ? dt.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
@@ -30,8 +32,6 @@ public static class BindValues
         IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
         var other => other.ToString() ?? "",
     };
-
-    private static readonly CultureInfo German = CultureInfo.GetCultureInfo("de-DE");
 
     private static string Quote(string s) => "'" + s.Replace("'", "''", StringComparison.Ordinal) + "'";
 

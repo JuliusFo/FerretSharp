@@ -1,4 +1,5 @@
 using System.Globalization;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.Query;
@@ -38,7 +39,7 @@ public static class SqlBinds
         foreach (var bind in binds)
         {
             var variable = variables.FirstOrDefault(v => string.Equals(v.Name, bind, StringComparison.OrdinalIgnoreCase))
-                           ?? throw new SqlBindException($"Für :{bind} fehlt ein Wert.");
+                           ?? throw new SqlBindException(TextFormat.Format(QueryText.BindValueMissing, bind));
             parameters.Add(ToParameter(bind, variable));
         }
 
@@ -59,20 +60,20 @@ public static class SqlBinds
             case SqlVariableType.Number when FilterRules.TryParseNumber(text, out var number):
                 return new QueryParameter(name, number, OracleTypeHint.Number);
             case SqlVariableType.Number:
-                throw new SqlBindException(text.Length == 0 ? $":{name}: Zahl fehlt (für NULL den Typ NULL wählen)." : $":{name}: „{text}“ ist keine Zahl.");
+                throw new SqlBindException(text.Length == 0 ? TextFormat.Format(QueryText.BindNumberMissing, name) : TextFormat.Format(QueryText.BindNotANumber, name, text));
             case SqlVariableType.Date when FilterRules.TryParseDateWithOffset(text, out var stamp, out _) == true:
-                // With an offset (TIMESTAMP WITH TIME ZONE, e.g. from "In SQL-Editor öffnen"): the offset is kept.
+                // With an offset (TIMESTAMP WITH TIME ZONE, e.g. from "Open in SQL editor"): the offset is kept.
                 return new QueryParameter(name, stamp, OracleTypeHint.TimeStampTZ);
             case SqlVariableType.Date when FilterRules.TryParseDate(text, out var date, out _):
                 return new QueryParameter(name, date, date.Ticks % TimeSpan.TicksPerSecond == 0 ? OracleTypeHint.Date : OracleTypeHint.TimeStamp);
             case SqlVariableType.Date:
-                throw new SqlBindException(text.Length == 0 ? $":{name}: Datum fehlt (für NULL den Typ NULL wählen)." : $":{name}: „{text}“ ist kein Datum (TT.MM.JJJJ [hh:mm[:ss]] oder ISO).");
+                throw new SqlBindException(text.Length == 0 ? TextFormat.Format(QueryText.BindDateMissing, name) : TextFormat.Format(QueryText.BindNotADate, name, text));
             case SqlVariableType.Raw when FilterRules.TryParseHex(text, out var bytes):
                 return new QueryParameter(name, bytes, OracleTypeHint.Raw);
             case SqlVariableType.Raw:
-                throw new SqlBindException($":{name}: „{text}“ ist kein Hex-Wert (z. B. CAFE01).");
+                throw new SqlBindException(TextFormat.Format(QueryText.BindNotAHexValue, name, text));
             default:
-                throw new SqlBindException($":{name}: unbekannter Typ.");
+                throw new SqlBindException(TextFormat.Format(QueryText.BindUnknownType, name));
         }
     }
 
@@ -144,7 +145,7 @@ public static class SqlBinds
         return null;
     }
 
-    /// <summary>A parameter of a generated statement as editor variable ("In SQL-Editor öffnen").</summary>
+    /// <summary>A parameter of a generated statement as editor variable ("Open in SQL editor").</summary>
     public static SqlVariable FromParameter(QueryParameter parameter) => parameter.Value switch
     {
         null => new SqlVariable(parameter.Name, SqlVariableType.Null, ""),

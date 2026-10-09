@@ -40,4 +40,204 @@
     <value>is not NULL</value>
     <comment>Filter operator</comment>
   </data>
+  <data name="FilterOperatorNotAvailable" xml:space="preserve">
+    <value>Operator not available for {0}.</value>
+    <comment>{0} = data type of the column, e.g. CLOB</comment>
+  </data>
+  <data name="FilterTwoValuesNeeded" xml:space="preserve">
+    <value>Two values needed (from … to).</value>
+  </data>
+  <data name="FilterValueMissing" xml:space="preserve">
+    <value>Value is missing.</value>
+  </data>
+  <data name="FilterEmptyTextIsNull" xml:space="preserve">
+    <value>Empty text is NULL in Oracle – use “{0}”.</value>
+    <comment>{0} = the filter operator "is NULL" (OperatorIsNull)</comment>
+  </data>
+  <data name="NotANumber" xml:space="preserve">
+    <value>“{0}” is not a number.</value>
+    <comment>{0} = the value as typed</comment>
+  </data>
+  <data name="NotADate" xml:space="preserve">
+    <value>“{0}” is not a date (DD.MM.YYYY [hh:mm[:ss]]).</value>
+    <comment>{0} = the value as typed. The format hint describes the input format the filter parses (day.month.year), only the letters are translated.</comment>
+  </data>
+  <data name="NotAHexValue" xml:space="preserve">
+    <value>“{0}” is not a hex value (e.g. CAFE01).</value>
+    <comment>{0} = the value as typed</comment>
+  </data>
+  <data name="ColumnDoesNotExist" xml:space="preserve">
+    <value>Column {0} does not exist.</value>
+    <comment>{0} = column name</comment>
+  </data>
+  <data name="ColumnNotSortable" xml:space="preserve">
+    <value>Cannot sort by {0}.</value>
+    <comment>{0} = column name</comment>
+  </data>
+  <data name="FkConditionInList" xml:space="preserve">
+    <value>{0} in ({1}) · {2:N0} values</value>
+    <comment>Key condition of an FK jump from several rows. {0} = column name, {1} = the first values, separated by "; ", {2} = number of values</comment>
+  </data>
+  <data name="FkSkippedRowsOne" xml:space="preserve">
+    <value>{0} row without a value skipped</value>
+    <comment>Note on an FK jump from several rows (no final period). {0} = number of rows (1)</comment>
+  </data>
+  <data name="FkSkippedRowsOther" xml:space="preserve">
+    <value>{0:N0} rows without a value skipped</value>
+    <comment>Note on an FK jump from several rows (no final period). {0} = number of rows</comment>
+  </data>
+  <data name="FkColumnMissing" xml:space="preserve">
+    <value>Column {0} is missing.</value>
+    <comment>Why an FK jump is not possible. {0} = column name</comment>
+  </data>
+  <data name="FkJumpTypeNotSupported" xml:space="preserve">
+    <value>Cannot jump via {0}.</value>
+    <comment>Why an FK jump is not possible. {0} = data type of the key column</comment>
+  </data>
+  <data name="FkKeyIsNull" xml:space="preserve">
+    <value>{0} is NULL.</value>
+    <comment>Why an FK jump is not possible. {0} = column name</comment>
+  </data>
+  <data name="FkColumnNullInAllRows" xml:space="preserve">
+    <value>{0} is NULL in all {1:N0} rows.</value>
+    <comment>Why an FK jump is not possible. {0} = column name, {1} = number of selected rows</comment>
+  </data>
+  <data name="FkKeyNullInAllRows" xml:space="preserve">
+    <value>Key ({0}) is NULL in all {1:N0} rows.</value>
+    <comment>Why an FK jump is not possible. {0} = key columns, separated by ", ", {1} = number of selected rows</comment>
+  </data>
+  <data name="FkSeveralRowsNeedSingleColumnKey" xml:space="preserve">
+    <value>With several rows, only possible for single-column keys.</value>
+    <comment>Why an FK jump is not possible</comment>
+  </data>
+  <data name="FkTooManyValues" xml:space="preserve">
+    <value>{0:N0} distinct values – at most {1:N0} possible.</value>
+    <comment>Why an FK jump is not possible. {0} = number of distinct key values, {1} = maximum</comment>
+  </data>
+  <data name="FkValueContainsSeparator" xml:space="preserve">
+    <value>A value contains “{0}” – not possible with several values.</value>
+    <comment>Why an FK jump is not possible. {0} = the list separator of the filter bar (;)</comment>
+  </data>
+  <data name="SqlRejectForUpdate" xml:space="preserve">
+    <value>SELECT … FOR UPDATE locks rows – FerretSharp only sets locks when editing.</value>
+    <comment>Why the SQL editor does not run a statement</comment>
+  </data>
+  <data name="SqlRejectEmpty" xml:space="preserve">
+    <value>No statement at the cursor.</value>
+  </data>
+  <data name="SqlRejectDdl" xml:space="preserve">
+    <value>The SQL editor does not run {0} (DDL): DDL commits implicitly – including the workspace's open transaction.</value>
+    <comment>Why the SQL editor does not run a statement. {0} = first word of the statement, e.g. CREATE</comment>
+  </data>
+  <data name="SqlRejectPlSql" xml:space="preserve">
+    <value>The SQL editor does not run PL/SQL blocks or procedure calls – they can commit on their own.</value>
+    <comment>Why the SQL editor does not run a statement</comment>
+  </data>
+  <data name="SqlRejectTransactionControl" xml:space="preserve">
+    <value>Use the status bar for {0} (Commit, Rollback).</value>
+    <comment>Why the SQL editor does not run a statement. {0} = first word of the statement, e.g. COMMIT</comment>
+  </data>
+  <data name="SqlRejectSessionControl" xml:space="preserve">
+    <value>ALTER SESSION/SYSTEM changes the workspace's session and is not run.</value>
+    <comment>Why the SQL editor does not run a statement</comment>
+  </data>
+  <data name="SqlRejectLock" xml:space="preserve">
+    <value>LOCK TABLE is not run – FerretSharp only sets locks when editing.</value>
+    <comment>Why the SQL editor does not run a statement</comment>
+  </data>
+  <data name="SqlRejectExplain" xml:space="preserve">
+    <value>Use the “Plan” button for execution plans.</value>
+    <comment>Why the SQL editor does not run EXPLAIN PLAN. “Plan” is the label of the button in the SQL editor's toolbar.</comment>
+  </data>
+  <data name="SqlRejectOther" xml:space="preserve">
+    <value>The SQL editor does not run “{0}” – only SELECT, WITH, INSERT, UPDATE, DELETE and MERGE.</value>
+    <comment>Why the SQL editor does not run a statement. {0} = first word of the statement</comment>
+  </data>
+  <data name="SqlPlanReadOnly" xml:space="preserve">
+    <value>{0} changes data – the workspace is read-only.</value>
+    <comment>{0} = first word of the statement, e.g. UPDATE</comment>
+  </data>
+  <data name="SqlPlanStatementProblem" xml:space="preserve">
+    <value>Statement {0} – nothing was run: {1}</value>
+    <comment>A script was not run. {0} = number of the statement in the script, {1} = why (a full sentence)</comment>
+  </data>
+  <data name="BindValueMissing" xml:space="preserve">
+    <value>No value for :{0}.</value>
+    <comment>SQL editor variable. {0} = name of the bind variable (shown with its colon)</comment>
+  </data>
+  <data name="BindNumberMissing" xml:space="preserve">
+    <value>:{0}: number missing (for NULL, choose the type NULL).</value>
+    <comment>SQL editor variable. {0} = name of the bind variable</comment>
+  </data>
+  <data name="BindNotANumber" xml:space="preserve">
+    <value>:{0}: “{1}” is not a number.</value>
+    <comment>SQL editor variable. {0} = name of the bind variable, {1} = the value as typed</comment>
+  </data>
+  <data name="BindDateMissing" xml:space="preserve">
+    <value>:{0}: date missing (for NULL, choose the type NULL).</value>
+    <comment>SQL editor variable. {0} = name of the bind variable</comment>
+  </data>
+  <data name="BindNotADate" xml:space="preserve">
+    <value>:{0}: “{1}” is not a date (DD.MM.YYYY [hh:mm[:ss]] or ISO).</value>
+    <comment>SQL editor variable. {0} = name of the bind variable, {1} = the value as typed. The format hint describes the input format (day.month.year).</comment>
+  </data>
+  <data name="BindNotAHexValue" xml:space="preserve">
+    <value>:{0}: “{1}” is not a hex value (e.g. CAFE01).</value>
+    <comment>SQL editor variable. {0} = name of the bind variable, {1} = the value as typed</comment>
+  </data>
+  <data name="BindUnknownType" xml:space="preserve">
+    <value>:{0}: unknown type.</value>
+    <comment>SQL editor variable. {0} = name of the bind variable</comment>
+  </data>
+  <data name="BindValueMasked" xml:space="preserve">
+    <value>‹masked›</value>
+    <comment>Shown instead of a bind value of a Prod connection</comment>
+  </data>
+  <data name="CompletionSynonym" xml:space="preserve">
+    <value>Synonym → {0}</value>
+    <comment>Detail of an autocomplete entry. {0} = OWNER.NAME of the object the synonym points to</comment>
+  </data>
+  <data name="CompletionPublicSynonym" xml:space="preserve">
+    <value>Synonym → {0} (public)</value>
+    <comment>Detail of an autocomplete entry for a public synonym. {0} = OWNER.NAME of the object the synonym points to</comment>
+  </data>
+  <data name="CompletionTable" xml:space="preserve">
+    <value>Table</value>
+    <comment>Detail of an autocomplete entry: the object is a table</comment>
+  </data>
+  <data name="CompletionView" xml:space="preserve">
+    <value>View</value>
+    <comment>Detail of an autocomplete entry: the object is a view</comment>
+  </data>
+  <data name="CompletionMaterializedView" xml:space="preserve">
+    <value>Materialized view</value>
+    <comment>Detail of an autocomplete entry: the object is a materialized view</comment>
+  </data>
+  <data name="InsertExportHeaderOne" xml:space="preserve">
+    <value>{0} row from {1} (FerretSharp export)</value>
+    <comment>First comment line of an INSERT script. {0} = number of rows (1), {1} = OWNER.TABLE</comment>
+  </data>
+  <data name="InsertExportHeaderOther" xml:space="preserve">
+    <value>{0} rows from {1} (FerretSharp export)</value>
+    <comment>First comment line of an INSERT script. {0} = number of rows, {1} = OWNER.TABLE</comment>
+  </data>
+  <data name="InsertExportAmpersand" xml:space="preserve">
+    <value>Contains '&amp;': run SET DEFINE OFF first in SQL*Plus.</value>
+    <comment>Comment line in an INSERT script</comment>
+  </data>
+  <data name="InsertExportIdentity" xml:space="preserve">
+    <value>{0} is an identity column: GENERATED ALWAYS rejects explicit values (ORA-32795).</value>
+    <comment>Comment line in an INSERT script. {0} = column name</comment>
+  </data>
+  <data name="InsertExportSkipped" xml:space="preserve">
+    <value>{0} ({1}) not exported</value>
+    <comment>SQL comment in place of a value of an INSERT script. {0} = data type, {1} = size or type of the value, e.g. "5,000 characters"</comment>
+  </data>
+  <data name="DmlPrimaryKeyNull" xml:space="preserve">
+    <value>Primary key {0} is NULL.</value>
+    <comment>{0} = column name</comment>
+  </data>
+  <data name="DmlRowWithoutKey" xml:space="preserve">
+    <value>The row has no key and cannot be written.</value>
+  </data>
 </root>

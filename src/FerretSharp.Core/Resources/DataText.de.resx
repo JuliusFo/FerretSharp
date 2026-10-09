@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="WriteActionRowsOne" xml:space="preserve">
+    <value>{1} · {0} Zeile</value>
+  </data>
+  <data name="WriteActionRowsOther" xml:space="preserve">
+    <value>{1} · {0:N0} Zeilen</value>
+  </data>
+  <data name="RowLockedByOtherSession" xml:space="preserve">
+    <value>Die Zeile ist von einer anderen Session gesperrt.</value>
+  </data>
+  <data name="RowChangedByOthers" xml:space="preserve">
+    <value>Die Zeile wurde inzwischen von jemand anderem geändert.</value>
+  </data>
+  <data name="RowGone" xml:space="preserve">
+    <value>Die Zeile gibt es nicht mehr – sie wurde inzwischen gelöscht.</value>
+  </data>
+  <data name="WriteFailedUnique" xml:space="preserve">
+    <value>Eindeutigkeit verletzt – diesen Wert gibt es schon.</value>
+  </data>
+  <data name="WriteFailedCheck" xml:space="preserve">
+    <value>Check-Constraint verletzt.</value>
+  </data>
+  <data name="WriteFailedParentMissing" xml:space="preserve">
+    <value>Fremdschlüssel verletzt – den referenzierten Datensatz gibt es nicht.</value>
+  </data>
+  <data name="WriteFailedChildrenExist" xml:space="preserve">
+    <value>Fremdschlüssel verletzt – es gibt noch abhängige Datensätze.</value>
+  </data>
+  <data name="WriteFailedNotNull" xml:space="preserve">
+    <value>Pflichtfeld fehlt (NOT NULL).</value>
+  </data>
+  <data name="WriteFailedValueTooLong" xml:space="preserve">
+    <value>Wert zu lang für die Spalte.</value>
+  </data>
+  <data name="WriteFailedNumberTooLarge" xml:space="preserve">
+    <value>Zahl zu groß für die Spalte.</value>
+  </data>
+  <data name="WriteFailedNoPrivilege" xml:space="preserve">
+    <value>Keine Rechte, diese Tabelle zu ändern.</value>
+  </data>
+  <data name="WriteFailedReadOnly" xml:space="preserve">
+    <value>Die Verbindung ist schreibgeschützt.</value>
+  </data>
+  <data name="WriteFailedOther" xml:space="preserve">
+    <value>Oracle hat die Änderung abgelehnt.</value>
+  </data>
+  <data name="EditInLobEditor" xml:space="preserve">
+    <value>{0} im LOB-Editor bearbeiten (Doppelklick).</value>
+  </data>
+  <data name="NumberTooPreciseToEdit" xml:space="preserve">
+    <value>Zahlen mit mehr als 28 Stellen lassen sich hier nicht bearbeiten.</value>
+  </data>
+  <data name="RowMarkedForDeletion" xml:space="preserve">
+    <value>Die Zeile ist zum Löschen markiert.</value>
+  </data>
+  <data name="NotALobColumn" xml:space="preserve">
+    <value>{0} ist keine LOB-Spalte.</value>
+  </data>
+  <data name="WorkspaceReadOnlyUnlockToEdit" xml:space="preserve">
+    <value>Der Workspace ist schreibgeschützt – zum Ändern freischalten.</value>
+  </data>
+  <data name="ExportSkippedOne" xml:space="preserve">
+    <value>{1} ({2}): {0} Wert nicht exportiert – {3}.</value>
+  </data>
+  <data name="ExportSkippedOther" xml:space="preserve">
+    <value>{1} ({2}): {0} Werte nicht exportiert – {3}.</value>
+  </data>
+  <data name="ExportReasonOnlyLength" xml:space="preserve">
+    <value>nur die Länge geladen</value>
+  </data>
+  <data name="ExportReasonOnlyPreview" xml:space="preserve">
+    <value>nur die Vorschau geladen</value>
+  </data>
+  <data name="ExportReasonTypeNotExported" xml:space="preserve">
+    <value>Typ wird nicht exportiert</value>
+  </data>
+  <data name="LobEmpty" xml:space="preserve">
+    <value>‹leer›</value>
+  </data>
+  <data name="CharacterCountOne" xml:space="preserve">
+    <value>{0:N0} Zeichen</value>
+  </data>
+  <data name="CharacterCountOther" xml:space="preserve">
+    <value>{0:N0} Zeichen</value>
+  </data>
+  <data name="ByteCountOne" xml:space="preserve">
+    <value>{0:N0} Byte</value>
+  </data>
+  <data name="ByteCountOther" xml:space="preserve">
+    <value>{0:N0} Bytes</value>
+  </data>
+</root>
