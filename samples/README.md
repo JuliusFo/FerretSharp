@@ -16,4 +16,4 @@ It maps the sample database (`tools/sample-db`, including `05-clr-model.sql` and
 
 To try it: build the solution (or `dotnet build samples/FerretSharp.SampleModel.Data`), then in FerretSharp edit the
 connection to the sample database and enter
-`samples\FerretSharp.SampleModel.Data\FerretSharp.SampleModel.Data.csproj` under "C#-Modell".
+`samples\FerretSharp.SampleModel.Data\FerretSharp.SampleModel.Data.csproj` under “C# model”.

@@ -141,8 +141,7 @@ Regeln:
 
 ## 8. Als Nächstes (Details und Entscheidungen des Nutzers: `docs/roadmap.md`)
 
-- **WP-29** Englische Oberfläche (Standard Englisch, Deutsch wählbar; `[Display]`-Namen und Formatkultur bleiben deutsch), danach README und Screenshots auf Englisch. Vor WP-22.
-- **WP-22** DDL im SQL-Editor (auf schreibbaren Workspaces, Rollback offener Transaktionen nur nach Bestätigung, `TRUNCATE` bleibt abgewiesen; nach WP-29).
+- **WP-22** DDL im SQL-Editor (auf schreibbaren Workspaces, Rollback offener Transaktionen nur nach Bestätigung, `TRUNCATE` bleibt abgewiesen).
 - **WP-23** Tabellen-Designer + Entity aus Tabelle, Indizes anlegen (nach WP-22).
 - **WP-26** Audit-/Historientabellen aus einer Vorlagendatei (nach WP-22/23).
 - PL/SQL ausführen und bearbeiten (Stufen 2/3 nach WP-28) stehen im Backlog; Bearbeiten hängt an der PL/SQL-Entscheidung von WP-22/26.
