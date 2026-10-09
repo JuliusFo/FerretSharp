@@ -276,6 +276,9 @@
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
 
+    [CascadingParameter]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
     [Parameter, EditorRequired]
     public LinqTab Tab { get; set; } = null!;
 
@@ -546,6 +549,7 @@
             return;
         }
 
+        Lifecycle.Editing.NoteStatement(Tab, written);
         (_written, _writtenIn, _writtenElapsed) = (written, Workspaces.TransactionOf(Tab.WorkspaceId)?.StartedAt, elapsed);
         Shell.ReloadTableTabs(Tab.WorkspaceId); // they may show the changed rows
 

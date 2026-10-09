@@ -183,6 +183,9 @@ public sealed class RowChange
 public sealed class FlushBatch
 {
     internal List<(RowChange Change, OperationKind Kind, RowChange.Snapshot Before, IReadOnlyDictionary<int, object?> Values)> Items { get; } = [];
+
+    /// <summary>The rows written, in the order written (jump to a row from the change overview, WP-30).</summary>
+    public IReadOnlyList<RowChange> Rows => Items.Select(i => i.Change).ToList();
 }
 
 /// <summary>A pending change as it will be written: the input for the DML.</summary>

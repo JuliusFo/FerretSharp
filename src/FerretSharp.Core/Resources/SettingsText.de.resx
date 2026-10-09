@@ -240,4 +240,13 @@
   <data name="KeySpace" xml:space="preserve">
     <value>Leertaste</value>
   </data>
+  <data name="ActionUndoEdit" xml:space="preserve">
+    <value>Ausstehende Änderung zurücknehmen</value>
+  </data>
+  <data name="ActionRedoEdit" xml:space="preserve">
+    <value>Ausstehende Änderung wiederholen</value>
+  </data>
+  <data name="HintEditHistory" xml:space="preserve">
+    <value>Nur im Grid, Zelle für Zelle; geschriebene Änderungen nimmt ↶ in der Statusleiste zurück.</value>
+  </data>
 </root>

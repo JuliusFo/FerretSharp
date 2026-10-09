@@ -157,31 +157,31 @@
         var counts = age is { } a
             ? TextFormat.Format(ShellText.Status_TransactionAge, Age(a), edits.Pending, edits.Flushed)
             : TextFormat.Format(ShellText.Changes_PendingWritten, edits.Pending, edits.Flushed);
+        var busy = Editing.IsBusy(workspace.WorkspaceId);
+        var redoBlocker = edits.CanRedo ? Editing.RedoBlocker(workspace) : null;
         return @<text>
-            <span class="item tx @(age > LongTransaction ? "warn" : "")"
-                  title="@(age > LongTransaction ? ShellText.Status_LongTransactionTitle : ShellText.Status_TransactionTitle)">
+            @* WP-30: the counts open the change overview (it replaced the tooltip list and the "SQL" button). *@
+            <button class="item tx status-link @(age > LongTransaction ? "warn" : "") @(Shell.ChangesOpen ? "open" : "")"
+                    title="@((age > LongTransaction ? ShellText.Status_LongTransactionTitle : ShellText.Status_TransactionTitle) + Environment.NewLine + ShellText.Changes_ToggleTitle)"
+                    aria-pressed="@(Shell.ChangesOpen ? "true" : "false")" @onclick="Shell.ToggleChanges">
                 <span class="dot @(edits.Pending > 0 ? "pending" : "flushed")"></span>
                 @counts
-            </span>
-            @if (edits.Actions.Count > 0)
-            {
-                <span class="item tx" title="@ActionsTooltip(edits.Actions)">@TextFormat.Plural(edits.Actions.Count, ShellText.Status_ActionsUncommittedOne, ShellText.Status_ActionsUncommittedOther)</span>
-            }
+                @if (edits.Actions.Count > 0)
+                {
+                    <span>· @TextFormat.Plural(edits.Actions.Count, ShellText.Status_ActionsUncommittedOne, ShellText.Status_ActionsUncommittedOther)</span>
+                }
+            </button>
             <span class="status-group">
-            <button class="status-btn" title="@TextFormat.Format(ShellText.Status_FlushTitle, Shortcuts.Hint(ShortcutAction.Flush))" disabled="@(Editing.IsBusy(workspace.WorkspaceId) || edits.Pending == 0)" @onclick="() => Editing.FlushAsync(workspace)">@ShellText.Status_Flush</button>
+            <button class="status-btn" title="@TextFormat.Format(ShellText.Status_FlushTitle, Shortcuts.Hint(ShortcutAction.Flush))" disabled="@(busy || edits.Pending == 0)" @onclick="() => Editing.FlushAsync(workspace)">@ShellText.Status_Flush</button>
             <button class="status-btn" title="@(edits.Actions is [.., var last] ? TextFormat.Format(ShellText.Status_UndoTitle, last.Display, SourceOf(last)) : ShellText.Status_NothingToUndo)"
-                    disabled="@(Editing.IsBusy(workspace.WorkspaceId) || !edits.CanUndo)" @onclick="() => Editing.UndoLastAsync(workspace, edits.Actions is [.., var newest] ? newest.Id : null)">↶</button>
-            <button class="status-btn" title="@ShellText.Status_ShowPendingSql" disabled="@(edits.Pending == 0)" @onclick="() => Lifecycle.ShowPendingSql(workspace)">SQL</button>
-            <button class="status-btn commit" title="@TextFormat.Format(ShellText.Status_CommitTitle, Shortcuts.Hint(ShortcutAction.Commit))" disabled="@Editing.IsBusy(workspace.WorkspaceId)" @onclick="() => Lifecycle.RequestCommitAsync(workspace)">Commit</button>
-            <button class="status-btn danger" title="@ShellText.DiscardAll" disabled="@Editing.IsBusy(workspace.WorkspaceId)" @onclick="() => Lifecycle.RequestRollback(workspace)">Rollback</button>
+                    disabled="@(busy || !edits.CanUndo)" @onclick="() => Editing.UndoLastAsync(workspace, edits.Actions is [.., var newest] ? newest.Id : null)">↶</button>
+            <button class="status-btn" title="@(edits.Undone is [var next, ..] ? redoBlocker ?? TextFormat.Format(ShellText.Status_RedoTitle, next.Display, SourceOf(next)) : ShellText.Status_NothingToRedo)"
+                    disabled="@(busy || !edits.CanRedo || redoBlocker is not null)" @onclick="() => edits.Undone is [var redo, ..] ? Lifecycle.RequestRedo(workspace, redo) : Task.CompletedTask">↷</button>
+            <button class="status-btn commit" title="@TextFormat.Format(ShellText.Status_CommitTitle, Shortcuts.Hint(ShortcutAction.Commit))" disabled="@busy" @onclick="() => Lifecycle.RequestCommitAsync(workspace)">Commit</button>
+            <button class="status-btn danger" title="@ShellText.DiscardAll" disabled="@busy" @onclick="() => Lifecycle.RequestRollback(workspace)">Rollback</button>
             </span>
         </text>;
     }
-
-    /// <summary>The uncommitted writes, newest first – ↶ takes back the first one listed.</summary>
-    private static string ActionsTooltip(IReadOnlyList<WriteAction> actions) =>
-        ShellText.Status_ActionsTooltip + Environment.NewLine
-        + string.Join(Environment.NewLine, actions.Reverse().Select(a => $"{a.At.ToLocalTime():HH:mm:ss}  {a.Display} ({SourceOf(a)})"));
 
     private static string SourceOf(WriteAction action) => action.Kind == WriteActionKind.Grid ? "Grid" : "SQL/LINQ";
 

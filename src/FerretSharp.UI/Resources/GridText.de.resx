@@ -654,4 +654,25 @@
   <data name="Editing_NoPending" xml:space="preserve">
     <value>-- Keine ausstehenden Änderungen.</value>
   </data>
+  <data name="Editing_UndoneMany" xml:space="preserve">
+    <value>Zurückgenommen: {0} Aktionen – Grid-Änderungen sind wieder ausstehend.</value>
+  </data>
+  <data name="Editing_Redone" xml:space="preserve">
+    <value>Wiederholt: {0}.</value>
+  </data>
+  <data name="Editing_RedoTabClosed" xml:space="preserve">
+    <value>Wiederholen nicht möglich: Der Tab der Grid-Änderungen ist geschlossen.</value>
+  </data>
+  <data name="Editing_RedoEditedSince" xml:space="preserve">
+    <value>Wiederholen nicht möglich: Die Änderungen in {0} wurden inzwischen bearbeitet oder verworfen. Die Bearbeitung im Grid zurücknehmen oder die Änderungen mit „Schreiben“ schreiben.</value>
+  </data>
+  <data name="Changes_RowNotLoaded" xml:space="preserve">
+    <value>Die Zeile ist nicht unter den geladenen Zeilen – dorthin scrollen oder nach ihrem Schlüssel filtern.</value>
+  </data>
+  <data name="Grid_NothingToUndoEdit" xml:space="preserve">
+    <value>Keine ausstehende Änderung zum Zurücknehmen in diesem Tab.</value>
+  </data>
+  <data name="Grid_NothingToRedoEdit" xml:space="preserve">
+    <value>Keine ausstehende Änderung zum Wiederholen in diesem Tab.</value>
+  </data>
 </root>

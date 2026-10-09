@@ -1,0 +1,321 @@
+@* Open changes of the active workspace (WP-30), beside the tabs: what is pending (only in FerretSharp), what is written
+   but not committed (in the transaction, rows locked) and what was undone and can be redone – with the SQL, undo up to
+   an action, redo, discarding and jumps to the row or the tab a change came from. *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Data
+@inject ConnectionHub Hub
+@inject ShortcutService Shortcuts
+
+<aside class="changes-panel" aria-label="@ShellText.Changes_Title">
+    <header class="changes-head">
+        <strong>@ShellText.Changes_Title</strong>
+        @if (Workspace is { } shown)
+        {
+            <span class="changes-ws" title="@Lifecycle.WorkspaceName(shown.WorkspaceId)">@Lifecycle.WorkspaceName(shown.WorkspaceId)</span>
+        }
+        <span class="spacer"></span>
+        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="Shell.CloseChanges">✕</button>
+    </header>
+
+    @if (Workspace is not { } workspace)
+    {
+        <div class="changes-empty">@ShellText.Changes_NoWorkspace</div>
+    }
+    else
+    {
+        var summary = Editing.SummaryOf(workspace);
+        var busy = Editing.IsBusy(workspace.WorkspaceId);
+        var pending = ChangeOverview.Pending(workspace, Presentations.For);
+        <div class="changes-tx">
+            <span class="changes-tx-text">
+                @if (summary.Transaction is { Mode: TransactionMode.ReadWrite, StartedAt: { } started })
+                {
+                    @TextFormat.Format(ShellText.Changes_TransactionOpen, Age(DateTimeOffset.Now - started))
+                }
+                else
+                {
+                    @ShellText.Changes_NoTransaction
+                }
+            </span>
+            @if (summary.HasWork)
+            {
+                <span class="status-group">
+                    <button class="status-btn" title="@TextFormat.Format(ShellText.Status_FlushTitle, Shortcuts.Hint(ShortcutAction.Flush))" disabled="@(busy || summary.Pending == 0)" @onclick="() => Editing.FlushAsync(workspace)">@ShellText.Status_Flush</button>
+                    <button class="status-btn commit" title="@TextFormat.Format(ShellText.Status_CommitTitle, Shortcuts.Hint(ShortcutAction.Commit))" disabled="@busy" @onclick="() => Lifecycle.RequestCommitAsync(workspace)">Commit</button>
+                    <button class="status-btn danger" title="@ShellText.DiscardAll" disabled="@busy" @onclick="() => Lifecycle.RequestRollback(workspace)">Rollback</button>
+                </span>
+            }
+        </div>
+
+        <div class="changes-body">
+            <section>
+                <h3 class="changes-section" title="@ShellText.Changes_PendingTitle">
+                    <span>@ShellText.Changes_SectionPending</span><span class="changes-count">@summary.Pending</span>
+                    <span class="spacer"></span>
+                    @if (summary.Pending > 0)
+                    {
+                        <button class="link-btn" title="@ShellText.Status_ShowPendingSql" @onclick="() => Lifecycle.ShowPendingSql(workspace)">@ShellText.Changes_ShowSql</button>
+                    }
+                </h3>
+                @if (pending.Count == 0)
+                {
+                    <div class="changes-none">@ShellText.Changes_NothingPending</div>
+                }
+                @foreach (var group in pending)
+                {
+                    var tab = group.Tab;
+                    <div class="changes-group" @key="tab.Id">
+                        <div class="changes-group-head">
+                            <button class="link-btn changes-table" title="@ShellText.Changes_ShowTab" @onclick="() => Shell.ActivateTab(tab)">@tab.Table.DisplayName</button>
+                            <span class="spacer"></span>
+                            <button class="link-btn" title="@ShellText.Changes_DiscardTabTitle" disabled="@busy" @onclick="() => Discard(tab, t => t.DiscardPending())">@GridText.Grid_Discard</button>
+                        </div>
+                        @foreach (var row in group.Rows)
+                        {
+                            <div class="change-row" @key="row.Change">
+                                <div class="change-row-head">
+                                    <span class="change-kind @KindClass(row.Kind)">@KindLabel(row.Kind)</span>
+                                    <span class="change-key" title="@(string.Join(", ", tab.Changes!.Table.PrimaryKey))">@(row.Key ?? ShellText.Changes_NewRow)</span>
+                                    <span class="spacer"></span>
+                                    <button class="icon-btn ghost small" title="@ShellText.Changes_ShowRow" @onclick="() => Shell.ShowRow(tab, row.Change)">⤴</button>
+                                    <button class="icon-btn ghost small" title="@ShellText.Changes_DiscardRowTitle" disabled="@busy" @onclick="() => Discard(tab, t => DiscardRow(t, row))">✕</button>
+                                </div>
+                                @foreach (var cell in row.Cells)
+                                {
+                                    <div class="change-cell" @key="cell.Column">
+                                        <span class="change-col" title="@cell.Label">@cell.Label</span>
+                                        <span class="change-values">
+                                            @if (row.Kind == OperationKind.Update)
+                                            {
+                                                <span class="change-old">@Value(cell.Old)</span>
+                                                <span class="change-arrow">→</span>
+                                            }
+                                            <span class="change-new">@Value(cell.New)</span>
+                                        </span>
+                                        @if (row.Kind == OperationKind.Update)
+                                        {
+                                            <button class="icon-btn ghost small" title="@ShellText.Changes_DiscardCellTitle" disabled="@busy" @onclick="() => Discard(tab, t => t.Revert(row.Change, cell.Column))">✕</button>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </section>
+
+            <section>
+                <h3 class="changes-section" title="@ShellText.Changes_WrittenTitle">
+                    <span>@ShellText.Changes_SectionWritten</span><span class="changes-count">@summary.Actions.Count</span>
+                </h3>
+                @if (summary.Actions.Count == 0)
+                {
+                    <div class="changes-none">@ShellText.Changes_NothingWritten</div>
+                }
+                @* Newest first, like the rollback: "up to here" takes back the action and all above it. *@
+                @for (var i = summary.Actions.Count - 1; i >= 0; i--)
+                {
+                    var index = i;
+                    var action = summary.Actions[i];
+                    var newest = summary.Actions[^1];
+                    <div class="change-action @(_undoFrom is { } from && index >= from ? "goes" : "")" @key="action.Id">
+                        @ActionHead(workspace, action)
+                        <div class="change-action-tools">
+                            @Source(workspace, action)
+                            <span class="spacer"></span>
+                            <button class="status-btn" title="@ShellText.Changes_UndoToTitle" disabled="@busy"
+                                    @onmouseenter="() => _undoFrom = index" @onmouseleave="() => _undoFrom = null"
+                                    @onfocus="() => _undoFrom = index" @onblur="() => _undoFrom = null"
+                                    @onclick="() => UndoToAsync(workspace, action, newest)">@ShellText.Changes_UndoTo</button>
+                        </div>
+                        @Statements(action)
+                    </div>
+                }
+            </section>
+
+            @if (summary.Undone.Count > 0)
+            {
+                var blocker = Editing.RedoBlocker(workspace);
+                <section>
+                    <h3 class="changes-section" title="@ShellText.Changes_UndoneTitle">
+                        <span>@ShellText.Changes_Undone</span><span class="changes-count">@summary.Undone.Count</span>
+                    </h3>
+                    @for (var i = 0; i < summary.Undone.Count; i++)
+                    {
+                        var action = summary.Undone[i];
+                        var next = i == 0;
+                        <div class="change-action undone" @key="action.Id">
+                            @ActionHead(workspace, action)
+                            <div class="change-action-tools">
+                                @Source(workspace, action)
+                                <span class="spacer"></span>
+                                @if (next)
+                                {
+                                    <button class="status-btn" disabled="@(busy || blocker is not null)"
+                                            title="@(blocker ?? (action.Kind == WriteActionKind.Grid ? ShellText.Changes_RedoGridTitle : ShellText.Changes_RedoStatementTitle))"
+                                            @onclick="() => Lifecycle.RequestRedo(workspace, action)">@ShellText.Changes_Redo</button>
+                                }
+                            </div>
+                            @if (next && blocker is not null)
+                            {
+                                <div class="form-note">@blocker</div>
+                            }
+                            @Statements(action)
+                        </div>
+                    }
+                </section>
+            }
+
+            @if (Editing.WithWork().Where(w => w != workspace).ToList() is { Count: > 0 } others)
+            {
+                <section>
+                    <h3 class="changes-section"><span>@ShellText.Changes_OtherWorkspaces</span></h3>
+                    @foreach (var other in others)
+                    {
+                        var scope = Hub.ScopeOf(other);
+                        var otherSummary = Editing.SummaryOf(other);
+                        <div class="changes-other" @key="other.WorkspaceId">
+                            <button class="link-btn" title="@ShellText.Changes_ShowWorkspace" @onclick="() => Show(other)">@scope.Workspaces.Find(other.WorkspaceId)?.Name</button>
+                            <span class="muted">@scope.Profile?.Name</span>
+                            <span class="spacer"></span>
+                            <span class="muted">@TextFormat.Format(ShellText.Changes_OtherCounts, otherSummary.Pending, otherSummary.Actions.Count)</span>
+                        </div>
+                    }
+                </section>
+            }
+        </div>
+    }
+</aside>
+
+@code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public PresentationService Presentations { get; set; } = null!;
+
+    /// <summary>A parameter (not only cascaded), so the panel renders again whenever the shell does.</summary>
+    [Parameter, EditorRequired]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
+    private WorkspaceEditing Editing => Lifecycle.Editing;
+
+    private WorkspaceTabs? Workspace => Shell.ActiveWorkspace;
+
+    /// <summary>The written action whose "up to here" the mouse is on: it and every later one are marked.</summary>
+    private int? _undoFrom;
+
+    private async Task UndoToAsync(WorkspaceTabs workspace, WriteAction action, WriteAction newest)
+    {
+        _undoFrom = null;
+        await Editing.UndoToAsync(workspace, action.Id, newest.Id);
+    }
+
+    /// <summary>Discards pending changes of a tab; its grid fetches the loaded rows again and redraws.</summary>
+    private void Discard(TableTab tab, Action<ChangeTracker> discard)
+    {
+        if (tab.Changes is not { } tracker)
+        {
+            return;
+        }
+
+        discard(tracker);
+        Shell.RequestTabCommand(tab, TabCommand.Reload);
+        Shell.NotifyChanged();
+    }
+
+    private static void DiscardRow(ChangeTracker tracker, PendingRow row)
+    {
+        if (row.Kind == OperationKind.Insert)
+        {
+            tracker.Delete(row.Change);
+        }
+        else
+        {
+            tracker.Revert(row.Change.Key);
+        }
+    }
+
+    /// <summary>Another workspace with uncommitted work – of this connection or another one (WP-24).</summary>
+    private void Show(WorkspaceTabs other)
+    {
+        var scope = Hub.ScopeOf(other);
+        if (scope != Hub.Current)
+        {
+            Hub.Show(scope);
+        }
+
+        scope.Workspaces.Activate(other.WorkspaceId);
+        Shell.ShowExplorer();
+    }
+
+    private RenderFragment ActionHead(WorkspaceTabs workspace, WriteAction action) =>
+        @<div class="change-action-head">
+            <span class="change-time">@action.At.ToLocalTime().ToString("HH:mm:ss")</span>
+            <span class="change-desc" title="@action.Display">@action.Display</span>
+        </div>;
+
+    /// <summary>Where the write came from, with a jump there: the grid's table tab (its first row), the SQL or LINQ tab.</summary>
+    private RenderFragment Source(WorkspaceTabs workspace, WriteAction action)
+    {
+        var tab = Editing.SourceOf(workspace, action);
+        var kind = (action.Kind, tab) switch
+        {
+            (WriteActionKind.Grid, _) => "Grid",
+            (_, LinqTab) => "LINQ",
+            (_, SqlTab) => "SQL",
+            _ => "SQL/LINQ",
+        };
+        if (tab is null)
+        {
+            return @<span class="change-source">@kind</span>;
+        }
+
+        var title = tab switch
+        {
+            TableTab table => table.Table.DisplayName,
+            ITitledTab titled => titled.Title,
+            _ => "",
+        };
+        return @<button class="link-btn change-source" title="@ShellText.Changes_ShowSource" @onclick="() => ShowSource(workspace, action, tab)">@kind · @title</button>;
+    }
+
+    private void ShowSource(WorkspaceTabs workspace, WriteAction action, WorkspaceTab tab)
+    {
+        if (tab is TableTab table && Editing.GridWriteOf(workspace.WorkspaceId, action.Id) is { Batch.Rows: [var first, ..] })
+        {
+            Shell.ShowRow(table, first);
+        }
+        else
+        {
+            Shell.ActivateTab(tab);
+        }
+    }
+
+    private static RenderFragment Statements(WriteAction action) =>
+        action.Statements.Count == 0
+            ? @<text></text>
+            : @<details class="change-sql">
+                  <summary>@TextFormat.Plural(action.Statements.Count, ShellText.Changes_StatementsOne, ShellText.Changes_StatementsOther)</summary>
+                  <SqlCode Sql="@ChangeOverview.Sql(action)" />
+              </details>;
+
+    private static RenderFragment Value(string? text) =>
+        text is null ? @<span class="fs-null">NULL</span> : @<span title="@text">@text</span>;
+
+    private static string KindClass(OperationKind kind) => kind switch
+    {
+        OperationKind.Insert => "new",
+        OperationKind.Delete => "deleted",
+        _ => "changed",
+    };
+
+    private static string KindLabel(OperationKind kind) => kind switch
+    {
+        OperationKind.Insert => ShellText.Changes_KindNew,
+        OperationKind.Delete => ShellText.Changes_KindDeleted,
+        _ => ShellText.Changes_KindChanged,
+    };
+
+    private static string Age(TimeSpan age) => age.TotalMinutes < 1 ? "< 1 min" : $"{(int)age.TotalMinutes} min";
+}

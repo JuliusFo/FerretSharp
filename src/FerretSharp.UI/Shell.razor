@@ -69,6 +69,7 @@
                                 <ConnectionScopeView @key='(Shown, "tabbar")' Scope="Shown">
                                     <TabBar Lifecycle="_lifecycle" />
                                 </ConnectionScopeView>
+                                <div class="work-split">
                                 <div class="pages">
                                     @foreach (var scope in Hub.Open)
                                     {
@@ -105,6 +106,14 @@
                                     {
                                         <EmptyState Title="@ShellText.Shell_SelectTable" Text="@NoTabText" />
                                     }
+                                </div>
+                                @if (_state.ChangesOpen && Active.IsConnected)
+                                {
+                                    @* WP-30: the open changes of the active workspace, beside its tabs. *@
+                                    <ConnectionScopeView @key='(Shown, "changes")' Scope="Shown">
+                                        <ChangesPanel Lifecycle="_lifecycle" />
+                                    </ConnectionScopeView>
+                                }
                                 </div>
                             </div>
                         }
