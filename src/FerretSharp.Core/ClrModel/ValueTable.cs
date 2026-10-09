@@ -30,6 +30,7 @@ public sealed class ValueTable
     private readonly Dictionary<object, ValueMapping> _byValue = [];
     private readonly Dictionary<string, ValueOption> _byMember = new(StringComparer.Ordinal);
     private readonly List<(long Value, ValueMapping Mapping)>? _flags;
+    private readonly List<(long Value, ValueMapping Mapping)>? _singleFlags;
 
     private ValueTable(PropertyExport property, ColumnInfo column)
     {
@@ -51,7 +52,12 @@ public sealed class ValueTable
         }
 
         Options = options;
-        _flags = FlagsOf(property);
+        _flags = _category == ColumnCategory.Number ? FlagsOf(property) : null;
+        if (_flags is not null)
+        {
+            _singleFlags = SingleFlags(_flags);
+            Flags = _singleFlags.Select(f => _byMember[f.Mapping.Name]).ToList();
+        }
     }
 
     public PropertyExport Property { get; }
@@ -61,6 +67,12 @@ public sealed class ValueTable
 
     /// <summary>Members in declaration order (by value for enums, as <c>Enum.GetValues</c> returns them).</summary>
     public IReadOnlyList<ValueOption> Options { get; }
+
+    /// <summary>
+    /// A flags enum stored as its number: the single flags to tick (members that are no combination of other members),
+    /// by value; null for other enums and bools. Their <see cref="ValueOption.Value"/> is the flag's number.
+    /// </summary>
+    public IReadOnlyList<ValueOption>? Flags { get; }
 
     /// <summary>A table for the property's values, or null if it has none (no enum, bool without converter).</summary>
     public static ValueTable? For(PropertyExport? property, ColumnInfo column)
@@ -90,8 +102,9 @@ public sealed class ValueTable
     public ValueOption? OptionOf(object? value) => Find(value) is { } mapping ? _byMember.GetValueOrDefault(mapping.Name) : null;
 
     /// <summary>
-    /// <c>Gewerbe (2)</c> for an enum, <c>true</c>/<c>false</c> for a bool; flags combinations as <c>Lesen | Schreiben (3)</c>.
-    /// A value without a member stays as the database has it and is marked unknown.
+    /// <c>Gewerbe (2)</c> for an enum, <c>true</c>/<c>false</c> for a bool; a flags enum lists every flag set
+    /// (<c>Lesen, Schreiben (3)</c>), also for a value that has a member of its own. A value without a member stays as the
+    /// database has it and is marked unknown.
     /// </summary>
     public PresentedValue Present(object? value)
     {
@@ -101,13 +114,83 @@ public sealed class ValueTable
             return new PresentedValue(null);
         }
 
+        if (_singleFlags is not null && FlagsSet(value) is { } set)
+        {
+            return PresentFlags(set, raw);
+        }
+
         if (Find(value) is { } mapping)
         {
             return new PresentedValue(IsBool ? Shown(mapping) : $"{Shown(mapping)} ({raw})",
                 Tooltip: mapping.DisplayName is null ? null : $"{Property.ClrType}.{mapping.Name}");
         }
 
-        return FlagNames(value) is { } names ? new PresentedValue($"{names} ({raw})") : new PresentedValue(raw, Unknown: true);
+        return new PresentedValue(raw, Unknown: true);
+    }
+
+    /// <summary>
+    /// The flags set in a value of a flags enum (single flags, smallest first) and the bits no member stands for; null if
+    /// the value is no whole number ≥ 0 or the enum is no flags enum stored as its number.
+    /// </summary>
+    public FlagsValue? FlagsSet(object? value)
+    {
+        if (_singleFlags is null || KeyOf(value) is not decimal d || d != decimal.Truncate(d) || d < 0 || d > long.MaxValue)
+        {
+            return null;
+        }
+
+        var bits = (long)d;
+        var set = _singleFlags.Where(f => (bits & f.Value) == f.Value).ToList();
+        var known = set.Aggregate(0L, (all, f) => all | f.Value);
+        return new FlagsValue(bits, set.Select(f => _byMember[f.Mapping.Name]).ToList(), bits & ~known);
+    }
+
+    /// <summary>The flags of an edit text (<c>3</c>, also <c>3,0</c>), to tick them in the editor; null if it is no flags value.</summary>
+    public FlagsValue? FlagsOfText(string text) =>
+        FilterRules.TryParseNumber(text, out var number) ? FlagsSet(number) : null;
+
+    /// <summary>The edit text of a flags value: the number, invariant.</summary>
+    public static string FlagsText(long bits) => bits.ToString(CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// An edit text with a flag (its number as <see cref="ValueOption.Value"/>) ticked or not; NULL or a text that is no
+    /// flags value starts from no flag.
+    /// </summary>
+    public string WithFlag(string text, string flag, bool set)
+    {
+        var bits = FlagsOfText(text)?.Bits ?? 0;
+        var value = long.Parse(flag, NumberStyles.Integer, CultureInfo.InvariantCulture);
+        return FlagsText(set ? bits | value : bits & ~value);
+    }
+
+    private PresentedValue PresentFlags(FlagsValue set, string raw)
+    {
+        if (set.Bits == 0)
+        {
+            // No flag set: the member for 0 if there is one (Keine), else just the number – a valid value of a flags enum.
+            return Find(0m) is { } none
+                ? new PresentedValue($"{Shown(none)} ({raw})", Tooltip: none.DisplayName is null ? null : $"{Property.ClrType}.{none.Name}")
+                : new PresentedValue(raw);
+        }
+
+        if (set.Flags.Count == 0)
+        {
+            return new PresentedValue(raw, Unknown: true);
+        }
+
+        var names = set.Flags.Select(f => f.Name).ToList();
+        if (set.Rest != 0)
+        {
+            names.Add(FlagsText(set.Rest));
+        }
+
+        var lines = set.Flags.Select(f => f.Member is null ? f.Label : $"{f.Label} · {Property.ClrType}.{f.Member}").ToList();
+        if (set.Rest != 0)
+        {
+            lines.Add($"{FlagsText(set.Rest)} (kein Member)");
+        }
+
+        return new PresentedValue($"{string.Join(", ", names)} ({raw})", Unknown: set.Rest != 0, Tooltip: string.Join("\n", lines));
     }
 
     /// <summary>
@@ -177,7 +260,18 @@ public sealed class ValueTable
         return flags.OrderByDescending(f => f.Item1).ToList();
     }
 
-    private string? FlagNames(object? value) => CombinedMembers(value) is { } members ? string.Join(" | ", members.Select(Shown)) : null;
+    /// <summary>
+    /// The members that are no combination of other members (<c>Lesen</c>, <c>Schreiben</c>, not <c>LesenUndSchreiben</c>):
+    /// the flags to tick, smallest first. Aliases (the same value) count once.
+    /// </summary>
+    private static List<(long Value, ValueMapping Mapping)> SingleFlags(List<(long Value, ValueMapping Mapping)> flags)
+    {
+        var distinct = flags.DistinctBy(f => f.Value).ToList();
+        return distinct
+            .Where(f => distinct.Where(o => o.Value != f.Value && (o.Value & f.Value) == o.Value).Aggregate(0L, (all, o) => all | o.Value) != f.Value)
+            .OrderBy(f => f.Value)
+            .ToList();
+    }
 
     /// <summary>The members a flags value combines, smallest first; null if it is no combination of members.</summary>
     private List<ValueMapping>? CombinedMembers(object? value)
@@ -202,3 +296,9 @@ public sealed class ValueTable
         return rest == 0 && members.Count > 0 ? members : null;
     }
 }
+
+/// <summary>A value of a flags enum taken apart.</summary>
+/// <param name="Bits">The whole value.</param>
+/// <param name="Flags">The single flags set in it, smallest first.</param>
+/// <param name="Rest">Bits no member stands for (0 if none).</param>
+public sealed record FlagsValue(long Bits, IReadOnlyList<ValueOption> Flags, long Rest);
