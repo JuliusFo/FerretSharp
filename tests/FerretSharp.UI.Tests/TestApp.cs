@@ -115,10 +115,7 @@ internal sealed class TestApp : IAsyncDisposable
         reader.GetSynonymTargetsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(SynonymTargets.None);
         reader.GetPlSqlObjectsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(_ => PlSqlObjects);
         reader.GetForeignKeysAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
-        var editor = Substitute.For<IDataEditor>();
-        editor.Transaction.Returns(new TransactionInfo(TransactionMode.ReadWrite, DateTimeOffset.Now));
-        editor.Actions.Returns([]);
-        editor.CommitAsync(Arg.Any<CancellationToken>()).Returns(_ => OnCommit?.Invoke() ?? Task.CompletedTask);
+        var editor = new FakeDataEditor(() => OnCommit);
         var connection = Substitute.For<IDatabaseConnection>();
         connection.Schema.Returns(reader);
         connection.Editor.Returns(editor);

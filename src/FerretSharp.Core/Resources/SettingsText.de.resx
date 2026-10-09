@@ -51,6 +51,12 @@
   <data name="ActionForward" xml:space="preserve">
     <value>Wieder vor</value>
   </data>
+  <data name="ActionCloseTab" xml:space="preserve">
+    <value>Tab schließen</value>
+  </data>
+  <data name="HintCloseTab" xml:space="preserve">
+    <value>Fragt vorher, wenn ausstehende Änderungen, ein eingegebener, nicht bestätigter Wert oder der Text eines SQL- oder LINQ-Tabs verloren gingen.</value>
+  </data>
   <data name="ActionApplyFilters" xml:space="preserve">
     <value>Filter anwenden</value>
   </data>
@@ -239,5 +245,17 @@
   </data>
   <data name="KeySpace" xml:space="preserve">
     <value>Leertaste</value>
+  </data>
+  <data name="ActionUndoEdit" xml:space="preserve">
+    <value>Ausstehende Änderung zurücknehmen</value>
+  </data>
+  <data name="ActionRedoEdit" xml:space="preserve">
+    <value>Ausstehende Änderung wiederholen</value>
+  </data>
+  <data name="HintEditHistory" xml:space="preserve">
+    <value>Nur im Grid, Zelle für Zelle; geschriebene Änderungen nimmt ↶ in der Statusleiste zurück.</value>
+  </data>
+  <data name="ActionToggleChanges" xml:space="preserve">
+    <value>Offene Änderungen zeigen/ausblenden</value>
   </data>
 </root>

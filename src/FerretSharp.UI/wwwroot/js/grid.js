@@ -541,7 +541,7 @@ export function create(elementId, dotnet, columns, options) {
   });
 
   // The grid's keys, in the capture phase (before AG Grid): each handler says whether the key was its.
-  element.addEventListener('keydown', e => onDeleteKey(e) || onCopyKey(e) || onFormKey(e) || onLobKey(e), true);
+  element.addEventListener('keydown', e => onDeleteKey(e) || onCopyKey(e) || onFormKey(e) || onLobKey(e) || onEditHistoryKey(e), true);
 
   const selectedRows = () => api.getSelectedNodes().map(n => n.rowIndex).filter(i => i != null);
 
@@ -606,6 +606,20 @@ export function create(elementId, dotnet, columns, options) {
     e.stopPropagation();
     const cell = api.getFocusedCell();
     dotnet.invokeMethodAsync('OnFormKey', cell && !cell.rowPinned ? cell.rowIndex : -1, newIdOf(api, cell), selectedRows()).catch(callFailed);
+    return true;
+  }
+
+  // Ctrl+Z / Ctrl+Y by default (WP-30, changeable): take back or apply again a pending edit of this tab. Only in the grid,
+  // not while a cell is edited (the input's own undo) – the SQL and LINQ editors keep their keys; written changes are
+  // taken back with ↶.
+  function onEditHistoryKey(e) {
+    if (!table || api.getEditingCells().length > 0) return false;
+    const combo = comboOf(e);
+    const undo = combo !== null && combo === localCombo('undoEdit');
+    if (!undo && (combo === null || combo !== localCombo('redoEdit'))) return false;
+    e.preventDefault();
+    e.stopPropagation();
+    dotnet.invokeMethodAsync('OnEditHistoryKey', undo).catch(callFailed);
     return true;
   }
 

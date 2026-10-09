@@ -99,6 +99,9 @@ public sealed class WorkspaceManager : IAsyncDisposable
     /// <summary>The uncommitted writes of the workspace's transaction (status bar, undo); empty while the session is not open.</summary>
     public IReadOnlyList<WriteAction> ActionsOf(Guid workspaceId) => _sessions.Connection(workspaceId)?.Editor.Actions ?? [];
 
+    /// <summary>The writes taken back that can be applied again (redo, WP-30), the next one first.</summary>
+    public IReadOnlyList<WriteAction> UndoneOf(Guid workspaceId) => _sessions.Connection(workspaceId)?.Editor.Undone ?? [];
+
     /// <summary>
     /// Whether the workspace may write: always on profiles without the read-only lock, on locked profiles (Prod by
     /// default) only after <see cref="UnlockAsync"/>.

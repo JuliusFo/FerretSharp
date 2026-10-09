@@ -14,8 +14,8 @@ namespace FerretSharp.Core.Oracle;
 /// </summary>
 internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
 {
-    /// <summary>The writes of the open transaction with their savepoints, oldest first; replaced, never changed (read by the UI thread).</summary>
-    private volatile Entry[] _actions = [];
+    /// <summary>The writes of the open transaction with their savepoints, and the ones taken back (redo, WP-30).</summary>
+    private readonly WriteLog _log = new();
     private int _counter;
 
     /// <summary>
@@ -25,13 +25,15 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
     /// </summary>
     private readonly SemaphoreSlim _writing = new(1, 1);
 
-    private sealed record Entry(WriteAction Action, string Savepoint);
-
     public TransactionInfo Transaction => session.Transaction;
 
     /// <summary>Only while a writing transaction is open: one that ended elsewhere (lost connection) took them along.</summary>
-    public IReadOnlyList<WriteAction> Actions =>
-        session.Transaction.Mode == TransactionMode.ReadWrite ? _actions.Select(e => e.Action).ToList() : [];
+    public IReadOnlyList<WriteAction> Actions => IsWriting ? _log.Actions : [];
+
+    /// <summary>Like <see cref="Actions"/>: only within the transaction they were taken back in.</summary>
+    public IReadOnlyList<WriteAction> Undone => IsWriting ? _log.Undone : [];
+
+    private bool IsWriting => session.Transaction.Mode == TransactionMode.ReadWrite;
 
     public Task<FlushResult> FlushAsync(
         TableDetails table, IReadOnlyList<PendingOperation> operations, FlushOptions options, CancellationToken cancellationToken) =>
@@ -42,17 +44,19 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
     private async Task<FlushResult> FlushCoreAsync(
         TableDetails table, IReadOnlyList<PendingOperation> operations, FlushOptions options, CancellationToken cancellationToken)
     {
+        var redone = options.RedoOf is { } redoOf ? CheckRedo(redoOf, WriteActionKind.Grid) : null;
         await BeginIfNeededAsync(cancellationToken);
         var savepoint = NextSavepoint("FS_FLUSH_");
         await session.SavepointAsync(savepoint, cancellationToken);
 
         var newKeys = new Dictionary<Guid, RowKey>();
         var inserted = new Dictionary<Guid, RowData>();
+        var statements = new List<QuerySpec>();
         foreach (var operation in operations)
         {
             try
             {
-                await ApplyAsync(table, operation, options, newKeys, inserted, cancellationToken);
+                statements.Add(await ApplyAsync(table, operation, options, newKeys, inserted, cancellationToken));
             }
             catch (Exception ex)
             {
@@ -69,8 +73,12 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
             }
         }
 
-        var action = new WriteAction(Guid.NewGuid(), WriteActionKind.Grid, DescribeFlush(table, operations), operations.Count, DateTimeOffset.Now);
-        Add(action, savepoint);
+        var action = new WriteAction(Guid.NewGuid(), WriteActionKind.Grid, DescribeFlush(table, operations), operations.Count, DateTimeOffset.Now)
+        {
+            Statements = statements,
+            RedoOf = redone?.Origin,
+        };
+        _log.Add(action, savepoint);
         return new FlushResult(newKeys, inserted) { Action = action };
     }
 
@@ -81,21 +89,54 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
     public Task<WriteAction?> UndoLastAsync(Guid? expected, CancellationToken cancellationToken) =>
         OneAtATimeAsync(async () =>
         {
-            if (Actions.Count == 0 || _actions is not [.., var last])
+            if (Actions is not [.., var last])
             {
                 return null;
             }
 
-            if (expected is { } id && last.Action.Id != id)
+            if (expected is { } id && last.Id != id)
             {
                 // Written meanwhile (a statement that was still running): ↶ would take back something the user did not pick.
-                throw new RefusedException(TextFormat.Format(OracleText.UndoWrittenMeanwhile, last.Action.Display));
+                throw new RefusedException(TextFormat.Format(OracleText.UndoWrittenMeanwhile, last.Display));
             }
 
-            await session.RollbackToSavepointAsync(last.Savepoint, cancellationToken);
-            Remove(last);
-            return (WriteAction?)last.Action;
+            await session.RollbackToSavepointAsync(_log.SavepointFor(last.Id, last.Id), cancellationToken);
+            _log.TakeBack(last.Id);
+            return (WriteAction?)last;
         }, cancellationToken);
+
+    public Task<IReadOnlyList<WriteAction>> UndoToAsync(Guid actionId, Guid newest, CancellationToken cancellationToken) =>
+        OneAtATimeAsync(async () =>
+        {
+            if (!IsWriting)
+            {
+                throw new RefusedException(DataText.ActionNoLongerOpen);
+            }
+
+            await session.RollbackToSavepointAsync(_log.SavepointFor(actionId, newest), cancellationToken);
+            return _log.TakeBack(actionId);
+        }, cancellationToken);
+
+    public Task<WriteAction> RedoAsync(Guid actionId, CancellationToken cancellationToken) =>
+        OneAtATimeAsync(() =>
+        {
+            var redone = CheckRedo(actionId, WriteActionKind.Statement);
+            return ExecuteCoreAsync(redone.Statements.Single(), redone, cancellationToken);
+        }, cancellationToken);
+
+    /// <summary>The write to apply again: the next redo of the open transaction, of the expected kind.</summary>
+    private WriteAction CheckRedo(Guid actionId, WriteActionKind kind)
+    {
+        if (!IsWriting)
+        {
+            throw new RefusedException(DataText.RedoNotPossible);
+        }
+
+        var redone = _log.CheckRedo(actionId);
+        return redone.Kind == kind
+            ? redone
+            : throw new InvalidOperationException($"{redone.Kind} actions are not redone by a {kind} write.");
+    }
 
     public Task CommitAsync(CancellationToken cancellationToken) =>
         OneAtATimeAsync(async () =>
@@ -109,7 +150,7 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
                 // A failed commit can end the transaction as well (ORA-02091); its savepoints are gone then.
                 if (session.Transaction.Mode == TransactionMode.None)
                 {
-                    _actions = [];
+                    _log.Clear();
                 }
             }
 
@@ -120,12 +161,12 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
         OneAtATimeAsync(async () =>
         {
             await session.RollbackAsync(cancellationToken);
-            _actions = [];
+            _log.Clear();
             return true;
         }, cancellationToken);
 
     public Task<WriteAction> ExecuteAsync(QuerySpec statement, CancellationToken cancellationToken) =>
-        OneAtATimeAsync(() => ExecuteCoreAsync(statement, cancellationToken), cancellationToken);
+        OneAtATimeAsync(() => ExecuteCoreAsync(statement, redone: null, cancellationToken), cancellationToken);
 
     private async Task<T> OneAtATimeAsync<T>(Func<Task<T>> write, CancellationToken cancellationToken)
     {
@@ -143,7 +184,8 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
     private string NextSavepoint(string prefix) =>
         prefix + Interlocked.Increment(ref _counter).ToString(System.Globalization.CultureInfo.InvariantCulture);
 
-    private async Task<WriteAction> ExecuteCoreAsync(QuerySpec statement, CancellationToken cancellationToken)
+    /// <param name="redone">The write a redo applies again; null for a new statement.</param>
+    private async Task<WriteAction> ExecuteCoreAsync(QuerySpec statement, WriteAction? redone, CancellationToken cancellationToken)
     {
         if (session.Transaction.Mode == TransactionMode.ReadOnly)
         {
@@ -165,8 +207,12 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
             throw;
         }
 
-        var action = new WriteAction(Guid.NewGuid(), WriteActionKind.Statement, DescribeStatement(statement.Sql), rows, DateTimeOffset.Now);
-        Add(action, savepoint);
+        var action = new WriteAction(Guid.NewGuid(), WriteActionKind.Statement, DescribeStatement(statement.Sql), rows, DateTimeOffset.Now)
+        {
+            Statements = [statement],
+            RedoOf = redone?.Origin,
+        };
+        _log.Add(action, savepoint);
         return action;
     }
 
@@ -175,15 +221,10 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
     {
         if (session.Transaction.Mode == TransactionMode.None)
         {
-            _actions = [];
+            _log.Clear();
             await session.BeginTransactionAsync(cancellationToken);
         }
     }
-
-    private void Add(WriteAction action, string savepoint) => _actions = [.. _actions, new Entry(action, savepoint)];
-
-    /// <summary>By identity, not by position: what was rolled back is exactly this entry.</summary>
-    private void Remove(Entry entry) => _actions = _actions.Where(e => !ReferenceEquals(e, entry)).ToArray();
 
     /// <summary>"KUNDEN: 2 changed, 1 new, 1 deleted".</summary>
     internal static string DescribeFlush(TableDetails table, IReadOnlyList<PendingOperation> operations)
@@ -208,8 +249,8 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
     /// </summary>
     private Task RollBackFlushAsync(string savepoint) => session.RollbackToSavepointAsync(savepoint, CancellationToken.None);
 
-
-    private async Task ApplyAsync(
+    /// <returns>The DML that ran (for <see cref="WriteAction.Statements"/>).</returns>
+    private async Task<QuerySpec> ApplyAsync(
         TableDetails table, PendingOperation operation, FlushOptions options,
         Dictionary<Guid, RowKey> newKeys, Dictionary<Guid, RowData> inserted, CancellationToken cancellationToken)
     {
@@ -220,7 +261,7 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
                 _ = await LockAsync(table, operation, [], options.LockWaitSeconds, cancellationToken) ?? throw new RowGoneException(operation);
                 var delete = DmlBuilder.Delete(table, operation.Key);
                 await session.ExecuteNonQueryAsync(delete.Sql, delete.Parameters, cancellationToken);
-                break;
+                return delete;
             }
 
             case OperationKind.Update:
@@ -242,7 +283,7 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
 
                 var update = DmlBuilder.Update(table, operation.Key, operation.Values);
                 await session.ExecuteNonQueryAsync(update.Sql, update.Parameters, cancellationToken);
-                break;
+                return update;
             }
 
             case OperationKind.Insert:
@@ -266,8 +307,11 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
                     newKeys[operation.Change.Id] = new RowKey.RowId(rowId);
                 }
 
-                break;
+                return insert;
             }
+
+            default:
+                throw new ArgumentOutOfRangeException(nameof(operation), operation.Kind, null);
         }
     }
 

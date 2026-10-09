@@ -842,4 +842,28 @@
     <value>no flag</value>
     <comment>Summary of the flags editor when no flag is ticked (value 0)</comment>
   </data>
+  <data name="Editing_UndoneMany" xml:space="preserve">
+    <value>Undone: {0} actions – grid changes are pending again.</value>
+    <comment>{0}: number of write actions undone (2 or more)</comment>
+  </data>
+  <data name="Editing_Redone" xml:space="preserve">
+    <value>Redone: {0}.</value>
+    <comment>{0}: the write action applied again</comment>
+  </data>
+  <data name="Editing_RedoTabClosed" xml:space="preserve">
+    <value>Can’t redo: the tab of the grid changes is closed.</value>
+  </data>
+  <data name="Editing_RedoEditedSince" xml:space="preserve">
+    <value>Can’t redo: the changes in {0} were edited or discarded since. Undo that edit in the grid, or write the changes with Write.</value>
+    <comment>{0}: table name</comment>
+  </data>
+  <data name="Changes_RowNotLoaded" xml:space="preserve">
+    <value>The row is not among the loaded rows – scroll there or filter by its key.</value>
+  </data>
+  <data name="Grid_NothingToUndoEdit" xml:space="preserve">
+    <value>No pending edit to undo in this tab.</value>
+  </data>
+  <data name="Grid_NothingToRedoEdit" xml:space="preserve">
+    <value>No pending edit to redo in this tab.</value>
+  </data>
 </root>

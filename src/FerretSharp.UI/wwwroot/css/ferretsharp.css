@@ -421,7 +421,8 @@ dl.keys dd { margin: 0; }
 .filter-pill { font-size: 10px; font-weight: 600; padding: 0 6px; border-radius: 8px; background: var(--accent-weak); color: var(--accent); }
 .tab-close { width: 22px; height: 22px; border: 0; border-radius: 5px; background: transparent; color: var(--faint); }
 .tab-close:hover { background: var(--hover); color: var(--text); }
-.pages { flex: 1; position: relative; min-height: 0; }
+.work-split { flex: 1; display: flex; min-height: 0; }
+.pages { flex: 1; position: relative; min-height: 0; min-width: 0; }
 .page { position: absolute; inset: 0; display: none; }
 .page.active { display: flex; }
 .table-item.open:not(.active) .name { font-weight: 600; }
@@ -1105,3 +1106,55 @@ table.parameters th:nth-child(2) { width: 32%; }
 table.parameters th:nth-child(3) { width: 96px; }
 table.parameters th:nth-child(5) { width: 80px; }
 table.parameters td { overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- open changes of the active workspace (WP-30): beside the tabs ---------- */
+.statusbar .item.tx.status-link.open { color: var(--accent); }
+.changes-panel { position: relative; flex: none; display: flex; flex-direction: column; width: 380px; min-width: 300px; max-width: 60%; min-height: 0; border-left: 1px solid var(--border); background: var(--surface); font-size: 12.5px; }
+.changes-head { display: flex; align-items: center; gap: 8px; height: 38px; flex: none; padding: 0 6px 0 12px; border-bottom: 1px solid var(--border); }
+.changes-head .spacer, .changes-group-head .spacer, .change-row-head .spacer, .change-action-tools .spacer, .changes-section .spacer, .changes-other .spacer { flex: 1; }
+.changes-ws { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.changes-tx { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; flex: none; padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--muted); }
+.changes-tx-text { flex: 1; min-width: 120px; }
+.changes-body { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 16px; }
+.changes-empty, .changes-none { padding: 6px 12px; color: var(--faint); }
+.changes-section { display: flex; align-items: center; gap: 6px; margin: 0; padding: 12px 12px 4px; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--faint); }
+.changes-section .link-btn { text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--accent); }
+.changes-count { padding: 0 6px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); letter-spacing: 0; }
+.changes-group { margin: 4px 8px 8px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.changes-group-head { display: flex; align-items: center; gap: 6px; padding: 5px 8px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.changes-group-head .link-btn, .change-action-tools .link-btn { padding: 0; }
+.changes-table { font: 600 12px var(--mono); text-decoration: none; }
+.changes-table:hover { text-decoration: underline; }
+.change-row { padding: 4px 8px 6px; border-top: 1px solid var(--border); }
+.change-row:first-of-type { border-top: 0; }
+.change-row-head { display: flex; align-items: center; gap: 6px; min-height: 24px; }
+.change-kind { flex: none; padding: 0 6px; border-radius: 5px; font-size: 10.5px; font-weight: 600; line-height: 16px; }
+.change-kind.changed { background: rgba(234, 179, 8, .22); color: #c07a00; }
+.change-kind.new { background: rgba(48, 164, 108, .16); color: var(--test); }
+.change-kind.deleted { background: var(--danger-weak); color: var(--danger); }
+.change-key { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 11.5px var(--mono); }
+.icon-btn.small { width: 22px; height: 22px; flex: none; border-color: transparent; font-size: 11px; }
+.change-cell { display: grid; grid-template-columns: minmax(80px, 34%) minmax(0, 1fr) 22px; gap: 6px; align-items: center; padding: 1px 0 1px 6px; }
+.change-col { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 11.5px var(--mono); color: var(--muted); }
+.change-values { display: flex; align-items: baseline; gap: 5px; min-width: 0; }
+.change-values > span:not(.change-arrow) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.change-old { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--faint); }
+.change-arrow { flex: none; color: var(--faint); }
+.change-new { font-weight: 600; }
+.change-action { margin: 4px 8px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; }
+.change-action.goes { border-color: var(--danger); background: var(--danger-weak); }
+.change-action.undone { border-style: dashed; color: var(--muted); }
+.change-action-head { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.change-time { flex: none; font: 11px var(--mono); color: var(--faint); font-variant-numeric: tabular-nums; }
+.change-desc { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.change-action-tools { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.change-source { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; color: var(--muted); }
+.change-sql { margin-top: 4px; }
+.change-sql summary { cursor: pointer; font-size: 11.5px; color: var(--muted); }
+.change-sql pre.sql { max-height: 240px; overflow: auto; }
+.change-action .form-note { margin: 6px 0 0; }
+.changes-other { display: flex; align-items: center; gap: 8px; padding: 3px 12px; }
+.changes-other .link-btn { padding: 0; }
+.commit-list { margin: 10px 0 0; padding-left: 18px; max-height: 220px; overflow: auto; font-size: 12.5px; }
+.commit-list li { margin: 2px 0; }
+.commit-list .change-time { margin-right: 6px; }

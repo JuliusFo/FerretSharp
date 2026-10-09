@@ -6,15 +6,43 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 ## [Unreleased]
 
 ### Added
-- The user interface speaks English and German (WP-29). English is the default – also for existing installations –, German can be chosen under *Settings › General › Language* and applies after a restart. Numbers and dates keep their current format; enum names from a linked C# project stay in the language of its resources. `--lang=en|de` overrides the language for one session (screenshots, tests).
+- *Close tab* as a shortcut action. It has no key yet: assign one under *Settings › Shortcuts*, e.g. Ctrl+W. Contributed by @ulbpccc.
 
 ### Changed
-- Flags enums (`[Flags]`, stored as their number) are edited as a drop-down list of check boxes instead of a single-choice list, in the grid and in the form. NULL is a check box of its own where allowed; bits no member stands for stay ticked as a line of their own.
+- Closing a tab also asks first if the text of a SQL or LINQ tab would be lost, or a value typed but not confirmed in the form.
+- New shortcut actions come without a key from now on, so they never take one you already use for something else.
+- Flags enums (`[Flags]`, stored as their number) are edited as a drop-down list of check boxes instead of a single-choice list, in the grid and in the form. NULL is a check box of its own where allowed; bits no member stands for stay ticked as a line of their own. Contributed by @ulbpccc.
 - Cells of a flags enum list every flag set (`Stammkunde, Lastschrift (5)`), also for a value that has a member of its own (`Premium = Stammkunde | Lastschrift`); the tooltip shows one flag per line. Members that combine others are no flags of their own. `0` without a member is a valid value, not marked.
 - Sample model: `Kunde.Merkmale` (flags enum `Kundenmerkmale`) with `tools/sample-db/08-clr-flags.sql`.
 
 ### Fixed
+- Closing a table tab with ✕ while a grid cell was being edited dropped the typed value without asking.
 - Cell tooltips with several lines (a value without member, the C# member behind a display text) ran their lines together; they now keep their line breaks.
+
+## [3.20.0] - 2026-10-09
+
+### Added
+- *Open changes* beside the tabs (WP-30, issue #7): click the counts in the status bar to see everything the active workspace has not committed.
+  - *Pending* changes per tab with the row key and each changed column old → new; discard a single value, a row or the whole tab; jump to the row; show them as SQL.
+  - *Written, not committed* actions, newest first, with time, where they came from (grid table, SQL or LINQ tab – click to go there) and the full SQL with bind values.
+  - *Undo up to here* takes back an action and every later one in one go (a savepoint takes back everything after it) – they are marked before you click. Grid changes become pending again.
+  - *Undone* actions can be redone in order (↷, also in the status bar), as long as nothing new was written: grid changes are written again with the usual lock and conflict check; a SQL or LINQ statement runs again with the same bind values after you confirm – if it changes another number of rows than the first time, you choose to keep or undo it.
+  - Other workspaces with open transactions are listed and one click away.
+  - Ctrl+Shift+U opens and closes it (changeable). Drag its left edge to make it wider; the width and whether it is open are kept for the next start.
+- Ctrl+Z / Ctrl+Y in the grid take back or apply again single pending edits (cells, new rows, deletion marks, discards) – the editors keep their own undo. Changeable under *Settings › Shortcuts*.
+- The commit confirmation on Production lists the actions and pending changes that will be committed.
+
+### Changed
+- The status bar's tooltip list of uncommitted actions and its "SQL" button are replaced by the change overview.
+
+## [3.19.0] - 2026-10-09
+
+### Added
+- The user interface speaks English and German (WP-29). English is the default – also for existing installations –, German can be chosen under *Settings › General › Language* and applies after a restart. Numbers and dates keep their current format; enum names from a linked C# project stay in the language of its resources. `--lang=en|de` overrides the language for one session (screenshots, tests).
+- The editors' own texts (find widget, context menu) and the C# compiler messages of the LINQ console follow the chosen language.
+
+### Fixed
+- German texts that used the plural for a single item ("1 Felder", "1 Sekunden"), "committed" spelled two ways, and a few typos.
 
 ## [3.18.1] - 2026-10-09
 

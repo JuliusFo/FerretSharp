@@ -2,6 +2,16 @@
 
 Aus der `CLAUDE.md` ausgelagert (Stand 3.14.0). Beim Start eines Pakets den Abschnitt lesen und den Plan mit dem Nutzer abstimmen. Nicht eingeplante Ideen: `docs/backlog.md`; abgeschlossene Pakete: `docs/work-packages.md`.
 
+## GitHub-Issues und Labels
+
+Entscheidung des Nutzers (2026-10-09). Issues bekommen eine Art und einen Status.
+- **Art:** `enhancement`, `bug`, `documentation`, `question`. Optional der Bereich: `area: grid`, `area: sql-editor`, `area: linq` oder `area: schema`.
+- **Status**, je Issue genau einer:
+  - `needs decision`: Das Issue hat offene Fragen. Die Antworten des Nutzers kommen beim Start des Pakets hierher in den Abschnitt des Pakets, danach wird das Label entfernt.
+  - `planned`: Das Issue ist als Paket eingeplant. In der Überschrift des Pakets hier steht der Link zum Issue.
+  - `done`: Das Issue ist umgesetzt und released. `planned` wird entfernt, dazu kommt ein Abschlusskommentar mit Version, Entscheidungen und dem, was offen bleibt (Backlog). Dann wird das Issue geschlossen.
+- Labels setzen dürfen nur Leute mit Triage-Rechten. Wer ein Issue anlegt, setzt in der Regel keine Labels; das geschieht beim Einplanen.
+
 ## Geplant (v4)
 
 Pakete aus dem Backlog, nach v3 mit dem Nutzer ausgewählt (2026-10-05). Versionen: Minor-Releases 3.x (nichts Inkompatibles).
@@ -10,7 +20,7 @@ Pakete aus dem Backlog, nach v3 mit dem Nutzer ausgewählt (2026-10-05). Version
 Wunsch des Nutzers (2026-10-06): Tabellen anlegen und ändern, passend zum DB-first-Ablauf („erst DB ändern, dann Entity“). Erste Stufe: DDL im SQL-Editor (und in Skripten) zulassen. Entscheidungen des Nutzers:
 - **Wo:** auf allen schreibbaren Workspaces – Profile ohne „Schreibgeschützt“ sowie **auch Prod nach dem Freischalten** (WP-10). Gesperrte Workspaces nie (READ-ONLY-Transaktion schützt nicht vor DDL, deshalb weiter Abweisung im Editor).
 - **Ausführen:** FerretSharp führt das DDL aus (nicht nur erzeugen/kopieren).
-- **Offene Transaktion:** Hat der Workspace eine Transaktion, wird eine **Meldung** ausgegeben und die **Transaktion abgebrochen** (Rollback der nicht committeten Änderungen), bevor das DDL läuft – sonst würde DDL sie still mitcommitten. Entschieden (2026-10-06): **Rollback nur nach Bestätigung** – der Dialog zeigt, was verworfen wird (ausstehende/geschriebene Grid-Änderungen, per SQL geänderte Zeilen); „Abbrechen“ führt das DDL nicht aus.
+- **Offene Transaktion:** Hat der Workspace eine Transaktion, wird eine **Meldung** ausgegeben und die **Transaktion abgebrochen** (Rollback der nicht committeten Änderungen), bevor das DDL läuft – sonst würde DDL sie still mitcommitten. Entschieden (2026-10-06): **Rollback nur nach Bestätigung** – der Dialog zeigt, was verworfen wird (ausstehende/geschriebene Grid-Änderungen, per SQL geänderte Zeilen); „Abbrechen“ führt das DDL nicht aus. Seit WP-30 gibt es dafür die Liste: `ChangeOverview` bzw. die Kompaktform im Prod-Commit-Dialog (`DialogHost`).
 - Vorschlag zur Umsetzung (beim Start mit dem Nutzer abstimmen):
   - Eigener enger Weg an `OracleSession` (z. B. `ExecuteDdlAsync`, `internal`): nur ein einzelnes DDL-Statement (`SqlStatementKind.Ddl`), nur ohne offene Transaktion, nie in einer gesperrten Session; `IsWriteStatement` und die Leseschranke bleiben unverändert. `ReadOnlyTests` erweitern. ADR.
   - Weiterhin abgewiesen: PL/SQL-Blöcke, `ALTER SESSION/SYSTEM`, `COMMIT`/`ROLLBACK` und **`TRUNCATE`** (Entscheidung des Nutzers: löscht alle Zeilen ohne Rollback – bleibt abgewiesen).

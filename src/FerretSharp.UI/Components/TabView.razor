@@ -83,7 +83,7 @@
             }
             <div class="grid-split">
                 <div class="grid-host">
-                    <FerretGrid @ref="_grid" Tab="Tab" Details="_details" OnPageLoaded="StateHasChanged"
+                    <FerretGrid @ref="_grid" Tab="Tab" Details="_details" OnPageLoaded="OnPageLoadedAsync"
                                 OnContextMenu="r => _menu = r" OnColumnMenu="r => _columnMenu = r"
                                 OnLobOpen="r => _lob = r" OnEditableChanged="StateHasChanged" OnFormRequested="OnFormRequested" />
                 </div>
@@ -496,6 +496,35 @@
         }
     }
 
+    /// <summary>A page arrived: the footer counts, and a row the change overview asked for may be there now.</summary>
+    private async Task OnPageLoadedAsync()
+    {
+        StateHasChanged();
+        await FocusRequestedRowAsync(lastTry: true);
+    }
+
+    /// <summary>
+    /// Focuses the row the change overview asked for (WP-30), once the grid has it; on the last try a row that is not
+    /// among the loaded ones is reported instead.
+    /// </summary>
+    private async Task FocusRequestedRowAsync(bool lastTry)
+    {
+        if (Tab.FocusRequest is not { } row || _grid is null)
+        {
+            return;
+        }
+
+        if (await _grid.FocusChangeAsync(row))
+        {
+            Tab.FocusRequest = null;
+        }
+        else if (lastTry)
+        {
+            Tab.FocusRequest = null;
+            Shell.Notify(GridText.Changes_RowNotLoaded);
+        }
+    }
+
     private void OnTabCommand(WorkspaceTab tab, TabCommand command)
     {
         if (tab != Tab)
@@ -529,6 +558,10 @@
                     break;
                 case TabCommand.FindColumn when Tab.Mode == TabMode.Structure && _columns is not null:
                     await _columns.FocusFilterAsync();
+                    break;
+                case TabCommand.FocusRow:
+                    SetMode(TabMode.Data);
+                    await FocusRequestedRowAsync(lastTry: Tab.RowsLoaded > 0 || Tab.AllRowsLoaded);
                     break;
             }
 

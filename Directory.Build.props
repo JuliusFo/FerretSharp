@@ -8,7 +8,7 @@
     <Product>FerretSharp</Product>
     <!-- English is the neutral language of the resources (WP-29, ADR 0017); German comes from satellite assemblies. -->
     <NeutralLanguage>en</NeutralLanguage>
-    <Version>3.18.1</Version>
+    <Version>3.20.0</Version>
   </PropertyGroup>
 
 </Project>
