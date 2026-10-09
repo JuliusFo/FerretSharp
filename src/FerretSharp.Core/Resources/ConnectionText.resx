@@ -33,4 +33,20 @@
   <data name="ClrProjectNotCsproj" xml:space="preserve">
     <value>Select the .csproj of the project with the DbContext.</value>
   </data>
+  <data name="NoPasswordSaved" xml:space="preserve">
+    <value>No password is saved for this connection. Enter it under “Edit”.</value>
+    <comment>"Edit" is the command that opens the connection dialog</comment>
+  </data>
+  <data name="FileEmpty" xml:space="preserve">
+    <value>{0} is empty.</value>
+    <comment>{0}: path of connections.json</comment>
+  </data>
+  <data name="FileFromNewerVersion" xml:space="preserve">
+    <value>{0} comes from a newer version of FerretSharp (format {1}).</value>
+    <comment>{0}: path of connections.json; {1}: format version number</comment>
+  </data>
+  <data name="InvalidFile" xml:space="preserve">
+    <value>{0} is not a valid connections JSON file: {1}</value>
+    <comment>{0}: path of connections.json; {1}: error message of the JSON reader</comment>
+  </data>
 </root>

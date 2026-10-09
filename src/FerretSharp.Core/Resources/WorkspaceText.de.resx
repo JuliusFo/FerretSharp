@@ -12,29 +12,26 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <data name="NameMissing" xml:space="preserve">
-    <value>Name fehlt.</value>
+  <data name="WorkspaceNotOpen" xml:space="preserve">
+    <value>Der Workspace ist nicht geöffnet.</value>
   </data>
-  <data name="UserMissing" xml:space="preserve">
-    <value>Benutzer fehlt.</value>
+  <data name="LastWorkspaceCannotClose" xml:space="preserve">
+    <value>Der letzte offene Workspace kann nicht geschlossen werden.</value>
   </data>
-  <data name="HostMissing" xml:space="preserve">
-    <value>Host fehlt.</value>
+  <data name="OnlyClosedCanBeDeleted" xml:space="preserve">
+    <value>Nur geschlossene Workspaces können gelöscht werden.</value>
   </data>
-  <data name="PortOutOfRange" xml:space="preserve">
-    <value>Port muss zwischen 1 und 65535 liegen.</value>
+  <data name="NoActiveConnection" xml:space="preserve">
+    <value>Keine Verbindung aktiv.</value>
   </data>
-  <data name="ServiceOrSidRequired" xml:space="preserve">
-    <value>Entweder Service Name oder SID angeben.</value>
+  <data name="NameInvalid" xml:space="preserve">
+    <value>Der Name darf nicht leer und höchstens {0} Zeichen lang sein.</value>
   </data>
-  <data name="TnsAliasMissing" xml:space="preserve">
-    <value>TNS-Alias fehlt.</value>
+  <data name="SaveFailed" xml:space="preserve">
+    <value>Workspace „{0}“ konnte nicht gespeichert werden: {1}</value>
   </data>
-  <data name="ClrProjectNotCsproj" xml:space="preserve">
-    <value>Bitte die .csproj des Projekts mit dem DbContext angeben.</value>
-  </data>
-  <data name="NoPasswordSaved" xml:space="preserve">
-    <value>Für diese Verbindung ist kein Passwort gespeichert. Bitte unter „Bearbeiten“ eingeben.</value>
+  <data name="CommitOrDiscardBeforeLock" xml:space="preserve">
+    <value>Erst committen oder verwerfen, dann sperren.</value>
   </data>
   <data name="FileEmpty" xml:space="preserve">
     <value>{0} ist leer.</value>
@@ -43,6 +40,6 @@
     <value>{0} stammt aus einer neueren FerretSharp-Version (Format {1}).</value>
   </data>
   <data name="InvalidFile" xml:space="preserve">
-    <value>{0} ist kein gültiges Verbindungs-JSON: {1}</value>
+    <value>{0} ist kein gültiges Workspace-JSON: {1}</value>
   </data>
 </root>

@@ -1,6 +1,7 @@
 using System.Text;
 using FerretSharp.Core.Data;
 using FerretSharp.Core.Query;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.Oracle;
@@ -16,7 +17,7 @@ public sealed record ParsedValue(object? Value, string? Error)
 }
 
 /// <summary>
-/// Editing rules per column (v2, WP-09): which columns can be edited, text → typed value with a German message on
+/// Editing rules per column (v2, WP-09): which columns can be edited, text → typed value with a localized message on
 /// invalid input, value → edit text, and value equality for "changed back to the original". No driver types: the
 /// session maps the values to Oracle parameters (<see cref="BindType"/>).
 /// </summary>
@@ -28,30 +29,30 @@ public static class OracleTypeMapper
     {
         if (table.Table.Kind != TableKind.Table)
         {
-            return "Views und Materialized Views sind nur lesbar.";
+            return OracleText.NotEditableView;
         }
 
         if (QueryBuilder.RowKeyOf(table) == RowKeyKind.None)
         {
-            return "Ohne Primärschlüssel und ROWID lassen sich Zeilen nicht eindeutig ändern.";
+            return OracleText.NotEditableNoRowKey;
         }
 
         if (column.IsVirtual)
         {
-            return "Virtuelle Spalte – Oracle berechnet den Wert.";
+            return OracleText.NotEditableVirtual;
         }
 
         if (column.IsIdentity)
         {
-            return "Identity-Spalte – Oracle vergibt den Wert.";
+            return OracleText.NotEditableIdentity;
         }
 
         if (!newRow && table.PrimaryKey.Contains(column.Name))
         {
-            return "Primärschlüssel sind nur bei neuen Zeilen änderbar.";
+            return OracleText.NotEditablePrimaryKey;
         }
 
-        return IsEditableType(column) || IsLob(column) ? null : $"{column.DisplayType} lässt sich hier nicht bearbeiten.";
+        return IsEditableType(column) || IsLob(column) ? null : TextFormat.Format(OracleText.NotEditableType, column.DisplayType);
     }
 
     /// <summary>VARCHAR2/NVARCHAR2/CHAR/NCHAR, NUMBER/FLOAT/INTEGER, DATE, TIMESTAMP (also WITH [LOCAL] TIME ZONE), RAW.</summary>
@@ -85,13 +86,14 @@ public static class OracleTypeMapper
 
         if (value is null)
         {
-            return column.Nullable ? ParsedValue.Ok(null) : ParsedValue.Fail($"{column.Name} darf nicht leer sein (NOT NULL).");
+            return column.Nullable ? ParsedValue.Ok(null) : ParsedValue.Fail(TextFormat.Format(OracleText.ValueRequired, column.Name));
         }
 
         return (ColumnCategories.Of(column), value) switch
         {
             (ColumnCategory.Clob, string) or (ColumnCategory.Blob, byte[]) => ParsedValue.Ok(value),
-            _ => ParsedValue.Fail($"{column.DisplayType} erwartet {(ColumnCategories.Of(column) == ColumnCategory.Blob ? "Bytes" : "Text")}."),
+            _ => ParsedValue.Fail(TextFormat.Format(
+                ColumnCategories.Of(column) == ColumnCategory.Blob ? OracleText.LobExpectsBytes : OracleText.LobExpectsText, column.DisplayType)),
         };
     }
 
@@ -106,7 +108,7 @@ public static class OracleTypeMapper
     {
         if (string.IsNullOrEmpty(text) || (ColumnCategories.Of(column) != ColumnCategory.Text && string.IsNullOrWhiteSpace(text)))
         {
-            return column.Nullable ? ParsedValue.Ok(null) : ParsedValue.Fail($"{column.Name} darf nicht leer sein (NOT NULL).");
+            return column.Nullable ? ParsedValue.Ok(null) : ParsedValue.Fail(TextFormat.Format(OracleText.ValueRequired, column.Name));
         }
 
         return ColumnCategories.Of(column) switch
@@ -115,16 +117,16 @@ public static class OracleTypeMapper
             ColumnCategory.Number => ParseNumber(column, text),
             ColumnCategory.Date => FilterRules.TryParseDate(text, out var date, out _)
                 ? ParsedValue.Ok(date)
-                : ParsedValue.Fail($"„{text}“ ist kein Datum (TT.MM.JJJJ [hh:mm[:ss]])."),
+                : ParsedValue.Fail(TextFormat.Format(OracleText.NotADate, text)),
             ColumnCategory.Timestamp => FilterRules.TryParseDate(text, out var timestamp, out _)
                 ? ParsedValue.Ok(timestamp)
-                : ParsedValue.Fail($"„{text}“ ist kein Zeitstempel (TT.MM.JJJJ hh:mm:ss[,ffffff])."),
+                : ParsedValue.Fail(TextFormat.Format(OracleText.NotATimestamp, text)),
             ColumnCategory.TimestampWithTimeZone when IsLocalTimeZone(column) => FilterRules.TryParseDate(text, out var local, out _)
                 ? ParsedValue.Ok(local)
-                : ParsedValue.Fail($"„{text}“ ist kein Zeitstempel (TT.MM.JJJJ hh:mm:ss[,ffffff])."),
+                : ParsedValue.Fail(TextFormat.Format(OracleText.NotATimestamp, text)),
             ColumnCategory.TimestampWithTimeZone => ParseWithOffset(text),
             ColumnCategory.Raw => ParseRaw(column, text),
-            _ => ParsedValue.Fail($"{column.DisplayType} lässt sich hier nicht bearbeiten."),
+            _ => ParsedValue.Fail(TextFormat.Format(OracleText.NotEditableType, column.DisplayType)),
         };
     }
 
@@ -176,22 +178,22 @@ public static class OracleTypeMapper
         var length = byteSemantics ? Encoding.UTF8.GetByteCount(text) : text.Length;
         return length <= max
             ? ParsedValue.Ok(text)
-            : ParsedValue.Fail(byteSemantics
-                ? $"Zu lang: {length} Bytes, erlaubt sind {max} ({column.DisplayType})."
-                : $"Zu lang: {length} Zeichen, erlaubt sind {max} ({column.DisplayType}).");
+            : ParsedValue.Fail(TextFormat.Format(byteSemantics ? OracleText.TooLongBytes : OracleText.TooLongCharacters, length, max, column.DisplayType));
     }
 
     private static ParsedValue ParseNumber(ColumnInfo column, string text)
     {
         if (!FilterRules.TryParseNumber(text, out var value))
         {
-            return ParsedValue.Fail($"„{text}“ ist keine Zahl (z. B. 4711 oder 12,5).");
+            return ParsedValue.Fail(TextFormat.Format(OracleText.NotANumber, text));
         }
 
         var scale = column.DataType == "INTEGER" ? 0 : column.Scale;
         if (scale is { } s and >= 0 && value.Scale > s && decimal.Round(value, s) != value)
         {
-            return ParsedValue.Fail(s == 0 ? $"{column.Name} nimmt nur ganze Zahlen ({column.DisplayType})." : $"Höchstens {s} Nachkommastellen ({column.DisplayType}).");
+            return ParsedValue.Fail(s == 0
+                ? TextFormat.Format(OracleText.WholeNumbersOnly, column.Name, column.DisplayType)
+                : TextFormat.Format(OracleText.TooManyDecimals, s, column.DisplayType));
         }
 
         if (column.DataType == "NUMBER" && column.Precision is { } p && scale is { } sc)
@@ -199,7 +201,7 @@ public static class OracleTypeMapper
             var integerDigits = decimal.Truncate(decimal.Abs(value)).ToString(System.Globalization.CultureInfo.InvariantCulture).TrimStart('0').Length;
             if (integerDigits > p - sc)
             {
-                return ParsedValue.Fail($"Zu groß: höchstens {p - sc} Stellen vor dem Komma ({column.DisplayType}).");
+                return ParsedValue.Fail(TextFormat.Format(OracleText.TooManyIntegerDigits, p - sc, column.DisplayType));
             }
         }
 
@@ -219,24 +221,24 @@ public static class OracleTypeMapper
             case true:
                 return ParsedValue.Ok(value);
             case false:
-                return ParsedValue.Fail($"„{offset}“ ist kein Zeitzonen-Offset (zwischen -12:00 und +14:00, z. B. +02:00).");
+                return ParsedValue.Fail(TextFormat.Format(OracleText.NotATimeZoneOffset, offset));
         }
 
         // No offset (or a date like 2026-10-08, whose "-08" only looks like one).
         return FilterRules.TryParseDate(text.Trim(), out var local, out _)
             ? ParsedValue.Ok(new DateTimeOffset(local, TimeZoneInfo.Local.GetUtcOffset(local)))
-            : ParsedValue.Fail($"„{text}“ ist kein Zeitstempel mit Zeitzone (TT.MM.JJJJ hh:mm:ss[,ffffff] [+hh:mm]).");
+            : ParsedValue.Fail(TextFormat.Format(OracleText.NotATimestampWithTimeZone, text));
     }
 
     private static ParsedValue ParseRaw(ColumnInfo column, string text)
     {
         if (!FilterRules.TryParseHex(text, out var bytes))
         {
-            return ParsedValue.Fail($"„{text}“ ist kein Hex-Wert (z. B. CAFE01).");
+            return ParsedValue.Fail(TextFormat.Format(OracleText.NotAHexValue, text));
         }
 
         return column.Length is { } max && bytes.Length > max
-            ? ParsedValue.Fail($"Zu lang: {bytes.Length} Bytes, erlaubt sind {max} ({column.DisplayType}).")
+            ? ParsedValue.Fail(TextFormat.Format(OracleText.TooLongBytes, bytes.Length, max, column.DisplayType))
             : ParsedValue.Ok(bytes);
     }
 }

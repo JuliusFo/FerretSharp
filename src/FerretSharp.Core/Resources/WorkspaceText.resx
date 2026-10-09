@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="WorkspaceNotOpen" xml:space="preserve">
+    <value>The workspace is not open.</value>
+  </data>
+  <data name="LastWorkspaceCannotClose" xml:space="preserve">
+    <value>The last open workspace cannot be closed.</value>
+  </data>
+  <data name="OnlyClosedCanBeDeleted" xml:space="preserve">
+    <value>Only closed workspaces can be deleted.</value>
+  </data>
+  <data name="NoActiveConnection" xml:space="preserve">
+    <value>No connection is active.</value>
+  </data>
+  <data name="NameInvalid" xml:space="preserve">
+    <value>The name must not be empty and can be at most {0} characters long.</value>
+    <comment>{0}: maximum length of a workspace name</comment>
+  </data>
+  <data name="SaveFailed" xml:space="preserve">
+    <value>Workspace “{0}” could not be saved: {1}</value>
+    <comment>{0}: workspace name; {1}: error message</comment>
+  </data>
+  <data name="CommitOrDiscardBeforeLock" xml:space="preserve">
+    <value>Commit or discard first, then lock.</value>
+    <comment>Lock = make the workspace read-only again</comment>
+  </data>
+  <data name="FileEmpty" xml:space="preserve">
+    <value>{0} is empty.</value>
+    <comment>{0}: file name of a workspace</comment>
+  </data>
+  <data name="FileFromNewerVersion" xml:space="preserve">
+    <value>{0} comes from a newer version of FerretSharp (format {1}).</value>
+    <comment>{0}: file name of a workspace; {1}: format version number</comment>
+  </data>
+  <data name="InvalidFile" xml:space="preserve">
+    <value>{0} is not a valid workspace JSON file: {1}</value>
+    <comment>{0}: file name of a workspace; {1}: error message of the JSON reader</comment>
+  </data>
+</root>

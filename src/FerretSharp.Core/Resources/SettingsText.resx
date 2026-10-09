@@ -1,0 +1,299 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="FileEmpty" xml:space="preserve">
+    <value>{0} is empty.</value>
+    <comment>{0}: path of settings.json</comment>
+  </data>
+  <data name="FileFromNewerVersion" xml:space="preserve">
+    <value>{0} comes from a newer version of FerretSharp (format {1}).</value>
+    <comment>{0}: path of settings.json; {1}: format version number</comment>
+  </data>
+  <data name="InvalidFile" xml:space="preserve">
+    <value>{0} is not a valid settings file: {1}</value>
+    <comment>{0}: path of settings.json; {1}: error message of the JSON reader</comment>
+  </data>
+  <data name="GroupNavigation" xml:space="preserve">
+    <value>Navigation</value>
+    <comment>Group heading on the shortcuts settings page</comment>
+  </data>
+  <data name="GroupData" xml:space="preserve">
+    <value>Data</value>
+    <comment>Group heading on the shortcuts settings page</comment>
+  </data>
+  <data name="GroupEditing" xml:space="preserve">
+    <value>Editing</value>
+    <comment>Group heading on the shortcuts settings page</comment>
+  </data>
+  <data name="GroupSqlAndLinq" xml:space="preserve">
+    <value>SQL and LINQ</value>
+    <comment>Group heading on the shortcuts settings page</comment>
+  </data>
+  <data name="GroupGeneral" xml:space="preserve">
+    <value>General</value>
+    <comment>Group heading on the shortcuts settings page</comment>
+  </data>
+  <data name="ActionConnectionSwitcher" xml:space="preserve">
+    <value>Choose connection</value>
+    <comment>Shortcut action</comment>
+  </data>
+  <data name="ActionPreviousConnection" xml:space="preserve">
+    <value>Go to the previous open connection</value>
+    <comment>Shortcut action</comment>
+  </data>
+  <data name="HintPreviousConnection" xml:space="preserve">
+    <value>Switches without disconnecting.</value>
+  </data>
+  <data name="ActionBack" xml:space="preserve">
+    <value>Back to the tab an FK jump came from</value>
+    <comment>Shortcut action</comment>
+  </data>
+  <data name="ActionForward" xml:space="preserve">
+    <value>Forward again</value>
+    <comment>Shortcut action (after Back)</comment>
+  </data>
+  <data name="ActionApplyFilters" xml:space="preserve">
+    <value>Apply filters</value>
+    <comment>Shortcut action</comment>
+  </data>
+  <data name="HintRunInEditors" xml:space="preserve">
+    <value>In the SQL editor and the LINQ console: run.</value>
+  </data>
+  <data name="ActionRefresh" xml:space="preserve">
+    <value>Reload</value>
+    <comment>Shortcut action</comment>
+  </data>
+  <data name="ActionFindColumn" xml:space="preserve">
+    <value>Find column</value>
+    <comment>Shortcut action</comment>
+  </data>
+  <data name="HintFindColumn" xml:space="preserve">
+    <value>In the Columns view: filter; in the SQL editor, the LINQ console and the form: search.</value>
+  </data>
+  <data name="ActionToggleForm" xml:space="preserve">
+    <value>Open/close form</value>
+    <comment>Shortcut action (form view)</comment>
+  </data>
+  <data name="HintToggleForm" xml:space="preserve">
+    <value>With several rows selected: compare. Only in the grid and the form.</value>
+  </data>
+  <data name="ActionFormPrevious" xml:space="preserve">
+    <value>Form: previous row</value>
+    <comment>Shortcut action</comment>
+  </data>
+  <data name="ActionFormNext" xml:space="preserve">
+    <value>Form: next row</value>
+    <comment>Shortcut action</comment>
+  </data>
+  <data name="ActionFlush" xml:space="preserve">
+    <value>Write pending changes</value>
+    <comment>Shortcut action</comment>
+  </data>
+  <data name="HintFlush" xml:space="preserve">
+    <value>Writes into the transaction, without commit.</value>
+  </data>
+  <data name="ActionCommit" xml:space="preserve">
+    <value>Commit</value>
+    <comment>Shortcut action</comment>
+  </data>
+  <data name="HintCommit" xml:space="preserve">
+    <value>Always with confirmation on Prod.</value>
+  </data>
+  <data name="ActionNewSql" xml:space="preserve">
+    <value>New SQL editor</value>
+    <comment>Shortcut action</comment>
+  </data>
+  <data name="ActionNewLinq" xml:space="preserve">
+    <value>New LINQ console</value>
+    <comment>Shortcut action</comment>
+  </data>
+  <data name="HintNewLinq" xml:space="preserve">
+    <value>With a linked C# project.</value>
+  </data>
+  <data name="ActionRunScript" xml:space="preserve">
+    <value>Run whole script</value>
+    <comment>Shortcut action</comment>
+  </data>
+  <data name="HintRunScript" xml:space="preserve">
+    <value>Or the selected statements.</value>
+  </data>
+  <data name="FixedCopyValue" xml:space="preserve">
+    <value>Copy value, several selected rows as a table</value>
+    <comment>Fixed shortcut</comment>
+  </data>
+  <data name="FixedMarkForDeletion" xml:space="preserve">
+    <value>Mark selected rows for deletion</value>
+    <comment>Fixed shortcut</comment>
+  </data>
+  <data name="FixedEditCell" xml:space="preserve">
+    <value>Edit cell, open LOB editor</value>
+    <comment>Fixed shortcut</comment>
+  </data>
+  <data name="FixedCancelInput" xml:space="preserve">
+    <value>Cancel input</value>
+    <comment>Fixed shortcut</comment>
+  </data>
+  <data name="FixedSuggestions" xml:space="preserve">
+    <value>Suggestions</value>
+    <comment>Fixed shortcut (code completion in the editor)</comment>
+  </data>
+  <data name="FixedReplace" xml:space="preserve">
+    <value>Replace</value>
+    <comment>Fixed shortcut (find and replace in the editor)</comment>
+  </data>
+  <data name="FixedUndoRedo" xml:space="preserve">
+    <value>Undo, redo</value>
+    <comment>Fixed shortcut</comment>
+  </data>
+  <data name="FixedClose" xml:space="preserve">
+    <value>Close menu or dialog, clear search field</value>
+    <comment>Fixed shortcut</comment>
+  </data>
+  <data name="HintInGrid" xml:space="preserve">
+    <value>In the grid.</value>
+  </data>
+  <data name="HintInGridDoubleClick" xml:space="preserve">
+    <value>In the grid; also double-click.</value>
+  </data>
+  <data name="HintInFilterValue" xml:space="preserve">
+    <value>In the value field of a filter.</value>
+  </data>
+  <data name="HintInEditor" xml:space="preserve">
+    <value>In the editor.</value>
+  </data>
+  <data name="HintInEditorNotWritten" xml:space="preserve">
+    <value>In the editor; not for written changes.</value>
+  </data>
+  <data name="ReservedAltF4" xml:space="preserve">
+    <value>Alt+F4 closes the window.</value>
+  </data>
+  <data name="ReservedAltSpace" xml:space="preserve">
+    <value>Alt+Space opens the Windows window menu.</value>
+  </data>
+  <data name="ReservedAltTab" xml:space="preserve">
+    <value>Alt+Tab switches the window.</value>
+  </data>
+  <data name="ReservedCtrlEsc" xml:space="preserve">
+    <value>Ctrl+Esc opens the Start menu.</value>
+  </data>
+  <data name="ReservedCtrlShiftEsc" xml:space="preserve">
+    <value>Ctrl+Shift+Esc opens Task Manager.</value>
+  </data>
+  <data name="ReservedDevTools" xml:space="preserve">
+    <value>{0} opens the developer tools.</value>
+    <comment>{0}: key combination, e.g. F12</comment>
+  </data>
+  <data name="EditorCopy" xml:space="preserve">
+    <value>Copy in the grid and the editors</value>
+    <comment>What a key does in the editors or the grid; shown in TakenFromEditor</comment>
+  </data>
+  <data name="EditorPaste" xml:space="preserve">
+    <value>Paste</value>
+    <comment>What a key does in the editors or the grid; shown in TakenFromEditor</comment>
+  </data>
+  <data name="EditorCut" xml:space="preserve">
+    <value>Cut</value>
+    <comment>What a key does in the editors or the grid; shown in TakenFromEditor</comment>
+  </data>
+  <data name="EditorSelectAll" xml:space="preserve">
+    <value>Select all</value>
+    <comment>What a key does in the editors or the grid; shown in TakenFromEditor</comment>
+  </data>
+  <data name="EditorUndo" xml:space="preserve">
+    <value>Undo in the editors</value>
+    <comment>What a key does in the editors or the grid; shown in TakenFromEditor</comment>
+  </data>
+  <data name="EditorRedo" xml:space="preserve">
+    <value>Redo in the editors</value>
+    <comment>What a key does in the editors or the grid; shown in TakenFromEditor</comment>
+  </data>
+  <data name="EditorSuggestions" xml:space="preserve">
+    <value>Suggestions in the editors</value>
+    <comment>What a key does in the editors or the grid; shown in TakenFromEditor</comment>
+  </data>
+  <data name="EditorReplace" xml:space="preserve">
+    <value>Replace in the editors</value>
+    <comment>What a key does in the editors or the grid; shown in TakenFromEditor</comment>
+  </data>
+  <data name="EditorSelectNextMatch" xml:space="preserve">
+    <value>Select next match in the editors</value>
+    <comment>What a key does in the editors or the grid; shown in TakenFromEditor</comment>
+  </data>
+  <data name="EditorGoToLine" xml:space="preserve">
+    <value>Go to line in the editors</value>
+    <comment>What a key does in the editors or the grid; shown in TakenFromEditor</comment>
+  </data>
+  <data name="EditorDeleteLine" xml:space="preserve">
+    <value>Delete line in the editors</value>
+    <comment>What a key does in the editors or the grid; shown in TakenFromEditor</comment>
+  </data>
+  <data name="EditorMoveLineUp" xml:space="preserve">
+    <value>Move line up in the editors</value>
+    <comment>What a key does in the editors or the grid; shown in TakenFromEditor</comment>
+  </data>
+  <data name="EditorMoveLineDown" xml:space="preserve">
+    <value>Move line down in the editors</value>
+    <comment>What a key does in the editors or the grid; shown in TakenFromEditor</comment>
+  </data>
+  <data name="GridDeleteRows" xml:space="preserve">
+    <value>Delete rows in the grid</value>
+    <comment>What a key does in the editors or the grid; shown in TakenFromEditor</comment>
+  </data>
+  <data name="CtrlAltIsAltGr" xml:space="preserve">
+    <value>Ctrl+Alt is AltGr on German keyboards (@, €, {{) – it would catch characters while typing.</value>
+    <comment>"{{" is a literal brace (the text is formatted)</comment>
+  </data>
+  <data name="NeedsCtrlOrAlt" xml:space="preserve">
+    <value>Without Ctrl or Alt, typing the key would no longer work – only F keys can be used alone.</value>
+  </data>
+  <data name="TakenFromEditor" xml:space="preserve">
+    <value>{0} is otherwise “{1}” – the shortcut wins, that function is lost there.</value>
+    <comment>{0}: key combination, e.g. Ctrl+D; {1}: what the key does in the editors or the grid (Editor…)</comment>
+  </data>
+  <data name="AltShiftSwitchesLanguage" xml:space="preserve">
+    <value>Alt+Shift switches the keyboard language in Windows when both are pressed alone – with another key it usually works, but it can get in the way.</value>
+  </data>
+  <data name="KeyDelete" xml:space="preserve">
+    <value>Del</value>
+    <comment>Key name as printed on the keyboard</comment>
+  </data>
+  <data name="KeyBackspace" xml:space="preserve">
+    <value>Backspace</value>
+    <comment>Key name as printed on the keyboard</comment>
+  </data>
+  <data name="KeyInsert" xml:space="preserve">
+    <value>Ins</value>
+    <comment>Key name as printed on the keyboard</comment>
+  </data>
+  <data name="KeyHome" xml:space="preserve">
+    <value>Home</value>
+    <comment>Key name as printed on the keyboard</comment>
+  </data>
+  <data name="KeyEnd" xml:space="preserve">
+    <value>End</value>
+    <comment>Key name as printed on the keyboard</comment>
+  </data>
+  <data name="KeyPageUp" xml:space="preserve">
+    <value>PgUp</value>
+    <comment>Key name as printed on the keyboard</comment>
+  </data>
+  <data name="KeyPageDown" xml:space="preserve">
+    <value>PgDn</value>
+    <comment>Key name as printed on the keyboard</comment>
+  </data>
+  <data name="KeySpace" xml:space="preserve">
+    <value>Space</value>
+    <comment>Key name as printed on the keyboard</comment>
+  </data>
+</root>

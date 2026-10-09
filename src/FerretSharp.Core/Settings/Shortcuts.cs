@@ -1,3 +1,5 @@
+using FerretSharp.Core.Resources;
+
 namespace FerretSharp.Core.Settings;
 
 /// <summary>What a changeable shortcut does (WP-25). The names are the keys in <c>settings.json</c> – do not rename.</summary>
@@ -61,67 +63,71 @@ public sealed record ShortcutCheck(string? Error, ShortcutAction? Conflict, stri
 /// </summary>
 public sealed class ShortcutMap
 {
-    public static readonly IReadOnlyList<ShortcutDefinition> Definitions =
+    /// <summary>The changeable shortcuts; a property, not a field: labels and groups follow the UI language.</summary>
+    public static IReadOnlyList<ShortcutDefinition> Definitions =>
     [
-        new(ShortcutAction.ConnectionSwitcher, "Navigation", "Verbindung wählen", "ctrl+shift+o", ShortcutScope.Global),
-        new(ShortcutAction.PreviousConnection, "Navigation", "Zur vorigen offenen Verbindung", "alt+o", ShortcutScope.Global, "Wechselt, ohne zu trennen."),
-        new(ShortcutAction.Back, "Navigation", "Zurück zum Tab, aus dem ein FK-Sprung kam", "alt+arrowleft", ShortcutScope.Global),
-        new(ShortcutAction.Forward, "Navigation", "Wieder vor", "alt+arrowright", ShortcutScope.Global),
-        new(ShortcutAction.ApplyFilters, "Daten", "Filter anwenden", "ctrl+enter", ShortcutScope.Global, "Im SQL-Editor und in der LINQ-Konsole: ausführen."),
-        new(ShortcutAction.Refresh, "Daten", "Neu laden", "f5", ShortcutScope.Global, "Im SQL-Editor und in der LINQ-Konsole: ausführen."),
-        new(ShortcutAction.FindColumn, "Daten", "Spalte suchen", "ctrl+f", ShortcutScope.Global, "In der Spalten-Ansicht: filtern; im SQL-Editor, in der LINQ-Konsole und im Formular: suchen."),
-        new(ShortcutAction.ToggleForm, "Daten", "Formular öffnen/schließen", "alt+enter", ShortcutScope.GridAndForm, "Bei mehreren markierten Zeilen: vergleichen. Nur im Grid und im Formular."),
-        new(ShortcutAction.FormPrevious, "Daten", "Formular: vorige Zeile", "alt+arrowup", ShortcutScope.Form),
-        new(ShortcutAction.FormNext, "Daten", "Formular: nächste Zeile", "alt+arrowdown", ShortcutScope.Form),
-        new(ShortcutAction.Flush, "Editieren", "Ausstehende Änderungen schreiben", "ctrl+s", ShortcutScope.Global, "Schreibt in die Transaktion, ohne Commit."),
-        new(ShortcutAction.Commit, "Editieren", "Commit", "ctrl+shift+enter", ShortcutScope.Global, "Auf Prod immer mit Bestätigung."),
-        new(ShortcutAction.NewSql, "SQL und LINQ", "Neuer SQL-Editor", "ctrl+shift+q", ShortcutScope.Global),
-        new(ShortcutAction.NewLinq, "SQL und LINQ", "Neue LINQ-Konsole", "ctrl+shift+l", ShortcutScope.Global, "Mit verknüpftem C#-Projekt."),
-        new(ShortcutAction.RunScript, "SQL und LINQ", "Ganzes Skript ausführen", "alt+x", ShortcutScope.Global, "Bzw. die markierten Statements."),
+        new(ShortcutAction.ConnectionSwitcher, SettingsText.GroupNavigation, SettingsText.ActionConnectionSwitcher, "ctrl+shift+o", ShortcutScope.Global),
+        new(ShortcutAction.PreviousConnection, SettingsText.GroupNavigation, SettingsText.ActionPreviousConnection, "alt+o", ShortcutScope.Global, SettingsText.HintPreviousConnection),
+        new(ShortcutAction.Back, SettingsText.GroupNavigation, SettingsText.ActionBack, "alt+arrowleft", ShortcutScope.Global),
+        new(ShortcutAction.Forward, SettingsText.GroupNavigation, SettingsText.ActionForward, "alt+arrowright", ShortcutScope.Global),
+        new(ShortcutAction.ApplyFilters, SettingsText.GroupData, SettingsText.ActionApplyFilters, "ctrl+enter", ShortcutScope.Global, SettingsText.HintRunInEditors),
+        new(ShortcutAction.Refresh, SettingsText.GroupData, SettingsText.ActionRefresh, "f5", ShortcutScope.Global, SettingsText.HintRunInEditors),
+        new(ShortcutAction.FindColumn, SettingsText.GroupData, SettingsText.ActionFindColumn, "ctrl+f", ShortcutScope.Global, SettingsText.HintFindColumn),
+        new(ShortcutAction.ToggleForm, SettingsText.GroupData, SettingsText.ActionToggleForm, "alt+enter", ShortcutScope.GridAndForm, SettingsText.HintToggleForm),
+        new(ShortcutAction.FormPrevious, SettingsText.GroupData, SettingsText.ActionFormPrevious, "alt+arrowup", ShortcutScope.Form),
+        new(ShortcutAction.FormNext, SettingsText.GroupData, SettingsText.ActionFormNext, "alt+arrowdown", ShortcutScope.Form),
+        new(ShortcutAction.Flush, SettingsText.GroupEditing, SettingsText.ActionFlush, "ctrl+s", ShortcutScope.Global, SettingsText.HintFlush),
+        new(ShortcutAction.Commit, SettingsText.GroupEditing, SettingsText.ActionCommit, "ctrl+shift+enter", ShortcutScope.Global, SettingsText.HintCommit),
+        new(ShortcutAction.NewSql, SettingsText.GroupSqlAndLinq, SettingsText.ActionNewSql, "ctrl+shift+q", ShortcutScope.Global),
+        new(ShortcutAction.NewLinq, SettingsText.GroupSqlAndLinq, SettingsText.ActionNewLinq, "ctrl+shift+l", ShortcutScope.Global, SettingsText.HintNewLinq),
+        new(ShortcutAction.RunScript, SettingsText.GroupSqlAndLinq, SettingsText.ActionRunScript, "alt+x", ShortcutScope.Global, SettingsText.HintRunScript),
     ];
 
-    public static readonly IReadOnlyList<FixedShortcut> Fixed =
+    /// <summary>The fixed shortcuts; a property for the same reason as <see cref="Definitions"/>.</summary>
+    public static IReadOnlyList<FixedShortcut> Fixed =>
     [
-        new("Daten", "Wert kopieren, mehrere markierte Zeilen als Tabelle", "Ctrl+C", "Im Grid."),
-        new("Daten", "Markierte Zeilen zum Löschen vormerken", "Entf", "Im Grid."),
-        new("Daten", "Zelle bearbeiten, LOB-Editor öffnen", "Enter", "Im Grid; auch Doppelklick."),
-        new("Daten", "Eingabe abbrechen", "Esc", "Im Grid."),
-        new("Daten", "Filter anwenden", "Enter", "Im Wertfeld eines Filters."),
-        new("SQL und LINQ", "Vorschläge", "Ctrl+Leertaste", "Im Editor."),
-        new("SQL und LINQ", "Ersetzen", "Ctrl+H", "Im Editor."),
-        new("SQL und LINQ", "Rückgängig, wiederholen", "Ctrl+Z, Ctrl+Y", "Im Editor; nicht für geschriebene Änderungen."),
-        new("Allgemein", "Menü oder Dialog schließen, Suchfeld leeren", "Esc"),
+        new(SettingsText.GroupData, SettingsText.FixedCopyValue, "Ctrl+C", SettingsText.HintInGrid),
+        new(SettingsText.GroupData, SettingsText.FixedMarkForDeletion, KeyChord.Parse("delete")!.Label, SettingsText.HintInGrid),
+        new(SettingsText.GroupData, SettingsText.FixedEditCell, "Enter", SettingsText.HintInGridDoubleClick),
+        new(SettingsText.GroupData, SettingsText.FixedCancelInput, "Esc", SettingsText.HintInGrid),
+        new(SettingsText.GroupData, SettingsText.ActionApplyFilters, "Enter", SettingsText.HintInFilterValue),
+        new(SettingsText.GroupSqlAndLinq, SettingsText.FixedSuggestions, KeyChord.Parse("ctrl+space")!.Label, SettingsText.HintInEditor),
+        new(SettingsText.GroupSqlAndLinq, SettingsText.FixedReplace, "Ctrl+H", SettingsText.HintInEditor),
+        new(SettingsText.GroupSqlAndLinq, SettingsText.FixedUndoRedo, "Ctrl+Z, Ctrl+Y", SettingsText.HintInEditorNotWritten),
+        new(SettingsText.GroupGeneral, SettingsText.FixedClose, "Esc"),
     ];
 
-    /// <summary>Taken by Windows or the WebView before FerretSharp sees them.</summary>
-    private static readonly Dictionary<string, string> Reserved = new()
+    /// <summary>Why a key combination is taken by Windows or the WebView before FerretSharp sees it; null if it is not.</summary>
+    private static string? Reserved(string combo) => combo switch
     {
-        ["alt+f4"] = "Alt+F4 schließt das Fenster.",
-        ["alt+space"] = "Alt+Leertaste öffnet das Fenstermenü von Windows.",
-        ["alt+tab"] = "Alt+Tab wechselt das Fenster.",
-        ["ctrl+escape"] = "Ctrl+Esc öffnet das Startmenü.",
-        ["ctrl+shift+escape"] = "Ctrl+Shift+Esc öffnet den Task-Manager.",
-        ["f12"] = "F12 öffnet die Entwicklertools.",
-        ["ctrl+shift+i"] = "Ctrl+Shift+I öffnet die Entwicklertools.",
+        "alt+f4" => SettingsText.ReservedAltF4,
+        "alt+space" => SettingsText.ReservedAltSpace,
+        "alt+tab" => SettingsText.ReservedAltTab,
+        "ctrl+escape" => SettingsText.ReservedCtrlEsc,
+        "ctrl+shift+escape" => SettingsText.ReservedCtrlShiftEsc,
+        "f12" => TextFormat.Format(SettingsText.ReservedDevTools, "F12"),
+        "ctrl+shift+i" => TextFormat.Format(SettingsText.ReservedDevTools, "Ctrl+Shift+I"),
+        _ => null,
     };
 
-    /// <summary>Keys of the editors (Monaco) and the grid a global shortcut would take away from them.</summary>
-    private static readonly Dictionary<string, string> TakenFromEditors = new()
+    /// <summary>What a key does in the editors (Monaco) or the grid, which a global shortcut would take away; null if nothing.</summary>
+    private static string? TakenFromEditors(string combo) => combo switch
     {
-        ["ctrl+c"] = "Kopieren im Grid und in den Editoren",
-        ["ctrl+v"] = "Einfügen",
-        ["ctrl+x"] = "Ausschneiden",
-        ["ctrl+a"] = "Alles markieren",
-        ["ctrl+z"] = "Rückgängig in den Editoren",
-        ["ctrl+y"] = "Wiederholen in den Editoren",
-        ["ctrl+space"] = "Vorschläge in den Editoren",
-        ["ctrl+h"] = "Ersetzen in den Editoren",
-        ["ctrl+d"] = "Nächsten Treffer markieren in den Editoren",
-        ["ctrl+g"] = "Gehe zu Zeile in den Editoren",
-        ["ctrl+shift+k"] = "Zeile löschen in den Editoren",
-        ["alt+arrowup"] = "Zeile nach oben verschieben in den Editoren",
-        ["alt+arrowdown"] = "Zeile nach unten verschieben in den Editoren",
-        ["delete"] = "Zeilen löschen im Grid",
+        "ctrl+c" => SettingsText.EditorCopy,
+        "ctrl+v" => SettingsText.EditorPaste,
+        "ctrl+x" => SettingsText.EditorCut,
+        "ctrl+a" => SettingsText.EditorSelectAll,
+        "ctrl+z" => SettingsText.EditorUndo,
+        "ctrl+y" => SettingsText.EditorRedo,
+        "ctrl+space" => SettingsText.EditorSuggestions,
+        "ctrl+h" => SettingsText.EditorReplace,
+        "ctrl+d" => SettingsText.EditorSelectNextMatch,
+        "ctrl+g" => SettingsText.EditorGoToLine,
+        "ctrl+shift+k" => SettingsText.EditorDeleteLine,
+        "alt+arrowup" => SettingsText.EditorMoveLineUp,
+        "alt+arrowdown" => SettingsText.EditorMoveLineDown,
+        "delete" => SettingsText.GridDeleteRows,
+        _ => null,
     };
 
     private readonly Dictionary<ShortcutAction, KeyChord?> _chords = [];
@@ -175,26 +181,26 @@ public sealed class ShortcutMap
 
     private ShortcutCheck Check(ShortcutAction action, KeyChord chord, bool ignoreConflicts)
     {
-        if (Reserved.TryGetValue(chord.Text, out var reserved))
+        if (Reserved(chord.Text) is { } reserved)
         {
             return new ShortcutCheck(reserved, null, null);
         }
 
         if (chord.Ctrl && chord.Alt)
         {
-            return new ShortcutCheck("Ctrl+Alt ist auf deutschen Tastaturen AltGr (@, €, {) – das würde Zeichen beim Tippen abfangen.", null, null);
+            return new ShortcutCheck(TextFormat.Format(SettingsText.CtrlAltIsAltGr), null, null);
         }
 
         if (!chord.Ctrl && !chord.Alt && !chord.IsFunctionKey)
         {
-            return new ShortcutCheck("Ohne Ctrl oder Alt würde die Taste beim Tippen fehlen – nur F-Tasten gehen allein.", null, null);
+            return new ShortcutCheck(SettingsText.NeedsCtrlOrAlt, null, null);
         }
 
         var conflict = ignoreConflicts ? null : Definitions.FirstOrDefault(d => d.Action != action && _chords[d.Action] == chord)?.Action;
-        var warning = Definition(action).Scope == ShortcutScope.Global && TakenFromEditors.TryGetValue(chord.Text, out var taken)
-            ? $"{chord.Label} ist sonst „{taken}“ – das Kürzel gewinnt, die Funktion dort fällt weg."
+        var warning = Definition(action).Scope == ShortcutScope.Global && TakenFromEditors(chord.Text) is { } taken
+            ? TextFormat.Format(SettingsText.TakenFromEditor, chord.Label, taken)
             : chord.Shift && chord.Alt && !chord.Ctrl
-                ? "Alt+Shift wechselt unter Windows die Tastatursprache, wenn beide allein gedrückt werden – mit einer weiteren Taste geht es meist, kann aber stören."
+                ? SettingsText.AltShiftSwitchesLanguage
                 : null;
         return new ShortcutCheck(null, conflict, warning);
     }

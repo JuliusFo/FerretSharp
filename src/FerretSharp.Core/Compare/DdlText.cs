@@ -1,5 +1,6 @@
 using System.Text;
 using FerretSharp.Core.Oracle;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.Compare;
@@ -139,11 +140,20 @@ internal static class DdlText
         _ => "TABLE",
     };
 
+    /// <summary>The object kind inside a sentence of the DDL proposal ("table").</summary>
     public static string ObjectWord(TableKind kind) => kind switch
     {
-        TableKind.View => "View",
-        TableKind.MaterializedView => "Materialized View",
-        _ => "Tabelle",
+        TableKind.View => CompareText.ObjectView,
+        TableKind.MaterializedView => CompareText.ObjectMaterializedView,
+        _ => CompareText.ObjectTable,
+    };
+
+    /// <summary>The object kind at the start of <see cref="CompareText.RenameWarning"/> ("Table").</summary>
+    public static string RenameSubject(TableKind kind) => kind switch
+    {
+        TableKind.View => CompareText.RenameSubjectView,
+        TableKind.MaterializedView => CompareText.RenameSubjectMaterializedView,
+        _ => CompareText.RenameSubjectTable,
     };
 
 }

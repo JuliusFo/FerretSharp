@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="StepConnecting" xml:space="preserve">
+    <value>Verbinde</value>
+  </data>
+  <data name="ConnectionGone" xml:space="preserve">
+    <value>Diese Verbindung gibt es nicht mehr.</value>
+  </data>
+  <data name="NoPasswordFor" xml:space="preserve">
+    <value>Für „{0}“ ist kein Passwort gespeichert.</value>
+  </data>
+  <data name="InvalidFile" xml:space="preserve">
+    <value>{0} ist keine gültige Datei mit Schema-Vergleichen: {1}</value>
+  </data>
+  <data name="FileFromNewerVersion" xml:space="preserve">
+    <value>{0} stammt aus einer neueren FerretSharp-Version (Format {1}).</value>
+  </data>
+  <data name="FileFromNewerVersionNotOverwritten" xml:space="preserve">
+    <value>{0} stammt aus einer neueren FerretSharp-Version (Format {1}). Sie wird nicht überschrieben.</value>
+  </data>
+  <data name="ExportObject" xml:space="preserve">
+    <value>Objekt</value>
+  </data>
+  <data name="ExportOtherCase" xml:space="preserve">
+    <value>{0} (als „{1}“)</value>
+  </data>
+  <data name="ExportReference" xml:space="preserve">
+    <value>{0} (Referenz)</value>
+  </data>
+  <data name="ScriptHeader" xml:space="preserve">
+    <value>DDL-Vorschlag: {0} an die Referenz {1} angleichen.</value>
+  </data>
+  <data name="ScriptGenerated" xml:space="preserve">
+    <value>Von FerretSharp erzeugt, nicht ausgeführt: vor dem Ausführen prüfen. Auskommentiertes bewusst entscheiden.</value>
+  </data>
+  <data name="ScriptNoDifferences" xml:space="preserve">
+    <value>Keine Unterschiede.</value>
+  </data>
+  <data name="Side" xml:space="preserve">
+    <value>Seite {0}</value>
+  </data>
+  <data name="SideWithOwner" xml:space="preserve">
+    <value>{0} (Seite {1})</value>
+  </data>
+  <data name="ObjectTable" xml:space="preserve">
+    <value>Tabelle</value>
+  </data>
+  <data name="ObjectView" xml:space="preserve">
+    <value>View</value>
+  </data>
+  <data name="ObjectMaterializedView" xml:space="preserve">
+    <value>Materialized View</value>
+  </data>
+  <data name="RenameSubjectTable" xml:space="preserve">
+    <value>Tabelle</value>
+  </data>
+  <data name="RenameSubjectView" xml:space="preserve">
+    <value>View</value>
+  </data>
+  <data name="RenameSubjectMaterializedView" xml:space="preserve">
+    <value>Materialized View</value>
+  </data>
+  <data name="RenameSubjectColumn" xml:space="preserve">
+    <value>Spalte</value>
+  </data>
+  <data name="RenameSubjectConstraint" xml:space="preserve">
+    <value>Constraint</value>
+  </data>
+  <data name="RenameSubjectIndex" xml:space="preserve">
+    <value>Index</value>
+  </data>
+  <data name="RenameWarning" xml:space="preserve">
+    <value>{0} nur in anderer Schreibweise. Code und EF Core (quotet Namen) verweisen auf den genauen Namen – erst klären, welcher richtig ist.</value>
+  </data>
+  <data name="DropView" xml:space="preserve">
+    <value>Löscht die View; Objekte, die sie verwenden, werden ungültig.</value>
+  </data>
+  <data name="DropTable" xml:space="preserve">
+    <value>Löscht die Tabelle mit allen Daten.</value>
+  </data>
+  <data name="DropMaterializedView" xml:space="preserve">
+    <value>Löscht die Materialized View mit allen Daten.</value>
+  </data>
+  <data name="KindDiffersHint" xml:space="preserve">
+    <value>{0}: in der Referenz {1}, im Ziel {2}</value>
+  </data>
+  <data name="KindDiffersWarning" xml:space="preserve">
+    <value>Lässt sich nicht umwandeln: Objekt im Ziel löschen und nach der DDL der Referenz neu anlegen.</value>
+  </data>
+  <data name="ViewDefinitionNotCompared" xml:space="preserve">
+    <value>Die Definition der View gehört nicht zum Vergleich: aus der DDL-Ansicht der Referenz übernehmen.</value>
+  </data>
+  <data name="MaterializedViewDefinitionNotCompared" xml:space="preserve">
+    <value>Die Definition der Materialized View gehört nicht zum Vergleich: aus der DDL-Ansicht der Referenz übernehmen.</value>
+  </data>
+  <data name="ViewDiffers" xml:space="preserve">
+    <value>(abweichend: {0})</value>
+  </data>
+  <data name="TemporaryTableOnCommit" xml:space="preserve">
+    <value>Temporäre Tabelle: ON COMMIT ist nicht bekannt (Vorgabe DELETE ROWS) – mit der DDL der Referenz abgleichen.</value>
+  </data>
+  <data name="PartitioningNotCopied" xml:space="preserve">
+    <value>Die Partitionierung wird nicht übernommen – mit der DDL der Referenz abgleichen.</value>
+  </data>
+  <data name="OrganizationDiffersHint" xml:space="preserve">
+    <value>{0}: Organisation weicht ab (Referenz: {1}, Ziel: {2})</value>
+  </data>
+  <data name="OrganizationWarning" xml:space="preserve">
+    <value>Lässt sich nicht per ALTER umstellen: Tabelle neu anlegen und Daten umkopieren.</value>
+  </data>
+  <data name="OrganizationIndexOrganized" xml:space="preserve">
+    <value>index-organisiert</value>
+  </data>
+  <data name="OrganizationTemporary" xml:space="preserve">
+    <value>temporär</value>
+  </data>
+  <data name="OrganizationPartitioned" xml:space="preserve">
+    <value>partitioniert</value>
+  </data>
+  <data name="OrganizationNormal" xml:space="preserve">
+    <value>normal</value>
+  </data>
+  <data name="AddNotNullColumnFails" xml:space="preserve">
+    <value>Schlägt fehl, wenn die Tabelle Zeilen hat (NOT NULL ohne Default).</value>
+  </data>
+  <data name="DropColumn" xml:space="preserve">
+    <value>Löscht die Spalte mit ihren Daten.</value>
+  </data>
+  <data name="ColumnDiffersHint" xml:space="preserve">
+    <value>{0}: Referenz {1}, Ziel {2}</value>
+  </data>
+  <data name="ColumnIdentity" xml:space="preserve">
+    <value>Identity</value>
+  </data>
+  <data name="ColumnVirtual" xml:space="preserve">
+    <value>virtuell AS ({0})</value>
+  </data>
+  <data name="ColumnNormal" xml:space="preserve">
+    <value>normale Spalte</value>
+  </data>
+  <data name="IdentityOrVirtualWarning" xml:space="preserve">
+    <value>Identity und virtuelle Spalten lassen sich nicht per MODIFY umstellen: neue Spalte anlegen und Daten umkopieren.</value>
+  </data>
+  <data name="TypeChangeHint" xml:space="preserve">
+    <value>{0}: Typ {1} → {2}</value>
+  </data>
+  <data name="TypeChangeWarning" xml:space="preserve">
+    <value>Der Wechsel von {0} zu {1} geht nur über eine neue Spalte: anlegen, Daten umkopieren, alte löschen, umbenennen.</value>
+  </data>
+  <data name="MayFailOnData" xml:space="preserve">
+    <value>Kann an vorhandenen Daten scheitern (Länge, Genauigkeit oder BYTE/CHAR).</value>
+  </data>
+  <data name="DefaultOnNullMakesNotNull" xml:space="preserve">
+    <value>DEFAULT ON NULL macht die Spalte NOT NULL: schlägt fehl, wenn sie NULL-Werte enthält.</value>
+  </data>
+  <data name="NullAfterDefaultOnNull" xml:space="preserve">
+    <value>Nur nötig, wenn die Spalte nach dem Entfernen von DEFAULT ON NULL noch NOT NULL ist (Oracle 23 hebt beides zusammen auf).</value>
+  </data>
+  <data name="NotNullAfterDefaultOnNull" xml:space="preserve">
+    <value>Schlägt fehl, wenn die Tabelle Zeilen mit NULL in dieser Spalte hat. ORA-01442: die Spalte ist schon NOT NULL – Schritt überspringen.</value>
+  </data>
+  <data name="NotNullFails" xml:space="preserve">
+    <value>Schlägt fehl, wenn die Tabelle Zeilen mit NULL in dieser Spalte hat.</value>
+  </data>
+  <data name="NoProposal" xml:space="preserve">
+    <value>Für diesen Unterschied gibt es keinen Vorschlag – von Hand angleichen.</value>
+  </data>
+  <data name="ColumnOrderHint" xml:space="preserve">
+    <value>{0}: Spaltenreihenfolge weicht ab ({1})</value>
+  </data>
+  <data name="ColumnOrderWarning" xml:space="preserve">
+    <value>Oracle kann Spalten nicht umsortieren; nur über eine neu angelegte Tabelle.</value>
+  </data>
+  <data name="RecreateKey" xml:space="preserve">
+    <value>Wird gelöscht und neu angelegt. Verweisen Fremdschlüssel auf den Schlüssel, scheitert das Löschen (ORA-02273).</value>
+  </data>
+  <data name="RecreateConstraint" xml:space="preserve">
+    <value>Wird gelöscht und neu angelegt; das Anlegen prüft die vorhandenen Zeilen.</value>
+  </data>
+  <data name="ChecksExistingRows" xml:space="preserve">
+    <value>Prüft die vorhandenen Zeilen und scheitert bei Verstößen.</value>
+  </data>
+  <data name="DropIndex" xml:space="preserve">
+    <value>Löscht den Index. Stützt er einen Schlüssel, lehnt Oracle das ab (ORA-02429).</value>
+  </data>
+  <data name="IndexTypeHint" xml:space="preserve">
+    <value>{0}: Index {1} vom Typ {2}</value>
+  </data>
+  <data name="IndexTypeNotCreated" xml:space="preserve">
+    <value>Diesen Index-Typ legt der Vorschlag nicht an: aus der DDL der Referenz übernehmen.</value>
+  </data>
+  <data name="RebuildIndex" xml:space="preserve">
+    <value>Wird gelöscht und neu aufgebaut. Stützt er einen Schlüssel, scheitert das Löschen (ORA-02429).</value>
+  </data>
+  <data name="ColumnsAlreadyIndexed" xml:space="preserve">
+    <value>Die Spalten sind im Ziel schon indiziert ({0}); einen zweiten Index darauf lehnt Oracle ab (ORA-01408).</value>
+  </data>
+  <data name="IndexNameChosen" xml:space="preserve">
+    <value>Name frei gewählt; in der Referenz hat Oracle ihn vergeben ({0}).</value>
+  </data>
+  <data name="IndexPartitioningNotCopied" xml:space="preserve">
+    <value>Die Partitionierung des Index wird nicht übernommen.</value>
+  </data>
+  <data name="IdentityOptionsUnknown" xml:space="preserve">
+    <value>Identity {0}: ALWAYS oder BY DEFAULT und die Optionen (Start, Schrittweite) sind nicht bekannt – mit der DDL der Referenz abgleichen.</value>
+  </data>
+  <data name="ExpressionNamesReferenceSchema" xml:space="preserve">
+    <value>Der Ausdruck nennt das Schema der Referenz ({0}) – im Ziel anpassen.</value>
+  </data>
+  <data name="DropKey" xml:space="preserve">
+    <value>Löscht den Schlüssel. Verweisen Fremdschlüssel darauf, lehnt Oracle das ab (ORA-02273).</value>
+  </data>
+  <data name="DropForeignKey" xml:space="preserve">
+    <value>Löscht den Fremdschlüssel: Oracle prüft die Beziehung dann nicht mehr.</value>
+  </data>
+  <data name="DropCheck" xml:space="preserve">
+    <value>Löscht die Prüfung.</value>
+  </data>
+</root>
