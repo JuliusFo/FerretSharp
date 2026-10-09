@@ -102,4 +102,13 @@
   <data name="ByteCountOther" xml:space="preserve">
     <value>{0:N0} Bytes</value>
   </data>
+  <data name="ActionNoLongerOpen" xml:space="preserve">
+    <value>Die Aktion ist nicht mehr offen – sie wurde zurückgenommen oder die Transaktion ist beendet.</value>
+  </data>
+  <data name="WrittenMeanwhile" xml:space="preserve">
+    <value>Inzwischen wurde weiter geschrieben: „{0}“. Bitte die Liste ansehen und noch einmal wählen.</value>
+  </data>
+  <data name="RedoNotPossible" xml:space="preserve">
+    <value>Die Aktion lässt sich nicht mehr wiederholen – das geht nur mit der zuletzt zurückgenommenen Aktion, solange nichts Neues geschrieben wurde.</value>
+  </data>
 </root>

@@ -3,7 +3,7 @@
     <div class="dialog-body">@ChildContent</div>
     <footer>
         <span class="spacer"></span>
-        <button class="btn ghost" @ref="_cancelButton" @onclick="OnCancel">@CommonText.Cancel</button>
+        <button class="btn ghost" @ref="_cancelButton" @onclick="OnCancel">@(CancelLabel ?? CommonText.Cancel)</button>
         <button class="btn @(Danger ? "danger-solid" : "primary")" @onclick="OnConfirm">@ConfirmLabel</button>
     </footer>
 </ModalFrame>
@@ -19,6 +19,10 @@
 
     [Parameter]
     public string ConfirmLabel { get; set; } = CommonText.Ok;
+
+    /// <summary>The safe option (focused, also Esc); "Cancel" unless the question needs another word.</summary>
+    [Parameter]
+    public string? CancelLabel { get; set; }
 
     [Parameter]
     public bool Danger { get; set; }

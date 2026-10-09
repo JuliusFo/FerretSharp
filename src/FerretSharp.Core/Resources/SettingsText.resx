@@ -303,4 +303,19 @@
     <value>Space</value>
     <comment>Key name as printed on the keyboard</comment>
   </data>
+  <data name="ActionUndoEdit" xml:space="preserve">
+    <value>Undo pending edit</value>
+    <comment>Shortcut action: takes back the last pending cell edit in the grid</comment>
+  </data>
+  <data name="ActionRedoEdit" xml:space="preserve">
+    <value>Redo pending edit</value>
+    <comment>Shortcut action: applies the last pending edit taken back again</comment>
+  </data>
+  <data name="HintEditHistory" xml:space="preserve">
+    <value>Only in the grid, cell by cell; written changes are undone with ↶ in the status bar.</value>
+  </data>
+  <data name="ActionToggleChanges" xml:space="preserve">
+    <value>Show/hide open changes</value>
+    <comment>Shortcut action: opens or closes the change overview beside the tabs</comment>
+  </data>
 </root>
