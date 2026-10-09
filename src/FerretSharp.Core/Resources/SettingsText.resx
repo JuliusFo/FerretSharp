@@ -307,4 +307,8 @@
   <data name="HintEditHistory" xml:space="preserve">
     <value>Only in the grid, cell by cell; written changes are undone with ↶ in the status bar.</value>
   </data>
+  <data name="ActionToggleChanges" xml:space="preserve">
+    <value>Show/hide open changes</value>
+    <comment>Shortcut action: opens or closes the change overview beside the tabs</comment>
+  </data>
 </root>

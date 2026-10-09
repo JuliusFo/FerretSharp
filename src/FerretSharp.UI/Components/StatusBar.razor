@@ -162,7 +162,7 @@
         return @<text>
             @* WP-30: the counts open the change overview (it replaced the tooltip list and the "SQL" button). *@
             <button class="item tx status-link @(age > LongTransaction ? "warn" : "") @(Shell.ChangesOpen ? "open" : "")"
-                    title="@((age > LongTransaction ? ShellText.Status_LongTransactionTitle : ShellText.Status_TransactionTitle) + Environment.NewLine + ShellText.Changes_ToggleTitle)"
+                    title="@((age > LongTransaction ? ShellText.Status_LongTransactionTitle : ShellText.Status_TransactionTitle) + Environment.NewLine + ShellText.Changes_ToggleTitle + Shortcuts.Hint(ShortcutAction.ToggleChanges))"
                     aria-pressed="@(Shell.ChangesOpen ? "true" : "false")" @onclick="Shell.ToggleChanges">
                 <span class="dot @(edits.Pending > 0 ? "pending" : "flushed")"></span>
                 @counts

@@ -147,9 +147,21 @@ public sealed partial class ShellState
     /// <summary>The change overview of the active workspace is open beside the tabs (WP-30).</summary>
     public bool ChangesOpen { get; private set; }
 
-    public void ToggleChanges() => Set(() => ChangesOpen = !ChangesOpen);
+    /// <summary>The user opened or closed the change overview; the shell remembers it in the settings.</summary>
+    public event Action<bool>? ChangesOpenChanged;
 
-    public void CloseChanges() => Set(() => ChangesOpen = false);
+    public void ToggleChanges() => SetChangesOpen(!ChangesOpen);
+
+    public void CloseChanges() => SetChangesOpen(false);
+
+    /// <summary>As it was when the app was closed (start, no event).</summary>
+    public void RestoreChanges(bool open) => ChangesOpen = open;
+
+    private void SetChangesOpen(bool open)
+    {
+        Set(() => ChangesOpen = open);
+        ChangesOpenChanged?.Invoke(open);
+    }
 
     /// <summary>
     /// Shows a row of a table tab (change overview, WP-30): the tab becomes active and focuses the row once it is loaded.

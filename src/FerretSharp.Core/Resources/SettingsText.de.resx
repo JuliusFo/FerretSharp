@@ -249,4 +249,7 @@
   <data name="HintEditHistory" xml:space="preserve">
     <value>Nur im Grid, Zelle für Zelle; geschriebene Änderungen nimmt ↶ in der Statusleiste zurück.</value>
   </data>
+  <data name="ActionToggleChanges" xml:space="preserve">
+    <value>Offene Änderungen zeigen/ausblenden</value>
+  </data>
 </root>

@@ -12,6 +12,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
   - *Undo up to here* takes back an action and every later one in one go (a savepoint takes back everything after it) – they are marked before you click. Grid changes become pending again.
   - *Undone* actions can be redone in order (↷, also in the status bar), as long as nothing new was written: grid changes are written again with the usual lock and conflict check; a SQL or LINQ statement runs again with the same bind values after you confirm – if it changes another number of rows than the first time, you choose to keep or undo it.
   - Other workspaces with open transactions are listed and one click away.
+  - Ctrl+Shift+U opens and closes it (changeable). Drag its left edge to make it wider; the width and whether it is open are kept for the next start.
 - Ctrl+Z / Ctrl+Y in the grid take back or apply again single pending edits (cells, new rows, deletion marks, discards) – the editors keep their own undo. Changeable under *Settings › Shortcuts*.
 - The commit confirmation on Production lists the actions and pending changes that will be committed.
 

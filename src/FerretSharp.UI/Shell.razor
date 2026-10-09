@@ -235,6 +235,8 @@
         _state.Changed += OnChanged;
         _state.Dirty += _lifecycle.SaveTabs;
         _state.ConnectRequested += OnConnectRequested;
+        _state.RestoreChanges(Settings.Current.ChangesPanelOpen);
+        _state.ChangesOpenChanged += OnChangesOpenChanged;
         Connections.Changed += OnChanged;
         Hub.Changed += OnHubChanged;
         KeepAlive.ConnectionLost += OnKeepAliveLost;
@@ -346,8 +348,24 @@
                 }
 
                 break;
+            case ShortcutAction.ToggleChanges when Active.IsConnected && _state.Page == ShellPage.Explorer:
+                _state.ToggleChanges();
+                break;
         }
     }
+
+    /// <summary>The change overview opens again after a restart if it was open (WP-30).</summary>
+    private void OnChangesOpenChanged(bool open) => InvokeAsync(async () =>
+    {
+        try
+        {
+            await Settings.UpdateAsync(s => s with { ChangesPanelOpen = open }, CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _state.Notify(TextFormat.Format(ShellText.Settings_NotSaved, ex.Message));
+        }
+    });
 
     /// <summary>Raised by <see cref="ShellState.Connect"/> from anywhere; the lifecycle asks about open changes first.</summary>
     private void OnConnectRequested(ConnectionProfile profile) => InvokeAsync(() => _lifecycle.ConnectAsync(profile));
@@ -513,6 +531,7 @@
         _state.Changed -= OnChanged;
         _state.Dirty -= _lifecycle.SaveTabs;
         _state.ConnectRequested -= OnConnectRequested;
+        _state.ChangesOpenChanged -= OnChangesOpenChanged;
         Connections.Changed -= OnChanged;
         Hub.Changed -= OnHubChanged;
         foreach (var (scope, handler) in _subscribed.ToList())

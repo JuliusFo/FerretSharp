@@ -66,6 +66,21 @@ public sealed class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task Change_overview_is_closed_with_default_width_by_default_and_round_trips()
+    {
+        await File.WriteAllTextAsync(_store.FilePath, """{ "version": 1, "settings": { "theme": "dark" } }""", Ct);
+        var loaded = await _store.LoadAsync(Ct);
+        Assert.False(loaded.ChangesPanelOpen);
+        Assert.Null(loaded.ChangesPanelWidth);
+
+        await _store.SaveAsync(new AppSettings { ChangesPanelOpen = true, ChangesPanelWidth = 520 }, Ct);
+
+        loaded = await _store.LoadAsync(Ct);
+        Assert.True(loaded.ChangesPanelOpen);
+        Assert.Equal(520, loaded.ChangesPanelWidth);
+    }
+
+    [Fact]
     public async Task Service_keeps_changes_of_different_settings_and_saves_all_of_them()
     {
         var service = new AppSettingsService(_store, AppSettings.Default);

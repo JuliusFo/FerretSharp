@@ -1093,7 +1093,7 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 
 /* ---------- open changes of the active workspace (WP-30): beside the tabs ---------- */
 .statusbar .item.tx.status-link.open { color: var(--accent); }
-.changes-panel { flex: none; display: flex; flex-direction: column; width: 380px; min-height: 0; border-left: 1px solid var(--border); background: var(--surface); font-size: 12.5px; }
+.changes-panel { position: relative; flex: none; display: flex; flex-direction: column; width: 380px; min-width: 300px; max-width: 60%; min-height: 0; border-left: 1px solid var(--border); background: var(--surface); font-size: 12.5px; }
 .changes-head { display: flex; align-items: center; gap: 8px; height: 38px; flex: none; padding: 0 6px 0 12px; border-bottom: 1px solid var(--border); }
 .changes-head .spacer, .changes-group-head .spacer, .change-row-head .spacer, .change-action-tools .spacer, .changes-section .spacer, .changes-other .spacer { flex: 1; }
 .changes-ws { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }

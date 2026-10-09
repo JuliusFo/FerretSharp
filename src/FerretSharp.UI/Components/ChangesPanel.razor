@@ -3,10 +3,16 @@
    an action, redo, discarding and jumps to the row or the tab a change came from. *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
+@using FerretSharp.Core.Settings
+@inherits FerretComponent
+@implements IAsyncDisposable
 @inject ConnectionHub Hub
 @inject ShortcutService Shortcuts
+@inject AppSettingsService Settings
+@inject IJSRuntime JS
 
-<aside class="changes-panel" aria-label="@ShellText.Changes_Title">
+<aside class="changes-panel" style="@WidthStyle" aria-label="@ShellText.Changes_Title" @ref="_panel">
+    <div class="form-resize" @ref="_handle" title="@GridText.Form_ResizeWidth" @onpointerdown="StartResizeAsync"></div>
     <header class="changes-head">
         <strong>@ShellText.Changes_Title</strong>
         @if (Workspace is { } shown)
@@ -14,7 +20,7 @@
             <span class="changes-ws" title="@Lifecycle.WorkspaceName(shown.WorkspaceId)">@Lifecycle.WorkspaceName(shown.WorkspaceId)</span>
         }
         <span class="spacer"></span>
-        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="Shell.CloseChanges">✕</button>
+        <button class="icon-btn ghost" title="@(CommonText.Close + Shortcuts.Hint(ShortcutAction.ToggleChanges))" @onclick="Shell.CloseChanges">✕</button>
     </header>
 
     @if (Workspace is not { } workspace)
@@ -201,6 +207,50 @@
     private WorkspaceEditing Editing => Lifecycle.Editing;
 
     private WorkspaceTabs? Workspace => Shell.ActiveWorkspace;
+
+    public const int DefaultWidth = 380;
+    private const int MinWidth = 300;
+    private const double MaxFraction = 0.6;
+
+    private ElementReference _panel;
+    private ElementReference _handle;
+    private DomModule? _dom;
+    private bool _disposed;
+
+    /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
+    private DomModule Dom => _dom ??= new(JS);
+
+    private string WidthStyle => FormattableString.Invariant($"width: {Settings.Current.ChangesPanelWidth ?? DefaultWidth}px;");
+
+    /// <summary>Dragging the left edge sets the width – one for the whole app, kept in the settings.</summary>
+    private async Task StartResizeAsync(PointerEventArgs e)
+    {
+        if (e.Button != 0)
+        {
+            return;
+        }
+
+        var width = await Dom.InvokeAsync<int>("dragWidth", _handle, _panel, e.PointerId, e.ClientX, MinWidth, MaxFraction);
+        if (_disposed || width <= 0 || width == Settings.Current.ChangesPanelWidth)
+        {
+            return;
+        }
+
+        try
+        {
+            await Settings.UpdateAsync(s => s with { ChangesPanelWidth = width }, CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Shell.Notify(TextFormat.Format(ShellText.Settings_NotSaved, ex.Message));
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        await Dom.DisposeAsync();
+    }
 
     /// <summary>The written action whose "up to here" the mouse is on: it and every later one are marked.</summary>
     private int? _undoFrom;
