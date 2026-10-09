@@ -1,0 +1,657 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Grid_TableNotEditable" xml:space="preserve">
+    <value>Diese Tabelle lässt sich hier nicht bearbeiten.</value>
+  </data>
+  <data name="Grid_RowNotLoaded" xml:space="preserve">
+    <value>Die Zeile ist nicht mehr geladen – bitte neu laden{0}.</value>
+  </data>
+  <data name="Grid_RowGone" xml:space="preserve">
+    <value>Die Zeile gibt es nicht mehr – bitte neu laden{0}.</value>
+  </data>
+  <data name="Grid_ValueNotCopied" xml:space="preserve">
+    <value>Wert nicht kopiert.</value>
+  </data>
+  <data name="Grid_ColumnCopied" xml:space="preserve">
+    <value>{0} kopiert.</value>
+  </data>
+  <data name="Grid_SelectedRowsNotCopiedOne" xml:space="preserve">
+    <value>{0} der markierten Zeilen sind nicht mehr geladen – nicht kopiert.</value>
+  </data>
+  <data name="Grid_SelectedRowsNotCopiedOther" xml:space="preserve">
+    <value>{0} der markierten Zeilen sind nicht mehr geladen – nicht kopiert.</value>
+  </data>
+  <data name="Grid_OpenContent" xml:space="preserve">
+    <value>Inhalt öffnen …</value>
+  </data>
+  <data name="Grid_PinColumnLeft" xml:space="preserve">
+    <value>Spalte links anheften</value>
+  </data>
+  <data name="Grid_UnpinColumn" xml:space="preserve">
+    <value>Spalte lösen</value>
+  </data>
+  <data name="Grid_HideEmpty" xml:space="preserve">
+    <value>Leere ausblenden</value>
+  </data>
+  <data name="Grid_Discard" xml:space="preserve">
+    <value>Verwerfen</value>
+  </data>
+  <data name="Grid_Column" xml:space="preserve">
+    <value>Spalte</value>
+  </data>
+  <data name="Grid_FkModelBadge" xml:space="preserve">
+    <value>Beziehung aus dem C#-Modell, ohne Constraint in der Datenbank</value>
+  </data>
+  <data name="Grid_NotSortable" xml:space="preserve">
+    <value>Nach diesem Typ kann nicht sortiert werden</value>
+  </data>
+  <data name="Grid_ValueNoMember" xml:space="preserve">
+    <value>{0} (kein Member)</value>
+  </data>
+  <data name="GridMenu_CopyAsCSharpValue" xml:space="preserve">
+    <value>Als C#-Wert kopieren</value>
+  </data>
+  <data name="GridMenu_OpenLobTitle" xml:space="preserve">
+    <value>Den ganzen Wert ansehen, als Datei speichern (auch Doppelklick)</value>
+  </data>
+  <data name="GridMenu_OpenLobTitleEdit" xml:space="preserve">
+    <value>Den ganzen Wert ansehen, als Datei speichern oder ändern (auch Doppelklick)</value>
+  </data>
+  <data name="GridMenu_CompareTooMany" xml:space="preserve">
+    <value>Höchstens {0} Zeilen nebeneinander</value>
+  </data>
+  <data name="GridMenu_CompareTitle" xml:space="preserve">
+    <value>Die markierten Zeilen nebeneinander, Unterschiede markiert{0}</value>
+  </data>
+  <data name="GridMenu_CompareSelected" xml:space="preserve">
+    <value>Markierte vergleichen</value>
+  </data>
+  <data name="GridMenu_AsFormTitle" xml:space="preserve">
+    <value>Alle Spalten der Zeile untereinander, neben dem Grid{0}</value>
+  </data>
+  <data name="GridMenu_AsForm" xml:space="preserve">
+    <value>Als Formular</value>
+  </data>
+  <data name="GridMenu_EditGroup" xml:space="preserve">
+    <value>Bearbeiten · {0}</value>
+  </data>
+  <data name="GridMenu_DeleteRowTitle" xml:space="preserve">
+    <value>Wird mit „Schreiben“{0} gelöscht</value>
+  </data>
+  <data name="GridMenu_DeleteRow" xml:space="preserve">
+    <value>Zeile löschen</value>
+  </data>
+  <data name="GridMenu_DiscardPendingTitle" xml:space="preserve">
+    <value>Ausstehende Änderungen dieser Zeilen verwerfen (auch ein noch nicht geschriebenes Löschen)</value>
+  </data>
+  <data name="GridMenu_DiscardPending" xml:space="preserve">
+    <value>Ausstehende Änderungen verwerfen</value>
+  </data>
+  <data name="GridMenu_ExportGroup" xml:space="preserve">
+    <value>Export · {0}</value>
+  </data>
+  <data name="GridMenu_CopyTableTitle" xml:space="preserve">
+    <value>Tabulator-getrennt mit Kopfzeile – lässt sich direkt in Excel einfügen</value>
+  </data>
+  <data name="GridMenu_CopyTable" xml:space="preserve">
+    <value>Als Tabelle kopieren</value>
+  </data>
+  <data name="GridMenu_CopyInsertTitle" xml:space="preserve">
+    <value>INSERT-Statements (werden nie ausgeführt)</value>
+  </data>
+  <data name="GridMenu_CopyInsert" xml:space="preserve">
+    <value>Als INSERT kopieren</value>
+  </data>
+  <data name="GridMenu_SaveCsvTitle" xml:space="preserve">
+    <value>Semikolon-getrennt, UTF-8 – öffnet sich direkt in Excel</value>
+  </data>
+  <data name="GridMenu_SaveCsv" xml:space="preserve">
+    <value>Als CSV speichern …</value>
+  </data>
+  <data name="GridMenu_SaveInsert" xml:space="preserve">
+    <value>Als INSERT-Skript speichern …</value>
+  </data>
+  <data name="GridMenu_CopyObjectsTitle" xml:space="preserve">
+    <value>Objektinitialisierer mit Property-Namen und Enum-Membern (NULL-Werte weggelassen)</value>
+  </data>
+  <data name="GridMenu_CopyObjects" xml:space="preserve">
+    <value>Als C#-Objekte kopieren</value>
+  </data>
+  <data name="GridMenu_CopySeedTitle" xml:space="preserve">
+    <value>builder.HasData(…) für die IEntityTypeConfiguration</value>
+  </data>
+  <data name="GridMenu_CopySeed" xml:space="preserve">
+    <value>Als HasData kopieren</value>
+  </data>
+  <data name="GridMenu_PointsTo" xml:space="preserve">
+    <value>Verweist auf{0}</value>
+  </data>
+  <data name="GridMenu_ReferencedBy" xml:space="preserve">
+    <value>Referenziert von{0}</value>
+  </data>
+  <data name="GridMenu_NoForeignKeys" xml:space="preserve">
+    <value>Keine Fremdschlüssel an dieser Tabelle.</value>
+  </data>
+  <data name="GridMenu_MissingRows" xml:space="preserve">
+    <value>{0} der Auswahl nicht mehr geladen – bei den Sprüngen nicht berücksichtigt.</value>
+  </data>
+  <data name="Export_RowsOne" xml:space="preserve">
+    <value>{0} Zeile</value>
+  </data>
+  <data name="Export_RowsOther" xml:space="preserve">
+    <value>{0:N0} Zeilen</value>
+  </data>
+  <data name="Export_ClipboardUnavailable" xml:space="preserve">
+    <value>Die Zwischenablage ist nicht verfügbar.</value>
+  </data>
+  <data name="Export_CopiedAsTableOne" xml:space="preserve">
+    <value>{0} Zeile als Tabelle kopiert.</value>
+  </data>
+  <data name="Export_CopiedAsTableOther" xml:space="preserve">
+    <value>{0:N0} Zeilen als Tabelle kopiert.</value>
+  </data>
+  <data name="Export_CopiedAsInsertOne" xml:space="preserve">
+    <value>{0} Zeile als INSERT kopiert.</value>
+  </data>
+  <data name="Export_CopiedAsInsertOther" xml:space="preserve">
+    <value>{0:N0} Zeilen als INSERT kopiert.</value>
+  </data>
+  <data name="Export_CopiedAsCSharpObjectsOne" xml:space="preserve">
+    <value>{0} Zeile als C#-Objekte kopiert.</value>
+  </data>
+  <data name="Export_CopiedAsCSharpObjectsOther" xml:space="preserve">
+    <value>{0:N0} Zeilen als C#-Objekte kopiert.</value>
+  </data>
+  <data name="Export_CopiedAsHasDataOne" xml:space="preserve">
+    <value>{0} Zeile als HasData kopiert.</value>
+  </data>
+  <data name="Export_CopiedAsHasDataOther" xml:space="preserve">
+    <value>{0:N0} Zeilen als HasData kopiert.</value>
+  </data>
+  <data name="Export_SavedOne" xml:space="preserve">
+    <value>{0} Zeile gespeichert: {1}</value>
+  </data>
+  <data name="Export_SavedOther" xml:space="preserve">
+    <value>{0:N0} Zeilen gespeichert: {1}</value>
+  </data>
+  <data name="Export_SaveFailed" xml:space="preserve">
+    <value>Speichern fehlgeschlagen: {0}</value>
+  </data>
+  <data name="Export_MissingRows" xml:space="preserve">
+    <value>{0} der Auswahl nicht mehr geladen – nicht exportiert.</value>
+  </data>
+  <data name="Export_CsvFilter" xml:space="preserve">
+    <value>CSV (Semikolon)</value>
+  </data>
+  <data name="Export_SqlScriptFilter" xml:space="preserve">
+    <value>SQL-Skript</value>
+  </data>
+  <data name="Form_ResizeWidth" xml:space="preserve">
+    <value>Breite ändern</value>
+  </data>
+  <data name="Form_PreviousRow" xml:space="preserve">
+    <value>Vorige Zeile{0}</value>
+  </data>
+  <data name="Form_NextRow" xml:space="preserve">
+    <value>Nächste Zeile{0}</value>
+  </data>
+  <data name="Form_PrimaryKey" xml:space="preserve">
+    <value>Primärschlüssel</value>
+  </data>
+  <data name="Form_Title" xml:space="preserve">
+    <value>Formular</value>
+  </data>
+  <data name="Form_Close" xml:space="preserve">
+    <value>Formular schließen{0}</value>
+  </data>
+  <data name="Form_SearchFields" xml:space="preserve">
+    <value>Felder suchen …{0}</value>
+  </data>
+  <data name="Form_HideEmptyTitle" xml:space="preserve">
+    <value>Felder ohne Wert (NULL) ausblenden – geänderte bleiben sichtbar; gilt für diesen Tab</value>
+  </data>
+  <data name="Form_OnlyChangedTitle" xml:space="preserve">
+    <value>Nur Felder mit ausstehenden oder geschriebenen Änderungen</value>
+  </data>
+  <data name="Form_OnlyChanged" xml:space="preserve">
+    <value>Nur geänderte</value>
+  </data>
+  <data name="Form_FieldsOne" xml:space="preserve">
+    <value>{0} Felder</value>
+  </data>
+  <data name="Form_FieldsOther" xml:space="preserve">
+    <value>{0} Felder</value>
+  </data>
+  <data name="Form_FieldsShown" xml:space="preserve">
+    <value>{0} von {1} Feldern</value>
+  </data>
+  <data name="Form_EmptyHidden" xml:space="preserve">
+    <value>{0} leere ausgeblendet</value>
+  </data>
+  <data name="Form_MarkedForDeletion" xml:space="preserve">
+    <value>Zum Löschen markiert.</value>
+  </data>
+  <data name="Form_MarkedForDeletionWritten" xml:space="preserve">
+    <value>Zum Löschen markiert (geschrieben).</value>
+  </data>
+  <data name="Form_NewRowNote" xml:space="preserve">
+    <value>Neue Zeile – wird mit „Schreiben“{0} eingefügt.</value>
+  </data>
+  <data name="Form_ReadOnly" xml:space="preserve">
+    <value>Schreibgeschützt – zum Ändern den Workspace freischalten.</value>
+  </data>
+  <data name="Form_ChooseRow" xml:space="preserve">
+    <value>Im Grid eine Zeile wählen (Klick oder Pfeiltasten).</value>
+  </data>
+  <data name="Form_LoadingRow" xml:space="preserve">
+    <value>Lade Zeile …</value>
+  </data>
+  <data name="Form_NoFieldMatches" xml:space="preserve">
+    <value>Kein Feld passt.</value>
+  </data>
+  <data name="Form_NoFieldMatchesQuery" xml:space="preserve">
+    <value>Kein Feld passt zu „{0}“.</value>
+  </data>
+  <data name="Form_ReferencedBy" xml:space="preserve">
+    <value>Referenziert von</value>
+  </data>
+  <data name="Form_NewRow" xml:space="preserve">
+    <value>Neue Zeile</value>
+  </data>
+  <data name="Form_Position" xml:space="preserve">
+    <value>Zeile {0} von {1}</value>
+  </data>
+  <data name="Form_NothingWritten" xml:space="preserve">
+    <value>Nichts geschrieben – {0}: {1}</value>
+  </data>
+  <data name="Form_InsertedRowOutside" xml:space="preserve">
+    <value>Die eingefügte Zeile steht nicht im geladenen Bereich des Grids – im Grid eine Zeile wählen.</value>
+  </data>
+  <data name="Form_NewRowRemoved" xml:space="preserve">
+    <value>Die neue Zeile wurde entfernt.</value>
+  </data>
+  <data name="Form_RowNotLoaded" xml:space="preserve">
+    <value>Die Zeile ist nicht mehr geladen – im Grid eine Zeile wählen.</value>
+  </data>
+  <data name="Form_ViewValue" xml:space="preserve">
+    <value>Den ganzen Wert ansehen</value>
+  </data>
+  <data name="Form_ViewOrChangeValue" xml:space="preserve">
+    <value>Den ganzen Wert ansehen oder ändern</value>
+  </data>
+  <data name="Form_CopyValueTitle" xml:space="preserve">
+    <value>Wert kopieren (voller Wert)</value>
+  </data>
+  <data name="Form_Default" xml:space="preserve">
+    <value>Default: {0}</value>
+  </data>
+  <data name="Compare_Label" xml:space="preserve">
+    <value>Vergleich {0}</value>
+  </data>
+  <data name="Compare_Header" xml:space="preserve">
+    <value>Vergleich · {0} · {1}</value>
+  </data>
+  <data name="Compare_SearchColumns" xml:space="preserve">
+    <value>Spalten suchen …</value>
+  </data>
+  <data name="Compare_OnlyDifferences" xml:space="preserve">
+    <value>Nur Unterschiede</value>
+  </data>
+  <data name="Compare_HideEmptyTitle" xml:space="preserve">
+    <value>Spalten, die in allen Zeilen NULL sind</value>
+  </data>
+  <data name="Compare_ColumnsDifferOne" xml:space="preserve">
+    <value>{0} Spalte unterschiedlich</value>
+  </data>
+  <data name="Compare_ColumnsDifferOther" xml:space="preserve">
+    <value>{0} Spalten unterschiedlich</value>
+  </data>
+  <data name="Compare_Shown" xml:space="preserve">
+    <value>{0} von {1} gezeigt</value>
+  </data>
+  <data name="Compare_ShowRowTitle" xml:space="preserve">
+    <value>Im Grid zeigen und im Formular öffnen</value>
+  </data>
+  <data name="Compare_Row" xml:space="preserve">
+    <value>Zeile {0:N0}</value>
+  </data>
+  <data name="Compare_RowsEqual" xml:space="preserve">
+    <value>Die Zeilen sind gleich.</value>
+  </data>
+  <data name="Compare_NoColumnMatches" xml:space="preserve">
+    <value>Keine Spalte passt.</value>
+  </data>
+  <data name="Compare_FooterNote" xml:space="preserve">
+    <value>Abweichende Werte markiert · Werte wie im Grid, mit ausstehenden Änderungen</value>
+  </data>
+  <data name="Compare_MissingRows" xml:space="preserve">
+    <value>{0} der Auswahl nicht mehr geladen</value>
+  </data>
+  <data name="CompareCell_As" xml:space="preserve">
+    <value>als {0}</value>
+  </data>
+  <data name="CompareCell_Missing" xml:space="preserve">
+    <value>Fehlt auf dieser Seite</value>
+  </data>
+  <data name="CompareCell_OtherCase" xml:space="preserve">
+    <value>Nur in anderer Schreibweise vorhanden: {0}</value>
+  </data>
+  <data name="CompareCell_Different" xml:space="preserve">
+    <value>Abweichend (Variante {0})</value>
+  </data>
+  <data name="CompareCell_Same" xml:space="preserve">
+    <value>Gleich</value>
+  </data>
+  <data name="Lob_Loading" xml:space="preserve">
+    <value>Lade den ganzen Wert …</value>
+  </data>
+  <data name="Lob_Changed" xml:space="preserve">
+    <value>geändert</value>
+  </data>
+  <data name="Lob_ReadOnly" xml:space="preserve">
+    <value>nur lesen</value>
+  </data>
+  <data name="Lob_Preview" xml:space="preserve">
+    <value>Vorschau</value>
+  </data>
+  <data name="Lob_EnterText" xml:space="preserve">
+    <value>Text eingeben</value>
+  </data>
+  <data name="Lob_TooLargeToEdit" xml:space="preserve">
+    <value>Zu groß zum Bearbeiten im Dialog (über {0}) – über „Als Datei speichern“ und „Aus Datei laden“.</value>
+  </data>
+  <data name="Lob_SaveToFile" xml:space="preserve">
+    <value>Als Datei speichern …</value>
+  </data>
+  <data name="Lob_LoadFromFile" xml:space="preserve">
+    <value>Aus Datei laden …</value>
+  </data>
+  <data name="Lob_SetNull" xml:space="preserve">
+    <value>Auf NULL setzen</value>
+  </data>
+  <data name="Lob_ApplyTitle" xml:space="preserve">
+    <value>Als ausstehende Änderung übernehmen – geschrieben wird mit „Schreiben“{0}</value>
+  </data>
+  <data name="Lob_TooLargeToLoad" xml:space="preserve">
+    <value>Der Wert ist {0} groß – FerretSharp lädt LOBs bis {1}.</value>
+  </data>
+  <data name="Lob_FileTooLarge" xml:space="preserve">
+    <value>„{0}“ ist {1} groß – FerretSharp lädt LOBs bis {2}.</value>
+  </data>
+  <data name="Lob_TextFileFilter" xml:space="preserve">
+    <value>Textdatei</value>
+  </data>
+  <data name="Lob_FileFilter" xml:space="preserve">
+    <value>Datei</value>
+  </data>
+  <data name="Lob_TextFilesFilter" xml:space="preserve">
+    <value>Textdateien</value>
+  </data>
+  <data name="Lob_Saved" xml:space="preserve">
+    <value>Gespeichert: {0}</value>
+  </data>
+  <data name="Lob_LoadFailed" xml:space="preserve">
+    <value>Laden fehlgeschlagen: {0}</value>
+  </data>
+  <data name="Lob_FromFile" xml:space="preserve">
+    <value>aus „{0}“</value>
+  </data>
+  <data name="Lob_FromFileNotUtf8" xml:space="preserve">
+    <value>aus „{0}“ (kein UTF-8 – als Windows-1252 gelesen)</value>
+  </data>
+  <data name="Problem_LockConflictOne" xml:space="preserve">
+    <value>Eine andere Session hält die Zeile gesperrt (hat sie geändert, aber noch nicht committed). FerretSharp hat {0} Sekunden gewartet.</value>
+  </data>
+  <data name="Problem_LockConflictOther" xml:space="preserve">
+    <value>Eine andere Session hält die Zeile gesperrt (hat sie geändert, aber noch nicht committed). FerretSharp hat {0} Sekunden gewartet.</value>
+  </data>
+  <data name="Problem_Session" xml:space="preserve">
+    <value>Session</value>
+  </data>
+  <data name="Problem_User" xml:space="preserve">
+    <value>Benutzer</value>
+  </data>
+  <data name="Problem_Machine" xml:space="preserve">
+    <value>Rechner</value>
+  </data>
+  <data name="Problem_ProgramWorkspace" xml:space="preserve">
+    <value>Programm / Workspace</value>
+  </data>
+  <data name="Problem_FerretSharpWorkspace" xml:space="preserve">
+    <value>FerretSharp · Workspace „{0}“</value>
+  </data>
+  <data name="Problem_LockHoldersNote" xml:space="preserve">
+    <value>Sessions mit Sperren auf der Tabelle – welche genau die Zeile hält, verrät Oracle nicht.</value>
+  </data>
+  <data name="Problem_LockHoldersUnknown" xml:space="preserve">
+    <value>Wer sperrt, lässt sich ohne Leserechte auf V$SESSION (SELECT_CATALOG_ROLE) nicht ermitteln.</value>
+  </data>
+  <data name="Problem_ChangedMeanwhileText" xml:space="preserve">
+    <value>Jemand hat die Zeile geändert, nachdem sie hier geladen wurde:</value>
+  </data>
+  <data name="Problem_WhenLoaded" xml:space="preserve">
+    <value>Beim Laden</value>
+  </data>
+  <data name="Problem_NowInDatabase" xml:space="preserve">
+    <value>Jetzt in der DB</value>
+  </data>
+  <data name="Problem_YourChange" xml:space="preserve">
+    <value>Deine Änderung</value>
+  </data>
+  <data name="Problem_RowGoneText" xml:space="preserve">
+    <value>Die Zeile gibt es nicht mehr – jemand hat sie gelöscht und committed.</value>
+  </data>
+  <data name="Problem_DuringCommit" xml:space="preserve">
+    <value>Committed ist noch nichts. Nach der Entscheidung geht es mit dem Commit weiter.</value>
+  </data>
+  <data name="Problem_Retry" xml:space="preserve">
+    <value>Erneut versuchen</value>
+  </data>
+  <data name="Problem_DiscardMine" xml:space="preserve">
+    <value>Meine Änderung verwerfen</value>
+  </data>
+  <data name="Problem_Overwrite" xml:space="preserve">
+    <value>Überschreiben</value>
+  </data>
+  <data name="Problem_DiscardChange" xml:space="preserve">
+    <value>Änderung verwerfen</value>
+  </data>
+  <data name="Problem_LockedTitle" xml:space="preserve">
+    <value>Zeile ist gesperrt</value>
+  </data>
+  <data name="Problem_ChangedMeanwhile" xml:space="preserve">
+    <value>Inzwischen geändert</value>
+  </data>
+  <data name="Problem_RowDeleted" xml:space="preserve">
+    <value>Zeile gelöscht</value>
+  </data>
+  <data name="Problem_WriteRefused" xml:space="preserve">
+    <value>Schreiben abgelehnt</value>
+  </data>
+  <data name="Problem_NewRow" xml:space="preserve">
+    <value>neue Zeile</value>
+  </data>
+  <data name="Problem_RowKey" xml:space="preserve">
+    <value>Zeile {0}</value>
+  </data>
+  <data name="Problem_RowToDelete" xml:space="preserve">
+    <value>zu löschende Zeile</value>
+  </data>
+  <data name="Problem_ChangedRow" xml:space="preserve">
+    <value>geänderte Zeile</value>
+  </data>
+  <data name="Outcome_RowsChangedOne" xml:space="preserve">
+    <value>{0} Zeile geändert</value>
+  </data>
+  <data name="Outcome_RowsChangedOther" xml:space="preserve">
+    <value>{0:N0} Zeilen geändert</value>
+  </data>
+  <data name="Outcome_Open" xml:space="preserve">
+    <value>{0}{1} – in der Transaktion des Workspaces. Für andere unsichtbar bis zum Commit; committen, verwerfen oder zurücknehmen (↶) über die Statusleiste.</value>
+  </data>
+  <data name="Outcome_Undone" xml:space="preserve">
+    <value>{0}{1} – inzwischen zurückgenommen (↶).</value>
+  </data>
+  <data name="Outcome_Ended" xml:space="preserve">
+    <value>{0}{1} – die Transaktion ist inzwischen beendet (Commit oder Rollback).</value>
+  </data>
+  <data name="ColumnMenu_PkPinnedTitle" xml:space="preserve">
+    <value>Der Primärschlüssel steht immer vorne</value>
+  </data>
+  <data name="ColumnMenu_PkPinned" xml:space="preserve">
+    <value>Angeheftet (Primärschlüssel)</value>
+  </data>
+  <data name="ColumnJump_Title" xml:space="preserve">
+    <value>Spalte suchen und hinspringen{0}</value>
+  </data>
+  <data name="ColumnJump_Button" xml:space="preserve">
+    <value>Spalte</value>
+  </data>
+  <data name="ColumnJump_Search" xml:space="preserve">
+    <value>Spalte suchen …</value>
+  </data>
+  <data name="ColumnJump_CountOne" xml:space="preserve">
+    <value>{0} Spalten</value>
+  </data>
+  <data name="ColumnJump_CountOther" xml:space="preserve">
+    <value>{0} Spalten</value>
+  </data>
+  <data name="Filter_Add" xml:space="preserve">
+    <value>Filter</value>
+  </data>
+  <data name="Filter_NoFilter" xml:space="preserve">
+    <value>Kein Filter – alle Zeilen</value>
+  </data>
+  <data name="Filter_PlanTitle" xml:space="preserve">
+    <value>Ausführungsplan der Abfrage – geschätzt oder tatsächlich</value>
+  </data>
+  <data name="Filter_Plan" xml:space="preserve">
+    <value>Plan</value>
+  </data>
+  <data name="Filter_Enabled" xml:space="preserve">
+    <value>Filter aktiv</value>
+  </data>
+  <data name="Filter_From" xml:space="preserve">
+    <value>von: {0}</value>
+  </data>
+  <data name="Filter_To" xml:space="preserve">
+    <value>bis: {0}</value>
+  </data>
+  <data name="Filter_ListPlaceholder" xml:space="preserve">
+    <value>Werte mit ; trennen</value>
+  </data>
+  <data name="Filter_Remove" xml:space="preserve">
+    <value>Entfernen</value>
+  </data>
+  <data name="Filter_AddTitle" xml:space="preserve">
+    <value>Filter hinzufügen</value>
+  </data>
+  <data name="Filter_Clear" xml:space="preserve">
+    <value>Leeren</value>
+  </data>
+  <data name="Filter_Apply" xml:space="preserve">
+    <value>Anwenden</value>
+  </data>
+  <data name="Filter_NumberPlaceholder" xml:space="preserve">
+    <value>Zahl, z. B. 4711 oder 12,5</value>
+  </data>
+  <data name="Filter_DatePlaceholder" xml:space="preserve">
+    <value>TT.MM.JJJJ [hh:mm]</value>
+  </data>
+  <data name="Filter_RawPlaceholder" xml:space="preserve">
+    <value>Hex, z. B. CAFE01</value>
+  </data>
+  <data name="Filter_TextPlaceholder" xml:space="preserve">
+    <value>Text</value>
+  </data>
+  <data name="ValuePicker_ChooseValue" xml:space="preserve">
+    <value>Wert wählen …</value>
+  </data>
+  <data name="ValuePicker_ChooseValues" xml:space="preserve">
+    <value>Werte wählen …</value>
+  </data>
+  <data name="ValuePicker_NoMember" xml:space="preserve">
+    <value>kein Member</value>
+  </data>
+  <data name="FkJump_FromModel" xml:space="preserve">
+    <value>aus C#-Modell</value>
+  </data>
+  <data name="FkJump_CountTimedOut" xml:space="preserve">
+    <value>Zählen nach {0} s abgebrochen</value>
+  </data>
+  <data name="FkJump_ModelRelationship" xml:space="preserve">
+    <value>Beziehung aus dem C#-Modell – in der Datenbank gibt es dafür keinen Constraint.</value>
+  </data>
+  <data name="Footer_RowsOne" xml:space="preserve">
+    <value>{0} Zeilen</value>
+  </data>
+  <data name="Footer_RowsOther" xml:space="preserve">
+    <value>{0} Zeilen</value>
+  </data>
+  <data name="Footer_AtLeastRows" xml:space="preserve">
+    <value>≥ {0} Zeilen</value>
+  </data>
+  <data name="Footer_Total" xml:space="preserve">
+    <value>Gesamt {0}</value>
+  </data>
+  <data name="Footer_Counting" xml:space="preserve">
+    <value>Zähle …</value>
+  </data>
+  <data name="Footer_CountRows" xml:space="preserve">
+    <value>Zeilen zählen</value>
+  </data>
+  <data name="Footer_SnapshotTitle" xml:space="preserve">
+    <value>Schreibgeschützte Verbindung: Oracle liefert die Daten aus einer READ ONLY-Transaktion mit dem Stand dieses Zeitpunkts. Jede neue Abfrage (Filter, Sortierung, {0}) holt einen neuen Stand; weitere Seiten bleiben im selben Stand.</value>
+  </data>
+  <data name="Footer_Snapshot" xml:space="preserve">
+    <value>Stand {0}</value>
+  </data>
+  <data name="Footer_SnapshotMovedKey" xml:space="preserve">
+    <value>Stand hat sich geändert – {0} lädt neu</value>
+  </data>
+  <data name="Footer_SnapshotMoved" xml:space="preserve">
+    <value>Stand hat sich geändert – neu laden</value>
+  </data>
+  <data name="Footer_RowKey" xml:space="preserve">
+    <value>Row-Key: {0}</value>
+  </data>
+  <data name="Footer_Sort" xml:space="preserve">
+    <value>Sortierung: {0}</value>
+  </data>
+  <data name="Footer_SortAllColumns" xml:space="preserve">
+    <value>Sortierung: alle Spalten</value>
+  </data>
+  <data name="Footer_SortRowKey" xml:space="preserve">
+    <value>Sortierung: Row-Key</value>
+  </data>
+  <data name="Footer_NoRowKey" xml:space="preserve">
+    <value>keiner (View ohne Schlüssel)</value>
+  </data>
+  <data name="Editing_Committed" xml:space="preserve">
+    <value>Änderungen committed.</value>
+  </data>
+  <data name="Editing_RolledBack" xml:space="preserve">
+    <value>Änderungen verworfen (Rollback).</value>
+  </data>
+  <data name="Editing_UndoneGrid" xml:space="preserve">
+    <value>Zurückgenommen: {0} – die Änderungen sind wieder ausstehend.</value>
+  </data>
+  <data name="Editing_Undone" xml:space="preserve">
+    <value>Zurückgenommen: {0}.</value>
+  </data>
+  <data name="Editing_NoPending" xml:space="preserve">
+    <value>-- Keine ausstehenden Änderungen.</value>
+  </data>
+</root>

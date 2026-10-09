@@ -1,5 +1,6 @@
 using FerretSharp.Core.Data;
 using FerretSharp.Core.Forms;
+using FerretSharp.UI.Resources;
 
 namespace FerretSharp.UI.State;
 
@@ -103,8 +104,8 @@ public sealed class FormCursor(IFormGrid grid)
             if (!added.IsInserted || grid.RowAt(0) is not null)
             {
                 return LoseRow(added.IsInserted
-                    ? "Die eingefügte Zeile steht nicht im geladenen Bereich des Grids – im Grid eine Zeile wählen."
-                    : "Die neue Zeile wurde entfernt.");
+                    ? GridText.Form_InsertedRowOutside
+                    : GridText.Form_NewRowRemoved);
             }
 
             return FormFollow.Unchanged; // inserted, the grid is still loading its first block
@@ -132,7 +133,7 @@ public sealed class FormCursor(IFormGrid grid)
             return FormFollow.Moved;
         }
 
-        return LoseRow("Die Zeile ist nicht mehr geladen – im Grid eine Zeile wählen.");
+        return LoseRow(GridText.Form_RowNotLoaded);
     }
 
     /// <summary>

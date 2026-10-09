@@ -5,7 +5,7 @@
 @using FerretSharp.Core.Forms
 @using FerretSharp.Core.Schema
 
-<ModalFrame Label="@($"Vergleich {Details.Table.DisplayName}")" Class="compare-rows-dialog" OnCancel="OnClose" CloseOnBackdrop="true" FocusOnOpen="true">
+<ModalFrame Label="@TextFormat.Format(GridText.Compare_Label, Details.Table.DisplayName)" Class="compare-rows-dialog" OnCancel="OnClose" CloseOnBackdrop="true" FocusOnOpen="true">
     @{
         var presentation = Presentations.For(Details);
         var fields = RowComparison.Compare(Details, presentation, Rows.Select(r => r.Row).ToList(), Tab.PinnedColumns);
@@ -13,25 +13,25 @@
         var differing = fields.Count(f => f.Differs);
     }
     <header>
-        <span>Vergleich · @RowsText(Rows.Count) · @Details.Table.DisplayName</span>
-        <SearchBox Class="structure-filter" Placeholder="Spalten suchen …" @bind-Value="_query" />
-        <label class="check"><input type="checkbox" checked="@_onlyDifferences" @onchange="e => _onlyDifferences = e.Value is true" /> Nur Unterschiede</label>
-        <label class="check" title="Spalten, die in allen Zeilen NULL sind"><input type="checkbox" checked="@_hideEmpty" @onchange="e => _hideEmpty = e.Value is true" /> Leere ausblenden</label>
+        <span>@TextFormat.Format(GridText.Compare_Header, RowsText(Rows.Count), Details.Table.DisplayName)</span>
+        <SearchBox Class="structure-filter" Placeholder="@GridText.Compare_SearchColumns" @bind-Value="_query" />
+        <label class="check"><input type="checkbox" checked="@_onlyDifferences" @onchange="e => _onlyDifferences = e.Value is true" /> @GridText.Compare_OnlyDifferences</label>
+        <label class="check" title="@GridText.Compare_HideEmptyTitle"><input type="checkbox" checked="@_hideEmpty" @onchange="e => _hideEmpty = e.Value is true" /> @GridText.Grid_HideEmpty</label>
         <span class="muted">
-            @(differing == 1 ? "1 Spalte unterschiedlich" : $"{differing} Spalten unterschiedlich")@(view.Fields.Count < view.Total ? $" · {view.Fields.Count} von {view.Total} gezeigt" : "")
+            @TextFormat.Plural(differing, GridText.Compare_ColumnsDifferOne, GridText.Compare_ColumnsDifferOther)@(view.Fields.Count < view.Total ? " · " + TextFormat.Format(GridText.Compare_Shown, view.Fields.Count, view.Total) : "")
         </span>
         <span class="spacer"></span>
-        <button class="icon-btn ghost" title="Schließen" @onclick="OnClose">✕</button>
+        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="OnClose">✕</button>
     </header>
     <div class="dialog-body compare-rows-body">
         <table class="compare-rows">
             <thead>
                 <tr>
-                    <th class="cr-col">Spalte</th>
+                    <th class="cr-col">@GridText.Grid_Column</th>
                     @foreach (var (index, row) in Rows)
                     {
                         <th>
-                            <button class="link-btn cr-row" title="Im Grid zeigen und im Formular öffnen" @onclick="() => OnShow.InvokeAsync(index)">Zeile @((index + 1).ToString("N0", CultureInfo.CurrentCulture))</button>
+                            <button class="link-btn cr-row" title="@GridText.Compare_ShowRowTitle" @onclick="() => OnShow.InvokeAsync(index)">@TextFormat.Format(GridText.Compare_Row, index + 1)</button>
                             @if (row.KeyText(Details) is { } key)
                             {
                                 <span class="cr-key" title="@string.Join(", ", Details.PrimaryKey)">@key</span>
@@ -43,7 +43,7 @@
             <tbody>
                 @if (view.Fields.Count == 0)
                 {
-                    <tr><td class="muted" colspan="@(Rows.Count + 1)">@(_onlyDifferences && differing == 0 ? "Die Zeilen sind gleich." : "Keine Spalte passt.")</td></tr>
+                    <tr><td class="muted" colspan="@(Rows.Count + 1)">@(_onlyDifferences && differing == 0 ? GridText.Compare_RowsEqual : GridText.Compare_NoColumnMatches)</td></tr>
                 }
                 @foreach (var field in view.Fields)
                 {
@@ -67,10 +67,10 @@
     </div>
     <footer>
         <span class="muted">
-            Abweichende Werte markiert · Werte wie im Grid, mit ausstehenden Änderungen@(Missing > 0 ? $" · {RowsText(Missing)} der Auswahl nicht mehr geladen" : "")
+            @GridText.Compare_FooterNote@(Missing > 0 ? " · " + TextFormat.Format(GridText.Compare_MissingRows, RowsText(Missing)) : "")
         </span>
         <span class="spacer"></span>
-        <button class="btn" @onclick="OnClose">Schließen</button>
+        <button class="btn" @onclick="OnClose">@CommonText.Close</button>
     </footer>
 </ModalFrame>
 
@@ -103,7 +103,7 @@
     [Parameter]
     public EventCallback<int> OnShow { get; set; }
 
-    private static string RowsText(int rows) => rows == 1 ? "1 Zeile" : $"{rows:N0} Zeilen";
+    private static string RowsText(int rows) => ExportActions.RowsText(rows);
 
     private static string StageClass(ChangeStage? stage) => stage switch
     {

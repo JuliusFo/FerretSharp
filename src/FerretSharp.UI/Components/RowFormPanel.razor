@@ -15,36 +15,36 @@
 
 @* tabindex: a click on a label keeps the focus in the form, so Ctrl+F opens its search, not the grid's column jump. *@
 <aside class="form-panel" style="@WidthStyle" tabindex="-1" @ref="_panel" @onkeydown="OnKeyDownAsync">
-    <div class="form-resize" @ref="_handle" title="Breite ändern" @onpointerdown="StartResizeAsync"></div>
+    <div class="form-resize" @ref="_handle" title="@GridText.Form_ResizeWidth" @onpointerdown="StartResizeAsync"></div>
     <header class="form-head">
-        <button class="icon-btn ghost" title="Vorige Zeile@(Shortcuts.Hint(ShortcutAction.FormPrevious))" disabled="@(!CanMove(-1))" @onclick="() => MoveAsync(-1)">▲</button>
-        <button class="icon-btn ghost" title="Nächste Zeile@(Shortcuts.Hint(ShortcutAction.FormNext))" disabled="@(!CanMove(1))" @onclick="() => MoveAsync(1)">▼</button>
+        <button class="icon-btn ghost" title="@TextFormat.Format(GridText.Form_PreviousRow, Shortcuts.Hint(ShortcutAction.FormPrevious))" disabled="@(!CanMove(-1))" @onclick="() => MoveAsync(-1)">▲</button>
+        <button class="icon-btn ghost" title="@TextFormat.Format(GridText.Form_NextRow, Shortcuts.Hint(ShortcutAction.FormNext))" disabled="@(!CanMove(1))" @onclick="() => MoveAsync(1)">▼</button>
         <span class="form-pos">
             @if (Cell is { } cell)
             {
                 <strong>@PositionText(cell)</strong>
                 @if (CurrentRow?.KeyText(Details) is { } key)
                 {
-                    <span class="form-key" title="Primärschlüssel">@string.Join(", ", Details.PrimaryKey) @key</span>
+                    <span class="form-key" title="@GridText.Form_PrimaryKey">@string.Join(", ", Details.PrimaryKey) @key</span>
                 }
             }
             else
             {
-                <span class="muted">Formular</span>
+                <span class="muted">@GridText.Form_Title</span>
             }
         </span>
         <span class="spacer"></span>
-        <button class="icon-btn ghost" title="Formular schließen@(Shortcuts.Hint(ShortcutAction.ToggleForm))" @onclick="OnClose">✕</button>
+        <button class="icon-btn ghost" title="@TextFormat.Format(GridText.Form_Close, Shortcuts.Hint(ShortcutAction.ToggleForm))" @onclick="OnClose">✕</button>
     </header>
 
     <div class="form-tools">
-        <SearchBox @ref="_search" Class="structure-filter" Placeholder="@($"Felder suchen …{Shortcuts.Hint(ShortcutAction.FindColumn)}")" @bind-Value="_query" />
+        <SearchBox @ref="_search" Class="structure-filter" Placeholder="@TextFormat.Format(GridText.Form_SearchFields, Shortcuts.Hint(ShortcutAction.FindColumn))" @bind-Value="_query" />
         <div class="form-switches">
-            <label class="check" title="Felder ohne Wert (NULL) ausblenden – geänderte bleiben sichtbar; gilt für diesen Tab">
-                <input type="checkbox" checked="@Tab.FormHideEmpty" @onchange="e => SetHideEmpty(e.Value is true)" /> Leere ausblenden
+            <label class="check" title="@GridText.Form_HideEmptyTitle">
+                <input type="checkbox" checked="@Tab.FormHideEmpty" @onchange="e => SetHideEmpty(e.Value is true)" /> @GridText.Grid_HideEmpty
             </label>
-            <label class="check" title="Nur Felder mit ausstehenden oder geschriebenen Änderungen">
-                <input type="checkbox" checked="@_onlyChanged" @onchange="e => _onlyChanged = e.Value is true" /> Nur geänderte
+            <label class="check" title="@GridText.Form_OnlyChangedTitle">
+                <input type="checkbox" checked="@_onlyChanged" @onchange="e => _onlyChanged = e.Value is true" /> @GridText.Form_OnlyChanged
             </label>
         </div>
     </div>
@@ -63,49 +63,49 @@
         <div class="form-count">
             @if (view.Fields.Count == view.Total)
             {
-                <span>@view.Total Felder</span>
+                <span>@TextFormat.Plural(view.Total, GridText.Form_FieldsOne, GridText.Form_FieldsOther)</span>
             }
             else
             {
-                <span>@view.Fields.Count von @view.Total Feldern</span>
+                <span>@TextFormat.Format(GridText.Form_FieldsShown, view.Fields.Count, view.Total)</span>
                 @if (view.EmptyHidden > 0)
                 {
-                    <span> · @view.EmptyHidden leere ausgeblendet</span>
+                    <span> · @TextFormat.Format(GridText.Form_EmptyHidden, view.EmptyHidden)</span>
                 }
             }
         </div>
         @if (row.Change?.Deleted is not null)
         {
             <div class="form-note danger">
-                Zum Löschen markiert@(row.Change.Deleted == ChangeStage.Flushed ? " (geschrieben)" : "").
+                @(row.Change.Deleted == ChangeStage.Flushed ? GridText.Form_MarkedForDeletionWritten : GridText.Form_MarkedForDeletion)
                 @if (row.Change.Deleted == ChangeStage.Pending && Cell is { IsNew: false } at)
                 {
-                    <button class="link-btn" @onclick="() => RevertAsync(at.RowIndex)">Verwerfen</button>
+                    <button class="link-btn" @onclick="() => RevertAsync(at.RowIndex)">@GridText.Grid_Discard</button>
                 }
             </div>
         }
         else if (row.IsNew)
         {
-            <div class="form-note">Neue Zeile – wird mit „Schreiben“@(Shortcuts.Hint(ShortcutAction.Flush)) eingefügt.</div>
+            <div class="form-note">@TextFormat.Format(GridText.Form_NewRowNote, Shortcuts.Hint(ShortcutAction.Flush))</div>
         }
         else if (Details.Table.Kind == TableKind.Table && !Workspaces.IsWritable(Tab.WorkspaceId))
         {
-            <div class="form-note">Schreibgeschützt – zum Ändern den Workspace freischalten.</div>
+            <div class="form-note">@GridText.Form_ReadOnly</div>
         }
     }
 
     <div class="form-fields" @ref="_fields">
         @if (Grid is null || Cell is null)
         {
-            <div class="form-empty">@(_cursor?.Lost ?? "Im Grid eine Zeile wählen (Klick oder Pfeiltasten).")</div>
+            <div class="form-empty">@(_cursor?.Lost ?? GridText.Form_ChooseRow)</div>
         }
         else if (row is null)
         {
-            <div class="form-empty"><span class="spinner small"></span> Lade Zeile …</div>
+            <div class="form-empty"><span class="spinner small"></span> @GridText.Form_LoadingRow</div>
         }
         else if (view.Fields.Count == 0)
         {
-            <div class="form-empty">Kein Feld passt@(string.IsNullOrWhiteSpace(_query) ? "" : $" zu „{_query}“").</div>
+            <div class="form-empty">@(string.IsNullOrWhiteSpace(_query) ? GridText.Form_NoFieldMatches : TextFormat.Format(GridText.Form_NoFieldMatchesQuery, _query))</div>
         }
         else
         {
@@ -122,7 +122,7 @@
         @if (row is not null && _incoming.Count > 0)
         {
             <div class="form-incoming">
-                <div class="form-section">Referenziert von</div>
+                <div class="form-section">@GridText.Form_ReferencedBy</div>
                 @foreach (var jump in _incoming)
                 {
                     <FkJumpItem Jump="jump" Count="_counts.Of(jump)" OnJump="Jump" />
@@ -283,7 +283,7 @@
         StateHasChanged();
     }
 
-    /// <summary>"+ Zeile" with the form open: the new row is filled here, starting with its first editable field.</summary>
+    /// <summary>"+ Row" with the form open: the new row is filled here, starting with its first editable field.</summary>
     public void FocusFirstFieldOfNewRow() => _focusFirstField = true;
 
     /// <summary>The grid's column jump (Ctrl+F) chose a column: the form shows that field too.</summary>
@@ -353,13 +353,13 @@
     {
         if (cell.IsNew)
         {
-            return "Neue Zeile";
+            return GridText.Form_NewRow;
         }
 
         var total = Tab.AllRowsLoaded ? Tab.RowsLoaded.ToString("N0", CultureInfo.CurrentCulture)
             : Tab.TotalCount is { } count ? count.ToString("N0", CultureInfo.CurrentCulture)
             : "≥ " + Tab.RowsLoaded.ToString("N0", CultureInfo.CurrentCulture);
-        return $"Zeile {(cell.RowIndex + 1).ToString("N0", CultureInfo.CurrentCulture)} von {total}";
+        return TextFormat.Format(GridText.Form_Position, (cell.RowIndex + 1).ToString("N0", CultureInfo.CurrentCulture), total);
     }
 
     private IReadOnlyList<RowChange> NewRows => Tab.Changes?.NewRows ?? [];
@@ -478,7 +478,7 @@
         var failed = CommitDrafts();
         _ = InvokeAsync(StateHasChanged);
         return failed is { } column
-            ? $"Nichts geschrieben – {Details.Columns[column].Name}: {_errors.GetValueOrDefault(column)}"
+            ? TextFormat.Format(GridText.Form_NothingWritten, Details.Columns[column].Name, _errors.GetValueOrDefault(column))
             : null;
     }
 
