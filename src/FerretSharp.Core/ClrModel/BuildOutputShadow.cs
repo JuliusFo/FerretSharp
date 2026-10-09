@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using FerretSharp.Core.IO;
+using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.ClrModel;
 
@@ -109,7 +110,7 @@ public sealed class BuildOutputShadow
     public string Directory { get; }
 
     /// <summary>Step reported while the copy is checked and brought up to date.</summary>
-    public const string CopyStep = "Kopiere die Build-Ausgabe";
+    public static string CopyStep => ClrModelText.StepCopyBuildOutput;
 
     /// <summary>A copy of exactly the current build output, shared with other hosts that run the same build.</summary>
     /// <exception cref="ClrModelException">The output could not be copied (a build still running after all attempts).</exception>
@@ -160,7 +161,7 @@ public sealed class BuildOutputShadow
                     if (attempt >= _attempts)
                     {
                         throw new ClrModelException(ClrModelErrorKind.HostFailed,
-                            $"Die Build-Ausgabe ließ sich nicht kopieren – läuft gerade ein Build? {ex.Message}");
+                            TextFormat.Format(ClrModelText.BuildOutputNotCopied, ex.Message));
                     }
 
                     await Task.Delay(_retryDelay, cancellationToken);

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.Data;
@@ -31,7 +32,7 @@ public static class CellFormatter
         bool b => b ? "TRUE" : "FALSE",
         byte[] bytes => FormatRaw(bytes),
         LobValue { Preview: null } blob => $"‹BLOB {FormatSize(blob.Length)}›",
-        LobValue { Length: 0 } => "‹leer›",
+        LobValue { Length: 0 } => DataText.LobEmpty,
         LobValue clob => SingleLine(clob.Preview!) + (clob.Length > clob.Preview!.Length ? " …" : ""),
         NotNullMarker marker => $"‹{marker.DataType}›",
         string s => SingleLine(s.Length > MaxTextLength ? s[..MaxTextLength] + " …" : s),

@@ -1,29 +1,38 @@
 @* Uncommitted changes before closing a workspace, disconnecting, switching the connection or exiting (v2). *@
 
-<ModalFrame Label="Nicht committete Änderungen" Class="confirm" Alert="true">
-    <header><span>Nicht committete Änderungen</span></header>
+<ModalFrame Label="@ShellText.Leave_Title" Class="confirm" Alert="true">
+    <header><span>@ShellText.Leave_Title</span></header>
     <div class="dialog-body">
-        <p>@Request.What: Diese Änderungen sind noch nicht committed und gingen sonst verloren.</p>
+        <p>@TextFormat.Format(ShellText.Leave_Text, Request.What)</p>
         <ul class="leave-list">
             @foreach (var (name, summary) in Items)
             {
                 <li>
                     <strong>@name</strong> –
-                    @(summary.Pending > 0 ? $"{summary.Pending} ausstehend" : null)@(summary.Pending > 0 && summary.Flushed > 0 ? ", " : null)@(summary.Flushed > 0 ? $"{summary.Flushed} geschrieben" : null)@(summary.Pending == 0 && summary.Flushed == 0 ? "offene Transaktion" : null)
+                    @Counts(summary)
                 </li>
             }
         </ul>
     </div>
     <footer>
-        <button class="btn ghost" @ref="_cancel" @onclick="OnCancel" disabled="@Busy">Abbrechen</button>
+        <button class="btn ghost" @ref="_cancel" @onclick="OnCancel" disabled="@Busy">@CommonText.Cancel</button>
         <span class="spacer"></span>
-        <button class="btn danger-solid" @onclick="OnDiscard" disabled="@Busy">Verwerfen</button>
-        <button class="btn primary" @onclick="OnCommit" disabled="@Busy">Committen</button>
+        <button class="btn danger-solid" @onclick="OnDiscard" disabled="@Busy">@ShellText.Leave_Discard</button>
+        <button class="btn primary" @onclick="OnCommit" disabled="@Busy">@ShellText.CommitButton</button>
     </footer>
 </ModalFrame>
 
 @code {
     private ElementReference _cancel;
+
+    /// <summary>What a workspace holds: pending and written changes, or only an open transaction.</summary>
+    private static string Counts(EditSummary summary) => summary switch
+    {
+        { Pending: > 0, Flushed: > 0 } => TextFormat.Format(ShellText.Leave_PendingAndWritten, summary.Pending, summary.Flushed),
+        { Pending: > 0 } => TextFormat.Format(ShellText.Changes_Pending, summary.Pending),
+        { Flushed: > 0 } => TextFormat.Format(ShellText.Changes_Written, summary.Flushed),
+        _ => ShellText.Leave_OpenTransaction,
+    };
 
     [Parameter, EditorRequired]
     public LeaveRequest Request { get; set; } = null!;

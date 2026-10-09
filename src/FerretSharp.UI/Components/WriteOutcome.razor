@@ -4,14 +4,13 @@
 @switch (Fate)
 {
     case WriteFate.Open:
-        <p><strong>@RowsText geändert</strong>@Detail – in der Transaktion des Workspaces.
-            Für andere unsichtbar bis zum Commit; committen, verwerfen oder zurücknehmen (↶) über die Statusleiste.</p>
+        <p><Fmt Text="@GridText.Outcome_Open"><Arg0><strong>@RowsText</strong></Arg0><Arg1>@Detail</Arg1></Fmt></p>
         break;
     case WriteFate.Undone:
-        <p class="muted">@RowsText geändert@Detail – inzwischen zurückgenommen (↶).</p>
+        <p class="muted">@TextFormat.Format(GridText.Outcome_Undone, RowsText, Detail)</p>
         break;
     default:
-        <p class="muted">@RowsText geändert@Detail – die Transaktion ist inzwischen beendet (Commit oder Rollback).</p>
+        <p class="muted">@TextFormat.Format(GridText.Outcome_Ended, RowsText, Detail)</p>
         break;
 }
 
@@ -26,5 +25,6 @@
     [Parameter]
     public string Detail { get; set; } = "";
 
-    private string RowsText => Rows == 1 ? "1 Zeile" : $"{Rows:N0} Zeilen";
+    /// <summary>"3 rows changed".</summary>
+    private string RowsText => TextFormat.Plural(Rows, GridText.Outcome_RowsChangedOne, GridText.Outcome_RowsChangedOther);
 }

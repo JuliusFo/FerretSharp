@@ -6,7 +6,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 ## [Unreleased]
 
 ### Added
-- Ctrl+W closes the active tab (asks first if it has pending changes). The key can be changed under *Einstellungen › Tastenkürzel*.
+- Ctrl+W closes the active tab (asks first if it has pending changes). The key can be changed under *Settings › Shortcuts*.
+
+## [3.19.0] - 2026-10-09
+
+### Added
+- The user interface speaks English and German (WP-29). English is the default – also for existing installations –, German can be chosen under *Settings › General › Language* and applies after a restart. Numbers and dates keep their current format; enum names from a linked C# project stay in the language of its resources. `--lang=en|de` overrides the language for one session (screenshots, tests).
+- The editors' own texts (find widget, context menu) and the C# compiler messages of the LINQ console follow the chosen language.
+
+### Fixed
+- German texts that used the plural for a single item ("1 Felder", "1 Sekunden"), "committed" spelled two ways, and a few typos.
 
 ## [3.18.1] - 2026-10-09
 

@@ -32,6 +32,18 @@ public sealed class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task Language_is_English_by_default_also_in_files_written_before_it_existed_and_round_trips()
+    {
+        await File.WriteAllTextAsync(_store.FilePath, """{ "version": 1, "settings": { "theme": "dark" } }""", Ct);
+        Assert.Equal(UiLanguage.English, (await _store.LoadAsync(Ct)).Language);
+
+        await _store.SaveAsync(new AppSettings { Language = UiLanguage.German }, Ct);
+
+        Assert.Equal(UiLanguage.German, (await _store.LoadAsync(Ct)).Language);
+        Assert.Contains("\"language\": \"german\"", await File.ReadAllTextAsync(_store.FilePath, Ct), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Keep_alive_is_on_by_default_also_in_files_written_before_it_existed()
     {
         await File.WriteAllTextAsync(_store.FilePath, """{ "version": 1, "settings": { "theme": "dark" } }""", Ct);

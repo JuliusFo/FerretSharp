@@ -9,11 +9,11 @@
     </div>
     @if (Details.PrimaryKey.Contains(Column.Name))
     {
-        <button class="menu-item" disabled title="Der Primärschlüssel steht immer vorne">Angeheftet (Primärschlüssel)</button>
+        <button class="menu-item" disabled title="@GridText.ColumnMenu_PkPinnedTitle">@GridText.ColumnMenu_PkPinned</button>
     }
     else
     {
-        <button class="menu-item" @onclick="ToggleAsync">@(Pinned ? "Spalte lösen" : "Spalte links anheften")</button>
+        <button class="menu-item" @onclick="ToggleAsync">@(Pinned ? GridText.Grid_UnpinColumn : GridText.Grid_PinColumnLeft)</button>
     }
 </PopoverMenu>
 

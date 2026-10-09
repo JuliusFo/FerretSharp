@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="ConnectionLost" xml:space="preserve">
+    <value>Die Verbindung zur Datenbank ist getrennt.</value>
+  </data>
+  <data name="TnsAdminMissing" xml:space="preserve">
+    <value>Für TNS-Aliase wird der Ordner der tnsnames.ora benötigt: im Profil angeben oder die Umgebungsvariable TNS_ADMIN setzen.</value>
+  </data>
+  <data name="AddressIncomplete" xml:space="preserve">
+    <value>Adresse unvollständig: Service Name oder SID fehlt.</value>
+  </data>
+  <data name="ActualPlanNoRights" xml:space="preserve">
+    <value>Für den tatsächlichen Plan fehlen Leserechte auf V$SQL und V$SQL_PLAN_STATISTICS_ALL – ein DBA kann sie geben: GRANT SELECT_CATALOG_ROLE TO &lt;user&gt; oder GRANT SELECT ON V_$SQL / V_$SQL_PLAN_STATISTICS_ALL TO &lt;user&gt;. Der geschätzte Plan geht ohne sie.</value>
+  </data>
+  <data name="CursorGone" xml:space="preserve">
+    <value>Der Cursor {0} ist nicht mehr im Shared Pool – bitte erneut versuchen.</value>
+  </data>
+  <data name="UndoWrittenMeanwhile" xml:space="preserve">
+    <value>Inzwischen wurde weiter geschrieben – ↶ nimmt jetzt „{0}“ zurück. Bitte noch einmal wählen.</value>
+  </data>
+  <data name="WorkspaceReadOnly" xml:space="preserve">
+    <value>Der Workspace ist schreibgeschützt – erst freischalten, dann schreiben.</value>
+  </data>
+  <data name="FlushChanged" xml:space="preserve">
+    <value>{0} geändert</value>
+  </data>
+  <data name="FlushInserted" xml:space="preserve">
+    <value>{0} neu</value>
+  </data>
+  <data name="FlushDeleted" xml:space="preserve">
+    <value>{0} gelöscht</value>
+  </data>
+  <data name="NoRowIdReturned" xml:space="preserve">
+    <value>Oracle hat keine ROWID für die neue Zeile geliefert.</value>
+  </data>
+  <data name="ExplainOnlyQueries" xml:space="preserve">
+    <value>Nur Abfragen (SELECT/WITH) lassen sich erklären.</value>
+  </data>
+  <data name="ExplainInReadOnlyTransaction" xml:space="preserve">
+    <value>In einer READ ONLY-Transaktion lehnt Oracle EXPLAIN PLAN ab.</value>
+  </data>
+  <data name="WriteTransactionOpen" xml:space="preserve">
+    <value>Eine schreibende Transaktion ist offen.</value>
+  </data>
+  <data name="ConnectionReadOnly" xml:space="preserve">
+    <value>Die Verbindung ist schreibgeschützt.</value>
+  </data>
+  <data name="TransactionAlreadyOpen" xml:space="preserve">
+    <value>Es ist bereits eine Transaktion offen.</value>
+  </data>
+  <data name="WriteOnlyInTransaction" xml:space="preserve">
+    <value>Geschrieben wird nur innerhalb einer Transaktion.</value>
+  </data>
+  <data name="LockOnlyInWriteTransaction" xml:space="preserve">
+    <value>Zeilen werden nur innerhalb einer schreibenden Transaktion gesperrt.</value>
+  </data>
+  <data name="NoWriteTransaction" xml:space="preserve">
+    <value>Es ist keine schreibende Transaktion offen.</value>
+  </data>
+  <data name="NotEditableView" xml:space="preserve">
+    <value>Views und Materialized Views sind nur lesbar.</value>
+  </data>
+  <data name="NotEditableNoRowKey" xml:space="preserve">
+    <value>Ohne Primärschlüssel und ROWID lassen sich Zeilen nicht eindeutig ändern.</value>
+  </data>
+  <data name="NotEditableVirtual" xml:space="preserve">
+    <value>Virtuelle Spalte – Oracle berechnet den Wert.</value>
+  </data>
+  <data name="NotEditableIdentity" xml:space="preserve">
+    <value>Identity-Spalte – Oracle vergibt den Wert.</value>
+  </data>
+  <data name="NotEditablePrimaryKey" xml:space="preserve">
+    <value>Primärschlüssel sind nur bei neuen Zeilen änderbar.</value>
+  </data>
+  <data name="NotEditableType" xml:space="preserve">
+    <value>{0} lässt sich hier nicht bearbeiten.</value>
+  </data>
+  <data name="ValueRequired" xml:space="preserve">
+    <value>{0} darf nicht leer sein (NOT NULL).</value>
+  </data>
+  <data name="LobExpectsBytes" xml:space="preserve">
+    <value>{0} erwartet Bytes.</value>
+  </data>
+  <data name="LobExpectsText" xml:space="preserve">
+    <value>{0} erwartet Text.</value>
+  </data>
+  <data name="NotADate" xml:space="preserve">
+    <value>„{0}“ ist kein Datum (TT.MM.JJJJ [hh:mm[:ss]]).</value>
+  </data>
+  <data name="NotATimestamp" xml:space="preserve">
+    <value>„{0}“ ist kein Zeitstempel (TT.MM.JJJJ hh:mm:ss[,ffffff]).</value>
+  </data>
+  <data name="NotATimestampWithTimeZone" xml:space="preserve">
+    <value>„{0}“ ist kein Zeitstempel mit Zeitzone (TT.MM.JJJJ hh:mm:ss[,ffffff] [+hh:mm]).</value>
+  </data>
+  <data name="NotATimeZoneOffset" xml:space="preserve">
+    <value>„{0}“ ist kein Zeitzonen-Offset (zwischen -12:00 und +14:00, z. B. +02:00).</value>
+  </data>
+  <data name="NotANumber" xml:space="preserve">
+    <value>„{0}“ ist keine Zahl (z. B. 4711 oder 12,5).</value>
+  </data>
+  <data name="NotAHexValue" xml:space="preserve">
+    <value>„{0}“ ist kein Hex-Wert (z. B. CAFE01).</value>
+  </data>
+  <data name="TooLongBytes" xml:space="preserve">
+    <value>Zu lang: {0} Bytes, erlaubt sind {1} ({2}).</value>
+  </data>
+  <data name="TooLongCharacters" xml:space="preserve">
+    <value>Zu lang: {0} Zeichen, erlaubt sind {1} ({2}).</value>
+  </data>
+  <data name="WholeNumbersOnly" xml:space="preserve">
+    <value>{0} nimmt nur ganze Zahlen ({1}).</value>
+  </data>
+  <data name="TooManyDecimals" xml:space="preserve">
+    <value>Höchstens {0} Nachkommastellen ({1}).</value>
+  </data>
+  <data name="TooManyIntegerDigits" xml:space="preserve">
+    <value>Zu groß: höchstens {0} Stellen vor dem Komma ({1}).</value>
+  </data>
+  <data name="SnapshotStepObjects" xml:space="preserve">
+    <value>Objekte</value>
+  </data>
+  <data name="SnapshotStepColumns" xml:space="preserve">
+    <value>Spalten</value>
+  </data>
+  <data name="SnapshotStepConstraints" xml:space="preserve">
+    <value>Constraints</value>
+  </data>
+  <data name="SnapshotStepIndexes" xml:space="preserve">
+    <value>Indizes</value>
+  </data>
+</root>

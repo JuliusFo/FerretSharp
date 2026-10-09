@@ -1,6 +1,7 @@
 using System.Text.Json;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.IO;
+using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.Workspaces;
 
@@ -118,11 +119,11 @@ public sealed class WorkspaceStore(string directory) : IWorkspaceStore
                 var document = await JsonSerializer.DeserializeAsync<WorkspaceDocument>(stream, JsonFiles.Options, cancellationToken);
                 if (document?.Workspace is null)
                 {
-                    result.Add((file, null, $"{Path.GetFileName(file)} ist leer."));
+                    result.Add((file, null, TextFormat.Format(WorkspaceText.FileEmpty, Path.GetFileName(file))));
                 }
                 else if (document.Version > CurrentVersion)
                 {
-                    result.Add((file, null, $"{Path.GetFileName(file)} stammt aus einer neueren FerretSharp-Version (Format {document.Version})."));
+                    result.Add((file, null, TextFormat.Format(WorkspaceText.FileFromNewerVersion, Path.GetFileName(file), document.Version)));
                 }
                 else
                 {
@@ -131,7 +132,7 @@ public sealed class WorkspaceStore(string directory) : IWorkspaceStore
             }
             catch (JsonException ex)
             {
-                result.Add((file, null, $"{Path.GetFileName(file)} ist kein gültiges Workspace-JSON: {ex.Message}"));
+                result.Add((file, null, TextFormat.Format(WorkspaceText.InvalidFile, Path.GetFileName(file), ex.Message)));
             }
             catch (IOException ex)
             {

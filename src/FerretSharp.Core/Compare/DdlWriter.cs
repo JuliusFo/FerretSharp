@@ -1,4 +1,5 @@
 using FerretSharp.Core.Oracle;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 using static FerretSharp.Core.Compare.DdlText;
 
@@ -44,14 +45,18 @@ internal sealed class DdlWriter(int referenceSide, int targetSide, string refere
         }
         else if (reference is null)
         {
-            Add(Phase.Hints, target.Name, Commented($"DROP {ObjectKeyword(target.Kind)} {Qualified(target.Name)}"), target.Kind == TableKind.View
-                ? "Löscht die View; Objekte, die sie verwenden, werden ungültig."
-                : $"Löscht die {ObjectWord(target.Kind)} mit allen Daten.");
+            Add(Phase.Hints, target.Name, Commented($"DROP {ObjectKeyword(target.Kind)} {Qualified(target.Name)}"), target.Kind switch
+            {
+                TableKind.View => CompareText.DropView,
+                TableKind.MaterializedView => CompareText.DropMaterializedView,
+                _ => CompareText.DropTable,
+            });
         }
         else if (reference.Kind != target.Kind)
         {
-            Add(Phase.Hints, target.Name, $"-- {Qualified(target.Name)}: in der Referenz {ObjectWord(reference.Kind)}, im Ziel {ObjectWord(target.Kind)}",
-                "Lässt sich nicht umwandeln: Objekt im Ziel löschen und nach der DDL der Referenz neu anlegen.");
+            Add(Phase.Hints, target.Name,
+                "-- " + TextFormat.Format(CompareText.KindDiffersHint, Qualified(target.Name), ObjectWord(reference.Kind), ObjectWord(target.Kind)),
+                CompareText.KindDiffersWarning);
         }
         else
         {
@@ -63,8 +68,7 @@ internal sealed class DdlWriter(int referenceSide, int targetSide, string refere
     {
         if (table.Kind != TableKind.Table)
         {
-            Add(Phase.Hints, table.Name, $"-- CREATE {ObjectKeyword(table.Kind)} {Qualified(table.Name)} AS …",
-                $"Die Definition der {ObjectWord(table.Kind)} gehört nicht zum Vergleich: aus der DDL-Ansicht der Referenz übernehmen.");
+            Add(Phase.Hints, table.Name, $"-- CREATE {ObjectKeyword(table.Kind)} {Qualified(table.Name)} AS …", DefinitionNotCompared(table.Kind));
             return;
         }
 
@@ -91,12 +95,12 @@ internal sealed class DdlWriter(int referenceSide, int targetSide, string refere
 
         if (table.Temporary)
         {
-            warnings.Add("Temporäre Tabelle: ON COMMIT ist nicht bekannt (Vorgabe DELETE ROWS) – mit der DDL der Referenz abgleichen.");
+            warnings.Add(CompareText.TemporaryTableOnCommit);
         }
 
         if (table.Partitioned)
         {
-            warnings.Add("Die Partitionierung wird nicht übernommen – mit der DDL der Referenz abgleichen.");
+            warnings.Add(CompareText.PartitioningNotCopied);
         }
 
         Add(Phase.Tables, table.Name, sql, Join(warnings));
@@ -125,7 +129,7 @@ internal sealed class DdlWriter(int referenceSide, int targetSide, string refere
         var name = target.Name;
         if (!string.Equals(reference.Name, target.Name, StringComparison.Ordinal))
         {
-            Add(Phase.Hints, name, $"-- ALTER {ObjectKeyword(target.Kind)} {Qualified(target.Name)} RENAME TO {Q(reference.Name)}", RenameWarning(ObjectWord(target.Kind)));
+            Add(Phase.Hints, name, $"-- ALTER {ObjectKeyword(target.Kind)} {Qualified(target.Name)} RENAME TO {Q(reference.Name)}", RenameWarning(RenameSubject(target.Kind)));
         }
 
         var children = row.Children.Select(c => (Row: c, Reference: c.Cells[referenceSide], Target: c.Cells[targetSide])).ToList();
@@ -143,8 +147,8 @@ internal sealed class DdlWriter(int referenceSide, int targetSide, string refere
 
         if (reference.IsIndexOrganized != target.IsIndexOrganized || reference.Temporary != target.Temporary || reference.Partitioned != target.Partitioned)
         {
-            Add(Phase.Hints, name, $"-- {Qualified(name)}: Organisation weicht ab (Referenz: {Organization(reference)}, Ziel: {Organization(target)})",
-                "Lässt sich nicht per ALTER umstellen: Tabelle neu anlegen und Daten umkopieren.");
+            Add(Phase.Hints, name, "-- " + TextFormat.Format(CompareText.OrganizationDiffersHint, Qualified(name), Organization(reference), Organization(target)),
+                CompareText.OrganizationWarning);
         }
 
         var columns = differing.Where(c => c.Row.Kind == CompareKind.Column).ToList();
@@ -196,7 +200,7 @@ internal sealed class DdlWriter(int referenceSide, int targetSide, string refere
             var warnings = ColumnWarnings(reference).ToList();
             if (!reference.Nullable && reference.Default is null && !reference.IsIdentity && !reference.IsVirtual)
             {
-                warnings.Insert(0, "Schlägt fehl, wenn die Tabelle Zeilen hat (NOT NULL ohne Default).");
+                warnings.Insert(0, CompareText.AddNotNullColumnFails);
             }
 
             Add(Phase.Columns, table, $"ALTER TABLE {Qualified(table)} ADD ({ColumnDefinition(reference)})", Join(warnings));
@@ -210,7 +214,7 @@ internal sealed class DdlWriter(int referenceSide, int targetSide, string refere
 
         if (reference is null)
         {
-            Add(Phase.Hints, table, Commented($"ALTER TABLE {Qualified(table)} DROP COLUMN {Q(target.Name)}"), "Löscht die Spalte mit ihren Daten.");
+            Add(Phase.Hints, table, Commented($"ALTER TABLE {Qualified(table)} DROP COLUMN {Q(target.Name)}"), CompareText.DropColumn);
             return;
         }
 
@@ -219,15 +223,15 @@ internal sealed class DdlWriter(int referenceSide, int targetSide, string refere
         var written = 0;
         if (!string.Equals(reference.Name, target.Name, StringComparison.Ordinal))
         {
-            Add(Phase.Hints, table, $"-- ALTER TABLE {Qualified(table)} RENAME COLUMN {column} TO {Q(reference.Name)}", RenameWarning("Spalte"));
+            Add(Phase.Hints, table, $"-- ALTER TABLE {Qualified(table)} RENAME COLUMN {column} TO {Q(reference.Name)}", RenameWarning(CompareText.RenameSubjectColumn));
             written++;
         }
 
         if (reference.IsIdentity != target.IsIdentity || reference.IsVirtual != target.IsVirtual
             || (reference.IsVirtual && !string.Equals(reference.Default, target.Default, StringComparison.Ordinal)))
         {
-            Add(Phase.Hints, table, $"-- {Qualified(table)}.{column}: Referenz {Describe(reference)}, Ziel {Describe(target)}",
-                "Identity und virtuelle Spalten lassen sich nicht per MODIFY umstellen: neue Spalte anlegen und Daten umkopieren.");
+            Add(Phase.Hints, table, "-- " + TextFormat.Format(CompareText.ColumnDiffersHint, $"{Qualified(table)}.{column}", Describe(reference), Describe(target)),
+                CompareText.IdentityOrVirtualWarning);
             return;
         }
 
@@ -239,13 +243,13 @@ internal sealed class DdlWriter(int referenceSide, int targetSide, string refere
             if (OracleTypes.Family(reference.DataType) != OracleTypes.Family(target.DataType)
                 || OracleTypes.IsLobOrLong(reference.DataType) || OracleTypes.IsLobOrLong(target.DataType))
             {
-                Add(Phase.Hints, table, $"-- {Qualified(table)}.{column}: Typ {targetType} → {referenceType}",
-                    $"Der Wechsel von {targetType} zu {referenceType} geht nur über eine neue Spalte: anlegen, Daten umkopieren, alte löschen, umbenennen.");
+                Add(Phase.Hints, table, "-- " + TextFormat.Format(CompareText.TypeChangeHint, $"{Qualified(table)}.{column}", targetType, referenceType),
+                    TextFormat.Format(CompareText.TypeChangeWarning, targetType, referenceType));
             }
             else
             {
                 Add(Phase.Columns, table, $"{alter} ({column} {referenceType})",
-                    Widens(reference, target) ? null : "Kann an vorhandenen Daten scheitern (Länge, Genauigkeit oder BYTE/CHAR).");
+                    Widens(reference, target) ? null : CompareText.MayFailOnData);
             }
         }
 
@@ -255,7 +259,7 @@ internal sealed class DdlWriter(int referenceSide, int targetSide, string refere
             written++;
             var value = reference.Default ?? "NULL";
             Add(Phase.Columns, table, $"{alter} ({column} DEFAULT {(reference.DefaultOnNull ? "ON NULL " : "")}{value})",
-                reference.DefaultOnNull && target.Nullable ? "DEFAULT ON NULL macht die Spalte NOT NULL: schlägt fehl, wenn sie NULL-Werte enthält." : Join(ExpressionWarnings(reference.Default)));
+                reference.DefaultOnNull && target.Nullable ? CompareText.DefaultOnNullMakesNotNull : Join(ExpressionWarnings(reference.Default)));
         }
 
         // DEFAULT ON NULL brings NOT NULL along (nothing to write). Taking ON NULL away takes NOT NULL with it (Oracle 23,
@@ -266,20 +270,18 @@ internal sealed class DdlWriter(int referenceSide, int targetSide, string refere
             if (reference.Nullable)
             {
                 // A follow-up of the DEFAULT step, so it stays next to it rather than among the hints at the end.
-                Add(Phase.Columns, table, $"-- {alter} ({column} NULL)",
-                    "Nur nötig, wenn die Spalte nach dem Entfernen von DEFAULT ON NULL noch NOT NULL ist (Oracle 23 hebt beides zusammen auf).");
+                Add(Phase.Columns, table, $"-- {alter} ({column} NULL)", CompareText.NullAfterDefaultOnNull);
             }
             else
             {
-                Add(Phase.Columns, table, $"{alter} ({column} NOT NULL)",
-                    "Schlägt fehl, wenn die Tabelle Zeilen mit NULL in dieser Spalte hat. ORA-01442: die Spalte ist schon NOT NULL – Schritt überspringen.");
+                Add(Phase.Columns, table, $"{alter} ({column} NOT NULL)", CompareText.NotNullAfterDefaultOnNull);
             }
         }
         else if (!reference.IsIdentity && !reference.DefaultOnNull && reference.Nullable != target.Nullable)
         {
             written++;
             Add(Phase.Columns, table, reference.Nullable ? $"{alter} ({column} NULL)" : $"{alter} ({column} NOT NULL)",
-                reference.Nullable ? null : "Schlägt fehl, wenn die Tabelle Zeilen mit NULL in dieser Spalte hat.");
+                reference.Nullable ? null : CompareText.NotNullFails);
         }
 
         if (!string.Equals(reference.Comment, target.Comment, StringComparison.Ordinal))
@@ -291,8 +293,9 @@ internal sealed class DdlWriter(int referenceSide, int targetSide, string refere
         // The comparison saw a difference this writer has no statement for; the order of columns has its own hint.
         if (written == 0 && !(options.ColumnOrder && reference.Position != target.Position))
         {
-            Add(Phase.Hints, table, $"-- {Qualified(table)}.{column}: Referenz {referenceCell.Definition}, Ziel {targetCell.Definition}",
-                "Für diesen Unterschied gibt es keinen Vorschlag – von Hand angleichen.");
+            Add(Phase.Hints, table,
+                "-- " + TextFormat.Format(CompareText.ColumnDiffersHint, $"{Qualified(table)}.{column}", referenceCell.Definition, targetCell.Definition),
+                CompareText.NoProposal);
         }
     }
 
@@ -308,8 +311,8 @@ internal sealed class DdlWriter(int referenceSide, int targetSide, string refere
         var targetOrder = target.Columns.Where(c => common.Contains(c.Name)).Select(c => c.Name);
         if (!referenceOrder.SequenceEqual(targetOrder, StringComparer.Ordinal))
         {
-            Add(Phase.Hints, target.Name, $"-- {Qualified(target.Name)}: Spaltenreihenfolge weicht ab ({string.Join(", ", referenceOrder)})",
-                "Oracle kann Spalten nicht umsortieren; nur über eine neu angelegte Tabelle.");
+            Add(Phase.Hints, target.Name, "-- " + TextFormat.Format(CompareText.ColumnOrderHint, Qualified(target.Name), string.Join(", ", referenceOrder)),
+                CompareText.ColumnOrderWarning);
         }
     }
 
@@ -343,14 +346,14 @@ internal sealed class DdlWriter(int referenceSide, int targetSide, string refere
         if (!reference.GeneratedName && !target.GeneratedName && !string.Equals(reference.Name, target.Name, StringComparison.Ordinal)
             && string.Equals(referenceCell.Definition, targetCell.Definition, StringComparison.Ordinal))
         {
-            Add(Phase.Hints, table, $"-- ALTER TABLE {Qualified(table)} RENAME CONSTRAINT {Q(target.Name)} TO {Q(reference.Name)}", RenameWarning("Constraint"));
+            Add(Phase.Hints, table, $"-- ALTER TABLE {Qualified(table)} RENAME CONSTRAINT {Q(target.Name)} TO {Q(reference.Name)}", RenameWarning(CompareText.RenameSubjectConstraint));
             return null;
         }
 
         var phase = PhaseOf(reference);
         Add(phase, table, drop, reference.Type is ConstraintType.PrimaryKey or ConstraintType.Unique
-            ? "Wird gelöscht und neu angelegt. Verweisen Fremdschlüssel auf den Schlüssel, scheitert das Löschen (ORA-02273)."
-            : "Wird gelöscht und neu angelegt; das Anlegen prüft die vorhandenen Zeilen.");
+            ? CompareText.RecreateKey
+            : CompareText.RecreateConstraint);
         AddConstraint(referenceTable, table, reference, existingTable: false);
         return reference;
     }
@@ -360,7 +363,7 @@ internal sealed class DdlWriter(int referenceSide, int targetSide, string refere
         var warnings = new List<string>();
         if (existingTable && constraint.Enabled && constraint.Validated)
         {
-            warnings.Add("Prüft die vorhandenen Zeilen und scheitert bei Verstößen.");
+            warnings.Add(CompareText.ChecksExistingRows);
         }
 
         warnings.AddRange(ExpressionWarnings(constraint.Condition));
@@ -392,25 +395,25 @@ internal sealed class DdlWriter(int referenceSide, int targetSide, string refere
         var drop = $"DROP INDEX {Qualified(target.Name)}";
         if (reference is null)
         {
-            Add(Phase.Hints, table, Commented(drop), "Löscht den Index. Stützt er einen Schlüssel, lehnt Oracle das ab (ORA-02429).");
+            Add(Phase.Hints, table, Commented(drop), CompareText.DropIndex);
             return;
         }
 
         if (!IsGeneratedName(reference.Name) && !IsGeneratedName(target.Name) && !string.Equals(reference.Name, target.Name, StringComparison.Ordinal)
             && string.Equals(referenceCell.Definition, targetCell.Definition, StringComparison.Ordinal))
         {
-            Add(Phase.Hints, table, $"-- ALTER INDEX {Qualified(target.Name)} RENAME TO {Q(reference.Name)}", RenameWarning("Index"));
+            Add(Phase.Hints, table, $"-- ALTER INDEX {Qualified(target.Name)} RENAME TO {Q(reference.Name)}", RenameWarning(CompareText.RenameSubjectIndex));
             return;
         }
 
         if (CreateIndex(reference, IndexName(referenceTable, reference), targetOwner, table) is not { } create)
         {
-            Add(Phase.Hints, table, $"-- {Qualified(table)}: Index {Q(reference.Name)} vom Typ {reference.IndexType}",
-                "Diesen Index-Typ legt der Vorschlag nicht an: aus der DDL der Referenz übernehmen.");
+            Add(Phase.Hints, table, "-- " + TextFormat.Format(CompareText.IndexTypeHint, Qualified(table), Q(reference.Name), reference.IndexType),
+                CompareText.IndexTypeNotCreated);
             return;
         }
 
-        Add(Phase.Indexes, table, drop, "Wird gelöscht und neu aufgebaut. Stützt er einen Schlüssel, scheitert das Löschen (ORA-02429).");
+        Add(Phase.Indexes, table, drop, CompareText.RebuildIndex);
         Add(Phase.Indexes, table, create, Join(IndexWarnings(reference)));
     }
 
@@ -432,14 +435,14 @@ internal sealed class DdlWriter(int referenceSide, int targetSide, string refere
         if (existing.FirstOrDefault(e => SameColumns(e, index)) is { } twin)
         {
             Add(Phase.Hints, table, $"-- ALTER INDEX {Qualified(twin.Name)} RENAME TO {Q(index.Name)}",
-                $"Die Spalten sind im Ziel schon indiziert ({twin.Name}); einen zweiten Index darauf lehnt Oracle ab (ORA-01408).");
+                TextFormat.Format(CompareText.ColumnsAlreadyIndexed, twin.Name));
             return;
         }
 
         if (CreateIndex(index, IndexName(referenceTable, index), targetOwner, table) is not { } create)
         {
-            Add(Phase.Hints, table, $"-- {Qualified(table)}: Index {Q(index.Name)} vom Typ {index.IndexType}",
-                "Diesen Index-Typ legt der Vorschlag nicht an: aus der DDL der Referenz übernehmen.");
+            Add(Phase.Hints, table, "-- " + TextFormat.Format(CompareText.IndexTypeHint, Qualified(table), Q(index.Name), index.IndexType),
+                CompareText.IndexTypeNotCreated);
             return;
         }
 
@@ -466,24 +469,28 @@ internal sealed class DdlWriter(int referenceSide, int targetSide, string refere
     {
         if (IsGeneratedName(index.Name))
         {
-            yield return $"Name frei gewählt; in der Referenz hat Oracle ihn vergeben ({index.Name}).";
+            yield return TextFormat.Format(CompareText.IndexNameChosen, index.Name);
         }
 
         if (index.Partitioned)
         {
-            yield return "Die Partitionierung des Index wird nicht übernommen.";
+            yield return CompareText.IndexPartitioningNotCopied;
         }
     }
 
     private void ViewHint(ObjectSnapshot target, IEnumerable<string> names) =>
-        Add(Phase.Hints, target.Name, $"-- CREATE OR REPLACE {ObjectKeyword(target.Kind)} {Qualified(target.Name)} AS …  (abweichend: {string.Join(", ", names)})",
-            $"Die Definition der {ObjectWord(target.Kind)} gehört nicht zum Vergleich: aus der DDL-Ansicht der Referenz übernehmen.");
+        Add(Phase.Hints, target.Name,
+            $"-- CREATE OR REPLACE {ObjectKeyword(target.Kind)} {Qualified(target.Name)} AS …  {TextFormat.Format(CompareText.ViewDiffers, string.Join(", ", names))}",
+            DefinitionNotCompared(target.Kind));
+
+    private static string DefinitionNotCompared(TableKind kind) =>
+        kind == TableKind.MaterializedView ? CompareText.MaterializedViewDefinitionNotCompared : CompareText.ViewDefinitionNotCompared;
 
     private IEnumerable<string> ColumnWarnings(ColumnInfo column)
     {
         if (column.IsIdentity)
         {
-            yield return $"Identity {column.Name}: ALWAYS oder BY DEFAULT und die Optionen (Start, Schrittweite) sind nicht bekannt – mit der DDL der Referenz abgleichen.";
+            yield return TextFormat.Format(CompareText.IdentityOptionsUnknown, column.Name);
         }
         else
         {
@@ -500,19 +507,19 @@ internal sealed class DdlWriter(int referenceSide, int targetSide, string refere
         if (expression is not null && !string.Equals(referenceOwner, targetOwner, StringComparison.Ordinal)
             && expression.Contains(Q(referenceOwner) + ".", StringComparison.Ordinal))
         {
-            yield return $"Der Ausdruck nennt das Schema der Referenz ({referenceOwner}) – im Ziel anpassen.";
+            yield return TextFormat.Format(CompareText.ExpressionNamesReferenceSchema, referenceOwner);
         }
     }
 
     private static string DropConstraintWarning(ConstraintInfo constraint) => constraint.Type switch
     {
-        ConstraintType.PrimaryKey or ConstraintType.Unique => "Löscht den Schlüssel. Verweisen Fremdschlüssel darauf, lehnt Oracle das ab (ORA-02273).",
-        ConstraintType.ForeignKey => "Löscht den Fremdschlüssel: Oracle prüft die Beziehung dann nicht mehr.",
-        _ => "Löscht die Prüfung.",
+        ConstraintType.PrimaryKey or ConstraintType.Unique => CompareText.DropKey,
+        ConstraintType.ForeignKey => CompareText.DropForeignKey,
+        _ => CompareText.DropCheck,
     };
 
-    private static string RenameWarning(string what) =>
-        $"{what} nur in anderer Schreibweise. Code und EF Core (quotet Namen) verweisen auf den genauen Namen – erst klären, welcher richtig ist.";
+    /// <param name="what">What is renamed, as the subject of the sentence (<see cref="CompareText.RenameSubjectColumn"/> …).</param>
+    private static string RenameWarning(string what) => TextFormat.Format(CompareText.RenameWarning, what);
 
     private static Phase PhaseOf(ConstraintInfo constraint) => constraint.Type switch
     {
@@ -547,27 +554,29 @@ internal sealed class DdlWriter(int referenceSide, int targetSide, string refere
         && (reference.Precision is null || target.Precision is not null && reference.Precision >= target.Precision);
 
     private static string Describe(ColumnInfo column) =>
-        column.IsIdentity ? "Identity" : column.IsVirtual ? $"virtuell AS ({column.Default})" : "normale Spalte";
+        column.IsIdentity ? CompareText.ColumnIdentity
+        : column.IsVirtual ? TextFormat.Format(CompareText.ColumnVirtual, column.Default)
+        : CompareText.ColumnNormal;
 
     private static string Organization(ObjectSnapshot table)
     {
         var parts = new List<string>();
         if (table.IsIndexOrganized)
         {
-            parts.Add("index-organisiert");
+            parts.Add(CompareText.OrganizationIndexOrganized);
         }
 
         if (table.Temporary)
         {
-            parts.Add("temporär");
+            parts.Add(CompareText.OrganizationTemporary);
         }
 
         if (table.Partitioned)
         {
-            parts.Add("partitioniert");
+            parts.Add(CompareText.OrganizationPartitioned);
         }
 
-        return parts.Count == 0 ? "normal" : string.Join(", ", parts);
+        return parts.Count == 0 ? CompareText.OrganizationNormal : string.Join(", ", parts);
     }
 
     /// <summary>Two sides differ in a row: one lacks it, the names differ (other case) or the compared definitions do.</summary>

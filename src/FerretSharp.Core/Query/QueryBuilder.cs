@@ -1,5 +1,6 @@
 using System.Text;
 using FerretSharp.Core.Oracle;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.Query;
@@ -82,7 +83,7 @@ public static class QueryBuilder
             }
 
             var column = table.Columns.FirstOrDefault(c => c.Name == filters[i].Column);
-            var error = column is null ? $"Spalte {filters[i].Column} existiert nicht." : FilterRules.Validate(column, filters[i]);
+            var error = column is null ? TextFormat.Format(QueryText.ColumnDoesNotExist, filters[i].Column) : FilterRules.Validate(column, filters[i]);
             if (error is not null)
             {
                 errors[i] = error;
@@ -195,7 +196,7 @@ public static class QueryBuilder
                 var column = table.Columns.FirstOrDefault(c => c.Name == sort.Column);
                 if (column is null || !ColumnCategories.IsSortable(ColumnCategories.Of(column)))
                 {
-                    throw new QueryValidationException(new Dictionary<int, string> { [-1] = $"Nach {sort.Column} kann nicht sortiert werden." });
+                    throw new QueryValidationException(new Dictionary<int, string> { [-1] = TextFormat.Format(QueryText.ColumnNotSortable, sort.Column) });
                 }
 
                 if (used.Add(column.Name))

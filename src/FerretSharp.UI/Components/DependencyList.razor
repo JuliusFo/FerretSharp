@@ -1,13 +1,13 @@
-@* Both directions of ALL_DEPENDENCIES for the "Abhängigkeiten" views of tables and PL/SQL units: tables, views and
+@* Both directions of ALL_DEPENDENCIES for the "Dependencies" views of tables and PL/SQL units: tables, views and
    PL/SQL units the schema knows (own or through a synonym) are links. *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Schema
 
 <section>
-    <h2>Verwendet <span class="count">@Dependencies.Uses.Count</span></h2>
+    <h2>@SchemaViewText.Dependencies_Uses <span class="count">@Dependencies.Uses.Count</span></h2>
     @if (Dependencies.Uses.Count == 0)
     {
-        <p class="muted">@NoUses</p>
+        <p class="muted">@(NoUses ?? SchemaViewText.Dependencies_NoneFound)</p>
     }
     @foreach (var d in Dependencies.Uses)
     {
@@ -16,10 +16,10 @@
 </section>
 
 <section>
-    <h2>Wird verwendet von <span class="count">@Dependencies.UsedBy.Count</span></h2>
+    <h2>@SchemaViewText.Dependencies_UsedBy <span class="count">@Dependencies.UsedBy.Count</span></h2>
     @if (Dependencies.UsedBy.Count == 0)
     {
-        <p class="muted">Kein Objekt verwendet @Subject.</p>
+        <p class="muted">@TextFormat.Format(SchemaViewText.Dependencies_NoUsedBy, Subject)</p>
     }
     @foreach (var d in Dependencies.UsedBy)
     {
@@ -27,7 +27,7 @@
     }
 </section>
 
-<p class="muted">Es erscheinen nur Objekte, auf die @(Active.Profile?.User ?? "der Benutzer") Zugriff hat.</p>
+<p class="muted">@(Active.Profile?.User is { } user ? TextFormat.Format(SchemaViewText.Dependencies_OnlyAccessibleTo, user) : SchemaViewText.Dependencies_OnlyAccessible)</p>
 
 @code {
     [CascadingParameter]
@@ -47,8 +47,9 @@
     [Parameter, EditorRequired]
     public string Subject { get; set; } = "";
 
+    /// <summary>Shown when the object uses nothing; null for “no dependencies found”.</summary>
     [Parameter]
-    public string NoUses { get; set; } = "Keine Abhängigkeiten gefunden.";
+    public string? NoUses { get; set; }
 
     private RenderFragment Row(DependencyInfo d) =>
         @<div class="relation dependency">
@@ -67,7 +68,7 @@
             }
             @if (d.IsInvalid)
             {
-                <span class="chip invalid" title="@InvalidStatusText.For(d.Type)">UNGÜLTIG</span>
+                <span class="chip invalid" title="@InvalidStatusText.For(d.Type)">@SchemaViewText.InvalidChip</span>
             }
         </div>;
 
@@ -81,6 +82,11 @@
         unit.Synonym is not null || unit.Owner == Active.Schema?.Owner ? unit.DisplayName : unit.Ref.ToString();
 
     private static string PlSqlTitle(PlSqlObjectSummary unit, string objectType) =>
-        (objectType == "PACKAGE BODY" ? "Body anzeigen" : "Quelltext anzeigen") +
-        (unit.Synonym is { } synonym ? $" – Synonym {synonym.Name} für {unit.Ref}" : "");
+        (objectType == "PACKAGE BODY", unit.Synonym) switch
+        {
+            (true, { } synonym) => TextFormat.Format(SchemaViewText.Dependencies_ShowBodyViaSynonym, synonym.Name, unit.Ref),
+            (false, { } synonym) => TextFormat.Format(SchemaViewText.Dependencies_ShowSourceViaSynonym, synonym.Name, unit.Ref),
+            (true, null) => SchemaViewText.Dependencies_ShowBody,
+            (false, null) => SchemaViewText.Dependencies_ShowSource,
+        };
 }

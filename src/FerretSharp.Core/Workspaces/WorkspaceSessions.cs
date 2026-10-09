@@ -1,5 +1,6 @@
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
+using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.Workspaces;
 
@@ -155,7 +156,7 @@ internal sealed class WorkspaceSessions(ConnectionManager connections, IDatabase
             session = _sessions.GetValueOrDefault(workspaceId);
             if (session is { IsCompletedSuccessfully: true } && session.Result.Transaction.Mode == TransactionMode.ReadWrite)
             {
-                throw new RefusedException("Erst committen oder verwerfen, dann sperren.");
+                throw new RefusedException(WorkspaceText.CommitOrDiscardBeforeLock);
             }
 
             _unlocked.Remove(workspaceId);
@@ -216,7 +217,7 @@ internal sealed class WorkspaceSessions(ConnectionManager connections, IDatabase
     private async Task<IDatabaseConnection> OpenAsync(ConnectionProfile profile, Guid workspaceId, string action, CancellationToken cancellationToken)
     {
         var password = connections.GetPassword(profile.Id)
-            ?? throw new DatabaseException("Für diese Verbindung ist kein Passwort gespeichert. Bitte unter „Bearbeiten“ eingeben.");
+            ?? throw new DatabaseException(ConnectionText.NoPasswordSaved);
         var connection = await connector.OpenAsync(profile, password, action, cancellationToken);
         if (!profile.ReadOnly || IsUnlocked(workspaceId))
         {

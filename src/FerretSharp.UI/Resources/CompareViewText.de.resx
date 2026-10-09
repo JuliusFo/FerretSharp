@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Compare_Title" xml:space="preserve">
+    <value>Schema-Vergleich</value>
+  </data>
+  <data name="Compare_SavedTitle" xml:space="preserve">
+    <value>Gespeicherte Vergleiche</value>
+  </data>
+  <data name="Compare_New" xml:space="preserve">
+    <value>Neuer Vergleich</value>
+  </data>
+  <data name="Compare_NotSaved" xml:space="preserve">
+    <value>– nicht gespeichert –</value>
+  </data>
+  <data name="Compare_SaveEllipsis" xml:space="preserve">
+    <value>Speichern …</value>
+  </data>
+  <data name="Compare_SaveCopyEllipsis" xml:space="preserve">
+    <value>Kopie speichern …</value>
+  </data>
+  <data name="Compare_Sides" xml:space="preserve">
+    <value>Seiten</value>
+  </data>
+  <data name="Compare_Connection" xml:space="preserve">
+    <value>Verbindung</value>
+  </data>
+  <data name="Compare_ChooseConnection" xml:space="preserve">
+    <value>Verbindung wählen …</value>
+  </data>
+  <data name="Compare_SchemaPlaceholder" xml:space="preserve">
+    <value>Schema</value>
+  </data>
+  <data name="Compare_SchemaTitle" xml:space="preserve">
+    <value>Schema (leer: das der Verbindung)</value>
+  </data>
+  <data name="Compare_ReferenceTitle" xml:space="preserve">
+    <value>Die anderen Seiten werden an dieser gemessen</value>
+  </data>
+  <data name="Compare_Reference" xml:space="preserve">
+    <value>Referenz</value>
+  </data>
+  <data name="Compare_Waiting" xml:space="preserve">
+    <value>Warte</value>
+  </data>
+  <data name="Compare_PasswordFor" xml:space="preserve">
+    <value>Passwort für {0}</value>
+  </data>
+  <data name="Compare_PasswordTitle" xml:space="preserve">
+    <value>Nur für diesen Vergleich, wird nicht gespeichert</value>
+  </data>
+  <data name="Compare_Load" xml:space="preserve">
+    <value>Laden</value>
+  </data>
+  <data name="Compare_SideLoadedOne" xml:space="preserve">
+    <value>{0:N0} Objekt · {1}</value>
+  </data>
+  <data name="Compare_SideLoadedOther" xml:space="preserve">
+    <value>{0:N0} Objekte · {1}</value>
+  </data>
+  <data name="Compare_EmptyTitle" xml:space="preserve">
+    <value>Schema leer, falsch geschrieben oder für diesen Benutzer nicht sichtbar</value>
+  </data>
+  <data name="Compare_Empty" xml:space="preserve">
+    <value>leer</value>
+  </data>
+  <data name="Compare_RemoveSide" xml:space="preserve">
+    <value>Seite entfernen</value>
+  </data>
+  <data name="Compare_AddSide" xml:space="preserve">
+    <value>+ Seite</value>
+  </data>
+  <data name="Compare_ColumnOrderTitle" xml:space="preserve">
+    <value>Unterschiedliche Reihenfolge der Spalten als Abweichung zeigen</value>
+  </data>
+  <data name="Compare_ColumnOrder" xml:space="preserve">
+    <value>Spaltenreihenfolge vergleichen</value>
+  </data>
+  <data name="Compare_Run" xml:space="preserve">
+    <value>Vergleichen</value>
+  </data>
+  <data name="Compare_OnlyDifferences" xml:space="preserve">
+    <value>Nur Unterschiede</value>
+  </data>
+  <data name="Compare_FilterObjects" xml:space="preserve">
+    <value>Objekte</value>
+  </data>
+  <data name="Compare_FilterColumns" xml:space="preserve">
+    <value>Spalten</value>
+  </data>
+  <data name="Compare_FilterConstraints" xml:space="preserve">
+    <value>Constraints</value>
+  </data>
+  <data name="Compare_FilterIndexes" xml:space="preserve">
+    <value>Indizes</value>
+  </data>
+  <data name="Compare_SearchPlaceholder" xml:space="preserve">
+    <value>Objekt suchen</value>
+  </data>
+  <data name="Compare_CopyMarkdown" xml:space="preserve">
+    <value>Als Markdown kopieren</value>
+  </data>
+  <data name="Compare_DdlProposalEllipsis" xml:space="preserve">
+    <value>DDL-Vorschlag …</value>
+  </data>
+  <data name="Compare_HeadObject" xml:space="preserve">
+    <value>Objekt</value>
+  </data>
+  <data name="Compare_ReferenceHeader" xml:space="preserve">
+    <value>{0} (Referenz)</value>
+  </data>
+  <data name="Compare_NoMatch" xml:space="preserve">
+    <value>Kein Objekt passt zu den Filtern.</value>
+  </data>
+  <data name="Compare_NoDifferences" xml:space="preserve">
+    <value>Keine Unterschiede.</value>
+  </data>
+  <data name="Compare_SaveTitle" xml:space="preserve">
+    <value>Vergleich speichern</value>
+  </data>
+  <data name="Compare_SaveCopyTitle" xml:space="preserve">
+    <value>Kopie speichern</value>
+  </data>
+  <data name="Compare_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="Compare_NamePlaceholder" xml:space="preserve">
+    <value>z. B. ERP: Dev/Test/Prod</value>
+  </data>
+  <data name="Compare_DeleteTitle" xml:space="preserve">
+    <value>Vergleich löschen</value>
+  </data>
+  <data name="Compare_DeleteQuestion" xml:space="preserve">
+    <value>Den gespeicherten Vergleich {0} löschen? Die Verbindungen bleiben.</value>
+  </data>
+  <data name="Compare_SummaryNone" xml:space="preserve">
+    <value>keine Unterschiede</value>
+  </data>
+  <data name="Compare_SummaryOne" xml:space="preserve">
+    <value>{0:N0} Objekt mit Unterschieden</value>
+  </data>
+  <data name="Compare_SummaryOther" xml:space="preserve">
+    <value>{0:N0} Objekte mit Unterschieden</value>
+  </data>
+  <data name="Compare_KindColumn" xml:space="preserve">
+    <value>Spalte</value>
+  </data>
+  <data name="Compare_KindPrimaryKey" xml:space="preserve">
+    <value>Primärschlüssel</value>
+  </data>
+  <data name="Compare_KindUnique" xml:space="preserve">
+    <value>Unique-Constraint</value>
+  </data>
+  <data name="Compare_KindForeignKey" xml:space="preserve">
+    <value>Fremdschlüssel</value>
+  </data>
+  <data name="Compare_KindCheck" xml:space="preserve">
+    <value>Check-Constraint</value>
+  </data>
+  <data name="Compare_KindIndex" xml:space="preserve">
+    <value>Index</value>
+  </data>
+  <data name="Compare_CopiedMarkdown" xml:space="preserve">
+    <value>Vergleich als Markdown kopiert.</value>
+  </data>
+  <data name="Compare_ClipboardUnavailable" xml:space="preserve">
+    <value>Die Zwischenablage ist nicht verfügbar.</value>
+  </data>
+  <data name="Compare_CopyName" xml:space="preserve">
+    <value>{0} (Kopie)</value>
+  </data>
+  <data name="Compare_Saved" xml:space="preserve">
+    <value>„{0}“ gespeichert.</value>
+  </data>
+  <data name="Compare_MissingConnection" xml:space="preserve">
+    <value>(Verbindung fehlt)</value>
+  </data>
+  <data name="Compare_SaveFailed" xml:space="preserve">
+    <value>Speichern fehlgeschlagen: {0}</value>
+  </data>
+  <data name="CompareDdl_Title" xml:space="preserve">
+    <value>DDL-Vorschlag</value>
+  </data>
+  <data name="CompareDdl_AlignTo" xml:space="preserve">
+    <value>{0} angleichen an {1}</value>
+  </data>
+  <data name="CompareDdl_TargetTitle" xml:space="preserve">
+    <value>Diese Seite wird angeglichen</value>
+  </data>
+  <data name="CompareDdl_ReferenceTitle" xml:space="preserve">
+    <value>So soll es aussehen</value>
+  </data>
+  <data name="CompareDdl_Note" xml:space="preserve">
+    <value>Nur ein Vorschlag zum Kopieren – FerretSharp führt ihn nicht aus. DDL lässt sich nicht zurücknehmen; Schritte mit ⚠ vorher prüfen.</value>
+  </data>
+  <data name="CompareDdl_NoDifferences" xml:space="preserve">
+    <value>Keine Unterschiede zwischen diesen beiden Seiten.</value>
+  </data>
+  <data name="CompareDdl_Failed" xml:space="preserve">
+    <value>Der DDL-Vorschlag ließ sich nicht erzeugen: {0}</value>
+  </data>
+</root>

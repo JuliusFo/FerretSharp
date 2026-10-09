@@ -12,12 +12,12 @@
 <ModalFrame Label="@Column.Name" Class="lob-dialog" OnCancel="CancelAsync" FocusOnOpen="true">
     <header>
         <span>@Column.Name <span class="lob-type">@Column.DisplayType · @Details.Table.DisplayName</span></span>
-        <button class="icon-btn ghost" title="Schließen" @onclick="OnClose">✕</button>
+        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="OnClose">✕</button>
     </header>
     <div class="dialog-body">
         @if (_loading)
         {
-            <div class="structure-loading"><span class="spinner"></span> Lade den ganzen Wert …</div>
+            <div class="structure-loading"><span class="spinner"></span> @GridText.Lob_Loading</div>
         }
         else if (_error is not null)
         {
@@ -29,11 +29,11 @@
                 <span class="@(Current is null ? "fs-null" : "")">@LobContent.Describe(Current)</span>
                 @if (_changed)
                 {
-                    <span class="lob-changed">geändert</span>
+                    <span class="lob-changed">@GridText.Lob_Changed</span>
                 }
                 @if (!CanEdit)
                 {
-                    <span class="lob-readonly" title="@ReadOnlyReason">nur lesen</span>
+                    <span class="lob-readonly" title="@ReadOnlyReason">@GridText.Lob_ReadOnly</span>
                 }
                 @if (_notice is not null)
                 {
@@ -48,18 +48,18 @@
                     var kind = LobContent.Detect(bytes);
                     @if (kind.ImageMime is { } mime && bytes.Length <= MaxImagePreview)
                     {
-                        <div class="lob-image"><img src="data:@mime;base64,@Convert.ToBase64String(bytes)" alt="Vorschau" /></div>
+                        <div class="lob-image"><img src="data:@mime;base64,@Convert.ToBase64String(bytes)" alt="@GridText.Lob_Preview" /></div>
                     }
                     <pre class="lob-hex">@LobContent.HexDump(bytes, HexBytes)@(bytes.Length > HexBytes ? "\n…" : "")</pre>
                 }
             }
             else if (_isNull)
             {
-                <div class="lob-null">NULL @if (CanEdit) { <button class="link-btn" @onclick="StartText">Text eingeben</button> }</div>
+                <div class="lob-null">NULL @if (CanEdit) { <button class="link-btn" @onclick="StartText">@GridText.Lob_EnterText</button> }</div>
             }
             else if (_text is not null && _text.Length > LobLimits.MaxEditLength)
             {
-                <div class="lob-null">Zu groß zum Bearbeiten im Dialog (über @LobContent.Size(LobLimits.MaxEditLength)) – über „Als Datei speichern“ und „Aus Datei laden“.</div>
+                <div class="lob-null">@TextFormat.Format(GridText.Lob_TooLargeToEdit, LobContent.Size(LobLimits.MaxEditLength))</div>
             }
             else
             {
@@ -72,22 +72,22 @@
     <footer>
         @if (!_loading && _error is null)
         {
-            <button class="btn" disabled="@(Current is null)" @onclick="SaveToFileAsync">Als Datei speichern …</button>
+            <button class="btn" disabled="@(Current is null)" @onclick="SaveToFileAsync">@GridText.Lob_SaveToFile</button>
             @if (CanEdit)
             {
-                <button class="btn" @onclick="LoadFromFileAsync">Aus Datei laden …</button>
-                <button class="btn" disabled="@(Current is null)" @onclick="SetNull">Auf NULL setzen</button>
+                <button class="btn" @onclick="LoadFromFileAsync">@GridText.Lob_LoadFromFile</button>
+                <button class="btn" disabled="@(Current is null)" @onclick="SetNull">@GridText.Lob_SetNull</button>
             }
         }
         <span class="spacer"></span>
         @if (CanEdit && !_loading && _error is null)
         {
-            <button class="btn ghost" @onclick="OnClose">Abbrechen</button>
-            <button class="btn primary" title="Als ausstehende Änderung übernehmen – geschrieben wird mit „Schreiben“@(Shortcuts.Hint(ShortcutAction.Flush))" @onclick="ApplyAsync">Übernehmen</button>
+            <button class="btn ghost" @onclick="OnClose">@CommonText.Cancel</button>
+            <button class="btn primary" title="@TextFormat.Format(GridText.Lob_ApplyTitle, Shortcuts.Hint(ShortcutAction.Flush))" @onclick="ApplyAsync">@CommonText.Apply</button>
         }
         else
         {
-            <button class="btn" @onclick="OnClose">Schließen</button>
+            <button class="btn" @onclick="OnClose">@CommonText.Close</button>
         }
     </footer>
 </ModalFrame>
@@ -137,7 +137,7 @@
     [Parameter]
     public EventCallback OnClose { get; set; }
 
-    /// <summary>Escape: with changes, closing goes through "Abbrechen" only – Escape in the text box must not drop a long edit.</summary>
+    /// <summary>Escape: with changes, closing goes through "Cancel" only – Escape in the text box must not drop a long edit.</summary>
     private Task CancelAsync() => _changed ? Task.CompletedTask : OnClose.InvokeAsync();
 
     private ColumnInfo Column => Details.Columns[Request.Column];
@@ -159,7 +159,7 @@
             var row = Request.Row!;
             if (row.Values[Request.Column] is LobValue { Length: > LobLimits.MaxLoadLength } large)
             {
-                _error = $"Der Wert ist {LobContent.Size(large.Length)} groß – FerretSharp lädt LOBs bis {LobContent.Size(LobLimits.MaxLoadLength)}.";
+                _error = TextFormat.Format(GridText.Lob_TooLargeToLoad, LobContent.Size(large.Length), LobContent.Size(LobLimits.MaxLoadLength));
                 return;
             }
 
@@ -176,7 +176,7 @@
 
             if (!read.Found)
             {
-                _error = $"Die Zeile gibt es nicht mehr – bitte neu laden{Shortcuts.Hint(ShortcutAction.Refresh)}.";
+                _error = TextFormat.Format(GridText.Grid_RowGone, Shortcuts.Hint(ShortcutAction.Refresh));
                 return;
             }
 
@@ -227,19 +227,19 @@
         {
             string? path = Current switch
             {
-                string text => await SaveFiles.SaveTextAsync(name + ".txt", "Textdatei", text, utf8Bom: false),
-                byte[] bytes => await SaveFiles.SaveBytesAsync($"{name}.{LobContent.Detect(bytes).Extension}", "Datei", bytes),
+                string text => await SaveFiles.SaveTextAsync(name + ".txt", GridText.Lob_TextFileFilter, text, utf8Bom: false),
+                byte[] bytes => await SaveFiles.SaveBytesAsync($"{name}.{LobContent.Detect(bytes).Extension}", GridText.Lob_FileFilter, bytes),
                 _ => null,
             };
             if (path is not null)
             {
-                Shell.Notify($"Gespeichert: {path}");
+                Shell.Notify(TextFormat.Format(GridText.Lob_Saved, path));
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // A file open in another program, no permission: the dialog stays, the value is not lost.
-            _notice = $"Speichern fehlgeschlagen: {ex.Message}";
+            _notice = TextFormat.Format(GridText.Export_SaveFailed, ex.Message);
         }
     }
 
@@ -249,12 +249,12 @@
         try
         {
             file = IsBlob
-                ? await OpenFiles.OpenAsync("Alle Dateien", [], LobLimits.MaxLoadLength)
-                : await OpenFiles.OpenAsync("Textdateien", ["txt", "xml", "json", "csv", "sql", "html"], LobLimits.MaxLoadLength);
+                ? await OpenFiles.OpenAsync(CommonText.AllFiles, [], LobLimits.MaxLoadLength)
+                : await OpenFiles.OpenAsync(GridText.Lob_TextFilesFilter, ["txt", "xml", "json", "csv", "sql", "html"], LobLimits.MaxLoadLength);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            _notice = $"Laden fehlgeschlagen: {ex.Message}";
+            _notice = TextFormat.Format(GridText.Lob_LoadFailed, ex.Message);
             return;
         }
 
@@ -265,19 +265,19 @@
 
         if (file.Content is not { } content)
         {
-            _notice = $"„{file.Name}“ ist {LobContent.Size(file.Length)} groß – FerretSharp lädt LOBs bis {LobContent.Size(LobLimits.MaxLoadLength)}.";
+            _notice = TextFormat.Format(GridText.Lob_FileTooLarge, file.Name, LobContent.Size(file.Length), LobContent.Size(LobLimits.MaxLoadLength));
             return;
         }
 
         if (IsBlob)
         {
             Show(content);
-            _notice = $"aus „{file.Name}“";
+            _notice = TextFormat.Format(GridText.Lob_FromFile, file.Name);
         }
         else
         {
             Show(LobContent.DecodeText(content, out var utf8));
-            _notice = utf8 ? $"aus „{file.Name}“" : $"aus „{file.Name}“ (kein UTF-8 – als Windows-1252 gelesen)";
+            _notice = TextFormat.Format(utf8 ? GridText.Lob_FromFile : GridText.Lob_FromFileNotUtf8, file.Name);
         }
 
         _changed = true;

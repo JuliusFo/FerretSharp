@@ -1,13 +1,13 @@
-@* "Abhängigkeiten" view: what the object uses and what uses it (views, packages, triggers, synonyms …). *@
+@* "Dependencies" view: what the object uses and what uses it (views, packages, triggers, synonyms …). *@
 @using FerretSharp.Core.Schema
 @inherits DetailViewBase<ObjectDependencies>
 
-<DetailStatus Loading="Loading && Data is null" Error="Error" Text="Lade Abhängigkeiten …" />
+<DetailStatus Loading="Loading && Data is null" Error="Error" Text="@SchemaViewText.Dependencies_Loading" />
 
 @if (Data is { } dependencies)
 {
     <DependencyList Dependencies="dependencies" Owner="@Table.Owner" Subject="@Table.DisplayName"
-                    NoUses="@(Table.Kind == TableKind.Table ? "Eine Tabelle verwendet keine anderen Objekte." : "Keine Abhängigkeiten gefunden.")" />
+                    NoUses="@(Table.Kind == TableKind.Table ? SchemaViewText.Dependencies_TableUsesNothing : SchemaViewText.Dependencies_NoneFound)" />
 }
 
 @code {

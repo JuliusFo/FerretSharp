@@ -1,4 +1,5 @@
 using FerretSharp.Core.ClrModel;
+using FerretSharp.ModelHost.Resources;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -56,7 +57,7 @@ internal static class TypeSuggestion
             return new LinqUnknownName(name, $"var {name} = new {{ {string.Join(", ", parts)} }};", members.Values.All(t => t is not null));
         }
 
-        return new LinqUnknownName(name, $"object? {name} = null; // Typ und Wert eintragen", false);
+        return new LinqUnknownName(name, $"object? {name} = null; // {ModelHostText.FillInTypeAndValue}", false);
     }
 
     /// <summary>The type an expression must have where it is used; null if that is not clear.</summary>

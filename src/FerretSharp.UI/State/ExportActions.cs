@@ -1,7 +1,18 @@
 using FerretSharp.Core.Data;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
+using FerretSharp.UI.Resources;
 
 namespace FerretSharp.UI.State;
+
+/// <summary>How rows were copied: picks the whole notice ("3 rows copied as a table."), one sentence per language.</summary>
+public enum ExportCopy
+{
+    Table,
+    Insert,
+    CSharpObjects,
+    HasData,
+}
 
 /// <summary>
 /// The export entries of a right-click menu (R3b; were written twice, in the grid's cell menu and the result menu, and their
@@ -13,7 +24,17 @@ namespace FerretSharp.UI.State;
 /// <param name="close">Closes the menu.</param>
 public sealed class ExportActions(ShellState shell, DomModule dom, IFileSaveService files, int missingRows, Func<Task> close)
 {
-    public static string RowsText(int rows) => rows == 1 ? "1 Zeile" : $"{rows:N0} Zeilen";
+    /// <summary>"1 row", "3 rows" – for headings and notices.</summary>
+    public static string RowsText(int rows) => TextFormat.Plural(rows, GridText.Export_RowsOne, GridText.Export_RowsOther);
+
+    /// <summary>"3 rows copied as a table." and the like.</summary>
+    public static string CopiedText(ExportCopy kind, int rows) => kind switch
+    {
+        ExportCopy.Insert => TextFormat.Plural(rows, GridText.Export_CopiedAsInsertOne, GridText.Export_CopiedAsInsertOther),
+        ExportCopy.CSharpObjects => TextFormat.Plural(rows, GridText.Export_CopiedAsCSharpObjectsOne, GridText.Export_CopiedAsCSharpObjectsOther),
+        ExportCopy.HasData => TextFormat.Plural(rows, GridText.Export_CopiedAsHasDataOne, GridText.Export_CopiedAsHasDataOther),
+        _ => TextFormat.Plural(rows, GridText.Export_CopiedAsTableOne, GridText.Export_CopiedAsTableOther),
+    };
 
     /// <summary>The full value (like Ctrl+C), not the shortened display text.</summary>
     public async Task CopyValueAsync(ColumnInfo column, object? value)
@@ -23,11 +44,11 @@ public sealed class ExportActions(ShellState shell, DomModule dom, IFileSaveServ
         await close();
         if (!copied)
         {
-            shell.Notify("Die Zwischenablage ist nicht verfügbar.");
+            shell.Notify(GridText.Export_ClipboardUnavailable);
         }
         else if (cell.Warnings.Count > 0)
         {
-            shell.Notify("Wert nicht kopiert.", cell.Warnings); // a LOB with only its preview loaded, a type that is not exported
+            shell.Notify(GridText.Grid_ValueNotCopied, cell.Warnings); // a LOB with only its preview loaded, a type that is not exported
         }
     }
 
@@ -38,20 +59,20 @@ public sealed class ExportActions(ShellState shell, DomModule dom, IFileSaveServ
         await close();
         if (!copied)
         {
-            shell.Notify("Die Zwischenablage ist nicht verfügbar.");
+            shell.Notify(GridText.Export_ClipboardUnavailable);
         }
     }
 
-    /// <param name="done">"als Tabelle kopiert" – follows the number of rows in the notice.</param>
-    public async Task CopyAsync(ExportText export, string done)
+    /// <param name="kind">How the rows were copied: picks the notice.</param>
+    public async Task CopyAsync(ExportText export, ExportCopy kind)
     {
         var copied = await dom.CopyTextAsync(export.Text);
         await close();
-        shell.Notify(copied ? $"{RowsText(export.Rows)} {done}." : "Die Zwischenablage ist nicht verfügbar.", Warnings(export));
+        shell.Notify(copied ? CopiedText(kind, export.Rows) : GridText.Export_ClipboardUnavailable, Warnings(export));
     }
 
     /// <param name="fileName">Offered file name with extension.</param>
-    /// <param name="filter">Label of the file type in the dialog, e.g. <c>CSV (Semikolon)</c>.</param>
+    /// <param name="filter">Label of the file type in the dialog, e.g. <c>CSV (semicolon)</c>.</param>
     public async Task SaveAsync(ExportText export, string fileName, string filter, bool utf8Bom)
     {
         await close();
@@ -59,16 +80,16 @@ public sealed class ExportActions(ShellState shell, DomModule dom, IFileSaveServ
         {
             if (await files.SaveTextAsync(fileName, filter, export.Text, utf8Bom) is { } path)
             {
-                shell.Notify($"{RowsText(export.Rows)} gespeichert: {path}", Warnings(export));
+                shell.Notify(TextFormat.Plural(export.Rows, GridText.Export_SavedOne, GridText.Export_SavedOther, path), Warnings(export));
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            shell.Notify($"Speichern fehlgeschlagen: {ex.Message}");
+            shell.Notify(TextFormat.Format(GridText.Export_SaveFailed, ex.Message));
         }
     }
 
     private IReadOnlyList<string> Warnings(ExportText export) => missingRows == 0
         ? export.Warnings
-        : [.. export.Warnings, $"{RowsText(missingRows)} der Auswahl nicht mehr geladen – nicht exportiert."];
+        : [.. export.Warnings, TextFormat.Format(GridText.Export_MissingRows, RowsText(missingRows))];
 }

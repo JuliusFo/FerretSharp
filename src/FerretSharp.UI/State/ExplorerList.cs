@@ -1,4 +1,5 @@
 using FerretSharp.Core.Schema;
+using FerretSharp.UI.Resources;
 
 namespace FerretSharp.UI.State;
 
@@ -73,10 +74,10 @@ public static class ExplorerList
     /// <summary>The kind as a word for tooltips and headers.</summary>
     public static string KindLabel(PlSqlKind kind) => kind switch
     {
-        PlSqlKind.Package => "Package",
-        PlSqlKind.Procedure => "Prozedur",
-        PlSqlKind.Function => "Funktion",
-        _ => "Trigger",
+        PlSqlKind.Package => SchemaViewText.Kind_Package,
+        PlSqlKind.Procedure => SchemaViewText.Kind_Procedure,
+        PlSqlKind.Function => SchemaViewText.Kind_Function,
+        _ => SchemaViewText.Kind_Trigger,
     };
 }
 

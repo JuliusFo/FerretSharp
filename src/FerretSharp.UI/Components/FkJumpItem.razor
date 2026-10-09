@@ -1,5 +1,5 @@
 @* One FK jump as a menu entry (R3b; was written twice, in the grid's cell menu and the form): arrow, target table,
-   "aus C#-Modell", the condition (or why the jump is not possible) and – for incoming jumps – the row count. *@
+   "from C# model", the condition (or why the jump is not possible) and – for incoming jumps – the row count. *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
@@ -12,7 +12,7 @@
             @FkTargets.Label(Active, Jump.Table)
             @if (Jump.ForeignKey.Source == FkSource.ClrModel)
             {
-                <span class="ctx-source">aus C#-Modell</span>
+                <span class="ctx-source">@GridText.FkJump_FromModel</span>
             }
         </span>
         <span class="ctx-meta @(Jump.IsAvailable ? "" : "wrap")">@(Jump.Unavailable ?? Jump.Condition)</span>
@@ -26,7 +26,7 @@
             <span class="ctx-count">@done.Count.ToString("N0", CultureInfo.CurrentCulture)</span>
             break;
         case FkCount.TimedOut:
-            <span class="ctx-count muted" title="Zählen nach @FkNavigation.CountTimeout.TotalSeconds s abgebrochen">&gt; @FkNavigation.CountTimeout.TotalSeconds s</span>
+            <span class="ctx-count muted" title="@TextFormat.Format(GridText.FkJump_CountTimedOut, FkNavigation.CountTimeout.TotalSeconds)">&gt; @FkNavigation.CountTimeout.TotalSeconds s</span>
             break;
         case FkCount.Failed failed:
             <span class="ctx-count error" title="@failed.Message">!</span>

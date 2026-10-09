@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="FileEmpty" xml:space="preserve">
+    <value>{0} ist leer.</value>
+  </data>
+  <data name="FileFromNewerVersion" xml:space="preserve">
+    <value>{0} stammt aus einer neueren FerretSharp-Version (Format {1}).</value>
+  </data>
+  <data name="InvalidFile" xml:space="preserve">
+    <value>{0} ist keine gültige Einstellungsdatei: {1}</value>
+  </data>
+  <data name="GroupNavigation" xml:space="preserve">
+    <value>Navigation</value>
+  </data>
+  <data name="GroupData" xml:space="preserve">
+    <value>Daten</value>
+  </data>
+  <data name="GroupEditing" xml:space="preserve">
+    <value>Editieren</value>
+  </data>
+  <data name="GroupSqlAndLinq" xml:space="preserve">
+    <value>SQL und LINQ</value>
+  </data>
+  <data name="GroupGeneral" xml:space="preserve">
+    <value>Allgemein</value>
+  </data>
+  <data name="ActionConnectionSwitcher" xml:space="preserve">
+    <value>Verbindung wählen</value>
+  </data>
+  <data name="ActionPreviousConnection" xml:space="preserve">
+    <value>Zur vorigen offenen Verbindung</value>
+  </data>
+  <data name="HintPreviousConnection" xml:space="preserve">
+    <value>Wechselt, ohne zu trennen.</value>
+  </data>
+  <data name="ActionBack" xml:space="preserve">
+    <value>Zurück zum Tab, aus dem ein FK-Sprung kam</value>
+  </data>
+  <data name="ActionForward" xml:space="preserve">
+    <value>Wieder vor</value>
+  </data>
+  <data name="ActionApplyFilters" xml:space="preserve">
+    <value>Filter anwenden</value>
+  </data>
+  <data name="HintRunInEditors" xml:space="preserve">
+    <value>Im SQL-Editor und in der LINQ-Konsole: ausführen.</value>
+  </data>
+  <data name="ActionRefresh" xml:space="preserve">
+    <value>Neu laden</value>
+  </data>
+  <data name="ActionFindColumn" xml:space="preserve">
+    <value>Spalte suchen</value>
+  </data>
+  <data name="HintFindColumn" xml:space="preserve">
+    <value>In der Spalten-Ansicht: filtern; im SQL-Editor, in der LINQ-Konsole und im Formular: suchen.</value>
+  </data>
+  <data name="ActionToggleForm" xml:space="preserve">
+    <value>Formular öffnen/schließen</value>
+  </data>
+  <data name="HintToggleForm" xml:space="preserve">
+    <value>Bei mehreren markierten Zeilen: vergleichen. Nur im Grid und im Formular.</value>
+  </data>
+  <data name="ActionFormPrevious" xml:space="preserve">
+    <value>Formular: vorige Zeile</value>
+  </data>
+  <data name="ActionFormNext" xml:space="preserve">
+    <value>Formular: nächste Zeile</value>
+  </data>
+  <data name="ActionFlush" xml:space="preserve">
+    <value>Ausstehende Änderungen schreiben</value>
+  </data>
+  <data name="HintFlush" xml:space="preserve">
+    <value>Schreibt in die Transaktion, ohne Commit.</value>
+  </data>
+  <data name="ActionCommit" xml:space="preserve">
+    <value>Commit</value>
+  </data>
+  <data name="HintCommit" xml:space="preserve">
+    <value>Auf Prod immer mit Bestätigung.</value>
+  </data>
+  <data name="ActionNewSql" xml:space="preserve">
+    <value>Neuer SQL-Editor</value>
+  </data>
+  <data name="ActionNewLinq" xml:space="preserve">
+    <value>Neue LINQ-Konsole</value>
+  </data>
+  <data name="HintNewLinq" xml:space="preserve">
+    <value>Mit verknüpftem C#-Projekt.</value>
+  </data>
+  <data name="ActionRunScript" xml:space="preserve">
+    <value>Ganzes Skript ausführen</value>
+  </data>
+  <data name="HintRunScript" xml:space="preserve">
+    <value>Bzw. die markierten Statements.</value>
+  </data>
+  <data name="FixedCopyValue" xml:space="preserve">
+    <value>Wert kopieren, mehrere markierte Zeilen als Tabelle</value>
+  </data>
+  <data name="FixedMarkForDeletion" xml:space="preserve">
+    <value>Markierte Zeilen zum Löschen vormerken</value>
+  </data>
+  <data name="FixedEditCell" xml:space="preserve">
+    <value>Zelle bearbeiten, LOB-Editor öffnen</value>
+  </data>
+  <data name="FixedCancelInput" xml:space="preserve">
+    <value>Eingabe abbrechen</value>
+  </data>
+  <data name="FixedSuggestions" xml:space="preserve">
+    <value>Vorschläge</value>
+  </data>
+  <data name="FixedReplace" xml:space="preserve">
+    <value>Ersetzen</value>
+  </data>
+  <data name="FixedUndoRedo" xml:space="preserve">
+    <value>Rückgängig, wiederholen</value>
+  </data>
+  <data name="FixedClose" xml:space="preserve">
+    <value>Menü oder Dialog schließen, Suchfeld leeren</value>
+  </data>
+  <data name="HintInGrid" xml:space="preserve">
+    <value>Im Grid.</value>
+  </data>
+  <data name="HintInGridDoubleClick" xml:space="preserve">
+    <value>Im Grid; auch Doppelklick.</value>
+  </data>
+  <data name="HintInFilterValue" xml:space="preserve">
+    <value>Im Wertfeld eines Filters.</value>
+  </data>
+  <data name="HintInEditor" xml:space="preserve">
+    <value>Im Editor.</value>
+  </data>
+  <data name="HintInEditorNotWritten" xml:space="preserve">
+    <value>Im Editor; nicht für geschriebene Änderungen.</value>
+  </data>
+  <data name="ReservedAltF4" xml:space="preserve">
+    <value>Alt+F4 schließt das Fenster.</value>
+  </data>
+  <data name="ReservedAltSpace" xml:space="preserve">
+    <value>Alt+Leertaste öffnet das Fenstermenü von Windows.</value>
+  </data>
+  <data name="ReservedAltTab" xml:space="preserve">
+    <value>Alt+Tab wechselt das Fenster.</value>
+  </data>
+  <data name="ReservedCtrlEsc" xml:space="preserve">
+    <value>Ctrl+Esc öffnet das Startmenü.</value>
+  </data>
+  <data name="ReservedCtrlShiftEsc" xml:space="preserve">
+    <value>Ctrl+Shift+Esc öffnet den Task-Manager.</value>
+  </data>
+  <data name="ReservedDevTools" xml:space="preserve">
+    <value>{0} öffnet die Entwicklertools.</value>
+  </data>
+  <data name="EditorCopy" xml:space="preserve">
+    <value>Kopieren im Grid und in den Editoren</value>
+  </data>
+  <data name="EditorPaste" xml:space="preserve">
+    <value>Einfügen</value>
+  </data>
+  <data name="EditorCut" xml:space="preserve">
+    <value>Ausschneiden</value>
+  </data>
+  <data name="EditorSelectAll" xml:space="preserve">
+    <value>Alles markieren</value>
+  </data>
+  <data name="EditorUndo" xml:space="preserve">
+    <value>Rückgängig in den Editoren</value>
+  </data>
+  <data name="EditorRedo" xml:space="preserve">
+    <value>Wiederholen in den Editoren</value>
+  </data>
+  <data name="EditorSuggestions" xml:space="preserve">
+    <value>Vorschläge in den Editoren</value>
+  </data>
+  <data name="EditorReplace" xml:space="preserve">
+    <value>Ersetzen in den Editoren</value>
+  </data>
+  <data name="EditorSelectNextMatch" xml:space="preserve">
+    <value>Nächsten Treffer markieren in den Editoren</value>
+  </data>
+  <data name="EditorGoToLine" xml:space="preserve">
+    <value>Gehe zu Zeile in den Editoren</value>
+  </data>
+  <data name="EditorDeleteLine" xml:space="preserve">
+    <value>Zeile löschen in den Editoren</value>
+  </data>
+  <data name="EditorMoveLineUp" xml:space="preserve">
+    <value>Zeile nach oben verschieben in den Editoren</value>
+  </data>
+  <data name="EditorMoveLineDown" xml:space="preserve">
+    <value>Zeile nach unten verschieben in den Editoren</value>
+  </data>
+  <data name="GridDeleteRows" xml:space="preserve">
+    <value>Zeilen löschen im Grid</value>
+  </data>
+  <data name="CtrlAltIsAltGr" xml:space="preserve">
+    <value>Ctrl+Alt ist auf deutschen Tastaturen AltGr (@, €, {{) – das würde Zeichen beim Tippen abfangen.</value>
+  </data>
+  <data name="NeedsCtrlOrAlt" xml:space="preserve">
+    <value>Ohne Ctrl oder Alt würde die Taste beim Tippen fehlen – nur F-Tasten gehen allein.</value>
+  </data>
+  <data name="TakenFromEditor" xml:space="preserve">
+    <value>{0} ist sonst „{1}“ – das Kürzel gewinnt, die Funktion dort fällt weg.</value>
+  </data>
+  <data name="AltShiftSwitchesLanguage" xml:space="preserve">
+    <value>Alt+Shift wechselt unter Windows die Tastatursprache, wenn beide allein gedrückt werden – mit einer weiteren Taste geht es meist, kann aber stören.</value>
+  </data>
+  <data name="KeyDelete" xml:space="preserve">
+    <value>Entf</value>
+  </data>
+  <data name="KeyBackspace" xml:space="preserve">
+    <value>Rücktaste</value>
+  </data>
+  <data name="KeyInsert" xml:space="preserve">
+    <value>Einfg</value>
+  </data>
+  <data name="KeyHome" xml:space="preserve">
+    <value>Pos1</value>
+  </data>
+  <data name="KeyEnd" xml:space="preserve">
+    <value>Ende</value>
+  </data>
+  <data name="KeyPageUp" xml:space="preserve">
+    <value>Bild↑</value>
+  </data>
+  <data name="KeyPageDown" xml:space="preserve">
+    <value>Bild↓</value>
+  </data>
+  <data name="KeySpace" xml:space="preserve">
+    <value>Leertaste</value>
+  </data>
+</root>

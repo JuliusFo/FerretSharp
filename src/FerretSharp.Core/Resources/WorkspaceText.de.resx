@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="WorkspaceNotOpen" xml:space="preserve">
+    <value>Der Workspace ist nicht geöffnet.</value>
+  </data>
+  <data name="LastWorkspaceCannotClose" xml:space="preserve">
+    <value>Der letzte offene Workspace kann nicht geschlossen werden.</value>
+  </data>
+  <data name="OnlyClosedCanBeDeleted" xml:space="preserve">
+    <value>Nur geschlossene Workspaces können gelöscht werden.</value>
+  </data>
+  <data name="NoActiveConnection" xml:space="preserve">
+    <value>Keine Verbindung aktiv.</value>
+  </data>
+  <data name="NameInvalid" xml:space="preserve">
+    <value>Der Name darf nicht leer und höchstens {0} Zeichen lang sein.</value>
+  </data>
+  <data name="SaveFailed" xml:space="preserve">
+    <value>Workspace „{0}“ konnte nicht gespeichert werden: {1}</value>
+  </data>
+  <data name="CommitOrDiscardBeforeLock" xml:space="preserve">
+    <value>Erst committen oder verwerfen, dann sperren.</value>
+  </data>
+  <data name="FileEmpty" xml:space="preserve">
+    <value>{0} ist leer.</value>
+  </data>
+  <data name="FileFromNewerVersion" xml:space="preserve">
+    <value>{0} stammt aus einer neueren FerretSharp-Version (Format {1}).</value>
+  </data>
+  <data name="InvalidFile" xml:space="preserve">
+    <value>{0} ist kein gültiges Workspace-JSON: {1}</value>
+  </data>
+</root>

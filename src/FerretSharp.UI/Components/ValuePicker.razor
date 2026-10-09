@@ -6,7 +6,7 @@
 <div class="valpick">
     <button type="button" class="field value valpick-field @(Selected.Count == 0 ? "valpick-unset" : "")" title="@Summary"
             @onclick="Toggle" @onkeydown="OnKeyDown" @onkeydown:preventDefault="_open">
-        <span class="valpick-text">@(Selected.Count == 0 ? (Multiple ? "Werte wählen …" : "Wert wählen …") : Summary)</span>
+        <span class="valpick-text">@(Selected.Count == 0 ? (Multiple ? GridText.ValuePicker_ChooseValues : GridText.ValuePicker_ChooseValue) : Summary)</span>
         <span class="valpick-caret">▾</span>
     </button>
     @if (_open)
@@ -66,7 +66,7 @@
 
     protected override void OnParametersSet()
     {
-        var unknown = Selected.Where(v => Values.Options.All(o => o.Value != v)).Select(v => new Item(v, v, "kein Member", true));
+        var unknown = Selected.Where(v => Values.Options.All(o => o.Value != v)).Select(v => new Item(v, v, GridText.ValuePicker_NoMember, true));
         // A display text shows its C# member beside the stored value, so it can be found in the code.
         _items = Values.Options.Select(o => new Item(o.Name, o.Value, o.Member is { } member ? $"{member} · {o.Value}" : o.Value, false))
             .Concat(unknown).ToList();

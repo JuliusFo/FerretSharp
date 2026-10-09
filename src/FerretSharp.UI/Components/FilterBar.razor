@@ -6,15 +6,15 @@
 <div class="filterbar">
     @if (Tab.FilterRows.Count == 0)
     {
-        <button class="btn" @onclick="AddRow"><span class="plus">+</span> Filter</button>
-        <span class="hint">Kein Filter – alle Zeilen</span>
+        <button class="btn" @onclick="AddRow"><span class="plus">+</span> @GridText.Filter_Add</button>
+        <span class="hint">@GridText.Filter_NoFilter</span>
         <span class="spacer"></span>
         @if (Presentations.For(Details).Entity is not null)
         {
             <LinqMenu Details="Details" Filters="CurrentFilters" />
         }
         <button class="btn ghost" @onclick="OnShowSql">@Icons.Code SQL</button>
-        <button class="btn ghost" title="Ausführungsplan der Abfrage – geschätzt oder tatsächlich" @onclick="OnShowPlan">Plan</button>
+        <button class="btn ghost" title="@GridText.Filter_PlanTitle" @onclick="OnShowPlan">@GridText.Filter_Plan</button>
     }
     else
     {
@@ -29,7 +29,7 @@
                 var values = column is null ? null : presentation.ValuesOf(IndexOf(column));
                 var valueCount = FilterRules.ValueCount(r.Op);
                 <div @key="r" class="filter-row @(r.Error is null ? "" : "invalid") @(r.Enabled ? "" : "disabled")">
-                    <input type="checkbox" class="row-toggle" checked="@r.Enabled" title="Filter aktiv"
+                    <input type="checkbox" class="row-toggle" checked="@r.Enabled" title="@GridText.Filter_Enabled"
                            @onchange="e => { r.Enabled = e.Value is true; Shell.MarkDirty(); }" />
                     <ColumnPicker Details="Details" Value="@r.Column" OnChange="name => ChangeColumn(r, name)" AutoFocus="r == _newRow" />
                     @* Keyed by category: with other options the browser would show the first one while the kept operator
@@ -52,17 +52,17 @@
                         }
                         else if (valueCount == 2)
                         {
-                            <input class="field value" placeholder="@("von: " + Placeholder(category))" @bind="r.Value" @bind:event="oninput" @bind:after="Shell.MarkDirty" @onkeydown="OnKeyDown" />
-                            <input class="field value" placeholder="@("bis: " + Placeholder(category))" @bind="r.Value2" @bind:event="oninput" @bind:after="Shell.MarkDirty" @onkeydown="OnKeyDown" />
+                            <input class="field value" placeholder="@TextFormat.Format(GridText.Filter_From, Placeholder(category))" @bind="r.Value" @bind:event="oninput" @bind:after="Shell.MarkDirty" @onkeydown="OnKeyDown" />
+                            <input class="field value" placeholder="@TextFormat.Format(GridText.Filter_To, Placeholder(category))" @bind="r.Value2" @bind:event="oninput" @bind:after="Shell.MarkDirty" @onkeydown="OnKeyDown" />
                         }
                         else
                         {
-                            <input class="field value" placeholder="@(valueCount < 0 ? "Werte mit ; trennen" : Placeholder(category))"
+                            <input class="field value" placeholder="@(valueCount < 0 ? GridText.Filter_ListPlaceholder : Placeholder(category))"
                                    @bind="r.Value" @bind:event="oninput" @bind:after="Shell.MarkDirty" @onkeydown="OnKeyDown" />
                         }
                     </div>
-                    <button class="icon-btn" title="Entfernen" @onclick="() => RemoveRow(r)">−</button>
-                    <button class="icon-btn" title="Filter hinzufügen" @onclick="AddRow">+</button>
+                    <button class="icon-btn" title="@GridText.Filter_Remove" @onclick="() => RemoveRow(r)">−</button>
+                    <button class="icon-btn" title="@GridText.Filter_AddTitle" @onclick="AddRow">+</button>
                     @if (r.Error is not null)
                     {
                         <span class="filter-error">@r.Error</span>
@@ -76,9 +76,9 @@
                 <LinqMenu Details="Details" Filters="CurrentFilters" />
             }
             <button class="btn ghost" @onclick="OnShowSql">@Icons.Code SQL</button>
-            <button class="btn ghost" title="Ausführungsplan der Abfrage – geschätzt oder tatsächlich" @onclick="OnShowPlan">Plan</button>
-            <button class="btn ghost" @onclick="ClearAsync">Leeren</button>
-            <button class="btn primary" @onclick="OnApply">Anwenden <Kbd Action="ShortcutAction.ApplyFilters" /></button>
+            <button class="btn ghost" title="@GridText.Filter_PlanTitle" @onclick="OnShowPlan">@GridText.Filter_Plan</button>
+            <button class="btn ghost" @onclick="ClearAsync">@GridText.Filter_Clear</button>
+            <button class="btn primary" @onclick="OnApply">@GridText.Filter_Apply <Kbd Action="ShortcutAction.ApplyFilters" /></button>
         </div>
     }
 </div>
@@ -218,9 +218,9 @@
 
     private static string Placeholder(ColumnCategory category) => category switch
     {
-        ColumnCategory.Number => "Zahl, z. B. 4711 oder 12,5",
-        ColumnCategory.Date or ColumnCategory.Timestamp or ColumnCategory.TimestampWithTimeZone => "TT.MM.JJJJ [hh:mm]",
-        ColumnCategory.Raw => "Hex, z. B. CAFE01",
-        _ => "Text",
+        ColumnCategory.Number => GridText.Filter_NumberPlaceholder,
+        ColumnCategory.Date or ColumnCategory.Timestamp or ColumnCategory.TimestampWithTimeZone => GridText.Filter_DatePlaceholder,
+        ColumnCategory.Raw => GridText.Filter_RawPlaceholder,
+        _ => GridText.Filter_TextPlaceholder,
     };
 }

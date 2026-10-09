@@ -1,14 +1,14 @@
-@* "Indizes" view: indexes of the table with columns/expressions and state, plus foreign keys without a supporting index. *@
+@* "Indexes" view: indexes of the table with columns/expressions and state, plus foreign keys without a supporting index. *@
 @using FerretSharp.Core.Schema
 @inherits DetailViewBase<IReadOnlyList<IndexInfo>>
 
 @if (Table.Kind == TableKind.View)
 {
-    <p class="muted">Views haben keine Indizes – Abfragen nutzen die Indizes der zugrunde liegenden Tabellen.</p>
+    <p class="muted">@SchemaViewText.Indexes_ViewHasNone</p>
 }
 else
 {
-    <DetailStatus Loading="Loading && Data is null" Error="Error" Text="Lade Indizes …" />
+    <DetailStatus Loading="Loading && Data is null" Error="Error" Text="@SchemaViewText.Indexes_Loading" />
     @if (Data is { } indexes)
     {
         // Declared foreign keys only; relationships of the C# model have no constraint to speak of.
@@ -16,28 +16,25 @@ else
         @if (unindexed.Count > 0)
         {
             <div class="advice" role="note">
-                <strong>@(unindexed.Count == 1 ? "1 Fremdschlüssel ohne Index" : $"{unindexed.Count} Fremdschlüssel ohne Index"):</strong>
+                <strong>@TextFormat.Plural(unindexed.Count, SchemaViewText.Indexes_UnindexedFkOne, SchemaViewText.Indexes_UnindexedFkOther)</strong>
                 @foreach (var fk in unindexed)
                 {
                     <span class="mono">@fk.Name (@string.Join(", ", fk.FromColumns))</span>
                 }
-                <span class="muted">
-                    Löschen oder Ändern des Schlüssels in der referenzierten Tabelle sperrt dann diese ganze Tabelle und durchsucht
-                    sie vollständig; auch Joins über den Fremdschlüssel werden langsam.
-                </span>
+                <span class="muted">@SchemaViewText.Indexes_UnindexedFkHint</span>
             </div>
         }
         <section>
-            <h2>Indizes <span class="count">@indexes.Count</span></h2>
+            <h2>@SchemaViewText.Indexes_Heading <span class="count">@indexes.Count</span></h2>
             @if (indexes.Count == 0)
             {
-                <p class="muted">Keine Indizes.</p>
+                <p class="muted">@SchemaViewText.Indexes_None</p>
             }
             else
             {
                 <table class="columns">
                     <thead>
-                        <tr><th>Name</th><th>Spalten</th><th>Typ</th><th>Zustand</th><th>Tablespace</th></tr>
+                        <tr><th>@SchemaViewText.Head_Name</th><th>@SchemaViewText.Head_Columns</th><th>@SchemaViewText.Head_Type</th><th>@SchemaViewText.Head_Status</th><th>Tablespace</th></tr>
                     </thead>
                     <tbody>
                         @foreach (var index in indexes)
@@ -47,7 +44,7 @@ else
                                     @(index.Owner == Table.Owner ? index.Name : $"{index.Owner}.{index.Name}")
                                     @if (index.Unique)
                                     {
-                                        <span class="fs-badge uk" title="Eindeutig">UNIQUE</span>
+                                        <span class="fs-badge uk" title="@SchemaViewText.Indexes_Unique">UNIQUE</span>
                                     }
                                 </td>
                                 <td class="mono">
@@ -77,9 +74,9 @@ else
 @code {
     private static string State(IndexInfo index) => string.Join(" · ", new[]
     {
-        index.Status switch { "VALID" => "gültig", "UNUSABLE" => "UNUSABLE", "N/A" => null, var s => s },
-        index.Partitioned ? "partitioniert" : null,
-        index.Visible ? null : "unsichtbar",
+        index.Status switch { "VALID" => SchemaViewText.Indexes_Valid, "UNUSABLE" => "UNUSABLE", "N/A" => null, var s => s },
+        index.Partitioned ? SchemaViewText.Indexes_Partitioned : null,
+        index.Visible ? null : SchemaViewText.Indexes_Invisible,
     }.OfType<string>());
 
     protected override Task<IReadOnlyList<IndexInfo>> LoadAsync(SchemaCache schema, CancellationToken cancellationToken) =>

@@ -1,4 +1,5 @@
 using FerretSharp.Core.Query;
+using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.Connections;
 
@@ -30,7 +31,7 @@ public sealed class DatabaseException(string message, string? errorCode = null, 
 }
 
 /// <summary>
-/// FerretSharp refuses an operation for a reason the user should read (German message): a locked workspace, an open
+/// FerretSharp refuses an operation for a reason the user should read (localized message): a locked workspace, an open
 /// transaction, a row without key … Neither a database error nor a bug – the UI shows the message as it is. Derives from
 /// <see cref="InvalidOperationException"/>, which these refusals were before (existing handlers keep working); plain
 /// <see cref="InvalidOperationException"/>s stay for guards against programming mistakes.
@@ -38,4 +39,4 @@ public sealed class DatabaseException(string message, string? errorCode = null, 
 public class RefusedException(string message, Exception? inner = null) : InvalidOperationException(message, inner);
 
 /// <summary>The workspace is not open (any more): closed or disconnected while a call for it was on its way.</summary>
-public sealed class WorkspaceClosedException() : RefusedException("Der Workspace ist nicht geöffnet.");
+public sealed class WorkspaceClosedException() : RefusedException(WorkspaceText.WorkspaceNotOpen);

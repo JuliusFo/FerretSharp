@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Model_Title" xml:space="preserve">
+    <value>C# model</value>
+    <comment>Page title</comment>
+  </data>
+  <data name="Model_Build" xml:space="preserve">
+    <value>Rebuild</value>
+    <comment>Button: dotnet build, then reload the model</comment>
+  </data>
+  <data name="Model_BuildTitle" xml:space="preserve">
+    <value>dotnet build, then reload</value>
+  </data>
+  <data name="Model_EditConnection" xml:space="preserve">
+    <value>Edit connection …</value>
+  </data>
+  <data name="Model_NoProject" xml:space="preserve">
+    <value>No linked project</value>
+    <comment>Heading</comment>
+  </data>
+  <data name="Model_NoProjectHint" xml:space="preserve">
+    <value>In the connection dialog, enter the {0} of the project with the DbContext under “C# model”. FerretSharp then reads the EF Core model (EF Core 8 or later) from the existing build: entity and property names, C# types, converters and navigations – without the application’s startup code and without a database connection.</value>
+    <comment>{0} = .csproj (code). “C# model” is the section of the connection dialog</comment>
+  </data>
+  <data name="Model_Project" xml:space="preserve">
+    <value>Project</value>
+    <comment>Heading and label of the project file</comment>
+  </data>
+  <data name="Model_BuildLabel" xml:space="preserve">
+    <value>Build</value>
+    <comment>Label: the build output the model is read from</comment>
+  </data>
+  <data name="Model_BuildInfo" xml:space="preserve">
+    <value>{0} · .NET {1} · built {2}</value>
+    <comment>{0} = configuration (Debug/Release), {1} = target framework, {2} = date and time of the build</comment>
+  </data>
+  <data name="Model_CreatedByHint" xml:space="preserve">
+    <value>{0} – without the application’s startup code, without a database connection</value>
+    <comment>{0} = Model_CreatedBy… (how the DbContext was created)</comment>
+  </data>
+  <data name="Model_CreatedByFactory" xml:space="preserve">
+    <value>Created through the project’s IDesignTimeDbContextFactory</value>
+  </data>
+  <data name="Model_CreatedByOptions" xml:space="preserve">
+    <value>Created with its own options through the DbContextOptions constructor</value>
+  </data>
+  <data name="Model_CreatedByParameterless" xml:space="preserve">
+    <value>Created through the parameterless constructor</value>
+  </data>
+  <data name="Model_LoadTime" xml:space="preserve">
+    <value>Load time</value>
+    <comment>Label</comment>
+  </data>
+  <data name="Model_CachedTitle" xml:space="preserve">
+    <value>The build is unchanged; the model was loaded without the helper process. “Reload” reads it from the project.</value>
+  </data>
+  <data name="Model_Cached" xml:space="preserve">
+    <value>from the cache · exported {0}</value>
+    <comment>{0} = date and time of the export</comment>
+  </data>
+  <data name="Model_Stale" xml:space="preserve">
+    <value>The source is newer than the build ({0}) – “Rebuild” picks up the changes.</value>
+    <comment>{0} = file name of the newer source file</comment>
+  </data>
+  <data name="Model_ReadingModel" xml:space="preserve">
+    <value>Reading the model</value>
+    <comment>Loading step shown until the helper process reports one; followed by “ …”</comment>
+  </data>
+  <data name="Model_BuildChangedStep" xml:space="preserve">
+    <value>Build changed – {0} …</value>
+    <comment>{0} = the current loading step</comment>
+  </data>
+  <data name="Model_Step" xml:space="preserve">
+    <value>{0} …</value>
+    <comment>{0} = the current loading step</comment>
+  </data>
+  <data name="Model_ElapsedTotal" xml:space="preserve">
+    <value>{0} · {1} in total</value>
+    <comment>{0} = time of the current step, {1} = time since loading started</comment>
+  </data>
+  <data name="Model_HideDetails" xml:space="preserve">
+    <value>Hide details</value>
+  </data>
+  <data name="Model_BuildFailed" xml:space="preserve">
+    <value>Build failed (exit code {0}).</value>
+    <comment>{0} = exit code of dotnet build</comment>
+  </data>
+  <data name="Model_Matching" xml:space="preserve">
+    <value>Matching against the database</value>
+    <comment>Heading</comment>
+  </data>
+  <data name="Model_EntitiesMapped" xml:space="preserve">
+    <value>{0} of {1} entities mapped</value>
+    <comment>{0} = entities with a table, {1} = entities with a table or view in the model</comment>
+  </data>
+  <data name="Model_PropertiesMapped" xml:space="preserve">
+    <value>{0} of {1} properties mapped</value>
+    <comment>{0} = properties with a column, {1} = mapped properties in the model</comment>
+  </data>
+  <data name="Model_ColumnsWithoutPropertyOne" xml:space="preserve">
+    <value>{0} column without property</value>
+    <comment>{0} = number of columns</comment>
+  </data>
+  <data name="Model_ColumnsWithoutPropertyOther" xml:space="preserve">
+    <value>{0} columns without property</value>
+    <comment>{0} = number of columns</comment>
+  </data>
+  <data name="Model_MismatchesOne" xml:space="preserve">
+    <value>{0} mismatch in type/NULL/length</value>
+    <comment>{0} = number of mismatches</comment>
+  </data>
+  <data name="Model_MismatchesOther" xml:space="preserve">
+    <value>{0} mismatches in type/NULL/length</value>
+    <comment>{0} = number of mismatches</comment>
+  </data>
+  <data name="Model_MismatchesTitle" xml:space="preserve">
+    <value>Type, NULL, length, precision – hints not counted</value>
+  </data>
+  <data name="Model_AsOf" xml:space="preserve">
+    <value>As of {0}</value>
+    <comment>{0} = time the model was loaded</comment>
+  </data>
+  <data name="Model_AllMapped" xml:space="preserve">
+    <value>All entities, properties and columns are mapped to each other.</value>
+  </data>
+  <data name="Model_Open" xml:space="preserve">
+    <value>open</value>
+    <comment>Link: opens the table's structure</comment>
+  </data>
+  <data name="Model_Entities" xml:space="preserve">
+    <value>Entities</value>
+    <comment>Heading</comment>
+  </data>
+  <data name="Model_HeadEntity" xml:space="preserve">
+    <value>Entity</value>
+    <comment>Table column header</comment>
+  </data>
+  <data name="Model_HeadTable" xml:space="preserve">
+    <value>Table</value>
+    <comment>Table column header</comment>
+  </data>
+  <data name="Model_HeadProperties" xml:space="preserve">
+    <value>Properties</value>
+    <comment>Table column header</comment>
+  </data>
+  <data name="Model_HeadConverter" xml:space="preserve">
+    <value>Converter</value>
+    <comment>Table column header</comment>
+  </data>
+  <data name="Model_EntitiesWithoutTable" xml:space="preserve">
+    <value>Entities without table</value>
+    <comment>Heading of an issue group</comment>
+  </data>
+  <data name="Model_EntitiesWithoutTableHint" xml:space="preserve">
+    <value>In the model but not in the database – not created yet, dropped or in another schema.</value>
+  </data>
+  <data name="Model_PropertiesWithoutColumn" xml:space="preserve">
+    <value>Properties without column</value>
+    <comment>Heading of an issue group</comment>
+  </data>
+  <data name="Model_PropertiesWithoutColumnHint" xml:space="preserve">
+    <value>Queries on these entities fail as long as the column is missing.</value>
+  </data>
+  <data name="Model_CaseMismatch" xml:space="preserve">
+    <value>Different letter case</value>
+    <comment>Heading of an issue group</comment>
+  </data>
+  <data name="Model_CaseMismatchHint" xml:space="preserve">
+    <value>EF Core quotes names on Oracle – with this spelling, queries do not find the object.</value>
+  </data>
+  <data name="Model_ColumnsWithoutProperty" xml:space="preserve">
+    <value>Columns without property</value>
+    <comment>Heading of an issue group</comment>
+  </data>
+  <data name="Model_ColumnsWithoutPropertyHint" xml:space="preserve">
+    <value>In the database but not in the model – e.g. after a table change that the entity does not reflect yet.</value>
+  </data>
+  <data name="Mismatches_Title" xml:space="preserve">
+    <value>Types, NULL and lengths</value>
+    <comment>Heading</comment>
+  </data>
+  <data name="Mismatches_None" xml:space="preserve">
+    <value>All mapped properties match their columns.</value>
+  </data>
+  <data name="Mismatches_Note" xml:space="preserve">
+    <value>Compares what the database stores (after the converter), and only what the project configures ({0}). Views are only read, so only type and NULL count there.</value>
+    <comment>{0} = HasMaxLength, HasPrecision, HasColumnType, IsRequired/Nullable (code)</comment>
+  </data>
+  <data name="Mismatches_Errors" xml:space="preserve">
+    <value>Errors</value>
+    <comment>Filter: mismatches of severity error</comment>
+  </data>
+  <data name="Mismatches_Warnings" xml:space="preserve">
+    <value>Warnings</value>
+    <comment>Filter: mismatches of severity warning</comment>
+  </data>
+  <data name="Mismatches_Hints" xml:space="preserve">
+    <value>Hints</value>
+    <comment>Filter: mismatches of severity hint</comment>
+  </data>
+  <data name="Mismatches_SearchPlaceholder" xml:space="preserve">
+    <value>Entity, property, column</value>
+  </data>
+  <data name="Mismatches_Shown" xml:space="preserve">
+    <value>{0} of {1}</value>
+    <comment>{0} = mismatches shown, {1} = all mismatches</comment>
+  </data>
+  <data name="Mismatches_HeadProperty" xml:space="preserve">
+    <value>Property</value>
+    <comment>Table column header</comment>
+  </data>
+  <data name="Mismatches_HeadColumn" xml:space="preserve">
+    <value>Column</value>
+    <comment>Table column header</comment>
+  </data>
+  <data name="Mismatches_HeadEffect" xml:space="preserve">
+    <value>Effect</value>
+    <comment>Table column header: what the mismatch leads to</comment>
+  </data>
+  <data name="Mismatches_ErrorTitle" xml:space="preserve">
+    <value>Error: every query that reads the property fails</value>
+  </data>
+  <data name="Mismatches_WarningTitle" xml:space="preserve">
+    <value>Warning: fails or loses data for certain values</value>
+  </data>
+  <data name="Mismatches_HintTitle" xml:space="preserve">
+    <value>Hint: model and database differ, but no error is expected</value>
+  </data>
+  <data name="Mismatches_KindType" xml:space="preserve">
+    <value>Type</value>
+    <comment>Kind of mismatch (badge)</comment>
+  </data>
+  <data name="Mismatches_KindLength" xml:space="preserve">
+    <value>Length</value>
+    <comment>Kind of mismatch (badge)</comment>
+  </data>
+  <data name="Mismatches_KindPrecision" xml:space="preserve">
+    <value>Precision</value>
+    <comment>Kind of mismatch (badge): precision/scale of a number</comment>
+  </data>
+</root>

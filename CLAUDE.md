@@ -1,7 +1,7 @@
 # FerretSharp – Oracle explorer for .NET developers
 
 > Projektanweisungen für Claude Code. Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-09, Release 3.18.1 (Historie: `CHANGELOG.md`).
+> Stand: 2026-10-09, Release 3.19.0 (Historie: `CHANGELOG.md`).
 
 ## Wo steht was
 
@@ -16,6 +16,7 @@ Diese Datei wird in jede Session geladen und bleibt deshalb kurz. Details liegen
 | `docs/roadmap.md` | Geplante Pakete mit den Entscheidungen des Nutzers, offene UX-Fragen | beim Start eines Pakets |
 | `docs/backlog.md` | Nicht eingeplante Ideen | neue Ideen dort notieren |
 | `docs/e2e-testing.md` | UI end-to-end prüfen (CDP, echte Maus, Test-DB, Screenshots) | vor jedem E2E-Lauf |
+| `docs/localization.md` | Texte in Englisch und Deutsch: Ressourcen, Konventionen, Glossar (WP-29) | vor jedem neuen oder geänderten Text |
 | `docs/decisions/` | ADRs | bei Stack- oder Architekturänderungen |
 
 Neue Erkenntnisse dorthin schreiben, wo sie gebraucht werden: Fallen eines Bereichs in die `CLAUDE.md` des Projekts, Paketprotokolle nach `docs/work-packages.md`. Hier nur, was in jeder Session gelten muss.
@@ -72,6 +73,7 @@ Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erkl
 | Oracle | `Oracle.ManagedDataAccess.Core` (23.x), Ziel **19c+** (12.2 sollte gehen) | Rein managed, durchgängig async mit `CancellationToken`. `OFFSET/FETCH` und `ALL_TAB_IDENTITY_COLS` erst ab 12c, kein ROWNUM-Fallback. |
 | Tests | **xUnit v3** auf **Microsoft Testing Platform** + NSubstitute; Integration: **Testcontainers.Oracle** (`gvenzl/oracle-free:23-slim-faststart`) | Kein VSTest (`Microsoft.NET.Test.Sdk`/`xunit.runner.visualstudio` nicht verwenden). |
 | Persistenz | JSON-Dateien (`System.Text.Json`) über `AtomicJsonFile` | Polymorphie über `[JsonPolymorphic]`/`[JsonDerivedType]`; keine `object`-Properties (werden zu `JsonElement`). |
+| Texte | typisierte resx je Bereich (`Resources/<Bereich>Text.resx` Englisch, `.de.resx` Deutsch), vom SDK zu Klassen erzeugt (ADR 0017) | Standardsprache Englisch, nur die UI-Kultur wechselt (nach Neustart). Regeln und Glossar: `docs/localization.md`. |
 | Secrets | Windows Credential Manager via **`Meziantou.Framework.Win32.CredentialManager`** | Implementierung im **App**-Projekt, Core kennt nur `ISecretStore`. Passwörter nie im JSON. |
 | Paketquellen | repo-lokales `nuget.config` (nur nuget.org) | Global ist zusätzlich eine DevExpress-Quelle eingerichtet; CPM verlangt dann Source Mapping. |
 | CI | **GitHub Actions** (`.github/workflows/ci.yml`) | Linux: Core und UI bauen, Unit- und Integrationstests (.NET-8-Runtime für den ModelHost). Windows: ganze Solution mit `-warnaserror`, Unit-Tests. |
@@ -120,7 +122,7 @@ Regeln:
 ## 6. Arbeitsweise
 
 - **Pakete:** eigener Branch `wp/NN-kurzname` (kleinere Themen `feat/…`, `fix/…`, `docs/…`); neue Arbeit immer von `main` abzweigen. Vor dem Start den Plan nennen, dann umsetzen. Ein Paket zu Ende bringen, bevor andere Themen angefasst werden; Ideen unterwegs nach `docs/backlog.md`. Bei Unsicherheit über UX-Details die einfachste Variante bauen und als Frage in der Zusammenfassung bzw. in `docs/roadmap.md` notieren, nicht blockieren.
-- **Fertig heißt:** `dotnet build -warnaserror` und `dotnet test` grün, ADR bei nicht-trivialen Entscheidungen, Protokoll in `docs/work-packages.md`, Eintrag im `CHANGELOG.md`. Danach eine kurze Zusammenfassung auf Deutsch (was gebaut, was offen, was zu testen).
+- **Fertig heißt:** `dotnet build -warnaserror` und `dotnet test` grün, jeder sichtbare Text in Englisch und Deutsch (`docs/localization.md`), ADR bei nicht-trivialen Entscheidungen, Protokoll in `docs/work-packages.md`, Eintrag im `CHANGELOG.md`. Danach eine kurze Zusammenfassung auf Deutsch (was gebaut, was offen, was zu testen).
 - **Commits** klein und thematisch, Conventional Commits (`feat:`, `fix:`, `test:`, `docs:`, `refactor:`).
 - **Core zuerst mit Tests, dann UI.** Unit-Tests laufen ohne DB (Mocks). Alles, was eine echte DB braucht, gehört in `FerretSharp.Integration.Tests` und muss sich ohne Docker sauber überspringen.
 - **Ordner rekursiv löschen nur über `SafeDelete.DirectoryBelow(root, path)`** (Core/IO: nur strikt unter einer festen Wurzel, nie Wurzel, Laufwerk oder relativer Pfad), in Tests über `TestFolder` (`tests/Shared`). Nie einen Pfad aus Einstellungen, Umgebungsvariablen oder Eingaben ungeprüft löschen; auch keine `Remove-Item -Recurse`/`rm -r`/`RemoveDir` in Skripten. `SafeDeleteTests` durchsucht Code, Tests und Skripte danach.
@@ -139,6 +141,7 @@ Regeln:
 
 ## 8. Als Nächstes (Details und Entscheidungen des Nutzers: `docs/roadmap.md`)
 
+- **WP-30** Änderungsübersicht, Undo bis zu einer Aktion, Redo (Issue #7; Vorschlag: Stufe A mit der Übersicht vor WP-22, deren Bestätigungsdialog sie nutzt).
 - **WP-22** DDL im SQL-Editor (auf schreibbaren Workspaces, Rollback offener Transaktionen nur nach Bestätigung, `TRUNCATE` bleibt abgewiesen).
 - **WP-23** Tabellen-Designer + Entity aus Tabelle, Indizes anlegen (nach WP-22).
 - **WP-26** Audit-/Historientabellen aus einer Vorlagendatei (nach WP-22/23).
