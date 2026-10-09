@@ -22,7 +22,7 @@
         {
             <div class="toast-warning">⚠ @warning</div>
         }
-        <button class="icon-btn ghost toast-close" title="Schließen" @onclick="() => Shell.DismissNotice(notice)">✕</button>
+        <button class="icon-btn ghost toast-close" title="@CommonText.Close" @onclick="() => Shell.DismissNotice(notice)">✕</button>
     </div>
 }
 
@@ -40,20 +40,23 @@
 
 @if (Lifecycle.ConfirmRollback is { } rollbackTabs)
 {
-    <ConfirmDialog Title="Rollback" ConfirmLabel="Alles verwerfen" Danger="true"
+    <ConfirmDialog Title="Rollback" ConfirmLabel="@ShellText.DiscardAll" Danger="true"
                    OnConfirm="() => Lifecycle.RollbackAsync(rollbackTabs)" OnCancel="Lifecycle.CancelConfirmation">
-        Alle Änderungen in <strong>@Lifecycle.WorkspaceName(rollbackTabs.WorkspaceId)</strong> verwerfen – die geschriebenen
-        (Rollback der Transaktion) und die ausstehenden? Das lässt sich nicht rückgängig machen.
+        <Fmt Text="@ShellText.Dialogs_RollbackQuestion"><Arg0><strong>@Lifecycle.WorkspaceName(rollbackTabs.WorkspaceId)</strong></Arg0></Fmt>
     </ConfirmDialog>
 }
 
 @if (Lifecycle.ConfirmCommit is { } commitTabs)
 {
-    <ConfirmDialog Title="Commit auf Produktion" ConfirmLabel="Committen" Danger="true"
+    var commitSummary = Editing.SummaryOf(commitTabs);
+    <ConfirmDialog Title="@ShellText.Dialogs_CommitProdTitle" ConfirmLabel="@ShellText.CommitButton" Danger="true"
                    OnConfirm="() => Lifecycle.CommitAsync(commitTabs)" OnCancel="Lifecycle.CancelConfirmation">
-        Die Änderungen in <strong>@Lifecycle.WorkspaceName(commitTabs.WorkspaceId)</strong>
-        (@Editing.SummaryOf(commitTabs).Pending ausstehend · @Editing.SummaryOf(commitTabs).Flushed geschrieben)
-        werden in <strong>@Active.Profile?.Name</strong> committed und sind danach für alle sichtbar.
+        <Fmt Text="@ShellText.Dialogs_CommitProdText">
+            <Arg0><strong>@Lifecycle.WorkspaceName(commitTabs.WorkspaceId)</strong></Arg0>
+            <Arg1>@commitSummary.Pending</Arg1>
+            <Arg2>@commitSummary.Flushed</Arg2>
+            <Arg3><strong>@Active.Profile?.Name</strong></Arg3>
+        </Fmt>
     </ConfirmDialog>
 }
 
@@ -65,10 +68,13 @@
 
 @if (Lifecycle.ConfirmCloseTab is { } closingTab)
 {
-    <ConfirmDialog Title="Tab schließen" ConfirmLabel="Verwerfen und schließen" Danger="true"
+    var pendingCount = closingTab.Changes!.PendingCount;
+    <ConfirmDialog Title="@ShellText.CloseTab" ConfirmLabel="@ShellText.Dialogs_DiscardAndClose" Danger="true"
                    OnConfirm="() => Lifecycle.CloseTabConfirmed(closingTab)" OnCancel="Lifecycle.CancelConfirmation">
-        <strong>@closingTab.Table.DisplayName</strong> hat @closingTab.Changes!.PendingCount ausstehende Änderung(en), die noch nicht
-        geschrieben sind. Sie gehen beim Schließen verloren. Bereits geschriebene Änderungen bleiben in der Transaktion des Workspaces.
+        <Fmt Text="@(pendingCount == 1 ? ShellText.Dialogs_CloseTabTextOne : ShellText.Dialogs_CloseTabTextOther)">
+            <Arg0>@pendingCount</Arg0>
+            <Arg1><strong>@closingTab.Table.DisplayName</strong></Arg1>
+        </Fmt>
     </ConfirmDialog>
 }
 
@@ -79,10 +85,9 @@
 
 @if (Shell.PendingDelete is { } pending)
 {
-    <ConfirmDialog Title="Verbindung löschen" ConfirmLabel="Löschen" Danger="true"
+    <ConfirmDialog Title="@ShellText.Connection_Delete" ConfirmLabel="@CommonText.Delete" Danger="true"
                    OnConfirm="() => Lifecycle.DeleteAsync(pending)" OnCancel="Shell.CancelDelete">
-        Verbindung <strong>@pending.Name</strong> (@pending.Address.Display) wirklich löschen?
-        Das gespeicherte Passwort wird ebenfalls entfernt.
+        <Fmt Text="@ShellText.Dialogs_DeleteConnectionText"><Arg0><strong>@pending.Name</strong></Arg0><Arg1>@pending.Address.Display</Arg1></Fmt>
     </ConfirmDialog>
 }
 

@@ -1,5 +1,7 @@
 using FerretSharp.Core.Connections;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Workspaces;
+using FerretSharp.UI.Resources;
 using Microsoft.Extensions.Logging;
 
 namespace FerretSharp.UI.State;
@@ -42,7 +44,7 @@ public sealed partial class WorkspaceLifecycle(
     /// <summary>Asking what happens to uncommitted changes before leaving: commit, discard or cancel.</summary>
     public LeaveRequest? PendingLeave { get; private set; }
 
-    /// <summary>"Änderungen als SQL anzeigen": the statements a write would run.</summary>
+    /// <summary>"Show pending changes as SQL": the statements a write would run.</summary>
     public string? PendingSql { get; private set; }
 
     /// <summary>The active connection is Prod: commits are confirmed, the frame is red.</summary>
@@ -60,11 +62,11 @@ public sealed partial class WorkspaceLifecycle(
         }
 
         shell.ReloadTableTabs(workspaceId);
-        shell.Notify($"Workspace „{WorkspaceName(workspaceId)}“ ist zum Schreiben freigeschaltet.");
+        shell.Notify(TextFormat.Format(ShellText.Lifecycle_Unlocked, WorkspaceName(workspaceId)));
     }
 
     /// <summary>
-    /// "Session trennen" – a statement does not react to cancelling (<c>RunProgress</c> asked first if writes would be lost):
+    /// "Disconnect session" – a statement does not react to cancelling (<c>RunProgress</c> asked first if writes would be lost):
     /// closes the workspace's session, the statement ends as cancelled. What was written in its transaction is gone, grid
     /// writes become pending again; the next database access opens a new session.
     /// </summary>
@@ -77,18 +79,18 @@ public sealed partial class WorkspaceLifecycle(
             editing.SessionReset(workspace);
         }
 
-        shell.Notify($"Session von „{WorkspaceName(workspaceId)}“ getrennt – beim nächsten Zugriff öffnet sich eine neue.");
+        shell.Notify(TextFormat.Format(ShellText.Lifecycle_SessionReset, WorkspaceName(workspaceId)));
         shell.NotifyChanged(); // status bar: the transaction is gone
         await closing;
     }
 
     /// <summary>Locks the workspace again – after asking what happens to its uncommitted changes.</summary>
     public Task LockAsync(Guid workspaceId) =>
-        GuardAsync("Workspace sperren", [workspaceId], async () =>
+        GuardAsync(ShellText.Lifecycle_LockWhat, [workspaceId], async () =>
         {
             if (shell.ShowFailure(await shell.RunDbAsync(logger, ScopeOf(workspaceId).Active, () => ScopeOf(workspaceId).Workspaces.LockAsync(workspaceId, CancellationToken.None))))
             {
-                shell.Notify($"Workspace „{WorkspaceName(workspaceId)}“ ist wieder schreibgeschützt.");
+                shell.Notify(TextFormat.Format(ShellText.Lifecycle_Locked, WorkspaceName(workspaceId)));
             }
         });
 
@@ -123,7 +125,7 @@ public sealed partial class WorkspaceLifecycle(
         await editing.RollbackAsync(workspace);
     }
 
-    /// <summary>"Abbrechen" in any of the confirmations.</summary>
+    /// <summary>"Cancel" in any of the confirmations.</summary>
     public void CancelConfirmation()
     {
         (ConfirmCommit, ConfirmRollback, ConfirmCloseTab) = (null, null, null);

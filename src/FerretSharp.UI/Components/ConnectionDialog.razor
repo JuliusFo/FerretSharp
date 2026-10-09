@@ -13,21 +13,21 @@
 <ModalFrame Label="@Title" OnCancel="CloseAsync">
     <header>
         <span>@Title</span>
-        <button class="icon-btn ghost" title="Schließen" @onclick="CancelAsync">✕</button>
+        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="CancelAsync">✕</button>
     </header>
 
     <div class="dialog-body form-grid">
-        <label for="cn-name">Name</label>
+        <label for="cn-name">@ShellText.ConnectionDialog_Name</label>
         <div>
             <input id="cn-name" class="field @Invalid(errors, ConnectionField.Name)" @ref="_nameInput"
-                   @bind="Form.Name" @bind:event="oninput" placeholder="z. B. ERP Test" />
+                   @bind="Form.Name" @bind:event="oninput" placeholder="@ShellText.ConnectionDialog_NamePlaceholder" />
             <FieldError Errors="errors" Field="@ConnectionField.Name" />
         </div>
 
-        <label for="cn-group">Gruppe</label>
+        <label for="cn-group">@ShellText.ConnectionDialog_Group</label>
         <div>
             <input id="cn-group" class="field" list="cn-groups" @bind="Form.Group" @bind:event="oninput"
-                   placeholder="z. B. Projekt oder Kunde – optional" autocomplete="off" />
+                   placeholder="@ShellText.ConnectionDialog_GroupPlaceholder" autocomplete="off" />
             <datalist id="cn-groups">
                 @foreach (var group in ConnectionSearch.GroupNames(Connections.Profiles))
                 {
@@ -36,7 +36,7 @@
             </datalist>
         </div>
 
-        <label>Umgebung</label>
+        <label>@ShellText.ConnectionDialog_Environment</label>
         <div class="segmented">
             @foreach (var kind in ConnectionKindInfo.All)
             {
@@ -47,10 +47,10 @@
             }
         </div>
 
-        <label>Adresse</label>
+        <label>@ShellText.ConnectionDialog_Address</label>
         <div class="segmented">
             <button class="seg @(Form.Mode == AddressMode.HostPort ? "active" : "")" @onclick="() => Form.Mode = AddressMode.HostPort">Host / Port</button>
-            <button class="seg @(Form.Mode == AddressMode.TnsAlias ? "active" : "")" @onclick="() => Form.Mode = AddressMode.TnsAlias">TNS-Alias</button>
+            <button class="seg @(Form.Mode == AddressMode.TnsAlias ? "active" : "")" @onclick="() => Form.Mode = AddressMode.TnsAlias">@ShellText.ConnectionDialog_TnsAlias</button>
         </div>
 
         @if (Form.Mode == AddressMode.HostPort)
@@ -66,7 +66,7 @@
                 <FieldError Errors="errors" Field="@ConnectionField.Port" />
             </div>
 
-            <label>Datenbank</label>
+            <label>@ShellText.ConnectionDialog_Database</label>
             <div>
                 <div class="row">
                     <div class="segmented small">
@@ -87,7 +87,7 @@
         }
         else
         {
-            <label for="cn-alias">TNS-Alias</label>
+            <label for="cn-alias">@ShellText.ConnectionDialog_TnsAlias</label>
             <div>
                 <input id="cn-alias" class="field @Invalid(errors, ConnectionField.Alias)" @bind="Form.Alias" @bind:event="oninput" placeholder="ERP_TEST" />
                 <FieldError Errors="errors" Field="@ConnectionField.Alias" />
@@ -95,44 +95,44 @@
 
             <label for="cn-tns">TNS_ADMIN</label>
             <input id="cn-tns" class="field mono" @bind="Form.TnsAdminPath" @bind:event="oninput"
-                   placeholder="Ordner der tnsnames.ora – leer = Umgebungsvariable TNS_ADMIN" />
+                   placeholder="@ShellText.ConnectionDialog_TnsAdminPlaceholder" />
         }
 
-        <label for="cn-user">Benutzer</label>
+        <label for="cn-user">@ShellText.ConnectionDialog_User</label>
         <div>
             <input id="cn-user" class="field @Invalid(errors, ConnectionField.User)" @bind="Form.User" @bind:event="oninput" autocomplete="off" />
             <FieldError Errors="errors" Field="@ConnectionField.User" />
         </div>
 
-        <label for="cn-password">Passwort</label>
+        <label for="cn-password">@ShellText.ConnectionDialog_Password</label>
         <div>
             <input id="cn-password" type="password" class="field @Invalid(errors, PasswordField)" @bind="Form.Password" @bind:event="oninput"
                    placeholder="@PasswordPlaceholder" autocomplete="new-password" />
             <FieldError Errors="errors" Field="@PasswordField" />
-            <div class="hint small">Wird im Windows-Anmeldeinformationsspeicher abgelegt, nie in der Verbindungsdatei.</div>
+            <div class="hint small">@ShellText.ConnectionDialog_PasswordHint</div>
         </div>
 
         <label for="cn-schema">Schema</label>
-        <input id="cn-schema" class="field" @bind="Form.DefaultSchema" @bind:event="oninput" placeholder="leer = Schema des Benutzers" />
+        <input id="cn-schema" class="field" @bind="Form.DefaultSchema" @bind:event="oninput" placeholder="@ShellText.ConnectionDialog_SchemaPlaceholder" />
 
         <span></span>
         <label class="check">
             <input type="checkbox" checked="@Form.ReadOnly" @onchange="e => Form.SetReadOnly(e.Value is true)" />
-            Schreibgeschützt
-            <span class="hint">· Oracle selbst lehnt Änderungen ab (READ ONLY-Transaktion)</span>
+            @ShellText.ConnectionDialog_ReadOnly
+            <span class="hint">@ShellText.ConnectionDialog_ReadOnlyHint</span>
         </label>
 
-        <div class="form-section">C#-Modell <span class="hint">· optional: Entity- und Property-Namen aus dem eigenen EF-Core-Projekt</span></div>
+        <div class="form-section">@ShellText.ConnectionDialog_ClrModel <span class="hint">@ShellText.ConnectionDialog_ClrModelHint</span></div>
 
-        <label for="cn-clr">Projekt</label>
+        <label for="cn-clr">@ShellText.ConnectionDialog_Project</label>
         <div>
             <div class="field-with-button">
                 <input id="cn-clr" class="field mono @Invalid(errors, ConnectionField.ClrProject)" @bind="Form.ClrProjectFile" @bind:event="oninput"
-                       placeholder="…\Data\Data.csproj – das Projekt mit dem DbContext" spellcheck="false" />
-                <button class="btn" title="Projektdatei auswählen" @onclick="PickProjectAsync">…</button>
+                       placeholder="@ShellText.ConnectionDialog_ProjectPlaceholder" spellcheck="false" />
+                <button class="btn" title="@ShellText.ConnectionDialog_PickProject" @onclick="PickProjectAsync">…</button>
             </div>
             <FieldError Errors="errors" Field="@ConnectionField.ClrProject" />
-            <div class="hint small">FerretSharp liest das Modell aus dem vorhandenen Build (EF Core 8 oder neuer) – ohne den Startcode der Anwendung und ohne Datenbankverbindung.</div>
+            <div class="hint small">@ShellText.ConnectionDialog_ProjectHint</div>
         </div>
 
         @if (!string.IsNullOrWhiteSpace(Form.ClrProjectFile))
@@ -145,7 +145,7 @@
 
             <label for="cn-clr-context">DbContext</label>
             <input id="cn-clr-context" class="field mono" @bind="Form.ClrContextType" @bind:event="oninput"
-                   placeholder="leer = der einzige DbContext im Projekt" spellcheck="false" />
+                   placeholder="@ShellText.ConnectionDialog_ContextPlaceholder" spellcheck="false" />
         }
     </div>
 
@@ -155,20 +155,20 @@
             @if (_testing)
             {
                 <span class="spinner"></span>
-                <span>Verbinde …</span>
+                <span>@ShellText.ConnectionDialog_Connecting</span>
             }
             else if (_testCancelled)
             {
-                <span>Test abgebrochen.</span>
+                <span>@ShellText.ConnectionDialog_TestCanceled</span>
             }
             else if (_testResult is { Success: true } ok)
             {
                 <span class="dot ok"></span>
-                <span>Verbunden in @Milliseconds(ok.Elapsed) ms · Oracle @ok.ServerVersion</span>
+                <span>@TextFormat.Format(ShellText.ConnectionDialog_TestOk, Milliseconds(ok.Elapsed), ok.ServerVersion)</span>
             }
             else if (_testResult is { } failed)
             {
-                <span class="code">@(failed.ErrorCode ?? "Fehler")</span>
+                <span class="code">@(failed.ErrorCode ?? CommonText.Error)</span>
                 <span>@failed.Message</span>
             }
         </div>
@@ -182,19 +182,19 @@
     <footer>
         @if (!Form.IsNew)
         {
-            <button class="btn ghost danger" @onclick="DeleteAsync">Löschen …</button>
+            <button class="btn ghost danger" @onclick="DeleteAsync">@ShellText.Connection_DeleteEllipsis</button>
         }
         <span class="spacer"></span>
         @if (_testing)
         {
-            <button class="btn" @onclick="CancelTest">Test abbrechen</button>
+            <button class="btn" @onclick="CancelTest">@ShellText.ConnectionDialog_CancelTest</button>
         }
         else
         {
-            <button class="btn" @onclick="TestAsync">Verbindung testen</button>
+            <button class="btn" @onclick="TestAsync">@ShellText.ConnectionDialog_Test</button>
         }
-        <button class="btn ghost" @onclick="CancelAsync">Abbrechen</button>
-        <button class="btn primary" @onclick="SaveAsync" disabled="@_saving">Speichern</button>
+        <button class="btn ghost" @onclick="CancelAsync">@CommonText.Cancel</button>
+        <button class="btn primary" @onclick="SaveAsync" disabled="@_saving">@CommonText.Save</button>
     </footer>
 </ModalFrame>
 
@@ -223,16 +223,16 @@
 
     private string Title => Request.Mode switch
     {
-        ConnectionDialogMode.Edit => "Verbindung bearbeiten",
-        ConnectionDialogMode.Duplicate => "Verbindung duplizieren",
-        _ => "Neue Verbindung",
+        ConnectionDialogMode.Edit => ShellText.ConnectionDialog_EditTitle,
+        ConnectionDialogMode.Duplicate => ShellText.ConnectionDialog_DuplicateTitle,
+        _ => ShellText.Connection_New,
     };
 
     /// <summary>The edited profile (edit) or the original (duplicate) has a stored password that can be reused.</summary>
     private bool HasStoredPassword { get; set; }
 
     private string PasswordPlaceholder => !HasStoredPassword ? ""
-        : Request.Mode == ConnectionDialogMode.Duplicate ? "wie im Original" : "unverändert";
+        : Request.Mode == ConnectionDialogMode.Duplicate ? ShellText.ConnectionDialog_PasswordAsOriginal : ShellText.ConnectionDialog_PasswordUnchanged;
 
     private IReadOnlyDictionary<string, string> Errors => _submitted ? Validate() : EarlyErrors();
 
@@ -278,7 +278,7 @@
         var errors = new Dictionary<string, string>(Form.ToProfile().Errors);
         if (Form.Password.Length == 0 && !HasStoredPassword)
         {
-            errors[PasswordField] = "Passwort fehlt.";
+            errors[PasswordField] = ShellText.ConnectionDialog_PasswordMissing;
         }
 
         if (errors.ContainsKey(ConnectionField.ClrProject) is false && Form.ToProfile().Profile.ClrProject is { } link)
@@ -306,7 +306,7 @@
 
     private async Task PickProjectAsync()
     {
-        if (await Files.PickAsync("C#-Projekt", ["csproj"], Form.ClrProjectFile) is { } path)
+        if (await Files.PickAsync(ShellText.ConnectionDialog_ProjectFilter, ["csproj"], Form.ClrProjectFile) is { } path)
         {
             Form.ClrProjectFile = path;
         }
@@ -368,7 +368,7 @@
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
         {
-            _saveError = $"Speichern fehlgeschlagen: {ex.Message}";
+            _saveError = TextFormat.Format(ShellText.ConnectionDialog_SaveFailed, ex.Message);
         }
         finally
         {

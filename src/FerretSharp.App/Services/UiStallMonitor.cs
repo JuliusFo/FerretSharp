@@ -14,7 +14,7 @@ namespace FerretSharp.App.Services;
 /// thread; Blazor handles WebView messages inline, outside of operations), garbage collection pauses and the system's
 /// memory load, and the dotnet processes (model host, LINQ console) with their memory. A stall over 1.5 s also gets the
 /// stacks of all threads – that is how the process tree kill was found, whose exceptions stopped the whole process under
-/// the debugger. Runs only while the setting "Hänger der Oberfläche protokollieren" is on (off by default).
+/// the debugger. Runs only while the setting "Log UI stalls" is on (off by default).
 /// </summary>
 public sealed class UiStallMonitor : IDisposable
 {

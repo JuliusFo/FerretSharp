@@ -11,34 +11,34 @@
 <footer class="statusbar">
     @if (Connections.LoadError is { } loadError)
     {
-        <span class="item error" title="@loadError"><span class="dot err"></span> Verbindungen konnten nicht geladen werden</span>
+        <span class="item error" title="@loadError"><span class="dot err"></span> @ShellText.Status_ConnectionsNotLoaded</span>
     }
     else
     {
         @switch (Active.Status)
         {
             case ConnectionStatus.Connected when Active.Lost is not null:
-                <span class="item error"><span class="dot err"></span> Verbindung verloren</span>
+                <span class="item error"><span class="dot err"></span> @ShellText.Connection_Lost</span>
                 <span class="item">@Active.Profile?.Name</span>
-                <button class="status-btn" @onclick="() => Lifecycle.Reconnect(Active.Profile!)">Neu verbinden</button>
+                <button class="status-btn" @onclick="() => Lifecycle.Reconnect(Active.Profile!)">@ShellText.Connection_Reconnect</button>
                 break;
             case ConnectionStatus.Connected:
-                <span class="item"><span class="dot ok"></span> Verbunden</span>
+                <span class="item"><span class="dot ok"></span> @ShellText.Status_Connected</span>
                 <span class="item shrink" title="@Active.Profile?.Name">@Active.Profile?.Name</span>
                 @if (Workspaces.Active is { } workspace)
                 {
-                    <span class="item shrink" title="Workspace „@workspace.Name“ – fragt über eine eigene Oracle-Session ab (ACTION = Workspace-Name).">Workspace „@workspace.Name“</span>
+                    <span class="item shrink" title="@TextFormat.Format(ShellText.Status_WorkspaceTitle, workspace.Name)">@TextFormat.Format(ShellText.Status_Workspace, workspace.Name)</span>
                     @if (Active.Profile?.ReadOnly == true && !Workspaces.IsUnlocked(workspace.Id))
                     {
-                        <span class="item" title="Die Workspace-Sessions laufen in einer READ ONLY-Transaktion: Oracle selbst lehnt jede Änderung ab.">schreibgeschützt (Oracle)</span>
-                        <button class="status-btn" title="Diesen Workspace zum Schreiben freischalten" @onclick="() => Shell.RequestUnlock(workspace.Id)">Freischalten …</button>
+                        <span class="item" title="@ShellText.Status_ReadOnlyTitle">@ShellText.Status_ReadOnly</span>
+                        <button class="status-btn" title="@ShellText.Status_UnlockTitle" @onclick="() => Shell.RequestUnlock(workspace.Id)">@ShellText.Status_Unlock</button>
                     }
                     else
                     {
                         @if (Workspaces.IsUnlocked(workspace.Id))
                         {
-                            <span class="item unlocked-item" title="Oracle schützt diesen Workspace nicht mehr; die anderen Workspaces bleiben gesperrt.">freigeschaltet</span>
-                            <button class="status-btn" title="Wieder sperren (offene Änderungen vorher committen oder verwerfen)" @onclick="() => Lifecycle.LockAsync(workspace.Id)">Sperren</button>
+                            <span class="item unlocked-item" title="@ShellText.Status_UnlockedTitle">@ShellText.Workspace_Unlocked</span>
+                            <button class="status-btn" title="@ShellText.Status_LockTitle" @onclick="() => Lifecycle.LockAsync(workspace.Id)">@ShellText.Status_Lock</button>
                         }
                         @if (Shell.ActiveWorkspace is { } editTabs && Editing.SummaryOf(editTabs) is { HasWork: true } edits)
                         {
@@ -48,36 +48,36 @@
                 }
                 @ModelStatus()
                 <span class="item shrink shrink-more" title="Oracle @Active.ServerVersion">Oracle @Active.ServerVersion</span>
-                <span class="item shrink shrink-more" title="Schema @Active.Schema?.Owner · @(Active.Schema?.Tables.Count ?? 0) Objekte">Schema @Active.Schema?.Owner · @(Active.Schema?.Tables.Count ?? 0) Objekte</span>
-                <button class="status-btn" @onclick="Lifecycle.DisconnectAsync">Trennen</button>
+                <span class="item shrink shrink-more" title="@SchemaText">@SchemaText</span>
+                <button class="status-btn" @onclick="Lifecycle.DisconnectAsync">@ShellText.Connection_Disconnect</button>
                 break;
             case ConnectionStatus.Connecting:
-                <span class="item"><span class="spinner small"></span> Verbinde mit @Active.Profile?.Name …</span>
+                <span class="item"><span class="spinner small"></span> @TextFormat.Format(ShellText.Connection_ConnectingTo, Active.Profile?.Name)</span>
                 break;
             case ConnectionStatus.Failed:
-                <span class="item error"><span class="dot err"></span> Verbindung fehlgeschlagen</span>
+                <span class="item error"><span class="dot err"></span> @ShellText.Status_ConnectionFailed</span>
                 break;
             default:
-                <span class="item"><span class="dot"></span> Nicht verbunden</span>
+                <span class="item"><span class="dot"></span> @ShellText.Status_NotConnected</span>
                 break;
         }
     }
     @if (Workspaces.SaveError is { } saveError)
     {
-        <span class="item error" title="@saveError"><span class="dot err"></span> Workspace nicht gespeichert</span>
+        <span class="item error" title="@saveError"><span class="dot err"></span> @ShellText.Status_WorkspaceNotSaved</span>
     }
     @if (Workspaces.LoadErrors.Count > 0)
     {
         <span class="item error" title="@string.Join(Environment.NewLine, Workspaces.LoadErrors)">
-            <span class="dot err"></span> @(Workspaces.LoadErrors.Count == 1 ? "1 Workspace-Datei" : $"{Workspaces.LoadErrors.Count} Workspace-Dateien") nicht lesbar
+            <span class="dot err"></span> @TextFormat.Plural(Workspaces.LoadErrors.Count, ShellText.Status_WorkspaceFilesUnreadableOne, ShellText.Status_WorkspaceFilesUnreadableOther)
         </span>
     }
     <span class="spacer"></span>
     @foreach (var other in Hub.Open.Where(s => s != Hub.Current && HasWork(s)))
     {
         @* WP-24: uncommitted work in a connection in the background must not be forgotten. *@
-        <button class="status-link warn" title="Nicht committete Änderungen in „@other.Profile?.Name“ – klicken zum Wechseln"
-                @onclick="() => Show(other)">@other.Profile?.Name: nicht committet</button>
+        <button class="status-link warn" title="@TextFormat.Format(ShellText.Status_OtherUncommittedTitle, other.Profile?.Name)"
+                @onclick="() => Show(other)">@TextFormat.Format(ShellText.Status_OtherUncommitted, other.Profile?.Name)</button>
     }
     <span class="item">@Version</span>
 </footer>
@@ -107,6 +107,9 @@
     public WorkspaceLifecycle Lifecycle { get; set; } = null!;
 
     private WorkspaceEditing Editing => Lifecycle.Editing;
+
+    private string SchemaText =>
+        TextFormat.Plural(Active.Schema?.Tables.Count ?? 0, ShellText.Status_SchemaObjectsOne, ShellText.Status_SchemaObjectsOther, Active.Schema?.Owner);
 
     private bool HasWork(ConnectionScope scope) =>
         Shell.AllWorkspaces.Where(w => w.ConnectionId == scope.Id).Any(w => Editing.SummaryOf(w).HasWork);
@@ -151,30 +154,33 @@
     private RenderFragment EditStatus(WorkspaceTabs workspace, EditSummary edits)
     {
         var age = edits.Transaction is { Mode: TransactionMode.ReadWrite, StartedAt: { } started } ? DateTimeOffset.Now - started : (TimeSpan?)null;
+        var counts = age is { } a
+            ? TextFormat.Format(ShellText.Status_TransactionAge, Age(a), edits.Pending, edits.Flushed)
+            : TextFormat.Format(ShellText.Changes_PendingWritten, edits.Pending, edits.Flushed);
         return @<text>
             <span class="item tx @(age > LongTransaction ? "warn" : "")"
-                  title="@(age > LongTransaction ? "Die Transaktion ist lange offen und hält Zeilensperren – andere warten auf diese Zeilen." : "Ausstehend: nur hier. Geschrieben: in der Transaktion, Zeilen gesperrt, für andere unsichtbar bis zum Commit.")">
+                  title="@(age > LongTransaction ? ShellText.Status_LongTransactionTitle : ShellText.Status_TransactionTitle)">
                 <span class="dot @(edits.Pending > 0 ? "pending" : "flushed")"></span>
-                @(age is { } a ? $"Tx seit {Age(a)} · " : "")@edits.Pending ausstehend · @edits.Flushed geschrieben
+                @counts
             </span>
             @if (edits.Actions.Count > 0)
             {
-                <span class="item tx" title="@ActionsTooltip(edits.Actions)">@(edits.Actions.Count == 1 ? "1 Aktion" : $"{edits.Actions.Count} Aktionen") nicht committet</span>
+                <span class="item tx" title="@ActionsTooltip(edits.Actions)">@TextFormat.Plural(edits.Actions.Count, ShellText.Status_ActionsUncommittedOne, ShellText.Status_ActionsUncommittedOther)</span>
             }
             <span class="status-group">
-            <button class="status-btn" title="Ausstehende Änderungen schreiben@(Shortcuts.Hint(ShortcutAction.Flush)) – noch kein Commit" disabled="@(Editing.IsBusy(workspace.WorkspaceId) || edits.Pending == 0)" @onclick="() => Editing.FlushAsync(workspace)">Schreiben</button>
-            <button class="status-btn" title="@(edits.Actions is [.., var last] ? $"Zurücknehmen: {last.Display} ({SourceOf(last)})" : "Nichts zurückzunehmen")"
+            <button class="status-btn" title="@TextFormat.Format(ShellText.Status_FlushTitle, Shortcuts.Hint(ShortcutAction.Flush))" disabled="@(Editing.IsBusy(workspace.WorkspaceId) || edits.Pending == 0)" @onclick="() => Editing.FlushAsync(workspace)">@ShellText.Status_Flush</button>
+            <button class="status-btn" title="@(edits.Actions is [.., var last] ? TextFormat.Format(ShellText.Status_UndoTitle, last.Display, SourceOf(last)) : ShellText.Status_NothingToUndo)"
                     disabled="@(Editing.IsBusy(workspace.WorkspaceId) || !edits.CanUndo)" @onclick="() => Editing.UndoLastAsync(workspace, edits.Actions is [.., var newest] ? newest.Id : null)">↶</button>
-            <button class="status-btn" title="Ausstehende Änderungen als SQL anzeigen" disabled="@(edits.Pending == 0)" @onclick="() => Lifecycle.ShowPendingSql(workspace)">SQL</button>
-            <button class="status-btn commit" title="Schreiben und committen@(Shortcuts.Hint(ShortcutAction.Commit))" disabled="@Editing.IsBusy(workspace.WorkspaceId)" @onclick="() => Lifecycle.RequestCommitAsync(workspace)">Commit</button>
-            <button class="status-btn danger" title="Alles verwerfen" disabled="@Editing.IsBusy(workspace.WorkspaceId)" @onclick="() => Lifecycle.RequestRollback(workspace)">Rollback</button>
+            <button class="status-btn" title="@ShellText.Status_ShowPendingSql" disabled="@(edits.Pending == 0)" @onclick="() => Lifecycle.ShowPendingSql(workspace)">SQL</button>
+            <button class="status-btn commit" title="@TextFormat.Format(ShellText.Status_CommitTitle, Shortcuts.Hint(ShortcutAction.Commit))" disabled="@Editing.IsBusy(workspace.WorkspaceId)" @onclick="() => Lifecycle.RequestCommitAsync(workspace)">Commit</button>
+            <button class="status-btn danger" title="@ShellText.DiscardAll" disabled="@Editing.IsBusy(workspace.WorkspaceId)" @onclick="() => Lifecycle.RequestRollback(workspace)">Rollback</button>
             </span>
         </text>;
     }
 
     /// <summary>The uncommitted writes, newest first – ↶ takes back the first one listed.</summary>
     private static string ActionsTooltip(IReadOnlyList<WriteAction> actions) =>
-        "Nicht committet, neueste zuerst (↶ nimmt die oberste zurück):" + Environment.NewLine
+        ShellText.Status_ActionsTooltip + Environment.NewLine
         + string.Join(Environment.NewLine, actions.Reverse().Select(a => $"{a.At.ToLocalTime():HH:mm:ss}  {a.Display} ({SourceOf(a)})"));
 
     private static string SourceOf(WriteAction action) => action.Kind == WriteActionKind.Grid ? "Grid" : "SQL/LINQ";
@@ -190,19 +196,20 @@
             return @<text></text>;
         }
 
+        var step = state.Step ?? ShellText.Status_ModelReading;
         if (state is { Phase: ClrModelPhase.Loading, BuildChanged: true })
         {
-            return @<button class="item status-link shrink warn" title="Der Build hat sich geändert – @(state.Step ?? "Lese das C#-Modell") … Bis das neue Modell bereit ist, gilt das bisherige." @onclick="Shell.ShowModel"><span class="spinner small"></span> C# · Build geändert – Modell wird neu geladen …</button>;
+            return @<button class="item status-link shrink warn" title="@TextFormat.Format(ShellText.Status_ModelBuildChangedTitle, step)" @onclick="Shell.ShowModel"><span class="spinner small"></span> @ShellText.Status_ModelBuildChanged</button>;
         }
 
         if (state.Phase == ClrModelPhase.Loading)
         {
-            return @<button class="item status-link shrink" title="@(state.Step ?? "Lese das C#-Modell") …" @onclick="Shell.ShowModel"><span class="spinner small"></span> C# · @(state.Step ?? "lädt") …</button>;
+            return @<button class="item status-link shrink" title="@($"{step} …")" @onclick="Shell.ShowModel"><span class="spinner small"></span> C# · @(state.Step ?? ShellText.Status_ModelLoading) …</button>;
         }
 
         if (state.Phase == ClrModelPhase.Failed)
         {
-            return @<button class="item status-link error" title="@state.Error?.Message" @onclick="Shell.ShowModel"><span class="dot err"></span> C#-Modell</button>;
+            return @<button class="item status-link error" title="@state.Error?.Message" @onclick="Shell.ShowModel"><span class="dot err"></span> @ShellText.Status_ClrModel</button>;
         }
 
         if (state.Mapping is not { } mapping)
@@ -213,8 +220,21 @@
         var stale = state.Output?.IsStale == true;
         // Names and type/NULL/length mismatches that matter; hints only on the model page.
         var differences = mapping.Issues.Count + mapping.ColumnMismatches.Count(m => m.Severity != MismatchSeverity.Hint);
-        var text = $"C# · {mapping.MappedEntityCount} Entities" + (differences > 0 ? $" · {differences} Abw." : "") + (stale ? " · Build veraltet" : "");
-        var title = (stale ? "Der Quelltext ist neuer als der Build. " : "") + $"{differences} Abweichungen zwischen Modell und Datenbank – Details";
+        // Segments of a list, joined with " · ".
+        List<string> segments = ["C#", TextFormat.Format(ShellText.Status_ModelEntities, mapping.MappedEntityCount)];
+        if (differences > 0)
+        {
+            segments.Add(TextFormat.Format(ShellText.Status_ModelMismatches, differences));
+        }
+
+        if (stale)
+        {
+            segments.Add(ShellText.Status_ModelBuildStale);
+        }
+
+        var text = string.Join(" · ", segments);
+        var mismatches = TextFormat.Plural(differences, ShellText.Status_ModelMismatchesTitleOne, ShellText.Status_ModelMismatchesTitleOther);
+        var title = stale ? ShellText.Status_ModelSourceNewer + " " + mismatches : mismatches;
         return @<button class="item status-link shrink @(stale ? "warn" : "")" title="@title" @onclick="Shell.ShowModel">@text</button>;
     }
 
