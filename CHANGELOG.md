@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Fixed
+- Sharp on every monitor: on a second monitor with a different display scale the window was blurry and drop-down lists (e.g. enum values in the grid) opened too small. The app is now per-monitor DPI aware.
+- Error messages in native dialogs have current Windows buttons instead of the classic look.
+
 ## [3.18.0] - 2026-10-09
 
 ### Fixed
