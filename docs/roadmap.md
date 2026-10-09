@@ -6,6 +6,19 @@ Aus der `CLAUDE.md` ausgelagert (Stand 3.14.0). Beim Start eines Pakets den Absc
 
 Pakete aus dem Backlog, nach v3 mit dem Nutzer ausgewählt (2026-10-05). Versionen: Minor-Releases 3.x (nichts Inkompatibles).
 
+### WP-30 Änderungsübersicht, Undo bis zu einer Aktion, Redo
+Issue [#7](https://github.com/JuliusFo/FerretSharp/issues/7) (2026-10-09), vom Nutzer als eigenes Paket aufgenommen. Problem: Es gibt keinen Ort, der zeigt, was ein Workspace noch nicht committet hat (Statusleiste nur Zähler und Kurztext, „SQL“ nur ausstehende Änderungen, ↶ nur die neueste Aktion, kein Redo). User Stories, Vorschlag und „Fertig, wenn“ stehen im Issue.
+
+Vorschlag zu den offenen Fragen (Kommentar im Issue, **beim Start mit dem Nutzer abstimmen**):
+- **Seitenpanel** statt Dialog (Springen zur Zeile/zum SQL-Tab braucht ein offenes Panel, Muster wie die Formularansicht). Die Liste als eigene Komponente mit schreibgeschützter Kompaktform, wiederverwendet im Commit-Dialog auf Prod und im Bestätigungsdialog von WP-22.
+- **Nur der aktive Workspace** (Commit/Rollback/„bis hier zurücknehmen“ wirken auf genau eine Transaktion); darunter eine Zeile mit den anderen offenen Transaktionen als Sprungziele (Daten wie im ConnectionSwitcher).
+- **Redo erst nur für Grid-Aktionen** (nach dem Undo sind die Änderungen wieder ausstehend, Redo schreibt sie mit der üblichen Konfliktprüfung erneut). Für SQL-/LINQ-Statements stattdessen „Im SQL-Editor öffnen“/„Kopieren“; echtes SQL-Redo später, falls es fehlt. Zu prüfen: Übernahme der Bind-Werte eines LINQ-Statements in den SQL-Editor.
+- **Ctrl+Z im Grid und ↶ getrennt**: Ctrl+Z nimmt nur ausstehende Zelländerungen des Tabs zurück, nie geschriebene Aktionen (`ROLLBACK TO SAVEPOINT` wirkt auf den ganzen Workspace, auch auf Statements anderer Tabs).
+- **In zwei Stufen, Stufe A vor WP-22:**
+  - **A:** Übersicht ausstehend/geschrieben mit vollständigem SQL und Sprung zur Zeile/zum SQL-Tab (Stories 1, 2, 6); `WriteAction` speichert Statement und Bind-Werte (Bind-Werte von Prod nicht loggen, nur in der UI zeigen); „bis hier zurücknehmen“ (Story 3, gezieltes `ROLLBACK TO SAVEPOINT`). Liefert die Grundlage für den Bestätigungsdialog von WP-22.
+  - **B:** Redo-Stapel mit Verfallsregeln (neues Schreiben, Commit, Rollback, Sperren, Verbindungsverlust, erneut bearbeitete Zellen) und Zell-Undo/-Redo im `ChangeTracker` (Stories 4, 5; Tasten über `ShortcutMap`, Bereich `Grid`).
+- Kein neuer Schreibweg: Redo nutzt den bestehenden Flush bzw. `ExecuteNonQueryAsync` (ADR 0006 unverändert).
+
 ### WP-22 DDL im SQL-Editor
 Wunsch des Nutzers (2026-10-06): Tabellen anlegen und ändern, passend zum DB-first-Ablauf („erst DB ändern, dann Entity“). Erste Stufe: DDL im SQL-Editor (und in Skripten) zulassen. Entscheidungen des Nutzers:
 - **Wo:** auf allen schreibbaren Workspaces – Profile ohne „Schreibgeschützt“ sowie **auch Prod nach dem Freischalten** (WP-10). Gesperrte Workspaces nie (READ-ONLY-Transaktion schützt nicht vor DDL, deshalb weiter Abweisung im Editor).
