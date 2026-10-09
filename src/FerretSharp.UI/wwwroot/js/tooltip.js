@@ -8,8 +8,21 @@ let tip = null;
 let timer = 0;
 let source = null;
 
+// Blazor sets the title again when its text changes while the pointer rests on the element (the status bar updates
+// itself): take the new text over instead of showing the old one, and keep the native tooltip away.
+const watcher = new MutationObserver(() => {
+  if (!source?.hasAttribute('title')) return;
+  source.dataset.tip = source.getAttribute('title');
+  source.removeAttribute('title');
+  if (tip) {
+    tip.textContent = source.dataset.tip;
+    place(source);
+  }
+});
+
 function hide() {
   clearTimeout(timer);
+  watcher.disconnect();
   tip?.remove();
   tip = null;
   if (source?.isConnected && source.dataset.tip !== undefined) {
@@ -27,6 +40,10 @@ function show(element) {
   tip.className = 'footer-tip';
   tip.textContent = text;
   document.body.appendChild(tip);
+  place(element);
+}
+
+function place(element) {
   const margin = 8;
   const target = element.getBoundingClientRect();
   const size = tip.getBoundingClientRect();
@@ -36,6 +53,8 @@ function show(element) {
 }
 
 function onOver(e) {
+  // Blazor removed the element under the pointer: no mouseout comes for it.
+  if (source && !source.isConnected) hide();
   const element = e.target instanceof Element ? e.target.closest(SELECTOR) : null;
   if (!element || element === source) return;
   hide();
@@ -43,6 +62,7 @@ function onOver(e) {
   // Taking the title away suppresses the native tooltip.
   element.dataset.tip = element.getAttribute('title');
   element.removeAttribute('title');
+  watcher.observe(element, { attributes: true, attributeFilter: ['title'] });
   timer = setTimeout(() => show(element), DELAY);
 }
 
