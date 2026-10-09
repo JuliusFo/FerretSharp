@@ -49,6 +49,10 @@
     [Parameter]
     public bool ReadOnly { get; set; }
 
+    /// <summary>The hint when typing in a read-only editor; defaults to the one for PL/SQL source.</summary>
+    [Parameter]
+    public string? ReadOnlyMessage { get; set; }
+
     /// <summary>Completion items for (text, cursor offset); null = no completion from .NET.</summary>
     [Parameter]
     public Func<string, int, Task<IReadOnlyList<CompletionItem>>>? Completion { get; set; }
@@ -70,8 +74,14 @@
             }
 
             _module = module;
+            // uiLanguage: Monaco's own texts (menus, find widget) – loaded once per page, the UI language is fixed until a restart.
             await CallAsync("create", _id, _selfRef, Text,
-                new { language = Language, minimal = Minimal, placeholder = Placeholder, completion = Completion is not null, readOnly = ReadOnly });
+                new
+                {
+                    language = Language, minimal = Minimal, placeholder = Placeholder, completion = Completion is not null, readOnly = ReadOnly,
+                    readOnlyMessage = ReadOnlyMessage ?? SqlEditorText.Monaco_ReadOnlyPlSql,
+                    uiLanguage = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName,
+                });
             _created = true;
             if (_pendingReveal is { } at)
             {

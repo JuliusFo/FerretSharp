@@ -11,17 +11,17 @@
         <span class="ctx-col">@Column.Name</span>
         <span class="ctx-value @(Request.CellText is null ? "fs-null" : "")">@(Request.CellText ?? "NULL")</span>
     </div>
-    <button class="menu-item" disabled="@(Request.CellText is null)" @onclick="() => Export.CopyValueAsync(Column, Request.Row.Values[Request.Column])">Wert kopieren</button>
+    <button class="menu-item" disabled="@(Request.CellText is null)" @onclick="() => Export.CopyValueAsync(Column, Request.Row.Values[Request.Column])">@CommonText.CopyValue</button>
 
-    <div class="group-head-btn static">Export · @ExportActions.RowsText(Request.Selected.Count)</div>
-    <button class="menu-item" title="Tabulator-getrennt mit Kopfzeile – lässt sich direkt in Excel einfügen" @onclick="CopyTableAsync">Als Tabelle kopieren</button>
+    <div class="group-head-btn static">@TextFormat.Format(SqlEditorText.ResultMenu_ExportHead, ExportActions.RowsText(Request.Selected.Count))</div>
+    <button class="menu-item" title="@SqlEditorText.ResultMenu_CopyTableTitle" @onclick="CopyTableAsync">@SqlEditorText.ResultMenu_CopyTable</button>
     <button class="menu-item" disabled="@(InsertTarget is null)" @onclick="CopyInsertAsync"
             title="@(InsertTarget is { } target
-                ? $"INSERT INTO {target.DisplayName} mit den Spaltennamen des Ergebnisses als Zielspalten (wird nie ausgeführt)"
-                : "Nur wenn die Abfrage genau eine Tabelle liest – sonst ist das Ziel unklar.")">
-        Als INSERT kopieren
+                ? TextFormat.Format(SqlEditorText.ResultMenu_CopyInsertTitle, target.DisplayName)
+                : SqlEditorText.ResultMenu_CopyInsertUnavailable)">
+        @SqlEditorText.ResultMenu_CopyInsert
     </button>
-    <button class="menu-item" title="Semikolon-getrennt, UTF-8 – öffnet sich direkt in Excel" @onclick="SaveCsvAsync">Als CSV speichern …</button>
+    <button class="menu-item" title="@SqlEditorText.ResultMenu_SaveCsvTitle" @onclick="SaveCsvAsync">@SqlEditorText.ResultMenu_SaveCsv</button>
 </PopoverMenu>
 
 @code {
@@ -43,13 +43,13 @@
     [Parameter, EditorRequired]
     public TableDetails Result { get; set; } = null!;
 
-    /// <summary>The table the query reads, as target of "Als INSERT kopieren"; null if it reads several or none.</summary>
+    /// <summary>The table the query reads, as target of "Copy as INSERT"; null if it reads several or none.</summary>
     [Parameter]
     public TableSummary? InsertTarget { get; set; }
 
     /// <summary>File name (without extension) offered for CSV.</summary>
     [Parameter]
-    public string ExportName { get; set; } = "Ergebnis";
+    public string ExportName { get; set; } = SqlEditorText.Result_DefaultExportName;
 
     [Parameter]
     public EventCallback OnClose { get; set; }
@@ -57,14 +57,15 @@
     private ColumnInfo Column => Result.Columns[Request.Column];
 
     private Task CopyTableAsync() =>
-        Export.CopyAsync(DelimitedExport.Build(Result, Request.Selected, DelimitedExport.ClipboardSeparator), "als Tabelle kopiert");
+        Export.CopyAsync(DelimitedExport.Build(Result, Request.Selected, DelimitedExport.ClipboardSeparator), SqlEditorText.ResultMenu_CopiedAsTable);
 
     private Task CopyInsertAsync() => InsertTarget is { } target
-        ? Export.CopyAsync(InsertExport.Build(Result with { Table = target }, Request.Selected), "als INSERT kopiert")
+        ? Export.CopyAsync(InsertExport.Build(Result with { Table = target }, Request.Selected), SqlEditorText.ResultMenu_CopiedAsInsert)
         : Task.CompletedTask;
 
     private Task SaveCsvAsync() =>
-        Export.SaveAsync(DelimitedExport.Build(Result, Request.Selected, DelimitedExport.CsvSeparator), ExportName + ".csv", "CSV (Semikolon)", utf8Bom: true);
+        Export.SaveAsync(DelimitedExport.Build(Result, Request.Selected, DelimitedExport.CsvSeparator), ExportName + ".csv",
+            SqlEditorText.ResultMenu_CsvFilter, utf8Bom: true);
 
     private Task CloseAsync() => OnClose.InvokeAsync();
 

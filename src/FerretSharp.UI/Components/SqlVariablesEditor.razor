@@ -5,15 +5,15 @@
 @if (Variables.Count > 0)
 {
     <div class="linq-label">
-        Variablen
-        <span class="hint">Werte wie im Filter (1.234,5 · 05.10.2026 14:00 · ISO); gebunden, nie in das SQL eingesetzt.</span>
+        @SqlEditorText.Editor_Variables
+        <span class="hint">@SqlEditorText.SqlVariables_Hint</span>
     </div>
     <div class="sql-variables">
         @foreach (var variable in Variables)
         {
             var v = variable;
             var used = Binds.Contains(v.Name, StringComparer.OrdinalIgnoreCase);
-            <div class="sql-variable @(used ? "" : "unused")" title="@(used ? null : "Im Skript nicht mehr verwendet")">
+            <div class="sql-variable @(used ? "" : "unused")" title="@(used ? null : SqlEditorText.SqlVariables_Unused)">
                 <code>:@v.Name</code>
                 <select class="field" value="@v.Type" @onchange="e => SetAsync(v, Enum.Parse<SqlVariableType>((string)e.Value!), v.Value)">
                     @foreach (var type in Enum.GetValues<SqlVariableType>())
@@ -28,7 +28,7 @@
                 }
                 @if (!used)
                 {
-                    <button class="icon-btn ghost" title="Variable entfernen" @onclick="() => RemoveAsync(v)">✕</button>
+                    <button class="icon-btn ghost" title="@SqlEditorText.SqlVariables_Remove" @onclick="() => RemoveAsync(v)">✕</button>
                 }
             </div>
         }
@@ -55,11 +55,11 @@
 
     private static string TypeText(SqlVariableType type) => type switch
     {
-        SqlVariableType.Text => "Text",
-        SqlVariableType.Char => "Text (CHAR)",
-        SqlVariableType.Number => "Zahl",
-        SqlVariableType.Date => "Datum",
-        SqlVariableType.Raw => "Hex (RAW)",
+        SqlVariableType.Text => SqlEditorText.SqlVariables_TypeText,
+        SqlVariableType.Char => SqlEditorText.SqlVariables_TypeChar,
+        SqlVariableType.Number => SqlEditorText.SqlVariables_TypeNumber,
+        SqlVariableType.Date => SqlEditorText.SqlVariables_TypeDate,
+        SqlVariableType.Raw => SqlEditorText.SqlVariables_TypeRaw,
         _ => "NULL",
     };
 

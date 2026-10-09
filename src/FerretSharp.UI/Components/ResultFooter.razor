@@ -6,33 +6,37 @@
     {
         @if (grid.Loading)
         {
-            <span><span class="spinner small"></span> Lade …</span>
+            <span><span class="spinner small"></span> @SqlEditorText.Footer_Loading</span>
         }
         else if (grid.Error is { } error)
         {
             <span class="error" title="@error.Statement?.Sql">@error.Display</span>
-            <button class="btn ghost" @onclick="() => Shell.ShowError(error)">Details</button>
+            <button class="btn ghost" @onclick="() => Shell.ShowError(error)">@CommonText.Details</button>
             @ErrorActions?.Invoke(error)
         }
         else
         {
-            <span><strong>@(grid.AllLoaded ? "" : "≥ ")@grid.RowsLoaded.ToString("N0", CultureInfo.CurrentCulture)</strong> @(grid is { AllLoaded: true, RowsLoaded: 1 } ? "Zeile" : "Zeilen")</span>
+            <span>
+                <Fmt Text="@(grid is { AllLoaded: true, RowsLoaded: 1 } ? SqlEditorText.Footer_RowsOne : SqlEditorText.Footer_RowsOther)">
+                    <Arg0><strong>@(grid.AllLoaded ? "" : "≥ ")@grid.RowsLoaded.ToString("N0", CultureInfo.CurrentCulture)</strong></Arg0>
+                </Fmt>
+            </span>
             @if (grid.Elapsed is { } elapsed)
             {
                 <span>@Ms(elapsed)</span>
             }
             @if (grid.DataAsOf is { } asOf)
             {
-                <span title="Schreibgeschützter Workspace: Stand der READ ONLY-Transaktion">Stand @asOf.ToLocalTime().ToString("HH:mm:ss", CultureInfo.InvariantCulture)</span>
+                <span title="@SqlEditorText.Footer_SnapshotTitle">@TextFormat.Format(SqlEditorText.Footer_Snapshot, asOf.ToLocalTime().ToString("HH:mm:ss", CultureInfo.InvariantCulture))</span>
                 @if (grid.SnapshotMoved)
                 {
-                    <span class="warn" title="@SnapshotTexts.Moved">Stand hat sich geändert – neu ausführen</span>
+                    <span class="warn" title="@SnapshotTexts.Moved">@SqlEditorText.Footer_SnapshotMoved</span>
                 }
             }
         }
     }
     <span class="spacer"></span>
-    <span class="muted">Session des Workspaces – eigene, nicht committete Änderungen sind sichtbar</span>
+    <span class="muted">@SqlEditorText.Footer_Session</span>
 </div>
 
 @code {
