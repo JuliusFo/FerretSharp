@@ -1,5 +1,7 @@
 using FerretSharp.Core.Compare;
 using FerretSharp.Core.Connections;
+using FerretSharp.Core.Resources;
+using FerretSharp.UI.Resources;
 using Microsoft.Extensions.Logging;
 
 namespace FerretSharp.UI.State;
@@ -87,7 +89,7 @@ public sealed class SchemaCompareService(ComparisonStore store, SchemaCompareLoa
     public string Label(CompareSide side) =>
         connections.Profiles.FirstOrDefault(p => p.Id == side.ConnectionId) is { } profile
             ? $"{profile.Name} · {side.OwnerFor(profile)}"
-            : "(Verbindung fehlt)";
+            : CompareViewText.Compare_MissingConnection;
 
     public void New()
     {
@@ -217,7 +219,7 @@ public sealed class SchemaCompareService(ComparisonStore store, SchemaCompareLoa
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            StoreError = $"Speichern fehlgeschlagen: {ex.Message}";
+            StoreError = TextFormat.Format(CompareViewText.Compare_SaveFailed, ex.Message);
         }
 
         Changed?.Invoke();

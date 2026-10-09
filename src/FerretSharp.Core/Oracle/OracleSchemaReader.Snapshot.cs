@@ -1,5 +1,6 @@
 using FerretSharp.Core.Compare;
 using FerretSharp.Core.Query;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 using static FerretSharp.Core.Oracle.OracleReading;
 
@@ -69,17 +70,17 @@ public sealed partial class OracleSchemaReader
         var readAt = DateTimeOffset.Now;
         QueryParameter[] parameters = [new("owner", owner)];
 
-        progress?.Report("Objekte");
+        progress?.Report(OracleText.SnapshotStepObjects);
         var objects = await GetTablesAsync(owner, cancellationToken);
         var storage = (await session.ReadListAsync(SnapshotTablesSql, parameters, reader =>
                 (Name: reader.GetString(0), Iot: Text(reader, 1) == "IOT", Temporary: Text(reader, 2) == "Y", Partitioned: Text(reader, 3) == "YES"),
                 cancellationToken, many: true))
             .ToDictionary(t => t.Name, t => (t.Iot, t.Temporary, t.Partitioned), StringComparer.Ordinal);
 
-        progress?.Report("Spalten");
+        progress?.Report(OracleText.SnapshotStepColumns);
         var columns = await ReadColumnsByTableAsync(SnapshotColumnsSql, parameters, many: true, cancellationToken);
 
-        progress?.Report("Constraints");
+        progress?.Report(OracleText.SnapshotStepConstraints);
         var constraintColumns = await ReadNameListsAsync(SnapshotConstraintColumnsSql, parameters, cancellationToken, many: true);
         var referenced = await ReadNameListsAsync(SnapshotReferencedColumnsSql, parameters, cancellationToken, many: true);
         var constraints = (await session.ReadListAsync(SnapshotConstraintsSql, parameters, reader =>
@@ -89,7 +90,7 @@ public sealed partial class OracleSchemaReader
             .GroupBy(c => c.Table!, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.Select(c => c.Constraint).ToList(), StringComparer.Ordinal);
 
-        progress?.Report("Indizes");
+        progress?.Report(OracleText.SnapshotStepIndexes);
         var indexColumns = await ReadIndexColumnsAsync(SnapshotIndexColumnsSql, SnapshotIndexExpressionsSql, parameters, many: true, cancellationToken);
         var indexes = (await session.ReadListAsync(SnapshotIndexesSql, parameters, reader =>
                 (Table: reader.GetString(IndexesTableOrdinal), Index: ReadIndex(reader, indexColumns)), cancellationToken, many: true))

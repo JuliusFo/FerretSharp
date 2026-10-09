@@ -1,5 +1,5 @@
 @* Where the result will appear while a statement runs (SQL editor, LINQ console): what runs, for how long (ticking each
-   second), "Abbrechen". A cancel Oracle does not answer within a few seconds (a VPN may swallow it) offers to give up the
+   second), "Cancel". A cancel Oracle does not answer within a few seconds (a VPN may swallow it) offers to give up the
    workspace's session – after saying what that discards. One instance per statement (keyed by the caller). *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
@@ -9,7 +9,7 @@
     <div class="run-head">
         <span class="spinner"></span>
         <strong>@Title</strong>
-        <span class="run-clock" title="Laufzeit">@Clock(Now - Started)</span>
+        <span class="run-clock" title="@SqlEditorText.Run_Elapsed">@Clock(Now - Started)</span>
     </div>
     @if (Detail is not null)
     {
@@ -17,45 +17,44 @@
     }
     @if (ScriptStarted is { } script)
     {
-        <div class="run-meta">Skript läuft seit @Clock(Now - script)</div>
+        <div class="run-meta">@TextFormat.Format(SqlEditorText.Run_ScriptRunningFor, Clock(Now - script))</div>
     }
 
     <div class="run-actions">
         @if (_resetting)
         {
-            <span class="run-meta"><span class="spinner small"></span> Trenne die Session …</span>
+            <span class="run-meta"><span class="spinner small"></span> @SqlEditorText.Run_Disconnecting</span>
         }
         else if (_cancelledAt is null)
         {
             @if (OnCancel.HasDelegate)
             {
-                <button class="btn" @onclick="CancelAsync">Abbrechen</button>
+                <button class="btn" @onclick="CancelAsync">@CommonText.Cancel</button>
             }
         }
         else if (!Stuck)
         {
-            <span class="run-meta">Wird abgebrochen …</span>
+            <span class="run-meta">@SqlEditorText.Run_Canceling</span>
         }
         else if (_confirmReset)
         {
             <div class="run-stuck">
                 <p>@LossText</p>
                 <div class="run-buttons">
-                    <button class="btn danger-solid" @onclick="ResetAsync">Session trennen</button>
-                    <button class="btn" @onclick="() => _confirmReset = false">Weiter warten</button>
+                    <button class="btn danger-solid" @onclick="ResetAsync">@SqlEditorText.Run_DisconnectSession</button>
+                    <button class="btn" @onclick="() => _confirmReset = false">@SqlEditorText.Run_KeepWaiting</button>
                 </div>
             </div>
         }
         else
         {
             <div class="run-stuck">
-                <p>Oracle reagiert seit @Clock(Now - _cancelledAt.Value) nicht auf den Abbruch – vielleicht hängt die Verbindung (VPN, Firewall).
-                    @(Database ? "Die Session des Workspaces zu trennen beendet das Statement sicher." : "")</p>
+                <p>@TextFormat.Format(Database ? SqlEditorText.Run_StuckDatabase : SqlEditorText.Run_Stuck, Clock(Now - _cancelledAt.Value))</p>
                 @if (Database)
                 {
                     <div class="run-buttons">
-                        <button class="btn danger" title="Schließt die Verbindung dieses Workspaces; beim nächsten Zugriff öffnet sich eine neue"
-                                @onclick="AskResetAsync">Session trennen …</button>
+                        <button class="btn danger" title="@SqlEditorText.Run_DisconnectSessionTitle"
+                                @onclick="AskResetAsync">@SqlEditorText.Run_DisconnectSessionAsk</button>
                     </div>
                 }
             </div>
@@ -81,7 +80,7 @@
     [Parameter, EditorRequired]
     public Guid WorkspaceId { get; set; }
 
-    /// <summary>"Abfrage läuft", "Statement 3 von 7 · UPDATE".</summary>
+    /// <summary>"Query running", "Statement 3 of 7 · UPDATE".</summary>
     [Parameter, EditorRequired]
     public string Title { get; set; } = "";
 
@@ -110,7 +109,7 @@
 
     protected override void OnInitialized() => _ = TickAsync(_ticks.Token);
 
-    /// <summary>Renders once a second: the clock, and "Session trennen" once the cancel is overdue.</summary>
+    /// <summary>Renders once a second: the clock, and "Disconnect session" once the cancel is overdue.</summary>
     private async Task TickAsync(CancellationToken token)
     {
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
@@ -163,19 +162,15 @@
             var actions = LostActions;
             var statements = actions.Count(a => a.Kind != WriteActionKind.Grid);
             var grid = actions.Count - statements;
-            var parts = new List<string>
-            {
-                $"Die offene Transaktion des Workspaces ({(actions.Count == 1 ? "1 Änderung" : $"{actions.Count} Änderungen")}) wird verworfen – "
-                + "Oracle rollt sie zurück, sobald der Server die getrennte Verbindung bemerkt; bis dahin bleiben ihre Zeilen gesperrt.",
-            };
+            var parts = new List<string> { TextFormat.Plural(actions.Count, SqlEditorText.Run_LossOne, SqlEditorText.Run_LossOther) };
             if (statements > 0)
             {
-                parts.Add(statements == 1 ? "Was ein Statement geändert hat, ist danach weg." : $"Was {statements} Statements geändert haben, ist danach weg.");
+                parts.Add(TextFormat.Plural(statements, SqlEditorText.Run_LossStatementsOne, SqlEditorText.Run_LossStatementsOther));
             }
 
             if (grid > 0)
             {
-                parts.Add("Im Grid geschriebene Änderungen werden wieder ausstehend.");
+                parts.Add(SqlEditorText.Run_LossGrid);
             }
 
             return string.Join(" ", parts);

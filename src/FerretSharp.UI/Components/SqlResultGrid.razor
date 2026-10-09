@@ -52,13 +52,13 @@
     [Parameter]
     public SqlPage? FirstPage { get; set; }
 
-    /// <summary>The single table the query reads: target of "Als INSERT kopieren" (WP-17); null disables it.</summary>
+    /// <summary>The single table the query reads: target of "Copy as INSERT" (WP-17); null disables it.</summary>
     [Parameter]
     public TableSummary? InsertTarget { get; set; }
 
     /// <summary>File name offered when saving the result as CSV.</summary>
     [Parameter]
-    public string ExportName { get; set; } = "Ergebnis";
+    public string ExportName { get; set; } = SqlEditorText.Result_DefaultExportName;
 
     private GridContextMenuRequest? _menu;
 

@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using FerretSharp.UI.Resources;
 using FerretSharp.UI.State;
 using Microsoft.Win32;
 
@@ -26,7 +27,7 @@ public sealed class FileOpenService : IFileOpenService
         {
             var dialog = new OpenFileDialog
             {
-                Filter = extensions.Count > 0 ? $"{filter} ({patterns})|{patterns}|Alle Dateien (*.*)|*.*" : "Alle Dateien (*.*)|*.*",
+                Filter = extensions.Count > 0 ? $"{filter} ({patterns})|{patterns}|{CommonText.AllFiles} (*.*)|*.*" : $"{CommonText.AllFiles} (*.*)|*.*",
                 CheckFileExists = true,
             };
             if (!string.IsNullOrWhiteSpace(initialPath))

@@ -2,15 +2,15 @@
 @using FerretSharp.Core.Schema
 @inherits DetailViewBase<string>
 
-<DetailStatus Loading="Loading && Data is null" Error="Error" Text="Lade DDL …"
-              Hint="@(Error?.ErrorCode == "ORA-31603" ? "Oracle liefert die DDL von Objekten anderer Schemas nur mit der Rolle SELECT_CATALOG_ROLE." : null)" />
+<DetailStatus Loading="Loading && Data is null" Error="Error" Text="@SchemaViewText.Ddl_Loading"
+              Hint="@(Error?.ErrorCode == "ORA-31603" ? SchemaViewText.Ddl_NeedsCatalogRole : null)" />
 
 @if (Data is { } ddl)
 {
     <section>
         <h2>DDL</h2>
         <SqlCode Sql="@ddl" Class="ddl" />
-        <p class="muted">Aus <code>DBMS_METADATA.GET_DDL</code> – Indizes, Trigger und Grants stehen nicht darin.</p>
+        <p class="muted"><Fmt Text="@SchemaViewText.Ddl_Source"><Arg0><code>DBMS_METADATA.GET_DDL</code></Arg0></Fmt></p>
     </section>
 }
 

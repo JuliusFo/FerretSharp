@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Threading;
@@ -10,6 +11,7 @@ using FerretSharp.Core.Connections;
 using FerretSharp.Core.Oracle;
 using FerretSharp.Core.Settings;
 using FerretSharp.Core.Workspaces;
+using FerretSharp.UI.Resources;
 using FerretSharp.UI.State;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -24,7 +26,7 @@ public partial class App : Application
     private IHost? _host;
     private ILogger<App>? _logger;
 
-    protected override async void OnStartup(StartupEventArgs e)
+    protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
@@ -40,22 +42,36 @@ public partial class App : Application
                 retainedFileCountLimit: 14)
             .CreateLogger();
 
-        // Settings decide the theme, which must be known before the window and the WebView exist (no white flash).
+        // Settings decide the theme, which must be known before the window and the WebView exist (no white flash), and the
+        // language. Read here, not in an async method: the UI culture belongs to the execution context, and a change made
+        // inside an async method is undone when it returns – Blazor would render in the Windows language again.
         var settingsStore = new SettingsStore(paths.SettingsFile);
         var settings = AppSettings.Default;
         string? settingsError = null;
         try
         {
-            settings = await settingsStore.LoadAsync(CancellationToken.None);
+            settings = Task.Run(() => settingsStore.LoadAsync(CancellationToken.None)).GetAwaiter().GetResult();
         }
         catch (Exception ex) when (ex is SettingsStoreException or IOException or UnauthorizedAccessException)
         {
             settingsError = ex.Message;
         }
 
-        var theme = WindowTheme.Create(e.Args, settings.Theme);
+        // The UI language (WP-29, ADR 0017): only the UI culture changes, so numbers and dates keep their formats. The enum
+        // display names of a linked C# project keep the Windows language (the projects may only have German resources).
+        var windowsUiCulture = CultureInfo.CurrentUICulture;
+        CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.CurrentUICulture =
+            UiLanguages.Culture(UiLanguages.FromArguments(e.Args) ?? settings.Language);
 
-        var builder = Host.CreateApplicationBuilder(e.Args);
+        Start(e.Args, paths, settingsStore, settings, settingsError, windowsUiCulture);
+    }
+
+    private async void Start(
+        string[] args, AppPaths paths, SettingsStore settingsStore, AppSettings settings, string? settingsError, CultureInfo windowsUiCulture)
+    {
+        var theme = WindowTheme.Create(args, settings.Theme);
+
+        var builder = Host.CreateApplicationBuilder(args);
         builder.Services.AddSerilog();
         builder.Services.Configure<ConsoleLifetimeOptions>(o => o.SuppressStatusMessages = true);
         builder.Services.AddWpfBlazorWebView();
@@ -86,10 +102,10 @@ public partial class App : Application
         var modelHost = Path.Combine(AppContext.BaseDirectory, "modelhost", "FerretSharp.ModelHost.dll");
         // The host runs from copies of the build output, so the linked project can be built meanwhile (ADR 0016).
         var shadow = new BuildOutputShadow(Path.Combine(Path.GetTempPath(), AppPaths.AppFolderName, "shadow"));
-        builder.Services.AddSingleton<IModelHostRunner>(new ModelHostRunner(modelHost, shadow: shadow));
+        builder.Services.AddSingleton<IModelHostRunner>(new ModelHostRunner(modelHost, culture: windowsUiCulture, shadow: shadow));
         // Copies of projects no longer linked or builds long replaced; in the background, it never throws.
         _ = Task.Run(() => shadow.DeleteUnusedAsync(BuildOutputShadow.UnusedAfter, CancellationToken.None));
-        builder.Services.AddSingleton(new ModelCache(paths.ModelCacheDirectory, modelHost));
+        builder.Services.AddSingleton(new ModelCache(paths.ModelCacheDirectory, modelHost, windowsUiCulture));
         builder.Services.AddSingleton(new SqlHistoryStore(paths.SqlHistoryDirectory));
         builder.Services.AddSingleton(new ComparisonStore(paths.ComparisonsFile));
         builder.Services.AddSingleton<SchemaCompareLoader>();
@@ -176,7 +192,7 @@ public partial class App : Application
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
         _logger?.LogError(e.Exception, "Unhandled exception on UI thread");
-        _host?.Services.GetRequiredService<IDialogService>().ShowError("Unexpected error", e.Exception);
+        _host?.Services.GetRequiredService<IDialogService>().ShowError(CommonText.UnexpectedError, e.Exception);
         e.Handled = true;
     }
 }

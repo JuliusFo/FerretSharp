@@ -1,0 +1,306 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="ProjectNotReadable" xml:space="preserve">
+    <value>Das Projekt lässt sich nicht lesen: {0}</value>
+  </data>
+  <data name="ProjectFileNotFound" xml:space="preserve">
+    <value>Projektdatei nicht gefunden: {0}</value>
+  </data>
+  <data name="NotBuilt" xml:space="preserve">
+    <value>Kein Build von {0} ({1}) gefunden – bitte das Projekt bauen.</value>
+  </data>
+  <data name="FrameworkTooOld" xml:space="preserve">
+    <value>{0} ist für .NET {1} gebaut – FerretSharp liest Modelle ab EF Core 8 (.NET 8).</value>
+  </data>
+  <data name="UnknownFramework" xml:space="preserve">
+    <value>Unbekanntes Zielframework „{0}“ – FerretSharp liest Modelle ab EF Core 8 (.NET 8).</value>
+  </data>
+  <data name="NoEfCore" xml:space="preserve">
+    <value>{0} referenziert EF Core nicht – verknüpfe das Projekt, das den DbContext enthält (nicht nur die Entities).</value>
+  </data>
+  <data name="StepCopyBuildOutput" xml:space="preserve">
+    <value>Kopiere die Build-Ausgabe</value>
+  </data>
+  <data name="BuildOutputNotCopied" xml:space="preserve">
+    <value>Die Build-Ausgabe ließ sich nicht kopieren – läuft gerade ein Build? {0}</value>
+  </data>
+  <data name="ValueCustomConverter" xml:space="preserve">
+    <value>eigener Converter {0}, DB-Wert {1}</value>
+  </data>
+  <data name="LobNotLoaded" xml:space="preserve">
+    <value>{0} mit {1:N0} Bytes nicht geladen</value>
+  </data>
+  <data name="LobPreviewOnly" xml:space="preserve">
+    <value>{0} nur als Vorschau geladen ({1:N0} Zeichen)</value>
+  </data>
+  <data name="ValueNotWritableAs" xml:space="preserve">
+    <value>{0} lässt sich nicht als {1} schreiben</value>
+  </data>
+  <data name="ValueNotTrueOrFalse" xml:space="preserve">
+    <value>{0} ist weder true noch false ({1})</value>
+  </data>
+  <data name="ValueNotTrueOrFalseConverter" xml:space="preserve">
+    <value>{0} ist weder true noch false (Converter)</value>
+  </data>
+  <data name="ValueNotMember" xml:space="preserve">
+    <value>{0} ist kein Wert von {1}</value>
+  </data>
+  <data name="HasDataNoKey" xml:space="preserve">
+    <value>HasData braucht einen Schlüssel – die Entity ist keyless.</value>
+  </data>
+  <data name="HasDataNoTable" xml:space="preserve">
+    <value>HasData geht nur für Entities auf Tabellen, nicht auf Views.</value>
+  </data>
+  <data name="HasDataOwned" xml:space="preserve">
+    <value>Owned-Typen werden über ihren Besitzer geseedet (OwnsOne(…).HasData).</value>
+  </data>
+  <data name="CellNoProperty" xml:space="preserve">
+    <value>{0} hat keine Property im C#-Modell.</value>
+  </data>
+  <data name="CommentNoProperty" xml:space="preserve">
+    <value>{0} = {1} (keine Property)</value>
+  </data>
+  <data name="CommentOtherEntity" xml:space="preserve">
+    <value>{0} = {1} (Property {2} eines anderen Entity-Typs der Tabelle)</value>
+  </data>
+  <data name="CommentShadowProperty" xml:space="preserve">
+    <value>{0} = {1} (Shadow-Property)</value>
+  </data>
+  <data name="NoProperty" xml:space="preserve">
+    <value>keine Property</value>
+  </data>
+  <data name="NoteOtherEntity" xml:space="preserve">
+    <value>Property {0} eines anderen Entity-Typs</value>
+  </data>
+  <data name="NoteShadowProperty" xml:space="preserve">
+    <value>Shadow-Property, im Initializer nicht setzbar</value>
+  </data>
+  <data name="NoteAsComment" xml:space="preserve">
+    <value>{0}: {1} – als Kommentar.</value>
+  </data>
+  <data name="NoteAsCommentRows" xml:space="preserve">
+    <value>{0}: {1} ({2} Zeilen) – als Kommentar.</value>
+  </data>
+  <data name="NotesMore" xml:space="preserve">
+    <value>… und {0} weitere, siehe Kommentare im Code.</value>
+  </data>
+  <data name="StepFindBuild" xml:space="preserve">
+    <value>Suche den Build</value>
+  </data>
+  <data name="StepCheckCache" xml:space="preserve">
+    <value>Prüfe den Cache</value>
+  </data>
+  <data name="NoModelReturned" xml:space="preserve">
+    <value>Kein Modell geliefert.</value>
+  </data>
+  <data name="ColumnsNotRead" xml:space="preserve">
+    <value>Spalten ließen sich nicht lesen: {0}</value>
+  </data>
+  <data name="ModelNotLoaded" xml:space="preserve">
+    <value>Das Modell ließ sich nicht laden: {0}</value>
+  </data>
+  <data name="EntityWithoutTable" xml:space="preserve">
+    <value>{0}: Tabelle {1} gibt es nicht.</value>
+  </data>
+  <data name="EntityWithoutView" xml:space="preserve">
+    <value>{0}: View {1} gibt es nicht.</value>
+  </data>
+  <data name="TableCaseMismatch" xml:space="preserve">
+    <value>{0}: im Modell „{1}“, in der Datenbank „{2}“ – EF Core quotet Namen, Abfragen fänden die Tabelle so nicht.</value>
+  </data>
+  <data name="ViewCaseMismatch" xml:space="preserve">
+    <value>{0}: im Modell „{1}“, in der Datenbank „{2}“ – EF Core quotet Namen, Abfragen fänden die View so nicht.</value>
+  </data>
+  <data name="StepReadColumns" xml:space="preserve">
+    <value>Lese die Spalten ({0})</value>
+  </data>
+  <data name="StepCompare" xml:space="preserve">
+    <value>Gleiche Modell und Datenbank ab</value>
+  </data>
+  <data name="ColumnCaseMismatch" xml:space="preserve">
+    <value>{0}.{1}: im Modell Spalte „{2}“, in der Datenbank „{3}“.</value>
+  </data>
+  <data name="PropertyWithoutColumn" xml:space="preserve">
+    <value>{0}.{1}: Spalte {2}.{3} gibt es nicht.</value>
+  </data>
+  <data name="ColumnWithoutProperty" xml:space="preserve">
+    <value>{0}.{1}: keine Property in {2}.</value>
+  </data>
+  <data name="TypeMismatch" xml:space="preserve">
+    <value>Der gespeicherte Typ passt nicht zur Spalte {0}: Lesen scheitert.</value>
+  </data>
+  <data name="TypeMismatchConverter" xml:space="preserve">
+    <value>Der gespeicherte Typ passt nicht zur Spalte {0}: Lesen scheitert – fehlt der Converter (z. B. J/N)?</value>
+  </data>
+  <data name="DateTimeLosesZone" xml:space="preserve">
+    <value>DateTime verliert die Zeitzone der Spalte – DateTimeOffset passt dazu.</value>
+  </data>
+  <data name="GuidRawLength" xml:space="preserve">
+    <value>Eine Guid hat 16 Byte, die Spalte RAW({0}).</value>
+  </data>
+  <data name="ViewColumnNullable" xml:space="preserve">
+    <value>Die Spalte der View erlaubt NULL, im Modell Pflicht – enthält sie NULL, wirft EF Core beim Lesen. (Oracle meldet berechnete View-Spalten immer als nullable.)</value>
+  </data>
+  <data name="MaterializedViewColumnNullable" xml:space="preserve">
+    <value>Die Spalte der materialisierten View erlaubt NULL, im Modell Pflicht – enthält sie NULL, wirft EF Core beim Lesen. (Oracle meldet berechnete View-Spalten immer als nullable.)</value>
+  </data>
+  <data name="ColumnNullable" xml:space="preserve">
+    <value>Die Spalte erlaubt NULL, im Modell Pflicht – EF Core wirft beim Lesen einer Zeile mit NULL.</value>
+  </data>
+  <data name="ColumnNotNull" xml:space="preserve">
+    <value>Die Spalte ist NOT NULL, im Modell optional – SaveChanges mit NULL scheitert (ORA-01400).</value>
+  </data>
+  <data name="LengthTooShortBytes" xml:space="preserve">
+    <value>Im Modell bis {0} Byte, die Spalte fasst {1} – längere Werte scheitern beim Speichern (ORA-12899).</value>
+  </data>
+  <data name="LengthTooShortChars" xml:space="preserve">
+    <value>Im Modell bis {0} Zeichen, die Spalte fasst {1} – längere Werte scheitern beim Speichern (ORA-12899).</value>
+  </data>
+  <data name="LengthTooShortCharsInBytes" xml:space="preserve">
+    <value>Im Modell bis {0} Zeichen, die Spalte fasst {1} Byte – längere Werte scheitern beim Speichern (ORA-12899).</value>
+  </data>
+  <data name="ByteSemantics" xml:space="preserve">
+    <value>Die Spalte zählt Byte (BYTE-Semantik): {0} Zeichen mit Umlauten brauchen mehr als {1} Byte (ORA-12899).</value>
+  </data>
+  <data name="LengthLongerBytes" xml:space="preserve">
+    <value>Im Modell bis {0} Byte, die Spalte fasst {1}.</value>
+  </data>
+  <data name="LengthLongerChars" xml:space="preserve">
+    <value>Im Modell bis {0} Zeichen, die Spalte fasst {1}.</value>
+  </data>
+  <data name="IntegerFloatColumn" xml:space="preserve">
+    <value>Ganzzahl im Modell, die Spalte {0} kann Nachkommastellen enthalten – Lesen scheitert oder schneidet ab.</value>
+  </data>
+  <data name="IntegerScale" xml:space="preserve">
+    <value>Ganzzahl im Modell, die Spalte hat {0} Nachkommastellen – solche Werte lassen sich nicht lesen.</value>
+  </data>
+  <data name="IntegerPrecision" xml:space="preserve">
+    <value>{0} fasst {1} Stellen, die Spalte {2} – größere Werte lassen sich nicht lesen.</value>
+  </data>
+  <data name="DecimalIntegerDigits" xml:space="preserve">
+    <value>Im Modell ({0},{1}), die Spalte ({2},{3}) – Werte mit mehr als {4} Vorkommastellen scheitern beim Speichern (ORA-01438).</value>
+  </data>
+  <data name="DecimalScale" xml:space="preserve">
+    <value>Im Modell {0} Nachkommastellen, die Spalte {1} – Oracle rundet beim Speichern.</value>
+  </data>
+  <data name="DecimalPrecisionDiffers" xml:space="preserve">
+    <value>Im Modell ({0},{1}), die Spalte ({2},{3}).</value>
+  </data>
+  <data name="DecimalTooWide" xml:space="preserve">
+    <value>decimal fasst {0} Stellen, die Spalte {1} – größere Werte lassen sich nicht lesen.</value>
+  </data>
+  <data name="DotNetNotStartable" xml:space="preserve">
+    <value>dotnet ließ sich nicht starten.</value>
+  </data>
+  <data name="DotNetTimeout" xml:space="preserve">
+    <value>dotnet hat nach {0:0} s nicht geantwortet und wurde beendet.</value>
+  </data>
+  <data name="DotNetNotFound" xml:space="preserve">
+    <value>dotnet wurde nicht gefunden – für das C#-Modell muss ein .NET SDK oder eine .NET-Runtime installiert sein.</value>
+  </data>
+  <data name="StepStartHelper" xml:space="preserve">
+    <value>Starte den Hilfsprozess</value>
+  </data>
+  <data name="HelperExitedAtStart" xml:space="preserve">
+    <value>Der Hilfsprozess ist beim Start beendet worden (Exit-Code {0}).</value>
+  </data>
+  <data name="HelperStartTimeout" xml:space="preserve">
+    <value>Der Hilfsprozess hat nach {0:0} s nicht geantwortet und wurde beendet.</value>
+  </data>
+  <data name="RunTimeout" xml:space="preserve">
+    <value>Der Code lief länger als {0:0} s – der Hilfsprozess wurde beendet und startet beim nächsten Mal neu.</value>
+  </data>
+  <data name="CompleteTimeout" xml:space="preserve">
+    <value>Die Vorschläge brauchten länger als {0:0} s – der Hilfsprozess wurde beendet und startet beim nächsten Mal neu.</value>
+  </data>
+  <data name="NoAnswer" xml:space="preserve">
+    <value>Keine Antwort.</value>
+  </data>
+  <data name="ConsoleNotRunning" xml:space="preserve">
+    <value>Der Hilfsprozess der LINQ-Konsole läuft nicht mehr.</value>
+  </data>
+  <data name="ConsoleCrashed" xml:space="preserve">
+    <value>Der Hilfsprozess der LINQ-Konsole ist abgestürzt.</value>
+  </data>
+  <data name="ConsoleUnreadable" xml:space="preserve">
+    <value>Der Hilfsprozess der LINQ-Konsole hat unlesbar geantwortet und wurde beendet – er startet beim nächsten Mal neu.</value>
+  </data>
+  <data name="BuildChangedStep" xml:space="preserve">
+    <value>Build geändert – {0}</value>
+  </data>
+  <data name="ReloadWaitingForModel" xml:space="preserve">
+    <value>wartet auf das Modell</value>
+  </data>
+  <data name="ReloadStarting" xml:space="preserve">
+    <value>lade neu</value>
+  </data>
+  <data name="NoProjectLinked" xml:space="preserve">
+    <value>Für diese Verbindung ist kein C#-Projekt verknüpft (Verbindung bearbeiten → C#-Modell).</value>
+  </data>
+  <data name="ConsoleNotStarted" xml:space="preserve">
+    <value>Die LINQ-Konsole ließ sich nicht starten: {0}</value>
+  </data>
+  <data name="NewBuildNotLoaded" xml:space="preserve">
+    <value>Der neue Build ließ sich nicht laden, die Konsole nutzt weiter den vorherigen: {0}</value>
+  </data>
+  <data name="NoEntity" xml:space="preserve">
+    <value>Keine Entity des C#-Modells für diese Tabelle.</value>
+  </data>
+  <data name="FilterSkippedComment" xml:space="preserve">
+    <value>Nicht übernommen: {0}</value>
+  </data>
+  <data name="FilterSkipped" xml:space="preserve">
+    <value>Nicht übernommen: {0}.</value>
+  </data>
+  <data name="ColumnGone" xml:space="preserve">
+    <value>Spalte gibt es nicht mehr</value>
+  </data>
+  <data name="PropertyOfOtherEntity" xml:space="preserve">
+    <value>Property {0} gehört zu einem anderen Entity-Typ der Tabelle</value>
+  </data>
+  <data name="OperatorStringOnly" xml:space="preserve">
+    <value>„{0}“ nur für string-Properties ({1})</value>
+  </data>
+  <data name="OperatorNotForBool" xml:space="preserve">
+    <value>„{0}“ geht nicht für bool</value>
+  </data>
+  <data name="OperatorNotForDates" xml:space="preserve">
+    <value>„{0}“ geht nicht für Datumswerte</value>
+  </data>
+  <data name="NotADate" xml:space="preserve">
+    <value>„{0}“ ist kein Datum</value>
+  </data>
+  <data name="OperatorNotTranslated" xml:space="preserve">
+    <value>„{0}“ wird nicht übersetzt</value>
+  </data>
+  <data name="HostEndedWithoutResult" xml:space="preserve">
+    <value>FerretSharp.ModelHost ist ohne Ergebnis beendet (Exit-Code {0}).</value>
+  </data>
+  <data name="HostNotRunnable" xml:space="preserve">
+    <value>FerretSharp.ModelHost ließ sich nicht ausführen: {0}</value>
+  </data>
+  <data name="HostMissing" xml:space="preserve">
+    <value>FerretSharp.ModelHost fehlt: {0}</value>
+  </data>
+  <data name="UnknownNotTrueOrFalse" xml:space="preserve">
+    <value>Weder true noch false für {0}</value>
+  </data>
+  <data name="UnknownNotTrueOrFalseConverter" xml:space="preserve">
+    <value>Weder true noch false für den Converter</value>
+  </data>
+  <data name="UnknownNotMember" xml:space="preserve">
+    <value>Kein Wert von {0}</value>
+  </data>
+</root>

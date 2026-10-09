@@ -3,12 +3,12 @@
 
 @if (Active.Schema?.Find(Target) is { } table)
 {
-    <button class="link" title="@(table.Synonym is null ? "Struktur anzeigen" : $"Synonym für {Target} – Struktur anzeigen")"
+    <button class="link" title="@(table.Synonym is null ? SchemaViewText.TableLink_ShowStructure : TextFormat.Format(SchemaViewText.TableLink_ShowStructureViaSynonym, Target))"
             @onclick="() => Shell.OpenTable(table, TabMode.Structure)">@Label(table)</button>
 }
 else
 {
-    <span class="mono" title="Liegt in einem anderen Schema ohne Synonym">@Target</span>
+    <span class="mono" title="@SchemaViewText.TableLink_OtherSchema">@Target</span>
 }
 
 @code {

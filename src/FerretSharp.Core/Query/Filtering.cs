@@ -1,4 +1,5 @@
 using System.Globalization;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.Query;
@@ -95,7 +96,7 @@ public static class FilterRules
         var category = ColumnCategories.Of(column);
         if (!OperatorsFor(category).Contains(filter.Op))
         {
-            return $"Operator nicht möglich für {column.DisplayType}.";
+            return TextFormat.Format(QueryText.FilterOperatorNotAvailable, column.DisplayType);
         }
 
         var expected = ValueCount(filter.Op);
@@ -107,7 +108,7 @@ public static class FilterRules
 
         if (expected > 0 && values.Count != expected || expected < 0 && values.Count == 0)
         {
-            return expected == 2 ? "Zwei Werte nötig (von … bis)." : "Wert fehlt.";
+            return expected == 2 ? QueryText.FilterTwoValuesNeeded : QueryText.FilterValueMissing;
         }
 
         foreach (var value in values)
@@ -115,16 +116,16 @@ public static class FilterRules
             if (value.Length == 0)
             {
                 return category == ColumnCategory.Text && filter.Op is FilterOperator.Equals or FilterOperator.NotEquals
-                    ? "Leerer Text ist in Oracle NULL – „ist NULL“ verwenden."
-                    : "Wert fehlt.";
+                    ? TextFormat.Format(QueryText.FilterEmptyTextIsNull, OperatorLabels.Label(FilterOperator.IsNull))
+                    : QueryText.FilterValueMissing;
             }
 
             var error = category switch
             {
-                ColumnCategory.Number when !TryParseNumber(value, out _) => $"„{value}“ ist keine Zahl.",
+                ColumnCategory.Number when !TryParseNumber(value, out _) => TextFormat.Format(QueryText.NotANumber, value),
                 ColumnCategory.Date or ColumnCategory.Timestamp or ColumnCategory.TimestampWithTimeZone when !TryParseDate(value, out _, out _) =>
-                    $"„{value}“ ist kein Datum (TT.MM.JJJJ [hh:mm[:ss]]).",
-                ColumnCategory.Raw when !TryParseHex(value, out _) => $"„{value}“ ist kein Hex-Wert (z. B. CAFE01).",
+                    TextFormat.Format(QueryText.NotADate, value),
+                ColumnCategory.Raw when !TryParseHex(value, out _) => TextFormat.Format(QueryText.NotAHexValue, value),
                 _ => null,
             };
             if (error is not null)

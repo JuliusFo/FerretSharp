@@ -86,6 +86,7 @@ class FerretHeader {
   init(params) {
     this.params = params;
     const meta = params.getMeta();
+    const texts = params.texts;
     this.eGui = document.createElement('div');
     this.eGui.className = 'fs-header' + (meta.numeric ? ' num' : '');
     this.eGui.innerHTML =
@@ -100,7 +101,14 @@ class FerretHeader {
     const badges = this.eGui.querySelector('.fs-h-badges');
     if (meta.pk) badges.insertAdjacentHTML('beforeend', '<span class="fs-badge pk">PK</span>');
     if (meta.fk) badges.insertAdjacentHTML('beforeend', '<span class="fs-badge fk">FK</span>');
-    else if (meta.fkModel) badges.insertAdjacentHTML('beforeend', '<span class="fs-badge fk model" title="Beziehung aus dem C#-Modell, ohne Constraint in der Datenbank">FK</span>');
+    else if (meta.fkModel) {
+      // The tooltip is a text from .NET: set as a property, not as markup.
+      const badge = document.createElement('span');
+      badge.className = 'fs-badge fk model';
+      badge.title = texts.fkModel;
+      badge.textContent = 'FK';
+      badges.appendChild(badge);
+    }
     this.sortEl = this.eGui.querySelector('.fs-h-sort');
     if (meta.sortable) {
       this.eGui.addEventListener('click', e => params.progressSort(e.shiftKey));
@@ -110,7 +118,7 @@ class FerretHeader {
     }
     // Column comment (ALL_COL_COMMENTS) as tooltip.
     this.eGui.title = [meta.alternate ? `${meta.label} · ${meta.alternate}` : null, meta.comment,
-      meta.sortable ? null : 'Nach diesem Typ kann nicht sortiert werden'].filter(Boolean).join('\n');
+      meta.sortable ? null : texts.notSortable].filter(Boolean).join('\n');
   }
   updateSort() {
     const sort = this.params.column.getSort();
@@ -222,7 +230,7 @@ class FerretSelectEditor {
       .then(text => {
         const value = clear ? '' : text ?? '';
         // A value without a member stays selectable, so leaving the editor does not change it.
-        if (![...this.select.options].some(o => o.value === value)) this.addOption(value, `${value} (kein Member)`);
+        if (![...this.select.options].some(o => o.value === value)) this.addOption(value, params.state.texts.noMember.replace('{0}', value));
         this.select.value = value;
         this.select.disabled = false;
         this.loaded = true;
@@ -452,7 +460,8 @@ function reportPinned(api, dotnet) {
  *     answers GetRows, OnCopy and OnCellContextMenu.
  */
 export function create(elementId, dotnet, columns, options) {
-  const { sorts, firstRow, editable, headerHeight, table } = options;
+  // texts: what the grid shows itself (header tooltips, the member list), in the UI language – JS holds no texts.
+  const { sorts, firstRow, editable, headerHeight, table, texts } = options;
   registerModules();
   destroy(elementId);
   let restoreRow = firstRow > 0 ? firstRow : null;
@@ -476,7 +485,7 @@ export function create(elementId, dotnet, columns, options) {
   }
 
   const sortById = new Map(sorts.map((s, i) => [s.colId, { sort: s.sort, index: i }]));
-  const editState = { dotnet, retry: null, enabled: !!editable };
+  const editState = { dotnet, retry: null, enabled: !!editable, texts };
   editStates.set(elementId, editState);
   const metaById = new Map(columns.map(meta => [meta.id, meta]));
   metas.set(elementId, metaById);
@@ -513,7 +522,7 @@ export function create(elementId, dotnet, columns, options) {
       : [p.value, p.data?.__t?.[meta.id], p.data?.__u?.includes(meta.id) ? meta.unknownText : null].filter(Boolean).join('\n')),
     headerComponent: FerretHeader,
     // A function, not the object: AG Grid deep-copies plain objects of the column def, and updateColumns changes meta in place.
-    headerComponentParams: { getMeta: () => meta },
+    headerComponentParams: { getMeta: () => meta, texts },
     pinned: meta.pinned ? 'left' : null,
     // The primary key always stays pinned at the very left; other columns can also be pinned by dragging them there.
     lockPinned: meta.pk,

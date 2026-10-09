@@ -1,6 +1,7 @@
 using System.IO;
 using System.Text;
 using System.Windows;
+using FerretSharp.UI.Resources;
 using FerretSharp.UI.State;
 using Microsoft.Win32;
 
@@ -39,7 +40,7 @@ public sealed class FileSaveService : IFileSaveService
             {
                 FileName = fileName,
                 DefaultExt = extension,
-                Filter = $"{filter} (*{extension})|*{extension}|Alle Dateien (*.*)|*.*",
+                Filter = $"{filter} (*{extension})|*{extension}|{CommonText.AllFiles} (*.*)|*.*",
                 AddExtension = true,
                 OverwritePrompt = true,
             };

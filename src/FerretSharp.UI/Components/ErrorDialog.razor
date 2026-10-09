@@ -2,12 +2,12 @@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Query
 
-<ModalFrame Label="Datenbankfehler" Class="sql-dialog error-dialog" Alert="true" OnCancel="OnClose" CloseOnBackdrop="true" FocusOnOpen="true">
+<ModalFrame Label="@ShellText.ErrorDialog_Title" Class="sql-dialog error-dialog" Alert="true" OnCancel="OnClose" CloseOnBackdrop="true" FocusOnOpen="true">
     <header>
-        <span>Datenbankfehler</span>
+        <span>@ShellText.ErrorDialog_Title</span>
         <span class="spacer"></span>
-        <button class="btn" @onclick="CopyAsync">@(_copied ? "Kopiert ✓" : "Kopieren")</button>
-        <button class="icon-btn ghost" title="Schließen" @onclick="OnClose">✕</button>
+        <button class="btn" @onclick="CopyAsync">@(_copied ? ShellText.ErrorDialog_Copied : CommonText.Copy)</button>
+        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="OnClose">✕</button>
     </header>
     <div class="error-detail left">
         @if (Error.ErrorCode is { } errorCode)
@@ -18,7 +18,7 @@
     </div>
     @if (Error.IsConnectionLost)
     {
-        <div class="hint padded">Die Verbindung zur Datenbank ist verloren gegangen (z. B. Session beendet, Idle-Timeout, Netzwerk). Über „Neu verbinden“ werden alle Workspaces mit ihren Tabs wiederhergestellt.</div>
+        <div class="hint padded">@ShellText.ErrorDialog_ConnectionLostHint</div>
     }
     @if (Error.Statement is { } statement)
     {
@@ -26,7 +26,7 @@
         @if (statement.Parameters.Count > 0)
         {
             <table class="binds">
-                <thead><tr><th>Bind-Variable</th><th>Wert@(Mask ? " (Prod: maskiert)" : "")</th><th>Typ</th></tr></thead>
+                <thead><tr><th>@ShellText.ErrorDialog_BindVariable</th><th>@(Mask ? ShellText.ErrorDialog_ValueMasked : ShellText.ErrorDialog_Value)</th><th>@ShellText.ErrorDialog_Type</th></tr></thead>
                 <tbody>
                     @foreach (var p in statement.Parameters)
                     {

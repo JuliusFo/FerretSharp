@@ -272,7 +272,7 @@
     {
         if (Tab.Changes is not { } changes)
         {
-            return "Diese Tabelle lässt sich hier nicht bearbeiten.";
+            return GridText.Grid_TableNotEditable;
         }
 
         EditResult result;
@@ -343,7 +343,7 @@
         }
 
         return _blocks.At(rowIndex) is null
-            ? $"Die Zeile ist nicht mehr geladen – bitte neu laden{Shortcuts.Hint(ShortcutAction.Refresh)}."
+            ? RowNotLoaded
             : OracleTypeMapper.Parse(column, text).Error;
     }
 
@@ -367,11 +367,13 @@
         return edit.Error;
     }
 
+    private string RowNotLoaded => TextFormat.Format(GridText.Grid_RowNotLoaded, Shortcuts.Hint(ShortcutAction.Refresh));
+
     private GridEdit Edit(int rowIndex, string? newId, int column, string text)
     {
         if (Tab.Changes is not { } changes)
         {
-            return new GridEdit(null, "Diese Tabelle lässt sich hier nicht bearbeiten.");
+            return new GridEdit(null, GridText.Grid_TableNotEditable);
         }
 
         EditResult result;
@@ -384,7 +386,7 @@
 
         if (newId is not null || _blocks.At(rowIndex) is not { } row)
         {
-            return new GridEdit(null, $"Die Zeile ist nicht mehr geladen – bitte neu laden{Shortcuts.Hint(ShortcutAction.Refresh)}.");
+            return new GridEdit(null, RowNotLoaded);
         }
 
         result = changes.SetValue(row, column, text);
@@ -447,13 +449,13 @@
             ? NewRow(cell.NewId) is { } added ? OnLobOpen.InvokeAsync(new LobRequest(-1, null, added, column)) : Task.CompletedTask
             : OpenLobAsync(cell.RowIndex, column);
 
-    /// <summary>Copies the full value of a cell, like Ctrl+C (the form's "Wert kopieren").</summary>
+    /// <summary>Copies the full value of a cell, like Ctrl+C (the form's "Copy value").</summary>
     public async Task CopyValueAsync(ColumnInfo column, object? value)
     {
         var cell = DelimitedExport.CellText(column, value);
         if (await CopyTextAsync(cell.Text))
         {
-            Shell.Notify(cell.Warnings.Count > 0 ? "Wert nicht kopiert." : $"{column.Name} kopiert.", cell.Warnings);
+            Shell.Notify(cell.Warnings.Count > 0 ? GridText.Grid_ValueNotCopied : TextFormat.Format(GridText.Grid_ColumnCopied, column.Name), cell.Warnings);
         }
     }
 
@@ -666,7 +668,7 @@
     }
 
     /// <summary>
-    /// Ctrl+C in the grid: several selected rows are copied as a table (like "Als Tabelle kopieren"), otherwise the
+    /// Ctrl+C in the grid: several selected rows are copied as a table (like "Copy as table"), otherwise the
     /// focused cell – always from the raw values, not the display text.
     /// </summary>
     [JSInvokable]
@@ -682,10 +684,10 @@
             var missing = selected.Count - rows.Count;
             IReadOnlyList<string> warnings = missing == 0
                 ? table.Warnings
-                : [.. table.Warnings, $"{missing} der markierten Zeilen sind nicht mehr geladen – nicht kopiert."];
+                : [.. table.Warnings, TextFormat.Plural(missing, GridText.Grid_SelectedRowsNotCopiedOne, GridText.Grid_SelectedRowsNotCopiedOther)];
             if (await CopyTextAsync(table.Text))
             {
-                Shell.Notify(rows.Count == 1 ? "1 Zeile als Tabelle kopiert." : $"{rows.Count:N0} Zeilen als Tabelle kopiert.", warnings);
+                Shell.Notify(ExportActions.CopiedText(ExportCopy.Table, rows.Count), warnings);
             }
 
             return;
@@ -700,7 +702,7 @@
         var cell = DelimitedExport.CellText(Details.Columns[index], row.Values[index]);
         if (await CopyTextAsync(cell.Text) && cell.Warnings.Count > 0)
         {
-            Shell.Notify("Wert nicht kopiert.", cell.Warnings);
+            Shell.Notify(GridText.Grid_ValueNotCopied, cell.Warnings);
         }
     }
 

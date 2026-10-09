@@ -97,14 +97,14 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
 
     public int ActiveFilterCount => AppliedFilters.Count(f => f.Enabled);
 
-    /// <summary>The tab this one was opened from by an FK jump ("Zurück"); it may have been closed since.</summary>
+    /// <summary>The tab this one was opened from by an FK jump ("Back"); it may have been closed since.</summary>
     public TableTab? Origin { get; set; }
 
-    /// <summary>The tab the user came back from with "Zurück" ("Vor"); not saved.</summary>
+    /// <summary>The tab the user came back from with "Back" ("Forward"); not saved.</summary>
     public TableTab? Forward { get; set; }
 
     /// <summary>
-    /// Where "Zurück" leads: the origin tab, or – if that was closed – the nearest open tab further back along the
+    /// Where "Back" leads: the origin tab, or – if that was closed – the nearest open tab further back along the
     /// chain of jumps. Null if there is none.
     /// </summary>
     public TableTab? BackTarget(IReadOnlyCollection<WorkspaceTab> open)

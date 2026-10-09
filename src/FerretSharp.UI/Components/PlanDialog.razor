@@ -8,29 +8,29 @@
 @inject IJSRuntime JS
 @inject ILogger<PlanDialog> Logger
 
-<ModalFrame Label="Ausführungsplan" Class="plan-dialog" OnCancel="CloseAsync" CloseOnBackdrop="true" FocusOnOpen="true">
+<ModalFrame Label="@SqlEditorText.Plan_Label" Class="plan-dialog" OnCancel="CloseAsync" CloseOnBackdrop="true" FocusOnOpen="true">
     <header>
-        <span>Ausführungsplan · @Title</span>
-        <div class="segmented" role="radiogroup" aria-label="Planquelle">
+        <span>@TextFormat.Format(SqlEditorText.Plan_Header, Title)</span>
+        <div class="segmented" role="radiogroup" aria-label="@SqlEditorText.Plan_Source">
             <button class="seg @(_source == PlanSource.Estimated ? "active" : "")" disabled="@_loading" @onclick="() => ShowAsync(PlanSource.Estimated)"
-                    title="EXPLAIN PLAN: der Plan des Optimizers, ohne Ausführung und ohne Bind-Werte">Geschätzt</button>
+                    title="@SqlEditorText.Plan_EstimatedTitle">@SqlEditorText.Plan_Estimated</button>
             <button class="seg @(_source == PlanSource.Actual ? "active" : "")" disabled="@_loading" @onclick="() => ShowAsync(PlanSource.Actual)"
-                    title="Führt die Abfrage im Workspace erneut aus und zeigt den verwendeten Plan mit echten Zahlen">Tatsächlich</button>
+                    title="@SqlEditorText.Plan_ActualTitle">@SqlEditorText.Plan_Actual</button>
         </div>
         @if (_source == PlanSource.Actual)
         {
-            <label class="plan-whole" title="Holt das ganze Ergebnis (wird verworfen), damit die Zahlen den vollständigen Lauf zeigen – kann dauern">
-                <input type="checkbox" checked="@_wholeResult" disabled="@_loading" @onchange="ToggleWholeAsync" /> ganzes Ergebnis
+            <label class="plan-whole" title="@SqlEditorText.Plan_WholeResultTitle">
+                <input type="checkbox" checked="@_wholeResult" disabled="@_loading" @onchange="ToggleWholeAsync" /> @SqlEditorText.Plan_WholeResult
             </label>
         }
         <span class="spacer"></span>
         @if (_loading)
         {
             <span class="spinner small"></span>
-            <button class="btn ghost" @onclick="Cancel">Abbrechen</button>
+            <button class="btn ghost" @onclick="Cancel">@CommonText.Cancel</button>
         }
-        <button class="btn" disabled="@(_plan is null)" @onclick="CopyAsync">@(_copied ? "Kopiert ✓" : "Als Text kopieren")</button>
-        <button class="icon-btn ghost" title="Schließen" @onclick="CloseAsync">✕</button>
+        <button class="btn" disabled="@(_plan is null)" @onclick="CopyAsync">@(_copied ? SqlEditorText.Plan_CopiedCheck : SqlEditorText.Plan_CopyAsText)</button>
+        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="CloseAsync">✕</button>
     </header>
 
     <div class="plan-body">
@@ -43,38 +43,42 @@
             <div class="plan-note">
                 @if (plan.Source == PlanSource.Estimated)
                 {
-                    <span>Ohne Bind-Werte geplant – Oracle kennt die Werte nicht und kann tatsächlich einen anderen Plan wählen.</span>
+                    <span>@SqlEditorText.Plan_EstimatedNote</span>
                 }
                 else
                 {
                     <span>
-                        @(plan.WholeResult ? "Ganzes Ergebnis" : $"Erste {IDataAccess.ActualPlanPageSize:N0} Zeilen") gemessen
-                        (@((plan.RowsFetched ?? 0).ToString("N0", CultureInfo.CurrentCulture)) geholt) · SQL_ID <code>@plan.SqlId</code>, Child @plan.ChildNumber
+                        <Fmt Text="@(plan.WholeResult ? SqlEditorText.Plan_MeasuredWhole : SqlEditorText.Plan_MeasuredFirst)">
+                            <Arg0>@((plan.RowsFetched ?? 0).ToString("N0", CultureInfo.CurrentCulture))</Arg0>
+                            <Arg1><code>@plan.SqlId</code></Arg1>
+                            <Arg2>@plan.ChildNumber</Arg2>
+                            <Arg3>@IDataAccess.ActualPlanPageSize.ToString("N0", CultureInfo.CurrentCulture)</Arg3>
+                        </Fmt>
                     </span>
                     @if (plan.Steps.All(s => s.ActualRows is null))
                     {
-                        <span class="warn">Keine Laufzeitstatistik im Cursor – der Hint wurde nicht angewendet.</span>
+                        <span class="warn">@SqlEditorText.Plan_NoRuntimeStatistics</span>
                     }
                 }
                 @if (plan.Steps.Any(plan.IsMisestimate))
                 {
-                    <span class="warn">⚠ Die Schätzung liegt bei markierten Schritten um Faktor @ExecutionPlan.MisestimateFactor oder mehr daneben.</span>
+                    <span class="warn">@TextFormat.Format(SqlEditorText.Plan_MisestimateNote, ExecutionPlan.MisestimateFactor)</span>
                 }
             </div>
             <table class="plan">
                 <thead>
                     <tr>
                         <th class="num">Id</th>
-                        <th>Operation</th>
-                        <th>Objekt</th>
-                        <th class="num">Kosten</th>
-                        <th class="num" title="Geschätzte Zeilen je Start">Zeilen gesch.</th>
+                        <th>@SqlEditorText.Plan_ColumnOperation</th>
+                        <th>@SqlEditorText.Plan_ColumnObject</th>
+                        <th class="num">@SqlEditorText.Plan_ColumnCost</th>
+                        <th class="num" title="@SqlEditorText.Plan_ColumnEstimatedRowsTitle">@SqlEditorText.Plan_ColumnEstimatedRows</th>
                         @if (plan.Source == PlanSource.Actual)
                         {
-                            <th class="num">Starts</th>
-                            <th class="num" title="Tatsächliche Zeilen, alle Starts zusammen">Zeilen tats.</th>
-                            <th class="num" title="Zeit in diesem Schritt samt allem darunter">Zeit</th>
-                            <th class="num" title="Logische Lesevorgänge (Consistent Gets)">Buffers</th>
+                            <th class="num">@SqlEditorText.Plan_ColumnStarts</th>
+                            <th class="num" title="@SqlEditorText.Plan_ColumnActualRowsTitle">@SqlEditorText.Plan_ColumnActualRows</th>
+                            <th class="num" title="@SqlEditorText.Plan_ColumnTimeTitle">@SqlEditorText.Plan_ColumnTime</th>
+                            <th class="num" title="@SqlEditorText.Plan_ColumnBuffersTitle">@SqlEditorText.Plan_ColumnBuffers</th>
                         }
                     </tr>
                 </thead>
@@ -85,13 +89,13 @@
                         // Adaptive plans keep the branches not taken in the cursor: they never started.
                         var inactive = plan.Source == PlanSource.Actual && step.Starts == 0;
                         <tr class="@(misestimate ? "misestimate" : "") @(inactive ? "inactive" : "")"
-                            title="@(misestimate ? $"Geschätzt {step.EstimatedTotal:N0}, tatsächlich {step.ActualRows:N0}" : inactive ? "Nicht ausgeführt – bei adaptiven Plänen der Zweig, den Oracle zur Laufzeit verworfen hat" : null)">
+                            title="@(misestimate ? TextFormat.Format(SqlEditorText.Plan_MisestimateTitle, step.EstimatedTotal, step.ActualRows) : inactive ? SqlEditorText.Plan_InactiveTitle : null)">
                             <td class="num muted">@step.Id</td>
                             <td class="op" style="padding-left: @(8 + step.Depth * 16)px">
                                 @step.Name
                                 @if (step.IsFullTableScan)
                                 {
-                                    <span class="plan-badge" title="Liest die ganze Tabelle – bei großen Tabellen oft ein fehlender oder nicht nutzbarer Index">FULL</span>
+                                    <span class="plan-badge" title="@SqlEditorText.Plan_FullScanTitle">FULL</span>
                                 }
                                 @if (step.AccessPredicates is { } access)
                                 {
@@ -119,7 +123,7 @@
         }
         else if (_loading)
         {
-            <div class="plan-note">@(_source == PlanSource.Estimated ? "Plane …" : "Führe die Abfrage aus und lese den Cursor …")</div>
+            <div class="plan-note">@(_source == PlanSource.Estimated ? SqlEditorText.Plan_Planning : SqlEditorText.Plan_Running)</div>
         }
     </div>
 </ModalFrame>
@@ -151,7 +155,7 @@
     public QuerySpec Query { get; set; } = null!;
 
     /// <summary>
-    /// The statement for "ganzes Ergebnis" if it differs: the grid's query is paged, so its whole result is the query without
+    /// The statement for "whole result" if it differs: the grid's query is paged, so its whole result is the query without
     /// the page limit. Defaults to <see cref="Query"/>.
     /// </summary>
     [Parameter]
@@ -190,12 +194,12 @@
         var query = whole && source == PlanSource.Actual ? WholeQuery ?? Query : Query;
         var token = cts.Token;
         var result = await Shell.RunDbAsync(Logger, Active, async () => source == PlanSource.Estimated
-            ? await (Active.Schema ?? throw new PlanUnavailableException("Nicht verbunden.")).ExplainAsync(query, token)
+            ? await (Active.Schema ?? throw new PlanUnavailableException(SqlEditorText.Plan_NotConnected)).ExplainAsync(query, token)
             : await (await Workspaces.GetDataAsync(WorkspaceId, token)).ExplainActualAsync(query, whole, token), token);
         var plan = result.Value;
         // A missing grant names the user to grant it to (PlanUnavailableException).
         var error = result.Cancelled && cts.IsCancellationRequested
-            ? "Abgebrochen."
+            ? SqlEditorText.Run_Canceled
             : result.Error?.Display.Replace("<user>", Active.Profile?.User.ToUpperInvariant() ?? "<user>", StringComparison.Ordinal);
 
         // A newer request (other source, whole result) took over: its result counts, not this one.
@@ -221,7 +225,7 @@
             _copied = await Dom.CopyTextAsync(Plans.Format(_plan));
             if (!_copied)
             {
-                Shell.Notify("Die Zwischenablage ist nicht verfügbar.");
+                Shell.Notify(SqlEditorText.Editor_ClipboardUnavailable);
             }
         }
     }

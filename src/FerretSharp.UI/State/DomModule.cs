@@ -1,3 +1,4 @@
+using FerretSharp.UI.Resources;
 using Microsoft.JSInterop;
 
 namespace FerretSharp.UI.State;
@@ -62,7 +63,7 @@ public sealed class DomModule(IJSRuntime js) : IAsyncDisposable
 
         if (!_disposed)
         {
-            shell.Notify("Die Zwischenablage ist nicht verfügbar.");
+            shell.Notify(ShellText.Dom_ClipboardUnavailable);
         }
 
         return false;

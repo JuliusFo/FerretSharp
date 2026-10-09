@@ -1,3 +1,5 @@
+using FerretSharp.Core.Resources;
+
 namespace FerretSharp.Core.ClrModel;
 
 public enum LinqConsolePhase
@@ -16,8 +18,8 @@ public enum LinqConsolePhase
 }
 
 /// <param name="Step">
-/// While starting: what the host is doing ("Baue das Modell (OnModelCreating)"). When ready: a new build is being loaded
-/// in the background ("Build geändert – …"); the console keeps answering with the previous one meanwhile.
+/// While starting: what the host is doing ("Building the model (OnModelCreating)"). When ready: a new build is being loaded
+/// in the background ("Build changed – …"); the console keeps answering with the previous one meanwhile.
 /// </param>
 /// <param name="Error">
 /// When failed: why the start failed. When ready: the new build could not be loaded, the console still runs the previous one.
@@ -38,8 +40,8 @@ public sealed record LinqConsoleState(LinqConsolePhase Phase, string? Step = nul
 /// </summary>
 public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
 {
-    /// <summary>Prefix of <see cref="LinqConsoleState.Step"/> while a new build loads in the background.</summary>
-    public const string ReloadPrefix = "Build geändert – ";
+    /// <summary>The <see cref="LinqConsoleState.Step"/> while a new build loads in the background: “Build changed – &lt;step&gt;”.</summary>
+    public static string ReloadStep(string step) => TextFormat.Format(ClrModelText.BuildChangedStep, step);
 
     private readonly IModelHostRunner _runner;
     private readonly ClrModelManager _models;
@@ -216,7 +218,7 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
     private async Task<ILinqConsole> EnsureAsync(CancellationToken cancellationToken)
     {
         var link = _models.State.Link ?? throw new ClrModelException(ClrModelErrorKind.ProjectNotFound,
-            "Für diese Verbindung ist kein C#-Projekt verknüpft (Verbindung bearbeiten → C#-Modell).");
+            ClrModelText.NoProjectLinked);
         if (_console is { IsAlive: true } running && _consoleLink == link)
         {
             if (IsNewerBuild(running))
@@ -236,7 +238,7 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
             _starting = start;
         }
 
-        Set(new LinqConsoleState(LinqConsolePhase.Starting, "Suche den Build"));
+        Set(new LinqConsoleState(LinqConsolePhase.Starting, ClrModelText.StepFindBuild));
         try
         {
             var (console, files) = await Task.Run(
@@ -285,7 +287,7 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
         ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or System.ComponentModel.Win32Exception;
 
     private static ClrModelException StartError(Exception ex) =>
-        ex as ClrModelException ?? new ClrModelException(ClrModelErrorKind.HostFailed, $"Die LINQ-Konsole ließ sich nicht starten: {ex.Message}");
+        ex as ClrModelException ?? new ClrModelException(ClrModelErrorKind.HostFailed, TextFormat.Format(ClrModelText.ConsoleNotStarted, ex.Message));
 
     /// <summary>The build output differs from the one the host was started from (and from one that failed to load).</summary>
     private bool IsNewerBuild(ILinqConsole console)
@@ -320,7 +322,7 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
             _restartAfter = _models.State;
         }
 
-        Set(new LinqConsoleState(LinqConsolePhase.Ready, ReloadPrefix + "wartet auf das Modell"));
+        Set(new LinqConsoleState(LinqConsolePhase.Ready, ReloadStep(ClrModelText.ReloadWaitingForModel)));
         OnModelsChanged();
     }
 
@@ -356,11 +358,11 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
         {
             if (!cts.IsCancellationRequested)
             {
-                Set(new LinqConsoleState(LinqConsolePhase.Ready, ReloadPrefix + step));
+                Set(new LinqConsoleState(LinqConsolePhase.Ready, ReloadStep(step)));
             }
         }
 
-        Reloading("lade neu");
+        Reloading(ClrModelText.ReloadStarting);
         ILinqConsole? started = null;
         IReadOnlyDictionary<string, FileStamp>? files = null;
         try
@@ -401,7 +403,7 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
             var error = StartError(ex);
             _failedFiles = files ?? TryList(link);
             Set(new LinqConsoleState(LinqConsolePhase.Ready, Error: new ModelHostError(error.Kind,
-                $"Der neue Build ließ sich nicht laden, die Konsole nutzt weiter den vorherigen: {error.Message}", error.Detail)));
+                TextFormat.Format(ClrModelText.NewBuildNotLoaded, error.Message), error.Detail)));
         }
         finally
         {

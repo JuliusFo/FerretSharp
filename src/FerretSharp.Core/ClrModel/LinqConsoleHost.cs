@@ -3,6 +3,7 @@ using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
 using FerretSharp.Core.IO;
+using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.ClrModel;
 
@@ -73,7 +74,7 @@ public sealed class LinqConsoleHost : ILinqConsole
         Process? process = null;
         try
         {
-            progress?.Report("Starte den Hilfsprozess");
+            progress?.Report(ClrModelText.StepStartHelper);
             process = DotNetCli.Start(arguments, workingDirectory, line =>
             {
                 if (line.StartsWith(ModelHostResult.ProgressPrefix, StringComparison.Ordinal))
@@ -114,8 +115,8 @@ public sealed class LinqConsoleHost : ILinqConsole
                 cancellationToken.ThrowIfCancellationRequested();
                 throw new ClrModelException(ClrModelErrorKind.Timeout,
                     process.HasExited
-                        ? $"Der Hilfsprozess ist beim Start beendet worden (Exit-Code {process.ExitCode})."
-                        : $"Der Hilfsprozess hat nach {startTimeout.TotalSeconds:0} s nicht geantwortet und wurde beendet.",
+                        ? TextFormat.Format(ClrModelText.HelperExitedAtStart, process.ExitCode)
+                        : TextFormat.Format(ClrModelText.HelperStartTimeout, startTimeout.TotalSeconds),
                     host.ErrorOutput);
             }
             catch
@@ -139,19 +140,19 @@ public sealed class LinqConsoleHost : ILinqConsole
     public async Task<LinqRunResult> RunAsync(string code, string variables, CancellationToken cancellationToken)
     {
         var response = await RequestAsync(new LinqRequest(LinqProtocol.Run, 0, code, variables), RunTimeout,
-            $"Der Code lief länger als {RunTimeout.TotalSeconds:0} s – der Hilfsprozess wurde beendet und startet beim nächsten Mal neu.", cancellationToken);
+            TextFormat.Format(ClrModelText.RunTimeout, RunTimeout.TotalSeconds), cancellationToken);
         return response.Run ?? throw Failure(response);
     }
 
     public async Task<IReadOnlyList<LinqCompletionItem>> CompleteAsync(string code, string variables, string section, int offset, CancellationToken cancellationToken)
     {
         var response = await RequestAsync(new LinqRequest(LinqProtocol.Complete, 0, code, variables, section, offset), CompleteTimeout,
-            $"Die Vorschläge brauchten länger als {CompleteTimeout.TotalSeconds:0} s – der Hilfsprozess wurde beendet und startet beim nächsten Mal neu.", cancellationToken);
+            TextFormat.Format(ClrModelText.CompleteTimeout, CompleteTimeout.TotalSeconds), cancellationToken);
         return response.Completion ?? throw Failure(response);
     }
 
     private static ClrModelException Failure(LinqResponse response) =>
-        new(response.Error?.Kind ?? ClrModelErrorKind.HostFailed, response.Error?.Message ?? "Keine Antwort.", response.Error?.Detail);
+        new(response.Error?.Kind ?? ClrModelErrorKind.HostFailed, response.Error?.Message ?? ClrModelText.NoAnswer, response.Error?.Detail);
 
     /// <summary>One request at a time; the id is assigned here.</summary>
     /// <param name="timeoutMessage">What the user reads if the host does not answer within <paramref name="timeout"/>.</param>
@@ -162,7 +163,7 @@ public sealed class LinqConsoleHost : ILinqConsole
         {
             if (!IsAlive)
             {
-                throw new ClrModelException(ClrModelErrorKind.HostFailed, "Der Hilfsprozess der LINQ-Konsole läuft nicht mehr.", ErrorOutput);
+                throw new ClrModelException(ClrModelErrorKind.HostFailed, ClrModelText.ConsoleNotRunning, ErrorOutput);
             }
 
             var id = ++_nextId;
@@ -181,8 +182,8 @@ public sealed class LinqConsoleHost : ILinqConsole
                 cancellationToken.ThrowIfCancellationRequested();
                 throw new ClrModelException(ClrModelErrorKind.Timeout, ex switch
                 {
-                    IOException => "Der Hilfsprozess der LINQ-Konsole ist abgestürzt.",
-                    JsonException => "Der Hilfsprozess der LINQ-Konsole hat unlesbar geantwortet und wurde beendet – er startet beim nächsten Mal neu.",
+                    IOException => ClrModelText.ConsoleCrashed,
+                    JsonException => ClrModelText.ConsoleUnreadable,
                     _ => timeoutMessage,
                 }, ErrorOutput);
             }

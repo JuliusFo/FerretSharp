@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- The user interface speaks English and German (WP-29). English is the default – also for existing installations –, German can be chosen under *Settings › General › Language* and applies after a restart. Numbers and dates keep their current format; enum names from a linked C# project stay in the language of its resources. `--lang=en|de` overrides the language for one session (screenshots, tests).
+
 ### Changed
 - Flags enums (`[Flags]`, stored as their number) are edited as a drop-down list of check boxes instead of a single-choice list, in the grid and in the form. NULL is a check box of its own where allowed; bits no member stands for stay ticked as a line of their own.
 - Cells of a flags enum list every flag set (`Stammkunde, Lastschrift (5)`), also for a value that has a member of its own (`Premium = Stammkunde | Lastschrift`); the tooltip shows one flag per line. Members that combine others are no flags of their own. `0` without a member is a valid value, not marked.

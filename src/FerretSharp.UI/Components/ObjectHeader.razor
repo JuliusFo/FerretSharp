@@ -9,7 +9,7 @@
         <span class="chip">@KindLabel</span>
         @if (Table.Synonym is { } synonym)
         {
-            <span class="chip syn">@(synonym.IsPublic ? "ÖFFENTLICHES SYNONYM" : "SYNONYM")</span>
+            <span class="chip syn">@(synonym.IsPublic ? SchemaViewText.PublicSynonymChip : "SYNONYM")</span>
             <span class="muted">→ @Table.Owner.@Table.Name</span>
         }
         @if (Details.IsIndexOrganized)
@@ -20,15 +20,15 @@
         {
             @if (flags.IsInvalid)
             {
-                <span class="chip invalid" title="@InvalidStatusText.For(Table.Kind == TableKind.MaterializedView ? "MATERIALIZED VIEW" : "VIEW")">UNGÜLTIG</span>
+                <span class="chip invalid" title="@InvalidStatusText.For(Table.Kind == TableKind.MaterializedView ? "MATERIALIZED VIEW" : "VIEW")">@SchemaViewText.InvalidChip</span>
             }
             @if (flags.Partitioned)
             {
-                <span class="chip">PARTITIONIERT</span>
+                <span class="chip">@SchemaViewText.Object_PartitionedChip</span>
             }
             @if (flags.Temporary)
             {
-                <span class="chip">TEMPORÄR</span>
+                <span class="chip">@SchemaViewText.Object_TemporaryChip</span>
             }
         }
         @if (Table.Synonym is null)
@@ -46,21 +46,19 @@
         <div class="object-meta">
             @if (info.Created is { } created)
             {
-                <span>angelegt @Format(created)</span>
+                <span>@TextFormat.Format(SchemaViewText.Object_Created, Format(created))</span>
             }
             @if (info.LastDdl is { } ddl)
             {
-                <span>letzte DDL @Format(ddl)</span>
+                <span>@TextFormat.Format(SchemaViewText.Object_LastDdl, Format(ddl))</span>
             }
             @if (info.NumRows is { } rows)
             {
-                <span title="Laut Optimizer-Statistik – nicht exakt. Exakt: „Zeilen zählen“ in der Datenansicht.">
-                    ≈ @rows.ToString("N0", CultureInfo.CurrentCulture) Zeilen@(info.LastAnalyzed is { } analyzed ? $" (Statistik vom {analyzed.ToString("d", CultureInfo.CurrentCulture)})" : "")
-                </span>
+                <span title="@SchemaViewText.Object_RowsEstimateTitle">@RowsText(rows, info.LastAnalyzed)</span>
             }
             else if (Table.Kind != TableKind.View)
             {
-                <span title="Für diese Tabelle wurden noch keine Optimizer-Statistiken erhoben.">keine Statistik</span>
+                <span title="@SchemaViewText.Object_NoStatisticsTitle">@SchemaViewText.Object_NoStatistics</span>
             }
             @if (info.Tablespace is { } tablespace)
             {
@@ -68,7 +66,7 @@
             }
         </div>
     }
-    <DetailStatus Loading="Loading && Data is null" Error="Error" Text="Lade Übersicht …" />
+    <DetailStatus Loading="Loading && Data is null" Error="Error" Text="@SchemaViewText.Object_Loading" />
 </div>
 
 @code {
@@ -76,10 +74,14 @@
     {
         TableKind.View => "VIEW",
         TableKind.MaterializedView => "MATERIALIZED VIEW",
-        _ => "TABELLE",
+        _ => SchemaViewText.Object_TableChip,
     };
 
     private static string Format(DateTime value) => value.ToString("g", CultureInfo.CurrentCulture);
+
+    private static string RowsText(long rows, DateTime? analyzed) => analyzed is { } date
+        ? TextFormat.Format(SchemaViewText.Object_RowsEstimateAnalyzed, rows.ToString("N0", CultureInfo.CurrentCulture), date.ToString("d", CultureInfo.CurrentCulture))
+        : TextFormat.Format(SchemaViewText.Object_RowsEstimate, rows.ToString("N0", CultureInfo.CurrentCulture));
 
     protected override Task<ObjectInfo> LoadAsync(SchemaCache schema, CancellationToken cancellationToken) =>
         schema.GetObjectInfoAsync(Table, cancellationToken);

@@ -174,7 +174,7 @@ public sealed partial class ShellState
 
     /// <summary>
     /// Opens a new SQL editor tab ("SQL 1", "SQL 2" …) after the active tab (WP-17), optionally with a statement and its
-    /// variables ("In SQL-Editor öffnen" from a table tab's SQL preview).
+    /// variables ("Open in SQL editor" from a table tab's SQL preview).
     /// </summary>
     public SqlTab? OpenSql(string? text = null, IReadOnlyList<Core.Query.SqlVariable>? variables = null)
     {
@@ -244,7 +244,7 @@ public sealed partial class ShellState
         }
     }
 
-    /// <summary>"Zurück" (Alt+←): activates the tab the active one was opened from by an FK jump.</summary>
+    /// <summary>"Back" (Alt+←): activates the tab the active one was opened from by an FK jump.</summary>
     public void GoBack()
     {
         if (ActiveTab is TableTab tab && Page == ShellPage.Explorer && tab.BackTarget(Tabs.ToList()) is { } target)
@@ -254,7 +254,7 @@ public sealed partial class ShellState
         }
     }
 
-    /// <summary>"Vor" (Alt+→): returns to the tab the user went back from.</summary>
+    /// <summary>"Forward" (Alt+→): returns to the tab the user went back from.</summary>
     public void GoForward()
     {
         if (ActiveTab is TableTab tab && Page == ShellPage.Explorer && tab.ForwardTarget(Tabs.ToList()) is { } target)

@@ -45,7 +45,7 @@
             <div class="ff-ro ff-lob">
                 <span class="@(Field.IsNull ? "fs-null" : "")">@(Field.Value.Text ?? "NULL")</span>
             </div>
-            <button class="btn small" title="@(Field.IsEditable ? "Den ganzen Wert ansehen oder ändern" : "Den ganzen Wert ansehen")" @onclick="() => OnLob(Field.Column)">Inhalt öffnen …</button>
+            <button class="btn small" title="@(Field.IsEditable ? GridText.Form_ViewOrChangeValue : GridText.Form_ViewValue)" @onclick="() => OnLob(Field.Column)">@GridText.Grid_OpenContent</button>
         }
         else if (!Field.IsEditable)
         {
@@ -89,7 +89,7 @@
                 }
                 @if (current.Length > 0 && options.Options.All(o => o.Value != current))
                 {
-                    <option value="@current">@current (kein Member)</option>
+                    <option value="@current">@TextFormat.Format(GridText.Grid_ValueNoMember, current)</option>
                 }
             </select>
         }
@@ -119,7 +119,7 @@
 
     @if (!Field.IsNull)
     {
-        <button class="icon-btn ghost ff-copy" title="Wert kopieren (voller Wert)" @onclick="() => OnCopy(Field)">⧉</button>
+        <button class="icon-btn ghost ff-copy" title="@GridText.Form_CopyValueTitle" @onclick="() => OnCopy(Field)">⧉</button>
     }
 </div>
 
@@ -193,7 +193,7 @@
     private string LabelTitle => string.Join("\n", new[]
     {
         Field.Label.AlternateName is { } alternate ? $"{Field.Label.Name} · {alternate}" : Field.Info.Name,
-        Field.Info.Default is { Length: > 0 } d ? "Default: " + d.Trim() : null,
+        Field.Info.Default is { Length: > 0 } d ? TextFormat.Format(GridText.Form_Default, d.Trim()) : null,
         Field.Info.Comment,
     }.OfType<string>());
 

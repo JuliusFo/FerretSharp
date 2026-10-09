@@ -23,7 +23,8 @@
 </picture>
 
 > [!NOTE]
-> The user interface is in German. Code, commits and this README are in English; the design notes in `docs/` are German.
+> The user interface is in English and German (*Settings › General › Language*; English by default). Code, commits and
+> this README are in English; the design notes in `docs/` are German.
 
 ## Why
 
@@ -154,7 +155,7 @@ files.
 
 ## Keyboard shortcuts
 
-The defaults – every one of them can be changed under *Einstellungen › Tastenkürzel*, which also lists the fixed keys.
+The defaults – every one of them can be changed under *Settings › Shortcuts*, which also lists the fixed keys.
 
 | Keys | Action |
 |---|---|

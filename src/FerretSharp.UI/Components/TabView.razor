@@ -13,11 +13,11 @@
     <div class="tab-toolbar">
         @if (Tab.BackTarget(Shell.Tabs) is { } back)
         {
-            <button class="btn ghost nav-btn" title="@($"Zurück zu {NavLabel(back)}{Shortcuts.Hint(ShortcutAction.Back)}")" @onclick="Shell.GoBack">← @back.Table.DisplayName</button>
+            <button class="btn ghost nav-btn" title="@TextFormat.Format(SchemaViewText.Tab_BackTo, NavLabel(back), Shortcuts.Hint(ShortcutAction.Back))" @onclick="Shell.GoBack">← @back.Table.DisplayName</button>
         }
         @if (Tab.ForwardTarget(Shell.Tabs) is { } forward)
         {
-            <button class="btn ghost nav-btn" title="@($"Vor zu {NavLabel(forward)}{Shortcuts.Hint(ShortcutAction.Forward)}")" @onclick="Shell.GoForward">@forward.Table.DisplayName →</button>
+            <button class="btn ghost nav-btn" title="@TextFormat.Format(SchemaViewText.Tab_ForwardTo, NavLabel(forward), Shortcuts.Hint(ShortcutAction.Forward))" @onclick="Shell.GoForward">@forward.Table.DisplayName →</button>
         }
         <div class="segmented small" role="tablist">
             @foreach (var (mode, label) in Modes)
@@ -30,26 +30,29 @@
         <span class="toolbar-title">
             @if (Tab.Table.Synonym is { } synonym)
             {
-                @($"{(synonym.IsPublic ? "öffentliches Synonym" : "Synonym")} {synonym.Name} → ")
+                @TextFormat.Format(synonym.IsPublic ? SchemaViewText.PublicSynonymTo : SchemaViewText.SynonymTo, synonym.Name, $"{Tab.Table.Owner}.{Tab.Table.Name}")
             }
-            @Tab.Table.Owner.@Tab.Table.Name
+            else
+            {
+                @($"{Tab.Table.Owner}.{Tab.Table.Name}")
+            }
         </span>
         <span class="spacer"></span>
         @if (Tab.Mode == TabMode.Data && _details is not null)
         {
             @if (Tab.Changes is not null && _grid?.CanEdit == true)
             {
-                <button class="btn ghost" title="Neue Zeile oben im Grid anlegen – wird mit „Schreiben“@(Shortcuts.Hint(ShortcutAction.Flush)) eingefügt" @onclick="AddRowAsync">+ Zeile</button>
+                <button class="btn ghost" title="@TextFormat.Format(SchemaViewText.Tab_AddRowTitle, Shortcuts.Hint(ShortcutAction.Flush))" @onclick="AddRowAsync">@SchemaViewText.Tab_AddRow</button>
             }
             <button class="btn ghost @(Tab.FormOpen ? "active" : "")" aria-pressed="@(Tab.FormOpen ? "true" : "false")"
-                    title="Die Zeile des Grids als Formular daneben@(Shortcuts.Label(ShortcutAction.ToggleForm) is { } key ? $" ({key} im Grid; bei mehreren markierten Zeilen: vergleichen)" : "")" @onclick="ToggleForm">
-                Formular <Kbd Action="ShortcutAction.ToggleForm" />
+                    title="@(Shortcuts.Label(ShortcutAction.ToggleForm) is { } key ? TextFormat.Format(SchemaViewText.Tab_FormTitleWithKey, key) : SchemaViewText.Tab_FormTitle)" @onclick="ToggleForm">
+                @SchemaViewText.Tab_Form <Kbd Action="ShortcutAction.ToggleForm" />
             </button>
             <ColumnJump @ref="_jump" Details="_details" OnJump="c => _pendingJump = c" />
         }
         @if (_details is not null && Tab.Mode != TabMode.Structure)
         {
-            <button class="icon-btn ghost" title="Neu laden@(Shortcuts.Hint(ShortcutAction.Refresh))" @onclick="RefreshViewAsync">@Icons.Refresh</button>
+            <button class="icon-btn ghost" title="@(CommonText.Reload + Shortcuts.Hint(ShortcutAction.Refresh))" @onclick="RefreshViewAsync">@Icons.Refresh</button>
         }
     </div>
 
@@ -57,12 +60,12 @@
     {
         <div class="tab-error">
             <span>@_loadError.Display</span>
-            <button class="link-btn" @onclick="() => Shell.ShowError(_loadError)">Details</button>
+            <button class="link-btn" @onclick="() => Shell.ShowError(_loadError)">@CommonText.Details</button>
         </div>
     }
     else if (_details is null)
     {
-        <div class="structure-loading padded"><span class="spinner"></span> Lade Struktur …</div>
+        <div class="structure-loading padded"><span class="spinner"></span> @SchemaViewText.Tab_LoadingStructure</div>
     }
     else
     {
@@ -74,7 +77,7 @@
                     <span>@Tab.Error</span>
                     @if (Tab.Failure is { } failure)
                     {
-                        <button class="link-btn" @onclick="() => Shell.ShowError(failure)">Details</button>
+                        <button class="link-btn" @onclick="() => Shell.ShowError(failure)">@CommonText.Details</button>
                     }
                 </div>
             }
@@ -198,8 +201,8 @@
         if (_grid?.CanEdit != true || Tab.Changes is not { } changes)
         {
             return Workspaces.IsWritable(Tab.WorkspaceId)
-                ? "Diese Tabelle lässt sich nicht bearbeiten."
-                : "Der Workspace ist schreibgeschützt – zum Ändern freischalten.";
+                ? SchemaViewText.Tab_TableNotEditable
+                : SchemaViewText.Tab_WorkspaceReadOnly;
         }
 
         if (OracleTypeMapper.NotEditableReason(_details!, _details!.Columns[lob.Column], newRow: lob.NewRow is not null) is { } reason)
@@ -207,7 +210,7 @@
             return reason;
         }
 
-        return lob.Row is { } row && changes.Find(row.Key)?.Deleted is not null ? "Die Zeile ist zum Löschen markiert." : null;
+        return lob.Row is { } row && changes.Find(row.Key)?.Deleted is not null ? SchemaViewText.Tab_RowMarkedForDeletion : null;
     }
     private ColumnMenuRequest? _columnMenu;
     private ColumnJump? _jump;
@@ -218,14 +221,15 @@
     private readonly HashSet<TabMode> _visited = [];
     private int _version; // F5 in a detail view: incremented, the detail views reload
 
-    private static readonly (TabMode Mode, string Label)[] Modes =
+    // A property, not a static field: the labels follow the UI language.
+    private static (TabMode Mode, string Label)[] Modes =>
     [
-        (TabMode.Data, "Daten"),
-        (TabMode.Structure, "Spalten"),
-        (TabMode.Constraints, "Constraints"),
-        (TabMode.Indexes, "Indizes"),
-        (TabMode.Dependencies, "Abhängigkeiten"),
-        (TabMode.Ddl, "DDL"),
+        (TabMode.Data, SchemaViewText.Tab_ViewData),
+        (TabMode.Structure, SchemaViewText.Tab_ViewColumns),
+        (TabMode.Constraints, SchemaViewText.Tab_ViewConstraints),
+        (TabMode.Indexes, SchemaViewText.Tab_ViewIndexes),
+        (TabMode.Dependencies, SchemaViewText.Tab_ViewDependencies),
+        (TabMode.Ddl, SchemaViewText.Tab_ViewDdl),
     ];
 
     [CascadingParameter]
@@ -396,14 +400,14 @@
 
         if (selected.Count > RowComparison.MaxRows)
         {
-            Shell.Notify($"Höchstens {RowComparison.MaxRows} Zeilen lassen sich vergleichen – {selected.Count} sind markiert.");
+            Shell.Notify(TextFormat.Format(SchemaViewText.Tab_CompareTooMany, RowComparison.MaxRows, selected.Count));
             return;
         }
 
         var rows = selected.Select(i => (Index: i, Row: _grid.RowAt(i))).Where(r => r.Row is not null).Select(r => (r.Index, r.Row!)).ToList();
         if (rows.Count < 2)
         {
-            Shell.Notify("Zum Vergleichen mindestens zwei geladene Zeilen markieren.");
+            Shell.Notify(SchemaViewText.Tab_CompareTooFew);
             return;
         }
 
@@ -416,7 +420,7 @@
         return OpenFormAsync(rowIndex, null);
     }
 
-    /// <summary>"+ Zeile": with the form open the new row is filled there, otherwise in the grid.</summary>
+    /// <summary>"+ Row": with the form open the new row is filled there, otherwise in the grid.</summary>
     private async Task AddRowAsync()
     {
         if (_grid is null)

@@ -4,7 +4,7 @@
 @using FerretSharp.Core.Schema
 @inherits PlSqlViewBase<PlSqlSource>
 
-<DetailStatus Loading="Loading && Data is null" Error="Error" Text="Lade Quelltext …" />
+<DetailStatus Loading="Loading && Data is null" Error="Error" Text="@SchemaViewText.PlSql_LoadingSource" />
 
 @if (Data is { } source)
 {
@@ -17,9 +17,8 @@
     else if (source.IsWrapped && !_showWrapped)
     {
         <div class="structure plsql-notice">
-            <p><strong>Verschlüsselt (wrapped).</strong> Der Quelltext wurde mit dem Wrap-Werkzeug von Oracle unlesbar gemacht
-               und lässt sich nicht zurückverwandeln. Parameter und Abhängigkeiten stehen trotzdem in den anderen Ansichten.</p>
-            <button class="btn" @onclick="() => _showWrapped = true">Rohtext trotzdem anzeigen</button>
+            <p><Fmt Text="@SchemaViewText.PlSql_Wrapped"><Arg0><strong>@SchemaViewText.PlSql_WrappedTitle</strong></Arg0></Fmt></p>
+            <button class="btn" @onclick="() => _showWrapped = true">@SchemaViewText.PlSql_ShowWrapped</button>
         </div>
     }
     else
@@ -49,9 +48,9 @@
 
     private string EmptyText => Part == PlSqlPart.Body
         ? Unit.Owner == Active.Schema?.Owner
-            ? "Das Package hat keinen Body."
-            : "Kein Body sichtbar. Den Body eines Packages in einem anderen Schema zeigt Oracle nur mit dem Recht DEBUG darauf (oder dem Eigentümer); EXECUTE reicht nur für die Spezifikation."
-        : "Kein Quelltext sichtbar – das Objekt wurde gelöscht, oder dem Benutzer fehlen die Rechte darauf.";
+            ? SchemaViewText.PlSql_PackageHasNoBody
+            : SchemaViewText.PlSql_BodyNotVisible
+        : SchemaViewText.PlSql_SourceNotVisible;
 
     protected override async Task OnParametersSetAsync()
     {

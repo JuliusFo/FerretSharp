@@ -1,5 +1,6 @@
 using System.Globalization;
 using FerretSharp.Core.ClrModel;
+using FerretSharp.UI.Resources;
 using Microsoft.JSInterop;
 
 namespace FerretSharp.UI.State;
@@ -65,7 +66,27 @@ public sealed record GridColumn(string Id, string Name, string Label, string Typ
 /// <param name="HeaderHeight">With the line for C# names (WP-12); null for the theme default.</param>
 /// <param name="Table">A table tab: header menu, Del, pinning and scroll position are reported to .NET. A query result
 /// (SQL editor, LINQ console) has none of these and only answers GetRows, OnCopy and OnCellContextMenu.</param>
-public sealed record GridOptions(IReadOnlyList<GridSort> Sorts, int FirstRow, bool Editable, int? HeaderHeight, bool Table);
+public sealed record GridOptions(IReadOnlyList<GridSort> Sorts, int FirstRow, bool Editable, int? HeaderHeight, bool Table)
+{
+    /// <summary>The texts grid.js shows itself, in the UI language at the time the grid is built (WP-29).</summary>
+    public GridTexts Texts { get; init; } = new();
+}
+
+/// <summary>
+/// Texts that grid.js shows itself (header tooltips, the member list's editor): JS holds no texts, they come from the
+/// resources, read when the options are created – not cached in a static field, so they follow the UI language.
+/// </summary>
+public sealed record GridTexts
+{
+    /// <summary>Tooltip of the FK badge for a relationship of the C# model.</summary>
+    public string FkModel { get; init; } = GridText.Grid_FkModelBadge;
+
+    /// <summary>Header tooltip of a column whose type cannot be sorted.</summary>
+    public string NotSortable { get; init; } = GridText.Grid_NotSortable;
+
+    /// <summary>Option of a value that is no enum member; <c>{0}</c> is the value (replaced in grid.js).</summary>
+    public string NoMember { get; init; } = GridText.Grid_ValueNoMember;
+}
 
 /// <summary>A sorted column as AG Grid reports it ("asc"/"desc").</summary>
 public sealed record GridSort(string ColId, string Sort);

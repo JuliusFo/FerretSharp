@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.ClrModel;
 
@@ -37,7 +38,7 @@ public static class DotNetCli
         if (!process.Start())
         {
             process.Dispose();
-            throw new ClrModelException(ClrModelErrorKind.DotNetMissing, "dotnet ließ sich nicht starten.");
+            throw new ClrModelException(ClrModelErrorKind.DotNetMissing, ClrModelText.DotNetNotStartable);
         }
 
         Lower(process);
@@ -107,7 +108,7 @@ public static class DotNetCli
         process.ErrorDataReceived += (_, e) => Append(e.Data);
         if (!process.Start())
         {
-            throw new ClrModelException(ClrModelErrorKind.DotNetMissing, "dotnet ließ sich nicht starten.");
+            throw new ClrModelException(ClrModelErrorKind.DotNetMissing, ClrModelText.DotNetNotStartable);
         }
 
         if (background)
@@ -143,7 +144,7 @@ public static class DotNetCli
             }
 
             // What it wrote up to then says where it hung (restore, a build step, the project's code).
-            throw new ClrModelException(ClrModelErrorKind.Timeout, $"dotnet hat nach {timeout.TotalSeconds:0} s nicht geantwortet und wurde beendet.", captured);
+            throw new ClrModelException(ClrModelErrorKind.Timeout, TextFormat.Format(ClrModelText.DotNetTimeout, timeout.TotalSeconds), captured);
         }
 
         process.WaitForExit(); // flushes the asynchronous output readers
@@ -231,6 +232,6 @@ public static class DotNetCli
         return File.Exists(installed)
             ? installed
             : throw new ClrModelException(ClrModelErrorKind.DotNetMissing,
-                "dotnet wurde nicht gefunden – für das C#-Modell muss ein .NET SDK oder eine .NET-Runtime installiert sein.");
+                ClrModelText.DotNetNotFound);
     }
 }

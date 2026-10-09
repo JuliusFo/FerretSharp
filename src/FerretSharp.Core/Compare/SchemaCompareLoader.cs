@@ -1,4 +1,5 @@
 using FerretSharp.Core.Connections;
+using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.Compare;
 
@@ -20,7 +21,7 @@ public sealed class SchemaCompareLoader(ConnectionManager connections, IDatabase
     public const string SessionAction = "Schema-Vergleich";
 
     /// <param name="passwords">Passwords typed for this comparison only (connections without a stored one); not saved.</param>
-    /// <param name="progress">Side index and its step (<c>Verbinde</c>, then the reader's steps); called on any thread.</param>
+    /// <param name="progress">Side index and its step (<see cref="CompareText.StepConnecting"/>, then the reader's steps); called on any thread.</param>
     /// <returns>One result per side, in order.</returns>
     /// <exception cref="OperationCanceledException">Cancelled; the sessions opened so far are closed.</exception>
     public async Task<IReadOnlyList<SideResult>> LoadAsync(
@@ -55,19 +56,19 @@ public sealed class SchemaCompareLoader(ConnectionManager connections, IDatabase
 
         if (connections.Profiles.FirstOrDefault(p => p.Id == connectionId) is not { } profile)
         {
-            FailAll(new SideResult(null, new DatabaseException("Diese Verbindung gibt es nicht mehr.")));
+            FailAll(new SideResult(null, new DatabaseException(CompareText.ConnectionGone)));
             return;
         }
 
         if ((passwords?.GetValueOrDefault(connectionId) ?? connections.GetPassword(connectionId)) is not { } password)
         {
-            FailAll(new SideResult(null, new DatabaseException($"Für „{profile.Name}“ ist kein Passwort gespeichert."), NeedsPassword: true));
+            FailAll(new SideResult(null, new DatabaseException(TextFormat.Format(CompareText.NoPasswordFor, profile.Name)), NeedsPassword: true));
             return;
         }
 
         foreach (var (_, index) in sides)
         {
-            progress?.Invoke(index, "Verbinde");
+            progress?.Invoke(index, CompareText.StepConnecting);
         }
 
         IDatabaseConnection connection;

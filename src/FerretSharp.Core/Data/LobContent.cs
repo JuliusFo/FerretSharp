@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.Data;
 
@@ -106,19 +107,27 @@ public static class LobContent
         }
     }
 
-    /// <summary>"12.345 Zeichen" / "1,2 MB" for the dialog.</summary>
+    /// <summary>"12.345 characters" / "1,2 MB" for the dialog.</summary>
     public static string Describe(object? value) => value switch
     {
         null => "NULL",
-        string text => text.Length.ToString("N0", CultureInfo.GetCultureInfo("de-DE")) + " Zeichen",
+        string text => CharacterCount(text.Length),
         byte[] bytes => Size(bytes.LongLength),
         _ => "",
     };
 
     public static string Size(long bytes) => bytes switch
     {
-        < 1024 => $"{bytes.ToString("N0", CultureInfo.GetCultureInfo("de-DE"))} Bytes",
+        < 1024 => ByteCount(bytes),
         < 1024 * 1024 => $"{(bytes / 1024.0).ToString("N1", CultureInfo.GetCultureInfo("de-DE"))} KB",
         _ => $"{(bytes / 1024.0 / 1024.0).ToString("N1", CultureInfo.GetCultureInfo("de-DE"))} MB",
     };
+
+    /// <summary>"12.345 characters" (German number notation like the rest of the cell texts).</summary>
+    public static string CharacterCount(long count) =>
+        TextFormat.Plural(CultureInfo.GetCultureInfo("de-DE"), count, DataText.CharacterCountOne, DataText.CharacterCountOther);
+
+    /// <summary>"2.048 bytes" (German number notation like the rest of the cell texts).</summary>
+    public static string ByteCount(long count) =>
+        TextFormat.Plural(CultureInfo.GetCultureInfo("de-DE"), count, DataText.ByteCountOne, DataText.ByteCountOther);
 }

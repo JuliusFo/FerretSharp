@@ -4,7 +4,7 @@
 @using FerretSharp.Core.Workspaces
 
 <aside class="sql-history">
-    <SearchBox @bind-Value="_search" Class="search" Placeholder="Verlauf durchsuchen …" />
+    <SearchBox @bind-Value="_search" Class="search" Placeholder="@SqlEditorText.SqlHistory_Search" />
     <div class="sql-history-list">
         @foreach (var entry in Filtered)
         {
@@ -16,7 +16,7 @@
         }
         @if (!Filtered.Any())
         {
-            <div class="ctx-empty">@(Entries.Count == 0 ? "Noch nichts ausgeführt." : "Kein Treffer.")</div>
+            <div class="ctx-empty">@(Entries.Count == 0 ? SqlEditorText.SqlHistory_Empty : SqlEditorText.SqlHistory_NoMatch)</div>
         }
     </div>
 </aside>
@@ -40,9 +40,9 @@
     private static string Outcome(SqlHistoryEntry entry) => entry switch
     {
         { Error: { } error } => error.Split(':')[0],
-        { Changed: true, Rows: { } rows } => $"{rows:N0} geändert",
-        { Rows: 1, MoreRows: false } => "1 Zeile",
-        { Rows: { } rows } => $"{(entry.MoreRows ? "≥ " : "")}{rows:N0} Zeilen",
+        { Changed: true, Rows: { } rows } => TextFormat.Format(SqlEditorText.Run_Changed, rows),
+        { Rows: 1, MoreRows: false } => SqlEditorText.Run_OneRow,
+        { Rows: { } rows } => TextFormat.Format(entry.MoreRows ? SqlEditorText.Run_RowsAtLeast : SqlEditorText.Run_Rows, rows),
         _ => "",
     };
 }
