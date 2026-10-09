@@ -1,6 +1,7 @@
 using System.Text.Json;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.IO;
+using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.Settings;
 
@@ -31,19 +32,19 @@ public sealed class SettingsStore(string filePath)
             var document = await JsonSerializer.DeserializeAsync<SettingsDocument>(stream, JsonFiles.Options, cancellationToken);
             if (document?.Settings is null)
             {
-                throw new SettingsStoreException($"{FilePath} ist leer.");
+                throw new SettingsStoreException(TextFormat.Format(SettingsText.FileEmpty, FilePath));
             }
 
             if (document.Version > CurrentVersion)
             {
-                throw new SettingsStoreException($"{FilePath} stammt aus einer neueren FerretSharp-Version (Format {document.Version}).");
+                throw new SettingsStoreException(TextFormat.Format(SettingsText.FileFromNewerVersion, FilePath, document.Version));
             }
 
             return document.Settings;
         }
         catch (JsonException ex)
         {
-            throw new SettingsStoreException($"{FilePath} ist keine gültige Einstellungsdatei: {ex.Message}", ex);
+            throw new SettingsStoreException(TextFormat.Format(SettingsText.InvalidFile, FilePath, ex.Message), ex);
         }
         finally
         {

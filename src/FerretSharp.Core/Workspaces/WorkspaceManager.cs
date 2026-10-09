@@ -3,6 +3,7 @@ using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
 using FerretSharp.Core.IO;
 using FerretSharp.Core.Query;
+using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.Workspaces;
 
@@ -298,7 +299,7 @@ public sealed class WorkspaceManager : IAsyncDisposable
 
             if (open.Count == 1)
             {
-                throw new RefusedException("Der letzte offene Workspace kann nicht geschlossen werden.");
+                throw new RefusedException(WorkspaceText.LastWorkspaceCannotClose);
             }
 
             Put(open[index] with { IsOpen = false });
@@ -372,7 +373,7 @@ public sealed class WorkspaceManager : IAsyncDisposable
 
             if (workspace.IsOpen)
             {
-                throw new RefusedException("Nur geschlossene Workspaces können gelöscht werden.");
+                throw new RefusedException(WorkspaceText.OnlyClosedCanBeDeleted);
             }
 
             _workspaces.Remove(workspace);
@@ -488,12 +489,12 @@ public sealed class WorkspaceManager : IAsyncDisposable
     {
         if (_profile is null)
         {
-            throw new RefusedException("Keine Verbindung aktiv.");
+            throw new RefusedException(WorkspaceText.NoActiveConnection);
         }
     }
 
     private static ArgumentException InvalidName() =>
-        new($"Der Name darf nicht leer und höchstens {Workspace.MaxNameLength} Zeichen lang sein.", "name");
+        new(TextFormat.Format(WorkspaceText.NameInvalid, Workspace.MaxNameLength), "name");
 
     private void RaiseChanged() => Changed?.Invoke();
 }

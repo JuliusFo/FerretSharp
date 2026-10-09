@@ -1,3 +1,5 @@
+using FerretSharp.Core.Resources;
+
 namespace FerretSharp.Core.Workspaces;
 
 /// <summary>
@@ -81,7 +83,7 @@ internal sealed class WorkspaceSaver(
                 {
                     // Any failure (locked file, a value that does not serialize …): keep the changes for the next save and say so.
                     MarkDirty(workspace.Id);
-                    error = $"Workspace „{workspace.Name}“ konnte nicht gespeichert werden: {ex.Message}";
+                    error = TextFormat.Format(WorkspaceText.SaveFailed, workspace.Name, ex.Message);
                 }
             }
 

@@ -1,5 +1,6 @@
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Query;
+using FerretSharp.Core.Resources;
 using Oracle.ManagedDataAccess.Client;
 
 namespace FerretSharp.Core.Oracle;
@@ -10,7 +11,7 @@ namespace FerretSharp.Core.Oracle;
 /// its public methods translate it (<see cref="OracleErrors.Translate"/>).
 /// </summary>
 internal sealed class OracleStatementException(string sql, IReadOnlyList<QueryParameter> parameters, OracleException? inner)
-    : Exception(inner?.Message ?? "Die Verbindung zur Datenbank ist getrennt.", inner)
+    : Exception(inner?.Message ?? OracleText.ConnectionLost, inner)
 {
     public QuerySpec Statement { get; } = new(sql, parameters);
 

@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="ConnectionLost" xml:space="preserve">
+    <value>The connection to the database was lost.</value>
+  </data>
+  <data name="TnsAdminMissing" xml:space="preserve">
+    <value>TNS aliases need the folder with tnsnames.ora: enter it in the connection or set the TNS_ADMIN environment variable.</value>
+  </data>
+  <data name="AddressIncomplete" xml:space="preserve">
+    <value>Incomplete address: service name or SID is missing.</value>
+  </data>
+  <data name="ActualPlanNoRights" xml:space="preserve">
+    <value>The actual plan needs read access to V$SQL and V$SQL_PLAN_STATISTICS_ALL – a DBA can grant it: GRANT SELECT_CATALOG_ROLE TO &lt;user&gt; or GRANT SELECT ON V_$SQL / V_$SQL_PLAN_STATISTICS_ALL TO &lt;user&gt;. The estimated plan works without it.</value>
+  </data>
+  <data name="CursorGone" xml:space="preserve">
+    <value>Cursor {0} is no longer in the shared pool – try again.</value>
+    <comment>{0}: SQL_ID of the statement</comment>
+  </data>
+  <data name="UndoWrittenMeanwhile" xml:space="preserve">
+    <value>Something else was written in the meantime – ↶ would now undo “{0}”. Choose again.</value>
+    <comment>{0}: description of the newest write action, e.g. "UPDATE AUFTRAG" or "KUNDEN: 2 changed"</comment>
+  </data>
+  <data name="WorkspaceReadOnly" xml:space="preserve">
+    <value>The workspace is read-only – unlock it before writing.</value>
+  </data>
+  <data name="FlushChanged" xml:space="preserve">
+    <value>{0} changed</value>
+    <comment>Part of a write summary, "KUNDEN: 2 changed, 1 new, 1 deleted"; {0}: number of rows</comment>
+  </data>
+  <data name="FlushInserted" xml:space="preserve">
+    <value>{0} new</value>
+    <comment>Part of a write summary, "KUNDEN: 2 changed, 1 new, 1 deleted"; {0}: number of rows</comment>
+  </data>
+  <data name="FlushDeleted" xml:space="preserve">
+    <value>{0} deleted</value>
+    <comment>Part of a write summary, "KUNDEN: 2 changed, 1 new, 1 deleted"; {0}: number of rows</comment>
+  </data>
+  <data name="NoRowIdReturned" xml:space="preserve">
+    <value>Oracle did not return a ROWID for the new row.</value>
+  </data>
+  <data name="ExplainOnlyQueries" xml:space="preserve">
+    <value>Only queries (SELECT/WITH) can be explained.</value>
+  </data>
+  <data name="ExplainInReadOnlyTransaction" xml:space="preserve">
+    <value>Oracle refuses EXPLAIN PLAN in a READ ONLY transaction.</value>
+  </data>
+  <data name="WriteTransactionOpen" xml:space="preserve">
+    <value>A write transaction is open.</value>
+  </data>
+  <data name="ConnectionReadOnly" xml:space="preserve">
+    <value>The connection is read-only.</value>
+  </data>
+  <data name="TransactionAlreadyOpen" xml:space="preserve">
+    <value>A transaction is already open.</value>
+  </data>
+  <data name="WriteOnlyInTransaction" xml:space="preserve">
+    <value>Writing is only possible inside a transaction.</value>
+  </data>
+  <data name="LockOnlyInWriteTransaction" xml:space="preserve">
+    <value>Rows are only locked inside a write transaction.</value>
+  </data>
+  <data name="NoWriteTransaction" xml:space="preserve">
+    <value>No write transaction is open.</value>
+  </data>
+  <data name="NotEditableView" xml:space="preserve">
+    <value>Views and materialized views are read-only.</value>
+  </data>
+  <data name="NotEditableNoRowKey" xml:space="preserve">
+    <value>Without a primary key or ROWID, rows cannot be changed unambiguously.</value>
+  </data>
+  <data name="NotEditableVirtual" xml:space="preserve">
+    <value>Virtual column – Oracle computes the value.</value>
+  </data>
+  <data name="NotEditableIdentity" xml:space="preserve">
+    <value>Identity column – Oracle assigns the value.</value>
+  </data>
+  <data name="NotEditablePrimaryKey" xml:space="preserve">
+    <value>Primary keys can only be changed in new rows.</value>
+  </data>
+  <data name="NotEditableType" xml:space="preserve">
+    <value>{0} cannot be edited here.</value>
+    <comment>{0}: Oracle data type, e.g. XMLTYPE</comment>
+  </data>
+  <data name="ValueRequired" xml:space="preserve">
+    <value>{0} cannot be empty (NOT NULL).</value>
+    <comment>{0}: column name</comment>
+  </data>
+  <data name="LobExpectsBytes" xml:space="preserve">
+    <value>{0} expects bytes.</value>
+    <comment>{0}: Oracle data type, e.g. BLOB</comment>
+  </data>
+  <data name="LobExpectsText" xml:space="preserve">
+    <value>{0} expects text.</value>
+    <comment>{0}: Oracle data type, e.g. CLOB</comment>
+  </data>
+  <data name="NotADate" xml:space="preserve">
+    <value>“{0}” is not a date (DD.MM.YYYY [hh:mm[:ss]]).</value>
+    <comment>{0}: the text as typed. The input format stays day.month.year in both languages.</comment>
+  </data>
+  <data name="NotATimestamp" xml:space="preserve">
+    <value>“{0}” is not a timestamp (DD.MM.YYYY hh:mm:ss[,ffffff]).</value>
+    <comment>{0}: the text as typed</comment>
+  </data>
+  <data name="NotATimestampWithTimeZone" xml:space="preserve">
+    <value>“{0}” is not a timestamp with time zone (DD.MM.YYYY hh:mm:ss[,ffffff] [+hh:mm]).</value>
+    <comment>{0}: the text as typed</comment>
+  </data>
+  <data name="NotATimeZoneOffset" xml:space="preserve">
+    <value>“{0}” is not a time zone offset (between -12:00 and +14:00, e.g. +02:00).</value>
+    <comment>{0}: the offset part of the text as typed</comment>
+  </data>
+  <data name="NotANumber" xml:space="preserve">
+    <value>“{0}” is not a number (e.g. 4711 or 12.5).</value>
+    <comment>{0}: the text as typed</comment>
+  </data>
+  <data name="NotAHexValue" xml:space="preserve">
+    <value>“{0}” is not a hex value (e.g. CAFE01).</value>
+    <comment>{0}: the text as typed</comment>
+  </data>
+  <data name="TooLongBytes" xml:space="preserve">
+    <value>Too long: {0} bytes, {1} allowed ({2}).</value>
+    <comment>{0}: length of the value; {1}: maximum length; {2}: Oracle data type, e.g. VARCHAR2(20 BYTE)</comment>
+  </data>
+  <data name="TooLongCharacters" xml:space="preserve">
+    <value>Too long: {0} characters, {1} allowed ({2}).</value>
+    <comment>{0}: length of the value; {1}: maximum length; {2}: Oracle data type, e.g. VARCHAR2(20 CHAR)</comment>
+  </data>
+  <data name="WholeNumbersOnly" xml:space="preserve">
+    <value>{0} only takes whole numbers ({1}).</value>
+    <comment>{0}: column name; {1}: Oracle data type, e.g. NUMBER(10)</comment>
+  </data>
+  <data name="TooManyDecimals" xml:space="preserve">
+    <value>At most {0} decimal places ({1}).</value>
+    <comment>{0}: scale of the column; {1}: Oracle data type, e.g. NUMBER(10,2)</comment>
+  </data>
+  <data name="TooManyIntegerDigits" xml:space="preserve">
+    <value>Too large: at most {0} digits before the decimal point ({1}).</value>
+    <comment>{0}: allowed digits before the decimal point; {1}: Oracle data type, e.g. NUMBER(5,2)</comment>
+  </data>
+  <data name="SnapshotStepObjects" xml:space="preserve">
+    <value>Objects</value>
+    <comment>Progress step while reading a schema for the schema comparison</comment>
+  </data>
+  <data name="SnapshotStepColumns" xml:space="preserve">
+    <value>Columns</value>
+    <comment>Progress step while reading a schema for the schema comparison</comment>
+  </data>
+  <data name="SnapshotStepConstraints" xml:space="preserve">
+    <value>Constraints</value>
+    <comment>Progress step while reading a schema for the schema comparison</comment>
+  </data>
+  <data name="SnapshotStepIndexes" xml:space="preserve">
+    <value>Indexes</value>
+    <comment>Progress step while reading a schema for the schema comparison</comment>
+  </data>
+</root>
