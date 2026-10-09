@@ -771,8 +771,6 @@ table.columns td.clr-type .converter { display: block; color: var(--muted); font
 .fs-h-clr { font: 400 10.5px var(--mono); color: var(--clr); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .col-item-clr { font: 11px var(--mono); color: var(--clr); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 0 1 auto; margin-left: 6px; }
 .fs-badge.fk.model { background: var(--clr-weak); color: var(--clr); }
-/* cell tooltips have several lines (value, flags one per line, why a value is marked) */
-.ag-tooltip { white-space: pre-line; }
 .ag-cell.fs-unknown { color: var(--danger); text-decoration: underline wavy var(--danger); text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .ctx-source { margin-left: 6px; padding: 0 5px; border-radius: 4px; background: var(--clr-weak); color: var(--clr); font: 600 10px system-ui, sans-serif; vertical-align: 1px; }
 .fs-editor-select { width: 100%; height: 100%; border: 0; outline: none; background: var(--surface); color: var(--text); font: 13px "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; padding: 0 6px; }
@@ -1159,9 +1157,9 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .commit-list li { margin: 2px 0; }
 .commit-list .change-time { margin-right: 6px; }
 
-/* Footer tooltips (tooltip.js): above the element, so they stay clear of the taskbar. */
-.footer-tip {
-  position: fixed; z-index: 1000; max-width: 420px; padding: 5px 9px; pointer-events: none;
-  font-size: 12px; line-height: 1.4; color: var(--text); white-space: pre-line;
+/* Tooltips of every title (tooltip.js) and of the grid cells (AG Grid): one look, from the theme tokens. */
+.app-tip, body .ag-tooltip {
+  max-width: 420px; padding: 5px 9px; font-size: 12px; line-height: 1.4; color: var(--text); white-space: pre-line;
   background: var(--surface); border: 1px solid var(--border); border-radius: 6px; box-shadow: var(--shadow);
 }
+.app-tip { position: fixed; z-index: 1000; pointer-events: none; overflow-wrap: anywhere; }
