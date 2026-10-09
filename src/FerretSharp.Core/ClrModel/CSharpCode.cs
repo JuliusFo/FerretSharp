@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using FerretSharp.Core.Data;
 using FerretSharp.Core.Query;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.ClrModel;
@@ -81,7 +82,7 @@ public static class CSharpCode
 
         if (property.Converter is { } converter)
         {
-            return CSharpValue.Fails($"eigener Converter {converter}, DB-Wert {Shown(column, raw)}");
+            return CSharpValue.Fails(TextFormat.Format(ClrModelText.ValueCustomConverter, converter, Shown(column, raw)));
         }
 
         if (raw is LobValue lob)
@@ -92,8 +93,8 @@ public static class CSharpCode
             }
 
             return CSharpValue.Fails(lob.Preview is null
-                ? string.Create(German, $"{column.DataType} mit {lob.Length:N0} Bytes nicht geladen")
-                : string.Create(German, $"{column.DataType} nur als Vorschau geladen ({lob.Length:N0} Zeichen)"));
+                ? TextFormat.Format(German, ClrModelText.LobNotLoaded, column.DataType, lob.Length)
+                : TextFormat.Format(German, ClrModelText.LobPreviewOnly, column.DataType, lob.Length));
         }
 
         var code = property.ClrType switch
@@ -136,7 +137,7 @@ public static class CSharpCode
 
         return code is not null
             ? new CSharpValue(code)
-            : CSharpValue.Fails($"{Shown(column, raw)} lässt sich nicht als {TablePresentation.ClrTypeText(property)} schreiben");
+            : CSharpValue.Fails(TextFormat.Format(ClrModelText.ValueNotWritableAs, Shown(column, raw), TablePresentation.ClrTypeText(property)));
     }
 
     /// <summary>An enum member (<c>Kundenart.Gewerbe</c>), a flags combination, a cast for a number without member, true/false.</summary>
@@ -160,8 +161,10 @@ public static class CSharpCode
         }
 
         return CSharpValue.Fails(values.IsBool
-            ? $"{Shown(column, raw)} ist weder true noch false ({property.Converter ?? "Converter"})"
-            : $"{Shown(column, raw)} ist kein Wert von {type}");
+            ? property.Converter is { } converter
+                ? TextFormat.Format(ClrModelText.ValueNotTrueOrFalse, Shown(column, raw), converter)
+                : TextFormat.Format(ClrModelText.ValueNotTrueOrFalseConverter, Shown(column, raw))
+            : TextFormat.Format(ClrModelText.ValueNotMember, Shown(column, raw), type));
     }
 
     /// <summary>The value as an Oracle literal, for comments (<c>'J'</c>, <c>12</c>).</summary>

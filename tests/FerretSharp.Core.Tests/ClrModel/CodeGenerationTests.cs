@@ -339,6 +339,26 @@ public sealed class CSharpRowsTests
             result.Warnings);
     }
 
+    /// <summary>WP-29: comments in the generated code and the warnings follow the UI language; a gap in several rows is counted.</summary>
+    [Fact]
+    public async Task Comments_and_warnings_in_English()
+    {
+        var presentation = await CodeGenerationModel.PresentationAsync();
+        using (UiCulture.Use("en"))
+        {
+            var result = CSharpRows.Initializers(presentation, [Row(1, "A", legacy: "X1"), Row(2, "B", legacy: "X2", status: "WEG")]);
+
+            Assert.Contains("        // LEGACY_CODE = 'X1' (no property)\r\n", result.Text, StringComparison.Ordinal);
+            Assert.Contains("        // Status: 'WEG' is not a value of KundeStatus\r\n", result.Text, StringComparison.Ordinal);
+            Assert.Equal(
+                [
+                    "LEGACY_CODE: no property (2 rows) – as a comment.",
+                    "Status: 'WEG' is not a value of KundeStatus – as a comment.",
+                ],
+                result.Warnings);
+        }
+    }
+
     [Fact]
     public async Task Without_a_db_set_the_list_is_named_after_the_entity()
     {

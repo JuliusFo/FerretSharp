@@ -1,3 +1,4 @@
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.ClrModel;
@@ -30,7 +31,7 @@ public enum MismatchSeverity
 }
 
 /// <summary>A property whose column does not fit it: type, NULL, length or precision.</summary>
-/// <param name="Message">What follows from it, e.g. „EF Core wirft beim Lesen einer Zeile mit NULL“.</param>
+/// <param name="Message">What follows from it, e.g. “EF Core throws when reading a row with NULL”.</param>
 public sealed record ColumnMismatch(
     ColumnMismatchKind Kind,
     MismatchSeverity Severity,
@@ -147,18 +148,18 @@ public static class ColumnTypeCheck
         if (!fits)
         {
             // EF's own bool mapping may store a number: the CLR type tells whether a converter was forgotten.
-            var hint = property is { ClrType: "bool", Converter: null } && category == ColumnCategory.Text ? " – fehlt der Converter (z. B. J/N)?" : "";
-            return (MismatchSeverity.Error, $"Der gespeicherte Typ passt nicht zur Spalte {column.DisplayType}: Lesen scheitert{hint}.");
+            var forgotten = property is { ClrType: "bool", Converter: null } && category == ColumnCategory.Text;
+            return (MismatchSeverity.Error, TextFormat.Format(forgotten ? ClrModelText.TypeMismatchConverter : ClrModelText.TypeMismatch, column.DisplayType));
         }
 
         if (kind == StoredKind.DateTime && category == ColumnCategory.TimestampWithTimeZone)
         {
-            return (MismatchSeverity.Hint, "DateTime verliert die Zeitzone der Spalte – DateTimeOffset passt dazu.");
+            return (MismatchSeverity.Hint, ClrModelText.DateTimeLosesZone);
         }
 
         if (kind == StoredKind.Guid && column.Length is { } length and not 16)
         {
-            return (MismatchSeverity.Warning, $"Eine Guid hat 16 Byte, die Spalte RAW({length}).");
+            return (MismatchSeverity.Warning, TextFormat.Format(ClrModelText.GuidRawLength, length));
         }
 
         return null;
@@ -171,8 +172,8 @@ public static class ColumnTypeCheck
         if (column.Nullable && !modelNullable)
         {
             return readOnly
-                ? (MismatchSeverity.Hint, $"Die Spalte der {(kind == TableKind.View ? "View" : "materialisierten View")} erlaubt NULL, im Modell Pflicht – enthält sie NULL, wirft EF Core beim Lesen. (Oracle meldet berechnete View-Spalten immer als nullable.)")
-                : (MismatchSeverity.Warning, "Die Spalte erlaubt NULL, im Modell Pflicht – EF Core wirft beim Lesen einer Zeile mit NULL.");
+                ? (MismatchSeverity.Hint, kind == TableKind.View ? ClrModelText.ViewColumnNullable : ClrModelText.MaterializedViewColumnNullable)
+                : (MismatchSeverity.Warning, ClrModelText.ColumnNullable);
         }
 
         // A string or byte[] optional in the model is no difference on Oracle: an empty value is NULL there, so a required
@@ -180,7 +181,7 @@ public static class ColumnTypeCheck
         if (!readOnly && !column.Nullable && modelNullable && property.ClrType is not ("string" or "byte[]")
             && !column.IsIdentity && !column.DefaultOnNull && !column.IsVirtual)
         {
-            return (MismatchSeverity.Warning, "Die Spalte ist NOT NULL, im Modell optional – SaveChanges mit NULL scheitert (ORA-01400).");
+            return (MismatchSeverity.Warning, ClrModelText.ColumnNotNull);
         }
 
         return null;
@@ -195,23 +196,27 @@ public static class ColumnTypeCheck
             return null;
         }
 
-        var bytes = OracleTypes.LengthInBytes(column);
-        var unit = column.DataType == "RAW" ? "Byte" : "Zeichen";
+        var raw = column.DataType == "RAW";
+        // A character column counting bytes: the model counts characters, the column bytes.
+        var charsInBytes = !raw && OracleTypes.LengthInBytes(column);
         if (maxLength > length)
         {
-            return (MismatchSeverity.Warning, $"Im Modell bis {maxLength} {unit}, die Spalte fasst {length}{(bytes && unit == "Zeichen" ? " Byte" : "")} – längere Werte scheitern beim Speichern (ORA-12899).");
+            var tooShort = raw ? ClrModelText.LengthTooShortBytes
+                : charsInBytes ? ClrModelText.LengthTooShortCharsInBytes
+                : ClrModelText.LengthTooShortChars;
+            return (MismatchSeverity.Warning, TextFormat.Format(tooShort, maxLength, length));
         }
 
-        if (bytes && unit == "Zeichen")
+        if (charsInBytes)
         {
             // Converted values ('J'/'N', enum codes) come from the converter and are plain ASCII.
             return maxLength == length && property.Converter is null
-                ? (MismatchSeverity.Hint, $"Die Spalte zählt Byte (BYTE-Semantik): {maxLength} Zeichen mit Umlauten brauchen mehr als {length} Byte (ORA-12899).")
+                ? (MismatchSeverity.Hint, TextFormat.Format(ClrModelText.ByteSemantics, maxLength, length))
                 : null;
         }
 
         return maxLength < length
-            ? (MismatchSeverity.Hint, $"Im Modell bis {maxLength} {unit}, die Spalte fasst {length}.")
+            ? (MismatchSeverity.Hint, TextFormat.Format(raw ? ClrModelText.LengthLongerBytes : ClrModelText.LengthLongerChars, maxLength, length))
             : null;
     }
 
@@ -221,17 +226,17 @@ public static class ColumnTypeCheck
         if (category != ColumnCategory.Number || column.DataType != "NUMBER")
         {
             return kind == StoredKind.Integer && column.DataType is "FLOAT" or "BINARY_FLOAT" or "BINARY_DOUBLE"
-                ? (MismatchSeverity.Warning, $"Ganzzahl im Modell, die Spalte {column.DisplayType} kann Nachkommastellen enthalten – Lesen scheitert oder schneidet ab.")
+                ? (MismatchSeverity.Warning, TextFormat.Format(ClrModelText.IntegerFloatColumn, column.DisplayType))
                 : null;
         }
 
         switch (kind)
         {
             case StoredKind.Integer when column.Scale is > 0:
-                return (MismatchSeverity.Warning, $"Ganzzahl im Modell, die Spalte hat {column.Scale} Nachkommastellen – solche Werte lassen sich nicht lesen.");
+                return (MismatchSeverity.Warning, TextFormat.Format(ClrModelText.IntegerScale, column.Scale));
 
             case StoredKind.Integer when column.Precision is { } p && p > digits:
-                return (MismatchSeverity.Warning, $"{property.ProviderClrType ?? property.ClrType} fasst {digits} Stellen, die Spalte {p} – größere Werte lassen sich nicht lesen.");
+                return (MismatchSeverity.Warning, TextFormat.Format(ClrModelText.IntegerPrecision, property.ProviderClrType ?? property.ClrType, digits, p));
 
             case StoredKind.Decimal:
                 if (property.Precision is { } modelPrecision && column.Precision is { } columnPrecision)
@@ -240,22 +245,22 @@ public static class ColumnTypeCheck
                     var columnScale = column.Scale ?? 0;
                     if (!readOnly && modelPrecision - modelScale > columnPrecision - columnScale)
                     {
-                        return (MismatchSeverity.Warning, $"Im Modell ({modelPrecision},{modelScale}), die Spalte ({columnPrecision},{columnScale}) – Werte mit mehr als {columnPrecision - columnScale} Vorkommastellen scheitern beim Speichern (ORA-01438).");
+                        return (MismatchSeverity.Warning, TextFormat.Format(ClrModelText.DecimalIntegerDigits, modelPrecision, modelScale, columnPrecision, columnScale, columnPrecision - columnScale));
                     }
 
                     if (!readOnly && modelScale > columnScale)
                     {
-                        return (MismatchSeverity.Warning, $"Im Modell {modelScale} Nachkommastellen, die Spalte {columnScale} – Oracle rundet beim Speichern.");
+                        return (MismatchSeverity.Warning, TextFormat.Format(ClrModelText.DecimalScale, modelScale, columnScale));
                     }
 
                     if (modelPrecision != columnPrecision || modelScale != columnScale)
                     {
-                        return (MismatchSeverity.Hint, $"Im Modell ({modelPrecision},{modelScale}), die Spalte ({columnPrecision},{columnScale}).");
+                        return (MismatchSeverity.Hint, TextFormat.Format(ClrModelText.DecimalPrecisionDiffers, modelPrecision, modelScale, columnPrecision, columnScale));
                     }
                 }
                 else if (column.Precision is { } wide && wide > digits)
                 {
-                    return (MismatchSeverity.Warning, $"decimal fasst {digits} Stellen, die Spalte {wide} – größere Werte lassen sich nicht lesen.");
+                    return (MismatchSeverity.Warning, TextFormat.Format(ClrModelText.DecimalTooWide, digits, wide));
                 }
 
                 return null;

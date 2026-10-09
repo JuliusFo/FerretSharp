@@ -1,5 +1,6 @@
 using FerretSharp.Core.Data;
 using FerretSharp.Core.Query;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.ClrModel;
@@ -16,7 +17,7 @@ public static class LinqFilter
 
     /// <summary>Why a tab cannot be turned into C#; null if it can.</summary>
     public static string? Unavailable(TablePresentation presentation) =>
-        presentation.Entity is null ? "Keine Entity des C#-Modells für diese Tabelle." : null;
+        presentation.Entity is null ? ClrModelText.NoEntity : null;
 
     /// <summary>
     /// The query source for the LINQ console: <c>db.Kunden</c>, or <c>db.Set&lt;Kunde&gt;()</c> without a DbSet property.
@@ -58,7 +59,7 @@ public static class LinqFilter
         var text = new System.Text.StringBuilder();
         foreach (var line in skipped)
         {
-            text.Append("// Nicht übernommen: ").Append(line).Append("\r\n");
+            text.Append("// ").Append(TextFormat.Format(ClrModelText.FilterSkippedComment, line)).Append("\r\n");
         }
 
         var indent = source is null ? "" : "    ";
@@ -80,7 +81,7 @@ public static class LinqFilter
         }
 
         return new ExportText(text.ToString().TrimEnd(), conditions.Count,
-            skipped.Select(s => $"Nicht übernommen: {s}.").ToList());
+            skipped.Select(s => TextFormat.Format(ClrModelText.FilterSkipped, s)).ToList());
     }
 
     /// <summary>A filter as the user sees it: <c>KUNDENART = 7</c>.</summary>
@@ -92,17 +93,17 @@ public static class LinqFilter
         var index = presentation.Details.IndexOf(filter.Column);
         if (index < 0)
         {
-            return CSharpValue.Fails("Spalte gibt es nicht mehr");
+            return CSharpValue.Fails(ClrModelText.ColumnGone);
         }
 
         if (presentation.PropertyOf(index) is not { } property)
         {
-            return CSharpValue.Fails("keine Property");
+            return CSharpValue.Fails(ClrModelText.NoProperty);
         }
 
         if (!presentation.IsEntityProperty(index))
         {
-            return CSharpValue.Fails($"Property {property.Name} gehört zu einem anderen Entity-Typ der Tabelle");
+            return CSharpValue.Fails(TextFormat.Format(ClrModelText.PropertyOfOtherEntity, property.Name));
         }
 
         var column = presentation.Details.Columns[index];
@@ -154,7 +155,7 @@ public static class LinqFilter
         private CSharpValue Like(FilterCondition filter, string method) =>
             IsString
                 ? new CSharpValue($"{m}.ToUpper().{method}({CSharpCode.String(filter.Values[0].ToUpperInvariant())})")
-                : CSharpValue.Fails($"„{OperatorLabels.Label(filter.Op)}“ nur für string-Properties ({TablePresentation.ClrTypeText(property)})");
+                : CSharpValue.Fails(TextFormat.Format(ClrModelText.OperatorStringOnly, OperatorLabels.Label(filter.Op), TablePresentation.ClrTypeText(property)));
 
         private CSharpValue In(IReadOnlyList<string> texts)
         {
@@ -175,7 +176,7 @@ public static class LinqFilter
         {
             if (filter.Op is not (FilterOperator.Equals or FilterOperator.NotEquals))
             {
-                return CSharpValue.Fails($"„{OperatorLabels.Label(filter.Op)}“ geht nicht für bool");
+                return CSharpValue.Fails(TextFormat.Format(ClrModelText.OperatorNotForBool, OperatorLabels.Label(filter.Op)));
             }
 
             var value = Literal(filter.Values[0]);
@@ -210,7 +211,7 @@ public static class LinqFilter
                 FilterOperator.Between => Date(filter.Values[1]) is { DateOnly: true } to
                     ? $"{m} >= {Literal(filter.Values[0])} && {m} < {DateLiteral(to.Value.AddDays(1))}"
                     : $"{m} >= {Literal(filter.Values[0])} && {m} <= {Literal(filter.Values[1])}",
-                _ => throw new NoLiteralException($"„{OperatorLabels.Label(filter.Op)}“ geht nicht für Datumswerte"),
+                _ => throw new NoLiteralException(TextFormat.Format(ClrModelText.OperatorNotForDates, OperatorLabels.Label(filter.Op))),
             });
         }
 
@@ -240,7 +241,7 @@ public static class LinqFilter
         private static (DateTime Value, bool DateOnly) Date(string text) =>
             FilterRules.TryParseDate(text, out var value, out var dateOnly)
                 ? (value, dateOnly)
-                : throw new NoLiteralException($"„{text}“ ist kein Datum");
+                : throw new NoLiteralException(TextFormat.Format(ClrModelText.NotADate, text));
 
         private static string Symbol(FilterOperator op) => op switch
         {
@@ -250,7 +251,7 @@ public static class LinqFilter
             FilterOperator.Gte => ">=",
             FilterOperator.Lt => "<",
             FilterOperator.Lte => "<=",
-            _ => throw new NoLiteralException($"„{OperatorLabels.Label(op)}“ wird nicht übersetzt"),
+            _ => throw new NoLiteralException(TextFormat.Format(ClrModelText.OperatorNotTranslated, OperatorLabels.Label(op))),
         };
     }
 

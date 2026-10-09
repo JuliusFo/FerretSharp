@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using FerretSharp.Core.ClrModel;
+using FerretSharp.ModelHost.Resources;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
@@ -83,7 +84,7 @@ internal sealed class LinqConsole
         try
         {
             var (contextType, types) = load();
-            Program.Step("Baue das Modell (OnModelCreating)");
+            Program.Step(ModelHostText.StepBuildModel);
             console = new LinqConsole(contextType, types);
         }
         catch (ModelHostException ex)
