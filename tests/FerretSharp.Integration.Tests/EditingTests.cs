@@ -397,6 +397,88 @@ public sealed class EditingTests(OracleContainerFixture oracle) : IAsyncLifetime
         await a.Editor.RollbackAsync(Ct);
     }
 
+    /// <summary>
+    /// WP-30: undo up to a chosen action rolls back to its savepoint – the later statement goes along – and the actions
+    /// taken back can be applied again in order: the grid write by a flush of its pending changes, the statement by
+    /// running it again with its bind values.
+    /// </summary>
+    [Fact]
+    public async Task Undo_up_to_an_action_and_redo_of_a_grid_write_and_a_statement()
+    {
+        await ExecuteAsync("INSERT INTO ED_TYPES (ID, TXT) VALUES (740, 'a')");
+        await ExecuteAsync("INSERT INTO ED_TYPES (ID, TXT) VALUES (741, 'a')");
+        await ExecuteAsync("INSERT INTO ED_TYPES (ID, TXT) VALUES (742, 'a')");
+        await using var a = await OpenAsync("Workspace A");
+        var table = await DetailsAsync(a, "ED_TYPES");
+        var tracker = new ChangeTracker(table);
+
+        tracker.SetValue((await RowAsync(a, table, 740))!, I(table, "TXT"), "erster");
+        await FlushAsync(a, tracker);
+        tracker.SetValue((await RowAsync(a, table, 741))!, I(table, "TXT"), "grid");
+        var batch = await FlushAsync(a, tracker);
+        var statement = await a.Editor.ExecuteAsync(
+            new QuerySpec("UPDATE ED_TYPES SET TXT = :txt WHERE ID = :id", [new("txt", "sql", OracleTypeHint.Varchar2), new("id", 742, OracleTypeHint.Number)]), Ct);
+        var (first, grid) = (a.Editor.Actions[0], a.Editor.Actions[1]);
+
+        // What ran is kept: the grid's DML with its values, the statement as it was.
+        Assert.Contains("UPDATE \"" + Owner + "\".\"ED_TYPES\"", Assert.Single(grid.Statements).Sql);
+        Assert.Contains(Assert.Single(grid.Statements).Parameters, p => Equals(p.Value, "grid"));
+        Assert.Equal("UPDATE ED_TYPES SET TXT = :txt WHERE ID = :id", Assert.Single(statement.Statements).Sql);
+
+        await Assert.ThrowsAsync<RefusedException>(() => a.Editor.UndoToAsync(grid.Id, grid.Id, Ct)); // the statement would go unseen
+        var undone = await a.Editor.UndoToAsync(grid.Id, statement.Id, Ct);
+        tracker.UndoFlush(batch);
+
+        Assert.Equal([statement.Id, grid.Id], undone.Select(x => x.Id));
+        Assert.Equal([first.Id], a.Editor.Actions.Select(x => x.Id));
+        Assert.Equal([grid.Id, statement.Id], a.Editor.Undone.Select(x => x.Id));
+        Assert.Equal("erster", (await RowAsync(a, table, 740))!.Values[I(table, "TXT")]);
+        Assert.Equal("a", (await RowAsync(a, table, 741))!.Values[I(table, "TXT")]);
+        Assert.Equal("a", (await RowAsync(a, table, 742))!.Values[I(table, "TXT")]);
+
+        // Redo in order: the statement is not next.
+        await Assert.ThrowsAsync<RefusedException>(() => a.Editor.RedoAsync(statement.Id, Ct));
+        Assert.True(tracker.IsPendingAsUndone(batch));
+        var operations = tracker.PendingOperations(batch);
+        var result = await a.Editor.FlushAsync(table, operations, new FlushOptions(RedoOf: grid.Id), Ct);
+        tracker.MarkFlushed(operations, result.NewKeys);
+        Assert.Equal(grid.Id, result.Action!.RedoOf);
+
+        var again = await a.Editor.RedoAsync(statement.Id, Ct);
+        Assert.Equal(statement.Id, again.RedoOf);
+        Assert.Equal(1, again.Rows);
+        Assert.Empty(a.Editor.Undone);
+        Assert.Equal("grid", (await RowAsync(a, table, 741))!.Values[I(table, "TXT")]);
+        Assert.Equal("sql", (await RowAsync(a, table, 742))!.Values[I(table, "TXT")]);
+
+        // A new write ends redo.
+        await a.Editor.UndoLastAsync(null, Ct);
+        Assert.Single(a.Editor.Undone);
+        await a.Editor.ExecuteAsync(new QuerySpec("UPDATE ED_TYPES SET TXT = 'neu' WHERE ID = 740", []), Ct);
+        Assert.Empty(a.Editor.Undone);
+
+        await a.Editor.RollbackAsync(Ct);
+        Assert.Empty(a.Editor.Undone);
+    }
+
+    /// <summary>WP-30: redo of a statement runs it on the data as it is now – rows changed meanwhile give another row count.</summary>
+    [Fact]
+    public async Task Redo_of_a_statement_reports_the_rows_it_changed_now()
+    {
+        await ExecuteAsync("INSERT INTO ED_TYPES (ID, TXT) VALUES (750, 'x')");
+        await ExecuteAsync("INSERT INTO ED_TYPES (ID, TXT) VALUES (751, 'y')");
+        await using var a = await OpenAsync("Workspace A");
+        var statement = await a.Editor.ExecuteAsync(new QuerySpec("UPDATE ED_TYPES SET TXT = 'z' WHERE ID IN (750, 751) AND TXT = 'x'", []), Ct);
+        Assert.Equal(1, statement.Rows);
+        await a.Editor.UndoLastAsync(statement.Id, Ct);
+
+        await ExecuteAsync("UPDATE ED_TYPES SET TXT = 'x' WHERE ID = 751"); // another session, committed
+
+        var again = await a.Editor.RedoAsync(statement.Id, Ct);
+        Assert.Equal(2, again.Rows);
+        await a.Editor.RollbackAsync(Ct);
+    }
+
     [Fact]
     public async Task Tables_without_primary_key_are_edited_by_rowid()
     {
