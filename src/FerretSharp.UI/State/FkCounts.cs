@@ -2,6 +2,7 @@ using FerretSharp.Core.Connections;
 using FerretSharp.Core.Query;
 using FerretSharp.Core.Schema;
 using FerretSharp.Core.Workspaces;
+using FerretSharp.UI.Resources;
 using Microsoft.Extensions.Logging;
 
 namespace FerretSharp.UI.State;
@@ -83,7 +84,7 @@ public static class FkTargets
     public static string Tooltip(FkJump jump) =>
         $"{jump.ForeignKey.Name}: {jump.ForeignKey.From}({string.Join(", ", jump.ForeignKey.FromColumns)}) → " +
         $"{jump.ForeignKey.To}({string.Join(", ", jump.ForeignKey.ToColumns)})" +
-        (jump.ForeignKey.Source == FkSource.ClrModel ? Environment.NewLine + "Beziehung aus dem C#-Modell – in der Datenbank gibt es dafür keinen Constraint." : "") +
+        (jump.ForeignKey.Source == FkSource.ClrModel ? Environment.NewLine + GridText.FkJump_ModelRelationship : "") +
         (jump.SkippedNote is { } skipped ? Environment.NewLine + skipped + "." : "") +
         (jump.Unavailable is { } reason ? Environment.NewLine + reason : "");
 }

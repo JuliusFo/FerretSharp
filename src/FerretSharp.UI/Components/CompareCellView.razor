@@ -11,7 +11,7 @@
         <span class="mono">@Cell.Definition</span>
         @if (ShownName is { } name)
         {
-            <span class="compare-alias">als @name</span>
+            <span class="compare-alias">@TextFormat.Format(GridText.CompareCell_As, name)</span>
         }
     }
 </td>
@@ -36,9 +36,9 @@
 
     private string Title => Cell.State switch
     {
-        CellState.Missing => "Fehlt auf dieser Seite",
-        CellState.OtherCase => $"Nur in anderer Schreibweise vorhanden: {Cell.Name}",
-        CellState.Different => $"Abweichend (Variante {Cell.Group + 1})",
-        _ => "Gleich",
+        CellState.Missing => GridText.CompareCell_Missing,
+        CellState.OtherCase => TextFormat.Format(GridText.CompareCell_OtherCase, Cell.Name),
+        CellState.Different => TextFormat.Format(GridText.CompareCell_Different, Cell.Group + 1),
+        _ => GridText.CompareCell_Same,
     } + (Cell.Name is { } name && ShownName is null ? $" · {name}" : "");
 }
