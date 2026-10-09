@@ -53,11 +53,15 @@ public sealed class ShortcutMapTests
         var map = new ShortcutMap();
 
         Assert.Equal(
-            ["ctrl+shift+o", "alt+o", "alt+arrowleft", "alt+arrowright", "ctrl+enter", "f5", "ctrl+f", "ctrl+s", "ctrl+shift+enter", "ctrl+shift+q", "ctrl+shift+l", "alt+x"],
+            // ctrl+shift+u since WP-30 (change overview)
+            ["ctrl+shift+o", "alt+o", "alt+arrowleft", "alt+arrowright", "ctrl+enter", "f5", "ctrl+f", "ctrl+s", "ctrl+shift+enter", "ctrl+shift+u", "ctrl+shift+q", "ctrl+shift+l", "alt+x"],
             map.GlobalCombos);
         Assert.Equal(Chord("alt+enter"), map.Chord(ShortcutAction.ToggleForm));
         Assert.Equal(Chord("alt+arrowup"), map.Chord(ShortcutAction.FormPrevious));
         Assert.Equal(Chord("alt+arrowdown"), map.Chord(ShortcutAction.FormNext));
+        Assert.Equal(Chord("ctrl+z"), map.Chord(ShortcutAction.UndoEdit)); // WP-30, only in the grid
+        Assert.Equal(Chord("ctrl+y"), map.Chord(ShortcutAction.RedoEdit));
+        Assert.Null(map.Chord(ShortcutAction.CloseTab)); // after 3.20: new actions start without a key
         Assert.False(map.HasChanges);
     }
 
@@ -67,13 +71,43 @@ public sealed class ShortcutMapTests
         var map = new ShortcutMap();
 
         Assert.Equal(Enum.GetValues<ShortcutAction>(), ShortcutMap.Definitions.Select(d => d.Action));
-        Assert.All(ShortcutMap.Definitions, d =>
+        var keyed = ShortcutMap.Definitions.Where(d => d.DefaultChord is not null).ToList();
+        Assert.All(keyed, d =>
         {
-            var check = map.Check(d.Action, d.DefaultChord);
+            var check = map.Check(d.Action, d.DefaultChord!);
             Assert.Null(check.Error);
             Assert.Null(check.Conflict);
         });
-        Assert.Equal(ShortcutMap.Definitions.Count, ShortcutMap.Definitions.Select(d => d.Default).Distinct().Count());
+        Assert.Equal(keyed.Count, keyed.Select(d => d.Default).Distinct().Count());
+    }
+
+    /// <summary>The definitions as if Alt+X's action had come after 3.20: new actions start without a key.</summary>
+    private static IReadOnlyList<ShortcutDefinition> RunScriptUnbound =>
+        [.. ShortcutMap.Definitions.Select(d => d.Action == ShortcutAction.RunScript ? d with { Default = null } : d)];
+
+    [Fact]
+    public void An_action_without_a_default_key_is_unchanged_until_the_user_gives_it_one()
+    {
+        var map = new ShortcutMap(RunScriptUnbound);
+
+        Assert.Null(map.Chord(ShortcutAction.RunScript));
+        Assert.True(map.IsDefault(ShortcutAction.RunScript));
+        Assert.False(map.HasChanges);
+        Assert.Null(map.ActionFor("alt+x", ShortcutScope.Global));
+        Assert.DoesNotContain("alt+x", map.GlobalCombos);
+    }
+
+    [Fact]
+    public void A_key_for_an_action_without_a_default_is_stored_and_removed_again()
+    {
+        var overrides = new ShortcutMap(RunScriptUnbound).With(ShortcutAction.RunScript, Chord("ctrl+k"));
+        var map = new ShortcutMap(RunScriptUnbound, overrides);
+
+        Assert.Equal(ShortcutOverrides.From(new Dictionary<string, string> { ["RunScript"] = "ctrl+k" }), overrides);
+        Assert.Equal(ShortcutAction.RunScript, map.ActionFor("ctrl+k", ShortcutScope.Global));
+        Assert.False(map.IsDefault(ShortcutAction.RunScript));
+        Assert.Empty(map.With(ShortcutAction.RunScript, null)); // no key is its default: nothing to store
+        Assert.Empty(map.Without(ShortcutAction.RunScript));
     }
 
     [Fact]

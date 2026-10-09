@@ -50,6 +50,9 @@ public sealed record GridColumn(string Id, string Name, string Label, string Typ
     /// <summary>Enum and converted bool columns: the members to pick from, and why a value without a member is marked.</summary>
     public IReadOnlyList<ValueOption>? Options { get; init; }
 
+    /// <summary>A flags enum stored as its number: edited by ticking flags (the editor comes from FerretGrid.GetFlagsEdit).</summary>
+    public bool Flags { get; init; }
+
     public string? UnknownText { get; init; }
 
     public static string IdOf(int index) => "c" + index.ToString(CultureInfo.InvariantCulture);
@@ -83,6 +86,9 @@ public sealed record GridTexts
 
     /// <summary>Option of a value that is no enum member; <c>{0}</c> is the value (replaced in grid.js).</summary>
     public string NoMember { get; init; } = GridText.Grid_ValueNoMember;
+
+    /// <summary>Summary of the flags editor when no flag is ticked.</summary>
+    public string NoFlag { get; init; } = GridText.Grid_NoFlag;
 }
 
 /// <summary>A sorted column as AG Grid reports it ("asc"/"desc").</summary>

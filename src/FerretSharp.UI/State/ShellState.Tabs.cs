@@ -23,7 +23,7 @@ public sealed class WorkspaceTabs(Guid workspaceId, Guid connectionId)
 }
 
 /// <summary><see cref="Reload"/>: fetch the loaded rows again in place (after writing) – unlike <see cref="Refresh"/>, which starts at the top.</summary>
-public enum TabCommand { ApplyFilters, Refresh, FindColumn, Reload, RunScript }
+public enum TabCommand { ApplyFilters, Refresh, FindColumn, Reload, RunScript, FocusRow }
 
 // The tabs of the open workspaces of all open connections: the tab part of the shell state (R3b, a file of its own).
 public sealed partial class ShellState

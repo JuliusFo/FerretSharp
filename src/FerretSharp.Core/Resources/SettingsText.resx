@@ -63,6 +63,13 @@
     <value>Forward</value>
     <comment>Shortcut action (after Back)</comment>
   </data>
+  <data name="ActionCloseTab" xml:space="preserve">
+    <value>Close tab</value>
+    <comment>Shortcut action</comment>
+  </data>
+  <data name="HintCloseTab" xml:space="preserve">
+    <value>Asks first if pending changes, a value typed but not confirmed or the text of a SQL or LINQ tab would be lost.</value>
+  </data>
   <data name="ActionApplyFilters" xml:space="preserve">
     <value>Apply filters</value>
     <comment>Shortcut action</comment>
@@ -295,5 +302,20 @@
   <data name="KeySpace" xml:space="preserve">
     <value>Space</value>
     <comment>Key name as printed on the keyboard</comment>
+  </data>
+  <data name="ActionUndoEdit" xml:space="preserve">
+    <value>Undo pending edit</value>
+    <comment>Shortcut action: takes back the last pending cell edit in the grid</comment>
+  </data>
+  <data name="ActionRedoEdit" xml:space="preserve">
+    <value>Redo pending edit</value>
+    <comment>Shortcut action: applies the last pending edit taken back again</comment>
+  </data>
+  <data name="HintEditHistory" xml:space="preserve">
+    <value>Only in the grid, cell by cell; written changes are undone with ↶ in the status bar.</value>
+  </data>
+  <data name="ActionToggleChanges" xml:space="preserve">
+    <value>Show/hide open changes</value>
+    <comment>Shortcut action: opens or closes the change overview beside the tabs</comment>
   </data>
 </root>

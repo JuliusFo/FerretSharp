@@ -1,6 +1,8 @@
 # Build and tests on every push to main and every pull request.
 # Linux: Core and UI must build without Windows APIs (CLAUDE.md, section 4); unit tests and the integration tests,
 # which start Oracle Free in Docker (Testcontainers) and run the model host against the sample project (net8.0).
+# The Linux tests measure code coverage (settings: tests/coverage.config): summary on the run page, HTML report as
+# artifact, and on main the badge in the README (coverage.json on the branch "badges", shown by shields.io).
 # Windows: the whole solution including the WPF host; unit tests only (the runner's Docker runs Windows containers).
 name: CI
 
@@ -26,6 +28,11 @@ jobs:
     name: Core, UI and tests (Linux)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      COVERAGE_ARGS: >-
+        --coverage --coverage-output-format cobertura
+        --coverage-settings ${{ github.workspace }}/tests/coverage.config
+        --results-directory ${{ github.workspace }}/coverage
     steps:
       - uses: actions/checkout@v5
 
@@ -42,11 +49,64 @@ jobs:
 
       - name: Unit tests
         run: |
-          dotnet test tests/FerretSharp.Core.Tests
-          dotnet test tests/FerretSharp.UI.Tests
+          dotnet test tests/FerretSharp.Core.Tests $COVERAGE_ARGS --coverage-output core.cobertura.xml
+          dotnet test tests/FerretSharp.UI.Tests $COVERAGE_ARGS --coverage-output ui.cobertura.xml
 
       - name: Integration tests (Oracle in Docker)
-        run: dotnet test tests/FerretSharp.Integration.Tests
+        run: dotnet test tests/FerretSharp.Integration.Tests $COVERAGE_ARGS --coverage-output integration.cobertura.xml
+
+      - name: Coverage report
+        run: |
+          dotnet tool restore
+          dotnet reportgenerator -reports:'coverage/*.cobertura.xml' -targetdir:coverage/report \
+            -reporttypes:'Html;JsonSummary;MarkdownSummaryGithub' -title:FerretSharp
+          cat coverage/report/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+          # Endpoint badge for shields.io (https://shields.io/badges/endpoint-badge).
+          jq '.summary.linecoverage' coverage/report/Summary.json | awk '{
+            color = $1 >= 90 ? "brightgreen" : $1 >= 75 ? "green" : $1 >= 60 ? "yellowgreen" : $1 >= 40 ? "yellow" : "red"
+            printf "{\"schemaVersion\":1,\"label\":\"coverage\",\"message\":\"%d%%\",\"color\":\"%s\"}\n", $1, color
+          }' > coverage/report/coverage.json
+          cat coverage/report/coverage.json
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: coverage-report
+          path: coverage/report
+          retention-days: 14
+
+  coverage-badge:
+    name: Coverage badge
+    needs: linux
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: coverage-report
+          path: ${{ runner.temp }}/coverage
+
+      # The branch "badges" holds only coverage.json; it is created on the first run.
+      - name: Publish coverage.json
+        run: |
+          if git fetch --depth=1 origin badges; then
+            git switch --force-create badges FETCH_HEAD
+          else
+            git switch --orphan badges
+          fi
+          cp "$RUNNER_TEMP/coverage/coverage.json" coverage.json
+          git add coverage.json
+          if git diff --cached --quiet; then
+            echo "Coverage unchanged."
+            exit 0
+          fi
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit --quiet -m "Coverage $(jq -r .message coverage.json) for ${GITHUB_SHA::7}"
+          git push origin badges
 
   windows:
     name: Solution (Windows)

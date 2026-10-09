@@ -3,6 +3,7 @@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Settings
 @inject AppSettingsService Settings
+@inject ConnectionHub Hub
 
 @if (Shell.ConnectionDialog is { } request)
 {
@@ -57,6 +58,52 @@
             <Arg2>@commitSummary.Flushed</Arg2>
             <Arg3><strong>@Active.Profile?.Name</strong></Arg3>
         </Fmt>
+        @* WP-30: what exactly is committed. *@
+        @if (commitSummary.Actions.Count > 0 || commitSummary.Pending > 0)
+        {
+            <div class="hint small">@ShellText.Dialogs_CommitActions</div>
+            <ul class="commit-list">
+                @foreach (var tab in commitTabs.TableTabs.Where(t => t.Changes?.PendingCount > 0))
+                {
+                    <li>@TextFormat.Format(ShellText.Dialogs_CommitPendingTab, tab.Table.DisplayName, tab.Changes!.PendingCount)</li>
+                }
+                @foreach (var action in commitSummary.Actions.Reverse())
+                {
+                    <li><span class="change-time">@action.At.ToLocalTime().ToString("HH:mm:ss")</span>@action.Display</li>
+                }
+            </ul>
+        }
+    </ConfirmDialog>
+}
+
+@if (Lifecycle.ConfirmRedo is ({ } redoTabs, { } redoAction))
+{
+    <ConfirmDialog Title="@ShellText.Dialogs_RedoTitle" ConfirmLabel="@ShellText.Dialogs_RedoConfirm" Danger="@IsProd(redoTabs)"
+                   OnConfirm="Lifecycle.RedoConfirmedAsync" OnCancel="Lifecycle.CancelConfirmation">
+        <p>
+            <Fmt Text="@ShellText.Dialogs_RedoText">
+                <Arg0><strong>@redoAction.Description</strong></Arg0>
+                <Arg1><strong>@Lifecycle.WorkspaceName(redoTabs.WorkspaceId)</strong></Arg1>
+            </Fmt>
+        </p>
+        @if (IsProd(redoTabs))
+        {
+            <p><Fmt Text="@ShellText.Dialogs_RedoProd"><Arg0><strong>@Hub.ScopeOf(redoTabs).Profile?.Name</strong></Arg0></Fmt></p>
+        }
+        <div class="hint small">@TextFormat.Format(ShellText.Dialogs_RedoRowsBefore, redoAction.Rows)</div>
+        <SqlCode Sql="@ChangeOverview.Sql(redoAction)" />
+    </ConfirmDialog>
+}
+
+@if (Lifecycle.RedoRowsDiffer is (_, { } firstRun, { } againRun))
+{
+    <ConfirmDialog Title="@ShellText.Dialogs_RedoRowsTitle" ConfirmLabel="@ShellText.Dialogs_RedoUndo" CancelLabel="@ShellText.Dialogs_RedoKeep"
+                   OnConfirm="() => Lifecycle.ResolveRedoRowsAsync(keep: false)" OnCancel="() => Lifecycle.ResolveRedoRowsAsync(keep: true)">
+        <Fmt Text="@ShellText.Dialogs_RedoRowsText">
+            <Arg0><strong>@againRun.Description</strong></Arg0>
+            <Arg1><strong>@againRun.Rows</strong></Arg1>
+            <Arg2>@firstRun.Rows</Arg2>
+        </Fmt>
     </ConfirmDialog>
 }
 
@@ -66,15 +113,28 @@
                   OnConfirm="() => Lifecycle.UnlockAsync(unlockId)" OnCancel="Shell.CloseUnlock" />
 }
 
-@if (Lifecycle.ConfirmCloseTab is { } closingTab)
+@if (Lifecycle.ConfirmCloseTab is { } closing)
 {
-    var pendingCount = closingTab.Changes!.PendingCount;
     <ConfirmDialog Title="@ShellText.CloseTab" ConfirmLabel="@ShellText.Dialogs_DiscardAndClose" Danger="true"
-                   OnConfirm="() => Lifecycle.CloseTabConfirmed(closingTab)" OnCancel="Lifecycle.CancelConfirmation">
-        <Fmt Text="@(pendingCount == 1 ? ShellText.Dialogs_CloseTabTextOne : ShellText.Dialogs_CloseTabTextOther)">
-            <Arg0>@pendingCount</Arg0>
-            <Arg1><strong>@closingTab.Table.DisplayName</strong></Arg1>
-        </Fmt>
+                   OnConfirm="() => Lifecycle.CloseTabConfirmed(closing.Tab)" OnCancel="Lifecycle.CancelConfirmation">
+        @* Pending changes are counted now, not when asked: the dialog takes the focus from a cell or form field being
+           edited, which turns the typed value into a pending change. *@
+        @switch (closing)
+        {
+            case { Tab: TableTab { Changes.PendingCount: > 0 } table }:
+                var pendingCount = table.Changes!.PendingCount;
+                <Fmt Text="@(pendingCount == 1 ? ShellText.Dialogs_CloseTabTextOne : ShellText.Dialogs_CloseTabTextOther)">
+                    <Arg0>@pendingCount</Arg0>
+                    <Arg1><strong>@table.Table.DisplayName</strong></Arg1>
+                </Fmt>
+                break;
+            case { Loss: CloseTabLoss.TypedValue, Tab: TableTab table }:
+                <Fmt Text="@ShellText.Dialogs_CloseTabTypedValue"><Arg0><strong>@table.Table.DisplayName</strong></Arg0></Fmt>
+                break;
+            case { Tab: ITitledTab titled }:
+                <Fmt Text="@ShellText.Dialogs_CloseTabEditorText"><Arg0><strong>@titled.Title</strong></Arg0></Fmt>
+                break;
+        }
     </ConfirmDialog>
 }
 
@@ -107,6 +167,9 @@
     public WorkspaceLifecycle Lifecycle { get; set; } = null!;
 
     private WorkspaceEditing Editing => Lifecycle.Editing;
+
+    /// <summary>The workspace belongs to a Prod connection (which need not be the shown one).</summary>
+    private bool IsProd(WorkspaceTabs workspace) => Hub.ScopeOf(workspace).Profile?.Kind == ConnectionKind.Prod;
 
     /// <summary>
     /// The workspaces the leave dialog lists – of any open connection (exiting, disconnecting one in the background), not

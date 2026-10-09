@@ -10,6 +10,10 @@ const modifierKeys = new Set(['control', 'shift', 'alt', 'meta', 'altgraph', 'os
 // Every dialog renders a .modal-backdrop; those of tabs in the background are mounted but not displayed.
 const modalOpen = () => [...document.querySelectorAll('.modal-backdrop')].some(el => el.getClientRects().length > 0);
 
+// A grid cell being edited in the visible tab, inline or in a popup (flags editor); the grids of tabs in the background
+// are mounted but not displayed. Also asked by the tab bar before closing.
+export const cellEditing = () => [...document.querySelectorAll('.ag-cell-inline-editing, .ag-cell-popup-editing')].some(el => el.getClientRects().length > 0);
+
 function keyOf(e) {
   if (e.key === ' ') return 'space';
   if (e.key === '+') return 'plus';
@@ -38,7 +42,7 @@ export function register(dotnet, combos) {
       // Taken also while a dialog is open (.NET then ignores it): F5 would reload the whole WebView otherwise.
       e.preventDefault();
       e.stopPropagation();
-      dotnet.invokeMethodAsync('OnShortcut', combo, modalOpen()).catch(err => console.error('Shortcut failed', err));
+      dotnet.invokeMethodAsync('OnShortcut', combo, modalOpen(), cellEditing()).catch(err => console.error('Shortcut failed', err));
     }
   };
 

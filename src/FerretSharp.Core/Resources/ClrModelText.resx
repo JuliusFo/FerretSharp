@@ -384,4 +384,8 @@
     <value>Not a value of {0}</value>
     <comment>Tooltip of a cell whose value is no member of the enum. {0} = enum type</comment>
   </data>
+  <data name="FlagWithoutMember" xml:space="preserve">
+    <value>{0} (no member)</value>
+    <comment>Line in the tooltip of a flags enum cell: bits of the value no member stands for. {0} = those bits as a number</comment>
+  </data>
 </root>

@@ -7,7 +7,11 @@ namespace FerretSharp.Core.Data;
 
 /// <param name="LockWaitSeconds">How long to wait for a row another session has locked (then <see cref="LockConflictException"/>).</param>
 /// <param name="Overwrite">Changes (<see cref="RowChange.Id"/>) whose concurrency conflict the user chose to overwrite.</param>
-public sealed record FlushOptions(int LockWaitSeconds = DmlBuilder.DefaultLockWaitSeconds, IReadOnlySet<Guid>? Overwrite = null);
+/// <param name="RedoOf">
+/// The flush applies a grid write again that was taken back (WP-30): it must be the next of <see cref="IDataEditor.Undone"/>,
+/// refused otherwise. Null: a new write, which ends redo.
+/// </param>
+public sealed record FlushOptions(int LockWaitSeconds = DmlBuilder.DefaultLockWaitSeconds, IReadOnlySet<Guid>? Overwrite = null, Guid? RedoOf = null);
 
 /// <param name="NewKeys">Key of each inserted row by <see cref="RowChange.Id"/>.</param>
 /// <param name="InsertedRows">Inserted rows as Oracle stored them (defaults, identity values, triggers).</param>
@@ -28,11 +32,27 @@ public enum WriteActionKind
     Statement,
 }
 
-/// <summary>One write in a workspace's open transaction, as the status bar lists it.</summary>
+/// <summary>One write in a workspace's open transaction, as the status bar and the change overview list it.</summary>
 /// <param name="Description">"CUSTOMERS: 2 changed, 1 new" or "UPDATE ORDERS".</param>
 /// <param name="Rows">Rows written (grid: operations; statement: rows Oracle reported).</param>
 public sealed record WriteAction(Guid Id, WriteActionKind Kind, string Description, int Rows, DateTimeOffset At)
 {
+    /// <summary>
+    /// What ran, with the bind values (WP-30): the DML of a grid write (without the locking SELECTs), the statement of the
+    /// SQL editor or the LINQ console. Redo runs a statement again from here. Shown in the UI only – never log the values
+    /// (Prod); <see cref="ToString"/> leaves them out.
+    /// </summary>
+    public IReadOnlyList<QuerySpec> Statements { get; init; } = [];
+
+    /// <summary>The write this one applies again (redo): the first of its line, so a write redone twice still names it.</summary>
+    public Guid? RedoOf { get; init; }
+
+    /// <summary>The first write of the line: <see cref="Id"/>, or for a redo the write it applies again.</summary>
+    public Guid Origin => RedoOf ?? Id;
+
+    /// <summary>Without <see cref="Statements"/>: their bind values must not reach a log.</summary>
+    public override string ToString() => $"{Kind} {Description} ({Rows}, {At:HH:mm:ss})";
+
     /// <summary>"UPDATE ORDERS · 12 rows"; a grid write counts its rows in the description already.</summary>
     public string Display => Kind == WriteActionKind.Grid
         ? Description
@@ -107,6 +127,12 @@ public interface IDataEditor
     IReadOnlyList<WriteAction> Actions { get; }
 
     /// <summary>
+    /// The writes taken back in the open transaction that can be applied again (WP-30), the next one first. Any new write,
+    /// commit or rollback ends them, and so does a transaction that ended elsewhere (lost connection, locking).
+    /// </summary>
+    IReadOnlyList<WriteAction> Undone { get; }
+
+    /// <summary>
     /// Locks, checks and writes the operations in order; all or nothing (on failure the flush is rolled back to its
     /// savepoint and a <see cref="FlushException"/> names the operation).
     /// </summary>
@@ -119,6 +145,24 @@ public interface IDataEditor
     /// </param>
     /// <returns>The action taken back; null if there is none.</returns>
     Task<WriteAction?> UndoLastAsync(Guid? expected, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Rolls back to the savepoint of <paramref name="actionId"/> (WP-30): it and every later action are taken back – a
+    /// savepoint cannot be rolled back selectively. The transaction stays open.
+    /// </summary>
+    /// <param name="newest">
+    /// The newest action the user saw; if another one was written meanwhile, a <see cref="Connections.RefusedException"/>
+    /// instead (it would be taken back unseen).
+    /// </param>
+    /// <returns>The actions taken back, newest first.</returns>
+    Task<IReadOnlyList<WriteAction>> UndoToAsync(Guid actionId, Guid newest, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Runs the statement of a write taken back again (WP-30), with the same bind values. It must be the next of
+    /// <see cref="Undone"/> and a <see cref="WriteActionKind.Statement"/>; grid writes are applied again by a flush with
+    /// <see cref="FlushOptions.RedoOf"/>. The data may have changed meanwhile: the caller compares the rows.
+    /// </summary>
+    Task<WriteAction> RedoAsync(Guid actionId, CancellationToken cancellationToken);
 
     Task CommitAsync(CancellationToken cancellationToken);
 

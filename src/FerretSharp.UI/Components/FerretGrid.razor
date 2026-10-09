@@ -149,6 +149,7 @@
             Lob = lob,
             Multiline = category == ColumnCategory.Text && (c.Length ?? 0) > 200,
             Options = values?.Options,
+            Flags = values?.Flags is not null,
             UnknownText = values?.UnknownText,
         };
     }
@@ -324,6 +325,19 @@
             : null;
     }
 
+    /// <summary>
+    /// The flags editor of a cell (flags enum stored as its number): which boxes there are and which are ticked comes from
+    /// .NET, grid.js only shows them and adds up the ticked values. Null if the cell cannot be edited.
+    /// </summary>
+    [JSInvokable]
+    public FlagsEdit? GetFlagsEdit(int rowIndex, string? newId, string colId)
+    {
+        var column = ColumnIndex(colId);
+        return GetEditText(rowIndex, newId, colId) is { } text
+            ? Presentation.ValuesOf(column)?.FlagsEditOf(text, nullAllowed: Details.Columns[column].Nullable || newId is not null)
+            : null;
+    }
+
     /// <summary>The edit text; for enum and bool columns the member's database value as the member list has it.</summary>
     private string EditText(int column, object? value) =>
         Presentation.ValuesOf(column)?.OptionOf(value) is { } option
@@ -440,6 +454,81 @@
 
         Focused = cell with { RowIndex = pinned ? -1 : index };
         return _grid.CallAsync("focusRow", index, cell.Column is { } column ? ColumnId(column) : null, pinned, keepFocus);
+    }
+
+    /// <summary>
+    /// Focuses the row of a change (change overview, WP-30): a new row at the top, a loaded row where it is. False if the
+    /// row is not among the loaded rows (or the grid not created yet).
+    /// </summary>
+    public async Task<bool> FocusChangeAsync(RowChange change)
+    {
+        if (!_grid.IsCreated)
+        {
+            return false;
+        }
+
+        if (change is { IsNew: true, IsInserted: false })
+        {
+            if (CellOf(change, null) is not { } cell)
+            {
+                return false;
+            }
+
+            await FocusRowAsync(cell, keepFocus: false);
+            return true;
+        }
+
+        if (IndexOf(change.Key) is not { } index)
+        {
+            return false;
+        }
+
+        await FocusRowAsync(new GridCell(index, null, null), keepFocus: false);
+        return true;
+    }
+
+    /// <summary>
+    /// Ctrl+Z / Ctrl+Y in the grid (WP-30, changeable): takes back or applies again the last pending edit of this tab –
+    /// written changes are taken back with ↶. The rows it touched are redrawn.
+    /// </summary>
+    [JSInvokable]
+    public Task OnEditHistoryKey(bool undo) => GuardAsync(async () =>
+    {
+        if (Tab.Changes is not { } changes)
+        {
+            return;
+        }
+
+        var touched = undo ? changes.UndoEdit() : changes.RedoEdit();
+        if (touched.Count == 0)
+        {
+            Shell.Notify(undo ? GridText.Grid_NothingToUndoEdit : GridText.Grid_NothingToRedoEdit);
+            return;
+        }
+
+        await RedrawAsync(touched);
+        ChangesMade();
+    });
+
+    /// <summary>Redraws the rows of changes made outside the grid's own edits (edit history, change overview).</summary>
+    public async Task RedrawAsync(IReadOnlyList<RowChange> changes)
+    {
+        var updates = changes
+            .Where(c => c is not { IsNew: true, IsInserted: false })
+            .Select(c => IndexOf(c.Key))
+            .OfType<int>()
+            .Distinct()
+            .Select(i => (Index: i, Row: _blocks.At(i)))
+            .Where(r => r.Row is not null)
+            .Select(r => new GridRowUpdate(r.Index, GridRow(r.Row!)))
+            .ToList();
+        if (updates.Count > 0)
+        {
+            await _grid.CallAsync("updateRows", updates);
+        }
+
+        // New rows may have come back, gone or changed: they are few, all of them are set again.
+        await SetNewRowsAsync();
     }
 
     /// <summary>Opens the LOB editor for a cell of the form's row (loaded or new).</summary>

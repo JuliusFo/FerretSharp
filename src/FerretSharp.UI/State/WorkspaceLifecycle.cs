@@ -1,4 +1,5 @@
 using FerretSharp.Core.Connections;
+using FerretSharp.Core.Data;
 using FerretSharp.Core.Resources;
 using FerretSharp.Core.Workspaces;
 using FerretSharp.UI.Resources;
@@ -38,8 +39,8 @@ public sealed partial class WorkspaceLifecycle(
     /// <summary>Asking before a commit of this workspace on Prod.</summary>
     public WorkspaceTabs? ConfirmCommit { get; private set; }
 
-    /// <summary>Asking before closing a tab with pending changes.</summary>
-    public TableTab? ConfirmCloseTab { get; private set; }
+    /// <summary>Asking before closing a tab that would lose something (<see cref="CloseTabQuestion"/>).</summary>
+    public CloseTabQuestion? ConfirmCloseTab { get; private set; }
 
     /// <summary>Asking what happens to uncommitted changes before leaving: commit, discard or cancel.</summary>
     public LeaveRequest? PendingLeave { get; private set; }
@@ -128,8 +129,72 @@ public sealed partial class WorkspaceLifecycle(
     /// <summary>"Cancel" in any of the confirmations.</summary>
     public void CancelConfirmation()
     {
-        (ConfirmCommit, ConfirmRollback, ConfirmCloseTab) = (null, null, null);
+        (ConfirmCommit, ConfirmRollback, ConfirmCloseTab, ConfirmRedo) = (null, null, null, null);
         shell.NotifyChanged();
+    }
+
+    /// <summary>Asking before a statement taken back runs again (WP-30): it runs on the data as it is now.</summary>
+    public (WorkspaceTabs Workspace, WriteAction Action)? ConfirmRedo { get; private set; }
+
+    /// <summary>A statement run again changed another number of rows than the first time: keep it or undo it.</summary>
+    public (WorkspaceTabs Workspace, WriteAction First, WriteAction Again)? RedoRowsDiffer { get; private set; }
+
+    /// <summary>
+    /// Redo of the next write taken back (WP-30): a grid write is written again at once (the usual lock and conflict
+    /// check protect it); a statement only after the user confirmed.
+    /// </summary>
+    public Task RequestRedo(WorkspaceTabs workspace, WriteAction action)
+    {
+        if (action.Kind == WriteActionKind.Grid)
+        {
+            return editing.RedoGridAsync(workspace, action.Id);
+        }
+
+        ConfirmRedo = (workspace, action);
+        shell.NotifyChanged();
+        return Task.CompletedTask;
+    }
+
+    /// <summary>The user confirmed: the statement runs again; another row count than the first time is asked about.</summary>
+    public async Task RedoConfirmedAsync()
+    {
+        if (ConfirmRedo is not ({ } workspace, { } action))
+        {
+            return;
+        }
+
+        ConfirmRedo = null;
+        shell.NotifyChanged();
+        if (await editing.RedoStatementAsync(workspace, action.Id) is not { } again)
+        {
+            return;
+        }
+
+        if (again.Rows != action.Rows)
+        {
+            RedoRowsDiffer = (workspace, action, again);
+            shell.NotifyChanged();
+        }
+        else
+        {
+            shell.Notify(TextFormat.Format(GridText.Editing_Redone, again.Display));
+        }
+    }
+
+    /// <summary>The answer about the other row count: keep the statement's result or undo it again (it stays redoable).</summary>
+    public async Task ResolveRedoRowsAsync(bool keep)
+    {
+        if (RedoRowsDiffer is not ({ } workspace, _, { } again))
+        {
+            return;
+        }
+
+        RedoRowsDiffer = null;
+        shell.NotifyChanged();
+        if (!keep)
+        {
+            await editing.UndoToAsync(workspace, again.Id, again.Id);
+        }
     }
 
     public void ShowPendingSql(WorkspaceTabs workspace)
@@ -197,12 +262,16 @@ public sealed partial class WorkspaceLifecycle(
         shell.NotifyChanged();
     }
 
-    /// <summary>A tab with pending changes asks first; its flushed changes stay in the workspace's transaction.</summary>
-    public void CloseTab(WorkspaceTab tab)
+    /// <summary>
+    /// A tab that would lose something asks first: pending changes, a value typed but not confirmed (in a grid cell being
+    /// edited – <paramref name="cellEditing"/>, from the shortcut – or in the form) or the text of a SQL or LINQ tab.
+    /// Flushed changes stay in the workspace's transaction.
+    /// </summary>
+    public void CloseTab(WorkspaceTab tab, bool cellEditing = false)
     {
-        if (tab is TableTab { Changes.PendingCount: > 0 } table)
+        if (CloseTabQuestion.For(tab, cellEditing || shell.HasTypedValues(tab)) is { } question)
         {
-            ConfirmCloseTab = table;
+            ConfirmCloseTab = question;
             shell.NotifyChanged();
         }
         else
@@ -211,7 +280,7 @@ public sealed partial class WorkspaceLifecycle(
         }
     }
 
-    public void CloseTabConfirmed(TableTab tab)
+    public void CloseTabConfirmed(WorkspaceTab tab)
     {
         ConfirmCloseTab = null;
         shell.CloseTab(tab);
