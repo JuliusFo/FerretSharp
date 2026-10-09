@@ -400,10 +400,6 @@
     <value>Write and commit{0}</value>
     <comment>{0} = shortcut hint like “ (Ctrl+Shift+S)” or empty</comment>
   </data>
-  <data name="Status_ActionsTooltip" xml:space="preserve">
-    <value>Uncommitted, newest first (↶ undoes the top one):</value>
-    <comment>Heading of the list of uncommitted write actions</comment>
-  </data>
   <data name="Status_ModelBuildChangedTitle" xml:space="preserve">
     <value>The build has changed – {0} … Until the new model is ready, the previous one stays in use.</value>
     <comment>{0} = the current loading step</comment>
@@ -968,5 +964,171 @@
   </data>
   <data name="Dom_ClipboardUnavailable" xml:space="preserve">
     <value>The clipboard is not available.</value>
+  </data>
+  <data name="Changes_Title" xml:space="preserve">
+    <value>Open changes</value>
+    <comment>Heading of the change overview panel</comment>
+  </data>
+  <data name="Changes_ToggleTitle" xml:space="preserve">
+    <value>Show the open changes of this workspace: pending, written but not committed, undone</value>
+  </data>
+  <data name="Changes_NoWorkspace" xml:space="preserve">
+    <value>No workspace open.</value>
+  </data>
+  <data name="Changes_TransactionOpen" xml:space="preserve">
+    <value>Transaction open {0}</value>
+    <comment>{0}: age of the transaction, e.g. "5 min" or "&lt; 1 min"</comment>
+  </data>
+  <data name="Changes_NoTransaction" xml:space="preserve">
+    <value>No open transaction.</value>
+  </data>
+  <data name="Changes_PendingTitle" xml:space="preserve">
+    <value>Changed in FerretSharp, not yet written to the session.</value>
+  </data>
+  <data name="Changes_ShowSql" xml:space="preserve">
+    <value>As SQL</value>
+    <comment>Button: show the pending changes as SQL statements</comment>
+  </data>
+  <data name="Changes_NothingPending" xml:space="preserve">
+    <value>Nothing pending.</value>
+  </data>
+  <data name="Changes_ShowTab" xml:space="preserve">
+    <value>Show the tab</value>
+  </data>
+  <data name="Changes_DiscardTabTitle" xml:space="preserve">
+    <value>Discard the pending changes of this tab</value>
+  </data>
+  <data name="Changes_NewRow" xml:space="preserve">
+    <value>new row</value>
+    <comment>Stands for the key of a row that is not inserted yet</comment>
+  </data>
+  <data name="Changes_ShowRow" xml:space="preserve">
+    <value>Show the row</value>
+  </data>
+  <data name="Changes_DiscardRowTitle" xml:space="preserve">
+    <value>Discard the pending changes of this row</value>
+  </data>
+  <data name="Changes_DiscardCellTitle" xml:space="preserve">
+    <value>Discard this value</value>
+  </data>
+  <data name="Changes_KindNew" xml:space="preserve">
+    <value>new</value>
+    <comment>Badge of a new row</comment>
+  </data>
+  <data name="Changes_KindChanged" xml:space="preserve">
+    <value>changed</value>
+    <comment>Badge of a changed row</comment>
+  </data>
+  <data name="Changes_KindDeleted" xml:space="preserve">
+    <value>delete</value>
+    <comment>Badge of a row marked for deletion</comment>
+  </data>
+  <data name="Changes_WrittenTitle" xml:space="preserve">
+    <value>In the workspace’s transaction: rows locked, invisible to others until the commit. Newest first.</value>
+  </data>
+  <data name="Changes_NothingWritten" xml:space="preserve">
+    <value>Nothing written.</value>
+  </data>
+  <data name="Changes_UndoTo" xml:space="preserve">
+    <value>↶ Up to here</value>
+    <comment>Button: undo this write action and every later one</comment>
+  </data>
+  <data name="Changes_UndoToTitle" xml:space="preserve">
+    <value>Undo this action and every later one (marked) – a savepoint takes back everything after it. Grid changes become pending again.</value>
+  </data>
+  <data name="Changes_Undone" xml:space="preserve">
+    <value>Undone – can be redone</value>
+    <comment>Section heading</comment>
+  </data>
+  <data name="Changes_UndoneTitle" xml:space="preserve">
+    <value>Taken back in this transaction. Redo applies them again in order, as long as nothing new is written.</value>
+  </data>
+  <data name="Changes_Redo" xml:space="preserve">
+    <value>↷ Redo</value>
+    <comment>Button: apply an undone write action again</comment>
+  </data>
+  <data name="Changes_RedoGridTitle" xml:space="preserve">
+    <value>Write the changes again, with the usual row lock and conflict check</value>
+  </data>
+  <data name="Changes_RedoStatementTitle" xml:space="preserve">
+    <value>Run the statement again with the same bind values – asks first</value>
+  </data>
+  <data name="Changes_OtherWorkspaces" xml:space="preserve">
+    <value>Other open transactions</value>
+    <comment>Section heading</comment>
+  </data>
+  <data name="Changes_ShowWorkspace" xml:space="preserve">
+    <value>Show this workspace</value>
+  </data>
+  <data name="Changes_OtherCounts" xml:space="preserve">
+    <value>{0} pending · {1} written</value>
+    <comment>{0}: pending changes, {1}: uncommitted write actions</comment>
+  </data>
+  <data name="Changes_ShowSource" xml:space="preserve">
+    <value>Show where it came from</value>
+  </data>
+  <data name="Changes_StatementsOne" xml:space="preserve">
+    <value>{0} statement</value>
+    <comment>Expandable SQL of a write action. {0} = 1</comment>
+  </data>
+  <data name="Changes_StatementsOther" xml:space="preserve">
+    <value>{0} statements</value>
+    <comment>Expandable SQL of a write action. {0} = number of statements</comment>
+  </data>
+  <data name="Status_RedoTitle" xml:space="preserve">
+    <value>Redo: {0} ({1})</value>
+    <comment>{0}: the undone write action, {1}: where it came from (Grid, SQL/LINQ)</comment>
+  </data>
+  <data name="Status_NothingToRedo" xml:space="preserve">
+    <value>Nothing to redo</value>
+  </data>
+  <data name="Dialogs_RedoTitle" xml:space="preserve">
+    <value>Run statement again</value>
+  </data>
+  <data name="Dialogs_RedoText" xml:space="preserve">
+    <value>Run “{0}” again in {1}? The data may have changed since it was undone.</value>
+    <comment>{0}: statement description, {1}: workspace name</comment>
+  </data>
+  <data name="Dialogs_RedoRowsBefore" xml:space="preserve">
+    <value>Rows changed the first time: {0}</value>
+    <comment>{0}: number of rows</comment>
+  </data>
+  <data name="Dialogs_RedoProd" xml:space="preserve">
+    <value>Production connection {0}.</value>
+    <comment>{0}: connection name</comment>
+  </data>
+  <data name="Dialogs_RedoConfirm" xml:space="preserve">
+    <value>Run again</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Dialogs_RedoRowsTitle" xml:space="preserve">
+    <value>Different row count</value>
+  </data>
+  <data name="Dialogs_RedoRowsText" xml:space="preserve">
+    <value>“{0}” changed {1} rows this time and {2} the first time – the data has changed since. Keep the result or undo it?</value>
+    <comment>{0}: statement description, {1}: rows now, {2}: rows the first time</comment>
+  </data>
+  <data name="Dialogs_RedoKeep" xml:space="preserve">
+    <value>Keep</value>
+    <comment>Button: keep the result of the statement run again</comment>
+  </data>
+  <data name="Dialogs_RedoUndo" xml:space="preserve">
+    <value>Undo</value>
+    <comment>Button: undo the statement run again</comment>
+  </data>
+  <data name="Dialogs_CommitActions" xml:space="preserve">
+    <value>Uncommitted actions, newest first:</value>
+  </data>
+  <data name="Dialogs_CommitPendingTab" xml:space="preserve">
+    <value>{0}: {1} pending – written before the commit</value>
+    <comment>{0}: table name, {1}: number of pending rows</comment>
+  </data>
+  <data name="Changes_SectionPending" xml:space="preserve">
+    <value>Pending</value>
+    <comment>Section heading: changes only in FerretSharp</comment>
+  </data>
+  <data name="Changes_SectionWritten" xml:space="preserve">
+    <value>Written, not committed</value>
+    <comment>Section heading</comment>
   </data>
 </root>

@@ -230,6 +230,9 @@
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
 
+    [CascadingParameter]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
     [Parameter, EditorRequired]
     public SqlTab Tab { get; set; } = null!;
 
@@ -508,6 +511,7 @@
             return await FailedAsync(run, written);
         }
 
+        Lifecycle.Editing.NoteStatement(Tab, action);
         await LogAsync(run, action.Rows, false, true, null);
         return run with
         {

@@ -63,6 +63,13 @@ public sealed class RowChange
 
     public bool HasFlushed => Deleted == ChangeStage.Flushed || _flushed.Count > 0 || IsInserted;
 
+    /// <summary>What a write of the pending change would do; null if nothing is pending.</summary>
+    public OperationKind? PendingKind =>
+        !HasPending ? null
+        : Deleted == ChangeStage.Pending ? OperationKind.Delete
+        : IsNew && !IsInserted ? OperationKind.Insert
+        : OperationKind.Update;
+
     /// <summary>Current value: pending, else flushed, else as loaded.</summary>
     public object? ValueOf(int column) =>
         _pending.TryGetValue(column, out var pending) ? pending
@@ -103,6 +110,20 @@ public sealed class RowChange
         {
             Deleted = null;
         }
+    }
+
+    internal void DiscardPending(int column) => _pending.Remove(column);
+
+    /// <summary>Back to a pending state of the edit history (WP-30); flushed values stay as they are.</summary>
+    internal void RestorePending(IReadOnlyDictionary<int, object?> pending, ChangeStage? deleted)
+    {
+        _pending.Clear();
+        foreach (var (column, value) in pending)
+        {
+            _pending[column] = value;
+        }
+
+        Deleted = deleted;
     }
 
     internal void MarkFlushed(RowKey? newKey)
@@ -162,6 +183,9 @@ public sealed class RowChange
 public sealed class FlushBatch
 {
     internal List<(RowChange Change, OperationKind Kind, RowChange.Snapshot Before, IReadOnlyDictionary<int, object?> Values)> Items { get; } = [];
+
+    /// <summary>The rows written, in the order written (jump to a row from the change overview, WP-30).</summary>
+    public IReadOnlyList<RowChange> Rows => Items.Select(i => i.Change).ToList();
 }
 
 /// <summary>A pending change as it will be written: the input for the DML.</summary>
@@ -183,12 +207,23 @@ public sealed record EditResult(RowChange? Change, string? Error)
 
 /// <summary>
 /// Changes of one tab (docs/architecture.md 1.6): pending until written, then flushed until commit. Existing rows are tracked by
-/// row key, so the changes survive reloading (F5, filters) and are laid over the fresh rows again.
+/// row key, so the changes survive reloading (F5, filters) and are laid over the fresh rows again. The pending edits keep a
+/// history (WP-30): <see cref="UndoEdit"/>/<see cref="RedoEdit"/> step through it cell by cell; a write ends it.
 /// </summary>
 public sealed class ChangeTracker(TableDetails table)
 {
+    /// <summary>Steps kept for <see cref="UndoEdit"/>; older ones are dropped.</summary>
+    public const int MaxEditHistory = 500;
+
     private readonly Dictionary<RowKey, RowChange> _byKey = [];
     private readonly List<RowChange> _newRows = [];
+    private readonly List<EditStep> _undoEdits = [];
+    private readonly List<EditStep> _redoEdits = [];
+
+    /// <summary>The pending state of a row at one point of the edit history; <c>NewRowIndex</c> -1: not listed as a new row.</summary>
+    private sealed record RowState(RowChange Change, IReadOnlyDictionary<int, object?> Pending, ChangeStage? Deleted, int NewRowIndex);
+
+    private sealed record EditStep(IReadOnlyList<RowState> Before, IReadOnlyList<RowState> After);
 
     public TableDetails Table { get; } = table;
 
@@ -202,6 +237,12 @@ public sealed class ChangeTracker(TableDetails table)
     public int FlushedCount => Changes.Count(c => c.HasFlushed);
 
     public bool HasChanges => _byKey.Count > 0 || _newRows.Count > 0;
+
+    /// <summary>A pending edit can be taken back (Ctrl+Z in the grid).</summary>
+    public bool CanUndoEdit => _undoEdits.Count > 0;
+
+    /// <summary>An edit taken back can be applied again (Ctrl+Y) – until the next edit or write.</summary>
+    public bool CanRedoEdit => _redoEdits.Count > 0;
 
     public RowChange? Find(RowKey key) => _byKey.GetValueOrDefault(key);
 
@@ -237,9 +278,11 @@ public sealed class ChangeTracker(TableDetails table)
             return new EditResult(null, parsed.Error);
         }
 
+        var before = existing is null ? null : State(existing);
         var change = existing ?? new RowChange(row.Key, row.Values);
         change.Set(column, parsed.Value, OracleTypeMapper.ValuesEqual(parsed.Value, change.ExpectedOf(column)));
         Keep(change);
+        Remember([before ?? Untouched(change)]);
         return new EditResult(change, null);
     }
 
@@ -259,7 +302,9 @@ public sealed class ChangeTracker(TableDetails table)
             return new EditResult(null, parsed.Error);
         }
 
+        var before = State(newRow);
         newRow.Set(column, parsed.IsValid ? parsed.Value : null, equalsExpected: false);
+        Remember([before]);
         return new EditResult(newRow, null);
     }
 
@@ -292,10 +337,12 @@ public sealed class ChangeTracker(TableDetails table)
             return new EditResult(null, checkedValue.Error);
         }
 
+        var before = existing is null ? null : State(existing);
         var change = existing ?? new RowChange(row.Key, row.Values);
         change.SetLoaded(column, loaded);
         change.Set(column, checkedValue.Value, OracleTypeMapper.ValuesEqual(checkedValue.Value, change.ExpectedOf(column)));
         Keep(change);
+        Remember([before ?? Untouched(change)]);
         return new EditResult(change, null);
     }
 
@@ -316,7 +363,9 @@ public sealed class ChangeTracker(TableDetails table)
         // Like SetValue on a new row: empty stays allowed, a missing NOT NULL value is reported by Oracle on insert.
         if (value is null or string { Length: 0 })
         {
+            var cleared = State(newRow);
             newRow.Set(column, null, equalsExpected: false);
+            Remember([cleared]);
             return new EditResult(newRow, null);
         }
 
@@ -326,7 +375,9 @@ public sealed class ChangeTracker(TableDetails table)
             return new EditResult(null, checkedValue.Error);
         }
 
+        var before = State(newRow);
         newRow.Set(column, checkedValue.Value, equalsExpected: false);
+        Remember([before]);
         return new EditResult(newRow, null);
     }
 
@@ -334,23 +385,29 @@ public sealed class ChangeTracker(TableDetails table)
     {
         var row = new RowChange(RowKey.None.Instance, null);
         _newRows.Add(row);
+        Remember([Untouched(row)]);
         return row;
     }
 
     /// <summary>Marks a loaded row for deletion (pending); a new row that was never inserted simply disappears.</summary>
     public void Delete(RowData row)
     {
-        var change = _byKey.GetValueOrDefault(row.Key) ?? new RowChange(row.Key, row.Values);
+        var existing = _byKey.GetValueOrDefault(row.Key);
+        var before = existing is null ? null : State(existing);
+        var change = existing ?? new RowChange(row.Key, row.Values);
         change.DiscardPending();
         change.Deleted ??= ChangeStage.Pending;
         Keep(change);
+        Remember([before ?? Untouched(change)]);
     }
 
     public void Delete(RowChange newRow)
     {
         if (newRow.IsNew && !newRow.IsInserted)
         {
+            var before = State(newRow);
             _newRows.Remove(newRow);
+            Remember([before]);
         }
     }
 
@@ -359,9 +416,29 @@ public sealed class ChangeTracker(TableDetails table)
     {
         if (_byKey.GetValueOrDefault(key) is { } change)
         {
+            var before = State(change);
             change.DiscardPending();
             Forget(change);
+            Remember([before]);
         }
+    }
+
+    /// <summary>Undoes the pending value of one cell (change overview, WP-30); a pending delete stays.</summary>
+    public void Revert(RowChange change, int column)
+    {
+        if (!change.PendingColumns.Contains(column))
+        {
+            return;
+        }
+
+        var before = State(change);
+        change.DiscardPending(column);
+        if (!change.IsNew || change.IsInserted)
+        {
+            Forget(change);
+        }
+
+        Remember([before]);
     }
 
     /// <summary>Everything pending, in an order Oracle accepts: deletes, updates, then inserts.</summary>
@@ -390,6 +467,27 @@ public sealed class ChangeTracker(TableDetails table)
         return operations;
     }
 
+    /// <summary>
+    /// The pending operations of the rows of a write taken back (redo, WP-30) – in the order of <see cref="PendingOperations()"/>,
+    /// without other pending rows of the tab.
+    /// </summary>
+    public IReadOnlyList<PendingOperation> PendingOperations(FlushBatch batch)
+    {
+        var rows = batch.Items.Select(i => i.Change).ToHashSet();
+        return PendingOperations().Where(o => rows.Contains(o.Change)).ToList();
+    }
+
+    /// <summary>
+    /// The changes of a write taken back are pending exactly as the undo left them (WP-30): nothing edited, discarded or
+    /// added since – only then can the write be applied again as it was.
+    /// </summary>
+    public bool IsPendingAsUndone(FlushBatch batch) => batch.Items.All(item => item.Kind switch
+    {
+        OperationKind.Delete => item.Change.Deleted == ChangeStage.Pending && item.Change.PendingValues.Count == 0 && IsTracked(item.Change),
+        OperationKind.Insert => !item.Change.IsInserted && _newRows.Contains(item.Change) && SameValues(item.Change.PendingValues, item.Values),
+        _ => item.Change.Deleted is null && IsTracked(item.Change) && SameValues(item.Change.PendingValues, item.Values),
+    });
+
     /// <summary>After a successful flush: pending becomes flushed; inserted rows get the key Oracle gave them.</summary>
     /// <param name="newKeys">Key of each inserted row (from <see cref="PendingOperation.Change"/>).</param>
     /// <returns>What changed, for <see cref="UndoFlush"/> after the transaction went back to the flush's savepoint.</returns>
@@ -408,6 +506,7 @@ public sealed class ChangeTracker(TableDetails table)
             }
         }
 
+        ForgetEdits();
         return batch;
     }
 
@@ -431,17 +530,22 @@ public sealed class ChangeTracker(TableDetails table)
                 Keep(change);
             }
         }
+
+        ForgetEdits();
     }
 
     /// <summary>Drops pending changes; flushed ones stay (they are in the transaction).</summary>
     public void DiscardPending()
     {
+        var before = Changes.Where(c => c.HasPending).Select(State).ToList();
         _newRows.RemoveAll(r => !r.IsInserted);
         foreach (var change in _byKey.Values.ToList())
         {
             change.DiscardPending();
             Forget(change);
         }
+
+        Remember(before);
     }
 
     /// <summary>After commit or rollback: nothing is pending or flushed any more.</summary>
@@ -449,7 +553,92 @@ public sealed class ChangeTracker(TableDetails table)
     {
         _byKey.Clear();
         _newRows.Clear();
+        ForgetEdits();
     }
+
+    /// <summary>Takes back the last pending edit (Ctrl+Z in the grid).</summary>
+    /// <returns>The rows it touched; empty if there was nothing to take back.</returns>
+    public IReadOnlyList<RowChange> UndoEdit() => Step(_undoEdits, _redoEdits, s => s.Before);
+
+    /// <summary>Applies the last edit taken back again (Ctrl+Y in the grid).</summary>
+    /// <returns>The rows it touched; empty if there was nothing to apply again.</returns>
+    public IReadOnlyList<RowChange> RedoEdit() => Step(_redoEdits, _undoEdits, s => s.After);
+
+    private IReadOnlyList<RowChange> Step(List<EditStep> from, List<EditStep> to, Func<EditStep, IReadOnlyList<RowState>> target)
+    {
+        if (from is not [.., var step])
+        {
+            return [];
+        }
+
+        from.RemoveAt(from.Count - 1);
+        to.Add(step);
+        // Several rows (discard of the whole tab): new rows go back to their places in order.
+        foreach (var state in target(step).OrderBy(s => s.NewRowIndex))
+        {
+            Apply(state);
+        }
+
+        return target(step).Select(s => s.Change).ToList();
+    }
+
+    private void Apply(RowState state)
+    {
+        var change = state.Change;
+        change.RestorePending(state.Pending, state.Deleted);
+        if (change.IsNew && !change.IsInserted)
+        {
+            _newRows.Remove(change);
+            if (state.NewRowIndex >= 0)
+            {
+                _newRows.Insert(Math.Min(state.NewRowIndex, _newRows.Count), change);
+            }
+        }
+        else
+        {
+            Keep(change);
+        }
+    }
+
+    private RowState State(RowChange change) =>
+        new(change, new Dictionary<int, object?>(change.PendingValues), change.Deleted, _newRows.IndexOf(change));
+
+    /// <summary>A row before an edit created its change: nothing pending, not listed.</summary>
+    private static RowState Untouched(RowChange change) =>
+        new(change, new Dictionary<int, object?>(), null, -1);
+
+    /// <summary>One edit done: its step goes on the history (if it changed anything) and ends redo.</summary>
+    private void Remember(IReadOnlyList<RowState> before)
+    {
+        var step = new EditStep(before, before.Select(s => State(s.Change)).ToList());
+        if (step.Before.Zip(step.After).All(p => SameState(p.First, p.Second)))
+        {
+            return;
+        }
+
+        _undoEdits.Add(step);
+        if (_undoEdits.Count > MaxEditHistory)
+        {
+            _undoEdits.RemoveAt(0);
+        }
+
+        _redoEdits.Clear();
+    }
+
+    /// <summary>A write, its undo, commit or rollback: the pending state the history describes is gone.</summary>
+    private void ForgetEdits()
+    {
+        _undoEdits.Clear();
+        _redoEdits.Clear();
+    }
+
+    private static bool SameState(RowState a, RowState b) =>
+        a.Deleted == b.Deleted && a.NewRowIndex == b.NewRowIndex && SameValues(a.Pending, b.Pending);
+
+    private static bool SameValues(IReadOnlyDictionary<int, object?> a, IReadOnlyDictionary<int, object?> b) =>
+        a.Count == b.Count && a.All(p => b.TryGetValue(p.Key, out var other) && OracleTypeMapper.ValuesEqual(p.Value, other));
+
+    private bool IsTracked(RowChange change) => _byKey.TryGetValue(change.Key, out var tracked) && ReferenceEquals(tracked, change);
 
     private void Keep(RowChange change)
     {

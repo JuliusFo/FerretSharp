@@ -39,7 +39,7 @@ Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erkl
 | **v1 – Read-only Browser** (bis 1.7) | Connections, Schema, Grid, Filter, Workspaces, FK-Navigation, Export | WP-01 … WP-07 |
 | **v2 – Sandbox-Editing** (1.8–2.0) | Transaktionsmodell, Editieren, Commit/Rollback, Lock-Handling, Prod-Freischaltung | WP-08 … WP-10 |
 | **v3 – .NET-Integration** (2.1–3.0) | DbContext-Modell, Schema-Anreicherung, LINQ-Konsole, Explain-Plan, Code-Generierung | WP-11 … WP-15 |
-| **v4 – Komfort & SQL** (3.x) | Modell-Cache, SQL-Editor, Skripte, Schema-Vergleich, mehrere Verbindungen, Formularansicht, Tastenkürzel, PL/SQL ansehen; geplant: DDL, Tabellen-Designer (`docs/roadmap.md`) | WP-16 … |
+| **v4 – Komfort & SQL** (3.x) | Modell-Cache, SQL-Editor, Skripte, Schema-Vergleich, mehrere Verbindungen, Formularansicht, Tastenkürzel, PL/SQL ansehen, Änderungsübersicht mit Undo/Redo; geplant: DDL, Tabellen-Designer (`docs/roadmap.md`) | WP-16 … |
 
 **Lesen und Schreiben sind getrennt (ADR 0006):**
 - Leseweg: `OracleSession.ExecuteReaderAsync` lehnt alles außer reinen Abfragen ab (`IsReadOnlyStatement`: nach Leerraum/Kommentaren `SELECT`/`WITH`, kein `FOR UPDATE`, nur ein Statement) – eine Stolperfalle gegen Programmierfehler, kein SQL-Parser.
@@ -117,7 +117,7 @@ Regeln:
 - **Schema**: `SchemaCache` lädt Tabellenliste und FKs beim Verbinden, Spalten/Keys lazy pro Tabelle; Synonyme zeigen auf das echte Objekt. `ALL_*`-Views immer nach `OWNER` filtern.
 - **Query**: Werte nur als Bind-Variablen, jede gebundene Variable kommt im SQL vor, Spaltennamen gegen das Schema validiert und gequotet, immer deterministisch sortiert (PK → ROWID als Tiebreaker).
 - **Row-Identität** (`RowKey`): PK, sonst ROWID; Views ohne PK sind dauerhaft read-only.
-- **Änderungen**: Pending (nur im `ChangeTracker`) → Flushed (DML in der Session, Zeilen gesperrt, Savepoint je Flush) → Committed. Grid-Schreibvorgänge und SQL-/LINQ-Statements bilden einen gemeinsamen Undo-Stapel. Commit/Rollback nur auf expliziten Nutzerbefehl.
+- **Änderungen**: Pending (nur im `ChangeTracker`) → Flushed (DML in der Session, Zeilen gesperrt, Savepoint je Flush) → Committed. Grid-Schreibvorgänge und SQL-/LINQ-Statements bilden einen gemeinsamen Undo-Stapel (Undo bis zu einer Aktion, Redo; ausstehende Bearbeitungen mit eigenem Verlauf je Tab, ADR 0018). Commit/Rollback nur auf expliziten Nutzerbefehl.
 
 ## 6. Arbeitsweise
 
@@ -141,7 +141,6 @@ Regeln:
 
 ## 8. Als Nächstes (Details und Entscheidungen des Nutzers: `docs/roadmap.md`)
 
-- **WP-30** Änderungsübersicht, Undo bis zu einer Aktion, Redo (Issue #7; Vorschlag: Stufe A mit der Übersicht vor WP-22, deren Bestätigungsdialog sie nutzt).
 - **WP-22** DDL im SQL-Editor (auf schreibbaren Workspaces, Rollback offener Transaktionen nur nach Bestätigung, `TRUNCATE` bleibt abgewiesen).
 - **WP-23** Tabellen-Designer + Entity aus Tabelle, Indizes anlegen (nach WP-22).
 - **WP-26** Audit-/Historientabellen aus einer Vorlagendatei (nach WP-22/23).

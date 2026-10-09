@@ -127,4 +127,14 @@
     <value>{0:N0} bytes</value>
     <comment>Size of binary data. {0} = number of bytes</comment>
   </data>
+  <data name="ActionNoLongerOpen" xml:space="preserve">
+    <value>The action is no longer open – it was undone or the transaction has ended.</value>
+  </data>
+  <data name="WrittenMeanwhile" xml:space="preserve">
+    <value>Something else was written in the meantime: “{0}”. Look at the list again and choose again.</value>
+    <comment>{0}: description of the newest write action</comment>
+  </data>
+  <data name="RedoNotPossible" xml:space="preserve">
+    <value>The action can no longer be redone – only the action undone last can, as long as nothing new was written.</value>
+  </data>
 </root>

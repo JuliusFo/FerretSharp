@@ -1,4 +1,5 @@
 using FerretSharp.Core.Connections;
+using FerretSharp.Core.Data;
 using FerretSharp.Core.Query;
 using FerretSharp.Core.Schema;
 using FerretSharp.Core.Workspaces;
@@ -142,6 +143,35 @@ public sealed partial class ShellState
             Notice = null;
         }
     });
+
+    /// <summary>The change overview of the active workspace is open beside the tabs (WP-30).</summary>
+    public bool ChangesOpen { get; private set; }
+
+    /// <summary>The user opened or closed the change overview; the shell remembers it in the settings.</summary>
+    public event Action<bool>? ChangesOpenChanged;
+
+    public void ToggleChanges() => SetChangesOpen(!ChangesOpen);
+
+    public void CloseChanges() => SetChangesOpen(false);
+
+    /// <summary>As it was when the app was closed (start, no event).</summary>
+    public void RestoreChanges(bool open) => ChangesOpen = open;
+
+    private void SetChangesOpen(bool open)
+    {
+        Set(() => ChangesOpen = open);
+        ChangesOpenChanged?.Invoke(open);
+    }
+
+    /// <summary>
+    /// Shows a row of a table tab (change overview, WP-30): the tab becomes active and focuses the row once it is loaded.
+    /// </summary>
+    public void ShowRow(TableTab tab, RowChange row)
+    {
+        tab.FocusRequest = row;
+        ActivateTab(tab);
+        RequestTabCommand(tab, TabCommand.FocusRow);
+    }
 
     public void OpenSwitcher() => Set(() => SwitcherOpen = true);
 

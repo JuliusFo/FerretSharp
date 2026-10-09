@@ -88,6 +88,9 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
     /// </summary>
     public ChangeTracker? Changes { get; set; }
 
+    /// <summary>A row to focus once the grid has loaded it (change overview, WP-30); not saved.</summary>
+    public RowChange? FocusRequest { get; set; }
+
     public long? TotalCount { get; set; }
 
     public string? Error { get; set; }

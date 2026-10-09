@@ -117,7 +117,9 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 ```
 - `ChangeTracker` sammelt pro Tab.
 - `OracleDataAccess.FlushAsync(changes, session, ct)` (bewusst nicht „Apply“, um Verwechslung mit dem Filter-Apply zu vermeiden):
-  - pro Flush einen `SAVEPOINT` → einzelne Flushes lassen sich zurücknehmen. Seit 3.6.0 sind Grid-Schreibvorgänge und SQL-/LINQ-Statements gemeinsam die `IDataEditor.Actions` der Transaktion; Undo nimmt immer die neueste zurück (ein Savepoint verwirft alles danach, auch fremde Statements).
+  - pro Flush einen `SAVEPOINT` → einzelne Flushes lassen sich zurücknehmen. Seit 3.6.0 sind Grid-Schreibvorgänge und SQL-/LINQ-Statements gemeinsam die `IDataEditor.Actions` der Transaktion; ein Savepoint verwirft alles danach, auch fremde Statements. Seit WP-30 (ADR 0018): Undo bis zu einer gewählten Aktion (sie und alle späteren), Redo der zurückgenommenen in Reihenfolge (Grid: dieselben Änderungen erneut schreiben; Statement: dasselbe SQL nach Bestätigung, abweichende Zeilenzahl wird gefragt), Buchführung in `WriteLog`; jede neue Schreibaktion, Commit und Rollback beenden Redo. `WriteAction.Statements` hält das ausgeführte SQL mit Bind-Werten (nur für die UI, nie im Log).
+  - ausstehende Bearbeitungen haben je Tab einen Verlauf im `ChangeTracker` (Ctrl+Z/Ctrl+Y im Grid, Zelle für Zelle); ein Schreibvorgang beendet ihn.
+  - die Übersicht „Offene Änderungen“ (Panel rechts, über den Zähler der Statusleiste) zeigt Ausstehendes je Tab, Geschriebenes mit SQL und Zurückgenommenes des aktiven Workspaces.
   - vor jedem Update/Delete `SELECT … FOR UPDATE WAIT n` (n konfigurierbar, Default 3 s) → `ORA-30006` (Oracle 23: `ORA-00054`) statt endlosem Warten
   - `UPDATE t SET c=:v WHERE <RowKey>` (+ optional Original-Werte im WHERE für Concurrency, konfigurierbar)
   - `INSERT INTO t (...) VALUES (...) RETURNING ROWID INTO :rid` (bzw. PK)

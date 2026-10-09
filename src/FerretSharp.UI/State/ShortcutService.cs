@@ -37,7 +37,12 @@ public sealed class ShortcutService : IDisposable
         _map.Chord(action) is { } chord && chord == KeyChord.FromEvent(e.Key, e.CtrlKey, e.ShiftKey, e.AltKey);
 
     /// <summary>The local combos for <c>shortcuts.js</c> (<c>setLocal</c>): those grid.js handles itself.</summary>
-    public Dictionary<string, string?> LocalCombos => new() { ["form"] = _map.Chord(ShortcutAction.ToggleForm)?.Text };
+    public Dictionary<string, string?> LocalCombos => new()
+    {
+        ["form"] = _map.Chord(ShortcutAction.ToggleForm)?.Text,
+        ["undoEdit"] = _map.Chord(ShortcutAction.UndoEdit)?.Text,
+        ["redoEdit"] = _map.Chord(ShortcutAction.RedoEdit)?.Text,
+    };
 
     /// <exception cref="IOException">Not saved; the change stays in effect for this session.</exception>
     public Task SetAsync(ShortcutAction action, KeyChord? chord) => UpdateAsync(map => map.With(action, chord));

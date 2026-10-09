@@ -58,6 +58,12 @@ public sealed record AppSettings
     /// none. Read through <see cref="ShortcutMap"/>.
     /// </summary>
     public ShortcutOverrides Shortcuts { get; init; } = ShortcutOverrides.Empty;
+
+    /// <summary>The change overview (WP-30) is open beside the tabs – it opens again after a restart.</summary>
+    public bool ChangesPanelOpen { get; init; }
+
+    /// <summary>Width of the change overview in pixels, as the user dragged it; null for the default.</summary>
+    public int? ChangesPanelWidth { get; init; }
 }
 
 /// <summary>

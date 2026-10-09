@@ -318,9 +318,6 @@
   <data name="Status_CommitTitle" xml:space="preserve">
     <value>Schreiben und committen{0}</value>
   </data>
-  <data name="Status_ActionsTooltip" xml:space="preserve">
-    <value>Nicht committet, neueste zuerst (↶ nimmt die oberste zurück):</value>
-  </data>
   <data name="Status_ModelBuildChangedTitle" xml:space="preserve">
     <value>Der Build hat sich geändert – {0} … Bis das neue Modell bereit ist, gilt das bisherige.</value>
   </data>
@@ -782,5 +779,146 @@
   </data>
   <data name="Dom_ClipboardUnavailable" xml:space="preserve">
     <value>Die Zwischenablage ist nicht verfügbar.</value>
+  </data>
+  <data name="Changes_Title" xml:space="preserve">
+    <value>Offene Änderungen</value>
+  </data>
+  <data name="Changes_ToggleTitle" xml:space="preserve">
+    <value>Offene Änderungen dieses Workspaces anzeigen: ausstehend, geschrieben und nicht committet, zurückgenommen</value>
+  </data>
+  <data name="Changes_NoWorkspace" xml:space="preserve">
+    <value>Kein Workspace offen.</value>
+  </data>
+  <data name="Changes_TransactionOpen" xml:space="preserve">
+    <value>Transaktion offen seit {0}</value>
+  </data>
+  <data name="Changes_NoTransaction" xml:space="preserve">
+    <value>Keine offene Transaktion.</value>
+  </data>
+  <data name="Changes_PendingTitle" xml:space="preserve">
+    <value>In FerretSharp geändert, noch nicht in die Session geschrieben.</value>
+  </data>
+  <data name="Changes_ShowSql" xml:space="preserve">
+    <value>Als SQL</value>
+  </data>
+  <data name="Changes_NothingPending" xml:space="preserve">
+    <value>Nichts ausstehend.</value>
+  </data>
+  <data name="Changes_ShowTab" xml:space="preserve">
+    <value>Tab zeigen</value>
+  </data>
+  <data name="Changes_DiscardTabTitle" xml:space="preserve">
+    <value>Ausstehende Änderungen dieses Tabs verwerfen</value>
+  </data>
+  <data name="Changes_NewRow" xml:space="preserve">
+    <value>neue Zeile</value>
+  </data>
+  <data name="Changes_ShowRow" xml:space="preserve">
+    <value>Zeile zeigen</value>
+  </data>
+  <data name="Changes_DiscardRowTitle" xml:space="preserve">
+    <value>Ausstehende Änderungen dieser Zeile verwerfen</value>
+  </data>
+  <data name="Changes_DiscardCellTitle" xml:space="preserve">
+    <value>Diesen Wert verwerfen</value>
+  </data>
+  <data name="Changes_KindNew" xml:space="preserve">
+    <value>neu</value>
+  </data>
+  <data name="Changes_KindChanged" xml:space="preserve">
+    <value>geändert</value>
+  </data>
+  <data name="Changes_KindDeleted" xml:space="preserve">
+    <value>löschen</value>
+  </data>
+  <data name="Changes_WrittenTitle" xml:space="preserve">
+    <value>In der Transaktion des Workspaces: Zeilen gesperrt, für andere bis zum Commit unsichtbar. Neueste zuerst.</value>
+  </data>
+  <data name="Changes_NothingWritten" xml:space="preserve">
+    <value>Nichts geschrieben.</value>
+  </data>
+  <data name="Changes_UndoTo" xml:space="preserve">
+    <value>↶ Bis hier</value>
+  </data>
+  <data name="Changes_UndoToTitle" xml:space="preserve">
+    <value>Diese und alle späteren Aktionen (markiert) zurücknehmen – ein Savepoint nimmt alles danach mit. Grid-Änderungen werden wieder ausstehend.</value>
+  </data>
+  <data name="Changes_Undone" xml:space="preserve">
+    <value>Zurückgenommen – wiederholbar</value>
+  </data>
+  <data name="Changes_UndoneTitle" xml:space="preserve">
+    <value>In dieser Transaktion zurückgenommen. Wiederholen wendet sie der Reihe nach wieder an, solange nichts Neues geschrieben wird.</value>
+  </data>
+  <data name="Changes_Redo" xml:space="preserve">
+    <value>↷ Wiederholen</value>
+  </data>
+  <data name="Changes_RedoGridTitle" xml:space="preserve">
+    <value>Die Änderungen erneut schreiben, mit der üblichen Zeilensperre und Konfliktprüfung</value>
+  </data>
+  <data name="Changes_RedoStatementTitle" xml:space="preserve">
+    <value>Das Statement mit denselben Bind-Werten erneut ausführen – fragt vorher</value>
+  </data>
+  <data name="Changes_OtherWorkspaces" xml:space="preserve">
+    <value>Weitere offene Transaktionen</value>
+  </data>
+  <data name="Changes_ShowWorkspace" xml:space="preserve">
+    <value>Diesen Workspace zeigen</value>
+  </data>
+  <data name="Changes_OtherCounts" xml:space="preserve">
+    <value>{0} ausstehend · {1} geschrieben</value>
+  </data>
+  <data name="Changes_ShowSource" xml:space="preserve">
+    <value>Zeigen, woher es kam</value>
+  </data>
+  <data name="Changes_StatementsOne" xml:space="preserve">
+    <value>{0} Statement</value>
+  </data>
+  <data name="Changes_StatementsOther" xml:space="preserve">
+    <value>{0} Statements</value>
+  </data>
+  <data name="Status_RedoTitle" xml:space="preserve">
+    <value>Wiederholen: {0} ({1})</value>
+  </data>
+  <data name="Status_NothingToRedo" xml:space="preserve">
+    <value>Nichts zu wiederholen</value>
+  </data>
+  <data name="Dialogs_RedoTitle" xml:space="preserve">
+    <value>Statement erneut ausführen</value>
+  </data>
+  <data name="Dialogs_RedoText" xml:space="preserve">
+    <value>„{0}“ in {1} erneut ausführen? Die Daten können sich seit dem Zurücknehmen geändert haben.</value>
+  </data>
+  <data name="Dialogs_RedoRowsBefore" xml:space="preserve">
+    <value>Beim ersten Mal geänderte Zeilen: {0}</value>
+  </data>
+  <data name="Dialogs_RedoProd" xml:space="preserve">
+    <value>Produktionsverbindung {0}.</value>
+  </data>
+  <data name="Dialogs_RedoConfirm" xml:space="preserve">
+    <value>Erneut ausführen</value>
+  </data>
+  <data name="Dialogs_RedoRowsTitle" xml:space="preserve">
+    <value>Andere Zeilenzahl</value>
+  </data>
+  <data name="Dialogs_RedoRowsText" xml:space="preserve">
+    <value>„{0}“ hat diesmal {1} Zeilen geändert, beim ersten Mal {2} – die Daten haben sich inzwischen geändert. Ergebnis behalten oder zurücknehmen?</value>
+  </data>
+  <data name="Dialogs_RedoKeep" xml:space="preserve">
+    <value>Behalten</value>
+  </data>
+  <data name="Dialogs_RedoUndo" xml:space="preserve">
+    <value>Zurücknehmen</value>
+  </data>
+  <data name="Dialogs_CommitActions" xml:space="preserve">
+    <value>Nicht committete Aktionen, neueste zuerst:</value>
+  </data>
+  <data name="Dialogs_CommitPendingTab" xml:space="preserve">
+    <value>{0}: {1} ausstehend – wird vor dem Commit geschrieben</value>
+  </data>
+  <data name="Changes_SectionPending" xml:space="preserve">
+    <value>Ausstehend</value>
+  </data>
+  <data name="Changes_SectionWritten" xml:space="preserve">
+    <value>Geschrieben, nicht committet</value>
   </data>
 </root>
