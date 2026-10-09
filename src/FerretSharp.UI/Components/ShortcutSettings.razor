@@ -1,13 +1,12 @@
-@* Settings › Tastenkürzel (WP-25): every shortcut in one list – the changeable ones with "Ändern" (press the keys) and
-   "Zurücksetzen", the fixed ones greyed out. Doubles as the overview of which key does what. Changes apply at once. *@
+@* Settings › Shortcuts (WP-25): every shortcut in one list – the changeable ones with "Change" (press the keys) and
+   "Reset", the fixed ones greyed out. Doubles as the overview of which key does what. Changes apply at once. *@
 @implements IAsyncDisposable
 @inject ShortcutService Shortcuts
 @inject IJSRuntime JS
 @inject ILogger<ShortcutSettings> Logger
 
 <div class="settings-note shortcut-intro">
-    Änderungen gelten sofort. „Ändern“ und dann die neue Tastenkombination drücken, Esc bricht ab. Kürzel mit Ctrl, Alt oder
-    eine F-Taste; ausgegraute sind fest.
+    @ShellText.Shortcuts_Intro
 </div>
 
 @foreach (var group in Groups)
@@ -29,8 +28,8 @@
                 <div class="shortcut-keys">
                     @if (_recording == action)
                     {
-                        <span class="shortcut-recording">Tastenkombination drücken …</span>
-                        <button class="btn ghost" @onclick="CancelRecordAsync">Abbrechen</button>
+                        <span class="shortcut-recording">@ShellText.Shortcuts_PressKeys</span>
+                        <button class="btn ghost" @onclick="CancelRecordAsync">@CommonText.Cancel</button>
                     }
                     else
                     {
@@ -40,17 +39,17 @@
                         }
                         else
                         {
-                            <span class="shortcut-none">nicht belegt</span>
+                            <span class="shortcut-none">@ShellText.Shortcuts_None</span>
                         }
 
                         @if (!Map.IsDefault(action))
                         {
-                            <span class="shortcut-changed">geändert</span>
+                            <span class="shortcut-changed">@ShellText.Shortcuts_Changed</span>
                         }
 
-                        <button class="btn ghost" disabled="@(_recording is not null)" @onclick="() => RecordAsync(action)">Ändern</button>
+                        <button class="btn ghost" disabled="@(_recording is not null)" @onclick="() => RecordAsync(action)">@ShellText.Shortcuts_Change</button>
                         <button class="btn ghost" disabled="@(_recording is not null || Map.IsDefault(action))"
-                                title="@($"Standard: {definition.DefaultChord.Label}")" @onclick="() => ResetAsync(action)">Zurücksetzen</button>
+                                title="@TextFormat.Format(ShellText.Shortcuts_DefaultTitle, definition.DefaultChord.Label)" @onclick="() => ResetAsync(action)">@CommonText.Reset</button>
                     }
                 </div>
             </div>
@@ -59,27 +58,27 @@
                 <div class="settings-note shortcut-message @(proposal.Check.Error is null ? "warn" : "error")" role="alert">
                     @if (proposal.Check.Error is { } error)
                     {
-                        <span>@proposal.Chord.Label geht nicht: @error</span>
-                        <button class="btn ghost" @onclick="Dismiss">OK</button>
+                        <span>@TextFormat.Format(ShellText.Shortcuts_NotPossible, proposal.Chord.Label, error)</span>
+                        <button class="btn ghost" @onclick="Dismiss">@CommonText.Ok</button>
                     }
                     else
                     {
                         <span>
                             @if (proposal.Check.Conflict is { } other)
                             {
-                                <span>@proposal.Chord.Label ist schon „@ShortcutMap.Definition(other).Label“ – übernehmen nimmt es dort weg. </span>
+                                <span>@(TextFormat.Format(ShellText.Shortcuts_Conflict, proposal.Chord.Label, ShortcutMap.Definition(other).Label) + " ")</span>
                             }
                             @proposal.Check.Warning
                         </span>
-                        <button class="btn primary" @onclick="AcceptAsync">Übernehmen</button>
-                        <button class="btn ghost" @onclick="Dismiss">Abbrechen</button>
+                        <button class="btn primary" @onclick="AcceptAsync">@CommonText.Apply</button>
+                        <button class="btn ghost" @onclick="Dismiss">@CommonText.Cancel</button>
                     }
                 </div>
             }
         }
         @foreach (var fixedKey in ShortcutMap.Fixed.Where(f => f.Group == group))
         {
-            <div class="settings-row shortcut-row fixed" title="Fest – nicht änderbar">
+            <div class="settings-row shortcut-row fixed" title="@ShellText.Shortcuts_FixedTitle">
                 <div class="settings-label">
                     <span>@fixedKey.Label</span>
                     @if (fixedKey.Hint is not null)
@@ -89,7 +88,7 @@
                 </div>
                 <div class="shortcut-keys">
                     <kbd>@fixedKey.Keys</kbd>
-                    <span class="shortcut-fixed">fest</span>
+                    <span class="shortcut-fixed">@ShellText.Shortcuts_Fixed</span>
                 </div>
             </div>
         }
@@ -99,19 +98,20 @@
 <div class="shortcut-reset-all">
     @if (_confirmResetAll)
     {
-        <span>Alle Kürzel auf die Standardbelegung zurücksetzen?</span>
-        <button class="btn danger-solid" @onclick="ResetAllAsync">Zurücksetzen</button>
-        <button class="btn ghost" @onclick="() => _confirmResetAll = false">Abbrechen</button>
+        <span>@ShellText.Shortcuts_ResetAllQuestion</span>
+        <button class="btn danger-solid" @onclick="ResetAllAsync">@CommonText.Reset</button>
+        <button class="btn ghost" @onclick="() => _confirmResetAll = false">@CommonText.Cancel</button>
     }
     else
     {
-        <button class="btn" disabled="@(!Map.HasChanges || _recording is not null)" @onclick="() => _confirmResetAll = true">Alle zurücksetzen</button>
+        <button class="btn" disabled="@(!Map.HasChanges || _recording is not null)" @onclick="() => _confirmResetAll = true">@ShellText.Shortcuts_ResetAll</button>
     }
 </div>
 
 @code {
-    private static readonly string[] Groups =
-        [.. ShortcutMap.Definitions.Select(d => d.Group).Concat(ShortcutMap.Fixed.Select(f => f.Group)).Distinct()];
+    // A property, not a static field: the group names are localized texts and would keep the language of the first render.
+    private static string[] Groups =>
+        [..ShortcutMap.Definitions.Select(d => d.Group).Concat(ShortcutMap.Fixed.Select(f => f.Group)).Distinct()];
 
     private IJSObjectReference? _module;
     private ShortcutAction? _recording;
@@ -208,7 +208,7 @@
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             Logger.LogWarning(ex, "Shortcuts not saved");
-            Shell.Notify($"Einstellung angewendet, aber nicht gespeichert: {ex.Message}");
+            Shell.Notify(TextFormat.Format(ShellText.Settings_NotSaved, ex.Message));
         }
     }
 

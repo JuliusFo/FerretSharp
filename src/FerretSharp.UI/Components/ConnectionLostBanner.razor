@@ -6,17 +6,17 @@
     <div class="lost-banner" role="alert">
         <span class="dot err"></span>
         <span class="grow">
-            <strong>Verbindung zur Datenbank verloren.</strong>
+            <strong>@ShellText.LostBanner_Title</strong>
             @lost.Display
             @if (Workspaces.Active is { } workspace && Workspaces.TransactionOf(workspace.Id) is { Mode: TransactionMode.ReadWrite })
             {
-                <strong> Die offene Transaktion ist verloren – nicht committete Änderungen sind weg.</strong>
+                <strong>@(" " + ShellText.LostBanner_TransactionLost)</strong>
             }
-            <span class="muted">„Neu verbinden“ stellt alle Workspaces mit ihren Tabs und Filtern wieder her.</span>
+            <span class="muted">@ShellText.LostBanner_ReconnectRestores</span>
         </span>
-        <button class="btn primary" @onclick="() => Lifecycle.Reconnect(profile)">Neu verbinden</button>
-        <button class="btn ghost" @onclick="() => Shell.ShowError(lost)">Details</button>
-        <button class="btn ghost" @onclick="Lifecycle.DisconnectAsync">Trennen</button>
+        <button class="btn primary" @onclick="() => Lifecycle.Reconnect(profile)">@ShellText.Connection_Reconnect</button>
+        <button class="btn ghost" @onclick="() => Shell.ShowError(lost)">@CommonText.Details</button>
+        <button class="btn ghost" @onclick="Lifecycle.DisconnectAsync">@ShellText.Connection_Disconnect</button>
     </div>
 }
 

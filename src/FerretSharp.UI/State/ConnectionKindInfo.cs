@@ -1,4 +1,5 @@
 using FerretSharp.Core.Connections;
+using FerretSharp.UI.Resources;
 
 namespace FerretSharp.UI.State;
 
@@ -8,10 +9,10 @@ public static class ConnectionKindInfo
 
     public static string Label(ConnectionKind kind) => kind switch
     {
-        ConnectionKind.Dev => "Entwicklung",
-        ConnectionKind.Test => "Test",
-        ConnectionKind.Prod => "Produktion",
-        _ => "Sonstige",
+        ConnectionKind.Dev => ShellText.ConnectionKind_Dev,
+        ConnectionKind.Test => ShellText.ConnectionKind_Test,
+        ConnectionKind.Prod => ShellText.ConnectionKind_Prod,
+        _ => ShellText.ConnectionKind_Other,
     };
 
     public static string Short(ConnectionKind kind) => kind switch

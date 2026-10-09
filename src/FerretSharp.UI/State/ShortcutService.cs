@@ -1,4 +1,6 @@
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Settings;
+using FerretSharp.UI.Resources;
 using Microsoft.AspNetCore.Components.Web;
 
 namespace FerretSharp.UI.State;
@@ -30,8 +32,8 @@ public sealed class ShortcutService : IDisposable
     /// <summary>For a tooltip after the text: <c> (Ctrl+S)</c>, or nothing if the action has no shortcut.</summary>
     public string Hint(ShortcutAction action) => Label(action) is { } label ? $" ({label})" : "";
 
-    /// <summary>For a sentence: <c> mit Ctrl+Enter</c>, or nothing if the action has no shortcut.</summary>
-    public string With(ShortcutAction action) => Label(action) is { } label ? $" mit {label}" : "";
+    /// <summary>For a sentence: <c> with Ctrl+Enter</c> (in the UI language), or nothing if the action has no shortcut.</summary>
+    public string With(ShortcutAction action) => Label(action) is { } label ? " " + TextFormat.Format(ShellText.Shortcut_With, label) : "";
 
     /// <summary>Whether a key event (Blazor) is the action's shortcut.</summary>
     public bool Is(ShortcutAction action, KeyboardEventArgs e) =>

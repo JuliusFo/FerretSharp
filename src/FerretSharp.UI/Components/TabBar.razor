@@ -10,10 +10,10 @@
         var tooltip = tab switch
         {
             TableTab table => TabTooltip(table),
-            PlSqlTab plSql => $"{ExplorerList.KindLabel(plSql.Unit.Kind)} {plSql.Unit.Owner}.{plSql.Unit.Name} – nur ansehen",
+            PlSqlTab plSql => TextFormat.Format(ShellText.TabBar_PlSqlTitle, ExplorerList.KindLabel(plSql.Unit.Kind), plSql.Unit.Owner, plSql.Unit.Name),
             _ when _renaming == tab => null,
-            LinqTab => "LINQ-Konsole – C# gegen den DbContext des verknüpften Projekts · Doppelklick: umbenennen",
-            _ => "SQL-Editor – Statements in der Session dieses Workspaces · Doppelklick: umbenennen",
+            LinqTab => ShellText.TabBar_LinqTitle,
+            _ => ShellText.TabBar_SqlTitle,
         };
         <div class="tab @KindClass(tab) @(tab == Shell.ActiveTab ? "active" : "")" title="@tooltip"
              @onclick="e => OnClick(e, tab)" @onmouseup="e => CloseOnMiddleClick(e, tab)">
@@ -25,7 +25,7 @@
                     @if (table.Changes is { HasChanges: true } changes)
                     {
                         <span class="dot @(changes.PendingCount > 0 ? "pending" : "flushed")"
-                              title="@($"{changes.PendingCount} ausstehend · {changes.FlushedCount} geschrieben")"></span>
+                              title="@TextFormat.Format(ShellText.Changes_PendingWritten, changes.PendingCount, changes.FlushedCount)"></span>
                     }
                     @if (FilterSummaryOf(table) is { } summary)
                     {
@@ -33,7 +33,7 @@
                     }
                     else if (table.ActiveFilterCount > 0)
                     {
-                        <span class="filter-pill">@table.ActiveFilterCount Filter</span>
+                        <span class="filter-pill">@TextFormat.Plural(table.ActiveFilterCount, ShellText.TabBar_FiltersOne, ShellText.TabBar_FiltersOther)</span>
                     }
                     break;
                 case PlSqlTab plSql:
@@ -41,7 +41,7 @@
                     <span class="tab-name">@plSql.Unit.DisplayName</span>
                     @if (plSql.Unit.IsInvalid)
                     {
-                        <span class="dot err" title="Ungültig (INVALID)"></span>
+                        <span class="dot err" title="@ShellText.TabBar_Invalid"></span>
                     }
                     break;
                 case ITitledTab titled:
@@ -56,14 +56,14 @@
                     }
                     break;
             }
-            <button class="tab-close" title="Schließen" @onclick:stopPropagation="true" @onclick="() => Lifecycle.CloseTab(tab)">✕</button>
+            <button class="tab-close" title="@CommonText.Close" @onclick:stopPropagation="true" @onclick="() => Lifecycle.CloseTab(tab)">✕</button>
         </div>
     }
-    <button class="tab-new" title="Neuer SQL-Editor: Statements in der Session dieses Workspaces@(Shortcuts.Hint(ShortcutAction.NewSql))"
+    <button class="tab-new" title="@TextFormat.Format(ShellText.TabBar_NewSqlTitle, Shortcuts.Hint(ShortcutAction.NewSql))"
             @onclick="() => Shell.OpenSql()">+ SQL</button>
     @if (Models.State.Link is not null)
     {
-        <button class="tab-new" title="Neue LINQ-Konsole: C# gegen den DbContext des verknüpften Projekts@(Shortcuts.Hint(ShortcutAction.NewLinq))"
+        <button class="tab-new" title="@TextFormat.Format(ShellText.TabBar_NewLinqTitle, Shortcuts.Hint(ShortcutAction.NewLinq))"
                 @onclick="() => Shell.OpenLinq()">+ LINQ</button>
     }
 </nav>

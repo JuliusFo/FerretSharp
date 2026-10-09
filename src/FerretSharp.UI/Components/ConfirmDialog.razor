@@ -3,7 +3,7 @@
     <div class="dialog-body">@ChildContent</div>
     <footer>
         <span class="spacer"></span>
-        <button class="btn ghost" @ref="_cancelButton" @onclick="OnCancel">Abbrechen</button>
+        <button class="btn ghost" @ref="_cancelButton" @onclick="OnCancel">@CommonText.Cancel</button>
         <button class="btn @(Danger ? "danger-solid" : "primary")" @onclick="OnConfirm">@ConfirmLabel</button>
     </footer>
 </ModalFrame>
@@ -18,7 +18,7 @@
     public RenderFragment? ChildContent { get; set; }
 
     [Parameter]
-    public string ConfirmLabel { get; set; } = "OK";
+    public string ConfirmLabel { get; set; } = CommonText.Ok;
 
     [Parameter]
     public bool Danger { get; set; }

@@ -6,15 +6,15 @@
 
 <div class="connections-page">
     <div class="page-head">
-        <h1>Verbindungen <span class="count">@Connections.Profiles.Count</span></h1>
-        <SearchBox @bind-Value="_query" Class="search grow" Placeholder="Suchen nach Name, Gruppe, Host, Benutzer …" />
-        <button class="btn primary" @onclick="Shell.NewConnection"><span class="plus">+</span> Neue Verbindung</button>
+        <h1>@ShellText.Connections_Title <span class="count">@Connections.Profiles.Count</span></h1>
+        <SearchBox @bind-Value="_query" Class="search grow" Placeholder="@ShellText.Connections_Search" />
+        <button class="btn primary" @onclick="Shell.NewConnection"><span class="plus">+</span> @ShellText.Connection_New</button>
     </div>
 
     @if (Connections.Profiles.Count == 0)
     {
-        <EmptyState Title="Willkommen bei FerretSharp" Text="Lege zuerst eine Oracle-Verbindung an.">
-            <button class="btn primary" @onclick="Shell.NewConnection">Verbindung hinzufügen</button>
+        <EmptyState Title="@ShellText.Connections_Welcome" Text="@ShellText.Connections_WelcomeText">
+            <button class="btn primary" @onclick="Shell.NewConnection">@ShellText.Connections_Add</button>
         </EmptyState>
     }
     else
@@ -22,7 +22,7 @@
         var groups = ConnectionSearch.Group(Connections.Profiles, _query);
         @if (groups.Count == 0)
         {
-            <div class="page-hint">Keine Verbindung passt zu „@_query“.</div>
+            <div class="page-hint">@TextFormat.Format(ShellText.Connection_NoMatch, _query)</div>
         }
 
         <div class="conn-table">
@@ -33,7 +33,7 @@
                 <section class="conn-group">
                     <button class="group-head-btn" @onclick="() => ToggleGroup(key)">
                         <span class="chev @(collapsed ? "closed" : "")">▾</span>
-                        <span>@(group.Name ?? "Ohne Gruppe")</span>
+                        <span>@(group.Name ?? ShellText.Connection_NoGroup)</span>
                         <span class="count">@group.Profiles.Count</span>
                     </button>
 
@@ -42,14 +42,14 @@
                         foreach (var profile in group.Profiles)
                         {
                             var p = profile;
-                            <div class="conn-line @ConnectionKindInfo.CssClass(p.Kind)" title="Doppelklick zum Verbinden"
+                            <div class="conn-line @ConnectionKindInfo.CssClass(p.Kind)" title="@ShellText.Connections_DoubleClickToConnect"
                                  @onclick="e => ConnectOnDoubleClick(e, p)">
                                 <span class="dot"></span>
                                 <span class="name">
                                     @p.Name
                                     @if (Hub.Find(p.Id) is { Active.IsConnected: true } scope)
                                     {
-                                        <span class="connected-tag">@(scope == Hub.Current ? "angezeigt" : "verbunden")</span>
+                                        <span class="connected-tag">@(scope == Hub.Current ? ShellText.Connection_TagShown : ShellText.Connection_TagConnected)</span>
                                     }
                                 </span>
                                 <span class="kind-badge">@ConnectionKindInfo.Short(p.Kind)</span>
@@ -103,9 +103,9 @@
         var days = (DateTime.Today - local.Date).Days;
         return days switch
         {
-            0 => $"heute {local:HH:mm}",
-            1 => $"gestern {local:HH:mm}",
-            < 7 => $"vor {days} Tagen",
+            0 => TextFormat.Format(ShellText.Connections_TodayAt, local),
+            1 => TextFormat.Format(ShellText.Connections_YesterdayAt, local),
+            < 7 => TextFormat.Format(ShellText.Connections_DaysAgo, days),
             _ => local.ToString("dd.MM.yyyy", CultureInfo.CurrentCulture),
         };
     }

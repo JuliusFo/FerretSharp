@@ -33,6 +33,20 @@ public sealed class ShortcutServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task The_shortcut_in_a_sentence_follows_the_UI_language()
+    {
+        await _shortcuts.SetAsync(ShortcutAction.Flush, KeyChord.Parse("ctrl+shift+s"));
+
+        using (UiCulture.Use("en"))
+        {
+            Assert.Equal(" with Ctrl+Shift+S", _shortcuts.With(ShortcutAction.Flush));
+            Assert.Equal(" (Ctrl+Shift+S)", _shortcuts.Hint(ShortcutAction.Flush));
+        }
+
+        Assert.Equal(" mit Ctrl+Shift+S", _shortcuts.With(ShortcutAction.Flush));
+    }
+
+    [Fact]
     public async Task Other_settings_do_not_announce_a_change()
     {
         var changed = 0;
