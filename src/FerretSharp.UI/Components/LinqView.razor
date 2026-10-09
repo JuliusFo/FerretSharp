@@ -18,7 +18,7 @@
         {
             <span class="spinner small"></span>
         }
-        <span class="linq-console @ConsoleClass" title="@ConsoleTitle">@ConsoleText</span>
+        <span class="linq-console @ConsoleClass" title="@ConsoleTitle"><span class="linq-console-label">@SqlEditorText.Linq_ConsoleLabel</span> @ConsoleText</span>
         @if (Console.State.Phase == LinqConsolePhase.Starting && !_running)
         {
             <button class="btn ghost" title="@SqlEditorText.Linq_CancelStartTitle" @onclick="Console.CancelStart">@CommonText.Cancel</button>

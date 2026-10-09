@@ -68,4 +68,8 @@
   <data name="UnexpectedError" xml:space="preserve">
     <value>Unexpected error</value>
   </data>
+  <data name="UnexpectedErrorBar" xml:space="preserve">
+    <value>Unexpected error.</value>
+    <comment>Blazor's error bar at the bottom of the window, when the UI itself has failed</comment>
+  </data>
 </root>

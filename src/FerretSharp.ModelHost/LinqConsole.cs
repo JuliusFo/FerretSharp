@@ -313,7 +313,7 @@ internal sealed class LinqConsole
 
         var endLine = span.EndLinePosition.Line - (span.StartLinePosition.Line - line);
         return new LinqDiagnostic(section, line + 1, span.StartLinePosition.Character + 1, endLine + 1, span.EndLinePosition.Character + 1,
-            diagnostic.Severity == DiagnosticSeverity.Error ? "error" : "warning", diagnostic.Id, diagnostic.GetMessage());
+            diagnostic.Severity == DiagnosticSeverity.Error ? "error" : "warning", diagnostic.Id, diagnostic.GetMessage(ModelHostText.Culture));
     }
 
     internal sealed record Analysis(Script Script, Compilation Compilation, SyntaxTree Tree, IReadOnlyList<Diagnostic> Diagnostics, Layout Layout);

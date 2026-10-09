@@ -240,7 +240,8 @@
         if (firstRender)
         {
             _selfRef = DotNetObjectReference.Create(this);
-            await Dom.InvokeVoidAsync("setDocumentLanguage", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName);
+            await Dom.InvokeVoidAsync(
+                "setDocumentLanguage", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName, CommonText.UnexpectedErrorBar, CommonText.Reload);
             _shortcuts = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/shortcuts.js");
             await RegisterShortcutsAsync();
         }

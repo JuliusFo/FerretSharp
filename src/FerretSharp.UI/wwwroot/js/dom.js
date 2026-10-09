@@ -92,7 +92,13 @@ export async function copyText(text) {
   }
 }
 
-/** The language of the page (WP-29): screen readers, spell checking and hyphenation follow it. */
-export function setDocumentLanguage(lang) {
+/** The language of the page (WP-29): screen readers, spell checking and hyphenation follow it. The texts of Blazor's error
+ *  bar come along: the bar shows when Blazor itself has failed, so it cannot render them. */
+export function setDocumentLanguage(lang, errorText, reloadText) {
   document.documentElement.lang = lang;
+  const bar = document.getElementById('blazor-error-ui');
+  const message = bar?.querySelector('.message');
+  const reload = bar?.querySelector('.reload');
+  if (message) message.textContent = errorText;
+  if (reload) reload.textContent = reloadText;
 }

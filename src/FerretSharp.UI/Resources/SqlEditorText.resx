@@ -645,4 +645,8 @@
   <data name="SqlCode_Copy" xml:space="preserve">
     <value>Copy SQL</value>
   </data>
+  <data name="Linq_ConsoleLabel" xml:space="preserve">
+    <value>C# console:</value>
+    <comment>Label before the state of the LINQ console (ready, starting …)</comment>
+  </data>
 </root>

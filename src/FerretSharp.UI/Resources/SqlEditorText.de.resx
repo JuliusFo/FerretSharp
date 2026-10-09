@@ -546,4 +546,7 @@
   <data name="SqlCode_Copy" xml:space="preserve">
     <value>SQL kopieren</value>
   </data>
+  <data name="Linq_ConsoleLabel" xml:space="preserve">
+    <value>C#-Konsole:</value>
+  </data>
 </root>

@@ -66,4 +66,7 @@
   <data name="UnexpectedError" xml:space="preserve">
     <value>Unerwarteter Fehler</value>
   </data>
+  <data name="UnexpectedErrorBar" xml:space="preserve">
+    <value>Unerwarteter Fehler.</value>
+  </data>
 </root>
