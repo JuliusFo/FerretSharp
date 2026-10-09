@@ -1,6 +1,7 @@
 @* One field of the form (WP-21): label with type and badges, the value (editable like a grid cell: Enter or leaving the
    field takes it, Esc drops it), FK links, LOB button and model mismatches. The typed text lives here and in the
    panel's drafts; the panel checks and keeps it through the grid's ChangeTracker. *@
+@using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Data
 @using FerretSharp.Core.Forms
 @using FerretSharp.Core.Query
@@ -50,6 +51,29 @@
         {
             <div class="ff-ro @(Field.IsNull ? "fs-null" : "") @(Field.Value.Unknown ? "fs-unknown-text" : "") @(Field.IsMultiline ? "multiline" : "")"
                  title="@ReadOnlyTitle">@(Field.Value.Text ?? "NULL")</div>
+        }
+        else if (Field.Options is { Flags: { } flags } values)
+        {
+            var set = _text.Length == 0 ? null : values.FlagsOfText(_text);
+            <div class="ff-flags" role="group" title="@ValueTitle" @key="(RowVersion, Field.EditText)">
+                @if (Field.Info.Nullable || IsNewRow)
+                {
+                    <label><input type="checkbox" checked="@(_text.Length == 0)" @onchange="PickNull" /><span class="fs-null">NULL</span></label>
+                }
+                @foreach (var flag in flags)
+                {
+                    <label><input type="checkbox" checked="@(set?.Flags.Contains(flag) == true)" @onchange="e => PickFlag(e, values, flag.Value)" />@flag.Label</label>
+                }
+                @if (set is { Rest: not 0 and var rest })
+                {
+                    var restText = ValueTable.FlagsText(rest);
+                    <label class="fs-unknown-text"><input type="checkbox" checked @onchange="e => PickFlag(e, values, restText)" />@restText (kein Member)</label>
+                }
+                else if (_text.Length > 0 && set is null)
+                {
+                    <span class="fs-unknown-text">@_text</span>
+                }
+            </div>
         }
         else if (Field.Options is { } options)
         {
@@ -199,6 +223,20 @@
         _text = e.Value as string ?? "";
         OnCommit(Field.Column, _text);
         return Task.CompletedTask;
+    }
+
+    /// <summary>A flag ticked or not (flags enum): the new sum is taken at once, like picking a member.</summary>
+    private void PickFlag(ChangeEventArgs e, ValueTable values, string flag)
+    {
+        _text = values.WithFlag(_text, flag, e.Value is true);
+        OnCommit(Field.Column, _text);
+    }
+
+    /// <summary>NULL ticked clears the flags; unticked starts from no flag (0).</summary>
+    private void PickNull(ChangeEventArgs e)
+    {
+        _text = e.Value is true ? "" : ValueTable.FlagsText(0);
+        OnCommit(Field.Column, _text);
     }
 
     private async Task OnKeyDownAsync(KeyboardEventArgs e)

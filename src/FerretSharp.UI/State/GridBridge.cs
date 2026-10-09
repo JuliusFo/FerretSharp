@@ -49,6 +49,9 @@ public sealed record GridColumn(string Id, string Name, string Label, string Typ
     /// <summary>Enum and converted bool columns: the members to pick from, and why a value without a member is marked.</summary>
     public IReadOnlyList<ValueOption>? Options { get; init; }
 
+    /// <summary>A flags enum stored as its number: the single flags, ticked in a list instead of picking one member.</summary>
+    public IReadOnlyList<ValueOption>? Flags { get; init; }
+
     public string? UnknownText { get; init; }
 
     public static string IdOf(int index) => "c" + index.ToString(CultureInfo.InvariantCulture);

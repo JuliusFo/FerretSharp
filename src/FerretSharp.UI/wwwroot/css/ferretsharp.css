@@ -773,6 +773,20 @@ table.columns td.clr-type .converter { display: block; color: var(--muted); font
 .ag-cell.fs-unknown { color: var(--danger); text-decoration: underline wavy var(--danger); text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .ctx-source { margin-left: 6px; padding: 0 5px; border-radius: 4px; background: var(--clr-weak); color: var(--clr); font: 600 10px system-ui, sans-serif; vertical-align: 1px; }
 .fs-editor-select { width: 100%; height: 100%; border: 0; outline: none; background: var(--surface); color: var(--text); font: 13px "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; padding: 0 6px; }
+/* flags enum in the cell: a drop-down of the single flags to tick (FerretFlagsEditor in grid.js) */
+.fs-editor.fs-flags { height: auto; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; box-shadow: var(--shadow); font: 13px "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; color: var(--text); }
+.fs-flags-summary { height: 30px; line-height: 30px; padding: 0 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 6px 6px 0 0; }
+.fs-flags-list { max-height: 260px; overflow-y: auto; padding: 4px 0; border-top: 1px solid var(--border); }
+.fs-flags-item { display: flex; align-items: center; gap: 8px; padding: 3px 10px; white-space: nowrap; cursor: pointer; }
+.fs-flags-item:hover, .fs-flags-item:focus-within { background: var(--hover); }
+.fs-flags-item input { margin: 0; accent-color: var(--accent); }
+.fs-flags .fs-editor-error { top: 100%; }
+/* the same in the form: the flags as a row of check boxes */
+.ff-flags { display: flex; flex-wrap: wrap; gap: 2px 12px; width: 100%; padding: 4px 2px; font-size: 12.5px; }
+.ff-flags label { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+.ff-flags input { margin: 0; accent-color: var(--accent); }
+.form-field.ff-pending .ff-flags { background: rgba(234, 179, 8, .22); box-shadow: inset 2px 0 0 #d4a106; }
+.form-field.ff-flushed .ff-flags { background: rgba(59, 111, 224, .16); box-shadow: inset 2px 0 0 var(--accent); }
 
 /* filter value of an enum or bool column: a member list */
 .valpick { position: relative; min-width: 0; flex: 1; display: flex; }

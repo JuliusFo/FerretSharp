@@ -149,6 +149,7 @@
             Lob = lob,
             Multiline = category == ColumnCategory.Text && (c.Length ?? 0) > 200,
             Options = values?.Options,
+            Flags = values?.Flags,
             UnknownText = values?.UnknownText,
         };
     }
