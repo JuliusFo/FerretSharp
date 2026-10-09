@@ -8,7 +8,7 @@
 
 <div class="settings-page model-page">
     <div class="page-head">
-        <h1>C#-Modell</h1>
+        <h1>@ModelViewText.Model_Title</h1>
         @if (State.Link is { } headLink)
         {
             <span class="hint mono ellipsis" title="@headLink.ProjectFile">@headLink.ProjectName</span>
@@ -16,45 +16,43 @@
         <span class="grow"></span>
         @if (State.Link is not null)
         {
-            <button class="btn" disabled="@(Busy)" @onclick="Models.LoadAsync">Neu laden</button>
-            <button class="btn" disabled="@(Busy)" title="dotnet build, danach neu laden" @onclick="BuildAsync">
+            <button class="btn" disabled="@(Busy)" @onclick="Models.LoadAsync">@CommonText.Reload</button>
+            <button class="btn" disabled="@(Busy)" title="@ModelViewText.Model_BuildTitle" @onclick="BuildAsync">
                 @if (Models.IsBuilding)
                 {
                     <span class="spinner small"></span>
                 }
-                Neu bauen
+                @ModelViewText.Model_Build
             </button>
         }
         @if (Profile is { } profile)
         {
-            <button class="btn ghost" @onclick="() => Shell.EditConnection(profile)">Verbindung bearbeiten …</button>
+            <button class="btn ghost" @onclick="() => Shell.EditConnection(profile)">@ModelViewText.Model_EditConnection</button>
         }
-        <button class="btn ghost" @onclick="Shell.ShowExplorer">Zurück</button>
+        <button class="btn ghost" @onclick="Shell.ShowExplorer">@CommonText.Back</button>
     </div>
 
     @if (State.Link is not { } link)
     {
         <section class="settings-section">
-            <h2>Kein Projekt verknüpft</h2>
+            <h2>@ModelViewText.Model_NoProject</h2>
             <div class="settings-note">
-                Im Verbindungsdialog unter „C#-Modell“ die <code>.csproj</code> des Projekts mit dem DbContext eintragen. FerretSharp liest
-                das EF-Core-Modell (ab EF Core 8) dann aus dem vorhandenen Build: Entity- und Property-Namen, C#-Typen, Converter und
-                Navigations – ohne den Startcode der Anwendung und ohne Datenbankverbindung.
+                <Fmt Text="@ModelViewText.Model_NoProjectHint"><Arg0><code>.csproj</code></Arg0></Fmt>
             </div>
         </section>
     }
     else
     {
         <section class="settings-section">
-            <h2>Projekt</h2>
+            <h2>@ModelViewText.Model_Project</h2>
             <dl class="model-facts">
-                <dt>Projekt</dt>
+                <dt>@ModelViewText.Model_Project</dt>
                 <dd class="mono">@link.ProjectFile</dd>
                 @if (State.Output is { } output)
                 {
-                    <dt>Build</dt>
+                    <dt>@ModelViewText.Model_BuildLabel</dt>
                     <dd>
-                        @link.Configuration · .NET @output.TargetFramework · gebaut @output.BuiltAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm", CultureInfo.CurrentCulture)
+                        @TextFormat.Format(ModelViewText.Model_BuildInfo, link.Configuration, output.TargetFramework, output.BuiltAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm", CultureInfo.CurrentCulture))
                         <div class="hint mono ellipsis" title="@output.Assembly">@output.Assembly</div>
                     </dd>
                 }
@@ -63,18 +61,18 @@
                     <dt>DbContext</dt>
                     <dd>
                         <span class="mono">@model.ContextType</span> · EF Core @model.EfVersion
-                        <div class="hint">@CreatedBy(model.CreatedBy) – ohne Startcode der Anwendung, ohne Datenbankverbindung</div>
+                        <div class="hint">@TextFormat.Format(ModelViewText.Model_CreatedByHint, CreatedBy(model.CreatedBy))</div>
                     </dd>
                 }
                 @if (State.Phase != ClrModelPhase.Loading && State.Steps is { Count: > 0 } steps)
                 {
-                    <dt>Ladezeit</dt>
+                    <dt>@ModelViewText.Model_LoadTime</dt>
                     <dd>
                         @Duration(TimeSpan.FromTicks(steps.Sum(s => s.Duration.Ticks)))
                         @if (State.CachedAt is { } cachedAt)
                         {
-                            <span class="model-chip" title="Der Build ist unverändert, das Modell wurde ohne Hilfsprozess geladen. „Neu laden“ liest es aus dem Projekt.">
-                                aus dem Cache · exportiert @cachedAt.ToString("dd.MM.yyyy HH:mm", CultureInfo.CurrentCulture)
+                            <span class="model-chip" title="@ModelViewText.Model_CachedTitle">
+                                @TextFormat.Format(ModelViewText.Model_Cached, cachedAt.ToString("dd.MM.yyyy HH:mm", CultureInfo.CurrentCulture))
                             </span>
                         }
                         <div class="hint">@string.Join(" · ", steps.Select(s => $"{s.Name} {Duration(s.Duration)}"))</div>
@@ -85,7 +83,7 @@
             @if (State.Output is { IsStale: true } stale)
             {
                 <div class="settings-note warn">
-                    Der Quelltext ist neuer als der Build (<span class="mono">@Path.GetFileName(stale.NewerSource)</span>) – „Neu bauen“ übernimmt die Änderungen.
+                    <Fmt Text="@ModelViewText.Model_Stale"><Arg0><span class="mono">@Path.GetFileName(stale.NewerSource)</span></Arg0></Fmt>
                 </div>
             }
 
@@ -93,8 +91,8 @@
             {
                 <div class="model-status">
                     <span class="spinner small"></span>
-                    <span>@(State.BuildChanged ? "Build geändert – " : "")@(State.Step ?? "Lese das Modell") …</span>
-                    <span class="hint">@Elapsed(State.StepStartedAt)@(State.LoadStartedAt is { } started ? $" · insgesamt {Elapsed(started)}" : "")</span>
+                    <span>@TextFormat.Format(State.BuildChanged ? ModelViewText.Model_BuildChangedStep : ModelViewText.Model_Step, State.Step ?? ModelViewText.Model_ReadingModel)</span>
+                    <span class="hint">@(State.LoadStartedAt is { } started ? TextFormat.Format(ModelViewText.Model_ElapsedTotal, Elapsed(State.StepStartedAt), Elapsed(started)) : Elapsed(State.StepStartedAt))</span>
                 </div>
             }
             else if (State is { Phase: ClrModelPhase.Failed, Error: { } error })
@@ -103,7 +101,7 @@
                     <span>@error.Message</span>
                     @if (error.Detail is { Length: > 0 })
                     {
-                        <button class="link-btn" @onclick="() => _showDetail = !_showDetail">@(_showDetail ? "Details ausblenden" : "Details")</button>
+                        <button class="link-btn" @onclick="() => _showDetail = !_showDetail">@(_showDetail ? ModelViewText.Model_HideDetails : CommonText.Details)</button>
                     }
                 </div>
                 @if (_showDetail && error.Detail is { } detail)
@@ -114,7 +112,7 @@
 
             @if (Models.LastBuild is { Succeeded: false } build && !Models.IsBuilding)
             {
-                <div class="test-result error model-error"><span>Build fehlgeschlagen (Exit-Code @build.ExitCode).</span></div>
+                <div class="test-result error model-error"><span>@TextFormat.Format(ModelViewText.Model_BuildFailed, build.ExitCode)</span></div>
                 <pre class="model-log">@build.Output</pre>
             }
         </section>
@@ -126,24 +124,24 @@
             var properties = first.Sum(e => e.Entity.Properties.Count(p => p.Column is not null));
             var mapped = first.Sum(e => e.Properties.Count);
             <section class="settings-section">
-                <h2>Abgleich mit der Datenbank</h2>
+                <h2>@ModelViewText.Model_Matching</h2>
                 <div class="model-summary">
-                    <span class="model-chip">@mapping.MappedEntityCount von @entities Entities zugeordnet</span>
-                    <span class="model-chip">@mapped von @properties Properties zugeordnet</span>
-                    <span class="model-chip @(Count(mapping, MappingIssueKind.ColumnWithoutProperty) > 0 ? "warn" : "")">@Count(mapping, MappingIssueKind.ColumnWithoutProperty) Spalten ohne Property</span>
+                    <span class="model-chip">@TextFormat.Format(ModelViewText.Model_EntitiesMapped, mapping.MappedEntityCount, entities)</span>
+                    <span class="model-chip">@TextFormat.Format(ModelViewText.Model_PropertiesMapped, mapped, properties)</span>
+                    <span class="model-chip @(Count(mapping, MappingIssueKind.ColumnWithoutProperty) > 0 ? "warn" : "")">@TextFormat.Plural(Count(mapping, MappingIssueKind.ColumnWithoutProperty), ModelViewText.Model_ColumnsWithoutPropertyOne, ModelViewText.Model_ColumnsWithoutPropertyOther)</span>
                     @{
                         var serious = mapping.ColumnMismatches.Count(m => m.Severity != MismatchSeverity.Hint);
                     }
-                    <span class="model-chip @(serious > 0 ? "warn" : "")" title="Typ, NULL, Länge, Stellen – Hinweise nicht mitgezählt">@serious Abweichungen bei Typ/NULL/Länge</span>
+                    <span class="model-chip @(serious > 0 ? "warn" : "")" title="@ModelViewText.Model_MismatchesTitle">@TextFormat.Plural(serious, ModelViewText.Model_MismatchesOne, ModelViewText.Model_MismatchesOther)</span>
                     @if (State.LoadedAt is { } loadedAt)
                     {
-                        <span class="hint">Stand @loadedAt.ToString("HH:mm:ss", CultureInfo.CurrentCulture)</span>
+                        <span class="hint">@TextFormat.Format(ModelViewText.Model_AsOf, loadedAt.ToString("HH:mm:ss", CultureInfo.CurrentCulture))</span>
                     }
                 </div>
 
                 @if (mapping.Issues.Count == 0)
                 {
-                    <div class="settings-note">Alle Entities, Properties und Spalten sind einander zugeordnet.</div>
+                    <div class="settings-note">@ModelViewText.Model_AllMapped</div>
                 }
 
                 @foreach (var (kind, title, hint) in IssueGroups)
@@ -164,7 +162,7 @@
                                     @issue.Message
                                     @if (issue.Table is { } issueTable && Schema?.Find(issueTable) is { } summary)
                                     {
-                                        <button class="link-btn" @onclick="() => Open(summary)">öffnen</button>
+                                        <button class="link-btn" @onclick="() => Open(summary)">@ModelViewText.Model_Open</button>
                                     }
                                 </li>
                             }
@@ -176,9 +174,9 @@
             <ModelMismatches Mapping="mapping" OnOpen="Open" />
 
             <section class="settings-section">
-                <h2>Entities</h2>
+                <h2>@ModelViewText.Model_Entities</h2>
                 <table class="model-table">
-                    <thead><tr><th>Entity</th><th>Tabelle</th><th class="num">Properties</th><th>Converter</th></tr></thead>
+                    <thead><tr><th>@ModelViewText.Model_HeadEntity</th><th>@ModelViewText.Model_HeadTable</th><th class="num">@ModelViewText.Model_HeadProperties</th><th>@ModelViewText.Model_HeadConverter</th></tr></thead>
                     <tbody>
                         @foreach (var entity in mapping.Model.Entities.OrderBy(e => ClrModelMapping.ShortName(e.ClrType), StringComparer.Ordinal))
                         {
@@ -215,12 +213,13 @@
 
     private bool _showDetail;
 
-    private static readonly (MappingIssueKind Kind, string Title, string Hint)[] IssueGroups =
+    // A property, not a static field: the texts follow the UI language.
+    private static (MappingIssueKind Kind, string Title, string Hint)[] IssueGroups =>
     [
-        (MappingIssueKind.EntityWithoutTable, "Entities ohne Tabelle", "Im Modell, aber nicht in der Datenbank – noch nicht angelegt, gelöscht oder in einem anderen Schema."),
-        (MappingIssueKind.PropertyWithoutColumn, "Properties ohne Spalte", "Abfragen auf diese Entities scheitern, solange die Spalte fehlt."),
-        (MappingIssueKind.CaseMismatch, "Abweichende Groß-/Kleinschreibung", "EF Core quotet Namen auf Oracle – so geschrieben findet eine Abfrage das Objekt nicht."),
-        (MappingIssueKind.ColumnWithoutProperty, "Spalten ohne Property", "In der Datenbank, aber nicht im Modell – z. B. nach einer Änderung an der Tabelle, die in der Entity noch fehlt."),
+        (MappingIssueKind.EntityWithoutTable, ModelViewText.Model_EntitiesWithoutTable, ModelViewText.Model_EntitiesWithoutTableHint),
+        (MappingIssueKind.PropertyWithoutColumn, ModelViewText.Model_PropertiesWithoutColumn, ModelViewText.Model_PropertiesWithoutColumnHint),
+        (MappingIssueKind.CaseMismatch, ModelViewText.Model_CaseMismatch, ModelViewText.Model_CaseMismatchHint),
+        (MappingIssueKind.ColumnWithoutProperty, ModelViewText.Model_ColumnsWithoutProperty, ModelViewText.Model_ColumnsWithoutPropertyHint),
     ];
 
     [CascadingParameter]
@@ -270,9 +269,9 @@
 
     private static string CreatedBy(string createdBy) => createdBy switch
     {
-        "factory" => "Erzeugt über die IDesignTimeDbContextFactory des Projekts",
-        "options" => "Erzeugt mit eigenen Options über den DbContextOptions-Konstruktor",
-        "parameterless" => "Erzeugt über den parameterlosen Konstruktor",
+        "factory" => ModelViewText.Model_CreatedByFactory,
+        "options" => ModelViewText.Model_CreatedByOptions,
+        "parameterless" => ModelViewText.Model_CreatedByParameterless,
         _ => createdBy,
     };
 

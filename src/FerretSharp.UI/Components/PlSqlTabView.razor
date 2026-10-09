@@ -1,5 +1,5 @@
-@* A PL/SQL tab (WP-28, view only): header and the views Quelltext/Spezifikation | Body | Parameter | Fehler |
-   Abhängigkeiten. Everything is read on the explorer session; views mount when first shown and stay, F5 reloads them. *@
+@* A PL/SQL tab (WP-28, view only): header and the views Source/Specification | Body | Parameters | Errors |
+   Dependencies. Everything is read on the explorer session; views mount when first shown and stay, F5 reloads them. *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Schema
 @inherits FerretComponent
@@ -26,13 +26,16 @@
         <span class="toolbar-title">
             @if (Tab.Unit.Synonym is { } synonym)
             {
-                @($"{(synonym.IsPublic ? "öffentliches Synonym" : "Synonym")} {synonym.Name} → ")
+                @TextFormat.Format(synonym.IsPublic ? SchemaViewText.PublicSynonymTo : SchemaViewText.SynonymTo, synonym.Name, $"{Tab.Unit.Owner}.{Tab.Unit.Name}")
             }
-            @Tab.Unit.Owner.@Tab.Unit.Name
+            else
+            {
+                @($"{Tab.Unit.Owner}.{Tab.Unit.Name}")
+            }
         </span>
         <span class="spacer"></span>
-        <span class="muted readonly-hint" title="PL/SQL ausführen, bearbeiten und kompilieren gehört nicht zu FerretSharp.">nur ansehen</span>
-        <button class="icon-btn ghost" title="Neu laden@(Shortcuts.Hint(ShortcutAction.Refresh))" @onclick="Reload">@Icons.Refresh</button>
+        <span class="muted readonly-hint" title="@SchemaViewText.PlSql_ViewOnlyTitle">@SchemaViewText.PlSql_ViewOnly</span>
+        <button class="icon-btn ghost" title="@(CommonText.Reload + Shortcuts.Hint(ShortcutAction.Refresh))" @onclick="Reload">@Icons.Refresh</button>
     </div>
 
     <div class="tab-details">
@@ -58,7 +61,7 @@
                             break;
                         case PlSqlView.Errors:
                             <PlSqlErrorsView Unit="Tab.Unit" Errors="_errors" OnShow="ShowError" />
-                            <DetailStatus Loading="_errors is null && _errorsError is null" Text="Lade Fehler …" />
+                            <DetailStatus Loading="_errors is null && _errorsError is null" Text="@SchemaViewText.PlSql_LoadingErrors" />
                             break;
                         case PlSqlView.Dependencies:
                             <PlSqlDependenciesView Unit="Tab.Unit" Version="_version" />
@@ -90,11 +93,11 @@
 
     private string Label(PlSqlView view) => view switch
     {
-        PlSqlView.Source => Tab.Unit.Kind == PlSqlKind.Package ? "Spezifikation" : "Quelltext",
-        PlSqlView.Body => "Body",
-        PlSqlView.Parameters => "Parameter",
-        PlSqlView.Errors => "Fehler",
-        _ => "Abhängigkeiten",
+        PlSqlView.Source => Tab.Unit.Kind == PlSqlKind.Package ? SchemaViewText.PlSql_ViewSpecification : SchemaViewText.PlSql_ViewSource,
+        PlSqlView.Body => SchemaViewText.PlSql_ViewBody,
+        PlSqlView.Parameters => SchemaViewText.PlSql_ViewParameters,
+        PlSqlView.Errors => SchemaViewText.PlSql_ViewErrors,
+        _ => SchemaViewText.PlSql_ViewDependencies,
     };
 
     protected override void OnInitialized() => Shell.TabCommandRequested += OnTabCommand;
@@ -106,7 +109,7 @@
         await LoadErrorsAsync();
     }
 
-    /// <summary>The compile errors: the count in the toolbar, markers in the source, the "Fehler" view.</summary>
+    /// <summary>The compile errors: the count in the toolbar, markers in the source, the "Errors" view.</summary>
     private async Task LoadErrorsAsync()
     {
         if (_errorsVersion == _version || Active.Schema is not { } schema)

@@ -9,23 +9,23 @@
 
 <div class="settings-page compare-page">
     <div class="page-head">
-        <h1>Schema-Vergleich</h1>
+        <h1>@CompareViewText.Compare_Title</h1>
         @* value, not selected=: after the user picked an option the browser ignores the attribute (src/FerretSharp.UI/CLAUDE.md). *@
-        <select class="compare-saved" title="Gespeicherte Vergleiche" value="@(Compare.IsSaved ? Compare.Current.Id.ToString() : "")" @onchange="OpenSaved">
-            <option value="">@(Compare.IsSaved ? "Neuer Vergleich" : "– nicht gespeichert –")</option>
+        <select class="compare-saved" title="@CompareViewText.Compare_SavedTitle" value="@(Compare.IsSaved ? Compare.Current.Id.ToString() : "")" @onchange="OpenSaved">
+            <option value="">@(Compare.IsSaved ? CompareViewText.Compare_New : CompareViewText.Compare_NotSaved)</option>
             @foreach (var saved in Compare.Saved)
             {
                 <option value="@saved.Id">@saved.Name</option>
             }
         </select>
-        <button class="btn" @onclick="() => StartSaving(asNew: false)">Speichern …</button>
+        <button class="btn" @onclick="() => StartSaving(asNew: false)">@CompareViewText.Compare_SaveEllipsis</button>
         @if (Compare.IsSaved)
         {
-            <button class="btn ghost" @onclick="() => StartSaving(asNew: true)">Kopie speichern …</button>
-            <button class="btn ghost" @onclick="() => _confirmDelete = true">Löschen</button>
+            <button class="btn ghost" @onclick="() => StartSaving(asNew: true)">@CompareViewText.Compare_SaveCopyEllipsis</button>
+            <button class="btn ghost" @onclick="() => _confirmDelete = true">@CommonText.Delete</button>
         }
         <span class="grow"></span>
-        <button class="btn ghost" @onclick="OnBack">Zurück</button>
+        <button class="btn ghost" @onclick="OnBack">@CommonText.Back</button>
     </div>
 
     @if (Compare.StoreError is { } storeError)
@@ -34,7 +34,7 @@
     }
 
     <section class="settings-section">
-        <h2>Seiten</h2>
+        <h2>@CompareViewText.Compare_Sides</h2>
         <div class="compare-sides">
             @for (var i = 0; i < Compare.Sides.Count; i++)
             {
@@ -43,29 +43,29 @@
                 var profile = Connections.Profiles.FirstOrDefault(p => p.Id == state.Side.ConnectionId);
                 <div class="compare-side">
                     <span class="compare-side-no">@(index + 1)</span>
-                    <select title="Verbindung" disabled="@Compare.Loading" value="@(profile?.Id.ToString() ?? "")" @onchange="e => SetConnection(index, e.Value as string)">
-                        <option value="">Verbindung wählen …</option>
+                    <select title="@CompareViewText.Compare_Connection" disabled="@Compare.Loading" value="@(profile?.Id.ToString() ?? "")" @onchange="e => SetConnection(index, e.Value as string)">
+                        <option value="">@CompareViewText.Compare_ChooseConnection</option>
                         @foreach (var p in Connections.Profiles)
                         {
                             <option value="@p.Id">@p.Name</option>
                         }
                     </select>
-                    <input class="compare-schema mono" placeholder="@(profile?.EffectiveSchema ?? "Schema")" title="Schema (leer: das der Verbindung)"
+                    <input class="compare-schema mono" placeholder="@(profile?.EffectiveSchema ?? CompareViewText.Compare_SchemaPlaceholder)" title="@CompareViewText.Compare_SchemaTitle"
                            value="@state.Side.Schema" disabled="@Compare.Loading" @onchange="e => SetSchema(index, e.Value as string)" />
-                    <label class="compare-ref" title="Die anderen Seiten werden an dieser gemessen">
+                    <label class="compare-ref" title="@CompareViewText.Compare_ReferenceTitle">
                         <input type="checkbox" checked="@(Compare.Current.Reference == index)" @onchange="e => SetReference(index, e.Value is true)" />
-                        Referenz
+                        @CompareViewText.Compare_Reference
                     </label>
                     <span class="compare-side-status">
                         @if (state.Loading)
                         {
-                            <span class="spinner small"></span> @(state.Step ?? "Warte")
+                            <span class="spinner small"></span> @(state.Step ?? CompareViewText.Compare_Waiting)
                         }
                         else if (state.NeedsPassword && profile is not null)
                         {
-                            <input type="password" class="compare-password" placeholder="Passwort für @profile.Name" title="Nur für diesen Vergleich, wird nicht gespeichert"
+                            <input type="password" class="compare-password" placeholder="@TextFormat.Format(CompareViewText.Compare_PasswordFor, profile.Name)" title="@CompareViewText.Compare_PasswordTitle"
                                    value="@_passwords.GetValueOrDefault(profile.Id)" @onchange="e => _passwords[profile.Id] = e.Value as string ?? string.Empty" />
-                            <button class="btn" @onclick="() => UsePassword(profile.Id)">Laden</button>
+                            <button class="btn" @onclick="() => UsePassword(profile.Id)">@CompareViewText.Compare_Load</button>
                         }
                         else if (state.Error is { } error)
                         {
@@ -73,34 +73,31 @@
                         }
                         else if (state.Snapshot is { } snapshot)
                         {
-                            <span class="muted">
-                                @snapshot.Objects.Count.ToString("N0", CultureInfo.CurrentCulture) Objekte ·
-                                @snapshot.ReadAt.ToLocalTime().ToString("HH:mm", CultureInfo.CurrentCulture)
-                            </span>
+                            <span class="muted">@TextFormat.Plural(snapshot.Objects.Count, CompareViewText.Compare_SideLoadedOne, CompareViewText.Compare_SideLoadedOther, snapshot.ReadAt.ToLocalTime().ToString("HH:mm", CultureInfo.CurrentCulture))</span>
                             @if (snapshot.Objects.Count == 0)
                             {
-                                <span class="warn" title="Schema leer, falsch geschrieben oder für diesen Benutzer nicht sichtbar">leer</span>
+                                <span class="warn" title="@CompareViewText.Compare_EmptyTitle">@CompareViewText.Compare_Empty</span>
                             }
                         }
                     </span>
-                    <button class="icon-btn ghost" title="Seite entfernen" disabled="@(Compare.Sides.Count <= 1 || Compare.Loading)"
+                    <button class="icon-btn ghost" title="@CompareViewText.Compare_RemoveSide" disabled="@(Compare.Sides.Count <= 1 || Compare.Loading)"
                             @onclick="() => RemoveSide(index)">✕</button>
                 </div>
             }
             <div class="compare-actions">
-                <button class="btn ghost" disabled="@Compare.Loading" @onclick="AddSide">+ Seite</button>
-                <label class="check" title="Unterschiedliche Reihenfolge der Spalten als Abweichung zeigen">
+                <button class="btn ghost" disabled="@Compare.Loading" @onclick="AddSide">@CompareViewText.Compare_AddSide</button>
+                <label class="check" title="@CompareViewText.Compare_ColumnOrderTitle">
                     <input type="checkbox" checked="@Compare.Current.ColumnOrder" @onchange="e => SetColumnOrder(e.Value is true)" />
-                    Spaltenreihenfolge vergleichen
+                    @CompareViewText.Compare_ColumnOrder
                 </label>
                 <span class="grow"></span>
                 @if (Compare.Loading)
                 {
-                    <button class="btn" @onclick="Compare.Cancel">Abbrechen</button>
+                    <button class="btn" @onclick="Compare.Cancel">@CommonText.Cancel</button>
                 }
                 else
                 {
-                    <button class="btn primary" disabled="@(!CanCompare)" @onclick="() => Compare.CompareAsync()">Vergleichen</button>
+                    <button class="btn primary" disabled="@(!CanCompare)" @onclick="() => Compare.CompareAsync()">@CompareViewText.Compare_Run</button>
                 }
             </div>
         </div>
@@ -112,7 +109,7 @@
             <div class="compare-toolbar">
                 <label class="check">
                     <input type="checkbox" checked="@Compare.Current.OnlyDifferences" @onchange="e => SetOnlyDifferences(e.Value is true)" />
-                    Nur Unterschiede
+                    @CompareViewText.Compare_OnlyDifferences
                 </label>
                 @foreach (var (label, kinds) in KindFilters)
                 {
@@ -121,20 +118,20 @@
                         @label
                     </label>
                 }
-                <input class="compare-search" placeholder="Objekt suchen" @bind="_search" @bind:event="oninput" />
+                <input class="compare-search" placeholder="@CompareViewText.Compare_SearchPlaceholder" @bind="_search" @bind:event="oninput" />
                 <span class="grow"></span>
                 <span class="muted">@Summary(result)</span>
-                <button class="btn" @onclick="CopyMarkdownAsync">Als Markdown kopieren</button>
-                <button class="btn" disabled="@(result.Sides.Count < 2)" @onclick="() => _ddl = true">DDL-Vorschlag …</button>
+                <button class="btn" @onclick="CopyMarkdownAsync">@CompareViewText.Compare_CopyMarkdown</button>
+                <button class="btn" disabled="@(result.Sides.Count < 2)" @onclick="() => _ddl = true">@CompareViewText.Compare_DdlProposalEllipsis</button>
             </div>
             <div class="compare-matrix-wrap">
                 <table class="compare-matrix">
                     <thead>
                         <tr>
-                            <th>Objekt</th>
+                            <th>@CompareViewText.Compare_HeadObject</th>
                             @for (var i = 0; i < result.Sides.Count; i++)
                             {
-                                <th class="@(result.Options.Reference == i ? "ref" : "")">@Labels[i]@(result.Options.Reference == i ? " (Referenz)" : "")</th>
+                                <th class="@(result.Options.Reference == i ? "ref" : "")">@(result.Options.Reference == i ? TextFormat.Format(CompareViewText.Compare_ReferenceHeader, Labels[i]) : Labels[i])</th>
                             }
                         </tr>
                     </thead>
@@ -176,7 +173,7 @@
                 </table>
                 @if (!VisibleObjects(result).Any())
                 {
-                    <div class="compare-none">@(result.Objects.Any(o => o.HasDifferences) ? "Kein Objekt passt zu den Filtern." : "Keine Unterschiede.")</div>
+                    <div class="compare-none">@(result.Objects.Any(o => o.HasDifferences) ? CompareViewText.Compare_NoMatch : CompareViewText.Compare_NoDifferences)</div>
                 }
             </div>
         </section>
@@ -185,24 +182,24 @@
 
 @if (_saving)
 {
-    <ModalFrame Label="Vergleich speichern" Class="compare-save-dialog" OnCancel="() => _saving = false" FocusOnOpen="true">
-        <header><span>@(_saveAsNew ? "Kopie speichern" : "Vergleich speichern")</span></header>
+    <ModalFrame Label="@CompareViewText.Compare_SaveTitle" Class="compare-save-dialog" OnCancel="() => _saving = false" FocusOnOpen="true">
+        <header><span>@(_saveAsNew ? CompareViewText.Compare_SaveCopyTitle : CompareViewText.Compare_SaveTitle)</span></header>
         <div class="dialog-body form-grid">
-            <label for="cmp-name">Name</label>
-            <input id="cmp-name" class="field" maxlength="@SavedComparison.MaxNameLength" @bind="_saveName" @bind:event="oninput" placeholder="z. B. ERP: Dev/Test/Prod" />
+            <label for="cmp-name">@CompareViewText.Compare_Name</label>
+            <input id="cmp-name" class="field" maxlength="@SavedComparison.MaxNameLength" @bind="_saveName" @bind:event="oninput" placeholder="@CompareViewText.Compare_NamePlaceholder" />
         </div>
         <footer>
             <span class="spacer"></span>
-            <button class="btn ghost" @onclick="() => _saving = false">Abbrechen</button>
-            <button class="btn primary" disabled="@string.IsNullOrWhiteSpace(_saveName)" @onclick="SaveAsync">Speichern</button>
+            <button class="btn ghost" @onclick="() => _saving = false">@CommonText.Cancel</button>
+            <button class="btn primary" disabled="@string.IsNullOrWhiteSpace(_saveName)" @onclick="SaveAsync">@CommonText.Save</button>
         </footer>
     </ModalFrame>
 }
 
 @if (_confirmDelete)
 {
-    <ConfirmDialog Title="Vergleich löschen" ConfirmLabel="Löschen" Danger="true" OnConfirm="DeleteAsync" OnCancel="() => _confirmDelete = false">
-        Den gespeicherten Vergleich <strong>@Compare.Current.Name</strong> löschen? Die Verbindungen bleiben.
+    <ConfirmDialog Title="@CompareViewText.Compare_DeleteTitle" ConfirmLabel="@CommonText.Delete" Danger="true" OnConfirm="DeleteAsync" OnCancel="() => _confirmDelete = false">
+        <Fmt Text="@CompareViewText.Compare_DeleteQuestion"><Arg0><strong>@Compare.Current.Name</strong></Arg0></Fmt>
     </ConfirmDialog>
 }
 
@@ -212,12 +209,13 @@
 }
 
 @code {
-    private static readonly (string Label, CompareKind[] Kinds)[] KindFilters =
+    // A property, not a static field: the labels follow the UI language.
+    private static (string Label, CompareKind[] Kinds)[] KindFilters =>
     [
-        ("Objekte", [CompareKind.Table, CompareKind.View, CompareKind.MaterializedView]),
-        ("Spalten", [CompareKind.Column]),
-        ("Constraints", [CompareKind.PrimaryKey, CompareKind.Unique, CompareKind.ForeignKey, CompareKind.Check]),
-        ("Indizes", [CompareKind.Index]),
+        (CompareViewText.Compare_FilterObjects, [CompareKind.Table, CompareKind.View, CompareKind.MaterializedView]),
+        (CompareViewText.Compare_FilterColumns, [CompareKind.Column]),
+        (CompareViewText.Compare_FilterConstraints, [CompareKind.PrimaryKey, CompareKind.Unique, CompareKind.ForeignKey, CompareKind.Check]),
+        (CompareViewText.Compare_FilterIndexes, [CompareKind.Index]),
     ];
 
     private readonly HashSet<string> _open = [];
@@ -339,7 +337,7 @@
     private static string Summary(SchemaComparison result)
     {
         var objects = result.Objects.Count(o => o.HasDifferences);
-        return objects == 0 ? "keine Unterschiede" : objects == 1 ? "1 Objekt mit Unterschieden" : $"{objects:N0} Objekte mit Unterschieden";
+        return objects == 0 ? CompareViewText.Compare_SummaryNone : TextFormat.Plural(objects, CompareViewText.Compare_SummaryOne, CompareViewText.Compare_SummaryOther);
     }
 
     private static FerretSharp.Core.Schema.TableKind KindOf(CompareRow row) => row.Kind switch
@@ -362,12 +360,12 @@
 
     private static string KindText(CompareKind kind) => kind switch
     {
-        CompareKind.Column => "Spalte",
-        CompareKind.PrimaryKey => "Primärschlüssel",
-        CompareKind.Unique => "Unique-Constraint",
-        CompareKind.ForeignKey => "Fremdschlüssel",
-        CompareKind.Check => "Check-Constraint",
-        CompareKind.Index => "Index",
+        CompareKind.Column => CompareViewText.Compare_KindColumn,
+        CompareKind.PrimaryKey => CompareViewText.Compare_KindPrimaryKey,
+        CompareKind.Unique => CompareViewText.Compare_KindUnique,
+        CompareKind.ForeignKey => CompareViewText.Compare_KindForeignKey,
+        CompareKind.Check => CompareViewText.Compare_KindCheck,
+        CompareKind.Index => CompareViewText.Compare_KindIndex,
         _ => "",
     };
 
@@ -379,13 +377,13 @@
         }
 
         var text = CompareExport.Markdown(result, Labels, Compare.Current.OnlyDifferences, Compare.Current.Kinds);
-        Shell.Notify(await Dom.CopyTextAsync(text) ? "Vergleich als Markdown kopiert." : "Die Zwischenablage ist nicht verfügbar.");
+        Shell.Notify(await Dom.CopyTextAsync(text) ? CompareViewText.Compare_CopiedMarkdown : CompareViewText.Compare_ClipboardUnavailable);
     }
 
     private void StartSaving(bool asNew)
     {
         (_saving, _saveAsNew) = (true, asNew);
-        _saveName = asNew ? $"{Compare.Current.Name} (Kopie)" : Compare.Current.Name;
+        _saveName = asNew ? TextFormat.Format(CompareViewText.Compare_CopyName, Compare.Current.Name) : Compare.Current.Name;
     }
 
     private async Task SaveAsync()
@@ -394,7 +392,7 @@
         await Compare.SaveAsync(_saveName, _saveAsNew);
         if (Compare.StoreError is null)
         {
-            Shell.Notify($"„{Compare.Current.Name}“ gespeichert.");
+            Shell.Notify(TextFormat.Format(CompareViewText.Compare_Saved, Compare.Current.Name));
         }
     }
 

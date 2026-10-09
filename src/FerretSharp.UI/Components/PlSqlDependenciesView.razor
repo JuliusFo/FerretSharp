@@ -1,8 +1,8 @@
-@* "Abhängigkeiten" of a PL/SQL unit (WP-28): what it uses (a package: specification and body) and what uses it. *@
+@* "Dependencies" of a PL/SQL unit (WP-28): what it uses (a package: specification and body) and what uses it. *@
 @using FerretSharp.Core.Schema
 @inherits PlSqlViewBase<ObjectDependencies>
 
-<DetailStatus Loading="Loading && Data is null" Error="Error" Text="Lade Abhängigkeiten …" />
+<DetailStatus Loading="Loading && Data is null" Error="Error" Text="@SchemaViewText.Dependencies_Loading" />
 
 @if (Data is { } dependencies)
 {

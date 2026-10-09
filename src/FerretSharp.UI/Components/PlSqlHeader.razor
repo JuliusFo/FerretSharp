@@ -10,21 +10,21 @@
         <span class="chip">@ExplorerList.KindLabel(Unit.Kind).ToUpperInvariant()</span>
         @if (Unit.Synonym is { } synonym)
         {
-            <span class="chip syn">@(synonym.IsPublic ? "ÖFFENTLICHES SYNONYM" : "SYNONYM")</span>
+            <span class="chip syn">@(synonym.IsPublic ? SchemaViewText.PublicSynonymChip : "SYNONYM")</span>
             <span class="muted">→ @Unit.Owner.@Unit.Name</span>
         }
         @{ var info = Data; }
         @if ((info?.Status ?? Unit.Status) == "INVALID")
         {
-            <span class="chip invalid" title="@InvalidStatusText.For(Unit.ObjectType())">@(Unit.Kind == PlSqlKind.Package ? "SPEZIFIKATION UNGÜLTIG" : "UNGÜLTIG")</span>
+            <span class="chip invalid" title="@InvalidStatusText.For(Unit.ObjectType())">@(Unit.Kind == PlSqlKind.Package ? SchemaViewText.PlSql_SpecInvalidChip : SchemaViewText.InvalidChip)</span>
         }
         @if (Unit.Kind == PlSqlKind.Package && (info is null ? Unit.BodyStatus : info.BodyStatus) == "INVALID")
         {
-            <span class="chip invalid" title="@InvalidStatusText.For("PACKAGE BODY")">BODY UNGÜLTIG</span>
+            <span class="chip invalid" title="@InvalidStatusText.For("PACKAGE BODY")">@SchemaViewText.PlSql_BodyInvalidChip</span>
         }
         @if (info?.Trigger is { Enabled: false } || (info is null && Unit.IsDisabled))
         {
-            <span class="chip" title="Der Trigger ist abgeschaltet (ALTER TRIGGER … DISABLE) und feuert nicht.">DEAKTIVIERT</span>
+            <span class="chip" title="@SchemaViewText.PlSql_TriggerDisabledTitle">@SchemaViewText.PlSql_DisabledChip</span>
         }
         @if (Unit.Synonym is null)
         {
@@ -41,11 +41,11 @@
                 <span>@trigger.Event</span>
                 @if (trigger.Table is { } table)
                 {
-                    <span>auf <TableLink Target="table" /></span>
+                    <span><Fmt Text="@SchemaViewText.PlSql_TriggerOn"><Arg0><TableLink Target="table" /></Arg0></Fmt></span>
                 }
                 else
                 {
-                    <span>auf @trigger.BaseObjectType</span>
+                    <span>@TextFormat.Format(SchemaViewText.PlSql_TriggerOn, trigger.BaseObjectType)</span>
                 }
                 @if (trigger.When is { } when)
                 {
@@ -56,19 +56,19 @@
         <div class="object-meta">
             @if (info.Created is { } created)
             {
-                <span>angelegt @Format(created)</span>
+                <span>@TextFormat.Format(SchemaViewText.Object_Created, Format(created))</span>
             }
             @if (info.LastDdl is { } ddl)
             {
-                <span>@(Unit.Kind == PlSqlKind.Package ? "Spezifikation" : "letzte DDL") @Format(ddl)</span>
+                <span>@TextFormat.Format(Unit.Kind == PlSqlKind.Package ? SchemaViewText.PlSql_SpecLastDdl : SchemaViewText.Object_LastDdl, Format(ddl))</span>
             }
             @if (info.BodyLastDdl is { } bodyDdl)
             {
-                <span>Body @Format(bodyDdl)</span>
+                <span>@TextFormat.Format(SchemaViewText.PlSql_BodyLastDdl, Format(bodyDdl))</span>
             }
             else if (Unit.Kind == PlSqlKind.Package)
             {
-                <span title="@NoBodyTitle">kein Body</span>
+                <span title="@NoBodyTitle">@SchemaViewText.PlSql_NoBody</span>
             }
             @if (info.AuthId is { } authId)
             {
@@ -76,17 +76,17 @@
             }
         </div>
     }
-    <DetailStatus Loading="Loading && Data is null" Error="Error" Text="Lade Übersicht …" />
+    <DetailStatus Loading="Loading && Data is null" Error="Error" Text="@SchemaViewText.Object_Loading" />
 </div>
 
 @code {
     private string NoBodyTitle => Unit.Owner == Active.Schema?.Owner
-        ? "Das Package hat keinen Body."
-        : "Kein Body sichtbar: Den Body eines Packages in einem anderen Schema zeigt Oracle nur mit dem Recht DEBUG darauf (oder dem Eigentümer).";
+        ? SchemaViewText.PlSql_PackageHasNoBody
+        : SchemaViewText.PlSql_BodyNotVisibleTitle;
 
     private static string AuthIdTitle(string authId) => authId == "CURRENT_USER"
-        ? "Läuft mit den Rechten des Aufrufers (invoker's rights)."
-        : "Läuft mit den Rechten des Eigentümers (definer's rights).";
+        ? SchemaViewText.PlSql_InvokerRights
+        : SchemaViewText.PlSql_DefinerRights;
 
     private static string Format(DateTime value) => value.ToString("g", CultureInfo.CurrentCulture);
 

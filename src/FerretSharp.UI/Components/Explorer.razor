@@ -10,19 +10,19 @@
         <div class="schema-row">
             <span class="schema">@(Schema?.Owner ?? "–")</span>
             <span class="muted">@CountText</span>
-            <button class="icon-btn ghost" title="Schema neu laden" disabled="@(_refreshing || Schema is null)" @onclick="RefreshAsync">
+            <button class="icon-btn ghost" title="@SchemaViewText.Explorer_ReloadSchema" disabled="@(_refreshing || Schema is null)" @onclick="RefreshAsync">
                 <span class="@(_refreshing ? "spin" : "")">@Icons.Refresh</span>
             </button>
         </div>
         <div class="segmented small explorer-sections" role="tablist">
             <button class="seg @(_section == ExplorerSection.Tables ? "active" : "")" role="tab" aria-selected="@(_section == ExplorerSection.Tables ? "true" : "false")"
-                    title="Tabellen, Views und Materialized Views" @onclick="() => SetSection(ExplorerSection.Tables)">Tabellen</button>
+                    title="@SchemaViewText.Explorer_TablesTitle" @onclick="() => SetSection(ExplorerSection.Tables)">@SchemaViewText.Explorer_Tables</button>
             <button class="seg @(_section == ExplorerSection.PlSql ? "active" : "")" role="tab" aria-selected="@(_section == ExplorerSection.PlSql ? "true" : "false")"
-                    title="Packages, Prozeduren, Funktionen und Trigger – nur ansehen" @onclick="() => SetSection(ExplorerSection.PlSql)">
+                    title="@SchemaViewText.Explorer_PlSqlTitle" @onclick="() => SetSection(ExplorerSection.PlSql)">
                 PL/SQL
                 @if (Schema is { } schema && schema.PlSqlObjects.Any(u => u.IsInvalid))
                 {
-                    <span class="seg-count bad" title="Ungültige Objekte">@schema.PlSqlObjects.Count(u => u.IsInvalid)</span>
+                    <span class="seg-count bad" title="@SchemaViewText.Explorer_InvalidObjects">@schema.PlSqlObjects.Count(u => u.IsInvalid)</span>
                 }
             </button>
         </div>
@@ -31,8 +31,8 @@
             @if (_section == ExplorerSection.PlSql)
             {
                 <button class="btn ghost source-toggle @(_inSource ? "active" : "")" aria-pressed="@(_inSource ? "true" : "false")"
-                        title="Im Quelltext aller Packages, Prozeduren, Funktionen und Trigger des Schemas suchen (Enter)" disabled="@(Schema is null)"
-                        @onclick="ToggleSourceSearch">Quelltext</button>
+                        title="@SchemaViewText.Explorer_SourceSearchTitle" disabled="@(Schema is null)"
+                        @onclick="ToggleSourceSearch">@SchemaViewText.Explorer_Source</button>
             }
         </div>
         @if (OtherSectionHits() is { } other)
@@ -66,7 +66,7 @@
                 {
                     @if (Schema is not null && letters.Count == 0)
                     {
-                        <div class="sidebar-empty">@(string.IsNullOrWhiteSpace(_query) ? "Das Schema enthält keine Tabellen oder Views." : $"Nichts gefunden für „{_query}“.")</div>
+                        <div class="sidebar-empty">@(string.IsNullOrWhiteSpace(_query) ? SchemaViewText.Explorer_NoTables : TextFormat.Format(SchemaViewText.Explorer_NothingFound, _query))</div>
                     }
                     @foreach (var (letter, tables) in letters)
                     {
@@ -83,7 +83,7 @@
                 {
                     @if (Schema is not null && units.Count == 0)
                     {
-                        <div class="sidebar-empty">@(string.IsNullOrWhiteSpace(_query) ? "Das Schema enthält keine Packages, Prozeduren, Funktionen oder Trigger." : $"Nichts gefunden für „{_query}“.")</div>
+                        <div class="sidebar-empty">@(string.IsNullOrWhiteSpace(_query) ? SchemaViewText.Explorer_NoPlSql : TextFormat.Format(SchemaViewText.Explorer_NothingFound, _query))</div>
                     }
                     @foreach (var (letter, list) in units)
                     {
@@ -146,15 +146,15 @@
             }
 
             var count = _section == ExplorerSection.Tables ? schema.Tables.Count : schema.PlSqlObjects.Count;
-            return count == 1 ? "1 Objekt" : $"{count:N0} Objekte";
+            return TextFormat.Plural(count, SchemaViewText.Explorer_ObjectCountOne, SchemaViewText.Explorer_ObjectCountOther);
         }
     }
 
     private string Placeholder => _section switch
     {
-        ExplorerSection.PlSql when _inSource => "Im Quelltext suchen … (Enter)",
-        ExplorerSection.PlSql => "PL/SQL suchen …",
-        _ => "Tabelle suchen …",
+        ExplorerSection.PlSql when _inSource => SchemaViewText.Explorer_SearchSourcePlaceholder,
+        ExplorerSection.PlSql => SchemaViewText.Explorer_SearchPlSqlPlaceholder,
+        _ => SchemaViewText.Explorer_SearchTablePlaceholder,
     };
 
     protected override void OnInitialized()
@@ -216,8 +216,8 @@
         if (_searchCts is not null)
         {
             <div class="sidebar-empty">
-                <span class="spinner"></span> Suche „@_searchedFor“ …
-                <button class="btn ghost" @onclick="CancelSearch">Abbrechen</button>
+                <span class="spinner"></span> @TextFormat.Format(SchemaViewText.Explorer_Searching, _searchedFor)
+                <button class="btn ghost" @onclick="CancelSearch">@CommonText.Cancel</button>
             </div>
         }
         else if (_searchError is not null)
@@ -226,16 +226,16 @@
         }
         else if (_hits is null)
         {
-            <div class="sidebar-empty">Text eingeben und Enter drücken: sucht in allen Zeilen der Packages, Prozeduren, Funktionen und Trigger von @Schema?.Owner (Groß-/Kleinschreibung egal, mindestens @SourceSearch.MinLength Zeichen).</div>
+            <div class="sidebar-empty">@TextFormat.Format(SchemaViewText.Explorer_SourceSearchHint, Schema?.Owner, SourceSearch.MinLength)</div>
         }
         else if (_hits.Count == 0)
         {
-            <div class="sidebar-empty">Kein Quelltext enthält „@_searchedFor“.</div>
+            <div class="sidebar-empty">@TextFormat.Format(SchemaViewText.Explorer_NoSourceHit, _searchedFor)</div>
         }
         else
         {
             <div class="hits-summary muted">
-                @(_hits.Count >= SourceSearch.Limit ? $"Mehr als {SourceSearch.Limit} Zeilen – die ersten {SourceSearch.Limit}; Suche eingrenzen." : _hits.Count == 1 ? "1 Zeile" : $"{_hits.Count} Zeilen")
+                @(_hits.Count >= SourceSearch.Limit ? TextFormat.Format(SchemaViewText.Explorer_HitsLimited, SourceSearch.Limit) : TextFormat.Plural(_hits.Count, SchemaViewText.Explorer_HitLinesOne, SchemaViewText.Explorer_HitLinesOther))
             </div>
             foreach (var group in SourceSearch.Group(_hits))
             {
@@ -286,10 +286,17 @@
             return null;
         }
 
-        var (other, count, label) = _section == ExplorerSection.Tables
-            ? (ExplorerSection.PlSql, ExplorerList.Filter(schema.PlSqlObjects, _query).Count(), "PL/SQL")
-            : (ExplorerSection.Tables, schema.Tables.Count(TableMatches), "Tabellen");
-        return count == 0 ? null : (other, $"{count} Treffer unter {label}");
+        var (other, count) = _section == ExplorerSection.Tables
+            ? (ExplorerSection.PlSql, ExplorerList.Filter(schema.PlSqlObjects, _query).Count())
+            : (ExplorerSection.Tables, schema.Tables.Count(TableMatches));
+        if (count == 0)
+        {
+            return null;
+        }
+
+        return (other, other == ExplorerSection.PlSql
+            ? TextFormat.Plural(count, SchemaViewText.Explorer_HitsInPlSqlOne, SchemaViewText.Explorer_HitsInPlSqlOther)
+            : TextFormat.Plural(count, SchemaViewText.Explorer_HitsInTablesOne, SchemaViewText.Explorer_HitsInTablesOther));
     }
 
     private bool IsOpen(TableSummary table) => Shell.Tabs.OfType<TableTab>().Any(t => t.Table.Ref == table.Ref);
@@ -326,7 +333,7 @@
 
         if (text.Length < SourceSearch.MinLength)
         {
-            _searchError = $"Mindestens {SourceSearch.MinLength} Zeichen eingeben.";
+            _searchError = TextFormat.Format(SchemaViewText.Explorer_SourceSearchTooShort, SourceSearch.MinLength);
             return;
         }
 
@@ -374,32 +381,28 @@
     private static string Tooltip(TableSummary table, string? entity)
     {
         var text = Tooltip(table);
-        return entity is null ? text : $"{text}{Environment.NewLine}Entity {entity}";
+        return entity is null ? text : text + Environment.NewLine + TextFormat.Format(SchemaViewText.Explorer_EntityTooltip, entity);
     }
 
     private static string Tooltip(TableSummary table)
     {
         var kind = table.Kind switch
         {
-            TableKind.View => "View",
-            TableKind.MaterializedView => "Materialized View",
-            _ => "Tabelle",
+            TableKind.View => SchemaViewText.Explorer_KindView,
+            TableKind.MaterializedView => SchemaViewText.Explorer_KindMaterializedView,
+            _ => SchemaViewText.Explorer_KindTable,
         };
-        var text = table.Synonym is { } synonym
-            ? $"{(synonym.IsPublic ? "Öffentliches Synonym" : "Synonym")} → {table.Owner}.{table.Name} ({kind})"
-            : kind;
+        var text = table.Synonym is { } synonym ? SynonymTooltip(synonym, $"{table.Owner}.{table.Name}", kind) : kind;
         return table.IsInvalid ? text + Environment.NewLine + InvalidStatusText.For(ObjectType(table.Kind)) : text;
     }
 
     private static string Tooltip(PlSqlObjectSummary unit)
     {
         var kind = ExplorerList.KindLabel(unit.Kind);
-        var text = unit.Synonym is { } synonym
-            ? $"{(synonym.IsPublic ? "Öffentliches Synonym" : "Synonym")} → {unit.Owner}.{unit.Name} ({kind})"
-            : kind;
+        var text = unit.Synonym is { } synonym ? SynonymTooltip(synonym, $"{unit.Owner}.{unit.Name}", kind) : kind;
         if (unit.IsDisabled)
         {
-            text += Environment.NewLine + "Deaktiviert: feuert nicht.";
+            text += Environment.NewLine + SchemaViewText.Explorer_TriggerDisabled;
         }
 
         if (unit.Status == "INVALID")
@@ -408,11 +411,14 @@
         }
         else if (unit.BodyStatus == "INVALID")
         {
-            text += Environment.NewLine + "Body " + InvalidStatusText.For("PACKAGE BODY");
+            text += Environment.NewLine + TextFormat.Format(SchemaViewText.Explorer_BodyInvalid, InvalidStatusText.For("PACKAGE BODY"));
         }
 
         return text;
     }
+
+    private static string SynonymTooltip(SynonymInfo synonym, string target, string kind) =>
+        TextFormat.Format(synonym.IsPublic ? SchemaViewText.Explorer_PublicSynonymTooltip : SchemaViewText.Explorer_SynonymTooltip, target, kind);
 
     private static string ObjectType(TableKind kind) => kind switch
     {
