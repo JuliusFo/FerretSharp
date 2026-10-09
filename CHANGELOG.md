@@ -18,6 +18,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 ### Fixed
 - Closing a table tab with ✕ while a grid cell was being edited dropped the typed value without asking.
 - Cell tooltips with several lines (a value without member, the C# member behind a display text) ran their lines together; they now keep their line breaks.
+- Tooltips in the status bar and the footers of tabs and results opened below the pointer and, with the window maximized, behind the Windows taskbar; they now open above the element. Contributed by @ulbpccc.
 
 ## [3.20.0] - 2026-10-09
 

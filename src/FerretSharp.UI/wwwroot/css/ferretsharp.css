@@ -1158,3 +1158,10 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .commit-list { margin: 10px 0 0; padding-left: 18px; max-height: 220px; overflow: auto; font-size: 12.5px; }
 .commit-list li { margin: 2px 0; }
 .commit-list .change-time { margin-right: 6px; }
+
+/* Footer tooltips (tooltip.js): above the element, so they stay clear of the taskbar. */
+.footer-tip {
+  position: fixed; z-index: 1000; max-width: 420px; padding: 5px 9px; pointer-events: none;
+  font-size: 12px; line-height: 1.4; color: var(--text); white-space: pre-line;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 6px; box-shadow: var(--shadow);
+}
