@@ -827,6 +827,10 @@
     <value>New LINQ console: C# against the DbContext of the linked project{0}</value>
     <comment>{0} = shortcut hint like “ (Ctrl+L)” or empty</comment>
   </data>
+  <data name="TabBar_CloseTitle" xml:space="preserve">
+    <value>Close{0}</value>
+    <comment>Tooltip of the tab’s ✕ button; {0} = shortcut hint like “ (Ctrl+W)” or empty</comment>
+  </data>
   <data name="Unlock_Title" xml:space="preserve">
     <value>Unlock writing</value>
     <comment>Dialog title</comment>

@@ -51,6 +51,12 @@
   <data name="ActionForward" xml:space="preserve">
     <value>Wieder vor</value>
   </data>
+  <data name="ActionCloseTab" xml:space="preserve">
+    <value>Tab schließen</value>
+  </data>
+  <data name="HintCloseTab" xml:space="preserve">
+    <value>Mit ausstehenden Änderungen wird vorher gefragt.</value>
+  </data>
   <data name="ActionApplyFilters" xml:space="preserve">
     <value>Filter anwenden</value>
   </data>
