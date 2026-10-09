@@ -117,6 +117,12 @@ public sealed class ModelHostTests
         var kundenart = kunde.Properties.Single(p => p.Name == "Kundenart");
         Assert.Null(kundenart.Converter); // EF's own enum-to-number mapping
         Assert.Equal(["Privat=1", "Gewerbe=2", "Behoerde=3"], kundenart.Values!.Select(v => $"{v.Name}={v.ProviderValue}"));
+        Assert.False(kundenart.IsFlagsEnum);
+
+        var merkmale = kunde.Properties.Single(p => p.Name == "Merkmale");
+        Assert.True(merkmale.IsFlagsEnum);
+        Assert.Equal(["Keine=0", "Stammkunde=1", "Newsletter=2", "Lastschrift=4", "Premium=5", "Export=8"],
+            merkmale.Values!.Select(v => $"{v.Name}={v.ProviderValue}"));
 
         var auftrag = model.Entities.Single(e => e.Name.EndsWith(".Auftrag", StringComparison.Ordinal));
         Assert.Equal("AUFTRAG", auftrag.Table);
