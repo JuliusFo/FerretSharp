@@ -33,4 +33,157 @@
   <data name="OperatorIsNotNull" xml:space="preserve">
     <value>ist nicht NULL</value>
   </data>
+  <data name="FilterOperatorNotAvailable" xml:space="preserve">
+    <value>Operator nicht möglich für {0}.</value>
+  </data>
+  <data name="FilterTwoValuesNeeded" xml:space="preserve">
+    <value>Zwei Werte nötig (von … bis).</value>
+  </data>
+  <data name="FilterValueMissing" xml:space="preserve">
+    <value>Wert fehlt.</value>
+  </data>
+  <data name="FilterEmptyTextIsNull" xml:space="preserve">
+    <value>Leerer Text ist in Oracle NULL – „{0}“ verwenden.</value>
+  </data>
+  <data name="NotANumber" xml:space="preserve">
+    <value>„{0}“ ist keine Zahl.</value>
+  </data>
+  <data name="NotADate" xml:space="preserve">
+    <value>„{0}“ ist kein Datum (TT.MM.JJJJ [hh:mm[:ss]]).</value>
+  </data>
+  <data name="NotAHexValue" xml:space="preserve">
+    <value>„{0}“ ist kein Hex-Wert (z. B. CAFE01).</value>
+  </data>
+  <data name="ColumnDoesNotExist" xml:space="preserve">
+    <value>Spalte {0} existiert nicht.</value>
+  </data>
+  <data name="ColumnNotSortable" xml:space="preserve">
+    <value>Nach {0} kann nicht sortiert werden.</value>
+  </data>
+  <data name="FkConditionInList" xml:space="preserve">
+    <value>{0} in ({1}) · {2:N0} Werte</value>
+  </data>
+  <data name="FkSkippedRowsOne" xml:space="preserve">
+    <value>{0} Zeile ohne Wert übersprungen</value>
+  </data>
+  <data name="FkSkippedRowsOther" xml:space="preserve">
+    <value>{0:N0} Zeilen ohne Wert übersprungen</value>
+  </data>
+  <data name="FkColumnMissing" xml:space="preserve">
+    <value>Spalte {0} fehlt.</value>
+  </data>
+  <data name="FkJumpTypeNotSupported" xml:space="preserve">
+    <value>Sprung über {0} nicht möglich.</value>
+  </data>
+  <data name="FkKeyIsNull" xml:space="preserve">
+    <value>{0} ist NULL.</value>
+  </data>
+  <data name="FkColumnNullInAllRows" xml:space="preserve">
+    <value>{0} ist in allen {1:N0} Zeilen NULL.</value>
+  </data>
+  <data name="FkKeyNullInAllRows" xml:space="preserve">
+    <value>Schlüssel ({0}) ist in allen {1:N0} Zeilen NULL.</value>
+  </data>
+  <data name="FkSeveralRowsNeedSingleColumnKey" xml:space="preserve">
+    <value>Bei mehreren Zeilen nur für Schlüssel aus einer Spalte möglich.</value>
+  </data>
+  <data name="FkTooManyValues" xml:space="preserve">
+    <value>{0:N0} verschiedene Werte – höchstens {1:N0} möglich.</value>
+  </data>
+  <data name="FkValueContainsSeparator" xml:space="preserve">
+    <value>Ein Wert enthält „{0}“ – bei mehreren Werten nicht möglich.</value>
+  </data>
+  <data name="SqlRejectForUpdate" xml:space="preserve">
+    <value>SELECT … FOR UPDATE sperrt Zeilen – Sperren setzt FerretSharp nur beim Editieren.</value>
+  </data>
+  <data name="SqlRejectEmpty" xml:space="preserve">
+    <value>Kein Statement am Cursor.</value>
+  </data>
+  <data name="SqlRejectDdl" xml:space="preserve">
+    <value>{0} (DDL) führt der SQL-Editor nicht aus: DDL committet implizit – auch die offene Transaktion des Workspaces.</value>
+  </data>
+  <data name="SqlRejectPlSql" xml:space="preserve">
+    <value>PL/SQL-Blöcke und Prozeduraufrufe führt der SQL-Editor nicht aus – sie können selbst committen.</value>
+  </data>
+  <data name="SqlRejectTransactionControl" xml:space="preserve">
+    <value>{0} läuft über die Statusleiste (Commit, Rollback).</value>
+  </data>
+  <data name="SqlRejectSessionControl" xml:space="preserve">
+    <value>ALTER SESSION/SYSTEM ändert die Session des Workspaces und wird nicht ausgeführt.</value>
+  </data>
+  <data name="SqlRejectLock" xml:space="preserve">
+    <value>LOCK TABLE wird nicht ausgeführt – Sperren setzt FerretSharp nur beim Editieren.</value>
+  </data>
+  <data name="SqlRejectExplain" xml:space="preserve">
+    <value>Für Ausführungspläne den Knopf „Plan“ verwenden.</value>
+  </data>
+  <data name="SqlRejectOther" xml:space="preserve">
+    <value>„{0}“ führt der SQL-Editor nicht aus – nur SELECT, WITH, INSERT, UPDATE, DELETE und MERGE.</value>
+  </data>
+  <data name="SqlPlanReadOnly" xml:space="preserve">
+    <value>{0} ändert Daten – der Workspace ist schreibgeschützt.</value>
+  </data>
+  <data name="SqlPlanStatementProblem" xml:space="preserve">
+    <value>Statement {0} – nichts ausgeführt: {1}</value>
+  </data>
+  <data name="BindValueMissing" xml:space="preserve">
+    <value>Für :{0} fehlt ein Wert.</value>
+  </data>
+  <data name="BindNumberMissing" xml:space="preserve">
+    <value>:{0}: Zahl fehlt (für NULL den Typ NULL wählen).</value>
+  </data>
+  <data name="BindNotANumber" xml:space="preserve">
+    <value>:{0}: „{1}“ ist keine Zahl.</value>
+  </data>
+  <data name="BindDateMissing" xml:space="preserve">
+    <value>:{0}: Datum fehlt (für NULL den Typ NULL wählen).</value>
+  </data>
+  <data name="BindNotADate" xml:space="preserve">
+    <value>:{0}: „{1}“ ist kein Datum (TT.MM.JJJJ [hh:mm[:ss]] oder ISO).</value>
+  </data>
+  <data name="BindNotAHexValue" xml:space="preserve">
+    <value>:{0}: „{1}“ ist kein Hex-Wert (z. B. CAFE01).</value>
+  </data>
+  <data name="BindUnknownType" xml:space="preserve">
+    <value>:{0}: unbekannter Typ.</value>
+  </data>
+  <data name="BindValueMasked" xml:space="preserve">
+    <value>‹maskiert›</value>
+  </data>
+  <data name="CompletionSynonym" xml:space="preserve">
+    <value>Synonym → {0}</value>
+  </data>
+  <data name="CompletionPublicSynonym" xml:space="preserve">
+    <value>Synonym → {0} (öffentlich)</value>
+  </data>
+  <data name="CompletionTable" xml:space="preserve">
+    <value>Tabelle</value>
+  </data>
+  <data name="CompletionView" xml:space="preserve">
+    <value>View</value>
+  </data>
+  <data name="CompletionMaterializedView" xml:space="preserve">
+    <value>Materialized View</value>
+  </data>
+  <data name="InsertExportHeaderOne" xml:space="preserve">
+    <value>{0} Zeile aus {1} (FerretSharp-Export)</value>
+  </data>
+  <data name="InsertExportHeaderOther" xml:space="preserve">
+    <value>{0} Zeilen aus {1} (FerretSharp-Export)</value>
+  </data>
+  <data name="InsertExportAmpersand" xml:space="preserve">
+    <value>Enthält '&amp;': in SQL*Plus vorher SET DEFINE OFF ausführen.</value>
+  </data>
+  <data name="InsertExportIdentity" xml:space="preserve">
+    <value>{0} ist eine Identity-Spalte: GENERATED ALWAYS lehnt explizite Werte ab (ORA-32795).</value>
+  </data>
+  <data name="InsertExportSkipped" xml:space="preserve">
+    <value>{0} ({1}) nicht exportiert</value>
+  </data>
+  <data name="DmlPrimaryKeyNull" xml:space="preserve">
+    <value>Primärschlüssel {0} ist NULL.</value>
+  </data>
+  <data name="DmlRowWithoutKey" xml:space="preserve">
+    <value>Die Zeile hat keinen Schlüssel und lässt sich nicht schreiben.</value>
+  </data>
 </root>

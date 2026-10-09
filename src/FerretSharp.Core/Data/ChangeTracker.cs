@@ -1,4 +1,5 @@
 using FerretSharp.Core.Oracle;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.Data;
@@ -217,17 +218,17 @@ public sealed class ChangeTracker(TableDetails table)
 
         if (OracleTypeMapper.IsLob(info))
         {
-            return new EditResult(null, $"{info.DisplayType} im LOB-Editor bearbeiten (Doppelklick).");
+            return new EditResult(null, TextFormat.Format(DataText.EditInLobEditor, info.DisplayType));
         }
 
         if (!OracleTypeMapper.IsEditableValue(row.Values[column]))
         {
-            return new EditResult(null, "Zahlen mit mehr als 28 Stellen lassen sich hier nicht bearbeiten.");
+            return new EditResult(null, DataText.NumberTooPreciseToEdit);
         }
 
         if (existing?.Deleted is not null)
         {
-            return new EditResult(null, "Die Zeile ist zum Löschen markiert.");
+            return new EditResult(null, DataText.RowMarkedForDeletion);
         }
 
         var parsed = OracleTypeMapper.Parse(info, text);
@@ -271,7 +272,7 @@ public sealed class ChangeTracker(TableDetails table)
         var info = Table.Columns[column];
         if (!OracleTypeMapper.IsLob(info))
         {
-            return new EditResult(null, $"{info.Name} ist keine LOB-Spalte.");
+            return new EditResult(null, TextFormat.Format(DataText.NotALobColumn, info.Name));
         }
 
         if (OracleTypeMapper.NotEditableReason(Table, info, newRow: false) is { } reason)
@@ -282,7 +283,7 @@ public sealed class ChangeTracker(TableDetails table)
         var existing = _byKey.GetValueOrDefault(row.Key);
         if (existing?.Deleted is not null)
         {
-            return new EditResult(null, "Die Zeile ist zum Löschen markiert.");
+            return new EditResult(null, DataText.RowMarkedForDeletion);
         }
 
         var checkedValue = OracleTypeMapper.CheckContent(info, value);
@@ -304,7 +305,7 @@ public sealed class ChangeTracker(TableDetails table)
         var info = Table.Columns[column];
         if (!OracleTypeMapper.IsLob(info))
         {
-            return new EditResult(null, $"{info.Name} ist keine LOB-Spalte.");
+            return new EditResult(null, TextFormat.Format(DataText.NotALobColumn, info.Name));
         }
 
         if (OracleTypeMapper.NotEditableReason(Table, info, newRow: true) is { } reason)

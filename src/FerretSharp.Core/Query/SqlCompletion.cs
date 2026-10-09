@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using FerretSharp.Core.ClrModel;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.Query;
@@ -156,10 +157,11 @@ public static class SqlCompletion
     {
         var (kind, text) = table switch
         {
-            { Synonym: { } synonym } => (SqlCompletionKind.Synonym, $"Synonym → {table.Owner}.{table.Name}{(synonym.IsPublic ? " (öffentlich)" : "")}"),
-            { Kind: TableKind.View } => (SqlCompletionKind.View, "View"),
-            { Kind: TableKind.MaterializedView } => (SqlCompletionKind.View, "Materialized View"),
-            _ => (SqlCompletionKind.Table, "Tabelle"),
+            { Synonym: { } synonym } => (SqlCompletionKind.Synonym,
+                TextFormat.Format(synonym.IsPublic ? QueryText.CompletionPublicSynonym : QueryText.CompletionSynonym, $"{table.Owner}.{table.Name}")),
+            { Kind: TableKind.View } => (SqlCompletionKind.View, QueryText.CompletionView),
+            { Kind: TableKind.MaterializedView } => (SqlCompletionKind.View, QueryText.CompletionMaterializedView),
+            _ => (SqlCompletionKind.Table, QueryText.CompletionTable),
         };
         var entity = entityOf(table.Ref) is { } name ? $" · Entity {name}" : "";
         return new SqlCompletionItem(label, insert, kind, text + entity, 2);

@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using FerretSharp.Core.Data;
 using FerretSharp.Core.Oracle;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.Query;
@@ -12,9 +13,6 @@ namespace FerretSharp.Core.Query;
 /// </summary>
 public static class InsertExport
 {
-    /// <summary>Comments are German like the rest of the UI, independent of the machine's culture.</summary>
-    private static readonly CultureInfo German = CultureInfo.GetCultureInfo("de-DE");
-
     public static ExportText Build(TableDetails table, IReadOnlyList<RowData> rows)
     {
         var warnings = new ExportWarnings();
@@ -31,17 +29,16 @@ public static class InsertExport
         }
 
         var header = new StringBuilder()
-            .Append("-- ").Append(rows.Count == 1 ? "1 Zeile" : $"{rows.Count} Zeilen").Append(" aus ").Append(target)
-            .Append(" (FerretSharp-Export)\r\n");
+            .Append("-- ").Append(TextFormat.Plural(rows.Count, QueryText.InsertExportHeaderOne, QueryText.InsertExportHeaderOther, target))
+            .Append("\r\n");
         if (hasAmpersand)
         {
-            header.Append("-- Enthält '&': in SQL*Plus vorher SET DEFINE OFF ausführen.\r\n");
+            header.Append("-- ").Append(QueryText.InsertExportAmpersand).Append("\r\n");
         }
 
         foreach (var identity in table.Columns.Where(c => c.IsIdentity))
         {
-            header.Append("-- ").Append(identity.Name)
-                .Append(" ist eine Identity-Spalte: GENERATED ALWAYS lehnt explizite Werte ab (ORA-32795).\r\n");
+            header.Append("-- ").Append(TextFormat.Format(QueryText.InsertExportIdentity, identity.Name)).Append("\r\n");
         }
 
         return new ExportText(header.Append(statements).ToString(), rows.Count, warnings.ToList());
@@ -68,10 +65,10 @@ public static class InsertExport
         LobValue { Length: 0, Preview: null } => "EMPTY_BLOB()",
         LobValue { Length: 0 } => "EMPTY_CLOB()",
         LobValue { Preview: { } preview } clob when preview.Length == clob.Length => Text(column, preview),
-        LobValue { Preview: null } blob => Skipped(column, warnings, blob.Length.ToString("N0", German) + " Bytes", "nur die Länge geladen"),
-        LobValue clob => Skipped(column, warnings, clob.Length.ToString("N0", German) + " Zeichen", "nur die Vorschau geladen"),
-        NotNullMarker marker => Skipped(column, warnings, marker.DataType, "Typ wird nicht exportiert"),
-        _ => Skipped(column, warnings, value.GetType().Name, "Typ wird nicht exportiert"),
+        LobValue { Preview: null } blob => Skipped(column, warnings, LobContent.ByteCount(blob.Length), DataText.ExportReasonOnlyLength),
+        LobValue clob => Skipped(column, warnings, LobContent.CharacterCount(clob.Length), DataText.ExportReasonOnlyPreview),
+        NotNullMarker marker => Skipped(column, warnings, marker.DataType, DataText.ExportReasonTypeNotExported),
+        _ => Skipped(column, warnings, value.GetType().Name, DataText.ExportReasonTypeNotExported),
     };
 
     /// <summary>N'…' for national character columns, so characters outside the database charset survive.</summary>
@@ -90,6 +87,6 @@ public static class InsertExport
     private static string Skipped(ColumnInfo column, ExportWarnings warnings, string what, string reason)
     {
         warnings.Skip(column, reason);
-        return $"NULL /* {column.DataType} ({what}) nicht exportiert */";
+        return "NULL /* " + TextFormat.Format(QueryText.InsertExportSkipped, column.DataType, what) + " */";
     }
 }

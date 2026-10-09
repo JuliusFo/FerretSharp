@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.Query;
 
@@ -92,19 +93,19 @@ public sealed record SqlStatementInfo(
     /// <summary>An UPDATE or DELETE without WHERE changes every row of the table.</summary>
     public bool AffectsAllRows => Kind is SqlStatementKind.Update or SqlStatementKind.Delete && !HasWhere;
 
-    /// <summary>Why the SQL editor does not run the statement (German, for the user); null if it does.</summary>
+    /// <summary>Why the SQL editor does not run the statement (for the user); null if it does.</summary>
     public string? Rejection => Kind switch
     {
-        SqlStatementKind.Query when ForUpdate => "SELECT … FOR UPDATE sperrt Zeilen – Sperren setzt FerretSharp nur beim Editieren.",
+        SqlStatementKind.Query when ForUpdate => QueryText.SqlRejectForUpdate,
         SqlStatementKind.Query or SqlStatementKind.Insert or SqlStatementKind.Update or SqlStatementKind.Delete or SqlStatementKind.Merge => null,
-        SqlStatementKind.Empty => "Kein Statement am Cursor.",
-        SqlStatementKind.Ddl => $"{FirstWord} (DDL) führt der SQL-Editor nicht aus: DDL committet implizit – auch die offene Transaktion des Workspaces.",
-        SqlStatementKind.PlSql or SqlStatementKind.Call => "PL/SQL-Blöcke und Prozeduraufrufe führt der SQL-Editor nicht aus – sie können selbst committen.",
-        SqlStatementKind.TransactionControl => $"{FirstWord} läuft über die Statusleiste (Commit, Rollback).",
-        SqlStatementKind.SessionControl => "ALTER SESSION/SYSTEM ändert die Session des Workspaces und wird nicht ausgeführt.",
-        SqlStatementKind.Lock => "LOCK TABLE wird nicht ausgeführt – Sperren setzt FerretSharp nur beim Editieren.",
-        SqlStatementKind.Explain => "Für Ausführungspläne den Knopf „Plan“ verwenden.",
-        _ => $"„{FirstWord}“ führt der SQL-Editor nicht aus – nur SELECT, WITH, INSERT, UPDATE, DELETE und MERGE.",
+        SqlStatementKind.Empty => QueryText.SqlRejectEmpty,
+        SqlStatementKind.Ddl => TextFormat.Format(QueryText.SqlRejectDdl, FirstWord),
+        SqlStatementKind.PlSql or SqlStatementKind.Call => QueryText.SqlRejectPlSql,
+        SqlStatementKind.TransactionControl => TextFormat.Format(QueryText.SqlRejectTransactionControl, FirstWord),
+        SqlStatementKind.SessionControl => QueryText.SqlRejectSessionControl,
+        SqlStatementKind.Lock => QueryText.SqlRejectLock,
+        SqlStatementKind.Explain => QueryText.SqlRejectExplain,
+        _ => TextFormat.Format(QueryText.SqlRejectOther, FirstWord),
     };
 }
 
@@ -344,7 +345,7 @@ public static class SqlScript
     public static int CountStatements(string text) => Split(text).Count;
 
     /// <summary>
-    /// What "Skript ausführen" (Alt+X) runs: the statements of the selection if it holds more than whitespace, otherwise
+    /// What "Run script" (Alt+X) runs: the statements of the selection if it holds more than whitespace, otherwise
     /// all of the text – with positions in <paramref name="text"/>.
     /// </summary>
     public static IReadOnlyList<SqlStatement> StatementsIn(string text, int selectionStart, int selectionEnd)
