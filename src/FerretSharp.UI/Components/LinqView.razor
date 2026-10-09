@@ -1,6 +1,6 @@
 @* LINQ console tab (WP-13, ADR 0011): C# against the linked project's DbContext. The model host turns it into the SQL
    EF would send; FerretSharp runs that in the workspace's session – reading always, writing (ExecuteUpdate/Delete) only
-   on writable workspaces and only after the user pressed "Ausführen" below the statement. *@
+   on writable workspaces and only after the user pressed "Run in workspace" below the statement. *@
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
@@ -21,25 +21,32 @@
         <span class="linq-console @ConsoleClass" title="@ConsoleTitle">@ConsoleText</span>
         @if (Console.State.Phase == LinqConsolePhase.Starting && !_running)
         {
-            <button class="btn ghost" title="Den Start des Hilfsprozesses abbrechen – „Ausführen“ startet ihn erneut" @onclick="Console.CancelStart">Abbrechen</button>
+            <button class="btn ghost" title="@SqlEditorText.Linq_CancelStartTitle" @onclick="Console.CancelStart">@CommonText.Cancel</button>
         }
         <span class="spacer"></span>
         <button class="btn primary" disabled="@(_running || Console.State.Phase == LinqConsolePhase.NotLinked)" @onclick="RunAsync"
-                title="Code übersetzen und das SQL im Workspace ausführen (lesend; Schreiben erst nach Bestätigung)">
-            ▶ Ausführen <Kbd Action="ShortcutAction.ApplyFilters" />
+                title="@SqlEditorText.Linq_RunTitle">
+            ▶ @CommonText.Run <Kbd Action="ShortcutAction.ApplyFilters" />
         </button>
     </div>
 
     <div class="linq-editors">
         <div class="linq-label">
-            Variablen
-            <span class="hint">Werte, die die Query braucht – z. B. <code>var kundeId = 4711;</code>. <code>_context</code>, <code>db</code> und <code>ct</code> kennt FerretSharp selbst.</span>
+            @SqlEditorText.Editor_Variables
+            <span class="hint">
+                <Fmt Text="@SqlEditorText.Linq_VariablesHint">
+                    <Arg0><code>var kundeId = 4711;</code></Arg0>
+                    <Arg1><code>_context</code></Arg1>
+                    <Arg2><code>db</code></Arg2>
+                    <Arg3><code>ct</code></Arg3>
+                </Fmt>
+            </span>
         </div>
         <MonacoEditor @ref="_variablesEditor" Minimal="true" Class="linq-variables" Text="@Tab.Variables" OnChange="OnVariablesChanged" Completion="CompleteVariablesAsync"
                       Markers="Markers(LinqProtocol.VariablesSection)" Placeholder="// var kundeId = 4711;" />
         <div class="linq-label">
-            Query
-            <span class="hint">Direkt aus dem Code kopieren; <code>return</code> liefert das Ergebnis.</span>
+            @SqlEditorText.Linq_Query
+            <span class="hint"><Fmt Text="@SqlEditorText.Linq_QueryHint"><Arg0><code>return</code></Arg0></Fmt></span>
         </div>
         <MonacoEditor @ref="_codeEditor" Class="linq-code" Text="@Tab.Code" OnChange="OnCodeChanged" Completion="CompleteCodeAsync" Markers="Markers(LinqProtocol.CodeSection)"
                       Placeholder="return await db.Kunden.Where(k => k.KundeId == kundeId).ToListAsync(ct);" />
@@ -53,7 +60,7 @@
 
         @if (_running && _phase == RunPhase.Translating)
         {
-            <RunProgress @key="_phaseStarted" WorkspaceId="Tab.WorkspaceId" Title="C#-Code wird übersetzt" Started="_phaseStarted"
+            <RunProgress @key="_phaseStarted" WorkspaceId="Tab.WorkspaceId" Title="@SqlEditorText.Linq_Translating" Started="_phaseStarted"
                          OnCancel="Cancel" Database="false" />
         }
         else if (Tab.LastRun is { } run)
@@ -61,10 +68,11 @@
             @if (run.UnknownNames.Count > 0)
             {
                 <div class="linq-notice">
-                    <strong>@(run.UnknownNames.Count == 1 ? "Ein Name ist unbekannt" : $"{run.UnknownNames.Count} Namen sind unbekannt")</strong>
-                    – Vorschlag für die Variablen (Werte anpassen, dann erneut ausführen):
+                    <Fmt Text="@SqlEditorText.Linq_UnknownNames">
+                        <Arg0><strong>@TextFormat.Plural(run.UnknownNames.Count, SqlEditorText.Linq_UnknownNamesOne, SqlEditorText.Linq_UnknownNamesOther)</strong></Arg0>
+                    </Fmt>
                     <pre class="linq-declarations">@string.Join("\n", run.UnknownNames.Select(u => u.Declaration))</pre>
-                    <button class="btn" @onclick="AdoptDeclarationsAsync">In die Variablen übernehmen</button>
+                    <button class="btn" @onclick="AdoptDeclarationsAsync">@SqlEditorText.Linq_AdoptDeclarations</button>
                 </div>
             }
 
@@ -75,8 +83,8 @@
                     @foreach (var d in problems)
                     {
                         var diagnostic = d;
-                        <li class="@diagnostic.Severity" @onclick="() => RevealAsync(diagnostic)" title="Zur Stelle springen">
-                            <span class="where">@(diagnostic.Section == LinqProtocol.CodeSection ? "Query" : "Variablen") @diagnostic.Line:@diagnostic.Column</span>
+                        <li class="@diagnostic.Severity" @onclick="() => RevealAsync(diagnostic)" title="@SqlEditorText.Linq_GoToLocation">
+                            <span class="where">@(diagnostic.Section == LinqProtocol.CodeSection ? SqlEditorText.Linq_Query : SqlEditorText.Editor_Variables) @diagnostic.Line:@diagnostic.Column</span>
                             <span class="id">@diagnostic.Id</span>
                             @diagnostic.Message
                         </li>
@@ -87,10 +95,10 @@
             @if (run.Commands.Count == 0 && run.UnknownNames.Count == 0 && !run.HasErrors)
             {
                 <div class="linq-notice muted">
-                    Kein SQL – der Code hat keine Abfrage ausgeführt.
+                    @SqlEditorText.Linq_NoSql
                     @if (run.Exception is { } thrown)
                     {
-                        <span class="error">Ausnahme: @thrown</span>
+                        <span class="error">@TextFormat.Format(SqlEditorText.Linq_Exception, thrown)</span>
                     }
                 </div>
             }
@@ -110,14 +118,16 @@
                             </button>
                         }
                     }
-                    <span class="muted">@(run.ResultType is { } type ? $"Ergebnis {type} · " : "")übersetzt in @ResultFooter.Ms(run.Elapsed)</span>
+                    <span class="muted">@(run.ResultType is { } type
+                        ? TextFormat.Format(SqlEditorText.Linq_TranslatedWithType, type, ResultFooter.Ms(run.Elapsed))
+                        : TextFormat.Format(SqlEditorText.Linq_Translated, ResultFooter.Ms(run.Elapsed)))</span>
                     <span class="spacer"></span>
                     @if (kind == LinqCommandKind.Query && _query is not null)
                     {
-                        <button class="btn ghost" title="Ausführungsplan des Kommandos – geschätzt oder tatsächlich (mit den Bind-Werten aus dem Code)"
-                                @onclick="() => _planOpen = true">Plan</button>
+                        <button class="btn ghost" title="@SqlEditorText.Linq_PlanTitle"
+                                @onclick="() => _planOpen = true">@SqlEditorText.Plan_Open</button>
                     }
-                    <button class="btn ghost" @onclick="() => _showSql = !_showSql">@Icons.Code @(_showSql ? "SQL ausblenden" : "SQL")</button>
+                    <button class="btn ghost" @onclick="() => _showSql = !_showSql">@Icons.Code @(_showSql ? SqlEditorText.Linq_HideSql : "SQL")</button>
                 </div>
 
                 @if (_showSql || kind != LinqCommandKind.Query)
@@ -139,7 +149,7 @@
                 @switch (kind)
                 {
                     case LinqCommandKind.Query when _query is not null && _running && _phase == RunPhase.Reading:
-                        <RunProgress @key="_phaseStarted" WorkspaceId="Tab.WorkspaceId" Title="Abfrage läuft" Started="_phaseStarted"
+                        <RunProgress @key="_phaseStarted" WorkspaceId="Tab.WorkspaceId" Title="@SqlEditorText.Run_QueryRunning" Started="_phaseStarted"
                                      Detail="@command.Sql" OnCancel="Cancel" />
                         break;
                     case LinqCommandKind.Query when _query is not null:
@@ -154,8 +164,8 @@
                                 @if (error.ErrorCode == "ORA-00904")
                                 {
                                     @* The model maps a column the database does not have (yet): the model page lists such drift. *@
-                                    <button class="btn ghost" title="Das C#-Modell kennt eine Spalte, die es in der Datenbank nicht gibt"
-                                            @onclick="Shell.ShowModel">Modell-Abgleich öffnen</button>
+                                    <button class="btn ghost" title="@SqlEditorText.Linq_ModelMismatchTitle"
+                                            @onclick="Shell.ShowModel">@SqlEditorText.Linq_ShowModelMismatches</button>
                                 }
                             </ErrorActions>
                         </ResultFooter>
@@ -164,7 +174,7 @@
                         <div class="linq-write">
                             @if (_running && _phase == RunPhase.Writing)
                             {
-                                <RunProgress @key="_phaseStarted" WorkspaceId="Tab.WorkspaceId" Title="@($"{FirstWord(command.Sql)} läuft")" Started="_phaseStarted"
+                                <RunProgress @key="_phaseStarted" WorkspaceId="Tab.WorkspaceId" Title="@TextFormat.Format(SqlEditorText.Run_StatementRunning, FirstWord(command.Sql))" Started="_phaseStarted"
                                              Detail="@command.Sql" OnCancel="Cancel" />
                             }
                             else if (_written is { } written)
@@ -174,20 +184,22 @@
                             }
                             else if (Workspaces.IsWritable(Tab.WorkspaceId))
                             {
-                                <p>Dieses Statement ändert Daten. Es läuft in der Transaktion des Workspaces und bleibt bis zum Commit für andere unsichtbar.</p>
-                                <button class="btn danger-solid" disabled="@_running" @onclick="RequestWriteAsync">Im Workspace ausführen</button>
+                                <p>@SqlEditorText.Linq_WriteHint</p>
+                                <button class="btn danger-solid" disabled="@_running" @onclick="RequestWriteAsync">@SqlEditorText.Linq_RunInWorkspace</button>
                             }
                             else
                             {
-                                <p>Der Workspace ist schreibgeschützt – das Statement wird nicht ausgeführt.</p>
-                                <button class="btn" @onclick="() => Shell.RequestUnlock(Tab.WorkspaceId)">Workspace freischalten …</button>
+                                <p>@SqlEditorText.Linq_WorkspaceReadOnly</p>
+                                <button class="btn" @onclick="() => Shell.RequestUnlock(Tab.WorkspaceId)">@SqlEditorText.Editor_UnlockWorkspace</button>
                             }
                         </div>
                         break;
                     case LinqCommandKind.Unsupported:
                         <div class="linq-notice muted">
-                            FerretSharp führt nur Abfragen sowie UPDATE und DELETE aus <code>ExecuteUpdate</code>/<code>ExecuteDelete</code> aus –
-                            dieses Kommando wird nur angezeigt.
+                            <Fmt Text="@SqlEditorText.Linq_Unsupported">
+                                <Arg0><code>ExecuteUpdate</code></Arg0>
+                                <Arg1><code>ExecuteDelete</code></Arg1>
+                            </Fmt>
                         </div>
                         break;
                 }
@@ -195,23 +207,25 @@
         }
         else if (_error is null)
         {
-            <EmptyState Title="LINQ gegen den DbContext"
-                        Text="@($"Eine Query aus dem Code einfügen und{Shortcuts.With(ShortcutAction.ApplyFilters)} ausführen. FerretSharp zeigt das SQL, das EF daraus macht, und das Ergebnis aus der Session dieses Workspaces.")" />
+            <EmptyState Title="@SqlEditorText.Linq_EmptyTitle"
+                        Text="@(Shortcuts.Label(ShortcutAction.ApplyFilters) is { } key ? TextFormat.Format(SqlEditorText.Linq_EmptyTextWithKey, key) : SqlEditorText.Linq_EmptyText)" />
         }
     </div>
 </div>
 
 @if (_confirmWrite && Active.Profile is { } prodProfile)
 {
-    <ConfirmDialog Title="Ändern auf Produktion" ConfirmLabel="Ausführen" Danger="true" OnConfirm="WriteAsync" OnCancel="() => _confirmWrite = false">
-        Das Statement aus <strong>@Tab.Title</strong> ändert Daten in <strong>@prodProfile.Name</strong> – in der Transaktion des Workspaces,
-        sichtbar für andere erst nach dem Commit.
+    <ConfirmDialog Title="@SqlEditorText.Linq_ConfirmProdTitle" ConfirmLabel="@CommonText.Run" Danger="true" OnConfirm="WriteAsync" OnCancel="() => _confirmWrite = false">
+        <Fmt Text="@SqlEditorText.Linq_ConfirmProd">
+            <Arg0><strong>@Tab.Title</strong></Arg0>
+            <Arg1><strong>@prodProfile.Name</strong></Arg1>
+        </Fmt>
     </ConfirmDialog>
 }
 
 @if (_planOpen && _query is { } planQuery)
 {
-    <PlanDialog Query="planQuery" WorkspaceId="Tab.WorkspaceId" Title="@($"{Tab.Title} · Kommando {Tab.SelectedCommand + 1}")" OnClose="() => _planOpen = false" />
+    <PlanDialog Query="planQuery" WorkspaceId="Tab.WorkspaceId" Title="@TextFormat.Format(SqlEditorText.Linq_PlanDialogTitle, Tab.Title, Tab.SelectedCommand + 1)" OnClose="() => _planOpen = false" />
 }
 
 @code {
@@ -278,14 +292,14 @@
 
     private string ConsoleText => Console.State switch
     {
-        { Phase: LinqConsolePhase.NotLinked } => "kein C#-Projekt verknüpft",
+        { Phase: LinqConsolePhase.NotLinked } => SqlEditorText.Linq_ConsoleNotLinked,
         { Phase: LinqConsolePhase.Starting, Step: { } step } => step + " …",
-        { Phase: LinqConsolePhase.Starting } => "startet …",
+        { Phase: LinqConsolePhase.Starting } => SqlEditorText.Linq_ConsoleStarting,
         { Phase: LinqConsolePhase.Ready, Step: { } step } => step + " …",
-        { Phase: LinqConsolePhase.Ready, Error: not null } => "bereit (vorheriger Build)",
-        { Phase: LinqConsolePhase.Ready } => "bereit",
-        { Phase: LinqConsolePhase.Failed, Error: { } error } => "Fehler: " + error.Message,
-        _ => "startet beim Ausführen",
+        { Phase: LinqConsolePhase.Ready, Error: not null } => SqlEditorText.Linq_ConsoleReadyPreviousBuild,
+        { Phase: LinqConsolePhase.Ready } => SqlEditorText.Linq_ConsoleReady,
+        { Phase: LinqConsolePhase.Failed, Error: { } error } => TextFormat.Format(SqlEditorText.Linq_ConsoleFailed, error.Message),
+        _ => SqlEditorText.Linq_ConsoleStartsOnRun,
     };
 
     private string ConsoleClass => Console.State switch
@@ -300,9 +314,8 @@
     {
         { Phase: LinqConsolePhase.Ready, Error: { } error } => error.Message + (error.Detail is { } detail ? Environment.NewLine + Environment.NewLine + detail : ""),
         { Error.Detail: { } detail } => detail,
-        { IsReloading: true } => "Ein neuer Build wird im Hintergrund geladen; bis er bereit ist, übersetzt die Konsole mit dem vorherigen.",
-        _ => "Der Hilfsprozess lädt das Projekt einmal und übersetzt dann jede Query in das SQL, das EF senden würde – ohne Datenbank. "
-             + "Nach einem Build lädt er die neue Version automatisch.",
+        { IsReloading: true } => SqlEditorText.Linq_ConsoleReloadingTitle,
+        _ => SqlEditorText.Linq_ConsoleTitle,
     };
 
     /// <summary>
@@ -399,7 +412,7 @@
             }
             catch (OperationCanceledException)
             {
-                _error = "Abgebrochen.";
+                _error = SqlEditorText.Run_Canceled;
                 return;
             }
             catch (ClrModelException ex)
@@ -415,7 +428,7 @@
 
     /// <summary>
     /// Runs <paramref name="work"/> as the tab's one running thing: the run buttons are disabled, <see cref="RunProgress"/>
-    /// shows it (<see cref="Begin"/>), "Abbrechen" cancels its token.
+    /// shows it (<see cref="Begin"/>), "Cancel" cancels its token.
     /// </summary>
     private async Task RunningAsync(Func<CancellationToken, Task> work)
     {
@@ -466,7 +479,7 @@
             await Workspaces.ReadSqlAsync(Tab.WorkspaceId, query, 0, SqlResultGrid.PageSize, token), token);
         if (result.Cancelled)
         {
-            _error = token.IsCancellationRequested ? "Abfrage abgebrochen." : null;
+            _error = token.IsCancellationRequested ? SqlEditorText.Linq_QueryCanceled : null;
             return;
         }
 
@@ -502,7 +515,7 @@
         return WriteAsync();
     }
 
-    /// <summary>ExecuteUpdate/ExecuteDelete: the user confirmed by pressing the button below the statement. "Abbrechen" stops it.</summary>
+    /// <summary>ExecuteUpdate/ExecuteDelete: the user confirmed by pressing the button below the statement. "Cancel" stops it.</summary>
     private async Task WriteAsync()
     {
         _confirmWrite = false;
@@ -523,7 +536,7 @@
         var elapsed = DateTimeOffset.Now - _phaseStarted;
         if (result.Cancelled)
         {
-            _error = "Abgebrochen – das Statement wurde zurückgenommen.";
+            _error = SqlEditorText.Run_CanceledWriteUndone;
             return;
         }
 

@@ -1,0 +1,660 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Editor_Variables" xml:space="preserve">
+    <value>Variables</value>
+    <comment>Label above the variables of the LINQ console and the SQL editor</comment>
+  </data>
+  <data name="Editor_UnlockWorkspace" xml:space="preserve">
+    <value>Unlock workspace …</value>
+    <comment>Button: make the read-only workspace writable</comment>
+  </data>
+  <data name="Editor_ClipboardUnavailable" xml:space="preserve">
+    <value>The clipboard is not available.</value>
+  </data>
+  <data name="Editor_Copied" xml:space="preserve">
+    <value>Copied</value>
+    <comment>Shown on a copy button for a moment after copying</comment>
+  </data>
+  <data name="Plan_Open" xml:space="preserve">
+    <value>Plan</value>
+    <comment>Button that opens the execution plan</comment>
+  </data>
+  <data name="Run_Canceled" xml:space="preserve">
+    <value>Canceled.</value>
+  </data>
+  <data name="Run_CanceledWriteUndone" xml:space="preserve">
+    <value>Canceled – the statement was rolled back.</value>
+  </data>
+  <data name="Run_QueryRunning" xml:space="preserve">
+    <value>Query running</value>
+  </data>
+  <data name="Run_StatementRunning" xml:space="preserve">
+    <value>{0} running</value>
+    <comment>{0} = first word of the statement, e.g. UPDATE</comment>
+  </data>
+  <data name="Run_StatementOfTotal" xml:space="preserve">
+    <value>Statement {0} of {1} · {2}</value>
+    <comment>Script progress. {0} = number of the running statement, {1} = number of statements, {2} = first word of the statement, e.g. UPDATE</comment>
+  </data>
+  <data name="Run_OutcomeCanceled" xml:space="preserve">
+    <value>canceled</value>
+    <comment>Outcome of a statement on its chip</comment>
+  </data>
+  <data name="Run_Changed" xml:space="preserve">
+    <value>{0:N0} changed</value>
+    <comment>Outcome of a write. {0} = number of changed rows</comment>
+  </data>
+  <data name="Run_OneRow" xml:space="preserve">
+    <value>1 row</value>
+    <comment>Outcome of a query with exactly one row</comment>
+  </data>
+  <data name="Run_Rows" xml:space="preserve">
+    <value>{0:N0} rows</value>
+    <comment>Outcome of a query. {0} = number of rows</comment>
+  </data>
+  <data name="Run_RowsAtLeast" xml:space="preserve">
+    <value>≥ {0:N0} rows</value>
+    <comment>Outcome of a query with more rows than read so far. {0} = number of rows read</comment>
+  </data>
+  <data name="Run_Elapsed" xml:space="preserve">
+    <value>Elapsed time</value>
+    <comment>Tooltip of the running clock</comment>
+  </data>
+  <data name="Run_ScriptRunningFor" xml:space="preserve">
+    <value>Script running for {0}</value>
+    <comment>{0} = elapsed time, e.g. 1:05</comment>
+  </data>
+  <data name="Run_Disconnecting" xml:space="preserve">
+    <value>Disconnecting the session …</value>
+  </data>
+  <data name="Run_Canceling" xml:space="preserve">
+    <value>Canceling …</value>
+  </data>
+  <data name="Run_DisconnectSession" xml:space="preserve">
+    <value>Disconnect session</value>
+    <comment>Button, confirms giving up the workspace's session</comment>
+  </data>
+  <data name="Run_KeepWaiting" xml:space="preserve">
+    <value>Keep waiting</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Run_Stuck" xml:space="preserve">
+    <value>Oracle has not responded to the cancel for {0} – the connection may be hanging (VPN, firewall).</value>
+    <comment>{0} = time since the cancel, e.g. 0:07</comment>
+  </data>
+  <data name="Run_StuckDatabase" xml:space="preserve">
+    <value>Oracle has not responded to the cancel for {0} – the connection may be hanging (VPN, firewall). Disconnecting the workspace's session ends the statement safely.</value>
+    <comment>{0} = time since the cancel, e.g. 0:07</comment>
+  </data>
+  <data name="Run_DisconnectSessionAsk" xml:space="preserve">
+    <value>Disconnect session …</value>
+    <comment>Button, asks before giving up the workspace's session</comment>
+  </data>
+  <data name="Run_DisconnectSessionTitle" xml:space="preserve">
+    <value>Closes this workspace's connection; the next access opens a new one</value>
+  </data>
+  <data name="Run_LossOne" xml:space="preserve">
+    <value>The workspace's open transaction (1 change) is discarded – Oracle rolls it back as soon as the server notices the dropped connection; until then its rows stay locked.</value>
+  </data>
+  <data name="Run_LossOther" xml:space="preserve">
+    <value>The workspace's open transaction ({0} changes) is discarded – Oracle rolls it back as soon as the server notices the dropped connection; until then its rows stay locked.</value>
+    <comment>{0} = number of changes</comment>
+  </data>
+  <data name="Run_LossStatementsOne" xml:space="preserve">
+    <value>What one statement changed is gone afterwards.</value>
+  </data>
+  <data name="Run_LossStatementsOther" xml:space="preserve">
+    <value>What {0} statements changed is gone afterwards.</value>
+    <comment>{0} = number of statements</comment>
+  </data>
+  <data name="Run_LossGrid" xml:space="preserve">
+    <value>Changes written in the grid become pending again.</value>
+  </data>
+  <data name="SqlView_ReadWrite" xml:space="preserve">
+    <value>read and write</value>
+    <comment>Toolbar state of a SQL tab on a writable workspace</comment>
+  </data>
+  <data name="SqlView_ReadOnly" xml:space="preserve">
+    <value>read only – workspace is read-only</value>
+    <comment>Toolbar state of a SQL tab on a read-only workspace</comment>
+  </data>
+  <data name="SqlView_History" xml:space="preserve">
+    <value>History</value>
+    <comment>Button that shows the statement history</comment>
+  </data>
+  <data name="SqlView_HistoryTitle" xml:space="preserve">
+    <value>Statements recently run on this connection</value>
+  </data>
+  <data name="SqlView_PlanTitle" xml:space="preserve">
+    <value>Execution plan of the statement shown – estimated or actual</value>
+  </data>
+  <data name="SqlView_RunScript" xml:space="preserve">
+    <value>Script</value>
+    <comment>Button that runs the whole script</comment>
+  </data>
+  <data name="SqlView_RunScriptTitle" xml:space="preserve">
+    <value>Run all statements one after the other (or the selected ones); the script stops at the first error</value>
+  </data>
+  <data name="SqlView_RunTitle" xml:space="preserve">
+    <value>Run the statement at the cursor (or the selection); statements are separated by ; or a blank line</value>
+  </data>
+  <data name="SqlView_ScriptButtonQuoted" xml:space="preserve">
+    <value>“Script”</value>
+    <comment>The script button named in a sentence when running the script has no shortcut; must match SqlView_RunScript</comment>
+  </data>
+  <data name="SqlView_StatementError" xml:space="preserve">
+    <value>Statement {0}: {1}</value>
+    <comment>{0} = number of the statement in the script, {1} = error message</comment>
+  </data>
+  <data name="SqlView_EmptyTitle" xml:space="preserve">
+    <value>SQL in the workspace</value>
+  </data>
+  <data name="SqlView_EmptyText" xml:space="preserve">
+    <value>Write statements, separate them with ; or a blank line and run the statement at the cursor – {0} runs the whole script. SELECT always runs; INSERT, UPDATE, DELETE and MERGE only on writable workspaces, in their transaction. Ctrl+Space suggests tables and columns.</value>
+    <comment>Empty SQL tab, running a statement has no shortcut. {0} = shortcut or button that runs the whole script</comment>
+  </data>
+  <data name="SqlView_EmptyTextWithKey" xml:space="preserve">
+    <value>Write statements, separate them with ; or a blank line and run the statement at the cursor with {0} – {1} runs the whole script. SELECT always runs; INSERT, UPDATE, DELETE and MERGE only on writable workspaces, in their transaction. Ctrl+Space suggests tables and columns.</value>
+    <comment>Empty SQL tab. {0} = shortcut that runs the statement, e.g. Ctrl+Enter; {1} = shortcut or button that runs the whole script</comment>
+  </data>
+  <data name="SqlView_ConfirmAllRowsTitle" xml:space="preserve">
+    <value>Change all rows?</value>
+  </data>
+  <data name="SqlView_ConfirmProdTitle" xml:space="preserve">
+    <value>Write to Prod?</value>
+  </data>
+  <data name="SqlView_AllRows" xml:space="preserve">
+    <value>all rows</value>
+    <comment>Emphasized part of SqlView_ConfirmAllRows</comment>
+  </data>
+  <data name="SqlView_ConfirmAllRows" xml:space="preserve">
+    <value>{0} without WHERE affects {1} of the table.</value>
+    <comment>{0} = UPDATE or DELETE, {1} = SqlView_AllRows (emphasized)</comment>
+  </data>
+  <data name="SqlView_ConfirmAllRowsNumbered" xml:space="preserve">
+    <value>Statement {0}: {1} without WHERE affects {2} of the table.</value>
+    <comment>{0} = number of the statement in the script, {1} = UPDATE or DELETE, {2} = SqlView_AllRows (emphasized)</comment>
+  </data>
+  <data name="SqlView_ConfirmProd" xml:space="preserve">
+    <value>The connection {0} is a production database.</value>
+    <comment>{0} = connection name (emphasized)</comment>
+  </data>
+  <data name="SqlView_ConfirmProdScriptOne" xml:space="preserve">
+    <value>The connection {1} is a production database – the script changes data in one statement.</value>
+    <comment>{1} = connection name (emphasized)</comment>
+  </data>
+  <data name="SqlView_ConfirmProdScriptOther" xml:space="preserve">
+    <value>The connection {1} is a production database – the script changes data in {0} statements.</value>
+    <comment>{0} = number of writing statements, {1} = connection name (emphasized)</comment>
+  </data>
+  <data name="SqlView_ConfirmScriptInTransaction" xml:space="preserve">
+    <value>The script runs in the workspace's transaction and stays invisible to others until the commit.</value>
+  </data>
+  <data name="SqlView_ConfirmStatementInTransaction" xml:space="preserve">
+    <value>The statement runs in the workspace's transaction and stays invisible to others until the commit.</value>
+  </data>
+  <data name="SqlView_NoStatementAtCursor" xml:space="preserve">
+    <value>No statement at the cursor – statements are separated by ; or a blank line.</value>
+  </data>
+  <data name="SqlView_SelectionHasStatements" xml:space="preserve">
+    <value>The selection contains {0} statements – the first one runs ({1} runs all of them).</value>
+    <comment>{0} = number of statements (more than one), {1} = shortcut or button that runs the whole script</comment>
+  </data>
+  <data name="SqlView_NoStatements" xml:space="preserve">
+    <value>No statements in the script.</value>
+  </data>
+  <data name="SqlView_ScriptStoppedOne" xml:space="preserve">
+    <value>The script stopped at statement {1} – one more statement not run.</value>
+    <comment>{1} = number of the failed statement</comment>
+  </data>
+  <data name="SqlView_ScriptStoppedOther" xml:space="preserve">
+    <value>The script stopped at statement {1} – {0} more statements not run.</value>
+    <comment>{0} = number of statements not run, {1} = number of the failed statement</comment>
+  </data>
+  <data name="SqlView_WrittenStaysInTransaction" xml:space="preserve">
+    <value>What was already written stays in the transaction (rollback via the status bar).</value>
+    <comment>Follows SqlView_ScriptStopped… when earlier statements wrote</comment>
+  </data>
+  <data name="Linq_CancelStartTitle" xml:space="preserve">
+    <value>Cancel starting the helper process – “Run” starts it again</value>
+  </data>
+  <data name="Linq_RunTitle" xml:space="preserve">
+    <value>Translate the code and run the SQL in the workspace (reading; writing only after confirmation)</value>
+  </data>
+  <data name="Linq_VariablesHint" xml:space="preserve">
+    <value>Values the query needs – e.g. {0}. FerretSharp knows {1}, {2} and {3} itself.</value>
+    <comment>{0} = code example (var kundeId = 4711;), {1}–{3} = predefined names (_context, db, ct)</comment>
+  </data>
+  <data name="Linq_Query" xml:space="preserve">
+    <value>Query</value>
+    <comment>Label of the code section of the LINQ console</comment>
+  </data>
+  <data name="Linq_QueryHint" xml:space="preserve">
+    <value>Copy it straight from the code; {0} returns the result.</value>
+    <comment>{0} = the keyword return</comment>
+  </data>
+  <data name="Linq_Translating" xml:space="preserve">
+    <value>Translating C# code</value>
+  </data>
+  <data name="Linq_UnknownNamesOne" xml:space="preserve">
+    <value>One name is unknown</value>
+  </data>
+  <data name="Linq_UnknownNamesOther" xml:space="preserve">
+    <value>{0} names are unknown</value>
+    <comment>{0} = number of unknown names</comment>
+  </data>
+  <data name="Linq_UnknownNames" xml:space="preserve">
+    <value>{0} – suggested variables (adjust the values, then run again):</value>
+    <comment>{0} = Linq_UnknownNamesOne/Other (emphasized); the suggested declarations follow</comment>
+  </data>
+  <data name="Linq_AdoptDeclarations" xml:space="preserve">
+    <value>Add to variables</value>
+    <comment>Button: appends the suggested declarations to the variables</comment>
+  </data>
+  <data name="Linq_GoToLocation" xml:space="preserve">
+    <value>Go to location</value>
+    <comment>Tooltip of a compiler diagnostic</comment>
+  </data>
+  <data name="Linq_NoSql" xml:space="preserve">
+    <value>No SQL – the code did not run a query.</value>
+  </data>
+  <data name="Linq_Exception" xml:space="preserve">
+    <value>Exception: {0}</value>
+    <comment>{0} = the exception the code threw</comment>
+  </data>
+  <data name="Linq_Translated" xml:space="preserve">
+    <value>translated in {0}</value>
+    <comment>{0} = duration, e.g. 12 ms</comment>
+  </data>
+  <data name="Linq_TranslatedWithType" xml:space="preserve">
+    <value>Result {0} · translated in {1}</value>
+    <comment>{0} = C# type of the result, {1} = duration, e.g. 12 ms</comment>
+  </data>
+  <data name="Linq_PlanTitle" xml:space="preserve">
+    <value>Execution plan of the command – estimated or actual (with the bind values from the code)</value>
+  </data>
+  <data name="Linq_HideSql" xml:space="preserve">
+    <value>Hide SQL</value>
+  </data>
+  <data name="Linq_ModelMismatchTitle" xml:space="preserve">
+    <value>The C# model maps a column that does not exist in the database</value>
+  </data>
+  <data name="Linq_ShowModelMismatches" xml:space="preserve">
+    <value>Show model mismatches</value>
+    <comment>Button that opens the model page with its comparison against the database</comment>
+  </data>
+  <data name="Linq_WriteHint" xml:space="preserve">
+    <value>This statement changes data. It runs in the workspace's transaction and stays invisible to others until the commit.</value>
+  </data>
+  <data name="Linq_RunInWorkspace" xml:space="preserve">
+    <value>Run in workspace</value>
+    <comment>Button that runs a writing statement</comment>
+  </data>
+  <data name="Linq_WorkspaceReadOnly" xml:space="preserve">
+    <value>The workspace is read-only – the statement is not run.</value>
+  </data>
+  <data name="Linq_Unsupported" xml:space="preserve">
+    <value>FerretSharp only runs queries and the UPDATE and DELETE of {0}/{1} – this command is only shown.</value>
+    <comment>{0} = ExecuteUpdate, {1} = ExecuteDelete</comment>
+  </data>
+  <data name="Linq_EmptyTitle" xml:space="preserve">
+    <value>LINQ against the DbContext</value>
+  </data>
+  <data name="Linq_EmptyText" xml:space="preserve">
+    <value>Paste a query from the code and run it. FerretSharp shows the SQL EF makes of it and the result from this workspace's session.</value>
+    <comment>Empty LINQ tab, running has no shortcut</comment>
+  </data>
+  <data name="Linq_EmptyTextWithKey" xml:space="preserve">
+    <value>Paste a query from the code and run it with {0}. FerretSharp shows the SQL EF makes of it and the result from this workspace's session.</value>
+    <comment>Empty LINQ tab. {0} = shortcut, e.g. Ctrl+Enter</comment>
+  </data>
+  <data name="Linq_ConfirmProdTitle" xml:space="preserve">
+    <value>Change data on production</value>
+  </data>
+  <data name="Linq_ConfirmProd" xml:space="preserve">
+    <value>The statement from {0} changes data in {1} – in the workspace's transaction, visible to others only after the commit.</value>
+    <comment>{0} = tab title (emphasized), {1} = connection name (emphasized)</comment>
+  </data>
+  <data name="Linq_PlanDialogTitle" xml:space="preserve">
+    <value>{0} · command {1}</value>
+    <comment>Title of the execution plan. {0} = tab title, {1} = number of the SQL command</comment>
+  </data>
+  <data name="Linq_ConsoleNotLinked" xml:space="preserve">
+    <value>no C# project linked</value>
+    <comment>State of the LINQ console in the toolbar</comment>
+  </data>
+  <data name="Linq_ConsoleStarting" xml:space="preserve">
+    <value>starting …</value>
+    <comment>State of the LINQ console in the toolbar</comment>
+  </data>
+  <data name="Linq_ConsoleReadyPreviousBuild" xml:space="preserve">
+    <value>ready (previous build)</value>
+    <comment>State of the LINQ console in the toolbar</comment>
+  </data>
+  <data name="Linq_ConsoleReady" xml:space="preserve">
+    <value>ready</value>
+    <comment>State of the LINQ console in the toolbar</comment>
+  </data>
+  <data name="Linq_ConsoleFailed" xml:space="preserve">
+    <value>Error: {0}</value>
+    <comment>State of the LINQ console in the toolbar. {0} = error message</comment>
+  </data>
+  <data name="Linq_ConsoleStartsOnRun" xml:space="preserve">
+    <value>starts when you run</value>
+    <comment>State of the LINQ console in the toolbar</comment>
+  </data>
+  <data name="Linq_ConsoleReloadingTitle" xml:space="preserve">
+    <value>A new build is loading in the background; until it is ready, the console translates with the previous one.</value>
+  </data>
+  <data name="Linq_ConsoleTitle" xml:space="preserve">
+    <value>The helper process loads the project once and then translates every query into the SQL EF would send – without a database. After a build it loads the new version automatically.</value>
+  </data>
+  <data name="Linq_QueryCanceled" xml:space="preserve">
+    <value>Query canceled.</value>
+  </data>
+  <data name="LinqMenu_Title" xml:space="preserve">
+    <value>The filters as LINQ over the entity {0}</value>
+    <comment>{0} = entity name</comment>
+  </data>
+  <data name="LinqMenu_CopyTitle" xml:space="preserve">
+    <value>Where expression with property names and enum members; finds the same rows as the grid</value>
+  </data>
+  <data name="LinqMenu_Copy" xml:space="preserve">
+    <value>Copy as LINQ</value>
+  </data>
+  <data name="LinqMenu_OpenConsoleTitle" xml:space="preserve">
+    <value>New LINQ console with the query over the entity</value>
+  </data>
+  <data name="LinqMenu_OpenConsoleTitleWithKey" xml:space="preserve">
+    <value>New LINQ console with the query over the entity ({0} runs it)</value>
+    <comment>{0} = shortcut, e.g. Ctrl+Enter</comment>
+  </data>
+  <data name="LinqMenu_OpenConsole" xml:space="preserve">
+    <value>Open in LINQ console</value>
+  </data>
+  <data name="LinqMenu_NoFilters" xml:space="preserve">
+    <value>No active filters – nothing to copy.</value>
+  </data>
+  <data name="LinqMenu_CopiedOne" xml:space="preserve">
+    <value>1 filter copied as LINQ.</value>
+  </data>
+  <data name="LinqMenu_CopiedOther" xml:space="preserve">
+    <value>{0} filters copied as LINQ.</value>
+    <comment>{0} = number of filters</comment>
+  </data>
+  <data name="LinqMenu_AdoptedOne" xml:space="preserve">
+    <value>1 filter added to the LINQ console.</value>
+  </data>
+  <data name="LinqMenu_AdoptedOther" xml:space="preserve">
+    <value>{0} filters added to the LINQ console.</value>
+    <comment>{0} = number of filters</comment>
+  </data>
+  <data name="Plan_Label" xml:space="preserve">
+    <value>Execution plan</value>
+    <comment>Accessible name of the plan dialog</comment>
+  </data>
+  <data name="Plan_Header" xml:space="preserve">
+    <value>Execution plan · {0}</value>
+    <comment>{0} = tab title</comment>
+  </data>
+  <data name="Plan_Source" xml:space="preserve">
+    <value>Plan source</value>
+    <comment>Accessible name of the estimated/actual switch</comment>
+  </data>
+  <data name="Plan_EstimatedTitle" xml:space="preserve">
+    <value>EXPLAIN PLAN: the optimizer's plan, without running the query and without bind values</value>
+  </data>
+  <data name="Plan_Estimated" xml:space="preserve">
+    <value>Estimated</value>
+    <comment>Plan source switch</comment>
+  </data>
+  <data name="Plan_ActualTitle" xml:space="preserve">
+    <value>Runs the query again in the workspace and shows the plan used, with real figures</value>
+  </data>
+  <data name="Plan_Actual" xml:space="preserve">
+    <value>Actual</value>
+    <comment>Plan source switch</comment>
+  </data>
+  <data name="Plan_WholeResultTitle" xml:space="preserve">
+    <value>Fetches the whole result (then discarded) so the figures show the complete run – can take a while</value>
+  </data>
+  <data name="Plan_WholeResult" xml:space="preserve">
+    <value>whole result</value>
+    <comment>Checkbox label</comment>
+  </data>
+  <data name="Plan_CopiedCheck" xml:space="preserve">
+    <value>Copied ✓</value>
+  </data>
+  <data name="Plan_CopyAsText" xml:space="preserve">
+    <value>Copy as text</value>
+  </data>
+  <data name="Plan_EstimatedNote" xml:space="preserve">
+    <value>Planned without bind values – Oracle does not know the values and may actually choose a different plan.</value>
+  </data>
+  <data name="Plan_MeasuredWhole" xml:space="preserve">
+    <value>Whole result measured ({0} fetched) · SQL_ID {1}, child {2}</value>
+    <comment>{0} = rows fetched, {1} = SQL_ID (code), {2} = child number of the cursor</comment>
+  </data>
+  <data name="Plan_MeasuredFirst" xml:space="preserve">
+    <value>First {3} rows measured ({0} fetched) · SQL_ID {1}, child {2}</value>
+    <comment>{0} = rows fetched, {1} = SQL_ID (code), {2} = child number of the cursor, {3} = page size, e.g. 500</comment>
+  </data>
+  <data name="Plan_NoRuntimeStatistics" xml:space="preserve">
+    <value>No runtime statistics in the cursor – the hint was not applied.</value>
+  </data>
+  <data name="Plan_MisestimateNote" xml:space="preserve">
+    <value>⚠ For the marked steps the estimate is off by a factor of {0} or more.</value>
+    <comment>{0} = factor, e.g. 10</comment>
+  </data>
+  <data name="Plan_ColumnOperation" xml:space="preserve">
+    <value>Operation</value>
+    <comment>Column header</comment>
+  </data>
+  <data name="Plan_ColumnObject" xml:space="preserve">
+    <value>Object</value>
+    <comment>Column header</comment>
+  </data>
+  <data name="Plan_ColumnCost" xml:space="preserve">
+    <value>Cost</value>
+    <comment>Column header</comment>
+  </data>
+  <data name="Plan_ColumnEstimatedRows" xml:space="preserve">
+    <value>Est. rows</value>
+    <comment>Column header, short</comment>
+  </data>
+  <data name="Plan_ColumnEstimatedRowsTitle" xml:space="preserve">
+    <value>Estimated rows per start</value>
+  </data>
+  <data name="Plan_ColumnStarts" xml:space="preserve">
+    <value>Starts</value>
+    <comment>Column header: how often the step started</comment>
+  </data>
+  <data name="Plan_ColumnActualRows" xml:space="preserve">
+    <value>Act. rows</value>
+    <comment>Column header, short</comment>
+  </data>
+  <data name="Plan_ColumnActualRowsTitle" xml:space="preserve">
+    <value>Actual rows, all starts together</value>
+  </data>
+  <data name="Plan_ColumnTime" xml:space="preserve">
+    <value>Time</value>
+    <comment>Column header</comment>
+  </data>
+  <data name="Plan_ColumnTimeTitle" xml:space="preserve">
+    <value>Time in this step including everything below it</value>
+  </data>
+  <data name="Plan_ColumnBuffers" xml:space="preserve">
+    <value>Buffers</value>
+    <comment>Column header</comment>
+  </data>
+  <data name="Plan_ColumnBuffersTitle" xml:space="preserve">
+    <value>Logical reads (consistent gets)</value>
+  </data>
+  <data name="Plan_MisestimateTitle" xml:space="preserve">
+    <value>Estimated {0:N0}, actual {1:N0}</value>
+    <comment>{0} = estimated rows, {1} = actual rows</comment>
+  </data>
+  <data name="Plan_InactiveTitle" xml:space="preserve">
+    <value>Not run – in adaptive plans, the branch Oracle discarded at run time</value>
+  </data>
+  <data name="Plan_FullScanTitle" xml:space="preserve">
+    <value>Reads the whole table – on large tables often a missing or unusable index</value>
+  </data>
+  <data name="Plan_Planning" xml:space="preserve">
+    <value>Planning …</value>
+  </data>
+  <data name="Plan_Running" xml:space="preserve">
+    <value>Running the query and reading the cursor …</value>
+  </data>
+  <data name="Plan_NotConnected" xml:space="preserve">
+    <value>Not connected.</value>
+  </data>
+  <data name="Monaco_ReadOnlyPlSql" xml:space="preserve">
+    <value>View only – FerretSharp does not change PL/SQL source.</value>
+  </data>
+  <data name="Result_DefaultExportName" xml:space="preserve">
+    <value>Result</value>
+    <comment>Default file name (without extension) when saving a query result</comment>
+  </data>
+  <data name="ResultMenu_ExportHead" xml:space="preserve">
+    <value>Export · {0}</value>
+    <comment>Menu section header. {0} = number of rows, e.g. 3 rows</comment>
+  </data>
+  <data name="ResultMenu_CopyTableTitle" xml:space="preserve">
+    <value>Tab-separated with a header line – pastes straight into Excel</value>
+  </data>
+  <data name="ResultMenu_CopyTable" xml:space="preserve">
+    <value>Copy as table</value>
+  </data>
+  <data name="ResultMenu_CopiedAsTable" xml:space="preserve">
+    <value>copied as table</value>
+    <comment>Follows the number of rows in the notice, e.g. “3 rows copied as table.”</comment>
+  </data>
+  <data name="ResultMenu_CopyInsertTitle" xml:space="preserve">
+    <value>INSERT INTO {0} with the result's column names as target columns (never run)</value>
+    <comment>{0} = table name</comment>
+  </data>
+  <data name="ResultMenu_CopyInsertUnavailable" xml:space="preserve">
+    <value>Only if the query reads exactly one table – otherwise the target is unclear.</value>
+  </data>
+  <data name="ResultMenu_CopyInsert" xml:space="preserve">
+    <value>Copy as INSERT</value>
+  </data>
+  <data name="ResultMenu_CopiedAsInsert" xml:space="preserve">
+    <value>copied as INSERT</value>
+    <comment>Follows the number of rows in the notice, e.g. “3 rows copied as INSERT.”</comment>
+  </data>
+  <data name="ResultMenu_SaveCsvTitle" xml:space="preserve">
+    <value>Semicolon-separated, UTF-8 – opens straight in Excel</value>
+  </data>
+  <data name="ResultMenu_SaveCsv" xml:space="preserve">
+    <value>Save as CSV …</value>
+  </data>
+  <data name="ResultMenu_CsvFilter" xml:space="preserve">
+    <value>CSV (semicolon)</value>
+    <comment>File type in the save dialog</comment>
+  </data>
+  <data name="Footer_Loading" xml:space="preserve">
+    <value>Loading …</value>
+  </data>
+  <data name="Footer_RowsOne" xml:space="preserve">
+    <value>{0} row</value>
+    <comment>{0} = the number 1 (emphasized)</comment>
+  </data>
+  <data name="Footer_RowsOther" xml:space="preserve">
+    <value>{0} rows</value>
+    <comment>{0} = number of rows loaded, possibly with ≥ (emphasized)</comment>
+  </data>
+  <data name="Footer_SnapshotTitle" xml:space="preserve">
+    <value>Read-only workspace: snapshot of the READ ONLY transaction</value>
+  </data>
+  <data name="Footer_Snapshot" xml:space="preserve">
+    <value>As of {0}</value>
+    <comment>{0} = time of the snapshot, e.g. 14:05:32</comment>
+  </data>
+  <data name="Footer_SnapshotMoved" xml:space="preserve">
+    <value>Snapshot changed – run again</value>
+  </data>
+  <data name="Footer_Session" xml:space="preserve">
+    <value>Workspace session – your own uncommitted changes are visible</value>
+  </data>
+  <data name="Snapshot_Moved" xml:space="preserve">
+    <value>The workspace is read-only: its session reads from a snapshot (READ ONLY transaction) that every new query – also in another tab of this workspace – sets anew. A page loaded later therefore came from a newer snapshot than the first one; if something changed in between, rows at the page boundary may be duplicated or missing. Reload fetches everything from one snapshot.</value>
+    <comment>Tooltip when the pages of a grid come from more than one read-only snapshot</comment>
+  </data>
+  <data name="SqlVariables_Hint" xml:space="preserve">
+    <value>Values as in the filter (1.234,5 · 05.10.2026 14:00 · ISO); bound, never inserted into the SQL.</value>
+    <comment>The example values follow the input format, which does not change with the UI language</comment>
+  </data>
+  <data name="SqlVariables_Unused" xml:space="preserve">
+    <value>No longer used in the script</value>
+  </data>
+  <data name="SqlVariables_Remove" xml:space="preserve">
+    <value>Remove variable</value>
+  </data>
+  <data name="SqlVariables_TypeText" xml:space="preserve">
+    <value>Text</value>
+    <comment>Type of a bind variable</comment>
+  </data>
+  <data name="SqlVariables_TypeChar" xml:space="preserve">
+    <value>Text (CHAR)</value>
+    <comment>Type of a bind variable</comment>
+  </data>
+  <data name="SqlVariables_TypeNumber" xml:space="preserve">
+    <value>Number</value>
+    <comment>Type of a bind variable</comment>
+  </data>
+  <data name="SqlVariables_TypeDate" xml:space="preserve">
+    <value>Date</value>
+    <comment>Type of a bind variable</comment>
+  </data>
+  <data name="SqlVariables_TypeRaw" xml:space="preserve">
+    <value>Hex (RAW)</value>
+    <comment>Type of a bind variable</comment>
+  </data>
+  <data name="SqlHistory_Search" xml:space="preserve">
+    <value>Search history …</value>
+  </data>
+  <data name="SqlHistory_Empty" xml:space="preserve">
+    <value>Nothing run yet.</value>
+  </data>
+  <data name="SqlHistory_NoMatch" xml:space="preserve">
+    <value>No matches.</value>
+  </data>
+  <data name="SqlPreview_Title" xml:space="preserve">
+    <value>Generated SQL</value>
+  </data>
+  <data name="SqlPreview_OpenInEditorTitle" xml:space="preserve">
+    <value>New SQL editor with this statement; the bind values become variables</value>
+  </data>
+  <data name="SqlPreview_OpenInEditor" xml:space="preserve">
+    <value>Open in SQL editor</value>
+  </data>
+  <data name="SqlPreview_BindVariable" xml:space="preserve">
+    <value>Bind variable</value>
+    <comment>Column header</comment>
+  </data>
+  <data name="SqlPreview_Value" xml:space="preserve">
+    <value>Value</value>
+    <comment>Column header</comment>
+  </data>
+  <data name="SqlPreview_Type" xml:space="preserve">
+    <value>Type</value>
+    <comment>Column header</comment>
+  </data>
+  <data name="SqlCode_Copy" xml:space="preserve">
+    <value>Copy SQL</value>
+  </data>
+</root>

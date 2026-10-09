@@ -1,4 +1,5 @@
 using FerretSharp.Core.Connections;
+using FerretSharp.UI.Resources;
 
 namespace FerretSharp.UI.State;
 
@@ -12,9 +13,5 @@ public sealed record SqlGridStatus(
 public static class SnapshotTexts
 {
     /// <summary>Tooltip of the footer hint when the pages of a grid come from more than one read-only snapshot.</summary>
-    public const string Moved =
-        "Der Workspace ist schreibgeschützt: Seine Session liest aus einem Stand (READ ONLY-Transaktion), den jede neue Abfrage " +
-        "– auch in einem anderen Tab dieses Workspaces – neu setzt. Eine später nachgeladene Seite kam deshalb aus einem neueren " +
-        "Stand als die erste; hat sich dazwischen etwas geändert, können Zeilen an der Seitengrenze doppelt sein oder fehlen. " +
-        "Neu laden holt alles aus einem Stand.";
+    public static string Moved => SqlEditorText.Snapshot_Moved;
 }
