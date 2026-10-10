@@ -39,13 +39,14 @@ Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erkl
 | **v1 – Read-only Browser** (bis 1.7) | Connections, Schema, Grid, Filter, Workspaces, FK-Navigation, Export | WP-01 … WP-07 |
 | **v2 – Sandbox-Editing** (1.8–2.0) | Transaktionsmodell, Editieren, Commit/Rollback, Lock-Handling, Prod-Freischaltung | WP-08 … WP-10 |
 | **v3 – .NET-Integration** (2.1–3.0) | DbContext-Modell, Schema-Anreicherung, LINQ-Konsole, Explain-Plan, Code-Generierung | WP-11 … WP-15 |
-| **v4 – Komfort & SQL** (3.x) | Modell-Cache, SQL-Editor, Skripte, Schema-Vergleich, mehrere Verbindungen, Formularansicht, Tastenkürzel, PL/SQL ansehen, Änderungsübersicht mit Undo/Redo; geplant: DDL, Tabellen-Designer (`docs/roadmap.md`) | WP-16 … |
+| **v4 – Komfort & SQL** (3.x) | Modell-Cache, SQL-Editor, Skripte, Schema-Vergleich, mehrere Verbindungen, Formularansicht, Tastenkürzel, PL/SQL ansehen, Änderungsübersicht mit Undo/Redo, DDL im SQL-Editor; geplant: Tabellen-Designer (`docs/roadmap.md`) | WP-16 … |
 
 **Lesen und Schreiben sind getrennt (ADR 0006):**
 - Leseweg: `OracleSession.ExecuteReaderAsync` lehnt alles außer reinen Abfragen ab (`IsReadOnlyStatement`: nach Leerraum/Kommentaren `SELECT`/`WITH`, kein `FOR UPDATE`, nur ein Statement) – eine Stolperfalle gegen Programmierfehler, kein SQL-Parser.
 - Schreibweg: `OracleSession.ExecuteNonQueryAsync` ist `internal`, nimmt nur ein einzelnes INSERT/UPDATE/DELETE (`IsWriteStatement`, nie DDL) und nur in einer offenen Transaktion. Transaktionssteuerung (Begin, Savepoint, Commit, Rollback) nur an `OracleSession`.
-- `ReadOnlyTests` prüfen per Reflection, dass `IDataAccess`/`ISchemaReader`/`IDatabaseConnection` weder schreibende noch transaktionssteuernde Methoden anbieten und dass die Statements des `QueryBuilder` und alle SELECT/WITH-Texte in `Core/Oracle` die Lesesperre passieren; ein Integrationstest zeigt, dass ein `DELETE` abgewiesen wird.
-- **Die Lesesperre nie aufweichen.** Ein neuer Weg (z. B. DDL in WP-22) bekommt eine eigene enge Methode, ein ADR und Tests.
+- Schemaweg (WP-22, ADR 0019): `OracleSession.ExecuteDdlAsync` ist `internal`, nimmt nur ein einzelnes DDL-Statement (`IsDdlStatement`: kein `TRUNCATE`, kein PL/SQL, keine Binds) und nur **ohne** offene Transaktion, also nie in einer gesperrten Session. Den Rollback vorher macht die UI nach Bestätigung.
+- `ReadOnlyTests` prüfen per Reflection, dass `IDataAccess`/`ISchemaReader`/`IDatabaseConnection` weder schreibende noch transaktionssteuernde Methoden anbieten, dass Schreib- und Schemaweg `internal` sind und nur ihre Statements nehmen und dass die Statements des `QueryBuilder` und alle SELECT/WITH-Texte in `Core/Oracle` die Lesesperre passieren; Integrationstests zeigen, dass die Session abweist, was der Editor abweist.
+- **Die Lesesperre nie aufweichen.** Ein neuer Weg (z. B. PL/SQL ausführen) bekommt eine eigene enge Methode, ein ADR und Tests.
 - Keine Garantie auf Datenbankseite: Hat der DB-User Schreibrechte, könnte ein Fehler schreiben (ohne Transaktion committet ODP.NET sofort; `SET TRANSACTION READ ONLY` schützt nicht vor DDL). Empfehlung an den Nutzer: für Prod einen User mit reinen SELECT-Grants.
 
 **C#-Modell als eigene Schicht:**
@@ -117,7 +118,7 @@ Regeln:
 - **Schema**: `SchemaCache` lädt Tabellenliste und FKs beim Verbinden, Spalten/Keys lazy pro Tabelle; Synonyme zeigen auf das echte Objekt. `ALL_*`-Views immer nach `OWNER` filtern.
 - **Query**: Werte nur als Bind-Variablen, jede gebundene Variable kommt im SQL vor, Spaltennamen gegen das Schema validiert und gequotet, immer deterministisch sortiert (PK → ROWID als Tiebreaker).
 - **Row-Identität** (`RowKey`): PK, sonst ROWID; Views ohne PK sind dauerhaft read-only.
-- **Änderungen**: Pending (nur im `ChangeTracker`) → Flushed (DML in der Session, Zeilen gesperrt, Savepoint je Flush) → Committed. Grid-Schreibvorgänge und SQL-/LINQ-Statements bilden einen gemeinsamen Undo-Stapel (Undo bis zu einer Aktion, Redo; ausstehende Bearbeitungen mit eigenem Verlauf je Tab, ADR 0018). Commit/Rollback nur auf expliziten Nutzerbefehl.
+- **Änderungen**: Pending (nur im `ChangeTracker`) → Flushed (DML in der Session, Zeilen gesperrt, Savepoint je Flush) → Committed. Grid-Schreibvorgänge und SQL-/LINQ-Statements bilden einen gemeinsamen Undo-Stapel (Undo bis zu einer Aktion, Redo; ausstehende Bearbeitungen mit eigenem Verlauf je Tab, ADR 0018). Commit/Rollback nur auf expliziten Nutzerbefehl. DDL läuft außerhalb jeder Transaktion und ist keine Aktion des Stapels (ADR 0019).
 
 ## 6. Arbeitsweise
 
@@ -141,7 +142,6 @@ Regeln:
 
 ## 8. Als Nächstes (Details und Entscheidungen des Nutzers: `docs/roadmap.md`)
 
-- **WP-22** DDL im SQL-Editor (auf schreibbaren Workspaces, Rollback offener Transaktionen nur nach Bestätigung, `TRUNCATE` bleibt abgewiesen).
-- **WP-23** Tabellen-Designer + Entity aus Tabelle, Indizes anlegen (nach WP-22).
-- **WP-26** Audit-/Historientabellen aus einer Vorlagendatei (nach WP-22/23).
-- PL/SQL ausführen und bearbeiten (Stufen 2/3 nach WP-28) stehen im Backlog; Bearbeiten hängt an der PL/SQL-Entscheidung von WP-22/26.
+- **WP-23** Tabellen-Designer + Entity aus Tabelle, Indizes anlegen (DDL ausführen über den Schemaweg aus WP-22).
+- **WP-26** Audit-/Historientabellen aus einer Vorlagendatei (nach WP-23).
+- PL/SQL-Objekte anlegen (in WP-22 bewusst abgewiesen), PL/SQL ausführen und bearbeiten (Stufen 2/3 nach WP-28) stehen im Backlog; die Entscheidung fällt spätestens mit WP-26 (Trigger).

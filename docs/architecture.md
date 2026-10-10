@@ -126,6 +126,9 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
   - `DELETE FROM t WHERE <RowKey>`
   - alles mit `BindByName = true`
 - Commit/Rollback nur auf expliziten Nutzerbefehl. Nach Rollback die betroffenen Tabs neu abfragen.
+- **DDL (WP-22, ADR 0019)** läuft über einen eigenen Weg außerhalb jeder Transaktion: `OracleSession.ExecuteDdlAsync` (`internal`, ein DDL-Statement, nie bei offener Transaktion, nie gesperrt) ← `IDataEditor.ExecuteDdlAsync` ← `WorkspaceManager.ExecuteDdlAsync` (prüft `IsWritable`). Oracle committet das DDL sofort; es wird keine Aktion des Undo-Stapels. Hat der Workspace Arbeit, verwirft der SQL-Editor sie vorher – nur nach Bestätigung mit der Liste der offenen Änderungen. Skripte: keine DML vor einem DDL-Statement (sie würde still committet), DML danach bleibt in der Transaktion.
+  - Nach DDL (und bei „Schema neu laden“) lädt `WorkspaceLifecycle.RefreshSchemaAsync` den Schema-Cache neu, schließt Tabs verschwundener Objekte, baut Tabellen-Tabs mit geänderter Struktur neu auf (`TableTab.StructureVersion` als `@key` der `TabView`; Tabs mit ausstehenden oder geschriebenen Änderungen behalten ihre Struktur, weil diese Spalten nach Position adressieren) und gleicht das C#-Modell ohne Hilfsprozess neu ab (`ClrModelManager.RemapAsync`).
+  - Fremde offene Transaktionen: `DROP` scheitert mit ORA-00054, `ALTER TABLE … ADD` wartet unabbrechbar, bis sie enden – die Bestätigung nennt andere Workspaces der Verbindung mit offener Schreib-Transaktion und ihre Tabellen.
 
 ## 2. UI-Konzept
 
