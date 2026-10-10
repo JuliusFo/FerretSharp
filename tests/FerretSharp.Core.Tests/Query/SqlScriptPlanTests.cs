@@ -27,12 +27,12 @@ public sealed class SqlScriptPlanTests
     [Fact]
     public void A_single_statement_has_number_0_and_its_problem_without_prefix()
     {
-        var single = SqlScriptPlan.Prepare(Script("DROP TABLE t"), [], writable: true, single: true);
-        var script = SqlScriptPlan.Prepare(Script("SELECT 1 FROM dual;\nDROP TABLE t"), [], writable: true, single: false);
+        var single = SqlScriptPlan.Prepare(Script("TRUNCATE TABLE t"), [], writable: true, single: true);
+        var script = SqlScriptPlan.Prepare(Script("SELECT 1 FROM dual;\nTRUNCATE TABLE t"), [], writable: true, single: false);
 
-        Assert.StartsWith("DROP (DDL) führt der SQL-Editor nicht aus", single.Problem!.Message);
-        Assert.StartsWith("Statement 2 – nichts ausgeführt: DROP (DDL)", script.Problem!.Message);
-        Assert.Equal("DROP TABLE t", script.Problem.Statement.Text);
+        Assert.StartsWith("TRUNCATE führt der SQL-Editor nicht aus", single.Problem!.Message);
+        Assert.StartsWith("Statement 2 – nichts ausgeführt: TRUNCATE", script.Problem!.Message);
+        Assert.Equal("TRUNCATE TABLE t", script.Problem.Statement.Text);
         Assert.Empty(script.Statements); // nothing runs, also not the SELECT before
     }
 
@@ -43,6 +43,35 @@ public sealed class SqlScriptPlanTests
 
         Assert.True(plan.Problem!.NeedsUnlock);
         Assert.Contains("DELETE ändert Daten – der Workspace ist schreibgeschützt.", plan.Problem.Message);
+    }
+
+    [Fact]
+    public void Ddl_on_a_read_only_workspace_asks_for_unlocking()
+    {
+        var plan = SqlScriptPlan.Prepare(Script("CREATE TABLE t (x NUMBER)"), [], writable: false, single: true);
+
+        Assert.True(plan.Problem!.NeedsUnlock);
+        Assert.Equal("CREATE ändert das Schema – der Workspace ist schreibgeschützt.", plan.Problem.Message);
+    }
+
+    [Fact]
+    public void Ddl_runs_before_dml_but_not_after_it()
+    {
+        // DB-first: create the table, then fill it – the INSERT stays in the transaction for the user's commit.
+        var seed = SqlScriptPlan.Prepare(Script("CREATE TABLE t (x NUMBER);\nCOMMENT ON TABLE t IS 'x';\nINSERT INTO t VALUES (1);\nSELECT * FROM t"),
+            [], writable: true, single: false);
+        Assert.Null(seed.Problem);
+        Assert.True(seed.HasDdl);
+        Assert.Equal(4, seed.Statements.Count);
+
+        // The second CREATE would commit the INSERT before it.
+        var mixed = SqlScriptPlan.Prepare(Script("CREATE TABLE t (x NUMBER);\nSELECT 1 FROM dual;\nINSERT INTO t VALUES (1);\nCREATE INDEX t_x ON t (x)"),
+            [], writable: true, single: false);
+        Assert.Equal("Statement 4 – nichts ausgeführt: CREATE (DDL) würde die Änderungen von Statement 3 implizit committen. DDL vor die DML stellen oder getrennt ausführen.",
+            mixed.Problem!.Message);
+        Assert.Equal("CREATE INDEX t_x ON t (x)", mixed.Problem.Statement.Text);
+        Assert.False(mixed.Problem.NeedsUnlock);
+        Assert.Empty(mixed.Statements);
     }
 
     [Fact]
@@ -60,6 +89,8 @@ public sealed class SqlScriptPlanTests
     [InlineData("UPDATE t SET a = 1 WHERE id = 2", true, true)] // DML on Prod: always
     [InlineData("DELETE FROM t", false, true)] // without WHERE: everywhere
     [InlineData("SELECT * FROM t", true, false)]
+    [InlineData("CREATE TABLE t (x NUMBER)", false, true)] // DDL: always (WP-22)
+    [InlineData("SELECT * FROM t;\nDROP TABLE t", false, true)]
     public void Confirmation(string sql, bool prod, bool expected) =>
         Assert.Equal(expected, SqlScriptPlan.Prepare(Script(sql), [], writable: true, single: true).NeedsConfirmation(prod));
 

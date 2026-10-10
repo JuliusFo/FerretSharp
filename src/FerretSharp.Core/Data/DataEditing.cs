@@ -174,6 +174,12 @@ public interface IDataEditor
     /// <see cref="Actions"/>. Like any UPDATE it waits for rows another session has locked – cancel through the token.
     /// </summary>
     Task<WriteAction> ExecuteAsync(QuerySpec statement, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// One DDL statement from the SQL editor (WP-22, ADR 0019) – only while no transaction is open (the caller rolls back
+    /// after asking the user), never in a locked workspace. Oracle commits it at once: no action, nothing to undo.
+    /// </summary>
+    Task ExecuteDdlAsync(string statement, CancellationToken cancellationToken);
 }
 
 /// <summary>A session holding locks on a table (<c>V$LOCKED_OBJECT</c>/<c>V$SESSION</c>), for the lock conflict dialog.</summary>

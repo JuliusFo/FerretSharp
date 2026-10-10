@@ -143,6 +143,35 @@ public sealed partial class OracleSession
     }
 
     /// <summary>
+    /// The schema path (WP-22, ADR 0019), next to the write path and just as narrow: a single DDL statement
+    /// (<see cref="IsDdlStatement"/>), never in a locked session and never while a transaction is open – Oracle commits
+    /// before and after DDL, so it would commit the open transaction silently. A locked session always has its read-only
+    /// transaction open, so it is refused twice.
+    /// </summary>
+    internal async Task ExecuteDdlAsync(string sql, CancellationToken cancellationToken)
+    {
+        if (!IsDdlStatement(sql))
+        {
+            throw new InvalidOperationException("The schema path only takes a single DDL statement – no TRUNCATE, PL/SQL or bind variables.");
+        }
+
+        await ExclusiveAsync(() =>
+        {
+            if (_readOnlySnapshots)
+            {
+                throw new RefusedException(OracleText.ConnectionReadOnly);
+            }
+
+            if (_open is not null)
+            {
+                throw new RefusedException(OracleText.DdlOnlyWithoutTransaction);
+            }
+
+            return RunAsync(sql, [], (command, ct) => command.ExecuteNonQueryAsync(ct), cancellationToken);
+        }, cancellationToken);
+    }
+
+    /// <summary>
     /// Locks rows before writing them: only <c>SELECT … FOR UPDATE WAIT n</c> / <c>NOWAIT</c>
     /// (<see cref="IsLockStatement"/>) and only inside a writing transaction – a lock outside one would be released
     /// at once. Waiting longer than n seconds ends with ORA-30006.

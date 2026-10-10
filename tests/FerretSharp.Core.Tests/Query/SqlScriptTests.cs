@@ -110,7 +110,18 @@ public sealed class SqlScriptTests
     [InlineData("CREATE TABLE t (x NUMBER)", SqlStatementKind.Ddl)]
     [InlineData("ALTER TABLE t ADD y NUMBER", SqlStatementKind.Ddl)]
     [InlineData("ALTER SESSION SET nls_date_format = 'YYYY'", SqlStatementKind.SessionControl)]
-    [InlineData("TRUNCATE TABLE t", SqlStatementKind.Ddl)]
+    [InlineData("TRUNCATE TABLE t", SqlStatementKind.Truncate)]
+    [InlineData("COMMENT ON COLUMN t.x IS 'Kunde'", SqlStatementKind.Ddl)]
+    [InlineData("CREATE OR REPLACE VIEW v AS SELECT 1 x FROM dual", SqlStatementKind.Ddl)]
+    [InlineData("CREATE INDEX t_x ON t (x)", SqlStatementKind.Ddl)]
+    [InlineData("DROP PROCEDURE p", SqlStatementKind.Ddl)]
+    [InlineData("ALTER TRIGGER t_bi DISABLE", SqlStatementKind.Ddl)]
+    [InlineData("CREATE OR REPLACE PROCEDURE p AS BEGIN NULL", SqlStatementKind.PlSqlObject)]
+    [InlineData("create function f return number is begin return 1", SqlStatementKind.PlSqlObject)]
+    [InlineData("CREATE OR REPLACE NONEDITIONABLE PACKAGE BODY pkg AS", SqlStatementKind.PlSqlObject)]
+    [InlineData("CREATE TRIGGER t_bi BEFORE INSERT ON t FOR EACH ROW BEGIN NULL", SqlStatementKind.PlSqlObject)]
+    [InlineData("CREATE TYPE adresse AS OBJECT (ort VARCHAR2(40))", SqlStatementKind.PlSqlObject)]
+    [InlineData("CREATE OR REPLACE AND COMPILE JAVA SOURCE NAMED x AS class X {}", SqlStatementKind.PlSqlObject)]
     [InlineData("BEGIN NULL; END", SqlStatementKind.PlSql)]
     [InlineData("EXEC dbms_stats.gather_table_stats('A', 'T')", SqlStatementKind.Call)]
     [InlineData("COMMIT", SqlStatementKind.TransactionControl)]
@@ -122,12 +133,17 @@ public sealed class SqlScriptTests
     public void Kinds(string statement, SqlStatementKind kind) => Assert.Equal(kind, SqlScript.Analyze(statement).Kind);
 
     [Fact]
-    public void Only_queries_and_dml_run_others_say_why()
+    public void Queries_dml_and_ddl_run_others_say_why()
     {
         Assert.Null(SqlScript.Analyze("SELECT 1 FROM dual").Rejection);
         Assert.Null(SqlScript.Analyze("MERGE INTO t USING s ON (1 = 1) WHEN MATCHED THEN UPDATE SET x = 1").Rejection);
-        Assert.Contains("committet implizit", SqlScript.Analyze("drop table t").Rejection);
-        Assert.StartsWith("DROP (DDL)", SqlScript.Analyze("drop table t").Rejection);
+        Assert.Null(SqlScript.Analyze("drop table t").Rejection); // WP-22
+        Assert.True(SqlScript.Analyze("ALTER TABLE t ADD y NUMBER").IsDdl);
+        Assert.StartsWith("TRUNCATE führt der SQL-Editor nicht aus", SqlScript.Analyze("truncate table t").Rejection);
+        Assert.StartsWith("PL/SQL-Objekte", SqlScript.Analyze("CREATE OR REPLACE TRIGGER x BEFORE INSERT ON t BEGIN NULL").Rejection);
+        Assert.Equal("DDL nimmt keine Bind-Variablen (:n) – den Wert direkt ins Statement schreiben.",
+            SqlScript.Analyze("ALTER TABLE t MODIFY x DEFAULT :n").Rejection);
+        Assert.Null(SqlScript.Analyze("ALTER TABLE t MODIFY x DEFAULT ':n'").Rejection); // a literal, no bind
         Assert.Contains("Statusleiste", SqlScript.Analyze("rollback").Rejection);
         Assert.Contains("FOR UPDATE", SqlScript.Analyze("SELECT * FROM t WHERE id = 1 FOR UPDATE NOWAIT").Rejection);
         Assert.False(SqlScript.Analyze("SELECT * FROM t FOR UPDATE").IsQuery);

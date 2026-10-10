@@ -68,6 +68,13 @@
   <data name="WriteOnlyInTransaction" xml:space="preserve">
     <value>Writing is only possible inside a transaction.</value>
   </data>
+  <data name="DdlOnlyWithoutTransaction" xml:space="preserve">
+    <value>DDL only runs without an open transaction – it would commit it implicitly. Commit or discard first.</value>
+  </data>
+  <data name="DdlObjectBusy" xml:space="preserve">
+    <value>Another session holds locks on the object – for example another workspace that has written to the table and not committed yet. Commit or discard there, then run the DDL again. ({0})</value>
+    <comment>DDL failed with ORA-00054. {0} = Oracle's message</comment>
+  </data>
   <data name="LockOnlyInWriteTransaction" xml:space="preserve">
     <value>Rows are only locked inside a write transaction.</value>
   </data>

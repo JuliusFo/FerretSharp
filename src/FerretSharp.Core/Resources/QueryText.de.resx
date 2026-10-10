@@ -99,8 +99,14 @@
   <data name="SqlRejectEmpty" xml:space="preserve">
     <value>Kein Statement am Cursor.</value>
   </data>
-  <data name="SqlRejectDdl" xml:space="preserve">
-    <value>{0} (DDL) führt der SQL-Editor nicht aus: DDL committet implizit – auch die offene Transaktion des Workspaces.</value>
+  <data name="SqlRejectTruncate" xml:space="preserve">
+    <value>TRUNCATE führt der SQL-Editor nicht aus: Es löscht alle Zeilen und lässt sich nicht rückgängig machen. Stattdessen DELETE verwenden – das bleibt in der Transaktion.</value>
+  </data>
+  <data name="SqlRejectPlSqlObject" xml:space="preserve">
+    <value>PL/SQL-Objekte (Prozeduren, Funktionen, Packages, Trigger, Typen) legt der SQL-Editor noch nicht an.</value>
+  </data>
+  <data name="SqlRejectDdlBinds" xml:space="preserve">
+    <value>DDL nimmt keine Bind-Variablen (:{0}) – den Wert direkt ins Statement schreiben.</value>
   </data>
   <data name="SqlRejectPlSql" xml:space="preserve">
     <value>PL/SQL-Blöcke und Prozeduraufrufe führt der SQL-Editor nicht aus – sie können selbst committen.</value>
@@ -122,6 +128,12 @@
   </data>
   <data name="SqlPlanReadOnly" xml:space="preserve">
     <value>{0} ändert Daten – der Workspace ist schreibgeschützt.</value>
+  </data>
+  <data name="SqlPlanReadOnlyDdl" xml:space="preserve">
+    <value>{0} ändert das Schema – der Workspace ist schreibgeschützt.</value>
+  </data>
+  <data name="SqlPlanDmlBeforeDdl" xml:space="preserve">
+    <value>{0} (DDL) würde die Änderungen von Statement {1} implizit committen. DDL vor die DML stellen oder getrennt ausführen.</value>
   </data>
   <data name="SqlPlanStatementProblem" xml:space="preserve">
     <value>Statement {0} – nichts ausgeführt: {1}</value>

@@ -9,8 +9,8 @@ namespace FerretSharp.Core.Tests;
 
 /// <summary>
 /// Reading stays separate from writing (CLAUDE.md, section 2; ADR 0006): the query path refuses anything but plain
-/// queries, every statement FerretSharp builds passes that guard, the only write path is internal and refuses DDL,
-/// and transaction control exists on the session only.
+/// queries, every statement FerretSharp builds passes that guard, the only write path is internal and refuses DDL, the
+/// schema path (WP-22) is internal and takes nothing but single DDL statements, and transaction control exists on the session only.
 /// </summary>
 public class ReadOnlyTests
 {
@@ -120,6 +120,47 @@ public class ReadOnlyTests
     [InlineData("DELETE FROM t WHERE c = q'[;]'; DROP TABLE t")]
     [InlineData("DELETE FROM t -- ;\n; DROP TABLE t")]
     public void Write_path_refuses_ddl_plsql_and_everything_else(string sql) => Assert.False(OracleSession.IsWriteStatement(sql), sql);
+
+    [Fact]
+    public void The_schema_path_is_internal()
+    {
+        var method = typeof(OracleSession).GetMethod("ExecuteDdlAsync", BindingFlags.NonPublic | BindingFlags.Instance);
+
+        Assert.NotNull(method);
+        Assert.True(method.IsAssembly);
+    }
+
+    /// <summary>WP-22, ADR 0019: the schema path takes DDL the SQL editor runs – a single statement, nothing else.</summary>
+    [Theory]
+    [InlineData("CREATE TABLE t (id NUMBER PRIMARY KEY, name VARCHAR2(40 CHAR))")]
+    [InlineData("  alter table t add (c number default 0 not null)")]
+    [InlineData("-- schema\nDROP TABLE t PURGE")]
+    [InlineData("COMMENT ON COLUMN t.c IS 'a;b'")]
+    [InlineData("CREATE OR REPLACE VIEW v AS SELECT * FROM t")]
+    [InlineData("CREATE INDEX t_c ON t (c);")]
+    [InlineData("GRANT SELECT ON t TO x")]
+    [InlineData("ALTER TRIGGER t_bi DISABLE")]
+    public void Schema_path_accepts_single_ddl(string sql) => Assert.True(OracleSession.IsDdlStatement(sql), sql);
+
+    [Theory]
+    [InlineData("TRUNCATE TABLE t")]
+    [InlineData("ALTER SESSION SET CURRENT_SCHEMA = X")]
+    [InlineData("ALTER SYSTEM KILL SESSION '1,2'")]
+    [InlineData("CREATE OR REPLACE PROCEDURE p AS BEGIN NULL; END;")]
+    [InlineData("CREATE TRIGGER t_bi BEFORE INSERT ON t BEGIN NULL; END;")]
+    [InlineData("BEGIN EXECUTE IMMEDIATE 'DROP TABLE t'; END;")]
+    [InlineData("CALL p()")]
+    [InlineData("COMMIT")]
+    [InlineData("DELETE FROM t")]
+    [InlineData("INSERT INTO t VALUES (1)")]
+    [InlineData("SELECT * FROM t")]
+    [InlineData("CREATE TABLE t (id NUMBER); DROP TABLE u")]
+    [InlineData("DROP TABLE t; DELETE FROM u")]
+    [InlineData("COMMENT ON TABLE t IS 'x' -- ;\n; TRUNCATE TABLE t")]
+    [InlineData("/* CREATE */ TRUNCATE TABLE t")]
+    [InlineData("ALTER TABLE t MODIFY c DEFAULT :p0")]
+    [InlineData("")]
+    public void Schema_path_refuses_truncate_plsql_binds_and_everything_else(string sql) => Assert.False(OracleSession.IsDdlStatement(sql), sql);
 
     [Fact]
     public void Session_runs_statements_only_through_the_guarded_reader()

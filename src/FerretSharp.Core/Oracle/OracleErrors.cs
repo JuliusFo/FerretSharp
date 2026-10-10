@@ -27,6 +27,9 @@ internal static class OracleErrorCodes
     /// <summary>ORA-02091: transaction rolled back (a deferred constraint failed at commit).</summary>
     public const int TransactionRolledBack = 2091;
 
+    /// <summary>ORA-00054: resource busy – DDL on an object another session holds locks on (DDL does not wait by default).</summary>
+    public const int ResourceBusy = 54;
+
     /// <summary>ORA-01466: table definition changed since the snapshot (also within about a second after DDL).</summary>
     public const int DefinitionChanged = 1466;
 
@@ -37,7 +40,7 @@ internal static class OracleErrorCodes
     public static readonly IReadOnlySet<int> SnapshotUnusable = new HashSet<int> { 1555, DefinitionChanged, 8176 };
 
     /// <summary>Row locked by another session: WAIT timeout (ORA-30006; Oracle 23 reports ORA-00054 instead) or NOWAIT.</summary>
-    public static readonly IReadOnlySet<int> RowLocked = new HashSet<int> { 30006, 54 };
+    public static readonly IReadOnlySet<int> RowLocked = new HashSet<int> { 30006, ResourceBusy };
 
     /// <summary>No rights on a dictionary view (V$…): table or view does not exist (ORA-00942), insufficient privileges (ORA-01031).</summary>
     public static readonly IReadOnlySet<int> MissingRights = new HashSet<int> { 942, 1031 };

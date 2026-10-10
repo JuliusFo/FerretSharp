@@ -421,6 +421,20 @@ public sealed class WorkspaceManager : IAsyncDisposable
     public async Task<WriteAction> ExecuteAsync(Guid workspaceId, QuerySpec statement, CancellationToken cancellationToken) =>
         await (await GetEditorAsync(workspaceId, cancellationToken)).ExecuteAsync(statement, cancellationToken);
 
+    /// <summary>
+    /// A DDL statement of the SQL editor on the workspace's session (WP-22); see <see cref="IDataEditor.ExecuteDdlAsync"/>.
+    /// Refused on a workspace that may not write, before its session is touched.
+    /// </summary>
+    public async Task ExecuteDdlAsync(Guid workspaceId, string statement, CancellationToken cancellationToken)
+    {
+        if (!IsWritable(workspaceId))
+        {
+            throw new RefusedException(OracleText.WorkspaceReadOnly);
+        }
+
+        await (await GetEditorAsync(workspaceId, cancellationToken)).ExecuteDdlAsync(statement, cancellationToken);
+    }
+
     /// <summary>Writing on the workspace's session (same transaction as its queries, so they see the flushed changes).</summary>
     public async Task<IDataEditor> GetEditorAsync(Guid workspaceId, CancellationToken cancellationToken) =>
         (await GetConnectionAsync(workspaceId, cancellationToken)).Editor;
