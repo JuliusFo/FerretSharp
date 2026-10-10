@@ -150,6 +150,33 @@ public sealed class SqlScriptTests
         Assert.Contains("„SHOW“", SqlScript.Analyze("show errors").Rejection);
     }
 
+    /// <summary>WP-22: the table a DDL changes – to take it before ALTER TABLE and to name who holds it.</summary>
+    [Theory]
+    [InlineData("ALTER TABLE kunden ADD (fax VARCHAR2(30))", null, "KUNDEN")]
+    [InlineData("alter table app.\"Kunden\" modify (name varchar2(80))", "APP", "Kunden")]
+    [InlineData("DROP TABLE kunden PURGE", null, "KUNDEN")]
+    [InlineData("TRUNCATE TABLE app.kunden", "APP", "KUNDEN")]
+    [InlineData("RENAME kunden TO kunden_alt", null, "KUNDEN")]
+    [InlineData("CREATE INDEX kunden_name ON kunden (name)", null, "KUNDEN")]
+    [InlineData("CREATE UNIQUE INDEX app.kunden_mail ON app.kunden (email)", "APP", "KUNDEN")]
+    [InlineData("COMMENT ON TABLE kunden IS 'a; b'", null, "KUNDEN")]
+    [InlineData("COMMENT ON COLUMN kunden.fax IS 'Fax'", null, "KUNDEN")]
+    [InlineData("COMMENT ON COLUMN app.kunden.fax IS 'Fax'", "APP", "KUNDEN")]
+    [InlineData("-- vorher\nFLASHBACK TABLE kunden TO BEFORE DROP", null, "KUNDEN")]
+    public void Ddl_names_the_table_it_changes(string sql, string? owner, string name) =>
+        Assert.Equal(new SqlTableReference(owner, name, null, 0), SqlScript.DdlTableOf(sql));
+
+    [Theory]
+    [InlineData("CREATE TABLE neu (id NUMBER)")]
+    [InlineData("CREATE OR REPLACE VIEW v AS SELECT * FROM kunden")]
+    [InlineData("GRANT SELECT ON kunden TO x")]
+    [InlineData("ALTER INDEX kunden_name REBUILD")]
+    [InlineData("ALTER SESSION SET CURRENT_SCHEMA = x")]
+    [InlineData("UPDATE kunden SET a = 1")]
+    [InlineData("SELECT * FROM kunden")]
+    [InlineData("")]
+    public void Other_statements_name_no_table(string sql) => Assert.Null(SqlScript.DdlTableOf(sql));
+
     [Fact]
     public void Binds_in_order_without_duplicates_ignoring_case()
     {

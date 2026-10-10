@@ -590,6 +590,8 @@ table.binds td { font-family: var(--mono); }
 /* ---------- errors, connection loss, notices ---------- */
 .link-btn { border: 0; padding: 0 0 0 8px; background: transparent; color: inherit; text-decoration: underline; cursor: pointer; font-size: inherit; }
 .tab-error { display: flex; align-items: baseline; gap: 4px; }
+.sql-lock-holders { padding: 4px 12px 8px; font-size: 12.5px; }
+.sql-lock-holders .muted { margin: 6px 0 0; }
 .lost-banner {
   display: flex; align-items: center; gap: 12px; flex: none; padding: 8px 12px;
   background: var(--danger-weak); color: var(--text); border-bottom: 1px solid var(--danger);

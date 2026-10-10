@@ -38,5 +38,11 @@ public sealed class DatabaseException(string message, string? errorCode = null, 
 /// </summary>
 public class RefusedException(string message, Exception? inner = null) : InvalidOperationException(message, inner);
 
+/// <summary>
+/// DDL not started (WP-22): another session holds locks on the table – it has written to it and not committed. ALTER TABLE
+/// would wait for that transaction and could not be cancelled meanwhile (ADR 0019).
+/// </summary>
+public sealed class TableBusyException(string message) : RefusedException(message);
+
 /// <summary>The workspace is not open (any more): closed or disconnected while a call for it was on its way.</summary>
 public sealed class WorkspaceClosedException() : RefusedException(WorkspaceText.WorkspaceNotOpen);

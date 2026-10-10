@@ -454,6 +454,82 @@ public static class SqlScript
         };
     }
 
+    /// <summary>
+    /// The table a DDL statement changes (WP-22): <c>ALTER TABLE x</c>, <c>DROP TABLE x</c>, <c>TRUNCATE TABLE x</c>,
+    /// <c>FLASHBACK TABLE x</c>, <c>RENAME x TO …</c>, <c>CREATE [UNIQUE | BITMAP] INDEX i ON x</c>, <c>COMMENT ON TABLE x</c>,
+    /// <c>COMMENT ON COLUMN [owner.]x.c</c> – in dictionary form; null for anything else (a new table, a view, GRANT …).
+    /// </summary>
+    public static SqlTableReference? DdlTableOf(string statement)
+    {
+        var tokens = Tokenize(statement).Where(t => t.Kind is not (SqlTokenKind.Space or SqlTokenKind.Comment)).ToList();
+        if (tokens.Count < 2 || KindOf(tokens) is not (SqlStatementKind.Ddl or SqlStatementKind.Truncate))
+        {
+            return null;
+        }
+
+        var first = FirstWordOf(tokens);
+        if (first == "COMMENT" && tokens.Count > 3 && tokens[1].IsWord("ON") && tokens[2].IsWord("COLUMN"))
+        {
+            return ColumnTable(tokens);
+        }
+
+        int? at = first switch
+        {
+            "ALTER" or "DROP" or "TRUNCATE" or "FLASHBACK" when tokens[1].IsWord("TABLE") => 2,
+            "RENAME" => 1,
+            "CREATE" => IndexOn(tokens),
+            "COMMENT" when tokens.Count > 3 && tokens[1].IsWord("ON") && tokens[2].IsWord("TABLE") => 3,
+            _ => null,
+        };
+
+        return at is { } i && ReferenceAt(tokens, i, 0) is { } reference ? reference.Table with { Alias = null } : null;
+    }
+
+    /// <summary><c>CREATE [UNIQUE | BITMAP | MULTIVALUE] INDEX [IF NOT EXISTS] name ON x</c>: the position of x.</summary>
+    private static int? IndexOn(List<SqlToken> tokens)
+    {
+        var index = tokens.FindIndex(t => t.IsWord("INDEX"));
+        if (index is < 1 or > 2 || tokens.Take(index).Skip(1).Any(t => !(t.IsWord("UNIQUE") || t.IsWord("BITMAP") || t.IsWord("MULTIVALUE"))))
+        {
+            return null;
+        }
+
+        var on = tokens.FindIndex(index, t => t.IsWord("ON"));
+        return on > 0 ? on + 1 : null;
+    }
+
+    /// <summary><c>COMMENT ON COLUMN owner.table.column</c> or <c>table.column</c>: the table, with its owner if given.</summary>
+    private static SqlTableReference? ColumnTable(List<SqlToken> tokens)
+    {
+        // owner . table . column IS '…' – names separated by dots up to IS
+        var parts = new List<string>();
+        for (var i = 3; i < tokens.Count; i += 2)
+        {
+            if (Name(tokens, i) is not { } name)
+            {
+                return null;
+            }
+
+            parts.Add(name);
+            if (i + 1 >= tokens.Count || tokens[i + 1].IsWord("IS"))
+            {
+                break;
+            }
+
+            if (!tokens[i + 1].IsSymbol("."))
+            {
+                return null;
+            }
+        }
+
+        return parts switch
+        {
+            [var owner, var table, _] => new SqlTableReference(owner, table, null, 0),
+            [var table, _] => new SqlTableReference(null, table, null, 0),
+            _ => null,
+        };
+    }
+
     private static string FirstWordOf(IReadOnlyList<SqlToken> tokens) =>
         tokens[0].Kind == SqlTokenKind.Word ? tokens[0].Value.ToUpperInvariant() : tokens[0].Value;
 

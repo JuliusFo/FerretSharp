@@ -104,6 +104,9 @@ internal sealed class TestApp : IAsyncDisposable
     public TableDetails KundenDetails { get; set; } = new(
         Kunden, [new ColumnInfo("ID", "NUMBER", null, false, 10, 0, false, false, null, 1)], ["ID"], [], false);
 
+    /// <summary>Sessions with locks on any table; null = no rights on the V$ views.</summary>
+    public IReadOnlyList<LockHolder>? LockHolders { get; set; }
+
     /// <summary>What the database lists as PL/SQL units (on connect and on a schema refresh).</summary>
     public IReadOnlyList<PlSqlObjectSummary> PlSqlObjects { get; set; } = [Rechnung];
 
@@ -120,6 +123,7 @@ internal sealed class TestApp : IAsyncDisposable
         reader.GetPlSqlObjectsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(_ => PlSqlObjects);
         reader.GetForeignKeysAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
         reader.GetDetailsAsync(Arg.Any<TableSummary>(), Arg.Any<CancellationToken>()).Returns(_ => KundenDetails);
+        reader.GetLockHoldersAsync(Arg.Any<TableRef>(), Arg.Any<CancellationToken>()).Returns(_ => LockHolders);
         var editor = new FakeDataEditor(() => OnCommit);
         var connection = Substitute.For<IDatabaseConnection>();
         connection.Schema.Returns(reader);

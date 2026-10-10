@@ -1,3 +1,5 @@
+using FerretSharp.Core.Connections;
+using FerretSharp.Core.Data;
 using FerretSharp.Core.Query;
 using FerretSharp.Core.Schema;
 using FerretSharp.UI.State;
@@ -82,6 +84,33 @@ public sealed class SchemaRefreshTests
         Assert.Equal("Zweiter", other.Workspace);
         Assert.Equal(["AUFTRAG", "KUNDEN"], other.Tables);
         Assert.DoesNotContain(app.Lifecycle.OtherWriters(second), w => w.Tables.Count > 0); // the first one wrote nothing
+    }
+
+    /// <summary>
+    /// DDL on a table another session holds (not started by the schema path, or ORA-00054 of DROP): the SQL editor names who
+    /// holds it – if FerretSharp may read V$SESSION.
+    /// </summary>
+    [Fact]
+    public async Task A_ddl_that_met_a_locked_table_names_who_holds_it()
+    {
+        await using var app = new TestApp();
+        var scope = await app.OpenAsync(TestApp.Profile("Test"));
+        var busy = new DatabaseException("Nicht gestartet …", inner: new TableBusyException("Nicht gestartet …"));
+        var dropped = new DatabaseException("Sperre …", "ORA-00054");
+        var holder = new LockHolder(42, "APP_USER", "jdoe", "PC-1234", "MeineApp.exe", "FerretSharp", "Workspace 2", null);
+
+        app.LockHolders = [holder];
+        var alter = await app.Lifecycle.LockOfAsync(scope, "ALTER TABLE kunden ADD (fax VARCHAR2(30))", busy);
+        var drop = await app.Lifecycle.LockOfAsync(scope, "DROP TABLE app_user.kunden", dropped);
+        app.LockHolders = null;
+        var unknown = await app.Lifecycle.LockOfAsync(scope, "ALTER TABLE kunden ADD (fax VARCHAR2(30))", busy);
+
+        Assert.Equal(TestApp.Kunden.Ref, alter!.Table);
+        Assert.Equal([holder], alter.Holders);
+        Assert.Equal([holder], drop!.Holders);
+        Assert.Null(unknown!.Holders); // no rights: the list says so
+        Assert.Null(await app.Lifecycle.LockOfAsync(scope, "ALTER TABLE kunden ADD (x NUMBER)", new DatabaseException("Spalte gibt es schon", "ORA-01430")));
+        Assert.Null(await app.Lifecycle.LockOfAsync(scope, "ALTER TABLE gibt_es_nicht ADD (x NUMBER)", busy));
     }
 
     [Fact]

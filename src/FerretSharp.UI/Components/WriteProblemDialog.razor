@@ -11,28 +11,7 @@
         {
             case LockConflictException:
                 <p>@TextFormat.Plural(Wait, GridText.Problem_LockConflictOne, GridText.Problem_LockConflictOther)</p>
-                @if (Problem.Holders is { Count: > 0 } holders)
-                {
-                    <table class="columns holders">
-                        <thead><tr><th>@GridText.Problem_Session</th><th>@GridText.Problem_User</th><th>@GridText.Problem_Machine</th><th>@GridText.Problem_ProgramWorkspace</th></tr></thead>
-                        <tbody>
-                            @foreach (var holder in holders)
-                            {
-                                <tr>
-                                    <td class="mono">@holder.Sid</td>
-                                    <td>@holder.User@(holder.OsUser is { } os ? $" ({os})" : "")</td>
-                                    <td>@holder.Machine</td>
-                                    <td>@(holder.Module == "FerretSharp" ? TextFormat.Format(GridText.Problem_FerretSharpWorkspace, holder.Action) : holder.Module ?? holder.Program)</td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                    <p class="muted">@GridText.Problem_LockHoldersNote</p>
-                }
-                else if (Problem.Holders is null)
-                {
-                    <p class="muted">@GridText.Problem_LockHoldersUnknown</p>
-                }
+                <LockHolderList Holders="Problem.Holders" Note="@GridText.Problem_LockHoldersNote" />
                 break;
             case ConcurrencyConflictException conflict:
                 <p>@GridText.Problem_ChangedMeanwhileText</p>

@@ -568,10 +568,13 @@
     <value>Wird verworfen:</value>
   </data>
   <data name="SqlView_ConfirmDdlOtherWriterTables" xml:space="preserve">
-    <value>Workspace „{0}“ hat in {1} geschrieben und noch nicht committet. DDL auf diesen Tabellen scheitert oder wartet, bis dort committet oder verworfen wird – und lässt sich solange nicht abbrechen.</value>
+    <value>Workspace „{0}“ hat in {1} geschrieben und noch nicht committet. ALTER, DROP und Ähnliches auf diesen Tabellen wird abgewiesen, bis dort committet oder verworfen wird.</value>
   </data>
   <data name="SqlView_ConfirmDdlOtherWriter" xml:space="preserve">
-    <value>Workspace „{0}“ hat eine offene Transaktion. DDL auf einer Tabelle, in die er geschrieben hat, scheitert oder wartet bis zu deren Ende – und lässt sich solange nicht abbrechen.</value>
+    <value>Workspace „{0}“ hat eine offene Transaktion. ALTER, DROP und Ähnliches auf einer Tabelle, in die er geschrieben hat, wird bis zu deren Ende abgewiesen.</value>
+  </data>
+  <data name="SqlView_DdlLockHoldersNote" xml:space="preserve">
+    <value>Sessions mit Sperren auf der Tabelle – dort committen oder verwerfen, dann das DDL erneut ausführen.</value>
   </data>
   <data name="Run_DdlWaiting" xml:space="preserve">
     <value>Dauert es? DDL wartet auf nicht committete Änderungen anderer Sessions an der Tabelle und lässt sich dann nicht abbrechen – dort committen oder verwerfen.</value>

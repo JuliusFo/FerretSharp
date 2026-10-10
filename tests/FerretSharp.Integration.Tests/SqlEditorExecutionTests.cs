@@ -211,30 +211,53 @@ public sealed class SqlEditorExecutionTests(OracleContainerFixture oracle) : IAs
 
     /// <summary>
     /// A table another workspace has written to and not committed: DROP does not wait for its locks (DDL_LOCK_TIMEOUT 0) and
-    /// fails at once with ORA-00054 – the message says what to do. ALTER TABLE … ADD however waits for that transaction
-    /// (Oracle 23: "enq: TX - row lock contention", found when this test hung) – and neither <c>OracleCommand.Cancel</c>,
-    /// a command timeout nor closing the session stops it (tried in WP-22): it runs once the other transaction ends.
+    /// fails at once with ORA-00054 – the message says what to do. ALTER TABLE … ADD would wait for that transaction (Oracle
+    /// 23: "enq: TX - row lock contention", found when this test hung) – and neither <c>OracleCommand.Cancel</c>, a command
+    /// timeout nor closing the session stops that (tried in WP-22). So the schema path takes the table first with
+    /// <c>LOCK TABLE … NOWAIT</c> and does not start the ALTER while another session holds it.
     /// </summary>
     [Fact]
-    public async Task Ddl_on_a_table_another_session_has_written_to_fails_or_waits_for_that_transaction()
+    public async Task Ddl_on_a_table_another_session_has_written_to_is_not_started()
     {
         await using var writer = await OpenAsync("SQL busy writer");
         await using var ddl = await OpenAsync("SQL busy ddl");
         await ddl.Editor.ExecuteDdlAsync("CREATE TABLE sx_busy (id NUMBER(10))", Ct);
         await writer.Editor.ExecuteAsync(new QuerySpec("INSERT INTO sx_busy VALUES (1)", []), Ct);
+        var columns = new QuerySpec("SELECT COUNT(*) FROM user_tab_columns WHERE table_name = 'SX_BUSY'", []);
 
         var error = await Assert.ThrowsAsync<DatabaseException>(() => ddl.Editor.ExecuteDdlAsync("DROP TABLE sx_busy PURGE", Ct));
         Assert.Equal("ORA-00054", error.ErrorCode);
         Assert.Contains("anderer Workspace", error.Message);
 
-        var alter = ddl.Editor.ExecuteDdlAsync("ALTER TABLE sx_busy ADD (name VARCHAR2(10))", Ct);
-        await Task.Delay(TimeSpan.FromSeconds(2), Ct);
-        Assert.False(alter.IsCompleted); // waits for the writer's transaction
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var busy = await Assert.ThrowsAsync<TableBusyException>(() => ddl.Editor.ExecuteDdlAsync("ALTER TABLE sx_busy ADD (name VARCHAR2(10))", Ct));
+        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(5), $"Took {stopwatch.Elapsed}.");
+        Assert.StartsWith("Nicht gestartet: Eine andere Session hat in SX_BUSY geschrieben", busy.Message);
+        Assert.Equal(TransactionMode.None, ddl.Editor.Transaction.Mode);
+        Assert.Equal(1m, (await ddl.Data.ReadSqlAsync(columns, 0, 1, Ct)).Rows.Single()[0]);
+        await ddl.Editor.ExecuteDdlAsync("COMMENT ON TABLE sx_busy IS 'kein Konflikt'", Ct); // COMMENT does not take the table
 
         await writer.Editor.RollbackAsync(Ct);
-        await alter.WaitAsync(TimeSpan.FromSeconds(30), Ct);
-        var columns = await writer.Data.ReadSqlAsync(new QuerySpec("SELECT COUNT(*) FROM user_tab_columns WHERE table_name = 'SX_BUSY'", []), 0, 1, Ct);
-        Assert.Equal(2m, columns.Rows.Single()[0]);
+        await ddl.Editor.ExecuteDdlAsync("ALTER TABLE sx_busy ADD (name VARCHAR2(10))", Ct);
+        Assert.Equal(2m, (await ddl.Data.ReadSqlAsync(columns, 0, 1, Ct)).Rows.Single()[0]);
+        Assert.Equal(TransactionMode.None, ddl.Editor.Transaction.Mode); // the lock went with the DDL's commit
+        await writer.Editor.ExecuteAsync(new QuerySpec("INSERT INTO sx_busy VALUES (2, 'zwei')", []), Ct); // not held any more
+        await writer.Editor.RollbackAsync(Ct);
         await ddl.Editor.ExecuteDdlAsync("DROP TABLE sx_busy PURGE", Ct);
+    }
+
+    [Theory]
+    [InlineData("ALTER TABLE sx_gibt_es_nicht ADD (x NUMBER)", "ORA-00942")] // the lock fails, the DDL reports for itself
+    [InlineData("ALTER TABLE sx_kunde ADD (id NUMBER)", "ORA-01430")] // column exists: Oracle's own error, nothing held
+    public async Task An_alter_table_oracle_refuses_reports_its_own_error(string sql, string code)
+    {
+        await using var connection = await OpenAsync("SQL alter error");
+
+        var error = await Assert.ThrowsAsync<DatabaseException>(() => connection.Editor.ExecuteDdlAsync(sql, Ct));
+
+        Assert.Equal(code, error.ErrorCode);
+        Assert.Equal(TransactionMode.None, connection.Editor.Transaction.Mode);
+        await connection.Editor.ExecuteAsync(new QuerySpec("UPDATE sx_kunde SET status = status WHERE id = 2", []), Ct); // the table is free
+        await connection.Editor.RollbackAsync(Ct);
     }
 }

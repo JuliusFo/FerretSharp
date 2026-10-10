@@ -51,8 +51,12 @@ public sealed record SchemaRefreshResult(
     private const int MaxNamed = 5;
 }
 
-/// <summary>Another workspace with an open write transaction (WP-22): DDL on <paramref name="Tables"/> waits for it or fails.</summary>
+/// <summary>Another workspace with an open write transaction (WP-22): DDL on <paramref name="Tables"/> is refused while it lasts.</summary>
 public sealed record OtherWriter(string Workspace, IReadOnlyList<string> Tables);
+
+/// <summary>A table DDL found locked by another session (WP-22).</summary>
+/// <param name="Holders">The sessions holding locks on it; null if unknown (no rights on the V$ views).</param>
+public sealed record TableLock(TableRef Table, IReadOnlyList<LockHolder>? Holders);
 
 // Reloading the schema of a connection and everything built on it (WP-22, a file of its own).
 public sealed partial class WorkspaceLifecycle
@@ -131,6 +135,25 @@ public sealed partial class WorkspaceLifecycle
             .Where(w => w.Summary.Transaction?.Mode == TransactionMode.ReadWrite)
             .Select(w => new OtherWriter(WorkspaceName(w.WorkspaceId), TablesOf(w.Summary.Actions)))
             .ToList();
+    }
+
+    /// <summary>
+    /// After DDL failed on a locked table (the schema path did not start ALTER TABLE, or DROP and the like got ORA-00054):
+    /// the table the statement changes and who holds locks on it – read on the explorer session, which needs read access
+    /// to V$LOCKED_OBJECT and V$SESSION. Null if the failure is no lock problem or the table is not in the schema.
+    /// </summary>
+    public async Task<TableLock?> LockOfAsync(ConnectionScope scope, string statement, DatabaseException failure)
+    {
+        if (!(failure.InnerException is TableBusyException || failure.ErrorCode == "ORA-00054")
+            || scope.Active.Schema is not { } schema
+            || SqlScript.DdlTableOf(statement) is not { } reference
+            || SqlCompletion.Resolve(schema, reference) is not { } table)
+        {
+            return null;
+        }
+
+        var holders = await shell.RunDbAsync(logger, scope.Active, () => schema.GetLockHoldersAsync(table.Ref, CancellationToken.None));
+        return new TableLock(table.Ref, holders.Value);
     }
 
     /// <summary>The tables the writes changed – the target of each DML, as the SQL editor reads it.</summary>

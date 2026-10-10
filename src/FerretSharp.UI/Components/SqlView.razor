@@ -95,6 +95,12 @@
                         <button class="link-btn" @onclick="() => Shell.ShowError(failure)">@CommonText.Details</button>
                     }
                 </div>
+                @if (run.Lock is { } tableLock)
+                {
+                    <div class="sql-lock-holders">
+                        <LockHolderList Holders="tableLock.Holders" Note="@SqlEditorText.SqlView_DdlLockHoldersNote" />
+                    </div>
+                }
             }
             else if (run.Info.IsQuery)
             {
@@ -637,7 +643,9 @@
             await LogAsync(run, null, false, false, error.Display);
         }
 
-        return run with { Error = error };
+        // WP-22: DDL on a table another session holds – name who it is.
+        var tableLock = run.Info.IsDdl ? await Lifecycle.LockOfAsync(Hub.ScopeOfWorkspace(Tab.WorkspaceId), run.Statement.Text, error) : null;
+        return run with { Error = error, Lock = tableLock };
     }
 
     private void SelectRun(int index)

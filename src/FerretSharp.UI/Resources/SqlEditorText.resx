@@ -672,12 +672,16 @@
     <comment>Heading of the list of changes the rollback before DDL discards</comment>
   </data>
   <data name="SqlView_ConfirmDdlOtherWriterTables" xml:space="preserve">
-    <value>Workspace “{0}” has written to {1} and not committed yet. DDL on these tables fails or waits until it commits or rolls back – and cannot be cancelled while it waits.</value>
+    <value>Workspace “{0}” has written to {1} and not committed yet. ALTER, DROP and the like on these tables are refused until it commits or rolls back.</value>
     <comment>{0} = workspace name, {1} = list of table names</comment>
   </data>
   <data name="SqlView_ConfirmDdlOtherWriter" xml:space="preserve">
-    <value>Workspace “{0}” has an open transaction. DDL on a table it has written to fails or waits until it ends – and cannot be cancelled while it waits.</value>
+    <value>Workspace “{0}” has an open transaction. ALTER, DROP and the like on a table it has written to are refused until it ends.</value>
     <comment>{0} = workspace name</comment>
+  </data>
+  <data name="SqlView_DdlLockHoldersNote" xml:space="preserve">
+    <value>Sessions with locks on the table – commit or discard there, then run the DDL again.</value>
+    <comment>Below the list of sessions that block a DDL statement</comment>
   </data>
   <data name="Run_DdlWaiting" xml:space="preserve">
     <value>Taking long? DDL waits for uncommitted changes other sessions made to the table, and cannot be cancelled then – commit or discard them there.</value>

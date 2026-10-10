@@ -167,8 +167,68 @@ public sealed partial class OracleSession
                 throw new RefusedException(OracleText.DdlOnlyWithoutTransaction);
             }
 
-            return RunAsync(sql, [], (command, ct) => command.ExecuteNonQueryAsync(ct), cancellationToken);
+            return RunDdlCoreAsync(sql, cancellationToken);
         }, cancellationToken);
+    }
+
+    /// <summary>
+    /// ALTER TABLE first takes the table with <c>LOCK TABLE … IN EXCLUSIVE MODE NOWAIT</c> and holds it until Oracle commits
+    /// before the DDL: with uncommitted DML of another session on the table, ALTER TABLE … ADD would wait for it and could
+    /// not be cancelled (ADR 0019). Other DDL either fails at once itself (ORA-00054) or does not conflict (COMMENT, GRANT),
+    /// so it runs as it is. Caller holds the gate.
+    /// </summary>
+    private async Task<int> RunDdlCoreAsync(string sql, CancellationToken cancellationToken)
+    {
+        await using var hold = SqlScript.Analyze(sql).FirstWord == "ALTER" && SqlScript.DdlTableOf(sql) is { } table
+            ? await HoldForDdlCoreAsync(table, cancellationToken)
+            : null;
+        return await RunAsync(sql, [], (command, ct) => command.ExecuteNonQueryAsync(ct), cancellationToken);
+    }
+
+    /// <summary>
+    /// Takes the table for the DDL that follows; the DDL's implicit commit releases it. Null if Oracle cannot lock it at all
+    /// (no such table, an object of SYS, a remote synonym) – the DDL then reports for itself.
+    /// </summary>
+    /// <exception cref="TableBusyException">Another session holds locks on the table (ORA-00054).</exception>
+    private async Task<OracleTransaction?> HoldForDdlCoreAsync(SqlTableReference table, CancellationToken cancellationToken)
+    {
+        var name = table.Owner is { } owner ? $"{OracleIdentifier.Quote(owner)}.{OracleIdentifier.Quote(table.Name)}" : OracleIdentifier.Quote(table.Name);
+        var sql = $"LOCK TABLE {name} IN EXCLUSIVE MODE NOWAIT";
+        var transaction = BeginCoreTransaction(sql);
+        try
+        {
+            await RunAsync(sql, [], (command, ct) => command.ExecuteNonQueryAsync(ct), cancellationToken);
+            return transaction;
+        }
+        catch (OracleStatementException ex) when (ex.Oracle is { } oracle)
+        {
+            await EndQuietlyAsync(transaction);
+            if (oracle.Number == OracleErrorCodes.ResourceBusy)
+            {
+                throw new TableBusyException(TextFormat.Format(OracleText.DdlTableBusy, table.Owner is null ? table.Name : $"{table.Owner}.{table.Name}"));
+            }
+
+            return null;
+        }
+        catch
+        {
+            await EndQuietlyAsync(transaction);
+            throw;
+        }
+    }
+
+    private static async Task EndQuietlyAsync(OracleTransaction transaction)
+    {
+        try
+        {
+            await transaction.RollbackAsync();
+        }
+        catch (Exception ex) when (ex is OracleException or InvalidOperationException)
+        {
+            // connection gone: nothing is held any more
+        }
+
+        await transaction.DisposeAsync();
     }
 
     /// <summary>

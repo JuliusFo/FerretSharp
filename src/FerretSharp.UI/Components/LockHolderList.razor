@@ -1,0 +1,40 @@
+@* Who holds locks on a table – sessions from V$LOCKED_OBJECT/V$SESSION, a FerretSharp session with its workspace (out of
+   WriteProblemDialog; WP-22 shows it when DDL meets a table another session has written to). Without read access to the
+   V$ views it says so; an empty list (the lock went meanwhile) shows nothing. *@
+@using FerretSharp.Core.Data
+
+@if (Holders is { Count: > 0 } holders)
+{
+    <table class="columns holders">
+        <thead><tr><th>@GridText.Problem_Session</th><th>@GridText.Problem_User</th><th>@GridText.Problem_Machine</th><th>@GridText.Problem_ProgramWorkspace</th></tr></thead>
+        <tbody>
+            @foreach (var holder in holders)
+            {
+                <tr>
+                    <td class="mono">@holder.Sid</td>
+                    <td>@holder.User@(holder.OsUser is { } os ? $" ({os})" : "")</td>
+                    <td>@holder.Machine</td>
+                    <td>@(holder.Module == "FerretSharp" ? TextFormat.Format(GridText.Problem_FerretSharpWorkspace, holder.Action) : holder.Module ?? holder.Program)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    @if (Note is not null)
+    {
+        <p class="muted">@Note</p>
+    }
+}
+else if (Holders is null)
+{
+    <p class="muted">@GridText.Problem_LockHoldersUnknown</p>
+}
+
+@code {
+    /// <summary>Null: unknown (no rights on the V$ views).</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<LockHolder>? Holders { get; set; }
+
+    /// <summary>Below the list, if there is one.</summary>
+    [Parameter]
+    public string? Note { get; set; }
+}
