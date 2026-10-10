@@ -139,7 +139,9 @@ public sealed class SqlEditorExecutionTests(OracleContainerFixture oracle) : IAs
     }
 
     [Theory]
-    [InlineData("DROP TABLE sx_neu")]
+    [InlineData("TRUNCATE TABLE sx_neu")]
+    [InlineData("CREATE OR REPLACE PROCEDURE sx_p AS BEGIN DELETE FROM sx_neu; END;")]
+    [InlineData("ALTER TABLE sx_neu MODIFY name DEFAULT :n")]
     [InlineData("BEGIN DELETE FROM sx_neu; END;")]
     [InlineData("COMMIT")]
     public async Task What_the_editor_rejects_the_session_refuses_too(string sql)
@@ -148,7 +150,114 @@ public sealed class SqlEditorExecutionTests(OracleContainerFixture oracle) : IAs
 
         Assert.NotNull(SqlScript.Analyze(sql).Rejection);
         await Assert.ThrowsAsync<InvalidOperationException>(() => connection.Data.ReadSqlAsync(new QuerySpec(sql, []), 0, 1, Ct));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => connection.Editor.ExecuteDdlAsync(sql, Ct));
         await Assert.ThrowsAsync<InvalidOperationException>(() => connection.Editor.ExecuteAsync(new QuerySpec(sql, []), Ct));
         await connection.Editor.RollbackAsync(Ct); // ExecuteAsync began a transaction before the guard refused
+    }
+
+    /// <summary>WP-22: DDL from the editor runs outside of any transaction – committed at once, visible to every session.</summary>
+    [Fact]
+    public async Task Ddl_runs_outside_of_a_transaction_and_is_committed_at_once()
+    {
+        await using var connection = await OpenAsync("SQL ddl");
+        await using var other = await OpenAsync("SQL ddl other");
+        var script = SqlScriptPlan.Prepare(SqlScript.Split("""
+            CREATE TABLE sx_ddl (id NUMBER(10) PRIMARY KEY, name VARCHAR2(20 CHAR));
+            COMMENT ON TABLE sx_ddl IS 'Kunde; neu';
+            INSERT INTO sx_ddl VALUES (1, 'eins')
+            """), [], writable: true, single: false);
+        Assert.Null(script.Problem);
+
+        foreach (var statement in script.Statements)
+        {
+            if (statement.Info.IsDdl)
+            {
+                await connection.Editor.ExecuteDdlAsync(statement.Query.Sql, Ct);
+                Assert.Equal(TransactionMode.None, connection.Editor.Transaction.Mode);
+            }
+            else
+            {
+                await connection.Editor.ExecuteAsync(statement.Query, Ct);
+            }
+        }
+
+        var comment = await other.Data.ReadSqlAsync(new QuerySpec("SELECT comments FROM user_tab_comments WHERE table_name = 'SX_DDL'", []), 0, 1, Ct);
+        var rows = await other.Data.ReadSqlAsync(new QuerySpec("SELECT COUNT(*) FROM sx_ddl", []), 0, 1, Ct);
+        Assert.Equal("Kunde; neu", comment.Rows.Single()[0]);
+        Assert.Equal(0m, rows.Rows.Single()[0]); // the INSERT after the DDL waits in the transaction for the user's commit
+        Assert.Equal(TransactionMode.ReadWrite, connection.Editor.Transaction.Mode);
+
+        await connection.Editor.RollbackAsync(Ct);
+        await connection.Editor.ExecuteDdlAsync("DROP TABLE sx_ddl PURGE", Ct);
+    }
+
+    [Fact]
+    public async Task Ddl_is_refused_while_the_workspace_has_written_and_in_a_locked_session()
+    {
+        await using var connection = await OpenAsync("SQL ddl tx");
+        await connection.Editor.ExecuteAsync(new QuerySpec("UPDATE sx_kunde SET status = status WHERE id = 9", []), Ct);
+
+        var open = await Assert.ThrowsAsync<RefusedException>(() => connection.Editor.ExecuteDdlAsync("CREATE TABLE sx_nie (id NUMBER)", Ct));
+
+        Assert.Contains("ohne offene Transaktion", open.Message);
+        Assert.Equal(TransactionMode.ReadWrite, connection.Editor.Transaction.Mode); // nothing was committed
+        Assert.Single(connection.Editor.Actions);
+        await connection.Editor.RollbackAsync(Ct);
+
+        await connection.UseReadOnlySnapshotsAsync(Ct);
+        var locked = await Assert.ThrowsAsync<RefusedException>(() => connection.Editor.ExecuteDdlAsync("CREATE TABLE sx_nie (id NUMBER)", Ct));
+        Assert.Contains("schreibgeschützt", locked.Message);
+    }
+
+    /// <summary>
+    /// A table another workspace has written to and not committed: DROP does not wait for its locks (DDL_LOCK_TIMEOUT 0) and
+    /// fails at once with ORA-00054 – the message says what to do. ALTER TABLE … ADD would wait for that transaction (Oracle
+    /// 23: "enq: TX - row lock contention", found when this test hung) – and neither <c>OracleCommand.Cancel</c>, a command
+    /// timeout nor closing the session stops that (tried in WP-22). So the schema path takes the table first with
+    /// <c>LOCK TABLE … NOWAIT</c> and does not start the ALTER while another session holds it.
+    /// </summary>
+    [Fact]
+    public async Task Ddl_on_a_table_another_session_has_written_to_is_not_started()
+    {
+        await using var writer = await OpenAsync("SQL busy writer");
+        await using var ddl = await OpenAsync("SQL busy ddl");
+        await ddl.Editor.ExecuteDdlAsync("CREATE TABLE sx_busy (id NUMBER(10))", Ct);
+        await writer.Editor.ExecuteAsync(new QuerySpec("INSERT INTO sx_busy VALUES (1)", []), Ct);
+        var columns = new QuerySpec("SELECT COUNT(*) FROM user_tab_columns WHERE table_name = 'SX_BUSY'", []);
+
+        var error = await Assert.ThrowsAsync<DatabaseException>(() => ddl.Editor.ExecuteDdlAsync("DROP TABLE sx_busy PURGE", Ct));
+        Assert.Equal("ORA-00054", error.ErrorCode);
+        Assert.Contains("anderer Workspace", error.Message);
+
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var busy = await Assert.ThrowsAsync<TableBusyException>(() => ddl.Editor.ExecuteDdlAsync("ALTER TABLE sx_busy ADD (name VARCHAR2(10))", Ct));
+        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(5), $"Took {stopwatch.Elapsed}.");
+        Assert.StartsWith("Nicht gestartet: Eine andere Session hat in SX_BUSY geschrieben", busy.Message);
+        Assert.Equal(TransactionMode.None, ddl.Editor.Transaction.Mode);
+        Assert.Equal(1m, (await ddl.Data.ReadSqlAsync(columns, 0, 1, Ct)).Rows.Single()[0]);
+        await ddl.Editor.ExecuteDdlAsync("COMMENT ON TABLE sx_busy IS 'kein Konflikt'", Ct); // COMMENT does not take the table
+
+        await writer.Editor.RollbackAsync(Ct);
+        await ddl.Editor.ExecuteDdlAsync("ALTER TABLE sx_busy ADD (name VARCHAR2(10))", Ct);
+        Assert.Equal(2m, (await ddl.Data.ReadSqlAsync(columns, 0, 1, Ct)).Rows.Single()[0]);
+        Assert.Equal(TransactionMode.None, ddl.Editor.Transaction.Mode); // the lock went with the DDL's commit
+        await writer.Editor.ExecuteAsync(new QuerySpec("INSERT INTO sx_busy VALUES (2, 'zwei')", []), Ct); // not held any more
+        await writer.Editor.RollbackAsync(Ct);
+        await ddl.Editor.ExecuteDdlAsync("DROP TABLE sx_busy PURGE", Ct);
+    }
+
+    [Theory]
+    [InlineData("ALTER TABLE sx_gibt_es_nicht ADD (x NUMBER)", "ORA-00942")] // the lock fails, the DDL reports for itself
+    [InlineData("ALTER TABLE sx_kunde ADD (id NUMBER)", "ORA-01430")] // column exists: Oracle's own error, nothing held
+    public async Task An_alter_table_oracle_refuses_reports_its_own_error(string sql, string code)
+    {
+        await using var connection = await OpenAsync("SQL alter error");
+
+        var error = await Assert.ThrowsAsync<DatabaseException>(() => connection.Editor.ExecuteDdlAsync(sql, Ct));
+
+        Assert.Equal(code, error.ErrorCode);
+        Assert.Equal(TransactionMode.None, connection.Editor.Transaction.Mode);
+        await connection.Editor.ExecuteAsync(new QuerySpec("UPDATE sx_kunde SET status = status WHERE id = 2", []), Ct); // the table is free
+        await connection.Editor.RollbackAsync(Ct);
     }
 }

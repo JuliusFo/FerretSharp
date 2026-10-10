@@ -19,6 +19,13 @@ internal static class StatementGuard
     public static bool IsWrite(string sql) =>
         Significant(sql) is [var first, ..] && (first.IsWord("INSERT") || first.IsWord("UPDATE") || first.IsWord("DELETE") || first.IsWord("MERGE"));
 
+    /// <summary>
+    /// A single DDL statement as the SQL editor runs it (WP-22, ADR 0019): CREATE, ALTER, DROP, COMMENT, GRANT … – never
+    /// TRUNCATE, ALTER SESSION/SYSTEM, PL/SQL objects or blocks, and no bind variables (Oracle allows none in DDL).
+    /// </summary>
+    public static bool IsDdl(string sql) =>
+        Significant(sql) is { } tokens && SqlScript.KindOf(tokens) == SqlStatementKind.Ddl && !tokens.Any(t => t.Kind == SqlTokenKind.Bind);
+
     /// <summary>A single query ending in FOR UPDATE WAIT n (up to 3 digits) or FOR UPDATE NOWAIT – never one that waits forever.</summary>
     public static bool IsLock(string sql) =>
         Significant(sql) is { } tokens && StartsWithQuery(tokens) && tokens switch

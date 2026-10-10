@@ -85,6 +85,16 @@ internal sealed class FakeDataEditor(Func<Func<Task>?> onCommit) : IDataEditor
 
     public Task<WriteAction> ExecuteAsync(QuerySpec statement, CancellationToken cancellationToken) => Task.FromResult(Execute(statement, null));
 
+    /// <summary>The DDL statements run, in order (WP-22).</summary>
+    public List<string> Ddl { get; } = [];
+
+    public Task ExecuteDdlAsync(string statement, CancellationToken cancellationToken)
+    {
+        Ddl.Add(statement);
+        _log.Clear();
+        return Task.CompletedTask;
+    }
+
     private WriteAction Execute(QuerySpec statement, WriteAction? redone)
     {
         var action = new WriteAction(Guid.NewGuid(), WriteActionKind.Statement, statement.Sql, StatementRows, DateTimeOffset.Now)

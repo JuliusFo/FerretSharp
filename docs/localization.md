@@ -113,6 +113,10 @@ Ein Begriff, eine Übersetzung – überall gleich. Neue Fachbegriffe hier ergä
 | Ausführungsplan (geschätzt / tatsächlich) | execution plan (estimated / actual) | |
 | SQL-Editor / LINQ-Konsole | SQL editor / LINQ console | |
 | Skript | script | |
+| Statement | statement | auch im Deutschen „Statement“ („Statement 3 – nichts ausgeführt“) |
+| bestätigen / Bestätigung | confirm / confirmation | Fragen beginnen mit dem Verb („Change the schema?“) |
+| Schema ändern / Schema geändert (DDL) | change the schema / schema changed | DDL selbst bleibt „DDL“ |
+| Verwerfen und ausführen (Knopf vor DDL) | Discard and run | |
 | Verlauf | history | |
 | C#-Modell | C# model | |
 | verknüpftes Projekt (C#) | linked project | |

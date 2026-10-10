@@ -1,5 +1,5 @@
-@* DDL proposal of the schema comparison (WP-20): which side to align to which, the script to copy. FerretSharp does not
-   run it (that comes with WP-22). *@
+@* DDL proposal of the schema comparison (WP-20): which side to align to which, the script to copy – or to open in a SQL
+   tab of the target connection and run there (WP-22). *@
 @using FerretSharp.Core.Compare
 
 <ModalFrame Label="@CompareViewText.CompareDdl_Title" Class="sql-dialog compare-ddl-dialog" OnCancel="OnClose" CloseOnBackdrop="true" FocusOnOpen="true">
@@ -24,6 +24,11 @@
             </Arg1>
         </Fmt>
         <span class="spacer"></span>
+        @if (_proposal is { Steps.Count: > 0 } runnable)
+        {
+            <button class="btn" title="@TextFormat.Format(CompareViewText.CompareDdl_OpenInEditorTitle, Labels[_target])"
+                    @onclick="() => OnOpenInEditor.InvokeAsync(runnable)">@CompareViewText.CompareDdl_OpenInEditor</button>
+        }
         <button class="icon-btn ghost" title="@CommonText.Close" @onclick="OnClose">✕</button>
     </header>
     <div class="settings-note compare-ddl-note">
@@ -60,6 +65,10 @@
 
     [Parameter]
     public EventCallback OnClose { get; set; }
+
+    /// <summary>"Open in SQL editor": the proposal to run on its target side (WP-22).</summary>
+    [Parameter]
+    public EventCallback<DdlProposal> OnOpenInEditor { get; set; }
 
     protected override void OnInitialized()
     {

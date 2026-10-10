@@ -34,6 +34,27 @@ public sealed class ShellStateTabsTests : IAsyncDisposable
         Assert.DoesNotContain(tab, _app.WorkspaceOf(test).Tabs);
     }
 
+    /// <summary>WP-22: the DDL proposal of the schema comparison opens in the target connection once that one is shown.</summary>
+    [Fact]
+    public async Task A_script_for_another_connection_opens_there_once_it_is_shown()
+    {
+        var test = await _app.OpenAsync(TestApp.Profile("Test"));
+        var dev = await _app.OpenAsync(TestApp.Profile("Dev")); // shown now
+
+        _app.Shell.OpenSqlIn(test.Id, "ALTER TABLE kunden ADD (fax VARCHAR2(30));\n");
+        Assert.Empty(_app.WorkspaceOf(test).Tabs.OfType<SqlTab>());
+        Assert.Empty(_app.WorkspaceOf(dev).Tabs.OfType<SqlTab>());
+
+        _app.Shell.ShowConnection(test.Id);
+
+        var tab = Assert.Single(_app.WorkspaceOf(test).Tabs.OfType<SqlTab>());
+        Assert.Equal("ALTER TABLE kunden ADD (fax VARCHAR2(30));\n", tab.Text);
+        Assert.Same(tab, _app.Shell.ActiveTab);
+        _app.Shell.ShowConnection(dev.Id);
+        _app.Shell.ShowConnection(test.Id);
+        Assert.Single(_app.WorkspaceOf(test).Tabs.OfType<SqlTab>()); // opened once
+    }
+
     [Fact]
     public async Task New_sql_and_linq_tabs_take_the_first_free_number_after_the_active_tab()
     {

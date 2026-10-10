@@ -19,6 +19,10 @@
     {
         <div class="run-meta">@TextFormat.Format(SqlEditorText.Run_ScriptRunningFor, Clock(Now - script))</div>
     }
+    @if (Hint is not null && Now - Started >= HintAfter)
+    {
+        <div class="run-meta">@Hint</div>
+    }
 
     <div class="run-actions">
         @if (_resetting)
@@ -94,6 +98,12 @@
     /// <summary>Start of the whole script (several statements); null for one statement.</summary>
     [Parameter]
     public DateTimeOffset? ScriptStarted { get; set; }
+
+    /// <summary>What may be going on if it takes longer (WP-22: DDL waiting for another transaction); shown after a few seconds.</summary>
+    [Parameter]
+    public string? Hint { get; set; }
+
+    private static readonly TimeSpan HintAfter = TimeSpan.FromSeconds(3);
 
     /// <summary>Asks the caller to cancel; without a handler there is no button.</summary>
     [Parameter]

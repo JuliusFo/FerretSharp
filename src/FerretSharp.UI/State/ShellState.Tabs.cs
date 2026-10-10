@@ -108,6 +108,31 @@ public sealed partial class ShellState
         {
             tab.Visited = true;
         }
+
+        OpenPendingSql();
+    }
+
+    /// <summary>A script waiting for its connection to be shown with its workspaces (<see cref="OpenSqlIn"/>).</summary>
+    private (Guid ConnectionId, string Text)? _pendingSql;
+
+    /// <summary>
+    /// Opens a SQL tab with <paramref name="text"/> in the active workspace of the connection (WP-22: the DDL proposal of
+    /// the schema comparison, to run there) – right away if it is shown, otherwise once it is (the caller shows or
+    /// connects it). Only the latest request waits.
+    /// </summary>
+    public void OpenSqlIn(Guid connectionId, string text)
+    {
+        _pendingSql = (connectionId, text);
+        OpenPendingSql();
+    }
+
+    private void OpenPendingSql()
+    {
+        if (_pendingSql is { } pending && pending.ConnectionId == CurrentConnection && ActiveWorkspace is not null)
+        {
+            _pendingSql = null;
+            OpenSql(pending.Text);
+        }
     }
 
     /// <summary>Activates the tab of <paramref name="table"/> in the active workspace or opens a new one.</summary>

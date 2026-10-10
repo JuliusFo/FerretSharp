@@ -162,11 +162,11 @@
     <value>SQL in the workspace</value>
   </data>
   <data name="SqlView_EmptyText" xml:space="preserve">
-    <value>Write statements, separate them with ; or a blank line and run the statement at the cursor – {0} runs the whole script. SELECT always runs; INSERT, UPDATE, DELETE and MERGE only on writable workspaces, in their transaction. Ctrl+Space suggests tables and columns.</value>
+    <value>Write statements, separate them with ; or a blank line and run the statement at the cursor – {0} runs the whole script. SELECT always runs; INSERT, UPDATE, DELETE and MERGE only on writable workspaces, in their transaction; DDL (CREATE, ALTER, DROP …) only there too, after a confirmation, and committed at once. Ctrl+Space suggests tables and columns.</value>
     <comment>Empty SQL tab, running a statement has no shortcut. {0} = shortcut or button that runs the whole script</comment>
   </data>
   <data name="SqlView_EmptyTextWithKey" xml:space="preserve">
-    <value>Write statements, separate them with ; or a blank line and run the statement at the cursor with {0} – {1} runs the whole script. SELECT always runs; INSERT, UPDATE, DELETE and MERGE only on writable workspaces, in their transaction. Ctrl+Space suggests tables and columns.</value>
+    <value>Write statements, separate them with ; or a blank line and run the statement at the cursor with {0} – {1} runs the whole script. SELECT always runs; INSERT, UPDATE, DELETE and MERGE only on writable workspaces, in their transaction; DDL (CREATE, ALTER, DROP …) only there too, after a confirmation, and committed at once. Ctrl+Space suggests tables and columns.</value>
     <comment>Empty SQL tab. {0} = shortcut that runs the statement, e.g. Ctrl+Enter; {1} = shortcut or button that runs the whole script</comment>
   </data>
   <data name="SqlView_ConfirmAllRowsTitle" xml:space="preserve">
@@ -648,5 +648,76 @@
   <data name="Linq_ConsoleLabel" xml:space="preserve">
     <value>C# console:</value>
     <comment>Label before the state of the LINQ console (ready, starting …)</comment>
+  </data>
+  <data name="SqlView_ConfirmDdlTitle" xml:space="preserve">
+    <value>Change the schema?</value>
+  </data>
+  <data name="SqlView_ConfirmDdl" xml:space="preserve">
+    <value>{0} changes the schema and is committed at once – it cannot be undone.</value>
+    <comment>{0} = first word of the DDL statement, e.g. CREATE (emphasized)</comment>
+  </data>
+  <data name="SqlView_ConfirmDdlScriptOne" xml:space="preserve">
+    <value>The script changes the schema in one statement. DDL is committed at once and cannot be undone.</value>
+  </data>
+  <data name="SqlView_ConfirmDdlScriptOther" xml:space="preserve">
+    <value>The script changes the schema in {0} statements. DDL is committed at once and cannot be undone.</value>
+    <comment>{0} = number of DDL statements in the script</comment>
+  </data>
+  <data name="SqlView_ConfirmDdlDiscard" xml:space="preserve">
+    <value>Workspace “{0}” has uncommitted changes. They are rolled back first – the DDL would commit them otherwise.</value>
+    <comment>{0} = workspace name (emphasized)</comment>
+  </data>
+  <data name="SqlView_ConfirmDdlDiscardList" xml:space="preserve">
+    <value>Discarded:</value>
+    <comment>Heading of the list of changes the rollback before DDL discards</comment>
+  </data>
+  <data name="SqlView_ConfirmDdlOtherWriterTables" xml:space="preserve">
+    <value>Workspace “{0}” has written to {1} and not committed yet. ALTER, DROP and the like on these tables are refused until it commits or rolls back.</value>
+    <comment>{0} = workspace name, {1} = list of table names</comment>
+  </data>
+  <data name="SqlView_ConfirmDdlOtherWriter" xml:space="preserve">
+    <value>Workspace “{0}” has an open transaction. ALTER, DROP and the like on a table it has written to are refused until it ends.</value>
+    <comment>{0} = workspace name</comment>
+  </data>
+  <data name="SqlView_DdlLockHoldersNote" xml:space="preserve">
+    <value>Sessions with locks on the table – commit or discard there, then run the DDL again.</value>
+    <comment>Below the list of sessions that block a DDL statement</comment>
+  </data>
+  <data name="Run_DdlWaiting" xml:space="preserve">
+    <value>Taking long? DDL waits for uncommitted changes other sessions made to the table, and cannot be cancelled then – commit or discard them there.</value>
+    <comment>Shown below a DDL statement that runs for a few seconds</comment>
+  </data>
+  <data name="SqlView_DiscardAndRun" xml:space="preserve">
+    <value>Discard and run</value>
+    <comment>Button: roll back the workspace's changes, then run the DDL</comment>
+  </data>
+  <data name="SqlView_ConfirmDataInTransaction" xml:space="preserve">
+    <value>Data changes after the DDL run in the workspace’s transaction and are not visible to others until you commit.</value>
+  </data>
+  <data name="SqlView_ConfirmMoreStatements" xml:space="preserve">
+    <value>… and {0} more</value>
+    <comment>Below the statements shown in a confirmation. {0} = number of statements not shown</comment>
+  </data>
+  <data name="SqlView_DdlNotRun" xml:space="preserve">
+    <value>The uncommitted changes were not discarded – nothing was run.</value>
+  </data>
+  <data name="SqlView_DdlOutcome" xml:space="preserve">
+    <value>Schema changed ({0}) – committed at once.</value>
+    <comment>Result of a DDL statement. {0} = first word and duration, e.g. "CREATE · 0.2 s"</comment>
+  </data>
+  <data name="Run_DdlDone" xml:space="preserve">
+    <value>schema changed</value>
+    <comment>Outcome of a DDL statement (result chip, history)</comment>
+  </data>
+  <data name="SqlView_DdlStays" xml:space="preserve">
+    <value>DDL already run stays – it cannot be undone.</value>
+    <comment>Follows SqlView_ScriptStopped… when earlier statements were DDL</comment>
+  </data>
+  <data name="SqlView_SchemaReloaded" xml:space="preserve">
+    <value>Schema changed – the explorer and open tabs show the new state.</value>
+  </data>
+  <data name="SqlView_SchemaNotReloaded" xml:space="preserve">
+    <value>Schema changed, but it could not be reloaded: {0}</value>
+    <comment>{0} = the error</comment>
   </data>
 </root>

@@ -265,4 +265,36 @@ public sealed class SessionTransactionTests(OracleContainerFixture oracle) : IAs
         Assert.Equal(TransactionMode.ReadOnly, session.Transaction.Mode);
         Assert.Equal(0, await CountRawAsync("ID = 60"));
     }
+
+    /// <summary>WP-22, ADR 0019: the schema path takes a single DDL statement – never inside a transaction, never locked.</summary>
+    [Fact]
+    public async Task Ddl_needs_no_open_transaction_a_ddl_statement_and_an_unlocked_session()
+    {
+        await using var session = await OpenAsync();
+
+        await session.ExecuteDdlAsync("CREATE TABLE TXS_DDL (ID NUMBER)", Ct);
+        await session.ExecuteDdlAsync("COMMENT ON TABLE TXS_DDL IS 'a;b'", Ct);
+        Assert.Equal(TransactionMode.None, session.Transaction.Mode);
+        await using (var raw = await OpenRawAsync())
+        await using (var command = raw.CreateCommand())
+        {
+            command.CommandText = "SELECT comments FROM user_tab_comments WHERE table_name = 'TXS_DDL'";
+            Assert.Equal("a;b", await command.ExecuteScalarAsync(Ct)); // committed: another session sees it
+        }
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => session.ExecuteDdlAsync("TRUNCATE TABLE TXS_DDL", Ct));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => session.ExecuteDdlAsync("DELETE FROM TXS_DDL", Ct));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => session.ExecuteDdlAsync("CREATE OR REPLACE PROCEDURE TXS_P AS BEGIN NULL; END;", Ct));
+
+        await session.BeginTransactionAsync(Ct);
+        await session.ExecuteNonQueryAsync("INSERT INTO TXS VALUES (70, 'offen')", [], Ct);
+        await Assert.ThrowsAsync<RefusedException>(() => session.ExecuteDdlAsync("COMMENT ON TABLE TXS_DDL IS 'nie'", Ct));
+        await session.RollbackAsync(Ct);
+        Assert.Equal(0, await CountRawAsync("ID = 70")); // the refused DDL did not commit the insert
+
+        await session.ExecuteDdlAsync("DROP TABLE TXS_DDL PURGE", Ct);
+        await session.UseReadOnlySnapshotsAsync(Ct);
+        await Assert.ThrowsAsync<RefusedException>(() => session.ExecuteDdlAsync("CREATE TABLE TXS_NIE (ID NUMBER)", Ct));
+        Assert.Equal(TransactionMode.ReadOnly, session.Transaction.Mode);
+    }
 }

@@ -28,6 +28,6 @@ Integrationstests (`TransactionBehaviorTests`) haben das Verhalten von Oracle 23
 ## Konsequenzen
 
 - Auf schreibgeschützten Verbindungen zeigt jeder Tab den Datenstand („Stand 14:02:13“); Änderungen anderer erscheinen mit der nächsten Abfrage oder F5.
-- Gegen DDL schützt weiterhin nur die Lesesperre bzw. der Schreibweg von FerretSharp; echte Sicherheit gibt nur ein DB-User mit reinen SELECT-Rechten.
+- Gegen DDL schützt weiterhin nur die Lesesperre bzw. der Schreibweg von FerretSharp; echte Sicherheit gibt nur ein DB-User mit reinen SELECT-Rechten. Nachtrag WP-22: DDL läuft über einen eigenen engen Schemaweg (`ExecuteDdlAsync`, nur ohne offene Transaktion, nie in einer gesperrten Session; ADR 0019) – Lesesperre und Schreibweg bleiben unverändert.
 - WP-09 baut `FlushAsync` auf `ExecuteNonQueryAsync` und den Savepoints auf; WP-14 (Explain-Plan, „geschätzt“) braucht für `EXPLAIN PLAN` eine Erweiterung von `IsWriteStatement`.
 - Der Keep-alive pingt auch Sessions mit offener Transaktion; bei schreibenden Transaktionen (Locks) in WP-09 neu bewerten.

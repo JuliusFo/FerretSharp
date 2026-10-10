@@ -63,6 +63,15 @@
   <data name="WriteOnlyInTransaction" xml:space="preserve">
     <value>Geschrieben wird nur innerhalb einer Transaktion.</value>
   </data>
+  <data name="DdlOnlyWithoutTransaction" xml:space="preserve">
+    <value>DDL läuft nur ohne offene Transaktion – es würde sie implizit committen. Erst committen oder verwerfen.</value>
+  </data>
+  <data name="DdlTableBusy" xml:space="preserve">
+    <value>Nicht gestartet: Eine andere Session hat in {0} geschrieben und noch nicht committet. Das DDL würde darauf warten und ließe sich solange nicht abbrechen. Dort committen oder verwerfen, dann erneut ausführen.</value>
+  </data>
+  <data name="DdlObjectBusy" xml:space="preserve">
+    <value>Eine andere Session hält Sperren auf dem Objekt – zum Beispiel ein anderer Workspace, der in die Tabelle geschrieben und noch nicht committet hat. Dort committen oder verwerfen, dann das DDL erneut ausführen. ({0})</value>
+  </data>
   <data name="LockOnlyInWriteTransaction" xml:space="preserve">
     <value>Zeilen werden nur innerhalb einer schreibenden Transaktion gesperrt.</value>
   </data>

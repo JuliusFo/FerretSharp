@@ -205,7 +205,7 @@
 
 @if (_ddl && Compare.Result is { } ddlResult)
 {
-    <SchemaDdlDialog Comparison="ddlResult" Labels="Labels" OnClose="() => _ddl = false" />
+    <SchemaDdlDialog Comparison="ddlResult" Labels="Labels" OnClose="() => _ddl = false" OnOpenInEditor="OpenInEditorAsync" />
 }
 
 @code {
@@ -234,8 +234,28 @@
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
 
+    [CascadingParameter]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
     [Parameter]
     public EventCallback OnBack { get; set; }
+
+    /// <summary>
+    /// WP-22: the DDL proposal goes into a SQL tab of the target side's connection – shown, connected if need be – and runs
+    /// there like any script (confirmation, rollback of an open transaction first). Its names carry the target's owner.
+    /// </summary>
+    private async Task OpenInEditorAsync(DdlProposal proposal)
+    {
+        _ddl = false;
+        var side = Compare.Sides[Compare.ResultSides[proposal.Target]].Side;
+        if (Connections.Profiles.FirstOrDefault(p => p.Id == side.ConnectionId) is not { } profile)
+        {
+            return;
+        }
+
+        Shell.OpenSqlIn(profile.Id, proposal.Script);
+        await Lifecycle.ConnectAsync(profile);
+    }
 
     private bool CanCompare => Compare.Sides.Count > 0 && Compare.Sides.All(s => s.Side.ConnectionId != Guid.Empty);
 

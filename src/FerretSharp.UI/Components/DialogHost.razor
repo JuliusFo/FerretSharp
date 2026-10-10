@@ -59,20 +59,7 @@
             <Arg3><strong>@Active.Profile?.Name</strong></Arg3>
         </Fmt>
         @* WP-30: what exactly is committed. *@
-        @if (commitSummary.Actions.Count > 0 || commitSummary.Pending > 0)
-        {
-            <div class="hint small">@ShellText.Dialogs_CommitActions</div>
-            <ul class="commit-list">
-                @foreach (var tab in commitTabs.TableTabs.Where(t => t.Changes?.PendingCount > 0))
-                {
-                    <li>@TextFormat.Format(ShellText.Dialogs_CommitPendingTab, tab.Table.DisplayName, tab.Changes!.PendingCount)</li>
-                }
-                @foreach (var action in commitSummary.Actions.Reverse())
-                {
-                    <li><span class="change-time">@action.At.ToLocalTime().ToString("HH:mm:ss")</span>@action.Display</li>
-                }
-            </ul>
-        }
+        <OpenChangesList Workspace="commitTabs" Summary="commitSummary" Heading="@ShellText.Dialogs_CommitActions" />
     </ConfirmDialog>
 }
 

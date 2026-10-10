@@ -23,5 +23,5 @@ Entscheidungen des Nutzers (2026-10-05/06): SELECT überall, INSERT/UPDATE/DELET
 ## Konsequenzen
 
 - Grenze: Eine Funktion mit autonomer Transaktion kann aus einem SELECT heraus schreiben; die Leseschranke sieht das nicht, auf gesperrten Workspaces auch der READ-ONLY-Snapshot nicht. Die einzige echte Garantie bleibt ein Benutzer mit reinen SELECT-Rechten (CLAUDE.md, Abschnitt 2).
-- DDL, PL/SQL und Skripte in einem Rutsch bleiben außen vor (Backlog: DDL auf Dev ohne offene Transaktion, Skript ausführen).
+- DDL, PL/SQL und Skripte in einem Rutsch bleiben außen vor (Backlog: DDL auf Dev ohne offene Transaktion, Skript ausführen). Nachtrag: Skripte seit WP-18, DDL seit WP-22 über einen eigenen engen Schemaweg (ADR 0019).
 - Ergebnisse freier Abfragen zeigen DB-Werte (keine Enum-Namen): ohne Bezug zwischen Ergebnisspalte und Tabellenspalte gibt es keine Präsentationsschicht.

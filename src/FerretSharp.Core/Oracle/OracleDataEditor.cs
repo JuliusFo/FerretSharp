@@ -168,6 +168,32 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
     public Task<WriteAction> ExecuteAsync(QuerySpec statement, CancellationToken cancellationToken) =>
         OneAtATimeAsync(() => ExecuteCoreAsync(statement, redone: null, cancellationToken), cancellationToken);
 
+    public Task ExecuteDdlAsync(string statement, CancellationToken cancellationToken) =>
+        OneAtATimeAsync(async () =>
+        {
+            if (session.Transaction.Mode == TransactionMode.ReadOnly)
+            {
+                throw new RefusedException(OracleText.WorkspaceReadOnly);
+            }
+
+            try
+            {
+                await session.ExecuteDdlAsync(statement, cancellationToken);
+            }
+            catch (DatabaseException error) when (error.ErrorCode == OracleErrorCodes.Code(OracleErrorCodes.ResourceBusy))
+            {
+                // DROP and the like do not wait for locks (DDL_LOCK_TIMEOUT 0): usually another workspace has written to the
+                // table. (ALTER TABLE … ADD waits for that transaction instead, and cannot be cancelled – ADR 0019.)
+                throw new DatabaseException(TextFormat.Format(OracleText.DdlObjectBusy, error.Message), error.ErrorCode, error)
+                {
+                    Statement = error.Statement,
+                };
+            }
+
+            _log.Clear();
+            return true;
+        }, cancellationToken);
+
     private async Task<T> OneAtATimeAsync<T>(Func<Task<T>> write, CancellationToken cancellationToken)
     {
         await _writing.WaitAsync(cancellationToken);

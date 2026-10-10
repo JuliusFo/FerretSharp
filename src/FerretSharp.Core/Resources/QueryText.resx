@@ -125,9 +125,17 @@
   <data name="SqlRejectEmpty" xml:space="preserve">
     <value>No statement at the cursor.</value>
   </data>
-  <data name="SqlRejectDdl" xml:space="preserve">
-    <value>The SQL editor does not run {0} (DDL): DDL commits implicitly – including the workspace’s open transaction.</value>
-    <comment>Why the SQL editor does not run a statement. {0} = first word of the statement, e.g. CREATE</comment>
+  <data name="SqlRejectTruncate" xml:space="preserve">
+    <value>The SQL editor does not run TRUNCATE: it deletes every row and cannot be undone. Use DELETE instead – it stays in the transaction.</value>
+    <comment>Why the SQL editor does not run a statement</comment>
+  </data>
+  <data name="SqlRejectPlSqlObject" xml:space="preserve">
+    <value>The SQL editor does not create PL/SQL objects (procedures, functions, packages, triggers, types) yet.</value>
+    <comment>Why the SQL editor does not run a statement: CREATE [OR REPLACE] PROCEDURE …</comment>
+  </data>
+  <data name="SqlRejectDdlBinds" xml:space="preserve">
+    <value>DDL takes no bind variables (:{0}) – write the value into the statement.</value>
+    <comment>Why the SQL editor does not run a statement. {0} = name of the first bind variable, without the colon</comment>
   </data>
   <data name="SqlRejectPlSql" xml:space="preserve">
     <value>The SQL editor does not run PL/SQL blocks or procedure calls – they can commit on their own.</value>
@@ -156,6 +164,14 @@
   <data name="SqlPlanReadOnly" xml:space="preserve">
     <value>{0} changes data – the workspace is read-only.</value>
     <comment>{0} = first word of the statement, e.g. UPDATE</comment>
+  </data>
+  <data name="SqlPlanReadOnlyDdl" xml:space="preserve">
+    <value>{0} changes the schema – the workspace is read-only.</value>
+    <comment>{0} = first word of the DDL statement, e.g. CREATE</comment>
+  </data>
+  <data name="SqlPlanDmlBeforeDdl" xml:space="preserve">
+    <value>{0} (DDL) would commit the changes of statement {1} implicitly. Put the DDL before the DML or run them separately.</value>
+    <comment>A script has DML before DDL. {0} = first word of the DDL statement, e.g. CREATE; {1} = number of the DML statement in the script</comment>
   </data>
   <data name="SqlPlanStatementProblem" xml:space="preserve">
     <value>Statement {0} – nothing was run: {1}</value>

@@ -17,7 +17,8 @@ public sealed record SessionContext(string Module, string Action, string? Client
 /// <summary>
 /// One long-lived Oracle connection (one per workspace). <see cref="OracleConnection"/> is not thread-safe, so all
 /// commands are serialized (<see cref="ExclusiveAsync{T}"/>). <see cref="ExecuteReaderAsync{T}"/> refuses anything but
-/// plain queries; writing goes only through the internal <see cref="ExecuteNonQueryAsync"/>, inside an explicit transaction.
+/// plain queries; writing goes only through the internal <see cref="ExecuteNonQueryAsync"/>, inside an explicit transaction,
+/// and DDL only through the internal <see cref="ExecuteDdlAsync"/>, outside of any transaction.
 /// Errors leave the session as <see cref="DatabaseException"/> (translated in one place, <see cref="ExclusiveAsync{T}"/>);
 /// refusals as <see cref="RefusedException"/>; a disposed session cancels its callers.
 /// </summary>
@@ -71,6 +72,9 @@ public sealed partial class OracleSession : IAsyncDisposable
 
     /// <summary>A single SELECT ending in FOR UPDATE WAIT n or FOR UPDATE NOWAIT – never one that waits forever.</summary>
     internal static bool IsLockStatement(string sql) => StatementGuard.IsLock(sql);
+
+    /// <summary>A single DDL statement without TRUNCATE, PL/SQL and binds (WP-22, ADR 0019). See <see cref="StatementGuard.IsDdl"/>.</summary>
+    internal static bool IsDdlStatement(string sql) => StatementGuard.IsDdl(sql);
 
     public static async Task<OracleSession> OpenAsync(string connectionString, SessionContext context, CancellationToken cancellationToken)
     {

@@ -24,6 +24,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
     private readonly string _deps;
     private readonly string _dll;
     private readonly ConnectionProfile _profile;
+    private readonly ISchemaReader _reader;
 
     public ClrModelLoadingTests()
     {
@@ -42,7 +43,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
         var connections = _connections = new ConnectionManager(Substitute.For<IConnectionStore>(), secrets);
         var connector = Substitute.For<IDatabaseConnector>();
         var connection = Substitute.For<IDatabaseConnection>();
-        var reader = Substitute.For<ISchemaReader>();
+        var reader = _reader = Substitute.For<ISchemaReader>();
         connection.Schema.Returns(reader);
         reader.GetTablesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
         reader.GetSynonymTargetsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(SynonymTargets.None);
@@ -118,6 +119,49 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
         _models.Dispose();
         await _active.DisposeAsync();
         _folder.Dispose();
+    }
+
+    /// <summary>
+    /// WP-22: after DDL the loaded model is laid over the new schema again – a new column shows up as "column without
+    /// property" – without running the model host (about 12 s on a large project), whose export does not depend on the DB.
+    /// </summary>
+    [Fact]
+    public async Task Remap_matches_the_loaded_model_against_the_new_schema_without_the_model_host()
+    {
+        IReadOnlyList<string> columns = ["KUNDE_ID"];
+        _reader.GetTablesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(call => (IReadOnlyList<TableSummary>)[new TableSummary(call.ArgAt<string>(0), "KUNDEN", TableKind.Table)]);
+        _reader.GetColumnsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(_ =>
+            (IReadOnlyDictionary<string, IReadOnlyList<ColumnInfo>>)new Dictionary<string, IReadOnlyList<ColumnInfo>>
+            {
+                ["KUNDEN"] = columns.Select((c, i) => new ColumnInfo(c, "NUMBER", null, false, 10, 0, false, false, null, i + 1)).ToList(),
+            });
+        var kunde = new EntityExport("Shop.Kunde", "Shop.Kunde", false, null, "KUNDEN", null, null, null,
+            [new PropertyExport("KundeId", "int", "int", false, false, "KUNDE_ID", null, null, null, false, null)], [], []);
+        _runner.ReadModelAsync(Arg.Any<ClrProjectLink>(), Arg.Any<BuildOutput>(), Arg.Any<CancellationToken>(), Arg.Any<IProgress<string>?>())
+            .Returns(new ModelHostResult(new ModelExport(ModelExport.CurrentFormatVersion, "8.0.0", "Shop.Ctx", "options", null, [kunde]), null));
+        await ConnectAsync();
+        Assert.Equal(ClrModelPhase.Loaded, _models.State.Phase);
+        Assert.DoesNotContain(_models.Mapping!.Issues, i => i.Kind == MappingIssueKind.ColumnWithoutProperty);
+
+        columns = ["KUNDE_ID", "FAX"]; // ALTER TABLE kunden ADD fax …
+        await _active.Schema!.RefreshAsync(Ct);
+        _runner.ClearReceivedCalls();
+        var mapping = await _models.RemapAsync(Ct);
+
+        Assert.Same(mapping, _models.Mapping);
+        Assert.Contains(mapping!.Issues, i => i is { Kind: MappingIssueKind.ColumnWithoutProperty, Column: "FAX" });
+        Assert.Equal(ClrModelPhase.Loaded, _models.State.Phase);
+        await _runner.DidNotReceive().ReadModelAsync(
+            Arg.Any<ClrProjectLink>(), Arg.Any<BuildOutput>(), Arg.Any<CancellationToken>(), Arg.Any<IProgress<string>?>());
+    }
+
+    [Fact]
+    public async Task Remap_without_a_loaded_model_does_nothing()
+    {
+        await _active.ConnectAsync(_profile, Ct);
+
+        Assert.Null(await _models.RemapAsync(Ct));
     }
 
     [Fact]

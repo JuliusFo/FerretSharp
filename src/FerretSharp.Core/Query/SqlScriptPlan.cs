@@ -14,7 +14,7 @@ public sealed record PlanProblem(SqlStatement Statement, string Message, bool Ne
 
 /// <summary>
 /// What the SQL editor is about to run (WP-17/18, R2 out of the view): every statement is checked before anything runs –
-/// allowed at all, a writable workspace for DML, values for all binds – so a script never stops halfway over something
+/// allowed at all, a writable workspace for DML and DDL, no DML before DDL (WP-22), values for all binds – so a script never stops halfway over something
 /// that was clear beforehand. Either <see cref="Statements"/> or <see cref="Problem"/>.
 /// </summary>
 public sealed record SqlScriptPlan(IReadOnlyList<PlannedStatement> Statements, PlanProblem? Problem)
@@ -25,6 +25,7 @@ public sealed record SqlScriptPlan(IReadOnlyList<PlannedStatement> Statements, P
     public static SqlScriptPlan Prepare(IReadOnlyList<SqlStatement> statements, IReadOnlyList<SqlVariable> variables, bool writable, bool single)
     {
         var planned = new List<PlannedStatement>();
+        int? firstDml = null;
         for (var i = 0; i < statements.Count; i++)
         {
             var statement = statements[i];
@@ -33,7 +34,12 @@ public sealed record SqlScriptPlan(IReadOnlyList<PlannedStatement> Statements, P
             QuerySpec? query = null;
             if (problem is null && !info.IsQuery && !writable)
             {
-                (problem, needsUnlock) = (TextFormat.Format(QueryText.SqlPlanReadOnly, info.FirstWord), true);
+                (problem, needsUnlock) = (TextFormat.Format(info.IsDdl ? QueryText.SqlPlanReadOnlyDdl : QueryText.SqlPlanReadOnly, info.FirstWord), true);
+            }
+            else if (problem is null && info.IsDdl && firstDml is { } dml)
+            {
+                // The DDL would commit what the script wrote before it – silently, without the user's commit.
+                problem = TextFormat.Format(QueryText.SqlPlanDmlBeforeDdl, info.FirstWord, dml);
             }
             else if (problem is null)
             {
@@ -53,13 +59,24 @@ public sealed record SqlScriptPlan(IReadOnlyList<PlannedStatement> Statements, P
             }
 
             planned.Add(new PlannedStatement(single ? 0 : i + 1, statement, info, query));
+            if (info.IsDml)
+            {
+                firstDml ??= i + 1;
+            }
         }
 
         return new SqlScriptPlan(planned, null);
     }
 
-    /// <summary>Asked before running: DML on Prod always, UPDATE/DELETE without WHERE everywhere (decision of the user, WP-17).</summary>
-    public bool NeedsConfirmation(bool prod) => Statements.Any(s => s.Info.AffectsAllRows) || (prod && Statements.Any(s => s.Info.IsDml));
+    /// <summary>DDL among the statements (WP-22): asked before, with the open transaction rolled back first.</summary>
+    public bool HasDdl => Statements.Any(s => s.Info.IsDdl);
+
+    /// <summary>
+    /// Asked before running: DML on Prod always, UPDATE/DELETE without WHERE everywhere (decision of the user, WP-17), DDL
+    /// always (WP-22: it cannot be undone).
+    /// </summary>
+    public bool NeedsConfirmation(bool prod) =>
+        HasDdl || Statements.Any(s => s.Info.AffectsAllRows) || (prod && Statements.Any(s => s.Info.IsDml));
 
     /// <summary>
     /// Where in <paramref name="statement"/> the name an ORA-00904 (invalid identifier) or ORA-00942 (table or view does not

@@ -84,6 +84,10 @@
   <data name="Explorer_ReloadSchema" xml:space="preserve">
     <value>Reload schema</value>
   </data>
+  <data name="Explorer_SchemaReloaded" xml:space="preserve">
+    <value>Schema reloaded.</value>
+    <comment>Toast after "Reload schema" when there is something to point out</comment>
+  </data>
   <data name="Explorer_Tables" xml:space="preserve">
     <value>Tables</value>
     <comment>Explorer section (tab)</comment>

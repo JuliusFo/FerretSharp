@@ -82,7 +82,7 @@
                                                 <TabFrame OnClose="() => _lifecycle.CloseTab(tab)">
                                                     @if (tab is TableTab tableTab)
                                                     {
-                                                        <TabView Tab="tableTab" />
+                                                        <TabView @key="tableTab.StructureVersion" Tab="tableTab" />
                                                     }
                                                     else if (tab is LinqTab linqTab)
                                                     {

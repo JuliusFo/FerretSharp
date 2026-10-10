@@ -6,9 +6,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 ## [Unreleased]
 
 ### Added
+- DDL in the SQL editor (WP-22, issue #9): `CREATE`, `ALTER`, `DROP`, `COMMENT`, `GRANT` … run on writable workspaces – also on Production once unlocked, never on a read-only workspace.
+  - Every DDL statement is confirmed first (a script: once for all of them); the dialog says that DDL is committed at once and cannot be undone, on Production with the connection's name.
+  - If the workspace has uncommitted changes, the dialog lists them: *Discard and run* rolls them back first – DDL would commit them otherwise –, *Cancel* runs nothing.
+  - Scripts may create a table and then fill it; DML before a DDL statement is refused before anything runs, because the DDL would commit it silently.
+  - Afterwards the explorer, completion and open table tabs show the new structure, and the C# model is matched again without rebuilding it – new columns without property are named. A tab with uncommitted changes keeps its old structure and says so.
+  - Still refused: `TRUNCATE` (deletes every row without a way back – use `DELETE`), PL/SQL objects (`CREATE PROCEDURE/FUNCTION/PACKAGE/TRIGGER/TYPE`), PL/SQL blocks and DDL with bind variables.
+  - DDL on a table another session has written to and not committed is not run: `ALTER TABLE` first takes the table (Oracle would otherwise make it wait, without a way to cancel it), `DROP` and the like fail at once. The SQL editor shows who holds the table – another workspace, SQL*Plus, your own application … (needs read access to `V$SESSION`, e.g. `SELECT_CATALOG_ROLE`). The confirmation names other workspaces of the connection with uncommitted changes and their tables beforehand.
+  - DDL statements go into the history (*schema changed*).
+- *Open in SQL editor* in the DDL proposal of the schema comparison: the script opens in a SQL tab of the target connection (connecting it if need be) and runs there with the usual confirmation.
 - *Close tab* as a shortcut action. It has no key yet: assign one under *Settings › Shortcuts*, e.g. Ctrl+W. Contributed by @ulbpccc.
 
 ### Changed
+- *Reload schema* in the explorer also rebuilds open table tabs whose structure changed and matches the C# model against the new schema.
 - Closing a tab also asks first if the text of a SQL or LINQ tab would be lost, or a value typed but not confirmed in the form.
 - New shortcut actions come without a key from now on, so they never take one you already use for something else.
 - Flags enums (`[Flags]`, stored as their number) are edited as a drop-down list of check boxes instead of a single-choice list, in the grid and in the form. NULL is a check box of its own where allowed; bits no member stands for stay ticked as a line of their own. Contributed by @ulbpccc.

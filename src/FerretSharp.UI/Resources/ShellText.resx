@@ -1143,4 +1143,20 @@
     <value>Written, not committed</value>
     <comment>Section heading</comment>
   </data>
+  <data name="Schema_NewColumnsWithoutPropertyOne" xml:space="preserve">
+    <value>{0} new column without property in the C# model: {1}</value>
+    <comment>After reloading the schema. {0} = count, {1} = TABLE.COLUMN list</comment>
+  </data>
+  <data name="Schema_NewColumnsWithoutPropertyOther" xml:space="preserve">
+    <value>{0} new columns without property in the C# model: {1}</value>
+    <comment>After reloading the schema. {0} = count, {1} = TABLE.COLUMN list</comment>
+  </data>
+  <data name="Schema_StaleTab" xml:space="preserve">
+    <value>“{0}” still shows the old structure – the tab has uncommitted changes. Commit or discard them, then open the tab again.</value>
+    <comment>After reloading the schema. {0} = table name</comment>
+  </data>
+  <data name="Schema_ModelNotMatched" xml:space="preserve">
+    <value>The C# model could not be matched against the new schema: {0}</value>
+    <comment>{0} = the error</comment>
+  </data>
 </root>

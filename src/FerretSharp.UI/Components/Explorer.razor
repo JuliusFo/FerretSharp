@@ -134,6 +134,9 @@
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
 
+    [CascadingParameter]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
     private SchemaCache? Schema => Active.Schema;
 
     private string CountText
@@ -361,21 +364,22 @@
 
     private async Task RefreshAsync()
     {
-        if (Schema is not { } schema)
+        if (Schema is null)
         {
             return;
         }
 
         _refreshing = true;
         _refreshError = null;
-        var result = await Shell.RunDbAsync(Logger, Active, () => schema.RefreshAsync(CancellationToken.None));
-        _refreshing = false;
-        if (result.Succeeded)
-        {
-            Shell.RemoveVanishedTabs(Scope.Id, schema);
-        }
 
+        // WP-22: also the structure of open tabs and the C# model match follow, as after DDL.
+        var result = await Lifecycle.RefreshSchemaAsync(Scope);
+        _refreshing = false;
         _refreshError = result.Error?.Display;
+        if (result.Warnings is { Count: > 0 } warnings)
+        {
+            Shell.Notify(SchemaViewText.Explorer_SchemaReloaded, warnings);
+        }
     }
 
     private static string Tooltip(TableSummary table, string? entity)

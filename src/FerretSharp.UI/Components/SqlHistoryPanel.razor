@@ -40,6 +40,7 @@
     private static string Outcome(SqlHistoryEntry entry) => entry switch
     {
         { Error: { } error } => error.Split(':')[0],
+        { Ddl: true } => SqlEditorText.Run_DdlDone,
         { Changed: true, Rows: { } rows } => TextFormat.Format(SqlEditorText.Run_Changed, rows),
         { Rows: 1, MoreRows: false } => SqlEditorText.Run_OneRow,
         { Rows: { } rows } => TextFormat.Format(entry.MoreRows ? SqlEditorText.Run_RowsAtLeast : SqlEditorText.Run_Rows, rows),
