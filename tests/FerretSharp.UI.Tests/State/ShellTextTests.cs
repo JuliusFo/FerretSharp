@@ -24,6 +24,17 @@ public sealed class ShellTextTests
     }
 
     [Fact]
+    public void Editing_a_connection_keeps_its_script_folder()
+    {
+        var profile = TestApp.Profile("ERP") with { ScriptFolder = @"C:\Repos\Erp\db" };
+
+        var (edited, errors) = ConnectionForm.FromProfile(profile).ToProfile();
+
+        Assert.Empty(errors);
+        Assert.Equal(profile, edited);
+    }
+
+    [Fact]
     public void A_duplicate_is_named_in_the_language_it_was_made_in()
     {
         var original = TestApp.Profile("ERP");

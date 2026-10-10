@@ -70,6 +70,9 @@ public sealed class ConnectionForm
     /// <summary>DbContext type if the project has several; empty = its only one.</summary>
     public string ClrContextType { get; set; } = "";
 
+    /// <summary>Not edited in the dialog, only kept (WP-23: set when the designer saves a script).</summary>
+    public string? ScriptFolder { get; set; }
+
     /// <summary>Once the user toggled read-only, changing the kind no longer overrides it.</summary>
     public bool ReadOnlyTouched { get; private set; }
 
@@ -102,6 +105,7 @@ public sealed class ConnectionForm
             ClrProjectFile = profile.ClrProject?.ProjectFile ?? "",
             ClrConfiguration = profile.ClrProject?.Configuration ?? "Debug",
             ClrContextType = profile.ClrProject?.ContextType ?? "",
+            ScriptFolder = profile.ScriptFolder,
         };
         form._kind = profile.Kind;
         form.ReadOnly = profile.ReadOnly;
@@ -153,7 +157,7 @@ public sealed class ConnectionForm
         var clrProject = NullIfBlank(ClrProjectFile.Trim('"')) is { } projectFile
             ? new ClrProjectLink(projectFile, NullIfBlank(ClrConfiguration) ?? "Debug", NullIfBlank(ClrContextType))
             : null;
-        var profile = new ConnectionProfile(Id, Name.Trim(), Kind, address, User.Trim(), NullIfBlank(DefaultSchema), ReadOnly, NullIfBlank(Group), clrProject);
+        var profile = new ConnectionProfile(Id, Name.Trim(), Kind, address, User.Trim(), NullIfBlank(DefaultSchema), ReadOnly, NullIfBlank(Group), clrProject, ScriptFolder);
         foreach (var (field, message) in ConnectionProfileValidator.Validate(profile))
         {
             errors[field] = message;

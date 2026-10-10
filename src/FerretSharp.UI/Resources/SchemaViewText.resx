@@ -721,4 +721,64 @@
     <value>Line {0}, column {1}</value>
     <comment>Position of a compile error in the source. {0} = line, {1} = column</comment>
   </data>
+  <data name="Indexes_Create" xml:space="preserve">
+    <value>Create index</value>
+    <comment>Button beside the heading of the Indexes view</comment>
+  </data>
+  <data name="Indexes_CreateForFk" xml:space="preserve">
+    <value>Create index for it</value>
+    <comment>Link after a foreign key without index</comment>
+  </data>
+  <data name="Indexes_CreateForFkTitle" xml:space="preserve">
+    <value>Create an index on the columns of {0}</value>
+    <comment>{0}: foreign key name</comment>
+  </data>
+  <data name="Indexes_NewHeading" xml:space="preserve">
+    <value>New index</value>
+    <comment>Heading of the index draft</comment>
+  </data>
+  <data name="Indexes_ColumnAdd" xml:space="preserve">
+    <value>Add column …</value>
+    <comment>First entry of the list of columns to add to the index</comment>
+  </data>
+  <data name="Indexes_ColumnEarlier" xml:space="preserve">
+    <value>Move up (earlier in the index)</value>
+  </data>
+  <data name="Indexes_ColumnLater" xml:space="preserve">
+    <value>Move down (later in the index)</value>
+  </data>
+  <data name="Indexes_ColumnRemove" xml:space="preserve">
+    <value>Remove from the index</value>
+  </data>
+  <data name="Indexes_UniqueOption" xml:space="preserve">
+    <value>UNIQUE – each combination of values only once</value>
+    <comment>Check box of the index draft</comment>
+  </data>
+  <data name="Ddl_WorkspaceLocked" xml:space="preserve">
+    <value>The workspace is locked: running the DDL needs it unlocked. Copying, opening in the SQL editor and saving work anyway.</value>
+  </data>
+  <data name="Ddl_OpenInSqlEditor" xml:space="preserve">
+    <value>Open in SQL editor</value>
+    <comment>Button below generated DDL</comment>
+  </data>
+  <data name="Ddl_Save" xml:space="preserve">
+    <value>Save …</value>
+    <comment>Button below generated DDL: save it as a .sql file</comment>
+  </data>
+  <data name="Ddl_SaveFilter" xml:space="preserve">
+    <value>SQL script</value>
+    <comment>File type in the save dialog</comment>
+  </data>
+  <data name="Ddl_Saved" xml:space="preserve">
+    <value>Script saved: {0}</value>
+    <comment>{0}: file path</comment>
+  </data>
+  <data name="Ddl_SaveFailed" xml:space="preserve">
+    <value>Script not saved: {0}</value>
+    <comment>{0}: error message</comment>
+  </data>
+  <data name="Ddl_Stopped" xml:space="preserve">
+    <value>{0} of {1} statements ran, then: {2}</value>
+    <comment>{0}: statements that ran; {1}: all statements; {2}: the error</comment>
+  </data>
 </root>

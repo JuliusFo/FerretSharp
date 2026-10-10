@@ -57,6 +57,15 @@ public sealed class ConnectionManager(IConnectionStore store, ISecretStore secre
         Changed?.Invoke();
     }
 
+    /// <summary>Remembers where a DDL script of this connection was saved (WP-23); a profile that is gone is left alone.</summary>
+    public async Task SetScriptFolderAsync(Guid profileId, string folder, CancellationToken cancellationToken)
+    {
+        if (_profiles.FirstOrDefault(p => p.Id == profileId) is { } profile && profile.ScriptFolder != folder)
+        {
+            await SaveAsync(profile with { ScriptFolder = folder }, null, cancellationToken);
+        }
+    }
+
     public async Task DeleteAsync(Guid profileId, CancellationToken cancellationToken)
     {
         var updated = _profiles.Where(p => p.Id != profileId).ToList();

@@ -113,7 +113,7 @@
                                     <ConstraintsView Details="_details" Version="_version" />
                                     break;
                                 case TabMode.Indexes:
-                                    <IndexesView Details="_details" Version="_version" />
+                                    <IndexesView Details="_details" Version="_version" WorkspaceId="Tab.WorkspaceId" OnSchemaChanged="() => _version++" />
                                     break;
                                 case TabMode.Dependencies:
                                     <DependenciesView Details="_details" Version="_version" />

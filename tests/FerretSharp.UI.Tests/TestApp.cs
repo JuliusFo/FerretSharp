@@ -51,7 +51,7 @@ internal sealed class TestApp : IAsyncDisposable
         Hub = _services.GetRequiredService<ConnectionHub>();
         Editing = new WorkspaceEditing(Shell, Hub, _services.GetRequiredService<AppSettingsService>(), NullLogger<WorkspaceEditing>.Instance);
         Lifecycle = new WorkspaceLifecycle(
-            Shell, Hub, _services.GetRequiredService<ConnectionManager>(), new SqlHistoryStore(_folder.Combine("history")),
+            Shell, Hub, _services.GetRequiredService<ConnectionManager>(), History = new SqlHistoryStore(_folder.Combine("history")),
             Editing, NullLogger<WorkspaceLifecycle>.Instance);
     }
 
@@ -66,6 +66,9 @@ internal sealed class TestApp : IAsyncDisposable
     public WorkspaceEditing Editing { get; }
 
     public WorkspaceLifecycle Lifecycle { get; }
+
+    /// <summary>The SQL history the lifecycle writes (WP-23: DDL of the designer).</summary>
+    public SqlHistoryStore History { get; }
 
     public static ConnectionProfile Profile(string name, ConnectionKind kind = ConnectionKind.Test) => new(
         Guid.NewGuid(), name, kind, new HostPortAddress("db01.example.com", 1521, "ORCLPDB", null), "app_user", null, false);
@@ -112,6 +115,12 @@ internal sealed class TestApp : IAsyncDisposable
 
     public static DatabaseException LostError() => new("ORA-03113: end-of-file on communication channel", "ORA-03113");
 
+    /// <summary>DDL of any session: the error it fails with, or null to run (WP-23).</summary>
+    public Func<string, Exception?>? FailDdl { get; set; }
+
+    /// <summary>DDL that ran in any session, in order.</summary>
+    public List<string> RanDdl { get; } = [];
+
     /// <summary>What a commit of any workspace session does; completes at once unless a test holds it.</summary>
     public Func<Task>? OnCommit { get; set; }
 
@@ -124,7 +133,16 @@ internal sealed class TestApp : IAsyncDisposable
         reader.GetForeignKeysAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
         reader.GetDetailsAsync(Arg.Any<TableSummary>(), Arg.Any<CancellationToken>()).Returns(_ => KundenDetails);
         reader.GetLockHoldersAsync(Arg.Any<TableRef>(), Arg.Any<CancellationToken>()).Returns(_ => LockHolders);
-        var editor = new FakeDataEditor(() => OnCommit);
+        var editor = new FakeDataEditor(() => OnCommit, sql =>
+        {
+            var failure = FailDdl?.Invoke(sql);
+            if (failure is null)
+            {
+                RanDdl.Add(sql);
+            }
+
+            return failure;
+        });
         var connection = Substitute.For<IDatabaseConnection>();
         connection.Schema.Returns(reader);
         connection.Editor.Returns(editor);
