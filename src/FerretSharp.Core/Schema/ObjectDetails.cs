@@ -107,7 +107,8 @@ public static class IndexAdvice
     public static IReadOnlyList<ForeignKeyInfo> UnindexedForeignKeys(IEnumerable<ForeignKeyInfo> foreignKeys, IReadOnlyList<IndexInfo> indexes) =>
         foreignKeys.Where(fk => !indexes.Any(index => Covers(index, fk.FromColumns))).ToList();
 
-    private static bool Covers(IndexInfo index, IReadOnlyList<string> columns)
+    /// <summary>The index starts with <paramref name="columns"/> (in any order), so lookups by them can use it.</summary>
+    public static bool Covers(IndexInfo index, IReadOnlyList<string> columns)
     {
         if (index.Columns.Count < columns.Count)
         {

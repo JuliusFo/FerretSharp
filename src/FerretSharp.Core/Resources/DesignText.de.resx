@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="IndexNameMissing" xml:space="preserve">
+    <value>Gib einen Namen für den Index ein.</value>
+  </data>
+  <data name="IndexNameInvalid" xml:space="preserve">
+    <value>Ein Name darf keine doppelten Anführungszeichen enthalten.</value>
+  </data>
+  <data name="IndexNameTooLong" xml:space="preserve">
+    <value>Der Name ist länger als {0} Byte.</value>
+  </data>
+  <data name="IndexNameTaken" xml:space="preserve">
+    <value>Die Tabelle hat schon einen Index {0}.</value>
+  </data>
+  <data name="IndexNameNeedsQuotes" xml:space="preserve">
+    <value>Der Name ist kein einfacher Oracle-Name (Großbuchstaben, Ziffern, _ $ #, vorne ein Buchstabe); SQL muss ihn in doppelten Anführungszeichen schreiben.</value>
+  </data>
+  <data name="IndexNoColumns" xml:space="preserve">
+    <value>Wähle mindestens eine Spalte.</value>
+  </data>
+  <data name="IndexColumnTwice" xml:space="preserve">
+    <value>{0} ist doppelt gewählt.</value>
+  </data>
+  <data name="IndexColumnUnknown" xml:space="preserve">
+    <value>Die Tabelle hat keine Spalte {0}.</value>
+  </data>
+  <data name="IndexColumnLob" xml:space="preserve">
+    <value>{0} ist eine {1}-Spalte und lässt sich nicht indizieren.</value>
+  </data>
+  <data name="IndexSameColumns" xml:space="preserve">
+    <value>{0} indiziert genau diese Spalten schon in dieser Reihenfolge.</value>
+  </data>
+  <data name="IndexCoveredBy" xml:space="preserve">
+    <value>{0} beginnt schon mit diesen Spalten – ein eigener Index ist meist überflüssig.</value>
+  </data>
+</root>
