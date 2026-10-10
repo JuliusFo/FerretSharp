@@ -141,7 +141,8 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
         _runner.ReadModelAsync(Arg.Any<ClrProjectLink>(), Arg.Any<BuildOutput>(), Arg.Any<CancellationToken>(), Arg.Any<IProgress<string>?>())
             .Returns(new ModelHostResult(new ModelExport(ModelExport.CurrentFormatVersion, "8.0.0", "Shop.Ctx", "options", null, [kunde]), null));
         await ConnectAsync();
-        Assert.Equal(ClrModelPhase.Loaded, _models.State.Phase);
+        // ConnectAsync settles on any phase but Loading – also on None before the load has begun (CI runners are slower).
+        await WaitUntil(() => _models.State.Phase == ClrModelPhase.Loaded);
         Assert.DoesNotContain(_models.Mapping!.Issues, i => i.Kind == MappingIssueKind.ColumnWithoutProperty);
 
         columns = ["KUNDE_ID", "FAX"]; // ALTER TABLE kunden ADD fax …
