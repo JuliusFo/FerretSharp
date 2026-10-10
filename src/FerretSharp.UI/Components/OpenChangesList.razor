@@ -1,0 +1,29 @@
+@* The uncommitted changes of a workspace as a short list (WP-30, out of the Prod commit dialog; WP-22 shows it before
+   DDL rolls them back): pending changes per tab, then the written actions, newest first. *@
+
+@if (Summary.Actions.Count > 0 || Summary.Pending > 0)
+{
+    <div class="hint small">@Heading</div>
+    <ul class="commit-list">
+        @foreach (var tab in Workspace.TableTabs.Where(t => t.Changes?.PendingCount > 0))
+        {
+            <li>@TextFormat.Format(ShellText.Dialogs_CommitPendingTab, tab.Table.DisplayName, tab.Changes!.PendingCount)</li>
+        }
+        @foreach (var action in Summary.Actions.Reverse())
+        {
+            <li><span class="change-time">@action.At.ToLocalTime().ToString("HH:mm:ss")</span>@action.Display</li>
+        }
+    </ul>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public WorkspaceTabs Workspace { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public EditSummary Summary { get; set; } = null!;
+
+    /// <summary>Above the list: what happens to these changes.</summary>
+    [Parameter, EditorRequired]
+    public string Heading { get; set; } = "";
+}

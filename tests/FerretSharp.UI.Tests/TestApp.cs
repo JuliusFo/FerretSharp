@@ -100,6 +100,10 @@ internal sealed class TestApp : IAsyncDisposable
         return tab;
     }
 
+    /// <summary>The structure of KUNDEN as the database reports it now (a test changes it to play DDL).</summary>
+    public TableDetails KundenDetails { get; set; } = new(
+        Kunden, [new ColumnInfo("ID", "NUMBER", null, false, 10, 0, false, false, null, 1)], ["ID"], [], false);
+
     /// <summary>What the database lists as PL/SQL units (on connect and on a schema refresh).</summary>
     public IReadOnlyList<PlSqlObjectSummary> PlSqlObjects { get; set; } = [Rechnung];
 
@@ -115,10 +119,13 @@ internal sealed class TestApp : IAsyncDisposable
         reader.GetSynonymTargetsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(SynonymTargets.None);
         reader.GetPlSqlObjectsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(_ => PlSqlObjects);
         reader.GetForeignKeysAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
+        reader.GetDetailsAsync(Arg.Any<TableSummary>(), Arg.Any<CancellationToken>()).Returns(_ => KundenDetails);
         var editor = new FakeDataEditor(() => OnCommit);
         var connection = Substitute.For<IDatabaseConnection>();
         connection.Schema.Returns(reader);
         connection.Editor.Returns(editor);
+        // Open while something is written (the fake editor's own transaction is always open, for the editing tests).
+        connection.Transaction.Returns(_ => editor.Actions.Count > 0 ? editor.Transaction : TransactionInfo.None);
         connection.ServerVersion.Returns("23.26.0.0.0");
         return connection;
     }

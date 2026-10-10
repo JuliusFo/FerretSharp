@@ -1,7 +1,8 @@
 @* SQL editor tab (WP-17, ADR 0014): a script; Ctrl+Enter runs the statement at the cursor (or the selection) in the
    workspace's session. Queries go through the read path into a result grid, INSERT/UPDATE/DELETE/MERGE through the write
-   path into the workspace's transaction (only on writable workspaces, confirmed on Prod and without WHERE); everything else
-   is refused with a reason. *@
+   path into the workspace's transaction (only on writable workspaces, confirmed on Prod and without WHERE), DDL through the
+   schema path outside of any transaction (WP-22: always confirmed, an open transaction is rolled back first after showing
+   what it holds; the schema is reloaded afterwards); everything else is refused with a reason. *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
@@ -11,6 +12,7 @@
 @inject SqlHistoryStore History
 @inject ILogger<SqlView> Logger
 @inject ShortcutService Shortcuts
+@inject ConnectionHub Hub
 
 <div class="sqlview">
     <div class="tab-toolbar">
@@ -79,7 +81,7 @@
         @if (_running && _current is { } current)
         {
             <RunProgress @key="current" WorkspaceId="Tab.WorkspaceId" Started="_currentStarted" OnCancel="Cancel"
-                         Title="@RunTitle(current)"
+                         Title="@RunTitle(current)" Hint="@(current.Info.IsDdl ? SqlEditorText.Run_DdlWaiting : null)"
                          Detail="@current.Statement.Text" ScriptStarted="@(_total > 1 ? _scriptStarted : null)" />
         }
         else if (Tab.ShownRun is { } run && _error is null)
@@ -102,6 +104,12 @@
                 </div>
                 <ResultFooter Status="_grid" />
             }
+            else if (run.SchemaChanged)
+            {
+                <div class="linq-write">
+                    <p>@TextFormat.Format(SqlEditorText.SqlView_DdlOutcome, run.Info.FirstWord + Duration(run))</p>
+                </div>
+            }
             else if (run.Changed is { } changed)
             {
                 <div class="linq-write">
@@ -120,8 +128,26 @@
 {
     var allRows = pending.Where(r => r.Info.AffectsAllRows).ToList();
     var writes = pending.Where(r => r.Info.IsDml).ToList();
-    <ConfirmDialog Title="@(allRows.Count > 0 ? SqlEditorText.SqlView_ConfirmAllRowsTitle : SqlEditorText.SqlView_ConfirmProdTitle)" ConfirmLabel="@CommonText.Run" Danger="true"
-                   OnConfirm="() => ConfirmAsync(pending)" OnCancel="() => _confirm = null">
+    var ddl = pending.Where(r => r.Info.IsDdl).ToList();
+    @* WP-22: DDL would commit the workspace's open transaction – it is rolled back first, so show what it holds. *@
+    var discard = ddl.Count > 0 && Shell.FindWorkspace(Tab.WorkspaceId) is { } workspace && Lifecycle.Editing.SummaryOf(workspace) is { HasWork: true } summary
+        ? (workspace, summary) : ((WorkspaceTabs, EditSummary)?)null;
+    <ConfirmDialog Title="@(ddl.Count > 0 ? SqlEditorText.SqlView_ConfirmDdlTitle : allRows.Count > 0 ? SqlEditorText.SqlView_ConfirmAllRowsTitle : SqlEditorText.SqlView_ConfirmProdTitle)"
+                   ConfirmLabel="@(discard is null ? CommonText.Run : SqlEditorText.SqlView_DiscardAndRun)" Danger="true"
+                   OnConfirm="() => ConfirmAsync(pending, discard?.Item1)" OnCancel="() => _confirm = null">
+        @if (ddl.Count > 0)
+        {
+            <p>
+                @if (pending.Count <= 1)
+                {
+                    <Fmt Text="@SqlEditorText.SqlView_ConfirmDdl"><Arg0><strong>@ddl[0].Info.FirstWord</strong></Arg0></Fmt>
+                }
+                else
+                {
+                    @TextFormat.Plural(ddl.Count, SqlEditorText.SqlView_ConfirmDdlScriptOne, SqlEditorText.SqlView_ConfirmDdlScriptOther)
+                }
+            </p>
+        }
         @foreach (var r in allRows)
         {
             <p>
@@ -145,7 +171,7 @@
         @if (IsProd)
         {
             <p>
-                @if (pending.Count <= 1)
+                @if (pending.Count <= 1 || writes.Count == 0)
                 {
                     <Fmt Text="@SqlEditorText.SqlView_ConfirmProd"><Arg0><strong>@Active.Profile?.Name</strong></Arg0></Fmt>
                 }
@@ -159,10 +185,35 @@
                 }
             </p>
         }
-        <p>@(pending.Count > 1 ? SqlEditorText.SqlView_ConfirmScriptInTransaction : SqlEditorText.SqlView_ConfirmStatementInTransaction)</p>
-        @foreach (var r in (allRows.Count > 0 ? allRows : writes).Take(3))
+        @if (ddl.Count > 0)
+        {
+            @foreach (var other in Lifecycle.OtherWriters(Tab.WorkspaceId))
+            {
+                <p class="hint small">⚠ @(other.Tables.Count > 0
+                    ? TextFormat.Format(SqlEditorText.SqlView_ConfirmDdlOtherWriterTables, other.Workspace, string.Join(", ", other.Tables))
+                    : TextFormat.Format(SqlEditorText.SqlView_ConfirmDdlOtherWriter, other.Workspace))</p>
+            }
+        }
+        @if (discard is ({ } discardTabs, { } discardSummary))
+        {
+            <p><Fmt Text="@SqlEditorText.SqlView_ConfirmDdlDiscard"><Arg0><strong>@Lifecycle.WorkspaceName(Tab.WorkspaceId)</strong></Arg0></Fmt></p>
+            <OpenChangesList Workspace="discardTabs" Summary="discardSummary" Heading="@SqlEditorText.SqlView_ConfirmDdlDiscardList" />
+        }
+        @if (ddl.Count == 0)
+        {
+            <p>@(pending.Count > 1 ? SqlEditorText.SqlView_ConfirmScriptInTransaction : SqlEditorText.SqlView_ConfirmStatementInTransaction)</p>
+        }
+        else if (writes.Count > 0)
+        {
+            <p>@SqlEditorText.SqlView_ConfirmDataInTransaction</p>
+        }
+        @foreach (var r in ddl.Concat(allRows.Count > 0 ? allRows : writes).Take(3))
         {
             <SqlCode Sql="@r.Statement.Text" />
+        }
+        @if (ddl.Count + (allRows.Count > 0 ? allRows : writes).Count > 3)
+        {
+            <div class="hint small">@TextFormat.Format(SqlEditorText.SqlView_ConfirmMoreStatements, ddl.Count + (allRows.Count > 0 ? allRows : writes).Count - 3)</div>
         }
     </ConfirmDialog>
 }
@@ -415,9 +466,19 @@
         await ExecuteAsync(runs);
     }
 
-    private async Task ConfirmAsync(IReadOnlyList<SqlRun> runs)
+    /// <param name="discard">
+    /// DDL with uncommitted changes in the workspace (WP-22): they are rolled back first, as the dialog said – DDL would
+    /// commit them otherwise. If that does not happen, nothing runs.
+    /// </param>
+    private async Task ConfirmAsync(IReadOnlyList<SqlRun> runs, WorkspaceTabs? discard)
     {
         _confirm = null;
+        if (discard is not null && !await Lifecycle.Editing.RollbackAsync(discard))
+        {
+            _error = SqlEditorText.SqlView_DdlNotRun;
+            return;
+        }
+
         await ExecuteAsync(runs);
     }
 
@@ -466,14 +527,25 @@
         }
 
         var wrote = results.Any(r => r.Changed is not null);
+        var changedSchema = results.Any(r => r.SchemaChanged);
         if (results.Count < runs.Count)
         {
             var rest = runs.Count - results.Count;
             _notice = TextFormat.Plural(rest, SqlEditorText.SqlView_ScriptStoppedOne, SqlEditorText.SqlView_ScriptStoppedOther, results[^1].Number)
+                      + (changedSchema ? " " + SqlEditorText.SqlView_DdlStays : "")
                       + (wrote ? " " + SqlEditorText.SqlView_WrittenStaysInTransaction : "");
         }
 
-        if (wrote)
+        if (changedSchema)
+        {
+            // Explorer, completion, open tabs and the C# model follow the new schema (of every workspace of the connection).
+            StateHasChanged();
+            var refresh = await Lifecycle.RefreshSchemaAsync(Hub.ScopeOfWorkspace(Tab.WorkspaceId));
+            Shell.Notify(refresh.Error is { } error ? TextFormat.Format(SqlEditorText.SqlView_SchemaNotReloaded, error.Display) : SqlEditorText.SqlView_SchemaReloaded,
+                refresh.Warnings);
+        }
+
+        if (wrote || changedSchema)
         {
             Shell.ReloadTableTabs(Tab.WorkspaceId); // they may show the changed rows
 
@@ -504,6 +576,19 @@
             return run with { FirstPage = page, Elapsed = DateTimeOffset.Now - run.At };
         }
 
+        if (run.Info.IsDdl)
+        {
+            // WP-22: the schema path – outside of any transaction, committed by Oracle at once; nothing to undo.
+            var ran = await Shell.RunDbAsync(Logger, Active, () => Workspaces.ExecuteDdlAsync(Tab.WorkspaceId, query.Sql, token), token);
+            if (!ran.Succeeded)
+            {
+                return await FailedAsync(run, ran);
+            }
+
+            await LogAsync(run, null, false, false, null, ddl: true);
+            return run with { SchemaChanged = true, Elapsed = DateTimeOffset.Now - run.At };
+        }
+
         var written = await Shell.RunDbAsync(Logger, Active, async () =>
             await Workspaces.ExecuteAsync(Tab.WorkspaceId, query, token), token);
         if (written.Value is not { } action)
@@ -530,7 +615,8 @@
         {
             return run with
             {
-                Error = new DatabaseException(run.Info.IsQuery ? SqlEditorText.Run_Canceled : SqlEditorText.Run_CanceledWriteUndone),
+                // DDL is atomic: cancelled, it changed nothing – and there is no transaction to roll back.
+                Error = new DatabaseException(run.Info.IsQuery || run.Info.IsDdl ? SqlEditorText.Run_Canceled : SqlEditorText.Run_CanceledWriteUndone),
                 Cancelled = true,
             };
         }
@@ -566,6 +652,7 @@
     {
         { Cancelled: true } => SqlEditorText.Run_OutcomeCanceled,
         { Error: not null } => CommonText.Error,
+        { SchemaChanged: true } => SqlEditorText.Run_DdlDone,
         { Changed: { } changed } => TextFormat.Format(SqlEditorText.Run_Changed, changed),
         { FirstPage: { IsLastPage: true, Rows.Count: 1 } } => SqlEditorText.Run_OneRow,
         { FirstPage: { } page } => TextFormat.Format(page.IsLastPage ? SqlEditorText.Run_Rows : SqlEditorText.Run_RowsAtLeast, page.Rows.Count),
@@ -575,7 +662,7 @@
     /// <summary>" · 0,4 s" after a run's outcome; nothing while unknown.</summary>
     private static string Duration(SqlRun run) => run.Elapsed is { } elapsed ? " · " + ResultFooter.Ms(elapsed) : "";
 
-    private async Task LogAsync(SqlRun run, int? rows, bool moreRows, bool changed, string? error, TimeSpan? elapsed = null)
+    private async Task LogAsync(SqlRun run, int? rows, bool moreRows, bool changed, string? error, TimeSpan? elapsed = null, bool ddl = false)
     {
         if (Active.Profile is not { } profile)
         {
@@ -583,7 +670,7 @@
         }
 
         var variables = Tab.Variables.Where(v => run.Info.Binds.Contains(v.Name, StringComparer.OrdinalIgnoreCase)).ToList();
-        var entry = new SqlHistoryEntry(run.Statement.Text, run.At, elapsed ?? DateTimeOffset.Now - run.At, rows, moreRows, changed, error, variables);
+        var entry = new SqlHistoryEntry(run.Statement.Text, run.At, elapsed ?? DateTimeOffset.Now - run.At, rows, moreRows, changed, error, variables) { Ddl = ddl };
         try
         {
             _history = await History.AddAsync(profile.Id, IsProd ? entry.WithoutValues() : entry, CancellationToken.None);

@@ -139,6 +139,12 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
     public TableDetails? Details { get; set; }
 
     /// <summary>
+    /// Counts up when the table's structure changed in the database (WP-22: DDL, "Schema neu laden"): the tab's view is
+    /// keyed on it and builds grid, form and detail views again from the new structure.
+    /// </summary>
+    public int StructureVersion { get; set; }
+
+    /// <summary>
     /// Short form of the active filters ("KUNDE_ID = 4711"), to tell several tabs of one table apart. With a C# model
     /// enum and bool values read as their members ("KUNDENART = Gewerbe").
     /// </summary>

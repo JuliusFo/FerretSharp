@@ -20,6 +20,9 @@ public sealed record SqlHistoryEntry(
     string? Error,
     IReadOnlyList<SqlVariable> Variables)
 {
+    /// <summary>DDL that ran (WP-22): it changed the schema and was committed at once. Absent in older files: false.</summary>
+    public bool Ddl { get; init; }
+
     /// <summary>The entry without bind values (Prod: values are not kept, as in logs and error dialogs).</summary>
     public SqlHistoryEntry WithoutValues() => this with { Variables = Variables.Select(v => v with { Value = "" }).ToList() };
 }

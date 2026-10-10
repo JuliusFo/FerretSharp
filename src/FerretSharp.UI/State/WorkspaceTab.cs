@@ -135,6 +135,7 @@ public sealed record SourcePosition(Core.Schema.PlSqlPart Part, int Line, int Co
 /// <param name="Action">DML: its write in the transaction – undo (↶) may take it back (<c>WorkspaceEditing.FateOf</c>).</param>
 /// <param name="Elapsed">From start to result (a query: its first page) as the user waited for it; null while it runs.</param>
 /// <param name="Cancelled">Stopped by "Abbrechen" (or the session was given up); <see cref="Error"/> says so.</param>
+/// <param name="SchemaChanged">DDL that ran (WP-22): committed at once, nothing to undo.</param>
 public sealed record SqlRun(
     int Number,
     Core.Query.SqlStatement Statement,
@@ -147,4 +148,5 @@ public sealed record SqlRun(
     Core.Connections.DatabaseException? Error = null,
     Guid? Action = null,
     TimeSpan? Elapsed = null,
-    bool Cancelled = false);
+    bool Cancelled = false,
+    bool SchemaChanged = false);

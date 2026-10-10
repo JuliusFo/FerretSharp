@@ -103,6 +103,45 @@ public sealed class ClrModelManager : IDisposable
     /// <summary>Reads the model again from the project ("Neu laden"), not from the cache; a load still running is cancelled.</summary>
     public Task LoadAsync() => LoadAsync(useCache: false, buildChanged: false);
 
+    /// <summary>
+    /// Lays the loaded model over the schema again (WP-22: after DDL, after "Schema neu laden") – without the model host,
+    /// whose export does not depend on the database. Does nothing without a loaded model or while one is loading (that
+    /// load maps against the refreshed schema anyway). A load started meanwhile wins.
+    /// </summary>
+    /// <returns>The new mapping; null if nothing was mapped.</returns>
+    public async Task<ClrModelMapping?> RemapAsync(CancellationToken cancellationToken)
+    {
+        CancellationTokenSource cts;
+        ClrModelState state;
+        lock (_lock)
+        {
+            state = State;
+            if (state is not { Phase: ClrModelPhase.Loaded, Mapping: { } loaded } || _active.Schema is null)
+            {
+                return null;
+            }
+
+            _loading?.Cancel();
+            _loading = cts = new CancellationTokenSource();
+        }
+
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, cancellationToken);
+        var schema = _active.Schema;
+        var model = state.Mapping!.Model;
+        try
+        {
+            var mapping = await Task.Run(() => ClrModelMapping.BuildAsync(model, schema, linked.Token), linked.Token);
+            linked.Token.ThrowIfCancellationRequested();
+            schema.SetForeignKeys(FkSource.ClrModel, mapping.ForeignKeys);
+            Set(state with { Mapping = mapping, LoadedAt = DateTimeOffset.Now }, cts);
+            return mapping;
+        }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested)
+        {
+            return null; // superseded by a load
+        }
+    }
+
     /// <param name="useCache">Take the cached model if the build output is unchanged (connecting, link changed, new build).</param>
     /// <param name="buildChanged">Started by the watcher: the status bar says why the model reloads.</param>
     private Task LoadAsync(bool useCache, bool buildChanged)

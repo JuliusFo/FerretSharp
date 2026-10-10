@@ -930,4 +930,16 @@
   <data name="Changes_SectionWritten" xml:space="preserve">
     <value>Geschrieben, nicht committet</value>
   </data>
+  <data name="Schema_NewColumnsWithoutPropertyOne" xml:space="preserve">
+    <value>{0} neue Spalte ohne Property im C#-Modell: {1}</value>
+  </data>
+  <data name="Schema_NewColumnsWithoutPropertyOther" xml:space="preserve">
+    <value>{0} neue Spalten ohne Property im C#-Modell: {1}</value>
+  </data>
+  <data name="Schema_StaleTab" xml:space="preserve">
+    <value>„{0}“ zeigt noch die alte Struktur – der Tab hat nicht committete Änderungen. Erst committen oder verwerfen, dann den Tab neu öffnen.</value>
+  </data>
+  <data name="Schema_ModelNotMatched" xml:space="preserve">
+    <value>Das C#-Modell ließ sich nicht mit dem neuen Schema abgleichen: {0}</value>
+  </data>
 </root>

@@ -69,6 +69,9 @@
   <data name="Explorer_ReloadSchema" xml:space="preserve">
     <value>Schema neu laden</value>
   </data>
+  <data name="Explorer_SchemaReloaded" xml:space="preserve">
+    <value>Schema neu geladen.</value>
+  </data>
   <data name="Explorer_Tables" xml:space="preserve">
     <value>Tabellen</value>
   </data>

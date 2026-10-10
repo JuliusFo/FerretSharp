@@ -549,4 +549,58 @@
   <data name="Linq_ConsoleLabel" xml:space="preserve">
     <value>C#-Konsole:</value>
   </data>
+  <data name="SqlView_ConfirmDdlTitle" xml:space="preserve">
+    <value>Schema ändern?</value>
+  </data>
+  <data name="SqlView_ConfirmDdl" xml:space="preserve">
+    <value>{0} ändert das Schema und wird sofort committet – das lässt sich nicht rückgängig machen.</value>
+  </data>
+  <data name="SqlView_ConfirmDdlScriptOne" xml:space="preserve">
+    <value>Das Skript ändert das Schema in einem Statement. DDL wird sofort committet und lässt sich nicht rückgängig machen.</value>
+  </data>
+  <data name="SqlView_ConfirmDdlScriptOther" xml:space="preserve">
+    <value>Das Skript ändert das Schema in {0} Statements. DDL wird sofort committet und lässt sich nicht rückgängig machen.</value>
+  </data>
+  <data name="SqlView_ConfirmDdlDiscard" xml:space="preserve">
+    <value>Workspace {0} hat nicht committete Änderungen. Sie werden zuerst verworfen (Rollback) – das DDL würde sie sonst committen.</value>
+  </data>
+  <data name="SqlView_ConfirmDdlDiscardList" xml:space="preserve">
+    <value>Wird verworfen:</value>
+  </data>
+  <data name="SqlView_ConfirmDdlOtherWriterTables" xml:space="preserve">
+    <value>Workspace „{0}“ hat in {1} geschrieben und noch nicht committet. DDL auf diesen Tabellen scheitert oder wartet, bis dort committet oder verworfen wird – und lässt sich solange nicht abbrechen.</value>
+  </data>
+  <data name="SqlView_ConfirmDdlOtherWriter" xml:space="preserve">
+    <value>Workspace „{0}“ hat eine offene Transaktion. DDL auf einer Tabelle, in die er geschrieben hat, scheitert oder wartet bis zu deren Ende – und lässt sich solange nicht abbrechen.</value>
+  </data>
+  <data name="Run_DdlWaiting" xml:space="preserve">
+    <value>Dauert es? DDL wartet auf nicht committete Änderungen anderer Sessions an der Tabelle und lässt sich dann nicht abbrechen – dort committen oder verwerfen.</value>
+  </data>
+  <data name="SqlView_DiscardAndRun" xml:space="preserve">
+    <value>Verwerfen und ausführen</value>
+  </data>
+  <data name="SqlView_ConfirmDataInTransaction" xml:space="preserve">
+    <value>Datenänderungen nach dem DDL laufen in der Transaktion des Workspaces und bleiben bis zum Commit für andere unsichtbar.</value>
+  </data>
+  <data name="SqlView_ConfirmMoreStatements" xml:space="preserve">
+    <value>… und {0} weitere</value>
+  </data>
+  <data name="SqlView_DdlNotRun" xml:space="preserve">
+    <value>Die nicht committeten Änderungen wurden nicht verworfen – nichts ausgeführt.</value>
+  </data>
+  <data name="SqlView_DdlOutcome" xml:space="preserve">
+    <value>Schema geändert ({0}) – sofort committet.</value>
+  </data>
+  <data name="Run_DdlDone" xml:space="preserve">
+    <value>Schema geändert</value>
+  </data>
+  <data name="SqlView_DdlStays" xml:space="preserve">
+    <value>Bereits ausgeführtes DDL bleibt – es lässt sich nicht rückgängig machen.</value>
+  </data>
+  <data name="SqlView_SchemaReloaded" xml:space="preserve">
+    <value>Schema geändert – Explorer und offene Tabs zeigen den neuen Stand.</value>
+  </data>
+  <data name="SqlView_SchemaNotReloaded" xml:space="preserve">
+    <value>Schema geändert, aber nicht neu geladen: {0}</value>
+  </data>
 </root>
