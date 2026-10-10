@@ -1,6 +1,6 @@
 # Roadmap – geplante Pakete und offene Fragen
 
-Aus der `CLAUDE.md` ausgelagert (Stand 3.14.0). Beim Start eines Pakets den Abschnitt lesen und den Plan mit dem Nutzer abstimmen. Nicht eingeplante Ideen: `docs/backlog.md`; abgeschlossene Pakete: `docs/work-packages.md`.
+Seit 3.14.0 aus der `CLAUDE.md` ausgelagert; Stand 3.20.0. Beim Start eines Pakets den Abschnitt lesen und den Plan mit dem Nutzer abstimmen. Nicht eingeplante Ideen: `docs/backlog.md`; abgeschlossene Pakete: `docs/work-packages.md`.
 
 ## GitHub-Issues und Labels
 
