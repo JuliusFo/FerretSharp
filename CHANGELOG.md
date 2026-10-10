@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.21.0] - 2026-10-11
+
 ### Added
 - DDL in the SQL editor (WP-22, issue #9): `CREATE`, `ALTER`, `DROP`, `COMMENT`, `GRANT` … run on writable workspaces – also on Production once unlocked, never on a read-only workspace.
   - Every DDL statement is confirmed first (a script: once for all of them); the dialog says that DDL is committed at once and cannot be undone, on Production with the connection's name.

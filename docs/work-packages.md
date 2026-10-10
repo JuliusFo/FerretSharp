@@ -37,7 +37,7 @@ Was in den abgeschlossenen Paketen gebaut und entschieden wurde, mit Nachträgen
 | PR #3 | Schattenkopie der Build-Ausgabe für den ModelHost, Modell und LINQ-Konsole nach einem Build neu laden, Hänger-Diagnose als Einstellung (Beitrag von Phillip Ulbricht) | 3.18.0 | 0016 |
 | WP-29 | Oberfläche auf Englisch (Standard) und Deutsch: typisierte resx je Bereich, Sprache in den Einstellungen bzw. `--lang`, Screenshots auf Englisch | 3.19.0 | 0017 |
 | WP-30 | Offene Änderungen (Panel), Undo bis zu einer Aktion, Redo für Grid und Statements, Ctrl+Z/Ctrl+Y für ausstehende Zellen (Issue #7) | 3.20.0 | 0018 |
-| WP-22 | DDL im SQL-Editor (eigener Schemaweg, Rollback nach Bestätigung, Schema und C#-Modell folgen), DDL-Vorschlag des Vergleichs im SQL-Editor öffnen (Issue #9) | nächstes | 0019 |
+| WP-22 | DDL im SQL-Editor (eigener Schemaweg, Rollback nach Bestätigung, Schema und C#-Modell folgen), DDL-Vorschlag des Vergleichs im SQL-Editor öffnen (Issue #9) | 3.21.0 | 0019 |
 | R3a | Fehlerbehebung nach dem Review 3.14.0 (Verbindungsverlust je Verbindung, Schreiben serialisiert, UI-Testprojekt) | 3.14.1 | – |
 | R3b | Struktur-Refactoring nach dem Review 3.14.0 (Schema-Reader, Typwissen, SessionGate, UI-Bausteine, State) | 3.15.0 | – |
 
@@ -422,7 +422,7 @@ Issue #7 (2026-10-09): Es gab keinen Ort, der zeigt, was ein Workspace noch nich
 - Nachtrag (Wunsch des Nutzers): Panel-Breite ziehbar wie die Formularansicht (`dragWidth`, 300 px bis 60 % des Arbeitsbereichs), eine Breite für die ganze App in den Einstellungen (`AppSettings.ChangesPanelWidth`); das Panel öffnet nach einem Neustart wieder, wenn es offen war (`ChangesPanelOpen`, über `ShellState.ChangesOpenChanged`); Tastenkürzel `ToggleChanges`, Standard Ctrl+Shift+U (frei, kein Editor- oder Windows-Kürzel; Ctrl+Shift+C wäre der Element-Picker der DevTools). E2E: Kürzel öffnet und schließt, Ziehen speichert die Breite und wird bei 60 % begrenzt, nach Neustart offen mit gespeicherter Breite.
 - Offen: Sprung zu einer Zeile, die nicht geladen ist (filtert nicht danach) – Backlog.
 
-### WP-22 DDL im SQL-Editor → nächstes Release
+### WP-22 DDL im SQL-Editor → Release 3.21.0
 Issue #9. Wunsch des Nutzers (2026-10-06): Tabellen anlegen und ändern passend zum DB-first-Ablauf. Entscheidungen des Nutzers: DDL auf allen schreibbaren Workspaces (auch Prod nach dem Freischalten, nie gesperrt); FerretSharp führt aus; offene Transaktion nur nach Bestätigung verwerfen (Dialog zeigt, was verloren geht); Bestätigung vor jedem DDL, in Skripten eine; `TRUNCATE` bleibt abgewiesen. Beim Start (2026-10-10): **PL/SQL-Objekte weiter abweisen** (eigene Stufe vor bzw. mit WP-26), **DDL-Vorschlag des Schema-Vergleichs im SQL-Editor öffnen** (statt direkt im Vergleich ausführen), **kein Auto-Commit-Paket vorab**, GitHub-Issue mit `planned`. Begründung: ADR 0019.
 - Core:
   - `SqlStatementKind.Truncate` und `PlSqlObject` (`CREATE [OR REPLACE] [EDITIONABLE …] PROCEDURE/FUNCTION/PACKAGE/TRIGGER/TYPE/JAVA`), `SqlScript.KindOf` gemeinsam für Editor und Session-Schranke; `Ddl` wird nicht mehr abgewiesen, außer mit Bind-Variablen (ORA-01027). `SqlStatementInfo.IsDdl`.
