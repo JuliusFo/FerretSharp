@@ -147,6 +147,15 @@
                     @TextFormat.Plural(ddl.Count, SqlEditorText.SqlView_ConfirmDdlScriptOne, SqlEditorText.SqlView_ConfirmDdlScriptOther)
                 }
             </p>
+            @* The DDL right below its sentence – further down it read like part of the list of discarded changes (E2E). *@
+            @foreach (var r in ddl.Take(3))
+            {
+                <SqlCode Sql="@r.Statement.Text" />
+            }
+            @if (ddl.Count > 3)
+            {
+                <div class="hint small">@TextFormat.Format(SqlEditorText.SqlView_ConfirmMoreStatements, ddl.Count - 3)</div>
+            }
         }
         @foreach (var r in allRows)
         {
@@ -207,13 +216,14 @@
         {
             <p>@SqlEditorText.SqlView_ConfirmDataInTransaction</p>
         }
-        @foreach (var r in ddl.Concat(allRows.Count > 0 ? allRows : writes).Take(3))
+        @{ var shown = allRows.Count > 0 ? allRows : writes; }
+        @foreach (var r in shown.Take(3))
         {
             <SqlCode Sql="@r.Statement.Text" />
         }
-        @if (ddl.Count + (allRows.Count > 0 ? allRows : writes).Count > 3)
+        @if (shown.Count > 3)
         {
-            <div class="hint small">@TextFormat.Format(SqlEditorText.SqlView_ConfirmMoreStatements, ddl.Count + (allRows.Count > 0 ? allRows : writes).Count - 3)</div>
+            <div class="hint small">@TextFormat.Format(SqlEditorText.SqlView_ConfirmMoreStatements, shown.Count - 3)</div>
         }
     </ConfirmDialog>
 }

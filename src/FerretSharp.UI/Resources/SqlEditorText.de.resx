@@ -136,10 +136,10 @@
     <value>SQL im Workspace</value>
   </data>
   <data name="SqlView_EmptyText" xml:space="preserve">
-    <value>Statements schreiben, mit ; oder einer Leerzeile trennen und das Statement am Cursor ausführen – {0} führt das ganze Skript aus. SELECT läuft immer, INSERT, UPDATE, DELETE und MERGE nur auf schreibbaren Workspaces in deren Transaktion. Ctrl+Leertaste schlägt Tabellen und Spalten vor.</value>
+    <value>Statements schreiben, mit ; oder einer Leerzeile trennen und das Statement am Cursor ausführen – {0} führt das ganze Skript aus. SELECT läuft immer, INSERT, UPDATE, DELETE und MERGE nur auf schreibbaren Workspaces in deren Transaktion, DDL (CREATE, ALTER, DROP …) ebenfalls nur dort, nach Bestätigung und sofort committet. Ctrl+Leertaste schlägt Tabellen und Spalten vor.</value>
   </data>
   <data name="SqlView_EmptyTextWithKey" xml:space="preserve">
-    <value>Statements schreiben, mit ; oder einer Leerzeile trennen und mit {0} das Statement am Cursor ausführen – {1} führt das ganze Skript aus. SELECT läuft immer, INSERT, UPDATE, DELETE und MERGE nur auf schreibbaren Workspaces in deren Transaktion. Ctrl+Leertaste schlägt Tabellen und Spalten vor.</value>
+    <value>Statements schreiben, mit ; oder einer Leerzeile trennen und mit {0} das Statement am Cursor ausführen – {1} führt das ganze Skript aus. SELECT läuft immer, INSERT, UPDATE, DELETE und MERGE nur auf schreibbaren Workspaces in deren Transaktion, DDL (CREATE, ALTER, DROP …) ebenfalls nur dort, nach Bestätigung und sofort committet. Ctrl+Leertaste schlägt Tabellen und Spalten vor.</value>
   </data>
   <data name="SqlView_ConfirmAllRowsTitle" xml:space="preserve">
     <value>Alle Zeilen ändern?</value>
@@ -562,7 +562,7 @@
     <value>Das Skript ändert das Schema in {0} Statements. DDL wird sofort committet und lässt sich nicht rückgängig machen.</value>
   </data>
   <data name="SqlView_ConfirmDdlDiscard" xml:space="preserve">
-    <value>Workspace {0} hat nicht committete Änderungen. Sie werden zuerst verworfen (Rollback) – das DDL würde sie sonst committen.</value>
+    <value>Workspace „{0}“ hat nicht committete Änderungen. Sie werden zuerst verworfen (Rollback) – das DDL würde sie sonst committen.</value>
   </data>
   <data name="SqlView_ConfirmDdlDiscardList" xml:space="preserve">
     <value>Wird verworfen:</value>

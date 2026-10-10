@@ -162,11 +162,11 @@
     <value>SQL in the workspace</value>
   </data>
   <data name="SqlView_EmptyText" xml:space="preserve">
-    <value>Write statements, separate them with ; or a blank line and run the statement at the cursor – {0} runs the whole script. SELECT always runs; INSERT, UPDATE, DELETE and MERGE only on writable workspaces, in their transaction. Ctrl+Space suggests tables and columns.</value>
+    <value>Write statements, separate them with ; or a blank line and run the statement at the cursor – {0} runs the whole script. SELECT always runs; INSERT, UPDATE, DELETE and MERGE only on writable workspaces, in their transaction; DDL (CREATE, ALTER, DROP …) only there too, after a confirmation, and committed at once. Ctrl+Space suggests tables and columns.</value>
     <comment>Empty SQL tab, running a statement has no shortcut. {0} = shortcut or button that runs the whole script</comment>
   </data>
   <data name="SqlView_EmptyTextWithKey" xml:space="preserve">
-    <value>Write statements, separate them with ; or a blank line and run the statement at the cursor with {0} – {1} runs the whole script. SELECT always runs; INSERT, UPDATE, DELETE and MERGE only on writable workspaces, in their transaction. Ctrl+Space suggests tables and columns.</value>
+    <value>Write statements, separate them with ; or a blank line and run the statement at the cursor with {0} – {1} runs the whole script. SELECT always runs; INSERT, UPDATE, DELETE and MERGE only on writable workspaces, in their transaction; DDL (CREATE, ALTER, DROP …) only there too, after a confirmation, and committed at once. Ctrl+Space suggests tables and columns.</value>
     <comment>Empty SQL tab. {0} = shortcut that runs the statement, e.g. Ctrl+Enter; {1} = shortcut or button that runs the whole script</comment>
   </data>
   <data name="SqlView_ConfirmAllRowsTitle" xml:space="preserve">
@@ -664,7 +664,7 @@
     <comment>{0} = number of DDL statements in the script</comment>
   </data>
   <data name="SqlView_ConfirmDdlDiscard" xml:space="preserve">
-    <value>Workspace {0} has uncommitted changes. They are rolled back first – the DDL would commit them otherwise.</value>
+    <value>Workspace “{0}” has uncommitted changes. They are rolled back first – the DDL would commit them otherwise.</value>
     <comment>{0} = workspace name (emphasized)</comment>
   </data>
   <data name="SqlView_ConfirmDdlDiscardList" xml:space="preserve">
