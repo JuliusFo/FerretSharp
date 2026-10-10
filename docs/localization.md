@@ -22,6 +22,7 @@ Die Oberfläche gibt es auf Englisch (Standard) und Deutsch. Entscheidung und Hi
 | Core | `ClrModelText` | C#-Modell, LINQ-Konsole, Code-Generierung, Build-Ausgabe |
 | Core | `QueryText`, `DataText`, `SchemaText` | Query (Filter, SQL-Skripte, FK-Navigation, Export), Data und Forms, Schema |
 | Core | `OracleText`, `CompareText`, `ConnectionText`, `SettingsText`, `WorkspaceText` | Oracle-Schicht, Schema-Vergleich/DDL, Verbindungen, Einstellungen (Tastenkürzel), Workspaces und IO |
+| Core | `DesignText` | Tabellen-Designer (WP-23): Prüfungen von Index- und Tabellenentwürfen |
 | ModelHost | `ModelHostText` | Meldungen und Schritte des Hilfsprozesses |
 
 Klassennamen sind über alle Projekte eindeutig (die Razor-Komponenten sehen Core- und UI-Ressourcen).
