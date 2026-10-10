@@ -202,7 +202,13 @@
     <value>So soll es aussehen</value>
   </data>
   <data name="CompareDdl_Note" xml:space="preserve">
-    <value>Nur ein Vorschlag zum Kopieren – FerretSharp führt ihn nicht aus. DDL lässt sich nicht zurücknehmen; Schritte mit ⚠ vorher prüfen.</value>
+    <value>Ein Vorschlag – kopieren oder im SQL-Editor des Ziels öffnen und dort ausführen. DDL lässt sich nicht zurücknehmen; Schritte mit ⚠ vorher prüfen.</value>
+  </data>
+  <data name="CompareDdl_OpenInEditor" xml:space="preserve">
+    <value>Im SQL-Editor öffnen</value>
+  </data>
+  <data name="CompareDdl_OpenInEditorTitle" xml:space="preserve">
+    <value>Öffnet das Skript in einem SQL-Tab von {0} – ausgeführt wird es dort erst nach der üblichen Bestätigung.</value>
   </data>
   <data name="CompareDdl_NoDifferences" xml:space="preserve">
     <value>Keine Unterschiede zwischen diesen beiden Seiten.</value>

@@ -248,7 +248,15 @@
     <value>What it should look like</value>
   </data>
   <data name="CompareDdl_Note" xml:space="preserve">
-    <value>Only a proposal to copy – FerretSharp does not run it. DDL cannot be undone; check steps marked ⚠ first.</value>
+    <value>A proposal – copy it, or open it in the SQL editor of the target and run it there. DDL cannot be undone; check steps marked ⚠ first.</value>
+  </data>
+  <data name="CompareDdl_OpenInEditor" xml:space="preserve">
+    <value>Open in SQL editor</value>
+    <comment>Button in the DDL proposal dialog</comment>
+  </data>
+  <data name="CompareDdl_OpenInEditorTitle" xml:space="preserve">
+    <value>Opens the script in a SQL tab of {0} – it runs there only after the usual confirmation.</value>
+    <comment>{0} = label of the target side (connection, schema)</comment>
   </data>
   <data name="CompareDdl_NoDifferences" xml:space="preserve">
     <value>No differences between these two sides.</value>
