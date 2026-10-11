@@ -1,6 +1,7 @@
 using FerretSharp.Core.ClrModel;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
+using FerretSharp.Core.Query;
 using FerretSharp.Core.Schema;
 using FerretSharp.Core.Settings;
 using FerretSharp.Core.Tests.Fakes;
@@ -124,6 +125,10 @@ internal sealed class TestApp : IAsyncDisposable
     /// <summary>The editors of the sessions opened so far (explorer and workspaces), oldest first.</summary>
     public List<FakeDataEditor> Editors { get; } = [];
 
+    /// <summary>What a query of the SQL editor or the LINQ console reads (its first page); a test may make it fail or wait.</summary>
+    public Func<QuerySpec, CancellationToken, Task<SqlPage>> ReadSql { get; set; } = (_, _) =>
+        Task.FromResult(new SqlPage([new SqlColumn("ID", new ColumnInfo("ID", "NUMBER", null, false, null, null, false, false, null, 1))], [[1m]], IsLastPage: true, TimeSpan.FromMilliseconds(5)));
+
     /// <summary>What a commit of any workspace session does; completes at once unless a test holds it.</summary>
     public Func<Task>? OnCommit { get; set; }
 
@@ -147,8 +152,12 @@ internal sealed class TestApp : IAsyncDisposable
             return failure;
         });
         Editors.Add(editor);
+        var data = Substitute.For<IDataAccess>();
+        data.ReadSqlAsync(Arg.Any<QuerySpec>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(call => ReadSql(call.Arg<QuerySpec>(), call.Arg<CancellationToken>()));
         var connection = Substitute.For<IDatabaseConnection>();
         connection.Schema.Returns(reader);
+        connection.Data.Returns(data);
         connection.Editor.Returns(editor);
         // Open while something is written (the fake editor's own transaction is always open, for the editing tests).
         connection.Transaction.Returns(_ => editor.Actions.Count > 0 ? editor.Transaction : TransactionInfo.None);

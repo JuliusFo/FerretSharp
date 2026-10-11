@@ -144,7 +144,7 @@
         using var cts = _cts = new CancellationTokenSource();
         try
         {
-            _result = await Lifecycle.RunDdlAsync(WorkspaceId, Statements, discard, statement =>
+            _result = await Lifecycle.Statements.RunDdlAsync(WorkspaceId, Statements, discard, statement =>
             {
                 (_running, _started) = (statement, DateTimeOffset.Now); // the progress shows the statement at hand
                 StateHasChanged();

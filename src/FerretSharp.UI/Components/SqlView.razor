@@ -10,9 +10,7 @@
 @inherits FerretComponent
 @implements IDisposable
 @inject SqlHistoryStore History
-@inject ILogger<SqlView> Logger
 @inject ShortcutService Shortcuts
-@inject ConnectionHub Hub
 
 <div class="sqlview">
     <div class="tab-toolbar">
@@ -490,7 +488,7 @@
     private async Task ConfirmAsync(IReadOnlyList<SqlRun> runs, WorkspaceTabs? discard)
     {
         _confirm = null;
-        if (discard is not null && !await Lifecycle.Editing.RollbackTransactionAsync(discard))
+        if (discard is not null && !await Lifecycle.Statements.DiscardTransactionAsync(discard))
         {
             _error = SqlEditorText.SqlView_DdlNotRun;
             return;
@@ -555,98 +553,56 @@
 
         if (changedSchema)
         {
-            // Explorer, completion, open tabs and the C# model follow the new schema (of every workspace of the connection).
-            StateHasChanged();
-            var refresh = await Lifecycle.RefreshSchemaAsync(Hub.ScopeOfWorkspace(Tab.WorkspaceId));
-            Shell.Notify(refresh.Error is { } error ? TextFormat.Format(SqlEditorText.SqlView_SchemaNotReloaded, error.Display) : SqlEditorText.SqlView_SchemaReloaded,
-                refresh.Warnings);
+            StateHasChanged(); // the results first; explorer, completion, open tabs and the C# model follow the new schema
         }
 
-        if (wrote || changedSchema)
-        {
-            Shell.ReloadTableTabs(Tab.WorkspaceId); // they may show the changed rows
-
-            Shell.NotifyChanged(); // status bar: open transaction, commit/rollback
-        }
-
+        await Lifecycle.Statements.FinishAsync(Tab.WorkspaceId, wrote, changedSchema);
         StateHasChanged();
     }
 
     /// <summary>
-    /// One statement: a query reads its first page right away (a later statement of the script must not change what it
-    /// shows), DML runs in the workspace's transaction. Failures come back in <see cref="SqlRun.Error"/>.
+    /// One statement through the shared runner (R4b): a query reads its first page right away (a later statement of the
+    /// script must not change what it shows), DML runs in the workspace's transaction, DDL takes the schema path – outside
+    /// of any transaction, committed by Oracle at once (WP-22). Failures come back in <see cref="SqlRun.Error"/>; one Oracle
+    /// reported is marked in the editor.
     /// </summary>
     private async Task<SqlRun> RunOneAsync(SqlRun run, CancellationToken token)
     {
         run = run with { At = DateTimeOffset.Now };
-        var query = run.Query;
-        if (run.Info.IsQuery)
+        var log = new StatementLog(run.Statement.Text, Tab.Variables.Where(v => run.Info.Binds.Contains(v.Name, StringComparer.OrdinalIgnoreCase)).ToList());
+        var outcome = run.Info.IsQuery ? await Lifecycle.Statements.ReadAsync(Tab.WorkspaceId, run.Query, SqlResultGrid.PageSize, log, token)
+            : run.Info.IsDdl ? await Lifecycle.Statements.DdlAsync(Tab.WorkspaceId, run.Query.Sql, log, token)
+            : await Lifecycle.Statements.WriteAsync(Tab, run.Query, log, token);
+        _history = outcome.History ?? _history;
+        run = run with { Elapsed = outcome.Elapsed };
+        if (outcome.Cancelled)
         {
-            var read = await Shell.RunDbAsync(Logger, Active, async () =>
-                await Workspaces.ReadSqlAsync(Tab.WorkspaceId, query, 0, SqlResultGrid.PageSize, token), token);
-            if (read.Value is not { } page)
-            {
-                return await FailedAsync(run, read);
-            }
-
-            await LogAsync(run, page.Rows.Count, !page.IsLastPage, false, null, page.Elapsed);
-            return run with { FirstPage = page, Elapsed = DateTimeOffset.Now - run.At };
-        }
-
-        if (run.Info.IsDdl)
-        {
-            // WP-22: the schema path – outside of any transaction, committed by Oracle at once; nothing to undo.
-            var ran = await Shell.RunDbAsync(Logger, Active, () => Workspaces.ExecuteDdlAsync(Tab.WorkspaceId, query.Sql, token), token);
-            if (!ran.Succeeded)
-            {
-                return await FailedAsync(run, ran);
-            }
-
-            await LogAsync(run, null, false, false, null, ddl: true);
-            return run with { SchemaChanged = true, Elapsed = DateTimeOffset.Now - run.At };
-        }
-
-        var written = await Shell.RunDbAsync(Logger, Active, async () =>
-            await Workspaces.ExecuteAsync(Tab.WorkspaceId, query, token), token);
-        if (written.Value is not { } action)
-        {
-            return await FailedAsync(run, written);
-        }
-
-        Lifecycle.Editing.NoteStatement(Tab, action);
-        await LogAsync(run, action.Rows, false, true, null);
-        return run with
-        {
-            Changed = action.Rows,
-            Transaction = Workspaces.TransactionOf(Tab.WorkspaceId)?.StartedAt,
-            Action = action.Id,
-            Elapsed = DateTimeOffset.Now - run.At,
-        };
-    }
-
-    /// <summary>A failed or cancelled statement: an error Oracle reported is marked in the editor and goes into the history.</summary>
-    private async Task<SqlRun> FailedAsync<T>(SqlRun run, DbResult<T> result)
-    {
-        run = run with { Elapsed = DateTimeOffset.Now - run.At };
-        if (result.Error is not { } error)
-        {
+            // DDL is atomic: cancelled, it changed nothing – and there is no transaction to roll back.
             return run with
             {
-                // DDL is atomic: cancelled, it changed nothing – and there is no transaction to roll back.
                 Error = new DatabaseException(run.Info.IsQuery || run.Info.IsDdl ? SqlEditorText.Run_Canceled : SqlEditorText.Run_CanceledWriteUndone),
                 Cancelled = true,
             };
         }
 
-        if (!result.IsRefusal)
+        if (outcome.Error is { } error)
         {
-            await MarkAsync(run, error);
-            await LogAsync(run, null, false, false, error.Display);
+            if (!outcome.Refused)
+            {
+                await MarkAsync(run, error);
+            }
+
+            return run with { Error = error, Lock = outcome.Lock };
         }
 
-        // WP-22: DDL on a table another session holds – name who it is.
-        var tableLock = run.Info.IsDdl ? await Lifecycle.LockOfAsync(Hub.ScopeOfWorkspace(Tab.WorkspaceId), run.Statement.Text, error) : null;
-        return run with { Error = error, Lock = tableLock };
+        return run with
+        {
+            FirstPage = outcome.FirstPage,
+            SchemaChanged = outcome.SchemaChanged,
+            Changed = outcome.Written?.Rows,
+            Transaction = outcome.Transaction,
+            Action = outcome.Written?.Id,
+        };
     }
 
     private void SelectRun(int index)
@@ -680,25 +636,6 @@
 
     /// <summary>" · 0,4 s" after a run's outcome; nothing while unknown.</summary>
     private static string Duration(SqlRun run) => run.Elapsed is { } elapsed ? " · " + ResultFooter.Ms(elapsed) : "";
-
-    private async Task LogAsync(SqlRun run, int? rows, bool moreRows, bool changed, string? error, TimeSpan? elapsed = null, bool ddl = false)
-    {
-        if (Active.Profile is not { } profile)
-        {
-            return;
-        }
-
-        var variables = Tab.Variables.Where(v => run.Info.Binds.Contains(v.Name, StringComparer.OrdinalIgnoreCase)).ToList();
-        var entry = new SqlHistoryEntry(run.Statement.Text, run.At, elapsed ?? DateTimeOffset.Now - run.At, rows, moreRows, changed, error, variables) { Ddl = ddl };
-        try
-        {
-            _history = await History.AddAsync(profile.Id, IsProd ? entry.WithoutValues() : entry, CancellationToken.None);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            Logger.LogWarning(ex, "SQL history could not be written");
-        }
-    }
 
     private async Task ToggleHistoryAsync()
     {
