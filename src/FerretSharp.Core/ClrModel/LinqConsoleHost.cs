@@ -44,11 +44,13 @@ public sealed class LinqConsoleHost : ILinqConsole
     private readonly IDisposable? _lease;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly StringBuilder _errors;
+    private readonly TimeSpan _runTimeout;
     private int _nextId;
     private bool _dead;
 
-    private LinqConsoleHost(Process process, NamedPipeServerStream pipe, DirectoryInfo work, IDisposable? lease, BuildOutput output, StringBuilder errors)
+    private LinqConsoleHost(Process process, NamedPipeServerStream pipe, DirectoryInfo work, IDisposable? lease, BuildOutput output, StringBuilder errors, TimeSpan runTimeout)
     {
+        _runTimeout = runTimeout;
         _process = process;
         _pipe = pipe;
         _work = work;
@@ -65,9 +67,10 @@ public sealed class LinqConsoleHost : ILinqConsole
     /// <param name="work">Temporary folder (runtimeconfig); deleted when the console ends.</param>
     /// <param name="lease">The copy of the build output the host runs from; released once the host has exited.</param>
     /// <param name="startTimeout">Loading the project and building its model must finish within this.</param>
+    /// <param name="runTimeout">A run that does not answer within this is given up (<see cref="RunTimeout"/>; shorter in tests).</param>
     internal static async Task<LinqConsoleHost> StartAsync(
         IReadOnlyList<string> arguments, string workingDirectory, string pipeName, DirectoryInfo work, IDisposable? lease, BuildOutput output,
-        TimeSpan startTimeout, IProgress<string>? progress, CancellationToken cancellationToken)
+        TimeSpan startTimeout, TimeSpan runTimeout, IProgress<string>? progress, CancellationToken cancellationToken)
     {
         // Only the own user may connect (R4a): with the default ACL another user of a terminal server could take the pipe
         // first and read the LINQ code and its variables.
@@ -96,7 +99,7 @@ public sealed class LinqConsoleHost : ILinqConsole
 
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(startTimeout);
-            var host = new LinqConsoleHost(process, pipe, work, lease, output, errors);
+            var host = new LinqConsoleHost(process, pipe, work, lease, output, errors, runTimeout);
             try
             {
                 await pipe.WaitForConnectionAsync(timeout.Token).WaitAsync(timeout.Token);
@@ -113,11 +116,14 @@ public sealed class LinqConsoleHost : ILinqConsole
             }
             catch (Exception ex) when (ex is OperationCanceledException or IOException)
             {
+                // How it ended, before the host disposes the process (R4b, found by the fake-host tests: asked afterwards,
+                // the process threw InvalidOperationException instead of this message, and the console stayed "starting").
+                int? exitCode = process.HasExited ? process.ExitCode : null;
                 await host.DisposeAsync();
                 cancellationToken.ThrowIfCancellationRequested();
                 throw new ClrModelException(ClrModelErrorKind.Timeout,
-                    process.HasExited
-                        ? TextFormat.Format(ClrModelText.HelperExitedAtStart, process.ExitCode)
+                    exitCode is { } code
+                        ? TextFormat.Format(ClrModelText.HelperExitedAtStart, code)
                         : TextFormat.Format(ClrModelText.HelperStartTimeout, startTimeout.TotalSeconds),
                     host.ErrorOutput);
             }
@@ -141,8 +147,8 @@ public sealed class LinqConsoleHost : ILinqConsole
 
     public async Task<LinqRunResult> RunAsync(string code, string variables, CancellationToken cancellationToken)
     {
-        var response = await RequestAsync(new LinqRequest(LinqProtocol.Run, 0, code, variables), RunTimeout,
-            TextFormat.Format(ClrModelText.RunTimeout, RunTimeout.TotalSeconds), cancellationToken);
+        var response = await RequestAsync(new LinqRequest(LinqProtocol.Run, 0, code, variables), _runTimeout,
+            TextFormat.Format(ClrModelText.RunTimeout, _runTimeout.TotalSeconds), cancellationToken);
         return response.Run ?? throw Failure(response);
     }
 

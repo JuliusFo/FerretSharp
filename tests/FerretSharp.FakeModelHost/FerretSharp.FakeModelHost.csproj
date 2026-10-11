@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- A stand-in for FerretSharp.ModelHost (R4b): the Core tests start it with "dotnet exec" to try the process path of the
+       LINQ console and the model export – start timeout, exit at start, crash or unreadable answer in a request, run timeout,
+       missing result file – without a C# project or EF Core. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\FerretSharp.Core\FerretSharp.Core.csproj" />
+  </ItemGroup>
+
+</Project>
