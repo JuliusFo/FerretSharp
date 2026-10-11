@@ -121,7 +121,31 @@ public class PropertyCodeTests
     [InlineData("FAX", "Fax")]
     [InlineData("Nummer", "Nummer")]
     [InlineData("raw col", "RawCol")]
+    // R4a: always a C# identifier – Nr# and Betrag$ did not compile.
+    [InlineData("NR#", "Nr")]
+    [InlineData("BETRAG$", "Betrag")]
+    [InlineData("KUNDEN#NR", "KundenNr")]
+    [InlineData("1A", "_1a")]
+    [InlineData("Größe (cm)", "GrößeCm")]
     public void Pascal_case(string column, string name) => Assert.Equal(name, PropertyCode.PascalCase(column));
+
+    /// <summary>
+    /// R4a: EF wrote what the database fills in itself – a virtual column (ORA-54013), an identity GENERATED ALWAYS
+    /// (ORA-32795) – and sent DateTime.MinValue instead of leaving a default to the database.
+    /// </summary>
+    [Fact]
+    public void Columns_the_database_fills_say_so_in_the_configuration()
+    {
+        var model = Model(Prop("KundeId", "int", "KUNDE_ID"));
+        var number = new ColumnInfo("NR", "NUMBER", null, false, 9, 0, false, false, null, 1);
+
+        Assert.Equal("builder.Property(x => x.Brutto).HasPrecision(12, 2).HasComputedColumnSql(\"\\\"NETTO\\\"*1.19\");",
+            PropertyCode.Suggest(model, new ColumnInfo("BRUTTO", "NUMBER", null, false, 12, 2, true, false, "\"NETTO\"*1.19 ", 2, IsVirtual: true)).Configuration);
+        Assert.Equal("builder.Property(x => x.Nr).ValueGeneratedOnAdd();",
+            PropertyCode.Suggest(model, number with { IsIdentity = true, Default = "\"APP\".\"ISEQ$$_7\".nextval" }).Configuration);
+        Assert.Equal("builder.Property(x => x.Angelegt).HasDefaultValueSql(\"SYSDATE\");",
+            PropertyCode.Suggest(model, new ColumnInfo("ANGELEGT", "DATE", null, false, null, null, false, false, "SYSDATE\n", 3)).Configuration);
+    }
 
     /// <summary>The model exports <c>@event</c> as <c>event</c>; taken over, it needs its <c>@</c> again.</summary>
     [Fact]

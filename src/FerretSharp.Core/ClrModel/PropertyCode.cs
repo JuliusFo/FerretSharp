@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.RegularExpressions;
 using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 
@@ -17,7 +18,7 @@ public sealed record PropertySuggestion(string Column, string Name, string Decla
 /// is written fluent; <c>HasColumnName</c> only if the project does not name its columns by a convention
 /// (<c>KundenId</c> → <c>KUNDEN_ID</c>) or the column does not follow it.
 /// </summary>
-public static class PropertyCode
+public static partial class PropertyCode
 {
     /// <summary>Share of properties whose column follows <see cref="UpperSnake"/> above which the project counts as using it.</summary>
     private const double ConventionShare = 0.95;
@@ -86,6 +87,21 @@ public static class PropertyCode
             configuration.Append($".HasPrecision({precision}, {column.Scale ?? 0})");
         }
 
+        // What the database fills in itself (R4a): EF must not write a virtual column (ORA-54013) or an identity column
+        // GENERATED ALWAYS (ORA-32795), and leaves a column with a default to the database only if told so.
+        if (column.IsVirtual && !string.IsNullOrWhiteSpace(column.Default))
+        {
+            configuration.Append($".HasComputedColumnSql({CSharpCode.String(column.Default.Trim())})");
+        }
+        else if (column.IsIdentity)
+        {
+            configuration.Append(".ValueGeneratedOnAdd()");
+        }
+        else if (!string.IsNullOrWhiteSpace(column.Default))
+        {
+            configuration.Append($".HasDefaultValueSql({CSharpCode.String(column.Default.Trim())})");
+        }
+
         if (type == "string" && !column.Nullable)
         {
             configuration.Append(".IsRequired()");
@@ -122,16 +138,21 @@ public static class PropertyCode
         return result.ToString();
     }
 
-    /// <summary><c>KUNDEN_ID</c> → <c>KundenId</c>; a name with lower case letters (<c>"Nummer"</c>) keeps them, upper-cased at the start.</summary>
+    /// <summary>
+    /// <c>KUNDEN_ID</c> → <c>KundenId</c>; a name with lower case letters (<c>"Nummer"</c>) keeps them, upper-cased at the
+    /// start. Always a C# identifier (R4a): other characters part words like <c>_</c> (<c>NR#</c> → <c>Nr</c>,
+    /// <c>"Größe (cm)"</c> → <c>GrößeCm</c>), a leading digit gets a <c>_</c>.
+    /// </summary>
     public static string PascalCase(string column)
     {
-        if (column.Any(char.IsLower))
-        {
-            return string.Concat(column.Split('_', ' ').Where(p => p.Length > 0).Select(p => char.ToUpperInvariant(p[0]) + p[1..]));
-        }
-
-        return string.Concat(column.Split('_', ' ').Where(p => p.Length > 0).Select(p => char.ToUpperInvariant(p[0]) + p[1..].ToLowerInvariant()));
+        var keepCase = column.Any(char.IsLower);
+        var name = string.Concat(NonWordCharacters().Split(column).Where(p => p.Length > 0)
+            .Select(p => char.ToUpperInvariant(p[0]) + (keepCase ? p[1..] : p[1..].ToLowerInvariant())));
+        return name.Length == 0 || char.IsDigit(name[0]) ? "_" + name : name;
     }
+
+    [GeneratedRegex(@"[^\p{L}\p{Nd}]+")]
+    private static partial Regex NonWordCharacters();
 
     /// <summary>Most properties of the project have the column <see cref="UpperSnake"/> makes of their name: a naming convention.</summary>
     private static bool UsesConvention(IReadOnlyList<PropertyExport> properties) =>
