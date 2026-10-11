@@ -45,4 +45,79 @@
   <data name="IndexCoveredBy" xml:space="preserve">
     <value>{0} beginnt schon mit diesen Spalten – ein eigener Index ist meist überflüssig.</value>
   </data>
+  <data name="TableNeedsAColumn" xml:space="preserve">
+    <value>Eine Tabelle braucht mindestens eine Spalte.</value>
+  </data>
+  <data name="ColumnNameMissing" xml:space="preserve">
+    <value>Jede Spalte braucht einen Namen.</value>
+  </data>
+  <data name="ColumnNameInvalid" xml:space="preserve">
+    <value>{0}: Ein Name darf keine doppelten Anführungszeichen enthalten.</value>
+  </data>
+  <data name="ColumnNameTooLong" xml:space="preserve">
+    <value>{0}: Der Name ist länger als {1} Byte.</value>
+  </data>
+  <data name="ColumnNameNeedsQuotes" xml:space="preserve">
+    <value>{0} ist kein einfacher Oracle-Name; SQL und das C#-Modell müssen ihn genau so in doppelten Anführungszeichen schreiben.</value>
+  </data>
+  <data name="ColumnNameTwice" xml:space="preserve">
+    <value>Zwei Spalten heißen {0}.</value>
+  </data>
+  <data name="ColumnTypeMissing" xml:space="preserve">
+    <value>{0}: Wähle einen Typ.</value>
+  </data>
+  <data name="ColumnLengthMissing" xml:space="preserve">
+    <value>{0}: {1} braucht eine Länge.</value>
+  </data>
+  <data name="ColumnNumberFacets" xml:space="preserve">
+    <value>{0}: NUMBER nimmt 1 bis 38 Stellen und -84 bis 127 Nachkommastellen.</value>
+  </data>
+  <data name="AddNotNullNeedsDefault" xml:space="preserve">
+    <value>{0}: Die Tabelle hat {1} Zeilen – eine neue NOT-NULL-Spalte braucht für sie einen Default (ORA-01758).</value>
+  </data>
+  <data name="AddNotNullUnchecked" xml:space="preserve">
+    <value>{0}: Nicht geprüft, ob die Tabelle Zeilen hat – eine neue NOT-NULL-Spalte ohne Default geht nur bei leerer Tabelle.</value>
+  </data>
+  <data name="DropReferencedColumn" xml:space="preserve">
+    <value>{0} wird von Fremdschlüsseln anderer Tabellen referenziert ({1}); Oracle löscht die Spalte nicht (ORA-12992).</value>
+  </data>
+  <data name="DropColumnInConstraint" xml:space="preserve">
+    <value>{0} gehört zu {1}, einem Constraint über mehrere Spalten – erst den Constraint löschen (ORA-12991).</value>
+  </data>
+  <data name="DropColumnLosesData" xml:space="preserve">
+    <value>{0} wird mit allen Werten gelöscht – ohne Rückweg.</value>
+  </data>
+  <data name="RenameKeepsReferences" xml:space="preserve">
+    <value>{0} → {1}: Views, PL/SQL und das C#-Modell (HasColumnName) verwenden noch den alten Namen.</value>
+  </data>
+  <data name="IdentityOnlyNew" xml:space="preserve">
+    <value>{0}: Identity-Spalten entstehen nur neu und lassen sich hier nur umbenennen oder kommentieren (ORA-30673).</value>
+  </data>
+  <data name="VirtualNotChanged" xml:space="preserve">
+    <value>{0}: Eine virtuelle Spalte lässt sich hier nur umbenennen oder kommentieren.</value>
+  </data>
+  <data name="TypeChangeNotPossible" xml:space="preserve">
+    <value>{0}: {1} → {2} geht nicht per MODIFY (von oder zu einem LOB, ORA-22858). Neue Spalte anlegen, Werte umkopieren, alte löschen.</value>
+  </data>
+  <data name="TypeChangeMayFail" xml:space="preserve">
+    <value>{0}: {1} → {2} scheitert, wenn ein Wert zu lang dafür ist (ORA-01441).</value>
+  </data>
+  <data name="TypeChangeNeedsEmpty" xml:space="preserve">
+    <value>{0}: {1} → {2} geht nur bei leerer Spalte; sie hat {3} Werte. Neue Spalte anlegen, Werte umkopieren, alte löschen.</value>
+  </data>
+  <data name="TypeChangeNeedsEmptyUnchecked" xml:space="preserve">
+    <value>{0}: {1} → {2} geht nur bei leerer Spalte – nicht geprüft, ob sie Werte hat.</value>
+  </data>
+  <data name="DefaultOnNullNeedsValue" xml:space="preserve">
+    <value>{0}: DEFAULT ON NULL braucht einen Default-Wert.</value>
+  </data>
+  <data name="NullOnPrimaryKey" xml:space="preserve">
+    <value>{0} gehört zum Primärschlüssel und kann nicht NULL erlauben (ORA-01451).</value>
+  </data>
+  <data name="NotNullHasNulls" xml:space="preserve">
+    <value>{0} hat {1} Zeilen mit NULL – erst füllen, dann geht NOT NULL (ORA-02296).</value>
+  </data>
+  <data name="NotNullUnchecked" xml:space="preserve">
+    <value>{0}: Nicht auf NULL-Werte geprüft – NOT NULL scheitert, wenn es welche gibt (ORA-02296).</value>
+  </data>
 </root>

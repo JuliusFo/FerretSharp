@@ -52,4 +52,102 @@
     <value>{0} already starts with these columns – a separate index is usually not needed.</value>
     <comment>{0}: name of the existing index</comment>
   </data>
+  <data name="TableNeedsAColumn" xml:space="preserve">
+    <value>A table needs at least one column.</value>
+  </data>
+  <data name="ColumnNameMissing" xml:space="preserve">
+    <value>Every column needs a name.</value>
+  </data>
+  <data name="ColumnNameInvalid" xml:space="preserve">
+    <value>{0}: a name cannot contain double quotes.</value>
+    <comment>{0}: column name</comment>
+  </data>
+  <data name="ColumnNameTooLong" xml:space="preserve">
+    <value>{0}: the name is longer than {1} bytes.</value>
+    <comment>{0}: column name; {1}: maximum name length of Oracle (128)</comment>
+  </data>
+  <data name="ColumnNameNeedsQuotes" xml:space="preserve">
+    <value>{0} is not a plain Oracle name; SQL and the C# model must write it in double quotes, exactly so.</value>
+    <comment>{0}: column name</comment>
+  </data>
+  <data name="ColumnNameTwice" xml:space="preserve">
+    <value>Two columns are named {0}.</value>
+    <comment>{0}: column name</comment>
+  </data>
+  <data name="ColumnTypeMissing" xml:space="preserve">
+    <value>{0}: choose a type.</value>
+    <comment>{0}: column name</comment>
+  </data>
+  <data name="ColumnLengthMissing" xml:space="preserve">
+    <value>{0}: {1} needs a length.</value>
+    <comment>{0}: column name; {1}: type, e.g. VARCHAR2</comment>
+  </data>
+  <data name="ColumnNumberFacets" xml:space="preserve">
+    <value>{0}: NUMBER takes a precision of 1 to 38 and a scale of -84 to 127.</value>
+    <comment>{0}: column name</comment>
+  </data>
+  <data name="AddNotNullNeedsDefault" xml:space="preserve">
+    <value>{0}: the table has {1} rows – a new NOT NULL column needs a default for them (ORA-01758).</value>
+    <comment>{0}: column name; {1}: number of rows</comment>
+  </data>
+  <data name="AddNotNullUnchecked" xml:space="preserve">
+    <value>{0}: not checked whether the table has rows – a new NOT NULL column without default only works on an empty table.</value>
+    <comment>{0}: column name</comment>
+  </data>
+  <data name="DropReferencedColumn" xml:space="preserve">
+    <value>{0} is referenced by foreign keys of other tables ({1}); Oracle does not drop it (ORA-12992).</value>
+    <comment>{0}: column name; {1}: foreign key names</comment>
+  </data>
+  <data name="DropColumnInConstraint" xml:space="preserve">
+    <value>{0} is part of {1}, a constraint over several columns – drop the constraint first (ORA-12991).</value>
+    <comment>{0}: column name; {1}: constraint name</comment>
+  </data>
+  <data name="DropColumnLosesData" xml:space="preserve">
+    <value>{0} is dropped with all its values – there is no way back.</value>
+    <comment>{0}: column name</comment>
+  </data>
+  <data name="RenameKeepsReferences" xml:space="preserve">
+    <value>{0} → {1}: views, PL/SQL and the C# model (HasColumnName) still use the old name.</value>
+    <comment>{0}: old column name; {1}: new name</comment>
+  </data>
+  <data name="IdentityOnlyNew" xml:space="preserve">
+    <value>{0}: identity columns are only created new, and only renamed or commented here (ORA-30673).</value>
+    <comment>{0}: column name</comment>
+  </data>
+  <data name="VirtualNotChanged" xml:space="preserve">
+    <value>{0}: a virtual column is only renamed or commented here.</value>
+    <comment>{0}: column name</comment>
+  </data>
+  <data name="TypeChangeNotPossible" xml:space="preserve">
+    <value>{0}: {1} → {2} cannot be done by MODIFY (to or from a LOB, ORA-22858). Add a new column, copy the values, drop the old one.</value>
+    <comment>{0}: column name; {1}: old type; {2}: new type</comment>
+  </data>
+  <data name="TypeChangeMayFail" xml:space="preserve">
+    <value>{0}: {1} → {2} fails if a value is too long for it (ORA-01441).</value>
+    <comment>{0}: column name; {1}: old type; {2}: new type</comment>
+  </data>
+  <data name="TypeChangeNeedsEmpty" xml:space="preserve">
+    <value>{0}: {1} → {2} only works on an empty column; it has {3} values. Add a new column, copy the values, drop the old one.</value>
+    <comment>{0}: column name; {1}: old type; {2}: new type; {3}: number of values</comment>
+  </data>
+  <data name="TypeChangeNeedsEmptyUnchecked" xml:space="preserve">
+    <value>{0}: {1} → {2} only works on an empty column – not checked whether it has values.</value>
+    <comment>{0}: column name; {1}: old type; {2}: new type</comment>
+  </data>
+  <data name="DefaultOnNullNeedsValue" xml:space="preserve">
+    <value>{0}: DEFAULT ON NULL needs a default value.</value>
+    <comment>{0}: column name</comment>
+  </data>
+  <data name="NullOnPrimaryKey" xml:space="preserve">
+    <value>{0} is part of the primary key and cannot allow NULL (ORA-01451).</value>
+    <comment>{0}: column name</comment>
+  </data>
+  <data name="NotNullHasNulls" xml:space="preserve">
+    <value>{0} has {1} rows with NULL – fill them first, then NOT NULL works (ORA-02296).</value>
+    <comment>{0}: column name; {1}: number of rows</comment>
+  </data>
+  <data name="NotNullUnchecked" xml:space="preserve">
+    <value>{0}: not checked for NULL values – NOT NULL fails if there are any (ORA-02296).</value>
+    <comment>{0}: column name</comment>
+  </data>
 </root>

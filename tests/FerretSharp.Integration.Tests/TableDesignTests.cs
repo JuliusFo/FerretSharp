@@ -123,6 +123,75 @@ public sealed class TableDesignTests(OracleContainerFixture oracle) : IAsyncLife
     }
 
     /// <summary>
+    /// A column draft as the designer builds it (stage 2): the facts come from the read path, the plan refuses what Oracle
+    /// would refuse, and what it writes runs through the schema path and leaves the table as drafted.
+    /// </summary>
+    [Fact]
+    public async Task A_column_draft_runs_and_leaves_the_table_as_drafted()
+    {
+        await using var connection = await OpenAsync("Design columns");
+        foreach (var sql in new[]
+        {
+            "CREATE TABLE TD_PERSON (ID NUMBER(10) PRIMARY KEY, NAME VARCHAR2(50 BYTE), KUERZEL VARCHAR2(10 BYTE), BETRAG NUMBER(12,2), NOTIZ VARCHAR2(200), ALT NUMBER)",
+            "COMMENT ON COLUMN TD_PERSON.NOTIZ IS 'weg damit'",
+        })
+        {
+            await connection.Editor.ExecuteDdlAsync(sql, Ct);
+        }
+
+        await connection.Editor.ExecuteAsync(new QuerySpec("INSERT INTO TD_PERSON (ID, NAME, KUERZEL, BETRAG) VALUES (1, 'Eins', 'E', 10.5)", []), Ct);
+        await connection.Editor.ExecuteAsync(new QuerySpec("INSERT INTO TD_PERSON (ID, NAME, BETRAG) VALUES (2, NULL, 3)", []), Ct);
+        await connection.Editor.CommitAsync(Ct);
+        var (before, _) = await ReadAsync(connection, "TD_PERSON");
+        ColumnDraft Change(string column, Func<ColumnInfo, ColumnInfo> change) => new(column, change(before.Columns[before.IndexOf(column)]));
+
+        // NAME has a NULL, BETRAG values: NOT NULL and fewer integer digits are refused, as Oracle would.
+        var refused = new TableDraft([.. TableDraft.Of(before).Columns.Select(c => c.Original switch
+        {
+            "NAME" => Change("NAME", n => n with { Nullable = false }),
+            "BETRAG" => Change("BETRAG", n => n with { Precision = 8 }),
+            _ => c,
+        })]);
+        var facts = await TableDesign.CountAsync(connection.Data, before, TableDesign.Questions(before, refused), Ct);
+        var refusedPlan = TableDesign.Plan(before, [], [], refused, facts);
+        Assert.Equal(2, refusedPlan.Problems.Count);
+        Assert.False(refusedPlan.CanRun);
+
+        // What runs: rename with a longer type, more digits, a default, drop, a new mandatory column with default, comments.
+        var draft = new TableDraft([.. TableDraft.Of(before).Columns.Select(c => c.Original switch
+        {
+            "KUERZEL" => Change("KUERZEL", k => k with { Name = "CODE", Length = 20, CharSemantics = true, Comment = "Kurzzeichen" }),
+            "BETRAG" => Change("BETRAG", b => b with { Precision = 14, Scale = 4, Default = "0" }),
+            "NOTIZ" => c with { Dropped = true },
+            "ALT" => Change("ALT", a => a with { DataType = "VARCHAR2", Length = 10, Precision = null, Scale = null }), // empty: may change family
+            _ => c,
+        }), new ColumnDraft(null, new ColumnInfo("AKTIV", "CHAR", 1, false, null, null, false, false, "'J'", 0, "J/N"))]);
+        facts = await TableDesign.CountAsync(connection.Data, before, TableDesign.Questions(before, draft), Ct);
+        Assert.Equal(0, facts.Of(new DataQuestion(DataQuestionKind.Values, "ALT")));
+        var plan = TableDesign.Plan(before, await connection.Schema.GetConstraintsAsync(before.Table.Ref, Ct), [], draft, facts);
+        Assert.True(plan.CanRun, string.Join("\n", plan.Problems));
+
+        foreach (var statement in plan.Statements)
+        {
+            await connection.Editor.ExecuteDdlAsync(statement, Ct);
+        }
+
+        var (after, _) = await ReadAsync(connection, "TD_PERSON");
+        Assert.Equal(["ID", "NAME", "CODE", "BETRAG", "ALT", "AKTIV"], after.Columns.Select(c => c.Name));
+        ColumnInfo Col(string name) => after.Columns[after.IndexOf(name)];
+        Assert.Equal(("VARCHAR2(20 CHAR)", "Kurzzeichen"), (Col("CODE").DisplayType, Col("CODE").Comment));
+        Assert.Equal(("NUMBER(14,4)", "0"), (Col("BETRAG").DisplayType, Col("BETRAG").Default?.Trim()));
+        Assert.Equal("VARCHAR2(10)", Col("ALT").DisplayType);
+        Assert.Equal(("CHAR(1)", false, "'J'", "J/N"), (Col("AKTIV").DisplayType, Col("AKTIV").Nullable, Col("AKTIV").Default?.Trim(), Col("AKTIV").Comment));
+        var rows = await connection.Data.ReadSqlAsync(new QuerySpec("SELECT code, betrag, aktiv FROM td_person ORDER BY id", []), 0, 10, Ct);
+        Assert.Equal(["E", 10.5m, "J"], rows.Rows[0]);
+
+        // The table as it is now: the draft of it writes nothing.
+        Assert.Empty(TableDesign.Plan(after, [], [], TableDraft.Of(after), DataFacts.None).Statements);
+        await connection.Editor.ExecuteDdlAsync("DROP TABLE TD_PERSON PURGE", Ct);
+    }
+
+    /// <summary>
     /// CREATE INDEX is no ALTER TABLE: the schema path does not take the table first. With another session's uncommitted
     /// DML it fails at once with ORA-00054 (WP-22) – the designer shows the lock holders as the SQL editor does.
     /// </summary>
