@@ -16,7 +16,7 @@ Entscheidung des Nutzers (2026-10-09). Issues bekommen eine Art und einen Status
 
 Pakete aus dem Backlog, nach v3 mit dem Nutzer ausgewählt (2026-10-05). Versionen: Minor-Releases 3.x (nichts Inkompatibles).
 
-WP-22 (DDL im SQL-Editor) ist umgesetzt: Protokoll in `docs/work-packages.md`, ADR 0019.
+WP-22 (DDL im SQL-Editor) ist umgesetzt: Protokoll in `docs/work-packages.md`, ADR 0019. Von WP-23 ist Stufe 1 (Index anlegen) in 3.22.0 erschienen.
 
 ### WP-23 Tabellen-Designer + Entity aus Tabelle
 Issue [#10](https://github.com/JuliusFo/FerretSharp/issues/10). Entschieden beim Start (2026-10-11, Vorschläge übernommen):

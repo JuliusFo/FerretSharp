@@ -38,6 +38,7 @@ Was in den abgeschlossenen Paketen gebaut und entschieden wurde, mit Nachträgen
 | WP-29 | Oberfläche auf Englisch (Standard) und Deutsch: typisierte resx je Bereich, Sprache in den Einstellungen bzw. `--lang`, Screenshots auf Englisch | 3.19.0 | 0017 |
 | WP-30 | Offene Änderungen (Panel), Undo bis zu einer Aktion, Redo für Grid und Statements, Ctrl+Z/Ctrl+Y für ausstehende Zellen (Issue #7) | 3.20.0 | 0018 |
 | WP-22 | DDL im SQL-Editor (eigener Schemaweg, Rollback nach Bestätigung, Schema und C#-Modell folgen), DDL-Vorschlag des Vergleichs im SQL-Editor öffnen (Issue #9) | 3.21.0 | 0019 |
+| WP-23 (1) | Index anlegen in der Indizes-Ansicht, „Index dafür anlegen“ für FKs ohne Index; gemeinsamer DDL-Baustein (Ausführen, Im SQL-Editor öffnen, Speichern) (Issue #10) | 3.22.0 | – |
 | R3a | Fehlerbehebung nach dem Review 3.14.0 (Verbindungsverlust je Verbindung, Schreiben serialisiert, UI-Testprojekt) | 3.14.1 | – |
 | R3b | Struktur-Refactoring nach dem Review 3.14.0 (Schema-Reader, Typwissen, SessionGate, UI-Bausteine, State) | 3.15.0 | – |
 
@@ -422,7 +423,7 @@ Issue #7 (2026-10-09): Es gab keinen Ort, der zeigt, was ein Workspace noch nich
 - Nachtrag (Wunsch des Nutzers): Panel-Breite ziehbar wie die Formularansicht (`dragWidth`, 300 px bis 60 % des Arbeitsbereichs), eine Breite für die ganze App in den Einstellungen (`AppSettings.ChangesPanelWidth`); das Panel öffnet nach einem Neustart wieder, wenn es offen war (`ChangesPanelOpen`, über `ShellState.ChangesOpenChanged`); Tastenkürzel `ToggleChanges`, Standard Ctrl+Shift+U (frei, kein Editor- oder Windows-Kürzel; Ctrl+Shift+C wäre der Element-Picker der DevTools). E2E: Kürzel öffnet und schließt, Ziehen speichert die Breite und wird bei 60 % begrenzt, nach Neustart offen mit gespeicherter Breite.
 - Offen: Sprung zu einer Zeile, die nicht geladen ist (filtert nicht danach) – Backlog.
 
-### WP-23 Tabellen-Designer + Entity aus Tabelle – Stufe 1: Index anlegen → Release 3.22.0 (in Arbeit)
+### WP-23 Tabellen-Designer + Entity aus Tabelle – Stufe 1: Index anlegen → Release 3.22.0
 Issue #10. Entscheidungen beim Start (2026-10-11) und Aufteilung in drei Releases: `docs/roadmap.md`.
 - Core:
   - `Design/IndexDesign` (neuer Bereich, Ressource `DesignText`): `SuggestName` (`IX_<TABELLE>_<SPALTEN>` wie der DDL-Vorschlag aus WP-20, aber immer als einfacher Name – Großbuchstaben, andere Zeichen als `_` –, auf 128 **Byte** gekürzt, bei Kollision `_2`, `_3` …), `ForForeignKey`, `Check` (Probleme: Name fehlt/zu lang/mit `"`/vergeben, keine Spalte, doppelte oder unbekannte Spalte, LOB/LONG, genau dieselbe Spaltenliste wie ein vorhandener Index = ORA-01408; Warnungen: Name braucht Anführungszeichen, ein vorhandener Index beginnt schon mit den Spalten), `Ddl` über `DdlText.CreateIndex`.

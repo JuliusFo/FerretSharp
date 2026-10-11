@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.22.0] - 2026-10-11
+
 ### Added
 - *Create index* in the *Indexes* view of a table (WP-23 stage 1, issue #10): choose the columns and their order, optionally UNIQUE; the name is suggested (`IX_<TABLE>_<COLUMNS>`) and can be changed. The `CREATE INDEX` is shown below as you go.
   - A foreign key without index offers *Create index for it*: the draft comes with the key's columns.
