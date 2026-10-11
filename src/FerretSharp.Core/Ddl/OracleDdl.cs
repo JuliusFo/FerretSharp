@@ -200,7 +200,7 @@ internal static class OracleDdl
     /// <c>)</c> that follows.
     /// </summary>
     public static string Expression(string expression) =>
-        SqlScript.Tokenize(expression) is [.., { Kind: SqlTokenKind.Comment } last] && last.Value.StartsWith("--", StringComparison.Ordinal)
+        SqlTokenizer.Tokenize(expression) is [.., { Kind: SqlTokenKind.Comment } last] && last.Value.StartsWith("--", StringComparison.Ordinal)
             ? expression + "\n"
             : expression;
 
@@ -211,7 +211,7 @@ internal static class OracleDdl
     public static bool FitsInStatement(string expression)
     {
         var depth = 0;
-        foreach (var token in SqlScript.Tokenize(expression))
+        foreach (var token in SqlTokenizer.Tokenize(expression))
         {
             if (token.Kind == SqlTokenKind.Bind || token.IsSymbol(";") || (token.IsSymbol(")") && --depth < 0))
             {

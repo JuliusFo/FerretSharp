@@ -295,4 +295,37 @@ public sealed class SqlScriptTests
             SqlScript.DdlRejection("ALTER TABLE kunden MODIFY (name DEFAULT :v)"));
         Assert.NotNull(SqlScript.DdlRejection("CREATE OR REPLACE TRIGGER t BEFORE INSERT ON kunden BEGIN NULL; END;"));
     }
+
+    [Theory]
+    [InlineData("-- nur ein Kommentar", SqlStatementKind.Empty)]
+    [InlineData("/* x */ WITH a AS (SELECT 1 FROM dual) SELECT * FROM a", SqlStatementKind.Query)]
+    [InlineData("alter session set nls_sort = binary", SqlStatementKind.SessionControl)]
+    [InlineData("CREATE OR REPLACE EDITIONABLE PACKAGE p AS END;", SqlStatementKind.PlSqlObject)]
+    [InlineData("CREATE UNIQUE INDEX ix ON t (a)", SqlStatementKind.Ddl)]
+    [InlineData("TRUNCATE TABLE t", SqlStatementKind.Truncate)]
+    public void The_classifier_tells_the_kind_from_the_first_words(string statement, SqlStatementKind kind) =>
+        Assert.Equal(kind, SqlClassifier.KindOf(statement));
+
+    /// <summary>
+    /// R4b: the session's statement guards depend only on the tokenizer and the classifier – a change to the analysis
+    /// (tables, binds, DDL targets) or the splitter must never loosen what the read, write or schema path takes.
+    /// </summary>
+    [Fact]
+    public void The_statement_guards_use_only_the_tokenizer_and_the_classifier()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (!File.Exists(Path.Combine(root.FullName, "FerretSharp.slnx")))
+        {
+            root = root.Parent ?? throw new InvalidOperationException("FerretSharp.slnx not found");
+        }
+
+        var guard = File.ReadAllText(Path.Combine(root.FullName, "src", "FerretSharp.Core", "Oracle", "StatementGuard.cs"));
+        var code = string.Join("\n", guard.Split('\n').Where(line => !line.TrimStart().StartsWith("//", StringComparison.Ordinal)));
+
+        Assert.Contains("SqlTokenizer.", code, StringComparison.Ordinal);
+        Assert.Contains("SqlClassifier.", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("SqlScript.", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("SqlAnalysis.", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("SqlSplitter.", code, StringComparison.Ordinal);
+    }
 }
