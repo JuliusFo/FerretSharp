@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.24.1] - 2026-10-11
+
 Fixes from the review of 3.24.0 (R4a).
 
 ### Security
