@@ -9,6 +9,7 @@ using FerretSharp.Core.ClrModel;
 using FerretSharp.Core.Compare;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Oracle;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Settings;
 using FerretSharp.Core.Workspaces;
 using FerretSharp.UI.Resources;
@@ -41,6 +42,7 @@ public partial class App : Application
                 rollingInterval: RollingInterval.Day,
                 retainedFileCountLimit: 14)
             .CreateLogger();
+        RegisterGlobalExceptionHandlers(); // before anything that can fail (R4a: a failing host build left no trace)
 
         // Settings decide the theme, which must be known before the window and the WebView exist (no white flash), and the
         // language. Read here, not in an async method: the UI culture belongs to the execution context, and a change made
@@ -59,8 +61,25 @@ public partial class App : Application
         Start(e.Args, paths, settingsService, windowsUiCulture);
     }
 
-    private async void Start(
-        string[] args, AppPaths paths, AppSettingsService settings, CultureInfo windowsUiCulture)
+    /// <summary>
+    /// A start that fails says so and ends the process (R4a): before, the error was handled as one of a running app – with
+    /// no main window yet, the process stayed alive without one (ShutdownMode OnMainWindowClose).
+    /// </summary>
+    private async void Start(string[] args, AppPaths paths, AppSettingsService settings, CultureInfo windowsUiCulture)
+    {
+        try
+        {
+            await StartAsync(args, paths, settings, windowsUiCulture);
+        }
+        catch (Exception ex)
+        {
+            Log.Fatal(ex, "FerretSharp could not start");
+            MessageBox.Show(TextFormat.Format(CommonText.StartFailed, ex.Message, paths.LogsDirectory), "FerretSharp", MessageBoxButton.OK, MessageBoxImage.Error);
+            Shutdown(1);
+        }
+    }
+
+    private async Task StartAsync(string[] args, AppPaths paths, AppSettingsService settings, CultureInfo windowsUiCulture)
     {
         var theme = WindowTheme.Create(args, settings.Current.Theme);
 
@@ -113,7 +132,6 @@ public partial class App : Application
 
         _host = builder.Build();
         _logger = _host.Services.GetRequiredService<ILogger<App>>();
-        RegisterGlobalExceptionHandlers();
 
         await _host.StartAsync();
         _logger.LogInformation("FerretSharp {Version} started", typeof(App).Assembly.GetName().Version);
@@ -172,19 +190,20 @@ public partial class App : Application
     {
         DispatcherUnhandledException += OnDispatcherUnhandledException;
 
+        // Serilog directly: these may come before the host and its ILogger exist.
         AppDomain.CurrentDomain.UnhandledException += (_, args) =>
-            _logger?.LogCritical(args.ExceptionObject as Exception, "Unhandled exception (terminating: {IsTerminating})", args.IsTerminating);
+            Log.Fatal(args.ExceptionObject as Exception, "Unhandled exception (terminating: {IsTerminating})", args.IsTerminating);
 
         TaskScheduler.UnobservedTaskException += (_, args) =>
         {
-            _logger?.LogError(args.Exception, "Unobserved task exception");
+            Log.Error(args.Exception, "Unobserved task exception");
             args.SetObserved();
         };
     }
 
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
-        _logger?.LogError(e.Exception, "Unhandled exception on UI thread");
+        Log.Error(e.Exception, "Unhandled exception on UI thread");
         _host?.Services.GetRequiredService<IDialogService>().ShowError(CommonText.UnexpectedError, e.Exception);
         e.Handled = true;
     }

@@ -66,6 +66,11 @@
   <data name="UnexpectedError" xml:space="preserve">
     <value>Unerwarteter Fehler</value>
   </data>
+  <data name="StartFailed" xml:space="preserve">
+    <value>FerretSharp konnte nicht starten: {0}
+
+Das Protokoll liegt in {1}.</value>
+  </data>
   <data name="UnexpectedErrorBar" xml:space="preserve">
     <value>Unerwarteter Fehler.</value>
   </data>
