@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.23.0] - 2026-10-11
+
 ### Added
 - *Edit* in the *Columns* view of a table (WP-23 stage 2, issue #10): change the table's columns and constraints and see the DDL before it runs.
   - Columns: rename, type with size and scale, BYTE or CHAR, NOT NULL, default and DEFAULT ON NULL, comment, delete, add new ones (also identity).

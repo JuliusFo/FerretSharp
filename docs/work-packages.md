@@ -39,6 +39,7 @@ Was in den abgeschlossenen Paketen gebaut und entschieden wurde, mit Nachträgen
 | WP-30 | Offene Änderungen (Panel), Undo bis zu einer Aktion, Redo für Grid und Statements, Ctrl+Z/Ctrl+Y für ausstehende Zellen (Issue #7) | 3.20.0 | 0018 |
 | WP-22 | DDL im SQL-Editor (eigener Schemaweg, Rollback nach Bestätigung, Schema und C#-Modell folgen), DDL-Vorschlag des Vergleichs im SQL-Editor öffnen (Issue #9) | 3.21.0 | 0019 |
 | WP-23 (1) | Index anlegen in der Indizes-Ansicht, „Index dafür anlegen“ für FKs ohne Index; gemeinsamer DDL-Baustein (Ausführen, Im SQL-Editor öffnen, Speichern) (Issue #10) | 3.22.0 | – |
+| WP-23 (2) | Spalten-Designer: Bearbeitungsmodus der Spalten-Ansicht (Spalten, Schlüssel, Checks, FKs mit Index, Prüfungen vorab mit Zählungen, Rest des Entwurfs nach Abbruch), Property-Zeile im Stil des Projekts (Issue #10) | 3.23.0 | 0020 |
 | R3a | Fehlerbehebung nach dem Review 3.14.0 (Verbindungsverlust je Verbindung, Schreiben serialisiert, UI-Testprojekt) | 3.14.1 | – |
 | R3b | Struktur-Refactoring nach dem Review 3.14.0 (Schema-Reader, Typwissen, SessionGate, UI-Bausteine, State) | 3.15.0 | – |
 
@@ -423,7 +424,7 @@ Issue #7 (2026-10-09): Es gab keinen Ort, der zeigt, was ein Workspace noch nich
 - Nachtrag (Wunsch des Nutzers): Panel-Breite ziehbar wie die Formularansicht (`dragWidth`, 300 px bis 60 % des Arbeitsbereichs), eine Breite für die ganze App in den Einstellungen (`AppSettings.ChangesPanelWidth`); das Panel öffnet nach einem Neustart wieder, wenn es offen war (`ChangesPanelOpen`, über `ShellState.ChangesOpenChanged`); Tastenkürzel `ToggleChanges`, Standard Ctrl+Shift+U (frei, kein Editor- oder Windows-Kürzel; Ctrl+Shift+C wäre der Element-Picker der DevTools). E2E: Kürzel öffnet und schließt, Ziehen speichert die Breite und wird bei 60 % begrenzt, nach Neustart offen mit gespeicherter Breite.
 - Offen: Sprung zu einer Zeile, die nicht geladen ist (filtert nicht danach) – Backlog.
 
-### WP-23 Tabellen-Designer + Entity aus Tabelle – Stufe 2: Spalten-Designer → nächstes Release
+### WP-23 Tabellen-Designer + Entity aus Tabelle – Stufe 2: Spalten-Designer → Release 3.23.0
 Issue #10, Begründung: ADR 0020. Bearbeitungsmodus der Spalten-Ansicht für bestehende Tabellen, dazu die Property-Zeile neuer Spalten.
 - Experiment gegen Oracle 23 (Integrationstest, danach entfernt), jeweils mit einem Wert in der Spalte:
   - geht: Text gleicher Art länger, VARCHAR2↔CHAR, →NVARCHAR2, BYTE→CHAR; NUMBER mit mehr Vor- und Nachkommastellen (`(12,2)`→`(14,4)`), zu `NUMBER`/`FLOAT`; DATE↔TIMESTAMP in beiden Richtungen; Spalte umbenennen, löschen; `ADD … DEFAULT … NOT NULL` und Identity auf gefüllter Tabelle; `DEFAULT NULL` entfernt einen Default; `COMMENT … IS ''`.
