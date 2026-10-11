@@ -49,12 +49,20 @@ public sealed class ModelCache(string directory, string modelHostPath, CultureIn
         }
     }
 
-    /// <summary>Stores a freshly exported model; failures to write are ignored (the cache is only a shortcut).</summary>
-    public async Task SaveAsync(ClrProjectLink link, BuildOutput output, ModelExport model, CancellationToken cancellationToken)
+    /// <summary>Stores a freshly exported model of the build output as it is now; see the other overload.</summary>
+    public Task SaveAsync(ClrProjectLink link, BuildOutput output, ModelExport model, CancellationToken cancellationToken) =>
+        SaveAsync(link, Fingerprint(link, output), model, cancellationToken);
+
+    /// <summary>
+    /// Stores a freshly exported model under the fingerprint taken <em>before</em> the export (<see cref="Fingerprint"/>):
+    /// taken afterwards, a build finished meanwhile put the old model under the new build's fingerprint, and the cache
+    /// served it as current until "Neu laden" (R4a). Failures to write are ignored (the cache is only a shortcut).
+    /// </summary>
+    public async Task SaveAsync(ClrProjectLink link, string fingerprint, ModelExport model, CancellationToken cancellationToken)
     {
         try
         {
-            await AtomicJsonFile.WriteAsync(FileOf(link), new CacheFile(FileVersion, Fingerprint(link, output), DateTimeOffset.Now, model),
+            await AtomicJsonFile.WriteAsync(FileOf(link), new CacheFile(FileVersion, fingerprint, DateTimeOffset.Now, model),
                 ModelHostResult.JsonOptions, cancellationToken);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

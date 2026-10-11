@@ -215,6 +215,8 @@ public sealed class ClrModelManager : IDisposable
             }
             else
             {
+                // Before the export: a build finishing during it must not get the old model as its own (R4a).
+                var fingerprint = _cache?.Fingerprint(link, output);
                 var result = await _runner.ReadModelAsync(link, output, cts.Token, new SyncProgress<string>(Report));
                 if (result.Model is not { } exported)
                 {
@@ -223,9 +225,9 @@ public sealed class ClrModelManager : IDisposable
                 }
 
                 model = exported;
-                if (_cache is not null)
+                if (_cache is not null && fingerprint is not null)
                 {
-                    await _cache.SaveAsync(link, output, model, cts.Token);
+                    await _cache.SaveAsync(link, fingerprint, model, cts.Token);
                 }
             }
 
