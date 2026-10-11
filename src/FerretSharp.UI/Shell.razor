@@ -247,6 +247,11 @@
         KeepAlive.ConnectionLost += OnKeepAliveLost;
         Shortcuts.Changed += OnShortcutsChanged;
         KeepAlive.Start();
+        if (Settings.StartupNotice is { } notice)
+        {
+            _state.Notify(notice); // the settings file could not be read (R4a)
+        }
+
         await Connections.LoadAsync(CancellationToken.None);
         await Recent.LoadAsync(CancellationToken.None);
     }

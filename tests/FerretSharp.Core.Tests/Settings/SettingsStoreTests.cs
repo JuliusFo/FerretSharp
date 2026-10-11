@@ -113,6 +113,59 @@ public sealed class SettingsStoreTests : IDisposable
         await Assert.ThrowsAsync<SettingsStoreException>(() => _store.LoadAsync(Ct));
     }
 
+    private static readonly DateTimeOffset Start = new(2026, 10, 11, 15, 30, 0, TimeSpan.FromHours(2));
+
+    /// <summary>
+    /// R4a: the app started with defaults and the next save – moving a panel was enough – replaced the file, shortcuts and
+    /// all. Now a copy is kept first and the user is told.
+    /// </summary>
+    [Fact]
+    public async Task A_file_that_cannot_be_read_is_kept_as_a_copy_before_the_first_save()
+    {
+        const string newer = """{ "version": 99, "settings": { "theme": "dark" } }""";
+        await File.WriteAllTextAsync(_store.FilePath, newer, Ct);
+
+        var service = await AppSettingsService.OpenAsync(_store, Start, Ct);
+        await service.UpdateAsync(s => s with { ChangesPanelOpen = true }, Ct);
+
+        var copy = _store.FilePath + ".bad-20261011-153000";
+        Assert.Equal(newer, await File.ReadAllTextAsync(copy, Ct));
+        Assert.Equal(AppSettings.Default with { ChangesPanelOpen = true }, await _store.LoadAsync(Ct));
+        Assert.Equal(
+            $"{_store.FilePath} stammt aus einer neueren FerretSharp-Version (Format 99). FerretSharp startet mit den Standardeinstellungen; die Datei bleibt als {copy} erhalten.",
+            service.StartupNotice);
+        Assert.Null(service.NotSaving);
+    }
+
+    [Fact]
+    public async Task Without_a_copy_nothing_is_saved_in_the_session()
+    {
+        await File.WriteAllTextAsync(_store.FilePath, "{ not json", Ct);
+        await File.WriteAllTextAsync(_store.FilePath + ".bad-20261011-153000", "", Ct); // the copy cannot be made
+
+        var service = await AppSettingsService.OpenAsync(_store, Start, Ct);
+        var refused = await Assert.ThrowsAsync<IOException>(() => service.UpdateAsync(s => s with { Theme = ThemeMode.Dark }, Ct));
+
+        Assert.Equal(ThemeMode.Dark, service.Current.Theme); // in effect for the session
+        Assert.Equal("{ not json", await File.ReadAllTextAsync(_store.FilePath, Ct));
+        Assert.Equal("Die Einstellungsdatei ließ sich beim Start nicht lesen.", refused.Message);
+        Assert.EndsWith("FerretSharp startet mit den Standardeinstellungen und speichert in dieser Sitzung keine Einstellungen, damit die Datei bleibt, wie sie ist.",
+            service.StartupNotice);
+    }
+
+    [Fact]
+    public async Task A_readable_file_has_nothing_to_tell()
+    {
+        await _store.SaveAsync(new AppSettings { Theme = ThemeMode.Light }, Ct);
+
+        var service = await AppSettingsService.OpenAsync(_store, Start, Ct);
+
+        Assert.Equal(ThemeMode.Light, service.Current.Theme);
+        Assert.Null(service.StartupNotice);
+        Assert.Null(service.NotSaving);
+        Assert.Single(Directory.GetFiles(_folder.Path));
+    }
+
     public void Dispose()
     {
         _folder.Dispose();

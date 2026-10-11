@@ -49,4 +49,8 @@
     <value>{0} is not a valid connections JSON file: {1}</value>
     <comment>{0}: path of connections.json; {1}: error message of the JSON reader</comment>
   </data>
+  <data name="FileUnreadableNotSaved" xml:space="preserve">
+    <value>the connections file could not be read at start, and saving would replace it and lose the connections in it. Repair or move the file, then start FerretSharp again.</value>
+    <comment>Follows “Saving failed:”</comment>
+  </data>
 </root>

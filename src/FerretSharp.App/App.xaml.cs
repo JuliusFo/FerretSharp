@@ -45,17 +45,10 @@ public partial class App : Application
         // Settings decide the theme, which must be known before the window and the WebView exist (no white flash), and the
         // language. Read here, not in an async method: the UI culture belongs to the execution context, and a change made
         // inside an async method is undone when it returns – Blazor would render in the Windows language again.
-        var settingsStore = new SettingsStore(paths.SettingsFile);
-        var settings = AppSettings.Default;
-        string? settingsError = null;
-        try
-        {
-            settings = Task.Run(() => settingsStore.LoadAsync(CancellationToken.None)).GetAwaiter().GetResult();
-        }
-        catch (Exception ex) when (ex is SettingsStoreException or IOException or UnauthorizedAccessException)
-        {
-            settingsError = ex.Message;
-        }
+        // A file that cannot be read is kept as a copy before the first save replaces it (R4a).
+        var settingsService = Task.Run(() => AppSettingsService.OpenAsync(new SettingsStore(paths.SettingsFile), DateTimeOffset.Now, CancellationToken.None))
+            .GetAwaiter().GetResult();
+        var settings = settingsService.Current;
 
         // The UI language (WP-29, ADR 0017): only the UI culture changes, so numbers and dates keep their formats. The enum
         // display names of a linked C# project keep the Windows language (the projects may only have German resources).
@@ -63,13 +56,13 @@ public partial class App : Application
         CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.CurrentUICulture =
             UiLanguages.Culture(UiLanguages.FromArguments(e.Args) ?? settings.Language);
 
-        Start(e.Args, paths, settingsStore, settings, settingsError, windowsUiCulture);
+        Start(e.Args, paths, settingsService, windowsUiCulture);
     }
 
     private async void Start(
-        string[] args, AppPaths paths, SettingsStore settingsStore, AppSettings settings, string? settingsError, CultureInfo windowsUiCulture)
+        string[] args, AppPaths paths, AppSettingsService settings, CultureInfo windowsUiCulture)
     {
-        var theme = WindowTheme.Create(args, settings.Theme);
+        var theme = WindowTheme.Create(args, settings.Current.Theme);
 
         var builder = Host.CreateApplicationBuilder(args);
         builder.Services.AddSerilog();
@@ -92,7 +85,7 @@ public partial class App : Application
         builder.Services.AddSingleton<ConnectionHub>();
         builder.Services.AddSingleton<IOpenConnections>(services => services.GetRequiredService<ConnectionHub>());
         builder.Services.AddSingleton<ConnectionKeepAlive>();
-        builder.Services.AddSingleton(new AppSettingsService(settingsStore, settings));
+        builder.Services.AddSingleton(settings);
         builder.Services.AddSingleton<ShortcutService>();
         builder.Services.AddSingleton(theme);
         builder.Services.AddSingleton<IThemeService, ThemeService>();
@@ -124,9 +117,9 @@ public partial class App : Application
 
         await _host.StartAsync();
         _logger.LogInformation("FerretSharp {Version} started", typeof(App).Assembly.GetName().Version);
-        if (settingsError is not null)
+        if (settings.StartupNotice is { } notice)
         {
-            _logger.LogWarning("Settings could not be read, using defaults: {Error}", settingsError);
+            _logger.LogWarning("Settings could not be read, using defaults: {Notice}", notice);
         }
 
         var window = _host.Services.GetRequiredService<MainWindow>();

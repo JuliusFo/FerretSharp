@@ -258,4 +258,13 @@
   <data name="ActionToggleChanges" xml:space="preserve">
     <value>Offene Änderungen zeigen/ausblenden</value>
   </data>
+  <data name="NotReadKept" xml:space="preserve">
+    <value>{0} FerretSharp startet mit den Standardeinstellungen; die Datei bleibt als {1} erhalten.</value>
+  </data>
+  <data name="NotReadNotSaving" xml:space="preserve">
+    <value>{0} FerretSharp startet mit den Standardeinstellungen und speichert in dieser Sitzung keine Einstellungen, damit die Datei bleibt, wie sie ist.</value>
+  </data>
+  <data name="NotSavingThisSession" xml:space="preserve">
+    <value>Die Einstellungsdatei ließ sich beim Start nicht lesen.</value>
+  </data>
 </root>
