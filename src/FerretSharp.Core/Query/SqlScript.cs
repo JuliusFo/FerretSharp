@@ -138,10 +138,13 @@ public static class SqlScript
         "ASSOCIATE", "DISASSOCIATE",
     };
 
-    /// <summary>Objects whose CREATE carries a PL/SQL (or Java) body.</summary>
+    /// <summary>
+    /// Objects whose CREATE carries a PL/SQL body or other stored code: Java, JavaScript (<c>MLE MODULE</c>/<c>ENV</c>, 23ai,
+    /// valid without any <c>;</c>), external libraries.
+    /// </summary>
     private static readonly HashSet<string> PlSqlObjects = new(StringComparer.OrdinalIgnoreCase)
     {
-        "PROCEDURE", "FUNCTION", "PACKAGE", "TRIGGER", "TYPE", "JAVA",
+        "PROCEDURE", "FUNCTION", "PACKAGE", "TRIGGER", "TYPE", "JAVA", "MLE", "LIBRARY",
     };
 
     /// <summary>Words between CREATE and the object type: <c>OR REPLACE</c>, <c>EDITIONABLE</c>, <c>AND COMPILE</c> (Java) ….</summary>
@@ -497,8 +500,34 @@ public static class SqlScript
             _ => null,
         };
 
-        return at is { } i && ReferenceAt(tokens, i, 0) is { } reference ? reference.Table with { Alias = null } : null;
+        return at is { } i ? DdlTargetAt(tokens, i) : null;
     }
+
+    /// <summary>
+    /// The object a DDL statement names at <paramref name="i"/>: <c>[IF [NOT] EXISTS] [owner.]name</c>. Unlike a table in a
+    /// query, a DDL target has no alias – every word is a name here (R4a: <c>ALTER TABLE log …</c> was not recognised, the
+    /// table not taken first, and the ALTER could wait without a way to cancel it).
+    /// </summary>
+    private static SqlTableReference? DdlTargetAt(List<SqlToken> tokens, int i)
+    {
+        if (i + 1 < tokens.Count && tokens[i].IsWord("IF"))
+        {
+            i += tokens[i + 1].IsWord("EXISTS") ? 2 : tokens[i + 1].IsWord("NOT") && i + 2 < tokens.Count && tokens[i + 2].IsWord("EXISTS") ? 3 : 0;
+        }
+
+        if (DdlName(tokens, i) is not { } first)
+        {
+            return null;
+        }
+
+        return i + 2 < tokens.Count && tokens[i + 1].IsSymbol(".") && DdlName(tokens, i + 2) is { } second
+            ? new SqlTableReference(first, second, null, 0)
+            : new SqlTableReference(null, first, null, 0);
+    }
+
+    /// <summary>A name in dictionary form, keywords included (see <see cref="DdlTargetAt"/>); null for anything else.</summary>
+    private static string? DdlName(List<SqlToken> tokens, int i) =>
+        i < tokens.Count && tokens[i].Kind is SqlTokenKind.Word or SqlTokenKind.QuotedIdentifier ? Normalize(tokens[i]) : null;
 
     /// <summary><c>CREATE [UNIQUE | BITMAP | MULTIVALUE] INDEX [IF NOT EXISTS] name ON x</c>: the position of x.</summary>
     private static int? IndexOn(List<SqlToken> tokens)
@@ -520,7 +549,7 @@ public static class SqlScript
         var parts = new List<string>();
         for (var i = 3; i < tokens.Count; i += 2)
         {
-            if (Name(tokens, i) is not { } name)
+            if (DdlName(tokens, i) is not { } name)
             {
                 return null;
             }
