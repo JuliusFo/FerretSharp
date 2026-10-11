@@ -19,6 +19,18 @@ Pakete aus dem Backlog, nach v3 mit dem Nutzer ausgewählt (2026-10-05). Version
 WP-22 (DDL im SQL-Editor) ist umgesetzt: Protokoll in `docs/work-packages.md`, ADR 0019.
 
 ### WP-23 Tabellen-Designer + Entity aus Tabelle
+Issue [#10](https://github.com/JuliusFo/FerretSharp/issues/10). Entschieden beim Start (2026-10-11, Vorschläge übernommen):
+- **Drei Releases**, jede Stufe mit DB-Änderung und passendem C#:
+  1. 3.22 Index anlegen (Indizes-Ansicht, „Index dafür anlegen“ beim FK-Hinweis) und ein gemeinsamer Baustein zum Ausführen von DDL (Bestätigung, Verwerfen-Dialog, andere Schreiber, Sperrinhaber – aus `SqlView` herausgezogen).
+  2. 3.23 Spalten-Designer für bestehende Tabellen, dazu die Property-Zeile neuer Spalten zum Kopieren.
+  3. 3.24 Neue Tabelle, dazu Entity + `IEntityTypeConfiguration` aus einer Tabelle.
+- Designer = **Bearbeitungsmodus der Spalten-Ansicht** (DDL-Vorschau live darunter); eine neue Tabelle öffnet einen Tab im selben Modus.
+- Änderungen **sammeln, ein Skript, eine Bestätigung**; Ausführung Statement für Statement, Stopp beim ersten Fehler (DDL ist nicht atomar); danach Schema neu laden, nicht ausgeführte Änderungen bleiben im Entwurf.
+- Ergebnis: **ausführen, kopieren, im SQL-Editor öffnen, als `.sql` speichern** (Speichern-unter mit Namensvorschlag, letzter Ordner je Verbindung; Flyway-Namen erst mit dem Flyway-Thema im Backlog).
+- Der Designer arbeitet im Workspace des Tabs; in gesperrten Workspaces nur kopieren. Hat der Tab ausstehende Änderungen, warnt er vorher (der Tab behält nach dem DDL seine alte Struktur).
+- C#: nur aus dem **Modell-Export** (Namen nach Konvention, Converter, die das Projekt für vergleichbare Spalten nutzt, Längen/Precision, PK, FKs als Navigations-Vorschlag), kein Lesen der Quelltexte. Entity-Name als Vorschlag (PascalCase, einfache Singular-Heuristik, Muster vorhandener Paare Tabelle ↔ Entity), vor dem Kopieren änderbar.
+
+Ursprünglicher Plan:
 - Spalten-Ansicht eines Tabs bearbeitbar: Spalte hinzufügen, Typ/Länge/Precision, NULL, Default, Kommentar ändern, umbenennen, löschen; PK, Unique, FK, Indizes; neue Tabelle anlegen. FerretSharp erzeugt das DDL und zeigt es **vor** dem Ausführen (ausführen über den Schemaweg aus WP-22 – `WorkspaceManager.ExecuteDdlAsync`, Bestätigung und Rollback-Dialog wie im SQL-Editor – oder nur kopieren, z. B. als Skript fürs Repo). Hinweis aus WP-22: Der Schemaweg sperrt die Tabelle vor `ALTER TABLE` (`LOCK TABLE … NOWAIT`) und startet nicht, wenn eine andere Session sie hält (`TableBusyException`) – der Designer zeigt dann wie der SQL-Editor, wer sperrt (`WorkspaceLifecycle.LockOfAsync`, `LockHolderList`), und warnt vorher (`OtherWriters`).
 - Indizes setzen (Wunsch der Kollegen des Nutzers, 2026-10-07; bleibt in WP-23, Entscheidung des Nutzers): „Index anlegen“ in der Indizes-Ansicht (Spalten, optional UNIQUE), beim Hinweis „Fremdschlüssel ohne Index“ ein Klick „Index dafür anlegen“.
 - Oracle-Fallen im Designer abfangen: NOT NULL auf Spalte mit NULL-Werten (vorher zählen), Typänderung gefüllter Spalten (oft nur über neue Spalte + Umkopieren), VARCHAR2 BYTE/CHAR-Semantik, Index für neue FKs vorschlagen (`IndexAdvice`), Identity/Default ON NULL.

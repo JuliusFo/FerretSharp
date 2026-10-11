@@ -1,4 +1,8 @@
-@* "Indexes" view: indexes of the table with columns/expressions and state, plus foreign keys without a supporting index. *@
+@* "Indexes" view: indexes of the table with columns/expressions and state, plus foreign keys without a supporting index.
+   WP-23: "Create index" (columns in order, optionally UNIQUE) and "Create index for it" on an unindexed foreign key open a
+   draft above the list; its DDL is run, opened in the SQL editor or saved through DdlDraftPanel. *@
+@using FerretSharp.Core.Design
+@using FerretSharp.Core.Oracle
 @using FerretSharp.Core.Schema
 @inherits DetailViewBase<IReadOnlyList<IndexInfo>>
 
@@ -19,13 +23,69 @@ else
                 <strong>@TextFormat.Plural(unindexed.Count, SchemaViewText.Indexes_UnindexedFkOne, SchemaViewText.Indexes_UnindexedFkOther)</strong>
                 @foreach (var fk in unindexed)
                 {
-                    <span class="mono">@fk.Name (@string.Join(", ", fk.FromColumns))</span>
+                    <span class="mono">
+                        @fk.Name (@string.Join(", ", fk.FromColumns))
+                        <button class="link-btn" title="@TextFormat.Format(SchemaViewText.Indexes_CreateForFkTitle, fk.Name)"
+                                @onclick="() => StartDraft(IndexDesign.ForForeignKey(fk, indexes))">@SchemaViewText.Indexes_CreateForFk</button>
+                    </span>
                 }
                 <span class="muted">@SchemaViewText.Indexes_UnindexedFkHint</span>
             </div>
         }
+        @if (_drafting)
+        {
+            var draft = Draft;
+            var check = IndexDesign.Check(draft, Details, indexes);
+            <section class="index-draft">
+                <h2>@SchemaViewText.Indexes_NewHeading</h2>
+                <div class="index-draft-form">
+                    <label for="@_nameId">@SchemaViewText.Head_Name</label>
+                    <input id="@_nameId" class="field mono" spellcheck="false" value="@_name" @oninput="e => SetName((string?)e.Value)" @onchange="SuggestName" />
+
+                    <span class="label">@SchemaViewText.Head_Columns</span>
+                    <div class="index-draft-columns">
+                        @for (var i = 0; i < _columns.Count; i++)
+                        {
+                            var at = i;
+                            <span class="index-draft-column">
+                                <span class="mono">@_columns[at]</span>
+                                <button class="icon-btn" disabled="@(at == 0)" title="@SchemaViewText.Indexes_ColumnEarlier" @onclick="() => Move(at, -1)">↑</button>
+                                <button class="icon-btn" disabled="@(at == _columns.Count - 1)" title="@SchemaViewText.Indexes_ColumnLater" @onclick="() => Move(at, 1)">↓</button>
+                                <button class="icon-btn" title="@SchemaViewText.Indexes_ColumnRemove" @onclick="() => Remove(at)">✕</button>
+                            </span>
+                        }
+                        @{ var free = Details.Columns.Where(c => !_columns.Contains(c.Name) && !OracleTypes.IsLobOrLong(c.DataType)).ToList(); /* LOBs cannot be indexed */ }
+                        @if (free.Count > 0)
+                        {
+                            @* Keyed on the choice: after adding, the select shows its placeholder again. *@
+                            <select class="field" @key="_columns.Count" @onchange="e => Add((string?)e.Value)" aria-label="@SchemaViewText.Indexes_ColumnAdd">
+                                <option value="" selected>@SchemaViewText.Indexes_ColumnAdd</option>
+                                @foreach (var column in free)
+                                {
+                                    <option value="@column.Name">@column.Name · @column.DisplayType</option>
+                                }
+                            </select>
+                        }
+                    </div>
+
+                    <span></span>
+                    <label class="check">
+                        <input type="checkbox" checked="@_unique" @onchange="e => SetUnique(e.Value is true)" />
+                        @SchemaViewText.Indexes_UniqueOption
+                    </label>
+                </div>
+                <DdlDraftPanel WorkspaceId="WorkspaceId" Statements="Statements(draft)" Problems="check.Problems" Warnings="check.Warnings"
+                               FileName="@($"{DateTime.Now:yyyy-MM-dd}_{draft.Name}.sql")" OnRan="OnRanAsync" OnClose="() => _drafting = false" />
+            </section>
+        }
         <section>
-            <h2>@SchemaViewText.Indexes_Heading <span class="count">@indexes.Count</span></h2>
+            <div class="structure-columns-head">
+                <h2>@SchemaViewText.Indexes_Heading <span class="count">@indexes.Count</span></h2>
+                @if (!_drafting)
+                {
+                    <button class="btn" @onclick="() => StartDraft(null)"><span class="plus">+</span> @SchemaViewText.Indexes_Create</button>
+                }
+            </div>
             @if (indexes.Count == 0)
             {
                 <p class="muted">@SchemaViewText.Indexes_None</p>
@@ -72,6 +132,29 @@ else
 }
 
 @code {
+    private readonly string _nameId = $"index-name-{Guid.NewGuid():N}";
+
+    /// <summary>A draft is open (WP-23); its parts are edited one by one.</summary>
+    private bool _drafting;
+
+    private List<string> _columns = [];
+    private string _name = "";
+    private bool _unique;
+
+    /// <summary>The user typed a name: it no longer follows the columns.</summary>
+    private bool _nameTyped;
+
+    /// <summary>The tab's workspace: DDL runs in its session.</summary>
+    [Parameter, EditorRequired]
+    public Guid WorkspaceId { get; set; }
+
+    /// <summary>DDL ran: the tab reloads its detail views (indexes, constraints, DDL).</summary>
+    [Parameter]
+    public EventCallback OnSchemaChanged { get; set; }
+
+    /// <summary>The name as Oracle stores it: typed without quotes upper case, in quotes as typed.</summary>
+    private IndexDraft Draft => new(OracleIdentifier.Normalize(_name), _columns, _unique);
+
     private static string State(IndexInfo index) => string.Join(" · ", new[]
     {
         index.Status switch { "VALID" => SchemaViewText.Indexes_Valid, "UNUSABLE" => "UNUSABLE", "N/A" => null, var s => s },
@@ -81,4 +164,62 @@ else
 
     protected override Task<IReadOnlyList<IndexInfo>> LoadAsync(SchemaCache schema, CancellationToken cancellationToken) =>
         Table.Kind == TableKind.View ? Task.FromResult<IReadOnlyList<IndexInfo>>([]) : schema.GetIndexesAsync(Table.Ref, cancellationToken);
+
+    /// <summary>Opens a draft: empty, or one prepared for a foreign key.</summary>
+    private void StartDraft(IndexDraft? prepared)
+    {
+        _drafting = true;
+        _columns = prepared?.Columns.ToList() ?? [];
+        _unique = prepared?.Unique ?? false;
+        _nameTyped = false;
+        _name = prepared?.Name ?? "";
+        SuggestName();
+    }
+
+    private void SuggestName()
+    {
+        if (!_nameTyped && Data is { } indexes)
+        {
+            _name = _columns.Count == 0 ? "" : IndexDesign.SuggestName(Table.Name, _columns, indexes.Select(i => i.Name));
+        }
+    }
+
+    private void SetName(string? value)
+    {
+        _name = value ?? "";
+        _nameTyped = _name.Length > 0; // cleared: follow the columns again (from the next change or on leaving the field)
+    }
+
+    private void SetUnique(bool unique) => _unique = unique;
+
+    private void Add(string? column)
+    {
+        if (!string.IsNullOrEmpty(column) && !_columns.Contains(column))
+        {
+            _columns.Add(column);
+            SuggestName();
+        }
+    }
+
+    private void Remove(int at)
+    {
+        _columns.RemoveAt(at);
+        SuggestName();
+    }
+
+    private void Move(int at, int by)
+    {
+        (_columns[at], _columns[at + by]) = (_columns[at + by], _columns[at]);
+        SuggestName();
+    }
+
+    /// <summary>The CREATE INDEX, as soon as there is something to write (problems keep it from running).</summary>
+    private IReadOnlyList<string> Statements(IndexDraft draft) =>
+        draft.Columns.Count > 0 && draft.Name.Length > 0 && !draft.Name.Contains('"', StringComparison.Ordinal) ? [IndexDesign.Ddl(draft, Table.Ref)] : [];
+
+    private async Task OnRanAsync()
+    {
+        _drafting = false;
+        await OnSchemaChanged.InvokeAsync();
+    }
 }

@@ -136,8 +136,7 @@
     var writes = pending.Where(r => r.Info.IsDml).ToList();
     var ddl = pending.Where(r => r.Info.IsDdl).ToList();
     @* WP-22: DDL would commit the workspace's open transaction – it is rolled back first, so show what it holds. *@
-    var discard = ddl.Count > 0 && Shell.FindWorkspace(Tab.WorkspaceId) is { } workspace && Lifecycle.Editing.SummaryOf(workspace) is { HasWork: true } summary
-        ? (workspace, summary) : ((WorkspaceTabs, EditSummary)?)null;
+    var discard = ddl.Count > 0 ? Lifecycle.OpenWorkOf(Tab.WorkspaceId) : null;
     <ConfirmDialog Title="@(ddl.Count > 0 ? SqlEditorText.SqlView_ConfirmDdlTitle : allRows.Count > 0 ? SqlEditorText.SqlView_ConfirmAllRowsTitle : SqlEditorText.SqlView_ConfirmProdTitle)"
                    ConfirmLabel="@(discard is null ? CommonText.Run : SqlEditorText.SqlView_DiscardAndRun)" Danger="true"
                    OnConfirm="() => ConfirmAsync(pending, discard?.Item1)" OnCancel="() => _confirm = null">
@@ -202,17 +201,7 @@
         }
         @if (ddl.Count > 0)
         {
-            @foreach (var other in Lifecycle.OtherWriters(Tab.WorkspaceId))
-            {
-                <p class="hint small">⚠ @(other.Tables.Count > 0
-                    ? TextFormat.Format(SqlEditorText.SqlView_ConfirmDdlOtherWriterTables, other.Workspace, string.Join(", ", other.Tables))
-                    : TextFormat.Format(SqlEditorText.SqlView_ConfirmDdlOtherWriter, other.Workspace))</p>
-            }
-        }
-        @if (discard is ({ } discardTabs, { } discardSummary))
-        {
-            <p><Fmt Text="@SqlEditorText.SqlView_ConfirmDdlDiscard"><Arg0><strong>@Lifecycle.WorkspaceName(Tab.WorkspaceId)</strong></Arg0></Fmt></p>
-            <OpenChangesList Workspace="discardTabs" Summary="discardSummary" Heading="@SqlEditorText.SqlView_ConfirmDdlDiscardList" />
+            <DdlWarnings WorkspaceId="Tab.WorkspaceId" Discard="discard" />
         }
         @if (ddl.Count == 0)
         {

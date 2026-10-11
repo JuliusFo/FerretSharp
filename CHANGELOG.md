@@ -5,6 +5,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- *Create index* in the *Indexes* view of a table (WP-23 stage 1, issue #10): choose the columns and their order, optionally UNIQUE; the name is suggested (`IX_<TABLE>_<COLUMNS>`) and can be changed. The `CREATE INDEX` is shown below as you go.
+  - A foreign key without index offers *Create index for it*: the draft comes with the key's columns.
+  - Checked beforehand: an index on exactly these columns already exists (Oracle would refuse it), an existing index already starts with these columns (usually enough), names longer than 128 bytes or needing quotes, columns that cannot be indexed (LOBs).
+  - *Run* works like DDL in the SQL editor: confirmed first, uncommitted changes of the workspace are discarded only after showing them, a table another session has written to is reported with who holds it. On a read-only workspace only after unlocking.
+  - *Open in SQL editor* and *Save …* as a `.sql` file; the save dialog starts in the folder last used for the connection. Copy with the icon of the script.
+
+### Fixed
+- Creating a workspace could end in *Unexpected error* (the bar at the bottom of the window): the name field was focused before it existed. The app then also no longer closed normally.
+
 ## [3.21.0] - 2026-10-11
 
 ### Added

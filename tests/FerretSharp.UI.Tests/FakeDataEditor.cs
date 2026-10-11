@@ -9,7 +9,7 @@ namespace FerretSharp.UI.Tests;
 /// A workspace session's editor without a database: writes write nothing but become actions of a <see cref="WriteLog"/>,
 /// so undo up to an action and redo behave as with Oracle (WP-30). The transaction is always open, like the mock before.
 /// </summary>
-internal sealed class FakeDataEditor(Func<Func<Task>?> onCommit) : IDataEditor
+internal sealed class FakeDataEditor(Func<Func<Task>?> onCommit, Func<string, Exception?>? onDdl = null) : IDataEditor
 {
     private readonly WriteLog _log = new();
     private int _savepoints;
@@ -90,6 +90,11 @@ internal sealed class FakeDataEditor(Func<Func<Task>?> onCommit) : IDataEditor
 
     public Task ExecuteDdlAsync(string statement, CancellationToken cancellationToken)
     {
+        if (onDdl?.Invoke(statement) is { } failure)
+        {
+            return Task.FromException(failure);
+        }
+
         Ddl.Add(statement);
         _log.Clear();
         return Task.CompletedTask;

@@ -1,0 +1,27 @@
+@* What DDL confirmations say besides the statements (WP-22, shared since WP-23 by the SQL editor and the table designer):
+   other workspaces of the connection with an open write transaction, and the uncommitted changes of this workspace that
+   are rolled back first. *@
+
+@foreach (var other in Lifecycle.OtherWriters(WorkspaceId))
+{
+    <p class="hint small">⚠ @(other.Tables.Count > 0
+        ? TextFormat.Format(SqlEditorText.SqlView_ConfirmDdlOtherWriterTables, other.Workspace, string.Join(", ", other.Tables))
+        : TextFormat.Format(SqlEditorText.SqlView_ConfirmDdlOtherWriter, other.Workspace))</p>
+}
+@if (Discard is ({ } workspace, { } summary))
+{
+    <p><Fmt Text="@SqlEditorText.SqlView_ConfirmDdlDiscard"><Arg0><strong>@Lifecycle.WorkspaceName(WorkspaceId)</strong></Arg0></Fmt></p>
+    <OpenChangesList Workspace="workspace" Summary="summary" Heading="@SqlEditorText.SqlView_ConfirmDdlDiscardList" />
+}
+
+@code {
+    [CascadingParameter]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public Guid WorkspaceId { get; set; }
+
+    /// <summary>The workspace's uncommitted changes (<see cref="WorkspaceLifecycle.OpenWorkOf"/>); null if none.</summary>
+    [Parameter]
+    public (WorkspaceTabs Workspace, EditSummary Summary)? Discard { get; set; }
+}

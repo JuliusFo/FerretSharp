@@ -1165,3 +1165,20 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
   background: var(--surface); border: 1px solid var(--border); border-radius: 6px; box-shadow: var(--shadow);
 }
 .app-tip { position: fixed; z-index: 1000; pointer-events: none; overflow-wrap: anywhere; }
+
+/* Table designer (WP-23): an index draft above the list of indexes, its DDL and actions (DdlDraftPanel). */
+.index-draft { max-width: 1100px; margin-bottom: 22px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
+.index-draft h2 { margin-top: 0; }
+.index-draft-form { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: center; gap: 8px 14px; margin-bottom: 10px; font-size: 12.5px; }
+.index-draft-form > .field { max-width: 520px; }
+.index-draft-columns { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.index-draft-columns select.field { width: auto; min-width: 220px; }
+.index-draft-column { display: inline-flex; align-items: center; gap: 3px; padding: 2px 3px 2px 9px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); }
+.index-draft-column .icon-btn { width: 22px; height: 22px; border: 0; background: transparent; font-size: 12px; }
+.index-draft-column .icon-btn:disabled { opacity: .35; }
+.ddl-draft { display: flex; flex-direction: column; gap: 8px; }
+.ddl-draft .hint.small, .ddl-problems { margin: 0; }
+.ddl-problems { padding-left: 18px; color: var(--danger); font-size: 12.5px; }
+.ddl-draft .tab-error { border: 0; border-radius: 6px; }
+.ddl-actions { display: flex; align-items: center; gap: 8px; }
+.ddl-actions .spacer { flex: 1; }

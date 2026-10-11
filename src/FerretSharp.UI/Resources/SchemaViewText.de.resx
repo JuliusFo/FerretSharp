@@ -594,4 +594,52 @@
   <data name="PlSql_ErrorPosition" xml:space="preserve">
     <value>Zeile {0}, Spalte {1}</value>
   </data>
+  <data name="Indexes_Create" xml:space="preserve">
+    <value>Index anlegen</value>
+  </data>
+  <data name="Indexes_CreateForFk" xml:space="preserve">
+    <value>Index dafür anlegen</value>
+  </data>
+  <data name="Indexes_CreateForFkTitle" xml:space="preserve">
+    <value>Einen Index auf den Spalten von {0} anlegen</value>
+  </data>
+  <data name="Indexes_NewHeading" xml:space="preserve">
+    <value>Neuer Index</value>
+  </data>
+  <data name="Indexes_ColumnAdd" xml:space="preserve">
+    <value>Spalte hinzufügen …</value>
+  </data>
+  <data name="Indexes_ColumnEarlier" xml:space="preserve">
+    <value>Nach vorn (früher im Index)</value>
+  </data>
+  <data name="Indexes_ColumnLater" xml:space="preserve">
+    <value>Nach hinten (später im Index)</value>
+  </data>
+  <data name="Indexes_ColumnRemove" xml:space="preserve">
+    <value>Aus dem Index entfernen</value>
+  </data>
+  <data name="Indexes_UniqueOption" xml:space="preserve">
+    <value>UNIQUE – jede Wertkombination nur einmal</value>
+  </data>
+  <data name="Ddl_WorkspaceLocked" xml:space="preserve">
+    <value>Der Workspace ist gesperrt: Ausführen geht erst nach dem Freischalten. Kopieren, im SQL-Editor öffnen und speichern gehen trotzdem.</value>
+  </data>
+  <data name="Ddl_OpenInSqlEditor" xml:space="preserve">
+    <value>Im SQL-Editor öffnen</value>
+  </data>
+  <data name="Ddl_Save" xml:space="preserve">
+    <value>Speichern …</value>
+  </data>
+  <data name="Ddl_SaveFilter" xml:space="preserve">
+    <value>SQL-Skript</value>
+  </data>
+  <data name="Ddl_Saved" xml:space="preserve">
+    <value>Skript gespeichert: {0}</value>
+  </data>
+  <data name="Ddl_SaveFailed" xml:space="preserve">
+    <value>Skript nicht gespeichert: {0}</value>
+  </data>
+  <data name="Ddl_Stopped" xml:space="preserve">
+    <value>{0} von {1} Statements ausgeführt, dann: {2}</value>
+  </data>
 </root>

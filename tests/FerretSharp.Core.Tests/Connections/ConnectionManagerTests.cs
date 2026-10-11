@@ -76,6 +76,22 @@ public class ConnectionManagerTests
     }
 
     [Fact]
+    public async Task Script_folder_is_remembered_on_the_stored_profile_and_keeps_the_password()
+    {
+        var profile = TestProfiles.HostPort();
+        await _manager.SaveAsync(profile, "pw", Ct);
+        _store.ClearReceivedCalls();
+
+        await _manager.SetScriptFolderAsync(profile.Id, @"C:\Repos\Erp\db", Ct);
+        await _manager.SetScriptFolderAsync(profile.Id, @"C:\Repos\Erp\db", Ct); // unchanged: not saved again
+        await _manager.SetScriptFolderAsync(Guid.NewGuid(), @"C:\anders", Ct); // gone: nothing
+
+        Assert.Equal(@"C:\Repos\Erp\db", Assert.Single(_manager.Profiles).ScriptFolder);
+        await _store.Received(1).SaveAsync(Arg.Any<IReadOnlyList<ConnectionProfile>>(), Arg.Any<CancellationToken>());
+        Assert.Equal("pw", _secrets.GetPassword(profile.Id));
+    }
+
+    [Fact]
     public async Task Delete_removes_profile_and_password()
     {
         var profile = TestProfiles.HostPort();

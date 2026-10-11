@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="IndexNameMissing" xml:space="preserve">
+    <value>Enter a name for the index.</value>
+  </data>
+  <data name="IndexNameInvalid" xml:space="preserve">
+    <value>A name cannot contain double quotes.</value>
+  </data>
+  <data name="IndexNameTooLong" xml:space="preserve">
+    <value>The name is longer than {0} bytes.</value>
+    <comment>{0}: Oracle's maximum name length in bytes (128)</comment>
+  </data>
+  <data name="IndexNameTaken" xml:space="preserve">
+    <value>The table already has an index named {0}.</value>
+    <comment>{0}: index name</comment>
+  </data>
+  <data name="IndexNameNeedsQuotes" xml:space="preserve">
+    <value>The name is not a plain Oracle name (upper case letters, digits, _ $ #, starting with a letter); SQL must write it in double quotes.</value>
+  </data>
+  <data name="IndexNoColumns" xml:space="preserve">
+    <value>Choose at least one column.</value>
+  </data>
+  <data name="IndexColumnTwice" xml:space="preserve">
+    <value>{0} is chosen twice.</value>
+    <comment>{0}: column name</comment>
+  </data>
+  <data name="IndexColumnUnknown" xml:space="preserve">
+    <value>The table has no column {0}.</value>
+    <comment>{0}: column name</comment>
+  </data>
+  <data name="IndexColumnLob" xml:space="preserve">
+    <value>{0} is a {1} column and cannot be indexed.</value>
+    <comment>{0}: column name; {1}: its type, e.g. CLOB</comment>
+  </data>
+  <data name="IndexSameColumns" xml:space="preserve">
+    <value>{0} already indexes exactly these columns in this order.</value>
+    <comment>{0}: name of the existing index</comment>
+  </data>
+  <data name="IndexCoveredBy" xml:space="preserve">
+    <value>{0} already starts with these columns – a separate index is usually not needed.</value>
+    <comment>{0}: name of the existing index</comment>
+  </data>
+</root>

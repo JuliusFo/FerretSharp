@@ -47,6 +47,10 @@ public sealed record TnsAliasAddress(string Alias, string? TnsAdminPath) : Oracl
 /// <param name="ReadOnly">Default true for Prod. Workspace sessions then run in a read-only transaction, so Oracle rejects any change.</param>
 /// <param name="Group">Optional grouping, e.g. project or customer ("ERP", "Kasse"). Null = ungrouped.</param>
 /// <param name="ClrProject">The .NET project whose EF Core model describes this database (v3, WP-11); null = none.</param>
+/// <param name="ScriptFolder">
+/// The folder a DDL script of the table designer was last saved to (WP-23) – usually the repository's script folder for
+/// this database; the save dialog starts there. Null = none yet.
+/// </param>
 public sealed record ConnectionProfile(
     Guid Id,
     string Name,
@@ -56,7 +60,8 @@ public sealed record ConnectionProfile(
     string? DefaultSchema,
     bool ReadOnly,
     string? Group = null,
-    ClrModel.ClrProjectLink? ClrProject = null)
+    ClrModel.ClrProjectLink? ClrProject = null,
+    string? ScriptFolder = null)
 {
     /// <summary>
     /// The schema whose objects are shown, in data dictionary form: <see cref="DefaultSchema"/> if set, otherwise the user.

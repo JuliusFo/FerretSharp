@@ -1,0 +1,188 @@
+@* DDL the designer wrote (WP-23), below its form: what is wrong or worth knowing, the script (copy icon of SqlCode), and what
+   to do with it – run it through the schema path (confirmed like DDL in the SQL editor, statement by statement, stopping
+   at the first failure), open it in the SQL editor, or save it as a file (the last folder per connection is remembered). *@
+@using FerretSharp.Core.Query
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Workspaces
+@inject IFileSaveService Files
+@inject ConnectionManager Connections
+@inject ConnectionHub Hub
+
+<div class="ddl-draft">
+    @if (Problems.Count > 0)
+    {
+        <ul class="ddl-problems">
+            @foreach (var problem in Problems)
+            {
+                <li>@problem</li>
+            }
+        </ul>
+    }
+    @foreach (var warning in Warnings)
+    {
+        <p class="hint small">⚠ @warning</p>
+    }
+    @if (Statements.Count > 0)
+    {
+        <SqlCode Sql="@Script" Class="ddl-script" />
+    }
+
+    @if (_running is { } running)
+    {
+        <RunProgress WorkspaceId="WorkspaceId" Title="@SqlScript.Analyze(running).FirstWord" Detail="@running" Started="_started"
+                     Hint="@SqlEditorText.Run_DdlWaiting" OnCancel="Cancel" />
+    }
+    else if (_result is { Succeeded: false } result)
+    {
+        <div class="tab-error">
+            <span>@Failure(result)</span>
+            @if (result.Error is { ErrorCode: not null } error)
+            {
+                <button class="link-btn" @onclick="() => Shell.ShowError(error)">@CommonText.Details</button>
+            }
+        </div>
+        @if (result.Lock is { } tableLock)
+        {
+            <div class="sql-lock-holders">
+                <LockHolderList Holders="tableLock.Holders" Note="@SqlEditorText.SqlView_DdlLockHoldersNote" />
+            </div>
+        }
+    }
+
+    @if (!Workspaces.IsWritable(WorkspaceId))
+    {
+        <p class="hint small">
+            @SchemaViewText.Ddl_WorkspaceLocked
+            <button class="link-btn" @onclick="() => Shell.RequestUnlock(WorkspaceId)">@SqlEditorText.Editor_UnlockWorkspace</button>
+        </p>
+    }
+
+    <div class="ddl-actions">
+        <button class="btn primary" disabled="@(!CanRun)" title="@(CanRun ? null : RunBlocked)" @onclick="() => _confirm = true">@CommonText.Run</button>
+        <button class="btn ghost" disabled="@(Statements.Count == 0)" @onclick="OpenInSqlEditor">@SchemaViewText.Ddl_OpenInSqlEditor</button>
+        <button class="btn ghost" disabled="@(Statements.Count == 0)" @onclick="SaveAsync">@SchemaViewText.Ddl_Save</button>
+        <span class="spacer"></span>
+        <button class="btn ghost" disabled="@(_running is not null)" @onclick="OnClose">@CommonText.Close</button>
+    </div>
+</div>
+
+@if (_confirm)
+{
+    <DdlConfirmDialog WorkspaceId="WorkspaceId" Statements="Statements" OnConfirm="RunAsync" OnCancel="() => _confirm = false" />
+}
+
+@code {
+    private bool _confirm;
+    private string? _running;
+    private DateTimeOffset _started;
+    private DdlRunResult? _result;
+    private CancellationTokenSource? _cts;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceManager Workspaces { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public Guid WorkspaceId { get; set; }
+
+    /// <summary>The DDL, one statement each, without semicolon; empty while the draft has none (problems).</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<string> Statements { get; set; } = [];
+
+    /// <summary>Reasons the draft cannot run; Run stays disabled.</summary>
+    [Parameter]
+    public IReadOnlyList<string> Problems { get; set; } = [];
+
+    [Parameter]
+    public IReadOnlyList<string> Warnings { get; set; } = [];
+
+    /// <summary>File name offered when saving, e.g. <c>2026-10-11_IX_AUFTRAG_KUNDE_ID.sql</c>.</summary>
+    [Parameter, EditorRequired]
+    public string FileName { get; set; } = "";
+
+    /// <summary>Everything ran (the schema is reloaded already).</summary>
+    [Parameter]
+    public EventCallback<DdlRunResult> OnRan { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    /// <summary>The statements as a script: each ends with a semicolon, a blank line between them.</summary>
+    private string Script => string.Join("\n\n", Statements.Select(s => s + ";"));
+
+    private bool CanRun => Statements.Count > 0 && Problems.Count == 0 && _running is null && Workspaces.IsWritable(WorkspaceId);
+
+    private string? RunBlocked => Problems.Count > 0 ? Problems[0] : !Workspaces.IsWritable(WorkspaceId) ? SchemaViewText.Ddl_WorkspaceLocked : null;
+
+    private async Task RunAsync(WorkspaceTabs? discard)
+    {
+        _confirm = false;
+        _result = null;
+        using var cts = _cts = new CancellationTokenSource();
+        try
+        {
+            _result = await Lifecycle.RunDdlAsync(WorkspaceId, Statements, discard, statement =>
+            {
+                (_running, _started) = (statement, DateTimeOffset.Now); // the progress shows the statement at hand
+                StateHasChanged();
+            }, cts.Token);
+        }
+        finally
+        {
+            _running = null;
+            _cts = null;
+        }
+
+        if (_result.Succeeded)
+        {
+            await OnRan.InvokeAsync(_result);
+        }
+    }
+
+    private void Cancel() => _cts?.Cancel();
+
+    private string Failure(DdlRunResult result)
+    {
+        var what = result switch
+        {
+            { NotDiscarded: true } => SqlEditorText.SqlView_DdlNotRun,
+            { Cancelled: true } => SqlEditorText.Run_Canceled,
+            { Error: { } error } => error.Display,
+            _ => "",
+        };
+        return result.Ran.Count > 0 && Statements.Count > 1
+            ? TextFormat.Format(SchemaViewText.Ddl_Stopped, result.Ran.Count, Statements.Count, what) + " " + SqlEditorText.SqlView_DdlStays
+            : what;
+    }
+
+    private void OpenInSqlEditor() => Shell.OpenSql(Script);
+
+    private async Task SaveAsync()
+    {
+        // The stored profile, not the connected one: the folder may have changed since connecting.
+        var connection = Hub.ScopeOfWorkspace(WorkspaceId).Profile?.Id;
+        var folder = Connections.Profiles.FirstOrDefault(p => p.Id == connection)?.ScriptFolder;
+        try
+        {
+            if (await Files.SaveTextAsync(FileName, SchemaViewText.Ddl_SaveFilter, Script + "\n", utf8Bom: false, folder) is not { } path)
+            {
+                return;
+            }
+
+            Shell.Notify(TextFormat.Format(SchemaViewText.Ddl_Saved, path));
+            if (connection is { } id && Path.GetDirectoryName(path) is { Length: > 0 } saved)
+            {
+                await Connections.SetScriptFolderAsync(id, saved, CancellationToken.None);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Shell.Notify(TextFormat.Format(SchemaViewText.Ddl_SaveFailed, ex.Message));
+        }
+    }
+}

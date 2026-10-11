@@ -1,0 +1,56 @@
+@* Confirmation before DDL of the table designer (WP-23) – what the SQL editor asks before DDL (WP-22): the statements, Prod,
+   other writers, and the uncommitted changes that are discarded first. *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Query
+
+@{ var discard = Lifecycle.OpenWorkOf(WorkspaceId); }
+<ConfirmDialog Title="@SqlEditorText.SqlView_ConfirmDdlTitle"
+               ConfirmLabel="@(discard is null ? CommonText.Run : SqlEditorText.SqlView_DiscardAndRun)" Danger="true"
+               OnConfirm="() => OnConfirm.InvokeAsync(discard?.Workspace)" OnCancel="OnCancel">
+    <p>
+        @if (Statements.Count == 1)
+        {
+            <Fmt Text="@SqlEditorText.SqlView_ConfirmDdl"><Arg0><strong>@SqlScript.Analyze(Statements[0]).FirstWord</strong></Arg0></Fmt>
+        }
+        else
+        {
+            @TextFormat.Plural(Statements.Count, SqlEditorText.SqlView_ConfirmDdlScriptOne, SqlEditorText.SqlView_ConfirmDdlScriptOther)
+        }
+    </p>
+    @foreach (var statement in Statements.Take(MaxShown))
+    {
+        <SqlCode Sql="@statement" />
+    }
+    @if (Statements.Count > MaxShown)
+    {
+        <div class="hint small">@TextFormat.Format(SqlEditorText.SqlView_ConfirmMoreStatements, Statements.Count - MaxShown)</div>
+    }
+    @if (Active.Profile is { Kind: ConnectionKind.Prod } profile)
+    {
+        <p><Fmt Text="@SqlEditorText.SqlView_ConfirmProd"><Arg0><strong>@profile.Name</strong></Arg0></Fmt></p>
+    }
+    <DdlWarnings WorkspaceId="WorkspaceId" Discard="discard" />
+</ConfirmDialog>
+
+@code {
+    private const int MaxShown = 5;
+
+    [CascadingParameter]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public Guid WorkspaceId { get; set; }
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<string> Statements { get; set; } = [];
+
+    /// <summary>Run: with the workspace whose uncommitted changes are rolled back first, if it has any.</summary>
+    [Parameter]
+    public EventCallback<WorkspaceTabs?> OnConfirm { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+}
