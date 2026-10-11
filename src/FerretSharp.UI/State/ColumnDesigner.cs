@@ -179,12 +179,22 @@ public sealed record DesignerSession(ColumnDesigner Draft, DdlRunResult? Failure
 /// <summary>A constraint the edit mode adds, as its fields show it.</summary>
 public sealed class DesignConstraint
 {
+    private readonly SuggestedName _name = new();
+
     public ConstraintType Type { get; set; } = ConstraintType.Unique;
 
-    public string Name { get; set; } = "";
+    /// <summary>The name as the field shows it. Setting it is typing it: it no longer follows type and columns – empty follows again.</summary>
+    public string Name
+    {
+        get => _name.Value;
+        set => _name.Type(value);
+    }
 
     /// <summary>The user typed the name: it no longer follows type and columns.</summary>
-    public bool NameTyped { get; set; }
+    public bool NameTyped => _name.Typed;
+
+    /// <summary>The suggested name for its type and columns, unless the user typed one (<see cref="ColumnDesigner.SuggestName"/>).</summary>
+    internal void Suggest(string name) => _name.Follow(name);
 
     public List<string> Columns { get; } = [];
 
@@ -199,6 +209,17 @@ public sealed class DesignConstraint
     public string DeleteRule { get; set; } = "";
 
     public bool WithIndex { get; set; } = true;
+
+    /// <summary>The referenced column for the key column at <paramref name="at"/> (a foreign key); missing entries before it stay empty.</summary>
+    public void SetReferenced(int at, string? column)
+    {
+        while (ReferencedColumns.Count <= at)
+        {
+            ReferencedColumns.Add("");
+        }
+
+        ReferencedColumns[at] = column ?? "";
+    }
 
     public ConstraintDraft ToDraft() => new(
         OracleIdentifier.Normalize(Name), Type, [.. Columns], Type == ConstraintType.Check ? Condition : null,
@@ -273,14 +294,107 @@ public sealed class ColumnDesigner
     /// <summary>The suggested name for its type and columns, unless the user typed one.</summary>
     public void SuggestName(DesignConstraint constraint)
     {
-        if (constraint.NameTyped)
+        ArgumentNullException.ThrowIfNull(constraint);
+        var taken = Existing.Select(c => c.Name).Concat(AddedConstraints.Where(c => c != constraint).Select(c => c.Name));
+        constraint.Suggest(TableDesign.SuggestConstraintName(TableName, constraint.Type, constraint.Columns, constraint.References?.Name, taken));
+    }
+
+    /// <summary>An existing constraint is dropped – or, the second time, kept again.</summary>
+    public void ToggleDropConstraint(string name)
+    {
+        if (!DroppedConstraints.Remove(name))
+        {
+            DroppedConstraints.Add(name);
+        }
+    }
+
+    /// <summary>Another kind of constraint: the name follows, unless typed.</summary>
+    public void SetType(DesignConstraint constraint, ConstraintType type)
+    {
+        ArgumentNullException.ThrowIfNull(constraint);
+        constraint.Type = type;
+        SuggestName(constraint);
+    }
+
+    /// <summary>
+    /// A column for the constraint, at the end. A foreign key's referenced column follows the key of the referenced table,
+    /// position by position (once its structure is known, <see cref="Referenced"/>).
+    /// </summary>
+    public void AddColumn(DesignConstraint constraint, string? column)
+    {
+        ArgumentNullException.ThrowIfNull(constraint);
+        if (string.IsNullOrEmpty(column) || constraint.Columns.Contains(column))
         {
             return;
         }
 
-        var taken = Existing.Select(c => c.Name).Concat(AddedConstraints.Where(c => c != constraint).Select(c => c.Name));
-        constraint.Name = TableDesign.SuggestConstraintName(TableName, constraint.Type, constraint.Columns, constraint.References?.Name, taken);
+        constraint.Columns.Add(column);
+        if (constraint.References is { } references && Referenced.TryGetValue(references, out var target))
+        {
+            constraint.ReferencedColumns.Add(KeyColumn(target, constraint.Columns.Count - 1));
+        }
+
+        SuggestName(constraint);
     }
+
+    /// <summary>Takes the column at <paramref name="at"/> out of the constraint, with its referenced column.</summary>
+    public void RemoveColumn(DesignConstraint constraint, int at)
+    {
+        ArgumentNullException.ThrowIfNull(constraint);
+        constraint.Columns.RemoveAt(at);
+        if (at < constraint.ReferencedColumns.Count)
+        {
+            constraint.ReferencedColumns.RemoveAt(at);
+        }
+
+        SuggestName(constraint);
+    }
+
+    /// <summary>
+    /// The foreign key references <paramref name="table"/> (null: none chosen). Its referenced columns are the table's
+    /// primary key, position by position, as soon as the table's structure is known – the view loads it if
+    /// <see cref="Referenced"/> lacks it, then calls <see cref="Learn"/>.
+    /// </summary>
+    public void Reference(DesignConstraint constraint, TableRef? table)
+    {
+        ArgumentNullException.ThrowIfNull(constraint);
+        constraint.ReferencedColumns.Clear();
+        constraint.References = table;
+        SuggestName(constraint);
+        FillReferenced(constraint);
+    }
+
+    /// <summary>
+    /// The structures of the tables new foreign keys reference, as loaded (their keys and column types); kept across a
+    /// <see cref="Rebase"/>.
+    /// </summary>
+    public Dictionary<TableRef, TableDetails> Referenced { get; } = [];
+
+    /// <summary>A referenced table's structure arrived: foreign keys on it without referenced columns get its key.</summary>
+    public void Learn(TableDetails table)
+    {
+        ArgumentNullException.ThrowIfNull(table);
+        Referenced[table.Table.Ref] = table;
+        foreach (var constraint in AddedConstraints.Where(c => c.References == table.Table.Ref))
+        {
+            FillReferenced(constraint);
+        }
+    }
+
+    /// <summary>The columns another table offers to reference; this table's as drafted; null while not loaded.</summary>
+    public IReadOnlyList<string>? ColumnsOf(TableRef table) =>
+        table == Table.Table.Ref ? ColumnNames : Referenced.TryGetValue(table, out var details) ? details.Columns.Select(c => c.Name).ToList() : null;
+
+    private void FillReferenced(DesignConstraint constraint)
+    {
+        if (constraint is { References: { } references, ReferencedColumns.Count: 0 } && Referenced.TryGetValue(references, out var target))
+        {
+            constraint.ReferencedColumns.AddRange(constraint.Columns.Select((_, i) => KeyColumn(target, i)));
+        }
+    }
+
+    /// <summary>The primary key's column at a position; the first column where the key has none.</summary>
+    private static string KeyColumn(TableDetails table, int at) => table.PrimaryKey.ElementAtOrDefault(at) ?? table.Columns[0].Name;
 
     /// <summary>
     /// The same draft laid over the table as it is now – after DDL that stopped halfway (WP-23): the draft says how the table
@@ -310,6 +424,11 @@ public sealed class ColumnDesigner
         var existing = next.Existing.Select(c => c.Name).ToHashSet(StringComparer.Ordinal);
         next.DroppedConstraints.UnionWith(DroppedConstraints.Where(existing.Contains));
         next.AddedConstraints.AddRange(AddedConstraints.Where(c => c.Name.Length == 0 || !existing.Contains(OracleIdentifier.Normalize(c.Name))));
+        foreach (var (reference, details) in Referenced)
+        {
+            next.Referenced[reference] = details;
+        }
+
         return next;
     }
 

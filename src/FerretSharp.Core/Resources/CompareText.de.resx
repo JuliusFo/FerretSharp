@@ -160,7 +160,10 @@
     <value>Der Wechsel von {0} zu {1} geht nur über eine neue Spalte: anlegen, Daten umkopieren, alte löschen, umbenennen.</value>
   </data>
   <data name="MayFailOnData" xml:space="preserve">
-    <value>Kann an vorhandenen Daten scheitern (Länge, Genauigkeit oder BYTE/CHAR).</value>
+    <value>Scheitert, wenn ein Wert für die neue Länge oder BYTE/CHAR zu lang ist (ORA-01441).</value>
+  </data>
+  <data name="NeedsEmptyColumn" xml:space="preserve">
+    <value>Geht nur bei leerer Spalte (weniger Stellen, NVARCHAR2 → VARCHAR2, Zeitzone …). Mit Daten: neue Spalte anlegen, Daten umkopieren, alte löschen, umbenennen.</value>
   </data>
   <data name="DefaultOnNullMakesNotNull" xml:space="preserve">
     <value>DEFAULT ON NULL macht die Spalte NOT NULL: schlägt fehl, wenn sie NULL-Werte enthält.</value>

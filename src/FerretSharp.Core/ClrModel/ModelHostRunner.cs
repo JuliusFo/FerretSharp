@@ -100,7 +100,7 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
         var pipe = "ferretsharp-linq-" + Guid.NewGuid().ToString("N");
         return await LinqConsoleHost.StartAsync(
             HostArguments(link, launch, ["--console", pipe]), launch.AppDirectory, pipe, launch.Work, launch.Lease, output,
-            _timeout, progress, cancellationToken);
+            _timeout, LinqConsoleHost.RunTimeout, progress, cancellationToken);
     }
 
     /// <summary>Each start of the host gets a work folder of its own below this one; nothing else is ever deleted.</summary>

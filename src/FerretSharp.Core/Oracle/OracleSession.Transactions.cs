@@ -179,7 +179,7 @@ public sealed partial class OracleSession
     /// </summary>
     private async Task<int> RunDdlCoreAsync(string sql, CancellationToken cancellationToken)
     {
-        await using var hold = SqlScript.Analyze(sql).FirstWord == "ALTER" && SqlScript.DdlTableOf(sql) is { } table
+        await using var hold = SqlAnalysis.Analyze(sql).FirstWord == "ALTER" && SqlAnalysis.DdlTableOf(sql) is { } table
             ? await HoldForDdlCoreAsync(table, cancellationToken)
             : null;
         return await RunAsync(sql, [], (command, ct) => command.ExecuteNonQueryAsync(ct), cancellationToken);

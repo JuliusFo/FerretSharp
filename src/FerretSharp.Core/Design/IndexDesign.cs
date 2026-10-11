@@ -1,6 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
-using FerretSharp.Core.Compare;
+using FerretSharp.Core.Ddl;
 using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 
@@ -22,7 +22,7 @@ public sealed record DraftCheck(IReadOnlyList<string> Problems, IReadOnlyList<st
 /// <summary>
 /// "Create index" in the Indexes view and for a foreign key without index (WP-23, stage 1): suggests a name, checks a
 /// draft against the table and its indexes, and writes the <c>CREATE INDEX</c> – the same way the DDL proposal of the
-/// schema comparison writes one (<see cref="DdlText.CreateIndex"/>). Pure logic, no database access.
+/// schema comparison writes one (<see cref="OracleDdl.CreateIndex"/>). Pure logic, no database access.
 /// </summary>
 public static partial class IndexDesign
 {
@@ -140,9 +140,12 @@ public static partial class IndexDesign
         ArgumentNullException.ThrowIfNull(table);
         var index = new IndexInfo(table.Owner, draft.Name, "NORMAL", draft.Unique, "VALID",
             draft.Columns.Select(c => new IndexColumn(c, IsExpression: false, Descending: false)).ToList(), null, false, Visible: true);
-        return DdlText.CreateIndex(index, draft.Name, table.Owner, table.Name)
+        return OracleDdl.CreateIndex(index, draft.Name, table.Owner, table.Name)
                ?? throw new InvalidOperationException("A normal index always has DDL.");
     }
+
+    /// <summary>The <see cref="Ddl"/> as a step of a DDL script.</summary>
+    public static DdlStep Step(IndexDraft draft, TableRef table) => new(table?.Name ?? throw new ArgumentNullException(nameof(table)), DdlStepKind.CreateIndex, Ddl(draft, table));
 
     private static bool SameColumns(IndexInfo index, IReadOnlyList<string> columns) =>
         index.Columns.Count == columns.Count && index.Columns.All(c => !c.IsExpression) && index.Columns.Select(c => c.Name).SequenceEqual(columns, StringComparer.Ordinal);

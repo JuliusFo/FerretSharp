@@ -31,9 +31,20 @@ internal sealed class FakeDataEditor(Func<Func<Task>?> onCommit, Func<string, Ex
     /// <summary>The options of the last flush.</summary>
     public FlushOptions? LastFlush { get; private set; }
 
+    /// <summary>A flush fails with this (a lock or concurrency conflict for the problem dialog); null writes.</summary>
+    public Func<IReadOnlyList<PendingOperation>, FlushException?>? FailFlush { get; set; }
+
+    /// <summary>A rollback fails with this (the connection is gone); null rolls back.</summary>
+    public Exception? FailRollback { get; set; }
+
     public Task<FlushResult> FlushAsync(TableDetails table, IReadOnlyList<PendingOperation> operations, FlushOptions options, CancellationToken cancellationToken)
     {
         LastFlush = options;
+        if (FailFlush?.Invoke(operations) is { } failure)
+        {
+            return Task.FromException<FlushResult>(failure);
+        }
+
         if (operations.Count == 0)
         {
             return Task.FromResult(FlushResult.Empty);
@@ -84,6 +95,11 @@ internal sealed class FakeDataEditor(Func<Func<Task>?> onCommit, Func<string, Ex
 
     public Task RollbackAsync(CancellationToken cancellationToken)
     {
+        if (FailRollback is { } failure)
+        {
+            return Task.FromException(failure);
+        }
+
         _log.Clear();
         return Task.CompletedTask;
     }

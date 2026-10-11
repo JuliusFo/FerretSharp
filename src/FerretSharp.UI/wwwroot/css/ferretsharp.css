@@ -23,6 +23,11 @@
   --clr-weak: rgba(122, 95, 199, 0.12);
   --shadow: 0 10px 30px rgba(20, 20, 30, 0.14), 0 2px 6px rgba(20, 20, 30, 0.08);
   --mono: "Cascadia Mono", "Cascadia Code", Consolas, monospace;
+  /* The result grid: grid.js reads these (R4b), besides --accent, --surface and --text. */
+  --grid-header: #f9f9fb;
+  --grid-odd-row: #fbfbfc;
+  --grid-border: #ececf0;
+  --grid-pinned-border: #c4c4ce;
   color-scheme: light;
 }
 
@@ -46,6 +51,10 @@
     --clr: #a898f0;
     --clr-weak: rgba(168, 152, 240, 0.14);
     --shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+    --grid-header: #202127;
+    --grid-odd-row: #1f2025;
+    --grid-border: #2c2d34;
+    --grid-pinned-border: #4a4b56;
     color-scheme: dark;
   }
 }

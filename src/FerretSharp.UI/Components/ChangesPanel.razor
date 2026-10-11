@@ -45,11 +45,7 @@
             </span>
             @if (summary.HasWork)
             {
-                <span class="status-group">
-                    <button class="status-btn" title="@TextFormat.Format(ShellText.Status_FlushTitle, Shortcuts.Hint(ShortcutAction.Flush))" disabled="@(busy || summary.Pending == 0)" @onclick="() => Editing.FlushAsync(workspace)">@ShellText.Status_Flush</button>
-                    <button class="status-btn commit" title="@TextFormat.Format(ShellText.Status_CommitTitle, Shortcuts.Hint(ShortcutAction.Commit))" disabled="@busy" @onclick="() => Lifecycle.RequestCommitAsync(workspace)">Commit</button>
-                    <button class="status-btn danger" title="@ShellText.DiscardAll" disabled="@busy" @onclick="() => Lifecycle.RequestRollback(workspace)">Rollback</button>
-                </span>
+                <WorkspaceActionsBar Workspace="workspace" Summary="summary" Lifecycle="Lifecycle" />
             }
         </div>
 
@@ -236,14 +232,7 @@
             return;
         }
 
-        try
-        {
-            await Settings.UpdateAsync(s => s with { ChangesPanelWidth = width }, CancellationToken.None);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            Shell.Notify(TextFormat.Format(ShellText.Settings_NotSaved, ex.Message));
-        }
+        await Shell.TrySaveSettingsAsync(() => Settings.UpdateAsync(s => s with { ChangesPanelWidth = width }, CancellationToken.None));
     }
 
     public async ValueTask DisposeAsync()

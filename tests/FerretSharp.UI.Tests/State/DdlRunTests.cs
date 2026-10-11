@@ -5,7 +5,7 @@ using FerretSharp.UI.State;
 namespace FerretSharp.UI.Tests.State;
 
 /// <summary>
-/// DDL of the table designer (WP-23) through <see cref="WorkspaceLifecycle.RunDdlAsync"/>: statement by statement in the
+/// DDL of the table designer (WP-23) through <see cref="StatementRunner.RunDdlAsync"/>: statement by statement in the
 /// workspace's session, stopping at the first failure, uncommitted changes rolled back first after the confirmation, the
 /// schema reloaded and the history written as after DDL in the SQL editor.
 /// </summary>
@@ -27,7 +27,7 @@ public sealed class DdlRunTests
         var started = new List<string>();
         (DdlRunResult Result, Notice? Notice)? ended = null;
 
-        var result = await app.Lifecycle.RunDdlAsync(workspace, [First, Second], null, started.Add, r => ended = (r, app.Shell.Notice), Ct);
+        var result = await app.Lifecycle.Statements.RunDdlAsync(workspace, [First, Second], null, started.Add, r => ended = (r, app.Shell.Notice), Ct);
 
         // R4a: also a run that succeeded is told before the schema is reloaded – the designer drops its session then.
         Assert.Equal((result, (Notice?)null), ended);
@@ -54,7 +54,7 @@ public sealed class DdlRunTests
         const string twoStatements = """ALTER TABLE "APP_USER"."KUNDEN" ADD CHECK (STATUS IN ('A','B');)""";
         DdlRunResult? stopped = null;
 
-        var result = await app.Lifecycle.RunDdlAsync(scope.Workspaces.Active!.Id, [First, twoStatements], app.WorkspaceOf(scope), null, r => stopped = r, Ct);
+        var result = await app.Lifecycle.Statements.RunDdlAsync(scope.Workspaces.Active!.Id, [First, twoStatements], app.WorkspaceOf(scope), null, r => stopped = r, Ct);
 
         Assert.Same(result, stopped);
         Assert.Empty(result.Ran);
@@ -75,7 +75,7 @@ public sealed class DdlRunTests
         app.FailDdl = sql => sql == Second ? new DatabaseException("Sperre …", "ORA-00054") : null;
 
         (DdlRunResult Result, Notice? Notice)? stopped = null;
-        var result = await app.Lifecycle.RunDdlAsync(scope.Workspaces.Active!.Id, [First, Second, Third], null, null, r => stopped = (r, app.Shell.Notice), Ct);
+        var result = await app.Lifecycle.Statements.RunDdlAsync(scope.Workspaces.Active!.Id, [First, Second, Third], null, null, r => stopped = (r, app.Shell.Notice), Ct);
 
         // Told before the schema is reloaded (which may rebuild the designer's tab), with the same result.
         Assert.Equal((result, (Notice?)null), stopped);
@@ -99,7 +99,7 @@ public sealed class DdlRunTests
         var scope = await app.OpenAsync(TestApp.Profile("Test"));
         app.FailDdl = _ => new OperationCanceledException();
 
-        var result = await app.Lifecycle.RunDdlAsync(scope.Workspaces.Active!.Id, [First, Second], null, null, null, Ct);
+        var result = await app.Lifecycle.Statements.RunDdlAsync(scope.Workspaces.Active!.Id, [First, Second], null, null, null, Ct);
 
         Assert.True(result.Cancelled);
         Assert.Null(result.Error);
@@ -124,7 +124,7 @@ public sealed class DdlRunTests
         var (workspace, summary) = app.Lifecycle.OpenTransactionOf(workspaceId)!.Value;
         Assert.Equal((1, 1), (summary.Pending, summary.Flushed));
 
-        var result = await app.Lifecycle.RunDdlAsync(workspaceId, [First], workspace, null, null, Ct);
+        var result = await app.Lifecycle.Statements.RunDdlAsync(workspaceId, [First], workspace, null, null, Ct);
 
         Assert.True(result.Succeeded);
         Assert.Equal((2, 0), (tab.Changes.PendingCount, tab.Changes.FlushedCount));
@@ -142,7 +142,7 @@ public sealed class DdlRunTests
         var tab = app.AddPendingWork(scope);
 
         Assert.Null(app.Lifecycle.OpenTransactionOf(workspaceId));
-        Assert.True((await app.Lifecycle.RunDdlAsync(workspaceId, [First], null, null, null, Ct)).Succeeded);
+        Assert.True((await app.Lifecycle.Statements.RunDdlAsync(workspaceId, [First], null, null, null, Ct)).Succeeded);
         Assert.Equal(1, tab.Changes!.PendingCount);
     }
 }

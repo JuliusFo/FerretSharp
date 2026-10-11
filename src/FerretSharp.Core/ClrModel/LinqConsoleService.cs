@@ -35,10 +35,10 @@ public sealed record LinqConsoleState(LinqConsolePhase Phase, string? Step = nul
 /// <summary>
 /// The LINQ console of the active connection's linked project (ADR 0011): one host process, started on first use (or
 /// when a LINQ tab opens), stopped when the link changes or the connection ends. All LINQ tabs share it; runs go one at a
-/// time. After a build (ADR 0016) a new host starts in the background; the old one answers until the new one is ready.
-/// Every start runs off the caller's thread and can be cancelled.
+/// time. After a build (ADR 0016) a new host starts in the background (<see cref="LinqConsoleRestart"/>); the old one
+/// answers until the new one is ready. Every start runs off the caller's thread and can be cancelled.
 /// </summary>
-public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
+public sealed class LinqConsoleService : IAsyncDisposable, IDisposable, LinqConsoleRestart.ITarget
 {
     /// <summary>The <see cref="LinqConsoleState.Step"/> while a new build loads in the background: “Build changed – &lt;step&gt;”.</summary>
     public static string ReloadStep(string step) => TextFormat.Format(ClrModelText.BuildChangedStep, step);
@@ -46,6 +46,7 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
     private readonly IModelHostRunner _runner;
     private readonly ClrModelManager _models;
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly LinqConsoleRestart _restart;
     private ILinqConsole? _console;
     private ClrProjectLink? _consoleLink;
 
@@ -55,35 +56,41 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
     private readonly Lock _lock = new();
     private ClrProjectLink? _seenLink;
     private CancellationTokenSource? _starting;
-    private CancellationTokenSource? _restart;
-    private Task _restartTask = Task.CompletedTask;
 
     /// <summary>Set (under the lock) when the connection closes: no restart starts or swaps hosts after that.</summary>
     private volatile bool _disposed;
 
-    /// <summary>The build output a background restart failed for (not tried again until the output changes).</summary>
-    private IReadOnlyDictionary<string, FileStamp>? _failedFiles;
-
-    /// <summary>
-    /// A build changed the output while the model was (about to be) reloaded: the console restarts once the model state
-    /// has moved on from this one, so two hosts never build the model at the same time.
-    /// </summary>
-    private ClrModelState? _restartAfter;
+    private readonly Lock _stateLock = new();
+    private LinqConsoleState _state;
 
     public LinqConsoleService(IModelHostRunner runner, ClrModelManager models)
     {
         _runner = runner;
         _models = models;
+        _restart = new LinqConsoleRestart(this);
         _seenLink = models.State.Link;
         _models.Changed += OnModelsChanged;
         _models.BuildOutputChanged += OnBuildOutputChanged;
-        State = models.State.Link is null ? LinqConsoleState.NotLinked : new LinqConsoleState(LinqConsolePhase.Stopped);
+        _state = models.State.Link is null ? LinqConsoleState.NotLinked : new LinqConsoleState(LinqConsolePhase.Stopped);
     }
 
     /// <summary>May fire on a background thread.</summary>
     public event Action? Changed;
 
-    public LinqConsoleState State { get; private set; }
+    /// <summary>Set as a whole from any thread (R4b: under a lock); a restart superseded meanwhile does not overwrite it.</summary>
+    public LinqConsoleState State
+    {
+        get
+        {
+            lock (_stateLock)
+            {
+                return _state;
+            }
+        }
+    }
+
+    /// <summary>The background restart (tests wait for it).</summary>
+    internal LinqConsoleRestart Restart => _restart;
 
     /// <summary>Starts the host if it is not running, so the first run does not wait for the model (fire and forget).</summary>
     public async Task WarmUpAsync()
@@ -125,12 +132,7 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
                 return false;
             }
 
-            lock (_lock)
-            {
-                _restart?.Cancel();
-                _restartAfter = null;
-            }
-
+            _restart.Cancel(dropWaiting: true);
             await StopAsync();
             Set(_models.State.Link is null ? LinqConsoleState.NotLinked : new LinqConsoleState(LinqConsolePhase.Stopped));
             return true;
@@ -224,7 +226,7 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
             if (IsNewerBuild(running))
             {
                 // The watcher missed the build (or could not watch): load it in the background, this run takes the old one.
-                StartRestart(supersede: false);
+                _restart.StartIfIdle();
             }
 
             return running;
@@ -234,10 +236,10 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
         using var start = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         lock (_lock)
         {
-            _restart?.Cancel(); // this start reads the newest build anyway
             _starting = start;
         }
 
+        _restart.Cancel(dropWaiting: false); // this start reads the newest build anyway
         Set(new LinqConsoleState(LinqConsolePhase.Starting, ClrModelText.StepFindBuild));
         try
         {
@@ -291,10 +293,10 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
         return (console, files);
     }
 
-    private static bool IsStartFailure(Exception ex) =>
+    internal static bool IsStartFailure(Exception ex) =>
         ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or System.ComponentModel.Win32Exception;
 
-    private static ClrModelException StartError(Exception ex) =>
+    internal static ClrModelException StartError(Exception ex) =>
         ex as ClrModelException ?? new ClrModelException(ClrModelErrorKind.HostFailed, TextFormat.Format(ClrModelText.ConsoleNotStarted, ex.Message));
 
     /// <summary>The build output differs from the one the host was started from (and from one that failed to load).</summary>
@@ -303,8 +305,7 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
         try
         {
             var files = BuildFiles.List(Path.GetDirectoryName(console.Output.Assembly)!);
-            return _consoleFiles is { } started && !BuildFiles.Same(started, files)
-                   && (_failedFiles is not { } failed || !BuildFiles.Same(failed, files));
+            return _consoleFiles is { } started && !BuildFiles.Same(started, files) && !_restart.FailedFor(files);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -314,8 +315,7 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
 
     /// <summary>
     /// A build changed the output: load it in the background if a console runs (otherwise the next start takes it) – after
-    /// the model has been reloaded, which the model manager starts at the same time. Building a large model takes seconds
-    /// of CPU; two hosts doing it at once made the UI stutter.
+    /// the model has been reloaded, which the model manager starts at the same time.
     /// </summary>
     private void OnBuildOutputChanged()
     {
@@ -324,114 +324,9 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
             return;
         }
 
-        lock (_lock)
-        {
-            _restart?.Cancel(); // a restart on the previous build is outdated
-            _restartAfter = _models.State;
-        }
-
+        _restart.BuildChanged(_models.State);
         Set(new LinqConsoleState(LinqConsolePhase.Ready, ReloadStep(ClrModelText.ReloadWaitingForModel)));
         OnModelsChanged();
-    }
-
-    /// <param name="supersede">A newer build: cancel a restart still running. Otherwise only start one if none runs.</param>
-    private void StartRestart(bool supersede)
-    {
-        lock (_lock)
-        {
-            if (_disposed || (!supersede && !_restartTask.IsCompleted))
-            {
-                return;
-            }
-
-            _restart?.Cancel();
-            var cts = _restart = new CancellationTokenSource();
-            _restartTask = Task.Run(() => RestartAsync(cts));
-        }
-    }
-
-    /// <summary>
-    /// Starts a host on the new build next to the running one and swaps them once it is ready; runs meanwhile go to the old
-    /// one. If the new build cannot be loaded, the old host stays (with the error in the state).
-    /// </summary>
-    private async Task RestartAsync(CancellationTokenSource cts)
-    {
-        var link = _consoleLink;
-        if (link is null || _console is not { IsAlive: true } || _models.State.Link != link)
-        {
-            return; // not running: the next start reads the new build
-        }
-
-        void Reloading(string step)
-        {
-            if (!cts.IsCancellationRequested)
-            {
-                Set(new LinqConsoleState(LinqConsolePhase.Ready, ReloadStep(step)));
-            }
-        }
-
-        Reloading(ClrModelText.ReloadStarting);
-        ILinqConsole? started = null;
-        IReadOnlyDictionary<string, FileStamp>? files = null;
-        try
-        {
-            (started, files) = await StartHostAsync(link, Reloading, cts.Token);
-            ILinqConsole? old;
-            await _gate.WaitAsync(cts.Token);
-            try
-            {
-                if (_disposed || _models.State.Link != link || (_consoleLink is not null && _consoleLink != link))
-                {
-                    // The connection closed meanwhile (the new host would outlive it), or the link changed: the new host
-                    // belongs to the old one too.
-                    return;
-                }
-
-                old = _console;
-                (_console, _consoleLink, _consoleFiles, _failedFiles) = (started, link, files, null);
-                started = null;
-            }
-            finally
-            {
-                _gate.Release();
-            }
-
-            Set(new LinqConsoleState(LinqConsolePhase.Ready));
-            if (old is not null)
-            {
-                await old.DisposeAsync();
-            }
-        }
-        catch (OperationCanceledException) when (cts.IsCancellationRequested)
-        {
-            // superseded by a newer build, a foreground start, another link or the end
-        }
-        catch (Exception ex) when (ex is ClrModelException || IsStartFailure(ex))
-        {
-            var error = StartError(ex);
-            _failedFiles = files ?? TryList(link);
-            Set(new LinqConsoleState(LinqConsolePhase.Ready, Error: new ModelHostError(error.Kind,
-                TextFormat.Format(ClrModelText.NewBuildNotLoaded, error.Message), error.Detail)));
-        }
-        finally
-        {
-            if (started is not null)
-            {
-                await started.DisposeAsync();
-            }
-        }
-    }
-
-    private static IReadOnlyDictionary<string, FileStamp>? TryList(ClrProjectLink link)
-    {
-        try
-        {
-            return BuildFiles.List(Path.GetDirectoryName(BuildOutputLocator.Find(link).Assembly)!);
-        }
-        catch (Exception ex) when (ex is ClrModelException || IsStartFailure(ex))
-        {
-            return null;
-        }
     }
 
     private async Task StopAsync()
@@ -454,20 +349,13 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
     {
         var state = _models.State;
         var link = state.Link;
-        var restart = false;
+        bool sameLink;
         lock (_lock)
         {
-            if (_restartAfter is { } after && !ReferenceEquals(after, state) && state.Phase != ClrModelPhase.Loading)
-            {
-                _restartAfter = null;
-                restart = link == _seenLink;
-            }
+            sameLink = link == _seenLink;
         }
 
-        if (restart)
-        {
-            StartRestart(supersede: true);
-        }
+        _restart.ModelChanged(state, sameLink);
 
         lock (_lock)
         {
@@ -476,12 +364,11 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
                 return;
             }
 
-            _restartAfter = null;
             _seenLink = link;
-            _restart?.Cancel();
             _starting?.Cancel();
         }
 
+        _restart.Cancel(dropWaiting: true);
         _ = Task.Run(async () =>
         {
             await _gate.WaitAsync();
@@ -506,9 +393,67 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
 
     private void Set(LinqConsoleState state)
     {
-        State = state;
+        lock (_stateLock)
+        {
+            _state = state;
+        }
+
         Changed?.Invoke();
     }
+
+    // ---- what a background restart needs (LinqConsoleRestart) ----
+
+    ClrProjectLink? LinqConsoleRestart.ITarget.RunningLink => _console is { IsAlive: true } ? _consoleLink : null;
+
+    ClrProjectLink? LinqConsoleRestart.ITarget.ModelLink => _models.State.Link;
+
+    Task<(ILinqConsole Console, IReadOnlyDictionary<string, FileStamp> Files)> LinqConsoleRestart.ITarget.StartHostAsync(
+        ClrProjectLink link, Action<string> report, CancellationToken cancellationToken) => StartHostAsync(link, report, cancellationToken);
+
+    async Task<(bool Taken, ILinqConsole? Replaced)> LinqConsoleRestart.ITarget.SwapAsync(
+        ClrProjectLink link, ILinqConsole started, IReadOnlyDictionary<string, FileStamp> files, CancellationToken cancellationToken)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            if (_disposed || _models.State.Link != link || (_consoleLink is not null && _consoleLink != link))
+            {
+                // The connection closed meanwhile (the new host would outlive it), or the link changed: the new host
+                // belongs to the old one too.
+                return (false, null);
+            }
+
+            var replaced = _console;
+            (_console, _consoleLink, _consoleFiles) = (started, link, files);
+            return (true, replaced);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    IReadOnlyDictionary<string, FileStamp>? LinqConsoleRestart.ITarget.ListFiles(ClrProjectLink link)
+    {
+        try
+        {
+            return BuildFiles.List(Path.GetDirectoryName(BuildOutputLocator.Find(link).Assembly)!);
+        }
+        catch (Exception ex) when (ex is ClrModelException || IsStartFailure(ex))
+        {
+            return null;
+        }
+    }
+
+    void LinqConsoleRestart.ITarget.SetState(LinqConsoleState state)
+    {
+        lock (_stateLock)
+        {
+            _state = state;
+        }
+    }
+
+    void LinqConsoleRestart.ITarget.RaiseChanged() => Changed?.Invoke();
 
     public async ValueTask DisposeAsync()
     {
@@ -535,10 +480,10 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
         lock (_lock)
         {
             _disposed = true;
-            _restart?.Cancel();
             _starting?.Cancel();
-            return _restartTask;
         }
+
+        return _restart.End();
     }
 
     /// <summary>
@@ -553,7 +498,7 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
         }
         catch (TimeoutException)
         {
-            // the restart checks _disposed before swapping and disposes its host itself
+            // the restart's swap checks _disposed under the gate, and it disposes the host it started itself
         }
     }
 }

@@ -7,7 +7,6 @@
 @using FerretSharp.Core.Query
 @inherits FerretComponent
 @implements IDisposable
-@inject ILogger<LinqView> Logger
 @inject ShortcutService Shortcuts
 
 <div class="linqview">
@@ -478,16 +477,15 @@
 
         var query = _query = LinqStatements.ToQuery(command);
         Begin(RunPhase.Reading);
-        var result = await Shell.RunDbAsync(Logger, Active, async () =>
-            await Workspaces.ReadSqlAsync(Tab.WorkspaceId, query, 0, SqlResultGrid.PageSize, token), token);
-        if (result.Cancelled)
+        var outcome = await Lifecycle.Statements.ReadAsync(Tab.WorkspaceId, query, SqlResultGrid.PageSize, log: null, token);
+        if (outcome.Cancelled)
         {
             _error = token.IsCancellationRequested ? SqlEditorText.Linq_QueryCanceled : null;
             return;
         }
 
-        _firstPage = result.Value;
-        _grid = result.Error is { } error ? new SqlGridStatus(false, 0, false, null, null, error) : null;
+        _firstPage = outcome.FirstPage;
+        _grid = outcome.Error is { } error ? new SqlGridStatus(false, 0, false, null, null, error) : null;
     }
 
     private Task SelectCommandAsync(int index)
@@ -529,31 +527,31 @@
 
         var statement = LinqStatements.ToQuery(run.Commands[Tab.SelectedCommand]);
         _error = null;
-        DbResult<WriteAction> result = default;
+        StatementOutcome? outcome = null;
         await RunningAsync(async token =>
         {
             Begin(RunPhase.Writing);
-            result = await Shell.RunDbAsync(Logger, Active, async () =>
-                await Workspaces.ExecuteAsync(Tab.WorkspaceId, statement, token), token);
+            outcome = await Lifecycle.Statements.WriteAsync(Tab, statement, log: null, token);
         });
-        var elapsed = DateTimeOffset.Now - _phaseStarted;
-        if (result.Cancelled)
+        if (outcome is null)
+        {
+            return; // another run was going on
+        }
+
+        if (outcome.Cancelled)
         {
             _error = SqlEditorText.Run_CanceledWriteUndone;
             return;
         }
 
-        _error = result.Error?.Display;
-        if (result.Value is not { } written)
+        _error = outcome.Error?.Display;
+        if (outcome.Written is not { } written)
         {
             return;
         }
 
-        Lifecycle.Editing.NoteStatement(Tab, written);
-        (_written, _writtenIn, _writtenElapsed) = (written, Workspaces.TransactionOf(Tab.WorkspaceId)?.StartedAt, elapsed);
-        Shell.ReloadTableTabs(Tab.WorkspaceId); // they may show the changed rows
-
-        Shell.NotifyChanged(); // status bar: open transaction, commit/rollback
+        (_written, _writtenIn, _writtenElapsed) = (written, outcome.Transaction, outcome.Elapsed);
+        await Lifecycle.Statements.FinishAsync(Tab.WorkspaceId, wrote: true, changedSchema: false); // tabs may show the changed rows, the status bar the transaction
     }
 
     /// <summary>Appends the suggested declarations to the variables and puts the cursor on the first of them.</summary>

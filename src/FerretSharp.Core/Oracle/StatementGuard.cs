@@ -5,9 +5,10 @@ namespace FerretSharp.Core.Oracle;
 
 /// <summary>
 /// The statement guards of <see cref="OracleSession"/> (CLAUDE.md section 2, ADR 0006): which statement may take which
-/// path. Not a SQL parser – a tripwire against programming mistakes. Built on the SQL editor's tokenizer, so comments,
-/// <c>q'[…]'</c> literals and quoted names are seen the same way the editor sees them (since WP-17 user SQL reaches the
-/// read path, a comment with a <c>;</c> must not make a query look like two statements).
+/// path. Not a SQL parser – a tripwire against programming mistakes. Built on the SQL editor's tokenizer and classifier,
+/// and only on those two (R4b), so comments, <c>q'[…]'</c> literals and quoted names are seen the same way the editor sees
+/// them (since WP-17 user SQL reaches the read path, a comment with a <c>;</c> must not make a query look like two
+/// statements).
 /// </summary>
 internal static class StatementGuard
 {
@@ -24,7 +25,7 @@ internal static class StatementGuard
     /// TRUNCATE, ALTER SESSION/SYSTEM, PL/SQL objects or blocks, and no bind variables (Oracle allows none in DDL).
     /// </summary>
     public static bool IsDdl(string sql) =>
-        Significant(sql) is { } tokens && SqlScript.KindOf(tokens) == SqlStatementKind.Ddl && !tokens.Any(t => t.Kind == SqlTokenKind.Bind);
+        Significant(sql) is { } tokens && SqlClassifier.KindOf(tokens) == SqlStatementKind.Ddl && !tokens.Any(t => t.Kind == SqlTokenKind.Bind);
 
     /// <summary>A single query ending in FOR UPDATE WAIT n (up to 3 digits) or FOR UPDATE NOWAIT – never one that waits forever.</summary>
     public static bool IsLock(string sql) =>
@@ -38,7 +39,7 @@ internal static class StatementGuard
     /// <summary>The tokens without spaces and comments, without trailing <c>;</c>; null if that is no single statement.</summary>
     private static List<SqlToken>? Significant(string sql)
     {
-        var tokens = SqlScript.Tokenize(sql).Where(t => t.Kind is not (SqlTokenKind.Space or SqlTokenKind.Comment)).ToList();
+        var tokens = SqlTokenizer.Significant(sql);
         while (tokens.Count > 0 && tokens[^1].IsSymbol(";"))
         {
             tokens.RemoveAt(tokens.Count - 1);

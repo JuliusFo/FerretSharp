@@ -26,6 +26,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\FerretSharp.Core\FerretSharp.Core.csproj" />
+    <!-- Built first, started by the ModelHost process tests (R4b); not referenced as an assembly. -->
+    <ProjectReference Include="..\FerretSharp.FakeModelHost\FerretSharp.FakeModelHost.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 </Project>

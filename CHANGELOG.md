@@ -5,6 +5,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.25.0] - 2026-10-11
+
+Internal restructuring after the review of 3.24.0 (R4b), as preparation for history tables with triggers (WP-26).
+
+### Changed
+- Internal restructuring without new features: one DDL writer for the schema comparison and the designer, the SQL editor's statement analysis in parts, one way for SQL editor, designer and LINQ console to run statements, the undo/redo bookkeeping of grid writes and the restart of the LINQ console for a new build in classes of their own, the logic of the designer's constraint rows and of a new index out of the views, the grid's colors from the design tokens, one bar for write/commit/rollback in the status bar and the change overview. New tests for all of it, among them the helper process of the C# model against a stand-in that fails in every way the real one can.
+- The DDL proposal of the schema comparison writes its statements in the designer's order: constraints it recreates are dropped first, changed columns come before new ones, comments after the indexes. The statements and warnings are the same.
+- The DDL proposal says when a type change only works on an empty column (`NUMBER(10)` → `NUMBER(10,2)`, `NVARCHAR2` → `VARCHAR2`, fewer fractional seconds); before it said "may fail on existing data". Changes that work with any data (more digits on both sides, BYTE → CHAR, DATE → TIMESTAMP) no longer warn, a shorter length says that values too long for it fail.
+
+### Fixed
+- When the LINQ console's helper process ended while starting or did not answer in time, the console showed an unexpected error and stayed "starting" instead of saying why.
+- With several connections open, every cell edit rendered the table list of each connection's explorer again; now only opening, closing or switching tabs does.
+
 ## [3.24.1] - 2026-10-11
 
 Fixes from the review of 3.24.0 (R4a).

@@ -1,6 +1,7 @@
 @* DDL the designer wrote (WP-23), below its form: what is wrong or worth knowing, the script (copy icon of SqlCode), and what
    to do with it – run it through the schema path (confirmed like DDL in the SQL editor, statement by statement, stopping
    at the first failure), open it in the SQL editor, or save it as a file (the last folder per connection is remembered). *@
+@using FerretSharp.Core.Ddl
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Workspaces
@@ -22,7 +23,7 @@
     {
         <p class="hint small">⚠ @warning</p>
     }
-    @if (Statements.Count > 0)
+    @if (Steps.Count > 0)
     {
         <SqlCode Sql="@Script" Class="ddl-script" />
     }
@@ -59,8 +60,8 @@
 
     <div class="ddl-actions">
         <button class="btn primary" disabled="@(!CanRun)" title="@(CanRun ? null : RunBlocked)" @onclick="() => _confirm = true">@CommonText.Run</button>
-        <button class="btn ghost" disabled="@(Statements.Count == 0)" @onclick="OpenInSqlEditor">@SchemaViewText.Ddl_OpenInSqlEditor</button>
-        <button class="btn ghost" disabled="@(Statements.Count == 0)" @onclick="SaveAsync">@SchemaViewText.Ddl_Save</button>
+        <button class="btn ghost" disabled="@(Steps.Count == 0)" @onclick="OpenInSqlEditor">@SchemaViewText.Ddl_OpenInSqlEditor</button>
+        <button class="btn ghost" disabled="@(Steps.Count == 0)" @onclick="SaveAsync">@SchemaViewText.Ddl_Save</button>
         <span class="spacer"></span>
         <button class="btn ghost" disabled="@(_running is not null)" @onclick="OnClose">@CommonText.Close</button>
     </div>
@@ -90,9 +91,11 @@
     [Parameter, EditorRequired]
     public Guid WorkspaceId { get; set; }
 
-    /// <summary>The DDL, one statement each, without semicolon; empty while the draft has none (problems).</summary>
+    /// <summary>The DDL, one step each, in the order it runs; empty while the draft has none (problems).</summary>
     [Parameter, EditorRequired]
-    public IReadOnlyList<string> Statements { get; set; } = [];
+    public IReadOnlyList<DdlStep> Steps { get; set; } = [];
+
+    private IReadOnlyList<string> Statements => Steps.Select(s => s.Sql).ToList();
 
     /// <summary>Reasons the draft cannot run; Run stays disabled.</summary>
     [Parameter]
@@ -127,10 +130,10 @@
     [Parameter]
     public EventCallback OnClose { get; set; }
 
-    /// <summary>The statements as a script: each ends with a semicolon, a blank line between them.</summary>
-    private string Script => string.Join("\n\n", Statements.Select(s => s + ";"));
+    /// <summary>The steps as a script (<see cref="DdlScript.Render"/>): each ends with a semicolon, a blank line between them.</summary>
+    private string Script => DdlScript.Render(Steps);
 
-    private bool CanRun => Statements.Count > 0 && Problems.Count == 0 && _running is null && Workspaces.IsWritable(WorkspaceId);
+    private bool CanRun => Steps.Count > 0 && Problems.Count == 0 && _running is null && Workspaces.IsWritable(WorkspaceId);
 
     private string? RunBlocked => Problems.Count > 0 ? Problems[0] : !Workspaces.IsWritable(WorkspaceId) ? SchemaViewText.Ddl_WorkspaceLocked : null;
 
@@ -141,7 +144,7 @@
         using var cts = _cts = new CancellationTokenSource();
         try
         {
-            _result = await Lifecycle.RunDdlAsync(WorkspaceId, Statements, discard, statement =>
+            _result = await Lifecycle.Statements.RunDdlAsync(WorkspaceId, Statements, discard, statement =>
             {
                 (_running, _started) = (statement, DateTimeOffset.Now); // the progress shows the statement at hand
                 StateHasChanged();

@@ -71,14 +71,8 @@ public sealed class WorkspaceEditing(
 
     private WorkspaceManager WorkspacesOf(Guid workspaceId) => ScopeOf(workspaceId).Workspaces;
 
-    /// <summary>Per workspace: the grid writes with what to restore when undone, in the order written.</summary>
-    private readonly Dictionary<Guid, List<(Guid ActionId, TableTab Tab, FlushBatch Batch)>> _batches = [];
-
-    /// <summary>Per workspace: the grid writes taken back, by action id – their changes are pending again until redo (WP-30).</summary>
-    private readonly Dictionary<Guid, Dictionary<Guid, (TableTab Tab, FlushBatch Batch)>> _undone = [];
-
-    /// <summary>Per workspace: the tab a statement ran in (SQL editor, LINQ console), by the first write of its line.</summary>
-    private readonly Dictionary<Guid, Dictionary<Guid, WorkspaceTab>> _statementTabs = [];
+    /// <summary>Per workspace: the grid writes with what to restore, those taken back, and the tabs statements ran in (R4b).</summary>
+    public GridWriteHistory History { get; } = new();
 
     private readonly Dictionary<Guid, HashSet<Guid>> _overwrite = [];
 
@@ -121,7 +115,6 @@ public sealed class WorkspaceEditing(
             : WriteFate.Ended;
     }
 
-    /// <summary>Workspaces whose changes would be lost (pending, flushed or an open writing transaction).</summary>
     /// <summary>Workspaces with uncommitted work, of all open connections (quitting asks for all).</summary>
     public IReadOnlyList<WorkspaceTabs> WithWork() => shell.AllWorkspaces.Where(w => SummaryOf(w).HasWork).ToList();
 
@@ -216,18 +209,14 @@ public sealed class WorkspaceEditing(
             return false;
         }
 
-        ForgetEndedRedos(id);
-        var batches = Batches(id);
+        History.KeepRedoable(id, WorkspacesOf(id).UndoneOf(id).Select(a => a.Id));
         var statements = false;
         foreach (var action in undone) // newest first, like the rollback
         {
-            if (batches.FindLastIndex(b => b.ActionId == action.Id) is >= 0 and var index)
+            if (History.TakeBack(id, action.Id) is { } write)
             {
-                var (_, tab, batch) = batches[index];
-                batches.RemoveAt(index);
-                tab.Changes?.UndoFlush(batch);
-                Undone(id)[action.Id] = (tab, batch);
-                shell.RequestTabCommand(tab, TabCommand.Reload);
+                write.Tab.Changes?.UndoFlush(write.Batch);
+                shell.RequestTabCommand(write.Tab, TabCommand.Reload);
             }
             else
             {
@@ -257,7 +246,7 @@ public sealed class WorkspaceEditing(
             return null;
         }
 
-        if (Undone(workspace.WorkspaceId).GetValueOrDefault(next.Id) is not { Tab: { } tab, Batch: { } batch }
+        if (History.Undone(workspace.WorkspaceId, next.Id) is not { Tab: { } tab, Batch: { } batch }
             || !workspace.TableTabs.Contains(tab) || tab.Changes is not { } tracker)
         {
             return GridText.Editing_RedoTabClosed;
@@ -281,7 +270,7 @@ public sealed class WorkspaceEditing(
         }
 
         if (WorkspacesOf(id).UndoneOf(id) is not [{ Kind: WriteActionKind.Grid } next, ..] || next.Id != expected
-            || !Undone(id).Remove(next.Id, out var undone))
+            || History.StartRedo(id, next.Id) is not { } undone)
         {
             throw new RefusedException(DataText.RedoNotPossible);
         }
@@ -291,7 +280,7 @@ public sealed class WorkspaceEditing(
         var options = new FlushOptions(settings.Current.LockWaitSeconds, Overwrites(id), RedoOf: next.Id);
         if (!await FlushTabAsync(workspace, editor, undone.Tab, tracker.PendingOperations(undone.Batch), options, duringCommit: false))
         {
-            Undone(id)[next.Id] = undone; // still taken back: the problem dialog decides
+            History.RedoStopped(id, undone); // still taken back: the problem dialog decides
             return false;
         }
 
@@ -320,7 +309,7 @@ public sealed class WorkspaceEditing(
     }
 
     /// <summary>A statement of the SQL editor or the LINQ console was written: the change overview names its tab and jumps there.</summary>
-    public void NoteStatement(WorkspaceTab tab, WriteAction action) => StatementTabs(tab.WorkspaceId)[action.Origin] = tab;
+    public void NoteStatement(WorkspaceTab tab, WriteAction action) => History.NoteStatement(tab, action);
 
     /// <summary>
     /// Where a write came from (change overview): the table tab of a grid write, the SQL or LINQ tab of a statement; null
@@ -329,21 +318,13 @@ public sealed class WorkspaceEditing(
     public WorkspaceTab? SourceOf(WorkspaceTabs workspace, WriteAction action)
     {
         WorkspaceTab? tab = action.Kind == WriteActionKind.Grid
-            ? GridWriteOf(workspace.WorkspaceId, action.Id)?.Tab
-            : _statementTabs.GetValueOrDefault(workspace.WorkspaceId)?.GetValueOrDefault(action.Origin);
+            ? History.Find(workspace.WorkspaceId, action.Id)?.Tab
+            : History.StatementTab(workspace.WorkspaceId, action);
         return tab is not null && workspace.Tabs.Contains(tab) ? tab : null;
     }
 
     /// <summary>The tab and rows of a grid write, written or taken back; null if unknown.</summary>
-    public (TableTab Tab, FlushBatch Batch)? GridWriteOf(Guid workspaceId, Guid actionId)
-    {
-        if (_batches.GetValueOrDefault(workspaceId)?.FindLast(b => b.ActionId == actionId) is { Tab: { } tab, Batch: { } batch })
-        {
-            return (tab, batch);
-        }
-
-        return _undone.GetValueOrDefault(workspaceId)?.TryGetValue(actionId, out var undone) == true ? undone : null;
-    }
+    public GridWrite? GridWriteOf(Guid workspaceId, Guid actionId) => History.Find(workspaceId, actionId);
 
     /// <summary>The statements a write would run, with values (for "Show changes as SQL").</summary>
     public string DescribePending(WorkspaceTabs workspace)
@@ -424,11 +405,10 @@ public sealed class WorkspaceEditing(
         shell.ReloadTableTabs(workspace.WorkspaceId);
     }
 
+    /// <summary>The workspace's transaction ended, or the workspace or its connection closed: nothing of it is kept.</summary>
     public void Forget(Guid workspaceId)
     {
-        _batches.Remove(workspaceId);
-        _undone.Remove(workspaceId);
-        _statementTabs.Remove(workspaceId);
+        History.Forget(workspaceId);
         _overwrite.Remove(workspaceId);
         if (Problem?.WorkspaceId == workspaceId)
         {
@@ -469,7 +449,7 @@ public sealed class WorkspaceEditing(
             var batch = tracker.MarkFlushed(operations, result.NewKeys);
             if (result.Action is { } action)
             {
-                Batches(workspace.WorkspaceId).Add((action.Id, tab, batch));
+                History.Written(workspace.WorkspaceId, action.Id, tab, batch);
             }
 
             return true;
@@ -506,15 +486,10 @@ public sealed class WorkspaceEditing(
     /// <summary>The transaction ended without commit: every write is taken back, newest first, like undo.</summary>
     private void RestorePending(WorkspaceTabs workspace)
     {
-        if (!_batches.Remove(workspace.WorkspaceId, out var batches))
+        foreach (var write in History.TakeAll(workspace.WorkspaceId))
         {
-            return;
-        }
-
-        foreach (var (_, tab, batch) in Enumerable.Reverse(batches))
-        {
-            tab.Changes?.UndoFlush(batch);
-            shell.RequestTabCommand(tab, TabCommand.Reload);
+            write.Tab.Changes?.UndoFlush(write.Batch);
+            shell.RequestTabCommand(write.Tab, TabCommand.Reload);
         }
     }
 
@@ -568,28 +543,6 @@ public sealed class WorkspaceEditing(
         catch (DatabaseException)
         {
             return null;
-        }
-    }
-
-    private List<(Guid ActionId, TableTab Tab, FlushBatch Batch)> Batches(Guid workspaceId) =>
-        _batches.TryGetValue(workspaceId, out var list) ? list : _batches[workspaceId] = [];
-
-    private Dictionary<Guid, (TableTab Tab, FlushBatch Batch)> Undone(Guid workspaceId) =>
-        _undone.TryGetValue(workspaceId, out var undone) ? undone : _undone[workspaceId] = [];
-
-    private Dictionary<Guid, WorkspaceTab> StatementTabs(Guid workspaceId) =>
-        _statementTabs.TryGetValue(workspaceId, out var tabs) ? tabs : _statementTabs[workspaceId] = [];
-
-    /// <summary>Grid writes taken back that a new write made unredoable: their changes simply stay pending.</summary>
-    private void ForgetEndedRedos(Guid workspaceId)
-    {
-        if (_undone.TryGetValue(workspaceId, out var undone))
-        {
-            var open = WorkspacesOf(workspaceId).UndoneOf(workspaceId).Select(a => a.Id).ToHashSet();
-            foreach (var id in undone.Keys.Where(id => !open.Contains(id)).ToList())
-            {
-                undone.Remove(id);
-            }
         }
     }
 

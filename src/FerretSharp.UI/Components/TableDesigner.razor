@@ -18,9 +18,9 @@
 else
 {
     var (draft, inputProblems) = designer.ToDraft();
-    var context = new DesignContext(designer.Table, _constraints, _indexes, _incoming) { Referenced = _referenced };
+    var context = new DesignContext(designer.Table, _constraints, _indexes, _incoming) { Referenced = designer.Referenced };
     var plan = NewTab is { } created
-        ? TableDesign.PlanNew(created.Table, draft, _referenced, TakenNames)
+        ? TableDesign.PlanNew(created.Table, draft, designer.Referenced, TakenNames)
         : TableDesign.Plan(context, draft, new DataFacts(_facts));
     var counting = _counting.Count > 0;
     <section class="designer">
@@ -87,7 +87,7 @@ else
                         <span class="mono">@name</span>
                         <span class="muted mono">@Describe(constraint)</span>
                         <button class="icon-btn" title="@(dropped ? SchemaViewText.Designer_Restore : SchemaViewText.Designer_Drop)"
-                                @onclick="() => { if (!designer.DroppedConstraints.Remove(name)) designer.DroppedConstraints.Add(name); }">@(dropped ? "↺" : "✕")</button>
+                                @onclick="() => designer.ToggleDropConstraint(name)">@(dropped ? "↺" : "✕")</button>
                     </li>
                 }
             </ul>
@@ -102,7 +102,7 @@ else
                     <option value="@ConstraintType.ForeignKey">FOREIGN KEY</option>
                     <option value="@ConstraintType.Check">CHECK</option>
                 </select>
-                <input class="field mono" spellcheck="false" value="@a.Name" @oninput="e => SetName(a, e.Value)"
+                <input class="field mono" spellcheck="false" value="@a.Name" @oninput="e => a.Name = (string?)e.Value ?? string.Empty"
                        @onchange="() => designer.SuggestName(a)" aria-label="@SchemaViewText.Head_Name" />
                 <span class="index-draft-columns">
                     @for (var i = 0; i < a.Columns.Count; i++)
@@ -110,13 +110,13 @@ else
                         var at = i;
                         <span class="index-draft-column">
                             <span class="mono">@a.Columns[at]</span>
-                            <button class="icon-btn" title="@SchemaViewText.Indexes_ColumnRemove" @onclick="() => RemoveColumn(designer, a, at)">✕</button>
+                            <button class="icon-btn" title="@SchemaViewText.Indexes_ColumnRemove" @onclick="() => designer.RemoveColumn(a, at)">✕</button>
                         </span>
                     }
                     @{ var free = designer.ColumnNames.Where(n => !a.Columns.Contains(n)).ToList(); }
                     @if (free.Count > 0)
                     {
-                        <select class="field" @key="@($"{a.Columns.Count}-{free.Count}")" @onchange="e => AddColumn(designer, a, (string?)e.Value)" aria-label="@SchemaViewText.Indexes_ColumnAdd">
+                        <select class="field" @key="@($"{a.Columns.Count}-{free.Count}")" @onchange="e => designer.AddColumn(a, (string?)e.Value)" aria-label="@SchemaViewText.Indexes_ColumnAdd">
                             <option value="" selected>@SchemaViewText.Indexes_ColumnAdd</option>
                             @foreach (var name in free)
                             {
@@ -139,13 +139,13 @@ else
                                 <option value="@($"{table.Owner}.{table.Name}")">@table.DisplayName</option>
                             }
                         </select>
-                        @if (a.References is { } references && ColumnsOf(references) is { } targetColumns)
+                        @if (a.References is { } references && designer.ColumnsOf(references) is { } targetColumns)
                         {
                             @for (var i = 0; i < a.Columns.Count; i++)
                             {
                                 var at = i;
                                 <select class="field" @key="@($"{references}-{at}-{a.ReferencedColumns.ElementAtOrDefault(at)}")" value="@a.ReferencedColumns.ElementAtOrDefault(at)"
-                                        @onchange="e => SetReferenced(a, at, (string?)e.Value)" aria-label="@SchemaViewText.Designer_References">
+                                        @onchange="e => a.SetReferenced(at, (string?)e.Value)" aria-label="@SchemaViewText.Designer_References">
                                     @foreach (var target in targetColumns)
                                     {
                                         <option value="@target">@target</option>
@@ -172,7 +172,7 @@ else
         {
             <p class="hint small"><span class="spinner"></span> @SchemaViewText.Designer_Counting</p>
         }
-        <DdlDraftPanel WorkspaceId="WorkspaceId" Statements="@(counting ? Array.Empty<string>() : plan.Statements)" Problems="@(inputProblems.Concat(plan.Problems).ToList())" Warnings="plan.Warnings"
+        <DdlDraftPanel WorkspaceId="WorkspaceId" Steps="@(counting ? [] : plan.Steps)" Problems="@(inputProblems.Concat(plan.Problems).ToList())" Warnings="plan.Warnings"
                        FileName="@($"{DateTime.Now:yyyy-MM-dd}_{(NewTab?.Table.Name ?? Details.Table.Name)}.sql")" OnRan="OnRanAsync" OnFailed="OnFailedAsync" Ended="OnEnded" Earlier="_failure" OnClose="CloseAsync" />
 
         @if (PropertyLines(designer) is { Count: > 0 } suggestions)
@@ -192,7 +192,7 @@ else
     private IReadOnlyList<ConstraintInfo> _constraints = [];
     private IReadOnlyList<IndexInfo> _indexes = [];
     private IReadOnlyList<ForeignKeyInfo> _incoming = [];
-    private readonly Dictionary<TableRef, TableDetails> _referenced = [];
+
     private readonly Dictionary<DataQuestion, long> _facts = [];
     private readonly HashSet<DataQuestion> _counting = [];
     private readonly HashSet<DataQuestion> _failed = [];
@@ -414,88 +414,30 @@ else
     private static IEnumerable<string> TypesFor(DesignColumn column) =>
         DesignColumn.Types.Contains(column.Type) ? DesignColumn.Types : [column.Type, .. DesignColumn.Types];
 
-    private static void SetName(DesignConstraint constraint, object? value)
-    {
-        constraint.Name = value as string ?? "";
-        constraint.NameTyped = constraint.Name.Length > 0; // cleared: follows type and columns again when the field is left
-    }
-
     private static void SetType(ColumnDesigner designer, DesignConstraint constraint, object? value)
     {
         if (Enum.TryParse<ConstraintType>(value as string, out var type))
         {
-            constraint.Type = type;
-            designer.SuggestName(constraint);
+            designer.SetType(constraint, type);
         }
     }
 
-    private void AddColumn(ColumnDesigner designer, DesignConstraint constraint, string? column)
-    {
-        if (string.IsNullOrEmpty(column) || constraint.Columns.Contains(column))
-        {
-            return;
-        }
-
-        constraint.Columns.Add(column);
-        // A foreign key's referenced column follows the key of the referenced table, position by position.
-        if (constraint.References is { } references && _referenced.TryGetValue(references, out var target))
-        {
-            constraint.ReferencedColumns.Add(target.PrimaryKey.ElementAtOrDefault(constraint.Columns.Count - 1) ?? target.Columns[0].Name);
-        }
-
-        designer.SuggestName(constraint);
-    }
-
-    private static void RemoveColumn(ColumnDesigner designer, DesignConstraint constraint, int at)
-    {
-        constraint.Columns.RemoveAt(at);
-        if (at < constraint.ReferencedColumns.Count)
-        {
-            constraint.ReferencedColumns.RemoveAt(at);
-        }
-
-        designer.SuggestName(constraint);
-    }
-
+    /// <summary>The foreign key references another table; its structure is loaded once, for its key and column types.</summary>
     private async Task ReferenceAsync(ColumnDesigner designer, DesignConstraint constraint, string? value)
     {
-        constraint.ReferencedColumns.Clear();
-        constraint.References = Tables.FirstOrDefault(t => $"{t.Owner}.{t.Name}" == value)?.Ref;
-        designer.SuggestName(constraint);
-        if (constraint.References is not { } references || Active.Schema is not { } schema || Active.Schema.Find(references) is not { } summary)
+        var references = Tables.FirstOrDefault(t => $"{t.Owner}.{t.Name}" == value)?.Ref;
+        designer.Reference(constraint, references);
+        if (references is null || designer.Referenced.ContainsKey(references) || Active.Schema is not { } schema || schema.Find(references) is not { } summary)
         {
             return;
         }
 
-        if (!_referenced.ContainsKey(references))
+        var loaded = await Shell.RunDbAsync(Logger, Active, () => schema.GetDetailsAsync(summary, _cts.Token), _cts.Token);
+        if (loaded.Value is { } details && !_disposed)
         {
-            var loaded = await Shell.RunDbAsync(Logger, Active, () => schema.GetDetailsAsync(summary, _cts.Token), _cts.Token);
-            if (loaded.Value is not { } details)
-            {
-                return;
-            }
-
-            _referenced[references] = details;
+            designer.Learn(details);
         }
-
-        // Its primary key, position by position; the user may pick another column.
-        var key = _referenced[references].PrimaryKey;
-        constraint.ReferencedColumns.AddRange(constraint.Columns.Select((_, i) => key.ElementAtOrDefault(i) ?? _referenced[references].Columns[0].Name));
     }
-
-    private IReadOnlyList<string>? ColumnsOf(TableRef table) =>
-        table == Details.Table.Ref ? _designer?.ColumnNames : _referenced.TryGetValue(table, out var details) ? details.Columns.Select(c => c.Name).ToList() : null;
-
-    private static void SetReferenced(DesignConstraint constraint, int at, string? column)
-    {
-        while (constraint.ReferencedColumns.Count <= at)
-        {
-            constraint.ReferencedColumns.Add("");
-        }
-
-        constraint.ReferencedColumns[at] = column ?? "";
-    }
-
     /// <summary>Property lines for the new columns, if the C# model maps this table.</summary>
     private IReadOnlyList<PropertySuggestion> PropertyLines(ColumnDesigner designer)
     {

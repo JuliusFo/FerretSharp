@@ -391,17 +391,8 @@
     }
 
     /// <summary>The change overview opens again after a restart if it was open (WP-30).</summary>
-    private void OnChangesOpenChanged(bool open) => InvokeAsync(async () =>
-    {
-        try
-        {
-            await Settings.UpdateAsync(s => s with { ChangesPanelOpen = open }, CancellationToken.None);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            _state.Notify(TextFormat.Format(ShellText.Settings_NotSaved, ex.Message));
-        }
-    });
+    private void OnChangesOpenChanged(bool open) =>
+        InvokeAsync(() => _state.TrySaveSettingsAsync(() => Settings.UpdateAsync(s => s with { ChangesPanelOpen = open }, CancellationToken.None)));
 
     /// <summary>Raised by <see cref="ShellState.Connect"/> from anywhere; the lifecycle asks about open changes first.</summary>
     private void OnConnectRequested(ConnectionProfile profile) => Run(() => _lifecycle.ConnectAsync(profile));
