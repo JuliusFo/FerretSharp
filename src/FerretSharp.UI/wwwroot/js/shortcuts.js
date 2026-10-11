@@ -31,9 +31,19 @@ export function comboOf(e) {
   return parts.join('+');
 }
 
-export function register(dotnet, combos) {
+// Ends open cell editors, taking their values; resolves false if one was refused (grid.js registers it on load).
+let finishEditing = null;
+
+export function setEditFinisher(finish) {
+  finishEditing = finish;
+}
+
+// takeEditFirst: combos that write (Ctrl+S, commit). The value in an open cell editor goes to .NET first – the write
+// reloads the grid, which cancelled the editor and lost the value (R4a).
+export function register(dotnet, combos, takeEditFirst = []) {
   unregister();
   const wanted = new Set(combos);
+  const editFirst = new Set(takeEditFirst);
 
   handler = e => {
     if (recording) return;
@@ -42,7 +52,14 @@ export function register(dotnet, combos) {
       // Taken also while a dialog is open (.NET then ignores it): F5 would reload the whole WebView otherwise.
       e.preventDefault();
       e.stopPropagation();
-      dotnet.invokeMethodAsync('OnShortcut', combo, modalOpen(), cellEditing()).catch(err => console.error('Shortcut failed', err));
+      const send = () => dotnet.invokeMethodAsync('OnShortcut', combo, modalOpen(), cellEditing());
+      const fail = err => console.error('Shortcut failed', err);
+      if (editFirst.has(combo) && finishEditing && !modalOpen() && cellEditing()) {
+        // A refused value keeps its editor open with the reason: nothing is written then.
+        finishEditing().then(taken => taken ? send() : null).catch(fail);
+      } else {
+        send().catch(fail);
+      }
     }
   };
 

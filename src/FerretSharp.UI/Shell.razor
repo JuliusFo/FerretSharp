@@ -282,7 +282,9 @@
             return;
         }
 
-        await _shortcuts.InvokeVoidAsync("register", _selfRef, Shortcuts.Map.GlobalCombos);
+        // Writing takes the value of an open cell editor first (R4a).
+        string?[] takeEditFirst = [Shortcuts.Map.Chord(ShortcutAction.Flush)?.Text, Shortcuts.Map.Chord(ShortcutAction.Commit)?.Text];
+        await _shortcuts.InvokeVoidAsync("register", _selfRef, Shortcuts.Map.GlobalCombos, takeEditFirst.OfType<string>().ToList());
         await _shortcuts.InvokeVoidAsync("setLocal", Shortcuts.LocalCombos);
     }
 

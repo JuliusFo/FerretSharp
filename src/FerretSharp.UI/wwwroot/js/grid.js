@@ -1,9 +1,26 @@
 // Bridge to AG Grid Community (global `agGrid`, loaded by index.html). Infinite row model: every block of rows,
 // including sorting, comes from .NET; cells arrive as display strings (null = SQL NULL). No business logic here.
 
-import { comboOf, localCombo } from './shortcuts.js';
+import { comboOf, localCombo, setEditFinisher } from './shortcuts.js';
 
 const grids = new Map();
+// Cell values on their way to .NET (onCellEditRequest), each resolving to whether .NET took it.
+const pendingEdits = new Set();
+
+// Ends the open cell editors of the visible grids, taking their values, and waits until .NET has them (R4a: Ctrl+S with
+// an editor open reloaded the grid, which cancelled the editor – the value was lost). False if one was refused.
+async function finishEditing() {
+  for (const [id, api] of grids) {
+    if (api.getEditingCells().length > 0 && document.getElementById(id)?.getClientRects().length > 0) {
+      api.stopEditing(false);
+    }
+  }
+
+  await new Promise(resolve => setTimeout(resolve)); // the edit request may follow the stop
+  return (await Promise.all([...pendingEdits])).every(taken => taken);
+}
+
+setEditFinisher(finishEditing);
 // Per grid: whether its workspace may write (switched by setEditable when the workspace is unlocked or locked).
 const editStates = new Map();
 // Per grid: column metadata by column id; updateColumns changes these objects in place (the column defs refer to them).
@@ -662,24 +679,32 @@ export function create(elementId, dotnet, columns, options) {
       'fs-row-deleted': p => !!p.data?.__d,
       'fs-row-new': p => p.node.rowPinned === 'top',
     },
-    onCellEditRequest: async e => {
+    onCellEditRequest: e => {
       const colId = e.column.getColId();
       const text = e.newValue ?? '';
-      try {
-        const result = await dotnet.invokeMethodAsync('OnCellEdit', ...rowArgs(e.node, e.data), colId, text);
-        if (result.error) {
-          // Left with Tab or a click elsewhere: reopen the editor with the rejected text and the reason.
-          editState.retry = { key: cellKey(e.node, colId), text, error: result.error };
-          setTimeout(() => {
-            api.stopEditing(true);
-            api.startEditingCell({ rowIndex: e.node.rowIndex, colKey: colId, rowPinned: e.node.rowPinned ?? undefined });
-          });
-        } else if (result.row) {
-          e.node.setData(result.row);
+      // True if .NET took the value; a shortcut that writes waits for it (finishEditing).
+      const edit = (async () => {
+        try {
+          const result = await dotnet.invokeMethodAsync('OnCellEdit', ...rowArgs(e.node, e.data), colId, text);
+          if (result.error) {
+            // Left with Tab or a click elsewhere: reopen the editor with the rejected text and the reason.
+            editState.retry = { key: cellKey(e.node, colId), text, error: result.error };
+            setTimeout(() => {
+              api.stopEditing(true);
+              api.startEditingCell({ rowIndex: e.node.rowIndex, colKey: colId, rowPinned: e.node.rowPinned ?? undefined });
+            });
+            return false;
+          }
+
+          if (result.row) e.node.setData(result.row);
+          return true;
+        } catch (err) {
+          console.error(err);
+          return false;
         }
-      } catch (err) {
-        console.error(err);
-      }
+      })();
+      pendingEdits.add(edit);
+      edit.finally(() => pendingEdits.delete(edit));
     },
     onBodyScrollEnd: () => { if (table) dotnet.invokeMethodAsync('OnScrolled', firstVisibleRow(api)).catch(callFailed); },
     onCellFocused: reportFocus,
