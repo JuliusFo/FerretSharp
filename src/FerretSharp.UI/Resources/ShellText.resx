@@ -1159,4 +1159,19 @@
     <value>The C# model could not be matched against the new schema: {0}</value>
     <comment>{0} = the error</comment>
   </data>
+  <data name="TabBar_NewTable" xml:space="preserve">
+    <value>New table</value>
+    <comment>Title of a tab for a table not created yet</comment>
+  </data>
+  <data name="TabBar_NewTableTitle" xml:space="preserve">
+    <value>A table to create – the draft is not saved with the workspace</value>
+  </data>
+  <data name="TabBar_NewTableBadge" xml:space="preserve">
+    <value>draft</value>
+    <comment>Small label on the tab of a new table</comment>
+  </data>
+  <data name="Dialogs_CloseTabTableDraft" xml:space="preserve">
+    <value>The draft of {0} has not run yet and is lost when the tab closes.</value>
+    <comment>{0}: table name</comment>
+  </data>
 </root>

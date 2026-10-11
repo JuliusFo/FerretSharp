@@ -118,6 +118,9 @@
             case { Loss: CloseTabLoss.TypedValue, Tab: TableTab table }:
                 <Fmt Text="@ShellText.Dialogs_CloseTabTypedValue"><Arg0><strong>@table.Table.DisplayName</strong></Arg0></Fmt>
                 break;
+            case { Loss: CloseTabLoss.TableDraft }:
+                <Fmt Text="@ShellText.Dialogs_CloseTabTableDraft"><Arg0><strong>@(closing.Tab switch { NewTableTab draft => draft.Name.Length > 0 ? draft.Name : ShellText.TabBar_NewTable, TableTab table => table.Table.DisplayName, _ => "" })</strong></Arg0></Fmt>
+                break;
             case { Tab: ITitledTab titled }:
                 <Fmt Text="@ShellText.Dialogs_CloseTabEditorText"><Arg0><strong>@titled.Title</strong></Arg0></Fmt>
                 break;

@@ -13,6 +13,9 @@ public enum CloseTabLoss
     /// </summary>
     TypedValue,
 
+    /// <summary>The draft of the table designer (WP-23): a table tab in edit mode, a new table.</summary>
+    TableDraft,
+
     /// <summary>The text of a SQL or LINQ tab.</summary>
     EditorText,
 }
@@ -24,6 +27,7 @@ public sealed record CloseTabQuestion(WorkspaceTab Tab, CloseTabLoss Loss)
     public static CloseTabQuestion? For(WorkspaceTab tab, bool typedValue) => tab switch
     {
         TableTab { Changes.PendingCount: > 0 } => new(tab, CloseTabLoss.PendingChanges),
+        TableTab { Designer.Draft.HasChanges: true } or NewTableTab { Designer.HasChanges: true } => new(tab, CloseTabLoss.TableDraft),
         TableTab when typedValue => new(tab, CloseTabLoss.TypedValue),
         SqlTab sql when !string.IsNullOrWhiteSpace(sql.Text) => new(tab, CloseTabLoss.EditorText),
         LinqTab linq when !string.IsNullOrWhiteSpace(linq.Code) => new(tab, CloseTabLoss.EditorText),

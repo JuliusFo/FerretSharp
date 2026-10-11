@@ -216,11 +216,15 @@ public sealed class ColumnDesigner
     {
         ArgumentNullException.ThrowIfNull(table);
         Table = table;
+        TableName = table.Table.Name;
         Columns = table.Columns.Select(DesignColumn.Of).ToList();
         Existing = constraints.Where(c => !c.IsColumnNotNull).ToList();
     }
 
     public TableDetails Table { get; }
+
+    /// <summary>The table's name for suggested constraint names; a new table's changes as it is typed (WP-23, stage 3).</summary>
+    public string TableName { get; set; } = "";
 
     public List<DesignColumn> Columns { get; }
 
@@ -275,7 +279,7 @@ public sealed class ColumnDesigner
         }
 
         var taken = Existing.Select(c => c.Name).Concat(AddedConstraints.Where(c => c != constraint).Select(c => c.Name));
-        constraint.Name = TableDesign.SuggestConstraintName(Table.Table.Name, constraint.Type, constraint.Columns, constraint.References?.Name, taken);
+        constraint.Name = TableDesign.SuggestConstraintName(TableName, constraint.Type, constraint.Columns, constraint.References?.Name, taken);
     }
 
     /// <summary>

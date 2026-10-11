@@ -1,4 +1,6 @@
 using FerretSharp.Core.ClrModel;
+using FerretSharp.Core.Design;
+using FerretSharp.Core.Schema;
 using FerretSharp.Core.Workspaces;
 
 namespace FerretSharp.UI.State;
@@ -23,6 +25,9 @@ public abstract class WorkspaceTab(Guid workspaceId, string idPrefix)
 
     /// <param name="workspaceTabs">All tabs of the workspace in order (references between tabs are saved as indexes).</param>
     public abstract TabState ToState(IReadOnlyList<WorkspaceTab> workspaceTabs);
+
+    /// <summary>The tab is saved with the workspace (not the draft of a new table, WP-23).</summary>
+    public virtual bool IsSaved => true;
 }
 
 /// <summary>A tab with a title of its own ("SQL 1", "Kunden suchen") that the user can rename – unlike a table tab, named after its table.</summary>
@@ -119,6 +124,40 @@ public sealed class PlSqlTab(Guid workspaceId, Core.Schema.PlSqlObjectSummary un
         tab.View = tab.Views.Contains(state.View) ? state.View : PlSqlView.Source;
         return tab;
     }
+}
+
+/// <summary>
+/// A table to create in the designer (WP-23, stage 3): name, comment and the draft of its columns and constraints. Not
+/// saved with the workspace – a restart drops the draft; once the table exists it opens as a table tab.
+/// </summary>
+public sealed class NewTableTab : WorkspaceTab
+{
+    public NewTableTab(Guid workspaceId, string owner) : base(workspaceId, "newtable-")
+    {
+        Owner = owner;
+        Designer = new ColumnDesigner(new TableDetails(new TableSummary(owner, "", TableKind.Table), [], [], [], false), []);
+    }
+
+    /// <summary>The schema the table is created in (the connection's).</summary>
+    public string Owner { get; }
+
+    /// <summary>The name as typed: without quotes upper-cased (<see cref="Core.Oracle.OracleIdentifier.Normalize"/>).</summary>
+    public string Name { get; set; } = "";
+
+    public string Comment { get; set; } = "";
+
+    public ColumnDesigner Designer { get; }
+
+    /// <summary>How the last run failed, while the table does not exist yet.</summary>
+    public DdlRunResult? Failure { get; set; }
+
+    /// <summary>The table to create, as the designer needs it.</summary>
+    public NewTable Table => new(Owner, Core.Oracle.OracleIdentifier.Normalize(Name), Comment.Length > 0 ? Comment : null);
+
+    public override bool IsSaved => false;
+
+    public override TabState ToState(IReadOnlyList<WorkspaceTab> workspaceTabs) =>
+        throw new NotSupportedException("The draft of a new table is not saved.");
 }
 
 /// <param name="Line">From 1, as in <c>ALL_SOURCE.LINE</c>.</param>

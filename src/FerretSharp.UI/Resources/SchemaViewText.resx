@@ -852,4 +852,25 @@
   <data name="Designer_PropertyCodeTitle" xml:space="preserve">
     <value>Property and configuration for this column in the style of the project</value>
   </data>
+  <data name="Explorer_NewTable" xml:space="preserve">
+    <value>New table …</value>
+  </data>
+  <data name="NewTable_NamePlaceholder" xml:space="preserve">
+    <value>e.g. LIEFERANT</value>
+  </data>
+  <data name="NewTable_Schema" xml:space="preserve">
+    <value>In schema {0}. Without quotes the name is upper case.</value>
+    <comment>{0}: schema name</comment>
+  </data>
+  <data name="Entity_Create" xml:space="preserve">
+    <value>Entity</value>
+    <comment>Button in the Columns view of a table without entity: shows C# for it</comment>
+  </data>
+  <data name="Entity_CreateTitle" xml:space="preserve">
+    <value>Entity class and IEntityTypeConfiguration for this table, in the style of the project</value>
+  </data>
+  <data name="Entity_Name" xml:space="preserve">
+    <value>Entity</value>
+    <comment>Label of the entity name field</comment>
+  </data>
 </root>
