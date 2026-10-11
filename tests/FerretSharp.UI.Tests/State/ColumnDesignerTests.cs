@@ -150,11 +150,118 @@ public sealed class ColumnDesignerTests
         designer.SuggestName(unique);
         Assert.Equal("UK_KUNDE_NAME_2", unique.Name);
 
-        unique.Name = "uk_eigen";
-        unique.NameTyped = true;
+        unique.Name = "uk_eigen"; // typed: it no longer follows
         unique.Columns.Add("KUERZEL");
         designer.SuggestName(unique);
         Assert.Equal("UK_EIGEN", designer.ToDraft().Draft.AddedConstraints[0].Name); // typed without quotes: upper case
+    }
+
+    /// <summary>R4b: a cleared name follows type and columns again – the same rule as for a new index.</summary>
+    [Fact]
+    public void A_cleared_name_follows_type_and_columns_again()
+    {
+        var designer = new ColumnDesigner(Kunde, []);
+        var constraint = designer.AddConstraint(ConstraintType.Unique);
+        constraint.Name = "UK_EIGEN";
+
+        designer.SetType(constraint, ConstraintType.Check);
+        Assert.Equal(("UK_EIGEN", true), (constraint.Name, constraint.NameTyped));
+
+        constraint.Name = "";
+        designer.AddColumn(constraint, "BETRAG");
+        Assert.Equal(("CK_KUNDE_BETRAG", false), (constraint.Name, constraint.NameTyped));
+    }
+
+    private static readonly TableDetails Land = new(new TableSummary("SHOP", "LAND", TableKind.Table),
+        [Col("CODE", "VARCHAR2", 2, nullable: false), Col("ISO", "CHAR", 3, nullable: false), Col("NAME", "VARCHAR2", 50)], ["CODE", "ISO"], [], false);
+
+    /// <summary>R4b (out of the view): a foreign key's referenced columns follow the referenced table's key, position by position.</summary>
+    [Fact]
+    public void A_foreign_key_takes_the_referenced_key_once_the_table_is_known()
+    {
+        var designer = new ColumnDesigner(Kunde, []);
+        var fk = designer.AddConstraint(ConstraintType.ForeignKey);
+        designer.AddColumn(fk, "KUERZEL");
+        designer.AddColumn(fk, "KUERZEL"); // twice: ignored
+        designer.AddColumn(fk, "");
+
+        designer.Reference(fk, Land.Table.Ref);
+        Assert.Equal(("FK_KUNDE_LAND", true), (fk.Name, fk.ReferencedColumns.Count == 0)); // not loaded yet
+        Assert.Null(designer.ColumnsOf(Land.Table.Ref));
+
+        designer.Learn(Land);
+        Assert.Equal(["CODE"], fk.ReferencedColumns);
+        Assert.Equal(["CODE", "ISO", "NAME"], designer.ColumnsOf(Land.Table.Ref));
+
+        designer.AddColumn(fk, "NAME"); // the key's second column
+        designer.AddColumn(fk, "BETRAG"); // beyond the key: its first column
+        Assert.Equal(["CODE", "ISO", "CODE"], fk.ReferencedColumns);
+
+        fk.SetReferenced(2, "NAME");
+        designer.RemoveColumn(fk, 0);
+        Assert.Equal(["NAME", "BETRAG"], fk.Columns);
+        Assert.Equal(["ISO", "NAME"], fk.ReferencedColumns);
+
+        designer.Reference(fk, Land.Table.Ref); // chosen again: the key afresh, the table is known by now
+        Assert.Equal(["CODE", "ISO"], fk.ReferencedColumns);
+
+        // Known across a run that stopped halfway, and this table's own columns as drafted.
+        var rest = designer.Rebase(Kunde, []);
+        Assert.Same(Land, rest.Referenced[Land.Table.Ref]);
+        Assert.Equal(["ID", "NAME", "KUERZEL", "BETRAG"], rest.ColumnsOf(Kunde.Table.Ref));
+    }
+
+    [Fact]
+    public void An_existing_constraint_is_dropped_and_kept_again()
+    {
+        var check = new ConstraintInfo("CK_BETRAG", ConstraintType.Check, ["BETRAG"], "BETRAG >= 0", null, [], null, true, true, false, false, false);
+        var designer = new ColumnDesigner(Kunde, [check]);
+
+        designer.ToggleDropConstraint("CK_BETRAG");
+        Assert.Equal(["CK_BETRAG"], designer.ToDraft().Draft.DroppedConstraints);
+
+        designer.ToggleDropConstraint("CK_BETRAG");
+        Assert.Empty(designer.ToDraft().Draft.DroppedConstraints);
+    }
+
+    // ---- the draft of a new index (R4b, out of IndexesView) ----
+
+    private static readonly IndexInfo IxName = new("SHOP", "IX_KUNDE_NAME", "NORMAL", false, "VALID", [new IndexColumn("NAME", false, false)], null, false, true);
+
+    [Fact]
+    public void An_index_draft_names_itself_after_its_columns_until_a_name_is_typed()
+    {
+        var editor = IndexDraftEditor.Start(Kunde.Table.Ref, [IxName], null);
+        Assert.Equal("", editor.Name);
+        Assert.Empty(editor.Steps());
+
+        editor.Add("NAME");
+        Assert.Equal("IX_KUNDE_NAME_2", editor.Name); // the table has one of that name
+        editor.Add("KUERZEL");
+        editor.Move(1, -1);
+        Assert.Equal(["KUERZEL", "NAME"], editor.Columns);
+        Assert.Equal("IX_KUNDE_KUERZEL_NAME", editor.Name);
+
+        editor.TypeName("ix_eigen");
+        editor.Remove(0);
+        Assert.Equal("IX_EIGEN", editor.Draft.Name); // typed without quotes: upper case, and it stays
+        editor.Unique = true;
+        Assert.Equal("""CREATE UNIQUE INDEX "SHOP"."IX_EIGEN" ON "SHOP"."KUNDE" ("NAME")""", Assert.Single(editor.Steps()).Sql);
+
+        editor.TypeName("");
+        editor.SuggestName(); // leaving the cleared field
+        Assert.Equal("IX_KUNDE_NAME_2", editor.Name);
+    }
+
+    [Fact]
+    public void An_index_draft_for_a_foreign_key_starts_with_its_columns()
+    {
+        var foreignKey = new ForeignKeyInfo("FK_KUNDE_LAND", Kunde.Table.Ref, ["KUERZEL"], Land.Table.Ref, ["CODE"], FkSource.Declared);
+
+        var editor = IndexDraftEditor.Start(Kunde.Table.Ref, [IxName], IndexDesign.ForForeignKey(foreignKey, [IxName]));
+
+        Assert.Equal(["KUERZEL"], editor.Columns);
+        Assert.Equal(("IX_KUNDE_KUERZEL", false), (editor.Name, editor.Unique));
     }
 
     /// <summary>
