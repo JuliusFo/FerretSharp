@@ -221,6 +221,9 @@ class FerretCellEditor {
     else this.input.setSelectionRange(this.input.value.length, this.input.value.length);
   }
   getValue() { return this.input.value; }
+  // Still loading its text from .NET (the box is empty and disabled): ending the edit now – a click elsewhere, Ctrl+S –
+  // takes nothing, else the empty box would be written as NULL (R4a, found in the E2E run).
+  isCancelAfterEnd() { return this.input.disabled; }
   isPopup() { return !!this.params.meta.multiline; }
 }
 
