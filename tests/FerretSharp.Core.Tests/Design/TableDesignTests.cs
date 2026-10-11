@@ -341,6 +341,19 @@ public class TableDesignTests
         Assert.Equal(["NOTIZ wird mit allen Werten gelöscht – ohne Rückweg."], plan.Warnings);
     }
 
+    /// <summary>R4a: Oracle drops an index over several columns with one of them, without a word.</summary>
+    [Fact]
+    public void Dropping_a_column_warns_of_the_indexes_over_several_columns_it_takes_along()
+    {
+        var single = new IndexInfo("SHOP", "IX_NOTIZ", "NORMAL", false, "VALID", [new IndexColumn("NOTIZ", false, false)], null, false, true);
+        var both = new IndexInfo("SHOP", "IX_NAME_NOTIZ", "NORMAL", false, "VALID", [new IndexColumn("NAME", false, false), new IndexColumn("NOTIZ", false, false)], null, false, true);
+        var plan = TableDesign.Plan(new DesignContext(Kunde, [], [single, both], []), Draft(Changed(Notiz, c => c) with { Dropped = true }), DataFacts.None);
+
+        Assert.Equal(
+            ["NOTIZ: Oracle löscht auch den Index IX_NAME_NOTIZ, der weitere Spalten umfasst.", "NOTIZ wird mit allen Werten gelöscht – ohne Rückweg."],
+            plan.Warnings);
+    }
+
     [Fact]
     public void A_referenced_column_or_one_of_a_multi_column_constraint_is_not_dropped()
     {

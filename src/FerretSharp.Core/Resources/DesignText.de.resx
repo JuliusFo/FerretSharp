@@ -87,6 +87,9 @@
   <data name="DropColumnLosesData" xml:space="preserve">
     <value>{0} wird mit allen Werten gelöscht – ohne Rückweg.</value>
   </data>
+  <data name="DropColumnDropsIndex" xml:space="preserve">
+    <value>{0}: Oracle löscht auch den Index {1}, der weitere Spalten umfasst.</value>
+  </data>
   <data name="RenameKeepsReferences" xml:space="preserve">
     <value>{0} → {1}: Views, PL/SQL und das C#-Modell (HasColumnName) verwenden noch den alten Namen.</value>
   </data>

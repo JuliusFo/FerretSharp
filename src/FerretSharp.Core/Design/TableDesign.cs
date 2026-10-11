@@ -504,6 +504,12 @@ public static partial class TableDesign
                 Problems.Add(TextFormat.Format(DesignText.DropColumnInConstraint, column.Name, constraint.Name)); // ORA-12991
             }
 
+            // Oracle drops every index on the column without a word, also one over several columns (R4a).
+            foreach (var index in context.Indexes.Where(i => i.Columns.Count > 1 && i.Columns.Any(c => !c.IsExpression && c.Name == column.Name)))
+            {
+                Warnings.Add(TextFormat.Format(DesignText.DropColumnDropsIndex, column.Name, index.Name));
+            }
+
             Warnings.Add(TextFormat.Format(DesignText.DropColumnLosesData, column.Name));
             _drops.Add($"ALTER TABLE {Table} DROP COLUMN {OracleIdentifier.Quote(column.Name)}");
         }

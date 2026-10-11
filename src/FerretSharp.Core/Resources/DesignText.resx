@@ -106,6 +106,10 @@
     <value>{0} is dropped with all its values – there is no way back.</value>
     <comment>{0}: column name</comment>
   </data>
+  <data name="DropColumnDropsIndex" xml:space="preserve">
+    <value>{0}: Oracle also drops the index {1}, which covers other columns too.</value>
+    <comment>{0}: column name, {1}: index name</comment>
+  </data>
   <data name="RenameKeepsReferences" xml:space="preserve">
     <value>{0} → {1}: views, PL/SQL and the C# model (HasColumnName) still use the old name.</value>
     <comment>{0}: old column name; {1}: new name</comment>
