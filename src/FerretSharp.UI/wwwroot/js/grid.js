@@ -392,16 +392,18 @@ function cellKey(node, colId) {
   return (node.data?.__new ?? `r${node.rowIndex}`) + '|' + colId;
 }
 
+// Always an element: AG Grid inserts a string a renderer returns as HTML (innerHTML), and cell values come from the database.
 function renderCell(params) {
   if (!params.data) return '';
   const value = params.value;
+  const span = document.createElement('span');
   if (value === null || value === undefined) {
-    const span = document.createElement('span');
     span.className = 'fs-null';
     span.textContent = 'NULL';
-    return span;
+  } else {
+    span.textContent = value;
   }
-  return value;
+  return span;
 }
 
 function width(meta) {
