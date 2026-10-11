@@ -73,3 +73,5 @@ Geplante Arbeitspakete stehen in `docs/roadmap.md`; hier landet alles, was noch 
 - AG Grid auf aktuelle Major-Version (36+) heben, sobald die API-Änderungen geprüft sind.
 - Web-Host (`FerretSharp.DevHost`, Blazor Server) mit Fake-Daten, um die UI im Browser mit Hot Reload zu entwickeln und automatisiert zu prüfen.
 - bUnit-Tests für UI-Komponenten.
+- Neu laden der Seite (Fehlerleiste „Neu laden“, im R4a-E2E per CDP `Page.reload`): beim Abbau der Komponenten scheitern deren JS-Dispose-Aufrufe mit „JS object instance with ID … does not exist“ (`JSException`, nicht `JSDisconnectedException`) – `AggregateException` als unbehandelter Fehler im Log und erneut die Fehlerleiste. Dispose-Pfade (`DomModule`, `GridBridge`, `MonacoEditor`, Shell-Module) sollten diese Ausnahme wie einen getrennten Kanal behandeln; mit echter „Neu laden“-Aktion nachstellen.
+- Grid-Editor: Tasten, die vor dem Laden des Zelltexts getippt werden (das Feld ist dann gesperrt), gehen verloren – nach R4a schreibt ein Beenden in dem Moment nichts mehr, aber das Getippte landet nicht im Feld. Puffern und nach dem Laden einfügen, falls es stört.
