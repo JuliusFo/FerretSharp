@@ -182,17 +182,7 @@
 
     private Task Back() => OnBack.InvokeAsync();
 
-    private async Task SetAsync(ThemeMode mode)
-    {
-        try
-        {
-            await Theme.SetModeAsync(mode);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            Shell.Notify(TextFormat.Format(ShellText.Settings_NotSaved, ex.Message));
-        }
-    }
+    private Task SetAsync(ThemeMode mode) => Shell.TrySaveSettingsAsync(() => Theme.SetModeAsync(mode));
 
     private static readonly int[] WaitOptions = [1, 3, 5, 10, 30];
 
@@ -209,15 +199,5 @@
 
     private Task SetDiagnoseUiStallsAsync(bool on) => UpdateAsync(s => s with { DiagnoseUiStalls = on });
 
-    private async Task UpdateAsync(Func<AppSettings, AppSettings> change)
-    {
-        try
-        {
-            await Settings.UpdateAsync(change, CancellationToken.None);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            Shell.Notify(TextFormat.Format(ShellText.Settings_NotSaved, ex.Message));
-        }
-    }
+    private Task UpdateAsync(Func<AppSettings, AppSettings> change) => Shell.TrySaveSettingsAsync(() => Settings.UpdateAsync(change, CancellationToken.None));
 }

@@ -62,11 +62,15 @@
     [Parameter]
     public bool Plain { get; set; }
 
+    /// <summary>
+    /// Highlighted once per text: by content, not by reference (R4b) – the change overview and the designer build their SQL
+    /// on every render. Blazor itself skips a render when the text is equal; this covers the renders of the copy button.
+    /// </summary>
     private List<(string Text, string? Css)> Tokens
     {
         get
         {
-            if (!ReferenceEquals(_highlightedFor, Sql))
+            if (!string.Equals(_highlightedFor, Sql, StringComparison.Ordinal))
             {
                 _tokens = Plain ? [(Sql, null)] : Highlight(Sql);
                 _highlightedFor = Sql;

@@ -206,18 +206,7 @@
         return SaveAsync(Shortcuts.ResetAllAsync);
     }
 
-    private async Task SaveAsync(Func<Task> change)
-    {
-        try
-        {
-            await change();
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            Logger.LogWarning(ex, "Shortcuts not saved");
-            Shell.Notify(TextFormat.Format(ShellText.Settings_NotSaved, ex.Message));
-        }
-    }
+    private Task SaveAsync(Func<Task> change) => Shell.TrySaveSettingsAsync(change, Logger);
 
     public async ValueTask DisposeAsync()
     {

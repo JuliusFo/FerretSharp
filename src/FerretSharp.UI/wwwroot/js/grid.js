@@ -66,6 +66,12 @@ function registerModules() {
   modulesRegistered = true;
 }
 
+/** A design token of ferretsharp.css, as it applies now (light or dark). */
+function token(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+/** The grid's look; its colors come from the design tokens (R4b: before, a copy of their values stood here). */
 function theme(headerHeight) {
   const dark = media.matches;
   return agGrid.themeQuartz
@@ -83,13 +89,13 @@ function theme(headerHeight) {
       wrapperBorderRadius: 0,
       columnBorder: true,
       // Clearly visible edge of the pinned area (primary key and pinned columns).
-      pinnedColumnBorder: { style: 'solid', width: 2, color: dark ? '#4a4b56' : '#c4c4ce' },
-      accentColor: dark ? '#7aa2ff' : '#3b6fe0',
-      backgroundColor: dark ? '#1c1d22' : '#ffffff',
-      foregroundColor: dark ? '#e6e6ea' : '#1d1d22',
-      headerBackgroundColor: dark ? '#202127' : '#f9f9fb',
-      oddRowBackgroundColor: dark ? '#1f2025' : '#fbfbfc',
-      borderColor: dark ? '#2c2d34' : '#ececf0',
+      pinnedColumnBorder: { style: 'solid', width: 2, color: token('--grid-pinned-border') },
+      accentColor: token('--accent'),
+      backgroundColor: token('--surface'),
+      foregroundColor: token('--text'),
+      headerBackgroundColor: token('--grid-header'),
+      oddRowBackgroundColor: token('--grid-odd-row'),
+      borderColor: token('--grid-border'),
     });
 }
 
