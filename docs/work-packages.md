@@ -40,6 +40,7 @@ Was in den abgeschlossenen Paketen gebaut und entschieden wurde, mit Nachträgen
 | WP-22 | DDL im SQL-Editor (eigener Schemaweg, Rollback nach Bestätigung, Schema und C#-Modell folgen), DDL-Vorschlag des Vergleichs im SQL-Editor öffnen (Issue #9) | 3.21.0 | 0019 |
 | WP-23 (1) | Index anlegen in der Indizes-Ansicht, „Index dafür anlegen“ für FKs ohne Index; gemeinsamer DDL-Baustein (Ausführen, Im SQL-Editor öffnen, Speichern) (Issue #10) | 3.22.0 | – |
 | WP-23 (2) | Spalten-Designer: Bearbeitungsmodus der Spalten-Ansicht (Spalten, Schlüssel, Checks, FKs mit Index, Prüfungen vorab mit Zählungen, Rest des Entwurfs nach Abbruch), Property-Zeile im Stil des Projekts (Issue #10) | 3.23.0 | 0020 |
+| WP-23 (3) | Neue Tabelle im Designer (Entwurfs-Tab, Rest des Entwurfs nach Abbruch im Tabellen-Tab), Entity + `IEntityTypeConfiguration` aus einer Tabelle (Issue #10) | 3.24.0 | 0020 |
 | R3a | Fehlerbehebung nach dem Review 3.14.0 (Verbindungsverlust je Verbindung, Schreiben serialisiert, UI-Testprojekt) | 3.14.1 | – |
 | R3b | Struktur-Refactoring nach dem Review 3.14.0 (Schema-Reader, Typwissen, SessionGate, UI-Bausteine, State) | 3.15.0 | – |
 
@@ -424,7 +425,7 @@ Issue #7 (2026-10-09): Es gab keinen Ort, der zeigt, was ein Workspace noch nich
 - Nachtrag (Wunsch des Nutzers): Panel-Breite ziehbar wie die Formularansicht (`dragWidth`, 300 px bis 60 % des Arbeitsbereichs), eine Breite für die ganze App in den Einstellungen (`AppSettings.ChangesPanelWidth`); das Panel öffnet nach einem Neustart wieder, wenn es offen war (`ChangesPanelOpen`, über `ShellState.ChangesOpenChanged`); Tastenkürzel `ToggleChanges`, Standard Ctrl+Shift+U (frei, kein Editor- oder Windows-Kürzel; Ctrl+Shift+C wäre der Element-Picker der DevTools). E2E: Kürzel öffnet und schließt, Ziehen speichert die Breite und wird bei 60 % begrenzt, nach Neustart offen mit gespeicherter Breite.
 - Offen: Sprung zu einer Zeile, die nicht geladen ist (filtert nicht danach) – Backlog.
 
-### WP-23 Tabellen-Designer + Entity aus Tabelle – Stufe 3: neue Tabelle, Entity aus Tabelle → nächstes Release
+### WP-23 Tabellen-Designer + Entity aus Tabelle – Stufe 3: neue Tabelle, Entity aus Tabelle → Release 3.24.0
 Issue #10, ADR 0020 (Nachtrag). Damit ist WP-23 vollständig.
 - Core:
   - `TableDesign.PlanNew` (`NewTable`): derselbe Writer, die Spalten als eine `CREATE TABLE`, danach Constraints, FK-Indizes, Kommentar der Tabelle und der Spalten; Name frei im Schema (ORA-00955 gegen Tabellen, Views, Synonyme, PL/SQL-Einheiten), sonst die Prüfungen von Stufe 2 (eine neue Tabelle hat keine Zeilen: keine Zählungen, keine Warnung „prüft vorhandene Zeilen“).
@@ -462,7 +463,16 @@ Issue #10, Begründung: ADR 0020. Bearbeitungsmodus der Spalten-Ansicht für bes
 - Offen/Backlog: Typwechsel gefüllter Spalten als geführter Ablauf (neue Spalte, umkopieren, alte löschen – braucht DML zwischen DDL); Spaltenreihenfolge ändern (Oracle hängt an); Default-Ausdrücke prüfen; Tabelle umbenennen, Tabellenkommentar.
 
 ### WP-23 Tabellen-Designer + Entity aus Tabelle – Stufe 1: Index anlegen → Release 3.22.0
-Issue #10. Entscheidungen beim Start (2026-10-11) und Aufteilung in drei Releases: `docs/roadmap.md`.
+Issue #10. Entschieden beim Start (2026-10-11, Vorschläge übernommen):
+- **Drei Releases**, jede Stufe mit DB-Änderung und passendem C#:
+  1. 3.22 Index anlegen (Indizes-Ansicht, „Index dafür anlegen“ beim FK-Hinweis) und ein gemeinsamer Baustein zum Ausführen von DDL (Bestätigung, Verwerfen-Dialog, andere Schreiber, Sperrinhaber – aus `SqlView` herausgezogen).
+  2. 3.23 Spalten-Designer für bestehende Tabellen, dazu die Property-Zeile neuer Spalten zum Kopieren.
+  3. 3.24 Neue Tabelle, dazu Entity + `IEntityTypeConfiguration` aus einer Tabelle.
+- Designer = **Bearbeitungsmodus der Spalten-Ansicht** (DDL-Vorschau live darunter); eine neue Tabelle öffnet einen Tab im selben Modus.
+- Änderungen **sammeln, ein Skript, eine Bestätigung**; Ausführung Statement für Statement, Stopp beim ersten Fehler (DDL ist nicht atomar); danach Schema neu laden, nicht ausgeführte Änderungen bleiben im Entwurf.
+- Ergebnis: **ausführen, kopieren, im SQL-Editor öffnen, als `.sql` speichern** (Speichern-unter mit Namensvorschlag, letzter Ordner je Verbindung; Flyway-Namen erst mit dem Flyway-Thema im Backlog).
+- Der Designer arbeitet im Workspace des Tabs; in gesperrten Workspaces nur kopieren. Hat der Tab ausstehende Änderungen, warnt er vorher (der Tab behält nach dem DDL seine alte Struktur).
+- C#: nur aus dem **Modell-Export** (Namen nach Konvention, Converter, die das Projekt für vergleichbare Spalten nutzt, Längen/Precision, PK, FKs als Navigations-Vorschlag), kein Lesen der Quelltexte. Entity-Name als Vorschlag (PascalCase, einfache Singular-Heuristik, Muster vorhandener Paare Tabelle ↔ Entity), vor dem Kopieren änderbar.
 - Core:
   - `Design/IndexDesign` (neuer Bereich, Ressource `DesignText`): `SuggestName` (`IX_<TABELLE>_<SPALTEN>` wie der DDL-Vorschlag aus WP-20, aber immer als einfacher Name – Großbuchstaben, andere Zeichen als `_` –, auf 128 **Byte** gekürzt, bei Kollision `_2`, `_3` …), `ForForeignKey`, `Check` (Probleme: Name fehlt/zu lang/mit `"`/vergeben, keine Spalte, doppelte oder unbekannte Spalte, LOB/LONG, genau dieselbe Spaltenliste wie ein vorhandener Index = ORA-01408; Warnungen: Name braucht Anführungszeichen, ein vorhandener Index beginnt schon mit den Spalten), `Ddl` über `DdlText.CreateIndex`.
   - `IndexAdvice.Covers` öffentlich (gleiche Regel für „FK ohne Index“ und „schon abgedeckt“).
