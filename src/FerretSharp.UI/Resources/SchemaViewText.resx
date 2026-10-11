@@ -781,4 +781,75 @@
     <value>{0} of {1} statements ran, then: {2}</value>
     <comment>{0}: statements that ran; {1}: all statements; {2}: the error</comment>
   </data>
+  <data name="Designer_Edit" xml:space="preserve">
+    <value>Edit</value>
+    <comment>Button in the Columns view: opens the table designer</comment>
+  </data>
+  <data name="Designer_EditTitle" xml:space="preserve">
+    <value>Change columns and constraints – the DDL is shown before it runs</value>
+  </data>
+  <data name="Designer_Loading" xml:space="preserve">
+    <value>Loading constraints and indexes …</value>
+  </data>
+  <data name="Designer_TabHasChanges" xml:space="preserve">
+    <value>This tab has uncommitted changes: after the DDL it keeps showing the old structure until they are committed or discarded.</value>
+  </data>
+  <data name="Designer_Size" xml:space="preserve">
+    <value>Size</value>
+    <comment>Column header: length, precision or fractional digits</comment>
+  </data>
+  <data name="Designer_Scale" xml:space="preserve">
+    <value>Scale</value>
+    <comment>Column header: digits after the decimal point</comment>
+  </data>
+  <data name="Designer_CharSemantics" xml:space="preserve">
+    <value>Length in characters (CHAR), not bytes (BYTE)</value>
+  </data>
+  <data name="Designer_DefaultOnNull" xml:space="preserve">
+    <value>DEFAULT ON NULL: the default also replaces an explicit NULL (makes the column NOT NULL)</value>
+  </data>
+  <data name="Designer_Drop" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Designer_Restore" xml:space="preserve">
+    <value>Keep</value>
+    <comment>Button: undo the deletion of a column or constraint in the draft</comment>
+  </data>
+  <data name="Designer_AddColumn" xml:space="preserve">
+    <value>Add column</value>
+  </data>
+  <data name="Designer_Constraints" xml:space="preserve">
+    <value>Keys and constraints</value>
+    <comment>Heading in the table designer</comment>
+  </data>
+  <data name="Designer_AddConstraint" xml:space="preserve">
+    <value>Add constraint</value>
+  </data>
+  <data name="Designer_CheckPlaceholder" xml:space="preserve">
+    <value>Condition, e.g. BETRAG &gt;= 0</value>
+  </data>
+  <data name="Designer_References" xml:space="preserve">
+    <value>Referenced table and columns</value>
+  </data>
+  <data name="Designer_ChooseTable" xml:space="preserve">
+    <value>Table …</value>
+  </data>
+  <data name="Designer_WithIndex" xml:space="preserve">
+    <value>with index</value>
+    <comment>Check box of a new foreign key</comment>
+  </data>
+  <data name="Designer_Counting" xml:space="preserve">
+    <value>Counting NULLs and values in the table …</value>
+  </data>
+  <data name="Designer_CSharpHeading" xml:space="preserve">
+    <value>C# for {0}</value>
+    <comment>{0}: entity name</comment>
+  </data>
+  <data name="Designer_NotANumber" xml:space="preserve">
+    <value>{0}: size and scale must be whole numbers.</value>
+    <comment>{0}: column name</comment>
+  </data>
+  <data name="Designer_PropertyCodeTitle" xml:space="preserve">
+    <value>Property and configuration for this column in the style of the project</value>
+  </data>
 </root>

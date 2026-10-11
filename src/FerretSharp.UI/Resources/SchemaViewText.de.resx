@@ -642,4 +642,67 @@
   <data name="Ddl_Stopped" xml:space="preserve">
     <value>{0} von {1} Statements ausgeführt, dann: {2}</value>
   </data>
+  <data name="Designer_Edit" xml:space="preserve">
+    <value>Bearbeiten</value>
+  </data>
+  <data name="Designer_EditTitle" xml:space="preserve">
+    <value>Spalten und Constraints ändern – das DDL wird vor dem Ausführen angezeigt</value>
+  </data>
+  <data name="Designer_Loading" xml:space="preserve">
+    <value>Constraints und Indizes werden geladen …</value>
+  </data>
+  <data name="Designer_TabHasChanges" xml:space="preserve">
+    <value>Dieser Tab hat nicht committete Änderungen: Nach dem DDL zeigt er weiter die alte Struktur, bis sie committet oder verworfen sind.</value>
+  </data>
+  <data name="Designer_Size" xml:space="preserve">
+    <value>Größe</value>
+  </data>
+  <data name="Designer_Scale" xml:space="preserve">
+    <value>Nachk.</value>
+  </data>
+  <data name="Designer_CharSemantics" xml:space="preserve">
+    <value>Länge in Zeichen (CHAR), nicht in Byte (BYTE)</value>
+  </data>
+  <data name="Designer_DefaultOnNull" xml:space="preserve">
+    <value>DEFAULT ON NULL: Der Default ersetzt auch ein ausdrückliches NULL (macht die Spalte NOT NULL)</value>
+  </data>
+  <data name="Designer_Drop" xml:space="preserve">
+    <value>Löschen</value>
+  </data>
+  <data name="Designer_Restore" xml:space="preserve">
+    <value>Behalten</value>
+  </data>
+  <data name="Designer_AddColumn" xml:space="preserve">
+    <value>Spalte hinzufügen</value>
+  </data>
+  <data name="Designer_Constraints" xml:space="preserve">
+    <value>Schlüssel und Constraints</value>
+  </data>
+  <data name="Designer_AddConstraint" xml:space="preserve">
+    <value>Constraint hinzufügen</value>
+  </data>
+  <data name="Designer_CheckPlaceholder" xml:space="preserve">
+    <value>Bedingung, z. B. BETRAG &gt;= 0</value>
+  </data>
+  <data name="Designer_References" xml:space="preserve">
+    <value>Referenzierte Tabelle und Spalten</value>
+  </data>
+  <data name="Designer_ChooseTable" xml:space="preserve">
+    <value>Tabelle …</value>
+  </data>
+  <data name="Designer_WithIndex" xml:space="preserve">
+    <value>mit Index</value>
+  </data>
+  <data name="Designer_Counting" xml:space="preserve">
+    <value>NULL-Werte und Werte in der Tabelle werden gezählt …</value>
+  </data>
+  <data name="Designer_CSharpHeading" xml:space="preserve">
+    <value>C# für {0}</value>
+  </data>
+  <data name="Designer_NotANumber" xml:space="preserve">
+    <value>{0}: Größe und Nachkommastellen müssen ganze Zahlen sein.</value>
+  </data>
+  <data name="Designer_PropertyCodeTitle" xml:space="preserve">
+    <value>Property und Konfiguration für diese Spalte im Stil des Projekts</value>
+  </data>
 </root>

@@ -32,8 +32,21 @@
                 <Fmt Text="@SchemaViewText.Columns_Entity"><Arg0><strong>@ClrModelMapping.ShortName(entity.Entity.ClrType)</strong></Arg0></Fmt>
             </span>
         }
-        <SearchBox @ref="_filter" Class="structure-filter" Placeholder="@TextFormat.Format(SchemaViewText.Columns_FilterPlaceholder, Shortcuts.Hint(ShortcutAction.FindColumn))" @bind-Value="_columnQuery" />
+        @if (!_editing)
+        {
+            <SearchBox @ref="_filter" Class="structure-filter" Placeholder="@TextFormat.Format(SchemaViewText.Columns_FilterPlaceholder, Shortcuts.Hint(ShortcutAction.FindColumn))" @bind-Value="_columnQuery" />
+            @if (Details.Table.Kind == TableKind.Table && WorkspaceId != Guid.Empty)
+            {
+                <button class="btn" title="@SchemaViewText.Designer_EditTitle" @onclick="() => _editing = true">@SchemaViewText.Designer_Edit</button>
+            }
+        }
     </div>
+    @if (_editing)
+    {
+        <TableDesigner Details="Details" WorkspaceId="WorkspaceId" Tab="Tab" OnRan="OnDesignRanAsync" OnClose="() => _editing = false" />
+    }
+    else
+    {
     <table class="columns">
         <thead>
             <tr>
@@ -82,7 +95,11 @@
                         var property = mapping!.PropertyOf(Details.Table.Ref, column.Name);
                         @if (property is null)
                         {
-                            <td class="muted" title="@SchemaViewText.Columns_NoProperty">–</td>
+                            <td class="muted" title="@SchemaViewText.Columns_NoProperty">
+                                –
+                                <button class="link-btn" title="@SchemaViewText.Designer_PropertyCodeTitle"
+                                        @onclick="() => _csharpFor = _csharpFor == column.Name ? null : column.Name">C#</button>
+                            </td>
                             <td></td>
                         }
                         else
@@ -118,6 +135,12 @@
             }
         </tbody>
     </table>
+    @if (_csharpFor is { } csharpColumn && mapping is not null && entity is not null && Details.IndexOf(csharpColumn) is var at and >= 0)
+    {
+        <h2>@TextFormat.Format(SchemaViewText.Designer_CSharpHeading, ClrModelMapping.ShortName(entity.Entity.ClrType))</h2>
+        <PropertySuggestions Suggestions="@(new[] { PropertyCode.Suggest(mapping.Model, Details.Columns[at]) })" />
+    }
+    }
 </section>
 
 @if (Details.Definition is { } definition)
@@ -152,6 +175,30 @@
 
     [Parameter, EditorRequired]
     public TableDetails Details { get; set; } = null!;
+
+    /// <summary>The tab's workspace: the designer's DDL runs and counts there (WP-23); empty = no edit mode.</summary>
+    [Parameter]
+    public Guid WorkspaceId { get; set; }
+
+    /// <summary>The tab, for the designer's warning about its uncommitted changes.</summary>
+    [Parameter]
+    public TableTab? Tab { get; set; }
+
+    /// <summary>DDL of the designer ran: the tab reloads its detail views (constraints, indexes, DDL).</summary>
+    [Parameter]
+    public EventCallback OnSchemaChanged { get; set; }
+
+    /// <summary>The edit mode is open (WP-23, stage 2).</summary>
+    private bool _editing;
+
+    /// <summary>The column without property whose C# is shown below the table.</summary>
+    private string? _csharpFor;
+
+    private async Task OnDesignRanAsync()
+    {
+        _editing = false;
+        await OnSchemaChanged.InvokeAsync();
+    }
 
     /// <summary>A newly loaded model that changes this table (not every loading step, not every table after a build).</summary>
     protected override void OnInitialized()

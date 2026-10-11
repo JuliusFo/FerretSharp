@@ -1182,3 +1182,29 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .ddl-draft .tab-error { border: 0; border-radius: 6px; }
 .ddl-actions { display: flex; align-items: center; gap: 8px; }
 .ddl-actions .spacer { flex: 1; }
+
+/* Table designer (WP-23, stage 2): the edit mode of the Columns view. */
+.designer { max-width: 1400px; display: flex; flex-direction: column; gap: 10px; }
+.designer h2 { margin: 14px 0 0; }
+.designer-columns td { padding-top: 3px; padding-bottom: 3px; }
+.designer-columns .field { height: 26px; padding: 0 6px; font-size: 12px; width: 100%; min-width: 0; }
+.designer-columns select.field { min-width: 150px; }
+.designer-columns .field.narrow { width: 64px; }
+.designer-columns .check-cell { text-align: center; }
+.designer-columns .row-actions { white-space: nowrap; display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+.designer-columns .row-actions .icon-btn { width: 24px; height: 24px; }
+.designer-columns tr.changed > td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.designer-columns tr.new > td:first-child { box-shadow: inset 3px 0 0 #16a34a; }
+.designer-columns tr.dropped .field { text-decoration: line-through; opacity: .55; }
+.designer-columns tr.dropped > td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
+.designer-add { display: flex; gap: 8px; }
+.designer-constraints { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; }
+.designer-constraints li { display: flex; align-items: center; gap: 8px; }
+.designer-constraints li.dropped .mono { text-decoration: line-through; opacity: .55; }
+.designer-constraints .icon-btn, .designer-constraint > .icon-btn { width: 24px; height: 24px; }
+.designer-constraint { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); font-size: 12.5px; }
+.designer-constraint > .field { width: auto; min-width: 140px; height: 28px; }
+.designer-constraint > .field.grow { flex: 1; min-width: 240px; }
+.designer-fk { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.designer-fk .field { width: auto; height: 28px; }
+.property-suggestions { display: flex; flex-direction: column; gap: 6px; }
