@@ -161,6 +161,33 @@ public class TableDesignTests
         Assert.Equal(["NAME → NACHNAME: Views, PL/SQL und das C#-Modell (HasColumnName) verwenden noch den alten Namen."], plan.Warnings);
     }
 
+    /// <summary>R4a: in column order, NAME → NOTIZ ran while NOTIZ still existed (ORA-00957), after the drops were committed.</summary>
+    [Fact]
+    public void A_rename_onto_a_name_another_column_gives_up_waits_for_it()
+    {
+        var plan = Plan(Draft(Changed(Name, c => c with { Name = "NOTIZ" }), Changed(Notiz, c => c with { Name = "BEMERKUNG" })));
+
+        Assert.Equal(
+        [
+            $"""ALTER TABLE {T} RENAME COLUMN "NOTIZ" TO "BEMERKUNG" """.TrimEnd(),
+            $"""ALTER TABLE {T} RENAME COLUMN "NAME" TO "NOTIZ" """.TrimEnd(),
+        ], plan.Statements);
+        Assert.True(plan.CanRun);
+    }
+
+    [Fact]
+    public void Swapped_names_step_aside_under_a_free_name()
+    {
+        var plan = Plan(Draft(Changed(Name, c => c with { Name = "NOTIZ" }), Changed(Notiz, c => c with { Name = "NAME" })));
+
+        Assert.Equal(
+        [
+            $"""ALTER TABLE {T} RENAME COLUMN "NAME" TO "FS_RENAME_1" """.TrimEnd(),
+            $"""ALTER TABLE {T} RENAME COLUMN "NOTIZ" TO "NAME" """.TrimEnd(),
+            $"""ALTER TABLE {T} RENAME COLUMN "FS_RENAME_1" TO "NOTIZ" """.TrimEnd(),
+        ], plan.Statements);
+    }
+
     [Fact]
     public void A_removed_comment_is_set_to_empty()
     {

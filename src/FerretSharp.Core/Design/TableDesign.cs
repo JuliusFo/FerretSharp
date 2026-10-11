@@ -241,7 +241,7 @@ public static partial class TableDesign
         private readonly List<string> _definitions = [];
         private readonly List<string> _dropConstraints = [];
         private readonly List<string> _drops = [];
-        private readonly List<string> _renames = [];
+        private readonly List<(string From, string To)> _renames = [];
         private readonly List<string> _modifies = [];
         private readonly List<string> _adds = [];
         private readonly List<string> _addConstraints = [];
@@ -262,7 +262,36 @@ public static partial class TableDesign
         /// (they may use them), primary and unique keys before foreign keys (one may reference the other).
         /// </summary>
         public IReadOnlyList<string> Statements() =>
-            [.. _dropConstraints, .. _drops, .. _renames, .. _modifies, .. _adds, .. _addConstraints, .. _indexes, .. _comments];
+            [.. _dropConstraints, .. _drops, .. Renames(), .. _modifies, .. _adds, .. _addConstraints, .. _indexes, .. _comments];
+
+        /// <summary>
+        /// The renames in an order that works (R4a): one whose new name another column still has waits for that one – A → B
+        /// after B → C. Swapped names (A ↔ B) take a free name in between. In column order, Oracle refused the second
+        /// (ORA-00957) after the drops before it had been committed.
+        /// </summary>
+        private IEnumerable<string> Renames()
+        {
+            var pending = _renames.ToList();
+            var names = current.Columns.Select(c => c.Name).Concat(_renames.Select(r => r.To)).ToHashSet(StringComparer.Ordinal);
+            while (pending.Count > 0)
+            {
+                var index = pending.FindIndex(r => !pending.Any(other => other.From == r.To));
+                if (index < 0)
+                {
+                    // Only cycles left: the first one steps aside.
+                    var aside = Enumerable.Range(1, int.MaxValue).Select(n => $"FS_RENAME_{n}").First(names.Add);
+                    yield return RenameColumn(pending[0].From, aside);
+                    pending[0] = (aside, pending[0].To);
+                    continue;
+                }
+
+                yield return RenameColumn(pending[index].From, pending[index].To);
+                pending.RemoveAt(index);
+            }
+        }
+
+        private string RenameColumn(string from, string to) =>
+            $"ALTER TABLE {Table} RENAME COLUMN {OracleIdentifier.Quote(from)} TO {OracleIdentifier.Quote(to)}";
 
         public void Write(TableDraft draft)
         {
@@ -489,7 +518,7 @@ public static partial class TableDesign
 
             if (!string.Equals(before.Name, name, StringComparison.Ordinal))
             {
-                _renames.Add($"ALTER TABLE {Table} RENAME COLUMN {OracleIdentifier.Quote(before.Name)} TO {OracleIdentifier.Quote(name)}");
+                _renames.Add((before.Name, name));
                 Warnings.Add(TextFormat.Format(DesignText.RenameKeepsReferences, before.Name, name));
             }
 
