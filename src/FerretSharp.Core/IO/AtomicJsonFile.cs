@@ -19,6 +19,8 @@ public static class AtomicJsonFile
             await using (var stream = File.Create(temp))
             {
                 await JsonSerializer.SerializeAsync(stream, value, options, cancellationToken);
+                // On disk before the move: after a power loss NTFS may keep the rename but not the data – an empty file (R4a).
+                stream.Flush(flushToDisk: true);
             }
 
             File.Move(temp, path, overwrite: true);

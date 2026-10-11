@@ -202,6 +202,26 @@ public sealed class WorkspaceManagerTests
         await connection.Received(1).UseReadOnlySnapshotsAsync(Arg.Any<CancellationToken>());
     }
 
+    /// <summary>
+    /// R4a: a statement that began writing between the check and the lock made the session refuse; the workspace was
+    /// already marked locked, though its session could still write.
+    /// </summary>
+    [Fact]
+    public async Task A_lock_the_session_refuses_leaves_the_workspace_unlocked()
+    {
+        await _manager.AttachAsync(_profile with { ReadOnly = true }, Ct);
+        var id = _manager.Active!.Id;
+        await _manager.UnlockAsync(id, Ct);
+        var connection = Assert.Single(_opened).Connection;
+        connection.Transaction.Returns(TransactionInfo.None); // what the check sees; the statement begins writing right after
+        connection.UseReadOnlySnapshotsAsync(Arg.Any<CancellationToken>()).Returns(Task.FromException(new RefusedException("Transaktion offen")));
+
+        await Assert.ThrowsAsync<RefusedException>(() => _manager.LockAsync(id, Ct));
+
+        Assert.True(_manager.IsWritable(id));
+        Assert.Single(_opened); // the session stays
+    }
+
     [Fact]
     public async Task Resetting_the_session_closes_it_and_the_next_use_opens_a_new_one_still_unlocked()
     {

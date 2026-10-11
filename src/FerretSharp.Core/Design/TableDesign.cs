@@ -190,7 +190,7 @@ public static partial class TableDesign
         ArgumentNullException.ThrowIfNull(facts);
         var writer = new Writer(context, facts);
         writer.Write(draft);
-        return new DesignPlan(writer.Statements(), writer.Problems.Distinct().ToList(), writer.Warnings.Distinct().ToList());
+        return writer.Result();
     }
 
     /// <summary>
@@ -212,7 +212,7 @@ public static partial class TableDesign
             writer.Write(draft);
         }
 
-        return new DesignPlan(writer.Statements(), writer.Problems.Distinct().ToList(), writer.Warnings.Distinct().ToList());
+        return writer.Result();
     }
 
     /// <summary>A new NOT NULL column without a value for the existing rows.</summary>
@@ -241,7 +241,7 @@ public static partial class TableDesign
         private readonly List<string> _definitions = [];
         private readonly List<string> _dropConstraints = [];
         private readonly List<string> _drops = [];
-        private readonly List<string> _renames = [];
+        private readonly List<(string From, string To)> _renames = [];
         private readonly List<string> _modifies = [];
         private readonly List<string> _adds = [];
         private readonly List<string> _addConstraints = [];
@@ -262,7 +262,36 @@ public static partial class TableDesign
         /// (they may use them), primary and unique keys before foreign keys (one may reference the other).
         /// </summary>
         public IReadOnlyList<string> Statements() =>
-            [.. _dropConstraints, .. _drops, .. _renames, .. _modifies, .. _adds, .. _addConstraints, .. _indexes, .. _comments];
+            [.. _dropConstraints, .. _drops, .. Renames(), .. _modifies, .. _adds, .. _addConstraints, .. _indexes, .. _comments];
+
+        /// <summary>
+        /// The renames in an order that works (R4a): one whose new name another column still has waits for that one – A → B
+        /// after B → C. Swapped names (A ↔ B) take a free name in between. In column order, Oracle refused the second
+        /// (ORA-00957) after the drops before it had been committed.
+        /// </summary>
+        private IEnumerable<string> Renames()
+        {
+            var pending = _renames.ToList();
+            var names = current.Columns.Select(c => c.Name).Concat(_renames.Select(r => r.To)).ToHashSet(StringComparer.Ordinal);
+            while (pending.Count > 0)
+            {
+                var index = pending.FindIndex(r => !pending.Any(other => other.From == r.To));
+                if (index < 0)
+                {
+                    // Only cycles left: the first one steps aside.
+                    var aside = Enumerable.Range(1, int.MaxValue).Select(n => $"FS_RENAME_{n}").First(names.Add);
+                    yield return RenameColumn(pending[0].From, aside);
+                    pending[0] = (aside, pending[0].To);
+                    continue;
+                }
+
+                yield return RenameColumn(pending[index].From, pending[index].To);
+                pending.RemoveAt(index);
+            }
+        }
+
+        private string RenameColumn(string from, string to) =>
+            $"ALTER TABLE {Table} RENAME COLUMN {OracleIdentifier.Quote(from)} TO {OracleIdentifier.Quote(to)}";
 
         public void Write(TableDraft draft)
         {
@@ -365,6 +394,37 @@ public static partial class TableDesign
         }
 
         /// <summary>Length, precision and scale as Oracle takes them; the type name itself comes from the designer's list.</summary>
+        /// <summary>
+        /// The plan. A statement the schema path would refuse (<see cref="StatementGuard.IsDdl"/>) is a problem here (R4a),
+        /// not an error halfway through the run, after the statements before it were committed.
+        /// </summary>
+        public DesignPlan Result()
+        {
+            var statements = Statements();
+            if (Problems.Count == 0)
+            {
+                Problems.AddRange(statements.Where(s => !StatementGuard.IsDdl(s))
+                    .Select(s => TextFormat.Format(DesignText.StatementNotDdl, s.Length <= 80 ? s : s[..79] + "…")));
+            }
+
+            return new DesignPlan(statements, Problems.Distinct().ToList(), Warnings.Distinct().ToList());
+        }
+
+        /// <summary>
+        /// A typed expression (default, check condition) that fits into one DDL statement (<see cref="DdlText.FitsInStatement"/>);
+        /// a problem otherwise. A <c>;</c> at its end is easily typed.
+        /// </summary>
+        private bool CheckExpression(string label, string? expression)
+        {
+            if (expression is null || DdlText.FitsInStatement(expression))
+            {
+                return true;
+            }
+
+            Problems.Add(TextFormat.Format(DesignText.ExpressionNotInStatement, label));
+            return false;
+        }
+
         private bool CheckType(ColumnInfo column)
         {
             if (string.IsNullOrWhiteSpace(column.DataType))
@@ -393,6 +453,11 @@ public static partial class TableDesign
             if (string.IsNullOrWhiteSpace(column.Name) || column.Name.Contains('"', StringComparison.Ordinal) || !CheckType(column))
             {
                 return; // the name is reported with the names
+            }
+
+            if (!CheckExpression(column.Name, Default(column)))
+            {
+                return;
             }
 
             if (NeedsRowsCheck(column))
@@ -439,6 +504,12 @@ public static partial class TableDesign
                 Problems.Add(TextFormat.Format(DesignText.DropColumnInConstraint, column.Name, constraint.Name)); // ORA-12991
             }
 
+            // Oracle drops every index on the column without a word, also one over several columns (R4a).
+            foreach (var index in context.Indexes.Where(i => i.Columns.Count > 1 && i.Columns.Any(c => !c.IsExpression && c.Name == column.Name)))
+            {
+                Warnings.Add(TextFormat.Format(DesignText.DropColumnDropsIndex, column.Name, index.Name));
+            }
+
             Warnings.Add(TextFormat.Format(DesignText.DropColumnLosesData, column.Name));
             _drops.Add($"ALTER TABLE {Table} DROP COLUMN {OracleIdentifier.Quote(column.Name)}");
         }
@@ -453,7 +524,7 @@ public static partial class TableDesign
 
             if (!string.Equals(before.Name, name, StringComparison.Ordinal))
             {
-                _renames.Add($"ALTER TABLE {Table} RENAME COLUMN {OracleIdentifier.Quote(before.Name)} TO {OracleIdentifier.Quote(name)}");
+                _renames.Add((before.Name, name));
                 Warnings.Add(TextFormat.Format(DesignText.RenameKeepsReferences, before.Name, name));
             }
 
@@ -534,12 +605,13 @@ public static partial class TableDesign
                 return;
             }
 
-            if (after.DefaultOnNull && before.Nullable && !before.DefaultOnNull && !CheckNoNulls(before, after.Name))
+            if (!CheckExpression(after.Name, value)
+                || (after.DefaultOnNull && before.Nullable && !before.DefaultOnNull && !CheckNoNulls(before, after.Name)))
             {
                 return;
             }
 
-            _modifies.Add($"ALTER TABLE {Table} MODIFY ({column} DEFAULT {(after.DefaultOnNull ? "ON NULL " : "")}{value ?? "NULL"})");
+            _modifies.Add($"ALTER TABLE {Table} MODIFY ({column} DEFAULT {(after.DefaultOnNull ? "ON NULL " : "")}{(value is null ? "NULL" : DdlText.Expression(value))})");
 
             // Taking ON NULL away takes NOT NULL with it (Oracle 23, WP-20): keep the column NOT NULL if it should stay so.
             if (before.DefaultOnNull && !after.DefaultOnNull && !after.Nullable)

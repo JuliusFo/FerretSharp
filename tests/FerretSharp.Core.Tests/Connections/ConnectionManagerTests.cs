@@ -39,6 +39,21 @@ public class ConnectionManagerTests
         Assert.Equal("kaputt", _manager.LoadError);
     }
 
+    /// <summary>R4a: with the list empty after a load failure, the first new connection replaced the file – all others were lost.</summary>
+    [Fact]
+    public async Task A_file_that_could_not_be_read_is_never_written()
+    {
+        _store.LoadAsync(Arg.Any<CancellationToken>()).Throws(new ConnectionStoreException("kaputt"));
+        await _manager.LoadAsync(Ct);
+
+        var saved = await Assert.ThrowsAsync<IOException>(() => _manager.SaveAsync(TestProfiles.HostPort("Neu"), "pw", Ct));
+        await Assert.ThrowsAsync<IOException>(() => _manager.DeleteAsync(Guid.NewGuid(), Ct));
+
+        Assert.StartsWith("Die Verbindungsdatei ließ sich beim Start nicht lesen", saved.Message);
+        await _store.DidNotReceive().SaveAsync(Arg.Any<IReadOnlyList<ConnectionProfile>>(), Arg.Any<CancellationToken>());
+        Assert.Empty(_manager.Profiles);
+    }
+
     [Fact]
     public async Task Save_new_profile_persists_profile_and_password_separately()
     {

@@ -1,11 +1,11 @@
 @* The uncommitted changes of a workspace as a short list (WP-30, out of the Prod commit dialog; WP-22 shows it before
    DDL rolls them back): pending changes per tab, then the written actions, newest first. *@
 
-@if (Summary.Actions.Count > 0 || Summary.Pending > 0)
+@if (Summary.Actions.Count > 0 || (ShowPending && Summary.Pending > 0))
 {
     <div class="hint small">@Heading</div>
     <ul class="commit-list">
-        @foreach (var tab in Workspace.TableTabs.Where(t => t.Changes?.PendingCount > 0))
+        @foreach (var tab in Workspace.TableTabs.Where(t => ShowPending && t.Changes?.PendingCount > 0))
         {
             <li>@TextFormat.Format(ShellText.Dialogs_CommitPendingTab, tab.Table.DisplayName, tab.Changes!.PendingCount)</li>
         }
@@ -26,4 +26,8 @@
     /// <summary>Above the list: what happens to these changes.</summary>
     [Parameter, EditorRequired]
     public string Heading { get; set; } = "";
+
+    /// <summary>List the pending changes too; DDL rolls back only the written ones (R4a).</summary>
+    [Parameter]
+    public bool ShowPending { get; set; } = true;
 }

@@ -69,7 +69,9 @@ public sealed class LinqConsoleHost : ILinqConsole
         IReadOnlyList<string> arguments, string workingDirectory, string pipeName, DirectoryInfo work, IDisposable? lease, BuildOutput output,
         TimeSpan startTimeout, IProgress<string>? progress, CancellationToken cancellationToken)
     {
-        var pipe = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+        // Only the own user may connect (R4a): with the default ACL another user of a terminal server could take the pipe
+        // first and read the LINQ code and its variables.
+        var pipe = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
         var errors = new StringBuilder();
         Process? process = null;
         try

@@ -130,14 +130,32 @@ public sealed class WorkspaceEditing(
         StoppedByForm(workspace) ? Task.FromResult(false) : RunAsync(workspace, () => FlushCoreAsync(workspace, duringCommit: false));
 
     /// <summary>Writes what is pending, then commits; false if a write problem stopped it.</summary>
-    public Task<bool> CommitAsync(WorkspaceTabs workspace) => StoppedByForm(workspace) ? Task.FromResult(false) : RunAsync(workspace, async () =>
+    /// <param name="shown">
+    /// The writes a confirmation listed (Prod, WP-30): refused if another one was written meanwhile – a statement of another
+    /// tab finishing after the dialog opened would be committed unseen (R4a).
+    /// </param>
+    public Task<bool> CommitAsync(WorkspaceTabs workspace, IReadOnlyList<WriteAction>? shown = null) =>
+        StoppedByForm(workspace) ? Task.FromResult(false) : RunAsync(workspace, async () =>
     {
+        var editor = await WorkspacesOf(workspace.WorkspaceId).GetEditorAsync(workspace.WorkspaceId, CancellationToken.None);
+        if (shown is not null && editor.Actions is [.., var newest] && (shown.Count == 0 || shown[^1].Id != newest.Id))
+        {
+            throw new RefusedException(TextFormat.Format(GridText.Editing_WrittenSinceConfirm, newest.Display));
+        }
+
+        // Grid writes of a transaction that ended without commit (a rollback that failed with the connection): they are not
+        // in the database – committing would say so otherwise (R4a).
+        if (editor.Transaction.Mode != TransactionMode.ReadWrite && Trackers(workspace).Any(t => t.FlushedCount > 0))
+        {
+            RestorePending(workspace);
+            throw new RefusedException(GridText.Editing_TransactionGone);
+        }
+
         if (!await FlushCoreAsync(workspace, duringCommit: true))
         {
             return false;
         }
 
-        var editor = await WorkspacesOf(workspace.WorkspaceId).GetEditorAsync(workspace.WorkspaceId, CancellationToken.None);
         if (editor.Transaction.Mode == TransactionMode.ReadWrite)
         {
             try
@@ -376,7 +394,25 @@ public sealed class WorkspaceEditing(
         _ = problem.DuringCommit ? await CommitAsync(workspace) : await FlushAsync(workspace);
     }
 
-    /// <summary>After the connection was lost or closed: nothing of it can be committed any more.</summary>
+    /// <summary>
+    /// Rolls back the workspace's transaction before DDL, which would commit it (WP-22). Statements are taken back with it,
+    /// grid writes become pending again – as after a failed commit – and pending edits stay: DDL never commits them (R4a:
+    /// "discard" used to clear every tab's edits, although no transaction held them).
+    /// </summary>
+    public Task<bool> RollbackTransactionAsync(WorkspaceTabs workspace) => RunAsync(workspace, async () =>
+    {
+        if (WorkspacesOf(workspace.WorkspaceId).TransactionOf(workspace.WorkspaceId) is { Mode: TransactionMode.ReadWrite })
+        {
+            var editor = await WorkspacesOf(workspace.WorkspaceId).GetEditorAsync(workspace.WorkspaceId, CancellationToken.None);
+            await editor.RollbackAsync(CancellationToken.None);
+        }
+
+        RestorePending(workspace);
+        Forget(workspace.WorkspaceId);
+        shell.ReloadTableTabs(workspace.WorkspaceId);
+        return true;
+    });
+
     /// <summary>
     /// The workspace's session was given up (<see cref="WorkspaceLifecycle.ResetSessionAsync"/>) and its transaction with it:
     /// grid writes become pending again (as after a failed commit), every table tab reloads.
@@ -487,7 +523,17 @@ public sealed class WorkspaceEditing(
         foreach (var tab in workspace.TableTabs.Where(t => t.Changes is not null))
         {
             tab.Changes!.Clear();
-            shell.RequestTabCommand(tab, TabCommand.Reload);
+            if (tab.StructureStale)
+            {
+                // DDL changed the table while the changes held the old structure: the views start over with the new one.
+                tab.StructureStale = false;
+                tab.Changes = null;
+                tab.StructureVersion++;
+            }
+            else
+            {
+                shell.RequestTabCommand(tab, TabCommand.Reload);
+            }
         }
 
         Forget(workspace.WorkspaceId);

@@ -318,4 +318,16 @@
     <value>Show/hide open changes</value>
     <comment>Shortcut action: opens or closes the change overview beside the tabs</comment>
   </data>
+  <data name="NotReadKept" xml:space="preserve">
+    <value>{0} FerretSharp starts with the default settings; the file was kept as {1}.</value>
+    <comment>Notice at start. {0}: why the settings file could not be read (a sentence), {1}: path of the copy</comment>
+  </data>
+  <data name="NotReadNotSaving" xml:space="preserve">
+    <value>{0} FerretSharp starts with the default settings and saves no settings in this session, so the file stays as it is.</value>
+    <comment>Notice at start, when no copy of the file could be made. {0}: why the settings file could not be read (a sentence)</comment>
+  </data>
+  <data name="NotSavingThisSession" xml:space="preserve">
+    <value>The settings file could not be read at start.</value>
+    <comment>Follows “Setting applied but not saved:”</comment>
+  </data>
 </root>

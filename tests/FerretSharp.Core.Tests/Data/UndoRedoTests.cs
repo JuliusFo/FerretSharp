@@ -283,6 +283,57 @@ public class UndoRedoTests
         Assert.False(tracker.IsPendingAsUndone(batch));
     }
 
+    /// <summary>
+    /// R4a: two writes of one row taken back together left both their values pending; the redo of the first compared them
+    /// with its own and was refused for good – and would have written the second's values with it.
+    /// </summary>
+    [Fact]
+    public void Two_writes_of_one_row_taken_back_together_are_redone_one_after_the_other()
+    {
+        var tracker = new ChangeTracker(Kunden);
+        var row = Row(1, "Meier");
+        tracker.SetValue(row, 1, "Müller");
+        var first = tracker.MarkFlushed(tracker.PendingOperations(), new Dictionary<Guid, RowKey>());
+        tracker.SetValue(row, 1, "Schmidt");
+        tracker.SetValue(row, 2, "Köln");
+        var second = tracker.MarkFlushed(tracker.PendingOperations(), new Dictionary<Guid, RowKey>());
+        tracker.UndoFlush(second);
+        tracker.UndoFlush(first);
+
+        Assert.True(tracker.IsPendingAsUndone(first));
+        var redoFirst = Assert.Single(tracker.PendingOperations(first));
+        Assert.Equal(new Dictionary<int, object?> { [1] = "Müller" }, redoFirst.Values);
+        Assert.Equal(new Dictionary<int, object?> { [1] = "Meier" }, redoFirst.Expected);
+        tracker.MarkFlushed([redoFirst], new Dictionary<Guid, RowKey>());
+
+        var change = tracker.Find(row.Key)!;
+        Assert.Equal(["NAME", "ORT"], change.PendingColumns.Order().Select(c => Kunden.Columns[c].Name)); // the second write's values wait
+        Assert.True(tracker.IsPendingAsUndone(second));
+        var redoSecond = Assert.Single(tracker.PendingOperations(second));
+        Assert.Equal(new Dictionary<int, object?> { [1] = "Schmidt", [2] = "Köln" }, redoSecond.Values);
+        Assert.Equal(new Dictionary<int, object?> { [1] = "Müller", [2] = "Bonn" }, redoSecond.Expected);
+        tracker.MarkFlushed([redoSecond], new Dictionary<Guid, RowKey>());
+
+        Assert.Equal(0, tracker.PendingCount);
+    }
+
+    /// <summary>R4a: undoing a write took back a delete marked after it, silently.</summary>
+    [Fact]
+    public void Undoing_a_write_keeps_a_delete_marked_after_it()
+    {
+        var tracker = new ChangeTracker(Kunden);
+        var row = Row(1, "Meier");
+        tracker.SetValue(row, 1, "Müller");
+        var batch = tracker.MarkFlushed(tracker.PendingOperations(), new Dictionary<Guid, RowKey>());
+        tracker.Delete(row);
+
+        tracker.UndoFlush(batch);
+
+        var change = tracker.Find(row.Key)!;
+        Assert.Equal(ChangeStage.Pending, change.Deleted);
+        Assert.Equal(OperationKind.Delete, change.PendingKind);
+    }
+
     [Fact]
     public void The_operations_of_a_write_taken_back_leave_other_pending_rows_out()
     {

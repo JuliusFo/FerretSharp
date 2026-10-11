@@ -108,10 +108,11 @@ public sealed partial class WorkspaceLifecycle(
         return Task.CompletedTask;
     }
 
-    public async Task CommitAsync(WorkspaceTabs workspace)
+    /// <param name="shown">The writes the confirmation listed; nothing else is committed unseen (R4a).</param>
+    public async Task CommitAsync(WorkspaceTabs workspace, IReadOnlyList<WriteAction> shown)
     {
         ConfirmCommit = null;
-        await editing.CommitAsync(workspace);
+        await editing.CommitAsync(workspace, shown);
     }
 
     public void RequestRollback(WorkspaceTabs workspace)

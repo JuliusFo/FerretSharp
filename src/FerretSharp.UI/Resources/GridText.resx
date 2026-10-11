@@ -823,6 +823,13 @@
   <data name="Editing_Committed" xml:space="preserve">
     <value>Changes committed.</value>
   </data>
+  <data name="Editing_TransactionGone" xml:space="preserve">
+    <value>Not committed: the transaction ended without a commit (connection lost?). The written grid changes are pending again; statements written in it are not in the database.</value>
+  </data>
+  <data name="Editing_WrittenSinceConfirm" xml:space="preserve">
+    <value>Not committed: “{0}” was written after the confirmation was shown. Check the changes and commit again.</value>
+    <comment>{0}: description of the write</comment>
+  </data>
   <data name="Editing_RolledBack" xml:space="preserve">
     <value>Changes discarded (rollback).</value>
   </data>

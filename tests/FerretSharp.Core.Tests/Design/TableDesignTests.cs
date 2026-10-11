@@ -161,6 +161,33 @@ public class TableDesignTests
         Assert.Equal(["NAME → NACHNAME: Views, PL/SQL und das C#-Modell (HasColumnName) verwenden noch den alten Namen."], plan.Warnings);
     }
 
+    /// <summary>R4a: in column order, NAME → NOTIZ ran while NOTIZ still existed (ORA-00957), after the drops were committed.</summary>
+    [Fact]
+    public void A_rename_onto_a_name_another_column_gives_up_waits_for_it()
+    {
+        var plan = Plan(Draft(Changed(Name, c => c with { Name = "NOTIZ" }), Changed(Notiz, c => c with { Name = "BEMERKUNG" })));
+
+        Assert.Equal(
+        [
+            $"""ALTER TABLE {T} RENAME COLUMN "NOTIZ" TO "BEMERKUNG" """.TrimEnd(),
+            $"""ALTER TABLE {T} RENAME COLUMN "NAME" TO "NOTIZ" """.TrimEnd(),
+        ], plan.Statements);
+        Assert.True(plan.CanRun);
+    }
+
+    [Fact]
+    public void Swapped_names_step_aside_under_a_free_name()
+    {
+        var plan = Plan(Draft(Changed(Name, c => c with { Name = "NOTIZ" }), Changed(Notiz, c => c with { Name = "NAME" })));
+
+        Assert.Equal(
+        [
+            $"""ALTER TABLE {T} RENAME COLUMN "NAME" TO "FS_RENAME_1" """.TrimEnd(),
+            $"""ALTER TABLE {T} RENAME COLUMN "NOTIZ" TO "NAME" """.TrimEnd(),
+            $"""ALTER TABLE {T} RENAME COLUMN "FS_RENAME_1" TO "NOTIZ" """.TrimEnd(),
+        ], plan.Statements);
+    }
+
     [Fact]
     public void A_removed_comment_is_set_to_empty()
     {
@@ -221,6 +248,45 @@ public class TableDesignTests
         Assert.Equal([$"""ALTER TABLE {T} MODIFY ("STATUS" DEFAULT NULL)"""], Plan(Draft(Changed(Status, c => c with { Default = "" }))).Statements);
     }
 
+    /// <summary>
+    /// R4a: a typed expression went into the DDL as it was. A ";" at its end made the statement fail the schema path –
+    /// halfway through the run, after the drops before it were committed, and as an unhandled programming error.
+    /// </summary>
+    [Theory]
+    [InlineData("SYSDATE;")]
+    [InlineData(":heute")]
+    [InlineData("TRUNC(SYSDATE")]
+    [InlineData("SYSDATE)")]
+    public void A_default_or_check_that_does_not_fit_into_one_statement_is_a_problem(string expression)
+    {
+        var changed = Plan(Draft(Changed(Name, c => c with { Default = expression })));
+        var added = Plan(Draft(new ColumnDraft(null, NewColumn("SEIT", "DATE", @default: expression))));
+        var check = Plan(Draft() with { AddedConstraints = [new ConstraintDraft("CK_SEIT", ConstraintType.Check, [], Condition: expression)] });
+
+        Assert.Equal(["NAME: Der Ausdruck darf weder „;“ noch Bind-Variablen (:name) enthalten, und seine Klammern müssen zusammenpassen."], changed.Problems);
+        Assert.Equal(["SEIT: Der Ausdruck darf weder „;“ noch Bind-Variablen (:name) enthalten, und seine Klammern müssen zusammenpassen."], added.Problems);
+        Assert.Equal(["CK_SEIT: Der Ausdruck darf weder „;“ noch Bind-Variablen (:name) enthalten, und seine Klammern müssen zusammenpassen."], check.Problems);
+    }
+
+    [Fact]
+    public void Semicolons_and_brackets_inside_literals_and_names_are_part_of_the_expression()
+    {
+        var plan = Plan(Draft() with { AddedConstraints = [new ConstraintDraft("CK_NAME", ConstraintType.Check, [], Condition: "\"NAME\" <> 'a;b)'")] });
+
+        Assert.Empty(plan.Problems);
+        Assert.Equal([$"""ALTER TABLE {T} ADD CONSTRAINT "CK_NAME" CHECK ("NAME" <> 'a;b)')"""], plan.Statements);
+    }
+
+    /// <summary>R4a: Oracle keeps a trailing comment in DATA_DEFAULT; written as it was, it swallowed the ")" after it.</summary>
+    [Fact]
+    public void An_expression_ending_in_a_line_comment_ends_with_a_line_break()
+    {
+        var plan = Plan(Draft(Changed(Name, c => c with { Default = "'x' -- vorläufig" })));
+
+        Assert.Equal([$"ALTER TABLE {T} MODIFY (\"NAME\" DEFAULT 'x' -- vorläufig\n)"], plan.Statements);
+        Assert.True(plan.CanRun);
+    }
+
     [Fact]
     public void Default_on_null_needs_a_value_and_no_nulls()
     {
@@ -273,6 +339,19 @@ public class TableDesignTests
             $"""ALTER TABLE {T} ADD ("BEMERKUNG" VARCHAR2(200 BYTE))""",
         ], plan.Statements);
         Assert.Equal(["NOTIZ wird mit allen Werten gelöscht – ohne Rückweg."], plan.Warnings);
+    }
+
+    /// <summary>R4a: Oracle drops an index over several columns with one of them, without a word.</summary>
+    [Fact]
+    public void Dropping_a_column_warns_of_the_indexes_over_several_columns_it_takes_along()
+    {
+        var single = new IndexInfo("SHOP", "IX_NOTIZ", "NORMAL", false, "VALID", [new IndexColumn("NOTIZ", false, false)], null, false, true);
+        var both = new IndexInfo("SHOP", "IX_NAME_NOTIZ", "NORMAL", false, "VALID", [new IndexColumn("NAME", false, false), new IndexColumn("NOTIZ", false, false)], null, false, true);
+        var plan = TableDesign.Plan(new DesignContext(Kunde, [], [single, both], []), Draft(Changed(Notiz, c => c) with { Dropped = true }), DataFacts.None);
+
+        Assert.Equal(
+            ["NOTIZ: Oracle löscht auch den Index IX_NAME_NOTIZ, der weitere Spalten umfasst.", "NOTIZ wird mit allen Werten gelöscht – ohne Rückweg."],
+            plan.Warnings);
     }
 
     [Fact]

@@ -122,6 +122,9 @@ public sealed class SqlScriptTests
     [InlineData("CREATE TRIGGER t_bi BEFORE INSERT ON t FOR EACH ROW BEGIN NULL", SqlStatementKind.PlSqlObject)]
     [InlineData("CREATE TYPE adresse AS OBJECT (ort VARCHAR2(40))", SqlStatementKind.PlSqlObject)]
     [InlineData("CREATE OR REPLACE AND COMPILE JAVA SOURCE NAMED x AS class X {}", SqlStatementKind.PlSqlObject)]
+    [InlineData("CREATE MLE MODULE m LANGUAGE JAVASCRIPT AS export function f() { return 1 }", SqlStatementKind.PlSqlObject)]
+    [InlineData("CREATE OR REPLACE MLE ENV e IMPORTS ('m' MODULE m)", SqlStatementKind.PlSqlObject)]
+    [InlineData("CREATE LIBRARY ext AS '/u01/lib/ext.so'", SqlStatementKind.PlSqlObject)]
     [InlineData("BEGIN NULL; END", SqlStatementKind.PlSql)]
     [InlineData("EXEC dbms_stats.gather_table_stats('A', 'T')", SqlStatementKind.Call)]
     [InlineData("COMMIT", SqlStatementKind.TransactionControl)]
@@ -163,6 +166,15 @@ public sealed class SqlScriptTests
     [InlineData("COMMENT ON COLUMN kunden.fax IS 'Fax'", null, "KUNDEN")]
     [InlineData("COMMENT ON COLUMN app.kunden.fax IS 'Fax'", "APP", "KUNDEN")]
     [InlineData("-- vorher\nFLASHBACK TABLE kunden TO BEFORE DROP", null, "KUNDEN")]
+    // R4a: keywords that end a table reference in a query are names here, and 23ai's IF [NOT] EXISTS is skipped.
+    [InlineData("ALTER TABLE log ADD (x NUMBER)", null, "LOG")]
+    [InlineData("ALTER TABLE app.log ADD (x NUMBER)", "APP", "LOG")]
+    [InlineData("ALTER TABLE IF EXISTS kunden ADD (x NUMBER)", null, "KUNDEN")]
+    [InlineData("DROP TABLE IF EXISTS app.window", "APP", "WINDOW")]
+    [InlineData("CREATE INDEX ix_log ON log (a)", null, "LOG")]
+    [InlineData("CREATE INDEX IF NOT EXISTS ix_log ON app.log (a)", "APP", "LOG")]
+    [InlineData("COMMENT ON COLUMN log.x IS 'x'", null, "LOG")]
+    [InlineData("ALTER TABLE if ADD (x NUMBER)", null, "IF")]
     public void Ddl_names_the_table_it_changes(string sql, string? owner, string name) =>
         Assert.Equal(new SqlTableReference(owner, name, null, 0), SqlScript.DdlTableOf(sql));
 
@@ -268,5 +280,19 @@ public sealed class SqlScriptTests
                 new SqlBindUse("min", null, "UMSATZ"),
             ],
             info.BindUses);
+    }
+
+    /// <summary>R4a: callers with several statements check all of them before the first runs (each DDL commits at once).</summary>
+    [Fact]
+    public void Ddl_rejection_says_why_the_schema_path_would_refuse_a_statement()
+    {
+        Assert.Null(SqlScript.DdlRejection("ALTER TABLE kunden ADD (fax VARCHAR2(30));"));
+        Assert.Null(SqlScript.DdlRejection("-- Kommentar\nCOMMENT ON TABLE kunden IS 'a;b'"));
+        Assert.Equal("Das sind mehrere Anweisungen – ein „;“ oder eine Leerzeile darin beendet die Anweisung dort.",
+            SqlScript.DdlRejection("ALTER TABLE kunden ADD CHECK (status IN ('A','B');)"));
+        Assert.Equal("„UPDATE“ ist keine DDL-Anweisung.", SqlScript.DdlRejection("UPDATE kunden SET name = 'x'"));
+        Assert.Equal("DDL nimmt keine Bind-Variablen (:v) – den Wert direkt ins Statement schreiben.",
+            SqlScript.DdlRejection("ALTER TABLE kunden MODIFY (name DEFAULT :v)"));
+        Assert.NotNull(SqlScript.DdlRejection("CREATE OR REPLACE TRIGGER t BEFORE INSERT ON kunden BEGIN NULL; END;"));
     }
 }

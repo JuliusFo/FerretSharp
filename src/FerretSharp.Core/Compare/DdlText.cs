@@ -1,13 +1,14 @@
 using System.Text;
 using FerretSharp.Core.Oracle;
+using FerretSharp.Core.Query;
 using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.Compare;
 
 /// <summary>
-/// SQL fragments of the DDL proposal (<see cref="SchemaDdl"/>). Text for the user to copy: FerretSharp does not run it
-/// (WP-20); names are always quoted exactly as in the dictionary.
+/// SQL fragments of the DDL proposal (<see cref="SchemaDdl"/>) and the table designer (WP-23); both may run it through the
+/// schema path (WP-22). Names are always quoted exactly as in the dictionary.
 /// </summary>
 internal static class DdlText
 {
@@ -19,7 +20,7 @@ internal static class DdlText
         var sql = new StringBuilder($"{Q(column.Name)} {OracleTypes.DdlType(column)}");
         if (column.IsVirtual)
         {
-            sql.Append($" GENERATED ALWAYS AS ({column.Default}) VIRTUAL");
+            sql.Append($" GENERATED ALWAYS AS ({Expression(column.Default ?? "")}) VIRTUAL");
         }
         else if (column.IsIdentity)
         {
@@ -27,7 +28,7 @@ internal static class DdlText
         }
         else if (column.Default is { } value)
         {
-            sql.Append(column.DefaultOnNull ? $" DEFAULT ON NULL {value}" : $" DEFAULT {value}");
+            sql.Append(column.DefaultOnNull ? $" DEFAULT ON NULL {Expression(value)}" : $" DEFAULT {Expression(value)}");
         }
 
         // Identity and DEFAULT ON NULL columns are NOT NULL by themselves.
@@ -60,7 +61,7 @@ internal static class DdlText
                 sql.Append($"UNIQUE ({Columns(constraint.Columns)})");
                 break;
             case ConstraintType.Check:
-                sql.Append($"CHECK ({constraint.Condition})");
+                sql.Append($"CHECK ({Expression(constraint.Condition ?? "")})");
                 break;
             case ConstraintType.ForeignKey:
                 var to = mapTable(constraint.References ?? throw new ArgumentException($"Foreign key {constraint.Name} without referenced table.", nameof(constraint)));
@@ -125,6 +126,39 @@ internal static class DdlText
         string.Join(", ", columns.Select(c => (c.IsExpression ? c.Name : Q(c.Name)) + (c.Descending ? " DESC" : "")));
 
     public static string Columns(IEnumerable<string> names) => string.Join(", ", names.Select(Q));
+
+    /// <summary>
+    /// An expression (default, check condition, virtual column) as it stands inside DDL. Oracle keeps a trailing
+    /// <c>-- comment</c> in the dictionary text; it ends with a line break here, or it would swallow the <c>,</c> or
+    /// <c>)</c> that follows.
+    /// </summary>
+    public static string Expression(string expression) =>
+        SqlScript.Tokenize(expression) is [.., { Kind: SqlTokenKind.Comment } last] && last.Value.StartsWith("--", StringComparison.Ordinal)
+            ? expression + "\n"
+            : expression;
+
+    /// <summary>
+    /// The expression can stand inside a single DDL statement (R4a): no <c>;</c>, no bind variable (Oracle allows none in
+    /// DDL, the schema path refuses them) and matching brackets. Everything else the database checks.
+    /// </summary>
+    public static bool FitsInStatement(string expression)
+    {
+        var depth = 0;
+        foreach (var token in SqlScript.Tokenize(expression))
+        {
+            if (token.Kind == SqlTokenKind.Bind || token.IsSymbol(";") || (token.IsSymbol(")") && --depth < 0))
+            {
+                return false;
+            }
+
+            if (token.IsSymbol("("))
+            {
+                depth++;
+            }
+        }
+
+        return depth == 0;
+    }
 
     /// <summary>A string literal for COMMENT ON.</summary>
     public static string Literal(string? text) => $"'{(text ?? "").Replace("'", "''", StringComparison.Ordinal)}'";

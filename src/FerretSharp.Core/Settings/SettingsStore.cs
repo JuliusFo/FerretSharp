@@ -52,6 +52,28 @@ public sealed class SettingsStore(string filePath)
         }
     }
 
+    /// <summary>
+    /// Copies a file <see cref="LoadAsync"/> could not read next to it (<c>settings.json.bad-20261011-153000</c>) before the
+    /// first save replaces it with defaults (R4a: a broken file or one of a newer version lost every setting, shortcuts
+    /// included, at the next save – moving a panel was enough). The path of the copy.
+    /// </summary>
+    /// <exception cref="IOException">The file could not be copied.</exception>
+    /// <exception cref="UnauthorizedAccessException">The file could not be copied.</exception>
+    public string KeepCopy(DateTimeOffset now)
+    {
+        // Every start with the same file would add a copy (E2E run): an identical one is kept already.
+        var content = File.ReadAllBytes(FilePath);
+        var folder = Path.GetDirectoryName(Path.GetFullPath(FilePath))!;
+        if (Directory.EnumerateFiles(folder, Path.GetFileName(FilePath) + ".bad-*").FirstOrDefault(f => File.ReadAllBytes(f).AsSpan().SequenceEqual(content)) is { } kept)
+        {
+            return kept;
+        }
+
+        var copy = $"{FilePath}.bad-{now:yyyyMMdd-HHmmss}";
+        File.Copy(FilePath, copy, overwrite: false);
+        return copy;
+    }
+
     public async Task SaveAsync(AppSettings settings, CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken);

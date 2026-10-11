@@ -99,6 +99,9 @@
   <data name="Settings_DiagnoseUiStallsHint" xml:space="preserve">
     <value>Schreibt ins Log, wenn die Oberfläche länger als 0,3 s nicht reagiert, und womit FerretSharp da beschäftigt war. Ist das .NET-Werkzeug {0} installiert, kommen bei Hängern über 1,5 s die Stacks aller Threads als {1} in den Log-Ordner. Zum Eingrenzen von Hängern gedacht, nicht für den Alltag.</value>
   </data>
+  <data name="Settings_NotRead" xml:space="preserve">
+    <value>Einstellungen ließen sich nicht lesen.</value>
+  </data>
   <data name="Settings_NotSaved" xml:space="preserve">
     <value>Einstellung angewendet, aber nicht gespeichert: {0}</value>
   </data>
@@ -937,7 +940,7 @@
     <value>{0} neue Spalten ohne Property im C#-Modell: {1}</value>
   </data>
   <data name="Schema_StaleTab" xml:space="preserve">
-    <value>„{0}“ zeigt noch die alte Struktur – der Tab hat nicht committete Änderungen. Erst committen oder verwerfen, dann den Tab neu öffnen.</value>
+    <value>„{0}“ behält die alte Struktur, solange der Tab nicht committete Änderungen hat – nach Commit oder Rollback zeigt er die neue.</value>
   </data>
   <data name="Schema_ModelNotMatched" xml:space="preserve">
     <value>Das C#-Modell ließ sich nicht mit dem neuen Schema abgleichen: {0}</value>

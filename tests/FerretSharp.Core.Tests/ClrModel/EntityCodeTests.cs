@@ -98,6 +98,19 @@ public sealed class EntityCodeTests
         Assert.Contains("builder.HasKey(x => new { x.Jahr, x.Monat });", code.Configuration, StringComparison.Ordinal);
     }
 
+    /// <summary>R4a: a property made unique whose type has its name ("DateTime DateTime") got the type renamed instead.</summary>
+    [Fact]
+    public async Task A_property_made_unique_keeps_its_type()
+    {
+        var table = new TableDetails(new TableSummary(Owner, "TERMIN", TableKind.Table),
+            [Col("TERMIN_ID", "NUMBER", precision: 9, scale: 0, nullable: false), Col("DATE_TIME", "DATE", nullable: false, position: 2)],
+            ["TERMIN_ID"], [], false);
+
+        var code = EntityCode.Write(await MappingAsync(), table, [], "DateTime");
+
+        Assert.Contains("public DateTime DateTime2 { get; set; }", code.Entity, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("ADRESSEN", "Adresse")] // the project has KUNDEN → Kunde
     [InlineData("AUFTRAG", "Auftrag")]

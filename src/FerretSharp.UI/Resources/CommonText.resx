@@ -68,6 +68,12 @@
   <data name="UnexpectedError" xml:space="preserve">
     <value>Unexpected error</value>
   </data>
+  <data name="StartFailed" xml:space="preserve">
+    <value>FerretSharp could not start: {0}
+
+The log is in {1}.</value>
+    <comment>Message box before the window exists. {0}: error message, {1}: folder of the log files</comment>
+  </data>
   <data name="UnexpectedErrorBar" xml:space="preserve">
     <value>Unexpected error.</value>
     <comment>Blazor's error bar at the bottom of the window, when the UI itself has failed</comment>

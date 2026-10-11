@@ -5,6 +5,33 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.24.1] - 2026-10-11
+
+Fixes from the review of 3.24.0 (R4a).
+
+### Security
+- Values in the grid are shown as text: a cell value with HTML in it (`<img onerror=…>`) ran script in the window.
+- The LINQ console's pipe accepts only the own Windows user (terminal servers).
+- `CREATE MLE MODULE`/`ENV` (JavaScript, 23ai) and `CREATE LIBRARY` are refused like PL/SQL objects.
+- A workspace whose lock was refused (a statement began writing at that moment) stays unlocked instead of showing locked while its session could write; statements on a locked workspace are refused before the session is touched.
+
+### Fixed
+- After DDL that changed a table, an edit in its open tab could be written to the wrong column (the tab kept the change list of the old structure). A tab held to the old structure by uncommitted changes now shows the new one after commit or rollback.
+- DDL from the SQL editor or the designer rolls back only the open transaction: pending edits stay, written grid changes become pending again. Before, *Discard and run* cleared the pending edits of every tab of the workspace.
+- Ctrl+S and commit take the value of an open cell editor first; before, it was lost. Ending an edit while the editor is still loading the cell's text (a click elsewhere right after opening it) no longer writes NULL.
+- Designer: a default or check with a `;`, a bind variable or unmatched brackets is reported before anything runs (it used to stop the run halfway with an unexpected error); renames that chain or swap names run in an order Oracle accepts; dropping a column warns of indexes over several columns that Oracle drops with it; after a successful run the tab no longer reopens in edit mode with an old error.
+- `ALTER TABLE log …`, `app.log` or `IF EXISTS`: the table is taken before the ALTER again, so it cannot wait endlessly for another session.
+- Defaults and checks that end in a `-- comment` (as Oracle keeps them) no longer break generated DDL.
+- A `settings.json` that cannot be read (broken, or from a newer version) is kept as `settings.json.bad-<time>` and FerretSharp says so at start; before, the next save replaced it with defaults, shortcuts and all. A `connections.json` that cannot be read is never overwritten.
+- Resetting a shortcut whose key another action has meanwhile asks first instead of leaving both on the key.
+- Commit refuses grid writes whose transaction is gone (connection lost during rollback) instead of reporting them committed; the Prod confirmation commits only the writes it listed.
+- Redo of two grid writes of the same row taken back together works; undoing a write keeps a delete marked after it.
+- *C# · Entity*: virtual, identity and default columns get `HasComputedColumnSql`, `ValueGeneratedOnAdd` or `HasDefaultValueSql`; columns like `NR#` or `BETRAG$` give names that compile; a property renamed to be unique keeps its type.
+- The model cache no longer stores an old model under a build that finished during the export.
+- Closing a connection while its model loads or the LINQ console starts leaves no watcher or helper process behind.
+- A failed start shows a message and ends instead of leaving a process without window; errors in grid callbacks and shell shortcuts are logged and shown instead of being swallowed.
+- Text typed in the last moment before a SQL or LINQ editor closes is kept; type suggestions for SQL variables no longer get mixed up while typing.
+
 ## [3.24.0] - 2026-10-11
 
 ### Added

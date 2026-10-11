@@ -13,6 +13,13 @@ public abstract class FerretComponent : ComponentBase
     /// <summary>Starts <paramref name="work"/> on the renderer's context without waiting for it.</summary>
     protected void Fire(Func<Task> work) => _ = InvokeAsync(() => GuardAsync(work));
 
+    /// <inheritdoc cref="Fire(Func{Task})"/>
+    protected void Fire(Action work) => Fire(() =>
+    {
+        work();
+        return Task.CompletedTask;
+    });
+
     /// <summary>
     /// Runs <paramref name="work"/>; an exception goes to the error boundary instead of the caller. For
     /// <c>[JSInvokable]</c> handlers: JS neither waits for nor shows their errors. Cancellation stays silent.
@@ -28,6 +35,30 @@ public abstract class FerretComponent : ComponentBase
             await DispatchExceptionAsync(ex);
         }
     }
+
+    /// <summary>
+    /// For synchronous <c>[JSInvokable]</c> handlers (R4a): an exception goes to the error boundary and JS gets
+    /// <paramref name="failed"/> – thrown back, grid.js swallowed it and the edit vanished without a trace.
+    /// </summary>
+    protected T Guard<T>(Func<T> work, T failed)
+    {
+        try
+        {
+            return work();
+        }
+        catch (Exception ex)
+        {
+            _ = InvokeAsync(() => DispatchExceptionAsync(ex));
+            return failed;
+        }
+    }
+
+    /// <inheritdoc cref="Guard{T}(Func{T}, T)"/>
+    protected void Guard(Action work) => Guard(() =>
+    {
+        work();
+        return true;
+    }, false);
 
     /// <inheritdoc cref="GuardAsync(Func{Task})"/>
     /// <param name="failed">What JS gets after an exception.</param>

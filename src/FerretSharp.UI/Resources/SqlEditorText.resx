@@ -664,11 +664,11 @@
     <comment>{0} = number of DDL statements in the script</comment>
   </data>
   <data name="SqlView_ConfirmDdlDiscard" xml:space="preserve">
-    <value>Workspace “{0}” has uncommitted changes. They are rolled back first – the DDL would commit them otherwise.</value>
+    <value>Workspace “{0}” has an open transaction. It is rolled back first – the DDL would commit it otherwise. Written grid changes become pending again, pending ones stay.</value>
     <comment>{0} = workspace name (emphasized)</comment>
   </data>
   <data name="SqlView_ConfirmDdlDiscardList" xml:space="preserve">
-    <value>Discarded:</value>
+    <value>Rolled back:</value>
     <comment>Heading of the list of changes the rollback before DDL discards</comment>
   </data>
   <data name="SqlView_ConfirmDdlOtherWriterTables" xml:space="preserve">
@@ -688,7 +688,7 @@
     <comment>Shown below a DDL statement that runs for a few seconds</comment>
   </data>
   <data name="SqlView_DiscardAndRun" xml:space="preserve">
-    <value>Discard and run</value>
+    <value>Roll back and run</value>
     <comment>Button: roll back the workspace's changes, then run the DDL</comment>
   </data>
   <data name="SqlView_ConfirmDataInTransaction" xml:space="preserve">
@@ -699,7 +699,7 @@
     <comment>Below the statements shown in a confirmation. {0} = number of statements not shown</comment>
   </data>
   <data name="SqlView_DdlNotRun" xml:space="preserve">
-    <value>The uncommitted changes were not discarded – nothing was run.</value>
+    <value>The open transaction was not rolled back – nothing was run.</value>
   </data>
   <data name="SqlView_DdlOutcome" xml:space="preserve">
     <value>Schema changed ({0}) – committed at once.</value>

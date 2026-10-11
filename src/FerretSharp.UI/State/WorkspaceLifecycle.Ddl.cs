@@ -1,4 +1,5 @@
 using FerretSharp.Core.Connections;
+using FerretSharp.Core.Query;
 using FerretSharp.Core.Resources;
 using FerretSharp.Core.Workspaces;
 using FerretSharp.UI.Resources;
@@ -12,7 +13,7 @@ namespace FerretSharp.UI.State;
 /// <param name="Error">Why it failed; null if all ran or nothing was started.</param>
 /// <param name="Lock">The table another session holds, if that is why it failed.</param>
 /// <param name="Cancelled">The user cancelled it (the DDL changed nothing).</param>
-/// <param name="NotDiscarded">The uncommitted changes could not be rolled back first: nothing ran.</param>
+/// <param name="NotDiscarded">The open transaction could not be rolled back first: nothing ran.</param>
 public sealed record DdlRunResult(
     IReadOnlyList<string> Ran,
     string? Failed,
@@ -33,11 +34,13 @@ public sealed record DdlRunResult(
 public sealed partial class WorkspaceLifecycle
 {
     /// <summary>
-    /// The workspace's uncommitted changes (pending or written), which DDL would commit – the confirmation shows them and
-    /// rolls them back first; null if there are none.
+    /// The workspace's open write transaction, which DDL would commit – the confirmation shows what it holds and rolls it
+    /// back first; null if there is none. Pending edits are not part of it: DDL leaves them alone (R4a).
     /// </summary>
-    public (WorkspaceTabs Workspace, EditSummary Summary)? OpenWorkOf(Guid workspaceId) =>
-        shell.FindWorkspace(workspaceId) is { } workspace && editing.SummaryOf(workspace) is { HasWork: true } summary ? (workspace, summary) : null;
+    public (WorkspaceTabs Workspace, EditSummary Summary)? OpenTransactionOf(Guid workspaceId) =>
+        shell.FindWorkspace(workspaceId) is { } workspace && editing.SummaryOf(workspace) is { Transaction.Mode: TransactionMode.ReadWrite } summary
+            ? (workspace, summary)
+            : null;
 
     /// <summary>
     /// Runs <paramref name="statements"/> one after the other through the schema path of the workspace; the first failure
@@ -45,18 +48,28 @@ public sealed partial class WorkspaceLifecycle
     /// notice, as after DDL in the SQL editor.
     /// </summary>
     /// <param name="discard">
-    /// The workspace's uncommitted changes, which the confirmation said are discarded first (DDL would commit them).
-    /// If the rollback does not happen, nothing runs.
+    /// The workspace whose open transaction the confirmation said is rolled back first (DDL would commit it,
+    /// <see cref="WorkspaceEditing.RollbackTransactionAsync"/>). If the rollback does not happen, nothing runs.
     /// </param>
     /// <param name="starting">Called before each statement, for the progress display.</param>
-    /// <param name="stopped">
-    /// Called when a statement failed or was cancelled – before the schema is reloaded, which may rebuild the caller's
-    /// views (WP-23: the designer keeps its draft and the failure in the tab while it still exists).
+    /// <param name="ended">
+    /// Called with the result once the statements ran, failed or were cancelled – before the schema is reloaded, which may
+    /// rebuild the caller's views (WP-23: the designer keeps its draft and the failure in the tab while it still exists;
+    /// R4a: after a run that succeeded it drops them, or the rebuilt view reopened with the old failure).
     /// </param>
     public async Task<DdlRunResult> RunDdlAsync(Guid workspaceId, IReadOnlyList<string> statements, WorkspaceTabs? discard,
-        Action<string>? starting, Action<DdlRunResult>? stopped, CancellationToken cancellationToken)
+        Action<string>? starting, Action<DdlRunResult>? ended, CancellationToken cancellationToken)
     {
-        if (discard is not null && !await editing.RollbackAsync(discard))
+        // All statements first (R4a): one the schema path refuses would otherwise stop the run after the ones before it
+        // were committed – and as a programming error, not as a failure the caller shows.
+        if (statements.Select(s => (Statement: s, Rejection: SqlScript.DdlRejection(s))).FirstOrDefault(s => s.Rejection is not null) is ({ } refused, { } why))
+        {
+            var refusal = new DdlRunResult([], refused, new DatabaseException(why), null) { Total = statements.Count };
+            ended?.Invoke(refusal);
+            return refusal;
+        }
+
+        if (discard is not null && !await editing.RollbackTransactionAsync(discard))
         {
             return new DdlRunResult([], null, null, null, NotDiscarded: true);
         }
@@ -91,12 +104,8 @@ public sealed partial class WorkspaceLifecycle
             break;
         }
 
-        if (failure is not null)
-        {
-            failure = failure with { Total = statements.Count };
-            stopped?.Invoke(failure);
-        }
-
+        var outcome = (failure ?? new DdlRunResult(ran, null, null, null)) with { Total = statements.Count };
+        ended?.Invoke(outcome);
         if (ran.Count > 0)
         {
             var refresh = await RefreshSchemaAsync(scope);
@@ -106,7 +115,7 @@ public sealed partial class WorkspaceLifecycle
         }
 
         shell.NotifyChanged(); // status bar: the transaction is gone after a rollback or DDL
-        return (failure ?? new DdlRunResult(ran, null, null, null)) with { Total = statements.Count };
+        return outcome;
     }
 
     /// <summary>Into the connection's SQL history like DDL from the editor, so it can be found and run again elsewhere.</summary>

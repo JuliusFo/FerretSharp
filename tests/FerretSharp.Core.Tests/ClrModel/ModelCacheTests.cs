@@ -64,6 +64,22 @@ public sealed class ModelCacheTests : IDisposable
 
     public static TheoryData<string> Changes => ["dll", "new satellite", "deleted", "deps", "host"];
 
+    /// <summary>
+    /// R4a: the fingerprint was taken when saving, after the export – a build finished meanwhile got the old model as its
+    /// own, served as current until "Neu laden". Taken before the export, the new build finds no model and exports again.
+    /// </summary>
+    [Fact]
+    public async Task A_build_finished_during_the_export_does_not_get_its_model()
+    {
+        var cache = Cache();
+        var before = cache.Fingerprint(_link, _output);
+        File.SetLastWriteTimeUtc(Path.Combine(_bin, "Shop.Entities.dll"), DateTime.UtcNow); // the build finishes while the host runs
+
+        await cache.SaveAsync(_link, before, Model, Ct);
+
+        Assert.Null(await cache.TryLoadAsync(_link, _output, Ct));
+    }
+
     [Theory]
     [MemberData(nameof(Changes))]
     public async Task A_changed_build_or_host_invalidates_it(string change)

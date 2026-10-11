@@ -3,7 +3,7 @@ using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.Compare;
 
-/// <summary>A statement of the DDL proposal; never run by FerretSharp before WP-22.</summary>
+/// <summary>A statement of the DDL proposal; runnable from the SQL editor since WP-22, hints (commented) never run.</summary>
 /// <param name="Object">The table, view or materialized view it changes.</param>
 /// <param name="Sql">One statement without trailing semicolon; commented out (<c>-- …</c>) when only a hint (e.g. DROP).</param>
 /// <param name="Warning">Why this step needs care (data loss, may fail on existing data, …); null if none.</param>
@@ -76,7 +76,7 @@ public sealed record DdlProposal(int Reference, int Target, IReadOnlyList<DdlSte
 
 /// <summary>
 /// Builds the DDL proposal from a comparison (WP-20): the statements that make one side look like another. The SQL is
-/// text for the user to copy; FerretSharp does not execute it (that may come with WP-22). Pure logic on the
+/// text to copy, save or open in the SQL editor, which runs it through the schema path (WP-22). Pure logic on the
 /// comparison's payloads, no database access.
 /// </summary>
 /// <remarks>

@@ -106,6 +106,10 @@
     <value>{0} is dropped with all its values – there is no way back.</value>
     <comment>{0}: column name</comment>
   </data>
+  <data name="DropColumnDropsIndex" xml:space="preserve">
+    <value>{0}: Oracle also drops the index {1}, which covers other columns too.</value>
+    <comment>{0}: column name, {1}: index name</comment>
+  </data>
   <data name="RenameKeepsReferences" xml:space="preserve">
     <value>{0} → {1}: views, PL/SQL and the C# model (HasColumnName) still use the old name.</value>
     <comment>{0}: old column name; {1}: new name</comment>
@@ -210,5 +214,13 @@
   <data name="TableNameTaken" xml:space="preserve">
     <value>The schema already has an object named {0} (ORA-00955).</value>
     <comment>{0}: table name</comment>
+  </data>
+  <data name="ExpressionNotInStatement" xml:space="preserve">
+    <value>{0}: the expression must not contain “;” or bind variables (:name), and its brackets must match.</value>
+    <comment>Default or check condition typed in the designer. {0}: column or constraint</comment>
+  </data>
+  <data name="StatementNotDdl" xml:space="preserve">
+    <value>This statement is not a single DDL statement and would be refused: {0}</value>
+    <comment>{0}: the statement, shortened</comment>
   </data>
 </root>

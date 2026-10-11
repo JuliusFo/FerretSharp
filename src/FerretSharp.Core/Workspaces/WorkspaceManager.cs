@@ -418,8 +418,17 @@ public sealed class WorkspaceManager : IAsyncDisposable
         await (await GetDataAsync(workspaceId, cancellationToken)).ReadSqlAsync(query, skip, take, cancellationToken);
 
     /// <summary>A writing statement (SQL editor, LINQ console) in the workspace's transaction; see <see cref="IDataEditor.ExecuteAsync"/>.</summary>
-    public async Task<WriteAction> ExecuteAsync(Guid workspaceId, QuerySpec statement, CancellationToken cancellationToken) =>
-        await (await GetEditorAsync(workspaceId, cancellationToken)).ExecuteAsync(statement, cancellationToken);
+    public async Task<WriteAction> ExecuteAsync(Guid workspaceId, QuerySpec statement, CancellationToken cancellationToken)
+    {
+        // Oracle refuses DML in the read-only transaction of a locked session anyway; this says so before it is touched,
+        // as for DDL (R4a).
+        if (!IsWritable(workspaceId))
+        {
+            throw new RefusedException(OracleText.WorkspaceReadOnly);
+        }
+
+        return await (await GetEditorAsync(workspaceId, cancellationToken)).ExecuteAsync(statement, cancellationToken);
+    }
 
     /// <summary>
     /// A DDL statement of the SQL editor on the workspace's session (WP-22); see <see cref="IDataEditor.ExecuteDdlAsync"/>.

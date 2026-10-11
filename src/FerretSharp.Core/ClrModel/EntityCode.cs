@@ -178,7 +178,8 @@ public static class EntityCode
     private static PropertySuggestion Rename(PropertySuggestion suggestion, string name) => suggestion with
     {
         Name = name,
-        Declaration = suggestion.Declaration.Replace($" {suggestion.Name} ", $" {name} ", StringComparison.Ordinal),
+        // The name stands right before the accessors – the type may have the same name (R4a: "public Status Status").
+        Declaration = suggestion.Declaration.Replace($" {suggestion.Name} {{ get;", $" {name} {{ get;", StringComparison.Ordinal),
         Configuration = suggestion.Configuration.Replace($"x.{suggestion.Name})", $"x.{name})", StringComparison.Ordinal),
     };
 

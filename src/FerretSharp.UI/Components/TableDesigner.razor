@@ -173,7 +173,7 @@ else
             <p class="hint small"><span class="spinner"></span> @SchemaViewText.Designer_Counting</p>
         }
         <DdlDraftPanel WorkspaceId="WorkspaceId" Statements="@(counting ? Array.Empty<string>() : plan.Statements)" Problems="@(inputProblems.Concat(plan.Problems).ToList())" Warnings="plan.Warnings"
-                       FileName="@($"{DateTime.Now:yyyy-MM-dd}_{(NewTab?.Table.Name ?? Details.Table.Name)}.sql")" OnRan="OnRanAsync" OnFailed="OnFailedAsync" Stopped="OnStopped" Earlier="_failure" OnClose="CloseAsync" />
+                       FileName="@($"{DateTime.Now:yyyy-MM-dd}_{(NewTab?.Table.Name ?? Details.Table.Name)}.sql")" OnRan="OnRanAsync" OnFailed="OnFailedAsync" Ended="OnEnded" Earlier="_failure" OnClose="CloseAsync" />
 
         @if (PropertyLines(designer) is { Count: > 0 } suggestions)
         {
@@ -313,10 +313,21 @@ else
         }
     }
 
-    /// <summary>Before the schema is reloaded: the draft and the failure go into the tab, for a rebuilt view to reopen with.</summary>
-    private void OnStopped(DdlRunResult result)
+    /// <summary>
+    /// Before the schema is reloaded: after a failure the draft and the failure go into the tab, for a rebuilt view to
+    /// reopen with; after a run that succeeded nothing does (R4a: the rebuilt view reopened in edit mode with the failure of
+    /// an earlier run). A new table opens its tab after the reload (<see cref="OnRanAsync"/>).
+    /// </summary>
+    private void OnEnded(DdlRunResult result)
     {
-        if (NewTab is not null)
+        if (result.Succeeded)
+        {
+            if (NewTab is null && Tab is not null)
+            {
+                Tab.Designer = null;
+            }
+        }
+        else if (NewTab is not null)
         {
             NewTab.Failure = result;
         }

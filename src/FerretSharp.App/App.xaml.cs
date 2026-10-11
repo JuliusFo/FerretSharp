@@ -9,6 +9,7 @@ using FerretSharp.Core.ClrModel;
 using FerretSharp.Core.Compare;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Oracle;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Settings;
 using FerretSharp.Core.Workspaces;
 using FerretSharp.UI.Resources;
@@ -41,21 +42,15 @@ public partial class App : Application
                 rollingInterval: RollingInterval.Day,
                 retainedFileCountLimit: 14)
             .CreateLogger();
+        RegisterGlobalExceptionHandlers(); // before anything that can fail (R4a: a failing host build left no trace)
 
         // Settings decide the theme, which must be known before the window and the WebView exist (no white flash), and the
         // language. Read here, not in an async method: the UI culture belongs to the execution context, and a change made
         // inside an async method is undone when it returns – Blazor would render in the Windows language again.
-        var settingsStore = new SettingsStore(paths.SettingsFile);
-        var settings = AppSettings.Default;
-        string? settingsError = null;
-        try
-        {
-            settings = Task.Run(() => settingsStore.LoadAsync(CancellationToken.None)).GetAwaiter().GetResult();
-        }
-        catch (Exception ex) when (ex is SettingsStoreException or IOException or UnauthorizedAccessException)
-        {
-            settingsError = ex.Message;
-        }
+        // A file that cannot be read is kept as a copy before the first save replaces it (R4a).
+        var settingsService = Task.Run(() => AppSettingsService.OpenAsync(new SettingsStore(paths.SettingsFile), DateTimeOffset.Now, CancellationToken.None))
+            .GetAwaiter().GetResult();
+        var settings = settingsService.Current;
 
         // The UI language (WP-29, ADR 0017): only the UI culture changes, so numbers and dates keep their formats. The enum
         // display names of a linked C# project keep the Windows language (the projects may only have German resources).
@@ -63,13 +58,30 @@ public partial class App : Application
         CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.CurrentUICulture =
             UiLanguages.Culture(UiLanguages.FromArguments(e.Args) ?? settings.Language);
 
-        Start(e.Args, paths, settingsStore, settings, settingsError, windowsUiCulture);
+        Start(e.Args, paths, settingsService, windowsUiCulture);
     }
 
-    private async void Start(
-        string[] args, AppPaths paths, SettingsStore settingsStore, AppSettings settings, string? settingsError, CultureInfo windowsUiCulture)
+    /// <summary>
+    /// A start that fails says so and ends the process (R4a): before, the error was handled as one of a running app – with
+    /// no main window yet, the process stayed alive without one (ShutdownMode OnMainWindowClose).
+    /// </summary>
+    private async void Start(string[] args, AppPaths paths, AppSettingsService settings, CultureInfo windowsUiCulture)
     {
-        var theme = WindowTheme.Create(args, settings.Theme);
+        try
+        {
+            await StartAsync(args, paths, settings, windowsUiCulture);
+        }
+        catch (Exception ex)
+        {
+            Log.Fatal(ex, "FerretSharp could not start");
+            MessageBox.Show(TextFormat.Format(CommonText.StartFailed, ex.Message, paths.LogsDirectory), "FerretSharp", MessageBoxButton.OK, MessageBoxImage.Error);
+            Shutdown(1);
+        }
+    }
+
+    private async Task StartAsync(string[] args, AppPaths paths, AppSettingsService settings, CultureInfo windowsUiCulture)
+    {
+        var theme = WindowTheme.Create(args, settings.Current.Theme);
 
         var builder = Host.CreateApplicationBuilder(args);
         builder.Services.AddSerilog();
@@ -92,7 +104,7 @@ public partial class App : Application
         builder.Services.AddSingleton<ConnectionHub>();
         builder.Services.AddSingleton<IOpenConnections>(services => services.GetRequiredService<ConnectionHub>());
         builder.Services.AddSingleton<ConnectionKeepAlive>();
-        builder.Services.AddSingleton(new AppSettingsService(settingsStore, settings));
+        builder.Services.AddSingleton(settings);
         builder.Services.AddSingleton<ShortcutService>();
         builder.Services.AddSingleton(theme);
         builder.Services.AddSingleton<IThemeService, ThemeService>();
@@ -120,13 +132,12 @@ public partial class App : Application
 
         _host = builder.Build();
         _logger = _host.Services.GetRequiredService<ILogger<App>>();
-        RegisterGlobalExceptionHandlers();
 
         await _host.StartAsync();
         _logger.LogInformation("FerretSharp {Version} started", typeof(App).Assembly.GetName().Version);
-        if (settingsError is not null)
+        if (settings.StartupNotice is { } notice)
         {
-            _logger.LogWarning("Settings could not be read, using defaults: {Error}", settingsError);
+            _logger.LogWarning("Settings could not be read, using defaults: {Notice}", notice);
         }
 
         var window = _host.Services.GetRequiredService<MainWindow>();
@@ -179,19 +190,20 @@ public partial class App : Application
     {
         DispatcherUnhandledException += OnDispatcherUnhandledException;
 
+        // Serilog directly: these may come before the host and its ILogger exist.
         AppDomain.CurrentDomain.UnhandledException += (_, args) =>
-            _logger?.LogCritical(args.ExceptionObject as Exception, "Unhandled exception (terminating: {IsTerminating})", args.IsTerminating);
+            Log.Fatal(args.ExceptionObject as Exception, "Unhandled exception (terminating: {IsTerminating})", args.IsTerminating);
 
         TaskScheduler.UnobservedTaskException += (_, args) =>
         {
-            _logger?.LogError(args.Exception, "Unobserved task exception");
+            Log.Error(args.Exception, "Unobserved task exception");
             args.SetObserved();
         };
     }
 
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
-        _logger?.LogError(e.Exception, "Unhandled exception on UI thread");
+        Log.Error(e.Exception, "Unhandled exception on UI thread");
         _host?.Services.GetRequiredService<IDialogService>().ShowError(CommonText.UnexpectedError, e.Exception);
         e.Handled = true;
     }

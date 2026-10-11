@@ -172,6 +172,17 @@ internal sealed class WorkspaceSessions(ConnectionManager connections, IDatabase
             var connection = await session;
             await connection.UseReadOnlySnapshotsAsync(cancellationToken);
         }
+        catch (RefusedException)
+        {
+            // A statement of another tab began writing after the check above: the session keeps its transaction, so the
+            // workspace stays unlocked (R4a: it showed locked while its session could still write).
+            lock (_lock)
+            {
+                _unlocked.Add(workspaceId);
+            }
+
+            throw;
+        }
         catch (Exception ex) when (ex is DatabaseException or OperationCanceledException)
         {
             lock (_lock)

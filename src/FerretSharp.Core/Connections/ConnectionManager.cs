@@ -1,3 +1,5 @@
+using FerretSharp.Core.Resources;
+
 namespace FerretSharp.Core.Connections;
 
 /// <summary>
@@ -45,6 +47,7 @@ public sealed class ConnectionManager(IConnectionStore store, ISecretStore secre
             throw new ArgumentException(string.Join(" ", errors.Values), nameof(profile));
         }
 
+        RefuseWithoutFile();
         var updated = _profiles.Where(p => p.Id != profile.Id).Append(profile).ToList();
         await store.SaveAsync(updated, cancellationToken);
 
@@ -68,12 +71,26 @@ public sealed class ConnectionManager(IConnectionStore store, ISecretStore secre
 
     public async Task DeleteAsync(Guid profileId, CancellationToken cancellationToken)
     {
+        RefuseWithoutFile();
         var updated = _profiles.Where(p => p.Id != profileId).ToList();
         await store.SaveAsync(updated, cancellationToken);
         secrets.DeletePassword(profileId);
 
         _profiles = updated;
         Changed?.Invoke();
+    }
+
+    /// <summary>
+    /// A file that could not be read is never written (R4a): the list is empty then, and the first new connection replaced
+    /// the file – every connection in it was lost.
+    /// </summary>
+    /// <exception cref="IOException">The file could not be read at start.</exception>
+    private void RefuseWithoutFile()
+    {
+        if (LoadError is not null)
+        {
+            throw new IOException(ConnectionText.FileUnreadableNotSaved);
+        }
     }
 
     private static List<ConnectionProfile> Sort(IEnumerable<ConnectionProfile> profiles) =>

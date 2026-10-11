@@ -136,7 +136,7 @@
     var writes = pending.Where(r => r.Info.IsDml).ToList();
     var ddl = pending.Where(r => r.Info.IsDdl).ToList();
     @* WP-22: DDL would commit the workspace's open transaction – it is rolled back first, so show what it holds. *@
-    var discard = ddl.Count > 0 ? Lifecycle.OpenWorkOf(Tab.WorkspaceId) : null;
+    var discard = ddl.Count > 0 ? Lifecycle.OpenTransactionOf(Tab.WorkspaceId) : null;
     <ConfirmDialog Title="@(ddl.Count > 0 ? SqlEditorText.SqlView_ConfirmDdlTitle : allRows.Count > 0 ? SqlEditorText.SqlView_ConfirmAllRowsTitle : SqlEditorText.SqlView_ConfirmProdTitle)"
                    ConfirmLabel="@(discard is null ? CommonText.Run : SqlEditorText.SqlView_DiscardAndRun)" Danger="true"
                    OnConfirm="() => ConfirmAsync(pending, discard?.Item1)" OnCancel="() => _confirm = null">
@@ -283,6 +283,9 @@
     /// <summary>The binds of the whole script, in order (unused variables are shown dimmed).</summary>
     private IReadOnlyList<string> _binds = [];
 
+    /// <summary>Counts <see cref="UpdateVariablesAsync"/> calls; only the newest may apply its result.</summary>
+    private int _variablesVersion;
+
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
 
@@ -334,11 +337,14 @@
     /// <summary>Variables follow the binds of the script; new ones get the type of the column they are compared with.</summary>
     private async Task UpdateVariablesAsync(string text)
     {
+        // Type suggestions may read table structures over the VPN: a call for an older text that ends later must not
+        // reconcile the newer binds with its suggestions (R4a).
+        var version = ++_variablesVersion;
         var statements = SqlScript.Split(text).Select(s => SqlScript.Analyze(s.Text)).ToList();
-        _binds = statements.SelectMany(s => s.Binds).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var binds = statements.SelectMany(s => s.Binds).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         var known = Tab.Variables.Select(v => v.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var suggestions = new Dictionary<string, SqlVariableType>(StringComparer.OrdinalIgnoreCase);
-        foreach (var bind in _binds.Where(b => !known.Contains(b)))
+        foreach (var bind in binds.Where(b => !known.Contains(b)))
         {
             if (statements.FirstOrDefault(s => s.BindUses.Any(u => string.Equals(u.Bind, bind, StringComparison.OrdinalIgnoreCase))) is { } info
                 && Active.Schema is { } schema && await SqlBinds.SuggestTypeAsync(info, bind, schema, CancellationToken.None) is { } type)
@@ -347,6 +353,12 @@
             }
         }
 
+        if (version != _variablesVersion)
+        {
+            return;
+        }
+
+        _binds = binds;
         var variables = SqlBinds.Reconcile(_binds, Tab.Variables, b => suggestions.TryGetValue(b, out var t) ? t : null);
         if (!variables.SequenceEqual(Tab.Variables))
         {
@@ -472,13 +484,13 @@
     }
 
     /// <param name="discard">
-    /// DDL with uncommitted changes in the workspace (WP-22): they are rolled back first, as the dialog said – DDL would
-    /// commit them otherwise. If that does not happen, nothing runs.
+    /// DDL with an open write transaction in the workspace (WP-22): it is rolled back first, as the dialog said – DDL would
+    /// commit it otherwise. Pending edits stay (R4a). If that does not happen, nothing runs.
     /// </param>
     private async Task ConfirmAsync(IReadOnlyList<SqlRun> runs, WorkspaceTabs? discard)
     {
         _confirm = null;
-        if (discard is not null && !await Lifecycle.Editing.RollbackAsync(discard))
+        if (discard is not null && !await Lifecycle.Editing.RollbackTransactionAsync(discard))
         {
             _error = SqlEditorText.SqlView_DdlNotRun;
             return;

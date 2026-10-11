@@ -5,6 +5,7 @@
 
 const base = './_content/FerretSharp.UI/lib/monaco/vs';
 const editors = new Map();
+const pendingTexts = new Map(); // element id → sends the text if a change is still waiting for the debounce
 const completions = new Map(); // model uri → { id, dotnet } of editors that ask .NET for completion items
 const providers = new Set(); // languages with a registered completion provider
 const media = window.matchMedia('(prefers-color-scheme: dark)');
@@ -141,9 +142,20 @@ export async function create(elementId, dotnet, text, options) {
     placeholder: options.placeholder ?? undefined,
   });
   let timer = null;
+  const send = () => {
+    timer = null;
+    dotnet.invokeMethodAsync('OnTextChanged', elementId, editor.getValue()).catch(err => console.error('Text not sent', err));
+  };
   editor.onDidChangeModelContent(() => {
     clearTimeout(timer);
-    timer = setTimeout(() => dotnet.invokeMethodAsync('OnTextChanged', elementId, editor.getValue()).catch(() => {}), 250);
+    timer = setTimeout(send, 250);
+  });
+  // destroy sends what was typed in the last 250 ms instead of dropping it, and no timer runs on a disposed editor (R4a).
+  pendingTexts.set(elementId, () => {
+    if (timer !== null) {
+      clearTimeout(timer);
+      send();
+    }
   });
   editors.set(elementId, editor);
   if (options.completion) {
@@ -289,6 +301,8 @@ export function find(elementId) {
 }
 
 export function destroy(elementId) {
+  pendingTexts.get(elementId)?.();
+  pendingTexts.delete(elementId);
   const editor = editors.get(elementId);
   if (editor) {
     const model = editor.getModel();

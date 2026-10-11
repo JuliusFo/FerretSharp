@@ -114,11 +114,11 @@
     public EventCallback<DdlRunResult> OnFailed { get; set; }
 
     /// <summary>
-    /// The same, told before the schema is reloaded: that may rebuild the tab and this panel with it, so the caller keeps
-    /// what it needs here (synchronous, while it still exists).
+    /// How the run ended – ran, failed or cancelled –, told before the schema is reloaded: that may rebuild the tab and this
+    /// panel with it, so the caller keeps or drops what it needs here (synchronous, while it still exists).
     /// </summary>
     [Parameter]
-    public Action<DdlRunResult>? Stopped { get; set; }
+    public Action<DdlRunResult>? Ended { get; set; }
 
     /// <summary>The failure of an earlier run, shown until this panel runs again (the designer reopened after a rebuild).</summary>
     [Parameter]
@@ -145,7 +145,7 @@
             {
                 (_running, _started) = (statement, DateTimeOffset.Now); // the progress shows the statement at hand
                 StateHasChanged();
-            }, Stopped, cts.Token);
+            }, Ended, cts.Token);
         }
         finally
         {

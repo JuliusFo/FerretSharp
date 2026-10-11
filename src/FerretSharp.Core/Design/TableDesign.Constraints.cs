@@ -152,6 +152,9 @@ public static partial class TableDesign
                 case ConstraintType.Check when string.IsNullOrWhiteSpace(added.Condition):
                     Problems.Add(TextFormat.Format(DesignText.CheckNeedsCondition, label));
                     break;
+                case ConstraintType.Check:
+                    CheckExpression(label, added.Condition);
+                    break;
                 case ConstraintType.ForeignKey:
                     CheckForeignKey(added, label, columns, keys);
                     break;

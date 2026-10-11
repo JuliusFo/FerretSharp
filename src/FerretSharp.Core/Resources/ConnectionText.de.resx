@@ -45,4 +45,7 @@
   <data name="InvalidFile" xml:space="preserve">
     <value>{0} ist kein gültiges Verbindungs-JSON: {1}</value>
   </data>
+  <data name="FileUnreadableNotSaved" xml:space="preserve">
+    <value>Die Verbindungsdatei ließ sich beim Start nicht lesen, und Speichern würde sie ersetzen – die Verbindungen darin gingen verloren. Datei reparieren oder verschieben, dann FerretSharp neu starten.</value>
+  </data>
 </root>

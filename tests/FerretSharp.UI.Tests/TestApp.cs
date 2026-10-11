@@ -121,6 +121,9 @@ internal sealed class TestApp : IAsyncDisposable
     /// <summary>DDL that ran in any session, in order.</summary>
     public List<string> RanDdl { get; } = [];
 
+    /// <summary>The editors of the sessions opened so far (explorer and workspaces), oldest first.</summary>
+    public List<FakeDataEditor> Editors { get; } = [];
+
     /// <summary>What a commit of any workspace session does; completes at once unless a test holds it.</summary>
     public Func<Task>? OnCommit { get; set; }
 
@@ -143,6 +146,7 @@ internal sealed class TestApp : IAsyncDisposable
 
             return failure;
         });
+        Editors.Add(editor);
         var connection = Substitute.For<IDatabaseConnection>();
         connection.Schema.Returns(reader);
         connection.Editor.Returns(editor);

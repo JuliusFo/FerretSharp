@@ -1,7 +1,7 @@
 # FerretSharp – Oracle explorer for .NET developers
 
 > Projektanweisungen für Claude Code. Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-11, Release 3.24.0 (Historie: `CHANGELOG.md`).
+> Stand: 2026-10-11, Release 3.24.1 (Historie: `CHANGELOG.md`).
 
 ## Wo steht was
 
@@ -142,5 +142,6 @@ Regeln:
 
 ## 8. Als Nächstes (Details und Entscheidungen des Nutzers: `docs/roadmap.md`)
 
+- **R4b** Struktur-Refactoring nach dem Review 3.24.0 (gemeinsame DDL-Erzeugung `Core/Ddl`, `SqlScript` aufteilen, `StatementRunner` …) – Vorbereitung für WP-26.
 - **WP-26** Audit-/Historientabellen aus einer Vorlagendatei (baut auf dem Tabellen-Designer aus WP-23 auf, ADR 0020).
 - PL/SQL-Objekte anlegen (in WP-22 bewusst abgewiesen), PL/SQL ausführen und bearbeiten (Stufen 2/3 nach WP-28) stehen im Backlog; die Entscheidung fällt spätestens mit WP-26 (Trigger).

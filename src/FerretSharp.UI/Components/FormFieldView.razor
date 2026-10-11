@@ -165,7 +165,7 @@
     public Action<int> OnLob { get; set; } = null!;
 
     [Parameter, EditorRequired]
-    public Action<FormField> OnCopy { get; set; } = null!;
+    public Func<FormField, Task> OnCopy { get; set; } = null!;
 
     [Parameter, EditorRequired]
     public Func<TableRef, string> TableLabel { get; set; } = null!;

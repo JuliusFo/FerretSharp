@@ -1,3 +1,5 @@
+using FerretSharp.Core.Resources;
+
 namespace FerretSharp.Core.Settings;
 
 public enum ThemeMode
@@ -89,8 +91,46 @@ public sealed class AppSettingsService(SettingsStore store, AppSettings initial)
     /// <summary>A setting changed (raised before saving, on the caller's thread).</summary>
     public event Action? Changed;
 
+    /// <summary>
+    /// The settings of this session: read from the file, or – if it cannot be read – defaults, with a copy of the file kept
+    /// and the user told at start (R4a). Without a copy, nothing is saved in this session, so the file stays as it is.
+    /// </summary>
+    public static async Task<AppSettingsService> OpenAsync(SettingsStore store, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(store);
+        try
+        {
+            return new AppSettingsService(store, await store.LoadAsync(cancellationToken));
+        }
+        catch (Exception ex) when (ex is SettingsStoreException or IOException or UnauthorizedAccessException)
+        {
+            try
+            {
+                var copy = store.KeepCopy(now);
+                return new AppSettingsService(store, AppSettings.Default) { StartupNotice = TextFormat.Format(SettingsText.NotReadKept, ex.Message, copy) };
+            }
+            catch (Exception copyFailed) when (copyFailed is IOException or UnauthorizedAccessException)
+            {
+                return new AppSettingsService(store, AppSettings.Default)
+                {
+                    StartupNotice = TextFormat.Format(SettingsText.NotReadNotSaving, ex.Message),
+                    NotSaving = SettingsText.NotSavingThisSession,
+                };
+            }
+        }
+    }
+
+    /// <summary>What the user should know about the settings file at start (it could not be read, R4a); null if nothing.</summary>
+    public string? StartupNotice { get; init; }
+
+    /// <summary>
+    /// Why changes are not saved in this session; null if they are. Set when the file could not be read and no copy of it
+    /// could be kept: a save would replace it with defaults (R4a).
+    /// </summary>
+    public string? NotSaving { get; init; }
+
     /// <summary>Applies the change at once and saves all settings.</summary>
-    /// <exception cref="IOException">The file could not be written; the change stays in effect for this session.</exception>
+    /// <exception cref="IOException">The file could not be written (or is not, <see cref="NotSaving"/>); the change stays in effect for this session.</exception>
     public async Task UpdateAsync(Func<AppSettings, AppSettings> change, CancellationToken cancellationToken)
     {
         AppSettings snapshot;
@@ -100,6 +140,11 @@ public sealed class AppSettingsService(SettingsStore store, AppSettings initial)
         }
 
         Changed?.Invoke();
+        if (NotSaving is { } reason)
+        {
+            throw new IOException(reason);
+        }
+
         await store.SaveAsync(snapshot, cancellationToken);
     }
 }
