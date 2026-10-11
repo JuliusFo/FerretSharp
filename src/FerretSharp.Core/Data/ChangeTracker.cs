@@ -126,17 +126,34 @@ public sealed class RowChange
         Deleted = deleted;
     }
 
-    internal void MarkFlushed(RowKey? newKey)
+    /// <param name="written">
+    /// The values an UPDATE wrote; null for everything pending (insert, delete). A redo writes only its own columns – a
+    /// newer value of one of them, or a pending delete, stays pending (R4a).
+    /// </param>
+    internal void MarkFlushed(IReadOnlyDictionary<int, object?>? written, RowKey? newKey)
     {
-        foreach (var (column, value) in _pending)
+        foreach (var (column, value) in written ?? _pending)
         {
             _flushed[column] = value;
         }
 
-        _pending.Clear();
-        if (Deleted == ChangeStage.Pending)
+        if (written is null)
         {
-            Deleted = ChangeStage.Flushed;
+            _pending.Clear();
+            if (Deleted == ChangeStage.Pending)
+            {
+                Deleted = ChangeStage.Flushed;
+            }
+        }
+        else
+        {
+            foreach (var (column, value) in written)
+            {
+                if (_pending.TryGetValue(column, out var pending) && OracleTypeMapper.ValuesEqual(pending, value))
+                {
+                    _pending.Remove(column);
+                }
+            }
         }
 
         if (IsNew && !IsInserted)
@@ -171,7 +188,8 @@ public sealed class RowChange
             _pending.TryAdd(column, value);
         }
 
-        Deleted = kind == OperationKind.Delete ? ChangeStage.Pending : before.Deleted;
+        // A delete marked after the write stays marked (R4a: undoing the write took it back silently).
+        Deleted = kind == OperationKind.Delete || Deleted == ChangeStage.Pending ? ChangeStage.Pending : before.Deleted;
         IsInserted = before.IsInserted;
         Key = before.Key;
     }
@@ -219,6 +237,12 @@ public sealed class ChangeTracker(TableDetails table)
     private readonly List<RowChange> _newRows = [];
     private readonly List<EditStep> _undoEdits = [];
     private readonly List<EditStep> _redoEdits = [];
+
+    /// <summary>
+    /// The pending state of the rows of the writes taken back, as the undo left them and each redo since: a redo needs
+    /// them exactly so (<see cref="IsPendingAsUndone"/>). Other rows of the tab may change meanwhile.
+    /// </summary>
+    private readonly Dictionary<RowChange, RowState> _asUndone = [];
 
     /// <summary>The pending state of a row at one point of the edit history; <c>NewRowIndex</c> -1: not listed as a new row.</summary>
     private sealed record RowState(RowChange Change, IReadOnlyDictionary<int, object?> Pending, ChangeStage? Deleted, int NewRowIndex);
@@ -473,19 +497,40 @@ public sealed class ChangeTracker(TableDetails table)
     /// </summary>
     public IReadOnlyList<PendingOperation> PendingOperations(FlushBatch batch)
     {
-        var rows = batch.Items.Select(i => i.Change).ToHashSet();
-        return PendingOperations().Where(o => rows.Contains(o.Change)).ToList();
+        // The write's own values, not all that is pending: a later write taken back with it may have pending values in the
+        // same rows – they wait for their own redo (R4a).
+        var operations = new List<PendingOperation>();
+        foreach (var (change, _, _, _) in batch.Items.Where(i => i.Kind == OperationKind.Delete))
+        {
+            operations.Add(new PendingOperation(change, OperationKind.Delete, change.Key, new Dictionary<int, object?>(), new Dictionary<int, object?>()));
+        }
+
+        foreach (var (change, _, _, values) in batch.Items.Where(i => i.Kind == OperationKind.Update))
+        {
+            var expected = change.IsNew ? new Dictionary<int, object?>() : values.Keys.ToDictionary(c => c, change.ExpectedOf);
+            operations.Add(new PendingOperation(change, OperationKind.Update, change.Key, new Dictionary<int, object?>(values), expected));
+        }
+
+        foreach (var (change, _, _, _) in batch.Items.Where(i => i.Kind == OperationKind.Insert))
+        {
+            var values = change.PendingValues.Where(v => v.Value is not null).ToDictionary(v => v.Key, v => v.Value);
+            operations.Add(new PendingOperation(change, OperationKind.Insert, RowKey.None.Instance, values, new Dictionary<int, object?>()));
+        }
+
+        return operations;
     }
 
     /// <summary>
-    /// The changes of a write taken back are pending exactly as the undo left them (WP-30): nothing edited, discarded or
-    /// added since – only then can the write be applied again as it was.
+    /// The changes of a write taken back are pending as the undo left them (WP-30): nothing edited, discarded or added in
+    /// the tab since (or taken back again with Ctrl+Z) – only then can the write be applied again as it was. Compared for
+    /// the whole tab, not per write (R4a): two writes of one row taken back together leave both their values pending,
+    /// which matched neither.
     /// </summary>
-    public bool IsPendingAsUndone(FlushBatch batch) => batch.Items.All(item => item.Kind switch
+    public bool IsPendingAsUndone(FlushBatch batch) => _asUndone.All(p => SameState(p.Value, State(p.Key))) && batch.Items.All(item => item.Kind switch
     {
-        OperationKind.Delete => item.Change.Deleted == ChangeStage.Pending && item.Change.PendingValues.Count == 0 && IsTracked(item.Change),
-        OperationKind.Insert => !item.Change.IsInserted && _newRows.Contains(item.Change) && SameValues(item.Change.PendingValues, item.Values),
-        _ => item.Change.Deleted is null && IsTracked(item.Change) && SameValues(item.Change.PendingValues, item.Values),
+        OperationKind.Delete => item.Change.Deleted == ChangeStage.Pending && IsTracked(item.Change),
+        OperationKind.Insert => !item.Change.IsInserted && _newRows.Contains(item.Change),
+        _ => IsTracked(item.Change),
     });
 
     /// <summary>After a successful flush: pending becomes flushed; inserted rows get the key Oracle gave them.</summary>
@@ -497,8 +542,9 @@ public sealed class ChangeTracker(TableDetails table)
         foreach (var operation in operations)
         {
             var change = operation.Change;
-            batch.Items.Add((change, operation.Kind, change.Take(), new Dictionary<int, object?>(change.PendingValues)));
-            change.MarkFlushed(newKeys.GetValueOrDefault(change.Id));
+            var update = operation.Kind == OperationKind.Update;
+            batch.Items.Add((change, operation.Kind, change.Take(), new Dictionary<int, object?>(update ? operation.Values : change.PendingValues)));
+            change.MarkFlushed(update ? operation.Values : null, newKeys.GetValueOrDefault(change.Id));
             if (operation.Kind == OperationKind.Insert)
             {
                 _newRows.Remove(change);
@@ -507,6 +553,7 @@ public sealed class ChangeTracker(TableDetails table)
         }
 
         ForgetEdits();
+        RefreshAsUndone(); // a redo: the next write taken back is pending as this one left it
         return batch;
     }
 
@@ -532,6 +579,12 @@ public sealed class ChangeTracker(TableDetails table)
         }
 
         ForgetEdits();
+        foreach (var (change, _, _, _) in batch.Items)
+        {
+            _asUndone[change] = State(change);
+        }
+
+        RefreshAsUndone(); // a row also in a later write taken back just before
     }
 
     /// <summary>Drops pending changes; flushed ones stay (they are in the transaction).</summary>
@@ -554,6 +607,7 @@ public sealed class ChangeTracker(TableDetails table)
         _byKey.Clear();
         _newRows.Clear();
         ForgetEdits();
+        _asUndone.Clear();
     }
 
     /// <summary>Takes back the last pending edit (Ctrl+Z in the grid).</summary>
@@ -630,6 +684,14 @@ public sealed class ChangeTracker(TableDetails table)
     {
         _undoEdits.Clear();
         _redoEdits.Clear();
+    }
+
+    private void RefreshAsUndone()
+    {
+        foreach (var change in _asUndone.Keys.ToList())
+        {
+            _asUndone[change] = State(change);
+        }
     }
 
     private static bool SameState(RowState a, RowState b) =>
