@@ -388,4 +388,24 @@
     <value>{0} (no member)</value>
     <comment>Line in the tooltip of a flags enum cell: bits of the value no member stands for. {0} = those bits as a number</comment>
   </data>
+  <data name="PropertyLikeElsewhereOne" xml:space="preserve">
+    <value>Name and type as for {1} in another entity of the project.</value>
+    <comment>{0}: count (1); {1}: column name</comment>
+  </data>
+  <data name="PropertyLikeElsewhereOther" xml:space="preserve">
+    <value>Name and type as for {1} in {0} other entities of the project.</value>
+    <comment>{0}: number of entities; {1}: column name</comment>
+  </data>
+  <data name="PropertyYesNoOne" xml:space="preserve">
+    <value>bool with {1}, as for another property of the project (a column of one character).</value>
+    <comment>{0}: count (1); {1}: converter type</comment>
+  </data>
+  <data name="PropertyYesNoOther" xml:space="preserve">
+    <value>bool with {1}, as for {0} properties of the project (a column of one character).</value>
+    <comment>{0}: number of properties; {1}: converter type</comment>
+  </data>
+  <data name="PropertyConverterByHand" xml:space="preserve">
+    <value>The project converts it inline ({0}) – add the conversion by hand.</value>
+    <comment>{0}: converter type as the model reports it</comment>
+  </data>
 </root>
