@@ -52,19 +52,20 @@ public sealed partial class WorkspaceLifecycle
     /// <see cref="WorkspaceEditing.RollbackTransactionAsync"/>). If the rollback does not happen, nothing runs.
     /// </param>
     /// <param name="starting">Called before each statement, for the progress display.</param>
-    /// <param name="stopped">
-    /// Called when a statement failed or was cancelled – before the schema is reloaded, which may rebuild the caller's
-    /// views (WP-23: the designer keeps its draft and the failure in the tab while it still exists).
+    /// <param name="ended">
+    /// Called with the result once the statements ran, failed or were cancelled – before the schema is reloaded, which may
+    /// rebuild the caller's views (WP-23: the designer keeps its draft and the failure in the tab while it still exists;
+    /// R4a: after a run that succeeded it drops them, or the rebuilt view reopened with the old failure).
     /// </param>
     public async Task<DdlRunResult> RunDdlAsync(Guid workspaceId, IReadOnlyList<string> statements, WorkspaceTabs? discard,
-        Action<string>? starting, Action<DdlRunResult>? stopped, CancellationToken cancellationToken)
+        Action<string>? starting, Action<DdlRunResult>? ended, CancellationToken cancellationToken)
     {
         // All statements first (R4a): one the schema path refuses would otherwise stop the run after the ones before it
         // were committed – and as a programming error, not as a failure the caller shows.
         if (statements.Select(s => (Statement: s, Rejection: SqlScript.DdlRejection(s))).FirstOrDefault(s => s.Rejection is not null) is ({ } refused, { } why))
         {
             var refusal = new DdlRunResult([], refused, new DatabaseException(why), null) { Total = statements.Count };
-            stopped?.Invoke(refusal);
+            ended?.Invoke(refusal);
             return refusal;
         }
 
@@ -103,12 +104,8 @@ public sealed partial class WorkspaceLifecycle
             break;
         }
 
-        if (failure is not null)
-        {
-            failure = failure with { Total = statements.Count };
-            stopped?.Invoke(failure);
-        }
-
+        var outcome = (failure ?? new DdlRunResult(ran, null, null, null)) with { Total = statements.Count };
+        ended?.Invoke(outcome);
         if (ran.Count > 0)
         {
             var refresh = await RefreshSchemaAsync(scope);
@@ -118,7 +115,7 @@ public sealed partial class WorkspaceLifecycle
         }
 
         shell.NotifyChanged(); // status bar: the transaction is gone after a rollback or DDL
-        return (failure ?? new DdlRunResult(ran, null, null, null)) with { Total = statements.Count };
+        return outcome;
     }
 
     /// <summary>Into the connection's SQL history like DDL from the editor, so it can be found and run again elsewhere.</summary>

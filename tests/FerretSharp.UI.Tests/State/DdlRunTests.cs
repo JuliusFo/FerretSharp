@@ -25,9 +25,12 @@ public sealed class DdlRunTests
         var scope = await app.OpenAsync(profile);
         var workspace = scope.Workspaces.Active!.Id;
         var started = new List<string>();
+        (DdlRunResult Result, Notice? Notice)? ended = null;
 
-        var result = await app.Lifecycle.RunDdlAsync(workspace, [First, Second], null, started.Add, null, Ct);
+        var result = await app.Lifecycle.RunDdlAsync(workspace, [First, Second], null, started.Add, r => ended = (r, app.Shell.Notice), Ct);
 
+        // R4a: also a run that succeeded is told before the schema is reloaded – the designer drops its session then.
+        Assert.Equal((result, (Notice?)null), ended);
         Assert.True(result.Succeeded);
         Assert.Equal([First, Second], result.Ran);
         Assert.Equal([First, Second], app.RanDdl);

@@ -283,6 +283,9 @@
     /// <summary>The binds of the whole script, in order (unused variables are shown dimmed).</summary>
     private IReadOnlyList<string> _binds = [];
 
+    /// <summary>Counts <see cref="UpdateVariablesAsync"/> calls; only the newest may apply its result.</summary>
+    private int _variablesVersion;
+
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
 
@@ -334,11 +337,14 @@
     /// <summary>Variables follow the binds of the script; new ones get the type of the column they are compared with.</summary>
     private async Task UpdateVariablesAsync(string text)
     {
+        // Type suggestions may read table structures over the VPN: a call for an older text that ends later must not
+        // reconcile the newer binds with its suggestions (R4a).
+        var version = ++_variablesVersion;
         var statements = SqlScript.Split(text).Select(s => SqlScript.Analyze(s.Text)).ToList();
-        _binds = statements.SelectMany(s => s.Binds).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var binds = statements.SelectMany(s => s.Binds).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         var known = Tab.Variables.Select(v => v.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var suggestions = new Dictionary<string, SqlVariableType>(StringComparer.OrdinalIgnoreCase);
-        foreach (var bind in _binds.Where(b => !known.Contains(b)))
+        foreach (var bind in binds.Where(b => !known.Contains(b)))
         {
             if (statements.FirstOrDefault(s => s.BindUses.Any(u => string.Equals(u.Bind, bind, StringComparison.OrdinalIgnoreCase))) is { } info
                 && Active.Schema is { } schema && await SqlBinds.SuggestTypeAsync(info, bind, schema, CancellationToken.None) is { } type)
@@ -347,6 +353,12 @@
             }
         }
 
+        if (version != _variablesVersion)
+        {
+            return;
+        }
+
+        _binds = binds;
         var variables = SqlBinds.Reconcile(_binds, Tab.Variables, b => suggestions.TryGetValue(b, out var t) ? t : null);
         if (!variables.SequenceEqual(Tab.Variables))
         {
