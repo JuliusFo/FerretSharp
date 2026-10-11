@@ -5,6 +5,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- *Edit* in the *Columns* view of a table (WP-23 stage 2, issue #10): change the table's columns and constraints and see the DDL before it runs.
+  - Columns: rename, type with size and scale, BYTE or CHAR, NOT NULL, default and DEFAULT ON NULL, comment, delete, add new ones (also identity).
+  - Keys and constraints: delete existing ones, add primary and unique keys, checks and foreign keys (referenced table and columns, ON DELETE); a new foreign key gets its index unless one covers it.
+  - What Oracle would refuse is said beforehand, with numbers from the table: NOT NULL with NULL values, a new mandatory column without default on a filled table, type changes that need an empty column or cannot be done by MODIFY, NULL in the primary key, deleting a column others reference, a second primary key, a foreign key without a key to reference. A shorter length or new constraints on existing rows are warnings.
+  - The DDL runs one statement after the other like DDL in the SQL editor (confirmation, uncommitted changes, lock holders), or opens in the SQL editor or is saved. If a statement fails, what ran stays, and the draft keeps only what is left, with the error.
+  - New columns of a table the C# model maps get their property and configuration line to copy, in the style of the project: name and type of the same column elsewhere, the project's own yes/no converter for one-character columns, `HasColumnName` only if the project does not name columns by convention.
+- *C#* beside a column without property in the *Columns* view: its property and configuration line.
+
 ## [3.22.0] - 2026-10-11
 
 ### Added
