@@ -487,7 +487,17 @@ public sealed class WorkspaceEditing(
         foreach (var tab in workspace.TableTabs.Where(t => t.Changes is not null))
         {
             tab.Changes!.Clear();
-            shell.RequestTabCommand(tab, TabCommand.Reload);
+            if (tab.StructureStale)
+            {
+                // DDL changed the table while the changes held the old structure: the views start over with the new one.
+                tab.StructureStale = false;
+                tab.Changes = null;
+                tab.StructureVersion++;
+            }
+            else
+            {
+                shell.RequestTabCommand(tab, TabCommand.Reload);
+            }
         }
 
         Forget(workspace.WorkspaceId);

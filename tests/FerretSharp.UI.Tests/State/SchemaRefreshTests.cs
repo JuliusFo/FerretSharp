@@ -46,8 +46,73 @@ public sealed class SchemaRefreshTests
         Assert.Same(loaded, pending.Details);
         Assert.Equal(["KUNDEN"], changed.StaleTabs);
         Assert.Equal(
-            ["„KUNDEN“ zeigt noch die alte Struktur – der Tab hat nicht committete Änderungen. Erst committen oder verwerfen, dann den Tab neu öffnen."],
+            ["„KUNDEN“ behält die alte Struktur, solange der Tab nicht committete Änderungen hat – nach Commit oder Rollback zeigt er die neue."],
             changed.Warnings);
+    }
+
+    /// <summary>
+    /// R4a: an editable tab already has a tracker, empty or not. Kept after DDL, it addressed the new grid's columns by the
+    /// old positions – an edit of D after dropping B was written to C.
+    /// </summary>
+    [Fact]
+    public async Task A_rebuilt_tab_drops_its_empty_tracker_of_the_old_structure()
+    {
+        await using var app = new TestApp();
+        var scope = await app.OpenAsync(TestApp.Profile("Test"));
+        var workspace = app.WorkspaceOf(scope);
+        var loaded = await scope.Active.Schema!.GetDetailsAsync(TestApp.Kunden, Ct);
+        var tab = new TableTab(workspace.WorkspaceId, TestApp.Kunden) { Details = loaded, Changes = new ChangeTracker(loaded) };
+        workspace.Tabs.Add(tab);
+
+        app.KundenDetails = app.KundenDetails with
+        {
+            Columns = [.. app.KundenDetails.Columns, new ColumnInfo("FAX", "VARCHAR2", 30, false, null, null, true, false, null, 2)],
+        };
+        await app.Lifecycle.RefreshSchemaAsync(scope);
+
+        Assert.Equal(1, tab.StructureVersion);
+        Assert.Null(tab.Changes);
+    }
+
+    /// <summary>
+    /// The views of a tab load its structure again whenever they are mounted (workspace switch): while uncommitted changes
+    /// hold it to the old structure, they get that one, not the new one from the schema cache.
+    /// </summary>
+    [Fact]
+    public void A_tab_with_changes_keeps_their_structure_one_without_takes_the_loaded_one()
+    {
+        var old = new TableDetails(TestApp.Kunden, [new ColumnInfo("ID", "NUMBER", null, false, 10, 0, false, false, null, 1)], ["ID"], [], false);
+        var current = old with { Columns = [.. old.Columns, new ColumnInfo("FAX", "VARCHAR2", 30, false, null, null, true, false, null, 2)] };
+        var tab = new TableTab(Guid.NewGuid(), TestApp.Kunden) { Changes = new ChangeTracker(old) };
+        tab.Changes.AddRow();
+
+        Assert.Same(old, tab.UseStructure(current));
+        Assert.Same(old, tab.Details);
+
+        tab.Changes.Clear();
+        Assert.Same(current, tab.UseStructure(current));
+        Assert.Null(tab.Changes);
+    }
+
+    [Fact]
+    public async Task A_stale_tab_shows_the_new_structure_after_rollback()
+    {
+        await using var app = new TestApp();
+        var scope = await app.OpenAsync(TestApp.Profile("Test"));
+        var pending = app.AddPendingWork(scope);
+        pending.Details = pending.Changes!.Table;
+        app.KundenDetails = app.KundenDetails with
+        {
+            Columns = [.. app.KundenDetails.Columns, new ColumnInfo("FAX", "VARCHAR2", 30, false, null, null, true, false, null, 2)],
+        };
+        await app.Lifecycle.RefreshSchemaAsync(scope);
+        Assert.True(pending.StructureStale);
+
+        Assert.True(await app.Editing.RollbackAsync(app.WorkspaceOf(scope)));
+
+        Assert.False(pending.StructureStale);
+        Assert.Null(pending.Changes); // the new grid makes a tracker for the new structure
+        Assert.Equal(1, pending.StructureVersion);
     }
 
     [Fact]

@@ -108,13 +108,14 @@ public sealed partial class WorkspaceLifecycle
                 continue;
             }
 
-            if (tab.Changes is { PendingCount: > 0 } or { FlushedCount: > 0 })
+            if (tab.Changes is { HasChanges: true })
             {
+                tab.StructureStale = true;
                 stale.Add(tab.Table.DisplayName);
                 continue;
             }
 
-            tab.Details = details;
+            tab.UseStructure(details); // also drops an empty tracker of the old structure
             tab.StructureVersion++;
         }
 

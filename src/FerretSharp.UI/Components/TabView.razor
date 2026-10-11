@@ -272,7 +272,7 @@
         _loadError = result.Error;
         if (result.Succeeded)
         {
-            _details = Tab.Details = result.Value;
+            _details = Tab.UseStructure(result.Value!);
         }
     }
 

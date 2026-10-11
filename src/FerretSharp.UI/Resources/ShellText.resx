@@ -1152,7 +1152,7 @@
     <comment>After reloading the schema. {0} = count, {1} = TABLE.COLUMN list</comment>
   </data>
   <data name="Schema_StaleTab" xml:space="preserve">
-    <value>“{0}” still shows the old structure – the tab has uncommitted changes. Commit or discard them, then open the tab again.</value>
+    <value>“{0}” keeps the old structure while it has uncommitted changes – after commit or rollback it shows the new one.</value>
     <comment>After reloading the schema. {0} = table name</comment>
   </data>
   <data name="Schema_ModelNotMatched" xml:space="preserve">

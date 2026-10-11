@@ -145,6 +145,33 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
     public int StructureVersion { get; set; }
 
     /// <summary>
+    /// The structure changed in the database while uncommitted changes held the tab to the old one: commit or rollback
+    /// rebuilds it (<see cref="WorkspaceEditing"/>). Not saved.
+    /// </summary>
+    public bool StructureStale { get; set; }
+
+    /// <summary>
+    /// The structure the tab's views work with, given the one just loaded (R4a): uncommitted changes address columns by
+    /// position, so while there are any the tab keeps the structure they were made against. A tracker without changes made
+    /// for another structure goes – the grid makes a new one.
+    /// </summary>
+    public TableDetails UseStructure(TableDetails loaded)
+    {
+        if (Changes is { } changes && !ReferenceEquals(changes.Table, loaded))
+        {
+            if (changes.HasChanges)
+            {
+                return Details = changes.Table;
+            }
+
+            Changes = null;
+        }
+
+        StructureStale = false;
+        return Details = loaded;
+    }
+
+    /// <summary>
     /// The open edit mode of the "Columns" view (WP-23): its draft and the failure of the last run. Kept here because DDL
     /// that changed the structure rebuilds the tab's views – the draft then reopens with what did not run yet. Not saved.
     /// </summary>
