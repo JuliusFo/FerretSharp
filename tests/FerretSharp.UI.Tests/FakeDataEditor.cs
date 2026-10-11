@@ -14,7 +14,12 @@ internal sealed class FakeDataEditor(Func<Func<Task>?> onCommit, Func<string, Ex
     private readonly WriteLog _log = new();
     private int _savepoints;
 
-    public TransactionInfo Transaction { get; } = new(TransactionMode.ReadWrite, DateTimeOffset.Now);
+    private readonly TransactionInfo _transaction = new(TransactionMode.ReadWrite, DateTimeOffset.Now);
+
+    /// <summary>The transaction ended without commit behind FerretSharp's back (a rollback that failed with the connection).</summary>
+    public bool Ended { get; set; }
+
+    public TransactionInfo Transaction => Ended ? TransactionInfo.None : _transaction;
 
     public IReadOnlyList<WriteAction> Actions => _log.Actions;
 

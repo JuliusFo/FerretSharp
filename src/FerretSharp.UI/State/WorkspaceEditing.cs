@@ -130,14 +130,32 @@ public sealed class WorkspaceEditing(
         StoppedByForm(workspace) ? Task.FromResult(false) : RunAsync(workspace, () => FlushCoreAsync(workspace, duringCommit: false));
 
     /// <summary>Writes what is pending, then commits; false if a write problem stopped it.</summary>
-    public Task<bool> CommitAsync(WorkspaceTabs workspace) => StoppedByForm(workspace) ? Task.FromResult(false) : RunAsync(workspace, async () =>
+    /// <param name="shown">
+    /// The writes a confirmation listed (Prod, WP-30): refused if another one was written meanwhile – a statement of another
+    /// tab finishing after the dialog opened would be committed unseen (R4a).
+    /// </param>
+    public Task<bool> CommitAsync(WorkspaceTabs workspace, IReadOnlyList<WriteAction>? shown = null) =>
+        StoppedByForm(workspace) ? Task.FromResult(false) : RunAsync(workspace, async () =>
     {
+        var editor = await WorkspacesOf(workspace.WorkspaceId).GetEditorAsync(workspace.WorkspaceId, CancellationToken.None);
+        if (shown is not null && editor.Actions is [.., var newest] && (shown.Count == 0 || shown[^1].Id != newest.Id))
+        {
+            throw new RefusedException(TextFormat.Format(GridText.Editing_WrittenSinceConfirm, newest.Display));
+        }
+
+        // Grid writes of a transaction that ended without commit (a rollback that failed with the connection): they are not
+        // in the database – committing would say so otherwise (R4a).
+        if (editor.Transaction.Mode != TransactionMode.ReadWrite && Trackers(workspace).Any(t => t.FlushedCount > 0))
+        {
+            RestorePending(workspace);
+            throw new RefusedException(GridText.Editing_TransactionGone);
+        }
+
         if (!await FlushCoreAsync(workspace, duringCommit: true))
         {
             return false;
         }
 
-        var editor = await WorkspacesOf(workspace.WorkspaceId).GetEditorAsync(workspace.WorkspaceId, CancellationToken.None);
         if (editor.Transaction.Mode == TransactionMode.ReadWrite)
         {
             try

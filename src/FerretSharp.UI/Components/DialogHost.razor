@@ -51,7 +51,7 @@
 {
     var commitSummary = Editing.SummaryOf(commitTabs);
     <ConfirmDialog Title="@ShellText.Dialogs_CommitProdTitle" ConfirmLabel="@ShellText.CommitButton" Danger="true"
-                   OnConfirm="() => Lifecycle.CommitAsync(commitTabs)" OnCancel="Lifecycle.CancelConfirmation">
+                   OnConfirm="() => Lifecycle.CommitAsync(commitTabs, commitSummary.Actions)" OnCancel="Lifecycle.CancelConfirmation">
         <Fmt Text="@ShellText.Dialogs_CommitProdText">
             <Arg0><strong>@Lifecycle.WorkspaceName(commitTabs.WorkspaceId)</strong></Arg0>
             <Arg1>@commitSummary.Pending</Arg1>

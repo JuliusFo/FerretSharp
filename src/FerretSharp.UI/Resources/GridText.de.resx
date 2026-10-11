@@ -642,6 +642,12 @@
   <data name="Editing_Committed" xml:space="preserve">
     <value>Änderungen committet.</value>
   </data>
+  <data name="Editing_TransactionGone" xml:space="preserve">
+    <value>Nicht committet: Die Transaktion endete ohne Commit (Verbindung verloren?). Die geschriebenen Grid-Änderungen sind wieder ausstehend; Statements daraus sind nicht in der Datenbank.</value>
+  </data>
+  <data name="Editing_WrittenSinceConfirm" xml:space="preserve">
+    <value>Nicht committet: „{0}“ wurde nach dem Anzeigen der Bestätigung geschrieben. Änderungen prüfen und erneut committen.</value>
+  </data>
   <data name="Editing_RolledBack" xml:space="preserve">
     <value>Änderungen verworfen (Rollback).</value>
   </data>
