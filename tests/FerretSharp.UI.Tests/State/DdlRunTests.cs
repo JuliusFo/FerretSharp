@@ -26,7 +26,7 @@ public sealed class DdlRunTests
         var workspace = scope.Workspaces.Active!.Id;
         var started = new List<string>();
 
-        var result = await app.Lifecycle.RunDdlAsync(workspace, [First, Second], null, started.Add, Ct);
+        var result = await app.Lifecycle.RunDdlAsync(workspace, [First, Second], null, started.Add, null, Ct);
 
         Assert.True(result.Succeeded);
         Assert.Equal([First, Second], result.Ran);
@@ -48,8 +48,12 @@ public sealed class DdlRunTests
         app.LockHolders = [holder];
         app.FailDdl = sql => sql == Second ? new DatabaseException("Sperre …", "ORA-00054") : null;
 
-        var result = await app.Lifecycle.RunDdlAsync(scope.Workspaces.Active!.Id, [First, Second, Third], null, null, Ct);
+        (DdlRunResult Result, Notice? Notice)? stopped = null;
+        var result = await app.Lifecycle.RunDdlAsync(scope.Workspaces.Active!.Id, [First, Second, Third], null, null, r => stopped = (r, app.Shell.Notice), Ct);
 
+        // Told before the schema is reloaded (which may rebuild the designer's tab), with the same result.
+        Assert.Equal((result, (Notice?)null), stopped);
+        Assert.Equal(3, result.Total);
         Assert.False(result.Succeeded);
         Assert.Equal([First], result.Ran);
         Assert.Equal(Second, result.Failed);
@@ -69,7 +73,7 @@ public sealed class DdlRunTests
         var scope = await app.OpenAsync(TestApp.Profile("Test"));
         app.FailDdl = _ => new OperationCanceledException();
 
-        var result = await app.Lifecycle.RunDdlAsync(scope.Workspaces.Active!.Id, [First, Second], null, null, Ct);
+        var result = await app.Lifecycle.RunDdlAsync(scope.Workspaces.Active!.Id, [First, Second], null, null, null, Ct);
 
         Assert.True(result.Cancelled);
         Assert.Null(result.Error);
@@ -88,7 +92,7 @@ public sealed class DdlRunTests
         var (workspace, summary) = app.Lifecycle.OpenWorkOf(workspaceId)!.Value;
         Assert.Equal(1, summary.Pending);
 
-        var result = await app.Lifecycle.RunDdlAsync(workspaceId, [First], workspace, null, Ct);
+        var result = await app.Lifecycle.RunDdlAsync(workspaceId, [First], workspace, null, null, Ct);
 
         Assert.True(result.Succeeded);
         Assert.Equal(0, tab.Changes!.PendingCount);

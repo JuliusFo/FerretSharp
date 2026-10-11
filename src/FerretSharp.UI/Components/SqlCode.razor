@@ -58,13 +58,17 @@
     [Parameter]
     public string? Class { get; set; }
 
+    /// <summary>No SQL highlighting: other code shown with the same copy icon (C# of the designer, WP-23).</summary>
+    [Parameter]
+    public bool Plain { get; set; }
+
     private List<(string Text, string? Css)> Tokens
     {
         get
         {
             if (!ReferenceEquals(_highlightedFor, Sql))
             {
-                _tokens = Highlight(Sql);
+                _tokens = Plain ? [(Sql, null)] : Highlight(Sql);
                 _highlightedFor = Sql;
             }
 

@@ -306,4 +306,19 @@
   <data name="FlagWithoutMember" xml:space="preserve">
     <value>{0} (kein Member)</value>
   </data>
+  <data name="PropertyLikeElsewhereOne" xml:space="preserve">
+    <value>Name und Typ wie bei {1} in einer anderen Entity des Projekts.</value>
+  </data>
+  <data name="PropertyLikeElsewhereOther" xml:space="preserve">
+    <value>Name und Typ wie bei {1} in {0} anderen Entities des Projekts.</value>
+  </data>
+  <data name="PropertyYesNoOne" xml:space="preserve">
+    <value>bool mit {1} wie bei einer anderen Property des Projekts (Spalte mit einem Zeichen).</value>
+  </data>
+  <data name="PropertyYesNoOther" xml:space="preserve">
+    <value>bool mit {1} wie bei {0} Properties des Projekts (Spalte mit einem Zeichen).</value>
+  </data>
+  <data name="PropertyConverterByHand" xml:space="preserve">
+    <value>Das Projekt konvertiert inline ({0}) – die Konvertierung von Hand ergänzen.</value>
+  </data>
 </root>

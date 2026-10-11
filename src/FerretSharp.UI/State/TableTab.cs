@@ -145,6 +145,12 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
     public int StructureVersion { get; set; }
 
     /// <summary>
+    /// The open edit mode of the "Columns" view (WP-23): its draft and the failure of the last run. Kept here because DDL
+    /// that changed the structure rebuilds the tab's views – the draft then reopens with what did not run yet. Not saved.
+    /// </summary>
+    public DesignerSession? Designer { get; set; }
+
+    /// <summary>
     /// Short form of the active filters ("KUNDE_ID = 4711"), to tell several tabs of one table apart. With a C# model
     /// enum and bool values read as their members ("KUNDENART = Gewerbe").
     /// </summary>

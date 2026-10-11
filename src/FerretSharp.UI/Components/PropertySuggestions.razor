@@ -1,0 +1,17 @@
+@* C# for columns the entity has no property for (WP-23): the properties, then their configuration lines, each block with
+   the copy icon of SqlCode, and where name, type or converter came from. *@
+@using FerretSharp.Core.ClrModel
+
+<div class="property-suggestions">
+    <SqlCode Sql="@string.Join("\n", Suggestions.Select(s => s.Declaration))" Plain="true" />
+    <SqlCode Sql="@string.Join("\n", Suggestions.Select(s => s.Configuration))" Plain="true" />
+    @foreach (var suggestion in Suggestions.Where(s => s.Notes.Count > 0))
+    {
+        <p class="hint small"><span class="mono">@suggestion.Name</span>: @string.Join(" ", suggestion.Notes)</p>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<PropertySuggestion> Suggestions { get; set; } = [];
+}

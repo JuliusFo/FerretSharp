@@ -123,6 +123,134 @@ public sealed class TableDesignTests(OracleContainerFixture oracle) : IAsyncLife
     }
 
     /// <summary>
+    /// A column draft as the designer builds it (stage 2): the facts come from the read path, the plan refuses what Oracle
+    /// would refuse, and what it writes runs through the schema path and leaves the table as drafted.
+    /// </summary>
+    [Fact]
+    public async Task A_column_draft_runs_and_leaves_the_table_as_drafted()
+    {
+        await using var connection = await OpenAsync("Design columns");
+        foreach (var sql in new[]
+        {
+            "CREATE TABLE TD_PERSON (ID NUMBER(10) PRIMARY KEY, NAME VARCHAR2(50 BYTE), KUERZEL VARCHAR2(10 BYTE), BETRAG NUMBER(12,2), NOTIZ VARCHAR2(200), ALT NUMBER)",
+            "COMMENT ON COLUMN TD_PERSON.NOTIZ IS 'weg damit'",
+        })
+        {
+            await connection.Editor.ExecuteDdlAsync(sql, Ct);
+        }
+
+        await connection.Editor.ExecuteAsync(new QuerySpec("INSERT INTO TD_PERSON (ID, NAME, KUERZEL, BETRAG) VALUES (1, 'Eins', 'E', 10.5)", []), Ct);
+        await connection.Editor.ExecuteAsync(new QuerySpec("INSERT INTO TD_PERSON (ID, NAME, BETRAG) VALUES (2, NULL, 3)", []), Ct);
+        await connection.Editor.CommitAsync(Ct);
+        var (before, _) = await ReadAsync(connection, "TD_PERSON");
+        ColumnDraft Change(string column, Func<ColumnInfo, ColumnInfo> change) => new(column, change(before.Columns[before.IndexOf(column)]));
+
+        // NAME has a NULL, BETRAG values: NOT NULL and fewer integer digits are refused, as Oracle would.
+        var refused = new TableDraft([.. TableDraft.Of(before).Columns.Select(c => c.Original switch
+        {
+            "NAME" => Change("NAME", n => n with { Nullable = false }),
+            "BETRAG" => Change("BETRAG", n => n with { Precision = 8 }),
+            _ => c,
+        })]);
+        var facts = await TableDesign.CountAsync(connection.Data, before, TableDesign.Questions(before, refused), Ct);
+        var refusedPlan = TableDesign.Plan(DesignContext.Of(before), refused, facts);
+        Assert.Equal(2, refusedPlan.Problems.Count);
+        Assert.False(refusedPlan.CanRun);
+
+        // What runs: rename with a longer type, more digits, a default, drop, a new mandatory column with default, comments.
+        var draft = new TableDraft([.. TableDraft.Of(before).Columns.Select(c => c.Original switch
+        {
+            "KUERZEL" => Change("KUERZEL", k => k with { Name = "CODE", Length = 20, CharSemantics = true, Comment = "Kurzzeichen" }),
+            "BETRAG" => Change("BETRAG", b => b with { Precision = 14, Scale = 4, Default = "0" }),
+            "NOTIZ" => c with { Dropped = true },
+            "ALT" => Change("ALT", a => a with { DataType = "VARCHAR2", Length = 10, Precision = null, Scale = null }), // empty: may change family
+            _ => c,
+        }), new ColumnDraft(null, new ColumnInfo("AKTIV", "CHAR", 1, false, null, null, false, false, "'J'", 0, "J/N"))]);
+        facts = await TableDesign.CountAsync(connection.Data, before, TableDesign.Questions(before, draft), Ct);
+        Assert.Equal(0, facts.Of(new DataQuestion(DataQuestionKind.Values, "ALT")));
+        var plan = TableDesign.Plan(new DesignContext(before, await connection.Schema.GetConstraintsAsync(before.Table.Ref, Ct), [], []), draft, facts);
+        Assert.True(plan.CanRun, string.Join("\n", plan.Problems));
+
+        foreach (var statement in plan.Statements)
+        {
+            await connection.Editor.ExecuteDdlAsync(statement, Ct);
+        }
+
+        var (after, _) = await ReadAsync(connection, "TD_PERSON");
+        Assert.Equal(["ID", "NAME", "CODE", "BETRAG", "ALT", "AKTIV"], after.Columns.Select(c => c.Name));
+        ColumnInfo Col(string name) => after.Columns[after.IndexOf(name)];
+        Assert.Equal(("VARCHAR2(20 CHAR)", "Kurzzeichen"), (Col("CODE").DisplayType, Col("CODE").Comment));
+        Assert.Equal(("NUMBER(14,4)", "0"), (Col("BETRAG").DisplayType, Col("BETRAG").Default?.Trim()));
+        Assert.Equal("VARCHAR2(10)", Col("ALT").DisplayType);
+        Assert.Equal(("CHAR(1)", false, "'J'", "J/N"), (Col("AKTIV").DisplayType, Col("AKTIV").Nullable, Col("AKTIV").Default?.Trim(), Col("AKTIV").Comment));
+        var rows = await connection.Data.ReadSqlAsync(new QuerySpec("SELECT code, betrag, aktiv FROM td_person ORDER BY id", []), 0, 10, Ct);
+        Assert.Equal(["E", 10.5m, "J"], rows.Rows[0]);
+
+        // The table as it is now: the draft of it writes nothing.
+        Assert.Empty(TableDesign.Plan(DesignContext.Of(after), TableDraft.Of(after), DataFacts.None).Statements);
+        await connection.Editor.ExecuteDdlAsync("DROP TABLE TD_PERSON PURGE", Ct);
+    }
+
+    /// <summary>Constraints of the designer against Oracle: new keys, check and foreign key with its index; a dropped constraint frees its column.</summary>
+    [Fact]
+    public async Task Constraint_changes_run_in_the_order_they_need()
+    {
+        await using var connection = await OpenAsync("Design constraints");
+        foreach (var sql in new[]
+        {
+            "CREATE TABLE TD_LAND (CODE VARCHAR2(2 BYTE) CONSTRAINT PK_TD_LAND PRIMARY KEY, NAME VARCHAR2(50))",
+            "CREATE TABLE TD_ORT (ID NUMBER(10), PLZ VARCHAR2(5), NAME VARCHAR2(50), CONSTRAINT UK_TD_ORT UNIQUE (PLZ, NAME))",
+        })
+        {
+            await connection.Editor.ExecuteDdlAsync(sql, Ct);
+        }
+
+        await connection.Editor.ExecuteAsync(new QuerySpec("INSERT INTO TD_LAND VALUES ('DE', 'Deutschland')", []), Ct);
+        await connection.Editor.ExecuteAsync(new QuerySpec("INSERT INTO TD_ORT VALUES (1, '12345', 'Musterstadt')", []), Ct);
+        await connection.Editor.CommitAsync(Ct);
+        var (ort, indexes) = await ReadAsync(connection, "TD_ORT");
+        var (land, _) = await ReadAsync(connection, "TD_LAND");
+        var context = new DesignContext(ort, await connection.Schema.GetConstraintsAsync(ort.Table.Ref, Ct), indexes, [])
+        {
+            Referenced = new Dictionary<TableRef, TableDetails> { [land.Table.Ref] = land },
+        };
+
+        // PLZ goes – its unique key over two columns is dropped first; a new column LAND with default references TD_LAND.
+        var draft = new TableDraft([.. TableDraft.Of(ort).Columns.Select(c => c.Original == "PLZ" ? c with { Dropped = true } : c),
+            new ColumnDraft(null, new ColumnInfo("LAND", "VARCHAR2", 2, false, null, null, false, false, "'DE'", 0))])
+        {
+            DroppedConstraints = ["UK_TD_ORT"],
+            AddedConstraints =
+            [
+                new ConstraintDraft("FK_TD_ORT_LAND", ConstraintType.ForeignKey, ["LAND"], References: land.Table.Ref, ReferencedColumns: ["CODE"]),
+                new ConstraintDraft("PK_TD_ORT", ConstraintType.PrimaryKey, ["ID"]),
+                new ConstraintDraft("CK_TD_ORT_NAME", ConstraintType.Check, ["NAME"], "NAME IS NOT NULL OR ID < 0"),
+            ],
+        };
+        var facts = await TableDesign.CountAsync(connection.Data, ort, TableDesign.Questions(ort, draft), Ct);
+        var plan = TableDesign.Plan(context, draft, facts);
+        Assert.True(plan.CanRun, string.Join("\n", plan.Problems));
+        foreach (var statement in plan.Statements)
+        {
+            await connection.Editor.ExecuteDdlAsync(statement, Ct);
+        }
+
+        var (after, afterIndexes) = await ReadAsync(connection, "TD_ORT");
+        var constraints = await connection.Schema.GetConstraintsAsync(after.Table.Ref, Ct);
+        Assert.Equal(["ID", "NAME", "LAND"], after.Columns.Select(c => c.Name));
+        Assert.Equal(["ID"], after.PrimaryKey);
+        Assert.Contains(constraints, c => c is { Name: "FK_TD_ORT_LAND", Type: ConstraintType.ForeignKey });
+        Assert.Contains(constraints, c => c is { Name: "CK_TD_ORT_NAME", Type: ConstraintType.Check });
+        Assert.DoesNotContain(constraints, c => c.Name == "UK_TD_ORT");
+        Assert.Contains(afterIndexes, i => i.Name == "IX_TD_ORT_LAND");
+        var fks = (await connection.Schema.GetForeignKeysAsync(after.Table.Owner, Ct)).Where(f => f.From == after.Table.Ref);
+        Assert.Empty(IndexAdvice.UnindexedForeignKeys(fks, afterIndexes));
+
+        await connection.Editor.ExecuteDdlAsync("DROP TABLE TD_ORT PURGE", Ct);
+        await connection.Editor.ExecuteDdlAsync("DROP TABLE TD_LAND PURGE", Ct);
+    }
+
+    /// <summary>
     /// CREATE INDEX is no ALTER TABLE: the schema path does not take the table first. With another session's uncommitted
     /// DML it fails at once with ORA-00054 (WP-22) – the designer shows the lock holders as the SQL editor does.
     /// </summary>

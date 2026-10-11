@@ -142,6 +142,6 @@ Regeln:
 
 ## 8. Als Nächstes (Details und Entscheidungen des Nutzers: `docs/roadmap.md`)
 
-- **WP-23** Tabellen-Designer + Entity aus Tabelle (Issue #10): Stufe 1 „Index anlegen“ in 3.22.0; als Nächstes Stufe 2 Spalten-Designer für bestehende Tabellen + Property-Zeile, dann Stufe 3 neue Tabelle + Entity (Schemaweg aus WP-22, gemeinsamer DDL-Baustein `WorkspaceLifecycle.RunDdlAsync`/`DdlDraftPanel`).
+- **WP-23** Tabellen-Designer + Entity aus Tabelle (Issue #10): Stufe 1 „Index anlegen“ in 3.22.0, Stufe 2 Spalten-Designer + Property-Zeile umgesetzt (ADR 0020); als Nächstes Stufe 3 neue Tabelle + Entity (Schemaweg aus WP-22, gemeinsamer DDL-Baustein `WorkspaceLifecycle.RunDdlAsync`/`DdlDraftPanel`).
 - **WP-26** Audit-/Historientabellen aus einer Vorlagendatei (nach WP-23).
 - PL/SQL-Objekte anlegen (in WP-22 bewusst abgewiesen), PL/SQL ausführen und bearbeiten (Stufen 2/3 nach WP-28) stehen im Backlog; die Entscheidung fällt spätestens mit WP-26 (Trigger).

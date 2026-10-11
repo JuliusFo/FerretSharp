@@ -107,7 +107,7 @@
                             @switch (mode)
                             {
                                 case TabMode.Structure:
-                                    <ColumnsView @ref="_columns" Details="_details" />
+                                    <ColumnsView @ref="_columns" Details="_details" WorkspaceId="Tab.WorkspaceId" Tab="Tab" OnSchemaChanged="() => _version++" />
                                     break;
                                 case TabMode.Constraints:
                                     <ConstraintsView Details="_details" Version="_version" />

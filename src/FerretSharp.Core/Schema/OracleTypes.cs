@@ -2,6 +2,25 @@ using System.Globalization;
 
 namespace FerretSharp.Core.Schema;
 
+/// <summary>What changing a column's type with <c>ALTER TABLE … MODIFY</c> needs (<see cref="OracleTypes.ChangeOf"/>).</summary>
+public enum ColumnTypeChange
+{
+    /// <summary>The same type in DDL: nothing to change.</summary>
+    Same,
+
+    /// <summary>Works with any data.</summary>
+    Free,
+
+    /// <summary>Works unless a value is too long for the new length (ORA-01441); Oracle checks the values.</summary>
+    MayFailOnValues,
+
+    /// <summary>Only while the column holds no value (ORA-01439, ORA-01440, ORA-30082).</summary>
+    NeedsEmptyColumn,
+
+    /// <summary>Never with MODIFY (to or from a LOB, ORA-22858): a new column, copy the values, drop the old one.</summary>
+    NotPossible,
+}
+
 /// <summary>
 /// What FerretSharp knows about Oracle column types, in one place (R3b): how a type is written for the user and in DDL,
 /// which types have a length and whether it counts bytes, which can be changed into each other. Before, the same switches
@@ -38,6 +57,82 @@ public static class OracleTypes
         "RAW" => "raw",
         _ => dataType, // LOBs, LONG, INTERVAL, object types …: only to the very same type
     };
+
+    /// <summary>
+    /// What <c>ALTER TABLE … MODIFY</c> from one type to another needs, as Oracle 23 answered with data in the column
+    /// (WP-23 experiment): text of the same kind, longer, or with CHAR instead of BYTE, DATE ↔ TIMESTAMP, more digits on both
+    /// sides of the decimal point and an unconstrained NUMBER or FLOAT go through. Shorter text or RAW goes through unless a
+    /// value is too long (ORA-01441). Fewer integer or decimal digits (ORA-01440), fewer fractional seconds (ORA-30082),
+    /// another family, NVARCHAR2 → VARCHAR2 or a time zone added or taken away (ORA-01439) need an empty column. To or from a
+    /// LOB never works (ORA-22858, also when empty).
+    /// </summary>
+    public static ColumnTypeChange ChangeOf(ColumnInfo from, ColumnInfo to)
+    {
+        if (DdlType(from) == DdlType(to))
+        {
+            return ColumnTypeChange.Same;
+        }
+
+        if (IsLobOrLong(from.DataType) || IsLobOrLong(to.DataType))
+        {
+            return ColumnTypeChange.NotPossible;
+        }
+
+        if (Family(from.DataType) != Family(to.DataType))
+        {
+            return ColumnTypeChange.NeedsEmptyColumn;
+        }
+
+        return Family(from.DataType) switch
+        {
+            "text" when from.DataType is "NVARCHAR2" or "NCHAR" && to.DataType is "VARCHAR2" or "CHAR" => ColumnTypeChange.NeedsEmptyColumn,
+            "text" or "raw" => (to.Length ?? 0) < (from.Length ?? 0) || (from.CharSemantics && !to.CharSemantics)
+                ? ColumnTypeChange.MayFailOnValues
+                : ColumnTypeChange.Free,
+            "number" => NumberChange(from, to),
+            "datetime" => DateTimeChange(from.DataType, to.DataType),
+            _ => ColumnTypeChange.NeedsEmptyColumn, // INTERVAL, object types …: not tried, so not promised
+        };
+    }
+
+    /// <summary>Binary precision of a plain <c>FLOAT</c>.</summary>
+    private const int MaxFloatPrecision = 126;
+
+    private static ColumnTypeChange NumberChange(ColumnInfo from, ColumnInfo to)
+    {
+        if (to.DataType == "NUMBER" && to.Precision is null && to.Scale is null || to.DataType == "FLOAT" && to.Precision is null or MaxFloatPrecision)
+        {
+            return ColumnTypeChange.Free; // takes any number (FLOAT is FLOAT(126) in the dictionary)
+        }
+
+        if (from.DataType == "FLOAT" || to.DataType == "FLOAT" || from.Precision is null && from.Scale is null)
+        {
+            return ColumnTypeChange.NeedsEmptyColumn; // binary precision or no limit before: Oracle refuses to narrow
+        }
+
+        int Integer(ColumnInfo c) => (c.Precision ?? 38) - (c.Scale ?? 0);
+        return Integer(to) >= Integer(from) && (to.Scale ?? 0) >= (from.Scale ?? 0) ? ColumnTypeChange.Free : ColumnTypeChange.NeedsEmptyColumn;
+    }
+
+    private static ColumnTypeChange DateTimeChange(string from, string to)
+    {
+        if (from == "DATE" || to == "DATE")
+        {
+            return Zone(from) == Zone(to) ? ColumnTypeChange.Free : ColumnTypeChange.NeedsEmptyColumn;
+        }
+
+        return Zone(from) != Zone(to) || Fraction(to) < Fraction(from) ? ColumnTypeChange.NeedsEmptyColumn : ColumnTypeChange.Free;
+
+        static string Zone(string type) => type.EndsWith("WITH LOCAL TIME ZONE", StringComparison.Ordinal) ? "local"
+            : type.EndsWith("WITH TIME ZONE", StringComparison.Ordinal) ? "zone" : "";
+
+        // TIMESTAMP(6) …: the digits of the fractional seconds; 6 without a number.
+        static int Fraction(string type) =>
+            type.IndexOf('(', StringComparison.Ordinal) is var open and >= 0 && type.IndexOf(')', open) is var close and > 0
+            && int.TryParse(type.AsSpan(open + 1, close - open - 1), NumberStyles.None, CultureInfo.InvariantCulture, out var digits)
+                ? digits
+                : 6;
+    }
 
     /// <summary>
     /// The type as shown to the user, e.g. <c>VARCHAR2(50 CHAR)</c>, <c>NUMBER(12,2)</c>, <c>NUMBER(*,2)</c>, <c>INTEGER</c>.
