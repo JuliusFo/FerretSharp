@@ -329,7 +329,10 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
     {
         _runner.ReadModelAsync(Arg.Any<ClrProjectLink>(), Arg.Any<BuildOutput>(), Arg.Any<CancellationToken>(), Arg.Any<IProgress<string>?>())
             .Returns(Model());
-        await ConnectAsync();
+        // Loaded, not just "not loading": right after connecting the load may not have begun, and without a linked
+        // project the start gives up before it says "Starting" (failed on the slower release runner).
+        await _active.ConnectAsync(_profile, Ct);
+        await WaitUntil(() => _models.State.Phase == ClrModelPhase.Loaded);
         var consoles = new LinqConsoleService(_runner, _models);
         var started = new TaskCompletionSource<ILinqConsole>();
         _runner.StartConsoleAsync(Arg.Any<ClrProjectLink>(), Arg.Any<BuildOutput>(), Arg.Any<CancellationToken>(), Arg.Any<IProgress<string>?>())
