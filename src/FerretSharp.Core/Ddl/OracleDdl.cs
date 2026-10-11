@@ -1,18 +1,43 @@
 using System.Text;
 using FerretSharp.Core.Oracle;
 using FerretSharp.Core.Query;
-using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 
-namespace FerretSharp.Core.Compare;
+namespace FerretSharp.Core.Ddl;
 
 /// <summary>
-/// SQL fragments of the DDL proposal (<see cref="SchemaDdl"/>) and the table designer (WP-23); both may run it through the
-/// schema path (WP-22). Names are always quoted exactly as in the dictionary.
+/// The text of every DDL statement FerretSharp writes – the schema comparison's proposal (WP-20) and the designer (WP-23)
+/// alike, both run through the schema path (WP-22). One place since R4b (before: <c>DdlText</c> plus statements built in
+/// both writers). Names are always quoted exactly as in the dictionary.
 /// </summary>
-internal static class DdlText
+internal static class OracleDdl
 {
     public static string Q(string name) => OracleIdentifier.Quote(name);
+
+    private static string T(TableRef table) => OracleIdentifier.Qualify(table.Owner, table.Name);
+
+    // ---- tables ----
+
+    /// <summary><c>CREATE [GLOBAL TEMPORARY ]TABLE t (\n    a,\n    b)[ ORGANIZATION INDEX]</c>: one entry per line.</summary>
+    /// <param name="entries">Column definitions (<see cref="ColumnDefinition"/>), then inline constraints.</param>
+    public static string CreateTable(TableRef table, IEnumerable<string> entries, bool temporary = false, bool indexOrganized = false) =>
+        $"{(temporary ? "CREATE GLOBAL TEMPORARY TABLE" : "CREATE TABLE")} {T(table)} (\n    {string.Join(",\n    ", entries)})"
+        + (indexOrganized ? " ORGANIZATION INDEX" : "");
+
+    public static string DropObject(TableKind kind, TableRef table) => $"DROP {ObjectKeyword(kind)} {T(table)}";
+
+    public static string RenameObject(TableKind kind, TableRef table, string to) => $"ALTER {ObjectKeyword(kind)} {T(table)} RENAME TO {Q(to)}";
+
+    public static string CommentOnTable(TableRef table, string? comment) => $"COMMENT ON TABLE {T(table)} IS {Literal(comment)}";
+
+    public static string ObjectKeyword(TableKind kind) => kind switch
+    {
+        TableKind.View => "VIEW",
+        TableKind.MaterializedView => "MATERIALIZED VIEW",
+        _ => "TABLE",
+    };
+
+    // ---- columns ----
 
     /// <summary><c>"NAME" type [AS (…) | identity | DEFAULT …] [NOT NULL]</c> for CREATE TABLE and ADD.</summary>
     public static string ColumnDefinition(ColumnInfo column)
@@ -40,6 +65,40 @@ internal static class DdlText
         return sql.ToString();
     }
 
+    public static string AddColumn(TableRef table, ColumnInfo column) => $"ALTER TABLE {T(table)} ADD ({ColumnDefinition(column)})";
+
+    public static string DropColumn(TableRef table, string column) => $"ALTER TABLE {T(table)} DROP COLUMN {Q(column)}";
+
+    public static string RenameColumn(TableRef table, string from, string to) => $"ALTER TABLE {T(table)} RENAME COLUMN {Q(from)} TO {Q(to)}";
+
+    /// <summary><c>ALTER TABLE t MODIFY ("C" type)</c>: the type of <paramref name="to"/>.</summary>
+    public static string ModifyType(TableRef table, string column, ColumnInfo to) => $"ALTER TABLE {T(table)} MODIFY ({Q(column)} {OracleTypes.DdlType(to)})";
+
+    /// <summary><c>ALTER TABLE t MODIFY ("C" DEFAULT [ON NULL] value)</c>; no value sets <c>DEFAULT NULL</c>.</summary>
+    public static string ModifyDefault(TableRef table, string column, string? value, bool onNull) =>
+        $"ALTER TABLE {T(table)} MODIFY ({Q(column)} DEFAULT {(onNull ? "ON NULL " : "")}{(value is null ? "NULL" : Expression(value))})";
+
+    public static string ModifyNull(TableRef table, string column, bool nullable) =>
+        $"ALTER TABLE {T(table)} MODIFY ({Q(column)} {(nullable ? "NULL" : "NOT NULL")})";
+
+    public static string CommentOnColumn(TableRef table, string column, string? comment) => $"COMMENT ON COLUMN {T(table)}.{Q(column)} IS {Literal(comment)}";
+
+    // ---- constraints ----
+
+    public static string AddConstraint(TableRef table, string clause) => $"ALTER TABLE {T(table)} ADD {clause}";
+
+    public static string DropConstraint(TableRef table, string name) => $"ALTER TABLE {T(table)} DROP CONSTRAINT {Q(name)}";
+
+    public static string RenameConstraint(TableRef table, string from, string to) => $"ALTER TABLE {T(table)} RENAME CONSTRAINT {Q(from)} TO {Q(to)}";
+
+    /// <summary>The kind of step that adds a constraint of this type.</summary>
+    public static DdlStepKind AddKind(ConstraintType type) => type switch
+    {
+        ConstraintType.PrimaryKey or ConstraintType.Unique => DdlStepKind.AddKey,
+        ConstraintType.Check => DdlStepKind.AddCheck,
+        _ => DdlStepKind.AddForeignKey,
+    };
+
     /// <summary>
     /// The constraint as it follows <c>ADD</c> (or stands in a CREATE TABLE): named unless Oracle generated the name in
     /// the reference, then Oracle names it again. <paramref name="usingIndex"/>: an index of another name backing the key.
@@ -65,7 +124,7 @@ internal static class DdlText
                 break;
             case ConstraintType.ForeignKey:
                 var to = mapTable(constraint.References ?? throw new ArgumentException($"Foreign key {constraint.Name} without referenced table.", nameof(constraint)));
-                sql.Append($"FOREIGN KEY ({Columns(constraint.Columns)}) REFERENCES {OracleIdentifier.Qualify(to.Owner, to.Name)} ({Columns(constraint.ReferencedColumns)})");
+                sql.Append($"FOREIGN KEY ({Columns(constraint.Columns)}) REFERENCES {T(to)} ({Columns(constraint.ReferencedColumns)})");
                 if (constraint.DeleteRule is "CASCADE" or "SET NULL")
                 {
                     sql.Append($" ON DELETE {constraint.DeleteRule}");
@@ -98,6 +157,8 @@ internal static class DdlText
         return sql.ToString();
     }
 
+    // ---- indexes ----
+
     /// <summary><c>CREATE [UNIQUE |BITMAP ]INDEX "O"."N" ON "O"."T" (…)</c>; null for index types it cannot write (domain, cluster …).</summary>
     public static string? CreateIndex(IndexInfo index, string name, string owner, string table)
     {
@@ -122,10 +183,16 @@ internal static class DdlText
         return sql.ToString();
     }
 
+    public static string DropIndex(string owner, string name) => $"DROP INDEX {OracleIdentifier.Qualify(owner, name)}";
+
+    public static string RenameIndex(string owner, string from, string to) => $"ALTER INDEX {OracleIdentifier.Qualify(owner, from)} RENAME TO {Q(to)}";
+
     public static string IndexColumns(IEnumerable<IndexColumn> columns) =>
         string.Join(", ", columns.Select(c => (c.IsExpression ? c.Name : Q(c.Name)) + (c.Descending ? " DESC" : "")));
 
     public static string Columns(IEnumerable<string> names) => string.Join(", ", names.Select(Q));
+
+    // ---- expressions and literals ----
 
     /// <summary>
     /// An expression (default, check condition, virtual column) as it stands inside DDL. Oracle keeps a trailing
@@ -162,32 +229,4 @@ internal static class DdlText
 
     /// <summary>A string literal for COMMENT ON.</summary>
     public static string Literal(string? text) => $"'{(text ?? "").Replace("'", "''", StringComparison.Ordinal)}'";
-
-    /// <summary>Comments every line (hints the user decides about; a script runner must never execute them).</summary>
-    public static string Commented(string sql) =>
-        string.Join("\n", sql.Split('\n').Select(line => line.StartsWith("--", StringComparison.Ordinal) ? line : "-- " + line));
-
-    public static string ObjectKeyword(TableKind kind) => kind switch
-    {
-        TableKind.View => "VIEW",
-        TableKind.MaterializedView => "MATERIALIZED VIEW",
-        _ => "TABLE",
-    };
-
-    /// <summary>The object kind inside a sentence of the DDL proposal ("table").</summary>
-    public static string ObjectWord(TableKind kind) => kind switch
-    {
-        TableKind.View => CompareText.ObjectView,
-        TableKind.MaterializedView => CompareText.ObjectMaterializedView,
-        _ => CompareText.ObjectTable,
-    };
-
-    /// <summary>The object kind at the start of <see cref="CompareText.RenameWarning"/> ("Table").</summary>
-    public static string RenameSubject(TableKind kind) => kind switch
-    {
-        TableKind.View => CompareText.RenameSubjectView,
-        TableKind.MaterializedView => CompareText.RenameSubjectMaterializedView,
-        _ => CompareText.RenameSubjectTable,
-    };
-
 }

@@ -1,4 +1,5 @@
 using FerretSharp.Core.Compare;
+using FerretSharp.Core.Ddl;
 using FerretSharp.Core.Schema;
 using static FerretSharp.Core.Tests.Compare.TestComparison;
 
@@ -20,7 +21,8 @@ public class SchemaDdlTests
     private static DdlProposal Align(ObjectSnapshot[] reference, ObjectSnapshot[] target, CompareOptions? options = null) =>
         SchemaDdl.Align(Of(options ?? new CompareOptions(Reference: 0), Snapshot(Ref, reference), Snapshot(Tgt, target)), 0, 1);
 
-    private static string[] Sql(DdlProposal proposal) => proposal.Steps.Select(s => s.Sql).ToArray();
+    /// <summary>The steps as they stand in the script (hints commented out), without terminator.</summary>
+    private static string[] Sql(DdlProposal proposal) => proposal.Steps.Select(DdlScript.Text).ToArray();
 
     private static DdlStep Single(DdlProposal proposal) => Assert.Single(proposal.Steps);
 
@@ -176,8 +178,8 @@ public class SchemaDdlTests
     {
         var step = Single(Align(Table("V_KUNDE", [Id], kind: kind), null));
 
-        Assert.Equal(sql, step.Sql);
-        Assert.True(step.IsCommented);
+        Assert.Equal(sql, DdlScript.Text(step));
+        Assert.False(step.IsExecutable);
         Assert.Contains("DDL-Ansicht der Referenz", step.Warning);
     }
 
@@ -189,7 +191,7 @@ public class SchemaDdlTests
     {
         var step = Single(Align(null, Table("ALT", [Id], kind: kind)));
 
-        Assert.Equal(sql, step.Sql);
+        Assert.Equal(sql, DdlScript.Text(step));
         Assert.Contains(warning, step.Warning);
     }
 
@@ -198,7 +200,7 @@ public class SchemaDdlTests
     {
         var step = Single(Align(Table("Kunde", [Id]), Table("KUNDE", [Id])));
 
-        Assert.Equal("-- ALTER TABLE \"TEST\".\"KUNDE\" RENAME TO \"Kunde\"", step.Sql);
+        Assert.Equal("-- ALTER TABLE \"TEST\".\"KUNDE\" RENAME TO \"Kunde\"", DdlScript.Text(step));
         Assert.Contains("EF Core", step.Warning);
     }
 
@@ -207,7 +209,7 @@ public class SchemaDdlTests
     {
         var step = Single(Align(Table("KUNDE", [Id]), Table("KUNDE", [Id], kind: TableKind.View)));
 
-        Assert.True(step.IsCommented);
+        Assert.False(step.IsExecutable);
         Assert.Contains("Referenz Tabelle, im Ziel View", step.Sql);
         Assert.NotNull(step.Warning);
     }
@@ -217,7 +219,7 @@ public class SchemaDdlTests
     {
         var step = Single(Align(Table("KUNDE", [Id], iot: true), Table("KUNDE", [Id])));
 
-        Assert.True(step.IsCommented);
+        Assert.False(step.IsExecutable);
         Assert.Contains("index-organisiert", step.Sql);
     }
 
@@ -228,7 +230,7 @@ public class SchemaDdlTests
             Table("V_KUNDE", [Id, Column("NAME", "VARCHAR2", length: 50)], kind: TableKind.View),
             Table("V_KUNDE", [Id], kind: TableKind.View)));
 
-        Assert.Equal("-- CREATE OR REPLACE VIEW \"TEST\".\"V_KUNDE\" AS …  (abweichend: NAME)", step.Sql);
+        Assert.Equal("-- CREATE OR REPLACE VIEW \"TEST\".\"V_KUNDE\" AS …  (abweichend: NAME)", DdlScript.Text(step));
     }
 
     // ---- columns ----
@@ -259,30 +261,47 @@ public class SchemaDdlTests
     {
         var step = Single(Align(Kunde(), Kunde(Column("ALT", "NUMBER"))));
 
-        Assert.Equal("-- ALTER TABLE \"TEST\".\"KUNDE\" DROP COLUMN \"ALT\"", step.Sql);
+        Assert.Equal("-- ALTER TABLE \"TEST\".\"KUNDE\" DROP COLUMN \"ALT\"", DdlScript.Text(step));
         Assert.Equal("Löscht die Spalte mit ihren Daten.", step.Warning);
     }
 
+    /// <summary>
+    /// What a MODIFY needs comes from <see cref="OracleTypes.ChangeOf"/>, as in the designer (R4b, A4: before, every change
+    /// that was no plain widening "may fail on data" – NUMBER(10) → NUMBER(10,2) and NVARCHAR2 → VARCHAR2 need an empty
+    /// column, BYTE → CHAR and DATE → TIMESTAMP need nothing).
+    /// </summary>
     [Theory]
-    [InlineData("VARCHAR2", 100, true, null, null, "VARCHAR2", 50, true, null, null, "VARCHAR2(100 CHAR)", false)]
-    [InlineData("VARCHAR2", 30, true, null, null, "VARCHAR2", 50, true, null, null, "VARCHAR2(30 CHAR)", true)]
-    [InlineData("VARCHAR2", 50, true, null, null, "VARCHAR2", 50, false, null, null, "VARCHAR2(50 CHAR)", true)]
-    [InlineData("NUMBER", null, false, 12, 2, "NUMBER", null, false, 10, 2, "NUMBER(12,2)", false)]
-    [InlineData("NUMBER", null, false, 8, 2, "NUMBER", null, false, 10, 2, "NUMBER(8,2)", true)]
-    [InlineData("NUMBER", null, false, 10, 3, "NUMBER", null, false, 10, 2, "NUMBER(10,3)", true)]
-    [InlineData("TIMESTAMP(6)", null, false, null, 6, "DATE", null, false, null, null, "TIMESTAMP(6)", true)]
-    [InlineData("RAW", 32, false, null, null, "RAW", 16, false, null, null, "RAW(32)", false)]
+    [InlineData("VARCHAR2", 100, true, null, null, "VARCHAR2", 50, true, null, null, "VARCHAR2(100 CHAR)", DdlRisk.Safe)]
+    [InlineData("VARCHAR2", 30, true, null, null, "VARCHAR2", 50, true, null, null, "VARCHAR2(30 CHAR)", DdlRisk.MayFailOnValues)]
+    [InlineData("VARCHAR2", 50, false, null, null, "VARCHAR2", 50, true, null, null, "VARCHAR2(50 BYTE)", DdlRisk.MayFailOnValues)]
+    [InlineData("VARCHAR2", 50, true, null, null, "VARCHAR2", 50, false, null, null, "VARCHAR2(50 CHAR)", DdlRisk.Safe)]
+    [InlineData("VARCHAR2", 50, false, null, null, "NVARCHAR2", 50, false, null, null, "VARCHAR2(50 BYTE)", DdlRisk.NeedsEmptyColumn)]
+    [InlineData("NUMBER", null, false, 12, 2, "NUMBER", null, false, 10, 2, "NUMBER(12,2)", DdlRisk.Safe)]
+    [InlineData("NUMBER", null, false, 10, 2, "NUMBER", null, false, 10, 0, "NUMBER(10,2)", DdlRisk.NeedsEmptyColumn)]
+    [InlineData("NUMBER", null, false, 8, 2, "NUMBER", null, false, 10, 2, "NUMBER(8,2)", DdlRisk.NeedsEmptyColumn)]
+    [InlineData("NUMBER", null, false, 10, 3, "NUMBER", null, false, 10, 2, "NUMBER(10,3)", DdlRisk.NeedsEmptyColumn)]
+    [InlineData("NUMBER", null, false, 12, 2, "NUMBER", null, false, 5, 0, "NUMBER(12,2)", DdlRisk.Safe)]
+    [InlineData("TIMESTAMP(6)", null, false, null, 6, "DATE", null, false, null, null, "TIMESTAMP(6)", DdlRisk.Safe)]
+    [InlineData("RAW", 32, false, null, null, "RAW", 16, false, null, null, "RAW(32)", DdlRisk.Safe)]
+    [InlineData("RAW", 8, false, null, null, "RAW", 16, false, null, null, "RAW(8)", DdlRisk.MayFailOnValues)]
     public void Type_change_within_a_family_is_a_modify(
         string type, int? length, bool chars, int? precision, int? scale,
         string targetType, int? targetLength, bool targetChars, int? targetPrecision, int? targetScale,
-        string expected, bool warns)
+        string expected, DdlRisk risk)
     {
         var step = Single(Align(
             Kunde(Column("X", type, length, chars, precision, scale)),
             Kunde(Column("X", targetType, targetLength, targetChars, targetPrecision, targetScale))));
 
         Assert.Equal($"ALTER TABLE \"TEST\".\"KUNDE\" MODIFY (\"X\" {expected})", step.Sql);
-        Assert.Equal(warns ? "Kann an vorhandenen Daten scheitern (Länge, Genauigkeit oder BYTE/CHAR)." : null, step.Warning);
+        Assert.Equal(DdlStepKind.ModifyType, step.Kind);
+        Assert.Equal(risk, step.Risk);
+        Assert.Equal(risk switch
+        {
+            DdlRisk.MayFailOnValues => "Scheitert, wenn ein Wert für die neue Länge oder BYTE/CHAR zu lang ist (ORA-01441).",
+            DdlRisk.NeedsEmptyColumn => "Geht nur bei leerer Spalte (weniger Stellen, NVARCHAR2 → VARCHAR2, Zeitzone …). Mit Daten: neue Spalte anlegen, Daten umkopieren, alte löschen, umbenennen.",
+            _ => null,
+        }, step.Warning);
     }
 
     [Theory]
@@ -296,7 +315,7 @@ public class SchemaDdlTests
             Kunde(Column("X", type, length: type == "VARCHAR2" ? 10 : null)),
             Kunde(Column("X", targetType, length: targetType == "VARCHAR2" ? 10 : null))));
 
-        Assert.True(step.IsCommented);
+        Assert.False(step.IsExecutable);
         Assert.Contains("neue Spalte", step.Warning);
     }
 
@@ -360,7 +379,7 @@ public class SchemaDdlTests
             Kunde(Column("A", "NUMBER"), Column("B", "NUMBER", isVirtual: true, @default: "ID*3")));
 
         Assert.Equal(2, proposal.Steps.Count);
-        Assert.All(proposal.Steps, s => Assert.True(s.IsCommented));
+        Assert.All(proposal.Steps, s => Assert.False(s.IsExecutable));
         Assert.All(proposal.Steps, s => Assert.Contains("nicht per MODIFY", s.Warning));
     }
 
@@ -380,7 +399,7 @@ public class SchemaDdlTests
     {
         var step = Single(Align(Kunde(Column("eMail", "NUMBER")), Kunde(Column("EMAIL", "NUMBER"))));
 
-        Assert.Equal("-- ALTER TABLE \"TEST\".\"KUNDE\" RENAME COLUMN \"EMAIL\" TO \"eMail\"", step.Sql);
+        Assert.Equal("-- ALTER TABLE \"TEST\".\"KUNDE\" RENAME COLUMN \"EMAIL\" TO \"eMail\"", DdlScript.Text(step));
     }
 
     [Fact]
@@ -392,7 +411,7 @@ public class SchemaDdlTests
         Assert.Empty(Align(reference, target).Steps);
 
         var step = Single(Align(reference, target, new CompareOptions(Reference: 0, ColumnOrder: true)));
-        Assert.Equal("-- \"TEST\".\"KUNDE\": Spaltenreihenfolge weicht ab (ID, A, B)", step.Sql);
+        Assert.Equal("-- \"TEST\".\"KUNDE\": Spaltenreihenfolge weicht ab (ID, A, B)", DdlScript.Text(step));
         Assert.Contains("nicht umsortieren", step.Warning);
     }
 
@@ -435,7 +454,7 @@ public class SchemaDdlTests
         var proposal = Align(Kunde(), Table("KUNDE", [Id], [PrimaryKey("PK_KUNDE", "ID"), Check("SYS_C0042", "ID > 0")], [UniqueIndex(Tgt, "PK_KUNDE", On("ID"))]));
 
         var step = Single(proposal);
-        Assert.Equal("-- ALTER TABLE \"TEST\".\"KUNDE\" DROP CONSTRAINT \"SYS_C0042\"", step.Sql);
+        Assert.Equal("-- ALTER TABLE \"TEST\".\"KUNDE\" DROP CONSTRAINT \"SYS_C0042\"", DdlScript.Text(step));
         Assert.Equal("Löscht die Prüfung.", step.Warning);
     }
 
@@ -531,8 +550,8 @@ public class SchemaDdlTests
 
         Assert.Equal(
             ["-- ALTER INDEX \"TEST\".\"KUNDE_NR_IDX\" RENAME TO \"IX_NR\"", "-- DROP INDEX \"TEST\".\"KUNDE_NR_IDX\""],
-            step.Select(s => s.Sql).Order(StringComparer.Ordinal));
-        Assert.All(step, s => Assert.True(s.IsCommented));
+            step.Select(DdlScript.Text).Order(StringComparer.Ordinal));
+        Assert.All(step, s => Assert.False(s.IsExecutable));
     }
 
     [Fact]
@@ -587,7 +606,7 @@ public class SchemaDdlTests
             Table("KUNDE", [Id], [], [Index(Ref, "IX_TEXT", On("ID")) with { IndexType = "DOMAIN" }]),
             Table("KUNDE", [Id])));
 
-        Assert.True(step.IsCommented);
+        Assert.False(step.IsExecutable);
         Assert.Contains("DOMAIN", step.Sql);
     }
 
@@ -638,7 +657,7 @@ public class SchemaDdlTests
             Snapshot("PROD", Table("A", [Id])));
 
         Assert.Empty(SchemaDdl.Align(comparison, 1, 2).Steps);
-        Assert.Equal(["-- ALTER TABLE \"DEV\".\"A\" DROP COLUMN \"X\""], SchemaDdl.Align(comparison, 2, 0).Steps.Select(s => s.Sql));
+        Assert.Equal(["-- ALTER TABLE \"DEV\".\"A\" DROP COLUMN \"X\""], SchemaDdl.Align(comparison, 2, 0).Steps.Select(DdlScript.Text));
         Assert.Equal(["ALTER TABLE \"PROD\".\"A\" ADD (\"X\" NUMBER)"], SchemaDdl.Align(comparison, 0, 2).Steps.Select(s => s.Sql));
     }
 
@@ -701,7 +720,7 @@ public class SchemaDdlTests
     [Fact]
     public void Script_comments_every_line_of_a_multi_line_hint_and_every_warning_line()
     {
-        var proposal = new DdlProposal(0, 1, [new DdlStep("X", "-- CREATE VIEW X AS\nSELECT 1 FROM DUAL", "Erste Zeile\nZweite Zeile")]);
+        var proposal = new DdlProposal(0, 1, [DdlStep.Hint("X", "CREATE VIEW X AS\nSELECT 1 FROM DUAL", "Erste Zeile\nZweite Zeile")]);
 
         var lines = proposal.Script.ReplaceLineEndings("\n").Split('\n');
 

@@ -198,7 +198,11 @@
     <comment>{0}: type in the target; {1}: type in the reference</comment>
   </data>
   <data name="MayFailOnData" xml:space="preserve">
-    <value>May fail on existing data (length, precision or BYTE/CHAR).</value>
+    <value>Fails if a value is too long for the new length or BYTE/CHAR (ORA-01441).</value>
+  </data>
+  <data name="NeedsEmptyColumn" xml:space="preserve">
+    <value>Only works while the column is empty (fewer digits, NVARCHAR2 → VARCHAR2, time zone …). With data: add a new column, copy the data, drop the old one, rename.</value>
+    <comment>Warning above a MODIFY of the column's type in the DDL proposal</comment>
   </data>
   <data name="DefaultOnNullMakesNotNull" xml:space="preserve">
     <value>DEFAULT ON NULL makes the column NOT NULL: fails if it contains NULL values.</value>

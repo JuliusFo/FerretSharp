@@ -1,6 +1,7 @@
 @* "Indexes" view: indexes of the table with columns/expressions and state, plus foreign keys without a supporting index.
    WP-23: "Create index" (columns in order, optionally UNIQUE) and "Create index for it" on an unindexed foreign key open a
    draft above the list; its DDL is run, opened in the SQL editor or saved through DdlDraftPanel. *@
+@using FerretSharp.Core.Ddl
 @using FerretSharp.Core.Design
 @using FerretSharp.Core.Oracle
 @using FerretSharp.Core.Schema
@@ -74,7 +75,7 @@ else
                         @SchemaViewText.Indexes_UniqueOption
                     </label>
                 </div>
-                <DdlDraftPanel WorkspaceId="WorkspaceId" Statements="Statements(draft)" Problems="check.Problems" Warnings="check.Warnings"
+                <DdlDraftPanel WorkspaceId="WorkspaceId" Steps="Steps(draft)" Problems="check.Problems" Warnings="check.Warnings"
                                FileName="@($"{DateTime.Now:yyyy-MM-dd}_{draft.Name}.sql")" OnRan="OnRanAsync" OnClose="() => _drafting = false" />
             </section>
         }
@@ -214,8 +215,8 @@ else
     }
 
     /// <summary>The CREATE INDEX, as soon as there is something to write (problems keep it from running).</summary>
-    private IReadOnlyList<string> Statements(IndexDraft draft) =>
-        draft.Columns.Count > 0 && draft.Name.Length > 0 && !draft.Name.Contains('"', StringComparison.Ordinal) ? [IndexDesign.Ddl(draft, Table.Ref)] : [];
+    private IReadOnlyList<DdlStep> Steps(IndexDraft draft) =>
+        draft.Columns.Count > 0 && draft.Name.Length > 0 && !draft.Name.Contains('"', StringComparison.Ordinal) ? [IndexDesign.Step(draft, Table.Ref)] : [];
 
     private async Task OnRanAsync()
     {

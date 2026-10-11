@@ -131,13 +131,111 @@ public class DdlOutputTests
         return TableDesign.PlanNew(new NewTable("SHOP", "ORT", "Orte"), draft, new Dictionary<TableRef, TableDetails> { [Land.Table.Ref] = Land }, ["KUNDE"]);
     }
 
+    /// <summary>
+    /// The script before R4b. The comparison had an order of its own (a constraint it recreates dropped among the keys,
+    /// comments with their columns, new columns between the changed ones); since then the order is the designer's
+    /// (<see cref="DdlScript.Stage"/>), the steps are the same.
+    /// </summary>
+    private const string Before =
+    """
+    -- DDL-Vorschlag: TEST (Seite 2) an die Referenz DEV (Seite 1) angleichen.
+    -- Von FerretSharp erzeugt, nicht ausgeführt: vor dem Ausführen prüfen. Auskommentiertes bewusst entscheiden.
+
+    CREATE TABLE "TEST"."AUFTRAG" (
+        "ID" NUMBER(10) NOT NULL,
+        "KUNDE_ID" NUMBER(10),
+        "NR" VARCHAR2(20 BYTE),
+        "MENGE" NUMBER);
+
+    COMMENT ON COLUMN "TEST"."AUFTRAG"."NR" IS 'Auftragsnummer';
+
+    ALTER TABLE "TEST"."KUNDE" MODIFY ("NAME" VARCHAR2(100 CHAR));
+
+    -- ⚠ Schlägt fehl, wenn die Tabelle Zeilen mit NULL in dieser Spalte hat.
+    ALTER TABLE "TEST"."KUNDE" MODIFY ("NAME" NOT NULL);
+
+    -- ⚠ Kann an vorhandenen Daten scheitern (Länge, Genauigkeit oder BYTE/CHAR).
+    ALTER TABLE "TEST"."KUNDE" MODIFY ("BETRAG" NUMBER(10,2));
+
+    -- ⚠ Kann an vorhandenen Daten scheitern (Länge, Genauigkeit oder BYTE/CHAR).
+    ALTER TABLE "TEST"."KUNDE" MODIFY ("TEXT" VARCHAR2(50 BYTE));
+
+    ALTER TABLE "TEST"."KUNDE" MODIFY ("STATUS" DEFAULT 'A');
+
+    ALTER TABLE "TEST"."KUNDE" MODIFY ("LAND" DEFAULT 'DE');
+
+    -- ⚠ Nur nötig, wenn die Spalte nach dem Entfernen von DEFAULT ON NULL noch NOT NULL ist (Oracle 23 hebt beides zusammen auf).
+    -- ALTER TABLE "TEST"."KUNDE" MODIFY ("LAND" NULL)
+
+    COMMENT ON COLUMN "TEST"."KUNDE"."NOTIZ" IS 'neu';
+
+    -- ⚠ Schlägt fehl, wenn die Tabelle Zeilen hat (NOT NULL ohne Default).
+    ALTER TABLE "TEST"."KUNDE" ADD ("NEU" NUMBER NOT NULL);
+
+    COMMENT ON COLUMN "TEST"."KUNDE"."NEU" IS 'Neue Spalte';
+
+    ALTER TABLE "TEST"."AUFTRAG" ADD CONSTRAINT "PK_AUFTRAG" PRIMARY KEY ("ID");
+
+    -- ⚠ Prüft die vorhandenen Zeilen und scheitert bei Verstößen.
+    ALTER TABLE "TEST"."KUNDE" ADD CONSTRAINT "UQ_KUNDE_NAME" UNIQUE ("NAME");
+
+    ALTER TABLE "TEST"."AUFTRAG" ADD CHECK (MENGE > 0);
+
+    -- ⚠ Wird gelöscht und neu angelegt; das Anlegen prüft die vorhandenen Zeilen.
+    ALTER TABLE "TEST"."KUNDE" DROP CONSTRAINT "CK_KUNDE_STATUS";
+
+    ALTER TABLE "TEST"."KUNDE" ADD CONSTRAINT "CK_KUNDE_STATUS" CHECK (STATUS IN ('A', 'B'));
+
+    ALTER TABLE "TEST"."AUFTRAG" ADD CONSTRAINT "FK_AUFTRAG_KUNDE" FOREIGN KEY ("KUNDE_ID") REFERENCES "TEST"."KUNDE" ("ID") ON DELETE CASCADE;
+
+    CREATE INDEX "TEST"."IX_AUFTRAG_KUNDE" ON "TEST"."AUFTRAG" ("KUNDE_ID");
+
+    -- ⚠ Wird gelöscht und neu aufgebaut. Stützt er einen Schlüssel, scheitert das Löschen (ORA-02429).
+    DROP INDEX "TEST"."IX_KUNDE_LAND";
+
+    CREATE INDEX "TEST"."IX_KUNDE_LAND" ON "TEST"."KUNDE" ("LAND", "ID");
+
+    -- ⚠ Spalte nur in anderer Schreibweise. Code und EF Core (quotet Namen) verweisen auf den genauen Namen – erst klären, welcher richtig ist.
+    -- ALTER TABLE "TEST"."KUNDE" RENAME COLUMN "EMAIL" TO "eMail"
+
+    -- ⚠ Identity- und virtuelle Spalten lassen sich nicht per MODIFY umstellen: neue Spalte anlegen und Daten umkopieren.
+    -- "TEST"."KUNDE"."BRUTTO": Referenz virtuell AS (BETRAG*2), Ziel virtuell AS (BETRAG*3)
+
+    -- ⚠ Löscht die Spalte mit ihren Daten.
+    -- ALTER TABLE "TEST"."KUNDE" DROP COLUMN "ALT"
+
+    -- ⚠ Löscht die Prüfung.
+    -- ALTER TABLE "TEST"."KUNDE" DROP CONSTRAINT "CK_KUNDE_ALT"
+
+    -- ⚠ Löscht den Index. Stützt er einen Schlüssel, lehnt Oracle das ab (ORA-02429).
+    -- DROP INDEX "TEST"."IX_KUNDE_ALT"
+
+    -- ⚠ Die Definition der View gehört nicht zum Vergleich: aus der DDL-Ansicht der Referenz übernehmen.
+    -- CREATE VIEW "TEST"."V_KUNDE" AS …
+
+    -- ⚠ Löscht die Tabelle mit allen Daten.
+    -- DROP TABLE "TEST"."ZOMBIE"
+
+    """;
+
     [Fact]
-    public void The_comparison_writes_its_script_as_before()
+    public void The_comparison_writes_the_same_steps_as_before_in_the_shared_order()
     {
+        var script = Comparison().Script.ReplaceLineEndings("\n");
+
+        // A4: NUMBER(10) → NUMBER(10,2) and NVARCHAR2 → VARCHAR2 "may fail on data" – they need an empty column.
+        const string mayFail = "-- ⚠ Kann an vorhandenen Daten scheitern (Länge, Genauigkeit oder BYTE/CHAR).";
+        const string needsEmpty = "-- ⚠ Geht nur bei leerer Spalte (weniger Stellen, NVARCHAR2 → VARCHAR2, Zeitzone …). Mit Daten: neue Spalte anlegen, Daten umkopieren, alte löschen, umbenennen.";
+        var before = Before.ReplaceLineEndings("\n").Replace(mayFail, needsEmpty, StringComparison.Ordinal);
+        Assert.Equal(Blocks(before), Blocks(script));
+
         Assert.Equal(
             """
             -- DDL-Vorschlag: TEST (Seite 2) an die Referenz DEV (Seite 1) angleichen.
             -- Von FerretSharp erzeugt, nicht ausgeführt: vor dem Ausführen prüfen. Auskommentiertes bewusst entscheiden.
+
+            -- ⚠ Wird gelöscht und neu angelegt; das Anlegen prüft die vorhandenen Zeilen.
+            ALTER TABLE "TEST"."KUNDE" DROP CONSTRAINT "CK_KUNDE_STATUS";
 
             CREATE TABLE "TEST"."AUFTRAG" (
                 "ID" NUMBER(10) NOT NULL,
@@ -145,17 +243,15 @@ public class DdlOutputTests
                 "NR" VARCHAR2(20 BYTE),
                 "MENGE" NUMBER);
 
-            COMMENT ON COLUMN "TEST"."AUFTRAG"."NR" IS 'Auftragsnummer';
-
             ALTER TABLE "TEST"."KUNDE" MODIFY ("NAME" VARCHAR2(100 CHAR));
 
             -- ⚠ Schlägt fehl, wenn die Tabelle Zeilen mit NULL in dieser Spalte hat.
             ALTER TABLE "TEST"."KUNDE" MODIFY ("NAME" NOT NULL);
 
-            -- ⚠ Kann an vorhandenen Daten scheitern (Länge, Genauigkeit oder BYTE/CHAR).
+            -- ⚠ Geht nur bei leerer Spalte (weniger Stellen, NVARCHAR2 → VARCHAR2, Zeitzone …). Mit Daten: neue Spalte anlegen, Daten umkopieren, alte löschen, umbenennen.
             ALTER TABLE "TEST"."KUNDE" MODIFY ("BETRAG" NUMBER(10,2));
 
-            -- ⚠ Kann an vorhandenen Daten scheitern (Länge, Genauigkeit oder BYTE/CHAR).
+            -- ⚠ Geht nur bei leerer Spalte (weniger Stellen, NVARCHAR2 → VARCHAR2, Zeitzone …). Mit Daten: neue Spalte anlegen, Daten umkopieren, alte löschen, umbenennen.
             ALTER TABLE "TEST"."KUNDE" MODIFY ("TEXT" VARCHAR2(50 BYTE));
 
             ALTER TABLE "TEST"."KUNDE" MODIFY ("STATUS" DEFAULT 'A');
@@ -165,12 +261,8 @@ public class DdlOutputTests
             -- ⚠ Nur nötig, wenn die Spalte nach dem Entfernen von DEFAULT ON NULL noch NOT NULL ist (Oracle 23 hebt beides zusammen auf).
             -- ALTER TABLE "TEST"."KUNDE" MODIFY ("LAND" NULL)
 
-            COMMENT ON COLUMN "TEST"."KUNDE"."NOTIZ" IS 'neu';
-
             -- ⚠ Schlägt fehl, wenn die Tabelle Zeilen hat (NOT NULL ohne Default).
             ALTER TABLE "TEST"."KUNDE" ADD ("NEU" NUMBER NOT NULL);
-
-            COMMENT ON COLUMN "TEST"."KUNDE"."NEU" IS 'Neue Spalte';
 
             ALTER TABLE "TEST"."AUFTRAG" ADD CONSTRAINT "PK_AUFTRAG" PRIMARY KEY ("ID");
 
@@ -178,9 +270,6 @@ public class DdlOutputTests
             ALTER TABLE "TEST"."KUNDE" ADD CONSTRAINT "UQ_KUNDE_NAME" UNIQUE ("NAME");
 
             ALTER TABLE "TEST"."AUFTRAG" ADD CHECK (MENGE > 0);
-
-            -- ⚠ Wird gelöscht und neu angelegt; das Anlegen prüft die vorhandenen Zeilen.
-            ALTER TABLE "TEST"."KUNDE" DROP CONSTRAINT "CK_KUNDE_STATUS";
 
             ALTER TABLE "TEST"."KUNDE" ADD CONSTRAINT "CK_KUNDE_STATUS" CHECK (STATUS IN ('A', 'B'));
 
@@ -192,6 +281,12 @@ public class DdlOutputTests
             DROP INDEX "TEST"."IX_KUNDE_LAND";
 
             CREATE INDEX "TEST"."IX_KUNDE_LAND" ON "TEST"."KUNDE" ("LAND", "ID");
+
+            COMMENT ON COLUMN "TEST"."AUFTRAG"."NR" IS 'Auftragsnummer';
+
+            COMMENT ON COLUMN "TEST"."KUNDE"."NOTIZ" IS 'neu';
+
+            COMMENT ON COLUMN "TEST"."KUNDE"."NEU" IS 'Neue Spalte';
 
             -- ⚠ Spalte nur in anderer Schreibweise. Code und EF Core (quotet Namen) verweisen auf den genauen Namen – erst klären, welcher richtig ist.
             -- ALTER TABLE "TEST"."KUNDE" RENAME COLUMN "EMAIL" TO "eMail"
@@ -215,8 +310,11 @@ public class DdlOutputTests
             -- DROP TABLE "TEST"."ZOMBIE"
 
             """.ReplaceLineEndings("\n"),
-            Comparison().Script.ReplaceLineEndings("\n"));
+            script);
     }
+
+    /// <summary>The script's steps (blocks between blank lines), in ordinal order.</summary>
+    private static IEnumerable<string> Blocks(string script) => script.Split("\n\n").Select(b => b.Trim('\n')).Order(StringComparer.Ordinal);
 
     [Fact]
     public void The_designer_writes_its_statements_as_before()

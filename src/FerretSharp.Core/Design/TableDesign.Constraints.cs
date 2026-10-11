@@ -1,6 +1,5 @@
 using System.Text;
-using FerretSharp.Core.Compare;
-using FerretSharp.Core.Oracle;
+using FerretSharp.Core.Ddl;
 using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 
@@ -46,7 +45,7 @@ public static partial class TableDesign
                     }
                 }
 
-                _dropConstraints.Add($"ALTER TABLE {Table} DROP CONSTRAINT {OracleIdentifier.Quote(constraint.Name)}");
+                Keep(DdlStepKind.DropConstraint, OracleDdl.DropConstraint(Table, constraint.Name));
             }
         }
 
@@ -79,7 +78,7 @@ public static partial class TableDesign
 
                 var info = new ConstraintInfo(added.Name, added.Type, added.Columns, added.Condition?.Trim(), added.References, added.ReferencedColumns ?? [],
                     added.DeleteRule, Enabled: true, Validated: true, Deferrable: false, InitiallyDeferred: false, GeneratedName: added.Name.Length == 0);
-                _addConstraints.Add($"ALTER TABLE {Table} ADD {DdlText.ConstraintClause(info, table => table)}");
+                Keep(OracleDdl.AddKind(added.Type), OracleDdl.AddConstraint(Table, OracleDdl.ConstraintClause(info, table => table)));
                 if (added.Type is ConstraintType.PrimaryKey or ConstraintType.Unique)
                 {
                     keys.Add(info);
@@ -99,7 +98,7 @@ public static partial class TableDesign
                     {
                         var name = IndexDesign.SuggestName(current.Table.Name, added.Columns, indexNames);
                         indexNames.Add(name);
-                        _indexes.Add(IndexDesign.Ddl(new IndexDraft(name, added.Columns), current.Table.Ref));
+                        Keep(DdlStepKind.CreateIndex, IndexDesign.Ddl(new IndexDraft(name, added.Columns), current.Table.Ref));
                     }
                     else
                     {

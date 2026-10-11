@@ -1,4 +1,5 @@
 using FerretSharp.Core.Compare;
+using FerretSharp.Core.Ddl;
 using FerretSharp.Core.Oracle;
 using FerretSharp.Core.Schema;
 using Oracle.ManagedDataAccess.Client;
@@ -65,17 +66,17 @@ public sealed class SchemaDdlTests(OracleContainerFixture oracle) : IAsyncLifeti
         var reference = Snapshot(ReferenceOwner, ReferenceObjects());
         var proposal = SchemaDdl.Align(Of(reference, await ReadTargetAsync()), 0, 1);
 
-        var statements = proposal.Steps.Where(s => !s.IsCommented).Select(s => s.Sql).ToList();
+        var statements = proposal.Steps.Where(s => s.IsExecutable).Select(s => s.Sql).ToList();
         Assert.True(statements.Count > 20, proposal.Script);
         await ExecuteAsync(statements);
 
         // Run again: what is left are the hints and drops the user decides about.
         var again = SchemaDdl.Align(Of(reference, await ReadTargetAsync()), 0, 1);
-        Assert.True(again.Steps.All(s => s.IsCommented), again.Script);
-        Assert.Contains(again.Steps, s => s.Sql == $"-- ALTER TABLE \"{_owner}\".\"DA_KUNDE\" DROP COLUMN \"ALT\"");
-        Assert.Contains(again.Steps, s => s.Sql == $"-- DROP TABLE \"{_owner}\".\"DA_ALT\"");
-        Assert.Contains(again.Steps, s => s.Sql == $"-- DROP INDEX \"{_owner}\".\"IX_DA_KUNDE_ALT\"");
-        Assert.Contains(again.Steps, s => s.Sql.StartsWith($"-- CREATE VIEW \"{_owner}\".\"DA_V\"", StringComparison.Ordinal));
+        Assert.True(again.Steps.All(s => !s.IsExecutable), again.Script);
+        Assert.Contains(again.Steps, s => DdlScript.Text(s) == $"-- ALTER TABLE \"{_owner}\".\"DA_KUNDE\" DROP COLUMN \"ALT\"");
+        Assert.Contains(again.Steps, s => DdlScript.Text(s) == $"-- DROP TABLE \"{_owner}\".\"DA_ALT\"");
+        Assert.Contains(again.Steps, s => DdlScript.Text(s) == $"-- DROP INDEX \"{_owner}\".\"IX_DA_KUNDE_ALT\"");
+        Assert.Contains(again.Steps, s => DdlScript.Text(s).StartsWith($"-- CREATE VIEW \"{_owner}\".\"DA_V\"", StringComparison.Ordinal));
 
         // A few things the comparison helper does not look at.
         var kunde = await Reader.GetDetailsAsync(new TableSummary(_owner, "DA_KUNDE", TableKind.Table), Ct);
@@ -84,7 +85,7 @@ public sealed class SchemaDdlTests(OracleContainerFixture oracle) : IAsyncLifeti
         var land = kunde.Columns.Single(c => c.Name == "LAND");
         Assert.False(land.DefaultOnNull);
         Assert.True(land.Nullable); // Oracle 23 took NOT NULL away with ON NULL; the NULL step stayed a hint
-        Assert.Contains(proposal.Steps, s => s.Sql == $"-- ALTER TABLE \"{_owner}\".\"DA_KUNDE\" MODIFY (\"LAND\" NULL)");
+        Assert.Contains(proposal.Steps, s => DdlScript.Text(s) == $"-- ALTER TABLE \"{_owner}\".\"DA_KUNDE\" MODIFY (\"LAND\" NULL)");
         var flag = kunde.Columns.Single(c => c.Name == "FLAG");
         Assert.False(flag.DefaultOnNull);
         Assert.False(flag.Nullable);
