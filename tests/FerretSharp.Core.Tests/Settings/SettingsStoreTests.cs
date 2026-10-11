@@ -138,6 +138,18 @@ public sealed class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task Starting_again_with_the_same_broken_file_keeps_no_second_copy()
+    {
+        await File.WriteAllTextAsync(_store.FilePath, "{ kaputt", Ct);
+
+        var first = await AppSettingsService.OpenAsync(_store, Start, Ct);
+        var second = await AppSettingsService.OpenAsync(_store, Start.AddMinutes(5), Ct);
+
+        Assert.Equal(first.StartupNotice, second.StartupNotice); // names the same copy
+        Assert.Single(Directory.GetFiles(_folder.Path, "settings.json.bad-*"));
+    }
+
+    [Fact]
     public async Task Without_a_copy_nothing_is_saved_in_the_session()
     {
         await File.WriteAllTextAsync(_store.FilePath, "{ not json", Ct);

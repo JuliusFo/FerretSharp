@@ -61,6 +61,14 @@ public sealed class SettingsStore(string filePath)
     /// <exception cref="UnauthorizedAccessException">The file could not be copied.</exception>
     public string KeepCopy(DateTimeOffset now)
     {
+        // Every start with the same file would add a copy (E2E run): an identical one is kept already.
+        var content = File.ReadAllBytes(FilePath);
+        var folder = Path.GetDirectoryName(Path.GetFullPath(FilePath))!;
+        if (Directory.EnumerateFiles(folder, Path.GetFileName(FilePath) + ".bad-*").FirstOrDefault(f => File.ReadAllBytes(f).AsSpan().SequenceEqual(content)) is { } kept)
+        {
+            return kept;
+        }
+
         var copy = $"{FilePath}.bad-{now:yyyyMMdd-HHmmss}";
         File.Copy(FilePath, copy, overwrite: false);
         return copy;
