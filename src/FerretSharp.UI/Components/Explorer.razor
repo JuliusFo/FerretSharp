@@ -5,6 +5,7 @@
 @inject IJSRuntime JS
 @inject ILogger<Explorer> Logger
 
+@{ _shellKey = ShellKey(); }
 <aside class="sidebar explorer">
     <div class="sidebar-head">
         <div class="schema-row">
@@ -161,10 +162,46 @@
         _ => SchemaViewText.Explorer_SearchTablePlaceholder,
     };
 
+    /// <summary>What the list showed of the shell at its last render (<see cref="ShellKey"/>).</summary>
+    private string? _shellKey;
+
+    /// <summary>
+    /// What the list shows of the shell: the active tab and the open tabs, marked in the list. The shell changes far more
+    /// often – every cell edit updates the counts of the status bar –, and the explorer of every open connection rendered
+    /// its whole list for it (R4b, measured: one render of each open connection's list per cell edit).
+    /// </summary>
+    private string ShellKey()
+    {
+        var key = new System.Text.StringBuilder();
+        Append(Shell.ActiveTab);
+        foreach (var tab in Shell.Tabs)
+        {
+            Append(tab);
+        }
+
+        return key.ToString();
+
+        void Append(WorkspaceTab? tab) => key.Append(tab switch
+        {
+            TableTab table => "T" + table.Table.Ref,
+            PlSqlTab unit => "P" + unit.Unit.Ref,
+            _ => "-",
+        }).Append('|');
+    }
+
+    /// <summary>The shell changed: rendered again only if it changed what the list shows of it.</summary>
+    private void OnShellChanged() => InvokeAsync(() =>
+    {
+        if (ShellKey() != _shellKey)
+        {
+            StateHasChanged();
+        }
+    });
+
     protected override void OnInitialized()
     {
         Active.Changed += OnChanged;
-        Shell.Changed += OnChanged;
+        Shell.Changed += OnShellChanged;
         _presentationVersion = Presentation.Version;
         Presentation.Changed += OnPresentationChanged;
     }
@@ -437,7 +474,7 @@
     public async ValueTask DisposeAsync()
     {
         Active.Changed -= OnChanged;
-        Shell.Changed -= OnChanged;
+        Shell.Changed -= OnShellChanged;
         Presentation.Changed -= OnPresentationChanged;
         _searchCts?.Cancel();
         await Dom.DisposeAsync();
