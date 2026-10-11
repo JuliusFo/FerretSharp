@@ -63,6 +63,22 @@ public class PropertyCodeTests
         Assert.Equal(["Name und Typ wie bei CHARGEN_NR in einer anderen Entity des Projekts."], suggestion.Notes);
     }
 
+    /// <summary>
+    /// Found in the WP-23 E2E: the sample maps AKTIV as NUMBER(1) to a bool without converter; a new AKTIV CHAR(1) must not
+    /// copy that (EF Core would read a number), but take the project's yes/no converter.
+    /// </summary>
+    [Fact]
+    public void The_same_column_elsewhere_counts_only_if_its_property_can_read_this_one()
+    {
+        var model = Model(
+            Prop("Aktiv", "bool", "AKTIV"),
+            Prop("Gesperrt", "bool", "GESPERRT", "JaNeinConverter", "string"));
+        var number = new ColumnInfo("AKTIV", "NUMBER", null, false, 1, 0, false, false, null, 1);
+
+        Assert.Equal("builder.Property(x => x.Aktiv).HasConversion<JaNeinConverter>();", PropertyCode.Suggest(model, Col("AKTIV", "CHAR", 1, nullable: false)).Configuration);
+        Assert.Equal("builder.Property(x => x.Aktiv);", PropertyCode.Suggest(model, number).Configuration); // NUMBER(1): as elsewhere
+    }
+
     [Fact]
     public void An_inline_converter_is_left_to_the_user()
     {

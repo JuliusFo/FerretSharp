@@ -40,7 +40,7 @@
                     break;
                 case NewTableTab draft:
                     @Icons.For(FerretSharp.Core.Schema.TableKind.Table)
-                    <span class="tab-name">@(draft.Name.Length > 0 ? draft.Name : ShellText.TabBar_NewTable)</span>
+                    <span class="tab-name">@(draft.Table.Name.Length > 0 ? draft.Table.Name : ShellText.TabBar_NewTable)</span>
                     <span class="filter-pill">@ShellText.TabBar_NewTableBadge</span>
                     break;
                 case PlSqlTab plSql:

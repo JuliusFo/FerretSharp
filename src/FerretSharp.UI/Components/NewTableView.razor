@@ -3,21 +3,26 @@
    writes its C#. *@
 @using FerretSharp.Core.Oracle
 
-<div class="tab-details new-table">
-    <div class="details-body">
-        <section class="new-table-head">
-            <h2>@ShellText.TabBar_NewTable</h2>
-            <div class="index-draft-form">
-                <label for="@_nameId">@SchemaViewText.Head_Name</label>
-                <input id="@_nameId" class="field mono" spellcheck="false" value="@Tab.Name" @oninput="e => SetName((string?)e.Value)"
-                       placeholder="@SchemaViewText.NewTable_NamePlaceholder" />
-                <label for="@_commentId">@SchemaViewText.Columns_Comment</label>
-                <input id="@_commentId" class="field" @bind="Tab.Comment" @bind:event="oninput" />
-                <span></span>
-                <span class="muted small">@TextFormat.Format(SchemaViewText.NewTable_Schema, Tab.Owner)</span>
+@* The scrolling of the detail views: .structure scrolls inside the page, not the whole window. *@
+<div class="tabview new-table">
+    <div class="tab-details">
+        <div class="details-body">
+            <div class="structure">
+                <section class="new-table-head">
+                    <h2>@ShellText.TabBar_NewTable</h2>
+                    <div class="index-draft-form">
+                        <label for="@_nameId">@SchemaViewText.Head_Name</label>
+                        <input id="@_nameId" class="field mono" spellcheck="false" value="@Tab.Name" @oninput="e => SetName((string?)e.Value)"
+                               placeholder="@SchemaViewText.NewTable_NamePlaceholder" />
+                        <label for="@_commentId">@SchemaViewText.Columns_Comment</label>
+                        <input id="@_commentId" class="field" @bind="Tab.Comment" @bind:event="oninput" />
+                        <span></span>
+                        <span class="muted small">@TextFormat.Format(SchemaViewText.NewTable_Schema, Tab.Owner)</span>
+                    </div>
+                </section>
+                <TableDesigner Details="Tab.Designer.Table" WorkspaceId="Tab.WorkspaceId" NewTab="Tab" OnClose="() => Lifecycle.CloseTab(Tab)" />
             </div>
-        </section>
-        <TableDesigner Details="Tab.Designer.Table" WorkspaceId="Tab.WorkspaceId" NewTab="Tab" OnClose="() => Lifecycle.CloseTab(Tab)" />
+        </div>
     </div>
 </div>
 

@@ -1211,7 +1211,6 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .property-suggestions { display: flex; flex-direction: column; gap: 6px; }
 
 /* Table designer, stage 3 (WP-23): a new table's head and the C# of "Entity". */
-.new-table .details-body { padding-top: 18px; }
 .new-table-head { max-width: 1100px; }
 .new-table-head .index-draft-form > .field { max-width: 520px; }
 .entity-code { max-width: 1100px; display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
