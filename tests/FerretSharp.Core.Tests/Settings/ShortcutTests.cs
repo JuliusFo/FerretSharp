@@ -154,6 +154,24 @@ public sealed class ShortcutMapTests
         Assert.Empty(changed.Without(ShortcutAction.Flush));
     }
 
+    /// <summary>
+    /// R4a: Refresh moved to F6, Find column got F5, then Refresh was reset – both had F5, and Find column did nothing (the
+    /// first definition wins). The reset now takes the key back like setting it.
+    /// </summary>
+    [Fact]
+    public void A_reset_takes_the_default_key_back_from_the_action_that_has_it_meanwhile()
+    {
+        var map = new ShortcutMap(new ShortcutMap().With(ShortcutAction.Refresh, Chord("f6")));
+        map = new ShortcutMap(map.With(ShortcutAction.FindColumn, Chord("f5")));
+        Assert.Equal(ShortcutAction.FindColumn, map.Check(ShortcutAction.Refresh, Chord("f5")).Conflict); // what the page asks first
+
+        var reset = new ShortcutMap(map.Without(ShortcutAction.Refresh));
+
+        Assert.Equal(Chord("f5"), reset.Chord(ShortcutAction.Refresh));
+        Assert.Null(reset.Chord(ShortcutAction.FindColumn));
+        Assert.Equal(ShortcutAction.Refresh, reset.ActionFor("f5", ShortcutScope.Global));
+    }
+
     [Theory]
     [InlineData("alt+f4")]
     [InlineData("f12")]

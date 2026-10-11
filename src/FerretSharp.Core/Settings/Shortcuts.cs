@@ -246,13 +246,11 @@ public sealed class ShortcutMap
         return ShortcutOverrides.From(result);
     }
 
-    /// <summary>The stored differences without the one of <paramref name="action"/> (back to its default).</summary>
-    public ShortcutOverrides Without(ShortcutAction action)
-    {
-        var result = Overrides.ToDictionary();
-        result.Remove(action.ToString());
-        return ShortcutOverrides.From(result);
-    }
+    /// <summary>
+    /// The stored differences without the one of <paramref name="action"/> (back to its default). Like <see cref="With"/>, an
+    /// action that has the default chord meanwhile loses it (R4a: both had it, and one of them silently did nothing).
+    /// </summary>
+    public ShortcutOverrides Without(ShortcutAction action) => With(action, Own(action).DefaultChord);
 
     /// <summary>All defaults again; unknown entries (of a newer version) stay.</summary>
     public ShortcutOverrides Reset() =>

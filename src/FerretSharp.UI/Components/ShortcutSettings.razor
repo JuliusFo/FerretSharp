@@ -189,6 +189,13 @@
     private Task ResetAsync(ShortcutAction action)
     {
         _proposal = null;
+        // Another action has the default meanwhile: ask as when recording it, it would lose it (R4a).
+        if (ShortcutMap.Definition(action).DefaultChord is { } chord && Map.Check(action, chord) is { Conflict: not null } check)
+        {
+            _proposal = new Proposal(action, chord, check);
+            return Task.CompletedTask;
+        }
+
         return SaveAsync(() => Shortcuts.ResetAsync(action));
     }
 
