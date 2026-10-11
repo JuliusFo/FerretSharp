@@ -83,7 +83,7 @@ else
                 <h2>@SchemaViewText.Indexes_Heading <span class="count">@indexes.Count</span></h2>
                 @if (!_drafting)
                 {
-                    <button class="btn ghost" @onclick="() => StartDraft(null)">@SchemaViewText.Indexes_Create</button>
+                    <button class="btn" @onclick="() => StartDraft(null)"><span class="plus">+</span> @SchemaViewText.Indexes_Create</button>
                 }
             </div>
             @if (indexes.Count == 0)
