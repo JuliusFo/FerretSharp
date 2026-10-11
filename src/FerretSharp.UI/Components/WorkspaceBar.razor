@@ -123,7 +123,10 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (_focusRename)
+        // Only once the field is rendered: a render started before StartRename (Workspaces.Changed while a new workspace
+        // is created) reaches this point after the flag was set – its element reference is still empty, and focusing it
+        // threw in dom.js ("Unerwarteter Fehler", found in the WP-23 E2E).
+        if (_focusRename && _renameInput.Id is not null)
         {
             _focusRename = false;
             // Select the whole name, so typing replaces it.
@@ -203,6 +206,7 @@
 
     private void StartRename(Workspace workspace)
     {
+        _renameInput = default; // the field of an earlier rename is gone; wait for the new one
         _renaming = workspace.Id;
         _renameText = workspace.Name;
         _focusRename = true;
