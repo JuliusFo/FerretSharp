@@ -99,6 +99,9 @@
   <data name="Settings_DiagnoseUiStallsHint" xml:space="preserve">
     <value>Schreibt ins Log, wenn die Oberfläche länger als 0,3 s nicht reagiert, und womit FerretSharp da beschäftigt war. Ist das .NET-Werkzeug {0} installiert, kommen bei Hängern über 1,5 s die Stacks aller Threads als {1} in den Log-Ordner. Zum Eingrenzen von Hängern gedacht, nicht für den Alltag.</value>
   </data>
+  <data name="Settings_NotRead" xml:space="preserve">
+    <value>Einstellungen ließen sich nicht lesen.</value>
+  </data>
   <data name="Settings_NotSaved" xml:space="preserve">
     <value>Einstellung angewendet, aber nicht gespeichert: {0}</value>
   </data>

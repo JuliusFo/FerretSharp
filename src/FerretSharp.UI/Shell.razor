@@ -267,7 +267,7 @@
         KeepAlive.Start();
         if (Settings.StartupNotice is { } notice)
         {
-            _state.Notify(notice); // the settings file could not be read (R4a)
+            _state.Notify(ShellText.Settings_NotRead, [notice]); // the settings file could not be read (R4a); a warning stays longer
         }
 
         await Connections.LoadAsync(CancellationToken.None);

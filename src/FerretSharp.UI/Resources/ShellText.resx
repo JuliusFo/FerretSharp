@@ -118,6 +118,10 @@
     <value>Writes to the log when the user interface does not respond for more than 0.3 s, and what FerretSharp was busy with. If the .NET tool {0} is installed, stalls over 1.5 s also write the stacks of all threads to the log folder as {1}. Meant for tracking down stalls, not for everyday use.</value>
     <comment>{0} = dotnet-stack (code), {1} = stall-*.txt (code)</comment>
   </data>
+  <data name="Settings_NotRead" xml:space="preserve">
+    <value>Settings could not be read.</value>
+    <comment>Notice at start; the details (file, copy) follow as a warning</comment>
+  </data>
   <data name="Settings_NotSaved" xml:space="preserve">
     <value>Setting applied but not saved: {0}</value>
     <comment>{0} = error message</comment>
