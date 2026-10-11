@@ -12,6 +12,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
   - *Run* works like DDL in the SQL editor: confirmed first, uncommitted changes of the workspace are discarded only after showing them, a table another session has written to is reported with who holds it. On a read-only workspace only after unlocking.
   - *Open in SQL editor* and *Save …* as a `.sql` file; the save dialog starts in the folder last used for the connection. Copy with the icon of the script.
 
+### Fixed
+- Creating a workspace could end in *Unexpected error* (the bar at the bottom of the window): the name field was focused before it existed. The app then also no longer closed normally.
+
 ## [3.21.0] - 2026-10-11
 
 ### Added
