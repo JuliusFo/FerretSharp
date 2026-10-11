@@ -116,7 +116,7 @@ public sealed class ClrModelManager : IDisposable
         lock (_lock)
         {
             state = State;
-            if (state is not { Phase: ClrModelPhase.Loaded, Mapping: { } loaded } || _active.Schema is null)
+            if (state is not { Phase: ClrModelPhase.Loaded, Mapping: { } loaded } || _active.Schema is null || _lifetime.IsCancellationRequested)
             {
                 return null;
             }
@@ -149,6 +149,11 @@ public sealed class ClrModelManager : IDisposable
         CancellationTokenSource cts;
         lock (_lock)
         {
+            if (_lifetime.IsCancellationRequested)
+            {
+                return Task.CompletedTask; // disposed: a late watcher event starts nothing
+            }
+
             _loading?.Cancel();
             _loading = cts = new CancellationTokenSource();
         }
@@ -332,10 +337,17 @@ public sealed class ClrModelManager : IDisposable
 
     public void Dispose()
     {
-        _lifetime.Cancel();
         _active.Changed -= OnConnectionChanged;
         _connections.Changed -= OnConnectionChanged;
-        _loading?.Cancel();
+        lock (_lock)
+        {
+            _lifetime.Cancel();
+            // No load owns anything any more (R4a): one still finding the build output would otherwise start a watcher
+            // after this – never disposed – and set the state of a closed connection.
+            _loading?.Cancel();
+            _loading = null;
+        }
+
         Watch(null, null, owner: null);
     }
 

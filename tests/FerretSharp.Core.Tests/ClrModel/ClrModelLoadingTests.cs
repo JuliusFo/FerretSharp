@@ -323,6 +323,28 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
         Assert.Contains(old.ReceivedCalls(), c => c.GetMethodInfo().Name == nameof(ILinqConsole.DisposeAsync));
     }
 
+    /// <summary>R4a: a first start that became ready just as the connection closed kept its host running until FerretSharp ended.</summary>
+    [Fact]
+    public async Task A_start_that_ends_after_the_connection_closed_leaves_no_host_running()
+    {
+        _runner.ReadModelAsync(Arg.Any<ClrProjectLink>(), Arg.Any<BuildOutput>(), Arg.Any<CancellationToken>(), Arg.Any<IProgress<string>?>())
+            .Returns(Model());
+        await ConnectAsync();
+        var consoles = new LinqConsoleService(_runner, _models);
+        var started = new TaskCompletionSource<ILinqConsole>();
+        _runner.StartConsoleAsync(Arg.Any<ClrProjectLink>(), Arg.Any<BuildOutput>(), Arg.Any<CancellationToken>(), Arg.Any<IProgress<string>?>())
+            .Returns(started.Task);
+        var warmUp = consoles.WarmUpAsync();
+        await WaitUntil(() => consoles.State.Phase == LinqConsolePhase.Starting);
+
+        await consoles.DisposeAsync();
+        var fresh = Console("spät");
+        started.SetResult(fresh);
+        await warmUp;
+
+        await WaitUntil(() => fresh.ReceivedCalls().Any(c => c.GetMethodInfo().Name == nameof(ILinqConsole.DisposeAsync)));
+    }
+
     [Fact]
     public async Task A_new_build_that_cannot_be_loaded_keeps_the_old_console()
     {

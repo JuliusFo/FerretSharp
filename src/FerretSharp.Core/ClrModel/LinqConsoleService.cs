@@ -243,6 +243,14 @@ public sealed class LinqConsoleService : IAsyncDisposable, IDisposable
         {
             var (console, files) = await Task.Run(
                 () => StartHostAsync(link, step => Set(new LinqConsoleState(LinqConsolePhase.Starting, step)), start.Token), start.Token);
+            if (_disposed)
+            {
+                // Ready just as the connection closed (R4a): kept, the host ran on until FerretSharp ended, holding its copy
+                // of the build output.
+                await console.DisposeAsync();
+                throw new OperationCanceledException();
+            }
+
             (_console, _consoleLink, _consoleFiles) = (console, link, files);
             Set(new LinqConsoleState(LinqConsolePhase.Ready));
             return console;
