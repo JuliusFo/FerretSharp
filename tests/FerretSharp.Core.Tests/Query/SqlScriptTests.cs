@@ -269,4 +269,18 @@ public sealed class SqlScriptTests
             ],
             info.BindUses);
     }
+
+    /// <summary>R4a: callers with several statements check all of them before the first runs (each DDL commits at once).</summary>
+    [Fact]
+    public void Ddl_rejection_says_why_the_schema_path_would_refuse_a_statement()
+    {
+        Assert.Null(SqlScript.DdlRejection("ALTER TABLE kunden ADD (fax VARCHAR2(30));"));
+        Assert.Null(SqlScript.DdlRejection("-- Kommentar\nCOMMENT ON TABLE kunden IS 'a;b'"));
+        Assert.Equal("Das sind mehrere Anweisungen – ein „;“ oder eine Leerzeile darin beendet die Anweisung dort.",
+            SqlScript.DdlRejection("ALTER TABLE kunden ADD CHECK (status IN ('A','B');)"));
+        Assert.Equal("„UPDATE“ ist keine DDL-Anweisung.", SqlScript.DdlRejection("UPDATE kunden SET name = 'x'"));
+        Assert.Equal("DDL nimmt keine Bind-Variablen (:v) – den Wert direkt ins Statement schreiben.",
+            SqlScript.DdlRejection("ALTER TABLE kunden MODIFY (name DEFAULT :v)"));
+        Assert.NotNull(SqlScript.DdlRejection("CREATE OR REPLACE TRIGGER t BEFORE INSERT ON kunden BEGIN NULL; END;"));
+    }
 }

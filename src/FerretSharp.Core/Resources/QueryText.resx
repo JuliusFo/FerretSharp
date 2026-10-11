@@ -256,4 +256,11 @@
   <data name="DmlRowWithoutKey" xml:space="preserve">
     <value>The row has no key and cannot be written.</value>
   </data>
+  <data name="SqlRejectNotSingle" xml:space="preserve">
+    <value>This is more than one statement – a “;” or a blank line in it ends the statement there.</value>
+  </data>
+  <data name="SqlRejectNotDdl" xml:space="preserve">
+    <value>“{0}” is not a DDL statement.</value>
+    <comment>{0}: first word of the statement</comment>
+  </data>
 </root>

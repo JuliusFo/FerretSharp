@@ -190,7 +190,7 @@ public static partial class TableDesign
         ArgumentNullException.ThrowIfNull(facts);
         var writer = new Writer(context, facts);
         writer.Write(draft);
-        return new DesignPlan(writer.Statements(), writer.Problems.Distinct().ToList(), writer.Warnings.Distinct().ToList());
+        return writer.Result();
     }
 
     /// <summary>
@@ -212,7 +212,7 @@ public static partial class TableDesign
             writer.Write(draft);
         }
 
-        return new DesignPlan(writer.Statements(), writer.Problems.Distinct().ToList(), writer.Warnings.Distinct().ToList());
+        return writer.Result();
     }
 
     /// <summary>A new NOT NULL column without a value for the existing rows.</summary>
@@ -365,6 +365,37 @@ public static partial class TableDesign
         }
 
         /// <summary>Length, precision and scale as Oracle takes them; the type name itself comes from the designer's list.</summary>
+        /// <summary>
+        /// The plan. A statement the schema path would refuse (<see cref="StatementGuard.IsDdl"/>) is a problem here (R4a),
+        /// not an error halfway through the run, after the statements before it were committed.
+        /// </summary>
+        public DesignPlan Result()
+        {
+            var statements = Statements();
+            if (Problems.Count == 0)
+            {
+                Problems.AddRange(statements.Where(s => !StatementGuard.IsDdl(s))
+                    .Select(s => TextFormat.Format(DesignText.StatementNotDdl, s.Length <= 80 ? s : s[..79] + "…")));
+            }
+
+            return new DesignPlan(statements, Problems.Distinct().ToList(), Warnings.Distinct().ToList());
+        }
+
+        /// <summary>
+        /// A typed expression (default, check condition) that fits into one DDL statement (<see cref="DdlText.FitsInStatement"/>);
+        /// a problem otherwise. A <c>;</c> at its end is easily typed.
+        /// </summary>
+        private bool CheckExpression(string label, string? expression)
+        {
+            if (expression is null || DdlText.FitsInStatement(expression))
+            {
+                return true;
+            }
+
+            Problems.Add(TextFormat.Format(DesignText.ExpressionNotInStatement, label));
+            return false;
+        }
+
         private bool CheckType(ColumnInfo column)
         {
             if (string.IsNullOrWhiteSpace(column.DataType))
@@ -393,6 +424,11 @@ public static partial class TableDesign
             if (string.IsNullOrWhiteSpace(column.Name) || column.Name.Contains('"', StringComparison.Ordinal) || !CheckType(column))
             {
                 return; // the name is reported with the names
+            }
+
+            if (!CheckExpression(column.Name, Default(column)))
+            {
+                return;
             }
 
             if (NeedsRowsCheck(column))
@@ -534,12 +570,13 @@ public static partial class TableDesign
                 return;
             }
 
-            if (after.DefaultOnNull && before.Nullable && !before.DefaultOnNull && !CheckNoNulls(before, after.Name))
+            if (!CheckExpression(after.Name, value)
+                || (after.DefaultOnNull && before.Nullable && !before.DefaultOnNull && !CheckNoNulls(before, after.Name)))
             {
                 return;
             }
 
-            _modifies.Add($"ALTER TABLE {Table} MODIFY ({column} DEFAULT {(after.DefaultOnNull ? "ON NULL " : "")}{value ?? "NULL"})");
+            _modifies.Add($"ALTER TABLE {Table} MODIFY ({column} DEFAULT {(after.DefaultOnNull ? "ON NULL " : "")}{(value is null ? "NULL" : DdlText.Expression(value))})");
 
             // Taking ON NULL away takes NOT NULL with it (Oracle 23, WP-20): keep the column NOT NULL if it should stay so.
             if (before.DefaultOnNull && !after.DefaultOnNull && !after.Nullable)

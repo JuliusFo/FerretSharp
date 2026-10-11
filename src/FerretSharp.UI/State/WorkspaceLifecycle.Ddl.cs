@@ -1,4 +1,5 @@
 using FerretSharp.Core.Connections;
+using FerretSharp.Core.Query;
 using FerretSharp.Core.Resources;
 using FerretSharp.Core.Workspaces;
 using FerretSharp.UI.Resources;
@@ -56,6 +57,15 @@ public sealed partial class WorkspaceLifecycle
     public async Task<DdlRunResult> RunDdlAsync(Guid workspaceId, IReadOnlyList<string> statements, WorkspaceTabs? discard,
         Action<string>? starting, Action<DdlRunResult>? stopped, CancellationToken cancellationToken)
     {
+        // All statements first (R4a): one the schema path refuses would otherwise stop the run after the ones before it
+        // were committed – and as a programming error, not as a failure the caller shows.
+        if (statements.Select(s => (Statement: s, Rejection: SqlScript.DdlRejection(s))).FirstOrDefault(s => s.Rejection is not null) is ({ } refused, { } why))
+        {
+            var refusal = new DdlRunResult([], refused, new DatabaseException(why), null) { Total = statements.Count };
+            stopped?.Invoke(refusal);
+            return refusal;
+        }
+
         if (discard is not null && !await editing.RollbackAsync(discard))
         {
             return new DdlRunResult([], null, null, null, NotDiscarded: true);

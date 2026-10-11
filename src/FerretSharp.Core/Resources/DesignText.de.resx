@@ -168,4 +168,10 @@
   <data name="TableNameTaken" xml:space="preserve">
     <value>Das Schema hat schon ein Objekt {0} (ORA-00955).</value>
   </data>
+  <data name="ExpressionNotInStatement" xml:space="preserve">
+    <value>{0}: Der Ausdruck darf weder „;“ noch Bind-Variablen (:name) enthalten, und seine Klammern müssen zusammenpassen.</value>
+  </data>
+  <data name="StatementNotDdl" xml:space="preserve">
+    <value>Diese Anweisung ist keine einzelne DDL-Anweisung und würde abgewiesen: {0}</value>
+  </data>
 </root>

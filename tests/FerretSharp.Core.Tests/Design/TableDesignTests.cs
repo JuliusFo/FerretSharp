@@ -221,6 +221,45 @@ public class TableDesignTests
         Assert.Equal([$"""ALTER TABLE {T} MODIFY ("STATUS" DEFAULT NULL)"""], Plan(Draft(Changed(Status, c => c with { Default = "" }))).Statements);
     }
 
+    /// <summary>
+    /// R4a: a typed expression went into the DDL as it was. A ";" at its end made the statement fail the schema path –
+    /// halfway through the run, after the drops before it were committed, and as an unhandled programming error.
+    /// </summary>
+    [Theory]
+    [InlineData("SYSDATE;")]
+    [InlineData(":heute")]
+    [InlineData("TRUNC(SYSDATE")]
+    [InlineData("SYSDATE)")]
+    public void A_default_or_check_that_does_not_fit_into_one_statement_is_a_problem(string expression)
+    {
+        var changed = Plan(Draft(Changed(Name, c => c with { Default = expression })));
+        var added = Plan(Draft(new ColumnDraft(null, NewColumn("SEIT", "DATE", @default: expression))));
+        var check = Plan(Draft() with { AddedConstraints = [new ConstraintDraft("CK_SEIT", ConstraintType.Check, [], Condition: expression)] });
+
+        Assert.Equal(["NAME: Der Ausdruck darf weder „;“ noch Bind-Variablen (:name) enthalten, und seine Klammern müssen zusammenpassen."], changed.Problems);
+        Assert.Equal(["SEIT: Der Ausdruck darf weder „;“ noch Bind-Variablen (:name) enthalten, und seine Klammern müssen zusammenpassen."], added.Problems);
+        Assert.Equal(["CK_SEIT: Der Ausdruck darf weder „;“ noch Bind-Variablen (:name) enthalten, und seine Klammern müssen zusammenpassen."], check.Problems);
+    }
+
+    [Fact]
+    public void Semicolons_and_brackets_inside_literals_and_names_are_part_of_the_expression()
+    {
+        var plan = Plan(Draft() with { AddedConstraints = [new ConstraintDraft("CK_NAME", ConstraintType.Check, [], Condition: "\"NAME\" <> 'a;b)'")] });
+
+        Assert.Empty(plan.Problems);
+        Assert.Equal([$"""ALTER TABLE {T} ADD CONSTRAINT "CK_NAME" CHECK ("NAME" <> 'a;b)')"""], plan.Statements);
+    }
+
+    /// <summary>R4a: Oracle keeps a trailing comment in DATA_DEFAULT; written as it was, it swallowed the ")" after it.</summary>
+    [Fact]
+    public void An_expression_ending_in_a_line_comment_ends_with_a_line_break()
+    {
+        var plan = Plan(Draft(Changed(Name, c => c with { Default = "'x' -- vorläufig" })));
+
+        Assert.Equal([$"ALTER TABLE {T} MODIFY (\"NAME\" DEFAULT 'x' -- vorläufig\n)"], plan.Statements);
+        Assert.True(plan.CanRun);
+    }
+
     [Fact]
     public void Default_on_null_needs_a_value_and_no_nulls()
     {

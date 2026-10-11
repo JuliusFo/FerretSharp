@@ -198,4 +198,10 @@
   <data name="DmlRowWithoutKey" xml:space="preserve">
     <value>Die Zeile hat keinen Schlüssel und lässt sich nicht schreiben.</value>
   </data>
+  <data name="SqlRejectNotSingle" xml:space="preserve">
+    <value>Das sind mehrere Anweisungen – ein „;“ oder eine Leerzeile darin beendet die Anweisung dort.</value>
+  </data>
+  <data name="SqlRejectNotDdl" xml:space="preserve">
+    <value>„{0}“ ist keine DDL-Anweisung.</value>
+  </data>
 </root>

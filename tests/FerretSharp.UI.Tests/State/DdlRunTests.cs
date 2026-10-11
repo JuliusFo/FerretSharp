@@ -38,6 +38,29 @@ public sealed class DdlRunTests
         Assert.All(history, h => Assert.True(h.Ddl));
     }
 
+    /// <summary>
+    /// R4a: a statement the schema path refuses stopped the run with an unhandled programming error, after the statements
+    /// before it had run (DDL commits each one). All are checked first; nothing runs, nothing is rolled back.
+    /// </summary>
+    [Fact]
+    public async Task A_statement_the_schema_path_refuses_stops_the_run_before_anything_ran()
+    {
+        await using var app = new TestApp();
+        var scope = await app.OpenAsync(TestApp.Profile("Test"));
+        var pending = app.AddPendingWork(scope);
+        const string twoStatements = """ALTER TABLE "APP_USER"."KUNDEN" ADD CHECK (STATUS IN ('A','B');)""";
+        DdlRunResult? stopped = null;
+
+        var result = await app.Lifecycle.RunDdlAsync(scope.Workspaces.Active!.Id, [First, twoStatements], app.WorkspaceOf(scope), null, r => stopped = r, Ct);
+
+        Assert.Same(result, stopped);
+        Assert.Empty(result.Ran);
+        Assert.Equal(twoStatements, result.Failed);
+        Assert.Equal("Das sind mehrere Anweisungen – ein „;“ oder eine Leerzeile darin beendet die Anweisung dort.", result.Error?.Message);
+        Assert.Empty(app.RanDdl);
+        Assert.Equal(1, pending.Changes!.PendingCount); // not discarded: nothing was going to run
+    }
+
     [Fact]
     public async Task The_first_failure_stops_the_rest_and_names_who_holds_the_table()
     {

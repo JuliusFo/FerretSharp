@@ -384,6 +384,21 @@ public static class SqlScript
         return Split(text);
     }
 
+    /// <summary>
+    /// Why the schema path (WP-22) would refuse <paramref name="statement"/>, for the user; null if it takes it. Lets a caller
+    /// with several statements check all of them before the first runs – each DDL commits at once (R4a).
+    /// </summary>
+    public static string? DdlRejection(string statement)
+    {
+        if (Split(statement) is not [_])
+        {
+            return QueryText.SqlRejectNotSingle;
+        }
+
+        var info = Analyze(statement);
+        return info.Rejection ?? (info.IsDdl ? null : TextFormat.Format(QueryText.SqlRejectNotDdl, info.FirstWord));
+    }
+
     public static SqlStatementInfo Analyze(string statement)
     {
         var tokens = Tokenize(statement).Where(t => t.Kind is not (SqlTokenKind.Space or SqlTokenKind.Comment)).ToList();
