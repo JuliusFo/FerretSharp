@@ -192,6 +192,24 @@
     private readonly ShellState _state = new();
     private WorkspaceEditing _editing = null!;
     private WorkspaceLifecycle _lifecycle = null!;
+
+    /// <summary>
+    /// Work the shell starts outside a Blazor event handler (shortcut, service event). No error boundary sits above the
+    /// shell: an exception is logged and shown instead of going unobserved (R4a). Database errors the actions report
+    /// themselves.
+    /// </summary>
+    private void Run(Func<Task> work) => _ = InvokeAsync(async () =>
+    {
+        try
+        {
+            await work();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            LoggerFactory.CreateLogger("FerretSharp.UI.Shell").LogError(ex, "Shell action failed");
+            _state.Notify(CommonText.UnexpectedError, [ex.Message]);
+        }
+    });
     private ErrorBoundary? _errorBoundary;
     private IJSObjectReference? _shortcuts;
     private IJSObjectReference? _tooltips;
@@ -321,7 +339,7 @@
         {
             if (_state.ActiveWorkspace is { } workspace && Shown.Workspaces.IsWritable(workspace.WorkspaceId) && _state.Page == ShellPage.Explorer)
             {
-                _ = action == ShortcutAction.Flush ? _editing.FlushAsync(workspace) : _lifecycle.RequestCommitAsync(workspace);
+                Run(() => action == ShortcutAction.Flush ? _editing.FlushAsync(workspace) : _lifecycle.RequestCommitAsync(workspace));
             }
 
             return;
@@ -386,7 +404,7 @@
     });
 
     /// <summary>Raised by <see cref="ShellState.Connect"/> from anywhere; the lifecycle asks about open changes first.</summary>
-    private void OnConnectRequested(ConnectionProfile profile) => InvokeAsync(() => _lifecycle.ConnectAsync(profile));
+    private void OnConnectRequested(ConnectionProfile profile) => Run(() => _lifecycle.ConnectAsync(profile));
 
     /// <summary>
     /// A connection was opened, closed or shown (WP-24): follow its events, and on a switch let the tabs follow the shown

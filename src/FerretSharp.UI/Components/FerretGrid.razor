@@ -115,6 +115,11 @@
         {
             await SetNewRowsAsync(); // the tab was mounted again (workspace switch) with new rows still unsaved
         }
+
+        // An unlock or a C# model that came while the grid was created: the handlers skipped it (R4a). Both check for
+        // themselves whether anything changed.
+        OnWorkspacesChanged();
+        OnPresentationChanged();
     }
 
     /// <summary>How columns and values are shown: plain, or with the C# model (WP-12).</summary>
@@ -158,7 +163,7 @@
     /// The C# model was loaded (or unlinked) or the name setting changed: relabel the columns in place and redraw the
     /// rows, whose values may now read differently. Model relationships may add FK badges too.
     /// </summary>
-    private void OnPresentationChanged() => _ = InvokeAsync(async () =>
+    private void OnPresentationChanged() => Fire(async () =>
     {
         if (!_grid.IsCreated || Presentations.Version == _presentationVersion)
         {
@@ -220,7 +225,7 @@
                            && QueryBuilder.RowKeyOf(Details) != RowKeyKind.None;
 
     /// <summary>Unlocking or locking the workspace switches editing in the grid on or off without reloading it.</summary>
-    private void OnWorkspacesChanged() => _ = InvokeAsync(async () =>
+    private void OnWorkspacesChanged() => Fire(async () =>
     {
         if (!_grid.IsCreated || CanEdit == _editable)
         {
@@ -312,7 +317,9 @@
 
     /// <summary>Full value of a cell for the editor (pending value if any); null if it cannot be edited.</summary>
     [JSInvokable]
-    public string? GetEditText(int rowIndex, string? newId, string colId)
+    public string? GetEditText(int rowIndex, string? newId, string colId) => Guard(() => EditTextOf(rowIndex, newId, colId), null);
+
+    private string? EditTextOf(int rowIndex, string? newId, string colId)
     {
         var column = ColumnIndex(colId);
         if (NewRow(newId) is { } added)
@@ -330,13 +337,13 @@
     /// .NET, grid.js only shows them and adds up the ticked values. Null if the cell cannot be edited.
     /// </summary>
     [JSInvokable]
-    public FlagsEdit? GetFlagsEdit(int rowIndex, string? newId, string colId)
+    public FlagsEdit? GetFlagsEdit(int rowIndex, string? newId, string colId) => Guard(() =>
     {
         var column = ColumnIndex(colId);
-        return GetEditText(rowIndex, newId, colId) is { } text
+        return EditTextOf(rowIndex, newId, colId) is { } text
             ? Presentation.ValuesOf(column)?.FlagsEditOf(text, nullAllowed: Details.Columns[column].Nullable || newId is not null)
             : null;
-    }
+    }, null);
 
     /// <summary>The edit text; for enum and bool columns the member's database value as the member list has it.</summary>
     private string EditText(int column, object? value) =>
@@ -346,7 +353,7 @@
 
     /// <summary>Enter in the editor: the message if the text cannot be taken; the editor then stays open.</summary>
     [JSInvokable]
-    public string? ValidateEdit(int rowIndex, string? newId, string colId, string text)
+    public string? ValidateEdit(int rowIndex, string? newId, string colId, string text) => Guard(() =>
     {
         var column = Details.Columns[ColumnIndex(colId)];
         if (NewRow(newId) is not null)
@@ -358,11 +365,12 @@
         return _blocks.At(rowIndex) is null
             ? RowNotLoaded
             : OracleTypeMapper.Parse(column, text).Error;
-    }
+    }, CommonText.UnexpectedError);
 
     /// <summary>The user finished editing a cell: check the text in .NET and keep it as a pending change.</summary>
     [JSInvokable]
-    public GridEdit OnCellEdit(int rowIndex, string? newId, string colId, string text) => Edit(rowIndex, newId, ColumnIndex(colId), text);
+    public GridEdit OnCellEdit(int rowIndex, string? newId, string colId, string text) =>
+        Guard(() => Edit(rowIndex, newId, ColumnIndex(colId), text), new GridEdit(null, CommonText.UnexpectedError));
 
     /// <summary>
     /// A value typed in the form (WP-21): checked and kept like a cell edit, the grid redraws the row. Returns the
@@ -409,11 +417,11 @@
 
     /// <summary>The focused cell moved (grid.js reports the last position after a short pause).</summary>
     [JSInvokable]
-    public void OnFocused(int rowIndex, string? newId, string? colId)
+    public void OnFocused(int rowIndex, string? newId, string? colId) => Guard(() =>
     {
         Focused = new GridCell(rowIndex, newId, colId is not null && colId.StartsWith('c') ? ColumnIndex(colId) : null);
         FocusChanged?.Invoke();
-    }
+    });
 
     /// <summary>Alt+Enter in the grid (WP-21).</summary>
     [JSInvokable]
@@ -676,18 +684,21 @@
 
     /// <summary>The user pinned, released or reordered pinned columns by dragging; <paramref name="colIds"/> in display order.</summary>
     [JSInvokable]
-    public void OnPinnedChanged(string[] colIds)
+    public void OnPinnedChanged(string[] colIds) => Guard(() =>
     {
         Tab.PinnedColumns = ColumnPinning.Normalize(Details, colIds.Select(id => Details.Columns[ColumnIndex(id)].Name));
         Shell.MarkDirty();
-    }
+    });
 
     [JSInvokable]
     public Task OnHeaderContextMenu(string colId, double x, double y, double viewportWidth, double viewportHeight) =>
         GuardAsync(() => OnColumnMenu.InvokeAsync(new ColumnMenuRequest(ColumnIndex(colId), x, y, viewportWidth, viewportHeight)));
 
     [JSInvokable]
-    public async Task<GridPage> GetRows(int startRow, int endRow, GridSort[] sortModel)
+    public Task<GridPage> GetRows(int startRow, int endRow, GridSort[] sortModel) =>
+        GuardAsync(() => GetRowsCoreAsync(startRow, endRow, sortModel), GridPage.Failure);
+
+    private async Task<GridPage> GetRowsCoreAsync(int startRow, int endRow, GridSort[] sortModel)
     {
         Tab.Sorts = sortModel
             .Select(s => new SortSpec(Details.Columns[ColumnIndex(s.ColId)].Name, s.Sort == "desc"))

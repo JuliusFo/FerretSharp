@@ -311,7 +311,7 @@
 
     private bool SameRow(GridCell cell) => _cursor?.Shows(cell) == true;
 
-    private void OnFocusChanged() => _ = InvokeAsync(() =>
+    private void OnFocusChanged() => Fire(() =>
     {
         if (_disposed || Grid?.Focused is not { } cell)
         {
@@ -333,7 +333,7 @@
     });
 
     /// <summary>Rows were loaded or redrawn: the shown row may have moved (after writing), become loaded, or be gone.</summary>
-    private void OnRowsChanged() => _ = InvokeAsync(() =>
+    private void OnRowsChanged() => Fire(() =>
     {
         if (_disposed || Grid is null || _cursor is null)
         {
@@ -504,7 +504,7 @@
         }
     }
 
-    private void Copy(FormField field) => _ = Grid?.CopyValueAsync(field.Info, field.Raw);
+    private Task Copy(FormField field) => Grid?.CopyValueAsync(field.Info, field.Raw) ?? Task.CompletedTask;
 
     private Task RevertAsync(int rowIndex) => Grid?.ChangeRowsAsync([rowIndex], delete: false) ?? Task.CompletedTask;
 
