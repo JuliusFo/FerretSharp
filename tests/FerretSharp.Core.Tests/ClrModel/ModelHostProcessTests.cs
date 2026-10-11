@@ -57,10 +57,12 @@ public sealed class ModelHostProcessTests
         }
     }
 
-    private static Task<LinqConsoleHost> StartAsync(string scenario, TimeSpan? start = null, TimeSpan? run = null, IProgress<string>? progress = null)
+    private static Task<LinqConsoleHost> StartAsync(string scenario, TimeSpan? start = null, TimeSpan? run = null, IProgress<string>? progress = null) =>
+        StartAsync(scenario, Directory.CreateDirectory(Path.Combine(ModelHostRunner.WorkRoot, Guid.NewGuid().ToString("N"))), start, run, progress);
+
+    private static Task<LinqConsoleHost> StartAsync(string scenario, DirectoryInfo work, TimeSpan? start = null, TimeSpan? run = null, IProgress<string>? progress = null)
     {
         var pipe = "ferretsharp-test-" + Guid.NewGuid().ToString("N");
-        var work = Directory.CreateDirectory(Path.Combine(ModelHostRunner.WorkRoot, Guid.NewGuid().ToString("N")));
         return LinqConsoleHost.StartAsync(["exec", FakeHost, "--console", pipe, "--scenario", scenario], Path.GetDirectoryName(FakeHost)!, pipe, work, null, Output,
             start ?? TimeSpan.FromSeconds(30), run ?? TimeSpan.FromSeconds(30), progress, Ct);
     }
@@ -69,7 +71,8 @@ public sealed class ModelHostProcessTests
     public async Task A_ready_host_reports_its_steps_runs_and_ends_with_its_work_folder()
     {
         var steps = new Steps();
-        var host = await StartAsync("ready", progress: steps);
+        var work = Directory.CreateDirectory(Path.Combine(ModelHostRunner.WorkRoot, Guid.NewGuid().ToString("N")));
+        var host = await StartAsync("ready", work, progress: steps);
 
         var result = await host.RunAsync("return 1;", "", Ct);
 
@@ -77,10 +80,10 @@ public sealed class ModelHostProcessTests
         Assert.Equal("SELECT 1 FROM DUAL", Assert.Single(result.Commands).Sql);
         Assert.Contains("Fake host starting", steps.All);
 
-        var work = Directory.GetDirectories(ModelHostRunner.WorkRoot).Length;
         await host.DisposeAsync();
         Assert.False(host.IsAlive);
-        Assert.Equal(work - 1, Directory.GetDirectories(ModelHostRunner.WorkRoot).Length);
+        work.Refresh();
+        Assert.False(work.Exists);
     }
 
     [Fact]
