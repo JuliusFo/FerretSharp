@@ -324,6 +324,7 @@
         var title = tab switch
         {
             TableTab table => table.Table.DisplayName,
+            NewTableTab draft => draft.Table.Name.Length > 0 ? draft.Table.Name : ShellText.TabBar_NewTable,
             ITitledTab titled => titled.Title,
             _ => "",
         };

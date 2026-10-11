@@ -162,4 +162,10 @@
   <data name="ConstraintChecksRows" xml:space="preserve">
     <value>Neue Constraints prüfen die vorhandenen Zeilen: Duplikate, NULLs, Zeilen gegen einen Check oder ohne Elternzeile lassen sie scheitern (ORA-02437, ORA-02299, ORA-02293, ORA-02298).</value>
   </data>
+  <data name="TableNameMissing" xml:space="preserve">
+    <value>Gib einen Namen für die Tabelle ein.</value>
+  </data>
+  <data name="TableNameTaken" xml:space="preserve">
+    <value>Das Schema hat schon ein Objekt {0} (ORA-00955).</value>
+  </data>
 </root>

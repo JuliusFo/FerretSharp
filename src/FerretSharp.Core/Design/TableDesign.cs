@@ -53,6 +53,14 @@ public sealed record TableDraft(IReadOnlyList<ColumnDraft> Columns)
     }
 }
 
+/// <summary>A table the designer creates (WP-23, stage 3).</summary>
+/// <param name="Name">Its name in dictionary form.</param>
+/// <param name="Comment">The table's comment; null or empty for none.</param>
+public sealed record NewTable(string Owner, string Name, string? Comment = null)
+{
+    public TableRef Ref => new(Owner, Name);
+}
+
 /// <summary>What the designer knows about the table besides its columns.</summary>
 /// <param name="Constraints">The table's constraints (keys, checks, foreign keys).</param>
 /// <param name="Indexes">The table's indexes (does a new foreign key need one?).</param>
@@ -185,6 +193,28 @@ public static partial class TableDesign
         return new DesignPlan(writer.Statements(), writer.Problems.Distinct().ToList(), writer.Warnings.Distinct().ToList());
     }
 
+    /// <summary>
+    /// The DDL for a new table (WP-23, stage 3): <c>CREATE TABLE</c> with every column of the draft, then its constraints
+    /// (foreign keys with their index), the table's and the columns' comments – the same writer as for an existing table.
+    /// </summary>
+    /// <param name="referenced">Tables the new foreign keys reference, for their keys and column types.</param>
+    /// <param name="taken">Names of the schema's objects (tables, views, synonyms …): one of them cannot be the new table's (ORA-00955).</param>
+    public static DesignPlan PlanNew(NewTable table, TableDraft draft, IReadOnlyDictionary<TableRef, TableDetails> referenced, IEnumerable<string> taken)
+    {
+        ArgumentNullException.ThrowIfNull(table);
+        ArgumentNullException.ThrowIfNull(draft);
+        var empty = new TableDetails(new TableSummary(table.Owner, table.Name, TableKind.Table), [], [], [], false);
+        var context = new DesignContext(empty, [], [], []) { Referenced = referenced };
+        var writer = new Writer(context, new DataFacts(new Dictionary<DataQuestion, long> { [new DataQuestion(DataQuestionKind.Rows)] = 0 }), table);
+        writer.CheckTableName(taken);
+        if (writer.Problems.Count == 0)
+        {
+            writer.Write(draft);
+        }
+
+        return new DesignPlan(writer.Statements(), writer.Problems.Distinct().ToList(), writer.Warnings.Distinct().ToList());
+    }
+
     /// <summary>A new NOT NULL column without a value for the existing rows.</summary>
     private static bool NeedsRowsCheck(ColumnInfo column) =>
         !column.Nullable && column.Default is null && !column.IsIdentity && !column.IsVirtual && !column.DefaultOnNull;
@@ -195,15 +225,20 @@ public static partial class TableDesign
     private static string? Default(ColumnInfo column) => string.IsNullOrWhiteSpace(column.Default) ? null : column.Default.Trim();
 
     /// <summary>Oracle stores an empty comment as none.</summary>
-    private static string? Comment(ColumnInfo column) => string.IsNullOrEmpty(column.Comment) ? null : column.Comment;
+    private static string? Comment(ColumnInfo column) => Comment(column.Comment);
+
+    private static string? Comment(string? comment) => string.IsNullOrEmpty(comment) ? null : comment;
 
     /// <summary>A name Oracle takes without quotes (same rule as for index names).</summary>
     [GeneratedRegex(@"^\p{Lu}[\p{Lu}\p{Nd}_$#]*$")]
     private static partial Regex PlainName();
 
-    private sealed partial class Writer(DesignContext context, DataFacts facts)
+    private sealed partial class Writer(DesignContext context, DataFacts facts, NewTable? creating = null)
     {
         private readonly TableDetails current = context.Table;
+
+        /// <summary>Column definitions of the table to create (<see cref="PlanNew"/>).</summary>
+        private readonly List<string> _definitions = [];
         private readonly List<string> _dropConstraints = [];
         private readonly List<string> _drops = [];
         private readonly List<string> _renames = [];
@@ -239,6 +274,11 @@ public static partial class TableDesign
 
             CheckNames(kept);
             DropConstraints(draft.DroppedConstraints);
+            if (creating is not null && Comment(creating.Comment) is { } tableComment)
+            {
+                _comments.Add($"COMMENT ON TABLE {Table} IS {DdlText.Literal(tableComment)}");
+            }
+
             foreach (var column in draft.Columns)
             {
                 if (column.IsNew)
@@ -261,7 +301,38 @@ public static partial class TableDesign
                 }
             }
 
+            if (creating is not null && _definitions.Count > 0)
+            {
+                _adds.Add($"CREATE TABLE {Table} (\n    {string.Join(",\n    ", _definitions)})");
+            }
+
             AddConstraints(draft, kept);
+        }
+
+        /// <summary>The name of a table to create: there, without quotes, within 128 bytes, not taken by another object.</summary>
+        public void CheckTableName(IEnumerable<string> taken)
+        {
+            var name = creating!.Name;
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                Problems.Add(DesignText.TableNameMissing);
+            }
+            else if (name.Contains('"', StringComparison.Ordinal))
+            {
+                Problems.Add(TextFormat.Format(DesignText.ColumnNameInvalid, name));
+            }
+            else if (Encoding.UTF8.GetByteCount(name) > IndexDesign.MaxNameBytes)
+            {
+                Problems.Add(TextFormat.Format(DesignText.ColumnNameTooLong, name, IndexDesign.MaxNameBytes));
+            }
+            else if (taken.Contains(name, StringComparer.Ordinal))
+            {
+                Problems.Add(TextFormat.Format(DesignText.TableNameTaken, name)); // ORA-00955
+            }
+            else if (!PlainName().IsMatch(name))
+            {
+                Warnings.Add(TextFormat.Format(DesignText.ColumnNameNeedsQuotes, name));
+            }
         }
 
         private void CheckNames(IReadOnlyList<ColumnDraft> kept)
@@ -337,7 +408,16 @@ public static partial class TableDesign
                 }
             }
 
-            _adds.Add($"ALTER TABLE {Table} ADD ({DdlText.ColumnDefinition(column with { Default = Default(column) })})");
+            var definition = DdlText.ColumnDefinition(column with { Default = Default(column) });
+            if (creating is not null)
+            {
+                _definitions.Add(definition);
+            }
+            else
+            {
+                _adds.Add($"ALTER TABLE {Table} ADD ({definition})");
+            }
+
             if (Comment(column) is { } comment)
             {
                 _comments.Add(CommentOn(column.Name, comment));

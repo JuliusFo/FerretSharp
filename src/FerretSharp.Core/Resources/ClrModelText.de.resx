@@ -321,4 +321,16 @@
   <data name="PropertyConverterByHand" xml:space="preserve">
     <value>Das Projekt konvertiert inline ({0}) – die Konvertierung von Hand ergänzen.</value>
   </data>
+  <data name="EntityForeignKeyUnmapped" xml:space="preserve">
+    <value>{0} verweist auf {1}, für die es noch keine Entity gibt: keine Navigation.</value>
+  </data>
+  <data name="EntityWithoutKey" xml:space="preserve">
+    <value>Die Tabelle hat keinen Primärschlüssel: EF Core kann sie nur lesen (HasNoKey).</value>
+  </data>
+  <data name="EntityViewWithoutKey" xml:space="preserve">
+    <value>Eine View ohne Schlüssel: EF Core liest sie (HasNoKey); einen Schlüssel angeben, wenn Zeilen verfolgt werden sollen.</value>
+  </data>
+  <data name="EntityDbSet" xml:space="preserve">
+    <value>Im DbContext ein DbSet&lt;{0}&gt; ergänzen und die Konfiguration registrieren, wie es das Projekt macht.</value>
+  </data>
 </root>

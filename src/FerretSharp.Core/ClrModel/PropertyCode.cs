@@ -32,7 +32,12 @@ public static class PropertyCode
         string name;
         string type;
         string? converter;
-        var elsewhere = properties.Where(p => p.Column == column.Name)
+        // The same column elsewhere counts only if its property can read this column: AKTIV as NUMBER(1) → bool says
+        // nothing about a CHAR(1) AKTIV, which needs the project's yes/no converter (E2E of WP-23).
+        var anyTable = new TableSummary("", "", TableKind.Table);
+        var elsewhere = model.Entities
+            .SelectMany(e => e.Properties.Where(p => !p.IsShadow && p.Column == column.Name)
+                .Where(p => !ColumnTypeCheck.Check(e, p, anyTable, column, readOnly: false).Any(m => m.Kind == ColumnMismatchKind.Type)))
             .GroupBy(p => (p.Name, p.ClrType, p.Converter))
             .OrderByDescending(g => g.Count())
             .FirstOrDefault();

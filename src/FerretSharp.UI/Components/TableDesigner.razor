@@ -19,7 +19,9 @@ else
 {
     var (draft, inputProblems) = designer.ToDraft();
     var context = new DesignContext(designer.Table, _constraints, _indexes, _incoming) { Referenced = _referenced };
-    var plan = TableDesign.Plan(context, draft, new DataFacts(_facts));
+    var plan = NewTab is { } created
+        ? TableDesign.PlanNew(created.Table, draft, _referenced, TakenNames)
+        : TableDesign.Plan(context, draft, new DataFacts(_facts));
     var counting = _counting.Count > 0;
     <section class="designer">
         @if (Tab?.Changes is { PendingCount: > 0 } or { FlushedCount: > 0 })
@@ -171,7 +173,7 @@ else
             <p class="hint small"><span class="spinner"></span> @SchemaViewText.Designer_Counting</p>
         }
         <DdlDraftPanel WorkspaceId="WorkspaceId" Statements="@(counting ? Array.Empty<string>() : plan.Statements)" Problems="@(inputProblems.Concat(plan.Problems).ToList())" Warnings="plan.Warnings"
-                       FileName="@($"{DateTime.Now:yyyy-MM-dd}_{Details.Table.Name}.sql")" OnRan="OnRanAsync" OnFailed="OnFailedAsync" Stopped="OnStopped" Earlier="_failure" OnClose="CloseAsync" />
+                       FileName="@($"{DateTime.Now:yyyy-MM-dd}_{(NewTab?.Table.Name ?? Details.Table.Name)}.sql")" OnRan="OnRanAsync" OnFailed="OnFailedAsync" Stopped="OnStopped" Earlier="_failure" OnClose="CloseAsync" />
 
         @if (PropertyLines(designer) is { Count: > 0 } suggestions)
         {
@@ -228,8 +230,22 @@ else
 
     private IEnumerable<TableSummary> Tables => (Active.Schema?.Tables ?? []).Where(t => t.Kind == TableKind.Table && t.Synonym is null);
 
+    /// <summary>A new table (WP-23, stage 3): the designer works on the tab's draft of it; nothing to load or count.</summary>
+    [Parameter]
+    public NewTableTab? NewTab { get; set; }
+
+    /// <summary>Names a new table cannot have: the schema's tables, views, synonyms and PL/SQL units.</summary>
+    private IEnumerable<string> TakenNames =>
+        (Active.Schema?.Tables.Select(t => t.Synonym?.Name ?? t.Name) ?? []).Concat(Active.Schema?.PlSqlObjects.Select(u => u.Name) ?? []);
+
     protected override async Task OnInitializedAsync()
     {
+        if (NewTab is { } created)
+        {
+            (_designer, _failure) = (created.Designer, created.Failure);
+            return;
+        }
+
         _failure = Tab?.Designer?.Failure;
         await LoadAsync(Tab?.Designer?.Draft);
     }
@@ -280,6 +296,17 @@ else
         }
 
         _failure = result;
+        if (NewTab is { } created)
+        {
+            // The table exists once CREATE TABLE ran: the rest of the draft goes on as an edit of it, in its own tab.
+            if (result.Ran.Count > 0)
+            {
+                OpenCreated(created, new DesignerSession(created.Designer, result));
+            }
+
+            return;
+        }
+
         if (result.Ran.Count > 0 && _designer is { } designer)
         {
             await LoadAsync(designer);
@@ -289,10 +316,25 @@ else
     /// <summary>Before the schema is reloaded: the draft and the failure go into the tab, for a rebuilt view to reopen with.</summary>
     private void OnStopped(DdlRunResult result)
     {
-        if (Tab is not null && _designer is not null)
+        if (NewTab is not null)
+        {
+            NewTab.Failure = result;
+        }
+        else if (Tab is not null && _designer is not null)
         {
             Tab.Designer = new DesignerSession(_designer, result);
         }
+    }
+
+    /// <summary>The new table as a table tab on its columns – with what is left of the draft, if a statement after CREATE failed.</summary>
+    private void OpenCreated(NewTableTab created, DesignerSession? rest)
+    {
+        if (Active.Schema?.Find(created.Table.Ref) is { } summary && Shell.OpenTable(summary, TabMode.Structure) is { } tab)
+        {
+            tab.Designer = rest;
+        }
+
+        Shell.CloseTab(created);
     }
 
     private async Task CloseAsync()
@@ -308,7 +350,7 @@ else
     /// <summary>What the plan needs to know about the data and nobody counted yet: counted in the tab's workspace.</summary>
     protected override void OnAfterRender(bool firstRender)
     {
-        if (_designer is null)
+        if (_designer is null || NewTab is not null) // a new table has no rows to count
         {
             return;
         }
@@ -446,7 +488,7 @@ else
     /// <summary>Property lines for the new columns, if the C# model maps this table.</summary>
     private IReadOnlyList<PropertySuggestion> PropertyLines(ColumnDesigner designer)
     {
-        if (Models.Mapping is not { } mapping || mapping.EntityOf(Details.Table.Ref) is null)
+        if (NewTab is not null || Models.Mapping is not { } mapping || mapping.EntityOf(Details.Table.Ref) is null)
         {
             return [];
         }
@@ -459,6 +501,12 @@ else
 
     private async Task OnRanAsync()
     {
+        if (NewTab is { } created)
+        {
+            OpenCreated(created, null);
+            return;
+        }
+
         if (Tab is not null)
         {
             Tab.Designer = null;

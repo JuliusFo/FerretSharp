@@ -1,0 +1,54 @@
+@* A new table (WP-23, stage 3): name and comment, then the table designer with an empty table – CREATE TABLE, constraints,
+   indexes and comments in one script. Once the table exists, it opens as a table tab (Columns view), where "Entity"
+   writes its C#. *@
+@using FerretSharp.Core.Oracle
+
+@* The scrolling of the detail views: .structure scrolls inside the page, not the whole window. *@
+<div class="tabview new-table">
+    <div class="tab-details">
+        <div class="details-body">
+            <div class="structure">
+                <section class="new-table-head">
+                    <h2>@ShellText.TabBar_NewTable</h2>
+                    <div class="index-draft-form">
+                        <label for="@_nameId">@SchemaViewText.Head_Name</label>
+                        <input id="@_nameId" class="field mono" spellcheck="false" value="@Tab.Name" @oninput="e => SetName((string?)e.Value)"
+                               placeholder="@SchemaViewText.NewTable_NamePlaceholder" />
+                        <label for="@_commentId">@SchemaViewText.Columns_Comment</label>
+                        <input id="@_commentId" class="field" @bind="Tab.Comment" @bind:event="oninput" />
+                        <span></span>
+                        <span class="muted small">@TextFormat.Format(SchemaViewText.NewTable_Schema, Tab.Owner)</span>
+                    </div>
+                </section>
+                <TableDesigner Details="Tab.Designer.Table" WorkspaceId="Tab.WorkspaceId" NewTab="Tab" OnClose="() => Lifecycle.CloseTab(Tab)" />
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private readonly string _nameId = $"new-table-{Guid.NewGuid():N}";
+    private readonly string _commentId = $"new-table-comment-{Guid.NewGuid():N}";
+
+    [CascadingParameter]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public NewTableTab Tab { get; set; } = null!;
+
+    /// <summary>The tab shows the name; suggested constraint names follow it.</summary>
+    private void SetName(string? value)
+    {
+        Tab.Name = value ?? "";
+        Tab.Designer.TableName = OracleIdentifier.Normalize(Tab.Name);
+        foreach (var constraint in Tab.Designer.AddedConstraints)
+        {
+            Tab.Designer.SuggestName(constraint);
+        }
+
+        Shell.NotifyChanged(); // the tab bar
+    }
+}

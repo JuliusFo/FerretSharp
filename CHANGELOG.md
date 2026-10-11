@@ -5,6 +5,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- *New table* (WP-23 stage 3, issue #10): the + in the explorer opens a tab for a table to create – name, comment, columns, keys, checks and foreign keys in the same designer as *Edit*. It runs as `CREATE TABLE` followed by the constraints, the indexes of new foreign keys and the comments; afterwards the table opens on its columns. If a statement after `CREATE TABLE` fails, the rest of the draft goes on in the table's tab. The draft is not saved with the workspace; closing its tab asks first.
+- *C# · Entity* in the *Columns* view of a table the C# model has no entity for: the entity class and its `IEntityTypeConfiguration` in the style of the project – a property per column (names, types and converters as for the same column elsewhere in the project, or by the type), the key, a navigation for each foreign key to a table the model maps, `ToTable` only if the project does not name tables by convention. The entity name follows the plural pattern of the project's tables (`ADRESSEN` → `Adresse` where the project has `KUNDEN` → `Kunde`) and can be changed.
+
+### Changed
+- Closing a table tab in edit mode asks first if its draft has changes.
+
+### Fixed
+- The property line of a new column took name and type of a column of the same name elsewhere in the project even if its type did not fit (a `CHAR(1)` flag got a plain `bool` like a `NUMBER(1)` column elsewhere); now the project's yes/no converter is used.
+
 ## [3.23.0] - 2026-10-11
 
 ### Added

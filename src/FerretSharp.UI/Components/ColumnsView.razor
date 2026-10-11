@@ -39,6 +39,11 @@
             {
                 <button class="btn" title="@SchemaViewText.Designer_EditTitle" @onclick="() => _editing = true">@SchemaViewText.Designer_Edit</button>
             }
+            @if (mapping is not null && entity is null)
+            {
+                <button class="btn @(_entityName is null ? "" : "active")" title="@SchemaViewText.Entity_CreateTitle"
+                        @onclick="() => _entityName = _entityName is null ? EntityCode.SuggestName(mapping.Model, Details.Table.Name) : null">C# · @SchemaViewText.Entity_Create</button>
+            }
         }
     </div>
     @if (_editing)
@@ -140,6 +145,23 @@
         <h2>@TextFormat.Format(SchemaViewText.Designer_CSharpHeading, ClrModelMapping.ShortName(entity.Entity.ClrType))</h2>
         <PropertySuggestions Suggestions="@(new[] { PropertyCode.Suggest(mapping.Model, Details.Columns[at]) })" />
     }
+    @if (_entityName is not null && mapping is not null && entity is null)
+    {
+        var entityCode = EntityCode.Write(mapping, Details, (Active.Schema?.OutgoingOf(Details.Table.Ref) ?? []).ToList(),
+            _entityName.Trim().Length > 0 ? _entityName : Details.Table.Name);
+        <section class="entity-code">
+            <div class="index-draft-form">
+                <label for="@_entityId">@SchemaViewText.Entity_Name</label>
+                <input id="@_entityId" class="field mono" spellcheck="false" @bind="_entityName" @bind:event="oninput" />
+            </div>
+            <SqlCode Sql="@entityCode.Entity" Plain="true" />
+            <SqlCode Sql="@entityCode.Configuration" Plain="true" />
+            @foreach (var note in entityCode.Notes)
+            {
+                <p class="hint small">@note</p>
+            }
+        </section>
+    }
     }
 </section>
 
@@ -193,6 +215,11 @@
 
     /// <summary>The column without property whose C# is shown below the table.</summary>
     private string? _csharpFor;
+
+    /// <summary>"Entity" is open for a table without one (WP-23, stage 3): the name as the user has it; null = closed.</summary>
+    private string? _entityName;
+
+    private readonly string _entityId = $"entity-name-{Guid.NewGuid():N}";
 
     private async Task OnDesignRanAsync()
     {

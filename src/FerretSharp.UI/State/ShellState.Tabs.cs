@@ -212,6 +212,19 @@ public sealed partial class ShellState
         return InsertAfterActive(workspace, new SqlTab(workspace.WorkspaceId, title) { Text = text ?? "", Variables = variables ?? [], Visited = true });
     }
 
+    /// <summary>A tab for a new table in the designer (WP-23, stage 3), after the active tab; the table goes into <paramref name="owner"/>.</summary>
+    public NewTableTab? OpenNewTable(string owner)
+    {
+        if (ActiveWorkspace is not { } workspace)
+        {
+            return null;
+        }
+
+        var tab = InsertAfterActive(workspace, new NewTableTab(workspace.WorkspaceId, owner) { Visited = true });
+        tab.Designer.AddColumn(); // something to start with: the key, usually
+        return tab;
+    }
+
     /// <summary>
     /// Activates the tab of a PL/SQL unit in the active workspace or opens a new one after the active tab (WP-28),
     /// optionally on a view or at a line of its source (a compile error, a search hit).

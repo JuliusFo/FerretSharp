@@ -12,6 +12,7 @@
         {
             TableTab table => TabTooltip(table),
             PlSqlTab plSql => TextFormat.Format(ShellText.TabBar_PlSqlTitle, ExplorerList.KindLabel(plSql.Unit.Kind), plSql.Unit.Owner, plSql.Unit.Name),
+            NewTableTab => ShellText.TabBar_NewTableTitle,
             _ when _renaming == tab => null,
             LinqTab => ShellText.TabBar_LinqTitle,
             _ => ShellText.TabBar_SqlTitle,
@@ -36,6 +37,11 @@
                     {
                         <span class="filter-pill">@TextFormat.Plural(table.ActiveFilterCount, ShellText.TabBar_FiltersOne, ShellText.TabBar_FiltersOther)</span>
                     }
+                    break;
+                case NewTableTab draft:
+                    @Icons.For(FerretSharp.Core.Schema.TableKind.Table)
+                    <span class="tab-name">@(draft.Table.Name.Length > 0 ? draft.Table.Name : ShellText.TabBar_NewTable)</span>
+                    <span class="filter-pill">@ShellText.TabBar_NewTableBadge</span>
                     break;
                 case PlSqlTab plSql:
                     @Icons.For(plSql.Unit.Kind)

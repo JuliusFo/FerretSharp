@@ -92,6 +92,10 @@
                                                     {
                                                         <SqlView Tab="sqlTab" />
                                                     }
+                                                    else if (tab is NewTableTab newTable)
+                                                    {
+                                                        <NewTableView Tab="newTable" />
+                                                    }
                                                     else if (tab is PlSqlTab plSqlTab)
                                                     {
                                                         <PlSqlTabView Tab="plSqlTab" />

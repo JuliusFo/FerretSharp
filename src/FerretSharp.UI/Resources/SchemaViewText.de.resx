@@ -705,4 +705,22 @@
   <data name="Designer_PropertyCodeTitle" xml:space="preserve">
     <value>Property und Konfiguration für diese Spalte im Stil des Projekts</value>
   </data>
+  <data name="Explorer_NewTable" xml:space="preserve">
+    <value>Neue Tabelle …</value>
+  </data>
+  <data name="NewTable_NamePlaceholder" xml:space="preserve">
+    <value>z. B. LIEFERANT</value>
+  </data>
+  <data name="NewTable_Schema" xml:space="preserve">
+    <value>Im Schema {0}. Ohne Anführungszeichen wird der Name großgeschrieben.</value>
+  </data>
+  <data name="Entity_Create" xml:space="preserve">
+    <value>Entity</value>
+  </data>
+  <data name="Entity_CreateTitle" xml:space="preserve">
+    <value>Entity-Klasse und IEntityTypeConfiguration für diese Tabelle im Stil des Projekts</value>
+  </data>
+  <data name="Entity_Name" xml:space="preserve">
+    <value>Entity</value>
+  </data>
 </root>

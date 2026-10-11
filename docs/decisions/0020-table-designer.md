@@ -25,3 +25,8 @@ Ein Experiment gegen Oracle 23 (Integrationstest, danach entfernt) hat geklärt,
 - Ein Typwechsel gefüllter Spalten über „neue Spalte, umkopieren, alte löschen“ bleibt Handarbeit: Das Umkopieren ist DML, die zwischen zwei DDL-Statements still committet würde (ADR 0019). Der Designer sagt, wie es geht.
 - Die Regeln von `ChangeOf` sind für Oracle 23 belegt; ältere Versionen (19c) können in Einzelfällen strenger sein – dann meldet Oracle seinen Fehler, und der Rest des Entwurfs bleibt.
 - Der Designer ändert nur bestehende Tabellen; neue Tabellen und Entity aus Tabelle folgen in Stufe 3 mit demselben Entwurf (alle Spalten neu).
+
+## Nachtrag Stufe 3 (2026-10-11)
+
+- **Neue Tabelle** über denselben Entwurf: `TableDesign.PlanNew` schreibt die Spalten als ein `CREATE TABLE`, danach wie bei bestehenden Tabellen Constraints, FK-Indizes und Kommentare. Der Entwurf lebt in einem eigenen, **nicht gespeicherten** Tab (`NewTableTab`, `WorkspaceTab.IsSaved`): ein eigenes Dateiformat für Entwürfe wäre mehr als der Nutzen; Schließen fragt. Sobald `CREATE TABLE` gelaufen ist, gehört der Rest des Entwurfs zur echten Tabelle – er wird über `Rebase` zum Bearbeitungsmodus ihres Tabellen-Tabs.
+- **Entity aus Tabelle** (`EntityCode`): fester Stil aus dem Modell-Export wie die Property-Zeile; Navigations nur für deklarierte FKs auf Tabellen mit Entity, `WithMany()` ohne Rück-Navigation (die Gegenseite gehört zur anderen Entity). Der Entity-Name ist ein Vorschlag nach dem Pluralmuster des Projekts, im UI änderbar. Eine Spalte gleichen Namens anderswo im Modell gibt Name, Typ und Converter nur vor, wenn ihre Property die neue Spalte lesen kann (`ColumnTypeCheck`).
