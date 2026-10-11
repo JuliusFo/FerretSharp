@@ -1,7 +1,7 @@
 # FerretSharp – Oracle explorer for .NET developers
 
 > Projektanweisungen für Claude Code. Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-11, Release 3.24.1 (Historie: `CHANGELOG.md`).
+> Stand: 2026-10-11, Release 3.25.0 (Historie: `CHANGELOG.md`).
 
 ## Wo steht was
 
@@ -99,7 +99,8 @@ FerretSharp.slnx
 │  ├─ FerretSharp.ModelHost/   # Hilfsprozess im Kontext des C#-Projekts des Nutzers (.NET 8, ADR 0009)
 │  └─ FerretSharp.App/         # net10.0-windows10.0.19041.0 – schlanker WPF-Host (Generic Host, Serilog, Host-Dienste)
 ├─ tests/                      # Core.Tests und UI.Tests (ohne DB; UI.Tests prüfen die State-Klassen ohne Rendern, `TestApp`),
-│                              # Integration.Tests (Testcontainers, überspringt ohne Docker)
+│                              # Integration.Tests (Testcontainers, überspringt ohne Docker),
+│                              # FakeModelHost (Stand-in des ModelHost für die Prozess-Tests der Core.Tests)
 ├─ samples/                    # Beispielmodell (DbContext + Entities) zur Beispiel-DB
 ├─ tools/                      # icon/New-AppIcon.ps1 (App-Icon generiert, nicht von Hand bearbeiten), sample-db/New-SampleDb.ps1
 └─ docs/                       # siehe „Wo steht was“; images/ für README-Screenshots
@@ -142,6 +143,5 @@ Regeln:
 
 ## 8. Als Nächstes (Details und Entscheidungen des Nutzers: `docs/roadmap.md`)
 
-- **R4b** Struktur-Refactoring nach dem Review 3.24.0 (gemeinsame DDL-Erzeugung `Core/Ddl`, `SqlScript` aufteilen, `StatementRunner` …) – Vorbereitung für WP-26.
-- **WP-26** Audit-/Historientabellen aus einer Vorlagendatei (baut auf dem Tabellen-Designer aus WP-23 auf, ADR 0020).
+- **WP-26** Audit-/Historientabellen aus einer Vorlagendatei (baut auf dem Tabellen-Designer aus WP-23 auf, ADR 0020). Vorbereitet in R4b (3.25.0): DDL-Schritte mit Art und Risiko in `Core/Ddl` (auch `PlSqlObject` mit `/`), `ColumnChange` mit bekannter Absicht, `SqlScript` in Tokenizer/Splitter/Classifier/Analyse geteilt (der Blockmodus bis zur `/`-Zeile fehlt noch), ein `StatementRunner` für alle Statements.
 - PL/SQL-Objekte anlegen (in WP-22 bewusst abgewiesen), PL/SQL ausführen und bearbeiten (Stufen 2/3 nach WP-28) stehen im Backlog; die Entscheidung fällt spätestens mit WP-26 (Trigger).

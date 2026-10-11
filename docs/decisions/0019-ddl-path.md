@@ -34,6 +34,8 @@ Entscheidungen des Nutzers (2026-10-06 und 2026-10-10):
   - Verworfen: die Vorabprüfung allein über `V$LOCKED_OBJECT` – der übliche Entwicklerbenutzer darf die Views nicht lesen (im Test-Container ORA-00942 mit `DB_DEVELOPER_ROLE`).
   - Zusätzlich nennt der Bestätigungsdialog andere Workspaces derselben Verbindung mit offener Schreib-Transaktion und ihre Tabellen (`WorkspaceLifecycle.OtherWriters`), damit man es vorher sieht.
 
+- Nachtrag R4b (2026-10-11): Alle Statements des SQL-Editors, des Designers und der LINQ-Konsole laufen über einen Weg, den `StatementRunner` (`WorkspaceLifecycle.Statements`): Rollback vor DDL (`DiscardTransactionAsync`), Schemaweg je Statement, Sperrhalter, Verlauf, danach Schema neu laden (`FinishAsync`); `RunDdlAsync` liegt dort. Die Einordnung der Statements ist auf `SqlTokenizer`, `SqlSplitter`, `SqlClassifier` und `SqlAnalysis` verteilt (`SqlScript` bleibt die Fassade); die Schranken der Session (`StatementGuard`) hängen nur an Tokenizer und Classifier.
+
 ## Konsequenzen
 
 - DDL lässt sich nicht zurücknehmen; die Bestätigung und die Abweisung bei offener Transaktion sind der Schutz. Die einzige Garantie gegen ungewolltes DDL bleibt ein DB-Benutzer ohne DDL-Rechte.

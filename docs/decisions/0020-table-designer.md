@@ -26,6 +26,11 @@ Ein Experiment gegen Oracle 23 (Integrationstest, danach entfernt) hat geklärt,
 - Die Regeln von `ChangeOf` sind für Oracle 23 belegt; ältere Versionen (19c) können in Einzelfällen strenger sein – dann meldet Oracle seinen Fehler, und der Rest des Entwurfs bleibt.
 - Der Designer ändert nur bestehende Tabellen; neue Tabellen und Entity aus Tabelle folgen in Stufe 3 mit demselben Entwurf (alle Spalten neu).
 
+## Nachtrag R4b (2026-10-11)
+
+- Vergleich und Designer teilen den DDL-Schreiber `Core/Ddl`: `OracleDdl` für jeden Text, `DdlStep` mit Art und Risiko, die Reihenfolge aus der Art (`DdlScript.Stage`) und ein Renderer (`DdlScript.Render`). Der Vergleich übernimmt die Reihenfolge des Designers (Constraints löschen zuerst, Kommentare zuletzt); der Satz oben, `DdlWriter` bleibe unverändert, gilt damit nicht mehr.
+- Spaltenänderungen schreibt `ColumnChange.Steps` auf `OracleTypes.ChangeOf` für beide: mit bekannter Absicht (Designer) echtes DDL, ohne (Vergleich) Hinweise. Damit nennt auch der Vergleich Typwechsel, die eine leere Spalte brauchen, so (A4).
+
 ## Nachtrag Stufe 3 (2026-10-11)
 
 - **Neue Tabelle** über denselben Entwurf: `TableDesign.PlanNew` schreibt die Spalten als ein `CREATE TABLE`, danach wie bei bestehenden Tabellen Constraints, FK-Indizes und Kommentare. Der Entwurf lebt in einem eigenen, **nicht gespeicherten** Tab (`NewTableTab`, `WorkspaceTab.IsSaved`): ein eigenes Dateiformat für Entwürfe wäre mehr als der Nutzen; Schließen fragt. Sobald `CREATE TABLE` gelaufen ist, gehört der Rest des Entwurfs zur echten Tabelle – er wird über `Rebase` zum Bearbeitungsmodus ihres Tabellen-Tabs.
