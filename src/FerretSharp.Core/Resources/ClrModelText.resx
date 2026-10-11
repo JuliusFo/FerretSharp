@@ -408,4 +408,18 @@
     <value>The project converts it inline ({0}) – add the conversion by hand.</value>
     <comment>{0}: converter type as the model reports it</comment>
   </data>
+  <data name="EntityForeignKeyUnmapped" xml:space="preserve">
+    <value>{0} references {1}, which has no entity yet: no navigation.</value>
+    <comment>{0}: foreign key name; {1}: referenced table</comment>
+  </data>
+  <data name="EntityWithoutKey" xml:space="preserve">
+    <value>The table has no primary key: EF Core can only read it (HasNoKey).</value>
+  </data>
+  <data name="EntityViewWithoutKey" xml:space="preserve">
+    <value>A view without key: EF Core reads it (HasNoKey); give it a key if rows are to be tracked.</value>
+  </data>
+  <data name="EntityDbSet" xml:space="preserve">
+    <value>Add a DbSet&lt;{0}&gt; to the DbContext and register the configuration, as the project does it.</value>
+    <comment>{0}: entity name</comment>
+  </data>
 </root>
