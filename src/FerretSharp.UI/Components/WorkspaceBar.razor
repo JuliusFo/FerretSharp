@@ -235,13 +235,7 @@
     }
 
     /// <summary>Closing ends the workspace's session: uncommitted changes are committed or discarded first.</summary>
-    private async Task CloseAsync(Workspace workspace)
-    {
-        if (Workspaces.Open.Count > 1)
-        {
-            await Lifecycle.GuardAsync(TextFormat.Format(ShellText.Workspaces_CloseWhat, workspace.Name), [workspace.Id], () => Workspaces.CloseAsync(workspace.Id));
-        }
-    }
+    private Task CloseAsync(Workspace workspace) => Lifecycle.CloseWorkspaceAsync(workspace.Id);
 
     private async Task CloseOnMiddleClick(MouseEventArgs e, Workspace workspace)
     {

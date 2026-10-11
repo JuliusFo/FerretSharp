@@ -85,6 +85,25 @@ public sealed partial class WorkspaceLifecycle(
         await closing;
     }
 
+    /// <summary>
+    /// Closes a workspace – not the last open one – after asking what happens to its uncommitted changes. What the editing
+    /// kept of it goes too (R4b: closing from the workspace bar left its write history behind until the connection closed).
+    /// </summary>
+    public Task CloseWorkspaceAsync(Guid workspaceId)
+    {
+        var workspaces = ScopeOf(workspaceId).Workspaces;
+        if (workspaces.Open.Count <= 1)
+        {
+            return Task.CompletedTask;
+        }
+
+        return GuardAsync(TextFormat.Format(ShellText.Workspaces_CloseWhat, WorkspaceName(workspaceId)), [workspaceId], async () =>
+        {
+            await workspaces.CloseAsync(workspaceId);
+            editing.Forget(workspaceId);
+        });
+    }
+
     /// <summary>Locks the workspace again – after asking what happens to its uncommitted changes.</summary>
     public Task LockAsync(Guid workspaceId) =>
         GuardAsync(ShellText.Lifecycle_LockWhat, [workspaceId], async () =>
