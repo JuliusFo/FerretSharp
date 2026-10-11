@@ -40,7 +40,7 @@ else
                 <h2>@SchemaViewText.Indexes_NewHeading</h2>
                 <div class="index-draft-form">
                     <label for="@_nameId">@SchemaViewText.Head_Name</label>
-                    <input id="@_nameId" class="field mono" spellcheck="false" value="@_name" @oninput="e => SetName((string?)e.Value)" />
+                    <input id="@_nameId" class="field mono" spellcheck="false" value="@_name" @oninput="e => SetName((string?)e.Value)" @onchange="SuggestName" />
 
                     <span class="label">@SchemaViewText.Head_Columns</span>
                     <div class="index-draft-columns">
@@ -187,7 +187,7 @@ else
     private void SetName(string? value)
     {
         _name = value ?? "";
-        _nameTyped = _name.Length > 0; // cleared: follow the columns again
+        _nameTyped = _name.Length > 0; // cleared: follow the columns again (from the next change or on leaving the field)
     }
 
     private void SetUnique(bool unique) => _unique = unique;
