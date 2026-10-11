@@ -150,4 +150,58 @@
     <value>{0}: not checked for NULL values – NOT NULL fails if there are any (ORA-02296).</value>
     <comment>{0}: column name</comment>
   </data>
+  <data name="DropReferencedKey" xml:space="preserve">
+    <value>{0} is referenced by foreign keys of other tables ({1}); Oracle does not drop it (ORA-02273).</value>
+    <comment>{0}: key constraint name; {1}: foreign key names</comment>
+  </data>
+  <data name="ConstraintNameTaken" xml:space="preserve">
+    <value>The table already has a constraint named {0} (ORA-02264).</value>
+    <comment>{0}: constraint name</comment>
+  </data>
+  <data name="ConstraintNeedsColumns" xml:space="preserve">
+    <value>{0}: choose at least one column.</value>
+    <comment>{0}: constraint name, or its kind with columns</comment>
+  </data>
+  <data name="ConstraintColumnUnknown" xml:space="preserve">
+    <value>{0}: the table has no column {1}.</value>
+    <comment>{0}: constraint; {1}: column name</comment>
+  </data>
+  <data name="ConstraintColumnTwice" xml:space="preserve">
+    <value>{0}: {1} is chosen twice.</value>
+    <comment>{0}: constraint; {1}: column name</comment>
+  </data>
+  <data name="PrimaryKeyExists" xml:space="preserve">
+    <value>The table already has a primary key – drop it first (ORA-02260).</value>
+  </data>
+  <data name="KeyExists" xml:space="preserve">
+    <value>{0}: {1} is already a key on these columns (ORA-02261).</value>
+    <comment>{0}: new constraint; {1}: existing key name</comment>
+  </data>
+  <data name="CheckNeedsCondition" xml:space="preserve">
+    <value>{0}: a check needs a condition.</value>
+    <comment>{0}: constraint</comment>
+  </data>
+  <data name="ForeignKeyNeedsTable" xml:space="preserve">
+    <value>{0}: choose the referenced table.</value>
+    <comment>{0}: constraint</comment>
+  </data>
+  <data name="ForeignKeyColumnCount" xml:space="preserve">
+    <value>{0}: {1} columns reference {2} columns – the numbers must match.</value>
+    <comment>{0}: constraint; {1}: number of own columns; {2}: number of referenced columns</comment>
+  </data>
+  <data name="ForeignKeyNeedsKey" xml:space="preserve">
+    <value>{0}: {2} is no primary or unique key of {1} (ORA-02270).</value>
+    <comment>{0}: constraint; {1}: referenced table; {2}: referenced columns</comment>
+  </data>
+  <data name="ForeignKeyTypes" xml:space="preserve">
+    <value>{0}: {1} ({2}) cannot reference {3} ({4}) – the types do not fit (ORA-02267).</value>
+    <comment>{0}: constraint; {1}: own column; {2}: its type; {3}: referenced column; {4}: its type</comment>
+  </data>
+  <data name="ForeignKeyWithoutIndex" xml:space="preserve">
+    <value>{0} gets no index: deleting or changing a referenced key then locks this whole table and scans it.</value>
+    <comment>{0}: constraint</comment>
+  </data>
+  <data name="ConstraintChecksRows" xml:space="preserve">
+    <value>New constraints check the existing rows: duplicates, NULLs, rows breaking a check or without parent row make them fail (ORA-02437, ORA-02299, ORA-02293, ORA-02298).</value>
+  </data>
 </root>

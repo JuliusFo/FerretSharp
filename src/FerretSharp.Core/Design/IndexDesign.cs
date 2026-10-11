@@ -34,10 +34,17 @@ public static partial class IndexDesign
     /// <c>_</c>: <c>"Nummer"</c> → <c>NUMMER</c>), cut to <see cref="MaxNameBytes"/>; a name the table's indexes already use
     /// gets <c>_2</c>, <c>_3</c> ….
     /// </summary>
-    public static string SuggestName(string table, IReadOnlyList<string> columns, IEnumerable<string> taken)
+    public static string SuggestName(string table, IReadOnlyList<string> columns, IEnumerable<string> taken) =>
+        PlainName($"IX_{table}" + string.Concat(columns.Select(c => "_" + c)), taken);
+
+    /// <summary>
+    /// <paramref name="stem"/> as a plain name (upper case, other characters as <c>_</c>), cut to <see cref="MaxNameBytes"/>;
+    /// one in <paramref name="taken"/> gets <c>_2</c>, <c>_3</c> …. Shared by the names of indexes and constraints.
+    /// </summary>
+    internal static string PlainName(string stem, IEnumerable<string> taken)
     {
         var used = taken.ToHashSet(StringComparer.Ordinal);
-        var stem = NotPlain().Replace(($"IX_{table}" + string.Concat(columns.Select(c => "_" + c))).ToUpperInvariant(), "_");
+        stem = NotPlain().Replace(stem.ToUpperInvariant(), "_");
         var name = Cut(stem, MaxNameBytes);
         for (var n = 2; used.Contains(name); n++)
         {

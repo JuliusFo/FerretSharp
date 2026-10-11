@@ -18,15 +18,52 @@ public sealed record ColumnDraft(string? Original, ColumnInfo Column, bool Dropp
     public bool IsNew => Original is null;
 }
 
-/// <summary>The designer's draft of an existing table: its columns as they should be, in order.</summary>
+/// <summary>A constraint the designer adds (WP-23, stage 2).</summary>
+/// <param name="Name">Its name in dictionary form; empty lets Oracle name it (<c>SYS_C…</c>).</param>
+/// <param name="Columns">Columns of the draft (their new names), in key order.</param>
+/// <param name="Condition">The condition of a check.</param>
+/// <param name="References">The table a foreign key references.</param>
+/// <param name="ReferencedColumns">Its key columns, in the order of <paramref name="Columns"/>.</param>
+/// <param name="DeleteRule">A foreign key's <c>CASCADE</c> or <c>SET NULL</c>; null for none (NO ACTION).</param>
+/// <param name="WithIndex">A foreign key gets an index on its columns too, unless one covers them already.</param>
+public sealed record ConstraintDraft(
+    string Name,
+    ConstraintType Type,
+    IReadOnlyList<string> Columns,
+    string? Condition = null,
+    TableRef? References = null,
+    IReadOnlyList<string>? ReferencedColumns = null,
+    string? DeleteRule = null,
+    bool WithIndex = true);
+
+/// <summary>The designer's draft of an existing table: its columns as they should be, in order, and its constraint changes.</summary>
 public sealed record TableDraft(IReadOnlyList<ColumnDraft> Columns)
 {
+    /// <summary>Names of existing constraints to drop.</summary>
+    public IReadOnlyList<string> DroppedConstraints { get; init; } = [];
+
+    /// <summary>New constraints.</summary>
+    public IReadOnlyList<ConstraintDraft> AddedConstraints { get; init; } = [];
+
     /// <summary>The table as it is: nothing changed yet.</summary>
     public static TableDraft Of(TableDetails table)
     {
         ArgumentNullException.ThrowIfNull(table);
         return new(table.Columns.Select(c => new ColumnDraft(c.Name, c)).ToList());
     }
+}
+
+/// <summary>What the designer knows about the table besides its columns.</summary>
+/// <param name="Constraints">The table's constraints (keys, checks, foreign keys).</param>
+/// <param name="Indexes">The table's indexes (does a new foreign key need one?).</param>
+/// <param name="Incoming">Foreign keys of other tables that reference this one.</param>
+public sealed record DesignContext(TableDetails Table, IReadOnlyList<ConstraintInfo> Constraints, IReadOnlyList<IndexInfo> Indexes, IReadOnlyList<ForeignKeyInfo> Incoming)
+{
+    /// <summary>The tables new foreign keys reference, for their keys and column types; a missing one is not checked.</summary>
+    public IReadOnlyDictionary<TableRef, TableDetails> Referenced { get; init; } = new Dictionary<TableRef, TableDetails>();
+
+    /// <summary>Only the table: no constraints, indexes or references known.</summary>
+    public static DesignContext Of(TableDetails table) => new(table, [], [], []);
 }
 
 public enum DataQuestionKind
@@ -106,6 +143,11 @@ public static partial class TableDesign
             }
         }
 
+        if (draft.AddedConstraints.Count > 0)
+        {
+            questions.Add(new DataQuestion(DataQuestionKind.Rows)); // an empty table has no rows to break a new constraint
+        }
+
         return questions.Distinct().ToList();
     }
 
@@ -132,15 +174,13 @@ public static partial class TableDesign
         return new DataFacts(counts);
     }
 
-    /// <param name="constraints">The table's constraints (for columns in keys and checks).</param>
-    /// <param name="incoming">Foreign keys of other tables that reference this one.</param>
-    public static DesignPlan Plan(TableDetails current, IReadOnlyList<ConstraintInfo> constraints, IReadOnlyList<ForeignKeyInfo> incoming,
-        TableDraft draft, DataFacts facts)
+    /// <summary>The DDL for the draft, and what speaks against it.</summary>
+    public static DesignPlan Plan(DesignContext context, TableDraft draft, DataFacts facts)
     {
-        ArgumentNullException.ThrowIfNull(current);
+        ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(draft);
         ArgumentNullException.ThrowIfNull(facts);
-        var writer = new Writer(current, constraints, incoming, facts);
+        var writer = new Writer(context, facts);
         writer.Write(draft);
         return new DesignPlan(writer.Statements(), writer.Problems.Distinct().ToList(), writer.Warnings.Distinct().ToList());
     }
@@ -161,13 +201,20 @@ public static partial class TableDesign
     [GeneratedRegex(@"^\p{Lu}[\p{Lu}\p{Nd}_$#]*$")]
     private static partial Regex PlainName();
 
-    private sealed class Writer(TableDetails current, IReadOnlyList<ConstraintInfo> constraints, IReadOnlyList<ForeignKeyInfo> incoming, DataFacts facts)
+    private sealed partial class Writer(DesignContext context, DataFacts facts)
     {
+        private readonly TableDetails current = context.Table;
+        private readonly List<string> _dropConstraints = [];
         private readonly List<string> _drops = [];
         private readonly List<string> _renames = [];
         private readonly List<string> _modifies = [];
         private readonly List<string> _adds = [];
+        private readonly List<string> _addConstraints = [];
+        private readonly List<string> _indexes = [];
         private readonly List<string> _comments = [];
+
+        /// <summary>Existing constraints the draft drops: a column in them may go, a key column may allow NULL.</summary>
+        private HashSet<string> _dropped = [];
 
         public List<string> Problems { get; } = [];
 
@@ -175,7 +222,12 @@ public static partial class TableDesign
 
         private string Table => OracleIdentifier.Qualify(current.Table.Owner, current.Table.Name);
 
-        public IReadOnlyList<string> Statements() => [.. _drops, .. _renames, .. _modifies, .. _adds, .. _comments];
+        /// <summary>
+        /// Constraints go first (a column of a dropped constraint may then be dropped), new ones after the new columns
+        /// (they may use them), primary and unique keys before foreign keys (one may reference the other).
+        /// </summary>
+        public IReadOnlyList<string> Statements() =>
+            [.. _dropConstraints, .. _drops, .. _renames, .. _modifies, .. _adds, .. _addConstraints, .. _indexes, .. _comments];
 
         public void Write(TableDraft draft)
         {
@@ -186,6 +238,7 @@ public static partial class TableDesign
             }
 
             CheckNames(kept);
+            DropConstraints(draft.DroppedConstraints);
             foreach (var column in draft.Columns)
             {
                 if (column.IsNew)
@@ -207,6 +260,8 @@ public static partial class TableDesign
                     }
                 }
             }
+
+            AddConstraints(draft, kept);
         }
 
         private void CheckNames(IReadOnlyList<ColumnDraft> kept)
@@ -293,13 +348,13 @@ public static partial class TableDesign
         {
             // Oracle drops single-column constraints with the column; a key others reference or a constraint over several
             // columns it refuses (WP-23 experiment).
-            var referencing = incoming.Where(fk => fk.ToColumns.Contains(column.Name, StringComparer.Ordinal)).Select(fk => fk.Name).ToList();
+            var referencing = context.Incoming.Where(fk => fk.ToColumns.Contains(column.Name, StringComparer.Ordinal)).Select(fk => fk.Name).ToList();
             if (referencing.Count > 0)
             {
                 Problems.Add(TextFormat.Format(DesignText.DropReferencedColumn, column.Name, string.Join(", ", referencing))); // ORA-12992
             }
 
-            foreach (var constraint in constraints.Where(c => c.Columns.Count > 1 && c.Columns.Contains(column.Name, StringComparer.Ordinal)))
+            foreach (var constraint in context.Constraints.Where(c => c.Columns.Count > 1 && c.Columns.Contains(column.Name, StringComparer.Ordinal) && !_dropped.Contains(c.Name)))
             {
                 Problems.Add(TextFormat.Format(DesignText.DropColumnInConstraint, column.Name, constraint.Name)); // ORA-12991
             }
@@ -423,7 +478,7 @@ public static partial class TableDesign
 
             if (after.Nullable)
             {
-                if (current.PrimaryKey.Contains(before.Name, StringComparer.Ordinal))
+                if (current.PrimaryKey.Contains(before.Name, StringComparer.Ordinal) && !PrimaryKeyDropped)
                 {
                     Problems.Add(TextFormat.Format(DesignText.NullOnPrimaryKey, after.Name)); // ORA-01451
                     return;

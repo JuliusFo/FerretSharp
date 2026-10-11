@@ -120,4 +120,46 @@
   <data name="NotNullUnchecked" xml:space="preserve">
     <value>{0}: Nicht auf NULL-Werte geprüft – NOT NULL scheitert, wenn es welche gibt (ORA-02296).</value>
   </data>
+  <data name="DropReferencedKey" xml:space="preserve">
+    <value>{0} wird von Fremdschlüsseln anderer Tabellen referenziert ({1}); Oracle löscht den Schlüssel nicht (ORA-02273).</value>
+  </data>
+  <data name="ConstraintNameTaken" xml:space="preserve">
+    <value>Die Tabelle hat schon einen Constraint {0} (ORA-02264).</value>
+  </data>
+  <data name="ConstraintNeedsColumns" xml:space="preserve">
+    <value>{0}: Wähle mindestens eine Spalte.</value>
+  </data>
+  <data name="ConstraintColumnUnknown" xml:space="preserve">
+    <value>{0}: Die Tabelle hat keine Spalte {1}.</value>
+  </data>
+  <data name="ConstraintColumnTwice" xml:space="preserve">
+    <value>{0}: {1} ist doppelt gewählt.</value>
+  </data>
+  <data name="PrimaryKeyExists" xml:space="preserve">
+    <value>Die Tabelle hat schon einen Primärschlüssel – erst diesen löschen (ORA-02260).</value>
+  </data>
+  <data name="KeyExists" xml:space="preserve">
+    <value>{0}: {1} ist schon ein Schlüssel auf diesen Spalten (ORA-02261).</value>
+  </data>
+  <data name="CheckNeedsCondition" xml:space="preserve">
+    <value>{0}: Ein Check braucht eine Bedingung.</value>
+  </data>
+  <data name="ForeignKeyNeedsTable" xml:space="preserve">
+    <value>{0}: Wähle die referenzierte Tabelle.</value>
+  </data>
+  <data name="ForeignKeyColumnCount" xml:space="preserve">
+    <value>{0}: {1} Spalten verweisen auf {2} Spalten – die Anzahl muss gleich sein.</value>
+  </data>
+  <data name="ForeignKeyNeedsKey" xml:space="preserve">
+    <value>{0}: {2} ist kein Primär- oder Unique-Schlüssel von {1} (ORA-02270).</value>
+  </data>
+  <data name="ForeignKeyTypes" xml:space="preserve">
+    <value>{0}: {1} ({2}) kann nicht auf {3} ({4}) verweisen – die Typen passen nicht (ORA-02267).</value>
+  </data>
+  <data name="ForeignKeyWithoutIndex" xml:space="preserve">
+    <value>{0} bekommt keinen Index: Löschen oder Ändern eines referenzierten Schlüssels sperrt dann diese ganze Tabelle und durchsucht sie.</value>
+  </data>
+  <data name="ConstraintChecksRows" xml:space="preserve">
+    <value>Neue Constraints prüfen die vorhandenen Zeilen: Duplikate, NULLs, Zeilen gegen einen Check oder ohne Elternzeile lassen sie scheitern (ORA-02437, ORA-02299, ORA-02293, ORA-02298).</value>
+  </data>
 </root>

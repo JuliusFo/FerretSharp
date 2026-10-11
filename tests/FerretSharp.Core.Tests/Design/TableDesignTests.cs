@@ -29,7 +29,7 @@ public class TableDesignTests
     }
 
     private static DesignPlan Plan(TableDraft draft, DataFacts? facts = null, IReadOnlyList<ConstraintInfo>? constraints = null, IReadOnlyList<ForeignKeyInfo>? incoming = null) =>
-        TableDesign.Plan(Kunde, constraints ?? [], incoming ?? [], draft, facts ?? DataFacts.None);
+        TableDesign.Plan(new DesignContext(Kunde, constraints ?? [], [], incoming ?? []), draft, facts ?? DataFacts.None);
 
     private static DataFacts Facts(params (DataQuestion Question, long Count)[] counts) => new(counts.ToDictionary(c => c.Question, c => c.Count));
 
@@ -140,7 +140,7 @@ public class TableDesignTests
         var mixed = Kunde with { Columns = [.. Kunde.Columns, new ColumnInfo("Alt", "NUMBER", null, false, null, null, true, false, null, 6)] };
         var draft = new TableDraft([.. TableDraft.Of(mixed).Columns, new ColumnDraft(null, NewColumn("neu", "NUMBER"))]);
 
-        var plan = TableDesign.Plan(mixed, [], [], draft, DataFacts.None);
+        var plan = TableDesign.Plan(DesignContext.Of(mixed), draft, DataFacts.None);
 
         Assert.Equal(["neu ist kein einfacher Oracle-Name; SQL und das C#-Modell müssen ihn genau so in doppelten Anführungszeichen schreiben."], plan.Warnings);
     }
@@ -243,7 +243,7 @@ public class TableDesignTests
         [
             $"""ALTER TABLE {T} MODIFY ("STATUS" DEFAULT 'A')""",
             $"""ALTER TABLE {T} MODIFY ("STATUS" NOT NULL)""",
-        ], TableDesign.Plan(table, [], [], draft, DataFacts.None).Statements);
+        ], TableDesign.Plan(DesignContext.Of(table), draft, DataFacts.None).Statements);
     }
 
     [Fact]
@@ -256,8 +256,8 @@ public class TableDesignTests
         var table = Kunde with { Columns = [.. Kunde.Columns, virtualColumn] };
         TableDraft With(ColumnInfo after) => new([.. TableDraft.Of(Kunde).Columns, new ColumnDraft("BRUTTO", after)]);
         Assert.Equal([$"""ALTER TABLE {T} RENAME COLUMN "BRUTTO" TO "GROSS" """.TrimEnd()],
-            TableDesign.Plan(table, [], [], With(virtualColumn with { Name = "GROSS" }), DataFacts.None).Statements);
-        Assert.Single(TableDesign.Plan(table, [], [], With(virtualColumn with { Precision = 10 }), DataFacts.None).Problems);
+            TableDesign.Plan(DesignContext.Of(table), With(virtualColumn with { Name = "GROSS" }), DataFacts.None).Statements);
+        Assert.Single(TableDesign.Plan(DesignContext.Of(table), With(virtualColumn with { Precision = 10 }), DataFacts.None).Problems);
     }
 
     // ---- dropping ----
@@ -318,4 +318,163 @@ public class TableDesignTests
 
         static string Kind(string sql) => sql.StartsWith("COMMENT", StringComparison.Ordinal) ? "COMMENT" : sql.Split(' ')[3];
     }
+
+    // ---- constraints ----
+
+    private static readonly ConstraintInfo PkKunde = new("PK_KUNDE", ConstraintType.PrimaryKey, ["ID"], null, null, [], null, true, true, false, false, false);
+
+    private static readonly TableDetails Land = new(new TableSummary("SHOP", "LAND", TableKind.Table),
+        [new ColumnInfo("CODE", "VARCHAR2", 2, false, null, null, false, false, null, 1), new ColumnInfo("NAME", "VARCHAR2", 50, false, null, null, true, false, null, 2)],
+        ["CODE"], [["NAME"]], false);
+
+    private static DesignPlan PlanWith(TableDraft draft, DataFacts? facts = null, IReadOnlyList<IndexInfo>? indexes = null, IReadOnlyList<ForeignKeyInfo>? incoming = null) =>
+        TableDesign.Plan(new DesignContext(Kunde, [PkKunde], indexes ?? [], incoming ?? []) { Referenced = new Dictionary<TableRef, TableDetails> { [Land.Table.Ref] = Land } },
+            draft, facts ?? DataFacts.None);
+
+    private static TableDraft WithLand(params ConstraintDraft[] constraints) =>
+        Draft(new ColumnDraft(null, NewColumn("LAND", "VARCHAR2", 2))) with { AddedConstraints = constraints };
+
+    [Fact]
+    public void A_foreign_key_comes_with_its_index_after_the_new_column()
+    {
+        var plan = PlanWith(WithLand(new ConstraintDraft("FK_KUNDE_LAND", ConstraintType.ForeignKey, ["LAND"], References: Land.Table.Ref, ReferencedColumns: ["CODE"])),
+            Facts((Rows, 0)));
+
+        Assert.Equal(
+        [
+            $"""ALTER TABLE {T} ADD ("LAND" VARCHAR2(2 BYTE))""",
+            $"""ALTER TABLE {T} ADD CONSTRAINT "FK_KUNDE_LAND" FOREIGN KEY ("LAND") REFERENCES "SHOP"."LAND" ("CODE")""",
+            """CREATE INDEX "SHOP"."IX_KUNDE_LAND" ON "SHOP"."KUNDE" ("LAND")""",
+        ], plan.Statements);
+        Assert.Empty(plan.Warnings); // an empty table: no rows to check
+        Assert.All(plan.Statements, sql => Assert.True(OracleSession.IsDdlStatement(sql), sql));
+    }
+
+    [Fact]
+    public void A_foreign_key_without_index_is_a_warning_and_a_covering_index_needs_none()
+    {
+        var noIndex = PlanWith(WithLand(new ConstraintDraft("FK", ConstraintType.ForeignKey, ["LAND"], References: Land.Table.Ref, ReferencedColumns: ["CODE"], WithIndex: false)));
+        Assert.Equal(2, noIndex.Statements.Count);
+        Assert.Contains("FK bekommt keinen Index: Löschen oder Ändern eines referenzierten Schlüssels sperrt dann diese ganze Tabelle und durchsucht sie.", noIndex.Warnings);
+        Assert.Contains("Neue Constraints prüfen die vorhandenen Zeilen: Duplikate, NULLs, Zeilen gegen einen Check oder ohne Elternzeile lassen sie scheitern (ORA-02437, ORA-02299, ORA-02293, ORA-02298).", noIndex.Warnings);
+
+        var draft = Draft() with { AddedConstraints = [new ConstraintDraft("FK", ConstraintType.ForeignKey, ["NAME"], References: Land.Table.Ref, ReferencedColumns: ["NAME"])] };
+        var covering = new IndexInfo("SHOP", "IX_NAME_STATUS", "NORMAL", false, "VALID", [new IndexColumn("NAME", false, false), new IndexColumn("STATUS", false, false)], null, false, true);
+        Assert.Single(PlanWith(draft, indexes: [covering]).Statements);
+    }
+
+    [Fact]
+    public void A_foreign_key_needs_a_key_of_the_referenced_table_fitting_types_and_as_many_columns()
+    {
+        ConstraintDraft Fk(string column, params string[] referenced) => new("FK", ConstraintType.ForeignKey, [column], References: Land.Table.Ref, ReferencedColumns: referenced);
+
+        Assert.Equal(["FK: STATUS ist kein Primär- oder Unique-Schlüssel von LAND (ORA-02270)."], PlanWith(WithLand(Fk("LAND", "STATUS"))).Problems);
+        Assert.Equal(["FK: UMSATZ (NUMBER(12,2)) kann nicht auf CODE (VARCHAR2(2)) verweisen – die Typen passen nicht (ORA-02267)."], PlanWith(WithLand(Fk("UMSATZ", "CODE"))).Problems);
+        Assert.Equal(["FK: 1 Spalten verweisen auf 2 Spalten – die Anzahl muss gleich sein."], PlanWith(WithLand(Fk("LAND", "CODE", "NAME"))).Problems);
+        Assert.Equal(["FK: Wähle die referenzierte Tabelle."], PlanWith(WithLand(new ConstraintDraft("FK", ConstraintType.ForeignKey, ["LAND"]))).Problems);
+        Assert.Empty(PlanWith(WithLand(Fk("LAND", "CODE") with { References = new TableRef("SHOP", "NICHT_GELADEN"), ReferencedColumns = ["X"] })).Problems); // Oracle checks it
+    }
+
+    [Fact]
+    public void A_foreign_key_may_reference_a_new_key_of_the_same_table()
+    {
+        var draft = Draft(new ColumnDraft(null, NewColumn("CHEF", "NUMBER"))) with
+        {
+            AddedConstraints =
+            [
+                new ConstraintDraft("FK_KUNDE_CHEF", ConstraintType.ForeignKey, ["CHEF"], References: Kunde.Table.Ref, ReferencedColumns: ["ID"], DeleteRule: "SET NULL"),
+            ],
+        };
+
+        var plan = PlanWith(draft);
+
+        Assert.Empty(plan.Problems);
+        Assert.Contains($"""ALTER TABLE {T} ADD CONSTRAINT "FK_KUNDE_CHEF" FOREIGN KEY ("CHEF") REFERENCES "SHOP"."KUNDE" ("ID") ON DELETE SET NULL""", plan.Statements);
+    }
+
+    [Fact]
+    public void A_second_primary_key_or_a_key_on_the_same_columns_is_refused_a_dropped_one_makes_room()
+    {
+        var pk = new ConstraintDraft("PK_KUNDE_NEU", ConstraintType.PrimaryKey, ["ID", "NAME"]);
+        Assert.Equal(["Die Tabelle hat schon einen Primärschlüssel – erst diesen löschen (ORA-02260)."], PlanWith(Draft() with { AddedConstraints = [pk] }).Problems);
+        Assert.Equal(["UK_ID: PK_KUNDE ist schon ein Schlüssel auf diesen Spalten (ORA-02261)."],
+            PlanWith(Draft() with { AddedConstraints = [new ConstraintDraft("UK_ID", ConstraintType.Unique, ["ID"])] }).Problems);
+
+        var replaced = PlanWith(Draft() with { DroppedConstraints = ["PK_KUNDE"], AddedConstraints = [pk] });
+        Assert.Equal(
+        [
+            $"""ALTER TABLE {T} DROP CONSTRAINT "PK_KUNDE" """.TrimEnd(),
+            $"""ALTER TABLE {T} ADD CONSTRAINT "PK_KUNDE_NEU" PRIMARY KEY ("ID", "NAME")""",
+        ], replaced.Statements);
+    }
+
+    [Fact]
+    public void A_referenced_key_is_not_dropped()
+    {
+        var incoming = new ForeignKeyInfo("FK_AUFTRAG_KUNDE", new TableRef("SHOP", "AUFTRAG"), ["KUNDE_ID"], Kunde.Table.Ref, ["ID"], FkSource.Declared);
+
+        Assert.Equal(["PK_KUNDE wird von Fremdschlüsseln anderer Tabellen referenziert (FK_AUFTRAG_KUNDE); Oracle löscht den Schlüssel nicht (ORA-02273)."],
+            PlanWith(Draft() with { DroppedConstraints = ["PK_KUNDE"] }, incoming: [incoming]).Problems);
+    }
+
+    [Fact]
+    public void Dropping_the_primary_key_lets_its_column_allow_null()
+    {
+        var plan = PlanWith(Draft(Changed(Id, c => c with { Nullable = true })) with { DroppedConstraints = ["PK_KUNDE"] });
+
+        Assert.Equal(
+        [
+            $"""ALTER TABLE {T} DROP CONSTRAINT "PK_KUNDE" """.TrimEnd(),
+            $"""ALTER TABLE {T} MODIFY ("ID" NULL)""",
+        ], plan.Statements);
+    }
+
+    [Fact]
+    public void Dropping_a_multi_column_constraint_lets_its_column_go_and_runs_first()
+    {
+        var unique = new ConstraintInfo("UK_KUNDE", ConstraintType.Unique, ["NAME", "STATUS"], null, null, [], null, true, true, false, false, false);
+        var draft = Draft(Changed(Name, c => c) with { Dropped = true }) with { DroppedConstraints = ["UK_KUNDE"] };
+
+        var plan = TableDesign.Plan(new DesignContext(Kunde, [PkKunde, unique], [], []), draft, DataFacts.None);
+
+        Assert.Empty(plan.Problems);
+        Assert.Equal(["DROP CONSTRAINT", "DROP COLUMN"], plan.Statements.Select(s => string.Join(' ', s.Split(' ')[3..5])));
+    }
+
+    [Fact]
+    public void Checks_need_a_condition_and_names_must_be_free()
+    {
+        Assert.Equal(["CK: Ein Check braucht eine Bedingung."], PlanWith(Draft() with { AddedConstraints = [new ConstraintDraft("CK", ConstraintType.Check, [], "  ")] }).Problems);
+        Assert.Equal(["Die Tabelle hat schon einen Constraint PK_KUNDE (ORA-02264)."],
+            PlanWith(Draft() with { AddedConstraints = [new ConstraintDraft("PK_KUNDE", ConstraintType.Check, [], "UMSATZ >= 0")] }).Problems);
+
+        var plan = PlanWith(Draft() with { AddedConstraints = [new ConstraintDraft("", ConstraintType.Check, ["UMSATZ"], "UMSATZ >= 0")] });
+        Assert.Equal([$"""ALTER TABLE {T} ADD CHECK (UMSATZ >= 0)"""], plan.Statements); // no name: Oracle names it
+    }
+
+    [Fact]
+    public void Constraint_columns_must_be_columns_of_the_draft()
+    {
+        var draft = Draft(Changed(Name, c => c with { Name = "NACHNAME" })) with { AddedConstraints = [new ConstraintDraft("UK", ConstraintType.Unique, ["NAME", "NACHNAME", "NACHNAME"])] };
+
+        Assert.Equal(["UK: Die Tabelle hat keine Spalte NAME.", "UK: NACHNAME ist doppelt gewählt."], PlanWith(draft).Problems);
+    }
+
+    [Fact]
+    public void New_constraints_ask_for_the_rows()
+    {
+        Assert.Equal([Rows], TableDesign.Questions(Kunde, Draft() with { AddedConstraints = [new ConstraintDraft("UK", ConstraintType.Unique, ["NAME"])] }));
+    }
+
+    [Theory]
+    [InlineData(ConstraintType.PrimaryKey, "PK_KUNDE")]
+    [InlineData(ConstraintType.Unique, "UK_KUNDE_NAME_STATUS")]
+    [InlineData(ConstraintType.Check, "CK_KUNDE_NAME_STATUS")]
+    [InlineData(ConstraintType.ForeignKey, "FK_KUNDE_LAND")]
+    public void Constraint_names_are_suggested_by_kind(ConstraintType type, string name) =>
+        Assert.Equal(name, TableDesign.SuggestConstraintName("Kunde", type, ["NAME", "STATUS"], "LAND", []));
+
+    [Fact]
+    public void A_taken_constraint_name_counts_up() =>
+        Assert.Equal("PK_KUNDE_2", TableDesign.SuggestConstraintName("KUNDE", ConstraintType.PrimaryKey, [], null, ["PK_KUNDE"]));
 }
