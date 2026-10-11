@@ -335,10 +335,17 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
         await WaitUntil(() => _models.State.Phase == ClrModelPhase.Loaded);
         var consoles = new LinqConsoleService(_runner, _models);
         var started = new TaskCompletionSource<ILinqConsole>();
+        var called = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _runner.StartConsoleAsync(Arg.Any<ClrProjectLink>(), Arg.Any<BuildOutput>(), Arg.Any<CancellationToken>(), Arg.Any<IProgress<string>?>())
-            .Returns(started.Task);
+            .Returns(_ =>
+            {
+                called.TrySetResult();
+                return started.Task;
+            });
         var warmUp = consoles.WarmUpAsync();
-        await WaitUntil(() => consoles.State.Phase == LinqConsolePhase.Starting);
+        // The host start itself, not just "Starting": that is set before the start is handed to the pool, and closing
+        // before the pool thread runs drops the start without calling the runner (failed on the CI runner).
+        await called.Task.WaitAsync(TimeSpan.FromSeconds(10), Ct);
 
         await consoles.DisposeAsync();
         var fresh = Console("spät");
