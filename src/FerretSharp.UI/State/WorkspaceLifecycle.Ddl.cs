@@ -22,6 +22,9 @@ public sealed record DdlRunResult(
     bool NotDiscarded = false)
 {
     public bool Succeeded => Failed is null && !NotDiscarded;
+
+    /// <summary>All statements of the run, also those that did not run.</summary>
+    public int Total { get; init; }
 }
 
 // Running DDL statements outside the SQL editor (WP-23: index, table designer) – the shared part of what the SQL editor
@@ -46,8 +49,12 @@ public sealed partial class WorkspaceLifecycle
     /// If the rollback does not happen, nothing runs.
     /// </param>
     /// <param name="starting">Called before each statement, for the progress display.</param>
+    /// <param name="stopped">
+    /// Called when a statement failed or was cancelled – before the schema is reloaded, which may rebuild the caller's
+    /// views (WP-23: the designer keeps its draft and the failure in the tab while it still exists).
+    /// </param>
     public async Task<DdlRunResult> RunDdlAsync(Guid workspaceId, IReadOnlyList<string> statements, WorkspaceTabs? discard,
-        Action<string>? starting, CancellationToken cancellationToken)
+        Action<string>? starting, Action<DdlRunResult>? stopped, CancellationToken cancellationToken)
     {
         if (discard is not null && !await editing.RollbackAsync(discard))
         {
@@ -84,6 +91,12 @@ public sealed partial class WorkspaceLifecycle
             break;
         }
 
+        if (failure is not null)
+        {
+            failure = failure with { Total = statements.Count };
+            stopped?.Invoke(failure);
+        }
+
         if (ran.Count > 0)
         {
             var refresh = await RefreshSchemaAsync(scope);
@@ -93,7 +106,7 @@ public sealed partial class WorkspaceLifecycle
         }
 
         shell.NotifyChanged(); // status bar: the transaction is gone after a rollback or DDL
-        return failure ?? new DdlRunResult(ran, null, null, null);
+        return (failure ?? new DdlRunResult(ran, null, null, null)) with { Total = statements.Count };
     }
 
     /// <summary>Into the connection's SQL history like DDL from the editor, so it can be found and run again elsewhere.</summary>

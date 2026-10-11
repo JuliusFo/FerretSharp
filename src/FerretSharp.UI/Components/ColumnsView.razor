@@ -205,6 +205,7 @@
     {
         _presentationVersion = Presentations.Version;
         Presentations.Changed += OnModelChanged;
+        _editing = Tab?.Designer is not null; // a draft that outlived a rebuild of the tab (DDL that stopped halfway)
     }
 
     private void OnModelChanged() => InvokeAsync(() =>

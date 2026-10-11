@@ -73,7 +73,7 @@
     <value>{0}: NUMBER nimmt 1 bis 38 Stellen und -84 bis 127 Nachkommastellen.</value>
   </data>
   <data name="AddNotNullNeedsDefault" xml:space="preserve">
-    <value>{0}: Die Tabelle hat {1} Zeilen – eine neue NOT-NULL-Spalte braucht für sie einen Default (ORA-01758).</value>
+    <value>{0}: Die Tabelle hat {1:N0} Zeilen – eine neue NOT-NULL-Spalte braucht für sie einen Default (ORA-01758).</value>
   </data>
   <data name="AddNotNullUnchecked" xml:space="preserve">
     <value>{0}: Nicht geprüft, ob die Tabelle Zeilen hat – eine neue NOT-NULL-Spalte ohne Default geht nur bei leerer Tabelle.</value>
@@ -103,7 +103,7 @@
     <value>{0}: {1} → {2} scheitert, wenn ein Wert zu lang dafür ist (ORA-01441).</value>
   </data>
   <data name="TypeChangeNeedsEmpty" xml:space="preserve">
-    <value>{0}: {1} → {2} geht nur bei leerer Spalte; sie hat {3} Werte. Neue Spalte anlegen, Werte umkopieren, alte löschen.</value>
+    <value>{0}: {1} → {2} geht nur bei leerer Spalte; sie hat {3:N0} Werte. Neue Spalte anlegen, Werte umkopieren, alte löschen.</value>
   </data>
   <data name="TypeChangeNeedsEmptyUnchecked" xml:space="preserve">
     <value>{0}: {1} → {2} geht nur bei leerer Spalte – nicht geprüft, ob sie Werte hat.</value>
@@ -115,7 +115,7 @@
     <value>{0} gehört zum Primärschlüssel und kann nicht NULL erlauben (ORA-01451).</value>
   </data>
   <data name="NotNullHasNulls" xml:space="preserve">
-    <value>{0} hat {1} Zeilen mit NULL – erst füllen, dann geht NOT NULL (ORA-02296).</value>
+    <value>{0} hat {1:N0} Zeilen mit NULL – erst füllen, dann geht NOT NULL (ORA-02296).</value>
   </data>
   <data name="NotNullUnchecked" xml:space="preserve">
     <value>{0}: Nicht auf NULL-Werte geprüft – NOT NULL scheitert, wenn es welche gibt (ORA-02296).</value>

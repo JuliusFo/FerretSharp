@@ -1191,7 +1191,8 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .designer-columns select.field { min-width: 150px; }
 .designer-columns .field.narrow { width: 64px; }
 .designer-columns .check-cell { text-align: center; }
-.designer-columns .row-actions { white-space: nowrap; display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+.designer-columns .row-actions { white-space: nowrap; }
+.designer-columns .row-actions > span { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
 .designer-columns .row-actions .icon-btn { width: 24px; height: 24px; }
 .designer-columns tr.changed > td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 .designer-columns tr.new > td:first-child { box-shadow: inset 3px 0 0 #16a34a; }

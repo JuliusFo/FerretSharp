@@ -87,7 +87,7 @@
     <comment>{0}: column name</comment>
   </data>
   <data name="AddNotNullNeedsDefault" xml:space="preserve">
-    <value>{0}: the table has {1} rows – a new NOT NULL column needs a default for them (ORA-01758).</value>
+    <value>{0}: the table has {1:N0} rows – a new NOT NULL column needs a default for them (ORA-01758).</value>
     <comment>{0}: column name; {1}: number of rows</comment>
   </data>
   <data name="AddNotNullUnchecked" xml:space="preserve">
@@ -127,7 +127,7 @@
     <comment>{0}: column name; {1}: old type; {2}: new type</comment>
   </data>
   <data name="TypeChangeNeedsEmpty" xml:space="preserve">
-    <value>{0}: {1} → {2} only works on an empty column; it has {3} values. Add a new column, copy the values, drop the old one.</value>
+    <value>{0}: {1} → {2} only works on an empty column; it has {3:N0} values. Add a new column, copy the values, drop the old one.</value>
     <comment>{0}: column name; {1}: old type; {2}: new type; {3}: number of values</comment>
   </data>
   <data name="TypeChangeNeedsEmptyUnchecked" xml:space="preserve">
@@ -143,7 +143,7 @@
     <comment>{0}: column name</comment>
   </data>
   <data name="NotNullHasNulls" xml:space="preserve">
-    <value>{0} has {1} rows with NULL – fill them first, then NOT NULL works (ORA-02296).</value>
+    <value>{0} has {1:N0} rows with NULL – fill them first, then NOT NULL works (ORA-02296).</value>
     <comment>{0}: column name; {1}: number of rows</comment>
   </data>
   <data name="NotNullUnchecked" xml:space="preserve">

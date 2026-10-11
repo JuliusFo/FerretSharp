@@ -157,6 +157,46 @@ public sealed class ColumnDesignerTests
         Assert.Equal("UK_EIGEN", designer.ToDraft().Draft.AddedConstraints[0].Name); // typed without quotes: upper case
     }
 
+    /// <summary>
+    /// DDL that stopped halfway (WP-23 E2E): rename and drop ran, the new column and the key did not. Laid over the table
+    /// as it is now, the draft writes only what is left.
+    /// </summary>
+    [Fact]
+    public void A_draft_laid_over_the_table_after_a_partial_run_writes_only_the_rest()
+    {
+        var designer = new ColumnDesigner(Kunde, []);
+        designer.Columns[1].Name = "NACHNAME";
+        designer.ToggleDrop(designer.Columns[2]);
+        designer.AddColumn().Name = "FAX";
+        designer.AddConstraint(ConstraintType.Unique).Columns.Add("NACHNAME");
+        var plan = TableDesign.Plan(DesignContext.Of(Kunde), designer.ToDraft().Draft, DataFacts.None);
+        Assert.Equal(4, plan.Statements.Count);
+
+        var now = Kunde with { Columns = [Kunde.Columns[0], Kunde.Columns[1] with { Name = "NACHNAME" }, Kunde.Columns[3]] };
+        var rest = designer.Rebase(now, []);
+
+        Assert.Equal(["ID", "NACHNAME", "BETRAG", "FAX"], rest.Columns.Select(c => c.Name));
+        Assert.Equal(
+        [
+            """ALTER TABLE "SHOP"."KUNDE" ADD ("FAX" VARCHAR2(50 CHAR))""",
+            """ALTER TABLE "SHOP"."KUNDE" ADD CONSTRAINT "UK_KUNDE" UNIQUE ("NACHNAME")""",
+        ], TableDesign.Plan(DesignContext.Of(now), rest.ToDraft().Draft, DataFacts.None).Statements);
+    }
+
+    [Fact]
+    public void Laid_over_an_unchanged_table_the_draft_stays_whole()
+    {
+        var designer = new ColumnDesigner(Kunde, []);
+        designer.Columns[1].Name = "NACHNAME";
+        designer.ToggleDrop(designer.Columns[2]);
+
+        var again = designer.Rebase(Kunde, []);
+
+        Assert.Equal(
+            TableDesign.Plan(DesignContext.Of(Kunde), designer.ToDraft().Draft, DataFacts.None).Statements,
+            TableDesign.Plan(DesignContext.Of(Kunde), again.ToDraft().Draft, DataFacts.None).Statements);
+    }
+
     [Fact]
     public void Not_null_check_constraints_belong_to_their_columns_and_are_not_listed()
     {

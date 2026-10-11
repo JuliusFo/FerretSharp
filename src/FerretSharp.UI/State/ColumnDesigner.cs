@@ -94,6 +94,22 @@ public sealed class DesignColumn
 
     public static DesignColumn New(bool charSemantics) => new() { Type = "VARCHAR2", Size = "50", CharSemantics = charSemantics };
 
+    /// <summary>Takes over what the user entered in <paramref name="other"/> (the column as it should be), keeping <see cref="Before"/>.</summary>
+    public void CopyFrom(DesignColumn other)
+    {
+        (Name, Type, Size, Scale, CharSemantics, NotNull) = (other.Name, other.Type, other.Size, other.Scale, other.CharSemantics, other.NotNull);
+        (Default, DefaultOnNull, Identity, Comment, Dropped) = (other.Default, other.DefaultOnNull, other.Identity, other.Comment, other.Dropped);
+    }
+
+    /// <summary>The same entries as a new column (it is not in the table yet).</summary>
+    public DesignColumn AsNew()
+    {
+        var column = new DesignColumn();
+        column.CopyFrom(this);
+        column.Dropped = false;
+        return column;
+    }
+
     /// <summary>The column as it should be, or what is wrong with the numbers typed.</summary>
     public (ColumnInfo? Column, string? Problem) ToColumn()
     {
@@ -156,6 +172,9 @@ public sealed class DesignColumn
 
     private static string N(int? value) => value?.ToString(CultureInfo.InvariantCulture) ?? "";
 }
+
+/// <summary>The edit mode of a table tab: its draft, and how the last run failed (shown again after the tab was rebuilt).</summary>
+public sealed record DesignerSession(ColumnDesigner Draft, DdlRunResult? Failure = null);
 
 /// <summary>A constraint the edit mode adds, as its fields show it.</summary>
 public sealed class DesignConstraint
@@ -257,6 +276,37 @@ public sealed class ColumnDesigner
 
         var taken = Existing.Select(c => c.Name).Concat(AddedConstraints.Where(c => c != constraint).Select(c => c.Name));
         constraint.Name = TableDesign.SuggestConstraintName(Table.Table.Name, constraint.Type, constraint.Columns, constraint.References?.Name, taken);
+    }
+
+    /// <summary>
+    /// The same draft laid over the table as it is now – after DDL that stopped halfway (WP-23): the draft says how the table
+    /// should be, so what already ran drops out by itself. A column is found by the name it should have (renamed, added),
+    /// otherwise by its old name (not renamed yet); a dropped column that is gone and a constraint already added or dropped
+    /// are done.
+    /// </summary>
+    public ColumnDesigner Rebase(TableDetails table, IReadOnlyList<ConstraintInfo> constraints)
+    {
+        var next = new ColumnDesigner(table, constraints);
+        var added = new List<DesignColumn>();
+        foreach (var row in Columns)
+        {
+            var target = next.Columns.FirstOrDefault(c => c.Before!.Name == row.Name.Trim() && !row.Dropped)
+                         ?? (row.Before is { } before ? next.Columns.FirstOrDefault(c => c.Before!.Name == before.Name) : null);
+            if (target is not null)
+            {
+                target.CopyFrom(row);
+            }
+            else if (!row.Dropped)
+            {
+                added.Add(row.AsNew());
+            }
+        }
+
+        next.Columns.AddRange(added);
+        var existing = next.Existing.Select(c => c.Name).ToHashSet(StringComparer.Ordinal);
+        next.DroppedConstraints.UnionWith(DroppedConstraints.Where(existing.Contains));
+        next.AddedConstraints.AddRange(AddedConstraints.Where(c => c.Name.Length == 0 || !existing.Contains(OracleIdentifier.Normalize(c.Name))));
+        return next;
     }
 
     /// <summary>The draft, and what is wrong with the fields before the designer can check it (numbers that are none).</summary>

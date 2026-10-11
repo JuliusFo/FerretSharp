@@ -32,7 +32,7 @@
         <RunProgress WorkspaceId="WorkspaceId" Title="@SqlScript.Analyze(running).FirstWord" Detail="@running" Started="_started"
                      Hint="@SqlEditorText.Run_DdlWaiting" OnCancel="Cancel" />
     }
-    else if (_result is { Succeeded: false } result)
+    else if ((_result ?? Earlier) is { Succeeded: false } result)
     {
         <div class="tab-error">
             <span>@Failure(result)</span>
@@ -109,6 +109,21 @@
     [Parameter]
     public EventCallback<DdlRunResult> OnRan { get; set; }
 
+    /// <summary>A statement failed or the run was cancelled; what ran before it stays (DDL is committed at once).</summary>
+    [Parameter]
+    public EventCallback<DdlRunResult> OnFailed { get; set; }
+
+    /// <summary>
+    /// The same, told before the schema is reloaded: that may rebuild the tab and this panel with it, so the caller keeps
+    /// what it needs here (synchronous, while it still exists).
+    /// </summary>
+    [Parameter]
+    public Action<DdlRunResult>? Stopped { get; set; }
+
+    /// <summary>The failure of an earlier run, shown until this panel runs again (the designer reopened after a rebuild).</summary>
+    [Parameter]
+    public DdlRunResult? Earlier { get; set; }
+
     [Parameter]
     public EventCallback OnClose { get; set; }
 
@@ -130,7 +145,7 @@
             {
                 (_running, _started) = (statement, DateTimeOffset.Now); // the progress shows the statement at hand
                 StateHasChanged();
-            }, cts.Token);
+            }, Stopped, cts.Token);
         }
         finally
         {
@@ -141,6 +156,10 @@
         if (_result.Succeeded)
         {
             await OnRan.InvokeAsync(_result);
+        }
+        else
+        {
+            await OnFailed.InvokeAsync(_result);
         }
     }
 
@@ -155,8 +174,8 @@
             { Error: { } error } => error.Display,
             _ => "",
         };
-        return result.Ran.Count > 0 && Statements.Count > 1
-            ? TextFormat.Format(SchemaViewText.Ddl_Stopped, result.Ran.Count, Statements.Count, what) + " " + SqlEditorText.SqlView_DdlStays
+        return result.Ran.Count > 0 && result.Total > 1
+            ? TextFormat.Format(SchemaViewText.Ddl_Stopped, result.Ran.Count, result.Total, what) + " " + SqlEditorText.SqlView_DdlStays
             : what;
     }
 
