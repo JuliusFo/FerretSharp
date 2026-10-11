@@ -3,7 +3,7 @@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Query
 
-@{ var discard = Lifecycle.OpenWorkOf(WorkspaceId); }
+@{ var discard = Lifecycle.OpenTransactionOf(WorkspaceId); }
 <ConfirmDialog Title="@SqlEditorText.SqlView_ConfirmDdlTitle"
                ConfirmLabel="@(discard is null ? CommonText.Run : SqlEditorText.SqlView_DiscardAndRun)" Danger="true"
                OnConfirm="() => OnConfirm.InvokeAsync(discard?.Workspace)" OnCancel="OnCancel">

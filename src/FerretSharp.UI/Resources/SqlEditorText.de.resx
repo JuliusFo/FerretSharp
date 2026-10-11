@@ -562,10 +562,10 @@
     <value>Das Skript ändert das Schema in {0} Statements. DDL wird sofort committet und lässt sich nicht rückgängig machen.</value>
   </data>
   <data name="SqlView_ConfirmDdlDiscard" xml:space="preserve">
-    <value>Workspace „{0}“ hat nicht committete Änderungen. Sie werden zuerst verworfen (Rollback) – das DDL würde sie sonst committen.</value>
+    <value>Workspace „{0}“ hat eine offene Transaktion. Sie wird zuerst zurückgerollt – das DDL würde sie sonst committen. Geschriebene Grid-Änderungen werden wieder ausstehend, ausstehende bleiben.</value>
   </data>
   <data name="SqlView_ConfirmDdlDiscardList" xml:space="preserve">
-    <value>Wird verworfen:</value>
+    <value>Wird zurückgerollt:</value>
   </data>
   <data name="SqlView_ConfirmDdlOtherWriterTables" xml:space="preserve">
     <value>Workspace „{0}“ hat in {1} geschrieben und noch nicht committet. ALTER, DROP und Ähnliches auf diesen Tabellen wird abgewiesen, bis dort committet oder verworfen wird.</value>
@@ -580,7 +580,7 @@
     <value>Dauert es? DDL wartet auf nicht committete Änderungen anderer Sessions an der Tabelle und lässt sich dann nicht abbrechen – dort committen oder verwerfen.</value>
   </data>
   <data name="SqlView_DiscardAndRun" xml:space="preserve">
-    <value>Verwerfen und ausführen</value>
+    <value>Zurückrollen und ausführen</value>
   </data>
   <data name="SqlView_ConfirmDataInTransaction" xml:space="preserve">
     <value>Datenänderungen nach dem DDL laufen in der Transaktion des Workspaces und bleiben bis zum Commit für andere unsichtbar.</value>
@@ -589,7 +589,7 @@
     <value>… und {0} weitere</value>
   </data>
   <data name="SqlView_DdlNotRun" xml:space="preserve">
-    <value>Die nicht committeten Änderungen wurden nicht verworfen – nichts ausgeführt.</value>
+    <value>Die offene Transaktion wurde nicht zurückgerollt – nichts ausgeführt.</value>
   </data>
   <data name="SqlView_DdlOutcome" xml:space="preserve">
     <value>Schema geändert ({0}) – sofort committet.</value>

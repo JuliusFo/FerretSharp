@@ -13,7 +13,7 @@ namespace FerretSharp.UI.State;
 /// <param name="Error">Why it failed; null if all ran or nothing was started.</param>
 /// <param name="Lock">The table another session holds, if that is why it failed.</param>
 /// <param name="Cancelled">The user cancelled it (the DDL changed nothing).</param>
-/// <param name="NotDiscarded">The uncommitted changes could not be rolled back first: nothing ran.</param>
+/// <param name="NotDiscarded">The open transaction could not be rolled back first: nothing ran.</param>
 public sealed record DdlRunResult(
     IReadOnlyList<string> Ran,
     string? Failed,
@@ -34,11 +34,13 @@ public sealed record DdlRunResult(
 public sealed partial class WorkspaceLifecycle
 {
     /// <summary>
-    /// The workspace's uncommitted changes (pending or written), which DDL would commit – the confirmation shows them and
-    /// rolls them back first; null if there are none.
+    /// The workspace's open write transaction, which DDL would commit – the confirmation shows what it holds and rolls it
+    /// back first; null if there is none. Pending edits are not part of it: DDL leaves them alone (R4a).
     /// </summary>
-    public (WorkspaceTabs Workspace, EditSummary Summary)? OpenWorkOf(Guid workspaceId) =>
-        shell.FindWorkspace(workspaceId) is { } workspace && editing.SummaryOf(workspace) is { HasWork: true } summary ? (workspace, summary) : null;
+    public (WorkspaceTabs Workspace, EditSummary Summary)? OpenTransactionOf(Guid workspaceId) =>
+        shell.FindWorkspace(workspaceId) is { } workspace && editing.SummaryOf(workspace) is { Transaction.Mode: TransactionMode.ReadWrite } summary
+            ? (workspace, summary)
+            : null;
 
     /// <summary>
     /// Runs <paramref name="statements"/> one after the other through the schema path of the workspace; the first failure
@@ -46,8 +48,8 @@ public sealed partial class WorkspaceLifecycle
     /// notice, as after DDL in the SQL editor.
     /// </summary>
     /// <param name="discard">
-    /// The workspace's uncommitted changes, which the confirmation said are discarded first (DDL would commit them).
-    /// If the rollback does not happen, nothing runs.
+    /// The workspace whose open transaction the confirmation said is rolled back first (DDL would commit it,
+    /// <see cref="WorkspaceEditing.RollbackTransactionAsync"/>). If the rollback does not happen, nothing runs.
     /// </param>
     /// <param name="starting">Called before each statement, for the progress display.</param>
     /// <param name="stopped">
@@ -66,7 +68,7 @@ public sealed partial class WorkspaceLifecycle
             return refusal;
         }
 
-        if (discard is not null && !await editing.RollbackAsync(discard))
+        if (discard is not null && !await editing.RollbackTransactionAsync(discard))
         {
             return new DdlRunResult([], null, null, null, NotDiscarded: true);
         }

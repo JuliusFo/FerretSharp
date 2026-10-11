@@ -136,7 +136,7 @@
     var writes = pending.Where(r => r.Info.IsDml).ToList();
     var ddl = pending.Where(r => r.Info.IsDdl).ToList();
     @* WP-22: DDL would commit the workspace's open transaction – it is rolled back first, so show what it holds. *@
-    var discard = ddl.Count > 0 ? Lifecycle.OpenWorkOf(Tab.WorkspaceId) : null;
+    var discard = ddl.Count > 0 ? Lifecycle.OpenTransactionOf(Tab.WorkspaceId) : null;
     <ConfirmDialog Title="@(ddl.Count > 0 ? SqlEditorText.SqlView_ConfirmDdlTitle : allRows.Count > 0 ? SqlEditorText.SqlView_ConfirmAllRowsTitle : SqlEditorText.SqlView_ConfirmProdTitle)"
                    ConfirmLabel="@(discard is null ? CommonText.Run : SqlEditorText.SqlView_DiscardAndRun)" Danger="true"
                    OnConfirm="() => ConfirmAsync(pending, discard?.Item1)" OnCancel="() => _confirm = null">
@@ -472,13 +472,13 @@
     }
 
     /// <param name="discard">
-    /// DDL with uncommitted changes in the workspace (WP-22): they are rolled back first, as the dialog said – DDL would
-    /// commit them otherwise. If that does not happen, nothing runs.
+    /// DDL with an open write transaction in the workspace (WP-22): it is rolled back first, as the dialog said – DDL would
+    /// commit it otherwise. Pending edits stay (R4a). If that does not happen, nothing runs.
     /// </param>
     private async Task ConfirmAsync(IReadOnlyList<SqlRun> runs, WorkspaceTabs? discard)
     {
         _confirm = null;
-        if (discard is not null && !await Lifecycle.Editing.RollbackAsync(discard))
+        if (discard is not null && !await Lifecycle.Editing.RollbackTransactionAsync(discard))
         {
             _error = SqlEditorText.SqlView_DdlNotRun;
             return;

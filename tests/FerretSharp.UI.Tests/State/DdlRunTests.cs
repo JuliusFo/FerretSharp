@@ -105,30 +105,41 @@ public sealed class DdlRunTests
         Assert.Null(app.Shell.Notice);
     }
 
+    /// <summary>
+    /// R4a: the confirmation discarded every pending edit of the workspace, although DDL commits only the transaction. Now
+    /// it rolls back the transaction: written grid changes become pending again, pending ones stay.
+    /// </summary>
     [Fact]
-    public async Task Uncommitted_changes_are_rolled_back_first_when_the_confirmation_says_so()
+    public async Task The_open_transaction_is_rolled_back_first_and_pending_edits_stay()
     {
         await using var app = new TestApp();
         var scope = await app.OpenAsync(TestApp.Profile("Test"));
         var tab = app.AddPendingWork(scope);
         var workspaceId = scope.Workspaces.Active!.Id;
-        var (workspace, summary) = app.Lifecycle.OpenWorkOf(workspaceId)!.Value;
-        Assert.Equal(1, summary.Pending);
+        Assert.True(await app.Editing.FlushAsync(app.WorkspaceOf(scope)));
+        tab.Changes!.AddRow();
+        var (workspace, summary) = app.Lifecycle.OpenTransactionOf(workspaceId)!.Value;
+        Assert.Equal((1, 1), (summary.Pending, summary.Flushed));
 
         var result = await app.Lifecycle.RunDdlAsync(workspaceId, [First], workspace, null, null, Ct);
 
         Assert.True(result.Succeeded);
-        Assert.Equal(0, tab.Changes!.PendingCount);
-        Assert.Null(app.Lifecycle.OpenWorkOf(workspaceId));
+        Assert.Equal((2, 0), (tab.Changes.PendingCount, tab.Changes.FlushedCount));
+        Assert.Null(app.Lifecycle.OpenTransactionOf(workspaceId));
         Assert.Equal([First], app.RanDdl);
     }
 
     [Fact]
-    public async Task A_workspace_without_uncommitted_changes_has_no_open_work()
+    public async Task Pending_edits_alone_are_no_open_transaction_and_stay()
     {
         await using var app = new TestApp();
         var scope = await app.OpenAsync(TestApp.Profile("Test"));
+        var workspaceId = scope.Workspaces.Active!.Id;
+        Assert.Null(app.Lifecycle.OpenTransactionOf(workspaceId));
+        var tab = app.AddPendingWork(scope);
 
-        Assert.Null(app.Lifecycle.OpenWorkOf(scope.Workspaces.Active!.Id));
+        Assert.Null(app.Lifecycle.OpenTransactionOf(workspaceId));
+        Assert.True((await app.Lifecycle.RunDdlAsync(workspaceId, [First], null, null, null, Ct)).Succeeded);
+        Assert.Equal(1, tab.Changes!.PendingCount);
     }
 }

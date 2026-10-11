@@ -11,7 +11,7 @@
 @if (Discard is ({ } workspace, { } summary))
 {
     <p><Fmt Text="@SqlEditorText.SqlView_ConfirmDdlDiscard"><Arg0><strong>@Lifecycle.WorkspaceName(WorkspaceId)</strong></Arg0></Fmt></p>
-    <OpenChangesList Workspace="workspace" Summary="summary" Heading="@SqlEditorText.SqlView_ConfirmDdlDiscardList" />
+    <OpenChangesList Workspace="workspace" Summary="summary" Heading="@SqlEditorText.SqlView_ConfirmDdlDiscardList" ShowPending="false" />
 }
 
 @code {
@@ -21,7 +21,7 @@
     [Parameter, EditorRequired]
     public Guid WorkspaceId { get; set; }
 
-    /// <summary>The workspace's uncommitted changes (<see cref="WorkspaceLifecycle.OpenWorkOf"/>); null if none.</summary>
+    /// <summary>The workspace's open write transaction (<see cref="WorkspaceLifecycle.OpenTransactionOf"/>); null if none.</summary>
     [Parameter]
     public (WorkspaceTabs Workspace, EditSummary Summary)? Discard { get; set; }
 }

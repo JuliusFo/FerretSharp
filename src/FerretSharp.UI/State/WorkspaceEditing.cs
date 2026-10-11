@@ -376,7 +376,25 @@ public sealed class WorkspaceEditing(
         _ = problem.DuringCommit ? await CommitAsync(workspace) : await FlushAsync(workspace);
     }
 
-    /// <summary>After the connection was lost or closed: nothing of it can be committed any more.</summary>
+    /// <summary>
+    /// Rolls back the workspace's transaction before DDL, which would commit it (WP-22). Statements are taken back with it,
+    /// grid writes become pending again – as after a failed commit – and pending edits stay: DDL never commits them (R4a:
+    /// "discard" used to clear every tab's edits, although no transaction held them).
+    /// </summary>
+    public Task<bool> RollbackTransactionAsync(WorkspaceTabs workspace) => RunAsync(workspace, async () =>
+    {
+        if (WorkspacesOf(workspace.WorkspaceId).TransactionOf(workspace.WorkspaceId) is { Mode: TransactionMode.ReadWrite })
+        {
+            var editor = await WorkspacesOf(workspace.WorkspaceId).GetEditorAsync(workspace.WorkspaceId, CancellationToken.None);
+            await editor.RollbackAsync(CancellationToken.None);
+        }
+
+        RestorePending(workspace);
+        Forget(workspace.WorkspaceId);
+        shell.ReloadTableTabs(workspace.WorkspaceId);
+        return true;
+    });
+
     /// <summary>
     /// The workspace's session was given up (<see cref="WorkspaceLifecycle.ResetSessionAsync"/>) and its transaction with it:
     /// grid writes become pending again (as after a failed commit), every table tab reloads.
