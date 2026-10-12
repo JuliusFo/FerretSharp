@@ -107,6 +107,8 @@ public partial class App : Application
         builder.Services.AddSingleton(settings);
         builder.Services.AddSingleton<ShortcutService>();
         builder.Services.AddSingleton<FerretSharp.Core.Audit.AuditTemplateSource>();
+        // A factory, so the host disposes it (file watcher).
+        builder.Services.AddSingleton(_ => new FerretSharp.Core.Display.DisplayColumnSource(settings, paths.DisplayColumnsFile));
         builder.Services.AddSingleton(theme);
         builder.Services.AddSingleton<IThemeService, ThemeService>();
         builder.Services.AddSingleton<IDialogService, DialogService>();

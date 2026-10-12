@@ -6,12 +6,15 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject ShortcutService Shortcuts
+@inject FerretSharp.Core.Display.DisplayColumnSource DisplaySource
 
 @{
     var fkColumns = (Active.Schema?.OutgoingOf(Details.Table.Ref) ?? [])
         .SelectMany(f => f.FromColumns.Select(c => (Column: c, Fk: f)))
         .ToLookup(x => x.Column, x => x.Fk);
     var uniqueColumns = Details.UniqueKeys.SelectMany(k => k).ToHashSet();
+    // The table's display column (WP-31): its values stand beside foreign keys to the table.
+    var displayColumn = Details.Table.Kind == TableKind.View ? null : DisplaySource.Current().Columns.ColumnOf(Details.Table.Name);
     // Filtering keeps the schema order: this is a table of the columns, not a list of search hits.
     var shown = ColumnSearch.Find(Details.Columns, _columnQuery).Order().Select(i => Details.Columns[i]).ToList();
     var filtering = !string.IsNullOrWhiteSpace(_columnQuery);
@@ -97,6 +100,10 @@
                             {
                                 <span class="fs-badge fk" title="@fk.Name → @fk.To">FK</span>
                             }
+                        }
+                        @if (column.Name == displayColumn)
+                        {
+                            <span class="fs-badge display" title="@GridText.Grid_DisplayBadgeTitle">@GridText.Grid_DisplayBadge</span>
                         }
                     </td>
                     <td class="mono">@column.DisplayType</td>
@@ -240,6 +247,7 @@
     {
         _presentationVersion = Presentations.Version;
         Presentations.Changed += OnModelChanged;
+        DisplaySource.Changed += OnDisplayColumnsChanged;
         _editing = Tab?.Designer is not null; // a draft that outlived a rebuild of the tab (DDL that stopped halfway)
     }
 
@@ -252,6 +260,9 @@
 
         _presentationVersion = Presentations.Version;
     });
+
+    /// <summary>A display column was marked or the file changed (WP-31): the badge follows.</summary>
+    private void OnDisplayColumnsChanged() => InvokeAsync(StateHasChanged);
 
     /// <summary>Enum members (or true/false) with what the project stores for them, as a tooltip.</summary>
     private static string? ValuesTitle(PropertyExport property) => property.Values is { } values
@@ -279,6 +290,7 @@
     public async ValueTask DisposeAsync()
     {
         Presentations.Changed -= OnModelChanged;
+        DisplaySource.Changed -= OnDisplayColumnsChanged;
         await Dom.DisposeAsync();
     }
 }

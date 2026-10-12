@@ -1,6 +1,7 @@
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
+@using FerretSharp.Core.Display
 @using FerretSharp.Core.Forms
 @using FerretSharp.Core.Oracle
 @using FerretSharp.Core.Query
@@ -11,6 +12,7 @@
 @inject IJSRuntime JS
 @inject ILogger<FerretGrid> Logger
 @inject ShortcutService Shortcuts
+@inject DisplayColumnSource DisplayColumns
 
 <div id="@Tab.Id" class="ag-host"></div>
 
@@ -100,6 +102,8 @@
 
         Workspaces.Changed += OnWorkspacesChanged;
         Presentations.Changed += OnPresentationChanged;
+        DisplayColumns.Changed += OnDisplayColumnsChanged;
+        _displayVersion = DisplayColumns.Version;
         _presentationVersion = Presentations.Version;
         _presentation = Presentations.For(Details);
         _shownColumns = ShownColumns(Enumerable.Range(0, Details.Columns.Count).Select(ColumnMeta).ToList());
@@ -120,6 +124,7 @@
         // themselves whether anything changed.
         OnWorkspacesChanged();
         OnPresentationChanged();
+        await PlanNamesAsync();
     }
 
     /// <summary>How columns and values are shown: plain, or with the C# model (WP-12).</summary>
@@ -144,6 +149,7 @@
             Pk = Details.PrimaryKey.Contains(c.Name),
             Fk = foreignKeys.Any(f => f.Source == FkSource.Declared),
             FkModel = foreignKeys.Any(f => f.Source == FkSource.ClrModel),
+            DisplayColumn = Details.Table.Kind != TableKind.View && DisplayColumns.Current().Columns.IndexIn(Details) == i,
             Numeric = category == ColumnCategory.Number && values is null,
             Sortable = ColumnCategories.IsSortable(category),
             Pinned = ColumnPinning.IsPinned(Details, Tab.PinnedColumns, c.Name),
@@ -178,6 +184,16 @@
             return;
         }
 
+        await PlanNamesAsync(); // relationships of the model may come or go, display values may read differently
+        await UpdateColumnsAsync();
+    });
+
+    /// <summary>
+    /// Relabels the columns in place (C# names, badges) and fetches the rows again – only if the grid would show anything
+    /// different.
+    /// </summary>
+    private async Task UpdateColumnsAsync()
+    {
         var columns = Enumerable.Range(0, Details.Columns.Count).Select(ColumnMeta).ToList();
         // A new build reloads the whole model; most tables read exactly as before – their rows are not fetched again.
         var shown = ShownColumns(columns);
@@ -191,7 +207,211 @@
         {
             await ReloadAsync();
         }
+    }
+
+    // ---------- names beside foreign key values (WP-31) ----------
+
+    /// <summary>What was looked up for this grid's foreign key columns; replaced when the links change.</summary>
+    private DisplayNames _names = DisplayNames.None;
+
+    /// <summary>Counts reads from the first row: a lookup of an older generation is not applied.</summary>
+    private int _namesGeneration;
+
+    private int _displayVersion;
+    private readonly Queue<(DisplayLookup Lookup, DisplayNames Names, int Generation)> _lookups = new();
+    private bool _lookingUp;
+    private readonly CancellationTokenSource _lookupCancel = new();
+
+    /// <summary>The names of the grid (the form shows them too).</summary>
+    public DisplayNames Names => _names;
+
+    /// <summary>The display columns file or the setting changed: header badges, and which columns get names.</summary>
+    private void OnDisplayColumnsChanged() => Fire(async () =>
+    {
+        if (!_grid.IsCreated || DisplayColumns.Version == _displayVersion)
+        {
+            return;
+        }
+
+        _displayVersion = DisplayColumns.Version;
+        await PlanNamesAsync();
+        await UpdateColumnsAsync();
     });
+
+    /// <summary>
+    /// Finds the foreign key columns whose target has a display column; if that changed, starts over with new names and
+    /// looks up the values of the rows the grid holds.
+    /// </summary>
+    private async Task PlanNamesAsync()
+    {
+        IReadOnlyList<DisplayLink> links = [];
+        var shown = DisplayColumns.Shown;
+        if (shown.Count > 0 && Active.Schema is { } schema)
+        {
+            var details = Details;
+            var planned = await Shell.RunDbAsync(Logger, Active, () => DisplayLinks.PlanAsync(details, schema, shown, CancellationToken.None));
+            links = planned.Value ?? [];
+        }
+
+        if (!_grid.IsCreated || SameLinks(links, _names.Links))
+        {
+            return;
+        }
+
+        var presentations = new Dictionary<TableRef, TablePresentation>();
+        _names = links.Count == 0
+            ? DisplayNames.None
+            : new DisplayNames(links, (link, value) =>
+            {
+                if (!presentations.TryGetValue(link.Target.Table.Ref, out var target))
+                {
+                    presentations[link.Target.Table.Ref] = target = Presentations.For(link.Target);
+                }
+
+                return target.Present(link.DisplayColumn, value).Text;
+            });
+        _namesGeneration++;
+        await RedrawAllAsync();
+        QueueLookups(_blocks.All().Select(r => ValuesOf(r.Row)).Concat(NewRowValues()));
+    }
+
+    /// <summary>The same columns over the same keys to the same display columns.</summary>
+    private static bool SameLinks(IReadOnlyList<DisplayLink> a, IReadOnlyList<DisplayLink> b) =>
+        a.Count == b.Count && a.Zip(b).All(p => p.First.Column == p.Second.Column && p.First.ForeignKey == p.Second.ForeignKey
+                                                && p.First.Target.Table.Ref == p.Second.Target.Table.Ref
+                                                && p.First.KeyColumn == p.Second.KeyColumn && p.First.DisplayColumn == p.Second.DisplayColumn);
+
+    /// <summary>A row's values as the grid shows them: pending and flushed edits over the loaded ones.</summary>
+    private IReadOnlyList<object?> ValuesOf(RowData row) =>
+        Tab.Changes?.Find(row.Key) is { } change ? ValuesOf(change) : row.Values;
+
+    private IReadOnlyList<object?> ValuesOf(RowChange change) => Enumerable.Range(0, Details.Columns.Count).Select(change.ValueOf).ToList();
+
+    private IEnumerable<IReadOnlyList<object?>> NewRowValues() => (Tab.Changes?.NewRows ?? []).Select(ValuesOf);
+
+    /// <summary>Asks for the names the rows need and are not known yet; one lookup at a time per grid.</summary>
+    private void QueueLookups(IEnumerable<IReadOnlyList<object?>> rows)
+    {
+        if (_names.IsEmpty)
+        {
+            return;
+        }
+
+        foreach (var lookup in _names.Missing(rows))
+        {
+            _lookups.Enqueue((lookup, _names, _namesGeneration));
+        }
+
+        if (_lookups.Count > 0 && !_lookingUp)
+        {
+            Fire(RunLookupsAsync);
+        }
+    }
+
+    /// <summary>
+    /// Runs the queued lookups one after the other on the workspace's session and redraws the rows they were for. A lookup
+    /// planned before the grid read from its first row again (or before the links changed) is dropped unrun.
+    /// </summary>
+    private async Task RunLookupsAsync()
+    {
+        if (_lookingUp)
+        {
+            return;
+        }
+
+        _lookingUp = true;
+        try
+        {
+            while (_grid.IsCreated && !_lookupCancel.IsCancellationRequested && _lookups.TryDequeue(out var queued))
+            {
+                var (lookup, names, generation) = queued;
+                if (!ReferenceEquals(names, _names) || generation != _namesGeneration || !names.Shows(lookup.Link.Column))
+                {
+                    continue;
+                }
+
+                var token = _lookupCancel.Token;
+                var result = await Shell.RunDbAsync(Logger, Active, async () =>
+                {
+                    var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, token);
+                    return await DisplayNames.LookupAsync(data, lookup, DisplayNames.LookupTimeout, token);
+                }, token);
+                if (!_grid.IsCreated || result.Cancelled || !ReferenceEquals(names, _names))
+                {
+                    continue;
+                }
+
+                if (generation != _namesGeneration)
+                {
+                    continue; // read from the first row meanwhile: Clear forgot the keys, the new blocks ask again
+                }
+
+                if (result.Error is { } error)
+                {
+                    SwitchOff(lookup, error.Display);
+                }
+                else if (result.Value is not { } rows)
+                {
+                    SwitchOff(lookup, TextFormat.Format(GridText.Grid_DisplayLookupTimeout,
+                        lookup.Link.Target.Table.DisplayName, (int)DisplayNames.LookupTimeout.TotalSeconds));
+                }
+                else
+                {
+                    names.Found(lookup, rows);
+                    await RedrawAsync(lookup);
+                }
+            }
+        }
+        finally
+        {
+            _lookingUp = false;
+        }
+    }
+
+    private void SwitchOff(DisplayLookup lookup, string reason)
+    {
+        _names.Failed(lookup, reason);
+        Shell.Notify(TextFormat.Format(GridText.Grid_DisplayLinkOff, Details.Columns[lookup.Link.Column].Name, reason));
+    }
+
+    /// <summary>Redraws the held rows (and new rows) that show one of the lookup's keys.</summary>
+    private async Task RedrawAsync(DisplayLookup lookup)
+    {
+        var updates = _blocks.All()
+            .Where(r => _names.Touches(lookup, ValuesOf(r.Row)))
+            .Select(r => new GridRowUpdate(r.Index, GridRow(r.Row)))
+            .ToList();
+        if (updates.Count > 0)
+        {
+            await _grid.CallAsync("updateRows", updates);
+        }
+
+        if (NewRowValues().Any(values => _names.Touches(lookup, values)))
+        {
+            await SetNewRowsAsync();
+        }
+        else if (updates.Count > 0)
+        {
+            RowsChanged?.Invoke();
+        }
+    }
+
+    /// <summary>Redraws every held row (the links changed: names come or go).</summary>
+    private async Task RedrawAllAsync()
+    {
+        if (!_grid.IsCreated)
+        {
+            return;
+        }
+
+        var updates = _blocks.All().Select(r => new GridRowUpdate(r.Index, GridRow(r.Row))).ToList();
+        if (updates.Count > 0)
+        {
+            await _grid.CallAsync("updateRows", updates);
+        }
+
+        await SetNewRowsAsync();
+    }
 
     /// <summary>The column metadata the grid shows, in schema order (to skip presentation changes that change nothing).</summary>
     private string? _shownColumns;
@@ -311,7 +531,7 @@
     /// </summary>
     private Dictionary<string, object?> GridRow(RowData row) => GridRow(Tab.Changes?.Find(row.Key), row.Values);
 
-    private Dictionary<string, object?> GridRow(RowChange? change, IReadOnlyList<object?>? values) => GridRows.Build(Presentation, change, values);
+    private Dictionary<string, object?> GridRow(RowChange? change, IReadOnlyList<object?>? values) => GridRows.Build(Presentation, change, values, _names);
 
     private RowChange? NewRow(string? newId) => GridRows.NewRow(Tab.Changes, newId);
 
@@ -402,6 +622,11 @@
         {
             result = changes.SetValue(added, column, text);
             ChangesMade();
+            if (result.IsValid)
+            {
+                QueueLookups([ValuesOf(added)]); // a foreign key typed in: its name, or "not found"
+            }
+
             return new GridEdit(result.IsValid ? GridRow(added, null) : null, result.Error);
         }
 
@@ -412,6 +637,11 @@
 
         result = changes.SetValue(row, column, text);
         ChangesMade();
+        if (result.IsValid)
+        {
+            QueueLookups([ValuesOf(row)]);
+        }
+
         return new GridEdit(result.IsValid ? GridRow(row) : null, result.Error);
     }
 
@@ -708,6 +938,8 @@
             Tab.RowsLoaded = 0;
             Tab.AllRowsLoaded = false;
             _blocks.Clear(); // new query: blocks from an older filter or sort order are stale
+            _names.Clear(); // names too: after writing, commit, rollback or F5 they may read differently
+            _namesGeneration++;
             Shell.MarkDirty(); // sort order may have changed
         }
 
@@ -738,6 +970,7 @@
         Tab.Failure = null;
         await OnPageLoaded.InvokeAsync();
         RowsChanged?.Invoke();
+        QueueLookups(page.Rows.Select(ValuesOf)); // names come after the block, the rows are redrawn then
 
         return new GridPage(rows, page.IsLastPage ? startRow + page.Rows.Count : -1);
     }
@@ -831,10 +1064,13 @@
         return -1;
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         Workspaces.Changed -= OnWorkspacesChanged;
         Presentations.Changed -= OnPresentationChanged;
-        return _grid.DisposeAsync();
+        DisplayColumns.Changed -= OnDisplayColumnsChanged;
+        _lookups.Clear();
+        await _lookupCancel.CancelAsync(); // a running lookup stops; queued ones are not run (the grid is no longer created)
+        await _grid.DisposeAsync();
     }
 }

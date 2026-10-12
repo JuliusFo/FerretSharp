@@ -48,6 +48,7 @@ public sealed record FormRow(RowData? Loaded, RowChange? Change)
 /// <param name="Options">Members of an enum or converted bool column (picked instead of typed); null for other columns.</param>
 /// <param name="Jumps">Outgoing foreign keys over this column, built from the current values.</param>
 /// <param name="Mismatches">Differences between the column and its C# property (WP-27).</param>
+/// <param name="Name">The display value of a foreign key value's target (WP-31); null if there is none (yet).</param>
 public sealed record FormField(
     int Column,
     ColumnInfo Info,
@@ -61,7 +62,8 @@ public sealed record FormField(
     bool IsUnique,
     ValueTable? Options,
     IReadOnlyList<FkJump> Jumps,
-    IReadOnlyList<ColumnMismatch> Mismatches)
+    IReadOnlyList<ColumnMismatch> Mismatches,
+    Display.DisplayName? Name = null)
 {
     public bool IsNull => Raw is null;
 
@@ -93,9 +95,10 @@ public static class RowForm
     /// <param name="writable">The workspace may write and the tab tracks changes (as the grid's editing).</param>
     /// <param name="outgoing">Outgoing foreign keys of the table (declared and from the C# model).</param>
     /// <param name="mapping">The C# model for mismatches (WP-27); null without one.</param>
+    /// <param name="names">Names looked up for foreign key values by the grid (WP-31); null without.</param>
     public static IReadOnlyList<FormField> Fields(
         TableDetails table, TablePresentation presentation, FormRow row, bool writable, IEnumerable<ForeignKeyInfo> outgoing,
-        ClrModelMapping? mapping, IReadOnlyList<string> pinned)
+        ClrModelMapping? mapping, IReadOnlyList<string> pinned, Display.DisplayNames? names = null)
     {
         var current = row.Current(table.Columns.Count);
         var jumps = outgoing.Select(fk => (Fk: fk, Jump: FkNavigation.Outgoing(table, current, fk))).ToList();
@@ -119,7 +122,8 @@ public static class RowForm
                     unique.Contains(info.Name),
                     options,
                     jumps.Where(j => j.Fk.FromColumns.Contains(info.Name)).Select(j => j.Jump).ToList(),
-                    mapping?.MismatchesOf(table.Table.Ref, info.Name).ToList() ?? []);
+                    mapping?.MismatchesOf(table.Table.Ref, info.Name).ToList() ?? [],
+                    names?.NameOf(i, raw));
             })
             .ToList();
     }

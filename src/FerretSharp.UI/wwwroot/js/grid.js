@@ -132,6 +132,14 @@ class FerretHeader {
       badge.textContent = 'FK';
       badges.appendChild(badge);
     }
+    if (meta.displayColumn) {
+      // The table's display column (WP-31); texts from .NET, set as properties.
+      const badge = document.createElement('span');
+      badge.className = 'fs-badge display';
+      badge.title = texts.displayBadgeTitle;
+      badge.textContent = texts.displayBadge;
+      badges.appendChild(badge);
+    }
     this.sortEl = this.eGui.querySelector('.fs-h-sort');
     if (meta.sortable) {
       this.eGui.addEventListener('click', e => params.progressSort(e.shiftKey));
@@ -419,17 +427,29 @@ function cellKey(node, colId) {
 }
 
 // Always an element: AG Grid inserts a string a renderer returns as HTML (innerHTML), and cell values come from the database.
-function renderCell(params) {
+function renderCell(params, texts) {
   if (!params.data) return '';
   const value = params.value;
   const span = document.createElement('span');
   if (value === null || value === undefined) {
     span.className = 'fs-null';
     span.textContent = 'NULL';
-  } else {
-    span.textContent = value;
+    return span;
   }
-  return span;
+  span.textContent = value;
+  // A foreign key value with the display value of its target (WP-31), or a dangling reference: one element, so the
+  // value keeps its own alignment rules.
+  const colId = params.column.getColId();
+  const name = params.data.__n?.[colId];
+  const notFound = params.data.__nm?.includes(colId);
+  if (!name && !notFound) return span;
+  const cell = document.createElement('span');
+  cell.className = 'fs-named';
+  const desc = document.createElement('span');
+  desc.className = notFound ? 'fs-desc missing' : 'fs-desc';
+  desc.textContent = notFound ? texts.notFound : name;
+  cell.append(span, desc);
+  return cell;
 }
 
 function width(meta) {
@@ -516,7 +536,7 @@ export function create(elementId, dotnet, columns, options) {
     sort: sortById.get(meta.id)?.sort ?? null,
     sortIndex: sortById.get(meta.id)?.index ?? null,
     cellClass: () => meta.numeric ? 'fs-num' : meta.category === 'Date' || meta.category.startsWith('Timestamp') ? 'fs-date' : undefined,
-    cellRenderer: renderCell,
+    cellRenderer: p => renderCell(p, texts),
     // Editing (v2): new rows (pinned at the top) may fill the key; loaded rows not deleted and not too large a number.
     editable: p => !editState.enabled ? false : p.node.rowPinned === 'top'
       ? meta.editableNew
@@ -536,7 +556,8 @@ export function create(elementId, dotnet, columns, options) {
     // The member list keeps the arrow keys while editing.
     suppressKeyboardEvent: p => p.editing && (p.event.key === 'Enter' || (!!meta.options && listKeys.has(p.event.key))),
     tooltipValueGetter: p => (p.value === null || p.value === undefined ? null
-      : [p.value, p.data?.__t?.[meta.id], p.data?.__u?.includes(meta.id) ? meta.unknownText : null].filter(Boolean).join('\n')),
+      : [p.value, p.data?.__n?.[meta.id], p.data?.__nm?.includes(meta.id) ? texts.notFoundTitle : null, p.data?.__t?.[meta.id],
+        p.data?.__u?.includes(meta.id) ? meta.unknownText : null].filter(Boolean).join('\n')),
     headerComponent: FerretHeader,
     // A function, not the object: AG Grid deep-copies plain objects of the column def, and updateColumns changes meta in place.
     headerComponentParams: { getMeta: () => meta, texts },

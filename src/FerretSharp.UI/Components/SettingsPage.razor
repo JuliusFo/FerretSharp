@@ -1,9 +1,10 @@
-@* App settings: appearance (language, light/dark), C# names of a linked project and the connection behaviour; the shortcuts
+@* App settings: appearance (language, light/dark), C# names of a linked project, the connection behaviour, audit template and display columns; the shortcuts
    as a section of their own (WP-25). *@
 @using FerretSharp.Core.Settings
 @inject IThemeService Theme
 @inject AppSettingsService Settings
 @inject FerretSharp.Core.Audit.AuditTemplateSource AuditTemplates
+@inject FerretSharp.Core.Display.DisplayColumnSource DisplaySource
 @inject IFileOpenService Files
 @inject IJSRuntime JS
 @implements IAsyncDisposable
@@ -182,6 +183,55 @@
         </section>
 
         <section class="settings-section">
+            <h2>@ShellText.Settings_DisplayColumns</h2>
+            <div class="settings-row">
+                <div class="settings-label">
+                    <span>@ShellText.Settings_ShowDisplayNames</span>
+                    <span class="hint">
+                        <Fmt Text="@ShellText.Settings_ShowDisplayNamesHint"><Arg0><code>4711 · PetersPizza</code></Arg0></Fmt>
+                    </span>
+                </div>
+                <div class="segmented" role="radiogroup" aria-label="@ShellText.Settings_ShowDisplayNames">
+                    @foreach (var (on, label) in OnOff)
+                    {
+                        var value = on;
+                        <button class="seg @(Settings.Current.ShowDisplayNames == value ? "active" : "")" role="radio"
+                                aria-checked="@(Settings.Current.ShowDisplayNames == value ? "true" : "false")"
+                                @onclick="() => SetShowDisplayNamesAsync(value)">@label</button>
+                    }
+                </div>
+            </div>
+            <div class="settings-row">
+                <div class="settings-label">
+                    <span>@ShellText.Settings_DisplayColumnsFile</span>
+                    <span class="hint">@ShellText.Settings_DisplayColumnsFileHint</span>
+                </div>
+                <div class="settings-path">
+                    <input class="field mono" spellcheck="false" placeholder="@ShellText.Settings_DisplayColumnsDefault" value="@_displayPath"
+                           @onchange="e => SetDisplayColumnsPathAsync((string?)e.Value)" aria-label="@ShellText.Settings_DisplayColumnsFile" />
+                    <button class="btn" @onclick="PickDisplayColumnsAsync">@ShellText.Settings_DisplayColumnsPick</button>
+                    @if (!string.IsNullOrWhiteSpace(_displayPath))
+                    {
+                        <button class="btn ghost" title="@ShellText.Settings_DisplayColumnsResetTitle" @onclick="() => SetDisplayColumnsPathAsync(null)">@ShellText.Settings_DisplayColumnsReset</button>
+                    }
+                </div>
+            </div>
+            @{ var display = DisplaySource.Load(_displayPath); }
+            @if ((display.Error ?? display.ReadOnly) is { } problem)
+            {
+                <div class="settings-note error">@problem</div>
+            }
+            else
+            {
+                <div class="settings-note">
+                    @(display.Exists
+                        ? TextFormat.Plural(display.Columns.Count, ShellText.Settings_DisplayColumnsCountOne, ShellText.Settings_DisplayColumnsCountOther, display.Path)
+                        : TextFormat.Format(ShellText.Settings_DisplayColumnsNoFile, display.Path))
+                </div>
+            }
+        </section>
+
+        <section class="settings-section">
             <h2>@ShellText.Settings_Diagnostics</h2>
             <div class="settings-row">
                 <div class="settings-label">
@@ -251,7 +301,26 @@
     /// <summary>The template file as the field shows it: saved as typed (also when it has errors, which show below).</summary>
     private string? _auditPath;
 
-    protected override void OnInitialized() => _auditPath = Settings.Current.AuditTemplatePath;
+    /// <summary>The display columns file as the field shows it (WP-31); null = the data folder.</summary>
+    private string? _displayPath;
+
+    protected override void OnInitialized() => (_auditPath, _displayPath) = (Settings.Current.AuditTemplatePath, Settings.Current.DisplayColumnsPath);
+
+    private Task SetShowDisplayNamesAsync(bool on) => UpdateAsync(s => s with { ShowDisplayNames = on });
+
+    private Task SetDisplayColumnsPathAsync(string? path)
+    {
+        _displayPath = string.IsNullOrWhiteSpace(path) ? null : path.Trim();
+        return UpdateAsync(s => s with { DisplayColumnsPath = _displayPath });
+    }
+
+    private async Task PickDisplayColumnsAsync()
+    {
+        if (await Files.PickAsync(ShellText.Settings_DisplayColumnsFilter, ["json"], _displayPath) is { } path)
+        {
+            await SetDisplayColumnsPathAsync(path);
+        }
+    }
 
     private Task SetAuditTemplateAsync(string? path)
     {
