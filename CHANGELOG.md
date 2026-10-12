@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Changed
+- The status bar no longer repeats what the top bar shows: connection name, the active workspace and its read-only/unlocked state with "Unlock …"/"Lock" are gone (switcher, workspace chips and the badge at the top right show and switch them), as is "Reconnect" on a lost connection (the banner has it). It now shows the connection state, the open changes with write/undo/commit/rollback, the C# model, Oracle version and schema, problems and "Disconnect".
+
 ## [3.26.0] - 2026-10-12
 
 Audit tables and triggers from a template (WP-26).
