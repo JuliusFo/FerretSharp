@@ -957,4 +957,43 @@
   <data name="Dialogs_CloseTabTableDraft" xml:space="preserve">
     <value>Der Entwurf von {0} ist noch nicht ausgeführt und geht mit dem Tab verloren.</value>
   </data>
+  <data name="Settings_Audit" xml:space="preserve">
+    <value>Audit-Tabellen</value>
+  </data>
+  <data name="Settings_AuditTemplate" xml:space="preserve">
+    <value>Vorlage</value>
+  </data>
+  <data name="Settings_AuditTemplateHint" xml:space="preserve">
+    <value>Audit-Tabelle und Trigger einer Tabelle folgen dieser Vorlage – z. B. einer Datei im Repository der Firma. Leer nimmt die eingebaute Vorlage.</value>
+  </data>
+  <data name="Settings_AuditTemplateBuiltIn" xml:space="preserve">
+    <value>Eingebaute Vorlage</value>
+  </data>
+  <data name="Settings_AuditTemplatePick" xml:space="preserve">
+    <value>Auswählen…</value>
+  </data>
+  <data name="Settings_AuditTemplateFilter" xml:space="preserve">
+    <value>Audit-Vorlage</value>
+  </data>
+  <data name="Settings_AuditTemplateReset" xml:space="preserve">
+    <value>Eingebaute</value>
+  </data>
+  <data name="Settings_AuditTemplateResetTitle" xml:space="preserve">
+    <value>Wieder die eingebaute Vorlage verwenden</value>
+  </data>
+  <data name="Settings_AuditTemplateUsingBuiltIn" xml:space="preserve">
+    <value>Die eingebaute Vorlage gilt: Audit-Tabelle AUDIT_&lt;Tabelle&gt;, Trigger &lt;Tabelle&gt;_AUDIT.</value>
+  </data>
+  <data name="Settings_AuditTemplateValid" xml:space="preserve">
+    <value>Die Vorlage ist gültig.</value>
+  </data>
+  <data name="Settings_AuditTemplateCopy" xml:space="preserve">
+    <value>Eingebaute Vorlage kopieren</value>
+  </data>
+  <data name="Settings_AuditTemplateCopyTitle" xml:space="preserve">
+    <value>Als Anfang einer eigenen Vorlage – die Syntax ist darin erklärt</value>
+  </data>
+  <data name="Settings_AuditTemplateCopied" xml:space="preserve">
+    <value>Eingebaute Audit-Vorlage kopiert.</value>
+  </data>
 </root>

@@ -106,6 +106,7 @@ public partial class App : Application
         builder.Services.AddSingleton<ConnectionKeepAlive>();
         builder.Services.AddSingleton(settings);
         builder.Services.AddSingleton<ShortcutService>();
+        builder.Services.AddSingleton<FerretSharp.Core.Audit.AuditTemplateSource>();
         builder.Services.AddSingleton(theme);
         builder.Services.AddSingleton<IThemeService, ThemeService>();
         builder.Services.AddSingleton<IDialogService, DialogService>();
