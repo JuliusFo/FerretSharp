@@ -969,4 +969,46 @@
   <data name="Settings_AuditTemplateCopied" xml:space="preserve">
     <value>Eingebaute Audit-Vorlage kopiert.</value>
   </data>
+  <data name="TabMenu_Close" xml:space="preserve">
+    <value>Schließen</value>
+  </data>
+  <data name="TabMenu_CloseOthers" xml:space="preserve">
+    <value>Andere schließen</value>
+  </data>
+  <data name="TabMenu_CloseToTheRight" xml:space="preserve">
+    <value>Tabs rechts davon schließen</value>
+  </data>
+  <data name="TabMenu_CloseAll" xml:space="preserve">
+    <value>Alle schließen</value>
+  </data>
+  <data name="Dialogs_CloseTabsTitle" xml:space="preserve">
+    <value>Tabs schließen</value>
+  </data>
+  <data name="Dialogs_CloseTabsText" xml:space="preserve">
+    <value>Bei diesen Tabs ginge beim Schließen etwas verloren:</value>
+  </data>
+  <data name="Dialogs_CloseTabsWritten" xml:space="preserve">
+    <value>Bereits geschriebene Änderungen bleiben in der Transaktion des Workspaces.</value>
+  </data>
+  <data name="Dialogs_CloseTabsKeep" xml:space="preserve">
+    <value>Diese offen lassen</value>
+  </data>
+  <data name="Dialogs_CloseTabsDiscard" xml:space="preserve">
+    <value>Verwerfen und alle schließen</value>
+  </data>
+  <data name="Dialogs_CloseTabsPendingOne" xml:space="preserve">
+    <value>{0} ausstehende Änderung</value>
+  </data>
+  <data name="Dialogs_CloseTabsPendingOther" xml:space="preserve">
+    <value>{0} ausstehende Änderungen</value>
+  </data>
+  <data name="Dialogs_CloseTabsTypedValue" xml:space="preserve">
+    <value>ein eingegebener, nicht bestätigter Wert</value>
+  </data>
+  <data name="Dialogs_CloseTabsTableDraft" xml:space="preserve">
+    <value>ein noch nicht ausgeführter Tabellenentwurf</value>
+  </data>
+  <data name="Dialogs_CloseTabsEditorText" xml:space="preserve">
+    <value>der Text im Editor</value>
+  </data>
 </root>

@@ -177,6 +177,7 @@ Seit WP-25 (3.16.0) unter Einstellungen › Tastenkürzel änderbar; die Tabelle
 | Ctrl+F | Datenansicht: Spalte suchen und hinspringen (Scrollen, Hervorheben, Fokus auf die Zelle der ersten sichtbaren Zeile); Strukturansicht: Spalten filtern (v1.6) | v1.5 |
 | Alt+← / Alt+→ | Zurück zum Tab, aus dem ein FK-Sprung kam / wieder vor (verhindert nebenbei die Zurück-Navigation der WebView) | v1.6 |
 | – (frei belegbar) | Aktiven Tab schließen; fragt vorher (auch beim ✕) bei ausstehenden Änderungen, bei einem eingegebenen, nicht bestätigten Wert (Zelle im Grid oder Feld im Formular) und bei Text im SQL-/LINQ-Tab | 3.21 |
+| – (frei belegbar) | Andere Tabs bzw. alle Tabs des aktiven Workspaces schließen; wie das Kontextmenü eines Tabs (Schließen, Andere, Rechts davon, Alle): Tabs, bei denen etwas verloren ginge, kommen gesammelt in eine Rückfrage (`CloseTabsQuestion`) – alles verwerfen, diese offen lassen und den Rest schließen, oder abbrechen | 3.27 |
 | Ctrl+P | Tabelle suchen (Backlog) | – |
 | Ctrl+S | Pending-Änderungen flushen (kein Commit) | v1.9 |
 | Ctrl+Shift+Enter | Commit (auf Prod immer mit Bestätigung) | v1.9 |

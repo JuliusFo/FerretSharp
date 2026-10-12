@@ -34,3 +34,47 @@ public sealed record CloseTabQuestion(WorkspaceTab Tab, CloseTabLoss Loss)
         _ => null,
     };
 }
+
+/// <summary>Which tabs a "close" from the tab's right-click menu or a shortcut takes, seen from one tab.</summary>
+public enum TabCloseScope
+{
+    /// <summary>The tab itself.</summary>
+    This,
+
+    /// <summary>Every other tab of the workspace.</summary>
+    Others,
+
+    /// <summary>The tabs to the right of it.</summary>
+    ToTheRight,
+
+    /// <summary>Every tab of the workspace.</summary>
+    All,
+}
+
+/// <summary>
+/// Several tabs waiting to close, some of which would lose something (<see cref="Losing"/>): discard and close all, close
+/// only the others (<see cref="Others"/>), or cancel.
+/// </summary>
+/// <param name="Target">The tab the menu or shortcut was used on; stays active if it stays open.</param>
+public sealed record CloseTabsQuestion(WorkspaceTab Target, IReadOnlyList<WorkspaceTab> Tabs, IReadOnlyList<CloseTabQuestion> Losing)
+{
+    /// <summary>The tabs that close without losing anything.</summary>
+    public IReadOnlyList<WorkspaceTab> Others => [.. Tabs.Where(t => Losing.All(q => q.Tab != t))];
+
+    /// <summary>The tabs of <paramref name="tabs"/> (in order) that <paramref name="scope"/> takes, seen from <paramref name="target"/>.</summary>
+    public static IReadOnlyList<WorkspaceTab> Select(IReadOnlyList<WorkspaceTab> tabs, WorkspaceTab target, TabCloseScope scope)
+    {
+        if (!tabs.Contains(target))
+        {
+            return [];
+        }
+
+        return scope switch
+        {
+            TabCloseScope.This => [target],
+            TabCloseScope.Others => [.. tabs.Where(t => t != target)],
+            TabCloseScope.ToTheRight => [.. tabs.SkipWhile(t => t != target).Skip(1)],
+            _ => [.. tabs],
+        };
+    }
+}

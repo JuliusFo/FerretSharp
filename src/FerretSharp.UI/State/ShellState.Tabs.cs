@@ -327,6 +327,30 @@ public sealed partial class ShellState
         }
     });
 
+    /// <summary>
+    /// Closes several tabs of one workspace (right-click menu of a tab, 3.27). The active tab stays if it stays open, else
+    /// <paramref name="target"/> (the tab the menu was used on) becomes active, else the next one to the right of the old
+    /// active tab, or the last one.
+    /// </summary>
+    public void CloseTabs(WorkspaceTab target, IReadOnlyCollection<WorkspaceTab> tabs) => Set(() =>
+    {
+        if (FindWorkspace(target.WorkspaceId) is not { } workspace || tabs.Count == 0)
+        {
+            return;
+        }
+
+        var activeIndex = workspace.ActiveIndex;
+        var after = workspace.Tabs.Skip(Math.Max(activeIndex, 0)).Where(t => !tabs.Contains(t)).ToList();
+        workspace.Tabs.RemoveAll(tabs.Contains);
+        if (workspace.ActiveTab is { } active && workspace.Tabs.Contains(active))
+        {
+            return;
+        }
+
+        workspace.ActiveTab = workspace.Tabs.Contains(target) ? target : after.FirstOrDefault() ?? workspace.Tabs.LastOrDefault();
+        workspace.ActiveTab?.Visited = true;
+    });
+
     public void CloseAllTabs() => Set(() =>
     {
         ActiveWorkspace?.Tabs.Clear();

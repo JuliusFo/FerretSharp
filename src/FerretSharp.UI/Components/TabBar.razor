@@ -18,7 +18,8 @@
             _ => ShellText.TabBar_SqlTitle,
         };
         <div class="tab @KindClass(tab) @(tab == Shell.ActiveTab ? "active" : "")" title="@tooltip"
-             @onclick="e => OnClick(e, tab)" @onmouseup="e => CloseOnMiddleClick(e, tab)">
+             @onclick="e => OnClick(e, tab)" @onmouseup="e => CloseOnMiddleClick(e, tab)"
+             @oncontextmenu="e => OpenMenuAsync(e, tab)" @oncontextmenu:preventDefault="true">
             @switch (tab)
             {
                 case TableTab table:
@@ -76,6 +77,25 @@
     }
 </nav>
 
+@if (_menu is { } menu && Shell.Tabs.Contains(menu.Tab))
+{
+    var index = Shell.Tabs.ToList().IndexOf(menu.Tab);
+    <PopoverMenu X="menu.X" Y="menu.Y" ViewportWidth="menu.ViewportWidth" ViewportHeight="menu.ViewportHeight" Width="250" EstimatedHeight="140"
+                 OnClose="CloseMenu">
+        <div class="tab-menu">
+            <button class="menu-item" @onclick="() => CloseFromMenu(TabCloseScope.This)">@ShellText.TabMenu_Close <Kbd Action="ShortcutAction.CloseTab" /></button>
+            <button class="menu-item" disabled="@(Shell.Tabs.Count < 2)" @onclick="() => CloseFromMenu(TabCloseScope.Others)">
+                @ShellText.TabMenu_CloseOthers <Kbd Action="ShortcutAction.CloseOtherTabs" />
+            </button>
+            <button class="menu-item" disabled="@(index == Shell.Tabs.Count - 1)" @onclick="() => CloseFromMenu(TabCloseScope.ToTheRight)">
+                @ShellText.TabMenu_CloseToTheRight
+            </button>
+            <div class="menu-sep"></div>
+            <button class="menu-item" @onclick="() => CloseFromMenu(TabCloseScope.All)">@ShellText.TabMenu_CloseAll <Kbd Action="ShortcutAction.CloseAllTabs" /></button>
+        </div>
+    </PopoverMenu>
+}
+
 @code {
     [CascadingParameter]
     public PresentationService Presentations { get; set; } = null!;
@@ -126,6 +146,44 @@
         {
             Shell.RenameTab(titled, name);
         }
+    }
+
+    /// <summary>The tab whose right-click menu is open, with the mouse position and window size.</summary>
+    private sealed record TabMenuRequest(WorkspaceTab Tab, double X, double Y, double ViewportWidth, double ViewportHeight);
+
+    private TabMenuRequest? _menu;
+
+    private DomModule? _dom;
+
+    private DomModule Dom => _dom ??= new(JS);
+
+    /// <summary>Right click: the menu opens at the mouse; the tab is not activated (it acts on the tab, not on what is shown).</summary>
+    private async Task OpenMenuAsync(MouseEventArgs e, WorkspaceTab tab)
+    {
+        var size = await Dom.InvokeAsync<double[]>("viewportSize");
+        if (_disposed || size is not [var width, var height])
+        {
+            return;
+        }
+
+        _menu = new TabMenuRequest(tab, e.ClientX, e.ClientY, width, height);
+    }
+
+    private void CloseMenu() => _menu = null;
+
+    /// <summary>
+    /// The menu took the focus when it opened, so a grid cell being edited has ended its input by now: the value is a
+    /// pending change and asked about like one.
+    /// </summary>
+    private void CloseFromMenu(TabCloseScope scope)
+    {
+        if (_menu is not { } menu)
+        {
+            return;
+        }
+
+        _menu = null;
+        Lifecycle.CloseTabs(menu.Tab, scope);
     }
 
     private async Task CloseOnMiddleClick(MouseEventArgs e, WorkspaceTab tab)
@@ -203,6 +261,7 @@
     public async ValueTask DisposeAsync()
     {
         _disposed = true;
+        await Dom.DisposeAsync();
         if (_presentations is not null)
         {
             _presentations.Changed -= OnPresentationChanged;

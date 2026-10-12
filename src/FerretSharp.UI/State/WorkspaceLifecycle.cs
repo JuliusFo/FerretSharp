@@ -149,7 +149,7 @@ public sealed partial class WorkspaceLifecycle(
     /// <summary>"Cancel" in any of the confirmations.</summary>
     public void CancelConfirmation()
     {
-        (ConfirmCommit, ConfirmRollback, ConfirmCloseTab, ConfirmRedo) = (null, null, null, null);
+        (ConfirmCommit, ConfirmRollback, ConfirmCloseTab, ConfirmCloseTabs, ConfirmRedo) = (null, null, null, null, null);
         shell.NotifyChanged();
     }
 
@@ -304,6 +304,59 @@ public sealed partial class WorkspaceLifecycle(
     {
         ConfirmCloseTab = null;
         shell.CloseTab(tab);
+    }
+
+    /// <summary>Asking before closing several tabs of which some would lose something (<see cref="CloseTabsQuestion"/>).</summary>
+    public CloseTabsQuestion? ConfirmCloseTabs { get; private set; }
+
+    /// <summary>
+    /// Closes the tabs <paramref name="scope"/> takes, seen from <paramref name="target"/> (right-click menu of a tab, the
+    /// shortcuts). One tab asks like <see cref="CloseTab"/>; several ask once for all that would lose something, and the
+    /// user can keep those open and close the rest. <paramref name="cellEditing"/> is about the active tab.
+    /// </summary>
+    public void CloseTabs(WorkspaceTab target, TabCloseScope scope, bool cellEditing = false)
+    {
+        if (shell.FindWorkspace(target.WorkspaceId) is not { } workspace)
+        {
+            return;
+        }
+
+        var tabs = CloseTabsQuestion.Select(workspace.Tabs, target, scope);
+        if (tabs.Count <= 1)
+        {
+            if (tabs is [var only])
+            {
+                CloseTab(only, cellEditing && only == workspace.ActiveTab);
+            }
+
+            return;
+        }
+
+        var losing = tabs
+            .Select(tab => CloseTabQuestion.For(tab, (cellEditing && tab == workspace.ActiveTab) || shell.HasTypedValues(tab)))
+            .OfType<CloseTabQuestion>()
+            .ToList();
+        if (losing.Count == 0)
+        {
+            shell.CloseTabs(target, tabs);
+            return;
+        }
+
+        ConfirmCloseTabs = new CloseTabsQuestion(target, tabs, losing);
+        shell.NotifyChanged();
+    }
+
+    /// <summary>The answer to <see cref="ConfirmCloseTabs"/>: discard and close all, or keep the tabs that would lose something.</summary>
+    public void CloseTabsConfirmed(bool keepLosing)
+    {
+        if (ConfirmCloseTabs is not { } question)
+        {
+            return;
+        }
+
+        ConfirmCloseTabs = null;
+        shell.CloseTabs(question.Target, keepLosing ? question.Others : question.Tabs);
+        shell.NotifyChanged(); // closing nothing still ends the question
     }
 
     /// <summary>Hands the tabs of every open workspace (all connections) to its manager, which saves what changed (debounced).</summary>
