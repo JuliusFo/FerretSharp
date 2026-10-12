@@ -443,6 +443,7 @@ Wunsch der Kollegen des Nutzers (2026-10-07): zu einer Tabelle die Audit-Tabelle
   - Die Trigger-Quelle der Vorlage muss den Trigger anlegen, den `@trigger` nennt, und die Schranke passieren (sonst fände FerretSharp ihn nie wieder bzw. scheiterte erst beim Lauf).
   - `AuditTrigger.Columns` zählt nur Schleifen, die `:new`/`:old` lesen (wie `ALL_TRIGGER_COLS`); Identity- und virtuelle Spalten erscheinen dort (Integrationstest).
   - `CREATE TRIGGER IF NOT EXISTS` auf einen vorhandenen Trigger ändert nichts; das `CREATE` läuft ohne Abbruch; die Meldung zählt im Text des Nutzers (ADR 0021, Nachtrag).
+  - Integrationstests höchstens 4 Klassen parallel (`xunit.runner.json`, wie der CI-Runner): Mit einer je Kern (32 lokal) wies der Oracle-Free-Container neue Sessions ab (ORA-12516), die Fehler wechselten von Lauf zu Lauf.
   - Die Vorlagendatei wird höchstens alle 3 s angesehen (der Designer fragt bei jedem Tastendruck, eine Freigabe über VPN darf den UI-Thread nicht bremsen); das Audit-Häkchen bleibt, wie der Nutzer es gesetzt hat; eine übersprungene Umbenennung (der neue Name ist in der Audit-Tabelle schon vergeben) wird gemeldet.
 - Nicht gemacht / Backlog: Kontextmenü „Audit…“ im Explorer (der Explorer hat für Tabellen noch kein Kontextmenü; die Audit-Zeile deckt bestehende Tabellen ab); Vorlage je Verbindung; die Audit-Zeile liest eine geänderte Vorlage erst beim nächsten Laden des Tabs.
 
