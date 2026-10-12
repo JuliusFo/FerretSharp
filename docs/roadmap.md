@@ -19,6 +19,5 @@ Pakete aus dem Backlog, nach v3 mit dem Nutzer ausgewählt (2026-10-05). Version
 WP-22 (DDL im SQL-Editor) ist umgesetzt: Protokoll in `docs/work-packages.md`, ADR 0019. WP-23 (Tabellen-Designer + Entity aus Tabelle) ist in 3.22.0–3.24.0 umgesetzt: Protokoll in `docs/work-packages.md`, ADR 0020. R4a (Fehler aus dem Review 3.24.0) ist in 3.24.1 umgesetzt, R4b (Struktur) in 3.25.0, WP-26 (Audit-Tabellen aus einer Vorlage) in 3.26.0 (Protokolle mit den Entscheidungen des Nutzers in `docs/work-packages.md`, ADR 0021). WP-31 (Anzeigespalten, Issue #11) ist in 3.27.0 umgesetzt (Protokoll in `docs/work-packages.md`, ADR 0022). Weitere Pakete sind noch nicht eingeplant – beim nächsten Mal mit dem Nutzer aus `docs/backlog.md` auswählen.
 
 ## Offene UX-Fragen
-- Anzeigespalten (WP-31), beim Start selbst entschieden, Bestätigung des Nutzers offen: Views als Ziel bekommen keine Namen (kein erzwungener eindeutiger Schlüssel); Cache der Namen je Tab statt je Workspace (geleert bei F5, Filter, Schreiben, Commit, Rollback).
 - Shortcut-Belegung für Commit/Rollback – vorläufig, Nutzerfeedback einholen.
 - Workspaces: Standardname ist „Workspace N“ mit der kleinsten freien Nummer (nach Umbenennen von „Workspace 1“ heißt der nächste wieder „Workspace 1“). Shortcuts zum Wechseln (z. B. Ctrl+1…9) und eine Oberfläche für die Notizen fehlen noch.
