@@ -19,16 +19,22 @@ public sealed class WorkspaceEditingTests : IAsyncDisposable
     {
         var test = await _app.OpenAsync(TestApp.Profile("Test"));
         var dev = await _app.OpenAsync(TestApp.Profile("Dev"));
+        var reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var held = new TaskCompletionSource();
-        _app.OnCommit = () => held.Task;
+        _app.OnCommit = () => { reached.SetResult(); return held.Task; };
 
         var slow = _app.Editing.CommitAsync(_app.WorkspaceOf(test));
 
         Assert.True(_app.Editing.IsBusy(test.Workspaces.Active!.Id));
         Assert.False(_app.Editing.IsBusy(dev.Workspaces.Active!.Id));
 
+        // The workspace session opens on the thread pool, so the commit reaches the database only later. Without the wait,
+        // OnCommit was mostly null by then: both commits ran at once on pool threads, and the busy set (one UI thread in the
+        // app) lost an entry.
+        await reached.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
         _app.OnCommit = null;
         Assert.True(await _app.Editing.CommitAsync(_app.WorkspaceOf(dev)));
+        Assert.True(_app.Editing.IsBusy(test.Workspaces.Active!.Id));
 
         held.SetResult();
         Assert.True(await slow);
