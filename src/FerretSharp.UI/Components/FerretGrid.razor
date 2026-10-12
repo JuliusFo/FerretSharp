@@ -141,6 +141,7 @@
         var values = Presentation.ValuesOf(i);
         var foreignKeys = Active.Schema?.OutgoingOf(Details.Table.Ref).Where(f => f.FromColumns.Contains(c.Name)).ToList() ?? [];
         var lob = OracleTypeMapper.IsLob(c);
+        var named = _names.Shows(i);
         return new GridColumn(ColumnId(i), c.Name, label.Name, c.DisplayType, category.ToString(), c.Nullable)
         {
             Alternate = label.AlternateName,
@@ -150,7 +151,8 @@
             Fk = foreignKeys.Any(f => f.Source == FkSource.Declared),
             FkModel = foreignKeys.Any(f => f.Source == FkSource.ClrModel),
             DisplayColumn = Details.Table.Kind != TableKind.View && DisplayColumns.Current().Columns.IndexIn(Details) == i,
-            Numeric = category == ColumnCategory.Number && values is null,
+            Numeric = category == ColumnCategory.Number && values is null && !named,
+            Named = named,
             Sortable = ColumnCategories.IsSortable(category),
             Pinned = ColumnPinning.IsPinned(Details, Tab.PinnedColumns, c.Name),
             Comment = c.Comment,
@@ -271,8 +273,24 @@
                 return target.Present(link.DisplayColumn, value).Text;
             });
         _namesGeneration++;
+        await RelabelAsync();
         await RedrawAllAsync();
         QueueLookups(_blocks.All().Select(r => ValuesOf(r.Row)).Concat(NewRowValues()));
+    }
+
+    /// <summary>
+    /// New column metadata (badges, alignment of columns with names) without fetching the rows again: they are redrawn
+    /// from the held values.
+    /// </summary>
+    private async Task RelabelAsync()
+    {
+        var columns = Enumerable.Range(0, Details.Columns.Count).Select(ColumnMeta).ToList();
+        var shown = ShownColumns(columns);
+        if (shown != _shownColumns && _grid.IsCreated)
+        {
+            _shownColumns = shown;
+            await _grid.CallAsync("updateColumns", columns, HeaderHeight);
+        }
     }
 
     /// <summary>The same columns over the same keys to the same display columns.</summary>
@@ -348,11 +366,11 @@
 
                 if (result.Error is { } error)
                 {
-                    SwitchOff(lookup, error.Display);
+                    await SwitchOffAsync(lookup, error.Display);
                 }
                 else if (result.Value is not { } rows)
                 {
-                    SwitchOff(lookup, TextFormat.Format(GridText.Grid_DisplayLookupTimeout,
+                    await SwitchOffAsync(lookup, TextFormat.Format(GridText.Grid_DisplayLookupTimeout,
                         lookup.Link.Target.Table.DisplayName, (int)DisplayNames.LookupTimeout.TotalSeconds));
                 }
                 else
@@ -368,10 +386,13 @@
         }
     }
 
-    private void SwitchOff(DisplayLookup lookup, string reason)
+    /// <summary>The column shows no names in this tab any more: told once, names that were shown go.</summary>
+    private async Task SwitchOffAsync(DisplayLookup lookup, string reason)
     {
         _names.Failed(lookup, reason);
         Shell.Notify(TextFormat.Format(GridText.Grid_DisplayLinkOff, Details.Columns[lookup.Link.Column].Name, reason));
+        await RelabelAsync();
+        await RedrawAllAsync();
     }
 
     /// <summary>Redraws the held rows (and new rows) that show one of the lookup's keys.</summary>

@@ -29,6 +29,9 @@ public sealed record GridColumn(string Id, string Name, string Label, string Typ
     /// <summary>The table's display column (WP-31): its values stand beside foreign keys to the table.</summary>
     public bool DisplayColumn { get; init; }
 
+    /// <summary>A foreign key column with names beside its values (WP-31): left-aligned and wider, like text.</summary>
+    public bool Named { get; init; }
+
     /// <summary>Right-aligned with grouped digits (numbers shown as numbers, not as enum members).</summary>
     public bool Numeric { get; init; }
 

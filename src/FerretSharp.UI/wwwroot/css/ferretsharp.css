@@ -536,7 +536,7 @@ code.condition { font: 12px var(--mono); white-space: pre-wrap; }
 /* A foreign key value with the display value of its target beside it (WP-31): the name gives way when the column is narrow. */
 .fs-named { display: flex; gap: 6px; min-width: 0; overflow: hidden; }
 .fs-named > span:first-child { flex: none; }
-.fs-desc { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fs-desc { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 2px; }
 .fs-desc::before { content: "· "; color: var(--faint); }
 .fs-desc.missing { color: var(--danger); font-style: italic; }
 .fs-badge.display { background: rgba(34, 160, 90, .16); color: #1f8a4c; }

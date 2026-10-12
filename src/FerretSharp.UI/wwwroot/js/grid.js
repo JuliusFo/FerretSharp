@@ -453,6 +453,7 @@ function renderCell(params, texts) {
 }
 
 function width(meta) {
+  if (meta.named) return 220; // a foreign key value with a name beside it (WP-31)
   if (meta.numeric) return 140;
   if (meta.category === 'Date') return 165;
   if (meta.category === 'Timestamp' || meta.category === 'TimestampWithTimeZone') return 215;
@@ -905,10 +906,19 @@ export function updateColumns(elementId, columns, headerHeight) {
   const byId = metas.get(elementId);
   if (!api || !byId) return;
   api.stopEditing(true);
+  // A column whose default width changes (names beside its values come or go) takes the new one – unless the user
+  // resized it.
+  const resized = [];
   for (const meta of columns) {
     const current = byId.get(meta.id);
-    if (current) Object.assign(current, meta);
+    if (!current) continue;
+    const before = width(current);
+    Object.assign(current, meta);
+    const after = width(current);
+    if (before !== after && api.getColumn(meta.id)?.getActualWidth() === before) resized.push({ key: meta.id, newWidth: after });
   }
+  if (resized.length) api.setColumnWidths(resized);
+  api.refreshCells({ force: true }); // alignment classes follow meta
   headerHeights.set(elementId, headerHeight);
   api.setGridOption('theme', theme(headerHeight));
   api.refreshHeader();

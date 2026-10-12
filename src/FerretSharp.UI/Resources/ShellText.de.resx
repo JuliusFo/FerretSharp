@@ -1018,13 +1018,13 @@
     <value>Namen neben Fremdschlüsseln</value>
   </data>
   <data name="Settings_ShowDisplayNamesHint" xml:space="preserve">
-    <value>Zeigt im Grid neben einem Fremdschlüsselwert den Wert der Anzeigespalte der referenzierten Tabelle, z. B. {0}. Eine Anzeigespalte markieren Sie im Kontextmenü eines Spaltenkopfs.</value>
+    <value>Zeigt im Grid neben einem Fremdschlüsselwert den Wert der Anzeigespalte der referenzierten Tabelle, z. B. {0}. Eine Anzeigespalte markierst du im Kontextmenü eines Spaltenkopfs.</value>
   </data>
   <data name="Settings_DisplayColumnsFile" xml:space="preserve">
     <value>Datei</value>
   </data>
   <data name="Settings_DisplayColumnsFileHint" xml:space="preserve">
-    <value>Wo die Anzeigespalten liegen – z. B. im Repository Ihres Teams, damit die Kollegen dieselben Namen sehen. Leer: eine Datei im Datenordner von FerretSharp.</value>
+    <value>Wo die Anzeigespalten liegen – z. B. im Repository deines Teams, damit die Kollegen dieselben Namen sehen. Leer: eine Datei im Datenordner von FerretSharp.</value>
   </data>
   <data name="Settings_DisplayColumnsDefault" xml:space="preserve">
     <value>display-columns.json im Datenordner</value>
