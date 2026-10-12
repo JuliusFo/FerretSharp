@@ -205,6 +205,25 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
         }, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<LookupRow>> LookupAsync(
+        TableDetails target, int keyColumn, int displayColumn, IReadOnlyList<object> keys, CancellationToken cancellationToken)
+    {
+        var query = QueryBuilder.BuildLookup(target, keyColumn, displayColumn, keys);
+        var key = target.Columns[keyColumn];
+        var display = target.Columns[displayColumn];
+        return await session.ExecuteReaderAsync(query.Sql, query.Parameters, async (reader, ct) =>
+        {
+            var oracle = (OracleDataReader)reader;
+            var rows = new List<LookupRow>();
+            while (await reader.ReadAsync(ct))
+            {
+                rows.Add(new LookupRow(ReadValue(oracle, 0, key)!, reader.IsDBNull(1) ? null : ReadValue(oracle, 1, display)));
+            }
+
+            return rows;
+        }, cancellationToken);
+    }
+
     internal static RowData ReadRow(OracleDataReader reader, SelectQuery query, TableDetails table)
     {
         var ordinal = 0;

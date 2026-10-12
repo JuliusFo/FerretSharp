@@ -122,6 +122,14 @@ public interface IDataAccess
     /// <exception cref="PlanUnavailableException">No rights on V$SQL / V$SQL_PLAN_STATISTICS_ALL, or the cursor is gone.</exception>
     Task<ExecutionPlan> ExplainActualAsync(QuerySpec query, bool wholeResult, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Key and display value of the rows of <paramref name="target"/> whose key column holds one of <paramref name="keys"/>
+    /// (display columns, WP-31; <see cref="QueryBuilder.BuildLookup"/>). In the workspace's session, so it sees the
+    /// workspace's own uncommitted rows; it does not start a new read-only snapshot. Keys without a row are not returned.
+    /// </summary>
+    Task<IReadOnlyList<LookupRow>> LookupAsync(
+        TableDetails target, int keyColumn, int displayColumn, IReadOnlyList<object> keys, CancellationToken cancellationToken);
+
     /// <summary>Rows fetched for the actual plan unless the whole result is wanted: one grid page.</summary>
     public const int ActualPlanPageSize = 500;
 }
@@ -133,6 +141,9 @@ public sealed record SqlColumn(string Name, ColumnInfo Column);
 /// <param name="DataAsOf">Start of the read-only snapshot (locked workspaces); null otherwise.</param>
 public sealed record SqlPage(
     IReadOnlyList<SqlColumn> Columns, IReadOnlyList<IReadOnlyList<object?>> Rows, bool IsLastPage, TimeSpan Elapsed, DateTimeOffset? DataAsOf = null);
+
+/// <summary>A row found by <see cref="IDataAccess.LookupAsync"/>: its key and display value as read (like grid values).</summary>
+public sealed record LookupRow(object Key, object? Display);
 
 /// <summary>Result of <see cref="IDataAccess.ReadLobAsync"/>; <see cref="Found"/> is false if the row is gone.</summary>
 public sealed record LobRead(bool Found, object? Value);

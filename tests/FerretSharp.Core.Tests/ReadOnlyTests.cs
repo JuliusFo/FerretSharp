@@ -276,4 +276,19 @@ public class ReadOnlyTests
             }
         }
     }
+
+    [Fact]
+    public void Display_lookups_are_plain_queries()
+    {
+        foreach (var table in Tables)
+        {
+            foreach (var size in QueryBuilder.LookupSizes)
+            {
+                var keys = Enumerable.Range(0, size).Select(_ => (object)"x'; DELETE FROM t; --").ToList();
+                var lookup = QueryBuilder.BuildLookup(table, 0, table.Columns.Count - 1, keys);
+
+                Assert.True(OracleSession.IsReadOnlyStatement(lookup.Sql), lookup.Sql);
+            }
+        }
+    }
 }

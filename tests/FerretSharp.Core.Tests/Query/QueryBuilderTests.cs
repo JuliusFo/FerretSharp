@@ -255,4 +255,49 @@ public partial class QueryBuilderTests
         Assert.Equal([0, 1, 2, 3, 4], ex.Errors.Keys.Order());
         Assert.Contains("NULL", ex.Errors[0]);
     }
+
+    [Fact]
+    public void Lookup_fills_the_in_list_up_to_a_fixed_size_with_the_last_key()
+    {
+        var query = QueryBuilder.BuildLookup(Kunden, keyColumn: 0, displayColumn: 1, [4711m, 4712m, 4713m]);
+
+        AssertBindsMatch(query.Sql, query.Parameters);
+        Assert.Equal(
+            "SELECT t.\"KUNDE_ID\", t.\"NAME\"\n  FROM \"APP\".\"KUNDEN\" t\n WHERE t.\"KUNDE_ID\" IN (:k0, :k1, :k2, :k3, :k4, :k5, :k6, :k7, :k8, :k9)",
+            query.Sql);
+        Assert.Equal([4711m, 4712m, 4713m, 4713m, 4713m, 4713m, 4713m, 4713m, 4713m, 4713m], query.Parameters.Select(p => p.Value));
+        Assert.All(query.Parameters, p => Assert.Equal(OracleTypeHint.Number, p.Type));
+    }
+
+    [Theory]
+    [InlineData(1, 1)]
+    [InlineData(2, 10)]
+    [InlineData(10, 10)]
+    [InlineData(11, 50)]
+    [InlineData(99, 100)]
+    [InlineData(101, 500)]
+    [InlineData(500, 500)]
+    public void Lookup_uses_only_a_few_statement_shapes(int keys, int binds)
+    {
+        var query = QueryBuilder.BuildLookup(Kunden, 0, 1, Enumerable.Range(1, keys).Select(i => (object)(decimal)i).ToList());
+
+        Assert.Equal(binds, query.Parameters.Count);
+    }
+
+    [Fact]
+    public void Lookup_binds_with_the_key_columns_type_and_quotes_names()
+    {
+        var query = QueryBuilder.BuildLookup(Kunden, keyColumn: 2, displayColumn: 8, ["AB"]);
+
+        Assert.Equal("SELECT t.\"KUERZEL\", t.\"Mixed Case\"\n  FROM \"APP\".\"KUNDEN\" t\n WHERE t.\"KUERZEL\" IN (:k0)", query.Sql);
+        Assert.Equal(OracleTypeHint.Char, Assert.Single(query.Parameters).Type);
+    }
+
+    [Fact]
+    public void Lookup_refuses_no_keys_too_many_keys_and_null()
+    {
+        Assert.Throws<ArgumentException>(() => QueryBuilder.BuildLookup(Kunden, 0, 1, []));
+        Assert.Throws<ArgumentException>(() => QueryBuilder.BuildLookup(Kunden, 0, 1, Enumerable.Range(0, 501).Select(i => (object)(decimal)i).ToList()));
+        Assert.Throws<ArgumentException>(() => QueryBuilder.BuildLookup(Kunden, 0, 1, [1m, null!]));
+    }
 }
