@@ -23,7 +23,8 @@
                 break;
             case ConnectionStatus.Connected:
                 @* Connection, workspace and its lock are in the top bar (switcher, workspace chips, badge); the bar shows
-                   what is going on. *@
+                   the state and what is going on. *@
+                <span class="item"><span class="dot ok"></span> @ShellText.Status_Connected</span>
                 @if (Shell.ActiveWorkspace is { } editTabs && Editing.SummaryOf(editTabs) is { HasWork: true } edits)
                 {
                     @EditStatus(editTabs, edits)

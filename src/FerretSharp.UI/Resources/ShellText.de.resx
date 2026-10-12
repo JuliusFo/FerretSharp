@@ -228,6 +228,9 @@
   <data name="Status_ConnectionsNotLoaded" xml:space="preserve">
     <value>Verbindungen konnten nicht geladen werden</value>
   </data>
+  <data name="Status_Connected" xml:space="preserve">
+    <value>Verbunden</value>
+  </data>
   <data name="Workspace_Unlocked" xml:space="preserve">
     <value>freigeschaltet</value>
   </data>

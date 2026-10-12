@@ -289,6 +289,10 @@
   <data name="Status_ConnectionsNotLoaded" xml:space="preserve">
     <value>Connections could not be loaded</value>
   </data>
+  <data name="Status_Connected" xml:space="preserve">
+    <value>Connected</value>
+    <comment>Status</comment>
+  </data>
   <data name="Workspace_Unlocked" xml:space="preserve">
     <value>unlocked</value>
     <comment>State of a workspace that may write</comment>
