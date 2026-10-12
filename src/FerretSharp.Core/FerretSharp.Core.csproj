@@ -10,6 +10,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The built-in audit template (WP-26), read by AuditTemplates.DefaultText. -->
+    <EmbeddedResource Include="Audit\DefaultAuditTemplate.sql" LogicalName="FerretSharp.Core.Audit.DefaultAuditTemplate.sql" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="FerretSharp.Core.Tests" />
     <InternalsVisibleTo Include="FerretSharp.Integration.Tests" />
   </ItemGroup>

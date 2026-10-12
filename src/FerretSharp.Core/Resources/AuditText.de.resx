@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="TemplateHasErrors" xml:space="preserve">
+    <value>Die Audit-Vorlage hat Fehler:</value>
+  </data>
+  <data name="ErrorInLine" xml:space="preserve">
+    <value>Zeile {0}: {1}</value>
+  </data>
+  <data name="UnknownDirective" xml:space="preserve">
+    <value>Unbekannte Anweisung @{0}.</value>
+  </data>
+  <data name="DirectiveRepeated" xml:space="preserve">
+    <value>@{0} steht mehr als einmal in der Vorlage.</value>
+  </data>
+  <data name="DirectiveMissing" xml:space="preserve">
+    <value>@{0} fehlt.</value>
+  </data>
+  <data name="DirectiveNeedsValue" xml:space="preserve">
+    <value>@{0} braucht einen Wert.</value>
+  </data>
+  <data name="DirectiveTakesNoValue" xml:space="preserve">
+    <value>@{0} nimmt keinen Wert.</value>
+  </data>
+  <data name="BaseColumnsMode" xml:space="preserve">
+    <value>@base-columns nimmt „as-base“ oder „nullable“.</value>
+  </data>
+  <data name="TextOutsideSection" xml:space="preserve">
+    <value>Diese Zeile gehört zu keinem Abschnitt: Spalten stehen nach @columns, der Trigger nach @trigger-source.</value>
+  </data>
+  <data name="TriggerSourceEmpty" xml:space="preserve">
+    <value>@trigger-source ist leer.</value>
+  </data>
+  <data name="ColumnNameMissing" xml:space="preserve">
+    <value>Eine Spaltenzeile beginnt mit dem Spaltennamen.</value>
+  </data>
+  <data name="ColumnTypeMissing" xml:space="preserve">
+    <value>{0}: Der Typ fehlt.</value>
+  </data>
+  <data name="ColumnTypeUnknown" xml:space="preserve">
+    <value>{0}: unbekannter Typ „{1}“.</value>
+  </data>
+  <data name="ColumnNotUnderstood" xml:space="preserve">
+    <value>{0}: „{1}“ nicht verstanden. Nach dem Typ folgen [GENERATED … AS IDENTITY | DEFAULT …] [NOT NULL | NULL] [-- Kommentar].</value>
+  </data>
+  <data name="ColumnDefaultInvalid" xml:space="preserve">
+    <value>{0}: Der Default fehlt oder passt nicht in ein Statement (kein „;“, keine Bind-Variable, passende Klammern).</value>
+  </data>
+  <data name="ColumnRepeated" xml:space="preserve">
+    <value>Die Spalte {0} steht mehr als einmal in der Vorlage.</value>
+  </data>
+  <data name="NameInvalid" xml:space="preserve">
+    <value>{0}: Ein Name darf keine doppelten Anführungszeichen enthalten.</value>
+  </data>
+  <data name="NameTooLong" xml:space="preserve">
+    <value>{0}: Der Name ist länger als {1} Byte.</value>
+  </data>
+  <data name="NameEmpty" xml:space="preserve">
+    <value>@{0} ergibt einen leeren Namen.</value>
+  </data>
+  <data name="PlaceholderUnknown" xml:space="preserve">
+    <value>Unbekannter Platzhalter {0}. Geschweifte Klammern als Text werden {{{{ und }}}} geschrieben.</value>
+  </data>
+  <data name="PlaceholderNotInDirective" xml:space="preserve">
+    <value>{0} gibt es in @{1} nicht.</value>
+  </data>
+  <data name="PlaceholderOutsideLoop" xml:space="preserve">
+    <value>{0} gibt es nur in einer Spaltenschleife ({1} … {2}).</value>
+  </data>
+  <data name="PlaceholderTakesNoOptions" xml:space="preserve">
+    <value>{0} nimmt keine Optionen.</value>
+  </data>
+  <data name="LoopOptionUnknown" xml:space="preserve">
+    <value>Unbekannte Option „{0}“: Eine Spaltenschleife nimmt comparable und sep="…".</value>
+  </data>
+  <data name="LoopOptionRepeated" xml:space="preserve">
+    <value>Die Option {0} steht mehr als einmal da.</value>
+  </data>
+  <data name="SeparatorEscape" xml:space="preserve">
+    <value>Unbekannte Escape-Sequenz „\{0}“ in sep: möglich sind \n, \t, \" und \\.</value>
+  </data>
+  <data name="SeparatorNotClosed" xml:space="preserve">
+    <value>Die Anführungszeichen von sep="…" sind in dieser Zeile nicht geschlossen.</value>
+  </data>
+  <data name="LoopNested" xml:space="preserve">
+    <value>Spaltenschleifen lassen sich nicht schachteln: Vor diesem {1} fehlt {0}.</value>
+  </data>
+  <data name="LoopUnpaired" xml:space="preserve">
+    <value>{0} ohne {1}.</value>
+  </data>
+  <data name="BraceNotClosed" xml:space="preserve">
+    <value>„{{“ ohne „}}“ in dieser Zeile. Eine geschweifte Klammer als Text wird {{{{ geschrieben.</value>
+  </data>
+  <data name="BraceNotOpened" xml:space="preserve">
+    <value>„}}“ ohne „{{“. Eine geschweifte Klammer als Text wird }}}} geschrieben.</value>
+  </data>
+  <data name="AuditTableIsBaseTable" xml:space="preserve">
+    <value>Die Audit-Tabelle wäre die Tabelle {0} selbst.</value>
+  </data>
+  <data name="ColumnClash" xml:space="preserve">
+    <value>{0} ist eine Spalte der Vorlage und der Tabelle {1}.</value>
+  </data>
+  <data name="LongLeftOut" xml:space="preserve">
+    <value>{0} ({1}) fehlt in der Audit-Tabelle und im Trigger: Ein Trigger hat für LONG kein :new/:old.</value>
+  </data>
+  <data name="NotComparable" xml:space="preserve">
+    <value>Die Spaltenschleife mit comparable in Zeile {0} lässt {1} aus: Diese Spalten lassen sich nicht mit &lt;&gt; vergleichen.</value>
+  </data>
+  <data name="LoopEmpty" xml:space="preserve">
+    <value>Die Spaltenschleife in Zeile {0} hat keine Spalten.</value>
+  </data>
+</root>
