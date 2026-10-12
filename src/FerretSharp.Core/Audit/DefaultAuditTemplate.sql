@@ -1,6 +1,8 @@
 -- FerretSharp's built-in audit template (WP-26). Syntax and rules: docs/audit-templates.md.
 -- Every insert, update and delete on the table writes a row into the audit table: the new values for I and U, the old
--- values for D. An update that changes no value writes nothing.
+-- values for D. An update that changes no value writes nothing: the comparable columns are compared NULL-safe, a LOB
+-- (not comparable with <>) counts as changed when the update sets it (UPDATING). FALSE keeps the condition valid for any
+-- mix of columns. Comments here stay in the template; comments in the trigger source would end up in the database.
 
 -- @audit-table   AUDIT_{table}
 -- @trigger       {table}_AUDIT
@@ -28,7 +30,6 @@ BEGIN
   ELSE
     IF INSERTING THEN
       audit_trans := 'I';
-    -- FALSE keeps the condition valid for any columns; a LOB cannot be compared with <>, UPDATING says it was set.
     ELSIF FALSE{each comparable}
        OR (:new.{column} <> :old.{column} OR (:new.{column} IS NULL AND :old.{column} IS NOT NULL) OR (:new.{column} IS NOT NULL AND :old.{column} IS NULL)){end}{each incomparable}
        OR UPDATING('{name}'){end}

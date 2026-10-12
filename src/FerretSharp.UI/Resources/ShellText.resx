@@ -1202,7 +1202,7 @@
     <comment>File type label in the open dialog</comment>
   </data>
   <data name="Settings_AuditTemplateReset" xml:space="preserve">
-    <value>Built-in</value>
+    <value>Use built-in</value>
     <comment>Button: back to the built-in template</comment>
   </data>
   <data name="Settings_AuditTemplateResetTitle" xml:space="preserve">

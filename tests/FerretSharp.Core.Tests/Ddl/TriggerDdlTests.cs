@@ -1,5 +1,6 @@
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Ddl;
+using FerretSharp.Core.Query;
 using FerretSharp.Core.Schema;
 using FerretSharp.Testing;
 
@@ -149,5 +150,17 @@ public sealed class TriggerDdlTests
             Assert.StartsWith("Trigger APP.KUNDE_AUD was created but has compile errors – it stays disabled",
                 new TriggerCompileException("APP", "KUNDE_AUD", [Error(2)], false, null, inner).Message, StringComparison.Ordinal);
         }
+    }
+
+    /// <summary>With the statement the message names its lines, as the SQL editor numbers them – not Oracle's count from BEGIN.</summary>
+    [Fact]
+    public void The_compile_error_names_the_lines_of_the_statement()
+    {
+        const string sql = "CREATE TRIGGER t\n  BEFORE INSERT ON k\n  FOR EACH ROW DISABLE\nBEGIN\n  :new.falsch := 1;\nEND;";
+        var error = new PlSqlError(PlSqlPart.Spec, 2, 3, "PLS-00049: Ungültige Bind-Variable 'NEW.FALSCH'", false);
+
+        var exception = new TriggerCompileException("APP", "T", [error], false, new QuerySpec(sql, []));
+
+        Assert.EndsWith("5:3 PLS-00049: Ungültige Bind-Variable 'NEW.FALSCH'", exception.Message, StringComparison.Ordinal);
     }
 }

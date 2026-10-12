@@ -27,7 +27,7 @@ public sealed class TriggerCompileException : DatabaseException
     /// </param>
     public TriggerCompileException(
         string owner, string name, IReadOnlyList<PlSqlError> errors, bool isEnabled, QuerySpec? statement, Exception? inner = null)
-        : base(MessageOf(owner, name, errors, isEnabled), CompiledWithErrors, inner)
+        : base(MessageOf(owner, name, errors, isEnabled, statement?.Sql), CompiledWithErrors, inner)
     {
         Owner = owner;
         Name = name;
@@ -45,19 +45,35 @@ public sealed class TriggerCompileException : DatabaseException
     /// <summary>The invalid trigger is enabled (the user wrote ENABLE); normally false.</summary>
     public bool IsEnabled { get; }
 
-    /// <summary>"12:5 PLS-00201: …; 14:3 …" – the first errors as line:column and text, then how many more.</summary>
-    internal static string ListOf(IReadOnlyList<PlSqlError> errors)
+    /// <summary>
+    /// "12:5 PLS-00201: …; 14:3 …" – the first errors as line:column and text, then how many more. With the statement the
+    /// lines are its own (as the SQL editor numbers them); Oracle counts a trigger's lines from its body (WP-26).
+    /// </summary>
+    internal static string ListOf(IReadOnlyList<PlSqlError> errors, string? statement = null)
     {
         if (errors.Count == 0)
         {
             return OracleText.TriggerErrorsUnreadable;
         }
 
-        var listed = string.Join("; ", errors.Take(ListedErrors).Select(e => $"{e.Line}:{e.Column} {e.Text}"));
+        var listed = string.Join("; ", errors.Take(ListedErrors).Select(e => $"{Position(e, statement)} {e.Text}"));
         var more = errors.Count - ListedErrors;
         return more > 0 ? $"{listed} {TextFormat.Plural(more, OracleText.TriggerMoreErrorsOne, OracleText.TriggerMoreErrorsOther)}" : listed;
     }
 
-    private static string MessageOf(string owner, string name, IReadOnlyList<PlSqlError> errors, bool isEnabled) =>
-        TextFormat.Format(isEnabled ? OracleText.TriggerCompileErrorsEnabled : OracleText.TriggerCompileErrorsDisabled, $"{owner}.{name}", ListOf(errors));
+    /// <summary>Line:column of an error in the statement; Oracle's own if it cannot be placed there.</summary>
+    private static string Position(PlSqlError error, string? statement)
+    {
+        if (statement is null || Ddl.TriggerDdl.ErrorOffset(statement, error.Line, error.Column) is not { } at)
+        {
+            return $"{error.Line}:{error.Column}";
+        }
+
+        var lineStart = at == 0 ? 0 : statement.LastIndexOf('\n', at - 1) + 1;
+        var line = 1 + statement.AsSpan(0, lineStart).Count('\n');
+        return $"{line}:{at - lineStart + 1}";
+    }
+
+    private static string MessageOf(string owner, string name, IReadOnlyList<PlSqlError> errors, bool isEnabled, string? statement) =>
+        TextFormat.Format(isEnabled ? OracleText.TriggerCompileErrorsEnabled : OracleText.TriggerCompileErrorsDisabled, $"{owner}.{name}", ListOf(errors, statement));
 }

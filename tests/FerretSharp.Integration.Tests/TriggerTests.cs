@@ -178,7 +178,7 @@ public sealed class TriggerTests(OracleContainerFixture oracle) : IAsyncLifetime
         Assert.Equal("ORA-24344", error.ErrorCode);
         Assert.Null(error.InnerException); // ODP.NET raised nothing: the status told
         Assert.Contains("FOR EACH ROW DISABLE", error.Statement?.Sql, StringComparison.Ordinal);
-        Assert.Contains($"{first.Line}:{first.Column} ", error.Message, StringComparison.Ordinal);
+        Assert.Contains("5:3 ", error.Message, StringComparison.Ordinal); // the statement's own line, not Oracle's count from BEGIN
         Assert.StartsWith($"Trigger {error.Owner}.TRG_FEHLER_BIU wurde angelegt, hat aber Kompilierfehler", error.Message, StringComparison.Ordinal);
         Assert.Equal(("DISABLED", "INVALID"), await StatusAsync(connection, "TRG_FEHLER_BIU"));
 
