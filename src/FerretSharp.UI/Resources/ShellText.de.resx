@@ -228,38 +228,8 @@
   <data name="Status_ConnectionsNotLoaded" xml:space="preserve">
     <value>Verbindungen konnten nicht geladen werden</value>
   </data>
-  <data name="Status_Connected" xml:space="preserve">
-    <value>Verbunden</value>
-  </data>
-  <data name="Status_WorkspaceTitle" xml:space="preserve">
-    <value>Workspace „{0}“ – fragt über eine eigene Oracle-Session ab (ACTION = Workspace-Name).</value>
-  </data>
-  <data name="Status_Workspace" xml:space="preserve">
-    <value>Workspace „{0}“</value>
-  </data>
-  <data name="Status_ReadOnlyTitle" xml:space="preserve">
-    <value>Die Workspace-Sessions laufen in einer READ ONLY-Transaktion: Oracle selbst lehnt jede Änderung ab.</value>
-  </data>
-  <data name="Status_ReadOnly" xml:space="preserve">
-    <value>schreibgeschützt (Oracle)</value>
-  </data>
-  <data name="Status_UnlockTitle" xml:space="preserve">
-    <value>Diesen Workspace zum Schreiben freischalten</value>
-  </data>
-  <data name="Status_Unlock" xml:space="preserve">
-    <value>Freischalten …</value>
-  </data>
-  <data name="Status_UnlockedTitle" xml:space="preserve">
-    <value>Oracle schützt diesen Workspace nicht mehr; die anderen Workspaces bleiben gesperrt.</value>
-  </data>
   <data name="Workspace_Unlocked" xml:space="preserve">
     <value>freigeschaltet</value>
-  </data>
-  <data name="Status_LockTitle" xml:space="preserve">
-    <value>Wieder sperren (offene Änderungen vorher committen oder verwerfen)</value>
-  </data>
-  <data name="Status_Lock" xml:space="preserve">
-    <value>Sperren</value>
   </data>
   <data name="Status_SchemaObjectsOne" xml:space="preserve">
     <value>Schema {1} · {0} Objekt</value>
@@ -631,7 +601,7 @@
     <value>Workspace „{0}“ schließen</value>
   </data>
   <data name="Badge_UnlockedTitle" xml:space="preserve">
-    <value>Workspace „{0}“ ist zum Schreiben freigeschaltet – klicken zum Sperren.</value>
+    <value>Workspace „{0}“ ist zum Schreiben freigeschaltet, die anderen Workspaces bleiben gesperrt. Klicken zum Sperren.</value>
   </data>
   <data name="Badge_ClickToUnlock" xml:space="preserve">
     <value>{0} Klicken, um den Workspace „{1}“ zum Schreiben freizuschalten.</value>

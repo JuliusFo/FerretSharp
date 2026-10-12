@@ -289,45 +289,9 @@
   <data name="Status_ConnectionsNotLoaded" xml:space="preserve">
     <value>Connections could not be loaded</value>
   </data>
-  <data name="Status_Connected" xml:space="preserve">
-    <value>Connected</value>
-    <comment>Status</comment>
-  </data>
-  <data name="Status_WorkspaceTitle" xml:space="preserve">
-    <value>Workspace “{0}” – runs queries in its own Oracle session (ACTION = workspace name).</value>
-    <comment>{0} = workspace name</comment>
-  </data>
-  <data name="Status_Workspace" xml:space="preserve">
-    <value>Workspace “{0}”</value>
-    <comment>{0} = workspace name</comment>
-  </data>
-  <data name="Status_ReadOnlyTitle" xml:space="preserve">
-    <value>The workspace sessions run in a READ ONLY transaction: Oracle itself refuses every change.</value>
-  </data>
-  <data name="Status_ReadOnly" xml:space="preserve">
-    <value>read-only (Oracle)</value>
-    <comment>Status of the workspace</comment>
-  </data>
-  <data name="Status_UnlockTitle" xml:space="preserve">
-    <value>Unlock this workspace for writing</value>
-  </data>
-  <data name="Status_Unlock" xml:space="preserve">
-    <value>Unlock …</value>
-    <comment>Button</comment>
-  </data>
-  <data name="Status_UnlockedTitle" xml:space="preserve">
-    <value>Oracle no longer protects this workspace; the other workspaces stay locked.</value>
-  </data>
   <data name="Workspace_Unlocked" xml:space="preserve">
     <value>unlocked</value>
     <comment>State of a workspace that may write</comment>
-  </data>
-  <data name="Status_LockTitle" xml:space="preserve">
-    <value>Lock again (commit or discard open changes first)</value>
-  </data>
-  <data name="Status_Lock" xml:space="preserve">
-    <value>Lock</value>
-    <comment>Button: make the workspace read-only again</comment>
   </data>
   <data name="Status_SchemaObjectsOne" xml:space="preserve">
     <value>Schema {1} · {0} object</value>
@@ -777,7 +741,7 @@
     <comment>What is about to happen in the uncommitted changes dialog; {0} = workspace name</comment>
   </data>
   <data name="Badge_UnlockedTitle" xml:space="preserve">
-    <value>Workspace “{0}” is unlocked for writing – click to lock.</value>
+    <value>Workspace “{0}” is unlocked for writing; the other workspaces stay locked. Click to lock.</value>
     <comment>{0} = workspace name</comment>
   </data>
   <data name="Badge_ClickToUnlock" xml:space="preserve">

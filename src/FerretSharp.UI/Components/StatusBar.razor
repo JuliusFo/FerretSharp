@@ -1,5 +1,5 @@
-@* The status bar (R2, out of Shell.razor): connection, workspace and its lock, uncommitted changes with write/undo/
-   commit/rollback, the C# model, saving problems. *@
+@* The status bar (R2, out of Shell.razor): connection state, uncommitted changes with write/undo/commit/rollback, the
+   C# model, saving problems. Where the user is (connection, workspace, lock) shows the top bar. *@
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
@@ -18,33 +18,15 @@
         @switch (Active.Status)
         {
             case ConnectionStatus.Connected when Active.Lost is not null:
+                @* Reconnect and details are in the banner. *@
                 <span class="item error"><span class="dot err"></span> @ShellText.Connection_Lost</span>
-                <span class="item">@Active.Profile?.Name</span>
-                <button class="status-btn" @onclick="() => Lifecycle.Reconnect(Active.Profile!)">@ShellText.Connection_Reconnect</button>
                 break;
             case ConnectionStatus.Connected:
-                <span class="item"><span class="dot ok"></span> @ShellText.Status_Connected</span>
-                <span class="item shrink" title="@Active.Profile?.Name">@Active.Profile?.Name</span>
-                @if (Workspaces.Active is { } workspace)
+                @* Connection, workspace and its lock are in the top bar (switcher, workspace chips, badge); the bar shows
+                   what is going on. *@
+                @if (Shell.ActiveWorkspace is { } editTabs && Editing.SummaryOf(editTabs) is { HasWork: true } edits)
                 {
-                    <span class="item shrink" title="@TextFormat.Format(ShellText.Status_WorkspaceTitle, workspace.Name)">@TextFormat.Format(ShellText.Status_Workspace, workspace.Name)</span>
-                    @if (Active.Profile?.ReadOnly == true && !Workspaces.IsUnlocked(workspace.Id))
-                    {
-                        <span class="item" title="@ShellText.Status_ReadOnlyTitle">@ShellText.Status_ReadOnly</span>
-                        <button class="status-btn" title="@ShellText.Status_UnlockTitle" @onclick="() => Shell.RequestUnlock(workspace.Id)">@ShellText.Status_Unlock</button>
-                    }
-                    else
-                    {
-                        @if (Workspaces.IsUnlocked(workspace.Id))
-                        {
-                            <span class="item unlocked-item" title="@ShellText.Status_UnlockedTitle">@ShellText.Workspace_Unlocked</span>
-                            <button class="status-btn" title="@ShellText.Status_LockTitle" @onclick="() => Lifecycle.LockAsync(workspace.Id)">@ShellText.Status_Lock</button>
-                        }
-                        @if (Shell.ActiveWorkspace is { } editTabs && Editing.SummaryOf(editTabs) is { HasWork: true } edits)
-                        {
-                            @EditStatus(editTabs, edits)
-                        }
-                    }
+                    @EditStatus(editTabs, edits)
                 }
                 @ModelStatus()
                 <span class="item shrink shrink-more" title="Oracle @Active.ServerVersion">Oracle @Active.ServerVersion</span>
