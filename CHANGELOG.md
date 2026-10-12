@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- Right-click on a tab: close it, the others, the tabs to the right of it, or all. If tabs would lose something (pending changes, a value typed but not confirmed, a table draft, the text of a SQL or LINQ tab), one question lists them: discard and close all, keep these open and close the rest, or cancel.
+- Shortcuts for "Close other tabs" and "Close all tabs" (Settings › Shortcuts, no key by default).
+
 ### Changed
 - The status bar no longer repeats what the top bar shows: connection name, the active workspace and its read-only/unlocked state with "Unlock …"/"Lock" are gone (switcher, workspace chips and the badge at the top right show and switch them), as is "Reconnect" on a lost connection (the banner has it). It now shows the connection state, the open changes with write/undo/commit/rollback, the C# model, Oracle version and schema, problems and "Disconnect".
 
