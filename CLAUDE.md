@@ -144,5 +144,5 @@ Regeln:
 
 ## 8. Als Nächstes (Details und Entscheidungen des Nutzers: `docs/roadmap.md`)
 
-- Kein Paket eingeplant: das nächste mit dem Nutzer aus `docs/backlog.md` auswählen (WP-31 Anzeigespalten ist in 3.27.0 released, ADR 0022).
+- WP-32 (Installer und Update-Hinweis mit Velopack) ist geplant, der Zeitpunkt ist offen; sonst das nächste Paket mit dem Nutzer aus `docs/backlog.md` auswählen (WP-31 Anzeigespalten ist in 3.27.0 released, ADR 0022).
 - Seit WP-26 nimmt der Schemaweg Trigger auf Tabellen/Views (ADR 0021); Procedures/Packages/Types anlegen, PL/SQL ausführen und bearbeiten (Stufen 2/3 nach WP-28) stehen weiter im Backlog – der Blockmodus des Splitters und die Kompilierprüfung (Status statt ORA-24344) sind dafür schon da.
