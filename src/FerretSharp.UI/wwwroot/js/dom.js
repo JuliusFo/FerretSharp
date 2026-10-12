@@ -33,6 +33,11 @@ export function focusById(id) {
   document.getElementById(id)?.focus();
 }
 
+/** The size of the window, for placing a right-click menu Blazor opened (its mouse event does not carry it). */
+export function viewportSize() {
+  return [window.innerWidth, window.innerHeight];
+}
+
 /** Moves a fixed popup up if it reaches below the window (its height is only known once rendered). */
 export function keepInViewport(id, margin = 8) {
   const element = document.getElementById(id);

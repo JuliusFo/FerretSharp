@@ -330,4 +330,15 @@
     <value>The settings file could not be read at start.</value>
     <comment>Follows “Setting applied but not saved:”</comment>
   </data>
+  <data name="ActionCloseOtherTabs" xml:space="preserve">
+    <value>Close other tabs</value>
+    <comment>Shortcut action: closes every tab of the workspace except the active one</comment>
+  </data>
+  <data name="ActionCloseAllTabs" xml:space="preserve">
+    <value>Close all tabs</value>
+    <comment>Shortcut action: closes every tab of the active workspace</comment>
+  </data>
+  <data name="HintCloseTabs" xml:space="preserve">
+    <value>Of the active workspace. If tabs would lose something, asks once for all of them; they can also stay open.</value>
+  </data>
 </root>

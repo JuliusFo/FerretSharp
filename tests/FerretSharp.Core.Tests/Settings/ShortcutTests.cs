@@ -62,6 +62,8 @@ public sealed class ShortcutMapTests
         Assert.Equal(Chord("ctrl+z"), map.Chord(ShortcutAction.UndoEdit)); // WP-30, only in the grid
         Assert.Equal(Chord("ctrl+y"), map.Chord(ShortcutAction.RedoEdit));
         Assert.Null(map.Chord(ShortcutAction.CloseTab)); // after 3.20: new actions start without a key
+        Assert.Null(map.Chord(ShortcutAction.CloseOtherTabs));
+        Assert.Null(map.Chord(ShortcutAction.CloseAllTabs));
         Assert.False(map.HasChanges);
     }
 

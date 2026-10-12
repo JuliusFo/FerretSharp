@@ -267,4 +267,13 @@
   <data name="NotSavingThisSession" xml:space="preserve">
     <value>Die Einstellungsdatei ließ sich beim Start nicht lesen.</value>
   </data>
+  <data name="ActionCloseOtherTabs" xml:space="preserve">
+    <value>Andere Tabs schließen</value>
+  </data>
+  <data name="ActionCloseAllTabs" xml:space="preserve">
+    <value>Alle Tabs schließen</value>
+  </data>
+  <data name="HintCloseTabs" xml:space="preserve">
+    <value>Im aktiven Workspace. Ginge bei Tabs etwas verloren, kommt eine Rückfrage für alle; sie können auch offen bleiben.</value>
+  </data>
 </root>

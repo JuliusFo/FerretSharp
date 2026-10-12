@@ -1192,4 +1192,58 @@
   <data name="Settings_AuditTemplateCopied" xml:space="preserve">
     <value>Built-in audit template copied.</value>
   </data>
+  <data name="TabMenu_Close" xml:space="preserve">
+    <value>Close</value>
+    <comment>Right-click menu of a tab: closes this tab</comment>
+  </data>
+  <data name="TabMenu_CloseOthers" xml:space="preserve">
+    <value>Close others</value>
+    <comment>Right-click menu of a tab: closes every other tab of the workspace</comment>
+  </data>
+  <data name="TabMenu_CloseToTheRight" xml:space="preserve">
+    <value>Close tabs to the right</value>
+    <comment>Right-click menu of a tab</comment>
+  </data>
+  <data name="TabMenu_CloseAll" xml:space="preserve">
+    <value>Close all</value>
+    <comment>Right-click menu of a tab: closes every tab of the workspace</comment>
+  </data>
+  <data name="Dialogs_CloseTabsTitle" xml:space="preserve">
+    <value>Close tabs</value>
+    <comment>Dialog title: several tabs close, some would lose something</comment>
+  </data>
+  <data name="Dialogs_CloseTabsText" xml:space="preserve">
+    <value>These tabs would lose something when closed:</value>
+  </data>
+  <data name="Dialogs_CloseTabsWritten" xml:space="preserve">
+    <value>Changes already written stay in the workspace’s transaction.</value>
+  </data>
+  <data name="Dialogs_CloseTabsKeep" xml:space="preserve">
+    <value>Keep these open</value>
+    <comment>Button: closes only the tabs that lose nothing</comment>
+  </data>
+  <data name="Dialogs_CloseTabsDiscard" xml:space="preserve">
+    <value>Discard and close all</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Dialogs_CloseTabsPendingOne" xml:space="preserve">
+    <value>{0} pending change</value>
+    <comment>Item of the list of tabs that would lose something; {0} = number of pending changes</comment>
+  </data>
+  <data name="Dialogs_CloseTabsPendingOther" xml:space="preserve">
+    <value>{0} pending changes</value>
+    <comment>{0} = number of pending changes</comment>
+  </data>
+  <data name="Dialogs_CloseTabsTypedValue" xml:space="preserve">
+    <value>a value typed but not confirmed</value>
+    <comment>Item of the list of tabs that would lose something</comment>
+  </data>
+  <data name="Dialogs_CloseTabsTableDraft" xml:space="preserve">
+    <value>a table draft that has not run</value>
+    <comment>Item of the list of tabs that would lose something</comment>
+  </data>
+  <data name="Dialogs_CloseTabsEditorText" xml:space="preserve">
+    <value>the text in the editor</value>
+    <comment>Item of the list of tabs that would lose something (SQL or LINQ tab)</comment>
+  </data>
 </root>

@@ -128,6 +128,26 @@
     </ConfirmDialog>
 }
 
+@if (Lifecycle.ConfirmCloseTabs is { } closingTabs)
+{
+    <ConfirmDialog Title="@ShellText.Dialogs_CloseTabsTitle" ConfirmLabel="@ShellText.Dialogs_CloseTabsDiscard" Danger="true"
+                   SecondaryLabel="@(closingTabs.Others.Count > 0 ? ShellText.Dialogs_CloseTabsKeep : null)"
+                   OnConfirm="() => Lifecycle.CloseTabsConfirmed(keepLosing: false)" OnSecondary="() => Lifecycle.CloseTabsConfirmed(keepLosing: true)"
+                   OnCancel="Lifecycle.CancelConfirmation">
+        <p>@ShellText.Dialogs_CloseTabsText</p>
+        <ul class="leave-list">
+            @foreach (var losing in closingTabs.Losing)
+            {
+                <li><strong>@TabName(losing.Tab)</strong> – @LossText(losing)</li>
+            }
+        </ul>
+        @if (closingTabs.Losing.Any(q => q.Tab is TableTab))
+        {
+            <div class="hint small">@ShellText.Dialogs_CloseTabsWritten</div>
+        }
+    </ConfirmDialog>
+}
+
 @if (Lifecycle.PendingSql is { } pendingSql)
 {
     <SqlPreview Sql="@pendingSql" Parameters="NoParameters" Error="@null" OnClose="Lifecycle.ClosePendingSql" />
@@ -171,6 +191,29 @@
             .OfType<WorkspaceTabs>()
             .Select(w => (Lifecycle.WorkspaceName(w.WorkspaceId), Editing.SummaryOf(w)))
             .ToList();
+
+    /// <summary>How a tab is named in the dialogs.</summary>
+    private static string TabName(WorkspaceTab tab) => tab switch
+    {
+        TableTab table => table.Table.DisplayName,
+        NewTableTab draft => draft.Table.Name.Length > 0 ? draft.Table.Name : ShellText.TabBar_NewTable,
+        PlSqlTab plSql => plSql.Unit.DisplayName,
+        ITitledTab titled => titled.Title,
+        _ => "",
+    };
+
+    /// <summary>
+    /// What a tab in the list of <see cref="CloseTabsQuestion"/> would lose. Pending changes are counted now, not when asked
+    /// (the dialog takes the focus from a cell being edited, which turns the typed value into a pending change).
+    /// </summary>
+    private static string LossText(CloseTabQuestion question) => question switch
+    {
+        { Tab: TableTab { Changes.PendingCount: > 0 and var count } } =>
+            TextFormat.Plural(count, ShellText.Dialogs_CloseTabsPendingOne, ShellText.Dialogs_CloseTabsPendingOther),
+        { Loss: CloseTabLoss.TableDraft } => ShellText.Dialogs_CloseTabsTableDraft,
+        { Loss: CloseTabLoss.EditorText } => ShellText.Dialogs_CloseTabsEditorText,
+        _ => ShellText.Dialogs_CloseTabsTypedValue,
+    };
 
     /// <summary>Toasts disappear by themselves; with warnings they stay longer.</summary>
     protected override void OnParametersSet()

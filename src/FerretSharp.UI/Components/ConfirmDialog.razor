@@ -4,6 +4,10 @@
     <footer>
         <span class="spacer"></span>
         <button class="btn ghost" @ref="_cancelButton" @onclick="OnCancel">@(CancelLabel ?? CommonText.Cancel)</button>
+        @if (SecondaryLabel is not null)
+        {
+            <button class="btn" @onclick="OnSecondary">@SecondaryLabel</button>
+        }
         <button class="btn @(Danger ? "danger-solid" : "primary")" @onclick="OnConfirm">@ConfirmLabel</button>
     </footer>
 </ModalFrame>
@@ -23,6 +27,13 @@
     /// <summary>The safe option (focused, also Esc); "Cancel" unless the question needs another word.</summary>
     [Parameter]
     public string? CancelLabel { get; set; }
+
+    /// <summary>A third answer between cancel and confirm (e.g. close only the tabs that lose nothing); none if null.</summary>
+    [Parameter]
+    public string? SecondaryLabel { get; set; }
+
+    [Parameter]
+    public EventCallback OnSecondary { get; set; }
 
     [Parameter]
     public bool Danger { get; set; }

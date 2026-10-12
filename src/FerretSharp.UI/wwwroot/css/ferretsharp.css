@@ -439,6 +439,7 @@ dl.keys dd { margin: 0; }
 .filter-pill { font-size: 10px; font-weight: 600; padding: 0 6px; border-radius: 8px; background: var(--accent-weak); color: var(--accent); }
 .tab-close { width: 22px; height: 22px; border: 0; border-radius: 5px; background: transparent; color: var(--faint); }
 .tab-close:hover { background: var(--hover); color: var(--text); }
+.tab-menu kbd { margin-left: auto; }
 .work-split { flex: 1; display: flex; min-height: 0; }
 .pages { flex: 1; position: relative; min-height: 0; min-width: 0; }
 .page { position: absolute; inset: 0; display: none; }
