@@ -250,6 +250,10 @@ kbd { font: 600 10px var(--mono); padding: 1px 5px; border-radius: 4px; border: 
 
 /* ---------- connections page ---------- */
 .connections-page { position: absolute; inset: 0; overflow-y: auto; padding: 24px 32px 32px; }
+/* Without connections the empty state (absolute, inset 0) fills the space below the head instead of covering it. */
+.connections-page.is-empty { display: flex; flex-direction: column; }
+.connections-page.is-empty .page-head { width: 100%; }
+.connections-empty { position: relative; flex: 1; min-height: 240px; }
 
 /* ---------- settings page ---------- */
 .settings-page { position: absolute; inset: 0; overflow-y: auto; padding: 24px 32px 32px; }
