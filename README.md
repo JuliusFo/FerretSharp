@@ -80,16 +80,41 @@ developer works with an Oracle database day to day:
 
 ### Edit safely
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/changes-dark.png">
+  <img src="docs/images/changes-light.png" alt="Pending and written changes in the grid and in the open changes beside it, with undo up to an action">
+</picture>
+
 - **Sandbox editing**: changes are *pending* (local), then *written* (DML executed in the workspace's transaction,
-  rows locked), then *committed* – each state visible in the grid. Undo the last write, roll back everything.
+  rows locked), then *committed* – each state visible in the grid.
+- **Undo and redo** across the whole workspace: grid writes and statements from the SQL editor or the LINQ console share
+  one history – take back the last one or everything up to an action, and apply it again. Pending edits have their own
+  <kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd> in the grid.
+- **Open changes** beside the tabs: everything the workspace has not committed – pending edits per tab, written actions
+  with their SQL, what was taken back – one click from the counts in the status bar.
 - Lock conflicts are detected after a short wait (`SELECT … FOR UPDATE WAIT n`) and shown with the blocking session.
 - Optimistic concurrency check on the changed columns; insert and delete rows; edit CLOBs and BLOBs in a dialog.
 - **Read-only connections** (default for production) run in `SET TRANSACTION READ ONLY` – Oracle rejects DML. Unlock a
   single workspace on purpose by typing the connection's name.
-- **Table designer**: change the columns, keys and checks of a table or create a new one – what Oracle would refuse with
-  the data at hand is reported before anything runs. **Audit tables** and their trigger come from a template file
-  (your company's pattern, or a built-in one) and follow the table's changes; a trigger is switched on only once it
-  compiles.
+
+<table>
+  <tr>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/images/designer-dark.png">
+        <img src="docs/images/designer-light.png" alt="Table designer with a changed and a new column, the DDL it will run and the matching C# lines">
+      </picture>
+    </td>
+    <td width="50%">
+      <b>Table designer</b><br><br>
+      Change the columns, keys, checks and foreign keys of a table, add indexes or create a new table. You see the DDL
+      before it runs – and the property and configuration lines for your entity – and what Oracle would refuse with
+      the data at hand is reported up front.<br><br>
+      <b>Audit tables</b> and their trigger come from a template file (your company's pattern, or a built-in one) and
+      follow the table's changes; a trigger is switched on only once it compiles.
+    </td>
+  </tr>
+</table>
 
 ### SQL
 
@@ -99,8 +124,11 @@ developer works with an Oracle database day to day:
 </picture>
 
 - SQL editor (Monaco) per workspace: <kbd>Ctrl</kbd>+<kbd>Enter</kbd> runs the statement at the cursor,
-  <kbd>Alt</kbd>+<kbd>X</kbd> the whole script; queries everywhere, `INSERT`/`UPDATE`/`DELETE`/`MERGE` only in writable
-  workspaces, inside their transaction.
+  <kbd>Alt</kbd>+<kbd>X</kbd> the whole script, with progress and cancel; queries everywhere, `INSERT`/`UPDATE`/`DELETE`/
+  `MERGE` only in writable workspaces, inside their transaction (and part of its undo history).
+- DDL (`CREATE`, `ALTER`, `DROP`, `COMMENT`, `GRANT` …) in writable workspaces, outside any transaction and after a
+  confirmation; the explorer and open tabs follow the new schema. Triggers are switched on only once they compile,
+  compile errors are marked in the editor.
 - Bind variables (`:kundeId`) become typed input fields – values are bound, never pasted into the SQL.
 - Completion for tables, views, synonyms and columns (with their C# names), history per connection, export of results.
 - Execution plans: estimated (`EXPLAIN PLAN`) or actual, with row counts from the real execution and misestimates flagged.
@@ -115,8 +143,8 @@ developer works with an Oracle database day to day:
 - Compare any number of connections or schemas – Dev, Test, Prod, customer databases – in one matrix: tables, views,
   columns (type, length, NULL, default, identity), keys, foreign keys, checks and indexes. Sides with the same definition
   share a colour; names Oracle generated (`SYS_C…`) are matched by content.
-- "Forgot the ALTER on Test?": a DDL proposal aligns one side with another, to copy – drops and renames only as
-  commented-out hints. Comparisons can be saved and copied as Markdown.
+- "Forgot the ALTER on Test?": a DDL proposal aligns one side with another – drops and renames only as commented-out
+  hints – and opens in the SQL editor of the target connection. Comparisons can be saved and copied as Markdown.
 
 ### .NET and EF Core
 
@@ -126,16 +154,21 @@ developer works with an Oracle database day to day:
 </picture>
 
 Link a connection to your EF Core project (EF Core 8 or later) and FerretSharp loads the compiled model in a separate
-process – using your project's runtime, provider and value converters:
+process – using your project's runtime, provider and value converters. The model is cached until the build output
+changes, and a new build is picked up automatically:
 
 - **Names**: entity and property names next to tables and columns (or in front of them), searchable everywhere.
 - **Values**: enum members and converted values (`Gewerbe (2)`, `true` for `'J'`), also as dropdowns in filters and
-  when editing – including `[Display]` names from your resources.
+  when editing – flags enums as a list of check boxes – including `[Display]` names from your resources.
+- **Drift**: the model page lists what does not fit the database – missing tables and columns, but also types, NULL,
+  lengths and precision (`DateTimeOffset` on `DATE`, `HasMaxLength(200)` on `VARCHAR2(100)`), each with what will fail.
 - **Relationships**: navigations without a foreign-key constraint become navigable relationships.
 - **LINQ console**: paste a query from your code – unknown variables become suggested declarations, your context and
   cancellation token are recognized. FerretSharp shows the SQL EF Core would send and runs it in the workspace's session,
   so your uncommitted changes are visible. Completion knows your DbSets, properties, enums and the LINQ/EF methods.
-- **Code generation**: the grid's filters as a LINQ `Where`, rows as C# objects or `HasData` seed data.
+- **Code generation**: the grid's filters as a LINQ `Where`, rows as C# objects or `HasData` seed data – and, DB-first,
+  the entity class and its `IEntityTypeConfiguration` for a table the model does not know yet (or the property and
+  configuration line for a new column), in the style of your project.
 
 ## Getting started
 
@@ -170,8 +203,11 @@ The defaults – every one of them can be changed under *Settings › Shortcuts*
 | <kbd>F5</kbd> | Refresh |
 | <kbd>Ctrl</kbd>+<kbd>F</kbd> | Find a column · search in the editor |
 | <kbd>Alt</kbd>+<kbd>←</kbd> / <kbd>Alt</kbd>+<kbd>→</kbd> | Back / forward along foreign-key jumps |
+| <kbd>Alt</kbd>+<kbd>Enter</kbd> | Form view of the focused row · compare the selected rows |
+| <kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd> | Undo / redo a pending edit in the grid |
 | <kbd>Ctrl</kbd>+<kbd>S</kbd> | Write pending changes (no commit) |
 | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd> | Commit |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>U</kbd> | Show or hide the open changes |
 | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Q</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd> | New SQL editor / new LINQ console |
 | <kbd>Alt</kbd>+<kbd>X</kbd> | Run the whole SQL script |
 
