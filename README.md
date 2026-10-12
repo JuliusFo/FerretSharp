@@ -80,6 +80,11 @@ developer works with an Oracle database day to day:
 
 ### Edit safely
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/changes-dark.png">
+  <img src="docs/images/changes-light.png" alt="Pending and written changes in the grid and in the open changes beside it, with undo up to an action">
+</picture>
+
 - **Sandbox editing**: changes are *pending* (local), then *written* (DML executed in the workspace's transaction,
   rows locked), then *committed* – each state visible in the grid.
 - **Undo and redo** across the whole workspace: grid writes and statements from the SQL editor or the LINQ console share
@@ -91,10 +96,25 @@ developer works with an Oracle database day to day:
 - Optimistic concurrency check on the changed columns; insert and delete rows; edit CLOBs and BLOBs in a dialog.
 - **Read-only connections** (default for production) run in `SET TRANSACTION READ ONLY` – Oracle rejects DML. Unlock a
   single workspace on purpose by typing the connection's name.
-- **Table designer**: change the columns, keys, checks and foreign keys of a table, add indexes or create a new table –
-  you see the DDL before it runs, and what Oracle would refuse with the data at hand is reported up front. **Audit tables** and their trigger come from a template file
-  (your company's pattern, or a built-in one) and follow the table's changes; a trigger is switched on only once it
-  compiles.
+
+<table>
+  <tr>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/images/designer-dark.png">
+        <img src="docs/images/designer-light.png" alt="Table designer with a changed and a new column, the DDL it will run and the matching C# lines">
+      </picture>
+    </td>
+    <td width="50%">
+      <b>Table designer</b><br><br>
+      Change the columns, keys, checks and foreign keys of a table, add indexes or create a new table. You see the DDL
+      before it runs – and the property and configuration lines for your entity – and what Oracle would refuse with
+      the data at hand is reported up front.<br><br>
+      <b>Audit tables</b> and their trigger come from a template file (your company's pattern, or a built-in one) and
+      follow the table's changes; a trigger is switched on only once it compiles.
+    </td>
+  </tr>
+</table>
 
 ### SQL
 
