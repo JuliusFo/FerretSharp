@@ -77,8 +77,9 @@ public static class DisplayLinks
     /// <summary>
     /// The link of one foreign key, or null if its values cannot be looked up: the target lacks the display column (an
     /// entry for another database), the referenced column is neither the target's primary key nor a unique key (no
-    /// index for sure – a full scan per block; views have neither), the display column does not read as text, or the
-    /// two key columns are of different type families (the value would not bind).
+    /// index for sure – a full scan per block; views have neither), the display column does not read as text, the
+    /// two key columns are of different type families (the value would not bind), or the key is NCHAR (bound without
+    /// padding).
     /// </summary>
     public static DisplayLink? Resolve(TableDetails table, int column, ForeignKeyInfo fk, TableDetails target, DisplayColumns columns)
     {
@@ -93,8 +94,9 @@ public static class DisplayLinks
             return null;
         }
 
+        // An NCHAR key is bound as NVARCHAR2 (no blank padding): shorter values would never match and all read "not found".
         var family = ColumnCategories.Of(table.Columns[column]);
-        if (family != ColumnCategories.Of(target.Columns[key]) || !IsKeyFamily(family))
+        if (family != ColumnCategories.Of(target.Columns[key]) || !IsKeyFamily(family) || target.Columns[key].DataType == "NCHAR")
         {
             return null;
         }

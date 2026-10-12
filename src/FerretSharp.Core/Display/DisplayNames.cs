@@ -100,6 +100,7 @@ public sealed class DisplayNames
             return; // a lookup of links planned before
         }
 
+        state.Timeouts = 0;
         foreach (var row in rows)
         {
             if (state.KeyOf(row.Key) is { } key)
@@ -121,7 +122,33 @@ public sealed class DisplayNames
         }
     }
 
-    /// <summary>The lookup failed or took too long: the column shows no names in this grid any more.</summary>
+    /// <summary>
+    /// Timeouts in a row after which a link is switched off. The timeout also counts the wait for the workspace's session,
+    /// which a long statement of the SQL editor or a slow block can hold: one timeout is no reason to give up.
+    /// </summary>
+    public const int MaxTimeouts = 3;
+
+    /// <summary>
+    /// The lookup took too long. Its keys stay asked for, so it can be run again; after <see cref="MaxTimeouts"/> in a row the
+    /// link is switched off (<see cref="Failed"/>). True if it was.
+    /// </summary>
+    public bool TimedOut(DisplayLookup lookup, string reason)
+    {
+        if (!_byColumn.TryGetValue(lookup.Link.Column, out var state) || state.Link != lookup.Link)
+        {
+            return false;
+        }
+
+        if (++state.Timeouts < MaxTimeouts)
+        {
+            return false;
+        }
+
+        Failed(lookup, reason);
+        return true;
+    }
+
+    /// <summary>The lookup failed: the column shows no names in this grid any more.</summary>
     public void Failed(DisplayLookup lookup, string reason)
     {
         if (_byColumn.TryGetValue(lookup.Link.Column, out var state) && state.Link == lookup.Link)
@@ -225,6 +252,9 @@ public sealed class DisplayNames
         public Dictionary<object, object> Pending { get; } = [];
 
         public string? Disabled { get; set; }
+
+        /// <summary>Lookups that timed out since the last one that answered.</summary>
+        public int Timeouts { get; set; }
 
         /// <summary>
         /// A value as a dictionary key: RAW by content, numbers as decimal, CHAR without its padding; null for NULL and for

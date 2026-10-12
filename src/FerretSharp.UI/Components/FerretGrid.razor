@@ -179,15 +179,19 @@
         }
 
         var touched = Presentations.ChangedSince(_presentationVersion, Details.Table.Ref);
+        // A display column of a target may read differently now (enum members): its names are looked up again.
+        var targets = _names.Links.Any(l => Presentations.ChangedSince(_presentationVersion, l.Target.Table.Ref));
         _presentationVersion = Presentations.Version;
         _presentation = Presentations.For(Details); // the same reading, but no longer holding the previous model
-        if (!touched)
+        if (touched || targets)
         {
-            return;
+            await PlanNamesAsync(force: targets); // relationships of the model may come or go
         }
 
-        await PlanNamesAsync(); // relationships of the model may come or go, display values may read differently
-        await UpdateColumnsAsync();
+        if (touched)
+        {
+            await UpdateColumnsAsync();
+        }
     });
 
     /// <summary>
@@ -240,12 +244,16 @@
         await UpdateColumnsAsync();
     });
 
+    /// <summary>Counts plans: one that finishes after a newer one started is dropped.</summary>
+    private int _planSequence;
+
     /// <summary>
-    /// Finds the foreign key columns whose target has a display column; if that changed, starts over with new names and
-    /// looks up the values of the rows the grid holds.
+    /// Finds the foreign key columns whose target has a display column; if that changed (or <paramref name="force"/>),
+    /// starts over with new names and looks up the values of the rows the grid holds.
     /// </summary>
-    private async Task PlanNamesAsync()
+    private async Task PlanNamesAsync(bool force = false)
     {
+        var sequence = ++_planSequence;
         IReadOnlyList<DisplayLink> links = [];
         var shown = DisplayColumns.Shown;
         if (shown.Count > 0 && Active.Schema is { } schema)
@@ -255,16 +263,24 @@
             links = planned.Value ?? [];
         }
 
-        if (!_grid.IsCreated || SameLinks(links, _names.Links))
+        if (!_grid.IsCreated || sequence != _planSequence || (!force && SameLinks(links, _names.Links)))
         {
             return;
         }
 
+        // The targets' presentation as it is when a name is formatted (a model may load meanwhile), reused per version.
         var presentations = new Dictionary<TableRef, TablePresentation>();
+        var version = Presentations.Version;
         _names = links.Count == 0
             ? DisplayNames.None
             : new DisplayNames(links, (link, value) =>
             {
+                if (Presentations.Version != version)
+                {
+                    version = Presentations.Version;
+                    presentations.Clear();
+                }
+
                 if (!presentations.TryGetValue(link.Target.Table.Ref, out var target))
                 {
                     presentations[link.Target.Table.Ref] = target = Presentations.For(link.Target);
@@ -280,7 +296,7 @@
 
     /// <summary>
     /// New column metadata (badges, alignment of columns with names) without fetching the rows again: they are redrawn
-    /// from the held values.
+    /// from the held values. An open cell editor stays open – this comes at any moment (a lookup's answer, a file change).
     /// </summary>
     private async Task RelabelAsync()
     {
@@ -289,7 +305,7 @@
         if (shown != _shownColumns && _grid.IsCreated)
         {
             _shownColumns = shown;
-            await _grid.CallAsync("updateColumns", columns, HeaderHeight);
+            await _grid.CallAsync("updateColumns", columns, HeaderHeight, true);
         }
     }
 
@@ -354,7 +370,7 @@
                     var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, token);
                     return await DisplayNames.LookupAsync(data, lookup, DisplayNames.LookupTimeout, token);
                 }, token);
-                if (!_grid.IsCreated || result.Cancelled || !ReferenceEquals(names, _names))
+                if (!_grid.IsCreated || !ReferenceEquals(names, _names))
                 {
                     continue;
                 }
@@ -364,14 +380,26 @@
                     continue; // read from the first row meanwhile: Clear forgot the keys, the new blocks ask again
                 }
 
-                if (result.Error is { } error)
+                if (result.Cancelled)
+                {
+                    names.Dropped(lookup); // session reset or closing: the keys may be asked for again
+                }
+                else if (result.Error is { } error)
                 {
                     await SwitchOffAsync(lookup, error.Display);
                 }
                 else if (result.Value is not { } rows)
                 {
-                    await SwitchOffAsync(lookup, TextFormat.Format(GridText.Grid_DisplayLookupTimeout,
-                        lookup.Link.Target.Table.DisplayName, (int)DisplayNames.LookupTimeout.TotalSeconds));
+                    var reason = TextFormat.Format(GridText.Grid_DisplayLookupTimeout,
+                        lookup.Link.Target.Table.DisplayName, (int)DisplayNames.LookupTimeout.TotalSeconds);
+                    if (names.TimedOut(lookup, reason))
+                    {
+                        await SwitchOffAsync(lookup, reason);
+                    }
+                    else
+                    {
+                        _lookups.Enqueue(queued); // the session may just have been busy: try again after the others
+                    }
                 }
                 else
                 {
@@ -409,13 +437,17 @@
 
         if (NewRowValues().Any(values => _names.Touches(lookup, values)))
         {
-            await SetNewRowsAsync();
+            await UpdateNewRowsAsync();
         }
-        else if (updates.Count > 0)
+
+        if (updates.Count > 0)
         {
             RowsChanged?.Invoke();
         }
     }
+
+    /// <summary>Rows sent to grid.js per call when every held row is redrawn (up to 40 blocks).</summary>
+    private const int RedrawBatch = 1000;
 
     /// <summary>Redraws every held row (the links changed: names come or go).</summary>
     private async Task RedrawAllAsync()
@@ -425,14 +457,23 @@
             return;
         }
 
-        var updates = _blocks.All().Select(r => new GridRowUpdate(r.Index, GridRow(r.Row))).ToList();
-        if (updates.Count > 0)
+        foreach (var batch in _blocks.All().Chunk(RedrawBatch))
         {
-            await _grid.CallAsync("updateRows", updates);
+            await _grid.CallAsync("updateRows", batch.Select(r => new GridRowUpdate(r.Index, GridRow(r.Row))).ToList());
         }
 
-        await SetNewRowsAsync();
+        await UpdateNewRowsAsync();
+        RowsChanged?.Invoke();
     }
+
+    /// <summary>
+    /// Redraws the new rows in place: unlike <see cref="SetNewRowsAsync"/>, grid.js keeps their nodes, so a cell being
+    /// edited in one of them stays open (names arrive at any moment).
+    /// </summary>
+    private Task UpdateNewRowsAsync() =>
+        Tab.Changes?.NewRows is { Count: > 0 } rows
+            ? _grid.CallAsync("updateNewRows", rows.Select(r => GridRow(r, null)).ToList())
+            : Task.CompletedTask;
 
     /// <summary>The column metadata the grid shows, in schema order (to skip presentation changes that change nothing).</summary>
     private string? _shownColumns;
@@ -442,6 +483,10 @@
     /// <summary>Fetches the loaded rows again where they are (after writing, commit, rollback) and redraws the new rows.</summary>
     public async Task ReloadAsync()
     {
+        // Names may read differently after writing, commit or rollback – also when the first block is no longer held and
+        // GetRows never starts at row 0.
+        _names.Clear();
+        _namesGeneration++;
         if (await _grid.CallAsync("reload"))
         {
             await SetNewRowsAsync();

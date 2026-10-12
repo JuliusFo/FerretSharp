@@ -99,6 +99,16 @@ public sealed class DisplayLinksTests
     }
 
     [Fact]
+    public void An_nchar_key_gives_no_link()
+    {
+        var target = Kunde with { Columns = [Col("ID", "NUMBER"), Col("NAME", "VARCHAR2", 100), Col("KUERZEL", "NCHAR", 5)] };
+        var source = Auftrag with { Columns = [.. Auftrag.Columns.Take(3), Col("KUNDE_KZ", "NCHAR", 5), .. Auftrag.Columns.Skip(4)] };
+        var fk = Fk("FK_AUFTRAG_KUNDE_KZ", source, ["KUNDE_KZ"], target, ["KUERZEL"]);
+
+        Assert.Null(DisplayLinks.Resolve(source, 3, fk, target, Columns));
+    }
+
+    [Fact]
     public void A_key_that_is_not_unique_gives_no_link()
     {
         var fk = Fk("Auftrag.Ort", Auftrag, ["KUNDE_ORT"], Kunde, ["ORT"], FkSource.ClrModel);

@@ -143,6 +143,25 @@ public sealed class DisplayNamesTests
     }
 
     [Fact]
+    public void Only_timeouts_in_a_row_switch_the_link_off()
+    {
+        var names = Names(KundeLink);
+        var lookup = Assert.Single(names.Missing([Row(4711m)]));
+
+        Assert.False(names.TimedOut(lookup, "zu langsam"));
+        Assert.False(names.TimedOut(lookup, "zu langsam"));
+        names.Found(lookup, [new LookupRow(4711m, "Peter")]); // an answer starts the count again
+        Assert.False(names.TimedOut(lookup, "zu langsam"));
+        Assert.False(names.TimedOut(lookup, "zu langsam"));
+        Assert.True(names.Shows(1));
+        Assert.Empty(names.Missing([Row(4711m)])); // still asked for: the lookup runs again
+
+        Assert.True(names.TimedOut(lookup, "zu langsam"));
+        Assert.False(names.Shows(1));
+        Assert.Equal("zu langsam", names.DisabledReason(1));
+    }
+
+    [Fact]
     public void A_dropped_lookup_may_be_asked_for_again_and_clear_forgets_everything()
     {
         var names = Names(KundeLink);

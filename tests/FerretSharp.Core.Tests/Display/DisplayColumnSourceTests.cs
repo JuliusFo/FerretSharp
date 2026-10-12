@@ -135,15 +135,31 @@ public sealed class DisplayColumnSourceTests : IDisposable
         var path = _folder.Combine("display-columns.json");
         await File.WriteAllTextAsync(path, """{ "version": 1, "displayColumns": { "KUNDE": "NAME" } }""", Ct);
         var (source, _) = Source(path);
-        var first = source.Current();
-        Assert.Same(first, source.Current()); // fresh: the file is not looked at
+        var first = source.Load(path);
+        Assert.Same(first, source.Load(path)); // fresh: the file is not looked at
 
         await File.WriteAllTextAsync(path, """{ "version": 1, "displayColumns": { "KUNDE": "KURZNAME" } }""", Ct);
         File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddMinutes(1));
-        Assert.Equal("NAME", source.Current().Columns.ColumnOf("KUNDE"));
+        Assert.Equal("NAME", source.Load(path).Columns.ColumnOf("KUNDE"));
         _clock.Advance(DisplayColumnSource.Fresh);
 
+        Assert.Equal("KURZNAME", source.Load(path).Columns.ColumnOf("KUNDE"));
+        Assert.Equal("NAME", source.Current().Columns.ColumnOf("KUNDE")); // views keep the last report until it is reported
+        source.Reload();
         Assert.Equal("KURZNAME", source.Current().Columns.ColumnOf("KUNDE"));
+    }
+
+    [Fact]
+    public async Task A_broken_file_found_while_marking_is_refused_and_left_alone()
+    {
+        var path = _folder.Combine("display-columns.json");
+        var (source, _) = Source(path);
+        await File.WriteAllTextAsync(path, "<<<<<<< HEAD", Ct); // broke after the source last looked
+
+        var refused = await Assert.ThrowsAsync<RefusedException>(() => source.SetAsync("KUNDE", "NAME", Ct));
+
+        Assert.Contains("kein gültiges JSON", refused.Message);
+        Assert.Equal("<<<<<<< HEAD", await File.ReadAllTextAsync(path, Ct));
     }
 
     [Fact]
