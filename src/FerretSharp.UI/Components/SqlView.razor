@@ -592,7 +592,8 @@
                 await MarkAsync(run, error);
             }
 
-            return run with { Error = error, Lock = outcome.Lock };
+            // A trigger that does not compile exists all the same (WP-26): the schema is reloaded after the run.
+            return run with { Error = error, Lock = outcome.Lock, SchemaChanged = outcome.SchemaChanged };
         }
 
         return run with
