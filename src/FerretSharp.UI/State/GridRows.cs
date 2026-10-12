@@ -1,5 +1,6 @@
 using FerretSharp.Core.ClrModel;
 using FerretSharp.Core.Data;
+using FerretSharp.Core.Display;
 using FerretSharp.Core.Oracle;
 
 namespace FerretSharp.UI.State;
@@ -9,13 +10,16 @@ namespace FerretSharp.UI.State;
 /// cells by column id (<see cref="GridColumn.IdOf"/>) as display text, null for NULL, plus markers –
 /// <c>__s</c> stage per changed cell ("p" pending, "f" flushed), <c>__d</c> deleted ("p"/"f"), <c>__ro</c> cells that cannot
 /// be edited, <c>__u</c> values the C# model does not know (an enum without member), <c>__t</c> tooltips, <c>__new</c> the
-/// id of a new row not yet inserted.
+/// id of a new row not yet inserted, <c>__n</c> the display value beside a foreign key value and <c>__nm</c> foreign key
+/// values without a row in their target (WP-31).
 /// </summary>
 public static class GridRows
 {
     /// <param name="change">The row's changes; values and stages come from it if set.</param>
     /// <param name="values">The loaded values; ignored if <paramref name="change"/> is set.</param>
-    public static Dictionary<string, object?> Build(TablePresentation presentation, RowChange? change, IReadOnlyList<object?>? values)
+    /// <param name="names">Names looked up for foreign key values (WP-31); null without.</param>
+    public static Dictionary<string, object?> Build(
+        TablePresentation presentation, RowChange? change, IReadOnlyList<object?>? values, DisplayNames? names = null)
     {
         var columns = presentation.Details.Columns.Count;
         var cells = new Dictionary<string, object?>(columns + 5);
@@ -23,6 +27,8 @@ public static class GridRows
         var readOnly = new List<string>();
         var unknown = new List<string>();
         Dictionary<string, string>? tooltips = null;
+        Dictionary<string, string>? displayNames = null;
+        List<string>? notFound = null;
         for (var i = 0; i < columns; i++)
         {
             var id = GridColumn.IdOf(i);
@@ -37,6 +43,16 @@ public static class GridRows
             if (presented.Tooltip is { } tooltip)
             {
                 (tooltips ??= [])[id] = tooltip;
+            }
+
+            switch (names?.NameOf(i, value))
+            {
+                case { NotFound: true }:
+                    (notFound ??= []).Add(id);
+                    break;
+                case { Text: { } name }:
+                    (displayNames ??= [])[id] = name;
+                    break;
             }
 
             if (change?.StageOf(i) is { } stage)
@@ -73,6 +89,16 @@ public static class GridRows
         if (tooltips is not null)
         {
             cells["__t"] = tooltips;
+        }
+
+        if (displayNames is not null)
+        {
+            cells["__n"] = displayNames;
+        }
+
+        if (notFound is not null)
+        {
+            cells["__nm"] = notFound;
         }
 
         if (change is { IsNew: true, IsInserted: false })

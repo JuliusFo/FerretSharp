@@ -98,6 +98,13 @@
                    value="@_text" title="@ValueTitle" @oninput="OnInput" @onblur="CommitAsync" @onkeydown="OnKeyDownAsync" />
         }
 
+        @if (Field.Name is { } name && (name.NotFound || name.Text is not null))
+        {
+            <span class="fs-desc ff-desc @(name.NotFound ? "missing" : "")" title="@(name.NotFound ? GridText.Grid_DisplayNotFoundTitle : name.Text)">
+                @(name.NotFound ? GridText.Grid_DisplayNotFound : name.Text)
+            </span>
+        }
+
         @foreach (var jump in Field.Jumps.Where(j => j.IsAvailable))
         {
             <button class="link-btn ff-jump" title="@($"{jump.Condition}\n{FkTargets.Tooltip(jump)}")" @onclick="() => OnJump(jump)">

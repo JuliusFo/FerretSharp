@@ -684,4 +684,40 @@
   <data name="Grid_NothingToRedoEdit" xml:space="preserve">
     <value>Keine ausstehende Änderung zum Wiederholen in diesem Tab.</value>
   </data>
+  <data name="Grid_DisplayBadge" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="Grid_DisplayBadgeTitle" xml:space="preserve">
+    <value>Anzeigespalte: Ihre Werte stehen neben Fremdschlüsseln auf diese Tabelle</value>
+  </data>
+  <data name="Grid_DisplayNotFound" xml:space="preserve">
+    <value>nicht gefunden</value>
+  </data>
+  <data name="Grid_DisplayNotFoundTitle" xml:space="preserve">
+    <value>Keine Zeile der referenzierten Tabelle hat diesen Wert.</value>
+  </data>
+  <data name="Grid_DisplayLinkOff" xml:space="preserve">
+    <value>Die Namen neben {0} sind in diesem Tab abgeschaltet: {1}</value>
+  </data>
+  <data name="Grid_DisplayLookupTimeout" xml:space="preserve">
+    <value>Das Nachschlagen in {0} dauerte länger als {1} s.</value>
+  </data>
+  <data name="Grid_DisplayColumnSaved" xml:space="preserve">
+    <value>{0} ist jetzt die Anzeigespalte von {1}.</value>
+  </data>
+  <data name="Grid_DisplayColumnRemoved" xml:space="preserve">
+    <value>{0} hat keine Anzeigespalte mehr.</value>
+  </data>
+  <data name="ColumnMenu_UseAsDisplay" xml:space="preserve">
+    <value>Als Anzeigespalte verwenden</value>
+  </data>
+  <data name="ColumnMenu_UseAsDisplayTitle" xml:space="preserve">
+    <value>Ihre Werte stehen dann neben jedem Fremdschlüssel auf {0}. Gespeichert in {1}.</value>
+  </data>
+  <data name="ColumnMenu_RemoveDisplay" xml:space="preserve">
+    <value>Nicht mehr als Anzeigespalte verwenden</value>
+  </data>
+  <data name="ColumnMenu_DisplayView" xml:space="preserve">
+    <value>Eine View hat keinen eindeutigen Schlüssel: Ihre Werte lassen sich für Fremdschlüssel nicht nachschlagen.</value>
+  </data>
 </root>

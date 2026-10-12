@@ -61,6 +61,10 @@ public sealed class RowBlocks
         return null;
     }
 
+    /// <summary>Every kept row with its grid index (to redraw the rows names were looked up for, WP-31).</summary>
+    public IEnumerable<(int Index, RowData Row)> All() =>
+        _blocks.SelectMany(block => block.Value.Select((row, i) => (block.Key + i, row))).ToList();
+
     /// <summary>A new query (filter, sort order): the kept blocks are stale.</summary>
     public void Clear() => _blocks.Clear();
 }

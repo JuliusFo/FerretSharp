@@ -873,4 +873,52 @@
   <data name="Grid_NothingToRedoEdit" xml:space="preserve">
     <value>No pending edit to redo in this tab.</value>
   </data>
+  <data name="Grid_DisplayBadge" xml:space="preserve">
+    <value>Name</value>
+    <comment>Badge in the header of a table's display column (WP-31), beside PK/FK; keep it short</comment>
+  </data>
+  <data name="Grid_DisplayBadgeTitle" xml:space="preserve">
+    <value>Display column: its values stand beside foreign keys to this table</value>
+    <comment>Tooltip of the display column badge</comment>
+  </data>
+  <data name="Grid_DisplayNotFound" xml:space="preserve">
+    <value>not found</value>
+    <comment>Beside a foreign key value that no row of the referenced table has</comment>
+  </data>
+  <data name="Grid_DisplayNotFoundTitle" xml:space="preserve">
+    <value>No row of the referenced table has this value.</value>
+    <comment>Tooltip line of a foreign key value without a row in the referenced table</comment>
+  </data>
+  <data name="Grid_DisplayLinkOff" xml:space="preserve">
+    <value>Names beside {0} are switched off in this tab: {1}</value>
+    <comment>{0}: foreign key column; {1}: why (error message or Grid_DisplayLookupTimeout)</comment>
+  </data>
+  <data name="Grid_DisplayLookupTimeout" xml:space="preserve">
+    <value>Looking them up in {0} took longer than {1} s.</value>
+    <comment>{0}: referenced table; {1}: seconds. Completes Grid_DisplayLinkOff</comment>
+  </data>
+  <data name="Grid_DisplayColumnSaved" xml:space="preserve">
+    <value>{0} is now the display column of {1}.</value>
+    <comment>{0}: column; {1}: table</comment>
+  </data>
+  <data name="Grid_DisplayColumnRemoved" xml:space="preserve">
+    <value>{0} has no display column any more.</value>
+    <comment>{0}: table</comment>
+  </data>
+  <data name="ColumnMenu_UseAsDisplay" xml:space="preserve">
+    <value>Use as display column</value>
+    <comment>Menu item of the column header (WP-31)</comment>
+  </data>
+  <data name="ColumnMenu_UseAsDisplayTitle" xml:space="preserve">
+    <value>Its values then stand beside every foreign key to {0}. Kept in {1}.</value>
+    <comment>Tooltip; {0}: table; {1}: path of the display columns file</comment>
+  </data>
+  <data name="ColumnMenu_RemoveDisplay" xml:space="preserve">
+    <value>No longer use as display column</value>
+    <comment>Menu item of the column header that is the display column</comment>
+  </data>
+  <data name="ColumnMenu_DisplayView" xml:space="preserve">
+    <value>A view has no unique key: its values cannot be looked up for foreign keys.</value>
+    <comment>Tooltip of the disabled "Use as display column" on a view</comment>
+  </data>
 </root>

@@ -1011,4 +1011,43 @@
   <data name="Dialogs_CloseTabsEditorText" xml:space="preserve">
     <value>der Text im Editor</value>
   </data>
+  <data name="Settings_DisplayColumns" xml:space="preserve">
+    <value>Anzeigespalten</value>
+  </data>
+  <data name="Settings_ShowDisplayNames" xml:space="preserve">
+    <value>Namen neben Fremdschlüsseln</value>
+  </data>
+  <data name="Settings_ShowDisplayNamesHint" xml:space="preserve">
+    <value>Zeigt im Grid neben einem Fremdschlüsselwert den Wert der Anzeigespalte der referenzierten Tabelle, z. B. {0}. Eine Anzeigespalte markierst du im Kontextmenü eines Spaltenkopfs.</value>
+  </data>
+  <data name="Settings_DisplayColumnsFile" xml:space="preserve">
+    <value>Datei</value>
+  </data>
+  <data name="Settings_DisplayColumnsFileHint" xml:space="preserve">
+    <value>Wo die Anzeigespalten liegen – z. B. im Repository deines Teams, damit die Kollegen dieselben Namen sehen. Leer: eine Datei im Datenordner von FerretSharp.</value>
+  </data>
+  <data name="Settings_DisplayColumnsDefault" xml:space="preserve">
+    <value>display-columns.json im Datenordner</value>
+  </data>
+  <data name="Settings_DisplayColumnsPick" xml:space="preserve">
+    <value>Auswählen…</value>
+  </data>
+  <data name="Settings_DisplayColumnsFilter" xml:space="preserve">
+    <value>Anzeigespalten</value>
+  </data>
+  <data name="Settings_DisplayColumnsReset" xml:space="preserve">
+    <value>Datenordner verwenden</value>
+  </data>
+  <data name="Settings_DisplayColumnsResetTitle" xml:space="preserve">
+    <value>Die Anzeigespalten wieder im Datenordner von FerretSharp ablegen</value>
+  </data>
+  <data name="Settings_DisplayColumnsCountOne" xml:space="preserve">
+    <value>{0} Anzeigespalte in {1}.</value>
+  </data>
+  <data name="Settings_DisplayColumnsCountOther" xml:space="preserve">
+    <value>{0} Anzeigespalten in {1}.</value>
+  </data>
+  <data name="Settings_DisplayColumnsNoFile" xml:space="preserve">
+    <value>{0} gibt es noch nicht: Die erste markierte Anzeigespalte legt die Datei an.</value>
+  </data>
 </root>

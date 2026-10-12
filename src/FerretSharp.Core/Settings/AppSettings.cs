@@ -72,6 +72,17 @@ public sealed record AppSettings
     /// for the built-in one. Read through <see cref="Audit.AuditTemplateSource"/>.
     /// </summary>
     public string? AuditTemplatePath { get; init; }
+
+    /// <summary>
+    /// Values of the display column beside foreign key values in the grid (WP-31): <c>4711 · PetersPizza</c>. On by default.
+    /// </summary>
+    public bool ShowDisplayNames { get; init; } = true;
+
+    /// <summary>
+    /// The file of the display columns (WP-31, ADR 0022), e.g. in the company's repository so colleagues share them; null or
+    /// empty for <c>display-columns.json</c> in the data folder. Read through <see cref="Display.DisplayColumnSource"/>.
+    /// </summary>
+    public string? DisplayColumnsPath { get; init; }
 }
 
 /// <summary>

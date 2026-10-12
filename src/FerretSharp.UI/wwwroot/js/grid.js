@@ -132,6 +132,14 @@ class FerretHeader {
       badge.textContent = 'FK';
       badges.appendChild(badge);
     }
+    if (meta.displayColumn) {
+      // The table's display column (WP-31); texts from .NET, set as properties.
+      const badge = document.createElement('span');
+      badge.className = 'fs-badge display';
+      badge.title = texts.displayBadgeTitle;
+      badge.textContent = texts.displayBadge;
+      badges.appendChild(badge);
+    }
     this.sortEl = this.eGui.querySelector('.fs-h-sort');
     if (meta.sortable) {
       this.eGui.addEventListener('click', e => params.progressSort(e.shiftKey));
@@ -419,20 +427,33 @@ function cellKey(node, colId) {
 }
 
 // Always an element: AG Grid inserts a string a renderer returns as HTML (innerHTML), and cell values come from the database.
-function renderCell(params) {
+function renderCell(params, texts) {
   if (!params.data) return '';
   const value = params.value;
   const span = document.createElement('span');
   if (value === null || value === undefined) {
     span.className = 'fs-null';
     span.textContent = 'NULL';
-  } else {
-    span.textContent = value;
+    return span;
   }
-  return span;
+  span.textContent = value;
+  // A foreign key value with the display value of its target (WP-31), or a dangling reference: one element, so the
+  // value keeps its own alignment rules.
+  const colId = params.column.getColId();
+  const name = params.data.__n?.[colId];
+  const notFound = params.data.__nm?.includes(colId);
+  if (!name && !notFound) return span;
+  const cell = document.createElement('span');
+  cell.className = 'fs-named';
+  const desc = document.createElement('span');
+  desc.className = notFound ? 'fs-desc missing' : 'fs-desc';
+  desc.textContent = notFound ? texts.notFound : name;
+  cell.append(span, desc);
+  return cell;
 }
 
 function width(meta) {
+  if (meta.named) return 220; // a foreign key value with a name beside it (WP-31)
   if (meta.numeric) return 140;
   if (meta.category === 'Date') return 165;
   if (meta.category === 'Timestamp' || meta.category === 'TimestampWithTimeZone') return 215;
@@ -516,7 +537,7 @@ export function create(elementId, dotnet, columns, options) {
     sort: sortById.get(meta.id)?.sort ?? null,
     sortIndex: sortById.get(meta.id)?.index ?? null,
     cellClass: () => meta.numeric ? 'fs-num' : meta.category === 'Date' || meta.category.startsWith('Timestamp') ? 'fs-date' : undefined,
-    cellRenderer: renderCell,
+    cellRenderer: p => renderCell(p, texts),
     // Editing (v2): new rows (pinned at the top) may fill the key; loaded rows not deleted and not too large a number.
     editable: p => !editState.enabled ? false : p.node.rowPinned === 'top'
       ? meta.editableNew
@@ -536,7 +557,8 @@ export function create(elementId, dotnet, columns, options) {
     // The member list keeps the arrow keys while editing.
     suppressKeyboardEvent: p => p.editing && (p.event.key === 'Enter' || (!!meta.options && listKeys.has(p.event.key))),
     tooltipValueGetter: p => (p.value === null || p.value === undefined ? null
-      : [p.value, p.data?.__t?.[meta.id], p.data?.__u?.includes(meta.id) ? meta.unknownText : null].filter(Boolean).join('\n')),
+      : [p.value, p.data?.__n?.[meta.id], p.data?.__nm?.includes(meta.id) ? texts.notFoundTitle : null, p.data?.__t?.[meta.id],
+        p.data?.__u?.includes(meta.id) ? meta.unknownText : null].filter(Boolean).join('\n')),
     headerComponent: FerretHeader,
     // A function, not the object: AG Grid deep-copies plain objects of the column def, and updateColumns changes meta in place.
     headerComponentParams: { getMeta: () => meta, texts },
@@ -768,6 +790,20 @@ export function setNewRows(elementId, rows) {
   grids.get(elementId)?.setGridOption('pinnedTopRowData', rows);
 }
 
+/**
+ * Redraws the new rows in place (names of their foreign keys arrived, WP-31): setNewRows would recreate every pinned
+ * row and close an editor open in one of them. A different number of rows is set anew.
+ */
+export function updateNewRows(elementId, rows) {
+  const api = grids.get(elementId);
+  if (!api) return;
+  if (api.getPinnedTopRowCount() !== rows.length) {
+    api.setGridOption('pinnedTopRowData', rows);
+    return;
+  }
+  rows.forEach((row, i) => api.getPinnedTopRow(i)?.setData(row));
+}
+
 /** Starts editing a cell; <paramref name="pinned"/>: index among the new rows at the top. */
 export function startEditing(elementId, rowIndex, colId, pinned) {
   const api = grids.get(elementId);
@@ -879,16 +915,29 @@ export function destroy(elementId) {
  * The C# model arrived or the name setting changed (WP-12): new labels, badges, member lists and header height, without
  * rebuilding the grid (widths, order, sorting and scroll position stay). The rows are reloaded by .NET afterwards.
  */
-export function updateColumns(elementId, columns, headerHeight) {
+export function updateColumns(elementId, columns, headerHeight, keepEditing) {
   const api = grids.get(elementId);
   const byId = metas.get(elementId);
   if (!api || !byId) return;
-  api.stopEditing(true);
+  // keepEditing: only badges and alignment change (names beside foreign keys came or went, WP-31) – an open editor
+  // stays, AG Grid does not refresh a cell while it is edited.
+  if (!keepEditing) api.stopEditing(true);
+  // A column whose default width changes (names beside its values come or go) takes the new one – unless the user
+  // resized it.
+  const resized = [];
   for (const meta of columns) {
     const current = byId.get(meta.id);
-    if (current) Object.assign(current, meta);
+    if (!current) continue;
+    const before = width(current);
+    Object.assign(current, meta);
+    const after = width(current);
+    if (before !== after && api.getColumn(meta.id)?.getActualWidth() === before) resized.push({ key: meta.id, newWidth: after });
   }
-  headerHeights.set(elementId, headerHeight);
-  api.setGridOption('theme', theme(headerHeight));
+  if (resized.length) api.setColumnWidths(resized);
+  api.refreshCells({ force: true }); // alignment classes follow meta
+  if (headerHeights.get(elementId) !== headerHeight) {
+    headerHeights.set(elementId, headerHeight);
+    api.setGridOption('theme', theme(headerHeight));
+  }
   api.refreshHeader();
 }

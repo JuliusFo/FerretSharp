@@ -140,6 +140,41 @@ public static class QueryBuilder
         return new QuerySpec(sql, parameters);
     }
 
+    /// <summary>
+    /// Sizes the IN list of a lookup is filled up to (WP-31): every other count would be a statement of its own in the
+    /// shared pool (a hard parse per count). The last key is repeated to fill.
+    /// </summary>
+    public static readonly IReadOnlyList<int> LookupSizes = [1, 10, 50, 100, 500];
+
+    /// <summary>Keys of one lookup at most: one grid block.</summary>
+    public static int MaxLookupKeys => LookupSizes[^1];
+
+    /// <summary>
+    /// Key and display value of the rows of <paramref name="target"/> whose key column holds one of
+    /// <paramref name="keys"/> (display columns, WP-31). The keys are bound with the key column's type; the IN list is
+    /// filled up to the next of <see cref="LookupSizes"/>.
+    /// </summary>
+    /// <exception cref="ArgumentException">No keys, more than <see cref="MaxLookupKeys"/>, or a NULL among them.</exception>
+    public static QuerySpec BuildLookup(TableDetails target, int keyColumn, int displayColumn, IReadOnlyList<object> keys)
+    {
+        if (keys.Count == 0 || keys.Count > MaxLookupKeys || keys.Any(k => k is null))
+        {
+            throw new ArgumentException($"A lookup takes 1 to {MaxLookupKeys} keys, none of them NULL.", nameof(keys));
+        }
+
+        var key = target.Columns[keyColumn];
+        var type = OracleTypeMapper.BindType(key);
+        var size = LookupSizes.First(s => s >= keys.Count);
+        var parameters = Enumerable.Range(0, size)
+            .Select(i => new QueryParameter("k" + i.ToString(System.Globalization.CultureInfo.InvariantCulture), keys[Math.Min(i, keys.Count - 1)], type))
+            .ToList();
+        var keyRef = $"{Alias}.{OracleIdentifier.Quote(key.Name)}";
+        var sql = $"SELECT {keyRef}, {Alias}.{OracleIdentifier.Quote(target.Columns[displayColumn].Name)}"
+                  + $"\n  FROM {OracleIdentifier.Qualify(target.Table.Owner, target.Table.Name)} {Alias}"
+                  + $"\n WHERE {keyRef} IN ({string.Join(", ", parameters.Select(p => ":" + p.Name))})";
+        return new QuerySpec(sql, parameters);
+    }
+
     private static List<string> SelectList(Builder builder, IReadOnlyList<ResultColumn> columns, bool hasRowId)
     {
         var select = new List<string>();

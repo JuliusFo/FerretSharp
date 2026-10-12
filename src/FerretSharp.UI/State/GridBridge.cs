@@ -26,6 +26,12 @@ public sealed record GridColumn(string Id, string Name, string Label, string Typ
 
     public bool FkModel { get; init; }
 
+    /// <summary>The table's display column (WP-31): its values stand beside foreign keys to the table.</summary>
+    public bool DisplayColumn { get; init; }
+
+    /// <summary>A foreign key column with names beside its values (WP-31): left-aligned and wider, like text.</summary>
+    public bool Named { get; init; }
+
     /// <summary>Right-aligned with grouped digits (numbers shown as numbers, not as enum members).</summary>
     public bool Numeric { get; init; }
 
@@ -89,6 +95,17 @@ public sealed record GridTexts
 
     /// <summary>Summary of the flags editor when no flag is ticked.</summary>
     public string NoFlag { get; init; } = GridText.Grid_NoFlag;
+
+    /// <summary>Badge of the display column in its header (WP-31) and its tooltip.</summary>
+    public string DisplayBadge { get; init; } = GridText.Grid_DisplayBadge;
+
+    public string DisplayBadgeTitle { get; init; } = GridText.Grid_DisplayBadgeTitle;
+
+    /// <summary>Beside a foreign key value without a row in its target.</summary>
+    public string NotFound { get; init; } = GridText.Grid_DisplayNotFound;
+
+    /// <summary>Tooltip line for <see cref="NotFound"/>.</summary>
+    public string NotFoundTitle { get; init; } = GridText.Grid_DisplayNotFoundTitle;
 }
 
 /// <summary>A sorted column as AG Grid reports it ("asc"/"desc").</summary>

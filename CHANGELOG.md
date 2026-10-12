@@ -5,9 +5,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.27.0] - 2026-10-12
+
+Display columns: names beside foreign key values (WP-31); closing several tabs at once.
+
 ### Added
 - Right-click on a tab: close it, the others, the tabs to the right of it, or all. If tabs would lose something (pending changes, a value typed but not confirmed, a table draft, the text of a SQL or LINQ tab), one question lists them: discard and close all, keep these open and close the rest, or cancel.
 - Shortcuts for "Close other tabs" and "Close all tabs" (Settings › Shortcuts, no key by default).
+- Display columns (WP-31, issue #11): mark one column per table as its display column (right-click a column header › "Use as display column"), and every foreign key to that table shows its value beside the key in the grid – `4711 · PetersPizza`. A value no row of the referenced table has reads "not found", which shows dangling references of relationships without a constraint. The form shows the name too; filter, sort, edit, copy and export keep the raw values. A "Name" badge marks the display column in the header and in the Columns view.
+- The display columns live in one file (Settings › Display columns), e.g. in your team's repository so colleagues see the same names; without a path in `display-columns.json` in the data folder. One sorted entry per table, keyed by table name without owner; changes on disk (a `git pull`) are picked up at once, a file that is not valid JSON is reported and never overwritten. Names beside foreign keys can be switched off there.
+- Names are looked up after each block of rows, over the referenced table's primary or unique key only, with IN lists filled up to a few fixed sizes (few statements in the shared pool) and a 5 s timeout; a lookup that fails or times out switches the names of that column off for the tab and says why.
 
 ### Changed
 - The status bar no longer repeats what the top bar shows: connection name, the active workspace and its read-only/unlocked state with "Unlock …"/"Lock" are gone (switcher, workspace chips and the badge at the top right show and switch them), as is "Reconnect" on a lost connection (the banner has it). It now shows the connection state, the open changes with write/undo/commit/rollback, the C# model, Oracle version and schema, problems and "Disconnect".

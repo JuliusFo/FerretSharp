@@ -1246,4 +1246,54 @@
     <value>the text in the editor</value>
     <comment>Item of the list of tabs that would lose something (SQL or LINQ tab)</comment>
   </data>
+  <data name="Settings_DisplayColumns" xml:space="preserve">
+    <value>Display columns</value>
+    <comment>Settings section (WP-31)</comment>
+  </data>
+  <data name="Settings_ShowDisplayNames" xml:space="preserve">
+    <value>Names beside foreign keys</value>
+    <comment>Settings row: on/off</comment>
+  </data>
+  <data name="Settings_ShowDisplayNamesHint" xml:space="preserve">
+    <value>Shows the value of the referenced table's display column beside a foreign key value in the grid, e.g. {0}. Mark a display column in the context menu of a column header.</value>
+    <comment>{0}: an example, "4711 · PetersPizza"</comment>
+  </data>
+  <data name="Settings_DisplayColumnsFile" xml:space="preserve">
+    <value>File</value>
+    <comment>Settings row: the file of the display columns</comment>
+  </data>
+  <data name="Settings_DisplayColumnsFileHint" xml:space="preserve">
+    <value>Where the display columns are kept – e.g. in your team's repository, so colleagues see the same names. Empty uses a file in FerretSharp's data folder.</value>
+  </data>
+  <data name="Settings_DisplayColumnsDefault" xml:space="preserve">
+    <value>display-columns.json in the data folder</value>
+    <comment>Placeholder of the empty path field</comment>
+  </data>
+  <data name="Settings_DisplayColumnsPick" xml:space="preserve">
+    <value>Choose…</value>
+    <comment>Button: opens a file dialog</comment>
+  </data>
+  <data name="Settings_DisplayColumnsFilter" xml:space="preserve">
+    <value>Display columns</value>
+    <comment>File type label in the open dialog</comment>
+  </data>
+  <data name="Settings_DisplayColumnsReset" xml:space="preserve">
+    <value>Use data folder</value>
+    <comment>Button: back to the file in the data folder</comment>
+  </data>
+  <data name="Settings_DisplayColumnsResetTitle" xml:space="preserve">
+    <value>Keep the display columns in FerretSharp's data folder again</value>
+  </data>
+  <data name="Settings_DisplayColumnsCountOne" xml:space="preserve">
+    <value>{0} display column in {1}.</value>
+    <comment>{0}: count (1); {1}: path of the file</comment>
+  </data>
+  <data name="Settings_DisplayColumnsCountOther" xml:space="preserve">
+    <value>{0} display columns in {1}.</value>
+    <comment>{0}: count; {1}: path of the file</comment>
+  </data>
+  <data name="Settings_DisplayColumnsNoFile" xml:space="preserve">
+    <value>{0} does not exist yet: marking the first display column creates it.</value>
+    <comment>{0}: path of the file</comment>
+  </data>
 </root>

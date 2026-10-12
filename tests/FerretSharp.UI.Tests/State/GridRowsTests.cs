@@ -1,5 +1,6 @@
 using FerretSharp.Core.ClrModel;
 using FerretSharp.Core.Data;
+using FerretSharp.Core.Display;
 using FerretSharp.Core.Schema;
 using FerretSharp.UI.State;
 
@@ -71,5 +72,26 @@ public sealed class GridRowsTests
         Assert.Equal(1, GridRows.NewRowIndex(changes, id));
         Assert.Null(GridRows.NewRow(changes, "unknown"));
         Assert.Equal(-1, GridRows.NewRowIndex(null, id));
+    }
+
+    [Fact]
+    public void Foreign_key_values_carry_the_name_of_their_target_or_not_found()
+    {
+        // KUNDEN.GROSS stands in for a foreign key column here: its values are looked up in a table "GROSSKUNDE".
+        var target = new TableDetails(new TableSummary("APP", "GROSSKUNDE", TableKind.Table), Kunden.Columns, ["ID"], [], false);
+        var link = new DisplayLink(2, new ForeignKeyInfo("FK", Kunden.Table.Ref, ["GROSS"], target.Table.Ref, ["ID"], FkSource.Declared), target, 0, 1);
+        var names = new DisplayNames([link], (_, value) => value as string);
+        var lookup = Assert.Single(names.Missing([Row(1m, "a", 10m).Values, Row(2m, "b", 20m).Values]));
+        names.Found(lookup, [new LookupRow(10m, "PetersPizza")]);
+
+        var found = GridRows.Build(Plain, null, Row(1m, "a", 10m).Values, names);
+        var missing = GridRows.Build(Plain, null, Row(2m, "b", 20m).Values, names);
+        var unknown = GridRows.Build(Plain, null, Row(3m, "c", 30m).Values, names);
+
+        Assert.Equal(new Dictionary<string, string> { ["c2"] = "PetersPizza" }, found["__n"]);
+        Assert.False(found.ContainsKey("__nm"));
+        Assert.Equal(["c2"], Assert.IsType<List<string>>(missing["__nm"]));
+        Assert.False(missing.ContainsKey("__n"));
+        Assert.False(unknown.ContainsKey("__n") || unknown.ContainsKey("__nm")); // not looked up yet
     }
 }

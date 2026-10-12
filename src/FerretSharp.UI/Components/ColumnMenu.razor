@@ -1,8 +1,11 @@
-@* Right-click menu of a column header: pin the column to the left or release it. *@
+@* Right-click menu of a column header: pin the column to the left or release it; mark it as the table's display column (WP-31). *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Display
 @using FerretSharp.Core.Schema
+@inject DisplayColumnSource DisplaySource
 
 <PopoverMenu X="Request.X" Y="Request.Y" ViewportWidth="Request.ViewportWidth" ViewportHeight="Request.ViewportHeight"
-             Width="280" EstimatedHeight="90" OnClose="OnClose">
+             Width="300" EstimatedHeight="125" OnClose="OnClose">
     <div class="ctx-head">
         <span class="ctx-col">@Column.Name</span>
         <span class="ctx-value">@Column.DisplayType</span>
@@ -15,9 +18,23 @@
     {
         <button class="menu-item" @onclick="ToggleAsync">@(Pinned ? GridText.Grid_UnpinColumn : GridText.Grid_PinColumnLeft)</button>
     }
+    @{
+        var display = DisplaySource.Current();
+        var isDisplay = display.Columns.ColumnOf(Details.Table.Name) == Column.Name;
+        var notPossible = display.Error ?? display.ReadOnly
+                          ?? (isDisplay ? null : Details.Table.Kind == TableKind.View ? GridText.ColumnMenu_DisplayView : DisplayColumns.NotDisplayableReason(Column));
+    }
+    <div class="menu-sep"></div>
+    <button class="menu-item" disabled="@(notPossible is not null)" @onclick="() => SetDisplayAsync(isDisplay ? null : Column.Name)"
+            title="@(notPossible ?? (isDisplay ? null : TextFormat.Format(GridText.ColumnMenu_UseAsDisplayTitle, Details.Table.DisplayName, display.Path)))">
+        @(isDisplay ? GridText.ColumnMenu_RemoveDisplay : GridText.ColumnMenu_UseAsDisplay)
+    </button>
 </PopoverMenu>
 
 @code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
     [Parameter, EditorRequired]
     public ColumnMenuRequest Request { get; set; } = null!;
 
@@ -40,5 +57,26 @@
     {
         await OnClose.InvokeAsync();
         await OnTogglePin.InvokeAsync(Request.Column);
+    }
+
+    /// <summary>
+    /// Marks the column as the table's display column (or removes the mark) in the shared file; every grid with a foreign
+    /// key to the table follows through <see cref="DisplayColumnSource.Changed"/>.
+    /// </summary>
+    private async Task SetDisplayAsync(string? column)
+    {
+        var table = Details.Table.Name;
+        await OnClose.InvokeAsync();
+        try
+        {
+            await DisplaySource.SetAsync(table, column, CancellationToken.None);
+            Shell.Notify(column is null
+                ? TextFormat.Format(GridText.Grid_DisplayColumnRemoved, Details.Table.DisplayName)
+                : TextFormat.Format(GridText.Grid_DisplayColumnSaved, column, Details.Table.DisplayName));
+        }
+        catch (RefusedException ex)
+        {
+            Shell.Notify(ex.Message);
+        }
     }
 }

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="ColumnNotDisplayable" xml:space="preserve">
+    <value>Eine Spalte vom Typ {0} kann keine Anzeigespalte sein: Ihre Werte lassen sich nicht als kurzer Text lesen.</value>
+  </data>
+  <data name="FileUnreadable" xml:space="preserve">
+    <value>Die Datei der Anzeigespalten {0} kann nicht gelesen werden: {1}</value>
+  </data>
+  <data name="FileInvalid" xml:space="preserve">
+    <value>Die Datei der Anzeigespalten {0} ist kein gültiges JSON: {1}</value>
+  </data>
+  <data name="FileNewerVersion" xml:space="preserve">
+    <value>Die Datei der Anzeigespalten {0} stammt von einem neueren FerretSharp (Format {1}): Sie wird gelesen, aber nicht geändert.</value>
+  </data>
+  <data name="FileNotWritten" xml:space="preserve">
+    <value>Die Datei der Anzeigespalten {0} kann nicht geschrieben werden: {1}</value>
+  </data>
+</root>

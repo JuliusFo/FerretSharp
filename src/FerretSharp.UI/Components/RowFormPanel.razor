@@ -54,7 +54,7 @@
         var presentation = Presentations.For(Details);
         IReadOnlyList<FormField> fields = row is null || Grid is null
             ? []
-            : RowForm.Fields(Details, presentation, row, Writable, Active.Schema?.OutgoingOf(Details.Table.Ref) ?? [], Models.Mapping, Tab.PinnedColumns);
+            : RowForm.Fields(Details, presentation, row, Writable, Active.Schema?.OutgoingOf(Details.Table.Ref) ?? [], Models.Mapping, Tab.PinnedColumns, Grid?.Names);
         var view = RowForm.Visible(fields, presentation, new FormFilter(_query, Tab.FormHideEmpty, _onlyChanged));
     }
 
