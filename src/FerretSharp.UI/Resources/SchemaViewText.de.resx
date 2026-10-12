@@ -723,4 +723,37 @@
   <data name="Entity_Name" xml:space="preserve">
     <value>Entity</value>
   </data>
+  <data name="Audit_DesignerCreate" xml:space="preserve">
+    <value>Audit-Tabelle und Trigger anlegen</value>
+  </data>
+  <data name="Audit_DesignerSync" xml:space="preserve">
+    <value>Audit-Tabelle und Trigger abgleichen</value>
+  </data>
+  <data name="Audit_DesignerTitle" xml:space="preserve">
+    <value>Audit-Tabelle und Trigger nach der Audit-Vorlage aus den Einstellungen – im selben Skript wie die Tabelle</value>
+  </data>
+  <data name="Audit_TemplateBroken" xml:space="preserve">
+    <value>Die Audit-Vorlage lässt sich nicht verwenden – siehe Einstellungen.</value>
+  </data>
+  <data name="Audit_Create" xml:space="preserve">
+    <value>Audit anlegen…</value>
+  </data>
+  <data name="Audit_CreateTitle" xml:space="preserve">
+    <value>Audit-Tabelle und Trigger für diese Tabelle, nach der Audit-Vorlage aus den Einstellungen</value>
+  </data>
+  <data name="Audit_Label" xml:space="preserve">
+    <value>Audit:</value>
+  </data>
+  <data name="Audit_Outdated" xml:space="preserve">
+    <value>veraltet ({0})</value>
+  </data>
+  <data name="Audit_OutdatedTitle" xml:space="preserve">
+    <value>Änderungen an dieser Tabelle werden unvollständig protokolliert, bis Audit-Tabelle und Trigger wieder zu ihr passen.</value>
+  </data>
+  <data name="Audit_Sync" xml:space="preserve">
+    <value>Abgleichen</value>
+  </data>
+  <data name="Audit_OpenTable" xml:space="preserve">
+    <value>Audit-Tabelle öffnen</value>
+  </data>
 </root>

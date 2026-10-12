@@ -873,4 +873,43 @@
     <value>Entity</value>
     <comment>Label of the entity name field</comment>
   </data>
+  <data name="Audit_DesignerCreate" xml:space="preserve">
+    <value>Create audit table and trigger</value>
+    <comment>Checkbox in the table designer (WP-26)</comment>
+  </data>
+  <data name="Audit_DesignerSync" xml:space="preserve">
+    <value>Bring audit table and trigger up to date</value>
+    <comment>Checkbox in the table designer when the table has an audit table</comment>
+  </data>
+  <data name="Audit_DesignerTitle" xml:space="preserve">
+    <value>Audit table and trigger as the audit template in the settings has them – in the same script as the table</value>
+  </data>
+  <data name="Audit_TemplateBroken" xml:space="preserve">
+    <value>The audit template cannot be used – see Settings.</value>
+  </data>
+  <data name="Audit_Create" xml:space="preserve">
+    <value>Create audit…</value>
+    <comment>Grey link above the columns of a table without audit table (WP-26)</comment>
+  </data>
+  <data name="Audit_CreateTitle" xml:space="preserve">
+    <value>Audit table and trigger for this table, as the audit template in the settings has them</value>
+  </data>
+  <data name="Audit_Label" xml:space="preserve">
+    <value>Audit:</value>
+    <comment>Before the audit table's name above the columns</comment>
+  </data>
+  <data name="Audit_Outdated" xml:space="preserve">
+    <value>outdated ({0})</value>
+    <comment>{0}: reasons, e.g. "FAX missing in the audit table; trigger KUNDE_AUDIT does not fill all columns"</comment>
+  </data>
+  <data name="Audit_OutdatedTitle" xml:space="preserve">
+    <value>Changes to this table are audited incompletely until audit table and trigger match it again.</value>
+  </data>
+  <data name="Audit_Sync" xml:space="preserve">
+    <value>Bring up to date</value>
+    <comment>Link: opens the designer with the audit box on</comment>
+  </data>
+  <data name="Audit_OpenTable" xml:space="preserve">
+    <value>Open the audit table</value>
+  </data>
 </root>

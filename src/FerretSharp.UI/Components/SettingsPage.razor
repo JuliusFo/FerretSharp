@@ -3,6 +3,10 @@
 @using FerretSharp.Core.Settings
 @inject IThemeService Theme
 @inject AppSettingsService Settings
+@inject FerretSharp.Core.Audit.AuditTemplateSource AuditTemplates
+@inject IFileOpenService Files
+@inject IJSRuntime JS
+@implements IAsyncDisposable
 
 <div class="settings-page">
     <div class="page-head">
@@ -135,6 +139,49 @@
         </section>
 
         <section class="settings-section">
+            <h2>@ShellText.Settings_Audit</h2>
+            <div class="settings-row">
+                <div class="settings-label">
+                    <span>@ShellText.Settings_AuditTemplate</span>
+                    <span class="hint">@ShellText.Settings_AuditTemplateHint</span>
+                </div>
+                <div class="settings-path">
+                    <input class="field mono" spellcheck="false" placeholder="@ShellText.Settings_AuditTemplateBuiltIn" value="@_auditPath"
+                           @onchange="e => SetAuditTemplateAsync((string?)e.Value)" aria-label="@ShellText.Settings_AuditTemplate" />
+                    <button class="btn" @onclick="PickAuditTemplateAsync">@ShellText.Settings_AuditTemplatePick</button>
+                    @if (!string.IsNullOrWhiteSpace(_auditPath))
+                    {
+                        <button class="btn ghost" title="@ShellText.Settings_AuditTemplateResetTitle" @onclick="() => SetAuditTemplateAsync(null)">@ShellText.Settings_AuditTemplateReset</button>
+                    }
+                </div>
+            </div>
+            @{ var audit = AuditTemplates.Load(_auditPath); }
+            @if (audit.Errors.Count > 0)
+            {
+                <div class="settings-note error">
+                    <ul class="settings-problems">
+                        @foreach (var error in audit.Errors)
+                        {
+                            <li>@error</li>
+                        }
+                    </ul>
+                </div>
+            }
+            else
+            {
+                <div class="settings-note">
+                    @(audit.IsDefault ? ShellText.Settings_AuditTemplateUsingBuiltIn : ShellText.Settings_AuditTemplateValid)
+                </div>
+            }
+            @if (audit.IsDefault)
+            {
+                <div class="settings-note">
+                    <button class="link-btn" title="@ShellText.Settings_AuditTemplateCopyTitle" @onclick="CopyDefaultTemplateAsync">@ShellText.Settings_AuditTemplateCopy</button>
+                </div>
+            }
+        </section>
+
+        <section class="settings-section">
             <h2>@ShellText.Settings_Diagnostics</h2>
             <div class="settings-row">
                 <div class="settings-label">
@@ -200,4 +247,42 @@
     private Task SetDiagnoseUiStallsAsync(bool on) => UpdateAsync(s => s with { DiagnoseUiStalls = on });
 
     private Task UpdateAsync(Func<AppSettings, AppSettings> change) => Shell.TrySaveSettingsAsync(() => Settings.UpdateAsync(change, CancellationToken.None));
+
+    /// <summary>The template file as the field shows it: saved as typed (also when it has errors, which show below).</summary>
+    private string? _auditPath;
+
+    protected override void OnInitialized() => _auditPath = Settings.Current.AuditTemplatePath;
+
+    private Task SetAuditTemplateAsync(string? path)
+    {
+        _auditPath = string.IsNullOrWhiteSpace(path) ? null : path.Trim();
+        return UpdateAsync(s => s with { AuditTemplatePath = _auditPath });
+    }
+
+    private DomModule? _dom;
+
+    /// <summary>The built-in template as the start of an own one (its syntax is documented in it and in docs/audit-templates.md).</summary>
+    private async Task CopyDefaultTemplateAsync()
+    {
+        if (await (_dom ??= new(JS)).CopyTextAsync(Shell, FerretSharp.Core.Audit.AuditTemplates.DefaultText))
+        {
+            Shell.Notify(ShellText.Settings_AuditTemplateCopied);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_dom is not null)
+        {
+            await _dom.DisposeAsync();
+        }
+    }
+
+    private async Task PickAuditTemplateAsync()
+    {
+        if (await Files.PickAsync(ShellText.Settings_AuditTemplateFilter, ["sql", "txt"], _auditPath) is { } path)
+        {
+            await SetAuditTemplateAsync(path);
+        }
+    }
 }

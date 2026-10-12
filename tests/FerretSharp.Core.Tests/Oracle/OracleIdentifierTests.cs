@@ -21,6 +21,25 @@ public class OracleIdentifierTests
         Assert.Throws<ArgumentException>(() => OracleIdentifier.Quote("bad\"name"));
     }
 
+    /// <summary>Plain where Oracle reads the name as written – also in PL/SQL, whose reserved words (END, TYPE …) need quotes.</summary>
+    [Theory]
+    [InlineData("KUNDEN", "KUNDEN")]
+    [InlineData("K$1#_X", "K$1#_X")]
+    [InlineData("Kunden", "\"Kunden\"")]
+    [InlineData("1A", "\"1A\"")]
+    [InlineData("_A", "\"_A\"")]
+    [InlineData("A B", "\"A B\"")]
+    [InlineData("ÄNDERUNG", "\"ÄNDERUNG\"")]
+    [InlineData("DATE", "\"DATE\"")]
+    [InlineData("END", "\"END\"")]
+    [InlineData("TYPE", "\"TYPE\"")]
+    [InlineData("NAME", "NAME")]
+    public void QuoteIfNeeded_quotes_only_what_oracle_would_misread(string name, string expected)
+    {
+        Assert.Equal(expected, OracleIdentifier.QuoteIfNeeded(name));
+        Assert.Equal(expected == name, OracleIdentifier.IsPlain(name));
+    }
+
     [Fact]
     public void Qualify_quotes_owner_and_name()
     {

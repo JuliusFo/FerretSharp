@@ -1178,4 +1178,50 @@
     <value>The draft of {0} has not run yet and is lost when the tab closes.</value>
     <comment>{0}: table name</comment>
   </data>
+  <data name="Settings_Audit" xml:space="preserve">
+    <value>Audit tables</value>
+    <comment>Settings section (WP-26)</comment>
+  </data>
+  <data name="Settings_AuditTemplate" xml:space="preserve">
+    <value>Template</value>
+    <comment>Settings row: the file of the audit template</comment>
+  </data>
+  <data name="Settings_AuditTemplateHint" xml:space="preserve">
+    <value>Audit table and trigger of a table follow this template – e.g. a file in your company's repository. Empty uses the built-in template.</value>
+  </data>
+  <data name="Settings_AuditTemplateBuiltIn" xml:space="preserve">
+    <value>Built-in template</value>
+    <comment>Placeholder of the empty path field</comment>
+  </data>
+  <data name="Settings_AuditTemplatePick" xml:space="preserve">
+    <value>Choose…</value>
+    <comment>Button: opens a file dialog</comment>
+  </data>
+  <data name="Settings_AuditTemplateFilter" xml:space="preserve">
+    <value>Audit template</value>
+    <comment>File type label in the open dialog</comment>
+  </data>
+  <data name="Settings_AuditTemplateReset" xml:space="preserve">
+    <value>Use built-in</value>
+    <comment>Button: back to the built-in template</comment>
+  </data>
+  <data name="Settings_AuditTemplateResetTitle" xml:space="preserve">
+    <value>Use the built-in template again</value>
+  </data>
+  <data name="Settings_AuditTemplateUsingBuiltIn" xml:space="preserve">
+    <value>The built-in template is used: audit table AUDIT_&lt;table&gt;, trigger &lt;table&gt;_AUDIT.</value>
+  </data>
+  <data name="Settings_AuditTemplateValid" xml:space="preserve">
+    <value>The template is valid.</value>
+  </data>
+  <data name="Settings_AuditTemplateCopy" xml:space="preserve">
+    <value>Copy the built-in template</value>
+    <comment>Link button</comment>
+  </data>
+  <data name="Settings_AuditTemplateCopyTitle" xml:space="preserve">
+    <value>As the start of your own template – its syntax is explained in it</value>
+  </data>
+  <data name="Settings_AuditTemplateCopied" xml:space="preserve">
+    <value>Built-in audit template copied.</value>
+  </data>
 </root>

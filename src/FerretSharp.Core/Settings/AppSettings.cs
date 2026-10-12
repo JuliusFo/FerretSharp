@@ -66,6 +66,12 @@ public sealed record AppSettings
 
     /// <summary>Width of the change overview in pixels, as the user dragged it; null for the default.</summary>
     public int? ChangesPanelWidth { get; init; }
+
+    /// <summary>
+    /// The audit template (WP-26, <c>docs/audit-templates.md</c>) as a file, e.g. in the company's repository; null or empty
+    /// for the built-in one. Read through <see cref="Audit.AuditTemplateSource"/>.
+    /// </summary>
+    public string? AuditTemplatePath { get; init; }
 }
 
 /// <summary>

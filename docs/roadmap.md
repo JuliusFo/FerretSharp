@@ -1,6 +1,6 @@
 # Roadmap – geplante Pakete und offene Fragen
 
-Seit 3.14.0 aus der `CLAUDE.md` ausgelagert; Stand nach WP-23. Beim Start eines Pakets den Abschnitt lesen und den Plan mit dem Nutzer abstimmen. Nicht eingeplante Ideen: `docs/backlog.md`; abgeschlossene Pakete: `docs/work-packages.md`.
+Seit 3.14.0 aus der `CLAUDE.md` ausgelagert; Stand nach WP-26. Beim Start eines Pakets den Abschnitt lesen und den Plan mit dem Nutzer abstimmen. Nicht eingeplante Ideen: `docs/backlog.md`; abgeschlossene Pakete: `docs/work-packages.md`.
 
 ## GitHub-Issues und Labels
 
@@ -16,15 +16,7 @@ Entscheidung des Nutzers (2026-10-09). Issues bekommen eine Art und einen Status
 
 Pakete aus dem Backlog, nach v3 mit dem Nutzer ausgewählt (2026-10-05). Versionen: Minor-Releases 3.x (nichts Inkompatibles).
 
-WP-22 (DDL im SQL-Editor) ist umgesetzt: Protokoll in `docs/work-packages.md`, ADR 0019. WP-23 (Tabellen-Designer + Entity aus Tabelle) ist in 3.22.0–3.24.0 umgesetzt: Protokoll in `docs/work-packages.md`, ADR 0020. R4a (Fehler aus dem Review 3.24.0) ist in 3.24.1 umgesetzt, R4b (Struktur) in 3.25.0 (Protokolle in `docs/work-packages.md`); als Nächstes WP-26.
-
-### WP-26 Audit-/Historientabellen aus einer Vorlage (nach WP-23)
-Wunsch der Kollegen des Nutzers (2026-10-07): beim Anlegen einer Tabelle die Historientabelle und den Trigger gleich mit erzeugen, für bestehende Tabellen nachziehen. Entscheidung des Nutzers: das Schema kommt aus einer **Vorlagendatei**, nicht fest aus dem Code – damit FerretSharp auch außerhalb seiner Firma passt.
-- Eingebaute, dokumentierte Standardvorlage; in den Einstellungen ein Pfad zu einer eigenen Vorlage (z. B. im Repo der Firma); später evtl. je Verbindung überschreibbar.
-- Vorlage = SQL mit Platzhaltern (Tabelle, Historientabelle, Spalten mit Typen, Listen für `:OLD.`/`:NEW.`, Wiederholung über die Spalten); eigene minimale Syntax statt einer Template-Bibliothek (neue Abhängigkeit bräuchte ein ADR). Die Firmenvorlage des Nutzers (Tabelle + Trigger) dient als Testfall.
-- Nachziehen: Spalte in `KUNDEN` neu → fehlt in `KUNDEN_HIST`/Trigger veraltet → `ALTER` + `CREATE OR REPLACE TRIGGER` vorschlagen (Vergleichslogik aus WP-20 wiederverwenden). Passt zum Backlog-Eintrag „Audit-/Historientabellen: Unterschiede hervorheben“ (Muster 1).
-- Vorbereitet in R4b: DDL-Schritte mit Art und Risiko (`Core/Ddl`, `PlSqlObject` endet im Skript mit `/`), `ColumnChange.Steps` mit `ChangeIntent.Known` für „Spalte in `KUNDEN` neu → in `KUNDEN_HIST` ergänzen“, `SqlSplitter` als eigener Teil (dort kommt der Blockmodus hin), ein `StatementRunner` für alle Statements.
-- Trigger enthalten PL/SQL – WP-22 weist PL/SQL-Blöcke und PL/SQL-Objekte (`CREATE [OR REPLACE] PROCEDURE/FUNCTION/PACKAGE/TRIGGER/TYPE`) ab (Entscheidung des Nutzers 2026-10-10: eigene Stufe). Für `CREATE [OR REPLACE] TRIGGER` aus der Vorlage braucht es eine bewusste, enge Ausnahme (beim Start von WP-26 mit dem Nutzer entscheiden, ADR): Splitter für Blöcke bis zur `/`-Zeile, Kompilierfehler (ORA-24344) aus `ALL_ERRORS` anzeigen.
+WP-22 (DDL im SQL-Editor) ist umgesetzt: Protokoll in `docs/work-packages.md`, ADR 0019. WP-23 (Tabellen-Designer + Entity aus Tabelle) ist in 3.22.0–3.24.0 umgesetzt: Protokoll in `docs/work-packages.md`, ADR 0020. R4a (Fehler aus dem Review 3.24.0) ist in 3.24.1 umgesetzt, R4b (Struktur) in 3.25.0, WP-26 (Audit-Tabellen aus einer Vorlage) in 3.26.0 (Protokolle mit den Entscheidungen des Nutzers in `docs/work-packages.md`, ADR 0021). Weitere Pakete sind noch nicht eingeplant – beim nächsten Mal mit dem Nutzer aus `docs/backlog.md` auswählen.
 
 ## Offene UX-Fragen
 - Shortcut-Belegung für Commit/Rollback – vorläufig, Nutzerfeedback einholen.

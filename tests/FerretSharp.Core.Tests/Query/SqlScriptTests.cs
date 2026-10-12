@@ -60,6 +60,44 @@ public sealed class SqlScriptTests
             SqlScript.Split(script.ReplaceLineEndings("\n")).Select(s => s.Text));
     }
 
+    /// <summary>
+    /// WP-26: a trigger (or another block) holds ";" and blank lines and ends at a "/" line – cut at its first ";", it would
+    /// reach Oracle as a broken trigger.
+    /// </summary>
+    [Fact]
+    public void A_block_ends_only_at_a_slash_line()
+    {
+        const string script = """
+            CREATE OR REPLACE TRIGGER kunde_audit
+            AFTER INSERT OR UPDATE ON kunde
+            FOR EACH ROW
+            BEGIN
+              IF INSERTING THEN x := 'I';
+
+              END IF;
+            END;
+            /
+            SELECT 1 FROM dual;
+            BEGIN NULL; END;
+            /
+            ALTER TRIGGER kunde_audit ENABLE
+
+            CREATE PACKAGE p AS
+              x NUMBER;
+            END;
+            """;
+
+        Assert.Equal(
+            [
+                "CREATE OR REPLACE TRIGGER kunde_audit\nAFTER INSERT OR UPDATE ON kunde\nFOR EACH ROW\nBEGIN\n  IF INSERTING THEN x := 'I';\n\n  END IF;\nEND;",
+                "SELECT 1 FROM dual",
+                "BEGIN NULL; END;",
+                "ALTER TRIGGER kunde_audit ENABLE",
+                "CREATE PACKAGE p AS\n  x NUMBER;\nEND;",
+            ],
+            SqlScript.Split(script.ReplaceLineEndings("\n")).Select(s => s.Text));
+    }
+
     [Theory]
     [InlineData("SELECT 1 FROM dual;|\nSELECT 2 FROM dual;", "SELECT 1 FROM dual")]
     [InlineData("SELECT 1 FROM dual;\n|", "SELECT 1 FROM dual")]
@@ -119,7 +157,15 @@ public sealed class SqlScriptTests
     [InlineData("CREATE OR REPLACE PROCEDURE p AS BEGIN NULL", SqlStatementKind.PlSqlObject)]
     [InlineData("create function f return number is begin return 1", SqlStatementKind.PlSqlObject)]
     [InlineData("CREATE OR REPLACE NONEDITIONABLE PACKAGE BODY pkg AS", SqlStatementKind.PlSqlObject)]
-    [InlineData("CREATE TRIGGER t_bi BEFORE INSERT ON t FOR EACH ROW BEGIN NULL", SqlStatementKind.PlSqlObject)]
+    [InlineData("CREATE TRIGGER t_bi BEFORE INSERT ON t FOR EACH ROW BEGIN NULL", SqlStatementKind.Trigger)]
+    [InlineData("CREATE OR REPLACE EDITIONABLE TRIGGER \"APP\".\"T_AUDIT\" AFTER UPDATE OF a ON app.t BEGIN NULL", SqlStatementKind.Trigger)]
+    [InlineData("CREATE TRIGGER v_io INSTEAD OF INSERT ON v FOR EACH ROW BEGIN NULL", SqlStatementKind.Trigger)]
+    [InlineData("CREATE TRIGGER t_bi BEFORE INSERT ON \"SCHEMA\" FOR EACH ROW BEGIN NULL", SqlStatementKind.Trigger)]
+    [InlineData("CREATE TRIGGER t_c FOR UPDATE ON t COMPOUND TRIGGER AFTER STATEMENT IS BEGIN NULL", SqlStatementKind.Trigger)]
+    [InlineData("CREATE OR REPLACE TRIGGER logon_t AFTER LOGON ON DATABASE BEGIN NULL", SqlStatementKind.SystemTrigger)]
+    [InlineData("create trigger ddl_t before ddl on schema begin null", SqlStatementKind.SystemTrigger)]
+    [InlineData("CREATE TRIGGER ddl_t BEFORE DROP ON app.SCHEMA BEGIN NULL", SqlStatementKind.SystemTrigger)]
+    [InlineData("CREATE TRIGGER pdb_t AFTER STARTUP ON PLUGGABLE DATABASE BEGIN NULL", SqlStatementKind.SystemTrigger)]
     [InlineData("CREATE TYPE adresse AS OBJECT (ort VARCHAR2(40))", SqlStatementKind.PlSqlObject)]
     [InlineData("CREATE OR REPLACE AND COMPILE JAVA SOURCE NAMED x AS class X {}", SqlStatementKind.PlSqlObject)]
     [InlineData("CREATE MLE MODULE m LANGUAGE JAVASCRIPT AS export function f() { return 1 }", SqlStatementKind.PlSqlObject)]
@@ -143,7 +189,10 @@ public sealed class SqlScriptTests
         Assert.Null(SqlScript.Analyze("drop table t").Rejection); // WP-22
         Assert.True(SqlScript.Analyze("ALTER TABLE t ADD y NUMBER").IsDdl);
         Assert.StartsWith("TRUNCATE führt der SQL-Editor nicht aus", SqlScript.Analyze("truncate table t").Rejection);
-        Assert.StartsWith("PL/SQL-Objekte", SqlScript.Analyze("CREATE OR REPLACE TRIGGER x BEFORE INSERT ON t BEGIN NULL").Rejection);
+        Assert.StartsWith("PL/SQL-Objekte", SqlScript.Analyze("CREATE OR REPLACE PROCEDURE p AS BEGIN NULL").Rejection);
+        Assert.Null(SqlScript.Analyze("CREATE OR REPLACE TRIGGER x BEFORE INSERT ON t BEGIN NULL").Rejection); // WP-26
+        Assert.True(SqlScript.Analyze("CREATE OR REPLACE TRIGGER x BEFORE INSERT ON t BEGIN NULL").IsDdl);
+        Assert.StartsWith("Trigger auf der Datenbank", SqlScript.Analyze("CREATE TRIGGER x AFTER LOGON ON DATABASE BEGIN NULL").Rejection);
         Assert.Equal("DDL nimmt keine Bind-Variablen (:n) – den Wert direkt ins Statement schreiben.",
             SqlScript.Analyze("ALTER TABLE t MODIFY x DEFAULT :n").Rejection);
         Assert.Null(SqlScript.Analyze("ALTER TABLE t MODIFY x DEFAULT ':n'").Rejection); // a literal, no bind
@@ -195,6 +244,23 @@ public sealed class SqlScriptTests
         var info = SqlScript.Analyze("SELECT * FROM t WHERE a = :Id OR b = :name OR c = :id OR d = ':no' -- :no\n");
 
         Assert.Equal(["Id", "name"], info.Binds);
+    }
+
+    /// <summary>WP-26: :new and :old (and the names of REFERENCING) are the trigger's rows – the editor must not ask for them.</summary>
+    [Fact]
+    public void A_trigger_has_no_binds()
+    {
+        var info = SqlScript.Analyze("""
+            CREATE OR REPLACE TRIGGER kunde_audit AFTER UPDATE ON kunde REFERENCING NEW AS n FOR EACH ROW
+            BEGIN
+              IF :n.name <> :old.name THEN INSERT INTO audit_kunde (name) VALUES (:n.name); END IF;
+            END;
+            """);
+
+        Assert.Equal(SqlStatementKind.Trigger, info.Kind);
+        Assert.Empty(info.Binds);
+        Assert.Empty(info.BindUses);
+        Assert.Null(info.Rejection);
     }
 
     [Theory]
@@ -293,7 +359,9 @@ public sealed class SqlScriptTests
         Assert.Equal("„UPDATE“ ist keine DDL-Anweisung.", SqlScript.DdlRejection("UPDATE kunden SET name = 'x'"));
         Assert.Equal("DDL nimmt keine Bind-Variablen (:v) – den Wert direkt ins Statement schreiben.",
             SqlScript.DdlRejection("ALTER TABLE kunden MODIFY (name DEFAULT :v)"));
-        Assert.NotNull(SqlScript.DdlRejection("CREATE OR REPLACE TRIGGER t BEFORE INSERT ON kunden BEGIN NULL; END;"));
+        Assert.Null(SqlScript.DdlRejection("CREATE OR REPLACE TRIGGER t BEFORE INSERT ON kunden BEGIN NULL; END;")); // WP-26
+        Assert.NotNull(SqlScript.DdlRejection("CREATE OR REPLACE PROCEDURE p AS BEGIN NULL; END;"));
+        Assert.NotNull(SqlScript.DdlRejection("CREATE TRIGGER t AFTER LOGON ON DATABASE BEGIN NULL; END;"));
     }
 
     [Theory]

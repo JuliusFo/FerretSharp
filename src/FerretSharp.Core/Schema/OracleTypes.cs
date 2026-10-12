@@ -1,4 +1,6 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace FerretSharp.Core.Schema;
 
@@ -27,7 +29,7 @@ public enum ColumnTypeChange
 /// over type names stood in the schema records, the DDL proposal, the model comparison and the value parser – and
 /// drifted (<c>NUMBER(*,2)</c> was displayed as <c>NUMBER</c>, so the schema comparison missed it).
 /// </summary>
-public static class OracleTypes
+public static partial class OracleTypes
 {
     /// <summary>VARCHAR2, NVARCHAR2, CHAR, NCHAR: text with a length.</summary>
     public static bool IsCharacter(string dataType) => dataType is "VARCHAR2" or "NVARCHAR2" or "CHAR" or "NCHAR";
@@ -46,6 +48,144 @@ public static class OracleTypes
     /// Large or long values, which MODIFY cannot convert and the grid only previews: CLOB, NCLOB, BLOB, BFILE, LONG, LONG RAW.
     /// </summary>
     public static bool IsLobOrLong(string dataType) => dataType is "CLOB" or "NCLOB" or "BLOB" or "BFILE" or "LONG" or "LONG RAW";
+
+    /// <summary>
+    /// LONG and LONG RAW: a trigger has no <c>:new</c>/<c>:old</c> for them (ORA-04093), and a table holds at most one.
+    /// </summary>
+    public static bool IsLong(string dataType) => dataType is "LONG" or "LONG RAW";
+
+    /// <summary>
+    /// Values of the type can be compared with <c>=</c> and <c>&lt;&gt;</c> in SQL and PL/SQL: character, number, date,
+    /// timestamp and interval types, RAW, ROWID and BOOLEAN. Not: LOBs and BFILE (PLS-00306), LONG, XMLTYPE, JSON,
+    /// VECTOR and object types (any other type name in <c>DATA_TYPE</c>).
+    /// </summary>
+    public static bool IsComparable(string dataType) =>
+        IsCharacter(dataType)
+        || dataType is "NUMBER" or "FLOAT" or "BINARY_FLOAT" or "BINARY_DOUBLE" or "DATE" or "RAW" or "ROWID" or "UROWID" or "BOOLEAN"
+        || dataType.StartsWith("TIMESTAMP", StringComparison.Ordinal)
+        || dataType.StartsWith("INTERVAL", StringComparison.Ordinal);
+
+    /// <summary>
+    /// Reads a type as written in DDL (<c>NUMBER(12,2)</c>, <c>VARCHAR2(30 CHAR)</c>, <c>TIMESTAMP</c>, <c>INTEGER</c> …) into the
+    /// facets of a <see cref="ColumnInfo"/> as the dictionary would show them after a CREATE TABLE: <c>TIMESTAMP</c> is
+    /// <c>TIMESTAMP(6)</c>, <c>NUMBER(10)</c> has scale 0, <c>INTEGER</c> is a NUMBER with scale 0 and no precision,
+    /// <c>FLOAT</c> is <c>FLOAT(126)</c>, VARCHAR2 and CHAR without CHAR count bytes (<see cref="DdlType"/> writes BYTE).
+    /// The column has no name, is nullable and at position 0. Keywords in any case; false for anything else, including
+    /// object types and out-of-range facets.
+    /// </summary>
+    public static bool TryParse(string text, [NotNullWhen(true)] out ColumnInfo? type)
+    {
+        type = null;
+        var t = TypeSpaces().Replace(text.Trim().ToUpperInvariant(), " ");
+        t = SpaceBeforeClose().Replace(SpaceAroundOpen().Replace(t, "$1"), ")");
+        ColumnInfo Of(string dataType, int? length = null, bool charSemantics = false, int? precision = null, int? scale = null) =>
+            new("", dataType, length, charSemantics, precision, scale, Nullable: true, IsIdentity: false, Default: null, Position: 0);
+
+        if (TextType().Match(t) is { Success: true } chars)
+        {
+            var name = chars.Groups["type"].Value is "VARCHAR" ? "VARCHAR2" : chars.Groups["type"].Value;
+            var unit = chars.Groups["unit"].Value;
+            int? length = chars.Groups["length"].Success ? Number(chars.Groups["length"].Value) : name is "CHAR" or "NCHAR" ? 1 : null;
+            var max = name is "CHAR" or "NCHAR" ? 2000 : 32767;
+            if (length is not { } l || l < 1 || l > max || unit.Length > 0 && name is not ("VARCHAR2" or "CHAR"))
+            {
+                return false;
+            }
+
+            type = Of(name, l, charSemantics: unit == "CHAR" || name is "NVARCHAR2" or "NCHAR");
+            return true;
+        }
+
+        if (NumberType().Match(t) is { Success: true } number)
+        {
+            var p = number.Groups["p"];
+            var s = number.Groups["s"];
+            int? precision = p.Success && p.Value != "*" ? Number(p.Value) : null;
+            int? scale = s.Success ? Number(s.Value) : precision is null ? null : 0;
+            if (precision is < 1 or > 38 || scale is < -84 or > 127)
+            {
+                return false;
+            }
+
+            type = Of("NUMBER", precision: precision, scale: scale);
+            return true;
+        }
+
+        if (FloatType().Match(t) is { Success: true } @float)
+        {
+            var precision = @float.Groups["p"].Success ? Number(@float.Groups["p"].Value) : MaxFloatPrecision;
+            if (precision is < 1 or > MaxFloatPrecision)
+            {
+                return false;
+            }
+
+            type = Of("FLOAT", precision: precision);
+            return true;
+        }
+
+        if (TimestampType().Match(t) is { Success: true } timestamp)
+        {
+            var fraction = timestamp.Groups["f"].Success ? Number(timestamp.Groups["f"].Value) : 6;
+            if (fraction > 9)
+            {
+                return false;
+            }
+
+            type = Of($"TIMESTAMP({N(fraction)}){timestamp.Groups["zone"].Value}", scale: fraction);
+            return true;
+        }
+
+        if (IntervalType().Match(t) is { Success: true } interval)
+        {
+            var leading = interval.Groups["p"].Success ? Number(interval.Groups["p"].Value) : 2;
+            if (interval.Groups["unit"].Value == "YEAR")
+            {
+                type = Of($"INTERVAL YEAR({N(leading)}) TO MONTH", precision: leading, scale: 0);
+                return true;
+            }
+
+            var fraction = interval.Groups["f"].Success ? Number(interval.Groups["f"].Value) : 6;
+            type = fraction > 9 ? null : Of($"INTERVAL DAY({N(leading)}) TO SECOND({N(fraction)})", precision: leading, scale: fraction);
+            return type is not null;
+        }
+
+        type = t switch
+        {
+            "INTEGER" or "INT" or "SMALLINT" => Of("NUMBER", scale: 0),
+            "DATE" or "BINARY_FLOAT" or "BINARY_DOUBLE" or "CLOB" or "NCLOB" or "BLOB" or "BFILE" or "LONG" or "LONG RAW" or "ROWID"
+                or "XMLTYPE" or "JSON" or "BOOLEAN" => Of(t),
+            "SYS.XMLTYPE" => Of("XMLTYPE"),
+            _ => null,
+        };
+        return type is not null;
+
+        static int Number(string digits) =>
+            int.TryParse(digits, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var n) ? n : int.MaxValue;
+    }
+
+    [GeneratedRegex(@"\s+")]
+    private static partial Regex TypeSpaces();
+
+    [GeneratedRegex(@" ?([(,]) ?")]
+    private static partial Regex SpaceAroundOpen();
+
+    [GeneratedRegex(@" \)")]
+    private static partial Regex SpaceBeforeClose();
+
+    [GeneratedRegex(@"^(?<type>VARCHAR2|VARCHAR|NVARCHAR2|CHAR|NCHAR|RAW)(\((?<length>\d+)( (?<unit>BYTE|CHAR))?\))?$")]
+    private static partial Regex TextType();
+
+    [GeneratedRegex(@"^NUMBER(\((?<p>\*|\d+)(,(?<s>-?\d+))?\))?$")]
+    private static partial Regex NumberType();
+
+    [GeneratedRegex(@"^FLOAT(\((?<p>\d+)\))?$")]
+    private static partial Regex FloatType();
+
+    [GeneratedRegex(@"^TIMESTAMP(\((?<f>\d)\))?(?<zone> WITH TIME ZONE| WITH LOCAL TIME ZONE)?$")]
+    private static partial Regex TimestampType();
+
+    [GeneratedRegex(@"^INTERVAL ((?<unit>YEAR)(\((?<p>\d)\))? TO MONTH|(?<unit>DAY)(\((?<p>\d)\))? TO SECOND(\((?<f>\d)\))?)$")]
+    private static partial Regex IntervalType();
 
     /// <summary>Type families between which <c>MODIFY</c> can change a type; anything else needs a new column.</summary>
     public static string Family(string dataType) => dataType switch

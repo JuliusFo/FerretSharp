@@ -22,10 +22,22 @@ internal static class StatementGuard
 
     /// <summary>
     /// A single DDL statement as the SQL editor runs it (WP-22, ADR 0019): CREATE, ALTER, DROP, COMMENT, GRANT … – never
-    /// TRUNCATE, ALTER SESSION/SYSTEM, PL/SQL objects or blocks, and no bind variables (Oracle allows none in DDL).
+    /// TRUNCATE, ALTER SESSION/SYSTEM, PL/SQL blocks or PL/SQL objects other than a trigger on a table or view (WP-26,
+    /// ADR 0021), and no bind variables (Oracle allows none in DDL).
     /// </summary>
-    public static bool IsDdl(string sql) =>
-        Significant(sql) is { } tokens && SqlClassifier.KindOf(tokens) == SqlStatementKind.Ddl && !tokens.Any(t => t.Kind == SqlTokenKind.Bind);
+    public static bool IsDdl(string sql)
+    {
+        var tokens = WithoutTerminator(SqlTokenizer.Significant(sql));
+        return tokens.Count > 0 && SqlClassifier.KindOf(tokens) switch
+        {
+            SqlStatementKind.Ddl => !tokens.Any(t => t.IsSymbol(";")) && !tokens.Any(t => t.Kind == SqlTokenKind.Bind),
+
+            // Its body holds ";" and ":new"/":old" – one statement all the same: Oracle compiles everything after CREATE as
+            // the trigger, so text behind its END is a compile error, never a second statement.
+            SqlStatementKind.Trigger => true,
+            _ => false,
+        };
+    }
 
     /// <summary>A single query ending in FOR UPDATE WAIT n (up to 3 digits) or FOR UPDATE NOWAIT – never one that waits forever.</summary>
     public static bool IsLock(string sql) =>
@@ -39,13 +51,18 @@ internal static class StatementGuard
     /// <summary>The tokens without spaces and comments, without trailing <c>;</c>; null if that is no single statement.</summary>
     private static List<SqlToken>? Significant(string sql)
     {
-        var tokens = SqlTokenizer.Significant(sql);
+        var tokens = WithoutTerminator(SqlTokenizer.Significant(sql));
+        return tokens.Count == 0 || tokens.Any(t => t.IsSymbol(";")) ? null : tokens;
+    }
+
+    private static List<SqlToken> WithoutTerminator(List<SqlToken> tokens)
+    {
         while (tokens.Count > 0 && tokens[^1].IsSymbol(";"))
         {
             tokens.RemoveAt(tokens.Count - 1);
         }
 
-        return tokens.Count == 0 || tokens.Any(t => t.IsSymbol(";")) ? null : tokens;
+        return tokens;
     }
 
     private static bool StartsWithQuery(List<SqlToken> tokens) => tokens[0].IsWord("SELECT") || tokens[0].IsWord("WITH");

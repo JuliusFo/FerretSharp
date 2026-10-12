@@ -258,6 +258,12 @@ public sealed class ColumnDesigner
 
     public bool HasChanges => Columns.Any(c => c.IsChanged) || DroppedConstraints.Count > 0 || AddedConstraints.Count > 0;
 
+    /// <summary>
+    /// Audit table and trigger go into the plan (WP-26): created, or brought up to date with the draft. Null until the view
+    /// knows whether the table has an audit table (then it is on) – off for a table without one, which is the normal case.
+    /// </summary>
+    public bool? WithAudit { get; set; }
+
     /// <summary>The names of the columns as drafted (renamed, new), without dropped ones – for constraint columns.</summary>
     public IReadOnlyList<string> ColumnNames => Columns.Where(c => !c.Dropped && c.Name.Trim().Length > 0).Select(c => c.Name.Trim()).ToList();
 
@@ -429,6 +435,7 @@ public sealed class ColumnDesigner
             next.Referenced[reference] = details;
         }
 
+        next.WithAudit = WithAudit;
         return next;
     }
 

@@ -15,8 +15,17 @@ public enum SqlStatementKind
     /// <summary>TRUNCATE: DDL that deletes every row without a way back – never run (decision of the user, WP-22).</summary>
     Truncate,
 
-    /// <summary>CREATE [OR REPLACE] PROCEDURE, FUNCTION, PACKAGE, TRIGGER, TYPE, JAVA: DDL with a PL/SQL body.</summary>
+    /// <summary>CREATE [OR REPLACE] PROCEDURE, FUNCTION, PACKAGE, TYPE, JAVA: DDL with a PL/SQL body.</summary>
     PlSqlObject,
+
+    /// <summary>
+    /// CREATE [OR REPLACE] TRIGGER on a table or view (a DML trigger): DDL with a PL/SQL body that the schema path takes
+    /// (WP-26, ADR 0021). <c>:new</c> and <c>:old</c> in it are no bind variables.
+    /// </summary>
+    Trigger,
+
+    /// <summary>CREATE [OR REPLACE] TRIGGER … ON DATABASE or ON SCHEMA: fires on logon or on every DDL – never run (ADR 0021).</summary>
+    SystemTrigger,
     PlSql,
     Call,
 
@@ -81,7 +90,9 @@ public static class SqlClassifier
             "MERGE" => SqlStatementKind.Merge,
             "ALTER" when second is "SESSION" or "SYSTEM" => SqlStatementKind.SessionControl,
             "TRUNCATE" => SqlStatementKind.Truncate,
-            "CREATE" when CreatesPlSqlObject(tokens) => SqlStatementKind.PlSqlObject,
+            "CREATE" when PlSqlObjectAt(tokens) is { } at => !tokens[at].IsWord("TRIGGER") ? SqlStatementKind.PlSqlObject
+                : IsSystemTrigger(tokens, at) ? SqlStatementKind.SystemTrigger
+                : SqlStatementKind.Trigger,
             _ when DdlWords.Contains(first) => SqlStatementKind.Ddl,
             "BEGIN" or "DECLARE" => SqlStatementKind.PlSql,
             "CALL" or "EXEC" or "EXECUTE" => SqlStatementKind.Call,
@@ -96,23 +107,46 @@ public static class SqlClassifier
         tokens[0].Kind == SqlTokenKind.Word ? tokens[0].Value.ToUpperInvariant() : tokens[0].Value;
 
     /// <summary>
-    /// <c>CREATE [OR REPLACE] [EDITIONABLE | NONEDITIONABLE] PROCEDURE …</c> and the other objects with a PL/SQL (or Java)
-    /// body. Their body holds <c>;</c>, so the editor's split would cut them apart anyway.
+    /// Where <c>CREATE [OR REPLACE] [EDITIONABLE | NONEDITIONABLE] PROCEDURE …</c> and the other objects with a PL/SQL (or
+    /// Java) body name their object type; null for any other CREATE. Their body holds <c>;</c>, so the editor's split would
+    /// cut them apart anyway.
     /// </summary>
-    private static bool CreatesPlSqlObject(IReadOnlyList<SqlToken> tokens)
+    private static int? PlSqlObjectAt(IReadOnlyList<SqlToken> tokens)
     {
         for (var i = 1; i < tokens.Count && tokens[i].Kind == SqlTokenKind.Word; i++)
         {
             var word = tokens[i].Value.ToUpperInvariant();
             if (PlSqlObjects.Contains(word))
             {
-                return true;
+                return i;
             }
 
             if (!CreateModifiers.Contains(word))
             {
-                return false;
+                return null;
             }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// A trigger on the database or a schema (<c>AFTER LOGON ON DATABASE</c>, <c>BEFORE DDL ON [owner.]SCHEMA</c>,
+    /// <c>ON PLUGGABLE DATABASE</c>) rather than on a table or view: the first <c>ON</c> after the trigger's name decides.
+    /// A quoted <c>"SCHEMA"</c> is a table of that name.
+    /// </summary>
+    private static bool IsSystemTrigger(IReadOnlyList<SqlToken> tokens, int trigger)
+    {
+        for (var i = trigger + 1; i + 1 < tokens.Count; i++)
+        {
+            if (!tokens[i].IsWord("ON"))
+            {
+                continue;
+            }
+
+            var target = tokens[i + 1];
+            return target.IsWord("DATABASE") || target.IsWord("PLUGGABLE") || target.IsWord("SCHEMA")
+                || (i + 3 < tokens.Count && tokens[i + 2].IsSymbol(".") && tokens[i + 3].IsWord("SCHEMA"));
         }
 
         return false;

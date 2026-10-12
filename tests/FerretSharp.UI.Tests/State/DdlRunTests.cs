@@ -1,5 +1,6 @@
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
+using FerretSharp.Core.Schema;
 using FerretSharp.UI.State;
 
 namespace FerretSharp.UI.Tests.State;
@@ -90,6 +91,30 @@ public sealed class DdlRunTests
         var history = await app.History.LoadAsync(profile.Id, Ct);
         Assert.Equal([(Second, false), (First, true)], history.Select(h => (h.Sql, h.Ddl)));
         Assert.NotNull(history[0].Error);
+    }
+
+    /// <summary>
+    /// WP-26: a trigger that does not compile is created all the same (disabled). The run stops there with its message, and
+    /// the schema is reloaded although no statement succeeded – the explorer shows the new, invalid trigger.
+    /// </summary>
+    [Fact]
+    public async Task A_trigger_that_does_not_compile_stops_the_run_and_still_reloads_the_schema()
+    {
+        await using var app = new TestApp();
+        var scope = await app.OpenAsync(TestApp.Profile("Test"));
+        const string trigger = """CREATE OR REPLACE TRIGGER "APP_USER"."KUNDEN_AUD" AFTER INSERT ON "APP_USER"."KUNDEN" FOR EACH ROW BEGIN x; END;""";
+        var compileError = new TriggerCompileException("APP_USER", "KUNDEN_AUD",
+            [new PlSqlError(PlSqlPart.Spec, 1, 99, "PLS-00201: Bezeichner 'X' muss deklariert werden", false)], isEnabled: false, statement: null);
+        app.FailDdl = sql => sql == trigger ? compileError : null;
+
+        var result = await app.Lifecycle.Statements.RunDdlAsync(scope.Workspaces.Active!.Id, [trigger, Second], null, null, null, Ct);
+
+        Assert.Empty(result.Ran);
+        Assert.Equal(trigger, result.Failed);
+        Assert.Same(compileError, result.Error);
+        Assert.Contains("1:99 PLS-00201", result.Error!.Display, StringComparison.Ordinal);
+        Assert.Empty(app.RanDdl); // the comment after it did not run
+        Assert.Equal("Schema geändert – Explorer und offene Tabs zeigen den neuen Stand.", app.Shell.Notice?.Text);
     }
 
     [Fact]

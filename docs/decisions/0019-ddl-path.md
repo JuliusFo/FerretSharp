@@ -42,3 +42,7 @@ Entscheidungen des Nutzers (2026-10-06 und 2026-10-10):
 - `ALTER TABLE … ADD` wartet in Oracle 23 auf die offene Transaktion einer anderen Session (`enq: TX - row lock contention`) statt mit ORA-00054 abzubrechen. Das Warten lässt sich **nicht** abbrechen: `OracleCommand.Cancel()`, ein `CommandTimeout` und das Schließen der Connection (also auch „Session trennen“) beenden es nicht; sobald die andere Transaktion endet, läuft das DDL durch (Versuch gegen Oracle 23 Free in WP-22). Abhilfe ist nur, die andere Transaktion zu committen oder zu verwerfen – deshalb startet der Schemaweg `ALTER TABLE` nur, wenn er die Tabelle vorher sperren konnte. Ein Rest bleibt: Schreibt eine andere Session genau zwischen `LOCK` und dem impliziten Commit des DDL, kann das DDL doch warten (dafür bleibt der Hinweis in der Laufanzeige); andere DDL-Formen, die warten und hier nicht geprüft wurden, sind nicht abgedeckt.
 - DDL verändert den Snapshot anderer gesperrter Workspaces (ORA-01466); deren Abfragen starten wie bisher einen neuen Snapshot und wiederholen.
 - PL/SQL-Objekte, Trigger aus Vorlagen (WP-26) und PL/SQL ausführen brauchen eine eigene Entscheidung (Splitter für `/`-Blöcke, Kompilierfehler aus `ALL_ERRORS` statt ORA-24344).
+
+## Nachtrag WP-26 (2026-10-12)
+
+- Trigger auf Tabellen und Views nimmt der Schemaweg seit WP-26 an: ADR 0021. Procedures, Functions, Packages, Types, System-Trigger und PL/SQL-Blöcke bleiben abgewiesen.

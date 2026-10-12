@@ -1,5 +1,6 @@
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
+using FerretSharp.Core.Ddl;
 using FerretSharp.Core.Query;
 using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
@@ -14,6 +15,10 @@ namespace FerretSharp.Core.Oracle;
 /// </summary>
 internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
 {
+    private const string CurrentSchemaSql = "SELECT SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') FROM DUAL";
+
+    private const string TriggerStatusSql = "SELECT status FROM all_objects WHERE owner = :owner AND object_name = :name AND object_type = 'TRIGGER'";
+
     /// <summary>The writes of the open transaction with their savepoints, and the ones taken back (redo, WP-30).</summary>
     private readonly WriteLog _log = new();
     private int _counter;
@@ -176,23 +181,111 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
                 throw new RefusedException(OracleText.WorkspaceReadOnly);
             }
 
-            try
+            if (TriggerDdl.NameOf(statement) is { } trigger)
             {
-                await session.ExecuteDdlAsync(statement, cancellationToken);
+                await CreateTriggerAsync(statement, trigger.Owner, trigger.Name, cancellationToken);
             }
-            catch (DatabaseException error) when (error.ErrorCode == OracleErrorCodes.Code(OracleErrorCodes.ResourceBusy))
+            else
             {
-                // DROP and the like do not wait for locks (DDL_LOCK_TIMEOUT 0): usually another workspace has written to the
-                // table. (ALTER TABLE … ADD waits for that transaction instead, and cannot be cancelled – ADR 0019.)
-                throw new DatabaseException(TextFormat.Format(OracleText.DdlObjectBusy, error.Message), error.ErrorCode, error)
-                {
-                    Statement = error.Statement,
-                };
+                await RunDdlAsync(statement, cancellationToken);
             }
 
             _log.Clear();
             return true;
         }, cancellationToken);
+
+    private async Task RunDdlAsync(string statement, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await session.ExecuteDdlAsync(statement, cancellationToken);
+        }
+        catch (DatabaseException error) when (error.ErrorCode == OracleErrorCodes.Code(OracleErrorCodes.ResourceBusy))
+        {
+            // DROP and the like do not wait for locks (DDL_LOCK_TIMEOUT 0): usually another workspace has written to the
+            // table. (ALTER TABLE … ADD waits for that transaction instead, and cannot be cancelled – ADR 0019.)
+            throw new DatabaseException(TextFormat.Format(OracleText.DdlObjectBusy, error.Message), error.ErrorCode, error)
+            {
+                Statement = error.Statement,
+            };
+        }
+    }
+
+    /// <summary>
+    /// A trigger is created in two steps (WP-26, ADR 0021, the user's decision): with <c>DISABLE</c>, then – only if it
+    /// compiled – <c>ALTER TRIGGER … ENABLE</c>. An invalid enabled trigger would make every DML on its table fail
+    /// (ORA-04098) for every user. Whether it compiled says only its status in <c>ALL_OBJECTS</c>: ODP.NET reports a trigger
+    /// with compile errors as success (Oracle 23 – no ORA-24344, unlike a package body; that is caught too, in case another
+    /// version raises it). An invalid trigger becomes a <see cref="TriggerCompileException"/> with the errors from
+    /// <c>ALL_ERRORS</c> and stays disabled. If the statement says ENABLE or DISABLE itself, it runs as written and nothing is
+    /// enabled afterwards (but an invalid trigger is still reported). Once the CREATE has run, the rest is not cancelled: a
+    /// cancel then would leave the trigger disabled while reporting that nothing happened.
+    /// </summary>
+    /// <param name="owner">The trigger's owner as the statement names it; null for the session's current schema.</param>
+    private async Task CreateTriggerAsync(string statement, string? owner, string name, CancellationToken cancellationToken)
+    {
+        owner ??= await CurrentSchemaAsync();
+
+        // IF NOT EXISTS on an existing trigger does nothing (23ai): checking and enabling it afterwards would switch on a
+        // trigger the user disabled, or report errors of a statement that never ran (R5 review).
+        if (TriggerDdl.IfNotExists(statement) && await TriggerStatusAsync(owner, name) is not null)
+        {
+            return;
+        }
+
+        var disabled = TriggerDdl.WithDisable(statement);
+        var run = new QuerySpec(disabled ?? statement, []);
+        DatabaseException? compileError = null;
+        try
+        {
+            // Not cancelled: CREATE TRIGGER does not wait for other sessions' transactions (ADR 0021), and a cancel that
+            // lands as it completes would leave a replaced trigger disabled while the editor reports nothing happened.
+            await RunDdlAsync(run.Sql, CancellationToken.None);
+        }
+        catch (DatabaseException error) when (error.ErrorCode == OracleErrorCodes.Code(OracleErrorCodes.CompiledWithErrors))
+        {
+            compileError = error;
+        }
+
+        if (compileError is not null || await TriggerStatusAsync(owner, name) != "VALID")
+        {
+            var enabled = disabled is null && TriggerDdl.StatedEnabled(statement) != false;
+            throw new TriggerCompileException(owner, name, await TriggerErrorsAsync(owner, name), enabled, run, compileError, source: statement);
+        }
+
+        if (disabled is not null)
+        {
+            await session.ExecuteDdlAsync(TriggerDdl.Enable(owner, name), CancellationToken.None);
+        }
+    }
+
+    /// <summary>Where an unqualified name lands.</summary>
+    private Task<string> CurrentSchemaAsync() =>
+        session.ExecuteReaderAsync(CurrentSchemaSql, [], async (reader, ct) =>
+            await reader.ReadAsync(ct) ? reader.GetString(0) : throw new InvalidOperationException("No current schema."), CancellationToken.None);
+
+    /// <summary>The trigger's <c>ALL_OBJECTS.STATUS</c> (VALID/INVALID); null if there is none – never enable it then.</summary>
+    private Task<string?> TriggerStatusAsync(string owner, string name) =>
+        session.ExecuteReaderAsync(TriggerStatusSql, [new("owner", owner), new("name", name)], async (reader, ct) =>
+            await reader.ReadAsync(ct) ? reader.GetString(0) : null, CancellationToken.None);
+
+    /// <summary>
+    /// The trigger's compile errors (errors before warnings) through the read path, with the select of the PL/SQL view
+    /// (WP-28); empty if they cannot be read – the trigger exists all the same, and that must reach the user.
+    /// </summary>
+    private async Task<IReadOnlyList<PlSqlError>> TriggerErrorsAsync(string owner, string name)
+    {
+        try
+        {
+            var errors = await new OracleSchemaReader(session).GetErrorsAsync(
+                new PlSqlObjectSummary(owner, name, PlSqlKind.Trigger, "INVALID"), CancellationToken.None);
+            return [.. errors.OrderBy(e => e.IsWarning)];
+        }
+        catch (DatabaseException)
+        {
+            return [];
+        }
+    }
 
     private async Task<T> OneAtATimeAsync<T>(Func<Task<T>> write, CancellationToken cancellationToken)
     {

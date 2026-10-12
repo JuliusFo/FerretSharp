@@ -21,7 +21,10 @@ public sealed record StatementOutcome(DateTimeOffset At, TimeSpan Elapsed)
     /// <summary>Start of the transaction <see cref="Written"/> ran in (tells undo from commit or rollback, <see cref="WorkspaceEditing.FateOf"/>).</summary>
     public DateTimeOffset? Transaction { get; init; }
 
-    /// <summary>DDL ran: committed by Oracle at once, nothing to undo.</summary>
+    /// <summary>
+    /// DDL ran: committed by Oracle at once, nothing to undo. Also with <see cref="Error"/> for a trigger that was created
+    /// but does not compile (<see cref="TriggerCompileException"/>, WP-26): it exists, disabled.
+    /// </summary>
     public bool SchemaChanged { get; init; }
 
     public DatabaseException? Error { get; init; }
@@ -129,7 +132,10 @@ public sealed class StatementRunner(
         var ran = await shell.RunDbAsync(logger, scope.Active, () => scope.Workspaces.ExecuteDdlAsync(workspaceId, statement, cancellationToken), cancellationToken);
         if (!ran.Succeeded)
         {
-            return await FailedAsync(scope, at, ran, log, ddl: statement);
+            var failed = await FailedAsync(scope, at, ran, log, ddl: statement);
+
+            // WP-26: a trigger that does not compile was created all the same (disabled) – the schema changed.
+            return ran.Error is TriggerCompileException ? failed with { SchemaChanged = true } : failed;
         }
 
         var logged = await LogAsync(scope, log, at, DateTimeOffset.Now - at, ddl: true);
@@ -196,11 +202,13 @@ public sealed class StatementRunner(
 
         var ran = new List<string>();
         DdlRunResult? failure = null;
+        var changedSchema = false;
         foreach (var statement in statements)
         {
             starting?.Invoke(statement);
             var outcome = await DdlAsync(workspaceId, statement, StatementLog.Of(statement), cancellationToken);
-            if (outcome.SchemaChanged)
+            changedSchema |= outcome.SchemaChanged;
+            if (outcome is { SchemaChanged: true, Error: null })
             {
                 ran.Add(statement);
                 continue;
@@ -214,7 +222,7 @@ public sealed class StatementRunner(
 
         var result = (failure ?? new DdlRunResult(ran, null, null, null)) with { Total = statements.Count };
         ended?.Invoke(result);
-        await FinishAsync(workspaceId, wrote: false, changedSchema: ran.Count > 0);
+        await FinishAsync(workspaceId, wrote: false, changedSchema);
         shell.NotifyChanged(); // status bar: the transaction is gone after a rollback or DDL
         return result;
     }

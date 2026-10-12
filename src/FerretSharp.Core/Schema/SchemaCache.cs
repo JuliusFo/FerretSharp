@@ -166,6 +166,9 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
     public Task<IReadOnlyList<PlSqlError>> GetErrorsAsync(PlSqlObjectSummary unit, CancellationToken cancellationToken) =>
         reader.GetErrorsAsync(unit, cancellationToken);
 
+    public Task<IReadOnlyList<string>> GetTriggerColumnsAsync(string owner, string trigger, CancellationToken cancellationToken) =>
+        reader.GetTriggerColumnsAsync(owner, trigger, cancellationToken);
+
     public Task<ObjectDependencies> GetDependenciesAsync(PlSqlObjectSummary unit, CancellationToken cancellationToken) =>
         reader.GetDependenciesAsync(unit, cancellationToken);
 

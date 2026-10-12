@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="TemplateHasErrors" xml:space="preserve">
+    <value>The audit template has errors:</value>
+    <comment>First line of the message listing the errors of an audit template (WP-26), one per line below</comment>
+  </data>
+  <data name="ErrorInLine" xml:space="preserve">
+    <value>Line {0}: {1}</value>
+    <comment>{0}: line number in the template; {1}: error message</comment>
+  </data>
+  <data name="UnknownDirective" xml:space="preserve">
+    <value>Unknown directive @{0}.</value>
+    <comment>{0}: directive name as written after “-- @”</comment>
+  </data>
+  <data name="DirectiveRepeated" xml:space="preserve">
+    <value>@{0} appears more than once.</value>
+    <comment>{0}: directive name (audit-table, trigger …)</comment>
+  </data>
+  <data name="DirectiveMissing" xml:space="preserve">
+    <value>@{0} is missing.</value>
+    <comment>{0}: directive name (audit-table, trigger, base-columns, trigger-source)</comment>
+  </data>
+  <data name="DirectiveNeedsValue" xml:space="preserve">
+    <value>@{0} needs a value.</value>
+    <comment>{0}: directive name</comment>
+  </data>
+  <data name="DirectiveTakesNoValue" xml:space="preserve">
+    <value>@{0} takes no value.</value>
+    <comment>{0}: directive name</comment>
+  </data>
+  <data name="BaseColumnsMode" xml:space="preserve">
+    <value>@base-columns takes “as-base” or “nullable”.</value>
+  </data>
+  <data name="TextOutsideSection" xml:space="preserve">
+    <value>This line belongs to no section: columns stand after @columns, the trigger after @trigger-source.</value>
+  </data>
+  <data name="TriggerSourceEmpty" xml:space="preserve">
+    <value>@trigger-source is empty.</value>
+  </data>
+  <data name="ColumnNameMissing" xml:space="preserve">
+    <value>A column line starts with the column name.</value>
+  </data>
+  <data name="ColumnTypeMissing" xml:space="preserve">
+    <value>{0}: the type is missing.</value>
+    <comment>{0}: column name</comment>
+  </data>
+  <data name="ColumnTypeUnknown" xml:space="preserve">
+    <value>{0}: unknown type “{1}”.</value>
+    <comment>{0}: column name; {1}: the type as written in the template</comment>
+  </data>
+  <data name="ColumnNotUnderstood" xml:space="preserve">
+    <value>{0}: “{1}” not understood. After the type come [GENERATED … AS IDENTITY | DEFAULT …] [NOT NULL | NULL] [-- comment].</value>
+    <comment>{0}: column name; {1}: the rest of the line that was not understood</comment>
+  </data>
+  <data name="ColumnDefaultInvalid" xml:space="preserve">
+    <value>{0}: the default is missing or cannot stand in a statement (no “;”, no bind variable, matching brackets).</value>
+    <comment>{0}: column name</comment>
+  </data>
+  <data name="ColumnRepeated" xml:space="preserve">
+    <value>Column {0} appears more than once.</value>
+    <comment>{0}: column name</comment>
+  </data>
+  <data name="NameInvalid" xml:space="preserve">
+    <value>{0}: a name cannot contain double quotes.</value>
+    <comment>{0}: the name</comment>
+  </data>
+  <data name="NameTooLong" xml:space="preserve">
+    <value>{0}: the name is longer than {1} bytes.</value>
+    <comment>{0}: the name; {1}: maximum name length of Oracle (128)</comment>
+  </data>
+  <data name="NameEmpty" xml:space="preserve">
+    <value>@{0} gives an empty name.</value>
+    <comment>{0}: directive name (audit-table, trigger)</comment>
+  </data>
+  <data name="PlaceholderUnknown" xml:space="preserve">
+    <value>Unknown placeholder {0}. Literal braces are written {{{{ and }}}}.</value>
+    <comment>{0}: the placeholder as written, e.g. {tabel}</comment>
+  </data>
+  <data name="PlaceholderNotInDirective" xml:space="preserve">
+    <value>{0} is not available in @{1}.</value>
+    <comment>{0}: placeholder, e.g. {column}; {1}: directive name</comment>
+  </data>
+  <data name="PlaceholderOutsideLoop" xml:space="preserve">
+    <value>{0} only works inside a column loop ({1} … {2}).</value>
+    <comment>{0}: placeholder {column} or {type}; {1}: {each}; {2}: {end}</comment>
+  </data>
+  <data name="PlaceholderTakesNoOptions" xml:space="preserve">
+    <value>{0} takes no options.</value>
+    <comment>{0}: placeholder, e.g. {table}</comment>
+  </data>
+  <data name="LoopOptionUnknown" xml:space="preserve">
+    <value>Unknown option “{0}”: a column loop takes comparable or incomparable, and sep="…".</value>
+    <comment>{0}: the option as written</comment>
+  </data>
+  <data name="LoopOptionRepeated" xml:space="preserve">
+    <value>The option {0} appears more than once.</value>
+    <comment>{0}: option name (comparable, sep)</comment>
+  </data>
+  <data name="SeparatorEscape" xml:space="preserve">
+    <value>Unknown escape “\{0}” in sep: use \n, \t, \" or \\.</value>
+    <comment>{0}: the character after the backslash</comment>
+  </data>
+  <data name="SeparatorNotClosed" xml:space="preserve">
+    <value>The quotes of sep="…" are not closed on this line.</value>
+  </data>
+  <data name="LoopNested" xml:space="preserve">
+    <value>Column loops do not nest: {0} is missing before this {1}.</value>
+    <comment>{0}: {end}; {1}: {each}</comment>
+  </data>
+  <data name="LoopUnpaired" xml:space="preserve">
+    <value>{0} without {1}.</value>
+    <comment>{0}, {1}: {each} and {end}, or the other way round</comment>
+  </data>
+  <data name="BraceNotClosed" xml:space="preserve">
+    <value>“{{” without “}}” on this line. A literal brace is written {{{{.</value>
+  </data>
+  <data name="BraceNotOpened" xml:space="preserve">
+    <value>“}}” without “{{”. A literal brace is written }}}}.</value>
+  </data>
+  <data name="AuditTableIsBaseTable" xml:space="preserve">
+    <value>The audit table would be table {0} itself.</value>
+    <comment>{0}: table name</comment>
+  </data>
+  <data name="ColumnClash" xml:space="preserve">
+    <value>{0} is a column of the template and of table {1}.</value>
+    <comment>{0}: column name; {1}: table name</comment>
+  </data>
+  <data name="LongLeftOut" xml:space="preserve">
+    <value>{0} ({1}) is left out of the audit table and the trigger: a trigger has no :new/:old for LONG.</value>
+    <comment>{0}: column name; {1}: LONG or LONG RAW</comment>
+  </data>
+  <data name="NotComparable" xml:space="preserve">
+    <value>The column loop with comparable in line {0} leaves out {1}: they cannot be compared with &lt;&gt;.</value>
+    <comment>{0}: line number in the template; {1}: column names, comma-separated</comment>
+  </data>
+  <data name="LoopEmpty" xml:space="preserve">
+    <value>The column loop in line {0} has no columns.</value>
+    <comment>{0}: line number in the template</comment>
+  </data>
+  <data name="PlanColumnGoneNullable" xml:space="preserve">
+    <value>{0} is no longer in the table: it stays in {1} with its history and becomes nullable (the trigger no longer fills it).</value>
+    <comment>{0}: column name, {1}: audit table name</comment>
+  </data>
+  <data name="PlanNewColumnNullable" xml:space="preserve">
+    <value>{0} is added to {1} as nullable: the audit table may already have rows without a value.</value>
+    <comment>{0}: column name, {1}: audit table name</comment>
+  </data>
+  <data name="PlanTypeIncompatible" xml:space="preserve">
+    <value>{0} in {1} ({2}) cannot take the values of the table ({3}): the trigger would make every DML on the table fail. Change the audit column by hand first (e.g. a new column), or leave the audit box off.</value>
+    <comment>{0}: column name, {1}: audit table name, {2}: type in the audit table, {3}: type in the table, e.g. VARCHAR2(30)</comment>
+  </data>
+  <data name="PlanTriggerOnOtherTable" xml:space="preserve">
+    <value>There is a trigger {0} already, on {1} – choose another trigger name in the template.</value>
+    <comment>{0}: trigger name, {1}: owner.table the trigger is on</comment>
+  </data>
+  <data name="PlanTriggerDisabled" xml:space="preserve">
+    <value>The trigger {0} is up to date but disabled: changes are not audited.</value>
+    <comment>{0}: trigger name</comment>
+  </data>
+  <data name="PlanTriggerEnabled" xml:space="preserve">
+    <value>The trigger {0} is disabled; rewritten, it is enabled again once it compiles.</value>
+    <comment>{0}: trigger name</comment>
+  </data>
+  <data name="LoopFilterTwice" xml:space="preserve">
+    <value>A column loop takes either comparable or incomparable.</value>
+  </data>
+  <data name="TemplateFileMissing" xml:space="preserve">
+    <value>The audit template {0} does not exist.</value>
+    <comment>{0}: file path from the settings</comment>
+  </data>
+  <data name="TemplateFileUnreadable" xml:space="preserve">
+    <value>The audit template {0} cannot be read: {1}</value>
+    <comment>{0}: file path, {1}: error message of the file system</comment>
+  </data>
+  <data name="StatusTableMissing" xml:space="preserve">
+    <value>audit table {0} is missing</value>
+    <comment>Reason an audit is outdated, lower case (joined with "; "). {0}: table name</comment>
+  </data>
+  <data name="StatusColumnsMissing" xml:space="preserve">
+    <value>{0} missing in the audit table</value>
+    <comment>Reason an audit is outdated. {0}: column names, comma separated</comment>
+  </data>
+  <data name="StatusTriggerMissing" xml:space="preserve">
+    <value>trigger {0} is missing</value>
+    <comment>Reason an audit is outdated. {0}: trigger name</comment>
+  </data>
+  <data name="StatusTriggerInvalid" xml:space="preserve">
+    <value>trigger {0} is invalid</value>
+    <comment>Reason an audit is outdated. {0}: trigger name</comment>
+  </data>
+  <data name="StatusTriggerOutdated" xml:space="preserve">
+    <value>trigger {0} does not fill all columns</value>
+    <comment>Reason an audit is outdated. {0}: trigger name</comment>
+  </data>
+  <data name="StatusOtherDifferences" xml:space="preserve">
+    <value>types or comments differ</value>
+    <comment>Reason an audit is outdated</comment>
+  </data>
+  <data name="StatusTriggerDisabled" xml:space="preserve">
+    <value>trigger {0} is disabled</value>
+    <comment>Reason an audit is outdated. {0}: trigger name</comment>
+  </data>
+  <data name="StatusTriggerOnOtherTable" xml:space="preserve">
+    <value>a trigger {0} exists on {1}</value>
+    <comment>Reason an audit is outdated. {0}: trigger name, {1}: owner.table it is on</comment>
+  </data>
+  <data name="PlanRenameSkipped" xml:space="preserve">
+    <value>{0} → {1} is not renamed in {2}: it has a column {1} already. From now on {1} there receives the values of the renamed column and {0} is no longer filled – check the history.</value>
+    <comment>{0}: old column name, {1}: new column name, {2}: audit table name</comment>
+  </data>
+  <data name="TriggerNameDiffers" xml:space="preserve">
+    <value>The trigger source creates {0}, but @trigger names {1} – FerretSharp would never find the trigger again.</value>
+    <comment>{0}: trigger name in CREATE TRIGGER of the template, {1}: name from the @trigger directive</comment>
+  </data>
+  <data name="TriggerSourceRefused" xml:space="preserve">
+    <value>The trigger source cannot run: {0}</value>
+    <comment>{0}: why the schema path refuses it</comment>
+  </data>
+</root>
