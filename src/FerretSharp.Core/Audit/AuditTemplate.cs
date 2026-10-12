@@ -160,19 +160,29 @@ public sealed record AuditTemplate
         var names = NamesFor(table);
         var usable = Usable(baseColumns);
         var warnings = LongWarnings(baseColumns);
-        IReadOnlyList<ColumnInfo> ColumnsOf(LoopPart loop) => loop.Comparable ? usable.Where(c => OracleTypes.IsComparable(c.DataType)).ToList() : usable;
+        IReadOnlyList<ColumnInfo> ColumnsOf(LoopPart loop) => loop.Filter switch
+        {
+            AuditLoopFilter.Comparable => usable.Where(c => OracleTypes.IsComparable(c.DataType)).ToList(),
+            AuditLoopFilter.Incomparable => usable.Where(c => !OracleTypes.IsComparable(c.DataType)).ToList(),
+            _ => usable,
+        };
 
+        var loops = AuditPattern.Loops(TriggerSource).ToList();
         var used = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var loop in AuditPattern.Loops(TriggerSource))
+        foreach (var loop in loops)
         {
             var columns = ColumnsOf(loop);
             used.UnionWith(columns.Select(c => c.Name));
-            if (columns.Count == 0)
+
+            // Most tables have no LOB: an empty "incomparable" loop is the normal case.
+            if (columns.Count == 0 && loop.Filter != AuditLoopFilter.Incomparable)
             {
                 warnings.Add(TextFormat.Format(AuditText.LoopEmpty, loop.Line));
             }
 
-            if (loop.Comparable && usable.Where(c => !OracleTypes.IsComparable(c.DataType)).Select(c => c.Name).ToList() is { Count: > 0 } skipped)
+            // Skipped columns matter only if no other loop looks at them (UPDATING('{name}')).
+            if (loop.Filter == AuditLoopFilter.Comparable && loops.All(l => l.Filter != AuditLoopFilter.Incomparable)
+                && usable.Where(c => !OracleTypes.IsComparable(c.DataType)).Select(c => c.Name).ToList() is { Count: > 0 } skipped)
             {
                 warnings.Add(TextFormat.Format(AuditText.NotComparable, loop.Line, string.Join(", ", skipped)));
             }
@@ -186,6 +196,7 @@ public sealed record AuditTemplate
             AuditPlaceholder.Owner => Identifier(table.Owner),
             AuditPlaceholder.Column => Identifier(column!.Name),
             AuditPlaceholder.Type => OracleTypes.DdlType(column!),
+            AuditPlaceholder.Name => column!.Name.Replace("'", "''", StringComparison.Ordinal),
             _ => throw new ArgumentOutOfRangeException(nameof(placeholder)),
         };
 

@@ -28,7 +28,10 @@ BEGIN
   ELSE
     IF INSERTING THEN
       audit_trans := 'I';
-    ELSIF {each comparable sep="\n       OR "}(:new.{column} <> :old.{column} OR (:new.{column} IS NULL AND :old.{column} IS NOT NULL) OR (:new.{column} IS NOT NULL AND :old.{column} IS NULL)){end}
+    -- FALSE keeps the condition valid for any columns; a LOB cannot be compared with <>, UPDATING says it was set.
+    ELSIF FALSE{each comparable}
+       OR (:new.{column} <> :old.{column} OR (:new.{column} IS NULL AND :old.{column} IS NOT NULL) OR (:new.{column} IS NOT NULL AND :old.{column} IS NULL)){end}{each incomparable}
+       OR UPDATING('{name}'){end}
     THEN
       audit_trans := 'U';
     ELSE

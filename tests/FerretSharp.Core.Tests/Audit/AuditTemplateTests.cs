@@ -194,8 +194,12 @@ public sealed class AuditTemplateTests
         Assert.DoesNotContain("AUDIT_ID", trigger.Sql.Replace("AUDIT_ID_", "", StringComparison.Ordinal), StringComparison.Ordinal);
         Assert.Contains("INSERT INTO APP.AUDIT_KUNDE (AUDIT_USER, AUDIT_TRANS, AUDIT_TIME, AUDIT_SID, KUNDE_ID, NAME, NOTIZ, \"Bemerkung\", NAME_UPPER)", trigger.Sql, StringComparison.Ordinal);
         Assert.Contains(
-            "ELSIF (:new.KUNDE_ID <> :old.KUNDE_ID OR (:new.KUNDE_ID IS NULL AND :old.KUNDE_ID IS NOT NULL) OR (:new.KUNDE_ID IS NOT NULL AND :old.KUNDE_ID IS NULL))\n       OR (:new.NAME <> :old.NAME",
+            "ELSIF FALSE\n       OR (:new.KUNDE_ID <> :old.KUNDE_ID OR (:new.KUNDE_ID IS NULL AND :old.KUNDE_ID IS NOT NULL) OR (:new.KUNDE_ID IS NOT NULL AND :old.KUNDE_ID IS NULL))\n       OR (:new.NAME <> :old.NAME",
             trigger.Sql, StringComparison.Ordinal);
+
+        // A LOB cannot be compared with <>: UPDATING tells it was set – no warning about skipped columns then.
+        Assert.Contains("\n       OR UPDATING('NOTIZ')\n    THEN", trigger.Sql, StringComparison.Ordinal);
+        Assert.DoesNotContain(trigger.Warnings, w => w.Contains("NOTIZ", StringComparison.Ordinal));
         Assert.StartsWith("CREATE OR REPLACE TRIGGER APP.KUNDE_AUDIT\nAFTER DELETE OR INSERT OR UPDATE ON APP.KUNDE\n", trigger.Sql, StringComparison.Ordinal);
         Assert.Empty(trigger.Problems);
     }
@@ -438,8 +442,10 @@ public sealed class AuditTemplateTests
     [InlineData("-- @audit-table A_{table}\n-- @trigger T_{table}\n-- @table-comment {each}{column}{end}\n-- @base-columns nullable\n-- @trigger-source\nX", 3, "{each} gibt es in @table-comment nicht.")]
     [InlineData("-- @audit-table A_{table}\n-- @trigger T_{table}\n-- @base-columns nullable\n-- @trigger-source\nBEGIN\n  {column}\nEND;", 6, "{column} gibt es nur in einer Spaltenschleife ({each} … {end}).")]
     [InlineData("-- @audit-table A_{table}\n-- @trigger T_{table}\n-- @base-columns nullable\n-- @trigger-source\nBEGIN\n  {table x}\nEND;", 6, "{table} nimmt keine Optionen.")]
-    [InlineData("-- @audit-table A_{table}\n-- @trigger T_{table}\n-- @base-columns nullable\n-- @trigger-source\nBEGIN\n  {each sorted}{column}{end}\nEND;", 6, "Unbekannte Option „sorted“: Eine Spaltenschleife nimmt comparable und sep=\"…\".")]
+    [InlineData("-- @audit-table A_{table}\n-- @trigger T_{table}\n-- @base-columns nullable\n-- @trigger-source\nBEGIN\n  {each sorted}{column}{end}\nEND;", 6, "Unbekannte Option „sorted“: Eine Spaltenschleife nimmt comparable oder incomparable und sep=\"…\".")]
     [InlineData("-- @audit-table A_{table}\n-- @trigger T_{table}\n-- @base-columns nullable\n-- @trigger-source\nBEGIN\n  {each comparable comparable}{column}{end}\nEND;", 6, "Die Option comparable steht mehr als einmal da.")]
+    [InlineData("-- @audit-table A_{table}\n-- @trigger T_{table}\n-- @base-columns nullable\n-- @trigger-source\nBEGIN\n  {each comparable incomparable}{column}{end}\nEND;", 6, "Eine Spaltenschleife nimmt entweder comparable oder incomparable.")]
+    [InlineData("-- @audit-table A_{table}\n-- @trigger T_{table}\n-- @base-columns nullable\n-- @trigger-source\nBEGIN\n  UPDATING('{name}')\nEND;", 6, "{name} gibt es nur in einer Spaltenschleife ({each} … {end}).")]
     [InlineData("-- @audit-table A_{table}\n-- @trigger T_{table}\n-- @base-columns nullable\n-- @trigger-source\nBEGIN\n  {each sep=\"\\r\"}{column}{end}\nEND;", 6, "Unbekannte Escape-Sequenz „\\r“ in sep: möglich sind \\n, \\t, \\\" und \\\\.")]
     [InlineData("-- @audit-table A_{table}\n-- @trigger T_{table}\n-- @base-columns nullable\n-- @trigger-source\nBEGIN\n  {each sep=\", }{column}{end}\nEND;", 6, "Die Anführungszeichen von sep=\"…\" sind in dieser Zeile nicht geschlossen.")]
     [InlineData("-- @audit-table A_{table}\n-- @trigger T_{table}\n-- @base-columns nullable\n-- @trigger-source\nBEGIN\n  {each}{column}\n  {each}{column}{end}\nEND;", 7, "Spaltenschleifen lassen sich nicht schachteln: Vor diesem {each} fehlt {end}.")]

@@ -101,7 +101,7 @@
     <comment>{0}: placeholder, e.g. {table}</comment>
   </data>
   <data name="LoopOptionUnknown" xml:space="preserve">
-    <value>Unknown option “{0}”: a column loop takes comparable and sep="…".</value>
+    <value>Unknown option “{0}”: a column loop takes comparable or incomparable, and sep="…".</value>
     <comment>{0}: the option as written</comment>
   </data>
   <data name="LoopOptionRepeated" xml:space="preserve">
@@ -148,5 +148,32 @@
   <data name="LoopEmpty" xml:space="preserve">
     <value>The column loop in line {0} has no columns.</value>
     <comment>{0}: line number in the template</comment>
+  </data>
+  <data name="PlanColumnGoneNullable" xml:space="preserve">
+    <value>{0} is no longer in the table: it stays in {1} with its history and becomes nullable (the trigger no longer fills it).</value>
+    <comment>{0}: column name, {1}: audit table name</comment>
+  </data>
+  <data name="PlanNewColumnNullable" xml:space="preserve">
+    <value>{0} is added to {1} as nullable: the audit table may already have rows without a value.</value>
+    <comment>{0}: column name, {1}: audit table name</comment>
+  </data>
+  <data name="PlanTypeKept" xml:space="preserve">
+    <value>{0} in {1} keeps its type {2} (the table has {3}): an audit column only ever grows.</value>
+    <comment>{0}: column name, {1}: audit table name, {2}: type in the audit table, {3}: type in the table, e.g. VARCHAR2(30)</comment>
+  </data>
+  <data name="PlanTriggerOnOtherTable" xml:space="preserve">
+    <value>There is a trigger {0} already, on {1} – choose another trigger name in the template.</value>
+    <comment>{0}: trigger name, {1}: owner.table the trigger is on</comment>
+  </data>
+  <data name="PlanTriggerDisabled" xml:space="preserve">
+    <value>The trigger {0} is up to date but disabled: changes are not audited.</value>
+    <comment>{0}: trigger name</comment>
+  </data>
+  <data name="PlanTriggerEnabled" xml:space="preserve">
+    <value>The trigger {0} is disabled; rewritten, it is enabled again once it compiles.</value>
+    <comment>{0}: trigger name</comment>
+  </data>
+  <data name="LoopFilterTwice" xml:space="preserve">
+    <value>A column loop takes either comparable or incomparable.</value>
   </data>
 </root>

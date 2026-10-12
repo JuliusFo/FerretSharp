@@ -13,6 +13,21 @@ internal enum AuditPlaceholder
     Owner,
     Column,
     Type,
+
+    /// <summary>The column's dictionary name for a string literal (<c>'</c> doubled), e.g. <c>UPDATING('{name}')</c>.</summary>
+    Name,
+}
+
+/// <summary>Which base columns a loop repeats over.</summary>
+internal enum AuditLoopFilter
+{
+    All,
+
+    /// <summary>Only columns that can be compared with <c>&lt;&gt;</c> (<see cref="OracleTypes.IsComparable"/>).</summary>
+    Comparable,
+
+    /// <summary>Only the others (LOBs, XMLTYPE …): their change shows through <c>UPDATING('{name}')</c>.</summary>
+    Incomparable,
 }
 
 /// <summary>A piece of a parsed pattern: text, a placeholder or a loop over the base columns.</summary>
@@ -23,12 +38,12 @@ internal sealed record LiteralPart(string Text) : PatternPart;
 internal sealed record PlaceholderPart(AuditPlaceholder Placeholder) : PatternPart;
 
 /// <param name="Line">Line of the <c>{each}</c> in the template, for warnings.</param>
-/// <param name="Comparable">Only columns that can be compared with <c>&lt;&gt;</c> (<see cref="OracleTypes.IsComparable"/>).</param>
+/// <param name="Filter">Which base columns it repeats over.</param>
 /// <param name="Separator">Text between two repetitions; null repeats the body only.</param>
-internal sealed record LoopPart(int Line, bool Comparable, string? Separator, IReadOnlyList<PatternPart> Body) : PatternPart;
+internal sealed record LoopPart(int Line, AuditLoopFilter Filter, string? Separator, IReadOnlyList<PatternPart> Body) : PatternPart;
 
 /// <summary>
-/// The minimal template syntax of WP-26: <c>{name}</c> placeholders, <c>{each [comparable] [sep="…"]}…{end}</c> loops over
+/// The minimal template syntax of WP-26: <c>{table}</c> placeholders, <c>{each [comparable | incomparable] [sep="…"]}…{end}</c> loops over
 /// the base columns (not nested), <c>{{</c> and <c>}}</c> for literal braces. Parsing collects errors with line numbers;
 /// rendering asks the caller for the values.
 /// </summary>
@@ -42,6 +57,7 @@ internal static class AuditPattern
         ["owner"] = AuditPlaceholder.Owner,
         ["column"] = AuditPlaceholder.Column,
         ["type"] = AuditPlaceholder.Type,
+        ["name"] = AuditPlaceholder.Name,
     };
 
     /// <summary>The placeholder as written in a template, for messages.</summary>
@@ -58,7 +74,7 @@ internal static class AuditPattern
         var top = new List<PatternPart>();
         List<PatternPart>? body = null;
         var loopLine = 0;
-        var comparable = false;
+        var filter = AuditLoopFilter.All;
         string? separator = null;
         var literal = new StringBuilder();
 
@@ -110,7 +126,7 @@ internal static class AuditPattern
                     break;
                 case "each":
                     Flush();
-                    (comparable, separator) = LoopOptions(options, line, errors);
+                    (filter, separator) = LoopOptions(options, line, errors);
                     body = [];
                     loopLine = line;
                     break;
@@ -120,7 +136,7 @@ internal static class AuditPattern
                 case "end":
                     NoOptions();
                     Flush();
-                    top.Add(new LoopPart(loopLine, comparable, separator, body));
+                    top.Add(new LoopPart(loopLine, filter, separator, body));
                     body = null;
                     break;
                 default:
@@ -128,11 +144,11 @@ internal static class AuditPattern
                     {
                         errors.Add(new(line, TextFormat.Format(AuditText.PlaceholderUnknown, Written(tag))));
                     }
-                    else if (placeholder is AuditPlaceholder.Column or AuditPlaceholder.Type ? directive is not null : !allowed.Contains(placeholder))
+                    else if (InLoop(placeholder) ? directive is not null : !allowed.Contains(placeholder))
                     {
                         errors.Add(new(line, TextFormat.Format(AuditText.PlaceholderNotInDirective, Written(word), directive)));
                     }
-                    else if (placeholder is AuditPlaceholder.Column or AuditPlaceholder.Type && body is null)
+                    else if (InLoop(placeholder) && body is null)
                     {
                         errors.Add(new(line, TextFormat.Format(AuditText.PlaceholderOutsideLoop, Written(word), Written("each"), Written("end"))));
                     }
@@ -237,6 +253,9 @@ internal static class AuditPattern
         return text.ToString();
     }
 
+    /// <summary>A placeholder of the column a loop repeats over.</summary>
+    private static bool InLoop(AuditPlaceholder placeholder) => placeholder is AuditPlaceholder.Column or AuditPlaceholder.Type or AuditPlaceholder.Name;
+
     /// <summary>The loops of a pattern.</summary>
     public static IEnumerable<LoopPart> Loops(IReadOnlyList<PatternPart> parts) => parts.OfType<LoopPart>();
 
@@ -275,10 +294,10 @@ internal static class AuditPattern
         return (-1, quoted);
     }
 
-    /// <summary><c>comparable</c> and <c>sep="…"</c> with the escapes <c>\n \t \" \\</c>.</summary>
-    private static (bool Comparable, string? Separator) LoopOptions(string options, int line, List<AuditTemplateError> errors)
+    /// <summary><c>comparable</c> or <c>incomparable</c>, and <c>sep="…"</c> with the escapes <c>\n \t \" \\</c>.</summary>
+    private static (AuditLoopFilter Filter, string? Separator) LoopOptions(string options, int line, List<AuditTemplateError> errors)
     {
-        var comparable = false;
+        var filter = AuditLoopFilter.All;
         string? separator = null;
         var i = 0;
         while (i < options.Length)
@@ -333,14 +352,15 @@ internal static class AuditPattern
             }
 
             var word = options[i..end];
-            if (word == "comparable")
+            if (word is "comparable" or "incomparable")
             {
-                if (comparable)
+                if (filter != AuditLoopFilter.All)
                 {
-                    errors.Add(new(line, TextFormat.Format(AuditText.LoopOptionRepeated, word)));
+                    var same = (filter == AuditLoopFilter.Comparable) == (word == "comparable");
+                    errors.Add(new(line, same ? TextFormat.Format(AuditText.LoopOptionRepeated, word) : AuditText.LoopFilterTwice));
                 }
 
-                comparable = true;
+                filter = word == "comparable" ? AuditLoopFilter.Comparable : AuditLoopFilter.Incomparable;
             }
             else
             {
@@ -350,6 +370,6 @@ internal static class AuditPattern
             i = end;
         }
 
-        return (comparable, separator);
+        return (filter, separator);
     }
 }

@@ -82,7 +82,7 @@
     <value>{0} nimmt keine Optionen.</value>
   </data>
   <data name="LoopOptionUnknown" xml:space="preserve">
-    <value>Unbekannte Option „{0}“: Eine Spaltenschleife nimmt comparable und sep="…".</value>
+    <value>Unbekannte Option „{0}“: Eine Spaltenschleife nimmt comparable oder incomparable und sep="…".</value>
   </data>
   <data name="LoopOptionRepeated" xml:space="preserve">
     <value>Die Option {0} steht mehr als einmal da.</value>
@@ -119,5 +119,26 @@
   </data>
   <data name="LoopEmpty" xml:space="preserve">
     <value>Die Spaltenschleife in Zeile {0} hat keine Spalten.</value>
+  </data>
+  <data name="PlanColumnGoneNullable" xml:space="preserve">
+    <value>{0} gibt es in der Tabelle nicht mehr: Die Spalte bleibt mit ihrer Historie in {1} und wird nullable (der Trigger füllt sie nicht mehr).</value>
+  </data>
+  <data name="PlanNewColumnNullable" xml:space="preserve">
+    <value>{0} kommt nullable in {1}: Die Audit-Tabelle kann schon Zeilen ohne Wert haben.</value>
+  </data>
+  <data name="PlanTypeKept" xml:space="preserve">
+    <value>{0} in {1} behält den Typ {2} (die Tabelle hat {3}): Eine Audit-Spalte wird nur größer.</value>
+  </data>
+  <data name="PlanTriggerOnOtherTable" xml:space="preserve">
+    <value>Einen Trigger {0} gibt es schon, auf {1} – in der Vorlage einen anderen Trigger-Namen wählen.</value>
+  </data>
+  <data name="PlanTriggerDisabled" xml:space="preserve">
+    <value>Der Trigger {0} ist aktuell, aber ausgeschaltet: Änderungen werden nicht protokolliert.</value>
+  </data>
+  <data name="PlanTriggerEnabled" xml:space="preserve">
+    <value>Der Trigger {0} ist ausgeschaltet; neu geschrieben wird er wieder eingeschaltet, sobald er kompiliert.</value>
+  </data>
+  <data name="LoopFilterTwice" xml:space="preserve">
+    <value>Eine Spaltenschleife nimmt entweder comparable oder incomparable.</value>
   </data>
 </root>

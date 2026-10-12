@@ -111,17 +111,25 @@ Platzhalter:
 | `{owner}` | Schema, z. B. `APP` |
 | `{column}` | (nur in einer Schleife) Name der Basisspalte, z. B. `KUNDE_ID` |
 | `{type}` | (nur in einer Schleife) Typ der Basisspalte wie in DDL, z. B. `VARCHAR2(80 BYTE)` |
+| `{name}` | (nur in einer Schleife) Name der Basisspalte für ein String-Literal, `'` verdoppelt, z. B. `UPDATING('{name}')` |
 
 - Namen werden als **Bezeichner** geschrieben: ungequotet, wenn Oracle sie so liest (Großbuchstaben, Ziffern, `_ $ #`, beginnt mit einem Buchstaben, kein reserviertes Wort von SQL oder PL/SQL), sonst exakt gequotet: `"Bemerkung"`, `"DATE"`, `"END"` (`OracleIdentifier.QuoteIfNeeded`).
 - `{table}`, `{audit_table}` und `{trigger}` stehen **mit Schema**: Ein ungequalifizierter Name im Kopf des Triggers (`CREATE TRIGGER x … ON t`) gälte im aktuellen Schema der Session, und das ist nicht immer das der Basistabelle. Im Rumpf löst Oracle Namen ohnehin im Schema des Triggers auf (eine Sequence wie `AUDIT_ID_SEQ` braucht deshalb kein Schema).
 - `{{` und `}}` schreiben eine geschweifte Klammer (`REGEXP_LIKE(x, '^[0-9]{{2}}$')`). Eine einzelne `{` oder `}` ist ein Fehler.
 
-**Spaltenschleife:** `{each}…{end}` wiederholt den Text dazwischen für jede Basisspalte (außer LONG), darin gelten `{column}` und `{type}`. Optionen hinter `each`:
+**Spaltenschleife:** `{each}…{end}` wiederholt den Text dazwischen für jede Basisspalte (außer LONG), darin gelten `{column}`, `{type}` und `{name}`. Optionen hinter `each`:
 
 - `sep="…"`: Text zwischen zwei Wiederholungen (nicht vor der ersten, nicht nach der letzten). Escapes wie in C#: `\n`, `\t`, `\"`, `\\`. Ohne `sep` wird nur der Text wiederholt – `{each}, {column}{end}` schreibt vor jede Spalte ein Komma.
-- `comparable`: nur Spalten, die sich mit `<>` vergleichen lassen (`OracleTypes.IsComparable`): Text-, Zahl-, Datums-, Timestamp- und Intervalltypen, `RAW`, `ROWID`, `BOOLEAN`. Nicht: LOBs und `BFILE`, `XMLTYPE`, `JSON`, `VECTOR`, Objekttypen. Lässt eine solche Schleife Spalten aus, warnt FerretSharp (eine Änderung nur in diesen Spalten erkennt der Vergleich nicht).
+- `comparable`: nur Spalten, die sich mit `<>` vergleichen lassen (`OracleTypes.IsComparable`): Text-, Zahl-, Datums-, Timestamp- und Intervalltypen, `RAW`, `ROWID`, `BOOLEAN`. Nicht: LOBs und `BFILE`, `XMLTYPE`, `JSON`, `VECTOR`, Objekttypen. Lässt eine solche Schleife Spalten aus und hat die Vorlage keine `incomparable`-Schleife, warnt FerretSharp (eine Änderung nur in diesen Spalten erkennt der Vergleich nicht).
+- `incomparable`: genau die übrigen Spalten (LOBs …). Ihre Änderung zeigt `UPDATING('{name}')`: wahr, wenn das UPDATE die Spalte setzt – auch auf denselben Wert (Integrationstest gegen Oracle 23, auch mit gemischter Schreibweise wie `"Anhang"`). Die Standardvorlage schreibt die Bedingung deshalb so, dass sie für jede Spaltenmischung gültig bleibt:
 
-Schleifen lassen sich nicht schachteln. Eine Schleife ohne Spalten (z. B. `comparable` bei einer Tabelle nur aus LOBs) ergibt eine Warnung.
+  ```sql
+  ELSIF FALSE{each comparable}
+     OR (:new.{column} <> :old.{column} OR …){end}{each incomparable}
+     OR UPDATING('{name}'){end}
+  ```
+
+Schleifen lassen sich nicht schachteln. Eine Schleife ohne Spalten (z. B. `comparable` bei einer Tabelle nur aus LOBs) ergibt eine Warnung – außer bei `incomparable`, wo das der Normalfall ist.
 
 `AuditTrigger.Columns` nennt die Basisspalten, die in den Schleifen vorkommen – das, was `ALL_TRIGGER_COLS` für einen aktuellen Trigger zeigt.
 
@@ -130,6 +138,15 @@ Schleifen lassen sich nicht schachteln. Eine Schleife ohne Spalten (z. B. `compa
 - **Fehler der Vorlage** (`AuditTemplateException.Errors`, mit Zeile): unbekannte oder doppelte Anweisung, fehlende Pflichtanweisung (Zeile 0), Text außerhalb eines Abschnitts, unverständliche Spaltenzeile oder unbekannter Typ, doppelte Spalte, unbekannter Platzhalter oder Platzhalter an der falschen Stelle, unbekannte Option, falsches Escape, `{each}` ohne `{end}` und umgekehrt, geschachtelte Schleife, einzelne Klammer. `AuditTemplates.Parse` meldet alle auf einmal.
 - **Probleme** (`Problems` von `AuditNames`, `AuditTableShape`, `AuditTrigger`): Die Vorlage passt nicht zu dieser Tabelle (Name zu lang, Spalte doppelt). So nicht anlegen.
 - **Warnungen** (`Warnings`): LONG-Spalten fehlen, eine `comparable`-Schleife lässt Spalten aus, eine Schleife hat keine Spalten.
+
+### Abgleich (`AuditPlanner`)
+
+`AuditLoader.LoadAsync` liest, was das Schema hat (Audit-Tabelle nach dem Namen der Vorlage – nur eine Tabelle zählt –, ihr Kommentar, der Trigger mit Status, Tabelle und `ALL_TRIGGER_COLS`). `AuditPlanner.Plan` macht daraus über den Schreiber des Designers (`TableDesign`) einen `DesignPlan`:
+
+- Keine Audit-Tabelle: `CREATE TABLE` mit Kommentaren, danach der Trigger.
+- Vorhandene Audit-Tabelle (Entscheidungen des Nutzers 2026-10-12): Spalten, die die Tabelle nicht mehr hat, **bleiben** und werden nullable; Typen werden nur **größer** (sonst eine Warnung); Kommentare folgen der Tabelle; Umbenennungen aus dem Designer werden übernommen; neue Spalten kommen ans Ende, in einer Audit-Tabelle mit (oder unbekannt vielen) Zeilen nullable (ORA-01758).
+- Trigger: neu geschrieben, wenn er fehlt, ungültig ist, andere Spalten benutzt als die Vorlage, die Audit-Tabelle neue Spalten bekommt oder ausdrücklich gewünscht (Vorlage geändert). Ein gleichnamiger Trigger auf einer anderen Tabelle ist ein Problem. Ein aktueller, aber ausgeschalteter Trigger wird nur gemeldet.
+- `AuditPlanner.Combine` hängt den Plan an den des Designers: ein Skript, die Basistabelle vor der Audit-Tabelle, der Trigger zuletzt.
 
 Texte: `AuditText.resx` (Englisch) und `AuditText.de.resx`.
 
