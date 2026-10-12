@@ -42,7 +42,7 @@ Was in den abgeschlossenen Paketen gebaut und entschieden wurde, mit Nachträgen
 | WP-23 (2) | Spalten-Designer: Bearbeitungsmodus der Spalten-Ansicht (Spalten, Schlüssel, Checks, FKs mit Index, Prüfungen vorab mit Zählungen, Rest des Entwurfs nach Abbruch), Property-Zeile im Stil des Projekts (Issue #10) | 3.23.0 | 0020 |
 | WP-23 (3) | Neue Tabelle im Designer (Entwurfs-Tab, Rest des Entwurfs nach Abbruch im Tabellen-Tab), Entity + `IEntityTypeConfiguration` aus einer Tabelle (Issue #10) | 3.24.0 | 0020 |
 | WP-26 | Audit-Tabellen und Trigger aus einer Vorlagendatei: anlegen, abgleichen, im Designer mitziehen; Trigger über den Schemaweg (aus, prüfen, ein), Kompilierfehler als Marker | 3.26.0 | 0021 |
-| WP-31 | Anzeigespalten: Namen neben FK-Werten im Grid und im Formular, „nicht gefunden“ für verwaiste Werte, geteilte Datei (Issue #11) | (nächstes Release) | 0022 |
+| WP-31 | Anzeigespalten: Namen neben FK-Werten im Grid und im Formular, „nicht gefunden“ für verwaiste Werte, geteilte Datei (Issue #11) | 3.27.0 | 0022 |
 | R3a | Fehlerbehebung nach dem Review 3.14.0 (Verbindungsverlust je Verbindung, Schreiben serialisiert, UI-Testprojekt) | 3.14.1 | – |
 | R3b | Struktur-Refactoring nach dem Review 3.14.0 (Schema-Reader, Typwissen, SessionGate, UI-Bausteine, State) | 3.15.0 | – |
 | R4a | Fehlerbehebung nach dem Review 3.24.0 (HTML in Zellen, Tracker nach DDL, DDL-Rollback, Designer-Ausdrücke, Einstellungsdateien, Undo/Redo, C#-Entity) | 3.24.1 | (0019) |
@@ -411,7 +411,7 @@ Wunsch des Nutzers (2026-10-09): README, CHANGELOG und Screenshots auf GitHub si
   - Nicht per E2E: alle Dialoge und Meldungen einzeln (Ressourcen-Tests und Prüfdurchgang statt Klickpfad), deutsche Oberfläche verbunden.
 - Offen: Formatkultur (Zahlen „1.234,5“, Laufzeit „1,1 s“ und Datumseingabe `TT.MM.JJJJ` auch in der englischen Oberfläche; Eingabehinweise englisch als „DD.MM.YYYY“) – Backlog. Oracle-Fehlermeldungen kommen in der Sprache des Oracle-Clients (Windows-Locale), nicht der Oberfläche.
 
-### WP-31 Anzeigespalten: Namen neben FK-Werten → nächstes Release
+### WP-31 Anzeigespalten: Namen neben FK-Werten → Release 3.27.0
 Idee des Nutzers (2026-10-12), Issue #11, ADR 0022: Zu `AUFTRAG.KUNDE_ID = 4711` steht im Grid gleich der Name des Kunden – `4711 · PetersPizza`.
 - Entscheidungen des Nutzers (2026-10-12, bei der Planung):
   - Festgelegt in FerretSharp, nicht per Attribut im C#-Code (käme auf Prod erst nach dem Merge nach `release` an, ginge nur mit C#-Projekt).

@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.27.0] - 2026-10-12
+
+Display columns: names beside foreign key values (WP-31); closing several tabs at once.
+
 ### Added
 - Right-click on a tab: close it, the others, the tabs to the right of it, or all. If tabs would lose something (pending changes, a value typed but not confirmed, a table draft, the text of a SQL or LINQ tab), one question lists them: discard and close all, keep these open and close the rest, or cancel.
 - Shortcuts for "Close other tabs" and "Close all tabs" (Settings › Shortcuts, no key by default).
