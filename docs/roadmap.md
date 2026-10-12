@@ -26,6 +26,16 @@ Wunsch der Kollegen des Nutzers (2026-10-07): beim Anlegen einer Tabelle die His
 - Vorbereitet in R4b: DDL-Schritte mit Art und Risiko (`Core/Ddl`, `PlSqlObject` endet im Skript mit `/`), `ColumnChange.Steps` mit `ChangeIntent.Known` für „Spalte in `KUNDEN` neu → in `KUNDEN_HIST` ergänzen“, `SqlSplitter` als eigener Teil (dort kommt der Blockmodus hin), ein `StatementRunner` für alle Statements.
 - Trigger enthalten PL/SQL – WP-22 weist PL/SQL-Blöcke und PL/SQL-Objekte (`CREATE [OR REPLACE] PROCEDURE/FUNCTION/PACKAGE/TRIGGER/TYPE`) ab (Entscheidung des Nutzers 2026-10-10: eigene Stufe). Für `CREATE [OR REPLACE] TRIGGER` aus der Vorlage braucht es eine bewusste, enge Ausnahme (beim Start von WP-26 mit dem Nutzer entscheiden, ADR): Splitter für Blöcke bis zur `/`-Zeile, Kompilierfehler (ORA-24344) aus `ALL_ERRORS` anzeigen.
 
+Entscheidungen des Nutzers beim Start (2026-10-12):
+- **Trigger allgemein** über den Schemaweg, auch von Hand im SQL-Editor; Procedures/Packages/Types bleiben abgewiesen (ADR 0021). System-Trigger (`ON DATABASE`/`ON SCHEMA`) ebenfalls abgewiesen.
+- **Erst DISABLE, dann ENABLE:** Trigger ausgeschaltet anlegen, Kompilierfehler aus `ALL_ERRORS` prüfen, nur gültige einschalten.
+- **Die Audit-Tabelle behält alles:** Gelöschte Basisspalten bleiben (werden nullable, der Trigger füllt sie nicht mehr), Typen werden nur vergrößert, Umbenennungen aus dem Designer werden übernommen. Neue Spalten in einer gefüllten Audit-Tabelle sind nullable (ORA-01758).
+- **Spaltenkommentare** der Basistabelle werden übernommen, auch beim Nachziehen; die der Audit-Spalten und der Tabelle kommen aus der Vorlage.
+- **Einstiege:** Häkchen beim Anlegen einer neuen Tabelle im Designer; „Audit anlegen/abgleichen“ für bestehende Tabellen; im Designer kommen die Audit-Schritte automatisch in den Plan einer Tabelle mit Audit-Tabelle (abwählbar).
+- **Firmenmuster als Testfall** (im Repo mit neutralen Namen): Audit-Tabelle `AUDIT_<TABELLE>` mit `AUDIT_ID` (gemeinsame Sequence `AUDIT_ID_SEQ`), `AUDIT_USER` (`NVL(SYS_CONTEXT('USERENV','CLIENT_IDENTIFIER'), USER)`), `AUDIT_TRANS` (I/U/D), `AUDIT_TIME` (`SYSDATE`), `AUDIT_SID` (`USERENV('sessionid')`), danach alle Basisspalten; Trigger `<TABELLE>_AUDIT`, `AFTER INSERT OR UPDATE OR DELETE … FOR EACH ROW`: D schreibt `:old`, I/U schreiben `:new`, ein UPDATE ohne geänderten Wert (NULL-sicherer Vergleich je Spalte) schreibt nichts.
+- Veraltete Trigger werden über `ALL_TRIGGER_COLS` erkannt (fehlt eine Basisspalte?), nicht über einen Textvergleich – vorhandene Trigger sind anders formatiert als die Vorlage.
+- Je Verbindung überschreibbare Vorlagen: später (Backlog).
+
 ## Offene UX-Fragen
 - Shortcut-Belegung für Commit/Rollback – vorläufig, Nutzerfeedback einholen.
 - Workspaces: Standardname ist „Workspace N“ mit der kleinsten freien Nummer (nach Umbenennen von „Workspace 1“ heißt der nächste wieder „Workspace 1“). Shortcuts zum Wechseln (z. B. Ctrl+1…9) und eine Oberfläche für die Notizen fehlen noch.
