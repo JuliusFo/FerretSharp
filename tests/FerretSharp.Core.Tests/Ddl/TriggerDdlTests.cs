@@ -108,6 +108,20 @@ public sealed class TriggerDdlTests
     [InlineData("")]
     public void Other_statements_name_no_trigger(string sql) => Assert.Null(TriggerDdl.NameOf(sql));
 
+    /// <summary>Oracle counts a trigger's error lines from its body (BEGIN/DECLARE is line 1, Oracle 23).</summary>
+    [Fact]
+    public void A_compile_error_is_found_from_the_body_on()
+    {
+        const string sql = "CREATE TRIGGER t\n  BEFORE INSERT ON k\n  FOR EACH ROW WHEN (NEW.ID > 0)\nDECLARE\n  x NUMBER;\nBEGIN\n  :new.falsch := 1;\nEND;";
+
+        Assert.Equal(sql.IndexOf(":new.falsch", StringComparison.Ordinal), TriggerDdl.ErrorOffset(sql, 4, 3));
+        Assert.Equal(sql.IndexOf("DECLARE", StringComparison.Ordinal), TriggerDdl.ErrorOffset(sql, 1, 1));
+        Assert.Equal("CREATE TRIGGER t BEFORE INSERT ON k FOR EACH ROW BEGIN NULL; END;".IndexOf("NULL", StringComparison.Ordinal),
+            TriggerDdl.ErrorOffset("CREATE TRIGGER t BEFORE INSERT ON k FOR EACH ROW BEGIN NULL; END;", 1, 7));
+        Assert.Null(TriggerDdl.ErrorOffset(sql, 20, 1));
+        Assert.Null(TriggerDdl.ErrorOffset("CREATE TABLE t (x NUMBER)", 1, 1));
+    }
+
     [Fact]
     public void Enable_names_the_trigger_quoted_with_its_owner() =>
         Assert.Equal("""ALTER TRIGGER "APP"."Kunde Aud" ENABLE""", TriggerDdl.Enable("APP", "Kunde Aud"));

@@ -127,6 +127,62 @@ public static class TriggerDdl
         return null;
     }
 
+    /// <summary>
+    /// Where a compile error of the trigger is in <paramref name="createTrigger"/> (offset into the text); null if the error
+    /// lies outside it. Oracle counts a trigger's error lines from its body – the line of DECLARE/BEGIN is line 1 (WP-26,
+    /// experiment against Oracle 23), on that line the column from the body's start, on later lines from the line's start.
+    /// </summary>
+    public static int? ErrorOffset(string createTrigger, int line, int column)
+    {
+        ArgumentNullException.ThrowIfNull(createTrigger);
+        if (BodyStart(createTrigger) is not { } body || line < 1 || column < 1)
+        {
+            return null;
+        }
+
+        var offset = body;
+        for (var n = 1; n < line; n++)
+        {
+            offset = createTrigger.IndexOf('\n', offset) + 1;
+            if (offset == 0)
+            {
+                return null;
+            }
+        }
+
+        offset += column - 1;
+        return offset < createTrigger.Length ? offset : null;
+    }
+
+    /// <summary>The offset of the body (DECLARE, BEGIN, a label, COMPOUND, CALL) – past a WHEN condition; null if there is none.</summary>
+    private static int? BodyStart(string sql)
+    {
+        var tokens = SqlTokenizer.Significant(sql);
+        if (NameAt(tokens) is not { Next: var start })
+        {
+            return null;
+        }
+
+        var depth = 0;
+        for (var i = start; i < tokens.Count; i++)
+        {
+            if (tokens[i].IsSymbol("("))
+            {
+                depth++;
+            }
+            else if (tokens[i].IsSymbol(")"))
+            {
+                depth = Math.Max(0, depth - 1);
+            }
+            else if (depth == 0 && !tokens[i].IsWord("WHEN") && IsBodyStart(tokens, i))
+            {
+                return tokens[i].Start;
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>WHEN (condition) or the body: a PL/SQL block (optionally labelled), a compound trigger or a CALL.</summary>
     private static bool IsBodyStart(List<SqlToken> tokens, int i) =>
         tokens[i].IsWord("WHEN") || tokens[i].IsWord("DECLARE") || tokens[i].IsWord("BEGIN") || tokens[i].IsWord("COMPOUND")

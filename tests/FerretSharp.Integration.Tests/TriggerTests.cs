@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
+using FerretSharp.Core.Ddl;
 using FerretSharp.Core.Oracle;
 using FerretSharp.Core.Query;
 using Oracle.ManagedDataAccess.Client;
@@ -170,6 +171,10 @@ public sealed class TriggerTests(OracleContainerFixture oracle) : IAsyncLifetime
         Assert.NotEmpty(error.Errors);
         var first = error.Errors[0];
         Assert.Contains("GIBT_ES_NICHT", first.Text, StringComparison.OrdinalIgnoreCase);
+
+        // Oracle counts the lines from the body (BEGIN is line 1): the marker lands on ":new.gibt_es_nicht" all the same.
+        Assert.Equal(2, first.Line);
+        Assert.Equal(sql.IndexOf(":new.gibt_es_nicht", StringComparison.Ordinal), TriggerDdl.ErrorOffset(sql, first.Line, first.Column));
         Assert.Equal("ORA-24344", error.ErrorCode);
         Assert.Null(error.InnerException); // ODP.NET raised nothing: the status told
         Assert.Contains("FOR EACH ROW DISABLE", error.Statement?.Sql, StringComparison.Ordinal);

@@ -4,6 +4,7 @@
    schema path outside of any transaction (WP-22: always confirmed, an open transaction is rolled back first after showing
    what it holds; the schema is reloaded afterwards); everything else is refused with a reason. *@
 @using FerretSharp.Core.Connections
+@using FerretSharp.Core.Ddl
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
 @using FerretSharp.Core.Workspaces
@@ -618,10 +619,34 @@
     /// <summary>Marks the name an ORA-00904/00942 complains about, if it is in the statement.</summary>
     private async Task MarkAsync(SqlRun run, DatabaseException ex)
     {
+        // A trigger that does not compile (WP-26): each error where it is, to the end of its line.
+        if (_editor is not null && ex is TriggerCompileException compile)
+        {
+            var text = run.Statement.Text;
+            var markers = compile.Errors
+                .Select(e => (Error: e, At: TriggerDdl.ErrorOffset(text, e.Line, e.Column)))
+                .Where(m => m.At is not null)
+                .Select(m => new MonacoEditor.EditorMarker(run.Statement.Start + m.At!.Value, LineRest(text, m.At.Value),
+                    m.Error.IsWarning ? "warning" : "error", m.Error.Text))
+                .ToList();
+            if (markers.Count > 0)
+            {
+                await _editor.SetOffsetMarkersAsync(markers);
+                return;
+            }
+        }
+
         if (_editor is not null && SqlScriptPlan.LocateError(run.Statement.Text, ex.ErrorCode, ex.Message) is var (start, length))
         {
             await _editor.SetOffsetMarkersAsync([new MonacoEditor.EditorMarker(run.Statement.Start + start, length, "error", ex.Display)]);
         }
+    }
+
+    /// <summary>From an offset to the end of its line (at least one character), for a marker.</summary>
+    private static int LineRest(string text, int at)
+    {
+        var end = text.IndexOf('\n', at);
+        return Math.Max(1, (end < 0 ? text.Length : end) - at);
     }
 
     private static string RunOutcome(SqlRun run) => run switch
