@@ -176,4 +176,24 @@
     <value>Indexes</value>
     <comment>Progress step while reading a schema for the schema comparison</comment>
   </data>
+  <data name="TriggerCompileErrorsDisabled" xml:space="preserve">
+    <value>Trigger {0} was created but has compile errors – it stays disabled, DML on its table keeps working. {1}</value>
+    <comment>CREATE TRIGGER compiled with errors (WP-26). {0} = owner.trigger name; {1} = the first errors as "line:column text" (or TriggerErrorsUnreadable)</comment>
+  </data>
+  <data name="TriggerCompileErrorsEnabled" xml:space="preserve">
+    <value>Trigger {0} has compile errors and is enabled – every INSERT, UPDATE and DELETE on its table fails (ORA-04098) until you fix or disable it. {1}</value>
+    <comment>CREATE TRIGGER … ENABLE (written by the user) compiled with errors. {0} = owner.trigger name; {1} = the first errors as "line:column text" (or TriggerErrorsUnreadable)</comment>
+  </data>
+  <data name="TriggerErrorsUnreadable" xml:space="preserve">
+    <value>Its errors could not be read (ALL_ERRORS).</value>
+    <comment>Appended to TriggerCompileErrors… when the dictionary shows no errors</comment>
+  </data>
+  <data name="TriggerMoreErrorsOne" xml:space="preserve">
+    <value>(1 more error)</value>
+    <comment>After the listed compile errors of a trigger</comment>
+  </data>
+  <data name="TriggerMoreErrorsOther" xml:space="preserve">
+    <value>({0} more errors)</value>
+    <comment>After the listed compile errors of a trigger. {0} = count</comment>
+  </data>
 </root>
