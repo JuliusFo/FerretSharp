@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.27.1] - 2026-10-12
+
+One fix for the connections page without connections.
+
 ### Fixed
 - Without any connection, "+ New connection" at the top right of the connections page opens the dialog: the welcome text in the middle covered the page head and swallowed the click.
 
