@@ -150,4 +150,19 @@
   <data name="SnapshotStepIndexes" xml:space="preserve">
     <value>Indizes</value>
   </data>
+  <data name="TriggerCompileErrorsDisabled" xml:space="preserve">
+    <value>Trigger {0} wurde angelegt, hat aber Kompilierfehler – er bleibt ausgeschaltet, DML auf seiner Tabelle läuft weiter. {1}</value>
+  </data>
+  <data name="TriggerCompileErrorsEnabled" xml:space="preserve">
+    <value>Trigger {0} hat Kompilierfehler und ist eingeschaltet – jedes INSERT, UPDATE und DELETE auf seiner Tabelle scheitert (ORA-04098), bis du ihn korrigierst oder ausschaltest. {1}</value>
+  </data>
+  <data name="TriggerErrorsUnreadable" xml:space="preserve">
+    <value>Seine Fehler ließen sich nicht lesen (ALL_ERRORS).</value>
+  </data>
+  <data name="TriggerMoreErrorsOne" xml:space="preserve">
+    <value>(1 weiterer Fehler)</value>
+  </data>
+  <data name="TriggerMoreErrorsOther" xml:space="preserve">
+    <value>({0} weitere Fehler)</value>
+  </data>
 </root>

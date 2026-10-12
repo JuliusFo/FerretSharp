@@ -30,6 +30,11 @@ internal static class OracleErrorCodes
     /// <summary>ORA-00054: resource busy – DDL on an object another session holds locks on (DDL does not wait by default).</summary>
     public const int ResourceBusy = 54;
 
+    /// <summary>
+    /// ORA-24344: success with compilation error – CREATE of PL/SQL (a trigger, WP-26) ran, the object exists but is invalid;
+    /// its errors are in <c>ALL_ERRORS</c>. SQL*Plus shows it as a warning, ODP.NET throws.
+    /// </summary>
+    public const int CompiledWithErrors = 24344;
     /// <summary>ORA-01466: table definition changed since the snapshot (also within about a second after DDL).</summary>
     public const int DefinitionChanged = 1466;
 

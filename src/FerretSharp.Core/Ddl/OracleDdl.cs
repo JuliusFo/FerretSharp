@@ -192,6 +192,10 @@ internal static class OracleDdl
 
     public static string Columns(IEnumerable<string> names) => string.Join(", ", names.Select(Q));
 
+    // ---- triggers (WP-26) ----
+
+    public static string EnableTrigger(string owner, string name) => $"ALTER TRIGGER {OracleIdentifier.Qualify(owner, name)} ENABLE";
+
     // ---- expressions and literals ----
 
     /// <summary>

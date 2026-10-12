@@ -4,7 +4,7 @@ using FerretSharp.Core.Resources;
 namespace FerretSharp.Core.Connections;
 
 /// <summary>Failure with a user-facing message and, if available, the Oracle error code (<c>ORA-01017</c>).</summary>
-public sealed class DatabaseException(string message, string? errorCode = null, Exception? inner = null) : Exception(message, inner)
+public class DatabaseException(string message, string? errorCode = null, Exception? inner = null) : Exception(message, inner)
 {
     /// <summary>
     /// Errors after which the session is gone: killed, idle timeout (profile <c>IDLE_TIME</c>), network or instance
