@@ -18,15 +18,19 @@ public static class SqlSplitter
 
     /// <summary>
     /// The statements of a script, separated by <c>;</c>, a blank line or a line with only <c>/</c> (SQL*Plus). Comments
-    /// directly above a statement belong to it; parts with only comments are no statement.
+    /// directly above a statement belong to it; parts with only comments are no statement. A block – a trigger or another
+    /// PL/SQL object, <c>BEGIN</c>/<c>DECLARE</c> – holds <c>;</c> and blank lines and ends only at a <c>/</c> line or at
+    /// the end of the text (WP-26), its text with the <c>;</c> after its <c>END</c>.
     /// </summary>
     public static IReadOnlyList<SqlStatement> Split(string text)
     {
         var statements = new List<SqlStatement>();
         var tokens = SqlTokenizer.Tokenize(text);
         int? start = null;
+        var first = 0;
         var end = 0;
         var hasCode = false;
+        bool? block = null;
 
         void Close()
         {
@@ -37,14 +41,19 @@ public static class SqlSplitter
 
             start = null;
             hasCode = false;
+            block = null;
         }
+
+        // Decided at the first ";" or blank line: by then a block's header has been read (its body is the first thing to
+        // hold a ";"). Cut at its first ";", a trigger would reach Oracle as a broken one and stop all DML on its table.
+        bool InBlock(int i) => hasCode && (block ??= IsBlock(tokens, first, i));
 
         for (var i = 0; i < tokens.Count; i++)
         {
             var token = tokens[i];
             if (token.Kind == SqlTokenKind.Space)
             {
-                if (BlankLine.IsMatch(token.Value))
+                if (BlankLine.IsMatch(token.Value) && !InBlock(i))
                 {
                     Close();
                 }
@@ -52,19 +61,50 @@ public static class SqlSplitter
                 continue;
             }
 
-            if (token.IsSymbol(";") || (token.IsSymbol("/") && AloneOnLine(text, token)))
+            if (token.IsSymbol("/") && AloneOnLine(text, token))
             {
                 Close();
                 continue;
             }
 
-            start ??= token.Start;
+            if (token.IsSymbol(";"))
+            {
+                if (InBlock(i))
+                {
+                    end = token.End;
+                    continue;
+                }
+
+                Close();
+                continue;
+            }
+
+            if (start is null)
+            {
+                (start, first) = (token.Start, i);
+            }
+
             end = token.End;
             hasCode |= token.Kind != SqlTokenKind.Comment;
         }
 
         Close();
         return statements;
+    }
+
+    private static bool IsBlock(IReadOnlyList<SqlToken> tokens, int from, int to)
+    {
+        var significant = new List<SqlToken>();
+        for (var i = from; i < to; i++)
+        {
+            if (tokens[i].Kind is not (SqlTokenKind.Space or SqlTokenKind.Comment))
+            {
+                significant.Add(tokens[i]);
+            }
+        }
+
+        return significant.Count > 0 && SqlClassifier.KindOf(significant) is SqlStatementKind.Trigger or SqlStatementKind.SystemTrigger
+            or SqlStatementKind.PlSqlObject or SqlStatementKind.PlSql;
     }
 
     /// <summary>

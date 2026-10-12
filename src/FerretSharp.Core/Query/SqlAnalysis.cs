@@ -27,8 +27,8 @@ public sealed record SqlStatementInfo(
 
     public bool IsDml => Kind is SqlStatementKind.Insert or SqlStatementKind.Update or SqlStatementKind.Delete or SqlStatementKind.Merge;
 
-    /// <summary>DDL the SQL editor runs (WP-22) – it commits implicitly and cannot be undone.</summary>
-    public bool IsDdl => Kind == SqlStatementKind.Ddl;
+    /// <summary>DDL the SQL editor runs (WP-22), a trigger too (WP-26) – it commits implicitly and cannot be undone.</summary>
+    public bool IsDdl => Kind is SqlStatementKind.Ddl or SqlStatementKind.Trigger;
 
     /// <summary>An UPDATE or DELETE without WHERE changes every row of the table.</summary>
     public bool AffectsAllRows => Kind is SqlStatementKind.Update or SqlStatementKind.Delete && !HasWhere;
@@ -40,9 +40,10 @@ public sealed record SqlStatementInfo(
         SqlStatementKind.Query or SqlStatementKind.Insert or SqlStatementKind.Update or SqlStatementKind.Delete or SqlStatementKind.Merge => null,
         SqlStatementKind.Empty => QueryText.SqlRejectEmpty,
         SqlStatementKind.Ddl when Binds.Count > 0 => TextFormat.Format(QueryText.SqlRejectDdlBinds, Binds[0]),
-        SqlStatementKind.Ddl => null,
+        SqlStatementKind.Ddl or SqlStatementKind.Trigger => null,
         SqlStatementKind.Truncate => QueryText.SqlRejectTruncate,
         SqlStatementKind.PlSqlObject => QueryText.SqlRejectPlSqlObject,
+        SqlStatementKind.SystemTrigger => QueryText.SqlRejectSystemTrigger,
         SqlStatementKind.PlSql or SqlStatementKind.Call => QueryText.SqlRejectPlSql,
         SqlStatementKind.TransactionControl => TextFormat.Format(QueryText.SqlRejectTransactionControl, FirstWord),
         SqlStatementKind.SessionControl => QueryText.SqlRejectSessionControl,
@@ -134,7 +135,10 @@ public static class SqlAnalysis
             }
         }
 
-        return new SqlStatementInfo(kind, first, binds, hasWhere, forUpdate, TablesOf(tokens), BindUsesOf(tokens));
+        // In a trigger ":new.x", ":old.x" (and the names of its REFERENCING clause) are its rows, not values to ask for.
+        return kind is SqlStatementKind.Trigger or SqlStatementKind.SystemTrigger
+            ? new SqlStatementInfo(kind, first, [], hasWhere, forUpdate, TablesOf(tokens), [])
+            : new SqlStatementInfo(kind, first, binds, hasWhere, forUpdate, TablesOf(tokens), BindUsesOf(tokens));
     }
 
     /// <summary>

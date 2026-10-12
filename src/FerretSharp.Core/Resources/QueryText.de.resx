@@ -103,7 +103,10 @@
     <value>TRUNCATE führt der SQL-Editor nicht aus: Es löscht alle Zeilen und lässt sich nicht rückgängig machen. Stattdessen DELETE verwenden – das bleibt in der Transaktion.</value>
   </data>
   <data name="SqlRejectPlSqlObject" xml:space="preserve">
-    <value>PL/SQL-Objekte (Prozeduren, Funktionen, Packages, Trigger, Typen) legt der SQL-Editor noch nicht an.</value>
+    <value>PL/SQL-Objekte (Prozeduren, Funktionen, Packages, Typen) legt der SQL-Editor noch nicht an – nur Trigger.</value>
+  </data>
+  <data name="SqlRejectSystemTrigger" xml:space="preserve">
+    <value>Trigger auf der Datenbank oder einem Schema (ON DATABASE, ON SCHEMA) legt der SQL-Editor nicht an – sie feuern bei jeder Anmeldung bzw. jedem DDL. Nur Trigger auf einer Tabelle oder View.</value>
   </data>
   <data name="SqlRejectDdlBinds" xml:space="preserve">
     <value>DDL nimmt keine Bind-Variablen (:{0}) – den Wert direkt ins Statement schreiben.</value>

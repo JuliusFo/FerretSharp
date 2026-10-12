@@ -140,6 +140,28 @@ public class ReadOnlyTests
     [InlineData("CREATE INDEX t_c ON t (c);")]
     [InlineData("GRANT SELECT ON t TO x")]
     [InlineData("ALTER TRIGGER t_bi DISABLE")]
+    [InlineData("CREATE TRIGGER t_bi BEFORE INSERT ON t BEGIN NULL; END;")] // WP-26, ADR 0021
+    [InlineData("""
+        CREATE OR REPLACE TRIGGER "APP"."KUNDE_AUDIT"
+        AFTER DELETE OR INSERT OR UPDATE ON KUNDE
+        REFERENCING OLD AS OLD NEW AS NEW
+        FOR EACH ROW
+        DECLARE
+        trans CHAR(1);
+        BEGIN
+        IF DELETING THEN
+        INSERT INTO AUDIT_KUNDE (AUDIT_ID, AUDIT_TRANS, KUNDE_ID) VALUES (AUDIT_ID_SEQ.NEXTVAL, 'D', :old.KUNDE_ID);
+        ELSE
+        IF INSERTING THEN trans := 'I';
+        ELSIF :new.NAME <> :old.NAME OR (:new.NAME IS NULL AND :old.NAME IS NOT NULL) THEN trans := 'U';
+        ELSE GOTO ende;
+        END IF;
+        INSERT INTO AUDIT_KUNDE (AUDIT_ID, AUDIT_TRANS, KUNDE_ID) VALUES (AUDIT_ID_SEQ.NEXTVAL, trans, :new.KUNDE_ID);
+        END IF;
+        <<ende>>
+        NULL;
+        END;
+        """)]
     public void Schema_path_accepts_single_ddl(string sql) => Assert.True(OracleSession.IsDdlStatement(sql), sql);
 
     [Theory]
@@ -147,7 +169,10 @@ public class ReadOnlyTests
     [InlineData("ALTER SESSION SET CURRENT_SCHEMA = X")]
     [InlineData("ALTER SYSTEM KILL SESSION '1,2'")]
     [InlineData("CREATE OR REPLACE PROCEDURE p AS BEGIN NULL; END;")]
-    [InlineData("CREATE TRIGGER t_bi BEFORE INSERT ON t BEGIN NULL; END;")]
+    [InlineData("CREATE OR REPLACE PACKAGE BODY p AS END;")]
+    [InlineData("CREATE OR REPLACE TRIGGER x AFTER LOGON ON DATABASE BEGIN NULL; END;")]
+    [InlineData("CREATE TRIGGER x BEFORE DDL ON app.SCHEMA BEGIN NULL; END;")]
+    [InlineData("-- CREATE TRIGGER t BEFORE INSERT ON t\nBEGIN NULL; END;")]
     [InlineData("BEGIN EXECUTE IMMEDIATE 'DROP TABLE t'; END;")]
     [InlineData("CALL p()")]
     [InlineData("COMMIT")]

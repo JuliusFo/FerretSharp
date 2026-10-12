@@ -130,8 +130,12 @@
     <comment>Why the SQL editor does not run a statement</comment>
   </data>
   <data name="SqlRejectPlSqlObject" xml:space="preserve">
-    <value>The SQL editor does not create PL/SQL objects (procedures, functions, packages, triggers, types) yet.</value>
+    <value>The SQL editor does not create PL/SQL objects (procedures, functions, packages, types) yet – only triggers.</value>
     <comment>Why the SQL editor does not run a statement: CREATE [OR REPLACE] PROCEDURE …</comment>
+  </data>
+  <data name="SqlRejectSystemTrigger" xml:space="preserve">
+    <value>The SQL editor does not create triggers on the database or a schema (ON DATABASE, ON SCHEMA) – they fire on every logon or every DDL. Only triggers on a table or view.</value>
+    <comment>Why the SQL editor does not run a statement: CREATE TRIGGER … AFTER LOGON ON DATABASE</comment>
   </data>
   <data name="SqlRejectDdlBinds" xml:space="preserve">
     <value>DDL takes no bind variables (:{0}) – write the value into the statement.</value>
