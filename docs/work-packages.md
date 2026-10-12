@@ -429,7 +429,7 @@ Wunsch der Kollegen des Nutzers (2026-10-07): zu einer Tabelle die Audit-Tabelle
   - `ALL_TRIGGER_COLS`: Spalten aus `:new`/`:old` und `UPDATE OF`, nicht aus `WHEN`; nach `DROP COLUMN` (auch einer unbenutzten Spalte) ist der Trigger ungültig und die View nennt bis zur nächsten Kompilierung falsche Namen (Positionen). Deshalb gilt ein ungültiger Trigger als veraltet.
   - `CREATE/ALTER/DROP TRIGGER` warten nicht auf fremde offene Transaktionen (anders als `ALTER TABLE … ADD`); Text hinter dem `END` eines Triggers wird Teil des Rumpfs (Kompilierfehler), nie ein zweites Statement.
   - `UPDATING('Spalte')` ist wahr, wenn das UPDATE die Spalte setzt – auch auf denselben Wert, auch bei gemischter Schreibweise. Damit protokolliert die Standardvorlage ein UPDATE, das nur einen LOB setzt (vorher eine Lücke: LOBs lassen sich nicht mit `<>` vergleichen).
-- Tests: Core 1530, UI 150; Integration (`TriggerTests`, `TriggerColumnsTests`, `AuditTests`: Firmenmuster und Standardvorlage end to end – anlegen, protokollieren, neue Spalte, gelöschte Spalte, zweiter Abgleich leer).
+- Tests: Core 1540, UI 150; Integration (`TriggerTests`, `TriggerColumnsTests`, `AuditTests`: Firmenmuster und Standardvorlage end to end – anlegen, protokollieren, neue Spalte, gelöschte Spalte, zweiter Abgleich leer).
 - E2E (eigener Container `ferret-wp26-e2e`, eigene Instanz mit `--data-dir`, deutsch/hell, CDP mit Maus- und Tastenereignissen):
   - LIEFERANT ohne Audit: grauer Link „Audit anlegen…“ → Designer mit Häkchen, Plan (Tabelle, Kommentare, Trigger), ausgeführt → neutrale Zeile.
   - `ALTER TABLE … ADD` im SQL-Editor → gelbe Zeile „veraltet (FAX fehlt in der Audit-Tabelle; Trigger … füllt nicht alle Spalten)“ → „Abgleichen“ → aktuell.
@@ -438,6 +438,12 @@ Wunsch der Kollegen des Nutzers (2026-10-07): zu einer Tabelle die Audit-Tabelle
   - Einstellungen: fehlerhafte Vorlage (Fehler mit Zeile), Firmenvorlage gültig. Neue Tabelle mit Häkchen und Firmenvorlage ohne `AUDIT_ID_SEQ`: 8 von 9 Statements, Trigger bleibt aus, der Tabellen-Tab öffnet mit dem Rest (Trigger) und dem Hinweis „ausgeschaltet“; Sequence angelegt, Rest ausgeführt → aktuell.
   - Testverbindung über die App gelöscht, Container entfernt, Log ohne `[ERR]`.
   - Gefunden und behoben: Die Meldung nannte Oracles Zeilen (ab `BEGIN`), der Marker die des Editors; der Erklärkommentar der Standardvorlage landete im Trigger in der Datenbank; der Knopf „Eingebaute“ hieß zu knapp.
+- Review (unabhängiger Agent über den ganzen Branch; Sicherheitsinvarianten ohne Befund), behoben:
+  - Typen: DATE → TIMESTAMP gilt als Wachstum (`ChangeOf` ist in beide Richtungen „frei“, DATE verliert aber die Bruchteile); eine Audit-Spalte, die die Werte der Tabelle nicht aufnehmen kann (anderer Typ), ist ein Problem statt einer Warnung – der Trigger ließe sonst jede DML scheitern –, und der Status sagt „veraltet“ statt „aktuell“.
+  - Die Trigger-Quelle der Vorlage muss den Trigger anlegen, den `@trigger` nennt, und die Schranke passieren (sonst fände FerretSharp ihn nie wieder bzw. scheiterte erst beim Lauf).
+  - `AuditTrigger.Columns` zählt nur Schleifen, die `:new`/`:old` lesen (wie `ALL_TRIGGER_COLS`); Identity- und virtuelle Spalten erscheinen dort (Integrationstest).
+  - `CREATE TRIGGER IF NOT EXISTS` auf einen vorhandenen Trigger ändert nichts; das `CREATE` läuft ohne Abbruch; die Meldung zählt im Text des Nutzers (ADR 0021, Nachtrag).
+  - Die Vorlagendatei wird höchstens alle 3 s angesehen (der Designer fragt bei jedem Tastendruck, eine Freigabe über VPN darf den UI-Thread nicht bremsen); das Audit-Häkchen bleibt, wie der Nutzer es gesetzt hat; eine übersprungene Umbenennung (der neue Name ist in der Audit-Tabelle schon vergeben) wird gemeldet.
 - Nicht gemacht / Backlog: Kontextmenü „Audit…“ im Explorer (der Explorer hat für Tabellen noch kein Kontextmenü; die Audit-Zeile deckt bestehende Tabellen ab); Vorlage je Verbindung; die Audit-Zeile liest eine geänderte Vorlage erst beim nächsten Laden des Tabs.
 
 ### WP-30 Änderungsübersicht, Undo bis zu einer Aktion, Redo → Release 3.20.0

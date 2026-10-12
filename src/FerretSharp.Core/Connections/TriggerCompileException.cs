@@ -25,9 +25,13 @@ public sealed class TriggerCompileException : DatabaseException
     /// ORA-24344 if the driver reported the compile error; null if it reported success – ODP.NET does so for triggers
     /// (Oracle 23), only the status of the trigger tells. The error code is ORA-24344 either way: that is what happened.
     /// </param>
+    /// <param name="source">
+    /// The statement as the user wrote it, for the positions in the message (the SQL editor marks them there); the one
+    /// that ran by default. Without the DISABLE FerretSharp put in, a body on the header's line keeps its columns.
+    /// </param>
     public TriggerCompileException(
-        string owner, string name, IReadOnlyList<PlSqlError> errors, bool isEnabled, QuerySpec? statement, Exception? inner = null)
-        : base(MessageOf(owner, name, errors, isEnabled, statement?.Sql), CompiledWithErrors, inner)
+        string owner, string name, IReadOnlyList<PlSqlError> errors, bool isEnabled, QuerySpec? statement, Exception? inner = null, string? source = null)
+        : base(MessageOf(owner, name, errors, isEnabled, source ?? statement?.Sql), CompiledWithErrors, inner)
     {
         Owner = owner;
         Name = name;

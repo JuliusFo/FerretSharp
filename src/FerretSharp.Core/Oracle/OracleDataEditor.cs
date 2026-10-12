@@ -224,23 +224,33 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
     /// <param name="owner">The trigger's owner as the statement names it; null for the session's current schema.</param>
     private async Task CreateTriggerAsync(string statement, string? owner, string name, CancellationToken cancellationToken)
     {
+        owner ??= await CurrentSchemaAsync();
+
+        // IF NOT EXISTS on an existing trigger does nothing (23ai): checking and enabling it afterwards would switch on a
+        // trigger the user disabled, or report errors of a statement that never ran (R5 review).
+        if (TriggerDdl.IfNotExists(statement) && await TriggerStatusAsync(owner, name) is not null)
+        {
+            return;
+        }
+
         var disabled = TriggerDdl.WithDisable(statement);
         var run = new QuerySpec(disabled ?? statement, []);
         DatabaseException? compileError = null;
         try
         {
-            await RunDdlAsync(run.Sql, cancellationToken);
+            // Not cancelled: CREATE TRIGGER does not wait for other sessions' transactions (ADR 0021), and a cancel that
+            // lands as it completes would leave a replaced trigger disabled while the editor reports nothing happened.
+            await RunDdlAsync(run.Sql, CancellationToken.None);
         }
         catch (DatabaseException error) when (error.ErrorCode == OracleErrorCodes.Code(OracleErrorCodes.CompiledWithErrors))
         {
             compileError = error;
         }
 
-        owner ??= await CurrentSchemaAsync();
-        if (compileError is not null || !await IsValidTriggerAsync(owner, name))
+        if (compileError is not null || await TriggerStatusAsync(owner, name) != "VALID")
         {
             var enabled = disabled is null && TriggerDdl.StatedEnabled(statement) != false;
-            throw new TriggerCompileException(owner, name, await TriggerErrorsAsync(owner, name), enabled, run, compileError);
+            throw new TriggerCompileException(owner, name, await TriggerErrorsAsync(owner, name), enabled, run, compileError, source: statement);
         }
 
         if (disabled is not null)
@@ -254,10 +264,10 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
         session.ExecuteReaderAsync(CurrentSchemaSql, [], async (reader, ct) =>
             await reader.ReadAsync(ct) ? reader.GetString(0) : throw new InvalidOperationException("No current schema."), CancellationToken.None);
 
-    /// <summary>The trigger compiled (<c>ALL_OBJECTS.STATUS</c> is VALID). False if it cannot be found: never enable it then.</summary>
-    private Task<bool> IsValidTriggerAsync(string owner, string name) =>
+    /// <summary>The trigger's <c>ALL_OBJECTS.STATUS</c> (VALID/INVALID); null if there is none – never enable it then.</summary>
+    private Task<string?> TriggerStatusAsync(string owner, string name) =>
         session.ExecuteReaderAsync(TriggerStatusSql, [new("owner", owner), new("name", name)], async (reader, ct) =>
-            await reader.ReadAsync(ct) && reader.GetString(0) == "VALID", CancellationToken.None);
+            await reader.ReadAsync(ct) ? reader.GetString(0) : null, CancellationToken.None);
 
     /// <summary>
     /// The trigger's compile errors (errors before warnings) through the read path, with the select of the PL/SQL view

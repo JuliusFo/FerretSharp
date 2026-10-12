@@ -157,8 +157,8 @@
     <value>{0} is added to {1} as nullable: the audit table may already have rows without a value.</value>
     <comment>{0}: column name, {1}: audit table name</comment>
   </data>
-  <data name="PlanTypeKept" xml:space="preserve">
-    <value>{0} in {1} keeps its type {2} (the table has {3}): an audit column only ever grows.</value>
+  <data name="PlanTypeIncompatible" xml:space="preserve">
+    <value>{0} in {1} ({2}) cannot take the values of the table ({3}): the trigger would make every DML on the table fail. Change the audit column by hand first (e.g. a new column), or leave the audit box off.</value>
     <comment>{0}: column name, {1}: audit table name, {2}: type in the audit table, {3}: type in the table, e.g. VARCHAR2(30)</comment>
   </data>
   <data name="PlanTriggerOnOtherTable" xml:space="preserve">
@@ -215,5 +215,17 @@
   <data name="StatusTriggerOnOtherTable" xml:space="preserve">
     <value>a trigger {0} exists on {1}</value>
     <comment>Reason an audit is outdated. {0}: trigger name, {1}: owner.table it is on</comment>
+  </data>
+  <data name="PlanRenameSkipped" xml:space="preserve">
+    <value>{0} → {1} is not renamed in {2}: it has a column {1} already. From now on {1} there receives the values of the renamed column and {0} is no longer filled – check the history.</value>
+    <comment>{0}: old column name, {1}: new column name, {2}: audit table name</comment>
+  </data>
+  <data name="TriggerNameDiffers" xml:space="preserve">
+    <value>The trigger source creates {0}, but @trigger names {1} – FerretSharp would never find the trigger again.</value>
+    <comment>{0}: trigger name in CREATE TRIGGER of the template, {1}: name from the @trigger directive</comment>
+  </data>
+  <data name="TriggerSourceRefused" xml:space="preserve">
+    <value>The trigger source cannot run: {0}</value>
+    <comment>{0}: why the schema path refuses it</comment>
   </data>
 </root>

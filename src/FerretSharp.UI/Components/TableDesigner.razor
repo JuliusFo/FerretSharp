@@ -339,7 +339,7 @@ else
 
         if (_designer is { } designer)
         {
-            designer.WithAudit = StartWithAudit ? true : designer.WithAudit ?? _audit?.AuditTable is not null;
+            designer.WithAudit ??= StartWithAudit || _audit?.AuditTable is not null; // a choice of the user stays (R5 review)
         }
     }
 

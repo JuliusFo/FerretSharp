@@ -271,7 +271,7 @@ public sealed class AuditTemplateTests
             -- @trigger-source
             CREATE TRIGGER {trigger} AFTER UPDATE ON {table} FOR EACH ROW
             BEGIN
-              NULL; -- {each comparable sep=","}{column}{end}
+              NULL; -- {each comparable sep=","}:new.{column}{end}
             END;
             """);
         ColumnInfo C(string name, string type) => new(name, type, null, false, null, null, true, false, null, 0);
@@ -284,7 +284,7 @@ public sealed class AuditTemplateTests
 
         var trigger = template.TriggerFor(Kunde, columns);
 
-        Assert.Contains("NULL; -- N,D,T,I,R,BF,BO,NC\n", trigger.Sql, StringComparison.Ordinal);
+        Assert.Contains("NULL; -- :new.N,:new.D,:new.T,:new.I,:new.R,:new.BF,:new.BO,:new.NC\n", trigger.Sql, StringComparison.Ordinal);
         Assert.Equal(["N", "D", "T", "I", "R", "BF", "BO", "NC"], trigger.Columns);
         Assert.Equal(["Die Spaltenschleife mit comparable in Zeile 7 lässt B, C, F, X, J, O aus: Diese Spalten lassen sich nicht mit <> vergleichen."], trigger.Warnings);
     }
@@ -483,5 +483,43 @@ public sealed class AuditTemplateTests
 
             Assert.Equal("Line 5: {column} only works inside a column loop ({each} … {end}).", error.Errors.Single().ToString());
         }
+    }
+
+    /// <summary>R5 review: the trigger source must create the trigger @trigger names and pass the schema path.</summary>
+    [Fact]
+    public void A_trigger_source_that_does_not_fit_is_a_problem()
+    {
+        var otherName = AuditTemplates.Parse(CompanyTemplate.Replace("CREATE OR REPLACE TRIGGER {trigger}", "CREATE OR REPLACE TRIGGER {table}_TRG", StringComparison.Ordinal));
+        var system = AuditTemplates.Parse(CompanyTemplate.Replace("ON {table}", "ON DATABASE", StringComparison.Ordinal));
+
+        Assert.Contains(otherName.TriggerFor(Kunde, KundeColumns).Problems, p => p.Contains("APP.KUNDE_TRG") && p.Contains("APP.KUNDE_AUDIT"));
+        Assert.Contains(system.TriggerFor(Kunde, KundeColumns).Problems, p => p.Contains("ON DATABASE"));
+        Assert.Empty(AuditTemplates.Parse(CompanyTemplate).TriggerFor(Kunde, KundeColumns).Problems);
+    }
+
+    /// <summary>
+    /// R5 review: the trigger's columns are what ALL_TRIGGER_COLS lists – only loops that read :new/:old count, not a column
+    /// list or UPDATING('{name}') alone.
+    /// </summary>
+    [Fact]
+    public void Only_columns_read_as_new_or_old_count_as_the_triggers()
+    {
+        var template = AuditTemplates.Parse("""
+            -- @audit-table A_{table}
+            -- @trigger {table}_T
+            -- @base-columns nullable
+            -- @trigger-source
+            CREATE OR REPLACE TRIGGER {trigger} AFTER UPDATE ON {table} FOR EACH ROW
+            BEGIN
+              IF FALSE{each incomparable} OR UPDATING('{name}'){end} THEN
+                INSERT INTO {audit_table} ({each comparable sep=", "}{column}{end}) VALUES ({each comparable sep=", "}:new.{column}{end});
+              END IF;
+            END;
+            """);
+
+        var trigger = template.TriggerFor(Kunde, KundeColumns);
+
+        Assert.DoesNotContain("NOTIZ", trigger.Columns); // only in UPDATING('NOTIZ')
+        Assert.Contains("NAME", trigger.Columns);
     }
 }

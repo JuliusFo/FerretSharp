@@ -65,7 +65,15 @@ public sealed record AuditStatus(AuditHealth Health, AuditNames Names, IReadOnly
                 break;
         }
 
-        if (reasons.Count == 0 && AuditPlanner.Plan(template, table, columns, state, DataFacts.None).Steps.Count > 0)
+        // What the plan cannot do (an audit column that cannot take the table's values, a template whose trigger does not
+        // fit): the trigger may already make DML fail – never "up to date" (R5 review). A trigger clash is named above.
+        var plan = AuditPlanner.Plan(template, table, columns, state, DataFacts.None);
+        if (state.Trigger is not { Table: var other } || other == table)
+        {
+            reasons.AddRange(plan.Problems.Where(p => !reasons.Contains(p)));
+        }
+
+        if (reasons.Count == 0 && plan.Steps.Count > 0)
         {
             reasons.Add(AuditText.StatusOtherDifferences); // types, comments, a column the table no longer has
         }

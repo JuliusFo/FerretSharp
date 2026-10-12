@@ -15,10 +15,17 @@ public sealed record AuditTemplateLoad(AuditTemplate? Template, string? Path, IR
 /// The audit template of the settings (WP-26): the built-in one, or the file <see cref="AppSettings.AuditTemplatePath"/>
 /// names – read again when it changed on disk, so an edit in the company's repository counts at the next look.
 /// </summary>
-public sealed class AuditTemplateSource(AppSettingsService settings)
+public sealed class AuditTemplateSource(AppSettingsService settings, TimeProvider? clock = null)
 {
+    /// <summary>
+    /// How long a load is used without looking at the file again: views ask on every render (each keystroke in the
+    /// designer), and a file on a share over VPN must not stall the UI thread each time (R5 review).
+    /// </summary>
+    public static readonly TimeSpan Fresh = TimeSpan.FromSeconds(3);
+
+    private readonly TimeProvider _clock = clock ?? TimeProvider.System;
     private readonly Lock _lock = new();
-    private (string Path, DateTime Written, long Length, AuditTemplateLoad Load)? _cached;
+    private (string Path, DateTime Written, long Length, AuditTemplateLoad Load, DateTimeOffset Checked)? _cached;
 
     public AuditTemplateLoad Current() => Load(settings.Current.AuditTemplatePath);
 
@@ -31,6 +38,27 @@ public sealed class AuditTemplateSource(AppSettingsService settings)
         }
 
         path = path.Trim();
+        lock (_lock)
+        {
+            if (_cached is { } recent && recent.Path == path && _clock.GetUtcNow() - recent.Checked < Fresh)
+            {
+                return recent.Load;
+            }
+        }
+
+        var load = Read(path, out var written, out var length);
+        lock (_lock)
+        {
+            _cached = (path, written, length, load, _clock.GetUtcNow());
+        }
+
+        return load;
+    }
+
+    /// <summary>The file, parsed – or the earlier load if the file has not changed since (same time and length).</summary>
+    private AuditTemplateLoad Read(string path, out DateTime written, out long length)
+    {
+        (written, length) = (default, -1);
         try
         {
             var file = new FileInfo(path);
@@ -39,31 +67,24 @@ public sealed class AuditTemplateSource(AppSettingsService settings)
                 return new AuditTemplateLoad(null, path, [TextFormat.Format(AuditText.TemplateFileMissing, path)]);
             }
 
+            (written, length) = (file.LastWriteTimeUtc, file.Length);
             lock (_lock)
             {
-                if (_cached is { } cached && cached.Path == path && cached.Written == file.LastWriteTimeUtc && cached.Length == file.Length)
+                if (_cached is { } cached && cached.Path == path && cached.Written == written && cached.Length == length)
                 {
                     return cached.Load;
                 }
             }
 
             var text = File.ReadAllText(path).ReplaceLineEndings("\n");
-            AuditTemplateLoad load;
             try
             {
-                load = new AuditTemplateLoad(AuditTemplates.Parse(text), path, []);
+                return new AuditTemplateLoad(AuditTemplates.Parse(text), path, []);
             }
             catch (AuditTemplateException ex)
             {
-                load = new AuditTemplateLoad(null, path, ex.Errors.Select(e => e.ToString()).ToList());
+                return new AuditTemplateLoad(null, path, ex.Errors.Select(e => e.ToString()).ToList());
             }
-
-            lock (_lock)
-            {
-                _cached = (path, file.LastWriteTimeUtc, file.Length, load);
-            }
-
-            return load;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {

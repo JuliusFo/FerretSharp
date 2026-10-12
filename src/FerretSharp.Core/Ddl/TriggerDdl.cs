@@ -45,6 +45,20 @@ public static class TriggerDdl
         return NameAt(tokens) is { } name ? (name.Owner, name.Name) : null;
     }
 
+    /// <summary><c>CREATE TRIGGER IF NOT EXISTS …</c> (23ai): does nothing if the trigger exists.</summary>
+    public static bool IfNotExists(string sql)
+    {
+        ArgumentNullException.ThrowIfNull(sql);
+        var tokens = SqlTokenizer.Significant(sql);
+        if (NameAt(tokens) is null)
+        {
+            return false;
+        }
+
+        var i = tokens.FindIndex(t => t.IsWord("TRIGGER")) + 1;
+        return i + 2 < tokens.Count && tokens[i].IsWord("IF") && tokens[i + 1].IsWord("NOT") && tokens[i + 2].IsWord("EXISTS");
+    }
+
     /// <summary><c>ALTER TRIGGER "OWNER"."NAME" ENABLE</c>: switches on a trigger that compiled.</summary>
     public static string Enable(string owner, string name) => OracleDdl.EnableTrigger(owner, name);
 

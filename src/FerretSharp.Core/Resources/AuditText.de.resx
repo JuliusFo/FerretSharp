@@ -126,8 +126,8 @@
   <data name="PlanNewColumnNullable" xml:space="preserve">
     <value>{0} kommt nullable in {1}: Die Audit-Tabelle kann schon Zeilen ohne Wert haben.</value>
   </data>
-  <data name="PlanTypeKept" xml:space="preserve">
-    <value>{0} in {1} behält den Typ {2} (die Tabelle hat {3}): Eine Audit-Spalte wird nur größer.</value>
+  <data name="PlanTypeIncompatible" xml:space="preserve">
+    <value>{0} in {1} ({2}) kann die Werte der Tabelle ({3}) nicht aufnehmen: Der Trigger ließe jede DML auf der Tabelle scheitern. Die Audit-Spalte zuerst von Hand anpassen (z. B. eine neue Spalte) oder das Audit-Häkchen auslassen.</value>
   </data>
   <data name="PlanTriggerOnOtherTable" xml:space="preserve">
     <value>Einen Trigger {0} gibt es schon, auf {1} – in der Vorlage einen anderen Trigger-Namen wählen.</value>
@@ -170,5 +170,14 @@
   </data>
   <data name="StatusTriggerOnOtherTable" xml:space="preserve">
     <value>ein Trigger {0} liegt auf {1}</value>
+  </data>
+  <data name="PlanRenameSkipped" xml:space="preserve">
+    <value>{0} → {1} wird in {2} nicht umbenannt: Dort gibt es schon eine Spalte {1}. Sie bekommt ab jetzt die Werte der umbenannten Spalte, {0} wird nicht mehr gefüllt – die Historie prüfen.</value>
+  </data>
+  <data name="TriggerNameDiffers" xml:space="preserve">
+    <value>Die Trigger-Quelle legt {0} an, @trigger nennt aber {1} – FerretSharp fände den Trigger nie wieder.</value>
+  </data>
+  <data name="TriggerSourceRefused" xml:space="preserve">
+    <value>Die Trigger-Quelle lässt sich nicht ausführen: {0}</value>
   </data>
 </root>

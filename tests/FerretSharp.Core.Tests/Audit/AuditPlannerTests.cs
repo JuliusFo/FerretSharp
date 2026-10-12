@@ -122,8 +122,58 @@ public sealed class AuditPlannerTests
 
         Assert.Equal([DdlStepKind.ModifyType], grow.Steps.Select(s => s.Kind));
         Assert.Contains("120", grow.Steps[0].Sql);
-        Assert.Empty(shrink.Steps);
-        Assert.Contains(shrink.Warnings, w => w.Contains("NAME") && w.Contains("VARCHAR2(80"));
+        Assert.Empty(shrink.Steps); // the audit column holds the shorter values as it is
+        Assert.Empty(shrink.Problems);
+        Assert.Equal(AuditHealth.UpToDate, AuditStatus.Of(Template, Kunde, narrower, UpToDate(Columns)).Health);
+    }
+
+    /// <summary>R5 review: DATE → TIMESTAMP is growth (ChangeOf is Free both ways, but DATE loses the fractions).</summary>
+    [Fact]
+    public void Date_grows_to_timestamp_not_back()
+    {
+        var date = Column("GEAENDERT", "DATE", position: 4);
+        var timestamp = date with { DataType = "TIMESTAMP(6)", Scale = 6 };
+
+        var grow = AuditPlanner.Plan(Template, Kunde, [.. Columns, timestamp], UpToDate([.. Columns, date]), Rows(10));
+        var back = AuditPlanner.Plan(Template, Kunde, [.. Columns, date], UpToDate([.. Columns, timestamp]), Rows(10));
+
+        Assert.Contains("TIMESTAMP(6)", Assert.Single(grow.Steps, s => s.Kind == DdlStepKind.ModifyType).Sql);
+        Assert.Empty(back.Steps);
+        Assert.Empty(back.Problems);
+    }
+
+    /// <summary>
+    /// R5 review: an audit column that cannot take the table's values would make the trigger fail every DML – a problem,
+    /// and the status says outdated instead of up to date.
+    /// </summary>
+    [Fact]
+    public void An_audit_column_of_another_type_family_is_a_problem()
+    {
+        List<ColumnInfo> text = [Columns[0] with { DataType = "VARCHAR2", Length = 20, Precision = null, Scale = null }, Columns[1], Columns[2]];
+
+        var plan = AuditPlanner.Plan(Template, Kunde, text, UpToDate(Columns), Rows(10));
+        var status = AuditStatus.Of(Template, Kunde, text, UpToDate(Columns));
+
+        Assert.False(plan.CanRun);
+        Assert.Contains(plan.Problems, p => p.Contains("KUNDE_ID") && p.Contains("NUMBER(10)") && p.Contains("VARCHAR2(20"));
+        Assert.Equal(AuditHealth.Outdated, status.Health);
+        Assert.Contains(status.Reasons, r => r.Contains("KUNDE_ID"));
+    }
+
+    /// <summary>R5 review: a rename onto a name the audit table has already is not done silently.</summary>
+    [Fact]
+    public void A_rename_onto_an_existing_audit_column_is_reported()
+    {
+        var withOld = UpToDate(Columns) with
+        {
+            AuditTable = Table("AUDIT_KUNDE", [.. Template.TableFor(Kunde, Columns).Columns, Column("NACHNAME", "VARCHAR2", length: 80, position: 9)]),
+        };
+        List<ColumnInfo> now = [Columns[0], Columns[1] with { Name = "NACHNAME" }, Columns[2]];
+
+        var plan = AuditPlanner.Plan(Template, Kunde, now, withOld, Rows(10), renamed: new Dictionary<string, string> { ["NAME"] = "NACHNAME" });
+
+        Assert.DoesNotContain(plan.Steps, s => s.Kind == DdlStepKind.RenameColumn);
+        Assert.Contains(plan.Warnings, w => w.Contains("NAME → NACHNAME"));
     }
 
     [Fact]

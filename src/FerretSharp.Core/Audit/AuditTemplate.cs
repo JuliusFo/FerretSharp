@@ -1,5 +1,6 @@
 using System.Text;
 using FerretSharp.Core.Oracle;
+using FerretSharp.Core.Query;
 using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 
@@ -172,7 +173,13 @@ public sealed record AuditTemplate
         foreach (var loop in loops)
         {
             var columns = ColumnsOf(loop);
-            used.UnionWith(columns.Select(c => c.Name));
+
+            // What ALL_TRIGGER_COLS will list: only columns read as :new/:old (not those only in a column list or an
+            // UPDATING('{name}')), or the trigger would look outdated for ever (R5 review).
+            if (loop.Body.OfType<LiteralPart>().Any(l => l.Text.Contains(":new.", StringComparison.OrdinalIgnoreCase) || l.Text.Contains(":old.", StringComparison.OrdinalIgnoreCase)))
+            {
+                used.UnionWith(columns.Select(c => c.Name));
+            }
 
             // Most tables have no LOB: an empty "incomparable" loop is the normal case.
             if (columns.Count == 0 && loop.Filter != AuditLoopFilter.Incomparable)
@@ -204,8 +211,24 @@ public sealed record AuditTemplate
         return new AuditTrigger(
             table.Owner, names.Trigger, sql, usable.Where(c => used.Contains(c.Name)).Select(c => c.Name).ToList(), warnings.Distinct().ToList())
         {
-            Problems = names.Problems,
+            Problems = [.. names.Problems, .. SourceProblems(sql, table.Owner, names.Trigger)],
         };
+    }
+
+    /// <summary>
+    /// The trigger source must pass the schema path as one trigger statement and create the trigger @trigger names –
+    /// otherwise it fails only when it runs, or FerretSharp never finds the trigger again (R5 review).
+    /// </summary>
+    private static IEnumerable<string> SourceProblems(string sql, string owner, string trigger)
+    {
+        if (SqlScript.DdlRejection(sql) is { } refused)
+        {
+            yield return TextFormat.Format(AuditText.TriggerSourceRefused, refused);
+        }
+        else if (Ddl.TriggerDdl.NameOf(sql) is { } created && ((created.Owner ?? owner) != owner || created.Name != trigger))
+        {
+            yield return TextFormat.Format(AuditText.TriggerNameDiffers, created.Owner is null ? created.Name : $"{created.Owner}.{created.Name}", $"{owner}.{trigger}");
+        }
     }
 
     /// <summary>The base columns a trigger can see, in table order: all but LONG and LONG RAW.</summary>

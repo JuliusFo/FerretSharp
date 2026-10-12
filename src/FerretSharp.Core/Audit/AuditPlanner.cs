@@ -38,7 +38,7 @@ public static class AuditPlanner
             return [];
         }
 
-        var draft = Draft(template, table, baseColumns, audit, DataFacts.None, renamed, []);
+        var draft = Draft(template, table, baseColumns, audit, DataFacts.None, renamed, [], []);
         return [new DataQuestion(DataQuestionKind.Rows), .. TableDesign.Questions(audit, draft)];
     }
 
@@ -67,7 +67,7 @@ public static class AuditPlanner
         }
 
         var tablePlan = state.AuditTable is { } audit
-            ? TableDesign.Plan(DesignContext.Of(audit), Draft(template, table, baseColumns, audit, facts, renamed, warnings), facts)
+            ? TableDesign.Plan(DesignContext.Of(audit), Draft(template, table, baseColumns, audit, facts, renamed, warnings, problems), facts)
             : TableDesign.PlanNew(new NewTable(shape.Table.Owner, shape.Table.Name, shape.Comment), new TableDraft(shape.Columns.Select(c => new ColumnDraft(null, c)).ToList()),
                 new Dictionary<TableRef, TableDetails>(), taken ?? []);
         problems.AddRange(tablePlan.Problems);
@@ -117,7 +117,7 @@ public static class AuditPlanner
 
     /// <summary>The audit table as it should be: its columns kept or widened, the template's and the table's new columns added.</summary>
     private static TableDraft Draft(AuditTemplate template, TableRef table, IReadOnlyList<ColumnInfo> baseColumns, TableDetails audit, DataFacts facts,
-        IReadOnlyDictionary<string, string>? renamed, List<string> warnings)
+        IReadOnlyDictionary<string, string>? renamed, List<string> warnings, List<string> problems)
     {
         var shape = template.TableFor(table, baseColumns);
         var wanted = shape.Columns.ToDictionary(c => c.Name, StringComparer.Ordinal);
@@ -126,8 +126,21 @@ public static class AuditPlanner
         var matched = new HashSet<string>(StringComparer.Ordinal);
         foreach (var existing in audit.Columns)
         {
-            // A column the designer renames in the table is renamed here too – unless the audit table has the new name already.
-            var name = renamed?.GetValueOrDefault(existing.Name) is { } to && wanted.ContainsKey(to) && !has.Contains(to) ? to : existing.Name;
+            // A column the designer renames in the table is renamed here too – unless the audit table has the new name
+            // already (a swap, an old column of that name): then its history and the renamed column's would mix (R5 review).
+            var name = existing.Name;
+            if (renamed?.GetValueOrDefault(existing.Name) is { } to && wanted.ContainsKey(to))
+            {
+                if (has.Contains(to))
+                {
+                    warnings.Add(TextFormat.Format(AuditText.PlanRenameSkipped, existing.Name, to, audit.Table.Name));
+                }
+                else
+                {
+                    name = to;
+                }
+            }
+
             if (!wanted.TryGetValue(name, out var target))
             {
                 if (!existing.Nullable && !existing.IsIdentity)
@@ -140,7 +153,7 @@ public static class AuditPlanner
             }
 
             matched.Add(name);
-            drafts.Add(new ColumnDraft(existing.Name, Kept(existing, target, audit.Table.Name, warnings) with { Name = name }));
+            drafts.Add(new ColumnDraft(existing.Name, Kept(existing, target, audit.Table.Name, problems) with { Name = name }));
         }
 
         // New columns go to the end (ALTER TABLE … ADD appends); the trigger names its columns, the order does not matter.
@@ -160,10 +173,13 @@ public static class AuditPlanner
     }
 
     /// <summary>
-    /// An existing audit column against what the template wants: the comment follows, the type only grows, NOT NULL is
-    /// only ever taken away (older rows may lack the value). Identity and virtual columns stay as they are.
+    /// An existing audit column against what the template wants: the comment follows, NOT NULL is only ever taken away
+    /// (older rows may lack the value), the type only grows – to the table's type if that holds every value the audit
+    /// column has (DATE → TIMESTAMP, longer, more digits). An audit column that cannot take the table's values (another
+    /// type family) is a problem: the trigger would make every DML on the table fail (R5 review). Identity and virtual
+    /// columns stay as they are.
     /// </summary>
-    private static ColumnInfo Kept(ColumnInfo existing, ColumnInfo target, string auditTable, List<string> warnings)
+    private static ColumnInfo Kept(ColumnInfo existing, ColumnInfo target, string auditTable, List<string> problems)
     {
         var kept = existing with { Comment = string.IsNullOrEmpty(target.Comment) ? existing.Comment : target.Comment };
         if (existing.IsIdentity || existing.IsVirtual)
@@ -176,23 +192,30 @@ public static class AuditPlanner
             kept = kept with { Nullable = true };
         }
 
-        switch (OracleTypes.ChangeOf(existing, target))
+        if (OracleTypes.ChangeOf(existing, target) == ColumnTypeChange.Same || Holds(existing, target))
         {
-            case ColumnTypeChange.Same:
-                break;
-            case ColumnTypeChange.Free when OracleTypes.ChangeOf(target, existing) != ColumnTypeChange.Free:
-                kept = kept with
-                {
-                    DataType = target.DataType, Length = target.Length, CharSemantics = target.CharSemantics, Precision = target.Precision, Scale = target.Scale,
-                };
-                break;
-            default:
-                warnings.Add(TextFormat.Format(AuditText.PlanTypeKept, existing.Name, auditTable, OracleTypes.DisplayType(existing), OracleTypes.DisplayType(target)));
-                break;
+            return kept;
         }
 
+        if (OracleTypes.ChangeOf(existing, target) == ColumnTypeChange.Free && Holds(target, existing))
+        {
+            return kept with
+            {
+                DataType = target.DataType, Length = target.Length, CharSemantics = target.CharSemantics, Precision = target.Precision, Scale = target.Scale,
+            };
+        }
+
+        problems.Add(TextFormat.Format(AuditText.PlanTypeIncompatible, existing.Name, auditTable, OracleTypes.DisplayType(existing), OracleTypes.DisplayType(target)));
         return kept;
     }
+
+    /// <summary>
+    /// A column of type <paramref name="wide"/> takes every value of one of type <paramref name="narrow"/>: the change from
+    /// narrow to wide works with any data – except TIMESTAMP into DATE, which Oracle allows but cuts the fractions off.
+    /// </summary>
+    private static bool Holds(ColumnInfo wide, ColumnInfo narrow) =>
+        OracleTypes.ChangeOf(narrow, wide) is ColumnTypeChange.Same or ColumnTypeChange.Free
+        && !(narrow.DataType.StartsWith("TIMESTAMP", StringComparison.Ordinal) && wide.DataType == "DATE");
 
     /// <summary>
     /// The trigger, if it is missing, invalid or outdated: it references other columns than the template's (columns of the

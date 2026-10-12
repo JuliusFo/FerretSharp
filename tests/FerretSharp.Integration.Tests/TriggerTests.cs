@@ -255,4 +255,21 @@ public sealed class TriggerTests(OracleContainerFixture oracle) : IAsyncLifetime
         Assert.Equal(("ENABLED", "VALID"), await StatusAsync(ddl, "TRG_SPERRE_BI"));
         await ddl.Editor.ExecuteDdlAsync("DROP TRIGGER trg_sperre_bi", Ct);
     }
+
+    /// <summary>
+    /// R5 review: IF NOT EXISTS on an existing trigger does nothing – FerretSharp must not switch on a trigger the user
+    /// disabled, nor report errors of a statement that never ran.
+    /// </summary>
+    [Fact]
+    public async Task If_not_exists_on_an_existing_trigger_changes_nothing()
+    {
+        await using var connection = await OpenAsync("TRG if not exists");
+        await RawAsync("CREATE OR REPLACE TRIGGER trg_vorhanden BEFORE INSERT ON trg_rest FOR EACH ROW BEGIN NULL; END;");
+        await RawAsync("ALTER TRIGGER trg_vorhanden DISABLE");
+
+        await connection.Editor.ExecuteDdlAsync("CREATE TRIGGER IF NOT EXISTS trg_vorhanden BEFORE INSERT ON trg_rest FOR EACH ROW BEGIN :new.kaputt := 1; END;", Ct);
+
+        Assert.Equal(("DISABLED", "VALID"), await StatusAsync(connection, "TRG_VORHANDEN"));
+        await RawAsync("DROP TRIGGER trg_vorhanden");
+    }
 }

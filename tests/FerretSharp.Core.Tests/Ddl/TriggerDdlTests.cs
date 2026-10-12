@@ -163,4 +163,28 @@ public sealed class TriggerDdlTests
 
         Assert.EndsWith("5:3 PLS-00049: Ungültige Bind-Variable 'NEW.FALSCH'", exception.Message, StringComparison.Ordinal);
     }
+
+    /// <summary>
+    /// R5 review: with the body on the header's line, the DISABLE FerretSharp put in shifts the columns of the text that ran
+    /// – the message counts in the user's text, where the SQL editor marks the error.
+    /// </summary>
+    [Fact]
+    public void The_compile_error_column_is_the_users_when_the_body_shares_the_header_line()
+    {
+        const string written = "CREATE TRIGGER t BEFORE INSERT ON k FOR EACH ROW BEGIN :new.falsch := 1; END;";
+        var ran = TriggerDdl.WithDisable(written)!;
+        var error = new PlSqlError(PlSqlPart.Spec, 1, 7, "PLS-00049: Ungültige Bind-Variable 'NEW.FALSCH'", false);
+
+        var exception = new TriggerCompileException("APP", "T", [error], false, new QuerySpec(ran, []), source: written);
+
+        Assert.Contains($"1:{written.IndexOf(":new", StringComparison.Ordinal) + 1} ", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(ran, exception.Statement?.Sql); // Details show what ran
+    }
+
+    [Theory]
+    [InlineData("CREATE TRIGGER IF NOT EXISTS t BEFORE INSERT ON k BEGIN NULL; END;", true)]
+    [InlineData("create or replace trigger if not exists app.t before insert on k begin null; end;", true)]
+    [InlineData("CREATE TRIGGER t BEFORE INSERT ON k BEGIN NULL; END;", false)]
+    [InlineData("CREATE TABLE IF NOT EXISTS t (x NUMBER)", false)]
+    public void If_not_exists_is_recognised(string sql, bool expected) => Assert.Equal(expected, TriggerDdl.IfNotExists(sql));
 }
