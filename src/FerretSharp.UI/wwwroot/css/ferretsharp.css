@@ -447,7 +447,9 @@ dl.keys dd { margin: 0; }
 
 .tabview { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .tab-toolbar { display: flex; align-items: center; gap: 12px; height: 42px; flex: none; padding: 0 12px; background: var(--surface); border-bottom: 1px solid var(--border); }
-.toolbar-title { font: 12px var(--mono); color: var(--faint); }
+.toolbar-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 12px var(--mono); color: var(--faint); }
+/* The view switch keeps one line when the change overview makes the tab narrow; the object name gives way. */
+.tab-toolbar .segmented { flex: none; flex-wrap: nowrap; }
 .tab-toolbar .spacer { flex: 1; }
 .tab-data { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 /* detail views (Spalten, Constraints, Indizes, Abhängigkeiten, DDL) below a common object header */
