@@ -23,6 +23,7 @@ Die Oberfläche gibt es auf Englisch (Standard) und Deutsch. Entscheidung und Hi
 | Core | `QueryText`, `DataText`, `SchemaText` | Query (Filter, SQL-Skripte, FK-Navigation, Export), Data und Forms, Schema |
 | Core | `OracleText`, `CompareText`, `ConnectionText`, `SettingsText`, `WorkspaceText` | Oracle-Schicht, Schema-Vergleich/DDL, Verbindungen, Einstellungen (Tastenkürzel), Workspaces und IO |
 | Core | `DesignText` | Tabellen-Designer (WP-23): Prüfungen von Index- und Tabellenentwürfen |
+| Core | `AuditText` | Audit-Vorlagen (WP-26): Fehler der Vorlage mit Zeile, Probleme und Warnungen beim Erzeugen von Audit-Tabelle und Trigger |
 | ModelHost | `ModelHostText` | Meldungen und Schritte des Hilfsprozesses |
 
 Klassennamen sind über alle Projekte eindeutig (die Razor-Komponenten sehen Core- und UI-Ressourcen).
@@ -158,4 +159,6 @@ Ein Begriff, eine Übersetzung – überall gleich. Neue Fachbegriffe hier ergä
 | Seite / Referenz / Ziel (Schema-Vergleich) | side / reference / target | |
 | angleichen an (DDL-Vorschlag) | align to | |
 | Schreibweise (nur Groß-/Kleinschreibung anders) | letter case | |
+| Audit-Tabelle / Audit-Vorlage / Basistabelle | audit table / audit template / base table | WP-26 |
+| Anweisung (`-- @…` in einer Vorlage) / Platzhalter / Spaltenschleife | directive / placeholder / column loop | WP-26 |
 | Tastennamen Entf / Einfg / Pos1 / Ende / Bild↑ / Bild↓ / Leertaste / Rücktaste | Del / Ins / Home / End / PgUp / PgDn / Space / Backspace | Ctrl, Shift, Alt, Enter, Esc, Tab in beiden Sprachen gleich |
