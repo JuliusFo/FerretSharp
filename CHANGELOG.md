@@ -5,6 +5,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.26.0] - 2026-10-12
+
+Audit tables and triggers from a template (WP-26).
+
+### Added
+- Audit tables from a template: the designer creates a table's audit table and trigger with it, or brings them up to date with its changes (new columns, renames; columns the table no longer has stay in the audit table, types only grow, column comments follow). Above the columns a line shows the state – a grey "Create audit…" for a table without one, the names when up to date, a warning with the reasons when outdated, with "Bring up to date".
+- The template is a file (Settings → Audit tables), e.g. in the company's repository; without one a built-in template is used (audit table `AUDIT_<table>` with user, I/U/D, time and session, trigger `<table>_AUDIT`). Its syntax is a few directives and column loops, see `docs/audit-templates.md`; errors are shown with their line.
+- The SQL editor and the designer create triggers on tables and views: switched off first, checked, and switched on only if they compile – a trigger with errors never stops DML on its table. Compile errors are marked in the SQL editor.
+
+### Changed
+- The SQL editor keeps a PL/SQL block (trigger, procedure, `BEGIN … END;`) together up to a line with only `/`; a `;` or a blank line inside no longer cuts it.
+- Triggers on the database or a schema (`ON DATABASE`, `ON SCHEMA`) are refused with their own message; procedures, functions, packages and types still are.
+
 ## [3.25.0] - 2026-10-11
 
 Internal restructuring after the review of 3.24.0 (R4b), as preparation for history tables with triggers (WP-26).

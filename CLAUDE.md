@@ -1,7 +1,7 @@
 # FerretSharp – Oracle explorer for .NET developers
 
 > Projektanweisungen für Claude Code. Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-11, Release 3.25.0 (Historie: `CHANGELOG.md`).
+> Stand: 2026-10-12, Release 3.26.0 (Historie: `CHANGELOG.md`).
 
 ## Wo steht was
 
@@ -17,6 +17,7 @@ Diese Datei wird in jede Session geladen und bleibt deshalb kurz. Details liegen
 | `docs/backlog.md` | Nicht eingeplante Ideen | neue Ideen dort notieren |
 | `docs/e2e-testing.md` | UI end-to-end prüfen (CDP, echte Maus, Test-DB, Screenshots) | vor jedem E2E-Lauf |
 | `docs/localization.md` | Texte in Englisch und Deutsch: Ressourcen, Konventionen, Glossar (WP-29) | vor jedem neuen oder geänderten Text |
+| `docs/audit-templates.md` | Audit-Vorlage: Syntax, eingebaute Vorlage, Abgleich (WP-26) | vor Änderungen an `Core/Audit` |
 | `docs/decisions/` | ADRs | bei Stack- oder Architekturänderungen |
 
 Neue Erkenntnisse dorthin schreiben, wo sie gebraucht werden: Fallen eines Bereichs in die `CLAUDE.md` des Projekts, Paketprotokolle nach `docs/work-packages.md`. Hier nur, was in jeder Session gelten muss.
@@ -39,7 +40,7 @@ Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erkl
 | **v1 – Read-only Browser** (bis 1.7) | Connections, Schema, Grid, Filter, Workspaces, FK-Navigation, Export | WP-01 … WP-07 |
 | **v2 – Sandbox-Editing** (1.8–2.0) | Transaktionsmodell, Editieren, Commit/Rollback, Lock-Handling, Prod-Freischaltung | WP-08 … WP-10 |
 | **v3 – .NET-Integration** (2.1–3.0) | DbContext-Modell, Schema-Anreicherung, LINQ-Konsole, Explain-Plan, Code-Generierung | WP-11 … WP-15 |
-| **v4 – Komfort & SQL** (3.x) | Modell-Cache, SQL-Editor, Skripte, Schema-Vergleich, mehrere Verbindungen, Formularansicht, Tastenkürzel, PL/SQL ansehen, Änderungsübersicht mit Undo/Redo, DDL im SQL-Editor, Tabellen-Designer mit Entity aus Tabelle; geplant: Audit-/Historientabellen (`docs/roadmap.md`) | WP-16 … |
+| **v4 – Komfort & SQL** (3.x) | Modell-Cache, SQL-Editor, Skripte, Schema-Vergleich, mehrere Verbindungen, Formularansicht, Tastenkürzel, PL/SQL ansehen, Änderungsübersicht mit Undo/Redo, DDL im SQL-Editor, Tabellen-Designer mit Entity aus Tabelle, Audit-Tabellen und Trigger aus einer Vorlage | WP-16 … |
 
 **Lesen und Schreiben sind getrennt (ADR 0006):**
 - Leseweg: `OracleSession.ExecuteReaderAsync` lehnt alles außer reinen Abfragen ab (`IsReadOnlyStatement`: nach Leerraum/Kommentaren `SELECT`/`WITH`, kein `FOR UPDATE`, nur ein Statement) – eine Stolperfalle gegen Programmierfehler, kein SQL-Parser.
@@ -143,5 +144,5 @@ Regeln:
 
 ## 8. Als Nächstes (Details und Entscheidungen des Nutzers: `docs/roadmap.md`)
 
-- **WP-26** Audit-/Historientabellen aus einer Vorlagendatei (baut auf dem Tabellen-Designer aus WP-23 auf, ADR 0020). Vorbereitet in R4b (3.25.0): DDL-Schritte mit Art und Risiko in `Core/Ddl` (auch `PlSqlObject` mit `/`), `ColumnChange` mit bekannter Absicht, `SqlScript` in Tokenizer/Splitter/Classifier/Analyse geteilt, ein `StatementRunner` für alle Statements.
-- PL/SQL-Objekte anlegen (in WP-22 bewusst abgewiesen), PL/SQL ausführen und bearbeiten (Stufen 2/3 nach WP-28) stehen im Backlog; die Entscheidung fällt spätestens mit WP-26 (Trigger).
+- Kein Paket eingeplant: das nächste mit dem Nutzer aus `docs/backlog.md` auswählen.
+- Seit WP-26 nimmt der Schemaweg Trigger auf Tabellen/Views (ADR 0021); Procedures/Packages/Types anlegen, PL/SQL ausführen und bearbeiten (Stufen 2/3 nach WP-28) stehen weiter im Backlog – der Blockmodus des Splitters und die Kompilierprüfung (Status statt ORA-24344) sind dafür schon da.

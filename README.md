@@ -86,6 +86,10 @@ developer works with an Oracle database day to day:
 - Optimistic concurrency check on the changed columns; insert and delete rows; edit CLOBs and BLOBs in a dialog.
 - **Read-only connections** (default for production) run in `SET TRANSACTION READ ONLY` – Oracle rejects DML. Unlock a
   single workspace on purpose by typing the connection's name.
+- **Table designer**: change the columns, keys and checks of a table or create a new one – what Oracle would refuse with
+  the data at hand is reported before anything runs. **Audit tables** and their trigger come from a template file
+  (your company's pattern, or a built-in one) and follow the table's changes; a trigger is switched on only once it
+  compiles.
 
 ### SQL
 
