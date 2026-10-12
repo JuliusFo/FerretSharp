@@ -89,6 +89,90 @@ public sealed class OracleTypesTests
     public void Type_changes_as_oracle_takes_them_with_data(string from, string to, ColumnTypeChange change) =>
         Assert.Equal(change, OracleTypes.ChangeOf(Parse(from), Parse(to)));
 
+    /// <summary>A type as written in DDL reads into the facets the dictionary shows after CREATE TABLE; DDL writes it back.</summary>
+    [Theory]
+    [InlineData("NUMBER(12)", "NUMBER", null, false, 12, 0, "NUMBER(12)")]
+    [InlineData("number ( 12 , 2 )", "NUMBER", null, false, 12, 2, "NUMBER(12,2)")]
+    [InlineData("NUMBER", "NUMBER", null, false, null, null, "NUMBER")]
+    [InlineData("NUMBER(*)", "NUMBER", null, false, null, null, "NUMBER")]
+    [InlineData("NUMBER(*,2)", "NUMBER", null, false, null, 2, "NUMBER(*,2)")]
+    [InlineData("NUMBER(5,-2)", "NUMBER", null, false, 5, -2, "NUMBER(5,-2)")]
+    [InlineData("INTEGER", "NUMBER", null, false, null, 0, "INTEGER")]
+    [InlineData("INT", "NUMBER", null, false, null, 0, "INTEGER")]
+    [InlineData("FLOAT", "FLOAT", null, false, 126, null, "FLOAT(126)")]
+    [InlineData("FLOAT(63)", "FLOAT", null, false, 63, null, "FLOAT(63)")]
+    [InlineData("VARCHAR2(30)", "VARCHAR2", 30, false, null, null, "VARCHAR2(30 BYTE)")]
+    [InlineData("varchar2(30 char)", "VARCHAR2", 30, true, null, null, "VARCHAR2(30 CHAR)")]
+    [InlineData("VARCHAR(10)", "VARCHAR2", 10, false, null, null, "VARCHAR2(10 BYTE)")]
+    [InlineData("CHAR(1)", "CHAR", 1, false, null, null, "CHAR(1 BYTE)")]
+    [InlineData("CHAR", "CHAR", 1, false, null, null, "CHAR(1 BYTE)")]
+    [InlineData("NVARCHAR2(50)", "NVARCHAR2", 50, true, null, null, "NVARCHAR2(50)")]
+    [InlineData("NCHAR", "NCHAR", 1, true, null, null, "NCHAR(1)")]
+    [InlineData("RAW(16)", "RAW", 16, false, null, null, "RAW(16)")]
+    [InlineData("DATE", "DATE", null, false, null, null, "DATE")]
+    [InlineData("TIMESTAMP", "TIMESTAMP(6)", null, false, null, 6, "TIMESTAMP(6)")]
+    [InlineData("TIMESTAMP(3)", "TIMESTAMP(3)", null, false, null, 3, "TIMESTAMP(3)")]
+    [InlineData("TIMESTAMP WITH TIME ZONE", "TIMESTAMP(6) WITH TIME ZONE", null, false, null, 6, "TIMESTAMP(6) WITH TIME ZONE")]
+    [InlineData("timestamp(0)  with local   time zone", "TIMESTAMP(0) WITH LOCAL TIME ZONE", null, false, null, 0, "TIMESTAMP(0) WITH LOCAL TIME ZONE")]
+    [InlineData("INTERVAL YEAR TO MONTH", "INTERVAL YEAR(2) TO MONTH", null, false, 2, 0, "INTERVAL YEAR(2) TO MONTH")]
+    [InlineData("INTERVAL DAY(3) TO SECOND", "INTERVAL DAY(3) TO SECOND(6)", null, false, 3, 6, "INTERVAL DAY(3) TO SECOND(6)")]
+    [InlineData("CLOB", "CLOB", null, false, null, null, "CLOB")]
+    [InlineData("LONG RAW", "LONG RAW", null, false, null, null, "LONG RAW")]
+    [InlineData("BINARY_DOUBLE", "BINARY_DOUBLE", null, false, null, null, "BINARY_DOUBLE")]
+    [InlineData("SYS.XMLTYPE", "XMLTYPE", null, false, null, null, "XMLTYPE")]
+    public void Parses_ddl_types(string text, string dataType, int? length, bool charSemantics, int? precision, int? scale, string ddl)
+    {
+        Assert.True(OracleTypes.TryParse(text, out var type));
+
+        Assert.Equal(new ColumnInfo("", dataType, length, charSemantics, precision, scale, true, false, null, 0), type);
+        Assert.Equal(ddl, OracleTypes.DdlType(type));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("VARCHAR2")]
+    [InlineData("VARCHAR2(0)")]
+    [InlineData("VARCHAR2(32768)")]
+    [InlineData("CHAR(2001)")]
+    [InlineData("NVARCHAR2(10 CHAR)")]
+    [InlineData("RAW(16 BYTE)")]
+    [InlineData("NUMBER(39)")]
+    [InlineData("NUMBER(0)")]
+    [InlineData("NUMBER(10,128)")]
+    [InlineData("FLOAT(127)")]
+    [InlineData("TIMESTAMP(10)")]
+    [InlineData("INTERVAL YEAR TO SECOND")]
+    [InlineData("ADDRESS_T")]
+    [InlineData("NUMBER(10) NOT NULL")]
+    public void Refuses_what_is_no_type(string text) => Assert.False(OracleTypes.TryParse(text, out _));
+
+    [Theory]
+    [InlineData("VARCHAR2", true)]
+    [InlineData("NCHAR", true)]
+    [InlineData("NUMBER", true)]
+    [InlineData("BINARY_DOUBLE", true)]
+    [InlineData("DATE", true)]
+    [InlineData("TIMESTAMP(6) WITH LOCAL TIME ZONE", true)]
+    [InlineData("INTERVAL YEAR(2) TO MONTH", true)]
+    [InlineData("RAW", true)]
+    [InlineData("ROWID", true)]
+    [InlineData("BOOLEAN", true)]
+    [InlineData("CLOB", false)]
+    [InlineData("NCLOB", false)]
+    [InlineData("BLOB", false)]
+    [InlineData("BFILE", false)]
+    [InlineData("LONG", false)]
+    [InlineData("LONG RAW", false)]
+    [InlineData("XMLTYPE", false)]
+    [InlineData("JSON", false)]
+    [InlineData("VECTOR", false)]
+    [InlineData("ADDRESS_T", false)]
+    public void Comparable_with_not_equal(string type, bool comparable)
+    {
+        Assert.Equal(comparable, OracleTypes.IsComparable(type));
+        Assert.Equal(type is "LONG" or "LONG RAW", OracleTypes.IsLong(type));
+    }
+
     /// <summary><c>VARCHAR2(20 BYTE)</c>, <c>NUMBER(12,2)</c>, <c>INTEGER</c>, <c>FLOAT</c>, <c>TIMESTAMP(6) WITH TIME ZONE</c> as the dictionary reports them.</summary>
     private static ColumnInfo Parse(string type)
     {
