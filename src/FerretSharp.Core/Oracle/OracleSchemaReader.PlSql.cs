@@ -37,6 +37,24 @@ public sealed partial class OracleSchemaReader
          WHERE owner = :owner AND trigger_name = :name
         """;
 
+    // Only columns of the trigger's own table (ALL_TRIGGERS): a trigger on a nested table column may also list others.
+    // A schema or database trigger has no table and no rows. Only a VALID trigger: the entries point at column positions,
+    // and dropping any column of the table invalidates the trigger without renumbering them – until it compiles again,
+    // the view names the columns now at those positions (Oracle 23, see TriggerColumnsTests).
+    private const string TriggerColumnsSql = """
+        SELECT DISTINCT c.column_name
+          FROM all_trigger_cols c
+          JOIN all_triggers t
+            ON t.owner = c.trigger_owner AND t.trigger_name = c.trigger_name
+           AND t.table_owner = c.table_owner AND t.table_name = c.table_name
+          JOIN all_objects o
+            ON o.owner = t.owner AND o.object_name = t.trigger_name AND o.object_type = 'TRIGGER'
+         WHERE c.trigger_owner = :owner AND c.trigger_name = :name
+           AND t.owner = :owner AND t.trigger_name = :name
+           AND o.owner = :owner AND o.object_name = :name AND o.status = 'VALID'
+         ORDER BY c.column_name
+        """;
+
     private const string SourceSql = """
         SELECT text FROM all_source
          WHERE owner = :owner AND name = :name AND type = :object_type
@@ -152,6 +170,9 @@ public sealed partial class OracleSchemaReader
             AuthId: authId,
             Trigger: trigger);
     }
+
+    public async Task<IReadOnlyList<string>> GetTriggerColumnsAsync(string owner, string trigger, CancellationToken cancellationToken) =>
+        await session.ReadListAsync(TriggerColumnsSql, [new("owner", owner), new("name", trigger)], reader => reader.GetString(0), cancellationToken);
 
     public async Task<PlSqlSource> GetSourceAsync(PlSqlObjectSummary unit, PlSqlPart part, CancellationToken cancellationToken)
     {

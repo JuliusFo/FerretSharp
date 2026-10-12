@@ -139,6 +139,13 @@ public interface ISchemaReader
     /// <summary>The procedures and functions of a unit with their parameters (<c>ALL_ARGUMENTS</c>), overloads separately; empty for a trigger.</summary>
     Task<IReadOnlyList<PlSqlSubprogram>> GetSubprogramsAsync(PlSqlObjectSummary unit, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// The columns of its table a trigger references (ALL_TRIGGER_COLS: :new/:old in the body, UPDATE OF; not those of
+    /// the WHEN clause), distinct, in dictionary form, ordered by name; empty if it references none, there is no such
+    /// trigger or it is not VALID (an invalid trigger's entries can name the wrong columns).
+    /// </summary>
+    Task<IReadOnlyList<string>> GetTriggerColumnsAsync(string owner, string trigger, CancellationToken cancellationToken);
+
     /// <summary>Compile errors and warnings of both parts (<c>ALL_ERRORS</c>), specification first.</summary>
     Task<IReadOnlyList<PlSqlError>> GetErrorsAsync(PlSqlObjectSummary unit, CancellationToken cancellationToken);
 
