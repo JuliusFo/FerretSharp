@@ -52,6 +52,9 @@ developer works with an Oracle database day to day:
   exact numbers beyond `decimal`, LOB previews, pinned columns, column search (Ctrl+F).
 - Composable filters in the style of TablePlus – column, operator, value – translated into bound SQL; see the generated
   statement and its execution plan at any time.
+- Names beside foreign keys: mark a display column per table (`KUNDEN.NAME`) and every reference to it reads
+  `4711 · PetersPizza`; a value without a referenced row says "not found". The display columns live in one file you
+  can share with your team through your repository.
 - Object details per table: columns, constraints, indexes (with a hint for unindexed foreign keys), dependencies, DDL.
 - PL/SQL to look at: packages, procedures, functions and triggers with their source (read-only, coloured, compile
   errors marked), parameters per subprogram and overload, compile errors and dependencies – and a search through all

@@ -16,7 +16,7 @@ Entscheidung des Nutzers (2026-10-09). Issues bekommen eine Art und einen Status
 
 Pakete aus dem Backlog, nach v3 mit dem Nutzer ausgewählt (2026-10-05). Versionen: Minor-Releases 3.x (nichts Inkompatibles).
 
-WP-22 (DDL im SQL-Editor) ist umgesetzt: Protokoll in `docs/work-packages.md`, ADR 0019. WP-23 (Tabellen-Designer + Entity aus Tabelle) ist in 3.22.0–3.24.0 umgesetzt: Protokoll in `docs/work-packages.md`, ADR 0020. R4a (Fehler aus dem Review 3.24.0) ist in 3.24.1 umgesetzt, R4b (Struktur) in 3.25.0, WP-26 (Audit-Tabellen aus einer Vorlage) in 3.26.0 (Protokolle mit den Entscheidungen des Nutzers in `docs/work-packages.md`, ADR 0021). Als Nächstes WP-31.
+WP-22 (DDL im SQL-Editor) ist umgesetzt: Protokoll in `docs/work-packages.md`, ADR 0019. WP-23 (Tabellen-Designer + Entity aus Tabelle) ist in 3.22.0–3.24.0 umgesetzt: Protokoll in `docs/work-packages.md`, ADR 0020. R4a (Fehler aus dem Review 3.24.0) ist in 3.24.1 umgesetzt, R4b (Struktur) in 3.25.0, WP-26 (Audit-Tabellen aus einer Vorlage) in 3.26.0 (Protokolle mit den Entscheidungen des Nutzers in `docs/work-packages.md`, ADR 0021). WP-31 (Anzeigespalten) ist umgesetzt, aber noch nicht released (Protokoll in `docs/work-packages.md`, ADR 0022). Weitere Pakete sind noch nicht eingeplant – beim nächsten Mal mit dem Nutzer aus `docs/backlog.md` auswählen.
 
 ### WP-31 Anzeigespalten: Namen zu FK-Werten im Grid ([#11](https://github.com/JuliusFo/FerretSharp/issues/11))
 Idee des Nutzers (2026-10-12): Zu `AUFTRAG.KUNDE_ID = 4711` steht im Grid gleich der Name des Kunden – `4711 · PetersPizza`. Dafür wird je Tabelle eine **Anzeigespalte** festgelegt (`KUNDE` → `NAME`, `SDLAND` → `BEZEICHNUNG`); jeder FK auf diese Tabelle zeigt deren Wert neben seinem eigenen.
@@ -27,7 +27,7 @@ Entscheidungen des Nutzers (2026-10-12):
 - **Schlüssel ist der Tabellenname ohne Owner** – das Schema ist auf Prod/Test/Dev dasselbe, der Schemaname kann abweichen.
 - **Anzeige in derselben Zelle** (Wert, daneben gedämpft der Name), keine eigene Spalte. In den Optionen abschaltbar.
 
-Plan (beim Start mit dem Nutzer abstimmen):
+Plan (umgesetzt wie hier beschrieben; Abweichungen und Messung im Protokoll):
 - Format git-freundlich: JSON, Schlüssel sortiert, ein Eintrag je Zeile, mit Version und einem Objekt `displayColumns`, damit später weitere Einträge hineinpassen (z. B. virtuelle FKs, Backlog). Vor jedem Schreiben neu lesen und Fremdänderungen übernehmen (`AtomicJsonFile`); nach einem `git pull` per File-Watcher neu laden. Einträge, deren Tabelle oder Spalte in der aktuellen DB fehlt, werden still ignoriert. Neues persistentes, geteiltes Format → ADR.
 - Bedienung: im Kontextmenü des Spaltenkopfs „Als Anzeigespalte verwenden“ (Häkchen, eine je Tabelle, eine neue ersetzt die alte), Badge im Kopf neben PK/FK, dieselbe Markierung in der Spaltenliste der Struktur. Nicht wählbar: LOB, LONG, RAW. Geht auch auf schreibgeschützten Verbindungen (es wird nicht in die DB geschrieben).
 - Werte holen: nicht per JOIN in der Grid-Abfrage (fehlende Grants auf die Zieltabelle würden das ganze Grid brechen, nicht eindeutige Beziehungen ohne Constraint Zeilen doppeln), sondern je geladenem Block nachladen: verschiedene FK-Werte sammeln, `SELECT <PK>, <Anzeigespalte> FROM <Ziel> WHERE <PK> IN (…)` (SQL in `Core/Query`, Leseweg, Binds), Cache je Workspace, nachgereicht ins Grid (erst der Wert, dann der Name). Auf der Session des Workspace, damit nicht committete Zeilen und der Snapshot der Read-only-Transaktion stimmen. Cache nach Flush/Commit/Rollback und F5 verwerfen.
@@ -40,6 +40,12 @@ Plan (beim Start mit dem Nutzer abstimmen):
 - Wert ohne Treffer: „nicht gefunden“ markieren – macht verwaiste Verweise sichtbar (viele Beziehungen ohne Constraint), auch direkt beim Bearbeiten einer FK-Zelle.
 - Filtern, Sortieren, Bearbeiten, Kopieren und Export bleiben bei den Rohwerten (Präsentationsschicht). Formularansicht und Zeilenvergleich zeigen den Namen mit.
 - Später (Backlog): Auswahl der Zielzeilen mit Namen beim Bearbeiten einer FK-Zelle, Filtern/Sortieren nach dem Namen, mehrspaltige FKs, mehrere Spalten als Anzeige (Vorname + Nachname).
+
+Beim Start selbst entschieden (einfachste Variante; Rückfrage an den Nutzer offen):
+- **Views als Ziel** bekommen keine Namen: Sie haben keinen erzwungenen eindeutigen Schlüssel.
+- **Cache je Tab** statt je Workspace, geleert bei jedem Lesen ab der ersten Zeile (F5, Filter, nach Schreiben, Commit, Rollback).
+- Spalten mit Namen sind linksbündig und 220 px breit (vorher Zahl rechtsbündig, 140 px).
+- Der Zeilenvergleich zeigt noch keine Namen (Backlog).
 
 ## Offene UX-Fragen
 - Shortcut-Belegung für Commit/Rollback – vorläufig, Nutzerfeedback einholen.

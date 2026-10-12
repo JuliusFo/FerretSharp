@@ -24,6 +24,7 @@ Die Oberfläche gibt es auf Englisch (Standard) und Deutsch. Entscheidung und Hi
 | Core | `OracleText`, `CompareText`, `ConnectionText`, `SettingsText`, `WorkspaceText` | Oracle-Schicht, Schema-Vergleich/DDL, Verbindungen, Einstellungen (Tastenkürzel), Workspaces und IO |
 | Core | `DesignText` | Tabellen-Designer (WP-23): Prüfungen von Index- und Tabellenentwürfen |
 | Core | `AuditText` | Audit-Vorlagen (WP-26): Fehler der Vorlage mit Zeile, Probleme und Warnungen beim Erzeugen von Audit-Tabelle und Trigger |
+| Core | `DisplayText` | Anzeigespalten (WP-31): Datei der Anzeigespalten (nicht lesbar, kein JSON, neuere Version, nicht schreibbar), nicht anzeigbare Spaltentypen |
 | ModelHost | `ModelHostText` | Meldungen und Schritte des Hilfsprozesses |
 
 Klassennamen sind über alle Projekte eindeutig (die Razor-Komponenten sehen Core- und UI-Ressourcen).
@@ -128,6 +129,8 @@ Ein Begriff, eine Übersetzung – überall gleich. Neue Fachbegriffe hier ergä
 | Build-Ausgabe | build output | |
 | PL/SQL: Spezifikation / Body / Quelltext / Parameter / Fehler | specification / body / source / parameters / errors | |
 | ungültig (INVALID) | invalid | |
+| Anzeigespalte | display column | WP-31: die Spalte, deren Wert neben Fremdschlüsseln steht; Badge „Name“ |
+| nicht gefunden (FK-Wert ohne Zeile) | not found | |
 | Überladung / verschlüsselt (wrapped) / Richtung (IN/OUT) | overload / obfuscated (wrapped) / direction | PL/SQL |
 | Schreiben (Knopf: ausstehende Änderungen in die Session schreiben) | Write | andere Texte nennen ihn „Write“ |
 | Aktion (Schreib-Aktion von Grid/SQL/LINQ im Undo-Stapel) | action | „3 uncommitted actions“ |
