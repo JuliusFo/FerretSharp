@@ -14,6 +14,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ### Fixed
 - With the change overview open, the switch between Data, Columns, Constraints … of a table tab no longer breaks into two lines and covers the object name; the name gives way instead.
+- Without any connection, "+ New connection" at the top right of the connections page opens the dialog: the welcome text in the middle covered the page head and swallowed the click.
 
 ## [3.26.0] - 2026-10-12
 

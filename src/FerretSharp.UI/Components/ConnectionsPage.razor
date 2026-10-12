@@ -4,7 +4,7 @@
 @inject ConnectionHub Hub
 @inject RecentConnections Recent
 
-<div class="connections-page">
+<div class="connections-page @(Connections.Profiles.Count == 0 ? "is-empty" : "")">
     <div class="page-head">
         <h1>@ShellText.Connections_Title <span class="count">@Connections.Profiles.Count</span></h1>
         <SearchBox @bind-Value="_query" Class="search grow" Placeholder="@ShellText.Connections_Search" />
@@ -13,9 +13,12 @@
 
     @if (Connections.Profiles.Count == 0)
     {
-        <EmptyState Title="@ShellText.Connections_Welcome" Text="@ShellText.Connections_WelcomeText">
-            <button class="btn primary" @onclick="Shell.NewConnection">@ShellText.Connections_Add</button>
-        </EmptyState>
+        @* EmptyState fills its positioned parent: this box below the head, not the page (it covered "New connection"). *@
+        <div class="connections-empty">
+            <EmptyState Title="@ShellText.Connections_Welcome" Text="@ShellText.Connections_WelcomeText">
+                <button class="btn primary" @onclick="Shell.NewConnection">@ShellText.Connections_Add</button>
+            </EmptyState>
+        </div>
     }
     else
     {
