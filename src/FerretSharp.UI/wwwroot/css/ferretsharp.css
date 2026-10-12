@@ -260,6 +260,9 @@ kbd { font: 600 10px var(--mono); padding: 1px 5px; border-radius: 4px; border: 
 .settings-label .hint { font-size: 12px; }
 .settings-note { margin: 0 16px 14px; padding: 8px 10px; border-radius: 7px; background: var(--accent-weak); color: var(--text); font-size: 12.5px; }
 .settings-note code { font-family: var(--mono); }
+.settings-path { display: flex; align-items: center; gap: 8px; flex: 0 1 520px; min-width: 0; }
+.settings-path .field { flex: 1; min-width: 0; }
+.settings-problems { margin: 0; padding-left: 18px; color: var(--danger); }
 .page-head { display: flex; align-items: center; gap: 16px; max-width: 1100px; margin: 0 auto 12px; }
 .page-head h1 { margin: 0; font-size: 20px; font-weight: 600; white-space: nowrap; }
 .page-head h1 .count { font-size: 13px; font-weight: 500; color: var(--faint); margin-left: 4px; }
@@ -344,6 +347,12 @@ kbd { font: 600 10px var(--mono); padding: 1px 5px; border-radius: 4px; border: 
 .structure h2 { margin: 0 0 8px; font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
 .structure h2 .count { color: var(--faint); font-weight: 500; margin-left: 4px; }
 .structure-columns-head { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
+.audit-status { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin: -2px 0 8px; font-size: 12.5px; color: var(--text); }
+.audit-status.muted { color: var(--muted); }
+.audit-status .link-btn { padding: 0; }
+.audit-status .link-btn.muted { color: var(--faint); text-decoration: none; }
+.audit-status .link-btn.muted:hover { color: var(--muted); text-decoration: underline; }
+.audit-status.warn { padding: 6px 10px; border-radius: 7px; background: rgba(192, 122, 0, 0.12); }
 .structure-columns-head h2 { margin: 0; }
 .structure-filter {
   display: flex; align-items: center; gap: 6px; width: 280px; height: 28px; padding: 0 8px;
@@ -1208,6 +1217,8 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .designer-columns tr.dropped .field { text-decoration: line-through; opacity: .55; }
 .designer-columns tr.dropped > td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
 .designer-add { display: flex; gap: 8px; }
+.designer-audit { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+.designer-audit .mono { font-size: 12px; }
 .designer-constraints { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; }
 .designer-constraints li { display: flex; align-items: center; gap: 8px; }
 .designer-constraints li.dropped .mono { text-decoration: line-through; opacity: .55; }

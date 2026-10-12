@@ -192,4 +192,53 @@ public sealed class AuditPlannerTests
             [("AUDIT_KUNDE", DdlStepKind.AddColumn), ("KUNDE", DdlStepKind.AddColumn), ("KUNDE", DdlStepKind.PlSqlObject)],
             plan.Steps.Select(s => (s.Object, s.Kind)));
     }
+
+    [Fact]
+    public void After_the_draft_columns_are_numbered_again_and_renames_known()
+    {
+        var current = Table("KUNDE", Columns);
+        var draft = new TableDraft(
+        [
+            new ColumnDraft("KUNDE_ID", Columns[0]),
+            new ColumnDraft("NAME", Columns[1] with { Name = " NACHNAME " }),
+            new ColumnDraft("STATUS", Columns[2], Dropped: true),
+            new ColumnDraft(null, Column("FAX", "VARCHAR2", length: 30, position: 0)),
+        ]);
+
+        var (columns, renamed) = AuditPlanner.After(draft);
+
+        Assert.Equal([("KUNDE_ID", 1), ("NACHNAME", 2), ("FAX", 3)], columns.Select(c => (c.Name, c.Position)));
+        Assert.Equal(new Dictionary<string, string> { ["NAME"] = "NACHNAME" }, renamed);
+        Assert.Equal(3, current.Columns.Count); // the table itself is untouched
+    }
+
+    [Fact]
+    public void The_status_is_none_up_to_date_or_outdated_with_reasons()
+    {
+        List<ColumnInfo> now = [.. Columns, Column("FAX", "VARCHAR2", length: 30, position: 4)];
+
+        Assert.Equal(AuditHealth.None, AuditStatus.Of(Template, Kunde, Columns, AuditState.None).Health);
+        Assert.Equal(AuditHealth.UpToDate, AuditStatus.Of(Template, Kunde, Columns, UpToDate(Columns)).Health);
+
+        var outdated = AuditStatus.Of(Template, Kunde, now, UpToDate(Columns));
+        Assert.Equal(AuditHealth.Outdated, outdated.Health);
+        Assert.Equal(["FAX fehlt in der Audit-Tabelle", "Trigger KUNDE_AUDIT füllt nicht alle Spalten"], outdated.Reasons);
+
+        var invalid = AuditStatus.Of(Template, Kunde, Columns, UpToDate(Columns) with { Trigger = new AuditTriggerState(Kunde, false, true, []) });
+        Assert.Equal(["Trigger KUNDE_AUDIT ist ungültig"], invalid.Reasons);
+        var onlyTrigger = AuditStatus.Of(Template, Kunde, Columns, UpToDate(Columns) with { AuditTable = null });
+        Assert.Equal(["Audit-Tabelle AUDIT_KUNDE fehlt"], onlyTrigger.Reasons);
+        var comment = AuditStatus.Of(Template, Kunde, Columns, UpToDate(Columns) with { AuditTableComment = "alt" });
+        Assert.Equal(["Typen oder Kommentare weichen ab"], comment.Reasons);
+    }
+
+    [Fact]
+    public void An_audit_table_gets_no_audit_table_offered()
+    {
+        TableRef[] tables = [Kunde, new("APP", "AUDIT_KUNDE"), new("APP", "LIEFERANT")];
+
+        Assert.True(AuditStatus.IsAuditTable(Template, new TableRef("APP", "AUDIT_KUNDE"), tables));
+        Assert.False(AuditStatus.IsAuditTable(Template, Kunde, tables));
+        Assert.False(AuditStatus.IsAuditTable(Template, new TableRef("APP", "AUDIT_LIEFERANT"), tables[..2]));
+    }
 }

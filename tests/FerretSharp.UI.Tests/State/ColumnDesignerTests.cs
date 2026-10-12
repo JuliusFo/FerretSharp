@@ -304,6 +304,16 @@ public sealed class ColumnDesignerTests
             TableDesign.Plan(DesignContext.Of(Kunde), again.ToDraft().Draft, DataFacts.None).Statements);
     }
 
+    /// <summary>WP-26: the audit box survives a run that stopped halfway – the rest of the audit steps still belong to the plan.</summary>
+    [Fact]
+    public void The_audit_box_survives_a_rebase()
+    {
+        var designer = new ColumnDesigner(Kunde, []) { WithAudit = true };
+
+        Assert.True(designer.Rebase(Kunde, []).WithAudit);
+        Assert.Null(new ColumnDesigner(Kunde, []).Rebase(Kunde, []).WithAudit);
+    }
+
     [Fact]
     public void Not_null_check_constraints_belong_to_their_columns_and_are_not_listed()
     {

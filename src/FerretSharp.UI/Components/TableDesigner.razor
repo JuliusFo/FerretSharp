@@ -2,6 +2,7 @@
    DDL below follows every change (TableDesign); what needs a look at the data – NULLs before NOT NULL, values before a
    type change, rows before a mandatory new column – is counted in the tab's workspace. Run, open in the SQL editor or save
    it through DdlDraftPanel; new columns of a table the C# model maps get their property line to copy. *@
+@using FerretSharp.Core.Audit
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Design
@@ -10,6 +11,7 @@
 @inherits FerretComponent
 @implements IDisposable
 @inject ILogger<TableDesigner> Logger
+@inject AuditTemplateSource AuditTemplates
 
 @if (_designer is not { } designer)
 {
@@ -22,7 +24,9 @@ else
     var plan = NewTab is { } created
         ? TableDesign.PlanNew(created.Table, draft, designer.Referenced, TakenNames)
         : TableDesign.Plan(context, draft, new DataFacts(_facts));
-    var counting = _counting.Count > 0;
+    var audit = AuditTemplates.Current();
+    plan = WithAudit(designer, draft, plan, audit);
+    var counting = _counting.Count > 0 || _auditCounting.Count > 0;
     <section class="designer">
         @if (Tab?.Changes is { PendingCount: > 0 } or { FlushedCount: > 0 })
         {
@@ -168,6 +172,22 @@ else
             <button class="btn" @onclick="() => designer.AddConstraint(ConstraintType.Unique)"><span class="plus">+</span> @SchemaViewText.Designer_AddConstraint</button>
         </div>
 
+        <div class="designer-audit">
+            <label class="check" title="@SchemaViewText.Audit_DesignerTitle">
+                <input type="checkbox" checked="@(designer.WithAudit == true)" @onchange="e => designer.WithAudit = e.Value is true" />
+                @(_audit?.AuditTable is not null ? SchemaViewText.Audit_DesignerSync : SchemaViewText.Audit_DesignerCreate)
+            </label>
+            @if (audit.Template is { } template && AuditTable is { } auditTable)
+            {
+                var names = template.NamesFor(auditTable);
+                <span class="muted mono">@names.AuditTable.Name · @names.Trigger</span>
+            }
+            else if (audit.Errors.Count > 0)
+            {
+                <span class="hint small" title="@string.Join("\n", audit.Errors)">⚠ @SchemaViewText.Audit_TemplateBroken</span>
+            }
+        </div>
+
         @if (counting)
         {
             <p class="hint small"><span class="spinner"></span> @SchemaViewText.Designer_Counting</p>
@@ -196,6 +216,18 @@ else
     private readonly Dictionary<DataQuestion, long> _facts = [];
     private readonly HashSet<DataQuestion> _counting = [];
     private readonly HashSet<DataQuestion> _failed = [];
+
+    /// <summary>What the schema has of the table's audit objects (WP-26); null while loading or for a new table.</summary>
+    private AuditState? _audit;
+
+    // Counts about the existing audit table (its rows: may a new column be NOT NULL?), apart from the table's own.
+    private readonly Dictionary<DataQuestion, long> _auditFacts = [];
+    private readonly HashSet<DataQuestion> _auditCounting = [];
+    private readonly HashSet<DataQuestion> _auditFailed = [];
+
+    /// <summary>Opened for the audit table (WP-26: "Create audit…"/"Bring audit up to date" in the columns view or explorer).</summary>
+    [Parameter]
+    public bool StartWithAudit { get; set; }
     private readonly CancellationTokenSource _cts = new();
     private bool _disposed;
 
@@ -281,6 +313,63 @@ else
         {
             Tab.Designer = new DesignerSession(_designer, _failure);
         }
+
+        await LoadAuditAsync(schema, token);
+    }
+
+    /// <summary>
+    /// The table's audit table and trigger by the template's names (WP-26). The box is on if there is an audit table (or
+    /// the view was opened for it); off otherwise – most tables have none, and that is no fault.
+    /// </summary>
+    private async Task LoadAuditAsync(SchemaCache schema, CancellationToken token)
+    {
+        _audit = null;
+        _auditFacts.Clear();
+        _auditFailed.Clear();
+        if (AuditTemplates.Current().Template is { } template)
+        {
+            var loaded = await Shell.RunDbAsync(Logger, Active, () => AuditLoader.LoadAsync(schema, template.NamesFor(Details.Table.Ref), token), token);
+            if (_disposed)
+            {
+                return;
+            }
+
+            _audit = loaded.Value ?? AuditState.None;
+        }
+
+        if (_designer is { } designer)
+        {
+            designer.WithAudit = StartWithAudit ? true : designer.WithAudit ?? _audit?.AuditTable is not null;
+        }
+    }
+
+    /// <summary>The table the audit objects belong to: this one, or the new table once it has a name.</summary>
+    private TableRef? AuditTable => NewTab is { } created
+        ? created.Table.Name.Trim().Length > 0 ? created.Table.Ref : null
+        : Details.Table.Ref;
+
+    /// <summary>The designer's plan with the audit table and trigger, if the box is on (WP-26): one script, checked as one.</summary>
+    private DesignPlan WithAudit(ColumnDesigner designer, TableDraft draft, DesignPlan plan, AuditTemplateLoad audit)
+    {
+        if (designer.WithAudit != true || AuditTable is not { } table)
+        {
+            return plan;
+        }
+
+        if (audit.Template is not { } template)
+        {
+            return new DesignPlan(plan.Steps, [.. plan.Problems, SchemaViewText.Audit_TemplateBroken, .. audit.Errors], plan.Warnings);
+        }
+
+        if (NewTab is null && _audit is null)
+        {
+            return plan; // still loading what the schema has
+        }
+
+        var (columns, renamed) = AuditPlanner.After(draft);
+        var taken = NewTab is null ? TakenNames : TakenNames.Append(table.Name);
+        var auditPlan = AuditPlanner.Plan(template, table, columns, _audit ?? AuditState.None, new DataFacts(_auditFacts), renamed, taken);
+        return AuditPlanner.Combine(plan, auditPlan);
     }
 
     /// <summary>
@@ -366,16 +455,31 @@ else
             return;
         }
 
-        var missing = TableDesign.Questions(_designer.Table, _designer.ToDraft().Draft)
+        var draft = _designer.ToDraft().Draft;
+        var missing = TableDesign.Questions(_designer.Table, draft)
             .Where(q => !_facts.ContainsKey(q) && !_counting.Contains(q) && !_failed.Contains(q)).ToList();
         if (missing.Count > 0)
         {
             _counting.UnionWith(missing);
-            Fire(() => CountAsync(missing));
+            Fire(() => CountAsync(_designer.Table, missing, _facts, _counting, _failed));
+        }
+
+        // The existing audit table: its rows decide whether a new column may be NOT NULL (WP-26).
+        if (_designer.WithAudit == true && _audit is { AuditTable: { } auditTable } state && AuditTemplates.Current().Template is { } template)
+        {
+            var (columns, renamed) = AuditPlanner.After(draft);
+            var auditMissing = AuditPlanner.Questions(template, Details.Table.Ref, columns, state, renamed)
+                .Where(q => !_auditFacts.ContainsKey(q) && !_auditCounting.Contains(q) && !_auditFailed.Contains(q)).ToList();
+            if (auditMissing.Count > 0)
+            {
+                _auditCounting.UnionWith(auditMissing);
+                Fire(() => CountAsync(auditTable, auditMissing, _auditFacts, _auditCounting, _auditFailed));
+            }
         }
     }
 
-    private async Task CountAsync(IReadOnlyList<DataQuestion> questions)
+    private async Task CountAsync(TableDetails table, IReadOnlyList<DataQuestion> questions, Dictionary<DataQuestion, long> facts,
+        HashSet<DataQuestion> counting, HashSet<DataQuestion> failed)
     {
         if (_disposed)
         {
@@ -383,7 +487,6 @@ else
         }
 
         var token = _cts.Token;
-        var table = _designer!.Table;
         var counted = await Shell.RunDbAsync(Logger, Active, async () =>
         {
             var data = await Workspaces.GetDataAsync(WorkspaceId, token);
@@ -396,14 +499,14 @@ else
 
         foreach (var question in questions)
         {
-            _counting.Remove(question);
+            counting.Remove(question);
             if (counted.Value?.Of(question) is { } count)
             {
-                _facts[question] = count;
+                facts[question] = count;
             }
             else
             {
-                _failed.Add(question); // unknown: the plan warns instead of deciding
+                failed.Add(question); // unknown: the plan warns instead of deciding
             }
         }
 

@@ -101,6 +101,20 @@ public static class AuditPlanner
             [.. table.Warnings, .. audit.Warnings.Except(table.Warnings)]);
     }
 
+    /// <summary>
+    /// The table's columns after the designer's draft ran – kept, renamed and new ones in the draft's order, positions
+    /// numbered again (the template's loops follow them) – and the renames (old name → new name).
+    /// </summary>
+    public static (IReadOnlyList<ColumnInfo> Columns, IReadOnlyDictionary<string, string> Renamed) After(TableDraft draft)
+    {
+        ArgumentNullException.ThrowIfNull(draft);
+        var kept = draft.Columns.Where(c => !c.Dropped && c.Column.Name.Trim().Length > 0).ToList();
+        var columns = kept.Select((c, i) => c.Column with { Name = c.Column.Name.Trim(), Position = i + 1 }).ToList();
+        var renamed = kept.Where(c => c.Original is { } original && original != c.Column.Name.Trim())
+            .ToDictionary(c => c.Original!, c => c.Column.Name.Trim(), StringComparer.Ordinal);
+        return (columns, renamed);
+    }
+
     /// <summary>The audit table as it should be: its columns kept or widened, the template's and the table's new columns added.</summary>
     private static TableDraft Draft(AuditTemplate template, TableRef table, IReadOnlyList<ColumnInfo> baseColumns, TableDetails audit, DataFacts facts,
         IReadOnlyDictionary<string, string>? renamed, List<string> warnings)

@@ -48,10 +48,15 @@
     </div>
     @if (_editing)
     {
-        <TableDesigner Details="Details" WorkspaceId="WorkspaceId" Tab="Tab" OnRan="OnDesignRanAsync" OnClose="() => _editing = false" />
+        <TableDesigner Details="Details" WorkspaceId="WorkspaceId" Tab="Tab" StartWithAudit="_startWithAudit" OnRan="OnDesignRanAsync"
+                       OnClose="() => (_editing, _startWithAudit) = (false, false)" />
     }
     else
     {
+    @if (Details.Table.Kind == TableKind.Table && WorkspaceId != Guid.Empty)
+    {
+        <AuditStatusLine Details="Details" OnOpen="() => (_editing, _startWithAudit) = (true, true)" />
+    }
     <table class="columns">
         <thead>
             <tr>
@@ -221,9 +226,12 @@
 
     private readonly string _entityId = $"entity-name-{Guid.NewGuid():N}";
 
+    /// <summary>The designer opens with the audit box on (WP-26).</summary>
+    private bool _startWithAudit;
+
     private async Task OnDesignRanAsync()
     {
-        _editing = false;
+        (_editing, _startWithAudit) = (false, false);
         await OnSchemaChanged.InvokeAsync();
     }
 
