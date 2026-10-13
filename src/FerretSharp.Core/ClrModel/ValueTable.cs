@@ -94,7 +94,7 @@ public sealed class ValueTable
     public ValueOption? FindOption(string text)
     {
         object? key = _category == ColumnCategory.Number
-            ? FilterRules.TryParseNumber(text, out var number) ? number : null
+            ? ValueInput.TryParseNumber(text, out var number) ? number : null
             : KeyOf(text);
         return key is null || !_byValue.TryGetValue(key, out var mapping) ? null : _byMember.GetValueOrDefault(mapping.Name);
     }
@@ -148,7 +148,7 @@ public sealed class ValueTable
 
     /// <summary>The flags of an edit text (<c>3</c>, also <c>3,0</c>), to tick them in the editor; null if it is no flags value.</summary>
     public FlagsValue? FlagsOfText(string text) =>
-        FilterRules.TryParseNumber(text, out var number) ? FlagsSet(number) : null;
+        ValueInput.TryParseNumber(text, out var number) ? FlagsSet(number) : null;
 
     /// <summary>The edit text of a flags value: the number, invariant.</summary>
     public static string FlagsText(long bits) => bits.ToString(CultureInfo.InvariantCulture);

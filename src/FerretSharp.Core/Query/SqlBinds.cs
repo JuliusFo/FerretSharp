@@ -64,18 +64,18 @@ public static class SqlBinds
                 return new QueryParameter(name, variable.Value, variable.National ? OracleTypeHint.NVarchar2 : OracleTypeHint.Varchar2);
             case SqlVariableType.Char:
                 return new QueryParameter(name, variable.Value, variable.National ? OracleTypeHint.NChar : OracleTypeHint.Char);
-            case SqlVariableType.Number when FilterRules.TryParseNumber(text, out var number):
+            case SqlVariableType.Number when ValueInput.TryParseNumber(text, out var number):
                 return new QueryParameter(name, number, OracleTypeHint.Number);
             case SqlVariableType.Number:
                 throw new SqlBindException(text.Length == 0 ? TextFormat.Format(QueryText.BindNumberMissing, name) : TextFormat.Format(QueryText.BindNotANumber, name, text));
-            case SqlVariableType.Date when FilterRules.TryParseDateWithOffset(text, out var stamp, out _) == true:
+            case SqlVariableType.Date when ValueInput.TryParseDateWithOffset(text, out var stamp, out _) == true:
                 // With an offset (TIMESTAMP WITH TIME ZONE, e.g. from "Open in SQL editor"): the offset is kept.
                 return new QueryParameter(name, stamp, OracleTypeHint.TimeStampTZ);
-            case SqlVariableType.Date when FilterRules.TryParseDate(text, out var date, out _):
+            case SqlVariableType.Date when ValueInput.TryParseDate(text, out var date, out _):
                 return new QueryParameter(name, date, date.Ticks % TimeSpan.TicksPerSecond == 0 ? OracleTypeHint.Date : OracleTypeHint.TimeStamp);
             case SqlVariableType.Date:
                 throw new SqlBindException(text.Length == 0 ? TextFormat.Format(QueryText.BindDateMissing, name) : TextFormat.Format(QueryText.BindNotADate, name, text));
-            case SqlVariableType.Raw when FilterRules.TryParseHex(text, out var bytes):
+            case SqlVariableType.Raw when ValueInput.TryParseHex(text, out var bytes):
                 return new QueryParameter(name, bytes, OracleTypeHint.Raw);
             case SqlVariableType.Raw:
                 throw new SqlBindException(TextFormat.Format(QueryText.BindNotAHexValue, name, text));

@@ -363,7 +363,7 @@ public static class QueryBuilder
 
         private static (DateTime Value, bool DateOnly) ParseDate(string text)
         {
-            FilterRules.TryParseDate(text, out var value, out var dateOnly);
+            ValueInput.TryParseDate(text, out var value, out var dateOnly);
             return (value, dateOnly);
         }
 
@@ -386,13 +386,13 @@ public static class QueryBuilder
             var category = ColumnCategories.Of(column);
             if (category == ColumnCategory.Number)
             {
-                FilterRules.TryParseNumber(text, out var number);
+                ValueInput.TryParseNumber(text, out var number);
                 return Add(new QueryParameter(NextName(), number, OracleTypeHint.Number));
             }
 
             if (category == ColumnCategory.Raw)
             {
-                FilterRules.TryParseHex(text, out var bytes);
+                ValueInput.TryParseHex(text, out var bytes);
                 return Add(new QueryParameter(NextName(), bytes, OracleTypeHint.Raw));
             }
 

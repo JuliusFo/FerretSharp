@@ -115,13 +115,13 @@ public static class OracleTypeMapper
         {
             ColumnCategory.Text => ParseText(column, text),
             ColumnCategory.Number => ParseNumber(column, text),
-            ColumnCategory.Date => FilterRules.TryParseDate(text, out var date, out _)
+            ColumnCategory.Date => ValueInput.TryParseDate(text, out var date, out _)
                 ? ParsedValue.Ok(date)
                 : ParsedValue.Fail(TextFormat.Format(QueryText.NotADate, text)),
-            ColumnCategory.Timestamp => FilterRules.TryParseDate(text, out var timestamp, out _)
+            ColumnCategory.Timestamp => ValueInput.TryParseDate(text, out var timestamp, out _)
                 ? ParsedValue.Ok(timestamp)
                 : ParsedValue.Fail(TextFormat.Format(OracleText.NotATimestamp, text)),
-            ColumnCategory.TimestampWithTimeZone when IsLocalTimeZone(column) => FilterRules.TryParseDate(text, out var local, out _)
+            ColumnCategory.TimestampWithTimeZone when IsLocalTimeZone(column) => ValueInput.TryParseDate(text, out var local, out _)
                 ? ParsedValue.Ok(local)
                 : ParsedValue.Fail(TextFormat.Format(OracleText.NotATimestamp, text)),
             ColumnCategory.TimestampWithTimeZone => ParseWithOffset(text),
@@ -184,7 +184,7 @@ public static class OracleTypeMapper
 
     private static ParsedValue ParseNumber(ColumnInfo column, string text)
     {
-        if (!FilterRules.TryParseNumber(text, out var value))
+        if (!ValueInput.TryParseNumber(text, out var value))
         {
             return ParsedValue.Fail(TextFormat.Format(OracleText.NotANumber, text));
         }
@@ -217,7 +217,7 @@ public static class OracleTypeMapper
     /// </summary>
     private static ParsedValue ParseWithOffset(string text)
     {
-        switch (FilterRules.TryParseDateWithOffset(text, out var value, out var offset))
+        switch (ValueInput.TryParseDateWithOffset(text, out var value, out var offset))
         {
             case true:
                 return ParsedValue.Ok(value);
@@ -226,14 +226,14 @@ public static class OracleTypeMapper
         }
 
         // No offset (or a date like 2026-10-08, whose "-08" only looks like one).
-        return FilterRules.TryParseDate(text.Trim(), out var local, out _)
+        return ValueInput.TryParseDate(text.Trim(), out var local, out _)
             ? ParsedValue.Ok(new DateTimeOffset(local, TimeZoneInfo.Local.GetUtcOffset(local)))
             : ParsedValue.Fail(TextFormat.Format(OracleText.NotATimestampWithTimeZone, text));
     }
 
     private static ParsedValue ParseRaw(ColumnInfo column, string text)
     {
-        if (!FilterRules.TryParseHex(text, out var bytes))
+        if (!ValueInput.TryParseHex(text, out var bytes))
         {
             return ParsedValue.Fail(TextFormat.Format(QueryText.NotAHexValue, text));
         }

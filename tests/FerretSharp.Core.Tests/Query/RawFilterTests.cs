@@ -24,7 +24,7 @@ public class RawFilterTests
     [InlineData(" 00ff ", new byte[] { 0x00, 0xFF })]
     public void Hex_values_are_parsed(string text, byte[] expected)
     {
-        Assert.True(FilterRules.TryParseHex(text, out var value));
+        Assert.True(ValueInput.TryParseHex(text, out var value));
         Assert.Equal(expected, value);
     }
 

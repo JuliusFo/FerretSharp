@@ -232,14 +232,14 @@ public static class LinqFilter
         /// <summary>The filter text as the grid would read it from the column: decimal, DateTime, bytes or text.</summary>
         private object Raw(string text) => _category switch
         {
-            ColumnCategory.Number when FilterRules.TryParseNumber(text, out var number) => number,
+            ColumnCategory.Number when ValueInput.TryParseNumber(text, out var number) => number,
             ColumnCategory.Date or ColumnCategory.Timestamp or ColumnCategory.TimestampWithTimeZone => Date(text).Value,
-            ColumnCategory.Raw when FilterRules.TryParseHex(text, out var bytes) => bytes,
+            ColumnCategory.Raw when ValueInput.TryParseHex(text, out var bytes) => bytes,
             _ => text,
         };
 
         private static (DateTime Value, bool DateOnly) Date(string text) =>
-            FilterRules.TryParseDate(text, out var value, out var dateOnly)
+            ValueInput.TryParseDate(text, out var value, out var dateOnly)
                 ? (value, dateOnly)
                 : throw new NoLiteralException(TextFormat.Format(ClrModelText.NotADate, text));
 
