@@ -206,4 +206,12 @@ public interface ISchemaReader
     /// explorer session, which has no transaction: Oracle refuses EXPLAIN PLAN in a read-only one.
     /// </summary>
     Task<Query.ExecutionPlan> ExplainAsync(Query.QuerySpec query, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// What the shared pool knows about a statement another program ran (WP-33): <c>V$SQL</c> figures and the plan of the
+    /// child used last, found by the SQL_ID of the exact text; null if the statement is not (or no longer) there. On the
+    /// explorer session; nothing is run.
+    /// </summary>
+    /// <exception cref="Query.PlanUnavailableException">No read access to the V$ views.</exception>
+    Task<Query.CursorInfo?> GetCursorAsync(string sql, CancellationToken cancellationToken);
 }

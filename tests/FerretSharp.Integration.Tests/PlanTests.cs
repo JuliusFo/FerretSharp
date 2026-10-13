@@ -138,6 +138,51 @@ public sealed class PlanTests(OracleContainerFixture oracle) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task A_statement_another_program_ran_is_found_by_its_text()
+    {
+        // Like EF: a statement over several lines with a bind, run by another session (the traced app, WP-33).
+        var sql = $"SELECT \"ID\", \"N\"\r\nFROM \"PL_T\" /* {Guid.NewGuid():N} */\r\nWHERE \"ID\" <= :p0";
+        await using (var app = new OracleConnection(oracle.RequireConnectionString()))
+        {
+            await app.OpenAsync(Ct);
+            for (var i = 0; i < 3; i++)
+            {
+                await using var command = app.CreateCommand();
+                command.CommandText = sql;
+                command.Parameters.Add(new OracleParameter("p0", 5));
+                await using var reader = await command.ExecuteReaderAsync(Ct);
+                while (await reader.ReadAsync(Ct))
+                {
+                }
+            }
+        }
+
+        await using var connection = await OpenAsync("Cursor lookup");
+        var cursor = await connection.Schema.GetCursorAsync(sql, Ct);
+
+        Assert.NotNull(cursor);
+        Assert.Equal(Plans.SqlId(sql), cursor.SqlId);
+        Assert.Equal(3, cursor.Executions);
+        Assert.Equal(15, cursor.RowsProcessed);
+        Assert.True(cursor.Children >= 1);
+        Assert.NotNull(cursor.LastActive);
+        Assert.Equal(PlanSource.Actual, cursor.Plan.Source);
+        Assert.Equal(sql, cursor.Plan.Sql);
+        Assert.Contains(cursor.Plan.Steps, s => s.ObjectName == "PL_T");
+        Assert.Null(await connection.Schema.GetCursorAsync(sql + " ", Ct)); // another text, another SQL_ID
+    }
+
+    [Fact]
+    public async Task Without_rights_on_v_dollar_views_the_cursor_lookup_names_the_grant()
+    {
+        await using var connection = await OpenAsync("Cursor no rights", NoRightsUser, NoRightsPassword);
+
+        var error = await Assert.ThrowsAsync<PlanUnavailableException>(() => connection.Schema.GetCursorAsync("SELECT * FROM DUAL", Ct));
+
+        Assert.Contains("SELECT_CATALOG_ROLE", error.Message);
+    }
+
+    [Fact]
     public async Task Without_rights_on_v_dollar_views_the_actual_plan_names_the_grant()
     {
         await using var connection = await OpenAsync("Plan no rights", NoRightsUser, NoRightsPassword);

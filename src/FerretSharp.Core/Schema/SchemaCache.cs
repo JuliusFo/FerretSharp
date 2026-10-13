@@ -187,6 +187,10 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
     public Task<Query.ExecutionPlan> ExplainAsync(Query.QuerySpec query, CancellationToken cancellationToken) =>
         reader.ExplainAsync(query, cancellationToken);
 
+    /// <summary>V$SQL figures and plan of a statement another program ran (explorer session, WP-33).</summary>
+    public Task<Query.CursorInfo?> GetCursorAsync(string sql, CancellationToken cancellationToken) =>
+        reader.GetCursorAsync(sql, cancellationToken);
+
     /// <summary>Relationships where <paramref name="table"/> references other tables.</summary>
     public IEnumerable<ForeignKeyInfo> OutgoingOf(TableRef table) => _outgoing[table];
 
