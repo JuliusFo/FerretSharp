@@ -76,7 +76,7 @@ public sealed class AppTraceServiceTests : IAsyncDisposable
 
         await _service.RefreshProcessesAsync();
 
-        Assert.Contains("no access", _service.Error);
+        Assert.Contains("no access", _service.ListError);
     }
 
     [Fact]
@@ -134,7 +134,7 @@ public sealed class AppTraceServiceTests : IAsyncDisposable
         await _service.AttachAsync(ErpApi);
 
         await Until(() => _service.Status == TraceStatus.Failed);
-        Assert.Equal("The process is gone.", _service.Error);
+        Assert.Equal("The process is gone.", _service.TraceError);
     }
 
     [Fact]
@@ -178,8 +178,75 @@ public sealed class AppTraceServiceTests : IAsyncDisposable
         Assert.Equal((testReader.Id, MatchKind.Environment), (_service.Match.Profile?.Id, _service.Match.Kind));
     }
 
+    [Fact]
+    public async Task Attaching_while_a_slow_stop_is_under_way_leaves_one_trace_that_detach_stops()
+    {
+        // Review of WP-33: a second attach during a slow stop must not start a trace nothing stops any more.
+        var third = new TraceableProcess(4713, "Erp.Jobs", null, null);
+        var slow = new TaskCompletionSource();
+        _source.SlowStop = slow;
+        await _service.AttachAsync(ErpApi);
+        await Until(() => _source.Running == 1);
+
+        var toWorker = _service.AttachAsync(Worker); // waits for the stop of the first one
+        await Until(() => _service.Switching);
+        var toThird = _service.AttachAsync(third);
+        slow.SetResult();
+        await Task.WhenAll(toWorker, toThird);
+
+        Assert.Equal(third, _service.Process);
+        await Until(() => _source.Running == 1);
+        Assert.False(_service.Switching);
+
+        await _service.DetachAsync();
+        await Until(() => _source.Running == 0);
+        Assert.Equal(TraceStatus.Detached, _service.Status);
+    }
+
+    [Fact]
+    public async Task A_list_refresh_keeps_the_error_of_the_trace()
+    {
+        _source.AttachError = new RefusedException("No diagnostics port.");
+        await _service.AttachAsync(ErpApi);
+        await Until(() => _service.Status == TraceStatus.Failed);
+
+        await _service.RefreshProcessesAsync();
+
+        Assert.Equal(("No diagnostics port.", null), (_service.TraceError, _service.ListError));
+    }
+
+    [Fact]
+    public async Task Remembering_an_environment_another_connection_has_keeps_the_choice()
+    {
+        var test = Profile("ERP Test", environment: "erp-test");
+        var testReader = Profile("ERP Test (reader)");
+        await _connections.SaveAsync(test, "pw", Ct);
+        await _connections.SaveAsync(testReader, "pw", Ct);
+        await _service.AttachAsync(ErpApi);
+        _service.Choose(testReader);
+
+        await _service.RememberEnvironmentAsync(testReader, Ct);
+
+        Assert.Equal((testReader.Id, MatchKind.Chosen), (_service.Match.Profile?.Id, _service.Match.Kind)); // both have it now
+    }
+
+    [Fact]
+    public async Task The_view_state_survives_and_a_new_attach_clears_the_filter()
+    {
+        await _service.AttachAsync(ErpApi);
+        _service.OriginFilter = StatementOrigin.LazyLoading;
+        _service.Sort = StatementSort.Count;
+        _service.ShowTooling = true;
+
+        await _service.AttachAsync(Worker);
+
+        Assert.Equal((null, StatementSort.Count, true), (_service.OriginFilter, _service.Sort, _service.ShowTooling));
+    }
+
     private sealed class FakeTraceSource : IAppTraceSource
     {
+        private int _running;
+
         public IReadOnlyList<TraceableProcess> Processes { get; set; } = [];
 
         public Exception? ListError { get; set; }
@@ -190,6 +257,12 @@ public sealed class AppTraceServiceTests : IAsyncDisposable
 
         public bool Canceled { get; private set; }
 
+        /// <summary>Set: a canceled trace ends only once this completes (an app halted at a breakpoint).</summary>
+        public TaskCompletionSource? SlowStop { get; set; }
+
+        /// <summary>Traces started and not ended yet.</summary>
+        public int Running => Volatile.Read(ref _running);
+
         public IReadOnlyList<TraceableProcess> ListProcesses() => ListError is { } error ? throw error : Processes;
 
         public async IAsyncEnumerable<EfEvent> AttachAsync(int processId, [EnumeratorCancellation] CancellationToken ct)
@@ -199,24 +272,41 @@ public sealed class AppTraceServiceTests : IAsyncDisposable
                 throw error;
             }
 
-            var events = Events.Reader;
-            using var registration = ct.Register(() => Canceled = true);
-            while (true)
+            Interlocked.Increment(ref _running);
+            try
             {
-                EfEvent e;
-                try
+                var events = Events.Reader;
+                using var registration = ct.Register(() => Canceled = true);
+                while (true)
                 {
-                    if (!await events.WaitToReadAsync(ct) || !events.TryRead(out e!))
+                    EfEvent e;
+                    try
                     {
-                        yield break;
+                        if (!await events.WaitToReadAsync(ct) || !events.TryRead(out e!))
+                        {
+                            break;
+                        }
                     }
-                }
-                catch (ChannelClosedException)
-                {
-                    yield break;
+                    catch (ChannelClosedException)
+                    {
+                        break;
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        break;
+                    }
+
+                    yield return e;
                 }
 
-                yield return e;
+                if (ct.IsCancellationRequested && SlowStop is { } slow)
+                {
+                    await slow.Task;
+                }
+            }
+            finally
+            {
+                Interlocked.Decrement(ref _running);
             }
         }
     }

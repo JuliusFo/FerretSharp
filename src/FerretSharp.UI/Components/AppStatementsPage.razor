@@ -21,7 +21,7 @@
 
     <section class="settings-section">
         <h2>@AppStatementsText.AppStatements_App</h2>
-        @if (Trace.Process is { } process && !_choosingProcess)
+        @if (Trace.Process is { } process && !Trace.ChoosingProcess)
         {
             <div class="app-trace-status">
                 <span class="dot @StatusCss"></span>
@@ -35,15 +35,15 @@
                 @if (Trace.Status is TraceStatus.Recording or TraceStatus.Attaching)
                 {
                     <button class="btn" @onclick="Trace.Reset" title="@AppStatementsText.AppStatements_ResetTitle">@AppStatementsText.AppStatements_Reset</button>
-                    <button class="btn" @onclick="Trace.DetachAsync">@AppStatementsText.AppStatements_Detach</button>
+                    <button class="btn" disabled="@Trace.Switching" @onclick="Trace.DetachAsync">@AppStatementsText.AppStatements_Detach</button>
                 }
                 else
                 {
-                    <button class="btn" @onclick="() => Trace.AttachAsync(process)">@AppStatementsText.AppStatements_AttachAgain</button>
+                    <button class="btn" disabled="@Trace.Switching" @onclick="() => Trace.AttachAsync(process)">@AppStatementsText.AppStatements_AttachAgain</button>
                 }
                 <button class="btn ghost" @onclick="ChooseProcessAsync">@AppStatementsText.AppStatements_OtherApp</button>
             </div>
-            @if (Trace.Error is { } error)
+            @if (Trace.TraceError is { } error)
             {
                 <div class="test-result error"><span>@error</span></div>
             }
@@ -85,7 +85,7 @@
                 @if (tooling > 0)
                 {
                     <label class="check" title="@AppStatementsText.AppStatements_ShowToolingTitle">
-                        <input type="checkbox" checked="@_showTooling" @onchange="e => _showTooling = e.Value is true" />
+                        <input type="checkbox" checked="@Trace.ShowTooling" @onchange="e => Trace.ShowTooling = e.Value is true" />
                         @TextFormat.Format(AppStatementsText.AppStatements_ShowTooling, tooling)
                     </label>
                 }
@@ -95,16 +95,16 @@
                     <span class="spinner small"></span>
                 }
                 <button class="btn" disabled="@Trace.ListingProcesses" @onclick="Trace.RefreshProcessesAsync">@AppStatementsText.AppStatements_Refresh</button>
-                @if (_choosingProcess)
+                @if (Trace.ChoosingProcess)
                 {
-                    <button class="btn ghost" @onclick="() => _choosingProcess = false">@CommonText.Cancel</button>
+                    <button class="btn ghost" @onclick="() => Trace.ChoosingProcess = false">@CommonText.Cancel</button>
                 }
             </div>
-            @if (Trace.Error is { } listError)
+            @if (Trace.ListError is { } listError)
             {
                 <div class="test-result error"><span>@listError</span></div>
             }
-            var shown = Trace.Processes.Where(p => _showTooling || !p.IsTooling).ToList();
+            var shown = Trace.Processes.Where(p => Trace.ShowTooling || !p.IsTooling).ToList();
             @if (shown.Count == 0)
             {
                 <p class="hint">@(Trace.ListingProcesses ? AppStatementsText.AppStatements_Listing : AppStatementsText.AppStatements_NoProcesses)</p>
@@ -129,7 +129,7 @@
                                 <td class="num muted">@p.Id</td>
                                 <td class="mono">@p.Environment</td>
                                 <td class="muted">@(p.StartTime?.LocalDateTime.ToString("g", CultureInfo.CurrentCulture))</td>
-                                <td class="num"><button class="btn" @onclick="() => AttachAsync(p)">@AppStatementsText.AppStatements_Attach</button></td>
+                                <td class="num"><button class="btn" disabled="@Trace.Switching" @onclick="() => AttachAsync(p)">@AppStatementsText.AppStatements_Attach</button></td>
                             </tr>
                         }
                     </tbody>
@@ -138,7 +138,7 @@
         }
     </section>
 
-    @if (Trace.Process is not null && !_choosingProcess)
+    @if (Trace.Process is not null && !Trace.ChoosingProcess)
     {
         var snapshot = Trace.Snapshot;
         <section class="settings-section">
@@ -169,8 +169,8 @@
                         @foreach (var origin in snapshot.Origins)
                         {
                             var share = snapshot.Share(origin);
-                            <tr class="clickable @(_origin == origin.Origin ? "selected" : "")" title="@AppStatementsText.AppStatements_FilterTitle"
-                                @onclick="() => _origin = _origin == origin.Origin ? null : origin.Origin">
+                            <tr class="clickable @(Trace.OriginFilter == origin.Origin ? "selected" : "")" title="@AppStatementsText.AppStatements_FilterTitle"
+                                @onclick="() => Trace.OriginFilter = Trace.OriginFilter == origin.Origin ? null : origin.Origin">
                                 <td>@OriginText(origin.Origin)</td>
                                 <td class="num">@PlanTable.Count(origin.Count)</td>
                                 <td class="num">@PlanTable.Time(origin.Time)</td>
@@ -188,13 +188,13 @@
 
         @if (snapshot.Count > 0)
         {
-            var statements = Sorted(snapshot.Statements.Where(s => _origin is null || s.Origin == _origin)).ToList();
+            var statements = Sorted(snapshot.Statements.Where(s => Trace.OriginFilter is null || s.Origin == Trace.OriginFilter)).ToList();
             <section class="settings-section">
                 <h2>
                     @AppStatementsText.AppStatements_Statements
-                    @if (_origin is { } filtered)
+                    @if (Trace.OriginFilter is { } filtered)
                     {
-                        <button class="btn ghost app-trace-filter" @onclick="() => _origin = null">@TextFormat.Format(AppStatementsText.AppStatements_OnlyOrigin, OriginText(filtered)) ✕</button>
+                        <button class="btn ghost app-trace-filter" @onclick="() => Trace.OriginFilter = null">@TextFormat.Format(AppStatementsText.AppStatements_OnlyOrigin, OriginText(filtered)) ✕</button>
                     }
                 </h2>
                 @if (snapshot.Truncated)
@@ -311,7 +311,6 @@
 @code {
     private const int MaxRows = 200;
 
-    private enum StatementSort { Count, Time, Average, Max, Rows }
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -322,12 +321,10 @@
     [Parameter]
     public EventCallback OnBack { get; set; }
 
-    private bool _choosingProcess;
-    private bool _showTooling;
     private bool _choosingConnection;
-    private StatementOrigin? _origin;
-    private StatementSort _sort = StatementSort.Time;
     private static readonly TimeSpan ConnectTimeout = TimeSpan.FromMinutes(1);
+    private static readonly TimeSpan StartTimeout = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(100);
     private static readonly TimeSpan LookupTimeout = TimeSpan.FromSeconds(30);
 
     protected override async Task OnInitializedAsync()
@@ -344,15 +341,15 @@
 
     private async Task ChooseProcessAsync()
     {
-        _choosingProcess = true;
+        Trace.ChoosingProcess = true;
         await Trace.RefreshProcessesAsync();
     }
 
     private async Task AttachAsync(TraceableProcess process)
     {
-        _choosingProcess = false;
+        Trace.ChoosingProcess = false;
         _choosingConnection = false;
-        _origin = null;
+        Trace.OriginFilter = null;
         await Trace.AttachAsync(process);
     }
 
@@ -413,7 +410,11 @@
         Finish(result.Value, result.Error?.Display.Replace("<user>", profile.User.ToUpperInvariant(), StringComparison.Ordinal));
     }
 
-    /// <summary>The connection, once connected; connecting shows it (the page stays). Null if connecting failed.</summary>
+    /// <summary>
+    /// The connection, once connected; connecting shows it (the page stays). Null as soon as it is clear that it will not
+    /// connect: it failed, a lost connection only shows its banner (reconnecting is the user's call), or it did not even
+    /// start connecting within a moment.
+    /// </summary>
     private async Task<ActiveConnection?> ConnectedAsync(ConnectionProfile profile)
     {
         if (Hub.Find(profile.Id) is { Active.IsConnected: true } open)
@@ -422,14 +423,29 @@
         }
 
         await Lifecycle.ConnectAsync(profile);
-        for (var waited = TimeSpan.Zero; waited < ConnectTimeout; waited += TimeSpan.FromMilliseconds(100))
+        var started = false;
+        for (var waited = TimeSpan.Zero; waited < ConnectTimeout; waited += PollInterval)
         {
-            if (Hub.Find(profile.Id)?.Active is { } active && active.Status is not (ConnectionStatus.Connecting or ConnectionStatus.Disconnected))
+            if (Hub.Find(profile.Id) is { } scope)
             {
-                return active.IsConnected ? active : null;
+                if (scope.Lost is not null || scope.Active.Status == ConnectionStatus.Failed)
+                {
+                    return null;
+                }
+
+                if (scope.Active.IsConnected)
+                {
+                    return scope.Active;
+                }
+
+                started |= scope.Active.Status == ConnectionStatus.Connecting;
+                if (scope.Active.Status == ConnectionStatus.Disconnected && (started || waited >= StartTimeout))
+                {
+                    return null;
+                }
             }
 
-            await Task.Delay(100, CancellationToken.None);
+            await Task.Delay(PollInterval, CancellationToken.None);
         }
 
         return null;
@@ -446,7 +462,7 @@
     private StatementTotals? SelectedStatement(RecordingSnapshot snapshot) =>
         Trace.Selected is { } key ? snapshot.Statements.FirstOrDefault(s => s.Origin == key.Origin && s.Text == key.Text) : null;
 
-    private IEnumerable<StatementTotals> Sorted(IEnumerable<StatementTotals> statements) => _sort switch
+    private IEnumerable<StatementTotals> Sorted(IEnumerable<StatementTotals> statements) => Trace.Sort switch
     {
         StatementSort.Count => statements.OrderByDescending(s => s.Count),
         StatementSort.Average => statements.OrderByDescending(s => s.Average),
@@ -456,7 +472,7 @@
     };
 
     private RenderFragment SortHeader(StatementSort sort, string label) =>
-        @<th class="num sortable @(_sort == sort ? "sorted" : "")" @onclick="() => _sort = sort">@label@(_sort == sort ? " ↓" : "")</th>;
+        @<th class="num sortable @(Trace.Sort == sort ? "sorted" : "")" @onclick="() => Trace.Sort = sort">@label@(Trace.Sort == sort ? " ↓" : "")</th>;
 
     private string StatusCss => Trace.Status switch
     {
