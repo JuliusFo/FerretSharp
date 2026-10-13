@@ -180,6 +180,37 @@ public sealed class WorkspaceStoreTests : IDisposable
         Assert.Equal("{ not json", await File.ReadAllTextAsync(broken, Ct));
     }
 
+    /// <summary>R5b (review 3.31.0, B2): lists set to null by hand loaded as null and failed the restore of the tabs.</summary>
+    [Fact]
+    public async Task Lists_set_to_null_by_hand_are_empty()
+    {
+        Directory.CreateDirectory(_directory);
+        var id = Guid.NewGuid();
+        await File.WriteAllTextAsync(Path.Combine(_directory, id + ".json"), $$"""
+            { "version": 1, "workspace": { "id": "{{id}}", "connectionId": "{{_connectionId}}", "name": "Hand", "notes": null, "tabs": [ null,
+              { "table": { "owner": "APP", "name": "KUNDEN" }, "mode": "data", "filterRows": null, "appliedFilters": [ null ], "sorts": null, "pinnedColumns": null,
+                "sql": { "title": "SQL 1", "text": null, "variables": null } } ] } }
+            """, Ct);
+
+        var workspace = Assert.Single((await _store.LoadAsync(_connectionId, Ct)).Workspaces);
+
+        var tab = Assert.Single(workspace.Tabs);
+        Assert.Equal("", workspace.Notes);
+        Assert.Equal((0, 0, 0, 0, 0, ""), (tab.FilterRows.Count, tab.AppliedFilters.Count, tab.Sorts.Count, tab.PinnedColumns.Count, tab.Sql!.Variables.Count, tab.Sql.Text));
+    }
+
+    /// <summary>R5b: a newer file whose shape this version cannot read was reported as broken; now as newer, for its own connection only.</summary>
+    [Fact]
+    public async Task A_newer_file_with_an_unknown_shape_is_newer()
+    {
+        Directory.CreateDirectory(_directory);
+        await File.WriteAllTextAsync(Path.Combine(_directory, Guid.NewGuid() + ".json"),
+            $$"""{ "version": 2, "workspace": { "id": "{{Guid.NewGuid()}}", "connectionId": "{{_connectionId}}", "name": "x", "tabs": 42 } }""", Ct);
+
+        Assert.Contains("neueren FerretSharp-Version", Assert.Single((await _store.LoadAsync(_connectionId, Ct)).Errors));
+        Assert.Empty((await _store.LoadAsync(Guid.NewGuid(), Ct)).Errors);
+    }
+
     /// <summary>Review 3.31.0, A41: a broken or newer file of one connection was reported when connecting to every other one.</summary>
     [Fact]
     public async Task Files_of_another_connection_are_not_reported()

@@ -119,6 +119,23 @@ public sealed record Workspace(Guid Id, Guid ConnectionId, string Name)
 
     public DateTimeOffset LastActive { get; init; }
 
+    /// <summary>
+    /// The workspace with what was set to null in its file by hand as empty: tabs that are null are left out, their lists
+    /// and SQL variables become empty (R5b, review 3.31.0 B2: the stores normalized such nulls, the workspaces did not).
+    /// </summary>
+    public Workspace Normalized() => this with
+    {
+        Notes = Notes ?? "",
+        Tabs = (Tabs ?? []).OfType<TabState>().Select(tab => tab with
+        {
+            FilterRows = (tab.FilterRows ?? []).OfType<FilterCondition>().ToList(),
+            AppliedFilters = (tab.AppliedFilters ?? []).OfType<FilterCondition>().ToList(),
+            Sorts = (tab.Sorts ?? []).OfType<SortSpec>().ToList(),
+            PinnedColumns = (tab.PinnedColumns ?? []).OfType<string>().ToList(),
+            Sql = tab.Sql is { } sql ? sql with { Text = sql.Text ?? "", Variables = (sql.Variables ?? []).OfType<SqlVariable>().ToList() } : null,
+        }).ToList(),
+    };
+
     /// <summary>Trimmed name, or null if it is empty or longer than <see cref="MaxNameLength"/>.</summary>
     public static string? NormalizeName(string? name)
     {

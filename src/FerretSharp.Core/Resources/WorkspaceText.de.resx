@@ -33,12 +33,6 @@
   <data name="CommitOrDiscardBeforeLock" xml:space="preserve">
     <value>Erst committen oder verwerfen, dann sperren.</value>
   </data>
-  <data name="FileEmpty" xml:space="preserve">
-    <value>{0} ist leer.</value>
-  </data>
-  <data name="FileFromNewerVersion" xml:space="preserve">
-    <value>{0} stammt aus einer neueren FerretSharp-Version (Format {1}).</value>
-  </data>
   <data name="InvalidFile" xml:space="preserve">
     <value>{0} ist kein gültiges Workspace-JSON: {1}</value>
   </data>

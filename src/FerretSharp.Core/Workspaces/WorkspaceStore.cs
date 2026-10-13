@@ -119,39 +119,30 @@ public sealed partial class WorkspaceStore(string directory) : IWorkspaceStore
 
         foreach (var file in Directory.EnumerateFiles(DirectoryPath, "*.json"))
         {
-            try
+            var name = Path.GetFileName(file);
+            var read = await VersionedJsonFile.ReadAsync<WorkspaceDocument>(file, CurrentVersion, JsonFiles.Options, cancellationToken,
+                complete: document => document.Workspace is not null,
+                normalize: document => document with { Workspace = document.Workspace.Normalized() });
+            if (read.State == JsonFileState.Missing)
             {
-                await using var stream = File.OpenRead(file);
-                var document = await JsonSerializer.DeserializeAsync<WorkspaceDocument>(stream, JsonFiles.Options, cancellationToken);
-                if (document?.Workspace is null)
-                {
-                    result.Add((file, null, TextFormat.Format(WorkspaceText.FileEmpty, Path.GetFileName(file)), null));
-                }
-                else if (document.Version > CurrentVersion)
-                {
-                    result.Add((file, null, TextFormat.Format(WorkspaceText.FileFromNewerVersion, Path.GetFileName(file), document.Version),
-                        document.Workspace.ConnectionId));
-                }
-                else
-                {
-                    result.Add((file, document, null, document.Workspace.ConnectionId));
-                }
+                continue; // deleted meanwhile
             }
-            catch (Exception ex) when (ex is JsonException or NotSupportedException)
+
+            // Every file on its own: one that cannot be used is reported and left as it is, the others still load (A41).
+            result.Add(read.State switch
             {
-                result.Add((file, null, TextFormat.Format(WorkspaceText.InvalidFile, Path.GetFileName(file), ex.Message), await OwnerOfAsync(file)));
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                // One file that cannot be read (rights, locked) does not stop the others (A41).
-                result.Add((file, null, $"{Path.GetFileName(file)}: {ex.Message}", null));
-            }
+                JsonFileState.Ok => (file, read.Document, null, read.Document!.Workspace.ConnectionId),
+                JsonFileState.Empty => (file, null, TextFormat.Format(CoreText.FileEmpty, name), null),
+                JsonFileState.Newer => (file, null, TextFormat.Format(CoreText.FileFromNewerVersion, name, read.Version), await OwnerOfAsync(file)),
+                JsonFileState.Broken => (file, null, TextFormat.Format(WorkspaceText.InvalidFile, name, read.Error!.Message), await OwnerOfAsync(file)),
+                _ => (file, null, $"{name}: {read.Error!.Message}", null), // unreadable: rights, locked
+            });
         }
 
         return result;
     }
 
-    /// <summary>The connection a broken file names, if its text still shows it.</summary>
+    /// <summary>The connection a broken or newer file names, if its text still shows it.</summary>
     private static async Task<Guid?> OwnerOfAsync(string file)
     {
         try
