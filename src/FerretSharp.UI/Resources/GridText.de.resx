@@ -654,6 +654,9 @@
   <data name="Editing_RolledBack" xml:space="preserve">
     <value>Änderungen verworfen (Rollback).</value>
   </data>
+  <data name="Editing_UndoneGridTabClosed" xml:space="preserve">
+    <value>Zurückgenommen: {0} – der Tab ist geschlossen, die Änderungen sind verworfen.</value>
+  </data>
   <data name="Editing_UndoneGrid" xml:space="preserve">
     <value>Zurückgenommen: {0} – die Änderungen sind wieder ausstehend.</value>
   </data>

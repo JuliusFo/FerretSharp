@@ -141,8 +141,9 @@ public sealed class WorkspaceEditing(
         }
 
         // Grid writes of a transaction that ended without commit (a rollback that failed with the connection): they are not
-        // in the database – committing would say so otherwise (R4a).
-        if (editor.Transaction.Mode != TransactionMode.ReadWrite && Trackers(workspace).Any(t => t.FlushedCount > 0))
+        // in the database – committing would say so otherwise (R4a). Also writes of tabs closed since (review 3.31.0, A28).
+        if (editor.Transaction.Mode != TransactionMode.ReadWrite
+            && (Trackers(workspace).Any(t => t.FlushedCount > 0) || History.HasWritten(workspace.WorkspaceId)))
         {
             RestorePending(workspace);
             throw new RefusedException(GridText.Editing_TransactionGone);
@@ -213,14 +214,16 @@ public sealed class WorkspaceEditing(
             return false;
         }
 
-        History.KeepRedoable(id, WorkspacesOf(id).UndoneOf(id).Select(a => a.Id));
+        KeepRedoable(id);
         var statements = false;
+        var ofClosedTab = false;
         foreach (var action in undone) // newest first, like the rollback
         {
             if (History.TakeBack(id, action.Id) is { } write)
             {
                 write.Tab.Changes?.UndoFlush(write.Batch);
                 shell.RequestTabCommand(write.Tab, TabCommand.Reload);
+                ofClosedTab |= !workspace.Tabs.Contains(write.Tab); // nobody sees its changes pending again (A28)
             }
             else
             {
@@ -235,6 +238,7 @@ public sealed class WorkspaceEditing(
 
         shell.Notify(undone switch
         {
+            [{ Kind: WriteActionKind.Grid } single] when ofClosedTab => TextFormat.Format(GridText.Editing_UndoneGridTabClosed, single.Display),
             [{ Kind: WriteActionKind.Grid } single] => TextFormat.Format(GridText.Editing_UndoneGrid, single.Display),
             [var single] => TextFormat.Format(GridText.Editing_Undone, single.Display),
             _ => TextFormat.Format(GridText.Editing_UndoneMany, undone.Count),
@@ -313,7 +317,18 @@ public sealed class WorkspaceEditing(
     }
 
     /// <summary>A statement of the SQL editor or the LINQ console was written: the change overview names its tab and jumps there.</summary>
-    public void NoteStatement(WorkspaceTab tab, WriteAction action) => History.NoteStatement(tab, action);
+    public void NoteStatement(WorkspaceTab tab, WriteAction action)
+    {
+        History.NoteStatement(tab, action);
+        KeepRedoable(tab.WorkspaceId);
+    }
+
+    /// <summary>
+    /// A new write ends redo for the writes taken back (except a redo, which keeps the later ones): the history follows the
+    /// session's list instead of keeping writes nobody can redo (review 3.31.0, A31).
+    /// </summary>
+    private void KeepRedoable(Guid workspaceId) =>
+        History.KeepRedoable(workspaceId, WorkspacesOf(workspaceId).UndoneOf(workspaceId).Select(a => a.Id));
 
     /// <summary>
     /// Where a write came from (change overview): the table tab of a grid write, the SQL or LINQ tab of a statement; null
@@ -475,6 +490,7 @@ public sealed class WorkspaceEditing(
             if (result.Action is { } action)
             {
                 History.Written(workspace.WorkspaceId, action.Id, tab, batch);
+                KeepRedoable(workspace.WorkspaceId);
             }
 
             return true;
@@ -523,14 +539,7 @@ public sealed class WorkspaceEditing(
         foreach (var tab in workspace.TableTabs.Where(t => t.Changes is not null))
         {
             tab.Changes!.Clear();
-            if (tab.StructureStale)
-            {
-                // DDL changed the table while the changes held the old structure: the views start over with the new one.
-                tab.StructureStale = false;
-                tab.Changes = null;
-                tab.StructureVersion++;
-            }
-            else
+            if (!tab.DropStaleStructure()) // DDL changed the table while the changes held the old structure
             {
                 shell.RequestTabCommand(tab, TabCommand.Reload);
             }

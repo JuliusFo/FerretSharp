@@ -145,6 +145,12 @@ public sealed partial class ShellState
 
     public void NotifyChanged()
     {
+        // Edits of a tab changed (discard, undo, revert …): a stale tab without changes takes the new structure (A30).
+        foreach (var tab in _workspaces.SelectMany(w => w.TableTabs))
+        {
+            tab.DropStaleStructure();
+        }
+
         Changed?.Invoke();
         Dirty?.Invoke();
     }

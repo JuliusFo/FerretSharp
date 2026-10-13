@@ -63,6 +63,59 @@ public sealed class WorkspaceEditingTests : IAsyncDisposable
         Assert.StartsWith("Nicht committet: Die Transaktion endete ohne Commit", _app.Shell.Notice?.Text);
     }
 
+    /// <summary>Review 3.31.0, A28: the check above only looked at open tabs – a closed tab's writes were lost unnoticed.</summary>
+    [Fact]
+    public async Task Commit_without_the_transaction_is_refused_also_for_writes_of_a_closed_tab()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("Test"));
+        var workspace = _app.WorkspaceOf(scope);
+        var tab = _app.AddPendingWork(scope);
+        Assert.True(await _app.Editing.FlushAsync(workspace));
+        workspace.Tabs.Remove(tab);
+        var committed = false;
+        _app.OnCommit = () => { committed = true; return Task.CompletedTask; };
+        _app.Editors.ForEach(e => e.Ended = true);
+
+        Assert.False(await _app.Editing.CommitAsync(workspace));
+
+        Assert.False(committed);
+        Assert.StartsWith("Nicht committet: Die Transaktion endete ohne Commit", _app.Shell.Notice?.Text);
+    }
+
+    /// <summary>Review 3.31.0, A31: a new write ends redo, but the history kept the writes taken back until the transaction ended.</summary>
+    [Fact]
+    public async Task A_new_write_forgets_the_writes_taken_back_before()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("Test"));
+        var (workspace, tab) = AddTab(scope);
+        tab.Changes!.SetValue(Row(1, "Meier"), 1, "Müller");
+        Assert.True(await _app.Editing.FlushAsync(workspace));
+        Assert.True(await _app.Editing.UndoLastAsync(workspace));
+        var undone = Assert.Single(_app.Editing.SummaryOf(workspace).Undone);
+        tab.Changes.DiscardPending();
+
+        tab.Changes.SetValue(Row(2, "Lang"), 1, "Kurz");
+        Assert.True(await _app.Editing.FlushAsync(workspace));
+
+        Assert.Empty(_app.Editing.SummaryOf(workspace).Undone);
+        Assert.Null(_app.Editing.History.Undone(workspace.WorkspaceId, undone.Id));
+    }
+
+    [Fact]
+    public async Task Undoing_a_write_of_a_closed_tab_says_its_changes_are_discarded()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("Test"));
+        var workspace = _app.WorkspaceOf(scope);
+        var tab = _app.AddPendingWork(scope);
+        Assert.True(await _app.Editing.FlushAsync(workspace));
+        workspace.Tabs.Remove(tab);
+
+        Assert.True(await _app.Editing.UndoLastAsync(workspace));
+
+        Assert.StartsWith("Zurückgenommen:", _app.Shell.Notice?.Text);
+        Assert.EndsWith("der Tab ist geschlossen, die Änderungen sind verworfen.", _app.Shell.Notice?.Text);
+    }
+
     /// <summary>R4a: on Prod, a statement of another tab finishing after the confirmation opened was committed unseen.</summary>
     [Fact]
     public async Task Commit_after_a_confirmation_refuses_writes_it_did_not_show()

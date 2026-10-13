@@ -836,6 +836,10 @@
   <data name="Editing_RolledBack" xml:space="preserve">
     <value>Changes discarded (rollback).</value>
   </data>
+  <data name="Editing_UndoneGridTabClosed" xml:space="preserve">
+    <value>Undone: {0} – its tab is closed, so the changes are discarded.</value>
+    <comment>{0}: the undone grid write (table and rows)</comment>
+  </data>
   <data name="Editing_UndoneGrid" xml:space="preserve">
     <value>Undone: {0} – the changes are pending again.</value>
     <comment>{0}: the undone grid write (table and rows)</comment>

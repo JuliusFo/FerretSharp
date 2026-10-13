@@ -103,6 +103,9 @@ public sealed class GridWriteHistory
         _statementTabs.Remove(workspaceId);
     }
 
+    /// <summary>Whether the workspace has grid writes in its transaction – also of tabs closed since.</summary>
+    public bool HasWritten(Guid workspaceId) => _written.GetValueOrDefault(workspaceId) is { Count: > 0 };
+
     /// <summary>Whether anything of the workspace is kept (for tests: a closed workspace leaves nothing behind).</summary>
     public bool Knows(Guid workspaceId) =>
         _written.ContainsKey(workspaceId) || _undone.ContainsKey(workspaceId) || _statementTabs.ContainsKey(workspaceId);

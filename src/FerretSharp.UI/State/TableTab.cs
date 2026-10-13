@@ -151,6 +151,23 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
     public bool StructureStale { get; set; }
 
     /// <summary>
+    /// A stale tab whose changes are gone – committed, rolled back, or discarded, undone, reverted (review 3.31.0, A30) –
+    /// starts over with the new structure. True if it did.
+    /// </summary>
+    public bool DropStaleStructure()
+    {
+        if (!StructureStale || Changes is { HasChanges: true })
+        {
+            return false;
+        }
+
+        StructureStale = false;
+        Changes = null; // the grid makes a tracker for the new structure
+        StructureVersion++;
+        return true;
+    }
+
+    /// <summary>
     /// The structure the tab's views work with, given the one just loaded (R4a): uncommitted changes address columns by
     /// position, so while there are any the tab keeps the structure they were made against. A tracker without changes made
     /// for another structure goes – the grid makes a new one.

@@ -115,6 +115,29 @@ public sealed class SchemaRefreshTests
         Assert.Equal(1, pending.StructureVersion);
     }
 
+    /// <summary>Review 3.31.0, A30: discarding the changes kept the tab on the old structure until commit or rollback.</summary>
+    [Fact]
+    public async Task A_stale_tab_shows_the_new_structure_once_its_changes_are_discarded()
+    {
+        await using var app = new TestApp();
+        var scope = await app.OpenAsync(TestApp.Profile("Test"));
+        var pending = app.AddPendingWork(scope);
+        pending.Details = pending.Changes!.Table;
+        app.KundenDetails = app.KundenDetails with
+        {
+            Columns = [.. app.KundenDetails.Columns, new ColumnInfo("FAX", "VARCHAR2", 30, false, null, null, true, false, null, 2)],
+        };
+        await app.Lifecycle.RefreshSchemaAsync(scope);
+        Assert.True(pending.StructureStale);
+
+        pending.Changes.DiscardPending();
+        app.Shell.NotifyChanged();
+
+        Assert.False(pending.StructureStale);
+        Assert.Null(pending.Changes);
+        Assert.Equal(1, pending.StructureVersion);
+    }
+
     [Fact]
     public async Task A_table_that_is_gone_closes_its_tabs()
     {
