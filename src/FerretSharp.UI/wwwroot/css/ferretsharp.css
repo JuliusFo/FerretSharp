@@ -445,7 +445,7 @@ dl.keys dd { margin: 0; }
 .tab-close:hover { background: var(--hover); color: var(--text); }
 /* Pinned tabs (WP-34): the pin in place of ✕, a stronger line after the last one. */
 .tab-close.tab-pin { display: grid; place-items: center; color: var(--accent); }
-.tab-close.tab-pin svg { width: 13px; height: 13px; }
+.tab-close.tab-pin svg { width: 13px; height: 13px; color: inherit; }
 .tab.pinned:has(+ .tab:not(.pinned)), .tab.pinned:has(+ .tab-new) { border-right: 2px solid var(--border-strong); }
 .tab-menu kbd { margin-left: auto; }
 .work-split { flex: 1; display: flex; min-height: 0; }
@@ -1084,7 +1084,6 @@ table.compare-rows td.ff-flushed { box-shadow: inset 2px 0 0 var(--accent); back
 .cr-key { display: block; font: 11px var(--mono); color: var(--muted); }
 
 /* Settings › Tastenkürzel (WP-25) */
-.settings-tabs { margin-bottom: 0; }
 .shortcut-intro { max-width: 1100px; margin: 12px auto 0; }
 .shortcut-row { padding: 8px 16px; }
 .shortcut-keys { display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-width: 340px; }
@@ -1311,3 +1310,17 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .release-notes code { font-family: var(--mono); font-size: 12px; }
 .update-progress { width: 160px; height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; flex: none; }
 .update-progress .bar { height: 100%; background: var(--accent); transition: width .2s; }
+
+/* Settings: list of sections and search at the left (WP-34). */
+.settings-layout { display: flex; align-items: flex-start; gap: 20px; max-width: 1340px; margin: 0 auto; }
+.settings-nav { position: sticky; top: 0; flex: none; width: 220px; display: flex; flex-direction: column; gap: 2px; padding-top: 12px; }
+.settings-nav .settings-search { margin-bottom: 8px; }
+.settings-nav-item { text-align: left; height: 30px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font: inherit; font-size: 13px; cursor: pointer; }
+.settings-nav-item:hover { background: var(--hover); color: var(--text); }
+.settings-nav-item.active { background: var(--accent-weak); color: var(--accent); font-weight: 600; }
+.settings-nav-item.dim { color: var(--faint); }
+.settings-content { flex: 1; min-width: 0; }
+.settings-content .settings-section { margin-left: 0; margin-right: 0; }
+.settings-content .settings-no-match { margin: 12px 0 0; }
+.settings-page .no-match { display: none; }
+.settings-page > .page-head { max-width: 1340px; }

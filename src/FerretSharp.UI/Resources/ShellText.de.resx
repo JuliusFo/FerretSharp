@@ -18,9 +18,6 @@
   <data name="Settings_Sections" xml:space="preserve">
     <value>Bereich</value>
   </data>
-  <data name="Settings_General" xml:space="preserve">
-    <value>Allgemein</value>
-  </data>
   <data name="Settings_Shortcuts" xml:space="preserve">
     <value>Tastenkürzel</value>
   </data>
@@ -1160,5 +1157,14 @@
   </data>
   <data name="TabBar_UnpinTitle" xml:space="preserve">
     <value>Angeheftet – Klick löst den Tab. Bleibt offen, wenn andere Tabs, die rechts davon oder alle geschlossen werden.</value>
+  </data>
+  <data name="Settings_Search" xml:space="preserve">
+    <value>Einstellungen durchsuchen</value>
+  </data>
+  <data name="Settings_NoMatch" xml:space="preserve">
+    <value>Keine Einstellung und kein Tastenkürzel passt zu „{0}“.</value>
+  </data>
+  <data name="Settings_ShortcutGroupInSearch" xml:space="preserve">
+    <value>Tastenkürzel › {0}</value>
   </data>
 </root>

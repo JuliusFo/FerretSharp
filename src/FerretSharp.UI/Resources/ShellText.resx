@@ -20,10 +20,6 @@
     <value>Section</value>
     <comment>Accessible label of the settings tabs</comment>
   </data>
-  <data name="Settings_General" xml:space="preserve">
-    <value>General</value>
-    <comment>Settings tab</comment>
-  </data>
   <data name="Settings_Shortcuts" xml:space="preserve">
     <value>Shortcuts</value>
     <comment>Settings tab</comment>
@@ -1436,5 +1432,17 @@
   <data name="TabBar_UnpinTitle" xml:space="preserve">
     <value>Pinned – click to unpin. Stays open when closing other tabs, the tabs to the right or all tabs.</value>
     <comment>Tooltip of the pin in place of the close button of a pinned tab (WP-34)</comment>
+  </data>
+  <data name="Settings_Search" xml:space="preserve">
+    <value>Search settings</value>
+    <comment>Placeholder of the search field above the list of sections (WP-34)</comment>
+  </data>
+  <data name="Settings_NoMatch" xml:space="preserve">
+    <value>No setting or shortcut matches “{0}”.</value>
+    <comment>{0}: the search text</comment>
+  </data>
+  <data name="Settings_ShortcutGroupInSearch" xml:space="preserve">
+    <value>Shortcuts › {0}</value>
+    <comment>Heading of a group of shortcuts among the search results of the settings (WP-34); {0}: the group, e.g. Editing</comment>
   </data>
 </root>
