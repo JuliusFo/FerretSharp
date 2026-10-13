@@ -166,6 +166,10 @@ public class ReadOnlyTests
 
     [Theory]
     [InlineData("TRUNCATE TABLE t")]
+    [InlineData("ALTER TABLE t TRUNCATE PARTITION p2025")] // review 3.31.0, A9: like TRUNCATE
+    [InlineData("ALTER TABLE t DROP SUBPARTITION sp1")]
+    [InlineData("FLASHBACK TABLE t TO TIMESTAMP SYSTIMESTAMP")]
+    [InlineData("PURGE RECYCLEBIN")]
     [InlineData("ALTER SESSION SET CURRENT_SCHEMA = X")]
     [InlineData("ALTER SYSTEM KILL SESSION '1,2'")]
     [InlineData("CREATE OR REPLACE PROCEDURE p AS BEGIN NULL; END;")]

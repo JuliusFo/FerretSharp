@@ -12,7 +12,11 @@ public enum SqlStatementKind
     /// <summary>CREATE, ALTER (except SESSION/SYSTEM), DROP, GRANT … – commits implicitly (WP-22: runs without an open transaction).</summary>
     Ddl,
 
-    /// <summary>TRUNCATE: DDL that deletes every row without a way back – never run (decision of the user, WP-22).</summary>
+    /// <summary>
+    /// DDL that deletes or overwrites rows without a way back – never run (decision of the user, WP-22): TRUNCATE, and since
+    /// review 3.31.0 (A9) <c>ALTER TABLE … TRUNCATE/DROP [SUB]PARTITION</c>, <c>FLASHBACK TABLE … TO</c> a time, SCN or
+    /// restore point (not <c>TO BEFORE DROP</c>, which brings a dropped table back) and <c>PURGE</c>.
+    /// </summary>
     Truncate,
 
     /// <summary>CREATE [OR REPLACE] PROCEDURE, FUNCTION, PACKAGE, TYPE, JAVA: DDL with a PL/SQL body.</summary>
@@ -89,7 +93,9 @@ public static class SqlClassifier
             "DELETE" => SqlStatementKind.Delete,
             "MERGE" => SqlStatementKind.Merge,
             "ALTER" when second is "SESSION" or "SYSTEM" => SqlStatementKind.SessionControl,
-            "TRUNCATE" => SqlStatementKind.Truncate,
+            "TRUNCATE" or "PURGE" => SqlStatementKind.Truncate,
+            "ALTER" when second == "TABLE" && DropsPartition(tokens) => SqlStatementKind.Truncate,
+            "FLASHBACK" when !Follows(tokens, "TO", "BEFORE", "DROP") => SqlStatementKind.Truncate,
             "CREATE" when PlSqlObjectAt(tokens) is { } at => !tokens[at].IsWord("TRIGGER") ? SqlStatementKind.PlSqlObject
                 : IsSystemTrigger(tokens, at) ? SqlStatementKind.SystemTrigger
                 : SqlStatementKind.Trigger,
@@ -101,6 +107,36 @@ public static class SqlClassifier
             "EXPLAIN" => SqlStatementKind.Explain,
             _ => SqlStatementKind.Unknown,
         };
+    }
+
+    /// <summary><c>TRUNCATE</c> or <c>DROP</c> of partitions anywhere in an ALTER TABLE: the rows in them are gone.</summary>
+    private static bool DropsPartition(IReadOnlyList<SqlToken> tokens)
+    {
+        for (var i = 2; i + 1 < tokens.Count; i++)
+        {
+            if ((tokens[i].IsWord("TRUNCATE") || tokens[i].IsWord("DROP"))
+                && (tokens[i + 1].IsWord("PARTITION") || tokens[i + 1].IsWord("SUBPARTITION")
+                    || tokens[i + 1].IsWord("PARTITIONS") || tokens[i + 1].IsWord("SUBPARTITIONS")))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Whether the words follow each other somewhere in the statement.</summary>
+    private static bool Follows(IReadOnlyList<SqlToken> tokens, params string[] words)
+    {
+        for (var i = 0; i + words.Length <= tokens.Count; i++)
+        {
+            if (words.Select((word, j) => tokens[i + j].IsWord(word)).All(match => match))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     internal static string FirstWordOf(IReadOnlyList<SqlToken> tokens) =>

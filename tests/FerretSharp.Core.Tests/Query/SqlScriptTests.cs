@@ -189,6 +189,7 @@ public sealed class SqlScriptTests
         Assert.Null(SqlScript.Analyze("drop table t").Rejection); // WP-22
         Assert.True(SqlScript.Analyze("ALTER TABLE t ADD y NUMBER").IsDdl);
         Assert.StartsWith("TRUNCATE führt der SQL-Editor nicht aus", SqlScript.Analyze("truncate table t").Rejection);
+        Assert.StartsWith("Statements, die Zeilen oder gelöschte Objekte ohne Rückweg entfernen", SqlScript.Analyze("ALTER TABLE t TRUNCATE PARTITION p").Rejection); // A9
         Assert.StartsWith("PL/SQL-Objekte", SqlScript.Analyze("CREATE OR REPLACE PROCEDURE p AS BEGIN NULL").Rejection);
         Assert.Null(SqlScript.Analyze("CREATE OR REPLACE TRIGGER x BEFORE INSERT ON t BEGIN NULL").Rejection); // WP-26
         Assert.True(SqlScript.Analyze("CREATE OR REPLACE TRIGGER x BEFORE INSERT ON t BEGIN NULL").IsDdl);
@@ -370,6 +371,16 @@ public sealed class SqlScriptTests
     [InlineData("alter session set nls_sort = binary", SqlStatementKind.SessionControl)]
     [InlineData("CREATE OR REPLACE EDITIONABLE PACKAGE p AS END;", SqlStatementKind.PlSqlObject)]
     [InlineData("CREATE UNIQUE INDEX ix ON t (a)", SqlStatementKind.Ddl)]
+    [InlineData("ALTER TABLE t TRUNCATE PARTITION p2025", SqlStatementKind.Truncate)]
+    [InlineData("alter table t drop subpartition sp1 update indexes", SqlStatementKind.Truncate)]
+    [InlineData("ALTER TABLE t DROP PARTITIONS p1, p2", SqlStatementKind.Truncate)]
+    [InlineData("FLASHBACK TABLE t TO TIMESTAMP SYSTIMESTAMP - INTERVAL '1' HOUR", SqlStatementKind.Truncate)]
+    [InlineData("FLASHBACK TABLE t TO SCN 12345", SqlStatementKind.Truncate)]
+    [InlineData("PURGE RECYCLEBIN", SqlStatementKind.Truncate)]
+    [InlineData("PURGE TABLE t", SqlStatementKind.Truncate)]
+    [InlineData("FLASHBACK TABLE t TO BEFORE DROP", SqlStatementKind.Ddl)]
+    [InlineData("ALTER TABLE t DROP COLUMN partition_key", SqlStatementKind.Ddl)]
+    [InlineData("ALTER TABLE t ADD PARTITION p2026 VALUES LESS THAN (2027)", SqlStatementKind.Ddl)]
     [InlineData("TRUNCATE TABLE t", SqlStatementKind.Truncate)]
     public void The_classifier_tells_the_kind_from_the_first_words(string statement, SqlStatementKind kind) =>
         Assert.Equal(kind, SqlClassifier.KindOf(statement));
