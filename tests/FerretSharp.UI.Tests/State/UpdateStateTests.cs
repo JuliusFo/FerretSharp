@@ -119,7 +119,7 @@ public sealed class UpdateStateTests : IDisposable
     }
 
     [Fact]
-    public async Task Update_downloads_with_progress_then_closes_the_app_and_installs_only_once_it_ends()
+    public async Task Download_waits_for_restart_now_which_closes_the_app_and_installs_only_once_it_ends()
     {
         _updater.Found = Next;
         _updater.Progress = [10, 55, 100];
@@ -131,11 +131,16 @@ public sealed class UpdateStateTests : IDisposable
         await updates.CheckAsync();
         updates.ShowDetails();
 
-        await updates.UpdateAsync();
+        await updates.DownloadAsync();
 
         Assert.Equal([Next], _updater.Downloads);
         Assert.Contains(55, progress);
         Assert.Equal(UpdatePhase.Ready, updates.Phase);
+        Assert.True(updates.DetailsOpen); // the second click is the user's (WP-32): nothing closes after the download
+        Assert.Equal(0, closeRequests);
+
+        updates.Restart();
+
         Assert.False(updates.DetailsOpen); // the question about uncommitted changes must not open behind it
         Assert.Equal(1, closeRequests);
         Assert.Empty(_updater.Applied);
@@ -170,7 +175,7 @@ public sealed class UpdateStateTests : IDisposable
         _exitGuard.CloseRequested += () => closeRequests++;
         await updates.CheckAsync();
 
-        var download = updates.UpdateAsync();
+        var download = updates.DownloadAsync();
         Assert.Equal(UpdatePhase.Downloading, updates.Phase);
         updates.CancelDownload();
         await download;
@@ -187,13 +192,13 @@ public sealed class UpdateStateTests : IDisposable
         var updates = Create();
         await updates.CheckAsync();
 
-        await updates.UpdateAsync();
+        await updates.DownloadAsync();
 
         Assert.Equal(UpdatePhase.DownloadFailed, updates.Phase);
         Assert.Equal("Disk full", updates.Error);
 
         _updater.DownloadFails = null;
-        await updates.UpdateAsync();
+        await updates.DownloadAsync();
 
         Assert.Equal(UpdatePhase.Ready, updates.Phase);
         Assert.Equal(2, _updater.Downloads.Count);

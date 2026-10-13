@@ -173,5 +173,5 @@ Ein Begriff, eine Übersetzung – überall gleich. Neue Fachbegriffe hier ergä
 | In der Datenbank nachsehen (V$SQL) | look up in the database | WP-33 |
 | Tastennamen Entf / Einfg / Pos1 / Ende / Bild↑ / Bild↓ / Leertaste / Rücktaste | Del / Ins / Home / End / PgUp / PgDn / Space / Backspace | Ctrl, Shift, Alt, Enter, Esc, Tab in beiden Sprachen gleich |
 | Update / aktualisieren (neue Version der App) | update | „Update 3.29.0 verfügbar“ / „Update 3.29.0 available“ (WP-32) |
-| neu starten (für ein Update) | restart | „Aktualisieren und neu starten“ / „Update and restart“ |
+| herunterladen / neu starten (für ein Update) | download / restart | Knöpfe „Herunterladen“, „Jetzt neu starten“ / „Download“, „Restart now“ |
 | Beim Start prüfen / Jetzt prüfen | Check at start / Check now | Einstellungen › Updates |

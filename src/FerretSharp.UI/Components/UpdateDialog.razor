@@ -1,4 +1,4 @@
-@* The update dialog (WP-32): what is new in the newer version and "Update and restart"; the download runs here with its
+@* The update dialog (WP-32): what is new in the newer version, "Download" and then "Restart now"; the download runs here with its
    progress and can be cancelled. Opened from the status bar or Settings › Updates; mounted by the shell. *@
 @implements IDisposable
 @inject UpdateState Updates
@@ -47,6 +47,10 @@
             {
                 <div class="settings-note error flush">@TextFormat.Format(ShellText.Update_DownloadFailed, update.Version, Updates.Error)</div>
             }
+            else if (Updates.Phase == UpdatePhase.Ready)
+            {
+                <div class="settings-note flush">@TextFormat.Format(ShellText.Update_Ready, update.Version)</div>
+            }
             <p class="hint">@ShellText.Update_RestartHint</p>
         </div>
         <footer>
@@ -63,9 +67,14 @@
             {
                 <span class="spacer"></span>
                 <button class="btn ghost" @onclick="Updates.HideDetails">@ShellText.Update_Later</button>
-                <button class="btn primary" @onclick="Updates.UpdateAsync">
-                    @(Updates.Phase == UpdatePhase.Ready ? ShellText.Update_RestartNow : ShellText.Update_UpdateAndRestart)
-                </button>
+                @if (Updates.Phase == UpdatePhase.Ready)
+                {
+                    <button class="btn primary" @onclick="Updates.Restart">@ShellText.Update_RestartNow</button>
+                }
+                else
+                {
+                    <button class="btn primary" @onclick="Updates.DownloadAsync">@ShellText.Update_Download</button>
+                }
             }
         </footer>
     </ModalFrame>

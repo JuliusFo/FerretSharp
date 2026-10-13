@@ -1345,7 +1345,7 @@
     <comment>{0}: version</comment>
   </data>
   <data name="Update_ShowChanges" xml:space="preserve">
-    <value>Show changes and update …</value>
+    <value>Show changes and download …</value>
     <comment>Button that opens the update dialog</comment>
   </data>
   <data name="Update_Downloading" xml:space="preserve">
@@ -1380,7 +1380,7 @@
     <comment>Status bar link; {0}: version</comment>
   </data>
   <data name="Update_StatusAvailableTitle" xml:space="preserve">
-    <value>Show what is new in {0} and update</value>
+    <value>Show what is new in {0} and download it</value>
     <comment>Tooltip; {0}: version</comment>
   </data>
   <data name="Update_StatusDownloading" xml:space="preserve">
@@ -1415,14 +1415,14 @@
     <comment>Link</comment>
   </data>
   <data name="Update_RestartHint" xml:space="preserve">
-    <value>After the download, FerretSharp restarts and installs the update; uncommitted changes are asked about first. Connections, workspaces and settings stay.</value>
+    <value>After the download, “Restart now” installs the update; uncommitted changes are asked about first. Connections, workspaces and settings stay.</value>
   </data>
   <data name="Update_Later" xml:space="preserve">
     <value>Later</value>
     <comment>Button that closes the update dialog</comment>
   </data>
-  <data name="Update_UpdateAndRestart" xml:space="preserve">
-    <value>Update and restart</value>
+  <data name="Update_Download" xml:space="preserve">
+    <value>Download</value>
     <comment>Button</comment>
   </data>
 </root>

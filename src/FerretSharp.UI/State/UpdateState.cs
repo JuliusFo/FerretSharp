@@ -33,8 +33,8 @@ public enum UpdatePhase
 
 /// <summary>
 /// Update of the app (WP-32, ADR 0024): only reports. The check at start (if on) and "Check now" look for a newer version;
-/// downloading and installing wait for the click on "Update", which downloads and then restarts through the
-/// <see cref="ExitGuard"/> – uncommitted changes are asked about first, as when closing the window.
+/// downloading waits for the click on "Download", installing for a second click on "Restart now", which ends the app
+/// through the <see cref="ExitGuard"/> – uncommitted changes are asked about first, as when closing the window.
 /// </summary>
 public sealed class UpdateState(IAppUpdater updater, AppSettingsService settings, ExitGuard exitGuard, ILogger<UpdateState> logger, TimeProvider? time = null)
 {
@@ -61,7 +61,7 @@ public sealed class UpdateState(IAppUpdater updater, AppSettingsService settings
     /// <summary>"Check now" is possible: installed, nothing running, nothing downloaded waiting for the restart.</summary>
     public bool CanCheck => Phase is UpdatePhase.Idle or UpdatePhase.UpToDate or UpdatePhase.Available or UpdatePhase.CheckFailed or UpdatePhase.DownloadFailed;
 
-    /// <summary>The update dialog (release notes, "Update") is open – from the status bar or Settings › Updates.</summary>
+    /// <summary>The update dialog (release notes, "Download", "Restart now") is open – from the status bar or Settings › Updates.</summary>
     public bool DetailsOpen { get; private set; }
 
     /// <summary>Raised on any change, on the thread that made it (the download's progress comes from the thread pool).</summary>
@@ -137,17 +137,11 @@ public sealed class UpdateState(IAppUpdater updater, AppSettingsService settings
     }
 
     /// <summary>
-    /// The click on "Update": downloads (cancellable, <see cref="CancelDownload"/>), then restarts into the new version
-    /// (<see cref="Restart"/>). Never throws: a failed download is <see cref="UpdatePhase.DownloadFailed"/>.
+    /// The click on "Download": downloads (cancellable, <see cref="CancelDownload"/>); then the update waits for "Restart now"
+    /// (<see cref="Restart"/>, the user's decision, WP-32). Never throws: a failed download is <see cref="UpdatePhase.DownloadFailed"/>.
     /// </summary>
-    public async Task UpdateAsync()
+    public async Task DownloadAsync()
     {
-        if (Phase == UpdatePhase.Ready)
-        {
-            Restart();
-            return;
-        }
-
         if (Update is not { } update || Phase is not (UpdatePhase.Available or UpdatePhase.DownloadFailed))
         {
             return;
@@ -183,7 +177,6 @@ public sealed class UpdateState(IAppUpdater updater, AppSettingsService settings
         logger.LogInformation("Update {Version} downloaded", update.Version);
         Progress = 100;
         Set(UpdatePhase.Ready);
-        Restart();
     }
 
     public void CancelDownload() => _download?.Cancel();

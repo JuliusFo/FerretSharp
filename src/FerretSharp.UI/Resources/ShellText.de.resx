@@ -1090,7 +1090,7 @@
     <value>Version {0} ist verfügbar.</value>
   </data>
   <data name="Update_ShowChanges" xml:space="preserve">
-    <value>Änderungen ansehen und aktualisieren …</value>
+    <value>Änderungen ansehen und herunterladen …</value>
   </data>
   <data name="Update_Downloading" xml:space="preserve">
     <value>Lade {0} herunter … {1} %</value>
@@ -1117,7 +1117,7 @@
     <value>Update {0} verfügbar</value>
   </data>
   <data name="Update_StatusAvailableTitle" xml:space="preserve">
-    <value>Neuerungen in {0} ansehen und aktualisieren</value>
+    <value>Neuerungen in {0} ansehen und herunterladen</value>
   </data>
   <data name="Update_StatusDownloading" xml:space="preserve">
     <value>Update {0} … {1} %</value>
@@ -1144,12 +1144,12 @@
     <value>Alle Releases auf GitHub</value>
   </data>
   <data name="Update_RestartHint" xml:space="preserve">
-    <value>Nach dem Herunterladen startet FerretSharp neu und installiert das Update; bei nicht committeten Änderungen wird vorher gefragt. Verbindungen, Workspaces und Einstellungen bleiben.</value>
+    <value>Nach dem Herunterladen installiert „Jetzt neu starten“ das Update; bei nicht committeten Änderungen wird vorher gefragt. Verbindungen, Workspaces und Einstellungen bleiben.</value>
   </data>
   <data name="Update_Later" xml:space="preserve">
     <value>Später</value>
   </data>
-  <data name="Update_UpdateAndRestart" xml:space="preserve">
-    <value>Aktualisieren und neu starten</value>
+  <data name="Update_Download" xml:space="preserve">
+    <value>Herunterladen</value>
   </data>
 </root>
