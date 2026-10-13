@@ -54,6 +54,9 @@ public sealed class EditingTests(OracleContainerFixture oracle) : IAsyncLifetime
                 "CREATE TABLE ED_DISABLED (ID NUMBER, TXT VARCHAR2(10), CONSTRAINT PK_ED_DISABLED PRIMARY KEY (ID) DISABLE) SEGMENT CREATION IMMEDIATE",
                 "INSERT INTO ED_DISABLED VALUES (1, 'a')",
                 "INSERT INTO ED_DISABLED VALUES (1, 'b')",
+                // A key beyond decimal's 28 digits (read as BigNumber).
+                "CREATE TABLE ED_BIG (ID NUMBER(38) PRIMARY KEY, TXT VARCHAR2(10)) SEGMENT CREATION IMMEDIATE",
+                "INSERT INTO ED_BIG VALUES (123456789012345678901234567890, 'a')",
             })
             {
                 await using var command = connection.CreateCommand();
@@ -518,6 +521,26 @@ public sealed class EditingTests(OracleContainerFixture oracle) : IAsyncLifetime
 
         var after = (await a.Data.ReadPageAsync(table, [], [new SortSpec("TXT", false)], new PageSpec(0, 10), Ct)).Rows;
         Assert.Equal(["b", "x"], after.Select(r => r.Values[I(table, "TXT")]));
+        await a.Editor.RollbackAsync(Ct);
+    }
+
+    [Fact]
+    public async Task A_row_whose_key_has_more_than_28_digits_is_updated_and_deleted()
+    {
+        await using var a = await OpenAsync("Workspace A");
+        var table = await DetailsAsync(a, "ED_BIG");
+        var row = Assert.Single((await a.Data.ReadPageAsync(table, [], [], new PageSpec(0, 10), Ct)).Rows);
+        Assert.Equal(new BigNumber("123456789012345678901234567890"), Assert.Single(Assert.IsType<RowKey.PrimaryKey>(row.Key).Values));
+
+        var tracker = new ChangeTracker(table);
+        tracker.SetValue(row, I(table, "TXT"), "b");
+        await FlushAsync(a, tracker);
+        var updated = Assert.Single((await a.Data.ReadPageAsync(table, [], [], new PageSpec(0, 10), Ct)).Rows);
+        tracker.Delete(updated);
+        await FlushAsync(a, tracker);
+
+        Assert.Equal("b", updated.Values[I(table, "TXT")]);
+        Assert.Empty((await a.Data.ReadPageAsync(table, [], [], new PageSpec(0, 10), Ct)).Rows);
         await a.Editor.RollbackAsync(Ct);
     }
 

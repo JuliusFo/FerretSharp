@@ -1,4 +1,5 @@
 using System.Data;
+using FerretSharp.Core.Data;
 using FerretSharp.Core.Query;
 using Oracle.ManagedDataAccess.Client;
 using Oracle.ManagedDataAccess.Types;
@@ -44,8 +45,16 @@ internal static class OracleParameters
     {
         (_, null) => DBNull.Value,
         (OracleTypeHint.TimeStampTZ, DateTimeOffset dto) => new OracleTimeStampTZ(dto.DateTime, OffsetText(dto.Offset)),
+        (_, BigNumber big) => ToOracle(big),
         (_, var value) => value,
     };
+
+    /// <summary>
+    /// A NUMBER beyond decimal's 28 digits, read as <see cref="BigNumber"/> – bound when it is part of a row's key (update,
+    /// delete, LOB, foreign key jump; review 3.31.0, A16). ODP.NET cannot convert the record itself;
+    /// <see cref="OracleDecimal.Parse"/> reads the invariant notation in every culture (unit test).
+    /// </summary>
+    internal static OracleDecimal ToOracle(BigNumber big) => OracleDecimal.Parse(big.Invariant);
 
     /// <summary><c>+02:00</c>, <c>-05:30</c>: the time zone notation Oracle takes for an offset.</summary>
     internal static string OffsetText(TimeSpan offset) =>
