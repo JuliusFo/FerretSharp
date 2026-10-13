@@ -142,6 +142,21 @@ record PendingOperation(RowChange Change, OperationKind Kind, RowKey Key, IReadO
   - Nach DDL (und bei „Schema neu laden“) lädt `WorkspaceLifecycle.RefreshSchemaAsync` den Schema-Cache neu, schließt Tabs verschwundener Objekte, baut Tabellen-Tabs mit geänderter Struktur neu auf (`TableTab.StructureVersion` als `@key` der `TabView`; Tabs mit ausstehenden oder geschriebenen Änderungen behalten ihre Struktur, weil diese Spalten nach Position adressieren, und bauen sich nach Commit oder Rollback neu auf – `TableTab.StructureStale`; ihre Ansichten nehmen die Struktur über `TableTab.UseStructure`, ein leerer Tracker der alten Struktur fällt dabei weg, R4a) und gleicht das C#-Modell ohne Hilfsprozess neu ab (`ClrModelManager.RemapAsync`).
   - Fremde offene Transaktionen: `DROP` und die meisten `ALTER`-Formen scheitern mit ORA-00054, `ALTER TABLE … ADD` würde unabbrechbar warten – deshalb sperrt der Schemaweg die Tabelle vor jedem `ALTER TABLE` mit `LOCK TABLE … NOWAIT` und startet das DDL sonst nicht (`TableBusyException`). Der SQL-Editor zeigt dann, wer sperrt (`LockHolderList`, braucht Leserechte auf `V$LOCKED_OBJECT`/`V$SESSION`); die Bestätigung nennt vorher andere Workspaces der Verbindung mit offener Schreib-Transaktion und ihre Tabellen.
 
+### 1.7 Eigene Dateien (R5b)
+
+Geschrieben wird atomar (`AtomicJsonFile`) mit `JsonFiles.Options`, gelesen über `VersionedJsonFile.ReadAsync`: die Version vor dem Dokument (eine neuere Datei mit unbekannter Form heißt „neuer“, nicht „kaputt“), Listen, die von Hand auf `null` stehen, werden leer. Was ein Zustand bedeutet, entscheidet jede Datei ausdrücklich:
+
+| Datei | kaputt / leer | nicht lesbar | neuer |
+|---|---|---|---|
+| `connections.json` | Fehler, nie überschrieben (`LoadError`, R5a A6) | wie kaputt | Fehler, nie überschrieben |
+| `recent.json` | kein Verlauf | kein Verlauf | kein Verlauf, Datei bleibt (nur im Speicher) |
+| `settings.json` | Standard, Kopie `.bad-…` vor dem ersten Speichern (R4a) | Standard, ohne Kopie nichts speichern | wie kaputt |
+| `workspaces*.json` | je Datei gemeldet (nur bei ihrer Verbindung), nicht angefasst | gemeldet | gemeldet |
+| `history*.json` | Kopie `.bad-…`, dann neuer Verlauf | nur anzeigen, nicht schreiben | nur anzeigen, nicht schreiben |
+| `comparisons.json` | Fehler auf der Seite (leer = keine) | Fehler | Fehler, Speichern verweigert |
+
+Eigene Regeln, nicht über den Leser: die Anzeigespalten (liest auch eine neuere Datei, dann nur lesend, und hält unbekannte Felder; synchron im `CachedFileRead`) und der Modell-Cache (jede Abweichung ist ein Cache-Fehlschlag).
+
 ## 2. UI-Konzept
 
 ```
