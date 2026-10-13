@@ -101,7 +101,7 @@ public static class DisplayLinks
             return null;
         }
 
-        return new DisplayLink(column, fk, target, key, display, table.Columns[column].DataType is "CHAR" or "NCHAR");
+        return new DisplayLink(column, fk, target, key, display, OracleTypes.IsFixedChar(table.Columns[column].DataType));
     }
 
     private static bool IsUnique(TableDetails target, string column) =>

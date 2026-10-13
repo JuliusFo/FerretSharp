@@ -31,6 +31,38 @@ public sealed class OracleTypesTests
         Assert.Equal(ddl, OracleTypes.DdlType(column));
     }
 
+    /// <summary>R5b (review 3.31.0, B8): the type decisions that stood as string comparisons all over the code.</summary>
+    [Theory]
+    [InlineData("CHAR", "fixed", "semantics")]
+    [InlineData("NCHAR", "fixed", "national")]
+    [InlineData("VARCHAR2", "semantics")]
+    [InlineData("NVARCHAR2", "national")]
+    [InlineData("NCLOB", "national")]
+    [InlineData("CLOB")]
+    [InlineData("NUMBER", "decimal")]
+    [InlineData("FLOAT", "decimal")]
+    [InlineData("INTEGER", "decimal")]
+    [InlineData("BINARY_DOUBLE")]
+    [InlineData("DATE")]
+    [InlineData("TIMESTAMP(6)", "timestamp")]
+    [InlineData("TIMESTAMP(3) WITH TIME ZONE", "timestamp", "zone")]
+    [InlineData("TIMESTAMP(6) WITH LOCAL TIME ZONE", "timestamp", "local")]
+    [InlineData("INTERVAL YEAR(2) TO MONTH", "interval", "year")]
+    [InlineData("INTERVAL DAY(2) TO SECOND(6)", "interval", "day")]
+    public void Type_kinds(string type, params string[] kinds)
+    {
+        Assert.Equal(kinds.Contains("fixed"), OracleTypes.IsFixedChar(type));
+        Assert.Equal(kinds.Contains("national"), OracleTypes.IsNational(type));
+        Assert.Equal(kinds.Contains("semantics"), OracleTypes.HasLengthSemantics(type));
+        Assert.Equal(kinds.Contains("decimal"), OracleTypes.IsDecimalNumber(type));
+        Assert.Equal(kinds.Contains("timestamp"), OracleTypes.IsTimestamp(type));
+        Assert.Equal(kinds.Contains("zone"), OracleTypes.HasTimeZone(type));
+        Assert.Equal(kinds.Contains("local"), OracleTypes.IsLocalTimeZone(type));
+        Assert.Equal(kinds.Contains("interval"), OracleTypes.IsInterval(type));
+        Assert.Equal(kinds.Contains("year"), OracleTypes.IsYearToMonth(type));
+        Assert.Equal(kinds.Contains("day"), OracleTypes.IsDayToSecond(type));
+    }
+
     [Theory]
     [InlineData("VARCHAR2", false, true)]
     [InlineData("VARCHAR2", true, false)]

@@ -275,7 +275,7 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
     {
         switch (ColumnCategories.Of(column))
         {
-            case ColumnCategory.Number when column.DataType is "NUMBER" or "FLOAT" or "INTEGER":
+            case ColumnCategory.Number when OracleTypes.IsDecimalNumber(column.DataType):
                 return ToNumber(NormalizeDecimalSeparator(reader.GetOracleDecimal(ordinal).ToString()));
             case ColumnCategory.Timestamp:
                 return reader.GetOracleTimeStamp(ordinal).Value;

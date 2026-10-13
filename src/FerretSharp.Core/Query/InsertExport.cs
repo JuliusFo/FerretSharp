@@ -60,7 +60,7 @@ public static class InsertExport
         bool b => b ? "TRUE" : "FALSE",
         byte[] bytes => $"HEXTORAW('{Convert.ToHexString(bytes)}')",
         string s when ColumnCategories.Of(column) == ColumnCategory.Interval =>
-            column.DataType.StartsWith("INTERVAL YEAR", StringComparison.Ordinal) ? $"TO_YMINTERVAL('{s}')" : $"TO_DSINTERVAL('{s}')",
+            OracleTypes.IsYearToMonth(column.DataType) ? $"TO_YMINTERVAL('{s}')" : $"TO_DSINTERVAL('{s}')",
         string s => Text(column, s),
         LobValue { Length: 0, Preview: null } => "EMPTY_BLOB()",
         LobValue { Length: 0 } => "EMPTY_CLOB()",
@@ -73,7 +73,7 @@ public static class InsertExport
 
     /// <summary>N'…' for national character columns, so characters outside the database charset survive.</summary>
     private static string Text(ColumnInfo column, string value) =>
-        (column.DataType is "NVARCHAR2" or "NCHAR" or "NCLOB" ? "N'" : "'") + value.Replace("'", "''", StringComparison.Ordinal) + "'";
+        (OracleTypes.IsNational(column.DataType) ? "N'" : "'") + value.Replace("'", "''", StringComparison.Ordinal) + "'";
 
     /// <param name="infinity">+1/-1 for ±infinity, otherwise 0.</param>
     private static string Binary(string type, bool nan, int infinity, string literal) => (nan, infinity) switch

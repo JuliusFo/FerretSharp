@@ -33,10 +33,10 @@ public static class ColumnCategories
         "CLOB" or "NCLOB" => ColumnCategory.Clob,
         "BLOB" => ColumnCategory.Blob,
         "LONG" or "LONG RAW" => ColumnCategory.Long,
-        _ when dataType.StartsWith("TIMESTAMP", StringComparison.Ordinal) && dataType.Contains("TIME ZONE", StringComparison.Ordinal) =>
+        _ when OracleTypes.HasTimeZone(dataType) || OracleTypes.IsLocalTimeZone(dataType) =>
             ColumnCategory.TimestampWithTimeZone,
-        _ when dataType.StartsWith("TIMESTAMP", StringComparison.Ordinal) => ColumnCategory.Timestamp,
-        _ when dataType.StartsWith("INTERVAL", StringComparison.Ordinal) => ColumnCategory.Interval,
+        _ when OracleTypes.IsTimestamp(dataType) => ColumnCategory.Timestamp,
+        _ when OracleTypes.IsInterval(dataType) => ColumnCategory.Interval,
         _ => ColumnCategory.Unsupported,
     };
 

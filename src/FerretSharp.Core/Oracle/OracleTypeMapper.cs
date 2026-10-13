@@ -59,7 +59,7 @@ public static class OracleTypeMapper
     public static bool IsEditableType(ColumnInfo column) => ColumnCategories.Of(column) switch
     {
         ColumnCategory.Text => OracleTypes.IsCharacter(column.DataType),
-        ColumnCategory.Number => column.DataType is "NUMBER" or "FLOAT" or "INTEGER",
+        ColumnCategory.Number => OracleTypes.IsDecimalNumber(column.DataType),
         ColumnCategory.Date or ColumnCategory.Timestamp or ColumnCategory.TimestampWithTimeZone or ColumnCategory.Raw => true,
         _ => false,
     };
@@ -68,7 +68,7 @@ public static class OracleTypeMapper
     /// TIMESTAMP WITH LOCAL TIME ZONE: stored in the database's time zone, read and written in the session's – a time
     /// without offset (<see cref="DateTime"/>). TIMESTAMP WITH TIME ZONE keeps its offset (<see cref="DateTimeOffset"/>).
     /// </summary>
-    public static bool IsLocalTimeZone(ColumnInfo column) => column.DataType.Contains("LOCAL TIME ZONE", StringComparison.Ordinal);
+    public static bool IsLocalTimeZone(ColumnInfo column) => OracleTypes.IsLocalTimeZone(column.DataType);
 
     /// <summary>CLOB, NCLOB, BLOB: edited as a whole in the LOB editor (WP-10), not in the cell.</summary>
     public static bool IsLob(ColumnInfo column) => ColumnCategories.Of(column) is ColumnCategory.Clob or ColumnCategory.Blob;

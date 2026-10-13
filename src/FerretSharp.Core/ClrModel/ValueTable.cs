@@ -249,7 +249,7 @@ public sealed class ValueTable
         BigNumber big => decimal.TryParse(big.Invariant, NumberStyles.Float, CultureInfo.InvariantCulture, out var d) ? d : big.Invariant,
         string s when _category == ColumnCategory.Number =>
             decimal.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var d) ? d : null,
-        string s when _column.DataType is "CHAR" or "NCHAR" => s.TrimEnd(' '),
+        string s when OracleTypes.IsFixedChar(_column.DataType) => s.TrimEnd(' '),
         string s => s,
         bool b => b ? 1m : 0m,
         _ => Convert.ToString(value, CultureInfo.InvariantCulture),

@@ -1,4 +1,5 @@
 using FerretSharp.Core.Data;
+using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.Display;
 
@@ -275,6 +276,6 @@ public sealed class DisplayNames
         public object BindValue(object value) =>
             value is string s && Link.SourcePadded && !IsPadded(Link.Key.DataType) ? s.TrimEnd(' ') : value;
 
-        internal static bool IsPadded(string? dataType) => dataType is "CHAR" or "NCHAR";
+        internal static bool IsPadded(string? dataType) => dataType is not null && OracleTypes.IsFixedChar(dataType);
     }
 }
