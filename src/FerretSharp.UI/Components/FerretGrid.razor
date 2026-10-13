@@ -326,6 +326,12 @@
 
     private IReadOnlyList<object?> ValuesOf(RowChange change) => Enumerable.Range(0, Details.Columns.Count).Select(change.ValueOf).ToList();
 
+    /// <summary>
+    /// A row with the values the grid shows – what copying, the context menu and its exports take (decision of the user,
+    /// review 3.31.0 A21: they took the loaded values while the grid and the form showed the pending ones).
+    /// </summary>
+    private RowData Shown(RowData row) => Tab.Changes?.Find(row.Key) is null ? row : row with { Values = ValuesOf(row) };
+
     private IEnumerable<IReadOnlyList<object?>> NewRowValues() => (Tab.Changes?.NewRows ?? []).Select(ValuesOf);
 
     /// <summary>Asks for the names the rows need and are not known yet; one lookup at a time per grid.</summary>
@@ -1114,8 +1120,9 @@
             return;
         }
 
-        var selected = selectedRows.Order().Select(_blocks.At).ToList();
+        var selected = selectedRows.Order().Select(_blocks.At).Select(r => r is null ? null : Shown(r)).ToList();
         var column = ColumnIndex(colId);
+        row = Shown(row);
         await OnContextMenu.InvokeAsync(new GridContextMenuRequest(
             row, column, Presentation.Present(column, row.Values[column]).Text,
             selected.OfType<RowData>().ToList(), selected.Count(r => r is null), x, y, viewportWidth, viewportHeight, selectedRows.Order().ToList(), rowIndex));
@@ -1133,7 +1140,7 @@
         if (selectedRows.Length > 1)
         {
             var selected = selectedRows.Order().Select(_blocks.At).ToList();
-            var rows = selected.OfType<RowData>().ToList();
+            var rows = selected.OfType<RowData>().Select(Shown).ToList();
             var table = DelimitedExport.Build(Details, rows, DelimitedExport.ClipboardSeparator);
             var missing = selected.Count - rows.Count;
             IReadOnlyList<string> warnings = missing == 0
@@ -1153,7 +1160,7 @@
         }
 
         var index = ColumnIndex(colId);
-        var cell = DelimitedExport.CellText(Details.Columns[index], row.Values[index]);
+        var cell = DelimitedExport.CellText(Details.Columns[index], Shown(row).Values[index]);
         if (await CopyTextAsync(cell.Text) && cell.Warnings.Count > 0)
         {
             Shell.Notify(GridText.Grid_ValueNotCopied, cell.Warnings);
