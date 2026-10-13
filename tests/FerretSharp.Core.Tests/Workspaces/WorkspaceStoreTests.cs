@@ -36,7 +36,7 @@ public sealed class WorkspaceStoreTests : IDisposable
                 PinnedColumns = ["NAME", "ORT"],
                 Form = new FormTabState(Open: true, Width: 520, HideEmpty: true),
             },
-            new TabState(new TableRef("OTHER", "Quoted.Name"), TabMode.Structure, [], [], []) { OriginTab = 0 },
+            new TabState(new TableRef("OTHER", "Quoted.Name"), TabMode.Structure, [], [], []) { OriginTab = 0, Pinned = true },
         ],
     };
 
@@ -63,6 +63,8 @@ public sealed class WorkspaceStoreTests : IDisposable
         Assert.Equal(new SortSpec("NAME", true), Assert.Single(tab.Sorts));
         Assert.Equal(["NAME", "ORT"], tab.PinnedColumns);
         Assert.Null(tab.OriginTab);
+        Assert.False(tab.Pinned);
+        Assert.True(loaded.Tabs[1].Pinned);
         Assert.Equal(0, loaded.Tabs[1].OriginTab);
         Assert.Equal(new TableRef("OTHER", "Quoted.Name"), loaded.Tabs[1].Table);
         Assert.Equal(TabMode.Structure, loaded.Tabs[1].Mode);

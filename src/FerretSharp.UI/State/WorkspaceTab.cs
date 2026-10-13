@@ -23,8 +23,17 @@ public abstract class WorkspaceTab(Guid workspaceId, string idPrefix)
     /// </summary>
     public bool Visited { get; set; }
 
+    /// <summary>
+    /// Pinned by the user (WP-34): stands at the left with the other pinned tabs, and closing other tabs, the tabs to the
+    /// right or all tabs leaves it open. Set through <see cref="ShellState.SetPinned"/>, which keeps the order.
+    /// </summary>
+    public bool Pinned { get; set; }
+
     /// <param name="workspaceTabs">All tabs of the workspace in order (references between tabs are saved as indexes).</param>
     public abstract TabState ToState(IReadOnlyList<WorkspaceTab> workspaceTabs);
+
+    /// <summary>What is saved with the workspace: the state of the tab's kind and what every tab has (the pin).</summary>
+    public TabState Save(IReadOnlyList<WorkspaceTab> workspaceTabs) => ToState(workspaceTabs) with { Pinned = Pinned };
 
     /// <summary>The tab is saved with the workspace (not the draft of a new table, WP-23).</summary>
     public virtual bool IsSaved => true;

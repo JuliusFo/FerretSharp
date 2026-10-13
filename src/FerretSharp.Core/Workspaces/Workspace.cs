@@ -32,6 +32,12 @@ public sealed record TabState(
     /// <summary>Columns the user pinned to the left, in pin order; primary key columns are always pinned (<see cref="ColumnPinning"/>).</summary>
     public IReadOnlyList<string> PinnedColumns { get; init; } = [];
 
+    /// <summary>
+    /// The tab itself is pinned (WP-34): it stands at the left with the other pinned tabs and stays open when closing
+    /// other tabs, the tabs to the right or all tabs. Not to be confused with <see cref="PinnedColumns"/>.
+    /// </summary>
+    public bool Pinned { get; init; }
+
     /// <summary>Index of the tab (in the same workspace) this one was opened from by an FK jump, for "Zurück"; null if none.</summary>
     public int? OriginTab { get; init; }
 

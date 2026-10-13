@@ -35,19 +35,22 @@ public sealed record CloseTabQuestion(WorkspaceTab Tab, CloseTabLoss Loss)
     };
 }
 
-/// <summary>Which tabs a "close" from the tab's right-click menu or a shortcut takes, seen from one tab.</summary>
+/// <summary>
+/// Which tabs a "close" from the tab's right-click menu or a shortcut takes, seen from one tab. Pinned tabs (WP-34) close only
+/// by themselves (<see cref="This"/>).
+/// </summary>
 public enum TabCloseScope
 {
     /// <summary>The tab itself.</summary>
     This,
 
-    /// <summary>Every other tab of the workspace.</summary>
+    /// <summary>Every other tab of the workspace that is not pinned.</summary>
     Others,
 
-    /// <summary>The tabs to the right of it.</summary>
+    /// <summary>The tabs to the right of it that are not pinned.</summary>
     ToTheRight,
 
-    /// <summary>Every tab of the workspace.</summary>
+    /// <summary>Every tab of the workspace that is not pinned.</summary>
     All,
 }
 
@@ -72,9 +75,9 @@ public sealed record CloseTabsQuestion(WorkspaceTab Target, IReadOnlyList<Worksp
         return scope switch
         {
             TabCloseScope.This => [target],
-            TabCloseScope.Others => [.. tabs.Where(t => t != target)],
-            TabCloseScope.ToTheRight => [.. tabs.SkipWhile(t => t != target).Skip(1)],
-            _ => [.. tabs],
+            TabCloseScope.Others => [.. tabs.Where(t => t != target && !t.Pinned)],
+            TabCloseScope.ToTheRight => [.. tabs.SkipWhile(t => t != target).Skip(1).Where(t => !t.Pinned)],
+            _ => [.. tabs.Where(t => !t.Pinned)],
         };
     }
 }

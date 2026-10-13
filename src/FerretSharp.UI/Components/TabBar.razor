@@ -5,19 +5,70 @@
 @inject ShortcutService Shortcuts
 @inject IJSRuntime JS
 
-<nav class="tabs">
-    @foreach (var tab in Shell.Tabs)
+<nav class="tabs" @ref="_bar">
+    @if (Shell.Tabs.Any(t => t.Pinned))
     {
-        var tooltip = tab switch
+        @* WP-34: the pinned tabs stay at the left while the bar scrolls. *@
+        <div class="tabs-pinned">
+            @foreach (var tab in Shell.Tabs.Where(t => t.Pinned))
+            {
+                @TabItem(tab)
+            }
+        </div>
+    }
+    @foreach (var tab in Shell.Tabs.Where(t => !t.Pinned))
+    {
+        @TabItem(tab)
+    }
+    <button class="tab-new" title="@TextFormat.Format(ShellText.TabBar_NewSqlTitle, Shortcuts.Hint(ShortcutAction.NewSql))"
+            @onclick="() => Shell.OpenSql()">+ SQL</button>
+    @if (Models.State.Link is not null)
+    {
+        <button class="tab-new" title="@TextFormat.Format(ShellText.TabBar_NewLinqTitle, Shortcuts.Hint(ShortcutAction.NewLinq))"
+                @onclick="() => Shell.OpenLinq()">+ LINQ</button>
+    }
+</nav>
+
+@if (_menu is { } menu && Shell.Tabs.Contains(menu.Tab))
+{
+    var index = Shell.Tabs.ToList().IndexOf(menu.Tab);
+    <PopoverMenu X="menu.X" Y="menu.Y" ViewportWidth="menu.ViewportWidth" ViewportHeight="menu.ViewportHeight" Width="250" EstimatedHeight="140"
+                 OnClose="CloseMenu">
+        <div class="tab-menu">
+            <button class="menu-item" @onclick="TogglePinFromMenu">
+                @(menu.Tab.Pinned ? ShellText.TabMenu_Unpin : ShellText.TabMenu_Pin) <Kbd Action="ShortcutAction.PinTab" />
+            </button>
+            <div class="menu-sep"></div>
+            <button class="menu-item" @onclick="() => CloseFromMenu(TabCloseScope.This)">@ShellText.TabMenu_Close <Kbd Action="ShortcutAction.CloseTab" /></button>
+            @* Pinned tabs stay open (WP-34): a scope that would close nothing is disabled. *@
+            <button class="menu-item" disabled="@(!Shell.Tabs.Any(t => t != menu.Tab && !t.Pinned))" @onclick="() => CloseFromMenu(TabCloseScope.Others)">
+                @ShellText.TabMenu_CloseOthers <Kbd Action="ShortcutAction.CloseOtherTabs" />
+            </button>
+            <button class="menu-item" disabled="@(!Shell.Tabs.Skip(index + 1).Any(t => !t.Pinned))" @onclick="() => CloseFromMenu(TabCloseScope.ToTheRight)">
+                @ShellText.TabMenu_CloseToTheRight
+            </button>
+            <div class="menu-sep"></div>
+            <button class="menu-item" disabled="@(!Shell.Tabs.Any(t => !t.Pinned))" @onclick="() => CloseFromMenu(TabCloseScope.All)">
+                @ShellText.TabMenu_CloseAll <Kbd Action="ShortcutAction.CloseAllTabs" />
+            </button>
+        </div>
+    </PopoverMenu>
+}
+
+@code {
+    private string? Tooltip(WorkspaceTab tab) => tab switch
         {
             TableTab table => TabTooltip(table),
             PlSqlTab plSql => TextFormat.Format(ShellText.TabBar_PlSqlTitle, ExplorerList.KindLabel(plSql.Unit.Kind), plSql.Unit.Owner, plSql.Unit.Name),
             NewTableTab => ShellText.TabBar_NewTableTitle,
             _ when _renaming == tab => null,
-            LinqTab => ShellText.TabBar_LinqTitle,
-            _ => ShellText.TabBar_SqlTitle,
+            LinqTab => WithTitle(tab, ShellText.TabBar_LinqTitle),
+            _ => WithTitle(tab, ShellText.TabBar_SqlTitle),
         };
-        <div class="tab @KindClass(tab) @(tab == Shell.ActiveTab ? "active" : "")" title="@tooltip"
+
+    /// <summary>One tab, in the pinned group or after it.</summary>
+    private RenderFragment TabItem(WorkspaceTab tab) =>
+        @<div class="tab @KindClass(tab) @(tab == Shell.ActiveTab ? "active" : "") @(tab.Pinned ? "pinned" : "")" title="@Tooltip(tab)"
              @onclick="e => OnClick(e, tab)" @onmouseup="e => CloseOnMiddleClick(e, tab)"
              @oncontextmenu="e => OpenMenuAsync(e, tab)" @oncontextmenu:preventDefault="true">
             @switch (tab)
@@ -64,39 +115,19 @@
                     }
                     break;
             }
-            <button class="tab-close" title="@TextFormat.Format(ShellText.TabBar_CloseTitle, Shortcuts.Hint(ShortcutAction.CloseTab))"
-                    @onmousedown:preventDefault="true" @onclick:stopPropagation="true" @onclick="() => CloseAsync(tab)">✕</button>
-        </div>
-    }
-    <button class="tab-new" title="@TextFormat.Format(ShellText.TabBar_NewSqlTitle, Shortcuts.Hint(ShortcutAction.NewSql))"
-            @onclick="() => Shell.OpenSql()">+ SQL</button>
-    @if (Models.State.Link is not null)
-    {
-        <button class="tab-new" title="@TextFormat.Format(ShellText.TabBar_NewLinqTitle, Shortcuts.Hint(ShortcutAction.NewLinq))"
-                @onclick="() => Shell.OpenLinq()">+ LINQ</button>
-    }
-</nav>
+            @if (tab.Pinned)
+            {
+                @* WP-34: a pinned tab shows its pin where others have ✕; a click unpins it (closing stays in the menu and the shortcut). *@
+                <button class="tab-close tab-pin" title="@ShellText.TabBar_UnpinTitle"
+                        @onmousedown:preventDefault="true" @onclick:stopPropagation="true" @onclick="() => Shell.SetPinned(tab, false)">@Icons.Pin</button>
+            }
+            else
+            {
+                <button class="tab-close" title="@TextFormat.Format(ShellText.TabBar_CloseTitle, Shortcuts.Hint(ShortcutAction.CloseTab))"
+                        @onmousedown:preventDefault="true" @onclick:stopPropagation="true" @onclick="() => CloseAsync(tab)">✕</button>
+            }
+        </div>;
 
-@if (_menu is { } menu && Shell.Tabs.Contains(menu.Tab))
-{
-    var index = Shell.Tabs.ToList().IndexOf(menu.Tab);
-    <PopoverMenu X="menu.X" Y="menu.Y" ViewportWidth="menu.ViewportWidth" ViewportHeight="menu.ViewportHeight" Width="250" EstimatedHeight="140"
-                 OnClose="CloseMenu">
-        <div class="tab-menu">
-            <button class="menu-item" @onclick="() => CloseFromMenu(TabCloseScope.This)">@ShellText.TabMenu_Close <Kbd Action="ShortcutAction.CloseTab" /></button>
-            <button class="menu-item" disabled="@(Shell.Tabs.Count < 2)" @onclick="() => CloseFromMenu(TabCloseScope.Others)">
-                @ShellText.TabMenu_CloseOthers <Kbd Action="ShortcutAction.CloseOtherTabs" />
-            </button>
-            <button class="menu-item" disabled="@(index == Shell.Tabs.Count - 1)" @onclick="() => CloseFromMenu(TabCloseScope.ToTheRight)">
-                @ShellText.TabMenu_CloseToTheRight
-            </button>
-            <div class="menu-sep"></div>
-            <button class="menu-item" @onclick="() => CloseFromMenu(TabCloseScope.All)">@ShellText.TabMenu_CloseAll <Kbd Action="ShortcutAction.CloseAllTabs" /></button>
-        </div>
-    </PopoverMenu>
-}
-
-@code {
     [CascadingParameter]
     public PresentationService Presentations { get; set; } = null!;
 
@@ -110,6 +141,21 @@
     private IJSObjectReference? _shortcuts;
 
     private bool _disposed;
+
+    private ElementReference _bar;
+
+    /// <summary>A pinned SQL or LINQ tab may show a shortened name (WP-34): the tooltip has the full one.</summary>
+    private static string WithTitle(WorkspaceTab tab, string text) =>
+        tab.Pinned && tab is ITitledTab titled ? titled.Title + Environment.NewLine + text : text;
+
+    /// <summary>A full bar narrows the pinned tabs (WP-34, class <c>crowded</c>): dom.js watches whether the tabs still fit.</summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Dom.InvokeVoidAsync("watchOverflow", _bar, "crowded");
+        }
+    }
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -186,9 +232,19 @@
         Lifecycle.CloseTabs(menu.Tab, scope);
     }
 
+    private void TogglePinFromMenu()
+    {
+        if (_menu is { } menu)
+        {
+            _menu = null;
+            Shell.SetPinned(menu.Tab, !menu.Tab.Pinned);
+        }
+    }
+
+    /// <summary>A pinned tab does not close by middle click (WP-34): too easy to hit while working along the bar.</summary>
     private async Task CloseOnMiddleClick(MouseEventArgs e, WorkspaceTab tab)
     {
-        if (e.Button == 1)
+        if (e.Button == 1 && !tab.Pinned)
         {
             await CloseAsync(tab);
         }

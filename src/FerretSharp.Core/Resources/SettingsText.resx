@@ -339,6 +339,13 @@
     <comment>Shortcut action: closes every tab of the active workspace</comment>
   </data>
   <data name="HintCloseTabs" xml:space="preserve">
-    <value>Of the active workspace. If tabs would lose something, asks once for all of them; they can also stay open.</value>
+    <value>Of the active workspace; pinned tabs stay open. If tabs would lose something, asks once for all of them; they can also stay open.</value>
+  </data>
+  <data name="ActionPinTab" xml:space="preserve">
+    <value>Pin or unpin tab</value>
+    <comment>Shortcut action (WP-34): pins the active tab, or unpins it if it is pinned</comment>
+  </data>
+  <data name="HintPinTab" xml:space="preserve">
+    <value>Pinned tabs stand at the left and stay open when closing other tabs, the tabs to the right or all tabs.</value>
   </data>
 </root>

@@ -87,6 +87,27 @@ export function containsFocus(element) {
   return !!element && element.contains(document.activeElement);
 }
 
+/** Sets `className` on the element while its content does not fit its width without that class – the tab bar narrows
+ *  pinned tabs then (WP-34). Measured without the class each time (in one layout, nothing is painted in between), so it
+ *  does not flip back and forth. Follows the element's size and its content (tabs opened, closed, renamed); the observers
+ *  go with the element. */
+export function watchOverflow(element, className) {
+  if (!element || element._overflowWatch) {
+    return;
+  }
+
+  const update = () => {
+    element.classList.remove(className);
+    element.classList.toggle(className, element.scrollWidth > element.clientWidth + 1);
+  };
+  const resize = new ResizeObserver(update);
+  const content = new MutationObserver(update);
+  resize.observe(element);
+  content.observe(element, { childList: true, subtree: true, characterData: true });
+  element._overflowWatch = true;
+  update();
+}
+
 /** Returns false if the clipboard refused the write. */
 export async function copyText(text) {
   try {

@@ -274,6 +274,12 @@
     <value>Alle Tabs schließen</value>
   </data>
   <data name="HintCloseTabs" xml:space="preserve">
-    <value>Im aktiven Workspace. Ginge bei Tabs etwas verloren, kommt eine Rückfrage für alle; sie können auch offen bleiben.</value>
+    <value>Im aktiven Workspace; angeheftete Tabs bleiben offen. Ginge bei Tabs etwas verloren, kommt eine Rückfrage für alle; sie können auch offen bleiben.</value>
+  </data>
+  <data name="ActionPinTab" xml:space="preserve">
+    <value>Tab anheften oder lösen</value>
+  </data>
+  <data name="HintPinTab" xml:space="preserve">
+    <value>Angeheftete Tabs stehen links und bleiben offen, wenn andere Tabs, die rechts davon oder alle geschlossen werden.</value>
   </data>
 </root>

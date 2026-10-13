@@ -5,15 +5,18 @@
 @inject IJSRuntime JS
 @inject ILogger<ShortcutSettings> Logger
 
-<div class="settings-note shortcut-intro">
-    @ShellText.Shortcuts_Intro
-</div>
+@if (!Filter.IsActive)
+{
+    <div class="settings-note shortcut-intro">
+        @ShellText.Shortcuts_Intro
+    </div>
+}
 
-@foreach (var group in Groups)
+@foreach (var group in Groups.Where(Filter.ShowsGroup))
 {
     <section class="settings-section">
-        <h2>@group</h2>
-        @foreach (var definition in ShortcutMap.Definitions.Where(d => d.Group == group))
+        <h2>@(Filter.IsActive ? TextFormat.Format(ShellText.Settings_ShortcutGroupInSearch, group) : group)</h2>
+        @foreach (var definition in ShortcutMap.Definitions.Where(d => d.Group == group && Filter.Shows(SettingsCatalog.IdOf(d.Action))))
         {
             var action = definition.Action;
             var chord = Map.Chord(action);
@@ -76,7 +79,7 @@
                 </div>
             }
         }
-        @foreach (var fixedKey in ShortcutMap.Fixed.Where(f => f.Group == group))
+        @foreach (var fixedKey in ShortcutMap.Fixed.Where(f => f.Group == group && Filter.Shows(SettingsCatalog.IdOf(f))))
         {
             <div class="settings-row shortcut-row fixed" title="@ShellText.Shortcuts_FixedTitle">
                 <div class="settings-label">
@@ -95,6 +98,8 @@
     </section>
 }
 
+@if (!Filter.IsActive)
+{
 <div class="shortcut-reset-all">
     @if (_confirmResetAll)
     {
@@ -107,8 +112,13 @@
         <button class="btn" disabled="@(!Map.HasChanges || _recording is not null)" @onclick="() => _confirmResetAll = true">@ShellText.Shortcuts_ResetAll</button>
     }
 </div>
+}
 
 @code {
+    /// <summary>The filter of the settings page (WP-34): only matching shortcuts and their groups show.</summary>
+    [Parameter]
+    public SettingsFilter Filter { get; set; } = new(SettingsSearch.None, []);
+
     // A property, not a static field: the group names are localized texts and would keep the language of the first render.
     private static string[] Groups =>
         [..ShortcutMap.Definitions.Select(d => d.Group).Concat(ShortcutMap.Fixed.Select(f => f.Group)).Distinct()];
