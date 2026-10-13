@@ -14,12 +14,9 @@ Entscheidung des Nutzers (2026-10-09). Issues bekommen eine Art und einen Status
 
 ## Geplant
 
-Versionen: Minor-Releases 3.x (nichts Inkompatibles). Zuletzt released: 3.31.1 (R5a).
+Versionen: Minor-Releases 3.x (nichts Inkompatibles). Zuletzt released: 3.31.1 (R5a). R5b (Struktur nach dem Gesamt-Review, 3.32.0) ist umgesetzt (`docs/work-packages/r5b-structure.md`), das Release wartet auf das OK des Nutzers.
 
-### R5b Struktur nach dem Gesamt-Review 3.31.0 → 3.32.0
-Teil B von `docs/review-3.31.0.md` (B1–B19: Wiederverwendung, Struktur, Tests), dazu A50 (Farben als Tokens mit Dunkel-Variante). Reihenfolge nach dem Review: erst R5a (3.31.1), dann die Doku (Teil C, erledigt), dann R5b. Zuschnitt und Reihenfolge der B-Punkte beim Start mit dem Nutzer abstimmen.
-
-Danach: weitere Pakete mit dem Nutzer aus dem Backlog auswählen (Workspace-Pins stehen dort mit offenen Varianten).
+Als Nächstes: weitere Pakete mit dem Nutzer aus dem Backlog auswählen (Workspace-Pins stehen dort mit offenen Varianten).
 
 ## Offene UX-Fragen
 - Shortcut-Belegung für Commit/Rollback – vorläufig, Nutzerfeedback einholen.

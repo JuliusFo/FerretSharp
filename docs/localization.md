@@ -14,7 +14,7 @@ Die Oberfläche gibt es auf Englisch (Standard) und Deutsch. Entscheidung und Hi
 
 | Projekt | Datei | Inhalt |
 |---|---|---|
-| UI | `CommonText` | Wörter, die überall vorkommen (Abbrechen, Schließen, Zurück, Kopieren, An/Aus …). Nur ergänzen, wenn ein Wort wirklich bereichsübergreifend ist. |
+| UI | `CommonText` | Wörter und Sätze, die in mehreren Bereichen dasselbe meinen (Abbrechen, Schließen, Kopieren, „Speichern fehlgeschlagen: {0}“, „Die Zwischenablage ist nicht verfügbar.“, „Stand {0}“ …). Nur ergänzen, wenn der Text wirklich bereichsübergreifend ist; zufällig gleiche Einzelwörter mit anderer Bedeutung („Name“, „Typ“) bleiben im Bereich. |
 | UI | `ShellText` | Shell, Statusleiste, Verbindungen (Dialog, Wechsler, Seite), Workspaces, Tabs, Einstellungen, Tastenkürzel, allgemeine Dialoge |
 | UI | `GridText` | Tabellen-Grid, Kontextmenü, Filter, Formular, Zeilenvergleich, LOB-Dialog, Schreibprobleme |
 | UI | `SqlEditorText` | SQL-Editor, LINQ-Konsole, Ergebnis-Grid, Ausführungsplan, Laufanzeige, Verlauf, Monaco |

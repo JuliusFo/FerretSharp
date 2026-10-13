@@ -1,8 +1,8 @@
-# Gesamt-Review 3.31.0 (2026-10-13)
+# Gesamt-Review 3.31.0 (2026-10-13) umgesetzt (`State/GridDisplayNames`) | umgesetzt (`VersionedJsonFile`; Anzeigespalten und Modell-Cache mit eigener Regel) | umgesetzt | umgesetzt | umgesetzt (`TextSearch`; PL/SQL-Suche bleibt serverseitig) | umgesetzt (JDBC-Descriptoren: Backlog) | umgesetzt | umgesetzt, A18-Reste behoben | umgesetzt | umgesetzt | gemessen, kein Umbau (Backlog) | umgesetzt (DDL-Bestätigungen ganz zusammenlegen, eine Fußzeilen-Komponente: Backlog) | umgesetzt | umgesetzt (nur der WP-31-`DisplayName`, Rest: Backlog) | umgesetzt | umgesetzt (Dateiereignisse bleiben echt) | umgesetzt (in der CI scheitert ein Startfehler weiter) | umgesetzt | nachgetragen |
 
 Auftrag des Nutzers (2026-10-13): Gesamt-Review über den ganzen Code statt nur über die Pakete seit dem letzten Refactoring – Ziel Fehler und Wiederverwendbares, dazu Doku und CLAUDE.md (stimmt es noch, frisst es unnötig Tokens). Sieben parallele Agenten nach Themen (nicht nach Ordnern), nur lesend: DB-Zugriff (DB), Zustand/Nebenläufigkeit (ST), UI/JS (UI), Prozesse/Dateien/Host (PH), Wiederverwendung (RE), Sicherheit/Tests (SE/TE), Doku (DO). Doppelte Befunde sind zusammengeführt (alle IDs genannt). **Nachgeprüft** = von Hand im Code bestätigt.
 
-**Stand:** Teil A ist als R5a in 3.31.1 umgesetzt (Protokoll in `docs/work-packages/r5a-review-3.31.md`), bis auf A33–A37 (Backlog), A38 (Entscheidung: nur Option, Backlog) und A50 (CSS-Tokens, mit R5b). Bei A2 stimmte der View-Teil nicht (Views sind nur lesbar). Teil C (Doku) ist umgesetzt (Branch `docs/review-3.31-docs`: Korrekturen, `docs/work-packages/` je Paket, `.claude/rules/` statt der Projekt-CLAUDE.md, `docs/release.md`, Roadmap und Backlog nach Bereichen). Offen: Teil B (R5b).
+**Stand:** Teil A ist als R5a in 3.31.1 umgesetzt (Protokoll in `docs/work-packages/r5a-review-3.31.md`), bis auf A33–A37 (Backlog), A38 (Entscheidung: nur Option, Backlog) und A50 (CSS-Tokens, mit R5b). Bei A2 stimmte der View-Teil nicht (Views sind nur lesbar). Teil C (Doku) ist umgesetzt (Branch `docs/review-3.31-docs`: Korrekturen, `docs/work-packages/` je Paket, `.claude/rules/` statt der Projekt-CLAUDE.md, `docs/release.md`, Roadmap und Backlog nach Bereichen). Teil B ist als R5b umgesetzt (Protokoll `docs/work-packages/r5b-structure.md`, Release 3.32.0), A50 mit ihm; was bewusst nicht gemacht wurde, steht im Backlog und in der Spalte „Stand“.
 
 Schwere: **S** falsche Daten, Datenverlust, Sicherheitslücke, Hänger · **M** falsches Verhalten in realistischen Fällen oder klare Wartungslast · **K** Kleinkram.
 
@@ -71,36 +71,36 @@ Schwere: **S** falsche Daten, Datenverlust, Sicherheitslücke, Hänger · **M** 
 | A47 | UI-10 | grid.js: `ValidateEdit` ohne `catch`; Fehlerverhalten der drei Editoren uneinheitlich (Text-Editor gibt leeres Feld frei). |
 | A48 | UI-15, UI-16 | `OnScrolled` ohne Guard, `MonacoEditor` kein `FerretComponent`; `WriteCredential`-Fehler im PasswordDialog ungefangen. |
 | A49 | UI-17 | Update-Download rendert die Einstellungen je Prozent neu und verwirft die Suche. |
-| A50 | UI-12 | Warn-/Ausstehend-/Geschrieben-Farben fest codiert, ohne Dunkel-Variante; Plakette der Anzeigespalte im Dunkelmodus ~3:1 Kontrast. |
+| A50 | UI-12 | Warn-/Ausstehend-/Geschrieben-Farben fest codiert, ohne Dunkel-Variante; Plakette der Anzeigespalte im Dunkelmodus ~3:1 Kontrast. (R5b: Tokens mit Dunkel-Variante, 7,1:1.) |
 
 ## Teil B – Struktur und Wiederverwendung (Kandidaten für R5b)
 
-| # | IDs | Vorschlag | Aufwand |
-|---|---|---|---|
-| B1 | UI-7 | `State/GridDisplayNames` aus FerretGrid (Plan-Sequenz, Generationen, Warteschlange, Retry, ~260 Zeilen ohne Tests) + Tests; nebenbei `PlanNamesAsync` nach Dispose, `_lookupCancel` entsorgen. Zusammen mit A15. | M |
-| B2 | RE-8, PH-6, PH-7 | `Core/IO/VersionedJsonFile<TDoc>`: Missing/Ok/Broken/Newer, Normalisieren von null, Regel je Store ausdrücklich. Acht Kopien mit sechs Regeln; `RecentConnections` prüft keine Version. Behebt A6 an der Wurzel. Meldungen einmal in CoreText. | M–L |
-| B3 | RE-2, RE-3 | `OracleIdentifier.MaxBytes/Problem/Cut`: Namensprüfung sechsmal, Konstante dreimal; Vergleich kürzt nach Zeichen statt Bytes (ORA-00972) und nutzt `IndexDesign.SuggestName` nicht. | S–M |
-| B4 | RE-1, UI-3, RE-13 | Kopieren: `ExportActions.CopyRowsAsync/CopyCellAsync` für beide Grids, alles über `DomModule.CopyTextAsync` (ErrorDialog umgeht es), eine Meldung statt vier Keys. | S |
-| B5 | RE-4 | `Core/TextSearch` (Regel der Einstellungssuche: Wörter, Akzente/Groß-klein egal) für alle sechs Suchen; zwei eigene Inputs → `SearchBox`. | S–M |
-| B6 | RE-6 | `OracleAddress.SameAs` + ein Parser für EZConnect/Descriptor (WP-33 und WP-35 vergleichen und lesen Adressen je selbst, schon verschieden). | M |
-| B7 | RE-7, RE-9 | `CachedFileRead<T>` (Audit-Vorlage, Anzeigespalten-Datei) und `TimedQuery.RunAsync` (Anzeigespalten, FK-Zählung). | S–M |
-| B8 | RE-11 | `OracleTypes` ergänzen (`IsFixedChar`, `IsNational`, `IsExactNumber`, `IsTimestamp`, …) und Typentscheidungen dorthin ziehen. Zusammen mit A18. | S |
-| B9 | UI-11, RE-12 | `JsModule(js, path)` als Basis von `DomModule`; shortcuts.js/tooltip.js/monaco darüber. | S |
-| B10 | UI-8 | AppStatementsPage: Sortieren/Filtern/Match nach `AppTraceService.ShownStatements` (gecacht je Version) – alle 250 ms Sortierung von bis zu 2000 Statements. | S–M |
-| B11 | UI-6 | Erst messen (wie R4b): jede Zellbearbeitung rendert alle Tab-Ansichten aller Workspaces; ggf. `ShouldRender` je Tab-Schlüssel. | M |
-| B12 | RE-14 … RE-24, UI-13, UI-14 | Kleinkram: Dauer-Format (fünf Varianten), Fußzeilen, DDL-Bestätigung zweimal, de-DE-Kultur siebenmal, SQL-Literal viermal, Plan lesen zweimal, `OneLine` dreimal (LinqView: erstes Wort bei `TagWith` = „--“), TitleEditor im Workspace-Chip, `--x=`-Argumente fünfmal, App-Version viermal, `JsonFiles.Options` in der SQL-Historie, `MasksValues` (Prod-Regel dreimal), `PresentationWatch` viermal, Tab-Anzeigename dreimal. | je S |
-| B13 | RE-25 | Toter Code: `RemoveTabsWhere`, `CanUndoEdit/CanRedoEdit`, `DisabledReason`, `IsWaiting`, `ConnectionHub.OpenAsync`, `NameTyped`, monaco `focus`. | S |
-| B14 | RE-26, RE-27 | Benennung: `DisplayName` dreifach belegt, `FilterRules` ist der allgemeine Eingabe-Parser; gleiche Texte in mehreren resx → `CommonText`. | S |
+| # | IDs | Vorschlag | Aufwand | Stand (R5b) |
+|---|---|---|---|---|
+| B1 | UI-7 | `State/GridDisplayNames` aus FerretGrid (Plan-Sequenz, Generationen, Warteschlange, Retry, ~260 Zeilen ohne Tests) + Tests; nebenbei `PlanNamesAsync` nach Dispose, `_lookupCancel` entsorgen. Zusammen mit A15. | M | umgesetzt (`State/GridDisplayNames`) |
+| B2 | RE-8, PH-6, PH-7 | `Core/IO/VersionedJsonFile<TDoc>`: Missing/Ok/Broken/Newer, Normalisieren von null, Regel je Store ausdrücklich. Acht Kopien mit sechs Regeln; `RecentConnections` prüft keine Version. Behebt A6 an der Wurzel. Meldungen einmal in CoreText. | M–L | umgesetzt (`VersionedJsonFile`; Anzeigespalten und Modell-Cache mit eigener Regel) |
+| B3 | RE-2, RE-3 | `OracleIdentifier.MaxBytes/Problem/Cut`: Namensprüfung sechsmal, Konstante dreimal; Vergleich kürzt nach Zeichen statt Bytes (ORA-00972) und nutzt `IndexDesign.SuggestName` nicht. | S–M | umgesetzt |
+| B4 | RE-1, UI-3, RE-13 | Kopieren: `ExportActions.CopyRowsAsync/CopyCellAsync` für beide Grids, alles über `DomModule.CopyTextAsync` (ErrorDialog umgeht es), eine Meldung statt vier Keys. | S | umgesetzt |
+| B5 | RE-4 | `Core/TextSearch` (Regel der Einstellungssuche: Wörter, Akzente/Groß-klein egal) für alle sechs Suchen; zwei eigene Inputs → `SearchBox`. | S–M | umgesetzt (`TextSearch`; PL/SQL-Suche bleibt serverseitig) |
+| B6 | RE-6 | `OracleAddress.SameAs` + ein Parser für EZConnect/Descriptor (WP-33 und WP-35 vergleichen und lesen Adressen je selbst, schon verschieden). | M | umgesetzt (JDBC-Descriptoren: Backlog) |
+| B7 | RE-7, RE-9 | `CachedFileRead<T>` (Audit-Vorlage, Anzeigespalten-Datei) und `TimedQuery.RunAsync` (Anzeigespalten, FK-Zählung). | S–M | umgesetzt |
+| B8 | RE-11 | `OracleTypes` ergänzen (`IsFixedChar`, `IsNational`, `IsExactNumber`, `IsTimestamp`, …) und Typentscheidungen dorthin ziehen. Zusammen mit A18. | S | umgesetzt, A18-Reste behoben |
+| B9 | UI-11, RE-12 | `JsModule(js, path)` als Basis von `DomModule`; shortcuts.js/tooltip.js/monaco darüber. | S | umgesetzt |
+| B10 | UI-8 | AppStatementsPage: Sortieren/Filtern/Match nach `AppTraceService.ShownStatements` (gecacht je Version) – alle 250 ms Sortierung von bis zu 2000 Statements. | S–M | umgesetzt |
+| B11 | UI-6 | Erst messen (wie R4b): jede Zellbearbeitung rendert alle Tab-Ansichten aller Workspaces; ggf. `ShouldRender` je Tab-Schlüssel. | M | gemessen, kein Umbau (Backlog) |
+| B12 | RE-14 … RE-24, UI-13, UI-14 | Kleinkram: Dauer-Format (fünf Varianten), Fußzeilen, DDL-Bestätigung zweimal, de-DE-Kultur siebenmal, SQL-Literal viermal, Plan lesen zweimal, `OneLine` dreimal (LinqView: erstes Wort bei `TagWith` = „--“), TitleEditor im Workspace-Chip, `--x=`-Argumente fünfmal, App-Version viermal, `JsonFiles.Options` in der SQL-Historie, `MasksValues` (Prod-Regel dreimal), `PresentationWatch` viermal, Tab-Anzeigename dreimal. | je S | umgesetzt (DDL-Bestätigungen ganz zusammenlegen, eine Fußzeilen-Komponente: Backlog) |
+| B13 | RE-25 | Toter Code: `RemoveTabsWhere`, `CanUndoEdit/CanRedoEdit`, `DisabledReason`, `IsWaiting`, `ConnectionHub.OpenAsync`, `NameTyped`, monaco `focus`. | S | umgesetzt |
+| B14 | RE-26, RE-27 | Benennung: `DisplayName` dreifach belegt, `FilterRules` ist der allgemeine Eingabe-Parser; gleiche Texte in mehreren resx → `CommonText`. | S | umgesetzt (nur der WP-31-`DisplayName`, Rest: Backlog) |
 
 ### Tests
 
-| # | IDs | Vorschlag |
-|---|---|---|
-| B15 | TE-1 | `TestApp`: Prod standardmäßig schreibgeschützt, Fake bildet gesperrte Sessions ab; Tests für Write/DDL/LINQ-Write/`RunDdlAsync` auf gesperrtem Workspace. |
-| B16 | TE-4, TE-5 | Timing: `FakeTimeProvider` für `BuildOutputWatcher`/`ClrModelManager`; nicht thread-sichere Listen in `TestApp`/Fakes. |
-| B17 | TE-6 | Integration: jeder Container-Startfehler → Skip mit Grund; .NET 8/FakeEfApp per `Assert.SkipUnless`. |
-| B18 | TE-8, TE-9, SE-10 | Fakes nach `tests/Shared`, `FakeConnector`-Builder; `ReadOnlyTests` mit Allow-List aller öffentlichen Methoden und Internal-Prüfung für alle ausführenden Methoden. |
-| B19 | TE-7 | Der wackelige Test aus R4b ist seit `f8e6397` behoben (Ursache in UI-CLAUDE.md) – Nachtrag im R4b-Protokoll. |
+| # | IDs | Vorschlag | Stand (R5b) |
+|---|---|---|---|
+| B15 | TE-1 | `TestApp`: Prod standardmäßig schreibgeschützt, Fake bildet gesperrte Sessions ab; Tests für Write/DDL/LINQ-Write/`RunDdlAsync` auf gesperrtem Workspace. | umgesetzt |
+| B16 | TE-4, TE-5 | Timing: `FakeTimeProvider` für `BuildOutputWatcher`/`ClrModelManager`; nicht thread-sichere Listen in `TestApp`/Fakes. | umgesetzt (Dateiereignisse bleiben echt) |
+| B17 | TE-6 | Integration: jeder Container-Startfehler → Skip mit Grund; .NET 8/FakeEfApp per `Assert.SkipUnless`. | umgesetzt (in der CI scheitert ein Startfehler weiter) |
+| B18 | TE-8, TE-9, SE-10 | Fakes nach `tests/Shared`, `FakeConnector`-Builder; `ReadOnlyTests` mit Allow-List aller öffentlichen Methoden und Internal-Prüfung für alle ausführenden Methoden. | umgesetzt |
+| B19 | TE-7 | Der wackelige Test aus R4b ist seit `f8e6397` behoben (Ursache in `.claude/rules/tests.md`) – Nachtrag im R4b-Protokoll. | nachgetragen |
 
 ## Teil C – Doku und CLAUDE.md
 

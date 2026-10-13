@@ -11,4 +11,5 @@ paths:
 - DBeavers `credentials-config.json`: nur `DbeaverCredentials.ReadUsers` (liest per `Utf8JsonReader` nur `user`, überschreibt den Puffer). Bei der Entwicklung **nie eine echte Credential-Datei des Nutzers entschlüsseln** (auch nicht, um Feldnamen zu sehen); Testdaten verschlüsselt der Test selbst (`EncryptForTests`).
 - SQL Developer: `password` in `info` nie lesen; `NoPasswordConnection` ist auch mit gespeichertem Passwort `"TRUE"`.
 - Lokale Pfade (C#-Projekt, Skriptordner, `TnsAdminPath`) übernimmt der Import nur mit der Checkbox „Lokale Pfade übernehmen“ (Standard aus), der Export nur auf Wunsch; eine überschriebene Prod-Verbindung bleibt Prod, außer in der Vorschau anders gewählt (Entscheidungen des Nutzers, R5a, A4/A5).
+- Duplikate (gleiche Adresse und User) über `OracleAddress.SameAs` – dieselbe Regel wie die Zuordnung einer App zur Verbindung (WP-33): Host/Service/SID/Alias ohne Groß-/Kleinschreibung, leer = keiner, Port genau, `TnsAdminPath` zählt nicht. Ein JDBC-URL hat seinen eigenen Parser (`JdbcUrl`, `host:port:SID`), Descriptoren liest er nicht (Backlog).
 - Testen ohne echte Daten: `--import-appdata=<scratch>` (`docs/e2e-testing.md`).

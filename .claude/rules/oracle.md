@@ -13,6 +13,8 @@ Gilt für den Oracle-Layer und alles, was SQL, Typen und Werte anfasst. Domänen
 
 ## Identifier & Werte
 - Identifier sind uppercase, es sei denn, sie wurden mit `"…"` angelegt → Namen immer aus den `ALL_*`-Views übernehmen und per `OracleIdentifier.Quote()` exakt so quoten.
+- Getippte Namen (Designer, Indizes, Constraints, Audit-Vorlagen) prüft nur `OracleIdentifier.Problem` (Anführungszeichen/NUL, mehr als `MaxBytes` = 128 **Byte**), die Warnung „braucht Anführungszeichen“ nur `NeedsQuotes` (auch reservierte Wörter); gekürzt wird mit `OracleIdentifier.Cut` (nach Bytes, nie ein halbes Zeichen). Vorgeschlagene Namen über `IndexDesign.SuggestName`/`PlainName` (R5b).
+- Text als SQL-Literal (Anzeige, Skripte, nie für ausgeführte Werte – die sind Binds) nur über `OracleLiteral` (`N'…'` für nationale Typen).
 - Leerer String == NULL. Die UI muss NULL explizit darstellen (kursives `NULL`), nicht als leeres Feld.
 
 ## Typen
@@ -21,7 +23,8 @@ Gilt für den Oracle-Layer und alles, was SQL, Typen und Werte anfasst. Domänen
 - `DATE` enthält eine Uhrzeit; `TIMESTAMP` reicht bis Nanosekunden (`OracleTimeStamp`, nicht `DateTime`); `TIMESTAMP WITH (LOCAL) TIME ZONE` gesondert.
 - `CLOB`/`BLOB`/`RAW`/`LONG`: im Grid nur Länge und Vorschau (Projektion mit `DBMS_LOB.SUBSTR`/`GETLENGTH`, `docs/architecture.md` 1.4). Ganze Werte lädt und schreibt der LOB-Editor (WP-10, ADR 0008); freie Abfragen (SQL-Editor) laden LOBs ganz (`InitialLOBFetchSize = -1`).
 - Unbekannte oder exotische Typen (`INTERVAL`, `XMLTYPE`, `JSON`, `BOOLEAN`/`VECTOR` ab 23ai, `BINARY_FLOAT/DOUBLE`, Objekttypen): als read-only Textdarstellung anzeigen, nie abstürzen.
-- Typwissen (Anzeige, DDL, Länge in Bytes, Familien, LOB/LONG, was ein Typwechsel braucht) nur in `Schema/OracleTypes`.
+- Typwissen (Anzeige, DDL, Länge in Bytes, Familien, LOB/LONG, was ein Typwechsel braucht) nur in `Schema/OracleTypes` – auch die Einzelentscheidungen (`IsFixedChar`, `IsNational`, `IsDecimalNumber`, `IsTimestamp`, `HasTimeZone`, `IsLocalTimeZone`, `IsInterval` …, R5b); keine Vergleiche wie `DataType is "CHAR" or "NCHAR"` außerhalb.
+- National binden (NCHAR/NVARCHAR2/NCLOB) überall, wo ein Wert mit der Spalte verglichen oder in sie geschrieben wird: Filter, FK-Sprung, Anzeigespalten, SQL-Variablen (`SqlVariable.National` folgt der Spalte), LINQ (`NChar` von EF). Sonst werden Zeichen außerhalb des Datenbank-Zeichensatzes zu „?“ (A18).
 
 ## Client-Locale (bei deutschem Windows sofort relevant)
 - ODP.NET übernimmt NLS-Einstellungen aus dem Windows-Locale → `NLS_SORT=GERMAN` sortiert Ziffern hinter Buchstaben und kann keine Indizes nutzen. `OracleSession` setzt deshalb `Sort`/`Comparison` = `BINARY` (Integrationstest prüft das).
