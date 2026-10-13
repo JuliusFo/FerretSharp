@@ -123,7 +123,7 @@ public sealed class DisplayLookupTests(OracleContainerFixture oracle) : IAsyncLi
         Assert.Equal(
             ["PetersPizza", "Müller & Söhne", null],
             rows.Select(r => names.NameOf(kundeId, r.Values[kundeId])?.Text));
-        Assert.Equal(new DisplayName(null, false), names.NameOf(kundeId, rows[2].Values[kundeId])); // found, name is NULL
+        Assert.Equal(new LookedUpName(null, false), names.NameOf(kundeId, rows[2].Values[kundeId])); // found, name is NULL
         Assert.Equal("PetersPizza", names.NameOf(kz, rows[0].Values[kz])?.Text); // CHAR(5): 'PP   '
         Assert.Equal("Müller & Söhne", names.NameOf(kz, "MS")?.Text);
     }
@@ -139,7 +139,7 @@ public sealed class DisplayLookupTests(OracleContainerFixture oracle) : IAsyncLi
 
         var (names, rows, _) = await LookUpAsync([link]);
 
-        Assert.Equal([new DisplayName("Müller & Söhne", false), new DisplayName(null, true), null],
+        Assert.Equal([new LookedUpName("Müller & Söhne", false), new LookedUpName(null, true), null],
             rows.Select(r => names.NameOf(link.Column, r.Values[link.Column])));
     }
 

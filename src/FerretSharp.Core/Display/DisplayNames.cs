@@ -6,7 +6,7 @@ namespace FerretSharp.Core.Display;
 /// <summary>What a foreign key cell shows beside its value.</summary>
 /// <param name="Text">The display value as text; null if it is NULL.</param>
 /// <param name="NotFound">No row of the target has the value – a dangling reference (many relationships have no constraint).</param>
-public sealed record DisplayName(string? Text, bool NotFound);
+public sealed record LookedUpName(string? Text, bool NotFound);
 
 /// <summary>One lookup to run: keys of one link not known yet, at most <see cref="Query.QueryBuilder.MaxLookupKeys"/>.</summary>
 public sealed record DisplayLookup(DisplayLink Link, IReadOnlyList<object> Keys);
@@ -49,7 +49,7 @@ public sealed class DisplayNames
     internal string? DisabledReason(int column) => _byColumn.GetValueOrDefault(column)?.Disabled;
 
     /// <summary>What to show beside a value of the column; null if nothing (no link, NULL, not looked up yet).</summary>
-    public DisplayName? NameOf(int column, object? value)
+    public LookedUpName? NameOf(int column, object? value)
     {
         if (!_byColumn.TryGetValue(column, out var state) || state.Disabled is not null || state.KeyOf(value) is not { } key)
         {
@@ -58,10 +58,10 @@ public sealed class DisplayNames
 
         if (state.Found.TryGetValue(key, out var text))
         {
-            return new DisplayName(text, false);
+            return new LookedUpName(text, false);
         }
 
-        return state.NotFound.Contains(key) ? new DisplayName(null, true) : null;
+        return state.NotFound.Contains(key) ? new LookedUpName(null, true) : null;
     }
 
     /// <summary>

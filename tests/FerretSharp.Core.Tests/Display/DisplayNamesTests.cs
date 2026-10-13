@@ -48,9 +48,9 @@ public sealed class DisplayNamesTests
 
         names.Found(lookup, [new LookupRow(4711m, "PetersPizza"), new LookupRow(4713m, null)]);
 
-        Assert.Equal(new DisplayName("PetersPizza", false), names.NameOf(1, 4711m));
-        Assert.Equal(new DisplayName(null, true), names.NameOf(1, 4712m));
-        Assert.Equal(new DisplayName(null, false), names.NameOf(1, 4713m)); // found, the name is NULL
+        Assert.Equal(new LookedUpName("PetersPizza", false), names.NameOf(1, 4711m));
+        Assert.Equal(new LookedUpName(null, true), names.NameOf(1, 4712m));
+        Assert.Equal(new LookedUpName(null, false), names.NameOf(1, 4713m)); // found, the name is NULL
         Assert.Null(names.NameOf(1, 4714m)); // not looked up
         Assert.Null(names.NameOf(1, null));
         Assert.Null(names.NameOf(0, 4711m)); // no link
