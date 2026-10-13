@@ -21,26 +21,26 @@
     <div class="settings-layout">
     @* WP-34: the sections as a list to jump to, and a search over every setting and shortcut. *@
     <nav class="settings-nav" aria-label="@ShellText.Settings_Sections">
-        <SearchBox @bind-Value="_query" Class="search settings-search" Placeholder="@ShellText.Settings_Search" />
-        @foreach (var (part, label) in Parts)
+        <SearchBox @bind-Value="Query" Class="search settings-search" Placeholder="@ShellText.Settings_Search" />
+        @foreach (var (part, label) in SettingsCatalog.Parts)
         {
             var value = part;
-            var current = !Search.IsActive && _part == value;
-            <button class="settings-nav-item @(current ? "active" : "") @(Search.IsActive && !ShowSection(value) ? "dim" : "")"
+            var current = !Filter.IsActive && _part == value;
+            <button class="settings-nav-item @(current ? "active" : "") @(Filter.IsActive && !ShowSection(value) ? "dim" : "")"
                     aria-current="@(current ? "page" : null)" @onclick="() => Select(value)">@label</button>
         }
     </nav>
 
     <div class="settings-content">
-        @if (Search.IsActive && !Parts.Any(p => ShowSection(p.Part)))
+        @if (Filter.IsEmpty)
         {
-            <div class="settings-note settings-no-match">@TextFormat.Format(ShellText.Settings_NoMatch, Search.Query)</div>
+            <div class="settings-note settings-no-match">@TextFormat.Format(ShellText.Settings_NoMatch, Filter.Search.Query)</div>
         }
         @if (ShowSection(SettingsPart.Appearance))
         {
         <section class="settings-section">
             <h2>@ShellText.Settings_Appearance</h2>
-            <div class="settings-row @Hide(ShellText.Settings_Language)">
+            <div class="settings-row @Hide(SettingKey.Language)">
                 <div class="settings-label">
                     <span>@ShellText.Settings_Language</span>
                     <span class="hint">@ShellText.Settings_LanguageHint</span>
@@ -57,9 +57,9 @@
             </div>
             @if (Settings.Current.Language != UiLanguages.Of(CultureInfo.CurrentUICulture))
             {
-                <div class="settings-note @Hide(ShellText.Settings_Language)">@ShellText.Settings_LanguageAfterRestart</div>
+                <div class="settings-note @Hide(SettingKey.Language)">@ShellText.Settings_LanguageAfterRestart</div>
             }
-            <div class="settings-row @Hide(ShellText.Settings_ColorScheme)">
+            <div class="settings-row @Hide(SettingKey.ColorScheme)">
                 <div class="settings-label">
                     <span>@ShellText.Settings_ColorScheme</span>
                     <span class="hint">@ShellText.Settings_ColorSchemeHint</span>
@@ -75,7 +75,7 @@
             </div>
             @if (Theme.SessionOverride is { } forced)
             {
-                <div class="settings-note @Hide(ShellText.Settings_ColorScheme)">
+                <div class="settings-note @Hide(SettingKey.ColorScheme)">
                     <Fmt Text="@ShellText.Settings_ThemeForced">
                         <Arg0><code>--theme=@forced</code></Arg0>
                         <Arg1>@(forced == "dark" ? ShellText.Settings_ThemeForcedDark : ShellText.Settings_ThemeForcedLight)</Arg1>
@@ -89,7 +89,7 @@
         {
         <section class="settings-section">
             <h2>@ShellText.Settings_ClrModel</h2>
-            <div class="settings-row @Hide(ShellText.Settings_ClrNames)">
+            <div class="settings-row @Hide(SettingKey.ClrNames)">
                 <div class="settings-label">
                     <span>@ShellText.Settings_ClrNames</span>
                     <span class="hint">@ShellText.Settings_ClrNamesHint</span>
@@ -111,13 +111,13 @@
         {
         <section class="settings-section">
             <h2>@ShellText.Settings_Connection</h2>
-            <div class="settings-row @Hide(ShellText.Settings_KeepAlive)">
+            <div class="settings-row @Hide(SettingKey.KeepAlive)">
                 <div class="settings-label">
                     <span>@ShellText.Settings_KeepAlive</span>
                     <span class="hint">
                         <Fmt Text="@ShellText.Settings_KeepAliveHint">
-                            <Arg0><code>SELECT 1 FROM DUAL</code></Arg0>
-                            <Arg1><code>IDLE_TIME</code></Arg1>
+                            <Arg0><code>@SettingsCatalog.KeepAliveQuery</code></Arg0>
+                            <Arg1><code>@SettingsCatalog.KeepAliveProfileLimit</code></Arg1>
                         </Fmt>
                     </span>
                 </div>
@@ -131,11 +131,11 @@
                     }
                 </div>
             </div>
-            <div class="settings-row @Hide(ShellText.Settings_LockWait)">
+            <div class="settings-row @Hide(SettingKey.LockWait)">
                 <div class="settings-label">
                     <span>@ShellText.Settings_LockWait</span>
                     <span class="hint">
-                        <Fmt Text="@ShellText.Settings_LockWaitHint"><Arg0><code>SELECT … FOR UPDATE WAIT n</code></Arg0></Fmt>
+                        <Fmt Text="@ShellText.Settings_LockWaitHint"><Arg0><code>@SettingsCatalog.LockWaitClause</code></Arg0></Fmt>
                     </span>
                 </div>
                 <div class="segmented" role="radiogroup" aria-label="@ShellText.Settings_LockWait">
@@ -155,7 +155,7 @@
         {
         <section class="settings-section">
             <h2>@ShellText.Settings_Audit</h2>
-            <div class="settings-row @Hide(ShellText.Settings_AuditTemplate)">
+            <div class="settings-row @Hide(SettingKey.AuditTemplate)">
                 <div class="settings-label">
                     <span>@ShellText.Settings_AuditTemplate</span>
                     <span class="hint">@ShellText.Settings_AuditTemplateHint</span>
@@ -173,7 +173,7 @@
             @{ var audit = AuditTemplates.Load(_auditPath); }
             @if (audit.Errors.Count > 0)
             {
-                <div class="settings-note error @Hide(ShellText.Settings_AuditTemplate)">
+                <div class="settings-note error @Hide(SettingKey.AuditTemplate)">
                     <ul class="settings-problems">
                         @foreach (var error in audit.Errors)
                         {
@@ -184,13 +184,13 @@
             }
             else
             {
-                <div class="settings-note @Hide(ShellText.Settings_AuditTemplate)">
+                <div class="settings-note @Hide(SettingKey.AuditTemplate)">
                     @(audit.IsDefault ? ShellText.Settings_AuditTemplateUsingBuiltIn : ShellText.Settings_AuditTemplateValid)
                 </div>
             }
             @if (audit.IsDefault)
             {
-                <div class="settings-note @Hide(ShellText.Settings_AuditTemplate)">
+                <div class="settings-note @Hide(SettingKey.AuditTemplate)">
                     <button class="link-btn" title="@ShellText.Settings_AuditTemplateCopyTitle" @onclick="CopyDefaultTemplateAsync">@ShellText.Settings_AuditTemplateCopy</button>
                 </div>
             }
@@ -201,11 +201,11 @@
         {
         <section class="settings-section">
             <h2>@ShellText.Settings_DisplayColumns</h2>
-            <div class="settings-row @Hide(ShellText.Settings_ShowDisplayNames)">
+            <div class="settings-row @Hide(SettingKey.ShowDisplayNames)">
                 <div class="settings-label">
                     <span>@ShellText.Settings_ShowDisplayNames</span>
                     <span class="hint">
-                        <Fmt Text="@ShellText.Settings_ShowDisplayNamesHint"><Arg0><code>4711 · PetersPizza</code></Arg0></Fmt>
+                        <Fmt Text="@ShellText.Settings_ShowDisplayNamesHint"><Arg0><code>@SettingsCatalog.DisplayNameExample</code></Arg0></Fmt>
                     </span>
                 </div>
                 <div class="segmented" role="radiogroup" aria-label="@ShellText.Settings_ShowDisplayNames">
@@ -218,7 +218,7 @@
                     }
                 </div>
             </div>
-            <div class="settings-row @Hide(ShellText.Settings_DisplayColumnsFile)">
+            <div class="settings-row @Hide(SettingKey.DisplayColumnsFile)">
                 <div class="settings-label">
                     <span>@ShellText.Settings_DisplayColumnsFile</span>
                     <span class="hint">@ShellText.Settings_DisplayColumnsFileHint</span>
@@ -236,11 +236,11 @@
             @{ var display = DisplaySource.Load(_displayPath); }
             @if ((display.Error ?? display.ReadOnly) is { } problem)
             {
-                <div class="settings-note error @Hide(ShellText.Settings_DisplayColumnsFile)">@problem</div>
+                <div class="settings-note error @Hide(SettingKey.DisplayColumnsFile)">@problem</div>
             }
             else
             {
-                <div class="settings-note @Hide(ShellText.Settings_DisplayColumnsFile)">
+                <div class="settings-note @Hide(SettingKey.DisplayColumnsFile)">
                     @(display.Exists
                         ? TextFormat.Plural(display.Columns.Count, ShellText.Settings_DisplayColumnsCountOne, ShellText.Settings_DisplayColumnsCountOther, display.Path)
                         : TextFormat.Format(ShellText.Settings_DisplayColumnsNoFile, display.Path))
@@ -253,7 +253,7 @@
         {
         <section class="settings-section">
             <h2>@ShellText.Settings_Updates</h2>
-            <div class="settings-row @Hide(ShellText.Settings_Version)">
+            <div class="settings-row @Hide(SettingKey.Version)">
                 <div class="settings-label">
                     <span>@ShellText.Settings_Version</span>
                     <span class="hint">
@@ -264,7 +264,7 @@
             </div>
             @if (Updates.Phase != UpdatePhase.NotInstalled)
             {
-                <div class="settings-row @Hide(ShellText.Settings_CheckForUpdates)">
+                <div class="settings-row @Hide(SettingKey.CheckForUpdates)">
                     <div class="settings-label">
                         <span>@ShellText.Settings_CheckForUpdates</span>
                         <span class="hint">@ShellText.Settings_CheckForUpdatesHint</span>
@@ -279,7 +279,7 @@
                         }
                     </div>
                 </div>
-                <div class="settings-note update-status @(Updates.Phase is UpdatePhase.DownloadFailed ? "error" : "") @Hide(ShellText.Settings_CheckForUpdates)">
+                <div class="settings-note update-status @(Updates.Phase is UpdatePhase.DownloadFailed ? "error" : "") @Hide(SettingKey.CheckForUpdates)">
                     @UpdateStatus()
                 </div>
             }
@@ -290,13 +290,13 @@
         {
         <section class="settings-section">
             <h2>@ShellText.Settings_Diagnostics</h2>
-            <div class="settings-row @Hide(ShellText.Settings_DiagnoseUiStalls)">
+            <div class="settings-row @Hide(SettingKey.DiagnoseUiStalls)">
                 <div class="settings-label">
                     <span>@ShellText.Settings_DiagnoseUiStalls</span>
                     <span class="hint">
                         <Fmt Text="@ShellText.Settings_DiagnoseUiStallsHint">
-                            <Arg0><code>dotnet-stack</code></Arg0>
-                            <Arg1><code>stall-*.txt</code></Arg1>
+                            <Arg0><code>@SettingsCatalog.StallTool</code></Arg0>
+                            <Arg1><code>@SettingsCatalog.StallFiles</code></Arg1>
                         </Fmt>
                     </span>
                 </div>
@@ -314,83 +314,52 @@
         }
         @if (ShowSection(SettingsPart.Shortcuts))
         {
-            <ShortcutSettings Search="Search" />
+            <ShortcutSettings Filter="Filter" />
         }
     </div>
     </div>
 </div>
 
 @code {
-    /// <summary>The sections of the page, in the order of the list at the left (WP-34).</summary>
-    private enum SettingsPart { Appearance, ClrModel, Connection, Audit, DisplayColumns, Updates, Diagnostics, Shortcuts }
-
-    // Texts as properties, not static fields: a static field would keep the language of the first render.
-    private static (SettingsPart Part, string Label)[] Parts =>
-    [
-        (SettingsPart.Appearance, ShellText.Settings_Appearance),
-        (SettingsPart.ClrModel, ShellText.Settings_ClrModel),
-        (SettingsPart.Connection, ShellText.Settings_Connection),
-        (SettingsPart.Audit, ShellText.Settings_Audit),
-        (SettingsPart.DisplayColumns, ShellText.Settings_DisplayColumns),
-        (SettingsPart.Updates, ShellText.Settings_Updates),
-        (SettingsPart.Diagnostics, ShellText.Settings_Diagnostics),
-        (SettingsPart.Shortcuts, ShellText.Settings_Shortcuts),
-    ];
-
-    /// <summary>The settings rows by their label, with their hint and section – what the search looks at.</summary>
-    private static (SettingsPart Part, string Label, string? Hint)[] Rows =>
-    [
-        (SettingsPart.Appearance, ShellText.Settings_Language, ShellText.Settings_LanguageHint),
-        (SettingsPart.Appearance, ShellText.Settings_ColorScheme, ShellText.Settings_ColorSchemeHint),
-        (SettingsPart.ClrModel, ShellText.Settings_ClrNames, ShellText.Settings_ClrNamesHint),
-        (SettingsPart.Connection, ShellText.Settings_KeepAlive, ShellText.Settings_KeepAliveHint),
-        (SettingsPart.Connection, ShellText.Settings_LockWait, ShellText.Settings_LockWaitHint),
-        (SettingsPart.Audit, ShellText.Settings_AuditTemplate, ShellText.Settings_AuditTemplateHint),
-        (SettingsPart.DisplayColumns, ShellText.Settings_ShowDisplayNames, ShellText.Settings_ShowDisplayNamesHint),
-        (SettingsPart.DisplayColumns, ShellText.Settings_DisplayColumnsFile, ShellText.Settings_DisplayColumnsFileHint),
-        (SettingsPart.Updates, ShellText.Settings_Version, ShellText.Settings_VersionInstalled),
-        (SettingsPart.Updates, ShellText.Settings_CheckForUpdates, ShellText.Settings_CheckForUpdatesHint),
-        (SettingsPart.Diagnostics, ShellText.Settings_DiagnoseUiStalls, ShellText.Settings_DiagnoseUiStallsHint),
-    ];
-
-    /// <summary>The section shown without a search; kept while the app runs, so the page opens where it was left.</summary>
+    /// <summary>The section shown without a search; kept while the app runs, so the page opens where it was left (WP-34).</summary>
     private static SettingsPart s_part = SettingsPart.Appearance;
 
     private SettingsPart _part = s_part;
 
     private string _query = "";
 
-    private SettingsSearch Search => new(_query);
+    /// <summary>The search text; a new one works the filter out again.</summary>
+    private string Query
+    {
+        get => _query;
+        set
+        {
+            _query = value;
+            _filter = null;
+        }
+    }
 
-    private static string LabelOf(SettingsPart part) => Parts.First(p => p.Part == part).Label;
+    private SettingsFilter? _filter;
+
+    /// <summary>
+    /// What shows for the query, worked out once per query (and again when the shortcuts or the installation state change,
+    /// both are part of what the page shows).
+    /// </summary>
+    private SettingsFilter Filter =>
+        _filter ??= new(new SettingsSearch(_query), SettingsCatalog.Entries(Shortcuts.Map, Updates.Phase != UpdatePhase.NotInstalled));
 
     /// <summary>A click in the list shows that section and ends a search.</summary>
     private void Select(SettingsPart part)
     {
         _part = s_part = part;
-        _query = "";
+        Query = "";
     }
 
-    /// <summary>Without a search the selected section; with one, every section with a matching setting or shortcut.</summary>
-    private bool ShowSection(SettingsPart part)
-    {
-        var search = Search;
-        if (!search.IsActive)
-        {
-            return _part == part;
-        }
-
-        return part == SettingsPart.Shortcuts
-            ? ShortcutSettings.Matches(search, Shortcuts.Map, LabelOf(part))
-            : Rows.Any(r => r.Part == part && search.Matches(r.Label, r.Hint, LabelOf(part)));
-    }
+    private bool ShowSection(SettingsPart part) => Filter.ShowsSection(part, _part);
 
     /// <summary>The class that hides a row (and its notes) that does not match the search.</summary>
-    private string Hide(string label)
-    {
-        var search = Search;
-        return !search.IsActive || Rows.Any(r => r.Label == label && search.Matches(r.Label, r.Hint, LabelOf(r.Part))) ? "" : "no-match";
-    }
+    private string Hide(SettingKey key) => Filter.Shows(key) ? "" : "no-match";
+
 
     // Each language under its own name, in every UI language.
     private static readonly (UiLanguage Language, string Label)[] Languages = [(UiLanguage.English, "English"), (UiLanguage.German, "Deutsch")];
@@ -464,7 +433,12 @@
         }
     </text>;
 
-    private void OnUpdatesChanged() => InvokeAsync(StateHasChanged);
+    /// <summary>The installation state or a shortcut changed: both are part of what the search finds.</summary>
+    private void OnCatalogChanged() => InvokeAsync(() =>
+    {
+        _filter = null;
+        StateHasChanged();
+    });
 
     private Task UpdateAsync(Func<AppSettings, AppSettings> change) => Shell.TrySaveSettingsAsync(() => Settings.UpdateAsync(change, CancellationToken.None));
 
@@ -477,7 +451,8 @@
     protected override void OnInitialized()
     {
         (_auditPath, _displayPath) = (Settings.Current.AuditTemplatePath, Settings.Current.DisplayColumnsPath);
-        Updates.Changed += OnUpdatesChanged;
+        Updates.Changed += OnCatalogChanged;
+        Shortcuts.Changed += OnCatalogChanged;
     }
 
     private Task SetShowDisplayNamesAsync(bool on) => UpdateAsync(s => s with { ShowDisplayNames = on });
@@ -515,7 +490,8 @@
 
     public async ValueTask DisposeAsync()
     {
-        Updates.Changed -= OnUpdatesChanged;
+        Updates.Changed -= OnCatalogChanged;
+        Shortcuts.Changed -= OnCatalogChanged;
         if (_dom is not null)
         {
             await _dom.DisposeAsync();

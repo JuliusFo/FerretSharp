@@ -446,7 +446,9 @@ dl.keys dd { margin: 0; }
 /* Pinned tabs (WP-34): the pin in place of ✕, a stronger line after the last one. */
 .tab-close.tab-pin { display: grid; place-items: center; color: var(--accent); }
 .tab-close.tab-pin svg { width: 13px; height: 13px; color: inherit; }
-.tab.pinned:has(+ .tab:not(.pinned)), .tab.pinned:has(+ .tab-new) { border-right: 2px solid var(--border-strong); }
+/* The pinned tabs as one group that stays at the left while the bar scrolls (opaque, so scrolled tabs pass under it). */
+.tabs-pinned { position: sticky; left: 0; z-index: 2; display: flex; flex: none; background: var(--surface); border-right: 2px solid var(--border-strong); }
+.tabs-pinned .tab:last-child { border-right: 0; }
 /* A full bar (dom.js watchOverflow): pinned tabs narrow to icon, a short name and the pin; the tooltip has the full name. */
 .tabs.crowded .tab.pinned { gap: 4px; padding-left: 10px; }
 .tabs.crowded .tab.pinned .tab-name { max-width: 8ch; overflow: hidden; text-overflow: ellipsis; }

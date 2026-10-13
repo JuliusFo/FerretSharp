@@ -5,18 +5,18 @@
 @inject IJSRuntime JS
 @inject ILogger<ShortcutSettings> Logger
 
-@if (!Search.IsActive)
+@if (!Filter.IsActive)
 {
     <div class="settings-note shortcut-intro">
         @ShellText.Shortcuts_Intro
     </div>
 }
 
-@foreach (var group in Groups.Where(g => Matches(Search, Map, ShellText.Settings_Shortcuts, g)))
+@foreach (var group in Groups.Where(Filter.ShowsGroup))
 {
     <section class="settings-section">
-        <h2>@(Search.IsActive ? TextFormat.Format(ShellText.Settings_ShortcutGroupInSearch, group) : group)</h2>
-        @foreach (var definition in ShortcutMap.Definitions.Where(d => d.Group == group && Matches(Search, Map, ShellText.Settings_Shortcuts, d)))
+        <h2>@(Filter.IsActive ? TextFormat.Format(ShellText.Settings_ShortcutGroupInSearch, group) : group)</h2>
+        @foreach (var definition in ShortcutMap.Definitions.Where(d => d.Group == group && Filter.Shows(SettingsCatalog.IdOf(d.Action))))
         {
             var action = definition.Action;
             var chord = Map.Chord(action);
@@ -79,7 +79,7 @@
                 </div>
             }
         }
-        @foreach (var fixedKey in ShortcutMap.Fixed.Where(f => f.Group == group && Matches(Search, ShellText.Settings_Shortcuts, f)))
+        @foreach (var fixedKey in ShortcutMap.Fixed.Where(f => f.Group == group && Filter.Shows(SettingsCatalog.IdOf(f))))
         {
             <div class="settings-row shortcut-row fixed" title="@ShellText.Shortcuts_FixedTitle">
                 <div class="settings-label">
@@ -98,7 +98,7 @@
     </section>
 }
 
-@if (!Search.IsActive)
+@if (!Filter.IsActive)
 {
 <div class="shortcut-reset-all">
     @if (_confirmResetAll)
@@ -115,23 +115,9 @@
 }
 
 @code {
-    /// <summary>The search of the settings page (WP-34): only matching shortcuts and their groups show.</summary>
+    /// <summary>The filter of the settings page (WP-34): only matching shortcuts and their groups show.</summary>
     [Parameter]
-    public SettingsSearch Search { get; set; } = SettingsSearch.None;
-
-    /// <summary>Some shortcut matches the search – by its name, hint, group, key or the name of the section.</summary>
-    public static bool Matches(SettingsSearch search, ShortcutMap map, string section) =>
-        Groups.Any(group => Matches(search, map, section, group));
-
-    private static bool Matches(SettingsSearch search, ShortcutMap map, string section, string group) =>
-        ShortcutMap.Definitions.Any(d => d.Group == group && Matches(search, map, section, d))
-        || ShortcutMap.Fixed.Any(f => f.Group == group && Matches(search, section, f));
-
-    private static bool Matches(SettingsSearch search, ShortcutMap map, string section, ShortcutDefinition definition) =>
-        search.Matches(definition.Label, definition.Hint, definition.Group, section, map.Chord(definition.Action)?.Label);
-
-    private static bool Matches(SettingsSearch search, string section, FixedShortcut fixedKey) =>
-        search.Matches(fixedKey.Label, fixedKey.Hint, fixedKey.Group, section, fixedKey.Keys);
+    public SettingsFilter Filter { get; set; } = new(SettingsSearch.None, []);
 
     // A property, not a static field: the group names are localized texts and would keep the language of the first render.
     private static string[] Groups =>
