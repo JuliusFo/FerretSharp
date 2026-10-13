@@ -113,13 +113,13 @@
                         {
                             var index = i;
                             <button class="chip-btn @(index == Tab.SelectedCommand ? "active" : "")" disabled="@_running" @onclick="() => SelectCommandAsync(index)">
-                                @(index + 1) · @FirstWord(run.Commands[index].Sql)
+                                @(index + 1) · @SqlScript.FirstWord(run.Commands[index].Sql)
                             </button>
                         }
                     }
                     <span class="muted">@(run.ResultType is { } type
-                        ? TextFormat.Format(SqlEditorText.Linq_TranslatedWithType, type, ResultFooter.Ms(run.Elapsed))
-                        : TextFormat.Format(SqlEditorText.Linq_Translated, ResultFooter.Ms(run.Elapsed)))</span>
+                        ? TextFormat.Format(SqlEditorText.Linq_TranslatedWithType, type, TimeText.Duration(run.Elapsed))
+                        : TextFormat.Format(SqlEditorText.Linq_Translated, TimeText.Duration(run.Elapsed)))</span>
                     <span class="spacer"></span>
                     @if (kind == LinqCommandKind.Query && _query is not null)
                     {
@@ -173,12 +173,12 @@
                         <div class="linq-write">
                             @if (_running && _phase == RunPhase.Writing)
                             {
-                                <RunProgress @key="_phaseStarted" WorkspaceId="Tab.WorkspaceId" Title="@TextFormat.Format(SqlEditorText.Run_StatementRunning, FirstWord(command.Sql))" Started="_phaseStarted"
+                                <RunProgress @key="_phaseStarted" WorkspaceId="Tab.WorkspaceId" Title="@TextFormat.Format(SqlEditorText.Run_StatementRunning, SqlScript.FirstWord(command.Sql))" Started="_phaseStarted"
                                              Detail="@command.Sql" OnCancel="Cancel" />
                             }
                             else if (_written is { } written)
                             {
-                                var took = _writtenElapsed is { } elapsed ? $" ({ResultFooter.Ms(elapsed)})" : "";
+                                var took = _writtenElapsed is { } elapsed ? $" ({TimeText.Duration(elapsed)})" : "";
                                 <WriteOutcome Rows="written.Rows" Fate="WorkspaceEditing.FateOf(Workspaces, Tab.WorkspaceId, written.Id, _writtenIn)" Detail="@took" />
                             }
                             else if (Workspaces.IsWritable(Tab.WorkspaceId))
@@ -573,8 +573,6 @@
 
     private Task RevealAsync(LinqDiagnostic diagnostic) =>
         (diagnostic.Section == LinqProtocol.CodeSection ? _codeEditor : _variablesEditor)?.RevealAsync(diagnostic.Line, diagnostic.Column) ?? Task.CompletedTask;
-
-    private static string FirstWord(string sql) => sql.TrimStart().Split([' ', '\n', '\r'], 2)[0].ToUpperInvariant();
 
     private void OnConsoleChanged() => InvokeAsync(StateHasChanged);
 

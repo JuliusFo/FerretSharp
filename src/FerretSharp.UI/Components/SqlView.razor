@@ -661,7 +661,7 @@
     };
 
     /// <summary>" · 0,4 s" after a run's outcome; nothing while unknown.</summary>
-    private static string Duration(SqlRun run) => run.Elapsed is { } elapsed ? " · " + ResultFooter.Ms(elapsed) : "";
+    private static string Duration(SqlRun run) => run.Elapsed is { } elapsed ? " · " + TimeText.Duration(elapsed) : "";
 
     private async Task ToggleHistoryAsync()
     {

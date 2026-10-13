@@ -1,6 +1,7 @@
 @* Where the result will appear while a statement runs (SQL editor, LINQ console): what runs, for how long (ticking each
    second), "Cancel". A cancel Oracle does not answer within a few seconds (a VPN may swallow it) offers to give up the
    workspace's session – after saying what that discards. One instance per statement (keyed by the caller). *@
+@using FerretSharp.Core.Query
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
 @implements IDisposable
@@ -13,7 +14,7 @@
     </div>
     @if (Detail is not null)
     {
-        <div class="run-detail" title="@Detail">@Flat(Detail)</div>
+        <div class="run-detail" title="@Detail">@SqlScript.OneLine(Detail)</div>
     }
     @if (ScriptStarted is { } script)
     {
@@ -186,9 +187,6 @@
             return string.Join(" ", parts);
         }
     }
-
-    /// <summary>The statement in one line: line breaks and runs of blanks become one blank.</summary>
-    private static string Flat(string sql) => string.Join(' ', sql.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 
     /// <summary>"0:07", "12:45", "1:02:03".</summary>
     public static string Clock(TimeSpan elapsed)

@@ -1,7 +1,6 @@
 @* The history beside a SQL tab (R3b, out of SqlView): the connection's last statements, searchable; a click adopts one
    into the script. *@
 @using FerretSharp.Core.Query
-@using System.Text.RegularExpressions
 @using FerretSharp.Core.Workspaces
 
 <aside class="sql-history">
@@ -11,7 +10,7 @@
         {
             var e = entry;
             <button class="sql-history-item @(e.Error is null ? "" : "failed")" title="@e.Sql" @onclick="() => OnAdopt.InvokeAsync(e)">
-                <span class="sql-history-sql">@OneLine(e.Sql)</span>
+                <span class="sql-history-sql">@SqlScript.OneLine(e.Sql)</span>
                 <span class="sql-history-meta">@e.ExecutedAt.ToLocalTime().ToString("dd.MM. HH:mm", CultureInfo.CurrentCulture) · @Outcome(e)</span>
             </button>
         }
@@ -34,8 +33,6 @@
 
     /// <summary>Every word must occur in the statement, in any order (<see cref="TextSearch"/>).</summary>
     private IEnumerable<SqlHistoryEntry> Filtered => new TextSearch(_search) is var search ? Entries.Where(e => search.Matches(e.Sql)) : [];
-
-    private static string OneLine(string sql) => Regex.Replace(sql, @"\s+", " ").Trim();
 
     private static string Outcome(SqlHistoryEntry entry) => entry switch
     {

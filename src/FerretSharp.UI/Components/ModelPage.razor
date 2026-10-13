@@ -251,9 +251,7 @@
 
     private static string Elapsed(DateTimeOffset? since) => since is { } start ? Duration(DateTimeOffset.Now - start) : "";
 
-    private static string Duration(TimeSpan duration) => duration.TotalSeconds < 10
-        ? duration.TotalSeconds.ToString("0.0", CultureInfo.CurrentCulture) + " s"
-        : duration.TotalSeconds < 120 ? $"{duration.TotalSeconds:0} s" : $"{(int)duration.TotalMinutes} min {duration.Seconds} s";
+    private static string Duration(TimeSpan duration) => TimeText.Duration(duration);
 
     private void OnChanged() => InvokeAsync(StateHasChanged);
 

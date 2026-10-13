@@ -31,12 +31,12 @@
     }
     @if (Tab.LastQueryTime is { } time)
     {
-        <span>@time.TotalMilliseconds.ToString("N0", CultureInfo.CurrentCulture) ms</span>
+        <span>@TimeText.Duration(time)</span>
     }
     @if (Tab.DataAsOf is { } asOf)
     {
         <span title="@TextFormat.Format(GridText.Footer_SnapshotTitle, Shortcuts.Label(ShortcutAction.Refresh) ?? CommonText.Reload)">
-            @TextFormat.Format(CommonText.AsOf, asOf.ToString("T", CultureInfo.CurrentCulture))
+            @TextFormat.Format(CommonText.AsOf, TimeText.TimeOfDay(asOf))
         </span>
         @if (Tab.SnapshotMoved)
         {

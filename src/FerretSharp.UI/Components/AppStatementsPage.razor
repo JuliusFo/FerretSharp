@@ -235,7 +235,7 @@
                                     {
                                         <span class="plan-badge" title="@s.LastError">@TextFormat.Format(AppStatementsText.AppStatements_ErrorsBadge, s.Errors)</span>
                                     }
-                                    @OneLine(s.Text)
+                                    @SqlScript.OneLine(s.Text)
                                 </td>
                                 <td class="num">@PlanTable.Count(s.Count)</td>
                                 <td class="num">@PlanTable.Time(s.Time)</td>
@@ -533,9 +533,6 @@
     private string RepeatedText(StatementTotals s) => s.Origin == StatementOrigin.LazyLoading && s.Navigation is { Length: > 0 } navigation
         ? TextFormat.Format(AppStatementsText.AppStatements_RepeatedLazy, s.Burst, RepeatRule.Default.Window.TotalSeconds, navigation)
         : TextFormat.Format(AppStatementsText.AppStatements_RepeatedLoop, s.Burst, RepeatRule.Default.Window.TotalSeconds);
-
-    /// <summary>The statement on one line (EF writes it over several).</summary>
-    private static string OneLine(string sql) => string.Join(' ', sql.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 
     public void Dispose()
     {

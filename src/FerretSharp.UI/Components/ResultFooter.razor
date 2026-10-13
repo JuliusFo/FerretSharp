@@ -23,11 +23,11 @@
             </span>
             @if (grid.Elapsed is { } elapsed)
             {
-                <span>@Ms(elapsed)</span>
+                <span>@TimeText.Duration(elapsed)</span>
             }
             @if (grid.DataAsOf is { } asOf)
             {
-                <span title="@SqlEditorText.Footer_SnapshotTitle">@TextFormat.Format(CommonText.AsOf, asOf.ToLocalTime().ToString("HH:mm:ss", CultureInfo.InvariantCulture))</span>
+                <span title="@SqlEditorText.Footer_SnapshotTitle">@TextFormat.Format(CommonText.AsOf, TimeText.TimeOfDay(asOf))</span>
                 @if (grid.SnapshotMoved)
                 {
                     <span class="warn" title="@SnapshotTexts.Moved">@SqlEditorText.Footer_SnapshotMoved</span>
@@ -50,9 +50,4 @@
     /// <summary>More buttons next to an error (the LINQ console links the model drift for ORA-00904).</summary>
     [Parameter]
     public RenderFragment<FerretSharp.Core.Connections.DatabaseException>? ErrorActions { get; set; }
-
-    /// <summary>"12 ms" below a second, "1,4 s" above.</summary>
-    public static string Ms(TimeSpan elapsed) => elapsed.TotalMilliseconds < 1000
-        ? $"{elapsed.TotalMilliseconds:0} ms"
-        : $"{elapsed.TotalSeconds.ToString("0.0", CultureInfo.CurrentCulture)} s";
 }
