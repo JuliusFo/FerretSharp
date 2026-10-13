@@ -1,5 +1,6 @@
-# Publishes a GitHub release when a version tag (v1.2.3) is pushed: self-contained win-x64 build as a zip (folder
-# deployment, the files at the zip's root), release notes from the tag's section in CHANGELOG.md.
+# Publishes a GitHub release when a version tag (v1.2.3) is pushed: self-contained win-x64 build, packed with Velopack
+# (WP-32, ADR 0024) into Setup.exe, a portable zip and the update packages the app looks for, plus the plain zip (folder
+# deployment, the files at the zip's root) for one more release. Release notes from the tag's section in CHANGELOG.md.
 # For a tag that already exists: run it by hand (Actions → Release → Run workflow) with the tag.
 name: Release
 
@@ -19,6 +20,7 @@ env:
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   TAG: ${{ inputs.tag || github.ref_name }}
+  REPO_URL: https://github.com/${{ github.repository }}
 
 jobs:
   release:
@@ -64,11 +66,46 @@ jobs:
             if ($line -match '^## \[') { break }
             $section += $line
           }
-          $notes = ($section -join "`n").Trim()
-          $notes += "`n`n---`n**Download:** ``FerretSharp-$env:VERSION-win-x64.zip`` – unzip anywhere and start ``FerretSharp.exe`` (Windows 10/11, x64; the WebView2 runtime is part of Windows)."
+          $changes = ($section -join "`n").Trim()
+          # What the app shows in its update dialog (packed into the release by vpk).
+          Set-Content changes.md $changes -Encoding utf8
+          $notes = $changes + "`n`n---`n**Download** (Windows 10/11, x64; the WebView2 runtime is part of Windows):`n" +
+            "- ``FerretSharp-win-Setup.exe`` – installs FerretSharp for your user (no admin rights); the app reports new versions and updates itself on a click. The installer is not signed: Windows SmartScreen warns once (More info › Run anyway).`n" +
+            "- ``FerretSharp-win-Portable.zip`` – the same without installing; unzip anywhere and start ``FerretSharp.exe``, it updates itself too.`n" +
+            "- ``FerretSharp-$env:VERSION-win-x64.zip`` – the plain folder as before, without updates; it goes away with the next releases.`n" +
+            "`nConnections, workspaces and settings stay in ``%APPDATA%\FerretSharp`` whichever you choose."
           Set-Content notes.md $notes -Encoding utf8
 
+      - name: Restore tools
+        run: dotnet tool restore
+
+      # The last Velopack release, so vpk can make a delta package from it. None before 3.29.0: then only full packages.
+      - name: Previous release for delta packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          dotnet vpk download github --repoUrl $env:REPO_URL --token $env:GH_TOKEN --outputDir releases
+          if ($LASTEXITCODE -ne 0) {
+            Write-Warning "No previous Velopack release found – this release has full packages only."
+            $global:LASTEXITCODE = 0
+          }
+
+      # The .pdb files stay in the package as in the zip (stack traces in the log with line numbers): '^$' never matches,
+      # it replaces vpk's default exclude of *.pdb.
+      - name: Pack with Velopack
+        run: >
+          dotnet vpk pack --packId FerretSharp --packVersion $env:VERSION --packTitle FerretSharp
+          --packDir "publish/FerretSharp-$env:VERSION-win-x64" --mainExe FerretSharp.exe
+          --icon src/FerretSharp.App/Assets/ferretsharp.ico --releaseNotes changes.md
+          --exclude '^$' --outputDir releases
+
+      # vpk creates the release as a draft with its assets (Setup.exe, portable zip, packages, releases.win.json); then the
+      # notes, the plain zip, and publish.
       - name: Create the release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create $env:TAG "FerretSharp-$env:VERSION-win-x64.zip" --title "FerretSharp $env:VERSION" --notes-file notes.md --verify-tag
+        run: |
+          dotnet vpk upload github --repoUrl $env:REPO_URL --token $env:GH_TOKEN --outputDir releases --tag $env:TAG --releaseName "FerretSharp $env:VERSION"
+          if ($LASTEXITCODE -ne 0) { throw "vpk upload failed." }
+          gh release upload $env:TAG "FerretSharp-$env:VERSION-win-x64.zip"
+          gh release edit $env:TAG --title "FerretSharp $env:VERSION" --notes-file notes.md --draft=false
