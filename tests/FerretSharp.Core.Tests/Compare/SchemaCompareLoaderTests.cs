@@ -170,6 +170,29 @@ public sealed class SchemaCompareLoaderTests
         Assert.Equal(saved.Kinds, loaded.Kinds);
     }
 
+    /// <summary>R5b (review 3.31.0, B2): an entry set to null by hand is left out; a broken file says so, a newer one with an unknown shape is newer.</summary>
+    [Theory]
+    [InlineData("""{ "version": 1, "comparisons": [ null ] }""", null)]
+    [InlineData("""{ "version": 1, "comparisons": null }""", null)]
+    [InlineData("""{ "version": 1, "comparisons": [ { "id": 1 } ] }""", "keine gültige Datei mit Schema-Vergleichen")]
+    [InlineData("""{ "version": 3, "comparisons": 42 }""", "neueren FerretSharp-Version")]
+    public async Task Files_edited_by_hand(string content, string? error)
+    {
+        using var folder = new TestFolder();
+        var file = folder.Combine("comparisons.json");
+        await File.WriteAllTextAsync(file, content, Ct);
+        var store = new ComparisonStore(file);
+
+        if (error is null)
+        {
+            Assert.Empty(await store.LoadAsync(Ct));
+        }
+        else
+        {
+            Assert.Contains(error, (await Assert.ThrowsAsync<IOException>(() => store.LoadAsync(Ct))).Message);
+        }
+    }
+
     /// <summary>A file of a newer FerretSharp (after a downgrade) is reported and kept, not overwritten as format 1.</summary>
     [Fact]
     public async Task Comparisons_of_a_newer_format_are_neither_read_nor_overwritten()
