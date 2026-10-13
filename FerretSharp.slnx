@@ -13,6 +13,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/FerretSharp.Core.Tests/FerretSharp.Core.Tests.csproj" />
     <Project Path="tests/FerretSharp.FakeEfApp/FerretSharp.FakeEfApp.csproj" />
+    <Project Path="tests/FerretSharp.FakeEfModel/FerretSharp.FakeEfModel.csproj" />
     <Project Path="tests/FerretSharp.FakeModelHost/FerretSharp.FakeModelHost.csproj" />
     <Project Path="tests/FerretSharp.Integration.Tests/FerretSharp.Integration.Tests.csproj" />
     <Project Path="tests/FerretSharp.UI.Tests/FerretSharp.UI.Tests.csproj" />

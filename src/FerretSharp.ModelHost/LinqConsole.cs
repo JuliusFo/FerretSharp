@@ -12,6 +12,7 @@ using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Scripting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace FerretSharp.ModelHost;
 
@@ -122,7 +123,23 @@ internal sealed class LinqConsole
         return 0;
     }
 
-    private DbContext Create() => Program.CreateContext(_contextType, _types, builder => builder.AddInterceptors(_capture, _capture.Connections)).Context;
+    /// <summary>
+    /// A context with the interceptors – and a check that it really uses them: the project's <c>OnConfiguring</c> could
+    /// replace the options, and then a query would run against its database.
+    /// </summary>
+    private DbContext Create()
+    {
+        var context = Program.CreateContext(_contextType, _types, builder => builder.AddInterceptors(_capture, _capture.Connections)).Context;
+        var interceptors = context.GetService<IDbContextOptions>().FindExtension<CoreOptionsExtension>()?.Interceptors ?? [];
+        if (!interceptors.Contains(_capture) || !interceptors.Contains(_capture.Connections))
+        {
+            context.Dispose();
+            throw new ModelHostException(new ModelHostError(
+                ModelHostErrorKind.ConsoleNeedsOptions, Program.Text(ModelHostText.ConsoleNotIntercepted, _contextType.Name)));
+        }
+
+        return context;
+    }
 
     /// <summary>
     /// Compiles variables and code; names nobody declares are either the context or a token (declared automatically) or

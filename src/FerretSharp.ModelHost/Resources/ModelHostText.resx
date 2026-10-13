@@ -64,6 +64,14 @@
     <value>{0} needs further services for its constructor ({1}). FerretSharp can only create it with DbContextOptions, without parameters or through an IDesignTimeDbContextFactory.</value>
     <comment>{0} = DbContext type name, {1} = its constructor signatures, separated by semicolons</comment>
   </data>
+  <data name="ConsoleNeedsOptions" xml:space="preserve">
+    <value>The LINQ console needs a constructor of {0} that takes DbContextOptions: only then can FerretSharp keep EF away from the database. Without one, a query would run against the database the project configures itself.</value>
+    <comment>{0} = DbContext type name</comment>
+  </data>
+  <data name="ConsoleNotIntercepted" xml:space="preserve">
+    <value>{0} does not use the options FerretSharp passed in (the interceptors that keep EF away from the database are missing). The LINQ console does not run it.</value>
+    <comment>{0} = DbContext type name</comment>
+  </data>
   <data name="NoOracleProvider" xml:space="preserve">
     <value>The project does not use Oracle.EntityFrameworkCore (the provider cannot be found).</value>
   </data>

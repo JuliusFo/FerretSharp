@@ -46,6 +46,8 @@
     <!-- Built first, not referenced: the model host runs against the sample project in a process of its own (ModelHostTests). -->
     <ProjectReference Include="..\..\src\FerretSharp.ModelHost\FerretSharp.ModelHost.csproj" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
     <ProjectReference Include="..\..\samples\FerretSharp.SampleModel.Data\FerretSharp.SampleModel.Data.csproj" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
+    <!-- Built first, not referenced: contexts with their own connection string for the LINQ console (LinqConsoleOptionsTests). -->
+    <ProjectReference Include="..\FerretSharp.FakeEfModel\FerretSharp.FakeEfModel.csproj" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
   </ItemGroup>
 
 </Project>
