@@ -83,7 +83,7 @@
 @code {
     public const string ReleasesUrl = "https://github.com/JuliusFo/FerretSharp/releases";
 
-    private static readonly string CurrentVersion = typeof(UpdateDialog).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
+    private static readonly string CurrentVersion = AppVersion.Current;
 
     protected override void OnInitialized() => Updates.Changed += OnChanged;
 

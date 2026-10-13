@@ -433,7 +433,7 @@
 
     private Task SetUpdateCheckHoursAsync(int hours) => UpdateAsync(s => s with { UpdateCheckHours = hours });
 
-    private static readonly string CurrentVersion = typeof(SettingsPage).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
+    private static readonly string CurrentVersion = AppVersion.Current;
 
     /// <summary>Settings › Updates: what the last check found, and the button that fits (WP-32).</summary>
     private RenderFragment UpdateStatus() => @<text>
