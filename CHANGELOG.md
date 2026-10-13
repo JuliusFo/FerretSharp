@@ -5,7 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
-Pinned tabs and a quicker way through the settings (WP-34).
+## [3.30.0] - 2026-10-13
+
+Pinned tabs and a quicker way through the settings (WP-34); pause and clear in the app statements.
 
 ### Added
 - Pin tabs: right-click a tab › "Pin tab" (or a shortcut under Settings › Shortcuts, no key by default). Pinned tabs stand at the left with a pin in place of ✕ – a click on it unpins the tab –, new tabs open after them, and "Close others", "Close to the right" and "Close all" leave them open; middle click does not close them. When the tab bar is full, pinned tabs narrow to their icon and a short name (the tooltip has the full one) and widen again once there is room; when the bar scrolls, pinned tabs stay at the left. The pin is saved with the workspace.
@@ -14,6 +16,7 @@ Pinned tabs and a quicker way through the settings (WP-34).
 
 ### Changed
 - App statements: "Reset" is called *Clear* now.
+- Releases: the plain zip (`FerretSharp-x.y.z-win-x64.zip`) is gone, as announced with 3.29.0 – `FerretSharp-win-Setup.exe` or `FerretSharp-win-Portable.zip`, both update themselves.
 
 ## [3.29.0] - 2026-10-13
 
