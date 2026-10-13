@@ -39,6 +39,26 @@ Aus dem Backlog („Installer/Auto-Update“), geplant mit dem Nutzer (2026-10-1
   - ModelHost läuft aus `current\modelhost`: alle Hilfsprozesse müssen vor dem Anwenden beendet sein (die Shadow-Kopien unter `%TEMP%`, ADR 0016, betrifft das nicht).
   - E2E ohne GitHub und ohne die echte Installation des Nutzers: zwei Testversionen lokal packen, die ältere installieren, Update aus einem lokalen Ordner als Quelle (Startargument nur für Tests).
 
+### WP-35 Verbindungen importieren und exportieren
+Frage eines Kollegen des Nutzers (2026-10-13), mit dem Nutzer als Paket definiert (2026-10-13). Ziel: Verbindungen aus einer anderen FerretSharp-Installation, aus DBeaver und aus SQL Developer übernehmen, statt sie von Hand anzulegen oder `connections.json` zu kopieren (überschreibt die eigenen, Passwörter fehlen). Dazu ein Export, um Verbindungen an Kollegen weiterzugeben.
+- Entscheidungen des Nutzers (2026-10-13, bei der Planung):
+  - **Passwörter nie mitnehmen**, weder beim Export noch beim Import (DBeaver verschlüsselt sie mit einem bekannten festen Schlüssel, SQL Developer mit einem beim Export gewählten). Der Nutzer gibt sie beim ersten Verbinden ein, sie landen wie immer im Credential Manager.
+  - **Duplikate** (gleiche Adresse und gleicher User) werden standardmäßig übersprungen; in der Vorschau je Zeile änderbar: überspringen, überschreiben, als Kopie anlegen.
+  - **Prod bleibt geschützt:** Importierte Verbindungen der Art Prod sind immer schreibgeschützt, egal was die Quelle sagt.
+  - **Einmalige Kopie, keine geteilte Datei.** Der Team-Workspace im Repository (`.ferretsharp/`, immer aktuell wie die Anzeigespalten aus WP-31) bleibt im Backlog; dieses Paket ist der kleinere erste Schritt.
+  - **Umfang:** FerretSharp, DBeaver, SQL Developer. HORA (KeepTool) erst, wenn eine Beispieldatei da ist – das Format ist unbekannt, der Nutzer fragt nach.
+- Quellen (Formate aus dem Gedächtnis, vor dem Bauen an echten Dateien prüfen – der Nutzer liefert Beispiele aus DBeaver und SQL Developer):
+  - FerretSharp: eigener Export oder eine fremde `connections.json`; alles übernehmbar.
+  - DBeaver: `…\DBeaverData\workspace6\General\.dbeaver\data-sources.json` – nur Oracle-Verbindungen; Name, Host/Port/Service bzw. SID oder TNS-Alias, User, Ordner → Gruppe, Verbindungstyp (`dev`/`test`/`prod`, eigene Typen → Other) → `ConnectionKind`.
+  - SQL Developer: JSON aus „Export Connections“ bzw. dessen `connections.json`; Name, BASIC/TNS, Host/Port/SID/Service, User.
+- Plan:
+  - Core: `Core/Connections/Import` mit einem Leser je Quelle (Datei → Liste importierbarer Verbindungen mit Hinweisen, z. B. „nicht Oracle“, „Custom-URL nicht unterstützt“), Duplikat-Erkennung und Übernahme in die eigenen Profile (neue Ids, `ReadOnly` für Prod erzwungen). Export als eigenes Dokument mit Version, nah an `ConnectionsDocument`; rechnerlokale Pfade (`ClrProject`, `ScriptFolder`) standardmäßig weglassen. Tests ohne DB mit Beispieldateien (anonymisiert) aus DBeaver und SQL Developer.
+  - UI: Import im Verbindungsdialog (Datei wählen über den Host-Dialog, Quelle aus dem Inhalt erkennen), Vorschau-Liste mit Häkchen, Duplikat-Markierung und Aktion je Zeile; Export für ausgewählte Verbindungen, eine Gruppe oder alle. Alle Texte Englisch und Deutsch.
+  - Doku: Protokoll, CHANGELOG, README (kurz: Umzug von DBeaver/SQL Developer).
+- Beim Start prüfen:
+  - Beispieldateien des Nutzers gegen die Annahmen oben abgleichen (Feldnamen, TNS- und Custom-URL-Varianten, Verbindungstypen, Ordnerstruktur in DBeaver).
+  - Ob ein eigenes Exportformat nötig ist oder `connections.json` selbst (ohne lokale Pfade) reicht.
+
 ## Offene UX-Fragen
 - Shortcut-Belegung für Commit/Rollback – vorläufig, Nutzerfeedback einholen.
 - Workspaces: Standardname ist „Workspace N“ mit der kleinsten freien Nummer (nach Umbenennen von „Workspace 1“ heißt der nächste wieder „Workspace 1“). Shortcuts zum Wechseln (z. B. Ctrl+1…9) und eine Oberfläche für die Notizen fehlen noch.
