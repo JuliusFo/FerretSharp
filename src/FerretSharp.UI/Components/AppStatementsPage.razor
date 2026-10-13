@@ -196,7 +196,7 @@
 
         @if (snapshot.Count > 0)
         {
-            var statements = Sorted(snapshot.Statements.Where(s => Trace.OriginFilter is null || s.Origin == Trace.OriginFilter)).ToList();
+            var statements = Trace.ShownStatements;
             <section class="settings-section">
                 <h2>
                     @AppStatementsText.AppStatements_Statements
@@ -476,15 +476,6 @@
 
     private StatementTotals? SelectedStatement(RecordingSnapshot snapshot) =>
         Trace.Selected is { } key ? snapshot.Statements.FirstOrDefault(s => s.Origin == key.Origin && s.Text == key.Text) : null;
-
-    private IEnumerable<StatementTotals> Sorted(IEnumerable<StatementTotals> statements) => Trace.Sort switch
-    {
-        StatementSort.Count => statements.OrderByDescending(s => s.Count),
-        StatementSort.Average => statements.OrderByDescending(s => s.Average),
-        StatementSort.Max => statements.OrderByDescending(s => s.Max),
-        StatementSort.Rows => statements.OrderByDescending(s => s.Rows),
-        _ => statements.OrderByDescending(s => s.Time),
-    };
 
     private RenderFragment SortHeader(StatementSort sort, string label) =>
         @<th class="num sortable @(Trace.Sort == sort ? "sorted" : "")" @onclick="() => Trace.Sort = sort">@label@(Trace.Sort == sort ? " ↓" : "")</th>;
