@@ -1059,4 +1059,97 @@
   <data name="Settings_DisplayColumnsNoFile" xml:space="preserve">
     <value>{0} gibt es noch nicht: Die erste markierte Anzeigespalte legt die Datei an.</value>
   </data>
+  <data name="Settings_Updates" xml:space="preserve">
+    <value>Updates</value>
+  </data>
+  <data name="Settings_Version" xml:space="preserve">
+    <value>Version</value>
+  </data>
+  <data name="Settings_VersionInstalled" xml:space="preserve">
+    <value>Installiert – Updates kommen aus den GitHub-Releases.</value>
+  </data>
+  <data name="Settings_VersionNotInstalled" xml:space="preserve">
+    <value>Nicht installiert (ein Build oder das Zip): Updates gibt es nur für ein mit Setup.exe installiertes FerretSharp.</value>
+  </data>
+  <data name="Settings_CheckForUpdates" xml:space="preserve">
+    <value>Beim Start prüfen</value>
+  </data>
+  <data name="Settings_CheckForUpdatesHint" xml:space="preserve">
+    <value>Fragt bei GitHub, ob es eine neuere Version gibt, und zeigt sie in der Statusleiste. Herunterladen und Installieren erst nach deinem Klick.</value>
+  </data>
+  <data name="Update_CheckNow" xml:space="preserve">
+    <value>Jetzt prüfen</value>
+  </data>
+  <data name="Update_Checking" xml:space="preserve">
+    <value>Suche nach Updates …</value>
+  </data>
+  <data name="Update_UpToDate" xml:space="preserve">
+    <value>FerretSharp ist aktuell (geprüft um {0}).</value>
+  </data>
+  <data name="Update_Available" xml:space="preserve">
+    <value>Version {0} ist verfügbar.</value>
+  </data>
+  <data name="Update_ShowChanges" xml:space="preserve">
+    <value>Änderungen ansehen und herunterladen …</value>
+  </data>
+  <data name="Update_Downloading" xml:space="preserve">
+    <value>Lade {0} herunter … {1} %</value>
+  </data>
+  <data name="Update_Ready" xml:space="preserve">
+    <value>Version {0} ist heruntergeladen – ein Neustart installiert sie.</value>
+  </data>
+  <data name="Update_RestartNow" xml:space="preserve">
+    <value>Jetzt neu starten</value>
+  </data>
+  <data name="Update_CheckFailed" xml:space="preserve">
+    <value>Prüfung auf Updates nicht möglich: {0}</value>
+  </data>
+  <data name="Update_CheckTimedOut" xml:space="preserve">
+    <value>GitHub hat nicht innerhalb von 30 s geantwortet.</value>
+  </data>
+  <data name="Update_DownloadFailed" xml:space="preserve">
+    <value>Herunterladen von {0} fehlgeschlagen: {1}</value>
+  </data>
+  <data name="Update_TryAgain" xml:space="preserve">
+    <value>Erneut versuchen</value>
+  </data>
+  <data name="Update_StatusAvailable" xml:space="preserve">
+    <value>Update {0} verfügbar</value>
+  </data>
+  <data name="Update_StatusAvailableTitle" xml:space="preserve">
+    <value>Neuerungen in {0} ansehen und herunterladen</value>
+  </data>
+  <data name="Update_StatusDownloading" xml:space="preserve">
+    <value>Update {0} … {1} %</value>
+  </data>
+  <data name="Update_StatusReady" xml:space="preserve">
+    <value>Neu starten für {0}</value>
+  </data>
+  <data name="Update_StatusReadyTitle" xml:space="preserve">
+    <value>Startet FerretSharp neu und installiert Version {0}. Bei nicht committeten Änderungen wird vorher gefragt.</value>
+  </data>
+  <data name="Update_StatusFailed" xml:space="preserve">
+    <value>Update fehlgeschlagen</value>
+  </data>
+  <data name="Update_DialogTitle" xml:space="preserve">
+    <value>Update auf {0}</value>
+  </data>
+  <data name="Update_YouHave" xml:space="preserve">
+    <value>Installiert ist Version {0}. Das ist neu:</value>
+  </data>
+  <data name="Update_NoNotes" xml:space="preserve">
+    <value>Dieses Release hat keine Notizen.</value>
+  </data>
+  <data name="Update_AllReleases" xml:space="preserve">
+    <value>Alle Releases auf GitHub</value>
+  </data>
+  <data name="Update_RestartHint" xml:space="preserve">
+    <value>Nach dem Herunterladen installiert „Jetzt neu starten“ das Update; bei nicht committeten Änderungen wird vorher gefragt. Verbindungen, Workspaces und Einstellungen bleiben.</value>
+  </data>
+  <data name="Update_Later" xml:space="preserve">
+    <value>Später</value>
+  </data>
+  <data name="Update_Download" xml:space="preserve">
+    <value>Herunterladen</value>
+  </data>
 </root>

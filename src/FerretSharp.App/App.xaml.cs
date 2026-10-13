@@ -24,16 +24,18 @@ namespace FerretSharp.App;
 
 public partial class App : Application
 {
+    private readonly AppPaths _paths;
     private IHost? _host;
     private ILogger<App>? _logger;
+
+    /// <summary>Started by <see cref="Program.Main"/>, which holds the data folder's instance lock (WP-32).</summary>
+    internal App(AppPaths paths) => _paths = paths;
 
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
-        // "--data-dir=<path>" redirects connections, workspaces and logs (tests, screenshots, separate profiles).
-        var dataDir = e.Args.FirstOrDefault(a => a.StartsWith("--data-dir=", StringComparison.OrdinalIgnoreCase))?["--data-dir=".Length..];
-        var paths = string.IsNullOrWhiteSpace(dataDir) ? AppPaths.Default : new AppPaths(Path.GetFullPath(dataDir));
+        var paths = _paths;
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Debug()
             .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
@@ -132,6 +134,9 @@ public partial class App : Application
         builder.Services.AddScoped<PresentationService>();
         builder.Services.AddScoped<LinqConsoleService>();
         builder.Services.AddSingleton<ExitGuard>();
+        // Updates (WP-32, ADR 0024): Velopack, only reports; installing waits for a click.
+        builder.Services.AddSingleton<IAppUpdater>(new VelopackUpdater(args));
+        builder.Services.AddSingleton<UpdateState>();
         builder.Services.AddSingleton<MainWindow>();
         builder.Services.AddSingleton(sp => new UiStallMonitor(
             Dispatcher, sp.GetRequiredService<ILogger<UiStallMonitor>>(), paths.LogsDirectory, sp.GetRequiredService<AppSettingsService>()));
@@ -150,6 +155,7 @@ public partial class App : Application
         MainWindow = window;
         window.Show();
         _host.Services.GetRequiredService<UiStallMonitor>().Start();
+        _ = _host.Services.GetRequiredService<UpdateState>().StartAsync(); // never throws: a failed check is a note in the settings
     }
 
     protected override async void OnExit(ExitEventArgs e)

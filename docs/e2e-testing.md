@@ -17,6 +17,11 @@ Aus der `CLAUDE.md` ausgelagert (Stand 3.14.0). Vor jedem E2E-Lauf lesen. Die Si
 - Rechtsklick und Mittelklick mit `Input.dispatchMouseEvent` (echte Maus). `Input.dispatchKeyEvent`-Modifier: Alt 1, Ctrl 2, Meta 4, Shift 8.
 - Synthetische Events erreichen Blazor, ersetzen aber keinen Test mit echter Eingabe (`Input.dispatchMouseEvent`/`dispatchKeyEvent`), sonst bleiben Fehler wie das fehlende `auxclick` unentdeckt.
 
+## Updates (WP-32)
+- Nie `Setup.exe` im E2E starten: Es installiert nach `%LocalAppData%\<Pack-Id>`, legt Verknüpfungen an und startet die App **ohne** `--data-dir`, also auf den echten Daten des Nutzers. Stattdessen das Portable-Zip im Scratchpad entpacken und `current\FerretSharp.exe` mit `--data-dir=<scratch>` und `--update-source=<scratch>\releases` starten.
+- Testversionen: `dotnet publish … -p:Version=3.x.y -o <scratch>\pub-…`, dann `dotnet vpk pack -u FerretSharpE2E -v 3.x.y -p <pub> -e FerretSharp.exe --releaseNotes <md> -o <scratch>\releases` (eigene Pack-Id, nie `FerretSharp`); das Portable-Zip der älteren Version vor dem Packen der neueren beiseitelegen (gleicher Dateiname).
+- Der Updater startet die neue Version mit denselben Argumenten und Umgebungsvariablen (Debug-Port, WebView2-Ordner) – CDP geht danach am selben Port weiter. Ein fehlender Ordner als Quelle gilt bei Velopack als leerer Feed („aktuell“); für eine fehlgeschlagene Prüfung ein kaputtes `releases.win.json` nehmen.
+
 ## Zwischenablage und native Dialoge
 - Die Zwischenablage über `Get-Clipboard` prüfen. **Kein `navigator.clipboard.readText()`** im WebView aufrufen: Es öffnet eine Berechtigungsabfrage, die als zusätzliches CDP-Target (`edge://permission-request-dialog/`) vor der App-Seite in `/json` steht; das CDP-Skript wählt deshalb das Target mit der URL `https://0.0.0.1/`.
 - CDP-Klicks sind keine Nutzergeste (`navigator.clipboard.writeText` schlägt fehl) → Zwischenablage per CDP durch eine Mitschrift ersetzen.

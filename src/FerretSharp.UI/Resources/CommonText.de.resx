@@ -74,4 +74,7 @@ Das Protokoll liegt in {1}.</value>
   <data name="UnexpectedErrorBar" xml:space="preserve">
     <value>Unerwarteter Fehler.</value>
   </data>
+  <data name="AlreadyRunning" xml:space="preserve">
+    <value>FerretSharp läuft schon mit dem Datenordner {0}, aber sein Fenster ließ sich nicht nach vorn holen.</value>
+  </data>
 </root>

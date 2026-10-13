@@ -62,6 +62,7 @@
         <button class="status-link warn" title="@TextFormat.Format(ShellText.Status_OtherUncommittedTitle, other.Profile?.Name)"
                 @onclick="() => Show(other)">@TextFormat.Format(ShellText.Status_OtherUncommitted, other.Profile?.Name)</button>
     }
+    <UpdateIndicator />
     <span class="item">@Version</span>
 </footer>
 

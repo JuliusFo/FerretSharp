@@ -1,0 +1,137 @@
+@* The update dialog (WP-32): what is new in the newer version, "Download" and then "Restart now"; the download runs here with its
+   progress and can be cancelled. Opened from the status bar or Settings › Updates; mounted by the shell. *@
+@implements IDisposable
+@inject UpdateState Updates
+
+@if (Updates.DetailsOpen && Updates.Update is { } update)
+{
+    <ModalFrame Label="@TextFormat.Format(ShellText.Update_DialogTitle, update.Version)" Class="update-dialog" OnCancel="Updates.HideDetails" FocusOnOpen="true">
+        <header>
+            <span>@TextFormat.Format(ShellText.Update_DialogTitle, update.Version)</span>
+            <button class="icon-btn ghost" title="@CommonText.Close" @onclick="Updates.HideDetails">✕</button>
+        </header>
+        <div class="dialog-body">
+            <p class="update-current">@TextFormat.Format(ShellText.Update_YouHave, CurrentVersion)</p>
+            @{ var notes = ReleaseNotes.Parse(update.Notes); }
+            @if (notes.Count == 0)
+            {
+                <p class="hint">@ShellText.Update_NoNotes</p>
+            }
+            else
+            {
+                <div class="release-notes">
+                    @foreach (var group in Group(notes))
+                    {
+                        @if (group.Bullets is { } bullets)
+                        {
+                            <ul>
+                                @foreach (var bullet in bullets)
+                                {
+                                    <li>@Spans(bullet)</li>
+                                }
+                            </ul>
+                        }
+                        else if (group.Block.Kind == NoteBlockKind.Heading)
+                        {
+                            <h3>@Spans(group.Block)</h3>
+                        }
+                        else
+                        {
+                            <p>@Spans(group.Block)</p>
+                        }
+                    }
+                </div>
+            }
+            <p><a href="@ReleasesUrl" target="_blank" rel="noopener">@ShellText.Update_AllReleases</a></p>
+            @if (Updates.Phase == UpdatePhase.DownloadFailed)
+            {
+                <div class="settings-note error flush">@TextFormat.Format(ShellText.Update_DownloadFailed, update.Version, Updates.Error)</div>
+            }
+            else if (Updates.Phase == UpdatePhase.Ready)
+            {
+                <div class="settings-note flush">@TextFormat.Format(ShellText.Update_Ready, update.Version)</div>
+            }
+            <p class="hint">@ShellText.Update_RestartHint</p>
+        </div>
+        <footer>
+            @if (Updates.Phase == UpdatePhase.Downloading)
+            {
+                <div class="update-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@Updates.Progress">
+                    <div class="bar" style="width: @(Updates.Progress)%"></div>
+                </div>
+                <span class="hint">@TextFormat.Format(ShellText.Update_Downloading, update.Version, Updates.Progress)</span>
+                <span class="spacer"></span>
+                <button class="btn ghost" @onclick="Updates.CancelDownload">@CommonText.Cancel</button>
+            }
+            else
+            {
+                <span class="spacer"></span>
+                <button class="btn ghost" @onclick="Updates.HideDetails">@ShellText.Update_Later</button>
+                @if (Updates.Phase == UpdatePhase.Ready)
+                {
+                    <button class="btn primary" @onclick="Updates.Restart">@ShellText.Update_RestartNow</button>
+                }
+                else
+                {
+                    <button class="btn primary" @onclick="Updates.DownloadAsync">@ShellText.Update_Download</button>
+                }
+            }
+        </footer>
+    </ModalFrame>
+}
+
+@code {
+    public const string ReleasesUrl = "https://github.com/JuliusFo/FerretSharp/releases";
+
+    private static readonly string CurrentVersion = typeof(UpdateDialog).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
+
+    protected override void OnInitialized() => Updates.Changed += OnChanged;
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Updates.Changed -= OnChanged;
+
+    /// <summary>Consecutive bullets form one list.</summary>
+    private static IEnumerable<(NoteBlock Block, List<NoteBlock>? Bullets)> Group(IReadOnlyList<NoteBlock> blocks)
+    {
+        List<NoteBlock>? bullets = null;
+        foreach (var block in blocks)
+        {
+            if (block.Kind == NoteBlockKind.Bullet)
+            {
+                (bullets ??= []).Add(block);
+                continue;
+            }
+
+            if (bullets is not null)
+            {
+                yield return (bullets[0], bullets);
+                bullets = null;
+            }
+
+            yield return (block, null);
+        }
+
+        if (bullets is not null)
+        {
+            yield return (bullets[0], bullets);
+        }
+    }
+
+    private static RenderFragment Spans(NoteBlock block) => builder =>
+    {
+        foreach (var span in block.Spans)
+        {
+            if (span.Code)
+            {
+                builder.OpenElement(0, "code");
+                builder.AddContent(1, span.Text);
+                builder.CloseElement();
+            }
+            else
+            {
+                builder.AddContent(2, span.Text);
+            }
+        }
+    };
+}

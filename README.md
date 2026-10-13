@@ -188,11 +188,22 @@ changes, and a new build is picked up automatically:
 
 **Install**
 
-1. Download `FerretSharp-x.y.z-win-x64.zip` from the [latest release](https://github.com/JuliusFo/FerretSharp/releases/latest).
-2. Unzip it anywhere and start `FerretSharp.exe` – no installer, no admin rights.
+1. Download `FerretSharp-win-Setup.exe` from the [latest release](https://github.com/JuliusFo/FerretSharp/releases/latest)
+   and run it – it installs FerretSharp for your user (no admin rights) with shortcuts on the desktop and in the start
+   menu. The installer is not signed, so Windows SmartScreen warns once: *More info › Run anyway*.
+2. From then on FerretSharp checks for a new version at start (*Settings › Updates*, can be switched off) and shows it in
+   the status bar; *Download* fetches it, *Restart now* installs it. Nothing is downloaded or installed without your
+   click.
 
-Settings and workspaces live in `%APPDATA%\FerretSharp`; passwords are stored in the Windows Credential Manager, never in
-files.
+Without installing: `FerretSharp-win-Portable.zip` – unzip anywhere and start `FerretSharp.exe`; it updates itself the
+same way.
+
+Coming from the zip of 3.28 or older: run `FerretSharp-win-Setup.exe` once and delete the old folder by hand. Settings,
+connections and workspaces stay where they are.
+
+Settings and workspaces live in `%APPDATA%\FerretSharp` (uninstalling keeps them); passwords are stored in the Windows
+Credential Manager, never in files. One FerretSharp runs per data folder: starting it again brings the open window to
+the front.
 
 > [!IMPORTANT]
 > FerretSharp guards against accidental writes in many places, but the only real guarantee is on the database side:

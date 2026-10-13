@@ -1,0 +1,36 @@
+@* The update in the status bar (WP-32), beside the version: available (opens the dialog), downloading, ready for the
+   restart, download failed. Nothing while checking, up to date or after a failed check – that is in Settings › Updates. *@
+@implements IDisposable
+@inject UpdateState Updates
+
+@if (Updates.Update is { } update)
+{
+    @switch (Updates.Phase)
+    {
+        case UpdatePhase.Available:
+            <button class="status-link update-link" title="@TextFormat.Format(ShellText.Update_StatusAvailableTitle, update.Version)"
+                    @onclick="Updates.ShowDetails">@TextFormat.Format(ShellText.Update_StatusAvailable, update.Version)</button>
+            break;
+        case UpdatePhase.Downloading:
+            <button class="status-link" @onclick="Updates.ShowDetails">
+                <span class="spinner small"></span> @TextFormat.Format(ShellText.Update_StatusDownloading, update.Version, Updates.Progress)
+            </button>
+            break;
+        case UpdatePhase.Ready:
+            <button class="status-link update-link" title="@TextFormat.Format(ShellText.Update_StatusReadyTitle, update.Version)"
+                    @onclick="Updates.Restart">@TextFormat.Format(ShellText.Update_StatusReady, update.Version)</button>
+            break;
+        case UpdatePhase.DownloadFailed:
+            <button class="status-link error" title="@TextFormat.Format(ShellText.Update_DownloadFailed, update.Version, Updates.Error)"
+                    @onclick="Updates.ShowDetails">@ShellText.Update_StatusFailed</button>
+            break;
+    }
+}
+
+@code {
+    protected override void OnInitialized() => Updates.Changed += OnChanged;
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Updates.Changed -= OnChanged;
+}

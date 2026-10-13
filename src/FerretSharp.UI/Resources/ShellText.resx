@@ -1306,4 +1306,123 @@
     <value>{0} does not exist yet: marking the first display column creates it.</value>
     <comment>{0}: path of the file</comment>
   </data>
+  <data name="Settings_Updates" xml:space="preserve">
+    <value>Updates</value>
+    <comment>Settings section (WP-32)</comment>
+  </data>
+  <data name="Settings_Version" xml:space="preserve">
+    <value>Version</value>
+    <comment>Label of the installed version in Settings › Updates</comment>
+  </data>
+  <data name="Settings_VersionInstalled" xml:space="preserve">
+    <value>Installed – updates come from the GitHub releases.</value>
+    <comment>Hint below the version</comment>
+  </data>
+  <data name="Settings_VersionNotInstalled" xml:space="preserve">
+    <value>Not installed (a build or the zip): updates only reach a FerretSharp installed with Setup.exe.</value>
+    <comment>Hint below the version</comment>
+  </data>
+  <data name="Settings_CheckForUpdates" xml:space="preserve">
+    <value>Check at start</value>
+    <comment>Label of the on/off setting</comment>
+  </data>
+  <data name="Settings_CheckForUpdatesHint" xml:space="preserve">
+    <value>Asks GitHub whether a newer version is out and shows it in the status bar. Downloading and installing wait for your click.</value>
+  </data>
+  <data name="Update_CheckNow" xml:space="preserve">
+    <value>Check now</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Update_Checking" xml:space="preserve">
+    <value>Checking for updates …</value>
+  </data>
+  <data name="Update_UpToDate" xml:space="preserve">
+    <value>FerretSharp is up to date (checked at {0}).</value>
+    <comment>{0}: time of the check</comment>
+  </data>
+  <data name="Update_Available" xml:space="preserve">
+    <value>Version {0} is available.</value>
+    <comment>{0}: version</comment>
+  </data>
+  <data name="Update_ShowChanges" xml:space="preserve">
+    <value>Show changes and download …</value>
+    <comment>Button that opens the update dialog</comment>
+  </data>
+  <data name="Update_Downloading" xml:space="preserve">
+    <value>Downloading {0} … {1} %</value>
+    <comment>{0}: version; {1}: percent</comment>
+  </data>
+  <data name="Update_Ready" xml:space="preserve">
+    <value>Version {0} is downloaded – a restart installs it.</value>
+    <comment>{0}: version</comment>
+  </data>
+  <data name="Update_RestartNow" xml:space="preserve">
+    <value>Restart now</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Update_CheckFailed" xml:space="preserve">
+    <value>Could not check for updates: {0}</value>
+    <comment>{0}: error message</comment>
+  </data>
+  <data name="Update_CheckTimedOut" xml:space="preserve">
+    <value>GitHub did not answer within 30 s.</value>
+  </data>
+  <data name="Update_DownloadFailed" xml:space="preserve">
+    <value>Download of {0} failed: {1}</value>
+    <comment>{0}: version; {1}: error message</comment>
+  </data>
+  <data name="Update_TryAgain" xml:space="preserve">
+    <value>Try again</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Update_StatusAvailable" xml:space="preserve">
+    <value>Update {0} available</value>
+    <comment>Status bar link; {0}: version</comment>
+  </data>
+  <data name="Update_StatusAvailableTitle" xml:space="preserve">
+    <value>Show what is new in {0} and download it</value>
+    <comment>Tooltip; {0}: version</comment>
+  </data>
+  <data name="Update_StatusDownloading" xml:space="preserve">
+    <value>Update {0} … {1} %</value>
+    <comment>Status bar while downloading; {0}: version; {1}: percent</comment>
+  </data>
+  <data name="Update_StatusReady" xml:space="preserve">
+    <value>Restart for {0}</value>
+    <comment>Status bar link; {0}: version</comment>
+  </data>
+  <data name="Update_StatusReadyTitle" xml:space="preserve">
+    <value>Restarts FerretSharp and installs version {0}. Uncommitted changes are asked about first.</value>
+    <comment>Tooltip; {0}: version</comment>
+  </data>
+  <data name="Update_StatusFailed" xml:space="preserve">
+    <value>Update failed</value>
+    <comment>Status bar link after a failed download</comment>
+  </data>
+  <data name="Update_DialogTitle" xml:space="preserve">
+    <value>Update to {0}</value>
+    <comment>Dialog title; {0}: version</comment>
+  </data>
+  <data name="Update_YouHave" xml:space="preserve">
+    <value>You have version {0}. What is new:</value>
+    <comment>{0}: installed version</comment>
+  </data>
+  <data name="Update_NoNotes" xml:space="preserve">
+    <value>This release has no notes.</value>
+  </data>
+  <data name="Update_AllReleases" xml:space="preserve">
+    <value>All releases on GitHub</value>
+    <comment>Link</comment>
+  </data>
+  <data name="Update_RestartHint" xml:space="preserve">
+    <value>After the download, “Restart now” installs the update; uncommitted changes are asked about first. Connections, workspaces and settings stay.</value>
+  </data>
+  <data name="Update_Later" xml:space="preserve">
+    <value>Later</value>
+    <comment>Button that closes the update dialog</comment>
+  </data>
+  <data name="Update_Download" xml:space="preserve">
+    <value>Download</value>
+    <comment>Button</comment>
+  </data>
 </root>

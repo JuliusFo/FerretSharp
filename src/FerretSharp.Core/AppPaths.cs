@@ -40,4 +40,10 @@ public sealed class AppPaths
 
     /// <summary>Display columns (WP-31) unless the settings name another file.</summary>
     public string DisplayColumnsFile => Path.Combine(Root, "display-columns.json");
+
+    /// <summary>Held by the running instance for this data folder (WP-32, <see cref="IO.InstanceLock"/>).</summary>
+    public string InstanceLockFile => Path.Combine(Root, "instance.lock");
+
+    /// <summary>The process id of the instance holding <see cref="InstanceLockFile"/>, so a second start can bring its window forward.</summary>
+    public string InstanceProcessFile => Path.Combine(Root, "instance.pid");
 }

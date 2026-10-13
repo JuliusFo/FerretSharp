@@ -7,6 +7,7 @@
 @inject FerretSharp.Core.Display.DisplayColumnSource DisplaySource
 @inject IFileOpenService Files
 @inject IJSRuntime JS
+@inject UpdateState Updates
 @implements IAsyncDisposable
 
 <div class="settings-page">
@@ -232,6 +233,40 @@
         </section>
 
         <section class="settings-section">
+            <h2>@ShellText.Settings_Updates</h2>
+            <div class="settings-row">
+                <div class="settings-label">
+                    <span>@ShellText.Settings_Version</span>
+                    <span class="hint">
+                        @(Updates.Phase == UpdatePhase.NotInstalled ? ShellText.Settings_VersionNotInstalled : ShellText.Settings_VersionInstalled)
+                    </span>
+                </div>
+                <span class="settings-value">@CurrentVersion</span>
+            </div>
+            @if (Updates.Phase != UpdatePhase.NotInstalled)
+            {
+                <div class="settings-row">
+                    <div class="settings-label">
+                        <span>@ShellText.Settings_CheckForUpdates</span>
+                        <span class="hint">@ShellText.Settings_CheckForUpdatesHint</span>
+                    </div>
+                    <div class="segmented" role="radiogroup" aria-label="@ShellText.Settings_CheckForUpdates">
+                        @foreach (var (on, label) in OnOff)
+                        {
+                            var value = on;
+                            <button class="seg @(Settings.Current.CheckForUpdates == value ? "active" : "")" role="radio"
+                                    aria-checked="@(Settings.Current.CheckForUpdates == value ? "true" : "false")"
+                                    @onclick="() => SetCheckForUpdatesAsync(value)">@label</button>
+                        }
+                    </div>
+                </div>
+                <div class="settings-note update-status @(Updates.Phase is UpdatePhase.DownloadFailed ? "error" : "")">
+                    @UpdateStatus()
+                </div>
+            }
+        </section>
+
+        <section class="settings-section">
             <h2>@ShellText.Settings_Diagnostics</h2>
             <div class="settings-row">
                 <div class="settings-label">
@@ -296,6 +331,47 @@
 
     private Task SetDiagnoseUiStallsAsync(bool on) => UpdateAsync(s => s with { DiagnoseUiStalls = on });
 
+    private Task SetCheckForUpdatesAsync(bool on) => UpdateAsync(s => s with { CheckForUpdates = on });
+
+    private static readonly string CurrentVersion = typeof(SettingsPage).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
+
+    /// <summary>Settings › Updates: what the last check found, and the button that fits (WP-32).</summary>
+    private RenderFragment UpdateStatus() => @<text>
+        @switch (Updates.Phase)
+        {
+            case UpdatePhase.Checking:
+                <span class="spinner small"></span> @ShellText.Update_Checking
+                break;
+            case UpdatePhase.UpToDate when Updates.LastChecked is { } at:
+                @TextFormat.Format(ShellText.Update_UpToDate, at.ToString("t", CultureInfo.CurrentCulture))
+                break;
+            case UpdatePhase.CheckFailed:
+                @TextFormat.Format(ShellText.Update_CheckFailed, Updates.Error)
+                break;
+            case UpdatePhase.Available when Updates.Update is { } update:
+                @TextFormat.Format(ShellText.Update_Available, update.Version)
+                <button class="link-btn" @onclick="Updates.ShowDetails">@ShellText.Update_ShowChanges</button>
+                break;
+            case UpdatePhase.Downloading when Updates.Update is { } update:
+                <span class="spinner small"></span> @TextFormat.Format(ShellText.Update_Downloading, update.Version, Updates.Progress)
+                break;
+            case UpdatePhase.Ready when Updates.Update is { } update:
+                @TextFormat.Format(ShellText.Update_Ready, update.Version)
+                <button class="link-btn" @onclick="Updates.Restart">@ShellText.Update_RestartNow</button>
+                break;
+            case UpdatePhase.DownloadFailed when Updates.Update is { } update:
+                @TextFormat.Format(ShellText.Update_DownloadFailed, update.Version, Updates.Error)
+                <button class="link-btn" @onclick="Updates.ShowDetails">@ShellText.Update_TryAgain</button>
+                break;
+        }
+        @if (Updates.CanCheck)
+        {
+            <button class="btn small update-check" @onclick="Updates.CheckAsync">@ShellText.Update_CheckNow</button>
+        }
+    </text>;
+
+    private void OnUpdatesChanged() => InvokeAsync(StateHasChanged);
+
     private Task UpdateAsync(Func<AppSettings, AppSettings> change) => Shell.TrySaveSettingsAsync(() => Settings.UpdateAsync(change, CancellationToken.None));
 
     /// <summary>The template file as the field shows it: saved as typed (also when it has errors, which show below).</summary>
@@ -304,7 +380,11 @@
     /// <summary>The display columns file as the field shows it (WP-31); null = the data folder.</summary>
     private string? _displayPath;
 
-    protected override void OnInitialized() => (_auditPath, _displayPath) = (Settings.Current.AuditTemplatePath, Settings.Current.DisplayColumnsPath);
+    protected override void OnInitialized()
+    {
+        (_auditPath, _displayPath) = (Settings.Current.AuditTemplatePath, Settings.Current.DisplayColumnsPath);
+        Updates.Changed += OnUpdatesChanged;
+    }
 
     private Task SetShowDisplayNamesAsync(bool on) => UpdateAsync(s => s with { ShowDisplayNames = on });
 
@@ -341,6 +421,7 @@
 
     public async ValueTask DisposeAsync()
     {
+        Updates.Changed -= OnUpdatesChanged;
         if (_dom is not null)
         {
             await _dom.DisposeAsync();
