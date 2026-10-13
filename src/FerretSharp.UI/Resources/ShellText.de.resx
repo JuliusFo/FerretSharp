@@ -1069,10 +1069,28 @@
     <value>Nicht installiert (ein Build oder das Zip): Updates gibt es nur für ein mit Setup.exe installiertes FerretSharp.</value>
   </data>
   <data name="Settings_CheckForUpdates" xml:space="preserve">
-    <value>Beim Start prüfen</value>
+    <value>Automatisch prüfen</value>
   </data>
   <data name="Settings_CheckForUpdatesHint" xml:space="preserve">
-    <value>Fragt bei GitHub, ob es eine neuere Version gibt, und zeigt sie in der Statusleiste. Herunterladen und Installieren erst nach deinem Klick.</value>
+    <value>Fragt beim Start und während FerretSharp läuft (darunter) bei GitHub, ob es eine neuere Version gibt, und zeigt sie in der Statusleiste. Herunterladen und Installieren erst nach deinem Klick.</value>
+  </data>
+  <data name="Settings_UpdateCheckInterval" xml:space="preserve">
+    <value>Während FerretSharp läuft</value>
+  </data>
+  <data name="Settings_UpdateCheckIntervalHint" xml:space="preserve">
+    <value>Prüft so lange nach der letzten Prüfung erneut – für den Fall, dass FerretSharp tagelang offen bleibt. Nur mit automatischer Prüfung.</value>
+  </data>
+  <data name="Settings_UpdateCheckNever" xml:space="preserve">
+    <value>Nie</value>
+  </data>
+  <data name="Settings_UpdateCheckHourly" xml:space="preserve">
+    <value>Stündlich</value>
+  </data>
+  <data name="Settings_UpdateCheckEvery4Hours" xml:space="preserve">
+    <value>Alle 4 Stunden</value>
+  </data>
+  <data name="Settings_UpdateCheckDaily" xml:space="preserve">
+    <value>Täglich</value>
   </data>
   <data name="Update_CheckNow" xml:space="preserve">
     <value>Jetzt prüfen</value>

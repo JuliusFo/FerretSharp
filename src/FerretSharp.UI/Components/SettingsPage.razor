@@ -279,6 +279,21 @@
                         }
                     </div>
                 </div>
+                <div class="settings-row @Hide(SettingKey.UpdateCheckInterval)">
+                    <div class="settings-label">
+                        <span>@ShellText.Settings_UpdateCheckInterval</span>
+                        <span class="hint">@ShellText.Settings_UpdateCheckIntervalHint</span>
+                    </div>
+                    <div class="segmented" role="radiogroup" aria-label="@ShellText.Settings_UpdateCheckInterval">
+                        @foreach (var (hours, label) in UpdateIntervals)
+                        {
+                            var value = hours;
+                            var active = Math.Max(Settings.Current.UpdateCheckHours, 0) == value;
+                            <button class="seg @(active ? "active" : "")" role="radio" aria-checked="@(active ? "true" : "false")"
+                                    disabled="@(!Settings.Current.CheckForUpdates)" @onclick="() => SetUpdateCheckHoursAsync(value)">@label</button>
+                        }
+                    </div>
+                </div>
                 <div class="settings-note update-status @(Updates.Phase is UpdatePhase.DownloadFailed ? "error" : "") @Hide(SettingKey.CheckForUpdates)">
                     @UpdateStatus()
                 </div>
@@ -395,6 +410,14 @@
     private Task SetDiagnoseUiStallsAsync(bool on) => UpdateAsync(s => s with { DiagnoseUiStalls = on });
 
     private Task SetCheckForUpdatesAsync(bool on) => UpdateAsync(s => s with { CheckForUpdates = on });
+
+    private static (int Hours, string Label)[] UpdateIntervals =>
+    [
+        (0, ShellText.Settings_UpdateCheckNever), (1, ShellText.Settings_UpdateCheckHourly),
+        (4, ShellText.Settings_UpdateCheckEvery4Hours), (24, ShellText.Settings_UpdateCheckDaily),
+    ];
+
+    private Task SetUpdateCheckHoursAsync(int hours) => UpdateAsync(s => s with { UpdateCheckHours = hours });
 
     private static readonly string CurrentVersion = typeof(SettingsPage).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
 

@@ -32,17 +32,28 @@ public enum UpdatePhase
 }
 
 /// <summary>
-/// Update of the app (WP-32, ADR 0024): only reports. The check at start (if on) and "Check now" look for a newer version;
-/// downloading waits for the click on "Download", installing for a second click on "Restart now", which ends the app
-/// through the <see cref="ExitGuard"/> – uncommitted changes are asked about first, as when closing the window.
+/// Update of the app (WP-32, ADR 0024): only reports. The check at start and while the app runs (if on, every
+/// <see cref="AppSettings.UpdateCheckHours"/>) and "Check now" look for a newer version; downloading waits for the click on
+/// "Download", installing for a second click on "Restart now", which ends the app through the <see cref="ExitGuard"/> –
+/// uncommitted changes are asked about first, as when closing the window.
 /// </summary>
-public sealed class UpdateState(IAppUpdater updater, AppSettingsService settings, ExitGuard exitGuard, ILogger<UpdateState> logger, TimeProvider? time = null)
+public sealed class UpdateState(IAppUpdater updater, AppSettingsService settings, ExitGuard exitGuard, ILogger<UpdateState> logger, TimeProvider? time = null) : IDisposable
 {
     /// <summary>A check that gets no answer (a stalled VPN) ends after this; the next start or "Check now" tries again.</summary>
     public static readonly TimeSpan CheckTimeout = TimeSpan.FromSeconds(30);
 
+    /// <summary>
+    /// How often the app looks whether the next check while it runs is due. The interval counts from the last check on the
+    /// clock, not in timer ticks: a check that is due after a sleep of the PC comes within this time after waking up, and a
+    /// changed setting needs no new timer.
+    /// </summary>
+    public static readonly TimeSpan BackgroundTick = TimeSpan.FromMinutes(5);
+
     private readonly TimeProvider _time = time ?? TimeProvider.System;
     private CancellationTokenSource? _download;
+    private ITimer? _background;
+    private DateTimeOffset _started;
+    private int _checking;
 
     public UpdatePhase Phase { get; private set; } = updater.IsInstalled ? UpdatePhase.Idle : UpdatePhase.NotInstalled;
 
@@ -83,14 +94,19 @@ public sealed class UpdateState(IAppUpdater updater, AppSettingsService settings
         Changed?.Invoke();
     }
 
-    /// <summary>At start: a download left from the last session waits for the restart; otherwise check if the setting says so.</summary>
+    /// <summary>
+    /// At start: a download left from the last session waits for the restart; otherwise check if the setting says so. Then
+    /// the checks while the app runs begin (<see cref="BackgroundTick"/>).
+    /// </summary>
     public async Task StartAsync()
     {
-        if (Phase != UpdatePhase.Idle)
+        if (Phase != UpdatePhase.Idle || _background is not null)
         {
             return;
         }
 
+        _started = _time.GetLocalNow();
+        _background = _time.CreateTimer(_ => CheckIfDue(), null, BackgroundTick, BackgroundTick);
         if (updater.Downloaded is { } downloaded)
         {
             Update = downloaded;
@@ -107,7 +123,8 @@ public sealed class UpdateState(IAppUpdater updater, AppSettingsService settings
     /// <summary>Looks for a newer version. Never throws: a failure is <see cref="UpdatePhase.CheckFailed"/> with <see cref="Error"/>.</summary>
     public async Task CheckAsync()
     {
-        if (!CanCheck)
+        // "Check now" on the UI thread and a check while running on the timer's thread: one at a time.
+        if (!CanCheck || Interlocked.Exchange(ref _checking, 1) == 1)
         {
             return;
         }
@@ -134,7 +151,33 @@ public sealed class UpdateState(IAppUpdater updater, AppSettingsService settings
             Error = ex is TimeoutException ? ShellText.Update_CheckTimedOut : ex.Message;
             Set(UpdatePhase.CheckFailed);
         }
+        finally
+        {
+            Volatile.Write(ref _checking, 0);
+        }
     }
+
+    /// <summary>
+    /// The check while the app runs, if it is on and due: the interval has passed since the last check (or the start). Only
+    /// while no update is known – one that is available, downloading or waiting for the restart has been reported already –
+    /// and not while the dialog is open.
+    /// </summary>
+    private void CheckIfDue()
+    {
+        var current = settings.Current;
+        if (!current.CheckForUpdates || current.UpdateCheckHours <= 0 || DetailsOpen
+            || Phase is not (UpdatePhase.Idle or UpdatePhase.UpToDate or UpdatePhase.CheckFailed))
+        {
+            return;
+        }
+
+        if (_time.GetLocalNow() - (LastChecked ?? _started) >= TimeSpan.FromHours(current.UpdateCheckHours))
+        {
+            _ = CheckAsync(); // never throws: a failed check is a note in the settings
+        }
+    }
+
+    public void Dispose() => _background?.Dispose();
 
     /// <summary>
     /// The click on "Download": downloads (cancellable, <see cref="CancelDownload"/>); then the update waits for "Restart now"

@@ -1319,11 +1319,31 @@
     <comment>Hint below the version</comment>
   </data>
   <data name="Settings_CheckForUpdates" xml:space="preserve">
-    <value>Check at start</value>
+    <value>Check automatically</value>
     <comment>Label of the on/off setting</comment>
   </data>
   <data name="Settings_CheckForUpdatesHint" xml:space="preserve">
-    <value>Asks GitHub whether a newer version is out and shows it in the status bar. Downloading and installing wait for your click.</value>
+    <value>At start and while FerretSharp runs (below), asks GitHub whether a newer version is out and shows it in the status bar. Downloading and installing wait for your click.</value>
+  </data>
+  <data name="Settings_UpdateCheckInterval" xml:space="preserve">
+    <value>While FerretSharp runs</value>
+    <comment>Label: how often to check for updates again while the app is open</comment>
+  </data>
+  <data name="Settings_UpdateCheckIntervalHint" xml:space="preserve">
+    <value>Checks again this long after the last check, for when FerretSharp stays open for days. Only with automatic checks on.</value>
+  </data>
+  <data name="Settings_UpdateCheckNever" xml:space="preserve">
+    <value>Never</value>
+    <comment>Option: only check at start</comment>
+  </data>
+  <data name="Settings_UpdateCheckHourly" xml:space="preserve">
+    <value>Hourly</value>
+  </data>
+  <data name="Settings_UpdateCheckEvery4Hours" xml:space="preserve">
+    <value>Every 4 hours</value>
+  </data>
+  <data name="Settings_UpdateCheckDaily" xml:space="preserve">
+    <value>Daily</value>
   </data>
   <data name="Update_CheckNow" xml:space="preserve">
     <value>Check now</value>

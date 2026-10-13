@@ -20,6 +20,7 @@ public enum SettingKey
     DisplayColumnsFile,
     Version,
     CheckForUpdates,
+    UpdateCheckInterval,
     DiagnoseUiStalls,
 }
 
@@ -88,8 +89,11 @@ public static class SettingsCatalog
         ];
         if (installed)
         {
-            entries.Insert(entries.FindIndex(e => e.Id == IdOf(SettingKey.Version)) + 1,
-                Setting(SettingKey.CheckForUpdates, SettingsPart.Updates, ShellText.Settings_CheckForUpdates, ShellText.Settings_CheckForUpdatesHint));
+            entries.InsertRange(entries.FindIndex(e => e.Id == IdOf(SettingKey.Version)) + 1,
+            [
+                Setting(SettingKey.CheckForUpdates, SettingsPart.Updates, ShellText.Settings_CheckForUpdates, ShellText.Settings_CheckForUpdatesHint),
+                Setting(SettingKey.UpdateCheckInterval, SettingsPart.Updates, ShellText.Settings_UpdateCheckInterval, ShellText.Settings_UpdateCheckIntervalHint),
+            ]);
         }
 
         entries.AddRange(ShortcutMap.Definitions.Select(d => new SettingsEntry(
