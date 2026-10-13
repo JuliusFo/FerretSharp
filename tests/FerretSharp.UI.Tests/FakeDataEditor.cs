@@ -1,6 +1,7 @@
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
 using FerretSharp.Core.Query;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 
 namespace FerretSharp.UI.Tests;
@@ -8,6 +9,7 @@ namespace FerretSharp.UI.Tests;
 /// <summary>
 /// A workspace session's editor without a database: writes write nothing but become actions of a <see cref="WriteLog"/>,
 /// so undo up to an action and redo behave as with Oracle (WP-30). The transaction is always open, like the mock before.
+/// A locked session (<see cref="ReadOnly"/>, Prod by default) refuses to write as <c>OracleDataEditor</c> and Oracle do.
 /// </summary>
 internal sealed class FakeDataEditor(Func<Func<Task>?> onCommit, Func<string, Exception?>? onDdl = null) : IDataEditor
 {
@@ -15,11 +17,18 @@ internal sealed class FakeDataEditor(Func<Func<Task>?> onCommit, Func<string, Ex
     private int _savepoints;
 
     private readonly TransactionInfo _transaction = new(TransactionMode.ReadWrite, DateTimeOffset.Now);
+    private readonly TransactionInfo _readOnly = new(TransactionMode.ReadOnly, DateTimeOffset.Now);
 
     /// <summary>The transaction ended without commit behind FerretSharp's back (a rollback that failed with the connection).</summary>
     public bool Ended { get; set; }
 
-    public TransactionInfo Transaction => Ended ? TransactionInfo.None : _transaction;
+    /// <summary>
+    /// The session is locked (WP-08): in the read-only transaction of <c>UseReadOnlySnapshotsAsync</c> until
+    /// <c>StopReadOnlySnapshotsAsync</c> (TestApp's connection switches it).
+    /// </summary>
+    public bool ReadOnly { get; set; }
+
+    public TransactionInfo Transaction => Ended ? TransactionInfo.None : ReadOnly ? _readOnly : _transaction;
 
     public IReadOnlyList<WriteAction> Actions => _log.Actions;
 
@@ -40,6 +49,12 @@ internal sealed class FakeDataEditor(Func<Func<Task>?> onCommit, Func<string, Ex
     public Task<FlushResult> FlushAsync(TableDetails table, IReadOnlyList<PendingOperation> operations, FlushOptions options, CancellationToken cancellationToken)
     {
         LastFlush = options;
+        if (ReadOnly && operations.Count > 0)
+        {
+            // OracleDataEditor does not check; Oracle refuses DML in the read-only transaction.
+            return Task.FromException<FlushResult>(new DatabaseException("ORA-01456: may not perform insert/delete/update operation inside a READ ONLY transaction", "ORA-01456"));
+        }
+
         if (FailFlush?.Invoke(operations) is { } failure)
         {
             return Task.FromException<FlushResult>(failure);
@@ -104,13 +119,19 @@ internal sealed class FakeDataEditor(Func<Func<Task>?> onCommit, Func<string, Ex
         return Task.CompletedTask;
     }
 
-    public Task<WriteAction> ExecuteAsync(QuerySpec statement, CancellationToken cancellationToken) => Task.FromResult(Execute(statement, null));
+    public Task<WriteAction> ExecuteAsync(QuerySpec statement, CancellationToken cancellationToken) =>
+        ReadOnly ? Task.FromException<WriteAction>(new RefusedException(OracleText.WorkspaceReadOnly)) : Task.FromResult(Execute(statement, null));
 
     /// <summary>The DDL statements run, in order (WP-22).</summary>
     public List<string> Ddl { get; } = [];
 
     public Task ExecuteDdlAsync(string statement, CancellationToken cancellationToken)
     {
+        if (ReadOnly)
+        {
+            return Task.FromException(new RefusedException(OracleText.WorkspaceReadOnly));
+        }
+
         if (onDdl?.Invoke(statement) is { } failure)
         {
             return Task.FromException(failure);

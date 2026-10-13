@@ -125,6 +125,7 @@ public sealed class WorkspaceEditingTests : IAsyncDisposable
         var scope = await _app.OpenAsync(TestApp.Profile("Prod", ConnectionKind.Prod));
         var workspace = _app.WorkspaceOf(scope);
         var id = scope.Workspaces.Active!.Id;
+        await scope.Workspaces.UnlockAsync(id, TestContext.Current.CancellationToken); // Prod is locked until unlocked (WP-10)
         await scope.Workspaces.ExecuteAsync(id, new QuerySpec("UPDATE kunden SET name = 'a'", []), TestContext.Current.CancellationToken);
         var shown = _app.Editing.SummaryOf(workspace).Actions;
         await scope.Workspaces.ExecuteAsync(id, new QuerySpec("UPDATE kunden SET name = 'b'", []), TestContext.Current.CancellationToken);

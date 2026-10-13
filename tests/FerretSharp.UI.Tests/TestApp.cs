@@ -71,8 +71,10 @@ internal sealed class TestApp : IAsyncDisposable
     /// <summary>The SQL history the lifecycle writes (WP-23: DDL of the designer).</summary>
     public SqlHistoryStore History { get; }
 
+    /// <summary>A profile as the connection dialog creates it: Prod is read-only (locked workspaces) unless a test says otherwise.</summary>
     public static ConnectionProfile Profile(string name, ConnectionKind kind = ConnectionKind.Test) => new(
-        Guid.NewGuid(), name, kind, new HostPortAddress("db01.example.com", 1521, "ORCLPDB", null), "app_user", null, false);
+        Guid.NewGuid(), name, kind, new HostPortAddress("db01.example.com", 1521, "ORCLPDB", null), "app_user", null,
+        ConnectionProfile.IsReadOnlyByDefault(kind));
 
     /// <summary>Opens and shows the connection, then aligns the shell's tabs with its workspaces (what Shell.razor does on events).</summary>
     public async Task<ConnectionScope> OpenAsync(ConnectionProfile profile)
@@ -159,6 +161,17 @@ internal sealed class TestApp : IAsyncDisposable
         var connection = FakeDatabase.Connection(reader);
         connection.Data.Returns(data);
         connection.Editor.Returns(editor);
+        connection.UseReadOnlySnapshotsAsync(Arg.Any<CancellationToken>()).Returns(_ =>
+        {
+            editor.ReadOnly = true;
+            return Task.CompletedTask;
+        });
+        connection.StopReadOnlySnapshotsAsync(Arg.Any<CancellationToken>()).Returns(_ =>
+        {
+            editor.ReadOnly = false;
+            return Task.CompletedTask;
+        });
+        connection.UsesReadOnlySnapshots.Returns(_ => editor.ReadOnly);
         // Open while something is written (the fake editor's own transaction is always open, for the editing tests).
         connection.Transaction.Returns(_ => editor.Actions.Count > 0 ? editor.Transaction : TransactionInfo.None);
         return connection;
