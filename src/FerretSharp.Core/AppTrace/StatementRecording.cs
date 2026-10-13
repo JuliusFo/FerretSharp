@@ -91,6 +91,18 @@ public sealed class StatementRecording(RepeatRule? rule = null)
     private bool _truncated;
     private long _version;
 
+    /// <summary>The <see cref="RecordingSnapshot.Version"/> a snapshot would have now – cheap, to skip taking an equal one.</summary>
+    public long Version
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return _version;
+            }
+        }
+    }
+
     /// <summary>Takes one event in; false if it changed nothing (unknown event, reader of an unknown command).</summary>
     public bool Apply(EfEvent e)
     {
