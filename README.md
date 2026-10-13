@@ -212,7 +212,8 @@ Credential Manager, never in files. One FerretSharp runs per data folder: starti
 the front.
 
 > [!IMPORTANT]
-> FerretSharp guards against accidental writes in many places, but the only real guarantee is on the database side:
+> FerretSharp guards against accidental writes in many places, but the only real guarantee is on the database side – a
+> read-only transaction stops neither DDL nor a function with an autonomous transaction that a SELECT calls:
 > **for production, use a database user with SELECT grants only.**
 
 ## Keyboard shortcuts
