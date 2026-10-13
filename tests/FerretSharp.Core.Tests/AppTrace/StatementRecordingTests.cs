@@ -239,6 +239,41 @@ public sealed class StatementRecordingTests
     }
 
     [Fact]
+    public void Paused_leaves_out_new_commands_but_finishes_the_readers_of_before()
+    {
+        var recording = new StatementRecording();
+        recording.Apply(Executed(Orders, "LinqQuery", 1, id: "a"));
+
+        recording.Paused = true;
+        Assert.False(recording.Apply(Executed(Update, "ExecuteSqlRaw", 2, method: "ExecuteNonQuery", result: "1")));
+        Assert.False(recording.Apply(Lazy("Positionen", at: 10)));
+        Assert.False(recording.Apply(Executed(Lines, "LinqQuery", 1, at: 11, id: "b")));
+        Assert.True(recording.Apply(ReaderClosed("a", 4, 3))); // started before the pause
+        recording.Reset();
+        Assert.True(recording.Paused); // clearing keeps the pause
+
+        recording.Paused = false;
+        recording.Apply(ReaderClosed("b", 2, 1)); // left out: its reader neither
+        recording.Apply(Executed(Lines, "LinqQuery", 1, at: 20)); // the lazy load during the pause is not remembered
+
+        var line = Assert.Single(recording.Snapshot().Statements);
+        Assert.Equal((StatementOrigin.Linq, Lines, 0L), (line.Origin, line.Text, line.Rows));
+    }
+
+    [Fact]
+    public void Paused_keeps_the_recording_of_before()
+    {
+        var recording = new StatementRecording();
+        recording.Apply(Executed(Orders, "LinqQuery", 1, id: "a"));
+        recording.Paused = true;
+        recording.Apply(Executed(Update, "ExecuteSqlRaw", 2, method: "ExecuteNonQuery", result: "1"));
+        recording.Apply(ReaderClosed("a", 4, 3));
+
+        var orders = Assert.Single(recording.Snapshot().Statements);
+        Assert.Equal((1, 3L, TimeSpan.FromMilliseconds(4)), (orders.Count, orders.Rows, orders.Time));
+    }
+
+    [Fact]
     public void Unknown_events_and_missing_sources_change_little()
     {
         var recording = new StatementRecording();

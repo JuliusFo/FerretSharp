@@ -80,6 +80,9 @@ public sealed class AppTraceService(IAppTraceSource source, ConnectionManager co
     /// <summary>An attach or detach is under way (it waits for the trace before to stop): no second one now.</summary>
     public bool Switching => Volatile.Read(ref _switching) > 0;
 
+    /// <summary>Attached, but new statements are left out (<see cref="SetPaused"/>); a new attach starts unpaused.</summary>
+    public bool Paused { get; private set; }
+
     /// <summary>The process attached to (or last attached to); null before the first attach.</summary>
     public TraceableProcess? Process { get; private set; }
 
@@ -181,6 +184,7 @@ public sealed class AppTraceService(IAppTraceSource source, ConnectionManager co
             }
 
             _cts = cts;
+            Paused = false;
             _chosen = null;
             Selected = null;
             Lookup = null;
@@ -202,12 +206,24 @@ public sealed class AppTraceService(IAppTraceSource source, ConnectionManager co
         }
     });
 
-    /// <summary>Forgets what was recorded so far; a running trace goes on.</summary>
+    /// <summary>Forgets what was recorded so far; a running trace goes on (paused, if it was).</summary>
     public void Reset()
     {
         lock (_lock)
         {
             _recording.Reset();
+        }
+
+        Raise();
+    }
+
+    /// <summary>Pauses or resumes the recording; the trace stays attached, the recording so far stays.</summary>
+    public void SetPaused(bool paused)
+    {
+        lock (_lock)
+        {
+            Paused = paused;
+            _recording.Paused = paused;
         }
 
         Raise();
