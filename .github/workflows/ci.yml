@@ -39,13 +39,14 @@ jobs:
       - uses: actions/setup-dotnet@v5
         with:
           global-json-file: global.json
-          # Runtime for the model host, which runs in the sample project's .NET 8.
+          # Runtime for the model host, which runs in the sample project's .NET 8, and for the app the trace tests attach to (WP-33).
           dotnet-version: 8.0.x
 
-      - name: Build Core and UI
+      - name: Build Core, UI and AppTrace
         run: |
           dotnet build src/FerretSharp.Core -warnaserror
           dotnet build src/FerretSharp.UI -warnaserror
+          dotnet build src/FerretSharp.AppTrace -warnaserror
 
       - name: Unit tests
         run: |
