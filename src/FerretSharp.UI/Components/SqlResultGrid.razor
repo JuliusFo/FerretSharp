@@ -4,6 +4,7 @@
 @using FerretSharp.Core.Data
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
+@inherits FerretComponent
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject ILogger<SqlResultGrid> Logger
@@ -161,35 +162,47 @@
         return new GridPage(rows, page.IsLastPage ? startRow + page.Rows.Count : -1);
     }
 
-    /// <summary>Ctrl+C: the focused cell, or the selected rows as a table (tab-separated, with a header line).</summary>
+    /// <summary>
+    /// Ctrl+C: the focused cell, or the selected rows as a table (tab-separated, with a header line) – with the same notes as
+    /// in a table's grid (review 3.31.0, A20: a CLOB of which only the preview was loaded was copied without a word).
+    /// </summary>
     [JSInvokable]
-    public async Task OnCopy(int rowIndex, string colId, int[] selectedRows)
+    public Task OnCopy(int rowIndex, string colId, int[] selectedRows) => GuardAsync(async () =>
     {
-        string text;
         if (selectedRows.Length > 1)
         {
-            var rows = selectedRows.Order().Select(_blocks.At).OfType<RowData>().ToList();
-            text = DelimitedExport.Build(AsTable(), rows, DelimitedExport.ClipboardSeparator).Text;
+            var selected = selectedRows.Order().Select(_blocks.At).ToList();
+            var rows = selected.OfType<RowData>().ToList();
+            var table = DelimitedExport.Build(AsTable(), rows, DelimitedExport.ClipboardSeparator);
+            var missing = selected.Count - rows.Count;
+            IReadOnlyList<string> warnings = missing == 0
+                ? table.Warnings
+                : [.. table.Warnings, TextFormat.Plural(missing, GridText.Grid_SelectedRowsNotCopiedOne, GridText.Grid_SelectedRowsNotCopiedOther)];
+            if (await _grid.CopyTextAsync(Shell, table.Text))
+            {
+                Shell.Notify(ExportActions.CopiedText(ExportCopy.Table, rows.Count), warnings);
+            }
         }
         else if (_blocks.At(rowIndex) is { } row)
         {
             var column = GridColumn.IndexOf(colId);
-            text = DelimitedExport.CellText(_columns[column].Column, row.Values[column]).Text;
+            var cell = DelimitedExport.CellText(_columns[column].Column, row.Values[column]);
+            if (await _grid.CopyTextAsync(Shell, cell.Text) && cell.Warnings.Count > 0)
+            {
+                Shell.Notify(GridText.Grid_ValueNotCopied, cell.Warnings);
+            }
         }
-        else
-        {
-            return;
-        }
-
-        await _grid.CopyTextAsync(Shell, text);
-    }
+    });
 
     /// <summary>The result as a table for the export helpers (columns only; it has no key).</summary>
     private TableDetails AsTable() => new(new TableSummary("", ExportName, TableKind.View), _columns.Select(c => c.Column).ToList(), [], [], false);
 
     /// <summary>Right click: the export menu for the clicked row, or for the selection if the row is part of it.</summary>
     [JSInvokable]
-    public Task OnCellContextMenu(int rowIndex, string colId, int[] selectedRows, double x, double y, double viewportWidth, double viewportHeight)
+    public Task OnCellContextMenu(int rowIndex, string colId, int[] selectedRows, double x, double y, double viewportWidth, double viewportHeight) =>
+        GuardAsync(() => OnCellContextMenuCoreAsync(rowIndex, colId, selectedRows, x, y, viewportWidth, viewportHeight));
+
+    private Task OnCellContextMenuCoreAsync(int rowIndex, string colId, int[] selectedRows, double x, double y, double viewportWidth, double viewportHeight)
     {
         if (_blocks.At(rowIndex) is not { } row)
         {
