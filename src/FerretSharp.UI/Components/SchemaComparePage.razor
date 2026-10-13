@@ -110,7 +110,7 @@
             <div class="compare-toolbar">
                 <label class="check">
                     <input type="checkbox" checked="@Compare.Current.OnlyDifferences" @onchange="e => SetOnlyDifferences(e.Value is true)" />
-                    @CompareViewText.Compare_OnlyDifferences
+                    @CommonText.OnlyDifferences
                 </label>
                 @foreach (var (label, kinds) in KindFilters)
                 {
@@ -404,7 +404,7 @@
     private void StartSaving(bool asNew)
     {
         (_saving, _saveAsNew) = (true, asNew);
-        _saveName = asNew ? TextFormat.Format(CompareViewText.Compare_CopyName, Compare.Current.Name) : Compare.Current.Name;
+        _saveName = asNew ? TextFormat.Format(CommonText.CopyName, Compare.Current.Name) : Compare.Current.Name;
     }
 
     private async Task SaveAsync()

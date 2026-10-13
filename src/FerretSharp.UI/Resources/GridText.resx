@@ -61,10 +61,6 @@
     <value>Hide empty</value>
     <comment>Check box: hide fields/columns without a value</comment>
   </data>
-  <data name="Grid_Discard" xml:space="preserve">
-    <value>Discard</value>
-    <comment>Button: discard the pending delete of the row</comment>
-  </data>
   <data name="Grid_Column" xml:space="preserve">
     <value>Column</value>
     <comment>Table column heading</comment>
@@ -244,10 +240,6 @@
     <value>{0:N0} rows saved: {1}</value>
     <comment>{0}: number of rows; {1}: file path</comment>
   </data>
-  <data name="Export_SaveFailed" xml:space="preserve">
-    <value>Saving failed: {0}</value>
-    <comment>{0}: error message of the file system</comment>
-  </data>
   <data name="Export_MissingRows" xml:space="preserve">
     <value>{0} of the selection no longer loaded – not exported.</value>
     <comment>{0}: number of rows, e.g. "3 rows"</comment>
@@ -395,10 +387,6 @@
   <data name="Compare_SearchColumns" xml:space="preserve">
     <value>Search columns …</value>
     <comment>Placeholder</comment>
-  </data>
-  <data name="Compare_OnlyDifferences" xml:space="preserve">
-    <value>Only differences</value>
-    <comment>Check box</comment>
   </data>
   <data name="Compare_HideEmptyTitle" xml:space="preserve">
     <value>Columns that are NULL in every row</value>
@@ -587,10 +575,6 @@
   <data name="Problem_DuringCommit" xml:space="preserve">
     <value>Nothing has been committed yet. The commit continues once you decide.</value>
   </data>
-  <data name="Problem_Retry" xml:space="preserve">
-    <value>Try again</value>
-    <comment>Button</comment>
-  </data>
   <data name="Problem_DiscardMine" xml:space="preserve">
     <value>Discard my change</value>
     <comment>Button</comment>
@@ -767,14 +751,6 @@
   <data name="FkJump_ModelRelationship" xml:space="preserve">
     <value>Relationship from the C# model – there is no constraint for it in the database.</value>
   </data>
-  <data name="Footer_RowsOne" xml:space="preserve">
-    <value>{0} row</value>
-    <comment>{0}: number of rows loaded (bold)</comment>
-  </data>
-  <data name="Footer_RowsOther" xml:space="preserve">
-    <value>{0} rows</value>
-    <comment>{0}: number of rows loaded (bold)</comment>
-  </data>
   <data name="Footer_AtLeastRows" xml:space="preserve">
     <value>≥ {0} rows</value>
     <comment>{0}: number of rows loaded so far (bold)</comment>
@@ -793,10 +769,6 @@
   <data name="Footer_SnapshotTitle" xml:space="preserve">
     <value>Read-only connection: Oracle returns the data from a READ ONLY transaction as of this point in time. Every new query (filter, sort, {0}) gets a new snapshot; later pages come from the same snapshot.</value>
     <comment>{0}: the reload shortcut (e.g. "F5") or "Reload"</comment>
-  </data>
-  <data name="Footer_Snapshot" xml:space="preserve">
-    <value>As of {0}</value>
-    <comment>{0}: time of the snapshot</comment>
   </data>
   <data name="Footer_SnapshotMovedKey" xml:space="preserve">
     <value>Snapshot changed – press {0} to reload</value>

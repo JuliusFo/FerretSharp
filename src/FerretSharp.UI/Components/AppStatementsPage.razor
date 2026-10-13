@@ -275,7 +275,7 @@
                         <button class="btn" disabled="@(target is null || Trace.Lookup is { Loading: true })" title="@(target is null ? AppStatementsText.AppStatements_NeedsConnection : AppStatementsText.AppStatements_LookUpTitle)"
                                 @onclick="() => LookUpAsync(selected, target!)">@AppStatementsText.AppStatements_LookUp</button>
                         <button class="btn" disabled="@(target is null)" title="@(target is null ? AppStatementsText.AppStatements_NeedsConnection : null)"
-                                @onclick="() => OpenInEditorAsync(selected, target!)">@AppStatementsText.AppStatements_OpenInEditor</button>
+                                @onclick="() => OpenInEditorAsync(selected, target!)">@CommonText.OpenInSqlEditor</button>
                     </div>
                     @if (Trace.Lookup is { } lookup && lookup.Text == selected.Text)
                     {

@@ -27,7 +27,7 @@
         @if (_proposal is { Steps.Count: > 0 } runnable)
         {
             <button class="btn" title="@TextFormat.Format(CompareViewText.CompareDdl_OpenInEditorTitle, Labels[_target])"
-                    @onclick="() => OnOpenInEditor.InvokeAsync(runnable)">@CompareViewText.CompareDdl_OpenInEditor</button>
+                    @onclick="() => OnOpenInEditor.InvokeAsync(runnable)">@CommonText.OpenInSqlEditor</button>
         }
         <button class="icon-btn ghost" title="@CommonText.Close" @onclick="OnClose">✕</button>
     </header>

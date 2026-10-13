@@ -95,7 +95,7 @@ public sealed class ConnectionForm
     /// </summary>
     public static ConnectionForm Duplicate(ConnectionProfile original)
     {
-        var form = Create(original, Guid.NewGuid(), isNew: true, TextFormat.Format(ShellText.ConnectionForm_CopyName, original.Name));
+        var form = Create(original, Guid.NewGuid(), isNew: true, TextFormat.Format(CommonText.CopyName, original.Name));
         form.AppEnvironment = "";
         return form;
     }

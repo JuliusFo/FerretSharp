@@ -119,10 +119,6 @@
     <value>{0} expects text.</value>
     <comment>{0}: Oracle data type, e.g. CLOB</comment>
   </data>
-  <data name="NotADate" xml:space="preserve">
-    <value>“{0}” is not a date (DD.MM.YYYY [hh:mm[:ss]]).</value>
-    <comment>{0}: the text as typed. The input format stays day.month.year in both languages.</comment>
-  </data>
   <data name="NotATimestamp" xml:space="preserve">
     <value>“{0}” is not a timestamp (DD.MM.YYYY hh:mm:ss[,ffffff]).</value>
     <comment>{0}: the text as typed</comment>
@@ -137,10 +133,6 @@
   </data>
   <data name="NotANumber" xml:space="preserve">
     <value>“{0}” is not a number (e.g. 4711 or 12.5).</value>
-    <comment>{0}: the text as typed</comment>
-  </data>
-  <data name="NotAHexValue" xml:space="preserve">
-    <value>“{0}” is not a hex value (e.g. CAFE01).</value>
     <comment>{0}: the text as typed</comment>
   </data>
   <data name="TooLongBytes" xml:space="preserve">

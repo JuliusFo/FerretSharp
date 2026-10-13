@@ -13,15 +13,15 @@
     </div>
     <button class="menu-item" disabled="@(Request.CellText is null)" @onclick="() => Export.CopyValueAsync(Column, Request.Row.Values[Request.Column])">@CommonText.CopyValue</button>
 
-    <div class="group-head-btn static">@TextFormat.Format(SqlEditorText.ResultMenu_ExportHead, ExportActions.RowsText(Request.Selected.Count))</div>
-    <button class="menu-item" title="@SqlEditorText.ResultMenu_CopyTableTitle" @onclick="CopyTableAsync">@SqlEditorText.ResultMenu_CopyTable</button>
+    <div class="group-head-btn static">@TextFormat.Format(GridText.GridMenu_ExportGroup, ExportActions.RowsText(Request.Selected.Count))</div>
+    <button class="menu-item" title="@GridText.GridMenu_CopyTableTitle" @onclick="CopyTableAsync">@GridText.GridMenu_CopyTable</button>
     <button class="menu-item" disabled="@(InsertTarget is null)" @onclick="CopyInsertAsync"
             title="@(InsertTarget is { } target
                 ? TextFormat.Format(SqlEditorText.ResultMenu_CopyInsertTitle, target.DisplayName)
                 : SqlEditorText.ResultMenu_CopyInsertUnavailable)">
-        @SqlEditorText.ResultMenu_CopyInsert
+        @GridText.GridMenu_CopyInsert
     </button>
-    <button class="menu-item" title="@SqlEditorText.ResultMenu_SaveCsvTitle" @onclick="SaveCsvAsync">@SqlEditorText.ResultMenu_SaveCsv</button>
+    <button class="menu-item" title="@GridText.GridMenu_SaveCsvTitle" @onclick="SaveCsvAsync">@GridText.GridMenu_SaveCsv</button>
 </PopoverMenu>
 
 @code {

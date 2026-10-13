@@ -228,10 +228,6 @@
     <value>Other</value>
     <comment>Connection kind</comment>
   </data>
-  <data name="ConnectionForm_CopyName" xml:space="preserve">
-    <value>{0} (copy)</value>
-    <comment>Name of a duplicated connection; {0} = name of the original</comment>
-  </data>
   <data name="Shell_AllConnections" xml:space="preserve">
     <value>All connections</value>
     <comment>Tooltip of the home button</comment>
@@ -267,10 +263,6 @@
   <data name="Shell_ConnectionFailedTo" xml:space="preserve">
     <value>Connection to {0} failed</value>
     <comment>{0} = connection name</comment>
-  </data>
-  <data name="Shell_TryAgain" xml:space="preserve">
-    <value>Try again</value>
-    <comment>Button</comment>
   </data>
   <data name="Shell_ToOverview" xml:space="preserve">
     <value>Back to overview</value>
@@ -545,10 +537,6 @@
   <data name="ConnectionDialog_Test" xml:space="preserve">
     <value>Test connection</value>
     <comment>Button</comment>
-  </data>
-  <data name="ConnectionDialog_SaveFailed" xml:space="preserve">
-    <value>Saving failed: {0}</value>
-    <comment>{0} = error message</comment>
   </data>
   <data name="Switcher_ChooseConnection" xml:space="preserve">
     <value>Choose a connection</value>
@@ -864,10 +852,6 @@
   <data name="Leave_OpenTransaction" xml:space="preserve">
     <value>open transaction</value>
   </data>
-  <data name="Leave_Discard" xml:space="preserve">
-    <value>Discard</value>
-    <comment>Button</comment>
-  </data>
   <data name="Dialogs_RollbackQuestion" xml:space="preserve">
     <value>Discard all changes in {0} – the written ones (rollback of the transaction) and the pending ones? This cannot be undone.</value>
     <comment>{0} = workspace name (bold)</comment>
@@ -910,14 +894,6 @@
   </data>
   <data name="ErrorDialog_ConnectionLostHint" xml:space="preserve">
     <value>The connection to the database was lost (e.g. session ended, idle timeout, network). “Reconnect” restores all workspaces with their tabs.</value>
-  </data>
-  <data name="ErrorDialog_BindVariable" xml:space="preserve">
-    <value>Bind variable</value>
-    <comment>Column header</comment>
-  </data>
-  <data name="ErrorDialog_Value" xml:space="preserve">
-    <value>Value</value>
-    <comment>Column header</comment>
   </data>
   <data name="ErrorDialog_ValueMasked" xml:space="preserve">
     <value>Value (Prod: masked)</value>
@@ -1201,10 +1177,6 @@
   <data name="Settings_AuditTemplateCopied" xml:space="preserve">
     <value>Built-in audit template copied.</value>
   </data>
-  <data name="TabMenu_Close" xml:space="preserve">
-    <value>Close</value>
-    <comment>Right-click menu of a tab: closes this tab</comment>
-  </data>
   <data name="TabMenu_CloseOthers" xml:space="preserve">
     <value>Close others</value>
     <comment>Right-click menu of a tab: closes every other tab of the workspace</comment>
@@ -1389,10 +1361,6 @@
   <data name="Update_DownloadFailed" xml:space="preserve">
     <value>Download of {0} failed: {1}</value>
     <comment>{0}: version; {1}: error message</comment>
-  </data>
-  <data name="Update_TryAgain" xml:space="preserve">
-    <value>Try again</value>
-    <comment>Button</comment>
   </data>
   <data name="Update_StatusAvailable" xml:space="preserve">
     <value>Update {0} available</value>
@@ -1608,10 +1576,6 @@
   <data name="Import_DoneOther" xml:space="preserve">
     <value>{0} connections imported.</value>
     <comment>{0}: count</comment>
-  </data>
-  <data name="Import_SaveFailed" xml:space="preserve">
-    <value>Saving failed: {0}</value>
-    <comment>{0}: error message</comment>
   </data>
   <data name="Export_Button" xml:space="preserve">
     <value>Export…</value>

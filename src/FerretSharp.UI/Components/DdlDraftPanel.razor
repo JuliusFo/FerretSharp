@@ -60,7 +60,7 @@
 
     <div class="ddl-actions">
         <button class="btn primary" disabled="@(!CanRun)" title="@(CanRun ? null : RunBlocked)" @onclick="() => _confirm = true">@CommonText.Run</button>
-        <button class="btn ghost" disabled="@(Steps.Count == 0)" @onclick="OpenInSqlEditor">@SchemaViewText.Ddl_OpenInSqlEditor</button>
+        <button class="btn ghost" disabled="@(Steps.Count == 0)" @onclick="OpenInSqlEditor">@CommonText.OpenInSqlEditor</button>
         <button class="btn ghost" disabled="@(Steps.Count == 0)" @onclick="SaveAsync">@SchemaViewText.Ddl_Save</button>
         <span class="spacer"></span>
         <button class="btn ghost" disabled="@(_running is not null)" @onclick="OnClose">@CommonText.Close</button>

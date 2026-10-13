@@ -239,7 +239,7 @@
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // A file open in another program, no permission: the dialog stays, the value is not lost.
-            _notice = TextFormat.Format(GridText.Export_SaveFailed, ex.Message);
+            _notice = TextFormat.Format(CommonText.SaveFailed, ex.Message);
         }
     }
 

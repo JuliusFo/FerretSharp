@@ -11,7 +11,7 @@
     @* RowsLoaded is the highest loaded position (blocks load where the user scrolls), so it is a lower bound. *@
     @if (Tab.AllRowsLoaded)
     {
-        <span><Fmt Text="@(Tab.RowsLoaded == 1 ? GridText.Footer_RowsOne : GridText.Footer_RowsOther)"><Arg0><strong>@Tab.RowsLoaded.ToString("N0", CultureInfo.CurrentCulture)</strong></Arg0></Fmt></span>
+        <span><Fmt Text="@(Tab.RowsLoaded == 1 ? CommonText.RowsOne : CommonText.RowsOther)"><Arg0><strong>@Tab.RowsLoaded.ToString("N0", CultureInfo.CurrentCulture)</strong></Arg0></Fmt></span>
     }
     else if (Tab.TotalCount is null)
     {
@@ -36,7 +36,7 @@
     @if (Tab.DataAsOf is { } asOf)
     {
         <span title="@TextFormat.Format(GridText.Footer_SnapshotTitle, Shortcuts.Label(ShortcutAction.Refresh) ?? CommonText.Reload)">
-            @TextFormat.Format(GridText.Footer_Snapshot, asOf.ToString("T", CultureInfo.CurrentCulture))
+            @TextFormat.Format(CommonText.AsOf, asOf.ToString("T", CultureInfo.CurrentCulture))
         </span>
         @if (Tab.SnapshotMoved)
         {

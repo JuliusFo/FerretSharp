@@ -163,7 +163,7 @@
                                     <span>@Active.Error?.Message</span>
                                 </div>
                                 <div class="button-row">
-                                    <button class="btn primary" @onclick="() => _state.Connect(failed)">@ShellText.Shell_TryAgain</button>
+                                    <button class="btn primary" @onclick="() => _state.Connect(failed)">@CommonText.TryAgain</button>
                                     <button class="btn" @onclick="() => _state.EditConnection(failed)">@ShellText.Connection_Edit</button>
                                     <button class="btn ghost" @onclick="_state.ShowConnections">@ShellText.Shell_ToOverview</button>
                                 </div>

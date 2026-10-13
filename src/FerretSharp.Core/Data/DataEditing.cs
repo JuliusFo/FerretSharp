@@ -115,7 +115,7 @@ public sealed class WriteFailedException(PendingOperation operation, DatabaseExc
         "ORA-12899" => DataText.WriteFailedValueTooLong,
         "ORA-01438" => DataText.WriteFailedNumberTooLarge,
         "ORA-01031" => DataText.WriteFailedNoPrivilege,
-        "ORA-01456" => DataText.WriteFailedReadOnly,
+        "ORA-01456" => OracleText.ConnectionReadOnly,
         _ => DataText.WriteFailedOther,
     } + " " + error.Display;
 }

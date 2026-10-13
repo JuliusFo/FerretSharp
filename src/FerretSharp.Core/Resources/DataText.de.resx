@@ -54,9 +54,6 @@
   <data name="WriteFailedNoPrivilege" xml:space="preserve">
     <value>Keine Rechte, diese Tabelle zu ändern.</value>
   </data>
-  <data name="WriteFailedReadOnly" xml:space="preserve">
-    <value>Die Verbindung ist schreibgeschützt.</value>
-  </data>
   <data name="WriteFailedOther" xml:space="preserve">
     <value>Oracle hat die Änderung abgelehnt.</value>
   </data>

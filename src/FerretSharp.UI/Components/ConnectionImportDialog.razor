@@ -305,7 +305,7 @@
         catch (Exception ex) when (ex is IOException or ArgumentException or UnauthorizedAccessException)
         {
             Logger.LogWarning(ex, "Saving imported connections failed");
-            _saveError = TextFormat.Format(ShellText.Import_SaveFailed, ex.Message);
+            _saveError = TextFormat.Format(CommonText.SaveFailed, ex.Message);
         }
         catch (OperationCanceledException)
         {

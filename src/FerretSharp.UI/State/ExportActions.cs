@@ -114,7 +114,7 @@ public sealed class ExportActions(ShellState shell, DomModule dom, IFileSaveServ
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            shell.Notify(TextFormat.Format(GridText.Export_SaveFailed, ex.Message));
+            shell.Notify(TextFormat.Format(CommonText.SaveFailed, ex.Message));
         }
     }
 

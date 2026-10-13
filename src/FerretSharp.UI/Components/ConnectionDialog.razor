@@ -391,7 +391,7 @@
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException
                                        or System.Runtime.InteropServices.ExternalException)
         {
-            _saveError = TextFormat.Format(ShellText.ConnectionDialog_SaveFailed, ex.Message);
+            _saveError = TextFormat.Format(CommonText.SaveFailed, ex.Message);
         }
         finally
         {

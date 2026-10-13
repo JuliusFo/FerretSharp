@@ -51,9 +51,6 @@
   <data name="Grid_HideEmpty" xml:space="preserve">
     <value>Leere ausblenden</value>
   </data>
-  <data name="Grid_Discard" xml:space="preserve">
-    <value>Verwerfen</value>
-  </data>
   <data name="Grid_Column" xml:space="preserve">
     <value>Spalte</value>
   </data>
@@ -189,9 +186,6 @@
   <data name="Export_SavedOther" xml:space="preserve">
     <value>{0:N0} Zeilen gespeichert: {1}</value>
   </data>
-  <data name="Export_SaveFailed" xml:space="preserve">
-    <value>Speichern fehlgeschlagen: {0}</value>
-  </data>
   <data name="Export_MissingRows" xml:space="preserve">
     <value>{0} der Auswahl nicht mehr geladen – nicht exportiert.</value>
   </data>
@@ -308,9 +302,6 @@
   </data>
   <data name="Compare_SearchColumns" xml:space="preserve">
     <value>Spalten suchen …</value>
-  </data>
-  <data name="Compare_OnlyDifferences" xml:space="preserve">
-    <value>Nur Unterschiede</value>
   </data>
   <data name="Compare_HideEmptyTitle" xml:space="preserve">
     <value>Spalten, die in allen Zeilen NULL sind</value>
@@ -459,9 +450,6 @@
   <data name="Problem_DuringCommit" xml:space="preserve">
     <value>Committed ist noch nichts. Nach der Entscheidung geht es mit dem Commit weiter.</value>
   </data>
-  <data name="Problem_Retry" xml:space="preserve">
-    <value>Erneut versuchen</value>
-  </data>
   <data name="Problem_DiscardMine" xml:space="preserve">
     <value>Meine Änderung verwerfen</value>
   </data>
@@ -597,12 +585,6 @@
   <data name="FkJump_ModelRelationship" xml:space="preserve">
     <value>Beziehung aus dem C#-Modell – in der Datenbank gibt es dafür keinen Constraint.</value>
   </data>
-  <data name="Footer_RowsOne" xml:space="preserve">
-    <value>{0} Zeile</value>
-  </data>
-  <data name="Footer_RowsOther" xml:space="preserve">
-    <value>{0} Zeilen</value>
-  </data>
   <data name="Footer_AtLeastRows" xml:space="preserve">
     <value>≥ {0} Zeilen</value>
   </data>
@@ -617,9 +599,6 @@
   </data>
   <data name="Footer_SnapshotTitle" xml:space="preserve">
     <value>Schreibgeschützte Verbindung: Oracle liefert die Daten aus einer READ ONLY-Transaktion mit dem Stand dieses Zeitpunkts. Jede neue Abfrage (Filter, Sortierung, {0}) holt einen neuen Stand; weitere Seiten bleiben im selben Stand.</value>
-  </data>
-  <data name="Footer_Snapshot" xml:space="preserve">
-    <value>Stand {0}</value>
   </data>
   <data name="Footer_SnapshotMovedKey" xml:space="preserve">
     <value>Stand hat sich geändert – {0} lädt neu</value>

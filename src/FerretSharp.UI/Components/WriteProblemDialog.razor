@@ -51,7 +51,7 @@
         @switch (Problem.Error)
         {
             case LockConflictException:
-                <button class="btn primary" @onclick="() => OnChoice.InvokeAsync(ProblemChoice.Retry)">@GridText.Problem_Retry</button>
+                <button class="btn primary" @onclick="() => OnChoice.InvokeAsync(ProblemChoice.Retry)">@CommonText.TryAgain</button>
                 break;
             case ConcurrencyConflictException:
                 <button class="btn" @onclick="() => OnChoice.InvokeAsync(ProblemChoice.Discard)">@GridText.Problem_DiscardMine</button>

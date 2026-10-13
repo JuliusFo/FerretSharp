@@ -15,7 +15,7 @@
     <header>
         <span>@TextFormat.Format(GridText.Compare_Header, RowsText(Rows.Count), Details.Table.DisplayName)</span>
         <SearchBox Class="structure-filter" Placeholder="@GridText.Compare_SearchColumns" @bind-Value="_query" />
-        <label class="check"><input type="checkbox" checked="@_onlyDifferences" @onchange="e => _onlyDifferences = e.Value is true" /> @GridText.Compare_OnlyDifferences</label>
+        <label class="check"><input type="checkbox" checked="@_onlyDifferences" @onchange="e => _onlyDifferences = e.Value is true" /> @CommonText.OnlyDifferences</label>
         <label class="check" title="@GridText.Compare_HideEmptyTitle"><input type="checkbox" checked="@_hideEmpty" @onchange="e => _hideEmpty = e.Value is true" /> @GridText.Grid_HideEmpty</label>
         <span class="muted">
             @TextFormat.Plural(differing, GridText.Compare_ColumnsDifferOne, GridText.Compare_ColumnsDifferOther)@(view.Fields.Count < view.Total ? " · " + TextFormat.Format(GridText.Compare_Shown, view.Fields.Count, view.Total) : "")

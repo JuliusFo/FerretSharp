@@ -70,7 +70,7 @@
                         <div class="changes-group-head">
                             <button class="link-btn changes-table" title="@ShellText.Changes_ShowTab" @onclick="() => Shell.ActivateTab(tab)">@tab.Table.DisplayName</button>
                             <span class="spacer"></span>
-                            <button class="link-btn" title="@ShellText.Changes_DiscardTabTitle" disabled="@busy" @onclick="() => Discard(tab, t => t.DiscardPending())">@GridText.Grid_Discard</button>
+                            <button class="link-btn" title="@ShellText.Changes_DiscardTabTitle" disabled="@busy" @onclick="() => Discard(tab, t => t.DiscardPending())">@CommonText.Discard</button>
                         </div>
                         @foreach (var row in group.Rows)
                         {

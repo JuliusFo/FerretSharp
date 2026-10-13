@@ -26,7 +26,7 @@
         @if (statement.Parameters.Count > 0)
         {
             <table class="binds">
-                <thead><tr><th>@ShellText.ErrorDialog_BindVariable</th><th>@(Mask ? ShellText.ErrorDialog_ValueMasked : ShellText.ErrorDialog_Value)</th><th>@ShellText.ErrorDialog_Type</th></tr></thead>
+                <thead><tr><th>@CommonText.BindVariable</th><th>@(Mask ? ShellText.ErrorDialog_ValueMasked : CommonText.Value)</th><th>@ShellText.ErrorDialog_Type</th></tr></thead>
                 <tbody>
                     @foreach (var p in statement.Parameters)
                     {

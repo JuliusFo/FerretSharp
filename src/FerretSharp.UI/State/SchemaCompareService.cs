@@ -221,7 +221,7 @@ public sealed class SchemaCompareService(ComparisonStore store, SchemaCompareLoa
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            StoreError = TextFormat.Format(CompareViewText.Compare_SaveFailed, ex.Message);
+            StoreError = TextFormat.Format(CommonText.SaveFailed, ex.Message);
         }
 
         Changed?.Invoke();

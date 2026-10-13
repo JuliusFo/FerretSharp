@@ -461,7 +461,7 @@
                 break;
             case UpdatePhase.DownloadFailed when Updates.Update is { } update:
                 @TextFormat.Format(ShellText.Update_DownloadFailed, update.Version, Updates.Error)
-                <button class="link-btn" @onclick="Updates.ShowDetails">@ShellText.Update_TryAgain</button>
+                <button class="link-btn" @onclick="Updates.ShowDetails">@CommonText.TryAgain</button>
                 break;
         }
         @if (Updates.CanCheck)

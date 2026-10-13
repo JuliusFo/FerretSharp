@@ -17,7 +17,7 @@
     <footer>
         <button class="btn ghost" @ref="_cancel" @onclick="OnCancel" disabled="@Busy">@CommonText.Cancel</button>
         <span class="spacer"></span>
-        <button class="btn danger-solid" @onclick="OnDiscard" disabled="@Busy">@ShellText.Leave_Discard</button>
+        <button class="btn danger-solid" @onclick="OnDiscard" disabled="@Busy">@CommonText.Discard</button>
         <button class="btn primary" @onclick="OnCommit" disabled="@Busy">@ShellText.CommitButton</button>
     </footer>
 </ModalFrame>

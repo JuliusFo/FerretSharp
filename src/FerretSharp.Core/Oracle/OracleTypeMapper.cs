@@ -117,7 +117,7 @@ public static class OracleTypeMapper
             ColumnCategory.Number => ParseNumber(column, text),
             ColumnCategory.Date => FilterRules.TryParseDate(text, out var date, out _)
                 ? ParsedValue.Ok(date)
-                : ParsedValue.Fail(TextFormat.Format(OracleText.NotADate, text)),
+                : ParsedValue.Fail(TextFormat.Format(QueryText.NotADate, text)),
             ColumnCategory.Timestamp => FilterRules.TryParseDate(text, out var timestamp, out _)
                 ? ParsedValue.Ok(timestamp)
                 : ParsedValue.Fail(TextFormat.Format(OracleText.NotATimestamp, text)),
@@ -235,7 +235,7 @@ public static class OracleTypeMapper
     {
         if (!FilterRules.TryParseHex(text, out var bytes))
         {
-            return ParsedValue.Fail(TextFormat.Format(OracleText.NotAHexValue, text));
+            return ParsedValue.Fail(TextFormat.Format(QueryText.NotAHexValue, text));
         }
 
         return column.Length is { } max && bytes.Length > max

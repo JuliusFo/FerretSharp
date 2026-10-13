@@ -80,7 +80,7 @@
                 @(row.Change.Deleted == ChangeStage.Flushed ? GridText.Form_MarkedForDeletionWritten : GridText.Form_MarkedForDeletion)
                 @if (row.Change.Deleted == ChangeStage.Pending && Cell is { IsNew: false } at)
                 {
-                    <button class="link-btn" @onclick="() => RevertAsync(at.RowIndex)">@GridText.Grid_Discard</button>
+                    <button class="link-btn" @onclick="() => RevertAsync(at.RowIndex)">@CommonText.Discard</button>
                 }
             </div>
         }

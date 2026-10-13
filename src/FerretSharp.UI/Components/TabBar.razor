@@ -39,7 +39,7 @@
                 @(menu.Tab.Pinned ? ShellText.TabMenu_Unpin : ShellText.TabMenu_Pin) <Kbd Action="ShortcutAction.PinTab" />
             </button>
             <div class="menu-sep"></div>
-            <button class="menu-item" @onclick="() => CloseFromMenu(TabCloseScope.This)">@ShellText.TabMenu_Close <Kbd Action="ShortcutAction.CloseTab" /></button>
+            <button class="menu-item" @onclick="() => CloseFromMenu(TabCloseScope.This)">@CommonText.Close <Kbd Action="ShortcutAction.CloseTab" /></button>
             @* Pinned tabs stay open (WP-34): a scope that would close nothing is disabled. *@
             <button class="menu-item" disabled="@(!Shell.Tabs.Any(t => t != menu.Tab && !t.Pinned))" @onclick="() => CloseFromMenu(TabCloseScope.Others)">
                 @ShellText.TabMenu_CloseOthers <Kbd Action="ShortcutAction.CloseOtherTabs" />

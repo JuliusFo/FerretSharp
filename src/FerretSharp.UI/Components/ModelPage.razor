@@ -135,7 +135,7 @@
                     <span class="model-chip @(serious > 0 ? "warn" : "")" title="@ModelViewText.Model_MismatchesTitle">@TextFormat.Plural(serious, ModelViewText.Model_MismatchesOne, ModelViewText.Model_MismatchesOther)</span>
                     @if (State.LoadedAt is { } loadedAt)
                     {
-                        <span class="hint">@TextFormat.Format(ModelViewText.Model_AsOf, loadedAt.ToString("HH:mm:ss", CultureInfo.CurrentCulture))</span>
+                        <span class="hint">@TextFormat.Format(CommonText.AsOf, loadedAt.ToString("HH:mm:ss", CultureInfo.CurrentCulture))</span>
                     }
                 </div>
 

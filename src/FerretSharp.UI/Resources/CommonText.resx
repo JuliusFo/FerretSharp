@@ -90,4 +90,52 @@ The log is in {1}.</value>
     <value>Copied ✓</value>
     <comment>Button text for a moment after copying</comment>
   </data>
+  <data name="SaveFailed" xml:space="preserve">
+    <value>Saving failed: {0}</value>
+    <comment>{0} = error message of the file system</comment>
+  </data>
+  <data name="TryAgain" xml:space="preserve">
+    <value>Try again</value>
+    <comment>Button</comment>
+  </data>
+  <data name="CopyName" xml:space="preserve">
+    <value>{0} (copy)</value>
+    <comment>Name of a duplicated connection; {0} = name of the original</comment>
+  </data>
+  <data name="OnlyDifferences" xml:space="preserve">
+    <value>Only differences</value>
+    <comment>Checkbox</comment>
+  </data>
+  <data name="AsOf" xml:space="preserve">
+    <value>As of {0}</value>
+    <comment>{0}: time of the snapshot</comment>
+  </data>
+  <data name="RowsOne" xml:space="preserve">
+    <value>{0} row</value>
+    <comment>{0}: number of rows loaded (bold)</comment>
+  </data>
+  <data name="RowsOther" xml:space="preserve">
+    <value>{0} rows</value>
+    <comment>{0}: number of rows loaded (bold)</comment>
+  </data>
+  <data name="BindVariable" xml:space="preserve">
+    <value>Bind variable</value>
+    <comment>Column header</comment>
+  </data>
+  <data name="Value" xml:space="preserve">
+    <value>Value</value>
+    <comment>Column header</comment>
+  </data>
+  <data name="OpenInSqlEditor" xml:space="preserve">
+    <value>Open in SQL editor</value>
+    <comment>Button below generated DDL</comment>
+  </data>
+  <data name="Discard" xml:space="preserve">
+    <value>Discard</value>
+    <comment>Button: discard the pending delete of the row</comment>
+  </data>
+  <data name="Loading" xml:space="preserve">
+    <value>Loading …</value>
+    <comment>Default text of the loading indicator of a detail view</comment>
+  </data>
 </root>

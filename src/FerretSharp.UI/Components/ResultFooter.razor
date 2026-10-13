@@ -6,7 +6,7 @@
     {
         @if (grid.Loading)
         {
-            <span><span class="spinner small"></span> @SqlEditorText.Footer_Loading</span>
+            <span><span class="spinner small"></span> @CommonText.Loading</span>
         }
         else if (grid.Error is { } error)
         {
@@ -17,7 +17,7 @@
         else
         {
             <span>
-                <Fmt Text="@(grid is { AllLoaded: true, RowsLoaded: 1 } ? SqlEditorText.Footer_RowsOne : SqlEditorText.Footer_RowsOther)">
+                <Fmt Text="@(grid is { AllLoaded: true, RowsLoaded: 1 } ? CommonText.RowsOne : CommonText.RowsOther)">
                     <Arg0><strong>@(grid.AllLoaded ? "" : "≥ ")@grid.RowsLoaded.ToString("N0", CultureInfo.CurrentCulture)</strong></Arg0>
                 </Fmt>
             </span>
@@ -27,7 +27,7 @@
             }
             @if (grid.DataAsOf is { } asOf)
             {
-                <span title="@SqlEditorText.Footer_SnapshotTitle">@TextFormat.Format(SqlEditorText.Footer_Snapshot, asOf.ToLocalTime().ToString("HH:mm:ss", CultureInfo.InvariantCulture))</span>
+                <span title="@SqlEditorText.Footer_SnapshotTitle">@TextFormat.Format(CommonText.AsOf, asOf.ToLocalTime().ToString("HH:mm:ss", CultureInfo.InvariantCulture))</span>
                 @if (grid.SnapshotMoved)
                 {
                     <span class="warn" title="@SnapshotTexts.Moved">@SqlEditorText.Footer_SnapshotMoved</span>
