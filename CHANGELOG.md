@@ -10,6 +10,10 @@ Pinned tabs and a quicker way through the settings (WP-34).
 ### Added
 - Pin tabs: right-click a tab › "Pin tab" (or a shortcut under Settings › Shortcuts, no key by default). Pinned tabs stand at the left with a pin in place of ✕ – a click on it unpins the tab –, new tabs open after them, and "Close others", "Close to the right" and "Close all" leave them open; middle click does not close them. When the tab bar is full, pinned tabs narrow to their icon and a short name (the tooltip has the full one) and widen again once there is room; when the bar scrolls, pinned tabs stay at the left. The pin is saved with the workspace.
 - Settings: the sections are a list at the left – one section at a time, the page opens where you left it – with a search above it over every setting and shortcut (label, hint, section, key; case and accents ignored). "Shortcuts" is an entry of that list now instead of a switch at the top.
+- App statements: *Pause* stays attached but leaves out new statements until *Resume*; what was recorded stays. Pause, *Clear*, resume gives a clean starting point.
+
+### Changed
+- App statements: "Reset" is called *Clear* now.
 
 ## [3.29.0] - 2026-10-13
 
