@@ -70,7 +70,7 @@ jobs:
           # What the app shows in its update dialog (packed into the release by vpk).
           Set-Content changes.md $changes -Encoding utf8
           $notes = $changes + "`n`n---`n**Download** (Windows 10/11, x64; the WebView2 runtime is part of Windows):`n" +
-            "- ``FerretSharp-win-Setup.exe`` – installs FerretSharp for your user (no admin rights); the app reports new versions and updates itself on a click. The installer is not signed: Windows SmartScreen warns once (More info › Run anyway).`n" +
+            "- ``FerretSharp-win-Setup.exe`` – installs FerretSharp for your user (no admin rights); the app reports new versions, downloading and installing wait for your click. The installer is not signed: Windows SmartScreen warns once (More info › Run anyway).`n" +
             "- ``FerretSharp-win-Portable.zip`` – the same without installing; unzip anywhere and start ``FerretSharp.exe``, it updates itself too.`n" +
             "- ``FerretSharp-$env:VERSION-win-x64.zip`` – the plain folder as before, without updates; it goes away with the next releases.`n" +
             "`nConnections, workspaces and settings stay in ``%APPDATA%\FerretSharp`` whichever you choose."
