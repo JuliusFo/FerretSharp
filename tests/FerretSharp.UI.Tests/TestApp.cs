@@ -125,15 +125,47 @@ internal sealed class TestApp : IAsyncDisposable
     /// <summary>DDL of any session: the error it fails with, or null to run (WP-23).</summary>
     public Func<string, Exception?>? FailDdl { get; set; }
 
+    // Sessions open and run on pool threads (no UI dispatcher in the tests): both lists under a lock, read as a copy.
+    private readonly Lock _lock = new();
+    private readonly List<string> _ranDdl = [];
+    private readonly List<FakeDataEditor> _editors = [];
+
     /// <summary>DDL that ran in any session, in order.</summary>
-    public List<string> RanDdl { get; } = [];
+    public IReadOnlyList<string> RanDdl
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return [.. _ranDdl];
+            }
+        }
+    }
 
     /// <summary>The editors of the sessions opened so far (explorer and workspaces), oldest first.</summary>
-    public List<FakeDataEditor> Editors { get; } = [];
+    public IReadOnlyList<FakeDataEditor> Editors
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return [.. _editors];
+            }
+        }
+    }
 
     /// <summary>What a query of the SQL editor or the LINQ console reads (its first page); a test may make it fail or wait.</summary>
     public Func<QuerySpec, CancellationToken, Task<SqlPage>> ReadSql { get; set; } = (_, _) =>
         Task.FromResult(new SqlPage([new SqlColumn("ID", new ColumnInfo("ID", "NUMBER", null, false, null, null, false, false, null, 1))], [[1m]], IsLastPage: true, TimeSpan.FromMilliseconds(5)));
+
+    /// <summary>Every session's transaction ends behind FerretSharp's back (<see cref="FakeDataEditor.Ended"/>).</summary>
+    public void EndTransactions()
+    {
+        foreach (var editor in Editors)
+        {
+            editor.Ended = true;
+        }
+    }
 
     /// <summary>What a commit of any workspace session does; completes at once unless a test holds it.</summary>
     public Func<Task>? OnCommit { get; set; }
@@ -149,12 +181,19 @@ internal sealed class TestApp : IAsyncDisposable
             var failure = FailDdl?.Invoke(sql);
             if (failure is null)
             {
-                RanDdl.Add(sql);
+                lock (_lock)
+                {
+                    _ranDdl.Add(sql);
+                }
             }
 
             return failure;
         });
-        Editors.Add(editor);
+        lock (_lock)
+        {
+            _editors.Add(editor);
+        }
+
         var data = Substitute.For<IDataAccess>();
         data.ReadSqlAsync(Arg.Any<QuerySpec>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(call => ReadSql(call.Arg<QuerySpec>(), call.Arg<CancellationToken>()));

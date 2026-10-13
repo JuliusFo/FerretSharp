@@ -56,7 +56,7 @@ public sealed class WorkspaceEditingTests : IAsyncDisposable
         Assert.True(await _app.Editing.FlushAsync(workspace));
         var committed = false;
         _app.OnCommit = () => { committed = true; return Task.CompletedTask; };
-        _app.Editors.ForEach(e => e.Ended = true);
+        _app.EndTransactions();
 
         Assert.False(await _app.Editing.CommitAsync(workspace));
 
@@ -76,7 +76,7 @@ public sealed class WorkspaceEditingTests : IAsyncDisposable
         workspace.Tabs.Remove(tab);
         var committed = false;
         _app.OnCommit = () => { committed = true; return Task.CompletedTask; };
-        _app.Editors.ForEach(e => e.Ended = true);
+        _app.EndTransactions();
 
         Assert.False(await _app.Editing.CommitAsync(workspace));
 
@@ -174,7 +174,7 @@ public sealed class WorkspaceEditingTests : IAsyncDisposable
         var write = _app.Editing.SummaryOf(workspace).Actions[0];
         _app.OnCommit = () =>
         {
-            _app.Editors.ForEach(e => e.Ended = true); // a deferred constraint failed: Oracle rolled back
+            _app.EndTransactions(); // a deferred constraint failed: Oracle rolled back
             return Task.FromException(new DatabaseException("ORA-02091: Transaktion zurückgesetzt", "ORA-02091"));
         };
 

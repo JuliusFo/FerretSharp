@@ -1,37 +1,45 @@
+using System.Collections.Concurrent;
 using FerretSharp.Core.Workspaces;
 
 namespace FerretSharp.Core.Tests.Fakes;
 
+/// <summary>Workspace files in memory. Thread-safe: the debounced saver writes from a timer thread while a test reads.</summary>
 public sealed class InMemoryWorkspaceStore : IWorkspaceStore
 {
-    public Dictionary<Guid, Workspace> Saved { get; } = [];
+    private int _saveCount;
+    private Exception? _failNextSave;
+
+    public ConcurrentDictionary<Guid, Workspace> Saved { get; } = [];
 
     public List<string> LoadErrors { get; } = [];
 
     /// <summary>Thrown by the next save, then reset.</summary>
-    public Exception? FailNextSave { get; set; }
+    public Exception? FailNextSave
+    {
+        get => Volatile.Read(ref _failNextSave);
+        set => Volatile.Write(ref _failNextSave, value);
+    }
 
-    public int SaveCount { get; private set; }
+    public int SaveCount => Volatile.Read(ref _saveCount);
 
     public Task<WorkspaceLoadResult> LoadAsync(Guid connectionId, CancellationToken cancellationToken) =>
         Task.FromResult(new WorkspaceLoadResult(Saved.Values.Where(w => w.ConnectionId == connectionId).ToList(), LoadErrors.ToList()));
 
     public Task SaveAsync(Workspace workspace, CancellationToken cancellationToken)
     {
-        if (FailNextSave is { } failure)
+        if (Interlocked.Exchange(ref _failNextSave, null) is { } failure)
         {
-            FailNextSave = null;
             return Task.FromException(failure);
         }
 
-        SaveCount++;
+        Interlocked.Increment(ref _saveCount);
         Saved[workspace.Id] = workspace;
         return Task.CompletedTask;
     }
 
     public Task DeleteAsync(Guid workspaceId, CancellationToken cancellationToken)
     {
-        Saved.Remove(workspaceId);
+        Saved.TryRemove(workspaceId, out _);
         return Task.CompletedTask;
     }
 
@@ -39,7 +47,7 @@ public sealed class InMemoryWorkspaceStore : IWorkspaceStore
     {
         foreach (var id in Saved.Values.Where(w => w.ConnectionId == connectionId).Select(w => w.Id).ToList())
         {
-            Saved.Remove(id);
+            Saved.TryRemove(id, out _);
         }
 
         return Task.CompletedTask;
