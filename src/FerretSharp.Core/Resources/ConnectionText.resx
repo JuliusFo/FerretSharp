@@ -107,6 +107,10 @@
     <value>{0} selected connections have no user – enter it in the list.</value>
     <comment>{0}: number of selected connections without a user</comment>
   </data>
+  <data name="ImportSameTargetTwice" xml:space="preserve">
+    <value>“{0}” and “{1}” would both overwrite “{2}” – deselect one or add it as a copy.</value>
+    <comment>{0}, {1}: names of two imported connections; {2}: name of the saved connection they both match</comment>
+  </data>
   <data name="ImportNothingSelected" xml:space="preserve">
     <value>No connection selected.</value>
   </data>

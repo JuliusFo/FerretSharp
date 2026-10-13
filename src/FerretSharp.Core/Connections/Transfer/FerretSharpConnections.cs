@@ -39,24 +39,26 @@ public static class FerretSharpConnections
     /// <summary>Every connection gets a new id; Prod is read-only whatever the file says (<see cref="ImportRow.ReadOnly"/>).</summary>
     internal static ImportFile Read(JsonElement root)
     {
+        // The version first: a newer file may hold shapes this version cannot deserialize (a new address type).
+        if (root.TryGetProperty("version", out var version) && version.TryGetInt32(out var number) && number > ConnectionStore.CurrentVersion)
+        {
+            throw new ConnectionImportException(TextFormat.Format(ConnectionText.ImportNewerVersion, number));
+        }
+
         ExportDocument? document;
         try
         {
             document = root.Deserialize<ExportDocument>(JsonFiles.Options);
         }
-        catch (JsonException ex)
+        catch (Exception ex) when (ex is JsonException or NotSupportedException)
         {
+            // NotSupportedException: an address without "type", or with "type" not first (edited by hand).
             throw new ConnectionImportException(TextFormat.Format(ConnectionText.ImportInvalidJson, ex.Message), ex);
         }
 
         if (document is null)
         {
             throw new ConnectionImportException(ConnectionText.ImportUnknownFormat);
-        }
-
-        if (document.Version > ConnectionStore.CurrentVersion)
-        {
-            throw new ConnectionImportException(TextFormat.Format(ConnectionText.ImportNewerVersion, document.Version));
         }
 
         var candidates = (document.Connections ?? [])

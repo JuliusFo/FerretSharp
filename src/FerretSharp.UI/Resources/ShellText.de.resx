@@ -1260,6 +1260,18 @@
   <data name="Import_ExistsTitle" xml:space="preserve">
     <value>Gleiche Adresse und gleicher Benutzer wie „{0}“.</value>
   </data>
+  <data name="Import_KindWas" xml:space="preserve">
+    <value>vorhanden als {0}</value>
+  </data>
+  <data name="Import_KeepsReadOnlyTitle" xml:space="preserve">
+    <value>Die vorhandene Verbindung ist Produktion oder schreibgeschützt – sie bleibt schreibgeschützt.</value>
+  </data>
+  <data name="Import_Repeated" xml:space="preserve">
+    <value>Doppelt in der Datei</value>
+  </data>
+  <data name="Import_RepeatedTitle" xml:space="preserve">
+    <value>Gleiche Adresse und gleicher Benutzer wie „{0}“ weiter oben.</value>
+  </data>
   <data name="Import_Overwrite" xml:space="preserve">
     <value>Überschreiben</value>
   </data>

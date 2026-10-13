@@ -63,7 +63,7 @@ public static class SqlDeveloperConnections
 
     private static ImportCandidate Candidate(string name, JsonElement info)
     {
-        var url = ImportJson.Text(info, "customUrl");
+        var url = JdbcUrl.ForDisplay(ImportJson.Text(info, "customUrl")); // never with user/password, also when shown
         var type = ImportJson.Text(info, "OracleConnectionType") ?? "BASIC";
         if (type.Equals("TNS", StringComparison.OrdinalIgnoreCase))
         {

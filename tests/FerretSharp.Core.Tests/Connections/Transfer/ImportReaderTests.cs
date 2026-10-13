@@ -9,10 +9,12 @@ public class ImportReaderTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
+    private static ImportFile ReadContent(byte[] content) => ConnectionImportReader.Read(content, Ct);
+
     [Fact]
     public void SQL_Developer_export_is_read_with_a_guessed_kind()
     {
-        var file = ConnectionImportReader.Read(Utf8(SqlDeveloperExport));
+        var file = ReadContent(Utf8(SqlDeveloperExport));
 
         Assert.Equal(ConnectionImportSource.SqlDeveloper, file.Source);
         var candidate = file.Named("ERP - Testsystem");
@@ -28,7 +30,7 @@ public class ImportReaderTests
     [Fact]
     public void SQL_Developer_installation_file_has_the_same_format_and_its_password_never_comes_out()
     {
-        var file = ConnectionImportReader.Read(Utf8(SqlDeveloperInstalled));
+        var file = ReadContent(Utf8(SqlDeveloperInstalled));
 
         var prod = file.Named("Kasse Prod").Profile!;
         Assert.Equal(new HostPortAddress("kasse-prd", 1522, null, "KASSE"), prod.Address);
@@ -40,7 +42,7 @@ public class ImportReaderTests
     [Fact]
     public void SQL_Developer_connections_FerretSharp_cannot_use_are_shown_with_the_reason()
     {
-        var file = ConnectionImportReader.Read(Utf8(SqlDeveloperInstalled));
+        var file = ReadContent(Utf8(SqlDeveloperInstalled));
 
         Assert.Equal("TNS-Verbindungen lassen sich noch nicht importieren.", file.Named("Reporting").Unsupported);
         Assert.Equal("TNS: REPDB", file.Named("Reporting").Address);
@@ -82,7 +84,7 @@ public class ImportReaderTests
     [Fact]
     public void DBeaver_own_types_are_guessed_from_their_name_and_URL_connections_read_from_the_URL()
     {
-        var file = ConnectionImportReader.Read(Utf8(DbeaverDataSources));
+        var file = ReadContent(Utf8(DbeaverDataSources));
 
         var kasse = file.Named("kasse");
         Assert.True(kasse.KindGuessed);
@@ -97,7 +99,7 @@ public class ImportReaderTests
     [Fact]
     public void DBeaver_project_export_reads_every_project_with_its_credentials_and_the_project_as_group()
     {
-        var file = ConnectionImportReader.Read(DbeaverExport("General", "Werk Süd"));
+        var file = ReadContent(DbeaverExport("General", "Werk Süd"));
 
         Assert.Equal(ConnectionImportSource.DBeaver, file.Source);
         Assert.Equal(8, file.Candidates.Count);
@@ -129,9 +131,9 @@ public class ImportReaderTests
     [Fact]
     public void Unknown_and_broken_files_are_refused_with_a_message()
     {
-        var unknown = Assert.Throws<ConnectionImportException>(() => ConnectionImportReader.Read(Utf8("""{"something":[]}""")));
-        var broken = Assert.Throws<ConnectionImportException>(() => ConnectionImportReader.Read(Utf8("{\"connections\": ")));
-        var zip = Assert.Throws<ConnectionImportException>(() => ConnectionImportReader.Read([0x50, 0x4b, 0x03, 0x04, 0, 0]));
+        var unknown = Assert.Throws<ConnectionImportException>(() => ReadContent(Utf8("""{"something":[]}""")));
+        var broken = Assert.Throws<ConnectionImportException>(() => ReadContent(Utf8("{\"connections\": ")));
+        var zip = Assert.Throws<ConnectionImportException>(() => ReadContent([0x50, 0x4b, 0x03, 0x04, 0, 0]));
 
         Assert.Equal("Die Datei ist keine Verbindungsdatei von FerretSharp, DBeaver oder SQL Developer.", unknown.Message);
         Assert.StartsWith("Die Datei ist kein gültiges JSON:", broken.Message);
@@ -141,7 +143,7 @@ public class ImportReaderTests
     [Fact]
     public void Files_over_the_limit_are_refused()
     {
-        var error = Assert.Throws<ConnectionImportException>(() => ConnectionImportReader.Read(new byte[17 * 1024 * 1024]));
+        var error = Assert.Throws<ConnectionImportException>(() => ReadContent(new byte[17 * 1024 * 1024]));
 
         Assert.Equal("Die Datei ist zu groß für eine Verbindungsdatei (mehr als 16 MB).", error.Message);
     }

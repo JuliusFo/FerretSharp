@@ -16,6 +16,7 @@ public sealed partial class WorkspaceLifecycle
     /// </summary>
     public Task ConnectAsync(ConnectionProfile profile)
     {
+        var origin = shell.TakeConnectOrigin(profile.Id);
         SaveTabs();
         if (hub.Find(profile.Id) is { Lost: not null } lost)
         {
@@ -28,7 +29,7 @@ public sealed partial class WorkspaceLifecycle
         {
             if (!connections.HasPassword(profile.Id))
             {
-                shell.RequestPassword(profile);
+                shell.RequestPassword(profile, origin);
                 return Task.CompletedTask;
             }
         }

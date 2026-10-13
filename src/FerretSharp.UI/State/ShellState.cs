@@ -10,6 +10,13 @@ public enum ConnectionDialogMode { New, Edit, Duplicate }
 
 public sealed record ConnectionDialogRequest(ConnectionDialogMode Mode, ConnectionProfile? Profile);
 
+/// <summary>The password to ask for before connecting (WP-35).</summary>
+/// <param name="ShowWhenConnected">
+/// Asked on the way to the explorer (<c>ShellState.Connect</c>): the connection is shown afterwards. Otherwise the page
+/// that connected on its own (app statements, schema comparison) stays.
+/// </param>
+public sealed record PasswordRequest(ConnectionProfile Profile, bool ShowWhenConnected);
+
 /// <summary>Export all connections, or – <paramref name="OnlyGroup"/> – those of one group (null = without group).</summary>
 public sealed record ConnectionExportRequest(bool OnlyGroup = false, string? Group = null);
 
@@ -63,8 +70,11 @@ public sealed partial class ShellState
 
     public ShellPage Page { get; private set; } = ShellPage.Connections;
 
-    /// <summary>Where <see cref="Connect"/> came from; back there if the connection still needs a password.</summary>
-    private ShellPage _pageBeforeConnect = ShellPage.Connections;
+    /// <summary>
+    /// The page <see cref="Connect"/> left for the explorer, until the lifecycle takes it (<see cref="TakeConnectOrigin"/>):
+    /// back there if the connection still needs a password.
+    /// </summary>
+    private (Guid ProfileId, ShellPage Page)? _connectOrigin;
 
     public ConnectionDialogRequest? ConnectionDialog { get; private set; }
 
@@ -83,7 +93,7 @@ public sealed partial class ShellState
     {
         Set(() =>
         {
-            _pageBeforeConnect = Page;
+            _connectOrigin = (profile.Id, Page);
             PendingPassword = null;
             SwitcherOpen = false;
             Page = ShellPage.Explorer;
@@ -199,16 +209,31 @@ public sealed partial class ShellState
     }
 
     /// <summary>A connection without a password the user wants to open (WP-35): the shell asks for it first.</summary>
-    public ConnectionProfile? PendingPassword { get; private set; }
+    public PasswordRequest? PendingPassword { get; private set; }
 
     /// <summary>
-    /// Asks for the password instead of connecting; the page stays where the user was (<see cref="Connect"/> already
-    /// switched to the explorer).
+    /// The page <see cref="Connect"/> came from, once: the lifecycle takes it when it starts to connect, so a later connect
+    /// that does not go through <see cref="Connect"/> (app statements, schema comparison) never jumps to an old page.
     /// </summary>
-    public void RequestPassword(ConnectionProfile profile) => Set(() =>
+    public ShellPage? TakeConnectOrigin(Guid profileId)
     {
-        Page = _pageBeforeConnect;
-        PendingPassword = profile;
+        var origin = _connectOrigin is { } o && o.ProfileId == profileId ? o.Page : (ShellPage?)null;
+        _connectOrigin = null;
+        return origin;
+    }
+
+    /// <summary>
+    /// Asks for the password instead of connecting. Through <see cref="Connect"/> (<paramref name="returnTo"/> set) the
+    /// shell goes back to the page it left for the explorer; a page that connects on its own stays as it is.
+    /// </summary>
+    public void RequestPassword(ConnectionProfile profile, ShellPage? returnTo) => Set(() =>
+    {
+        if (returnTo is { } page)
+        {
+            Page = page;
+        }
+
+        PendingPassword = new PasswordRequest(profile, ShowWhenConnected: returnTo is not null);
     });
 
     public void ClosePassword() => Set(() => PendingPassword = null);

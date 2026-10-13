@@ -23,27 +23,27 @@ public static class ConnectionImportReader
         {
             var credentials = Path.Combine(Path.GetDirectoryName(path) ?? "", DbeaverConnections.CredentialsFile);
             return File.Exists(credentials) ? ImportLimits.ReadFile(credentials) : null;
-        }, ProjectOf(path));
+        }, ProjectOf(path), cancellationToken);
     }
 
     /// <summary>Reads file content; a DBeaver <c>data-sources.json</c> on its own has no users.</summary>
     /// <exception cref="ConnectionImportException">Too large or of an unknown format.</exception>
-    public static ImportFile Read(byte[] content)
+    public static ImportFile Read(byte[] content, CancellationToken cancellationToken = default)
     {
         if (content.LongLength > ImportLimits.MaxFileBytes)
         {
             throw new ConnectionImportException(ConnectionText.ImportFileTooLarge);
         }
 
-        return Read(content, () => null, null);
+        return Read(content, () => null, null, cancellationToken);
     }
 
     /// <param name="dbeaverCredentials">Read only for a DBeaver file.</param>
-    private static ImportFile Read(byte[] content, Func<byte[]?> dbeaverCredentials, string? project)
+    private static ImportFile Read(byte[] content, Func<byte[]?> dbeaverCredentials, string? project, CancellationToken cancellationToken)
     {
         if (IsZip(content))
         {
-            return DbeaverConnections.ReadExport(content);
+            return DbeaverConnections.ReadExport(content, cancellationToken);
         }
 
         using var document = ImportJson.Parse(content);

@@ -7,6 +7,8 @@ namespace FerretSharp.Core.Connections.Transfer;
 /// <summary>Reading foreign JSON leniently: missing or oddly typed values are null, never an exception.</summary>
 internal static class ImportJson
 {
+    private static ReadOnlySpan<byte> Utf8Bom => [0xef, 0xbb, 0xbf];
+
     private static readonly JsonDocumentOptions Options = new()
     {
         AllowTrailingCommas = true,
@@ -17,7 +19,9 @@ internal static class ImportJson
     {
         try
         {
-            return JsonDocument.Parse(json, Options);
+            // JsonDocument does not skip a UTF-8 byte order mark (PowerShell 5.1 "Out-File -Encoding utf8", some editors).
+            var memory = json.AsMemory();
+            return JsonDocument.Parse(memory.Span.StartsWith(Utf8Bom) ? memory[Utf8Bom.Length..] : memory, Options);
         }
         catch (JsonException ex)
         {
@@ -48,6 +52,9 @@ internal static class ImportLimits
 {
     public const long MaxFileBytes = 16 * 1024 * 1024;
     public const int MaxZipEntries = 10_000;
+
+    /// <summary>All entries of a zip together (a zip bomb could otherwise unpack 10,000 × 16 MB).</summary>
+    public const long MaxZipBytes = 64 * 1024 * 1024;
 
     /// <summary>One zip entry, refusing anything larger than <see cref="MaxFileBytes"/> (whatever the header claims).</summary>
     public static byte[] ReadEntry(ZipArchiveEntry entry)

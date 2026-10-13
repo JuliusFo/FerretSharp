@@ -16,35 +16,45 @@ public static class DbeaverConnections
 
     internal const string CredentialsFile = "credentials-config.json";
 
-    /// <summary>A project export: every project in it, each with its credentials.</summary>
-    internal static ImportFile ReadExport(byte[] zip)
+    /// <summary>A project export: every project in it, each with its credentials. Only the entries needed are unpacked.</summary>
+    internal static ImportFile ReadExport(byte[] zip, CancellationToken cancellationToken)
     {
         var candidates = new List<ImportCandidate>();
         var others = 0;
+        long unpacked = 0;
+        byte[] Unpack(ZipArchiveEntry entry)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var content = ImportLimits.ReadEntry(entry);
+            unpacked += content.LongLength;
+            return unpacked > ImportLimits.MaxZipBytes ? throw new ConnectionImportException(ConnectionText.ImportFileTooLarge) : content;
+        }
+
         try
         {
             using var archive = new ZipArchive(new MemoryStream(zip), ZipArchiveMode.Read);
             var entries = archive.Entries.Take(ImportLimits.MaxZipEntries + 1).ToList();
             if (entries.Count > ImportLimits.MaxZipEntries)
             {
-                throw new ConnectionImportException(ConnectionText.ImportUnknownFormat);
+                throw new ConnectionImportException(ConnectionText.ImportFileTooLarge);
             }
 
             foreach (var project in entries.Select(ProjectOf).OfType<string>().Distinct(StringComparer.Ordinal))
             {
                 var folder = $"projects/{project}/.dbeaver/";
                 var credentials = entries.FirstOrDefault(e => e.FullName == folder + CredentialsFile);
-                var users = DbeaverCredentials.ReadUsers(credentials is null ? null : ImportLimits.ReadEntry(credentials));
+                var users = DbeaverCredentials.ReadUsers(credentials is null ? null : Unpack(credentials));
                 foreach (var dataSources in entries.Where(e => IsDataSources(e.FullName, folder)))
                 {
-                    var file = Read(ImportLimits.ReadEntry(dataSources), users, project);
+                    var file = Read(Unpack(dataSources), users, project);
                     candidates.AddRange(file.Candidates);
                     others += file.OtherDatabases;
                 }
             }
         }
-        catch (InvalidDataException ex)
+        catch (Exception ex) when (ex is InvalidDataException or NotSupportedException or IOException)
         {
+            // A damaged or unusual zip (unsupported compression, encrypted entries).
             throw new ConnectionImportException(TextFormat.Format(ConnectionText.ImportUnreadable, ex.Message), ex);
         }
 
@@ -123,7 +133,7 @@ public static class DbeaverConnections
         var config = connection.TryGetProperty("configuration", out var c) && c.ValueKind == JsonValueKind.Object ? c : default;
         var properties = config.ValueKind == JsonValueKind.Object && config.TryGetProperty("provider-properties", out var p) ? p : default;
         var connectionType = ImportJson.Text(properties, "@dbeaver-connection-type@");
-        var url = ImportJson.Text(config, "url");
+        var url = JdbcUrl.ForDisplay(ImportJson.Text(config, "url")); // never with user/password, also when shown
 
         if (string.Equals(connectionType, "TNS", StringComparison.OrdinalIgnoreCase))
         {

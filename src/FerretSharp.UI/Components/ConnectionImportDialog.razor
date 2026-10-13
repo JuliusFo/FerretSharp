@@ -53,7 +53,7 @@
                     <table class="import-table">
                         <thead>
                             <tr>
-                                <th class="sel"><input type="checkbox" checked="@AllSelected(plan)" @onchange="e => SelectAll(plan, e.Value is true)"
+                                <th class="sel"><input type="checkbox" checked="@AllSelected(plan)" @onchange="e => plan.SelectAll(e.Value is true)"
                                                        aria-label="@ShellText.Export_All" /></th>
                                 <th>@ShellText.Import_ColName</th>
                                 <th class="kind">@ShellText.Import_ColKind</th>
@@ -79,13 +79,22 @@
                                     <td class="kind">
                                         @if (r.CanImport)
                                         {
-                                            <select class="field" @key="r" value="@r.Kind" @onchange="e => SetKind(r, e.Value)"
+                                            @* A guess is an option of its own (value ""), so picking the guessed kind is a change too and confirms it. *@
+                                            <select class="field" @key="(r, r.KindGuessed)" value="@(r.KindGuessed ? "" : r.Kind.ToString())" @onchange="e => SetKind(r, e.Value)"
                                                     title="@(r.KindGuessed ? ShellText.Import_KindGuessedTitle : null)">
+                                                @if (r.KindGuessed)
+                                                {
+                                                    <option value="">@ConnectionKindInfo.Label(r.Kind) (@ShellText.Import_KindGuessed)</option>
+                                                }
                                                 @foreach (var kind in ConnectionKindInfo.All)
                                                 {
-                                                    <option value="@kind">@ConnectionKindInfo.Label(kind)@(r.KindGuessed && kind == r.Kind ? $" ({ShellText.Import_KindGuessed})" : "")</option>
+                                                    <option value="@kind">@ConnectionKindInfo.Label(kind)</option>
                                                 }
                                             </select>
+                                            @if (r.Overwrites is { } overwritten && overwritten.Kind != r.Kind)
+                                            {
+                                                <div class="import-sub">@TextFormat.Format(ShellText.Import_KindWas, ConnectionKindInfo.Label(overwritten.Kind))</div>
+                                            }
                                         }
                                     </td>
                                     <td class="addr" title="@r.Candidate.Address">@r.Candidate.Address</td>
@@ -104,7 +113,7 @@
                                     <td class="status">
                                         @if (!r.CanImport)
                                         {
-                                            <span class="hint" title="@r.Candidate.Unsupported">@r.Candidate.Unsupported</span>
+                                            <span class="hint" title="@r.Unsupported">@r.Unsupported</span>
                                         }
                                         else if (r.Duplicate is { } existing)
                                         {
@@ -121,13 +130,20 @@
                                                 <span class="import-tag exists" title="@TextFormat.Format(ShellText.Import_ExistsTitle, existing.Name)">@ShellText.Import_Exists</span>
                                             }
                                         }
+                                        else if (r.SameAsEarlier is { } twin)
+                                        {
+                                            <span class="import-tag exists" title="@TextFormat.Format(ShellText.Import_RepeatedTitle, twin.Candidate.Name)">@ShellText.Import_Repeated</span>
+                                        }
                                         else
                                         {
                                             <span class="import-tag new">@ShellText.Import_New</span>
                                         }
                                         @if (r.CanImport && r.ReadOnly)
                                         {
-                                            <span class="import-lock" title="@ShellText.Import_ReadOnlyTitle" aria-label="@ShellText.Import_ReadOnlyTitle">🔒</span>
+                                            var lockTitle = r.Overwrites is { } kept && (kept.ReadOnly || kept.Kind == ConnectionKind.Prod) && !r.KindGuessed && r.Kind != ConnectionKind.Prod
+                                                ? ShellText.Import_KeepsReadOnlyTitle
+                                                : ShellText.Import_ReadOnlyTitle;
+                                            <span class="import-lock" title="@lockTitle" aria-label="@lockTitle">🔒</span>
                                         }
                                     </td>
                                 </tr>
@@ -220,21 +236,20 @@
         {
             return;
         }
+        catch (Exception ex)
+        {
+            // Last resort: the dialog sits outside the shell's error boundary, nothing may escape it.
+            Logger.LogWarning(ex, "Reading connections to import failed");
+            _error = TextFormat.Format(ConnectionText.ImportUnreadable, ex.Message);
+        }
         finally
         {
             _busy = false;
         }
     }
 
-    private static bool AllSelected(ConnectionImportPlan plan) => plan.Rows.Where(r => r.CanImport).All(r => r.Selected);
-
-    private static void SelectAll(ConnectionImportPlan plan, bool selected)
-    {
-        foreach (var row in plan.Rows.Where(r => r.CanImport))
-        {
-            row.Selected = selected;
-        }
-    }
+    /// <summary>The "all" check box covers the plain rows; duplicates are picked one by one.</summary>
+    private static bool AllSelected(ConnectionImportPlan plan) => plan.PlainRows.Any() && plan.PlainRows.All(r => r.Selected);
 
     private static void SetKind(ImportRow row, object? value)
     {

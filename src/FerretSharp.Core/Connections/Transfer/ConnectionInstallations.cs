@@ -1,4 +1,5 @@
 using System.Globalization;
+using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.Connections.Transfer;
 
@@ -26,29 +27,39 @@ public static class ConnectionInstallations
     /// <param name="appData">The roaming app data folder (<c>%APPDATA%</c>).</param>
     public static IReadOnlyList<FoundInstallation> Find(string appData)
     {
-        var found = new List<FoundInstallation>();
+        // Each on its own: one that cannot even be listed is simply not offered, the other still is ("Choose file…" stays).
+        return new[] { Try(() => FindDbeaver(Path.Combine(appData, DbeaverWorkspace))), Try(() => FindSqlDeveloper(Path.Combine(appData, SqlDeveloperFolder))) }
+            .OfType<FoundInstallation>()
+            .ToList();
+
+        static FoundInstallation? Try(Func<FoundInstallation?> find)
+        {
+            try
+            {
+                return find();
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return null;
+            }
+        }
+    }
+
+    /// <exception cref="ConnectionImportException">A file or folder cannot be read, or a file has an unknown format.</exception>
+    public static async Task<ImportFile> ReadAsync(FoundInstallation installation, CancellationToken cancellationToken)
+    {
         try
         {
-            if (FindDbeaver(Path.Combine(appData, DbeaverWorkspace)) is { } dbeaver)
-            {
-                found.Add(dbeaver);
-            }
-
-            if (FindSqlDeveloper(Path.Combine(appData, SqlDeveloperFolder)) is { } sqlDeveloper)
-            {
-                found.Add(sqlDeveloper);
-            }
+            return await ReadCoreAsync(installation, cancellationToken);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // An installation that cannot even be listed is simply not offered; "Choose file…" stays.
+            // Listing a folder (the files themselves are read through ImportLimits, which reports its own errors).
+            throw new ConnectionImportException(TextFormat.Format(ConnectionText.ImportUnreadable, ex.Message), ex);
         }
-
-        return found;
     }
 
-    /// <exception cref="ConnectionImportException">A file cannot be read or has an unknown format.</exception>
-    public static async Task<ImportFile> ReadAsync(FoundInstallation installation, CancellationToken cancellationToken)
+    private static async Task<ImportFile> ReadCoreAsync(FoundInstallation installation, CancellationToken cancellationToken)
     {
         if (installation.Source == ConnectionImportSource.SqlDeveloper)
         {

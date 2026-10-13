@@ -12,7 +12,7 @@
 
 @if (Shell.PendingPassword is { } passwordFor)
 {
-    <PasswordDialog @key="passwordFor" Profile="passwordFor" />
+    <PasswordDialog @key="passwordFor" Request="passwordFor" Lifecycle="Lifecycle" />
 }
 
 @if (Shell.ImportOpen)

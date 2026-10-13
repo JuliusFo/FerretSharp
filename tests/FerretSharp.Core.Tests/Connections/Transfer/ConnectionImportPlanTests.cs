@@ -14,7 +14,7 @@ public class ConnectionImportPlanTests
     [Fact]
     public void New_connections_start_selected_duplicates_and_unsupported_ones_do_not()
     {
-        var plan = Plan(ConnectionImportReader.Read(DbeaverExport("General")), ExistingTest);
+        var plan = Plan(ReadContent(DbeaverExport("General")), ExistingTest);
 
         Assert.Equal(["erp-live", "kasse"], plan.SelectedRows.Select(r => r.Candidate.Name).Order());
         var duplicate = Row(plan, "erp-test");
@@ -26,7 +26,7 @@ public class ConnectionImportPlanTests
     [Fact]
     public void Guessed_kinds_stay_read_only_until_the_user_picks_one()
     {
-        var plan = Plan(ConnectionImportReader.Read(Utf8(SqlDeveloperExport)));
+        var plan = Plan(ReadContent(Utf8(SqlDeveloperExport)));
         var row = Assert.Single(plan.Rows);
 
         Assert.Equal(ConnectionKind.Test, row.Kind);
@@ -43,14 +43,14 @@ public class ConnectionImportPlanTests
     [Fact]
     public void Prod_is_always_read_only_and_so_is_what_the_source_marks_read_only()
     {
-        var plan = Plan(ConnectionImportReader.Read(Utf8(DbeaverDataSources)));
+        var plan = Plan(ReadContent(Utf8(DbeaverDataSources)));
         var live = Row(plan, "erp-live");
 
         Assert.True(live.ReadOnly);
         live.SetKind(ConnectionKind.Dev);
         Assert.True(live.ReadOnly); // DBeaver marks it read-only
 
-        var ferret = Plan(ConnectionImportReader.Read(Utf8(FerretSharpConnections.Export(
+        var ferret = Plan(ReadContent(Utf8(FerretSharpConnections.Export(
             [new ConnectionProfile(Guid.NewGuid(), "P", ConnectionKind.Prod, new HostPortAddress("h", 1521, "S", null), "u", null, ReadOnly: false)],
             includeLocalPaths: false))));
         Assert.True(Assert.Single(ferret.Rows).ReadOnly);
@@ -59,7 +59,7 @@ public class ConnectionImportPlanTests
     [Fact]
     public void Missing_users_are_typed_in_and_block_the_import_until_then()
     {
-        var plan = Plan(ConnectionImportReader.Read(Utf8(DbeaverDataSources)));
+        var plan = Plan(ReadContent(Utf8(DbeaverDataSources)));
         var kasse = Row(plan, "kasse");
 
         Assert.True(kasse.UserMissing);
@@ -78,7 +78,7 @@ public class ConnectionImportPlanTests
     [Fact]
     public void Nothing_selected_is_a_problem()
     {
-        var plan = Plan(ConnectionImportReader.Read(Utf8(SqlDeveloperExport)));
+        var plan = Plan(ReadContent(Utf8(SqlDeveloperExport)));
         plan.Rows[0].Selected = false;
 
         Assert.Equal("Keine Verbindung ausgewählt.", plan.Problem);
@@ -87,7 +87,7 @@ public class ConnectionImportPlanTests
     [Fact]
     public void Group_from_the_source_wins_otherwise_the_default_group_or_none()
     {
-        var plan = Plan(ConnectionImportReader.Read(DbeaverExport("General", "Werk Süd")));
+        var plan = Plan(ReadContent(DbeaverExport("General", "Werk Süd")));
         Assert.Equal("DBeaver", plan.DefaultGroup);
         foreach (var row in plan.Rows)
         {
@@ -104,7 +104,7 @@ public class ConnectionImportPlanTests
     [Fact]
     public void Overwriting_a_duplicate_keeps_its_id_and_local_paths()
     {
-        var plan = Plan(ConnectionImportReader.Read(DbeaverExport("General")), ExistingTest);
+        var plan = Plan(ReadContent(DbeaverExport("General")), ExistingTest);
         var row = Row(plan, "erp-test");
         Row(plan, "kasse").Selected = false; // no user in the file
         row.Selected = true;
@@ -124,7 +124,7 @@ public class ConnectionImportPlanTests
         var existing = new ConnectionProfile(
             Guid.NewGuid(), "Alt", ConnectionKind.Test, new HostPortAddress("db-test.example.com", 1521, "ERPT.example.com", null),
             "erp_app", null, false, "Bestand");
-        var plan = Plan(ConnectionImportReader.Read(Utf8(SqlDeveloperExport)), existing);
+        var plan = Plan(ReadContent(Utf8(SqlDeveloperExport)), existing);
         var row = Assert.Single(plan.Rows);
         row.Selected = true;
 
@@ -141,7 +141,7 @@ public class ConnectionImportPlanTests
     [Fact]
     public void A_copy_of_a_duplicate_is_a_new_connection()
     {
-        var plan = Plan(ConnectionImportReader.Read(DbeaverExport("General")), ExistingTest);
+        var plan = Plan(ReadContent(DbeaverExport("General")), ExistingTest);
         var row = Row(plan, "erp-test");
         Row(plan, "kasse").Selected = false; // no user in the file
         row.Selected = true;
@@ -164,7 +164,7 @@ public class ConnectionImportPlanTests
         Assert.True(ConnectionImportPlan.SameAddress(new TnsAliasAddress("erp", null), new TnsAliasAddress("ERP", @"C:\tns")));
         Assert.False(ConnectionImportPlan.SameAddress(a, new TnsAliasAddress("ERP", null)));
 
-        var plan = Plan(ConnectionImportReader.Read(DbeaverExport("General")), ExistingTest with { User = "other" });
+        var plan = Plan(ReadContent(DbeaverExport("General")), ExistingTest with { User = "other" });
         Assert.Null(Row(plan, "erp-test").Duplicate);
     }
 
@@ -184,7 +184,7 @@ public class ConnectionImportPlanTests
     [Fact]
     public void Export_reads_back_with_new_ids()
     {
-        var file = ConnectionImportReader.Read(Utf8(FerretSharpConnections.Export([ExistingTest], includeLocalPaths: true)));
+        var file = ReadContent(Utf8(FerretSharpConnections.Export([ExistingTest], includeLocalPaths: true)));
 
         Assert.Equal(ConnectionImportSource.FerretSharp, file.Source);
         var imported = Assert.Single(file.Candidates).Profile!;
@@ -200,14 +200,16 @@ public class ConnectionImportPlanTests
               "address": { "type": "tnsAlias", "alias": "ERP_DEV" }, "user": "app", "readOnly": false } ] }
             """;
 
-        var file = ConnectionImportReader.Read(Utf8(ConnectionsJson));
-        var newer = Assert.Throws<ConnectionImportException>(() => ConnectionImportReader.Read(Utf8(ConnectionsJson.Replace("\"version\": 1", "\"version\": 9"))));
+        var file = ReadContent(Utf8(ConnectionsJson));
+        var newer = Assert.Throws<ConnectionImportException>(() => ReadContent(Utf8(ConnectionsJson.Replace("\"version\": 1", "\"version\": 9"))));
 
         Assert.Equal(new TnsAliasAddress("ERP_DEV", null), Assert.Single(file.Candidates).Profile!.Address);
         Assert.Equal("Die Datei stammt aus einer neueren Version von FerretSharp (Format 9).", newer.Message);
     }
 
     private static ConnectionImportPlan Plan(ImportFile file, params ConnectionProfile[] existing) => new(file, existing);
+
+    private static ImportFile ReadContent(byte[] content) => ConnectionImportReader.Read(content, TestContext.Current.CancellationToken);
 
     private static ImportRow Row(ConnectionImportPlan plan, string name) => plan.Rows.Single(r => r.Candidate.Name == name);
 }

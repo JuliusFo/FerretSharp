@@ -62,9 +62,43 @@ public sealed class ConnectionTransferTests : IAsyncDisposable
         _app.Shell.Connect(profile);
         await _app.Lifecycle.ConnectAsync(profile);
 
-        Assert.Same(profile, _app.Shell.PendingPassword);
+        Assert.Equal(new PasswordRequest(profile, ShowWhenConnected: true), _app.Shell.PendingPassword);
         Assert.Equal(ShellPage.Connections, _app.Shell.Page);
         Assert.Null(_app.Hub.Find(profile.Id));
+    }
+
+    /// <summary>
+    /// Review of WP-35: a page that connects on its own (app statements, schema comparison) stays – before, the shell jumped
+    /// to the page of an earlier <c>Connect</c>, and the page that asked was gone.
+    /// </summary>
+    [Fact]
+    public async Task A_page_that_connects_on_its_own_stays_when_the_password_is_asked_for()
+    {
+        var earlier = TestApp.Profile("Früher");
+        _app.Connections.SetPassword(earlier.Id, "pw", remember: false);
+        _app.Shell.Connect(earlier); // from the connections page, long ago
+        await _app.Lifecycle.ConnectAsync(earlier);
+        _app.Shell.ShowAppStatements();
+        var imported = TestApp.Profile("Importiert");
+
+        await _app.Lifecycle.ConnectAsync(imported); // "look it up in the database"
+
+        Assert.Equal(new PasswordRequest(imported, ShowWhenConnected: false), _app.Shell.PendingPassword);
+        Assert.Equal(ShellPage.AppStatements, _app.Shell.Page);
+    }
+
+    [Fact]
+    public void The_page_a_connect_came_from_is_taken_once_and_only_for_that_connection()
+    {
+        var profile = TestApp.Profile("A");
+        _app.Shell.ShowSettings();
+        _app.Shell.Connect(profile);
+
+        Assert.Null(_app.Shell.TakeConnectOrigin(Guid.NewGuid())); // another connection: nothing, and gone
+        _app.Shell.ShowSettings();
+        _app.Shell.Connect(profile);
+        Assert.Equal<ShellPage?>(ShellPage.Settings, _app.Shell.TakeConnectOrigin(profile.Id));
+        Assert.Null(_app.Shell.TakeConnectOrigin(profile.Id));
     }
 
     [Fact]

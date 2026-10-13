@@ -90,6 +90,9 @@
   <data name="ImportUserMissingOther" xml:space="preserve">
     <value>Bei {0} gewählten Verbindungen fehlt der Benutzer – in der Liste eintragen.</value>
   </data>
+  <data name="ImportSameTargetTwice" xml:space="preserve">
+    <value>„{0}“ und „{1}“ würden beide „{2}“ überschreiben – eine abwählen oder als Kopie anlegen.</value>
+  </data>
   <data name="ImportNothingSelected" xml:space="preserve">
     <value>Keine Verbindung ausgewählt.</value>
   </data>

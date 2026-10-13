@@ -39,8 +39,14 @@ public sealed class ConnectionManager(IConnectionStore store, ISecretStore secre
 
     public bool HasPassword(Guid profileId) => GetPassword(profileId) is not null;
 
-    /// <summary>The saved password, else one entered for this run.</summary>
+    /// <summary>The saved password, else one entered for this run – for connecting, never for saving it elsewhere.</summary>
     public string? GetPassword(Guid profileId) => secrets.GetPassword(profileId) ?? _sessionPasswords.GetValueOrDefault(profileId);
+
+    /// <summary>
+    /// Only the password saved in the secret store (WP-35 review): the connection dialog shows and copies this one – a
+    /// password the user chose not to save must not reach the Credential Manager through a duplicate.
+    /// </summary>
+    public string? GetStoredPassword(Guid profileId) => secrets.GetPassword(profileId);
 
     /// <summary>
     /// The password asked for when connecting (WP-35): saved in the secret store, or – <paramref name="remember"/> false –
@@ -76,12 +82,19 @@ public sealed class ConnectionManager(IConnectionStore store, ISecretStore secre
             var errors = ConnectionProfileValidator.Validate(profile);
             if (errors.Count > 0)
             {
-                throw new ArgumentException($"{profile.Name}: {string.Join(" ", errors.Values)}", nameof(profiles));
+                // No parameter name: the message is shown as it is (the import validates first, this is the last guard).
+                throw new ArgumentException($"{profile.Name}: {string.Join(" ", errors.Values)}");
             }
         }
 
-        RefuseWithoutFile();
         var ids = profiles.Select(p => p.Id).ToHashSet();
+        if (ids.Count != profiles.Count)
+        {
+            // Two profiles with one id ended up twice in the file; editing one later dropped the other (WP-35 review).
+            throw new ArgumentException("The same connection id is saved twice.");
+        }
+
+        RefuseWithoutFile();
         var updated = _profiles.Where(p => !ids.Contains(p.Id)).Concat(profiles).ToList();
         await store.SaveAsync(updated, cancellationToken);
 

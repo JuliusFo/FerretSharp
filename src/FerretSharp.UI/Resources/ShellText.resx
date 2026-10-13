@@ -1554,6 +1554,21 @@
     <value>Same address and user as “{0}”.</value>
     <comment>{0}: name of the saved connection</comment>
   </data>
+  <data name="Import_KindWas" xml:space="preserve">
+    <value>exists as {0}</value>
+    <comment>Under the environment of a connection that overwrites a saved one of another environment; {0}: e.g. Production</comment>
+  </data>
+  <data name="Import_KeepsReadOnlyTitle" xml:space="preserve">
+    <value>The saved connection is Production or read-only – it stays read-only.</value>
+  </data>
+  <data name="Import_Repeated" xml:space="preserve">
+    <value>Twice in the file</value>
+    <comment>Status in the import preview: the same connection came earlier in the file</comment>
+  </data>
+  <data name="Import_RepeatedTitle" xml:space="preserve">
+    <value>Same address and user as “{0}” above.</value>
+    <comment>{0}: name of the earlier connection in the file</comment>
+  </data>
   <data name="Import_Overwrite" xml:space="preserve">
     <value>Overwrite</value>
   </data>
