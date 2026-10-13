@@ -20,24 +20,21 @@ public sealed class FileOpenService : IFileOpenService
         return new OpenedFile(Path.GetFileName(path), length, length <= maxBytes ? await File.ReadAllBytesAsync(path) : null);
     }
 
-    public Task<string?> PickAsync(string filter, IReadOnlyList<string> extensions, string? initialPath = null)
+    public async Task<string?> PickAsync(string filter, IReadOnlyList<string> extensions, string? initialPath = null)
     {
         var patterns = string.Join(";", extensions.Select(e => "*." + e));
-        return Application.Current.Dispatcher.InvokeAsync(() =>
+        var (folder, file) = await PathProbe.StartOfAsync(initialPath);
+        return await Application.Current.Dispatcher.InvokeAsync(() =>
         {
             var dialog = new OpenFileDialog
             {
                 Filter = extensions.Count > 0 ? $"{filter} ({patterns})|{patterns}|{CommonText.AllFiles} (*.*)|*.*" : $"{CommonText.AllFiles} (*.*)|*.*",
                 CheckFileExists = true,
             };
-            if (!string.IsNullOrWhiteSpace(initialPath))
+            if (folder is not null)
             {
-                var directory = Directory.Exists(initialPath) ? initialPath : Path.GetDirectoryName(initialPath);
-                if (directory is not null && Directory.Exists(directory))
-                {
-                    dialog.InitialDirectory = directory;
-                    dialog.FileName = File.Exists(initialPath) ? Path.GetFileName(initialPath) : "";
-                }
+                dialog.InitialDirectory = folder;
+                dialog.FileName = file ?? "";
             }
 
             return dialog.ShowDialog(Application.Current.MainWindow) == true ? dialog.FileName : null;

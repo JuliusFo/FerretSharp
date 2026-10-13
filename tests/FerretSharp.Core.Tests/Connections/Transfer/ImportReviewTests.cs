@@ -227,6 +227,23 @@ etworkadmin") };
         Assert.Equal("jdbc:oracle:oci:@REPDB", JdbcUrl.ForDisplay("jdbc:oracle:oci:scott/tiger@REPDB"));
     }
 
+    /// <summary>Review 3.31.0, A45: a data-sources file whose root is no object ended the import with a technical error.</summary>
+    [Fact]
+    public void A_project_export_with_a_damaged_data_sources_file_is_reported_as_unknown()
+    {
+        using var buffer = new MemoryStream();
+        using (var zip = new ZipArchive(buffer, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            zip.CreateEntry("projects/General/");
+            using var stream = zip.CreateEntry("projects/General/.dbeaver/data-sources.json").Open();
+            stream.Write(Utf8("[ 1, 2 ]"));
+        }
+
+        var error = Assert.Throws<ConnectionImportException>(() => ConnectionImportReader.Read(buffer.ToArray(), Ct));
+
+        Assert.DoesNotContain("InvalidOperation", error.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void A_file_with_a_byte_order_mark_is_read()
     {
