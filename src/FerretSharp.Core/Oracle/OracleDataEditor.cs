@@ -368,6 +368,15 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
     /// </summary>
     private Task RollBackFlushAsync(string savepoint) => session.RollbackToSavepointAsync(savepoint, CancellationToken.None);
 
+    /// <summary>An UPDATE or DELETE of one row's key must hit exactly that row – the lock before it found the row.</summary>
+    private static void OneRow(PendingOperation operation, int rows)
+    {
+        if (rows != 1)
+        {
+            throw rows == 0 ? new RowGoneException(operation) : new KeyNotUniqueException(operation, rows);
+        }
+    }
+
     /// <returns>The DML that ran (for <see cref="WriteAction.Statements"/>).</returns>
     private async Task<QuerySpec> ApplyAsync(
         TableDetails table, PendingOperation operation, FlushOptions options,
@@ -379,7 +388,7 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
             {
                 _ = await LockAsync(table, operation, [], options.LockWaitSeconds, cancellationToken) ?? throw new RowGoneException(operation);
                 var delete = DmlBuilder.Delete(table, operation.Key);
-                await session.ExecuteNonQueryAsync(delete.Sql, delete.Parameters, cancellationToken);
+                OneRow(operation, (await session.ExecuteNonQueryAsync(delete.Sql, delete.Parameters, cancellationToken)).Rows);
                 return delete;
             }
 
@@ -401,7 +410,7 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
                 }
 
                 var update = DmlBuilder.Update(table, operation.Key, operation.Values);
-                await session.ExecuteNonQueryAsync(update.Sql, update.Parameters, cancellationToken);
+                OneRow(operation, (await session.ExecuteNonQueryAsync(update.Sql, update.Parameters, cancellationToken)).Rows);
                 return update;
             }
 

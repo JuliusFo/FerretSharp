@@ -159,6 +159,8 @@ public class ConnectionManagerTests
         Assert.Empty(_secrets.Passwords);
 
         _manager.SetPassword(profile.Id, "saved", remember: true);
+        Assert.Empty(_secrets.Passwords); // saved once a connection worked with it (review 3.31.0, A11)
+        Assert.True(_manager.PasswordWorked(profile.Id));
 
         Assert.Equal("saved", _secrets.GetPassword(profile.Id));
         await _manager.DeleteAsync(profile.Id, Ct);

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Contexts that bring their own connection string (review 3.31.0, A1): a design-time factory and OnConfiguring. The
+       integration tests run the model host and the LINQ console against them (LinqConsoleOptionsTests). -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Oracle.EntityFrameworkCore" />
+  </ItemGroup>
+
+</Project>

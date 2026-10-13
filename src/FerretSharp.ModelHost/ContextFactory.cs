@@ -3,13 +3,15 @@ using FerretSharp.Core.ClrModel;
 using FerretSharp.ModelHost.Resources;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace FerretSharp.ModelHost;
 
 /// <summary>
 /// Creates the user's DbContext without running the project's start-up code (ADR 0009): its design-time factory if
 /// there is one, otherwise options of our own with the Oracle provider and a placeholder connection string – building
-/// the model never connects – and the constructor taking <c>DbContextOptions</c>, otherwise a parameterless one.
+/// the model never connects – and the constructor taking <c>DbContextOptions</c>, otherwise a parameterless one. The LINQ
+/// console needs a constructor taking the options (see <see cref="Create"/>).
 /// </summary>
 internal static class ContextFactory
 {
@@ -18,21 +20,39 @@ internal static class ContextFactory
 
     private const BindingFlags Constructors = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
 
-    /// <param name="configure">Further options (interceptors of the LINQ console); not applied to a design-time factory's context.</param>
+    /// <param name="configure">
+    /// Further options: the interceptors of the LINQ console, which keep EF away from the database. With them the context
+    /// is always created through a constructor taking DbContextOptions – a design-time factory only supplies the options
+    /// (its provider settings shape the SQL); a context that configures itself (parameterless) is refused.
+    /// </param>
+    /// <exception cref="ModelHostException">No way to create the context (with <paramref name="configure"/>: to pass it the options).</exception>
     public static (DbContext Context, string CreatedBy) Create(Type contextType, IReadOnlyList<Type> types, Action<DbContextOptionsBuilder>? configure = null)
     {
+        var typedOptions = typeof(DbContextOptions<>).MakeGenericType(contextType);
+        var optionsConstructor = OptionsConstructor(contextType, typedOptions);
         var factoryInterface = typeof(IDesignTimeDbContextFactory<>).MakeGenericType(contextType);
         if (types.FirstOrDefault(t => factoryInterface.IsAssignableFrom(t) && !t.IsAbstract && t.GetConstructor(Type.EmptyTypes) is not null) is { } factory)
         {
             var instance = Activator.CreateInstance(factory)!;
             var context = (DbContext)factoryInterface.GetMethod(nameof(IDesignTimeDbContextFactory<DbContext>.CreateDbContext))!
                 .Invoke(instance, [Array.Empty<string>()])!;
-            return (context, "factory");
+            if (configure is null)
+            {
+                return (context, "factory");
+            }
+
+            DbContextOptions options;
+            using (context)
+            {
+                options = (DbContextOptions)context.GetService<IDbContextOptions>();
+            }
+
+            var rebuilt = new DbContextOptionsBuilder(options);
+            configure(rebuilt);
+            var constructor = OptionsConstructor(contextType, rebuilt.Options.GetType()) ?? throw ConsoleNeedsOptions(contextType);
+            return ((DbContext)constructor.Invoke([rebuilt.Options]), "factory");
         }
 
-        var typedOptions = typeof(DbContextOptions<>).MakeGenericType(contextType);
-        var optionsConstructor = contextType.GetConstructors(Constructors)
-            .FirstOrDefault(c => c.GetParameters() is [var p] && p.ParameterType.IsAssignableFrom(typedOptions));
         if (optionsConstructor is not null)
         {
             var builder = (DbContextOptionsBuilder)Activator.CreateInstance(typeof(DbContextOptionsBuilder<>).MakeGenericType(contextType))!;
@@ -43,7 +63,9 @@ internal static class ContextFactory
 
         if (contextType.GetConstructor(Constructors, Type.EmptyTypes) is { } parameterless)
         {
-            return ((DbContext)parameterless.Invoke(null), "parameterless");
+            // Configures itself (OnConfiguring with the project's connection string): fine for reading the model, never
+            // for the console – it could not get the interceptors, and a query would reach that database.
+            return configure is null ? ((DbContext)parameterless.Invoke(null), "parameterless") : throw ConsoleNeedsOptions(contextType);
         }
 
         var signatures = contextType.GetConstructors(Constructors)
@@ -52,6 +74,13 @@ internal static class ContextFactory
             ModelHostErrorKind.ConstructorNeedsServices,
             Program.Text(ModelHostText.ConstructorNeedsServices, contextType.Name, string.Join("; ", signatures))));
     }
+
+    /// <summary>The constructor taking just the options, given their runtime type.</summary>
+    private static ConstructorInfo? OptionsConstructor(Type contextType, Type optionsType) =>
+        contextType.GetConstructors(Constructors).FirstOrDefault(c => c.GetParameters() is [var p] && p.ParameterType.IsAssignableFrom(optionsType));
+
+    private static ModelHostException ConsoleNeedsOptions(Type contextType) => new(new ModelHostError(
+        ModelHostErrorKind.ConsoleNeedsOptions, Program.Text(ModelHostText.ConsoleNeedsOptions, contextType.Name)));
 
     /// <summary>
     /// <c>UseOracle</c> of the project's provider, by reflection: FerretSharp does not compile against a particular

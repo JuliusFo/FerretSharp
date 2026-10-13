@@ -30,7 +30,6 @@ public sealed class SideState(CompareSide side)
 /// </summary>
 public sealed class SchemaCompareService(ComparisonStore store, SchemaCompareLoader loader, ConnectionManager connections, ILogger<SchemaCompareService> logger)
 {
-    private readonly Dictionary<Guid, string> _passwords = []; // typed for this session only, never saved
     private CancellationTokenSource? _cts;
     private bool _loaded;
 
@@ -121,8 +120,11 @@ public sealed class SchemaCompareService(ComparisonStore store, SchemaCompareLoa
         Changed?.Invoke();
     }
 
-    /// <summary>A password typed for a connection without a stored one; kept until FerretSharp ends.</summary>
-    public void SetPassword(Guid connectionId, string password) => _passwords[connectionId] = password;
+    /// <summary>
+    /// A password typed for a connection without a stored one; kept until FerretSharp ends – the same one connecting uses
+    /// (review 3.31.0, A12: the comparison kept its own, and a mistyped one stayed until restart).
+    /// </summary>
+    public void SetPassword(Guid connectionId, string password) => connections.SetPassword(connectionId, password, remember: false);
 
     /// <summary>Reads all sides (or only those that failed for want of a password) and builds the matrix.</summary>
     public async Task CompareAsync(bool onlyMissing = false)
@@ -147,7 +149,7 @@ public sealed class SchemaCompareService(ComparisonStore store, SchemaCompareLoa
         Changed?.Invoke();
         try
         {
-            var results = await loader.LoadAsync(targets.Select(t => t.state.Side).ToList(), _passwords,
+            var results = await loader.LoadAsync(targets.Select(t => t.state.Side).ToList(),
                 (index, step) =>
                 {
                     targets[index].state.Step = step;

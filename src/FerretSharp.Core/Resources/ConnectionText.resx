@@ -45,6 +45,9 @@
     <value>{0} comes from a newer version of FerretSharp (format {1}).</value>
     <comment>{0}: path of connections.json; {1}: format version number</comment>
   </data>
+  <data name="IncompleteConnection" xml:space="preserve">
+    <value>a connection without address, name or user</value>
+  </data>
   <data name="InvalidFile" xml:space="preserve">
     <value>{0} is not a valid connections JSON file: {1}</value>
     <comment>{0}: path of connections.json; {1}: error message of the JSON reader</comment>

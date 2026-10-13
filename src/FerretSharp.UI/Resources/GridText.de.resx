@@ -15,6 +15,12 @@
   <data name="Grid_TableNotEditable" xml:space="preserve">
     <value>Diese Tabelle lässt sich hier nicht bearbeiten.</value>
   </data>
+  <data name="Editing_Busy" xml:space="preserve">
+    <value>Änderungen dieses Workspaces werden gerade geschrieben oder committet – versuch es noch einmal, sobald das fertig ist.</value>
+  </data>
+  <data name="Grid_WriteRunning" xml:space="preserve">
+    <value>Änderungen werden gerade geschrieben – bearbeite weiter, sobald das fertig ist.</value>
+  </data>
   <data name="Grid_RowNotLoaded" xml:space="preserve">
     <value>Die Zeile ist nicht mehr geladen – bitte neu laden{0}.</value>
   </data>
@@ -650,6 +656,9 @@
   </data>
   <data name="Editing_RolledBack" xml:space="preserve">
     <value>Änderungen verworfen (Rollback).</value>
+  </data>
+  <data name="Editing_UndoneGridTabClosed" xml:space="preserve">
+    <value>Zurückgenommen: {0} – der Tab ist geschlossen, die Änderungen sind verworfen.</value>
   </data>
   <data name="Editing_UndoneGrid" xml:space="preserve">
     <value>Zurückgenommen: {0} – die Änderungen sind wieder ausstehend.</value>

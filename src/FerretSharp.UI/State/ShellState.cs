@@ -145,6 +145,12 @@ public sealed partial class ShellState
 
     public void NotifyChanged()
     {
+        // Edits of a tab changed (discard, undo, revert …): a stale tab without changes takes the new structure (A30).
+        foreach (var tab in _workspaces.SelectMany(w => w.TableTabs))
+        {
+            tab.DropStaleStructure();
+        }
+
         Changed?.Invoke();
         Dirty?.Invoke();
     }
@@ -163,6 +169,13 @@ public sealed partial class ShellState
     public void RequestDelete(ConnectionProfile profile) => Set(() => PendingDelete = profile);
 
     public void CancelDelete() => Set(() => PendingDelete = null);
+
+    /// <summary>An open connection was saved with changes that only a new connection applies (review 3.31.0, A8).</summary>
+    public ConnectionProfile? ReconnectOffer { get; private set; }
+
+    public void OfferReconnect(ConnectionProfile profile) => Set(() => ReconnectOffer = profile);
+
+    public void CancelReconnectOffer() => Set(() => ReconnectOffer = null);
 
     public void ShowError(DatabaseException error) => Set(() => ErrorDetails = error);
 

@@ -168,18 +168,37 @@ public partial class App : Application
         args.FirstOrDefault(a => a.StartsWith("--import-appdata=", StringComparison.OrdinalIgnoreCase))?["--import-appdata=".Length..]
         ?? Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
 
-    protected override async void OnExit(ExitEventArgs e)
+    protected override void OnExit(ExitEventArgs e)
     {
         _logger?.LogInformation("FerretSharp shutting down");
         CloseConnection();
 
-        if (_host is not null)
+        // Synchronously, off the dispatcher and with a limit (review 3.31.0, A44): in the former async void OnExit the process
+        // could end at the first await, so the services were never disposed – and a continuation that wanted the UI thread
+        // could wait for it forever.
+        if (_host is { } host)
         {
-            await _host.StopAsync(TimeSpan.FromSeconds(5));
-            _host.Dispose();
+            try
+            {
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await host.StopAsync(TimeSpan.FromSeconds(5));
+                    }
+                    finally
+                    {
+                        host.Dispose();
+                    }
+                }).Wait(TimeSpan.FromSeconds(8));
+            }
+            catch (AggregateException ex)
+            {
+                _logger?.LogWarning(ex, "Stopping the services failed");
+            }
         }
 
-        await Log.CloseAndFlushAsync();
+        Log.CloseAndFlush();
         base.OnExit(e);
     }
 

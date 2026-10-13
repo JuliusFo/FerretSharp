@@ -21,7 +21,7 @@ public interface IWorkspaceStore
 }
 
 /// <summary>One versioned JSON file per workspace (<c>workspaces/{id}.json</c>). Writes are atomic (temp file + move).</summary>
-public sealed class WorkspaceStore(string directory) : IWorkspaceStore
+public sealed partial class WorkspaceStore(string directory) : IWorkspaceStore
 {
     public const int CurrentVersion = 1;
 
@@ -36,11 +36,16 @@ public sealed class WorkspaceStore(string directory) : IWorkspaceStore
         {
             var workspaces = new List<Workspace>();
             var errors = new List<string>();
-            foreach (var (_, document, error) in await ReadAllAsync(cancellationToken))
+            foreach (var (_, document, error, owner) in await ReadAllAsync(cancellationToken))
             {
                 if (error is not null)
                 {
-                    errors.Add(error);
+                    // Only this connection's files, and those whose connection is unknown (review 3.31.0, A41: a broken
+                    // file of one connection was reported on connecting to every other one).
+                    if (owner is null || owner == connectionId)
+                    {
+                        errors.Add(error);
+                    }
                 }
                 else if (document!.Workspace.ConnectionId == connectionId)
                 {
@@ -87,7 +92,7 @@ public sealed class WorkspaceStore(string directory) : IWorkspaceStore
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            foreach (var (file, document, _) in await ReadAllAsync(cancellationToken))
+            foreach (var (file, document, _, _) in await ReadAllAsync(cancellationToken))
             {
                 if (document?.Workspace.ConnectionId == connectionId)
                 {
@@ -103,9 +108,10 @@ public sealed class WorkspaceStore(string directory) : IWorkspaceStore
 
     private string PathOf(Guid workspaceId) => Path.Combine(DirectoryPath, workspaceId.ToString("D") + ".json");
 
-    private async Task<List<(string File, WorkspaceDocument? Document, string? Error)>> ReadAllAsync(CancellationToken cancellationToken)
+    /// <returns>Per file its document or why it cannot be read, and the connection it belongs to as far as known.</returns>
+    private async Task<List<(string File, WorkspaceDocument? Document, string? Error, Guid? Owner)>> ReadAllAsync(CancellationToken cancellationToken)
     {
-        var result = new List<(string, WorkspaceDocument?, string?)>();
+        var result = new List<(string, WorkspaceDocument?, string?, Guid?)>();
         if (!Directory.Exists(DirectoryPath))
         {
             return result;
@@ -119,29 +125,50 @@ public sealed class WorkspaceStore(string directory) : IWorkspaceStore
                 var document = await JsonSerializer.DeserializeAsync<WorkspaceDocument>(stream, JsonFiles.Options, cancellationToken);
                 if (document?.Workspace is null)
                 {
-                    result.Add((file, null, TextFormat.Format(WorkspaceText.FileEmpty, Path.GetFileName(file))));
+                    result.Add((file, null, TextFormat.Format(WorkspaceText.FileEmpty, Path.GetFileName(file)), null));
                 }
                 else if (document.Version > CurrentVersion)
                 {
-                    result.Add((file, null, TextFormat.Format(WorkspaceText.FileFromNewerVersion, Path.GetFileName(file), document.Version)));
+                    result.Add((file, null, TextFormat.Format(WorkspaceText.FileFromNewerVersion, Path.GetFileName(file), document.Version),
+                        document.Workspace.ConnectionId));
                 }
                 else
                 {
-                    result.Add((file, document, null));
+                    result.Add((file, document, null, document.Workspace.ConnectionId));
                 }
             }
-            catch (JsonException ex)
+            catch (Exception ex) when (ex is JsonException or NotSupportedException)
             {
-                result.Add((file, null, TextFormat.Format(WorkspaceText.InvalidFile, Path.GetFileName(file), ex.Message)));
+                result.Add((file, null, TextFormat.Format(WorkspaceText.InvalidFile, Path.GetFileName(file), ex.Message), await OwnerOfAsync(file)));
             }
-            catch (IOException ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                result.Add((file, null, $"{Path.GetFileName(file)}: {ex.Message}"));
+                // One file that cannot be read (rights, locked) does not stop the others (A41).
+                result.Add((file, null, $"{Path.GetFileName(file)}: {ex.Message}", null));
             }
         }
 
         return result;
     }
+
+    /// <summary>The connection a broken file names, if its text still shows it.</summary>
+    private static async Task<Guid?> OwnerOfAsync(string file)
+    {
+        try
+        {
+            return ConnectionIdText().Match(await File.ReadAllTextAsync(file)) is { Success: true } match
+                   && Guid.TryParse(match.Groups["id"].Value, out var id)
+                ? id
+                : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"""connectionId""\s*:\s*""(?<id>[0-9a-fA-F-]{36})""")]
+    private static partial System.Text.RegularExpressions.Regex ConnectionIdText();
 
     private sealed record WorkspaceDocument(int Version, Workspace Workspace);
 }

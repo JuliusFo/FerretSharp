@@ -42,6 +42,9 @@
   <data name="FileFromNewerVersion" xml:space="preserve">
     <value>{0} stammt aus einer neueren FerretSharp-Version (Format {1}).</value>
   </data>
+  <data name="IncompleteConnection" xml:space="preserve">
+    <value>eine Verbindung ohne Adresse, Name oder User</value>
+  </data>
   <data name="InvalidFile" xml:space="preserve">
     <value>{0} ist kein gültiges Verbindungs-JSON: {1}</value>
   </data>

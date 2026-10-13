@@ -24,6 +24,21 @@ public sealed class RecentConnectionsTests : IDisposable
         Assert.Empty(recent.LastUsed);
     }
 
+    /// <summary>Review 3.31.0, A6: a file without entries or with an id twice made the shell's start fail.</summary>
+    [Theory]
+    [InlineData("""{ "version": 1 }""", 0)]
+    [InlineData("""{ "version": 1, "entries": [ null ] }""", 0)]
+    [InlineData("""{ "version": 1, "entries": [ { "id": "6f1e1b6e-0000-0000-0000-000000000001", "lastUsed": "2026-10-01T09:00:00Z" }, { "id": "6f1e1b6e-0000-0000-0000-000000000001", "lastUsed": "2026-10-02T09:00:00Z" } ] }""", 1)]
+    public async Task Files_edited_by_hand_are_read_as_far_as_they_go(string content, int known)
+    {
+        await File.WriteAllTextAsync(FilePath, content, Ct);
+        var recent = new RecentConnections(FilePath, _time);
+
+        await recent.LoadAsync(Ct);
+
+        Assert.Equal(known, recent.LastUsed.Count);
+    }
+
     [Fact]
     public async Task Marks_usage_persists_and_orders_most_recent_first()
     {

@@ -107,6 +107,30 @@ public sealed partial class AppTraceSourceTests(OracleContainerFixture oracle)
         Assert.True(watch.Elapsed < EventPipeTraceSource.StopTimeout * 3, $"Detaching took {watch.Elapsed}");
     }
 
+    /// <summary>
+    /// Review 3.31.0, A24: attaching to an app halted at a breakpoint waited for its diagnostics server – a detach or a switch
+    /// of the page waited with it until the app ran again.
+    /// </summary>
+    [Fact]
+    public async Task Attaching_to_a_halted_app_can_be_cancelled_at_once()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Halts the app with NtSuspendProcess.");
+        await using var app = await FakeApp.StartAsync(FakeAppPath, "sqlite", null);
+        app.Suspend();
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+        cts.CancelAfter(TimeSpan.FromMilliseconds(500));
+        var watch = Stopwatch.StartNew();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+        {
+            await foreach (var _ in _source.AttachAsync(app.Id, cts.Token))
+            {
+            }
+        });
+
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(3), $"Cancelling took {watch.Elapsed}");
+    }
+
     [Fact]
     public async Task An_app_that_is_killed_ends_the_trace_quietly()
     {

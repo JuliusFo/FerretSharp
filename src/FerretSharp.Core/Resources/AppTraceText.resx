@@ -16,6 +16,10 @@
     <value>The app {0} (process {1}) is no longer running.</value>
     <comment>{0}: name of the app; {1}: process id</comment>
   </data>
+  <data name="NotAnswering" xml:space="preserve">
+    <value>{0} (PID {1}) does not answer – is it halted at a breakpoint? Let it run, then attach again.</value>
+    <comment>{0} = app name, {1} = process id</comment>
+  </data>
   <data name="NoDiagnostics" xml:space="preserve">
     <value>The app {0} (process {1}) cannot be attached to: it belongs to another user or runs with diagnostics switched off (DOTNET_EnableDiagnostics=0). {2}</value>
     <comment>{0}: name of the app; {1}: process id; {2}: error message of the system</comment>

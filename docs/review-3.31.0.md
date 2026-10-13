@@ -2,6 +2,8 @@
 
 Auftrag des Nutzers (2026-10-13): Gesamt-Review über den ganzen Code statt nur über die Pakete seit dem letzten Refactoring – Ziel Fehler und Wiederverwendbares, dazu Doku und CLAUDE.md (stimmt es noch, frisst es unnötig Tokens). Sieben parallele Agenten nach Themen (nicht nach Ordnern), nur lesend: DB-Zugriff (DB), Zustand/Nebenläufigkeit (ST), UI/JS (UI), Prozesse/Dateien/Host (PH), Wiederverwendung (RE), Sicherheit/Tests (SE/TE), Doku (DO). Doppelte Befunde sind zusammengeführt (alle IDs genannt). **Nachgeprüft** = von Hand im Code bestätigt.
 
+**Stand:** Teil A ist als R5a in 3.31.1 umgesetzt (Protokoll in `docs/work-packages.md`), bis auf A33–A37 (Backlog), A38 (Entscheidung: nur Option, Backlog) und A50 (CSS-Tokens, mit R5b). Bei A2 stimmte der View-Teil nicht (Views sind nur lesbar). Offen: Teil C (Doku), dann Teil B (R5b).
+
 Schwere: **S** falsche Daten, Datenverlust, Sicherheitslücke, Hänger · **M** falsches Verhalten in realistischen Fällen oder klare Wartungslast · **K** Kleinkram.
 
 ## Teil A – Fehler und Sicherheit (Kandidaten für R5a, Patch-Release)

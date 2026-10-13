@@ -356,12 +356,26 @@
 
     private SettingsFilter? _filter;
 
+    /// <summary>Whether <see cref="_filter"/> was built with the update settings.</summary>
+    private bool _filterWithUpdates;
+
     /// <summary>
     /// What shows for the query, worked out once per query (and again when the shortcuts or the installation state change,
     /// both are part of what the page shows).
     /// </summary>
-    private SettingsFilter Filter =>
-        _filter ??= new(new SettingsSearch(_query), SettingsCatalog.Entries(Shortcuts.Map, Updates.Phase != UpdatePhase.NotInstalled));
+    private SettingsFilter Filter
+    {
+        get
+        {
+            if (_filter is null)
+            {
+                _filterWithUpdates = Updates.Phase != UpdatePhase.NotInstalled;
+                _filter = new(new SettingsSearch(_query), SettingsCatalog.Entries(Shortcuts.Map, _filterWithUpdates));
+            }
+
+            return _filter;
+        }
+    }
 
     /// <summary>A click in the list shows that section and ends a search.</summary>
     private void Select(SettingsPart part)
@@ -456,10 +470,21 @@
         }
     </text>;
 
-    /// <summary>The installation state or a shortcut changed: both are part of what the search finds.</summary>
+    /// <summary>A shortcut changed: part of what the search finds.</summary>
     private void OnCatalogChanged() => InvokeAsync(() =>
     {
         _filter = null;
+        StateHasChanged();
+    });
+
+    /// <summary>The update state changed (every percent of a download): the search only depends on "installed" (A49).</summary>
+    private void OnUpdatesChanged() => InvokeAsync(() =>
+    {
+        if (_filter is not null && (Updates.Phase != UpdatePhase.NotInstalled) != _filterWithUpdates)
+        {
+            _filter = null;
+        }
+
         StateHasChanged();
     });
 
@@ -474,7 +499,7 @@
     protected override void OnInitialized()
     {
         (_auditPath, _displayPath) = (Settings.Current.AuditTemplatePath, Settings.Current.DisplayColumnsPath);
-        Updates.Changed += OnCatalogChanged;
+        Updates.Changed += OnUpdatesChanged;
         Shortcuts.Changed += OnCatalogChanged;
     }
 
@@ -513,7 +538,7 @@
 
     public async ValueTask DisposeAsync()
     {
-        Updates.Changed -= OnCatalogChanged;
+        Updates.Changed -= OnUpdatesChanged;
         Shortcuts.Changed -= OnCatalogChanged;
         if (_dom is not null)
         {

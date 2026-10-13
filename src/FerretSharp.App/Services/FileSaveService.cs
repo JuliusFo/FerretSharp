@@ -31,12 +31,13 @@ public sealed class FileSaveService : IFileSaveService
         return path;
     }
 
-    private static Task<string?> AskAsync(string fileName, string filter, string? folder = null)
+    private static async Task<string?> AskAsync(string fileName, string filter, string? folder = null)
     {
-        // A remembered folder that is gone (renamed repository, other machine) is no reason to fail: the dialog picks one.
-        var initial = folder is not null && Directory.Exists(folder) ? folder : null;
+        // A remembered folder that is gone (renamed repository, other machine, a share behind a lost VPN) is no reason to
+        // fail or to freeze: the dialog picks one.
+        var initial = folder is null ? null : (await PathProbe.StartOfAsync(folder)).Folder;
         var extension = Path.GetExtension(fileName);
-        return Application.Current.Dispatcher.InvokeAsync(() =>
+        return await Application.Current.Dispatcher.InvokeAsync(() =>
         {
             var dialog = new SaveFileDialog
             {

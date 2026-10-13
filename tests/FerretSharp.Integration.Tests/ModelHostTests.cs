@@ -18,6 +18,10 @@ public sealed class ModelHostTests
     internal static ClrProjectLink SampleLink(string? context = null) =>
         new(Path.Combine(Root, "samples", "FerretSharp.SampleModel.Data", "FerretSharp.SampleModel.Data.csproj"), Configuration, context);
 
+    /// <summary>tests/FerretSharp.FakeEfModel: contexts that bring their own connection string.</summary>
+    internal static ClrProjectLink FakeEfModelLink(string context) =>
+        new(Path.Combine(Root, "tests", "FerretSharp.FakeEfModel", "FerretSharp.FakeEfModel.csproj"), Configuration, context);
+
     /// <summary>One shadow for all tests, as in the app: hosts on the same build share a copy (ADR 0016).</summary>
     internal static readonly BuildOutputShadow Shadow = new(Path.Combine(AppContext.BaseDirectory, "shadow"));
 

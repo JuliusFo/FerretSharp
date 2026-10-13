@@ -116,13 +116,14 @@ public static partial class Plans
     /// </summary>
     public static string WithStatistics(string sql)
     {
-        var match = FirstSelect().Match(sql);
-        if (!match.Success)
+        // The first SELECT word, not one in a comment or a literal (review 3.31.0, DB-13: "-- SELECT for ticket 42" above the
+        // statement got the hint, and the "actual" plan had no row counts).
+        if (SqlTokenizer.Tokenize(sql).FirstOrDefault(t => t.IsWord("SELECT")) is not { Kind: SqlTokenKind.Word } select)
         {
             return sql;
         }
 
-        var after = match.Index + match.Length;
+        var after = select.End;
         var existing = ExistingHint().Match(sql, after);
         return existing.Success && existing.Index == after
             ? sql[..(existing.Index + existing.Length)] + " " + StatisticsHint + sql[(existing.Index + existing.Length)..]
@@ -202,9 +203,6 @@ public static partial class Plans
     };
 
     private static string Time(TimeSpan? time) => time is { } t ? t.ToString(@"hh\:mm\:ss\.ff", CultureInfo.InvariantCulture) : "";
-
-    [GeneratedRegex(@"\bSELECT\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex FirstSelect();
 
     [GeneratedRegex(@"\s*/\*\+", RegexOptions.CultureInvariant)]
     private static partial Regex ExistingHint();

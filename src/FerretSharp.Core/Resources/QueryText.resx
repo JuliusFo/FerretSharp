@@ -125,6 +125,9 @@
   <data name="SqlRejectEmpty" xml:space="preserve">
     <value>No statement at the cursor.</value>
   </data>
+  <data name="SqlRejectDataLoss" xml:space="preserve">
+    <value>The SQL editor does not run statements that delete rows or dropped objects without a way back: TRUNCATE or DROP of partitions, FLASHBACK TABLE to an earlier point (TO BEFORE DROP is fine), PURGE. Use DELETE instead – it stays in the transaction.</value>
+  </data>
   <data name="SqlRejectTruncate" xml:space="preserve">
     <value>The SQL editor does not run TRUNCATE: it deletes every row and cannot be undone. Use DELETE instead – it stays in the transaction.</value>
     <comment>Why the SQL editor does not run a statement</comment>

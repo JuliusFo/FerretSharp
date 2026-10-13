@@ -19,6 +19,8 @@ public sealed class ExecutionPlanTests
     [InlineData("select x from y", "select /*+ GATHER_PLAN_STATISTICS */ x from y")]
     [InlineData("SELECT /*+ INDEX(t PK_T) */ * FROM T t", "SELECT /*+ GATHER_PLAN_STATISTICS INDEX(t PK_T) */ * FROM T t")]
     [InlineData("WITH a AS (SELECT 1 x FROM DUAL) SELECT x FROM a", "WITH a AS (SELECT /*+ GATHER_PLAN_STATISTICS */ 1 x FROM DUAL) SELECT x FROM a")]
+    [InlineData("-- SELECT für Ticket 42\nSELECT x FROM y", "-- SELECT für Ticket 42\nSELECT /*+ GATHER_PLAN_STATISTICS */ x FROM y")] // review 3.31.0, DB-13
+    [InlineData("SELECT 'SELECT' FROM dual", "SELECT /*+ GATHER_PLAN_STATISTICS */ 'SELECT' FROM dual")]
     public void The_statistics_hint_goes_after_the_first_select_joining_an_existing_hint(string sql, string expected) =>
         Assert.Equal(expected, Plans.WithStatistics(sql));
 

@@ -97,7 +97,16 @@
                                             }
                                         }
                                     </td>
-                                    <td class="addr" title="@r.Candidate.Address">@r.Candidate.Address</td>
+                                    <td class="addr" title="@r.Candidate.Address">
+                                        @r.Candidate.Address
+                                        @if (r.CanImport && r.LocalPaths.Count > 0)
+                                        {
+                                            @* Review 3.31.0, A4: the paths of the source's computer, taken only when asked for. *@
+                                            <div class="import-paths @(plan.TakeLocalPaths ? "" : "skipped")" title="@string.Join(Environment.NewLine, r.LocalPaths)">
+                                                @string.Join(" · ", r.LocalPaths)
+                                            </div>
+                                        }
+                                    </td>
                                     <td class="user">
                                         @if (r.CanImport && (string.IsNullOrEmpty(r.Candidate.Profile?.User) || r.UserMissing))
                                         {
@@ -158,6 +167,14 @@
                     </label>
                     <span class="hint">@ShellText.Import_NoPasswords</span>
                 </div>
+                @if (plan.HasLocalPaths)
+                {
+                    <label class="check import-paths-option">
+                        <input type="checkbox" @bind="plan.TakeLocalPaths" />
+                        @ShellText.Import_TakeLocalPaths
+                    </label>
+                    <div class="hint small">@ShellText.Import_TakeLocalPathsHint</div>
+                }
             }
         }
     </div>

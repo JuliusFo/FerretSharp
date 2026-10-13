@@ -164,6 +164,23 @@ public sealed class ModelHostProcessTests
         Assert.False(host.IsAlive); // its answer would no longer match the next request
     }
 
+    /// <summary>
+    /// Review 3.31.0, A25: closing the connection (or the app) while a LINQ run waited disposed the console's gate; the run
+    /// ended with an ObjectDisposedException the console view does not handle.
+    /// </summary>
+    [Fact]
+    public async Task Disposing_the_console_during_a_run_ends_the_run_with_a_console_error()
+    {
+        var host = await StartAsync("hangs-in-run");
+        var run = host.RunAsync("while (true) { }", "", Ct);
+        await Task.Delay(200, Ct); // the request is on its way (if not yet, it finds the console gone – the same error)
+
+        await host.DisposeAsync();
+
+        await Assert.ThrowsAsync<ClrModelException>(() => run); // not ObjectDisposedException
+        Assert.False(host.IsAlive);
+    }
+
     // ---- the model export ----
 
     private static Task<ModelHostResult> ExportAsync(string scenario, string? host = null) =>

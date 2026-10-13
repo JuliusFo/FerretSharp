@@ -124,6 +124,15 @@ public sealed class SettingsStoreTests : IDisposable
         await Assert.ThrowsAsync<SettingsStoreException>(() => _store.LoadAsync(Ct));
     }
 
+    /// <summary>Review 3.31.0, A6: "shortcuts": null (edited by hand) made the start fail building the shortcut map.</summary>
+    [Fact]
+    public async Task Shortcuts_set_to_null_by_hand_are_the_defaults()
+    {
+        await File.WriteAllTextAsync(_store.FilePath, """{ "version": 1, "settings": { "shortcuts": null } }""", Ct);
+
+        Assert.Same(ShortcutOverrides.Empty, (await _store.LoadAsync(Ct)).Shortcuts);
+    }
+
     private static readonly DateTimeOffset Start = new(2026, 10, 11, 15, 30, 0, TimeSpan.FromHours(2));
 
     /// <summary>

@@ -35,3 +35,9 @@ Weg 2 (Entscheidung des Nutzers):
 ## Nachtrag WP-28 (2026-10-08)
 
 Monaco zeigt jetzt auch den PL/SQL-Quelltext gespeicherter Objekte an, **nur lesend** (`readOnly`, `renderValidationDecorations: 'on'`, damit die Kompilierfehler als Marker sichtbar bleiben). Entscheidung des Nutzers: Monaco statt des eigenen Highlighters `SqlCode`, weil Packages Tausende Zeilen haben (Monaco virtualisiert, `SqlCode` erzeugt ein Element je Token) und Zeilennummern, Ctrl+F und Sprung zur Fehlerzeile gebraucht werden. Monacos eingebaute Sprache `sql` folgt T-SQL; für PL/SQL registriert `monaco.js` eine eigene kleine Monarch-Grammatik `plsql` (Schlüsselwörter, Typen, Kommentare, Strings inkl. `q'[…]'`) – reine Darstellung, keine Logik. Keine neue Abhängigkeit.
+
+## Nachtrag R5a (2026-10-13, Gesamt-Review 3.31.0, A1)
+Die Interceptors der Konsole (Verbindung unterdrücken, Kommandos mitschneiden) kamen nur beim Weg über den Konstruktor mit `DbContextOptions` an. Ein Projekt mit `IDesignTimeDbContextFactory` (oder ein Context, der sich in `OnConfiguring` selbst einstellt) lief mit dem echten Connection-String: `ExecuteDelete`/`SaveChanges` gingen ohne Transaktion und Schreibschutz an die Datenbank. Jetzt:
+- Mit Factory nimmt die Konsole deren Optionen (Provider-Einstellungen prägen das SQL), fügt die Interceptors hinzu und erzeugt den Context über den Konstruktor mit `DbContextOptions`; fehlt der, oder hat der Context nur einen parameterlosen Konstruktor, lehnt sie mit `ConsoleNeedsOptions` ab. Der Modell-Export bleibt, wie er war.
+- Nach jedem Erzeugen prüft die Konsole, dass beide Interceptors in den Optionen stehen (falls `OnConfiguring` sie ersetzt), sonst Ablehnung.
+- Tests gegen `tests/FerretSharp.FakeEfModel` (Factory, `OnConfiguring`), dessen Connection-String auf einen Port zeigt, an dem niemand lauscht – ohne den Fix scheiterte der Test mit ORA-50201.

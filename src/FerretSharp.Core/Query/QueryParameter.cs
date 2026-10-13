@@ -15,8 +15,11 @@ public enum OracleTypeHint
     /// <summary>Binary (RAW columns); the value is a byte array.</summary>
     Raw,
 
-    /// <summary>National character set (NVARCHAR2/NCHAR), so characters outside the database character set survive.</summary>
+    /// <summary>National character set (NVARCHAR2), so characters outside the database character set survive.</summary>
     NVarchar2,
+
+    /// <summary>NCHAR: national and blank-padded (review 3.31.0, A18).</summary>
+    NChar,
 
     /// <summary>A ROWID returned by <c>RETURNING ROWID INTO</c> (output parameter).</summary>
     RowId,

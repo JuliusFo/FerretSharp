@@ -16,13 +16,13 @@ public static class FerretSharpConnections
     public const string FileName = "ferretsharp-connections.json";
 
     /// <param name="includeLocalPaths">
-    /// Keep the paths that only make sense on this computer (linked C# project, script folder) – for moving to a new
-    /// computer of one's own; left out when passing connections on to colleagues.
+    /// Keep the paths that only make sense on this computer (<see cref="ConnectionProfile.LocalPaths"/>: linked C# project,
+    /// script folder, TNS_ADMIN) – for moving to a new computer of one's own; left out when passing connections on to colleagues.
     /// </param>
     public static string Export(IEnumerable<ConnectionProfile> profiles, bool includeLocalPaths)
     {
         var connections = profiles
-            .Select(p => includeLocalPaths ? p : p with { ClrProject = null, ScriptFolder = null })
+            .Select(p => includeLocalPaths ? p : p.WithoutLocalPaths())
             .ToList();
         return JsonSerializer.Serialize(new ExportDocument(Format, ConnectionStore.CurrentVersion, connections), JsonFiles.Options);
     }

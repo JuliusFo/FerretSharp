@@ -29,6 +29,10 @@
   <data name="RowGone" xml:space="preserve">
     <value>The row no longer exists – it has been deleted in the meantime.</value>
   </data>
+  <data name="KeyNotUnique" xml:space="preserve">
+    <value>The key of this row matches {0} rows, so nothing was written. The primary key is no longer unique (disabled meanwhile?): after “Reload schema” the table addresses its rows by ROWID.</value>
+    <comment>{0} = number of rows the UPDATE or DELETE matched (more than one)</comment>
+  </data>
   <data name="WriteFailedUnique" xml:space="preserve">
     <value>Unique constraint violated – this value already exists.</value>
     <comment>ORA-00001, followed by Oracle's message</comment>

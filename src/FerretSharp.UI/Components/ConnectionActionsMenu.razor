@@ -1,26 +1,31 @@
+@* "⋯" of a connection: connect, edit, duplicate, delete – in a PopoverMenu (Escape, focus, kept inside the window: near
+   the bottom of the switcher "Delete…" was cut off, review 3.31.0 A22). *@
 @using FerretSharp.Core.Connections
+@implements IAsyncDisposable
+@inject IJSRuntime JS
 
-<button class="icon-btn ghost more" title="@ShellText.Actions" @onclick="Open" @onclick:stopPropagation="true" @ondblclick:stopPropagation="true">⋯</button>
+<button class="icon-btn ghost more" title="@ShellText.Actions" @onclick="OpenAsync" @onclick:stopPropagation="true" @ondblclick:stopPropagation="true">⋯</button>
 
-@if (_open)
+@if (_menu is { } menu)
 {
-    <div class="overlay" @onclick="Close" @onclick:stopPropagation="true" @oncontextmenu="Close" @oncontextmenu:preventDefault="true"></div>
-    <div class="menu" style="left:@Px(_x);top:@Px(_y)" @onclick:stopPropagation="true" @ondblclick:stopPropagation="true">
+    <PopoverMenu X="menu.X" Y="menu.Y" ViewportWidth="menu.Width" ViewportHeight="menu.Height" Width="MenuWidth" EstimatedHeight="170" OnClose="Close">
         <button class="menu-item strong" @onclick="() => RunAsync(Shell.Connect)">@ShellText.ConnectionMenu_Connect</button>
         <div class="menu-sep"></div>
         <button class="menu-item" @onclick="() => RunAsync(Shell.EditConnection)">@ShellText.Connection_Edit</button>
         <button class="menu-item" @onclick="() => RunAsync(Shell.DuplicateConnection)">@ShellText.ConnectionMenu_Duplicate</button>
         <div class="menu-sep"></div>
         <button class="menu-item danger" @onclick="() => RunAsync(Shell.RequestDelete)">@ShellText.Connection_DeleteEllipsis</button>
-    </div>
+    </PopoverMenu>
 }
 
 @code {
     private const double MenuWidth = 200;
 
-    private bool _open;
-    private double _x;
-    private double _y;
+    private MenuAt? _menu;
+    private DomModule? _dom;
+    private bool _disposed;
+
+    private DomModule Dom => _dom ??= new(JS);
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -32,21 +37,34 @@
     [Parameter]
     public EventCallback OnAction { get; set; }
 
-    private void Open(MouseEventArgs e)
+    private async Task OpenAsync(MouseEventArgs e)
     {
-        _x = Math.Max(8, e.ClientX - MenuWidth);
-        _y = e.ClientY + 10;
-        _open = true;
+        var size = await Dom.InvokeAsync<double[]>("viewportSize");
+        if (_disposed || size is not [var width, var height])
+        {
+            return;
+        }
+
+        _menu = new MenuAt(Math.Max(8, e.ClientX - MenuWidth), e.ClientY + 10, width, height);
     }
 
-    private void Close() => _open = false;
+    private void Close() => _menu = null;
 
     private async Task RunAsync(Action<ConnectionProfile> action)
     {
-        _open = false;
+        _menu = null;
         await OnAction.InvokeAsync();
         action(Profile);
     }
 
-    private static string Px(double value) => value.ToString("0", CultureInfo.InvariantCulture) + "px";
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        if (_dom is not null)
+        {
+            await _dom.DisposeAsync();
+        }
+    }
+
+    private sealed record MenuAt(double X, double Y, double Width, double Height);
 }

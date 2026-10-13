@@ -46,3 +46,6 @@ Entscheidungen des Nutzers (2026-10-06 und 2026-10-10):
 ## Nachtrag WP-26 (2026-10-12)
 
 - Trigger auf Tabellen und Views nimmt der Schemaweg seit WP-26 an: ADR 0021. Procedures, Functions, Packages, Types, System-Trigger und PL/SQL-Blöcke bleiben abgewiesen.
+
+## Nachtrag R5a (2026-10-13, Gesamt-Review 3.31.0, A9)
+Entscheidung des Nutzers: Was wie TRUNCATE Zeilen ohne Rückweg entfernt, wird wie TRUNCATE nie ausgeführt (`SqlStatementKind.Truncate`, Leseweg, Schemaweg und SQL-Editor): `ALTER TABLE … TRUNCATE/DROP [SUB]PARTITION[S]`, `FLASHBACK TABLE … TO` einen Zeitpunkt, eine SCN oder einen Restore Point und `PURGE`. `FLASHBACK TABLE … TO BEFORE DROP` (holt eine gelöschte Tabelle zurück) bleibt DDL, ebenso `DROP TABLE … PURGE` (wie `DROP TABLE` mit Bestätigung).

@@ -27,6 +27,9 @@
   <data name="RowGone" xml:space="preserve">
     <value>Die Zeile gibt es nicht mehr – sie wurde inzwischen gelöscht.</value>
   </data>
+  <data name="KeyNotUnique" xml:space="preserve">
+    <value>Der Schlüssel dieser Zeile trifft {0} Zeilen, deshalb wurde nichts geschrieben. Der Primärschlüssel ist nicht mehr eindeutig (inzwischen abgeschaltet?): Nach „Schema neu laden“ adressiert die Tabelle ihre Zeilen über die ROWID.</value>
+  </data>
   <data name="WriteFailedUnique" xml:space="preserve">
     <value>Eindeutigkeit verletzt – diesen Wert gibt es schon.</value>
   </data>

@@ -28,6 +28,9 @@ public static class ModelHostErrorKind
     public const string SeveralContexts = "SeveralContexts";
     public const string NoProvider = "NoProvider";
     public const string ConstructorNeedsServices = "ConstructorNeedsServices";
+
+    /// <summary>The LINQ console cannot hand its interceptors to the context (no constructor taking DbContextOptions).</summary>
+    public const string ConsoleNeedsOptions = "ConsoleNeedsOptions";
     public const string ContextCreationFailed = "ContextCreationFailed";
     public const string ModelBuildFailed = "ModelBuildFailed";
     public const string Unexpected = "Unexpected";

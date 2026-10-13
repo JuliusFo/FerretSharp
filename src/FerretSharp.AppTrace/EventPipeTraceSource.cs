@@ -29,6 +29,9 @@ public sealed class EventPipeTraceSource(ILogger<EventPipeTraceSource> logger) :
     /// <summary>How long ending a trace waits for the app's answer to the stop, and then for the reading to end.</summary>
     internal static readonly TimeSpan StopTimeout = TimeSpan.FromSeconds(3);
 
+    /// <summary>How long attaching waits for the app's answer (a running app answers within milliseconds).</summary>
+    internal static readonly TimeSpan AttachTimeout = TimeSpan.FromSeconds(10);
+
     public IReadOnlyList<TraceableProcess> ListProcesses()
     {
         var own = Environment.ProcessId;
@@ -56,23 +59,36 @@ public sealed class EventPipeTraceSource(ILogger<EventPipeTraceSource> logger) :
 
     public async IAsyncEnumerable<EfEvent> AttachAsync(int processId, [EnumeratorCancellation] CancellationToken ct)
     {
-        var session = Start(processId);
-        var events = Channel.CreateUnbounded<EfEvent>(new UnboundedChannelOptions { SingleReader = true, SingleWriter = true });
-        EventPipeEventSource source;
+        // Starting the session and reading the stream header are commands to the app's diagnostics server, which does not
+        // answer while the app is halted at a breakpoint: off the caller's thread, given up after a while and on cancel
+        // (review 3.31.0, A24 – a detach or switch waited for the app to run again). What it answers later is stopped then.
+        var opening = Task.Run(() => Open(processId), CancellationToken.None);
+        (EventPipeSession Session, EventPipeEventSource Source) opened;
         try
         {
-            source = new EventPipeEventSource(session.EventStream); // reads the stream header
+            opened = await opening.WaitAsync(AttachTimeout, ct);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is TimeoutException or OperationCanceledException)
         {
-            DisposeQuietly(session, processId);
-            if (HasEnded(processId))
+            _ = opening.ContinueWith(t =>
             {
-                throw new RefusedException(TextFormat.Format(AppTraceText.ProcessGone, AppName(processId), processId), ex);
+                if (t.IsCompletedSuccessfully)
+                {
+                    Stop(t.Result.Session, processId);
+                    t.Result.Source.Dispose();
+                    DisposeQuietly(t.Result.Session, processId);
+                }
+            }, CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default);
+            if (ex is OperationCanceledException)
+            {
+                throw;
             }
 
-            throw;
+            throw new RefusedException(TextFormat.Format(AppTraceText.NotAnswering, AppName(processId), processId), ex);
         }
+
+        var (session, source) = opened;
+        var events = Channel.CreateUnbounded<EfEvent>(new UnboundedChannelOptions { SingleReader = true, SingleWriter = true });
 
         source.Dynamic.All += e =>
         {
@@ -190,6 +206,26 @@ public sealed class EventPipeTraceSource(ILogger<EventPipeTraceSource> logger) :
         catch (Exception ex)
         {
             logger.LogDebug(ex, "Disposing the session of process {ProcessId} failed", processId);
+        }
+    }
+
+    /// <summary>The session and its event source (which reads the stream header).</summary>
+    private (EventPipeSession Session, EventPipeEventSource Source) Open(int processId)
+    {
+        var session = Start(processId);
+        try
+        {
+            return (session, new EventPipeEventSource(session.EventStream));
+        }
+        catch (Exception ex)
+        {
+            DisposeQuietly(session, processId);
+            if (HasEnded(processId))
+            {
+                throw new RefusedException(TextFormat.Format(AppTraceText.ProcessGone, AppName(processId), processId), ex);
+            }
+
+            throw;
         }
     }
 

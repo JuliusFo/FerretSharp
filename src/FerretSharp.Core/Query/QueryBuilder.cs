@@ -58,8 +58,9 @@ public static class QueryBuilder
     public const int MaxInListSize = 1000; // ORA-01795
     private const string Alias = "t";
 
+    /// <summary>The primary key if its values are unique (or the table is a view), otherwise ROWID; views without a key: none.</summary>
     public static RowKeyKind RowKeyOf(TableDetails table) =>
-        table.PrimaryKey.Count > 0 ? RowKeyKind.PrimaryKey
+        table.PrimaryKey.Count > 0 && (table.PrimaryKeyEnforced || table.Table.Kind == TableKind.View) ? RowKeyKind.PrimaryKey
         : table.Table.Kind != TableKind.View ? RowKeyKind.RowId
         : RowKeyKind.None;
 
@@ -282,11 +283,12 @@ public static class QueryBuilder
                 case FilterOperator.IsNotNull:
                     return $"{c} IS NOT NULL";
                 case FilterOperator.Contains:
-                    return Like(c, "%" + EscapeLike(filter.Values[0]) + "%");
+                    return Like(column, c, "%" + EscapeLike(filter.Values[0]) + "%");
                 case FilterOperator.StartsWith:
-                    return Like(c, EscapeLike(filter.Values[0]) + "%");
+                    return Like(column, c, EscapeLike(filter.Values[0]) + "%");
                 case FilterOperator.EndsWith:
-                    return Like(c, "%" + EscapeLike(filter.Values[0]));
+                    // CHAR/NCHAR values end in their padding: without RTRIM "ends with AB" found no 'XAB  ' (review 3.31.0, A32).
+                    return Like(column, column.DataType is "CHAR" or "NCHAR" ? $"RTRIM({c})" : c, "%" + EscapeLike(filter.Values[0]));
             }
 
             if (category is ColumnCategory.Date or ColumnCategory.Timestamp or ColumnCategory.TimestampWithTimeZone)
@@ -369,9 +371,14 @@ public static class QueryBuilder
         private static string NotEqualsIncludingNull(ColumnInfo column, string c, string condition) =>
             column.Nullable ? $"({condition} OR {c} IS NULL)" : condition;
 
-        /// <summary>Case-insensitive; the bind value is already escaped and wrapped in wildcards.</summary>
-        private string Like(string c, string pattern) =>
-            $"UPPER({c}) LIKE UPPER({Add(new QueryParameter(NextName(), pattern, OracleTypeHint.Varchar2))}) ESCAPE '\\'";
+        /// <summary>
+        /// Case-insensitive; the bind value is already escaped and wrapped in wildcards. National for NCHAR/NVARCHAR2: in the
+        /// database character set, characters it lacks became "?" and found nothing (review 3.31.0, A18).
+        /// </summary>
+        private string Like(ColumnInfo column, string c, string pattern) =>
+            $"UPPER({c}) LIKE UPPER({Add(new QueryParameter(NextName(), pattern, IsNational(column) ? OracleTypeHint.NVarchar2 : OracleTypeHint.Varchar2))}) ESCAPE '\\'";
+
+        private static bool IsNational(ColumnInfo column) => column.DataType is "NCHAR" or "NVARCHAR2";
 
         private string Bind(ColumnInfo column, string text)
         {
@@ -388,7 +395,8 @@ public static class QueryBuilder
                 return Add(new QueryParameter(NextName(), bytes, OracleTypeHint.Raw));
             }
 
-            var hint = column.DataType is "CHAR" or "NCHAR" ? OracleTypeHint.Char : OracleTypeHint.Varchar2;
+            // The bind type of writing too (A18: NVARCHAR2/NCHAR were bound in the database character set here).
+            var hint = column.DataType is "CHAR" or "NCHAR" or "NVARCHAR2" ? OracleTypeMapper.BindType(column) : OracleTypeHint.Varchar2;
             return Add(new QueryParameter(NextName(), text, hint));
         }
 

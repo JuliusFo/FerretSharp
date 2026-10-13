@@ -317,6 +317,31 @@ public class EditingTests
     }
 
     [Fact]
+    public void A_value_typed_while_a_write_runs_stays_pending()
+    {
+        // Review 3.31.0, A3: the insert marked every value pending at its end as written – also one typed meanwhile.
+        var tracker = new ChangeTracker(Kunden);
+        var row = tracker.AddRow();
+        tracker.SetValue(row, I("ID"), "7");
+        tracker.SetValue(row, I("NAME"), ""); // NULL: left out of the INSERT (defaults apply), but covered by it
+        var existing = Row(1, "Müller");
+        tracker.SetValue(existing, I("NAME"), "Meier");
+        var operations = tracker.PendingOperations();
+
+        tracker.SetValue(row, I("BETRAG"), "5");
+        tracker.SetValue(existing, I("BETRAG"), "6");
+        var key = new RowKey.PrimaryKey([7m]);
+        tracker.MarkFlushed(operations, new Dictionary<Guid, RowKey> { [row.Id] = key });
+
+        Assert.Equal([ChangeStage.Flushed, ChangeStage.Flushed, ChangeStage.Pending], new[] { "ID", "NAME", "BETRAG" }.Select(c => row.StageOf(I(c))));
+        Assert.Equal(ChangeStage.Pending, tracker.Find(existing.Key)!.StageOf(I("BETRAG")));
+        var next = tracker.PendingOperations();
+        Assert.All(next, o => Assert.Equal(OperationKind.Update, o.Kind));
+        Assert.Equal(5m, next.Single(o => o.Key.Equals(key)).Values[I("BETRAG")]);
+        Assert.Equal(6m, next.Single(o => o.Key.Equals(existing.Key)).Values[I("BETRAG")]);
+    }
+
+    [Fact]
     public void Operations_come_as_deletes_then_updates_then_inserts()
     {
         var tracker = new ChangeTracker(Kunden);

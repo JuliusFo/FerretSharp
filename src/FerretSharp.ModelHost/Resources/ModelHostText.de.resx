@@ -51,6 +51,12 @@
   <data name="ConstructorNeedsServices" xml:space="preserve">
     <value>{0} braucht für seinen Konstruktor weitere Dienste ({1}). FerretSharp kann ihn nur mit DbContextOptions, ohne Parameter oder über eine IDesignTimeDbContextFactory erzeugen.</value>
   </data>
+  <data name="ConsoleNeedsOptions" xml:space="preserve">
+    <value>Die LINQ-Konsole braucht einen Konstruktor von {0}, der DbContextOptions nimmt: Nur dann kann FerretSharp EF von der Datenbank fernhalten. Ohne ihn liefe eine Abfrage gegen die Datenbank, die das Projekt selbst einstellt.</value>
+  </data>
+  <data name="ConsoleNotIntercepted" xml:space="preserve">
+    <value>{0} verwendet die Optionen von FerretSharp nicht (es fehlen die Interceptors, die EF von der Datenbank fernhalten). Die LINQ-Konsole führt ihn nicht aus.</value>
+  </data>
   <data name="NoOracleProvider" xml:space="preserve">
     <value>Das Projekt verwendet Oracle.EntityFrameworkCore nicht (der Provider ist nicht zu finden).</value>
   </data>

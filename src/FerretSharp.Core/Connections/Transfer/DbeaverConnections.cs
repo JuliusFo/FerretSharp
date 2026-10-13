@@ -72,7 +72,9 @@ public static class DbeaverConnections
 
     internal static ImportFile Read(JsonElement root, IReadOnlyDictionary<string, string> users, string? project)
     {
-        if (!root.TryGetProperty("connections", out var connections) || connections.ValueKind != JsonValueKind.Object)
+        // Not an object (an array, a string – in a damaged project export): TryGetProperty would throw (review 3.31.0, A45).
+        if (root.ValueKind != JsonValueKind.Object
+            || !root.TryGetProperty("connections", out var connections) || connections.ValueKind != JsonValueKind.Object)
         {
             throw new ConnectionImportException(ConnectionText.ImportUnknownFormat);
         }

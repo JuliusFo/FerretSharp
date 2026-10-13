@@ -108,6 +108,21 @@ public sealed class StatementRunnerTests : IAsyncDisposable
         Assert.Equal("Schema geändert – Explorer und offene Tabs zeigen den neuen Stand.", _app.Shell.Notice?.Text);
     }
 
+    /// <summary>Review 3.31.0, A10: the password of ALTER USER stood in the history (and on failure in the log).</summary>
+    [Fact]
+    public async Task A_password_in_the_text_does_not_go_into_the_history()
+    {
+        var profile = TestApp.Profile("Test");
+        var scope = await _app.OpenAsync(profile);
+        const string ddl = "ALTER USER app IDENTIFIED BY geheim";
+
+        var outcome = await Runner.DdlAsync(scope.Workspaces.Active!.Id, ddl, StatementLog.Of(ddl), Ct);
+
+        Assert.Equal([ddl], _app.RanDdl); // runs as typed
+        Assert.Equal("ALTER USER app IDENTIFIED BY ***", Assert.Single(outcome.History!).Sql);
+        Assert.DoesNotContain("geheim", Assert.Single(await _app.History.LoadAsync(profile.Id, Ct)).Sql, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task Ddl_on_a_table_another_session_holds_names_who_it_is()
     {

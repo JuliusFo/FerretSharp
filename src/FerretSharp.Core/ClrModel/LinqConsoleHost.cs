@@ -182,16 +182,18 @@ public sealed class LinqConsoleHost : ILinqConsole
                 await _writer.WriteLineAsync(JsonSerializer.Serialize(request with { Id = id }, LinqProtocol.JsonOptions).AsMemory(), limit.Token);
                 return await ReadResponseAsync(id, limit.Token);
             }
-            catch (Exception ex) when (ex is OperationCanceledException or IOException or JsonException)
+            catch (Exception ex) when (ex is OperationCanceledException or IOException or JsonException or ObjectDisposedException)
             {
                 // The host may still be busy with the old request, or the pipe is out of step (an unreadable line): its
-                // answers would no longer match. Start afresh.
+                // answers would no longer match. Start afresh. ObjectDisposedException: the console was disposed while the
+                // request ran (connection closed, app ends – review 3.31.0, A25).
                 Kill();
                 cancellationToken.ThrowIfCancellationRequested();
                 throw new ClrModelException(ClrModelErrorKind.Timeout, ex switch
                 {
                     IOException => ClrModelText.ConsoleCrashed,
                     JsonException => ClrModelText.ConsoleUnreadable,
+                    ObjectDisposedException => ClrModelText.ConsoleNotRunning,
                     _ => timeoutMessage,
                 }, ErrorOutput);
             }
@@ -263,7 +265,9 @@ public sealed class LinqConsoleHost : ILinqConsole
 
         _process.Dispose();
         await _pipe.DisposeAsync();
-        _gate.Dispose();
+
+        // _gate stays: a request that runs right now releases it at its end (disposed, its Release threw ObjectDisposedException
+        // past the caller's handling – A25). A SemaphoreSlim without its wait handle holds nothing to free.
         _lease?.Dispose();
         TryDelete(_work);
     }

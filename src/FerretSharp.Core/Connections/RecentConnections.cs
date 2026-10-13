@@ -35,9 +35,12 @@ public sealed class RecentConnections(string filePath, TimeProvider? timeProvide
 
             await using var stream = File.OpenRead(filePath);
             var document = await JsonSerializer.DeserializeAsync<Document>(stream, JsonFiles.Options, cancellationToken);
-            _lastUsed = document?.Entries.ToDictionary(e => e.Id, e => e.LastUsed) ?? [];
+            // Entries missing, null or twice (edited by hand, review 3.31.0 A6): what is readable counts.
+            _lastUsed = (document?.Entries ?? []).OfType<Entry>()
+                .GroupBy(e => e.Id)
+                .ToDictionary(g => g.Key, g => g.Max(e => e.LastUsed));
         }
-        catch (JsonException)
+        catch (Exception ex) when (ex is JsonException or NotSupportedException or IOException or UnauthorizedAccessException)
         {
             _lastUsed = [];
         }
@@ -70,5 +73,5 @@ public sealed class RecentConnections(string filePath, TimeProvider? timeProvide
 
     private sealed record Entry(Guid Id, DateTimeOffset LastUsed);
 
-    private sealed record Document(int Version, IReadOnlyList<Entry> Entries);
+    private sealed record Document(int Version, IReadOnlyList<Entry?>? Entries);
 }

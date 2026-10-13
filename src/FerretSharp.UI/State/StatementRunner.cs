@@ -254,7 +254,8 @@ public sealed class StatementRunner(
             return null;
         }
 
-        var entry = new SqlHistoryEntry(log.Sql, at, elapsed, rows, moreRows, changed, error, log.Variables) { Ddl = ddl };
+        // Passwords in the text (IDENTIFIED BY) never go into the history (review 3.31.0, A10).
+        var entry = new SqlHistoryEntry(SqlRedaction.Redact(log.Sql), at, elapsed, rows, moreRows, changed, error, log.Variables) { Ddl = ddl };
         try
         {
             return await history.AddAsync(profile.Id, profile.Kind == ConnectionKind.Prod ? entry.WithoutValues() : entry, CancellationToken.None);

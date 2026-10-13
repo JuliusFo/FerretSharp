@@ -2,7 +2,8 @@
 // opens below the pointer – near the bottom of a maximized window behind the Windows taskbar – and follows the Windows
 // theme instead of the app's. These open below the pointer where there is room, else above it, always inside the
 // window. The title is taken away while the pointer rests on the element (that keeps the native tooltip away) and given
-// back when it leaves. Monaco keeps its own hovers and the titles of its widgets; AG Grid draws its cell tooltips itself
+// back when it leaves. "Taken away" means set to "" (no native tooltip either): removed, Blazor's own removal of a title
+// that is no longer wanted caused no change to watch, and the old text came back on leaving (review 3.31.0, A46). Monaco keeps its own hovers and the titles of its widgets; AG Grid draws its cell tooltips itself
 // (styled alike in ferretsharp.css).
 
 const EXCLUDED = '.monaco-editor, .monaco-aria-container';
@@ -20,11 +21,21 @@ let pointer = { x: 0, y: 0 };
 // Blazor sets the title again when its text changes while the pointer rests on the element (the status bar updates
 // itself): take the new text over instead of showing the old one, and keep the native tooltip away.
 const watcher = new MutationObserver(() => {
-  if (!source?.hasAttribute('title')) return;
-  source.dataset.tip = source.getAttribute('title');
-  source.removeAttribute('title');
+  if (!source) return;
+  if (!source.hasAttribute('title')) {
+    // Blazor removed it: the element has no tooltip now.
+    delete source.dataset.tip;
+    tip?.remove();
+    tip = null;
+    return;
+  }
+
+  const title = source.getAttribute('title');
+  if (title === '') return; // our own blanking
+  source.dataset.tip = title;
+  source.setAttribute('title', '');
   if (tip) {
-    tip.textContent = source.dataset.tip;
+    tip.textContent = title;
     place();
   }
 });
@@ -35,8 +46,8 @@ function hide() {
   tip?.remove();
   tip = null;
   if (source?.isConnected && source.dataset.tip !== undefined) {
-    // Give the title back unless Blazor has set a new one meanwhile.
-    if (!source.hasAttribute('title')) source.setAttribute('title', source.dataset.tip);
+    // Give the title back unless Blazor has changed or removed it meanwhile.
+    if (source.getAttribute('title') === '') source.setAttribute('title', source.dataset.tip);
     delete source.dataset.tip;
   }
   source = null;
@@ -70,9 +81,9 @@ function onOver(e) {
   hide();
   source = element;
   pointer = { x: e.clientX, y: e.clientY };
-  // Taking the title away suppresses the native tooltip.
+  // Blanking the title suppresses the native tooltip.
   element.dataset.tip = element.getAttribute('title');
-  element.removeAttribute('title');
+  element.setAttribute('title', '');
   watcher.observe(element, { attributes: true, attributeFilter: ['title'] });
   timer = setTimeout(show, DELAY);
 }

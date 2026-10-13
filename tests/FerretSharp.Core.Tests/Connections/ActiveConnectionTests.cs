@@ -87,6 +87,28 @@ public sealed class ActiveConnectionTests : IDisposable
         Assert.Equal("pw", connections.GetPassword(_profile.Id));
     }
 
+    /// <summary>Review 3.31.0, A11: a mistyped password with "save" reached the Credential Manager and was never asked for again.</summary>
+    [Fact]
+    public async Task A_password_to_save_is_saved_only_when_it_worked()
+    {
+        var connections = new ConnectionManager(Substitute.For<IConnectionStore>(), _secrets);
+        var active = new ActiveConnection(connections, _connector, _recent, _workspaces);
+        var imported = TestProfiles.HostPort("Importiert");
+        connections.SetPassword(imported.Id, "falsch", remember: true);
+        _connector.OpenAsync(Arg.Any<ConnectionProfile>(), "falsch", Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Throws(new DatabaseException("invalid credential", ConnectionManager.WrongPasswordCode));
+
+        await active.ConnectAsync(imported, Ct);
+        Assert.False(connections.HasPassword(imported.Id)); // asked for again
+        Assert.Null(_secrets.GetPassword(imported.Id));
+
+        connections.SetPassword(imported.Id, "richtig", remember: true);
+        await active.ConnectAsync(imported, Ct);
+
+        Assert.Equal(ConnectionStatus.Connected, active.Status);
+        Assert.Equal("richtig", _secrets.GetPassword(imported.Id));
+    }
+
     [Fact]
     public async Task Missing_password_fails_without_contacting_the_database()
     {

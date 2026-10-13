@@ -76,4 +76,36 @@ public sealed record ConnectionProfile(
     public string EffectiveSchema => OracleIdentifier.Normalize(string.IsNullOrWhiteSpace(DefaultSchema) ? User : DefaultSchema);
 
     public static bool IsReadOnlyByDefault(ConnectionKind kind) => kind == ConnectionKind.Prod;
+
+    /// <summary>
+    /// The paths that only make sense on one computer: linked C# project, script folder, TNS_ADMIN folder. An export leaves
+    /// them out unless asked, an import takes them only when asked (WP-35; review 3.31.0, A4: a project path of another
+    /// computer loads – and runs – that project's DLLs, a TNS_ADMIN folder on a share decides where the login goes).
+    /// </summary>
+    public IReadOnlyList<string> LocalPaths() =>
+        new[] { ClrProject?.ProjectFile, ScriptFolder, (Address as TnsAliasAddress)?.TnsAdminPath }
+            .OfType<string>()
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .ToList();
+
+    /// <summary>
+    /// Whether open sessions made with this profile work differently from <paramref name="saved"/>: kind and read-only
+    /// (protection, Prod confirmations, masking), address, user, default schema. Only a new connection applies them – the
+    /// connection dialog offers it (review 3.31.0, A8). Name, group and paths apply at once.
+    /// </summary>
+    public bool SessionDiffers(ConnectionProfile saved)
+    {
+        ArgumentNullException.ThrowIfNull(saved);
+        return Kind != saved.Kind || ReadOnly != saved.ReadOnly || Address != saved.Address
+               || !string.Equals(User, saved.User, StringComparison.Ordinal)
+               || !string.Equals(DefaultSchema ?? "", saved.DefaultSchema ?? "", StringComparison.Ordinal);
+    }
+
+    /// <summary>The profile without its <see cref="LocalPaths"/> (a TNS alias then reads TNS_ADMIN from the environment).</summary>
+    public ConnectionProfile WithoutLocalPaths() => this with
+    {
+        ClrProject = null,
+        ScriptFolder = null,
+        Address = Address is TnsAliasAddress tns ? tns with { TnsAdminPath = null } : Address,
+    };
 }

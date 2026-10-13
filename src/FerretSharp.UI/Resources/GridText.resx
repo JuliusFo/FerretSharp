@@ -15,6 +15,12 @@
   <data name="Grid_TableNotEditable" xml:space="preserve">
     <value>This table cannot be edited here.</value>
   </data>
+  <data name="Editing_Busy" xml:space="preserve">
+    <value>Changes of this workspace are being written or committed – try again once that is done.</value>
+  </data>
+  <data name="Grid_WriteRunning" xml:space="preserve">
+    <value>Changes are being written – edit again once that is done.</value>
+  </data>
   <data name="Grid_RowNotLoaded" xml:space="preserve">
     <value>The row is no longer loaded – please reload{0}.</value>
     <comment>{0}: the reload shortcut as " (F5)", or empty</comment>
@@ -832,6 +838,10 @@
   </data>
   <data name="Editing_RolledBack" xml:space="preserve">
     <value>Changes discarded (rollback).</value>
+  </data>
+  <data name="Editing_UndoneGridTabClosed" xml:space="preserve">
+    <value>Undone: {0} – its tab is closed, so the changes are discarded.</value>
+    <comment>{0}: the undone grid write (table and rows)</comment>
   </data>
   <data name="Editing_UndoneGrid" xml:space="preserve">
     <value>Undone: {0} – the changes are pending again.</value>

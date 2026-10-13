@@ -5,6 +5,35 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.31.1] - 2026-10-13
+
+Fixes from a review of the whole code (R5a).
+
+### Security
+- LINQ console: a project with a design-time factory (or a DbContext that sets its connection string in `OnConfiguring`) ran `ExecuteDelete`, `ExecuteUpdate` or `SaveChanges` against the project's own database – without FerretSharp's transaction and without read-only protection. The console now always keeps EF away from the database; a context it cannot hand its options to is refused with an explanation.
+- Import: a FerretSharp file brought the C# project, script folder and TNS_ADMIN folder of the other computer along, unseen – connecting then loaded that project's code. These paths are shown in the preview and taken only when you tick "Take the paths of the source computer". An export without local paths leaves out TNS_ADMIN too.
+- Import: overwriting a saved Prod connection kept it read-only but made it Dev (as the source said) – and with that dropped the Prod confirmations and the masked log. It stays Prod unless you pick another kind in the preview.
+- Editing an open connection (to Prod, read-only, another address or user) now offers to reconnect – until then its sessions kept working with the old settings.
+- Passwords in SQL text (`CREATE/ALTER USER … IDENTIFIED BY`, database links) no longer go into the SQL history or the log.
+- `ALTER TABLE … TRUNCATE/DROP PARTITION`, `FLASHBACK TABLE … TO` a point in time and `PURGE` are refused like `TRUNCATE`.
+- Only web links leave the app; a file dropped on the window is no longer opened.
+
+### Fixed
+- A table whose primary key is disabled (or not validated) and holds duplicates: one grid change updated or deleted every row with that key. Such tables address their rows by ROWID now, and a change that would hit more than one row writes nothing.
+- Values typed while a write or a commit was still running could be lost (marked written without being sent, or cleared by the commit). The grid, the form and the change overview take no edits until it is done and say so.
+- A table whose primary key is on an INVISIBLE column could not be opened. Rows whose key has more than 28 digits could not be written.
+- A mistyped password in the password prompt was saved with "Save" checked and never asked for again. It is saved only once a connection worked with it. The schema comparison uses the same session passwords and asks again after a wrong one.
+- Disconnecting froze the window when the network had gone silent while the connection was idle (VPN). Sessions close in the background, side by side.
+- `connections.json` edited by hand (an address without "type", a missing list) could be overwritten by the next new connection with only that one. Every unreadable file is now refused for saving, and settings, recent connections and SQL history set to `null` by hand no longer stop the start. A broken workspace file is reported only for its own connection.
+- "Overwrite" after a conflict no longer carries over to a later write after cancel; resolving a stopped redo writes only the redo.
+- Committing after the transaction ended is refused also when only a closed tab had written; undoing such a write says its changes are discarded. A tab kept on the old structure by DDL takes the new one as soon as its changes are gone.
+- Names beside foreign key values follow "Reload schema" (a renamed display column failed with ORA-00904).
+- Copying in the grid (Ctrl+C, context menu, exports) takes the pending value shown, like the form. Ctrl+C in a SQL or LINQ result says what it could not copy.
+- Filters bind NVARCHAR2/NCHAR in the national character set; "ends with" on CHAR and foreign key jumps from CHAR values ignore the padding.
+- Attaching to an app halted at a breakpoint can be cancelled and gives up after 10 seconds; closing the connection during a LINQ run no longer shows the error bar.
+- The connection and C# menus stay inside the window and close with Escape; a lookup on the app statements page ends when the password prompt is cancelled.
+- Smaller ones: a busy workspace says so instead of ignoring the click, a quick reconnect no longer loses the tabs, the app shuts down cleanly, a restart after an update keeps a relative `--data-dir`, stale tooltips, grid editors that failed to load their value, the statistics hint of the actual plan behind a comment, a damaged DBeaver project export, file dialogs on a share behind a lost VPN.
+
 ## [3.31.0] - 2026-10-13
 
 Import and export connections (WP-35); update checks while FerretSharp runs.
