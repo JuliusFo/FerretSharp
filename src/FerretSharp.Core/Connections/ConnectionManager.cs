@@ -10,6 +10,9 @@ public sealed class ConnectionManager(IConnectionStore store, ISecretStore secre
 {
     private List<ConnectionProfile> _profiles = [];
 
+    /// <summary>Passwords entered for this run only (WP-35: "Save in Credential Manager" unchecked).</summary>
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, string> _sessionPasswords = new();
+
     /// <summary>Raised after the list changed (load, save, delete).</summary>
     public event Action? Changed;
 
@@ -34,9 +37,51 @@ public sealed class ConnectionManager(IConnectionStore store, ISecretStore secre
         Changed?.Invoke();
     }
 
-    public bool HasPassword(Guid profileId) => secrets.GetPassword(profileId) is not null;
+    public bool HasPassword(Guid profileId) => GetPassword(profileId) is not null;
 
-    public string? GetPassword(Guid profileId) => secrets.GetPassword(profileId);
+    /// <summary>The saved password, else one entered for this run.</summary>
+    public string? GetPassword(Guid profileId) => secrets.GetPassword(profileId) ?? _sessionPasswords.GetValueOrDefault(profileId);
+
+    /// <summary>
+    /// The password asked for when connecting (WP-35): saved in the secret store, or – <paramref name="remember"/> false –
+    /// kept only until FerretSharp ends.
+    /// </summary>
+    public void SetPassword(Guid profileId, string password, bool remember)
+    {
+        if (remember)
+        {
+            secrets.SetPassword(profileId, password);
+            _sessionPasswords.TryRemove(profileId, out _);
+        }
+        else
+        {
+            _sessionPasswords[profileId] = password;
+        }
+    }
+
+    /// <summary>
+    /// Adds or replaces several profiles in one write (WP-35, import): one <see cref="Changed"/>, and nothing is saved if one
+    /// is invalid. Passwords are left as they are.
+    /// </summary>
+    public async Task SaveManyAsync(IReadOnlyList<ConnectionProfile> profiles, CancellationToken cancellationToken)
+    {
+        foreach (var profile in profiles)
+        {
+            var errors = ConnectionProfileValidator.Validate(profile);
+            if (errors.Count > 0)
+            {
+                throw new ArgumentException($"{profile.Name}: {string.Join(" ", errors.Values)}", nameof(profiles));
+            }
+        }
+
+        RefuseWithoutFile();
+        var ids = profiles.Select(p => p.Id).ToHashSet();
+        var updated = _profiles.Where(p => !ids.Contains(p.Id)).Concat(profiles).ToList();
+        await store.SaveAsync(updated, cancellationToken);
+
+        _profiles = Sort(updated);
+        Changed?.Invoke();
+    }
 
     /// <summary>Adds or replaces the profile. <paramref name="newPassword"/> null keeps the stored password.</summary>
     public async Task SaveAsync(ConnectionProfile profile, string? newPassword, CancellationToken cancellationToken)
@@ -54,6 +99,7 @@ public sealed class ConnectionManager(IConnectionStore store, ISecretStore secre
         if (newPassword is not null)
         {
             secrets.SetPassword(profile.Id, newPassword);
+            _sessionPasswords.TryRemove(profile.Id, out _);
         }
 
         _profiles = Sort(updated);
@@ -75,6 +121,7 @@ public sealed class ConnectionManager(IConnectionStore store, ISecretStore secre
         var updated = _profiles.Where(p => p.Id != profileId).ToList();
         await store.SaveAsync(updated, cancellationToken);
         secrets.DeletePassword(profileId);
+        _sessionPasswords.TryRemove(profileId, out _);
 
         _profiles = updated;
         Changed?.Invoke();
