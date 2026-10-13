@@ -281,8 +281,9 @@ kbd { font: 600 10px var(--mono); padding: 1px 5px; border-radius: 4px; border: 
 .import-table th { position: sticky; top: 0; z-index: 1; background: var(--surface-2); text-align: left; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--faint); }
 .import-table th, .import-table td { padding: 5px 8px; border-bottom: 1px solid var(--border); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
 .import-table tr:last-child td { border-bottom: 0; }
-.import-table .sel { width: 34px; }
-.import-table .kind { width: 150px; }
+.import-table .sel { width: 36px; text-overflow: clip; }
+.import-table .sel input { width: 15px; height: 15px; margin: 0; vertical-align: middle; accent-color: var(--accent); }
+.import-table .kind { width: 180px; }
 .import-table .user { width: 150px; }
 .import-table .status { width: 200px; }
 .import-table td.addr { font: 12px var(--mono); color: var(--muted); }

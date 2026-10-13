@@ -119,6 +119,26 @@ public class ConnectionImportPlanTests
     }
 
     [Fact]
+    public void Overwriting_keeps_the_existing_group_when_the_source_brings_none()
+    {
+        var existing = new ConnectionProfile(
+            Guid.NewGuid(), "Alt", ConnectionKind.Test, new HostPortAddress("db-test.example.com", 1521, "ERPT.example.com", null),
+            "erp_app", null, false, "Bestand");
+        var plan = Plan(ConnectionImportReader.Read(Utf8(SqlDeveloperExport)), existing);
+        var row = Assert.Single(plan.Rows);
+        row.Selected = true;
+
+        var saved = Assert.Single(plan.Build());
+
+        Assert.Equal(existing.Id, saved.Id);
+        Assert.Equal("Bestand", saved.Group);
+        Assert.Equal("ERP - Testsystem", saved.Name);
+
+        row.Action = DuplicateAction.Copy;
+        Assert.Equal("SQL Developer", Assert.Single(plan.Build()).Group);
+    }
+
+    [Fact]
     public void A_copy_of_a_duplicate_is_a_new_connection()
     {
         var plan = Plan(ConnectionImportReader.Read(DbeaverExport("General")), ExistingTest);

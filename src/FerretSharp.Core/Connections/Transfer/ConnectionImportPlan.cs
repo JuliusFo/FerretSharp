@@ -66,24 +66,28 @@ public sealed class ImportRow
 
     public DuplicateAction Action { get; set; } = DuplicateAction.Overwrite;
 
-    /// <summary>What is saved for this row, with the group for connections without one.</summary>
+    /// <summary>
+    /// What is saved for this row. A connection without a group from the source gets <paramref name="defaultGroup"/> – an
+    /// overwritten one keeps its own group then.
+    /// </summary>
     internal ConnectionProfile Build(string? defaultGroup)
     {
         var imported = Candidate.Profile ?? throw new InvalidOperationException("Not importable.");
-        var group = imported.Group ?? (string.IsNullOrWhiteSpace(defaultGroup) ? null : defaultGroup.Trim());
-        var profile = imported with { Kind = Kind, User = User, ReadOnly = ReadOnly, Group = group };
+        var fallbackGroup = string.IsNullOrWhiteSpace(defaultGroup) ? null : defaultGroup.Trim();
+        var profile = imported with { Kind = Kind, User = User, ReadOnly = ReadOnly };
         if (Duplicate is { } existing && Action == DuplicateAction.Overwrite)
         {
             return profile with
             {
                 Id = existing.Id,
+                Group = imported.Group ?? existing.Group ?? fallbackGroup,
                 ClrProject = profile.ClrProject ?? existing.ClrProject,
                 ScriptFolder = profile.ScriptFolder ?? existing.ScriptFolder,
                 AppEnvironment = profile.AppEnvironment ?? existing.AppEnvironment,
             };
         }
 
-        return profile;
+        return profile with { Group = imported.Group ?? fallbackGroup };
     }
 }
 

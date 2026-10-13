@@ -43,6 +43,7 @@ public class ImportReaderTests
         var file = ConnectionImportReader.Read(Utf8(SqlDeveloperInstalled));
 
         Assert.Equal("TNS-Verbindungen lassen sich noch nicht importieren.", file.Named("Reporting").Unsupported);
+        Assert.Equal("TNS: REPDB", file.Named("Reporting").Address);
         Assert.Equal("Anmeldung über das Betriebssystem wird nicht unterstützt.", file.Named("Ops (OS)").Unsupported);
         Assert.Equal("Anmeldung als SYSDBA wird nicht unterstützt.", file.Named("Dev SYS").Unsupported);
         Assert.All(file.Candidates.Where(c => c.Unsupported is not null), c => Assert.Null(c.Profile));

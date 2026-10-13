@@ -67,8 +67,8 @@ public static class SqlDeveloperConnections
         var type = ImportJson.Text(info, "OracleConnectionType") ?? "BASIC";
         if (type.Equals("TNS", StringComparison.OrdinalIgnoreCase))
         {
-            return new ImportCandidate(name, $"TNS: {ImportJson.Text(info, "tnsName") ?? url ?? ""}", null,
-                Unsupported: ConnectionText.ImportTnsUnsupported);
+            var alias = ImportJson.Text(info, "tnsName") ?? TnsAliasOf(url) ?? url ?? "";
+            return new ImportCandidate(name, $"TNS: {alias}", null, Unsupported: ConnectionText.ImportTnsUnsupported);
         }
 
         var address = type.Equals("BASIC", StringComparison.OrdinalIgnoreCase) ? BasicAddress(info) : JdbcUrl.TryParse(url);
@@ -89,6 +89,13 @@ public static class SqlDeveloperConnections
         var kind = ConnectionKindGuess.FromName(name);
         var profile = new ConnectionProfile(Guid.NewGuid(), name, kind, address, ImportJson.Text(info, "user") ?? "", null, ReadOnly: false);
         return new ImportCandidate(name, shown, profile, KindGuessed: true);
+    }
+
+    /// <summary><c>jdbc:oracle:thin:@REPDB</c> → <c>REPDB</c>, for showing a TNS connection.</summary>
+    private static string? TnsAliasOf(string? url)
+    {
+        const string Prefix = "jdbc:oracle:thin:@";
+        return url is not null && url.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase) ? url[Prefix.Length..] : null;
     }
 
     private static HostPortAddress? BasicAddress(JsonElement info)
