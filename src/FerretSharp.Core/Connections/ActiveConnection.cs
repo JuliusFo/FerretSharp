@@ -90,6 +90,7 @@ public sealed class ActiveConnection(
                 ?? throw new DatabaseException(ConnectionText.NoPasswordSaved);
 
             _connection = await connector.OpenAsync(profile, password, ExplorerAction, cts.Token);
+            connections.PasswordWorked(profile.Id); // a password entered with "save" is saved only now (A11)
             var schema = new SchemaCache(_connection.Schema, profile.EffectiveSchema);
             await schema.LoadAsync(cts.Token);
             await workspaces.AttachAsync(profile, cts.Token);

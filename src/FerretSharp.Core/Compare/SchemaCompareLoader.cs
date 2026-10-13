@@ -20,26 +20,23 @@ public sealed class SchemaCompareLoader(ConnectionManager connections, IDatabase
 {
     public const string SessionAction = "Schema-Vergleich";
 
-    /// <param name="passwords">Passwords typed for this comparison only (connections without a stored one); not saved.</param>
     /// <param name="progress">Side index and its step (<see cref="CompareText.StepConnecting"/>, then the reader's steps); called on any thread.</param>
     /// <returns>One result per side, in order.</returns>
     /// <exception cref="OperationCanceledException">Cancelled; the sessions opened so far are closed.</exception>
     public async Task<IReadOnlyList<SideResult>> LoadAsync(
         IReadOnlyList<CompareSide> sides,
-        IReadOnlyDictionary<Guid, string>? passwords,
         Action<int, string>? progress,
         CancellationToken cancellationToken)
     {
         var results = new SideResult[sides.Count];
         var groups = sides.Select((side, index) => (side, index)).GroupBy(s => s.side.ConnectionId);
-        await Task.WhenAll(groups.Select(group => LoadConnectionAsync(group.Key, group.ToList(), passwords, progress, results, cancellationToken)));
+        await Task.WhenAll(groups.Select(group => LoadConnectionAsync(group.Key, group.ToList(), progress, results, cancellationToken)));
         return results;
     }
 
     private async Task LoadConnectionAsync(
         Guid connectionId,
         IReadOnlyList<(CompareSide Side, int Index)> sides,
-        IReadOnlyDictionary<Guid, string>? passwords,
         Action<int, string>? progress,
         SideResult[] results,
         CancellationToken cancellationToken)
@@ -60,7 +57,7 @@ public sealed class SchemaCompareLoader(ConnectionManager connections, IDatabase
             return;
         }
 
-        if ((passwords?.GetValueOrDefault(connectionId) ?? connections.GetPassword(connectionId)) is not { } password)
+        if (connections.GetPassword(connectionId) is not { } password)
         {
             FailAll(new SideResult(null, new DatabaseException(TextFormat.Format(CompareText.NoPasswordFor, profile.Name)), NeedsPassword: true));
             return;
@@ -75,10 +72,18 @@ public sealed class SchemaCompareLoader(ConnectionManager connections, IDatabase
         try
         {
             connection = await connector.OpenAsync(profile, password, SessionAction, cancellationToken);
+            connections.PasswordWorked(connectionId);
         }
         catch (DatabaseException ex)
         {
-            FailAll(new SideResult(null, ex));
+            // A wrong password typed for this run is forgotten and asked for again (A12), as when connecting.
+            var wrong = ex.ErrorCode == ConnectionManager.WrongPasswordCode;
+            if (wrong)
+            {
+                connections.ForgetSessionPassword(connectionId);
+            }
+
+            FailAll(new SideResult(null, ex, NeedsPassword: wrong && !connections.HasPassword(connectionId)));
             return;
         }
 
