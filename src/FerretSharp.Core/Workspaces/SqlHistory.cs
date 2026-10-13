@@ -1,4 +1,3 @@
-using System.Text.Json;
 using FerretSharp.Core.IO;
 using FerretSharp.Core.Query;
 
@@ -56,14 +55,21 @@ public sealed class SqlHistoryStore(string directory)
 
     /// <returns>
     /// The history with the new entry. A file that could not be read for the moment (locked) or comes from a newer
-    /// FerretSharp is not overwritten – the entry is then only returned, not stored.
+    /// FerretSharp is not overwritten – the entry is then only returned, not stored. A broken one is kept as a copy
+    /// (<c>….json.bad-…</c>) before a new history replaces it (R5b: it was replaced without a copy).
     /// </returns>
     public async Task<IReadOnlyList<SqlHistoryEntry>> AddAsync(Guid connectionId, SqlHistoryEntry entry, CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            var (stored, canWrite) = await ReadAsync(connectionId, cancellationToken);
+            var (stored, write) = await ReadAsync(connectionId, cancellationToken);
+            var canWrite = write switch
+            {
+                Write.Replace => true,
+                Write.AfterCopy => TryKeepCopy(FileOf(connectionId)),
+                _ => false,
+            };
             var entries = stored.ToList();
             if (entries.Count > 0 && Same(entries[0].Sql, entry.Sql))
             {
@@ -81,7 +87,7 @@ public sealed class SqlHistoryStore(string directory)
                 return entries;
             }
 
-            await AtomicJsonFile.WriteAsync(FileOf(connectionId), new HistoryFile(FileVersion, entries), Options, cancellationToken);
+            await AtomicJsonFile.WriteAsync(FileOf(connectionId), new HistoryFile(FileVersion, entries), JsonFiles.Options, cancellationToken);
             return entries;
         }
         finally
@@ -102,44 +108,46 @@ public sealed class SqlHistoryStore(string directory)
         }
     }
 
-    /// <returns>The entries, and whether the file may be replaced by a new one.</returns>
-    private async Task<(IReadOnlyList<SqlHistoryEntry> Entries, bool CanWrite)> ReadAsync(Guid connectionId, CancellationToken cancellationToken)
+    /// <summary>Whether a new history may replace the file.</summary>
+    private enum Write
     {
-        var path = FileOf(connectionId);
-        if (!File.Exists(path))
-        {
-            return ([], true);
-        }
+        Replace,
 
+        /// <summary>A broken history is no reason to stop working: kept as a copy, then a new file.</summary>
+        AfterCopy,
+
+        /// <summary>Locked for the moment (virus scanner, backup) – the next entry tries again – or a newer FerretSharp's history.</summary>
+        No,
+    }
+
+    private async Task<(IReadOnlyList<SqlHistoryEntry> Entries, Write Write)> ReadAsync(Guid connectionId, CancellationToken cancellationToken)
+    {
+        var read = await VersionedJsonFile.ReadAsync<HistoryFile>(FileOf(connectionId), FileVersion, JsonFiles.Options, cancellationToken);
+        return read.State switch
+        {
+            JsonFileState.Missing => ([], Write.Replace),
+            JsonFileState.Ok when read.Version == FileVersion => ((read.Document!.Entries ?? []).OfType<SqlHistoryEntry>().ToList(), Write.Replace), // null by hand (A6)
+            JsonFileState.Ok or JsonFileState.Empty or JsonFileState.Broken => ([], Write.AfterCopy), // no version or an unknown one, null, no JSON
+            _ => ([], Write.No),
+        };
+    }
+
+    private static bool TryKeepCopy(string path)
+    {
         try
         {
-            await using var stream = File.OpenRead(path);
-            var file = await JsonSerializer.DeserializeAsync<HistoryFile>(stream, Options, cancellationToken);
-            return file switch
-            {
-                { Version: FileVersion } => ((file.Entries ?? []).OfType<SqlHistoryEntry>().ToList(), true), // null by hand (A6)
-                { Version: > FileVersion } => ([], false), // a newer FerretSharp's history stays as it is
-                _ => ([], true),
-            };
+            VersionedJsonFile.KeepCopy(path, DateTimeOffset.Now);
+            return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return ([], false); // locked for the moment (virus scanner, backup): try again with the next entry
-        }
-        catch (JsonException)
-        {
-            return ([], true); // a broken history is no reason to stop working; the next entry writes a new file
+            return false; // without a copy the file stays; the entry is only shown
         }
     }
 
     private static bool Same(string a, string b) => string.Equals(a.Trim(), b.Trim(), StringComparison.Ordinal);
 
     private string FileOf(Guid connectionId) => Path.Combine(Directory, connectionId.ToString("D") + ".json");
-
-    private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web)
-    {
-        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
-    };
 
     private sealed record HistoryFile(int Version, IReadOnlyList<SqlHistoryEntry?>? Entries);
 }

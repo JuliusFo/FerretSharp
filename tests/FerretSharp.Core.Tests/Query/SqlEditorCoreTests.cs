@@ -163,6 +163,23 @@ public sealed class SqlHistoryStoreTests : IDisposable
         Assert.Empty(await new SqlHistoryStore(_folder.Path).LoadAsync(Connection, Ct));
     }
 
+    /// <summary>R5b (review 3.31.0, B2, decision of the user): a broken history was replaced without a trace at the next entry.</summary>
+    [Theory]
+    [InlineData("{ kaputt")]
+    [InlineData("""{ "entries": [] }""")] // no version
+    [InlineData("null")]
+    public async Task A_broken_file_is_kept_as_a_copy_before_a_new_history_replaces_it(string content)
+    {
+        var path = _folder.Combine(Connection.ToString("D") + ".json");
+        await File.WriteAllTextAsync(path, content, Ct);
+        var store = new SqlHistoryStore(_folder.Path);
+
+        await store.AddAsync(Connection, Entry("SELECT 1 FROM dual"), Ct);
+
+        Assert.Equal(content, await File.ReadAllTextAsync(Assert.Single(Directory.GetFiles(_folder.Path, "*.json.bad-*")), Ct));
+        Assert.Single(await store.LoadAsync(Connection, Ct));
+    }
+
     [Fact]
     public async Task A_newer_or_locked_file_is_not_overwritten()
     {
