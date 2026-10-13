@@ -80,7 +80,7 @@ Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erkl
 | Secrets | Windows Credential Manager via **`Meziantou.Framework.Win32.CredentialManager`** | Implementierung im **App**-Projekt, Core kennt nur `ISecretStore`. Passwörter nie im JSON. |
 | Paketquellen | repo-lokales `nuget.config` (nur nuget.org) | Global ist zusätzlich eine DevExpress-Quelle eingerichtet; CPM verlangt dann Source Mapping. |
 | CI | **GitHub Actions** (`.github/workflows/ci.yml`) | Linux: Core und UI bauen, Unit- und Integrationstests (.NET-8-Runtime für den ModelHost) mit Coverage (`Microsoft.Testing.Extensions.CodeCoverage`, Einstellungen `tests/coverage.config`, Bericht per ReportGenerator; auf `main` schreibt der Job `coverage-badge` `coverage.json` in den Branch `badges` für das README-Badge, lokal: `tools/coverage/Get-Coverage.ps1`). Windows: ganze Solution mit `-warnaserror`, Unit-Tests. |
-| Distribution | `dotnet publish src/FerretSharp.App -c Release -r win-x64 --self-contained -o <ziel>` | Ordner-Deployment. Release über `.github/workflows/release.yml`: Tag `vX.Y.Z` → Version gegen `Directory.Build.props` prüfen, bauen, zippen (`FerretSharp-X.Y.Z-win-x64.zip`), Release mit dem CHANGELOG-Abschnitt; für bestehende Tags per `workflow_dispatch`. |
+| Distribution | **Velopack** (ADR 0024): `dotnet publish src/FerretSharp.App -c Release -r win-x64 --self-contained -o <ziel>`, dann `vpk pack` (lokales Tool, `dotnet-tools.json`, gleiche Version wie das Paket `Velopack`) | Release über `.github/workflows/release.yml`: Tag `vX.Y.Z` → Version gegen `Directory.Build.props` prüfen, bauen, `FerretSharp-win-Setup.exe`, Portable-Zip, volle und Delta-Pakete, dazu noch das einfache Zip; Notizen aus dem CHANGELOG-Abschnitt (auch für den Update-Dialog der App); für bestehende Tags per `workflow_dispatch`. `Program.Main` ruft zuerst `VelopackApp…Run()`, dann die Instanzsperre (eine Instanz je Datenordner). |
 
 **Nicht** verwenden: Entity Framework für den generischen Zugriff (kennt das Schema nur über einen DbContext).
 
@@ -147,5 +147,5 @@ Regeln:
 
 ## 8. Als Nächstes (Details und Entscheidungen des Nutzers: `docs/roadmap.md`)
 
-- WP-33 (Statements der laufenden App, Issue #12, ADR 0023) ist in 3.28.0 released. Geplant, Zeitpunkt offen: WP-32 (Installer und Update-Hinweis mit Velopack, ADR 0024); sonst das nächste Paket mit dem Nutzer aus `docs/backlog.md` auswählen.
+- WP-33 (Statements der laufenden App, Issue #12, ADR 0023) ist in 3.28.0 released. WP-32 (Installer und Update-Hinweis mit Velopack, ADR 0024) ist umgesetzt, das Release 3.29.0 steht aus – das erste mit Velopack-Dateien (ohne Vorgänger nur volle Pakete); `Setup.exe` selbst muss der Nutzer noch einmal von Hand testen. Danach das nächste Paket mit dem Nutzer aus `docs/backlog.md` auswählen.
 - Seit WP-26 nimmt der Schemaweg Trigger auf Tabellen/Views (ADR 0021); Procedures/Packages/Types anlegen, PL/SQL ausführen und bearbeiten (Stufen 2/3 nach WP-28) stehen weiter im Backlog – der Blockmodus des Splitters und die Kompilierprüfung (Status statt ORA-24344) sind dafür schon da.

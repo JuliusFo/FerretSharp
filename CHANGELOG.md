@@ -5,6 +5,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+Install once, update from the app (WP-32).
+
+### Added
+- `FerretSharp-win-Setup.exe`: installs FerretSharp for your user (no admin rights) with shortcuts on the desktop and in the start menu. The installer is not signed, so Windows SmartScreen warns once. `FerretSharp-win-Portable.zip` is the same without installing and updates itself too. Coming from the zip: run the setup once and delete the old folder; connections, workspaces and settings stay in `%APPDATA%\FerretSharp`.
+- Update notice: at start FerretSharp asks GitHub whether a newer version is out and shows it in the status bar ("Update 3.x.y available"); the dialog shows what is new. *Update and restart* downloads it (with progress, can be cancelled) and restarts into the new version – uncommitted changes are asked about first, as when closing the window. Nothing is downloaded or installed without your click.
+- Settings › Updates: the installed version, "Check at start" (on by default) and "Check now". A check that fails (offline, VPN) is a note there, nothing more. A FerretSharp that was not installed (the plain zip, a build) does not check.
+- One FerretSharp per data folder: starting it again brings the open window to the front instead of a second instance that would overwrite the first one's workspaces and settings. An instance with its own `--data-dir` still runs beside it.
+
+### Changed
+- Releases are packed with Velopack: setup, portable zip and the update packages. The plain zip is there for this release once more.
+
 ## [3.28.0] - 2026-10-13
 
 App statements: see what your running app sends to the database (WP-33).
