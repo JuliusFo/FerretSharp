@@ -41,14 +41,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
         var secrets = new InMemorySecretStore();
         secrets.SetPassword(_profile.Id, "pw");
         var connections = _connections = new ConnectionManager(Substitute.For<IConnectionStore>(), secrets);
-        var connector = Substitute.For<IDatabaseConnector>();
-        var connection = Substitute.For<IDatabaseConnection>();
-        var reader = _reader = Substitute.For<ISchemaReader>();
-        connection.Schema.Returns(reader);
-        reader.GetTablesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
-        reader.GetSynonymTargetsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(SynonymTargets.None);
-        reader.GetForeignKeysAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
-        connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(connection);
+        var connector = FakeDatabase.Connector(FakeDatabase.Connection(_reader = FakeDatabase.Reader()));
         var workspaces = new WorkspaceManager(new InMemoryWorkspaceStore(), connections, connector);
         _active = new ActiveConnection(connections, connector, new RecentConnections(_folder.Combine("recent.json")), workspaces);
         // No reloads by the watcher here (a test writing a broken deps.json would race with them); see WatchBuildsQuickly.

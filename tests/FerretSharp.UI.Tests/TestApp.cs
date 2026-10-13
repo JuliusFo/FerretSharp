@@ -28,9 +28,7 @@ internal sealed class TestApp : IAsyncDisposable
 
     public TestApp()
     {
-        var connector = Substitute.For<IDatabaseConnector>();
-        connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(_ => Task.FromResult(NewConnection()));
+        var connector = FakeDatabase.Connector(_ => NewConnection());
 
         var services = new ServiceCollection();
         services.AddSingleton<ISecretStore>(Secrets);
@@ -140,11 +138,8 @@ internal sealed class TestApp : IAsyncDisposable
 
     private IDatabaseConnection NewConnection()
     {
-        var reader = Substitute.For<ISchemaReader>();
-        reader.GetTablesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([Kunden]);
-        reader.GetSynonymTargetsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(SynonymTargets.None);
+        var reader = FakeDatabase.Reader(Kunden);
         reader.GetPlSqlObjectsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(_ => PlSqlObjects);
-        reader.GetForeignKeysAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
         reader.GetDetailsAsync(Arg.Any<TableSummary>(), Arg.Any<CancellationToken>()).Returns(_ => KundenDetails);
         reader.GetLockHoldersAsync(Arg.Any<TableRef>(), Arg.Any<CancellationToken>()).Returns(_ => LockHolders);
         var editor = new FakeDataEditor(() => OnCommit, sql =>
@@ -161,13 +156,11 @@ internal sealed class TestApp : IAsyncDisposable
         var data = Substitute.For<IDataAccess>();
         data.ReadSqlAsync(Arg.Any<QuerySpec>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(call => ReadSql(call.Arg<QuerySpec>(), call.Arg<CancellationToken>()));
-        var connection = Substitute.For<IDatabaseConnection>();
-        connection.Schema.Returns(reader);
+        var connection = FakeDatabase.Connection(reader);
         connection.Data.Returns(data);
         connection.Editor.Returns(editor);
         // Open while something is written (the fake editor's own transaction is always open, for the editing tests).
         connection.Transaction.Returns(_ => editor.Actions.Count > 0 ? editor.Transaction : TransactionInfo.None);
-        connection.ServerVersion.Returns("23.26.0.0.0");
         return connection;
     }
 

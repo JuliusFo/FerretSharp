@@ -23,14 +23,13 @@ public sealed class WorkspaceManagerTests
     public WorkspaceManagerTests()
     {
         _secrets.SetPassword(_profile.Id, "pw");
-        _connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(call =>
-            {
-                var connection = Substitute.For<IDatabaseConnection>();
-                connection.Data.Returns(Substitute.For<IDataAccess>());
-                _opened.Add((call.ArgAt<string>(2), connection));
-                return connection;
-            });
+        _connector.Opens(action =>
+        {
+            var connection = Substitute.For<IDatabaseConnection>();
+            connection.Data.Returns(Substitute.For<IDataAccess>());
+            _opened.Add((action, connection));
+            return connection;
+        });
         _manager = new WorkspaceManager(_store, new ConnectionManager(Substitute.For<IConnectionStore>(), _secrets), _connector, _time);
     }
 
@@ -310,14 +309,13 @@ public sealed class WorkspaceManagerTests
     {
         var locked = _profile with { ReadOnly = true };
         await _manager.AttachAsync(locked, Ct);
-        _connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(_ =>
-            {
-                var connection = Substitute.For<IDatabaseConnection>();
-                connection.UseReadOnlySnapshotsAsync(Arg.Any<CancellationToken>()).Throws(new DatabaseException("no", "ORA-01031"));
-                _opened.Add(("locked", connection));
-                return connection;
-            });
+        _connector.Opens(_ =>
+        {
+            var connection = Substitute.For<IDatabaseConnection>();
+            connection.UseReadOnlySnapshotsAsync(Arg.Any<CancellationToken>()).Throws(new DatabaseException("no", "ORA-01031"));
+            _opened.Add(("locked", connection));
+            return connection;
+        });
 
         var error = await Assert.ThrowsAsync<DatabaseException>(() => _manager.GetDataAsync(_manager.Active!.Id, Ct));
 

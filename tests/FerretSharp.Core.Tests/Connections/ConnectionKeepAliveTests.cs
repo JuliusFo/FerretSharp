@@ -12,19 +12,20 @@ namespace FerretSharp.Core.Tests.Connections;
 public sealed class ConnectionKeepAliveTests : IDisposable
 {
     private readonly TestFolder _folder = new();
-    private readonly IDatabaseConnector _connector = Substitute.For<IDatabaseConnector>();
-    private readonly IDatabaseConnection _explorer = Substitute.For<IDatabaseConnection>();
+    private readonly IDatabaseConnection _explorer = FakeDatabase.Connection();
     private readonly IDatabaseConnection _workspaceSession = Substitute.For<IDatabaseConnection>();
     private readonly FakeTimeProvider _time = new();
     private readonly WorkspaceManager _workspaces;
     private readonly ActiveConnection _active;
     private readonly AppSettingsService _settings;
     private readonly ConnectionKeepAlive _keepAlive;
+    private readonly IDatabaseConnector _connector;
     private readonly ConnectionProfile _profile = TestProfiles.HostPort();
     private readonly List<DatabaseException> _lost = [];
 
     public ConnectionKeepAliveTests()
     {
+        _connector = FakeDatabase.Connector(action => action == ActiveConnection.ExplorerAction ? _explorer : _workspaceSession);
         var secrets = new InMemorySecretStore();
         secrets.SetPassword(_profile.Id, "pw");
         var connections = new ConnectionManager(Substitute.For<IConnectionStore>(), secrets);
@@ -35,14 +36,6 @@ public sealed class ConnectionKeepAliveTests : IDisposable
         open.All.Returns([_active]);
         _keepAlive = new ConnectionKeepAlive(open, _settings, _time);
         _keepAlive.ConnectionLost += (_, error) => _lost.Add(error);
-
-        var reader = Substitute.For<ISchemaReader>();
-        reader.GetTablesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
-        reader.GetSynonymTargetsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(SynonymTargets.None);
-        reader.GetForeignKeysAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
-        _explorer.Schema.Returns(reader);
-        _connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(ci => ci.ArgAt<string>(2) == ActiveConnection.ExplorerAction ? _explorer : _workspaceSession);
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
