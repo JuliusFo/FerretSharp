@@ -64,11 +64,13 @@ public sealed record RecordingSnapshot(
 /// command, totals per origin and per statement text, and repeated statements (N+1).
 /// <list type="bullet">
 /// <item>Lazy loading: EF raises <see cref="EfEvents.NavigationLazyLoading"/> right before the query that loads the
-/// navigation, in the same context – the next command of that context is the lazy load.</item>
+/// navigation, in the same context – the next command of that context is the lazy load if it is a query that started
+/// right after the event (a reference with a NULL foreign key raises the event without a query).</item>
 /// <item>Time: <see cref="EfEvents.CommandExecuted"/> ends when the reader is returned; the time to read the rows comes
 /// with <see cref="EfEvents.DataReaderDisposing"/> (matched by command id) and is added.</item>
-/// <item>Rows: a reader counts every <c>Read()</c>, including the last one that returns false – the rows are one less
-/// (a reader closed before its end is counted one row short). Non-queries take the affected rows.</item>
+/// <item>Rows: a query's reader counts every <c>Read()</c>, including the last one that returns false – the rows are one
+/// less; EF reads to the end also for <c>First</c>, <c>Single</c> and <c>Count</c> (measured with EF Core 8). For
+/// <c>SaveChanges</c> the reads are the rows written; non-queries take the affected rows.</item>
 /// </list>
 /// Events arrive on the source's thread, snapshots are taken on the UI thread: everything runs under one lock.
 /// </summary>
@@ -76,6 +78,9 @@ public sealed class StatementRecording(RepeatRule? rule = null)
 {
     /// <summary>Different statement texts kept per recording; further ones only count per origin.</summary>
     public const int MaxStatements = 2000;
+
+    /// <summary>A lazy load starts this soon after its event at the latest (the query follows on the same thread).</summary>
+    public static readonly TimeSpan LazyLoadDelay = TimeSpan.FromMilliseconds(250);
 
     /// <summary>Readers waiting for their end, and contexts waiting for their lazy load, at most.</summary>
     private const int MaxPending = 10_000;
@@ -86,7 +91,7 @@ public sealed class StatementRecording(RepeatRule? rule = null)
     private readonly Dictionary<StatementOrigin, Totals> _origins = [];
     private readonly Dictionary<string, Pending> _readers = [];
     private readonly Queue<string> _readerOrder = new();
-    private readonly Dictionary<string, string> _lazyByContext = [];
+    private readonly Dictionary<string, (string Navigation, DateTimeOffset At)> _lazyByContext = [];
     private int _count;
     private TimeSpan _time;
     private DateTimeOffset? _since;
@@ -171,11 +176,15 @@ public sealed class StatementRecording(RepeatRule? rule = null)
         }
 
         var context = e.Field(EfEvents.Context);
-        string? navigation = null;
-        var origin = context is not null && _lazyByContext.Remove(context, out navigation)
-            ? StatementOrigin.LazyLoading
-            : StatementOrigins.FromCommandSource(e.Field(EfEvents.Source));
         var duration = e.Duration(EfEvents.Duration) ?? TimeSpan.Zero;
+        var origin = StatementOrigins.FromCommandSource(e.Field(EfEvents.Source));
+        string? navigation = null;
+        if (context is not null && _lazyByContext.Remove(context, out var lazy) && IsLazyLoad(origin, lazy.At, e.Time - duration))
+        {
+            origin = StatementOrigin.LazyLoading;
+            navigation = lazy.Navigation;
+        }
+
         var rows = !error && e.Field(EfEvents.Method) == "ExecuteNonQuery" && e.Int(EfEvents.Result) is > 0 and var affected ? affected : 0;
 
         _since ??= e.Time;
@@ -207,6 +216,14 @@ public sealed class StatementRecording(RepeatRule? rule = null)
         return true;
     }
 
+    /// <summary>
+    /// The command after a lazy-loading event is its load only if it is a query and started right after it: a reference
+    /// whose foreign key is NULL raises the event but runs no query (seen with EF Core 8), and the next command of the
+    /// context – a <c>SaveChanges</c>, a later query – must keep its own origin.
+    /// </summary>
+    private static bool IsLazyLoad(StatementOrigin origin, DateTimeOffset lazyAt, DateTimeOffset started) =>
+        origin is StatementOrigin.Linq or StatementOrigin.Unknown && started - lazyAt <= LazyLoadDelay;
+
     private bool ReaderClosed(EfEvent e)
     {
         if (e.Field(EfEvents.CommandId) is not { } id || !_readers.Remove(id, out var pending))
@@ -215,7 +232,10 @@ public sealed class StatementRecording(RepeatRule? rule = null)
         }
 
         var reading = e.Duration(EfEvents.Duration) ?? TimeSpan.Zero;
-        var rows = Math.Max((e.Int(EfEvents.ReadCount) ?? 0) - 1, 0);
+        // A query reads once more than it has rows (the last Read() returns false); SaveChanges reads the values the
+        // database returns, one per row written, and stops there (seen with SQLite and Oracle).
+        var reads = e.Int(EfEvents.ReadCount) ?? 0;
+        var rows = pending.Origin == StatementOrigin.SaveChanges ? reads : Math.Max(reads - 1, 0);
         _time += reading;
         var totals = OriginOf(pending.Origin);
         totals.Time += reading;
@@ -242,7 +262,7 @@ public sealed class StatementRecording(RepeatRule? rule = null)
             _lazyByContext.Clear(); // contexts that never ran their load (disposed in between); losing them only misses a label
         }
 
-        _lazyByContext[context] = e.Field(EfEvents.Navigation) ?? "";
+        _lazyByContext[context] = (e.Field(EfEvents.Navigation) ?? "", e.Time);
         return false; // nothing to show until the command comes
     }
 
@@ -302,6 +322,11 @@ public sealed class StatementRecording(RepeatRule? rule = null)
         /// <summary>Contexts whose runs are kept for the burst, at most (one per request: older ones are pruned).</summary>
         private const int MaxContexts = 200;
 
+        /// <summary>Requests that are over are dropped every this many new contexts too, not only at the cap.</summary>
+        private const int PruneEvery = 32;
+
+        private int _newContexts;
+
         /// <summary>
         /// The recent runs per DbContext: an N+1 repeats a statement within one unit of work (one request). The same query
         /// from many requests – an app under load, a polling job – is no N+1 and must not count together.
@@ -331,7 +356,7 @@ public sealed class StatementRecording(RepeatRule? rule = null)
             var key = context ?? "";
             if (!_recentByContext.TryGetValue(key, out var recent))
             {
-                if (_recentByContext.Count >= MaxContexts)
+                if (_recentByContext.Count >= MaxContexts || ++_newContexts % PruneEvery == 0)
                 {
                     Prune(at, rule);
                 }

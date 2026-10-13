@@ -75,6 +75,45 @@ public sealed class StatementRecordingTests
     }
 
     [Fact]
+    public void A_lazy_load_without_a_query_leaves_the_next_command_its_origin()
+    {
+        var recording = new StatementRecording();
+
+        // A reference whose foreign key is NULL: EF raises the event and runs no query (review of WP-33).
+        recording.Apply(Lazy("Ersatz", at: 0));
+        recording.Apply(Executed("UPDATE \"Positionen\" SET \"Menge\" = :p0", "SaveChanges", 1, at: 2));
+        recording.Apply(Lazy("Ersatz", at: 10));
+        recording.Apply(Executed(Orders, "LinqQuery", 1, at: 1_500)); // a later query of the same context
+
+        var statements = recording.Snapshot().Statements;
+        Assert.DoesNotContain(statements, s => s.Origin == StatementOrigin.LazyLoading);
+        Assert.Equal(StatementOrigin.SaveChanges, Assert.Single(statements, s => s.Text.StartsWith("UPDATE", StringComparison.Ordinal)).Origin);
+        Assert.Equal(StatementOrigin.Linq, Assert.Single(statements, s => s.Text == Orders).Origin);
+    }
+
+    [Fact]
+    public void A_slow_lazy_load_counts_from_its_start()
+    {
+        var recording = new StatementRecording();
+
+        recording.Apply(Lazy("Positionen", at: 0));
+        recording.Apply(Executed(Lines, "LinqQuery", 3_000, at: 3_010)); // ran 3 s, started 10 ms after the event
+
+        Assert.Equal(StatementOrigin.LazyLoading, Assert.Single(recording.Snapshot().Statements).Origin);
+    }
+
+    [Fact]
+    public void SaveChanges_counts_the_rows_it_reads_back()
+    {
+        var recording = new StatementRecording();
+
+        recording.Apply(Executed("INSERT … RETURNING \"Id\"", "SaveChanges", 1, id: "s"));
+        recording.Apply(ReaderClosed("s", 3, 1)); // three rows written, three ids read
+
+        Assert.Equal(3, Assert.Single(recording.Snapshot().Statements).Rows);
+    }
+
+    [Fact]
     public void Reading_the_rows_adds_its_time_and_the_rows_without_the_last_read()
     {
         var recording = new StatementRecording();

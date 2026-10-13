@@ -1,9 +1,9 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using FerretSharp.AppTrace;
 using FerretSharp.Core.AppTrace;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Oracle;
-using FerretSharp.Core.Query;
 using Microsoft.Extensions.Logging.Abstractions;
 using Oracle.ManagedDataAccess.Client;
 
@@ -14,7 +14,7 @@ namespace FerretSharp.Integration.Tests;
 /// lazy-loading proxies, no diagnostics code), on SQLite (no Docker needed) or on the Oracle container – there the
 /// statements it ran are looked up in V$SQL afterwards.
 /// </summary>
-public sealed class AppTraceSourceTests(OracleContainerFixture oracle)
+public sealed partial class AppTraceSourceTests(OracleContainerFixture oracle)
 {
     private static readonly string Configuration = AppContext.BaseDirectory.Contains($"{Path.DirectorySeparatorChar}Release{Path.DirectorySeparatorChar}",
         StringComparison.OrdinalIgnoreCase) ? "Release" : "Debug";
@@ -33,13 +33,7 @@ public sealed class AppTraceSourceTests(OracleContainerFixture oracle)
         var listed = Assert.Single(_source.ListProcesses(), p => p.Id == app.Id);
         Assert.Equal(("FerretSharp.FakeEfApp", "fake-test"), (listed.Name, listed.Environment));
 
-        var recording = new StatementRecording();
-        await foreach (var e in TraceAsync(app))
-        {
-            recording.Apply(e);
-        }
-
-        var snapshot = recording.Snapshot();
+        var snapshot = await RecordAsync(app);
         int Count(StatementOrigin origin) => snapshot.Origins.SingleOrDefault(o => o.Origin == origin)?.Count ?? 0;
         // 3 rounds: 2 LINQ (orders, FromSql with Count on top), 12 lazy loads, 1 FromSql, 1 raw UPDATE, 1 SaveChanges, 1 ExecuteUpdate
         Assert.Equal(6, Count(StatementOrigin.Linq));
@@ -55,6 +49,26 @@ public sealed class AppTraceSourceTests(OracleContainerFixture oracle)
     }
 
     [Fact]
+    public async Task Rows_are_right_for_every_query_shape_and_a_lazy_load_without_a_query_changes_no_origin()
+    {
+        await using var app = await FakeApp.StartAsync(FakeAppPath, "sqlite", null, "--scenario", "shapes");
+
+        var snapshot = await RecordAsync(app);
+
+        long Rows(string start, StatementOrigin origin = StatementOrigin.Linq) =>
+            Assert.Single(snapshot.Statements, s => s.Origin == origin && s.Text.StartsWith(start, StringComparison.Ordinal)).Rows;
+        // EF reads to the end also for First, Single and Count (measured, review of WP-33)
+        Assert.Equal(1, Rows("SELECT \"t\".\"ID\", \"t\".\"NUMMER\"\nFROM \"TR_AUFTRAG\" AS \"t\"\nORDER BY \"t\".\"ID\"\nLIMIT 1".ReplaceLineEndings()));
+        Assert.Equal(5, Rows("SELECT \"t\".\"ID\", \"t\".\"NUMMER\"\nFROM \"TR_AUFTRAG\" AS \"t\"\nORDER BY \"t\".\"ID\"\nLIMIT @__p_0".ReplaceLineEndings()));
+        Assert.Equal(1, Rows("SELECT COUNT(*)"));
+        var lazy = Assert.Single(snapshot.Statements, s => s.Origin == StatementOrigin.LazyLoading);
+        Assert.Equal(("Auftrag", 1L), (lazy.Navigation, lazy.Rows)); // a reference
+        // "Ersatz" has a NULL foreign key: the event came, no query – the SaveChanges after it stays SaveChanges.
+        var save = Assert.Single(snapshot.Statements, s => s.Origin == StatementOrigin.SaveChanges);
+        Assert.Equal(1, save.Rows);
+    }
+
+    [Fact]
     public async Task Canceling_ends_the_trace_quietly_and_leaves_the_app_running()
     {
         await using var app = await FakeApp.StartAsync(FakeAppPath, "sqlite", null);
@@ -62,7 +76,7 @@ public sealed class AppTraceSourceTests(OracleContainerFixture oracle)
         await using var events = _source.AttachAsync(app.Id, cts.Token).GetAsyncEnumerator(cts.Token);
         var first = events.MoveNextAsync(); // attaches
 
-        await app.GoAsync();
+        await app.SendAsync("warm");
         Assert.True(await first);
         await cts.CancelAsync();
         while (await events.MoveNextAsync())
@@ -73,13 +87,34 @@ public sealed class AppTraceSourceTests(OracleContainerFixture oracle)
     }
 
     [Fact]
+    public async Task Detaching_from_a_halted_app_does_not_hang()
+    {
+        // At a breakpoint the app does not answer the stop: the trace closes its stream itself (review of WP-33).
+        await using var app = await FakeApp.StartAsync(FakeAppPath, "sqlite", null);
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+        await using var events = _source.AttachAsync(app.Id, cts.Token).GetAsyncEnumerator(cts.Token);
+        var first = events.MoveNextAsync();
+        await app.SendAsync("warm");
+        Assert.True(await first);
+
+        app.Suspend();
+        var watch = Stopwatch.StartNew();
+        await cts.CancelAsync();
+        while (await events.MoveNextAsync())
+        {
+        }
+
+        Assert.True(watch.Elapsed < EventPipeTraceSource.StopTimeout * 3, $"Detaching took {watch.Elapsed}");
+    }
+
+    [Fact]
     public async Task An_app_that_is_killed_ends_the_trace_quietly()
     {
         // Stopping the debugger kills the app: the stream breaks off in the middle of a block.
-        await using var app = await FakeApp.StartAsync(FakeAppPath, "sqlite", null, "--rounds", "1000");
+        await using var app = await FakeApp.StartAsync(FakeAppPath, "sqlite", null);
         await using var events = _source.AttachAsync(app.Id, Ct).GetAsyncEnumerator(Ct);
         var first = events.MoveNextAsync();
-        await app.GoAsync();
+        await app.SendAsync("warm");
         Assert.True(await first);
 
         await app.DisposeAsync(); // kills it
@@ -115,13 +150,7 @@ public sealed class AppTraceSourceTests(OracleContainerFixture oracle)
         await GrantCatalogAsync(profile.User);
         await using var app = await FakeApp.StartAsync(FakeAppPath, "oracle", connectionString, "-environment=fake-oracle");
 
-        var recording = new StatementRecording();
-        await foreach (var e in TraceAsync(app))
-        {
-            recording.Apply(e);
-        }
-
-        var snapshot = recording.Snapshot();
+        var snapshot = await RecordAsync(app);
         var lazy = Assert.Single(snapshot.Statements, s => s.Origin == StatementOrigin.LazyLoading);
         Assert.Equal(36, lazy.Count);
 
@@ -137,20 +166,30 @@ public sealed class AppTraceSourceTests(OracleContainerFixture oracle)
         Assert.Contains(cursor.Plan.Steps, s => s.ObjectName == "TR_POSITION");
     }
 
-    /// <summary>Attaches, then lets the app run its rounds; ends when the app has ended.</summary>
-    private async IAsyncEnumerable<EfEvent> TraceAsync(FakeApp app)
+    /// <summary>Attaches, waits until the app's warm-up query shows up (the session is live), runs the app to its end.</summary>
+    private async Task<RecordingSnapshot> RecordAsync(FakeApp app)
     {
+        var recording = new StatementRecording();
         await using var events = _source.AttachAsync(app.Id, Ct).GetAsyncEnumerator(Ct);
         var next = events.MoveNextAsync(); // attaching happens here, before the first event
-        await app.GoAsync();
-        var done = app.ExitWhenDoneAsync();
+        await app.SendAsync("warm");
+        Task? done = null;
         while (await next)
         {
-            yield return events.Current;
+            var e = events.Current;
             next = events.MoveNextAsync();
+            if (e.Field(EfEvents.Text)?.Contains("warm-up", StringComparison.Ordinal) == true)
+            {
+                done ??= app.GoAndExitWhenDoneAsync();
+                continue;
+            }
+
+            recording.Apply(e);
         }
 
+        Assert.NotNull(done);
         await done;
+        return recording.Snapshot();
     }
 
     private async Task GrantCatalogAsync(string user)
@@ -163,7 +202,13 @@ public sealed class AppTraceSourceTests(OracleContainerFixture oracle)
         await command.ExecuteNonQueryAsync(Ct);
     }
 
-    /// <summary>tests/FerretSharp.FakeEfApp as a process: "ready" once its tables are there, "go" runs it, "exit" ends it.</summary>
+    [LibraryImport("ntdll.dll")]
+    private static partial int NtSuspendProcess(IntPtr process);
+
+    /// <summary>
+    /// tests/FerretSharp.FakeEfApp as a process: "ready" once its tables are there, "warm" runs a marker query until "go",
+    /// "go" runs it, "done" when through, "exit" ends it.
+    /// </summary>
     private sealed class FakeApp : IAsyncDisposable
     {
         private readonly Process _process;
@@ -202,23 +247,45 @@ public sealed class AppTraceSourceTests(OracleContainerFixture oracle)
             }
 
             var app = new FakeApp(Process.Start(info)!, db);
-            await app.ExpectAsync("ready");
+            try
+            {
+                await app.ExpectAsync("ready");
+            }
+            catch
+            {
+                await app.DisposeAsync(); // never leave a process behind
+                throw;
+            }
+
             return app;
         }
 
-        public async Task GoAsync()
+        public async Task SendAsync(string line)
         {
-            await Task.Delay(500, Ct); // the session is enabled in the app right after attaching; give it a moment anyway
-            await _process.StandardInput.WriteLineAsync("go");
+            await _process.StandardInput.WriteLineAsync(line);
             await _process.StandardInput.FlushAsync(Ct);
         }
 
-        public async Task ExitWhenDoneAsync()
+        public async Task GoAndExitWhenDoneAsync()
         {
+            await SendAsync("go");
             await ExpectAsync("done");
-            await _process.StandardInput.WriteLineAsync("exit");
-            await _process.StandardInput.FlushAsync(Ct);
+            await SendAsync("exit");
             await _process.WaitForExitAsync(Ct);
+        }
+
+        /// <summary>Halts every thread of the app, as a debugger does at a breakpoint (more: the diagnostics server too).</summary>
+        public void Suspend()
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                Assert.Equal(0, NtSuspendProcess(_process.Handle));
+            }
+            else
+            {
+                using var kill = Process.Start("kill", ["-STOP", Id.ToString(System.Globalization.CultureInfo.InvariantCulture)]);
+                kill.WaitForExit();
+            }
         }
 
         private async Task ExpectAsync(string line)
@@ -246,7 +313,7 @@ public sealed class AppTraceSourceTests(OracleContainerFixture oracle)
             _disposed = true;
             if (!_process.HasExited)
             {
-                _process.Kill();
+                _process.Kill(); // also a halted one
                 await _process.WaitForExitAsync(CancellationToken.None);
             }
 

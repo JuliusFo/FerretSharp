@@ -26,6 +26,9 @@ public sealed class EventPipeTraceSource(ILogger<EventPipeTraceSource> logger) :
     /// <summary>Buffer of the session in the app; when FerretSharp reads too slowly, the app drops events, it never waits.</summary>
     private const int BufferMegabytes = 64;
 
+    /// <summary>How long ending a trace waits for the app's answer to the stop, and then for the reading to end.</summary>
+    internal static readonly TimeSpan StopTimeout = TimeSpan.FromSeconds(3);
+
     public IReadOnlyList<TraceableProcess> ListProcesses()
     {
         var own = Environment.ProcessId;
@@ -55,7 +58,22 @@ public sealed class EventPipeTraceSource(ILogger<EventPipeTraceSource> logger) :
     {
         var session = Start(processId);
         var events = Channel.CreateUnbounded<EfEvent>(new UnboundedChannelOptions { SingleReader = true, SingleWriter = true });
-        var source = new EventPipeEventSource(session.EventStream);
+        EventPipeEventSource source;
+        try
+        {
+            source = new EventPipeEventSource(session.EventStream); // reads the stream header
+        }
+        catch (Exception ex)
+        {
+            DisposeQuietly(session, processId);
+            if (HasEnded(processId))
+            {
+                throw new RefusedException(TextFormat.Format(AppTraceText.ProcessGone, AppName(processId), processId), ex);
+            }
+
+            throw;
+        }
+
         source.Dynamic.All += e =>
         {
             if (ToEfEvent(e) is { } efEvent)
@@ -76,7 +94,7 @@ public sealed class EventPipeTraceSource(ILogger<EventPipeTraceSource> logger) :
             {
                 // An app that is killed (stop debugging) cuts the stream mid-block: TraceEvent then fails with "Read past
                 // end of stream". That is the app's end, not an error.
-                var ended = ct.IsCancellationRequested || !IsRunning(processId);
+                var ended = ct.IsCancellationRequested || HasEnded(processId);
                 if (ended)
                 {
                     logger.LogDebug(ex, "Trace of process {ProcessId} ended with the app", processId);
@@ -85,16 +103,18 @@ public sealed class EventPipeTraceSource(ILogger<EventPipeTraceSource> logger) :
                 events.Writer.TryComplete(ended ? null : ex);
             }
         }, CancellationToken.None);
-        var stopped = 0;
-        void StopOnce()
+        // Stopping is a command to the app's diagnostics server: started once, on the cancellation or in the cleanup below.
+        Task? stopping = null;
+        var stopLock = new Lock();
+        Task StopOnce()
         {
-            if (Interlocked.Exchange(ref stopped, 1) == 0)
+            lock (stopLock)
             {
-                Stop(session, processId);
+                return stopping ??= Task.Run(() => Stop(session, processId));
             }
         }
 
-        using var stop = ct.Register(() => _ = Task.Run(StopOnce));
+        using var stop = ct.Register(() => StopOnce());
         try
         {
             var reader = events.Reader;
@@ -120,10 +140,56 @@ public sealed class EventPipeTraceSource(ILogger<EventPipeTraceSource> logger) :
         }
         finally
         {
-            await Task.Run(StopOnce, CancellationToken.None);
-            await reading;
+            await CleanUpAsync(StopOnce(), reading, source, session, processId);
+        }
+    }
+
+    /// <summary>
+    /// Ends a trace whatever happens: waits a moment for the stop; if it does not come back (an app halted at a breakpoint
+    /// does not answer until it runs again), closes the stream itself, so the reading thread ends and no events pile up.
+    /// The session is disposed once the stop has come back – in the background, nothing waits for it.
+    /// </summary>
+    private async Task CleanUpAsync(Task stopping, Task reading, EventPipeEventSource source, EventPipeSession session, int processId)
+    {
+        if (await Task.WhenAny(stopping, Task.Delay(StopTimeout)) != stopping)
+        {
+            logger.LogInformation("Stopping the trace of process {ProcessId} takes long (halted?); closing the stream", processId);
+            try
+            {
+                session.EventStream.Dispose();
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Closing the stream of process {ProcessId} failed", processId);
+            }
+        }
+
+        if (await Task.WhenAny(reading, Task.Delay(StopTimeout)) != reading)
+        {
+            logger.LogWarning("The trace of process {ProcessId} did not end its reading", processId);
+        }
+
+        try
+        {
             source.Dispose();
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Disposing the event source of process {ProcessId} failed", processId);
+        }
+
+        _ = stopping.ContinueWith(_ => DisposeQuietly(session, processId), CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default);
+    }
+
+    private void DisposeQuietly(EventPipeSession session, int processId)
+    {
+        try
+        {
             session.Dispose();
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Disposing the session of process {ProcessId} failed", processId);
         }
     }
 
@@ -150,16 +216,16 @@ public sealed class EventPipeTraceSource(ILogger<EventPipeTraceSource> logger) :
         }
     }
 
-    /// <summary>Ends the session; the app may have ended already, then there is nothing to stop.</summary>
+    /// <summary>Ends the session; the app may have ended already, then there is nothing to stop. Never throws.</summary>
     private void Stop(EventPipeSession session, int processId)
     {
         try
         {
             session.Stop();
         }
-        catch (Exception ex) when (ex is ServerNotAvailableException or ServerErrorException or IOException or ObjectDisposedException or EndOfStreamException)
+        catch (Exception ex)
         {
-            logger.LogDebug(ex, "Stopping the trace of process {ProcessId}: already ended", processId);
+            logger.LogDebug(ex, "Stopping the trace of process {ProcessId} failed (ended or not answering)", processId);
         }
     }
 
@@ -199,6 +265,23 @@ public sealed class EventPipeTraceSource(ILogger<EventPipeTraceSource> logger) :
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             return "?";
+        }
+    }
+
+    /// <summary>
+    /// The process has ended – waiting a moment for it: a killed app closes its end of the pipe slightly before the process
+    /// counts as exited (review of WP-33).
+    /// </summary>
+    private static bool HasEnded(int processId)
+    {
+        try
+        {
+            using var process = Process.GetProcessById(processId);
+            return process.WaitForExit(500);
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            return true;
         }
     }
 

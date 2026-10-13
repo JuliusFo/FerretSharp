@@ -5,9 +5,11 @@
 //                              command line, a trace reads that)
 //   --rounds <n>               rounds of the workload (default 3)
 //   --loop <ms>                no protocol: a round every <ms> until the process is ended (for trying the page by hand)
+//   --scenario shapes          instead of the rounds: one query of each shape, and a lazy load that runs no query
 //   anything else              ignored (e.g. -environment=…, which the trace reads)
 //
-// Protocol on stdin/stdout: prints "ready" once the tables are there, waits for "go", runs the rounds, prints "done", and
+// Protocol on stdin/stdout: prints "ready" once the tables are there; "warm" runs a marker query (text with 'warm-up')
+// every 50 ms until the next line; "go" runs the rounds, then it prints "done", and
 // ends at "exit" or when stdin closes.
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -50,8 +52,77 @@ using (var setup = new ShopContext(configure))
 
 Console.WriteLine("ready");
 var loop = Option("--loop") is { } every ? TimeSpan.FromMilliseconds(int.Parse(every, System.Globalization.CultureInfo.InvariantCulture)) : (TimeSpan?)null;
-if (loop is null && Console.ReadLine() != "go")
+if (loop is null)
 {
+    var command = Console.ReadLine();
+    if (command == "warm")
+    {
+        // A marker query every 50 ms until "go": the trace sees it once its session is live, then the test lets the
+        // workload run – no fixed wait for the session (review of WP-33).
+        using var warming = new CancellationTokenSource();
+        var warm = Task.Run(() =>
+        {
+            using var db = new ShopContext(configure);
+            while (!warming.IsCancellationRequested)
+            {
+                _ = db.Auftraege.Count(a => a.Nummer == "warm-up");
+                Thread.Sleep(50);
+            }
+        });
+        command = Console.ReadLine();
+        warming.Cancel();
+        warm.Wait();
+    }
+
+    if (command != "go")
+    {
+        return;
+    }
+}
+
+if (Option("--scenario") == "shapes")
+{
+    // One of each query shape, every one in a context of its own, for the row counts (WP-33 review). Then a lazy load of a
+    // reference whose foreign key is NULL – EF raises NavigationLazyLoading but runs no query – before a SaveChanges.
+    using (var db = new ShopContext(configure))
+    {
+        _ = db.Auftraege.OrderBy(a => a.Id).First();
+    }
+
+    using (var db = new ShopContext(configure))
+    {
+        _ = db.Auftraege.OrderBy(a => a.Id).Take(5).ToList();
+    }
+
+    using (var db = new ShopContext(configure))
+    {
+        _ = db.Auftraege.Single(a => a.Id == 1);
+    }
+
+    using (var db = new ShopContext(configure))
+    {
+        _ = db.Auftraege.Count();
+    }
+
+    using (var db = new ShopContext(configure))
+    {
+        var position = db.Positionen.OrderBy(p => p.Id).First();
+        _ = position.Auftrag!.Nummer; // lazy load of a reference
+    }
+
+    using (var db = new ShopContext(configure))
+    {
+        var position = db.Positionen.OrderBy(p => p.Id).First();
+        _ = position.Ersatz; // FK is NULL: the event comes, no query does
+        position.Menge++;
+        db.SaveChanges();
+    }
+
+    Console.WriteLine("done");
+    while (Console.ReadLine() is { } shapesLine && shapesLine != "exit")
+    {
+    }
+
     return;
 }
 
@@ -113,6 +184,8 @@ internal sealed class ShopContext(Action<DbContextOptionsBuilder> provider) : Db
             e.Property(p => p.Artikel).HasColumnName("ARTIKEL").HasMaxLength(50);
             e.Property(p => p.Menge).HasColumnName("MENGE");
             e.Property(p => p.AuftragId).HasColumnName("AUFTRAG_ID");
+            e.Property(p => p.ErsatzFuerId).HasColumnName("ERSATZ_FUER_ID");
+            e.HasOne(p => p.Ersatz).WithMany().HasForeignKey(p => p.ErsatzFuerId);
         });
     }
 }
@@ -137,4 +210,9 @@ public class Position
     public int AuftragId { get; set; }
 
     public virtual Auftrag? Auftrag { get; set; }
+
+    /// <summary>An optional reference that is always NULL: its lazy load runs no query.</summary>
+    public int? ErsatzFuerId { get; set; }
+
+    public virtual Position? Ersatz { get; set; }
 }
