@@ -21,8 +21,8 @@ Die Oberfläche gibt es auf Englisch (Standard) und Deutsch. Entscheidung und Hi
 | UI | `SchemaViewText`, `ModelViewText`, `CompareViewText` | Explorer, Tab-Ansichten (Spalten, Constraints, Indizes, Abhängigkeiten, DDL), PL/SQL; Modellseite; Schema-Vergleich |
 | UI | `AppStatementsText` | Statements der App (WP-33): Seite, Prozessliste, Verbindung, Herkunft, N+1-Hinweise, Nachsehen in V$SQL |
 | Core | `ClrModelText` | C#-Modell, LINQ-Konsole, Code-Generierung, Build-Ausgabe |
-| Core | `QueryText`, `DataText`, `SchemaText` | Query (Filter, SQL-Skripte, FK-Navigation, Export), Data und Forms, Schema |
-| Core | `OracleText`, `CompareText`, `ConnectionText`, `SettingsText`, `WorkspaceText` | Oracle-Schicht, Schema-Vergleich/DDL, Verbindungen, Einstellungen (Tastenkürzel), Workspaces und IO |
+| Core | `QueryText`, `DataText` | Query (Filter, SQL-Skripte, FK-Navigation, Export), Data und Forms |
+| Core | `OracleText`, `CompareText`, `ConnectionText`, `SettingsText`, `WorkspaceText` | Oracle-Schicht, Schema-Vergleich und DDL (`Core/Ddl`), Verbindungen samt Import/Export, Einstellungen (Tastenkürzel), Workspaces und IO |
 | Core | `DesignText` | Tabellen-Designer (WP-23): Prüfungen von Index- und Tabellenentwürfen |
 | Core | `AuditText` | Audit-Vorlagen (WP-26): Fehler der Vorlage mit Zeile, Probleme und Warnungen beim Erzeugen von Audit-Tabelle und Trigger |
 | Core | `DisplayText` | Anzeigespalten (WP-31): Datei der Anzeigespalten (nicht lesbar, kein JSON, neuere Version, nicht schreibbar), nicht anzeigbare Spaltentypen |
@@ -34,22 +34,22 @@ Klassennamen sind über alle Projekte eindeutig (die Razor-Komponenten sehen Cor
 ## Schlüssel
 
 - PascalCase nach der **Bedeutung**, nicht nach dem Wortlaut: `PortOutOfRange`, nicht `PortMussZwischen…`.
-- In der UI mit Komponente als Präfix, wenn der Text zu einer Komponente gehört: `Settings_LockWaitHint`, `Grid_CopyAsInsert`. Im Core ohne Präfix, die Datei ist der Bereich.
-- Plural: zwei Schlüssel mit `One`/`Other`: `RowsLoadedOne` („{0} row loaded“), `RowsLoadedOther` („{0} rows loaded“), Aufruf über `TextFormat.Plural(count, X.RowsLoadedOne, X.RowsLoadedOther, …)` – die Zahl ist `{0}`, weitere Argumente ab `{1}`.
+- In der UI mit Komponente als Präfix, wenn der Text zu einer Komponente gehört: `Settings_LockWaitHint`, `GridMenu_CopyInsert`. Im Core ohne Präfix, die Datei ist der Bereich.
+- Plural: zwei Schlüssel mit `One`/`Other`: `Export_RowsOne` („{0} row“), `Export_RowsOther` („{0:N0} rows“), Aufruf über `TextFormat.Plural(count, GridText.Export_RowsOne, GridText.Export_RowsOther, …)` – die Zahl ist `{0}`, weitere Argumente ab `{1}`.
 - `<comment>` in der englischen Datei: Pflicht bei Platzhaltern (was ist `{0}`?) und bei kurzen, mehrdeutigen Wörtern (Button? Überschrift? Zustand?).
 
 ## Wie ein Text in den Code kommt
 
 | Fall | So |
 |---|---|
-| Fester Text in Razor | `@ShellText.Settings_Title`, Attribute `title="@GridText.Grid_CopyValue"` |
-| Text mit Werten | `TextFormat.Format(GridText.Grid_RowsSelected, count)` – ganzer Satz mit Platzhaltern, **nie Satzteile zusammenkleben** (Wortstellung ist je Sprache anders) |
+| Fester Text in Razor | `@ShellText.Settings_Title`, Attribute `title="@GridText.GridMenu_CopyTableTitle"` |
+| Text mit Werten | `TextFormat.Format(GridText.Grid_ColumnCopied, column.Name)` – ganzer Satz mit Platzhaltern, **nie Satzteile zusammenkleben** (Wortstellung ist je Sprache anders) |
 | Text mit Markup (`<code>`, `<b>`, Link, `<Kbd>`) | `<Fmt Text="@X.Y"><Arg0><code>…</code></Arg0></Fmt>` (`Components/Fmt.cs`, bis `{3}`) |
 | Zahl/Datum im Text | Kultur wie vorher: Interpolation/`CurrentCulture` → `TextFormat.Format(…)`; Code, der ausdrücklich `German` nimmt → `TextFormat.Format(German, …)`. Die Formatkultur bleibt in WP-29 unverändert (Backlog). |
 | Beschriftungs-Tabellen in `@code` | als Eigenschaft `=>`, **nicht** `static readonly`: Ein statisches Feld behält die Sprache des ersten Zugriffs (Tests wechseln die Kultur). |
 | Meldung aus dem Core | Der Core baut den fertigen Satz aus seiner eigenen Ressource; die UI zeigt ihn. Der Core kennt keine UI-Ressourcen. |
 | Text für JS (Grid, Monaco) | aus .NET übergeben; JS enthält keine Texte |
-| Tastenkürzel in Texten | wie bisher über `ShortcutService` (`Hint`/`With`/`Label`), als Platzhalter-Argument |
+| Tastenkürzel in Texten | über `ShortcutService` (`Hint` für „ (Ctrl+S)“ hinter einem Text, `Label` als Platzhalter-Argument in Sätzen) oder `<Kbd Action="…" />` – nie als fester Text |
 
 ## Was nicht übersetzt wird
 
@@ -175,4 +175,4 @@ Ein Begriff, eine Übersetzung – überall gleich. Neue Fachbegriffe hier ergä
 | Tastennamen Entf / Einfg / Pos1 / Ende / Bild↑ / Bild↓ / Leertaste / Rücktaste | Del / Ins / Home / End / PgUp / PgDn / Space / Backspace | Ctrl, Shift, Alt, Enter, Esc, Tab in beiden Sprachen gleich |
 | Update / aktualisieren (neue Version der App) | update | „Update 3.29.0 verfügbar“ / „Update 3.29.0 available“ (WP-32) |
 | herunterladen / neu starten (für ein Update) | download / restart | Knöpfe „Herunterladen“, „Jetzt neu starten“ / „Download“, „Restart now“ |
-| Beim Start prüfen / Jetzt prüfen | Check at start / Check now | Einstellungen › Updates |
+| Automatisch prüfen / Während FerretSharp läuft / Jetzt prüfen | Check automatically / While FerretSharp runs / Check now | Einstellungen › Updates (bis 3.30 „Beim Start prüfen“) |

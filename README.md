@@ -24,7 +24,7 @@
 </picture>
 
 > [!NOTE]
-> The user interface is in English and German (*Settings › General › Language*; English by default). Code, commits and
+> The user interface is in English and German (*Settings › Appearance › Language*; English by default). Code, commits and
 > this README are in English; the design notes in `docs/` are German.
 
 ## Why
@@ -191,8 +191,8 @@ changes, and a new build is picked up automatically:
 1. Download `FerretSharp-win-Setup.exe` from the [latest release](https://github.com/JuliusFo/FerretSharp/releases/latest)
    and run it – it installs FerretSharp for your user (no admin rights) with shortcuts on the desktop and in the start
    menu. The installer is not signed, so Windows SmartScreen warns once: *More info › Run anyway*.
-2. From then on FerretSharp checks for a new version at start (*Settings › Updates*, can be switched off) and shows it in
-   the status bar; *Download* fetches it, *Restart now* installs it. Nothing is downloaded or installed without your
+2. From then on FerretSharp checks for a new version at start and every 4 hours while it runs (*Settings › Updates*:
+   hourly, daily, only at start, or off) and shows it in the status bar; *Download* fetches it, *Restart now* installs it. Nothing is downloaded or installed without your
    click.
 
 Without installing: `FerretSharp-win-Portable.zip` – unzip anywhere and start `FerretSharp.exe`; it updates itself the

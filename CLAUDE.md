@@ -44,8 +44,8 @@ Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erkl
 
 **Lesen und Schreiben sind getrennt (ADR 0006):**
 - Leseweg: `OracleSession.ExecuteReaderAsync` lehnt alles außer reinen Abfragen ab (`IsReadOnlyStatement`: nach Leerraum/Kommentaren `SELECT`/`WITH`, kein `FOR UPDATE`, nur ein Statement) – eine Stolperfalle gegen Programmierfehler, kein SQL-Parser.
-- Schreibweg: `OracleSession.ExecuteNonQueryAsync` ist `internal`, nimmt nur ein einzelnes INSERT/UPDATE/DELETE (`IsWriteStatement`, nie DDL) und nur in einer offenen Transaktion. Transaktionssteuerung (Begin, Savepoint, Commit, Rollback) nur an `OracleSession`.
-- Schemaweg (WP-22, ADR 0019): `OracleSession.ExecuteDdlAsync` ist `internal`, nimmt nur ein einzelnes DDL-Statement (`IsDdlStatement`: kein `TRUNCATE`, keine Binds, kein PL/SQL außer Triggern auf Tabellen/Views – ADR 0021, WP-26) und nur **ohne** offene Transaktion, also nie in einer gesperrten Session. Den Rollback vorher macht die UI nach Bestätigung.
+- Schreibweg: `OracleSession.ExecuteNonQueryAsync` ist `internal`, nimmt nur ein einzelnes INSERT/UPDATE/DELETE/MERGE (`IsWriteStatement`, nie DDL) und nur in einer offenen Transaktion. Transaktionssteuerung (Begin, Savepoint, Commit, Rollback) nur an `OracleSession`.
+- Schemaweg (WP-22, ADR 0019): `OracleSession.ExecuteDdlAsync` ist `internal`, nimmt nur ein einzelnes DDL-Statement (`IsDdlStatement`: kein `TRUNCATE` und nichts, was wie TRUNCATE Zeilen unwiderruflich entfernt – Partitionen leeren/löschen, `FLASHBACK TABLE … TO`, `PURGE` (R5a) –, keine Binds, kein PL/SQL außer Triggern auf Tabellen/Views – ADR 0021, WP-26) und nur **ohne** offene Transaktion, also nie in einer gesperrten Session. Den Rollback vorher macht die UI nach Bestätigung.
 - `ReadOnlyTests` prüfen per Reflection, dass `IDataAccess`/`ISchemaReader`/`IDatabaseConnection` weder schreibende noch transaktionssteuernde Methoden anbieten, dass Schreib- und Schemaweg `internal` sind und nur ihre Statements nehmen und dass die Statements des `QueryBuilder` und alle SELECT/WITH-Texte in `Core/Oracle` die Lesesperre passieren; Integrationstests zeigen, dass die Session abweist, was der Editor abweist.
 - **Die Lesesperre nie aufweichen.** Ein neuer Weg (z. B. PL/SQL ausführen) bekommt eine eigene enge Methode, ein ADR und Tests.
 - Keine Garantie auf Datenbankseite: Hat der DB-User Schreibrechte, könnte ein Fehler schreiben (ohne Transaktion committet ODP.NET sofort; `SET TRANSACTION READ ONLY` schützt nicht vor DDL und nicht vor Funktionen mit `PRAGMA AUTONOMOUS_TRANSACTION`, die ein `SELECT f() FROM dual` aufruft). Empfehlung an den Nutzer: für Prod einen User mit reinen SELECT-Grants.
@@ -80,7 +80,7 @@ Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erkl
 | Secrets | Windows Credential Manager via **`Meziantou.Framework.Win32.CredentialManager`** | Implementierung im **App**-Projekt, Core kennt nur `ISecretStore`. Passwörter nie im JSON. |
 | Paketquellen | repo-lokales `nuget.config` (nur nuget.org) | Global ist zusätzlich eine DevExpress-Quelle eingerichtet; CPM verlangt dann Source Mapping. |
 | CI | **GitHub Actions** (`.github/workflows/ci.yml`) | Linux: Core und UI bauen, Unit- und Integrationstests (.NET-8-Runtime für den ModelHost) mit Coverage (`Microsoft.Testing.Extensions.CodeCoverage`, Einstellungen `tests/coverage.config`, Bericht per ReportGenerator; auf `main` schreibt der Job `coverage-badge` `coverage.json` in den Branch `badges` für das README-Badge, lokal: `tools/coverage/Get-Coverage.ps1`). Windows: ganze Solution mit `-warnaserror`, Unit-Tests. |
-| Distribution | **Velopack** (ADR 0024): `dotnet publish src/FerretSharp.App -c Release -r win-x64 --self-contained -o <ziel>`, dann `vpk pack` (lokales Tool, `dotnet-tools.json`, gleiche Version wie das Paket `Velopack`) | Release über `.github/workflows/release.yml`: Tag `vX.Y.Z` → Version gegen `Directory.Build.props` prüfen, bauen, `FerretSharp-win-Setup.exe`, Portable-Zip, volle und Delta-Pakete, dazu noch das einfache Zip; Notizen aus dem CHANGELOG-Abschnitt (auch für den Update-Dialog der App); für bestehende Tags per `workflow_dispatch`. `Program.Main` ruft zuerst `VelopackApp…Run()`, dann die Instanzsperre (eine Instanz je Datenordner). |
+| Distribution | **Velopack** (ADR 0024): `dotnet publish src/FerretSharp.App -c Release -r win-x64 --self-contained -o <ziel>`, dann `vpk pack` (lokales Tool, `dotnet-tools.json`, gleiche Version wie das Paket `Velopack`) | Release über `.github/workflows/release.yml`: Tag `vX.Y.Z` → Version gegen `Directory.Build.props` prüfen, bauen, `FerretSharp-win-Setup.exe`, Portable-Zip, volle und Delta-Pakete (das einfache Zip des Ordners gab es bis 3.29.0); Notizen aus dem CHANGELOG-Abschnitt (auch für den Update-Dialog der App); für bestehende Tags per `workflow_dispatch`. `Program.Main` ruft zuerst `VelopackApp…Run()`, dann die Instanzsperre (eine Instanz je Datenordner). |
 
 **Nicht** verwenden: Entity Framework für den generischen Zugriff (kennt das Schema nur über einen DbContext).
 
@@ -90,13 +90,19 @@ Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erkl
 FerretSharp.slnx
 ├─ src/
 │  ├─ FerretSharp.Core/        # net10.0 – reine Logik, KEIN WPF, KEINE Windows-only-APIs, baut unter Linux
-│  │  ├─ Connections/ Schema/ Query/ Data/ Workspaces/ Settings/ IO/
+│  │  ├─ Connections/ Schema/ Query/ Data/ Workspaces/ Settings/ IO/ Resources/
+│  │  ├─ Connections/Transfer/ # Verbindungen importieren/exportieren (WP-35)
 │  │  ├─ Forms/                # Formularansicht, Zeilenvergleich (WP-21)
 │  │  ├─ Compare/              # Schema-Vergleich, DDL-Vorschlag (WP-20)
+│  │  ├─ Ddl/                  # DDL-Text (`OracleDdl`), Schritte, Spaltenänderungen (R4b)
+│  │  ├─ Design/               # Tabellen-Designer: Tabellen-, Spalten-, Index-Entwürfe (WP-23)
+│  │  ├─ Audit/                # Audit-Tabellen und Trigger aus einer Vorlage (WP-26)
+│  │  ├─ Display/              # Anzeigespalten (WP-31)
+│  │  ├─ AppTrace/             # Statements der App: Modell, Auswertung (WP-33; Mitschnitt in FerretSharp.AppTrace)
 │  │  ├─ ClrModel/             # C#-Modell, LINQ-Konsole, ModelHost-Aufruf (v3)
-│  │  └─ Oracle/               # OracleSession, OracleSchemaReader, OracleDataAccess, OracleTypeMapper
+│  │  └─ Oracle/               # OracleSession, OracleSchemaReader, OracleDataAccess, OracleDataEditor, OracleTypeMapper
 │  ├─ FerretSharp.UI/          # net10.0, Razor Class Library – plattformneutral, KEIN WPF/Windows
-│  │  ├─ Shell.razor, Components/, State/
+│  │  ├─ Shell.razor, Components/, State/, Resources/
 │  │  └─ wwwroot/              # css/, js/ (ES-Module), lib/ag-grid, lib/monaco
 │  ├─ FerretSharp.ModelHost/   # Hilfsprozess im Kontext des C#-Projekts des Nutzers (.NET 8, ADR 0009)
 │  ├─ FerretSharp.AppTrace/    # net10.0 – an eine laufende App anhängen (EventPipe, TraceEvent; WP-33, ADR 0023), plattformneutral
@@ -104,16 +110,18 @@ FerretSharp.slnx
 ├─ tests/                      # Core.Tests und UI.Tests (ohne DB; UI.Tests prüfen die State-Klassen ohne Rendern, `TestApp`),
 │                              # Integration.Tests (Testcontainers, überspringt ohne Docker),
 │                              # FakeModelHost (Stand-in des ModelHost für die Prozess-Tests der Core.Tests),
-│                              # FakeEfApp (App mit EF Core 8, an die sich die Integration.Tests hängen, WP-33)
+│                              # FakeEfApp (App mit EF Core 8, an die sich die Integration.Tests hängen, WP-33),
+│                              # FakeEfModel (Contexts mit eigenem Connection-String für die LINQ-Konsole, R5a), Shared/
 ├─ samples/                    # Beispielmodell (DbContext + Entities) zur Beispiel-DB
-├─ tools/                      # icon/New-AppIcon.ps1 (App-Icon generiert, nicht von Hand bearbeiten), sample-db/New-SampleDb.ps1
+├─ tools/                      # icon/New-AppIcon.ps1 (App-Icon generiert, nicht von Hand bearbeiten), sample-db/New-SampleDb.ps1,
+│                              # coverage/Get-Coverage.ps1
 └─ docs/                       # siehe „Wo steht was“; images/ für README-Screenshots
 ```
 
 Regeln:
 - `FerretSharp.Core` und `FerretSharp.UI` dürfen **kein** `System.Windows` und keine Windows-only-APIs referenzieren (CA1416). Was nur der Host kann (Credential Manager, native Datei-Dialoge, Fenster), definiert UI/Core als Interface; die Implementierung liegt in `FerretSharp.App`.
 - Alles Oracle-Spezifische liegt hinter Interfaces (`ISchemaReader`, `IDataAccess`), damit Unit-Tests mit Mocks laufen.
-- SQL-Strings entstehen ausschließlich in `Core/Query/` und `Core/Oracle/`. Komponenten in `FerretSharp.UI` enthalten kein SQL (Ausnahme: Anzeige eines erzeugten Statements).
+- SQL-Strings entstehen ausschließlich in `Core/Query/` und `Core/Oracle/`, DDL-Text nur in `Core/Ddl/` (`OracleDdl`; Vergleich, Designer und Audit bauen darauf, nur der Trigger-Text einer Audit-Vorlage kommt vom Nutzer). Komponenten in `FerretSharp.UI` enthalten kein SQL (Ausnahme: Anzeige eines erzeugten Statements).
 - `QueryBuilder` kennt den Oracle-Treiber nicht: Er liefert eigene `QueryParameter`, das Mapping auf `OracleParameter` passiert in `Core/Oracle`.
 
 ## 5. Kernbegriffe (Details: `docs/architecture.md`)

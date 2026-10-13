@@ -1,21 +1,25 @@
 # UI end-to-end prüfen
 
-Aus der `CLAUDE.md` ausgelagert (Stand 3.14.0). Vor jedem E2E-Lauf lesen. Die Sicherheitsregeln (keine echten Nutzerdaten, `ferret-sample` nicht anfassen) stehen zusätzlich in der `CLAUDE.md`.
+Aus der `CLAUDE.md` ausgelagert (3.14.0), nachgezogen bis 3.31.1. Vor jedem E2E-Lauf lesen. Die Sicherheitsregeln (keine echten Nutzerdaten, `ferret-sample` nicht anfassen) stehen zusätzlich in der `CLAUDE.md`.
 
 ## Testinstanz und Test-DB
 - App mit `--data-dir=<scratch>`, `--theme=dark|light` und `--lang=en|de` (Sprache der Oberfläche, Standard Englisch; Texte in Selektoren daran ausrichten) starten, Umgebungsvariable `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9333` setzen und die Seite per Chrome DevTools Protocol (`Runtime.evaluate`) bedienen; Screenshots per `PrintWindow` vom App-Fenster.
-- Für eine Test-DB einen eigenen Container starten (`gvenzl/oracle-free:23-slim-faststart`, `APP_USER`/`APP_USER_PASSWORD`) und danach gezielt per Name entfernen – am einfachsten mit `tools/sample-db/New-SampleDb.ps1 -Name <eigener Name> -Port <freier Port>` (Beispielschema inkl. VERTRAG mit 71 Spalten). Der Container `ferret-sample` auf Port 1522 ist die Beispiel-DB des Nutzers (in seinen echten Verbindungen eingetragen) – **nicht anfassen**.
+- Für eine Test-DB einen eigenen Container starten (`gvenzl/oracle-free:23-slim-faststart`, `APP_USER`/`APP_USER_PASSWORD`) und danach gezielt per Name entfernen – am einfachsten mit `tools/sample-db/New-SampleDb.ps1 -Name <eigener Name> -Port <freier Port>` (Beispielschema inkl. VERTRAG mit 71 Spalten). Der Container `ferret-sample` auf Port 1522 ist die Beispiel-DB des Nutzers (in seinen echten Verbindungen eingetragen) – **nicht anfassen**. Genau das sind die Vorgaben des Skripts: **nie ohne `-Name` und `-Port` aufrufen**, und `-Force` (löscht einen vorhandenen Container samt Daten) nur zusammen mit dem eigenen Namen.
 - Im Credential Manager angelegte Test-Einträge über die App wieder löschen.
 - Läuft schon eine FerretSharp-Instanz des Nutzers (z. B. aus Visual Studio), teilt sich eine zweite Instanz deren WebView2-Datenordner und stürzt mit Debug-Port mit `0x8007139F` ab → zusätzlich `WEBVIEW2_USER_DATA_FOLDER=<scratch>` setzen und in einen eigenen Ordner bauen (`dotnet build src/FerretSharp.App -o <scratch>`), weil der Debug-Output dann gesperrt ist. Immer nur **eine** App-Instanz mit Debug-Port starten: Zwei Instanzen mit unterschiedlichen Browser-Argumenten (z. B. zwei Debug-Ports) lassen die zweite beim Start abstürzen.
 - Nach E2E-Läufen das Log der Testinstanz auf `[ERR]` prüfen.
 
 ## Echte Eingabe statt synthetischer Events
-- Mausinteraktionen mit echter Windows-Eingabe prüfen (`SendInput` über `realclick.ps1` im Scratchpad: `ClientToScreen` des Fensters + CSS-Position × `devicePixelRatio`), nicht nur per CDP. Nur so läuft die Eingabe durch den WPF-Host wie beim Nutzer (siehe `@ondblclick`/`auxclick` in `src/FerretSharp.UI/CLAUDE.md`).
+Drei Stufen, von schwach nach stark:
+1. **DOM-Events** per `Runtime.evaluate` (`element.click()`, `dispatchEvent`): erreichen Blazor, sonst nichts – kein Fokuswechsel, keine Nutzergeste.
+2. **CDP-Eingabe** (`Input.dispatchMouseEvent`/`dispatchKeyEvent`): läuft durch Chromiums Eingabeweg (Fokus, `detail`, Rechts- und Mittelklick, Tasten mit Modifiern), aber **am WPF-Host vorbei**.
+3. **Windows-Eingabe** (`SendInput`): läuft wie beim Nutzer durch den WPF-Host (`WebView2CompositionControl`). Nur so fallen Fehler wie das fehlende `auxclick` oder das doppelte Mouse-down beim Doppelklick auf (`src/FerretSharp.UI/CLAUDE.md`).
+
+- Mausinteraktionen deshalb mit Stufe 3 prüfen (`realclick.ps1`: `ClientToScreen` des Fensters + CSS-Position × `devicePixelRatio`), Stufe 2 reicht für Tastatur und als schneller Durchlauf. Die Hilfsskripte (`realclick.ps1`, CDP-Aufrufe per `node`) liegen nicht im Repo, sondern entstehen je Session im Scratchpad (Backlog: nach `tools/e2e/`).
 - `realclick.ps1`: Die `INPUT`-Struktur muss auf x64 genau 40 Byte haben (`type` + `MOUSEINPUT`, **kein** zusätzliches Füllfeld) – sonst lehnt `SendInput` mit Fehler 87 ab und es kommt still kein Klick an (in WP-28 gefunden). Rückgabewert von `SendInput` prüfen und vor dem Klick abbrechen, wenn `GetForegroundWindow()` nicht das App-Fenster ist.
 - Vorher prüfen, dass der Klick ankommt (z. B. `mousedown`-Listener per CDP): Holt Windows das App-Fenster nicht in den Vordergrund (`SetForegroundWindow` wird verweigert, wenn der Nutzer gerade woanders arbeitet), landet der Klick im Fenster, das dort oben liegt – dann abbrechen statt weiterklicken (in WP-12 passiert).
 - Screenshots (`PrintWindow`) enthalten die 31 px hohe Titelleiste: Bildkoordinaten ≠ CSS-Koordinaten, Klickziele immer per `getBoundingClientRect` bestimmen.
-- Rechtsklick und Mittelklick mit `Input.dispatchMouseEvent` (echte Maus). `Input.dispatchKeyEvent`-Modifier: Alt 1, Ctrl 2, Meta 4, Shift 8.
-- Synthetische Events erreichen Blazor, ersetzen aber keinen Test mit echter Eingabe (`Input.dispatchMouseEvent`/`dispatchKeyEvent`), sonst bleiben Fehler wie das fehlende `auxclick` unentdeckt.
+- Rechts- und Mittelklick per CDP mit `Input.dispatchMouseEvent` (`button: right|middle`), danach mit `SendInput` gegenprüfen. `Input.dispatchKeyEvent`-Modifier: Alt 1, Ctrl 2, Meta 4, Shift 8.
 
 ## Updates (WP-32)
 - Nie `Setup.exe` im E2E starten: Es installiert nach `%LocalAppData%\<Pack-Id>`, legt Verknüpfungen an und startet die App **ohne** `--data-dir`, also auf den echten Daten des Nutzers. Stattdessen das Portable-Zip im Scratchpad entpacken und `current\FerretSharp.exe` mit `--data-dir=<scratch>` und `--update-source=<scratch>\releases` starten.
