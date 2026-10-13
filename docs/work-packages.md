@@ -46,7 +46,7 @@ Was in den abgeschlossenen Paketen gebaut und entschieden wurde, mit Nachträgen
 | WP-33 | Statements der laufenden App: von außen an eine lokale EF-Core-App anhängen (EventPipe), Statements nach Herkunft, N+1, Nachsehen in `V$SQL` mit Plan, Zuordnung zur Verbindung über die App-Umgebung (Issue #12) | 3.28.0 | 0023 |
 | WP-32 | Installer und Update-Hinweis mit Velopack: `Setup.exe` und Portable-Zip, Prüfung beim Start und „Jetzt prüfen“, Herunterladen und neu starten auf je einen Klick, Neustart über den `ExitGuard`; eine Instanz je Datenordner | 3.29.0 | 0024 |
 | WP-34 | Tabs anheften (links, bleiben beim Schließen anderer/rechts davon/aller offen, gespeichert), Einstellungen mit Bereichsliste und Suche über alle Einstellungen und Tastenkürzel | 3.30.0 | – |
-| WP-35 | Verbindungen importieren (FerretSharp, DBeaver, SQL Developer; Installationen finden, Vorschau mit Art, User, Duplikaten) und exportieren; Passwort beim Verbinden abfragen | – | 0025 |
+| WP-35 | Verbindungen importieren (FerretSharp, DBeaver, SQL Developer; Installationen finden, Vorschau mit Art, User, Duplikaten) und exportieren; Passwort beim Verbinden abfragen | 3.31.0 | 0025 |
 | R3a | Fehlerbehebung nach dem Review 3.14.0 (Verbindungsverlust je Verbindung, Schreiben serialisiert, UI-Testprojekt) | 3.14.1 | – |
 | R3b | Struktur-Refactoring nach dem Review 3.14.0 (Schema-Reader, Typwissen, SessionGate, UI-Bausteine, State) | 3.15.0 | – |
 | R4a | Fehlerbehebung nach dem Review 3.24.0 (HTML in Zellen, Tracker nach DDL, DDL-Rollback, Designer-Ausdrücke, Einstellungsdateien, Undo/Redo, C#-Entity) | 3.24.1 | (0019) |
@@ -415,7 +415,7 @@ Wunsch des Nutzers (2026-10-09): README, CHANGELOG und Screenshots auf GitHub si
   - Nicht per E2E: alle Dialoge und Meldungen einzeln (Ressourcen-Tests und Prüfdurchgang statt Klickpfad), deutsche Oberfläche verbunden.
 - Offen: Formatkultur (Zahlen „1.234,5“, Laufzeit „1,1 s“ und Datumseingabe `TT.MM.JJJJ` auch in der englischen Oberfläche; Eingabehinweise englisch als „DD.MM.YYYY“) – Backlog. Oracle-Fehlermeldungen kommen in der Sprache des Oracle-Clients (Windows-Locale), nicht der Oberfläche.
 
-### WP-35 Verbindungen importieren und exportieren → noch nicht released
+### WP-35 Verbindungen importieren und exportieren → Release 3.31.0
 Frage eines Kollegen des Nutzers (2026-10-13), mit dem Nutzer als Paket geplant (Entscheidungen, Formate und Mockups in `docs/roadmap.md`), ADR 0025: Verbindungen aus einer anderen FerretSharp-Installation, aus DBeaver und aus SQL Developer übernehmen, Verbindungen an Kollegen weitergeben.
 - Entscheidungen des Nutzers (2026-10-13): Passwörter nie mitnehmen; Duplikate standardmäßig überspringen, je Zeile überschreiben oder Kopie; Prod immer schreibgeschützt; einmalige Kopie statt geteilter Datei (Team-Workspace bleibt im Backlog); Umfang FerretSharp, DBeaver, SQL Developer (HORA im Backlog, der Nutzer fand keinen Export). Nach den Beispieldateien: Art aus dem Namen raten, geratene Verbindungen schreibgeschützt bis zur Wahl; den DBeaver-User aus `credentials-config.json` entschlüsseln (nur den User); Installationen automatisch finden (nur nachsehen, gelesen wird nach Klick); Kurzweg „Gruppe exportieren“ im Gruppenkopf; Projektname als Gruppe (außer `General`), ein DBeaver-Ordner geht vor. Ohne Agenten am Stück umgesetzt (Wunsch des Nutzers).
 - Abweichung vom Plan: Der Schema-Vergleich fragt schon seit WP-20 selbst nach Passwörtern (`NeedsPassword`) – die neue Abfrage betrifft nur das Verbinden.
