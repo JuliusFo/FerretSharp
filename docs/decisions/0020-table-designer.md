@@ -7,7 +7,7 @@
 
 WP-23 Stufe 2: Spalten und Constraints einer bestehenden Tabelle in der Spalten-Ansicht ändern (Entscheidungen des Nutzers: Bearbeitungsmodus der Spalten-Ansicht, Änderungen sammeln und als ein Skript ausführen, ausführen/kopieren/im SQL-Editor öffnen/speichern; C# nur aus dem Modell-Export). Ausgeführt wird über den Schemaweg aus WP-22 (ADR 0019). Der DDL-Vorschlag des Schema-Vergleichs (WP-20) kennt dafür schon die Bausteine (`DdlText`, `OracleTypes`), arbeitet aber auf einem Vergleich zweier Stände: Er kann nicht wissen, ob eine fehlende Spalte umbenannt oder gelöscht wurde, und schreibt beides nur als Hinweis.
 
-Ein Experiment gegen Oracle 23 (Integrationstest, danach entfernt) hat geklärt, welche Änderungen mit Daten in der Spalte gehen – siehe `OracleTypes.ChangeOf` und das Protokoll in `docs/work-packages.md`.
+Ein Experiment gegen Oracle 23 (Integrationstest, danach entfernt) hat geklärt, welche Änderungen mit Daten in der Spalte gehen – siehe `OracleTypes.ChangeOf` und das Protokoll in `docs/work-packages/wp-23-table-designer.md`.
 
 ## Entscheidung
 

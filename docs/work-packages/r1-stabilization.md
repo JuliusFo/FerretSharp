@@ -1,0 +1,48 @@
+# R1 Stabilisierung nach Code-Review → Release 3.6.0
+Auftrag des Nutzers (2026-10-06): das Projekt auf nötige Refactorings prüfen („Stabilität, Lesbarkeit“). Review in drei Bereichen (UI, Oracle/Data, Query/Workspaces/C#-Modell); vereinbart: erst ein Stabilisierungspaket (R1, nur Fehlerbehebungen), dann ein Strukturpaket (R2), dann WP-20.
+- Core/Oracle:
+  - `OracleSession.DisposeAsync` bricht das laufende Kommando ab (`_running`), wartet bis 10 s auf das Gate und rollt dann zurück. Das Gate wird nie mehr freigegeben (`Dispose`). Wer danach noch wartet oder kommt, bekommt `OperationCanceledException` (`EnterAsync`/`Exit`).
+  - Vorher zeigte der Integrationstest ein Hängen: Dispose unter laufender Abfrage.
+  - Eine gesperrte Session ohne Transaktion (Snapshot-Neustart gescheitert) startet den Snapshot vor dem nächsten Lesen neu, statt im Autocommit zu lesen. `BeginTransaction` auf einer geschlossenen Connection meldet einen Verbindungsverlust (`BeginCoreTransaction`).
+  - Commit mit ORA-02091 oder Verbindungsverlust beendet den Transaktionszustand. Der Editor leert dann seine Savepoints, `WorkspaceEditing` macht die geschriebenen Änderungen wieder ausstehend (`RestorePending`).
+  - `OracleDataEditor` setzt bei **jeder** Ausnahme auf den Savepoint zurück. Scheitert auch das, wird dieser Fehler als `DatabaseException` gemeldet. Dazu kommt ein nicht-generisches `OracleErrors.Guard`.
+  - Statement-Sperren in `StatementGuard` auf `SqlScript.Tokenize`: Kommentare, `q'…'` und `"Namen"` wie im SQL-Editor. `LinqStatements` nutzt `SqlScript.Analyze` (EF-`TagWith`-Kommentare).
+  - `RowKey.PrimaryKey` vergleicht `byte[]` nach Inhalt (RAW-PKs).
+- Core/sonst:
+  - `ClrModelManager`/`LinqConsoleService`/`ModelHostRunner` enden bei jedem unerwarteten Fehler in „Failed“. Neue Tests: `ClrModelLoadingTests`.
+  - `SchemaCache.GetDetailsAsync` lädt ohne das Token des ersten Aufrufers (`WaitAsync` je Aufrufer).
+  - `WorkspaceManager` behält Änderungen bei jedem Speicherfehler und speichert beim Trennen nach dem Schließen der Sessions erneut.
+  - `SqlHistoryStore` überschreibt keine gesperrte oder neuere Datei.
+- UI:
+  - `TabFrame` = `ErrorBoundary` je Tab („Neu laden“, „Tab schließen“). Die äußere Boundary schließt keine Tabs mehr ungefragt („Tabs schließen“ läuft über `GuardAsync`).
+  - `FerretGrid`/`SqlResultGrid` prüfen nach dem Import des Moduls, ob sie abgebaut sind.
+  - `MonacoEditor` ruft alles über `CallAsync` auf: nach `DisposeAsync` nichts mehr.
+  - Shortcuts: `shortcuts.js` meldet, ob ein sichtbarer `.modal-backdrop` existiert. Das ersetzt die handgepflegte Dialogliste in `Shell.OnShortcut`, die u. a. SQL-Vorschau, Plan- und LOB-Dialog nicht kannte.
+- Doku: Umsetzungsprotokolle aus der `CLAUDE.md` in diese Datei verschoben. Die CLAUDE.md schrumpfte von 108 auf 61 KB und wird in jede Session geladen.
+- E2E (eigene Instanz, eigene Test-DB):
+  - Bei offenem SQL-Vorschau-Dialog öffnet Ctrl+Shift+Q keinen Tab, ohne Dialog schon.
+  - Ein SQL-Tab mit laufender Abfrage lässt sich schließen. Die Session ist danach sofort frei: Die Abfrage wurde abgebrochen, die nächste dauerte 217 ms.
+  - 9 Tabellen-Tabs wurden während des Grid-Starts per Mittelklick geschlossen.
+  - Log ohne `[ERR]`.
+- Offen für R2 (Struktur, keine Verhaltensänderung):
+  - `WorkspaceLifecycle` aus `Shell.razor`, `DbCall`-Helfer für einheitliche Fehlerbehandlung, `ModalFrame`
+  - Aufteilung von `OracleSession` (Zustandstyp für die Transaktion, `ExclusiveAsync`) und `WorkspaceManager`
+  - `SqlScriptRunner` für SQL- und LINQ-Tab, gemeinsame Grid-Brücke, `AtomicJsonFile`, `ModelHostLaunch`
+  - `TabState` als Union mit Mapper (Dateiformat bleibt)
+- Nachtrag: zwei Verdachtsfälle aus dem Review bestätigt und behoben (Entscheidungen des Nutzers):
+  - **Gemeinsamer Undo-Stapel** (Variante „c“, mit Zähler):
+    - Problem: Undo eines Grid-Schreibvorgangs (`ROLLBACK TO SAVEPOINT FS_FLUSH_n`) nahm still auch spätere SQL-/LINQ-DML derselben Transaktion mit zurück. Oracle kann Savepoints nicht selektiv zurückrollen.
+    - `IDataEditor.Actions` (`WriteAction`: Art Grid/Statement, Beschreibung, Zeilen, Zeit) ersetzt `FlushCount`. `UndoLastAsync` nimmt immer die neueste Aktion zurück, egal von wem, und liefert sie zurück. `ExecuteAsync` gibt die `WriteAction` zurück.
+    - `WorkspaceEditing` ordnet Grid-Batches über die Aktions-Id zu. Bei einem Statement lädt es alle Tabellen-Tabs neu.
+    - Statusleiste: „N Aktionen nicht committet“ mit Liste im Tooltip; ↶ nennt, was es zurücknimmt.
+    - SQL-Editor und LINQ-Konsole zeigen „inzwischen zurückgenommen (↶)“ bzw. „Transaktion beendet“ (`WorkspaceEditing.FateOf`).
+    - Integrationstest `Undo_takes_back_the_newest_action_also_a_statement_after_a_grid_write`.
+  - **Snapshot-Hinweis** (Variante „a“):
+    - Die Session hat einen Snapshot für alle Tabs. Eine erste Seite in Tab B startet einen neuen; in Tab A nachgeladene Seiten kommen dann aus einem anderen Stand.
+    - `Snapshots.Next` (Core/Data, Unit-Tests) merkt den Stand der ersten Seite je Grid und markiert spätere Seiten aus einem anderen Stand.
+    - Fußzeile: „Stand hat sich geändert – F5 lädt neu“ (Tabellen-Tab) bzw. „– neu ausführen“ (SQL/LINQ).
+    - Echte Konsistenz je Tab (`AS OF SCN`) bewusst nicht umgesetzt.
+  - E2E (eigene Instanz, eigene Test-DB):
+    - Grid-Änderung schreiben, dann `UPDATE` im SQL-Tab: „2 Aktionen“. Erstes ↶ nimmt das Statement zurück, der SQL-Tab meldet „zurückgenommen“. Zweites ↶ macht die Grid-Änderung wieder ausstehend.
+    - Gesperrter Workspace: KUNDEN laden, 30 Zeilen von außen vorne einfügen, AUFTRAG öffnen, in KUNDEN weiterscrollen. Der Hinweis erscheint und verschwindet nach F5.
+    - Log ohne `[ERR]`.

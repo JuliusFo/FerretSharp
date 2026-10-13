@@ -12,7 +12,7 @@ Diese Datei wird in jede Session geladen und bleibt deshalb kurz. Details liegen
 | `src/FerretSharp.Core/CLAUDE.md` | Oracle-Fallstricke, Fallen in Session, Dictionary, C#-Modell, ModelHost | lädt automatisch bei Arbeit im Core |
 | `src/FerretSharp.UI/CLAUDE.md` | UI-Muster (R2), Blazor-/WebView-, AG-Grid-, Monaco- und CSS-Fallen | lädt automatisch bei Arbeit in der UI |
 | `docs/architecture.md` | Domänenmodell im Detail (Verbindungen, Workspaces, Schema, Filter-/Query-Regeln, Row-Identität, Änderungen), UI-Konzept, Shortcuts | vor Änderungen am jeweiligen Bereich |
-| `docs/work-packages.md` | Übersicht und Protokolle der abgeschlossenen Pakete (Entscheidungen des Nutzers, Nachträge, Fallen) | bevor ein Bereich angefasst wird, den ein Paket gebaut hat |
+| `docs/work-packages/` | Index (`README.md`: Versionen, Übersicht mit Datei und Bereichen) und je Paket ein Protokoll (Entscheidungen des Nutzers, Nachträge, Fallen) | bevor ein Bereich angefasst wird, den ein Paket gebaut hat: im Index den Bereich suchen, dann nur diese Datei lesen |
 | `docs/roadmap.md` | Geplante Pakete mit den Entscheidungen des Nutzers, offene UX-Fragen | beim Start eines Pakets |
 | `docs/backlog.md` | Nicht eingeplante Ideen | neue Ideen dort notieren |
 | `docs/e2e-testing.md` | UI end-to-end prüfen (CDP, echte Maus, Test-DB, Screenshots) | vor jedem E2E-Lauf |
@@ -20,7 +20,7 @@ Diese Datei wird in jede Session geladen und bleibt deshalb kurz. Details liegen
 | `docs/audit-templates.md` | Audit-Vorlage: Syntax, eingebaute Vorlage, Abgleich (WP-26) | vor Änderungen an `Core/Audit` |
 | `docs/decisions/` | ADRs | bei Stack- oder Architekturänderungen |
 
-Neue Erkenntnisse dorthin schreiben, wo sie gebraucht werden: Fallen eines Bereichs in die `CLAUDE.md` des Projekts, Paketprotokolle nach `docs/work-packages.md`. Hier nur, was in jeder Session gelten muss.
+Neue Erkenntnisse dorthin schreiben, wo sie gebraucht werden: Fallen eines Bereichs in die `CLAUDE.md` des Projekts, Paketprotokolle als eigene Datei nach `docs/work-packages/` (Regeln im Index). Hier nur, was in jeder Session gelten muss.
 
 ## 1. Ziel
 
@@ -136,7 +136,7 @@ Regeln:
 ## 6. Arbeitsweise
 
 - **Pakete:** eigener Branch `wp/NN-kurzname` (kleinere Themen `feat/…`, `fix/…`, `docs/…`); neue Arbeit immer von `main` abzweigen. Vor dem Start den Plan nennen, dann umsetzen. Ein Paket zu Ende bringen, bevor andere Themen angefasst werden; Ideen unterwegs nach `docs/backlog.md`. Bei Unsicherheit über UX-Details die einfachste Variante bauen und als Frage in der Zusammenfassung bzw. in `docs/roadmap.md` notieren, nicht blockieren.
-- **Fertig heißt:** `dotnet build -warnaserror` und `dotnet test` grün, jeder sichtbare Text in Englisch und Deutsch (`docs/localization.md`), ADR bei nicht-trivialen Entscheidungen, Protokoll in `docs/work-packages.md`, Eintrag im `CHANGELOG.md`. Danach eine kurze Zusammenfassung auf Deutsch (was gebaut, was offen, was zu testen).
+- **Fertig heißt:** `dotnet build -warnaserror` und `dotnet test` grün, jeder sichtbare Text in Englisch und Deutsch (`docs/localization.md`), ADR bei nicht-trivialen Entscheidungen, Protokoll in `docs/work-packages/` (eigene Datei, Zeile im Index), Eintrag im `CHANGELOG.md`. Danach eine kurze Zusammenfassung auf Deutsch (was gebaut, was offen, was zu testen).
 - **Commits** klein und thematisch, Conventional Commits (`feat:`, `fix:`, `test:`, `docs:`, `refactor:`).
 - **Core zuerst mit Tests, dann UI.** Unit-Tests laufen ohne DB (Mocks). Alles, was eine echte DB braucht, gehört in `FerretSharp.Integration.Tests` und muss sich ohne Docker sauber überspringen.
 - **Ordner rekursiv löschen nur über `SafeDelete.DirectoryBelow(root, path)`** (Core/IO: nur strikt unter einer festen Wurzel, nie Wurzel, Laufwerk oder relativer Pfad), in Tests über `TestFolder` (`tests/Shared`). Nie einen Pfad aus Einstellungen, Umgebungsvariablen oder Eingaben ungeprüft löschen; auch keine `Remove-Item -Recurse`/`rm -r`/`RemoveDir` in Skripten. `SafeDeleteTests` durchsucht Code, Tests und Skripte danach.
