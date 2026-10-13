@@ -18,9 +18,6 @@
   <data name="Editor_UnlockWorkspace" xml:space="preserve">
     <value>Workspace freischalten …</value>
   </data>
-  <data name="Editor_ClipboardUnavailable" xml:space="preserve">
-    <value>Die Zwischenablage ist nicht verfügbar.</value>
-  </data>
   <data name="Editor_Copied" xml:space="preserve">
     <value>Kopiert</value>
   </data>
@@ -362,9 +359,6 @@
   </data>
   <data name="Plan_WholeResult" xml:space="preserve">
     <value>ganzes Ergebnis</value>
-  </data>
-  <data name="Plan_CopiedCheck" xml:space="preserve">
-    <value>Kopiert ✓</value>
   </data>
   <data name="Plan_CopyAsText" xml:space="preserve">
     <value>Als Text kopieren</value>

@@ -36,6 +36,35 @@ public sealed class ExportActions(ShellState shell, DomModule dom, IFileSaveServ
         _ => TextFormat.Plural(rows, GridText.Export_CopiedAsTableOne, GridText.Export_CopiedAsTableOther),
     };
 
+    /// <summary>
+    /// Ctrl+C with several rows selected, in either grid (R5b: written in both): the rows as a table, rows no longer loaded
+    /// named as not copied. A missing clipboard says so itself (<see cref="GridBridge.CopyTextAsync"/>).
+    /// </summary>
+    /// <param name="selected">The selected rows in order; null for one no longer loaded.</param>
+    public static async Task CopyRowsAsync(ShellState shell, GridBridge grid, TableDetails table, IReadOnlyList<RowData?> selected)
+    {
+        var rows = selected.OfType<RowData>().ToList();
+        var export = DelimitedExport.Build(table, rows, DelimitedExport.ClipboardSeparator);
+        var missing = selected.Count - rows.Count;
+        IReadOnlyList<string> warnings = missing == 0
+            ? export.Warnings
+            : [.. export.Warnings, TextFormat.Plural(missing, GridText.Grid_SelectedRowsNotCopiedOne, GridText.Grid_SelectedRowsNotCopiedOther)];
+        if (await grid.CopyTextAsync(shell, export.Text))
+        {
+            shell.Notify(CopiedText(ExportCopy.Table, rows.Count), warnings);
+        }
+    }
+
+    /// <summary>Ctrl+C on one cell, in either grid: its full value, and what it lacks (a LOB with only its preview loaded).</summary>
+    public static async Task CopyCellAsync(ShellState shell, GridBridge grid, ColumnInfo column, object? value)
+    {
+        var cell = DelimitedExport.CellText(column, value);
+        if (await grid.CopyTextAsync(shell, cell.Text) && cell.Warnings.Count > 0)
+        {
+            shell.Notify(GridText.Grid_ValueNotCopied, cell.Warnings);
+        }
+    }
+
     /// <summary>The full value (like Ctrl+C), not the shortened display text.</summary>
     public async Task CopyValueAsync(ColumnInfo column, object? value)
     {
@@ -44,7 +73,7 @@ public sealed class ExportActions(ShellState shell, DomModule dom, IFileSaveServ
         await close();
         if (!copied)
         {
-            shell.Notify(GridText.Export_ClipboardUnavailable);
+            shell.Notify(CommonText.ClipboardUnavailable);
         }
         else if (cell.Warnings.Count > 0)
         {
@@ -59,7 +88,7 @@ public sealed class ExportActions(ShellState shell, DomModule dom, IFileSaveServ
         await close();
         if (!copied)
         {
-            shell.Notify(GridText.Export_ClipboardUnavailable);
+            shell.Notify(CommonText.ClipboardUnavailable);
         }
     }
 
@@ -68,7 +97,7 @@ public sealed class ExportActions(ShellState shell, DomModule dom, IFileSaveServ
     {
         var copied = await dom.CopyTextAsync(export.Text);
         await close();
-        shell.Notify(copied ? CopiedText(kind, export.Rows) : GridText.Export_ClipboardUnavailable, Warnings(export));
+        shell.Notify(copied ? CopiedText(kind, export.Rows) : CommonText.ClipboardUnavailable, Warnings(export));
     }
 
     /// <param name="fileName">Offered file name with extension.</param>

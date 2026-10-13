@@ -92,7 +92,7 @@
 
             if (!await Dom.CopyTextAsync(Sql))
             {
-                Shell?.Notify(SqlEditorText.Editor_ClipboardUnavailable);
+                Shell?.Notify(CommonText.ClipboardUnavailable);
                 return;
             }
         }

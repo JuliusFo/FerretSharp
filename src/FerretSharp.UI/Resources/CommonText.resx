@@ -82,4 +82,12 @@ The log is in {1}.</value>
     <value>FerretSharp is already running with the data folder {0}, but its window could not be brought forward.</value>
     <comment>Message box at start (WP-32); {0}: path of the data folder</comment>
   </data>
+  <data name="ClipboardUnavailable" xml:space="preserve">
+    <value>The clipboard is not available.</value>
+    <comment>Notice after a copy that could not reach the clipboard</comment>
+  </data>
+  <data name="CopiedCheck" xml:space="preserve">
+    <value>Copied ✓</value>
+    <comment>Button text for a moment after copying</comment>
+  </data>
 </root>

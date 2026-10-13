@@ -204,9 +204,6 @@
     <value>{0:N0} rows</value>
     <comment>{0}: number of rows</comment>
   </data>
-  <data name="Export_ClipboardUnavailable" xml:space="preserve">
-    <value>The clipboard is not available.</value>
-  </data>
   <data name="Export_CopiedAsTableOne" xml:space="preserve">
     <value>{0} row copied as a table.</value>
     <comment>{0}: number of rows (1)</comment>

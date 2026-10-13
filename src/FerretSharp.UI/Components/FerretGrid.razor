@@ -1137,33 +1137,15 @@
 
     private async Task OnCopyCoreAsync(int rowIndex, string colId, int[] selectedRows)
     {
+        // The pending values, as shown (A21).
         if (selectedRows.Length > 1)
         {
-            var selected = selectedRows.Order().Select(_blocks.At).ToList();
-            var rows = selected.OfType<RowData>().Select(Shown).ToList();
-            var table = DelimitedExport.Build(Details, rows, DelimitedExport.ClipboardSeparator);
-            var missing = selected.Count - rows.Count;
-            IReadOnlyList<string> warnings = missing == 0
-                ? table.Warnings
-                : [.. table.Warnings, TextFormat.Plural(missing, GridText.Grid_SelectedRowsNotCopiedOne, GridText.Grid_SelectedRowsNotCopiedOther)];
-            if (await CopyTextAsync(table.Text))
-            {
-                Shell.Notify(ExportActions.CopiedText(ExportCopy.Table, rows.Count), warnings);
-            }
-
-            return;
+            await ExportActions.CopyRowsAsync(Shell, _grid, Details, selectedRows.Order().Select(i => _blocks.At(i) is { } r ? Shown(r) : null).ToList());
         }
-
-        if (_blocks.At(rowIndex) is not { } row || !colId.StartsWith('c'))
+        else if (_blocks.At(rowIndex) is { } row && colId.StartsWith('c'))
         {
-            return;
-        }
-
-        var index = ColumnIndex(colId);
-        var cell = DelimitedExport.CellText(Details.Columns[index], Shown(row).Values[index]);
-        if (await CopyTextAsync(cell.Text) && cell.Warnings.Count > 0)
-        {
-            Shell.Notify(GridText.Grid_ValueNotCopied, cell.Warnings);
+            var index = ColumnIndex(colId);
+            await ExportActions.CopyCellAsync(Shell, _grid, Details.Columns[index], Shown(row).Values[index]);
         }
     }
 

@@ -77,4 +77,10 @@ Das Protokoll liegt in {1}.</value>
   <data name="AlreadyRunning" xml:space="preserve">
     <value>FerretSharp läuft schon mit dem Datenordner {0}, aber sein Fenster ließ sich nicht nach vorn holen.</value>
   </data>
+  <data name="ClipboardUnavailable" xml:space="preserve">
+    <value>Die Zwischenablage ist nicht verfügbar.</value>
+  </data>
+  <data name="CopiedCheck" xml:space="preserve">
+    <value>Kopiert ✓</value>
+  </data>
 </root>

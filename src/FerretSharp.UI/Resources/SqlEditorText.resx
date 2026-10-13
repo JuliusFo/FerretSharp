@@ -20,9 +20,6 @@
     <value>Unlock workspace …</value>
     <comment>Button: make the read-only workspace writable</comment>
   </data>
-  <data name="Editor_ClipboardUnavailable" xml:space="preserve">
-    <value>The clipboard is not available.</value>
-  </data>
   <data name="Editor_Copied" xml:space="preserve">
     <value>Copied</value>
     <comment>Shown on a copy button for a moment after copying</comment>
@@ -433,9 +430,6 @@
   <data name="Plan_WholeResult" xml:space="preserve">
     <value>whole result</value>
     <comment>Checkbox label</comment>
-  </data>
-  <data name="Plan_CopiedCheck" xml:space="preserve">
-    <value>Copied ✓</value>
   </data>
   <data name="Plan_CopyAsText" xml:space="preserve">
     <value>Copy as text</value>

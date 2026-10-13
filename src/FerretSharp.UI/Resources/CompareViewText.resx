@@ -214,9 +214,6 @@
   <data name="Compare_CopiedMarkdown" xml:space="preserve">
     <value>Comparison copied as Markdown.</value>
   </data>
-  <data name="Compare_ClipboardUnavailable" xml:space="preserve">
-    <value>The clipboard is not available.</value>
-  </data>
   <data name="Compare_CopyName" xml:space="preserve">
     <value>{0} (copy)</value>
     <comment>Proposed name of a copy. {0} = name of the comparison</comment>

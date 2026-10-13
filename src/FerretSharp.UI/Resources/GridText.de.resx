@@ -159,9 +159,6 @@
   <data name="Export_RowsOther" xml:space="preserve">
     <value>{0:N0} Zeilen</value>
   </data>
-  <data name="Export_ClipboardUnavailable" xml:space="preserve">
-    <value>Die Zwischenablage ist nicht verfügbar.</value>
-  </data>
   <data name="Export_CopiedAsTableOne" xml:space="preserve">
     <value>{0} Zeile als Tabelle kopiert.</value>
   </data>

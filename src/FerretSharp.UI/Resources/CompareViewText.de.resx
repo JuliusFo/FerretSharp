@@ -174,9 +174,6 @@
   <data name="Compare_CopiedMarkdown" xml:space="preserve">
     <value>Vergleich als Markdown kopiert.</value>
   </data>
-  <data name="Compare_ClipboardUnavailable" xml:space="preserve">
-    <value>Die Zwischenablage ist nicht verfügbar.</value>
-  </data>
   <data name="Compare_CopyName" xml:space="preserve">
     <value>{0} (Kopie)</value>
   </data>

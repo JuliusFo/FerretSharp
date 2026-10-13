@@ -6,7 +6,7 @@
     <header>
         <span>@ShellText.ErrorDialog_Title</span>
         <span class="spacer"></span>
-        <button class="btn" @onclick="CopyAsync">@(_copied ? ShellText.ErrorDialog_Copied : CommonText.Copy)</button>
+        <button class="btn" @onclick="CopyAsync">@(_copied ? CommonText.CopiedCheck : CommonText.Copy)</button>
         <button class="icon-btn ghost" title="@CommonText.Close" @onclick="OnClose">✕</button>
     </header>
     <div class="error-detail left">
@@ -38,11 +38,19 @@
     }
 </ModalFrame>
 
+@implements IAsyncDisposable
+
 @code {
     private bool _copied;
+    private DomModule? _dom;
 
     [Inject]
     private IJSRuntime JS { get; set; } = null!;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    private DomModule Dom => _dom ??= new(JS);
 
     [Parameter, EditorRequired]
     public DatabaseException Error { get; set; } = null!;
@@ -57,7 +65,9 @@
     private async Task CopyAsync()
     {
         var text = Error.Display + (Error.Statement is { } s ? Environment.NewLine + Environment.NewLine + BindValues.Describe(s, Mask) : "");
-        await JS.InvokeVoidAsync("navigator.clipboard.writeText", text);
-        _copied = true;
+        // Through dom.js like every copy (R5b: called navigator.clipboard directly, and a failure escaped the handler).
+        _copied = await Dom.CopyTextAsync(Shell, text);
     }
+
+    public async ValueTask DisposeAsync() => await Dom.DisposeAsync();
 }

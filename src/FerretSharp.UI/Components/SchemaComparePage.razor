@@ -397,7 +397,7 @@
         }
 
         var text = CompareExport.Markdown(result, Labels, Compare.Current.OnlyDifferences, Compare.Current.Kinds);
-        Shell.Notify(await Dom.CopyTextAsync(text) ? CompareViewText.Compare_CopiedMarkdown : CompareViewText.Compare_ClipboardUnavailable);
+        Shell.Notify(await Dom.CopyTextAsync(text) ? CompareViewText.Compare_CopiedMarkdown : CommonText.ClipboardUnavailable);
     }
 
     private void StartSaving(bool asNew)

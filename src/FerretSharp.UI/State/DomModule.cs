@@ -23,7 +23,7 @@ public sealed class DomModule(IJSRuntime js) : JsModule(js, "./_content/FerretSh
 
         if (!IsDisposed)
         {
-            shell.Notify(ShellText.Dom_ClipboardUnavailable);
+            shell.Notify(CommonText.ClipboardUnavailable);
         }
 
         return false;

@@ -735,9 +735,6 @@
   <data name="ErrorDialog_Title" xml:space="preserve">
     <value>Datenbankfehler</value>
   </data>
-  <data name="ErrorDialog_Copied" xml:space="preserve">
-    <value>Kopiert ✓</value>
-  </data>
   <data name="ErrorDialog_ConnectionLostHint" xml:space="preserve">
     <value>Die Verbindung zur Datenbank ist verloren gegangen (z. B. Session beendet, Idle-Timeout, Netzwerk). Über „Neu verbinden“ werden alle Workspaces mit ihren Tabs wiederhergestellt.</value>
   </data>
@@ -776,9 +773,6 @@
   </data>
   <data name="Lifecycle_ExitWhat" xml:space="preserve">
     <value>FerretSharp beenden</value>
-  </data>
-  <data name="Dom_ClipboardUnavailable" xml:space="preserve">
-    <value>Die Zwischenablage ist nicht verfügbar.</value>
   </data>
   <data name="Changes_Title" xml:space="preserve">
     <value>Offene Änderungen</value>
