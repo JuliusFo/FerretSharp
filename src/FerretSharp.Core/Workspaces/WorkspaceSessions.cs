@@ -219,9 +219,9 @@ internal sealed class WorkspaceSessions(ConnectionManager connections, IDatabase
             var connection = await session;
             await connection.DisposeAsync();
         }
-        catch (Exception ex) when (ex is DatabaseException or OperationCanceledException)
+        catch (Exception ex) when (ex is DatabaseException or OperationCanceledException or ObjectDisposedException or InvalidOperationException)
         {
-            // Never opened: nothing to close.
+            // Never opened, or already gone: nothing to close – never stop closing the others (review 3.31.0, ST-9).
         }
     }
 

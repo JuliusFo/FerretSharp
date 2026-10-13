@@ -260,14 +260,37 @@ public sealed partial class OracleSession : IAsyncDisposable
             return;
         }
 
+        // Rollback and close in the background as well, within the same limit (review 3.31.0, A7): ODP.NET has no DisposeAsync
+        // of its own – DbConnection's closes synchronously, and on a connection that went silent while idle that blocked the
+        // caller (the UI thread when disconnecting) until TCP gave up. An error closing it changes nothing (ST-9).
+        var closing = Task.Run(async () =>
+        {
+            try
+            {
+                await EndTransactionQuietlyAsync();
+            }
+            finally
+            {
+                try
+                {
+                    await _connection.DisposeAsync();
+                }
+                catch (Exception ex) when (ex is OracleException or InvalidOperationException or ObjectDisposedException)
+                {
+                    // the connection is gone either way
+                }
+
+                _gate.Release();
+            }
+        });
+
         try
         {
-            await EndTransactionQuietlyAsync();
+            await closing.WaitAsync(DisposeWait);
         }
-        finally
+        catch (TimeoutException)
         {
-            await _connection.DisposeAsync();
-            _gate.Release();
+            // left behind: it closes in the background
         }
     }
 

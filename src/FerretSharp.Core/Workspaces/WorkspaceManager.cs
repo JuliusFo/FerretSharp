@@ -210,10 +210,9 @@ public sealed class WorkspaceManager : IAsyncDisposable
         }
 
         await FlushAsync();
-        foreach (var session in sessions)
-        {
-            await WorkspaceSessions.CloseAsync(session);
-        }
+
+        // Side by side, each on its own (review 3.31.0, A7): one after another, every silent session added its wait.
+        await Task.WhenAll(sessions.Select(WorkspaceSessions.CloseAsync));
 
         // Rolling back can take a while; tab changes recorded meanwhile are saved too.
         await FlushAsync();
