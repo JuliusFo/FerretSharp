@@ -5,6 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- Updates: FerretSharp checks for a newer version while it runs too, not only at start – Settings › Updates › "While FerretSharp runs": never, hourly, every 4 hours (default) or daily, counted from the last check. Only with automatic checks on; as before it only reports, downloading and installing wait for your click.
+
+### Changed
+- Settings › Updates: "Check at start" is called "Check automatically".
+
 ## [3.30.0] - 2026-10-13
 
 Pinned tabs and a quicker way through the settings (WP-34); pause and clear in the app statements.
