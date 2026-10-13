@@ -1425,4 +1425,16 @@
     <value>Download</value>
     <comment>Button</comment>
   </data>
+  <data name="TabMenu_Pin" xml:space="preserve">
+    <value>Pin tab</value>
+    <comment>Right-click menu of a tab (WP-34): pinned tabs stand at the left and stay open when closing others</comment>
+  </data>
+  <data name="TabMenu_Unpin" xml:space="preserve">
+    <value>Unpin tab</value>
+    <comment>Right-click menu of a pinned tab (WP-34)</comment>
+  </data>
+  <data name="TabBar_UnpinTitle" xml:space="preserve">
+    <value>Pinned – click to unpin. Stays open when closing other tabs, the tabs to the right or all tabs.</value>
+    <comment>Tooltip of the pin in place of the close button of a pinned tab (WP-34)</comment>
+  </data>
 </root>

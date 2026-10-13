@@ -1152,4 +1152,13 @@
   <data name="Update_Download" xml:space="preserve">
     <value>Herunterladen</value>
   </data>
+  <data name="TabMenu_Pin" xml:space="preserve">
+    <value>Tab anheften</value>
+  </data>
+  <data name="TabMenu_Unpin" xml:space="preserve">
+    <value>Tab lösen</value>
+  </data>
+  <data name="TabBar_UnpinTitle" xml:space="preserve">
+    <value>Angeheftet – Klick löst den Tab. Bleibt offen, wenn andere Tabs, die rechts davon oder alle geschlossen werden.</value>
+  </data>
 </root>

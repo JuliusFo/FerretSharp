@@ -366,7 +366,7 @@ public sealed partial class WorkspaceLifecycle(
         {
             // The draft of a new table is not saved (WP-23): the saved list and its active index leave it out.
             var saved = workspace.Tabs.Where(t => t.IsSaved).ToList();
-            hub.ScopeOf(workspace).Workspaces.UpdateTabs(workspace.WorkspaceId, saved.Select(t => t.ToState(saved)).ToList(), workspace.ActiveTab is { } active ? saved.IndexOf(active) : -1);
+            hub.ScopeOf(workspace).Workspaces.UpdateTabs(workspace.WorkspaceId, saved.Select(t => t.Save(saved)).ToList(), workspace.ActiveTab is { } active ? saved.IndexOf(active) : -1);
         }
     }
 }

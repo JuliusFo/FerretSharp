@@ -17,7 +17,7 @@
             LinqTab => ShellText.TabBar_LinqTitle,
             _ => ShellText.TabBar_SqlTitle,
         };
-        <div class="tab @KindClass(tab) @(tab == Shell.ActiveTab ? "active" : "")" title="@tooltip"
+        <div class="tab @KindClass(tab) @(tab == Shell.ActiveTab ? "active" : "") @(tab.Pinned ? "pinned" : "")" title="@tooltip"
              @onclick="e => OnClick(e, tab)" @onmouseup="e => CloseOnMiddleClick(e, tab)"
              @oncontextmenu="e => OpenMenuAsync(e, tab)" @oncontextmenu:preventDefault="true">
             @switch (tab)
@@ -64,8 +64,17 @@
                     }
                     break;
             }
-            <button class="tab-close" title="@TextFormat.Format(ShellText.TabBar_CloseTitle, Shortcuts.Hint(ShortcutAction.CloseTab))"
-                    @onmousedown:preventDefault="true" @onclick:stopPropagation="true" @onclick="() => CloseAsync(tab)">✕</button>
+            @if (tab.Pinned)
+            {
+                @* WP-34: a pinned tab shows its pin where others have ✕; a click unpins it (closing stays in the menu and the shortcut). *@
+                <button class="tab-close tab-pin" title="@ShellText.TabBar_UnpinTitle"
+                        @onmousedown:preventDefault="true" @onclick:stopPropagation="true" @onclick="() => Shell.SetPinned(tab, false)">@Icons.Pin</button>
+            }
+            else
+            {
+                <button class="tab-close" title="@TextFormat.Format(ShellText.TabBar_CloseTitle, Shortcuts.Hint(ShortcutAction.CloseTab))"
+                        @onmousedown:preventDefault="true" @onclick:stopPropagation="true" @onclick="() => CloseAsync(tab)">✕</button>
+            }
         </div>
     }
     <button class="tab-new" title="@TextFormat.Format(ShellText.TabBar_NewSqlTitle, Shortcuts.Hint(ShortcutAction.NewSql))"
@@ -83,15 +92,22 @@
     <PopoverMenu X="menu.X" Y="menu.Y" ViewportWidth="menu.ViewportWidth" ViewportHeight="menu.ViewportHeight" Width="250" EstimatedHeight="140"
                  OnClose="CloseMenu">
         <div class="tab-menu">
+            <button class="menu-item" @onclick="TogglePinFromMenu">
+                @(menu.Tab.Pinned ? ShellText.TabMenu_Unpin : ShellText.TabMenu_Pin) <Kbd Action="ShortcutAction.PinTab" />
+            </button>
+            <div class="menu-sep"></div>
             <button class="menu-item" @onclick="() => CloseFromMenu(TabCloseScope.This)">@ShellText.TabMenu_Close <Kbd Action="ShortcutAction.CloseTab" /></button>
-            <button class="menu-item" disabled="@(Shell.Tabs.Count < 2)" @onclick="() => CloseFromMenu(TabCloseScope.Others)">
+            @* Pinned tabs stay open (WP-34): a scope that would close nothing is disabled. *@
+            <button class="menu-item" disabled="@(!Shell.Tabs.Any(t => t != menu.Tab && !t.Pinned))" @onclick="() => CloseFromMenu(TabCloseScope.Others)">
                 @ShellText.TabMenu_CloseOthers <Kbd Action="ShortcutAction.CloseOtherTabs" />
             </button>
-            <button class="menu-item" disabled="@(index == Shell.Tabs.Count - 1)" @onclick="() => CloseFromMenu(TabCloseScope.ToTheRight)">
+            <button class="menu-item" disabled="@(!Shell.Tabs.Skip(index + 1).Any(t => !t.Pinned))" @onclick="() => CloseFromMenu(TabCloseScope.ToTheRight)">
                 @ShellText.TabMenu_CloseToTheRight
             </button>
             <div class="menu-sep"></div>
-            <button class="menu-item" @onclick="() => CloseFromMenu(TabCloseScope.All)">@ShellText.TabMenu_CloseAll <Kbd Action="ShortcutAction.CloseAllTabs" /></button>
+            <button class="menu-item" disabled="@(!Shell.Tabs.Any(t => !t.Pinned))" @onclick="() => CloseFromMenu(TabCloseScope.All)">
+                @ShellText.TabMenu_CloseAll <Kbd Action="ShortcutAction.CloseAllTabs" />
+            </button>
         </div>
     </PopoverMenu>
 }
@@ -186,9 +202,19 @@
         Lifecycle.CloseTabs(menu.Tab, scope);
     }
 
+    private void TogglePinFromMenu()
+    {
+        if (_menu is { } menu)
+        {
+            _menu = null;
+            Shell.SetPinned(menu.Tab, !menu.Tab.Pinned);
+        }
+    }
+
+    /// <summary>A pinned tab does not close by middle click (WP-34): too easy to hit while working along the bar.</summary>
     private async Task CloseOnMiddleClick(MouseEventArgs e, WorkspaceTab tab)
     {
-        if (e.Button == 1)
+        if (e.Button == 1 && !tab.Pinned)
         {
             await CloseAsync(tab);
         }

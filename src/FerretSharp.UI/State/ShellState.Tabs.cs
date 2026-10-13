@@ -18,6 +18,9 @@ public sealed class WorkspaceTabs(Guid workspaceId, Guid connectionId)
 
     public int ActiveIndex => ActiveTab is null ? -1 : Tabs.IndexOf(ActiveTab);
 
+    /// <summary>The pinned tabs stand first (WP-34); this many.</summary>
+    public int PinnedCount => Tabs.TakeWhile(t => t.Pinned).Count();
+
     /// <summary>The table tabs (editing, FK navigation); LINQ tabs have no rows of their own.</summary>
     public IEnumerable<TableTab> TableTabs => Tabs.OfType<TableTab>();
 }
@@ -260,12 +263,13 @@ public sealed partial class ShellState
         return tab;
     }
 
-    /// <summary>A new tab right after the active one (or at the end), activated, with the explorer shown.</summary>
+    /// <summary>A new tab right after the active one (or at the end) – after the pinned tabs, if the active one is pinned –, activated, with the explorer shown.</summary>
     private T InsertAfterActive<T>(WorkspaceTabs workspace, T tab) where T : WorkspaceTab
     {
         Set(() =>
         {
             var index = workspace.ActiveTab is { } active ? workspace.Tabs.IndexOf(active) + 1 : workspace.Tabs.Count;
+            index = Math.Max(index, workspace.PinnedCount); // never among the pinned tabs (WP-34)
             workspace.Tabs.Insert(index, tab);
             workspace.ActiveTab = tab;
             Page = ShellPage.Explorer;
@@ -308,6 +312,21 @@ public sealed partial class ShellState
             tab.Visited = true;
             workspace.ActiveTab = tab;
         }
+    });
+
+    /// <summary>
+    /// Pins or unpins a tab (WP-34). Pinned tabs stand first: a pinned tab goes to the end of them, an unpinned one right
+    /// after them, so the order of the others stays.
+    /// </summary>
+    public void SetPinned(WorkspaceTab tab, bool pinned) => Set(() =>
+    {
+        if (FindWorkspace(tab.WorkspaceId) is not { } workspace || tab.Pinned == pinned || !workspace.Tabs.Remove(tab))
+        {
+            return;
+        }
+
+        tab.Pinned = pinned;
+        workspace.Tabs.Insert(workspace.PinnedCount, tab);
     });
 
     /// <summary>Closes a tab of any open workspace (an error in a background connection's tab offers to close it too).</summary>
@@ -445,6 +464,7 @@ public sealed partial class ShellState
                 continue; // dropped, or no longer reachable through a synonym
             }
 
+            tab.Pinned = state.Pinned;
             result.Tabs.Add(tab);
             if (i == workspace.ActiveTabIndex)
             {
@@ -460,6 +480,10 @@ public sealed partial class ShellState
             }
         }
 
+        // Pinned tabs first (WP-34), whatever order the file has.
+        var ordered = result.Tabs.Where(t => t.Pinned).Concat(result.Tabs.Where(t => !t.Pinned)).ToList();
+        result.Tabs.Clear();
+        result.Tabs.AddRange(ordered);
         result.ActiveTab = active ?? result.Tabs.FirstOrDefault();
         return result;
     }

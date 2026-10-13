@@ -443,6 +443,10 @@ dl.keys dd { margin: 0; }
 .filter-pill { font-size: 10px; font-weight: 600; padding: 0 6px; border-radius: 8px; background: var(--accent-weak); color: var(--accent); }
 .tab-close { width: 22px; height: 22px; border: 0; border-radius: 5px; background: transparent; color: var(--faint); }
 .tab-close:hover { background: var(--hover); color: var(--text); }
+/* Pinned tabs (WP-34): the pin in place of ✕, a stronger line after the last one. */
+.tab-close.tab-pin { display: grid; place-items: center; color: var(--accent); }
+.tab-close.tab-pin svg { width: 13px; height: 13px; }
+.tab.pinned:has(+ .tab:not(.pinned)), .tab.pinned:has(+ .tab-new) { border-right: 2px solid var(--border-strong); }
 .tab-menu kbd { margin-left: auto; }
 .work-split { flex: 1; display: flex; min-height: 0; }
 .pages { flex: 1; position: relative; min-height: 0; min-width: 0; }
