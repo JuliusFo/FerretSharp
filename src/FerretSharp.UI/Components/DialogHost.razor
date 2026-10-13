@@ -27,7 +27,7 @@
 
 @if (Shell.ErrorDetails is { } error)
 {
-    <ErrorDialog @key="error" Error="error" Mask="@(Active.Profile?.Kind == ConnectionKind.Prod)" OnClose="Shell.CloseError" />
+    <ErrorDialog @key="error" Error="error" Mask="@(Active.Profile?.MasksValues == true)" OnClose="Shell.CloseError" />
 }
 
 @if (Shell.Notice is { } notice)

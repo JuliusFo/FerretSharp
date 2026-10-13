@@ -1,4 +1,5 @@
 using System.Globalization;
+using FerretSharp.Core.Data;
 using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 
@@ -40,7 +41,7 @@ public sealed record PageSpec(int Offset, int Limit);
 /// <summary>Operator rules per column category and value parsing.</summary>
 public static class FilterRules
 {
-    private static readonly CultureInfo German = CultureInfo.GetCultureInfo("de-DE");
+    private static readonly CultureInfo German = ValueCulture.German;
 
     private static readonly FilterOperator[] Comparable =
     [

@@ -1,5 +1,6 @@
 using System.Globalization;
 using FerretSharp.Core.Data;
+using FerretSharp.Core.Oracle;
 using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.Query;
@@ -33,7 +34,7 @@ public static class BindValues
         var other => other.ToString() ?? "",
     };
 
-    private static string Quote(string s) => "'" + s.Replace("'", "''", StringComparison.Ordinal) + "'";
+    private static string Quote(string s) => OracleLiteral.Text(s);
 
     /// <summary>The statement followed by one line per bind variable, e.g. <c>-- :p0 = 'Müller'</c>.</summary>
     public static string Describe(QuerySpec statement, bool mask) =>

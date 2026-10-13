@@ -57,9 +57,7 @@ public sealed partial class OracleSchemaReader
                 return null;
             }
 
-            var child = (await session.ReadListAsync(OraclePlans.LatestChild, byId, reader => Int(reader, 0) ?? 0, cancellationToken)).FirstOrDefault();
-            var steps = await session.ExecuteReaderAsync(OraclePlans.ActualSteps, [.. byId, new QueryParameter("child", child)],
-                (reader, ct) => OraclePlans.ReadAsync(reader, actual: true, ct), cancellationToken);
+            var (child, steps) = await OraclePlans.ReadActualAsync(session, sqlId, cancellationToken);
             return new CursorInfo(sqlId, cursor.Children, cursor.Executions, cursor.Rows, cursor.Gets, cursor.Reads, cursor.Elapsed, cursor.Cpu,
                 cursor.LastActive, new ExecutionPlan(PlanSource.Actual, sql, steps, sqlId, child));
         }

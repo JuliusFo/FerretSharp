@@ -72,8 +72,7 @@ public static class InsertExport
     };
 
     /// <summary>N'…' for national character columns, so characters outside the database charset survive.</summary>
-    private static string Text(ColumnInfo column, string value) =>
-        (OracleTypes.IsNational(column.DataType) ? "N'" : "'") + value.Replace("'", "''", StringComparison.Ordinal) + "'";
+    private static string Text(ColumnInfo column, string value) => OracleLiteral.Text(value, OracleTypes.IsNational(column.DataType));
 
     /// <param name="infinity">+1/-1 for ±infinity, otherwise 0.</param>
     private static string Binary(string type, bool nan, int infinity, string literal) => (nan, infinity) switch

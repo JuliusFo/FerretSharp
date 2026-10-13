@@ -1,5 +1,7 @@
 using System.Data.Common;
 using FerretSharp.Core.Query;
+using FerretSharp.Core.Resources;
+using FerretSharp.Core.Schema;
 using static FerretSharp.Core.Oracle.OracleReading;
 
 namespace FerretSharp.Core.Oracle;
@@ -34,6 +36,21 @@ internal static class OraclePlans
           FROM V$SQL
          WHERE SQL_ID = :sql_id
         """;
+
+    /// <summary>
+    /// The actual plan of the most recently active child cursor of <paramref name="sqlId"/> (R5b: read the same way for the
+    /// explain plan and the app statements, which took child 0 if none was found).
+    /// </summary>
+    /// <exception cref="PlanUnavailableException">No child cursor: aged out of the shared pool meanwhile.</exception>
+    public static async Task<(int Child, IReadOnlyList<PlanStep> Steps)> ReadActualAsync(OracleSession session, string sqlId, CancellationToken cancellationToken)
+    {
+        var child = await session.ExecuteReaderAsync(LatestChild, [new QueryParameter("sql_id", sqlId)], async (reader, ct) =>
+                        await reader.ReadAsync(ct) ? Int(reader, 0) : null, cancellationToken)
+                    ?? throw new PlanUnavailableException(TextFormat.Format(OracleText.CursorGone, sqlId));
+        var steps = await session.ExecuteReaderAsync(ActualSteps, [new QueryParameter("sql_id", sqlId), new QueryParameter("child", child)],
+            (reader, ct) => ReadAsync(reader, actual: true, ct), cancellationToken);
+        return (child, steps);
+    }
 
     /// <summary>Probes the rights the actual plan needs before running anything.</summary>
     public const string RightsProbe = "SELECT (SELECT COUNT(*) FROM V$SQL WHERE ROWNUM = 1) + (SELECT COUNT(*) FROM V$SQL_PLAN_STATISTICS_ALL WHERE ROWNUM = 1) FROM DUAL";

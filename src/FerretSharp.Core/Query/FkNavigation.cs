@@ -59,7 +59,7 @@ public static class FkNavigation
     /// </summary>
     public const int MaxValues = 1000;
 
-    internal static readonly CultureInfo German = CultureInfo.GetCultureInfo("de-DE");
+    internal static readonly CultureInfo German = ValueCulture.German;
 
     /// <summary>Outgoing jumps first, then incoming ones; each group ordered by table and constraint name.</summary>
     public static IReadOnlyList<FkJump> JumpsFor(

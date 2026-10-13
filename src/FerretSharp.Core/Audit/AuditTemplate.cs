@@ -200,7 +200,7 @@ public sealed record AuditTemplate
             AuditPlaceholder.Owner => Identifier(table.Owner),
             AuditPlaceholder.Column => Identifier(column!.Name),
             AuditPlaceholder.Type => OracleTypes.DdlType(column!),
-            AuditPlaceholder.Name => column!.Name.Replace("'", "''", StringComparison.Ordinal),
+            AuditPlaceholder.Name => OracleLiteral.Escape(column!.Name), // the template writes the quotes
             _ => throw new ArgumentOutOfRangeException(nameof(placeholder)),
         };
 

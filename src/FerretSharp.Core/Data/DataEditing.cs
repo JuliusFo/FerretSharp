@@ -56,7 +56,7 @@ public sealed record WriteAction(Guid Id, WriteActionKind Kind, string Descripti
     /// <summary>"UPDATE ORDERS · 12 rows"; a grid write counts its rows in the description already.</summary>
     public string Display => Kind == WriteActionKind.Grid
         ? Description
-        : TextFormat.Plural(System.Globalization.CultureInfo.GetCultureInfo("de-DE"), Rows, DataText.WriteActionRowsOne, DataText.WriteActionRowsOther, Description);
+        : TextFormat.Plural(ValueCulture.German, Rows, DataText.WriteActionRowsOne, DataText.WriteActionRowsOther, Description);
 }
 
 /// <summary>A flush stopped at <see cref="Operation"/>; everything of this flush has been rolled back to its savepoint.</summary>

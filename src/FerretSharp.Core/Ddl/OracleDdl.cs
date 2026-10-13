@@ -232,5 +232,5 @@ internal static class OracleDdl
     }
 
     /// <summary>A string literal for COMMENT ON.</summary>
-    public static string Literal(string? text) => $"'{(text ?? "").Replace("'", "''", StringComparison.Ordinal)}'";
+    public static string Literal(string? text) => OracleLiteral.Text(text);
 }

@@ -17,7 +17,7 @@ public static class DelimitedExport
     public const char CsvSeparator = ';';
     public const char ClipboardSeparator = '\t';
 
-    private static readonly CultureInfo German = CultureInfo.GetCultureInfo("de-DE");
+    private static readonly CultureInfo German = ValueCulture.German;
 
     public static ExportText Build(TableDetails table, IReadOnlyList<RowData> rows, char separator)
     {

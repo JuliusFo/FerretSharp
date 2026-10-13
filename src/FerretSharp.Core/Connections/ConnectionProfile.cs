@@ -78,6 +78,13 @@ public sealed record ConnectionProfile(
     public static bool IsReadOnlyByDefault(ConnectionKind kind) => kind == ConnectionKind.Prod;
 
     /// <summary>
+    /// Values stay out of the log, the SQL history and error dialogs (bind values masked, variables empty): Prod
+    /// (CLAUDE.md, invariants; R5b: before, the rule stood in three places).
+    /// </summary>
+    [JsonIgnore]
+    public bool MasksValues => Kind == ConnectionKind.Prod;
+
+    /// <summary>
     /// The paths that only make sense on one computer: linked C# project, script folder, TNS_ADMIN folder. An export leaves
     /// them out unless asked, an import takes them only when asked (WP-35; review 3.31.0, A4: a project path of another
     /// computer loads – and runs – that project's DLLs, a TNS_ADMIN folder on a share decides where the login goes).
