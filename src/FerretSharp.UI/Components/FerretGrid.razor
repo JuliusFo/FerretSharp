@@ -40,6 +40,9 @@
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
 
+    [CascadingParameter]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
     [Parameter, EditorRequired]
     public TableTab Tab { get; set; } = null!;
 
@@ -101,6 +104,7 @@
         }
 
         Workspaces.Changed += OnWorkspacesChanged;
+        Shell.Changed += OnWorkspacesChanged; // a write starts or ends (review 3.31.0, A3)
         Presentations.Changed += OnPresentationChanged;
         DisplayColumns.Changed += OnDisplayColumnsChanged;
         _displayVersion = DisplayColumns.Version;
@@ -504,11 +508,30 @@
 
     /// <summary>
     /// Editing is possible in workspaces that may write – connections without the read-only lock, or a workspace the
-    /// user unlocked (WP-10) – for tables with a row key (v2, WP-09).
+    /// user unlocked (WP-10) – for tables with a row key (v2, WP-09), and not while the workspace writes or commits.
     /// </summary>
     public bool CanEdit => Workspaces.IsWritable(Tab.WorkspaceId)
                            && Details.Table.Kind == TableKind.Table
-                           && QueryBuilder.RowKeyOf(Details) != RowKeyKind.None;
+                           && QueryBuilder.RowKeyOf(Details) != RowKeyKind.None
+                           && !WriteRunning;
+
+    /// <summary>
+    /// The workspace writes or commits: an edit now could be marked written without being sent, or be cleared by the
+    /// commit (review 3.31.0, A3). The grid stops editing meanwhile; edits that still arrive are refused.
+    /// </summary>
+    private bool WriteRunning => Lifecycle.Editing.IsBusy(Tab.WorkspaceId);
+
+    /// <summary>True (and says so) while the workspace writes: the caller changes nothing.</summary>
+    private bool StoppedByWrite()
+    {
+        if (!WriteRunning)
+        {
+            return false;
+        }
+
+        Shell.Notify(GridText.Grid_WriteRunning);
+        return true;
+    }
 
     /// <summary>Unlocking or locking the workspace switches editing in the grid on or off without reloading it.</summary>
     private void OnWorkspacesChanged() => Fire(async () =>
@@ -564,6 +587,11 @@
         if (Tab.Changes is not { } changes)
         {
             return GridText.Grid_TableNotEditable;
+        }
+
+        if (WriteRunning)
+        {
+            return GridText.Grid_WriteRunning;
         }
 
         EditResult result;
@@ -683,6 +711,11 @@
             return new GridEdit(null, GridText.Grid_TableNotEditable);
         }
 
+        if (WriteRunning)
+        {
+            return new GridEdit(null, GridText.Grid_WriteRunning);
+        }
+
         EditResult result;
         if (NewRow(newId) is { } added)
         {
@@ -798,7 +831,7 @@
     [JSInvokable]
     public Task OnEditHistoryKey(bool undo) => GuardAsync(async () =>
     {
-        if (Tab.Changes is not { } changes)
+        if (Tab.Changes is not { } changes || StoppedByWrite())
         {
             return;
         }
@@ -857,7 +890,7 @@
 
     private async Task<GridRowUpdate[]> OnDeleteKeyCoreAsync(int[] rowIndexes, string[] newIds)
     {
-        if (Tab.Changes is not { } changes)
+        if (Tab.Changes is not { } changes || StoppedByWrite())
         {
             return [];
         }
@@ -889,7 +922,7 @@
     /// <summary>Deletes or reverts rows from the context menu; redraws them.</summary>
     public async Task ChangeRowsAsync(IReadOnlyList<int> rowIndexes, bool delete)
     {
-        if (Tab.Changes is not { } changes)
+        if (Tab.Changes is not { } changes || StoppedByWrite())
         {
             return;
         }
@@ -924,7 +957,7 @@
     /// </summary>
     public async Task AddRowAsync(bool inGrid = true)
     {
-        if (Tab.Changes is not { } changes || !_grid.IsCreated)
+        if (Tab.Changes is not { } changes || !_grid.IsCreated || StoppedByWrite())
         {
             return;
         }
@@ -1133,6 +1166,7 @@
     public async ValueTask DisposeAsync()
     {
         Workspaces.Changed -= OnWorkspacesChanged;
+        Shell.Changed -= OnWorkspacesChanged;
         Presentations.Changed -= OnPresentationChanged;
         DisplayColumns.Changed -= OnDisplayColumnsChanged;
         _lookups.Clear();

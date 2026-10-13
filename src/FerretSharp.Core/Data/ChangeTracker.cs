@@ -127,8 +127,9 @@ public sealed class RowChange
     }
 
     /// <param name="written">
-    /// The values an UPDATE wrote; null for everything pending (insert, delete). A redo writes only its own columns – a
-    /// newer value of one of them, or a pending delete, stays pending (R4a).
+    /// The values an UPDATE or INSERT wrote; null for a delete (everything pending). A redo writes only its own columns – a
+    /// newer value of one of them, or a pending delete, stays pending (R4a); so does a value typed while the write ran
+    /// (review 3.31.0, A3).
     /// </param>
     internal void MarkFlushed(IReadOnlyDictionary<int, object?>? written, RowKey? newKey)
     {
@@ -215,7 +216,22 @@ public sealed record PendingOperation(
     OperationKind Kind,
     RowKey Key,
     IReadOnlyDictionary<int, object?> Values,
-    IReadOnlyDictionary<int, object?> Expected);
+    IReadOnlyDictionary<int, object?> Expected)
+{
+    /// <summary>
+    /// An insert's pending values when it was taken, also the NULLs it leaves out (defaults apply): what it writes. A value
+    /// typed while it runs stays pending (review 3.31.0, A3).
+    /// </summary>
+    public IReadOnlyDictionary<int, object?>? Covers { get; init; }
+
+    /// <summary>The values this operation writes: an update's and an insert's; null for a delete.</summary>
+    internal IReadOnlyDictionary<int, object?>? Written => Kind switch
+    {
+        OperationKind.Update => Values,
+        OperationKind.Insert => Covers ?? Values,
+        _ => null,
+    };
+}
 
 /// <summary>Result of an edit; <see cref="Error"/> is shown at the cell.</summary>
 public sealed record EditResult(RowChange? Change, string? Error)
@@ -478,12 +494,19 @@ public sealed class ChangeTracker(TableDetails table)
 
         foreach (var change in _newRows.Where(c => !c.IsInserted))
         {
-            var values = change.PendingValues.Where(v => v.Value is not null).ToDictionary(v => v.Key, v => v.Value);
-            operations.Add(new PendingOperation(change, OperationKind.Insert, RowKey.None.Instance, values, new Dictionary<int, object?>()));
+            operations.Add(InsertOf(change));
         }
 
         return operations;
     }
+
+    /// <summary>Only the filled values are inserted; the NULLs are covered too (defaults apply to them).</summary>
+    private static PendingOperation InsertOf(RowChange change) =>
+        new(change, OperationKind.Insert, RowKey.None.Instance,
+            change.PendingValues.Where(v => v.Value is not null).ToDictionary(v => v.Key, v => v.Value), new Dictionary<int, object?>())
+        {
+            Covers = new Dictionary<int, object?>(change.PendingValues),
+        };
 
     /// <summary>
     /// The pending operations of the rows of a write taken back (redo, WP-30) – in the order of <see cref="PendingOperations()"/>,
@@ -507,8 +530,7 @@ public sealed class ChangeTracker(TableDetails table)
 
         foreach (var (change, _, _, _) in batch.Items.Where(i => i.Kind == OperationKind.Insert))
         {
-            var values = change.PendingValues.Where(v => v.Value is not null).ToDictionary(v => v.Key, v => v.Value);
-            operations.Add(new PendingOperation(change, OperationKind.Insert, RowKey.None.Instance, values, new Dictionary<int, object?>()));
+            operations.Add(InsertOf(change));
         }
 
         return operations;
@@ -536,9 +558,9 @@ public sealed class ChangeTracker(TableDetails table)
         foreach (var operation in operations)
         {
             var change = operation.Change;
-            var update = operation.Kind == OperationKind.Update;
-            batch.Items.Add((change, operation.Kind, change.Take(), new Dictionary<int, object?>(update ? operation.Values : change.PendingValues)));
-            change.MarkFlushed(update ? operation.Values : null, newKeys.GetValueOrDefault(change.Id));
+            var written = operation.Written;
+            batch.Items.Add((change, operation.Kind, change.Take(), new Dictionary<int, object?>(written ?? change.PendingValues)));
+            change.MarkFlushed(written, newKeys.GetValueOrDefault(change.Id));
             if (operation.Kind == OperationKind.Insert)
             {
                 _newRows.Remove(change);

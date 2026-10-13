@@ -15,6 +15,9 @@
   <data name="Grid_TableNotEditable" xml:space="preserve">
     <value>Diese Tabelle lässt sich hier nicht bearbeiten.</value>
   </data>
+  <data name="Grid_WriteRunning" xml:space="preserve">
+    <value>Änderungen werden gerade geschrieben – bearbeite weiter, sobald das fertig ist.</value>
+  </data>
   <data name="Grid_RowNotLoaded" xml:space="preserve">
     <value>Die Zeile ist nicht mehr geladen – bitte neu laden{0}.</value>
   </data>

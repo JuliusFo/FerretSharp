@@ -15,6 +15,9 @@
   <data name="Grid_TableNotEditable" xml:space="preserve">
     <value>This table cannot be edited here.</value>
   </data>
+  <data name="Grid_WriteRunning" xml:space="preserve">
+    <value>Changes are being written – edit again once that is done.</value>
+  </data>
   <data name="Grid_RowNotLoaded" xml:space="preserve">
     <value>The row is no longer loaded – please reload{0}.</value>
     <comment>{0}: the reload shortcut as " (F5)", or empty</comment>
