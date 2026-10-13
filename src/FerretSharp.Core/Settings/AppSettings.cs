@@ -53,10 +53,16 @@ public sealed record AppSettings
     public bool DiagnoseUiStalls { get; init; }
 
     /// <summary>
-    /// Ask GitHub at start whether a newer version is out (WP-32, ADR 0024) – only reports it; downloading and installing
-    /// wait for a click. Only an installed FerretSharp checks.
+    /// Ask GitHub at start, and every <see cref="UpdateCheckHours"/> while the app runs, whether a newer version is out
+    /// (WP-32, ADR 0024) – only reports it; downloading and installing wait for a click. Only an installed FerretSharp checks.
     /// </summary>
     public bool CheckForUpdates { get; init; } = true;
+
+    /// <summary>
+    /// With <see cref="CheckForUpdates"/> on, check again after this many hours while the app runs (since the last check);
+    /// 0 or less: only at start.
+    /// </summary>
+    public int UpdateCheckHours { get; init; } = 4;
 
     /// <summary>Entity and property names of a linked C# project beside the database names (explorer, grid, column search).</summary>
     public ClrNameDisplay ClrNames { get; init; } = ClrNameDisplay.Beside;

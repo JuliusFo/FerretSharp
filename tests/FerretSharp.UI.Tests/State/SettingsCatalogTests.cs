@@ -12,14 +12,15 @@ public sealed class SettingsCatalogTests
         new(new SettingsSearch(query), SettingsCatalog.Entries(Map, installed));
 
     [Fact]
-    public void Every_row_of_the_page_is_in_the_catalog_once_check_at_start_only_when_installed()
+    public void Every_row_of_the_page_is_in_the_catalog_once_update_checks_only_when_installed()
     {
         var installed = SettingsCatalog.Entries(Map, installed: true).Select(e => e.Id).ToList();
         var notInstalled = SettingsCatalog.Entries(Map, installed: false).Select(e => e.Id).ToList();
 
         Assert.All(Enum.GetValues<SettingKey>(), key => Assert.Single(installed, SettingsCatalog.IdOf(key)));
-        Assert.All(Enum.GetValues<SettingKey>().Where(k => k != SettingKey.CheckForUpdates), key => Assert.Single(notInstalled, SettingsCatalog.IdOf(key)));
-        Assert.DoesNotContain(SettingsCatalog.IdOf(SettingKey.CheckForUpdates), notInstalled);
+        SettingKey[] onlyInstalled = [SettingKey.CheckForUpdates, SettingKey.UpdateCheckInterval];
+        Assert.All(Enum.GetValues<SettingKey>().Except(onlyInstalled), key => Assert.Single(notInstalled, SettingsCatalog.IdOf(key)));
+        Assert.All(onlyInstalled, key => Assert.DoesNotContain(SettingsCatalog.IdOf(key), notInstalled));
         Assert.Equal(installed.Count, installed.Distinct().Count()); // shortcut and fixed key ids are unique too
         Assert.All(Enum.GetValues<ShortcutAction>(), action => Assert.Contains(SettingsCatalog.IdOf(action), installed));
     }

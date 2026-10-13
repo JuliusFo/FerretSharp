@@ -219,6 +219,59 @@ public sealed class UpdateStateTests : IDisposable
     }
 
     [Fact]
+    public async Task While_running_it_checks_again_once_the_interval_since_the_last_check_has_passed()
+    {
+        using var updates = Create(); // 4 hours by default
+        await updates.StartAsync();
+        Assert.Equal((UpdatePhase.UpToDate, 1), (updates.Phase, _updater.Checks));
+
+        _time.Advance(TimeSpan.FromHours(4) - UpdateState.BackgroundTick);
+        Assert.Equal(1, _updater.Checks);
+
+        _updater.Found = Next;
+        _time.Advance(UpdateState.BackgroundTick);
+        Assert.Equal((UpdatePhase.Available, Next, 2), (updates.Phase, updates.Update, _updater.Checks));
+
+        _time.Advance(TimeSpan.FromDays(1));
+        Assert.Equal(2, _updater.Checks); // reported already: no more checks
+    }
+
+    [Fact]
+    public async Task While_running_a_failed_check_counts_as_a_check_and_the_interval_follows_the_setting()
+    {
+        _updater.CheckFails = new HttpRequestException("No such host is known.");
+        using var updates = Create();
+        await updates.StartAsync();
+        await _settings.UpdateAsync(s => s with { UpdateCheckHours = 1 }, TestContext.Current.CancellationToken);
+
+        _time.Advance(TimeSpan.FromHours(1));
+        Assert.Equal((UpdatePhase.CheckFailed, 2), (updates.Phase, _updater.Checks));
+
+        _updater.CheckFails = null;
+        _time.Advance(TimeSpan.FromHours(1));
+        Assert.Equal((UpdatePhase.UpToDate, 3), (updates.Phase, _updater.Checks));
+    }
+
+    [Fact]
+    public async Task While_running_it_does_not_check_with_automatic_checks_off_or_never()
+    {
+        await _settings.UpdateAsync(s => s with { CheckForUpdates = false }, TestContext.Current.CancellationToken);
+        using var updates = Create();
+        await updates.StartAsync();
+
+        _time.Advance(TimeSpan.FromDays(2));
+        Assert.Equal((UpdatePhase.Idle, 0), (updates.Phase, _updater.Checks));
+
+        await _settings.UpdateAsync(s => s with { CheckForUpdates = true, UpdateCheckHours = 0 }, TestContext.Current.CancellationToken);
+        _time.Advance(TimeSpan.FromDays(2));
+        Assert.Equal(0, _updater.Checks);
+
+        await _settings.UpdateAsync(s => s with { UpdateCheckHours = 24 }, TestContext.Current.CancellationToken);
+        _time.Advance(UpdateState.BackgroundTick);
+        Assert.Equal(1, _updater.Checks); // due since the start long ago
+    }
+
+    [Fact]
     public void The_dialog_opens_only_with_an_update()
     {
         var updates = Create();
