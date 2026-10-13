@@ -114,31 +114,9 @@ public static class FkNavigation
     /// then cancelled on the server; the result returns at the timeout even if the server takes a moment to stop
     /// (the session stays busy until it has). Cancelling <paramref name="cancellationToken"/> throws as usual.
     /// </summary>
-    public static async Task<long?> CountAsync(
-        IDataAccess data, TableDetails target, FkJump jump, TimeSpan timeout, CancellationToken cancellationToken)
-    {
-        var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var count = data.CountAsync(target, jump.Filters, cts.Token);
-        try
-        {
-            return await count.WaitAsync(timeout, cancellationToken);
-        }
-        catch (TimeoutException)
-        {
-            await cts.CancelAsync();
-            return null;
-        }
-        finally
-        {
-            // Dispose only once the statement has ended; its cancel registration uses the token.
-            // A count that fails after the timeout (connection lost) is observed here, not left as an unobserved task exception.
-            _ = count.ContinueWith(finished =>
-            {
-                _ = finished.Exception;
-                cts.Dispose();
-            }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
-        }
-    }
+    public static Task<long?> CountAsync(
+        IDataAccess data, TableDetails target, FkJump jump, TimeSpan timeout, CancellationToken cancellationToken) =>
+        TimedQuery.RunAsync<long?>(async token => await data.CountAsync(target, jump.Filters, token), timeout, cancellationToken);
 
     /// <summary>
     /// Rows with a NULL in a key column are skipped. If all remaining rows share one key: equality per column (as for a

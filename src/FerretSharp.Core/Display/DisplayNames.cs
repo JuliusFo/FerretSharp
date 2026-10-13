@@ -198,33 +198,13 @@ public sealed class DisplayNames
 
     /// <summary>
     /// Runs a lookup; null if it took longer than <paramref name="timeout"/> – the statement is then cancelled on the server
-    /// (as for incoming FK counts, <see cref="Query.FkNavigation.CountAsync"/>).
+    /// (<see cref="TimedQuery"/>, as for incoming FK counts).
     /// </summary>
-    public static async Task<IReadOnlyList<LookupRow>?> LookupAsync(
+    public static Task<IReadOnlyList<LookupRow>?> LookupAsync(
         IDataAccess data, DisplayLookup lookup, TimeSpan timeout, CancellationToken cancellationToken)
     {
-        var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var link = lookup.Link;
-        var rows = data.LookupAsync(link.Target, link.KeyColumn, link.DisplayColumn, lookup.Keys, cts.Token);
-        try
-        {
-            return await rows.WaitAsync(timeout, cancellationToken);
-        }
-        catch (TimeoutException)
-        {
-            await cts.CancelAsync();
-            return null;
-        }
-        finally
-        {
-            // Dispose only once the statement has ended; its cancel registration uses the token. A lookup that fails after
-            // the timeout is observed here, not left as an unobserved task exception.
-            _ = rows.ContinueWith(finished =>
-            {
-                _ = finished.Exception;
-                cts.Dispose();
-            }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
-        }
+        return TimedQuery.RunAsync(token => data.LookupAsync(link.Target, link.KeyColumn, link.DisplayColumn, lookup.Keys, token), timeout, cancellationToken);
     }
 
     private static string? Shorten(string? text)
