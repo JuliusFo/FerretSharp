@@ -26,6 +26,10 @@ public enum TraceStatus
     Failed,
 }
 
+/// <summary>What the database knows about the selected statement (<see cref="AppTraceService.Lookup"/>).</summary>
+/// <param name="Cursor">Null with <paramref name="Loading"/> or <paramref name="Error"/> set, or when the statement is not in the shared pool.</param>
+public sealed record CursorLookup(string Text, Guid ProfileId, bool Loading, Core.Query.CursorInfo? Cursor, string? Error);
+
 /// <summary>
 /// The "App statements" page's state (WP-33): the local .NET processes, the one attached to and its recording, and the
 /// connection the app works on. One for the whole app (not per connection): a trace goes on while the user is elsewhere.
@@ -89,6 +93,24 @@ public sealed class AppTraceService(IAppTraceSource source, ConnectionManager co
         }
     }
 
+    /// <summary>The statement shown in detail; kept here because the page is built anew when another connection is shown.</summary>
+    public (StatementOrigin Origin, string Text)? Selected { get; private set; }
+
+    /// <summary>The last look-up in the database, for <see cref="CursorLookup.Text"/>.</summary>
+    public CursorLookup? Lookup { get; private set; }
+
+    public void Select(StatementTotals? statement)
+    {
+        Selected = statement is null ? null : (statement.Origin, statement.Text);
+        Raise();
+    }
+
+    public void SetLookup(CursorLookup? lookup)
+    {
+        Lookup = lookup;
+        Raise();
+    }
+
     /// <summary>Reads the list of processes again (not watched in the background, decided with the user).</summary>
     public async Task RefreshProcessesAsync()
     {
@@ -124,6 +146,8 @@ public sealed class AppTraceService(IAppTraceSource source, ConnectionManager co
 
         _cts = cts;
         _chosen = null;
+        Selected = null;
+        Lookup = null;
         Process = process;
         Error = null;
         Status = TraceStatus.Attaching;

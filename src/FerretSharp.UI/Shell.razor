@@ -32,6 +32,8 @@
                 <WorkspaceBar />
             }
             <div class="topbar-right">
+                <button class="icon-btn ghost @(_state.Page == ShellPage.AppStatements ? "active" : "")" title="@AppStatementsText.AppStatements_Title"
+                        @onclick="() => ToggleSidePage(ShellPage.AppStatements)">@Icons.Pulse</button>
                 <button class="icon-btn ghost @(_state.Page == ShellPage.Compare ? "active" : "")" title="@ShellText.Shell_SchemaComparison"
                         @onclick="() => ToggleSidePage(ShellPage.Compare)">@Icons.Compare</button>
                 <button class="icon-btn ghost @(_state.Page == ShellPage.Settings ? "active" : "")" title="@ShellText.Shell_Settings"
@@ -130,6 +132,10 @@
                         else if (_state.Page == ShellPage.Compare)
                         {
                             <SchemaComparePage OnBack="LeaveSidePage" />
+                        }
+                        else if (_state.Page == ShellPage.AppStatements)
+                        {
+                            <AppStatementsPage OnBack="LeaveSidePage" />
                         }
                         else if (_state.Page == ShellPage.Model && Active.IsConnected)
                         {
@@ -491,7 +497,7 @@
         }
     });
 
-    /// <summary>Settings and the schema comparison: open from anywhere, the same button goes back.</summary>
+    /// <summary>Settings, the schema comparison and the app statements: open from anywhere, the same button goes back.</summary>
     private void ToggleSidePage(ShellPage page)
     {
         if (_state.Page == page)
@@ -500,18 +506,22 @@
             return;
         }
 
-        if (_state.Page is not (ShellPage.Settings or ShellPage.Compare))
+        if (_state.Page is not (ShellPage.Settings or ShellPage.Compare or ShellPage.AppStatements))
         {
             _pageBefore = _state.Page;
         }
 
-        if (page == ShellPage.Compare)
+        switch (page)
         {
-            _state.ShowCompare();
-        }
-        else
-        {
-            _state.ShowSettings();
+            case ShellPage.Compare:
+                _state.ShowCompare();
+                break;
+            case ShellPage.AppStatements:
+                _state.ShowAppStatements();
+                break;
+            default:
+                _state.ShowSettings();
+                break;
         }
     }
 

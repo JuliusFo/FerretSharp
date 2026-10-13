@@ -53,6 +53,10 @@ internal static class Icons
     public static readonly MarkupString Compare = Svg(
         """<rect x="1.5" y="2.5" width="4.5" height="11" rx="1"/><rect x="10" y="2.5" width="4.5" height="11" rx="1"/><path d="M7 6h2.5M8.5 5l1 1-1 1M9 10H6.5M7.5 9l-1 1 1 1"/>""");
 
+    /// <summary>A pulse line: the statements of a running app (WP-33).</summary>
+    public static readonly MarkupString Pulse = Svg(
+        """<path d="M1.5 8.5h3l2-5 3 9 2-4h3"/>""", 1.5);
+
     /// <summary>Open padlock: a workspace unlocked for writing (WP-10).</summary>
     public static readonly MarkupString Unlocked = Svg(
         """<rect x="3" y="7.5" width="10" height="6.5" rx="1.5"/><path d="M5.5 7.5V5a2.5 2.5 0 0 1 4.9-.7"/>""", 1.6);

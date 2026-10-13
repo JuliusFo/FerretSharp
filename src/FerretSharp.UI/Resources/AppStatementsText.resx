@@ -12,6 +12,10 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="AppStatements_Title" xml:space="preserve">
+    <value>App statements</value>
+    <comment>Page title and tooltip of its button: the statements a running .NET app sends to the database</comment>
+  </data>
   <data name="AppStatements_ListFailed" xml:space="preserve">
     <value>The running .NET apps cannot be listed: {0}</value>
     <comment>{0}: error message of the system</comment>
@@ -19,5 +23,249 @@
   <data name="AppStatements_ReadFailed" xml:space="preserve">
     <value>Reading the app’s statements failed: {0}</value>
     <comment>{0}: error message of the system</comment>
+  </data>
+  <data name="AppStatements_App" xml:space="preserve">
+    <value>App</value>
+    <comment>Section heading: the traced .NET app</comment>
+  </data>
+  <data name="AppStatements_ProcessesHint" xml:space="preserve">
+    <value>.NET apps running on this computer under your user. Start your app (debugging in Visual Studio, dotnet run …) and attach to it – it needs no change, EF Core 7 or later shows where each statement comes from.</value>
+  </data>
+  <data name="AppStatements_Refresh" xml:space="preserve">
+    <value>Refresh</value>
+    <comment>Button: read the list of running apps again</comment>
+  </data>
+  <data name="AppStatements_Listing" xml:space="preserve">
+    <value>Looking for running .NET apps …</value>
+  </data>
+  <data name="AppStatements_NoProcesses" xml:space="preserve">
+    <value>No .NET app found. Start your app and refresh.</value>
+  </data>
+  <data name="AppStatements_ColumnApp" xml:space="preserve">
+    <value>App</value>
+    <comment>Column heading: process name</comment>
+  </data>
+  <data name="AppStatements_ColumnEnvironment" xml:space="preserve">
+    <value>Environment</value>
+    <comment>Column heading: value of -environment=… on the app's command line</comment>
+  </data>
+  <data name="AppStatements_ColumnStarted" xml:space="preserve">
+    <value>Started</value>
+    <comment>Column heading: when the process started</comment>
+  </data>
+  <data name="AppStatements_Attach" xml:space="preserve">
+    <value>Attach</value>
+    <comment>Button: start reading the app's statements</comment>
+  </data>
+  <data name="AppStatements_AttachAgain" xml:space="preserve">
+    <value>Attach again</value>
+  </data>
+  <data name="AppStatements_OtherApp" xml:space="preserve">
+    <value>Other app …</value>
+  </data>
+  <data name="AppStatements_Detach" xml:space="preserve">
+    <value>Detach</value>
+    <comment>Button: stop reading the app's statements (the recording stays)</comment>
+  </data>
+  <data name="AppStatements_Reset" xml:space="preserve">
+    <value>Reset</value>
+    <comment>Button: forget what was recorded so far</comment>
+  </data>
+  <data name="AppStatements_ResetTitle" xml:space="preserve">
+    <value>Forget what was recorded so far, e.g. before the step you want to look at</value>
+  </data>
+  <data name="AppStatements_Environment" xml:space="preserve">
+    <value>Environment</value>
+    <comment>Label before the app's environment name</comment>
+  </data>
+  <data name="AppStatements_StatusAttaching" xml:space="preserve">
+    <value>attaching – waiting for the first statement …</value>
+  </data>
+  <data name="AppStatements_StatusRecording" xml:space="preserve">
+    <value>recording</value>
+  </data>
+  <data name="AppStatements_StatusDetached" xml:space="preserve">
+    <value>detached</value>
+  </data>
+  <data name="AppStatements_StatusEnded" xml:space="preserve">
+    <value>the app has ended</value>
+  </data>
+  <data name="AppStatements_StatusFailed" xml:space="preserve">
+    <value>failed</value>
+  </data>
+  <data name="AppStatements_Connection" xml:space="preserve">
+    <value>Connection</value>
+    <comment>Label: the FerretSharp connection the app works on</comment>
+  </data>
+  <data name="AppStatements_ByEnvironment" xml:space="preserve">
+    <value>by its app environment</value>
+    <comment>How the connection was found</comment>
+  </data>
+  <data name="AppStatements_ByDataSource" xml:space="preserve">
+    <value>by the database address</value>
+    <comment>How the connection was found</comment>
+  </data>
+  <data name="AppStatements_Chosen" xml:space="preserve">
+    <value>chosen</value>
+    <comment>How the connection was found: picked by the user</comment>
+  </data>
+  <data name="AppStatements_SeveralConnections" xml:space="preserve">
+    <value>Several connections fit – choose one:</value>
+  </data>
+  <data name="AppStatements_NoConnection" xml:space="preserve">
+    <value>None found yet (it is known with the first statement) – or choose one:</value>
+  </data>
+  <data name="AppStatements_ChooseConnection" xml:space="preserve">
+    <value>Choose connection …</value>
+  </data>
+  <data name="AppStatements_ChooseConnectionTitle" xml:space="preserve">
+    <value>The connection to the database the app works on: statements are looked up and opened there</value>
+  </data>
+  <data name="AppStatements_ChangeConnection" xml:space="preserve">
+    <value>Change</value>
+    <comment>Button: choose another connection</comment>
+  </data>
+  <data name="AppStatements_RememberEnvironment" xml:space="preserve">
+    <value>Remember “{0}” at the connection</value>
+    <comment>{0}: the app's environment name; it is saved as the connection's app environment</comment>
+  </data>
+  <data name="AppStatements_RememberFailed" xml:space="preserve">
+    <value>The app environment could not be saved: {0}</value>
+    <comment>{0}: error message of the system</comment>
+  </data>
+  <data name="AppStatements_Overview" xml:space="preserve">
+    <value>By origin</value>
+    <comment>Section heading: statements grouped by where they come from (LINQ, lazy loading …)</comment>
+  </data>
+  <data name="AppStatements_SummaryOne" xml:space="preserve">
+    <value>{0} statement · {1} · since {2}</value>
+    <comment>{0}: number of statements run; {1}: their total time; {2}: time of day the recording started</comment>
+  </data>
+  <data name="AppStatements_SummaryOther" xml:space="preserve">
+    <value>{0} statements · {1} · since {2}</value>
+    <comment>{0}: number of statements run; {1}: their total time; {2}: time of day the recording started</comment>
+  </data>
+  <data name="AppStatements_Waiting" xml:space="preserve">
+    <value>No statement yet – use your app.</value>
+  </data>
+  <data name="AppStatements_ColumnOrigin" xml:space="preserve">
+    <value>Origin</value>
+    <comment>Column heading: where a statement comes from (LINQ, lazy loading, raw SQL …)</comment>
+  </data>
+  <data name="AppStatements_ColumnCount" xml:space="preserve">
+    <value>Runs</value>
+    <comment>Column heading: how often</comment>
+  </data>
+  <data name="AppStatements_ColumnTime" xml:space="preserve">
+    <value>Time</value>
+    <comment>Column heading: total time, running and reading the rows</comment>
+  </data>
+  <data name="AppStatements_ColumnShare" xml:space="preserve">
+    <value>Share of time</value>
+  </data>
+  <data name="AppStatements_ColumnRows" xml:space="preserve">
+    <value>Rows</value>
+    <comment>Column heading: rows read or changed</comment>
+  </data>
+  <data name="AppStatements_ColumnAverage" xml:space="preserve">
+    <value>Average</value>
+  </data>
+  <data name="AppStatements_ColumnMax" xml:space="preserve">
+    <value>Longest</value>
+  </data>
+  <data name="AppStatements_ColumnStatement" xml:space="preserve">
+    <value>Statement</value>
+  </data>
+  <data name="AppStatements_FilterTitle" xml:space="preserve">
+    <value>Show only the statements of this origin</value>
+  </data>
+  <data name="AppStatements_OnlyOrigin" xml:space="preserve">
+    <value>only {0}</value>
+    <comment>{0}: an origin (LINQ, Lazy Loading …); button that removes this filter</comment>
+  </data>
+  <data name="AppStatements_Statements" xml:space="preserve">
+    <value>Statements</value>
+  </data>
+  <data name="AppStatements_Truncated" xml:space="preserve">
+    <value>More than {0} different statements: further ones count only by origin.</value>
+    <comment>{0}: the limit</comment>
+  </data>
+  <data name="AppStatements_MoreRows" xml:space="preserve">
+    <value>… and {0} more – filter by origin or sort to see others.</value>
+    <comment>{0}: number of statements not shown</comment>
+  </data>
+  <data name="AppStatements_ErrorsBadge" xml:space="preserve">
+    <value>{0}× error</value>
+    <comment>{0}: how often the statement failed</comment>
+  </data>
+  <data name="AppStatements_RepeatedTitle" xml:space="preserve">
+    <value>Ran up to {0} times within {1} s – often an N+1 problem</value>
+    <comment>{0}: most runs seen within the window; {1}: the window in seconds</comment>
+  </data>
+  <data name="AppStatements_RepeatedLazy" xml:space="preserve">
+    <value>Ran up to {0} times within {1} s by lazy loading of “{2}” – an N+1 problem: load the navigation together with the query (Include) or for all rows at once.</value>
+    <comment>{0}: most runs within the window; {1}: the window in seconds; {2}: name of the navigation</comment>
+  </data>
+  <data name="AppStatements_RepeatedLoop" xml:space="preserve">
+    <value>Ran up to {0} times within {1} s – probably once per row in a loop (N+1): one query for all rows is usually much faster.</value>
+    <comment>{0}: most runs within the window; {1}: the window in seconds</comment>
+  </data>
+  <data name="AppStatements_DetailCountOne" xml:space="preserve">
+    <value>{0} run · {1}</value>
+    <comment>{0}: number of runs; {1}: total time</comment>
+  </data>
+  <data name="AppStatements_DetailCountOther" xml:space="preserve">
+    <value>{0} runs · {1}</value>
+    <comment>{0}: number of runs; {1}: total time</comment>
+  </data>
+  <data name="AppStatements_LookUp" xml:space="preserve">
+    <value>Look up in the database</value>
+    <comment>Button: read V$SQL figures and plan of the statement</comment>
+  </data>
+  <data name="AppStatements_LookUpTitle" xml:space="preserve">
+    <value>Figures and plan of the statement from V$SQL of the app’s connection (connects if needed)</value>
+  </data>
+  <data name="AppStatements_OpenInEditor" xml:space="preserve">
+    <value>Open in SQL editor</value>
+  </data>
+  <data name="AppStatements_NeedsConnection" xml:space="preserve">
+    <value>Choose the app’s connection first</value>
+  </data>
+  <data name="AppStatements_LookingUp" xml:space="preserve">
+    <value>Looking up …</value>
+  </data>
+  <data name="AppStatements_NotConnected" xml:space="preserve">
+    <value>The connection could not be opened.</value>
+  </data>
+  <data name="AppStatements_NotInPool" xml:space="preserve">
+    <value>The statement is not (or no longer) in the database’s shared pool – the app may work on another database, or it was aged out.</value>
+  </data>
+  <data name="AppStatements_Executions" xml:space="preserve">
+    <value>Executions</value>
+  </data>
+  <data name="AppStatements_RowsProcessed" xml:space="preserve">
+    <value>Rows</value>
+    <comment>Label: rows processed by all executions</comment>
+  </data>
+  <data name="AppStatements_Elapsed" xml:space="preserve">
+    <value>Time</value>
+    <comment>Label: elapsed time of all executions</comment>
+  </data>
+  <data name="AppStatements_Children" xml:space="preserve">
+    <value>Child cursors</value>
+  </data>
+  <data name="AppStatements_InstanceWide" xml:space="preserve">
+    <value>The figures count every session of the database that ran the statement, not only this app.</value>
+  </data>
+  <data name="AppStatements_NoActualFigures" xml:space="preserve">
+    <value>The plan has only estimates: measured rows and times per step are there only if the statement ran with statistics (GATHER_PLAN_STATISTICS or STATISTICS_LEVEL = ALL). For them, open it in the SQL editor and show the actual plan.</value>
+  </data>
+  <data name="AppStatements_OriginOther" xml:space="preserve">
+    <value>Other</value>
+    <comment>Origin: migrations, value generators</comment>
+  </data>
+  <data name="AppStatements_OriginUnknown" xml:space="preserve">
+    <value>Unknown</value>
+    <comment>Origin: EF did not say (EF Core before 7)</comment>
   </data>
 </root>
