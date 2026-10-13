@@ -141,25 +141,7 @@
                    OnConfirm="() => ConfirmAsync(pending, discard?.Item1)" OnCancel="() => _confirm = null">
         @if (ddl.Count > 0)
         {
-            <p>
-                @if (pending.Count <= 1)
-                {
-                    <Fmt Text="@SqlEditorText.SqlView_ConfirmDdl"><Arg0><strong>@ddl[0].Info.FirstWord</strong></Arg0></Fmt>
-                }
-                else
-                {
-                    @TextFormat.Plural(ddl.Count, SqlEditorText.SqlView_ConfirmDdlScriptOne, SqlEditorText.SqlView_ConfirmDdlScriptOther)
-                }
-            </p>
-            @* The DDL right below its sentence – further down it read like part of the list of discarded changes (E2E). *@
-            @foreach (var r in ddl.Take(3))
-            {
-                <SqlCode Sql="@r.Statement.Text" />
-            }
-            @if (ddl.Count > 3)
-            {
-                <div class="hint small">@TextFormat.Format(SqlEditorText.SqlView_ConfirmMoreStatements, ddl.Count - 3)</div>
-            }
+            <DdlStatementList Statements="@ddl.Select(r => r.Statement.Text).ToList()" InScript="@(pending.Count > 1)" />
         }
         @foreach (var r in allRows)
         {

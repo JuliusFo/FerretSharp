@@ -1,0 +1,34 @@
+@* The DDL a confirmation asks about (R5b: the SQL editor and the designer each wrote it, showing 3 and 5 statements): the
+   sentence, the first statements, how many more. The SQL editor's dialog adds what its script also does. *@
+@using FerretSharp.Core.Query
+
+<p>
+    @if (Statements.Count == 1 && !InScript)
+    {
+        <Fmt Text="@SqlEditorText.SqlView_ConfirmDdl"><Arg0><strong>@SqlScript.FirstWord(Statements[0])</strong></Arg0></Fmt>
+    }
+    else
+    {
+        @TextFormat.Plural(Statements.Count, SqlEditorText.SqlView_ConfirmDdlScriptOne, SqlEditorText.SqlView_ConfirmDdlScriptOther)
+    }
+</p>
+@* The DDL right below its sentence – further down it read like part of the list of discarded changes (E2E). *@
+@foreach (var statement in Statements.Take(MaxShown))
+{
+    <SqlCode Sql="@statement" />
+}
+@if (Statements.Count > MaxShown)
+{
+    <div class="hint small">@TextFormat.Format(SqlEditorText.SqlView_ConfirmMoreStatements, Statements.Count - MaxShown)</div>
+}
+
+@code {
+    private const int MaxShown = 5;
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<string> Statements { get; set; } = [];
+
+    /// <summary>The DDL is part of a script that does more: then even one statement is "a script with one DDL statement".</summary>
+    [Parameter]
+    public bool InScript { get; set; }
+}
