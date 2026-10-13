@@ -124,6 +124,17 @@ public sealed class SettingsStoreTests : IDisposable
         await Assert.ThrowsAsync<SettingsStoreException>(() => _store.LoadAsync(Ct));
     }
 
+    /// <summary>R5b (review 3.31.0, B2): a newer file with a value this version does not know said "no valid settings file".</summary>
+    [Fact]
+    public async Task A_newer_file_with_an_unknown_value_is_newer_not_broken()
+    {
+        await File.WriteAllTextAsync(_store.FilePath, """{ "version": 2, "settings": { "theme": "sepia" } }""", Ct);
+
+        var error = await Assert.ThrowsAsync<SettingsStoreException>(() => _store.LoadAsync(Ct));
+
+        Assert.Equal($"{_store.FilePath} stammt aus einer neueren FerretSharp-Version (Format 2).", error.Message);
+    }
+
     /// <summary>Review 3.31.0, A6: "shortcuts": null (edited by hand) made the start fail building the shortcut map.</summary>
     [Fact]
     public async Task Shortcuts_set_to_null_by_hand_are_the_defaults()
