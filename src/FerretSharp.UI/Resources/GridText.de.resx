@@ -15,6 +15,9 @@
   <data name="Grid_TableNotEditable" xml:space="preserve">
     <value>Diese Tabelle lässt sich hier nicht bearbeiten.</value>
   </data>
+  <data name="Editing_Busy" xml:space="preserve">
+    <value>Änderungen dieses Workspaces werden gerade geschrieben oder committet – versuch es noch einmal, sobald das fertig ist.</value>
+  </data>
   <data name="Grid_WriteRunning" xml:space="preserve">
     <value>Änderungen werden gerade geschrieben – bearbeite weiter, sobald das fertig ist.</value>
   </data>

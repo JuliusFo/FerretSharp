@@ -552,6 +552,8 @@ public sealed class WorkspaceEditing(
     {
         if (!_busy.Add(workspace.WorkspaceId))
         {
+            // Say so (review 3.31.0, A27): "Commit" in the leave dialog closed it without a word while a write hung on the VPN.
+            shell.Notify(GridText.Editing_Busy);
             return false;
         }
 

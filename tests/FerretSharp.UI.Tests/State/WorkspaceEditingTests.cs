@@ -35,6 +35,8 @@ public sealed class WorkspaceEditingTests : IAsyncDisposable
         _app.OnCommit = null;
         Assert.True(await _app.Editing.CommitAsync(_app.WorkspaceOf(dev)));
         Assert.True(_app.Editing.IsBusy(test.Workspaces.Active!.Id));
+        Assert.False(await _app.Editing.RollbackAsync(_app.WorkspaceOf(test))); // review 3.31.0, A27: said so, not silently
+        Assert.StartsWith("Änderungen dieses Workspaces werden gerade geschrieben", _app.Shell.Notice?.Text);
 
         held.SetResult();
         Assert.True(await slow);

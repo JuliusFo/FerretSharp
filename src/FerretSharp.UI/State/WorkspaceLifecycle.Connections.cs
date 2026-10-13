@@ -132,7 +132,13 @@ public sealed partial class WorkspaceLifecycle
         }
 
         await hub.CloseAsync(scope);
-        shell.ClearWorkspaces(scope.Id);
+
+        // Opened again while its sessions closed (review 3.31.0, A29): the tabs belong to the new connection now.
+        if (hub.Find(scope.Id) is null)
+        {
+            shell.ClearWorkspaces(scope.Id);
+        }
+
         if (hub.Current is null)
         {
             shell.ShowConnections();

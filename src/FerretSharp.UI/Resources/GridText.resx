@@ -15,6 +15,9 @@
   <data name="Grid_TableNotEditable" xml:space="preserve">
     <value>This table cannot be edited here.</value>
   </data>
+  <data name="Editing_Busy" xml:space="preserve">
+    <value>Changes of this workspace are being written or committed – try again once that is done.</value>
+  </data>
   <data name="Grid_WriteRunning" xml:space="preserve">
     <value>Changes are being written – edit again once that is done.</value>
   </data>
