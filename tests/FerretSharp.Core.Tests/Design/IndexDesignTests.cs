@@ -111,7 +111,7 @@ public class IndexDesignTests
     [Theory]
     [InlineData("", "Gib einen Namen für den Index ein.")]
     [InlineData("   ", "Gib einen Namen für den Index ein.")]
-    [InlineData("IX\"X", "Ein Name darf keine doppelten Anführungszeichen enthalten.")]
+    [InlineData("IX\"X", "IX\"X: Ein Name darf keine doppelten Anführungszeichen enthalten.")] // R5b: with the name, as everywhere
     [InlineData("PK_AUFTRAG", "Die Tabelle hat schon einen Index PK_AUFTRAG.")]
     public void Name_problems_stop_the_draft(string name, string problem)
     {
@@ -126,13 +126,14 @@ public class IndexDesignTests
     {
         var check = IndexDesign.Check(new IndexDraft(new string('Ä', 65), ["KUNDE_ID"]), Table, []);
 
-        Assert.Equal(["Der Name ist länger als 128 Byte."], check.Problems);
+        Assert.Equal([$"{new string('Ä', 65)}: Der Name ist länger als 128 Byte."], check.Problems);
     }
 
     [Theory]
     [InlineData("ix_auftrag")]
     [InlineData("IX-AUFTRAG")]
     [InlineData("1IX")]
+    [InlineData("INDEX")] // R5b: a reserved word warned nothing
     public void A_name_that_needs_quotes_is_a_warning(string name)
     {
         var check = IndexDesign.Check(new IndexDraft(name, ["KUNDE_ID"]), Table, []);

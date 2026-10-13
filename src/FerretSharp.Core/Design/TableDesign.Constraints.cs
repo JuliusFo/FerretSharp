@@ -1,3 +1,4 @@
+using FerretSharp.Core.Oracle;
 using System.Text;
 using FerretSharp.Core.Ddl;
 using FerretSharp.Core.Resources;
@@ -112,13 +113,9 @@ public static partial class TableDesign
         {
             var label = Label(added);
             var problems = Problems.Count;
-            if (added.Name.Contains('"', StringComparison.Ordinal))
+            if (OracleIdentifier.Problem(added.Name) is { } problem)
             {
-                Problems.Add(TextFormat.Format(DesignText.ColumnNameInvalid, added.Name));
-            }
-            else if (Encoding.UTF8.GetByteCount(added.Name) > IndexDesign.MaxNameBytes)
-            {
-                Problems.Add(TextFormat.Format(DesignText.ColumnNameTooLong, added.Name, IndexDesign.MaxNameBytes));
+                Problems.Add(problem);
             }
             else if (taken.Contains(added.Name))
             {

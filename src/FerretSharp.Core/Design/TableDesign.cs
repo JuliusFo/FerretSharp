@@ -230,10 +230,6 @@ public static partial class TableDesign
     /// <summary>The column as the DDL compares and writes it: default trimmed, an empty default or comment none.</summary>
     private static ColumnInfo Normalized(ColumnInfo column) => column with { Default = Default(column), Comment = Comment(column.Comment) };
 
-    /// <summary>A name Oracle takes without quotes (same rule as for index names).</summary>
-    [GeneratedRegex(@"^\p{Lu}[\p{Lu}\p{Nd}_$#]*$")]
-    private static partial Regex PlainName();
-
     private sealed partial class Writer(DesignContext context, DataFacts facts, NewTable? creating = null)
     {
         private readonly TableDetails current = context.Table;
@@ -316,21 +312,17 @@ public static partial class TableDesign
             {
                 Problems.Add(DesignText.TableNameMissing);
             }
-            else if (name.Contains('"', StringComparison.Ordinal))
+            else if (OracleIdentifier.Problem(name) is { } problem)
             {
-                Problems.Add(TextFormat.Format(DesignText.ColumnNameInvalid, name));
-            }
-            else if (Encoding.UTF8.GetByteCount(name) > IndexDesign.MaxNameBytes)
-            {
-                Problems.Add(TextFormat.Format(DesignText.ColumnNameTooLong, name, IndexDesign.MaxNameBytes));
+                Problems.Add(problem);
             }
             else if (taken.Contains(name, StringComparer.Ordinal))
             {
                 Problems.Add(TextFormat.Format(DesignText.TableNameTaken, name)); // ORA-00955
             }
-            else if (!PlainName().IsMatch(name))
+            else if (OracleIdentifier.NeedsQuotes(name))
             {
-                Warnings.Add(TextFormat.Format(DesignText.ColumnNameNeedsQuotes, name));
+                Warnings.Add(TextFormat.Format(DesignText.NameNeedsQuotes, name));
             }
         }
 
@@ -343,17 +335,13 @@ public static partial class TableDesign
                 {
                     Problems.Add(DesignText.ColumnNameMissing);
                 }
-                else if (name.Contains('"', StringComparison.Ordinal))
+                else if (OracleIdentifier.Problem(name) is { } problem)
                 {
-                    Problems.Add(TextFormat.Format(DesignText.ColumnNameInvalid, name));
+                    Problems.Add(problem);
                 }
-                else if (Encoding.UTF8.GetByteCount(name) > IndexDesign.MaxNameBytes)
+                else if (OracleIdentifier.NeedsQuotes(name) && (column.IsNew || name != column.Original))
                 {
-                    Problems.Add(TextFormat.Format(DesignText.ColumnNameTooLong, name, IndexDesign.MaxNameBytes));
-                }
-                else if (!PlainName().IsMatch(name) && (column.IsNew || name != column.Original))
-                {
-                    Warnings.Add(TextFormat.Format(DesignText.ColumnNameNeedsQuotes, name));
+                    Warnings.Add(TextFormat.Format(DesignText.NameNeedsQuotes, name));
                 }
             }
 

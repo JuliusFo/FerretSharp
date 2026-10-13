@@ -72,14 +72,6 @@
     <value>Column {0} appears more than once.</value>
     <comment>{0}: column name</comment>
   </data>
-  <data name="NameInvalid" xml:space="preserve">
-    <value>{0}: a name cannot contain double quotes.</value>
-    <comment>{0}: the name</comment>
-  </data>
-  <data name="NameTooLong" xml:space="preserve">
-    <value>{0}: the name is longer than {1} bytes.</value>
-    <comment>{0}: the name; {1}: maximum name length of Oracle (128)</comment>
-  </data>
   <data name="NameEmpty" xml:space="preserve">
     <value>@{0} gives an empty name.</value>
     <comment>{0}: directive name (audit-table, trigger)</comment>

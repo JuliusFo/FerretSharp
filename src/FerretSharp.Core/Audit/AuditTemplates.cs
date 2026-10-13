@@ -1,3 +1,4 @@
+using FerretSharp.Core.Oracle;
 using System.Text;
 using System.Text.RegularExpressions;
 using FerretSharp.Core.Ddl;
@@ -229,9 +230,9 @@ public static partial class AuditTemplates
             return null;
         }
 
-        if (Encoding.UTF8.GetByteCount(name) > AuditTemplate.MaxNameBytes)
+        if (OracleIdentifier.Problem(name) is { } problem)
         {
-            errors.Add(new(number, TextFormat.Format(AuditText.NameTooLong, name, AuditTemplate.MaxNameBytes)));
+            errors.Add(new(number, problem));
             return null;
         }
 

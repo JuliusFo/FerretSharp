@@ -1,9 +1,14 @@
+using System.Text;
 using System.Text.RegularExpressions;
+using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.Oracle;
 
 public static partial class OracleIdentifier
 {
+    /// <summary>Oracle's limit for names since 12.2: 128 bytes (UTF-8), not characters.</summary>
+    public const int MaxBytes = 128;
+
     /// <summary>
     /// Reserved words of SQL (<c>V$RESERVED_WORDS</c> with RESERVED = 'Y') and of PL/SQL (PL/SQL Language Reference,
     /// "PL/SQL Reserved Words"): a name like these needs quotes. Both lists, so a name written plainly works in SQL and in a
@@ -42,6 +47,40 @@ public static partial class OracleIdentifier
         return $"\"{name}\"";
     }
 
+    /// <summary>
+    /// What keeps a typed name from being created exactly as written (FerretSharp always quotes it, <see cref="Quote"/>): a
+    /// double quote or NUL, or more than <see cref="MaxBytes"/> bytes – as a message, null if neither. An empty name is the
+    /// caller's to report, each says what is missing (R5b: before, six checks with their own rules).
+    /// </summary>
+    public static string? Problem(string name) =>
+        name.Contains('"', StringComparison.Ordinal) || name.Contains('\0', StringComparison.Ordinal) ? TextFormat.Format(CoreText.NameInvalid, name)
+        : Encoding.UTF8.GetByteCount(name) > MaxBytes ? TextFormat.Format(CoreText.NameTooLong, name, MaxBytes)
+        : null;
+
+    /// <summary>
+    /// A typed name SQL and code must write in double quotes, exactly so – for a warning: not upper case letters (of any
+    /// script, as Oracle takes them unquoted), digits, <c>_ $ #</c> starting with a letter, or a reserved word (<c>DATE</c>,
+    /// <c>END</c>). Unlike <see cref="IsPlain"/>, which quotes on the safe side when FerretSharp writes a name.
+    /// </summary>
+    public static bool NeedsQuotes(string name) => !PlainForOracle().IsMatch(name) || Reserved.Contains(name);
+
+    /// <summary>The longest start of <paramref name="text"/> within <paramref name="maxBytes"/> UTF-8 bytes, never half a character.</summary>
+    public static string Cut(string text, int maxBytes = MaxBytes)
+    {
+        var length = text.Length;
+        while (Encoding.UTF8.GetByteCount(text.AsSpan(0, length)) > maxBytes)
+        {
+            length--;
+        }
+
+        if (length > 0 && length < text.Length && char.IsHighSurrogate(text[length - 1]))
+        {
+            length--; // never half a character
+        }
+
+        return text[..length];
+    }
+
     /// <summary><c>"OWNER"."NAME"</c>.</summary>
     public static string Qualify(string owner, string name) => $"{Quote(owner)}.{Quote(name)}";
 
@@ -71,4 +110,8 @@ public static partial class OracleIdentifier
 
     [GeneratedRegex("^[A-Z][A-Z0-9_$#]*$", RegexOptions.CultureInvariant)]
     private static partial Regex PlainName();
+
+    /// <summary>A name Oracle takes without quotes: a letter, then letters, digits, _, $ and #, upper case (any script).</summary>
+    [GeneratedRegex(@"^\p{Lu}[\p{Lu}\p{Nd}_$#]*$")]
+    private static partial Regex PlainForOracle();
 }

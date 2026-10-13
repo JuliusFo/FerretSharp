@@ -65,9 +65,6 @@ public sealed class AuditTemplateException(IReadOnlyList<AuditTemplateError> err
 /// </summary>
 public sealed record AuditTemplate
 {
-    /// <summary>Oracle's maximum name length in bytes (12.2 and later).</summary>
-    public const int MaxNameBytes = 128;
-
     internal AuditTemplate(
         string text,
         IReadOnlyList<PatternPart> auditTable,
@@ -259,13 +256,9 @@ public sealed record AuditTemplate
         {
             problems.Add(TextFormat.Format(AuditText.NameEmpty, directive));
         }
-        else if (name.Contains('"', StringComparison.Ordinal) || name.Contains('\0', StringComparison.Ordinal))
+        else if (OracleIdentifier.Problem(name) is { } problem)
         {
-            problems.Add(TextFormat.Format(AuditText.NameInvalid, name));
-        }
-        else if (Encoding.UTF8.GetByteCount(name) > MaxNameBytes)
-        {
-            problems.Add(TextFormat.Format(AuditText.NameTooLong, name, MaxNameBytes));
+            problems.Add(problem);
         }
     }
 }

@@ -23,6 +23,7 @@ Die Oberfläche gibt es auf Englisch (Standard) und Deutsch. Entscheidung und Hi
 | Core | `ClrModelText` | C#-Modell, LINQ-Konsole, Code-Generierung, Build-Ausgabe |
 | Core | `QueryText`, `DataText` | Query (Filter, SQL-Skripte, FK-Navigation, Export), Data und Forms |
 | Core | `OracleText`, `CompareText`, `ConnectionText`, `SettingsText`, `WorkspaceText` | Oracle-Schicht, Schema-Vergleich und DDL (`Core/Ddl`), Verbindungen samt Import/Export, Einstellungen (Tastenkürzel), Workspaces und IO |
+| Core | `CoreText` | Texte, die mehrere Core-Bereiche teilen (R5b): Namensprüfung (`OracleIdentifier.Problem`) |
 | Core | `DesignText` | Tabellen-Designer (WP-23): Prüfungen von Index- und Tabellenentwürfen |
 | Core | `AuditText` | Audit-Vorlagen (WP-26): Fehler der Vorlage mit Zeile, Probleme und Warnungen beim Erzeugen von Audit-Tabelle und Trigger |
 | Core | `DisplayText` | Anzeigespalten (WP-31): Datei der Anzeigespalten (nicht lesbar, kein JSON, neuere Version, nicht schreibbar), nicht anzeigbare Spaltentypen |

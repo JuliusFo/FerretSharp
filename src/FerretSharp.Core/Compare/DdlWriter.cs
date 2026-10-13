@@ -1,3 +1,4 @@
+using FerretSharp.Core.Design;
 using FerretSharp.Core.Ddl;
 using FerretSharp.Core.Oracle;
 using FerretSharp.Core.Resources;
@@ -349,19 +350,14 @@ internal sealed class DdlWriter(int referenceSide, int targetSide, string refere
 
     /// <summary>
     /// Indexes need a name. An index whose name Oracle generated in the reference (<c>SYS_…</c>, e.g. left behind by a
-    /// dropped key) gets a readable one instead of copying the generated name, which could clash with a later one.
+    /// dropped key) gets a readable one instead of copying the generated name, which could clash with a later one – the
+    /// designer's rule (<see cref="IndexDesign.SuggestName"/>): plain, within 128 bytes (R5b: cut at 128 characters before,
+    /// ORA-00972 with umlauts), <c>_2</c> if the table has an index of that name.
     /// </summary>
-    private static string IndexName(ObjectSnapshot table, IndexInfo index)
-    {
-        if (!IsGeneratedName(index.Name))
-        {
-            return index.Name;
-        }
-
-        var columns = index.Columns.Select(c => c.IsExpression ? "EXPR" : c.Name);
-        var name = $"IX_{table.Name}_{string.Join("_", columns)}";
-        return name.Length > 128 ? name[..128] : name;
-    }
+    private static string IndexName(ObjectSnapshot table, IndexInfo index) =>
+        IsGeneratedName(index.Name)
+            ? IndexDesign.SuggestName(table.Name, index.Columns.Select(c => c.IsExpression ? "EXPR" : c.Name).ToList(), table.Indexes.Select(i => i.Name))
+            : index.Name;
 
     private static IEnumerable<string> IndexWarnings(IndexInfo index)
     {
