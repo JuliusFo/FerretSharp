@@ -85,7 +85,8 @@ public sealed partial class OracleSchemaReader(OracleSession session) : ISchemaR
                c.table_name
         """;
 
-    // ALL_TAB_COLS without hidden columns is exactly ALL_TAB_COLUMNS, plus VIRTUAL_COLUMN.
+    // ALL_TAB_COLS without hidden columns is ALL_TAB_COLUMNS plus VIRTUAL_COLUMN – also without INVISIBLE columns (12c+),
+    // which the grid, the comparison and the designer do not know (backlog); keys over them are left out (GetDetailsAsync).
     private const string ColumnsSelect = $"""
         SELECT {ColumnFields}
           FROM all_tab_cols c
@@ -236,9 +237,15 @@ public sealed partial class OracleSchemaReader(OracleSession session) : ISchemaR
         QueryParameter[] parameters = [new("owner", table.Owner), new("name", table.Name)];
 
         var columns = await ReadColumnsAsync(ColumnsSql, parameters, many: false, cancellationToken);
-        var keys = await session.ReadListAsync(KeysSql, parameters, reader =>
+        var allKeys = await session.ReadListAsync(KeysSql, parameters, reader =>
             (Type: reader.GetString(0), Name: reader.GetString(1), Column: reader.GetString(2),
                 Enforced: reader.GetString(3) == "ENABLED" && reader.GetString(4) == "VALIDATED"), cancellationToken);
+
+        // A key over a column the list leaves out (INVISIBLE, 12c+: HIDDEN_COLUMN = 'YES') cannot address rows – the table
+        // could not even be opened. Without it the table uses ROWID (review 3.31.0, A17).
+        var listed = columns.Select(c => c.Name).ToHashSet(StringComparer.Ordinal);
+        var unusable = allKeys.Where(k => !listed.Contains(k.Column)).Select(k => k.Name).ToHashSet(StringComparer.Ordinal);
+        var keys = allKeys.Where(k => !unusable.Contains(k.Name)).ToList();
 
         var isIot = table.Kind == TableKind.Table && await session.ExecuteReaderAsync(IotSql, parameters, async (reader, ct) =>
             await reader.ReadAsync(ct) && !reader.IsDBNull(0) && reader.GetString(0) == "IOT", cancellationToken);

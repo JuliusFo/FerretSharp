@@ -57,6 +57,9 @@ public sealed class EditingTests(OracleContainerFixture oracle) : IAsyncLifetime
                 // A key beyond decimal's 28 digits (read as BigNumber).
                 "CREATE TABLE ED_BIG (ID NUMBER(38) PRIMARY KEY, TXT VARCHAR2(10)) SEGMENT CREATION IMMEDIATE",
                 "INSERT INTO ED_BIG VALUES (123456789012345678901234567890, 'a')",
+                // A primary key over an INVISIBLE column, which the column list leaves out.
+                "CREATE TABLE ED_INVISIBLE (ID NUMBER INVISIBLE PRIMARY KEY, TXT VARCHAR2(10)) SEGMENT CREATION IMMEDIATE",
+                "INSERT INTO ED_INVISIBLE (ID, TXT) VALUES (1, 'a')",
             })
             {
                 await using var command = connection.CreateCommand();
@@ -541,6 +544,24 @@ public sealed class EditingTests(OracleContainerFixture oracle) : IAsyncLifetime
 
         Assert.Equal("b", updated.Values[I(table, "TXT")]);
         Assert.Empty((await a.Data.ReadPageAsync(table, [], [], new PageSpec(0, 10), Ct)).Rows);
+        await a.Editor.RollbackAsync(Ct);
+    }
+
+    [Fact]
+    public async Task A_table_whose_primary_key_is_on_an_invisible_column_opens_and_is_edited_by_rowid()
+    {
+        await using var a = await OpenAsync("Workspace A");
+        var table = await DetailsAsync(a, "ED_INVISIBLE");
+        var row = Assert.Single((await a.Data.ReadPageAsync(table, [], [], new PageSpec(0, 10), Ct)).Rows);
+
+        Assert.Equal(["TXT"], table.Columns.Select(c => c.Name));
+        Assert.Empty(table.PrimaryKey);
+        Assert.IsType<RowKey.RowId>(row.Key);
+
+        var tracker = new ChangeTracker(table);
+        tracker.SetValue(row, I(table, "TXT"), "b");
+        await FlushAsync(a, tracker);
+        Assert.Equal("b", Assert.Single((await a.Data.ReadPageAsync(table, [], [], new PageSpec(0, 10), Ct)).Rows).Values[0]);
         await a.Editor.RollbackAsync(Ct);
     }
 
