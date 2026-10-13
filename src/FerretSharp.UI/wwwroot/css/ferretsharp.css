@@ -113,7 +113,7 @@ button:disabled { cursor: default; opacity: .5; }
 .ws-more:hover { background: var(--hover); color: var(--text); }
 .menu:focus { outline: none; }
 .ws-close:hover { background: var(--hover); color: var(--text); }
-.ws-rename { width: 150px; height: 22px; padding: 0 6px; border: 1px solid var(--accent); border-radius: 5px; background: var(--surface); outline: none; }
+.title-edit.ws-rename { width: 150px; height: 22px; }
 .ws-menu-anchor { position: relative; flex: none; }
 .ws-add { width: 30px; height: 30px; border: 1px dashed var(--border-strong); border-radius: 7px; background: transparent; color: var(--muted); }
 .ws-add:hover:not(:disabled), .ws-add.open { color: var(--text); border-color: var(--muted); }

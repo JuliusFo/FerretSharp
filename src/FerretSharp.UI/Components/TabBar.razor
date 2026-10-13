@@ -75,7 +75,7 @@
             {
                 case TableTab table:
                     @Icons.For(table.Table.Kind)
-                    <span class="tab-name">@table.Table.DisplayName</span>
+                    <span class="tab-name">@tab.Caption</span>
                     @if (table.Changes is { HasChanges: true } changes)
                     {
                         <span class="dot @(changes.PendingCount > 0 ? "pending" : "flushed")"
@@ -92,12 +92,12 @@
                     break;
                 case NewTableTab draft:
                     @Icons.For(FerretSharp.Core.Schema.TableKind.Table)
-                    <span class="tab-name">@(draft.Table.Name.Length > 0 ? draft.Table.Name : ShellText.TabBar_NewTable)</span>
+                    <span class="tab-name">@tab.Caption</span>
                     <span class="filter-pill">@ShellText.TabBar_NewTableBadge</span>
                     break;
                 case PlSqlTab plSql:
                     @Icons.For(plSql.Unit.Kind)
-                    <span class="tab-name">@plSql.Unit.DisplayName</span>
+                    <span class="tab-name">@tab.Caption</span>
                     @if (plSql.Unit.IsInvalid)
                     {
                         <span class="dot err" title="@ShellText.TabBar_Invalid"></span>
@@ -111,7 +111,7 @@
                     }
                     else
                     {
-                        <span class="tab-name">@titled.Title</span>
+                        <span class="tab-name">@tab.Caption</span>
                     }
                     break;
             }

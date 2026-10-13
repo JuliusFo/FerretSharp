@@ -316,13 +316,7 @@
             return @<span class="change-source">@kind</span>;
         }
 
-        var title = tab switch
-        {
-            TableTab table => table.Table.DisplayName,
-            NewTableTab draft => draft.Table.Name.Length > 0 ? draft.Table.Name : ShellText.TabBar_NewTable,
-            ITitledTab titled => titled.Title,
-            _ => "",
-        };
+        var title = tab.Caption;
         return @<button class="link-btn change-source" title="@ShellText.Changes_ShowSource" @onclick="() => ShowSource(workspace, action, tab)">@kind · @title</button>;
     }
 
