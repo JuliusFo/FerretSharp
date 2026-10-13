@@ -17,6 +17,17 @@ public partial class MainWindow : Window
         theme.Attach(this);
         WebView.BlazorWebViewInitialized += (_, e) => theme.AttachWebView(e.WebView.CoreWebView2);
 
+        // Only web links leave the app (release notes, GitHub): BlazorWebView opens every other URL with the system's default
+        // handler – a file dropped on the window would be opened or run (review 3.31.0, A39).
+        WebView.UrlLoading += (_, e) =>
+        {
+            if (e.UrlLoadingStrategy == Microsoft.AspNetCore.Components.WebView.UrlLoadingStrategy.OpenExternally
+                && e.Url.Scheme != Uri.UriSchemeHttps)
+            {
+                e.UrlLoadingStrategy = Microsoft.AspNetCore.Components.WebView.UrlLoadingStrategy.CancelLoad;
+            }
+        };
+
         // Uncommitted changes: the shell asks first (commit / roll back / cancel), then approves the exit.
         Closing += (_, e) =>
         {
