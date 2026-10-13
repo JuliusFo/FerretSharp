@@ -18,4 +18,10 @@
   <data name="NameTooLong" xml:space="preserve">
     <value>{0}: Der Name ist länger als {1} Byte.</value>
   </data>
+  <data name="FileEmpty" xml:space="preserve">
+    <value>{0} ist leer.</value>
+  </data>
+  <data name="FileFromNewerVersion" xml:space="preserve">
+    <value>{0} stammt aus einer neueren FerretSharp-Version (Format {1}).</value>
+  </data>
 </root>

@@ -1,5 +1,3 @@
-using System.Text.Json.Serialization;
-using System.Text.Json;
 using FerretSharp.Core.IO;
 using FerretSharp.Core.Resources;
 
@@ -33,35 +31,18 @@ public sealed class ConnectionStore(string filePath) : IConnectionStore
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            if (!File.Exists(FilePath))
+            var read = await VersionedJsonFile.ReadAsync<ConnectionsDocument>(FilePath, CurrentVersion, JsonFiles.Options, cancellationToken);
+            // Anything but a readable file of this version refuses: the manager then never overwrites it.
+            return read.State switch
             {
-                return [];
-            }
-
-            await using var stream = File.OpenRead(FilePath);
-            using var json = await JsonDocument.ParseAsync(stream, default, cancellationToken);
-            var root = json.RootElement;
-
-            // The version first: a newer file may hold shapes this version cannot read (a new address type).
-            if (root.ValueKind == JsonValueKind.Object && root.TryGetProperty("version", out var version)
-                && version.TryGetInt32(out var number) && number > CurrentVersion)
-            {
-                throw new ConnectionStoreException(TextFormat.Format(ConnectionText.FileFromNewerVersion, FilePath, number));
-            }
-
-            var document = root.Deserialize<ConnectionsDocument>(JsonFiles.Options)
-                           ?? throw new ConnectionStoreException(TextFormat.Format(ConnectionText.FileEmpty, FilePath));
-            if (document.Connections?.Any(p => p is null || p.Address is null || p.Name is null || p.User is null) == true)
-            {
-                throw new ConnectionStoreException(TextFormat.Format(ConnectionText.InvalidFile, FilePath, ConnectionText.IncompleteConnection));
-            }
-
-            return document.Connections ?? [];
-        }
-        catch (Exception ex) when (ex is JsonException or NotSupportedException or IOException or UnauthorizedAccessException)
-        {
-            // NotSupportedException: an address without "type", or with "type" not first (edited by hand).
-            throw new ConnectionStoreException(TextFormat.Format(ConnectionText.InvalidFile, FilePath, ex.Message), ex);
+                JsonFileState.Missing => [],
+                JsonFileState.Ok when read.Document!.Connections?.Any(p => p is null || p.Address is null || p.Name is null || p.User is null) == true =>
+                    throw new ConnectionStoreException(TextFormat.Format(ConnectionText.InvalidFile, FilePath, ConnectionText.IncompleteConnection)),
+                JsonFileState.Ok => read.Document!.Connections ?? [],
+                JsonFileState.Empty => throw new ConnectionStoreException(TextFormat.Format(CoreText.FileEmpty, FilePath)),
+                JsonFileState.Newer => throw new ConnectionStoreException(TextFormat.Format(CoreText.FileFromNewerVersion, FilePath, read.Version)),
+                _ => throw new ConnectionStoreException(TextFormat.Format(ConnectionText.InvalidFile, FilePath, read.Error!.Message), read.Error),
+            };
         }
         finally
         {

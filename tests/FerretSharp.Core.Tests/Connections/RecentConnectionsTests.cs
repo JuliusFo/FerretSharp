@@ -39,6 +39,21 @@ public sealed class RecentConnectionsTests : IDisposable
         Assert.Equal(known, recent.LastUsed.Count);
     }
 
+    /// <summary>R5b (review 3.31.0, B2): the version was not checked – a newer FerretSharp's file was replaced at the next connect.</summary>
+    [Fact]
+    public async Task A_file_of_a_newer_version_is_not_overwritten()
+    {
+        const string Newer = """{ "version": 2, "entries": [], "pinned": [ "6f1e1b6e-0000-0000-0000-000000000001" ] }""";
+        await File.WriteAllTextAsync(FilePath, Newer, Ct);
+        var recent = new RecentConnections(FilePath, _time);
+        await recent.LoadAsync(Ct);
+
+        await recent.MarkUsedAsync(Guid.NewGuid(), Ct);
+
+        Assert.Single(recent.LastUsed); // in memory for this session
+        Assert.Equal(Newer, await File.ReadAllTextAsync(FilePath, Ct));
+    }
+
     [Fact]
     public async Task Marks_usage_persists_and_orders_most_recent_first()
     {

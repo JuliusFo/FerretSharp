@@ -20,4 +20,12 @@
     <value>{0}: the name is longer than {1} bytes.</value>
     <comment>{0}: the name as typed; {1}: Oracle's limit in bytes (128)</comment>
   </data>
+  <data name="FileEmpty" xml:space="preserve">
+    <value>{0} is empty.</value>
+    <comment>{0}: path of the file</comment>
+  </data>
+  <data name="FileFromNewerVersion" xml:space="preserve">
+    <value>{0} comes from a newer version of FerretSharp (format {1}).</value>
+    <comment>{0}: path or name of the file; {1}: format version found in the file</comment>
+  </data>
 </root>
