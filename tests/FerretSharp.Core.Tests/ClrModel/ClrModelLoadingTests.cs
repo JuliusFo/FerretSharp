@@ -4,6 +4,7 @@ using FerretSharp.Core.Schema;
 using FerretSharp.Core.Tests.Connections;
 using FerretSharp.Core.Tests.Fakes;
 using FerretSharp.Core.Workspaces;
+using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 
@@ -17,7 +18,10 @@ namespace FerretSharp.Core.Tests.ClrModel;
 public sealed class ClrModelLoadingTests : IAsyncDisposable
 {
     private readonly TestFolder _folder = new();
+    private static readonly TimeSpan BuildQuiet = TimeSpan.FromMilliseconds(200);
+
     private readonly IModelHostRunner _runner = Substitute.For<IModelHostRunner>();
+    private readonly FakeTimeProvider _time = new();
     private readonly ActiveConnection _active;
     private readonly ConnectionManager _connections;
     private ClrModelManager _models;
@@ -52,7 +56,26 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
     private void WatchBuildsQuickly()
     {
         _models.Dispose();
-        _models = new ClrModelManager(_runner, _active, _connections, buildQuiet: TimeSpan.FromMilliseconds(200));
+        _models = new ClrModelManager(_runner, _active, _connections, buildQuiet: BuildQuiet, time: _time);
+    }
+
+    /// <summary>
+    /// Changes the build output, waits until the watcher saw it and ends its quiet period – on the fake clock (R5b), so a
+    /// slow machine cannot end it early or a test wait too short.
+    /// </summary>
+    private async Task BuildAsync(Func<Task> write)
+    {
+        var (seen, reported) = _models.WatcherCounts;
+        await write();
+        await WaitUntil(() => _models.WatcherCounts.Seen > seen);
+
+        // A later event of the same write may move the end of the quiet period while the clock moves on: on until it reported.
+        for (var waited = 0; _models.WatcherCounts.Reported == reported; waited += 20)
+        {
+            Assert.True(waited < 10_000, "The watcher did not report.");
+            await Task.Run(() => _time.Advance(BuildQuiet), Ct); // on a pool thread, as with the system clock
+            await Task.Delay(20, Ct);
+        }
     }
 
     private static ModelHostResult Model() => new(new ModelExport(ModelExport.CurrentFormatVersion, "8.0.0", "Shop.Ctx", "options", null, []), null);
@@ -231,7 +254,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
         await WaitUntil(() => _models.State.Phase == ClrModelPhase.Loaded);
         var first = _models.Mapping;
 
-        await File.WriteAllTextAsync(_dll, "neuer Build", Ct);
+        await BuildAsync(() => File.WriteAllTextAsync(_dll, "neuer Build", Ct));
 
         await WaitUntil(() => _models.State is { Phase: ClrModelPhase.Loading, BuildChanged: true });
         Assert.Same(first, _models.State.Mapping);
@@ -254,9 +277,11 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
         await WaitUntil(() => _models.State.Phase == ClrModelPhase.Loaded);
 
         var written = File.GetLastWriteTimeUtc(_dll);
-        await File.WriteAllTextAsync(_dll, "", Ct);
-        File.SetLastWriteTimeUtc(_dll, written);
-        await Task.Delay(800, Ct);
+        await BuildAsync(async () =>
+        {
+            await File.WriteAllTextAsync(_dll, "", Ct);
+            File.SetLastWriteTimeUtc(_dll, written);
+        });
 
         Assert.Equal(0, changed);
         await _runner.Received(1).ReadModelAsync(Arg.Any<ClrProjectLink>(), Arg.Any<BuildOutput>(), Arg.Any<CancellationToken>(), Arg.Any<IProgress<string>?>());
@@ -278,7 +303,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
         await consoles.WarmUpAsync();
         Assert.Equal(LinqConsolePhase.Ready, consoles.State.Phase);
 
-        await File.WriteAllTextAsync(_dll, "neuer Build", Ct);
+        await BuildAsync(() => File.WriteAllTextAsync(_dll, "neuer Build", Ct));
 
         await WaitUntil(() => consoles.State.IsReloading);
         Assert.Equal("alt", (await consoles.RunAsync("x", "", Ct)).ResultType);
@@ -303,7 +328,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
         _runner.StartConsoleAsync(Arg.Any<ClrProjectLink>(), Arg.Any<BuildOutput>(), Arg.Any<CancellationToken>(), Arg.Any<IProgress<string>?>())
             .Returns(Task.FromResult(old), started.Task);
         await consoles.WarmUpAsync();
-        await File.WriteAllTextAsync(_dll, "neuer Build", Ct);
+        await BuildAsync(() => File.WriteAllTextAsync(_dll, "neuer Build", Ct));
         await WaitUntil(() => consoles.State is { IsReloading: true, Step: not null } && consoles.State.Step.EndsWith("lade neu", StringComparison.Ordinal));
 
         // The connection closes while the new host is still starting; the start then completes anyway.
@@ -362,7 +387,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
             .Returns(Task.FromResult(old), Task.FromException<ILinqConsole>(new ClrModelException(ClrModelErrorKind.HostFailed, "OnModelCreating kaputt")));
         await consoles.WarmUpAsync();
 
-        await File.WriteAllTextAsync(_dll, "kaputter Build", Ct);
+        await BuildAsync(() => File.WriteAllTextAsync(_dll, "kaputter Build", Ct));
 
         await WaitUntil(() => consoles.State.Error is not null);
         Assert.Equal(LinqConsolePhase.Ready, consoles.State.Phase);
@@ -411,7 +436,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
             .Returns(Task.FromResult(old), Task.FromResult(fresh));
         await consoles.WarmUpAsync();
 
-        await File.WriteAllTextAsync(_dll, "neuer Build", Ct);
+        await BuildAsync(() => File.WriteAllTextAsync(_dll, "neuer Build", Ct));
 
         // Two hosts building a large model at the same time made the UI stutter: the console waits for the model.
         await WaitUntil(() => _models.State is { Phase: ClrModelPhase.Loading, BuildChanged: true });

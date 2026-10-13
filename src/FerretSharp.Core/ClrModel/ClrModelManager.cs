@@ -54,6 +54,7 @@ public sealed class ClrModelManager : IDisposable
     private readonly ModelCache? _cache;
     private readonly Lock _lock = new();
     private readonly TimeSpan _buildQuiet;
+    private readonly TimeProvider _time;
     private CancellationTokenSource? _loading;
 
     /// <summary>Cancelled on dispose (connection closed): a running build is ended instead of going on for up to ten minutes.</summary>
@@ -61,18 +62,33 @@ public sealed class ClrModelManager : IDisposable
     private Guid? _profileId;
     private BuildOutputWatcher? _watcher;
 
+    /// <summary>File events the build watcher handled and the quiet periods it reported so far; 0 without a watcher (tests).</summary>
+    internal (int Seen, int Reported) WatcherCounts
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return (_watcher?.Seen ?? 0, _watcher?.Reported ?? 0);
+            }
+        }
+    }
+
     /// <summary>The files of the build output the current model was read from (to ignore watcher events without a change).</summary>
     private IReadOnlyDictionary<string, FileStamp>? _loadedFiles;
 
     /// <param name="cache">Exported models to reuse while the build is unchanged (WP-16); null = always run the host.</param>
     /// <param name="buildQuiet">How long the build output must be unchanged before the model is reloaded.</param>
-    public ClrModelManager(IModelHostRunner runner, ActiveConnection active, ConnectionManager connections, ModelCache? cache = null, TimeSpan? buildQuiet = null)
+    /// <param name="time">The clock of the build watcher's quiet period and of the load times (tests); the system's if null.</param>
+    public ClrModelManager(IModelHostRunner runner, ActiveConnection active, ConnectionManager connections, ModelCache? cache = null, TimeSpan? buildQuiet = null,
+        TimeProvider? time = null)
     {
         _runner = runner;
         _active = active;
         _connections = connections;
         _cache = cache;
         _buildQuiet = buildQuiet ?? BuildOutputWatcher.DefaultQuiet;
+        _time = time ?? TimeProvider.System;
         _active.Changed += OnConnectionChanged;
         _connections.Changed += OnConnectionChanged;
     }
@@ -133,7 +149,7 @@ public sealed class ClrModelManager : IDisposable
             var mapping = await Task.Run(() => ClrModelMapping.BuildAsync(model, schema, linked.Token), linked.Token);
             linked.Token.ThrowIfCancellationRequested();
             schema.SetForeignKeys(FkSource.ClrModel, mapping.ForeignKeys);
-            Set(state with { Mapping = mapping, LoadedAt = DateTimeOffset.Now }, cts);
+            Set(state with { Mapping = mapping, LoadedAt = _time.GetLocalNow() }, cts);
             return mapping;
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
@@ -176,7 +192,7 @@ public sealed class ClrModelManager : IDisposable
 
         var previous = State.Link == link ? State.Mapping : null;
         var loadedAt = State.LoadedAt;
-        var steps = new StepRecorder();
+        var steps = new StepRecorder(_time.GetLocalNow());
         BuildOutput? output = null;
 
         // Progress: the step (also those the model host reports from its process) with its start, for the model page.
@@ -184,7 +200,7 @@ public sealed class ClrModelManager : IDisposable
         {
             steps.Start(step);
             Set(new ClrModelState(ClrModelPhase.Loading, link, output ?? State.Output, previous, null, loadedAt,
-                step, DateTimeOffset.Now, steps.StartedAt, BuildChanged: buildChanged), cts);
+                step, _time.GetLocalNow(), steps.StartedAt, BuildChanged: buildChanged), cts);
         }
 
         DateTimeOffset? cachedAt = null;
@@ -239,7 +255,7 @@ public sealed class ClrModelManager : IDisposable
             var mapping = await ClrModelMapping.BuildAsync(model, schema, cts.Token, new SyncProgress<string>(Report));
             cts.Token.ThrowIfCancellationRequested();
             schema.SetForeignKeys(FkSource.ClrModel, mapping.ForeignKeys);
-            Finish(ClrModelPhase.Loaded, mapping, null, DateTimeOffset.Now);
+            Finish(ClrModelPhase.Loaded, mapping, null, _time.GetLocalNow());
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {
@@ -262,13 +278,13 @@ public sealed class ClrModelManager : IDisposable
     }
 
     /// <summary>Durations of the steps of one load: a step lasts until the next one starts.</summary>
-    private sealed class StepRecorder
+    private sealed class StepRecorder(DateTimeOffset startedAt)
     {
         private readonly List<LoadStep> _steps = [];
         private readonly Stopwatch _watch = new();
         private string? _current;
 
-        public DateTimeOffset StartedAt { get; } = DateTimeOffset.Now;
+        public DateTimeOffset StartedAt { get; } = startedAt;
 
         public void Start(string step)
         {
@@ -394,7 +410,7 @@ public sealed class ClrModelManager : IDisposable
             {
                 try
                 {
-                    _watcher = new BuildOutputWatcher(directory, depsOnly, _buildQuiet, () => OnBuildOutputChanged(link!));
+                    _watcher = new BuildOutputWatcher(directory, depsOnly, _buildQuiet, () => OnBuildOutputChanged(link!), _time);
                 }
                 catch (Exception ex) when (ex is IOException or ArgumentException or PlatformNotSupportedException)
                 {

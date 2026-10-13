@@ -10,26 +10,30 @@ public sealed class BuildOutputWatcher : IDisposable
     public static readonly TimeSpan DefaultQuiet = TimeSpan.FromSeconds(1.5);
 
     private readonly FileSystemWatcher _watcher;
-    private readonly Timer _timer;
+    private readonly ITimer _timer;
     private readonly TimeSpan _quiet;
     private readonly bool _depsOnly;
     private int _disposed;
+    private int _seen;
+    private int _reported;
 
     /// <param name="directory">The output folder, or the project folder if there is no output yet (<paramref name="depsOnly"/>).</param>
     /// <param name="depsOnly">Only a deps.json counts (watching the project folder: obj is written by every design-time build).</param>
     /// <param name="changed">Called on a thread-pool thread.</param>
-    public BuildOutputWatcher(string directory, bool depsOnly, TimeSpan quiet, Action changed)
+    /// <param name="time">The clock of the quiet period (tests); the system's if null. Changes stay real file events.</param>
+    public BuildOutputWatcher(string directory, bool depsOnly, TimeSpan quiet, Action changed, TimeProvider? time = null)
     {
         Directory = directory;
         _quiet = quiet;
         _depsOnly = depsOnly;
-        _timer = new Timer(_ =>
+        _timer = (time ?? TimeProvider.System).CreateTimer(_ =>
         {
             if (Volatile.Read(ref _disposed) == 0)
             {
+                Interlocked.Increment(ref _reported);
                 changed();
             }
-        });
+        }, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         _watcher = new FileSystemWatcher(directory)
         {
             IncludeSubdirectories = true,
@@ -41,7 +45,11 @@ public sealed class BuildOutputWatcher : IDisposable
         _watcher.Deleted += OnChanged;
         _watcher.Renamed += OnChanged;
         // Too many changes at once (the buffer overflowed): something changed for sure.
-        _watcher.Error += (_, _) => Touch();
+        _watcher.Error += (_, _) =>
+        {
+            Touch();
+            Interlocked.Increment(ref _seen);
+        };
         _watcher.EnableRaisingEvents = true;
     }
 
@@ -49,12 +57,24 @@ public sealed class BuildOutputWatcher : IDisposable
 
     public bool DepsOnly => _depsOnly;
 
+    /// <summary>File events handled so far, counted or not (tests wait for them before they move the clock on).</summary>
+    internal int Seen => Volatile.Read(ref _seen);
+
+    /// <summary>Quiet periods that ended in a report (tests).</summary>
+    internal int Reported => Volatile.Read(ref _reported);
+
+    /// <summary>After each file event, counted or not, with its path (tests).</summary>
+    internal event Action<string>? Handled;
+
     private void OnChanged(object sender, FileSystemEventArgs e)
     {
         if (!_depsOnly || e.FullPath.EndsWith(".deps.json", StringComparison.OrdinalIgnoreCase) || HasDepsFile(e))
         {
             Touch();
         }
+
+        Interlocked.Increment(ref _seen);
+        Handled?.Invoke(e.FullPath);
     }
 
     /// <summary>
