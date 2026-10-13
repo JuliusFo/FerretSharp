@@ -19,7 +19,7 @@ public sealed partial class AppTraceSourceTests(OracleContainerFixture oracle)
     private static readonly string Configuration = AppContext.BaseDirectory.Contains($"{Path.DirectorySeparatorChar}Release{Path.DirectorySeparatorChar}",
         StringComparison.OrdinalIgnoreCase) ? "Release" : "Debug";
 
-    private static string FakeAppPath => Path.Combine(ModelHostTests.RepositoryRoot, "tests", "FerretSharp.FakeEfApp", "bin", Configuration, "net8.0", "FerretSharp.FakeEfApp.dll");
+    private static string FakeAppPath => Net8.Require(Path.Combine(ModelHostTests.RepositoryRoot, "tests", "FerretSharp.FakeEfApp", "bin", Configuration, "net8.0", "FerretSharp.FakeEfApp.dll"));
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 

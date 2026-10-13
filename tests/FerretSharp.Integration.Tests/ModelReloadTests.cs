@@ -27,6 +27,7 @@ public sealed class ModelReloadTests : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
+        _ = ModelHostTests.ModelHostPath; // skips without .NET 8 before the build of the copy
         var repository = ModelHostTests.RepositoryRoot;
         CopyProject(Path.Combine(repository, "samples"), Path.Combine(_folder.Path, "samples"));
         File.Copy(Path.Combine(repository, "nuget.config"), Path.Combine(_folder.Path, "nuget.config"));
@@ -57,9 +58,13 @@ public sealed class ModelReloadTests : IAsyncLifetime
 
     public async ValueTask DisposeAsync()
     {
-        await _consoles.DisposeAsync();
-        _models.Dispose();
-        await _active.DisposeAsync();
+        if (_consoles is not null) // null: skipped or failed in InitializeAsync
+        {
+            await _consoles.DisposeAsync();
+            _models.Dispose();
+            await _active.DisposeAsync();
+        }
+
         _folder.Dispose();
     }
 
