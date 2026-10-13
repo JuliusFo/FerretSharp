@@ -1,8 +1,8 @@
 # Arbeitspakete – Index
 
-Was in den abgeschlossenen Paketen gebaut und entschieden wurde, mit Nachträgen, Fallen und E2E-Erkenntnissen: je Paket eine Datei (bis 3.31.1 eine gemeinsame `docs/work-packages.md`, im Gesamt-Review 3.31.0 aufgeteilt). Vor Änderungen an einem Bereich das Paket lesen, das ihn gebaut hat – die Spalte „Bereiche“ führt vom Code zum Paket. Geplante Pakete: `docs/roadmap.md`; übergreifende Fallen: die `CLAUDE.md`-Dateien, `docs/e2e-testing.md`. Begründungen der Entscheidungen: `docs/decisions/`.
+Was in den abgeschlossenen Paketen gebaut und entschieden wurde, mit Nachträgen, Fallen und E2E-Erkenntnissen: je Paket eine Datei (bis 3.31.1 eine gemeinsame `docs/work-packages.md`, im Gesamt-Review 3.31.0 aufgeteilt). Vor Änderungen an einem Bereich das Paket lesen, das ihn gebaut hat – die Spalte „Bereiche“ führt vom Code zum Paket. Geplante Pakete: `docs/roadmap.md`; übergreifende Fallen: `.claude/rules/`, `docs/e2e-testing.md`. Begründungen der Entscheidungen: `docs/decisions/`.
 
-„Abschnitt N“ in älteren Protokollen meint die `CLAUDE.md` zum Zeitpunkt des Pakets (bis 3.14.0: 5 Domänenmodell und 7 UI-Konzept → `docs/architecture.md`, 6 Oracle-Fallstricke → `src/FerretSharp.Core/CLAUDE.md`, 11 Arbeitsweise → `CLAUDE.md` bzw. `docs/e2e-testing.md`). „Oben“/„unten“ in einem Protokoll meint die frühere gemeinsame Datei; Pakete werden über ihre Nummer genannt.
+„Abschnitt N“ in älteren Protokollen meint die `CLAUDE.md` zum Zeitpunkt des Pakets (bis 3.14.0: 5 Domänenmodell und 7 UI-Konzept → `docs/architecture.md`, 6 Oracle-Fallstricke → `.claude/rules/oracle.md` (bis 3.31.1 `src/FerretSharp.Core/CLAUDE.md`), 11 Arbeitsweise → `CLAUDE.md` bzw. `docs/e2e-testing.md`). „Oben“/„unten“ in einem Protokoll meint die frühere gemeinsame Datei; Pakete werden über ihre Nummer genannt.
 
 ## Versionen
 
@@ -71,5 +71,5 @@ Reihenfolge wie die Releases. Kleinere Releases ohne eigenes Paket (Fixes, Komfo
 ## Neues Protokoll
 
 - Eine Datei je Paket, Name wie der Branch ohne `wp/` (`wp-NN-kurzname.md`, `rNx-….md`), Überschrift `# WP-NN Titel → Release X.Y.Z`; Zeile in der Übersicht mit Bereichen.
-- Inhalt: Auftrag/Planung mit den Entscheidungen des Nutzers (beim Release aus `docs/roadmap.md` hierher), was gebaut wurde, Nachträge, Fallen. Fallen, die über das Paket hinaus gelten, zusätzlich in die `CLAUDE.md` des Bereichs.
+- Inhalt: Auftrag/Planung mit den Entscheidungen des Nutzers (beim Release aus `docs/roadmap.md` hierher), was gebaut wurde, Nachträge, Fallen. Fallen, die über das Paket hinaus gelten, zusätzlich in die passende Regel unter `.claude/rules/`.
 - Keine Testzahlen (stehen im Build) und beim E2E nur, was gefunden oder nicht geprüft wurde – nicht jeden bestandenen Schritt.

@@ -1,6 +1,6 @@
 # Architektur – Domänenmodell und UI-Konzept
 
-Aus der `CLAUDE.md` ausgelagert (3.14.0), nachgezogen bis 3.31.1. Vor Änderungen am jeweiligen Bereich den passenden Abschnitt lesen. Die Kurzfassung der Invarianten steht in der `CLAUDE.md`, die Fallen in `src/FerretSharp.Core/CLAUDE.md` und `src/FerretSharp.UI/CLAUDE.md`.
+Aus der `CLAUDE.md` ausgelagert (3.14.0), nachgezogen bis 3.31.1. Vor Änderungen am jeweiligen Bereich den passenden Abschnitt lesen. Die Kurzfassung der Invarianten steht in der `CLAUDE.md`, die Fallen in `.claude/rules/`.
 
 ## 1. Domänenmodell
 
@@ -40,7 +40,7 @@ record TabState(TableRef Table, TabMode Mode, FilterRows, AppliedFilters, Sorts,
 - PL/SQL-Tabs (WP-28) stehen als `TabState.PlSql` (`PlSqlTabState`: Owner, Name, Art, Ansicht) in der Datei, `Table` ist wie bei SQL/LINQ leer; nicht mehr vorhandene Objekte werden beim Wiederherstellen still verworfen.
 - Zur Laufzeit hält jeder offene Workspace eine **eigene** Session (eigene Connection, ab v2 eigene Transaktion), geöffnet beim ersten Datenzugriff (`WorkspaceManager.GetDataAsync`). Das Schema lädt eine separate Explorer-Session (ADR 0005).
 - Connection-String mit `Pooling=false`: Die Sessions leben lange, und eine Connection mit offener Transaktion darf nie in einen Pool zurückgehen.
-- Beim Öffnen `ModuleName = "FerretSharp"`, `ActionName = <Workspace-Name>`, `ClientInfo` setzen → in `V$SESSION` ist erkennbar, welcher Workspace eine Sperre hält. Umbenennen setzt ACTION neu. Werte werden nach ASCII transliteriert (`src/FerretSharp.Core/CLAUDE.md`).
+- Beim Öffnen `ModuleName = "FerretSharp"`, `ActionName = <Workspace-Name>`, `ClientInfo` setzen → in `V$SESSION` ist erkennbar, welcher Workspace eine Sperre hält. Umbenennen setzt ACTION neu. Werte werden nach ASCII transliteriert (`.claude/rules/oracle.md`).
 - Persistenz unter `%APPDATA%\FerretSharp\workspaces\{id}.json` (`WorkspaceStore`, eine Datei pro Workspace, versioniert, unlesbare Dateien werden gemeldet und nicht angefasst). Tab-Änderungen speichert der `WorkspaceManager` gesammelt nach 1 s, Strukturänderungen und Trennen/Beenden sofort.
 - Werte auf der Platte (Entscheidung des Nutzers, Gesamt-Review 3.31.0, A40): Log und SQL-Verlauf enthalten auf Prod nie Werte (Bind-Werte maskiert, Variablen leer) und nirgends Passwörter (`SqlRedaction`). Die Workspace-Dateien dagegen halten den Arbeitsstand wie ein offenes Dokument – SQL-Text samt Literalen, Filter- und Variablenwerte –, auch auf Prod; sie liegen nur im Datenordner des Nutzers.
 - Beim Verbinden: offene Workspaces laden, der zuletzt aktive wird aktiv; ist keiner offen, wird der zuletzt benutzte wieder geöffnet, sonst „Workspace 1“ angelegt. Der letzte offene Workspace lässt sich nicht schließen. Gelöscht werden nur geschlossene Workspaces; das Löschen einer Verbindung löscht ihre Workspaces mit.

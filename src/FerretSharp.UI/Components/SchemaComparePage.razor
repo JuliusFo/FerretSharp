@@ -10,7 +10,7 @@
 <div class="settings-page compare-page">
     <div class="page-head">
         <h1>@CompareViewText.Compare_Title</h1>
-        @* value, not selected=: after the user picked an option the browser ignores the attribute (src/FerretSharp.UI/CLAUDE.md). *@
+        @* value, not selected=: after the user picked an option the browser ignores the attribute (.claude/rules/ui.md). *@
         <select class="compare-saved" title="@CompareViewText.Compare_SavedTitle" value="@(Compare.IsSaved ? Compare.Current.Id.ToString() : "")" @onchange="OpenSaved">
             <option value="">@(Compare.IsSaved ? CompareViewText.Compare_New : CompareViewText.Compare_NotSaved)</option>
             @foreach (var saved in Compare.Saved)

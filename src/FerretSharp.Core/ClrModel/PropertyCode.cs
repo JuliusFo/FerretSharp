@@ -171,7 +171,7 @@ public static partial class PropertyCode
     /// <summary>A converter usable as <c>HasConversion&lt;T&gt;()</c>: a plain type name, not one built inline (<c>ValueConverter&lt;bool, string&gt;</c>).</summary>
     private static bool IsTypeName(string converter) => !converter.Contains('<', StringComparison.Ordinal) && !converter.StartsWith("ValueConverter", StringComparison.Ordinal);
 
-    /// <summary>What EF Core with the Oracle provider reads from the column (as FerretSharp's editor heuristics, CLAUDE.md Core).</summary>
+    /// <summary>What EF Core with the Oracle provider reads from the column (.claude/rules/oracle.md, Typen).</summary>
     private static string DefaultType(ColumnInfo column) => column.DataType switch
     {
         "NUMBER" when column.Scale is 0 && column.Precision is { } p => p <= 9 ? "int" : p <= 18 ? "long" : "decimal",

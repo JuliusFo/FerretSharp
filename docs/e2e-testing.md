@@ -13,7 +13,7 @@ Aus der `CLAUDE.md` ausgelagert (3.14.0), nachgezogen bis 3.31.1. Vor jedem E2E-
 Drei Stufen, von schwach nach stark:
 1. **DOM-Events** per `Runtime.evaluate` (`element.click()`, `dispatchEvent`): erreichen Blazor, sonst nichts – kein Fokuswechsel, keine Nutzergeste.
 2. **CDP-Eingabe** (`Input.dispatchMouseEvent`/`dispatchKeyEvent`): läuft durch Chromiums Eingabeweg (Fokus, `detail`, Rechts- und Mittelklick, Tasten mit Modifiern), aber **am WPF-Host vorbei**.
-3. **Windows-Eingabe** (`SendInput`): läuft wie beim Nutzer durch den WPF-Host (`WebView2CompositionControl`). Nur so fallen Fehler wie das fehlende `auxclick` oder das doppelte Mouse-down beim Doppelklick auf (`src/FerretSharp.UI/CLAUDE.md`).
+3. **Windows-Eingabe** (`SendInput`): läuft wie beim Nutzer durch den WPF-Host (`WebView2CompositionControl`). Nur so fallen Fehler wie das fehlende `auxclick` oder das doppelte Mouse-down beim Doppelklick auf (`.claude/rules/ui.md`).
 
 - Mausinteraktionen deshalb mit Stufe 3 prüfen (`realclick.ps1`: `ClientToScreen` des Fensters + CSS-Position × `devicePixelRatio`), Stufe 2 reicht für Tastatur und als schneller Durchlauf. Die Hilfsskripte (`realclick.ps1`, CDP-Aufrufe per `node`) liegen nicht im Repo, sondern entstehen je Session im Scratchpad (Backlog: nach `tools/e2e/`).
 - `realclick.ps1`: Die `INPUT`-Struktur muss auf x64 genau 40 Byte haben (`type` + `MOUSEINPUT`, **kein** zusätzliches Füllfeld) – sonst lehnt `SendInput` mit Fehler 87 ab und es kommt still kein Klick an (in WP-28 gefunden). Rückgabewert von `SendInput` prüfen und vor dem Klick abbrechen, wenn `GetForegroundWindow()` nicht das App-Fenster ist.
