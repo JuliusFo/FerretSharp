@@ -169,6 +169,25 @@ class FerretHeader {
  * with the typed character, or – after a rejected value – with that value and the message below it. Long text
  * columns get a multi-line box (Shift+Enter: new line, Enter: done).
  */
+/**
+ * Enter in an editor: the message if .NET refuses the text, else null. A failed call counts as "no objection" – the edit
+ * itself (OnCellEdit) checks again and keeps the editor open with its reason (review 3.31.0, A47: unhandled rejections).
+ */
+async function validateEdit(params, value) {
+  try {
+    return await params.state.dotnet.invokeMethodAsync('ValidateEdit', ...rowArgs(params.node, params.data), params.column.getColId(), value);
+  } catch (e) {
+    callFailed(e);
+    return null;
+  }
+}
+
+/** The current value could not be read from .NET: the editor ends without a value – left open and empty, it wrote NULL (A47). */
+function cancelEditor(params, e) {
+  if (e) callFailed(e);
+  params.stopEditing(true);
+}
+
 class FerretCellEditor {
   init(params) {
     this.params = params;
@@ -202,7 +221,7 @@ class FerretCellEditor {
           this.input.focus();
           this.input.select();
         })
-        .catch(() => { this.input.disabled = false; });
+        .catch(e => cancelEditor(params, e));
     }
   }
   /**
@@ -216,8 +235,7 @@ class FerretCellEditor {
       if (e.key !== 'Enter' || (params.meta.multiline && e.shiftKey)) return;
       e.preventDefault();
       e.stopPropagation();
-      const error = await params.state.dotnet.invokeMethodAsync('ValidateEdit',
-        ...rowArgs(params.node, params.data), params.column.getColId(), this.input.value);
+      const error = await validateEdit(params, this.input.value);
       if (error) {
         this.showError(error);
       } else {
@@ -270,7 +288,7 @@ class FerretSelectEditor {
         this.loaded = true;
         this.select.focus();
       })
-      .catch(() => { this.select.disabled = false; });
+      .catch(e => cancelEditor(params, e));
   }
   addOption(value, label) {
     const option = document.createElement('option');
@@ -280,8 +298,7 @@ class FerretSelectEditor {
   }
   async commit() {
     const params = this.params;
-    const error = await params.state.dotnet.invokeMethodAsync('ValidateEdit',
-      ...rowArgs(params.node, params.data), params.column.getColId(), this.select.value);
+    const error = await validateEdit(params, this.select.value);
     if (error) {
       showEditorError(this.eGui, error);
     } else {
@@ -333,7 +350,11 @@ class FerretFlagsEditor {
     const clear = params.eventKey === 'Backspace' || params.eventKey === 'Delete';
     params.state.dotnet.invokeMethodAsync('GetFlagsEdit', ...rowArgs(params.node, params.data), params.column.getColId())
       .then(edit => {
-        if (!edit) return;
+        if (!edit) {
+          cancelEditor(params); // nothing to edit (an empty popup stayed open before)
+          return;
+        }
+
         this.nullBox = edit.null ? this.addItem(edit.null, 'fs-null') : null;
         this.boxes = edit.boxes.map(box => this.addItem(box, box.unknown ? 'fs-unknown-text' : null));
         this.raw = edit.raw ?? undefined;
@@ -344,7 +365,7 @@ class FerretFlagsEditor {
         this.loaded = true;
         this.focusFirst();
       })
-      .catch(callFailed);
+      .catch(e => cancelEditor(params, e));
   }
   /** A box as .NET describes it ({ value, label, name, checked }); its value is what it adds to the sum. */
   addItem(box, labelClass) {
@@ -389,8 +410,7 @@ class FerretFlagsEditor {
   }
   async commit() {
     const params = this.params;
-    const error = await params.state.dotnet.invokeMethodAsync('ValidateEdit',
-      ...rowArgs(params.node, params.data), params.column.getColId(), this.value());
+    const error = await validateEdit(params, this.value());
     if (error) {
       showEditorError(this.eGui, error);
     } else {
