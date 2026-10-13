@@ -172,6 +172,10 @@ changes, and a new build is picked up automatically:
 - **Code generation**: the grid's filters as a LINQ `Where`, rows as C# objects or `HasData` seed data – and, DB-first,
   the entity class and its `IEntityTypeConfiguration` for a table the model does not know yet (or the property and
   configuration line for a new column), in the style of your project.
+- **App statements**: attach to your app while it runs (debugging in Visual Studio, `dotnet run`) – no code change – and
+  see every statement it sends through EF Core, grouped by origin (LINQ, lazy loading, raw SQL, `SaveChanges` …), the
+  most frequent and most expensive ones, and N+1 patterns. Look a statement up in V$SQL of the app's connection with its
+  plan, or open it in the SQL editor. Local apps of your own user only, EF Core 7 or later for the origin.
 
 ## Getting started
 
