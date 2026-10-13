@@ -7,16 +7,16 @@
 @inject IJSRuntime JS
 @inject ShortcutService Shortcuts
 
-<button class="btn ghost" title="@TextFormat.Format(SqlEditorText.LinqMenu_Title, Presentations.For(Details).EntityName)" @onclick="Open">C# ▾</button>
+<button class="btn ghost" title="@TextFormat.Format(SqlEditorText.LinqMenu_Title, Presentations.For(Details).EntityName)" @onclick="OpenAsync">C# ▾</button>
 
-@if (_open)
+@if (_menu is { } menu)
 {
-    <div class="overlay" @onclick="Close" @oncontextmenu="Close" @oncontextmenu:preventDefault="true"></div>
-    <div class="menu linq-menu" style="left:@Px(_x);top:@Px(_y)">
+    @* A PopoverMenu (Escape, focus, kept inside the window – review 3.31.0, A22). *@
+    <PopoverMenu X="menu.X" Y="menu.Y" ViewportWidth="menu.Width" ViewportHeight="menu.Height" Width="MenuWidth" EstimatedHeight="90" OnClose="Close">
         <button class="menu-item" title="@SqlEditorText.LinqMenu_CopyTitle" @onclick="CopyAsync">@SqlEditorText.LinqMenu_Copy</button>
         <button class="menu-item" title="@(Shortcuts.Label(ShortcutAction.ApplyFilters) is { } key ? TextFormat.Format(SqlEditorText.LinqMenu_OpenConsoleTitleWithKey, key) : SqlEditorText.LinqMenu_OpenConsoleTitle)"
                 @onclick="OpenConsole">@SqlEditorText.LinqMenu_OpenConsole</button>
-    </div>
+    </PopoverMenu>
 }
 
 @code {
@@ -25,9 +25,8 @@
 
     private const double MenuWidth = 220;
 
-    private bool _open;
-    private double _x;
-    private double _y;
+    private MenuAt? _menu;
+    private bool _disposed;
     private DomModule? _dom;
 
     /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
@@ -43,14 +42,20 @@
     [Parameter, EditorRequired]
     public Func<IReadOnlyList<FilterCondition>> Filters { get; set; } = null!;
 
-    private void Open(MouseEventArgs e)
+    private async Task OpenAsync(MouseEventArgs e)
     {
-        _x = Math.Max(8, e.ClientX - MenuWidth + 40);
-        _y = e.ClientY + 14;
-        _open = true;
+        var size = await Dom.InvokeAsync<double[]>("viewportSize");
+        if (_disposed || size is not [var width, var height])
+        {
+            return;
+        }
+
+        _menu = new MenuAt(Math.Max(8, e.ClientX - MenuWidth + 40), e.ClientY + 14, width, height);
     }
 
-    private void Close() => _open = false;
+    private void Close() => _menu = null;
+
+    private sealed record MenuAt(double X, double Y, double Width, double Height);
 
     private ExportText Build(string? source = null)
     {
@@ -60,7 +65,7 @@
 
     private async Task CopyAsync()
     {
-        _open = false;
+        _menu = null;
         var linq = Build();
         if (linq.Text.Length == 0)
         {
@@ -76,7 +81,7 @@
 
     private void OpenConsole()
     {
-        _open = false;
+        _menu = null;
         var linq = Build(source: "db");
         Shell.OpenLinq(linq.Text);
         if (linq.Warnings.Count > 0)
@@ -85,10 +90,9 @@
         }
     }
 
-    private static string Px(double value) => value.ToString("0", CultureInfo.InvariantCulture) + "px";
-
     public async ValueTask DisposeAsync()
     {
+        _disposed = true;
         await Dom.DisposeAsync();
     }
 }
