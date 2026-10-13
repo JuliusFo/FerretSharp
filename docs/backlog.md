@@ -13,6 +13,12 @@ Geplante Arbeitspakete stehen in `docs/roadmap.md`; hier landet alles, was noch 
 - Export: vollständige LOB-Werte (CLOB/BLOB) für markierte Zeilen nachladen statt sie als NULL zu exportieren; „Alle Zeilen des Filters exportieren“ (nicht nur geladene/markierte).
 - Export: Option „Formeln entschärfen“ für CSV und „Als Tabelle kopieren“ (Textwerte, die mit `=`, `+`, `-`, `@` beginnen, mit führendem `'` – Excel wertet sie sonst als Formel aus). Entscheidung des Nutzers (Gesamt-Review 3.31.0, A38): Standard bleibt der exakte Wert, nur als Option bei Bedarf.
 - Index anlegen/Designer: Indexnamen schemaweit prüfen (Oracle verlangt Eindeutigkeit je Schema, die Prüfung kennt nur die Indizes der Tabelle; heute meldet erst das DDL ORA-00955). Braucht die Indexnamen des Schemas (Snapshot oder eine leichte Abfrage). Aus dem Gesamt-Review 3.31.0 (A36), aus R5a herausgenommen.
+- Aus dem Gesamt-Review 3.31.0, nicht in R5a (selten oder ungeprüft, `docs/review-3.31.0.md`):
+  - TIMESTAMP(8/9) als Schlüssel verliert Nanosekunden (`DateTime`), Schreiben meldet dann „inzwischen gelöscht“; Filter auf TIMESTAMP WITH TIME ZONE nimmt keinen Offset an (A33).
+  - SQL_ID per MD5 über UTF-8 – bei einer Nicht-AL32UTF8-Datenbank findet „tatsächlicher Plan“/„Statements der App“ den Cursor eines Statements mit Umlaut nicht; `V$SQL` statt `GV$SQL` auf RAC (A34).
+  - LONG im SQL-Editor bei 32.767 Zeichen still gekürzt – als gekürzt kennzeichnen wie eine LOB-Vorschau (A35).
+  - EXPLAIN in eine eigene Heap-`PLAN_TABLE` des Schemas (aus `utlxplan.sql`) schreibt und committet, auch auf Prod – erst gegen eine DB nachprüfen, dann `SYS.PLAN_TABLE$` oder ablehnen (A37).
+  - SQL-Editor-Variablen: Typ „national“ (NVARCHAR2) fehlt; Filter binden seit R5a national (A18).
 - INVISIBLE-Spalten (12c+, `HIDDEN_COLUMN = 'YES'`, `COLUMN_ID` NULL): Grid, Formular, Schema-Vergleich und Designer kennen sie nicht (die Spaltenliste filtert `hidden_column = 'NO'`). Seit R5a (Gesamt-Review 3.31.0, A17) öffnet eine Tabelle mit einem Schlüssel über eine solche Spalte wenigstens (ROWID statt des Schlüssels). Vollständig: über `user_generated = 'YES'` lesen, als unsichtbar kennzeichnen (Grid blendet aus, DDL schreibt `INVISIBLE`).
 - Native Dialoge: zuletzt verwendeten Export-Ordner merken.
 - Spalten ausblenden (Variante C der Spaltensuche): Auswahl per Häkchen, pro Tab gespeichert, Vorlagen wie „nur FKs“. Entschieden: Export (Tabelle kopieren, CSV) nimmt dann nur die sichtbaren Spalten, INSERT immer alle. Gilt dann auch für Formular und Zeilenvergleich (WP-21).
