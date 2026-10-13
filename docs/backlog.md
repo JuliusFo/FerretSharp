@@ -56,7 +56,6 @@ Selten, ungeprüft oder bewusst zurückgestellt – vor dem Anfassen nachstellen
 - Offene Änderungen (Fortsetzung von WP-30): Sprung zu einer Zeile, die nicht unter den geladenen ist (heute nur ein Hinweis) – z. B. einen Tab mit Filter auf ihren Schlüssel öffnen; „Bis hier“ und Redo auch für Workspaces anderer Verbindungen direkt aus dem Panel. (Grid-Redo nach einem Konflikt im Schreibproblem-Dialog fortsetzen: seit R5a, A14.)
 - Tastenkürzel für die Ansichten eines Tabs (z. B. Alt+1 … Alt+6); Ctrl+1 … 9 bleibt für das Wechseln der Workspaces reserviert.
 - Keyset-Paging für sehr große Tabellen; exakte Scroll-Wiederherstellung.
-- AG Grid auf aktuelle Major-Version (36+) heben, sobald die API-Änderungen geprüft sind.
 
 ## Export und Zwischenablage
 
