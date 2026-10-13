@@ -21,14 +21,17 @@ public sealed class ImportRow
     private readonly ConnectionImportPlan _plan;
     private readonly string? _invalid;
     private string _user;
+    private ConnectionKind _kind;
+    private bool _kindPicked;
+    private bool _guessed;
 
     internal ImportRow(ConnectionImportPlan plan, ImportCandidate candidate)
     {
         _plan = plan;
         Candidate = candidate;
         _user = candidate.Profile?.User ?? "";
-        Kind = candidate.Profile?.Kind ?? ConnectionKind.Other;
-        KindGuessed = candidate.KindGuessed;
+        _kind = candidate.Profile?.Kind ?? ConnectionKind.Other;
+        _guessed = candidate.KindGuessed;
 
         // Checked like a saved connection, apart from the user (typed in the preview): a port of 99999 or a missing name
         // shows here instead of failing the whole import when saving.
@@ -49,17 +52,27 @@ public sealed class ImportRow
 
     public bool Selected { get; set; }
 
-    public ConnectionKind Kind { get; private set; }
+    /// <summary>
+    /// The source's kind (or the guess, or the user's pick) – but a saved Prod connection it overwrites stays Prod unless the
+    /// user picks another kind: most of the protection hangs on the kind (review 3.31.0, A5).
+    /// </summary>
+    public ConnectionKind Kind => KeepsProd ? ConnectionKind.Prod : _kind;
+
+    private bool KeepsProd => !_kindPicked && Overwrites is { Kind: ConnectionKind.Prod };
 
     /// <summary>The kind is still the guess from the name; the connection stays read-only until the user picks one.</summary>
-    public bool KindGuessed { get; private set; }
+    public bool KindGuessed => _guessed && !KeepsProd;
 
     /// <summary>Picked by the user (also the guessed one, to confirm it): no longer a guess, read-only follows the kind again.</summary>
     public void SetKind(ConnectionKind kind)
     {
-        Kind = kind;
-        KindGuessed = false;
+        _kind = kind;
+        _kindPicked = true;
+        _guessed = false;
     }
+
+    /// <summary>The paths of the source's computer in this connection; taken only when the plan says so (<see cref="ConnectionImportPlan.TakeLocalPaths"/>).</summary>
+    public IReadOnlyList<string> LocalPaths => Candidate.Profile?.LocalPaths() ?? [];
 
     /// <summary>
     /// Typed in the preview when the source had none (DBeaver without credentials). A user that makes the row a duplicate
@@ -107,6 +120,11 @@ public sealed class ImportRow
     internal ConnectionProfile Build(string? defaultGroup)
     {
         var imported = Candidate.Profile ?? throw new InvalidOperationException("Not importable.");
+        if (!_plan.TakeLocalPaths)
+        {
+            imported = imported.WithoutLocalPaths();
+        }
+
         var fallbackGroup = string.IsNullOrWhiteSpace(defaultGroup) ? null : defaultGroup.Trim();
         var profile = imported with { Kind = Kind, User = User, ReadOnly = ReadOnly };
         if (Overwrites is { } existing)
@@ -117,6 +135,9 @@ public sealed class ImportRow
             return profile with
             {
                 Id = existing.Id,
+                Address = (profile.Address, existing.Address) is (TnsAliasAddress tns, TnsAliasAddress own) && own.TnsAdminPath is { } path
+                    ? tns with { TnsAdminPath = path }
+                    : profile.Address,
                 DefaultSchema = imported.DefaultSchema ?? existing.DefaultSchema,
                 Group = imported.Group ?? existing.Group ?? fallbackGroup,
                 ClrProject = existing.ClrProject ?? imported.ClrProject,
@@ -162,6 +183,16 @@ public sealed class ConnectionImportPlan
 
     /// <summary>The group for imported connections that bring none; empty = no group.</summary>
     public string DefaultGroup { get; set; }
+
+    /// <summary>
+    /// Take the paths of the source's computer (C# project, script folder, TNS_ADMIN) – moving one's own connections to a new
+    /// computer. Off by default (decision of the user, review 3.31.0 A4): a colleague's paths do not fit, and a project
+    /// path would load and run that project's code.
+    /// </summary>
+    public bool TakeLocalPaths { get; set; }
+
+    /// <summary>Whether any importable row brings local paths (the dialog offers <see cref="TakeLocalPaths"/> only then).</summary>
+    public bool HasLocalPaths => Rows.Any(r => r.CanImport && r.LocalPaths.Count > 0);
 
     public IEnumerable<ImportRow> SelectedRows => Rows.Where(r => r.Selected && r.CanImport);
 

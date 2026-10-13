@@ -1284,6 +1284,12 @@
   <data name="Import_DefaultGroup" xml:space="preserve">
     <value>Gruppe für Verbindungen ohne Gruppe</value>
   </data>
+  <data name="Import_TakeLocalPaths" xml:space="preserve">
+    <value>Pfade des Quellrechners übernehmen (C#-Projekt, Skriptordner, TNS_ADMIN)</value>
+  </data>
+  <data name="Import_TakeLocalPathsHint" xml:space="preserve">
+    <value>Nur für eigene Verbindungen von einem anderen Rechner: Ein C#-Projektpfad lädt und startet dieses Projekt. Ohne sie nimmt ein TNS-Alias TNS_ADMIN dieses Rechners.</value>
+  </data>
   <data name="Import_NoPasswords" xml:space="preserve">
     <value>Passwörter werden nicht übernommen – du gibst sie beim Verbinden ein.</value>
   </data>
@@ -1321,7 +1327,7 @@
     <value>{0} von {1}</value>
   </data>
   <data name="Export_LocalPaths" xml:space="preserve">
-    <value>Pfade dieses Rechners mitnehmen (C#-Projekt, Skriptordner)</value>
+    <value>Pfade dieses Rechners mitnehmen (C#-Projekt, Skriptordner, TNS_ADMIN)</value>
   </data>
   <data name="Export_NoPasswords" xml:space="preserve">
     <value>Passwörter werden nie exportiert.</value>

@@ -86,19 +86,82 @@ public class ImportReviewTests
         row.User = "erp_app"; // now a duplicate of the saved one …
         row.Selected = true; // … picked on purpose
 
-        Assert.Equal(ConnectionKind.Dev, row.Kind); // DBeaver says dev …
-        Assert.True(row.ReadOnly); // … but the saved one is Prod and read-only
+        Assert.Equal(ConnectionKind.Prod, row.Kind); // DBeaver says dev, but the saved one is Prod (review 3.31.0, A5) …
+        Assert.False(row.KindGuessed);
+        Assert.True(row.ReadOnly); // … and read-only
 
         var saved = Assert.Single(plan.Build());
         Assert.Equal(SavedProd.Id, saved.Id);
         Assert.True(saved.ReadOnly);
+        Assert.Equal(ConnectionKind.Prod, saved.Kind);
         Assert.Equal("ERP", saved.DefaultSchema);
         Assert.Equal(SavedProd.ClrProject, saved.ClrProject);
         Assert.Equal(SavedProd.ScriptFolder, saved.ScriptFolder);
         Assert.Equal("erp-prod", saved.AppEnvironment);
 
         row.Action = DuplicateAction.Copy; // a copy is a connection of its own: Dev as DBeaver says
+        Assert.Equal(ConnectionKind.Dev, row.Kind);
         Assert.False(row.ReadOnly);
+    }
+
+    /// <summary>Review 3.31.0, A5: overwriting made a saved Prod connection Dev – only "read-only" was kept.</summary>
+    [Fact]
+    public void Overwriting_a_prod_connection_changes_its_kind_only_when_picked_on_purpose()
+    {
+        var plan = new ConnectionImportPlan(ConnectionImportReader.Read(Utf8(DbeaverDataSources), Ct), [SavedProd]);
+        var row = plan.Rows.Single(r => r.Candidate.Name == "erp-test");
+        plan.SelectAll(false);
+        row.User = "erp_app";
+        row.Selected = true;
+
+        row.SetKind(ConnectionKind.Test);
+
+        Assert.Equal(ConnectionKind.Test, row.Kind);
+        Assert.True(row.ReadOnly); // still never loosened
+        Assert.Equal(ConnectionKind.Test, Assert.Single(plan.Build()).Kind);
+    }
+
+    /// <summary>Review 3.31.0, A4: an import took the C# project, script folder and TNS_ADMIN of the source's computer unseen.</summary>
+    [Fact]
+    public void Local_paths_are_taken_only_when_asked_for()
+    {
+        var colleague = SavedProd with
+        {
+            Id = Guid.NewGuid(), Name = "Neu", Address = new TnsAliasAddress("ERP_NEU", @"\server	ns"),
+            ClrProject = new ClrProjectLink(@"\servershareErp.Data.csproj"), ScriptFolder = @"D:kollegesql",
+        };
+        var file = Utf8(FerretSharpConnections.Export([colleague], includeLocalPaths: true));
+        var plan = new ConnectionImportPlan(ConnectionImportReader.Read(file, Ct), []);
+        var row = Assert.Single(plan.Rows);
+
+        Assert.True(plan.HasLocalPaths);
+        Assert.Equal([@"\servershareErp.Data.csproj", @"D:kollegesql", @"\server	ns"], row.LocalPaths);
+        var plain = Assert.Single(plan.Build());
+        Assert.Null(plain.ClrProject);
+        Assert.Null(plain.ScriptFolder);
+        Assert.Equal(new TnsAliasAddress("ERP_NEU", null), plain.Address);
+
+        plan.TakeLocalPaths = true; // moving one's own connections
+        var moved = Assert.Single(plan.Build());
+        Assert.Equal(colleague.ClrProject, moved.ClrProject);
+        Assert.Equal(colleague.Address, moved.Address);
+    }
+
+    [Fact]
+    public void An_export_without_local_paths_leaves_out_tns_admin_too_an_overwrite_keeps_the_own()
+    {
+        var own = SavedProd with { Address = new TnsAliasAddress("ERP", @"C:oracle
+etworkadmin") };
+        var exported = FerretSharpConnections.Export([own with { Id = Guid.NewGuid() }], includeLocalPaths: false);
+        Assert.DoesNotContain("network", exported, StringComparison.Ordinal);
+
+        var colleague = own with { Id = Guid.NewGuid(), Address = new TnsAliasAddress("ERP", @"\server	ns") };
+        var plan = new ConnectionImportPlan(
+            ConnectionImportReader.Read(Utf8(FerretSharpConnections.Export([colleague], includeLocalPaths: true)), Ct), [own]);
+        Assert.Single(plan.Rows).Selected = true;
+        plan.TakeLocalPaths = true;
+
+        Assert.Equal(own.Address, Assert.Single(plan.Build()).Address);
     }
 
     [Fact]
@@ -160,6 +223,8 @@ public class ImportReviewTests
         Assert.All(file.Candidates, c => Assert.DoesNotContain("tiger", c.Address));
         Assert.Equal("jdbc:oracle:thin:@//db01:1521/S", JdbcUrl.ForDisplay("jdbc:oracle:thin:a/b@//db01:1521/S"));
         Assert.Equal("jdbc:mysql://web", JdbcUrl.ForDisplay("jdbc:mysql://web"));
+        Assert.Equal("jdbc:oracle:thin:@//db01:1521/S", JdbcUrl.ForDisplay("jdbc:oracle:thin:scott/p@ss@//db01:1521/S")); // A42
+        Assert.Equal("jdbc:oracle:oci:@REPDB", JdbcUrl.ForDisplay("jdbc:oracle:oci:scott/tiger@REPDB"));
     }
 
     [Fact]

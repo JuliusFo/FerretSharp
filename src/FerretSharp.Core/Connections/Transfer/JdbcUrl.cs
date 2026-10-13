@@ -38,23 +38,26 @@ public static partial class JdbcUrl
     }
 
     /// <summary>
-    /// A URL as the preview may show it: anything between <c>jdbc:oracle:thin:</c> and <c>@</c> (<c>user/password</c>) is
+    /// A URL as the preview may show it: anything between <c>jdbc:oracle:    /// A URL as the preview may show it: anything between <c>jdbc:oracle:thin:</c> and <c>@</c> (<c>user/password</c>) islt;driver    /// A URL as the preview may show it: anything between <c>jdbc:oracle:thin:</c> and <c>@</c> (<c>user/password</c>) isgt;:</c> and the last <c>@</c> (<c>user/password</c>) is
     /// left out – also for URLs FerretSharp cannot read.
     /// </summary>
     public static string? ForDisplay(string? url)
     {
-        if (url is null)
+        if (url is null || !url.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase))
         {
-            return null;
+            return url;
         }
 
-        const string Thin = "jdbc:oracle:thin:";
-        var at = url.IndexOf('@', StringComparison.Ordinal);
-        return url.StartsWith(Thin, StringComparison.OrdinalIgnoreCase) && at > Thin.Length ? Thin + url[at..] : url;
+        // The last @: a password may hold one (review 3.31.0, A42); any driver (thin, oci …).
+        var at = url.LastIndexOf('@');
+        var driverEnd = url.IndexOf(':', Prefix.Length);
+        return at > 0 && driverEnd >= 0 && driverEnd < at ? url[..(driverEnd + 1)] + url[at..] : url;
     }
 
+    private const string Prefix = "jdbc:oracle:";
+
     // Port is optional only in the service form (a SID needs host:port:SID).
-    [GeneratedRegex(@"^jdbc:oracle:thin:(?:[^@]*)@(?://)?(?<host>[A-Za-z0-9._-]+)(?::(?<port>\d{1,5}))?(?<sep>[/:])(?<name>[A-Za-z0-9._$#-]+)$",
+    [GeneratedRegex(@"^jdbc:oracle:thin:(?:.*)@(?://)?(?<host>[A-Za-z0-9._-]+)(?::(?<port>\d{1,5}))?(?<sep>[/:])(?<name>[A-Za-z0-9._$#-]+)$",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex ThinUrl();
 }

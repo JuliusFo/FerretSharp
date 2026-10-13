@@ -1581,6 +1581,12 @@
   <data name="Import_DefaultGroup" xml:space="preserve">
     <value>Group for connections without a group</value>
   </data>
+  <data name="Import_TakeLocalPaths" xml:space="preserve">
+    <value>Take the paths of the source computer (C# project, script folder, TNS_ADMIN)</value>
+  </data>
+  <data name="Import_TakeLocalPathsHint" xml:space="preserve">
+    <value>Only for your own connections from another computer: a C# project path loads and runs that project. Without them, a TNS alias uses TNS_ADMIN of this computer.</value>
+  </data>
   <data name="Import_NoPasswords" xml:space="preserve">
     <value>Passwords are not imported – you enter them when connecting.</value>
   </data>
@@ -1627,7 +1633,7 @@
     <comment>{0}: selected connections of the group; {1}: all of the group</comment>
   </data>
   <data name="Export_LocalPaths" xml:space="preserve">
-    <value>Include paths of this computer (C# project, script folder)</value>
+    <value>Include paths of this computer (C# project, script folder, TNS_ADMIN)</value>
   </data>
   <data name="Export_NoPasswords" xml:space="preserve">
     <value>Passwords are never exported.</value>
