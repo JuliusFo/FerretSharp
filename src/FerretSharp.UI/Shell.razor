@@ -214,10 +214,23 @@
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            LoggerFactory.CreateLogger("FerretSharp.UI.Shell").LogError(ex, "Shell action failed");
-            _state.Notify(CommonText.UnexpectedError, [ex.Message]);
+            Failed(ex);
         }
     });
+
+    /// <inheritdoc cref="Run(Func{Task})"/>
+    /// <remarks>For the service events too (review 3.31.0, A23: they ran as discarded InvokeAsync tasks, unobserved).</remarks>
+    private void Run(Action work) => Run(() =>
+    {
+        work();
+        return Task.CompletedTask;
+    });
+
+    private void Failed(Exception ex)
+    {
+        LoggerFactory.CreateLogger("FerretSharp.UI.Shell").LogError(ex, "Shell action failed");
+        _state.Notify(CommonText.UnexpectedError, [ex.Message]);
+    }
     private ErrorBoundary? _errorBoundary;
     private IJSObjectReference? _shortcuts;
     private IJSObjectReference? _tooltips;
@@ -314,7 +327,7 @@
         await _shortcuts.InvokeVoidAsync("setLocal", Shortcuts.LocalCombos);
     }
 
-    private void OnShortcutsChanged() => InvokeAsync(async () =>
+    private void OnShortcutsChanged() => Run(async () =>
     {
         try
         {
@@ -334,6 +347,19 @@
     /// <param name="cellEditing">A grid cell of the visible tab is being edited: closing the tab would lose the value.</param>
     [JSInvokable]
     public void OnShortcut(string combo, bool modalOpen, bool cellEditing)
+    {
+        // JS neither waits for nor shows an exception from here (review 3.31.0, A23): logged and shown instead.
+        try
+        {
+            OnShortcutCore(combo, modalOpen, cellEditing);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Failed(ex);
+        }
+    }
+
+    private void OnShortcutCore(string combo, bool modalOpen, bool cellEditing)
     {
         if (modalOpen)
         {
@@ -415,7 +441,7 @@
     /// A connection was opened, closed or shown (WP-24): follow its events, and on a switch let the tabs follow the shown
     /// connection (the lost banner reads the shown connection's own state).
     /// </summary>
-    private void OnHubChanged() => InvokeAsync(() =>
+    private void OnHubChanged() => Run(() =>
     {
         var open = Hub.Open;
         foreach (var scope in open.Where(s => !_subscribed.ContainsKey(s)))
@@ -460,7 +486,7 @@
     /// The model manager reports every loading step; the shell renders only when a project gets linked or unlinked
     /// ("+ LINQ", the empty state's text).
     /// </summary>
-    private void OnModelChanged(ConnectionScope scope) => InvokeAsync(() =>
+    private void OnModelChanged(ConnectionScope scope) => Run(() =>
     {
         var linked = scope.Models.State.Link is not null;
         if (_linked.TryGetValue(scope, out var before) && before != linked)
@@ -471,7 +497,7 @@
     });
 
     /// <summary>A connection (shown or not) connected, failed or its workspaces changed: align its tabs.</summary>
-    private void OnScopeChanged(ConnectionScope scope) => InvokeAsync(() =>
+    private void OnScopeChanged(ConnectionScope scope) => Run(() =>
     {
         if (!Hub.Open.Contains(scope))
         {
@@ -494,7 +520,7 @@
     /// The keep-alive found a session gone: the same banner as a failed query, without waiting for the next click (a
     /// connection in the background is marked in the switcher and shows the banner once it is shown).
     /// </summary>
-    private void OnKeepAliveLost(ActiveConnection connection, DatabaseException error) => InvokeAsync(() =>
+    private void OnKeepAliveLost(ActiveConnection connection, DatabaseException error) => Run(() =>
     {
         if (connection.ReportLost(error))
         {
