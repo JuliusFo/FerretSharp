@@ -66,6 +66,17 @@ public sealed class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task Update_check_is_on_by_default_also_in_files_written_before_it_existed_and_round_trips()
+    {
+        await File.WriteAllTextAsync(_store.FilePath, """{ "version": 1, "settings": { "theme": "dark" } }""", Ct);
+        Assert.True((await _store.LoadAsync(Ct)).CheckForUpdates);
+
+        await _store.SaveAsync(new AppSettings { CheckForUpdates = false }, Ct);
+
+        Assert.False((await _store.LoadAsync(Ct)).CheckForUpdates);
+    }
+
+    [Fact]
     public async Task Change_overview_is_closed_with_default_width_by_default_and_round_trips()
     {
         await File.WriteAllTextAsync(_store.FilePath, """{ "version": 1, "settings": { "theme": "dark" } }""", Ct);
