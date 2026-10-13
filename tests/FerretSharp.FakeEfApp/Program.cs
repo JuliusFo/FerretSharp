@@ -4,6 +4,7 @@
 //   --provider sqlite|oracle   SQLite file (--db <path>) or Oracle (connection string in FAKE_EF_CONNECTION: never on the
 //                              command line, a trace reads that)
 //   --rounds <n>               rounds of the workload (default 3)
+//   --loop <ms>                no protocol: a round every <ms> until the process is ended (for trying the page by hand)
 //   anything else              ignored (e.g. -environment=…, which the trace reads)
 //
 // Protocol on stdin/stdout: prints "ready" once the tables are there, waits for "go", runs the rounds, prints "done", and
@@ -48,13 +49,19 @@ using (var setup = new ShopContext(configure))
 }
 
 Console.WriteLine("ready");
-if (Console.ReadLine() != "go")
+var loop = Option("--loop") is { } every ? TimeSpan.FromMilliseconds(int.Parse(every, System.Globalization.CultureInfo.InvariantCulture)) : (TimeSpan?)null;
+if (loop is null && Console.ReadLine() != "go")
 {
     return;
 }
 
-for (var round = 1; round <= rounds; round++)
+for (var round = 1; round <= rounds || loop is not null; round++)
 {
+    if (loop is { } pause && round > 1)
+    {
+        Thread.Sleep(pause); // --loop <ms>: no protocol, a round every <ms> until the process is ended (E2E)
+    }
+
     using var db = new ShopContext(configure);
 
     // LINQ, then lazy loading per order (N+1)

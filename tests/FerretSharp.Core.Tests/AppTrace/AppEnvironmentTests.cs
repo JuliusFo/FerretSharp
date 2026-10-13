@@ -45,6 +45,17 @@ public sealed class AppEnvironmentTests
     public void Apps_started_by_the_dotnet_host_are_named_after_their_dll(string process, string? commandLine, string expected) =>
         Assert.Equal(expected, TraceableProcess.NameOf(process, commandLine));
 
+    [Theory]
+    [InlineData("MSBuild", true)]
+    [InlineData("VBCSCompiler", true)]
+    [InlineData("dotnet", true)] // the CLI itself (dotnet build, dotnet watch) – an app started by it is named after its dll
+    [InlineData("ServiceHub.RoslynCodeAnalysisService", true)]
+    [InlineData("testhost", true)]
+    [InlineData("Erp.Api", false)]
+    [InlineData("FerretSharp.FakeEfApp", false)]
+    public void Build_tooling_is_recognized(string name, bool tooling) =>
+        Assert.Equal(tooling, new TraceableProcess(1, name, null, null).IsTooling);
+
     [Fact]
     public void A_process_knows_its_environment() =>
         Assert.Equal("erp-dev", new TraceableProcess(1, "Erp.Api", "Erp.Api.exe -environment=erp-dev", null).Environment);

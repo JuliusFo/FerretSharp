@@ -79,8 +79,16 @@
         }
         else
         {
+            <p class="hint">@AppStatementsText.AppStatements_ProcessesHint</p>
+            var tooling = Trace.Processes.Count(p => p.IsTooling);
             <div class="app-trace-processes-head">
-                <span class="hint">@AppStatementsText.AppStatements_ProcessesHint</span>
+                @if (tooling > 0)
+                {
+                    <label class="check" title="@AppStatementsText.AppStatements_ShowToolingTitle">
+                        <input type="checkbox" checked="@_showTooling" @onchange="e => _showTooling = e.Value is true" />
+                        @TextFormat.Format(AppStatementsText.AppStatements_ShowTooling, tooling)
+                    </label>
+                }
                 <span class="grow"></span>
                 @if (Trace.ListingProcesses)
                 {
@@ -96,13 +104,14 @@
             {
                 <div class="test-result error"><span>@listError</span></div>
             }
-            @if (Trace.Processes.Count == 0)
+            var shown = Trace.Processes.Where(p => _showTooling || !p.IsTooling).ToList();
+            @if (shown.Count == 0)
             {
                 <p class="hint">@(Trace.ListingProcesses ? AppStatementsText.AppStatements_Listing : AppStatementsText.AppStatements_NoProcesses)</p>
             }
             else
             {
-                <table class="app-trace-table">
+                <table class="app-trace-table app-trace-processes">
                     <thead>
                         <tr>
                             <th>@AppStatementsText.AppStatements_ColumnApp</th>
@@ -113,9 +122,9 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var p in Trace.Processes)
+                        @foreach (var p in shown)
                         {
-                            <tr>
+                            <tr class="@(p.IsTooling ? "tooling" : "")">
                                 <td><b>@p.Name</b></td>
                                 <td class="num muted">@p.Id</td>
                                 <td class="mono">@p.Environment</td>
@@ -314,10 +323,12 @@
     public EventCallback OnBack { get; set; }
 
     private bool _choosingProcess;
+    private bool _showTooling;
     private bool _choosingConnection;
     private StatementOrigin? _origin;
     private StatementSort _sort = StatementSort.Time;
-    private CancellationTokenSource? _lookupCts;
+    private static readonly TimeSpan ConnectTimeout = TimeSpan.FromMinutes(1);
+    private static readonly TimeSpan LookupTimeout = TimeSpan.FromSeconds(30);
 
     protected override async Task OnInitializedAsync()
     {
@@ -342,7 +353,6 @@
         _choosingProcess = false;
         _choosingConnection = false;
         _origin = null;
-        _lookupCts?.Cancel();
         await Trace.AttachAsync(process);
     }
 
@@ -368,29 +378,43 @@
         }
     }
 
-    /// <summary>Looks the statement up in the database of the app's connection, connecting it first if needed.</summary>
+    /// <summary>
+    /// Looks the statement up in the database of the app's connection, connecting it first if needed. Connecting shows the
+    /// connection, and the page is built anew for it: the look-up outlives this instance and reports to the service. A
+    /// newer look-up (or a new trace) replaces it, its result is then dropped.
+    /// </summary>
     private async Task LookUpAsync(StatementTotals statement, ConnectionProfile profile)
     {
-        _lookupCts?.Cancel();
-        var cts = _lookupCts = new CancellationTokenSource();
-        Trace.SetLookup(new CursorLookup(statement.Text, profile.Id, true, null, null));
-        var active = await ConnectedAsync(profile, cts.Token);
+        var pending = new CursorLookup(statement.Text, profile.Id, true, null, null);
+        Trace.SetLookup(pending);
+        void Finish(Core.Query.CursorInfo? cursor, string? error)
+        {
+            if (ReferenceEquals(Trace.Lookup, pending))
+            {
+                Trace.SetLookup(pending with { Loading = false, Cursor = cursor, Error = error });
+            }
+        }
+
+        var active = await ConnectedAsync(profile);
         if (active?.Schema is not { } schema)
         {
-            Trace.SetLookup(new CursorLookup(statement.Text, profile.Id, false, null, cts.IsCancellationRequested ? null : AppStatementsText.AppStatements_NotConnected));
+            Finish(null, AppStatementsText.AppStatements_NotConnected);
             return;
         }
 
-        var result = await Shell.RunDbAsync(Logger, active, () => schema.GetCursorAsync(statement.Text, cts.Token), cts.Token);
-        if (!result.Cancelled)
+        using var timeout = new CancellationTokenSource(LookupTimeout);
+        var result = await Shell.RunDbAsync(Logger, active, () => schema.GetCursorAsync(statement.Text, timeout.Token), timeout.Token);
+        if (result.Cancelled)
         {
-            var error = result.Error?.Display.Replace("<user>", profile.User.ToUpperInvariant(), StringComparison.Ordinal);
-            Trace.SetLookup(new CursorLookup(statement.Text, profile.Id, false, result.Value, error));
+            Finish(null, AppStatementsText.AppStatements_LookupTimedOut);
+            return;
         }
+
+        Finish(result.Value, result.Error?.Display.Replace("<user>", profile.User.ToUpperInvariant(), StringComparison.Ordinal));
     }
 
     /// <summary>The connection, once connected; connecting shows it (the page stays). Null if connecting failed.</summary>
-    private async Task<ActiveConnection?> ConnectedAsync(ConnectionProfile profile, CancellationToken cancellationToken)
+    private async Task<ActiveConnection?> ConnectedAsync(ConnectionProfile profile)
     {
         if (Hub.Find(profile.Id) is { Active.IsConnected: true } open)
         {
@@ -398,7 +422,7 @@
         }
 
         await Lifecycle.ConnectAsync(profile);
-        for (var waited = 0; waited < 600 && !cancellationToken.IsCancellationRequested; waited++)
+        for (var waited = TimeSpan.Zero; waited < ConnectTimeout; waited += TimeSpan.FromMilliseconds(100))
         {
             if (Hub.Find(profile.Id)?.Active is { } active && active.Status is not (ConnectionStatus.Connecting or ConnectionStatus.Disconnected))
             {
@@ -484,6 +508,5 @@
     {
         Trace.Changed -= OnChanged;
         Connections.Changed -= OnChanged;
-        _lookupCts?.Cancel();
     }
 }

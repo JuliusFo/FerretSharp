@@ -9,6 +9,13 @@ public sealed record TraceableProcess(int Id, string Name, string? CommandLine, 
     public string? Environment => AppEnvironment.FromCommandLine(CommandLine);
 
     /// <summary>
+    /// Build and IDE tooling that runs on .NET as well (MSBuild nodes, the compiler server, the <c>dotnet</c> CLI itself,
+    /// Visual Studio's service hubs, test hosts): never the app to trace, so the list hides it unless asked.
+    /// </summary>
+    public bool IsTooling => Name is "MSBuild" or "VBCSCompiler" or "dotnet" or "testhost" or "vstest.console" or "Microsoft.CodeAnalysis.LanguageServer"
+        || Name.StartsWith("ServiceHub.", StringComparison.Ordinal) || Name.StartsWith("Microsoft.ServiceHub.", StringComparison.Ordinal);
+
+    /// <summary>
     /// The name to show: the process name, but for an app started by the <c>dotnet</c> host (<c>dotnet App.dll</c>,
     /// <c>dotnet exec</c>) the name of its first .dll argument.
     /// </summary>

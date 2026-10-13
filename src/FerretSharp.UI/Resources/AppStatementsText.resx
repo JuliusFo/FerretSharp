@@ -31,6 +31,13 @@
   <data name="AppStatements_ProcessesHint" xml:space="preserve">
     <value>.NET apps running on this computer under your user. Start your app (debugging in Visual Studio, dotnet run …) and attach to it – it needs no change, EF Core 7 or later shows where each statement comes from.</value>
   </data>
+  <data name="AppStatements_ShowTooling" xml:space="preserve">
+    <value>Show build tools too ({0})</value>
+    <comment>{0}: number of hidden processes (MSBuild, compiler server …)</comment>
+  </data>
+  <data name="AppStatements_ShowToolingTitle" xml:space="preserve">
+    <value>MSBuild nodes, the compiler server, the dotnet CLI and Visual Studio’s helpers run on .NET too – they are hidden because they are never the app to look at</value>
+  </data>
   <data name="AppStatements_Refresh" xml:space="preserve">
     <value>Refresh</value>
     <comment>Button: read the list of running apps again</comment>
@@ -236,6 +243,9 @@
   </data>
   <data name="AppStatements_NotConnected" xml:space="preserve">
     <value>The connection could not be opened.</value>
+  </data>
+  <data name="AppStatements_LookupTimedOut" xml:space="preserve">
+    <value>The database did not answer in time.</value>
   </data>
   <data name="AppStatements_NotInPool" xml:space="preserve">
     <value>The statement is not (or no longer) in the database’s shared pool – the app may work on another database, or it was aged out.</value>

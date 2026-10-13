@@ -27,6 +27,12 @@
   <data name="AppStatements_ProcessesHint" xml:space="preserve">
     <value>.NET-Apps, die auf diesem Rechner unter deinem Benutzer laufen. Starte deine App (Debuggen in Visual Studio, dotnet run …) und hänge dich an – sie braucht keine Änderung, ab EF Core 7 ist zu sehen, woher jedes Statement kommt.</value>
   </data>
+  <data name="AppStatements_ShowTooling" xml:space="preserve">
+    <value>Auch Build-Werkzeuge zeigen ({0})</value>
+  </data>
+  <data name="AppStatements_ShowToolingTitle" xml:space="preserve">
+    <value>MSBuild-Knoten, der Compiler-Server, die dotnet-CLI und Helfer von Visual Studio laufen auch auf .NET – sie sind ausgeblendet, weil sie nie die App sind, die du ansehen willst</value>
+  </data>
   <data name="AppStatements_Refresh" xml:space="preserve">
     <value>Aktualisieren</value>
   </data>
@@ -200,6 +206,9 @@
   </data>
   <data name="AppStatements_NotConnected" xml:space="preserve">
     <value>Die Verbindung ließ sich nicht öffnen.</value>
+  </data>
+  <data name="AppStatements_LookupTimedOut" xml:space="preserve">
+    <value>Die Datenbank hat nicht rechtzeitig geantwortet.</value>
   </data>
   <data name="AppStatements_NotInPool" xml:space="preserve">
     <value>Das Statement ist nicht (mehr) im Shared Pool der Datenbank – vielleicht arbeitet die App mit einer anderen Datenbank, oder es wurde verdrängt.</value>

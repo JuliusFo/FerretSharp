@@ -73,6 +73,24 @@ public sealed class AppTraceSourceTests(OracleContainerFixture oracle)
     }
 
     [Fact]
+    public async Task An_app_that_is_killed_ends_the_trace_quietly()
+    {
+        // Stopping the debugger kills the app: the stream breaks off in the middle of a block.
+        await using var app = await FakeApp.StartAsync(FakeAppPath, "sqlite", null, "--rounds", "1000");
+        await using var events = _source.AttachAsync(app.Id, Ct).GetAsyncEnumerator(Ct);
+        var first = events.MoveNextAsync();
+        await app.GoAsync();
+        Assert.True(await first);
+
+        await app.DisposeAsync(); // kills it
+
+        // Whatever was buffered, then the end – without an exception.
+        while (await events.MoveNextAsync())
+        {
+        }
+    }
+
+    [Fact]
     public async Task A_process_that_ended_is_refused()
     {
         await using var app = await FakeApp.StartAsync(FakeAppPath, "sqlite", null);

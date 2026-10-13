@@ -74,7 +74,15 @@ public sealed class EventPipeTraceSource(ILogger<EventPipeTraceSource> logger) :
             }
             catch (Exception ex)
             {
-                events.Writer.TryComplete(ct.IsCancellationRequested ? null : ex);
+                // An app that is killed (stop debugging) cuts the stream mid-block: TraceEvent then fails with "Read past
+                // end of stream". That is the app's end, not an error.
+                var ended = ct.IsCancellationRequested || !IsRunning(processId);
+                if (ended)
+                {
+                    logger.LogDebug(ex, "Trace of process {ProcessId} ended with the app", processId);
+                }
+
+                events.Writer.TryComplete(ended ? null : ex);
             }
         }, CancellationToken.None);
         var stopped = 0;
