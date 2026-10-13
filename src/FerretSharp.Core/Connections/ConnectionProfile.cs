@@ -16,7 +16,7 @@ public enum ConnectionKind
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(HostPortAddress), "hostPort")]
 [JsonDerivedType(typeof(TnsAliasAddress), "tnsAlias")]
-public abstract record OracleAddress
+public abstract partial record OracleAddress
 {
     /// <summary>Short human-readable form, e.g. <c>db01:1521/ORCLPDB</c> or <c>ERP_TEST</c>.</summary>
     [JsonIgnore]
