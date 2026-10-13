@@ -50,6 +50,10 @@ public sealed class EditingTests(OracleContainerFixture oracle) : IAsyncLifetime
                 "CREATE TABLE ED_NOKEY (TXT VARCHAR2(20), N NUMBER) SEGMENT CREATION IMMEDIATE",
                 "INSERT INTO ED_NOKEY VALUES ('eins', 1)",
                 "INSERT INTO ED_NOKEY VALUES ('zwei', 2)",
+                // A disabled primary key with duplicates.
+                "CREATE TABLE ED_DISABLED (ID NUMBER, TXT VARCHAR2(10), CONSTRAINT PK_ED_DISABLED PRIMARY KEY (ID) DISABLE) SEGMENT CREATION IMMEDIATE",
+                "INSERT INTO ED_DISABLED VALUES (1, 'a')",
+                "INSERT INTO ED_DISABLED VALUES (1, 'b')",
             })
             {
                 await using var command = connection.CreateCommand();
@@ -494,6 +498,49 @@ public sealed class EditingTests(OracleContainerFixture oracle) : IAsyncLifetime
 
         var after = (await a.Data.ReadPageAsync(table, [], [new SortSpec("N", false)], new PageSpec(0, 10), Ct)).Rows;
         Assert.Equal(["EINS"], after.Select(r => r.Values[0]));
+        await a.Editor.RollbackAsync(Ct);
+    }
+
+    [Fact]
+    public async Task A_table_whose_primary_key_is_disabled_is_edited_by_rowid()
+    {
+        await using var a = await OpenAsync("Workspace A");
+        var table = await DetailsAsync(a, "ED_DISABLED");
+        var rows = (await a.Data.ReadPageAsync(table, [], [new SortSpec("TXT", false)], new PageSpec(0, 10), Ct)).Rows;
+
+        Assert.Equal(["ID"], table.PrimaryKey);
+        Assert.False(table.PrimaryKeyEnforced);
+        Assert.All(rows, r => Assert.IsType<RowKey.RowId>(r.Key));
+
+        var tracker = new ChangeTracker(table);
+        tracker.SetValue(rows[0], I(table, "TXT"), "x");
+        await FlushAsync(a, tracker);
+
+        var after = (await a.Data.ReadPageAsync(table, [], [new SortSpec("TXT", false)], new PageSpec(0, 10), Ct)).Rows;
+        Assert.Equal(["b", "x"], after.Select(r => r.Values[I(table, "TXT")]));
+        await a.Editor.RollbackAsync(Ct);
+    }
+
+    [Fact]
+    public async Task A_key_that_matches_several_rows_writes_nothing()
+    {
+        // The table was opened while its key was enforced; then the key was disabled and duplicates came in.
+        await using var a = await OpenAsync("Workspace A");
+        var table = await DetailsAsync(a, "ED_DISABLED") with { PrimaryKeyEnforced = true };
+        var rows = (await a.Data.ReadPageAsync(table, [], [new SortSpec("TXT", false)], new PageSpec(0, 10), Ct)).Rows;
+        Assert.IsType<RowKey.PrimaryKey>(rows[0].Key);
+
+        var update = new ChangeTracker(table);
+        update.SetValue(rows[0], I(table, "TXT"), "x");
+        var error = await Assert.ThrowsAsync<KeyNotUniqueException>(() => FlushAsync(a, update));
+        var delete = new ChangeTracker(table);
+        delete.Delete(rows[1]);
+        await Assert.ThrowsAsync<KeyNotUniqueException>(() => FlushAsync(a, delete));
+
+        Assert.Equal(2, error.Rows);
+        var after = (await a.Data.ReadPageAsync(table, [], [new SortSpec("TXT", false)], new PageSpec(0, 10), Ct)).Rows;
+        Assert.Equal(["a", "b"], after.Select(r => r.Values[I(table, "TXT")]));
+        Assert.Empty(a.Editor.Actions);
         await a.Editor.RollbackAsync(Ct);
     }
 

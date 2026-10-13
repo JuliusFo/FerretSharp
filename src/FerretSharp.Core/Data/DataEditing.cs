@@ -88,6 +88,16 @@ public sealed class ConcurrencyConflictException(PendingOperation operation, IRe
 public sealed class RowGoneException(PendingOperation operation)
     : FlushException(operation, DataText.RowGone);
 
+/// <summary>
+/// The row's key matched more than one row (the primary key was disabled after the table was opened): nothing of the
+/// flush was kept, so one change never writes several rows (review 3.31.0, A2).
+/// </summary>
+public sealed class KeyNotUniqueException(PendingOperation operation, int rows)
+    : FlushException(operation, TextFormat.Format(DataText.KeyNotUnique, rows))
+{
+    public int Rows { get; } = rows;
+}
+
 /// <summary>Oracle refused the statement (constraint, NOT NULL, value too large, privileges …).</summary>
 public sealed class WriteFailedException(PendingOperation operation, DatabaseException error)
     : FlushException(operation, Describe(error), error)

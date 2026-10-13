@@ -103,6 +103,17 @@ public partial class QueryBuilderTests
     }
 
     [Fact]
+    public void A_table_whose_primary_key_is_not_enforced_uses_rowid_a_view_keeps_its_declared_key()
+    {
+        var disabled = Select(Kunden with { PrimaryKeyEnforced = false }, sorts: [new("NAME", false)]);
+        var view = Select(Kunden with { Table = View.Table, PrimaryKeyEnforced = false });
+
+        Assert.Equal(RowKeyKind.RowId, disabled.RowKey);
+        Assert.Contains("ORDER BY t.\"NAME\", t.ROWID\n", disabled.Sql);
+        Assert.Equal(RowKeyKind.PrimaryKey, view.RowKey);
+    }
+
+    [Fact]
     public void View_without_key_has_no_rowid_and_orders_by_all_sortable_columns()
     {
         var query = Select(View);

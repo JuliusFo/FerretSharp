@@ -58,8 +58,9 @@ public static class QueryBuilder
     public const int MaxInListSize = 1000; // ORA-01795
     private const string Alias = "t";
 
+    /// <summary>The primary key if its values are unique (or the table is a view), otherwise ROWID; views without a key: none.</summary>
     public static RowKeyKind RowKeyOf(TableDetails table) =>
-        table.PrimaryKey.Count > 0 ? RowKeyKind.PrimaryKey
+        table.PrimaryKey.Count > 0 && (table.PrimaryKeyEnforced || table.Table.Kind == TableKind.View) ? RowKeyKind.PrimaryKey
         : table.Table.Kind != TableKind.View ? RowKeyKind.RowId
         : RowKeyKind.None;
 

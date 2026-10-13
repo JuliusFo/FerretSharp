@@ -151,7 +151,7 @@ public sealed partial class OracleSchemaReader(OracleSession session) : ISchemaR
         """;
 
     private const string KeysSql = """
-        SELECT c.constraint_type, c.constraint_name, cc.column_name
+        SELECT c.constraint_type, c.constraint_name, cc.column_name, c.status, c.validated
           FROM all_constraints c
           JOIN all_cons_columns cc
             ON cc.owner = c.owner AND cc.constraint_name = c.constraint_name AND cc.table_name = c.table_name
@@ -237,7 +237,8 @@ public sealed partial class OracleSchemaReader(OracleSession session) : ISchemaR
 
         var columns = await ReadColumnsAsync(ColumnsSql, parameters, many: false, cancellationToken);
         var keys = await session.ReadListAsync(KeysSql, parameters, reader =>
-            (Type: reader.GetString(0), Name: reader.GetString(1), Column: reader.GetString(2)), cancellationToken);
+            (Type: reader.GetString(0), Name: reader.GetString(1), Column: reader.GetString(2),
+                Enforced: reader.GetString(3) == "ENABLED" && reader.GetString(4) == "VALIDATED"), cancellationToken);
 
         var isIot = table.Kind == TableKind.Table && await session.ExecuteReaderAsync(IotSql, parameters, async (reader, ct) =>
             await reader.ReadAsync(ct) && !reader.IsDBNull(0) && reader.GetString(0) == "IOT", cancellationToken);
@@ -269,7 +270,10 @@ public sealed partial class OracleSchemaReader(OracleSession session) : ISchemaR
                 return (raw.Trim(), raw.Length >= OracleSession.LongFetchSize);
             }, cancellationToken);
 
-        return new TableDetails(table, columns, primaryKey, uniqueKeys, isIot, definition, truncated);
+        return new TableDetails(table, columns, primaryKey, uniqueKeys, isIot, definition, truncated)
+        {
+            PrimaryKeyEnforced = keys.Where(k => k.Type == "P").All(k => k.Enforced),
+        };
     }
 
     // ---- reading the shared select lists ----

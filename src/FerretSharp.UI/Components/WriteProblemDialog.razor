@@ -46,7 +46,7 @@
     <footer>
         <span class="spacer"></span>
         <button class="btn ghost" @ref="_cancel" @onclick="() => OnChoice.InvokeAsync(ProblemChoice.Cancel)">
-            @(Problem.Error is WriteFailedException ? CommonText.Ok : CommonText.Cancel)
+            @(Problem.Error is WriteFailedException or KeyNotUniqueException ? CommonText.Ok : CommonText.Cancel)
         </button>
         @switch (Problem.Error)
         {

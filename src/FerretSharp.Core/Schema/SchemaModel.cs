@@ -76,6 +76,13 @@ public sealed record TableDetails(
     string? Definition = null,
     bool DefinitionTruncated = false)
 {
+    /// <summary>
+    /// The primary key is enabled and validated, so its values are unique. A disabled key (or <c>ENABLE NOVALIDATE</c>)
+    /// may hold duplicates: a table then addresses its rows by ROWID (review 3.31.0, A2). Constraints of views are never
+    /// enforced; a (read-only) view keeps its declared key as its row identity.
+    /// </summary>
+    public bool PrimaryKeyEnforced { get; init; } = true;
+
     /// <summary>The position of a column by its exact dictionary name in <see cref="Columns"/>; -1 if the table has none.</summary>
     public int IndexOf(string column)
     {
