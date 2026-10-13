@@ -70,6 +70,9 @@ public sealed class ConnectionForm
     /// <summary>DbContext type if the project has several; empty = its only one.</summary>
     public string ClrContextType { get; set; } = "";
 
+    /// <summary>The environment name the user's app starts with for this database (WP-33); empty = none.</summary>
+    public string AppEnvironment { get; set; } = "";
+
     /// <summary>Not edited in the dialog, only kept (WP-23: set when the designer saves a script).</summary>
     public string? ScriptFolder { get; set; }
 
@@ -86,9 +89,16 @@ public sealed class ConnectionForm
     public static ConnectionForm FromProfile(ConnectionProfile profile) =>
         Create(profile, profile.Id, isNew: false, profile.Name);
 
-    /// <summary>A new connection prefilled from <paramref name="original"/>, reusing its stored password unless one is entered.</summary>
-    public static ConnectionForm Duplicate(ConnectionProfile original) =>
-        Create(original, Guid.NewGuid(), isNew: true, TextFormat.Format(ShellText.ConnectionForm_CopyName, original.Name));
+    /// <summary>
+    /// A new connection prefilled from <paramref name="original"/>, reusing its stored password unless one is entered. The
+    /// app environment stays empty: a copy usually points to another database (WP-33).
+    /// </summary>
+    public static ConnectionForm Duplicate(ConnectionProfile original)
+    {
+        var form = Create(original, Guid.NewGuid(), isNew: true, TextFormat.Format(ShellText.ConnectionForm_CopyName, original.Name));
+        form.AppEnvironment = "";
+        return form;
+    }
 
     private static ConnectionForm Create(ConnectionProfile profile, Guid id, bool isNew, string name)
     {
@@ -106,6 +116,7 @@ public sealed class ConnectionForm
             ClrConfiguration = profile.ClrProject?.Configuration ?? "Debug",
             ClrContextType = profile.ClrProject?.ContextType ?? "",
             ScriptFolder = profile.ScriptFolder,
+            AppEnvironment = profile.AppEnvironment ?? "",
         };
         form._kind = profile.Kind;
         form.ReadOnly = profile.ReadOnly;
@@ -157,7 +168,7 @@ public sealed class ConnectionForm
         var clrProject = NullIfBlank(ClrProjectFile.Trim('"')) is { } projectFile
             ? new ClrProjectLink(projectFile, NullIfBlank(ClrConfiguration) ?? "Debug", NullIfBlank(ClrContextType))
             : null;
-        var profile = new ConnectionProfile(Id, Name.Trim(), Kind, address, User.Trim(), NullIfBlank(DefaultSchema), ReadOnly, NullIfBlank(Group), clrProject, ScriptFolder);
+        var profile = new ConnectionProfile(Id, Name.Trim(), Kind, address, User.Trim(), NullIfBlank(DefaultSchema), ReadOnly, NullIfBlank(Group), clrProject, ScriptFolder, NullIfBlank(AppEnvironment));
         foreach (var (field, message) in ConnectionProfileValidator.Validate(profile))
         {
             errors[field] = message;
