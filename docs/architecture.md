@@ -92,7 +92,7 @@ record SelectQuery(string Sql, IReadOnlyList<QueryParameter> Parameters, IReadOn
 - Spaltennamen in Filter/Sort gegen das Schema validieren, dann per `OracleIdentifier.Quote()` quoten. Werte nur als Bind-Variablen; **jede gebundene Variable muss im SQL vorkommen** (sonst ORA-01036) – Unit-Tests prüfen das für jedes Statement.
 - `Contains`/`StartsWith`/`EndsWith`: `%`, `_`, `\` escapen, `UPPER(c) LIKE UPPER(:p) ESCAPE '\'` (immer ohne Groß-/Kleinschreibung).
 - `≠` schließt NULL ein, wenn die Spalte nullable ist (wie C#/EF): `(c <> :p OR c IS NULL)`.
-- `CHAR`/`NCHAR`-Spalten werden als `OracleDbType.Char` gebunden (Blank-Padding: „AB“ findet „AB␣“).
+- `CHAR`-Spalten werden als `OracleDbType.Char`, `NCHAR` als `OracleDbType.NChar` gebunden (Blank-Padding: „AB“ findet „AB␣“), `NVARCHAR2` als `NVarchar2` (nationaler Zeichensatz, A18). Variablen des SQL-Editors folgen der verglichenen Spalte genauso (`SqlVariable.National`, R5b).
 - `Equals` mit leerem Text: in Oracle nie wahr (`'' = NULL`) → Validierungsfehler mit Hinweis auf „ist NULL“.
 - `In`: max. 1000 Elemente pro Liste (ORA-01795) → mehrere Listen mit `OR`.
 - Datum ohne Uhrzeit meint den ganzen Tag: `=` → `[d, d+1)`, `>` → `>= d+1`, `≤` → `< d+1`, `zwischen` schließt den letzten Tag ein.

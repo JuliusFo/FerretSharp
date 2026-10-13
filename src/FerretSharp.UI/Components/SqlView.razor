@@ -342,13 +342,13 @@
         var statements = SqlScript.Split(text).Select(s => SqlScript.Analyze(s.Text)).ToList();
         var binds = statements.SelectMany(s => s.Binds).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         var known = Tab.Variables.Select(v => v.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var suggestions = new Dictionary<string, SqlVariableType>(StringComparer.OrdinalIgnoreCase);
+        var suggestions = new Dictionary<string, SqlVariable>(StringComparer.OrdinalIgnoreCase);
         foreach (var bind in binds.Where(b => !known.Contains(b)))
         {
             if (statements.FirstOrDefault(s => s.BindUses.Any(u => string.Equals(u.Bind, bind, StringComparison.OrdinalIgnoreCase))) is { } info
-                && Active.Schema is { } schema && await SqlBinds.SuggestTypeAsync(info, bind, schema, CancellationToken.None) is { } type)
+                && Active.Schema is { } schema && await SqlBinds.SuggestAsync(info, bind, schema, CancellationToken.None) is { } suggested)
             {
-                suggestions[bind] = type;
+                suggestions[bind] = suggested;
             }
         }
 
@@ -358,7 +358,7 @@
         }
 
         _binds = binds;
-        var variables = SqlBinds.Reconcile(_binds, Tab.Variables, b => suggestions.TryGetValue(b, out var t) ? t : null);
+        var variables = SqlBinds.Reconcile(_binds, Tab.Variables, b => suggestions.GetValueOrDefault(b));
         if (!variables.SequenceEqual(Tab.Variables))
         {
             Tab.Variables = variables;

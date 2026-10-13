@@ -33,6 +33,22 @@ public sealed class SqlBindsTests
         Assert.Equal(new byte[] { 0xCA, 0xFE }, spec.Parameters.Single(p => p.Name == "x").Value);
     }
 
+    /// <summary>
+    /// R5b (review 3.31.0, rest of A18): a variable compared with an NVARCHAR2 or NCHAR column binds nationally, as the
+    /// filter does – in the database character set, characters it lacks became "?" and found nothing.
+    /// </summary>
+    [Fact]
+    public void National_variables_bind_in_the_national_character_set()
+    {
+        var spec = SqlBinds.Bind("x", ["t", "c"],
+        [
+            new SqlVariable("t", SqlVariableType.Text, "Łódź") { National = true },
+            new SqlVariable("c", SqlVariableType.Char, "ŁD") { National = true },
+        ]);
+
+        Assert.Equal([OracleTypeHint.NVarchar2, OracleTypeHint.NChar], spec.Parameters.Select(p => p.Type));
+    }
+
     [Theory]
     [InlineData(SqlVariableType.Number, "abc", ":id: „abc“ ist keine Zahl.")]
     [InlineData(SqlVariableType.Number, "", ":id: Zahl fehlt (für NULL den Typ NULL wählen).")]
@@ -50,7 +66,7 @@ public sealed class SqlBindsTests
     {
         var existing = new[] { new SqlVariable("alt", SqlVariableType.Number, "1"), new SqlVariable("ID", SqlVariableType.Number, "4711") };
 
-        var variables = SqlBinds.Reconcile(["id", "von"], existing, bind => bind == "von" ? SqlVariableType.Date : null);
+        var variables = SqlBinds.Reconcile(["id", "von"], existing, bind => bind == "von" ? new SqlVariable(bind, SqlVariableType.Date, "") : null);
 
         Assert.Equal(
             [
@@ -74,6 +90,8 @@ public sealed class SqlBindsTests
             new("p_5", "%meier%", OracleTypeHint.Varchar2),
             new("p_6", new DateTimeOffset(2026, 10, 8, 12, 0, 0, TimeSpan.FromHours(2)), OracleTypeHint.TimeStampTZ),
             new("p_7", new DateTimeOffset(2026, 10, 8, 12, 0, 0, 250, TimeSpan.FromHours(-5.5)), OracleTypeHint.TimeStampTZ),
+            new("p_8", "Łódź", OracleTypeHint.NVarchar2), // R5b: national stays national (A18)
+            new("p_9", "ŁD", OracleTypeHint.NChar),
         ];
 
         var variables = parameters.Select(SqlBinds.FromParameter).ToList();
