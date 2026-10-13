@@ -79,6 +79,7 @@ Ein Begriff, eine Übersetzung – überall gleich. Neue Fachbegriffe hier ergä
 | Verbindung | connection | |
 | Verbindungsart (Feld „Umgebung“): Entwicklung / Test / Produktion / Sonstige | environment: Development / Test / Production / Other | Badges bleiben DEV / TEST / PROD |
 | Gruppe (Verbindung) | group | |
+| importieren / exportieren (Verbindungen) | import / export | Status in der Vorschau: Neu / Vorhanden / geraten → New / Exists / guessed |
 | Neu verbinden / Trennen | reconnect / disconnect | |
 | Session trennen (Notausgang bei hängender Abfrage) | disconnect session | |
 | Workspace | workspace | klein im Satz, groß am Satzanfang |

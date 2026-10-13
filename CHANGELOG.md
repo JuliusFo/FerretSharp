@@ -6,6 +6,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 ## [Unreleased]
 
 ### Added
+- Import connections (WP-35): *Connections › Import…* finds DBeaver (all projects) and SQL Developer (the newest version) on your computer, or reads a file – DBeaver's `data-sources.json` or project export (`.dbp`), SQL Developer's export or `connections.json`, a FerretSharp export or another installation's `connections.json`; the kind of file is told by its content. The preview lists each Oracle connection with environment, address, user and status: new, already there (same address and user – overwrite it or add a copy; skipped unless you select it) or not supported (TNS, OS authentication, Kerberos, proxy, SYSDBA – with the reason). Where the source names no environment (SQL Developer, own DBeaver types) it is guessed from the name and the connection stays read-only until you pick one; Prod is always read-only. DBeaver's users come from its encrypted credentials file; passwords are never imported. Connections without a group get one you choose (default: the source); DBeaver folders and projects become groups.
+- Export connections: *⋯ › Export…* on the connections page, *⋯ › Export group…* on a group. Pick connections by group, search, all/none; the file has no passwords and – unless you ask for it – no paths of this computer (C# project, script folder).
+- Connecting to a connection without a saved password asks for it instead of failing: saved in the Credential Manager, or – unchecked – only until FerretSharp ends. A wrong one for this run is asked for again.
 - Updates: FerretSharp checks for a newer version while it runs too, not only at start – Settings › Updates › "While FerretSharp runs": never, hourly, every 4 hours (default) or daily, counted from the last check. Only with automatic checks on; as before it only reports, downloading and installing wait for your click.
 
 ### Changed
