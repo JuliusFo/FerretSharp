@@ -1,6 +1,6 @@
 # Architektur – Domänenmodell und UI-Konzept
 
-Aus der `CLAUDE.md` ausgelagert (Stand 3.14.0), damit sie kurz bleibt. Vor Änderungen am jeweiligen Bereich den passenden Abschnitt lesen. Die Kurzfassung der Invarianten steht in der `CLAUDE.md`, die Fallen in `src/FerretSharp.Core/CLAUDE.md` und `src/FerretSharp.UI/CLAUDE.md`.
+Aus der `CLAUDE.md` ausgelagert (3.14.0), nachgezogen bis 3.31.1. Vor Änderungen am jeweiligen Bereich den passenden Abschnitt lesen. Die Kurzfassung der Invarianten steht in der `CLAUDE.md`, die Fallen in `.claude/rules/`.
 
 ## 1. Domänenmodell
 
@@ -13,7 +13,7 @@ record ConnectionProfile(
     OracleAddress Address,        // HostPort(host, port, serviceName?, sid?) | TnsAlias(alias, tnsAdminPath?)
     string User,
     string? DefaultSchema,        // falls technischer User, aber anderes Schema angeschaut wird
-    bool ReadOnly,                // bei Prod default true; wirkt ab v2 (in v1 ist alles read-only)
+    bool ReadOnly,                // bei Prod default true: Workspaces schreiben erst nach dem Freischalten
     string? Group = null);        // optional, z. B. Projekt/Kunde ("ERP", "Kasse") – Gruppierung in Umschalter und Übersicht
 ```
 - Suche und Gruppierung: `ConnectionSearch` (alle Suchbegriffe müssen in Name, Gruppe, Adresse, Benutzer oder Art vorkommen; Gruppen alphabetisch, „Ohne Gruppe“ zuletzt; innerhalb einer Gruppe Dev → Test → Prod → Sonstige).
@@ -40,7 +40,7 @@ record TabState(TableRef Table, TabMode Mode, FilterRows, AppliedFilters, Sorts,
 - PL/SQL-Tabs (WP-28) stehen als `TabState.PlSql` (`PlSqlTabState`: Owner, Name, Art, Ansicht) in der Datei, `Table` ist wie bei SQL/LINQ leer; nicht mehr vorhandene Objekte werden beim Wiederherstellen still verworfen.
 - Zur Laufzeit hält jeder offene Workspace eine **eigene** Session (eigene Connection, ab v2 eigene Transaktion), geöffnet beim ersten Datenzugriff (`WorkspaceManager.GetDataAsync`). Das Schema lädt eine separate Explorer-Session (ADR 0005).
 - Connection-String mit `Pooling=false`: Die Sessions leben lange, und eine Connection mit offener Transaktion darf nie in einen Pool zurückgehen.
-- Beim Öffnen `ModuleName = "FerretSharp"`, `ActionName = <Workspace-Name>`, `ClientInfo` setzen → in `V$SESSION` ist erkennbar, welcher Workspace eine Sperre hält. Umbenennen setzt ACTION neu. Werte werden nach ASCII transliteriert (`src/FerretSharp.Core/CLAUDE.md`).
+- Beim Öffnen `ModuleName = "FerretSharp"`, `ActionName = <Workspace-Name>`, `ClientInfo` setzen → in `V$SESSION` ist erkennbar, welcher Workspace eine Sperre hält. Umbenennen setzt ACTION neu. Werte werden nach ASCII transliteriert (`.claude/rules/oracle.md`).
 - Persistenz unter `%APPDATA%\FerretSharp\workspaces\{id}.json` (`WorkspaceStore`, eine Datei pro Workspace, versioniert, unlesbare Dateien werden gemeldet und nicht angefasst). Tab-Änderungen speichert der `WorkspaceManager` gesammelt nach 1 s, Strukturänderungen und Trennen/Beenden sofort.
 - Werte auf der Platte (Entscheidung des Nutzers, Gesamt-Review 3.31.0, A40): Log und SQL-Verlauf enthalten auf Prod nie Werte (Bind-Werte maskiert, Variablen leer) und nirgends Passwörter (`SqlRedaction`). Die Workspace-Dateien dagegen halten den Arbeitsstand wie ein offenes Dokument – SQL-Text samt Literalen, Filter- und Variablenwerte –, auch auf Prod; sie liegen nur im Datenordner des Nutzers.
 - Beim Verbinden: offene Workspaces laden, der zuletzt aktive wird aktiv; ist keiner offen, wird der zuletzt benutzte wieder geöffnet, sonst „Workspace 1“ angelegt. Der letzte offene Workspace lässt sich nicht schließen. Gelöscht werden nur geschlossene Workspaces; das Löschen einer Verbindung löscht ihre Workspaces mit.
@@ -64,10 +64,10 @@ enum FkSource { Declared, Manual, Convention, ClrModel }   // ClrModel: Navigati
 - View-/MView-Definition: `TableDetails.Definition` aus `ALL_VIEWS.TEXT` / `ALL_MVIEWS.QUERY` (LONG, max. 32.767 Zeichen, `DefinitionTruncated`).
 - Objekt-Details (v1.7, `Schema/ObjectDetails.cs`), je eine `ISchemaReader`-Methode, nicht im `SchemaCache` gecacht (die Ansicht im Tab hält ihre Daten bis F5): `GetObjectInfoAsync` (`ALL_OBJECTS` + `ALL_TABLES` + `ALL_TAB_COMMENTS`/`ALL_MVIEW_COMMENTS`), `GetConstraintsAsync` (inkl. Check-Bedingung als LONG; die systemgenerierten NOT-NULL-Checks erkennt `ConstraintInfo.IsColumnNotNull` – auch `DEFAULT ON NULL` erzeugt einen), `GetIndexesAsync` (ohne LOB-Indizes; DESC-Spalten stehen in `ALL_IND_EXPRESSIONS` als `"SPALTE"` und werden zu normalen Spalten), `GetDependenciesAsync` (`ALL_DEPENDENCIES` beidseitig, ohne `SYS.STANDARD`/`DBMS_STANDARD`), `GetDdlAsync` (`SELECT DBMS_METADATA.GET_DDL(…) FROM DUAL` – passiert die Lesesperre; fremde Schemas brauchen `SELECT_CATALOG_ROLE`, sonst ORA-31603). `IndexAdvice.UnindexedForeignKeys` findet FKs ohne Index mit ihren Spalten vorne. Spalten kommen jetzt aus `ALL_TAB_COLS` mit `HIDDEN_COLUMN = 'NO'` (= `ALL_TAB_COLUMNS` plus `VIRTUAL_COLUMN`), dazu Kommentar und `DEFAULT_ON_NULL`. `TableSummary.IsInvalid` für Views/MViews mit Status INVALID (eine ungültige MView lässt sich weiter abfragen, eine View wird beim Zugriff neu kompiliert – Texte in `InvalidStatusText`).
 - **PL/SQL** (WP-28, nur ansehen, `Schema/PlSqlObjects.cs`): Packages, Prozeduren, Funktionen und Trigger als `PlSqlObjectSummary` (ein Eintrag je Package mit Status von Spezifikation und Body; `PlSqlRef` mit Art, weil Trigger einen eigenen Namensraum haben). Beim Verbinden mit der Tabellenliste geladen (`SchemaCache.PlSqlObjects`, `ALL_OBJECTS` ohne `BIN$…`, deaktivierte Trigger aus `ALL_TRIGGERS`); Synonym-Ziele kommen aus derselben Abfrage wie die der Tabellen (`SynonymTargets`). Je Tab, nicht gecacht: Quelltext aus `ALL_SOURCE` (eine Zeile je `LINE`, damit Zeilen aus `ALL_ERRORS` passen; `FetchManyRows`), Unterprogramme aus `ALL_PROCEDURES` + Parameter aus `ALL_ARGUMENTS` (`DATA_LEVEL = 0`, Überladungen über `OVERLOAD`, Position 0 = Rückgabe; der Default-Ausdruck steht nicht im Dictionary, nur `DEFAULTED`), Fehler aus `ALL_ERRORS`, Kopf aus `ALL_OBJECTS`/`ALL_PROCEDURES.AUTHID`/`ALL_TRIGGERS`, Abhängigkeiten aus `ALL_DEPENDENCIES` (Package: Spezifikation und Body zusammen, ohne den Bezug des Bodys auf die eigene Spezifikation). Schemaweite Suche in `ALL_SOURCE` (`SearchSourceAsync`, nur eigenes Schema, `LIKE … ESCAPE`, begrenzt). Den Body eines Packages in einem anderen Schema zeigt Oracle nur dem Eigentümer bzw. mit `DEBUG` – mit `EXECUTE` bleibt er leer.
-- Quellen: `ALL_TABLES`, `ALL_VIEWS`, `ALL_MVIEWS`, `ALL_TAB_COLUMNS` (inkl. `IDENTITY_COLUMN`), `ALL_CONSTRAINTS` (P/U/R), `ALL_CONS_COLUMNS`.
+- Quellen: `ALL_TABLES`, `ALL_VIEWS`, `ALL_MVIEWS`, `ALL_TAB_COLS` (ohne versteckte Spalten, inkl. `IDENTITY_COLUMN`), `ALL_CONSTRAINTS` (P/U/R), `ALL_CONS_COLUMNS`. Bei Tabellen ist ein PK nur Row-Key, wenn er `ENABLED` und `VALIDATED` ist (`TableDetails.PrimaryKeyEnforced`, R5a), sonst ROWID.
 - Tabellenliste ohne Recyclebin (`DROPPED`), Nested/Secondary Tables, IOT-Overflow-Segmente und MView-Containertabellen (die MView erscheint einmal als `MaterializedView`).
-- `DATA_DEFAULT` ist `LONG` → `OracleSession` setzt `InitialLONGFetchSize` (4000).
-- **Immer nach `OWNER` filtern.** `ALL_TAB_COLUMNS` ist auf großen Datenbanken langsam → Tabellenliste und alle FKs des Schemas beim Connect laden, Spalten/Keys lazy pro Tabelle (`SchemaCache`). Cachen, manuell refreshbar.
+- `DATA_DEFAULT` ist `LONG` → `OracleSession` setzt `InitialLONGFetchSize` (32.767, das Maximum des Treibers; `OracleSession.LongFetchSize`).
+- **Immer nach `OWNER` filtern.** `ALL_TAB_COLS` ist auf großen Datenbanken langsam → Tabellenliste und alle FKs des Schemas beim Connect laden, Spalten/Keys lazy pro Tabelle (`SchemaCache`). Cachen, manuell refreshbar.
 - Schema-Name aus dem Profil wird normalisiert (`OracleIdentifier.Normalize`): `erp` → `ERP`, `"Erp"` bleibt `Erp`.
 - Verbindungsaufbau: Seit WP-24 können mehrere Verbindungen offen sein, eine davon sichtbar (`ConnectionHub` in UI/State: je offene Verbindung ein DI-Scope `ConnectionScope` mit eigener `ActiveConnection`, `WorkspaceManager`, `ClrModelManager`, `PresentationService`, `LinqConsoleService`; `Current`/`Previous`/`Shown`, `Idle` als Platzhalter ohne Verbindung). Je Verbindung öffnet `ActiveConnection` die Explorer-Session über `IDatabaseConnector`, lädt den `SchemaCache`, hängt die Workspaces an (`WorkspaceManager.AttachAsync`) und merkt die Nutzung in `recent.json` (`RecentConnections`). Trennen speichert die Workspaces und schließt alle Sessions. Oracle-Fehler kommen als `DatabaseException` mit ORA-Code an.
 - **Anzeigespalten** (WP-31, ADR 0022, `Core/Display`): je Tabelle (Name ohne Owner) eine Spalte, deren Wert neben jedem FK auf die Tabelle steht (`4711 · PetersPizza`). Gespeichert in einer Datei (`DisplayColumnSource`, Pfad `AppSettings.DisplayColumnsPath`, sonst `display-columns.json` im Datenordner), die sich Kollegen über ein Repository teilen – keine Schema-Record-Erweiterung, sondern eine Schicht daneben wie die Annotation-Schicht. `DisplayLinks` wählt je Spalte den ersten einspaltigen FK auf einen PK/UK des Ziels (keine Views); `DisplayNames` sammelt je Block die unbekannten Werte, `QueryBuilder.BuildLookup` fragt sie mit auf feste Größen aufgefüllten IN-Listen über den Leseweg der Workspace-Session ab (`IDataAccess.LookupAsync`), Cache je Grid bis zum nächsten Lesen ab der ersten Zeile.
@@ -117,19 +117,26 @@ Eine Änderung durchläuft drei Zustände, die in Modell und UI explizit sichtba
 | **Committed** | committed | ja | nein |
 
 ```csharp
-enum RowState { Unchanged, Modified, Added, Deleted }
-class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Original; Dictionary<string, object?> Current; }
+enum ChangeStage { Pending, Flushed }
+enum OperationKind { Insert, Update, Delete }
+class RowChange {                       // Data/ChangeTracker.cs
+    Guid Id; RowKey Key;                // neue Zeile: RowKey.None bis zum INSERT
+    IReadOnlyList<object?>? Original;   // wie geladen, null bei neuen Zeilen; Spalten nach Position
+    ChangeStage? Deleted; bool IsInserted;
+    // je Spalte: ausstehender und geschriebener Wert; ValueOf = ausstehend → geschrieben → geladen
+}
+record PendingOperation(RowChange Change, OperationKind Kind, RowKey Key, IReadOnlyDictionary<int, object?> Values, …);   // Expected: Vergleichswerte
 ```
 - `ChangeTracker` sammelt pro Tab.
-- `OracleDataAccess.FlushAsync(changes, session, ct)` (bewusst nicht „Apply“, um Verwechslung mit dem Filter-Apply zu vermeiden):
+- `IDataEditor.FlushAsync(table, operations, options, ct)` (`OracleDataEditor`; bewusst nicht „Apply“, um Verwechslung mit dem Filter-Apply zu vermeiden; `FlushOptions`: Sperr-Wartezeit, „Überschreiben“ je Zeile, Redo):
   - pro Flush einen `SAVEPOINT` → einzelne Flushes lassen sich zurücknehmen. Seit 3.6.0 sind Grid-Schreibvorgänge und SQL-/LINQ-Statements gemeinsam die `IDataEditor.Actions` der Transaktion; ein Savepoint verwirft alles danach, auch fremde Statements. Seit WP-30 (ADR 0018): Undo bis zu einer gewählten Aktion (sie und alle späteren), Redo der zurückgenommenen in Reihenfolge (Grid: dieselben Änderungen erneut schreiben; Statement: dasselbe SQL nach Bestätigung, abweichende Zeilenzahl wird gefragt), Buchführung in `WriteLog`; jede neue Schreibaktion, Commit und Rollback beenden Redo. `WriteAction.Statements` hält das ausgeführte SQL mit Bind-Werten (nur für die UI, nie im Log).
   - ausstehende Bearbeitungen haben je Tab einen Verlauf im `ChangeTracker` (Ctrl+Z/Ctrl+Y im Grid, Zelle für Zelle); ein Schreibvorgang beendet ihn.
   - die Übersicht „Offene Änderungen“ (Panel rechts, über den Zähler der Statusleiste) zeigt Ausstehendes je Tab, Geschriebenes mit SQL und Zurückgenommenes des aktiven Workspaces.
-  - vor jedem Update/Delete `SELECT … FOR UPDATE WAIT n` (n konfigurierbar, Default 3 s) → `ORA-30006` (Oracle 23: `ORA-00054`) statt endlosem Warten
-  - `UPDATE t SET c=:v WHERE <RowKey>` (+ optional Original-Werte im WHERE für Concurrency, konfigurierbar)
-  - `INSERT INTO t (...) VALUES (...) RETURNING ROWID INTO :rid` (bzw. PK)
-  - `DELETE FROM t WHERE <RowKey>`
-  - alles mit `BindByName = true`
+  - vor jedem Update/Delete `SELECT … FOR UPDATE WAIT n` (n in den Einstellungen, Default 3 s) → `ORA-30006` (Oracle 23: `ORA-00054`) statt endlosem Warten; die Sperrhalter zeigt der Schreibproblem-Dialog (`LockHolderList`)
+  - Concurrency-Check in .NET: Das Sperr-SELECT liefert die aktuellen Werte der geänderten Spalten, weichen sie vom erwarteten Stand ab (`PendingOperation.Expected`), gibt es eine `ConcurrencyConflictException` – „Überschreiben“ (`FlushOptions.Overwrite`) schreibt trotzdem
+  - `UPDATE t SET c=:v WHERE <RowKey>`, `DELETE FROM t WHERE <RowKey>` – trifft eins davon nicht genau eine Zeile, geht der Flush zum Savepoint zurück (`RowGoneException`/`KeyNotUniqueException`, R5a)
+  - `INSERT INTO t (...) VALUES (...) RETURNING ROWID INTO :rid`, danach die Zeile neu lesen (Defaults, Identity, Trigger)
+  - SQL aus `DmlBuilder` (Core/Query), alles mit `BindByName = true`
 - Commit/Rollback nur auf expliziten Nutzerbefehl. Nach Rollback die betroffenen Tabs neu abfragen.
 - **DDL (WP-22, ADR 0019)** läuft über einen eigenen Weg außerhalb jeder Transaktion: `OracleSession.ExecuteDdlAsync` (`internal`, ein DDL-Statement, nie bei offener Transaktion, nie gesperrt) ← `IDataEditor.ExecuteDdlAsync` ← `WorkspaceManager.ExecuteDdlAsync` (prüft `IsWritable`). Oracle committet das DDL sofort; es wird keine Aktion des Undo-Stapels. Hat der Workspace Arbeit, verwirft der SQL-Editor sie vorher – nur nach Bestätigung mit der Liste der offenen Änderungen. Skripte: keine DML vor einem DDL-Statement (sie würde still committet), DML danach bleibt in der Transaktion.
   - Nach DDL (und bei „Schema neu laden“) lädt `WorkspaceLifecycle.RefreshSchemaAsync` den Schema-Cache neu, schließt Tabs verschwundener Objekte, baut Tabellen-Tabs mit geänderter Struktur neu auf (`TableTab.StructureVersion` als `@key` der `TabView`; Tabs mit ausstehenden oder geschriebenen Änderungen behalten ihre Struktur, weil diese Spalten nach Position adressieren, und bauen sich nach Commit oder Rollback neu auf – `TableTab.StructureStale`; ihre Ansichten nehmen die Struktur über `TableTab.UseStructure`, ein leerer Tracker der alten Struktur fällt dabei weg, R4a) und gleicht das C#-Modell ohne Hilfsprozess neu ab (`ClrModelManager.RemapAsync`).
@@ -138,24 +145,25 @@ class RowChange { RowKey Key; RowState State; Dictionary<string, object?> Origin
 ## 2. UI-Konzept
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│ [● ERP Test ▾]   Workspaces: [Bug 3711] [Feature ABC] [+]        │  ← farbiger Rahmen je ConnectionKind
-├───────────┬─────────────────────────────────────────────────────┤
-│ A         │ Tab: KUNDEN  │ Tab: AUFTRAG                          │
-│ B  KUNDEN │ ┌─ Filterzeilen (TablePlus-Stil) ──────[SQL][Apply]─┐│
-│ C  …      │ │ [KUNDE_ID ▾] [= ▾] [4711        ] [−][+]          ││
-│ …         │ └───────────────────────────────────────────────────┘│
-│ (Letter-  │  Grid (virtualisiert, NULL kursiv; v2: Inline-Edit)   │
-│  Index)   │  Rechtsklick → FK-Navigation                         │
-│           ├──────────────────────────────────────────────────────┤
-│           │ Statusleiste: 1.234 Zeilen geladen · v2: 3 Pending,  │
-│           │ 2 Flushed · Tx seit 4 min · [Flush][Commit][Rollback]│
-└───────────┴─────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│ ⌂ [● ERP Test ▾]  [Bug 3711] [Feature ABC] [+]       ∿  ⇄  ⚙  [Badge]   │  ← farbiger Rahmen je ConnectionKind
+├────────────────┬─────────────────────────────────────────────────────────┤
+│ Tabellen|PL/SQL│ 📌 KUNDEN │ AUFTRAG │ SQL 1 │ LINQ 1                    │
+│ [Suche ] Quell.│ Daten | Spalten | Constraints | Indizes | … | DDL       │
+│ A  KUNDEN      │ ┌─ Filterzeilen (TablePlus-Stil) ──────────[Anwenden]─┐ │
+│ B  …           │ │ [KUNDE_ID ▾] [= ▾] [4711        ] [−][+]            │ │
+│ …              │ └─────────────────────────────────────────────────────┘ │
+│ (Buchstaben-   │  Grid (Inline-Edit, NULL kursiv) │ Formular (Alt+Enter) │
+│  leiste)       │  Rechtsklick → FK-Sprung, Kopieren                      │
+├────────────────┴─────────────────────────────────────────────────────────┤
+│ Statusleiste: Tx seit 4 min · 3 ausstehend · 2 geschrieben ·             │
+│ [Schreiben][↶][↷][Commit][Rollback]                                      │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 - **Verbindungen** (es sind im Alltag 12+): oben links nur die sichtbare Verbindung als Umschalter. Seit WP-24 bleiben gewechselte Verbindungen im Hintergrund offen (Abschnitt „Offen“ im Umschalter mit „angezeigt“/„verbunden“/„N Aktionen offen“/„Verbindung verloren“ und „Trennen“); `Alt+O` springt zur vorigen. Nicht committete Arbeit im Hintergrund steht in der Statusleiste; eine im Hintergrund verlorene Verbindung wird beim Wechsel mit Banner gezeigt (neu verbunden erst über „Neu verbinden“). Klick oder `Ctrl+Shift+O` öffnet ein Popover mit Suche, „Zuletzt verwendet“ (ab WP-03), einklappbaren Gruppen und Pfeiltasten-/Enter-Bedienung; „⋯“ je Zeile → Bearbeiten, Duplizieren, Löschen (mit Bestätigung).
 - **Startseite „Verbindungen“**: Übersicht aller Verbindungen nach Gruppen (Name, Umgebung, Adresse, Benutzer → Schema, „⋯“-Menü). Erscheint, solange keine Verbindung aktiv ist, und über „Alle Verbindungen verwalten …“ im Popover. Doppelklick verbindet (ab WP-03; bis dahin: bearbeiten).
 - **Chips in der Topbar** sind die Workspaces der aktiven Verbindung (WP-05), nicht die Verbindungen.
-- **Seiten oben rechts** (gehören keiner Verbindung, „Zurück“ dorthin, woher man kam): Statements der App (WP-33, ADR 0023: an eine lokale App anhängen, Statements nach Herkunft, N+1, Nachsehen in `V$SQL`; der Mitschnitt läuft in `AppTraceService` weiter, wenn man die Seite verlässt), Schema-Vergleich (WP-20), Einstellungen (seit WP-34 links die Liste der Bereiche – ein Bereich zur Zeit – mit einer Suche über alle Einstellungen und Tastenkürzel nach Beschriftung, Hinweis, Bereich und Taste: `SettingsCatalog` listet, was die Seite zeigt – Hinweise mit dem eingesetzten Code, „Beim Start prüfen“ nur installiert –, `SettingsFilter` wertet eine Suche einmal aus, die Seite fragt per `SettingKey`).
+- **Seiten oben rechts** (gehören keiner Verbindung, „Zurück“ dorthin, woher man kam): Statements der App (WP-33, ADR 0023: an eine lokale App anhängen, Statements nach Herkunft, N+1, Nachsehen in `V$SQL`; der Mitschnitt läuft in `AppTraceService` weiter, wenn man die Seite verlässt), Schema-Vergleich (WP-20), Einstellungen (seit WP-34 links die Liste der Bereiche – ein Bereich zur Zeit – mit einer Suche über alle Einstellungen und Tastenkürzel nach Beschriftung, Hinweis, Bereich und Taste: `SettingsCatalog` listet, was die Seite zeigt – Hinweise mit dem eingesetzten Code, die Update-Prüfung („Automatisch prüfen“, „Während FerretSharp läuft“) nur installiert –, `SettingsFilter` wertet eine Suche einmal aus, die Seite fragt per `SettingKey`).
 - Tabellenliste alphabetisch (Tabellen und Views unterscheidbar), Buchstabenleiste links: Klick springt zur ersten Tabelle mit diesem Buchstaben; Buchstaben ohne Treffer ausgegraut. (Fuzzy-Suche = Backlog.)
 - Prod: roter Rahmen; Profile mit „Schreibgeschützt“ (Prod voreingestellt) schreiben erst nach dem Freischalten eines Workspaces (Badge oder „⋯“-Menü des Workspaces; auf Prod mit eingetipptem Verbindungsnamen, seit 2.0).
 - Grid-Spalten werden aus dem Schema erzeugt und als Column-Definitions an AG Grid übergeben (eigener Header-Renderer: Name, Oracle-Typ, NOT NULL, PK/FK-Badges). AG Grid fragt Blöcke à 500 Zeilen per `invokeMethodAsync` bei .NET an (Infinite Row Model); Zeilen gehen als Dictionaries mit Row-Index über die Grenze.
@@ -178,16 +186,17 @@ Seit WP-25 (3.16.0) unter Einstellungen › Tastenkürzel änderbar; die Tabelle
 | Ctrl+Shift+O | Verbindungs-Umschalter öffnen | v1 |
 | Alt+O | Zur vorigen offenen Verbindung wechseln (ohne Trennen) | WP-24 |
 | Ctrl+Enter | Filter anwenden | v1 |
-| Ctrl+C | Im Grid: Wert der fokussierten Zelle; bei mehreren markierten Zeilen diese als Tabelle (Tab-getrennt, mit Kopfzeile). Mit der Maus markierter Text innerhalb einer Zelle wird normal kopiert. Kopiert wird immer der volle Wert (`DelimitedExport.CellText`), nicht der gekürzte Anzeigetext. | v1.3 |
+| Ctrl+C | Im Grid: Wert der fokussierten Zelle; bei mehreren markierten Zeilen diese als Tabelle (Tab-getrennt, mit Kopfzeile). Mit der Maus markierter Text innerhalb einer Zelle wird normal kopiert. Kopiert wird immer der volle Wert (`DelimitedExport.CellText`), nicht der gekürzte Anzeigetext, und bei einer ausstehenden Änderung der ausstehende Wert, wie angezeigt (Entscheidung des Nutzers, Gesamt-Review 3.31.0, A21). | v1.3 |
 | F5 | Refresh (v2 in Read-only-Tx: neue Transaktion) | v1 |
 | Ctrl+F | Datenansicht: Spalte suchen und hinspringen (Scrollen, Hervorheben, Fokus auf die Zelle der ersten sichtbaren Zeile); Strukturansicht: Spalten filtern (v1.6) | v1.5 |
 | Alt+← / Alt+→ | Zurück zum Tab, aus dem ein FK-Sprung kam / wieder vor (verhindert nebenbei die Zurück-Navigation der WebView) | v1.6 |
 | – (frei belegbar) | Aktiven Tab schließen; fragt vorher (auch beim ✕) bei ausstehenden Änderungen, bei einem eingegebenen, nicht bestätigten Wert (Zelle im Grid oder Feld im Formular) und bei Text im SQL-/LINQ-Tab | 3.21 |
 | – (frei belegbar) | Andere Tabs bzw. alle Tabs des aktiven Workspaces schließen; wie das Kontextmenü eines Tabs (Schließen, Andere, Rechts davon, Alle): Tabs, bei denen etwas verloren ginge, kommen gesammelt in eine Rückfrage (`CloseTabsQuestion`) – alles verwerfen, diese offen lassen und den Rest schließen, oder abbrechen | 3.27 |
 | – (frei belegbar) | Aktiven Tab anheften oder lösen (WP-34); auch im Kontextmenü eines Tabs | 3.30 |
-| Ctrl+P | Tabelle suchen (Backlog) | – |
-| Ctrl+S | Pending-Änderungen flushen (kein Commit) | v1.9 |
+| Ctrl+S | Ausstehende Änderungen schreiben (kein Commit) | v1.9 |
 | Ctrl+Shift+Enter | Commit (auf Prod immer mit Bestätigung) | v1.9 |
+| Ctrl+Z / Ctrl+Y | Im Grid: ausstehende Bearbeitung zurücknehmen / wiederholen, Zelle für Zelle. Nur lokal (`grid.js` über `shortcuts.js setLocal`) | WP-30 |
+| Ctrl+Shift+U | Offene Änderungen (Panel rechts) zeigen/ausblenden | WP-30 |
 | Ctrl+Shift+L | Neue LINQ-Konsole (mit verknüpftem C#-Projekt); im LINQ-Tab führen Ctrl+Enter und F5 aus, Ctrl+F sucht im Editor, Ctrl+Leertaste schlägt Member/Typen vor (3.5) | 2.3 |
 | Ctrl+Shift+Q | Neuer SQL-Editor; im SQL-Tab führen Ctrl+Enter und F5 das Statement am Cursor aus, Ctrl+F sucht, Ctrl+Leertaste schlägt Tabellen/Spalten vor | 3.2 |
 | Alt+X | Im SQL-Tab: das ganze Skript (bzw. die markierten Statements) nacheinander ausführen | 3.3 |
@@ -195,11 +204,11 @@ Seit WP-25 (3.16.0) unter Einstellungen › Tastenkürzel änderbar; die Tabelle
 | Alt+↑ / Alt+↓ | Im Formular: vorige/nächste Zeile (bewegt den Fokus im Grid; im Grid selbst reichen ↑/↓). Nur lokal | WP-21 |
 | – | Rollback nur über Button, mit Bestätigung | v2 |
 
-`Esc` bleibt dem Grid vorbehalten (Zelleingabe abbrechen) bzw. schließt Menüs/Dialoge. `F12` öffnet im Debug-Build die DevTools.
+Fest (`ShortcutMap.Fixed`, nur zur Übersicht in den Einstellungen): Ctrl+C, Entf (zum Löschen markieren), Enter (Zelle bearbeiten), Esc im Grid; Enter im Filterwert; Ctrl+Leertaste, Ctrl+H, Ctrl+Z/Ctrl+Y in den Editoren. `Esc` bleibt dem Grid vorbehalten (Zelleingabe abbrechen) bzw. schließt Menüs/Dialoge. `F12` öffnet im Debug-Build die DevTools. Tabellensuche im Ctrl+P-Stil steht im Backlog.
 
 Technik (WP-25):
 - `KeyChord` (Core/Settings): Textform `ctrl+shift+alt+<KeyboardEvent.key klein>` (`space`, `plus`), wie `comboOf` in `shortcuts.js` sie bildet; `settings.json` speichert in `AppSettings.Shortcuts` (`ShortcutOverrides`) nur Abweichungen je Aktionsname, leer = nicht belegt, unbekannte Einträge bleiben erhalten.
 - `ShortcutMap.Check`: abgelehnt werden von Windows/WebView belegte Kombinationen (Alt+F4, Alt+Leertaste, F12, Ctrl+Shift+I …), Ctrl+Alt (= AltGr) und Tasten ohne Ctrl/Alt außer F-Tasten; Konflikt mit einer anderen Aktion → „Übernehmen“ nimmt sie dort weg; Warnung bei Tasten der Editoren/des Grids (Ctrl+Z, Ctrl+Leertaste …) und bei Alt+Shift.
-- Globale Kürzel registriert die `Shell` über `shortcuts.js` (Capture-Listener → `OnShortcut` → `ShortcutMap.ActionFor`), neu bei jeder Änderung (`ShortcutService.Changed`). Lokal: die Formular-Taste liest `grid.js` aus `shortcuts.js` (`setLocal`/`localCombo`), das Formular prüft seine Tasten über `ShortcutService.Is`.
-- Anzeige nie als festen Text: `<Kbd Action="…" />`, `Shortcuts.Hint(…)` („ (Ctrl+S)“) und `Shortcuts.With(…)` („ mit Ctrl+Enter“) – leer, wenn die Aktion nicht belegt ist.
+- Globale Kürzel registriert die `Shell` über `shortcuts.js` (Capture-Listener → `OnShortcut` → `ShortcutMap.ActionFor`), neu bei jeder Änderung (`ShortcutService.Changed`). Lokal: Formular-Taste und Ctrl+Z/Ctrl+Y des Grids liest `grid.js` aus `shortcuts.js` (`ShortcutService.LocalCombos` → `setLocal`/`localCombo`), das Formular prüft seine Tasten über `ShortcutService.Is`.
+- Anzeige nie als festen Text: `<Kbd Action="…" />`, `ShortcutService.Hint(…)` („ (Ctrl+S)“, leer, wenn die Aktion nicht belegt ist) und `ShortcutService.Label(…)` („Ctrl+S“, null, wenn nicht belegt) – in Sätzen als Platzhalter-Argument.
 - Grenze: `e.key` ist das Zeichen der Tastaturbelegung (Ctrl+Shift+7 heißt auf deutscher Tastatur „Ctrl+/“); Aufnahme und Erkennung stimmen trotzdem überein.

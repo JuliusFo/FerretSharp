@@ -1,0 +1,19 @@
+---
+paths:
+  - "src/FerretSharp.UI/Components/*Grid*"
+  - "src/FerretSharp.UI/Components/RowFormPanel*"
+  - "src/FerretSharp.UI/State/Grid*"
+  - "src/FerretSharp.Core/Data/RowBlocks*"
+  - "src/FerretSharp.UI/wwwroot/js/grid.js"
+---
+
+# Grid (AG Grid Community, Infinite Row Model)
+
+- Datenblöcke à 500 und Sortierung kommen aus .NET (`IDataAccess`), gekapselt in `FerretGrid` (Tabellen) bzw. `SqlResultGrid` (SQL/LINQ) über `GridBridge` + `wwwroot/js/grid.js`; Spalten als `GridColumn`, Rohzeilen der geladenen Blöcke in `RowBlocks`. Zellen gehen als fertig formatierte Strings über die Grenze (null = NULL), Spalten-IDs `c0`, `c1` … (Oracle-Namen dürfen Punkte enthalten).
+- AG Grid liegt lokal unter `wwwroot/lib/ag-grid/` (Herkunft/Hash in der README dort, kein CDN). Keine Enterprise-Features (Kontextmenü, Zellbereich) – eigene Lösungen in Blazor.
+- Farben nur als Tokens in `ferretsharp.css` (`--accent`, `--surface`, `--text`, `--grid-*`); `grid.js` liest sie beim Erzeugen und bei jedem Theme-Wechsel.
+- grid.js loggt gescheiterte Aufrufe per `callFailed` statt `.catch(() => {})`.
+- Objekte in Column-Defs (`headerComponentParams`) werden mit `defaultColDef` **tief kopiert** – veränderliche Metadaten als Funktion (`getMeta`). Kopfhöhe nur als Theme-Parameter, nicht als `headerHeight` (setzt die Zeilenhöhe zurück). Angeheftete Zeilen haben `row-index="t-0"`.
+- `GridBridge.CallAsync(…, params object?[] args)`: Eine Liste als einziges Argument immer als `List<…>` übergeben, **kein Array** – ein `GridRowUpdate[]` wird wegen Array-Kovarianz selbst zum params-Array, grid.js bekommt ein Objekt statt einer Liste.
+- `stopEditingWhenCellsLoseFocus` beendet eine Zelleingabe erst **nach** dem Klick, der den Fokus weggenommen hat (Folgen für Knöpfe außerhalb: `ui.md`).
+- Kopieren (Ctrl+C, Als Tabelle/INSERT/C#) nimmt den ausstehenden Wert, wie angezeigt und wie das Formular (Entscheidung des Nutzers, A21).

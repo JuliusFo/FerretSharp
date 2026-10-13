@@ -74,7 +74,7 @@
                 }
                 @if (match.Profile is null || _choosingConnection)
                 {
-                    @* value, not selected=: the browser ignores the attribute once the user picked (src/FerretSharp.UI/CLAUDE.md). *@
+                    @* value, not selected=: the browser ignores the attribute once the user picked (.claude/rules/ui.md). *@
                     <select value="" @onchange="ChooseConnection" title="@AppStatementsText.AppStatements_ChooseConnectionTitle">
                         <option value="">@AppStatementsText.AppStatements_ChooseConnection</option>
                         @foreach (var p in match.Candidates.Concat(Connections.Profiles.Except(match.Candidates)))

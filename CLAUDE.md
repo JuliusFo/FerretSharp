@@ -5,50 +5,36 @@
 
 ## Wo steht was
 
-Diese Datei wird in jede Session geladen und bleibt deshalb kurz. Details liegen hier:
+Diese Datei lädt in jede Session und enthält nur, was immer gilt. Die Fallen eines Bereichs stehen in `.claude/rules/` und laden, sobald eine passende Datei gelesen oder bearbeitet wird (`paths` im Kopf jeder Regel): `oracle`, `oracle-transactions`, `plsql-dictionary`, `ddl`, `clr-model`, `connection-transfer`, `ui`, `ui-grid`, `ui-monaco`, `ui-css`, `tests`, `localization`. Neue Fallen dort eintragen, wo sie gebraucht werden; eine neue Regel nur mit gültigem `paths`-Kopf (ohne lädt sie immer).
 
-| Datei | Inhalt | Wann |
-|---|---|---|
-| `src/FerretSharp.Core/CLAUDE.md` | Oracle-Fallstricke, Fallen in Session, Dictionary, C#-Modell, ModelHost | lädt automatisch bei Arbeit im Core |
-| `src/FerretSharp.UI/CLAUDE.md` | UI-Muster (R2), Blazor-/WebView-, AG-Grid-, Monaco- und CSS-Fallen | lädt automatisch bei Arbeit in der UI |
-| `docs/architecture.md` | Domänenmodell im Detail (Verbindungen, Workspaces, Schema, Filter-/Query-Regeln, Row-Identität, Änderungen), UI-Konzept, Shortcuts | vor Änderungen am jeweiligen Bereich |
-| `docs/work-packages.md` | Übersicht und Protokolle der abgeschlossenen Pakete (Entscheidungen des Nutzers, Nachträge, Fallen) | bevor ein Bereich angefasst wird, den ein Paket gebaut hat |
-| `docs/roadmap.md` | Geplante Pakete mit den Entscheidungen des Nutzers, offene UX-Fragen | beim Start eines Pakets |
-| `docs/backlog.md` | Nicht eingeplante Ideen | neue Ideen dort notieren |
-| `docs/e2e-testing.md` | UI end-to-end prüfen (CDP, echte Maus, Test-DB, Screenshots) | vor jedem E2E-Lauf |
-| `docs/localization.md` | Texte in Englisch und Deutsch: Ressourcen, Konventionen, Glossar (WP-29) | vor jedem neuen oder geänderten Text |
-| `docs/audit-templates.md` | Audit-Vorlage: Syntax, eingebaute Vorlage, Abgleich (WP-26) | vor Änderungen an `Core/Audit` |
-| `docs/decisions/` | ADRs | bei Stack- oder Architekturänderungen |
-
-Neue Erkenntnisse dorthin schreiben, wo sie gebraucht werden: Fallen eines Bereichs in die `CLAUDE.md` des Projekts, Paketprotokolle nach `docs/work-packages.md`. Hier nur, was in jeder Session gelten muss.
+| Datei | Lesen … |
+|---|---|
+| `docs/architecture.md` – Domänenmodell, Query-Regeln, Änderungen, UI-Konzept, Shortcuts | vor Änderungen am jeweiligen Bereich |
+| `docs/work-packages/` – Index mit Bereichen, je Paket ein Protokoll mit den Entscheidungen des Nutzers | bevor ein Bereich angefasst wird: im Index suchen, dann nur diese Datei |
+| `docs/roadmap.md` (Geplantes, Labels, UX-Fragen), `docs/backlog.md` (Ideen) | beim Start eines Pakets; neue Ideen in den Backlog |
+| `docs/release.md` – CI, Versionierung, Velopack | vor Änderungen an CI/Version und vor jedem Release |
+| `docs/e2e-testing.md`, `docs/localization.md`, `docs/audit-templates.md` | vor E2E-Läufen, neuen Texten, Änderungen an `Core/Audit` |
+| `docs/decisions/` – ADRs | bei Stack- oder Architekturänderungen |
 
 ## 1. Ziel
 
-Ein eigener Datenbank-Editor für **Oracle**, der stärker auf den eigenen Arbeitsablauf zugeschnitten ist als DBeaver:
-
-- **Workspaces** (Unter-Sessions) pro Verbindung, jeder mit eigener Oracle-Connection und Transaktion → zwei Workspaces können dieselbe Tabelle unabhängig ansehen und bearbeiten.
+Ein eigener Datenbank-Editor für **Oracle**, stärker auf den eigenen Arbeitsablauf zugeschnitten als DBeaver:
+- **Workspaces** pro Verbindung, jeder mit eigener Oracle-Connection und Transaktion.
 - **FK-Navigation** im Grid, **zusammenbaubare Filter** (TablePlus-Stil: Spalte, Operator, Wert → WHERE).
 - **Sandbox-Editing**: alle Änderungen in einer Transaktion, Commit/Rollback explizit. Prod ist visuell markiert und standardmäßig read-only.
-- **Brücke zur C#-/EF-Core-Welt**: FerretSharp kennt das Datenmodell des eigenen .NET-Projekts (DbContext): Entity-/Property-Namen, Enums mit C#-Namen, Navigations als Beziehungen, LINQ-Konsole mit generiertem SQL, Code-Generierung aus Daten.
+- **Brücke zur C#-/EF-Core-Welt**: FerretSharp kennt das Datenmodell des eigenen .NET-Projekts (DbContext): Entity-/Property-Namen, Enums, Navigations als Beziehungen, LINQ-Konsole, Code-Generierung.
 
-Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erklärungen auf Senior-Niveau, keine Grundlagen.
+Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erklärungen auf Senior-Niveau, keine Grundlagen. Versionen v1–v4 und alle Pakete: `docs/work-packages/README.md`.
 
-## 2. Versionen und Invarianten
-
-| Version | Inhalt | Pakete |
-|---|---|---|
-| **v1 – Read-only Browser** (bis 1.7) | Connections, Schema, Grid, Filter, Workspaces, FK-Navigation, Export | WP-01 … WP-07 |
-| **v2 – Sandbox-Editing** (1.8–2.0) | Transaktionsmodell, Editieren, Commit/Rollback, Lock-Handling, Prod-Freischaltung | WP-08 … WP-10 |
-| **v3 – .NET-Integration** (2.1–3.0) | DbContext-Modell, Schema-Anreicherung, LINQ-Konsole, Explain-Plan, Code-Generierung | WP-11 … WP-15 |
-| **v4 – Komfort & SQL** (3.x) | Modell-Cache, SQL-Editor, Skripte, Schema-Vergleich, mehrere Verbindungen, Formularansicht, Tastenkürzel, PL/SQL ansehen, Änderungsübersicht mit Undo/Redo, DDL im SQL-Editor, Tabellen-Designer mit Entity aus Tabelle, Audit-Tabellen und Trigger aus einer Vorlage, Anzeigespalten (Namen neben FK-Werten), Statements der laufenden App | WP-16 … |
+## 2. Invarianten
 
 **Lesen und Schreiben sind getrennt (ADR 0006):**
 - Leseweg: `OracleSession.ExecuteReaderAsync` lehnt alles außer reinen Abfragen ab (`IsReadOnlyStatement`: nach Leerraum/Kommentaren `SELECT`/`WITH`, kein `FOR UPDATE`, nur ein Statement) – eine Stolperfalle gegen Programmierfehler, kein SQL-Parser.
-- Schreibweg: `OracleSession.ExecuteNonQueryAsync` ist `internal`, nimmt nur ein einzelnes INSERT/UPDATE/DELETE (`IsWriteStatement`, nie DDL) und nur in einer offenen Transaktion. Transaktionssteuerung (Begin, Savepoint, Commit, Rollback) nur an `OracleSession`.
-- Schemaweg (WP-22, ADR 0019): `OracleSession.ExecuteDdlAsync` ist `internal`, nimmt nur ein einzelnes DDL-Statement (`IsDdlStatement`: kein `TRUNCATE`, keine Binds, kein PL/SQL außer Triggern auf Tabellen/Views – ADR 0021, WP-26) und nur **ohne** offene Transaktion, also nie in einer gesperrten Session. Den Rollback vorher macht die UI nach Bestätigung.
-- `ReadOnlyTests` prüfen per Reflection, dass `IDataAccess`/`ISchemaReader`/`IDatabaseConnection` weder schreibende noch transaktionssteuernde Methoden anbieten, dass Schreib- und Schemaweg `internal` sind und nur ihre Statements nehmen und dass die Statements des `QueryBuilder` und alle SELECT/WITH-Texte in `Core/Oracle` die Lesesperre passieren; Integrationstests zeigen, dass die Session abweist, was der Editor abweist.
-- **Die Lesesperre nie aufweichen.** Ein neuer Weg (z. B. PL/SQL ausführen) bekommt eine eigene enge Methode, ein ADR und Tests.
-- Keine Garantie auf Datenbankseite: Hat der DB-User Schreibrechte, könnte ein Fehler schreiben (ohne Transaktion committet ODP.NET sofort; `SET TRANSACTION READ ONLY` schützt nicht vor DDL und nicht vor Funktionen mit `PRAGMA AUTONOMOUS_TRANSACTION`, die ein `SELECT f() FROM dual` aufruft). Empfehlung an den Nutzer: für Prod einen User mit reinen SELECT-Grants.
+- Schreibweg: `OracleSession.ExecuteNonQueryAsync` ist `internal`, nimmt nur ein einzelnes INSERT/UPDATE/DELETE/MERGE (`IsWriteStatement`, nie DDL) und nur in einer offenen Transaktion. Transaktionssteuerung (Begin, Savepoint, Commit, Rollback) nur an `OracleSession`.
+- Schemaweg (WP-22, ADR 0019): `OracleSession.ExecuteDdlAsync` ist `internal`, nimmt nur ein einzelnes DDL-Statement (`IsDdlStatement`: kein `TRUNCATE` und nichts, was wie TRUNCATE Zeilen unwiderruflich entfernt – Partitionen leeren/löschen, `FLASHBACK TABLE … TO`, `PURGE` –, keine Binds, kein PL/SQL außer Triggern auf Tabellen/Views, ADR 0021) und nur **ohne** offene Transaktion, also nie in einer gesperrten Session. Den Rollback vorher macht die UI nach Bestätigung.
+- `ReadOnlyTests` halten das fest (Interfaces ohne Schreib-/Transaktionsmethoden, Schreib- und Schemaweg `internal`, alle SELECT/WITH-Texte passieren die Lesesperre). **Die Lesesperre nie aufweichen** – ein neuer Weg (z. B. PL/SQL ausführen) bekommt eine eigene enge Methode, ein ADR und Tests.
+- Keine Garantie auf Datenbankseite (ODP.NET committet ohne Transaktion sofort; `SET TRANSACTION READ ONLY` hält weder DDL noch `PRAGMA AUTONOMOUS_TRANSACTION` auf) → Empfehlung an den Nutzer: für Prod einen User mit reinen SELECT-Grants.
+- Logs und SQL-Verlauf enthalten auf Prod nie Werte (Bind-Werte maskiert) und nirgends Passwörter (`SqlRedaction`); die Workspace-Dateien halten den Arbeitsstand samt Werten (Entscheidung des Nutzers, `docs/architecture.md` 1.2).
 
 **C#-Modell als eigene Schicht:**
 - Schema-Records bleiben reine DB-Sicht. Entity-/Property-Namen, CLR-Typen, Enum-Mappings kommen über die nach (Owner, Tabelle, Spalte) adressierte **Annotation-Schicht** (`ClrModelMapping`) – nicht durch Aufbohren von `TableDetails`/`ColumnInfo`.
@@ -56,96 +42,78 @@ Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erkl
 - FK-Quellen sind ein Enum (`Declared`, `Manual`, `Convention`, `ClrModel`), kein `bool IsVirtual`.
 - Das Filtermodell (Spalte, Operator, Werte) bleibt so einfach, dass es sich 1:1 in einen LINQ-`Where`-Ausdruck übersetzen lässt.
 
-**Versionierung:** SemVer, `CHANGELOG.md` pflegen, Git-Tag `vX.Y.Z` pro Release. Der Push des Tags veröffentlicht das GitHub-Release – erst taggen, wenn der CHANGELOG-Abschnitt steht. Features späterer Pakete nicht vorziehen, sondern in `docs/backlog.md` notieren.
+**Versionierung:** SemVer, `CHANGELOG.md` pflegen, Tag `vX.Y.Z` je Release – der Push des Tags veröffentlicht das Release, also erst taggen, wenn der CHANGELOG-Abschnitt steht (`docs/release.md`). Features späterer Pakete nicht vorziehen, sondern in `docs/backlog.md` notieren.
 
 ## 3. Stack (entschieden – Änderungen nur per ADR in `docs/decisions/`)
 
 | Bereich | Entscheidung | Hinweise |
 |---|---|---|
 | Runtime | **.NET 10 (LTS)**, C# 14 | SDK per `global.json` (`rollForward: latestFeature`). |
-| Solution | **`FerretSharp.slnx`**, Central Package Management (`Directory.Packages.props`) | |
-| UI | **Blazor Hybrid**: WPF-Host mit `BlazorWebView`, Komponenten in einer Razor Class Library | ADR 0004. App-TFM **`net10.0-windows10.0.19041.0`** (mit `net10.0-windows` stürzt BlazorWebView beim Start ab). |
-| Theme | eigenes CSS mit Design-Tokens (`ferretsharp.css`), hell/dunkel über `prefers-color-scheme` | **Nicht verwenden:** WPF-UI, AvalonDock, CommunityToolkit.Mvvm, AvalonEdit, CSS-Frameworks. |
-| UI-Zustand | Komponenten + schlanke State-/Service-Klassen in `FerretSharp.UI` | Kein MVVM-Framework, kein Docking-Framework. Lange Operationen async mit `CancellationToken`. |
+| Solution | **`FerretSharp.slnx`**, Central Package Management (`Directory.Packages.props`) | Repo-lokales `nuget.config` (nur nuget.org); global ist zusätzlich eine DevExpress-Quelle eingerichtet, CPM verlangt dann Source Mapping. |
+| UI | **Blazor Hybrid**: WPF-Host mit `BlazorWebView`, Komponenten in einer Razor Class Library (ADR 0004) | App-TFM **`net10.0-windows10.0.19041.0`** (mit `net10.0-windows` stürzt BlazorWebView beim Start ab). |
+| Theme, UI-Zustand | eigenes CSS mit Design-Tokens (`ferretsharp.css`); Komponenten + schlanke State-/Service-Klassen | **Nicht verwenden:** WPF-UI, AvalonDock, CommunityToolkit.Mvvm, AvalonEdit, CSS-Frameworks, MVVM- oder Docking-Frameworks. |
 | JS-Interop | ein ES-Modul pro Thema in `wwwroot/js` | JS bleibt dünn. **Keine Geschäftslogik in JS.** |
-| Hosting/DI | `Microsoft.Extensions.Hosting` | Die BlazorWebView nutzt den Service Provider des Hosts. |
-| Logging | `Microsoft.Extensions.Logging` + **Serilog** (Datei unter `%APPDATA%\FerretSharp\logs`) | Keine Bind-Werte von Prod-Verbindungen loggen (maskieren). |
-| Grid | **AG Grid Community 34.3.1** (MIT), **Infinite Row Model**, lokal unter `wwwroot/lib/ag-grid/` | Blöcke à 500 und Sortierung aus .NET. Keine Enterprise-Features. |
-| Editor | **Monaco 0.57** (ADR 0011), lokal unter `wwwroot/lib/monaco/` | LINQ-Konsole und SQL-Editor; SQL-Anzeige sonst über den eigenen Highlighter `SqlCode`. |
-| App-Mitschnitt | **EventPipe** über `Microsoft.Diagnostics.NETCore.Client` + `TraceEvent` (MIT), nur in `FerretSharp.AppTrace` (ADR 0023) | Feste Feldliste der EF-Events (`EfEvents`): nie Connection-String, nie Parameter. |
-| Oracle | `Oracle.ManagedDataAccess.Core` (23.x), Ziel **19c+** (12.2 sollte gehen) | Rein managed, durchgängig async mit `CancellationToken`. `OFFSET/FETCH` und `ALL_TAB_IDENTITY_COLS` erst ab 12c, kein ROWNUM-Fallback. |
-| Tests | **xUnit v3** auf **Microsoft Testing Platform** + NSubstitute; Integration: **Testcontainers.Oracle** (`gvenzl/oracle-free:23-slim-faststart`) | Kein VSTest (`Microsoft.NET.Test.Sdk`/`xunit.runner.visualstudio` nicht verwenden). |
-| Persistenz | JSON-Dateien (`System.Text.Json`) über `AtomicJsonFile` | Polymorphie über `[JsonPolymorphic]`/`[JsonDerivedType]`; keine `object`-Properties (werden zu `JsonElement`). |
-| Texte | typisierte resx je Bereich (`Resources/<Bereich>Text.resx` Englisch, `.de.resx` Deutsch), vom SDK zu Klassen erzeugt (ADR 0017) | Standardsprache Englisch, nur die UI-Kultur wechselt (nach Neustart). Regeln und Glossar: `docs/localization.md`. |
-| Secrets | Windows Credential Manager via **`Meziantou.Framework.Win32.CredentialManager`** | Implementierung im **App**-Projekt, Core kennt nur `ISecretStore`. Passwörter nie im JSON. |
-| Paketquellen | repo-lokales `nuget.config` (nur nuget.org) | Global ist zusätzlich eine DevExpress-Quelle eingerichtet; CPM verlangt dann Source Mapping. |
-| CI | **GitHub Actions** (`.github/workflows/ci.yml`) | Linux: Core und UI bauen, Unit- und Integrationstests (.NET-8-Runtime für den ModelHost) mit Coverage (`Microsoft.Testing.Extensions.CodeCoverage`, Einstellungen `tests/coverage.config`, Bericht per ReportGenerator; auf `main` schreibt der Job `coverage-badge` `coverage.json` in den Branch `badges` für das README-Badge, lokal: `tools/coverage/Get-Coverage.ps1`). Windows: ganze Solution mit `-warnaserror`, Unit-Tests. |
-| Distribution | **Velopack** (ADR 0024): `dotnet publish src/FerretSharp.App -c Release -r win-x64 --self-contained -o <ziel>`, dann `vpk pack` (lokales Tool, `dotnet-tools.json`, gleiche Version wie das Paket `Velopack`) | Release über `.github/workflows/release.yml`: Tag `vX.Y.Z` → Version gegen `Directory.Build.props` prüfen, bauen, `FerretSharp-win-Setup.exe`, Portable-Zip, volle und Delta-Pakete, dazu noch das einfache Zip; Notizen aus dem CHANGELOG-Abschnitt (auch für den Update-Dialog der App); für bestehende Tags per `workflow_dispatch`. `Program.Main` ruft zuerst `VelopackApp…Run()`, dann die Instanzsperre (eine Instanz je Datenordner). |
+| Hosting, Logging | `Microsoft.Extensions.Hosting`; **Serilog** (Datei unter `%APPDATA%\FerretSharp\logs`) | Die BlazorWebView nutzt den Service Provider des Hosts. Keine Bind-Werte von Prod loggen. |
+| Grid, Editor | **AG Grid Community 34.3.1** (Infinite Row Model), **Monaco 0.57** (ADR 0011), beide lokal | Keine AG-Grid-Enterprise-Features. |
+| App-Mitschnitt | **EventPipe** + `TraceEvent`, nur in `FerretSharp.AppTrace` (ADR 0023) | Feste Feldliste der EF-Events (`EfEvents`): nie Connection-String, nie Parameter. |
+| Oracle | `Oracle.ManagedDataAccess.Core` (23.x), Ziel **19c+** (12.2 sollte gehen) | Rein managed, async mit `CancellationToken`. `OFFSET/FETCH` ab 12c, kein ROWNUM-Fallback. |
+| Tests | **xUnit v3** auf **Microsoft Testing Platform** + NSubstitute; **Testcontainers.Oracle** | Kein VSTest. |
+| Persistenz | JSON (`System.Text.Json`) über `AtomicJsonFile` | Polymorphie über `[JsonPolymorphic]`; keine `object`-Properties (werden zu `JsonElement`). |
+| Texte, Secrets | typisierte resx, Englisch (Standard) und Deutsch (ADR 0017); Windows Credential Manager | Credential Manager nur im **App**-Projekt, Core kennt `ISecretStore`. Passwörter nie im JSON. |
+| CI, Distribution | GitHub Actions; **Velopack** (ADR 0024) | `docs/release.md`. |
 
 **Nicht** verwenden: Entity Framework für den generischen Zugriff (kennt das Schema nur über einen DbContext).
 
 ## 4. Solution-Struktur
 
 ```
-FerretSharp.slnx
-├─ src/
-│  ├─ FerretSharp.Core/        # net10.0 – reine Logik, KEIN WPF, KEINE Windows-only-APIs, baut unter Linux
-│  │  ├─ Connections/ Schema/ Query/ Data/ Workspaces/ Settings/ IO/
-│  │  ├─ Forms/                # Formularansicht, Zeilenvergleich (WP-21)
-│  │  ├─ Compare/              # Schema-Vergleich, DDL-Vorschlag (WP-20)
-│  │  ├─ ClrModel/             # C#-Modell, LINQ-Konsole, ModelHost-Aufruf (v3)
-│  │  └─ Oracle/               # OracleSession, OracleSchemaReader, OracleDataAccess, OracleTypeMapper
-│  ├─ FerretSharp.UI/          # net10.0, Razor Class Library – plattformneutral, KEIN WPF/Windows
-│  │  ├─ Shell.razor, Components/, State/
-│  │  └─ wwwroot/              # css/, js/ (ES-Module), lib/ag-grid, lib/monaco
-│  ├─ FerretSharp.ModelHost/   # Hilfsprozess im Kontext des C#-Projekts des Nutzers (.NET 8, ADR 0009)
-│  ├─ FerretSharp.AppTrace/    # net10.0 – an eine laufende App anhängen (EventPipe, TraceEvent; WP-33, ADR 0023), plattformneutral
-│  └─ FerretSharp.App/         # net10.0-windows10.0.19041.0 – schlanker WPF-Host (Generic Host, Serilog, Host-Dienste)
-├─ tests/                      # Core.Tests und UI.Tests (ohne DB; UI.Tests prüfen die State-Klassen ohne Rendern, `TestApp`),
-│                              # Integration.Tests (Testcontainers, überspringt ohne Docker),
-│                              # FakeModelHost (Stand-in des ModelHost für die Prozess-Tests der Core.Tests),
-│                              # FakeEfApp (App mit EF Core 8, an die sich die Integration.Tests hängen, WP-33)
-├─ samples/                    # Beispielmodell (DbContext + Entities) zur Beispiel-DB
-├─ tools/                      # icon/New-AppIcon.ps1 (App-Icon generiert, nicht von Hand bearbeiten), sample-db/New-SampleDb.ps1
-└─ docs/                       # siehe „Wo steht was“; images/ für README-Screenshots
+src/FerretSharp.Core/       net10.0 – reine Logik, KEIN WPF, KEINE Windows-only-APIs, baut unter Linux
+  Oracle/ Query/ Schema/ Data/ Connections/ (Transfer/: Import/Export) Workspaces/ Settings/ IO/ Resources/
+  Ddl/ (DDL-Text) Design/ (Designer) Compare/ Audit/ Display/ (Anzeigespalten) Forms/ AppTrace/ ClrModel/
+src/FerretSharp.UI/         net10.0 Razor Class Library, plattformneutral: Shell.razor, Components/, State/, Resources/,
+                            wwwroot/ (css, js als ES-Module, lib/ag-grid, lib/monaco)
+src/FerretSharp.ModelHost/  Hilfsprozess im Kontext des C#-Projekts des Nutzers (.NET 8, ADR 0009)
+src/FerretSharp.AppTrace/   an eine laufende App anhängen (EventPipe, ADR 0023), plattformneutral
+src/FerretSharp.App/        net10.0-windows10.0.19041.0 – schlanker WPF-Host (Generic Host, Serilog, Host-Dienste)
+tests/                      Core.Tests, UI.Tests (ohne DB), Integration.Tests (Testcontainers), Stand-ins
+                            FakeModelHost, FakeEfApp, FakeEfModel; Shared/
+samples/                    Beispielmodell (DbContext + Entities) zur Beispiel-DB
+tools/                      icon/New-AppIcon.ps1 (Icon generiert, nicht von Hand), sample-db/, coverage/
 ```
+Welches Paket welchen Ordner gebaut hat: Spalte „Bereiche“ in `docs/work-packages/README.md`.
 
 Regeln:
-- `FerretSharp.Core` und `FerretSharp.UI` dürfen **kein** `System.Windows` und keine Windows-only-APIs referenzieren (CA1416). Was nur der Host kann (Credential Manager, native Datei-Dialoge, Fenster), definiert UI/Core als Interface; die Implementierung liegt in `FerretSharp.App`.
-- Alles Oracle-Spezifische liegt hinter Interfaces (`ISchemaReader`, `IDataAccess`), damit Unit-Tests mit Mocks laufen.
-- SQL-Strings entstehen ausschließlich in `Core/Query/` und `Core/Oracle/`. Komponenten in `FerretSharp.UI` enthalten kein SQL (Ausnahme: Anzeige eines erzeugten Statements).
+- `FerretSharp.Core` und `FerretSharp.UI` dürfen **kein** `System.Windows` und keine Windows-only-APIs referenzieren (CA1416). Was nur der Host kann (Credential Manager, native Datei-Dialoge, Fenster, Updates), definiert UI/Core als Interface; die Implementierung liegt in `FerretSharp.App`.
+- Alles Oracle-Spezifische liegt hinter Interfaces (`ISchemaReader`, `IDataAccess`, `IDataEditor`), damit Unit-Tests mit Mocks laufen.
+- SQL-Strings entstehen ausschließlich in `Core/Query/` und `Core/Oracle/`, DDL-Text nur in `Core/Ddl/` (`OracleDdl`; Vergleich, Designer und Audit bauen darauf, nur der Trigger-Text einer Audit-Vorlage kommt vom Nutzer). Komponenten in `FerretSharp.UI` enthalten kein SQL (Ausnahme: Anzeige eines erzeugten Statements).
 - `QueryBuilder` kennt den Oracle-Treiber nicht: Er liefert eigene `QueryParameter`, das Mapping auf `OracleParameter` passiert in `Core/Oracle`.
 
 ## 5. Kernbegriffe (Details: `docs/architecture.md`)
 
-- **Verbindung** (`ConnectionProfile`): Art (Prod/Test/Dev/Other → Farbe), Adresse (Host/Port oder TNS-Alias), User, optional Schema und Gruppe, „Schreibgeschützt“ (Prod voreingestellt). Seit WP-24 können mehrere Verbindungen offen sein, eine davon sichtbar: je Verbindung ein DI-Scope `ConnectionScope` im `ConnectionHub`.
-- **Workspace**: eigene Session (eigene Connection und Transaktion, `Pooling=false`, MODULE/ACTION = FerretSharp/Workspace-Name), Tabs als `TabState`, Persistenz je Workspace als JSON. Das Schema lädt eine separate Explorer-Session (ADR 0005).
-- **Schema**: `SchemaCache` lädt Tabellenliste und FKs beim Verbinden, Spalten/Keys lazy pro Tabelle; Synonyme zeigen auf das echte Objekt. `ALL_*`-Views immer nach `OWNER` filtern.
-- **Query**: Werte nur als Bind-Variablen, jede gebundene Variable kommt im SQL vor, Spaltennamen gegen das Schema validiert und gequotet, immer deterministisch sortiert (PK → ROWID als Tiebreaker).
-- **Row-Identität** (`RowKey`): PK, sonst ROWID; Views ohne PK sind dauerhaft read-only.
-- **Änderungen**: Pending (nur im `ChangeTracker`) → Flushed (DML in der Session, Zeilen gesperrt, Savepoint je Flush) → Committed. Grid-Schreibvorgänge und SQL-/LINQ-Statements bilden einen gemeinsamen Undo-Stapel (Undo bis zu einer Aktion, Redo; ausstehende Bearbeitungen mit eigenem Verlauf je Tab, ADR 0018). Commit/Rollback nur auf expliziten Nutzerbefehl. DDL läuft außerhalb jeder Transaktion und ist keine Aktion des Stapels (ADR 0019).
+- **Verbindung** (`ConnectionProfile`): Art (Prod/Test/Dev/Other → Farbe), Adresse, User, „Schreibgeschützt“ (Prod voreingestellt). Mehrere offen, eine sichtbar: je Verbindung ein DI-Scope `ConnectionScope` im `ConnectionHub`.
+- **Workspace**: eigene Session (Connection und Transaktion, `Pooling=false`, MODULE/ACTION = FerretSharp/Workspace-Name), Tabs als `TabState`, Persistenz als JSON; das Schema lädt eine separate Explorer-Session (ADR 0005).
+- **Query**: Werte nur als Bind-Variablen (jede kommt im SQL vor), Spaltennamen gegen das Schema validiert und gequotet, immer deterministisch sortiert (PK → ROWID). Row-Key: durchgesetzter PK, sonst ROWID; Views nur lesbar.
+- **Änderungen**: Pending (`ChangeTracker`) → Flushed (DML in der Session, Zeilen gesperrt, Savepoint je Flush) → Committed, nur auf Nutzerbefehl. Grid und SQL/LINQ teilen einen Undo-Stapel (ADR 0018); DDL läuft außerhalb jeder Transaktion (ADR 0019).
 
 ## 6. Arbeitsweise
 
 - **Pakete:** eigener Branch `wp/NN-kurzname` (kleinere Themen `feat/…`, `fix/…`, `docs/…`); neue Arbeit immer von `main` abzweigen. Vor dem Start den Plan nennen, dann umsetzen. Ein Paket zu Ende bringen, bevor andere Themen angefasst werden; Ideen unterwegs nach `docs/backlog.md`. Bei Unsicherheit über UX-Details die einfachste Variante bauen und als Frage in der Zusammenfassung bzw. in `docs/roadmap.md` notieren, nicht blockieren.
-- **Fertig heißt:** `dotnet build -warnaserror` und `dotnet test` grün, jeder sichtbare Text in Englisch und Deutsch (`docs/localization.md`), ADR bei nicht-trivialen Entscheidungen, Protokoll in `docs/work-packages.md`, Eintrag im `CHANGELOG.md`. Danach eine kurze Zusammenfassung auf Deutsch (was gebaut, was offen, was zu testen).
+- **Fertig heißt:** `dotnet build -warnaserror` und `dotnet test` grün, jeder sichtbare Text in Englisch und Deutsch, ADR bei nicht-trivialen Entscheidungen, Protokoll in `docs/work-packages/` (eigene Datei, Zeile im Index), Eintrag im `CHANGELOG.md`. Danach eine kurze Zusammenfassung auf Deutsch (was gebaut, was offen, was zu testen).
 - **Commits** klein und thematisch, Conventional Commits (`feat:`, `fix:`, `test:`, `docs:`, `refactor:`).
 - **Core zuerst mit Tests, dann UI.** Unit-Tests laufen ohne DB (Mocks). Alles, was eine echte DB braucht, gehört in `FerretSharp.Integration.Tests` und muss sich ohne Docker sauber überspringen.
 - **Ordner rekursiv löschen nur über `SafeDelete.DirectoryBelow(root, path)`** (Core/IO: nur strikt unter einer festen Wurzel, nie Wurzel, Laufwerk oder relativer Pfad), in Tests über `TestFolder` (`tests/Shared`). Nie einen Pfad aus Einstellungen, Umgebungsvariablen oder Eingaben ungeprüft löschen; auch keine `Remove-Item -Recurse`/`rm -r`/`RemoveDir` in Skripten. `SafeDeleteTests` durchsucht Code, Tests und Skripte danach.
 - **UI end-to-end prüfen, ohne echte Nutzerdaten anzufassen** (Ablauf: `docs/e2e-testing.md`):
   - App nur mit `--data-dir=<scratch>` starten; eigene Test-DB-Container per Name anlegen und wieder entfernen.
-  - Der Container `ferret-sample` auf Port 1522 ist die Beispiel-DB des Nutzers – **nicht anfassen**.
+  - Der Container `ferret-sample` auf Port 1522 ist die Beispiel-DB des Nutzers – **nicht anfassen** (`New-SampleDb.ps1` nie ohne `-Name`).
   - Native Dialoge (Speichern unter) nicht per UI Automation bedienen: Sie öffnen sich in den echten Ordnern des Nutzers.
   - Mausinteraktionen mit echter Windows-Eingabe prüfen, nicht nur per CDP.
 
 ## 7. Kontext des Nutzers
 
-- DB-first von Hand: erst die DB ändern, dann Entity/Konfiguration; keine Migrations. Namenskonvention im Code (Tabellen groß, `KundenId` → `KUNDEN_ID`), **eigene Value Converter** (bool ↔ J/N, Enum-Kürzel), Enum-Member mit `[Display(ResourceType = …, Name = …)]`. Ein DbContext in einer Klassenbibliothek (Konstruktor `DbContextOptions`), Entities in einem anderen Projekt, EF Core 8.
-- Pro Datenbank ein eigener Klon des DbContext-Repos auf dem passenden Branch (Prod-DB → release, Test-DB → test, Dev-DB → dev), jeweils als C#-Projekt der Verbindung verknüpft; entwickelt wird in einem weiteren Klon.
-- Größenordnung: 425 Entities, ~4000 Properties, DB über Kunden-VPN; ohne Cache braucht der ModelHost ~12 s (meist `OnModelCreating`). Beziehungen ohne FK-Constraint sind häufig. Im Alltag 12+ Verbindungen.
-- Der Oracle-EF-Provider quotet alle Namen: Spalten mit gemischter Schreibweise im Modell (`Chargenr` gegen `CHARGENR`) ergeben ORA-00904.
+- DB über Kunden-VPN (Roundtrips teuer, Verbindungen werden still), im Alltag 12+ Verbindungen.
+- Eigenes .NET-Projekt mit EF Core 8, DB-first von Hand, Beziehungen ohne FK-Constraint häufig, 425 Entities – Details: `.claude/rules/clr-model.md`.
 
-## 8. Als Nächstes (Details und Entscheidungen des Nutzers: `docs/roadmap.md`)
+## 8. Als Nächstes
 
-- WP-33 (Statements der laufenden App, Issue #12, ADR 0023) ist in 3.28.0 released. WP-32 (Installer und Update-Hinweis mit Velopack, ADR 0024) ist in 3.29.0 released – das erste Release mit Velopack-Dateien; seit 3.30.0 mit Delta-Paketen und ohne das einfache Zip. WP-34 (Tabs anheften, Schnell-Sprung in den Einstellungen) ist in 3.30.0 released, mit Pausieren/Leeren auf der Seite „Statements der App“. WP-35 (Verbindungen importieren/exportieren: FerretSharp, DBeaver, SQL Developer; Passwortabfrage beim Verbinden, ADR 0025) ist in 3.31.0 released, zusammen mit der Update-Prüfung während die App läuft. Das Gesamt-Review nach 3.31.0 ist gemacht: Befunde und Entscheidungen des Nutzers in `docs/review-3.31.0.md`. R5a (Fehler und Sicherheit, Teil A) ist in 3.31.1 released. Als Nächstes die Doku (Teil C), dann R5b (Struktur, Teil B). Weitere Pakete mit dem Nutzer aus `docs/backlog.md` auswählen (Workspace-Pins stehen dort mit offenen Varianten).
-- Seit WP-26 nimmt der Schemaweg Trigger auf Tabellen/Views (ADR 0021); Procedures/Packages/Types anlegen, PL/SQL ausführen und bearbeiten (Stufen 2/3 nach WP-28) stehen weiter im Backlog – der Blockmodus des Splitters und die Kompilierprüfung (Status statt ORA-24344) sind dafür schon da.
+- Gesamt-Review nach 3.31.0 (`docs/review-3.31.0.md`): Teil A als R5a in 3.31.1 released, Teil C (Doku) erledigt, als Nächstes R5b (Struktur, Teil B).
+- Danach weitere Pakete mit dem Nutzer aus `docs/backlog.md` auswählen (`docs/roadmap.md`).
