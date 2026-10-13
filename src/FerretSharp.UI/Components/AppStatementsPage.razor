@@ -34,7 +34,15 @@
                 <span class="grow"></span>
                 @if (Trace.Status is TraceStatus.Recording or TraceStatus.Attaching)
                 {
-                    <button class="btn" @onclick="Trace.Reset" title="@AppStatementsText.AppStatements_ResetTitle">@AppStatementsText.AppStatements_Reset</button>
+                    @if (Trace.Paused)
+                    {
+                        <button class="btn" @onclick="() => Trace.SetPaused(false)">@AppStatementsText.AppStatements_Resume</button>
+                    }
+                    else
+                    {
+                        <button class="btn" @onclick="() => Trace.SetPaused(true)" title="@AppStatementsText.AppStatements_PauseTitle">@AppStatementsText.AppStatements_Pause</button>
+                    }
+                    <button class="btn" @onclick="Trace.Reset" title="@AppStatementsText.AppStatements_ClearTitle">@AppStatementsText.AppStatements_Clear</button>
                     <button class="btn" disabled="@Trace.Switching" @onclick="Trace.DetachAsync">@AppStatementsText.AppStatements_Detach</button>
                 }
                 else
@@ -474,14 +482,16 @@
     private RenderFragment SortHeader(StatementSort sort, string label) =>
         @<th class="num sortable @(Trace.Sort == sort ? "sorted" : "")" @onclick="() => Trace.Sort = sort">@label@(Trace.Sort == sort ? " ↓" : "")</th>;
 
-    private string StatusCss => Trace.Status switch
+    private bool IsPaused => Trace.Paused && Trace.Status is TraceStatus.Attaching or TraceStatus.Recording;
+
+    private string StatusCss => IsPaused ? "paused" : Trace.Status switch
     {
         TraceStatus.Recording => "ok",
         TraceStatus.Failed => "err",
         _ => "",
     };
 
-    private string StatusText => Trace.Status switch
+    private string StatusText => IsPaused ? AppStatementsText.AppStatements_StatusPaused : Trace.Status switch
     {
         TraceStatus.Attaching => AppStatementsText.AppStatements_StatusAttaching,
         TraceStatus.Recording => AppStatementsText.AppStatements_StatusRecording,

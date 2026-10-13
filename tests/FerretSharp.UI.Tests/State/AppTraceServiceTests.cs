@@ -156,6 +156,32 @@ public sealed class AppTraceServiceTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task Pausing_stays_attached_and_leaves_out_new_statements_until_resumed()
+    {
+        await _service.AttachAsync(ErpApi);
+        var first = Executed("SELECT 1 FROM DUAL");
+        await _source.Events.Writer.WriteAsync(first with { Fields = new Dictionary<string, string>(first.Fields) { [EfEvents.CommandId] = "a" } }, Ct);
+        await Until(() => _service.Snapshot.Count == 1);
+
+        _service.SetPaused(true);
+        await _source.Events.Writer.WriteAsync(Executed("SELECT 2 FROM DUAL"), Ct);
+        var closed = new Dictionary<string, string> { [EfEvents.CommandId] = "a", [EfEvents.ReadCount] = "3", [EfEvents.Duration] = "00:00:00" };
+        await _source.Events.Writer.WriteAsync(new EfEvent(EfEvents.DataReaderDisposing, closed, DateTimeOffset.UtcNow), Ct);
+        await Until(() => _service.Snapshot.Statements is [{ Rows: 2 }]); // its reader still counts, SELECT 2 was left out
+        _service.Reset();
+        _service.SetPaused(false);
+        await _source.Events.Writer.WriteAsync(Executed("SELECT 3 FROM DUAL"), Ct);
+        await Until(() => _service.Snapshot.Count == 1);
+
+        Assert.Equal("SELECT 3 FROM DUAL", Assert.Single(_service.Snapshot.Statements).Text);
+        Assert.Equal((TraceStatus.Recording, false), (_service.Status, _source.Canceled));
+
+        _service.SetPaused(true);
+        await _service.AttachAsync(Worker);
+        Assert.False(_service.Paused); // a new trace records from the start
+    }
+
+    [Fact]
     public async Task The_connection_is_found_by_environment_then_chosen_and_remembered()
     {
         var test = Profile("ERP Test");

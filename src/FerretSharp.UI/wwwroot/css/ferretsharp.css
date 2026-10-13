@@ -401,7 +401,7 @@ dl.keys dd { margin: 0; }
 .status-btn:disabled:hover { color: var(--muted); border-color: var(--border); }
 
 /* editing (v2): status bar, tab marker, badge */
-.dot.pending { background: #d4a106; }
+.dot.pending, .dot.paused { background: #d4a106; }
 .dot.flushed { background: var(--accent); }
 .statusbar .item.tx { font-weight: 600; color: var(--text); }
 .statusbar .item.tx.warn { color: #c07a00; }

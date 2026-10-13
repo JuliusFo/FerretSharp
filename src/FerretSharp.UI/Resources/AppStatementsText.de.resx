@@ -63,11 +63,23 @@
   <data name="AppStatements_Detach" xml:space="preserve">
     <value>Trennen</value>
   </data>
-  <data name="AppStatements_Reset" xml:space="preserve">
-    <value>Zurücksetzen</value>
+  <data name="AppStatements_Clear" xml:space="preserve">
+    <value>Leeren</value>
   </data>
-  <data name="AppStatements_ResetTitle" xml:space="preserve">
+  <data name="AppStatements_ClearTitle" xml:space="preserve">
     <value>Das bisher Aufgezeichnete vergessen, z. B. vor dem Schritt, den du ansehen willst</value>
+  </data>
+  <data name="AppStatements_Pause" xml:space="preserve">
+    <value>Pausieren</value>
+  </data>
+  <data name="AppStatements_PauseTitle" xml:space="preserve">
+    <value>Angehängt bleiben, aber neue Statements weglassen, bis du fortsetzt – das bisher Aufgezeichnete bleibt</value>
+  </data>
+  <data name="AppStatements_Resume" xml:space="preserve">
+    <value>Fortsetzen</value>
+  </data>
+  <data name="AppStatements_StatusPaused" xml:space="preserve">
+    <value>pausiert – neue Statements werden weggelassen</value>
   </data>
   <data name="AppStatements_Environment" xml:space="preserve">
     <value>Umgebung</value>

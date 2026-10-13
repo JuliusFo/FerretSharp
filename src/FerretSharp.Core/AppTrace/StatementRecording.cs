@@ -72,6 +72,8 @@ public sealed record RecordingSnapshot(
 /// less; EF reads to the end also for <c>First</c>, <c>Single</c> and <c>Count</c> (measured with EF Core 8). For
 /// <c>SaveChanges</c> the reads are the rows written; non-queries take the affected rows.</item>
 /// </list>
+/// While <see cref="Paused"/>, new commands and lazy loads are left out; a reader of a command recorded before still adds
+/// its rows and reading time when it closes.
 /// Events arrive on the source's thread, snapshots are taken on the UI thread: everything runs under one lock.
 /// </summary>
 public sealed class StatementRecording(RepeatRule? rule = null)
@@ -98,6 +100,7 @@ public sealed class StatementRecording(RepeatRule? rule = null)
     private string? _dataSource;
     private bool _truncated;
     private long _version;
+    private bool _paused;
 
     /// <summary>The <see cref="RecordingSnapshot.Version"/> a snapshot would have now – cheap, to skip taking an equal one.</summary>
     public long Version
@@ -111,16 +114,36 @@ public sealed class StatementRecording(RepeatRule? rule = null)
         }
     }
 
-    /// <summary>Takes one event in; false if it changed nothing (unknown event, reader of an unknown command).</summary>
+    /// <summary>New commands are left out; what was recorded stays (<see cref="Reset"/> keeps the pause).</summary>
+    public bool Paused
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return _paused;
+            }
+        }
+        set
+        {
+            lock (_lock)
+            {
+                _paused = value;
+            }
+        }
+    }
+
+    /// <summary>Takes one event in; false if it changed nothing (unknown event, reader of an unknown command, paused).</summary>
     public bool Apply(EfEvent e)
     {
         lock (_lock)
         {
             var changed = e.Name switch
             {
+                EfEvents.DataReaderDisposing => ReaderClosed(e),
+                _ when _paused => false,
                 EfEvents.CommandExecuted => Executed(e, error: false),
                 EfEvents.CommandError => Executed(e, error: true),
-                EfEvents.DataReaderDisposing => ReaderClosed(e),
                 EfEvents.NavigationLazyLoading => LazyLoading(e),
                 _ => false,
             };

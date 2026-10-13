@@ -74,12 +74,26 @@
     <value>Detach</value>
     <comment>Button: stop reading the app's statements (the recording stays)</comment>
   </data>
-  <data name="AppStatements_Reset" xml:space="preserve">
-    <value>Reset</value>
-    <comment>Button: forget what was recorded so far</comment>
+  <data name="AppStatements_Clear" xml:space="preserve">
+    <value>Clear</value>
+    <comment>Button: forget what was recorded so far, the trace goes on</comment>
   </data>
-  <data name="AppStatements_ResetTitle" xml:space="preserve">
+  <data name="AppStatements_ClearTitle" xml:space="preserve">
     <value>Forget what was recorded so far, e.g. before the step you want to look at</value>
+  </data>
+  <data name="AppStatements_Pause" xml:space="preserve">
+    <value>Pause</value>
+    <comment>Button: stay attached, but leave out new statements</comment>
+  </data>
+  <data name="AppStatements_PauseTitle" xml:space="preserve">
+    <value>Stay attached, but leave out new statements until you resume – the recording so far stays</value>
+  </data>
+  <data name="AppStatements_Resume" xml:space="preserve">
+    <value>Resume</value>
+    <comment>Button: record new statements again after a pause</comment>
+  </data>
+  <data name="AppStatements_StatusPaused" xml:space="preserve">
+    <value>paused – new statements are left out</value>
   </data>
   <data name="AppStatements_Environment" xml:space="preserve">
     <value>Environment</value>
