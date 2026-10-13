@@ -15,6 +15,9 @@
   <data name="ProcessGone" xml:space="preserve">
     <value>Die App {0} (Prozess {1}) läuft nicht mehr.</value>
   </data>
+  <data name="NotAnswering" xml:space="preserve">
+    <value>{0} (PID {1}) antwortet nicht – hält sie an einem Haltepunkt? Lass sie weiterlaufen und häng dich dann noch einmal an.</value>
+  </data>
   <data name="NoDiagnostics" xml:space="preserve">
     <value>An die App {0} (Prozess {1}) lässt sich nicht anhängen: Sie gehört einem anderen Benutzer oder läuft mit abgeschalteter Diagnose (DOTNET_EnableDiagnostics=0). {2}</value>
   </data>
