@@ -27,6 +27,14 @@ internal static class OraclePlans
          FETCH FIRST 1 ROWS ONLY
         """;
 
+    /// <summary>The figures of a statement over all its children (WP-33); times in microseconds.</summary>
+    public const string CursorFigures = """
+        SELECT COUNT(*), SUM(EXECUTIONS), SUM(ROWS_PROCESSED), SUM(BUFFER_GETS), SUM(DISK_READS),
+               SUM(ELAPSED_TIME), SUM(CPU_TIME), MAX(LAST_ACTIVE_TIME)
+          FROM V$SQL
+         WHERE SQL_ID = :sql_id
+        """;
+
     /// <summary>Probes the rights the actual plan needs before running anything.</summary>
     public const string RightsProbe = "SELECT (SELECT COUNT(*) FROM V$SQL WHERE ROWNUM = 1) + (SELECT COUNT(*) FROM V$SQL_PLAN_STATISTICS_ALL WHERE ROWNUM = 1) FROM DUAL";
 

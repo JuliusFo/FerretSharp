@@ -10,7 +10,7 @@ public enum ConnectionDialogMode { New, Edit, Duplicate }
 
 public sealed record ConnectionDialogRequest(ConnectionDialogMode Mode, ConnectionProfile? Profile);
 
-public enum ShellPage { Connections, Explorer, Settings, Model, Compare }
+public enum ShellPage { Connections, Explorer, Settings, Model, Compare, AppStatements }
 
 /// <summary>
 /// Shell-level UI state shared via a cascading value: current page, dialogs, notices, the events between components –
@@ -102,6 +102,13 @@ public sealed partial class ShellState
     {
         SwitcherOpen = false;
         Page = ShellPage.Compare;
+    });
+
+    /// <summary>The statements of a running app (WP-33); needs no active connection.</summary>
+    public void ShowAppStatements() => Set(() =>
+    {
+        SwitcherOpen = false;
+        Page = ShellPage.AppStatements;
     });
 
     /// <summary>The C# model of the connection's linked project and its differences to the schema (WP-11).</summary>

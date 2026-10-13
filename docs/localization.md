@@ -19,12 +19,14 @@ Die Oberfläche gibt es auf Englisch (Standard) und Deutsch. Entscheidung und Hi
 | UI | `GridText` | Tabellen-Grid, Kontextmenü, Filter, Formular, Zeilenvergleich, LOB-Dialog, Schreibprobleme |
 | UI | `SqlEditorText` | SQL-Editor, LINQ-Konsole, Ergebnis-Grid, Ausführungsplan, Laufanzeige, Verlauf, Monaco |
 | UI | `SchemaViewText`, `ModelViewText`, `CompareViewText` | Explorer, Tab-Ansichten (Spalten, Constraints, Indizes, Abhängigkeiten, DDL), PL/SQL; Modellseite; Schema-Vergleich |
+| UI | `AppStatementsText` | Statements der App (WP-33): Seite, Prozessliste, Verbindung, Herkunft, N+1-Hinweise, Nachsehen in V$SQL |
 | Core | `ClrModelText` | C#-Modell, LINQ-Konsole, Code-Generierung, Build-Ausgabe |
 | Core | `QueryText`, `DataText`, `SchemaText` | Query (Filter, SQL-Skripte, FK-Navigation, Export), Data und Forms, Schema |
 | Core | `OracleText`, `CompareText`, `ConnectionText`, `SettingsText`, `WorkspaceText` | Oracle-Schicht, Schema-Vergleich/DDL, Verbindungen, Einstellungen (Tastenkürzel), Workspaces und IO |
 | Core | `DesignText` | Tabellen-Designer (WP-23): Prüfungen von Index- und Tabellenentwürfen |
 | Core | `AuditText` | Audit-Vorlagen (WP-26): Fehler der Vorlage mit Zeile, Probleme und Warnungen beim Erzeugen von Audit-Tabelle und Trigger |
 | Core | `DisplayText` | Anzeigespalten (WP-31): Datei der Anzeigespalten (nicht lesbar, kein JSON, neuere Version, nicht schreibbar), nicht anzeigbare Spaltentypen |
+| Core | `AppTraceText` | Statements der App (WP-33): Anhängen nicht möglich (Prozess beendet, keine Diagnose) |
 | ModelHost | `ModelHostText` | Meldungen und Schritte des Hilfsprozesses |
 
 Klassennamen sind über alle Projekte eindeutig (die Razor-Komponenten sehen Core- und UI-Ressourcen).
@@ -164,4 +166,9 @@ Ein Begriff, eine Übersetzung – überall gleich. Neue Fachbegriffe hier ergä
 | Schreibweise (nur Groß-/Kleinschreibung anders) | letter case | |
 | Audit-Tabelle / Audit-Vorlage / Basistabelle | audit table / audit template / base table | WP-26 |
 | Anweisung (`-- @…` in einer Vorlage) / Platzhalter / Spaltenschleife | directive / placeholder / column loop | WP-26 |
+| Statements der App (Seite) | app statements | WP-33 |
+| App-Umgebung (Feld der Verbindung: `-environment=…` der eigenen App) | app environment | nicht verwechseln mit „Umgebung“ = Verbindungsart |
+| anhängen / trennen (an einen Prozess) / zurücksetzen (Mitschnitt) | attach / detach / reset | WP-33 |
+| Herkunft (eines Statements: LINQ, Lazy Loading …) / Lauf, Läufe | origin / run, runs | WP-33 |
+| In der Datenbank nachsehen (V$SQL) | look up in the database | WP-33 |
 | Tastennamen Entf / Einfg / Pos1 / Ende / Bild↑ / Bild↓ / Leertaste / Rücktaste | Del / Ins / Home / End / PgUp / PgDn / Space / Backspace | Ctrl, Shift, Alt, Enter, Esc, Tab in beiden Sprachen gleich |

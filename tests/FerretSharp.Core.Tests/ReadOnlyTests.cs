@@ -215,6 +215,7 @@ public class ReadOnlyTests
             .ToList();
 
         Assert.Contains(statements, s => s.Name == "OraclePlans.ActualSteps");
+        Assert.Contains(statements, s => s.Name == "OraclePlans.CursorFigures");
         Assert.Contains(statements, s => s.Name == "OracleSession.PlanTableSql");
         Assert.Contains(statements, s => s.Name == "OracleSchemaReader.SchemaColumnsSql");
         Assert.All(statements, s => Assert.True(OracleSession.IsReadOnlyStatement(s.Sql!), s.Name));

@@ -1,0 +1,89 @@
+@* The steps of an execution plan as a table (ADR 0012): estimates, and for actual plans the measured figures. Marks
+   wrong estimates and full table scans. Used by the plan dialog (WP-14) and the app statements page (WP-33). *@
+@using FerretSharp.Core.Query
+
+<table class="plan">
+    <thead>
+        <tr>
+            <th class="num">Id</th>
+            <th>@SqlEditorText.Plan_ColumnOperation</th>
+            <th>@SqlEditorText.Plan_ColumnObject</th>
+            <th class="num">@SqlEditorText.Plan_ColumnCost</th>
+            <th class="num" title="@SqlEditorText.Plan_ColumnEstimatedRowsTitle">@SqlEditorText.Plan_ColumnEstimatedRows</th>
+            @if (Actual)
+            {
+                <th class="num">@SqlEditorText.Plan_ColumnStarts</th>
+                <th class="num" title="@SqlEditorText.Plan_ColumnActualRowsTitle">@SqlEditorText.Plan_ColumnActualRows</th>
+                <th class="num" title="@SqlEditorText.Plan_ColumnTimeTitle">@SqlEditorText.Plan_ColumnTime</th>
+                <th class="num" title="@SqlEditorText.Plan_ColumnBuffersTitle">@SqlEditorText.Plan_ColumnBuffers</th>
+            }
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var step in Plan.Steps)
+        {
+            var misestimate = Plan.IsMisestimate(step);
+            // Adaptive plans keep the branches not taken in the cursor: they never started.
+            var inactive = Plan.Source == PlanSource.Actual && step.Starts == 0;
+            <tr class="@(misestimate ? "misestimate" : "") @(inactive ? "inactive" : "")"
+                title="@(misestimate ? TextFormat.Format(SqlEditorText.Plan_MisestimateTitle, step.EstimatedTotal, step.ActualRows) : inactive ? SqlEditorText.Plan_InactiveTitle : null)">
+                <td class="num muted">@step.Id</td>
+                <td class="op" style="padding-left: @(8 + step.Depth * 16)px">
+                    @step.Name
+                    @if (step.IsFullTableScan)
+                    {
+                        <span class="plan-badge" title="@SqlEditorText.Plan_FullScanTitle">FULL</span>
+                    }
+                    @if (step.AccessPredicates is { } access)
+                    {
+                        <div class="predicate"><span>access</span> @access</div>
+                    }
+                    @if (step.FilterPredicates is { } filter)
+                    {
+                        <div class="predicate"><span>filter</span> @filter</div>
+                    }
+                </td>
+                <td class="mono">@ObjectText(step)</td>
+                <td class="num">@Count(step.Cost)</td>
+                <td class="num">@Count(step.Rows)</td>
+                @if (Actual)
+                {
+                    <td class="num">@Count(step.Starts)</td>
+                    <td class="num @(misestimate ? "warn" : "")">@Count(step.ActualRows)</td>
+                    <td class="num">@Time(step.ActualTime)</td>
+                    <td class="num">@Count(step.BufferGets)</td>
+                }
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [Parameter, EditorRequired]
+    public ExecutionPlan Plan { get; set; } = null!;
+
+    /// <summary>The browsed schema: objects there are shown without their owner.</summary>
+    [Parameter]
+    public string? Owner { get; set; }
+
+    /// <summary>Shows the measured columns; false for an actual plan run without statistics (they would all be empty).</summary>
+    [Parameter]
+    public bool? ShowActual { get; set; }
+
+    private bool Actual => ShowActual ?? Plan.Source == PlanSource.Actual;
+
+    private string ObjectText(PlanStep step) =>
+        step.ObjectName is null ? ""
+        : step.ObjectOwner is { } owner && owner != Owner ? $"{owner}.{step.ObjectName}"
+        : step.ObjectName;
+
+    public static string Count(long? value) => value?.ToString("N0", CultureInfo.CurrentCulture) ?? "";
+
+    public static string Time(TimeSpan? time) => time switch
+    {
+        null => "",
+        { TotalMilliseconds: < 1 } t => $"{t.TotalMilliseconds.ToString("0.00", CultureInfo.CurrentCulture)} ms",
+        { TotalSeconds: < 1 } t => $"{t.TotalMilliseconds.ToString("0", CultureInfo.CurrentCulture)} ms",
+        { } t => $"{t.TotalSeconds.ToString("0.00", CultureInfo.CurrentCulture)} s",
+    };
+}

@@ -1,12 +1,13 @@
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
 using FerretSharp.Core.Query;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 using static FerretSharp.Core.Oracle.OracleReading;
 
 namespace FerretSharp.Core.Oracle;
 
-/// <summary>What is not schema metadata but goes through the explorer session: estimated plans and lock holders.</summary>
+/// <summary>What is not schema metadata but goes through the explorer session: estimated plans, cursors of other programs and lock holders.</summary>
 public sealed partial class OracleSchemaReader
 {
     // TM locks on the table by other sessions; row locks themselves are not listed by Oracle.
@@ -31,6 +32,40 @@ public sealed partial class OracleSchemaReader
         catch (RefusedException ex) when (ex is not PlanUnavailableException)
         {
             throw new PlanUnavailableException(ex.Message, ex);
+        }
+    }
+
+    public async Task<CursorInfo?> GetCursorAsync(string sql, CancellationToken cancellationToken)
+    {
+        var sqlId = Plans.SqlId(sql);
+        IReadOnlyList<QueryParameter> byId = [new("sql_id", sqlId)];
+        try
+        {
+            var figures = await session.ReadListAsync(OraclePlans.CursorFigures, byId, reader => new
+            {
+                Children = Int(reader, 0) ?? 0,
+                Executions = Long(reader, 1) ?? 0,
+                Rows = Long(reader, 2) ?? 0,
+                Gets = Long(reader, 3) ?? 0,
+                Reads = Long(reader, 4) ?? 0,
+                Elapsed = TimeSpan.FromMicroseconds(Long(reader, 5) ?? 0),
+                Cpu = TimeSpan.FromMicroseconds(Long(reader, 6) ?? 0),
+                LastActive = Date(reader, 7),
+            }, cancellationToken);
+            if (figures is not [{ Children: > 0 } cursor])
+            {
+                return null;
+            }
+
+            var child = (await session.ReadListAsync(OraclePlans.LatestChild, byId, reader => Int(reader, 0) ?? 0, cancellationToken)).FirstOrDefault();
+            var steps = await session.ExecuteReaderAsync(OraclePlans.ActualSteps, [.. byId, new QueryParameter("child", child)],
+                (reader, ct) => OraclePlans.ReadAsync(reader, actual: true, ct), cancellationToken);
+            return new CursorInfo(sqlId, cursor.Children, cursor.Executions, cursor.Rows, cursor.Gets, cursor.Reads, cursor.Elapsed, cursor.Cpu,
+                cursor.LastActive, new ExecutionPlan(PlanSource.Actual, sql, steps, sqlId, child));
+        }
+        catch (DatabaseException ex) when (ex.IsAny(OracleErrorCodes.MissingRights))
+        {
+            throw new PlanUnavailableException(OracleText.CursorNoRights, ex);
         }
     }
 

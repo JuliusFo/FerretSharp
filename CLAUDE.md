@@ -40,7 +40,7 @@ Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erkl
 | **v1 – Read-only Browser** (bis 1.7) | Connections, Schema, Grid, Filter, Workspaces, FK-Navigation, Export | WP-01 … WP-07 |
 | **v2 – Sandbox-Editing** (1.8–2.0) | Transaktionsmodell, Editieren, Commit/Rollback, Lock-Handling, Prod-Freischaltung | WP-08 … WP-10 |
 | **v3 – .NET-Integration** (2.1–3.0) | DbContext-Modell, Schema-Anreicherung, LINQ-Konsole, Explain-Plan, Code-Generierung | WP-11 … WP-15 |
-| **v4 – Komfort & SQL** (3.x) | Modell-Cache, SQL-Editor, Skripte, Schema-Vergleich, mehrere Verbindungen, Formularansicht, Tastenkürzel, PL/SQL ansehen, Änderungsübersicht mit Undo/Redo, DDL im SQL-Editor, Tabellen-Designer mit Entity aus Tabelle, Audit-Tabellen und Trigger aus einer Vorlage, Anzeigespalten (Namen neben FK-Werten) | WP-16 … |
+| **v4 – Komfort & SQL** (3.x) | Modell-Cache, SQL-Editor, Skripte, Schema-Vergleich, mehrere Verbindungen, Formularansicht, Tastenkürzel, PL/SQL ansehen, Änderungsübersicht mit Undo/Redo, DDL im SQL-Editor, Tabellen-Designer mit Entity aus Tabelle, Audit-Tabellen und Trigger aus einer Vorlage, Anzeigespalten (Namen neben FK-Werten), Statements der laufenden App | WP-16 … |
 
 **Lesen und Schreiben sind getrennt (ADR 0006):**
 - Leseweg: `OracleSession.ExecuteReaderAsync` lehnt alles außer reinen Abfragen ab (`IsReadOnlyStatement`: nach Leerraum/Kommentaren `SELECT`/`WITH`, kein `FOR UPDATE`, nur ein Statement) – eine Stolperfalle gegen Programmierfehler, kein SQL-Parser.
@@ -72,6 +72,7 @@ Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erkl
 | Logging | `Microsoft.Extensions.Logging` + **Serilog** (Datei unter `%APPDATA%\FerretSharp\logs`) | Keine Bind-Werte von Prod-Verbindungen loggen (maskieren). |
 | Grid | **AG Grid Community 34.3.1** (MIT), **Infinite Row Model**, lokal unter `wwwroot/lib/ag-grid/` | Blöcke à 500 und Sortierung aus .NET. Keine Enterprise-Features. |
 | Editor | **Monaco 0.57** (ADR 0011), lokal unter `wwwroot/lib/monaco/` | LINQ-Konsole und SQL-Editor; SQL-Anzeige sonst über den eigenen Highlighter `SqlCode`. |
+| App-Mitschnitt | **EventPipe** über `Microsoft.Diagnostics.NETCore.Client` + `TraceEvent` (MIT), nur in `FerretSharp.AppTrace` (ADR 0023) | Feste Feldliste der EF-Events (`EfEvents`): nie Connection-String, nie Parameter. |
 | Oracle | `Oracle.ManagedDataAccess.Core` (23.x), Ziel **19c+** (12.2 sollte gehen) | Rein managed, durchgängig async mit `CancellationToken`. `OFFSET/FETCH` und `ALL_TAB_IDENTITY_COLS` erst ab 12c, kein ROWNUM-Fallback. |
 | Tests | **xUnit v3** auf **Microsoft Testing Platform** + NSubstitute; Integration: **Testcontainers.Oracle** (`gvenzl/oracle-free:23-slim-faststart`) | Kein VSTest (`Microsoft.NET.Test.Sdk`/`xunit.runner.visualstudio` nicht verwenden). |
 | Persistenz | JSON-Dateien (`System.Text.Json`) über `AtomicJsonFile` | Polymorphie über `[JsonPolymorphic]`/`[JsonDerivedType]`; keine `object`-Properties (werden zu `JsonElement`). |
@@ -98,10 +99,12 @@ FerretSharp.slnx
 │  │  ├─ Shell.razor, Components/, State/
 │  │  └─ wwwroot/              # css/, js/ (ES-Module), lib/ag-grid, lib/monaco
 │  ├─ FerretSharp.ModelHost/   # Hilfsprozess im Kontext des C#-Projekts des Nutzers (.NET 8, ADR 0009)
+│  ├─ FerretSharp.AppTrace/    # net10.0 – an eine laufende App anhängen (EventPipe, TraceEvent; WP-33, ADR 0023), plattformneutral
 │  └─ FerretSharp.App/         # net10.0-windows10.0.19041.0 – schlanker WPF-Host (Generic Host, Serilog, Host-Dienste)
 ├─ tests/                      # Core.Tests und UI.Tests (ohne DB; UI.Tests prüfen die State-Klassen ohne Rendern, `TestApp`),
 │                              # Integration.Tests (Testcontainers, überspringt ohne Docker),
-│                              # FakeModelHost (Stand-in des ModelHost für die Prozess-Tests der Core.Tests)
+│                              # FakeModelHost (Stand-in des ModelHost für die Prozess-Tests der Core.Tests),
+│                              # FakeEfApp (App mit EF Core 8, an die sich die Integration.Tests hängen, WP-33)
 ├─ samples/                    # Beispielmodell (DbContext + Entities) zur Beispiel-DB
 ├─ tools/                      # icon/New-AppIcon.ps1 (App-Icon generiert, nicht von Hand bearbeiten), sample-db/New-SampleDb.ps1
 └─ docs/                       # siehe „Wo steht was“; images/ für README-Screenshots
@@ -144,5 +147,5 @@ Regeln:
 
 ## 8. Als Nächstes (Details und Entscheidungen des Nutzers: `docs/roadmap.md`)
 
-- Geplant, Zeitpunkt jeweils offen: WP-32 (Installer und Update-Hinweis mit Velopack) und WP-33 (Statements der laufenden App: an eine lokale EF-Core-App anhängen, Issue #12); sonst das nächste Paket mit dem Nutzer aus `docs/backlog.md` auswählen (WP-31 Anzeigespalten ist in 3.27.0 released, ADR 0022).
+- WP-33 (Statements der laufenden App, Issue #12, ADR 0023) ist umgesetzt, das Release 3.28.0 steht aus. Geplant, Zeitpunkt offen: WP-32 (Installer und Update-Hinweis mit Velopack, ADR 0024); sonst das nächste Paket mit dem Nutzer aus `docs/backlog.md` auswählen.
 - Seit WP-26 nimmt der Schemaweg Trigger auf Tabellen/Views (ADR 0021); Procedures/Packages/Types anlegen, PL/SQL ausführen und bearbeiten (Stufen 2/3 nach WP-28) stehen weiter im Backlog – der Blockmodus des Splitters und die Kompilierprüfung (Status statt ORA-24344) sind dafür schon da.

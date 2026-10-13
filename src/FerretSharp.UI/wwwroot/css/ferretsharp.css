@@ -1249,3 +1249,41 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .new-table-head .index-draft-form > .field { max-width: 520px; }
 .entity-code { max-width: 1100px; display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
 .entity-code .index-draft-form { margin-bottom: 0; }
+
+/* App statements (WP-33): a page like the schema comparison, tables of origins and statements, the detail with V$SQL. */
+.app-statements-page .settings-section > p.hint { margin: 10px 16px; }
+.app-statements-page .settings-section > .test-result { margin: 0 16px 10px; }
+.app-statements-page .settings-section > .settings-note { margin: 10px 16px 0; }
+.app-statements-page .settings-section > .sql-block { margin: 10px 16px 0; }
+.app-statements-page .muted { color: var(--faint); }
+.app-trace-status, .app-trace-connection, .app-trace-processes-head, .app-trace-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 10px 16px; }
+.app-trace-connection { border-top: 1px solid var(--border); }
+.app-trace-connection .settings-label { flex: none; }
+.app-trace-connection select { min-width: 240px; height: 28px; }
+.app-trace-filter { height: 22px; margin-left: 8px; padding: 0 8px; font-size: 11.5px; font-weight: 500; }
+.app-trace-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.app-trace-table th { padding: 6px 16px; border-bottom: 1px solid var(--border); text-align: left; font-size: 11.5px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.app-trace-table td { padding: 5px 16px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.app-trace-table tr:last-child td { border-bottom: none; }
+.app-trace-table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.app-trace-table .mono { font-family: var(--mono); font-size: 12px; }
+.app-trace-table .nowrap { white-space: nowrap; }
+.app-trace-table th.sortable { cursor: pointer; }
+.app-trace-table th.sortable:hover, .app-trace-table th.sorted { color: var(--text); }
+.app-trace-table tr.clickable { cursor: pointer; }
+.app-trace-table tr.clickable:hover td { background: var(--hover); }
+.app-trace-table tr.selected td { background: var(--accent-weak); }
+/* The statement takes the remaining width and ends in an ellipsis (max-width 0 lets the cell shrink in an auto table). */
+.app-trace-sql { width: 100%; max-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-trace-sql .plan-badge { margin: 0 6px 0 0; }
+.app-trace-origins th.share, .app-trace-origins td.share { width: 35%; white-space: nowrap; }
+.app-trace-bar { display: inline-block; width: calc(100% - 52px); height: 8px; border-radius: 4px; background: var(--surface-2); vertical-align: middle; overflow: hidden; }
+.app-trace-bar > span { display: block; height: 100%; background: var(--accent); }
+.app-trace-origins td.share .num { display: inline-block; width: 44px; }
+.app-trace-figures { display: flex; flex-wrap: wrap; gap: 6px 22px; padding: 2px 16px 4px; font-size: 12.5px; }
+.app-trace-figures b { font-variant-numeric: tabular-nums; }
+.app-trace-detail table.plan { width: calc(100% - 32px); margin: 6px 16px 14px; }
+.app-trace-processes td { vertical-align: middle; }
+.app-trace-processes tr.tooling td { color: var(--faint); }
+.app-trace-processes-head .check { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
+.app-statements-page .settings-section h2 .count { margin-left: 8px; font-weight: 500; color: var(--faint); }

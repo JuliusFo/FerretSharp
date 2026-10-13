@@ -1,0 +1,240 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="AppStatements_Title" xml:space="preserve">
+    <value>Statements der App</value>
+  </data>
+  <data name="AppStatements_ListFailed" xml:space="preserve">
+    <value>Die laufenden .NET-Apps lassen sich nicht auflisten: {0}</value>
+  </data>
+  <data name="AppStatements_ReadFailed" xml:space="preserve">
+    <value>Die Statements der App ließen sich nicht lesen: {0}</value>
+  </data>
+  <data name="AppStatements_App" xml:space="preserve">
+    <value>App</value>
+  </data>
+  <data name="AppStatements_ProcessesHint" xml:space="preserve">
+    <value>.NET-Apps, die auf diesem Rechner unter deinem Benutzer laufen. Starte deine App (Debuggen in Visual Studio, dotnet run …) und hänge dich an – sie braucht keine Änderung, ab EF Core 7 ist zu sehen, woher jedes Statement kommt.</value>
+  </data>
+  <data name="AppStatements_ShowTooling" xml:space="preserve">
+    <value>Auch Build-Werkzeuge zeigen ({0})</value>
+  </data>
+  <data name="AppStatements_ShowToolingTitle" xml:space="preserve">
+    <value>MSBuild-Knoten, der Compiler-Server, die dotnet-CLI und Helfer von Visual Studio laufen auch auf .NET – sie sind ausgeblendet, weil sie nie die App sind, die du ansehen willst</value>
+  </data>
+  <data name="AppStatements_Refresh" xml:space="preserve">
+    <value>Aktualisieren</value>
+  </data>
+  <data name="AppStatements_Listing" xml:space="preserve">
+    <value>Suche laufende .NET-Apps …</value>
+  </data>
+  <data name="AppStatements_NoProcesses" xml:space="preserve">
+    <value>Keine .NET-App gefunden. Starte deine App und aktualisiere.</value>
+  </data>
+  <data name="AppStatements_ColumnApp" xml:space="preserve">
+    <value>App</value>
+  </data>
+  <data name="AppStatements_ColumnEnvironment" xml:space="preserve">
+    <value>Umgebung</value>
+  </data>
+  <data name="AppStatements_ColumnStarted" xml:space="preserve">
+    <value>Gestartet</value>
+  </data>
+  <data name="AppStatements_Attach" xml:space="preserve">
+    <value>Anhängen</value>
+  </data>
+  <data name="AppStatements_AttachAgain" xml:space="preserve">
+    <value>Erneut anhängen</value>
+  </data>
+  <data name="AppStatements_OtherApp" xml:space="preserve">
+    <value>Andere App …</value>
+  </data>
+  <data name="AppStatements_Detach" xml:space="preserve">
+    <value>Trennen</value>
+  </data>
+  <data name="AppStatements_Reset" xml:space="preserve">
+    <value>Zurücksetzen</value>
+  </data>
+  <data name="AppStatements_ResetTitle" xml:space="preserve">
+    <value>Das bisher Aufgezeichnete vergessen, z. B. vor dem Schritt, den du ansehen willst</value>
+  </data>
+  <data name="AppStatements_Environment" xml:space="preserve">
+    <value>Umgebung</value>
+  </data>
+  <data name="AppStatements_StatusAttaching" xml:space="preserve">
+    <value>wird angehängt – warte auf das erste Statement …</value>
+  </data>
+  <data name="AppStatements_StatusRecording" xml:space="preserve">
+    <value>zeichnet auf</value>
+  </data>
+  <data name="AppStatements_StatusDetached" xml:space="preserve">
+    <value>getrennt</value>
+  </data>
+  <data name="AppStatements_StatusEnded" xml:space="preserve">
+    <value>die App wurde beendet</value>
+  </data>
+  <data name="AppStatements_StatusFailed" xml:space="preserve">
+    <value>fehlgeschlagen</value>
+  </data>
+  <data name="AppStatements_Connection" xml:space="preserve">
+    <value>Verbindung</value>
+  </data>
+  <data name="AppStatements_ByEnvironment" xml:space="preserve">
+    <value>über die App-Umgebung</value>
+  </data>
+  <data name="AppStatements_ByDataSource" xml:space="preserve">
+    <value>über die Adresse der Datenbank</value>
+  </data>
+  <data name="AppStatements_Chosen" xml:space="preserve">
+    <value>gewählt</value>
+  </data>
+  <data name="AppStatements_SeveralConnections" xml:space="preserve">
+    <value>Mehrere Verbindungen passen – wähle eine:</value>
+  </data>
+  <data name="AppStatements_NoConnection" xml:space="preserve">
+    <value>Noch keine gefunden (sie steht mit dem ersten Statement fest) – oder wähle eine:</value>
+  </data>
+  <data name="AppStatements_ChooseConnection" xml:space="preserve">
+    <value>Verbindung wählen …</value>
+  </data>
+  <data name="AppStatements_ChooseConnectionTitle" xml:space="preserve">
+    <value>Die Verbindung zur Datenbank, mit der die App arbeitet: Dort werden Statements nachgesehen und geöffnet</value>
+  </data>
+  <data name="AppStatements_ChangeConnection" xml:space="preserve">
+    <value>Ändern</value>
+  </data>
+  <data name="AppStatements_RememberEnvironment" xml:space="preserve">
+    <value>„{0}“ an der Verbindung merken</value>
+  </data>
+  <data name="AppStatements_RememberFailed" xml:space="preserve">
+    <value>Die App-Umgebung ließ sich nicht speichern: {0}</value>
+  </data>
+  <data name="AppStatements_Overview" xml:space="preserve">
+    <value>Nach Herkunft</value>
+  </data>
+  <data name="AppStatements_SummaryOne" xml:space="preserve">
+    <value>{0} Statement · {1} · seit {2}</value>
+  </data>
+  <data name="AppStatements_SummaryOther" xml:space="preserve">
+    <value>{0} Statements · {1} · seit {2}</value>
+  </data>
+  <data name="AppStatements_Waiting" xml:space="preserve">
+    <value>Noch kein Statement – benutze deine App.</value>
+  </data>
+  <data name="AppStatements_ColumnOrigin" xml:space="preserve">
+    <value>Herkunft</value>
+  </data>
+  <data name="AppStatements_ColumnCount" xml:space="preserve">
+    <value>Läufe</value>
+  </data>
+  <data name="AppStatements_ColumnTime" xml:space="preserve">
+    <value>Zeit</value>
+  </data>
+  <data name="AppStatements_ColumnShare" xml:space="preserve">
+    <value>Anteil an der Zeit</value>
+  </data>
+  <data name="AppStatements_ColumnRows" xml:space="preserve">
+    <value>Zeilen</value>
+  </data>
+  <data name="AppStatements_ColumnAverage" xml:space="preserve">
+    <value>Mittel</value>
+  </data>
+  <data name="AppStatements_ColumnMax" xml:space="preserve">
+    <value>Längster</value>
+  </data>
+  <data name="AppStatements_ColumnStatement" xml:space="preserve">
+    <value>Statement</value>
+  </data>
+  <data name="AppStatements_FilterTitle" xml:space="preserve">
+    <value>Nur die Statements dieser Herkunft zeigen</value>
+  </data>
+  <data name="AppStatements_OnlyOrigin" xml:space="preserve">
+    <value>nur {0}</value>
+  </data>
+  <data name="AppStatements_Statements" xml:space="preserve">
+    <value>Statements</value>
+  </data>
+  <data name="AppStatements_Truncated" xml:space="preserve">
+    <value>Mehr als {0} verschiedene Statements: weitere zählen nur noch nach Herkunft.</value>
+  </data>
+  <data name="AppStatements_MoreRows" xml:space="preserve">
+    <value>… und {0} weitere – nach Herkunft filtern oder sortieren, um andere zu sehen.</value>
+  </data>
+  <data name="AppStatements_ErrorsBadge" xml:space="preserve">
+    <value>{0}× Fehler</value>
+  </data>
+  <data name="AppStatements_RepeatedTitle" xml:space="preserve">
+    <value>Lief bis zu {0}-mal innerhalb von {1} s in einem DbContext – oft ein N+1-Problem</value>
+  </data>
+  <data name="AppStatements_RepeatedLazy" xml:space="preserve">
+    <value>Lief bis zu {0}-mal innerhalb von {1} s in einem DbContext durch Lazy Loading von „{2}“ – ein N+1-Problem: die Navigation mit der Abfrage zusammen laden (Include) oder für alle Zeilen auf einmal.</value>
+  </data>
+  <data name="AppStatements_RepeatedLoop" xml:space="preserve">
+    <value>Lief bis zu {0}-mal innerhalb von {1} s in einem DbContext – vermutlich einmal je Zeile in einer Schleife (N+1): eine Abfrage für alle Zeilen ist meist viel schneller.</value>
+  </data>
+  <data name="AppStatements_DetailCountOne" xml:space="preserve">
+    <value>{0} Lauf · {1}</value>
+  </data>
+  <data name="AppStatements_DetailCountOther" xml:space="preserve">
+    <value>{0} Läufe · {1}</value>
+  </data>
+  <data name="AppStatements_LookUp" xml:space="preserve">
+    <value>In der Datenbank nachsehen</value>
+  </data>
+  <data name="AppStatements_LookUpTitle" xml:space="preserve">
+    <value>Kennzahlen und Plan des Statements aus V$SQL der Verbindung der App (verbindet, falls nötig)</value>
+  </data>
+  <data name="AppStatements_OpenInEditor" xml:space="preserve">
+    <value>Im SQL-Editor öffnen</value>
+  </data>
+  <data name="AppStatements_NeedsConnection" xml:space="preserve">
+    <value>Wähle zuerst die Verbindung der App</value>
+  </data>
+  <data name="AppStatements_LookingUp" xml:space="preserve">
+    <value>Sehe nach …</value>
+  </data>
+  <data name="AppStatements_NotConnected" xml:space="preserve">
+    <value>Die Verbindung ließ sich nicht öffnen.</value>
+  </data>
+  <data name="AppStatements_LookupTimedOut" xml:space="preserve">
+    <value>Die Datenbank hat nicht rechtzeitig geantwortet.</value>
+  </data>
+  <data name="AppStatements_NotInPool" xml:space="preserve">
+    <value>Das Statement ist nicht (mehr) im Shared Pool der Datenbank – vielleicht arbeitet die App mit einer anderen Datenbank, oder es wurde verdrängt.</value>
+  </data>
+  <data name="AppStatements_Executions" xml:space="preserve">
+    <value>Ausführungen</value>
+  </data>
+  <data name="AppStatements_RowsProcessed" xml:space="preserve">
+    <value>Zeilen</value>
+  </data>
+  <data name="AppStatements_Elapsed" xml:space="preserve">
+    <value>Zeit</value>
+  </data>
+  <data name="AppStatements_Children" xml:space="preserve">
+    <value>Child-Cursor</value>
+  </data>
+  <data name="AppStatements_InstanceWide" xml:space="preserve">
+    <value>Die Kennzahlen zählen jede Session der Datenbank, die das Statement ausgeführt hat, nicht nur diese App.</value>
+  </data>
+  <data name="AppStatements_NoActualFigures" xml:space="preserve">
+    <value>Der Plan hat nur Schätzungen: Gemessene Zeilen und Zeiten je Schritt gibt es nur, wenn das Statement mit Statistik lief (GATHER_PLAN_STATISTICS oder STATISTICS_LEVEL = ALL). Dafür im SQL-Editor öffnen und den tatsächlichen Plan zeigen.</value>
+  </data>
+  <data name="AppStatements_OriginOther" xml:space="preserve">
+    <value>Sonstige</value>
+  </data>
+  <data name="AppStatements_OriginUnknown" xml:space="preserve">
+    <value>Unbekannt</value>
+  </data>
+</root>

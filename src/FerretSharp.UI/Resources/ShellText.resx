@@ -512,6 +512,16 @@
   <data name="ConnectionDialog_ContextPlaceholder" xml:space="preserve">
     <value>empty = the only DbContext in the project</value>
   </data>
+  <data name="ConnectionDialog_AppEnvironment" xml:space="preserve">
+    <value>App environment</value>
+    <comment>Field label: the environment name the user's own app starts with for this database (-environment=…)</comment>
+  </data>
+  <data name="ConnectionDialog_AppEnvironmentPlaceholder" xml:space="preserve">
+    <value>e.g. erp-test – empty = none</value>
+  </data>
+  <data name="ConnectionDialog_AppEnvironmentHint" xml:space="preserve">
+    <value>The value of -environment=… your app starts with for this database. “App statements” match a running app to this connection by it.</value>
+  </data>
   <data name="ConnectionDialog_Connecting" xml:space="preserve">
     <value>Connecting …</value>
   </data>

@@ -35,6 +35,22 @@ public sealed class ShellTextTests
     }
 
     [Fact]
+    public void The_app_environment_is_edited_and_trimmed()
+    {
+        var profile = TestApp.Profile("ERP") with { AppEnvironment = "erp-test" };
+        var form = ConnectionForm.FromProfile(profile);
+        Assert.Equal("erp-test", form.AppEnvironment);
+
+        form.AppEnvironment = "  erp-dev ";
+        Assert.Equal("erp-dev", form.ToProfile().Profile.AppEnvironment);
+
+        form.AppEnvironment = " ";
+        Assert.Null(form.ToProfile().Profile.AppEnvironment);
+
+        Assert.Equal("", ConnectionForm.Duplicate(profile).AppEnvironment); // a copy usually points to another database
+    }
+
+    [Fact]
     public void A_duplicate_is_named_in_the_language_it_was_made_in()
     {
         var original = TestApp.Profile("ERP");

@@ -1,0 +1,393 @@
+namespace FerretSharp.Core.AppTrace;
+
+/// <summary>
+/// When the same statement counts as repeated (N+1): at least <paramref name="Count"/> runs within <paramref name="Window"/>
+/// in one DbContext – one unit of work, usually one request.
+/// </summary>
+public sealed record RepeatRule(int Count, TimeSpan Window)
+{
+    /// <summary>Decided with the user (WP-33): 10 runs within 2 s.</summary>
+    public static readonly RepeatRule Default = new(10, TimeSpan.FromSeconds(2));
+}
+
+/// <summary>The commands of one origin.</summary>
+/// <param name="Time">Execution plus reading the rows.</param>
+public sealed record OriginTotals(StatementOrigin Origin, int Count, TimeSpan Time, long Rows);
+
+/// <summary>All runs of one statement text from one origin.</summary>
+/// <param name="Time">Execution plus reading the rows, summed up.</param>
+/// <param name="Max">The longest single run.</param>
+/// <param name="Rows">Rows read (queries) or affected (other statements); see <see cref="StatementRecording"/>.</param>
+/// <param name="Navigation">For lazy loading: the navigation that was loaded last (<c>Positionen</c>).</param>
+/// <param name="Burst">The most runs seen within the window of the <see cref="RepeatRule"/> in one DbContext.</param>
+/// <param name="Repeated">The statement ran at least as often as the rule says within its window in one DbContext (N+1).</param>
+public sealed record StatementTotals(
+    StatementOrigin Origin,
+    string Text,
+    int Count,
+    TimeSpan Time,
+    TimeSpan Max,
+    long Rows,
+    int Errors,
+    string? LastError,
+    string? Navigation,
+    int Burst,
+    bool Repeated,
+    DateTimeOffset First,
+    DateTimeOffset Last)
+{
+    public TimeSpan Average => Count == 0 ? TimeSpan.Zero : Time / Count;
+}
+
+/// <summary>A consistent copy of a recording, safe to read on any thread.</summary>
+/// <param name="Since">The first event after the start or the last reset; null if none came yet.</param>
+/// <param name="Truncated">More different statements came than a recording keeps; the others only count in <see cref="Origins"/>.</param>
+/// <param name="Version">Grows with every change; equal versions are equal snapshots.</param>
+public sealed record RecordingSnapshot(
+    int Count,
+    TimeSpan Time,
+    IReadOnlyList<OriginTotals> Origins,
+    IReadOnlyList<StatementTotals> Statements,
+    DateTimeOffset? Since,
+    string? DataSource,
+    bool Truncated,
+    long Version)
+{
+    public static readonly RecordingSnapshot Empty = new(0, TimeSpan.Zero, [], [], null, null, false, 0);
+
+    /// <summary>The origin's share of the whole time, 0 … 1.</summary>
+    public double Share(OriginTotals origin) => Time > TimeSpan.Zero ? origin.Time / Time : 0;
+}
+
+/// <summary>
+/// The statements of a traced app (WP-33), built from its EF Core events (<see cref="EfEvents"/>): the origin of each
+/// command, totals per origin and per statement text, and repeated statements (N+1).
+/// <list type="bullet">
+/// <item>Lazy loading: EF raises <see cref="EfEvents.NavigationLazyLoading"/> right before the query that loads the
+/// navigation, in the same context – the next command of that context is the lazy load if it is a query that started
+/// right after the event (a reference with a NULL foreign key raises the event without a query).</item>
+/// <item>Time: <see cref="EfEvents.CommandExecuted"/> ends when the reader is returned; the time to read the rows comes
+/// with <see cref="EfEvents.DataReaderDisposing"/> (matched by command id) and is added.</item>
+/// <item>Rows: a query's reader counts every <c>Read()</c>, including the last one that returns false – the rows are one
+/// less; EF reads to the end also for <c>First</c>, <c>Single</c> and <c>Count</c> (measured with EF Core 8). For
+/// <c>SaveChanges</c> the reads are the rows written; non-queries take the affected rows.</item>
+/// </list>
+/// Events arrive on the source's thread, snapshots are taken on the UI thread: everything runs under one lock.
+/// </summary>
+public sealed class StatementRecording(RepeatRule? rule = null)
+{
+    /// <summary>Different statement texts kept per recording; further ones only count per origin.</summary>
+    public const int MaxStatements = 2000;
+
+    /// <summary>A lazy load starts this soon after its event at the latest (the query follows on the same thread).</summary>
+    public static readonly TimeSpan LazyLoadDelay = TimeSpan.FromMilliseconds(250);
+
+    /// <summary>Readers waiting for their end, and contexts waiting for their lazy load, at most.</summary>
+    private const int MaxPending = 10_000;
+
+    private readonly RepeatRule _rule = rule ?? RepeatRule.Default;
+    private readonly Lock _lock = new();
+    private readonly Dictionary<(StatementOrigin, string), Entry> _statements = [];
+    private readonly Dictionary<StatementOrigin, Totals> _origins = [];
+    private readonly Dictionary<string, Pending> _readers = [];
+    private readonly Queue<string> _readerOrder = new();
+    private readonly Dictionary<string, (string Navigation, DateTimeOffset At)> _lazyByContext = [];
+    private int _count;
+    private TimeSpan _time;
+    private DateTimeOffset? _since;
+    private string? _dataSource;
+    private bool _truncated;
+    private long _version;
+
+    /// <summary>The <see cref="RecordingSnapshot.Version"/> a snapshot would have now – cheap, to skip taking an equal one.</summary>
+    public long Version
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return _version;
+            }
+        }
+    }
+
+    /// <summary>Takes one event in; false if it changed nothing (unknown event, reader of an unknown command).</summary>
+    public bool Apply(EfEvent e)
+    {
+        lock (_lock)
+        {
+            var changed = e.Name switch
+            {
+                EfEvents.CommandExecuted => Executed(e, error: false),
+                EfEvents.CommandError => Executed(e, error: true),
+                EfEvents.DataReaderDisposing => ReaderClosed(e),
+                EfEvents.NavigationLazyLoading => LazyLoading(e),
+                _ => false,
+            };
+            if (changed)
+            {
+                _version++;
+            }
+
+            return changed;
+        }
+    }
+
+    /// <summary>Starts over: everything recorded so far is forgotten.</summary>
+    public void Reset()
+    {
+        lock (_lock)
+        {
+            _statements.Clear();
+            _origins.Clear();
+            _readers.Clear();
+            _readerOrder.Clear();
+            _lazyByContext.Clear();
+            _count = 0;
+            _time = TimeSpan.Zero;
+            _since = null;
+            _truncated = false;
+            _version++;
+        }
+    }
+
+    public RecordingSnapshot Snapshot()
+    {
+        lock (_lock)
+        {
+            return new RecordingSnapshot(
+                _count,
+                _time,
+                [.. _origins.OrderByDescending(o => o.Value.Time).ThenBy(o => o.Key).Select(o => new OriginTotals(o.Key, o.Value.Count, o.Value.Time, o.Value.Rows))],
+                [.. _statements.Values.OrderByDescending(s => s.Time).ThenBy(s => s.Text, StringComparer.Ordinal).Select(s => s.ToTotals(_rule))],
+                _since,
+                _dataSource,
+                _truncated,
+                _version);
+        }
+    }
+
+    private bool Executed(EfEvent e, bool error)
+    {
+        var text = e.Field(EfEvents.Text);
+        if (text is null)
+        {
+            return false;
+        }
+
+        var context = e.Field(EfEvents.Context);
+        var duration = e.Duration(EfEvents.Duration) ?? TimeSpan.Zero;
+        var origin = StatementOrigins.FromCommandSource(e.Field(EfEvents.Source));
+        string? navigation = null;
+        if (context is not null && _lazyByContext.Remove(context, out var lazy) && IsLazyLoad(origin, lazy.At, e.Time - duration))
+        {
+            origin = StatementOrigin.LazyLoading;
+            navigation = lazy.Navigation;
+        }
+
+        var rows = !error && e.Field(EfEvents.Method) == "ExecuteNonQuery" && e.Int(EfEvents.Result) is > 0 and var affected ? affected : 0;
+
+        _since ??= e.Time;
+        _dataSource = e.Field(EfEvents.DataSource) ?? _dataSource;
+        _count++;
+        _time += duration;
+        var totals = OriginOf(origin);
+        totals.Count++;
+        totals.Time += duration;
+        totals.Rows += rows;
+
+        var entry = EntryOf(origin, text, e.Time);
+        if (entry is not null)
+        {
+            entry.Run(duration, rows, e.Time, context, _rule);
+            entry.Navigation = navigation ?? entry.Navigation;
+            if (error)
+            {
+                entry.Errors++;
+                entry.LastError = e.Field(EfEvents.Error);
+            }
+        }
+
+        if (!error && e.Field(EfEvents.CommandId) is { } id && e.Field(EfEvents.Method) is null or "ExecuteReader")
+        {
+            Remember(id, new Pending(origin, entry, duration));
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// The command after a lazy-loading event is its load only if it is a query and started right after it: a reference
+    /// whose foreign key is NULL raises the event but runs no query (seen with EF Core 8), and the next command of the
+    /// context – a <c>SaveChanges</c>, a later query – must keep its own origin.
+    /// </summary>
+    private static bool IsLazyLoad(StatementOrigin origin, DateTimeOffset lazyAt, DateTimeOffset started) =>
+        origin is StatementOrigin.Linq or StatementOrigin.Unknown && started - lazyAt <= LazyLoadDelay;
+
+    private bool ReaderClosed(EfEvent e)
+    {
+        if (e.Field(EfEvents.CommandId) is not { } id || !_readers.Remove(id, out var pending))
+        {
+            return false;
+        }
+
+        var reading = e.Duration(EfEvents.Duration) ?? TimeSpan.Zero;
+        // A query reads once more than it has rows (the last Read() returns false); SaveChanges reads the values the
+        // database returns, one per row written, and stops there (seen with SQLite and Oracle).
+        var reads = e.Int(EfEvents.ReadCount) ?? 0;
+        var rows = pending.Origin == StatementOrigin.SaveChanges ? reads : Math.Max(reads - 1, 0);
+        _time += reading;
+        var totals = OriginOf(pending.Origin);
+        totals.Time += reading;
+        totals.Rows += rows;
+        if (pending.Entry is { } entry)
+        {
+            entry.Time += reading;
+            entry.Rows += rows;
+            entry.Max = Max(entry.Max, pending.Executed + reading);
+        }
+
+        return true;
+    }
+
+    private bool LazyLoading(EfEvent e)
+    {
+        if (e.Field(EfEvents.Context) is not { } context)
+        {
+            return false;
+        }
+
+        if (_lazyByContext.Count >= MaxPending)
+        {
+            _lazyByContext.Clear(); // contexts that never ran their load (disposed in between); losing them only misses a label
+        }
+
+        _lazyByContext[context] = (e.Field(EfEvents.Navigation) ?? "", e.Time);
+        return false; // nothing to show until the command comes
+    }
+
+    private void Remember(string id, Pending pending)
+    {
+        if (_readerOrder.Count >= MaxPending)
+        {
+            _readers.Remove(_readerOrder.Dequeue()); // a reader that was never disposed: its reading time is lost
+        }
+
+        _readers[id] = pending;
+        _readerOrder.Enqueue(id);
+    }
+
+    private Totals OriginOf(StatementOrigin origin)
+    {
+        if (!_origins.TryGetValue(origin, out var totals))
+        {
+            _origins[origin] = totals = new Totals();
+        }
+
+        return totals;
+    }
+
+    private Entry? EntryOf(StatementOrigin origin, string text, DateTimeOffset time)
+    {
+        if (_statements.TryGetValue((origin, text), out var entry))
+        {
+            return entry;
+        }
+
+        if (_statements.Count >= MaxStatements)
+        {
+            _truncated = true;
+            return null;
+        }
+
+        return _statements[(origin, text)] = new Entry(origin, text, time);
+    }
+
+    private static TimeSpan Max(TimeSpan a, TimeSpan b) => a > b ? a : b;
+
+    private sealed class Totals
+    {
+        public int Count;
+        public TimeSpan Time;
+        public long Rows;
+    }
+
+    private sealed record Pending(StatementOrigin Origin, Entry? Entry, TimeSpan Executed);
+
+    private sealed class Entry(StatementOrigin origin, string text, DateTimeOffset first)
+    {
+        /// <summary>A burst is counted up to this (a statement in a tight loop would otherwise keep every time of the window).</summary>
+        private const int MaxBurst = 1000;
+
+        /// <summary>Contexts whose runs are kept for the burst, at most (one per request: older ones are pruned).</summary>
+        private const int MaxContexts = 200;
+
+        /// <summary>Requests that are over are dropped every this many new contexts too, not only at the cap.</summary>
+        private const int PruneEvery = 32;
+
+        private int _newContexts;
+
+        /// <summary>
+        /// The recent runs per DbContext: an N+1 repeats a statement within one unit of work (one request). The same query
+        /// from many requests – an app under load, a polling job – is no N+1 and must not count together.
+        /// </summary>
+        private readonly Dictionary<string, Queue<DateTimeOffset>> _recentByContext = [];
+
+        public string Text => text;
+        public int Count;
+        public TimeSpan Time;
+        public TimeSpan Max;
+        public long Rows;
+        public int Errors;
+        public string? LastError;
+        public string? Navigation;
+        public int Burst;
+        public DateTimeOffset First { get; } = first;
+        public DateTimeOffset Last = first;
+
+        public void Run(TimeSpan duration, long rows, DateTimeOffset at, string? context, RepeatRule rule)
+        {
+            Count++;
+            Time += duration;
+            Rows += rows;
+            Max = StatementRecording.Max(Max, duration);
+            Last = at > Last ? at : Last;
+
+            var key = context ?? "";
+            if (!_recentByContext.TryGetValue(key, out var recent))
+            {
+                if (_recentByContext.Count >= MaxContexts || ++_newContexts % PruneEvery == 0)
+                {
+                    Prune(at, rule);
+                }
+
+                _recentByContext[key] = recent = new Queue<DateTimeOffset>();
+            }
+
+            recent.Enqueue(at);
+            while (recent.Count > 0 && (at - recent.Peek() > rule.Window || recent.Count > MaxBurst))
+            {
+                recent.Dequeue();
+            }
+
+            Burst = Math.Max(Burst, recent.Count);
+        }
+
+        /// <summary>Drops the contexts without a run in the window (requests that are over); all of them if that is not enough.</summary>
+        private void Prune(DateTimeOffset now, RepeatRule rule)
+        {
+            foreach (var (key, recent) in _recentByContext.Where(c => c.Value.Count == 0 || now - c.Value.Last() > rule.Window).ToList())
+            {
+                _recentByContext.Remove(key);
+            }
+
+            if (_recentByContext.Count >= MaxContexts)
+            {
+                _recentByContext.Clear();
+            }
+        }
+
+        public StatementTotals ToTotals(RepeatRule rule) =>
+            new(origin, text, Count, Time, Max, Rows, Errors, LastError, Navigation, Burst, Burst >= rule.Count, First, Last);
+    }
+}

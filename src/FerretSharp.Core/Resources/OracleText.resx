@@ -24,6 +24,9 @@
   <data name="ActualPlanNoRights" xml:space="preserve">
     <value>The actual plan needs read access to V$SQL and V$SQL_PLAN_STATISTICS_ALL – a DBA can grant it: GRANT SELECT_CATALOG_ROLE TO &lt;user&gt; or GRANT SELECT ON V_$SQL / V_$SQL_PLAN_STATISTICS_ALL TO &lt;user&gt;. The estimated plan works without it.</value>
   </data>
+  <data name="CursorNoRights" xml:space="preserve">
+    <value>Looking up a statement in the database needs read access to V$SQL and V$SQL_PLAN_STATISTICS_ALL – a DBA can grant it: GRANT SELECT_CATALOG_ROLE TO &lt;user&gt; or GRANT SELECT ON V_$SQL / V_$SQL_PLAN_STATISTICS_ALL TO &lt;user&gt;.</value>
+  </data>
   <data name="CursorGone" xml:space="preserve">
     <value>Cursor {0} is no longer in the shared pool – try again.</value>
     <comment>{0}: SQL_ID of the statement</comment>

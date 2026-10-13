@@ -5,6 +5,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+App statements: see what your running app sends to the database (WP-33).
+
+### Added
+- App statements (WP-33, issue #12; the pulse button at the top right): attach to a .NET app running on your computer – debugging in Visual Studio, `dotnet run`, Rider – and see the statements it sends through EF Core, without changing the app. Grouped by origin (LINQ, lazy loading, `FromSql`, `ExecuteSql`, `SaveChanges`, `ExecuteUpdate`/`ExecuteDelete`) with runs, time and share of time, rows; as a list sortable by runs, time, average, longest and rows; an N+1 badge when a statement runs 10 times or more within 2 s in one DbContext, with the navigation for lazy loading. EF Core 7 or later shows the origin; older versions show "Unknown".
+- Per statement: look it up in the database of the app's connection – the V$SQL figures (executions, rows, buffer gets, time) and the plan of its cursor, connecting first if needed (needs read access to V$SQL like the actual plan) – or open it in the SQL editor.
+- The app is matched to a connection by its `-environment=…` argument (new field "App environment" in the connection dialog) or by the database address; if several fit, choose one and remember the environment at it.
+- Reset and detach; the recording stays when the app ends or you leave the page. Build tools (MSBuild, compiler server, dotnet CLI) are hidden in the list of apps.
+
+### Changed
+- The plan table is one component for the plan dialog and the app statements.
+
 ## [3.27.1] - 2026-10-12
 
 One fix for the connections page without connections.
