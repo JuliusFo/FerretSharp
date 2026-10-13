@@ -78,4 +78,8 @@ The log is in {1}.</value>
     <value>Unexpected error.</value>
     <comment>Blazor's error bar at the bottom of the window, when the UI itself has failed</comment>
   </data>
+  <data name="AlreadyRunning" xml:space="preserve">
+    <value>FerretSharp is already running with the data folder {0}, but its window could not be brought forward.</value>
+    <comment>Message box at start (WP-32); {0}: path of the data folder</comment>
+  </data>
 </root>

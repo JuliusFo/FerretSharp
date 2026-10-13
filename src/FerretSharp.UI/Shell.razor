@@ -191,6 +191,8 @@
     <ConnectionScopeView @key='(Shown, "dialogs")' Scope="Shown">
         <DialogHost Lifecycle="_lifecycle" />
     </ConnectionScopeView>
+    @* Not per connection: the update is the app's (WP-32). *@
+    <UpdateDialog />
 </CascadingValue>
 </CascadingValue>
 
