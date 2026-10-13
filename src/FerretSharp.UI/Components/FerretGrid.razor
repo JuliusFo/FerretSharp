@@ -104,7 +104,8 @@
         }
 
         Workspaces.Changed += OnWorkspacesChanged;
-        Shell.Changed += OnWorkspacesChanged; // a write starts or ends (review 3.31.0, A3)
+        Shell.Changed += OnShellChanged; // a write starts or ends (A3), the schema was reloaded (A15)
+        _schemaLoadedAt = Active.Schema?.LoadedAt;
         Presentations.Changed += OnPresentationChanged;
         DisplayColumns.Changed += OnDisplayColumnsChanged;
         _displayVersion = DisplayColumns.Version;
@@ -531,6 +532,28 @@
 
         Shell.Notify(GridText.Grid_WriteRunning);
         return true;
+    }
+
+    /// <summary>When the connection's schema was loaded last (<see cref="OnShellChanged"/>).</summary>
+    private DateTimeOffset? _schemaLoadedAt;
+
+    /// <summary>
+    /// A write started or ended (editing on or off), or the schema was reloaded (review 3.31.0, A15): a tab whose own
+    /// structure stayed is not rebuilt, but its foreign keys or their targets may have changed – a renamed display column
+    /// failed with ORA-00904, a new foreign key showed neither badge nor names. The links are planned again.
+    /// </summary>
+    private void OnShellChanged()
+    {
+        OnWorkspacesChanged();
+        if (_grid.IsCreated && Active.Schema?.LoadedAt is { } loaded && loaded != _schemaLoadedAt)
+        {
+            _schemaLoadedAt = loaded;
+            Fire(async () =>
+            {
+                await PlanNamesAsync(force: true);
+                await UpdateColumnsAsync();
+            });
+        }
     }
 
     /// <summary>Unlocking or locking the workspace switches editing in the grid on or off without reloading it.</summary>
@@ -1166,7 +1189,7 @@
     public async ValueTask DisposeAsync()
     {
         Workspaces.Changed -= OnWorkspacesChanged;
-        Shell.Changed -= OnWorkspacesChanged;
+        Shell.Changed -= OnShellChanged;
         Presentations.Changed -= OnPresentationChanged;
         DisplayColumns.Changed -= OnDisplayColumnsChanged;
         _lookups.Clear();
