@@ -411,7 +411,8 @@
         var result = await Shell.RunDbAsync(Logger, active, () => schema.GetCursorAsync(statement.Text, timeout.Token), timeout.Token);
         if (result.Cancelled)
         {
-            Finish(null, AppStatementsText.AppStatements_LookupTimedOut);
+            // Cancelled by the limit – or the connection was closed meanwhile (review 3.31.0, A19).
+            Finish(null, timeout.IsCancellationRequested ? AppStatementsText.AppStatements_LookupTimedOut : AppStatementsText.AppStatements_NotConnected);
             return;
         }
 
@@ -451,6 +452,12 @@
                 {
                     return null;
                 }
+            }
+            else if (Shell.PendingPassword is null && waited >= StartTimeout)
+            {
+                // Nothing opened: the password prompt was cancelled (review 3.31.0, A19 – the page waited a minute). While
+                // the prompt is open, the lookup waits for it.
+                return null;
             }
 
             await Task.Delay(PollInterval, CancellationToken.None);
