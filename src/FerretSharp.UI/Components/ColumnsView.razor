@@ -190,7 +190,7 @@
 }
 
 @code {
-    private int _presentationVersion;
+    private PresentationWatch _presentation = null!;
     [CascadingParameter]
     public ActiveConnection Active { get; set; } = null!;
 
@@ -245,7 +245,7 @@
     /// <summary>A newly loaded model that changes this table (not every loading step, not every table after a build).</summary>
     protected override void OnInitialized()
     {
-        _presentationVersion = Presentations.Version;
+        _presentation = new PresentationWatch(Presentations);
         Presentations.Changed += OnModelChanged;
         DisplaySource.Changed += OnDisplayColumnsChanged;
         _editing = Tab?.Designer is not null; // a draft that outlived a rebuild of the tab (DDL that stopped halfway)
@@ -253,12 +253,10 @@
 
     private void OnModelChanged() => InvokeAsync(() =>
     {
-        if (Presentations.ChangedSince(_presentationVersion, Details.Table.Ref))
+        if (_presentation.ChangedFor(Details.Table.Ref))
         {
             StateHasChanged();
         }
-
-        _presentationVersion = Presentations.Version;
     });
 
     /// <summary>A display column was marked or the file changed (WP-31): the badge follows.</summary>

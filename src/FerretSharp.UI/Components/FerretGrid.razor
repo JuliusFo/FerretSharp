@@ -33,7 +33,7 @@
     private GridBridge _grid = null!;
     private bool _editable;
     private TablePresentation? _presentation;
-    private int _presentationVersion;
+    private PresentationWatch _presentationWatch = null!;
 
     /// <summary>Header height with the line for C# names (WP-12); the theme's 46 px otherwise.</summary>
     private const int ClrHeaderHeight = 62;
@@ -110,7 +110,7 @@
         Presentations.Changed += OnPresentationChanged;
         DisplayColumns.Changed += OnDisplayColumnsChanged;
         _displayVersion = DisplayColumns.Version;
-        _presentationVersion = Presentations.Version;
+        _presentationWatch = new PresentationWatch(Presentations);
         _presentation = Presentations.For(Details);
         _shownColumns = ShownColumns(Enumerable.Range(0, Details.Columns.Count).Select(ColumnMeta).ToList());
         var columns = ColumnPinning.DisplayOrder(Details, Tab.PinnedColumns).Select(ColumnMeta).ToList();
@@ -179,15 +179,15 @@
     /// </summary>
     private void OnPresentationChanged() => Fire(async () =>
     {
-        if (!_grid.IsCreated || Presentations.Version == _presentationVersion)
+        if (!_grid.IsCreated || _presentationWatch.Unchanged)
         {
             return;
         }
 
-        var touched = Presentations.ChangedSince(_presentationVersion, Details.Table.Ref);
+        var touched = _presentationWatch.Touches(Details.Table.Ref);
         // A display column of a target may read differently now (enum members): its names are looked up again.
-        var targets = Names.Links.Any(l => Presentations.ChangedSince(_presentationVersion, l.Target.Table.Ref));
-        _presentationVersion = Presentations.Version;
+        var targets = Names.Links.Any(l => _presentationWatch.Touches(l.Target.Table.Ref));
+        _presentationWatch.Seen();
         _presentation = Presentations.For(Details); // the same reading, but no longer holding the previous model
         if (touched || targets)
         {

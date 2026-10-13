@@ -104,7 +104,7 @@
 </aside>
 
 @code {
-    private int _presentationVersion;
+    private PresentationWatch _presentationWatch = null!;
     [CascadingParameter]
     public ActiveConnection Active { get; set; } = null!;
 
@@ -202,19 +202,17 @@
     {
         Active.Changed += OnChanged;
         Shell.Changed += OnShellChanged;
-        _presentationVersion = Presentation.Version;
+        _presentationWatch = new PresentationWatch(Presentation);
         Presentation.Changed += OnPresentationChanged;
     }
 
     /// <summary>Renders the whole table list again only if the entity names beside the tables changed.</summary>
     private void OnPresentationChanged() => InvokeAsync(() =>
     {
-        if (Presentation.NamesChangedSince(_presentationVersion))
+        if (_presentationWatch.NamesChanged())
         {
             StateHasChanged();
         }
-
-        _presentationVersion = Presentation.Version;
     });
 
     private RenderFragment TableItem(TableSummary t)

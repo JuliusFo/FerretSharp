@@ -173,7 +173,7 @@
 }
 
 @code {
-    private int _presentationVersion;
+    private PresentationWatch _presentation = null!;
 
     [CascadingParameter]
     public ActiveConnection Active { get; set; } = null!;
@@ -249,18 +249,16 @@
     /// </summary>
     private void OnPresentationChanged() => InvokeAsync(() =>
     {
-        if (Presentations.ChangedSince(_presentationVersion, Tab.Table.Ref))
+        if (_presentation.ChangedFor(Tab.Table.Ref))
         {
             StateHasChanged();
         }
-
-        _presentationVersion = Presentations.Version;
     });
 
     protected override async Task OnInitializedAsync()
     {
         Shell.TabCommandRequested += OnTabCommand;
-        _presentationVersion = Presentations.Version;
+        _presentation = new PresentationWatch(Presentations);
         Presentations.Changed += OnPresentationChanged;
         if (Active.Schema is not { } schema)
         {
