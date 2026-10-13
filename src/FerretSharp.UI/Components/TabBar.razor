@@ -138,7 +138,7 @@
     private WorkspaceTab? _renaming;
 
     /// <summary>shortcuts.js, imported on the first close of a table tab (is a grid cell being edited?).</summary>
-    private IJSObjectReference? _shortcuts;
+    private JsModule? _shortcuts;
 
     private bool _disposed;
 
@@ -260,16 +260,8 @@
         var cellEditing = false;
         if (tab is TableTab && tab == Shell.ActiveTab)
         {
-            try
-            {
-                _shortcuts ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/shortcuts.js");
-                cellEditing = await _shortcuts.InvokeAsync<bool>("cellEditing");
-            }
-            catch (JSDisconnectedException)
-            {
-                return;
-            }
-
+            _shortcuts ??= new JsModule(JS, "./_content/FerretSharp.UI/js/shortcuts.js");
+            cellEditing = await _shortcuts.InvokeAsync<bool>("cellEditing");
             if (_disposed)
             {
                 return;
@@ -325,13 +317,7 @@
 
         if (_shortcuts is not null)
         {
-            try
-            {
-                await _shortcuts.DisposeAsync();
-            }
-            catch (JSDisconnectedException)
-            {
-            }
+            await _shortcuts.DisposeAsync();
         }
     }
 }

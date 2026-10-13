@@ -131,31 +131,14 @@ public sealed record GridRowUpdate(int RowIndex, Dictionary<string, object?> Row
 /// </summary>
 public sealed class GridBridge(IJSRuntime js, string elementId, IDisposable selfReference) : IAsyncDisposable
 {
-    private IJSObjectReference? _module;
+    private readonly JsModule _module = new(js, "./_content/FerretSharp.UI/js/grid.js");
     private readonly DomModule _dom = new(js);
-    private bool _disposed;
 
     /// <summary>The grid was created and the component still lives.</summary>
     public bool IsCreated { get; private set; }
 
     /// <summary>Loads grid.js; false if the component was disposed meanwhile (then there is nothing to show).</summary>
-    public async Task<bool> LoadAsync()
-    {
-        if (_module is null && !_disposed)
-        {
-            var module = await js.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/grid.js");
-            if (_disposed)
-            {
-                // Disposed while the module loaded: DisposeAsync found no module.
-                await DisposeQuietlyAsync(module);
-                return false;
-            }
-
-            _module = module;
-        }
-
-        return !_disposed;
-    }
+    public async Task<bool> LoadAsync() => await _module.LoadAsync();
 
     /// <summary>Builds the grid (again); grid.js calls back the component through its reference.</summary>
     public async Task CreateAsync(IReadOnlyList<GridColumn> columns, GridOptions options)
@@ -172,56 +155,17 @@ public sealed class GridBridge(IJSRuntime js, string elementId, IDisposable self
     /// params array itself (array covariance), and grid.js got one row instead of the list (LOB editor since 3.6.1,
     /// found in WP-21).
     /// </summary>
-    public async Task<bool> CallAsync(string identifier, params object?[] args)
-    {
-        if (_module is null || _disposed)
-        {
-            return false;
-        }
-
-        try
-        {
-            await _module.InvokeVoidAsync(identifier, [elementId, .. args]);
-            return true;
-        }
-        catch (Exception ex) when (_disposed && ex is JSDisconnectedException or ObjectDisposedException)
-        {
-            return false; // disposed while the call ran (closing the tab, disconnecting)
-        }
-    }
+    public async Task<bool> CallAsync(string identifier, params object?[] args) =>
+        _module.IsLoaded && await _module.InvokeVoidAsync(identifier, [elementId, .. args]); // false: disposed meanwhile (closing the tab, disconnecting)
 
     /// <summary>Copies text to the clipboard; false (with a note) if the clipboard is not available.</summary>
     public Task<bool> CopyTextAsync(ShellState shell, string text) => _dom.CopyTextAsync(shell, text);
 
     public async ValueTask DisposeAsync()
     {
-        _disposed = true;
         IsCreated = false;
-        if (_module is not null)
-        {
-            try
-            {
-                await _module.InvokeVoidAsync("destroy", elementId);
-            }
-            catch (Exception ex) when (ex is JSDisconnectedException or ObjectDisposedException)
-            {
-            }
-
-            await DisposeQuietlyAsync(_module);
-        }
-
+        await _module.DisposeAsync("destroy", elementId);
         await _dom.DisposeAsync();
         selfReference.Dispose();
-    }
-
-    private static async Task DisposeQuietlyAsync(IJSObjectReference module)
-    {
-        try
-        {
-            await module.DisposeAsync();
-        }
-        catch (Exception ex) when (ex is JSDisconnectedException or ObjectDisposedException)
-        {
-        }
     }
 }
