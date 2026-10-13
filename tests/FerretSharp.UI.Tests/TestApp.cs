@@ -58,6 +58,8 @@ internal sealed class TestApp : IAsyncDisposable
 
     public InMemorySecretStore Secrets { get; } = new();
 
+    public ConnectionManager Connections => _services.GetRequiredService<ConnectionManager>();
+
     public InMemoryWorkspaceStore WorkspaceStore { get; } = new();
 
     public ShellState Shell { get; } = new();

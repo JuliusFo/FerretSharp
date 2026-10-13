@@ -69,6 +69,24 @@ public sealed class ActiveConnectionTests : IDisposable
         Assert.Null(_active.Schema);
     }
 
+    /// <summary>WP-35: a wrong password typed for this run only is asked for again; a saved one stays (changed under "Edit").</summary>
+    [Fact]
+    public async Task Wrong_password_for_this_run_is_forgotten_a_saved_one_is_kept()
+    {
+        var connections = new ConnectionManager(Substitute.For<IConnectionStore>(), _secrets);
+        var active = new ActiveConnection(connections, _connector, _recent, _workspaces);
+        var imported = TestProfiles.HostPort("Importiert");
+        connections.SetPassword(imported.Id, "falsch", remember: false);
+        _connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Throws(new DatabaseException("invalid credential", ConnectionManager.WrongPasswordCode));
+
+        await active.ConnectAsync(imported, Ct);
+        await active.ConnectAsync(_profile, Ct);
+
+        Assert.False(connections.HasPassword(imported.Id));
+        Assert.Equal("pw", connections.GetPassword(_profile.Id));
+    }
+
     [Fact]
     public async Task Missing_password_fails_without_contacting_the_database()
     {

@@ -1185,4 +1185,151 @@
   <data name="Settings_ShortcutGroupInSearch" xml:space="preserve">
     <value>Tastenkürzel › {0}</value>
   </data>
+  <data name="Password_Title" xml:space="preserve">
+    <value>Passwort eingeben</value>
+  </data>
+  <data name="Password_Question" xml:space="preserve">
+    <value>Für {0} ist kein Passwort gespeichert. Anmelden als {1} mit:</value>
+  </data>
+  <data name="Password_Remember" xml:space="preserve">
+    <value>Im Credential Manager speichern</value>
+  </data>
+  <data name="Password_ForgetHint" xml:space="preserve">
+    <value>Gilt nur, bis FerretSharp beendet wird.</value>
+  </data>
+  <data name="Import_Button" xml:space="preserve">
+    <value>Importieren…</value>
+  </data>
+  <data name="Import_Title" xml:space="preserve">
+    <value>Verbindungen importieren</value>
+  </data>
+  <data name="Import_Source" xml:space="preserve">
+    <value>Quelle</value>
+  </data>
+  <data name="Import_Found" xml:space="preserve">
+    <value>gefunden: {0}</value>
+  </data>
+  <data name="Import_ChooseFile" xml:space="preserve">
+    <value>Datei wählen…</value>
+  </data>
+  <data name="Import_FileFilter" xml:space="preserve">
+    <value>Verbindungsdateien</value>
+  </data>
+  <data name="Import_NothingFound" xml:space="preserve">
+    <value>Kein DBeaver oder SQL Developer auf diesem Rechner gefunden – stattdessen eine Datei wählen.</value>
+  </data>
+  <data name="Import_Reading" xml:space="preserve">
+    <value>Wird gelesen …</value>
+  </data>
+  <data name="Import_FoundOne" xml:space="preserve">
+    <value>{0} Verbindung in {1} gefunden.</value>
+  </data>
+  <data name="Import_FoundOther" xml:space="preserve">
+    <value>{0} Verbindungen in {1} gefunden.</value>
+  </data>
+  <data name="Import_OtherDatabasesOne" xml:space="preserve">
+    <value>{0} Verbindung zu einer anderen Datenbank ausgelassen.</value>
+  </data>
+  <data name="Import_OtherDatabasesOther" xml:space="preserve">
+    <value>{0} Verbindungen zu anderen Datenbanken ausgelassen.</value>
+  </data>
+  <data name="Import_ColName" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="Import_ColKind" xml:space="preserve">
+    <value>Umgebung</value>
+  </data>
+  <data name="Import_ColAddress" xml:space="preserve">
+    <value>Adresse</value>
+  </data>
+  <data name="Import_ColStatus" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="Import_KindGuessed" xml:space="preserve">
+    <value>geraten</value>
+  </data>
+  <data name="Import_KindGuessedTitle" xml:space="preserve">
+    <value>Die Quelle nennt keine Umgebung; sie wurde aus dem Namen geraten. Die Verbindung bleibt schreibgeschützt, bis du eine wählst.</value>
+  </data>
+  <data name="Import_New" xml:space="preserve">
+    <value>Neu</value>
+  </data>
+  <data name="Import_Exists" xml:space="preserve">
+    <value>Vorhanden</value>
+  </data>
+  <data name="Import_ExistsTitle" xml:space="preserve">
+    <value>Gleiche Adresse und gleicher Benutzer wie „{0}“.</value>
+  </data>
+  <data name="Import_Overwrite" xml:space="preserve">
+    <value>Überschreiben</value>
+  </data>
+  <data name="Import_Copy" xml:space="preserve">
+    <value>Als Kopie anlegen</value>
+  </data>
+  <data name="Import_ReadOnlyTitle" xml:space="preserve">
+    <value>Wird schreibgeschützt importiert</value>
+  </data>
+  <data name="Import_DefaultGroup" xml:space="preserve">
+    <value>Gruppe für Verbindungen ohne Gruppe</value>
+  </data>
+  <data name="Import_NoPasswords" xml:space="preserve">
+    <value>Passwörter werden nicht übernommen – du gibst sie beim Verbinden ein.</value>
+  </data>
+  <data name="Import_ImportOne" xml:space="preserve">
+    <value>{0} Verbindung importieren</value>
+  </data>
+  <data name="Import_ImportOther" xml:space="preserve">
+    <value>{0} Verbindungen importieren</value>
+  </data>
+  <data name="Import_DoneOne" xml:space="preserve">
+    <value>{0} Verbindung importiert.</value>
+  </data>
+  <data name="Import_DoneOther" xml:space="preserve">
+    <value>{0} Verbindungen importiert.</value>
+  </data>
+  <data name="Import_SaveFailed" xml:space="preserve">
+    <value>Speichern fehlgeschlagen: {0}</value>
+  </data>
+  <data name="Export_Button" xml:space="preserve">
+    <value>Exportieren…</value>
+  </data>
+  <data name="Export_GroupButton" xml:space="preserve">
+    <value>Gruppe exportieren…</value>
+  </data>
+  <data name="Export_Title" xml:space="preserve">
+    <value>Verbindungen exportieren</value>
+  </data>
+  <data name="Export_All" xml:space="preserve">
+    <value>Alle</value>
+  </data>
+  <data name="Export_None" xml:space="preserve">
+    <value>Keine</value>
+  </data>
+  <data name="Export_GroupCount" xml:space="preserve">
+    <value>{0} von {1}</value>
+  </data>
+  <data name="Export_LocalPaths" xml:space="preserve">
+    <value>Pfade dieses Rechners mitnehmen (C#-Projekt, Skriptordner)</value>
+  </data>
+  <data name="Export_NoPasswords" xml:space="preserve">
+    <value>Passwörter werden nie exportiert.</value>
+  </data>
+  <data name="Export_ExportOne" xml:space="preserve">
+    <value>{0} Verbindung exportieren…</value>
+  </data>
+  <data name="Export_ExportOther" xml:space="preserve">
+    <value>{0} Verbindungen exportieren…</value>
+  </data>
+  <data name="Export_FileFilter" xml:space="preserve">
+    <value>FerretSharp-Verbindungen</value>
+  </data>
+  <data name="Export_DoneOne" xml:space="preserve">
+    <value>{0} Verbindung nach {1} exportiert.</value>
+  </data>
+  <data name="Export_DoneOther" xml:space="preserve">
+    <value>{0} Verbindungen nach {1} exportiert.</value>
+  </data>
+  <data name="Export_Failed" xml:space="preserve">
+    <value>Export fehlgeschlagen: {0}</value>
+  </data>
 </root>

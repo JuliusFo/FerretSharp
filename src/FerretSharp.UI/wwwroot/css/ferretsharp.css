@@ -254,6 +254,70 @@ kbd { font: 600 10px var(--mono); padding: 1px 5px; border-radius: 4px; border: 
 .connections-page.is-empty { display: flex; flex-direction: column; }
 .connections-page.is-empty .page-head { width: 100%; }
 .connections-empty { position: relative; flex: 1; min-height: 240px; }
+.empty-buttons { display: flex; gap: 8px; justify-content: center; }
+.page-head .icon-btn.more { opacity: 1; flex: none; }
+/* Group menu (WP-35): before the head in the markup (the line borders rely on head + first line), shown at its right end. */
+.conn-group { position: relative; }
+.conn-group .group-more { position: absolute; right: 6px; top: 4px; width: 22px; height: 22px; font-size: 13px; opacity: 0; }
+.conn-group:hover .group-more, .conn-group .group-more:focus { opacity: .7; }
+.conn-group .group-more:hover { opacity: 1; }
+
+/* ---------- import / export of connections (WP-35) ---------- */
+.dialog.import-dialog { width: min(980px, 96vw); height: min(720px, 92vh); }
+.dialog.import-dialog .dialog-body, .dialog.export-dialog .dialog-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+.import-sources { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
+.import-source {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 9px 12px; min-width: 0;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--surface); text-align: left;
+}
+.import-source:hover:not(:disabled) { background: var(--hover); }
+.import-source.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.import-source-name { font-weight: 600; }
+.import-source-detail { max-width: 100%; font-size: 12px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.import-state { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.import-state.error { color: var(--danger); }
+.import-table-wrap { flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--border); border-radius: 8px; }
+.import-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.import-table th { position: sticky; top: 0; z-index: 1; background: var(--surface-2); text-align: left; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--faint); }
+.import-table th, .import-table td { padding: 5px 8px; border-bottom: 1px solid var(--border); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
+.import-table tr:last-child td { border-bottom: 0; }
+.import-table .sel { width: 34px; }
+.import-table .kind { width: 150px; }
+.import-table .user { width: 150px; }
+.import-table .status { width: 200px; }
+.import-table td.addr { font: 12px var(--mono); color: var(--muted); }
+.import-table td.name { font-weight: 500; }
+.import-table .field { width: 100%; height: 26px; }
+.import-table .field.invalid { border-color: var(--danger); }
+.import-table .status .field { width: calc(100% - 24px); }
+.import-table tr.off td.name, .import-table tr.off td.addr { color: var(--faint); }
+.import-table tr.unsupported td { color: var(--faint); }
+.import-tag { display: inline-block; padding: 1px 8px; border-radius: 9px; font-size: 11.5px; font-weight: 600; }
+.import-tag.new { background: rgba(48, 164, 108, .15); color: var(--test); }
+.import-tag.exists { background: var(--surface-2); color: var(--muted); }
+.import-lock { margin-left: 6px; font-size: 12px; }
+.import-options { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.import-options label { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+.import-options .field { width: 200px; }
+.import-options .hint { margin-left: auto; font-size: 12px; }
+.dialog footer .field-error { margin-top: 0; }
+
+.dialog.export-dialog { width: min(760px, 96vw); height: min(680px, 92vh); }
+.export-head { display: flex; gap: 8px; align-items: center; }
+.export-list { flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--border); border-radius: 8px; padding: 4px 0; }
+.export-group-head { display: flex; align-items: center; gap: 8px; padding: 8px 12px 4px; cursor: pointer; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.export-group-head .hint { font-weight: 500; text-transform: none; letter-spacing: 0; }
+.export-line {
+  display: grid; grid-template-columns: 15px 8px minmax(120px, 1.2fr) 44px minmax(140px, 1.5fr) minmax(80px, 1fr);
+  align-items: center; gap: 10px; padding: 5px 12px 5px 30px; cursor: pointer;
+}
+.export-line:hover { background: var(--hover); }
+.export-line .name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.export-line .addr, .export-line .user { font: 12px var(--mono); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.export-group-head input, .export-line input { width: 15px; height: 15px; margin: 0; accent-color: var(--accent); }
+.password-dialog .password-field { display: flex; flex-direction: column; gap: 4px; margin: 12px 0 10px; color: var(--muted); }
+.password-dialog .password-field .field { width: 100%; }
+.password-dialog code { font-family: var(--mono); font-size: 12px; }
 
 /* ---------- settings page ---------- */
 .settings-page { position: absolute; inset: 0; overflow-y: auto; padding: 24px 32px 32px; }

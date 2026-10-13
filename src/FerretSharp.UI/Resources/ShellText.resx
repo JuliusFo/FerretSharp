@@ -1465,4 +1465,180 @@
     <value>Shortcuts › {0}</value>
     <comment>Heading of a group of shortcuts among the search results of the settings (WP-34); {0}: the group, e.g. Editing</comment>
   </data>
+  <data name="Password_Title" xml:space="preserve">
+    <value>Enter password</value>
+    <comment>Title of the dialog that asks for the password when connecting (WP-35)</comment>
+  </data>
+  <data name="Password_Question" xml:space="preserve">
+    <value>No password is saved for {0}. Log in as {1} with:</value>
+    <comment>{0}: connection name; {1}: user@address</comment>
+  </data>
+  <data name="Password_Remember" xml:space="preserve">
+    <value>Save in Credential Manager</value>
+    <comment>Check box: the Windows Credential Manager</comment>
+  </data>
+  <data name="Password_ForgetHint" xml:space="preserve">
+    <value>Kept only until FerretSharp ends.</value>
+  </data>
+  <data name="Import_Button" xml:space="preserve">
+    <value>Import…</value>
+    <comment>Button on the connections page: import connections</comment>
+  </data>
+  <data name="Import_Title" xml:space="preserve">
+    <value>Import connections</value>
+  </data>
+  <data name="Import_Source" xml:space="preserve">
+    <value>Source</value>
+  </data>
+  <data name="Import_Found" xml:space="preserve">
+    <value>found: {0}</value>
+    <comment>Under DBeaver/SQL Developer in the import dialog; {0}: DBeaver's projects or SQL Developer's version</comment>
+  </data>
+  <data name="Import_ChooseFile" xml:space="preserve">
+    <value>Choose file…</value>
+  </data>
+  <data name="Import_FileFilter" xml:space="preserve">
+    <value>Connection files</value>
+    <comment>File type in the open dialog</comment>
+  </data>
+  <data name="Import_NothingFound" xml:space="preserve">
+    <value>No DBeaver or SQL Developer found on this computer – choose a file instead.</value>
+  </data>
+  <data name="Import_Reading" xml:space="preserve">
+    <value>Reading …</value>
+  </data>
+  <data name="Import_FoundOne" xml:space="preserve">
+    <value>{0} connection found in {1}.</value>
+    <comment>{0}: count; {1}: DBeaver, SQL Developer or FerretSharp</comment>
+  </data>
+  <data name="Import_FoundOther" xml:space="preserve">
+    <value>{0} connections found in {1}.</value>
+    <comment>{0}: count; {1}: DBeaver, SQL Developer or FerretSharp</comment>
+  </data>
+  <data name="Import_OtherDatabasesOne" xml:space="preserve">
+    <value>{0} connection to another database left out.</value>
+    <comment>{0}: count of non-Oracle connections</comment>
+  </data>
+  <data name="Import_OtherDatabasesOther" xml:space="preserve">
+    <value>{0} connections to other databases left out.</value>
+    <comment>{0}: count of non-Oracle connections</comment>
+  </data>
+  <data name="Import_ColName" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="Import_ColKind" xml:space="preserve">
+    <value>Environment</value>
+  </data>
+  <data name="Import_ColAddress" xml:space="preserve">
+    <value>Address</value>
+  </data>
+  <data name="Import_ColStatus" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="Import_KindGuessed" xml:space="preserve">
+    <value>guessed</value>
+    <comment>Behind the environment in the import preview, e.g. “Test (guessed)”</comment>
+  </data>
+  <data name="Import_KindGuessedTitle" xml:space="preserve">
+    <value>The source names no environment; it was guessed from the name. The connection stays read-only until you pick one.</value>
+  </data>
+  <data name="Import_New" xml:space="preserve">
+    <value>New</value>
+    <comment>Status of a connection in the import preview</comment>
+  </data>
+  <data name="Import_Exists" xml:space="preserve">
+    <value>Exists</value>
+    <comment>Status of a connection in the import preview: already saved</comment>
+  </data>
+  <data name="Import_ExistsTitle" xml:space="preserve">
+    <value>Same address and user as “{0}”.</value>
+    <comment>{0}: name of the saved connection</comment>
+  </data>
+  <data name="Import_Overwrite" xml:space="preserve">
+    <value>Overwrite</value>
+  </data>
+  <data name="Import_Copy" xml:space="preserve">
+    <value>Add as copy</value>
+  </data>
+  <data name="Import_ReadOnlyTitle" xml:space="preserve">
+    <value>Imported read-only</value>
+  </data>
+  <data name="Import_DefaultGroup" xml:space="preserve">
+    <value>Group for connections without a group</value>
+  </data>
+  <data name="Import_NoPasswords" xml:space="preserve">
+    <value>Passwords are not imported – you enter them when connecting.</value>
+  </data>
+  <data name="Import_ImportOne" xml:space="preserve">
+    <value>Import {0} connection</value>
+    <comment>Button; {0}: count</comment>
+  </data>
+  <data name="Import_ImportOther" xml:space="preserve">
+    <value>Import {0} connections</value>
+    <comment>Button; {0}: count</comment>
+  </data>
+  <data name="Import_DoneOne" xml:space="preserve">
+    <value>{0} connection imported.</value>
+    <comment>{0}: count</comment>
+  </data>
+  <data name="Import_DoneOther" xml:space="preserve">
+    <value>{0} connections imported.</value>
+    <comment>{0}: count</comment>
+  </data>
+  <data name="Import_SaveFailed" xml:space="preserve">
+    <value>Saving failed: {0}</value>
+    <comment>{0}: error message</comment>
+  </data>
+  <data name="Export_Button" xml:space="preserve">
+    <value>Export…</value>
+    <comment>Menu entry on the connections page: export connections</comment>
+  </data>
+  <data name="Export_GroupButton" xml:space="preserve">
+    <value>Export group…</value>
+  </data>
+  <data name="Export_Title" xml:space="preserve">
+    <value>Export connections</value>
+  </data>
+  <data name="Export_All" xml:space="preserve">
+    <value>All</value>
+    <comment>Button: select all shown connections</comment>
+  </data>
+  <data name="Export_None" xml:space="preserve">
+    <value>None</value>
+    <comment>Button: select no connection</comment>
+  </data>
+  <data name="Export_GroupCount" xml:space="preserve">
+    <value>{0} of {1}</value>
+    <comment>{0}: selected connections of the group; {1}: all of the group</comment>
+  </data>
+  <data name="Export_LocalPaths" xml:space="preserve">
+    <value>Include paths of this computer (C# project, script folder)</value>
+  </data>
+  <data name="Export_NoPasswords" xml:space="preserve">
+    <value>Passwords are never exported.</value>
+  </data>
+  <data name="Export_ExportOne" xml:space="preserve">
+    <value>Export {0} connection…</value>
+    <comment>Button; {0}: count</comment>
+  </data>
+  <data name="Export_ExportOther" xml:space="preserve">
+    <value>Export {0} connections…</value>
+    <comment>Button; {0}: count</comment>
+  </data>
+  <data name="Export_FileFilter" xml:space="preserve">
+    <value>FerretSharp connections</value>
+    <comment>File type in the save dialog</comment>
+  </data>
+  <data name="Export_DoneOne" xml:space="preserve">
+    <value>{0} connection exported to {1}.</value>
+    <comment>{0}: count; {1}: file name</comment>
+  </data>
+  <data name="Export_DoneOther" xml:space="preserve">
+    <value>{0} connections exported to {1}.</value>
+    <comment>{0}: count; {1}: file name</comment>
+  </data>
+  <data name="Export_Failed" xml:space="preserve">
+    <value>Export failed: {0}</value>
+    <comment>{0}: error message</comment>
+  </data>
 </root>

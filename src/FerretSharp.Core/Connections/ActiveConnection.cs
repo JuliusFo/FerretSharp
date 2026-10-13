@@ -106,6 +106,11 @@ public sealed class ActiveConnection(
         }
         catch (DatabaseException ex)
         {
+            if (ex.ErrorCode == ConnectionManager.WrongPasswordCode)
+            {
+                connections.ForgetSessionPassword(profile.Id); // asked again next time instead of failing the same way
+            }
+
             await CloseAsync();
             Set(ConnectionStatus.Failed, profile, new ConnectionError(ex.Message, ex.ErrorCode));
             return;

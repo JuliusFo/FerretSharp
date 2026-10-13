@@ -59,6 +59,12 @@ public sealed class ConnectionManager(IConnectionStore store, ISecretStore secre
         }
     }
 
+    /// <summary>"Invalid username/password": a password entered for this run is forgotten then, so it is asked for again.</summary>
+    public const string WrongPasswordCode = "ORA-01017";
+
+    /// <summary>Drops a password entered for this run only; a saved one stays (it is changed under "Edit").</summary>
+    public void ForgetSessionPassword(Guid profileId) => _sessionPasswords.TryRemove(profileId, out _);
+
     /// <summary>
     /// Adds or replaces several profiles in one write (WP-35, import): one <see cref="Changed"/>, and nothing is saved if one
     /// is invalid. Passwords are left as they are.

@@ -23,6 +23,16 @@ public sealed partial class WorkspaceLifecycle
             return Task.CompletedTask;
         }
 
+        // WP-35: an imported connection has no password yet – ask instead of failing with "no password saved".
+        if (hub.Find(profile.Id) is not { } open || ConnectionHub.NeedsConnect(open))
+        {
+            if (!connections.HasPassword(profile.Id))
+            {
+                shell.RequestPassword(profile);
+                return Task.CompletedTask;
+            }
+        }
+
         // Showing (and opening the scope) here on the UI thread; only connecting runs in the background – ActiveConnection
         // reports progress through its Changed event and never throws.
         var scope = hub.Show(profile);

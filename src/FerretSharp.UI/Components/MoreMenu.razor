@@ -1,0 +1,48 @@
+@* A "⋯" button with a small menu of plain actions (WP-35: head of the connections page, group heads). The menu of a
+   connection line is ConnectionActionsMenu (connect, edit, duplicate, delete). *@
+
+<button class="icon-btn ghost more @Class" title="@ShellText.Actions" @onclick="Open" @onclick:stopPropagation="true">⋯</button>
+
+@if (_open)
+{
+    <div class="overlay" @onclick="Close" @onclick:stopPropagation="true" @oncontextmenu="Close" @oncontextmenu:preventDefault="true"></div>
+    <div class="menu" style="left:@Px(_x);top:@Px(_y)" @onclick:stopPropagation="true">
+        @foreach (var item in Items)
+        {
+            var action = item.Run;
+            <button class="menu-item" disabled="@(!item.Enabled)" @onclick="() => Run(action)">@item.Label</button>
+        }
+    </div>
+}
+
+@code {
+    private const double MenuWidth = 200;
+
+    private bool _open;
+    private double _x;
+    private double _y;
+
+    /// <summary>More classes of the button (e.g. to show it always, not only on hover).</summary>
+    [Parameter]
+    public string? Class { get; set; }
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<MoreMenuItem> Items { get; set; } = [];
+
+    private void Open(MouseEventArgs e)
+    {
+        _x = Math.Max(8, e.ClientX - MenuWidth);
+        _y = e.ClientY + 10;
+        _open = true;
+    }
+
+    private void Close() => _open = false;
+
+    private void Run(Action action)
+    {
+        _open = false;
+        action();
+    }
+
+    private static string Px(double value) => value.ToString("0", CultureInfo.InvariantCulture) + "px";
+}

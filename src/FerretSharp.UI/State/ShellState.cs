@@ -10,6 +10,9 @@ public enum ConnectionDialogMode { New, Edit, Duplicate }
 
 public sealed record ConnectionDialogRequest(ConnectionDialogMode Mode, ConnectionProfile? Profile);
 
+/// <summary>Export all connections, or – <paramref name="OnlyGroup"/> – those of one group (null = without group).</summary>
+public sealed record ConnectionExportRequest(bool OnlyGroup = false, string? Group = null);
+
 public enum ShellPage { Connections, Explorer, Settings, Model, Compare, AppStatements }
 
 /// <summary>
@@ -60,6 +63,9 @@ public sealed partial class ShellState
 
     public ShellPage Page { get; private set; } = ShellPage.Connections;
 
+    /// <summary>Where <see cref="Connect"/> came from; back there if the connection still needs a password.</summary>
+    private ShellPage _pageBeforeConnect = ShellPage.Connections;
+
     public ConnectionDialogRequest? ConnectionDialog { get; private set; }
 
     public ConnectionProfile? PendingDelete { get; private set; }
@@ -77,6 +83,8 @@ public sealed partial class ShellState
     {
         Set(() =>
         {
+            _pageBeforeConnect = Page;
+            PendingPassword = null;
             SwitcherOpen = false;
             Page = ShellPage.Explorer;
         });
@@ -189,6 +197,35 @@ public sealed partial class ShellState
         ActivateTab(tab);
         RequestTabCommand(tab, TabCommand.FocusRow);
     }
+
+    /// <summary>A connection without a password the user wants to open (WP-35): the shell asks for it first.</summary>
+    public ConnectionProfile? PendingPassword { get; private set; }
+
+    /// <summary>
+    /// Asks for the password instead of connecting; the page stays where the user was (<see cref="Connect"/> already
+    /// switched to the explorer).
+    /// </summary>
+    public void RequestPassword(ConnectionProfile profile) => Set(() =>
+    {
+        Page = _pageBeforeConnect;
+        PendingPassword = profile;
+    });
+
+    public void ClosePassword() => Set(() => PendingPassword = null);
+
+    /// <summary>The import dialog is open (WP-35).</summary>
+    public bool ImportOpen { get; private set; }
+
+    public void OpenImport() => Set(() => ImportOpen = true);
+
+    public void CloseImport() => Set(() => ImportOpen = false);
+
+    /// <summary>The export dialog is open (WP-35), for all connections or one group.</summary>
+    public ConnectionExportRequest? ExportRequest { get; private set; }
+
+    public void OpenExport(ConnectionExportRequest request) => Set(() => ExportRequest = request);
+
+    public void CloseExport() => Set(() => ExportRequest = null);
 
     public void OpenSwitcher() => Set(() => SwitcherOpen = true);
 
