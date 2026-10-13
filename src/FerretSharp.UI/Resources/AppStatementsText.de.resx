@@ -175,13 +175,13 @@
     <value>{0}× Fehler</value>
   </data>
   <data name="AppStatements_RepeatedTitle" xml:space="preserve">
-    <value>Lief bis zu {0}-mal innerhalb von {1} s – oft ein N+1-Problem</value>
+    <value>Lief bis zu {0}-mal innerhalb von {1} s in einem DbContext – oft ein N+1-Problem</value>
   </data>
   <data name="AppStatements_RepeatedLazy" xml:space="preserve">
-    <value>Lief bis zu {0}-mal innerhalb von {1} s durch Lazy Loading von „{2}“ – ein N+1-Problem: die Navigation mit der Abfrage zusammen laden (Include) oder für alle Zeilen auf einmal.</value>
+    <value>Lief bis zu {0}-mal innerhalb von {1} s in einem DbContext durch Lazy Loading von „{2}“ – ein N+1-Problem: die Navigation mit der Abfrage zusammen laden (Include) oder für alle Zeilen auf einmal.</value>
   </data>
   <data name="AppStatements_RepeatedLoop" xml:space="preserve">
-    <value>Lief bis zu {0}-mal innerhalb von {1} s – vermutlich einmal je Zeile in einer Schleife (N+1): eine Abfrage für alle Zeilen ist meist viel schneller.</value>
+    <value>Lief bis zu {0}-mal innerhalb von {1} s in einem DbContext – vermutlich einmal je Zeile in einer Schleife (N+1): eine Abfrage für alle Zeilen ist meist viel schneller.</value>
   </data>
   <data name="AppStatements_DetailCountOne" xml:space="preserve">
     <value>{0} Lauf · {1}</value>

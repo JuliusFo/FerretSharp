@@ -206,15 +206,15 @@
     <comment>{0}: how often the statement failed</comment>
   </data>
   <data name="AppStatements_RepeatedTitle" xml:space="preserve">
-    <value>Ran up to {0} times within {1} s – often an N+1 problem</value>
+    <value>Ran up to {0} times within {1} s in one DbContext – often an N+1 problem</value>
     <comment>{0}: most runs seen within the window; {1}: the window in seconds</comment>
   </data>
   <data name="AppStatements_RepeatedLazy" xml:space="preserve">
-    <value>Ran up to {0} times within {1} s by lazy loading of “{2}” – an N+1 problem: load the navigation together with the query (Include) or for all rows at once.</value>
+    <value>Ran up to {0} times within {1} s in one DbContext by lazy loading of “{2}” – an N+1 problem: load the navigation together with the query (Include) or for all rows at once.</value>
     <comment>{0}: most runs within the window; {1}: the window in seconds; {2}: name of the navigation</comment>
   </data>
   <data name="AppStatements_RepeatedLoop" xml:space="preserve">
-    <value>Ran up to {0} times within {1} s – probably once per row in a loop (N+1): one query for all rows is usually much faster.</value>
+    <value>Ran up to {0} times within {1} s in one DbContext – probably once per row in a loop (N+1): one query for all rows is usually much faster.</value>
     <comment>{0}: most runs within the window; {1}: the window in seconds</comment>
   </data>
   <data name="AppStatements_DetailCountOne" xml:space="preserve">

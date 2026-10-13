@@ -41,16 +41,16 @@ public sealed class AppTraceSourceTests(OracleContainerFixture oracle)
 
         var snapshot = recording.Snapshot();
         int Count(StatementOrigin origin) => snapshot.Origins.SingleOrDefault(o => o.Origin == origin)?.Count ?? 0;
-        // 3 rounds: 2 LINQ (orders, FromSql with Count on top), 5 lazy loads, 1 FromSql, 1 raw UPDATE, 1 SaveChanges, 1 ExecuteUpdate
+        // 3 rounds: 2 LINQ (orders, FromSql with Count on top), 12 lazy loads, 1 FromSql, 1 raw UPDATE, 1 SaveChanges, 1 ExecuteUpdate
         Assert.Equal(6, Count(StatementOrigin.Linq));
-        Assert.Equal(15, Count(StatementOrigin.LazyLoading));
+        Assert.Equal(36, Count(StatementOrigin.LazyLoading));
         Assert.Equal(3, Count(StatementOrigin.FromSql));
         Assert.Equal(3, Count(StatementOrigin.ExecuteSql));
         Assert.Equal(3, Count(StatementOrigin.SaveChanges));
         Assert.Equal(3, Count(StatementOrigin.ExecuteUpdate));
         var lazy = Assert.Single(snapshot.Statements, s => s.Origin == StatementOrigin.LazyLoading);
-        Assert.Equal(("Positionen", 48L), (lazy.Navigation, lazy.Rows)); // 15 + 16 + 17 lines
-        Assert.True(lazy.Repeated); // 15 runs within a moment
+        Assert.Equal(("Positionen", 111L), (lazy.Navigation, lazy.Rows)); // 36 + 37 + 38 lines
+        Assert.True(lazy.Repeated); // 12 runs in one context within a moment
         Assert.Contains(".db", snapshot.DataSource, StringComparison.Ordinal); // SQLite: the file
     }
 
@@ -123,7 +123,7 @@ public sealed class AppTraceSourceTests(OracleContainerFixture oracle)
 
         var snapshot = recording.Snapshot();
         var lazy = Assert.Single(snapshot.Statements, s => s.Origin == StatementOrigin.LazyLoading);
-        Assert.Equal(15, lazy.Count);
+        Assert.Equal(36, lazy.Count);
 
         // The app's data source is the container's connect descriptor: it names the profile's host, port and service.
         var match = AppConnectionMatch.Find([profile, profile with { Id = Guid.NewGuid(), Name = "Other", Address = new HostPortAddress("elsewhere", 1521, "X", null) }], null, snapshot.DataSource);
@@ -132,7 +132,7 @@ public sealed class AppTraceSourceTests(OracleContainerFixture oracle)
         await using var connection = await new OracleDatabaseConnector().OpenAsync(profile, password, "App trace lookup", Ct);
         var cursor = await connection.Schema.GetCursorAsync(lazy.Text, Ct);
         Assert.NotNull(cursor);
-        Assert.Equal(15, cursor.Executions);
+        Assert.Equal(36, cursor.Executions);
         Assert.Equal(lazy.Rows, cursor.RowsProcessed);
         Assert.Contains(cursor.Plan.Steps, s => s.ObjectName == "TR_POSITION");
     }

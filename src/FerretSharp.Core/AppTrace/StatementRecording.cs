@@ -1,6 +1,9 @@
 namespace FerretSharp.Core.AppTrace;
 
-/// <summary>When the same statement counts as repeated (N+1): at least <paramref name="Count"/> runs within <paramref name="Window"/>.</summary>
+/// <summary>
+/// When the same statement counts as repeated (N+1): at least <paramref name="Count"/> runs within <paramref name="Window"/>
+/// in one DbContext – one unit of work, usually one request.
+/// </summary>
 public sealed record RepeatRule(int Count, TimeSpan Window)
 {
     /// <summary>Decided with the user (WP-33): 10 runs within 2 s.</summary>
@@ -16,8 +19,8 @@ public sealed record OriginTotals(StatementOrigin Origin, int Count, TimeSpan Ti
 /// <param name="Max">The longest single run.</param>
 /// <param name="Rows">Rows read (queries) or affected (other statements); see <see cref="StatementRecording"/>.</param>
 /// <param name="Navigation">For lazy loading: the navigation that was loaded last (<c>Positionen</c>).</param>
-/// <param name="Burst">The most runs seen within the window of the <see cref="RepeatRule"/>.</param>
-/// <param name="Repeated">The statement ran at least as often as the rule says within its window (N+1).</param>
+/// <param name="Burst">The most runs seen within the window of the <see cref="RepeatRule"/> in one DbContext.</param>
+/// <param name="Repeated">The statement ran at least as often as the rule says within its window in one DbContext (N+1).</param>
 public sealed record StatementTotals(
     StatementOrigin Origin,
     string Text,
@@ -187,7 +190,7 @@ public sealed class StatementRecording(RepeatRule? rule = null)
         var entry = EntryOf(origin, text, e.Time);
         if (entry is not null)
         {
-            entry.Run(duration, rows, e.Time, _rule);
+            entry.Run(duration, rows, e.Time, context, _rule);
             entry.Navigation = navigation ?? entry.Navigation;
             if (error)
             {
@@ -296,7 +299,14 @@ public sealed class StatementRecording(RepeatRule? rule = null)
         /// <summary>A burst is counted up to this (a statement in a tight loop would otherwise keep every time of the window).</summary>
         private const int MaxBurst = 1000;
 
-        private readonly Queue<DateTimeOffset> _recent = new();
+        /// <summary>Contexts whose runs are kept for the burst, at most (one per request: older ones are pruned).</summary>
+        private const int MaxContexts = 200;
+
+        /// <summary>
+        /// The recent runs per DbContext: an N+1 repeats a statement within one unit of work (one request). The same query
+        /// from many requests – an app under load, a polling job – is no N+1 and must not count together.
+        /// </summary>
+        private readonly Dictionary<string, Queue<DateTimeOffset>> _recentByContext = [];
 
         public string Text => text;
         public int Count;
@@ -310,7 +320,7 @@ public sealed class StatementRecording(RepeatRule? rule = null)
         public DateTimeOffset First { get; } = first;
         public DateTimeOffset Last = first;
 
-        public void Run(TimeSpan duration, long rows, DateTimeOffset at, RepeatRule rule)
+        public void Run(TimeSpan duration, long rows, DateTimeOffset at, string? context, RepeatRule rule)
         {
             Count++;
             Time += duration;
@@ -318,13 +328,38 @@ public sealed class StatementRecording(RepeatRule? rule = null)
             Max = StatementRecording.Max(Max, duration);
             Last = at > Last ? at : Last;
 
-            _recent.Enqueue(at);
-            while (_recent.Count > 0 && (at - _recent.Peek() > rule.Window || _recent.Count > MaxBurst))
+            var key = context ?? "";
+            if (!_recentByContext.TryGetValue(key, out var recent))
             {
-                _recent.Dequeue();
+                if (_recentByContext.Count >= MaxContexts)
+                {
+                    Prune(at, rule);
+                }
+
+                _recentByContext[key] = recent = new Queue<DateTimeOffset>();
             }
 
-            Burst = Math.Max(Burst, _recent.Count);
+            recent.Enqueue(at);
+            while (recent.Count > 0 && (at - recent.Peek() > rule.Window || recent.Count > MaxBurst))
+            {
+                recent.Dequeue();
+            }
+
+            Burst = Math.Max(Burst, recent.Count);
+        }
+
+        /// <summary>Drops the contexts without a run in the window (requests that are over); all of them if that is not enough.</summary>
+        private void Prune(DateTimeOffset now, RepeatRule rule)
+        {
+            foreach (var (key, recent) in _recentByContext.Where(c => c.Value.Count == 0 || now - c.Value.Last() > rule.Window).ToList())
+            {
+                _recentByContext.Remove(key);
+            }
+
+            if (_recentByContext.Count >= MaxContexts)
+            {
+                _recentByContext.Clear();
+            }
         }
 
         public StatementTotals ToTotals(RepeatRule rule) =>

@@ -34,7 +34,7 @@ using (var setup = new ShopContext(configure))
     }
 
     setup.GetService<IRelationalDatabaseCreator>().CreateTables();
-    for (var i = 1; i <= 5; i++)
+    for (var i = 1; i <= 12; i++) // 12 orders: their lazy loads in one context are an N+1 (10 or more within 2 s)
     {
         var order = new Auftrag { Nummer = $"A-{i}" };
         for (var p = 1; p <= 3; p++)

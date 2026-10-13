@@ -137,6 +137,39 @@ public sealed class StatementRecordingTests
     }
 
     [Fact]
+    public void The_same_statement_from_many_contexts_is_no_n_plus_one()
+    {
+        var recording = new StatementRecording();
+
+        // An app under load: 20 requests within a second, each with its own context, each running the query once.
+        for (var i = 0; i < 20; i++)
+        {
+            recording.Apply(Executed(Lines, "LinqQuery", 1, at: i * 50, context: $"request-{i}:0"));
+        }
+
+        var statement = Assert.Single(recording.Snapshot().Statements);
+        Assert.Equal((20, 1, false), (statement.Count, statement.Burst, statement.Repeated));
+    }
+
+    [Fact]
+    public void Many_requests_do_not_hide_a_repeat_in_one_of_them()
+    {
+        var recording = new StatementRecording();
+
+        for (var i = 0; i < 500; i++)
+        {
+            recording.Apply(Executed(Orders, "LinqQuery", 1, at: i, context: $"request-{i}:0")); // more contexts than kept
+        }
+
+        for (var i = 0; i < 10; i++)
+        {
+            recording.Apply(Executed(Orders, "LinqQuery", 1, at: 600 + i, context: "loop:0"));
+        }
+
+        Assert.True(Assert.Single(recording.Snapshot().Statements).Repeated);
+    }
+
+    [Fact]
     public void The_rule_can_be_set()
     {
         var recording = new StatementRecording(new RepeatRule(3, TimeSpan.FromSeconds(1)));
