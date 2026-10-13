@@ -43,7 +43,7 @@ Was in den abgeschlossenen Paketen gebaut und entschieden wurde, mit Nachträgen
 | WP-23 (3) | Neue Tabelle im Designer (Entwurfs-Tab, Rest des Entwurfs nach Abbruch im Tabellen-Tab), Entity + `IEntityTypeConfiguration` aus einer Tabelle (Issue #10) | 3.24.0 | 0020 |
 | WP-26 | Audit-Tabellen und Trigger aus einer Vorlagendatei: anlegen, abgleichen, im Designer mitziehen; Trigger über den Schemaweg (aus, prüfen, ein), Kompilierfehler als Marker | 3.26.0 | 0021 |
 | WP-31 | Anzeigespalten: Namen neben FK-Werten im Grid und im Formular, „nicht gefunden“ für verwaiste Werte, geteilte Datei (Issue #11) | 3.27.0 | 0022 |
-| WP-33 | Statements der laufenden App: von außen an eine lokale EF-Core-App anhängen (EventPipe), Statements nach Herkunft, N+1, Nachsehen in `V$SQL` mit Plan, Zuordnung zur Verbindung über die App-Umgebung (Issue #12) | (3.28.0) | 0023 |
+| WP-33 | Statements der laufenden App: von außen an eine lokale EF-Core-App anhängen (EventPipe), Statements nach Herkunft, N+1, Nachsehen in `V$SQL` mit Plan, Zuordnung zur Verbindung über die App-Umgebung (Issue #12) | 3.28.0 | 0023 |
 | R3a | Fehlerbehebung nach dem Review 3.14.0 (Verbindungsverlust je Verbindung, Schreiben serialisiert, UI-Testprojekt) | 3.14.1 | – |
 | R3b | Struktur-Refactoring nach dem Review 3.14.0 (Schema-Reader, Typwissen, SessionGate, UI-Bausteine, State) | 3.15.0 | – |
 | R4a | Fehlerbehebung nach dem Review 3.24.0 (HTML in Zellen, Tracker nach DDL, DDL-Rollback, Designer-Ausdrücke, Einstellungsdateien, Undo/Redo, C#-Entity) | 3.24.1 | (0019) |
@@ -412,7 +412,7 @@ Wunsch des Nutzers (2026-10-09): README, CHANGELOG und Screenshots auf GitHub si
   - Nicht per E2E: alle Dialoge und Meldungen einzeln (Ressourcen-Tests und Prüfdurchgang statt Klickpfad), deutsche Oberfläche verbunden.
 - Offen: Formatkultur (Zahlen „1.234,5“, Laufzeit „1,1 s“ und Datumseingabe `TT.MM.JJJJ` auch in der englischen Oberfläche; Eingabehinweise englisch als „DD.MM.YYYY“) – Backlog. Oracle-Fehlermeldungen kommen in der Sprache des Oracle-Clients (Windows-Locale), nicht der Oberfläche.
 
-### WP-33 Statements der laufenden App → noch nicht released (3.28.0 vorgesehen)
+### WP-33 Statements der laufenden App → Release 3.28.0
 Idee des Nutzers (2026-10-12), Issue #12, ADR 0023: FerretSharp hängt sich von außen an eine lokal laufende App mit EF Core (Debuggen in VS, `dotnet run`) und zeigt, welche Statements sie schickt – nach Herkunft, die teuersten, N+1 –, mit Nachsehen in `V$SQL` der passenden Verbindung. Ohne Code-Änderung in der App, ohne VS-Extension.
 - Vorlauf: Spike (2026-10-12, EF Core 8 mit Lazy-Loading-Proxies, SQLite und Oracle 23) – Herkunft über `CommandSource`, Lazy Loading über `NavigationLazyLoading`, berechnete `SQL_ID` in `V$SQL` gefunden, 9.000 Abfragen ohne Verlust, eingefrorener Prozess ohne Verlust. Einzelheiten im ADR 0023 (der Planungsabschnitt der Roadmap steht in der Git-Historie, Commit `6354511`).
 - Entscheidungen des Nutzers (2026-10-13, bei der Planung): eigene Seite wie Einstellungen/Schema-Vergleich; Prozessliste auf Klick; Umgebung aus der Kommandozeile, Schlüssel `environment` in allen üblichen Schreibweisen (Vorschlag, bestätigt); N+1 ab 10 gleichen Statements in 2 s, für Lazy Loading und Schleifen; Paket in die Roadmap und als Issue.

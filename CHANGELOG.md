@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.28.0] - 2026-10-13
+
 App statements: see what your running app sends to the database (WP-33).
 
 ### Added

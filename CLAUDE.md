@@ -1,7 +1,7 @@
 # FerretSharp – Oracle explorer for .NET developers
 
 > Projektanweisungen für Claude Code. Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-12, Release 3.27.1 (Historie: `CHANGELOG.md`).
+> Stand: 2026-10-13, Release 3.28.0 (Historie: `CHANGELOG.md`).
 
 ## Wo steht was
 
@@ -147,5 +147,5 @@ Regeln:
 
 ## 8. Als Nächstes (Details und Entscheidungen des Nutzers: `docs/roadmap.md`)
 
-- WP-33 (Statements der laufenden App, Issue #12, ADR 0023) ist umgesetzt, das Release 3.28.0 steht aus. Geplant, Zeitpunkt offen: WP-32 (Installer und Update-Hinweis mit Velopack, ADR 0024); sonst das nächste Paket mit dem Nutzer aus `docs/backlog.md` auswählen.
+- WP-33 (Statements der laufenden App, Issue #12, ADR 0023) ist in 3.28.0 released. Geplant, Zeitpunkt offen: WP-32 (Installer und Update-Hinweis mit Velopack, ADR 0024); sonst das nächste Paket mit dem Nutzer aus `docs/backlog.md` auswählen.
 - Seit WP-26 nimmt der Schemaweg Trigger auf Tabellen/Views (ADR 0021); Procedures/Packages/Types anlegen, PL/SQL ausführen und bearbeiten (Stufen 2/3 nach WP-28) stehen weiter im Backlog – der Blockmodus des Splitters und die Kompilierprüfung (Status statt ORA-24344) sind dafür schon da.
