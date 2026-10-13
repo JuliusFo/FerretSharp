@@ -88,6 +88,19 @@ public sealed record ConnectionProfile(
             .Where(p => !string.IsNullOrWhiteSpace(p))
             .ToList();
 
+    /// <summary>
+    /// Whether open sessions made with this profile work differently from <paramref name="saved"/>: kind and read-only
+    /// (protection, Prod confirmations, masking), address, user, default schema. Only a new connection applies them – the
+    /// connection dialog offers it (review 3.31.0, A8). Name, group and paths apply at once.
+    /// </summary>
+    public bool SessionDiffers(ConnectionProfile saved)
+    {
+        ArgumentNullException.ThrowIfNull(saved);
+        return Kind != saved.Kind || ReadOnly != saved.ReadOnly || Address != saved.Address
+               || !string.Equals(User, saved.User, StringComparison.Ordinal)
+               || !string.Equals(DefaultSchema ?? "", saved.DefaultSchema ?? "", StringComparison.Ordinal);
+    }
+
     /// <summary>The profile without its <see cref="LocalPaths"/> (a TNS alias then reads TNS_ADMIN from the environment).</summary>
     public ConnectionProfile WithoutLocalPaths() => this with
     {

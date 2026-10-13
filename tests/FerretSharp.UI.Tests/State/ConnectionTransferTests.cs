@@ -115,5 +115,56 @@ public sealed class ConnectionTransferTests : IAsyncDisposable
         Assert.Empty(_app.Secrets.Passwords);
     }
 
+    /// <summary>Review 3.31.0, A8: an open connection edited to Prod kept writing without the Prod protection until disconnected.</summary>
+    [Fact]
+    public async Task Reconnecting_after_an_edit_applies_the_saved_profile()
+    {
+        var profile = TestApp.Profile("ERP", ConnectionKind.Dev);
+        await _app.OpenAsync(profile);
+        var prod = profile with { Kind = ConnectionKind.Prod, ReadOnly = true };
+        Assert.True(profile.SessionDiffers(prod));
+        Assert.False(profile.SessionDiffers(profile with { Name = "ERP neu", Group = "Kunde" }));
+
+        _app.Shell.OfferReconnect(prod);
+        await _app.Lifecycle.ReconnectChangedAsync(prod);
+
+        Assert.Null(_app.Shell.ReconnectOffer);
+        var scope = _app.Hub.Find(profile.Id)!;
+        await ConnectedAsync(scope);
+        Assert.Equal(ConnectionKind.Prod, scope.Profile!.Kind);
+        Assert.False(scope.Workspaces.IsWritable(scope.Workspaces.Active!.Id));
+    }
+
+    [Fact]
+    public async Task Reconnecting_after_an_edit_asks_about_uncommitted_work_first()
+    {
+        var profile = TestApp.Profile("ERP", ConnectionKind.Dev);
+        var scope = await _app.OpenAsync(profile);
+        _app.AddPendingWork(scope);
+
+        await _app.Lifecycle.ReconnectChangedAsync(profile with { ReadOnly = true });
+
+        Assert.NotNull(_app.Lifecycle.PendingLeave);
+        Assert.Same(scope, _app.Hub.Find(profile.Id));
+        Assert.False(scope.Profile!.ReadOnly);
+    }
+
+    private static async Task ConnectedAsync(ConnectionScope scope)
+    {
+        var connected = new TaskCompletionSource();
+        void Check()
+        {
+            if (scope.Active.IsConnected)
+            {
+                connected.TrySetResult();
+            }
+        }
+
+        scope.Active.Changed += Check;
+        Check();
+        await connected.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        scope.Active.Changed -= Check;
+    }
+
     public ValueTask DisposeAsync() => _app.DisposeAsync();
 }

@@ -70,6 +70,25 @@ public sealed partial class WorkspaceLifecycle
         _ = Task.Run(() => scope.Active.ConnectAsync(profile, CancellationToken.None));
     }
 
+    /// <summary>
+    /// The connection was edited while open (review 3.31.0, A8): disconnect – asking about its uncommitted work first, as
+    /// "Disconnect" does – and connect again with the saved profile, so kind, read-only, address, user and schema apply.
+    /// </summary>
+    public Task ReconnectChangedAsync(ConnectionProfile profile)
+    {
+        shell.CancelReconnectOffer();
+        if (hub.Find(profile.Id) is not { } scope)
+        {
+            return Task.CompletedTask;
+        }
+
+        return GuardAsync(TextFormat.Format(ShellText.Lifecycle_DisconnectWhat, profile.Name), WorkspacesOf(scope), async () =>
+        {
+            await DisconnectCoreAsync(scope);
+            await ConnectAsync(connections.Profiles.FirstOrDefault(p => p.Id == profile.Id) ?? profile);
+        });
+    }
+
     /// <summary>Disconnects the shown connection (after asking about its uncommitted work); another open one is shown.</summary>
     public Task DisconnectAsync() => hub.Current is { } current ? DisconnectAsync(current) : Task.CompletedTask;
 

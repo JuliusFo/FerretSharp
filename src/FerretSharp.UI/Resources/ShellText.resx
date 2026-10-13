@@ -154,6 +154,16 @@
     <value>{0} written</value>
     <comment>{0} = number of written changes</comment>
   </data>
+  <data name="Dialogs_ReconnectTitle" xml:space="preserve">
+    <value>Reconnect?</value>
+  </data>
+  <data name="Dialogs_ReconnectText" xml:space="preserve">
+    <value>{0} is connected. Kind, read-only, address, user, schema and password apply to its sessions only after connecting again – until then they work as before.</value>
+    <comment>{0} = connection name (bold)</comment>
+  </data>
+  <data name="Dialogs_ReconnectLater" xml:space="preserve">
+    <value>Later</value>
+  </data>
   <data name="Connection_Reconnect" xml:space="preserve">
     <value>Reconnect</value>
     <comment>Button</comment>

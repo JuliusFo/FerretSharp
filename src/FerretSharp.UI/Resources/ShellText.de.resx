@@ -126,6 +126,15 @@
   <data name="Changes_Written" xml:space="preserve">
     <value>{0} geschrieben</value>
   </data>
+  <data name="Dialogs_ReconnectTitle" xml:space="preserve">
+    <value>Neu verbinden?</value>
+  </data>
+  <data name="Dialogs_ReconnectText" xml:space="preserve">
+    <value>{0} ist verbunden. Art, Schreibschutz, Adresse, User, Schema und Passwort gelten für ihre Sessions erst nach dem Neuverbinden – bis dahin arbeiten sie wie vorher.</value>
+  </data>
+  <data name="Dialogs_ReconnectLater" xml:space="preserve">
+    <value>Später</value>
+  </data>
   <data name="Connection_Reconnect" xml:space="preserve">
     <value>Neu verbinden</value>
   </data>

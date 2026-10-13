@@ -2,6 +2,7 @@
 @using FerretSharp.Core.Connections
 @implements IDisposable
 @inject ConnectionManager Connections
+@inject ConnectionHub Hub
 @inject IConnectionTester Tester
 @inject IFileOpenService Files
 
@@ -377,8 +378,13 @@
             // Edit: null keeps the stored password. New/duplicate: store the typed one, or the original's saved one (never
             // a password kept only for this run, WP-35); none: asked for when connecting.
             var newPassword = Form.IsNew ? EffectivePassword() : Form.Password.Length > 0 ? Form.Password : null;
+            var open = Form.IsNew ? null : Hub.Find(profile.Id)?.Profile;
             await Connections.SaveAsync(profile, newPassword, CancellationToken.None);
             await CloseAsync();
+            if (open is not null && (open.SessionDiffers(profile) || newPassword is not null))
+            {
+                Shell.OfferReconnect(profile); // the open sessions still work with the old settings (review 3.31.0, A8)
+            }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
         {

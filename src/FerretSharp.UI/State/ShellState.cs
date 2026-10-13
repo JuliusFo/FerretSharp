@@ -170,6 +170,13 @@ public sealed partial class ShellState
 
     public void CancelDelete() => Set(() => PendingDelete = null);
 
+    /// <summary>An open connection was saved with changes that only a new connection applies (review 3.31.0, A8).</summary>
+    public ConnectionProfile? ReconnectOffer { get; private set; }
+
+    public void OfferReconnect(ConnectionProfile profile) => Set(() => ReconnectOffer = profile);
+
+    public void CancelReconnectOffer() => Set(() => ReconnectOffer = null);
+
     public void ShowError(DatabaseException error) => Set(() => ErrorDetails = error);
 
     public void CloseError() => Set(() => ErrorDetails = null);
