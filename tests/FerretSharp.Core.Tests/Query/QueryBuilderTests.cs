@@ -113,6 +113,26 @@ public partial class QueryBuilderTests
         Assert.Equal(RowKeyKind.PrimaryKey, view.RowKey);
     }
 
+    /// <summary>Review 3.31.0, A18 and A32: national columns were filtered in the database character set; "ends with" missed CHAR padding.</summary>
+    [Fact]
+    public void Text_filters_bind_national_columns_nationally_and_end_char_values_without_padding()
+    {
+        var table = Kunden with
+        {
+            Columns = [.. Kunden.Columns, Col("ORT", "NVARCHAR2", length: 40), Col("LAND", "NCHAR", length: 2)],
+        };
+
+        var query = Select(table, [
+            FilterCondition.Of("ORT", FilterOperator.Equals, "Łódź"),
+            FilterCondition.Of("LAND", FilterOperator.Equals, "PL"),
+            FilterCondition.Of("ORT", FilterOperator.Contains, "ó"),
+            FilterCondition.Of("KUERZEL", FilterOperator.EndsWith, "AB"),
+        ]);
+
+        Assert.Equal([OracleTypeHint.NVarchar2, OracleTypeHint.NChar, OracleTypeHint.NVarchar2, OracleTypeHint.Varchar2], query.Parameters.Take(4).Select(p => p.Type)); // then paging
+        Assert.Contains("UPPER(RTRIM(t.\"KUERZEL\")) LIKE", query.Sql);
+    }
+
     [Fact]
     public void View_without_key_has_no_rowid_and_orders_by_all_sortable_columns()
     {

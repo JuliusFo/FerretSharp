@@ -64,6 +64,7 @@ internal static class OracleParameters
     private static OracleDbType? DbTypeOf(OracleTypeHint hint) => hint switch
     {
         OracleTypeHint.NVarchar2 => OracleDbType.NVarchar2,
+        OracleTypeHint.NChar => OracleDbType.NChar,
         OracleTypeHint.Varchar2 => OracleDbType.Varchar2,
         OracleTypeHint.Char => OracleDbType.Char,
         OracleTypeHint.Number => OracleDbType.Decimal,

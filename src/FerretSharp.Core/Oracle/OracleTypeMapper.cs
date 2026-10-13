@@ -152,7 +152,8 @@ public static class OracleTypeMapper
     public static OracleTypeHint BindType(ColumnInfo column) => column.DataType switch
     {
         "CHAR" => OracleTypeHint.Char,
-        "NCHAR" or "NVARCHAR2" => OracleTypeHint.NVarchar2,
+        "NCHAR" => OracleTypeHint.NChar,
+        "NVARCHAR2" => OracleTypeHint.NVarchar2,
         "VARCHAR2" => OracleTypeHint.Varchar2,
         "NUMBER" or "FLOAT" or "INTEGER" => OracleTypeHint.Number,
         "DATE" => OracleTypeHint.Date,

@@ -274,7 +274,8 @@ public class FkNavigationTests
         Assert.NotNull(text);
         Assert.Null(FilterRules.Validate(column, filter));
         Assert.Contains("\"C\" = :p0", query.Sql);
-        Assert.Equal(value, query.Parameters.Single().Value);
+        // CHAR without its padding (review 3.31.0, A32): bound as CHAR it compares blank-padded, so it finds the same rows.
+        Assert.Equal(value is string s && type == "CHAR" ? s.TrimEnd(' ') : value, query.Parameters.Single().Value);
     }
 
     [Fact]
