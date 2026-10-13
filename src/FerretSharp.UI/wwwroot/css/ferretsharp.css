@@ -1052,7 +1052,7 @@ table.plan tr.inactive td { opacity: .45; }
 .compare-actions { display: flex; align-items: center; gap: 14px; padding-top: 4px; }
 .compare-result { display: flex; flex-direction: column; min-height: 0; }
 .compare-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; padding: 10px 16px; border-bottom: 1px solid var(--border); }
-.compare-search { width: 200px; height: 28px; padding: 0 8px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface); color: var(--text); }
+.search.compare-search { width: 220px; flex: none; } /* SearchBox in the toolbar of the comparison and the model mismatches */
 .compare-matrix-wrap { overflow: auto; max-height: calc(100vh - 330px); }
 table.compare-matrix { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 12.5px; }
 table.compare-matrix th { position: sticky; top: 0; z-index: 1; padding: 7px 10px; background: var(--surface-2); border-bottom: 1px solid var(--border); text-align: left; font-weight: 600; white-space: nowrap; }

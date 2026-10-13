@@ -1,5 +1,6 @@
 @* The history beside a SQL tab (R3b, out of SqlView): the connection's last statements, searchable; a click adopts one
    into the script. *@
+@using FerretSharp.Core.Query
 @using System.Text.RegularExpressions
 @using FerretSharp.Core.Workspaces
 
@@ -31,9 +32,8 @@
     [Parameter]
     public EventCallback<SqlHistoryEntry> OnAdopt { get; set; }
 
-    /// <summary>Every word must occur in the statement, in any order.</summary>
-    private IEnumerable<SqlHistoryEntry> Filtered => Entries.Where(e =>
-        _search.Split(' ', StringSplitOptions.RemoveEmptyEntries).All(w => e.Sql.Contains(w, StringComparison.OrdinalIgnoreCase)));
+    /// <summary>Every word must occur in the statement, in any order (<see cref="TextSearch"/>).</summary>
+    private IEnumerable<SqlHistoryEntry> Filtered => new TextSearch(_search) is var search ? Entries.Where(e => search.Matches(e.Sql)) : [];
 
     private static string OneLine(string sql) => Regex.Replace(sql, @"\s+", " ").Trim();
 
