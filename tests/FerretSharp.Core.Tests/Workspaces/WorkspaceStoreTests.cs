@@ -180,6 +180,21 @@ public sealed class WorkspaceStoreTests : IDisposable
         Assert.Equal("{ not json", await File.ReadAllTextAsync(broken, Ct));
     }
 
+    /// <summary>Review 3.31.0, A41: a broken or newer file of one connection was reported when connecting to every other one.</summary>
+    [Fact]
+    public async Task Files_of_another_connection_are_not_reported()
+    {
+        var other = Guid.NewGuid();
+        Directory.CreateDirectory(_directory);
+        await File.WriteAllTextAsync(Path.Combine(_directory, Guid.NewGuid() + ".json"),
+            $$"""{ "version": 1, "workspace": { "id": "{{Guid.NewGuid()}}", "connectionId": "{{other}}", "name": "x", "tabs": [ kaputt""", Ct);
+        await File.WriteAllTextAsync(Path.Combine(_directory, Guid.NewGuid() + ".json"),
+            $$"""{ "version": 99, "workspace": { "id": "{{Guid.NewGuid()}}", "connectionId": "{{other}}", "name": "y" } }""", Ct);
+
+        Assert.Empty((await _store.LoadAsync(_connectionId, Ct)).Errors);
+        Assert.Equal(2, (await _store.LoadAsync(other, Ct)).Errors.Count);
+    }
+
     [Fact]
     public async Task Delete_removes_the_file()
     {

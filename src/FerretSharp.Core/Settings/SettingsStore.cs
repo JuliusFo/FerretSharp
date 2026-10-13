@@ -40,9 +40,10 @@ public sealed class SettingsStore(string filePath)
                 throw new SettingsStoreException(TextFormat.Format(SettingsText.FileFromNewerVersion, FilePath, document.Version));
             }
 
-            return document.Settings;
+            // A value set to null by hand (review 3.31.0, A6): the default, not a crash at start.
+            return document.Settings with { Shortcuts = document.Settings.Shortcuts ?? ShortcutOverrides.Empty };
         }
-        catch (JsonException ex)
+        catch (Exception ex) when (ex is JsonException or NotSupportedException)
         {
             throw new SettingsStoreException(TextFormat.Format(SettingsText.InvalidFile, FilePath, ex.Message), ex);
         }

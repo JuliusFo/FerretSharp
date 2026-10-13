@@ -117,7 +117,7 @@ public sealed class SqlHistoryStore(string directory)
             var file = await JsonSerializer.DeserializeAsync<HistoryFile>(stream, Options, cancellationToken);
             return file switch
             {
-                { Version: FileVersion } => (file.Entries, true),
+                { Version: FileVersion } => ((file.Entries ?? []).OfType<SqlHistoryEntry>().ToList(), true), // null by hand (A6)
                 { Version: > FileVersion } => ([], false), // a newer FerretSharp's history stays as it is
                 _ => ([], true),
             };
@@ -141,5 +141,5 @@ public sealed class SqlHistoryStore(string directory)
         Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
     };
 
-    private sealed record HistoryFile(int Version, List<SqlHistoryEntry> Entries);
+    private sealed record HistoryFile(int Version, IReadOnlyList<SqlHistoryEntry?>? Entries);
 }
