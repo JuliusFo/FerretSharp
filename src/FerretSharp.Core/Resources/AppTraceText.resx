@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="ProcessGone" xml:space="preserve">
+    <value>The app {0} (process {1}) is no longer running.</value>
+    <comment>{0}: name of the app; {1}: process id</comment>
+  </data>
+  <data name="NoDiagnostics" xml:space="preserve">
+    <value>The app {0} (process {1}) cannot be attached to: it belongs to another user or runs with diagnostics switched off (DOTNET_EnableDiagnostics=0). {2}</value>
+    <comment>{0}: name of the app; {1}: process id; {2}: error message of the system</comment>
+  </data>
+</root>

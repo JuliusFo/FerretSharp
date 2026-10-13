@@ -36,6 +36,15 @@ public sealed class AppEnvironmentTests
     public void Quotes_group_and_are_removed() =>
         Assert.Equal(["C:\\My Apps\\app.exe", "-x=a b", "", "z"], AppEnvironment.Split("\"C:\\My Apps\\app.exe\"  -x=\"a b\" \"\" z"));
 
+    [Theory]
+    [InlineData("Erp.Api", @"C:\Apps\Erp.Api.exe", "Erp.Api")]
+    [InlineData("dotnet", @"""C:\Program Files\dotnet\dotnet.exe"" exec --depsfile x.deps.json C:\Apps\Erp.Worker.dll -environment=a", "Erp.Worker")]
+    [InlineData("dotnet", "/usr/bin/dotnet /srv/erp/Erp.Api.dll", "Erp.Api")]
+    [InlineData("dotnet", "dotnet watch run", "dotnet")]
+    [InlineData("dotnet", null, "dotnet")]
+    public void Apps_started_by_the_dotnet_host_are_named_after_their_dll(string process, string? commandLine, string expected) =>
+        Assert.Equal(expected, TraceableProcess.NameOf(process, commandLine));
+
     [Fact]
     public void A_process_knows_its_environment() =>
         Assert.Equal("erp-dev", new TraceableProcess(1, "Erp.Api", "Erp.Api.exe -environment=erp-dev", null).Environment);

@@ -26,7 +26,7 @@ public sealed class AppTraceServiceTests : IAsyncDisposable
     public AppTraceServiceTests()
     {
         _connections = new ConnectionManager(_store, new InMemorySecretStore());
-        _service = new AppTraceService(_source, _connections, _time, NullLogger<AppTraceService>.Instance);
+        _service = new AppTraceService(_source, _connections, NullLogger<AppTraceService>.Instance, _time);
         _service.Changed += () => Interlocked.Increment(ref _changed);
     }
 

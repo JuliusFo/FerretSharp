@@ -36,10 +36,11 @@ public sealed record CursorLookup(string Text, Guid ProfileId, bool Loading, Cor
 /// Events arrive on the source's thread; <see cref="Changed"/> reports them at most every <see cref="RenderInterval"/>
 /// (an app runs thousands of statements a second – one render per event would stall the UI), everything else at once.
 /// </summary>
-public sealed class AppTraceService(IAppTraceSource source, ConnectionManager connections, TimeProvider time, ILogger<AppTraceService> logger) : IAsyncDisposable
+public sealed class AppTraceService(IAppTraceSource source, ConnectionManager connections, ILogger<AppTraceService> logger, TimeProvider? timeProvider = null) : IAsyncDisposable
 {
     public static readonly TimeSpan RenderInterval = TimeSpan.FromMilliseconds(250);
 
+    private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
     private readonly Lock _lock = new();
     private StatementRecording _recording = new();
     private CancellationTokenSource? _cts;
@@ -292,7 +293,7 @@ public sealed class AppTraceService(IAppTraceSource source, ConnectionManager co
     {
         lock (_lock)
         {
-            _renderTimer ??= time.CreateTimer(_ => { lock (_lock) { _renderTimer?.Dispose(); _renderTimer = null; } Raise(); }, null, RenderInterval, Timeout.InfiniteTimeSpan);
+            _renderTimer ??= _time.CreateTimer(_ => { lock (_lock) { _renderTimer?.Dispose(); _renderTimer = null; } Raise(); }, null, RenderInterval, Timeout.InfiniteTimeSpan);
         }
     }
 

@@ -30,6 +30,7 @@
   <ItemGroup>
     <ProjectReference Include="..\FerretSharp.Core\FerretSharp.Core.csproj" />
     <ProjectReference Include="..\FerretSharp.UI\FerretSharp.UI.csproj" />
+    <ProjectReference Include="..\FerretSharp.AppTrace\FerretSharp.AppTrace.csproj" />
     <!-- Built, not referenced: it runs in the user's project with its runtime (ADR 0009). Neither the app's runtime
          identifier nor its output folder must reach it. -->
     <ProjectReference Include="..\FerretSharp.ModelHost\FerretSharp.ModelHost.csproj" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" Private="false"

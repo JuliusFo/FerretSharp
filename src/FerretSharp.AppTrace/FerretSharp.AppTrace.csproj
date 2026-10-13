@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Reads the EF Core events of a running app from outside over EventPipe (WP-33, ADR 0023). A project of its own so
+       the Core stays free of TraceEvent and the process tests run on Linux too (the CI does not build the WPF host there). -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>FerretSharp.AppTrace</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Diagnostics.NETCore.Client" />
+    <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FerretSharp.Core\FerretSharp.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="FerretSharp.Integration.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -38,6 +38,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\FerretSharp.Core\FerretSharp.Core.csproj" />
+    <ProjectReference Include="..\..\src\FerretSharp.AppTrace\FerretSharp.AppTrace.csproj" />
+    <!-- Built first, not referenced: a stand-in for a user's app that the trace tests attach to (WP-33). -->
+    <ProjectReference Include="..\FerretSharp.FakeEfApp\FerretSharp.FakeEfApp.csproj" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
     <!-- Built first, not referenced: the model host runs against the sample project in a process of its own (ModelHostTests). -->
     <ProjectReference Include="..\..\src\FerretSharp.ModelHost\FerretSharp.ModelHost.csproj" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
     <ProjectReference Include="..\..\samples\FerretSharp.SampleModel.Data\FerretSharp.SampleModel.Data.csproj" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />

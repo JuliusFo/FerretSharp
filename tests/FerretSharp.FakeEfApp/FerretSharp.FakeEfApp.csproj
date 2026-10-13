@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- A stand-in for a user's app (WP-33): EF Core 8 with lazy-loading proxies on SQLite or Oracle, no diagnostics code.
+       The integration tests start it with "dotnet exec" and attach to it (AppTraceSourceTests). -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Proxies" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <PackageReference Include="Oracle.EntityFrameworkCore" />
+  </ItemGroup>
+
+</Project>

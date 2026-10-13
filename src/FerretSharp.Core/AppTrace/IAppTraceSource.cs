@@ -7,6 +7,22 @@ public sealed record TraceableProcess(int Id, string Name, string? CommandLine, 
 {
     /// <summary>The environment from the command line (<see cref="AppEnvironment"/>); null if none.</summary>
     public string? Environment => AppEnvironment.FromCommandLine(CommandLine);
+
+    /// <summary>
+    /// The name to show: the process name, but for an app started by the <c>dotnet</c> host (<c>dotnet App.dll</c>,
+    /// <c>dotnet exec</c>) the name of its first .dll argument.
+    /// </summary>
+    public static string NameOf(string processName, string? commandLine)
+    {
+        if (!processName.Equals("dotnet", StringComparison.OrdinalIgnoreCase) || commandLine is null)
+        {
+            return processName;
+        }
+
+        return AppEnvironment.Split(commandLine).Skip(1).FirstOrDefault(a => a.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)) is { } dll
+            ? Path.GetFileNameWithoutExtension(dll.Replace('\\', '/').Split('/')[^1])
+            : processName;
+    }
 }
 
 /// <summary>

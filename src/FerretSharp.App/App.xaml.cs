@@ -125,6 +125,9 @@ public partial class App : Application
         builder.Services.AddSingleton(new ComparisonStore(paths.ComparisonsFile));
         builder.Services.AddSingleton<SchemaCompareLoader>();
         builder.Services.AddSingleton<SchemaCompareService>();
+        // App statements (WP-33): one trace for the whole app, over EventPipe.
+        builder.Services.AddSingleton<FerretSharp.Core.AppTrace.IAppTraceSource, FerretSharp.AppTrace.EventPipeTraceSource>();
+        builder.Services.AddSingleton<AppTraceService>();
         builder.Services.AddScoped<ClrModelManager>();
         builder.Services.AddScoped<PresentationService>();
         builder.Services.AddScoped<LinqConsoleService>();

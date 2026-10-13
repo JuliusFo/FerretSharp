@@ -31,7 +31,17 @@
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.11.0" />
   </ItemGroup>
 
+  <!-- Tracing a running app (WP-33): EventPipe client and reader, only in FerretSharp.AppTrace. -->
+  <ItemGroup Label="AppTrace">
+    <PackageVersion Include="Microsoft.Diagnostics.NETCore.Client" Version="0.2.750501" />
+    <PackageVersion Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.2.8" />
+  </ItemGroup>
+
   <ItemGroup Label="Tests">
+    <!-- tests/FerretSharp.FakeEfApp stands in for a user's app with EF Core 8 (WP-33). -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Proxies" Version="8.0.31" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.31" />
+    <PackageVersion Include="Oracle.EntityFrameworkCore" Version="8.23.26301" />
     <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.10.0" />
     <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.12.0" />
     <PackageVersion Include="NSubstitute" Version="6.2.0" />
