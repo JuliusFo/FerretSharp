@@ -20,7 +20,8 @@ record ConnectionProfile(
 - Weitere optionale Felder (später angehängt): `ClrProject` (WP-11), `ScriptFolder` (WP-23), `AppEnvironment` (WP-33: der Wert von `-environment=…`, mit dem die eigene App für diese Datenbank startet – ordnet eine angehängte App der Verbindung zu; eine Kopie startet ohne).
 - Passwort separat über `ISecretStore.Get(profileId)` / `Set(...)`.
 - `TnsAlias` braucht den Ort der `tnsnames.ora`: Der Managed Driver liest **nicht** die Registry. Reihenfolge: `tnsAdminPath` im Profil → Umgebungsvariable `TNS_ADMIN` → Fehlermeldung mit Hinweis.
-- Connection-Datei: `%APPDATA%\FerretSharp\connections.json`, optional zusätzlich pro Repo (`.ferretsharp/connections.json`, ohne Secrets).
+- Connection-Datei: `%APPDATA%\FerretSharp\connections.json`, optional zusätzlich pro Repo (`.ferretsharp/connections.json`, ohne Secrets – Backlog).
+- Import und Export (WP-35, ADR 0025, `Core/Connections/Transfer`): Quelle am Inhalt erkannt (FerretSharp-Export oder `connections.json`, DBeaver `data-sources.json`/`.dbp`, SQL Developer), Vorschau als `ConnectionImportPlan` (Art geraten → schreibgeschützt bis zur Wahl, Duplikat = gleiche Adresse und gleicher User), gespeichert über `ConnectionManager.SaveManyAsync`. Passwörter nie; wer ohne Passwort verbindet, wird gefragt (Credential Manager oder nur für die Laufzeit).
 
 ### 1.2 Workspace
 ```csharp

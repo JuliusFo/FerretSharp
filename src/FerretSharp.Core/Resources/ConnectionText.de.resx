@@ -48,4 +48,52 @@
   <data name="FileUnreadableNotSaved" xml:space="preserve">
     <value>Die Verbindungsdatei ließ sich beim Start nicht lesen, und Speichern würde sie ersetzen – die Verbindungen darin gingen verloren. Datei reparieren oder verschieben, dann FerretSharp neu starten.</value>
   </data>
+  <data name="ImportUnknownFormat" xml:space="preserve">
+    <value>Die Datei ist keine Verbindungsdatei von FerretSharp, DBeaver oder SQL Developer.</value>
+  </data>
+  <data name="ImportUnreadable" xml:space="preserve">
+    <value>Die Datei ließ sich nicht lesen: {0}</value>
+  </data>
+  <data name="ImportInvalidJson" xml:space="preserve">
+    <value>Die Datei ist kein gültiges JSON: {0}</value>
+  </data>
+  <data name="ImportFileTooLarge" xml:space="preserve">
+    <value>Die Datei ist zu groß für eine Verbindungsdatei (mehr als 16 MB).</value>
+  </data>
+  <data name="ImportNewerVersion" xml:space="preserve">
+    <value>Die Datei stammt aus einer neueren Version von FerretSharp (Format {0}).</value>
+  </data>
+  <data name="ImportTnsUnsupported" xml:space="preserve">
+    <value>TNS-Verbindungen lassen sich noch nicht importieren.</value>
+  </data>
+  <data name="ImportUrlUnsupported" xml:space="preserve">
+    <value>Nur eine JDBC-URL, die FerretSharp nicht lesen kann.</value>
+  </data>
+  <data name="ImportAddressIncomplete" xml:space="preserve">
+    <value>Host, Port oder Service-Name fehlt.</value>
+  </data>
+  <data name="ImportOsAuthUnsupported" xml:space="preserve">
+    <value>Anmeldung über das Betriebssystem wird nicht unterstützt.</value>
+  </data>
+  <data name="ImportKerberosUnsupported" xml:space="preserve">
+    <value>Kerberos wird nicht unterstützt.</value>
+  </data>
+  <data name="ImportProxyUnsupported" xml:space="preserve">
+    <value>Proxy-Verbindungen werden nicht unterstützt.</value>
+  </data>
+  <data name="ImportRoleUnsupported" xml:space="preserve">
+    <value>Anmeldung als {0} wird nicht unterstützt.</value>
+  </data>
+  <data name="ImportUserMissingOne" xml:space="preserve">
+    <value>Bei {0} gewählten Verbindung fehlt der Benutzer – in der Liste eintragen.</value>
+  </data>
+  <data name="ImportUserMissingOther" xml:space="preserve">
+    <value>Bei {0} gewählten Verbindungen fehlt der Benutzer – in der Liste eintragen.</value>
+  </data>
+  <data name="ImportSameTargetTwice" xml:space="preserve">
+    <value>„{0}“ und „{1}“ würden beide „{2}“ überschreiben – eine abwählen oder als Kopie anlegen.</value>
+  </data>
+  <data name="ImportNothingSelected" xml:space="preserve">
+    <value>Keine Verbindung ausgewählt.</value>
+  </data>
 </root>

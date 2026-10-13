@@ -97,6 +97,8 @@ public partial class App : Application
         builder.Services.AddSingleton<ISecretStore, CredentialManagerSecretStore>();
         builder.Services.AddSingleton<IConnectionTester, OracleConnectionTester>();
         builder.Services.AddSingleton<ConnectionManager>();
+        // Import/export of connections (WP-35): DBeaver and SQL Developer are looked for in %APPDATA% (tests: --import-appdata=).
+        builder.Services.AddSingleton(services => new ConnectionTransfer(services.GetRequiredService<ConnectionManager>(), ImportAppData(args)));
         builder.Services.AddSingleton(new RecentConnections(paths.RecentConnectionsFile));
         builder.Services.AddSingleton<IDatabaseConnector, OracleDatabaseConnector>();
         builder.Services.AddSingleton<IWorkspaceStore>(new WorkspaceStore(paths.WorkspacesDirectory));
@@ -157,6 +159,14 @@ public partial class App : Application
         _host.Services.GetRequiredService<UiStallMonitor>().Start();
         _ = _host.Services.GetRequiredService<UpdateState>().StartAsync(); // never throws: a failed check is a note in the settings
     }
+
+    /// <summary>
+    /// Where the import looks for DBeaver and SQL Developer: <c>%APPDATA%</c>, or – for end-to-end tests, which must not
+    /// see the user's real tools – the folder of <c>--import-appdata=&lt;path&gt;</c>.
+    /// </summary>
+    private static string ImportAppData(string[] args) =>
+        args.FirstOrDefault(a => a.StartsWith("--import-appdata=", StringComparison.OrdinalIgnoreCase))?["--import-appdata=".Length..]
+        ?? Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
 
     protected override async void OnExit(ExitEventArgs e)
     {

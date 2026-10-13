@@ -53,4 +53,65 @@
     <value>the connections file could not be read at start, and saving would replace it and lose the connections in it. Repair or move the file, then start FerretSharp again.</value>
     <comment>Follows “Saving failed:”</comment>
   </data>
+  <data name="ImportUnknownFormat" xml:space="preserve">
+    <value>The file is not a connection file of FerretSharp, DBeaver or SQL Developer.</value>
+  </data>
+  <data name="ImportUnreadable" xml:space="preserve">
+    <value>The file could not be read: {0}</value>
+    <comment>{0}: error message of the file system or zip reader</comment>
+  </data>
+  <data name="ImportInvalidJson" xml:space="preserve">
+    <value>The file is not valid JSON: {0}</value>
+    <comment>{0}: error message of the JSON reader</comment>
+  </data>
+  <data name="ImportFileTooLarge" xml:space="preserve">
+    <value>The file is too large for a connection file (more than 16 MB).</value>
+  </data>
+  <data name="ImportNewerVersion" xml:space="preserve">
+    <value>The file comes from a newer version of FerretSharp (format {0}).</value>
+    <comment>{0}: format version number</comment>
+  </data>
+  <data name="ImportTnsUnsupported" xml:space="preserve">
+    <value>TNS connections cannot be imported yet.</value>
+    <comment>Why a found connection cannot be imported (status in the import preview)</comment>
+  </data>
+  <data name="ImportUrlUnsupported" xml:space="preserve">
+    <value>Only a JDBC URL that FerretSharp cannot read.</value>
+    <comment>Why a found connection cannot be imported (status in the import preview)</comment>
+  </data>
+  <data name="ImportAddressIncomplete" xml:space="preserve">
+    <value>Host, port or service name missing.</value>
+    <comment>Why a found connection cannot be imported (status in the import preview)</comment>
+  </data>
+  <data name="ImportOsAuthUnsupported" xml:space="preserve">
+    <value>OS authentication is not supported.</value>
+    <comment>Why a found connection cannot be imported (status in the import preview)</comment>
+  </data>
+  <data name="ImportKerberosUnsupported" xml:space="preserve">
+    <value>Kerberos is not supported.</value>
+    <comment>Why a found connection cannot be imported (status in the import preview)</comment>
+  </data>
+  <data name="ImportProxyUnsupported" xml:space="preserve">
+    <value>Proxy connections are not supported.</value>
+    <comment>Why a found connection cannot be imported (status in the import preview)</comment>
+  </data>
+  <data name="ImportRoleUnsupported" xml:space="preserve">
+    <value>Logging in as {0} is not supported.</value>
+    <comment>{0}: the Oracle role of the connection, e.g. SYSDBA</comment>
+  </data>
+  <data name="ImportUserMissingOne" xml:space="preserve">
+    <value>{0} selected connection has no user – enter it in the list.</value>
+    <comment>{0}: number of selected connections without a user</comment>
+  </data>
+  <data name="ImportUserMissingOther" xml:space="preserve">
+    <value>{0} selected connections have no user – enter it in the list.</value>
+    <comment>{0}: number of selected connections without a user</comment>
+  </data>
+  <data name="ImportSameTargetTwice" xml:space="preserve">
+    <value>“{0}” and “{1}” would both overwrite “{2}” – deselect one or add it as a copy.</value>
+    <comment>{0}, {1}: names of two imported connections; {2}: name of the saved connection they both match</comment>
+  </data>
+  <data name="ImportNothingSelected" xml:space="preserve">
+    <value>No connection selected.</value>
+  </data>
 </root>

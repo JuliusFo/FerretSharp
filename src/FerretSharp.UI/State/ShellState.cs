@@ -10,6 +10,16 @@ public enum ConnectionDialogMode { New, Edit, Duplicate }
 
 public sealed record ConnectionDialogRequest(ConnectionDialogMode Mode, ConnectionProfile? Profile);
 
+/// <summary>The password to ask for before connecting (WP-35).</summary>
+/// <param name="ShowWhenConnected">
+/// Asked on the way to the explorer (<c>ShellState.Connect</c>): the connection is shown afterwards. Otherwise the page
+/// that connected on its own (app statements, schema comparison) stays.
+/// </param>
+public sealed record PasswordRequest(ConnectionProfile Profile, bool ShowWhenConnected);
+
+/// <summary>Export all connections, or – <paramref name="OnlyGroup"/> – those of one group (null = without group).</summary>
+public sealed record ConnectionExportRequest(bool OnlyGroup = false, string? Group = null);
+
 public enum ShellPage { Connections, Explorer, Settings, Model, Compare, AppStatements }
 
 /// <summary>
@@ -60,6 +70,12 @@ public sealed partial class ShellState
 
     public ShellPage Page { get; private set; } = ShellPage.Connections;
 
+    /// <summary>
+    /// The page <see cref="Connect"/> left for the explorer, until the lifecycle takes it (<see cref="TakeConnectOrigin"/>):
+    /// back there if the connection still needs a password.
+    /// </summary>
+    private (Guid ProfileId, ShellPage Page)? _connectOrigin;
+
     public ConnectionDialogRequest? ConnectionDialog { get; private set; }
 
     public ConnectionProfile? PendingDelete { get; private set; }
@@ -77,6 +93,8 @@ public sealed partial class ShellState
     {
         Set(() =>
         {
+            _connectOrigin = (profile.Id, Page);
+            PendingPassword = null;
             SwitcherOpen = false;
             Page = ShellPage.Explorer;
         });
@@ -189,6 +207,50 @@ public sealed partial class ShellState
         ActivateTab(tab);
         RequestTabCommand(tab, TabCommand.FocusRow);
     }
+
+    /// <summary>A connection without a password the user wants to open (WP-35): the shell asks for it first.</summary>
+    public PasswordRequest? PendingPassword { get; private set; }
+
+    /// <summary>
+    /// The page <see cref="Connect"/> came from, once: the lifecycle takes it when it starts to connect, so a later connect
+    /// that does not go through <see cref="Connect"/> (app statements, schema comparison) never jumps to an old page.
+    /// </summary>
+    public ShellPage? TakeConnectOrigin(Guid profileId)
+    {
+        var origin = _connectOrigin is { } o && o.ProfileId == profileId ? o.Page : (ShellPage?)null;
+        _connectOrigin = null;
+        return origin;
+    }
+
+    /// <summary>
+    /// Asks for the password instead of connecting. Through <see cref="Connect"/> (<paramref name="returnTo"/> set) the
+    /// shell goes back to the page it left for the explorer; a page that connects on its own stays as it is.
+    /// </summary>
+    public void RequestPassword(ConnectionProfile profile, ShellPage? returnTo) => Set(() =>
+    {
+        if (returnTo is { } page)
+        {
+            Page = page;
+        }
+
+        PendingPassword = new PasswordRequest(profile, ShowWhenConnected: returnTo is not null);
+    });
+
+    public void ClosePassword() => Set(() => PendingPassword = null);
+
+    /// <summary>The import dialog is open (WP-35).</summary>
+    public bool ImportOpen { get; private set; }
+
+    public void OpenImport() => Set(() => ImportOpen = true);
+
+    public void CloseImport() => Set(() => ImportOpen = false);
+
+    /// <summary>The export dialog is open (WP-35), for all connections or one group.</summary>
+    public ConnectionExportRequest? ExportRequest { get; private set; }
+
+    public void OpenExport(ConnectionExportRequest request) => Set(() => ExportRequest = request);
+
+    public void CloseExport() => Set(() => ExportRequest = null);
 
     public void OpenSwitcher() => Set(() => SwitcherOpen = true);
 

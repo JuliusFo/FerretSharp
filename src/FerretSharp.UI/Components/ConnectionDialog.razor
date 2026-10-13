@@ -241,7 +241,10 @@
     private string PasswordPlaceholder => !HasStoredPassword ? ""
         : Request.Mode == ConnectionDialogMode.Duplicate ? ShellText.ConnectionDialog_PasswordAsOriginal : ShellText.ConnectionDialog_PasswordUnchanged;
 
-    private IReadOnlyDictionary<string, string> Errors => _submitted ? Validate() : EarlyErrors();
+    private IReadOnlyDictionary<string, string> Errors => _submitted ? Validate(_validateForTest) : EarlyErrors();
+
+    /// <summary>The last button was "Test": the password is required then (see <see cref="Validate"/>).</summary>
+    private bool _validateForTest;
 
     /// <summary>Before the first submit only the linked project is judged, and only once the file exists (not while typing the path).</summary>
     private Dictionary<string, string> EarlyErrors()
@@ -263,13 +266,13 @@
             { Mode: ConnectionDialogMode.Duplicate, Profile: { } p } => ConnectionForm.Duplicate(p),
             _ => new ConnectionForm(),
         };
-        HasStoredPassword = Form.PasswordSourceId is { } source && Connections.HasPassword(source);
+        HasStoredPassword = Form.PasswordSourceId is { } source && Connections.GetStoredPassword(source) is not null;
     }
 
     /// <summary>The typed password, otherwise the stored one of the edited/original profile.</summary>
     private string? EffectivePassword() =>
         Form.Password.Length > 0 ? Form.Password
-        : Form.PasswordSourceId is { } source ? Connections.GetPassword(source)
+        : Form.PasswordSourceId is { } source ? Connections.GetStoredPassword(source)
         : null;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -280,10 +283,11 @@
         }
     }
 
-    private Dictionary<string, string> Validate()
+    /// <param name="forTest">"Test" needs a password; saving an edited or duplicated connection does not (WP-35: it is asked for when connecting).</param>
+    private Dictionary<string, string> Validate(bool forTest = false)
     {
         var errors = new Dictionary<string, string>(Form.ToProfile().Errors);
-        if (Form.Password.Length == 0 && !HasStoredPassword)
+        if (Form.Password.Length == 0 && !HasStoredPassword && (forTest || Request.Mode == ConnectionDialogMode.New))
         {
             errors[PasswordField] = ShellText.ConnectionDialog_PasswordMissing;
         }
@@ -323,7 +327,8 @@
     {
         _submitted = true;
         _clrChecked = null;
-        if (Validate().Count > 0)
+        _validateForTest = true;
+        if (Validate(forTest: true).Count > 0)
         {
             return;
         }
@@ -359,6 +364,7 @@
         _submitted = true;
         _clrChecked = null;
         _saveError = null;
+        _validateForTest = false;
         if (Validate().Count > 0)
         {
             return;
@@ -368,7 +374,8 @@
         try
         {
             var profile = Form.ToProfile().Profile;
-            // Edit: null keeps the stored password. New/duplicate: always store one (a duplicate inherits the original's).
+            // Edit: null keeps the stored password. New/duplicate: store the typed one, or the original's saved one (never
+            // a password kept only for this run, WP-35); none: asked for when connecting.
             var newPassword = Form.IsNew ? EffectivePassword() : Form.Password.Length > 0 ? Form.Password : null;
             await Connections.SaveAsync(profile, newPassword, CancellationToken.None);
             await CloseAsync();

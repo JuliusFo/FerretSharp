@@ -117,4 +117,51 @@ public class ConnectionManagerTests
         Assert.Empty(_manager.Profiles);
         Assert.Null(_secrets.GetPassword(profile.Id));
     }
+
+    [Fact]
+    public async Task Save_many_writes_once_replaces_by_id_and_keeps_passwords()
+    {
+        var kept = TestProfiles.HostPort("Kept");
+        var replaced = TestProfiles.HostPort("Old name");
+        await _manager.SaveAsync(kept, "pw-kept", Ct);
+        await _manager.SaveAsync(replaced, "pw-replaced", Ct);
+        _store.ClearReceivedCalls();
+        var raised = 0;
+        _manager.Changed += () => raised++;
+
+        await _manager.SaveManyAsync([replaced with { Name = "New name" }, TestProfiles.Tns()], Ct);
+
+        Assert.Equal(["Kept", "New name", "Prod ERP"], _manager.Profiles.Select(p => p.Name));
+        await _store.Received(1).SaveAsync(Arg.Any<IReadOnlyList<ConnectionProfile>>(), Arg.Any<CancellationToken>());
+        Assert.Equal(1, raised);
+        Assert.Equal("pw-replaced", _manager.GetPassword(replaced.Id));
+    }
+
+    [Fact]
+    public async Task Save_many_saves_nothing_if_one_profile_is_invalid()
+    {
+        await Assert.ThrowsAsync<ArgumentException>(() => _manager.SaveManyAsync([TestProfiles.HostPort(), TestProfiles.HostPort() with { User = "" }], Ct));
+
+        await _store.DidNotReceive().SaveAsync(Arg.Any<IReadOnlyList<ConnectionProfile>>(), Arg.Any<CancellationToken>());
+        Assert.Empty(_manager.Profiles);
+    }
+
+    [Fact]
+    public async Task A_password_for_this_run_only_is_used_but_not_saved()
+    {
+        var profile = TestProfiles.HostPort();
+        await _manager.SaveAsync(profile, null, Ct);
+        Assert.False(_manager.HasPassword(profile.Id));
+
+        _manager.SetPassword(profile.Id, "session", remember: false);
+
+        Assert.Equal("session", _manager.GetPassword(profile.Id));
+        Assert.Empty(_secrets.Passwords);
+
+        _manager.SetPassword(profile.Id, "saved", remember: true);
+
+        Assert.Equal("saved", _secrets.GetPassword(profile.Id));
+        await _manager.DeleteAsync(profile.Id, Ct);
+        Assert.False(_manager.HasPassword(profile.Id));
+    }
 }

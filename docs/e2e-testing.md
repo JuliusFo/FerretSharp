@@ -22,6 +22,11 @@ Aus der `CLAUDE.md` ausgelagert (Stand 3.14.0). Vor jedem E2E-Lauf lesen. Die Si
 - Testversionen: `dotnet publish … -p:Version=3.x.y -o <scratch>\pub-…`, dann `dotnet vpk pack -u FerretSharpE2E -v 3.x.y -p <pub> -e FerretSharp.exe --releaseNotes <md> -o <scratch>\releases` (eigene Pack-Id, nie `FerretSharp`); das Portable-Zip der älteren Version vor dem Packen der neueren beiseitelegen (gleicher Dateiname).
 - Der Updater startet die neue Version mit denselben Argumenten und Umgebungsvariablen (Debug-Port, WebView2-Ordner) – CDP geht danach am selben Port weiter. Ein fehlender Ordner als Quelle gilt bei Velopack als leerer Feed („aktuell“); für eine fehlgeschlagene Prüfung ein kaputtes `releases.win.json` nehmen.
 
+## Verbindungen importieren (WP-35)
+- Die Suche nach DBeaver und SQL Developer schaut sonst in den echten `%APPDATA%` des Nutzers → immer `--import-appdata=<scratch>` mit erfundenen Dateien (`DBeaverData\workspace6\<Projekt>\.dbeaver\data-sources.json`, `SQL Developer\system<Version>\o.jdeveloper.db.connection\connections.json`). „Datei wählen…“ öffnet einen nativen Dialog – nicht bedienen.
+- Nie eine echte `credentials-config.json` des Nutzers entschlüsseln oder in den Scratchpad kopieren; eine DBeaver-Datei ohne Credentials testet den Weg „User von Hand“.
+- Passwortabfrage mit „Im Credential Manager speichern“ **abgewählt** testen – dann entsteht kein Eintrag, den man wieder löschen müsste.
+
 ## Zwischenablage und native Dialoge
 - Die Zwischenablage über `Get-Clipboard` prüfen. **Kein `navigator.clipboard.readText()`** im WebView aufrufen: Es öffnet eine Berechtigungsabfrage, die als zusätzliches CDP-Target (`edge://permission-request-dialog/`) vor der App-Seite in `/json` steht; das CDP-Skript wählt deshalb das Target mit der URL `https://0.0.0.1/`.
 - CDP-Klicks sind keine Nutzergeste (`navigator.clipboard.writeText` schlägt fehl) → Zwischenablage per CDP durch eine Mitschrift ersetzen.

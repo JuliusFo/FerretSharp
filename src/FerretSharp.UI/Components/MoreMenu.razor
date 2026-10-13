@@ -1,0 +1,66 @@
+@* A "⋯" button with a small menu of plain actions (WP-35: head of the connections page, group heads), in a PopoverMenu
+   (backdrop, Escape, kept inside the window). *@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<button class="icon-btn ghost more @Class" title="@ShellText.Actions" @onclick="OpenAsync" @onclick:stopPropagation="true">⋯</button>
+
+@if (_menu is { } menu)
+{
+    <PopoverMenu X="menu.X" Y="menu.Y" ViewportWidth="menu.Width" ViewportHeight="menu.Height" Width="MenuWidth"
+                 EstimatedHeight="@(12 + 32 * Items.Count)" OnClose="Close">
+        @foreach (var item in Items)
+        {
+            var action = item.Run;
+            <button class="menu-item" disabled="@(!item.Enabled)" @onclick="() => Run(action)">@item.Label</button>
+        }
+    </PopoverMenu>
+}
+
+@code {
+    private const double MenuWidth = 220;
+
+    private MenuAt? _menu;
+    private DomModule? _dom;
+    private bool _disposed;
+
+    private DomModule Dom => _dom ??= new(JS);
+
+    /// <summary>More classes of the button (e.g. to show it always, not only on hover).</summary>
+    [Parameter]
+    public string? Class { get; set; }
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<MoreMenuItem> Items { get; set; } = [];
+
+    /// <summary>The menu opens below the button, its right edge at the mouse (PopoverMenu keeps it inside the window).</summary>
+    private async Task OpenAsync(MouseEventArgs e)
+    {
+        var size = await Dom.InvokeAsync<double[]>("viewportSize");
+        if (_disposed || size is not [var width, var height])
+        {
+            return;
+        }
+
+        _menu = new MenuAt(Math.Max(8, e.ClientX - MenuWidth), e.ClientY + 10, width, height);
+    }
+
+    private void Close() => _menu = null;
+
+    private void Run(Action action)
+    {
+        _menu = null;
+        action();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        if (_dom is not null)
+        {
+            await _dom.DisposeAsync();
+        }
+    }
+
+    private sealed record MenuAt(double X, double Y, double Width, double Height);
+}

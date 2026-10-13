@@ -201,6 +201,12 @@ same way.
 Coming from the zip of 3.28 or older: run `FerretSharp-win-Setup.exe` once and delete the old folder by hand. Settings,
 connections and workspaces stay where they are.
 
+**Bring your connections along:** *Connections › Import…* finds DBeaver and SQL Developer on your computer (or takes a
+file: DBeaver's `data-sources.json` or project export `.dbp`, SQL Developer's export, another FerretSharp's export or
+`connections.json`). A preview shows each connection with its environment – guessed from the name where the source has
+none, and read-only until you pick one –, the user and whether you have it already. Passwords are never imported; you
+enter them on the first connect. *⋯ › Export…* (or *Export group…* on a group) passes connections on, without passwords.
+
 Settings and workspaces live in `%APPDATA%\FerretSharp` (uninstalling keeps them); passwords are stored in the Windows
 Credential Manager, never in files. One FerretSharp runs per data folder: starting it again brings the open window to
 the front.

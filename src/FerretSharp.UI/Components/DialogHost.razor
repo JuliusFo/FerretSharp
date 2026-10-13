@@ -10,6 +10,21 @@
     <ConnectionDialog @key="request" Request="request" OnClose="Shell.CloseConnectionDialog" />
 }
 
+@if (Shell.PendingPassword is { } passwordFor)
+{
+    <PasswordDialog @key="passwordFor" Request="passwordFor" Lifecycle="Lifecycle" />
+}
+
+@if (Shell.ImportOpen)
+{
+    <ConnectionImportDialog />
+}
+
+@if (Shell.ExportRequest is { } exportRequest)
+{
+    <ConnectionExportDialog @key="exportRequest" Request="exportRequest" />
+}
+
 @if (Shell.ErrorDetails is { } error)
 {
     <ErrorDialog @key="error" Error="error" Mask="@(Active.Profile?.Kind == ConnectionKind.Prod)" OnClose="Shell.CloseError" />
