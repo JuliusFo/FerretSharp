@@ -447,6 +447,10 @@ dl.keys dd { margin: 0; }
 .tab-close.tab-pin { display: grid; place-items: center; color: var(--accent); }
 .tab-close.tab-pin svg { width: 13px; height: 13px; color: inherit; }
 .tab.pinned:has(+ .tab:not(.pinned)), .tab.pinned:has(+ .tab-new) { border-right: 2px solid var(--border-strong); }
+/* A full bar (dom.js watchOverflow): pinned tabs narrow to icon, a short name and the pin; the tooltip has the full name. */
+.tabs.crowded .tab.pinned { gap: 4px; padding-left: 10px; }
+.tabs.crowded .tab.pinned .tab-name { max-width: 8ch; overflow: hidden; text-overflow: ellipsis; }
+.tabs.crowded .tab.pinned :is(.tab-filter, .filter-pill) { display: none; }
 .tab-menu kbd { margin-left: auto; }
 .work-split { flex: 1; display: flex; min-height: 0; }
 .pages { flex: 1; position: relative; min-height: 0; min-width: 0; }

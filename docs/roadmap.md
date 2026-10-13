@@ -40,6 +40,5 @@ Aus dem Backlog („Installer/Auto-Update“), geplant mit dem Nutzer (2026-10-1
   - E2E ohne GitHub und ohne die echte Installation des Nutzers: zwei Testversionen lokal packen, die ältere installieren, Update aus einem lokalen Ordner als Quelle (Startargument nur für Tests).
 
 ## Offene UX-Fragen
-- Angeheftete Tabs (WP-34) behalten ihren vollen Titel; schmal (nur Symbol und Kurzname) wie im Browser, falls die Leiste zu voll wird – Nutzerfeedback einholen.
 - Shortcut-Belegung für Commit/Rollback – vorläufig, Nutzerfeedback einholen.
 - Workspaces: Standardname ist „Workspace N“ mit der kleinsten freien Nummer (nach Umbenennen von „Workspace 1“ heißt der nächste wieder „Workspace 1“). Shortcuts zum Wechseln (z. B. Ctrl+1…9) und eine Oberfläche für die Notizen fehlen noch.

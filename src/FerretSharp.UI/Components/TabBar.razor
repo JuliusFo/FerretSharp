@@ -5,7 +5,7 @@
 @inject ShortcutService Shortcuts
 @inject IJSRuntime JS
 
-<nav class="tabs">
+<nav class="tabs" @ref="_bar">
     @foreach (var tab in Shell.Tabs)
     {
         var tooltip = tab switch
@@ -14,8 +14,8 @@
             PlSqlTab plSql => TextFormat.Format(ShellText.TabBar_PlSqlTitle, ExplorerList.KindLabel(plSql.Unit.Kind), plSql.Unit.Owner, plSql.Unit.Name),
             NewTableTab => ShellText.TabBar_NewTableTitle,
             _ when _renaming == tab => null,
-            LinqTab => ShellText.TabBar_LinqTitle,
-            _ => ShellText.TabBar_SqlTitle,
+            LinqTab => WithTitle(tab, ShellText.TabBar_LinqTitle),
+            _ => WithTitle(tab, ShellText.TabBar_SqlTitle),
         };
         <div class="tab @KindClass(tab) @(tab == Shell.ActiveTab ? "active" : "") @(tab.Pinned ? "pinned" : "")" title="@tooltip"
              @onclick="e => OnClick(e, tab)" @onmouseup="e => CloseOnMiddleClick(e, tab)"
@@ -126,6 +126,21 @@
     private IJSObjectReference? _shortcuts;
 
     private bool _disposed;
+
+    private ElementReference _bar;
+
+    /// <summary>A pinned SQL or LINQ tab may show a shortened name (WP-34): the tooltip has the full one.</summary>
+    private static string WithTitle(WorkspaceTab tab, string text) =>
+        tab.Pinned && tab is ITitledTab titled ? titled.Title + Environment.NewLine + text : text;
+
+    /// <summary>A full bar narrows the pinned tabs (WP-34, class <c>crowded</c>): dom.js watches whether the tabs still fit.</summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Dom.InvokeVoidAsync("watchOverflow", _bar, "crowded");
+        }
+    }
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
