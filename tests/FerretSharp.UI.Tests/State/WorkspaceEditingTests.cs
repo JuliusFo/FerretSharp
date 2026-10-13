@@ -297,6 +297,54 @@ public sealed class WorkspaceEditingTests : IAsyncDisposable
         Assert.Equal(undone.Id, Assert.Single(editor.Actions).RedoOf);
     }
 
+    /// <summary>Review 3.31.0, A13: "overwrite" stayed after cancel and skipped the check of a later write of the row.</summary>
+    [Fact]
+    public async Task An_overwrite_chosen_before_a_cancel_does_not_carry_over_to_the_next_write()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("Test"));
+        var (workspace, tab) = AddTab(scope);
+        tab.Changes!.SetValue(Row(1, "Meier"), 1, "Müller");
+        var editor = await EditorAsync(scope);
+        editor.FailFlush = operations => editor.LastFlush!.Overwrite?.Contains(operations[0].Change.Id) == true
+            ? Locked(operations[0]) // overwritten, but then the row is locked
+            : new ConcurrencyConflictException(operations[0], []);
+
+        Assert.False(await _app.Editing.FlushAsync(workspace));
+        await _app.Editing.ResolveAsync(ProblemChoice.Overwrite);
+        Assert.IsType<LockConflictException>(_app.Editing.Problem?.Error);
+        await _app.Editing.ResolveAsync(ProblemChoice.Cancel);
+
+        Assert.False(await _app.Editing.FlushAsync(workspace));
+        Assert.True(editor.LastFlush!.Overwrite is null or { Count: 0 });
+        Assert.IsType<ConcurrencyConflictException>(_app.Editing.Problem?.Error);
+    }
+
+    /// <summary>Review 3.31.0, A14: resolving a redo's problem wrote everything pending of every tab, without the redo.</summary>
+    [Fact]
+    public async Task Retrying_a_stopped_redo_writes_only_the_redo()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("Test"));
+        var (workspace, tab) = AddTab(scope);
+        tab.Changes!.SetValue(Row(1, "Meier"), 1, "Müller");
+        Assert.True(await _app.Editing.FlushAsync(workspace));
+        Assert.True(await _app.Editing.UndoLastAsync(workspace));
+        var undone = Assert.Single(_app.Editing.SummaryOf(workspace).Undone);
+        var (_, other) = AddTab(scope); // a second tab of the same workspace
+        other.Changes!.SetValue(Row(2, "Lang"), 1, "Kurz"); // pending elsewhere, not part of the redo
+        var editor = await EditorAsync(scope);
+        editor.FailFlush = operations => Locked(operations[0]);
+
+        Assert.False(await _app.Editing.RedoGridAsync(workspace, undone.Id));
+        Assert.Equal(undone.Id, _app.Editing.Problem?.RedoOf);
+        editor.FailFlush = null;
+        await _app.Editing.ResolveAsync(ProblemChoice.Retry);
+
+        Assert.Null(_app.Editing.Problem);
+        Assert.Equal(undone.Id, Assert.Single(editor.Actions).RedoOf);
+        Assert.Equal((0, 1), (tab.Changes.PendingCount, tab.Changes.FlushedCount));
+        Assert.Equal((1, 0), (other.Changes.PendingCount, other.Changes.FlushedCount));
+    }
+
     /// <summary>R4b: closing a workspace from the workspace bar left what the editing kept of it until the connection closed.</summary>
     [Fact]
     public async Task Closing_a_workspace_forgets_its_write_history()

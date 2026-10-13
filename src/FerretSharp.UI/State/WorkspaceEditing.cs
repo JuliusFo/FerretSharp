@@ -40,7 +40,11 @@ public enum WriteFate
 /// <summary>A write stopped; shown as a dialog until the user decides.</summary>
 /// <param name="DuringCommit">Commit continues once the problem is resolved.</param>
 /// <param name="Holders">Sessions locking the table (lock conflict); null if unknown (no rights on the V$ views).</param>
-public sealed record FlushProblem(Guid WorkspaceId, TableTab Tab, FlushException Error, bool DuringCommit, IReadOnlyList<LockHolder>? Holders);
+public sealed record FlushProblem(Guid WorkspaceId, TableTab Tab, FlushException Error, bool DuringCommit, IReadOnlyList<LockHolder>? Holders)
+{
+    /// <summary>The grid write a redo applied again: resolving continues that redo, not a write of everything pending.</summary>
+    public Guid? RedoOf { get; init; }
+}
 
 public enum ProblemChoice
 {
@@ -354,6 +358,8 @@ public sealed class WorkspaceEditing(
         var workspace = shell.FindWorkspace(problem.WorkspaceId);
         if (workspace is null || choice == ProblemChoice.Cancel)
         {
+            // An "overwrite" chosen before belonged to this attempt: a later write checks the row again (review 3.31.0, A13).
+            Overwrites(problem.WorkspaceId).Clear();
             return;
         }
 
@@ -370,6 +376,17 @@ public sealed class WorkspaceEditing(
                 problem.Tab.Changes?.Revert(problem.Error.Operation.Change.Key);
                 shell.RequestTabCommand(problem.Tab, TabCommand.Reload);
                 break;
+        }
+
+        if (problem.RedoOf is { } redo)
+        {
+            // A redo writes only its own changes (review 3.31.0, A14); discarded, there is nothing left to redo.
+            if (choice != ProblemChoice.Discard)
+            {
+                await RedoGridAsync(workspace, redo);
+            }
+
+            return;
         }
 
         _ = problem.DuringCommit ? await CommitAsync(workspace) : await FlushAsync(workspace);
@@ -426,12 +443,20 @@ public sealed class WorkspaceEditing(
 
         var editor = await WorkspacesOf(workspace.WorkspaceId).GetEditorAsync(workspace.WorkspaceId, CancellationToken.None);
         var options = new FlushOptions(settings.Current.LockWaitSeconds, Overwrites(workspace.WorkspaceId));
-        foreach (var tab in tabs)
+        try
         {
-            if (!await FlushTabAsync(workspace, editor, tab, tab.Changes!.PendingOperations(), options, duringCommit))
+            foreach (var tab in tabs)
             {
-                return false;
+                if (!await FlushTabAsync(workspace, editor, tab, tab.Changes!.PendingOperations(), options, duringCommit))
+                {
+                    return false; // the problem dialog decides; "retry" keeps an "overwrite" chosen before
+                }
             }
+        }
+        catch
+        {
+            Overwrites(workspace.WorkspaceId).Clear(); // not a write problem (connection lost …): no decision carries over (A13)
+            throw;
         }
 
         Overwrites(workspace.WorkspaceId).Clear();
@@ -462,7 +487,7 @@ public sealed class WorkspaceEditing(
                 holders = await TryAsync(() => schema.GetLockHoldersAsync(tracker.Table.Table.Ref, CancellationToken.None));
             }
 
-            Problem = new FlushProblem(workspace.WorkspaceId, tab, ex, duringCommit, holders);
+            Problem = new FlushProblem(workspace.WorkspaceId, tab, ex, duringCommit, holders) { RedoOf = options.RedoOf };
             return false;
         }
         finally
