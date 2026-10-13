@@ -161,16 +161,6 @@ public sealed class ConnectionHub(IServiceScopeFactory scopes, TimeProvider? tim
     /// <summary>Not connected yet, or the last attempt failed: the caller of <see cref="Show(ConnectionProfile)"/> connects it.</summary>
     public static bool NeedsConnect(ConnectionScope scope) => scope.Active.Status is ConnectionStatus.Failed or ConnectionStatus.Disconnected;
 
-    /// <summary><see cref="Show(ConnectionProfile)"/>, then connects if needed (failures end in <see cref="ConnectionStatus.Failed"/>).</summary>
-    public async Task OpenAsync(ConnectionProfile profile)
-    {
-        var scope = Show(profile);
-        if (NeedsConnect(scope))
-        {
-            await scope.Active.ConnectAsync(profile, CancellationToken.None);
-        }
-    }
-
     /// <summary>Shows an open connection; the one shown before becomes <see cref="Previous"/>.</summary>
     public void Show(ConnectionScope scope)
     {

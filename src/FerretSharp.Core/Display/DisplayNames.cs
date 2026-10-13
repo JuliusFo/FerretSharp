@@ -45,7 +45,7 @@ public sealed class DisplayNames
     public bool Shows(int column) => _byColumn.TryGetValue(column, out var state) && state.Disabled is null;
 
     /// <summary>Why the column's link was switched off; null if it was not (or there is none).</summary>
-    public string? DisabledReason(int column) => _byColumn.GetValueOrDefault(column)?.Disabled;
+    internal string? DisabledReason(int column) => _byColumn.GetValueOrDefault(column)?.Disabled;
 
     /// <summary>What to show beside a value of the column; null if nothing (no link, NULL, not looked up yet).</summary>
     public DisplayName? NameOf(int column, object? value)

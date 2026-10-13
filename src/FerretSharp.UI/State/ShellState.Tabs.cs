@@ -377,13 +377,9 @@ public sealed partial class ShellState
     });
 
     /// <summary>
-    /// Drops tabs whose table no longer exists (after a schema refresh) in the workspaces of that connection only – another
-    /// connection's schema may well have the table.
+    /// After a schema refresh: drops the table and PL/SQL tabs of the connection whose object is gone – in the workspaces of
+    /// that connection only, another connection's schema may well have the object.
     /// </summary>
-    public void RemoveTabsWhere(Guid connectionId, Func<TableTab, bool> predicate) =>
-        RemoveWhere(connectionId, t => t is TableTab table && predicate(table));
-
-    /// <summary>After a schema refresh: drops the table and PL/SQL tabs of the connection whose object is gone.</summary>
     public void RemoveVanishedTabs(Guid connectionId, SchemaCache schema) => RemoveWhere(connectionId, tab => tab switch
     {
         TableTab table => schema.Find(table.Table.Ref) is null,

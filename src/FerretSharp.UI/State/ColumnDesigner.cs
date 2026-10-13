@@ -190,9 +190,6 @@ public sealed class DesignConstraint
         set => _name.Type(value);
     }
 
-    /// <summary>The user typed the name: it no longer follows type and columns.</summary>
-    public bool NameTyped => _name.Typed;
-
     /// <summary>The suggested name for its type and columns, unless the user typed one (<see cref="ColumnDesigner.SuggestName"/>).</summary>
     internal void Suggest(string name) => _name.Follow(name);
 

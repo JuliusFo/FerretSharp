@@ -165,11 +165,13 @@ public sealed class ColumnDesignerTests
         constraint.Name = "UK_EIGEN";
 
         designer.SetType(constraint, ConstraintType.Check);
-        Assert.Equal(("UK_EIGEN", true), (constraint.Name, constraint.NameTyped));
+        Assert.Equal("UK_EIGEN", constraint.Name); // typed: does not follow the type
 
         constraint.Name = "";
         designer.AddColumn(constraint, "BETRAG");
-        Assert.Equal(("CK_KUNDE_BETRAG", false), (constraint.Name, constraint.NameTyped));
+        Assert.Equal("CK_KUNDE_BETRAG", constraint.Name);
+        designer.SetType(constraint, ConstraintType.Unique);
+        Assert.Equal("UK_KUNDE_BETRAG", constraint.Name); // follows again
     }
 
     private static readonly TableDetails Land = new(new TableSummary("SHOP", "LAND", TableKind.Table),

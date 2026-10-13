@@ -80,8 +80,12 @@ internal sealed class TestApp : IAsyncDisposable
     public async Task<ConnectionScope> OpenAsync(ConnectionProfile profile)
     {
         Secrets.SetPassword(profile.Id, "pw");
-        await Hub.OpenAsync(profile);
-        var scope = Hub.Find(profile.Id)!;
+        var scope = Hub.Show(profile);
+        if (ConnectionHub.NeedsConnect(scope))
+        {
+            await scope.Active.ConnectAsync(profile, CancellationToken.None);
+        }
+
         Assert.True(scope.Active.IsConnected, scope.Active.Error?.Message);
         Shell.SyncWorkspaces(scope.Id, scope.Workspaces.Open, scope.Workspaces.Active?.Id, scope.Active.Schema!);
         Shell.ShowConnection(Hub.Current?.Id);

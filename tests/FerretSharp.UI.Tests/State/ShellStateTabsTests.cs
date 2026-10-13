@@ -1,4 +1,6 @@
+using FerretSharp.Core.Schema;
 using FerretSharp.UI.State;
+using NSubstitute;
 
 namespace FerretSharp.UI.Tests.State;
 
@@ -16,7 +18,7 @@ public sealed class ShellStateTabsTests : IAsyncDisposable
         var devTab = _app.AddPendingWork(dev);
 
         // Dev's refreshed schema no longer has KUNDEN.
-        _app.Shell.RemoveTabsWhere(dev.Id, _ => true);
+        _app.Shell.RemoveVanishedTabs(dev.Id, new SchemaCache(Substitute.For<ISchemaReader>(), "APP"));
 
         Assert.DoesNotContain(devTab, _app.WorkspaceOf(dev).Tabs);
         Assert.Contains(testTab, _app.WorkspaceOf(test).Tabs);
