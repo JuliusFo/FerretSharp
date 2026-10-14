@@ -9,7 +9,7 @@ namespace FerretSharp.UI.Tests.State;
 /// <summary>WP-32: the app only reports updates; downloading and installing wait for the click, the restart goes through the ExitGuard.</summary>
 public sealed class UpdateStateTests : IDisposable
 {
-    private static readonly AppUpdate Next = new("3.29.0", "### Added\n- Updates from the app");
+    private static readonly AppUpdate Next = AppUpdate.From(new VersionNotes("3.29.0", "### Added\n- Updates from the app"));
 
     private readonly TestFolder _folder = new();
     private readonly FakeUpdater _updater = new();

@@ -1411,6 +1411,10 @@
   <data name="Update_NoNotes" xml:space="preserve">
     <value>This release has no notes.</value>
   </data>
+  <data name="Update_NotesOnlyTarget" xml:space="preserve">
+    <value>Only the notes of {0} are known here; versions released in between, if any, are on GitHub.</value>
+    <comment>{0}: version of the update</comment>
+  </data>
   <data name="Update_AllReleases" xml:space="preserve">
     <value>All releases on GitHub</value>
     <comment>Link</comment>

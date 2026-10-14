@@ -1,5 +1,6 @@
-@* The update dialog (WP-32): what is new in the newer version, "Download" and then "Restart now"; the download runs here with its
-   progress and can be cancelled. Opened from the status bar or Settings › Updates; mounted by the shell. *@
+@* The update dialog (WP-32): what is new in the newer version and, if known, in the versions between, "Download" and then
+   "Restart now"; the download runs here with its progress and can be cancelled. Opened from the status bar or Settings ›
+   Updates; mounted by the shell. *@
 @implements IDisposable
 @inject UpdateState Updates
 
@@ -12,35 +13,51 @@
         </header>
         <div class="dialog-body">
             <p class="update-current">@TextFormat.Format(ShellText.Update_YouHave, CurrentVersion)</p>
-            @{ var notes = ReleaseNotes.Parse(update.Notes); }
-            @if (notes.Count == 0)
+            @if (update.Notes.All(v => v.Markdown is null))
             {
                 <p class="hint">@ShellText.Update_NoNotes</p>
             }
             else
             {
+                @* An update over several versions has the notes of each, newest first, under its version. *@
                 <div class="release-notes">
-                    @foreach (var group in Group(notes))
+                    @foreach (var version in update.Notes)
                     {
-                        @if (group.Bullets is { } bullets)
+                        @if (update.Notes.Count > 1)
                         {
-                            <ul>
-                                @foreach (var bullet in bullets)
-                                {
-                                    <li>@Spans(bullet)</li>
-                                }
-                            </ul>
+                            <h2 class="release-version">@version.Version</h2>
                         }
-                        else if (group.Block.Kind == NoteBlockKind.Heading)
+                        var notes = ReleaseNotes.Parse(version.Markdown);
+                        @if (notes.Count == 0)
                         {
-                            <h3>@Spans(group.Block)</h3>
+                            <p class="hint">@ShellText.Update_NoNotes</p>
                         }
-                        else
+                        @foreach (var group in Group(notes))
                         {
-                            <p>@Spans(group.Block)</p>
+                            @if (group.Bullets is { } bullets)
+                            {
+                                <ul>
+                                    @foreach (var bullet in bullets)
+                                    {
+                                        <li>@Spans(bullet)</li>
+                                    }
+                                </ul>
+                            }
+                            else if (group.Block.Kind == NoteBlockKind.Heading)
+                            {
+                                <h3>@Spans(group.Block)</h3>
+                            }
+                            else
+                            {
+                                <p>@Spans(group.Block)</p>
+                            }
                         }
                     }
                 </div>
+            }
+            @if (!update.NotesComplete)
+            {
+                <p class="hint">@TextFormat.Format(ShellText.Update_NotesOnlyTarget, update.Version)</p>
             }
             <p><a href="@ReleasesUrl" target="_blank" rel="noopener">@ShellText.Update_AllReleases</a></p>
             @if (Updates.Phase == UpdatePhase.DownloadFailed)

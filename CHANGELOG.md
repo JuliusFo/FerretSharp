@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Changed
+- The update dialog shows the notes of every version between yours and the new one, newest first under its version – an update from 3.29.0 to 3.33.0 lists what changed in 3.30.0 to 3.33.0. Where they are not known (the portable zip, or a release without a delta package), it shows the new version's notes and says so.
+
 ## [3.33.0] - 2026-10-14
 
 Fixes from daily work: foreign key counts that held up jumps, a connect that seemed to hang, the letter bar in further connections and error messages after sleep at a dock.

@@ -33,13 +33,17 @@ internal sealed class VelopackUpdater : IAppUpdater
 
     public bool IsInstalled => _manager.IsInstalled;
 
-    public AppUpdate? Downloaded => IsInstalled && _manager.UpdatePendingRestart is { } pending ? ToUpdate(pending) : null;
+    /// <summary>Only the target's notes: what lay between is not known any more once the download waits for the restart.</summary>
+    public AppUpdate? Downloaded => IsInstalled && _manager.UpdatePendingRestart is { } pending ? AppUpdate.From(Notes(pending)) : null;
 
     public async Task<AppUpdate?> CheckAsync(CancellationToken cancellationToken)
     {
         var found = await _manager.CheckForUpdatesAsync();
         _found = found;
-        return found is null ? null : ToUpdate(found.TargetFullRelease);
+        // The delta packages after the installed version up to the target each carry their version's notes (an update from
+        // 3.29.0 to 3.33.0 has those of 3.30.0 to 3.33.0). None without a full package of the installed version (portable)
+        // or without a delta for the target: then only the target's notes.
+        return found is null ? null : AppUpdate.From(Notes(found.TargetFullRelease), found.DeltasToTarget.Select(Notes));
     }
 
     public Task DownloadAsync(AppUpdate update, Action<int> progress, CancellationToken cancellationToken)
@@ -58,6 +62,5 @@ internal sealed class VelopackUpdater : IAppUpdater
         _manager.WaitExitThenApplyUpdates(asset, silent: false, restart: true, _restartArguments);
     }
 
-    private static AppUpdate ToUpdate(VelopackAsset asset) =>
-        new(asset.Version.ToString(), string.IsNullOrWhiteSpace(asset.NotesMarkdown) ? null : asset.NotesMarkdown);
+    private static VersionNotes Notes(VelopackAsset asset) => new(asset.Version.ToString(), asset.NotesMarkdown);
 }

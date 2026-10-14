@@ -1146,6 +1146,9 @@
   <data name="Update_NoNotes" xml:space="preserve">
     <value>Dieses Release hat keine Notizen.</value>
   </data>
+  <data name="Update_NotesOnlyTarget" xml:space="preserve">
+    <value>Hier sind nur die Notizen von {0} bekannt; dazwischen erschienene Versionen, falls es welche gibt, stehen auf GitHub.</value>
+  </data>
   <data name="Update_AllReleases" xml:space="preserve">
     <value>Alle Releases auf GitHub</value>
   </data>
