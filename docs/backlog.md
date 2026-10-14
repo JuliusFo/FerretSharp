@@ -136,6 +136,7 @@ Selten, ungeprüft oder bewusst zurückgestellt – vor dem Anfassen nachstellen
 
 ## Tests und Werkzeuge
 
+- Testlücken nach der Coverage-Reparatur (2026-10-14, `docs/work-packages/small-coverage.md`): `ShellState` (rund 130 ungetestete Zeilen), `ExportActions`, `PresentationService`, `TableTab`, der Konsolen-Teil von `ClrActivityLog`. Bewusst offen: Abbruch- und Schließpfade von `OracleSession` bei still gewordener Verbindung.
 - Struktur (aus R5b, bewusst nicht gemacht): `DisplayName` an `TableSummary`/`PlSqlObjectSummary` (Synonym oder echter Name) umbenennen – rund 35 Dateien; `ValueMapping.DisplayName` steckt im Exportformat des ModelHost. `TabFooter` und `ResultFooter` als eine Komponente (seit R5b gleich formatiert, Inhalte verschieden).
 - Rendern: Jede Zellbearbeitung rendert jeden besuchten Tab aller Verbindungen (R5b gemessen: ~0,07 ms je Tab und Bearbeitung, bei 26 Tabs ~2 ms). Falls es mit sehr vielen Tabs spürbar wird: `ShouldRender` an `TabFrame` mit einem Schlüssel je Tab (aktiv, `StructureVersion`, `Mode`, Schreibbarkeit, Änderungszähler am `ChangeTracker`) – Vorsicht bei Zurück/Vor und einem von außen geänderten Modus (`r5b-structure.md`).
 - Kontrast der Warnfarben im hellen Modus: `--warn` auf Weiß 3,5:1, PK-Plakette 3,2:1 (R5b hat nur den Dunkelmodus angehoben, hell blieb unverändert).
