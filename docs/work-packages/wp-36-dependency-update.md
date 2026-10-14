@@ -1,4 +1,4 @@
-# WP-36 Abhängigkeiten aktualisieren ([#13](https://github.com/JuliusFo/FerretSharp/issues/13)) → noch nicht released
+# WP-36 Abhängigkeiten aktualisieren ([#13](https://github.com/JuliusFo/FerretSharp/issues/13)) → Release 3.34.1
 Branch `wp/36-dependency-update`, gestartet 2026-10-14. Planung unten; Versionen beim Start neu geprüft – gegenüber der Bewertung kam nur `Microsoft.Extensions.TimeProvider.Testing` 10.11.0 dazu.
 
 ## Gebaut
@@ -15,7 +15,7 @@ Eigener Container (`New-SampleDb.ps1 -Name ferret-e2e-wp36 -Port 1536`), App aus
 - Gefunden und behoben: die weiße Scrollbalken-Ecke, `tooltipValueGetter`.
 - Ladezustand: Während ein Block lädt, sind die Zeilen leer wie bisher (unser `cellRenderer` liefert ohne `data` ein leeres Element) – kein Spinner, keine Änderung.
 - Beobachtet, nicht gegen 34.3.1 gegengeprüft: Nach dem Flags-Popup bleibt der Zellinhalt markiert (Backlog).
-- Nicht geprüft: Auswahl im Enum-Editor per Maus (öffnet die native Liste), helles Theme ohne Emulation (`--theme=dark` übersteuert die Einstellung; der Wechsel lief über `Emulation.setEmulatedMedia`), ein CI-Lauf auf dem Branch (braucht den Push).
+- Nicht geprüft: Auswahl im Enum-Editor per Maus (öffnet die native Liste), helles Theme ohne Emulation (`--theme=dark` übersteuert die Einstellung; der Wechsel lief über `Emulation.setEmulatedMedia`). CI auf dem Branch (PR #16) grün; den Push des Coverage-Badges mit `checkout` v7 erst nach dem Merge auf `main` ansehen.
 
 ## Fallen
 - Seit 36.0 fehlt das `ValidationModule` in `AllCommunityModule`: falsche oder veraltete Optionen ignoriert das Grid still. Zum Prüfen im E2E `agGrid.enableDevValidations()` aufrufen und danach ein Grid neu anlegen (Tab öffnen) – Warnungen in der Konsole und als Fehler-Panel im Grid. In `.claude/rules/ui-grid.md` und `docs/e2e-testing.md` eingetragen.

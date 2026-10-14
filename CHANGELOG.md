@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.34.1] - 2026-10-14
+
 Up-to-date libraries: the data grid moves to AG Grid 36.
 
 ### Changed
