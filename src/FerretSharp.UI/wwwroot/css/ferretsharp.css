@@ -1400,10 +1400,14 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .update-current { color: var(--muted); }
 .release-notes { margin: 0 0 12px; padding: 4px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); max-height: 46vh; overflow-y: auto; }
 .release-notes h3 { margin: 10px 0 4px; font-size: 13px; }
+.release-notes h2.release-version { margin: 14px 0 2px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 14px; }
+.release-notes h2.release-version:first-child { margin-top: 6px; padding-top: 0; border-top: 0; }
 .release-notes p { margin: 8px 0; }
 .release-notes ul { margin: 4px 0 8px; padding-left: 20px; }
 .release-notes li { margin: 3px 0; }
 .release-notes code { font-family: var(--mono); font-size: 12px; }
+.release-notes .note-image { display: block; width: fit-content; max-width: 100%; margin: 8px 0; }
+.release-notes .note-image img { display: block; max-width: 100%; max-height: 320px; border: 1px solid var(--border); border-radius: 6px; }
 .update-progress { width: 160px; height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; flex: none; }
 .update-progress .bar { height: 100%; background: var(--accent); transition: width .2s; }
 

@@ -392,13 +392,7 @@ public sealed class SqlScriptTests
     [Fact]
     public void The_statement_guards_use_only_the_tokenizer_and_the_classifier()
     {
-        var root = new DirectoryInfo(AppContext.BaseDirectory);
-        while (!File.Exists(Path.Combine(root.FullName, "FerretSharp.slnx")))
-        {
-            root = root.Parent ?? throw new InvalidOperationException("FerretSharp.slnx not found");
-        }
-
-        var guard = File.ReadAllText(Path.Combine(root.FullName, "src", "FerretSharp.Core", "Oracle", "StatementGuard.cs"));
+        var guard = File.ReadAllText(Path.Combine(Repository.Root, "src", "FerretSharp.Core", "Oracle", "StatementGuard.cs"));
         var code = string.Join("\n", guard.Split('\n').Where(line => !line.TrimStart().StartsWith("//", StringComparison.Ordinal)));
 
         Assert.Contains("SqlTokenizer.", code, StringComparison.Ordinal);

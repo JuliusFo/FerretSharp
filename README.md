@@ -193,7 +193,7 @@ changes, and a new build is picked up automatically:
    menu. The installer is not signed, so Windows SmartScreen warns once: *More info › Run anyway*.
 2. From then on FerretSharp checks for a new version at start and every 4 hours while it runs (*Settings › Updates*:
    hourly, daily, only at start, or off) and shows it in the status bar; *Download* fetches it, *Restart now* installs it. Nothing is downloaded or installed without your
-   click.
+   click. The update dialog loads the images of the release notes from this repository on GitHub.
 
 Without installing: `FerretSharp-win-Portable.zip` – unzip anywhere and start `FerretSharp.exe`; it updates itself the
 same way.

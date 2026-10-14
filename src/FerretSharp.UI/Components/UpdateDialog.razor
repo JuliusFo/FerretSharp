@@ -1,5 +1,7 @@
-@* The update dialog (WP-32): what is new in the newer version, "Download" and then "Restart now"; the download runs here with its
-   progress and can be cancelled. Opened from the status bar or Settings › Updates; mounted by the shell. *@
+@* The update dialog (WP-32): what is new in the newer version and, if known, in the versions between, "Download" and then
+   "Restart now"; the download runs here with its progress and can be cancelled. Images in the notes (WP-49) load from the
+   project's repository on GitHub. Opened from the status bar or Settings ›
+   Updates; mounted by the shell. *@
 @implements IDisposable
 @inject UpdateState Updates
 
@@ -12,35 +14,67 @@
         </header>
         <div class="dialog-body">
             <p class="update-current">@TextFormat.Format(ShellText.Update_YouHave, CurrentVersion)</p>
-            @{ var notes = ReleaseNotes.Parse(update.Notes); }
-            @if (notes.Count == 0)
+            @if (update.Notes is [{ Markdown: null }])
             {
                 <p class="hint">@ShellText.Update_NoNotes</p>
             }
             else
             {
+                @* An update over several versions has the notes of each, newest first, under its version. *@
                 <div class="release-notes">
-                    @foreach (var group in Group(notes))
+                    @foreach (var version in update.Notes)
                     {
-                        @if (group.Bullets is { } bullets)
+                        @if (update.Notes.Count > 1)
                         {
-                            <ul>
-                                @foreach (var bullet in bullets)
+                            <h2 class="release-version">@version.Version</h2>
+                        }
+                        var notes = ReleaseNotes.Parse(version.Markdown);
+                        @if (notes.Count == 0)
+                        {
+                            <p class="hint">@ShellText.Update_NoNotes</p>
+                        }
+                        @foreach (var group in Group(notes))
+                        {
+                            @if (group.Bullets is { } bullets)
+                            {
+                                <ul>
+                                    @foreach (var bullet in bullets)
+                                    {
+                                        <li>@Spans(bullet)</li>
+                                    }
+                                </ul>
+                            }
+                            else if (group.Block.Kind == NoteBlockKind.Heading)
+                            {
+                                <h3>@Spans(group.Block)</h3>
+                            }
+                            else if (group.Block is { Kind: NoteBlockKind.Image, Image: { } image })
+                            {
+                                @* Offline or on a VPN without internet the image does not load: then its alt text. A click opens
+                                   it in the browser (only https leaves the app). *@
+                                var alt = string.Concat(group.Block.Spans.Select(s => s.Text));
+                                @if (_failedImages.Contains(image))
                                 {
-                                    <li>@Spans(bullet)</li>
+                                    <p class="hint">@alt</p>
                                 }
-                            </ul>
-                        }
-                        else if (group.Block.Kind == NoteBlockKind.Heading)
-                        {
-                            <h3>@Spans(group.Block)</h3>
-                        }
-                        else
-                        {
-                            <p>@Spans(group.Block)</p>
+                                else
+                                {
+                                    <a class="note-image" href="@image.AbsoluteUri" target="_blank" rel="noopener" title="@alt">
+                                        <img src="@image.AbsoluteUri" alt="@alt" loading="lazy" @onerror="() => _failedImages.Add(image)" />
+                                    </a>
+                                }
+                            }
+                            else
+                            {
+                                <p>@Spans(group.Block)</p>
+                            }
                         }
                     }
                 </div>
+            }
+            @if (!update.NotesComplete)
+            {
+                <p class="hint">@TextFormat.Format(ShellText.Update_NotesOnlyTarget, update.Version)</p>
             }
             <p><a href="@ReleasesUrl" target="_blank" rel="noopener">@ShellText.Update_AllReleases</a></p>
             @if (Updates.Phase == UpdatePhase.DownloadFailed)
@@ -84,6 +118,8 @@
     public const string ReleasesUrl = "https://github.com/JuliusFo/FerretSharp/releases";
 
     private static readonly string CurrentVersion = AppVersion.Current;
+
+    private readonly HashSet<Uri> _failedImages = [];
 
     protected override void OnInitialized() => Updates.Changed += OnChanged;
 

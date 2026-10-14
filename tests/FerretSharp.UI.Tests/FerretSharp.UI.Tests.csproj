@@ -22,6 +22,7 @@
     <Compile Include="..\Shared\UiCulture.cs" Link="Shared\UiCulture.cs" />
     <Compile Include="..\Shared\ResourceChecks.cs" Link="Shared\ResourceChecks.cs" />
     <Compile Include="..\Shared\FakeDatabase.cs" Link="Shared\FakeDatabase.cs" />
+    <Compile Include="..\Shared\Repository.cs" Link="Shared\Repository.cs" />
     <Using Include="FerretSharp.Testing" />
   </ItemGroup>
 
