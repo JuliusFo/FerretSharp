@@ -8,6 +8,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 ### Changed
 - The update dialog shows the notes of every version between yours and the new one, newest first under its version, instead of the new version's only. This takes effect from the update after this release, as the dialog belongs to the installed version. Where the versions between are not known (presumably the portable zip, or a release without a delta package), it shows the new version's notes and says so.
 
+### Fixed
+- App statements: "Clear" was only offered while the trace was running; once the app has ended or was detached, the recording can now be cleared as well.
+
 ## [3.33.0] - 2026-10-14
 
 Fixes from daily work: foreign key counts that held up jumps, a connect that seemed to hang, the letter bar in further connections and error messages after sleep at a dock.

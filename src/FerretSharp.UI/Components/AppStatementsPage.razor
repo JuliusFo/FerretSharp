@@ -32,7 +32,8 @@
                 }
                 <span class="muted">@StatusText</span>
                 <span class="grow"></span>
-                @if (Trace.Status is TraceStatus.Recording or TraceStatus.Attaching)
+                @{ var tracing = Trace.Status is TraceStatus.Recording or TraceStatus.Attaching; }
+                @if (tracing)
                 {
                     @if (Trace.Paused)
                     {
@@ -42,7 +43,14 @@
                     {
                         <button class="btn" @onclick="() => Trace.SetPaused(true)" title="@AppStatementsText.AppStatements_PauseTitle">@AppStatementsText.AppStatements_Pause</button>
                     }
+                }
+                @* Also once the trace ended (app closed, detached, failed): the recording stays until cleared. *@
+                @if (tracing || Trace.Snapshot.Count > 0)
+                {
                     <button class="btn" @onclick="Trace.Reset" title="@AppStatementsText.AppStatements_ClearTitle">@AppStatementsText.AppStatements_Clear</button>
+                }
+                @if (tracing)
+                {
                     <button class="btn" disabled="@Trace.Switching" @onclick="Trace.DetachAsync">@AppStatementsText.AppStatements_Detach</button>
                 }
                 else
