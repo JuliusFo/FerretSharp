@@ -31,6 +31,7 @@ Ausgewählt mit dem Nutzer am 2026-10-14 aus einer Ideensammlung (Bewertung des 
   - **Anwenden ersetzt** die Filterzeilen; „+ Hinzufügen“ neben jeder Vorlage hängt ihre Zeilen an. Die Sortierung ersetzt eine Vorlage nur, wenn sie eine hat.
   - **Ein Link öffnet im zuletzt aktiven Workspace der Verbindung**, nie in einem neuen; ist die Verbindung zu, wird verbunden wie von Hand. Immer ein neuer Tab. Vorher **immer eine Bestätigung** (Verbindung, Tabelle, Anzahl Filter, „Verbindung wird hergestellt“) – jede Webseite oder Mail kann `ferretsharp://` auslösen; im selben Dialog die Auswahl bei mehrdeutiger und der Hinweis bei unbekannter Verbindung.
   - **Zwei Releases:** erst die Vorlagen (nur Core und UI), dann die Links (ADR, Registrierung, Übergabe an die laufende Instanz); die Links nutzen die Serialisierung des Filtermodells der Vorlagen. Ein Paket, ein Protokoll.
+- Offen nach Teil 1 (die einfachste Variante gebaut): Die Filterleiste zeigt nicht, welche Vorlage angewendet ist und ob die Zeilen seitdem geändert wurden („Offene Aufträge · geändert“).
 
 ### WP-38 Befehlspalette, Schnellsuche, Spaltenprofil
 (Befehlspalette, Spaltenprofil: „gut“.) Branch `wp/38-palette-quick-open-profile`.
