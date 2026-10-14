@@ -36,7 +36,8 @@
                     @* Keyed by category: with other options the browser would show the first one while the kept operator
                        (e.g. "=" from DATE to VARCHAR2) did not change, so Blazor would not set the value again. *@
                     <select @key="(category, values is null)" class="field op" value="@r.Op" @onchange="e => { r.Op = Enum.Parse<FilterOperator>((string)e.Value!); Shell.MarkDirty(); }">
-                        @foreach (var op in Operators(category, values, r.Op))
+                        @* A column the table does not have (a preset's, WP-37) keeps showing its operator. *@
+                        @foreach (var op in column is null ? [r.Op] : Operators(category, values, r.Op))
                         {
                             <option value="@op">@OperatorLabels.Label(op)</option>
                         }

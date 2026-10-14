@@ -983,11 +983,11 @@
     <comment>{0}: preset name</comment>
   </data>
   <data name="Presets_MissingColumnsOne" xml:space="preserve">
-    <value>Preset {1}: this table has no column {2}. Filter rows on it are disabled, sorting by it is left out.</value>
+    <value>Preset {1}: this table has no column {2}.</value>
     <comment>{0}: number of columns (1); {1}: preset name; {2}: column name</comment>
   </data>
   <data name="Presets_MissingColumnsOther" xml:space="preserve">
-    <value>Preset {1}: this table has no columns {2}. Filter rows on them are disabled, sorting by them is left out.</value>
+    <value>Preset {1}: this table has no columns {2}.</value>
     <comment>{0}: number of columns; {1}: preset name; {2}: column names</comment>
   </data>
   <data name="Presets_ColumnMissing" xml:space="preserve">
