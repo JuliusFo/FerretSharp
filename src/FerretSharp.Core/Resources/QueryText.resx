@@ -294,4 +294,47 @@
     <value>{0} could not be read: {1}</value>
     <comment>{0}: file path; {1}: error message</comment>
   </data>
+  <data name="LinkTooLong" xml:space="preserve">
+    <value>The link is longer than {0} characters.</value>
+    <comment>{0}: maximum length</comment>
+  </data>
+  <data name="LinkNotFerretSharp" xml:space="preserve">
+    <value>This is not a FerretSharp link (ferretsharp://open?…).</value>
+  </data>
+  <data name="LinkVersionMissing" xml:space="preserve">
+    <value>The link has no valid version (v=…).</value>
+  </data>
+  <data name="LinkFromNewerVersion" xml:space="preserve">
+    <value>The link comes from a newer version of FerretSharp (format {0}). Update FerretSharp to open it.</value>
+    <comment>{0}: format version number</comment>
+  </data>
+  <data name="LinkTableMissing" xml:space="preserve">
+    <value>The link names no table (s=… and t=…).</value>
+  </data>
+  <data name="LinkConnectionNameTooLong" xml:space="preserve">
+    <value>The connection name in the link is too long.</value>
+  </data>
+  <data name="LinkTooManyFilters" xml:space="preserve">
+    <value>The link has more than {0} filters.</value>
+    <comment>{0}: maximum number</comment>
+  </data>
+  <data name="LinkFilterInvalid" xml:space="preserve">
+    <value>The link has an invalid filter on {0}.</value>
+    <comment>{0}: column name as given in the link</comment>
+  </data>
+  <data name="LinkTooManyValues" xml:space="preserve">
+    <value>The link has more than {0} filter values.</value>
+    <comment>{0}: maximum number</comment>
+  </data>
+  <data name="LinkSortInvalid" xml:space="preserve">
+    <value>The link has an invalid sort order on {0}.</value>
+    <comment>{0}: column name as given in the link</comment>
+  </data>
+  <data name="LinkViewInvalid" xml:space="preserve">
+    <value>The link names an unknown view of the tab.</value>
+    <comment>View = data, columns, constraints … of a table tab</comment>
+  </data>
+  <data name="LinkRowsNeedPrimaryKey" xml:space="preserve">
+    <value>A link to rows needs an enforced primary key; this table addresses its rows by ROWID, which can change.</value>
+  </data>
 </root>

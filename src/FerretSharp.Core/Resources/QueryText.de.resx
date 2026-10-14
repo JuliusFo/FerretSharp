@@ -228,4 +228,40 @@
   <data name="PresetFileUnreadable" xml:space="preserve">
     <value>{0} konnte nicht gelesen werden: {1}</value>
   </data>
+  <data name="LinkTooLong" xml:space="preserve">
+    <value>Der Link ist länger als {0} Zeichen.</value>
+  </data>
+  <data name="LinkNotFerretSharp" xml:space="preserve">
+    <value>Das ist kein FerretSharp-Link (ferretsharp://open?…).</value>
+  </data>
+  <data name="LinkVersionMissing" xml:space="preserve">
+    <value>Der Link hat keine gültige Version (v=…).</value>
+  </data>
+  <data name="LinkFromNewerVersion" xml:space="preserve">
+    <value>Der Link stammt aus einer neueren FerretSharp-Version (Format {0}). Zum Öffnen FerretSharp aktualisieren.</value>
+  </data>
+  <data name="LinkTableMissing" xml:space="preserve">
+    <value>Der Link nennt keine Tabelle (s=… und t=…).</value>
+  </data>
+  <data name="LinkConnectionNameTooLong" xml:space="preserve">
+    <value>Der Verbindungsname im Link ist zu lang.</value>
+  </data>
+  <data name="LinkTooManyFilters" xml:space="preserve">
+    <value>Der Link hat mehr als {0} Filter.</value>
+  </data>
+  <data name="LinkFilterInvalid" xml:space="preserve">
+    <value>Der Link hat einen ungültigen Filter auf {0}.</value>
+  </data>
+  <data name="LinkTooManyValues" xml:space="preserve">
+    <value>Der Link hat mehr als {0} Filterwerte.</value>
+  </data>
+  <data name="LinkSortInvalid" xml:space="preserve">
+    <value>Der Link hat eine ungültige Sortierung auf {0}.</value>
+  </data>
+  <data name="LinkViewInvalid" xml:space="preserve">
+    <value>Der Link nennt eine unbekannte Ansicht des Tabs.</value>
+  </data>
+  <data name="LinkRowsNeedPrimaryKey" xml:space="preserve">
+    <value>Ein Link auf Zeilen braucht einen durchgesetzten Primärschlüssel; diese Tabelle adressiert ihre Zeilen über ROWID, die sich ändern kann.</value>
+  </data>
 </root>
