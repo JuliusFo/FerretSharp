@@ -1,7 +1,7 @@
 # FerretSharp – Oracle explorer for .NET developers
 
 > Projektanweisungen für Claude Code. Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-14, zuletzt released 3.32.1 (Historie: `CHANGELOG.md`).
+> Stand: 2026-10-14, zuletzt released 3.33.0 (Historie: `CHANGELOG.md`).
 
 ## Wo steht was
 
@@ -115,5 +115,5 @@ Regeln:
 
 ## 8. Als Nächstes
 
-- Gesamt-Review nach 3.31.0 (`docs/review-3.31.0.md`) abgeschlossen: Teil A als R5a in 3.31.1, Teil C (Doku), Teil B als R5b in 3.32.0. 3.32.1 hebt `System.Security.Cryptography.Pkcs` (kommt mit den Oracle-Paketen) direkt auf 8.0.2 – die direkte Referenz kann weg, sobald ein Oracle-Paket selbst 8.0.2 oder neuer mitbringt (WP-36).
+- Gesamt-Review nach 3.31.0 (`docs/review-3.31.0.md`) abgeschlossen: Teil A als R5a in 3.31.1, Teil C (Doku), Teil B als R5b in 3.32.0. 3.32.1 hebt `System.Security.Cryptography.Pkcs` (kommt mit den Oracle-Paketen) direkt auf 8.0.2 – die direkte Referenz kann weg, sobald ein Oracle-Paket selbst 8.0.2 oder neuer mitbringt (WP-36). 3.33.0: Fehler aus dem Alltag (`docs/work-packages/fixes-2026-10-14.md`); offen dazu die Ursache der Render-Fehler nach dem Ruhezustand (HWND-WebView2 oder Software-Rendering prüfen, Backlog).
 - Danach WP-36 (Abhängigkeiten), dann WP-37 … WP-47 in der Reihenfolge aus `docs/roadmap.md` (ausgewählt mit dem Nutzer am 2026-10-14).
