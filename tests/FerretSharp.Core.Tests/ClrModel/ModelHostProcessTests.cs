@@ -15,19 +15,8 @@ public sealed class ModelHostProcessTests
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private static string FakeHost
-    {
-        get
-        {
-            var root = new DirectoryInfo(AppContext.BaseDirectory);
-            while (!File.Exists(Path.Combine(root.FullName, "FerretSharp.slnx")))
-            {
-                root = root.Parent ?? throw new InvalidOperationException("FerretSharp.slnx not found");
-            }
-
-            return Path.Combine(root.FullName, "tests", "FerretSharp.FakeModelHost", "bin", Configuration, "net10.0", "FerretSharp.FakeModelHost.dll");
-        }
-    }
+    private static string FakeHost =>
+        Path.Combine(Repository.Root, "tests", "FerretSharp.FakeModelHost", "bin", Configuration, "net10.0", "FerretSharp.FakeModelHost.dll");
 
     /// <summary>The fake's own build: its deps.json and runtime, as the runner would find them for a linked project.</summary>
     private static BuildOutput Output => new(FakeHost, Path.ChangeExtension(FakeHost, ".deps.json"), new Version(Environment.Version.Major, Environment.Version.Minor),

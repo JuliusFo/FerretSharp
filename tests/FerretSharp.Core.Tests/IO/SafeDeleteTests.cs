@@ -79,7 +79,7 @@ public sealed partial class SafeDeleteTests : IDisposable
     [Fact]
     public void Only_the_guarded_helpers_delete_folders()
     {
-        var root = RepositoryRoot();
+        var root = Repository.Root;
         var allowed = new[]
         {
             Path.Combine("src", "FerretSharp.Core", "IO", "SafeDelete.cs"),
@@ -131,19 +131,6 @@ public sealed partial class SafeDeleteTests : IDisposable
         Directory.EnumerateFiles(root, "*", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint })
             .Where(f => Extensions.Contains(Path.GetExtension(f), StringComparer.OrdinalIgnoreCase))
             .Where(f => !Path.GetRelativePath(root, f).Split(Path.DirectorySeparatorChar).Any(SkippedFolders.Contains));
-
-    private static string RepositoryRoot()
-    {
-        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "FerretSharp.slnx")))
-            {
-                return directory.FullName;
-            }
-        }
-
-        throw new InvalidOperationException("FerretSharp.slnx not found above " + AppContext.BaseDirectory);
-    }
 
     public void Dispose() => _folder.Dispose();
 }
