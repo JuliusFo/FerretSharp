@@ -138,4 +138,8 @@ The log is in {1}.</value>
     <value>Loading …</value>
     <comment>Default text of the loading indicator of a detail view</comment>
   </data>
+  <data name="ElapsedTotal" xml:space="preserve">
+    <value>{0} · {1} in total</value>
+    <comment>{0} = time of the current step, {1} = time since loading started</comment>
+  </data>
 </root>

@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using FerretSharp.Core.ClrModel;
 using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 using FerretSharp.Core.Workspaces;
@@ -24,12 +26,35 @@ public sealed class ActiveConnection(
 {
     public const string ExplorerAction = "Explorer";
 
+    /// <summary>Waiting for the previous attempt only counts as a step from this long (it is usually over at once).</summary>
+    private static readonly TimeSpan NoticeableWait = TimeSpan.FromMilliseconds(100);
+
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly Lock _stepLock = new();
+    private readonly List<LoadStep> _steps = [];
     private CancellationTokenSource? _connectCts;
     private IDatabaseConnection? _connection;
+    private long _stepTimestamp;
 
     /// <summary>Raised on every status change; may fire on a background thread.</summary>
     public event Action? Changed;
+
+    /// <summary>
+    /// Raised when <see cref="Step"/> changes; may fire on a background thread. Not <see cref="Changed"/>: on that the shell
+    /// renders every mounted tab of every connection.
+    /// </summary>
+    public event Action? StepChanged;
+
+    /// <summary>While connecting: what is being done right now, since <see cref="StepStartedAt"/>; null otherwise.</summary>
+    public string? Step { get; private set; }
+
+    public DateTimeOffset? StepStartedAt { get; private set; }
+
+    /// <summary>When the current or last connect started.</summary>
+    public DateTimeOffset? ConnectStartedAt { get; private set; }
+
+    /// <summary>The steps of the last connect with their durations – also of a failed or cancelled one (logged by the UI).</summary>
+    public IReadOnlyList<LoadStep> Steps { get; private set; } = [];
 
     public ConnectionStatus Status { get; private set; }
 
@@ -80,27 +105,40 @@ public sealed class ActiveConnection(
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _connectCts = cts;
 
+        var requested = Stopwatch.GetTimestamp();
+        var startedAt = DateTimeOffset.Now;
         await _gate.WaitAsync(CancellationToken.None);
         try
         {
-            await CloseAsync();
+            BeginSteps(startedAt, Stopwatch.GetElapsedTime(requested));
+            // Connecting from here on, also while the old sessions close (up to 10 s each over a silent VPN).
             Set(ConnectionStatus.Connecting, profile);
+            if (_connection is not null)
+            {
+                StartStep(ConnectionText.Step_ClosingPrevious);
+            }
+
+            await CloseAsync();
 
             var password = connections.GetPassword(profile.Id)
                 ?? throw new DatabaseException(ConnectionText.NoPasswordSaved);
 
-            _connection = await connector.OpenAsync(profile, password, ExplorerAction, cts.Token);
+            StartStep(ConnectionText.Step_OpeningSession);
+            _connection = await OpenAsync(profile, password, cts.Token);
             connections.PasswordWorked(profile.Id); // a password entered with "save" is saved only now (A11)
             var schema = new SchemaCache(_connection.Schema, profile.EffectiveSchema);
-            await schema.LoadAsync(cts.Token);
+            await schema.LoadAsync(new SyncProgress<string>(StartStep), cts.Token);
+            StartStep(ConnectionText.Step_RestoringWorkspaces);
             await workspaces.AttachAsync(profile, cts.Token);
 
             Schema = schema;
             ServerVersion = _connection.ServerVersion;
+            FinishSteps();
             Set(ConnectionStatus.Connected, profile);
         }
         catch (OperationCanceledException)
         {
+            FinishSteps();
             await CloseAsync();
             Set(ConnectionStatus.Disconnected, null);
             return;
@@ -112,6 +150,7 @@ public sealed class ActiveConnection(
                 connections.ForgetSessionPassword(profile.Id); // asked again next time instead of failing the same way
             }
 
+            FinishSteps();
             await CloseAsync();
             Set(ConnectionStatus.Failed, profile, new ConnectionError(ex.Message, ex.ErrorCode));
             return;
@@ -119,6 +158,7 @@ public sealed class ActiveConnection(
         catch (Exception ex)
         {
             // Never leave the UI stuck in "Connecting".
+            FinishSteps();
             await CloseAsync();
             Set(ConnectionStatus.Failed, profile, new ConnectionError(ex.Message, null));
             return;
@@ -146,7 +186,29 @@ public sealed class ActiveConnection(
         }
     }
 
-    public void CancelPendingConnect() => _connectCts?.Cancel();
+    /// <summary>
+    /// Cancels a running connect, off the calling thread: cancelling sends ODP.NET's break synchronously
+    /// (<c>OracleCommand.Cancel</c>), which can stall over the VPN – the Cancel button must not freeze the window.
+    /// </summary>
+    public void CancelPendingConnect()
+    {
+        if (_connectCts is not { } cts)
+        {
+            return;
+        }
+
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                cts.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // the connect ended meanwhile
+            }
+        });
+    }
 
     /// <summary>
     /// Keep-alive: pings the explorer session and the open workspace sessions that have been idle for at least
@@ -225,6 +287,83 @@ public sealed class ActiveConnection(
         {
             await _connection.DisposeAsync();
             _connection = null;
+        }
+    }
+
+    /// <summary>
+    /// ODP.NET does not stop opening when cancelled: the TCP connect to an unreachable address runs to its timeout (15 s), and
+    /// Cancel did nothing until then. Cancelling returns at once; a session that opens after all is closed right away.
+    /// </summary>
+    private async Task<IDatabaseConnection> OpenAsync(ConnectionProfile profile, string password, CancellationToken cancellationToken)
+    {
+        var opening = connector.OpenAsync(profile, password, ExplorerAction, cancellationToken);
+        try
+        {
+            return await opening.WaitAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            _ = opening.ContinueWith(async opened =>
+            {
+                if (opened.IsCompletedSuccessfully)
+                {
+                    await opened.Result.DisposeAsync();
+                }
+                else
+                {
+                    _ = opened.Exception; // observed: a failure nobody waits for any more
+                }
+            }, CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default).Unwrap();
+            throw;
+        }
+    }
+
+    /// <summary>A new connect: its steps start now; waiting for the previous attempt counts if it was noticeable.</summary>
+    private void BeginSteps(DateTimeOffset startedAt, TimeSpan waited)
+    {
+        lock (_stepLock)
+        {
+            _steps.Clear();
+            ConnectStartedAt = startedAt;
+            if (waited >= NoticeableWait)
+            {
+                _steps.Add(new LoadStep(ConnectionText.Step_WaitingForPrevious, waited));
+            }
+        }
+    }
+
+    /// <summary>The previous step ends here (its duration is recorded), <paramref name="step"/> starts.</summary>
+    private void StartStep(string step)
+    {
+        lock (_stepLock)
+        {
+            CloseStep();
+            Step = step;
+            StepStartedAt = DateTimeOffset.Now;
+            _stepTimestamp = Stopwatch.GetTimestamp();
+        }
+
+        StepChanged?.Invoke();
+    }
+
+    private void FinishSteps()
+    {
+        lock (_stepLock)
+        {
+            CloseStep();
+            Steps = _steps.ToList();
+            Step = null;
+            StepStartedAt = null;
+        }
+
+        StepChanged?.Invoke();
+    }
+
+    private void CloseStep()
+    {
+        if (Step is { } step)
+        {
+            _steps.Add(new LoadStep(step, Stopwatch.GetElapsedTime(_stepTimestamp)));
         }
     }
 

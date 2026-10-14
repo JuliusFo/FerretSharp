@@ -150,6 +150,7 @@
                             <EmptyState Title="@TextFormat.Format(ShellText.Connection_ConnectingTo, connecting.Name)"Text="@connecting.Address.Display">
                                 <span class="spinner"></span>
                                 <button class="btn" @onclick="Active.CancelPendingConnect">@CommonText.Cancel</button>
+                                <ConnectProgress Active="Active" />
                             </EmptyState>
                         }
                         else if (Active.Status == ConnectionStatus.Failed && Active.Profile is { } failed)

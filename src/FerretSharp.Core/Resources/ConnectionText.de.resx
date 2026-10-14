@@ -93,4 +93,28 @@
   <data name="ImportNothingSelected" xml:space="preserve">
     <value>Keine Verbindung ausgewählt.</value>
   </data>
+  <data name="Step_WaitingForPrevious" xml:space="preserve">
+    <value>Warte auf den vorigen Versuch</value>
+  </data>
+  <data name="Step_ClosingPrevious" xml:space="preserve">
+    <value>Schließe die vorigen Sessions</value>
+  </data>
+  <data name="Step_OpeningSession" xml:space="preserve">
+    <value>Öffne die Session</value>
+  </data>
+  <data name="Step_ReadingTables" xml:space="preserve">
+    <value>Lese Tabellen und Views</value>
+  </data>
+  <data name="Step_ReadingSynonyms" xml:space="preserve">
+    <value>Lese Synonyme</value>
+  </data>
+  <data name="Step_ReadingPlSql" xml:space="preserve">
+    <value>Lese PL/SQL-Objekte</value>
+  </data>
+  <data name="Step_ReadingForeignKeys" xml:space="preserve">
+    <value>Lese Fremdschlüssel von {0} ({1} von {2})</value>
+  </data>
+  <data name="Step_RestoringWorkspaces" xml:space="preserve">
+    <value>Stelle die Workspaces wieder her</value>
+  </data>
 </root>

@@ -72,9 +72,6 @@
   <data name="Model_Step" xml:space="preserve">
     <value>{0} …</value>
   </data>
-  <data name="Model_ElapsedTotal" xml:space="preserve">
-    <value>{0} · insgesamt {1}</value>
-  </data>
   <data name="Model_HideDetails" xml:space="preserve">
     <value>Details ausblenden</value>
   </data>

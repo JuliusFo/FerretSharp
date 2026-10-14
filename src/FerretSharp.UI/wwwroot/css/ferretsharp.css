@@ -763,6 +763,9 @@ table.binds td { font-family: var(--mono); }
 .statusbar .error { color: var(--danger); }
 
 .empty-actions { margin-top: 16px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+/* Step and time while connecting (ConnectProgress): below the spinner, in the status bar after the connection name. */
+.empty-actions .connect-step { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.statusbar .connect-step { color: var(--muted); }
 
 /* ---------- dialogs & forms ---------- */
 .dialog { width: min(640px, 94vw); display: flex; flex-direction: column; max-height: 92vh; }

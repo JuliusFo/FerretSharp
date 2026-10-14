@@ -1,0 +1,68 @@
+@* While connecting: what is being done and for how long (the step, and the whole connect) – a connect that seems to hang
+   shows where it stands. Follows ActiveConnection.StepChanged itself: Changed renders the whole shell. *@
+@using FerretSharp.Core.Connections
+@implements IDisposable
+
+@if (Active.Step is { } step)
+{
+    @if (Compact)
+    {
+        <span class="connect-step">· @step · @Elapsed(Active.StepStartedAt)</span>
+    }
+    else
+    {
+        <div class="connect-step">
+            <span>@step …</span>
+            <span class="hint">@TextFormat.Format(CommonText.ElapsedTotal, Elapsed(Active.StepStartedAt), Elapsed(Active.ConnectStartedAt))</span>
+        </div>
+    }
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public ActiveConnection Active { get; set; } = null!;
+
+    /// <summary>One line for the status bar: the step and its time.</summary>
+    [Parameter]
+    public bool Compact { get; set; }
+
+    private ActiveConnection? _subscribed;
+    private Timer? _ticker;
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_subscribed, Active))
+        {
+            return;
+        }
+
+        if (_subscribed is not null)
+        {
+            _subscribed.StepChanged -= OnChanged;
+        }
+
+        _subscribed = Active;
+        Active.StepChanged += OnChanged;
+        // The seconds while a step runs.
+        _ticker ??= new Timer(_ =>
+        {
+            if (_subscribed?.Step is not null)
+            {
+                OnChanged();
+            }
+        }, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+    }
+
+    private static string Elapsed(DateTimeOffset? since) => since is { } start ? TimeText.Duration(DateTimeOffset.Now - start) : "";
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        _ticker?.Dispose();
+        if (_subscribed is not null)
+        {
+            _subscribed.StepChanged -= OnChanged;
+        }
+    }
+}

@@ -92,7 +92,7 @@
                 <div class="model-status">
                     <span class="spinner small"></span>
                     <span>@TextFormat.Format(State.BuildChanged ? ModelViewText.Model_BuildChangedStep : ModelViewText.Model_Step, State.Step ?? ModelViewText.Model_ReadingModel)</span>
-                    <span class="hint">@(State.LoadStartedAt is { } started ? TextFormat.Format(ModelViewText.Model_ElapsedTotal, Elapsed(State.StepStartedAt), Elapsed(started)) : Elapsed(State.StepStartedAt))</span>
+                    <span class="hint">@(State.LoadStartedAt is { } started ? TextFormat.Format(CommonText.ElapsedTotal, Elapsed(State.StepStartedAt), Elapsed(started)) : Elapsed(State.StepStartedAt))</span>
                 </div>
             }
             else if (State is { Phase: ClrModelPhase.Failed, Error: { } error })
