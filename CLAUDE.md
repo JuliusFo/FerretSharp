@@ -116,4 +116,4 @@ Regeln:
 ## 8. Als Nächstes
 
 - Gesamt-Review nach 3.31.0 (`docs/review-3.31.0.md`): Teil A als R5a in 3.31.1 released, Teil C (Doku) erledigt, Teil B als R5b umgesetzt (Branch `wp/r5b-structure`, 3.32.0 – Merge, Tag und Release nach OK des Nutzers).
-- Danach weitere Pakete mit dem Nutzer aus `docs/backlog.md` auswählen (`docs/roadmap.md`).
+- Danach WP-36 (Abhängigkeiten), dann WP-37 … WP-47 in der Reihenfolge aus `docs/roadmap.md` (ausgewählt mit dem Nutzer am 2026-10-14).
