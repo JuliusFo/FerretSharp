@@ -270,4 +270,28 @@
     <value>“{0}” is not a DDL statement.</value>
     <comment>{0}: first word of the statement</comment>
   </data>
+  <data name="PresetNameMissing" xml:space="preserve">
+    <value>Enter a name.</value>
+    <comment>Filter preset name is empty</comment>
+  </data>
+  <data name="PresetNameTooLong" xml:space="preserve">
+    <value>The name may have at most {0} characters.</value>
+    <comment>{0}: maximum length</comment>
+  </data>
+  <data name="PresetFileInvalid" xml:space="preserve">
+    <value>{0} is not a valid filter preset file: {1}</value>
+    <comment>{0}: file path; {1}: error message of the JSON reader</comment>
+  </data>
+  <data name="PresetFileInvalidNotOverwritten" xml:space="preserve">
+    <value>{0} is not a valid filter preset file and will not be overwritten: {1}</value>
+    <comment>{0}: file path; {1}: error message of the JSON reader</comment>
+  </data>
+  <data name="PresetFileNewerNotOverwritten" xml:space="preserve">
+    <value>{0} comes from a newer version of FerretSharp (format {1}). It will not be overwritten.</value>
+    <comment>{0}: file path; {1}: format version number</comment>
+  </data>
+  <data name="PresetFileUnreadable" xml:space="preserve">
+    <value>{0} could not be read: {1}</value>
+    <comment>{0}: file path; {1}: error message</comment>
+  </data>
 </root>
