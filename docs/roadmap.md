@@ -116,7 +116,7 @@ Ausgewählt mit dem Nutzer am 2026-10-14 aus einer Ideensammlung (Bewertung des 
 - **C#-Namen:** Spalten mit eindeutiger Herkunft zeigen Property-Namen und Enum-Namen über die Präsentationsschicht wie im Grid.
 - Offen: Platz in der Reihenfolge (klein, sofortiger Nutzen – auch vor WP-40 denkbar); Anzeigespalten (Namen neben FK-Werten) auch im SQL-Ergebnis – ADR 0022 schließt das bisher aus; LINQ-Konsole (teilt das `SqlResultGrid`, Herkunft dort eher aus dem EF-Modell) mit oder Backlog; springbare Spalten im Header kennzeichnen.
 
-### WP-49 Bilder im Changelog → 3.46.0
+### WP-49 Bilder im Changelog → 3.46.0 ([#15](https://github.com/JuliusFo/FerretSharp/issues/15))
 (Vom Nutzer am 2026-10-14 nach einer Bewertung eingeplant.) Branch `wp/49-changelog-images`. Der Changelog erscheint an drei Stellen: `CHANGELOG.md` im Repo (Bilder gehen schon, auch relativ), Text des GitHub-Releases (`notes.md` aus `release.yml`, relative Pfade laufen dort ins Leere) und Update-Dialog der App (`changes.md` → `vpk pack --releaseNotes` → `NotesMarkdown` → `ReleaseNotes.Parse`; `![alt](url)` wird heute als Link gelesen und zeigt „!alt“).
 - **Ablage:** Bilder im Repo (Vorschlag `docs/images/changelog/<version>-<name>.png`), im `CHANGELOG.md` relativ eingebunden, eine Zeile je Bild. Keine GitHub-Anhänge (nicht versioniert, nur von Hand hochzuladen) und keine Release-Assets (stünden zwischen Setup.exe und den Paketen).
 - **Release-Workflow:** Beim Ausschneiden des Abschnitts relative Bildpfade auf `https://raw.githubusercontent.com/JuliusFo/FerretSharp/vX.Y.Z/<pfad>` umschreiben (am Tag, ändert sich nicht mehr) – für `changes.md` und `notes.md`. Der Schritt bricht ab, wenn ein verwiesenes Bild im Repo fehlt.
