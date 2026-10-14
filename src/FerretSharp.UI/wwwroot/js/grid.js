@@ -576,7 +576,7 @@ export function create(elementId, dotnet, columns, options) {
     // While editing, Enter belongs to the editor (check in .NET first, Shift+Enter: new line in the multi-line box).
     // The member list keeps the arrow keys while editing.
     suppressKeyboardEvent: p => p.editing && (p.event.key === 'Enter' || (!!meta.options && listKeys.has(p.event.key))),
-    tooltipValueGetter: p => (p.value === null || p.value === undefined ? null
+    tooltip: p => (p.value === null || p.value === undefined ? null
       : [p.value, p.data?.__n?.[meta.id], p.data?.__nm?.includes(meta.id) ? texts.notFoundTitle : null, p.data?.__t?.[meta.id],
         p.data?.__u?.includes(meta.id) ? meta.unknownText : null].filter(Boolean).join('\n')),
     headerComponent: FerretHeader,

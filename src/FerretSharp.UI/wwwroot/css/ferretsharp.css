@@ -100,6 +100,8 @@ button:disabled { cursor: default; opacity: .5; }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 10px; border: 3px solid transparent; background-clip: content-box; }
 ::-webkit-scrollbar-track { background: transparent; }
+/* Where both scrollbars meet (AG Grid 36: the spacer right of the horizontal scrollbar scrolls both ways) – white by default. */
+::-webkit-scrollbar-corner { background: transparent; }
 
 /* ---------- shell ---------- */
 .app { display: flex; flex-direction: column; height: 100vh; }
