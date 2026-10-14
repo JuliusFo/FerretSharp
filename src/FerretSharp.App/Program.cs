@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Windows;
 using FerretSharp.App.Services;
@@ -21,6 +23,7 @@ internal static class Program
         VelopackApp.Build().SetAutoApplyOnStartup(false).Run();
 
         var paths = DataFolder(args);
+        WaitForPreviousInstance(args);
         InstanceLock? instance = null;
         try
         {
@@ -44,6 +47,28 @@ internal static class Program
             var app = new App(paths);
             app.InitializeComponent();
             return app.Run();
+        }
+    }
+
+    /// <summary>
+    /// A restart after the graphics output failed (<see cref="CommandLine.WaitFor"/>) starts while the old instance still
+    /// closes its connections and holds the instance lock: wait for it, at most 30 s (then the lock decides as usual).
+    /// </summary>
+    private static void WaitForPreviousInstance(string[] args)
+    {
+        if (!int.TryParse(CommandLine.ValueOf(args, CommandLine.WaitFor), NumberStyles.None, CultureInfo.InvariantCulture, out var id))
+        {
+            return;
+        }
+
+        try
+        {
+            using var previous = Process.GetProcessById(id);
+            previous.WaitForExit(TimeSpan.FromSeconds(30));
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            // ended already, or not ours to wait for
         }
     }
 

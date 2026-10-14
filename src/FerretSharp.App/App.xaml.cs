@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Windows;
@@ -25,6 +26,8 @@ namespace FerretSharp.App;
 public partial class App : Application
 {
     private readonly AppPaths _paths;
+    private readonly RenderFailureNotice _renderFailures = new();
+    private string[] _args = [];
     private IHost? _host;
     private ILogger<App>? _logger;
 
@@ -36,6 +39,7 @@ public partial class App : Application
         base.OnStartup(e);
 
         var paths = _paths;
+        _args = e.Args;
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Debug()
             .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
@@ -243,8 +247,70 @@ public partial class App : Application
 
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
+        if (RenderFailureNotice.Matches(e.Exception))
+        {
+            e.Handled = true;
+            OnRenderThreadFailure(e.Exception);
+            return;
+        }
+
         Log.Error(e.Exception, "Unhandled exception on UI thread");
         _host?.Services.GetRequiredService<IDialogService>().ShowError(CommonText.UnexpectedError, e.Exception);
         e.Handled = true;
+    }
+
+    /// <summary>
+    /// WPF's render thread failed – Windows reset the graphics output, e.g. when waking up at a dock. WPF reports it for every
+    /// window message in that moment, and the app usually keeps working: one question per series whether to restart (an
+    /// error dialog each time caused the next one), the rest only in the log.
+    /// </summary>
+    private void OnRenderThreadFailure(Exception exception)
+    {
+        if (!_renderFailures.Report())
+        {
+            Log.Warning("Render thread failed again ({Repeats} since the question)", _renderFailures.Repeats);
+            return;
+        }
+
+        Log.Warning(exception, "Render thread failed (graphics output reset, e.g. after sleep at a dock)");
+        // After the window message that failed: a dialog inside it would meet the render thread in the same moment.
+        Dispatcher.BeginInvoke(DispatcherPriority.Background, () =>
+        {
+            bool restart;
+            try
+            {
+                restart = _host?.Services.GetRequiredService<IDialogService>().Ask(CommonText.RenderFailure_Title, CommonText.RenderFailure_Question) == true;
+            }
+            finally
+            {
+                _renderFailures.Answered();
+            }
+
+            if (restart && _host is { } host)
+            {
+                // Like the window's close button: uncommitted changes are asked about first; cancelling keeps the app open.
+                host.Services.GetRequiredService<ExitGuard>().RequestClose(StartAgain);
+            }
+        });
+    }
+
+    /// <summary>Starts FerretSharp as it was started; the new instance waits until this one has ended (instance lock).</summary>
+    private void StartAgain()
+    {
+        try
+        {
+            var start = new ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = false };
+            foreach (var argument in CommandLine.Restart(_args, Environment.ProcessId))
+            {
+                start.ArgumentList.Add(argument);
+            }
+
+            _logger?.LogInformation("Restarting after the render thread failed");
+            Process.Start(start)?.Dispose();
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            _logger?.LogError(ex, "Restarting failed");
+        }
     }
 }

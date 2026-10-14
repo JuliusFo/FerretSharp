@@ -14,4 +14,8 @@ public sealed class DialogService : IDialogService
             MessageBoxButton.OK,
             MessageBoxImage.Error);
     }
+
+    public bool Ask(string title, string message) =>
+        MessageBox.Show(Application.Current?.MainWindow!, message, title, MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No)
+            == MessageBoxResult.Yes;
 }
