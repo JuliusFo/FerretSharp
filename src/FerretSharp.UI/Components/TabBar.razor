@@ -4,6 +4,7 @@
 @implements IAsyncDisposable
 @inject ShortcutService Shortcuts
 @inject IJSRuntime JS
+@inject ConnectionHub Hub
 
 <nav class="tabs" @ref="_bar">
     @if (Shell.Tabs.Any(t => t.Pinned))
@@ -38,6 +39,10 @@
             <button class="menu-item" @onclick="TogglePinFromMenu">
                 @(menu.Tab.Pinned ? ShellText.TabMenu_Unpin : ShellText.TabMenu_Pin) <Kbd Action="ShortcutAction.PinTab" />
             </button>
+            @if (menu.Tab is TableTab)
+            {
+                <button class="menu-item" title="@ShellText.TabMenu_CopyLinkTitle" @onclick="CopyLinkFromMenuAsync">@ShellText.TabMenu_CopyLink</button>
+            }
             <div class="menu-sep"></div>
             <button class="menu-item" @onclick="() => CloseFromMenu(TabCloseScope.This)">@CommonText.Close <Kbd Action="ShortcutAction.CloseTab" /></button>
             @* Pinned tabs stay open (WP-34): a scope that would close nothing is disabled. *@
@@ -230,6 +235,19 @@
 
         _menu = null;
         Lifecycle.CloseTabs(menu.Tab, scope);
+    }
+
+    /// <summary>The link to the tab's view (WP-37): the applied filters, the sort order and the view.</summary>
+    private async Task CopyLinkFromMenuAsync()
+    {
+        if (_menu is not { Tab: TableTab tab } || Hub.OwnerOf(tab.WorkspaceId)?.Profile is not { } profile)
+        {
+            return;
+        }
+
+        _menu = null;
+        var link = Core.Links.TableLink.For(profile, tab.Table.Ref, tab.AppliedFilters, tab.Sorts, tab.Mode);
+        await LinkCopy.CopyAsync(Shell, Dom, profile, link);
     }
 
     private void TogglePinFromMenu()

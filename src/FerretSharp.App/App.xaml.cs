@@ -137,6 +137,10 @@ public partial class App : Application
         // Filter presets (WP-37): one file for all connections.
         builder.Services.AddSingleton(new FilterPresetStore(paths.FilterPresetsFile));
         builder.Services.AddSingleton<FilterPresetService>();
+        // Links (WP-37, ADR 0026): from the start argument and, from a second start, through the pipe.
+        builder.Services.AddSingleton<LinkInbox>();
+        builder.Services.AddSingleton<IProtocolRegistration, ProtocolRegistration>();
+        builder.Services.AddHostedService<LinkPipeServer>();
         // App statements (WP-33): one trace for the whole app, over EventPipe.
         builder.Services.AddSingleton<FerretSharp.Core.AppTrace.IAppTraceSource, FerretSharp.AppTrace.EventPipeTraceSource>();
         builder.Services.AddSingleton<AppTraceService>();
@@ -164,6 +168,11 @@ public partial class App : Application
         var window = _host.Services.GetRequiredService<MainWindow>();
         MainWindow = window;
         window.Show();
+        if (CommandLine.LinkOf(args) is { } link)
+        {
+            _host.Services.GetRequiredService<LinkInbox>().Post(link); // the shell takes it once it has started
+        }
+
         _host.Services.GetRequiredService<UiStallMonitor>().Start();
         _ = _host.Services.GetRequiredService<UpdateState>().StartAsync(); // never throws: a failed check is a note in the settings
     }

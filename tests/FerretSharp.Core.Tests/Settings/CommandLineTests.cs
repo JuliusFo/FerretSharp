@@ -27,6 +27,17 @@ public sealed class CommandLineTests
         Assert.Equal([CommandLine.DataDir + Path.GetFullPath("daten"), "--lang=de"], CommandLine.Restart(args));
     }
 
+    /// <summary>WP-37: a link starts FerretSharp as an argument of its own; a restart (update, graphics) must not open it again.</summary>
+    [Fact]
+    public void A_link_is_found_among_the_arguments_and_left_out_of_a_restart()
+    {
+        string[] args = ["--data-dir=daten", "ferretsharp://open?v=1&s=ERP&t=AUFTRAG"];
+
+        Assert.Equal("ferretsharp://open?v=1&s=ERP&t=AUFTRAG", CommandLine.LinkOf(args));
+        Assert.Null(CommandLine.LinkOf(["--lang=de"]));
+        Assert.Equal([CommandLine.DataDir + Path.GetFullPath("daten")], CommandLine.Restart(args));
+    }
+
     [Fact]
     public void The_path_options_are_the_ones_an_update_makes_absolute() =>
         Assert.Equal([CommandLine.DataDir, CommandLine.ImportAppData, CommandLine.UpdateSource], CommandLine.PathOptions);

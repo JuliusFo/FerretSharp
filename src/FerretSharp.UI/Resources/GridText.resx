@@ -1009,4 +1009,18 @@
   <data name="Presets_NotLoaded" xml:space="preserve">
     <value>The presets could not be read; nothing is saved until they can.</value>
   </data>
+  <data name="GridMenu_CopyRowsLink" xml:space="preserve">
+    <value>Copy link to these rows</value>
+    <comment>Grid context menu</comment>
+  </data>
+  <data name="GridMenu_CopyRowsLinkTitle" xml:space="preserve">
+    <value>A ferretsharp:// link that opens the table filtered to the selected rows by their primary key</value>
+  </data>
+  <data name="GridMenu_CopyViewLink" xml:space="preserve">
+    <value>Copy link to this view</value>
+    <comment>Grid context menu</comment>
+  </data>
+  <data name="GridMenu_CopyViewLinkTitle" xml:space="preserve">
+    <value>A ferretsharp:// link to this table with its filters and sort order</value>
+  </data>
 </root>

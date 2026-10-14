@@ -789,4 +789,16 @@
   <data name="Presets_NotLoaded" xml:space="preserve">
     <value>Die Vorlagen konnten nicht gelesen werden; gespeichert wird erst, wenn das wieder geht.</value>
   </data>
+  <data name="GridMenu_CopyRowsLink" xml:space="preserve">
+    <value>Link auf diese Zeilen kopieren</value>
+  </data>
+  <data name="GridMenu_CopyRowsLinkTitle" xml:space="preserve">
+    <value>Ein ferretsharp://-Link, der die Tabelle auf die markierten Zeilen gefiltert öffnet (über den Primärschlüssel)</value>
+  </data>
+  <data name="GridMenu_CopyViewLink" xml:space="preserve">
+    <value>Link auf diese Ansicht kopieren</value>
+  </data>
+  <data name="GridMenu_CopyViewLinkTitle" xml:space="preserve">
+    <value>Ein ferretsharp://-Link auf diese Tabelle mit Filtern und Sortierung</value>
+  </data>
 </root>

@@ -1,0 +1,136 @@
+@* A link from outside (WP-37, ADR 0026) is never opened without asking: any web page or mail can start ferretsharp://.
+   Shows what the link opens and on which connection – the choice when several fit, a note when none does. *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Links
+@inject ConnectionHub Hub
+@inject ILogger<LinkOpenDialog> Logger
+
+<ModalFrame Label="@ShellText.Link_Title" Class="link-dialog" Alert="true" OnCancel="Shell.CloseIncomingLink">
+    <header><span>@ShellText.Link_Title</span></header>
+    <div class="dialog-body">
+        @if (Request.Link is not { } link)
+        {
+            <p>@ShellText.Link_Invalid</p>
+            <p class="field-error">@Request.Error</p>
+        }
+        else
+        {
+            <dl class="link-facts">
+                <dt>@ShellText.Link_Table</dt>
+                <dd><code>@link.Owner.@link.Table</code>@if (link.Mode is { } mode) { <span class="muted"> · @ModeLabel(mode)</span> }</dd>
+                <dt>@ShellText.Link_Filters</dt>
+                <dd>
+                    @if (link.Filters.Count == 0)
+                    {
+                        <span class="muted">@ShellText.Link_NoFilters</span>
+                    }
+                    @foreach (var line in FilterPresetText.FilterLines(link.Filters).Take(ShownFilters))
+                    {
+                        <code>@line</code>
+                    }
+                    @if (link.Filters.Count > ShownFilters)
+                    {
+                        <span class="muted">@TextFormat.Format(ShellText.Link_MoreFilters, link.Filters.Count - ShownFilters)</span>
+                    }
+                </dd>
+                @if (link.Sorts.Count > 0)
+                {
+                    <dt>@ShellText.Link_Sort</dt>
+                    <dd>@FilterPresetText.SortText(link.Sorts)</dd>
+                }
+                <dt>@ShellText.Link_Connection</dt>
+                <dd>
+                    @if (Request.Match.Profile is { } profile)
+                    {
+                        @Connection(profile)
+                    }
+                    else if (Request.Match.Candidates.Count > 0)
+                    {
+                        <div class="muted">@ShellText.Link_Ambiguous</div>
+                        @foreach (var candidate in Request.Match.Candidates)
+                        {
+                            var c = candidate;
+                            <label class="check link-candidate">
+                                <input type="radio" name="link-connection" checked="@(_chosen?.Id == c.Id)" @onchange="() => _chosen = c" />
+                                @Connection(c)
+                            </label>
+                        }
+                    }
+                    else
+                    {
+                        <div class="field-error">@ShellText.Link_NoConnection</div>
+                        <div class="muted">@TextFormat.Format(ShellText.Link_NoConnectionNamed, link.Connection ?? "–", link.Address?.Display ?? "–")</div>
+                    }
+                </dd>
+            </dl>
+            @if (Target is { } target && NeedsConnect(target))
+            {
+                <p class="hint">@TextFormat.Format(ShellText.Link_WillConnect, target.Name)</p>
+            }
+        }
+    </div>
+    <footer>
+        <span class="spacer"></span>
+        <button class="btn ghost" @ref="_cancel" @onclick="Shell.CloseIncomingLink">@(Request.Link is null || Target is null && Request.Match.Candidates.Count == 0 ? CommonText.Close : CommonText.Cancel)</button>
+        @if (Request.Link is not null && (Target is not null || Request.Match.Candidates.Count > 0))
+        {
+            <button class="btn primary" disabled="@(Target is null)" @onclick="OpenAsync">@ShellText.Link_Open</button>
+        }
+    </footer>
+</ModalFrame>
+
+@code {
+    private const int ShownFilters = 8;
+
+    private ElementReference _cancel;
+    private ConnectionProfile? _chosen;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public IncomingLink Request { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
+    /// <summary>The connection the link opens on: the one found, or the one chosen among several.</summary>
+    private ConnectionProfile? Target => Request.Match.Profile ?? _chosen;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await _cancel.FocusAsync(); // the safe answer, also for Enter
+        }
+    }
+
+    private bool NeedsConnect(ConnectionProfile profile) => Hub.Find(profile.Id) is not { } scope || ConnectionHub.NeedsConnect(scope);
+
+    private async Task OpenAsync()
+    {
+        if (Request.Link is not { } link || Target is not { } profile)
+        {
+            return;
+        }
+
+        // Nothing of the link in the log: its filter values may come from Prod (decision of the user, like bind values).
+        Logger.LogInformation("Opening a link on {Connection}", profile.Name);
+        Shell.CloseIncomingLink();
+        Shell.OpenLinkIn(profile.Id, link);
+        await Lifecycle.ConnectAsync(profile);
+    }
+
+    private static string ModeLabel(FerretSharp.Core.Workspaces.TabMode mode) => mode switch
+    {
+        FerretSharp.Core.Workspaces.TabMode.Structure => SchemaViewText.Tab_ViewColumns,
+        FerretSharp.Core.Workspaces.TabMode.Constraints => SchemaViewText.Tab_ViewConstraints,
+        FerretSharp.Core.Workspaces.TabMode.Indexes => SchemaViewText.Tab_ViewIndexes,
+        FerretSharp.Core.Workspaces.TabMode.Dependencies => SchemaViewText.Tab_ViewDependencies,
+        FerretSharp.Core.Workspaces.TabMode.Ddl => SchemaViewText.Tab_ViewDdl,
+        _ => SchemaViewText.Tab_ViewData,
+    };
+
+    private static RenderFragment Connection(ConnectionProfile profile) =>
+        @<span class="kind-@profile.Kind.ToString().ToLowerInvariant()"><span class="kind-badge">@ConnectionKindInfo.Short(profile.Kind)</span> @profile.Name <span class="muted">· @profile.Address.Display</span></span>;
+}

@@ -15,6 +15,11 @@
     <PasswordDialog @key="passwordFor" Request="passwordFor" Lifecycle="Lifecycle" />
 }
 
+@if (Shell.IncomingLink is { } incomingLink)
+{
+    <LinkOpenDialog @key="incomingLink" Request="incomingLink" Lifecycle="Lifecycle" />
+}
+
 @if (Shell.ImportOpen)
 {
     <ConnectionImportDialog />

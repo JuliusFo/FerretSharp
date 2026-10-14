@@ -153,4 +153,8 @@ You can usually keep working. If the window no longer draws correctly, restart F
 
 Restart FerretSharp now?</value>
   </data>
+  <data name="LinkNotHandedOver" xml:space="preserve">
+    <value>FerretSharp is already running, but the link could not be handed over to it. Click the link again in a moment.</value>
+    <comment>Message box at start when a ferretsharp:// link could not be passed to the running instance</comment>
+  </data>
 </root>

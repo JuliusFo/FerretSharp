@@ -71,6 +71,15 @@
     <button class="menu-item" title="@GridText.GridMenu_CopyInsertTitle" @onclick="CopyInsertAsync">@GridText.GridMenu_CopyInsert</button>
     <button class="menu-item" title="@GridText.GridMenu_SaveCsvTitle" @onclick="SaveCsvAsync">@GridText.GridMenu_SaveCsv</button>
     <button class="menu-item" @onclick="SaveInsertAsync">@GridText.GridMenu_SaveInsert</button>
+    @if (Active.Profile is { } linkProfile)
+    {
+        @* Links (WP-37): to the selected rows by their primary key, or to the view with its filters and sort order. *@
+        var rowsLink = Core.Links.TableLink.ForRows(linkProfile, Details, Request.Selected);
+        <button class="menu-item" disabled="@(rowsLink.Link is null)" title="@(rowsLink.Unavailable ?? GridText.GridMenu_CopyRowsLinkTitle)"
+                @onclick="() => CopyLinkAsync(linkProfile, rowsLink.Link!, rowsOnly: true)">@GridText.GridMenu_CopyRowsLink</button>
+        <button class="menu-item" title="@GridText.GridMenu_CopyViewLinkTitle"
+                @onclick="() => CopyLinkAsync(linkProfile, Core.Links.TableLink.For(linkProfile, Details.Table.Ref, Tab.AppliedFilters, Tab.Sorts, Tab.Mode), rowsOnly: false)">@GridText.GridMenu_CopyViewLink</button>
+    }
 
     @if (_presentation.Entity is not null)
     {
@@ -292,6 +301,12 @@
 
     private Task SaveInsertAsync() =>
         Export.SaveAsync(InsertExport.Build(Details, Request.Selected), Details.Table.DisplayName + ".sql", GridText.Export_SqlScriptFilter, utf8Bom: false);
+
+    private async Task CopyLinkAsync(FerretSharp.Core.Connections.ConnectionProfile profile, Core.Links.TableLink link, bool rowsOnly)
+    {
+        await LinkCopy.CopyAsync(Shell, Dom, profile, link, rowsOnly);
+        await CloseAsync();
+    }
 
     private async Task CloseAsync()
     {
