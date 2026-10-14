@@ -191,6 +191,68 @@ public class ReadOnlyTests
     [InlineData("")]
     public void Schema_path_refuses_truncate_plsql_binds_and_everything_else(string sql) => Assert.False(OracleSession.IsDdlStatement(sql), sql);
 
+    private static List<string> PlainPublicMethods(Type type) =>
+        type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly)
+            .Where(m => !m.IsSpecialName)
+            .Select(m => m.Name)
+            .Distinct()
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+    public static TheoryData<Type, string[]> PublicSurfaces => new()
+    {
+        {
+            typeof(OracleSession), [
+                "OpenAsync", "DisposeAsync", "SetActionAsync", "PingAsync", "PingIfIdleAsync", "ExecuteReaderAsync",
+                "UseReadOnlySnapshotsAsync", "StopReadOnlySnapshotsAsync", "RefreshSnapshotAsync",
+                "BeginTransactionAsync", "SavepointAsync", "RollbackToSavepointAsync", "CommitAsync", "RollbackAsync",
+            ]
+        },
+        { typeof(IDataAccess), ["CountAsync", "ExplainActualAsync", "LookupAsync", "ReadLobAsync", "ReadPageAsync", "ReadSqlAsync"] },
+        {
+            typeof(ISchemaReader), [
+                "ExplainAsync", "GetColumnsAsync", "GetConstraintsAsync", "GetCursorAsync", "GetDdlAsync", "GetDependenciesAsync",
+                "GetDetailsAsync", "GetErrorsAsync", "GetForeignKeysAsync", "GetIndexesAsync", "GetLockHoldersAsync", "GetObjectInfoAsync",
+                "GetPlSqlInfoAsync", "GetPlSqlObjectsAsync", "GetSourceAsync", "GetSubprogramsAsync", "GetSynonymTargetsAsync",
+                "GetTablesAsync", "GetTriggerColumnsAsync", "ReadSnapshotAsync", "SearchSourceAsync",
+            ]
+        },
+        { typeof(IDatabaseConnection), ["PingIfIdleAsync", "SetActionAsync", "StopReadOnlySnapshotsAsync", "UseReadOnlySnapshotsAsync"] },
+        { typeof(IDatabaseConnector), ["OpenAsync"] },
+    };
+
+    /// <summary>
+    /// R5b: the exact public methods of the session and of the database interfaces. A new one fails here until it is added
+    /// on purpose – the name checks above only know the names they list (a public <c>RunAsync</c> would pass them).
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(PublicSurfaces))]
+    public void Database_types_offer_exactly_the_known_methods(Type type, string[] expected) =>
+        Assert.Equal(expected.Order(StringComparer.Ordinal), PlainPublicMethods(type));
+
+    /// <summary>The Oracle classes behind the interfaces offer nothing beyond them (the UI gets the interface, a cast would not help).</summary>
+    [Theory]
+    [InlineData(typeof(OracleDataAccess), typeof(IDataAccess))]
+    [InlineData(typeof(OracleSchemaReader), typeof(ISchemaReader))]
+    public void Oracle_classes_offer_nothing_beyond_their_interface(Type type, Type contract) =>
+        Assert.Empty(PlainPublicMethods(type).Except(PlainPublicMethods(contract)));
+
+    /// <summary>R5b: every path that runs a statement past the guarded reader stays internal – writes, DDL, EXPLAIN PLAN, locking reads.</summary>
+    [Theory]
+    [InlineData("ExecuteNonQueryAsync")]
+    [InlineData("ExecuteDdlAsync")]
+    [InlineData("ExplainPlanAsync")]
+    [InlineData("ExecuteLockingReaderAsync")]
+    public void Statements_past_the_guarded_reader_run_through_internal_methods_only(string name)
+    {
+        var methods = typeof(OracleSession).GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+            .Where(m => m.Name == name)
+            .ToList();
+
+        Assert.NotEmpty(methods);
+        Assert.All(methods, m => Assert.True(m.IsAssembly, name));
+    }
+
     [Fact]
     public void Session_runs_statements_only_through_the_guarded_reader()
     {

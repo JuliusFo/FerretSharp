@@ -27,7 +27,7 @@
 
 @if (Shell.ErrorDetails is { } error)
 {
-    <ErrorDialog @key="error" Error="error" Mask="@(Active.Profile?.Kind == ConnectionKind.Prod)" OnClose="Shell.CloseError" />
+    <ErrorDialog @key="error" Error="error" Mask="@(Active.Profile?.MasksValues == true)" OnClose="Shell.CloseError" />
 }
 
 @if (Shell.Notice is { } notice)
@@ -216,14 +216,7 @@
             .ToList();
 
     /// <summary>How a tab is named in the dialogs.</summary>
-    private static string TabName(WorkspaceTab tab) => tab switch
-    {
-        TableTab table => table.Table.DisplayName,
-        NewTableTab draft => draft.Table.Name.Length > 0 ? draft.Table.Name : ShellText.TabBar_NewTable,
-        PlSqlTab plSql => plSql.Unit.DisplayName,
-        ITitledTab titled => titled.Title,
-        _ => "",
-    };
+    private static string TabName(WorkspaceTab tab) => tab.Caption;
 
     /// <summary>
     /// What a tab in the list of <see cref="CloseTabsQuestion"/> would lose. Pending changes are counted now, not when asked

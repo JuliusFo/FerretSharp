@@ -22,7 +22,7 @@ public sealed record CSharpValue(string? Code, string? Problem = null)
 /// </summary>
 public static class CSharpCode
 {
-    private static readonly CultureInfo German = CultureInfo.GetCultureInfo("de-DE");
+    private static readonly CultureInfo German = ValueCulture.German;
 
     private static readonly HashSet<string> Keywords = new(StringComparer.Ordinal)
     {

@@ -516,6 +516,29 @@ public class SchemaDdlTests
             Sql(proposal).Order(StringComparer.Ordinal));
     }
 
+    /// <summary>
+    /// R5b (review 3.31.0, B3): the readable name follows the designer's rule – within 128 bytes, not characters (cut at 128
+    /// characters, a name with umlauts failed with ORA-00972), upper case and plain, and <c>_2</c> beside an index of that name.
+    /// </summary>
+    [Fact]
+    public void A_readable_index_name_fits_in_128_bytes_and_does_not_clash()
+    {
+        var long1 = new string('Ä', 40);
+        var long2 = new string('Ö', 40);
+        var reference = Table("KUNDE", [Id, Column(long1, "NUMBER"), Column(long2, "NUMBER")], [],
+            [Index(Ref, "SYS_C0099", On(long1), On(long2)), Index(Ref, "SYS_C0100", On("ID"))]);
+        var withName = Table("KUNDE", [Id, Column("Nr", "NUMBER")], [], [Index(Ref, "SYS_C0101", On("Nr")), Index(Ref, "IX_KUNDE_NR", On("ID"))]);
+
+        var umlauts = Sql(Align(reference, Table("KUNDE", [Id, Column(long1, "NUMBER"), Column(long2, "NUMBER")])))
+            .Single(s => s.Contains(long1, StringComparison.Ordinal));
+        var clash = Sql(Align(withName, Table("KUNDE", [Id, Column("Nr", "NUMBER")]))).ToList();
+
+        var name = umlauts.Split('"')[3];
+        Assert.True(System.Text.Encoding.UTF8.GetByteCount(name) <= 128, name);
+        Assert.StartsWith("IX_KUNDE_" + long1, name, StringComparison.Ordinal);
+        Assert.Contains("CREATE INDEX \"TEST\".\"IX_KUNDE_NR_2\" ON \"TEST\".\"KUNDE\" (\"Nr\")", clash);
+    }
+
     [Fact]
     public void Index_with_a_generated_name_gets_a_readable_one()
     {

@@ -12,8 +12,6 @@ public enum UiLanguage
 
 public static class UiLanguages
 {
-    private const string Argument = "--lang=";
-
     /// <summary>The UI culture of a language: the neutral culture, so formats stay with the current culture.</summary>
     public static CultureInfo Culture(UiLanguage language) => CultureInfo.GetCultureInfo(language == UiLanguage.German ? "de" : "en");
 
@@ -27,8 +25,7 @@ public static class UiLanguages
     /// </summary>
     public static UiLanguage? FromArguments(IEnumerable<string> args)
     {
-        var value = args.LastOrDefault(a => a.StartsWith(Argument, StringComparison.OrdinalIgnoreCase))?[Argument.Length..];
-        return value?.ToLowerInvariant() switch
+        return CommandLine.ValueOf(args, CommandLine.Language)?.ToLowerInvariant() switch
         {
             "en" => UiLanguage.English,
             "de" => UiLanguage.German,

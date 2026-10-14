@@ -7,24 +7,7 @@
 <ConfirmDialog Title="@SqlEditorText.SqlView_ConfirmDdlTitle"
                ConfirmLabel="@(discard is null ? CommonText.Run : SqlEditorText.SqlView_DiscardAndRun)" Danger="true"
                OnConfirm="() => OnConfirm.InvokeAsync(discard?.Workspace)" OnCancel="OnCancel">
-    <p>
-        @if (Statements.Count == 1)
-        {
-            <Fmt Text="@SqlEditorText.SqlView_ConfirmDdl"><Arg0><strong>@SqlScript.Analyze(Statements[0]).FirstWord</strong></Arg0></Fmt>
-        }
-        else
-        {
-            @TextFormat.Plural(Statements.Count, SqlEditorText.SqlView_ConfirmDdlScriptOne, SqlEditorText.SqlView_ConfirmDdlScriptOther)
-        }
-    </p>
-    @foreach (var statement in Statements.Take(MaxShown))
-    {
-        <SqlCode Sql="@statement" />
-    }
-    @if (Statements.Count > MaxShown)
-    {
-        <div class="hint small">@TextFormat.Format(SqlEditorText.SqlView_ConfirmMoreStatements, Statements.Count - MaxShown)</div>
-    }
+    <DdlStatementList Statements="Statements" />
     @if (Active.Profile is { Kind: ConnectionKind.Prod } profile)
     {
         <p><Fmt Text="@SqlEditorText.SqlView_ConfirmProd"><Arg0><strong>@profile.Name</strong></Arg0></Fmt></p>
@@ -33,8 +16,6 @@
 </ConfirmDialog>
 
 @code {
-    private const int MaxShown = 5;
-
     [CascadingParameter]
     public WorkspaceLifecycle Lifecycle { get; set; } = null!;
 

@@ -215,7 +215,7 @@ public static class AuditPlanner
     /// </summary>
     private static bool Holds(ColumnInfo wide, ColumnInfo narrow) =>
         OracleTypes.ChangeOf(narrow, wide) is ColumnTypeChange.Same or ColumnTypeChange.Free
-        && !(narrow.DataType.StartsWith("TIMESTAMP", StringComparison.Ordinal) && wide.DataType == "DATE");
+        && !(OracleTypes.IsTimestamp(narrow.DataType) && wide.DataType == "DATE");
 
     /// <summary>
     /// The trigger, if it is missing, invalid or outdated: it references other columns than the template's (columns of the

@@ -69,7 +69,8 @@ public static class LinqStatements
     internal static OracleTypeHint TypeOf(string? oracleType) => oracleType switch
     {
         "Varchar2" => OracleTypeHint.Varchar2,
-        "NVarchar2" or "NChar" => OracleTypeHint.NVarchar2,
+        "NVarchar2" => OracleTypeHint.NVarchar2,
+        "NChar" => OracleTypeHint.NChar, // blank-padded like the column (R5b; before A18 there was no NChar hint)
         "Char" => OracleTypeHint.Char,
         "Int16" or "Int32" or "Int64" or "Decimal" or "Byte" => OracleTypeHint.Number,
         "Date" => OracleTypeHint.Date,

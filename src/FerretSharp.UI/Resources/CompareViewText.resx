@@ -108,10 +108,6 @@
     <value>Compare</value>
     <comment>Button: read the sides and compare them</comment>
   </data>
-  <data name="Compare_OnlyDifferences" xml:space="preserve">
-    <value>Only differences</value>
-    <comment>Checkbox</comment>
-  </data>
   <data name="Compare_FilterObjects" xml:space="preserve">
     <value>Objects</value>
     <comment>Filter checkbox: tables, views, materialized views</comment>
@@ -214,13 +210,6 @@
   <data name="Compare_CopiedMarkdown" xml:space="preserve">
     <value>Comparison copied as Markdown.</value>
   </data>
-  <data name="Compare_ClipboardUnavailable" xml:space="preserve">
-    <value>The clipboard is not available.</value>
-  </data>
-  <data name="Compare_CopyName" xml:space="preserve">
-    <value>{0} (copy)</value>
-    <comment>Proposed name of a copy. {0} = name of the comparison</comment>
-  </data>
   <data name="Compare_Saved" xml:space="preserve">
     <value>“{0}” saved.</value>
     <comment>{0} = name of the comparison</comment>
@@ -228,10 +217,6 @@
   <data name="Compare_MissingConnection" xml:space="preserve">
     <value>(connection missing)</value>
     <comment>Label of a side whose connection was deleted</comment>
-  </data>
-  <data name="Compare_SaveFailed" xml:space="preserve">
-    <value>Saving failed: {0}</value>
-    <comment>{0} = error message of the file system</comment>
   </data>
   <data name="CompareDdl_Title" xml:space="preserve">
     <value>DDL proposal</value>
@@ -249,10 +234,6 @@
   </data>
   <data name="CompareDdl_Note" xml:space="preserve">
     <value>A proposal – copy it, or open it in the SQL editor of the target and run it there. DDL cannot be undone; check steps marked ⚠ first.</value>
-  </data>
-  <data name="CompareDdl_OpenInEditor" xml:space="preserve">
-    <value>Open in SQL editor</value>
-    <comment>Button in the DDL proposal dialog</comment>
   </data>
   <data name="CompareDdl_OpenInEditorTitle" xml:space="preserve">
     <value>Opens the script in a SQL tab of {0} – it runs there only after the usual confirmation.</value>

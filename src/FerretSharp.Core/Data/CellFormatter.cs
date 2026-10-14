@@ -14,7 +14,7 @@ public static class CellFormatter
     public const int MaxTextLength = 1000;
     public const int MaxRawBytes = 32;
 
-    private static readonly CultureInfo German = CultureInfo.GetCultureInfo("de-DE");
+    private static readonly CultureInfo German = ValueCulture.German;
 
     public static string? Format(ColumnInfo column, object? value) => FormatValue(column,
         ColumnCategories.Of(column) is ColumnCategory.Clob or ColumnCategory.Blob ? LobValue.FromContent(value) : value);

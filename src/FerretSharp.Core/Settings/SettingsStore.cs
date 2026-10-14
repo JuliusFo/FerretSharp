@@ -17,35 +17,34 @@ public sealed class SettingsStore(string filePath)
     public string FilePath { get; } = filePath;
 
     /// <summary>Defaults if the file does not exist yet.</summary>
-    /// <exception cref="SettingsStoreException">The file is broken or from a newer version.</exception>
+    /// <exception cref="SettingsStoreException">The file is empty, broken or from a newer version (R5b: a newer one with a shape this version does not know was "broken").</exception>
+    /// <exception cref="IOException">The file cannot be read.</exception>
+    /// <exception cref="UnauthorizedAccessException">The file cannot be read.</exception>
     public async Task<AppSettings> LoadAsync(CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            if (!File.Exists(FilePath))
+            var read = await VersionedJsonFile.ReadAsync<SettingsDocument>(FilePath, CurrentVersion, JsonFiles.Options, cancellationToken,
+                complete: document => document.Settings is not null);
+            switch (read.State)
             {
-                return AppSettings.Default;
+                case JsonFileState.Missing:
+                    return AppSettings.Default;
+                case JsonFileState.Ok:
+                    // A value set to null by hand (review 3.31.0, A6): the default, not a crash at start.
+                    var settings = read.Document!.Settings!;
+                    return settings with { Shortcuts = settings.Shortcuts ?? ShortcutOverrides.Empty };
+                case JsonFileState.Empty:
+                    throw new SettingsStoreException(TextFormat.Format(CoreText.FileEmpty, FilePath));
+                case JsonFileState.Newer:
+                    throw new SettingsStoreException(TextFormat.Format(CoreText.FileFromNewerVersion, FilePath, read.Version));
+                case JsonFileState.Unreadable:
+                    System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw(read.Error!); // the caller keeps defaults without saving
+                    break;
             }
 
-            await using var stream = File.OpenRead(FilePath);
-            var document = await JsonSerializer.DeserializeAsync<SettingsDocument>(stream, JsonFiles.Options, cancellationToken);
-            if (document?.Settings is null)
-            {
-                throw new SettingsStoreException(TextFormat.Format(SettingsText.FileEmpty, FilePath));
-            }
-
-            if (document.Version > CurrentVersion)
-            {
-                throw new SettingsStoreException(TextFormat.Format(SettingsText.FileFromNewerVersion, FilePath, document.Version));
-            }
-
-            // A value set to null by hand (review 3.31.0, A6): the default, not a crash at start.
-            return document.Settings with { Shortcuts = document.Settings.Shortcuts ?? ShortcutOverrides.Empty };
-        }
-        catch (Exception ex) when (ex is JsonException or NotSupportedException)
-        {
-            throw new SettingsStoreException(TextFormat.Format(SettingsText.InvalidFile, FilePath, ex.Message), ex);
+            throw new SettingsStoreException(TextFormat.Format(SettingsText.InvalidFile, FilePath, read.Error!.Message), read.Error);
         }
         finally
         {
@@ -60,20 +59,7 @@ public sealed class SettingsStore(string filePath)
     /// </summary>
     /// <exception cref="IOException">The file could not be copied.</exception>
     /// <exception cref="UnauthorizedAccessException">The file could not be copied.</exception>
-    public string KeepCopy(DateTimeOffset now)
-    {
-        // Every start with the same file would add a copy (E2E run): an identical one is kept already.
-        var content = File.ReadAllBytes(FilePath);
-        var folder = Path.GetDirectoryName(Path.GetFullPath(FilePath))!;
-        if (Directory.EnumerateFiles(folder, Path.GetFileName(FilePath) + ".bad-*").FirstOrDefault(f => File.ReadAllBytes(f).AsSpan().SequenceEqual(content)) is { } kept)
-        {
-            return kept;
-        }
-
-        var copy = $"{FilePath}.bad-{now:yyyyMMdd-HHmmss}";
-        File.Copy(FilePath, copy, overwrite: false);
-        return copy;
-    }
+    public string KeepCopy(DateTimeOffset now) => VersionedJsonFile.KeepCopy(FilePath, now);
 
     public async Task SaveAsync(AppSettings settings, CancellationToken cancellationToken)
     {

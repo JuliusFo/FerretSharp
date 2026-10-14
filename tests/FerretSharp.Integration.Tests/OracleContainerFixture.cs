@@ -10,8 +10,9 @@ using Testcontainers.Oracle;
 namespace FerretSharp.Integration.Tests;
 
 /// <summary>
-/// Starts one Oracle Free container per test run. If Docker is not available,
-/// tests that call <see cref="RequireConnectionString"/> are skipped instead of failing.
+/// Starts one Oracle Free container per test run. If Docker is not available or the container does not start, tests that
+/// call <see cref="RequireConnectionString"/> are skipped with the reason instead of failing – and the tests that need no
+/// database still run. In the CI only a missing Docker skips; any other start failure fails the run.
 /// </summary>
 public sealed class OracleContainerFixture : IAsyncLifetime
 {
@@ -22,6 +23,9 @@ public sealed class OracleContainerFixture : IAsyncLifetime
     public string? ConnectionString { get; private set; }
 
     public string? UnavailableReason { get; private set; }
+
+    /// <summary>GitHub Actions (and most CI systems) set CI=true.</summary>
+    internal static bool InCi => string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase);
 
     public async ValueTask InitializeAsync()
     {
@@ -34,6 +38,10 @@ public sealed class OracleContainerFixture : IAsyncLifetime
         catch (DockerUnavailableException ex)
         {
             UnavailableReason = $"Docker is not available: {ex.Message}";
+        }
+        catch (Exception ex) when (!InCi)
+        {
+            UnavailableReason = $"The Oracle container did not start: {ex.GetType().Name}: {ex.Message}";
         }
     }
 

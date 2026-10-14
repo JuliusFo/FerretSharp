@@ -68,13 +68,12 @@ public static class ColumnSearch
             return null;
         }
 
-        if (string.Equals(name, string.Join('_', terms), StringComparison.OrdinalIgnoreCase)
-            || string.Equals(compact, string.Concat(terms), StringComparison.OrdinalIgnoreCase))
+        if (TextSearch.Equal(name, string.Join('_', terms)) || TextSearch.Equal(compact, string.Concat(terms)))
         {
             return Rank.Exact;
         }
 
-        if (name.StartsWith(terms[0], StringComparison.OrdinalIgnoreCase) || compact.StartsWith(terms[0], StringComparison.OrdinalIgnoreCase))
+        if (TextSearch.StartsWith(name, terms[0]) || TextSearch.StartsWith(compact, terms[0]))
         {
             return Rank.Prefix;
         }
@@ -82,9 +81,9 @@ public static class ColumnSearch
         return terms.All(t => StartsWord(name, t)) ? Rank.WordStart : Rank.Contains;
     }
 
-    private static bool Contains(string text, string term) => text.Contains(term, StringComparison.OrdinalIgnoreCase);
+    /// <summary>Compared like every search box, accents ignored (<see cref="TextSearch"/>).</summary>
+    private static bool Contains(string text, string term) => TextSearch.Contains(text, term);
 
     /// <summary>The term occurs right after an underscore ("ort" in LIEFER_ORT, not in SORTE).</summary>
-    private static bool StartsWord(string name, string term) =>
-        name.Contains("_" + term, StringComparison.OrdinalIgnoreCase);
+    private static bool StartsWord(string name, string term) => TextSearch.Contains(name, "_" + term);
 }

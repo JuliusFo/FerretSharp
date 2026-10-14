@@ -60,12 +60,6 @@
   <data name="ColumnRepeated" xml:space="preserve">
     <value>Die Spalte {0} steht mehr als einmal in der Vorlage.</value>
   </data>
-  <data name="NameInvalid" xml:space="preserve">
-    <value>{0}: Ein Name darf keine doppelten Anführungszeichen enthalten.</value>
-  </data>
-  <data name="NameTooLong" xml:space="preserve">
-    <value>{0}: Der Name ist länger als {1} Byte.</value>
-  </data>
   <data name="NameEmpty" xml:space="preserve">
     <value>@{0} ergibt einen leeren Namen.</value>
   </data>

@@ -246,9 +246,6 @@
   <data name="AppStatements_LookUpTitle" xml:space="preserve">
     <value>Figures and plan of the statement from V$SQL of the app’s connection (connects if needed)</value>
   </data>
-  <data name="AppStatements_OpenInEditor" xml:space="preserve">
-    <value>Open in SQL editor</value>
-  </data>
   <data name="AppStatements_NeedsConnection" xml:space="preserve">
     <value>Choose the app’s connection first</value>
   </data>

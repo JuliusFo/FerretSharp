@@ -1,4 +1,5 @@
 using System.IO;
+using FerretSharp.Core.Settings;
 using FerretSharp.UI.State;
 using Velopack;
 using Velopack.Sources;
@@ -14,15 +15,13 @@ internal sealed class VelopackUpdater : IAppUpdater
 {
     public const string RepositoryUrl = "https://github.com/JuliusFo/FerretSharp";
 
-    private const string SourceArgument = "--update-source=";
-
     private readonly UpdateManager _manager;
     private readonly string[] _restartArguments;
     private UpdateInfo? _found;
 
     public VelopackUpdater(string[] args)
     {
-        var folder = args.FirstOrDefault(a => a.StartsWith(SourceArgument, StringComparison.OrdinalIgnoreCase))?[SourceArgument.Length..];
+        var folder = CommandLine.ValueOf(args, CommandLine.UpdateSource);
         IUpdateSource source = string.IsNullOrWhiteSpace(folder)
             ? new GithubSource(RepositoryUrl, accessToken: null, prerelease: false)
             : new SimpleFileSource(new DirectoryInfo(Path.GetFullPath(folder)));
@@ -59,10 +58,8 @@ internal sealed class VelopackUpdater : IAppUpdater
         _manager.WaitExitThenApplyUpdates(asset, silent: false, restart: true, _restartArguments);
     }
 
-    private static readonly string[] PathArguments = ["--data-dir=", "--import-appdata=", SourceArgument];
-
     private static string WithFullPath(string argument) =>
-        PathArguments.FirstOrDefault(p => argument.StartsWith(p, StringComparison.OrdinalIgnoreCase)) is { } prefix
+        CommandLine.PathOptions.FirstOrDefault(p => argument.StartsWith(p, StringComparison.OrdinalIgnoreCase)) is { } prefix
         && argument.Length > prefix.Length
             ? prefix + Path.GetFullPath(argument[prefix.Length..])
             : argument;

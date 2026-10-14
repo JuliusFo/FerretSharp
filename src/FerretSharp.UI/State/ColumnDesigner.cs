@@ -56,11 +56,11 @@ public sealed class DesignColumn
     public bool OnlyNameAndComment => Before is { IsVirtual: true } or { IsIdentity: true };
 
     /// <summary>The type takes a length (text, RAW), a precision and scale (NUMBER, FLOAT) or fractional digits (TIMESTAMP).</summary>
-    public bool HasSize => OracleTypes.HasLength(Type) || Type is "NUMBER" or "FLOAT" || Type.StartsWith("TIMESTAMP", StringComparison.Ordinal);
+    public bool HasSize => OracleTypes.HasLength(Type) || Type is "NUMBER" or "FLOAT" || OracleTypes.IsTimestamp(Type);
 
     public bool HasScale => Type == "NUMBER";
 
-    public bool HasSemantics => Type is "VARCHAR2" or "CHAR";
+    public bool HasSemantics => OracleTypes.HasLengthSemantics(Type);
 
     public static DesignColumn Of(ColumnInfo column)
     {
@@ -76,7 +76,7 @@ public sealed class DesignColumn
             CharSemantics = column.CharSemantics,
         };
 
-        if (column.DataType.StartsWith("TIMESTAMP", StringComparison.Ordinal) && column.DataType.IndexOf('(', StringComparison.Ordinal) is var open and > 0
+        if (OracleTypes.IsTimestamp(column.DataType) && column.DataType.IndexOf('(', StringComparison.Ordinal) is var open and > 0
             && column.DataType.IndexOf(')', open) is var close and > 0)
         {
             row.Type = (column.DataType[..open] + column.DataType[(close + 1)..]).Trim();
@@ -121,7 +121,7 @@ public sealed class DesignColumn
 
         var type = Type;
         int? length = null, precision = null, numberScale = null;
-        if (Type.StartsWith("TIMESTAMP", StringComparison.Ordinal))
+        if (OracleTypes.IsTimestamp(Type))
         {
             type = Type.Length > "TIMESTAMP".Length ? $"TIMESTAMP({size ?? 6}){Type["TIMESTAMP".Length..]}" : $"TIMESTAMP({size ?? 6})";
         }
@@ -189,9 +189,6 @@ public sealed class DesignConstraint
         get => _name.Value;
         set => _name.Type(value);
     }
-
-    /// <summary>The user typed the name: it no longer follows type and columns.</summary>
-    public bool NameTyped => _name.Typed;
 
     /// <summary>The suggested name for its type and columns, unless the user typed one (<see cref="ColumnDesigner.SuggestName"/>).</summary>
     internal void Suggest(string name) => _name.Follow(name);
@@ -270,7 +267,7 @@ public sealed class ColumnDesigner
     /// <summary>A new column at the end (Oracle adds columns there), with the text semantics most columns of the table use.</summary>
     public DesignColumn AddColumn()
     {
-        var text = Table.Columns.Where(c => c.DataType is "VARCHAR2" or "CHAR").ToList();
+        var text = Table.Columns.Where(c => OracleTypes.HasLengthSemantics(c.DataType)).ToList();
         var column = DesignColumn.New(charSemantics: text.Count > 0 && text.Count(c => c.CharSemantics) * 2 >= text.Count);
         Columns.Add(column);
         return column;

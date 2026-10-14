@@ -76,7 +76,7 @@
         var copied = await Dom.CopyTextAsync(linq.Text);
         Shell.Notify(copied
             ? TextFormat.Plural(linq.Rows, SqlEditorText.LinqMenu_CopiedOne, SqlEditorText.LinqMenu_CopiedOther)
-            : SqlEditorText.Editor_ClipboardUnavailable, linq.Warnings);
+            : CommonText.ClipboardUnavailable, linq.Warnings);
     }
 
     private void OpenConsole()

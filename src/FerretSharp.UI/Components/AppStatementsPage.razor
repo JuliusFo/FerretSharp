@@ -196,7 +196,7 @@
 
         @if (snapshot.Count > 0)
         {
-            var statements = Sorted(snapshot.Statements.Where(s => Trace.OriginFilter is null || s.Origin == Trace.OriginFilter)).ToList();
+            var statements = Trace.ShownStatements;
             <section class="settings-section">
                 <h2>
                     @AppStatementsText.AppStatements_Statements
@@ -235,7 +235,7 @@
                                     {
                                         <span class="plan-badge" title="@s.LastError">@TextFormat.Format(AppStatementsText.AppStatements_ErrorsBadge, s.Errors)</span>
                                     }
-                                    @OneLine(s.Text)
+                                    @SqlScript.OneLine(s.Text)
                                 </td>
                                 <td class="num">@PlanTable.Count(s.Count)</td>
                                 <td class="num">@PlanTable.Time(s.Time)</td>
@@ -275,7 +275,7 @@
                         <button class="btn" disabled="@(target is null || Trace.Lookup is { Loading: true })" title="@(target is null ? AppStatementsText.AppStatements_NeedsConnection : AppStatementsText.AppStatements_LookUpTitle)"
                                 @onclick="() => LookUpAsync(selected, target!)">@AppStatementsText.AppStatements_LookUp</button>
                         <button class="btn" disabled="@(target is null)" title="@(target is null ? AppStatementsText.AppStatements_NeedsConnection : null)"
-                                @onclick="() => OpenInEditorAsync(selected, target!)">@AppStatementsText.AppStatements_OpenInEditor</button>
+                                @onclick="() => OpenInEditorAsync(selected, target!)">@CommonText.OpenInSqlEditor</button>
                     </div>
                     @if (Trace.Lookup is { } lookup && lookup.Text == selected.Text)
                     {
@@ -477,15 +477,6 @@
     private StatementTotals? SelectedStatement(RecordingSnapshot snapshot) =>
         Trace.Selected is { } key ? snapshot.Statements.FirstOrDefault(s => s.Origin == key.Origin && s.Text == key.Text) : null;
 
-    private IEnumerable<StatementTotals> Sorted(IEnumerable<StatementTotals> statements) => Trace.Sort switch
-    {
-        StatementSort.Count => statements.OrderByDescending(s => s.Count),
-        StatementSort.Average => statements.OrderByDescending(s => s.Average),
-        StatementSort.Max => statements.OrderByDescending(s => s.Max),
-        StatementSort.Rows => statements.OrderByDescending(s => s.Rows),
-        _ => statements.OrderByDescending(s => s.Time),
-    };
-
     private RenderFragment SortHeader(StatementSort sort, string label) =>
         @<th class="num sortable @(Trace.Sort == sort ? "sorted" : "")" @onclick="() => Trace.Sort = sort">@label@(Trace.Sort == sort ? " ↓" : "")</th>;
 
@@ -533,9 +524,6 @@
     private string RepeatedText(StatementTotals s) => s.Origin == StatementOrigin.LazyLoading && s.Navigation is { Length: > 0 } navigation
         ? TextFormat.Format(AppStatementsText.AppStatements_RepeatedLazy, s.Burst, RepeatRule.Default.Window.TotalSeconds, navigation)
         : TextFormat.Format(AppStatementsText.AppStatements_RepeatedLoop, s.Burst, RepeatRule.Default.Window.TotalSeconds);
-
-    /// <summary>The statement on one line (EF writes it over several).</summary>
-    private static string OneLine(string sql) => string.Join(' ', sql.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 
     public void Dispose()
     {

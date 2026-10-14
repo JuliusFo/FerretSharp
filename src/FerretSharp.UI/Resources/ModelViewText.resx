@@ -128,10 +128,6 @@
   <data name="Model_MismatchesTitle" xml:space="preserve">
     <value>Type, NULL, length, precision – hints not counted</value>
   </data>
-  <data name="Model_AsOf" xml:space="preserve">
-    <value>As of {0}</value>
-    <comment>{0} = time the model was loaded</comment>
-  </data>
   <data name="Model_AllMapped" xml:space="preserve">
     <value>All entities, properties and columns are mapped to each other.</value>
   </data>

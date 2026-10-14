@@ -29,7 +29,7 @@
             <span class="spinner small"></span>
             <button class="btn ghost" @onclick="Cancel">@CommonText.Cancel</button>
         }
-        <button class="btn" disabled="@(_plan is null)" @onclick="CopyAsync">@(_copied ? SqlEditorText.Plan_CopiedCheck : SqlEditorText.Plan_CopyAsText)</button>
+        <button class="btn" disabled="@(_plan is null)" @onclick="CopyAsync">@(_copied ? CommonText.CopiedCheck : SqlEditorText.Plan_CopyAsText)</button>
         <button class="icon-btn ghost" title="@CommonText.Close" @onclick="CloseAsync">✕</button>
     </header>
 
@@ -171,7 +171,7 @@
             _copied = await Dom.CopyTextAsync(Plans.Format(_plan));
             if (!_copied)
             {
-                Shell.Notify(SqlEditorText.Editor_ClipboardUnavailable);
+                Shell.Notify(CommonText.ClipboardUnavailable);
             }
         }
     }

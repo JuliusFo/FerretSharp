@@ -18,9 +18,6 @@
   <data name="Editor_UnlockWorkspace" xml:space="preserve">
     <value>Workspace freischalten …</value>
   </data>
-  <data name="Editor_ClipboardUnavailable" xml:space="preserve">
-    <value>Die Zwischenablage ist nicht verfügbar.</value>
-  </data>
   <data name="Editor_Copied" xml:space="preserve">
     <value>Kopiert</value>
   </data>
@@ -363,9 +360,6 @@
   <data name="Plan_WholeResult" xml:space="preserve">
     <value>ganzes Ergebnis</value>
   </data>
-  <data name="Plan_CopiedCheck" xml:space="preserve">
-    <value>Kopiert ✓</value>
-  </data>
   <data name="Plan_CopyAsText" xml:space="preserve">
     <value>Als Text kopieren</value>
   </data>
@@ -444,44 +438,14 @@
   <data name="Result_DefaultExportName" xml:space="preserve">
     <value>Ergebnis</value>
   </data>
-  <data name="ResultMenu_ExportHead" xml:space="preserve">
-    <value>Export · {0}</value>
-  </data>
-  <data name="ResultMenu_CopyTableTitle" xml:space="preserve">
-    <value>Tabulator-getrennt mit Kopfzeile – lässt sich direkt in Excel einfügen</value>
-  </data>
-  <data name="ResultMenu_CopyTable" xml:space="preserve">
-    <value>Als Tabelle kopieren</value>
-  </data>
   <data name="ResultMenu_CopyInsertTitle" xml:space="preserve">
     <value>INSERT INTO {0} mit den Spaltennamen des Ergebnisses als Zielspalten (wird nie ausgeführt)</value>
   </data>
   <data name="ResultMenu_CopyInsertUnavailable" xml:space="preserve">
     <value>Nur wenn die Abfrage genau eine Tabelle liest – sonst ist das Ziel unklar.</value>
   </data>
-  <data name="ResultMenu_CopyInsert" xml:space="preserve">
-    <value>Als INSERT kopieren</value>
-  </data>
-  <data name="ResultMenu_SaveCsvTitle" xml:space="preserve">
-    <value>Semikolon-getrennt, UTF-8 – öffnet sich direkt in Excel</value>
-  </data>
-  <data name="ResultMenu_SaveCsv" xml:space="preserve">
-    <value>Als CSV speichern …</value>
-  </data>
-  <data name="Footer_Loading" xml:space="preserve">
-    <value>Lade …</value>
-  </data>
-  <data name="Footer_RowsOne" xml:space="preserve">
-    <value>{0} Zeile</value>
-  </data>
-  <data name="Footer_RowsOther" xml:space="preserve">
-    <value>{0} Zeilen</value>
-  </data>
   <data name="Footer_SnapshotTitle" xml:space="preserve">
     <value>Schreibgeschützter Workspace: Stand der READ ONLY-Transaktion</value>
-  </data>
-  <data name="Footer_Snapshot" xml:space="preserve">
-    <value>Stand {0}</value>
   </data>
   <data name="Footer_SnapshotMoved" xml:space="preserve">
     <value>Stand hat sich geändert – neu ausführen</value>
@@ -530,15 +494,6 @@
   </data>
   <data name="SqlPreview_OpenInEditorTitle" xml:space="preserve">
     <value>Neuer SQL-Editor mit diesem Statement; die Bind-Werte werden zu Variablen</value>
-  </data>
-  <data name="SqlPreview_OpenInEditor" xml:space="preserve">
-    <value>In SQL-Editor öffnen</value>
-  </data>
-  <data name="SqlPreview_BindVariable" xml:space="preserve">
-    <value>Bind-Variable</value>
-  </data>
-  <data name="SqlPreview_Value" xml:space="preserve">
-    <value>Wert</value>
   </data>
   <data name="SqlPreview_Type" xml:space="preserve">
     <value>Typ</value>

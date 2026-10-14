@@ -25,7 +25,8 @@ public sealed class ModelHostTests
     /// <summary>One shadow for all tests, as in the app: hosts on the same build share a copy (ADR 0016).</summary>
     internal static readonly BuildOutputShadow Shadow = new(Path.Combine(AppContext.BaseDirectory, "shadow"));
 
-    internal static string ModelHostPath => Path.Combine(Root, "src", "FerretSharp.ModelHost", "bin", Configuration, "net8.0", "FerretSharp.ModelHost.dll");
+    /// <summary>The built ModelHost; skips the test without it or without .NET 8 (<see cref="Net8"/>).</summary>
+    internal static string ModelHostPath => Net8.Require(Path.Combine(Root, "src", "FerretSharp.ModelHost", "bin", Configuration, "net8.0", "FerretSharp.ModelHost.dll"));
 
     internal static string RepositoryRoot => Root;
 

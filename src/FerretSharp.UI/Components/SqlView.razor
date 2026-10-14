@@ -141,25 +141,7 @@
                    OnConfirm="() => ConfirmAsync(pending, discard?.Item1)" OnCancel="() => _confirm = null">
         @if (ddl.Count > 0)
         {
-            <p>
-                @if (pending.Count <= 1)
-                {
-                    <Fmt Text="@SqlEditorText.SqlView_ConfirmDdl"><Arg0><strong>@ddl[0].Info.FirstWord</strong></Arg0></Fmt>
-                }
-                else
-                {
-                    @TextFormat.Plural(ddl.Count, SqlEditorText.SqlView_ConfirmDdlScriptOne, SqlEditorText.SqlView_ConfirmDdlScriptOther)
-                }
-            </p>
-            @* The DDL right below its sentence – further down it read like part of the list of discarded changes (E2E). *@
-            @foreach (var r in ddl.Take(3))
-            {
-                <SqlCode Sql="@r.Statement.Text" />
-            }
-            @if (ddl.Count > 3)
-            {
-                <div class="hint small">@TextFormat.Format(SqlEditorText.SqlView_ConfirmMoreStatements, ddl.Count - 3)</div>
-            }
+            <DdlStatementList Statements="@ddl.Select(r => r.Statement.Text).ToList()" InScript="@(pending.Count > 1)" />
         }
         @foreach (var r in allRows)
         {
@@ -342,13 +324,13 @@
         var statements = SqlScript.Split(text).Select(s => SqlScript.Analyze(s.Text)).ToList();
         var binds = statements.SelectMany(s => s.Binds).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         var known = Tab.Variables.Select(v => v.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var suggestions = new Dictionary<string, SqlVariableType>(StringComparer.OrdinalIgnoreCase);
+        var suggestions = new Dictionary<string, SqlVariable>(StringComparer.OrdinalIgnoreCase);
         foreach (var bind in binds.Where(b => !known.Contains(b)))
         {
             if (statements.FirstOrDefault(s => s.BindUses.Any(u => string.Equals(u.Bind, bind, StringComparison.OrdinalIgnoreCase))) is { } info
-                && Active.Schema is { } schema && await SqlBinds.SuggestTypeAsync(info, bind, schema, CancellationToken.None) is { } type)
+                && Active.Schema is { } schema && await SqlBinds.SuggestAsync(info, bind, schema, CancellationToken.None) is { } suggested)
             {
-                suggestions[bind] = type;
+                suggestions[bind] = suggested;
             }
         }
 
@@ -358,7 +340,7 @@
         }
 
         _binds = binds;
-        var variables = SqlBinds.Reconcile(_binds, Tab.Variables, b => suggestions.TryGetValue(b, out var t) ? t : null);
+        var variables = SqlBinds.Reconcile(_binds, Tab.Variables, b => suggestions.GetValueOrDefault(b));
         if (!variables.SequenceEqual(Tab.Variables))
         {
             Tab.Variables = variables;
@@ -661,7 +643,7 @@
     };
 
     /// <summary>" · 0,4 s" after a run's outcome; nothing while unknown.</summary>
-    private static string Duration(SqlRun run) => run.Elapsed is { } elapsed ? " · " + ResultFooter.Ms(elapsed) : "";
+    private static string Duration(SqlRun run) => run.Elapsed is { } elapsed ? " · " + TimeText.Duration(elapsed) : "";
 
     private async Task ToggleHistoryAsync()
     {

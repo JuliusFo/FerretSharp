@@ -99,6 +99,31 @@ public sealed class AppTraceServiceTests : IAsyncDisposable
         Assert.Equal(before + 1, _changed); // nothing new, nothing reported
     }
 
+    /// <summary>R5b (review 3.31.0, B10): the list of the page is computed once per recording, filter and order – not on every render.</summary>
+    [Fact]
+    public async Task The_shown_statements_follow_filter_and_order_and_are_kept_until_they_change()
+    {
+        await _service.AttachAsync(ErpApi);
+        await _source.Events.Writer.WriteAsync(Executed("SELECT 1 FROM DUAL"), Ct);
+        await _source.Events.Writer.WriteAsync(Executed("SELECT 2 FROM DUAL", source: "FromSqlQuery"), Ct);
+        await _source.Events.Writer.WriteAsync(Executed("SELECT 2 FROM DUAL", source: "FromSqlQuery"), Ct);
+        await Until(() => _service.Snapshot.Count == 3);
+
+        var byTime = _service.ShownStatements;
+        Assert.Same(byTime, _service.ShownStatements);
+        Assert.Equal(_service.Snapshot.Statements, byTime);
+
+        _service.Sort = StatementSort.Count;
+        Assert.Equal(["SELECT 2 FROM DUAL", "SELECT 1 FROM DUAL"], _service.ShownStatements.Select(s => s.Text));
+
+        _service.OriginFilter = StatementOrigin.Linq;
+        Assert.Equal(["SELECT 1 FROM DUAL"], _service.ShownStatements.Select(s => s.Text));
+
+        await _source.Events.Writer.WriteAsync(Executed("SELECT 3 FROM DUAL"), Ct);
+        await Until(() => _service.Snapshot.Count == 4);
+        Assert.Equal(2, _service.ShownStatements.Count);
+    }
+
     [Fact]
     public async Task When_the_app_ends_the_recording_stays()
     {

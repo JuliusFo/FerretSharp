@@ -147,7 +147,7 @@ public partial class App : Application
         _logger = _host.Services.GetRequiredService<ILogger<App>>();
 
         await _host.StartAsync();
-        _logger.LogInformation("FerretSharp {Version} started", typeof(App).Assembly.GetName().Version);
+        _logger.LogInformation("FerretSharp {Version} started", FerretSharp.UI.State.AppVersion.Current);
         if (settings.StartupNotice is { } notice)
         {
             _logger.LogWarning("Settings could not be read, using defaults: {Notice}", notice);
@@ -165,8 +165,7 @@ public partial class App : Application
     /// see the user's real tools – the folder of <c>--import-appdata=&lt;path&gt;</c>.
     /// </summary>
     private static string ImportAppData(string[] args) =>
-        args.FirstOrDefault(a => a.StartsWith("--import-appdata=", StringComparison.OrdinalIgnoreCase))?["--import-appdata=".Length..]
-        ?? Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        CommandLine.ValueOf(args, CommandLine.ImportAppData) ?? Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
 
     protected override void OnExit(ExitEventArgs e)
     {

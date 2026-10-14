@@ -37,12 +37,53 @@ public static partial class OracleTypes
     /// <summary>The types whose <see cref="ColumnInfo.Length"/> is set: character types and RAW.</summary>
     public static bool HasLength(string dataType) => IsCharacter(dataType) || dataType == "RAW";
 
+    /// <summary>VARCHAR2 and CHAR: the length counts BYTE or CHAR, as chosen. NVARCHAR2 and NCHAR always count characters.</summary>
+    public static bool HasLengthSemantics(string dataType) => dataType is "VARCHAR2" or "CHAR";
+
     /// <summary>
     /// The length counts bytes, not characters: VARCHAR2/CHAR with BYTE semantics and RAW. NVARCHAR2/NCHAR always count
     /// characters.
     /// </summary>
     public static bool LengthInBytes(ColumnInfo column) =>
-        column.DataType is "VARCHAR2" or "CHAR" && !column.CharSemantics || column.DataType == "RAW";
+        HasLengthSemantics(column.DataType) && !column.CharSemantics || column.DataType == "RAW";
+
+    /// <summary>
+    /// CHAR and NCHAR: blank-padded to their length. Compared with padding (bound as CHAR), shown and looked up without it.
+    /// </summary>
+    public static bool IsFixedChar(string dataType) => dataType is "CHAR" or "NCHAR";
+
+    /// <summary>
+    /// NCHAR, NVARCHAR2 and NCLOB: in the national character set. Bound and written as such (<c>N'…'</c>) – in the database
+    /// character set, characters it lacks become "?" (review 3.31.0, A18).
+    /// </summary>
+    public static bool IsNational(string dataType) => dataType is "NCHAR" or "NVARCHAR2" or "NCLOB";
+
+    /// <summary>
+    /// NUMBER, FLOAT and INTEGER: Oracle's decimal NUMBER (FLOAT is one with a binary precision, INTEGER is how a query
+    /// can report one) – not BINARY_FLOAT or BINARY_DOUBLE.
+    /// </summary>
+    public static bool IsDecimalNumber(string dataType) => dataType is "NUMBER" or "FLOAT" or "INTEGER";
+
+    /// <summary>TIMESTAMP in all its forms, with or without (local) time zone.</summary>
+    public static bool IsTimestamp(string dataType) => dataType.StartsWith("TIMESTAMP", StringComparison.Ordinal);
+
+    /// <summary>TIMESTAMP … WITH TIME ZONE: keeps its offset (<see cref="DateTimeOffset"/>).</summary>
+    public static bool HasTimeZone(string dataType) => IsTimestamp(dataType) && dataType.EndsWith(" WITH TIME ZONE", StringComparison.Ordinal);
+
+    /// <summary>
+    /// TIMESTAMP … WITH LOCAL TIME ZONE: stored in the database's time zone, read and written in the session's – a time
+    /// without offset.
+    /// </summary>
+    public static bool IsLocalTimeZone(string dataType) => IsTimestamp(dataType) && dataType.EndsWith(" WITH LOCAL TIME ZONE", StringComparison.Ordinal);
+
+    /// <summary>INTERVAL YEAR TO MONTH and INTERVAL DAY TO SECOND.</summary>
+    public static bool IsInterval(string dataType) => dataType.StartsWith("INTERVAL", StringComparison.Ordinal);
+
+    /// <summary>INTERVAL YEAR TO MONTH (<c>TO_YMINTERVAL</c>).</summary>
+    public static bool IsYearToMonth(string dataType) => dataType.StartsWith("INTERVAL YEAR", StringComparison.Ordinal);
+
+    /// <summary>INTERVAL DAY TO SECOND (<c>TO_DSINTERVAL</c>, <see cref="TimeSpan"/>).</summary>
+    public static bool IsDayToSecond(string dataType) => dataType.StartsWith("INTERVAL DAY", StringComparison.Ordinal);
 
     /// <summary>
     /// Large or long values, which MODIFY cannot convert and the grid only previews: CLOB, NCLOB, BLOB, BFILE, LONG, LONG RAW.
@@ -62,8 +103,8 @@ public static partial class OracleTypes
     public static bool IsComparable(string dataType) =>
         IsCharacter(dataType)
         || dataType is "NUMBER" or "FLOAT" or "BINARY_FLOAT" or "BINARY_DOUBLE" or "DATE" or "RAW" or "ROWID" or "UROWID" or "BOOLEAN"
-        || dataType.StartsWith("TIMESTAMP", StringComparison.Ordinal)
-        || dataType.StartsWith("INTERVAL", StringComparison.Ordinal);
+        || IsTimestamp(dataType)
+        || IsInterval(dataType);
 
     /// <summary>
     /// Reads a type as written in DDL (<c>NUMBER(12,2)</c>, <c>VARCHAR2(30 CHAR)</c>, <c>TIMESTAMP</c>, <c>INTEGER</c> …) into the

@@ -1,7 +1,7 @@
 # FerretSharp – Oracle explorer for .NET developers
 
 > Projektanweisungen für Claude Code. Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-13, Release 3.31.1 (Historie: `CHANGELOG.md`).
+> Stand: 2026-10-14, 3.32.0 (R5b) vorbereitet, zuletzt released 3.31.1 (Historie: `CHANGELOG.md`).
 
 ## Wo steht was
 
@@ -58,7 +58,7 @@ Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erkl
 | App-Mitschnitt | **EventPipe** + `TraceEvent`, nur in `FerretSharp.AppTrace` (ADR 0023) | Feste Feldliste der EF-Events (`EfEvents`): nie Connection-String, nie Parameter. |
 | Oracle | `Oracle.ManagedDataAccess.Core` (23.x), Ziel **19c+** (12.2 sollte gehen) | Rein managed, async mit `CancellationToken`. `OFFSET/FETCH` ab 12c, kein ROWNUM-Fallback. |
 | Tests | **xUnit v3** auf **Microsoft Testing Platform** + NSubstitute; **Testcontainers.Oracle** | Kein VSTest. |
-| Persistenz | JSON (`System.Text.Json`) über `AtomicJsonFile` | Polymorphie über `[JsonPolymorphic]`; keine `object`-Properties (werden zu `JsonElement`). |
+| Persistenz | JSON (`System.Text.Json`): schreiben über `AtomicJsonFile`, lesen über `VersionedJsonFile` | Regel je Datei: `docs/architecture.md` 1.7. Polymorphie über `[JsonPolymorphic]`; keine `object`-Properties (werden zu `JsonElement`). |
 | Texte, Secrets | typisierte resx, Englisch (Standard) und Deutsch (ADR 0017); Windows Credential Manager | Credential Manager nur im **App**-Projekt, Core kennt `ISecretStore`. Passwörter nie im JSON. |
 | CI, Distribution | GitHub Actions; **Velopack** (ADR 0024) | `docs/release.md`. |
 
@@ -115,5 +115,5 @@ Regeln:
 
 ## 8. Als Nächstes
 
-- Gesamt-Review nach 3.31.0 (`docs/review-3.31.0.md`): Teil A als R5a in 3.31.1 released, Teil C (Doku) erledigt, als Nächstes R5b (Struktur, Teil B).
+- Gesamt-Review nach 3.31.0 (`docs/review-3.31.0.md`): Teil A als R5a in 3.31.1 released, Teil C (Doku) erledigt, Teil B als R5b umgesetzt (Branch `wp/r5b-structure`, 3.32.0 – Merge, Tag und Release nach OK des Nutzers).
 - Danach weitere Pakete mit dem Nutzer aus `docs/backlog.md` auswählen (`docs/roadmap.md`).

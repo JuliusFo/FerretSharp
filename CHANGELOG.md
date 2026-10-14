@@ -5,6 +5,33 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.32.0] - 2026-10-14
+
+Structure after the review of the whole code (R5b): shared building blocks instead of copies, more tests. No new features; where a copy behaved differently, all now behave like the best one.
+
+### Changed
+- Every search box finds by words in any order, ignoring case and accents, like the settings search: in the explorer "kunde adr" now finds `KUNDE_ADRESSE`, and "muller" finds "Müller". The schema comparison and the model mismatches got a clear button and Escape.
+- Durations read the same everywhere ("12 ms", "1,4 s", "2 min 5 s"), and both footers show the snapshot time in your format.
+- Both DDL confirmations show up to five statements (the SQL editor showed three).
+- The designer warns about reserved words as names (`DATE`, `INDEX`); index name problems name the index.
+- A few texts that said the same in different words now say it once; German "In SQL-Editor öffnen" is "Im SQL-Editor öffnen" everywhere.
+- Colors of warnings, pending and written values, new rows, keys, display columns and the Prod badge follow dark mode; the display column badge was hard to read there.
+
+### Fixed
+- SQL editor variables compared with an NVARCHAR2 or NCHAR column are bound in the national character set, like filters since 3.31.1 – characters missing in the database character set no longer turn into "?". The LINQ console binds EF's NCHAR parameters blank-padded, and display columns work for NCHAR keys.
+- The DDL proposal of the schema comparison could name an index longer than Oracle allows (128 bytes, with umlauts: ORA-00972) or like another index of the table.
+- An audit template file locked for a moment (an editor saving it) said "cannot be read" until the file changed.
+- Settings, workspace and comparison files of a newer FerretSharp with something this version does not know were reported as broken instead of newer. The recent connections of a newer version are no longer overwritten.
+- A workspace file with lists set to `null` by hand no longer fails to restore its tabs.
+- A broken SQL history is kept as a copy (`….json.bad-…`) before a new one replaces it.
+- The LINQ console labelled a query with `TagWith` as "--"; the change overview named PL/SQL tabs with nothing.
+- The error dialog copies like the rest of the app and says when the clipboard is not available.
+- `--lang` given twice takes the first like every other option.
+
+### Internal
+- Shared blocks: versioned JSON files, cached file reads, the time limit of lookups, Oracle names, addresses, type checks, literals, text search, JS modules, copying, the display names of a grid, durations, the command line options.
+- Tests: Prod opens locked in the UI tests, writes and DDL on a locked workspace are covered, the public surface of the database session is pinned, integration tests skip with a reason when the container or .NET 8 is missing, the build watcher tests no longer wait for real time.
+
 ## [3.31.1] - 2026-10-13
 
 Fixes from a review of the whole code (R5a).

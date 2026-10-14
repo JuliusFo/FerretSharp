@@ -1,11 +1,12 @@
 using FerretSharp.Core.Data;
+using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.Display;
 
 /// <summary>What a foreign key cell shows beside its value.</summary>
 /// <param name="Text">The display value as text; null if it is NULL.</param>
 /// <param name="NotFound">No row of the target has the value – a dangling reference (many relationships have no constraint).</param>
-public sealed record DisplayName(string? Text, bool NotFound);
+public sealed record LookedUpName(string? Text, bool NotFound);
 
 /// <summary>One lookup to run: keys of one link not known yet, at most <see cref="Query.QueryBuilder.MaxLookupKeys"/>.</summary>
 public sealed record DisplayLookup(DisplayLink Link, IReadOnlyList<object> Keys);
@@ -45,10 +46,10 @@ public sealed class DisplayNames
     public bool Shows(int column) => _byColumn.TryGetValue(column, out var state) && state.Disabled is null;
 
     /// <summary>Why the column's link was switched off; null if it was not (or there is none).</summary>
-    public string? DisabledReason(int column) => _byColumn.GetValueOrDefault(column)?.Disabled;
+    internal string? DisabledReason(int column) => _byColumn.GetValueOrDefault(column)?.Disabled;
 
     /// <summary>What to show beside a value of the column; null if nothing (no link, NULL, not looked up yet).</summary>
-    public DisplayName? NameOf(int column, object? value)
+    public LookedUpName? NameOf(int column, object? value)
     {
         if (!_byColumn.TryGetValue(column, out var state) || state.Disabled is not null || state.KeyOf(value) is not { } key)
         {
@@ -57,10 +58,10 @@ public sealed class DisplayNames
 
         if (state.Found.TryGetValue(key, out var text))
         {
-            return new DisplayName(text, false);
+            return new LookedUpName(text, false);
         }
 
-        return state.NotFound.Contains(key) ? new DisplayName(null, true) : null;
+        return state.NotFound.Contains(key) ? new LookedUpName(null, true) : null;
     }
 
     /// <summary>
@@ -197,33 +198,13 @@ public sealed class DisplayNames
 
     /// <summary>
     /// Runs a lookup; null if it took longer than <paramref name="timeout"/> – the statement is then cancelled on the server
-    /// (as for incoming FK counts, <see cref="Query.FkNavigation.CountAsync"/>).
+    /// (<see cref="TimedQuery"/>, as for incoming FK counts).
     /// </summary>
-    public static async Task<IReadOnlyList<LookupRow>?> LookupAsync(
+    public static Task<IReadOnlyList<LookupRow>?> LookupAsync(
         IDataAccess data, DisplayLookup lookup, TimeSpan timeout, CancellationToken cancellationToken)
     {
-        var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var link = lookup.Link;
-        var rows = data.LookupAsync(link.Target, link.KeyColumn, link.DisplayColumn, lookup.Keys, cts.Token);
-        try
-        {
-            return await rows.WaitAsync(timeout, cancellationToken);
-        }
-        catch (TimeoutException)
-        {
-            await cts.CancelAsync();
-            return null;
-        }
-        finally
-        {
-            // Dispose only once the statement has ended; its cancel registration uses the token. A lookup that fails after
-            // the timeout is observed here, not left as an unobserved task exception.
-            _ = rows.ContinueWith(finished =>
-            {
-                _ = finished.Exception;
-                cts.Dispose();
-            }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
-        }
+        return TimedQuery.RunAsync(token => data.LookupAsync(link.Target, link.KeyColumn, link.DisplayColumn, lookup.Keys, token), timeout, cancellationToken);
     }
 
     private static string? Shorten(string? text)
@@ -275,6 +256,6 @@ public sealed class DisplayNames
         public object BindValue(object value) =>
             value is string s && Link.SourcePadded && !IsPadded(Link.Key.DataType) ? s.TrimEnd(' ') : value;
 
-        internal static bool IsPadded(string? dataType) => dataType is "CHAR" or "NCHAR";
+        internal static bool IsPadded(string? dataType) => dataType is not null && OracleTypes.IsFixedChar(dataType);
     }
 }

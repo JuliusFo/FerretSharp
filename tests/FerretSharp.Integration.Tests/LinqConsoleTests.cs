@@ -23,7 +23,13 @@ public sealed class LinqConsoleTests : IAsyncLifetime
         _console = await ModelHostTests.Runner().StartConsoleAsync(link, BuildOutputLocator.Find(link), Ct);
     }
 
-    public async ValueTask DisposeAsync() => await _console.DisposeAsync();
+    public async ValueTask DisposeAsync()
+    {
+        if (_console is not null) // null: skipped in InitializeAsync
+        {
+            await _console.DisposeAsync();
+        }
+    }
 
     [Fact]
     public void The_running_console_does_not_lock_the_projects_build_output()

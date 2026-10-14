@@ -2,6 +2,7 @@ using FerretSharp.Core.ClrModel;
 using FerretSharp.Core.Design;
 using FerretSharp.Core.Schema;
 using FerretSharp.Core.Workspaces;
+using FerretSharp.UI.Resources;
 
 namespace FerretSharp.UI.State;
 
@@ -37,6 +38,19 @@ public abstract class WorkspaceTab(Guid workspaceId, string idPrefix)
 
     /// <summary>The tab is saved with the workspace (not the draft of a new table, WP-23).</summary>
     public virtual bool IsSaved => true;
+
+    /// <summary>
+    /// How the tab is named in the tab bar, the dialogs and the change overview (R5b: written three times; the overview
+    /// named PL/SQL tabs with nothing).
+    /// </summary>
+    public string Caption => this switch
+    {
+        TableTab table => table.Table.DisplayName,
+        NewTableTab draft => draft.Table.Name.Length > 0 ? draft.Table.Name : ShellText.TabBar_NewTable,
+        PlSqlTab plSql => plSql.Unit.DisplayName,
+        ITitledTab titled => titled.Title,
+        _ => "",
+    };
 }
 
 /// <summary>A tab with a title of its own ("SQL 1", "Kunden suchen") that the user can rename – unlike a table tab, named after its table.</summary>

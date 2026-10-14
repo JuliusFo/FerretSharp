@@ -15,12 +15,6 @@
   <data name="IndexNameMissing" xml:space="preserve">
     <value>Gib einen Namen für den Index ein.</value>
   </data>
-  <data name="IndexNameInvalid" xml:space="preserve">
-    <value>Ein Name darf keine doppelten Anführungszeichen enthalten.</value>
-  </data>
-  <data name="IndexNameTooLong" xml:space="preserve">
-    <value>Der Name ist länger als {0} Byte.</value>
-  </data>
   <data name="IndexNameTaken" xml:space="preserve">
     <value>Die Tabelle hat schon einen Index {0}.</value>
   </data>
@@ -51,13 +45,7 @@
   <data name="ColumnNameMissing" xml:space="preserve">
     <value>Jede Spalte braucht einen Namen.</value>
   </data>
-  <data name="ColumnNameInvalid" xml:space="preserve">
-    <value>{0}: Ein Name darf keine doppelten Anführungszeichen enthalten.</value>
-  </data>
-  <data name="ColumnNameTooLong" xml:space="preserve">
-    <value>{0}: Der Name ist länger als {1} Byte.</value>
-  </data>
-  <data name="ColumnNameNeedsQuotes" xml:space="preserve">
+  <data name="NameNeedsQuotes" xml:space="preserve">
     <value>{0} ist kein einfacher Oracle-Name; SQL und das C#-Modell müssen ihn genau so in doppelten Anführungszeichen schreiben.</value>
   </data>
   <data name="ColumnNameTwice" xml:space="preserve">

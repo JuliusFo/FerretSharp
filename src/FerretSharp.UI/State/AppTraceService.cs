@@ -101,6 +101,45 @@ public sealed class AppTraceService(IAppTraceSource source, ConnectionManager co
         }
     }
 
+    private (long Version, StatementOrigin? Filter, StatementSort Sort, IReadOnlyList<StatementTotals> Statements)? _shown;
+
+    /// <summary>
+    /// The statements the page lists: those of <see cref="OriginFilter"/>, ordered by <see cref="Sort"/> – computed once
+    /// per recording, filter and order (R5b, review 3.31.0 B10: the page filtered and sorted up to 2000 statements on
+    /// every render, four times a second while recording). The recording is ordered by time already.
+    /// </summary>
+    public IReadOnlyList<StatementTotals> ShownStatements
+    {
+        get
+        {
+            var snapshot = Snapshot;
+            var (filter, sort) = (OriginFilter, Sort);
+            lock (_lock)
+            {
+                if (_shown is { } shown && shown.Version == snapshot.Version && shown.Filter == filter && shown.Sort == sort)
+                {
+                    return shown.Statements;
+                }
+            }
+
+            var statements = filter is null ? snapshot.Statements : snapshot.Statements.Where(s => s.Origin == filter);
+            IReadOnlyList<StatementTotals> ordered = (sort switch
+            {
+                StatementSort.Count => statements.OrderByDescending(s => s.Count),
+                StatementSort.Average => statements.OrderByDescending(s => s.Average),
+                StatementSort.Max => statements.OrderByDescending(s => s.Max),
+                StatementSort.Rows => statements.OrderByDescending(s => s.Rows),
+                _ => statements, // by time, as recorded
+            }).ToList();
+            lock (_lock)
+            {
+                _shown = (snapshot.Version, filter, sort, ordered);
+            }
+
+            return ordered;
+        }
+    }
+
     /// <summary>
     /// The connection of the app: the one the user chose, else by the app's environment or the data source of its
     /// commands (<see cref="AppConnectionMatch.Find"/>).

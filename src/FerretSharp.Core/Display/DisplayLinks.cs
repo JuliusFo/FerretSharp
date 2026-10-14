@@ -94,14 +94,14 @@ public static class DisplayLinks
             return null;
         }
 
-        // An NCHAR key is bound as NVARCHAR2 (no blank padding): shorter values would never match and all read "not found".
+        // An NCHAR key binds as NCHAR (blank-padded) since review 3.31.0, A18; WP-31 left it out while it bound as NVARCHAR2.
         var family = ColumnCategories.Of(table.Columns[column]);
-        if (family != ColumnCategories.Of(target.Columns[key]) || !IsKeyFamily(family) || target.Columns[key].DataType == "NCHAR")
+        if (family != ColumnCategories.Of(target.Columns[key]) || !IsKeyFamily(family))
         {
             return null;
         }
 
-        return new DisplayLink(column, fk, target, key, display, table.Columns[column].DataType is "CHAR" or "NCHAR");
+        return new DisplayLink(column, fk, target, key, display, OracleTypes.IsFixedChar(table.Columns[column].DataType));
     }
 
     private static bool IsUnique(TableDetails target, string column) =>

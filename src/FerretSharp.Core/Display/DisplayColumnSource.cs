@@ -34,7 +34,7 @@ public sealed record DisplayColumnLoad(DisplayColumns Columns, string Path, bool
 public sealed class DisplayColumnSource : IDisposable
 {
     /// <summary>How long a read of a file is reused without looking at it again (the settings page asks while it renders).</summary>
-    public static readonly TimeSpan Fresh = TimeSpan.FromSeconds(3);
+    public static readonly TimeSpan Fresh = CachedFileRead<DisplayColumnLoad>.Fresh;
 
     /// <summary>Changes on disk come in bursts (write to a temporary file, move it): reported once after this pause.</summary>
     public static readonly TimeSpan Quiet = TimeSpan.FromMilliseconds(300);
@@ -53,7 +53,7 @@ public sealed class DisplayColumnSource : IDisposable
     private readonly SemaphoreSlim _writing = new(1, 1);
     private readonly Timer _quiet;
     private readonly Timer? _poll;
-    private (string Path, DateTime Written, long Length, DisplayColumnLoad Load, DateTimeOffset Checked)? _cached;
+    private readonly CachedFileRead<DisplayColumnLoad> _file;
     private (string Path, bool Enabled, DisplayColumnLoad Load) _reported;
     private FileSystemWatcher? _watcher;
     private bool _disposed;
@@ -65,6 +65,7 @@ public sealed class DisplayColumnSource : IDisposable
         _settings = settings;
         _defaultPath = defaultPath;
         _clock = clock ?? TimeProvider.System;
+        _file = new(Read, Unreadable, _clock);
         _quiet = new Timer(_ => Reload());
         _reported = (PathOf(settings.Current), settings.Current.ShowDisplayNames, Load(PathOf(settings.Current)));
         Watching = watch;
@@ -107,25 +108,7 @@ public sealed class DisplayColumnSource : IDisposable
     /// The file at <paramref name="path"/>, read now unless read within <see cref="Fresh"/> (the settings page checks a path
     /// before it is saved); empty = data folder.
     /// </summary>
-    public DisplayColumnLoad Load(string? path)
-    {
-        path = Resolve(path);
-        lock (_lock)
-        {
-            if (_cached is { } recent && recent.Path == path && _clock.GetUtcNow() - recent.Checked < Fresh)
-            {
-                return recent.Load;
-            }
-        }
-
-        var load = Read(path, out var written, out var length);
-        lock (_lock)
-        {
-            _cached = (path, written, length, load, _clock.GetUtcNow());
-        }
-
-        return load;
-    }
+    public DisplayColumnLoad Load(string? path) => _file.Get(Resolve(path));
 
     /// <summary>
     /// Sets the display column of a table (by name, without owner), or removes it with <paramref name="column"/> null.
@@ -193,7 +176,7 @@ public sealed class DisplayColumnSource : IDisposable
                 return;
             }
 
-            _cached = null;
+            _file.Forget();
         }
 
         Report();
@@ -249,42 +232,28 @@ public sealed class DisplayColumnSource : IDisposable
 
     private string Resolve(string? path) => string.IsNullOrWhiteSpace(path) ? _defaultPath : path.Trim();
 
-    /// <summary>The file, parsed – or the earlier load if the file has not changed since (same time and length).</summary>
-    private DisplayColumnLoad Read(string path, out DateTime written, out long length)
+    /// <summary>The file, parsed; only a successful read is reused while the file is unchanged.</summary>
+    private FileRead<DisplayColumnLoad> Read(string path, FileInfo file)
     {
-        (written, length) = (default, -1);
         var isDefault = path == _defaultPath;
+        if (!file.Exists)
+        {
+            return new(new DisplayColumnLoad(DisplayColumns.Empty, path, isDefault, null));
+        }
+
         try
         {
-            var file = new FileInfo(path);
-            if (!file.Exists)
-            {
-                return new DisplayColumnLoad(DisplayColumns.Empty, path, isDefault, null);
-            }
-
-            var stamp = (file.LastWriteTimeUtc, file.Length);
-            lock (_lock)
-            {
-                if (_cached is { } cached && cached.Path == path && (cached.Written, cached.Length) == stamp)
-                {
-                    (written, length) = stamp;
-                    return cached.Load;
-                }
-            }
-
             var document = ReadDocument(path) ?? new DisplayColumnDocument();
-            (written, length) = stamp; // only a successful read is reused while the file is unchanged
-            return new DisplayColumnLoad(DisplayColumns.From(document.DisplayColumns), path, isDefault, null, NewerVersion(path, document)) { Exists = true };
+            return new(new DisplayColumnLoad(DisplayColumns.From(document.DisplayColumns), path, isDefault, null, NewerVersion(path, document)) { Exists = true });
         }
         catch (JsonException ex)
         {
-            return new DisplayColumnLoad(DisplayColumns.Empty, path, isDefault, TextFormat.Format(DisplayText.FileInvalid, path, ex.Message)) { Exists = true };
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
-        {
-            return new DisplayColumnLoad(DisplayColumns.Empty, path, isDefault, TextFormat.Format(DisplayText.FileUnreadable, path, ex.Message));
+            return new(new DisplayColumnLoad(DisplayColumns.Empty, path, isDefault, TextFormat.Format(DisplayText.FileInvalid, path, ex.Message)) { Exists = true }, Reuse: false);
         }
     }
+
+    private DisplayColumnLoad Unreadable(string path, Exception ex) =>
+        new(DisplayColumns.Empty, path, path == _defaultPath, TextFormat.Format(DisplayText.FileUnreadable, path, ex.Message));
 
     private static string? NewerVersion(string path, DisplayColumnDocument document) =>
         document.Version > DisplayColumnDocument.CurrentVersion

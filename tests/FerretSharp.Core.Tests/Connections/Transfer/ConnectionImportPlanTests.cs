@@ -158,11 +158,11 @@ public class ConnectionImportPlanTests
     {
         var a = new HostPortAddress("db01", 1521, "ERP", null);
 
-        Assert.True(ConnectionImportPlan.SameAddress(a, new HostPortAddress(" DB01 ", 1521, "erp", "")));
-        Assert.False(ConnectionImportPlan.SameAddress(a, new HostPortAddress("db01", 1522, "ERP", null)));
-        Assert.False(ConnectionImportPlan.SameAddress(a, new HostPortAddress("db01", 1521, null, "ERP")));
-        Assert.True(ConnectionImportPlan.SameAddress(new TnsAliasAddress("erp", null), new TnsAliasAddress("ERP", @"C:\tns")));
-        Assert.False(ConnectionImportPlan.SameAddress(a, new TnsAliasAddress("ERP", null)));
+        Assert.True(a.SameAs(new HostPortAddress(" DB01 ", 1521, "erp", "")));
+        Assert.False(a.SameAs(new HostPortAddress("db01", 1522, "ERP", null)));
+        Assert.False(a.SameAs(new HostPortAddress("db01", 1521, null, "ERP")));
+        Assert.True(new TnsAliasAddress("erp", null).SameAs(new TnsAliasAddress("ERP", @"C:\tns")));
+        Assert.False(a.SameAs(new TnsAliasAddress("ERP", null)));
 
         var plan = Plan(ReadContent(DbeaverExport("General")), ExistingTest with { User = "other" });
         Assert.Null(Row(plan, "erp-test").Duplicate);

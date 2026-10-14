@@ -250,29 +250,14 @@ public sealed class ConnectionImportPlan
 
     internal ConnectionProfile? DuplicateOf(ImportRow row) =>
         row.Candidate.Profile is { } imported && !row.UserMissing
-            ? _existing.FirstOrDefault(p => SameAddress(p.Address, imported.Address) && SameUser(p.User, row.User))
+            ? _existing.FirstOrDefault(p => p.Address.SameAs(imported.Address) && SameUser(p.User, row.User))
             : null;
 
     internal ImportRow? EarlierTwinOf(ImportRow row) =>
         row.Candidate.Profile is { } imported && !row.UserMissing
             ? Rows.TakeWhile(r => r != row).FirstOrDefault(r =>
-                r.Candidate.Profile is { } earlier && !r.UserMissing && SameAddress(earlier.Address, imported.Address) && SameUser(r.User, row.User))
+                r.Candidate.Profile is { } earlier && !r.UserMissing && earlier.Address.SameAs(imported.Address) && SameUser(r.User, row.User))
             : null;
 
-    /// <summary>Host, service, SID and alias compare without case (Oracle and DNS ignore it); the port exactly.</summary>
-    internal static bool SameAddress(OracleAddress a, OracleAddress b) => (a, b) switch
-    {
-        (HostPortAddress x, HostPortAddress y) =>
-            x.Port == y.Port
-            && Same(x.Host, y.Host)
-            && Same(x.ServiceName, y.ServiceName)
-            && Same(x.Sid, y.Sid),
-        (TnsAliasAddress x, TnsAliasAddress y) => Same(x.Alias, y.Alias),
-        _ => false,
-    };
-
     private static bool SameUser(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
-
-    private static bool Same(string? a, string? b) =>
-        string.Equals(string.IsNullOrWhiteSpace(a) ? null : a.Trim(), string.IsNullOrWhiteSpace(b) ? null : b.Trim(), StringComparison.OrdinalIgnoreCase);
 }

@@ -258,7 +258,7 @@ public sealed class StatementRunner(
         var entry = new SqlHistoryEntry(SqlRedaction.Redact(log.Sql), at, elapsed, rows, moreRows, changed, error, log.Variables) { Ddl = ddl };
         try
         {
-            return await history.AddAsync(profile.Id, profile.Kind == ConnectionKind.Prod ? entry.WithoutValues() : entry, CancellationToken.None);
+            return await history.AddAsync(profile.Id, profile.MasksValues ? entry.WithoutValues() : entry, CancellationToken.None);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

@@ -65,8 +65,8 @@ internal sealed class LinqConsoleRestart(LinqConsoleRestart.ITarget target)
         }
     }
 
-    /// <summary>A restart waits for the model reload of a build.</summary>
-    public bool IsWaiting
+    /// <summary>A restart waits for the model reload of a build (tests).</summary>
+    internal bool IsWaiting
     {
         get
         {

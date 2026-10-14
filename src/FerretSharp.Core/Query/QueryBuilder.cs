@@ -288,7 +288,7 @@ public static class QueryBuilder
                     return Like(column, c, EscapeLike(filter.Values[0]) + "%");
                 case FilterOperator.EndsWith:
                     // CHAR/NCHAR values end in their padding: without RTRIM "ends with AB" found no 'XAB  ' (review 3.31.0, A32).
-                    return Like(column, column.DataType is "CHAR" or "NCHAR" ? $"RTRIM({c})" : c, "%" + EscapeLike(filter.Values[0]));
+                    return Like(column, OracleTypes.IsFixedChar(column.DataType) ? $"RTRIM({c})" : c, "%" + EscapeLike(filter.Values[0]));
             }
 
             if (category is ColumnCategory.Date or ColumnCategory.Timestamp or ColumnCategory.TimestampWithTimeZone)
@@ -363,7 +363,7 @@ public static class QueryBuilder
 
         private static (DateTime Value, bool DateOnly) ParseDate(string text)
         {
-            FilterRules.TryParseDate(text, out var value, out var dateOnly);
+            ValueInput.TryParseDate(text, out var value, out var dateOnly);
             return (value, dateOnly);
         }
 
@@ -378,25 +378,26 @@ public static class QueryBuilder
         private string Like(ColumnInfo column, string c, string pattern) =>
             $"UPPER({c}) LIKE UPPER({Add(new QueryParameter(NextName(), pattern, IsNational(column) ? OracleTypeHint.NVarchar2 : OracleTypeHint.Varchar2))}) ESCAPE '\\'";
 
-        private static bool IsNational(ColumnInfo column) => column.DataType is "NCHAR" or "NVARCHAR2";
+        /// <summary>NCHAR and NVARCHAR2 (an NCLOB is never compared with LIKE).</summary>
+        private static bool IsNational(ColumnInfo column) => OracleTypes.IsCharacter(column.DataType) && OracleTypes.IsNational(column.DataType);
 
         private string Bind(ColumnInfo column, string text)
         {
             var category = ColumnCategories.Of(column);
             if (category == ColumnCategory.Number)
             {
-                FilterRules.TryParseNumber(text, out var number);
+                ValueInput.TryParseNumber(text, out var number);
                 return Add(new QueryParameter(NextName(), number, OracleTypeHint.Number));
             }
 
             if (category == ColumnCategory.Raw)
             {
-                FilterRules.TryParseHex(text, out var bytes);
+                ValueInput.TryParseHex(text, out var bytes);
                 return Add(new QueryParameter(NextName(), bytes, OracleTypeHint.Raw));
             }
 
             // The bind type of writing too (A18: NVARCHAR2/NCHAR were bound in the database character set here).
-            var hint = column.DataType is "CHAR" or "NCHAR" or "NVARCHAR2" ? OracleTypeMapper.BindType(column) : OracleTypeHint.Varchar2;
+            var hint = OracleTypes.IsCharacter(column.DataType) ? OracleTypeMapper.BindType(column) : OracleTypeHint.Varchar2;
             return Add(new QueryParameter(NextName(), text, hint));
         }
 

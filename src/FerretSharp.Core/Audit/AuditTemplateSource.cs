@@ -1,3 +1,4 @@
+using FerretSharp.Core.IO;
 using FerretSharp.Core.Resources;
 using FerretSharp.Core.Settings;
 
@@ -21,11 +22,9 @@ public sealed class AuditTemplateSource(AppSettingsService settings, TimeProvide
     /// How long a load is used without looking at the file again: views ask on every render (each keystroke in the
     /// designer), and a file on a share over VPN must not stall the UI thread each time (R5 review).
     /// </summary>
-    public static readonly TimeSpan Fresh = TimeSpan.FromSeconds(3);
+    public static readonly TimeSpan Fresh = CachedFileRead<AuditTemplateLoad>.Fresh;
 
-    private readonly TimeProvider _clock = clock ?? TimeProvider.System;
-    private readonly Lock _lock = new();
-    private (string Path, DateTime Written, long Length, AuditTemplateLoad Load, DateTimeOffset Checked)? _cached;
+    private readonly CachedFileRead<AuditTemplateLoad> _file = new(Read, Unreadable, clock);
 
     public AuditTemplateLoad Current() => Load(settings.Current.AuditTemplatePath);
 
@@ -37,58 +36,28 @@ public sealed class AuditTemplateSource(AppSettingsService settings, TimeProvide
             return new AuditTemplateLoad(AuditTemplates.Default, null, []);
         }
 
-        path = path.Trim();
-        lock (_lock)
-        {
-            if (_cached is { } recent && recent.Path == path && _clock.GetUtcNow() - recent.Checked < Fresh)
-            {
-                return recent.Load;
-            }
-        }
-
-        var load = Read(path, out var written, out var length);
-        lock (_lock)
-        {
-            _cached = (path, written, length, load, _clock.GetUtcNow());
-        }
-
-        return load;
+        return _file.Get(path.Trim());
     }
 
-    /// <summary>The file, parsed – or the earlier load if the file has not changed since (same time and length).</summary>
-    private AuditTemplateLoad Read(string path, out DateTime written, out long length)
+    /// <summary>The file, parsed; template errors are kept while the file is unchanged, a failed read is tried again.</summary>
+    private static FileRead<AuditTemplateLoad> Read(string path, FileInfo file)
     {
-        (written, length) = (default, -1);
+        if (!file.Exists)
+        {
+            return new(new AuditTemplateLoad(null, path, [TextFormat.Format(AuditText.TemplateFileMissing, path)]));
+        }
+
+        var text = File.ReadAllText(path).ReplaceLineEndings("\n");
         try
         {
-            var file = new FileInfo(path);
-            if (!file.Exists)
-            {
-                return new AuditTemplateLoad(null, path, [TextFormat.Format(AuditText.TemplateFileMissing, path)]);
-            }
-
-            (written, length) = (file.LastWriteTimeUtc, file.Length);
-            lock (_lock)
-            {
-                if (_cached is { } cached && cached.Path == path && cached.Written == written && cached.Length == length)
-                {
-                    return cached.Load;
-                }
-            }
-
-            var text = File.ReadAllText(path).ReplaceLineEndings("\n");
-            try
-            {
-                return new AuditTemplateLoad(AuditTemplates.Parse(text), path, []);
-            }
-            catch (AuditTemplateException ex)
-            {
-                return new AuditTemplateLoad(null, path, ex.Errors.Select(e => e.ToString()).ToList());
-            }
+            return new(new AuditTemplateLoad(AuditTemplates.Parse(text), path, []));
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        catch (AuditTemplateException ex)
         {
-            return new AuditTemplateLoad(null, path, [TextFormat.Format(AuditText.TemplateFileUnreadable, path, ex.Message)]);
+            return new(new AuditTemplateLoad(null, path, ex.Errors.Select(e => e.ToString()).ToList()));
         }
     }
+
+    private static AuditTemplateLoad Unreadable(string path, Exception ex) =>
+        new(null, path, [TextFormat.Format(AuditText.TemplateFileUnreadable, path, ex.Message)]);
 }

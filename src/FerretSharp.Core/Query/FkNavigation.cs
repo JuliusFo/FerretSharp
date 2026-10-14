@@ -59,7 +59,7 @@ public static class FkNavigation
     /// </summary>
     public const int MaxValues = 1000;
 
-    internal static readonly CultureInfo German = CultureInfo.GetCultureInfo("de-DE");
+    internal static readonly CultureInfo German = ValueCulture.German;
 
     /// <summary>Outgoing jumps first, then incoming ones; each group ordered by table and constraint name.</summary>
     public static IReadOnlyList<FkJump> JumpsFor(
@@ -104,7 +104,7 @@ public static class FkNavigation
         (ColumnCategory.Timestamp, DateTime dt) => dt.ToString("yyyy-MM-dd HH:mm:ss.fffffff", CultureInfo.InvariantCulture),
         // A CHAR value without its padding (review 3.31.0, A32): a CHAR target compares blank-padded anyway, a VARCHAR2 one
         // (a relationship of the C# model or by convention) found nothing with it.
-        (ColumnCategory.Text, string s) when s.Length > 0 => column.DataType is "CHAR" or "NCHAR" && s.TrimEnd(' ') is { Length: > 0 } trimmed ? trimmed : s,
+        (ColumnCategory.Text, string s) when s.Length > 0 => OracleTypes.IsFixedChar(column.DataType) && s.TrimEnd(' ') is { Length: > 0 } trimmed ? trimmed : s,
         (ColumnCategory.Raw, byte[] bytes) when bytes.Length > 0 => Convert.ToHexString(bytes),
         _ => null,
     };
@@ -114,31 +114,9 @@ public static class FkNavigation
     /// then cancelled on the server; the result returns at the timeout even if the server takes a moment to stop
     /// (the session stays busy until it has). Cancelling <paramref name="cancellationToken"/> throws as usual.
     /// </summary>
-    public static async Task<long?> CountAsync(
-        IDataAccess data, TableDetails target, FkJump jump, TimeSpan timeout, CancellationToken cancellationToken)
-    {
-        var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var count = data.CountAsync(target, jump.Filters, cts.Token);
-        try
-        {
-            return await count.WaitAsync(timeout, cancellationToken);
-        }
-        catch (TimeoutException)
-        {
-            await cts.CancelAsync();
-            return null;
-        }
-        finally
-        {
-            // Dispose only once the statement has ended; its cancel registration uses the token.
-            // A count that fails after the timeout (connection lost) is observed here, not left as an unobserved task exception.
-            _ = count.ContinueWith(finished =>
-            {
-                _ = finished.Exception;
-                cts.Dispose();
-            }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
-        }
-    }
+    public static Task<long?> CountAsync(
+        IDataAccess data, TableDetails target, FkJump jump, TimeSpan timeout, CancellationToken cancellationToken) =>
+        TimedQuery.RunAsync<long?>(async token => await data.CountAsync(target, jump.Filters, token), timeout, cancellationToken);
 
     /// <summary>
     /// Rows with a NULL in a key column are skipped. If all remaining rows share one key: equality per column (as for a

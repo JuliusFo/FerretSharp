@@ -145,6 +145,17 @@ public class TableDesignTests
         Assert.Equal(["neu ist kein einfacher Oracle-Name; SQL und das C#-Modell müssen ihn genau so in doppelten Anführungszeichen schreiben."], plan.Warnings);
     }
 
+    /// <summary>R5b: a reserved word warned nothing in the designer – Oracle reads DATE unquoted as the type.</summary>
+    [Fact]
+    public void A_reserved_word_needs_quotes()
+    {
+        var draft = new TableDraft([.. TableDraft.Of(Kunde).Columns, new ColumnDraft(null, NewColumn("DATE", "DATE"))]);
+
+        var plan = TableDesign.Plan(DesignContext.Of(Kunde), draft, DataFacts.None);
+
+        Assert.Equal(["DATE ist kein einfacher Oracle-Name; SQL und das C#-Modell müssen ihn genau so in doppelten Anführungszeichen schreiben."], plan.Warnings);
+    }
+
     // ---- changes of existing columns ----
 
     [Fact]

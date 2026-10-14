@@ -115,19 +115,23 @@ public sealed class SqlScriptPlanTests
                 new ColumnInfo("KUNDE_ID", "NUMBER", null, false, 10, 0, false, false, null, 1),
                 new ColumnInfo("ERSTELLT_AM", "DATE", null, false, null, null, false, false, null, 2),
                 new ColumnInfo("KUERZEL", "CHAR", 3, false, null, null, true, false, null, 3),
+                new ColumnInfo("ORT", "NVARCHAR2", 50, true, null, null, true, false, null, 4),
+                new ColumnInfo("LAND", "NCHAR", 2, true, null, null, true, false, null, 5),
             ], ["KUNDE_ID"], [], false));
         var schema = new SchemaCache(reader, "APP");
         await schema.LoadAsync(Ct);
-        var info = SqlScript.Analyze("SELECT * FROM kunden k WHERE k.kunde_id = :id AND erstellt_am > :von AND kuerzel = :k AND 1 = :x");
+        var info = SqlScript.Analyze("SELECT * FROM kunden k WHERE k.kunde_id = :id AND erstellt_am > :von AND kuerzel = :k AND ort = :ort AND land = :land AND 1 = :x");
 
-        Assert.Equal(SqlVariableType.Number, await SqlBinds.SuggestTypeAsync(info, "id", schema, Ct));
-        Assert.Equal(SqlVariableType.Date, await SqlBinds.SuggestTypeAsync(info, "von", schema, Ct));
-        Assert.Equal(SqlVariableType.Char, await SqlBinds.SuggestTypeAsync(info, "k", schema, Ct));
-        Assert.Null(await SqlBinds.SuggestTypeAsync(info, "x", schema, Ct)); // not compared with a column
+        Assert.Equal(new SqlVariable("id", SqlVariableType.Number, ""), await SqlBinds.SuggestAsync(info, "id", schema, Ct));
+        Assert.Equal(new SqlVariable("von", SqlVariableType.Date, ""), await SqlBinds.SuggestAsync(info, "von", schema, Ct));
+        Assert.Equal(new SqlVariable("k", SqlVariableType.Char, ""), await SqlBinds.SuggestAsync(info, "k", schema, Ct));
+        Assert.Equal(new SqlVariable("ort", SqlVariableType.Text, "") { National = true }, await SqlBinds.SuggestAsync(info, "ort", schema, Ct));
+        Assert.Equal(new SqlVariable("land", SqlVariableType.Char, "") { National = true }, await SqlBinds.SuggestAsync(info, "land", schema, Ct));
+        Assert.Null(await SqlBinds.SuggestAsync(info, "x", schema, Ct)); // not compared with a column
 
         reader.GetDetailsAsync(kunden, Arg.Any<CancellationToken>()).ThrowsAsync(new DatabaseException("weg"));
         var other = new SchemaCache(reader, "APP");
         await other.LoadAsync(Ct);
-        Assert.Null(await SqlBinds.SuggestTypeAsync(info, "id", other, Ct)); // only a suggestion: no error
+        Assert.Null(await SqlBinds.SuggestAsync(info, "id", other, Ct)); // only a suggestion: no error
     }
 }

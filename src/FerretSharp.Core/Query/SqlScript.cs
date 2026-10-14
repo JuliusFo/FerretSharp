@@ -33,4 +33,18 @@ public static class SqlScript
 
     /// <inheritdoc cref="SqlAnalysis.DdlTableOf"/>
     public static SqlTableReference? DdlTableOf(string statement) => SqlAnalysis.DdlTableOf(statement);
+
+    /// <summary>
+    /// A statement on one line, for lists and labels: line breaks and runs of blanks become one blank (EF writes over
+    /// several lines). R5b: was written three times.
+    /// </summary>
+    public static string OneLine(string sql) => string.Join(' ', sql.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+
+    /// <summary>
+    /// The first word of a statement in upper case, comments skipped (<c>SELECT</c>, <c>UPDATE</c>) – for labels; R5b: the
+    /// LINQ console showed "--" for a query with <c>TagWith</c>.
+    /// </summary>
+    public static string FirstWord(string sql) => SqlTokenizer.Significant(sql) is { Count: > 0 } tokens
+        ? SqlClassifier.FirstWordOf(tokens)
+        : "";
 }

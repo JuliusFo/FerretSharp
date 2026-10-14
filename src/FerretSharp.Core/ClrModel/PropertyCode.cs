@@ -181,9 +181,8 @@ public static partial class PropertyCode
         "DATE" => "DateTime",
         "RAW" when column.Length == 16 => "Guid",
         "RAW" or "BLOB" or "LONG RAW" => "byte[]",
-        _ when column.DataType.StartsWith("TIMESTAMP", StringComparison.Ordinal) =>
-            column.DataType.EndsWith("WITH TIME ZONE", StringComparison.Ordinal) ? "DateTimeOffset" : "DateTime",
-        _ when column.DataType.StartsWith("INTERVAL DAY", StringComparison.Ordinal) => "TimeSpan",
+        _ when OracleTypes.IsTimestamp(column.DataType) => OracleTypes.HasTimeZone(column.DataType) ? "DateTimeOffset" : "DateTime",
+        _ when OracleTypes.IsDayToSecond(column.DataType) => "TimeSpan",
         _ => "string",
     };
 }

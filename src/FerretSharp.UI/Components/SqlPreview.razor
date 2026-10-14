@@ -6,7 +6,7 @@
         <span class="spacer"></span>
         @if (OnOpenInEditor.HasDelegate && Error is null)
         {
-            <button class="btn" title="@SqlEditorText.SqlPreview_OpenInEditorTitle" @onclick="OnOpenInEditor">@SqlEditorText.SqlPreview_OpenInEditor</button>
+            <button class="btn" title="@SqlEditorText.SqlPreview_OpenInEditorTitle" @onclick="OnOpenInEditor">@CommonText.OpenInSqlEditor</button>
         }
         <button class="icon-btn ghost" title="@CommonText.Close" @onclick="OnClose">✕</button>
     </header>
@@ -20,7 +20,7 @@
         @if (Parameters.Count > 0)
         {
             <table class="binds">
-                <thead><tr><th>@SqlEditorText.SqlPreview_BindVariable</th><th>@SqlEditorText.SqlPreview_Value</th><th>@SqlEditorText.SqlPreview_Type</th></tr></thead>
+                <thead><tr><th>@CommonText.BindVariable</th><th>@CommonText.Value</th><th>@SqlEditorText.SqlPreview_Type</th></tr></thead>
                 <tbody>
                     @foreach (var p in Parameters)
                     {

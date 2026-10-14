@@ -14,8 +14,7 @@
              @onclick="e => OnChipClick(e, w)" @onmouseup="e => CloseOnMiddleClick(e, w)">
             @if (_renaming == w.Id)
             {
-                <input class="ws-rename" @ref="_renameInput" maxlength="@Workspace.MaxNameLength" @bind="_renameText" @bind:event="oninput"
-                       @onkeydown="OnRenameKeyDown" @onblur="CommitRename" @onclick:stopPropagation="true" />
+                <TitleEditor Value="@w.Name" Class="ws-rename" OnCommit="name => CommitRename(w, name)" OnCancel="() => _renaming = null" />
             }
             else
             {
@@ -101,14 +100,11 @@
     [CascadingParameter]
     public WorkspaceManager Workspaces { get; set; } = null!;
 
-    private ElementReference _renameInput;
     private Guid? _renaming;
-    private bool _focusRename;
     private DomModule? _dom;
 
     /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
     private DomModule Dom => _dom ??= new(JS);
-    private string _renameText = "";
     private bool _menuOpen;
     private Workspace? _pendingDelete;
 
@@ -123,16 +119,6 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        // Only once the field is rendered: a render started before StartRename (Workspaces.Changed while a new workspace
-        // is created) reaches this point after the flag was set – its element reference is still empty, and focusing it
-        // threw in dom.js ("Unerwarteter Fehler", found in the WP-23 E2E).
-        if (_focusRename && _renameInput.Id is not null)
-        {
-            _focusRename = false;
-            // Select the whole name, so typing replaces it.
-            await Dom.InvokeVoidAsync("focusAndSelect", _renameInput);
-        }
-
         if (_focusActions && _actionsFor is not null)
         {
             _focusActions = false;
@@ -204,34 +190,17 @@
         }
     }
 
-    private void StartRename(Workspace workspace)
-    {
-        _renameInput = default; // the field of an earlier rename is gone; wait for the new one
-        _renaming = workspace.Id;
-        _renameText = workspace.Name;
-        _focusRename = true;
-    }
+    /// <summary>The chip shows a <see cref="TitleEditor"/> (R5b: had a copy of it), which focuses and selects the name itself.</summary>
+    private void StartRename(Workspace workspace) => _renaming = workspace.Id;
 
-    private void CommitRename()
+    private void CommitRename(Workspace workspace, string typed)
     {
-        if (_renaming is { } id && Workspace.NormalizeName(_renameText) is { } name)
+        if (Workspace.NormalizeName(typed) is { } name)
         {
-            Workspaces.Rename(id, name);
+            Workspaces.Rename(workspace.Id, name);
         }
 
         _renaming = null;
-    }
-
-    private void OnRenameKeyDown(KeyboardEventArgs e)
-    {
-        if (e.Key == "Enter")
-        {
-            CommitRename();
-        }
-        else if (e.Key == "Escape")
-        {
-            _renaming = null;
-        }
     }
 
     /// <summary>Closing ends the workspace's session: uncommitted changes are committed or discarded first.</summary>

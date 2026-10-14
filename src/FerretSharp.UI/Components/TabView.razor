@@ -173,7 +173,7 @@
 }
 
 @code {
-    private int _presentationVersion;
+    private PresentationWatch _presentation = null!;
 
     [CascadingParameter]
     public ActiveConnection Active { get; set; } = null!;
@@ -202,7 +202,7 @@
         {
             return Workspaces.IsWritable(Tab.WorkspaceId)
                 ? SchemaViewText.Tab_TableNotEditable
-                : SchemaViewText.Tab_WorkspaceReadOnly;
+                : DataText.WorkspaceReadOnlyUnlockToEdit;
         }
 
         if (OracleTypeMapper.NotEditableReason(_details!, _details!.Columns[lob.Column], newRow: lob.NewRow is not null) is { } reason)
@@ -210,7 +210,7 @@
             return reason;
         }
 
-        return lob.Row is { } row && changes.Find(row.Key)?.Deleted is not null ? SchemaViewText.Tab_RowMarkedForDeletion : null;
+        return lob.Row is { } row && changes.Find(row.Key)?.Deleted is not null ? DataText.RowMarkedForDeletion : null;
     }
     private ColumnMenuRequest? _columnMenu;
     private ColumnJump? _jump;
@@ -249,18 +249,16 @@
     /// </summary>
     private void OnPresentationChanged() => InvokeAsync(() =>
     {
-        if (Presentations.ChangedSince(_presentationVersion, Tab.Table.Ref))
+        if (_presentation.ChangedFor(Tab.Table.Ref))
         {
             StateHasChanged();
         }
-
-        _presentationVersion = Presentations.Version;
     });
 
     protected override async Task OnInitializedAsync()
     {
         Shell.TabCommandRequested += OnTabCommand;
-        _presentationVersion = Presentations.Version;
+        _presentation = new PresentationWatch(Presentations);
         Presentations.Changed += OnPresentationChanged;
         if (Active.Schema is not { } schema)
         {

@@ -94,7 +94,7 @@ public sealed class ValueTable
     public ValueOption? FindOption(string text)
     {
         object? key = _category == ColumnCategory.Number
-            ? FilterRules.TryParseNumber(text, out var number) ? number : null
+            ? ValueInput.TryParseNumber(text, out var number) ? number : null
             : KeyOf(text);
         return key is null || !_byValue.TryGetValue(key, out var mapping) ? null : _byMember.GetValueOrDefault(mapping.Name);
     }
@@ -148,7 +148,7 @@ public sealed class ValueTable
 
     /// <summary>The flags of an edit text (<c>3</c>, also <c>3,0</c>), to tick them in the editor; null if it is no flags value.</summary>
     public FlagsValue? FlagsOfText(string text) =>
-        FilterRules.TryParseNumber(text, out var number) ? FlagsSet(number) : null;
+        ValueInput.TryParseNumber(text, out var number) ? FlagsSet(number) : null;
 
     /// <summary>The edit text of a flags value: the number, invariant.</summary>
     public static string FlagsText(long bits) => bits.ToString(CultureInfo.InvariantCulture);
@@ -249,7 +249,7 @@ public sealed class ValueTable
         BigNumber big => decimal.TryParse(big.Invariant, NumberStyles.Float, CultureInfo.InvariantCulture, out var d) ? d : big.Invariant,
         string s when _category == ColumnCategory.Number =>
             decimal.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var d) ? d : null,
-        string s when _column.DataType is "CHAR" or "NCHAR" => s.TrimEnd(' '),
+        string s when OracleTypes.IsFixedChar(_column.DataType) => s.TrimEnd(' '),
         string s => s,
         bool b => b ? 1m : 0m,
         _ => Convert.ToString(value, CultureInfo.InvariantCulture),

@@ -1,4 +1,3 @@
-using System.Text.Json;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.IO;
 using FerretSharp.Core.Resources;
@@ -49,23 +48,15 @@ public sealed class ComparisonStore(string filePath)
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            if (!File.Exists(filePath))
+            var read = await VersionedJsonFile.ReadAsync<Document>(filePath, CurrentVersion, JsonFiles.Options, cancellationToken);
+            return read.State switch
             {
-                return [];
-            }
-
-            await using var stream = File.OpenRead(filePath);
-            var document = await JsonSerializer.DeserializeAsync<Document>(stream, JsonFiles.Options, cancellationToken);
-            if (document?.Version > CurrentVersion)
-            {
-                throw new IOException(TextFormat.Format(CompareText.FileFromNewerVersion, filePath, document.Version));
-            }
-
-            return document?.Comparisons ?? [];
-        }
-        catch (JsonException ex)
-        {
-            throw new IOException(TextFormat.Format(CompareText.InvalidFile, filePath, ex.Message), ex);
+                JsonFileState.Missing or JsonFileState.Empty => [],
+                JsonFileState.Ok => (read.Document!.Comparisons ?? []).OfType<SavedComparison>().ToList(), // null by hand
+                JsonFileState.Newer => throw new IOException(TextFormat.Format(CoreText.FileFromNewerVersion, filePath, read.Version)),
+                JsonFileState.Broken => throw new IOException(TextFormat.Format(CompareText.InvalidFile, filePath, read.Error!.Message), read.Error),
+                _ => throw read.Error!, // unreadable: the page shows it
+            };
         }
         finally
         {
@@ -79,9 +70,9 @@ public sealed class ComparisonStore(string filePath)
         try
         {
             // A file of a newer FerretSharp (used again after a downgrade) would lose what this version does not know.
-            if (await VersionOnDiskAsync(cancellationToken) is { } version && version > CurrentVersion)
+            if (await VersionedJsonFile.ReadAsync<Document>(filePath, CurrentVersion, JsonFiles.Options, cancellationToken) is { State: JsonFileState.Newer } newer)
             {
-                throw new IOException(TextFormat.Format(CompareText.FileFromNewerVersionNotOverwritten, filePath, version));
+                throw new IOException(TextFormat.Format(CompareText.FileFromNewerVersionNotOverwritten, filePath, newer.Version));
             }
 
             await AtomicJsonFile.WriteAsync(filePath, new Document(CurrentVersion, comparisons), JsonFiles.Options, cancellationToken);
@@ -93,26 +84,5 @@ public sealed class ComparisonStore(string filePath)
     }
 
 
-    /// <summary>The format of the file there; null if there is none or it cannot be read (then it may be replaced).</summary>
-    private async Task<int?> VersionOnDiskAsync(CancellationToken cancellationToken)
-    {
-        if (!File.Exists(filePath))
-        {
-            return null;
-        }
-
-        try
-        {
-            await using var stream = File.OpenRead(filePath);
-            return (await JsonSerializer.DeserializeAsync<VersionOnly>(stream, JsonFiles.Options, cancellationToken))?.Version;
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
-    }
-
-    private sealed record Document(int Version, IReadOnlyList<SavedComparison> Comparisons);
-
-    private sealed record VersionOnly(int Version);
+    private sealed record Document(int Version, IReadOnlyList<SavedComparison?>? Comparisons);
 }

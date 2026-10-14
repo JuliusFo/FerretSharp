@@ -288,10 +288,6 @@ export function reveal(elementId, line, column) {
   editor.focus();
 }
 
-export function focus(elementId) {
-  editors.get(elementId)?.focus();
-}
-
 /** Ctrl+F is a global shortcut (column search); in the console it opens the editor's find widget. */
 export function find(elementId) {
   const editor = editors.get(elementId);

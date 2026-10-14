@@ -59,5 +59,25 @@ public sealed class AuditTemplateSourceTests : IDisposable
         Assert.NotEmpty(errors.Errors);
     }
 
+    /// <summary>
+    /// R5b (review 3.31.0, B7): a file locked for a moment (an editor saving it) said "cannot be read" until the file
+    /// changed on disk; now the next look reads it.
+    /// </summary>
+    [Fact]
+    public void A_file_locked_for_a_moment_is_read_at_the_next_look()
+    {
+        var path = _folder.Combine("audit.sql");
+        File.WriteAllText(path, AuditTemplateTests.CompanyTemplate);
+        var source = Source(path);
+
+        using (new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+        {
+            Assert.Null(source.Current().Template);
+        }
+
+        _clock.Advance(AuditTemplateSource.Fresh);
+        Assert.Empty(source.Current().Errors);
+    }
+
     public void Dispose() => _folder.Dispose();
 }

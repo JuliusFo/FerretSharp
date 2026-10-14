@@ -4,6 +4,7 @@ using FerretSharp.App.Services;
 using FerretSharp.Core;
 using FerretSharp.Core.IO;
 using FerretSharp.Core.Resources;
+using FerretSharp.Core.Settings;
 using FerretSharp.UI.Resources;
 using Velopack;
 
@@ -49,7 +50,7 @@ internal static class Program
     /// <summary>"--data-dir=&lt;path&gt;" redirects connections, workspaces and logs (tests, screenshots, separate profiles).</summary>
     private static AppPaths DataFolder(string[] args)
     {
-        var dataDir = args.FirstOrDefault(a => a.StartsWith("--data-dir=", StringComparison.OrdinalIgnoreCase))?["--data-dir=".Length..];
+        var dataDir = CommandLine.ValueOf(args, CommandLine.DataDir);
         return string.IsNullOrWhiteSpace(dataDir) ? AppPaths.Default : new AppPaths(Path.GetFullPath(dataDir));
     }
 }

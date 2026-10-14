@@ -1,3 +1,4 @@
+using FerretSharp.Core.Query;
 using FerretSharp.Core.Schema;
 using FerretSharp.UI.Resources;
 
@@ -16,25 +17,11 @@ public static class ExplorerList
     /// <summary>Group key for names that do not start with A–Z (quoted identifiers like "1_Import" or "Übersicht").</summary>
     public const char Other = '#';
 
-    /// <summary>True if the (trimmed) query is empty or one of the names contains it, ignoring case.</summary>
-    public static bool Matches(string query, params ReadOnlySpan<string?> names)
-    {
-        var text = query.Trim();
-        if (text.Length == 0)
-        {
-            return true;
-        }
-
-        foreach (var name in names)
-        {
-            if (name?.Contains(text, StringComparison.OrdinalIgnoreCase) == true)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
+    /// <summary>
+    /// The query is empty, or each of its words is in one of the names (<see cref="TextSearch"/>; R5b: the whole query in one
+    /// name, accents counted).
+    /// </summary>
+    public static bool Matches(string query, params ReadOnlySpan<string?> names) => new TextSearch(query).Matches(names);
 
     /// <summary>The PL/SQL units the query finds: by the name shown and the real name.</summary>
     public static IEnumerable<PlSqlObjectSummary> Filter(IEnumerable<PlSqlObjectSummary> units, string query) =>

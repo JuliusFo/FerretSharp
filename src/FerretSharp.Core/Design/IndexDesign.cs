@@ -1,3 +1,4 @@
+using FerretSharp.Core.Oracle;
 using System.Text;
 using System.Text.RegularExpressions;
 using FerretSharp.Core.Ddl;
@@ -26,30 +27,28 @@ public sealed record DraftCheck(IReadOnlyList<string> Problems, IReadOnlyList<st
 /// </summary>
 public static partial class IndexDesign
 {
-    /// <summary>Oracle's limit for names since 12.2 (in bytes, not characters).</summary>
-    public const int MaxNameBytes = 128;
-
     /// <summary>
     /// <c>IX_&lt;TABLE&gt;_&lt;COLUMNS&gt;</c> like the DDL proposal (WP-20), as a plain name (upper case, other characters as
-    /// <c>_</c>: <c>"Nummer"</c> → <c>NUMMER</c>), cut to <see cref="MaxNameBytes"/>; a name the table's indexes already use
+    /// <c>_</c>: <c>"Nummer"</c> → <c>NUMMER</c>), cut to <see cref="OracleIdentifier.MaxBytes"/>; a name the table's indexes already use
     /// gets <c>_2</c>, <c>_3</c> ….
     /// </summary>
     public static string SuggestName(string table, IReadOnlyList<string> columns, IEnumerable<string> taken) =>
         PlainName($"IX_{table}" + string.Concat(columns.Select(c => "_" + c)), taken);
 
     /// <summary>
-    /// <paramref name="stem"/> as a plain name (upper case, other characters as <c>_</c>), cut to <see cref="MaxNameBytes"/>;
-    /// one in <paramref name="taken"/> gets <c>_2</c>, <c>_3</c> …. Shared by the names of indexes and constraints.
+    /// <paramref name="stem"/> as a plain name (upper case, other characters as <c>_</c>), cut to
+    /// <see cref="OracleIdentifier.MaxBytes"/>; one in <paramref name="taken"/> gets <c>_2</c>, <c>_3</c> …. Shared by the
+    /// names of indexes and constraints and by the schema comparison.
     /// </summary>
     internal static string PlainName(string stem, IEnumerable<string> taken)
     {
         var used = taken.ToHashSet(StringComparer.Ordinal);
         stem = NotPlain().Replace(stem.ToUpperInvariant(), "_");
-        var name = Cut(stem, MaxNameBytes);
+        var name = OracleIdentifier.Cut(stem);
         for (var n = 2; used.Contains(name); n++)
         {
             var suffix = $"_{n}";
-            name = Cut(stem, MaxNameBytes - suffix.Length) + suffix;
+            name = OracleIdentifier.Cut(stem, OracleIdentifier.MaxBytes - suffix.Length) + suffix;
         }
 
         return name;
@@ -74,25 +73,17 @@ public static partial class IndexDesign
         {
             problems.Add(DesignText.IndexNameMissing);
         }
-        else if (draft.Name.Contains('"', StringComparison.Ordinal))
+        else if (OracleIdentifier.Problem(draft.Name) is { } problem)
         {
-            problems.Add(DesignText.IndexNameInvalid);
+            problems.Add(problem);
         }
-        else
+        else if (indexes.Any(i => string.Equals(i.Name, draft.Name, StringComparison.Ordinal)))
         {
-            if (Encoding.UTF8.GetByteCount(draft.Name) > MaxNameBytes)
-            {
-                problems.Add(TextFormat.Format(DesignText.IndexNameTooLong, MaxNameBytes));
-            }
-
-            if (indexes.Any(i => string.Equals(i.Name, draft.Name, StringComparison.Ordinal)))
-            {
-                problems.Add(TextFormat.Format(DesignText.IndexNameTaken, draft.Name));
-            }
-            else if (!PlainName().IsMatch(draft.Name))
-            {
-                warnings.Add(DesignText.IndexNameNeedsQuotes);
-            }
+            problems.Add(TextFormat.Format(DesignText.IndexNameTaken, draft.Name));
+        }
+        else if (OracleIdentifier.NeedsQuotes(draft.Name))
+        {
+            warnings.Add(DesignText.IndexNameNeedsQuotes);
         }
 
         if (draft.Columns.Count == 0)
@@ -149,27 +140,6 @@ public static partial class IndexDesign
 
     private static bool SameColumns(IndexInfo index, IReadOnlyList<string> columns) =>
         index.Columns.Count == columns.Count && index.Columns.All(c => !c.IsExpression) && index.Columns.Select(c => c.Name).SequenceEqual(columns, StringComparer.Ordinal);
-
-    /// <summary>The longest start of <paramref name="text"/> within <paramref name="maxBytes"/> UTF-8 bytes.</summary>
-    private static string Cut(string text, int maxBytes)
-    {
-        var length = text.Length;
-        while (Encoding.UTF8.GetByteCount(text.AsSpan(0, length)) > maxBytes)
-        {
-            length--;
-        }
-
-        if (length > 0 && length < text.Length && char.IsHighSurrogate(text[length - 1]))
-        {
-            length--; // never half a character
-        }
-
-        return text[..length];
-    }
-
-    /// <summary>A name Oracle takes without quotes: a letter, then letters, digits, _, $ and #, upper case.</summary>
-    [GeneratedRegex(@"^\p{Lu}[\p{Lu}\p{Nd}_$#]*$")]
-    private static partial Regex PlainName();
 
     [GeneratedRegex(@"[^\p{Lu}\p{Nd}_$#]")]
     private static partial Regex NotPlain();

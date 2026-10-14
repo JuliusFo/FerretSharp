@@ -56,7 +56,7 @@ public sealed class WorkspaceEditingTests : IAsyncDisposable
         Assert.True(await _app.Editing.FlushAsync(workspace));
         var committed = false;
         _app.OnCommit = () => { committed = true; return Task.CompletedTask; };
-        _app.Editors.ForEach(e => e.Ended = true);
+        _app.EndTransactions();
 
         Assert.False(await _app.Editing.CommitAsync(workspace));
 
@@ -76,7 +76,7 @@ public sealed class WorkspaceEditingTests : IAsyncDisposable
         workspace.Tabs.Remove(tab);
         var committed = false;
         _app.OnCommit = () => { committed = true; return Task.CompletedTask; };
-        _app.Editors.ForEach(e => e.Ended = true);
+        _app.EndTransactions();
 
         Assert.False(await _app.Editing.CommitAsync(workspace));
 
@@ -125,6 +125,7 @@ public sealed class WorkspaceEditingTests : IAsyncDisposable
         var scope = await _app.OpenAsync(TestApp.Profile("Prod", ConnectionKind.Prod));
         var workspace = _app.WorkspaceOf(scope);
         var id = scope.Workspaces.Active!.Id;
+        await scope.Workspaces.UnlockAsync(id, TestContext.Current.CancellationToken); // Prod is locked until unlocked (WP-10)
         await scope.Workspaces.ExecuteAsync(id, new QuerySpec("UPDATE kunden SET name = 'a'", []), TestContext.Current.CancellationToken);
         var shown = _app.Editing.SummaryOf(workspace).Actions;
         await scope.Workspaces.ExecuteAsync(id, new QuerySpec("UPDATE kunden SET name = 'b'", []), TestContext.Current.CancellationToken);
@@ -173,7 +174,7 @@ public sealed class WorkspaceEditingTests : IAsyncDisposable
         var write = _app.Editing.SummaryOf(workspace).Actions[0];
         _app.OnCommit = () =>
         {
-            _app.Editors.ForEach(e => e.Ended = true); // a deferred constraint failed: Oracle rolled back
+            _app.EndTransactions(); // a deferred constraint failed: Oracle rolled back
             return Task.FromException(new DatabaseException("ORA-02091: Transaktion zurückgesetzt", "ORA-02091"));
         };
 

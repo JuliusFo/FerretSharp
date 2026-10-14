@@ -28,9 +28,7 @@ internal sealed class TestApp : IAsyncDisposable
 
     public TestApp()
     {
-        var connector = Substitute.For<IDatabaseConnector>();
-        connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(_ => Task.FromResult(NewConnection()));
+        var connector = FakeDatabase.Connector(_ => NewConnection());
 
         var services = new ServiceCollection();
         services.AddSingleton<ISecretStore>(Secrets);
@@ -73,15 +71,21 @@ internal sealed class TestApp : IAsyncDisposable
     /// <summary>The SQL history the lifecycle writes (WP-23: DDL of the designer).</summary>
     public SqlHistoryStore History { get; }
 
+    /// <summary>A profile as the connection dialog creates it: Prod is read-only (locked workspaces) unless a test says otherwise.</summary>
     public static ConnectionProfile Profile(string name, ConnectionKind kind = ConnectionKind.Test) => new(
-        Guid.NewGuid(), name, kind, new HostPortAddress("db01.example.com", 1521, "ORCLPDB", null), "app_user", null, false);
+        Guid.NewGuid(), name, kind, new HostPortAddress("db01.example.com", 1521, "ORCLPDB", null), "app_user", null,
+        ConnectionProfile.IsReadOnlyByDefault(kind));
 
     /// <summary>Opens and shows the connection, then aligns the shell's tabs with its workspaces (what Shell.razor does on events).</summary>
     public async Task<ConnectionScope> OpenAsync(ConnectionProfile profile)
     {
         Secrets.SetPassword(profile.Id, "pw");
-        await Hub.OpenAsync(profile);
-        var scope = Hub.Find(profile.Id)!;
+        var scope = Hub.Show(profile);
+        if (ConnectionHub.NeedsConnect(scope))
+        {
+            await scope.Active.ConnectAsync(profile, CancellationToken.None);
+        }
+
         Assert.True(scope.Active.IsConnected, scope.Active.Error?.Message);
         Shell.SyncWorkspaces(scope.Id, scope.Workspaces.Open, scope.Workspaces.Active?.Id, scope.Active.Schema!);
         Shell.ShowConnection(Hub.Current?.Id);
@@ -121,26 +125,55 @@ internal sealed class TestApp : IAsyncDisposable
     /// <summary>DDL of any session: the error it fails with, or null to run (WP-23).</summary>
     public Func<string, Exception?>? FailDdl { get; set; }
 
+    // Sessions open and run on pool threads (no UI dispatcher in the tests): both lists under a lock, read as a copy.
+    private readonly Lock _lock = new();
+    private readonly List<string> _ranDdl = [];
+    private readonly List<FakeDataEditor> _editors = [];
+
     /// <summary>DDL that ran in any session, in order.</summary>
-    public List<string> RanDdl { get; } = [];
+    public IReadOnlyList<string> RanDdl
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return [.. _ranDdl];
+            }
+        }
+    }
 
     /// <summary>The editors of the sessions opened so far (explorer and workspaces), oldest first.</summary>
-    public List<FakeDataEditor> Editors { get; } = [];
+    public IReadOnlyList<FakeDataEditor> Editors
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return [.. _editors];
+            }
+        }
+    }
 
     /// <summary>What a query of the SQL editor or the LINQ console reads (its first page); a test may make it fail or wait.</summary>
     public Func<QuerySpec, CancellationToken, Task<SqlPage>> ReadSql { get; set; } = (_, _) =>
         Task.FromResult(new SqlPage([new SqlColumn("ID", new ColumnInfo("ID", "NUMBER", null, false, null, null, false, false, null, 1))], [[1m]], IsLastPage: true, TimeSpan.FromMilliseconds(5)));
+
+    /// <summary>Every session's transaction ends behind FerretSharp's back (<see cref="FakeDataEditor.Ended"/>).</summary>
+    public void EndTransactions()
+    {
+        foreach (var editor in Editors)
+        {
+            editor.Ended = true;
+        }
+    }
 
     /// <summary>What a commit of any workspace session does; completes at once unless a test holds it.</summary>
     public Func<Task>? OnCommit { get; set; }
 
     private IDatabaseConnection NewConnection()
     {
-        var reader = Substitute.For<ISchemaReader>();
-        reader.GetTablesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([Kunden]);
-        reader.GetSynonymTargetsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(SynonymTargets.None);
+        var reader = FakeDatabase.Reader(Kunden);
         reader.GetPlSqlObjectsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(_ => PlSqlObjects);
-        reader.GetForeignKeysAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
         reader.GetDetailsAsync(Arg.Any<TableSummary>(), Arg.Any<CancellationToken>()).Returns(_ => KundenDetails);
         reader.GetLockHoldersAsync(Arg.Any<TableRef>(), Arg.Any<CancellationToken>()).Returns(_ => LockHolders);
         var editor = new FakeDataEditor(() => OnCommit, sql =>
@@ -148,22 +181,38 @@ internal sealed class TestApp : IAsyncDisposable
             var failure = FailDdl?.Invoke(sql);
             if (failure is null)
             {
-                RanDdl.Add(sql);
+                lock (_lock)
+                {
+                    _ranDdl.Add(sql);
+                }
             }
 
             return failure;
         });
-        Editors.Add(editor);
+        lock (_lock)
+        {
+            _editors.Add(editor);
+        }
+
         var data = Substitute.For<IDataAccess>();
         data.ReadSqlAsync(Arg.Any<QuerySpec>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(call => ReadSql(call.Arg<QuerySpec>(), call.Arg<CancellationToken>()));
-        var connection = Substitute.For<IDatabaseConnection>();
-        connection.Schema.Returns(reader);
+        var connection = FakeDatabase.Connection(reader);
         connection.Data.Returns(data);
         connection.Editor.Returns(editor);
+        connection.UseReadOnlySnapshotsAsync(Arg.Any<CancellationToken>()).Returns(_ =>
+        {
+            editor.ReadOnly = true;
+            return Task.CompletedTask;
+        });
+        connection.StopReadOnlySnapshotsAsync(Arg.Any<CancellationToken>()).Returns(_ =>
+        {
+            editor.ReadOnly = false;
+            return Task.CompletedTask;
+        });
+        connection.UsesReadOnlySnapshots.Returns(_ => editor.ReadOnly);
         // Open while something is written (the fake editor's own transaction is always open, for the editing tests).
         connection.Transaction.Returns(_ => editor.Actions.Count > 0 ? editor.Transaction : TransactionInfo.None);
-        connection.ServerVersion.Returns("23.26.0.0.0");
         return connection;
     }
 

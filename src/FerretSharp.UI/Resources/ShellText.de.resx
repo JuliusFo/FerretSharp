@@ -183,9 +183,6 @@
   <data name="ConnectionKind_Other" xml:space="preserve">
     <value>Sonstige</value>
   </data>
-  <data name="ConnectionForm_CopyName" xml:space="preserve">
-    <value>{0} (Kopie)</value>
-  </data>
   <data name="Shell_AllConnections" xml:space="preserve">
     <value>Alle Verbindungen</value>
   </data>
@@ -212,9 +209,6 @@
   </data>
   <data name="Shell_ConnectionFailedTo" xml:space="preserve">
     <value>Verbindung zu {0} fehlgeschlagen</value>
-  </data>
-  <data name="Shell_TryAgain" xml:space="preserve">
-    <value>Erneut versuchen</value>
   </data>
   <data name="Shell_ToOverview" xml:space="preserve">
     <value>Zur Übersicht</value>
@@ -440,9 +434,6 @@
   </data>
   <data name="ConnectionDialog_Test" xml:space="preserve">
     <value>Verbindung testen</value>
-  </data>
-  <data name="ConnectionDialog_SaveFailed" xml:space="preserve">
-    <value>Speichern fehlgeschlagen: {0}</value>
   </data>
   <data name="Switcher_ChooseConnection" xml:space="preserve">
     <value>Verbindung wählen</value>
@@ -702,9 +693,6 @@
   <data name="Leave_OpenTransaction" xml:space="preserve">
     <value>offene Transaktion</value>
   </data>
-  <data name="Leave_Discard" xml:space="preserve">
-    <value>Verwerfen</value>
-  </data>
   <data name="Dialogs_RollbackQuestion" xml:space="preserve">
     <value>Alle Änderungen in {0} verwerfen – die geschriebenen (Rollback der Transaktion) und die ausstehenden? Das lässt sich nicht rückgängig machen.</value>
   </data>
@@ -735,17 +723,8 @@
   <data name="ErrorDialog_Title" xml:space="preserve">
     <value>Datenbankfehler</value>
   </data>
-  <data name="ErrorDialog_Copied" xml:space="preserve">
-    <value>Kopiert ✓</value>
-  </data>
   <data name="ErrorDialog_ConnectionLostHint" xml:space="preserve">
     <value>Die Verbindung zur Datenbank ist verloren gegangen (z. B. Session beendet, Idle-Timeout, Netzwerk). Über „Neu verbinden“ werden alle Workspaces mit ihren Tabs wiederhergestellt.</value>
-  </data>
-  <data name="ErrorDialog_BindVariable" xml:space="preserve">
-    <value>Bind-Variable</value>
-  </data>
-  <data name="ErrorDialog_Value" xml:space="preserve">
-    <value>Wert</value>
   </data>
   <data name="ErrorDialog_ValueMasked" xml:space="preserve">
     <value>Wert (Prod: maskiert)</value>
@@ -776,9 +755,6 @@
   </data>
   <data name="Lifecycle_ExitWhat" xml:space="preserve">
     <value>FerretSharp beenden</value>
-  </data>
-  <data name="Dom_ClipboardUnavailable" xml:space="preserve">
-    <value>Die Zwischenablage ist nicht verfügbar.</value>
   </data>
   <data name="Changes_Title" xml:space="preserve">
     <value>Offene Änderungen</value>
@@ -984,9 +960,6 @@
   <data name="Settings_AuditTemplateCopied" xml:space="preserve">
     <value>Eingebaute Audit-Vorlage kopiert.</value>
   </data>
-  <data name="TabMenu_Close" xml:space="preserve">
-    <value>Schließen</value>
-  </data>
   <data name="TabMenu_CloseOthers" xml:space="preserve">
     <value>Andere schließen</value>
   </data>
@@ -1133,9 +1106,6 @@
   </data>
   <data name="Update_DownloadFailed" xml:space="preserve">
     <value>Herunterladen von {0} fehlgeschlagen: {1}</value>
-  </data>
-  <data name="Update_TryAgain" xml:space="preserve">
-    <value>Erneut versuchen</value>
   </data>
   <data name="Update_StatusAvailable" xml:space="preserve">
     <value>Update {0} verfügbar</value>
@@ -1313,9 +1283,6 @@
   </data>
   <data name="Import_DoneOther" xml:space="preserve">
     <value>{0} Verbindungen importiert.</value>
-  </data>
-  <data name="Import_SaveFailed" xml:space="preserve">
-    <value>Speichern fehlgeschlagen: {0}</value>
   </data>
   <data name="Export_Button" xml:space="preserve">
     <value>Exportieren…</value>

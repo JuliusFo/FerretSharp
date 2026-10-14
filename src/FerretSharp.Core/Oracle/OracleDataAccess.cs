@@ -130,12 +130,7 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
         }, cancellationToken);
 
         var sqlId = Plans.SqlId(hinted);
-        var child = await session.ExecuteReaderAsync(OraclePlans.LatestChild, [new QueryParameter("sql_id", sqlId)], async (reader, ct) =>
-            await reader.ReadAsync(ct) ? Convert.ToInt32(reader.GetValue(0), CultureInfo.InvariantCulture) : (int?)null, cancellationToken)
-            ?? throw new PlanUnavailableException(TextFormat.Format(OracleText.CursorGone, sqlId));
-        var steps = await session.ExecuteReaderAsync(OraclePlans.ActualSteps,
-            [new QueryParameter("sql_id", sqlId), new QueryParameter("child", child)],
-            (reader, ct) => OraclePlans.ReadAsync(reader, actual: true, ct), cancellationToken);
+        var (child, steps) = await OraclePlans.ReadActualAsync(session, sqlId, cancellationToken);
         return new ExecutionPlan(PlanSource.Actual, hinted, steps, sqlId, child, wholeResult, fetched);
     }
 
@@ -275,7 +270,7 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
     {
         switch (ColumnCategories.Of(column))
         {
-            case ColumnCategory.Number when column.DataType is "NUMBER" or "FLOAT" or "INTEGER":
+            case ColumnCategory.Number when OracleTypes.IsDecimalNumber(column.DataType):
                 return ToNumber(NormalizeDecimalSeparator(reader.GetOracleDecimal(ordinal).ToString()));
             case ColumnCategory.Timestamp:
                 return reader.GetOracleTimeStamp(ordinal).Value;

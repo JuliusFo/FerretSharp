@@ -11,9 +11,9 @@ public sealed class ActiveConnectionTests : IDisposable
 {
     private readonly TestFolder _folder = new();
     private readonly InMemorySecretStore _secrets = new();
-    private readonly IDatabaseConnector _connector = Substitute.For<IDatabaseConnector>();
-    private readonly IDatabaseConnection _connection = Substitute.For<IDatabaseConnection>();
-    private readonly ISchemaReader _reader = Substitute.For<ISchemaReader>();
+    private readonly ISchemaReader _reader = FakeDatabase.Reader(new TableSummary("APP_USER", "KUNDEN", TableKind.Table));
+    private readonly IDatabaseConnection _connection;
+    private readonly IDatabaseConnector _connector;
     private readonly RecentConnections _recent;
     private readonly InMemoryWorkspaceStore _workspaceStore = new();
     private readonly WorkspaceManager _workspaces;
@@ -22,19 +22,14 @@ public sealed class ActiveConnectionTests : IDisposable
 
     public ActiveConnectionTests()
     {
+        _connection = FakeDatabase.Connection(_reader, serverVersion: "23.26.3.0.0");
+        _connector = FakeDatabase.Connector(_connection);
         _recent = new RecentConnections(_folder.Combine("recent.json"));
         var connections = new ConnectionManager(Substitute.For<IConnectionStore>(), _secrets);
         _workspaces = new WorkspaceManager(_workspaceStore, connections, _connector);
         _active = new ActiveConnection(connections, _connector, _recent, _workspaces);
 
         _secrets.SetPassword(_profile.Id, "pw");
-        _connection.ServerVersion.Returns("23.26.3.0.0");
-        _connection.Schema.Returns(_reader);
-        _reader.GetTablesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([new TableSummary("APP_USER", "KUNDEN", TableKind.Table)]);
-        _reader.GetSynonymTargetsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(SynonymTargets.None);
-        _reader.GetForeignKeysAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
-        _connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(_connection);
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

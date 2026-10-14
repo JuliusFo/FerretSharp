@@ -79,7 +79,7 @@
     /// <summary>An open writing transaction older than this is shown as a warning: it holds row locks.</summary>
     private static readonly TimeSpan LongTransaction = TimeSpan.FromMinutes(10);
 
-    private static readonly string Version = "v" + (typeof(StatusBar).Assembly.GetName().Version?.ToString(3) ?? "0.0.0");
+    private static readonly string Version = "v" + AppVersion.Current;
 
     private Timer? _ticker;
 

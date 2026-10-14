@@ -20,9 +20,6 @@
     <value>Unlock workspace …</value>
     <comment>Button: make the read-only workspace writable</comment>
   </data>
-  <data name="Editor_ClipboardUnavailable" xml:space="preserve">
-    <value>The clipboard is not available.</value>
-  </data>
   <data name="Editor_Copied" xml:space="preserve">
     <value>Copied</value>
     <comment>Shown on a copy button for a moment after copying</comment>
@@ -434,9 +431,6 @@
     <value>whole result</value>
     <comment>Checkbox label</comment>
   </data>
-  <data name="Plan_CopiedCheck" xml:space="preserve">
-    <value>Copied ✓</value>
-  </data>
   <data name="Plan_CopyAsText" xml:space="preserve">
     <value>Copy as text</value>
   </data>
@@ -528,16 +522,6 @@
     <value>Result</value>
     <comment>Default file name (without extension) when saving a query result</comment>
   </data>
-  <data name="ResultMenu_ExportHead" xml:space="preserve">
-    <value>Export · {0}</value>
-    <comment>Menu section header. {0} = number of rows, e.g. 3 rows</comment>
-  </data>
-  <data name="ResultMenu_CopyTableTitle" xml:space="preserve">
-    <value>Tab-separated with a header row – paste it straight into Excel</value>
-  </data>
-  <data name="ResultMenu_CopyTable" xml:space="preserve">
-    <value>Copy as table</value>
-  </data>
   <data name="ResultMenu_CopyInsertTitle" xml:space="preserve">
     <value>INSERT INTO {0} with the result’s column names as target columns (never run)</value>
     <comment>{0} = table name</comment>
@@ -545,32 +529,8 @@
   <data name="ResultMenu_CopyInsertUnavailable" xml:space="preserve">
     <value>Only available if the query reads exactly one table – otherwise the target table is unclear.</value>
   </data>
-  <data name="ResultMenu_CopyInsert" xml:space="preserve">
-    <value>Copy as INSERT</value>
-  </data>
-  <data name="ResultMenu_SaveCsvTitle" xml:space="preserve">
-    <value>Semicolon-separated, UTF-8 – opens straight in Excel</value>
-  </data>
-  <data name="ResultMenu_SaveCsv" xml:space="preserve">
-    <value>Save as CSV …</value>
-  </data>
-  <data name="Footer_Loading" xml:space="preserve">
-    <value>Loading …</value>
-  </data>
-  <data name="Footer_RowsOne" xml:space="preserve">
-    <value>{0} row</value>
-    <comment>{0} = the number 1 (emphasized)</comment>
-  </data>
-  <data name="Footer_RowsOther" xml:space="preserve">
-    <value>{0} rows</value>
-    <comment>{0} = number of rows loaded, possibly with ≥ (emphasized)</comment>
-  </data>
   <data name="Footer_SnapshotTitle" xml:space="preserve">
     <value>Read-only workspace: snapshot of the READ ONLY transaction</value>
-  </data>
-  <data name="Footer_Snapshot" xml:space="preserve">
-    <value>As of {0}</value>
-    <comment>{0} = time of the snapshot, e.g. 14:05:32</comment>
   </data>
   <data name="Footer_SnapshotMoved" xml:space="preserve">
     <value>Snapshot changed – run again</value>
@@ -626,17 +586,6 @@
   </data>
   <data name="SqlPreview_OpenInEditorTitle" xml:space="preserve">
     <value>New SQL editor with this statement; the bind values become variables</value>
-  </data>
-  <data name="SqlPreview_OpenInEditor" xml:space="preserve">
-    <value>Open in SQL editor</value>
-  </data>
-  <data name="SqlPreview_BindVariable" xml:space="preserve">
-    <value>Bind variable</value>
-    <comment>Column header</comment>
-  </data>
-  <data name="SqlPreview_Value" xml:space="preserve">
-    <value>Value</value>
-    <comment>Column header</comment>
   </data>
   <data name="SqlPreview_Type" xml:space="preserve">
     <value>Type</value>

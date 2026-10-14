@@ -105,9 +105,6 @@
   <data name="Model_MismatchesTitle" xml:space="preserve">
     <value>Typ, NULL, Länge, Stellen – Hinweise nicht mitgezählt</value>
   </data>
-  <data name="Model_AsOf" xml:space="preserve">
-    <value>Stand {0}</value>
-  </data>
   <data name="Model_AllMapped" xml:space="preserve">
     <value>Alle Entities, Properties und Spalten sind einander zugeordnet.</value>
   </data>

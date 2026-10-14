@@ -16,7 +16,7 @@ public enum ConnectionKind
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(HostPortAddress), "hostPort")]
 [JsonDerivedType(typeof(TnsAliasAddress), "tnsAlias")]
-public abstract record OracleAddress
+public abstract partial record OracleAddress
 {
     /// <summary>Short human-readable form, e.g. <c>db01:1521/ORCLPDB</c> or <c>ERP_TEST</c>.</summary>
     [JsonIgnore]
@@ -76,6 +76,13 @@ public sealed record ConnectionProfile(
     public string EffectiveSchema => OracleIdentifier.Normalize(string.IsNullOrWhiteSpace(DefaultSchema) ? User : DefaultSchema);
 
     public static bool IsReadOnlyByDefault(ConnectionKind kind) => kind == ConnectionKind.Prod;
+
+    /// <summary>
+    /// Values stay out of the log, the SQL history and error dialogs (bind values masked, variables empty): Prod
+    /// (CLAUDE.md, invariants; R5b: before, the rule stood in three places).
+    /// </summary>
+    [JsonIgnore]
+    public bool MasksValues => Kind == ConnectionKind.Prod;
 
     /// <summary>
     /// The paths that only make sense on one computer: linked C# project, script folder, TNS_ADMIN folder. An export leaves

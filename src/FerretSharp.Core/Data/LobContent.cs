@@ -119,15 +119,15 @@ public static class LobContent
     public static string Size(long bytes) => bytes switch
     {
         < 1024 => ByteCount(bytes),
-        < 1024 * 1024 => $"{(bytes / 1024.0).ToString("N1", CultureInfo.GetCultureInfo("de-DE"))} KB",
-        _ => $"{(bytes / 1024.0 / 1024.0).ToString("N1", CultureInfo.GetCultureInfo("de-DE"))} MB",
+        < 1024 * 1024 => $"{(bytes / 1024.0).ToString("N1", ValueCulture.German)} KB",
+        _ => $"{(bytes / 1024.0 / 1024.0).ToString("N1", ValueCulture.German)} MB",
     };
 
     /// <summary>"12.345 characters" (German number notation like the rest of the cell texts).</summary>
     public static string CharacterCount(long count) =>
-        TextFormat.Plural(CultureInfo.GetCultureInfo("de-DE"), count, DataText.CharacterCountOne, DataText.CharacterCountOther);
+        TextFormat.Plural(ValueCulture.German, count, DataText.CharacterCountOne, DataText.CharacterCountOther);
 
     /// <summary>"2.048 bytes" (German number notation like the rest of the cell texts).</summary>
     public static string ByteCount(long count) =>
-        TextFormat.Plural(CultureInfo.GetCultureInfo("de-DE"), count, DataText.ByteCountOne, DataText.ByteCountOther);
+        TextFormat.Plural(ValueCulture.German, count, DataText.ByteCountOne, DataText.ByteCountOther);
 }

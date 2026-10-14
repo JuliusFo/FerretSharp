@@ -31,7 +31,8 @@ public sealed class LinqStatementsTests
             new("betrag_3", "Decimal", "Decimal", "1234.5"),
             new("guid_4", "Raw", "Byte[]", "AQID"),
             new("leer_5", "Varchar2", null, null),
-            new("flag_6", "Boolean", "Boolean", "True")));
+            new("flag_6", "Boolean", "Boolean", "True"),
+            new("land_7", "NChar", "String", "DE")));
 
         Assert.Equal("SELECT 1 FROM DUAL WHERE :a = 1", query.Sql);
         Assert.Equal(
@@ -42,6 +43,7 @@ public sealed class LinqStatementsTests
                 new QueryParameter("betrag_3", 1234.5m, OracleTypeHint.Number),
                 new QueryParameter("leer_5", null, OracleTypeHint.Varchar2),
                 new QueryParameter("flag_6", true, OracleTypeHint.Auto),
+                new QueryParameter("land_7", "DE", OracleTypeHint.NChar), // R5b: blank-padded like EF binds it (was NVarchar2)
             ],
             query.Parameters.Where(p => p.Name != "guid_4"));
         Assert.Equal(new byte[] { 1, 2, 3 }, Assert.IsType<byte[]>(query.Parameters.Single(p => p.Name == "guid_4").Value));

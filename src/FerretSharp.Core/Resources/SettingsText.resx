@@ -12,14 +12,6 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <data name="FileEmpty" xml:space="preserve">
-    <value>{0} is empty.</value>
-    <comment>{0}: path of settings.json</comment>
-  </data>
-  <data name="FileFromNewerVersion" xml:space="preserve">
-    <value>{0} comes from a newer version of FerretSharp (format {1}).</value>
-    <comment>{0}: path of settings.json; {1}: format version number</comment>
-  </data>
   <data name="InvalidFile" xml:space="preserve">
     <value>{0} is not a valid settings file: {1}</value>
     <comment>{0}: path of settings.json; {1}: error message of the JSON reader</comment>

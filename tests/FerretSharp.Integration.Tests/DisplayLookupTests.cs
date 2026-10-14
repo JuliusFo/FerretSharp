@@ -37,6 +37,12 @@ public sealed class DisplayLookupTests(OracleContainerFixture oracle) : IAsyncLi
         "INSERT INTO DSP_AUFTRAG VALUES (10, 1, 'PP', 2)",
         "INSERT INTO DSP_AUFTRAG VALUES (11, 2, 'MS', 999)",
         "INSERT INTO DSP_AUFTRAG VALUES (12, 3, NULL, NULL)",
+        "CREATE TABLE DSP_LAND (CODE NCHAR(3) PRIMARY KEY, NAME NVARCHAR2(50))",
+        "CREATE TABLE DSP_STADT (ID NUMBER(10) PRIMARY KEY, LAND NCHAR(3) CONSTRAINT FK_DSP_STADT_LAND REFERENCES DSP_LAND (CODE))",
+        "INSERT INTO DSP_LAND VALUES (N'PL', N'Polska')",
+        "INSERT INTO DSP_LAND VALUES (N'DE', N'Deutschland')",
+        "INSERT INTO DSP_STADT VALUES (1, N'PL')",
+        "INSERT INTO DSP_STADT VALUES (2, N'DE')",
         "COMMIT",
     ];
 
@@ -117,7 +123,7 @@ public sealed class DisplayLookupTests(OracleContainerFixture oracle) : IAsyncLi
         Assert.Equal(
             ["PetersPizza", "Müller & Söhne", null],
             rows.Select(r => names.NameOf(kundeId, r.Values[kundeId])?.Text));
-        Assert.Equal(new DisplayName(null, false), names.NameOf(kundeId, rows[2].Values[kundeId])); // found, name is NULL
+        Assert.Equal(new LookedUpName(null, false), names.NameOf(kundeId, rows[2].Values[kundeId])); // found, name is NULL
         Assert.Equal("PetersPizza", names.NameOf(kz, rows[0].Values[kz])?.Text); // CHAR(5): 'PP   '
         Assert.Equal("Müller & Söhne", names.NameOf(kz, "MS")?.Text);
     }
@@ -133,8 +139,28 @@ public sealed class DisplayLookupTests(OracleContainerFixture oracle) : IAsyncLi
 
         var (names, rows, _) = await LookUpAsync([link]);
 
-        Assert.Equal([new DisplayName("Müller & Söhne", false), new DisplayName(null, true), null],
+        Assert.Equal([new LookedUpName("Müller & Söhne", false), new LookedUpName(null, true), null],
             rows.Select(r => names.NameOf(link.Column, r.Values[link.Column])));
+    }
+
+    /// <summary>
+    /// R5b: an NCHAR key gets names. WP-31 left it out because its keys were bound as NVARCHAR2 (no blank padding: shorter
+    /// values never matched); since A18 they bind as NCHAR.
+    /// </summary>
+    [Fact]
+    public async Task A_foreign_key_to_an_nchar_key_gets_names()
+    {
+        var stadt = await DetailsAsync("DSP_STADT");
+        var links = await DisplayLinks.PlanAsync(stadt, _schema, DisplayColumns.Empty.With("DSP_LAND", "NAME"), Ct);
+        var link = Assert.Single(links);
+        var names = new DisplayNames(links, (l, value) => CellFormatter.Format(l.Display, value));
+        var rows = (await _data.ReadPageAsync(stadt, [], [], new PageSpec(0, 100), Ct)).Rows;
+        foreach (var lookup in names.Missing(rows.Select(r => r.Values)))
+        {
+            names.Found(lookup, (await DisplayNames.LookupAsync(_data, lookup, DisplayNames.LookupTimeout, Ct))!);
+        }
+
+        Assert.Equal(["Polska", "Deutschland"], rows.Select(r => names.NameOf(link.Column, r.Values[link.Column])?.Text));
     }
 
     [Theory]

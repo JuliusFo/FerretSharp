@@ -98,14 +98,15 @@ public sealed class DisplayLinksTests
         Assert.Null(DisplayLinks.Resolve(Auftrag, 1, AuftragKunde, Kunde, DisplayColumns.Empty.With("KUNDE", column)));
     }
 
+    /// <summary>R5b: an NCHAR key binds blank-padded since A18 – WP-31 left it out while it bound as NVARCHAR2.</summary>
     [Fact]
-    public void An_nchar_key_gives_no_link()
+    public void An_nchar_key_gives_a_padded_link()
     {
         var target = Kunde with { Columns = [Col("ID", "NUMBER"), Col("NAME", "VARCHAR2", 100), Col("KUERZEL", "NCHAR", 5)] };
         var source = Auftrag with { Columns = [.. Auftrag.Columns.Take(3), Col("KUNDE_KZ", "NCHAR", 5), .. Auftrag.Columns.Skip(4)] };
         var fk = Fk("FK_AUFTRAG_KUNDE_KZ", source, ["KUNDE_KZ"], target, ["KUERZEL"]);
 
-        Assert.Null(DisplayLinks.Resolve(source, 3, fk, target, Columns));
+        Assert.True(DisplayLinks.Resolve(source, 3, fk, target, Columns)?.SourcePadded);
     }
 
     [Fact]

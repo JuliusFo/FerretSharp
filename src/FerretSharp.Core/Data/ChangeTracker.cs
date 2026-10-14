@@ -246,9 +246,6 @@ public sealed record EditResult(RowChange? Change, string? Error)
 /// </summary>
 public sealed class ChangeTracker(TableDetails table)
 {
-    /// <summary>Steps kept for <see cref="UndoEdit"/>; older ones are dropped.</summary>
-    public const int MaxEditHistory = EditHistory.MaxSteps;
-
     private readonly Dictionary<RowKey, RowChange> _byKey = [];
     private readonly List<RowChange> _newRows = [];
     private readonly EditHistory _edits = new();
@@ -272,11 +269,11 @@ public sealed class ChangeTracker(TableDetails table)
 
     public bool HasChanges => _byKey.Count > 0 || _newRows.Count > 0;
 
-    /// <summary>A pending edit can be taken back (Ctrl+Z in the grid).</summary>
-    public bool CanUndoEdit => _edits.CanUndo;
+    /// <summary>A pending edit can be taken back (tests).</summary>
+    internal bool CanUndoEdit => _edits.CanUndo;
 
-    /// <summary>An edit taken back can be applied again (Ctrl+Y) – until the next edit or write.</summary>
-    public bool CanRedoEdit => _edits.CanRedo;
+    /// <summary>An edit taken back can be applied again – until the next edit or write (tests).</summary>
+    internal bool CanRedoEdit => _edits.CanRedo;
 
     public RowChange? Find(RowKey key) => _byKey.GetValueOrDefault(key);
 

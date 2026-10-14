@@ -207,9 +207,6 @@
   <data name="AppStatements_LookUpTitle" xml:space="preserve">
     <value>Kennzahlen und Plan des Statements aus V$SQL der Verbindung der App (verbindet, falls nötig)</value>
   </data>
-  <data name="AppStatements_OpenInEditor" xml:space="preserve">
-    <value>Im SQL-Editor öffnen</value>
-  </data>
   <data name="AppStatements_NeedsConnection" xml:space="preserve">
     <value>Wähle zuerst die Verbindung der App</value>
   </data>

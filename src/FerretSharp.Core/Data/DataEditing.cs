@@ -56,7 +56,7 @@ public sealed record WriteAction(Guid Id, WriteActionKind Kind, string Descripti
     /// <summary>"UPDATE ORDERS · 12 rows"; a grid write counts its rows in the description already.</summary>
     public string Display => Kind == WriteActionKind.Grid
         ? Description
-        : TextFormat.Plural(System.Globalization.CultureInfo.GetCultureInfo("de-DE"), Rows, DataText.WriteActionRowsOne, DataText.WriteActionRowsOther, Description);
+        : TextFormat.Plural(ValueCulture.German, Rows, DataText.WriteActionRowsOne, DataText.WriteActionRowsOther, Description);
 }
 
 /// <summary>A flush stopped at <see cref="Operation"/>; everything of this flush has been rolled back to its savepoint.</summary>
@@ -115,7 +115,7 @@ public sealed class WriteFailedException(PendingOperation operation, DatabaseExc
         "ORA-12899" => DataText.WriteFailedValueTooLong,
         "ORA-01438" => DataText.WriteFailedNumberTooLarge,
         "ORA-01031" => DataText.WriteFailedNoPrivilege,
-        "ORA-01456" => DataText.WriteFailedReadOnly,
+        "ORA-01456" => OracleText.ConnectionReadOnly,
         _ => DataText.WriteFailedOther,
     } + " " + error.Display;
 }

@@ -6,7 +6,7 @@
     {
         @if (grid.Loading)
         {
-            <span><span class="spinner small"></span> @SqlEditorText.Footer_Loading</span>
+            <span><span class="spinner small"></span> @CommonText.Loading</span>
         }
         else if (grid.Error is { } error)
         {
@@ -17,17 +17,17 @@
         else
         {
             <span>
-                <Fmt Text="@(grid is { AllLoaded: true, RowsLoaded: 1 } ? SqlEditorText.Footer_RowsOne : SqlEditorText.Footer_RowsOther)">
+                <Fmt Text="@(grid is { AllLoaded: true, RowsLoaded: 1 } ? CommonText.RowsOne : CommonText.RowsOther)">
                     <Arg0><strong>@(grid.AllLoaded ? "" : "≥ ")@grid.RowsLoaded.ToString("N0", CultureInfo.CurrentCulture)</strong></Arg0>
                 </Fmt>
             </span>
             @if (grid.Elapsed is { } elapsed)
             {
-                <span>@Ms(elapsed)</span>
+                <span>@TimeText.Duration(elapsed)</span>
             }
             @if (grid.DataAsOf is { } asOf)
             {
-                <span title="@SqlEditorText.Footer_SnapshotTitle">@TextFormat.Format(SqlEditorText.Footer_Snapshot, asOf.ToLocalTime().ToString("HH:mm:ss", CultureInfo.InvariantCulture))</span>
+                <span title="@SqlEditorText.Footer_SnapshotTitle">@TextFormat.Format(CommonText.AsOf, TimeText.TimeOfDay(asOf))</span>
                 @if (grid.SnapshotMoved)
                 {
                     <span class="warn" title="@SnapshotTexts.Moved">@SqlEditorText.Footer_SnapshotMoved</span>
@@ -50,9 +50,4 @@
     /// <summary>More buttons next to an error (the LINQ console links the model drift for ORA-00904).</summary>
     [Parameter]
     public RenderFragment<FerretSharp.Core.Connections.DatabaseException>? ErrorActions { get; set; }
-
-    /// <summary>"12 ms" below a second, "1,4 s" above.</summary>
-    public static string Ms(TimeSpan elapsed) => elapsed.TotalMilliseconds < 1000
-        ? $"{elapsed.TotalMilliseconds:0} ms"
-        : $"{elapsed.TotalSeconds.ToString("0.0", CultureInfo.CurrentCulture)} s";
 }

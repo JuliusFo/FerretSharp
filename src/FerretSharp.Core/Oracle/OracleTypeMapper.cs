@@ -59,7 +59,7 @@ public static class OracleTypeMapper
     public static bool IsEditableType(ColumnInfo column) => ColumnCategories.Of(column) switch
     {
         ColumnCategory.Text => OracleTypes.IsCharacter(column.DataType),
-        ColumnCategory.Number => column.DataType is "NUMBER" or "FLOAT" or "INTEGER",
+        ColumnCategory.Number => OracleTypes.IsDecimalNumber(column.DataType),
         ColumnCategory.Date or ColumnCategory.Timestamp or ColumnCategory.TimestampWithTimeZone or ColumnCategory.Raw => true,
         _ => false,
     };
@@ -68,7 +68,7 @@ public static class OracleTypeMapper
     /// TIMESTAMP WITH LOCAL TIME ZONE: stored in the database's time zone, read and written in the session's – a time
     /// without offset (<see cref="DateTime"/>). TIMESTAMP WITH TIME ZONE keeps its offset (<see cref="DateTimeOffset"/>).
     /// </summary>
-    public static bool IsLocalTimeZone(ColumnInfo column) => column.DataType.Contains("LOCAL TIME ZONE", StringComparison.Ordinal);
+    public static bool IsLocalTimeZone(ColumnInfo column) => OracleTypes.IsLocalTimeZone(column.DataType);
 
     /// <summary>CLOB, NCLOB, BLOB: edited as a whole in the LOB editor (WP-10), not in the cell.</summary>
     public static bool IsLob(ColumnInfo column) => ColumnCategories.Of(column) is ColumnCategory.Clob or ColumnCategory.Blob;
@@ -115,13 +115,13 @@ public static class OracleTypeMapper
         {
             ColumnCategory.Text => ParseText(column, text),
             ColumnCategory.Number => ParseNumber(column, text),
-            ColumnCategory.Date => FilterRules.TryParseDate(text, out var date, out _)
+            ColumnCategory.Date => ValueInput.TryParseDate(text, out var date, out _)
                 ? ParsedValue.Ok(date)
-                : ParsedValue.Fail(TextFormat.Format(OracleText.NotADate, text)),
-            ColumnCategory.Timestamp => FilterRules.TryParseDate(text, out var timestamp, out _)
+                : ParsedValue.Fail(TextFormat.Format(QueryText.NotADate, text)),
+            ColumnCategory.Timestamp => ValueInput.TryParseDate(text, out var timestamp, out _)
                 ? ParsedValue.Ok(timestamp)
                 : ParsedValue.Fail(TextFormat.Format(OracleText.NotATimestamp, text)),
-            ColumnCategory.TimestampWithTimeZone when IsLocalTimeZone(column) => FilterRules.TryParseDate(text, out var local, out _)
+            ColumnCategory.TimestampWithTimeZone when IsLocalTimeZone(column) => ValueInput.TryParseDate(text, out var local, out _)
                 ? ParsedValue.Ok(local)
                 : ParsedValue.Fail(TextFormat.Format(OracleText.NotATimestamp, text)),
             ColumnCategory.TimestampWithTimeZone => ParseWithOffset(text),
@@ -184,7 +184,7 @@ public static class OracleTypeMapper
 
     private static ParsedValue ParseNumber(ColumnInfo column, string text)
     {
-        if (!FilterRules.TryParseNumber(text, out var value))
+        if (!ValueInput.TryParseNumber(text, out var value))
         {
             return ParsedValue.Fail(TextFormat.Format(OracleText.NotANumber, text));
         }
@@ -217,7 +217,7 @@ public static class OracleTypeMapper
     /// </summary>
     private static ParsedValue ParseWithOffset(string text)
     {
-        switch (FilterRules.TryParseDateWithOffset(text, out var value, out var offset))
+        switch (ValueInput.TryParseDateWithOffset(text, out var value, out var offset))
         {
             case true:
                 return ParsedValue.Ok(value);
@@ -226,16 +226,16 @@ public static class OracleTypeMapper
         }
 
         // No offset (or a date like 2026-10-08, whose "-08" only looks like one).
-        return FilterRules.TryParseDate(text.Trim(), out var local, out _)
+        return ValueInput.TryParseDate(text.Trim(), out var local, out _)
             ? ParsedValue.Ok(new DateTimeOffset(local, TimeZoneInfo.Local.GetUtcOffset(local)))
             : ParsedValue.Fail(TextFormat.Format(OracleText.NotATimestampWithTimeZone, text));
     }
 
     private static ParsedValue ParseRaw(ColumnInfo column, string text)
     {
-        if (!FilterRules.TryParseHex(text, out var bytes))
+        if (!ValueInput.TryParseHex(text, out var bytes))
         {
-            return ParsedValue.Fail(TextFormat.Format(OracleText.NotAHexValue, text));
+            return ParsedValue.Fail(TextFormat.Format(QueryText.NotAHexValue, text));
         }
 
         return column.Length is { } max && bytes.Length > max

@@ -65,10 +65,6 @@
     <value>No privilege to change this table.</value>
     <comment>ORA-01031, followed by Oracle's message</comment>
   </data>
-  <data name="WriteFailedReadOnly" xml:space="preserve">
-    <value>The connection is read-only.</value>
-    <comment>ORA-01456, followed by Oracle's message</comment>
-  </data>
   <data name="WriteFailedOther" xml:space="preserve">
     <value>Oracle refused the change.</value>
     <comment>Any other Oracle error while writing, followed by Oracle's message</comment>

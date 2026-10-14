@@ -1,4 +1,3 @@
-using System.Text.Json;
 using FerretSharp.Core.IO;
 
 namespace FerretSharp.Core.Connections;
@@ -8,9 +7,14 @@ public sealed class RecentConnections(string filePath, TimeProvider? timeProvide
 {
     public const int MaxEntries = 100;
 
+    public const int CurrentVersion = 1;
+
     private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private Dictionary<Guid, DateTimeOffset> _lastUsed = [];
+
+    /// <summary>The file came from a newer FerretSharp: kept as it is, the history of this session stays in memory (R5b).</summary>
+    private bool _keepFile;
 
     public IReadOnlyDictionary<Guid, DateTimeOffset> LastUsed => _lastUsed;
 
@@ -22,27 +26,21 @@ public sealed class RecentConnections(string filePath, TimeProvider? timeProvide
             .Take(count)
             .ToList();
 
-    /// <summary>A broken or missing file just means "no history".</summary>
+    /// <summary>
+    /// A broken or missing file just means "no history"; one of a newer FerretSharp too, but it is not overwritten (R5b: the
+    /// version was not checked).
+    /// </summary>
     public async Task LoadAsync(CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            if (!File.Exists(filePath))
-            {
-                return;
-            }
-
-            await using var stream = File.OpenRead(filePath);
-            var document = await JsonSerializer.DeserializeAsync<Document>(stream, JsonFiles.Options, cancellationToken);
+            var read = await VersionedJsonFile.ReadAsync<Document>(filePath, CurrentVersion, JsonFiles.Options, cancellationToken);
+            _keepFile = read.State == JsonFileState.Newer;
             // Entries missing, null or twice (edited by hand, review 3.31.0 A6): what is readable counts.
-            _lastUsed = (document?.Entries ?? []).OfType<Entry>()
+            _lastUsed = (read.Document?.Entries ?? []).OfType<Entry>()
                 .GroupBy(e => e.Id)
                 .ToDictionary(g => g.Key, g => g.Max(e => e.LastUsed));
-        }
-        catch (Exception ex) when (ex is JsonException or NotSupportedException or IOException or UnauthorizedAccessException)
-        {
-            _lastUsed = [];
         }
         finally
         {
@@ -62,7 +60,11 @@ public sealed class RecentConnections(string filePath, TimeProvider? timeProvide
                 .Select(kv => new Entry(kv.Key, kv.Value))
                 .ToList();
 
-            await AtomicJsonFile.WriteAsync(filePath, new Document(1, entries), JsonFiles.Options, cancellationToken);
+            if (!_keepFile)
+            {
+                await AtomicJsonFile.WriteAsync(filePath, new Document(CurrentVersion, entries), JsonFiles.Options, cancellationToken);
+            }
+
             _lastUsed = entries.ToDictionary(e => e.Id, e => e.LastUsed);
         }
         finally

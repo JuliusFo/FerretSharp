@@ -90,9 +90,6 @@
   <data name="Compare_Run" xml:space="preserve">
     <value>Vergleichen</value>
   </data>
-  <data name="Compare_OnlyDifferences" xml:space="preserve">
-    <value>Nur Unterschiede</value>
-  </data>
   <data name="Compare_FilterObjects" xml:space="preserve">
     <value>Objekte</value>
   </data>
@@ -174,20 +171,11 @@
   <data name="Compare_CopiedMarkdown" xml:space="preserve">
     <value>Vergleich als Markdown kopiert.</value>
   </data>
-  <data name="Compare_ClipboardUnavailable" xml:space="preserve">
-    <value>Die Zwischenablage ist nicht verfügbar.</value>
-  </data>
-  <data name="Compare_CopyName" xml:space="preserve">
-    <value>{0} (Kopie)</value>
-  </data>
   <data name="Compare_Saved" xml:space="preserve">
     <value>„{0}“ gespeichert.</value>
   </data>
   <data name="Compare_MissingConnection" xml:space="preserve">
     <value>(Verbindung fehlt)</value>
-  </data>
-  <data name="Compare_SaveFailed" xml:space="preserve">
-    <value>Speichern fehlgeschlagen: {0}</value>
   </data>
   <data name="CompareDdl_Title" xml:space="preserve">
     <value>DDL-Vorschlag</value>
@@ -203,9 +191,6 @@
   </data>
   <data name="CompareDdl_Note" xml:space="preserve">
     <value>Ein Vorschlag – kopieren oder im SQL-Editor des Ziels öffnen und dort ausführen. DDL lässt sich nicht zurücknehmen; Schritte mit ⚠ vorher prüfen.</value>
-  </data>
-  <data name="CompareDdl_OpenInEditor" xml:space="preserve">
-    <value>Im SQL-Editor öffnen</value>
   </data>
   <data name="CompareDdl_OpenInEditorTitle" xml:space="preserve">
     <value>Öffnet das Skript in einem SQL-Tab von {0} – ausgeführt wird es dort erst nach der üblichen Bestätigung.</value>

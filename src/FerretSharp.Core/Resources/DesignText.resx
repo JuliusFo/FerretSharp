@@ -15,13 +15,6 @@
   <data name="IndexNameMissing" xml:space="preserve">
     <value>Enter a name for the index.</value>
   </data>
-  <data name="IndexNameInvalid" xml:space="preserve">
-    <value>A name cannot contain double quotes.</value>
-  </data>
-  <data name="IndexNameTooLong" xml:space="preserve">
-    <value>The name is longer than {0} bytes.</value>
-    <comment>{0}: Oracle's maximum name length in bytes (128)</comment>
-  </data>
   <data name="IndexNameTaken" xml:space="preserve">
     <value>The table already has an index named {0}.</value>
     <comment>{0}: index name</comment>
@@ -58,15 +51,7 @@
   <data name="ColumnNameMissing" xml:space="preserve">
     <value>Every column needs a name.</value>
   </data>
-  <data name="ColumnNameInvalid" xml:space="preserve">
-    <value>{0}: a name cannot contain double quotes.</value>
-    <comment>{0}: column name</comment>
-  </data>
-  <data name="ColumnNameTooLong" xml:space="preserve">
-    <value>{0}: the name is longer than {1} bytes.</value>
-    <comment>{0}: column name; {1}: maximum name length of Oracle (128)</comment>
-  </data>
-  <data name="ColumnNameNeedsQuotes" xml:space="preserve">
+  <data name="NameNeedsQuotes" xml:space="preserve">
     <value>{0} is not a plain Oracle name; SQL and the C# model must write it in double quotes, exactly so.</value>
     <comment>{0}: column name</comment>
   </data>

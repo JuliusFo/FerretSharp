@@ -20,7 +20,14 @@ public enum SqlVariableType
 }
 
 /// <summary>A bind variable of the SQL editor: its name (without colon), type and value as typed.</summary>
-public sealed record SqlVariable(string Name, SqlVariableType Type, string Value);
+public sealed record SqlVariable(string Name, SqlVariableType Type, string Value)
+{
+    /// <summary>
+    /// Text bound in the national character set (NVARCHAR2, NCHAR), like the column it was suggested for – as the filter
+    /// does, it follows the column and is not chosen (review 3.31.0, rest of A18).
+    /// </summary>
+    public bool National { get; init; }
+}
 
 /// <summary>A variable whose value does not fit its type, or one that is missing.</summary>
 public sealed class SqlBindException(string message) : Connections.RefusedException(message);
@@ -54,21 +61,21 @@ public static class SqlBinds
             case SqlVariableType.Null:
                 return new QueryParameter(name, null, OracleTypeHint.Varchar2);
             case SqlVariableType.Text:
-                return new QueryParameter(name, variable.Value, OracleTypeHint.Varchar2);
+                return new QueryParameter(name, variable.Value, variable.National ? OracleTypeHint.NVarchar2 : OracleTypeHint.Varchar2);
             case SqlVariableType.Char:
-                return new QueryParameter(name, variable.Value, OracleTypeHint.Char);
-            case SqlVariableType.Number when FilterRules.TryParseNumber(text, out var number):
+                return new QueryParameter(name, variable.Value, variable.National ? OracleTypeHint.NChar : OracleTypeHint.Char);
+            case SqlVariableType.Number when ValueInput.TryParseNumber(text, out var number):
                 return new QueryParameter(name, number, OracleTypeHint.Number);
             case SqlVariableType.Number:
                 throw new SqlBindException(text.Length == 0 ? TextFormat.Format(QueryText.BindNumberMissing, name) : TextFormat.Format(QueryText.BindNotANumber, name, text));
-            case SqlVariableType.Date when FilterRules.TryParseDateWithOffset(text, out var stamp, out _) == true:
+            case SqlVariableType.Date when ValueInput.TryParseDateWithOffset(text, out var stamp, out _) == true:
                 // With an offset (TIMESTAMP WITH TIME ZONE, e.g. from "Open in SQL editor"): the offset is kept.
                 return new QueryParameter(name, stamp, OracleTypeHint.TimeStampTZ);
-            case SqlVariableType.Date when FilterRules.TryParseDate(text, out var date, out _):
+            case SqlVariableType.Date when ValueInput.TryParseDate(text, out var date, out _):
                 return new QueryParameter(name, date, date.Ticks % TimeSpan.TicksPerSecond == 0 ? OracleTypeHint.Date : OracleTypeHint.TimeStamp);
             case SqlVariableType.Date:
                 throw new SqlBindException(text.Length == 0 ? TextFormat.Format(QueryText.BindDateMissing, name) : TextFormat.Format(QueryText.BindNotADate, name, text));
-            case SqlVariableType.Raw when FilterRules.TryParseHex(text, out var bytes):
+            case SqlVariableType.Raw when ValueInput.TryParseHex(text, out var bytes):
                 return new QueryParameter(name, bytes, OracleTypeHint.Raw);
             case SqlVariableType.Raw:
                 throw new SqlBindException(TextFormat.Format(QueryText.BindNotAHexValue, name, text));
@@ -78,39 +85,46 @@ public static class SqlBinds
     }
 
     /// <summary>
-    /// The variables for a statement's binds, in their order: existing ones keep type and value, new ones get the type the
+    /// The variables for a statement's binds, in their order: existing ones keep type and value, new ones are what the
     /// compared column suggests (<paramref name="suggest"/>), else text. Variables of binds no longer used are kept at the
     /// end – the user may only have commented out a line.
     /// </summary>
     public static IReadOnlyList<SqlVariable> Reconcile(
-        IReadOnlyList<string> binds, IReadOnlyList<SqlVariable> existing, Func<string, SqlVariableType?> suggest)
+        IReadOnlyList<string> binds, IReadOnlyList<SqlVariable> existing, Func<string, SqlVariable?> suggest)
     {
         var result = new List<SqlVariable>();
         foreach (var bind in binds)
         {
             result.Add(existing.FirstOrDefault(v => string.Equals(v.Name, bind, StringComparison.OrdinalIgnoreCase))
-                       ?? new SqlVariable(bind, suggest(bind) ?? SqlVariableType.Text, ""));
+                       ?? suggest(bind)
+                       ?? new SqlVariable(bind, SqlVariableType.Text, ""));
         }
 
         result.AddRange(existing.Where(v => !binds.Contains(v.Name, StringComparer.OrdinalIgnoreCase)));
         return result;
     }
 
-    /// <summary>The variable type for comparing with a column.</summary>
-    public static SqlVariableType TypeFor(ColumnInfo column) => ColumnCategories.Of(column) switch
+    /// <summary>A new variable for comparing with the column: its type, and national for NVARCHAR2/NCHAR.</summary>
+    public static SqlVariable For(string bind, ColumnInfo column)
     {
-        ColumnCategory.Number => SqlVariableType.Number,
-        ColumnCategory.Date or ColumnCategory.Timestamp or ColumnCategory.TimestampWithTimeZone => SqlVariableType.Date,
-        ColumnCategory.Raw => SqlVariableType.Raw,
-        ColumnCategory.Text when column.DataType is "CHAR" or "NCHAR" => SqlVariableType.Char,
-        _ => SqlVariableType.Text,
-    };
+        var category = ColumnCategories.Of(column);
+        var type = category switch
+        {
+            ColumnCategory.Number => SqlVariableType.Number,
+            ColumnCategory.Date or ColumnCategory.Timestamp or ColumnCategory.TimestampWithTimeZone => SqlVariableType.Date,
+            ColumnCategory.Raw => SqlVariableType.Raw,
+            ColumnCategory.Text when OracleTypes.IsFixedChar(column.DataType) => SqlVariableType.Char,
+            _ => SqlVariableType.Text,
+        };
+        return new SqlVariable(bind, type, "") { National = category == ColumnCategory.Text && OracleTypes.IsNational(column.DataType) };
+    }
 
     /// <summary>
-    /// The type of the column <paramref name="bind"/> is compared with in <paramref name="info"/> (<c>k.KUNDE_ID = :id</c>),
-    /// if the schema knows it – a suggestion for a new variable; null if unknown or the column could not be read.
+    /// A new variable for the column <paramref name="bind"/> is compared with in <paramref name="info"/>
+    /// (<c>k.KUNDE_ID = :id</c>), if the schema knows it (<see cref="For"/>) – a suggestion; null if unknown or the column
+    /// could not be read.
     /// </summary>
-    public static async Task<SqlVariableType?> SuggestTypeAsync(
+    public static async Task<SqlVariable?> SuggestAsync(
         SqlStatementInfo info, string bind, SchemaCache schema, CancellationToken cancellationToken)
     {
         if (info.BindUses.FirstOrDefault(u => string.Equals(u.Bind, bind, StringComparison.OrdinalIgnoreCase)) is not { } use)
@@ -133,7 +147,7 @@ public static class SqlBinds
                 var details = await schema.GetDetailsAsync(table, cancellationToken);
                 if (details.Columns.FirstOrDefault(c => c.Name == use.Column) is { } column)
                 {
-                    return TypeFor(column);
+                    return For(bind, column);
                 }
             }
             catch (Connections.DatabaseException)
@@ -156,7 +170,10 @@ public static class SqlBinds
         DateTimeOffset stamp => new SqlVariable(parameter.Name, SqlVariableType.Date,
             stamp.ToString(stamp.Ticks % TimeSpan.TicksPerSecond == 0 ? "yyyy-MM-dd HH:mm:ss zzz" : "yyyy-MM-dd HH:mm:ss.fffffff zzz", CultureInfo.InvariantCulture)),
         byte[] bytes => new SqlVariable(parameter.Name, SqlVariableType.Raw, Convert.ToHexString(bytes)),
-        string text => new SqlVariable(parameter.Name, parameter.Type == OracleTypeHint.Char ? SqlVariableType.Char : SqlVariableType.Text, text),
+        string text => new SqlVariable(parameter.Name, parameter.Type is OracleTypeHint.Char or OracleTypeHint.NChar ? SqlVariableType.Char : SqlVariableType.Text, text)
+        {
+            National = parameter.Type is OracleTypeHint.NVarchar2 or OracleTypeHint.NChar,
+        },
         _ => new SqlVariable(parameter.Name, SqlVariableType.Text, Convert.ToString(parameter.Value, CultureInfo.InvariantCulture) ?? ""),
     };
 }

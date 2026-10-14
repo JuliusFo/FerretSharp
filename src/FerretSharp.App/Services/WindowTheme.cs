@@ -44,8 +44,7 @@ public sealed class WindowTheme
 
     public static WindowTheme Create(IEnumerable<string> args, ThemeMode mode)
     {
-        var value = args.FirstOrDefault(a => a.StartsWith("--theme=", StringComparison.OrdinalIgnoreCase))?["--theme=".Length..];
-        return new WindowTheme(value?.ToLowerInvariant() switch
+        return new WindowTheme(CommandLine.ValueOf(args, CommandLine.Theme)?.ToLowerInvariant() switch
         {
             "dark" => true,
             "light" => false,

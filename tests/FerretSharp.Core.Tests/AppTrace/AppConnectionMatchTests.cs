@@ -76,9 +76,24 @@ public sealed class AppConnectionMatchTests
     [Fact]
     public void A_connection_without_service_does_not_match_a_service()
     {
-        Assert.False(DataSourceAddress.Parse("old-db:1521/ORCL")!.Matches(Legacy.Address));
-        Assert.Equal(new DataSourceAddress(null, 0, null, null, "ERP_PROD"), DataSourceAddress.Parse("ERP_PROD"));
-        Assert.Null(DataSourceAddress.Parse("  "));
-        Assert.Null(DataSourceAddress.Parse("(DESCRIPTION=(ADDRESS_LIST=))")); // no host
+        Assert.False(Legacy.Address.SameAs(OracleAddress.Parse("old-db:1521/ORCL")!));
+        Assert.Equal(new TnsAliasAddress("ERP_PROD", null), OracleAddress.Parse("ERP_PROD"));
+        Assert.Null(OracleAddress.Parse("  "));
+        Assert.Null(OracleAddress.Parse("(DESCRIPTION=(ADDRESS_LIST=))")); // no host
+    }
+
+    /// <summary>
+    /// R5b (review 3.31.0, B6): one rule with the import – the SID beside a service counts too, an empty SID is none. Before,
+    /// a connection with a service matched whatever SID the descriptor named.
+    /// </summary>
+    [Fact]
+    public void The_app_match_compares_addresses_like_the_import()
+    {
+        var both = HostPort("Both", "db-x", 1521, "SVC", sid: "SID1");
+        var emptySid = HostPort("Empty SID", "db-y", 1521, null, sid: "");
+
+        Assert.Null(AppConnectionMatch.Find([both], null, "(DESCRIPTION=(ADDRESS=(HOST=db-x)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=SVC)(SID=OTHER)))").Profile);
+        Assert.Same(both, AppConnectionMatch.Find([both], null, "(DESCRIPTION=(ADDRESS=(HOST=db-x)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=SVC)(SID=sid1)))").Profile);
+        Assert.Same(emptySid, AppConnectionMatch.Find([emptySid], null, "//db-y:1521").Profile);
     }
 }

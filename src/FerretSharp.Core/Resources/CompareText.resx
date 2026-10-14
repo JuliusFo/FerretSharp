@@ -27,10 +27,6 @@
     <value>{0} is not a valid schema comparison file: {1}</value>
     <comment>{0}: file path; {1}: error message of the JSON reader</comment>
   </data>
-  <data name="FileFromNewerVersion" xml:space="preserve">
-    <value>{0} comes from a newer version of FerretSharp (format {1}).</value>
-    <comment>{0}: file path; {1}: format version number</comment>
-  </data>
   <data name="FileFromNewerVersionNotOverwritten" xml:space="preserve">
     <value>{0} comes from a newer version of FerretSharp (format {1}). It will not be overwritten.</value>
     <comment>{0}: file path; {1}: format version number</comment>

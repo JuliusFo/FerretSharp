@@ -1,5 +1,6 @@
 @* Schema comparison (WP-20): N connections or schemas side by side as a matrix – objects as rows, sides as columns.
    Its own page: it belongs to no workspace and no transaction and opens its own short-lived sessions. *@
+@using FerretSharp.Core.Query
 @using FerretSharp.Core.Compare
 @using FerretSharp.Core.Connections
 @implements IAsyncDisposable
@@ -109,7 +110,7 @@
             <div class="compare-toolbar">
                 <label class="check">
                     <input type="checkbox" checked="@Compare.Current.OnlyDifferences" @onchange="e => SetOnlyDifferences(e.Value is true)" />
-                    @CompareViewText.Compare_OnlyDifferences
+                    @CommonText.OnlyDifferences
                 </label>
                 @foreach (var (label, kinds) in KindFilters)
                 {
@@ -118,7 +119,7 @@
                         @label
                     </label>
                 }
-                <input class="compare-search" placeholder="@CompareViewText.Compare_SearchPlaceholder" @bind="_search" @bind:event="oninput" />
+                <SearchBox @bind-Value="_search" Class="search compare-search" Placeholder="@CompareViewText.Compare_SearchPlaceholder" />
                 <span class="grow"></span>
                 <span class="muted">@Summary(result)</span>
                 <button class="btn" @onclick="CopyMarkdownAsync">@CompareViewText.Compare_CopyMarkdown</button>
@@ -341,7 +342,7 @@
     private IEnumerable<CompareRow> VisibleObjects(SchemaComparison result) =>
         result.Objects.Where(row =>
             CompareExport.Shown(row, Compare.Current.OnlyDifferences, Compare.Current.Kinds)
-            && (_search.Length == 0 || row.Name.Contains(_search.Trim(), StringComparison.OrdinalIgnoreCase)));
+            && new TextSearch(_search).Matches(row.Name));
 
     private IEnumerable<CompareRow> Children(CompareRow row) =>
         row.Children.Where(c => (!Compare.Current.OnlyDifferences || c.Differs) && (Compare.Current.Kinds is not { } kinds || kinds.Contains(c.Kind)));
@@ -397,13 +398,13 @@
         }
 
         var text = CompareExport.Markdown(result, Labels, Compare.Current.OnlyDifferences, Compare.Current.Kinds);
-        Shell.Notify(await Dom.CopyTextAsync(text) ? CompareViewText.Compare_CopiedMarkdown : CompareViewText.Compare_ClipboardUnavailable);
+        Shell.Notify(await Dom.CopyTextAsync(text) ? CompareViewText.Compare_CopiedMarkdown : CommonText.ClipboardUnavailable);
     }
 
     private void StartSaving(bool asNew)
     {
         (_saving, _saveAsNew) = (true, asNew);
-        _saveName = asNew ? TextFormat.Format(CompareViewText.Compare_CopyName, Compare.Current.Name) : Compare.Current.Name;
+        _saveName = asNew ? TextFormat.Format(CommonText.CopyName, Compare.Current.Name) : Compare.Current.Name;
     }
 
     private async Task SaveAsync()

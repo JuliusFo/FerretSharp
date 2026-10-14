@@ -14,10 +14,7 @@ Entscheidung des Nutzers (2026-10-09). Issues bekommen eine Art und einen Status
 
 ## Geplant
 
-Versionen: Minor-Releases 3.x (nichts Inkompatibles). Zuletzt released: 3.31.1 (R5a).
-
-### R5b Struktur nach dem Gesamt-Review 3.31.0 → 3.32.0
-Teil B von `docs/review-3.31.0.md` (B1–B19: Wiederverwendung, Struktur, Tests), dazu A50 (Farben als Tokens mit Dunkel-Variante). Reihenfolge nach dem Review: erst R5a (3.31.1), dann die Doku (Teil C, erledigt), dann R5b. Zuschnitt und Reihenfolge der B-Punkte beim Start mit dem Nutzer abstimmen.
+Versionen: Minor-Releases 3.x (nichts Inkompatibles). Zuletzt released: 3.31.1 (R5a). R5b (Struktur nach dem Gesamt-Review, 3.32.0) ist umgesetzt (`docs/work-packages/r5b-structure.md`), das Release wartet auf das OK des Nutzers.
 
 ### WP-36 Abhängigkeiten aktualisieren (AG Grid 36, Pakete, CI) → 3.33.0 ([#13](https://github.com/JuliusFo/FerretSharp/issues/13))
 Nach R5b. Entscheidung des Nutzers (2026-10-14): AG Grid und die übrigen Updates zusammen als eigenes Paket, Branch `wp/36-dependency-update`. Bewertung vom 2026-10-14; beim Start die Versionen neu prüfen (`dotnet list package --outdated`, npm, Actions-Releases).

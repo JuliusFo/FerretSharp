@@ -171,26 +171,12 @@
     {
         if (selectedRows.Length > 1)
         {
-            var selected = selectedRows.Order().Select(_blocks.At).ToList();
-            var rows = selected.OfType<RowData>().ToList();
-            var table = DelimitedExport.Build(AsTable(), rows, DelimitedExport.ClipboardSeparator);
-            var missing = selected.Count - rows.Count;
-            IReadOnlyList<string> warnings = missing == 0
-                ? table.Warnings
-                : [.. table.Warnings, TextFormat.Plural(missing, GridText.Grid_SelectedRowsNotCopiedOne, GridText.Grid_SelectedRowsNotCopiedOther)];
-            if (await _grid.CopyTextAsync(Shell, table.Text))
-            {
-                Shell.Notify(ExportActions.CopiedText(ExportCopy.Table, rows.Count), warnings);
-            }
+            await ExportActions.CopyRowsAsync(Shell, _grid, AsTable(), selectedRows.Order().Select(_blocks.At).ToList());
         }
         else if (_blocks.At(rowIndex) is { } row)
         {
             var column = GridColumn.IndexOf(colId);
-            var cell = DelimitedExport.CellText(_columns[column].Column, row.Values[column]);
-            if (await _grid.CopyTextAsync(Shell, cell.Text) && cell.Warnings.Count > 0)
-            {
-                Shell.Notify(GridText.Grid_ValueNotCopied, cell.Warnings);
-            }
+            await ExportActions.CopyCellAsync(Shell, _grid, _columns[column].Column, row.Values[column]);
         }
     });
 

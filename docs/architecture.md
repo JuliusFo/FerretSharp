@@ -92,7 +92,7 @@ record SelectQuery(string Sql, IReadOnlyList<QueryParameter> Parameters, IReadOn
 - Spaltennamen in Filter/Sort gegen das Schema validieren, dann per `OracleIdentifier.Quote()` quoten. Werte nur als Bind-Variablen; **jede gebundene Variable muss im SQL vorkommen** (sonst ORA-01036) – Unit-Tests prüfen das für jedes Statement.
 - `Contains`/`StartsWith`/`EndsWith`: `%`, `_`, `\` escapen, `UPPER(c) LIKE UPPER(:p) ESCAPE '\'` (immer ohne Groß-/Kleinschreibung).
 - `≠` schließt NULL ein, wenn die Spalte nullable ist (wie C#/EF): `(c <> :p OR c IS NULL)`.
-- `CHAR`/`NCHAR`-Spalten werden als `OracleDbType.Char` gebunden (Blank-Padding: „AB“ findet „AB␣“).
+- `CHAR`-Spalten werden als `OracleDbType.Char`, `NCHAR` als `OracleDbType.NChar` gebunden (Blank-Padding: „AB“ findet „AB␣“), `NVARCHAR2` als `NVarchar2` (nationaler Zeichensatz, A18). Variablen des SQL-Editors folgen der verglichenen Spalte genauso (`SqlVariable.National`, R5b).
 - `Equals` mit leerem Text: in Oracle nie wahr (`'' = NULL`) → Validierungsfehler mit Hinweis auf „ist NULL“.
 - `In`: max. 1000 Elemente pro Liste (ORA-01795) → mehrere Listen mit `OR`.
 - Datum ohne Uhrzeit meint den ganzen Tag: `=` → `[d, d+1)`, `>` → `>= d+1`, `≤` → `< d+1`, `zwischen` schließt den letzten Tag ein.
@@ -141,6 +141,21 @@ record PendingOperation(RowChange Change, OperationKind Kind, RowKey Key, IReadO
 - **DDL (WP-22, ADR 0019)** läuft über einen eigenen Weg außerhalb jeder Transaktion: `OracleSession.ExecuteDdlAsync` (`internal`, ein DDL-Statement, nie bei offener Transaktion, nie gesperrt) ← `IDataEditor.ExecuteDdlAsync` ← `WorkspaceManager.ExecuteDdlAsync` (prüft `IsWritable`). Oracle committet das DDL sofort; es wird keine Aktion des Undo-Stapels. Hat der Workspace Arbeit, verwirft der SQL-Editor sie vorher – nur nach Bestätigung mit der Liste der offenen Änderungen. Skripte: keine DML vor einem DDL-Statement (sie würde still committet), DML danach bleibt in der Transaktion.
   - Nach DDL (und bei „Schema neu laden“) lädt `WorkspaceLifecycle.RefreshSchemaAsync` den Schema-Cache neu, schließt Tabs verschwundener Objekte, baut Tabellen-Tabs mit geänderter Struktur neu auf (`TableTab.StructureVersion` als `@key` der `TabView`; Tabs mit ausstehenden oder geschriebenen Änderungen behalten ihre Struktur, weil diese Spalten nach Position adressieren, und bauen sich nach Commit oder Rollback neu auf – `TableTab.StructureStale`; ihre Ansichten nehmen die Struktur über `TableTab.UseStructure`, ein leerer Tracker der alten Struktur fällt dabei weg, R4a) und gleicht das C#-Modell ohne Hilfsprozess neu ab (`ClrModelManager.RemapAsync`).
   - Fremde offene Transaktionen: `DROP` und die meisten `ALTER`-Formen scheitern mit ORA-00054, `ALTER TABLE … ADD` würde unabbrechbar warten – deshalb sperrt der Schemaweg die Tabelle vor jedem `ALTER TABLE` mit `LOCK TABLE … NOWAIT` und startet das DDL sonst nicht (`TableBusyException`). Der SQL-Editor zeigt dann, wer sperrt (`LockHolderList`, braucht Leserechte auf `V$LOCKED_OBJECT`/`V$SESSION`); die Bestätigung nennt vorher andere Workspaces der Verbindung mit offener Schreib-Transaktion und ihre Tabellen.
+
+### 1.7 Eigene Dateien (R5b)
+
+Geschrieben wird atomar (`AtomicJsonFile`) mit `JsonFiles.Options`, gelesen über `VersionedJsonFile.ReadAsync`: die Version vor dem Dokument (eine neuere Datei mit unbekannter Form heißt „neuer“, nicht „kaputt“), Listen, die von Hand auf `null` stehen, werden leer. Was ein Zustand bedeutet, entscheidet jede Datei ausdrücklich:
+
+| Datei | kaputt / leer | nicht lesbar | neuer |
+|---|---|---|---|
+| `connections.json` | Fehler, nie überschrieben (`LoadError`, R5a A6) | wie kaputt | Fehler, nie überschrieben |
+| `recent.json` | kein Verlauf | kein Verlauf | kein Verlauf, Datei bleibt (nur im Speicher) |
+| `settings.json` | Standard, Kopie `.bad-…` vor dem ersten Speichern (R4a) | Standard, ohne Kopie nichts speichern | wie kaputt |
+| `workspaces*.json` | je Datei gemeldet (nur bei ihrer Verbindung), nicht angefasst | gemeldet | gemeldet |
+| `history*.json` | Kopie `.bad-…`, dann neuer Verlauf | nur anzeigen, nicht schreiben | nur anzeigen, nicht schreiben |
+| `comparisons.json` | Fehler auf der Seite (leer = keine) | Fehler | Fehler, Speichern verweigert |
+
+Eigene Regeln, nicht über den Leser: die Anzeigespalten (liest auch eine neuere Datei, dann nur lesend, und hält unbekannte Felder; synchron im `CachedFileRead`) und der Modell-Cache (jede Abweichung ist ein Cache-Fehlschlag).
 
 ## 2. UI-Konzept
 

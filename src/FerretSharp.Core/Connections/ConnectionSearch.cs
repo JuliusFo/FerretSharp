@@ -1,3 +1,5 @@
+using FerretSharp.Core.Query;
+
 namespace FerretSharp.Core.Connections;
 
 /// <param name="Name">Group name; null for ungrouped connections (always listed last).</param>
@@ -8,21 +10,9 @@ public static class ConnectionSearch
 {
     private static readonly StringComparer GroupComparer = StringComparer.CurrentCultureIgnoreCase;
 
-    /// <summary>
-    /// Every whitespace-separated term must occur (case-insensitive) in the name, group, address, user or kind.
-    /// </summary>
-    public static bool Matches(ConnectionProfile profile, string? query)
-    {
-        if (string.IsNullOrWhiteSpace(query))
-        {
-            return true;
-        }
-
-        string[] haystack = [profile.Name, profile.Group ?? "", profile.Address.Display, profile.User, profile.Kind.ToString()];
-        return query
-            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .All(term => haystack.Any(h => h.Contains(term, StringComparison.CurrentCultureIgnoreCase)));
-    }
+    /// <summary>Every word must occur in the name, group, address, user or kind (<see cref="TextSearch"/>).</summary>
+    public static bool Matches(ConnectionProfile profile, string? query) =>
+        new TextSearch(query).Matches(profile.Name, profile.Group, profile.Address.Display, profile.User, profile.Kind.ToString());
 
     /// <summary>
     /// Groups alphabetically (ungrouped last); within a group by kind (Dev, Test, Prod, Other), then name.

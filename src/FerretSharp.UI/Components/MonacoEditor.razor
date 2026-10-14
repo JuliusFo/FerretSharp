@@ -9,7 +9,7 @@
 
 @code {
     private readonly string _id = "monaco-" + Guid.NewGuid().ToString("N");
-    private IJSObjectReference? _module;
+    private JsModule? _module;
     private DotNetObjectReference<MonacoEditor>? _selfRef;
     private IReadOnlyList<LinqDiagnostic>? _shownMarkers;
 
@@ -66,14 +66,12 @@
         if (firstRender)
         {
             _selfRef = DotNetObjectReference.Create(this);
-            var module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FerretSharp.UI/js/monaco.js");
-            if (_disposed)
+            _module = new JsModule(JS, "./_content/FerretSharp.UI/js/monaco.js");
+            if (_disposed || !await _module.LoadAsync())
             {
-                await QuietlyAsync(() => module.DisposeAsync().AsTask()); // tab closed while the module loaded
-                return;
+                return; // tab closed while the module loaded
             }
 
-            _module = module;
             // uiLanguage: Monaco's own texts (menus, find widget) – loaded once per page, the UI language is fixed until a restart.
             await CallAsync("create", _id, _selfRef, Text,
                 new
@@ -90,7 +88,7 @@
             }
         }
 
-        if (_module is not null && !ReferenceEquals(_shownMarkers, Markers))
+        if (_module is { IsLoaded: true } && !ReferenceEquals(_shownMarkers, Markers))
         {
             _shownMarkers = Markers;
             await CallAsync("setMarkers", _id, Markers.Select(m => new
@@ -104,31 +102,16 @@
     /// Every call into monaco.js: nothing once the editor is disposed. The parent often calls after a long wait (a
     /// statement that ran for minutes) – by then the tab may be closed, and the call must not fail the closed tab.
     /// </summary>
-    private Task CallAsync(string identifier, params object?[] args) =>
-        _disposed || _module is not { } module ? Task.CompletedTask : QuietlyAsync(() => module.InvokeVoidAsync(identifier, args).AsTask());
-
-    private async Task<T?> CallAsync<T>(string identifier, params object?[] args)
+    private async Task CallAsync(string identifier, params object?[] args)
     {
-        var result = default(T);
-        if (!_disposed && _module is { } module)
+        if (!_disposed && _module is { IsLoaded: true } module)
         {
-            await QuietlyAsync(async () => result = await module.InvokeAsync<T>(identifier, args));
+            await module.InvokeVoidAsync(identifier, args);
         }
-
-        return result;
     }
 
-    /// <summary>Runs a JS call; failures because the editor or the page went away meanwhile are no error.</summary>
-    private async Task QuietlyAsync(Func<Task> call)
-    {
-        try
-        {
-            await call();
-        }
-        catch (Exception ex) when (ex is JSDisconnectedException || (_disposed && ex is ObjectDisposedException or JSException))
-        {
-        }
-    }
+    private async Task<T?> CallAsync<T>(string identifier, params object?[] args) =>
+        !_disposed && _module is { IsLoaded: true } module ? await module.InvokeAsync<T>(identifier, args) : default;
 
     [JSInvokable]
     public Task OnTextChanged(string elementId, string text) => OnChange.InvokeAsync(text);
@@ -186,11 +169,7 @@
         _disposed = true;
         if (_module is { } module)
         {
-            await QuietlyAsync(async () =>
-            {
-                await module.InvokeVoidAsync("destroy", _id);
-                await module.DisposeAsync();
-            });
+            await module.DisposeAsync("destroy", _id);
         }
 
         _selfRef?.Dispose();

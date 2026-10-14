@@ -13,7 +13,7 @@ public class FilterRulesTests
     [InlineData(" 42 ", 42)]
     public void Parses_numbers_in_german_and_invariant_notation(string text, double expected)
     {
-        Assert.True(FilterRules.TryParseNumber(text, out var value));
+        Assert.True(ValueInput.TryParseNumber(text, out var value));
         Assert.Equal((decimal)expected, value);
     }
 
@@ -21,7 +21,7 @@ public class FilterRulesTests
     [InlineData("1.234")] // ambiguous without comma → invariant decimal point, not thousands
     public void Dot_without_comma_is_a_decimal_point(string text)
     {
-        Assert.True(FilterRules.TryParseNumber(text, out var value));
+        Assert.True(ValueInput.TryParseNumber(text, out var value));
         Assert.Equal(1.234m, value);
     }
 
@@ -33,7 +33,7 @@ public class FilterRulesTests
     [InlineData("01.10.2026 14:30:00,0", 2026, 10, 1, 14, 30, false)]
     public void Parses_dates_and_detects_date_only(string text, int y, int m, int d, int h, int min, bool dateOnly)
     {
-        Assert.True(FilterRules.TryParseDate(text, out var value, out var isDateOnly));
+        Assert.True(ValueInput.TryParseDate(text, out var value, out var isDateOnly));
         Assert.Equal(new DateTime(y, m, d, h, min, 0), value);
         Assert.Equal(dateOnly, isDateOnly);
     }

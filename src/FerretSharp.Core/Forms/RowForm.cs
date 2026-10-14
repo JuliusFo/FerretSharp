@@ -63,7 +63,7 @@ public sealed record FormField(
     ValueTable? Options,
     IReadOnlyList<FkJump> Jumps,
     IReadOnlyList<ColumnMismatch> Mismatches,
-    Display.DisplayName? Name = null)
+    Display.LookedUpName? Name = null)
 {
     public bool IsNull => Raw is null;
 

@@ -108,9 +108,6 @@
   <data name="LobExpectsText" xml:space="preserve">
     <value>{0} erwartet Text.</value>
   </data>
-  <data name="NotADate" xml:space="preserve">
-    <value>„{0}“ ist kein Datum (TT.MM.JJJJ [hh:mm[:ss]]).</value>
-  </data>
   <data name="NotATimestamp" xml:space="preserve">
     <value>„{0}“ ist kein Zeitstempel (TT.MM.JJJJ hh:mm:ss[,ffffff]).</value>
   </data>
@@ -122,9 +119,6 @@
   </data>
   <data name="NotANumber" xml:space="preserve">
     <value>„{0}“ ist keine Zahl (z. B. 4711 oder 12,5).</value>
-  </data>
-  <data name="NotAHexValue" xml:space="preserve">
-    <value>„{0}“ ist kein Hex-Wert (z. B. CAFE01).</value>
   </data>
   <data name="TooLongBytes" xml:space="preserve">
     <value>Zu lang: {0} Bytes, erlaubt sind {1} ({2}).</value>

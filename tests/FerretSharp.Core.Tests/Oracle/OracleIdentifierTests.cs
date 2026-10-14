@@ -40,6 +40,44 @@ public class OracleIdentifierTests
         Assert.Equal(expected == name, OracleIdentifier.IsPlain(name));
     }
 
+    /// <summary>R5b (review 3.31.0, B3): one check for typed names – designer, indexes, constraints, audit templates.</summary>
+    [Theory]
+    [InlineData("KUNDE", null)]
+    [InlineData("Kunde mit Leerzeichen", null)] // quoted exactly: fine
+    [InlineData("A\"B", "A\"B: Ein Name darf keine doppelten Anführungszeichen enthalten.")]
+    [InlineData("A\0B", "A\0B: Ein Name darf keine doppelten Anführungszeichen enthalten.")]
+    public void Problem_names_what_keeps_a_name_from_being_created(string name, string? problem) =>
+        Assert.Equal(problem, OracleIdentifier.Problem(name));
+
+    [Fact]
+    public void A_name_may_have_128_bytes_not_characters()
+    {
+        Assert.Null(OracleIdentifier.Problem(new string('A', 128)));
+        Assert.Equal($"{new string('Ä', 65)}: Der Name ist länger als 128 Byte.", OracleIdentifier.Problem(new string('Ä', 65))); // 130 bytes
+    }
+
+    /// <summary>A warning for typed names: upper case of any script is plain to Oracle, a reserved word is not (R5b: DATE warned nothing in the designer).</summary>
+    [Theory]
+    [InlineData("KUNDE", false)]
+    [InlineData("ÄNDERUNG", false)]
+    [InlineData("K$1#_X", false)]
+    [InlineData("Kunde", true)]
+    [InlineData("1A", true)]
+    [InlineData("A B", true)]
+    [InlineData("DATE", true)]
+    [InlineData("END", true)]
+    public void NeedsQuotes_warns_where_oracle_needs_them(string name, bool needsQuotes) =>
+        Assert.Equal(needsQuotes, OracleIdentifier.NeedsQuotes(name));
+
+    [Theory]
+    [InlineData("ABCDEF", 4, "ABCD")]
+    [InlineData("ÄÖÜ", 5, "ÄÖ")] // 2 bytes each
+    [InlineData("A😀B", 4, "A")] // never half of a surrogate pair
+    [InlineData("A😀B", 5, "A😀")]
+    [InlineData("KURZ", 128, "KURZ")]
+    public void Cut_keeps_whole_characters_within_the_bytes(string text, int bytes, string expected) =>
+        Assert.Equal(expected, OracleIdentifier.Cut(text, bytes));
+
     [Fact]
     public void Qualify_quotes_owner_and_name()
     {
