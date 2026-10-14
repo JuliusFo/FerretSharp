@@ -617,6 +617,7 @@ code.condition { font: 12px var(--mono); white-space: pre-wrap; }
 .filter-row .values .field { flex: 1; min-width: 0; }
 .filter-row.invalid .values .field { border-color: var(--danger); box-shadow: 0 0 0 3px var(--danger-weak); }
 .filter-error { color: var(--danger); font-size: 12px; white-space: nowrap; }
+.filter-note { color: var(--faint); font-size: 12px; white-space: nowrap; }
 .row-toggle { width: 15px; height: 15px; margin: 0; accent-color: var(--accent); }
 .filter-actions { display: flex; gap: 6px; }
 
@@ -716,6 +717,18 @@ table.binds td { font-family: var(--mono); }
 .menu-item:disabled { opacity: .55; cursor: default; }
 .menu-item:disabled:hover { background: transparent; }
 .menu.linq-menu { width: 220px; }
+/* filter presets (WP-37): name to apply, then + (append), rename, delete */
+.preset-item { display: flex; align-items: center; gap: 2px; }
+.preset-item .preset-apply { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; line-height: 30px; }
+.preset-item .icon-btn { flex: none; width: 26px; height: 26px; color: var(--faint); }
+.preset-item .icon-btn:hover { color: var(--text); }
+.preset-item .preset-delete:hover { color: var(--danger); }
+.preset-note { padding: 6px 10px; color: var(--faint); font-size: 12.5px; }
+.preset-note.error { color: var(--danger); }
+.dialog.preset-dialog { width: min(560px, 94vw); }
+.preset-content { display: flex; flex-direction: column; gap: 6px; padding-top: 6px; min-width: 0; }
+.preset-content code { font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; }
+.preset-content .hint { font-size: 12px; }
 
 /* ---------- errors, connection loss, notices ---------- */
 .link-btn { border: 0; padding: 0 0 0 8px; background: transparent; color: inherit; text-decoration: underline; cursor: pointer; font-size: inherit; }

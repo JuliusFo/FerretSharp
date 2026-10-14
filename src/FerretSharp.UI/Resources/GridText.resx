@@ -900,4 +900,113 @@
     <value>A view has no unique key: its values cannot be looked up for foreign keys.</value>
     <comment>Tooltip of the disabled "Use as display column" on a view</comment>
   </data>
+  <data name="Presets_Button" xml:space="preserve">
+    <value>Presets</value>
+    <comment>Button in the filter bar opening the filter presets</comment>
+  </data>
+  <data name="Presets_ButtonTitle" xml:space="preserve">
+    <value>Saved filter rows and sort orders of {0} – for every connection</value>
+    <comment>{0}: table name</comment>
+  </data>
+  <data name="Presets_None" xml:space="preserve">
+    <value>No presets for {0} yet.</value>
+    <comment>{0}: table name</comment>
+  </data>
+  <data name="Presets_AppendTitle" xml:space="preserve">
+    <value>Add its filter rows to the current ones</value>
+    <comment>Tooltip of the + next to a preset</comment>
+  </data>
+  <data name="Presets_SaveAs" xml:space="preserve">
+    <value>Save as preset…</value>
+    <comment>Menu item</comment>
+  </data>
+  <data name="Presets_NothingToSave" xml:space="preserve">
+    <value>No filter rows or sort order to save</value>
+    <comment>Tooltip of the disabled menu item</comment>
+  </data>
+  <data name="Presets_SaveTitle" xml:space="preserve">
+    <value>Save filter preset</value>
+    <comment>Dialog title</comment>
+  </data>
+  <data name="Presets_RenameTitle" xml:space="preserve">
+    <value>Rename filter preset</value>
+    <comment>Dialog title</comment>
+  </data>
+  <data name="Presets_Name" xml:space="preserve">
+    <value>Name</value>
+    <comment>Label of the name field of a filter preset</comment>
+  </data>
+  <data name="Presets_NamePlaceholder" xml:space="preserve">
+    <value>e.g. Open orders</value>
+  </data>
+  <data name="Presets_Content" xml:space="preserve">
+    <value>Content</value>
+    <comment>Label: what the preset will contain</comment>
+  </data>
+  <data name="Presets_NoFilterRows" xml:space="preserve">
+    <value>No filter rows</value>
+  </data>
+  <data name="Presets_WithSort" xml:space="preserve">
+    <value>Save the sort order too: {0}</value>
+    <comment>Checkbox. {0}: sort order, e.g. CREATED ↓, ID ↑</comment>
+  </data>
+  <data name="Presets_Scope" xml:space="preserve">
+    <value>Saved for {0} on this computer; it applies on every connection.</value>
+    <comment>{0}: table name</comment>
+  </data>
+  <data name="Presets_ReplaceTitle" xml:space="preserve">
+    <value>Replace preset</value>
+    <comment>Dialog title</comment>
+  </data>
+  <data name="Presets_Replace" xml:space="preserve">
+    <value>Replace</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Presets_ReplaceQuestion" xml:space="preserve">
+    <value>{0} already has a preset {1}. Replace it?</value>
+    <comment>{0}: table name; {1}: preset name</comment>
+  </data>
+  <data name="Presets_DeleteTitle" xml:space="preserve">
+    <value>Delete preset</value>
+    <comment>Dialog title</comment>
+  </data>
+  <data name="Presets_DeleteQuestion" xml:space="preserve">
+    <value>Delete the preset {0}?</value>
+    <comment>{0}: preset name</comment>
+  </data>
+  <data name="Presets_FixFilters" xml:space="preserve">
+    <value>Correct the filter rows first.</value>
+    <comment>Notice when saving invalid filter rows as a preset</comment>
+  </data>
+  <data name="Presets_Saved" xml:space="preserve">
+    <value>Preset {0} saved.</value>
+    <comment>{0}: preset name</comment>
+  </data>
+  <data name="Presets_MissingColumnsOne" xml:space="preserve">
+    <value>Preset {1}: this table has no column {2}. Filter rows on it are disabled, sorting by it is left out.</value>
+    <comment>{0}: number of columns (1); {1}: preset name; {2}: column name</comment>
+  </data>
+  <data name="Presets_MissingColumnsOther" xml:space="preserve">
+    <value>Preset {1}: this table has no columns {2}. Filter rows on them are disabled, sorting by them is left out.</value>
+    <comment>{0}: number of columns; {1}: preset name; {2}: column names</comment>
+  </data>
+  <data name="Presets_ColumnMissing" xml:space="preserve">
+    <value>Not in this table</value>
+    <comment>Next to a filter row whose column the table does not have</comment>
+  </data>
+  <data name="Presets_Off" xml:space="preserve">
+    <value>(off) {0}</value>
+    <comment>A disabled filter row in a preset's tooltip. {0}: the row, e.g. STATUS = OPEN</comment>
+  </data>
+  <data name="Presets_SortedBy" xml:space="preserve">
+    <value>Sorted by {0}</value>
+    <comment>{0}: sort order, e.g. CREATED ↓, ID ↑</comment>
+  </data>
+  <data name="Presets_NameTaken" xml:space="preserve">
+    <value>There already is a preset {0}.</value>
+    <comment>{0}: preset name</comment>
+  </data>
+  <data name="Presets_NotLoaded" xml:space="preserve">
+    <value>The presets could not be read; nothing is saved until they can.</value>
+  </data>
 </root>

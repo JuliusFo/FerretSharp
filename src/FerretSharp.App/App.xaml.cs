@@ -10,6 +10,7 @@ using FerretSharp.Core.ClrModel;
 using FerretSharp.Core.Compare;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Oracle;
+using FerretSharp.Core.Query;
 using FerretSharp.Core.Resources;
 using FerretSharp.Core.Settings;
 using FerretSharp.Core.Workspaces;
@@ -133,6 +134,9 @@ public partial class App : Application
         builder.Services.AddSingleton(new ComparisonStore(paths.ComparisonsFile));
         builder.Services.AddSingleton<SchemaCompareLoader>();
         builder.Services.AddSingleton<SchemaCompareService>();
+        // Filter presets (WP-37): one file for all connections.
+        builder.Services.AddSingleton(new FilterPresetStore(paths.FilterPresetsFile));
+        builder.Services.AddSingleton<FilterPresetService>();
         // App statements (WP-33): one trace for the whole app, over EventPipe.
         builder.Services.AddSingleton<FerretSharp.Core.AppTrace.IAppTraceSource, FerretSharp.AppTrace.EventPipeTraceSource>();
         builder.Services.AddSingleton<AppTraceService>();

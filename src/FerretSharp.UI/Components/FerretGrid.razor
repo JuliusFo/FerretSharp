@@ -115,10 +115,7 @@
         _presentation = Presentations.For(Details);
         _shownColumns = ShownColumns(Enumerable.Range(0, Details.Columns.Count).Select(ColumnMeta).ToList());
         var columns = ColumnPinning.DisplayOrder(Details, Tab.PinnedColumns).Select(ColumnMeta).ToList();
-        var sorts = Tab.Sorts
-            .Where(s => IndexOf(s.Column) >= 0)
-            .Select(s => new GridSort(ColumnId(IndexOf(s.Column)), s.Descending ? "desc" : "asc"))
-            .ToList();
+        var sorts = GridSorts(Tab.Sorts);
 
         // Closed while grid.js loaded or the grid was created (closing the tab, switching connections): nothing to show.
         await _grid.CreateAsync(columns, new GridOptions(sorts, Tab.FirstVisibleRow ?? 0, _editable, HeaderHeight, Table: true));
@@ -403,6 +400,21 @@
         Tab.TotalCount = null;
         await _grid.CallAsync("refresh");
     }
+
+    /// <summary>
+    /// Reloads from the first row sorted by <paramref name="sorts"/> (a filter preset, WP-37): the grid takes the new
+    /// order and asks for the first rows itself – one query, not a refresh and then a sort.
+    /// </summary>
+    public async Task RefreshAsync(IReadOnlyList<SortSpec> sorts)
+    {
+        Tab.TotalCount = null;
+        await _grid.CallAsync("setSorts", GridSorts(sorts));
+    }
+
+    private List<GridSort> GridSorts(IReadOnlyList<SortSpec> sorts) => sorts
+        .Where(s => IndexOf(s.Column) >= 0)
+        .Select(s => new GridSort(ColumnId(IndexOf(s.Column)), s.Descending ? "desc" : "asc"))
+        .ToList();
 
     public Task SetRowCountAsync(long count) => _grid.CallAsync("setRowCount", (int)Math.Min(count, int.MaxValue));
 

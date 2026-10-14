@@ -70,7 +70,7 @@
     else
     {
         <div class="tab-data @(Tab.Mode == TabMode.Data ? "" : "hidden")">
-            <FilterBar Tab="Tab" Details="_details" OnApply="ApplyFiltersAsync" OnShowSql="ShowSql" OnShowPlan="ShowPlan" />
+            <FilterBar Tab="Tab" Details="_details" OnApply="() => ApplyFiltersAsync()" OnApplyPreset="ApplyFiltersAsync" OnShowSql="ShowSql" OnShowPlan="ShowPlan" />
             @if (Tab.Error is not null)
             {
                 <div class="tab-error">
@@ -294,7 +294,8 @@
         Shell.NotifyChanged();
     }
 
-    private async Task ApplyFiltersAsync()
+    /// <param name="sorts">A filter preset's sort order (WP-37); null keeps the grid's.</param>
+    private async Task ApplyFiltersAsync(IReadOnlyList<SortSpec>? sorts = null)
     {
         if (_details is null)
         {
@@ -315,7 +316,7 @@
 
         Tab.AppliedFilters = conditions;
         Shell.NotifyChanged(); // filter count in the tab header
-        await RefreshAsync();
+        await RefreshAsync(sorts is null || sorts.SequenceEqual(Tab.Sorts) ? null : sorts);
     }
 
     /// <summary>F5 / reload button: the grid in the data view, the detail views otherwise (columns come with the schema).</summary>
@@ -330,16 +331,25 @@
         return Task.CompletedTask;
     }
 
-    private async Task RefreshAsync()
+    /// <param name="sorts">A new sort order; the grid then reloads by sorting (one query).</param>
+    private async Task RefreshAsync(IReadOnlyList<SortSpec>? sorts = null)
     {
         _footer?.Reset();
         Tab.Error = null;
         Tab.Failure = null;
         Tab.FirstVisibleRow = null;
         Shell.MarkDirty();
-        if (_grid is not null)
+        if (_grid is null)
+        {
+            Tab.Sorts = sorts ?? Tab.Sorts; // the grid takes them when it is created
+        }
+        else if (sorts is null)
         {
             await _grid.RefreshAsync();
+        }
+        else
+        {
+            await _grid.RefreshAsync(sorts);
         }
     }
 

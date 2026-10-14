@@ -9,6 +9,7 @@
         <button class="btn" @onclick="AddRow"><span class="plus">+</span> @GridText.Filter_Add</button>
         <span class="hint">@GridText.Filter_NoFilter</span>
         <span class="spacer"></span>
+        <PresetMenu Tab="Tab" Details="Details" OnApply="ApplyPresetAsync" />
         @if (Presentations.For(Details).Entity is not null)
         {
             <LinqMenu Details="Details" Filters="CurrentFilters" />
@@ -67,10 +68,16 @@
                     {
                         <span class="filter-error">@r.Error</span>
                     }
+                    else if (column is null)
+                    {
+                        @* From a filter preset of another version of the table (WP-37): kept, disabled, to show what it wanted. *@
+                        <span class="filter-note">@GridText.Presets_ColumnMissing</span>
+                    }
                 </div>
             }
         </div>
         <div class="filter-actions">
+            <PresetMenu Tab="Tab" Details="Details" OnApply="ApplyPresetAsync" />
             @if (Presentations.For(Details).Entity is not null)
             {
                 <LinqMenu Details="Details" Filters="CurrentFilters" />
@@ -102,6 +109,12 @@
     [Parameter]
     public EventCallback OnApply { get; set; }
 
+    /// <summary>
+    /// The filter rows were set from a preset (WP-37): apply them with its sort order (null keeps the grid's).
+    /// </summary>
+    [Parameter]
+    public EventCallback<IReadOnlyList<SortSpec>?> OnApplyPreset { get; set; }
+
     [Parameter]
     public EventCallback OnShowSql { get; set; }
 
@@ -127,6 +140,21 @@
         Tab.FilterRows.Add(row);
         _newRow = row;
         Shell.MarkDirty();
+    }
+
+    private async Task ApplyPresetAsync(PresetChoice choice)
+    {
+        var current = Tab.FilterRows.Select(r => r.ToCondition()).ToList();
+        var applied = FilterPresets.Apply(choice.Preset, Details, current, choice.Append);
+        Tab.FilterRows.Clear();
+        Tab.FilterRows.AddRange(applied.Filters.Select(FilterRow.From));
+        if (applied.MissingColumns.Count > 0)
+        {
+            Shell.Notify(TextFormat.Plural(applied.MissingColumns.Count, GridText.Presets_MissingColumnsOne, GridText.Presets_MissingColumnsOther,
+                choice.Preset.Name, string.Join(", ", applied.MissingColumns)));
+        }
+
+        await OnApplyPreset.InvokeAsync(applied.Sorts);
     }
 
     private async Task RemoveRow(FilterRow row)
