@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Fixed
+- The letter bar of the explorer jumped only in the first opened connection; in the others a click did nothing.
+
 ## [3.32.1] - 2026-10-14
 
 Security update of a library the Oracle driver brings.
