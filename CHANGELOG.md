@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.33.0] - 2026-10-14
+
+Fixes from daily work: foreign key counts that held up jumps, a connect that seemed to hang, the letter bar in further connections and error messages after sleep at a dock.
+
 ### Added
 - Setting "Count incoming foreign keys": immediately (as before) or only on hover. The counts run on the workspace's session one after the other, so a jump to another table waits until the running count has ended – with "On hover" for one count at most.
 - Connecting shows what it is doing and for how long ("Opening the session", "Reading synonyms", "Reading foreign keys of APP (2 of 5)" …), below the spinner and in the status bar. The log has each step and, at the end, the durations of all of them.
