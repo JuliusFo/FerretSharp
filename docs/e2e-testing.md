@@ -38,6 +38,7 @@ Drei Stufen, von schwach nach stark:
 - **Native Dialoge (Speichern unter) nicht per UI Automation bedienen**: Sie öffnen sich in den echten Ordnern des Nutzers (Dokumente, OneDrive). Ein Fehlgriff traf dort einen Ordner-Eintrag statt des Dateinamenfelds, und der Dialog speicherte die Testdatei im Dokumente-Ordner (in WP-07 passiert, Datei wurde ins Scratchpad verschoben). Export-Inhalte über die Zwischenablage prüfen; den Speichern-Pfad höchstens bis zum Öffnen des Dialogs testen.
 
 ## Kniffe
+- Links (WP-37): einen zweiten Start **immer mit `--data-dir`** und dem Link als Argument – ohne geht der Link über die Pipe an die echte Instanz des Nutzers (bzw. startet auf seinen Daten). Die Registrierung `ferretsharp://` nicht im E2E klicken: Sie schreibt in die Registry des Nutzers.
 - Abfragen zählen (eine statt zwei nach einer Aktion): Das Log der Testinstanz hat je Grid-Abfrage eine Zeile `[DBG] Rows 0+ of OWNER.TABELLE (n filters)` (WP-37).
 - Nach einem Klick auf einen Tab ist `.page.active` noch kurz die alte Seite → auf etwas Spezifisches des Ziels warten.
 - Im Infinite Row Model kennt das Grid anfangs nur ~501 Zeilen; `scrollTop` weiter unten wird abgeschnitten.

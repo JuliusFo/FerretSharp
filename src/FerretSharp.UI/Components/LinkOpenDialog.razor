@@ -17,7 +17,7 @@
         {
             <dl class="link-facts">
                 <dt>@ShellText.Link_Table</dt>
-                <dd><code>@link.Owner.@link.Table</code>@if (link.Mode is { } mode) { <span class="muted"> · @ModeLabel(mode)</span> }</dd>
+                <dd><span><code>@link.Owner.@link.Table</code>@if (link.Mode is { } mode) { <span class="muted"> · @ModeLabel(mode)</span> }</span></dd>
                 <dt>@ShellText.Link_Filters</dt>
                 <dd>
                     @if (link.Filters.Count == 0)
