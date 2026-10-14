@@ -103,6 +103,20 @@
     <value>If another session holds a lock on a row you want to write, FerretSharp waits this long and then shows who holds it ({0}).</value>
     <comment>{0} = SELECT … FOR UPDATE WAIT n (code)</comment>
   </data>
+  <data name="Settings_FkCounts" xml:space="preserve">
+    <value>Count incoming foreign keys</value>
+  </data>
+  <data name="Settings_FkCountsHint" xml:space="preserve">
+    <value>The cell menu and the form show how many rows refer to the row. The counts run one after the other on the workspace’s session – a jump to another table waits until the running count has ended. “On hover” counts only the entry the mouse rests on.</value>
+  </data>
+  <data name="Settings_FkCountsImmediately" xml:space="preserve">
+    <value>Immediately</value>
+    <comment>Option of "Count incoming foreign keys": all at once when the menu opens</comment>
+  </data>
+  <data name="Settings_FkCountsOnHover" xml:space="preserve">
+    <value>On hover</value>
+    <comment>Option of "Count incoming foreign keys": only the entry under the mouse</comment>
+  </data>
   <data name="Settings_Diagnostics" xml:space="preserve">
     <value>Diagnostics</value>
     <comment>Settings section</comment>

@@ -23,6 +23,19 @@ public enum ClrNameDisplay
     Front,
 }
 
+/// <summary>
+/// When the cell menu and the form count the rows behind incoming foreign keys (WP-21). The counts run on the workspace's
+/// session, one after the other: a jump or a page waits until the running one has ended.
+/// </summary>
+public enum FkCountMode
+{
+    /// <summary>All of them as soon as the menu opens or the form stays on a row (default).</summary>
+    Immediately,
+
+    /// <summary>Only the entry the mouse rests on: a jump waits for at most one count.</summary>
+    OnHover,
+}
+
 /// <summary>User preferences of the app (not per connection). Saved as <c>settings.json</c> in the data directory.</summary>
 public sealed record AppSettings
 {
@@ -44,6 +57,9 @@ public sealed record AppSettings
     /// (<c>SELECT … FOR UPDATE WAIT n</c>, 1–60).
     /// </summary>
     public int LockWaitSeconds { get; init; } = Query.DmlBuilder.DefaultLockWaitSeconds;
+
+    /// <summary>When incoming foreign keys are counted in the cell menu and the form.</summary>
+    public FkCountMode FkCounts { get; init; } = FkCountMode.Immediately;
 
     /// <summary>
     /// Log when the UI thread does not respond for a noticeable time, with what caused it, and the stacks of all threads for

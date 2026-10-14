@@ -1,3 +1,4 @@
+@using System.Diagnostics
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
@@ -965,11 +966,16 @@
         var details = Details;
         var filters = Tab.AppliedFilters;
         var sorts = Tab.Sorts;
+        var started = Stopwatch.GetTimestamp();
         var result = await Shell.RunDbAsync(Logger, Active, async () =>
         {
             var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, CancellationToken.None);
             return await data.ReadPageAsync(details, filters, sorts, new PageSpec(startRow, endRow - startRow), CancellationToken.None);
         });
+        // With opening the session and waiting for it (a running FK count): the footer's time is the query's alone.
+        Logger.LogDebug("Rows {Start}+ of {Table} ({Filters} filters): {Elapsed} ms, query {Query} ms",
+            startRow, details.Table.Ref, filters.Count, (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds,
+            (long?)result.Value?.Elapsed.TotalMilliseconds);
         if (result.Value is not { } page)
         {
             // The footer shows why ("Details" only for a statement that ran); grid.js fails the block.

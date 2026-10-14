@@ -5,7 +5,9 @@
 @using FerretSharp.Core.Schema
 
 <button class="menu-item ctx-jump @(Related ? "related" : "") @(Count is FkCount.Done { Count: 0 } ? "no-rows" : "")"
-        disabled="@(!Jump.IsAvailable)" title="@FkTargets.Tooltip(Jump)" @onclick="() => OnJump.InvokeAsync(Jump)">
+        disabled="@(!Jump.IsAvailable)" title="@FkTargets.Tooltip(Jump)" @onclick="() => OnJump.InvokeAsync(Jump)"
+        @onmouseenter="() => OnEnter.InvokeAsync(Jump)" @onmouseleave="() => OnLeave.InvokeAsync(Jump)"
+        @onfocus="() => OnEnter.InvokeAsync(Jump)" @onblur="() => OnLeave.InvokeAsync(Jump)">
     <span class="ctx-arrow">@(Jump.Direction == JumpDirection.Outgoing ? "→" : "←")</span>
     <span class="ctx-target">
         <span class="ctx-table">
@@ -51,4 +53,11 @@
 
     [Parameter]
     public EventCallback<FkJump> OnJump { get; set; }
+
+    /// <summary>The mouse or the focus is on the entry (counting on hover, <see cref="FkCountMode.OnHover"/>).</summary>
+    [Parameter]
+    public EventCallback<FkJump> OnEnter { get; set; }
+
+    [Parameter]
+    public EventCallback<FkJump> OnLeave { get; set; }
 }

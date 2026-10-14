@@ -87,6 +87,18 @@
   <data name="Settings_LockWaitHint" xml:space="preserve">
     <value>Hält eine andere Session eine Zeile gesperrt, die du schreiben willst, wartet FerretSharp so lange und zeigt dann, wer sperrt ({0}).</value>
   </data>
+  <data name="Settings_FkCounts" xml:space="preserve">
+    <value>Eingehende Fremdschlüssel zählen</value>
+  </data>
+  <data name="Settings_FkCountsHint" xml:space="preserve">
+    <value>Zellmenü und Formular zeigen, wie viele Zeilen auf die Zeile verweisen. Die Zählungen laufen nacheinander in der Session des Workspaces – ein Sprung in eine andere Tabelle wartet, bis die laufende Zählung fertig ist. „Beim Darüberfahren“ zählt nur den Eintrag, auf dem die Maus ruht.</value>
+  </data>
+  <data name="Settings_FkCountsImmediately" xml:space="preserve">
+    <value>Sofort</value>
+  </data>
+  <data name="Settings_FkCountsOnHover" xml:space="preserve">
+    <value>Beim Darüberfahren</value>
+  </data>
   <data name="Settings_Diagnostics" xml:space="preserve">
     <value>Diagnose</value>
   </data>

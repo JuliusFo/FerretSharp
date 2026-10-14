@@ -12,6 +12,7 @@
 @inject IJSRuntime JS
 @inject ILogger<RowFormPanel> Logger
 @inject ShortcutService Shortcuts
+@inject AppSettingsService Settings
 
 @* tabindex: a click on a label keeps the focus in the form, so Ctrl+F opens its search, not the grid's column jump. *@
 <aside class="form-panel" style="@WidthStyle" tabindex="-1" @ref="_panel" @onkeydown="OnKeyDownAsync">
@@ -125,7 +126,7 @@
                 <div class="form-section">@GridText.Form_ReferencedBy</div>
                 @foreach (var jump in _incoming)
                 {
-                    <FkJumpItem Jump="jump" Count="_counts.Of(jump)" OnJump="Jump" />
+                    <FkJumpItem Jump="jump" Count="_counts.Of(jump)" OnJump="Jump" OnEnter="Hover" OnLeave="_counts.Leave" />
                 }
             </div>
         }
@@ -160,7 +161,7 @@
     private readonly string _idPrefix = "ff-" + Guid.NewGuid().ToString("N")[..8] + "-";
     private readonly Dictionary<int, string> _drafts = [];
     private readonly Dictionary<int, string> _errors = [];
-    private readonly FkCounts _counts = new();
+    private FkCounts _counts = null!;
     private ElementReference _panel;
     private ElementReference _handle;
     private SearchBox? _search;
@@ -212,6 +213,7 @@
 
     protected override void OnInitialized()
     {
+        _counts = FkCounts.For(Shell, Logger, Active, Workspaces, Tab.WorkspaceId, () => InvokeAsync(StateHasChanged));
         Shell.BeforeWrite += OnBeforeWrite;
         Shell.TypedValuesOf += OnTypedValues;
     }
@@ -492,7 +494,19 @@
     private void Jump(FkJump jump)
     {
         CommitDrafts();
+        // The counts run on the workspace's session: the new tab's first page would wait for all of them.
+        _countCts?.Cancel();
         Shell.OpenFiltered(FkTargets.SummaryOf(Active, jump.Table), jump.Filters);
+    }
+
+    /// <summary>Counts the entry the mouse rests on (<see cref="FkCountMode.OnHover"/>); moving to another row cancels it.</summary>
+    private void Hover(FkJump jump)
+    {
+        if (Settings.Current.FkCounts == FkCountMode.OnHover && _countCts is { IsCancellationRequested: false } cts)
+        {
+            var token = cts.Token;
+            Fire(() => _counts.HoverAsync(jump, token));
+        }
     }
 
     private void OpenLob(int column)
@@ -538,8 +552,12 @@
             }
 
             _incoming = RowForm.Incoming(Details, row, Active.Schema?.IncomingOf(Details.Table.Ref) ?? []);
+            _counts.Reset();
             StateHasChanged();
-            await _counts.CountAsync(Shell, Logger, Active, Workspaces, Tab.WorkspaceId, _incoming, () => InvokeAsync(StateHasChanged), token);
+            if (Settings.Current.FkCounts == FkCountMode.Immediately)
+            {
+                await _counts.CountAllAsync(_incoming, token);
+            }
         });
     }
 
