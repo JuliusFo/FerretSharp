@@ -714,6 +714,9 @@ export function create(elementId, dotnet, columns, options) {
     maxBlocksInCache: 40,
     maxConcurrentDatasourceRequests: 1,
     infiniteInitialRowCount: 1,
+    // Since AG Grid 35 the infinite row model shows "No Rows" / "No Matching Rows" itself (English, no localeText): the
+    // tab's footer already says how many rows there are.
+    suppressOverlays: ['noRows', 'noMatchingRows'],
     // Click selects a row, Ctrl+click adds/removes, Shift+click selects a range (only loaded rows).
     rowSelection: { mode: 'multiRow', checkboxes: false, headerCheckbox: false, enableClickSelection: true },
     enableCellTextSelection: true,
