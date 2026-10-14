@@ -11,7 +11,7 @@ Aus der `CLAUDE.md` ausgelagert (Gesamt-Review 3.31.0, Teil C). Vor Änderungen 
 ## CI (`.github/workflows/ci.yml`)
 
 - **Linux:** Core, UI und AppTrace bauen, Unit- und Integrationstests (Oracle in Docker; .NET-8-Runtime für den ModelHost) mit Coverage (`Microsoft.Testing.Extensions.CodeCoverage`, Einstellungen `tests/coverage.config`, Bericht per ReportGenerator).
-- **Coverage-Badge:** auf `main` schreibt der Job `coverage-badge` `coverage.json` in den Branch `badges` für das README-Badge. Lokal: `tools/coverage/Get-Coverage.ps1`.
+- **Coverage-Badge:** auf `main` schreibt der Job `coverage-badge` `coverage.json` in den Branch `badges` für das README-Badge. Lokal: `tools/coverage/Get-Coverage.ps1` (gleiche Messung; unter Linux liegt AppTrace ein paar Zeilen niedriger). Kindprozesse mit eigener Kopie der gemessenen DLLs gehören aus der Messung (`.claude/rules/tests.md`).
 - **Windows:** ganze Solution mit `-warnaserror`, Unit-Tests. Die Integrationstests laufen unter Windows nicht in der CI (Hänger unter Docker Desktop: Backlog).
 
 ## Distribution (Velopack, ADR 0024)
