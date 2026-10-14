@@ -18,4 +18,5 @@ paths:
 - Objekte in Column-Defs (`headerComponentParams`) werden mit `defaultColDef` **tief kopiert** – veränderliche Metadaten als Funktion (`getMeta`). Kopfhöhe nur als Theme-Parameter, nicht als `headerHeight` (setzt die Zeilenhöhe zurück). Angeheftete Zeilen haben `row-index="t-0"`.
 - `GridBridge.CallAsync(…, params object?[] args)`: Eine Liste als einziges Argument immer als `List<…>` übergeben, **kein Array** – ein `GridRowUpdate[]` wird wegen Array-Kovarianz selbst zum params-Array, grid.js bekommt ein Objekt statt einer Liste.
 - `stopEditingWhenCellsLoseFocus` beendet eine Zelleingabe erst **nach** dem Klick, der den Fokus weggenommen hat (Folgen für Knöpfe außerhalb: `ui.md`).
+- Sortierung von .NET aus setzen (`setSorts`, Filter-Vorlagen WP-37): `applyColumnState` mit `defaultState: { sort: null }` lässt das Infinite Row Model selbst ab Zeile 0 neu laden – nicht zusätzlich `refresh` aufrufen, sonst zwei Abfragen.
 - Kopieren (Ctrl+C, Als Tabelle/INSERT/C#) nimmt den ausstehenden Wert, wie angezeigt und wie das Formular (Entscheidung des Nutzers, A21).

@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- Filter presets (WP-37): save the filter rows of a table, and optionally its sort order, under a name such as "Open orders" and apply them again from "Presets ▾" in the filter bar. A preset belongs to the table name, so it works on every connection (Test and Prod have the same schema). A click replaces the filter rows, "+" adds the preset's rows to the current ones; presets can be renamed and deleted. Rows on columns a table does not have come disabled, with a note.
+
 ## [3.34.1] - 2026-10-14
 
 Up-to-date libraries: the data grid moves to AG Grid 36.
