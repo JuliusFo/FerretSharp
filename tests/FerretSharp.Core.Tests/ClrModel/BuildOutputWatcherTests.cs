@@ -25,7 +25,28 @@ public sealed class BuildOutputWatcherTests : IDisposable
         new(_folder.Path, depsOnly, Quiet, () => Interlocked.Increment(ref _reports), _time);
 
     /// <summary>Writes the file and waits until the watcher has handled an event for it (counted or not).</summary>
-    private static async Task WriteAsync(BuildOutputWatcher watcher, string path)
+    private static Task WriteAsync(BuildOutputWatcher watcher, string path) =>
+        HandledAsync(watcher, path, () => File.WriteAllTextAsync(path, Path.GetFileName(path), Ct));
+
+    /// <summary>
+    /// Creates the folder below the watched one a level at a time and waits until the watcher has handled each: on Linux
+    /// (inotify) a new subfolder is watched only once its creation was handled, a file written into it before that is never
+    /// reported (so <see cref="WriteAsync"/> right after <see cref="Directory.CreateDirectory(string)"/> flickered).
+    /// </summary>
+    private async Task<string> CreateDirectoryAsync(BuildOutputWatcher watcher, params string[] names)
+    {
+        var path = _folder.Path;
+        foreach (var name in names)
+        {
+            path = Path.Combine(path, name);
+            var level = path;
+            await HandledAsync(watcher, level, () => Task.FromResult(Directory.CreateDirectory(level)));
+        }
+
+        return path;
+    }
+
+    private static async Task HandledAsync(BuildOutputWatcher watcher, string path, Func<Task> change)
     {
         var handled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         void OnHandled(string file)
@@ -39,7 +60,7 @@ public sealed class BuildOutputWatcherTests : IDisposable
         watcher.Handled += OnHandled;
         try
         {
-            await File.WriteAllTextAsync(path, Path.GetFileName(path), Ct);
+            await change();
             await handled.Task.WaitAsync(TimeSpan.FromSeconds(10), Ct);
         }
         finally
@@ -94,13 +115,13 @@ public sealed class BuildOutputWatcherTests : IDisposable
     {
         using var watcher = Watch(depsOnly: true);
 
-        var obj = Directory.CreateDirectory(Path.Combine(_folder.Path, "obj"));
-        await WriteAsync(watcher, Path.Combine(obj.FullName, "Shop.Data.AssemblyInfo.cs"));
+        var obj = await CreateDirectoryAsync(watcher, "obj");
+        await WriteAsync(watcher, Path.Combine(obj, "Shop.Data.AssemblyInfo.cs"));
         _time.Advance(Quiet * 3);
         Assert.Equal(0, Reports);
 
-        var bin = Directory.CreateDirectory(Path.Combine(_folder.Path, "bin", "Debug", "net8.0"));
-        await WriteAsync(watcher, Path.Combine(bin.FullName, "Shop.Data.deps.json"));
+        var bin = await CreateDirectoryAsync(watcher, "bin", "Debug", "net8.0");
+        await WriteAsync(watcher, Path.Combine(bin, "Shop.Data.deps.json"));
         await ReportedAsync();
         Assert.Equal(1, Reports);
     }

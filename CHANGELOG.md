@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Security
+- `System.Security.Cryptography.Pkcs`, which the Oracle driver brings, is updated to 8.0.2 (CVE-2026-84008, CVE-2026-70162: denial of service).
+
 ## [3.32.0] - 2026-10-14
 
 Structure after the review of the whole code (R5b): shared building blocks instead of copies, more tests. No new features; where a copy behaved differently, all now behave like the best one.
