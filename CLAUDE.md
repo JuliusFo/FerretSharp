@@ -1,7 +1,7 @@
 # FerretSharp – Oracle explorer for .NET developers
 
 > Projektanweisungen für Claude Code. Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-14, zuletzt released 3.34.0 (Historie: `CHANGELOG.md`).
+> Stand: 2026-10-14, zuletzt released 3.34.1 (Historie: `CHANGELOG.md`).
 
 ## Wo steht was
 
@@ -54,7 +54,7 @@ Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erkl
 | Theme, UI-Zustand | eigenes CSS mit Design-Tokens (`ferretsharp.css`); Komponenten + schlanke State-/Service-Klassen | **Nicht verwenden:** WPF-UI, AvalonDock, CommunityToolkit.Mvvm, AvalonEdit, CSS-Frameworks, MVVM- oder Docking-Frameworks. |
 | JS-Interop | ein ES-Modul pro Thema in `wwwroot/js` | JS bleibt dünn. **Keine Geschäftslogik in JS.** |
 | Hosting, Logging | `Microsoft.Extensions.Hosting`; **Serilog** (Datei unter `%APPDATA%\FerretSharp\logs`) | Die BlazorWebView nutzt den Service Provider des Hosts. Keine Bind-Werte von Prod loggen. |
-| Grid, Editor | **AG Grid Community 34.3.1** (Infinite Row Model), **Monaco 0.57** (ADR 0011), beide lokal | Keine AG-Grid-Enterprise-Features. |
+| Grid, Editor | **AG Grid Community 36.2.0** (Infinite Row Model), **Monaco 0.57** (ADR 0011), beide lokal | Keine AG-Grid-Enterprise-Features. |
 | App-Mitschnitt | **EventPipe** + `TraceEvent`, nur in `FerretSharp.AppTrace` (ADR 0023) | Feste Feldliste der EF-Events (`EfEvents`): nie Connection-String, nie Parameter. |
 | Oracle | `Oracle.ManagedDataAccess.Core` (23.x), Ziel **19c+** (12.2 sollte gehen) | Rein managed, async mit `CancellationToken`. `OFFSET/FETCH` ab 12c, kein ROWNUM-Fallback. |
 | Tests | **xUnit v3** auf **Microsoft Testing Platform** + NSubstitute; **Testcontainers.Oracle** | Kein VSTest. |
@@ -116,4 +116,4 @@ Regeln:
 ## 8. Als Nächstes
 
 - Gesamt-Review nach 3.31.0 (`docs/review-3.31.0.md`) abgeschlossen: Teil A als R5a in 3.31.1, Teil C (Doku), Teil B als R5b in 3.32.0. 3.32.1 hebt `System.Security.Cryptography.Pkcs` (kommt mit den Oracle-Paketen) direkt auf 8.0.2 – die direkte Referenz kann weg, sobald ein Oracle-Paket selbst 8.0.2 oder neuer mitbringt (WP-36). 3.33.0: Fehler aus dem Alltag (`docs/work-packages/fixes-2026-10-14.md`); offen dazu die Ursache der Render-Fehler nach dem Ruhezustand (HWND-WebView2 oder Software-Rendering prüfen, Backlog). 3.34.0: Update-Dialog mit den Notizen aller Versionen dazwischen und Bildern (WP-49).
-- Danach WP-36 (Abhängigkeiten), dann WP-37 … WP-47 in der Reihenfolge aus `docs/roadmap.md` (ausgewählt mit dem Nutzer am 2026-10-14), dazu WP-48 (FK-Navigation im SQL-Ergebnis), Platz in der Reihenfolge offen.
+- 3.34.1: WP-36 (Abhängigkeiten, AG Grid 36.2.0). Danach WP-37 … WP-47 in der Reihenfolge aus `docs/roadmap.md` (ausgewählt mit dem Nutzer am 2026-10-14), dazu WP-48 (FK-Navigation im SQL-Ergebnis), Platz in der Reihenfolge offen.
