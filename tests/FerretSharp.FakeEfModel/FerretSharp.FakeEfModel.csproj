@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="Oracle.EntityFrameworkCore" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" />
   </ItemGroup>
 
 </Project>
