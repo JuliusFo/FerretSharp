@@ -1,8 +1,10 @@
 namespace FerretSharp.UI.State;
 
 /// <summary>
-/// Orders release versions as SemVer does where it matters for the update dialog: by number (3.10.0 after 3.9.0), a
-/// prerelease before its release, build metadata ignored. Text that is no version compares as text.
+/// Orders release versions for the update dialog: by number (3.10.0 after 3.9.0), a prerelease before its release, build
+/// metadata ignored. Unlike SemVer, prerelease labels compare as text (beta.10 before beta.2) – the app looks for releases
+/// only. Text that is no version comes before every version and compares as text, so the order stays total (List.Sort
+/// throws on an inconsistent one).
 /// </summary>
 public static class ReleaseVersion
 {
@@ -10,9 +12,16 @@ public static class ReleaseVersion
     {
         var (numberA, prereleaseA) = Split(a);
         var (numberB, prereleaseB) = Split(b);
-        if (!Version.TryParse(numberA, out var versionA) || !Version.TryParse(numberB, out var versionB))
+        Version.TryParse(numberA, out var versionA);
+        Version.TryParse(numberB, out var versionB);
+        if (versionA is null || versionB is null)
         {
-            return string.CompareOrdinal(a, b);
+            return (versionA, versionB) switch
+            {
+                (null, null) => string.CompareOrdinal(a, b),
+                (null, _) => -1,
+                _ => 1,
+            };
         }
 
         var byNumber = Normalize(versionA).CompareTo(Normalize(versionB));

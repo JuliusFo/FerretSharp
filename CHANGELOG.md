@@ -6,7 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 ## [Unreleased]
 
 ### Changed
-- The update dialog shows the notes of every version between yours and the new one, newest first under its version – an update from 3.29.0 to 3.33.0 lists what changed in 3.30.0 to 3.33.0. Where they are not known (the portable zip, or a release without a delta package), it shows the new version's notes and says so.
+- The update dialog shows the notes of every version between yours and the new one, newest first under its version, instead of the new version's only. This takes effect from the update after this release, as the dialog belongs to the installed version. Where the versions between are not known (presumably the portable zip, or a release without a delta package), it shows the new version's notes and says so.
 
 ## [3.33.0] - 2026-10-14
 

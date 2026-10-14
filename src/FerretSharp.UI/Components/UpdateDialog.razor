@@ -13,7 +13,7 @@
         </header>
         <div class="dialog-body">
             <p class="update-current">@TextFormat.Format(ShellText.Update_YouHave, CurrentVersion)</p>
-            @if (update.Notes.All(v => v.Markdown is null))
+            @if (update.Notes is [{ Markdown: null }])
             {
                 <p class="hint">@ShellText.Update_NoNotes</p>
             }
