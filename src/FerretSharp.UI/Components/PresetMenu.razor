@@ -1,12 +1,24 @@
 @* "Presets ▾" at the filter bar (WP-37): named sets of filter rows with an optional sort order, per table name and for
-   every connection. A click replaces the filter rows, "+" adds a preset's rows to them; save, rename and delete. *@
+   every connection. A click replaces the filter rows, "+" adds a preset's rows to them; save, rename and delete. The
+   button names the preset applied last and whether the rows changed since ("Open orders · changed"). *@
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject FilterPresetService Presets
 
-<button class="btn ghost" title="@TextFormat.Format(GridText.Presets_ButtonTitle, Details.Table.DisplayName)" @onclick="OpenAsync">@GridText.Presets_Button ▾</button>
+@{ var active = Active; var changed = active is not null && Changed(active); }
+@if (active is null)
+{
+    <button class="btn ghost" title="@TextFormat.Format(GridText.Presets_ButtonTitle, Details.Table.DisplayName)" @onclick="OpenAsync">@GridText.Presets_Button ▾</button>
+}
+else
+{
+    <button class="btn ghost preset-active @(changed ? "changed" : "")" @onclick="OpenAsync"
+            title="@TextFormat.Format(changed ? GridText.Presets_ActiveChangedTitle : GridText.Presets_ActiveTitle, active.Name)">
+        <span class="preset-active-name">@active.Name</span>@if (changed) { <span class="preset-changed">· @GridText.Presets_Changed</span> } ▾
+    </button>
+}
 
 @if (_menu is { } menu)
 {
@@ -20,10 +32,16 @@
         {
             <div class="preset-note">@TextFormat.Format(GridText.Presets_None, Details.Table.DisplayName)</div>
         }
+        @if (active is not null && changed)
+        {
+            <button class="menu-item" title="@FilterPresetText.Describe(active)" @onclick="() => ApplyAsync(active, append: false)">@TextFormat.Format(GridText.Presets_Reset, active.Name)</button>
+            <button class="menu-item" @onclick="() => UpdateAsync(active)">@TextFormat.Format(GridText.Presets_Update, active.Name)</button>
+            <div class="menu-sep"></div>
+        }
         @foreach (var preset in presets)
         {
             var p = preset;
-            <div class="preset-item">
+            <div class="preset-item @(p.Id == active?.Id ? "active" : "")">
                 <button class="menu-item preset-apply" title="@FilterPresetText.Describe(p)" @onclick="() => ApplyAsync(p, append: false)">@p.Name</button>
                 <button class="icon-btn ghost" title="@GridText.Presets_AppendTitle" @onclick="() => ApplyAsync(p, append: true)">+</button>
                 <button class="icon-btn ghost" title="@ShellText.Rename" @onclick="() => OpenRename(p)">✎</button>
@@ -122,7 +140,16 @@
 
     private bool CanSave => Tab.FilterRows.Count > 0 || Tab.Sorts.Count > 0;
 
-    protected override void OnInitialized() => Presets.Changed += OnPresetsChanged;
+    /// <summary>The preset applied last, if it still exists (renamed: its new name; deleted: none).</summary>
+    private FilterPreset? Active => Tab.Preset is { } id ? Presets.For(Details.Table).FirstOrDefault(p => p.Id == id) : null;
+
+    private bool Changed(FilterPreset preset) => FilterPresets.Differs(preset, Details, Tab.FilterRows.Select(r => r.ToCondition()).ToList(), Tab.Sorts);
+
+    protected override async Task OnInitializedAsync()
+    {
+        Presets.Changed += OnPresetsChanged;
+        await Presets.EnsureLoadedAsync(); // read once for the app: a restored tab names its preset right away
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -176,6 +203,27 @@
         _focusName = true;
     }
 
+    /// <summary>The rows as edited (only if valid) and – if the preset has one – the sort order go into the preset applied last.</summary>
+    private async Task UpdateAsync(FilterPreset preset)
+    {
+        _menu = null;
+        var filters = Tab.FilterRows.Select(r => r.ToCondition()).ToList();
+        var errors = QueryBuilder.Validate(Details, filters);
+        for (var i = 0; i < Tab.FilterRows.Count; i++)
+        {
+            Tab.FilterRows[i].Error = errors.GetValueOrDefault(i);
+        }
+
+        if (errors.Count > 0)
+        {
+            Shell.Notify(GridText.Presets_FixFilters);
+            return;
+        }
+
+        var (saved, error) = await Presets.SaveAsync(Details.Table, preset.Name, filters, preset.Sorts.Count > 0 ? Tab.Sorts : []);
+        Shell.Notify(saved is null ? error! : TextFormat.Format(GridText.Presets_Updated, saved.Name));
+    }
+
     private void OpenRename(FilterPreset preset)
     {
         _menu = null;
@@ -221,6 +269,8 @@
         }
 
         _dialog = null;
+        Tab.Preset = saved.Id; // the rows are the preset now
+        Shell.MarkDirty();
         Shell.Notify(TextFormat.Format(GridText.Presets_Saved, saved.Name));
     }
 

@@ -801,4 +801,22 @@
   <data name="GridMenu_CopyViewLinkTitle" xml:space="preserve">
     <value>Ein ferretsharp://-Link auf diese Tabelle mit Filtern und Sortierung</value>
   </data>
+  <data name="Presets_ActiveTitle" xml:space="preserve">
+    <value>Vorlage {0} angewendet – Filterzeilen und Sortierung wie gespeichert</value>
+  </data>
+  <data name="Presets_ActiveChangedTitle" xml:space="preserve">
+    <value>Vorlage {0} angewendet; Filterzeilen oder Sortierung wurden seitdem geändert</value>
+  </data>
+  <data name="Presets_Changed" xml:space="preserve">
+    <value>geändert</value>
+  </data>
+  <data name="Presets_Reset" xml:space="preserve">
+    <value>Zurück zu {0}</value>
+  </data>
+  <data name="Presets_Update" xml:space="preserve">
+    <value>Aktuellen Stand in {0} speichern</value>
+  </data>
+  <data name="Presets_Updated" xml:space="preserve">
+    <value>Vorlage {0} aktualisiert.</value>
+  </data>
 </root>

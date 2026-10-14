@@ -78,6 +78,26 @@ public class FilterPresetsTests
         Assert.Empty(applied.MissingColumns);
     }
 
+    /// <summary>"Open orders · changed" in the filter bar: rows as edited (also disabled ones), and the sort order if the preset has one.</summary>
+    [Fact]
+    public void A_tab_differs_from_its_preset_once_rows_or_its_sort_order_change()
+    {
+        var sorted = Preset("Offene", [FilterCondition.Of("STATUS", FilterOperator.In, "OFFEN", "NEU")], [new SortSpec("ERSTELLT", true)]);
+        var unsorted = sorted with { Sorts = [] };
+        var rows = sorted.Filters;
+        IReadOnlyList<SortSpec> sorts = [new SortSpec("ERSTELLT", true)];
+
+        Assert.False(FilterPresets.Differs(sorted, Auftrag, [FilterCondition.Of("STATUS", FilterOperator.In, "OFFEN", "NEU")], sorts)); // equal, not the same lists
+        Assert.True(FilterPresets.Differs(sorted, Auftrag, [FilterCondition.Of("STATUS", FilterOperator.In, "OFFEN")], sorts)); // a value
+        Assert.True(FilterPresets.Differs(sorted, Auftrag, [rows[0] with { Enabled = false }], sorts)); // switched off
+        Assert.True(FilterPresets.Differs(sorted, Auftrag, [.. rows, FilterCondition.Of("ID", FilterOperator.Gt, "1")], sorts)); // a row more
+        Assert.True(FilterPresets.Differs(sorted, Auftrag, rows, [])); // sort order gone
+        Assert.False(FilterPresets.Differs(unsorted, Auftrag, rows, [new SortSpec("ID", false)])); // no sort order of its own
+        // A row on a column the table lacks comes disabled: still the preset as applied.
+        var old = Preset("Alt", [FilterCondition.Of("GIBTS_NICHT", FilterOperator.Equals, "1")]);
+        Assert.False(FilterPresets.Differs(old, Auftrag, [FilterCondition.Of("GIBTS_NICHT", FilterOperator.Equals, "1") with { Enabled = false }], []));
+    }
+
     [Theory]
     [InlineData("Offene Aufträge", null)]
     [InlineData("   ", "Bitte einen Namen eingeben.")]

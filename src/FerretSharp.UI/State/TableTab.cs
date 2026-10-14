@@ -64,6 +64,9 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
 
     public IReadOnlyList<SortSpec> Sorts { get; set; } = [];
 
+    /// <summary>The filter preset last applied in full (WP-37); the filter bar shows it and whether the rows changed since.</summary>
+    public Guid? Preset { get; set; }
+
     /// <summary>Columns the user pinned to the left, in pin order (without the always pinned primary key).</summary>
     public IReadOnlyList<string> PinnedColumns { get; set; } = [];
 
@@ -214,6 +217,7 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
         Table.Ref, Mode, FilterRows.Select(r => r.ToCondition()).ToList(), AppliedFilters, Sorts, FirstVisibleRow)
     {
         PinnedColumns = PinnedColumns,
+        Preset = Preset,
         OriginTab = BackTarget(workspaceTabs) is { } origin ? IndexOf(workspaceTabs, origin) : null,
         Form = FormOpen || FormWidth is not null || FormHideEmpty ? new FormTabState(FormOpen, FormWidth, FormHideEmpty) : null,
     };
@@ -240,6 +244,7 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
             Sorts = state.Sorts,
             FirstVisibleRow = state.FirstVisibleRow,
             PinnedColumns = state.PinnedColumns,
+            Preset = state.Preset,
             FormOpen = state.Form?.Open ?? false,
             FormWidth = state.Form?.Width,
             FormHideEmpty = state.Form?.HideEmpty ?? false,

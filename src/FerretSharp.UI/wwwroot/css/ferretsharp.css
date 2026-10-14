@@ -724,6 +724,10 @@ table.binds td { font-family: var(--mono); }
 .preset-item .icon-btn:hover { color: var(--text); }
 .preset-item .preset-delete:hover { color: var(--danger); }
 .preset-note { padding: 6px 10px; color: var(--faint); font-size: 12.5px; }
+.preset-item.active .preset-apply { font-weight: 600; }
+.btn.preset-active { max-width: 280px; }
+.btn.preset-active .preset-active-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--accent); }
+.btn.preset-active .preset-changed { color: var(--faint); white-space: nowrap; }
 .preset-note.error { color: var(--danger); }
 .dialog.preset-dialog { width: min(560px, 94vw); }
 /* links (WP-37): what a link from outside opens, before it does */

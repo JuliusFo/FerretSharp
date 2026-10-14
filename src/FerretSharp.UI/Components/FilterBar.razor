@@ -149,6 +149,11 @@
         var applied = FilterPresets.Apply(choice.Preset, Details, current, choice.Append);
         Tab.FilterRows.Clear();
         Tab.FilterRows.AddRange(applied.Filters.Select(FilterRow.From));
+        if (!choice.Append)
+        {
+            Tab.Preset = choice.Preset.Id; // added rows keep the preset shown before, now "changed"
+        }
+
         if (applied.MissingColumns.Count > 0)
         {
             Shell.Notify(TextFormat.Plural(applied.MissingColumns.Count, GridText.Presets_MissingColumnsOne, GridText.Presets_MissingColumnsOther,
@@ -167,6 +172,7 @@
     private async Task ClearAsync()
     {
         Tab.FilterRows.Clear();
+        Tab.Preset = null;
         await OnApply.InvokeAsync();
     }
 

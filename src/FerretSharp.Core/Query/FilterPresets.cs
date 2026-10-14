@@ -40,6 +40,22 @@ public static class FilterPresets
     }
 
     /// <summary>
+    /// Whether the tab's rows (as edited, with disabled ones) and sort order differ from what applying
+    /// <paramref name="preset"/> gives – "Open orders · changed" in the filter bar. A preset without a sort order (or none
+    /// that fits the table) does not mind the tab's.
+    /// </summary>
+    public static bool Differs(FilterPreset preset, TableDetails table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts)
+    {
+        var applied = Apply(preset, table, [], append: false);
+        return applied.Filters.Count != filters.Count
+               || applied.Filters.Zip(filters).Any(pair => !Same(pair.First, pair.Second))
+               || applied.Sorts is { } presetSorts && !presetSorts.SequenceEqual(sorts);
+    }
+
+    private static bool Same(FilterCondition a, FilterCondition b) =>
+        a.Column == b.Column && a.Op == b.Op && a.Enabled == b.Enabled && a.Values.SequenceEqual(b.Values, StringComparer.Ordinal);
+
+    /// <summary>
     /// The filter rows and sort order of <paramref name="preset"/> for <paramref name="table"/>: replacing the current
     /// rows, or after them (<paramref name="append"/>). Rows on columns the table does not have come disabled (and are
     /// listed), so the user sees what the preset wanted; sorts on such columns, or on ones that cannot be sorted, are left out.

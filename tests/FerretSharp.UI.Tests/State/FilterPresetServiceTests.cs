@@ -133,6 +133,21 @@ public sealed class FilterPresetServiceTests : IDisposable
         Assert.Equal(["Neu", "Offene"], (await ServiceAsync()).For(AuftragTest).Select(p => p.Name));
     }
 
+    /// <summary>The filter bar names the preset applied last, also after a restart: the tab keeps its id in the workspace file.</summary>
+    [Fact]
+    public void The_applied_preset_is_kept_with_the_tab()
+    {
+        var id = Guid.NewGuid();
+        var tab = new TableTab(Guid.NewGuid(), AuftragTest) { Preset = id };
+
+        var state = tab.ToState([tab]);
+        var restored = TableTab.Restore(Guid.NewGuid(), AuftragTest, state);
+
+        Assert.Equal(id, state.Preset);
+        Assert.Equal(id, restored.Preset);
+        Assert.Null(TableTab.Restore(Guid.NewGuid(), AuftragTest, state with { Preset = null }).Preset);
+    }
+
     [Fact]
     public void The_tooltip_lists_the_rows_and_the_sort_order()
     {

@@ -1023,4 +1023,28 @@
   <data name="GridMenu_CopyViewLinkTitle" xml:space="preserve">
     <value>A ferretsharp:// link to this table with its filters and sort order</value>
   </data>
+  <data name="Presets_ActiveTitle" xml:space="preserve">
+    <value>Preset {0} applied – the filter rows and sort order are as saved</value>
+    <comment>{0}: preset name</comment>
+  </data>
+  <data name="Presets_ActiveChangedTitle" xml:space="preserve">
+    <value>Preset {0} applied; the filter rows or sort order changed since</value>
+    <comment>{0}: preset name</comment>
+  </data>
+  <data name="Presets_Changed" xml:space="preserve">
+    <value>changed</value>
+    <comment>After the name of the applied preset in the filter bar: the rows differ from it</comment>
+  </data>
+  <data name="Presets_Reset" xml:space="preserve">
+    <value>Back to {0}</value>
+    <comment>Menu item: apply the preset again. {0}: preset name</comment>
+  </data>
+  <data name="Presets_Update" xml:space="preserve">
+    <value>Save current rows to {0}</value>
+    <comment>Menu item: overwrite the preset with the current filter rows. {0}: preset name</comment>
+  </data>
+  <data name="Presets_Updated" xml:space="preserve">
+    <value>Preset {0} updated.</value>
+    <comment>{0}: preset name</comment>
+  </data>
 </root>
