@@ -342,7 +342,13 @@
 
     private bool IsOpen(PlSqlObjectSummary unit) => Shell.Tabs.OfType<PlSqlTab>().Any(t => t.Unit.Ref == unit.Ref);
 
-    private static string GroupId(char letter) => $"tbl-grp-{(letter == LetterIndexBar.Other ? "other" : letter.ToString())}";
+    /// <summary>
+    /// The explorers of all open connections stay mounted (hidden ones with display:none): with ids shared between them, the
+    /// letter bar found the first connection's group, and scrolling a hidden element does nothing.
+    /// </summary>
+    private readonly string _groupPrefix = "tbl-grp-" + Guid.NewGuid().ToString("N")[..8] + "-";
+
+    private string GroupId(char letter) => _groupPrefix + (letter == LetterIndexBar.Other ? "other" : letter.ToString());
 
     private void SetSection(ExplorerSection section) => _section = section;
 
