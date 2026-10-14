@@ -86,10 +86,6 @@
     <value>{0} …</value>
     <comment>{0} = the current loading step</comment>
   </data>
-  <data name="Model_ElapsedTotal" xml:space="preserve">
-    <value>{0} · {1} in total</value>
-    <comment>{0} = time of the current step, {1} = time since loading started</comment>
-  </data>
   <data name="Model_HideDetails" xml:space="preserve">
     <value>Hide details</value>
   </data>

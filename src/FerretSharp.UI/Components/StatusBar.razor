@@ -35,7 +35,7 @@
                 <button class="status-btn" @onclick="Lifecycle.DisconnectAsync">@ShellText.Connection_Disconnect</button>
                 break;
             case ConnectionStatus.Connecting:
-                <span class="item"><span class="spinner small"></span> @TextFormat.Format(ShellText.Connection_ConnectingTo, Active.Profile?.Name)</span>
+                <span class="item"><span class="spinner small"></span> @TextFormat.Format(ShellText.Connection_ConnectingTo, Active.Profile?.Name) <ConnectProgress Active="Active" Compact="true" /></span>
                 break;
             case ConnectionStatus.Failed:
                 <span class="item error"><span class="dot err"></span> @ShellText.Status_ConnectionFailed</span>

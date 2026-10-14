@@ -109,4 +109,30 @@
   <data name="ImportNothingSelected" xml:space="preserve">
     <value>No connection selected.</value>
   </data>
+  <data name="Step_WaitingForPrevious" xml:space="preserve">
+    <value>Waiting for the previous attempt</value>
+    <comment>Connect step: an earlier connect of this connection has not ended yet</comment>
+  </data>
+  <data name="Step_ClosingPrevious" xml:space="preserve">
+    <value>Closing the previous sessions</value>
+  </data>
+  <data name="Step_OpeningSession" xml:space="preserve">
+    <value>Opening the session</value>
+  </data>
+  <data name="Step_ReadingTables" xml:space="preserve">
+    <value>Reading tables and views</value>
+  </data>
+  <data name="Step_ReadingSynonyms" xml:space="preserve">
+    <value>Reading synonyms</value>
+  </data>
+  <data name="Step_ReadingPlSql" xml:space="preserve">
+    <value>Reading PL/SQL objects</value>
+  </data>
+  <data name="Step_ReadingForeignKeys" xml:space="preserve">
+    <value>Reading foreign keys of {0} ({1} of {2})</value>
+    <comment>{0} = schema name, {1} = number of this schema, {2} = number of schemas</comment>
+  </data>
+  <data name="Step_RestoringWorkspaces" xml:space="preserve">
+    <value>Restoring the workspaces</value>
+  </data>
 </root>

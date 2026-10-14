@@ -1,4 +1,5 @@
 using FerretSharp.Core.Connections;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 using FerretSharp.Core.Tests.Fakes;
 using FerretSharp.Core.Workspaces;
@@ -48,6 +49,80 @@ public sealed class ActiveConnectionTests : IDisposable
         Assert.Equal("23.26.3.0.0", _active.ServerVersion);
         await _connector.Received(1).OpenAsync(_profile, "pw", ActiveConnection.ExplorerAction, Arg.Any<CancellationToken>());
         Assert.True(_recent.LastUsed.ContainsKey(_profile.Id));
+    }
+
+    /// <summary>A colleague's connect seemed to hang (2026-10-14): each step is shown while it runs and kept with its duration.</summary>
+    [Fact]
+    public async Task Connect_reports_each_step_and_keeps_them_with_their_durations()
+    {
+        var shown = new List<string?>();
+        _active.StepChanged += () => shown.Add(_active.Step);
+
+        await _active.ConnectAsync(_profile, Ct);
+
+        string[] steps =
+        [
+            ConnectionText.Step_OpeningSession, ConnectionText.Step_ReadingTables, ConnectionText.Step_ReadingSynonyms,
+            ConnectionText.Step_ReadingPlSql, TextFormat.Format(ConnectionText.Step_ReadingForeignKeys, "APP_USER", 1, 1),
+            ConnectionText.Step_RestoringWorkspaces,
+        ];
+        Assert.Equal([.. steps, null], shown);
+        Assert.Null(_active.Step);
+        Assert.Equal(steps, _active.Steps.Select(s => s.Name));
+        Assert.All(_active.Steps, s => Assert.True(s.Duration >= TimeSpan.Zero));
+        Assert.NotNull(_active.ConnectStartedAt);
+    }
+
+    [Fact]
+    public async Task Connecting_again_first_closes_the_previous_sessions_as_a_step()
+    {
+        await _active.ConnectAsync(_profile, Ct);
+
+        await _active.ConnectAsync(_profile, Ct);
+
+        Assert.Equal(ConnectionText.Step_ClosingPrevious, _active.Steps[0].Name);
+        Assert.Equal(ConnectionText.Step_OpeningSession, _active.Steps[1].Name);
+    }
+
+    /// <summary>ODP.NET runs the TCP connect to its timeout (15 s) whatever the token says: Cancel did nothing until then.</summary>
+    [Fact]
+    public async Task Cancel_returns_while_opening_and_a_session_that_opens_later_is_closed()
+    {
+        var opening = new TaskCompletionSource<IDatabaseConnection>();
+        _connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(opening.Task);
+        var connecting = _active.ConnectAsync(_profile, Ct);
+        await Eventually(() => _active.Step == ConnectionText.Step_OpeningSession);
+
+        _active.CancelPendingConnect();
+        await connecting.WaitAsync(TimeSpan.FromSeconds(5), Ct);
+
+        Assert.Equal(ConnectionStatus.Disconnected, _active.Status);
+        opening.SetResult(_connection);
+        await Eventually(() => _connection.ReceivedCalls().Any(c => c.GetMethodInfo().Name == nameof(IAsyncDisposable.DisposeAsync)));
+    }
+
+    private static async Task Eventually(Func<bool> condition)
+    {
+        for (var waited = 0; !condition(); waited += 10)
+        {
+            Assert.True(waited < 5_000, "Timed out.");
+            await Task.Delay(10, Ct);
+        }
+    }
+
+    [Fact]
+    public async Task A_failed_connect_keeps_the_steps_up_to_the_failure()
+    {
+        _reader.GetSynonymTargetsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new DatabaseException("timeout", "ORA-12170"));
+
+        await _active.ConnectAsync(_profile, Ct);
+
+        Assert.Equal(ConnectionStatus.Failed, _active.Status);
+        Assert.Null(_active.Step);
+        Assert.Equal([ConnectionText.Step_OpeningSession, ConnectionText.Step_ReadingTables, ConnectionText.Step_ReadingSynonyms],
+            _active.Steps.Select(s => s.Name));
     }
 
     [Fact]

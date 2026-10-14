@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.Schema;
 
@@ -50,18 +51,26 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
 
     public DateTimeOffset? LoadedAt { get; private set; }
 
-    public async Task LoadAsync(CancellationToken cancellationToken)
+    public Task LoadAsync(CancellationToken cancellationToken) => LoadAsync(null, cancellationToken);
+
+    /// <param name="progress">Each query before it runs (connecting shows the step): one after the other on the explorer session.</param>
+    public async Task LoadAsync(IProgress<string>? progress, CancellationToken cancellationToken)
     {
+        progress?.Report(ConnectionText.Step_ReadingTables);
         var own = await reader.GetTablesAsync(Owner, cancellationToken);
+        progress?.Report(ConnectionText.Step_ReadingSynonyms);
         var synonymTargets = await reader.GetSynonymTargetsAsync(Owner, cancellationToken);
         var tables = Merge(own, synonymTargets.Tables);
+        progress?.Report(ConnectionText.Step_ReadingPlSql);
         var plSql = Merge(await reader.GetPlSqlObjectsAsync(Owner, cancellationToken), synonymTargets.PlSql);
 
         // Foreign keys of every schema that contributes objects, so relationships work across synonyms too.
         var foreignKeys = new List<ForeignKeyInfo>();
-        foreach (var schema in tables.Select(t => t.Owner).Prepend(Owner).Distinct(StringComparer.Ordinal))
+        var schemas = tables.Select(t => t.Owner).Prepend(Owner).Distinct(StringComparer.Ordinal).ToList();
+        for (var i = 0; i < schemas.Count; i++)
         {
-            foreignKeys.AddRange(await reader.GetForeignKeysAsync(schema, cancellationToken));
+            progress?.Report(TextFormat.Format(ConnectionText.Step_ReadingForeignKeys, schemas[i], i + 1, schemas.Count));
+            foreignKeys.AddRange(await reader.GetForeignKeysAsync(schemas[i], cancellationToken));
         }
 
         Tables = tables;

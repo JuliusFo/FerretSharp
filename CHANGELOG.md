@@ -7,8 +7,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ### Added
 - Setting "Count incoming foreign keys": immediately (as before) or only on hover. The counts run on the workspace's session one after the other, so a jump to another table waits until the running count has ended – with "On hover" for one count at most.
+- Connecting shows what it is doing and for how long ("Opening the session", "Reading synonyms", "Reading foreign keys of APP (2 of 5)" …), below the spinner and in the status bar. The log has each step and, at the end, the durations of all of them.
 
 ### Fixed
+- Cancel while connecting took effect only when opening the session gave up (15 s against an unreachable address); it now returns at once.
 - The letter bar of the explorer jumped only in the first opened connection; in the others a click did nothing.
 - A foreign key jump from the form waited until all incoming foreign keys of the row were counted.
 

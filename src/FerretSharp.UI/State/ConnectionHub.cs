@@ -16,6 +16,7 @@ public sealed class ConnectionScope : IAsyncDisposable
     private readonly AsyncServiceScope _scope;
     private readonly ConnectionProfile? _openedWith;
     private readonly ClrActivityLog? _activity;
+    private readonly ConnectActivityLog? _connecting;
 
     internal ConnectionScope(AsyncServiceScope scope, ConnectionProfile? profile)
     {
@@ -29,6 +30,7 @@ public sealed class ConnectionScope : IAsyncDisposable
         if (profile is not null && scope.ServiceProvider.GetService<ILoggerFactory>() is { } loggers)
         {
             _activity = new ClrActivityLog(Models, Linq, loggers.CreateLogger<ClrActivityLog>(), profile.Name);
+            _connecting = new ConnectActivityLog(Active, loggers.CreateLogger<ConnectActivityLog>(), profile.Name);
         }
     }
 
@@ -63,6 +65,7 @@ public sealed class ConnectionScope : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         _activity?.Dispose();
+        _connecting?.Dispose();
         await Active.DisconnectAsync();
         await _scope.DisposeAsync();
     }
