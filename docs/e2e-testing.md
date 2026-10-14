@@ -40,6 +40,8 @@ Drei Stufen, von schwach nach stark:
 ## Kniffe
 - Nach einem Klick auf einen Tab ist `.page.active` noch kurz die alte Seite → auf etwas Spezifisches des Ziels warten.
 - Im Infinite Row Model kennt das Grid anfangs nur ~501 Zeilen; `scrollTop` weiter unten wird abgeschnitten.
+- AG-Grid-Optionen prüfen: `agGrid.enableDevValidations()` per CDP, dann einen Tab öffnen – das neue Grid meldet veraltete oder falsche Optionen in der Konsole und als Panel im Grid (seit 36 sonst still, WP-36).
+- Hell/dunkel bei `--theme=dark`: Die Einstellung greift erst beim nächsten Start; zum Umschalten in derselben Sitzung `Emulation.setEmulatedMedia` (`prefers-color-scheme`) und den Screenshot in **derselben** CDP-Verbindung (die Emulation endet mit ihr).
 - Text im LOB-Dialog geht erst beim `change` nach .NET → mit echter Maus übernehmen.
 - Monaco über `getModels()…setValue`/`setPosition` füttern, `triggerSuggest` erst nach > 250 ms.
 - Ausdrücke mit Anführungszeichen über eine Datei an `node` geben (PowerShell 5.1 verliert sie).

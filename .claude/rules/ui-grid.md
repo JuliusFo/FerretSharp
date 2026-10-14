@@ -11,6 +11,8 @@ paths:
 
 - Datenblöcke à 500 und Sortierung kommen aus .NET (`IDataAccess`), gekapselt in `FerretGrid` (Tabellen) bzw. `SqlResultGrid` (SQL/LINQ) über `GridBridge` + `wwwroot/js/grid.js`; Spalten als `GridColumn`, Rohzeilen der geladenen Blöcke in `RowBlocks`. Zellen gehen als fertig formatierte Strings über die Grenze (null = NULL), Spalten-IDs `c0`, `c1` … (Oracle-Namen dürfen Punkte enthalten).
 - AG Grid liegt lokal unter `wwwroot/lib/ag-grid/` (Herkunft/Hash in der README dort, kein CDN). Keine Enterprise-Features (Kontextmenü, Zellbereich) – eigene Lösungen in Blazor.
+- Seit AG Grid 36 fehlt das `ValidationModule` in `AllCommunityModule`: falsche oder veraltete Optionen werden **still ignoriert**. Nach einem Update oder neuen Optionen im E2E `agGrid.enableDevValidations()` aufrufen und ein Grid neu anlegen (WP-36 fand so `tooltipValueGetter` → `tooltip`).
+- Eigene Overlays des Infinite Row Model („No Rows“, seit 35) sind per `suppressOverlays` aus – Zeilenzahl und Fehler zeigt die Fußzeile des Tabs.
 - Farben nur als Tokens in `ferretsharp.css` (`--accent`, `--surface`, `--text`, `--grid-*`); `grid.js` liest sie beim Erzeugen und bei jedem Theme-Wechsel.
 - grid.js loggt gescheiterte Aufrufe per `callFailed` statt `.catch(() => {})`.
 - Objekte in Column-Defs (`headerComponentParams`) werden mit `defaultColDef` **tief kopiert** – veränderliche Metadaten als Funktion (`getMeta`). Kopfhöhe nur als Theme-Parameter, nicht als `headerHeight` (setzt die Zeilenhöhe zurück). Angeheftete Zeilen haben `row-index="t-0"`.

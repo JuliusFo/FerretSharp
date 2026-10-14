@@ -5,6 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+Up-to-date libraries: the data grid moves to AG Grid 36.
+
+### Changed
+- The data grid uses AG Grid Community 36.2.0 (before: 34.3.1, without fixes since 2025). It looks and behaves as before; an empty result still shows only "0 rows" in the footer, no extra "No Rows" message.
+- Updated libraries: ASP.NET Core components and hosting 10.0.13, Windows Credential Manager access 3.0.5.
+
 ## [3.34.0] - 2026-10-14
 
 The update dialog shows what is new in every version you skip, and release notes can show images.

@@ -72,6 +72,7 @@ Reihenfolge wie die Releases. Kleinere Releases ohne eigenes Paket (Fixes, Komfo
 | Klein | [small-update-notes-all-versions.md](small-update-notes-all-versions.md) | Update-Dialog mit den Notizen aller Versionen zwischen der installierten und der neuen | UI State (`AppUpdate.From`, `ReleaseVersion`), `UpdateDialog`, App `VelopackUpdater` | 3.34.0 | (0024) |
 | WP-49 | [wp-49-changelog-images.md](wp-49-changelog-images.md) | Bilder im Changelog: im Repo relativ, im Release auf den Tag umgeschrieben, im Update-Dialog nur aus dem eigenen Repo | UI State (`ReleaseNotes.IsOwnImage`), `UpdateDialog`, `release.yml`, Core.Tests `ChangelogTests`, `tests/Shared/Repository` | 3.34.0 | (0024) |
 | Klein | [small-coverage.md](small-coverage.md) | Coverage-Messung der CI repariert (Fake-Host überschrieb unter Linux die Treffer der Core-Tests), Tests für Schema-Vergleich, Workspace-Lifecycle und Activity-Logs | `tests/coverage.config`; UI.Tests `SchemaCompareServiceTests`, `WorkspaceLifecycleTests`, `ActivityLogTests` | – | – |
+| WP-36 | [wp-36-dependency-update.md](wp-36-dependency-update.md) | Abhängigkeiten: AG Grid 34.3.1 → 36.2.0 (eigene Overlays aus, `tooltip` statt `tooltipValueGetter`, Scrollbalken-Ecke), NuGet-Patches, `checkout` v7 und `setup-dotnet` v6 | `wwwroot/lib/ag-grid`, `grid.js`, `ferretsharp.css`, `Directory.Packages.props`, `.github/workflows` | – | – |
 
 ## Neues Protokoll
 
