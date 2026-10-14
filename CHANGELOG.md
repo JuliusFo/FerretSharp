@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Fixed
+- App statements: "Clear" was only offered while the trace was running; once the app has ended or was detached, the recording can now be cleared as well.
+
 ## [3.33.0] - 2026-10-14
 
 Fixes from daily work: foreign key counts that held up jumps, a connect that seemed to hang, the letter bar in further connections and error messages after sleep at a dock.
