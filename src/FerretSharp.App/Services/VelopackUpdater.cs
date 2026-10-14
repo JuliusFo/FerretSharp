@@ -28,7 +28,7 @@ internal sealed class VelopackUpdater : IAppUpdater
         _manager = new UpdateManager(source);
         // The new version starts as this one did (data folder, language) – with full paths: Velopack's updater may start it
         // in another working folder, and a relative --data-dir would then point at an empty one (review 3.31.0, A44).
-        _restartArguments = args.Select(WithFullPath).ToArray();
+        _restartArguments = [.. CommandLine.Restart(args)];
     }
 
     public bool IsInstalled => _manager.IsInstalled;
@@ -57,12 +57,6 @@ internal sealed class VelopackUpdater : IAppUpdater
         var asset = _manager.UpdatePendingRestart ?? throw new InvalidOperationException($"Update {update.Version} is not downloaded.");
         _manager.WaitExitThenApplyUpdates(asset, silent: false, restart: true, _restartArguments);
     }
-
-    private static string WithFullPath(string argument) =>
-        CommandLine.PathOptions.FirstOrDefault(p => argument.StartsWith(p, StringComparison.OrdinalIgnoreCase)) is { } prefix
-        && argument.Length > prefix.Length
-            ? prefix + Path.GetFullPath(argument[prefix.Length..])
-            : argument;
 
     private static AppUpdate ToUpdate(VelopackAsset asset) =>
         new(asset.Version.ToString(), string.IsNullOrWhiteSpace(asset.NotesMarkdown) ? null : asset.NotesMarkdown);

@@ -142,4 +142,15 @@ The log is in {1}.</value>
     <value>{0} · {1} in total</value>
     <comment>{0} = time of the current step, {1} = time since loading started</comment>
   </data>
+  <data name="RenderFailure_Title" xml:space="preserve">
+    <value>Display problem</value>
+    <comment>Title of the question after WPF's render thread failed (graphics output reset, e.g. after sleep at a dock)</comment>
+  </data>
+  <data name="RenderFailure_Question" xml:space="preserve">
+    <value>Windows reset the graphics output – this happens after sleep with a dock or an external monitor – and FerretSharp could not draw its window for a moment.
+
+You can usually keep working. If the window no longer draws correctly, restart FerretSharp: open tabs and pending changes are kept, and you are asked about uncommitted changes first, as when closing.
+
+Restart FerretSharp now?</value>
+  </data>
 </root>

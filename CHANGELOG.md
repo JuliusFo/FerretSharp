@@ -11,6 +11,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ### Fixed
 - Cancel while connecting took effect only when opening the session gave up (15 s against an unreachable address); it now returns at once.
+- After waking up at a dock, an "Unexpected error" (UCEERR_RENDERTHREADFAILURE) came several times in a row. Windows resets the graphics output then; FerretSharp now explains it once and offers a restart (asking about uncommitted changes first, as when closing).
 - The letter bar of the explorer jumped only in the first opened connection; in the others a click did nothing.
 - A foreign key jump from the form waited until all incoming foreign keys of the row were counted.
 

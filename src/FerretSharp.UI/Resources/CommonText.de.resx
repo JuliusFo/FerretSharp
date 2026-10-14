@@ -122,4 +122,14 @@ Das Protokoll liegt in {1}.</value>
   <data name="ElapsedTotal" xml:space="preserve">
     <value>{0} · insgesamt {1}</value>
   </data>
+  <data name="RenderFailure_Title" xml:space="preserve">
+    <value>Problem mit der Anzeige</value>
+  </data>
+  <data name="RenderFailure_Question" xml:space="preserve">
+    <value>Windows hat die Grafikausgabe neu gestartet – das passiert nach dem Ruhezustand mit Dock oder externem Monitor –, und FerretSharp konnte sein Fenster kurz nicht zeichnen.
+
+Meist kannst du einfach weiterarbeiten. Zeichnet das Fenster nicht mehr richtig, starte FerretSharp neu: Offene Tabs und ausstehende Änderungen bleiben erhalten, nach nicht committeten Änderungen wirst du vorher gefragt wie beim Schließen.
+
+FerretSharp jetzt neu starten?</value>
+  </data>
 </root>
