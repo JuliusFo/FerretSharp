@@ -5,8 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- Setting "Count incoming foreign keys": immediately (as before) or only on hover. The counts run on the workspace's session one after the other, so a jump to another table waits until the running count has ended – with "On hover" for one count at most.
+
 ### Fixed
 - The letter bar of the explorer jumped only in the first opened connection; in the others a click did nothing.
+- A foreign key jump from the form waited until all incoming foreign keys of the row were counted.
 
 ## [3.32.1] - 2026-10-14
 

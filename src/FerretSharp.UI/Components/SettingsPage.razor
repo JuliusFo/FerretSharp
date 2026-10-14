@@ -148,6 +148,21 @@
                     }
                 </div>
             </div>
+            <div class="settings-row @Hide(SettingKey.FkCounts)">
+                <div class="settings-label">
+                    <span>@ShellText.Settings_FkCounts</span>
+                    <span class="hint">@ShellText.Settings_FkCountsHint</span>
+                </div>
+                <div class="segmented" role="radiogroup" aria-label="@ShellText.Settings_FkCounts">
+                    @foreach (var (mode, label) in FkCountModes)
+                    {
+                        var value = mode;
+                        <button class="seg @(Settings.Current.FkCounts == value ? "active" : "")" role="radio"
+                                aria-checked="@(Settings.Current.FkCounts == value ? "true" : "false")"
+                                @onclick="() => SetFkCountsAsync(value)">@label</button>
+                    }
+                </div>
+            </div>
         </section>
         }
 
@@ -418,6 +433,11 @@
     private Task SetClrNamesAsync(ClrNameDisplay mode) => UpdateAsync(s => s with { ClrNames = mode });
 
     private Task SetLockWaitAsync(int seconds) => UpdateAsync(s => s with { LockWaitSeconds = seconds });
+
+    private static (FkCountMode Mode, string Label)[] FkCountModes =>
+        [(FkCountMode.Immediately, ShellText.Settings_FkCountsImmediately), (FkCountMode.OnHover, ShellText.Settings_FkCountsOnHover)];
+
+    private Task SetFkCountsAsync(FkCountMode mode) => UpdateAsync(s => s with { FkCounts = mode });
 
     private Task SetKeepAliveAsync(bool on) => UpdateAsync(s => s with { KeepAlive = on });
 
