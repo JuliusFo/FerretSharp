@@ -22,3 +22,13 @@ Aus der `CLAUDE.md` ausgelagert (Gesamt-Review 3.31.0, Teil C). Vor Änderungen 
 - `Program.Main` ruft zuerst `VelopackApp…Run()`, dann die Instanzsperre (eine Instanz je Datenordner). Installiert prüft die App auf Updates (Einstellungen › Updates); ohne Installation (Debug, `dotnet run`, E2E) passiert nichts.
 - Lokale Release-Builds landen unter `artifacts/` (nicht eingecheckt).
 - Updates im E2E prüfen: `docs/e2e-testing.md` › Updates (nie `Setup.exe` starten).
+
+## Bilder im Changelog (WP-49)
+
+Der CHANGELOG-Abschnitt erscheint an drei Stellen: im Repo, als Text des GitHub-Releases und im Update-Dialog der App. Bilder gehen überall, wenn sie so eingebunden sind:
+- **Ablage:** `docs/images/changelog/<version>-<name>.png` (oder `.webp`), Dateiname nur aus Buchstaben, Ziffern, `.`, `-`, `_`.
+- **Einbinden:** relativ und als eigene Zeile, `![Alt-Text](docs/images/changelog/3.34.0-dialog.png)` – direkt unter dem Punkt, zu dem es gehört (eingerückt oder nicht; der Dialog zeigt es als eigenen Block nach dem Punkt). Mitten in einem Satz zeigt der Dialog nur „!Alt-Text“.
+- **Release-Workflow:** schreibt die Pfade beim Ausschneiden auf `https://raw.githubusercontent.com/JuliusFo/FerretSharp/vX.Y.Z/<pfad>` um (für `changes.md` und `notes.md`) und bricht ab, wenn ein Bild fehlt oder nicht direkt unter `docs/images/changelog/` liegt. Vorher schon `ChangelogTests` (Core, laufen auch im Release): eigene Zeile, Alt-Text, Ordner, Dateiname, vorhanden, höchstens 400 KB.
+- **Dialog:** zeigt nur Bilder von `raw.githubusercontent.com/JuliusFo/FerretSharp/…` (`ReleaseNotes.IsOwnImage`), sonst den Alt-Text; lädt das Bild nicht (offline, VPN), steht der Alt-Text als Hinweis da. Klick öffnet das Bild im Browser. Erst Installationen ab 3.34.0 zeigen Bilder, ältere zeigen „!Alt-Text“.
+- **Aufnahme:** zugeschnittene Ausschnitte statt ganzer Fenster, Ziel 100–200 KB (die Bilder liegen für immer in der Git-Historie; das Velopack-Paket wird nicht größer). **Dunkles Theme** (Entscheidung des Nutzers, 2026-10-14: eine Variante, dunkel), englische Oberfläche. Aufnahme wie die README-Screenshots (`docs/e2e-testing.md` › README-Screenshots: eigene Instanz mit `--data-dir`, Beispiel-DB, `--theme=dark --lang=en`, CDP `Page.captureScreenshot` mit `clip`), nie echte Verbindungen, Hosts oder Daten.
+- **Alt-Text:** ein lesbarer Satz, was das Bild zeigt – er steht offline, in älteren Versionen und für Screenreader an seiner Stelle.

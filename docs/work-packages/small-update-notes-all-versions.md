@@ -20,4 +20,4 @@ Bewusst nur dokumentiert: Prerelease-Kennungen vergleicht `ReleaseVersion` als T
 - Kein E2E: Ein lokal gepacktes Update (`--update-source`) braucht eine Setup-Installation, und die landet im echten `%LOCALAPPDATA%\FerretSharp` des Nutzers. Beim nächsten echten Update (Setup-Installation, mindestens zwei Versionen übersprungen) prüfen, dass alle Versionen erscheinen; mit Portable erscheint vermutlich der Hinweis.
 - Fehlt mitten in der Kette ein Delta (z. B. ein Release ohne Vorgänger-Download in der CI), fehlen dessen Notizen, ohne dass der Hinweis kommt.
 - Ebenso, wer mehr als etwa 10 Versionen überspringt: `GithubSource` liest nur die letzten 10 Releases, die ältesten Versionen dazwischen fehlen, der Hinweis kommt nicht (es gibt ja Deltas). Eine Schwelle („ab 10 Deltas unvollständig“) wäre geraten, deshalb nicht gebaut.
-- Dass die Portable-Version kein lokales Full-Paket hat (also immer den Hinweis zeigt), ist nicht geprüft.
+- Portable (Nachtrag, E2E von WP-49 auf demselben Branch): kein lokales Full-Paket, der Dialog zeigt nur die Notizen des Ziels mit dem Hinweis – wie erwartet.

@@ -24,6 +24,7 @@ Drei Stufen, von schwach nach stark:
 ## Updates (WP-32)
 - Nie `Setup.exe` im E2E starten: Es installiert nach `%LocalAppData%\<Pack-Id>`, legt Verknüpfungen an und startet die App **ohne** `--data-dir`, also auf den echten Daten des Nutzers. Stattdessen das Portable-Zip im Scratchpad entpacken und `current\FerretSharp.exe` mit `--data-dir=<scratch>` und `--update-source=<scratch>\releases` starten.
 - Testversionen: `dotnet publish … -p:Version=3.x.y -o <scratch>\pub-…`, dann `dotnet vpk pack -u FerretSharpE2E -v 3.x.y -p <pub> -e FerretSharp.exe --releaseNotes <md> -o <scratch>\releases` (eigene Pack-Id, nie `FerretSharp`); das Portable-Zip der älteren Version vor dem Packen der neueren beiseitelegen (gleicher Dateiname).
+- Notizen mit Bildern (WP-49): eine Notizen-Datei mit eigenen Bildern einer schon getaggten Version (`…/v3.33.0/docs/images/grid-dark.png`), einem fehlenden eigenen Bild und einem fremden Host packen; der Dialog zeigt das erste, für die anderen den Alt-Text. Das Portable-Zip hat kein lokales Full-Paket: Der Dialog zeigt nur die Notizen des Ziels mit Hinweis.
 - Der Updater startet die neue Version mit denselben Argumenten und Umgebungsvariablen (Debug-Port, WebView2-Ordner) – CDP geht danach am selben Port weiter. Ein fehlender Ordner als Quelle gilt bei Velopack als leerer Feed („aktuell“); für eine fehlgeschlagene Prüfung ein kaputtes `releases.win.json` nehmen.
 
 ## Verbindungen importieren (WP-35)
