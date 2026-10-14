@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.34.0] - 2026-10-14
+
+The update dialog shows what is new in every version you skip, and release notes can show images.
+
 ### Added
 - Release notes can contain images (WP-49): the update dialog shows them from this repository on GitHub, below the point they belong to; a click opens one in the browser. Offline, or from anywhere else, the dialog shows the image's description instead. Like the notes of every version, this takes effect from the update after this release.
 

@@ -1,4 +1,4 @@
-# Klein: Update-Dialog mit den Notizen aller Versionen dazwischen → Release offen
+# Klein: Update-Dialog mit den Notizen aller Versionen dazwischen → Release 3.34.0
 Auftrag (2026-10-14, Beobachtung des Nutzers): Beim Update von 3.29 auf 3.33 zeigte der Dialog nur die Notizen von 3.33.0. Stand im Backlog (WP-32, 2026-10-13); Machbarkeit vorher in einer eigenen Session geprüft. Branch `feat/update-notes-all-versions`.
 
 ## Grundlage in Velopack (1.2.161, im Quelltext geprüft)

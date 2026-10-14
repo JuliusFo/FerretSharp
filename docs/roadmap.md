@@ -14,7 +14,7 @@ Entscheidung des Nutzers (2026-10-09). Issues bekommen eine Art und einen Status
 
 ## Geplant
 
-Versionen: Minor-Releases 3.x (nichts Inkompatibles). Ein Paket bekommt seine Version erst beim Release (`CHANGELOG.md`, Spalte „Release“ im Index); die Roadmap legt keine fest, weil die Reihenfolge oft abweicht und Fix-Releases dazwischenkommen (Entscheidung des Nutzers, 2026-10-14). Zuletzt released: 3.33.0 (Fehler aus dem Alltag, `docs/work-packages/fixes-2026-10-14.md`), davor 3.32.1 (`System.Security.Cryptography.Pkcs` 8.0.2 wegen der Advisories vom 2026-10-13).
+Versionen: Minor-Releases 3.x (nichts Inkompatibles). Ein Paket bekommt seine Version erst beim Release (`CHANGELOG.md`, Spalte „Release“ im Index); die Roadmap legt keine fest, weil die Reihenfolge oft abweicht und Fix-Releases dazwischenkommen (Entscheidung des Nutzers, 2026-10-14). Zuletzt released: 3.34.0 (Update-Dialog mit den Notizen aller Versionen und Bildern, `docs/work-packages/small-update-notes-all-versions.md`, `wp-49-changelog-images.md`), davor 3.33.0 (Fehler aus dem Alltag, `docs/work-packages/fixes-2026-10-14.md`).
 
 ### WP-36 Abhängigkeiten aktualisieren (AG Grid 36, Pakete, CI) ([#13](https://github.com/JuliusFo/FerretSharp/issues/13))
 Nach R5b. Entscheidung des Nutzers (2026-10-14): AG Grid und die übrigen Updates zusammen als eigenes Paket, Branch `wp/36-dependency-update`. Bewertung vom 2026-10-14; beim Start die Versionen neu prüfen (`dotnet list package --outdated`, npm, Actions-Releases).

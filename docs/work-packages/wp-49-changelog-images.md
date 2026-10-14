@@ -1,4 +1,4 @@
-# WP-49 Bilder im Changelog ([#15](https://github.com/JuliusFo/FerretSharp/issues/15)) → Release offen
+# WP-49 Bilder im Changelog ([#15](https://github.com/JuliusFo/FerretSharp/issues/15)) → Release 3.34.0
 Vom Nutzer am 2026-10-14 eingeplant und am selben Tag auf `feat/update-notes-all-versions` mit umgesetzt (statt `wp/49-changelog-images`): Beide fassen den Update-Dialog an, und je früher die Unterstützung erscheint, desto weniger Installationen zeigen „!Alt-Text“. Plan unten; Regel für Autoren in `docs/release.md` › Bilder im Changelog.
 
 ## Entscheidungen des Nutzers (2026-10-14)
