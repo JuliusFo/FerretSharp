@@ -59,6 +59,26 @@ public sealed class ColumnDesignerTests
         Assert.Equal("TIMESTAMP(6) WITH TIME ZONE", row.ToColumn().Column!.DataType);
     }
 
+    /// <summary>A new column takes CHAR from the table's text columns; the box shows it only where the type has a choice.</summary>
+    [Fact]
+    public void The_char_box_shows_the_semantics_of_the_type_and_keeps_the_choice()
+    {
+        var column = new ColumnDesigner(Kunde, []).AddColumn();
+        Assert.True(column.ShowsCharSemantics);
+
+        column.Type = "NUMBER";
+        Assert.False(column.ShowsCharSemantics);
+        Assert.False(column.ToColumn().Column!.CharSemantics);
+
+        column.Type = "NVARCHAR2";
+        Assert.True(column.ShowsCharSemantics);
+        column.Type = "NCLOB";
+        Assert.False(column.ShowsCharSemantics);
+
+        column.Type = "VARCHAR2";
+        Assert.True(column.ShowsCharSemantics);
+    }
+
     [Fact]
     public void An_untouched_designer_has_no_changes_and_its_draft_writes_nothing()
     {

@@ -47,7 +47,7 @@ else
                     var locked = c.Dropped || c.OnlyNameAndComment;
                     <tr class="@(c.Dropped ? "dropped" : c.IsNew ? "new" : c.IsChanged ? "changed" : "")" @key="c">
                         <td class="num">@(c.Before?.Position.ToString(CultureInfo.CurrentCulture) ?? "+")</td>
-                        <td><input class="field mono" spellcheck="false" disabled="@c.Dropped" @bind="c.Name" @bind:event="oninput" aria-label="@SchemaViewText.Head_Name" /></td>
+                        <td class="name-cell"><input class="field mono" spellcheck="false" disabled="@c.Dropped" @bind="c.Name" @bind:event="oninput" aria-label="@SchemaViewText.Head_Name" /></td>
                         <td>
                             <select class="field" disabled="@locked" @bind="c.Type" aria-label="@SchemaViewText.Head_Type">
                                 @foreach (var type in TypesFor(c))
@@ -58,11 +58,11 @@ else
                         </td>
                         <td><input class="field mono narrow" disabled="@(locked || !c.HasSize)" @bind="c.Size" @bind:event="oninput" aria-label="@SchemaViewText.Designer_Size" /></td>
                         <td><input class="field mono narrow" disabled="@(locked || !c.HasScale)" @bind="c.Scale" @bind:event="oninput" aria-label="@SchemaViewText.Designer_Scale" /></td>
-                        <td class="check-cell"><input type="checkbox" disabled="@(locked || !c.HasSemantics)" @bind="c.CharSemantics" title="@SchemaViewText.Designer_CharSemantics" /></td>
+                        <td class="check-cell"><input type="checkbox" disabled="@(locked || !c.HasSemantics)" checked="@c.ShowsCharSemantics" @onchange="e => c.CharSemantics = e.Value is true" title="@SchemaViewText.Designer_CharSemantics" /></td>
                         <td class="check-cell"><input type="checkbox" disabled="@(locked || c.Identity)" @bind="c.NotNull" title="NOT NULL" /></td>
-                        <td><input class="field mono" spellcheck="false" disabled="@(locked || c.Identity)" @bind="c.Default" @bind:event="oninput" aria-label="@SchemaViewText.Head_Default" /></td>
+                        <td class="default-cell"><input class="field mono" spellcheck="false" disabled="@(locked || c.Identity)" @bind="c.Default" @bind:event="oninput" aria-label="@SchemaViewText.Head_Default" /></td>
                         <td class="check-cell"><input type="checkbox" disabled="@(locked || c.Identity)" @bind="c.DefaultOnNull" title="@SchemaViewText.Designer_DefaultOnNull" /></td>
-                        <td><input class="field" disabled="@c.Dropped" @bind="c.Comment" @bind:event="oninput" aria-label="@SchemaViewText.Columns_Comment" /></td>
+                        <td class="comment-cell"><input class="field" disabled="@c.Dropped" @bind="c.Comment" @bind:event="oninput" aria-label="@SchemaViewText.Columns_Comment" /></td>
                         <td class="row-actions"><span>
                             @if (c.IsNew)
                             {

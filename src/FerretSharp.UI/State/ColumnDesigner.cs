@@ -62,6 +62,12 @@ public sealed class DesignColumn
 
     public bool HasSemantics => OracleTypes.HasLengthSemantics(Type);
 
+    /// <summary>
+    /// The CHAR box as shown: <see cref="CharSemantics"/> for VARCHAR2/CHAR, always set for NVARCHAR2/NCHAR (they count
+    /// characters), clear for any other type. <see cref="CharSemantics"/> itself stays, so switching back restores it.
+    /// </summary>
+    public bool ShowsCharSemantics => HasSemantics ? CharSemantics : OracleTypes.IsNational(Type) && OracleTypes.HasLength(Type);
+
     public static DesignColumn Of(ColumnInfo column)
     {
         var row = new DesignColumn
