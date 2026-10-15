@@ -1,5 +1,5 @@
-# WP-48 FK-Navigation und C#-Namen im Ergebnis des SQL-Editors ([#14](https://github.com/JuliusFo/FerretSharp/issues/14))
-Branch `wp/48-sql-result-origin`. Planung: `docs/roadmap.md` › WP-48.
+# WP-48 FK-Navigation und C#-Namen im Ergebnis des SQL-Editors ([#14](https://github.com/JuliusFo/FerretSharp/issues/14)) → Release 3.36.0
+Branch `wp/48-sql-result-origin`. Planung: unten (aus `docs/roadmap.md`).
 
 ## Entscheidungen des Nutzers (2026-10-15)
 - Paket vorgezogen (vor WP-38).
@@ -65,3 +65,10 @@ Eigene Instanz (`--data-dir`, eigener WebView2-Ordner, deutsch, dunkel), eigener
 
 ## Offen
 - Backlog: Inline-Views und `WITH` auflösen, Anzeigespalten im SQL-Ergebnis, `DefaultSchema` (unqualifizierte Namen löst FerretSharp im angezeigten Schema auf, Oracle im Schema des Users).
+
+## Planung (aus `docs/roadmap.md`)
+(Wunsch eines Kollegen des Nutzers, 2026-10-14; am selben Tag vom Nutzer aus dem Backlog eingeplant, vorerst hinter WP-47, am 2026-10-15 vorgezogen.) Zusammen mit dem Backlog-Punkt „Enum-/C#-Namen im Ergebnis“, der dieselbe Grundlage braucht.
+- **Herkunft der Spalten:** `ReadSqlAsync` liest `GetSchemaTable()` schon für Typ, Precision und Scale (`OracleDataAccess.ColumnOf`). Neu dazu `BaseSchemaName`, `BaseTableName`, `BaseColumnName` als optionale Herkunft an `SqlColumn` – (Owner, Tabelle, Spalte), dieselbe Adresse wie die Annotation-Schicht. Bei Ausdrücken und Aggregaten leer. Eine Spalte zählt nur mit eindeutiger Herkunft und einer Tabelle, die das Schema kennt. **Spike zuerst** (Integrationstest): was ODP.NET bei Aliasen, Joins (auch EF-Joins mit doppelten Spaltennamen), Views, Synonymen, `SELECT *`, Unterabfragen und `WITH` liefert.
+- **FK-Navigation:** im Kontextmenü des `SqlResultGrid` wie im Tabellen-Grid. „Verweist auf“ für Spalten, die Quelle eines FK sind (alle `FkSource`-Arten; mehrspaltige FKs nur, wenn alle Spalten mit Herkunft im Ergebnis stehen). „Referenziert von“ nur, wenn die Schlüsselspalten der Basistabelle im Ergebnis stehen. Ein Sprung öffnet einen Tabellen-Tab mit Filter wie heute, bei mehreren markierten Zeilen ein `in`-Filter (höchstens 1000 Werte, wie `small-multi-row-fk-jump`). Kein neuer SQL-Weg: Filter über das Filtermodell, gebunden wie der FK-Sprung (national, A18).
+- **C#-Namen:** Spalten mit eindeutiger Herkunft zeigen Property-Namen und Enum-Namen über die Präsentationsschicht wie im Grid.
+- Offen (entschieden, siehe oben): Platz in der Reihenfolge; Anzeigespalten im SQL-Ergebnis (ADR 0022); LINQ-Konsole; springbare Spalten im Kopf kennzeichnen.
