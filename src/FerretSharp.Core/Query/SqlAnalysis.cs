@@ -62,7 +62,7 @@ public sealed record SqlStatementInfo(
 public static class SqlAnalysis
 {
     /// <summary>Words that end a table reference instead of being its alias.</summary>
-    private static readonly HashSet<string> NotAliases = new(StringComparer.OrdinalIgnoreCase)
+    internal static readonly HashSet<string> NotAliases =new(StringComparer.OrdinalIgnoreCase)
     {
         "WHERE", "ON", "JOIN", "INNER", "LEFT", "RIGHT", "FULL", "CROSS", "OUTER", "NATURAL", "GROUP", "ORDER", "HAVING", "CONNECT",
         "START", "UNION", "INTERSECT", "MINUS", "EXCEPT", "FETCH", "OFFSET", "FOR", "SET", "USING", "VALUES", "RETURNING", "RETURN",

@@ -125,6 +125,35 @@ public sealed class FkNavigationTests(OracleContainerFixture oracle) : IAsyncLif
         }
     }
 
+    /// <summary>WP-48: a query as EF Core writes it, read on the SQL editor's path – its rows jump like table rows.</summary>
+    [Fact]
+    public async Task Rows_of_a_free_query_jump_like_table_rows()
+    {
+        const string sql = """
+            SELECT "p"."ID", "p"."MANDANT", "p"."KOPF_NR", "p"."KOPF_GUID", "k"."NR", "k"."GUID"
+            FROM "NAV_POS" "p" INNER JOIN "NAV_KOPF" "k" ON "k"."MANDANT" = "p"."MANDANT" AND "k"."NR" = "p"."KOPF_NR"
+            WHERE "p"."ID" = 4
+            """;
+        var page = await _data.ReadSqlAsync(new QuerySpec(sql, []), 0, 10, Ct);
+        var sources = await SqlResultSources.LoadAsync(sql, page.Columns, _schema, Ct);
+        var row = new RowData(RowKey.None.Instance, Assert.Single(page.Rows));
+
+        var jumps = sources.JumpsFor([row], _schema.OutgoingOf, _schema.IncomingOf);
+
+        Assert.Equal(["NAV_POS", "NAV_KOPF"], sources.Sources.Select(s => s.Table.Name));
+        var outgoing = jumps.Where(j => j.Jump.Direction == JumpDirection.Outgoing).ToDictionary(j => j.Jump.ForeignKey.Name);
+        Assert.Equal("MANDANT = 2, NR = 4711", outgoing["FK_NAV_POS_KOPF"].Jump.Condition);
+        foreach (var jump in outgoing.Values)
+        {
+            Assert.Equal(new RowKey.PrimaryKey([2m, 4711m]), Assert.Single(await FollowAsync(jump.Jump)).Key);
+        }
+
+        // "k" shows NR but not MANDANT: no jump over the primary key; its GUID (a unique key) is referenced.
+        var incoming = Assert.Single(jumps, j => j.Jump.Direction == JumpDirection.Incoming);
+        Assert.Equal("FK_NAV_POS_GUID", incoming.Jump.ForeignKey.Name);
+        Assert.Equal([4m], (await FollowAsync(incoming.Jump)).Select(r => r.Values[0]));
+    }
+
     [Fact]
     public async Task Null_fk_has_no_outgoing_jump()
     {

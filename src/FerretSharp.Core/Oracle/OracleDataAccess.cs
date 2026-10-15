@@ -72,7 +72,8 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
         {
             var oracle = (OracleDataReader)reader;
             var schema = oracle.GetSchemaTable();
-            var columns = Enumerable.Range(0, oracle.FieldCount).Select(i => new SqlColumn(oracle.GetName(i), ColumnOf(oracle, i, schema?.Rows[i]))).ToList();
+            var columns = Enumerable.Range(0, oracle.FieldCount)
+                .Select(i => new SqlColumn(oracle.GetName(i), ColumnOf(oracle, i, schema?.Rows[i]), OriginOf(schema?.Rows[i]))).ToList();
             for (var skipped = 0; skipped < skip; skipped++)
             {
                 if (!await reader.ReadAsync(ct))
@@ -156,6 +157,16 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
             OracleTypes.HasLength(dataType) ? size : null, CharSemantics: false,
             dataType is "NUMBER" ? precision : null, dataType is "NUMBER" or "FLOAT" ? (scale is < 0 ? null : scale) : scale,
             Nullable: schema?["AllowDBNull"] is not false, IsIdentity: false, Default: null, Position: ordinal + 1);
+    }
+
+    /// <summary>
+    /// The origin the driver reports (WP-48): read on the client from the statement, without <c>CommandBehavior.KeyInfo</c>
+    /// (that costs two round trips more and only adds whether a column is a key). Null for an expression.
+    /// </summary>
+    internal static SqlColumnOrigin? OriginOf(System.Data.DataRow? schema)
+    {
+        string? Text(string name) => schema?.Table.Columns.Contains(name) == true && schema[name] is string { Length: > 0 } text ? text : null;
+        return Text("BaseColumnName") is { } column ? new SqlColumnOrigin(Text("BaseSchemaName"), Text("BaseTableName"), column) : null;
     }
 
     /// <summary>ODP.NET type names (<c>Decimal</c>, <c>TimeStampTZ</c>) as Oracle names (<c>NUMBER</c>, <c>TIMESTAMP(6) WITH TIME ZONE</c>).</summary>
