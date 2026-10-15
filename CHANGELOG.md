@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.35.2] - 2026-10-15
+
+See at a glance which group a connection belongs to.
+
 ### Added
 - A connection's group in front of its name (`Kunde A › DEV`) wherever the group heading is not in sight: the connection switcher button, its "Open" and "Recent" rows, the status bar, the password prompt, the confirmations before running on production, DDL, unlocking and redo, the link dialog and the app statements page. Helps when several groups have a DEV, TEST or PROD. A long group is cut, the name stays readable. On by default; Settings › Appearance › "Group before the connection name" turns it off. Typing the name to unlock production stays the bare name.
 
