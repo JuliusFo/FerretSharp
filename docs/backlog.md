@@ -91,7 +91,7 @@ Selten, ungeprüft oder bewusst zurückgestellt – vor dem Anfassen nachstellen
   - Verwandt: WP-21 – „Markierte vergleichen“ gibt es seit WP-21 (Dialog, `RowComparison` auf Rohwerten mit `Deviates`); der Audit-Modus wäre die bequeme Variante mit automatischer Vorversion und kann `RowComparison` wiederverwenden. Sprung von einer Zeile der Haupttabelle zu ihrem Verlauf (gleicher Schlüssel in der Historientabelle), sobald die Zuordnung Tabelle ↔ Historientabelle bekannt ist.
   - Später: Verlauf ohne Historientabelle über Flashback (`VERSIONS BETWEEN`; braucht Rechte, reicht nur so weit wie das Undo).
   - Seit WP-26 (3.26.0) ist die Zuordnung Tabelle ↔ Audit-Tabelle über die Namensregel der Vorlage bekannt (`AuditTemplate.NamesFor`, `AuditStatus.IsAuditTable`) – der Sprung zum Verlauf und die Schlüsselspalten (die Basisspalten der Audit-Tabelle) können darauf aufbauen.
-  - Audit-Vorlage je Verbindung überschreibbar (WP-26 startet mit einer Vorlage für alle, Entscheidung des Nutzers 2026-10-12).
+  - Audit-Vorlage je Verbindung überschreibbar (WP-26 startet mit einer Vorlage für alle, Entscheidung des Nutzers 2026-10-12): je Systemgruppe als WP-51 eingeplant (`docs/roadmap.md`, 2026-10-15); je einzelner Verbindung nur, falls die Gruppe nicht reicht.
   - Kontextmenü für Tabellen im Explorer (es gibt noch keins), darin „Audit anlegen/abgleichen…“ (WP-26 bietet es über die Zeile über den Spalten an). Die Audit-Zeile liest eine geänderte Vorlage erst beim nächsten Laden des Tabs.
   - Mehrere Tabellen auf einmal abgleichen (z. B. nach einem Wechsel der Vorlage oder vielen Spaltenänderungen): Liste der veralteten Audit-Tabellen eines Schemas mit einem Skript.
 
