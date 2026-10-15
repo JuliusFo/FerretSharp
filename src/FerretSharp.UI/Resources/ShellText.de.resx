@@ -1396,7 +1396,7 @@
     <value>Link kopieren</value>
   </data>
   <data name="TabMenu_CopyLinkTitle" xml:space="preserve">
-    <value>Ein ferretsharp://-Link auf diese Tabelle mit Filtern und Sortierung – für Kollegen oder ein Ticket</value>
+    <value>Ein Link, der diese Tabelle in FerretSharp mit Filtern und Sortierung öffnet – für Kollegen oder ein Ticket (https, klickbar in Teams und Azure DevOps)</value>
   </data>
   <data name="Settings_LinkProtocol" xml:space="preserve">
     <value>Links (ferretsharp://)</value>

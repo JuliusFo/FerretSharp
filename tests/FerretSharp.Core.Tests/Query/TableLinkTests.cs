@@ -135,6 +135,27 @@ public class TableLinkTests
         Assert.Same(fits, TableLink.ForTransfer(fits));
     }
 
+    /// <summary>
+    /// ADR 0026, addendum: chats make only https clickable. The redirect page puts <see cref="TableLink.UriStart"/> in front of
+    /// the part after <c>#</c>; that gives the same link back, values with <c>#</c>, <c>&amp;</c> and commas included.
+    /// </summary>
+    [Fact]
+    public void The_https_form_carries_the_link_after_the_hash()
+    {
+        var link = TableLink.For(ErpTest, new TableRef("ERP", "AUFTRAG"),
+            [FilterCondition.Of("NOTIZ", FilterOperator.Contains, "100% #1 & a,b"), FilterCondition.Of("STATUS", FilterOperator.In, "OFFEN", "NEU")],
+            [new SortSpec("ERSTELLT", true)], TabMode.Data);
+
+        var web = link.ToWebUri();
+        var fragment = new Uri(web).Fragment;
+        var opened = TableLink.UriStart + fragment[1..]; // what pages/open/index.html does
+
+        Assert.StartsWith("https://juliusfo.github.io/FerretSharp/open/#v=1&c=ERP%20Test&", web);
+        Assert.Single(web, '#'); // a # in a value stays encoded, the page sees all of it
+        Assert.Equal(link.ToUri(), opened);
+        Assert.Equal(link.Filters.SelectMany(f => f.Values), Read(opened).Filters.SelectMany(f => f.Values));
+    }
+
     [Theory]
     [InlineData("ferretsharp://open?v=1", true)]
     [InlineData(" FerretSharp:anything", true)]

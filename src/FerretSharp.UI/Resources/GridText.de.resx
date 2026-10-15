@@ -793,13 +793,13 @@
     <value>Link auf diese Zeilen kopieren</value>
   </data>
   <data name="GridMenu_CopyRowsLinkTitle" xml:space="preserve">
-    <value>Ein ferretsharp://-Link, der die Tabelle auf die markierten Zeilen gefiltert öffnet (über den Primärschlüssel)</value>
+    <value>Ein Link, der die Tabelle in FerretSharp auf die markierten Zeilen gefiltert öffnet, über den Primärschlüssel (https, klickbar in Teams und Tickets)</value>
   </data>
   <data name="GridMenu_CopyViewLink" xml:space="preserve">
     <value>Link auf diese Ansicht kopieren</value>
   </data>
   <data name="GridMenu_CopyViewLinkTitle" xml:space="preserve">
-    <value>Ein ferretsharp://-Link auf diese Tabelle mit Filtern und Sortierung</value>
+    <value>Ein Link, der diese Tabelle in FerretSharp mit Filtern und Sortierung öffnet (https, klickbar in Teams und Tickets)</value>
   </data>
   <data name="Presets_ActiveTitle" xml:space="preserve">
     <value>Vorlage {0} angewendet – Filterzeilen und Sortierung wie gespeichert</value>

@@ -1715,7 +1715,7 @@
     <comment>Tab context menu</comment>
   </data>
   <data name="TabMenu_CopyLinkTitle" xml:space="preserve">
-    <value>A ferretsharp:// link to this table with its filters and sort order – for a colleague or a ticket</value>
+    <value>A link that opens this table in FerretSharp with its filters and sort order – for a colleague or a ticket (https, clickable in Teams and Azure DevOps)</value>
   </data>
   <data name="Settings_LinkProtocol" xml:space="preserve">
     <value>Links (ferretsharp://)</value>

@@ -32,3 +32,14 @@ Entscheidungen des Nutzers (2026-10-14, `docs/roadmap.md`): Ein Link enthält ni
 - Links tragen Werte in Chat-Verläufe und Tickets – auf Prod nur mit Hinweis beim Kopieren, das Weitergeben bleibt Sache des Nutzers.
 - Ein zweiter Start mit anderem `--data-dir` ist eine andere Pipe; ein Link öffnet immer in der Instanz des Standard-Datenordners (Windows startet ohne Argumente außer dem Link).
 - Die Registrierung ist Windows-spezifisch; Core und UI kennen nur `TableLink`, `LinkInbox` und `IProtocolRegistration`.
+
+## Nachtrag (2026-10-15, nach 3.35.0): https-Weiterleitung
+
+**Anlass:** Teams und Azure DevOps machen nur bekannte Adressarten klickbar (`https`, `mailto` …); ein `ferretsharp://`-Link blieb dort Text. In der Adresszeile von Firefox und Chrome ging er.
+
+**Entscheidung des Nutzers:** eine statische Weiterleitungsseite auf GitHub Pages, der Link-Inhalt hinter `#`; „Link kopieren“ legt die https-Form ab.
+- **Form:** `https://juliusfo.github.io/FerretSharp/open/#v=1&c=…` (`TableLink.WebPage`, `ToWebUri`) – nach `#` dieselben Parameter wie in `ferretsharp://open?…`. Die Seite (`pages/open/index.html`) prüft sie gegen genau die Zeichen, die FerretSharp schreibt (Buchstaben, Ziffern, `- . _ ~ , +`, `%XX`; einbuchstabige Schlüssel, höchstens 32.768 Zeichen), und öffnet dann `ferretsharp://open?` + diesen Teil – automatisch und über einen Knopf. Sonst „kein FerretSharp-Link“. Danach der gewohnte Weg: Rückfrage des Browsers, Bestätigung in FerretSharp, `TableLink.Parse` als fremde Eingabe. Die Seite kann also nichts, was ein `ferretsharp://`-Link nicht kann.
+- **Werte bleiben im Browser:** Den Teil nach `#` schickt der Browser nie an einen Server (lokal geprüft: der Server sieht nur `GET /open/`), die Seite zeigt nichts davon an, lädt nichts nach (CSP `default-src 'none'`, Skript und Style nur per Hash) und sendet keinen Referrer. Er steht aber im Browserverlauf des Empfängers.
+- **Safe Links:** Schreibt Microsoft Defender in Teams oder Outlook Links um, geht die ganze Adresse samt `#`-Teil zur Prüfung an Microsoft – für Links mit Werten von Prod wie das Kopieren selbst (Hinweis beim Kopieren) Sache des Nutzers.
+- **Hosting:** Workflow `.github/workflows/pages.yml` veröffentlicht nur den Ordner `pages/` (bei Änderungen darin auf `main`). Eine Seite ohne Server-Logik, keine Abhängigkeit für FerretSharp selbst: `ferretsharp://`-Links und die Registrierung bleiben wie oben, die Seite ist nur der Weg aus Chats und Tickets. Geht GitHub Pages weg oder zieht die Seite um, ändern sich `TableLink.WebPage` und alte Links zeigen ins Leere; der `#`-Teil eines alten Links lässt sich dann von Hand hinter `ferretsharp://open?` setzen.
+- `LinkPageTests` halten Seite und Core zusammen: Präfix, Grenze, CSP-Hashes, kein nachgeladenes Element, und die Prüfung der Seite (als .NET-Regex) lässt jeden von FerretSharp geschriebenen Link durch.

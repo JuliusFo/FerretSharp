@@ -1,0 +1,38 @@
+# The redirect page for links (ADR 0026, addendum): publishes the folder pages/ to GitHub Pages, nothing else.
+# https://juliusfo.github.io/FerretSharp/open/#v=1&… turns into ferretsharp://open?v=1&… in the browser; chats and
+# tickets (Teams, Azure DevOps) only make https addresses clickable. Pages must be set to "GitHub Actions" in the
+# repository settings once.
+name: Pages
+
+on:
+  push:
+    branches: [main]
+    paths: [pages/**, .github/workflows/pages.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Redirect page
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: pages
+      - id: deployment
+        uses: actions/deploy-pages@v5

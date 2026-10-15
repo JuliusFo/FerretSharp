@@ -1014,14 +1014,14 @@
     <comment>Grid context menu</comment>
   </data>
   <data name="GridMenu_CopyRowsLinkTitle" xml:space="preserve">
-    <value>A ferretsharp:// link that opens the table filtered to the selected rows by their primary key</value>
+    <value>A link that opens the table in FerretSharp filtered to the selected rows by their primary key (https, clickable in Teams and tickets)</value>
   </data>
   <data name="GridMenu_CopyViewLink" xml:space="preserve">
     <value>Copy link to this view</value>
     <comment>Grid context menu</comment>
   </data>
   <data name="GridMenu_CopyViewLinkTitle" xml:space="preserve">
-    <value>A ferretsharp:// link to this table with its filters and sort order</value>
+    <value>A link that opens this table in FerretSharp with its filters and sort order (https, clickable in Teams and tickets)</value>
   </data>
   <data name="Presets_ActiveTitle" xml:space="preserve">
     <value>Preset {0} applied – the filter rows and sort order are as saved</value>
