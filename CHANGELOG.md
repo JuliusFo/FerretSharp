@@ -5,6 +5,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Fixed
+- Table designer: the CHAR box of a column whose type has no length semantics (NUMBER, DATE …) showed the choice of a text column, ticked and greyed out. It is now clear for such types and ticked for NVARCHAR2/NCHAR, which always count characters; switching back to VARCHAR2 or CHAR brings the choice back.
+- The header of the column list stays in sight while you scroll through a table with many columns – in the Columns view and in the designer, and also in the lists of constraints and indexes.
+- Comments get more room: the column list and the designer use up to 1600 px instead of 1100 px, a comment column is at least 280 px wide, and in the designer the comment field takes the room the other fields leave.
+
 ## [3.35.2] - 2026-10-15
 
 See at a glance which group a connection belongs to.
