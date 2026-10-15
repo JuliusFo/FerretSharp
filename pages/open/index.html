@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-/3+qG1lFWEFTi3g0TVvUQQQYEpfqQzHRWFigr0QbGls='; style-src 'sha256-Z01Gc4BhhvkpPRXzFQq49IT5c6qEkOBVQ1RcGTxwdK8='; base-uri 'none'; form-action 'none'">
+<title>FerretSharp link</title>
+<style>
+:root { color-scheme: light dark; --bg: #f7f7f8; --surface: #ffffff; --text: #1d1d21; --muted: #62626b; --border: #dedee3; --accent: #2f6fdf; --accent-text: #ffffff; --danger: #c43a3a; }
+@media (prefers-color-scheme: dark) { :root { --bg: #17171a; --surface: #202024; --text: #e8e8ec; --muted: #a0a0aa; --border: #34343a; --accent: #5b8ff0; --accent-text: #0f1420; --danger: #f07a7a; } }
+body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { box-sizing: border-box; width: min(440px, calc(100vw - 32px)); padding: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+h1 { margin: 0 0 8px; font-size: 18px; }
+p { margin: 0 0 12px; color: var(--muted); }
+a.open { display: inline-block; margin: 4px 0 12px; padding: 8px 16px; border-radius: 6px; background: var(--accent); color: var(--accent-text); text-decoration: none; font-weight: 600; }
+.error { color: var(--danger); }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1 data-text="title">Opening FerretSharp …</h1>
+  <div id="ok" hidden>
+    <p data-text="asked">Your browser asks whether to open FerretSharp. FerretSharp then shows what the link opens and asks again before it opens anything.</p>
+    <a id="open" class="open" href="#" data-text="button">Open in FerretSharp</a>
+    <p data-text="nothing">Nothing happens? Links open with FerretSharp once it is registered for them: Settings › Connection › “Links (ferretsharp://)”.</p>
+  </div>
+  <p id="bad" class="error" hidden data-text="invalid">This is not a FerretSharp link.</p>
+  <noscript><p class="error">This page needs JavaScript to hand the link to FerretSharp.</p></noscript>
+</main>
+<script>
+(() => {
+  // ADR 0026, addendum: the link's parameters follow the "#", which the browser never sends to a server. Only the
+  // characters FerretSharp writes pass (letters, digits, - . _ ~ , + and %XX escapes); nothing of the link is shown.
+  const texts = {
+    de: {
+      title: "FerretSharp wird geöffnet …",
+      asked: "Dein Browser fragt, ob FerretSharp geöffnet werden soll. FerretSharp zeigt dann, was der Link öffnet, und fragt noch einmal, bevor es etwas öffnet.",
+      button: "In FerretSharp öffnen",
+      nothing: "Passiert nichts? Links öffnen mit FerretSharp, sobald es dafür registriert ist: Einstellungen › Verbindung › „Links (ferretsharp://)“.",
+      invalid: "Das ist kein FerretSharp-Link."
+    }
+  };
+  const language = (navigator.language || "en").slice(0, 2).toLowerCase();
+  if (texts[language]) {
+    document.documentElement.lang = language;
+    for (const element of document.querySelectorAll("[data-text]")) {
+      element.textContent = texts[language][element.dataset.text];
+    }
+  }
+
+  const at = location.href.indexOf("#");
+  const parameters = at < 0 ? "" : location.href.slice(at + 1);
+  const valid = parameters.length <= 32768
+    && /^v=[0-9]+(&[a-z]=(?:[A-Za-z0-9._~,+-]|%[0-9A-Fa-f]{2})*)*$/.test(parameters);
+  if (!valid) {
+    document.querySelector("h1").textContent = language === "de" ? "FerretSharp-Link" : "FerretSharp link";
+    document.getElementById("bad").hidden = false;
+    return;
+  }
+
+  const link = "ferretsharp://open?" + parameters;
+  document.getElementById("open").href = link;
+  document.getElementById("ok").hidden = false;
+  location.replace(link);
+})();
+</script>
+</body>
+</html>
