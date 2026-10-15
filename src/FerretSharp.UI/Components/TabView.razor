@@ -270,7 +270,14 @@
         _loadError = result.Error;
         if (result.Succeeded)
         {
+            var fitting = Tab.FitToStructure;
             _details = Tab.UseStructure(result.Value!);
+            if (fitting)
+            {
+                // A link's rows were fitted (WP-37): the tab header counts the enabled ones, and the tab is saved so.
+                Shell.NotifyChanged();
+                Shell.MarkDirty();
+            }
         }
     }
 
