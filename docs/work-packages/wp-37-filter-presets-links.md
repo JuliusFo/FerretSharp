@@ -50,5 +50,16 @@ Neuer Container `ferret-e2e-wp37` (danach entfernt), eigene Instanz mit `--data-
 - Log: kein `[ERR]`/`[WRN]`, keine Zeile mit Link-Inhalt (`ferretsharp://`, Filterwerte); kein Registry-Eintrag entstanden.
 - Nicht geprüft: die Registrierung selbst (Einstellungen und Velopack-Hooks schreiben `HKCU\Software\Classes\ferretsharp`) und ein Klick auf einen echten Link im Browser – das schriebe in die Registry des Nutzers und startete ohne `--data-dir` auf seinen echten Daten. Prüfung durch den Nutzer nach dem Release; der Hinweis auf Prod-Werte beim Kopieren nur per Unit-Test (keine Prod-Verbindung im E2E).
 
+## Review (2026-10-15, auf Wunsch des Nutzers)
+Code-Review des Branches, zehn Befunde, alle behoben:
+- **Pipe:** Ein zu langer Link wurde auf genau 32.768 Zeichen gekürzt und dann als anderer, gültiger Link gelesen (z. B. ein abgeschnittener Wert). Jetzt `TableLink.ForTransfer`: höchstens ein Zeichen mehr, der Parser lehnt ab.
+- **Startargumente:** Nach dem Link zählt kein Argument mehr (`CommandLine.Effective`, in `Program` vor allem anderen; `App` bekommt die Argumente von dort statt aus `e.Args`). Ein Link mit unkodierten Anführungszeichen hätte sonst `--update-source=` oder `--data-dir=` mitbringen können. Optionen vor dem Link (E2E mit `--data-dir`) bleiben.
+- **Tabelle finden:** Der letzte Weg fand jede gleichnamige Tabelle irgendeines Schemas; jetzt nur ein Synonym dieses Namens.
+- **Wartender Link:** verworfen auch bei einem neuen Fehler der Verbindung (`ShellState.ReportConnectionFailure`, verglichen per Referenz: ein erneuter Versuch einer schon gescheiterten Verbindung wartet) und beim Wechsel zu einer anderen Verbindung – sonst ging er Stunden später beim nächsten Verbinden auf.
+- **Schema des Empfängers:** Filter und Sortierung eines Links werden wie eine Vorlage angepasst, sobald die Struktur der Tabelle da ist (`TableTab.FitToStructure`, `FilterPresets.Fit`, aus `Apply` herausgezogen); vorher scheiterte die erste Abfrage an einer fehlenden Spalte oder einer CLOB-Sortierung.
+- **Nur über den Namen gefunden:** `LinkConnectionMatch.AddressDiffers`, der Dialog warnt mit der Adresse aus dem Link (`Link_AddressDiffers`).
+- **Vorlagen:** Anwenden markiert den Tab als geändert, auch wenn eine Zeile nicht gültig ist; `EnsureLoadedAsync` teilt ein Lesen zwischen allen Filterleisten (vorher je Tab eins beim Start); „gültige Zeilen mit Fehler je Zeile“ einmal als `TableTab.ValidFilters` statt dreimal; die Shell nimmt Links über `Run` (Fehler im Fehlerweg der Shell).
+- Tests: Core `A_link_too_long_stays_too_long_when_handed_over`, `Nothing_after_a_link_counts_as_an_option`, `AddressDiffers` in der Verbindungssuche; UI `A_link_is_dropped_when_its_connection_fails_or_another_one_is_shown`, `A_linked_table_is_found_in_the_own_schema_or_as_a_synonym_not_in_any_schema`, `A_links_filters_and_sorts_are_fitted_to_the_table_when_its_structure_arrives`, `Filter_bars_asking_at_the_same_time_share_one_read`, `Only_valid_rows_are_taken_and_each_row_shows_its_error`. Nicht im E2E geprüft (nur Unit-Tests): Warnhinweis im Dialog, Verwerfen nach gescheitertem Verbinden.
+
 ## Offen
 - Teilen von Vorlagen mit den Kollegen; Links aus SQL/LINQ-Ergebnissen (Backlog).
