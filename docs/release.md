@@ -21,6 +21,7 @@ Aus der `CLAUDE.md` ausgelagert (Gesamt-Review 3.31.0, Teil C). Vor Änderungen 
 - Das einfache Zip des Ordners gab es bis 3.29.0; seit 3.30.0 nur noch die Velopack-Dateien.
 - `Program.Main` ruft zuerst `VelopackApp…Run()`, dann die Instanzsperre (eine Instanz je Datenordner). Installiert prüft die App auf Updates (Einstellungen › Updates); ohne Installation (Debug, `dotnet run`, E2E) passiert nichts.
 - Lokale Release-Builds landen unter `artifacts/` (nicht eingecheckt).
+- **Weiterleitungsseite für Links** (ADR 0026, Nachtrag): `.github/workflows/pages.yml` veröffentlicht `pages/` auf GitHub Pages, sobald sich der Ordner auf `main` ändert (oder per `workflow_dispatch`); unabhängig von Releases. Pages muss in den Repository-Einstellungen einmal auf „GitHub Actions“ stehen.
 - Updates im E2E prüfen: `docs/e2e-testing.md` › Updates (nie `Setup.exe` starten).
 
 ## Bilder im Changelog (WP-49)

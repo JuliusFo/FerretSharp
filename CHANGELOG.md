@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Changed
+- Links (WP-37) are copied as https addresses, so Teams, Azure DevOps and other chats and tickets make them clickable: `https://juliusfo.github.io/FerretSharp/open/#…` opens a small page that hands the link to FerretSharp, which still asks before it opens anything. Everything after `#` stays in your browser – it is never sent to a server. `ferretsharp://` links keep working.
+
 ## [3.35.0] - 2026-10-15
 
 Filter presets and links: name the filters you use again and again, and send a table view to a colleague as a link.
