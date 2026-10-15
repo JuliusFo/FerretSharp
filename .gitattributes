@@ -4,3 +4,5 @@
 *.png binary
 *.ico binary
 src/FerretSharp.UI/wwwroot/lib/** -diff linguist-vendored
+# The redirect page names its script and style by hash in its CSP (ADR 0026, addendum): the bytes must stay LF everywhere.
+pages/** text eol=lf
