@@ -62,7 +62,33 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
     /// <summary>Filters the grid currently shows.</summary>
     public IReadOnlyList<FilterCondition> AppliedFilters { get; set; } = [];
 
+    /// <summary>
+    /// The filter rows as edited, if all enabled ones are valid for <paramref name="table"/>; null otherwise. Each row gets
+    /// its error (or none), so the filter bar shows what is wrong – applying, saving and updating a preset all check so.
+    /// </summary>
+    public IReadOnlyList<FilterCondition>? ValidFilters(TableDetails table)
+    {
+        var conditions = FilterRows.Select(r => r.ToCondition()).ToList();
+        var errors = QueryBuilder.Validate(table, conditions);
+        for (var i = 0; i < FilterRows.Count; i++)
+        {
+            FilterRows[i].Error = errors.GetValueOrDefault(i);
+        }
+
+        return errors.Count == 0 ? conditions : null;
+    }
+
     public IReadOnlyList<SortSpec> Sorts { get; set; } = [];
+
+    /// <summary>The filter preset last applied in full (WP-37); the filter bar shows it and whether the rows changed since.</summary>
+    public Guid? Preset { get; set; }
+
+    /// <summary>
+    /// Filter rows and sort order came from a link (WP-37) and were made for the sender's version of the table: fitted to
+    /// this one when its structure first arrives (<see cref="UseStructure"/>), like a preset – rows on missing columns come
+    /// disabled, sorts the table cannot do go. Not saved: a restored tab was fitted already.
+    /// </summary>
+    public bool FitToStructure { get; set; }
 
     /// <summary>Columns the user pinned to the left, in pin order (without the always pinned primary key).</summary>
     public IReadOnlyList<string> PinnedColumns { get; set; } = [];
@@ -185,6 +211,16 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
         }
 
         StructureStale = false;
+        if (FitToStructure)
+        {
+            FitToStructure = false;
+            var fitted = FilterPresets.Fit(loaded, AppliedFilters, Sorts);
+            AppliedFilters = fitted.Filters;
+            Sorts = fitted.Sorts ?? [];
+            FilterRows.Clear();
+            FilterRows.AddRange(fitted.Filters.Select(FilterRow.From));
+        }
+
         return Details = loaded;
     }
 
@@ -214,6 +250,7 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
         Table.Ref, Mode, FilterRows.Select(r => r.ToCondition()).ToList(), AppliedFilters, Sorts, FirstVisibleRow)
     {
         PinnedColumns = PinnedColumns,
+        Preset = Preset,
         OriginTab = BackTarget(workspaceTabs) is { } origin ? IndexOf(workspaceTabs, origin) : null,
         Form = FormOpen || FormWidth is not null || FormHideEmpty ? new FormTabState(FormOpen, FormWidth, FormHideEmpty) : null,
     };
@@ -240,6 +277,7 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
             Sorts = state.Sorts,
             FirstVisibleRow = state.FirstVisibleRow,
             PinnedColumns = state.PinnedColumns,
+            Preset = state.Preset,
             FormOpen = state.Form?.Open ?? false,
             FormWidth = state.Form?.Width,
             FormHideEmpty = state.Form?.HideEmpty ?? false,

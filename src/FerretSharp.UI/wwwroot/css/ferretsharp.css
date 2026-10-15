@@ -608,8 +608,10 @@ code.condition { font: 12px var(--mono); white-space: pre-wrap; }
 .filterbar { display: flex; align-items: flex-start; gap: 12px; flex: none; padding: 8px 12px; background: var(--surface); border-bottom: 1px solid var(--border); }
 .filterbar > .hint { align-self: center; }
 .filterbar > .spacer { flex: 1; }
-.filter-rows { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.filter-row { display: grid; grid-template-columns: 18px 220px 130px minmax(180px, 420px) 28px 28px auto; gap: 6px; align-items: center; }
+/* Column and value shrink before the row runs under the actions (a preset's name there, WP-37). The rows share one set of
+   columns (subgrid): a note or an error after one row ("Not in this table") would otherwise shorten only that row's fields. */
+.filter-rows { flex: 1; display: grid; grid-template-columns: 18px minmax(150px, 220px) 130px minmax(120px, 420px) 28px 28px auto; gap: 6px; align-content: start; min-width: 0; }
+.filter-row { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; align-items: center; }
 .filter-row.disabled .field { opacity: .5; }
 .filter-row .field { height: 30px; }
 .filter-row .col { font-family: var(--mono); font-size: 12px; }
@@ -617,6 +619,7 @@ code.condition { font: 12px var(--mono); white-space: pre-wrap; }
 .filter-row .values .field { flex: 1; min-width: 0; }
 .filter-row.invalid .values .field { border-color: var(--danger); box-shadow: 0 0 0 3px var(--danger-weak); }
 .filter-error { color: var(--danger); font-size: 12px; white-space: nowrap; }
+.filter-note { color: var(--faint); font-size: 12px; white-space: nowrap; }
 .row-toggle { width: 15px; height: 15px; margin: 0; accent-color: var(--accent); }
 .filter-actions { display: flex; gap: 6px; }
 
@@ -716,6 +719,30 @@ table.binds td { font-family: var(--mono); }
 .menu-item:disabled { opacity: .55; cursor: default; }
 .menu-item:disabled:hover { background: transparent; }
 .menu.linq-menu { width: 220px; }
+/* filter presets (WP-37): name to apply, then + (append), rename, delete */
+.preset-item { display: flex; align-items: center; gap: 2px; }
+.preset-item .preset-apply { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; line-height: 30px; }
+.preset-item .icon-btn { flex: none; width: 26px; height: 26px; color: var(--faint); }
+.preset-item .icon-btn:hover { color: var(--text); }
+.preset-item .preset-delete:hover { color: var(--danger); }
+.preset-note { padding: 6px 10px; color: var(--faint); font-size: 12.5px; }
+.preset-item.active .preset-apply { font-weight: 600; }
+.btn.preset-active { max-width: 220px; }
+.btn.preset-active .preset-active-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--accent); }
+.btn.preset-active .preset-changed { color: var(--faint); white-space: nowrap; }
+.preset-note.error { color: var(--danger); }
+.dialog.preset-dialog { width: min(560px, 94vw); }
+/* links (WP-37): what a link from outside opens, before it does */
+.dialog.link-dialog { width: min(560px, 94vw); }
+.link-facts { display: grid; grid-template-columns: 110px 1fr; gap: 10px 14px; margin: 0; }
+.link-facts dt { color: var(--muted); font-weight: 500; }
+.link-facts dd { margin: 0; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.link-facts code { font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; }
+.link-facts .link-candidate { padding-top: 0; }
+.link-dialog .hint { margin: 12px 0 0; }
+.preset-content { display: flex; flex-direction: column; gap: 6px; padding-top: 6px; min-width: 0; }
+.preset-content code { font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; }
+.preset-content .hint { font-size: 12px; }
 
 /* ---------- errors, connection loss, notices ---------- */
 .link-btn { border: 0; padding: 0 0 0 8px; background: transparent; color: inherit; text-decoration: underline; cursor: pointer; font-size: inherit; }

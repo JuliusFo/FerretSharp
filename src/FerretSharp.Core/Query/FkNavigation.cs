@@ -43,6 +43,10 @@ public sealed record FkJump(
         : TextFormat.Plural(FkNavigation.German, SkippedRows, QueryText.FkSkippedRowsOne, QueryText.FkSkippedRowsOther);
 }
 
+/// <summary>Filters on a key built from rows (<see cref="FkNavigation.KeyFilters"/>); empty with the reason if not possible.</summary>
+/// <param name="SkippedRows">Rows left out because their key is NULL.</param>
+public sealed record KeyFilter(IReadOnlyList<FilterCondition> Filters, string? Unavailable, int SkippedRows);
+
 /// <summary>
 /// FK navigation: turns the key values of one or more rows into filters for the related table. Filter values are
 /// written from the raw values (never from the German display text, where "1.234" would read as 1.234) in a form the
@@ -127,8 +131,19 @@ public static class FkNavigation
         TableDetails table, IReadOnlyList<RowData> rows, ForeignKeyInfo fk, JumpDirection direction,
         IReadOnlyList<string> rowColumns, TableRef target, IReadOnlyList<string> targetColumns)
     {
+        var key = KeyFilters(table, rows, rowColumns, targetColumns);
+        return new FkJump(fk, direction, target, key.Filters, key.Unavailable, rows.Count, key.SkippedRows);
+    }
+
+    /// <summary>
+    /// Filters on <paramref name="targetColumns"/> for the values of <paramref name="rowColumns"/> in <paramref name="rows"/>:
+    /// equality per column if all rows share one key, otherwise one IN list (single-column keys only). Rows with a NULL in
+    /// the key are skipped. Also the key of a link to selected rows (WP-37), with the table's own key on both sides.
+    /// </summary>
+    public static KeyFilter KeyFilters(TableDetails table, IReadOnlyList<RowData> rows, IReadOnlyList<string> rowColumns, IReadOnlyList<string> targetColumns)
+    {
         var skipped = 0;
-        FkJump Unavailable(string reason) => new(fk, direction, target, [], reason, rows.Count, skipped);
+        KeyFilter Unavailable(string reason) => new([], reason, skipped);
 
         var indexes = new int[rowColumns.Count];
         for (var i = 0; i < rowColumns.Count; i++)
@@ -180,33 +195,29 @@ public static class FkNavigation
                 : TextFormat.Format(German, QueryText.FkKeyNullInAllRows, string.Join(", ", rowColumns), rows.Count));
         }
 
-        List<FilterCondition> filters;
         if (keys.All(k => k.SequenceEqual(keys[0], StringComparer.Ordinal)))
         {
-            filters = [.. targetColumns.Select((column, i) => FilterCondition.Of(column, FilterOperator.Equals, keys[0][i]))];
+            return new([.. targetColumns.Select((column, i) => FilterCondition.Of(column, FilterOperator.Equals, keys[0][i]))], null, skipped);
         }
-        else if (rowColumns.Count > 1)
+
+        if (rowColumns.Count > 1)
         {
             return Unavailable(QueryText.FkSeveralRowsNeedSingleColumnKey);
         }
-        else
+
+        var values = keys.Select(k => k[0]).Distinct(StringComparer.Ordinal).ToArray();
+        if (values.Length > MaxValues)
         {
-            var values = keys.Select(k => k[0]).Distinct(StringComparer.Ordinal).ToArray();
-            if (values.Length > MaxValues)
-            {
-                return Unavailable(TextFormat.Format(German, QueryText.FkTooManyValues, values.Length, MaxValues));
-            }
-
-            // The filter bar splits an IN list at the separator; such a value would not survive editing the filter.
-            if (values.Any(v => v.Contains(FilterCondition.ListSeparator, StringComparison.Ordinal)))
-            {
-                return Unavailable(TextFormat.Format(QueryText.FkValueContainsSeparator, FilterCondition.ListSeparator));
-            }
-
-            filters = [FilterCondition.Of(targetColumns[0], FilterOperator.In, values)];
+            return Unavailable(TextFormat.Format(German, QueryText.FkTooManyValues, values.Length, MaxValues));
         }
 
-        return new FkJump(fk, direction, target, filters, null, rows.Count, skipped);
+        // The filter bar splits an IN list at the separator; such a value would not survive editing the filter.
+        if (values.Any(v => v.Contains(FilterCondition.ListSeparator, StringComparison.Ordinal)))
+        {
+            return Unavailable(TextFormat.Format(QueryText.FkValueContainsSeparator, FilterCondition.ListSeparator));
+        }
+
+        return new([FilterCondition.Of(targetColumns[0], FilterOperator.In, values)], null, skipped);
     }
 
     private static string Key(FkJump jump) => $"{jump.Table.Name}\0{jump.Table.Owner}\0{jump.ForeignKey.Name}";

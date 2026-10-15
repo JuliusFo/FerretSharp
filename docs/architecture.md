@@ -154,6 +154,7 @@ Geschrieben wird atomar (`AtomicJsonFile`) mit `JsonFiles.Options`, gelesen übe
 | `workspaces*.json` | je Datei gemeldet (nur bei ihrer Verbindung), nicht angefasst | gemeldet | gemeldet |
 | `history*.json` | Kopie `.bad-…`, dann neuer Verlauf | nur anzeigen, nicht schreiben | nur anzeigen, nicht schreiben |
 | `comparisons.json` | Fehler auf der Seite (leer = keine) | Fehler | Fehler, Speichern verweigert |
+| `filter-presets.json` (WP-37) | Fehler im Menü „Vorlagen“, nie überschrieben | Fehler im Menü, Speichern verweigert, bis ein erneuter Versuch (Menü öffnen) gelingt | Fehler, nie überschrieben |
 
 Eigene Regeln, nicht über den Leser: die Anzeigespalten (liest auch eine neuere Datei, dann nur lesend, und hält unbekannte Felder; synchron im `CachedFileRead`) und der Modell-Cache (jede Abweichung ist ein Cache-Fehlschlag).
 

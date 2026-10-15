@@ -1,0 +1,315 @@
+@* "Presets ▾" at the filter bar (WP-37): named sets of filter rows with an optional sort order, per table name and for
+   every connection. A click replaces the filter rows, "+" adds a preset's rows to them; save, rename and delete. The
+   button names the preset applied last and whether the rows changed since ("Open orders · changed"). *@
+@using FerretSharp.Core.Query
+@using FerretSharp.Core.Schema
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject FilterPresetService Presets
+
+@{ var active = Active; var changed = active is not null && Changed(active); }
+@if (active is null)
+{
+    <button class="btn ghost" title="@TextFormat.Format(GridText.Presets_ButtonTitle, Details.Table.DisplayName)" @onclick="OpenAsync">@GridText.Presets_Button ▾</button>
+}
+else
+{
+    <button class="btn ghost preset-active @(changed ? "changed" : "")" @onclick="OpenAsync"
+            title="@TextFormat.Format(changed ? GridText.Presets_ActiveChangedTitle : GridText.Presets_ActiveTitle, active.Name)">
+        <span class="preset-active-name">@active.Name</span>@if (changed) { <span class="preset-changed">· @GridText.Presets_Changed</span> } ▾
+    </button>
+}
+
+@if (_menu is { } menu)
+{
+    var presets = Presets.For(Details.Table);
+    <PopoverMenu X="menu.X" Y="menu.Y" ViewportWidth="menu.Width" ViewportHeight="menu.Height" Width="MenuWidth" EstimatedHeight="@(70 + 32 * presets.Count)" OnClose="Close">
+        @if (Presets.LoadError is { } error)
+        {
+            <div class="preset-note error">@error</div>
+        }
+        else if (presets.Count == 0)
+        {
+            <div class="preset-note">@TextFormat.Format(GridText.Presets_None, Details.Table.DisplayName)</div>
+        }
+        @if (active is not null && changed)
+        {
+            <button class="menu-item" title="@FilterPresetText.Describe(active)" @onclick="() => ApplyAsync(active, append: false)">@TextFormat.Format(GridText.Presets_Reset, active.Name)</button>
+            <button class="menu-item" @onclick="() => UpdateAsync(active)">@TextFormat.Format(GridText.Presets_Update, active.Name)</button>
+            <div class="menu-sep"></div>
+        }
+        @foreach (var preset in presets)
+        {
+            var p = preset;
+            <div class="preset-item @(p.Id == active?.Id ? "active" : "")">
+                <button class="menu-item preset-apply" title="@FilterPresetText.Describe(p)" @onclick="() => ApplyAsync(p, append: false)">@p.Name</button>
+                <button class="icon-btn ghost" title="@GridText.Presets_AppendTitle" @onclick="() => ApplyAsync(p, append: true)">+</button>
+                <button class="icon-btn ghost" title="@ShellText.Rename" @onclick="() => OpenRename(p)">✎</button>
+                <button class="icon-btn ghost preset-delete" title="@CommonText.Delete" @onclick="() => AskDelete(p)">✕</button>
+            </div>
+        }
+        <div class="menu-sep"></div>
+        <button class="menu-item" disabled="@(!CanSave)" title="@(CanSave ? null : GridText.Presets_NothingToSave)" @onclick="OpenSave">@GridText.Presets_SaveAs</button>
+    </PopoverMenu>
+}
+
+@if (_dialog is { } dialog)
+{
+    var title = dialog.Renaming is null ? GridText.Presets_SaveTitle : GridText.Presets_RenameTitle;
+    <ModalFrame Label="@title" Class="preset-dialog" OnCancel="() => _dialog = null">
+        <header><span>@title</span></header>
+        <div class="dialog-body form-grid">
+            <label for="preset-name">@GridText.Presets_Name</label>
+            <div>
+                <input id="preset-name" class="field" maxlength="@FilterPreset.MaxNameLength" placeholder="@GridText.Presets_NamePlaceholder" @ref="_nameInput"
+                       @bind="dialog.Name" @bind:event="oninput" @bind:after="() => dialog.Error = null" @onkeydown="OnNameKeyDownAsync" />
+                @if (dialog.Error is { } error)
+                {
+                    <div class="field-error">@error</div>
+                }
+            </div>
+            @if (dialog.Renaming is null)
+            {
+                <label>@GridText.Presets_Content</label>
+                <div class="preset-content">
+                    @if (dialog.Filters.Count == 0)
+                    {
+                        <div class="muted">@GridText.Presets_NoFilterRows</div>
+                    }
+                    @foreach (var line in FilterPresetText.FilterLines(dialog.Filters))
+                    {
+                        <code>@line</code>
+                    }
+                    @if (Tab.Sorts.Count > 0)
+                    {
+                        <label class="check"><input type="checkbox" @bind="dialog.WithSort" /> @TextFormat.Format(GridText.Presets_WithSort, FilterPresetText.SortText(Tab.Sorts))</label>
+                    }
+                    <div class="hint">@TextFormat.Format(GridText.Presets_Scope, Details.Table.DisplayName)</div>
+                </div>
+            }
+        </div>
+        <footer>
+            <span class="spacer"></span>
+            <button class="btn ghost" @onclick="() => _dialog = null">@CommonText.Cancel</button>
+            <button class="btn primary" disabled="@string.IsNullOrWhiteSpace(dialog.Name)" @onclick="SubmitAsync">@CommonText.Save</button>
+        </footer>
+    </ModalFrame>
+}
+
+@if (_replace is { } replace)
+{
+    <ConfirmDialog Title="@GridText.Presets_ReplaceTitle" ConfirmLabel="@GridText.Presets_Replace" OnConfirm="() => SaveAsync(confirmed: true)" OnCancel="() => _replace = null">
+        <Fmt Text="@GridText.Presets_ReplaceQuestion"><Arg0><strong>@Details.Table.DisplayName</strong></Arg0><Arg1><strong>@replace.Name</strong></Arg1></Fmt>
+    </ConfirmDialog>
+}
+
+@if (_delete is { } delete)
+{
+    <ConfirmDialog Title="@GridText.Presets_DeleteTitle" ConfirmLabel="@CommonText.Delete" Danger="true" OnConfirm="DeleteAsync" OnCancel="() => _delete = null">
+        <Fmt Text="@GridText.Presets_DeleteQuestion"><Arg0><strong>@delete.Name</strong></Arg0></Fmt>
+    </ConfirmDialog>
+}
+
+@code {
+    private const double MenuWidth = 300;
+
+    private MenuAt? _menu;
+    private PresetDialog? _dialog;
+    private FilterPreset? _replace;
+    private FilterPreset? _delete;
+    private ElementReference _nameInput;
+    private bool _focusName;
+    private bool _disposed;
+    private DomModule? _dom;
+
+    /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
+    private DomModule Dom => _dom ??= new(JS);
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public TableTab Tab { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public TableDetails Details { get; set; } = null!;
+
+    /// <summary>A preset was chosen: replace the filter rows with it, or add its rows (<see cref="PresetChoice.Append"/>).</summary>
+    [Parameter]
+    public EventCallback<PresetChoice> OnApply { get; set; }
+
+    private bool CanSave => Tab.FilterRows.Count > 0 || Tab.Sorts.Count > 0;
+
+    /// <summary>The preset applied last, if it still exists (renamed: its new name; deleted: none).</summary>
+    private FilterPreset? Active => Tab.Preset is { } id ? Presets.For(Details.Table).FirstOrDefault(p => p.Id == id) : null;
+
+    private bool Changed(FilterPreset preset) => FilterPresets.Differs(preset, Details, Tab.FilterRows.Select(r => r.ToCondition()).ToList(), Tab.Sorts);
+
+    protected override async Task OnInitializedAsync()
+    {
+        Presets.Changed += OnPresetsChanged;
+        await Presets.EnsureLoadedAsync(); // read once for the app: a restored tab names its preset right away
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusName && _dialog is not null)
+        {
+            _focusName = false;
+            await _nameInput.FocusAsync();
+        }
+    }
+
+    private void OnPresetsChanged() => InvokeAsync(StateHasChanged);
+
+    private async Task OpenAsync(MouseEventArgs e)
+    {
+        var size = await Dom.InvokeAsync<double[]>("viewportSize");
+        if (_disposed || size is not [var width, var height])
+        {
+            return;
+        }
+
+        await Presets.EnsureLoadedAsync(); // again after an error: the file may be readable now
+        _menu = new MenuAt(Math.Max(8, e.ClientX - MenuWidth + 40), e.ClientY + 14, width, height);
+    }
+
+    private void Close() => _menu = null;
+
+    private async Task ApplyAsync(FilterPreset preset, bool append)
+    {
+        _menu = null;
+        await OnApply.InvokeAsync(new PresetChoice(preset, append));
+    }
+
+    private void OpenSave()
+    {
+        _menu = null;
+        // Saved as edited, but only when valid – like applying; the rows show what is wrong.
+        if (Tab.ValidFilters(Details) is not { } filters)
+        {
+            Shell.Notify(GridText.Presets_FixFilters);
+            return;
+        }
+
+        _dialog = new PresetDialog { Filters = filters, WithSort = Tab.Sorts.Count > 0 };
+        _focusName = true;
+    }
+
+    /// <summary>The rows as edited (only if valid) and – if the preset has one – the sort order go into the preset applied last.</summary>
+    private async Task UpdateAsync(FilterPreset preset)
+    {
+        _menu = null;
+        if (Tab.ValidFilters(Details) is not { } filters)
+        {
+            Shell.Notify(GridText.Presets_FixFilters);
+            return;
+        }
+
+        var (saved, error) = await Presets.SaveAsync(Details.Table, preset.Name, filters, preset.Sorts.Count > 0 ? Tab.Sorts : []);
+        Shell.Notify(saved is null ? error! : TextFormat.Format(GridText.Presets_Updated, saved.Name));
+    }
+
+    private void OpenRename(FilterPreset preset)
+    {
+        _menu = null;
+        _dialog = new PresetDialog { Renaming = preset, Name = preset.Name, Filters = preset.Filters };
+        _focusName = true;
+    }
+
+    private void AskDelete(FilterPreset preset)
+    {
+        _menu = null;
+        _delete = preset;
+    }
+
+    private async Task OnNameKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(_dialog?.Name))
+        {
+            await SubmitAsync();
+        }
+    }
+
+    private Task SubmitAsync() => _dialog?.Renaming is { } preset ? RenameAsync(preset) : SaveAsync(confirmed: false);
+
+    private async Task SaveAsync(bool confirmed)
+    {
+        _replace = null;
+        if (_dialog is not { } dialog)
+        {
+            return;
+        }
+
+        if (!confirmed && Presets.Find(Details.Table, dialog.Name) is { } existing)
+        {
+            _replace = existing;
+            return;
+        }
+
+        var (saved, error) = await Presets.SaveAsync(Details.Table, dialog.Name, dialog.Filters, dialog.WithSort ? Tab.Sorts : []);
+        if (saved is null)
+        {
+            dialog.Error = error;
+            return;
+        }
+
+        _dialog = null;
+        Tab.Preset = saved.Id; // the rows are the preset now
+        Shell.MarkDirty();
+        Shell.Notify(TextFormat.Format(GridText.Presets_Saved, saved.Name));
+    }
+
+    private async Task RenameAsync(FilterPreset preset)
+    {
+        if (_dialog is not { } dialog)
+        {
+            return;
+        }
+
+        if (await Presets.RenameAsync(preset, dialog.Name) is { } error)
+        {
+            dialog.Error = error;
+            return;
+        }
+
+        _dialog = null;
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (_delete is not { } preset)
+        {
+            return;
+        }
+
+        _delete = null;
+        if (await Presets.DeleteAsync(preset) is { } error)
+        {
+            Shell.Notify(error);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        Presets.Changed -= OnPresetsChanged;
+        await Dom.DisposeAsync();
+    }
+
+    private sealed record MenuAt(double X, double Y, double Width, double Height);
+
+    private sealed class PresetDialog
+    {
+        /// <summary>The preset being renamed; null when saving a new one.</summary>
+        public FilterPreset? Renaming { get; init; }
+
+        public string Name { get; set; } = "";
+
+        public IReadOnlyList<FilterCondition> Filters { get; init; } = [];
+
+        public bool WithSort { get; set; }
+
+        public string? Error { get; set; }
+    }
+}

@@ -1341,4 +1341,88 @@
   <data name="Export_Failed" xml:space="preserve">
     <value>Export fehlgeschlagen: {0}</value>
   </data>
+  <data name="Link_Title" xml:space="preserve">
+    <value>Link öffnen</value>
+  </data>
+  <data name="Link_Invalid" xml:space="preserve">
+    <value>Dieser Link lässt sich nicht öffnen.</value>
+  </data>
+  <data name="Link_Table" xml:space="preserve">
+    <value>Tabelle</value>
+  </data>
+  <data name="Link_Filters" xml:space="preserve">
+    <value>Filter</value>
+  </data>
+  <data name="Link_NoFilters" xml:space="preserve">
+    <value>keine – alle Zeilen</value>
+  </data>
+  <data name="Link_MoreFilters" xml:space="preserve">
+    <value>und {0} weitere</value>
+  </data>
+  <data name="Link_Sort" xml:space="preserve">
+    <value>Sortierung</value>
+  </data>
+  <data name="Link_Connection" xml:space="preserve">
+    <value>Verbindung</value>
+  </data>
+  <data name="Link_Ambiguous" xml:space="preserve">
+    <value>Mehrere Verbindungen passen – welche?</value>
+  </data>
+  <data name="Link_NoConnection" xml:space="preserve">
+    <value>Keine deiner Verbindungen passt zu diesem Link.</value>
+  </data>
+  <data name="Link_NoConnectionNamed" xml:space="preserve">
+    <value>Der Link nennt die Verbindung {0} unter {1}.</value>
+  </data>
+  <data name="Link_WillConnect" xml:space="preserve">
+    <value>{0} ist noch nicht verbunden; zuerst wird verbunden.</value>
+  </data>
+  <data name="Link_AddressDiffers" xml:space="preserve">
+    <value>Nur über den Namen gefunden: Die Verbindung im Link liegt unter {0}, dort liegt keine deiner Verbindungen. Prüfe, ob es dieselbe Datenbank ist.</value>
+  </data>
+  <data name="Link_Open" xml:space="preserve">
+    <value>Öffnen</value>
+  </data>
+  <data name="Link_TableMissing" xml:space="preserve">
+    <value>Die Tabelle {0} aus dem Link gibt es im Schema {1} nicht.</value>
+  </data>
+  <data name="Link_Copied" xml:space="preserve">
+    <value>Link kopiert.</value>
+  </data>
+  <data name="Link_CopiedWithProdValues" xml:space="preserve">
+    <value>Link kopiert. Er enthält Werte aus {0} (Produktion):</value>
+  </data>
+  <data name="TabMenu_CopyLink" xml:space="preserve">
+    <value>Link kopieren</value>
+  </data>
+  <data name="TabMenu_CopyLinkTitle" xml:space="preserve">
+    <value>Ein ferretsharp://-Link auf diese Tabelle mit Filtern und Sortierung – für Kollegen oder ein Ticket</value>
+  </data>
+  <data name="Settings_LinkProtocol" xml:space="preserve">
+    <value>Links (ferretsharp://)</value>
+  </data>
+  <data name="Settings_LinkProtocolHint" xml:space="preserve">
+    <value>Ein Klick auf einen ferretsharp://-Link – von Kollegen, in einem Ticket – öffnet die Tabelle in FerretSharp, nach einer Rückfrage. Der Installer trägt das selbst ein; eine portable Kopie oder ein eigener Build tut es hier. Nur für deinen Windows-Benutzer.</value>
+  </data>
+  <data name="Settings_LinkProtocolRegister" xml:space="preserve">
+    <value>Registrieren</value>
+  </data>
+  <data name="Settings_LinkProtocolTakeOver" xml:space="preserve">
+    <value>Diese FerretSharp verwenden</value>
+  </data>
+  <data name="Settings_LinkProtocolRemove" xml:space="preserve">
+    <value>Entfernen</value>
+  </data>
+  <data name="Settings_LinkProtocolMine" xml:space="preserve">
+    <value>Links öffnen mit dieser FerretSharp.</value>
+  </data>
+  <data name="Settings_LinkProtocolNone" xml:space="preserve">
+    <value>Links öffnen noch nicht mit FerretSharp.</value>
+  </data>
+  <data name="Settings_LinkProtocolOther" xml:space="preserve">
+    <value>Links öffnen mit einer anderen FerretSharp: {0}</value>
+  </data>
+  <data name="Settings_LinkProtocolFailed" xml:space="preserve">
+    <value>Die Registrierung ließ sich nicht ändern: {0}</value>
+  </data>
 </root>

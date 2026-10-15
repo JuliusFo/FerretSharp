@@ -1,4 +1,7 @@
+using FerretSharp.Core.Links;
 using FerretSharp.Core.Query;
+using FerretSharp.Core.Resources;
+using FerretSharp.UI.Resources;
 using FerretSharp.Core.Schema;
 using FerretSharp.Core.Workspaces;
 
@@ -65,6 +68,7 @@ public sealed partial class ShellState
         var at = _workspaces.FindIndex(w => w.ConnectionId == connectionId);
         _workspaces.RemoveAll(w => w.ConnectionId == connectionId);
         var synced = open.Select(workspace => existing.GetValueOrDefault(workspace.Id) ?? Restore(workspace, connectionId, schema)).ToList();
+        _schemas[connectionId] = schema;
         _workspaces.InsertRange(at < 0 ? _workspaces.Count : at, synced);
 
         var active = synced.FirstOrDefault(w => w.WorkspaceId == activeId) ?? synced.FirstOrDefault();
@@ -88,6 +92,7 @@ public sealed partial class ShellState
     {
         _workspaces.RemoveAll(w => w.ConnectionId == connectionId);
         _activeByConnection.Remove(connectionId);
+        _schemas.Remove(connectionId);
         if (connectionId == CurrentConnection)
         {
             FollowCurrent();
@@ -97,6 +102,11 @@ public sealed partial class ShellState
     /// <summary>Another connection is shown (WP-24): its active workspace and tabs become the active ones.</summary>
     public void ShowConnection(Guid? connectionId) => Set(() =>
     {
+        if (_pendingLink?.ConnectionId is { } linked && linked != connectionId)
+        {
+            _pendingLink = null; // the user went elsewhere: the link does not open later on its own
+        }
+
         CurrentConnection = connectionId;
         SwitcherOpen = false;
         FollowCurrent();
@@ -113,7 +123,83 @@ public sealed partial class ShellState
         }
 
         OpenPendingSql();
+        OpenPendingLink();
     }
+
+    /// <summary>The schema of each connection with workspaces (from <see cref="SyncWorkspaces"/>), to find a linked table.</summary>
+    private readonly Dictionary<Guid, SchemaCache> _schemas = [];
+
+    /// <summary>A link waiting for its connection to be shown with its workspaces (<see cref="OpenLinkIn"/>).</summary>
+    private (Guid ConnectionId, TableLink Link)? _pendingLink;
+
+    /// <summary>
+    /// Opens the table of a confirmed link (WP-37) in a new tab of the connection's active workspace – right away if the
+    /// connection is shown, otherwise once it is (the caller shows or connects it). Only the latest link waits.
+    /// </summary>
+    public void OpenLinkIn(Guid connectionId, TableLink link)
+    {
+        _pendingLink = (connectionId, link);
+        Set(OpenPendingLink);
+    }
+
+    /// <summary>The failure each connection reported last (<see cref="ReportConnectionFailure"/>); none if it had none.</summary>
+    private readonly Dictionary<Guid, object> _failures = [];
+
+    /// <summary>
+    /// A connection's failure after each change of it (review of WP-37): the error of the last attempt to connect, or why it
+    /// was lost; null if none. A new failure drops a link waiting for that connection, so it does not open on its own when
+    /// the user connects again later, maybe hours later. Compared by reference: each attempt fails with an error of its
+    /// own, so a link confirmed for a connection that had failed before waits for the new attempt.
+    /// </summary>
+    public void ReportConnectionFailure(Guid connectionId, object? failure)
+    {
+        if (failure is null)
+        {
+            _failures.Remove(connectionId);
+            return;
+        }
+
+        if (_failures.TryGetValue(connectionId, out var known) && ReferenceEquals(known, failure))
+        {
+            return;
+        }
+
+        _failures[connectionId] = failure;
+        if (_pendingLink?.ConnectionId == connectionId)
+        {
+            _pendingLink = null;
+        }
+    }
+
+    private void OpenPendingLink()
+    {
+        if (_pendingLink is not { } pending || pending.ConnectionId != CurrentConnection || ActiveWorkspace is not { } workspace
+            || !_schemas.TryGetValue(pending.ConnectionId, out var schema))
+        {
+            return;
+        }
+
+        _pendingLink = null;
+        if (LinkedTable(schema, pending.Link) is not { } table)
+        {
+            Notice = new Notice(TextFormat.Format(ShellText.Link_TableMissing, pending.Link.Table, schema.Owner), [], DateTimeOffset.UtcNow);
+            return;
+        }
+
+        var link = pending.Link;
+        var tab = new TableTab(workspace.WorkspaceId, table) { AppliedFilters = link.Filters, Sorts = link.Sorts, Mode = link.Mode ?? TabMode.Data, Visited = true, FitToStructure = true };
+        tab.FilterRows.AddRange(link.Filters.Select(FilterRow.From));
+        InsertAfterActive(workspace, tab);
+    }
+
+    /// <summary>
+    /// The linked table on this connection: by owner and name, else by name in the connection's schema (Test and Prod
+    /// have the same tables, the schema name may differ), else a synonym of that name.
+    /// </summary>
+    public static TableSummary? LinkedTable(SchemaCache schema, TableLink link) =>
+        schema.Find(new TableRef(link.Owner, link.Table))
+        ?? schema.Tables.FirstOrDefault(t => t.Owner == schema.Owner && t.Name == link.Table && t.Synonym is null)
+        ?? schema.Tables.FirstOrDefault(t => t.Synonym?.Name == link.Table); // not any other schema's table of that name
 
     /// <summary>A script waiting for its connection to be shown with its workspaces (<see cref="OpenSqlIn"/>).</summary>
     private (Guid ConnectionId, string Text)? _pendingSql;

@@ -872,6 +872,20 @@ export function refresh(elementId) {
 }
 
 /**
+ * Sorts by exactly these columns (a filter preset, WP-37): [{ colId, sort }] in sort order, all others unsorted. AG Grid
+ * then drops its cached blocks and asks .NET for the first rows again, as after a click on a header.
+ */
+export function setSorts(elementId, sorts) {
+  const api = grids.get(elementId);
+  if (!api) return;
+  api.ensureIndexVisible(0, 'top');
+  api.applyColumnState({
+    state: sorts.map((s, i) => ({ colId: s.colId, sort: s.sort, sortIndex: i })),
+    defaultState: { sort: null, sortIndex: null },
+  });
+}
+
+/**
  * Pins exactly these columns to the left, in this order. The other columns keep their current order; a released
  * column goes back in front of the first column that follows it in the schema (ids are c + schema index).
  */

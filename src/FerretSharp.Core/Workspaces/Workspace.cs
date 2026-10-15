@@ -50,6 +50,12 @@ public sealed record TabState(
     /// <summary>Set for a SQL editor tab (WP-17); <see cref="Table"/> is then <see cref="LinqTabState.NoTable"/> as well.</summary>
     public SqlTabState? Sql { get; init; }
 
+    /// <summary>
+    /// The filter preset last applied in full (WP-37), to show it in the filter bar and whether the rows changed since;
+    /// null if none or the rows were cleared.
+    /// </summary>
+    public Guid? Preset { get; init; }
+
     /// <summary>The form beside the grid (WP-21); null if it was never opened in the tab.</summary>
     public FormTabState? Form { get; init; }
 

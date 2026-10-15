@@ -9,6 +9,7 @@
         <button class="btn" @onclick="AddRow"><span class="plus">+</span> @GridText.Filter_Add</button>
         <span class="hint">@GridText.Filter_NoFilter</span>
         <span class="spacer"></span>
+        <PresetMenu Tab="Tab" Details="Details" OnApply="ApplyPresetAsync" />
         @if (Presentations.For(Details).Entity is not null)
         {
             <LinqMenu Details="Details" Filters="CurrentFilters" />
@@ -35,7 +36,8 @@
                     @* Keyed by category: with other options the browser would show the first one while the kept operator
                        (e.g. "=" from DATE to VARCHAR2) did not change, so Blazor would not set the value again. *@
                     <select @key="(category, values is null)" class="field op" value="@r.Op" @onchange="e => { r.Op = Enum.Parse<FilterOperator>((string)e.Value!); Shell.MarkDirty(); }">
-                        @foreach (var op in Operators(category, values, r.Op))
+                        @* A column the table does not have (a preset's, WP-37) keeps showing its operator. *@
+                        @foreach (var op in column is null ? [r.Op] : Operators(category, values, r.Op))
                         {
                             <option value="@op">@OperatorLabels.Label(op)</option>
                         }
@@ -67,10 +69,16 @@
                     {
                         <span class="filter-error">@r.Error</span>
                     }
+                    else if (column is null)
+                    {
+                        @* From a filter preset of another version of the table (WP-37): kept, disabled, to show what it wanted. *@
+                        <span class="filter-note">@GridText.Presets_ColumnMissing</span>
+                    }
                 </div>
             }
         </div>
         <div class="filter-actions">
+            <PresetMenu Tab="Tab" Details="Details" OnApply="ApplyPresetAsync" />
             @if (Presentations.For(Details).Entity is not null)
             {
                 <LinqMenu Details="Details" Filters="CurrentFilters" />
@@ -102,6 +110,12 @@
     [Parameter]
     public EventCallback OnApply { get; set; }
 
+    /// <summary>
+    /// The filter rows were set from a preset (WP-37): apply them with its sort order (null keeps the grid's).
+    /// </summary>
+    [Parameter]
+    public EventCallback<IReadOnlyList<SortSpec>?> OnApplyPreset { get; set; }
+
     [Parameter]
     public EventCallback OnShowSql { get; set; }
 
@@ -129,6 +143,28 @@
         Shell.MarkDirty();
     }
 
+    private async Task ApplyPresetAsync(PresetChoice choice)
+    {
+        var current = Tab.FilterRows.Select(r => r.ToCondition()).ToList();
+        var applied = FilterPresets.Apply(choice.Preset, Details, current, choice.Append);
+        Tab.FilterRows.Clear();
+        Tab.FilterRows.AddRange(applied.Filters.Select(FilterRow.From));
+        if (!choice.Append)
+        {
+            Tab.Preset = choice.Preset.Id; // added rows keep the preset shown before, now "changed"
+        }
+
+        Shell.MarkDirty(); // saved even if a row does not validate and applying stops there
+
+        if (applied.MissingColumns.Count > 0)
+        {
+            Shell.Notify(TextFormat.Plural(applied.MissingColumns.Count, GridText.Presets_MissingColumnsOne, GridText.Presets_MissingColumnsOther,
+                choice.Preset.Name, string.Join(", ", applied.MissingColumns)));
+        }
+
+        await OnApplyPreset.InvokeAsync(applied.Sorts);
+    }
+
     private async Task RemoveRow(FilterRow row)
     {
         Tab.FilterRows.Remove(row);
@@ -138,6 +174,7 @@
     private async Task ClearAsync()
     {
         Tab.FilterRows.Clear();
+        Tab.Preset = null;
         await OnApply.InvokeAsync();
     }
 

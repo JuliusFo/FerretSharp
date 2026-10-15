@@ -1647,4 +1647,107 @@
     <value>Export failed: {0}</value>
     <comment>{0}: error message</comment>
   </data>
+  <data name="Link_Title" xml:space="preserve">
+    <value>Open link</value>
+    <comment>Dialog title for a ferretsharp:// link from outside</comment>
+  </data>
+  <data name="Link_Invalid" xml:space="preserve">
+    <value>This link cannot be opened.</value>
+  </data>
+  <data name="Link_Table" xml:space="preserve">
+    <value>Table</value>
+    <comment>Label in the link dialog</comment>
+  </data>
+  <data name="Link_Filters" xml:space="preserve">
+    <value>Filters</value>
+    <comment>Label in the link dialog</comment>
+  </data>
+  <data name="Link_NoFilters" xml:space="preserve">
+    <value>none – all rows</value>
+  </data>
+  <data name="Link_MoreFilters" xml:space="preserve">
+    <value>and {0} more</value>
+    <comment>{0}: number of further filters</comment>
+  </data>
+  <data name="Link_Sort" xml:space="preserve">
+    <value>Sort order</value>
+    <comment>Label in the link dialog</comment>
+  </data>
+  <data name="Link_Connection" xml:space="preserve">
+    <value>Connection</value>
+    <comment>Label in the link dialog</comment>
+  </data>
+  <data name="Link_Ambiguous" xml:space="preserve">
+    <value>Several connections fit – which one?</value>
+  </data>
+  <data name="Link_NoConnection" xml:space="preserve">
+    <value>None of your connections fits this link.</value>
+  </data>
+  <data name="Link_NoConnectionNamed" xml:space="preserve">
+    <value>The link names connection {0} at {1}.</value>
+    <comment>{0}: connection name; {1}: address (host:port/service)</comment>
+  </data>
+  <data name="Link_WillConnect" xml:space="preserve">
+    <value>{0} is not connected yet; it will be connected first.</value>
+    <comment>{0}: connection name</comment>
+  </data>
+  <data name="Link_AddressDiffers" xml:space="preserve">
+    <value>Found by name only: the link's connection is at {0}, none of yours is. Check that this is the same database.</value>
+    <comment>{0}: address from the link (host:port/service)</comment>
+  </data>
+  <data name="Link_Open" xml:space="preserve">
+    <value>Open</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Link_TableMissing" xml:space="preserve">
+    <value>The link's table {0} does not exist in schema {1}.</value>
+    <comment>{0}: table name; {1}: schema name</comment>
+  </data>
+  <data name="Link_Copied" xml:space="preserve">
+    <value>Link copied.</value>
+  </data>
+  <data name="Link_CopiedWithProdValues" xml:space="preserve">
+    <value>Link copied. It contains values from {0} (production):</value>
+    <comment>{0}: connection name; the values follow as a list</comment>
+  </data>
+  <data name="TabMenu_CopyLink" xml:space="preserve">
+    <value>Copy link</value>
+    <comment>Tab context menu</comment>
+  </data>
+  <data name="TabMenu_CopyLinkTitle" xml:space="preserve">
+    <value>A ferretsharp:// link to this table with its filters and sort order – for a colleague or a ticket</value>
+  </data>
+  <data name="Settings_LinkProtocol" xml:space="preserve">
+    <value>Links (ferretsharp://)</value>
+    <comment>Settings row: which FerretSharp opens ferretsharp:// links</comment>
+  </data>
+  <data name="Settings_LinkProtocolHint" xml:space="preserve">
+    <value>A click on a ferretsharp:// link – from a colleague, in a ticket – opens the table in FerretSharp, after asking. The installer registers this itself; a portable copy or a build of your own does it here. Only for your Windows user.</value>
+  </data>
+  <data name="Settings_LinkProtocolRegister" xml:space="preserve">
+    <value>Register</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Settings_LinkProtocolTakeOver" xml:space="preserve">
+    <value>Use this FerretSharp</value>
+    <comment>Button: links open with this copy instead of another one</comment>
+  </data>
+  <data name="Settings_LinkProtocolRemove" xml:space="preserve">
+    <value>Remove</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Settings_LinkProtocolMine" xml:space="preserve">
+    <value>Links open with this FerretSharp.</value>
+  </data>
+  <data name="Settings_LinkProtocolNone" xml:space="preserve">
+    <value>Links do not open with FerretSharp yet.</value>
+  </data>
+  <data name="Settings_LinkProtocolOther" xml:space="preserve">
+    <value>Links open with another FerretSharp: {0}</value>
+    <comment>{0}: path of the program</comment>
+  </data>
+  <data name="Settings_LinkProtocolFailed" xml:space="preserve">
+    <value>The registration could not be changed: {0}</value>
+    <comment>{0}: error message</comment>
+  </data>
 </root>

@@ -10,6 +10,7 @@ using FerretSharp.Core.ClrModel;
 using FerretSharp.Core.Compare;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Oracle;
+using FerretSharp.Core.Query;
 using FerretSharp.Core.Resources;
 using FerretSharp.Core.Settings;
 using FerretSharp.Core.Workspaces;
@@ -27,19 +28,23 @@ public partial class App : Application
 {
     private readonly AppPaths _paths;
     private readonly RenderFailureNotice _renderFailures = new();
-    private string[] _args = [];
+    private readonly string[] _args;
     private IHost? _host;
     private ILogger<App>? _logger;
 
     /// <summary>Started by <see cref="Program.Main"/>, which holds the data folder's instance lock (WP-32).</summary>
-    internal App(AppPaths paths) => _paths = paths;
+    /// <param name="args">The arguments to act on (<see cref="CommandLine.Effective"/>), not WPF's own copy of the raw command line.</param>
+    internal App(AppPaths paths, string[] args)
+    {
+        _paths = paths;
+        _args = args;
+    }
 
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
         var paths = _paths;
-        _args = e.Args;
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Debug()
             .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
@@ -62,9 +67,9 @@ public partial class App : Application
         // display names of a linked C# project keep the Windows language (the projects may only have German resources).
         var windowsUiCulture = CultureInfo.CurrentUICulture;
         CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.CurrentUICulture =
-            UiLanguages.Culture(UiLanguages.FromArguments(e.Args) ?? settings.Language);
+            UiLanguages.Culture(UiLanguages.FromArguments(_args) ?? settings.Language);
 
-        Start(e.Args, paths, settingsService, windowsUiCulture);
+        Start(_args, paths, settingsService, windowsUiCulture);
     }
 
     /// <summary>
@@ -133,6 +138,13 @@ public partial class App : Application
         builder.Services.AddSingleton(new ComparisonStore(paths.ComparisonsFile));
         builder.Services.AddSingleton<SchemaCompareLoader>();
         builder.Services.AddSingleton<SchemaCompareService>();
+        // Filter presets (WP-37): one file for all connections.
+        builder.Services.AddSingleton(new FilterPresetStore(paths.FilterPresetsFile));
+        builder.Services.AddSingleton<FilterPresetService>();
+        // Links (WP-37, ADR 0026): from the start argument and, from a second start, through the pipe.
+        builder.Services.AddSingleton<LinkInbox>();
+        builder.Services.AddSingleton<IProtocolRegistration, ProtocolRegistration>();
+        builder.Services.AddHostedService<LinkPipeServer>();
         // App statements (WP-33): one trace for the whole app, over EventPipe.
         builder.Services.AddSingleton<FerretSharp.Core.AppTrace.IAppTraceSource, FerretSharp.AppTrace.EventPipeTraceSource>();
         builder.Services.AddSingleton<AppTraceService>();
@@ -160,6 +172,11 @@ public partial class App : Application
         var window = _host.Services.GetRequiredService<MainWindow>();
         MainWindow = window;
         window.Show();
+        if (CommandLine.LinkOf(args) is { } link)
+        {
+            _host.Services.GetRequiredService<LinkInbox>().Post(link); // the shell takes it once it has started
+        }
+
         _host.Services.GetRequiredService<UiStallMonitor>().Start();
         _ = _host.Services.GetRequiredService<UpdateState>().StartAsync(); // never throws: a failed check is a note in the settings
     }

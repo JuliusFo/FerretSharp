@@ -38,6 +38,9 @@ public sealed class AppPaths
     /// <summary>Saved schema comparisons (WP-20).</summary>
     public string ComparisonsFile => Path.Combine(Root, "comparisons.json");
 
+    /// <summary>Filter presets of all tables (WP-37).</summary>
+    public string FilterPresetsFile => Path.Combine(Root, "filter-presets.json");
+
     /// <summary>Display columns (WP-31) unless the settings name another file.</summary>
     public string DisplayColumnsFile => Path.Combine(Root, "display-columns.json");
 

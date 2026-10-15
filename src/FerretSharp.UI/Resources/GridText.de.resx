@@ -705,4 +705,118 @@
   <data name="ColumnMenu_DisplayView" xml:space="preserve">
     <value>Eine View hat keinen eindeutigen Schlüssel: Ihre Werte lassen sich für Fremdschlüssel nicht nachschlagen.</value>
   </data>
+  <data name="Presets_Button" xml:space="preserve">
+    <value>Vorlagen</value>
+  </data>
+  <data name="Presets_ButtonTitle" xml:space="preserve">
+    <value>Gespeicherte Filterzeilen und Sortierungen für {0} – auf allen Verbindungen</value>
+  </data>
+  <data name="Presets_None" xml:space="preserve">
+    <value>Noch keine Vorlagen für {0}.</value>
+  </data>
+  <data name="Presets_AppendTitle" xml:space="preserve">
+    <value>Ihre Filterzeilen an die aktuellen anhängen</value>
+  </data>
+  <data name="Presets_SaveAs" xml:space="preserve">
+    <value>Als Vorlage speichern…</value>
+  </data>
+  <data name="Presets_NothingToSave" xml:space="preserve">
+    <value>Keine Filterzeilen oder Sortierung zum Speichern</value>
+  </data>
+  <data name="Presets_SaveTitle" xml:space="preserve">
+    <value>Filter-Vorlage speichern</value>
+  </data>
+  <data name="Presets_RenameTitle" xml:space="preserve">
+    <value>Filter-Vorlage umbenennen</value>
+  </data>
+  <data name="Presets_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="Presets_NamePlaceholder" xml:space="preserve">
+    <value>z. B. Offene Aufträge</value>
+  </data>
+  <data name="Presets_Content" xml:space="preserve">
+    <value>Inhalt</value>
+  </data>
+  <data name="Presets_NoFilterRows" xml:space="preserve">
+    <value>Keine Filterzeilen</value>
+  </data>
+  <data name="Presets_WithSort" xml:space="preserve">
+    <value>Sortierung mitspeichern: {0}</value>
+  </data>
+  <data name="Presets_Scope" xml:space="preserve">
+    <value>Gespeichert für {0} auf diesem Rechner; gilt auf allen Verbindungen.</value>
+  </data>
+  <data name="Presets_ReplaceTitle" xml:space="preserve">
+    <value>Vorlage ersetzen</value>
+  </data>
+  <data name="Presets_Replace" xml:space="preserve">
+    <value>Ersetzen</value>
+  </data>
+  <data name="Presets_ReplaceQuestion" xml:space="preserve">
+    <value>Für {0} gibt es schon die Vorlage {1}. Ersetzen?</value>
+  </data>
+  <data name="Presets_DeleteTitle" xml:space="preserve">
+    <value>Vorlage löschen</value>
+  </data>
+  <data name="Presets_DeleteQuestion" xml:space="preserve">
+    <value>Vorlage {0} löschen?</value>
+  </data>
+  <data name="Presets_FixFilters" xml:space="preserve">
+    <value>Erst die Filterzeilen korrigieren.</value>
+  </data>
+  <data name="Presets_Saved" xml:space="preserve">
+    <value>Vorlage {0} gespeichert.</value>
+  </data>
+  <data name="Presets_MissingColumnsOne" xml:space="preserve">
+    <value>Vorlage {1}: Diese Tabelle hat keine Spalte {2}.</value>
+  </data>
+  <data name="Presets_MissingColumnsOther" xml:space="preserve">
+    <value>Vorlage {1}: Diese Tabelle hat keine Spalten {2}.</value>
+  </data>
+  <data name="Presets_ColumnMissing" xml:space="preserve">
+    <value>Gibt es in dieser Tabelle nicht</value>
+  </data>
+  <data name="Presets_Off" xml:space="preserve">
+    <value>(aus) {0}</value>
+  </data>
+  <data name="Presets_SortedBy" xml:space="preserve">
+    <value>Sortiert nach {0}</value>
+  </data>
+  <data name="Presets_NameTaken" xml:space="preserve">
+    <value>Es gibt schon eine Vorlage {0}.</value>
+  </data>
+  <data name="Presets_NotLoaded" xml:space="preserve">
+    <value>Die Vorlagen konnten nicht gelesen werden; gespeichert wird erst, wenn das wieder geht.</value>
+  </data>
+  <data name="GridMenu_CopyRowsLink" xml:space="preserve">
+    <value>Link auf diese Zeilen kopieren</value>
+  </data>
+  <data name="GridMenu_CopyRowsLinkTitle" xml:space="preserve">
+    <value>Ein ferretsharp://-Link, der die Tabelle auf die markierten Zeilen gefiltert öffnet (über den Primärschlüssel)</value>
+  </data>
+  <data name="GridMenu_CopyViewLink" xml:space="preserve">
+    <value>Link auf diese Ansicht kopieren</value>
+  </data>
+  <data name="GridMenu_CopyViewLinkTitle" xml:space="preserve">
+    <value>Ein ferretsharp://-Link auf diese Tabelle mit Filtern und Sortierung</value>
+  </data>
+  <data name="Presets_ActiveTitle" xml:space="preserve">
+    <value>Vorlage {0} angewendet – Filterzeilen und Sortierung wie gespeichert</value>
+  </data>
+  <data name="Presets_ActiveChangedTitle" xml:space="preserve">
+    <value>Vorlage {0} angewendet; Filterzeilen oder Sortierung wurden seitdem geändert</value>
+  </data>
+  <data name="Presets_Changed" xml:space="preserve">
+    <value>geändert</value>
+  </data>
+  <data name="Presets_Reset" xml:space="preserve">
+    <value>Zurück zu {0}</value>
+  </data>
+  <data name="Presets_Update" xml:space="preserve">
+    <value>Aktuellen Stand in {0} speichern</value>
+  </data>
+  <data name="Presets_Updated" xml:space="preserve">
+    <value>Vorlage {0} aktualisiert.</value>
+  </data>
 </root>

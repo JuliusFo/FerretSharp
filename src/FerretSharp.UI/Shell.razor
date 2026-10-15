@@ -14,6 +14,7 @@
 @inject IJSRuntime JS
 @inject FerretSharp.Core.Workspaces.SqlHistoryStore SqlHistory
 @inject ILoggerFactory LoggerFactory
+@inject LinkInbox Links
 
 <CascadingValue Value="_state" IsFixed="true">
 <CascadingValue Value="_lifecycle" IsFixed="true">
@@ -294,6 +295,27 @@
 
         await Connections.LoadAsync(CancellationToken.None);
         await Recent.LoadAsync(CancellationToken.None);
+
+        // Links (WP-37): the start argument is waiting already; a second start hands one over through the host's pipe.
+        Links.Received += OnLinkReceived;
+        TakeLinks();
+    }
+
+    private void OnLinkReceived() => Run(TakeLinks);
+
+    /// <summary>Shows the newest waiting link for confirmation (older ones of a burst are dropped: one dialog at a time).</summary>
+    private void TakeLinks()
+    {
+        string? latest = null;
+        while (Links.TryTake(out var link))
+        {
+            latest = link;
+        }
+
+        if (latest is not null)
+        {
+            _state.ShowIncomingLink(IncomingLink.Read(latest, Connections.Profiles));
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -498,6 +520,7 @@
             return; // closed meanwhile
         }
 
+        _state.ReportConnectionFailure(scope.Id, scope.Lost ?? (object?)(scope.Active.Status == ConnectionStatus.Failed ? scope.Active.Error : null));
         if (scope.Active.IsConnected && scope.Active.Schema is { } schema && scope.Workspaces.Profile?.Id == scope.Id)
         {
             _state.SyncWorkspaces(scope.Id, scope.Workspaces.Open, scope.Workspaces.Active?.Id, schema);
@@ -606,6 +629,7 @@
 
         KeepAlive.ConnectionLost -= OnKeepAliveLost;
         Shortcuts.Changed -= OnShortcutsChanged;
+        Links.Received -= OnLinkReceived;
         if (_shortcuts is not null)
         {
             await _shortcuts.DisposeAsync("unregister");

@@ -132,4 +132,7 @@ Meist kannst du einfach weiterarbeiten. Zeichnet das Fenster nicht mehr richtig,
 
 FerretSharp jetzt neu starten?</value>
   </data>
+  <data name="LinkNotHandedOver" xml:space="preserve">
+    <value>FerretSharp läuft schon, aber der Link konnte nicht übergeben werden. Den Link gleich noch einmal anklicken.</value>
+  </data>
 </root>

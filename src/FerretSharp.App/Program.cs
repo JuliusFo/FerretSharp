@@ -20,8 +20,16 @@ internal static class Program
     {
         // Velopack's hooks (install, update, uninstall) start the app with arguments of their own and end it here, so this
         // comes before anything else (ADR 0024). A download is installed only on the user's click, never at a start.
-        VelopackApp.Build().SetAutoApplyOnStartup(false).Run();
+        // WP-37: the installer registers ferretsharp:// for the current user and removes it again (ADR 0026). An update keeps
+        // the program path (current\FerretSharp.exe); it registers only if nothing is, so a copy chosen in the settings stays.
+        VelopackApp.Build()
+            .SetAutoApplyOnStartup(false)
+            .OnAfterInstallFastCallback(_ => RegisterLinks())
+            .OnAfterUpdateFastCallback(_ => RegisterLinks(onlyIfNone: true))
+            .OnBeforeUninstallFastCallback(_ => UnregisterLinks())
+            .Run();
 
+        args = CommandLine.Effective(args); // a link's own options are ignored (WP-37, review)
         var paths = DataFolder(args);
         WaitForPreviousInstance(args);
         InstanceLock? instance = null;
@@ -29,9 +37,16 @@ internal static class Program
         {
             if (!InstanceLock.TryAcquire(paths, Environment.ProcessId, out instance, out var running))
             {
-                if (!RunningInstance.BringForward(running))
+                // A clicked link goes to the running instance (WP-37), which asks before opening it.
+                var link = CommandLine.LinkOf(args);
+                var handedOver = link is not null && LinkPipe.TrySend(paths, link);
+                if (!RunningInstance.BringForward(running) && !handedOver)
                 {
                     MessageBox.Show(TextFormat.Format(CommonText.AlreadyRunning, paths.Root), "FerretSharp", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                else if (link is not null && !handedOver)
+                {
+                    MessageBox.Show(CommonText.LinkNotHandedOver, "FerretSharp", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
 
                 return 0;
@@ -44,9 +59,25 @@ internal static class Program
 
         using (instance)
         {
-            var app = new App(paths);
+            var app = new App(paths, args);
             app.InitializeComponent();
             return app.Run();
+        }
+    }
+
+    private static void RegisterLinks(bool onlyIfNone = false)
+    {
+        if (Environment.ProcessPath is { } program && (!onlyIfNone || new ProtocolRegistration().RegisteredProgram is null))
+        {
+            ProtocolRegistration.Register(program);
+        }
+    }
+
+    private static void UnregisterLinks()
+    {
+        if (Environment.ProcessPath is { } program)
+        {
+            ProtocolRegistration.Unregister(program);
         }
     }
 

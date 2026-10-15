@@ -251,6 +251,25 @@ public sealed partial class ShellState
 
     public void ClosePassword() => Set(() => PendingPassword = null);
 
+    /// <summary>The user cancelled the password: a link waiting for that connection (WP-37) does not open later on its own.</summary>
+    public void CancelPassword() => Set(() =>
+    {
+        if (PendingPassword is { } request && _pendingLink?.ConnectionId == request.Profile.Id)
+        {
+            _pendingLink = null;
+        }
+
+        PendingPassword = null;
+    });
+
+    /// <summary>A link from outside waiting for the user's confirmation (WP-37); null if none.</summary>
+    public IncomingLink? IncomingLink { get; private set; }
+
+    /// <summary>Shows a link from outside for confirmation; a newer one replaces one not yet answered.</summary>
+    public void ShowIncomingLink(IncomingLink link) => Set(() => IncomingLink = link);
+
+    public void CloseIncomingLink() => Set(() => IncomingLink = null);
+
     /// <summary>The import dialog is open (WP-35).</summary>
     public bool ImportOpen { get; private set; }
 

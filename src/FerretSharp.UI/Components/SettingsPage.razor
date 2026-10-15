@@ -9,6 +9,7 @@
 @inject IJSRuntime JS
 @inject UpdateState Updates
 @inject ShortcutService Shortcuts
+@inject IProtocolRegistration Protocol
 @implements IAsyncDisposable
 
 <div class="settings-page">
@@ -162,6 +163,29 @@
                                 @onclick="() => SetFkCountsAsync(value)">@label</button>
                     }
                 </div>
+            </div>
+            @* WP-37: which FerretSharp opens ferretsharp:// links – the installer registers itself; a portable copy or a build here. *@
+            @{ var registered = Protocol.RegisteredProgram; var mine = IsOwnProgram(registered); }
+            <div class="settings-row @Hide(SettingKey.LinkProtocol)">
+                <div class="settings-label">
+                    <span>@ShellText.Settings_LinkProtocol</span>
+                    <span class="hint">@ShellText.Settings_LinkProtocolHint</span>
+                </div>
+                <div class="settings-path">
+                    @if (mine)
+                    {
+                        <button class="btn ghost" @onclick="UnregisterLinksAsync">@ShellText.Settings_LinkProtocolRemove</button>
+                    }
+                    else
+                    {
+                        <button class="btn" @onclick="RegisterLinksAsync">@(registered is null ? ShellText.Settings_LinkProtocolRegister : ShellText.Settings_LinkProtocolTakeOver)</button>
+                    }
+                </div>
+            </div>
+            <div class="settings-note @(_protocolError is null ? "" : "error") @Hide(SettingKey.LinkProtocol)">
+                @(_protocolError ?? (mine ? ShellText.Settings_LinkProtocolMine
+                    : registered is null ? ShellText.Settings_LinkProtocolNone
+                    : TextFormat.Format(ShellText.Settings_LinkProtocolOther, registered)))
             </div>
         </section>
         }
@@ -427,6 +451,31 @@
 
     private static (ClrNameDisplay Mode, string Label)[] NameModes =>
         [(ClrNameDisplay.Off, CommonText.Off), (ClrNameDisplay.Beside, ShellText.Settings_ClrNamesBeside), (ClrNameDisplay.Front, ShellText.Settings_ClrNamesFront)];
+
+    /// <summary>Why registering or removing the link protocol failed (WP-37); null if it did not.</summary>
+    private string? _protocolError;
+
+    private bool IsOwnProgram(string? program) =>
+        program is not null && string.Equals(Path.GetFullPath(program), Path.GetFullPath(Protocol.OwnProgram), StringComparison.OrdinalIgnoreCase);
+
+    private Task RegisterLinksAsync() => ChangeLinksAsync(Protocol.Register);
+
+    private Task UnregisterLinksAsync() => ChangeLinksAsync(Protocol.Unregister);
+
+    private Task ChangeLinksAsync(Action change)
+    {
+        try
+        {
+            change();
+            _protocolError = null;
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or System.Security.SecurityException)
+        {
+            _protocolError = TextFormat.Format(ShellText.Settings_LinkProtocolFailed, ex.Message);
+        }
+
+        return Task.CompletedTask;
+    }
 
     private Task SetLanguageAsync(UiLanguage language) => UpdateAsync(s => s with { Language = language });
 
