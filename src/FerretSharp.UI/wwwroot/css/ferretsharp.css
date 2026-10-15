@@ -439,7 +439,7 @@ kbd { font: 600 10px var(--mono); padding: 1px 5px; border-radius: 4px; border: 
 .kind-tag.syn, .chip.syn { border-color: color-mix(in srgb, var(--dev) 50%, transparent); color: var(--dev); }
 
 /* ---------- table structure ---------- */
-.structure { position: absolute; inset: 0; overflow: auto; padding: 22px 28px 40px; user-select: text; }
+.structure { --structure-top: 22px; position: absolute; inset: 0; overflow: auto; padding: var(--structure-top) 28px 40px; user-select: text; }
 .structure-head { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
 .structure-head h1 { margin: 0; font: 600 19px var(--mono); }
 .structure-icon { color: var(--accent); display: flex; }
@@ -448,6 +448,8 @@ kbd { font: 600 10px var(--mono); padding: 1px 5px; border-radius: 4px; border: 
 .chip { font-size: 10px; font-weight: 700; letter-spacing: .05em; padding: 2px 7px; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); }
 .structure-loading { display: flex; align-items: center; gap: 10px; color: var(--muted); }
 .structure section { margin-bottom: 26px; max-width: 1100px; }
+/* The columns and the designer (a section, too) get more room: comments wrap less. */
+.structure section.columns-section, .structure section.designer { max-width: 1600px; }
 .structure h2 { margin: 0 0 8px; font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
 .structure h2 .count { color: var(--faint); font-weight: 500; margin-left: 4px; }
 .structure-columns-head { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
@@ -466,8 +468,10 @@ kbd { font: 600 10px var(--mono); padding: 1px 5px; border-radius: 4px; border: 
 .structure-filter input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; font: 12px var(--mono); color: var(--text); }
 .structure p.muted { margin: 0; color: var(--faint); }
 
-table.columns { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-table.columns th { text-align: left; font-size: 11px; font-weight: 600; color: var(--faint); padding: 7px 12px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+/* clip, not hidden: hidden makes the table a scroll container of its own, and the sticky head would stick to it
+   instead of to .structure, which scrolls. The head sticks at the top edge of .structure, not below its padding. */
+table.columns { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: clip; }
+table.columns th { position: sticky; top: calc(-1 * var(--structure-top, 0px)); z-index: 1; text-align: left; font-size: 11px; font-weight: 600; color: var(--faint); padding: 7px 12px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
 table.columns td { padding: 6px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
 table.columns tr:last-child td { border-bottom: 0; }
 table.columns tr:hover td { background: var(--hover); }
@@ -578,7 +582,7 @@ dl.keys dd { margin: 0; }
 .chip.invalid { background: var(--danger-weak); border-color: transparent; color: var(--danger); }
 .detail-error { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-bottom: 16px; padding: 8px 12px; border-radius: 8px; background: var(--danger-weak); color: var(--danger); font-size: 12.5px; }
 .detail-error .muted { color: var(--muted); }
-table.columns td.comment { white-space: normal; min-width: 180px; max-width: 460px; color: var(--muted); }
+table.columns td.comment { white-space: normal; min-width: 280px; color: var(--muted); }
 table.columns td.flags { font-size: 10.5px; font-weight: 600; letter-spacing: .03em; color: var(--muted); }
 table.columns td.state { font-size: 12px; color: var(--muted); }
 table.columns td.state.bad { color: var(--danger); font-weight: 600; }
@@ -1252,7 +1256,7 @@ table.compare-rows td.ff-flushed { box-shadow: inset 2px 0 0 var(--accent); back
 .source-hit:hover:not(:disabled) { background: var(--hover); }
 .source-hit .line-no { flex: none; min-width: 34px; text-align: right; color: var(--faint); font-variant-numeric: tabular-nums; }
 .source-hit .line-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.details-body > .structure.source-host { padding: 0; overflow: hidden; }
+.details-body > .structure.source-host { --structure-top: 0px; padding: 0; overflow: hidden; }
 .source-host > .structure-loading, .source-host > .detail-error { margin: 22px 28px; }
 .plsql-source { position: absolute; inset: 0; }
 .monaco-host.plsql-code { height: 100%; border: 0; border-radius: 0; }
@@ -1351,12 +1355,17 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .ddl-actions .spacer { flex: 1; }
 
 /* Table designer (WP-23, stage 2): the edit mode of the Columns view. */
-.designer { max-width: 1400px; display: flex; flex-direction: column; gap: 10px; }
+.designer { display: flex; flex-direction: column; gap: 10px; }
 .designer h2 { margin: 14px 0 0; }
 .designer-columns td { padding-top: 3px; padding-bottom: 3px; }
 .designer-columns .field { height: 26px; padding: 0 6px; font-size: 12px; width: 100%; min-width: 0; }
 .designer-columns select.field { min-width: 150px; }
 .designer-columns .field.narrow { width: 64px; }
+/* The fields fill their cells: without a minimum the name would shrink to a few letters. The comment takes the room
+   the others leave. */
+.designer-columns td.name-cell { min-width: 150px; }
+.designer-columns td.default-cell { min-width: 90px; }
+.designer-columns td.comment-cell { width: 35%; min-width: 200px; }
 .designer-columns .check-cell { text-align: center; }
 .designer-columns .row-actions { white-space: nowrap; }
 .designer-columns .row-actions > span { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
