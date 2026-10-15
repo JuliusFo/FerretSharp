@@ -301,7 +301,7 @@
         TakeLinks();
     }
 
-    private void OnLinkReceived() => InvokeAsync(TakeLinks);
+    private void OnLinkReceived() => Run(TakeLinks);
 
     /// <summary>Shows the newest waiting link for confirmation (older ones of a burst are dropped: one dialog at a time).</summary>
     private void TakeLinks()
@@ -520,6 +520,7 @@
             return; // closed meanwhile
         }
 
+        _state.ReportConnectionFailure(scope.Id, scope.Lost ?? (object?)(scope.Active.Status == ConnectionStatus.Failed ? scope.Active.Error : null));
         if (scope.Active.IsConnected && scope.Active.Schema is { } schema && scope.Workspaces.Profile?.Id == scope.Id)
         {
             _state.SyncWorkspaces(scope.Id, scope.Workspaces.Open, scope.Workspaces.Active?.Id, schema);

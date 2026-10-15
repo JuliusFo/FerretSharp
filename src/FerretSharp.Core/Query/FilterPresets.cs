@@ -62,9 +62,20 @@ public static class FilterPresets
     /// </summary>
     public static AppliedPreset Apply(FilterPreset preset, TableDetails table, IReadOnlyList<FilterCondition> current, bool append)
     {
+        var fitted = Fit(table, preset.Filters, preset.Sorts);
+        return append ? fitted with { Filters = [.. current, .. fitted.Filters] } : fitted;
+    }
+
+    /// <summary>
+    /// Filter rows and a sort order made for another version of <paramref name="table"/> (a preset, a link from another
+    /// database – WP-37), fitted to this one: rows on columns it does not have come disabled (and are listed), sorts on
+    /// such columns or on ones that cannot be sorted are left out (null if none is left).
+    /// </summary>
+    public static AppliedPreset Fit(TableDetails table, IReadOnlyList<FilterCondition> wanted, IReadOnlyList<SortSpec> wantedSorts)
+    {
         var missing = new List<string>();
-        var filters = append ? current.ToList() : [];
-        foreach (var filter in preset.Filters)
+        var filters = new List<FilterCondition>();
+        foreach (var filter in wanted)
         {
             if (table.Columns.Any(c => c.Name == filter.Column))
             {
@@ -80,11 +91,11 @@ public static class FilterPresets
             filters.Add(filter with { Enabled = false });
         }
 
-        var sorts = preset.Sorts
+        var sorts = wantedSorts
             .Where(s => table.Columns.FirstOrDefault(c => c.Name == s.Column) is { } column && ColumnCategories.IsSortable(ColumnCategories.Of(column)))
             .DistinctBy(s => s.Column)
             .ToList();
-        foreach (var sort in preset.Sorts.Where(s => table.Columns.All(c => c.Name != s.Column) && !missing.Contains(s.Column)))
+        foreach (var sort in wantedSorts.Where(s => table.Columns.All(c => c.Name != s.Column) && !missing.Contains(s.Column)))
         {
             missing.Add(sort.Column);
         }
