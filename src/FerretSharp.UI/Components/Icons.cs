@@ -33,6 +33,10 @@ internal static class Icons
     public static readonly MarkupString Refresh = Svg(
         """<path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.5 2.5v3h-3"/>""", 1.6);
 
+    /// <summary>Plus: add something (new table in the explorer).</summary>
+    public static readonly MarkupString Plus = Svg(
+        """<path d="M8 3v10M3 8h10"/>""", 1.6);
+
     public static readonly MarkupString Home = Svg(
         """<path d="M2.5 7.5 8 3l5.5 4.5"/><path d="M4 6.5V13h8V6.5"/>""", 1.6);
 

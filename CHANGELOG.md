@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Fixed
+- Explorer: the "+" (new table) and the reload button sit at the same height – the "+" is an icon now, and icons in icon buttons no longer ride up on the text baseline.
+
 ## [3.36.0] - 2026-10-15
 
 Jump along foreign keys from the results of the SQL editor and the LINQ console.
