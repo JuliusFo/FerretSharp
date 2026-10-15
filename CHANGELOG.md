@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.35.3] - 2026-10-15
+
+A steadier table designer: the right CHAR box, a header that stays, room for comments.
+
 ### Fixed
 - Table designer: the CHAR box of a column whose type has no length semantics (NUMBER, DATE …) showed the choice of a text column, ticked and greyed out. It is now clear for such types and ticked for NVARCHAR2/NCHAR, which always count characters; switching back to VARCHAR2 or CHAR brings the choice back.
 - The header of the column list stays in sight while you scroll through a table with many columns – in the Columns view and in the designer, and also in the lists of constraints and indexes.
