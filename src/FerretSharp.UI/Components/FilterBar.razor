@@ -154,6 +154,8 @@
             Tab.Preset = choice.Preset.Id; // added rows keep the preset shown before, now "changed"
         }
 
+        Shell.MarkDirty(); // saved even if a row does not validate and applying stops there
+
         if (applied.MissingColumns.Count > 0)
         {
             Shell.Notify(TextFormat.Plural(applied.MissingColumns.Count, GridText.Presets_MissingColumnsOne, GridText.Presets_MissingColumnsOther,

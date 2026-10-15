@@ -52,6 +52,38 @@ public sealed class FilterPresetServiceTests : IDisposable
         Assert.Equal(["Testkunden"], reread.For(Kunde).Select(p => p.Name));
     }
 
+    /// <summary>Review of WP-37: every restored tab's filter bar asks at the start – one read for all of them.</summary>
+    [Fact]
+    public async Task Filter_bars_asking_at_the_same_time_share_one_read()
+    {
+        await (await ServiceAsync()).SaveAsync(AuftragTest, "Offene", [Offen], []);
+        var service = new FilterPresetService(new FilterPresetStore(StoreFile), NullLogger<FilterPresetService>.Instance);
+        var reads = 0;
+        service.Changed += () => reads++;
+
+        await Task.WhenAll(Enumerable.Range(0, 5).Select(_ => service.EnsureLoadedAsync()));
+        await service.EnsureLoadedAsync();
+
+        Assert.Equal(1, reads);
+        Assert.Equal(["Offene"], service.For(AuftragTest).Select(p => p.Name));
+    }
+
+    /// <summary>Applying, saving and updating a preset check the rows alike (review of WP-37): each row gets its error.</summary>
+    [Fact]
+    public void Only_valid_rows_are_taken_and_each_row_shows_its_error()
+    {
+        var details = new TableDetails(AuftragTest, [new ColumnInfo("STATUS", "VARCHAR2", 20, true, null, null, false, false, null, 1)], [], [], false);
+        var tab = new TableTab(Guid.NewGuid(), AuftragTest);
+        tab.FilterRows.AddRange([FilterRow.From(Offen), FilterRow.From(FilterCondition.Of("GIBTS_NICHT", FilterOperator.IsNull))]);
+
+        Assert.Null(tab.ValidFilters(details));
+        Assert.Equal([false, true], tab.FilterRows.Select(r => r.Error is not null));
+
+        tab.FilterRows[1].Enabled = false;
+        Assert.Equal(["STATUS", "GIBTS_NICHT"], tab.ValidFilters(details)?.Select(f => f.Column));
+        Assert.All(tab.FilterRows, r => Assert.Null(r.Error));
+    }
+
     [Fact]
     public async Task Saving_under_a_taken_name_replaces_that_preset()
     {

@@ -15,6 +15,7 @@ public sealed class FilterPresetService(FilterPresetStore store, ILogger<FilterP
 {
     private IReadOnlyList<FilterPreset> _presets = [];
     private bool _loaded;
+    private Task? _loading;
 
     /// <summary>Raised after the presets were read or changed.</summary>
     public event Action? Changed;
@@ -22,14 +23,22 @@ public sealed class FilterPresetService(FilterPresetStore store, ILogger<FilterP
     /// <summary>Why the presets could not be read; null if fine. Opening the menu again tries again.</summary>
     public string? LoadError { get; private set; }
 
-    /// <summary>Reads the file unless it was read already; after an error it tries again.</summary>
-    public async Task EnsureLoadedAsync()
+    /// <summary>
+    /// Reads the file unless it was read already; after an error it tries again. Callers at the same time (every restored
+    /// tab's filter bar) share one read.
+    /// </summary>
+    public Task EnsureLoadedAsync()
     {
-        if (_loaded)
+        if (!_loaded && _loading is not { IsCompleted: false })
         {
-            return;
+            _loading = LoadAsync(); // ended without success (or never started): read again
         }
 
+        return _loaded ? Task.CompletedTask : _loading!;
+    }
+
+    private async Task LoadAsync()
+    {
         try
         {
             _presets = await store.LoadAsync(CancellationToken.None);

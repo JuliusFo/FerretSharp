@@ -186,14 +186,7 @@ else
     {
         _menu = null;
         // Saved as edited, but only when valid – like applying; the rows show what is wrong.
-        var filters = Tab.FilterRows.Select(r => r.ToCondition()).ToList();
-        var errors = QueryBuilder.Validate(Details, filters);
-        for (var i = 0; i < Tab.FilterRows.Count; i++)
-        {
-            Tab.FilterRows[i].Error = errors.GetValueOrDefault(i);
-        }
-
-        if (errors.Count > 0)
+        if (Tab.ValidFilters(Details) is not { } filters)
         {
             Shell.Notify(GridText.Presets_FixFilters);
             return;
@@ -207,14 +200,7 @@ else
     private async Task UpdateAsync(FilterPreset preset)
     {
         _menu = null;
-        var filters = Tab.FilterRows.Select(r => r.ToCondition()).ToList();
-        var errors = QueryBuilder.Validate(Details, filters);
-        for (var i = 0; i < Tab.FilterRows.Count; i++)
-        {
-            Tab.FilterRows[i].Error = errors.GetValueOrDefault(i);
-        }
-
-        if (errors.Count > 0)
+        if (Tab.ValidFilters(Details) is not { } filters)
         {
             Shell.Notify(GridText.Presets_FixFilters);
             return;

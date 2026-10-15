@@ -302,14 +302,7 @@
             return;
         }
 
-        var conditions = Tab.FilterRows.Select(r => r.ToCondition()).ToList();
-        var errors = QueryBuilder.Validate(_details, conditions);
-        for (var i = 0; i < Tab.FilterRows.Count; i++)
-        {
-            Tab.FilterRows[i].Error = errors.GetValueOrDefault(i);
-        }
-
-        if (errors.Count > 0)
+        if (Tab.ValidFilters(_details) is not { } conditions)
         {
             return;
         }
