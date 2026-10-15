@@ -7,6 +7,7 @@
 @inject ConnectionManager Connections
 @inject ConnectionHub Hub
 @inject ShortcutService Shortcuts
+@inject AppSettingsService Settings
 
 <footer class="statusbar">
     @if (Connections.LoadError is { } loadError)
@@ -35,7 +36,7 @@
                 <button class="status-btn" @onclick="Lifecycle.DisconnectAsync">@ShellText.Connection_Disconnect</button>
                 break;
             case ConnectionStatus.Connecting:
-                <span class="item"><span class="spinner small"></span> @TextFormat.Format(ShellText.Connection_ConnectingTo, Active.Profile?.Name) <ConnectProgress Active="Active" Compact="true" /></span>
+                <span class="item"><span class="spinner small"></span> @TextFormat.Format(ShellText.Connection_ConnectingTo, NameOf(Active.Profile)) <ConnectProgress Active="Active" Compact="true" /></span>
                 break;
             case ConnectionStatus.Failed:
                 <span class="item error"><span class="dot err"></span> @ShellText.Status_ConnectionFailed</span>
@@ -59,8 +60,8 @@
     @foreach (var other in Hub.Open.Where(s => s != Hub.Current && HasWork(s)))
     {
         @* WP-24: uncommitted work in a connection in the background must not be forgotten. *@
-        <button class="status-link warn" title="@TextFormat.Format(ShellText.Status_OtherUncommittedTitle, other.Profile?.Name)"
-                @onclick="() => Show(other)">@TextFormat.Format(ShellText.Status_OtherUncommitted, other.Profile?.Name)</button>
+        <button class="status-link warn" title="@TextFormat.Format(ShellText.Status_OtherUncommittedTitle, NameOf(other.Profile))"
+                @onclick="() => Show(other)">@TextFormat.Format(ShellText.Status_OtherUncommitted, NameOf(other.Profile))</button>
     }
     <UpdateIndicator />
     <span class="item">@Version</span>
@@ -75,6 +76,9 @@
 
     [CascadingParameter]
     public ClrModelManager Models { get; set; } = null!;
+
+    /// <summary>A connection as the status bar names it, with its group in front (<see cref="ConnectionLabel"/>).</summary>
+    private string? NameOf(ConnectionProfile? profile) => profile is null ? null : ConnectionLabel.Of(profile, Settings.Current);
 
     /// <summary>An open writing transaction older than this is shown as a warning: it holds row locks.</summary>
     private static readonly TimeSpan LongTransaction = TimeSpan.FromMinutes(10);

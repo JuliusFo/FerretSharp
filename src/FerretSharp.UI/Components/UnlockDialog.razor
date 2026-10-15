@@ -1,12 +1,13 @@
 @* Unlock one workspace of a read-only profile for writing (WP-10). On Prod the user types the connection's name
    (the user's decision), elsewhere a plain confirmation is enough. *@
 @using FerretSharp.Core.Connections
+@inject AppSettingsService Settings
 
 <ModalFrame Label="@ShellText.Unlock_Title" Class="confirm unlock-dialog" Alert="true" OnCancel="OnCancel">
     <header><span>@ShellText.Unlock_Title</span></header>
     <div class="dialog-body">
         <p>
-            <Fmt Text="@ShellText.Unlock_Question"><Arg0><strong>@WorkspaceName</strong></Arg0><Arg1><strong>@Profile.Name</strong></Arg1></Fmt>
+            <Fmt Text="@ShellText.Unlock_Question"><Arg0><strong>@WorkspaceName</strong></Arg0><Arg1><strong>@ConnectionLabel.Of(Profile, Settings.Current)</strong></Arg1></Fmt>
         </p>
         <ul class="unlock-facts">
             <li><Fmt Text="@(IsProd ? ShellText.Unlock_CommitFactProd : ShellText.Unlock_CommitFact)"><Arg0><strong>Commit</strong></Arg0></Fmt></li>

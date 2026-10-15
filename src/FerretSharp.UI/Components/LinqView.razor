@@ -8,6 +8,7 @@
 @inherits FerretComponent
 @implements IDisposable
 @inject ShortcutService Shortcuts
+@inject AppSettingsService Settings
 
 <div class="linqview">
     <div class="tab-toolbar">
@@ -217,7 +218,7 @@
     <ConfirmDialog Title="@SqlEditorText.Linq_ConfirmProdTitle" ConfirmLabel="@CommonText.Run" Danger="true" OnConfirm="WriteAsync" OnCancel="() => _confirmWrite = false">
         <Fmt Text="@SqlEditorText.Linq_ConfirmProd">
             <Arg0><strong>@Tab.Title</strong></Arg0>
-            <Arg1><strong>@prodProfile.Name</strong></Arg1>
+            <Arg1><strong>@ConnectionLabel.Of(prodProfile, Settings.Current)</strong></Arg1>
         </Fmt>
     </ConfirmDialog>
 }

@@ -178,7 +178,7 @@
                         var otherSummary = Editing.SummaryOf(other);
                         <div class="changes-other" @key="other.WorkspaceId">
                             <button class="link-btn" title="@ShellText.Changes_ShowWorkspace" @onclick="() => Show(other)">@scope.Workspaces.Find(other.WorkspaceId)?.Name</button>
-                            <span class="muted">@scope.Profile?.Name</span>
+                            <span class="muted">@(scope.Profile is { } profile ? ConnectionLabel.Of(profile, Settings.Current) : null)</span>
                             <span class="spacer"></span>
                             <span class="muted">@TextFormat.Format(ShellText.Changes_OtherCounts, otherSummary.Pending, otherSummary.Actions.Count)</span>
                         </div>

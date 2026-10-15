@@ -76,7 +76,7 @@
             <Arg0><strong>@Lifecycle.WorkspaceName(commitTabs.WorkspaceId)</strong></Arg0>
             <Arg1>@commitSummary.Pending</Arg1>
             <Arg2>@commitSummary.Flushed</Arg2>
-            <Arg3><strong>@Active.Profile?.Name</strong></Arg3>
+            <Arg3><strong>@(Active.Profile is { } activeProfile ? ConnectionLabel.Of(activeProfile, Settings.Current) : null)</strong></Arg3>
         </Fmt>
         @* WP-30: what exactly is committed. *@
         <OpenChangesList Workspace="commitTabs" Summary="commitSummary" Heading="@ShellText.Dialogs_CommitActions" />
@@ -95,7 +95,7 @@
         </p>
         @if (IsProd(redoTabs))
         {
-            <p><Fmt Text="@ShellText.Dialogs_RedoProd"><Arg0><strong>@Hub.ScopeOf(redoTabs).Profile?.Name</strong></Arg0></Fmt></p>
+            <p><Fmt Text="@ShellText.Dialogs_RedoProd"><Arg0><strong>@(Hub.ScopeOf(redoTabs).Profile is { } redoProfile ? ConnectionLabel.Of(redoProfile, Settings.Current) : null)</strong></Arg0></Fmt></p>
         }
         <div class="hint small">@TextFormat.Format(ShellText.Dialogs_RedoRowsBefore, redoAction.Rows)</div>
         <SqlCode Sql="@ChangeOverview.Sql(redoAction)" />

@@ -47,6 +47,12 @@ public sealed record AppSettings
     public UiLanguage Language { get; init; } = UiLanguage.English;
 
     /// <summary>
+    /// A connection's group in front of its name outside the connection list (<c>Kunde A › DEV</c>): connections of
+    /// different groups often share a name. On by default.
+    /// </summary>
+    public bool ShowConnectionGroup { get; init; } = true;
+
+    /// <summary>
     /// Ping idle sessions regularly (<see cref="Connections.ConnectionKeepAlive"/>): a lost connection shows up at once,
     /// and firewalls do not drop idle connections. Keeps sessions alive against a database <c>IDLE_TIME</c> as well.
     /// </summary>

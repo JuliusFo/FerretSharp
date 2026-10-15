@@ -2,6 +2,7 @@
    other writers, and the uncommitted changes that are discarded first. *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Query
+@inject AppSettingsService Settings
 
 @{ var discard = Lifecycle.OpenTransactionOf(WorkspaceId); }
 <ConfirmDialog Title="@SqlEditorText.SqlView_ConfirmDdlTitle"
@@ -10,7 +11,7 @@
     <DdlStatementList Statements="Statements" />
     @if (Active.Profile is { Kind: ConnectionKind.Prod } profile)
     {
-        <p><Fmt Text="@SqlEditorText.SqlView_ConfirmProd"><Arg0><strong>@profile.Name</strong></Arg0></Fmt></p>
+        <p><Fmt Text="@SqlEditorText.SqlView_ConfirmProd"><Arg0><strong>@ConnectionLabel.Of(profile, Settings.Current)</strong></Arg0></Fmt></p>
     }
     <DdlWarnings WorkspaceId="WorkspaceId" Discard="discard" />
 </ConfirmDialog>

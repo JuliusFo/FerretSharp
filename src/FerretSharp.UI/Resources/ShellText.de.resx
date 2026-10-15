@@ -39,6 +39,12 @@
   <data name="Settings_ColorSchemeHint" xml:space="preserve">
     <value>„System“ folgt der Windows-Einstellung.</value>
   </data>
+  <data name="Settings_ConnectionGroup" xml:space="preserve">
+    <value>Gruppe vor dem Verbindungsnamen</value>
+  </data>
+  <data name="Settings_ConnectionGroupHint" xml:space="preserve">
+    <value>Zeigt die Gruppe einer Verbindung vor ihrem Namen – im Verbindungsumschalter, bei den offenen und zuletzt benutzten Verbindungen und in den Bestätigungen, z. B. {0}. Hilfreich, wenn mehrere Gruppen ein DEV, TEST oder PROD haben.</value>
+  </data>
   <data name="Settings_ThemeSystem" xml:space="preserve">
     <value>System</value>
   </data>

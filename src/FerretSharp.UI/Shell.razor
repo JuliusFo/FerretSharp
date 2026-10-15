@@ -156,7 +156,7 @@
                         }
                         else if (Active.Status == ConnectionStatus.Failed && Active.Profile is { } failed)
                         {
-                            <EmptyState Title="@TextFormat.Format(ShellText.Shell_ConnectionFailedTo, failed.Name)" IsError="true">
+                            <EmptyState Title="@TextFormat.Format(ShellText.Shell_ConnectionFailedTo, ConnectionLabel.Of(failed, Settings.Current))" IsError="true">
                                 <div class="error-detail">
                                     @if (Active.Error?.ErrorCode is { } errorCode)
                                     {

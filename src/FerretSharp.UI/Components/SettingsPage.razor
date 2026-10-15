@@ -83,6 +83,23 @@
                     </Fmt>
                 </div>
             }
+            <div class="settings-row @Hide(SettingKey.ConnectionGroup)">
+                <div class="settings-label">
+                    <span>@ShellText.Settings_ConnectionGroup</span>
+                    <span class="hint">
+                        <Fmt Text="@ShellText.Settings_ConnectionGroupHint"><Arg0><code>@SettingsCatalog.ConnectionGroupExample</code></Arg0></Fmt>
+                    </span>
+                </div>
+                <div class="segmented" role="radiogroup" aria-label="@ShellText.Settings_ConnectionGroup">
+                    @foreach (var (on, label) in OnOff)
+                    {
+                        var value = on;
+                        <button class="seg @(Settings.Current.ShowConnectionGroup == value ? "active" : "")" role="radio"
+                                aria-checked="@(Settings.Current.ShowConnectionGroup == value ? "true" : "false")"
+                                @onclick="() => SetShowConnectionGroupAsync(value)">@label</button>
+                    }
+                </div>
+            </div>
         </section>
         }
 
@@ -573,6 +590,8 @@
     }
 
     private Task SetShowDisplayNamesAsync(bool on) => UpdateAsync(s => s with { ShowDisplayNames = on });
+
+    private Task SetShowConnectionGroupAsync(bool on) => UpdateAsync(s => s with { ShowConnectionGroup = on });
 
     private Task SetDisplayColumnsPathAsync(string? path)
     {
