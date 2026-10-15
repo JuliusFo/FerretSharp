@@ -94,7 +94,7 @@ public static class SqlCompletion
         var tables = SqlScript.Analyze(statement).Tables;
         if (i >= 1 && tokens[i].IsSymbol(".") && tokens[i - 1].Kind is SqlTokenKind.Word or SqlTokenKind.QuotedIdentifier)
         {
-            var qualifier = Normalize(tokens[i - 1]);
+            var qualifier = SqlAnalysis.Normalize(tokens[i - 1]);
             var reference = tables.FirstOrDefault(t => t.Alias == qualifier) ?? tables.FirstOrDefault(t => t.Alias is null && t.Name == qualifier);
             if (reference is not null && Resolve(schema, reference) is { } table)
             {
@@ -122,11 +122,15 @@ public static class SqlCompletion
         return items;
     }
 
-    /// <summary>The object a reference names: own table or view, an object of the owner given, or a synonym of that name.</summary>
+    /// <summary>
+    /// The object a reference names: an object of the owner given, or – as Oracle resolves an unqualified name – own table
+    /// or view, then a private synonym, then a public one (WP-48: two synonyms of one name may lead to different objects).
+    /// </summary>
     public static TableSummary? Resolve(SchemaCache schema, SqlTableReference reference) =>
         reference.Owner is { } owner
             ? schema.Find(new TableRef(owner, reference.Name)) ?? schema.Tables.FirstOrDefault(t => t.Owner == owner && t.Name == reference.Name)
-            : schema.Find(new TableRef(schema.Owner, reference.Name)) ?? schema.Tables.FirstOrDefault(t => t.DisplayName == reference.Name);
+            : schema.Find(new TableRef(schema.Owner, reference.Name))
+              ?? schema.Tables.Where(t => t.Synonym?.Name == reference.Name).OrderBy(t => t.Synonym!.IsPublic).FirstOrDefault();
 
     /// <summary>A name as SQL: plain if Oracle reads it as written, quoted otherwise (<c>MixedCase</c>, reserved words).</summary>
     public static string Quote(string name) => OracleIdentifier.QuoteIfNeeded(name);
@@ -207,7 +211,4 @@ public static class SqlCompletion
     private static bool InsideCommentOrLiteral(string statement, int offset) =>
         SqlScript.Tokenize(statement[..offset] + " x")
             .Any(t => t.Kind is SqlTokenKind.Comment or SqlTokenKind.Text && t.Start < offset && t.End > offset);
-
-    private static string Normalize(SqlToken token) =>
-        token.Kind == SqlTokenKind.QuotedIdentifier ? token.Value : token.Value.ToUpperInvariant();
 }

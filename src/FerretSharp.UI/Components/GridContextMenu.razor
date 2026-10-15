@@ -10,9 +10,7 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject IFileSaveService Files
-@inject ILogger<GridContextMenu> Logger
 @inject ShortcutService Shortcuts
-@inject AppSettingsService Settings
 
 <PopoverMenu X="Request.X" Y="Request.Y" ViewportWidth="Request.ViewportWidth" ViewportHeight="Request.ViewportHeight"
              Width="MenuWidth" EstimatedHeight="EstimatedHeight" OnClose="CloseAsync">
@@ -89,32 +87,8 @@
         <button class="menu-item" disabled="@(seed is not null)" title="@(seed ?? GridText.GridMenu_CopySeedTitle)" @onclick="CopySeedAsync">@GridText.GridMenu_CopySeed</button>
     }
 
-    @if (_outgoing.Count > 0)
-    {
-        <div class="group-head-btn static">@TextFormat.Format(GridText.GridMenu_PointsTo, JumpRowsText)</div>
-        @foreach (var jump in _outgoing)
-        {
-            <FkJumpItem Jump="jump" Related="InvolvesColumn(jump)" OnJump="JumpAsync" />
-        }
-    }
-
-    @if (_incoming.Count > 0)
-    {
-        <div class="group-head-btn static">@TextFormat.Format(GridText.GridMenu_ReferencedBy, JumpRowsText)</div>
-        @foreach (var jump in _incoming)
-        {
-            <FkJumpItem Jump="jump" Count="_counts.Of(jump)" Related="InvolvesColumn(jump)" OnJump="JumpAsync" OnEnter="Hover" OnLeave="_counts.Leave" />
-        }
-    }
-
-    @if (_outgoing.Count == 0 && _incoming.Count == 0)
-    {
-        <div class="ctx-empty">@GridText.GridMenu_NoForeignKeys</div>
-    }
-    else if (Request.MissingRows > 0)
-    {
-        <div class="ctx-note">@TextFormat.Format(GridText.GridMenu_MissingRows, RowsText(Request.MissingRows))</div>
-    }
+    <FkJumpSection Outgoing="_outgoing" Incoming="_incoming" Related="InvolvesColumn" RowsText="@JumpRowsText" MissingRows="Request.MissingRows"
+                   WorkspaceId="Tab.WorkspaceId" ShowEmpty="true" OnJumped="CloseAsync" />
 </PopoverMenu>
 
 @code {
@@ -122,16 +96,11 @@
     public ActiveConnection Active { get; set; } = null!;
 
     [CascadingParameter]
-    public WorkspaceManager Workspaces { get; set; } = null!;
-
-    [CascadingParameter]
     public PresentationService Presentations { get; set; } = null!;
 
     private const double MenuWidth = 400;
     private const double ItemHeight = 44;
 
-    private readonly CancellationTokenSource _cts = new();
-    private FkCounts _counts = null!;
     private IReadOnlyList<FkJump> _outgoing = [];
     private IReadOnlyList<FkJump> _incoming = [];
     private DomModule? _dom;
@@ -236,7 +205,6 @@
 
     protected override void OnInitialized()
     {
-        _counts = FkCounts.For(Shell, Logger, Active, Workspaces, Tab.WorkspaceId, () => InvokeAsync(StateHasChanged));
         _presentation = Presentations.For(Details);
         _cell = _presentation.Entity is null ? null : CSharpRows.Cell(_presentation, Request.Column, Request.Row.Values[Request.Column]);
         if (Active.Schema is not { } schema)
@@ -249,34 +217,10 @@
         // FKs over the clicked column first: that is usually the one the user means.
         _outgoing = jumps.Where(j => j.Direction == JumpDirection.Outgoing).OrderByDescending(InvolvesColumn).ToList();
         _incoming = jumps.Where(j => j.Direction == JumpDirection.Incoming).OrderByDescending(InvolvesColumn).ToList();
-        // One after the other: they share the workspace's session. Closing the menu cancels the rest.
-        if (Settings.Current.FkCounts == FkCountMode.Immediately)
-        {
-            var token = _cts.Token;
-            Fire(() => _counts.CountAllAsync(_incoming, token));
-        }
-    }
-
-    /// <summary>Counts the entry the mouse rests on (<see cref="FkCountMode.OnHover"/>); a jump then waits for one count at most.</summary>
-    private void Hover(FkJump jump)
-    {
-        if (Settings.Current.FkCounts == FkCountMode.OnHover && jump.Direction == JumpDirection.Incoming)
-        {
-            var token = _cts.Token;
-            Fire(() => _counts.HoverAsync(jump, token));
-        }
     }
 
     private bool InvolvesColumn(FkJump jump) =>
         (jump.Direction == JumpDirection.Outgoing ? jump.ForeignKey.FromColumns : jump.ForeignKey.ToColumns).Contains(Column.Name);
-
-    private TableSummary SummaryOf(TableRef table) => FkTargets.SummaryOf(Active, table);
-
-    private async Task JumpAsync(FkJump jump)
-    {
-        Shell.OpenFiltered(SummaryOf(jump.Table), jump.Filters);
-        await CloseAsync();
-    }
 
     private async Task TogglePinAsync()
     {
@@ -308,16 +252,7 @@
         await CloseAsync();
     }
 
-    private async Task CloseAsync()
-    {
-        await _cts.CancelAsync();
-        await OnClose.InvokeAsync();
-    }
+    private Task CloseAsync() => OnClose.InvokeAsync();
 
-    public async ValueTask DisposeAsync()
-    {
-        await _cts.CancelAsync();
-        _cts.Dispose();
-        await Dom.DisposeAsync();
-    }
+    public ValueTask DisposeAsync() => Dom.DisposeAsync();
 }

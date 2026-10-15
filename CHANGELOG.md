@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- SQL editor and LINQ console: the result knows where its columns come from ([#14](https://github.com/JuliusFo/FerretSharp/issues/14)). Right-click a row to jump along foreign keys as in a table – "Points to" from FK columns, "Referenced by" when the table's key is in the result, from several selected rows too, relationships of the C# model included. Columns read from a table show its C# name and type, enum members by name and the FK badge; the header tooltip names the table column. Works with the quoted aliases EF Core writes (`"a"`, `"k"`) and through synonyms. Columns from expressions, `WITH`, `UNION` and inline views have no origin and stay as they are.
+
 ## [3.35.4] - 2026-10-15
 
 Open a link on the connection you choose.

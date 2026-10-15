@@ -522,6 +522,10 @@
     <value>Result</value>
     <comment>Default file name (without extension) when saving a query result</comment>
   </data>
+  <data name="Result_ColumnOrigin" xml:space="preserve">
+    <value>From {0}</value>
+    <comment>Header tooltip of a result column traced back to a table column; {0} = table.column, e.g. CUSTOMERS.NAME</comment>
+  </data>
   <data name="ResultMenu_CopyInsertTitle" xml:space="preserve">
     <value>INSERT INTO {0} with the result’s column names as target columns (never run)</value>
     <comment>{0} = table name</comment>

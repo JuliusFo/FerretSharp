@@ -74,6 +74,9 @@ public sealed record GridColumn(string Id, string Name, string Label, string Typ
 /// (SQL editor, LINQ console) has none of these and only answers GetRows, OnCopy and OnCellContextMenu.</param>
 public sealed record GridOptions(IReadOnlyList<GridSort> Sorts, int FirstRow, bool Editable, int? HeaderHeight, bool Table)
 {
+    /// <summary>Header height with the line for C# names (WP-12); the theme's 46 px otherwise.</summary>
+    public const int ClrHeaderHeight = 62;
+
     /// <summary>The texts grid.js shows itself, in the UI language at the time the grid is built (WP-29).</summary>
     public GridTexts Texts { get; init; } = new();
 }

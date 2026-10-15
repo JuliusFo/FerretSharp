@@ -135,7 +135,18 @@ public interface IDataAccess
 }
 
 /// <summary>A result column of a free query; <see cref="Column"/> is derived from the driver's type, for formatting.</summary>
-public sealed record SqlColumn(string Name, ColumnInfo Column);
+/// <param name="Origin">Where the driver says the column was read from; null for expressions (WP-48).</param>
+public sealed record SqlColumn(string Name, ColumnInfo Column, SqlColumnOrigin? Origin = null);
+
+/// <summary>
+/// The origin of a result column as ODP.NET reports it (<c>BaseSchemaName</c>, <c>BaseTableName</c>, <c>BaseColumnName</c>).
+/// The driver reads the statement on the client: the table is the name as written (a synonym, a view), the owner only if
+/// written, and a quoted alias (EF Core's <c>"a"</c>) comes back as the alias. A hint for <see cref="Query.SqlResultOrigins"/>,
+/// never a fact (protocol of WP-48).
+/// </summary>
+/// <param name="Table">Table, view, synonym or alias as written; null if the driver names none (<c>WITH</c>, <c>USING</c>).</param>
+/// <param name="Column">The column's dictionary name (<c>KUNDE_ID</c> behind <c>KUNDE_ID AS ID</c>).</param>
+public sealed record SqlColumnOrigin(string? Owner, string? Table, string Column);
 
 /// <param name="Rows">Values in <paramref name="Columns"/> order (LOBs whole, <see cref="BigNumber"/> beyond 28 digits).</param>
 /// <param name="DataAsOf">Start of the read-only snapshot (locked workspaces); null otherwise.</param>

@@ -13,7 +13,8 @@
 
 @if (_menu is { } menu)
 {
-    <ResultMenu Request="menu" Result="AsTable()" InsertTarget="InsertTarget" ExportName="@ExportName" OnClose="() => _menu = null" />
+    <ResultMenu Request="menu" Result="AsTable()" Sources="_presentation.Sources" WorkspaceId="WorkspaceId" InsertTarget="InsertTarget"
+                ExportName="@ExportName" OnClose="() => _menu = null" />
 }
 
 @code {
@@ -22,6 +23,18 @@
 
     [CascadingParameter]
     public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public PresentationService Presentations { get; set; } = null!;
+
+    /// <summary>
+    /// How long the grid waits for the tables behind the result columns (WP-48) before it shows the plain result; known
+    /// structures come from the schema cache at once. Later they relabel the columns in place.
+    /// </summary>
+    private static readonly TimeSpan SourcesWait = TimeSpan.FromMilliseconds(300);
+
+    private readonly CancellationTokenSource _cts = new();
+    private SqlResultPresentation _presentation = SqlResultPresentation.Plain([]);
 
     /// <summary>Rows per block (BLOCK_SIZE in grid.js); a preloaded first page must have this size.</summary>
     public const int PageSize = 500;
@@ -108,15 +121,54 @@
         }
 
         _columns = _firstPage.Columns;
-        var columns = _columns.Select((c, i) =>
+        _presentation = SqlResultPresentation.Plain(_columns);
+        var traced = TraceAsync(Query.Sql, _columns);
+        await Task.WhenAny(traced, Task.Delay(SourcesWait));
+        if (traced.IsCompletedSuccessfully)
         {
-            var category = ColumnCategories.Of(c.Column);
-            return new GridColumn(GridColumn.IdOf(i), c.Name, c.Name, c.Column.DisplayType, category.ToString(), c.Column.Nullable)
-            {
-                Numeric = category == ColumnCategory.Number,
-            };
-        }).ToList();
-        await _grid.CreateAsync(columns, new GridOptions([], 0, Editable: false, HeaderHeight: null, Table: false));
+            _presentation = traced.Result;
+        }
+
+        // The result is shown whatever becomes of the tracing; a failure that is a bug reaches the error boundary afterwards.
+        await _grid.CreateAsync(_presentation.Columns(), new GridOptions([], 0, Editable: false, _presentation.HeaderHeight, Table: false));
+        if (!traced.IsCompletedSuccessfully)
+        {
+            Fire(() => RelabelAsync(traced));
+        }
+    }
+
+    /// <summary>
+    /// The result columns traced back to table columns (WP-48): C# names, enum members, FK badges and jumps. Plain if there
+    /// is nothing to trace or the tables cannot be read (logged, and a lost connection reported, by <see cref="DbCalls"/>).
+    /// </summary>
+    private async Task<SqlResultPresentation> TraceAsync(string sql, IReadOnlyList<SqlColumn> columns)
+    {
+        if (Active.Schema is not { } schema || columns.All(c => c.Origin is null))
+        {
+            return SqlResultPresentation.Plain(columns);
+        }
+
+        var token = _cts.Token;
+        var result = await Shell.RunDbAsync(Logger, Active, () => SqlResultSources.LoadAsync(sql, columns, schema, token), token);
+        return result.Value is { } sources
+            ? new SqlResultPresentation(columns, sources, Presentations.For, schema.OutgoingOf)
+            : SqlResultPresentation.Plain(columns);
+    }
+
+    /// <summary>The tables came after the grid was built: relabel the columns and redraw the loaded rows in place.</summary>
+    private async Task RelabelAsync(Task<SqlResultPresentation> traced)
+    {
+        var presentation = await traced;
+        if (_disposed || presentation.Sources.Sources.Count == 0)
+        {
+            return;
+        }
+
+        _presentation = presentation;
+        if (await _grid.CallAsync("updateColumns", presentation.Columns(), presentation.HeaderHeight))
+        {
+            await _grid.CallAsync("updateRows", _blocks.All().Select(r => new GridRowUpdate(r.Index, presentation.Row(r.Row.Values))).ToList());
+        }
     }
 
     /// <summary>A grid already replaced reports nothing: its status would overwrite the one of the grid shown now.</summary>
@@ -149,16 +201,8 @@
         _rowsLoaded = Math.Max(_rowsLoaded, startRow + page.Rows.Count);
         (_dataAsOf, _snapshotMoved) = Snapshots.Next(startRow, _dataAsOf, _snapshotMoved, page.DataAsOf);
         await Status(new SqlGridStatus(false, _rowsLoaded, page.IsLastPage, page.Elapsed, _dataAsOf, null, _snapshotMoved));
-        var rows = page.Rows.Select(values =>
-        {
-            var cells = new Dictionary<string, object?>(values.Count);
-            for (var i = 0; i < values.Count; i++)
-            {
-                cells[GridColumn.IdOf(i)] = CellFormatter.Format(_columns[i].Column, values[i]);
-            }
-
-            return cells;
-        }).ToList();
+        var presentation = _presentation;
+        var rows = page.Rows.Select(presentation.Row).ToList();
         return new GridPage(rows, page.IsLastPage ? startRow + page.Rows.Count : -1);
     }
 
@@ -198,14 +242,16 @@
         var column = GridColumn.IndexOf(colId);
         var indexes = selectedRows.Contains(rowIndex) ? selectedRows.Order().ToArray() : [rowIndex];
         var selected = indexes.Select(_blocks.At).OfType<RowData>().ToList();
-        _menu = new GridContextMenuRequest(row, column, CellFormatter.Format(_columns[column].Column, row.Values[column]),
+        _menu = new GridContextMenuRequest(row, column, _presentation.Present(column, row.Values[column]).Text,
             selected, indexes.Length - selected.Count, x, y, viewportWidth, viewportHeight);
         return InvokeAsync(StateHasChanged);
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         _disposed = true;
-        return _grid.DisposeAsync();
+        await _cts.CancelAsync();
+        _cts.Dispose();
+        await _grid.DisposeAsync();
     }
 }

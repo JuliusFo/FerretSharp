@@ -77,6 +77,7 @@ Reihenfolge wie die Releases. Kleinere Releases ohne eigenes Paket (Fixes, Komfo
 | Klein | [small-connection-group-label.md](small-connection-group-label.md) | Gruppe vor dem Verbindungsnamen (`Kunde A › DEV`) außerhalb der Gruppenüberschriften, abschaltbar | UI State (`ConnectionLabel`, `SettingsCatalog`), `ConnectionSwitcher`, `StatusBar`, Bestätigungsdialoge, Core `AppSettings.ShowConnectionGroup` | 3.35.2 | – |
 | Fixes | [fixes-designer-columns-layout.md](fixes-designer-columns-layout.md) | Spaltenliste und Designer: CHAR-Haken je Typ, Kopfzeile bleibt beim Scrollen stehen, mehr Platz für Kommentare | UI State (`DesignColumn.ShowsCharSemantics`), `TableDesigner`, `ColumnsView`, `ferretsharp.css` (`table.columns`, `--structure-top`) | 3.35.3 | – |
 | Klein | [small-link-choose-connection.md](small-link-choose-connection.md) | Verbindung für einen Link selbst wählen: ohne Treffer aus allen Verbindungen (Suche, Vorschläge), sonst „Ändern…“ | Core `LinkConnectionMatch.Suggestions`, UI State `LinkTargetChoice`, `LinkOpenDialog` | 3.35.4 | (0026) |
+| WP-48 | [wp-48-sql-result-origin.md](wp-48-sql-result-origin.md) | FK-Navigation und C#-Namen im Ergebnis von SQL-Editor und LINQ-Konsole: Herkunft der Spalten aus ODP.NET, gegen Aliase (EF Core) und Schema geprüft (Issue #14) | Data (`SqlColumnOrigin`), Oracle (`OracleDataAccess.OriginOf`), Query (`SqlResultOrigins`, `SqlResultSources`), UI State (`SqlResultPresentation`), `SqlResultGrid`, `ResultMenu` | – | – |
 
 ## Neues Protokoll
 
