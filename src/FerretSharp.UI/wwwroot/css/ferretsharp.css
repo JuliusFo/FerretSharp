@@ -844,6 +844,8 @@ table.binds td { font-family: var(--mono); }
 .icon-btn { width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--muted); }
 .icon-btn:hover { color: var(--text); }
 .icon-btn.ghost { border-color: transparent; background: transparent; }
+/* An inline SVG sits on the text baseline and rides up by the descender; as a block it is centered like a glyph would be. */
+.icon-btn .icon { display: block; }
 .btn.danger { color: var(--danger); }
 .btn.danger:hover:not(:disabled) { background: var(--danger-weak); color: var(--danger); }
 

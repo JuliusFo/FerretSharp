@@ -11,7 +11,7 @@
         <div class="schema-row">
             <span class="schema">@(Schema?.Owner ?? "–")</span>
             <span class="muted">@CountText</span>
-            <button class="icon-btn ghost" title="@SchemaViewText.Explorer_NewTable" disabled="@(Schema is null)" @onclick="() => Shell.OpenNewTable(Schema!.Owner)">+</button>
+            <button class="icon-btn ghost" title="@SchemaViewText.Explorer_NewTable" disabled="@(Schema is null)" @onclick="() => Shell.OpenNewTable(Schema!.Owner)">@Icons.Plus</button>
             <button class="icon-btn ghost" title="@SchemaViewText.Explorer_ReloadSchema" disabled="@(_refreshing || Schema is null)" @onclick="RefreshAsync">
                 <span class="@(_refreshing ? "spin" : "")">@Icons.Refresh</span>
             </button>
