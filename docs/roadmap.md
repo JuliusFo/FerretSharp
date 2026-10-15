@@ -14,13 +14,10 @@ Entscheidung des Nutzers (2026-10-09). Issues bekommen eine Art und einen Status
 
 ## Geplant
 
-Versionen: Minor-Releases 3.x (nichts Inkompatibles). Ein Paket bekommt seine Version erst beim Release (`CHANGELOG.md`, Spalte „Release“ im Index); die Roadmap legt keine fest, weil die Reihenfolge oft abweicht und Fix-Releases dazwischenkommen (Entscheidung des Nutzers, 2026-10-14). Zuletzt released: 3.34.1 (WP-36 Abhängigkeiten, AG Grid 36.2.0, `docs/work-packages/wp-36-dependency-update.md`), davor 3.34.0 (Update-Dialog mit den Notizen aller Versionen und Bildern, `docs/work-packages/small-update-notes-all-versions.md`, `wp-49-changelog-images.md`).
+Versionen: Minor-Releases 3.x (nichts Inkompatibles). Ein Paket bekommt seine Version erst beim Release (`CHANGELOG.md`, Spalte „Release“ im Index); die Roadmap legt keine fest, weil die Reihenfolge oft abweicht und Fix-Releases dazwischenkommen (Entscheidung des Nutzers, 2026-10-14). Zuletzt released: 3.35.0 (WP-37 Filter-Vorlagen und Links, `docs/work-packages/wp-37-filter-presets-links.md`), davor 3.34.1 (WP-36 Abhängigkeiten, AG Grid 36.2.0, `docs/work-packages/wp-36-dependency-update.md`).
 
 ### Pakete nach WP-36 (WP-37 … WP-47)
 Ausgewählt mit dem Nutzer am 2026-10-14 aus einer Ideensammlung (Bewertung des Nutzers je Paket in Klammern). Reihenfolge nach Abhängigkeiten: erst kleine Pakete mit sofortigem Nutzen (WP-37 … WP-39), dann zwei Fundamente, die je mehrere Pakete tragen – der Code-Index (WP-40 → WP-41, WP-45) und der Beziehungsgraph (WP-42 → WP-43, WP-46) –, das Paket mit Mitschnitt, Quellzeile und Datenänderungen (WP-45) erst, wenn seine Teile stehen. Die Abschnitte sind Vorschläge; „Offen“ wird beim Start mit dem Nutzer entschieden, dann wie üblich der Plan.
-
-### WP-37 Filter-Vorlagen und Links
-Umgesetzt (beide Teile, ADR 0026), wartet auf das Release 3.35.0; Entscheidungen und Protokoll in `docs/work-packages/wp-37-filter-presets-links.md`. Offene Fragen daraus im Backlog (Grid, Filter).
 
 ### WP-38 Befehlspalette, Schnellsuche, Spaltenprofil
 (Befehlspalette, Spaltenprofil: „gut“.) Branch `wp/38-palette-quick-open-profile`.
