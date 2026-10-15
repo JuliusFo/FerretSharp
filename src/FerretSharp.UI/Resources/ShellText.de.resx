@@ -1389,6 +1389,21 @@
   <data name="Link_Open" xml:space="preserve">
     <value>Öffnen</value>
   </data>
+  <data name="Link_Change" xml:space="preserve">
+    <value>Ändern…</value>
+  </data>
+  <data name="Link_OtherConnection" xml:space="preserve">
+    <value>Andere Verbindung…</value>
+  </data>
+  <data name="Link_ChooseConnection" xml:space="preserve">
+    <value>Wähle die Verbindung, auf der er sich öffnen soll:</value>
+  </data>
+  <data name="Link_Suggested" xml:space="preserve">
+    <value>Vorschläge</value>
+  </data>
+  <data name="Link_OpensElsewhere" xml:space="preserve">
+    <value>Der Link zeigt auf {0} ({1}); geöffnet wird auf {2}.</value>
+  </data>
   <data name="Link_TableMissing" xml:space="preserve">
     <value>Die Tabelle {0} aus dem Link gibt es im Schema {1} nicht.</value>
   </data>

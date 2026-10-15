@@ -1,8 +1,10 @@
 @* A link from outside (WP-37, ADR 0026) is never opened without asking: any web page or mail can start ferretsharp://.
-   Shows what the link opens and on which connection – the choice when several fit, a note when none does. *@
+   Shows what the link opens and on which connection – the choice when several fit, a note when none does – and lets
+   the user open it on another connection of their own (LinkTargetChoice, ADR 0026 addendum). *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Links
 @inject ConnectionHub Hub
+@inject ConnectionManager Connections
 @inject AppSettingsService Settings
 @inject ILogger<LinkOpenDialog> Logger
 
@@ -41,30 +43,68 @@
                 }
                 <dt>@ShellText.Link_Connection</dt>
                 <dd>
-                    @if (Request.Match.Profile is { } profile)
-                    {
-                        @Connection(profile)
-                    }
-                    else if (Request.Match.Candidates.Count > 0)
-                    {
-                        <div class="muted">@ShellText.Link_Ambiguous</div>
-                        @foreach (var candidate in Request.Match.Candidates)
-                        {
-                            var c = candidate;
-                            <label class="check link-candidate">
-                                <input type="radio" name="link-connection" checked="@(_chosen?.Id == c.Id)" @onchange="() => _chosen = c" />
-                                @Connection(c)
-                            </label>
-                        }
-                    }
-                    else
+                    @if (Request.Match.Profile is null && Request.Match.Candidates.Count == 0)
                     {
                         <div class="field-error">@ShellText.Link_NoConnection</div>
                         <div class="muted">@TextFormat.Format(ShellText.Link_NoConnectionNamed, link.Connection ?? "–", link.Address?.Display ?? "–")</div>
                     }
+
+                    @if (Choice.Choosing)
+                    {
+                        <div class="muted">@ShellText.Link_ChooseConnection</div>
+                        <SearchBox @ref="_search" Placeholder="@ShellText.Switcher_Search" @bind-Value="Choice.Query" />
+                        <div class="link-choices">
+                            @if (Choice.Suggested is { Count: > 0 } suggested)
+                            {
+                                <div class="group-head-btn static">@ShellText.Link_Suggested</div>
+                                @foreach (var profile in suggested)
+                                {
+                                    @Option(profile, withGroup: true)
+                                }
+                            }
+                            @foreach (var group in Choice.Others)
+                            {
+                                <div class="group-head-btn static">@(group.Name ?? ShellText.Connection_NoGroup)</div>
+                                @foreach (var profile in group.Profiles)
+                                {
+                                    @Option(profile)
+                                }
+                            }
+                            @if (Choice.Suggested.Count == 0 && Choice.Others.Count == 0)
+                            {
+                                <div class="popover-empty">@TextFormat.Format(ShellText.Connection_NoMatch, Choice.Query)</div>
+                            }
+                        </div>
+                    }
+                    else if (Request.Match.Profile is { } profile)
+                    {
+                        <div class="link-target">
+                            @Connection(profile)
+                            @if (Choice.CanChooseOther)
+                            {
+                                <button class="link-btn" @onclick="ChooseOther">@ShellText.Link_Change</button>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="muted">@ShellText.Link_Ambiguous</div>
+                        @foreach (var candidate in Request.Match.Candidates)
+                        {
+                            @Option(candidate, withGroup: true)
+                        }
+                        @if (Choice.CanChooseOther)
+                        {
+                            <div class="link-other"><button class="link-btn" @onclick="ChooseOther">@ShellText.Link_OtherConnection</button></div>
+                        }
+                    }
                 </dd>
             </dl>
-            @if (Request.Match.AddressDiffers && link.Address is { } linkAddress)
+            @if (Choice.Elsewhere && Choice.Target is { } elsewhere)
+            {
+                <p class="hint">@TextFormat.Format(ShellText.Link_OpensElsewhere, link.Connection ?? "–", link.Address?.Display ?? "–", ConnectionLabel.Of(elsewhere, Settings.Current))</p>
+            }
+            @if (Choice.AddressDiffers && link.Address is { } linkAddress)
             {
                 <p class="field-error">@TextFormat.Format(ShellText.Link_AddressDiffers, linkAddress.Display)</p>
             }
@@ -76,8 +116,9 @@
     </div>
     <footer>
         <span class="spacer"></span>
-        <button class="btn ghost" @ref="_cancel" @onclick="Shell.CloseIncomingLink">@(Request.Link is null || Target is null && Request.Match.Candidates.Count == 0 ? CommonText.Close : CommonText.Cancel)</button>
-        @if (Request.Link is not null && (Target is not null || Request.Match.Candidates.Count > 0))
+        @* Close when there is nothing to open: an invalid link, or no connection at all. *@
+        <button class="btn ghost" @ref="_cancel" @onclick="Shell.CloseIncomingLink">@(CanOpen ? CommonText.Cancel : CommonText.Close)</button>
+        @if (CanOpen)
         {
             <button class="btn primary" disabled="@(Target is null)" @onclick="OpenAsync">@ShellText.Link_Open</button>
         }
@@ -88,7 +129,10 @@
     private const int ShownFilters = 8;
 
     private ElementReference _cancel;
-    private ConnectionProfile? _chosen;
+    private SearchBox? _search;
+    private bool _focusSearch;
+    private LinkTargetChoice? _choice;
+    private IncomingLink? _requestOfChoice;
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -99,8 +143,22 @@
     [Parameter, EditorRequired]
     public WorkspaceLifecycle Lifecycle { get; set; } = null!;
 
-    /// <summary>The connection the link opens on: the one found, or the one chosen among several.</summary>
-    private ConnectionProfile? Target => Request.Match.Profile ?? _chosen;
+    /// <summary>The choice of the connection, for this request (a new link brings a new one).</summary>
+    private LinkTargetChoice Choice => _choice ??= new(Request, Connections.Profiles);
+
+    /// <summary>The connection the link opens on: the one found, or the one the user picked.</summary>
+    private ConnectionProfile? Target => Choice.Target;
+
+    private bool CanOpen => Request.Link is not null && Connections.Profiles.Count > 0;
+
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_requestOfChoice, Request))
+        {
+            _choice = null;
+            _requestOfChoice = Request;
+        }
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -108,6 +166,17 @@
         {
             await _cancel.FocusAsync(); // the safe answer, also for Enter
         }
+        else if (_focusSearch && _search is not null)
+        {
+            _focusSearch = false;
+            await _search.FocusAsync(); // the button that asked for the list is gone
+        }
+    }
+
+    private void ChooseOther()
+    {
+        Choice.ChooseOther();
+        _focusSearch = true;
     }
 
     private bool NeedsConnect(ConnectionProfile profile) => Hub.Find(profile.Id) is not { } scope || ConnectionHub.NeedsConnect(scope);
@@ -136,6 +205,13 @@
         _ => SchemaViewText.Tab_ViewData,
     };
 
-    private RenderFragment Connection(ConnectionProfile profile) =>
-        @<span class="kind-@profile.Kind.ToString().ToLowerInvariant()"><span class="kind-badge">@ConnectionKindInfo.Short(profile.Kind)</span> @ConnectionLabel.Of(profile, Settings.Current) <span class="muted">· @profile.Address.Display</span></span>;
+    /// <param name="withGroup">Not under its group's heading: the group goes in front of the name.</param>
+    private RenderFragment Option(ConnectionProfile profile, bool withGroup = false) =>
+        @<label class="check link-candidate">
+            <input type="radio" name="link-connection" checked="@(Target?.Id == profile.Id)" @onchange="() => Choice.Choose(profile)" />
+            @Connection(profile, withGroup)
+        </label>;
+
+    private RenderFragment Connection(ConnectionProfile profile, bool withGroup = true) =>
+        @<span class="kind-@profile.Kind.ToString().ToLowerInvariant()"><span class="kind-badge">@ConnectionKindInfo.Short(profile.Kind)</span> @(withGroup ? ConnectionLabel.Of(profile, Settings.Current) : profile.Name) <span class="muted">· @profile.Address.Display</span></span>;
 }

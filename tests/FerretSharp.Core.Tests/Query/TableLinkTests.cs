@@ -219,4 +219,21 @@ public class TableLinkTests
         Assert.Null(none.Profile);
         Assert.Empty(none.Candidates);
     }
+
+    /// <summary>For the user's own choice: the fitting connections first, then those reading the link's schema, the rest not.</summary>
+    [Fact]
+    public void Suggestions_are_the_fitting_connections_then_those_of_the_links_schema()
+    {
+        var link = Read("ferretsharp://open?v=1&c=ERP%20Test&a=db01%3A1521%2FERPTEST&s=ERP&t=AUFTRAG");
+        var fits = Profile("ERP Test", new HostPortAddress("db01", 1521, "ERPTEST", null));
+        var prod = Profile("ERP Prod", new HostPortAddress("db02", 1521, "ERPPROD", null)) with { Kind = ConnectionKind.Prod };
+        var dev = Profile("ERP Dev", new TnsAliasAddress("ERPDEV", null)) with { Kind = ConnectionKind.Dev };
+        var reader = Profile("ERP (lesend)", new HostPortAddress("db02", 1521, "ERPPROD", null), user: "reader", schema: "erp");
+        var other = Profile("Kasse", new HostPortAddress("db03", 1521, "KASSE", null), user: "kasse");
+
+        Assert.Equal([fits, dev, reader, prod], LinkConnectionMatch.Suggestions([other, prod, reader, fits, dev], link));
+        // Nothing fits: those of the schema only, in the order of the connection list.
+        Assert.Equal([dev, reader, prod], LinkConnectionMatch.Suggestions([other, prod, reader, dev], link));
+        Assert.Empty(LinkConnectionMatch.Suggestions([other], link));
+    }
 }
