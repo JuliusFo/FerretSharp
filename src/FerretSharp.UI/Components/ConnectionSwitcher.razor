@@ -5,6 +5,7 @@
 @inject ConnectionHub Hub
 @inject IJSRuntime JS
 @inject ShortcutService Shortcuts
+@inject AppSettingsService Settings
 
 <div class="switcher">
     <button class="switcher-btn @(Shell.SwitcherOpen ? "open" : "") @(Active.Profile is { } ap ? ConnectionKindInfo.CssClass(ap.Kind) : "")"
@@ -19,6 +20,11 @@
         }
         @if (Active.Profile is { } activeProfile)
         {
+            @if (ConnectionLabel.GroupOf(activeProfile, Settings.Current) is { } activeGroup)
+            {
+                <span class="switcher-group" title="@activeGroup">@activeGroup</span>
+                <span class="switcher-sep">›</span>
+            }
             <span class="switcher-name">@activeProfile.Name</span>
             <span class="kind-badge">@ConnectionKindInfo.Short(activeProfile.Kind)</span>
         }
@@ -54,7 +60,7 @@
                     <div class="group-head-btn static" title="@(Shortcuts.Label(ShortcutAction.PreviousConnection) is { } key ? TextFormat.Format(ShellText.Switcher_OpenTitleKey, key) : ShellText.Switcher_OpenTitle)">@ShellText.Switcher_Open</div>
                     @foreach (var profile in _open)
                     {
-                        @Row(profile, index++)
+                        @Row(profile, index++, withGroup: true)
                     }
                 }
 
@@ -63,7 +69,7 @@
                     <div class="group-head-btn static">@ShellText.Switcher_Recent</div>
                     @foreach (var profile in _recent)
                     {
-                        @Row(profile, index++)
+                        @Row(profile, index++, withGroup: true)
                     }
                 }
 
@@ -124,11 +130,16 @@
 
     private bool Searching => !string.IsNullOrWhiteSpace(_query);
 
-    private RenderFragment Row(ConnectionProfile p, int rowIndex) =>
+    /// <param name="withGroup">The row is not under its group's heading (open, recent): the group goes in front of the name.</param>
+    private RenderFragment Row(ConnectionProfile p, int rowIndex, bool withGroup = false) =>
         @<div id="conn-row-@rowIndex" class="conn-row @ConnectionKindInfo.CssClass(p.Kind) @(rowIndex == _highlight ? "highlight" : "")"
               @onclick="() => Activate(p)" @onmouseenter="() => _highlight = rowIndex">
             <span class="dot"></span>
-            <span class="name">
+            <span class="name @(withGroup ? "with-group" : "")">
+                @if (withGroup && ConnectionLabel.GroupOf(p, Settings.Current) is { } group)
+                {
+                    <span class="row-group" title="@group">@group</span><span class="row-group-sep">›</span>
+                }
                 @p.Name
                 @if (Hub.Find(p.Id) is { } scope)
                 {
@@ -167,6 +178,7 @@
         Connections.Changed += OnStateChanged;
         Active.Changed += OnStateChanged;
         Hub.Changed += OnStateChanged;
+        Settings.Changed += OnStateChanged;
     }
 
     /// <summary>Recent, groups and the flat list of visible rows (for keyboard navigation), rebuilt on every render.</summary>
@@ -270,6 +282,7 @@
         Connections.Changed -= OnStateChanged;
         Active.Changed -= OnStateChanged;
         Hub.Changed -= OnStateChanged;
+        Settings.Changed -= OnStateChanged;
         await Dom.DisposeAsync();
     }
 }

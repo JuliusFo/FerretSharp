@@ -10,6 +10,7 @@
 @inject AppTraceService Trace
 @inject ConnectionManager Connections
 @inject ConnectionHub Hub
+@inject AppSettingsService Settings
 @inject ILogger<AppStatementsPage> Logger
 
 <div class="settings-page compare-page app-statements-page">
@@ -68,7 +69,7 @@
                 @{ var match = Trace.Match; }
                 @if (match.Profile is { } profile)
                 {
-                    <span class="kind-@profile.Kind.ToString().ToLowerInvariant()"><span class="kind-badge">@ConnectionKindInfo.Short(profile.Kind)</span> @profile.Name</span>
+                    <span class="kind-@profile.Kind.ToString().ToLowerInvariant()"><span class="kind-badge">@ConnectionKindInfo.Short(profile.Kind)</span> @ConnectionLabel.Of(profile, Settings.Current)</span>
                     <span class="muted">@MatchText(match.Kind)</span>
                     @if (match.Kind == MatchKind.Chosen && process.Environment is { } env && string.IsNullOrEmpty(profile.AppEnvironment))
                     {

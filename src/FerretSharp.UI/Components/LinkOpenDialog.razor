@@ -3,6 +3,7 @@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Links
 @inject ConnectionHub Hub
+@inject AppSettingsService Settings
 @inject ILogger<LinkOpenDialog> Logger
 
 <ModalFrame Label="@ShellText.Link_Title" Class="link-dialog" Alert="true" OnCancel="Shell.CloseIncomingLink">
@@ -135,6 +136,6 @@
         _ => SchemaViewText.Tab_ViewData,
     };
 
-    private static RenderFragment Connection(ConnectionProfile profile) =>
-        @<span class="kind-@profile.Kind.ToString().ToLowerInvariant()"><span class="kind-badge">@ConnectionKindInfo.Short(profile.Kind)</span> @profile.Name <span class="muted">· @profile.Address.Display</span></span>;
+    private RenderFragment Connection(ConnectionProfile profile) =>
+        @<span class="kind-@profile.Kind.ToString().ToLowerInvariant()"><span class="kind-badge">@ConnectionKindInfo.Short(profile.Kind)</span> @ConnectionLabel.Of(profile, Settings.Current) <span class="muted">· @profile.Address.Display</span></span>;
 }

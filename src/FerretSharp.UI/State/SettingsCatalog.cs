@@ -12,6 +12,7 @@ public enum SettingKey
 {
     Language,
     ColorScheme,
+    ConnectionGroup,
     ClrNames,
     KeepAlive,
     LockWait,
@@ -44,6 +45,7 @@ public static class SettingsCatalog
     public const string KeepAliveProfileLimit = "IDLE_TIME";
     public const string LockWaitClause = "SELECT … FOR UPDATE WAIT n";
     public const string DisplayNameExample = "4711 · PetersPizza";
+    public const string ConnectionGroupExample = "Kunde A" + ConnectionLabel.Separator + "DEV";
     public const string StallTool = "dotnet-stack";
     public const string StallFiles = "stall-*.txt";
 
@@ -76,6 +78,8 @@ public static class SettingsCatalog
         [
             Setting(SettingKey.Language, SettingsPart.Appearance, ShellText.Settings_Language, ShellText.Settings_LanguageHint),
             Setting(SettingKey.ColorScheme, SettingsPart.Appearance, ShellText.Settings_ColorScheme, ShellText.Settings_ColorSchemeHint),
+            Setting(SettingKey.ConnectionGroup, SettingsPart.Appearance, ShellText.Settings_ConnectionGroup,
+                TextFormat.Format(ShellText.Settings_ConnectionGroupHint, ConnectionGroupExample)),
             Setting(SettingKey.ClrNames, SettingsPart.ClrModel, ShellText.Settings_ClrNames, ShellText.Settings_ClrNamesHint),
             Setting(SettingKey.KeepAlive, SettingsPart.Connection, ShellText.Settings_KeepAlive,
                 TextFormat.Format(ShellText.Settings_KeepAliveHint, KeepAliveQuery, KeepAliveProfileLimit)),

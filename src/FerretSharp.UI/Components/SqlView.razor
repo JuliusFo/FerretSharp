@@ -12,6 +12,7 @@
 @implements IDisposable
 @inject SqlHistoryStore History
 @inject ShortcutService Shortcuts
+@inject AppSettingsService Settings
 
 <div class="sqlview">
     <div class="tab-toolbar">
@@ -168,14 +169,14 @@
             <p>
                 @if (pending.Count <= 1 || writes.Count == 0)
                 {
-                    <Fmt Text="@SqlEditorText.SqlView_ConfirmProd"><Arg0><strong>@Active.Profile?.Name</strong></Arg0></Fmt>
+                    <Fmt Text="@SqlEditorText.SqlView_ConfirmProd"><Arg0><strong>@ConnectionName</strong></Arg0></Fmt>
                 }
                 else
                 {
                     @* The count is {0}, the connection {1} (the plural form for one statement has no count). *@
                     <Fmt Text="@(writes.Count == 1 ? SqlEditorText.SqlView_ConfirmProdScriptOne : SqlEditorText.SqlView_ConfirmProdScriptOther)">
                         <Arg0>@writes.Count</Arg0>
-                        <Arg1><strong>@Active.Profile?.Name</strong></Arg1>
+                        <Arg1><strong>@ConnectionName</strong></Arg1>
                     </Fmt>
                 }
             </p>
@@ -277,6 +278,9 @@
     public SqlTab Tab { get; set; } = null!;
 
     private bool IsProd => Active.Profile?.Kind == ConnectionKind.Prod;
+
+    /// <summary>The connection as the confirmation names it, with its group in front (<see cref="ConnectionLabel"/>).</summary>
+    private string? ConnectionName => Active.Profile is { } profile ? ConnectionLabel.Of(profile, Settings.Current) : null;
 
     protected override async Task OnInitializedAsync()
     {

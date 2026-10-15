@@ -396,6 +396,13 @@ kbd { font: 600 10px var(--mono); padding: 1px 5px; border-radius: 4px; border: 
 .conn-line .last-used { font-size: 12px; color: var(--faint); text-align: right; white-space: nowrap; }
 .connected-tag { margin-left: 8px; font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 8px; background: color-mix(in srgb, var(--test) 15%, transparent); color: var(--test); vertical-align: 1px; }
 .switcher-name { font-weight: 500; }
+/* The group in front of the name (ConnectionLabel): subdued, cut with "…" so a long group does not push the badge away. */
+.switcher-group { max-width: 160px; overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-size: 12px; }
+.switcher-sep { margin: 0 -4px; color: var(--faint); font-size: 12px; }
+/* The group gives way to the name: a long group is cut, the name stays readable. */
+.conn-row .name.with-group { display: flex; align-items: center; }
+.conn-row .row-group { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 400; color: var(--muted); }
+.conn-row .row-group-sep { flex: none; margin: 0 5px; color: var(--faint); font-weight: 400; }
 .group-head-btn.static { cursor: default; }
 .group-head-btn.static:hover { color: var(--faint); }
 .icon-btn.active { background: var(--accent-weak); color: var(--accent); }
