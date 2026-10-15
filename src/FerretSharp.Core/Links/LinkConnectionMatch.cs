@@ -40,5 +40,23 @@ public sealed record LinkConnectionMatch(ConnectionProfile? Profile, IReadOnlyLi
         return Of(byName) with { AddressDiffers = link.Address is not null && byName.Count > 0 };
     }
 
+    /// <summary>
+    /// The connections to offer first when the user chooses the connection (no match, or another than the one found): those
+    /// that fit (<see cref="Find"/>), then those reading the link's schema – often the same application in another
+    /// environment. In the order of the connection list (<see cref="ConnectionSearch.Group"/>), the fitting ones first.
+    /// </summary>
+    public static IReadOnlyList<ConnectionProfile> Suggestions(IReadOnlyList<ConnectionProfile> profiles, TableLink link)
+    {
+        ArgumentNullException.ThrowIfNull(profiles);
+        ArgumentNullException.ThrowIfNull(link);
+        var match = Find(profiles, link);
+        var fitting = match.Profile is { } profile ? [profile] : match.Candidates;
+        var sameSchema = profiles.Where(p => p.EffectiveSchema == link.Owner && !fitting.Contains(p));
+        return [.. ListOrder(fitting), .. ListOrder(sameSchema)];
+    }
+
+    private static IEnumerable<ConnectionProfile> ListOrder(IEnumerable<ConnectionProfile> profiles) =>
+        ConnectionSearch.Group(profiles).SelectMany(g => g.Profiles);
+
     private static LinkConnectionMatch Of(List<ConnectionProfile> fitting) => fitting.Count == 1 ? new(fitting[0], []) : new(null, fitting);
 }

@@ -1706,6 +1706,25 @@
     <value>Open</value>
     <comment>Button</comment>
   </data>
+  <data name="Link_Change" xml:space="preserve">
+    <value>Change…</value>
+    <comment>Button: choose another connection than the one found</comment>
+  </data>
+  <data name="Link_OtherConnection" xml:space="preserve">
+    <value>Another connection…</value>
+    <comment>Button below the candidates</comment>
+  </data>
+  <data name="Link_ChooseConnection" xml:space="preserve">
+    <value>Choose the connection to open it on:</value>
+  </data>
+  <data name="Link_Suggested" xml:space="preserve">
+    <value>Suggested</value>
+    <comment>Heading of the connections that fit the link or read its schema</comment>
+  </data>
+  <data name="Link_OpensElsewhere" xml:space="preserve">
+    <value>The link points at {0} ({1}); it opens on {2}.</value>
+    <comment>{0} connection name in the link, {1} its address, {2} the chosen connection</comment>
+  </data>
   <data name="Link_TableMissing" xml:space="preserve">
     <value>The link's table {0} does not exist in schema {1}.</value>
     <comment>{0}: table name; {1}: schema name</comment>

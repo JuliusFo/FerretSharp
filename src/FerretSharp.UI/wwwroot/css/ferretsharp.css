@@ -750,6 +750,12 @@ table.binds td { font-family: var(--mono); }
 .link-facts dd { margin: 0; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .link-facts code { font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; }
 .link-facts .link-candidate { padding-top: 0; }
+.link-target { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px; }
+.link-other .link-btn { padding-left: 0; }
+/* The user's own choice: all connections, searchable, in a list that scrolls inside the dialog. */
+.link-choices { max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding: 0 2px 4px; border: 1px solid var(--border); border-radius: 7px; }
+.link-choices .group-head-btn { padding: 8px 6px 2px; }
+.link-choices .link-candidate { padding: 2px 6px; }
 .link-dialog .hint { margin: 12px 0 0; }
 .preset-content { display: flex; flex-direction: column; gap: 6px; padding-top: 6px; min-width: 0; }
 .preset-content code { font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; }
