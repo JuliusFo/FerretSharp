@@ -23,7 +23,8 @@ public static class LinkCopy
 
     public static async Task CopyAsync(ShellState shell, DomModule dom, ConnectionProfile profile, TableLink link, bool rowsOnly = false)
     {
-        if (await dom.CopyTextAsync(shell, link.ToUri()))
+        // The https form (ADR 0026, addendum): chats and tickets make only https clickable; the page opens ferretsharp://.
+        if (await dom.CopyTextAsync(shell, link.ToWebUri()))
         {
             var (text, values) = Notice(profile, link, rowsOnly);
             shell.Notify(text, values);
