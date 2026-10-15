@@ -31,5 +31,26 @@ Die Angabe des Treibers ist ein **Hinweis**, den der Core gegen das Schema prüf
 
 Damit bleibt das Paket in der geschätzten Größe; der Alias-Teil ist neu, aber klein (Tokenizer vorhanden, eine Ebene Grammatik).
 
+Vom Nutzer am 2026-10-15 so bestätigt: eigene Alias-Auflösung im Core, Inline-Views vorerst ohne Herkunft.
+
+## Gebaut
+- **Core/Data:** `SqlColumn.Origin` (`SqlColumnOrigin`: Owner, Tabelle oder Alias, Spalte – roh wie vom Treiber). `OracleDataAccess.OriginOf` liest sie in `ReadSqlAsync` mit, ohne `KeyInfo`.
+- **Core/Query `SqlResultOrigins.Resolve`:** auf `SqlAnalysis.Tables` (FROM/JOIN/Komma mit Alias und Tiefe, jetzt mit `NotAliases` auch hier genutzt) und `SqlCompletion.Resolve` (eigenes Schema, dann Synonyme). Keine Herkunft für: `WITH` am Anfang, Mengenoperator auf oberster Ebene, Aliase von Unterabfragen (`) x`, `) "t"`, auch `CROSS APPLY`), eine Tabelle, die das Statement nicht nennt oder das Schema nicht kennt, einen Namen, der hier Alias und dort Tabelle ist, einen Alias für verschiedene Tabellen, und eine Tabelle, die zweimal im eigenen FROM steht, wenn der Treiber nur den Tabellennamen meldet (Self-Join mit unquotierten Aliasen). Eine Tabelle in einer Unterabfrage stört die äußere nicht.
+- **Core/Query `SqlResultSources`:** je Zeilenquelle (Alias bzw. Tabelle) die Tabellenstruktur aus dem `SchemaCache` und welche Ergebnisspalte welche Tabellenspalte hält (Spalten, die die Tabelle nicht hat, z. B. ROWID, fallen weg; jede Tabellenspalte einmal). `Projection` + `Project` machen Ergebniszeilen zu Tabellenzeilen, `FkNavigation.JumpsFor` läuft unverändert. Ausgehend nur, wenn alle FK-Spalten im Ergebnis stehen, eingehend nur mit allen Schlüsselspalten; derselbe Sprung über zwei Quellen einmal. `SqlResultJump.Involves` für „über die geklickte Spalte“.
+- **UI State `SqlResultPresentation`:** Kopf mit C#-Name und -Typ (nach der Einstellung vorn oder daneben, unter dem Namen aus der Abfrage), FK-Badge (deklariert bzw. C#-Modell), Tooltip „Aus KUNDEN.NAME“ plus Spaltenkommentar; Enum-Namen in den Zellen (`__u`, `__t` wie `GridRows`). **Kein PK-Badge:** grid.js pinnt Schlüsselspalten nach links, die Reihenfolge der Abfrage soll bleiben. `GridOptions.ClrHeaderHeight` statt der Konstante in `FerretGrid`.
+- **`SqlResultGrid`:** wartet höchstens 300 ms auf die Tabellenstrukturen (aus dem Cache sofort), sonst baut es das Grid schlicht und beschriftet nachher in place um (`updateColumns`, `updateRows` der geladenen Zeilen). Fehler beim Nachladen nur im Log (Debug), das Ergebnis erscheint immer.
+- **`ResultMenu`:** „Verweist auf“/„Referenziert von“ mit `FkJumpItem`, Zählungen über `FkCounts` (sofort oder beim Darüberfahren wie im Grid), von mehreren markierten Zeilen, Sprünge über die geklickte Spalte zuerst. Ohne Sprünge kein Abschnitt (kein „keine Beziehungen“ – die meisten Ergebnisse haben keine Herkunft).
+- **LINQ-Konsole:** kommt über das gemeinsame `SqlResultGrid` mit; die Herkunft stammt aus dem SQL, das EF erzeugt.
+- **Tests:** Integration `SqlResultOriginDriverTests` (Verhalten des Treibers, 25 Fälle) und `FkNavigationTests.Rows_of_a_free_query_jump_like_table_rows` (EF-Join über zusammengesetzten und RAW-Schlüssel, echter Leseweg); Core `SqlResultOriginsTests` (Auflösung und Sprünge); UI `SqlResultPresentationTests`.
+- Texte: `SqlEditorText.Result_ColumnOrigin` (EN/DE).
+
+## E2E (2026-10-15)
+Eigene Instanz (`--data-dir`, eigener WebView2-Ordner, deutsch, dunkel), eigener Beispiel-Container auf Port 1531 mit verknüpftem `samples`-Projekt, CDP.
+- SQL-Editor, EF-artiger Join `"a"`/`"k"` mit Spaltenalias `"ART"` und Ausdruck: Kopf mit C#-Name und -Typ, FK-Badge an `a.KUNDE_ID` und an `BEARBEITER_ID` (nur C#-Modell), Tooltip „Aus AUFTRAG.KUNDE_ID“ samt Spaltenkommentar, Enum-Namen in den Zellen (`Versendet (VERSANDT)`, `Behörde (3)`); der Ausdruck bleibt schlicht.
+- Rechtsklick (CDP-Eingabe) auf `a.KUNDE_ID`: „Verweist auf“ KUNDEN (über die Spalte, hervorgehoben) und MITARBEITER (aus C#-Modell), „Referenziert von“ fünf Einträge mit Zählungen. Klick auf KUNDEN öffnet den Tab mit `KUNDE_ID = 8`, eine Zeile.
+- LINQ-Konsole `db.Auftraege.Where(…).Include(a => a.Bearbeiter)`: dieselben Kennzeichen und Namen über das SQL von EF.
+- Log ohne `[ERR]`/`[WRN]`.
+- Nicht geprüft: Rechtsklick mit echter Windows-Eingabe (der Weg des Rechtsklicks ist unverändert, nur der Inhalt des Menüs ist neu); das nachträgliche Umbeschriften, wenn die Tabellenstrukturen erst nach 300 ms kommen (nur per Code und `updateColumns`/`updateRows` wie im Tabellen-Grid).
+
 ## Offen
-- Vorschlag oben bestätigen (vor allem: eigene Alias-Auflösung statt nur Treiberangabe; Inline-Views später).
+- Backlog: Inline-Views und `WITH` auflösen, Anzeigespalten im SQL-Ergebnis, `DefaultSchema` (unqualifizierte Namen löst FerretSharp im angezeigten Schema auf, Oracle im Schema des Users).
