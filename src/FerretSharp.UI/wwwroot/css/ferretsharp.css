@@ -608,9 +608,10 @@ code.condition { font: 12px var(--mono); white-space: pre-wrap; }
 .filterbar { display: flex; align-items: flex-start; gap: 12px; flex: none; padding: 8px 12px; background: var(--surface); border-bottom: 1px solid var(--border); }
 .filterbar > .hint { align-self: center; }
 .filterbar > .spacer { flex: 1; }
-.filter-rows { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-/* Column and value shrink before the row runs under the actions (a preset's name there, WP-37). */
-.filter-row { display: grid; grid-template-columns: 18px minmax(150px, 220px) 130px minmax(120px, 420px) 28px 28px auto; gap: 6px; align-items: center; }
+/* Column and value shrink before the row runs under the actions (a preset's name there, WP-37). The rows share one set of
+   columns (subgrid): a note or an error after one row ("Not in this table") would otherwise shorten only that row's fields. */
+.filter-rows { flex: 1; display: grid; grid-template-columns: 18px minmax(150px, 220px) 130px minmax(120px, 420px) 28px 28px auto; gap: 6px; align-content: start; min-width: 0; }
+.filter-row { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; align-items: center; }
 .filter-row.disabled .field { opacity: .5; }
 .filter-row .field { height: 30px; }
 .filter-row .col { font-family: var(--mono); font-size: 12px; }

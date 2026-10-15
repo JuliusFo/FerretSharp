@@ -68,6 +68,7 @@ Eigener Container `ferret-e2e-wp37r` (Port 1531, danach entfernt), Build im Scra
 - Zweiter Start mit einem Link, der nur über den Namen passt (`a=db99:1521/ANDERE`): Warnhinweis mit der Adresse aus dem Link, Layout geprüft.
 - Wartender Link: Verbinden über den Link mit falschem Passwort (ORA-01017) bzw. gesperrtem Account (ORA-28000, `ALTER USER … ACCOUNT LOCK` im eigenen Container), danach „Try again“ mit funktionierendem Zugang → verbunden, **kein** Tab aus dem alten Link. Gegenprobe: nach dem Fehlschlag ein neuer Link für dieselbe Verbindung → nach dem Entsperren geöffnet.
 - Log: kein `[ERR]`/`[WRN]`, keine Zeile mit Link-Inhalt (nur Längen und „Opening a link on …“).
+- **Vom Nutzer gefunden (Screenshot aus diesem Lauf) und behoben:** Die Zeile mit „Not in this table“ war kürzer als die anderen – jede Filterzeile war ein eigenes Grid, die letzte Spalte (`auto`) so breit wie Hinweis oder Fehler, also schrumpften Spalte, Operator und Wert nur dort. Die Zeilen teilen jetzt die Spalten von `.filter-rows` (`subgrid`); nachgemessen: alle Zeilen gleich breit (Spalte 208, Operator 130, Wert 178 px). Folge: Ein langer Hinweis kürzt jetzt alle Zeilen gleich, nicht nur seine.
 - Nicht geprüft: Klick auf einen echten Link im Browser und die Registrierung (schrieben in die Registry des Nutzers); eine Kommandozeile mit unkodierten Anführungszeichen erzeugt nur Windows – die Regel selbst deckt `Nothing_after_a_link_counts_as_an_option` ab.
 
 ## Offen
