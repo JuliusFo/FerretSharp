@@ -17,6 +17,7 @@ record ConnectionProfile(
     string? Group = null);        // optional, z. B. Projekt/Kunde ("ERP", "Kasse") – Gruppierung in Umschalter und Übersicht
 ```
 - Suche und Gruppierung: `ConnectionSearch` (alle Suchbegriffe müssen in Name, Gruppe, Adresse, Benutzer oder Art vorkommen; Gruppen alphabetisch, „Ohne Gruppe“ zuletzt; innerhalb einer Gruppe Dev → Test → Prod → Sonstige).
+- Name außerhalb der Gruppenüberschriften: `ConnectionLabel` (UI/State) setzt die Gruppe davor (`Kunde A › DEV`) – Umschalter, „Offen“/„Zuletzt“, Statusleiste, Passwortabfrage, Bestätigungen (Prod, DDL, Freischalten, Redo), Link-Dialog, App-Statements; abschaltbar (`AppSettings.ShowConnectionGroup`, Standard an). Das Abtippen beim Freischalten von Prod und die Logs bleiben beim reinen Namen.
 - Weitere optionale Felder (später angehängt): `ClrProject` (WP-11), `ScriptFolder` (WP-23), `AppEnvironment` (WP-33: der Wert von `-environment=…`, mit dem die eigene App für diese Datenbank startet – ordnet eine angehängte App der Verbindung zu; eine Kopie startet ohne).
 - Passwort separat über `ISecretStore.Get(profileId)` / `Set(...)`.
 - `TnsAlias` braucht den Ort der `tnsnames.ora`: Der Managed Driver liest **nicht** die Registry. Reihenfolge: `tnsAdminPath` im Profil → Umgebungsvariable `TNS_ADMIN` → Fehlermeldung mit Hinweis.
