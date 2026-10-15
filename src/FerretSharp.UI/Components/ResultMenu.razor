@@ -1,12 +1,18 @@
-@* Right-click menu of a query result (SQL editor, LINQ console): copy the value, export the selected rows. *@
+@* Right-click menu of a query result (SQL editor, LINQ console): copy the value, export the selected rows, and – for columns
+   traced back to their tables (WP-48) – jump along foreign keys like in a table grid. *@
+@using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
+@inherits FerretComponent
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject IFileSaveService Files
+@inject ILogger<ResultMenu> Logger
+@inject AppSettingsService Settings
 
-<PopoverMenu X="Request.X" Y="Request.Y" ViewportWidth="Request.ViewportWidth" ViewportHeight="Request.ViewportHeight" OnClose="CloseAsync">
+<PopoverMenu X="Request.X" Y="Request.Y" ViewportWidth="Request.ViewportWidth" ViewportHeight="Request.ViewportHeight"
+             Width="MenuWidth" EstimatedHeight="EstimatedHeight" OnClose="CloseAsync">
     <div class="ctx-head">
         <span class="ctx-col">@Column.Name</span>
         <span class="ctx-value @(Request.CellText is null ? "fs-null" : "")">@(Request.CellText ?? "NULL")</span>
@@ -22,9 +28,46 @@
         @GridText.GridMenu_CopyInsert
     </button>
     <button class="menu-item" title="@GridText.GridMenu_SaveCsvTitle" @onclick="SaveCsvAsync">@GridText.GridMenu_SaveCsv</button>
+
+    @if (_outgoing.Count > 0)
+    {
+        <div class="group-head-btn static">@TextFormat.Format(GridText.GridMenu_PointsTo, JumpRowsText)</div>
+        @foreach (var jump in _outgoing)
+        {
+            <FkJumpItem Jump="jump.Jump" Related="jump.Involves(Request.Column)" OnJump="JumpAsync" />
+        }
+    }
+
+    @if (_incoming.Count > 0)
+    {
+        <div class="group-head-btn static">@TextFormat.Format(GridText.GridMenu_ReferencedBy, JumpRowsText)</div>
+        @foreach (var jump in _incoming)
+        {
+            <FkJumpItem Jump="jump.Jump" Count="_counts.Of(jump.Jump)" Related="jump.Involves(Request.Column)" OnJump="JumpAsync"
+                        OnEnter="Hover" OnLeave="_counts.Leave" />
+        }
+    }
+
+    @if (_outgoing.Count + _incoming.Count > 0 && Request.MissingRows > 0)
+    {
+        <div class="ctx-note">@TextFormat.Format(GridText.GridMenu_MissingRows, ExportActions.RowsText(Request.MissingRows))</div>
+    }
 </PopoverMenu>
 
 @code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceManager Workspaces { get; set; } = null!;
+
+    private const double MenuWidth = 400;
+    private const double ItemHeight = 44;
+
+    private readonly CancellationTokenSource _cts = new();
+    private FkCounts _counts = null!;
+    private IReadOnlyList<SqlResultJump> _outgoing = [];
+    private IReadOnlyList<SqlResultJump> _incoming = [];
     private DomModule? _dom;
     private ExportActions? _export;
 
@@ -43,6 +86,14 @@
     [Parameter, EditorRequired]
     public TableDetails Result { get; set; } = null!;
 
+    /// <summary>The tables behind the result columns (WP-48); <see cref="SqlResultSources.None"/> offers no jumps.</summary>
+    [Parameter]
+    public SqlResultSources Sources { get; set; } = SqlResultSources.None;
+
+    /// <summary>The workspace the result was read in: incoming jumps are counted there.</summary>
+    [Parameter, EditorRequired]
+    public Guid WorkspaceId { get; set; }
+
     /// <summary>The table the query reads, as target of "Copy as INSERT"; null if it reads several or none.</summary>
     [Parameter]
     public TableSummary? InsertTarget { get; set; }
@@ -56,6 +107,51 @@
 
     private ColumnInfo Column => Result.Columns[Request.Column];
 
+    /// <summary>FK jumps start from all selected rows (a right-click into a selection keeps it), as in a table grid.</summary>
+    private IReadOnlyList<RowData> JumpRows => Request.Selected.Count > 0 ? Request.Selected : [Request.Row];
+
+    /// <summary>" · 3 rows" after the jump headings if several rows are selected; nothing for one row.</summary>
+    private string JumpRowsText => Request.Selected.Count + Request.MissingRows > 1 ? $" · {ExportActions.RowsText(JumpRows.Count)}" : "";
+
+    /// <summary>For the first placement; dom.js keepInViewport corrects it once rendered.</summary>
+    private double EstimatedHeight => 200 + ItemHeight * (_outgoing.Count + _incoming.Count) + (_outgoing.Count + _incoming.Count > 0 ? 80 : 0);
+
+    protected override void OnInitialized()
+    {
+        _counts = FkCounts.For(Shell, Logger, Active, Workspaces, WorkspaceId, () => InvokeAsync(StateHasChanged));
+        if (Active.Schema is not { } schema || Sources.Sources.Count == 0)
+        {
+            return;
+        }
+
+        var jumps = Sources.JumpsFor(JumpRows, schema.OutgoingOf, schema.IncomingOf);
+        // FKs over the clicked column first: that is usually the one the user means.
+        _outgoing = jumps.Where(j => j.Jump.Direction == JumpDirection.Outgoing).OrderByDescending(j => j.Involves(Request.Column)).ToList();
+        _incoming = jumps.Where(j => j.Jump.Direction == JumpDirection.Incoming).OrderByDescending(j => j.Involves(Request.Column)).ToList();
+        // One after the other: they share the workspace's session. Closing the menu cancels the rest.
+        if (Settings.Current.FkCounts == FkCountMode.Immediately)
+        {
+            var token = _cts.Token;
+            Fire(() => _counts.CountAllAsync(_incoming.Select(j => j.Jump).ToList(), token));
+        }
+    }
+
+    /// <summary>Counts the entry the mouse rests on (<see cref="FkCountMode.OnHover"/>).</summary>
+    private void Hover(FkJump jump)
+    {
+        if (Settings.Current.FkCounts == FkCountMode.OnHover && jump.Direction == JumpDirection.Incoming)
+        {
+            var token = _cts.Token;
+            Fire(() => _counts.HoverAsync(jump, token));
+        }
+    }
+
+    private async Task JumpAsync(FkJump jump)
+    {
+        Shell.OpenFiltered(FkTargets.SummaryOf(Active, jump.Table), jump.Filters);
+        await CloseAsync();
+    }
+
     private Task CopyTableAsync() =>
         Export.CopyAsync(DelimitedExport.Build(Result, Request.Selected, DelimitedExport.ClipboardSeparator), ExportCopy.Table);
 
@@ -67,7 +163,16 @@
         Export.SaveAsync(DelimitedExport.Build(Result, Request.Selected, DelimitedExport.CsvSeparator), ExportName + ".csv",
             GridText.Export_CsvFilter, utf8Bom: true);
 
-    private Task CloseAsync() => OnClose.InvokeAsync();
+    private async Task CloseAsync()
+    {
+        await _cts.CancelAsync();
+        await OnClose.InvokeAsync();
+    }
 
-    public ValueTask DisposeAsync() => Dom.DisposeAsync();
+    public async ValueTask DisposeAsync()
+    {
+        await _cts.CancelAsync();
+        _cts.Dispose();
+        await Dom.DisposeAsync();
+    }
 }

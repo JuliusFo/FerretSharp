@@ -36,9 +36,6 @@
     private TablePresentation? _presentation;
     private PresentationWatch _presentationWatch = null!;
 
-    /// <summary>Header height with the line for C# names (WP-12); the theme's 46 px otherwise.</summary>
-    private const int ClrHeaderHeight = 62;
-
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
 
@@ -134,7 +131,7 @@
     /// <summary>How columns and values are shown: plain, or with the C# model (WP-12).</summary>
     public TablePresentation Presentation => _presentation ??= Presentations.For(Details);
 
-    private int? HeaderHeight => Presentation.ShowsClrNames ? ClrHeaderHeight : null;
+    private int? HeaderHeight => Presentation.ShowsClrNames ? GridOptions.ClrHeaderHeight : null;
 
     /// <summary>What grid.js needs to know about a column (header, editing, member list).</summary>
     private GridColumn ColumnMeta(int i)

@@ -438,6 +438,9 @@
   <data name="Result_DefaultExportName" xml:space="preserve">
     <value>Ergebnis</value>
   </data>
+  <data name="Result_ColumnOrigin" xml:space="preserve">
+    <value>Aus {0}</value>
+  </data>
   <data name="ResultMenu_CopyInsertTitle" xml:space="preserve">
     <value>INSERT INTO {0} mit den Spaltennamen des Ergebnisses als Zielspalten (wird nie ausgeführt)</value>
   </data>
