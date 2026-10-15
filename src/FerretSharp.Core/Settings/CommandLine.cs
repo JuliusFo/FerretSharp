@@ -38,6 +38,25 @@ public static class CommandLine
     public static string? LinkOf(IEnumerable<string> args) => args.FirstOrDefault(Links.TableLink.IsLink);
 
     /// <summary>
+    /// The arguments FerretSharp acts on: with a link, nothing after it (WP-37). Windows puts the link last
+    /// (<c>"FerretSharp.exe" "%1"</c>); a link whose quotes reached the command line unescaped would otherwise add options
+    /// of its own, e.g. <c>--update-source=</c> or <c>--data-dir=</c>. Options before the link (a start by hand or in an
+    /// E2E run with <c>--data-dir</c>) stay.
+    /// </summary>
+    public static string[] Effective(IReadOnlyList<string> args)
+    {
+        for (var i = 0; i < args.Count; i++)
+        {
+            if (Links.TableLink.IsLink(args[i]))
+            {
+                return [.. args.Take(i + 1)];
+            }
+        }
+
+        return [.. args];
+    }
+
+    /// <summary>
     /// The arguments to start FerretSharp again as it was started – without a link, which was opened already: paths as full paths (the new process may start in another
     /// working folder, and a relative <c>--data-dir</c> would point at an empty one – review 3.31.0, A44), and the process to
     /// wait for (<see cref="WaitFor"/>) instead of an earlier one.

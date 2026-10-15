@@ -28,19 +28,23 @@ public partial class App : Application
 {
     private readonly AppPaths _paths;
     private readonly RenderFailureNotice _renderFailures = new();
-    private string[] _args = [];
+    private readonly string[] _args;
     private IHost? _host;
     private ILogger<App>? _logger;
 
     /// <summary>Started by <see cref="Program.Main"/>, which holds the data folder's instance lock (WP-32).</summary>
-    internal App(AppPaths paths) => _paths = paths;
+    /// <param name="args">The arguments to act on (<see cref="CommandLine.Effective"/>), not WPF's own copy of the raw command line.</param>
+    internal App(AppPaths paths, string[] args)
+    {
+        _paths = paths;
+        _args = args;
+    }
 
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
         var paths = _paths;
-        _args = e.Args;
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Debug()
             .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
@@ -63,9 +67,9 @@ public partial class App : Application
         // display names of a linked C# project keep the Windows language (the projects may only have German resources).
         var windowsUiCulture = CultureInfo.CurrentUICulture;
         CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.CurrentUICulture =
-            UiLanguages.Culture(UiLanguages.FromArguments(e.Args) ?? settings.Language);
+            UiLanguages.Culture(UiLanguages.FromArguments(_args) ?? settings.Language);
 
-        Start(e.Args, paths, settingsService, windowsUiCulture);
+        Start(_args, paths, settingsService, windowsUiCulture);
     }
 
     /// <summary>

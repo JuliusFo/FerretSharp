@@ -38,6 +38,23 @@ public sealed class CommandLineTests
         Assert.Equal([CommandLine.DataDir + Path.GetFullPath("daten")], CommandLine.Restart(args));
     }
 
+    /// <summary>
+    /// Review of WP-37: Windows starts <c>"FerretSharp.exe" "%1"</c>; a link whose quotes were not escaped would add options of
+    /// its own after it. Options before the link (a start by hand, E2E with <c>--data-dir</c>) stay.
+    /// </summary>
+    [Fact]
+    public void Nothing_after_a_link_counts_as_an_option()
+    {
+        string[] injected = ["ferretsharp://open?v=1&s=ERP&t=A", @"--update-source=\\host\share", "x"];
+        string[] byHand = ["--data-dir=daten", "ferretsharp://open?v=1&s=ERP&t=A"];
+        string[] noLink = ["--lang=de", "--theme=dark"];
+
+        Assert.Equal(["ferretsharp://open?v=1&s=ERP&t=A"], CommandLine.Effective(injected));
+        Assert.Null(CommandLine.ValueOf(CommandLine.Effective(injected), CommandLine.UpdateSource));
+        Assert.Equal(byHand, CommandLine.Effective(byHand));
+        Assert.Equal(noLink, CommandLine.Effective(noLink));
+    }
+
     [Fact]
     public void The_path_options_are_the_ones_an_update_makes_absolute() =>
         Assert.Equal([CommandLine.DataDir, CommandLine.ImportAppData, CommandLine.UpdateSource], CommandLine.PathOptions);

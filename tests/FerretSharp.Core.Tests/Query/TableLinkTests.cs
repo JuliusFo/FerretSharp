@@ -123,6 +123,18 @@ public class TableLinkTests
         Assert.Contains("länger als", Error(huge));
     }
 
+    /// <summary>Review of WP-37: cut to the limit, a link too long could read as another one with a shorter value.</summary>
+    [Fact]
+    public void A_link_too_long_stays_too_long_when_handed_over()
+    {
+        var huge = "ferretsharp://open?v=1&s=ERP&t=X&f=ID,equals," + new string('x', TableLink.MaxLength);
+        var fits = "ferretsharp://open?v=1&s=ERP&t=X";
+
+        Assert.Equal(TableLink.MaxLength + 1, TableLink.ForTransfer(huge).Length);
+        Assert.Contains("länger als", Error(TableLink.ForTransfer(huge)));
+        Assert.Same(fits, TableLink.ForTransfer(fits));
+    }
+
     [Theory]
     [InlineData("ferretsharp://open?v=1", true)]
     [InlineData(" FerretSharp:anything", true)]
@@ -162,7 +174,12 @@ public class TableLinkTests
         Assert.Equal("Mein ERP", LinkConnectionMatch.Find([colleaguesName, otherSchema, mine with { Name = "Mein ERP" }], link).Profile?.Name);
         // Only the name fits: another database of that name is no match while the address finds one.
         Assert.Same(otherSchema, LinkConnectionMatch.Find([colleaguesName, otherSchema], link).Profile);
-        Assert.Same(colleaguesName, LinkConnectionMatch.Find([colleaguesName], link).Profile);
+        var byNameOnly = LinkConnectionMatch.Find([colleaguesName], link);
+        Assert.Same(colleaguesName, byNameOnly.Profile);
+        // Review of WP-37: the same name at another address may be another database – the confirmation says so.
+        Assert.True(byNameOnly.AddressDiffers);
+        Assert.False(LinkConnectionMatch.Find([colleaguesName, otherSchema, mine], link).AddressDiffers);
+        Assert.False(LinkConnectionMatch.Find([colleaguesName], link with { Address = null }).AddressDiffers);
     }
 
     [Fact]

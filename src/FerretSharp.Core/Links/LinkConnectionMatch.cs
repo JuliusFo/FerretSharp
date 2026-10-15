@@ -6,7 +6,11 @@ namespace FerretSharp.Core.Links;
 /// The receiver's connection for a link (WP-37): <paramref name="Profile"/> if exactly one fits, else the
 /// <paramref name="Candidates"/> that fit equally well (the user picks one); neither if none fits.
 /// </summary>
-public sealed record LinkConnectionMatch(ConnectionProfile? Profile, IReadOnlyList<ConnectionProfile> Candidates)
+/// <param name="AddressDiffers">
+/// Found by name only, although the link has an address none of the receiver's connections has: the same name may
+/// point at another database (a colleague's "ERP" at Test, the receiver's at Prod) – the confirmation says so.
+/// </param>
+public sealed record LinkConnectionMatch(ConnectionProfile? Profile, IReadOnlyList<ConnectionProfile> Candidates, bool AddressDiffers = false)
 {
     /// <summary>
     /// Name and address first: a colleague's connection of the same name may point at another database, so a name alone
@@ -33,7 +37,7 @@ public sealed record LinkConnectionMatch(ConnectionProfile? Profile, IReadOnlyLi
             }
         }
 
-        return Of(byName);
+        return Of(byName) with { AddressDiffers = link.Address is not null && byName.Count > 0 };
     }
 
     private static LinkConnectionMatch Of(List<ConnectionProfile> fitting) => fitting.Count == 1 ? new(fitting[0], []) : new(null, fitting);

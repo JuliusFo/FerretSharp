@@ -68,6 +68,12 @@ public sealed record TableLink(
     /// <summary>Whether the text is meant to be a link (a start argument, a pipe message) – not whether it is valid.</summary>
     public static bool IsLink(string? text) => text is not null && text.TrimStart().StartsWith(Scheme + ":", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// The text a second start hands over (the pipe): at most one character more than a link may have, so a link that
+    /// was too long is still refused as such – cut to <see cref="MaxLength"/>, it could read as another, valid link.
+    /// </summary>
+    public static string ForTransfer(string text) => text.Length > MaxLength ? text[..(MaxLength + 1)] : text;
+
     public string ToUri()
     {
         var uri = new StringBuilder(Scheme).Append("://open?v=").Append(CurrentVersion);

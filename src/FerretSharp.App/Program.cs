@@ -29,6 +29,7 @@ internal static class Program
             .OnBeforeUninstallFastCallback(_ => UnregisterLinks())
             .Run();
 
+        args = CommandLine.Effective(args); // a link's own options are ignored (WP-37, review)
         var paths = DataFolder(args);
         WaitForPreviousInstance(args);
         InstanceLock? instance = null;
@@ -58,7 +59,7 @@ internal static class Program
 
         using (instance)
         {
-            var app = new App(paths);
+            var app = new App(paths, args);
             app.InitializeComponent();
             return app.Run();
         }

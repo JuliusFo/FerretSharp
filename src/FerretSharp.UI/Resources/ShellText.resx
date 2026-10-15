@@ -1691,6 +1691,10 @@
     <value>{0} is not connected yet; it will be connected first.</value>
     <comment>{0}: connection name</comment>
   </data>
+  <data name="Link_AddressDiffers" xml:space="preserve">
+    <value>Found by name only: the link's connection is at {0}, none of yours is. Check that this is the same database.</value>
+    <comment>{0}: address from the link (host:port/service)</comment>
+  </data>
   <data name="Link_Open" xml:space="preserve">
     <value>Open</value>
     <comment>Button</comment>

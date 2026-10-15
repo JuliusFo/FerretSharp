@@ -63,6 +63,10 @@
                     }
                 </dd>
             </dl>
+            @if (Request.Match.AddressDiffers && link.Address is { } linkAddress)
+            {
+                <p class="field-error">@TextFormat.Format(ShellText.Link_AddressDiffers, linkAddress.Display)</p>
+            }
             @if (Target is { } target && NeedsConnect(target))
             {
                 <p class="hint">@TextFormat.Format(ShellText.Link_WillConnect, target.Name)</p>

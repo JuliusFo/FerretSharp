@@ -1377,6 +1377,9 @@
   <data name="Link_WillConnect" xml:space="preserve">
     <value>{0} ist noch nicht verbunden; zuerst wird verbunden.</value>
   </data>
+  <data name="Link_AddressDiffers" xml:space="preserve">
+    <value>Nur über den Namen gefunden: Die Verbindung im Link liegt unter {0}, dort liegt keine deiner Verbindungen. Prüfe, ob es dieselbe Datenbank ist.</value>
+  </data>
   <data name="Link_Open" xml:space="preserve">
     <value>Öffnen</value>
   </data>

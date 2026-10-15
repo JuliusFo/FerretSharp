@@ -33,7 +33,7 @@ internal static class LinkPipe
         {
             using var pipe = new NamedPipeClientStream(".", NameOf(paths), PipeDirection.Out, PipeOptions.CurrentUserOnly);
             pipe.Connect(ConnectTimeout);
-            pipe.Write(Encoding.UTF8.GetBytes(link.Length > TableLink.MaxLength ? link[..TableLink.MaxLength] : link));
+            pipe.Write(Encoding.UTF8.GetBytes(TableLink.ForTransfer(link)));
             pipe.Flush();
             return true;
         }
@@ -47,7 +47,8 @@ internal static class LinkPipe
 /// <summary>Listens on <see cref="LinkPipe"/> while FerretSharp runs and posts what arrives to the <see cref="LinkInbox"/>.</summary>
 internal sealed class LinkPipeServer(AppPaths paths, LinkInbox inbox, ILogger<LinkPipeServer> logger) : BackgroundService
 {
-    // A little more than a link may have in UTF-8: anything longer is cut and then refused by the parser.
+    // A little more than a link may have in UTF-8 (TableLink.ForTransfer sends at most one character more). A message that
+    // fills the buffer still decodes to more than TableLink.MaxLength characters (at most 3 bytes each), which the parser refuses.
     private const int MaxBytes = TableLink.MaxLength * 3 + 16;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
