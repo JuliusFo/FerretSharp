@@ -1,7 +1,7 @@
 # FerretSharp – Oracle explorer for .NET developers
 
 > Projektanweisungen für Claude Code. Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-15, zuletzt released 3.35.3 (Historie: `CHANGELOG.md`).
+> Stand: 2026-10-15, zuletzt released 3.35.4 (Historie: `CHANGELOG.md`).
 
 ## Wo steht was
 
@@ -116,4 +116,4 @@ Regeln:
 ## 8. Als Nächstes
 
 - Gesamt-Review nach 3.31.0 (`docs/review-3.31.0.md`) abgeschlossen: Teil A als R5a in 3.31.1, Teil C (Doku), Teil B als R5b in 3.32.0. 3.32.1 hebt `System.Security.Cryptography.Pkcs` (kommt mit den Oracle-Paketen) direkt auf 8.0.2 – die direkte Referenz kann weg, sobald ein Oracle-Paket selbst 8.0.2 oder neuer mitbringt (WP-36). 3.33.0: Fehler aus dem Alltag (`docs/work-packages/fixes-2026-10-14.md`); offen dazu die Ursache der Render-Fehler nach dem Ruhezustand (HWND-WebView2 oder Software-Rendering prüfen, Backlog). 3.34.0: Update-Dialog mit den Notizen aller Versionen dazwischen und Bildern (WP-49).
-- 3.34.1: WP-36 (Abhängigkeiten, AG Grid 36.2.0). 3.35.0: WP-37 (Filter-Vorlagen und Links `ferretsharp://`, ADR 0026); 3.35.1: Links als https über eine Weiterleitungsseite auf GitHub Pages (`pages/`, Nachtrag zu ADR 0026); 3.35.2: Gruppe vor dem Verbindungsnamen (`docs/work-packages/small-connection-group-label.md`); 3.35.3: Spaltenliste und Designer (`docs/work-packages/fixes-designer-columns-layout.md`). Danach WP-38 … WP-47 in der Reihenfolge aus `docs/roadmap.md` (ausgewählt mit dem Nutzer am 2026-10-14), dazu WP-48 (FK-Navigation im SQL-Ergebnis), WP-50 (Filtergruppen ODER/NICHT) und WP-51 (Audit-Vorlage je Systemgruppe), Platz in der Reihenfolge offen.
+- 3.34.1: WP-36 (Abhängigkeiten, AG Grid 36.2.0). 3.35.0: WP-37 (Filter-Vorlagen und Links `ferretsharp://`, ADR 0026); 3.35.1: Links als https über eine Weiterleitungsseite auf GitHub Pages (`pages/`, Nachtrag zu ADR 0026); 3.35.2: Gruppe vor dem Verbindungsnamen (`docs/work-packages/small-connection-group-label.md`); 3.35.3: Spaltenliste und Designer (`docs/work-packages/fixes-designer-columns-layout.md`); 3.35.4: Verbindung für einen Link selbst wählen (`docs/work-packages/small-link-choose-connection.md`, Nachtrag zu ADR 0026). Danach WP-38 … WP-47 in der Reihenfolge aus `docs/roadmap.md` (ausgewählt mit dem Nutzer am 2026-10-14), dazu WP-48 (FK-Navigation im SQL-Ergebnis), WP-50 (Filtergruppen ODER/NICHT) und WP-51 (Audit-Vorlage je Systemgruppe), Platz in der Reihenfolge offen.

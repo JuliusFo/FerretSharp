@@ -44,7 +44,7 @@ Entscheidungen des Nutzers (2026-10-14, `docs/roadmap.md`): Ein Link enthält ni
 - **Hosting:** Workflow `.github/workflows/pages.yml` veröffentlicht nur den Ordner `pages/` (bei Änderungen darin auf `main`). Eine Seite ohne Server-Logik, keine Abhängigkeit für FerretSharp selbst: `ferretsharp://`-Links und die Registrierung bleiben wie oben, die Seite ist nur der Weg aus Chats und Tickets. Geht GitHub Pages weg oder zieht die Seite um, ändern sich `TableLink.WebPage` und alte Links zeigen ins Leere; der `#`-Teil eines alten Links lässt sich dann von Hand hinter `ferretsharp://open?` setzen.
 - `LinkPageTests` halten Seite und Core zusammen: Präfix, Grenze, CSP-Hashes, kein nachgeladenes Element, und die Prüfung der Seite (als .NET-Regex) lässt jeden von FerretSharp geschriebenen Link durch.
 
-## Nachtrag (2026-10-15, nach 3.35.3): Verbindung selbst wählen
+## Nachtrag (2026-10-15, 3.35.4): Verbindung selbst wählen
 
 Wunsch des Nutzers: Passt keine Verbindung, endete der Dialog bisher bei „Keine deiner Verbindungen passt“ – bei Links von Kollegen der Normalfall, wenn deren Verbindung anders heißt und unter einer anderen Adresse liegt (TNS-Alias statt Host:Port, anderer Hostname über das VPN). Außerdem soll sich ein Link bewusst auf einer anderen Verbindung öffnen lassen (dieselbe Anwendung in einer anderen Umgebung).
 - **Entscheidung:** Der Dialog bietet in jedem Fall die eigene Wahl: ohne Treffer gleich die Liste aller Verbindungen (Suche, Gruppen wie die Verbindungsliste), bei einem Treffer „Ändern…“, bei mehreren Kandidaten „Andere Verbindung…“. Oben stehen „Vorschläge“: die passenden Verbindungen, dann die mit dem Schema des Links (`LinkConnectionMatch.Suggestions`). Die Liste steht im Dialog selbst (kein Popover über dem Modal).

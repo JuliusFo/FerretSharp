@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.35.4] - 2026-10-15
+
+Open a link on the connection you choose.
+
 ### Added
 - Links: choose the connection a link opens on. When none of your connections fits a link – a colleague's connection under another name and address – the dialog lists your connections to pick from, with a search and suggestions first (connections that fit, then those reading the link's schema). When one fits, "Change…" opens it elsewhere, e.g. in another environment of the same application. Nothing is picked for you, and the dialog says when a link opens on another connection than the one it points at.
 

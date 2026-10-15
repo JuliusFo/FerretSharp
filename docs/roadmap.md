@@ -14,7 +14,7 @@ Entscheidung des Nutzers (2026-10-09). Issues bekommen eine Art und einen Status
 
 ## Geplant
 
-Versionen: Minor-Releases 3.x (nichts Inkompatibles). Ein Paket bekommt seine Version erst beim Release (`CHANGELOG.md`, Spalte „Release“ im Index); die Roadmap legt keine fest, weil die Reihenfolge oft abweicht und Fix-Releases dazwischenkommen (Entscheidung des Nutzers, 2026-10-14). Zuletzt released: 3.35.3 (Spaltenliste und Designer: CHAR-Haken, Kopfzeile, Kommentarbreite, `docs/work-packages/fixes-designer-columns-layout.md`), davor 3.35.2 (Gruppe vor dem Verbindungsnamen, `docs/work-packages/small-connection-group-label.md`).
+Versionen: Minor-Releases 3.x (nichts Inkompatibles). Ein Paket bekommt seine Version erst beim Release (`CHANGELOG.md`, Spalte „Release“ im Index); die Roadmap legt keine fest, weil die Reihenfolge oft abweicht und Fix-Releases dazwischenkommen (Entscheidung des Nutzers, 2026-10-14). Zuletzt released: 3.35.4 (Verbindung für einen Link selbst wählen, `docs/work-packages/small-link-choose-connection.md`), davor 3.35.3 (Spaltenliste und Designer: CHAR-Haken, Kopfzeile, Kommentarbreite, `docs/work-packages/fixes-designer-columns-layout.md`).
 
 ### Pakete nach WP-36 (WP-37 … WP-47)
 Ausgewählt mit dem Nutzer am 2026-10-14 aus einer Ideensammlung (Bewertung des Nutzers je Paket in Klammern). Reihenfolge nach Abhängigkeiten: erst kleine Pakete mit sofortigem Nutzen (WP-37 … WP-39), dann zwei Fundamente, die je mehrere Pakete tragen – der Code-Index (WP-40 → WP-41, WP-45) und der Beziehungsgraph (WP-42 → WP-43, WP-46) –, das Paket mit Mitschnitt, Quellzeile und Datenänderungen (WP-45) erst, wenn seine Teile stehen. Die Abschnitte sind Vorschläge; „Offen“ wird beim Start mit dem Nutzer entschieden, dann wie üblich der Plan.
