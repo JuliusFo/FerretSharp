@@ -71,12 +71,12 @@ Eigener Container `ferret-e2e-wp37r` (Port 1531, danach entfernt), Build im Scra
 - **Vom Nutzer gefunden (Screenshot aus diesem Lauf) und behoben:** Die Zeile mit „Not in this table“ war kürzer als die anderen – jede Filterzeile war ein eigenes Grid, die letzte Spalte (`auto`) so breit wie Hinweis oder Fehler, also schrumpften Spalte, Operator und Wert nur dort. Die Zeilen teilen jetzt die Spalten von `.filter-rows` (`subgrid`); nachgemessen: alle Zeilen gleich breit (Spalte 208, Operator 130, Wert 178 px). Folge: Ein langer Hinweis kürzt jetzt alle Zeilen gleich, nicht nur seine.
 - Nicht geprüft: Klick auf einen echten Link im Browser und die Registrierung (schrieben in die Registry des Nutzers); eine Kommandozeile mit unkodierten Anführungszeichen erzeugt nur Windows – die Regel selbst deckt `Nothing_after_a_link_counts_as_an_option` ab.
 
-## Nachtrag nach 3.35.0: https-Weiterleitung (2026-10-15)
+## Nachtrag nach 3.35.0: https-Weiterleitung (2026-10-15) → Release 3.35.1
 Vom Nutzer gemeldet: In Teams und Azure DevOps ist ein `ferretsharp://`-Link nicht klickbar (nur bekannte Adressarten), in Firefox/Chrome über die Adresszeile geht er. Entscheidung des Nutzers: Weiterleitungsseite auf GitHub Pages, Inhalt hinter `#`, „Link kopieren“ legt die https-Form ab, Nachtrag zu ADR 0026. Branch `feat/link-web-redirect`.
 - Core: `TableLink.WebPage`, `UriStart`, `ToWebUri`. Seite `pages/open/index.html` (Prüfung der Zeichen, automatisch und per Knopf, Englisch/Deutsch nach Browsersprache, CSP mit Hashes, kein Referrer, nichts vom Link sichtbar), `pages/index.html` (Hinweis aufs Repo), Workflow `pages.yml`. `LinkCopy` kopiert die https-Form; Tooltips der Menüs nennen „https, klickbar in Teams und Tickets“.
 - Tests: Core `The_https_form_carries_the_link_after_the_hash`, `LinkPageTests` (Präfix und Grenze wie in Core, CSP-Hashes der eigenen Blöcke, nichts nachgeladen, Prüfung der Seite lässt jeden geschriebenen Link durch und lehnt eingeschleustes HTML ab).
 - Geprüft im eingebauten Browser über einen lokalen Server: gültiger Link → Knopf zeigt auf `ferretsharp://open?…` (mit `%23`, `%2C` in Werten), deutsche Texte; eingeschleustes `"><img …>` → „Das ist kein FerretSharp-Link“, kein Element; keine CSP-Meldung in der Konsole; das Server-Log zeigt nur `GET /open/` (der `#`-Teil kommt nie an).
-- Nicht geprüft: die Seite auf GitHub Pages selbst (braucht das Einschalten von Pages und den Merge) und ein Klick aus Teams/Azure DevOps bis in FerretSharp – Prüfung durch den Nutzer.
+- Pages auf „GitHub Actions“ geschaltet, nach dem Merge veröffentlicht: `https://juliusfo.github.io/FerretSharp/open/` liefert byte-genau `pages/open/index.html`, CI und Pages-Lauf grün. Nicht geprüft: ein Klick aus Teams/Azure DevOps bis in FerretSharp – Prüfung durch den Nutzer.
 
 ## Offen
 - Teilen von Vorlagen mit den Kollegen; Links aus SQL/LINQ-Ergebnissen (Backlog).
