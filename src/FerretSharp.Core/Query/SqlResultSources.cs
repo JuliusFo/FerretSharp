@@ -52,13 +52,13 @@ public sealed class SqlResultSource
     public RowData Project(RowData row) => new(RowKey.None.Instance, [.. _resultColumns.Select(i => row.Values[i])]);
 }
 
-/// <summary>An FK jump from result rows and the row source it starts from.</summary>
-public sealed record SqlResultJump(FkJump Jump, SqlResultSource Source)
+/// <summary>An FK jump from result rows and the row sources it starts from (two if the result reads its columns twice).</summary>
+public sealed record SqlResultJump(FkJump Jump, IReadOnlyList<SqlResultSource> Sources)
 {
-    /// <summary>The jump goes over this result column (the clicked one is usually meant).</summary>
+    /// <summary>The jump goes over this result column, in any of its sources (the clicked one is usually meant).</summary>
     public bool Involves(int resultColumn) =>
-        Source.TableColumnOf(resultColumn) is { } column
-        && (Jump.Direction == JumpDirection.Outgoing ? Jump.ForeignKey.FromColumns : Jump.ForeignKey.ToColumns).Contains(Source.Details.Columns[column].Name);
+        Sources.Any(source => source.TableColumnOf(resultColumn) is { } column
+            && (Jump.Direction == JumpDirection.Outgoing ? Jump.ForeignKey.FromColumns : Jump.ForeignKey.ToColumns).Contains(source.Details.Columns[column].Name));
 }
 
 /// <summary>
@@ -68,44 +68,35 @@ public sealed record SqlResultJump(FkJump Jump, SqlResultSource Source)
 /// </summary>
 public sealed class SqlResultSources
 {
-    public static readonly SqlResultSources None = new([], 0);
+    public static readonly SqlResultSources None = new([]);
 
-    private readonly (SqlResultSource Source, int Table)?[] _byResult;
-
-    private SqlResultSources(IReadOnlyList<SqlResultSource> sources, int resultColumns)
-    {
-        Sources = sources;
-        _byResult = new (SqlResultSource, int)?[resultColumns];
-        foreach (var source in sources)
-        {
-            foreach (var (result, table) in source.Columns)
-            {
-                _byResult[result] = (source, table);
-            }
-        }
-    }
+    private SqlResultSources(IReadOnlyList<SqlResultSource> sources) => Sources = sources;
 
     public IReadOnlyList<SqlResultSource> Sources { get; }
 
-    /// <summary>The row source and table column behind a result column; null without one.</summary>
-    public (SqlResultSource Source, int Table)? Of(int resultColumn) =>
-        resultColumn >= 0 && resultColumn < _byResult.Length ? _byResult[resultColumn] : null;
-
     /// <summary>
     /// The row sources of a result: origins resolved against the statement and the schema, each table's structure from the
-    /// schema cache (loaded once per table). A column the table does not have (ROWID, a column of another table of the same
-    /// name) has no source.
+    /// schema cache – all tables asked for at once (the explorer session queues them, no table waits for the previous one to
+    /// be asked for), each once. A column the table does not have (ROWID, a column of another table of the same name) has no
+    /// source.
     /// </summary>
     public static async Task<SqlResultSources> LoadAsync(
         string sql, IReadOnlyList<SqlColumn> columns, SchemaCache schema, CancellationToken cancellationToken)
     {
-        var origins = SqlResultOrigins.Resolve(sql, columns, schema);
+        var groups = SqlResultOrigins.Resolve(sql, columns, schema)
+            .Select((origin, index) => (Origin: origin!, Index: index))
+            .Where(o => o.Origin is not null)
+            .GroupBy(o => o.Origin.Source, StringComparer.Ordinal)
+            .ToList();
+        var loads = groups.Select(g => g.First().Origin.Table).DistinctBy(t => t.Ref)
+            .ToDictionary(t => t.Ref, t => schema.GetDetailsAsync(t, cancellationToken));
+        await Task.WhenAll(loads.Values);
+
         var sources = new List<SqlResultSource>();
-        foreach (var group in origins.Select((origin, index) => (Origin: origin, Index: index)).Where(o => o.Origin is not null)
-                     .GroupBy(o => o.Origin!.Source, StringComparer.Ordinal))
+        foreach (var group in groups)
         {
-            var details = await schema.GetDetailsAsync(group.First().Origin!.Table, cancellationToken);
-            var pairs = group.Select(o => (Result: o.Index, Table: details.IndexOf(o.Origin!.Column)))
+            var details = await loads[group.First().Origin.Table.Ref];
+            var pairs = group.Select(o => (Result: o.Index, Table: details.IndexOf(o.Origin.Column)))
                 .Where(p => p.Table >= 0)
                 .DistinctBy(p => p.Table)
                 .ToList();
@@ -115,28 +106,29 @@ public sealed class SqlResultSources
             }
         }
 
-        return new SqlResultSources(sources, columns.Count);
+        return new SqlResultSources(sources);
     }
 
     /// <summary>
     /// FK jumps from <paramref name="rows"/> (result rows, at least one): outgoing ones of all row sources first, then incoming
-    /// ones; the same jump reached through two sources (a column read twice) once.
+    /// ones; the same jump reached through two sources (a column read twice) once, with both sources.
     /// </summary>
     public IReadOnlyList<SqlResultJump> JumpsFor(
         IReadOnlyList<RowData> rows, Func<TableRef, IEnumerable<ForeignKeyInfo>> outgoing, Func<TableRef, IEnumerable<ForeignKeyInfo>> incoming)
     {
-        var jumps = new List<SqlResultJump>();
+        var jumps = new List<(FkJump Jump, SqlResultSource Source)>();
         foreach (var source in Sources)
         {
             var projected = rows.Select(source.Project).ToList();
             var table = source.Table.Ref;
             jumps.AddRange(FkNavigation.JumpsFor(source.Projection, projected,
                     outgoing(table).Where(f => source.Shows(f.FromColumns)), incoming(table).Where(f => source.Shows(f.ToColumns)))
-                .Select(j => new SqlResultJump(j, source)));
+                .Select(j => (j, source)));
         }
 
         return jumps.OrderBy(j => j.Jump.Direction)
-            .DistinctBy(j => (j.Jump.Direction, j.Jump.ForeignKey, j.Jump.Condition))
+            .GroupBy(j => (j.Jump.Direction, j.Jump.ForeignKey, j.Jump.Condition))
+            .Select(g => new SqlResultJump(g.First().Jump, [.. g.Select(j => j.Source)]))
             .ToList();
     }
 }

@@ -43,15 +43,17 @@ public sealed class SqlResultOriginsTests
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private static async Task<SchemaCache> SchemaAsync()
+    /// <param name="synonymTargets">Objects reached through synonyms; <see cref="Laender"/> if none are given.</param>
+    private static async Task<SchemaCache> SchemaAsync(params TableDetails[] synonymTargets)
     {
         TableDetails[] own = [Kunden, Auftrag, Mitarbeiter, Lieferung, X];
+        TableDetails[] others = synonymTargets.Length > 0 ? synonymTargets : [Laender];
         var reader = Substitute.For<ISchemaReader>();
         reader.GetTablesAsync(Owner, Arg.Any<CancellationToken>()).Returns(own.Select(t => t.Table).ToList());
-        reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns(new SynonymTargets([Laender.Table], []));
+        reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns(new SynonymTargets([.. others.Select(t => t.Table)], []));
         reader.GetForeignKeysAsync(Owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyList<ForeignKeyInfo>)[AuftragKunde, LieferungPosition]);
-        reader.GetForeignKeysAsync("ANDERE", Arg.Any<CancellationToken>()).Returns((IReadOnlyList<ForeignKeyInfo>)[]);
-        foreach (var table in own.Append(Laender))
+        reader.GetForeignKeysAsync(Arg.Is<string>(o => o != Owner), Arg.Any<CancellationToken>()).Returns((IReadOnlyList<ForeignKeyInfo>)[]);
+        foreach (var table in own.Concat(others))
         {
             reader.GetDetailsAsync(Arg.Is<TableSummary>(t => t.Ref == table.Table.Ref), Arg.Any<CancellationToken>()).Returns(table);
         }
@@ -185,8 +187,8 @@ public sealed class SqlResultOriginsTests
         Assert.Equal([(0, 0), (1, 1)], sources.Sources[0].Columns);
         Assert.Equal([(2, 1)], sources.Sources[1].Columns);
         Assert.Equal(["AUFTRAG_ID", "KUNDE_ID"], sources.Sources[0].Projection.Columns.Select(c => c.Name));
-        Assert.Null(sources.Of(3));
-        Assert.Equal(1, sources.Of(2)!.Value.Table);
+        Assert.All(sources.Sources, s => Assert.Null(s.TableColumnOf(3)));
+        Assert.Equal(1, sources.Sources[1].TableColumnOf(2));
     }
 
     private static RowData Row(params object?[] values) => new(RowKey.None.Instance, values);
@@ -254,6 +256,20 @@ public sealed class SqlResultOriginsTests
         var sources = await SqlResultSources.LoadAsync("SELECT \"a\".KUNDE_ID, KUNDE_ID FROM AUFTRAG \"a\"", Columns("a.KUNDE_ID", "AUFTRAG.KUNDE_ID"), schema, Ct);
 
         Assert.Equal(2, sources.Sources.Count);
-        Assert.Single(sources.JumpsFor([Row(4711m, 4711m)], schema.OutgoingOf, schema.IncomingOf));
+        var jump = Assert.Single(sources.JumpsFor([Row(4711m, 4711m)], schema.OutgoingOf, schema.IncomingOf));
+        Assert.True(jump.Involves(0));
+        Assert.True(jump.Involves(1)); // the click on the second copy is meant just as well
+    }
+
+    [Fact]
+    public async Task A_private_synonym_wins_over_a_public_one_of_the_same_name()
+    {
+        // Sorted by target owner the public one ("AAA") would come first.
+        var publicOne = new TableDetails(new TableSummary("AAA", "LAND_ALT", TableKind.Table, new SynonymInfo(SynonymInfo.PublicOwner, "LAND")), [Text("CODE", 1)], [], [], false);
+        var privateOne = new TableDetails(new TableSummary("ZZZ", "LAENDER", TableKind.Table, new SynonymInfo(Owner, "LAND")), [Text("CODE", 1)], [], [], false);
+
+        var origins = SqlResultOrigins.Resolve("SELECT CODE FROM LAND", Columns("LAND.CODE"), await SchemaAsync(publicOne, privateOne));
+
+        Assert.Equal("ZZZ.LAENDER", Assert.Single(origins)!.Table.Ref.ToString());
     }
 }

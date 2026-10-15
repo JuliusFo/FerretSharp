@@ -23,6 +23,12 @@ public sealed record SqlStatementInfo(
     IReadOnlyList<SqlTableReference> Tables,
     IReadOnlyList<SqlBindUse> BindUses)
 {
+    /// <summary>
+    /// Aliases of subqueries in FROM, JOIN and APPLY (<c>(SELECT …) x</c>, <c>CROSS APPLY (SELECT …) "t"</c>) in dictionary
+    /// form: row sources that are no table (WP-48).
+    /// </summary>
+    public IReadOnlyList<string> InlineViews { get; init; } = [];
+
     public bool IsQuery => Kind == SqlStatementKind.Query && !ForUpdate;
 
     public bool IsDml => Kind is SqlStatementKind.Insert or SqlStatementKind.Update or SqlStatementKind.Delete or SqlStatementKind.Merge;
@@ -62,7 +68,7 @@ public sealed record SqlStatementInfo(
 public static class SqlAnalysis
 {
     /// <summary>Words that end a table reference instead of being its alias.</summary>
-    internal static readonly HashSet<string> NotAliases =new(StringComparer.OrdinalIgnoreCase)
+    private static readonly HashSet<string> NotAliases = new(StringComparer.OrdinalIgnoreCase)
     {
         "WHERE", "ON", "JOIN", "INNER", "LEFT", "RIGHT", "FULL", "CROSS", "OUTER", "NATURAL", "GROUP", "ORDER", "HAVING", "CONNECT",
         "START", "UNION", "INTERSECT", "MINUS", "EXCEPT", "FETCH", "OFFSET", "FOR", "SET", "USING", "VALUES", "RETURNING", "RETURN",
@@ -137,9 +143,10 @@ public static class SqlAnalysis
         }
 
         // In a trigger ":new.x", ":old.x" (and the names of its REFERENCING clause) are its rows, not values to ask for.
+        var (tables, inlineViews) = TablesOf(tokens);
         return kind is SqlStatementKind.Trigger or SqlStatementKind.SystemTrigger
-            ? new SqlStatementInfo(kind, first, [], hasWhere, forUpdate, TablesOf(tokens), [])
-            : new SqlStatementInfo(kind, first, binds, hasWhere, forUpdate, TablesOf(tokens), BindUsesOf(tokens));
+            ? new SqlStatementInfo(kind, first, [], hasWhere, forUpdate, tables, []) { InlineViews = inlineViews }
+            : new SqlStatementInfo(kind, first, binds, hasWhere, forUpdate, tables, BindUsesOf(tokens)) { InlineViews = inlineViews };
     }
 
     /// <summary>
@@ -246,18 +253,21 @@ public static class SqlAnalysis
 
     /// <summary>
     /// Tables after FROM (and the commas of its list), JOIN, INTO, USING and a leading UPDATE, with their aliases. Subqueries
-    /// in FROM are skipped as tables; their own FROM counts at a deeper level.
+    /// in FROM are skipped as tables; their own FROM counts at a deeper level, their alias is an inline view.
     /// </summary>
-    private static List<SqlTableReference> TablesOf(List<SqlToken> tokens)
+    private static (List<SqlTableReference> Tables, List<string> InlineViews) TablesOf(List<SqlToken> tokens)
     {
         var tables = new List<SqlTableReference>();
+        var inlineViews = new List<string>();
         var depth = 0;
         var fromListDepth = new HashSet<int>();
+        var opened = new Stack<bool>(); // per open parenthesis: a subquery standing as a row source
         for (var i = 0; i < tokens.Count; i++)
         {
             var token = tokens[i];
             if (token.IsSymbol("("))
             {
+                opened.Push(StartsInlineView(tokens, i, fromListDepth.Contains(depth)));
                 depth++;
                 continue;
             }
@@ -266,6 +276,11 @@ public static class SqlAnalysis
             {
                 fromListDepth.Remove(depth);
                 depth = Math.Max(0, depth - 1);
+                if (opened.TryPop(out var inlineView) && inlineView && AliasAt(tokens, i + 1) is { } alias)
+                {
+                    inlineViews.Add(alias);
+                }
+
                 continue;
             }
 
@@ -294,7 +309,27 @@ public static class SqlAnalysis
             }
         }
 
-        return tables;
+        return (tables, inlineViews);
+    }
+
+    /// <summary>
+    /// The parenthesis at <paramref name="i"/> opens a query that stands as a row source: after FROM, JOIN, APPLY, LATERAL or a
+    /// comma of a FROM list (<paramref name="inFromList"/>).
+    /// </summary>
+    private static bool StartsInlineView(List<SqlToken> tokens, int i, bool inFromList) =>
+        i > 0 && i + 1 < tokens.Count && (tokens[i + 1].IsWord("SELECT") || tokens[i + 1].IsWord("WITH"))
+        && (tokens[i - 1].IsWord("FROM") || tokens[i - 1].IsWord("JOIN") || tokens[i - 1].IsWord("APPLY") || tokens[i - 1].IsWord("LATERAL")
+            || (tokens[i - 1].IsSymbol(",") && inFromList));
+
+    /// <summary>The alias at <paramref name="i"/> (after an optional AS) in dictionary form; null if there is none.</summary>
+    private static string? AliasAt(List<SqlToken> tokens, int i)
+    {
+        if (i < tokens.Count && tokens[i].IsWord("AS"))
+        {
+            i++;
+        }
+
+        return Name(tokens, i);
     }
 
     private static (SqlTableReference Table, int Next)? ReferenceAt(List<SqlToken> tokens, int i, int depth)
@@ -423,6 +458,7 @@ public static class SqlAnalysis
             ? Normalize(tokens[i])
             : null;
 
-    private static string Normalize(SqlToken token) =>
+    /// <summary>A name in dictionary form: quoted as written, unquoted in upper case.</summary>
+    internal static string Normalize(SqlToken token) =>
         token.Kind == SqlTokenKind.QuotedIdentifier ? token.Value : token.Value.ToUpperInvariant();
 }

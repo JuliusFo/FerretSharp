@@ -315,6 +315,27 @@ public sealed class SqlScriptTests
         Assert.Equal((name, alias), (table.Name, table.Alias));
     }
 
+    [Theory]
+    [InlineData("SELECT x.n FROM (SELECT name AS n FROM kunden) x", "X")]
+    [InlineData("""SELECT "t"."ID" FROM (SELECT "k"."ID" FROM "KUNDEN" "k" FETCH FIRST 5 ROWS ONLY) "t" LEFT JOIN "AUFTRAG" "a" ON 1 = 1""", "t")]
+    [InlineData("SELECT * FROM kunden k JOIN (SELECT * FROM auftrag) AS a ON 1 = 1", "A")]
+    [InlineData("SELECT * FROM kunden k, (SELECT 1 AS n FROM dual) d", "D")]
+    [InlineData("SELECT * FROM kunden k CROSS APPLY (SELECT a.id FROM auftrag a WHERE a.kunde_id = k.id) x", "X")]
+    [InlineData("SELECT * FROM kunden k, LATERAL (SELECT a.id FROM auftrag a WHERE a.kunde_id = k.id) l", "L")]
+    public void Subqueries_standing_as_row_sources_are_inline_views(string statement, string alias)
+    {
+        Assert.Equal([alias], SqlScript.Analyze(statement).InlineViews);
+    }
+
+    [Theory]
+    [InlineData("SELECT (SELECT 1 FROM dual) AS n, k.id FROM kunden k")]
+    [InlineData("SELECT * FROM kunden WHERE id IN (SELECT kunde_id FROM auftrag) AND 1 = 1")]
+    [InlineData("SELECT * FROM kunden WHERE EXISTS (SELECT 1 FROM auftrag) ORDER BY 1")]
+    public void Other_subqueries_are_no_inline_views(string statement)
+    {
+        Assert.Empty(SqlScript.Analyze(statement).InlineViews);
+    }
+
     [Fact]
     public void Merge_names_target_and_source()
     {

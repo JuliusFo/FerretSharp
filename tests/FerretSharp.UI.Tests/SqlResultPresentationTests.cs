@@ -56,6 +56,8 @@ public sealed class SqlResultPresentationTests
             new Dictionary<string, IReadOnlyList<ColumnInfo>> { ["KUNDEN"] = Kunden.Columns, ["AUFTRAG"] = Auftrag.Columns });
         var schema = new SchemaCache(reader, Owner);
         await schema.LoadAsync(Ct);
+        // A manual relationship gets no badge, as in the table grid (only declared ones and those of the C# model do).
+        schema.SetForeignKeys(FkSource.Manual, [new("MANUELL", Auftrag.Table.Ref, ["AUFTRAG_ID"], Kunden.Table.Ref, ["KUNDE_ID"], FkSource.Manual)]);
 
         var kunde = new EntityExport("Shop.Kunde", "Shop.Kunde", false, null, "KUNDEN", null, null, null,
             [
@@ -77,6 +79,7 @@ public sealed class SqlResultPresentationTests
         var columns = (await PresentationAsync(ClrNameDisplay.Beside)).Columns();
 
         Assert.True(columns[1].Fk);
+        Assert.Equal((false, false), (columns[0].Fk, columns[0].FkModel));
         Assert.Equal("Aus AUFTRAG.KUNDE_ID", columns[1].Comment);
         Assert.Null(columns[1].Alternate); // AUFTRAG has no entity
         Assert.All(columns, c => Assert.False(c.Pk)); // grid.js would pin key columns to the left

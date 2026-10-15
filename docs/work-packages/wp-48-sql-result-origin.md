@@ -52,5 +52,16 @@ Eigene Instanz (`--data-dir`, eigener WebView2-Ordner, deutsch, dunkel), eigener
 - Log ohne `[ERR]`/`[WRN]`.
 - Nicht geprüft: Rechtsklick mit echter Windows-Eingabe (der Weg des Rechtsklicks ist unverändert, nur der Inhalt des Menüs ist neu); das nachträgliche Umbeschriften, wenn die Tabellenstrukturen erst nach 300 ms kommen (nur per Code und `updateColumns`/`updateRows` wie im Tabellen-Grid).
 
+## Nach dem Code-Review (2026-10-15)
+- Tabellenstrukturen über `Shell.RunDbAsync` (Verbindungsverlust → Banner, Fehler geloggt); das Grid entsteht immer, ein Fehler, der ein Bug ist, erreicht erst danach die ErrorBoundary.
+- `SqlCompletion.Resolve`: unqualifiziert eigenes Objekt, dann privates, dann öffentliches Synonym (vorher das erste nach Anzeigename und Ziel-Owner) – betrifft auch die Vervollständigung.
+- Aliase von Inline-Views (nach FROM, JOIN, Komma, APPLY, LATERAL) erkennt `SqlAnalysis` (`SqlStatementInfo.InlineViews`) statt einer zweiten Token-Schleife; `SqlAnalysis.Normalize` einmal statt dreimal.
+- Tabellen werden gleichzeitig angefragt; `SqlResultSources.Of` entfernt.
+- Derselbe Sprung über zwei Quellen behält beide (`SqlResultJump.Sources`): der Klick auf die zweite Kopie hebt ihn ebenfalls hervor.
+- FK-Badge „aus C#-Modell“ nur für Beziehungen des C#-Modells, wie im Tabellen-Grid.
+- Gemeinsamer Abschnitt `FkJumpSection` (Überschriften, Zählungen sofort/beim Darüberfahren, Sprung) für das Menü des Tabellen-Grids und des Ergebnisses.
+- Geprüft und belassen: das nachträgliche Umbeschriften kann keinen Block schlicht stehen lassen – `GetRows` liest die Präsentation erst nach dem Lesen, direkt vor dem Formatieren, und die Antwort erreicht grid.js vor dem späteren `updateRows`.
+- E2E erneut: Menü des Tabellen-Grids (AUFTRAG, Sprung nach MITARBEITER aus dem C#-Modell, Zählungen) und des SQL-Ergebnisses (Klick auf `k.KUNDE_ID`: eingehende Sprünge über KUNDEN vorn); Log ohne `[ERR]`/`[WRN]`.
+
 ## Offen
 - Backlog: Inline-Views und `WITH` auflösen, Anzeigespalten im SQL-Ergebnis, `DefaultSchema` (unqualifizierte Namen löst FerretSharp im angezeigten Schema auf, Oracle im Schema des Users).

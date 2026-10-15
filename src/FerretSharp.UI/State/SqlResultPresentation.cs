@@ -41,7 +41,7 @@ public sealed class SqlResultPresentation
                 var name = source.Details.Columns[table].Name;
                 _byColumn[result] = (presentation, table);
                 _fk[result] = foreignKeys.Any(f => f.Source == FkSource.Declared && f.FromColumns.Contains(name));
-                _fkModel[result] = foreignKeys.Any(f => f.Source != FkSource.Declared && f.FromColumns.Contains(name));
+                _fkModel[result] = foreignKeys.Any(f => f.Source == FkSource.ClrModel && f.FromColumns.Contains(name)); // as FerretGrid
             }
         }
 

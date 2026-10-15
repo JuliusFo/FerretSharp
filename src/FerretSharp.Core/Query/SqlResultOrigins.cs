@@ -44,7 +44,8 @@ public static class SqlResultOrigins
             return none;
         }
 
-        var statement = new Statement(SqlAnalysis.Analyze(sql).Tables, SubqueryAliases(tokens), schema);
+        var info = SqlAnalysis.Analyze(sql);
+        var statement = new Statement(info.Tables, info.InlineViews.ToHashSet(StringComparer.Ordinal), schema);
         return columns.Select(c => c.Origin is { Table: { } table } origin && statement.SourceOf(origin.Owner, table) is { } source
             ? new SqlResultOrigin(source.Key, source.Table, origin.Column)
             : null).ToList();
@@ -73,44 +74,9 @@ public static class SqlResultOrigins
         return false;
     }
 
-    /// <summary>
-    /// Names after a closing parenthesis of a subquery – <c>(SELECT …) x</c>, <c>(SELECT …) AS "t"</c> – in dictionary
-    /// form: aliases of inline views (and of scalar subqueries in the select list, which never name a table).
-    /// </summary>
-    private static HashSet<string> SubqueryAliases(List<SqlToken> tokens)
-    {
-        var aliases = new HashSet<string>(StringComparer.Ordinal);
-        var opened = new Stack<bool>(); // per open parenthesis: does a query start in it?
-        for (var i = 0; i < tokens.Count; i++)
-        {
-            if (tokens[i].IsSymbol("("))
-            {
-                opened.Push(i + 1 < tokens.Count && (tokens[i + 1].IsWord("SELECT") || tokens[i + 1].IsWord("WITH")));
-                continue;
-            }
-
-            if (!tokens[i].IsSymbol(")") || !opened.TryPop(out var query) || !query)
-            {
-                continue;
-            }
-
-            var next = i + 1 < tokens.Count && tokens[i + 1].IsWord("AS") ? i + 2 : i + 1;
-            if (next < tokens.Count && (tokens[next].Kind == SqlTokenKind.QuotedIdentifier
-                                        || (tokens[next].Kind == SqlTokenKind.Word && !SqlAnalysis.NotAliases.Contains(tokens[next].Value))))
-            {
-                aliases.Add(Normalize(tokens[next]));
-            }
-        }
-
-        return aliases;
-    }
-
-    private static string Normalize(SqlToken token) =>
-        token.Kind == SqlTokenKind.QuotedIdentifier ? token.Value : token.Value.ToUpperInvariant();
-
     private sealed record Source(string Key, TableSummary Table);
 
-    private sealed class Statement(IReadOnlyList<SqlTableReference> references, HashSet<string> subqueryAliases, SchemaCache schema)
+    private sealed class Statement(IReadOnlyList<SqlTableReference> references, HashSet<string> inlineViews, SchemaCache schema)
     {
         private readonly Dictionary<(string?, string), Source?> _sources = [];
 
@@ -134,7 +100,7 @@ public static class SqlResultOrigins
                 return qualified.Count(r => r.Depth == 0) <= 1 && OneTable(qualified) is { } table ? new Source($"{owner}.{name}", table) : null;
             }
 
-            if (subqueryAliases.Contains(name))
+            if (inlineViews.Contains(name))
             {
                 return null;
             }

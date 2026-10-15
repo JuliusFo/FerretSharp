@@ -123,13 +123,15 @@
         _columns = _firstPage.Columns;
         _presentation = SqlResultPresentation.Plain(_columns);
         var traced = TraceAsync(Query.Sql, _columns);
-        if (await Task.WhenAny(traced, Task.Delay(SourcesWait)) == traced)
+        await Task.WhenAny(traced, Task.Delay(SourcesWait));
+        if (traced.IsCompletedSuccessfully)
         {
-            _presentation = await traced;
+            _presentation = traced.Result;
         }
 
+        // The result is shown whatever becomes of the tracing; a failure that is a bug reaches the error boundary afterwards.
         await _grid.CreateAsync(_presentation.Columns(), new GridOptions([], 0, Editable: false, _presentation.HeaderHeight, Table: false));
-        if (!traced.IsCompleted)
+        if (!traced.IsCompletedSuccessfully)
         {
             Fire(() => RelabelAsync(traced));
         }
@@ -137,7 +139,7 @@
 
     /// <summary>
     /// The result columns traced back to table columns (WP-48): C# names, enum members, FK badges and jumps. Plain if there
-    /// is nothing to trace or it fails – the result itself is shown either way.
+    /// is nothing to trace or the tables cannot be read (logged, and a lost connection reported, by <see cref="DbCalls"/>).
     /// </summary>
     private async Task<SqlResultPresentation> TraceAsync(string sql, IReadOnlyList<SqlColumn> columns)
     {
@@ -146,16 +148,11 @@
             return SqlResultPresentation.Plain(columns);
         }
 
-        try
-        {
-            var sources = await SqlResultSources.LoadAsync(sql, columns, schema, _cts.Token);
-            return new SqlResultPresentation(columns, sources, Presentations.For, schema.OutgoingOf);
-        }
-        catch (Exception ex) when (ex is DatabaseException or OperationCanceledException)
-        {
-            Logger.LogDebug(ex, "Result columns not traced to their tables");
-            return SqlResultPresentation.Plain(columns);
-        }
+        var token = _cts.Token;
+        var result = await Shell.RunDbAsync(Logger, Active, () => SqlResultSources.LoadAsync(sql, columns, schema, token), token);
+        return result.Value is { } sources
+            ? new SqlResultPresentation(columns, sources, Presentations.For, schema.OutgoingOf)
+            : SqlResultPresentation.Plain(columns);
     }
 
     /// <summary>The tables came after the grid was built: relabel the columns and redraw the loaded rows in place.</summary>
