@@ -29,6 +29,16 @@ public sealed record TableLink(
     public const int CurrentVersion = 1;
 
     /// <summary>
+    /// The page that turns <see cref="ToWebUri"/> back into a <c>ferretsharp://</c> link in the browser (ADR 0026,
+    /// addendum): Teams, Azure DevOps and most chats only make https addresses clickable. A static page on GitHub Pages
+    /// (<c>pages/open/index.html</c>); it reads the part after <c>#</c>, which the browser never sends to a server.
+    /// </summary>
+    public const string WebPage = "https://juliusfo.github.io/FerretSharp/open/";
+
+    /// <summary>What <see cref="ToUri"/> starts with and the redirect page puts in front of the part after <c>#</c>.</summary>
+    public const string UriStart = Scheme + "://open?";
+
+    /// <summary>
     /// Limits for a link from outside: longer than a browser or mail client keeps reliably anyway, and the IN list of a
     /// link to selected rows (<see cref="FkNavigation.MaxValues"/>) has room.
     /// </summary>
@@ -74,9 +84,16 @@ public sealed record TableLink(
     /// </summary>
     public static string ForTransfer(string text) => text.Length > MaxLength ? text[..(MaxLength + 1)] : text;
 
+    /// <summary>
+    /// The link as an https address that chats and tickets make clickable: <see cref="WebPage"/>, then after <c>#</c> the
+    /// same parameters as <see cref="ToUri"/>. The page opens <see cref="UriStart"/> plus that part; the values stay in the
+    /// browser (a fragment is never sent to the server).
+    /// </summary>
+    public string ToWebUri() => WebPage + "#" + ToUri()[UriStart.Length..];
+
     public string ToUri()
     {
-        var uri = new StringBuilder(Scheme).Append("://open?v=").Append(CurrentVersion);
+        var uri = new StringBuilder(UriStart).Append("v=").Append(CurrentVersion);
         if (Connection is { Length: > 0 } connection)
         {
             Add(uri, "c", connection);
