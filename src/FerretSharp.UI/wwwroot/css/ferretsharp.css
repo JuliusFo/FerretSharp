@@ -616,12 +616,13 @@ code.condition { font: 12px var(--mono); white-space: pre-wrap; }
 .tab-footer > span { display: inline-flex; align-items: center; gap: 6px; }
 
 /* ---------- filter bar ---------- */
-.filterbar { display: flex; align-items: flex-start; gap: 12px; flex: none; padding: 8px 12px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.filterbar { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; flex: none; padding: 8px 12px; background: var(--surface); border-bottom: 1px solid var(--border); }
 .filterbar > .hint { align-self: center; }
 .filterbar > .spacer { flex: 1; }
-/* Column and value shrink before the row runs under the actions (a preset's name there, WP-37). The rows share one set of
+/* Column and value shrink before the row runs under the actions (a preset's name there, WP-37); at their least the actions
+   move to a line of their own (right-aligned) instead of covering a group. The rows share one set of
    columns (subgrid): a note or an error after one row ("Not in this table") would otherwise shorten only that row's fields. */
-.filter-rows { flex: 1; display: grid; grid-template-columns: 14px 18px minmax(150px, 220px) 130px minmax(120px, 420px) 28px 28px 28px auto; gap: 6px; align-content: start; min-width: 0; }
+.filter-rows { flex: 1; display: grid; grid-template-columns: 14px 18px minmax(150px, 220px) 130px minmax(100px, 420px) 28px 28px 28px auto; gap: 6px; align-content: start; min-width: min-content; }
 .filter-row { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; align-items: center; }
 .filter-row.disabled .field { opacity: .5; }
 .filter-row .field { height: 30px; }
@@ -632,7 +633,7 @@ code.condition { font: 12px var(--mono); white-space: pre-wrap; }
 .filter-error { color: var(--danger); font-size: 12px; white-space: nowrap; }
 .filter-note { color: var(--faint); font-size: 12px; white-space: nowrap; }
 .row-toggle { width: 15px; height: 15px; margin: 0; accent-color: var(--accent); }
-.filter-actions { display: flex; gap: 6px; }
+.filter-actions { display: flex; gap: 6px; margin-left: auto; }
 /* Filter groups (WP-50): a box per group in the grid of the rows, its rows aligned with the others (subgrid). */
 .filter-group { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; row-gap: 6px; padding: 6px 0; border: 1px dashed var(--border-strong); border-radius: 8px; background: var(--surface-2); }
 .filter-group.disabled > .filter-row .field, .filter-group.disabled .group-kind { opacity: .5; }
@@ -641,7 +642,9 @@ code.condition { font: 12px var(--mono); white-space: pre-wrap; }
 .filter-group-title .muted { color: var(--muted); font-size: 12px; white-space: nowrap; }
 .filter-group-title .spacer { flex: 1; }
 .group-kind { height: 26px; font-weight: 600; }
-.filter-more { grid-column: 1 / -1; display: flex; padding: 2px 0; border-radius: 8px; }
+/* "Without a group": a drop target only while a row is dragged, so it takes no line otherwise. */
+.filter-more { grid-column: 1 / -1; display: none; align-items: center; justify-content: center; height: 30px; border: 1px dashed var(--border-strong); border-radius: 8px; color: var(--muted); font-size: 12px; }
+.filterbar.dragging .filter-more { display: flex; }
 .filterbar .btn.small { height: 26px; padding: 0 8px; }
 .filter-grip { color: var(--faint); cursor: grab; user-select: none; text-align: center; line-height: 30px; touch-action: none; }
 .filter-grip:hover { color: var(--text); }
