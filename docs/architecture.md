@@ -77,6 +77,9 @@ enum FkSource { Declared, Manual, Convention, ClrModel }   // ClrModel: Navigati
 ```csharp
 enum FilterOperator { Equals, NotEquals, Contains, StartsWith, EndsWith, Gt, Gte, Lt, Lte, Between, In, IsNull, IsNotNull }
 record FilterCondition(string Column, FilterOperator Op, IReadOnlyList<string> Values, bool Enabled = true);
+    // { Group } – optional (WP-50): alle Zeilen einer Gruppe tragen dieselbe FilterGroup, die Liste bleibt flach
+enum FilterGroupKind { Any, None }   // ODER: mindestens eine trifft zu; NICHT: keine trifft zu
+record FilterGroup(int Id, FilterGroupKind Kind, bool Enabled = true);
     // Werte wie eingegeben (deutsch oder ISO); Anzahl je Operator: 0 / 1 / 2 (Between) / n (In, in der UI mit ";" getrennt)
 record SortSpec(string Column, bool Descending);
 record PageSpec(int Offset, int Limit);
@@ -96,6 +99,7 @@ record SelectQuery(string Sql, IReadOnlyList<QueryParameter> Parameters, IReadOn
 - `CHAR`-Spalten werden als `OracleDbType.Char`, `NCHAR` als `OracleDbType.NChar` gebunden (Blank-Padding: „AB“ findet „AB␣“), `NVARCHAR2` als `NVarchar2` (nationaler Zeichensatz, A18). Variablen des SQL-Editors folgen der verglichenen Spalte genauso (`SqlVariable.National`, R5b).
 - `Equals` mit leerem Text: in Oracle nie wahr (`'' = NULL`) → Validierungsfehler mit Hinweis auf „ist NULL“.
 - `In`: max. 1000 Elemente pro Liste (ORA-01795) → mehrere Listen mit `OR`.
+- **Filtergruppen** (WP-50, `FilterGroups.Terms`): Zeilen ohne Gruppe und je Gruppe ein Term, alle mit AND, in der Reihenfolge ihrer ersten Zeile; Art und Schalter einer Gruppe nimmt ihre erste Zeile. Eine ausgeschaltete Gruppe und eine ohne aktive Zeile filtern nichts (ihre Zeilen werden nicht geprüft). ODER → `(a OR b)`; NICHT folgt C# `!(a || b)`: `CASE WHEN a OR b THEN 1 ELSE 0 END = 0` behält Zeilen, deren Bedingung wegen NULL unbekannt ist – nur wenn keine Bedingung unbekannt sein kann (NULL-Prüfung, „≠“, NOT-NULL-Spalte außer „endet mit“ auf CHAR), schlicht `NOT (…)`. Jede Bedingung ist ein einzelner Term (der Tagesbereich steht in Klammern), damit OR sie verbinden kann. Eine Ebene, `(A UND B) ODER (C UND D)` bleibt im SQL-Editor.
 - Datum ohne Uhrzeit meint den ganzen Tag: `=` → `[d, d+1)`, `>` → `>= d+1`, `≤` → `< d+1`, `zwischen` schließt den letzten Tag ein.
 - Daten: `IDataAccess.ReadPageAsync/CountAsync` (`OracleDataAccess`), Zellanzeige über `CellFormatter` (deutsch, NULL bleibt null). NUMBER > 28 Stellen → `BigNumber` (exakter Text).
 
