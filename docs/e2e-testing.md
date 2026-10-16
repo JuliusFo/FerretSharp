@@ -49,6 +49,8 @@ Drei Stufen, von schwach nach stark:
 - Monaco über `getModels()…setValue`/`setPosition` füttern, `triggerSuggest` erst nach > 250 ms.
 - Ausdrücke mit Anführungszeichen über eine Datei an `node` geben (PowerShell 5.1 verliert sie).
 - Abfragen über `Kunde` im Beispielmodell scheitern absichtlich mit ORA-00904 (Drift).
+- Holt `SendInput` das Fenster nach vorn, bekommt das zuletzt fokussierte Feld den Fokus zurück – eine Spaltenauswahl öffnet dann ihre Liste und kann das Klickziel verdecken. Vorher per CDP `document.activeElement.blur()`.
+- PowerShell 5.1 schreibt `Set-Content` als ANSI: Zeichen wie „−“ oder „⋯“ in JS-Dateien für CDP gehen verloren. Elemente über Position oder Klasse wählen oder `-Encoding utf8`.
 
 ## SQL*Plus im Container
 - Statements per PowerShell-Pipe an `docker exec … sqlplus` bekommen ein BOM vorangestellt (SP2-0734) → `docker exec <name> bash -c "echo '…' | sqlplus …"` oder Skriptdatei per `docker cp`.

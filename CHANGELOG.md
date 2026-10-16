@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Changed
+- Filter bar: "+ Group" sits next to "Presets" instead of in a line of its own below the filter rows. The area to drop a row out of its group shows only while you drag one. In a narrow window the buttons move to a line of their own instead of covering a group.
+
 ## [3.37.0] - 2026-10-16
 
 Combine filter rows with OR and NOT.
