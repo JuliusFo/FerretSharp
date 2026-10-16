@@ -46,9 +46,12 @@ public static class FilterPresets
     /// </summary>
     public static bool Differs(FilterPreset preset, TableDetails table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts)
     {
+        // Group ids only tell groups apart: the filter bar numbers them anew (FilterGroups.Normalize).
         var applied = Apply(preset, table, [], append: false);
-        return applied.Filters.Count != filters.Count
-               || applied.Filters.Zip(filters).Any(pair => !Same(pair.First, pair.Second))
+        var wanted = FilterGroups.Normalize(applied.Filters);
+        var current = FilterGroups.Normalize(filters);
+        return wanted.Count != current.Count
+               || wanted.Zip(current).Any(pair => !Same(pair.First, pair.Second))
                || applied.Sorts is { } presetSorts && !presetSorts.SequenceEqual(sorts);
     }
 
@@ -63,7 +66,7 @@ public static class FilterPresets
     public static AppliedPreset Apply(FilterPreset preset, TableDetails table, IReadOnlyList<FilterCondition> current, bool append)
     {
         var fitted = Fit(table, preset.Filters, preset.Sorts);
-        return append ? fitted with { Filters = [.. current, .. FilterGroups.Renumber(current, fitted.Filters)] } : fitted;
+        return append ? fitted with { Filters = FilterGroups.Normalize([.. current, .. FilterGroups.Renumber(current, fitted.Filters)]) } : fitted;
     }
 
     /// <summary>

@@ -61,7 +61,7 @@ public sealed record TableLink(
     /// disabled row, or one of a disabled group, filters nothing.
     /// </summary>
     public static TableLink For(ConnectionProfile profile, TableRef table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts, TabMode mode) =>
-        new(profile.Name, profile.Address, table.Owner, table.Name, FilterGroups.Active(filters).ToList(), sorts, mode == TabMode.Data ? null : mode);
+        new(profile.Name, profile.Address, table.Owner, table.Name, FilterGroups.Normalize(FilterGroups.Active(filters).ToList()), sorts, mode == TabMode.Data ? null : mode);
 
     /// <summary>
     /// The link to <paramref name="rows"/> of <paramref name="table"/>: a filter on the primary key – equality for one row,
@@ -212,10 +212,11 @@ public sealed record TableLink(
             if (key == "g")
             {
                 // The group's id and kind, then the row as in "f"; the first row of a group decides its kind.
-                if (parts.Length < 2 || !int.TryParse(parts[0], NumberStyles.None, CultureInfo.InvariantCulture, out var id) || id < 1
+                // Ids are numbered from 1 (FilterGroups.Normalize): at most one group per row.
+                if (parts.Length < 2 || !int.TryParse(parts[0], NumberStyles.None, CultureInfo.InvariantCulture, out var id) || id is < 1 or > MaxFilters
                     || !TryEnum<FilterGroupKind>(parts[1], out var kind))
                 {
-                    return Failed(TextFormat.Format(QueryText.LinkFilterInvalid, parts.ElementAtOrDefault(2) ?? ""));
+                    return Failed(TextFormat.Format(QueryText.LinkFilterInvalid, parts.ElementAtOrDefault(2) ?? parts[0]));
                 }
 
                 if (!groups.TryGetValue(id, out group))

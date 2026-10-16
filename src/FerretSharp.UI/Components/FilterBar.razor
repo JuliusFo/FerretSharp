@@ -235,11 +235,22 @@
     private void Move(FilterRow row, FilterRowGroup? group)
     {
         CloseMenus();
+        if (group is not null && !Tab.FilterGroups.Contains(group))
+        {
+            return; // ended meanwhile
+        }
+
         Tab.MoveFilterRow(row, group);
         Shell.MarkDirty();
     }
 
-    private void MoveToNewGroup(FilterRow row, FilterGroupKind kind) => Move(row, Tab.AddFilterGroup(kind));
+    private void MoveToNewGroup(FilterRow row, FilterGroupKind kind)
+    {
+        if (Tab.FilterRows.Contains(row))
+        {
+            Move(row, Tab.AddFilterGroup(kind));
+        }
+    }
 
     /// <summary>✕ of a group: its rows stay, combined with AND (decision of the user).</summary>
     private async Task DissolveAsync(FilterRowGroup group)

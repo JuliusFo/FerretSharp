@@ -47,27 +47,27 @@ public partial class QueryBuilderTests
     }
 
     [Fact]
-    public void A_not_group_whose_conditions_are_never_unknown_is_a_plain_not()
+    public void A_not_group_whose_sql_is_never_unknown_is_a_plain_not()
     {
         var (where, _) = Where(
-            In(NoneGroup, "NAME", FilterOperator.StartsWith, "A"), // NOT NULL column
             In(NoneGroup, "KUERZEL", FilterOperator.IsNull),
-            In(NoneGroup, "ERSTELLT_AM", FilterOperator.NotEquals, "1.10.2026")); // "≠" takes NULL in
+            In(NoneGroup, "ERSTELLT_AM", FilterOperator.NotEquals, "1.10.2026")); // "≠" on a nullable column says OR … IS NULL
 
         Assert.Equal(
-            "NOT (UPPER(t.\"NAME\") LIKE UPPER(:p0) ESCAPE '\\' OR t.\"KUERZEL\" IS NULL"
-            + " OR ((t.\"ERSTELLT_AM\" < :p1 OR t.\"ERSTELLT_AM\" >= :p2) OR t.\"ERSTELLT_AM\" IS NULL))",
+            "NOT (t.\"KUERZEL\" IS NULL OR ((t.\"ERSTELLT_AM\" < :p0 OR t.\"ERSTELLT_AM\" >= :p1) OR t.\"ERSTELLT_AM\" IS NULL))",
             where);
     }
 
-    [Fact]
-    public void Ends_with_on_char_can_be_unknown_even_on_a_not_null_column()
+    [Theory]
+    [InlineData(FilterOperator.StartsWith)]
+    [InlineData(FilterOperator.Equals)]
+    [InlineData(FilterOperator.NotEquals)]
+    public void A_not_null_column_does_not_make_a_plain_not(FilterOperator op)
     {
-        var table = Kunden with { Columns = [Col("CODE", "CHAR", nullable: false, length: 3)], PrimaryKey = [] };
-        var query = QueryBuilder.BuildCount(table, [In(NoneGroup, "CODE", FilterOperator.EndsWith, "B")]);
+        // The dictionary's NOT NULL can be wrong: a view over an outer join, a constraint ENABLE NOVALIDATE.
+        var (where, _) = Where(In(NoneGroup, "NAME", op, "A"));
 
-        // RTRIM of a value of blanks only is NULL.
-        Assert.Contains("CASE WHEN UPPER(RTRIM(t.\"CODE\")) LIKE", query.Sql, StringComparison.Ordinal);
+        Assert.StartsWith("CASE WHEN ", where, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -169,12 +169,21 @@ public class FilterGroupsTests
     [Fact]
     public void Renumbering_keeps_added_groups_apart_and_together()
     {
-        var existing = new[] { Row("X", A), Row("Y", new FilterGroup(4, FilterGroupKind.Any)) };
+        var existing = new[] { Row("X", A), Row("Y", new FilterGroup(int.MaxValue, FilterGroupKind.Any)) };
         var added = FilterGroups.Renumber(existing, [Row("Z", A), Row("W"), Row("V", A), Row("U", B)]);
 
-        Assert.Equal([5, null, 5, 6], added.Select(f => f.Group?.Id));
+        // The smallest free ids: an id from outside (int.MaxValue) never overflows into another group.
+        Assert.Equal([2, null, 2, 3], added.Select(f => f.Group?.Id));
         Assert.Equal(FilterGroupKind.None, added[3].Group!.Kind);
-        Assert.Equal(1, FilterGroups.NextId([]));
+    }
+
+    [Fact]
+    public void Normalizing_numbers_the_groups_from_1_in_the_order_of_their_first_row()
+    {
+        var normalized = FilterGroups.Normalize([Row("X", B with { Id = 9 }), Row("Y"), Row("Z", A with { Id = int.MaxValue }), Row("W", B with { Id = 9, Enabled = false })]);
+
+        Assert.Equal([1, null, 2, 1], normalized.Select(f => f.Group?.Id));
+        Assert.Equal(normalized[0].Group, normalized[3].Group); // the first row's kind and switch
     }
 }
 
@@ -205,9 +214,9 @@ public class FilterGroupTransferTests
         var read = TableLink.Parse(uri).Link!;
 
         Assert.StartsWith("ferretsharp://open?v=2&", uri);
-        Assert.Contains("&f=ID,gt,5&g=3,any,KBEZ,equals,NA&g=3,any,STATUS,in,OFFEN,NEU", uri, StringComparison.Ordinal);
+        Assert.Contains("&f=ID,gt,5&g=1,any,KBEZ,equals,NA&g=1,any,STATUS,in,OFFEN,NEU", uri, StringComparison.Ordinal);
         Assert.Equal(3, read.Filters.Count); // the disabled group filters nothing and is left out
-        Assert.Equal([null, Any, Any], read.Filters.Select(f => f.Group));
+        Assert.Equal([null, Any with { Id = 1 }, Any with { Id = 1 }], read.Filters.Select(f => f.Group)); // numbered from 1
         Assert.Equal(["OFFEN", "NEU"], read.Filters[2].Values);
     }
 
@@ -228,9 +237,21 @@ public class FilterGroupTransferTests
 
         var applied = FilterPresets.Apply(preset, Auftrag, current, append: true);
 
-        Assert.Equal([3, 4, 4], applied.Filters.Select(f => f.Group!.Id));
+        Assert.Equal([1, 2, 2], applied.Filters.Select(f => f.Group!.Id));
         Assert.False(FilterPresets.Differs(preset, Auftrag, preset.Filters, []));
         Assert.True(FilterPresets.Differs(preset, Auftrag, [preset.Filters[0], preset.Filters[1] with { Group = null }], []));
         Assert.True(FilterPresets.Differs(preset, Auftrag, [.. preset.Filters.Select(f => f with { Group = Any with { Kind = FilterGroupKind.None } })], []));
+        // The filter bar numbers groups anew: other ids alone are no change.
+        Assert.False(FilterPresets.Differs(preset, Auftrag, [.. preset.Filters.Select(f => f with { Group = Any with { Id = 1 } })], []));
+    }
+
+    [Fact]
+    public void Group_ids_of_a_link_start_at_1_and_larger_ones_are_refused()
+    {
+        var link = TableLink.For(Profile, Auftrag.Table.Ref, [FilterCondition.Of("KBEZ", FilterOperator.IsNull) with { Group = Any with { Id = int.MaxValue } }], [], TabMode.Data);
+
+        Assert.Contains("&g=1,any,KBEZ,isNull", link.ToUri(), StringComparison.Ordinal);
+        Assert.Contains("ungültigen Filter auf", TableLink.Parse("ferretsharp://open?v=2&s=ERP&t=X&g=51,any,KBEZ,isNull").Error);
+        Assert.Contains("ungültigen Filter auf abc", TableLink.Parse("ferretsharp://open?v=2&s=ERP&t=X&g=abc").Error);
     }
 }

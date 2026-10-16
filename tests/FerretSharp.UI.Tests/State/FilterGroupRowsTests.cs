@@ -66,6 +66,48 @@ public sealed class FilterGroupRowsTests
     }
 
     [Fact]
+    public void Ending_a_disabled_group_keeps_its_rows_disabled()
+    {
+        // They filtered nothing before; the ✕ applies at once and must not start filtering by them.
+        var tab = Tab();
+        var or = tab.AddFilterGroup(FilterGroupKind.Any);
+        or.Enabled = false;
+        tab.AddFilterRow(Row("A"), or);
+
+        tab.DissolveFilterGroup(or);
+
+        Assert.False(Assert.Single(tab.FilterRows).Enabled);
+    }
+
+    [Fact]
+    public void A_removed_row_stays_removed_when_a_stale_menu_moves_it()
+    {
+        var tab = Tab();
+        var or = tab.AddFilterGroup(FilterGroupKind.Any);
+        var a = Row("A");
+        tab.AddFilterRow(a);
+        tab.RemoveFilterRow(a);
+
+        tab.MoveFilterRow(a, or);
+
+        Assert.Empty(tab.FilterRows);
+    }
+
+    [Fact]
+    public void Group_ids_from_outside_are_numbered_anew_so_new_groups_stay_apart()
+    {
+        // A link or a file edited by hand may bring int.MaxValue: one more would overflow and join two groups.
+        var tab = Tab();
+        tab.SetFilterRows([FilterCondition.Of("NAME", FilterOperator.IsNull) with { Group = new FilterGroup(int.MaxValue, FilterGroupKind.Any) }]);
+
+        var or = tab.AddFilterGroup(FilterGroupKind.Any);
+        var not = tab.AddFilterGroup(FilterGroupKind.None);
+
+        Assert.Equal([1, 2, 3], tab.FilterGroups.Select(g => g.Id));
+        Assert.NotEqual(or.Id, not.Id);
+    }
+
+    [Fact]
     public void Groups_survive_saving_and_restoring_the_tab()
     {
         var tab = Tab();

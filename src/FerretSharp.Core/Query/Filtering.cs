@@ -121,12 +121,36 @@ public static class FilterGroups
     }
 
     /// <summary>
+    /// The list with its groups numbered 1, 2, … in the order of their first row, each row carrying its group as that
+    /// row has it. Ids from outside (a file edited by hand, a link) can be anything up to <see cref="int.MaxValue"/>; a new
+    /// group after such an id would overflow and join another group.
+    /// </summary>
+    public static IReadOnlyList<FilterCondition> Normalize(IReadOnlyList<FilterCondition> filters)
+    {
+        var groups = new Dictionary<int, FilterGroup>();
+        return filters.Select(f =>
+        {
+            if (f.Group is not { } group)
+            {
+                return f;
+            }
+
+            if (!groups.TryGetValue(group.Id, out var normalized))
+            {
+                groups[group.Id] = normalized = group with { Id = groups.Count + 1 };
+            }
+
+            return f.Group == normalized ? f : f with { Group = normalized };
+        }).ToList();
+    }
+
+    /// <summary>
     /// <paramref name="added"/> with new group ids, so its groups stay apart from those of <paramref name="existing"/>
     /// when both go into one list (a preset applied after the current rows).
     /// </summary>
     public static IReadOnlyList<FilterCondition> Renumber(IReadOnlyList<FilterCondition> existing, IReadOnlyList<FilterCondition> added)
     {
-        var next = NextId(existing);
+        var used = existing.Select(f => f.Group?.Id).OfType<int>().ToHashSet();
         var map = new Dictionary<int, FilterGroup>();
         return added.Select(f =>
         {
@@ -137,16 +161,24 @@ public static class FilterGroups
 
             if (!map.TryGetValue(group.Id, out var renumbered))
             {
-                map[group.Id] = renumbered = group with { Id = next++ };
+                map[group.Id] = renumbered = group with { Id = FreeId(used) };
             }
 
             return f with { Group = renumbered };
         }).ToList();
     }
 
-    /// <summary>An id no group of the list uses.</summary>
-    public static int NextId(IEnumerable<FilterCondition> filters) =>
-        filters.Select(f => f.Group?.Id ?? 0).DefaultIfEmpty(0).Max() + 1;
+    /// <summary>The smallest id from 1 up that is not in <paramref name="used"/>, now taken (never past an id from outside).</summary>
+    public static int FreeId(ISet<int> used)
+    {
+        var id = 1;
+        while (!used.Add(id))
+        {
+            id++;
+        }
+
+        return id;
+    }
 }
 
 public sealed record SortSpec(string Column, bool Descending);

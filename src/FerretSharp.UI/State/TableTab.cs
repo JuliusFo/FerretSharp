@@ -89,13 +89,16 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
     /// <summary>The filter rows as edited, as conditions (with their groups).</summary>
     public IReadOnlyList<FilterCondition> EditedFilters() => FilterRows.Select(r => r.ToCondition()).ToList();
 
-    /// <summary>Replaces the rows and groups of the filter bar (a preset, a link, a restored tab).</summary>
+    /// <summary>
+    /// Replaces the rows and groups of the filter bar (a preset, a link, a restored tab). The groups are numbered 1, 2, …
+    /// anew: ids from outside can be anything (<see cref="Core.Query.FilterGroups.Normalize"/>).
+    /// </summary>
     public void SetFilterRows(IEnumerable<FilterCondition> filters)
     {
         FilterRows.Clear();
         FilterGroups.Clear();
         var groups = new Dictionary<int, FilterRowGroup>();
-        foreach (var filter in filters)
+        foreach (var filter in Core.Query.FilterGroups.Normalize(filters.ToList()))
         {
             FilterRowGroup? group = null;
             if (filter.Group is { } g && !groups.TryGetValue(g.Id, out group))
@@ -126,27 +129,33 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
 
     public void RemoveFilterRow(FilterRow row) => FilterRows.Remove(row);
 
-    /// <summary>A new, empty group at the end.</summary>
+    /// <summary>A new, empty group at the end, with the smallest free id.</summary>
     public FilterRowGroup AddFilterGroup(FilterGroupKind kind)
     {
-        var group = new FilterRowGroup { Id = FilterGroups.Select(g => g.Id).DefaultIfEmpty(0).Max() + 1, Kind = kind };
+        var group = new FilterRowGroup { Id = Core.Query.FilterGroups.FreeId(FilterGroups.Select(g => g.Id).ToHashSet()), Kind = kind };
         FilterGroups.Add(group);
         return group;
     }
 
-    /// <summary>Moves a row to the end of a group, or out of its group (null).</summary>
+    /// <summary>Moves a row to the end of a group, or out of its group (null); a row no longer in the bar stays out.</summary>
     public void MoveFilterRow(FilterRow row, FilterRowGroup? group)
     {
-        FilterRows.Remove(row);
-        AddFilterRow(row, group);
+        if (FilterRows.Remove(row))
+        {
+            AddFilterRow(row, group);
+        }
     }
 
-    /// <summary>Ends a group: its rows stay, without a group (decision of the user, WP-50).</summary>
+    /// <summary>
+    /// Ends a group: its rows stay, without a group (decision of the user, WP-50). The rows of a disabled group come
+    /// disabled: they filtered nothing before.
+    /// </summary>
     public void DissolveFilterGroup(FilterRowGroup group)
     {
         foreach (var row in RowsOf(group))
         {
             row.Group = null;
+            row.Enabled &= group.Enabled;
         }
 
         FilterGroups.Remove(group);

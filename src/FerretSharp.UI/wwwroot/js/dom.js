@@ -93,10 +93,15 @@ export function dragToDrop(root, pointerId, selector, hoverClass) {
         over = target;
       }
     };
+    let done = false;
+    const onMove = e => ((e.buttons & 1) === 0 ? end(e) : move(e)); // the button came up unseen: no drop
     const end = e => {
-      root.removeEventListener('pointermove', move);
+      if (done) return;
+      done = true;
+      root.removeEventListener('pointermove', onMove);
       root.removeEventListener('pointerup', end);
       root.removeEventListener('pointercancel', end);
+      root.removeEventListener('lostpointercapture', end);
       root.classList.remove('dragging');
       over?.classList.remove(hoverClass);
       if (root.hasPointerCapture(pointerId)) root.releasePointerCapture(pointerId);
@@ -105,13 +110,19 @@ export function dragToDrop(root, pointerId, selector, hoverClass) {
     try {
       root.setPointerCapture(pointerId);
     } catch {
-      resolve(null); // released before the capture: nothing to drag
+      // released before the capture: nothing to drag
+    }
+    // A mouse button released while the call came here leaves no capture (and no exception): a later click elsewhere in
+    // the bar must not drop the row there (review of WP-50).
+    if (!root.hasPointerCapture(pointerId)) {
+      resolve(null);
       return;
     }
     root.classList.add('dragging');
-    root.addEventListener('pointermove', move);
+    root.addEventListener('pointermove', onMove);
     root.addEventListener('pointerup', end);
     root.addEventListener('pointercancel', end);
+    root.addEventListener('lostpointercapture', end); // the bar went away, or the capture ended otherwise
   });
 }
 
