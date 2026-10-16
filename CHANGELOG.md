@@ -5,8 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.37.0] - 2026-10-16
+
+Combine filter rows with OR and NOT.
+
 ### Added
-- Filter groups: combine filter rows with OR or NOT. "+ Group" in the filter bar adds an OR group (at least one row applies) or a NOT group (none applies); groups combine with each other and the other rows by AND. Move a row into a group or out of it from its "⋯" menu or by dragging its grip; the ✕ of a group ends it and keeps its rows. NOT treats NULL as C# does: `!(x.Kbez == "NA")` keeps the rows where KBEZ is NULL, and so does the grid. The SQL preview, the LINQ export, presets, links and the tab title carry the groups; a link with groups needs this version to open.
+- Filter groups: combine filter rows with OR or NOT. "+ Group" in the filter bar adds an OR group (at least one row applies) or a NOT group (none applies); groups combine with each other and the other rows by AND. Move a row into a group or out of it from its "⋯" menu or by dragging its grip; the ✕ of a group ends it and keeps its rows. NOT treats NULL as C# does: `!(x.Kbez == "NA")` keeps the rows where KBEZ is NULL, and so does the grid. The SQL preview, the LINQ export, presets, links and the tab title carry the groups; a link with groups needs FerretSharp 3.37.0 or newer to open.
 
 ### Fixed
 - Explorer: the "+" (new table) and the reload button sit at the same height – the "+" is an icon now, and icons in icon buttons no longer ride up on the text baseline.

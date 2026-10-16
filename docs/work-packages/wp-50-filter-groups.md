@@ -1,4 +1,4 @@
-# WP-50 Filtergruppen: ODER und NICHT
+# WP-50 Filtergruppen: ODER und NICHT → Release 3.37.0
 Branch `wp/50-filter-groups`. Anlass: Frage des Nutzers (2026-10-15), `KBEZ = 'NA' OR …` in der Filterleiste zusammenklicken statt im SQL-Editor zu schreiben. Vorbild: die Stat-Gruppen der Trade-Suche von Path of Exile.
 
 ## Entscheidungen des Nutzers (2026-10-16)
