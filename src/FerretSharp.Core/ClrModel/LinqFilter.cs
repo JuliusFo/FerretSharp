@@ -9,7 +9,8 @@ namespace FerretSharp.Core.ClrModel;
 /// The filters of a tab as a LINQ <c>Where</c> over the entity (WP-15): property names instead of columns, enum members
 /// and true/false instead of database values. The expression finds the same rows as the grid (decision of the user):
 /// text searches ignore case through <c>ToUpper()</c>, a date without time means the whole day, "≠" includes NULL as
-/// C# and EF do. Filters without a C# form (no property, no member for the value) stay out as comments.
+/// C# and EF do. Filters without a C# form (no property, no member for the value) stay out as comments – with a filter
+/// group (WP-50) the whole group, since without one of its rows it would find other rows.
 /// </summary>
 public static class LinqFilter
 {
@@ -43,16 +44,36 @@ public static class LinqFilter
 
         var conditions = new List<string>();
         var skipped = new List<string>();
-        foreach (var filter in filters.Where(f => f.Enabled))
+        var taken = 0;
+        var list = filters as IReadOnlyList<FilterCondition> ?? filters.ToList();
+        foreach (var term in FilterGroups.Terms(list))
         {
-            var result = Condition(presentation, filter);
-            if (result.Code is { } code)
+            var members = term.Indexes.Select(i => list[i]).ToList();
+            var results = members.Select(f => (Filter: f, Result: Condition(presentation, f))).ToList();
+            if (term.Group is not { } group)
             {
-                conditions.Add(code);
+                var (filter, result) = results[0];
+                if (result.Code is { } code)
+                {
+                    conditions.Add(code);
+                    taken++;
+                }
+                else
+                {
+                    skipped.Add($"{Describe(presentation, filter)}: {result.Problem}");
+                }
+            }
+            else if (results.All(r => r.Result.Code is not null))
+            {
+                conditions.Add(GroupCode(group.Kind, results.Select(r => r.Result.Code!).ToList()));
+                taken += results.Count;
             }
             else
             {
-                skipped.Add($"{Describe(presentation, filter)}: {result.Problem}");
+                // Without one of its rows a group would find other rows than the grid: it stays out as a whole.
+                var problems = results.Where(r => r.Result.Code is null).Select(r => $"{Describe(presentation, r.Filter)}: {r.Result.Problem}");
+                skipped.Add(TextFormat.Format(ClrModelText.FilterGroupSkipped, FilterGroupLabels.Label(group.Kind),
+                    string.Join(" | ", members.Select(f => Describe(presentation, f))), string.Join("; ", problems)));
             }
         }
 
@@ -80,8 +101,68 @@ public static class LinqFilter
             text.Append(head).AppendJoin(continuation, conditions).Append(')');
         }
 
-        return new ExportText(text.ToString().TrimEnd(), conditions.Count,
+        return new ExportText(text.ToString().TrimEnd(), taken,
             skipped.Select(s => TextFormat.Format(ClrModelText.FilterSkipped, s)).ToList());
+    }
+
+    /// <summary>
+    /// A filter group (WP-50) as one condition: <c>(a || b)</c>, <c>!(a || b)</c>. C#'s <c>!</c> already keeps the rows
+    /// whose comparison involves null, as the grid does.
+    /// </summary>
+    private static string GroupCode(FilterGroupKind kind, IReadOnlyList<string> codes)
+    {
+        var any = codes.Count == 1 ? codes[0] : string.Join(" || ", codes.Select(Parenthesized));
+        return kind switch
+        {
+            FilterGroupKind.Any => codes.Count == 1 ? any : $"({any})",
+            FilterGroupKind.None => $"!({any})",
+            _ => throw new InvalidOperationException($"Unhandled filter group {kind}."),
+        };
+    }
+
+    /// <summary>A condition joined by &amp;&amp; or || gets parentheses (unless it has them already), so it reads as one in a group.</summary>
+    private static string Parenthesized(string code) =>
+        (code.Contains(" && ", StringComparison.Ordinal) || code.Contains(" || ", StringComparison.Ordinal)) && !IsWrapped(code) ? $"({code})" : code;
+
+    /// <summary>Whether one pair of parentheses encloses the whole code (string and char literals may hold parentheses too).</summary>
+    private static bool IsWrapped(string code)
+    {
+        if (!code.StartsWith('(') || !code.EndsWith(')'))
+        {
+            return false;
+        }
+
+        var depth = 0;
+        char? quote = null;
+        for (var i = 0; i < code.Length; i++)
+        {
+            var c = code[i];
+            if (quote is not null)
+            {
+                if (c == '\\')
+                {
+                    i++;
+                }
+                else if (c == quote)
+                {
+                    quote = null;
+                }
+            }
+            else if (c is '"' or '\'')
+            {
+                quote = c;
+            }
+            else if (c == '(')
+            {
+                depth++;
+            }
+            else if (c == ')' && --depth == 0 && i < code.Length - 1)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>A filter as the user sees it: <c>KUNDENART = 7</c>.</summary>

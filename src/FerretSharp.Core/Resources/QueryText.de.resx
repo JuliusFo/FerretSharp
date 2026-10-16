@@ -264,4 +264,10 @@
   <data name="LinkRowsNeedPrimaryKey" xml:space="preserve">
     <value>Ein Link auf Zeilen braucht einen durchgesetzten Primärschlüssel; diese Tabelle adressiert ihre Zeilen über ROWID, die sich ändern kann.</value>
   </data>
+  <data name="FilterGroupAny" xml:space="preserve">
+    <value>ODER</value>
+  </data>
+  <data name="FilterGroupNone" xml:space="preserve">
+    <value>NICHT</value>
+  </data>
 </root>

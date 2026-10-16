@@ -28,7 +28,7 @@ public sealed class WorkspaceStoreTests : IDisposable
         Tabs =
         [
             new TabState(new TableRef("APP", "KUNDEN"), TabMode.Data,
-                [FilterCondition.Of("NAME", FilterOperator.Contains, "Müller"), new FilterCondition("ORT", FilterOperator.In, ["Köln", "Bonn"], Enabled: false)],
+                [FilterCondition.Of("NAME", FilterOperator.Contains, "Müller"), new FilterCondition("ORT", FilterOperator.In, ["Köln", "Bonn"], Enabled: false) { Group = new FilterGroup(1, FilterGroupKind.None, Enabled: false) }],
                 [FilterCondition.Of("NAME", FilterOperator.Contains, "Müller")],
                 [new SortSpec("NAME", Descending: true)],
                 FirstVisibleRow: 1200)
@@ -59,6 +59,8 @@ public sealed class WorkspaceStoreTests : IDisposable
         Assert.Equal(["Köln", "Bonn"], tab.FilterRows[1].Values);
         Assert.False(tab.FilterRows[1].Enabled);
         Assert.Equal(FilterOperator.In, tab.FilterRows[1].Op);
+        Assert.Equal(new FilterGroup(1, FilterGroupKind.None, Enabled: false), tab.FilterRows[1].Group);
+        Assert.Null(tab.FilterRows[0].Group);
         Assert.Equal("Müller", Assert.Single(tab.AppliedFilters).Values[0]);
         Assert.Equal(new SortSpec("NAME", true), Assert.Single(tab.Sorts));
         Assert.Equal(["NAME", "ORT"], tab.PinnedColumns);

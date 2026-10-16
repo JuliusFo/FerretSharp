@@ -53,17 +53,17 @@ public static class FilterPresets
     }
 
     private static bool Same(FilterCondition a, FilterCondition b) =>
-        a.Column == b.Column && a.Op == b.Op && a.Enabled == b.Enabled && a.Values.SequenceEqual(b.Values, StringComparer.Ordinal);
+        a.Column == b.Column && a.Op == b.Op && a.Enabled == b.Enabled && a.Group == b.Group && a.Values.SequenceEqual(b.Values, StringComparer.Ordinal);
 
     /// <summary>
     /// The filter rows and sort order of <paramref name="preset"/> for <paramref name="table"/>: replacing the current
-    /// rows, or after them (<paramref name="append"/>). Rows on columns the table does not have come disabled (and are
+    /// rows, or after them (<paramref name="append"/>; its groups get new ids). Rows on columns the table does not have come disabled (and are
     /// listed), so the user sees what the preset wanted; sorts on such columns, or on ones that cannot be sorted, are left out.
     /// </summary>
     public static AppliedPreset Apply(FilterPreset preset, TableDetails table, IReadOnlyList<FilterCondition> current, bool append)
     {
         var fitted = Fit(table, preset.Filters, preset.Sorts);
-        return append ? fitted with { Filters = [.. current, .. fitted.Filters] } : fitted;
+        return append ? fitted with { Filters = [.. current, .. FilterGroups.Renumber(current, fitted.Filters)] } : fitted;
     }
 
     /// <summary>

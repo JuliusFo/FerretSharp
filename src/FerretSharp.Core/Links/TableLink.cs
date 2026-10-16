@@ -15,6 +15,9 @@ namespace FerretSharp.Core.Links;
 /// never SQL, only the filter model, which the receiver checks against its schema like any filter. It opens one tab
 /// for reading, after a confirmation. Format (each part percent-encoded on its own, so commas inside values survive):
 /// <c>ferretsharp://open?v=1&amp;c=ERP%20Test&amp;a=db01%3A1521%2FERP&amp;s=ERP&amp;t=AUFTRAG&amp;f=STATUS,in,OFFEN,NEU&amp;o=ERSTELLT,desc&amp;m=data</c>.
+/// A row of a filter group (WP-50) is a <c>g</c> instead of an <c>f</c>, with the group's id and kind in front:
+/// <c>g=1,any,KBEZ,equals,NA</c>. Such a link is version 2, so an older FerretSharp refuses it instead of reading the
+/// group's rows as AND.
 /// </summary>
 /// <param name="Connection">The sender's name of the connection; the receiver looks it up (<see cref="LinkConnectionMatch"/>).</param>
 /// <param name="Address">The sender's address of the connection; null if the link has none.</param>
@@ -25,8 +28,11 @@ public sealed record TableLink(
 {
     public const string Scheme = "ferretsharp";
 
-    /// <summary>The format this FerretSharp writes and reads; a link of a higher version comes from a newer one.</summary>
-    public const int CurrentVersion = 1;
+    /// <summary>The newest format this FerretSharp writes and reads; a link of a higher version comes from a newer one.</summary>
+    public const int CurrentVersion = 2;
+
+    /// <summary>The version of a link without filter groups: what FerretSharp before WP-50 reads.</summary>
+    private const int VersionWithoutGroups = 1;
 
     /// <summary>
     /// The page that turns <see cref="ToWebUri"/> back into a <c>ferretsharp://</c> link in the browser (ADR 0026,
@@ -51,11 +57,11 @@ public sealed record TableLink(
     private const int MaxConnectionName = 200;
 
     /// <summary>
-    /// The link to a view of <paramref name="table"/> on <paramref name="profile"/>. Only enabled filter rows go in: a
-    /// disabled row filters nothing.
+    /// The link to a view of <paramref name="table"/> on <paramref name="profile"/>. Only the rows that filter go in: a
+    /// disabled row, or one of a disabled group, filters nothing.
     /// </summary>
-    public static TableLink For(ConnectionProfile profile, TableRef table, IEnumerable<FilterCondition> filters, IReadOnlyList<SortSpec> sorts, TabMode mode) =>
-        new(profile.Name, profile.Address, table.Owner, table.Name, filters.Where(f => f.Enabled).ToList(), sorts, mode == TabMode.Data ? null : mode);
+    public static TableLink For(ConnectionProfile profile, TableRef table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts, TabMode mode) =>
+        new(profile.Name, profile.Address, table.Owner, table.Name, FilterGroups.Active(filters).ToList(), sorts, mode == TabMode.Data ? null : mode);
 
     /// <summary>
     /// The link to <paramref name="rows"/> of <paramref name="table"/>: a filter on the primary key – equality for one row,
@@ -93,7 +99,8 @@ public sealed record TableLink(
 
     public string ToUri()
     {
-        var uri = new StringBuilder(UriStart).Append("v=").Append(CurrentVersion);
+        var version = Filters.Any(f => f.Group is not null) ? CurrentVersion : VersionWithoutGroups;
+        var uri = new StringBuilder(UriStart).Append("v=").Append(version);
         if (Connection is { Length: > 0 } connection)
         {
             Add(uri, "c", connection);
@@ -108,7 +115,14 @@ public sealed record TableLink(
         Add(uri, "t", Table);
         foreach (var filter in Filters)
         {
-            Add(uri, "f", [filter.Column, Name(filter.Op), .. filter.Values]);
+            if (filter.Group is { } group)
+            {
+                Add(uri, "g", [group.Id.ToString(CultureInfo.InvariantCulture), Name(group.Kind), filter.Column, Name(filter.Op), .. filter.Values]);
+            }
+            else
+            {
+                Add(uri, "f", [filter.Column, Name(filter.Op), .. filter.Values]);
+            }
         }
 
         foreach (var sort in Sorts)
@@ -184,8 +198,9 @@ public sealed record TableLink(
         }
 
         var filters = new List<FilterCondition>();
+        var groups = new Dictionary<int, FilterGroup>();
         var values = 0;
-        foreach (var (_, raw) in parameters.Where(p => p.Key == "f"))
+        foreach (var (key, raw) in parameters.Where(p => p.Key is "f" or "g"))
         {
             if (filters.Count == MaxFilters)
             {
@@ -193,6 +208,24 @@ public sealed record TableLink(
             }
 
             var parts = raw.Split(',').Select(Unescape).ToArray();
+            FilterGroup? group = null;
+            if (key == "g")
+            {
+                // The group's id and kind, then the row as in "f"; the first row of a group decides its kind.
+                if (parts.Length < 2 || !int.TryParse(parts[0], NumberStyles.None, CultureInfo.InvariantCulture, out var id) || id < 1
+                    || !TryEnum<FilterGroupKind>(parts[1], out var kind))
+                {
+                    return Failed(TextFormat.Format(QueryText.LinkFilterInvalid, parts.ElementAtOrDefault(2) ?? ""));
+                }
+
+                if (!groups.TryGetValue(id, out group))
+                {
+                    groups[id] = group = new FilterGroup(id, kind);
+                }
+
+                parts = parts[2..];
+            }
+
             if (parts.Length < 2 || OracleIdentifier.Problem(parts[0]) is not null || parts[0].Length == 0
                 || !TryEnum<FilterOperator>(parts[1], out var op))
             {
@@ -213,7 +246,7 @@ public sealed record TableLink(
                 return Failed(TextFormat.Format(QueryText.LinkTooManyValues, MaxValues));
             }
 
-            filters.Add(new FilterCondition(parts[0], op, filterValues));
+            filters.Add(new FilterCondition(parts[0], op, filterValues) { Group = group });
         }
 
         var sorts = new List<SortSpec>();
