@@ -112,8 +112,13 @@
     [CascadingParameter]
     public PresentationService Presentations { get; set; } = null!;
 
-    /// <summary>The row added last; its column picker gets the focus, so the user can type the column right away.</summary>
+    /// <summary>
+    /// The row just added; its column picker gets the focus, so the user can type the column right away. Only for its
+    /// first render: a row moved into or out of a group is rendered anew and would open its picker again.
+    /// </summary>
     private FilterRow? _newRow;
+
+    protected override void OnAfterRender(bool firstRender) => _newRow = null;
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
