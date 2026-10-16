@@ -109,6 +109,7 @@ Ein Begriff, eine Übersetzung – überall gleich. Neue Fachbegriffe hier ergä
 | Spalte | column | |
 | Wert | value | |
 | Filter | filter | |
+| Filtergruppe (ODER-, NICHT-Gruppe; Kopf „Gruppe 1“) | filter group (OR group, NOT group; “Group 1”) | ODER/NICHT bzw. OR/NOT groß, wie die Art in der Auswahl; nicht mit „Gruppe (Verbindung)“ verwechseln |
 | FK-Sprung, springen | FK jump, jump | |
 | referenzierende / referenzierte Zeilen | referencing / referenced rows | |
 | Formular (Formularansicht) | form (form view) | |
