@@ -43,3 +43,4 @@ Eigener Review-Agent auf Wunsch des Nutzers (nur lesen, Build und Unit-Tests). B
 - `MoveFilterRow` holte eine schon entfernte Zeile zurück (veraltetes Menü); jetzt nicht mehr. Die Fehlermeldung zu `g=abc` nennt den Teil statt nichts.
 - Glossar um „Filtergruppe“ ergänzt; der Kommentar im Integrationstest nannte BETRAG fälschlich NOT NULL.
 - Nicht geändert: `g` in einem Link mit `v=1` wird gelesen (harmlos, schreibt FerretSharp nie).
+- E2E danach (echte Windows-Eingabe): Klick auf den Griff ohne Bewegung, dann Klick in den Kopf einer Gruppe – die Zeile bleibt, kein `dragging` übrig; Ziehen einer Zeile in die ODER-Gruppe wie vorher. Log ohne `[ERR]`/`[WRN]`.
