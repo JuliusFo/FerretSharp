@@ -1047,4 +1047,72 @@
     <value>Preset {0} updated.</value>
     <comment>{0}: preset name</comment>
   </data>
+  <data name="Filter_AddGroup" xml:space="preserve">
+    <value>Group</value>
+    <comment>Button after a “+”: adds a filter group (OR, NOT)</comment>
+  </data>
+  <data name="Filter_AddGroupTitle" xml:space="preserve">
+    <value>Combine filter rows with OR or NOT</value>
+  </data>
+  <data name="Filter_GroupAny" xml:space="preserve">
+    <value>OR group – at least one applies</value>
+    <comment>Menu item: new filter group of kind OR</comment>
+  </data>
+  <data name="Filter_GroupNone" xml:space="preserve">
+    <value>NOT group – none applies</value>
+    <comment>Menu item: new filter group of kind NOT</comment>
+  </data>
+  <data name="Filter_GroupAnyHint" xml:space="preserve">
+    <value>at least one applies</value>
+    <comment>Beside the kind OR in the head of a filter group</comment>
+  </data>
+  <data name="Filter_GroupNoneHint" xml:space="preserve">
+    <value>none applies</value>
+    <comment>Beside the kind NOT in the head of a filter group</comment>
+  </data>
+  <data name="Filter_GroupName" xml:space="preserve">
+    <value>Group {0}</value>
+    <comment>{0} = number of the filter group in the filter bar</comment>
+  </data>
+  <data name="Filter_GroupEnabled" xml:space="preserve">
+    <value>Group active</value>
+  </data>
+  <data name="Filter_GroupKindTitle" xml:space="preserve">
+    <value>OR: at least one row applies. NOT: none applies – a row whose value is NULL counts as “does not apply”, as in C#.</value>
+  </data>
+  <data name="Filter_GroupEmpty" xml:space="preserve">
+    <value>filters nothing yet</value>
+    <comment>A filter group without an enabled row</comment>
+  </data>
+  <data name="Filter_GroupAddRow" xml:space="preserve">
+    <value>Condition</value>
+    <comment>Button after a “+”: adds a row to a filter group</comment>
+  </data>
+  <data name="Filter_GroupAddRowTitle" xml:space="preserve">
+    <value>Add a row to this group</value>
+  </data>
+  <data name="Filter_GroupDissolve" xml:space="preserve">
+    <value>End the group – its rows stay, combined with AND</value>
+  </data>
+  <data name="Filter_RowMenu" xml:space="preserve">
+    <value>Move to a group …</value>
+  </data>
+  <data name="Filter_DragTitle" xml:space="preserve">
+    <value>Drag into a group or out of it</value>
+  </data>
+  <data name="Filter_MoveToGroup" xml:space="preserve">
+    <value>To {0} group {1}</value>
+    <comment>{0} = kind of group (OR, NOT); {1} = its number</comment>
+  </data>
+  <data name="Filter_MoveToNewGroup" xml:space="preserve">
+    <value>To a new {0} group</value>
+    <comment>{0} = kind of group (OR, NOT)</comment>
+  </data>
+  <data name="Filter_MoveOutOfGroup" xml:space="preserve">
+    <value>Out of the group (AND)</value>
+  </data>
+  <data name="Presets_GroupRow" xml:space="preserve">
+    <value>{0} group {1}: {2}</value>
+    <comment>{0} = kind of group (OR, NOT); {1} = its number; {2} = the filter row</comment>
+  </data>
 </root>

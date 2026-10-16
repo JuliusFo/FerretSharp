@@ -819,4 +819,61 @@
   <data name="Presets_Updated" xml:space="preserve">
     <value>Vorlage {0} aktualisiert.</value>
   </data>
+  <data name="Filter_AddGroup" xml:space="preserve">
+    <value>Gruppe</value>
+  </data>
+  <data name="Filter_AddGroupTitle" xml:space="preserve">
+    <value>Filterzeilen mit ODER oder NICHT verknüpfen</value>
+  </data>
+  <data name="Filter_GroupAny" xml:space="preserve">
+    <value>ODER-Gruppe – mindestens eine trifft zu</value>
+  </data>
+  <data name="Filter_GroupNone" xml:space="preserve">
+    <value>NICHT-Gruppe – keine trifft zu</value>
+  </data>
+  <data name="Filter_GroupAnyHint" xml:space="preserve">
+    <value>mindestens eine trifft zu</value>
+  </data>
+  <data name="Filter_GroupNoneHint" xml:space="preserve">
+    <value>keine trifft zu</value>
+  </data>
+  <data name="Filter_GroupName" xml:space="preserve">
+    <value>Gruppe {0}</value>
+  </data>
+  <data name="Filter_GroupEnabled" xml:space="preserve">
+    <value>Gruppe aktiv</value>
+  </data>
+  <data name="Filter_GroupKindTitle" xml:space="preserve">
+    <value>ODER: mindestens eine Zeile trifft zu. NICHT: keine trifft zu – eine Zeile, deren Wert NULL ist, zählt wie in C# als „trifft nicht zu“.</value>
+  </data>
+  <data name="Filter_GroupEmpty" xml:space="preserve">
+    <value>filtert noch nichts</value>
+  </data>
+  <data name="Filter_GroupAddRow" xml:space="preserve">
+    <value>Bedingung</value>
+  </data>
+  <data name="Filter_GroupAddRowTitle" xml:space="preserve">
+    <value>Zeile zu dieser Gruppe hinzufügen</value>
+  </data>
+  <data name="Filter_GroupDissolve" xml:space="preserve">
+    <value>Gruppe auflösen – die Zeilen bleiben, mit UND verknüpft</value>
+  </data>
+  <data name="Filter_RowMenu" xml:space="preserve">
+    <value>In eine Gruppe verschieben …</value>
+  </data>
+  <data name="Filter_DragTitle" xml:space="preserve">
+    <value>In eine Gruppe oder aus ihr heraus ziehen</value>
+  </data>
+  <data name="Filter_MoveToGroup" xml:space="preserve">
+    <value>In {0}-Gruppe {1}</value>
+  </data>
+  <data name="Filter_MoveToNewGroup" xml:space="preserve">
+    <value>In neue {0}-Gruppe</value>
+  </data>
+  <data name="Filter_MoveOutOfGroup" xml:space="preserve">
+    <value>Aus der Gruppe nehmen (UND)</value>
+  </data>
+  <data name="Presets_GroupRow" xml:space="preserve">
+    <value>{0}-Gruppe {1}: {2}</value>
+  </data>
 </root>

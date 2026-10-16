@@ -96,7 +96,7 @@ public class TableLinkTests
     [InlineData("https://example.com/open?v=1&s=ERP&t=X", "kein FerretSharp-Link")]
     [InlineData("ferretsharp://delete?v=1&s=ERP&t=X", "kein FerretSharp-Link")]
     [InlineData("ferretsharp://open?s=ERP&t=X", "keine gültige Version")]
-    [InlineData("ferretsharp://open?v=2&s=ERP&t=X", "neueren FerretSharp-Version (Format 2)")]
+    [InlineData("ferretsharp://open?v=3&s=ERP&t=X", "neueren FerretSharp-Version (Format 3)")]
     [InlineData("ferretsharp://open?v=1&t=X", "nennt keine Tabelle")]
     [InlineData("ferretsharp://open?v=1&s=ERP&t=A%22B", "\"")]
     [InlineData("ferretsharp://open?v=1&s=ERP&t=X&f=STATUS,drop,1", "ungültigen Filter auf STATUS")]
@@ -106,6 +106,9 @@ public class TableLinkTests
     [InlineData("ferretsharp://open?v=1&s=ERP&t=X&f=STATUS,in,A%3BB", "ungültigen Filter auf STATUS")] // the filter bar would split it
     [InlineData("ferretsharp://open?v=1&s=ERP&t=X&o=STATUS,up", "ungültige Sortierung auf STATUS")]
     [InlineData("ferretsharp://open?v=1&s=ERP&t=X&m=sql", "unbekannte Ansicht")]
+    [InlineData("ferretsharp://open?v=2&s=ERP&t=X&g=0,any,STATUS,isNull", "ungültigen Filter auf STATUS")] // group ids start at 1
+    [InlineData("ferretsharp://open?v=2&s=ERP&t=X&g=1,all,STATUS,isNull", "ungültigen Filter auf STATUS")] // no such kind
+    [InlineData("ferretsharp://open?v=2&s=ERP&t=X&g=1,any,STATUS,equals", "ungültigen Filter auf STATUS")] // the row as with f
     public void Foreign_input_is_refused_with_the_reason(string text, string error)
     {
         Assert.Contains(error, Error(text));

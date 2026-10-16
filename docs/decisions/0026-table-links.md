@@ -51,3 +51,10 @@ Wunsch des Nutzers: Passt keine Verbindung, endete der Dialog bisher bei „Kein
 - **Sicherheit unverändert:** Nichts wird von selbst gewählt – ohne Treffer bleibt „Öffnen“ gesperrt, bis der Nutzer eine Verbindung anklickt; der Fokus bleibt auf „Abbrechen“. Die Wahl trifft der Nutzer im Bestätigungsdialog, der Link öffnet weiter nur einen lesenden Tab. Kein zusätzlicher Prod-Hinweis: die Art (DEV/TEST/PROD) steht an jeder Verbindung.
 - **Hinweis:** Öffnet der Link auf einer Verbindung, auf die er nicht zeigt (weder Treffer noch Kandidat), nennt der Dialog dessen Verbindung und Adresse daneben; die Warnung „nur über den Namen gefunden“ gilt nur, solange dieser Treffer das Ziel ist (`LinkTargetChoice`).
 - **Nicht gemacht (Backlog):** Die Zuordnung „Links mit Verbindung X → meine Verbindung Y“ merken.
+
+## Nachtrag (2026-10-16, WP-50): Filtergruppen im Link
+
+Filterzeilen können seit WP-50 in Gruppen stehen (ODER, NICHT). Ein älteres FerretSharp, das die Gruppe nicht kennt, würde ihre Zeilen still mit UND verknüpfen und andere Zeilen zeigen.
+- **Form:** Eine Zeile einer Gruppe steht als `g` statt `f`, vorn Id und Art der Gruppe: `g=1,any,KBEZ,equals,NA`, `g=2,none,STATUS,isNull`. Die erste Zeile einer Gruppe bestimmt ihre Art. Ausgeschaltete Gruppen gehen wie ausgeschaltete Zeilen nicht in den Link.
+- **Version:** Ein Link mit Gruppen hat `v=2`; ein älteres FerretSharp lehnt ihn als „aus einer neueren Version“ ab, statt ihn falsch zu lesen. Ein Link ohne Gruppen bleibt `v=1` und öffnet sich überall wie bisher. Die Weiterleitungsseite lässt beide durch (gleiche Zeichen, einbuchstabige Schlüssel).
+- Grenzen wie bisher: höchstens 50 Zeilen (`f` und `g` zusammen) und 1000 Werte.

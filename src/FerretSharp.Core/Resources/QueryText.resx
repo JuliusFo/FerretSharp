@@ -337,4 +337,12 @@
   <data name="LinkRowsNeedPrimaryKey" xml:space="preserve">
     <value>A link to rows needs an enforced primary key; this table addresses its rows by ROWID, which can change.</value>
   </data>
+  <data name="FilterGroupAny" xml:space="preserve">
+    <value>OR</value>
+    <comment>Kind of filter group: at least one of its rows applies. Short, shown in the group header and in messages</comment>
+  </data>
+  <data name="FilterGroupNone" xml:space="preserve">
+    <value>NOT</value>
+    <comment>Kind of filter group: none of its rows applies. Short, shown in the group header and in messages</comment>
+  </data>
 </root>

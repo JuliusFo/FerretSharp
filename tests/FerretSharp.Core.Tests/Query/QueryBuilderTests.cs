@@ -231,7 +231,7 @@ public partial class QueryBuilderTests
     {
         var (where, parameters) = Where(FilterCondition.Of("ERSTELLT_AM", FilterOperator.Between, "1.10.2026", "31.10.2026"));
 
-        Assert.Equal("t.\"ERSTELLT_AM\" >= :p0 AND t.\"ERSTELLT_AM\" < :p1", where);
+        Assert.Equal("(t.\"ERSTELLT_AM\" >= :p0 AND t.\"ERSTELLT_AM\" < :p1)", where);
         Assert.Equal([new DateTime(2026, 10, 1), new DateTime(2026, 11, 1)], parameters.Select(p => p.Value));
     }
 

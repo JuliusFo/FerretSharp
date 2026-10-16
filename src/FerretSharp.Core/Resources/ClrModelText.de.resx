@@ -333,4 +333,7 @@
   <data name="EntityDbSet" xml:space="preserve">
     <value>Im DbContext ein DbSet&lt;{0}&gt; ergänzen und die Konfiguration registrieren, wie es das Projekt macht.</value>
   </data>
+  <data name="FilterGroupSkipped" xml:space="preserve">
+    <value>{0}-Gruppe ({1}) – {2}</value>
+  </data>
 </root>

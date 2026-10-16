@@ -77,6 +77,55 @@ export function dragWidth(handle, panel, pointerId, startX, min, maxFraction) {
   });
 }
 
+/**
+ * Drags something onto a drop target while the pointer is down (a filter row into a group, WP-50): the target under the
+ * pointer – the closest element matching the selector – gets hoverClass, root gets 'dragging'. Resolves with the
+ * target's data-drop when the pointer is released over one, else null. Pointer events, not HTML5 drag and drop.
+ */
+export function dragToDrop(root, pointerId, selector, hoverClass) {
+  return new Promise(resolve => {
+    let over = null;
+    const move = e => {
+      const target = document.elementFromPoint(e.clientX, e.clientY)?.closest(selector) ?? null;
+      if (target !== over) {
+        over?.classList.remove(hoverClass);
+        target?.classList.add(hoverClass);
+        over = target;
+      }
+    };
+    let done = false;
+    const onMove = e => ((e.buttons & 1) === 0 ? end(e) : move(e)); // the button came up unseen: no drop
+    const end = e => {
+      if (done) return;
+      done = true;
+      root.removeEventListener('pointermove', onMove);
+      root.removeEventListener('pointerup', end);
+      root.removeEventListener('pointercancel', end);
+      root.removeEventListener('lostpointercapture', end);
+      root.classList.remove('dragging');
+      over?.classList.remove(hoverClass);
+      if (root.hasPointerCapture(pointerId)) root.releasePointerCapture(pointerId);
+      resolve(e.type === 'pointerup' && over ? over.dataset.drop ?? null : null);
+    };
+    try {
+      root.setPointerCapture(pointerId);
+    } catch {
+      // released before the capture: nothing to drag
+    }
+    // A mouse button released while the call came here leaves no capture (and no exception): a later click elsewhere in
+    // the bar must not drop the row there (review of WP-50).
+    if (!root.hasPointerCapture(pointerId)) {
+      resolve(null);
+      return;
+    }
+    root.classList.add('dragging');
+    root.addEventListener('pointermove', onMove);
+    root.addEventListener('pointerup', end);
+    root.addEventListener('pointercancel', end);
+    root.addEventListener('lostpointercapture', end); // the bar went away, or the capture ended otherwise
+  });
+}
+
 /** Focuses the first enabled input, select or text area inside the element (a new row in the form). */
 export function focusFirstInput(element) {
   element?.querySelector('input:not([disabled]):not([readonly]), select:not([disabled]), textarea:not([disabled]):not([readonly])')?.focus();

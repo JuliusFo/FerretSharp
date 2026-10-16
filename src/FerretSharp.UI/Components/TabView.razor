@@ -470,7 +470,7 @@
             return;
         }
 
-        var edited = Tab.FilterRows.Select(r => r.ToCondition()).ToList();
+        var edited = Tab.EditedFilters();
         var filters = QueryBuilder.Validate(_details, edited).Count == 0 ? edited : Tab.AppliedFilters;
         try
         {
