@@ -10,12 +10,31 @@ public sealed record PresetChoice(FilterPreset Preset, bool Append);
 /// <summary>How a filter preset reads in its tooltip and in the save dialog (WP-37).</summary>
 public static class FilterPresetText
 {
-    /// <summary>One line per filter row, as in the tab header; disabled rows marked as such.</summary>
-    public static IEnumerable<string> FilterLines(IReadOnlyList<FilterCondition> filters) => filters.Select(f =>
+    /// <summary>
+    /// One line per filter row, as in the tab header; disabled rows marked as such, rows of a group (WP-50) with the
+    /// group's kind and number ("ODER-Gruppe 1: …"), a disabled group's as disabled.
+    /// </summary>
+    public static IEnumerable<string> FilterLines(IReadOnlyList<FilterCondition> filters)
     {
-        var text = $"{f.Column} {OperatorLabels.Label(f.Op)} {string.Join("; ", f.Values)}".TrimEnd();
-        return f.Enabled ? text : TextFormat.Format(GridText.Presets_Off, text);
-    });
+        var groups = Core.Query.FilterGroups.Of(filters);
+        var numbers = new Dictionary<int, int>();
+        foreach (var f in filters)
+        {
+            var text = $"{f.Column} {OperatorLabels.Label(f.Op)} {string.Join("; ", f.Values)}".TrimEnd();
+            if (f.Group is { } own)
+            {
+                var group = groups[own.Id];
+                if (!numbers.TryGetValue(group.Id, out var number))
+                {
+                    numbers[group.Id] = number = numbers.Count + 1;
+                }
+
+                text = TextFormat.Format(GridText.Presets_GroupRow, FilterGroupLabels.Label(group.Kind), number, text);
+            }
+
+            yield return Core.Query.FilterGroups.IsActive(f, groups) ? text : TextFormat.Format(GridText.Presets_Off, text);
+        }
+    }
 
     /// <summary><c>ERSTELLT ↓, ID ↑</c></summary>
     public static string SortText(IReadOnlyList<SortSpec> sorts) =>

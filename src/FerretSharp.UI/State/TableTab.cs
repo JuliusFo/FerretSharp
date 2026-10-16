@@ -24,6 +24,9 @@ public sealed class FilterRow
 
     public bool Enabled { get; set; } = true;
 
+    /// <summary>The group the row is in (WP-50); null for a row combined with AND.</summary>
+    public FilterRowGroup? Group { get; set; }
+
     public string? Error { get; set; }
 
     public FilterCondition ToCondition() => new(Column, Op, FilterRules.ValueCount(Op) switch
@@ -32,18 +35,32 @@ public sealed class FilterRow
         2 => [Value.Trim(), Value2.Trim()],
         -1 => Value.Split(ListSeparator, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries),
         _ => [Value.Trim()],
-    }, Enabled);
+    }, Enabled) { Group = Group?.ToGroup() };
 
-    public static FilterRow From(FilterCondition condition) => new()
+    /// <param name="group">The edited group the condition's group stands for; null for a row without one.</param>
+    public static FilterRow From(FilterCondition condition, FilterRowGroup? group = null) => new()
     {
         Column = condition.Column,
         Op = condition.Op,
         Enabled = condition.Enabled,
+        Group = group,
         Value = condition.Op == FilterOperator.In
             ? string.Join(ListSeparator + " ", condition.Values)
             : condition.Values.ElementAtOrDefault(0) ?? "",
         Value2 = condition.Values.ElementAtOrDefault(1) ?? "",
     };
+}
+
+/// <summary>A group of filter rows as edited in the filter bar (WP-50): OR or NOT, switched on or off as a whole.</summary>
+public sealed class FilterRowGroup
+{
+    public int Id { get; init; }
+
+    public FilterGroupKind Kind { get; set; }
+
+    public bool Enabled { get; set; } = true;
+
+    public FilterGroup ToGroup() => new(Id, Kind, Enabled);
 }
 
 /// <summary>An open table in the content area of a workspace.</summary>
@@ -56,8 +73,98 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
     /// <summary>Rough scroll position: first visible row, only if it was loaded.</summary>
     public int? FirstVisibleRow { get; set; }
 
-    /// <summary>Rows as edited in the filter bar (may be invalid or not yet applied).</summary>
+    /// <summary>
+    /// Rows as edited in the filter bar (may be invalid or not yet applied): the rows without a group first, then the
+    /// rows of each group in the order of <see cref="FilterGroups"/> – as the filter bar shows them, so the index of a
+    /// row is that of its condition (errors). Change them through the methods below, which keep that order.
+    /// </summary>
     public List<FilterRow> FilterRows { get; } = [];
+
+    /// <summary>The groups of the filter bar in their order (WP-50), also those without a row yet.</summary>
+    public List<FilterRowGroup> FilterGroups { get; } = [];
+
+    /// <summary>The rows of a group, or those without one.</summary>
+    public IEnumerable<FilterRow> RowsOf(FilterRowGroup? group) => FilterRows.Where(r => r.Group == group);
+
+    /// <summary>The filter rows as edited, as conditions (with their groups).</summary>
+    public IReadOnlyList<FilterCondition> EditedFilters() => FilterRows.Select(r => r.ToCondition()).ToList();
+
+    /// <summary>Replaces the rows and groups of the filter bar (a preset, a link, a restored tab).</summary>
+    public void SetFilterRows(IEnumerable<FilterCondition> filters)
+    {
+        FilterRows.Clear();
+        FilterGroups.Clear();
+        var groups = new Dictionary<int, FilterRowGroup>();
+        foreach (var filter in filters)
+        {
+            FilterRowGroup? group = null;
+            if (filter.Group is { } g && !groups.TryGetValue(g.Id, out group))
+            {
+                groups[g.Id] = group = new FilterRowGroup { Id = g.Id, Kind = g.Kind, Enabled = g.Enabled };
+                FilterGroups.Add(group);
+            }
+
+            FilterRows.Add(FilterRow.From(filter, group));
+        }
+
+        OrderFilterRows();
+    }
+
+    public void ClearFilterRows()
+    {
+        FilterRows.Clear();
+        FilterGroups.Clear();
+    }
+
+    /// <summary>Adds a row at the end of a group, or of the rows without one.</summary>
+    public void AddFilterRow(FilterRow row, FilterRowGroup? group = null)
+    {
+        row.Group = group;
+        FilterRows.Add(row);
+        OrderFilterRows();
+    }
+
+    public void RemoveFilterRow(FilterRow row) => FilterRows.Remove(row);
+
+    /// <summary>A new, empty group at the end.</summary>
+    public FilterRowGroup AddFilterGroup(FilterGroupKind kind)
+    {
+        var group = new FilterRowGroup { Id = FilterGroups.Select(g => g.Id).DefaultIfEmpty(0).Max() + 1, Kind = kind };
+        FilterGroups.Add(group);
+        return group;
+    }
+
+    /// <summary>Moves a row to the end of a group, or out of its group (null).</summary>
+    public void MoveFilterRow(FilterRow row, FilterRowGroup? group)
+    {
+        FilterRows.Remove(row);
+        AddFilterRow(row, group);
+    }
+
+    /// <summary>Ends a group: its rows stay, without a group (decision of the user, WP-50).</summary>
+    public void DissolveFilterGroup(FilterRowGroup group)
+    {
+        foreach (var row in RowsOf(group))
+        {
+            row.Group = null;
+        }
+
+        FilterGroups.Remove(group);
+        OrderFilterRows();
+    }
+
+    /// <summary>Rows without a group first, then group by group; a group only a row knows is added at the end.</summary>
+    private void OrderFilterRows()
+    {
+        foreach (var group in FilterRows.Select(r => r.Group).OfType<FilterRowGroup>().Distinct().Where(g => !FilterGroups.Contains(g)).ToList())
+        {
+            FilterGroups.Add(group);
+        }
+
+        var ordered = RowsOf(null).Concat(FilterGroups.SelectMany(RowsOf)).ToList();
+        FilterRows.Clear();
+        FilterRows.AddRange(ordered);
+    }
 
     /// <summary>Filters the grid currently shows.</summary>
     public IReadOnlyList<FilterCondition> AppliedFilters { get; set; } = [];
@@ -68,7 +175,7 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
     /// </summary>
     public IReadOnlyList<FilterCondition>? ValidFilters(TableDetails table)
     {
-        var conditions = FilterRows.Select(r => r.ToCondition()).ToList();
+        var conditions = EditedFilters();
         var errors = QueryBuilder.Validate(table, conditions);
         for (var i = 0; i < FilterRows.Count; i++)
         {
@@ -124,7 +231,7 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
     /// <summary>The database error behind <see cref="Error"/>, for the details dialog; null for validation errors.</summary>
     public DatabaseException? Failure { get; set; }
 
-    public int ActiveFilterCount => AppliedFilters.Count(f => f.Enabled);
+    public int ActiveFilterCount => Core.Query.FilterGroups.Active(AppliedFilters).Count();
 
     /// <summary>The tab this one was opened from by an FK jump ("Back"); it may have been closed since.</summary>
     public TableTab? Origin { get; set; }
@@ -217,8 +324,7 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
             var fitted = FilterPresets.Fit(loaded, AppliedFilters, Sorts);
             AppliedFilters = fitted.Filters;
             Sorts = fitted.Sorts ?? [];
-            FilterRows.Clear();
-            FilterRows.AddRange(fitted.Filters.Select(FilterRow.From));
+            SetFilterRows(fitted.Filters);
         }
 
         return Details = loaded;
@@ -240,14 +346,29 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
         return text.Length == 0 ? null : text.Length <= maxLength ? text : text[..(maxLength - 1)].TrimEnd() + "…";
     }
 
-    /// <summary>The active filters, one text each.</summary>
-    public IEnumerable<string> FilterTexts(TablePresentation? presentation = null) => AppliedFilters
-        .Where(f => f.Enabled)
-        .Select(f => $"{f.Column} {OperatorLabels.Label(f.Op)} {string.Join("; ", f.Values.Select(v => presentation?.FilterValueText(f.Column, v) ?? v))}".TrimEnd());
+    /// <summary>The active filters, one text each; a group (WP-50) as one: <c>(A | B)</c>, <c>¬(A | B)</c>.</summary>
+    public IEnumerable<string> FilterTexts(TablePresentation? presentation = null)
+    {
+        var filters = AppliedFilters;
+        foreach (var term in Core.Query.FilterGroups.Terms(filters))
+        {
+            var texts = term.Indexes.Select(i => Text(filters[i])).ToList();
+            yield return term.Group switch
+            {
+                null => texts[0],
+                { Kind: FilterGroupKind.None } => $"¬({string.Join(" | ", texts)})",
+                _ when texts.Count == 1 => texts[0],
+                _ => $"({string.Join(" | ", texts)})",
+            };
+        }
+
+        string Text(FilterCondition f) =>
+            $"{f.Column} {OperatorLabels.Label(f.Op)} {string.Join("; ", f.Values.Select(v => presentation?.FilterValueText(f.Column, v) ?? v))}".TrimEnd();
+    }
 
     /// <param name="workspaceTabs">The tabs of the workspace in order, to save the origin as an index.</param>
     public override TabState ToState(IReadOnlyList<WorkspaceTab> workspaceTabs) => new(
-        Table.Ref, Mode, FilterRows.Select(r => r.ToCondition()).ToList(), AppliedFilters, Sorts, FirstVisibleRow)
+        Table.Ref, Mode, EditedFilters(), AppliedFilters, Sorts, FirstVisibleRow)
     {
         PinnedColumns = PinnedColumns,
         Preset = Preset,
@@ -282,7 +403,7 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
             FormWidth = state.Form?.Width,
             FormHideEmpty = state.Form?.HideEmpty ?? false,
         };
-        tab.FilterRows.AddRange(state.FilterRows.Select(FilterRow.From));
+        tab.SetFilterRows(state.FilterRows);
         return tab;
     }
 }

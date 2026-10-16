@@ -188,7 +188,7 @@ public sealed partial class ShellState
 
         var link = pending.Link;
         var tab = new TableTab(workspace.WorkspaceId, table) { AppliedFilters = link.Filters, Sorts = link.Sorts, Mode = link.Mode ?? TabMode.Data, Visited = true, FitToStructure = true };
-        tab.FilterRows.AddRange(link.Filters.Select(FilterRow.From));
+        tab.SetFilterRows(link.Filters);
         InsertAfterActive(workspace, tab);
     }
 
@@ -265,7 +265,7 @@ public sealed partial class ShellState
         }
 
         var tab = new TableTab(workspace.WorkspaceId, table) { AppliedFilters = filters, Visited = true, Origin = workspace.ActiveTab as TableTab };
-        tab.FilterRows.AddRange(filters.Select(FilterRow.From));
+        tab.SetFilterRows(filters);
         if (workspace.ActiveTab is TableTab origin)
         {
             origin.Forward = null; // a new jump replaces the way forward, like in a browser
