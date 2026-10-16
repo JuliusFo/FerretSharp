@@ -41,7 +41,10 @@ public class FilterGroupTests(OracleContainerFixture oracle) : IAsyncLifetime
     private static FilterCondition[] Group(FilterGroupKind kind, params FilterCondition[] filters) =>
         [.. filters.Select(f => f with { Group = new FilterGroup(1, kind) })];
 
-    /// <summary>Every operator on columns with NULLs (NAME, KZ, NOTIZ, DATEN) and without (GRUPPE, DATUM).</summary>
+    /// <summary>
+    /// Every operator on columns with NULLs (NAME, KZ, NOTIZ, DATEN) and without (GRUPPE is NOT NULL, DATUM holds none).
+    /// A row alone in a NOT group takes the plain NOT for NULL checks and "≠" on a nullable column, CASE otherwise.
+    /// </summary>
     public static TheoryData<string, FilterOperator, string[]> Conditions => new()
     {
         { "NAME", FilterOperator.Equals, ["Name 7"] },
@@ -71,7 +74,7 @@ public class FilterGroupTests(OracleContainerFixture oracle) : IAsyncLifetime
     public async Task Or_and_not_of_the_same_rows_split_the_table(string column, FilterOperator op, string[] values)
     {
         var condition = new FilterCondition(column, op, values);
-        var other = FilterCondition.Of("BETRAG", FilterOperator.Lt, "30"); // NOT NULL column: rows 1 … 19
+        var other = FilterCondition.Of("BETRAG", FilterOperator.Lt, "30"); // never NULL (LEVEL * 1.5): rows 1 … 19
 
         var alone = await CountAsync(condition);
         var any = await CountAsync(Group(FilterGroupKind.Any, condition, other));

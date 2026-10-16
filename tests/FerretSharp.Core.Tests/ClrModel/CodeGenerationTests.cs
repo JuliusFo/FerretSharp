@@ -273,6 +273,23 @@ public sealed class LinqFilterTests
     }
 
     [Fact]
+    public async Task In_a_not_group_nullable_members_are_guarded_so_ef_keeps_their_null_rows()
+    {
+        // EF Core turns !(x.Umsatz > 1) into NOT ("Umsatz" > 1), which drops the NULL rows the grid keeps; with the guard
+        // it writes "Umsatz" IS NULL OR "Umsatz" <= 1. "≠" needs none: EF and the grid count NULL as "not equal".
+        var none = new FilterGroup(1, FilterGroupKind.None);
+        var code = await WhereAsync(
+            FilterCondition.Of("UMSATZ", FilterOperator.Gt, "1") with { Group = none },
+            FilterCondition.Of("NAME", FilterOperator.NotEquals, "x") with { Group = none },
+            FilterCondition.Of("NAME", FilterOperator.Contains, "a") with { Group = none });
+
+        Assert.Equal(
+            ".Where(x => !((x.Umsatz != null && x.Umsatz > 1m) || x.Name != \"x\" || (x.Name != null && x.Name.ToUpper().Contains(\"A\"))))",
+            code);
+        Assert.Equal(".Where(x => x.Umsatz > 1m)", await WhereAsync(FilterCondition.Of("UMSATZ", FilterOperator.Gt, "1") with { Group = none with { Kind = FilterGroupKind.Any } }));
+    }
+
+    [Fact]
     public async Task A_group_with_a_row_without_csharp_form_stays_out_as_a_whole()
     {
         var any = new FilterGroup(1, FilterGroupKind.Any);

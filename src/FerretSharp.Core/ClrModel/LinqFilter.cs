@@ -49,7 +49,8 @@ public static class LinqFilter
         foreach (var term in FilterGroups.Terms(list))
         {
             var members = term.Indexes.Select(i => list[i]).ToList();
-            var results = members.Select(f => (Filter: f, Result: Condition(presentation, f))).ToList();
+            var notGroup = term.Group?.Kind == FilterGroupKind.None;
+            var results = members.Select(f => (Filter: f, Result: Condition(presentation, f, notGroup))).ToList();
             if (term.Group is not { } group)
             {
                 var (filter, result) = results[0];
@@ -169,7 +170,12 @@ public static class LinqFilter
     private static string Describe(TablePresentation presentation, FilterCondition filter) =>
         $"{filter.Column} {OperatorLabels.Label(filter.Op)} {string.Join("; ", filter.Values)}".TrimEnd();
 
-    private static CSharpValue Condition(TablePresentation presentation, FilterCondition filter)
+    /// <param name="inNotGroup">
+    /// In a NOT group (WP-50) a condition on a nullable member is guarded (<c>x.Umsatz != null &amp;&amp; x.Umsatz &lt; 5000</c>):
+    /// EF Core does not add NULL handling to a negated &lt;, &gt;, range or OR (<c>NOT ("Umsatz" &lt; 5000)</c> drops the NULL
+    /// rows), the grid keeps them.
+    /// </param>
+    private static CSharpValue Condition(TablePresentation presentation, FilterCondition filter, bool inNotGroup = false)
     {
         var index = presentation.Details.IndexOf(filter.Column);
         if (index < 0)
@@ -193,7 +199,7 @@ public static class LinqFilter
             ? $"EF.Property<{TablePresentation.ClrTypeText(property)}>({Parameter}, {CSharpCode.String(property.Name)})"
             : $"{Parameter}.{CSharpCode.Identifier(property.Name)}";
         var builder = new ConditionBuilder(property, values, column, member);
-        return builder.Build(filter);
+        return builder.Build(filter, inNotGroup);
     }
 
     private sealed class ConditionBuilder(PropertyExport property, ValueTable? values, ColumnInfo column, string m)
@@ -208,7 +214,17 @@ public static class LinqFilter
         private bool ByDay => _category is ColumnCategory.Date or ColumnCategory.Timestamp or ColumnCategory.TimestampWithTimeZone
                               && property.ClrType is "DateTime" or "DateTimeOffset";
 
-        public CSharpValue Build(FilterCondition filter)
+        /// <param name="guardNull">In a NOT group; "≠" needs no guard: EF and the grid both count NULL as "not equal".</param>
+        public CSharpValue Build(FilterCondition filter, bool guardNull)
+        {
+            var result = Build(filter);
+            var nullable = property.Nullable || property.ClrType is "string" or "byte[]";
+            return guardNull && nullable && result.Code is { } code && filter.Op is not (FilterOperator.IsNull or FilterOperator.IsNotNull or FilterOperator.NotEquals)
+                ? new CSharpValue($"{m} != null && {code}")
+                : result;
+        }
+
+        private CSharpValue Build(FilterCondition filter)
         {
             try
             {

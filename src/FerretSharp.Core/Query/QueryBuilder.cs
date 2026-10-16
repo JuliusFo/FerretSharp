@@ -235,7 +235,7 @@ public static class QueryBuilder
         /// <summary>
         /// A filter group (WP-50). Each condition is a single term on its own (none ends in a bare AND or OR), so OR can
         /// join them. "None" follows C#'s <c>!(a || b)</c>: a row whose conditions are unknown (NULL) counts as "does not
-        /// apply" and stays – <c>NOT (…)</c> would drop it. Where no condition can be unknown, the plain NOT is enough.
+        /// apply" and stays – <c>NOT (…)</c> would drop it. Only where the SQL of every condition is never unknown, the plain NOT.
         /// </summary>
         private string GroupCondition(FilterGroupKind kind, IReadOnlyList<FilterCondition> filters)
         {
@@ -250,16 +250,13 @@ public static class QueryBuilder
         }
 
         /// <summary>
-        /// Whether the condition is always true or false, never unknown: NULL checks, "≠" (it takes NULL in), and the
-        /// other operators on a NOT NULL column – the values are bound, never NULL. Not "ends with" on CHAR: RTRIM of
-        /// blanks only is NULL.
+        /// Whether the SQL of the condition itself is always true or false, never unknown: NULL checks, and "≠" on a
+        /// nullable column (it says <c>OR c IS NULL</c>). Not the dictionary's NOT NULL: a view over an outer join, or a
+        /// constraint ENABLE NOVALIDATE, can hold NULLs in such a column (review of WP-50).
         /// </summary>
-        private bool NeverUnknown(FilterCondition filter)
-        {
-            var column = table.Columns.First(c => c.Name == filter.Column);
-            return filter.Op is FilterOperator.IsNull or FilterOperator.IsNotNull or FilterOperator.NotEquals
-                   || !column.Nullable && !(filter.Op == FilterOperator.EndsWith && OracleTypes.IsFixedChar(column.DataType));
-        }
+        private bool NeverUnknown(FilterCondition filter) =>
+            filter.Op is FilterOperator.IsNull or FilterOperator.IsNotNull
+            || filter.Op == FilterOperator.NotEquals && table.Columns.First(c => c.Name == filter.Column).Nullable;
 
         public IEnumerable<string> OrderBy(IReadOnlyList<SortSpec> sorts)
         {
