@@ -20,17 +20,17 @@
     </header>
 
     <div class="dialog-body form-grid">
-        <label for="cn-name">@ShellText.ConnectionDialog_Name</label>
+        <label for="cn-name">@ConnectionViewText.ConnectionDialog_Name</label>
         <div>
             <input id="cn-name" class="field @Invalid(errors, ConnectionField.Name)" @ref="_nameInput"
-                   @bind="Form.Name" @bind:event="oninput" placeholder="@ShellText.ConnectionDialog_NamePlaceholder" />
+                   @bind="Form.Name" @bind:event="oninput" placeholder="@ConnectionViewText.ConnectionDialog_NamePlaceholder" />
             <FieldError Errors="errors" Field="@ConnectionField.Name" />
         </div>
 
-        <label for="cn-group">@ShellText.ConnectionDialog_Group</label>
+        <label for="cn-group">@ConnectionViewText.ConnectionDialog_Group</label>
         <div>
             <input id="cn-group" class="field" list="cn-groups" @bind="Form.Group" @bind:event="oninput"
-                   placeholder="@ShellText.ConnectionDialog_GroupPlaceholder" autocomplete="off" />
+                   placeholder="@ConnectionViewText.ConnectionDialog_GroupPlaceholder" autocomplete="off" />
             <datalist id="cn-groups">
                 @foreach (var group in ConnectionSearch.GroupNames(Connections.Profiles))
                 {
@@ -39,7 +39,7 @@
             </datalist>
         </div>
 
-        <label>@ShellText.ConnectionDialog_Environment</label>
+        <label>@ConnectionViewText.ConnectionDialog_Environment</label>
         <div class="segmented">
             @foreach (var kind in ConnectionKindInfo.All)
             {
@@ -50,10 +50,10 @@
             }
         </div>
 
-        <label>@ShellText.ConnectionDialog_Address</label>
+        <label>@ConnectionViewText.ConnectionDialog_Address</label>
         <div class="segmented">
             <button class="seg @(Form.Mode == AddressMode.HostPort ? "active" : "")" @onclick="() => Form.Mode = AddressMode.HostPort">Host / Port</button>
-            <button class="seg @(Form.Mode == AddressMode.TnsAlias ? "active" : "")" @onclick="() => Form.Mode = AddressMode.TnsAlias">@ShellText.ConnectionDialog_TnsAlias</button>
+            <button class="seg @(Form.Mode == AddressMode.TnsAlias ? "active" : "")" @onclick="() => Form.Mode = AddressMode.TnsAlias">@ConnectionViewText.ConnectionDialog_TnsAlias</button>
         </div>
 
         @if (Form.Mode == AddressMode.HostPort)
@@ -69,7 +69,7 @@
                 <FieldError Errors="errors" Field="@ConnectionField.Port" />
             </div>
 
-            <label>@ShellText.ConnectionDialog_Database</label>
+            <label>@ConnectionViewText.ConnectionDialog_Database</label>
             <div>
                 <div class="row">
                     <div class="segmented small">
@@ -90,7 +90,7 @@
         }
         else
         {
-            <label for="cn-alias">@ShellText.ConnectionDialog_TnsAlias</label>
+            <label for="cn-alias">@ConnectionViewText.ConnectionDialog_TnsAlias</label>
             <div>
                 <input id="cn-alias" class="field @Invalid(errors, ConnectionField.Alias)" @bind="Form.Alias" @bind:event="oninput" placeholder="ERP_TEST" />
                 <FieldError Errors="errors" Field="@ConnectionField.Alias" />
@@ -98,44 +98,44 @@
 
             <label for="cn-tns">TNS_ADMIN</label>
             <input id="cn-tns" class="field mono" @bind="Form.TnsAdminPath" @bind:event="oninput"
-                   placeholder="@ShellText.ConnectionDialog_TnsAdminPlaceholder" />
+                   placeholder="@ConnectionViewText.ConnectionDialog_TnsAdminPlaceholder" />
         }
 
-        <label for="cn-user">@ShellText.ConnectionDialog_User</label>
+        <label for="cn-user">@ConnectionViewText.ConnectionDialog_User</label>
         <div>
             <input id="cn-user" class="field @Invalid(errors, ConnectionField.User)" @bind="Form.User" @bind:event="oninput" autocomplete="off" />
             <FieldError Errors="errors" Field="@ConnectionField.User" />
         </div>
 
-        <label for="cn-password">@ShellText.ConnectionDialog_Password</label>
+        <label for="cn-password">@ConnectionViewText.ConnectionDialog_Password</label>
         <div>
             <input id="cn-password" type="password" class="field @Invalid(errors, PasswordField)" @bind="Form.Password" @bind:event="oninput"
                    placeholder="@PasswordPlaceholder" autocomplete="new-password" />
             <FieldError Errors="errors" Field="@PasswordField" />
-            <div class="hint small">@ShellText.ConnectionDialog_PasswordHint</div>
+            <div class="hint small">@ConnectionViewText.ConnectionDialog_PasswordHint</div>
         </div>
 
         <label for="cn-schema">Schema</label>
-        <input id="cn-schema" class="field" @bind="Form.DefaultSchema" @bind:event="oninput" placeholder="@ShellText.ConnectionDialog_SchemaPlaceholder" />
+        <input id="cn-schema" class="field" @bind="Form.DefaultSchema" @bind:event="oninput" placeholder="@ConnectionViewText.ConnectionDialog_SchemaPlaceholder" />
 
         <span></span>
         <label class="check">
             <input type="checkbox" checked="@Form.ReadOnly" @onchange="e => Form.SetReadOnly(e.Value is true)" />
-            @ShellText.ConnectionDialog_ReadOnly
-            <span class="hint">@ShellText.ConnectionDialog_ReadOnlyHint</span>
+            @ConnectionViewText.ConnectionDialog_ReadOnly
+            <span class="hint">@ConnectionViewText.ConnectionDialog_ReadOnlyHint</span>
         </label>
 
-        <div class="form-section">@ShellText.ConnectionDialog_ClrModel <span class="hint">@ShellText.ConnectionDialog_ClrModelHint</span></div>
+        <div class="form-section">@ConnectionViewText.ConnectionDialog_ClrModel <span class="hint">@ConnectionViewText.ConnectionDialog_ClrModelHint</span></div>
 
-        <label for="cn-clr">@ShellText.ConnectionDialog_Project</label>
+        <label for="cn-clr">@ConnectionViewText.ConnectionDialog_Project</label>
         <div>
             <div class="field-with-button">
                 <input id="cn-clr" class="field mono @Invalid(errors, ConnectionField.ClrProject)" @bind="Form.ClrProjectFile" @bind:event="oninput"
-                       placeholder="@ShellText.ConnectionDialog_ProjectPlaceholder" spellcheck="false" />
-                <button class="btn" title="@ShellText.ConnectionDialog_PickProject" @onclick="PickProjectAsync">…</button>
+                       placeholder="@ConnectionViewText.ConnectionDialog_ProjectPlaceholder" spellcheck="false" />
+                <button class="btn" title="@ConnectionViewText.ConnectionDialog_PickProject" @onclick="PickProjectAsync">…</button>
             </div>
             <FieldError Errors="errors" Field="@ConnectionField.ClrProject" />
-            <div class="hint small">@ShellText.ConnectionDialog_ProjectHint</div>
+            <div class="hint small">@ConnectionViewText.ConnectionDialog_ProjectHint</div>
         </div>
 
         @if (!string.IsNullOrWhiteSpace(Form.ClrProjectFile))
@@ -148,30 +148,30 @@
 
             <label for="cn-clr-context">DbContext</label>
             <input id="cn-clr-context" class="field mono" @bind="Form.ClrContextType" @bind:event="oninput"
-                   placeholder="@ShellText.ConnectionDialog_ContextPlaceholder" spellcheck="false" />
+                   placeholder="@ConnectionViewText.ConnectionDialog_ContextPlaceholder" spellcheck="false" />
         }
 
-        <label for="cn-app-env">@ShellText.ConnectionDialog_AppEnvironment</label>
+        <label for="cn-app-env">@ConnectionViewText.ConnectionDialog_AppEnvironment</label>
         <div>
             <input id="cn-app-env" class="field mono" @bind="Form.AppEnvironment" @bind:event="oninput"
-                   placeholder="@ShellText.ConnectionDialog_AppEnvironmentPlaceholder" spellcheck="false" autocomplete="off" />
-            <div class="hint small">@ShellText.ConnectionDialog_AppEnvironmentHint</div>
+                   placeholder="@ConnectionViewText.ConnectionDialog_AppEnvironmentPlaceholder" spellcheck="false" autocomplete="off" />
+            <div class="hint small">@ConnectionViewText.ConnectionDialog_AppEnvironmentHint</div>
         </div>
 
-        <div class="form-section">@ShellText.Settings_Audit</div>
+        <div class="form-section">@SettingsViewText.Settings_Audit</div>
 
-        <label for="cn-audit">@ShellText.ConnectionDialog_AuditTemplate</label>
+        <label for="cn-audit">@ConnectionViewText.ConnectionDialog_AuditTemplate</label>
         <div>
             <div class="field-with-button">
                 <input id="cn-audit" class="field mono" @bind="Form.AuditTemplatePath" @bind:event="oninput"
-                       placeholder="@ShellText.ConnectionDialog_AuditTemplatePlaceholder" spellcheck="false" autocomplete="off" />
-                <button class="btn" title="@ShellText.ConnectionDialog_PickAuditTemplate" @onclick="PickAuditTemplateAsync">…</button>
+                       placeholder="@ConnectionViewText.ConnectionDialog_AuditTemplatePlaceholder" spellcheck="false" autocomplete="off" />
+                <button class="btn" title="@ConnectionViewText.ConnectionDialog_PickAuditTemplate" @onclick="PickAuditTemplateAsync">…</button>
             </div>
             @foreach (var error in AuditTemplateErrors())
             {
                 <div class="field-error">@error</div>
             }
-            <div class="hint small">@TextFormat.Format(ShellText.ConnectionDialog_AuditTemplateHint, AuditTemplateLabel.Of(AuditTemplates.For(Form.ToProfile().Profile with { AuditTemplatePath = null })))</div>
+            <div class="hint small">@TextFormat.Format(ConnectionViewText.ConnectionDialog_AuditTemplateHint, AuditTemplateLabel.Of(AuditTemplates.For(Form.ToProfile().Profile with { AuditTemplatePath = null })))</div>
         </div>
     </div>
 
@@ -181,16 +181,16 @@
             @if (_testing)
             {
                 <span class="spinner"></span>
-                <span>@ShellText.ConnectionDialog_Connecting</span>
+                <span>@ConnectionViewText.ConnectionDialog_Connecting</span>
             }
             else if (_testCancelled)
             {
-                <span>@ShellText.ConnectionDialog_TestCanceled</span>
+                <span>@ConnectionViewText.ConnectionDialog_TestCanceled</span>
             }
             else if (_testResult is { Success: true } ok)
             {
                 <span class="dot ok"></span>
-                <span>@TextFormat.Format(ShellText.ConnectionDialog_TestOk, Milliseconds(ok.Elapsed), ok.ServerVersion)</span>
+                <span>@TextFormat.Format(ConnectionViewText.ConnectionDialog_TestOk, Milliseconds(ok.Elapsed), ok.ServerVersion)</span>
             }
             else if (_testResult is { } failed)
             {
@@ -208,16 +208,16 @@
     <footer>
         @if (!Form.IsNew)
         {
-            <button class="btn ghost danger" @onclick="DeleteAsync">@ShellText.Connection_DeleteEllipsis</button>
+            <button class="btn ghost danger" @onclick="DeleteAsync">@ConnectionViewText.Connection_DeleteEllipsis</button>
         }
         <span class="spacer"></span>
         @if (_testing)
         {
-            <button class="btn" @onclick="CancelTest">@ShellText.ConnectionDialog_CancelTest</button>
+            <button class="btn" @onclick="CancelTest">@ConnectionViewText.ConnectionDialog_CancelTest</button>
         }
         else
         {
-            <button class="btn" @onclick="TestAsync">@ShellText.ConnectionDialog_Test</button>
+            <button class="btn" @onclick="TestAsync">@ConnectionViewText.ConnectionDialog_Test</button>
         }
         <button class="btn ghost" @onclick="CancelAsync">@CommonText.Cancel</button>
         <button class="btn primary" @onclick="SaveAsync" disabled="@_saving">@CommonText.Save</button>
@@ -249,16 +249,16 @@
 
     private string Title => Request.Mode switch
     {
-        ConnectionDialogMode.Edit => ShellText.ConnectionDialog_EditTitle,
-        ConnectionDialogMode.Duplicate => ShellText.ConnectionDialog_DuplicateTitle,
-        _ => ShellText.Connection_New,
+        ConnectionDialogMode.Edit => ConnectionViewText.ConnectionDialog_EditTitle,
+        ConnectionDialogMode.Duplicate => ConnectionViewText.ConnectionDialog_DuplicateTitle,
+        _ => ConnectionViewText.Connection_New,
     };
 
     /// <summary>The edited profile (edit) or the original (duplicate) has a stored password that can be reused.</summary>
     private bool HasStoredPassword { get; set; }
 
     private string PasswordPlaceholder => !HasStoredPassword ? ""
-        : Request.Mode == ConnectionDialogMode.Duplicate ? ShellText.ConnectionDialog_PasswordAsOriginal : ShellText.ConnectionDialog_PasswordUnchanged;
+        : Request.Mode == ConnectionDialogMode.Duplicate ? ConnectionViewText.ConnectionDialog_PasswordAsOriginal : ConnectionViewText.ConnectionDialog_PasswordUnchanged;
 
     private IReadOnlyDictionary<string, string> Errors => _submitted ? Validate(_validateForTest) : EarlyErrors();
 
@@ -308,7 +308,7 @@
         var errors = new Dictionary<string, string>(Form.ToProfile().Errors);
         if (Form.Password.Length == 0 && !HasStoredPassword && (forTest || Request.Mode == ConnectionDialogMode.New))
         {
-            errors[PasswordField] = ShellText.ConnectionDialog_PasswordMissing;
+            errors[PasswordField] = ConnectionViewText.ConnectionDialog_PasswordMissing;
         }
 
         // Reads the build output from disk: in the background, once per project/configuration (Validate runs on every render).
@@ -352,7 +352,7 @@
 
     private async Task PickProjectAsync()
     {
-        if (await Files.PickAsync(ShellText.ConnectionDialog_ProjectFilter, ["csproj"], Form.ClrProjectFile) is { } path)
+        if (await Files.PickAsync(ConnectionViewText.ConnectionDialog_ProjectFilter, ["csproj"], Form.ClrProjectFile) is { } path)
         {
             Form.ClrProjectFile = path;
         }
@@ -374,7 +374,7 @@
 
     private async Task PickAuditTemplateAsync()
     {
-        if (await Files.PickAsync(ShellText.Settings_AuditTemplateFilter, ["sql", "txt"], Form.AuditTemplatePath) is { } path)
+        if (await Files.PickAsync(SettingsViewText.Settings_AuditTemplateFilter, ["sql", "txt"], Form.AuditTemplatePath) is { } path)
         {
             Form.AuditTemplatePath = path;
         }

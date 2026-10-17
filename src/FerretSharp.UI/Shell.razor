@@ -148,7 +148,7 @@
                         }
                         else if (Active.Status == ConnectionStatus.Connecting && Active.Profile is { } connecting)
                         {
-                            <EmptyState Title="@TextFormat.Format(ShellText.Connection_ConnectingTo, connecting.Name)"Text="@connecting.Address.Display">
+                            <EmptyState Title="@TextFormat.Format(ConnectionViewText.Connection_ConnectingTo, connecting.Name)"Text="@connecting.Address.Display">
                                 <span class="spinner"></span>
                                 <button class="btn" @onclick="Active.CancelPendingConnect">@CommonText.Cancel</button>
                                 <ConnectProgress Active="Active" />
@@ -166,7 +166,7 @@
                                 </div>
                                 <div class="button-row">
                                     <button class="btn primary" @onclick="() => _state.Connect(failed)">@CommonText.TryAgain</button>
-                                    <button class="btn" @onclick="() => _state.EditConnection(failed)">@ShellText.Connection_Edit</button>
+                                    <button class="btn" @onclick="() => _state.EditConnection(failed)">@ConnectionViewText.Connection_Edit</button>
                                     <button class="btn ghost" @onclick="_state.ShowConnections">@ShellText.Shell_ToOverview</button>
                                 </div>
                             </EmptyState>
@@ -290,7 +290,7 @@
         KeepAlive.Start();
         if (Settings.StartupNotice is { } notice)
         {
-            _state.Notify(ShellText.Settings_NotRead, [notice]); // the settings file could not be read (R4a); a warning stays longer
+            _state.Notify(SettingsViewText.Settings_NotRead, [notice]); // the settings file could not be read (R4a); a warning stays longer
         }
 
         await Connections.LoadAsync(CancellationToken.None);

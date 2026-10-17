@@ -6,23 +6,23 @@
 @inject IFileOpenService Files
 
 <section class="settings-section">
-    <h2>@ShellText.Settings_DisplayColumns</h2>
-    <SettingsChoice Filter="Filter" Key="SettingKey.ShowDisplayNames" Label="@ShellText.Settings_ShowDisplayNames" Options="SettingsOptions.OnOff"
+    <h2>@SettingsViewText.Settings_DisplayColumns</h2>
+    <SettingsChoice Filter="Filter" Key="SettingKey.ShowDisplayNames" Label="@SettingsViewText.Settings_ShowDisplayNames" Options="SettingsOptions.OnOff"
                     Value="Settings.Current.ShowDisplayNames" OnChange="on => UpdateAsync(s => s with { ShowDisplayNames = on })">
-        <Hint><Fmt Text="@ShellText.Settings_ShowDisplayNamesHint"><Arg0><code>@SettingsCatalog.DisplayNameExample</code></Arg0></Fmt></Hint>
+        <Hint><Fmt Text="@SettingsViewText.Settings_ShowDisplayNamesHint"><Arg0><code>@SettingsCatalog.DisplayNameExample</code></Arg0></Fmt></Hint>
     </SettingsChoice>
     <div class="settings-row @Filter.HideClass(SettingKey.DisplayColumnsFile)">
         <div class="settings-label">
-            <span>@ShellText.Settings_DisplayColumnsFile</span>
-            <span class="hint">@ShellText.Settings_DisplayColumnsFileHint</span>
+            <span>@SettingsViewText.Settings_DisplayColumnsFile</span>
+            <span class="hint">@SettingsViewText.Settings_DisplayColumnsFileHint</span>
         </div>
         <div class="settings-path">
-            <input class="field mono" spellcheck="false" placeholder="@ShellText.Settings_DisplayColumnsDefault" value="@_displayPath"
-                   @onchange="e => SetDisplayColumnsPathAsync((string?)e.Value)" aria-label="@ShellText.Settings_DisplayColumnsFile" />
+            <input class="field mono" spellcheck="false" placeholder="@SettingsViewText.Settings_DisplayColumnsDefault" value="@_displayPath"
+                   @onchange="e => SetDisplayColumnsPathAsync((string?)e.Value)" aria-label="@SettingsViewText.Settings_DisplayColumnsFile" />
             <button class="btn" @onclick="PickDisplayColumnsAsync">@CommonText.Choose</button>
             @if (!string.IsNullOrWhiteSpace(_displayPath))
             {
-                <button class="btn ghost" title="@ShellText.Settings_DisplayColumnsResetTitle" @onclick="() => SetDisplayColumnsPathAsync(null)">@ShellText.Settings_DisplayColumnsReset</button>
+                <button class="btn ghost" title="@SettingsViewText.Settings_DisplayColumnsResetTitle" @onclick="() => SetDisplayColumnsPathAsync(null)">@SettingsViewText.Settings_DisplayColumnsReset</button>
             }
         </div>
     </div>
@@ -35,8 +35,8 @@
     {
         <div class="settings-note @Filter.HideClass(SettingKey.DisplayColumnsFile)">
             @(display.Exists
-                ? TextFormat.Plural(display.Columns.Count, ShellText.Settings_DisplayColumnsCountOne, ShellText.Settings_DisplayColumnsCountOther, display.Path)
-                : TextFormat.Format(ShellText.Settings_DisplayColumnsNoFile, display.Path))
+                ? TextFormat.Plural(display.Columns.Count, SettingsViewText.Settings_DisplayColumnsCountOne, SettingsViewText.Settings_DisplayColumnsCountOther, display.Path)
+                : TextFormat.Format(SettingsViewText.Settings_DisplayColumnsNoFile, display.Path))
         </div>
     }
 </section>
@@ -61,7 +61,7 @@
 
     private async Task PickDisplayColumnsAsync()
     {
-        if (await Files.PickAsync(ShellText.Settings_DisplayColumnsFilter, ["json"], _displayPath) is { } path)
+        if (await Files.PickAsync(SettingsViewText.Settings_DisplayColumnsFilter, ["json"], _displayPath) is { } path)
         {
             await SetDisplayColumnsPathAsync(path);
         }

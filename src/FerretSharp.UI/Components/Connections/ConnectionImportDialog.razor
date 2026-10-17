@@ -7,32 +7,32 @@
 @inject IFileOpenService Files
 @inject ILogger<ConnectionImportDialog> Logger
 
-<ModalFrame Label="@ShellText.Import_Title" Class="import-dialog" OnCancel="Shell.CloseImport">
-    <header><span>@ShellText.Import_Title</span></header>
+<ModalFrame Label="@ConnectionViewText.Import_Title" Class="import-dialog" OnCancel="Shell.CloseImport">
+    <header><span>@ConnectionViewText.Import_Title</span></header>
     <div class="dialog-body">
-        <div class="import-sources" role="group" aria-label="@ShellText.Import_Source">
+        <div class="import-sources" role="group" aria-label="@ConnectionViewText.Import_Source">
             @foreach (var installation in _installations)
             {
                 var found = installation;
                 <button class="import-source @(_chosen == found ? "active" : "")" disabled="@_busy" @onclick="() => ReadInstallationAsync(found)"
                         title="@found.Folder">
                     <span class="import-source-name">@SourceName(found.Source)</span>
-                    <span class="import-source-detail">@TextFormat.Format(ShellText.Import_Found, found.Detail)</span>
+                    <span class="import-source-detail">@TextFormat.Format(ConnectionViewText.Import_Found, found.Detail)</span>
                 </button>
             }
             <button class="import-source @(_chosen is null && _plan is not null ? "active" : "")" disabled="@_busy" @onclick="ChooseFileAsync">
-                <span class="import-source-name">@ShellText.Import_ChooseFile</span>
+                <span class="import-source-name">@ConnectionViewText.Import_ChooseFile</span>
                 <span class="import-source-detail">.json, .dbp</span>
             </button>
         </div>
         @if (_installations.Count == 0)
         {
-            <div class="hint small">@ShellText.Import_NothingFound</div>
+            <div class="hint small">@ConnectionViewText.Import_NothingFound</div>
         }
 
         @if (_busy)
         {
-            <div class="import-state"><span class="spinner small"></span> @ShellText.Import_Reading</div>
+            <div class="import-state"><span class="spinner small"></span> @ConnectionViewText.Import_Reading</div>
         }
         else if (_error is not null)
         {
@@ -41,10 +41,10 @@
         else if (_plan is { } plan)
         {
             <div class="import-state">
-                @TextFormat.Plural(plan.Rows.Count, ShellText.Import_FoundOne, ShellText.Import_FoundOther, SourceName(plan.File.Source))
+                @TextFormat.Plural(plan.Rows.Count, ConnectionViewText.Import_FoundOne, ConnectionViewText.Import_FoundOther, SourceName(plan.File.Source))
                 @if (plan.File.OtherDatabases > 0)
                 {
-                    <span class="hint"> @TextFormat.Plural(plan.File.OtherDatabases, ShellText.Import_OtherDatabasesOne, ShellText.Import_OtherDatabasesOther)</span>
+                    <span class="hint"> @TextFormat.Plural(plan.File.OtherDatabases, ConnectionViewText.Import_OtherDatabasesOne, ConnectionViewText.Import_OtherDatabasesOther)</span>
                 }
             </div>
             @if (plan.Rows.Count > 0)
@@ -54,12 +54,12 @@
                         <thead>
                             <tr>
                                 <th class="sel"><input type="checkbox" checked="@AllSelected(plan)" @onchange="e => plan.SelectAll(e.Value is true)"
-                                                       aria-label="@ShellText.Export_All" /></th>
-                                <th>@ShellText.Import_ColName</th>
-                                <th class="kind">@ShellText.Import_ColKind</th>
-                                <th>@ShellText.Import_ColAddress</th>
-                                <th class="user">@ShellText.ConnectionDialog_User</th>
-                                <th class="status">@ShellText.Import_ColStatus</th>
+                                                       aria-label="@ConnectionViewText.Export_All" /></th>
+                                <th>@ConnectionViewText.Import_ColName</th>
+                                <th class="kind">@ConnectionViewText.Import_ColKind</th>
+                                <th>@ConnectionViewText.Import_ColAddress</th>
+                                <th class="user">@ConnectionViewText.ConnectionDialog_User</th>
+                                <th class="status">@ConnectionViewText.Import_ColStatus</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -81,10 +81,10 @@
                                         {
                                             @* A guess is an option of its own (value ""), so picking the guessed kind is a change too and confirms it. *@
                                             <select class="field" @key="(r, r.KindGuessed)" value="@(r.KindGuessed ? "" : r.Kind.ToString())" @onchange="e => SetKind(r, e.Value)"
-                                                    title="@(r.KindGuessed ? ShellText.Import_KindGuessedTitle : null)">
+                                                    title="@(r.KindGuessed ? ConnectionViewText.Import_KindGuessedTitle : null)">
                                                 @if (r.KindGuessed)
                                                 {
-                                                    <option value="">@ConnectionKindInfo.Label(r.Kind) (@ShellText.Import_KindGuessed)</option>
+                                                    <option value="">@ConnectionKindInfo.Label(r.Kind) (@ConnectionViewText.Import_KindGuessed)</option>
                                                 }
                                                 @foreach (var kind in ConnectionKindInfo.All)
                                                 {
@@ -93,7 +93,7 @@
                                             </select>
                                             @if (r.Overwrites is { } overwritten && overwritten.Kind != r.Kind)
                                             {
-                                                <div class="import-sub">@TextFormat.Format(ShellText.Import_KindWas, ConnectionKindInfo.Label(overwritten.Kind))</div>
+                                                <div class="import-sub">@TextFormat.Format(ConnectionViewText.Import_KindWas, ConnectionKindInfo.Label(overwritten.Kind))</div>
                                             }
                                         }
                                     </td>
@@ -111,7 +111,7 @@
                                         @if (r.CanImport && (string.IsNullOrEmpty(r.Candidate.Profile?.User) || r.UserMissing))
                                         {
                                             <input class="field @(r.UserMissing && r.Selected && _submitted ? "invalid" : "")" value="@r.User"
-                                                   placeholder="@ShellText.ConnectionDialog_User" spellcheck="false" autocomplete="off"
+                                                   placeholder="@ConnectionViewText.ConnectionDialog_User" spellcheck="false" autocomplete="off"
                                                    @onchange="e => SetUser(r, e.Value as string)" />
                                         }
                                         else
@@ -129,29 +129,29 @@
                                             @if (r.Selected)
                                             {
                                                 <select class="field" @key="(r, existing)" value="@r.Action" @onchange="e => SetAction(r, e.Value)"
-                                                        title="@TextFormat.Format(ShellText.Import_ExistsTitle, existing.Name)">
-                                                    <option value="@DuplicateAction.Overwrite">@ShellText.Import_Overwrite</option>
-                                                    <option value="@DuplicateAction.Copy">@ShellText.Import_Copy</option>
+                                                        title="@TextFormat.Format(ConnectionViewText.Import_ExistsTitle, existing.Name)">
+                                                    <option value="@DuplicateAction.Overwrite">@ConnectionViewText.Import_Overwrite</option>
+                                                    <option value="@DuplicateAction.Copy">@ConnectionViewText.Import_Copy</option>
                                                 </select>
                                             }
                                             else
                                             {
-                                                <span class="import-tag exists" title="@TextFormat.Format(ShellText.Import_ExistsTitle, existing.Name)">@ShellText.Import_Exists</span>
+                                                <span class="import-tag exists" title="@TextFormat.Format(ConnectionViewText.Import_ExistsTitle, existing.Name)">@ConnectionViewText.Import_Exists</span>
                                             }
                                         }
                                         else if (r.SameAsEarlier is { } twin)
                                         {
-                                            <span class="import-tag exists" title="@TextFormat.Format(ShellText.Import_RepeatedTitle, twin.Candidate.Name)">@ShellText.Import_Repeated</span>
+                                            <span class="import-tag exists" title="@TextFormat.Format(ConnectionViewText.Import_RepeatedTitle, twin.Candidate.Name)">@ConnectionViewText.Import_Repeated</span>
                                         }
                                         else
                                         {
-                                            <span class="import-tag new">@ShellText.Import_New</span>
+                                            <span class="import-tag new">@ConnectionViewText.Import_New</span>
                                         }
                                         @if (r.CanImport && r.ReadOnly)
                                         {
                                             var lockTitle = r.Overwrites is { } kept && (kept.ReadOnly || kept.Kind == ConnectionKind.Prod) && !r.KindGuessed && r.Kind != ConnectionKind.Prod
-                                                ? ShellText.Import_KeepsReadOnlyTitle
-                                                : ShellText.Import_ReadOnlyTitle;
+                                                ? ConnectionViewText.Import_KeepsReadOnlyTitle
+                                                : ConnectionViewText.Import_ReadOnlyTitle;
                                             <span class="import-lock" title="@lockTitle" aria-label="@lockTitle">🔒</span>
                                         }
                                     </td>
@@ -162,18 +162,18 @@
                 </div>
                 <div class="import-options">
                     <label>
-                        <span>@ShellText.Import_DefaultGroup</span>
+                        <span>@ConnectionViewText.Import_DefaultGroup</span>
                         <input class="field" @bind="plan.DefaultGroup" spellcheck="false" autocomplete="off" />
                     </label>
-                    <span class="hint">@ShellText.Import_NoPasswords</span>
+                    <span class="hint">@ConnectionViewText.Import_NoPasswords</span>
                 </div>
                 @if (plan.HasLocalPaths)
                 {
                     <label class="check import-paths-option">
                         <input type="checkbox" @bind="plan.TakeLocalPaths" />
-                        @ShellText.Import_TakeLocalPaths
+                        @ConnectionViewText.Import_TakeLocalPaths
                     </label>
-                    <div class="hint small">@ShellText.Import_TakeLocalPathsHint</div>
+                    <div class="hint small">@ConnectionViewText.Import_TakeLocalPathsHint</div>
                 }
             }
         }
@@ -193,7 +193,7 @@
         {
             var count = p.SelectedRows.Count();
             <button class="btn primary" disabled="@(_busy || count == 0)" @onclick="ImportAsync">
-                @TextFormat.Plural(count, ShellText.Import_ImportOne, ShellText.Import_ImportOther)
+                @TextFormat.Plural(count, ConnectionViewText.Import_ImportOne, ConnectionViewText.Import_ImportOther)
             </button>
         }
     </footer>
@@ -229,7 +229,7 @@
 
     private async Task ChooseFileAsync()
     {
-        if (await Files.PickAsync(ShellText.Import_FileFilter, ConnectionImportReader.Extensions) is not { } path)
+        if (await Files.PickAsync(ConnectionViewText.Import_FileFilter, ConnectionImportReader.Extensions) is not { } path)
         {
             return;
         }
@@ -300,7 +300,7 @@
         {
             var count = await Transfer.ImportAsync(plan, _cts.Token);
             Shell.CloseImport();
-            Shell.Notify(TextFormat.Plural(count, ShellText.Import_DoneOne, ShellText.Import_DoneOther));
+            Shell.Notify(TextFormat.Plural(count, ConnectionViewText.Import_DoneOne, ConnectionViewText.Import_DoneOther));
         }
         catch (Exception ex) when (ex is IOException or ArgumentException or UnauthorizedAccessException)
         {

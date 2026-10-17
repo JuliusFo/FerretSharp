@@ -104,7 +104,7 @@ public sealed partial class WorkspaceLifecycle
             return DeleteCoreAsync(profile);
         }
 
-        return GuardAsync(ShellText.Connection_Delete, WorkspacesOf(scope), async () =>
+        return GuardAsync(ConnectionViewText.Connection_Delete, WorkspacesOf(scope), async () =>
         {
             await DisconnectCoreAsync(scope);
             await DeleteCoreAsync(profile);

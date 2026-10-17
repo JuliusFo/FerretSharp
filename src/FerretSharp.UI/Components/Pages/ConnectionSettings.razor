@@ -4,46 +4,46 @@
 @inject IProtocolRegistration Protocol
 
 <section class="settings-section">
-    <h2>@ShellText.Settings_Connection</h2>
-    <SettingsChoice Filter="Filter" Key="SettingKey.KeepAlive" Label="@ShellText.Settings_KeepAlive" Options="SettingsOptions.OnOff"
+    <h2>@SettingsViewText.Settings_Connection</h2>
+    <SettingsChoice Filter="Filter" Key="SettingKey.KeepAlive" Label="@SettingsViewText.Settings_KeepAlive" Options="SettingsOptions.OnOff"
                     Value="Settings.Current.KeepAlive" OnChange="on => UpdateAsync(s => s with { KeepAlive = on })">
         <Hint>
-            <Fmt Text="@ShellText.Settings_KeepAliveHint">
+            <Fmt Text="@SettingsViewText.Settings_KeepAliveHint">
                 <Arg0><code>@SettingsCatalog.KeepAliveQuery</code></Arg0>
                 <Arg1><code>@SettingsCatalog.KeepAliveProfileLimit</code></Arg1>
             </Fmt>
         </Hint>
     </SettingsChoice>
-    <SettingsChoice Filter="Filter" Key="SettingKey.LockWait" Label="@ShellText.Settings_LockWait" Options="SettingsOptions.LockWaits"
+    <SettingsChoice Filter="Filter" Key="SettingKey.LockWait" Label="@SettingsViewText.Settings_LockWait" Options="SettingsOptions.LockWaits"
                     Value="Settings.Current.LockWaitSeconds" OnChange="seconds => UpdateAsync(s => s with { LockWaitSeconds = seconds })">
-        <Hint><Fmt Text="@ShellText.Settings_LockWaitHint"><Arg0><code>@SettingsCatalog.LockWaitClause</code></Arg0></Fmt></Hint>
+        <Hint><Fmt Text="@SettingsViewText.Settings_LockWaitHint"><Arg0><code>@SettingsCatalog.LockWaitClause</code></Arg0></Fmt></Hint>
     </SettingsChoice>
-    <SettingsChoice Filter="Filter" Key="SettingKey.FkCounts" Label="@ShellText.Settings_FkCounts" Options="SettingsOptions.FkCounts"
+    <SettingsChoice Filter="Filter" Key="SettingKey.FkCounts" Label="@SettingsViewText.Settings_FkCounts" Options="SettingsOptions.FkCounts"
                     Value="Settings.Current.FkCounts" OnChange="mode => UpdateAsync(s => s with { FkCounts = mode })">
-        <Hint>@ShellText.Settings_FkCountsHint</Hint>
+        <Hint>@SettingsViewText.Settings_FkCountsHint</Hint>
     </SettingsChoice>
     @* WP-37: which FerretSharp opens ferretsharp:// links – the installer registers itself; a portable copy or a build here. *@
     @{ var registered = Protocol.RegisteredProgram; var mine = IsOwnProgram(registered); }
     <div class="settings-row @Filter.HideClass(SettingKey.LinkProtocol)">
         <div class="settings-label">
-            <span>@ShellText.Settings_LinkProtocol</span>
-            <span class="hint">@ShellText.Settings_LinkProtocolHint</span>
+            <span>@SettingsViewText.Settings_LinkProtocol</span>
+            <span class="hint">@SettingsViewText.Settings_LinkProtocolHint</span>
         </div>
         <div class="settings-path">
             @if (mine)
             {
-                <button class="btn ghost" @onclick="() => ChangeLinks(Protocol.Unregister)">@ShellText.Settings_LinkProtocolRemove</button>
+                <button class="btn ghost" @onclick="() => ChangeLinks(Protocol.Unregister)">@SettingsViewText.Settings_LinkProtocolRemove</button>
             }
             else
             {
-                <button class="btn" @onclick="() => ChangeLinks(Protocol.Register)">@(registered is null ? ShellText.Settings_LinkProtocolRegister : ShellText.Settings_LinkProtocolTakeOver)</button>
+                <button class="btn" @onclick="() => ChangeLinks(Protocol.Register)">@(registered is null ? SettingsViewText.Settings_LinkProtocolRegister : SettingsViewText.Settings_LinkProtocolTakeOver)</button>
             }
         </div>
     </div>
     <div class="settings-note @(_protocolError is null ? "" : "error") @Filter.HideClass(SettingKey.LinkProtocol)">
-        @(_protocolError ?? (mine ? ShellText.Settings_LinkProtocolMine
-            : registered is null ? ShellText.Settings_LinkProtocolNone
-            : TextFormat.Format(ShellText.Settings_LinkProtocolOther, registered)))
+        @(_protocolError ?? (mine ? SettingsViewText.Settings_LinkProtocolMine
+            : registered is null ? SettingsViewText.Settings_LinkProtocolNone
+            : TextFormat.Format(SettingsViewText.Settings_LinkProtocolOther, registered)))
     </div>
 </section>
 
@@ -69,7 +69,7 @@
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or System.Security.SecurityException)
         {
-            _protocolError = TextFormat.Format(ShellText.Settings_LinkProtocolFailed, ex.Message);
+            _protocolError = TextFormat.Format(SettingsViewText.Settings_LinkProtocolFailed, ex.Message);
         }
     }
 

@@ -4,31 +4,31 @@
 @inject AppSettingsService Settings
 
 <section class="settings-section">
-    <h2>@ShellText.Settings_Appearance</h2>
-    <SettingsChoice Filter="Filter" Key="SettingKey.Language" Label="@ShellText.Settings_Language" Options="SettingsOptions.Languages"
+    <h2>@SettingsViewText.Settings_Appearance</h2>
+    <SettingsChoice Filter="Filter" Key="SettingKey.Language" Label="@SettingsViewText.Settings_Language" Options="SettingsOptions.Languages"
                     Value="Settings.Current.Language" OnChange="SetLanguageAsync" LangOf="l => UiLanguages.Culture(l).Name">
-        <Hint>@ShellText.Settings_LanguageHint</Hint>
+        <Hint>@SettingsViewText.Settings_LanguageHint</Hint>
     </SettingsChoice>
     @if (Settings.Current.Language != UiLanguages.Of(CultureInfo.CurrentUICulture))
     {
-        <div class="settings-note @Filter.HideClass(SettingKey.Language)">@ShellText.Settings_LanguageAfterRestart</div>
+        <div class="settings-note @Filter.HideClass(SettingKey.Language)">@SettingsViewText.Settings_LanguageAfterRestart</div>
     }
-    <SettingsChoice Filter="Filter" Key="SettingKey.ColorScheme" Label="@ShellText.Settings_ColorScheme" Options="SettingsOptions.Themes"
+    <SettingsChoice Filter="Filter" Key="SettingKey.ColorScheme" Label="@SettingsViewText.Settings_ColorScheme" Options="SettingsOptions.Themes"
                     Value="Theme.Mode" OnChange="SetThemeAsync">
-        <Hint>@ShellText.Settings_ColorSchemeHint</Hint>
+        <Hint>@SettingsViewText.Settings_ColorSchemeHint</Hint>
     </SettingsChoice>
     @if (Theme.SessionOverride is { } forced)
     {
         <div class="settings-note @Filter.HideClass(SettingKey.ColorScheme)">
-            <Fmt Text="@ShellText.Settings_ThemeForced">
+            <Fmt Text="@SettingsViewText.Settings_ThemeForced">
                 <Arg0><code>--theme=@forced</code></Arg0>
-                <Arg1>@(forced == "dark" ? ShellText.Settings_ThemeForcedDark : ShellText.Settings_ThemeForcedLight)</Arg1>
+                <Arg1>@(forced == "dark" ? SettingsViewText.Settings_ThemeForcedDark : SettingsViewText.Settings_ThemeForcedLight)</Arg1>
             </Fmt>
         </div>
     }
-    <SettingsChoice Filter="Filter" Key="SettingKey.ConnectionGroup" Label="@ShellText.Settings_ConnectionGroup" Options="SettingsOptions.OnOff"
+    <SettingsChoice Filter="Filter" Key="SettingKey.ConnectionGroup" Label="@SettingsViewText.Settings_ConnectionGroup" Options="SettingsOptions.OnOff"
                     Value="Settings.Current.ShowConnectionGroup" OnChange="on => UpdateAsync(s => s with { ShowConnectionGroup = on })">
-        <Hint><Fmt Text="@ShellText.Settings_ConnectionGroupHint"><Arg0><code>@SettingsCatalog.ConnectionGroupExample</code></Arg0></Fmt></Hint>
+        <Hint><Fmt Text="@SettingsViewText.Settings_ConnectionGroupHint"><Arg0><code>@SettingsCatalog.ConnectionGroupExample</code></Arg0></Fmt></Hint>
     </SettingsChoice>
 </section>
 

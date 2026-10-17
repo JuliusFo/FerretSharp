@@ -9,10 +9,10 @@ public static class ConnectionKindInfo
 
     public static string Label(ConnectionKind kind) => kind switch
     {
-        ConnectionKind.Dev => ShellText.ConnectionKind_Dev,
-        ConnectionKind.Test => ShellText.ConnectionKind_Test,
-        ConnectionKind.Prod => ShellText.ConnectionKind_Prod,
-        _ => ShellText.ConnectionKind_Other,
+        ConnectionKind.Dev => ConnectionViewText.ConnectionKind_Dev,
+        ConnectionKind.Test => ConnectionViewText.ConnectionKind_Test,
+        ConnectionKind.Prod => ConnectionViewText.ConnectionKind_Prod,
+        _ => ConnectionViewText.ConnectionKind_Other,
     };
 
     public static string Short(ConnectionKind kind) => kind switch

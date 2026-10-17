@@ -9,19 +9,19 @@
 @inject IJSRuntime JS
 
 <section class="settings-section">
-    <h2>@ShellText.Settings_Audit</h2>
+    <h2>@SettingsViewText.Settings_Audit</h2>
     <div class="settings-row @Filter.HideClass(SettingKey.AuditTemplate)">
         <div class="settings-label">
-            <span>@ShellText.Settings_AuditTemplate</span>
-            <span class="hint">@ShellText.Settings_AuditTemplateHint</span>
+            <span>@SettingsViewText.Settings_AuditTemplate</span>
+            <span class="hint">@SettingsViewText.Settings_AuditTemplateHint</span>
         </div>
         <div class="settings-path">
             <input class="field mono" spellcheck="false" placeholder="@ShellText.AuditTemplate_BuiltIn" value="@_auditPath"
-                   @onchange="e => SetAuditTemplateAsync((string?)e.Value)" aria-label="@ShellText.Settings_AuditTemplate" />
+                   @onchange="e => SetAuditTemplateAsync((string?)e.Value)" aria-label="@SettingsViewText.Settings_AuditTemplate" />
             <button class="btn" @onclick="PickAuditTemplateAsync">@CommonText.Choose</button>
             @if (!string.IsNullOrWhiteSpace(_auditPath))
             {
-                <button class="btn ghost" title="@ShellText.Settings_AuditTemplateResetTitle" @onclick="() => SetAuditTemplateAsync(null)">@ShellText.Settings_AuditTemplateReset</button>
+                <button class="btn ghost" title="@SettingsViewText.Settings_AuditTemplateResetTitle" @onclick="() => SetAuditTemplateAsync(null)">@SettingsViewText.Settings_AuditTemplateReset</button>
             }
         </div>
     </div>
@@ -30,21 +30,21 @@
     @if (audit.IsDefault)
     {
         <div class="settings-note @Filter.HideClass(SettingKey.AuditTemplate)">
-            <button class="link-btn" title="@ShellText.Settings_AuditTemplateCopyTitle" @onclick="CopyDefaultTemplateAsync">@ShellText.Settings_AuditTemplateCopy</button>
+            <button class="link-btn" title="@SettingsViewText.Settings_AuditTemplateCopyTitle" @onclick="CopyDefaultTemplateAsync">@SettingsViewText.Settings_AuditTemplateCopy</button>
         </div>
     }
 
     @* WP-51: each group of systems its own template; a group without one takes the template above. *@
     <div class="settings-row @Filter.HideClass(SettingKey.AuditTemplateGroups)">
         <div class="settings-label">
-            <span>@ShellText.Settings_AuditTemplateGroups</span>
-            <span class="hint">@ShellText.Settings_AuditTemplateGroupsHint</span>
+            <span>@SettingsViewText.Settings_AuditTemplateGroups</span>
+            <span class="hint">@SettingsViewText.Settings_AuditTemplateGroupsHint</span>
         </div>
     </div>
     @{ var groups = AuditGroupTemplates.Of(Connections.Profiles, Settings.Current.AuditTemplateGroups); }
     @if (groups.Count == 0)
     {
-        <div class="settings-note @Filter.HideClass(SettingKey.AuditTemplateGroups)">@ShellText.Settings_AuditTemplateNoGroups</div>
+        <div class="settings-note @Filter.HideClass(SettingKey.AuditTemplateGroups)">@SettingsViewText.Settings_AuditTemplateNoGroups</div>
     }
     @foreach (var row in groups)
     {
@@ -54,17 +54,17 @@
                 <span>@group</span>
                 @if (row.Orphaned)
                 {
-                    <span class="hint">@ShellText.Settings_AuditTemplateGroupOrphaned</span>
+                    <span class="hint">@SettingsViewText.Settings_AuditTemplateGroupOrphaned</span>
                 }
             </div>
             <div class="settings-path">
-                <input class="field mono" spellcheck="false" placeholder="@ShellText.Settings_AuditTemplateAsGlobal" value="@row.Path"
-                       @onchange="e => SetGroupTemplateAsync(group, (string?)e.Value)" aria-label="@TextFormat.Format(ShellText.Settings_AuditTemplateOfGroup, group)" />
+                <input class="field mono" spellcheck="false" placeholder="@SettingsViewText.Settings_AuditTemplateAsGlobal" value="@row.Path"
+                       @onchange="e => SetGroupTemplateAsync(group, (string?)e.Value)" aria-label="@TextFormat.Format(SettingsViewText.Settings_AuditTemplateOfGroup, group)" />
                 <button class="btn" @onclick="() => PickGroupTemplateAsync(group, row.Path)">@CommonText.Choose</button>
                 @if (row.Path is not null)
                 {
-                    <button class="btn ghost" title="@ShellText.Settings_AuditTemplateAsGlobalTitle" @onclick="() => SetGroupTemplateAsync(group, null)">
-                        @(row.Orphaned ? ShellText.Settings_AuditTemplateRemove : ShellText.Settings_AuditTemplateUseGlobal)
+                    <button class="btn ghost" title="@SettingsViewText.Settings_AuditTemplateAsGlobalTitle" @onclick="() => SetGroupTemplateAsync(group, null)">
+                        @(row.Orphaned ? SettingsViewText.Settings_AuditTemplateRemove : SettingsViewText.Settings_AuditTemplateUseGlobal)
                     </button>
                 }
             </div>
@@ -78,14 +78,14 @@
     @* WP-51: a connection's own template is set in the connection dialog; listed here so it is not forgotten. *@
     <div class="settings-row @Filter.HideClass(SettingKey.AuditTemplateConnections)">
         <div class="settings-label">
-            <span>@ShellText.Settings_AuditTemplateConnections</span>
-            <span class="hint">@ShellText.Settings_AuditTemplateConnectionsHint</span>
+            <span>@SettingsViewText.Settings_AuditTemplateConnections</span>
+            <span class="hint">@SettingsViewText.Settings_AuditTemplateConnectionsHint</span>
         </div>
     </div>
     @{ var ownTemplates = Connections.Profiles.Where(p => !string.IsNullOrWhiteSpace(p.AuditTemplatePath)).ToList(); }
     @if (ownTemplates.Count == 0)
     {
-        <div class="settings-note @Filter.HideClass(SettingKey.AuditTemplateConnections)">@ShellText.Settings_AuditTemplateNoConnections</div>
+        <div class="settings-note @Filter.HideClass(SettingKey.AuditTemplateConnections)">@SettingsViewText.Settings_AuditTemplateNoConnections</div>
     }
     @foreach (var profile in ownTemplates.OrderBy(p => ConnectionLabel.Of(p, Settings.Current), StringComparer.CurrentCultureIgnoreCase))
     {
@@ -94,7 +94,7 @@
             <div class="settings-label"><span>@ConnectionLabel.Of(profile, Settings.Current)</span></div>
             <div class="settings-path">
                 <span class="mono grow" title="@profile.AuditTemplatePath">@profile.AuditTemplatePath</span>
-                <button class="btn" @onclick="() => Shell.EditConnection(edited)">@ShellText.Settings_AuditTemplateEditConnection</button>
+                <button class="btn" @onclick="() => Shell.EditConnection(edited)">@SettingsViewText.Settings_AuditTemplateEditConnection</button>
             </div>
         </div>
         <AuditTemplateCheck Load="AuditTemplates.Load(profile.AuditTemplatePath)" Filter="Filter" Key="SettingKey.AuditTemplateConnections" />
@@ -123,7 +123,7 @@
 
     private async Task PickAuditTemplateAsync()
     {
-        if (await Files.PickAsync(ShellText.Settings_AuditTemplateFilter, ["sql", "txt"], _auditPath) is { } path)
+        if (await Files.PickAsync(SettingsViewText.Settings_AuditTemplateFilter, ["sql", "txt"], _auditPath) is { } path)
         {
             await SetAuditTemplateAsync(path);
         }
@@ -135,7 +135,7 @@
 
     private async Task PickGroupTemplateAsync(string group, string? current)
     {
-        if (await Files.PickAsync(ShellText.Settings_AuditTemplateFilter, ["sql", "txt"], current ?? _auditPath) is { } path)
+        if (await Files.PickAsync(SettingsViewText.Settings_AuditTemplateFilter, ["sql", "txt"], current ?? _auditPath) is { } path)
         {
             await SetGroupTemplateAsync(group, path);
         }
@@ -146,7 +146,7 @@
     {
         if (await (_dom ??= new(JS)).CopyTextAsync(Shell, FerretSharp.Core.Audit.AuditTemplates.DefaultText))
         {
-            Shell.Notify(ShellText.Settings_AuditTemplateCopied);
+            Shell.Notify(SettingsViewText.Settings_AuditTemplateCopied);
         }
     }
 

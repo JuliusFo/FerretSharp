@@ -8,14 +8,14 @@
 @if (!Filter.IsActive)
 {
     <div class="settings-note shortcut-intro">
-        @ShellText.Shortcuts_Intro
+        @SettingsViewText.Shortcuts_Intro
     </div>
 }
 
 @foreach (var group in Groups.Where(Filter.ShowsGroup))
 {
     <section class="settings-section">
-        <h2>@(Filter.IsActive ? TextFormat.Format(ShellText.Settings_ShortcutGroupInSearch, group) : group)</h2>
+        <h2>@(Filter.IsActive ? TextFormat.Format(SettingsViewText.Settings_ShortcutGroupInSearch, group) : group)</h2>
         @foreach (var definition in ShortcutMap.Definitions.Where(d => d.Group == group && Filter.Shows(SettingsCatalog.IdOf(d.Action))))
         {
             var action = definition.Action;
@@ -31,7 +31,7 @@
                 <div class="shortcut-keys">
                     @if (_recording == action)
                     {
-                        <span class="shortcut-recording">@ShellText.Shortcuts_PressKeys</span>
+                        <span class="shortcut-recording">@SettingsViewText.Shortcuts_PressKeys</span>
                         <button class="btn ghost" @onclick="CancelRecordAsync">@CommonText.Cancel</button>
                     }
                     else
@@ -42,17 +42,17 @@
                         }
                         else
                         {
-                            <span class="shortcut-none">@ShellText.Shortcuts_None</span>
+                            <span class="shortcut-none">@SettingsViewText.Shortcuts_None</span>
                         }
 
                         @if (!Map.IsDefault(action))
                         {
-                            <span class="shortcut-changed">@ShellText.Shortcuts_Changed</span>
+                            <span class="shortcut-changed">@SettingsViewText.Shortcuts_Changed</span>
                         }
 
-                        <button class="btn ghost" disabled="@(_recording is not null)" @onclick="() => RecordAsync(action)">@ShellText.Shortcuts_Change</button>
+                        <button class="btn ghost" disabled="@(_recording is not null)" @onclick="() => RecordAsync(action)">@SettingsViewText.Shortcuts_Change</button>
                         <button class="btn ghost" disabled="@(_recording is not null || Map.IsDefault(action))"
-                                title="@TextFormat.Format(ShellText.Shortcuts_DefaultTitle, definition.DefaultChord?.Label ?? ShellText.Shortcuts_None)" @onclick="() => ResetAsync(action)">@CommonText.Reset</button>
+                                title="@TextFormat.Format(SettingsViewText.Shortcuts_DefaultTitle, definition.DefaultChord?.Label ?? SettingsViewText.Shortcuts_None)" @onclick="() => ResetAsync(action)">@CommonText.Reset</button>
                     }
                 </div>
             </div>
@@ -61,7 +61,7 @@
                 <div class="settings-note shortcut-message @(proposal.Check.Error is null ? "warn" : "error")" role="alert">
                     @if (proposal.Check.Error is { } error)
                     {
-                        <span>@TextFormat.Format(ShellText.Shortcuts_NotPossible, proposal.Chord.Label, error)</span>
+                        <span>@TextFormat.Format(SettingsViewText.Shortcuts_NotPossible, proposal.Chord.Label, error)</span>
                         <button class="btn ghost" @onclick="Dismiss">@CommonText.Ok</button>
                     }
                     else
@@ -69,7 +69,7 @@
                         <span>
                             @if (proposal.Check.Conflict is { } other)
                             {
-                                <span>@(TextFormat.Format(ShellText.Shortcuts_Conflict, proposal.Chord.Label, ShortcutMap.Definition(other).Label) + " ")</span>
+                                <span>@(TextFormat.Format(SettingsViewText.Shortcuts_Conflict, proposal.Chord.Label, ShortcutMap.Definition(other).Label) + " ")</span>
                             }
                             @proposal.Check.Warning
                         </span>
@@ -81,7 +81,7 @@
         }
         @foreach (var fixedKey in ShortcutMap.Fixed.Where(f => f.Group == group && Filter.Shows(SettingsCatalog.IdOf(f))))
         {
-            <div class="settings-row shortcut-row fixed" title="@ShellText.Shortcuts_FixedTitle">
+            <div class="settings-row shortcut-row fixed" title="@SettingsViewText.Shortcuts_FixedTitle">
                 <div class="settings-label">
                     <span>@fixedKey.Label</span>
                     @if (fixedKey.Hint is not null)
@@ -91,7 +91,7 @@
                 </div>
                 <div class="shortcut-keys">
                     <kbd>@fixedKey.Keys</kbd>
-                    <span class="shortcut-fixed">@ShellText.Shortcuts_Fixed</span>
+                    <span class="shortcut-fixed">@SettingsViewText.Shortcuts_Fixed</span>
                 </div>
             </div>
         }
@@ -103,13 +103,13 @@
 <div class="shortcut-reset-all">
     @if (_confirmResetAll)
     {
-        <span>@ShellText.Shortcuts_ResetAllQuestion</span>
+        <span>@SettingsViewText.Shortcuts_ResetAllQuestion</span>
         <button class="btn danger-solid" @onclick="ResetAllAsync">@CommonText.Reset</button>
         <button class="btn ghost" @onclick="() => _confirmResetAll = false">@CommonText.Cancel</button>
     }
     else
     {
-        <button class="btn" disabled="@(!Map.HasChanges || _recording is not null)" @onclick="() => _confirmResetAll = true">@ShellText.Shortcuts_ResetAll</button>
+        <button class="btn" disabled="@(!Map.HasChanges || _recording is not null)" @onclick="() => _confirmResetAll = true">@SettingsViewText.Shortcuts_ResetAll</button>
     }
 </div>
 }

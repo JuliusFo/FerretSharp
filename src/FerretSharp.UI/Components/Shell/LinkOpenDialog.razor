@@ -52,7 +52,7 @@
                     @if (Choice.Choosing)
                     {
                         <div class="muted">@ShellText.Link_ChooseConnection</div>
-                        <SearchBox @ref="_search" Placeholder="@ShellText.Switcher_Search" @bind-Value="Choice.Query" />
+                        <SearchBox @ref="_search" Placeholder="@ConnectionViewText.Switcher_Search" @bind-Value="Choice.Query" />
                         <div class="link-choices">
                             @if (Choice.Suggested is { Count: > 0 } suggested)
                             {
@@ -64,7 +64,7 @@
                             }
                             @foreach (var group in Choice.Others)
                             {
-                                <div class="group-head-btn static">@(group.Name ?? ShellText.Connection_NoGroup)</div>
+                                <div class="group-head-btn static">@(group.Name ?? ConnectionViewText.Connection_NoGroup)</div>
                                 @foreach (var profile in group.Profiles)
                                 {
                                     @Option(profile)
@@ -72,7 +72,7 @@
                             }
                             @if (Choice.Suggested.Count == 0 && Choice.Others.Count == 0)
                             {
-                                <div class="popover-empty">@TextFormat.Format(ShellText.Connection_NoMatch, Choice.Query)</div>
+                                <div class="popover-empty">@TextFormat.Format(ConnectionViewText.Connection_NoMatch, Choice.Query)</div>
                             }
                         </div>
                     }

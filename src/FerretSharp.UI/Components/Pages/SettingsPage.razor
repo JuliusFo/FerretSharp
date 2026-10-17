@@ -8,15 +8,15 @@
 
 <div class="settings-page">
     <div class="page-head">
-        <h1>@ShellText.Settings_Title</h1>
+        <h1>@SettingsViewText.Settings_Title</h1>
         <span class="grow"></span>
         <button class="btn ghost" @onclick="Back">@CommonText.Back</button>
     </div>
 
     <div class="settings-layout">
     @* WP-34: the sections as a list to jump to, and a search over every setting and shortcut. *@
-    <nav class="settings-nav" aria-label="@ShellText.Settings_Sections">
-        <SearchBox @bind-Value="Query" Class="search settings-search" Placeholder="@ShellText.Settings_Search" />
+    <nav class="settings-nav" aria-label="@SettingsViewText.Settings_Sections">
+        <SearchBox @bind-Value="Query" Class="search settings-search" Placeholder="@SettingsViewText.Settings_Search" />
         @foreach (var (part, label) in SettingsCatalog.Parts)
         {
             var value = part;
@@ -29,7 +29,7 @@
     <div class="settings-content">
         @if (Filter.IsEmpty)
         {
-            <div class="settings-note settings-no-match">@TextFormat.Format(ShellText.Settings_NoMatch, Filter.Search.Query)</div>
+            <div class="settings-note settings-no-match">@TextFormat.Format(SettingsViewText.Settings_NoMatch, Filter.Search.Query)</div>
         }
         @if (ShowSection(SettingsPart.Appearance))
         {
@@ -39,10 +39,10 @@
         @if (ShowSection(SettingsPart.ClrModel))
         {
         <section class="settings-section">
-            <h2>@ShellText.Settings_ClrModel</h2>
-            <SettingsChoice Filter="Filter" Key="SettingKey.ClrNames" Label="@ShellText.Settings_ClrNames" Options="SettingsOptions.ClrNames"
+            <h2>@SettingsViewText.Settings_ClrModel</h2>
+            <SettingsChoice Filter="Filter" Key="SettingKey.ClrNames" Label="@SettingsViewText.Settings_ClrNames" Options="SettingsOptions.ClrNames"
                             Value="Settings.Current.ClrNames" OnChange="mode => UpdateAsync(s => s with { ClrNames = mode })">
-                <Hint>@ShellText.Settings_ClrNamesHint</Hint>
+                <Hint>@SettingsViewText.Settings_ClrNamesHint</Hint>
             </SettingsChoice>
         </section>
         }
@@ -70,11 +70,11 @@
         @if (ShowSection(SettingsPart.Diagnostics))
         {
         <section class="settings-section">
-            <h2>@ShellText.Settings_Diagnostics</h2>
-            <SettingsChoice Filter="Filter" Key="SettingKey.DiagnoseUiStalls" Label="@ShellText.Settings_DiagnoseUiStalls" Options="SettingsOptions.OnOff"
+            <h2>@SettingsViewText.Settings_Diagnostics</h2>
+            <SettingsChoice Filter="Filter" Key="SettingKey.DiagnoseUiStalls" Label="@SettingsViewText.Settings_DiagnoseUiStalls" Options="SettingsOptions.OnOff"
                             Value="Settings.Current.DiagnoseUiStalls" OnChange="on => UpdateAsync(s => s with { DiagnoseUiStalls = on })">
                 <Hint>
-                    <Fmt Text="@ShellText.Settings_DiagnoseUiStallsHint">
+                    <Fmt Text="@SettingsViewText.Settings_DiagnoseUiStallsHint">
                         <Arg0><code>@SettingsCatalog.StallTool</code></Arg0>
                         <Arg1><code>@SettingsCatalog.StallFiles</code></Arg1>
                     </Fmt>

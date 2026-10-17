@@ -25,7 +25,7 @@ public static class SettingsSaving
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger?.LogWarning(ex, "Setting not saved");
-            shell.Notify(TextFormat.Format(ShellText.Settings_NotSaved, ex.Message));
+            shell.Notify(TextFormat.Format(SettingsViewText.Settings_NotSaved, ex.Message));
             return false;
         }
     }

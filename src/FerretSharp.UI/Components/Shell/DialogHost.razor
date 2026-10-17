@@ -186,7 +186,7 @@
 
 @if (Shell.ReconnectOffer is { } changed)
 {
-    <ConfirmDialog Title="@ShellText.Dialogs_ReconnectTitle" ConfirmLabel="@ShellText.Connection_Reconnect" CancelLabel="@ShellText.Dialogs_ReconnectLater"
+    <ConfirmDialog Title="@ShellText.Dialogs_ReconnectTitle" ConfirmLabel="@ConnectionViewText.Connection_Reconnect" CancelLabel="@ShellText.Dialogs_ReconnectLater"
                    OnConfirm="() => Lifecycle.ReconnectChangedAsync(changed)" OnCancel="Shell.CancelReconnectOffer">
         <Fmt Text="@ShellText.Dialogs_ReconnectText"><Arg0><strong>@changed.Name</strong></Arg0></Fmt>
     </ConfirmDialog>
@@ -194,7 +194,7 @@
 
 @if (Shell.PendingDelete is { } pending)
 {
-    <ConfirmDialog Title="@ShellText.Connection_Delete" ConfirmLabel="@CommonText.Delete" Danger="true"
+    <ConfirmDialog Title="@ConnectionViewText.Connection_Delete" ConfirmLabel="@CommonText.Delete" Danger="true"
                    OnConfirm="() => Lifecycle.DeleteAsync(pending)" OnCancel="Shell.CancelDelete">
         <Fmt Text="@ShellText.Dialogs_DeleteConnectionText"><Arg0><strong>@pending.Name</strong></Arg0><Arg1>@pending.Address.Display</Arg1></Fmt>
     </ConfirmDialog>

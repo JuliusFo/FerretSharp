@@ -17,9 +17,9 @@
 
     private IReadOnlyList<MoreMenuItem> Items =>
     [
-        new(ShellText.ConnectionMenu_Connect, () => Shell.Connect(Profile)) { Strong = true },
-        new(ShellText.Connection_Edit, () => Shell.EditConnection(Profile)) { SeparatorBefore = true },
-        new(ShellText.ConnectionMenu_Duplicate, () => Shell.DuplicateConnection(Profile)),
-        new(ShellText.Connection_DeleteEllipsis, () => Shell.RequestDelete(Profile)) { SeparatorBefore = true, Danger = true },
+        new(ConnectionViewText.ConnectionMenu_Connect, () => Shell.Connect(Profile)) { Strong = true },
+        new(ConnectionViewText.Connection_Edit, () => Shell.EditConnection(Profile)) { SeparatorBefore = true },
+        new(ConnectionViewText.ConnectionMenu_Duplicate, () => Shell.DuplicateConnection(Profile)),
+        new(ConnectionViewText.Connection_DeleteEllipsis, () => Shell.RequestDelete(Profile)) { SeparatorBefore = true, Danger = true },
     ];
 }

@@ -5,26 +5,26 @@
 @inject UpdateState Updates
 
 <section class="settings-section">
-    <h2>@ShellText.Settings_Updates</h2>
+    <h2>@SettingsViewText.Settings_Updates</h2>
     <div class="settings-row @Filter.HideClass(SettingKey.Version)">
         <div class="settings-label">
-            <span>@ShellText.Settings_Version</span>
+            <span>@SettingsViewText.Settings_Version</span>
             <span class="hint">
-                @(Updates.Phase == UpdatePhase.NotInstalled ? ShellText.Settings_VersionNotInstalled : ShellText.Settings_VersionInstalled)
+                @(Updates.Phase == UpdatePhase.NotInstalled ? SettingsViewText.Settings_VersionNotInstalled : SettingsViewText.Settings_VersionInstalled)
             </span>
         </div>
         <span class="settings-value">@CurrentVersion</span>
     </div>
     @if (Updates.Phase != UpdatePhase.NotInstalled)
     {
-        <SettingsChoice Filter="Filter" Key="SettingKey.CheckForUpdates" Label="@ShellText.Settings_CheckForUpdates" Options="SettingsOptions.OnOff"
+        <SettingsChoice Filter="Filter" Key="SettingKey.CheckForUpdates" Label="@SettingsViewText.Settings_CheckForUpdates" Options="SettingsOptions.OnOff"
                         Value="Settings.Current.CheckForUpdates" OnChange="on => UpdateAsync(s => s with { CheckForUpdates = on })">
-            <Hint>@ShellText.Settings_CheckForUpdatesHint</Hint>
+            <Hint>@SettingsViewText.Settings_CheckForUpdatesHint</Hint>
         </SettingsChoice>
-        <SettingsChoice Filter="Filter" Key="SettingKey.UpdateCheckInterval" Label="@ShellText.Settings_UpdateCheckInterval" Options="SettingsOptions.UpdateIntervals"
+        <SettingsChoice Filter="Filter" Key="SettingKey.UpdateCheckInterval" Label="@SettingsViewText.Settings_UpdateCheckInterval" Options="SettingsOptions.UpdateIntervals"
                         Value="Math.Max(Settings.Current.UpdateCheckHours, 0)" Disabled="!Settings.Current.CheckForUpdates"
                         OnChange="hours => UpdateAsync(s => s with { UpdateCheckHours = hours })">
-            <Hint>@ShellText.Settings_UpdateCheckIntervalHint</Hint>
+            <Hint>@SettingsViewText.Settings_UpdateCheckIntervalHint</Hint>
         </SettingsChoice>
         <div class="settings-note update-status @(Updates.Phase is UpdatePhase.DownloadFailed ? "error" : "") @Filter.HideClass(SettingKey.CheckForUpdates)">
             @switch (Updates.Phase)

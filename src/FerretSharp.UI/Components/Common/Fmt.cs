@@ -8,7 +8,7 @@ namespace FerretSharp.UI.Components;
 /// A localized text whose placeholders <c>{0}</c> … <c>{3}</c> are markup (WP-29, ADR 0017): the text stays one resource,
 /// so a translation may put the placeholders in any order, and the markup stays in Razor.
 /// <code>
-/// &lt;Fmt Text="@ShellText.Settings_LockWaitHint"&gt;&lt;Arg0&gt;&lt;code&gt;SELECT … FOR UPDATE WAIT n&lt;/code&gt;&lt;/Arg0&gt;&lt;/Fmt&gt;
+/// &lt;Fmt Text="@SettingsViewText.Settings_LockWaitHint"&gt;&lt;Arg0&gt;&lt;code&gt;SELECT … FOR UPDATE WAIT n&lt;/code&gt;&lt;/Arg0&gt;&lt;/Fmt&gt;
 /// </code>
 /// Texts without markup use <c>TextFormat.Format</c> instead. <c>{{</c> and <c>}}</c> are literal braces.
 /// </summary>

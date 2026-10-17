@@ -13,19 +13,19 @@ public static class SettingsOptions
     public static readonly IReadOnlyList<(UiLanguage Language, string Label)> Languages = [(UiLanguage.English, "English"), (UiLanguage.German, "Deutsch")];
 
     public static IReadOnlyList<(ThemeMode Mode, string Label)> Themes =>
-        [(ThemeMode.System, ShellText.Settings_ThemeSystem), (ThemeMode.Light, ShellText.Settings_ThemeLight), (ThemeMode.Dark, ShellText.Settings_ThemeDark)];
+        [(ThemeMode.System, SettingsViewText.Settings_ThemeSystem), (ThemeMode.Light, SettingsViewText.Settings_ThemeLight), (ThemeMode.Dark, SettingsViewText.Settings_ThemeDark)];
 
     public static IReadOnlyList<(ClrNameDisplay Mode, string Label)> ClrNames =>
-        [(ClrNameDisplay.Off, CommonText.Off), (ClrNameDisplay.Beside, ShellText.Settings_ClrNamesBeside), (ClrNameDisplay.Front, ShellText.Settings_ClrNamesFront)];
+        [(ClrNameDisplay.Off, CommonText.Off), (ClrNameDisplay.Beside, SettingsViewText.Settings_ClrNamesBeside), (ClrNameDisplay.Front, SettingsViewText.Settings_ClrNamesFront)];
 
     public static IReadOnlyList<(int Seconds, string Label)> LockWaits => [.. new[] { 1, 3, 5, 10, 30 }.Select(s => (s, $"{s} s"))];
 
     public static IReadOnlyList<(FkCountMode Mode, string Label)> FkCounts =>
-        [(FkCountMode.Immediately, ShellText.Settings_FkCountsImmediately), (FkCountMode.OnHover, ShellText.Settings_FkCountsOnHover)];
+        [(FkCountMode.Immediately, SettingsViewText.Settings_FkCountsImmediately), (FkCountMode.OnHover, SettingsViewText.Settings_FkCountsOnHover)];
 
     public static IReadOnlyList<(int Hours, string Label)> UpdateIntervals =>
     [
-        (0, ShellText.Settings_UpdateCheckNever), (1, ShellText.Settings_UpdateCheckHourly),
-        (4, ShellText.Settings_UpdateCheckEvery4Hours), (24, ShellText.Settings_UpdateCheckDaily),
+        (0, SettingsViewText.Settings_UpdateCheckNever), (1, SettingsViewText.Settings_UpdateCheckHourly),
+        (4, SettingsViewText.Settings_UpdateCheckEvery4Hours), (24, SettingsViewText.Settings_UpdateCheckDaily),
     ];
 }

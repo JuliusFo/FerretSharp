@@ -14,9 +14,9 @@
             }
             <span class="muted">@ShellText.LostBanner_ReconnectRestores</span>
         </span>
-        <button class="btn primary" @onclick="() => Lifecycle.Reconnect(profile)">@ShellText.Connection_Reconnect</button>
+        <button class="btn primary" @onclick="() => Lifecycle.Reconnect(profile)">@ConnectionViewText.Connection_Reconnect</button>
         <button class="btn ghost" @onclick="() => Shell.ShowError(lost, Active.Profile?.MasksValues == true)">@CommonText.Details</button>
-        <button class="btn ghost" @onclick="Lifecycle.DisconnectAsync">@ShellText.Connection_Disconnect</button>
+        <button class="btn ghost" @onclick="Lifecycle.DisconnectAsync">@ConnectionViewText.Connection_Disconnect</button>
     </div>
 }
 

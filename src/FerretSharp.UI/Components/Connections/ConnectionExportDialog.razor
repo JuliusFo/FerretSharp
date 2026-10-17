@@ -6,13 +6,13 @@
 @inject IFileSaveService Files
 @inject ILogger<ConnectionExportDialog> Logger
 
-<ModalFrame Label="@ShellText.Export_Title" Class="export-dialog" OnCancel="Shell.CloseExport">
-    <header><span>@ShellText.Export_Title</span></header>
+<ModalFrame Label="@ConnectionViewText.Export_Title" Class="export-dialog" OnCancel="Shell.CloseExport">
+    <header><span>@ConnectionViewText.Export_Title</span></header>
     <div class="dialog-body">
         <div class="export-head">
-            <SearchBox @bind-Value="_selection.Query" Class="search grow" Placeholder="@ShellText.Connections_Search" />
-            <button class="btn" @onclick="() => _selection.SetShown(true)">@ShellText.Export_All</button>
-            <button class="btn" @onclick="() => _selection.SetShown(false)">@ShellText.Export_None</button>
+            <SearchBox @bind-Value="_selection.Query" Class="search grow" Placeholder="@ConnectionViewText.Connections_Search" />
+            <button class="btn" @onclick="() => _selection.SetShown(true)">@ConnectionViewText.Export_All</button>
+            <button class="btn" @onclick="() => _selection.SetShown(false)">@ConnectionViewText.Export_None</button>
         </div>
         <div class="export-list">
             @foreach (var group in _selection.Groups)
@@ -23,8 +23,8 @@
                 <div class="export-group">
                     <label class="export-group-head">
                         <input type="checkbox" checked="@(selected == count)" @onchange="() => _selection.ToggleGroup(g)" />
-                        <span class="export-group-name">@(g.Name ?? ShellText.Connection_NoGroup)</span>
-                        <span class="hint">@TextFormat.Format(ShellText.Export_GroupCount, selected, count)</span>
+                        <span class="export-group-name">@(g.Name ?? ConnectionViewText.Connection_NoGroup)</span>
+                        <span class="hint">@TextFormat.Format(ConnectionViewText.Export_GroupCount, selected, count)</span>
                     </label>
                     @foreach (var profile in g.Profiles)
                     {
@@ -43,15 +43,15 @@
         </div>
         <label class="check export-option">
             <input type="checkbox" @bind="_selection.IncludeLocalPaths" />
-            @ShellText.Export_LocalPaths
+            @ConnectionViewText.Export_LocalPaths
         </label>
-        <div class="hint small">🔒 @ShellText.Export_NoPasswords</div>
+        <div class="hint small">🔒 @ConnectionViewText.Export_NoPasswords</div>
     </div>
     <footer>
         <span class="spacer"></span>
         <button class="btn ghost" @onclick="Shell.CloseExport">@CommonText.Cancel</button>
         <button class="btn primary" disabled="@(_selection.SelectedCount == 0)" @onclick="ExportAsync">
-            @TextFormat.Plural(_selection.SelectedCount, ShellText.Export_ExportOne, ShellText.Export_ExportOther)
+            @TextFormat.Plural(_selection.SelectedCount, ConnectionViewText.Export_ExportOne, ConnectionViewText.Export_ExportOther)
         </button>
     </footer>
 </ModalFrame>
@@ -78,16 +78,16 @@
         var json = FerretSharpConnections.Export(profiles, _selection.IncludeLocalPaths);
         try
         {
-            if (await Files.SaveTextAsync(FerretSharpConnections.FileName, ShellText.Export_FileFilter, json, utf8Bom: false) is { } path)
+            if (await Files.SaveTextAsync(FerretSharpConnections.FileName, ConnectionViewText.Export_FileFilter, json, utf8Bom: false) is { } path)
             {
                 Shell.CloseExport();
-                Shell.Notify(TextFormat.Plural(profiles.Count, ShellText.Export_DoneOne, ShellText.Export_DoneOther, Path.GetFileName(path)));
+                Shell.Notify(TextFormat.Plural(profiles.Count, ConnectionViewText.Export_DoneOne, ConnectionViewText.Export_DoneOther, Path.GetFileName(path)));
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             Logger.LogWarning(ex, "Exporting connections failed");
-            Shell.Notify(TextFormat.Format(ShellText.Export_Failed, ex.Message));
+            Shell.Notify(TextFormat.Format(ConnectionViewText.Export_Failed, ex.Message));
         }
     }
 }

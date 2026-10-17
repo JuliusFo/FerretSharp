@@ -20,7 +20,7 @@
         {
             case ConnectionStatus.Connected when Active.Lost is not null:
                 @* Reconnect and details are in the banner. *@
-                <span class="item error"><span class="dot err"></span> @ShellText.Connection_Lost</span>
+                <span class="item error"><span class="dot err"></span> @ConnectionViewText.Connection_Lost</span>
                 break;
             case ConnectionStatus.Connected:
                 @* Connection, workspace and its lock are in the top bar (switcher, workspace chips, badge); the bar shows
@@ -33,10 +33,10 @@
                 @ModelStatus()
                 <span class="item shrink shrink-more" title="Oracle @Active.ServerVersion">Oracle @Active.ServerVersion</span>
                 <span class="item shrink shrink-more" title="@SchemaText">@SchemaText</span>
-                <button class="status-btn" @onclick="Lifecycle.DisconnectAsync">@ShellText.Connection_Disconnect</button>
+                <button class="status-btn" @onclick="Lifecycle.DisconnectAsync">@ConnectionViewText.Connection_Disconnect</button>
                 break;
             case ConnectionStatus.Connecting:
-                <span class="item"><span class="spinner small"></span> @TextFormat.Format(ShellText.Connection_ConnectingTo, NameOf(Active.Profile)) <ConnectProgress Active="Active" Compact="true" /></span>
+                <span class="item"><span class="spinner small"></span> @TextFormat.Format(ConnectionViewText.Connection_ConnectingTo, NameOf(Active.Profile)) <ConnectProgress Active="Active" Compact="true" /></span>
                 break;
             case ConnectionStatus.Failed:
                 <span class="item error"><span class="dot err"></span> @ShellText.Status_ConnectionFailed</span>

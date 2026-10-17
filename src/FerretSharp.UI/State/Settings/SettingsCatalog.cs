@@ -54,14 +54,14 @@ public static class SettingsCatalog
     // Properties, not static fields: the texts would keep the language of the first access.
     public static IReadOnlyList<(SettingsPart Part, string Label)> Parts =>
     [
-        (SettingsPart.Appearance, ShellText.Settings_Appearance),
-        (SettingsPart.ClrModel, ShellText.Settings_ClrModel),
-        (SettingsPart.Connection, ShellText.Settings_Connection),
-        (SettingsPart.Audit, ShellText.Settings_Audit),
-        (SettingsPart.DisplayColumns, ShellText.Settings_DisplayColumns),
-        (SettingsPart.Updates, ShellText.Settings_Updates),
-        (SettingsPart.Diagnostics, ShellText.Settings_Diagnostics),
-        (SettingsPart.Shortcuts, ShellText.Settings_Shortcuts),
+        (SettingsPart.Appearance, SettingsViewText.Settings_Appearance),
+        (SettingsPart.ClrModel, SettingsViewText.Settings_ClrModel),
+        (SettingsPart.Connection, SettingsViewText.Settings_Connection),
+        (SettingsPart.Audit, SettingsViewText.Settings_Audit),
+        (SettingsPart.DisplayColumns, SettingsViewText.Settings_DisplayColumns),
+        (SettingsPart.Updates, SettingsViewText.Settings_Updates),
+        (SettingsPart.Diagnostics, SettingsViewText.Settings_Diagnostics),
+        (SettingsPart.Shortcuts, SettingsViewText.Settings_Shortcuts),
     ];
 
     public static string LabelOf(SettingsPart part) => Parts.First(p => p.Part == part).Label;
@@ -78,33 +78,33 @@ public static class SettingsCatalog
         ArgumentNullException.ThrowIfNull(shortcuts);
         List<SettingsEntry> entries =
         [
-            Setting(SettingKey.Language, SettingsPart.Appearance, ShellText.Settings_Language, ShellText.Settings_LanguageHint),
-            Setting(SettingKey.ColorScheme, SettingsPart.Appearance, ShellText.Settings_ColorScheme, ShellText.Settings_ColorSchemeHint),
-            Setting(SettingKey.ConnectionGroup, SettingsPart.Appearance, ShellText.Settings_ConnectionGroup,
-                TextFormat.Format(ShellText.Settings_ConnectionGroupHint, ConnectionGroupExample)),
-            Setting(SettingKey.ClrNames, SettingsPart.ClrModel, ShellText.Settings_ClrNames, ShellText.Settings_ClrNamesHint),
-            Setting(SettingKey.KeepAlive, SettingsPart.Connection, ShellText.Settings_KeepAlive,
-                TextFormat.Format(ShellText.Settings_KeepAliveHint, KeepAliveQuery, KeepAliveProfileLimit)),
-            Setting(SettingKey.LockWait, SettingsPart.Connection, ShellText.Settings_LockWait, TextFormat.Format(ShellText.Settings_LockWaitHint, LockWaitClause)),
-            Setting(SettingKey.FkCounts, SettingsPart.Connection, ShellText.Settings_FkCounts, ShellText.Settings_FkCountsHint),
-            Setting(SettingKey.LinkProtocol, SettingsPart.Connection, ShellText.Settings_LinkProtocol, ShellText.Settings_LinkProtocolHint),
-            Setting(SettingKey.AuditTemplate, SettingsPart.Audit, ShellText.Settings_AuditTemplate, ShellText.Settings_AuditTemplateHint),
-            Setting(SettingKey.AuditTemplateGroups, SettingsPart.Audit, ShellText.Settings_AuditTemplateGroups, ShellText.Settings_AuditTemplateGroupsHint),
-            Setting(SettingKey.AuditTemplateConnections, SettingsPart.Audit, ShellText.Settings_AuditTemplateConnections, ShellText.Settings_AuditTemplateConnectionsHint),
-            Setting(SettingKey.ShowDisplayNames, SettingsPart.DisplayColumns, ShellText.Settings_ShowDisplayNames,
-                TextFormat.Format(ShellText.Settings_ShowDisplayNamesHint, DisplayNameExample)),
-            Setting(SettingKey.DisplayColumnsFile, SettingsPart.DisplayColumns, ShellText.Settings_DisplayColumnsFile, ShellText.Settings_DisplayColumnsFileHint),
-            Setting(SettingKey.Version, SettingsPart.Updates, ShellText.Settings_Version,
-                installed ? ShellText.Settings_VersionInstalled : ShellText.Settings_VersionNotInstalled),
-            Setting(SettingKey.DiagnoseUiStalls, SettingsPart.Diagnostics, ShellText.Settings_DiagnoseUiStalls,
-                TextFormat.Format(ShellText.Settings_DiagnoseUiStallsHint, StallTool, StallFiles)),
+            Setting(SettingKey.Language, SettingsPart.Appearance, SettingsViewText.Settings_Language, SettingsViewText.Settings_LanguageHint),
+            Setting(SettingKey.ColorScheme, SettingsPart.Appearance, SettingsViewText.Settings_ColorScheme, SettingsViewText.Settings_ColorSchemeHint),
+            Setting(SettingKey.ConnectionGroup, SettingsPart.Appearance, SettingsViewText.Settings_ConnectionGroup,
+                TextFormat.Format(SettingsViewText.Settings_ConnectionGroupHint, ConnectionGroupExample)),
+            Setting(SettingKey.ClrNames, SettingsPart.ClrModel, SettingsViewText.Settings_ClrNames, SettingsViewText.Settings_ClrNamesHint),
+            Setting(SettingKey.KeepAlive, SettingsPart.Connection, SettingsViewText.Settings_KeepAlive,
+                TextFormat.Format(SettingsViewText.Settings_KeepAliveHint, KeepAliveQuery, KeepAliveProfileLimit)),
+            Setting(SettingKey.LockWait, SettingsPart.Connection, SettingsViewText.Settings_LockWait, TextFormat.Format(SettingsViewText.Settings_LockWaitHint, LockWaitClause)),
+            Setting(SettingKey.FkCounts, SettingsPart.Connection, SettingsViewText.Settings_FkCounts, SettingsViewText.Settings_FkCountsHint),
+            Setting(SettingKey.LinkProtocol, SettingsPart.Connection, SettingsViewText.Settings_LinkProtocol, SettingsViewText.Settings_LinkProtocolHint),
+            Setting(SettingKey.AuditTemplate, SettingsPart.Audit, SettingsViewText.Settings_AuditTemplate, SettingsViewText.Settings_AuditTemplateHint),
+            Setting(SettingKey.AuditTemplateGroups, SettingsPart.Audit, SettingsViewText.Settings_AuditTemplateGroups, SettingsViewText.Settings_AuditTemplateGroupsHint),
+            Setting(SettingKey.AuditTemplateConnections, SettingsPart.Audit, SettingsViewText.Settings_AuditTemplateConnections, SettingsViewText.Settings_AuditTemplateConnectionsHint),
+            Setting(SettingKey.ShowDisplayNames, SettingsPart.DisplayColumns, SettingsViewText.Settings_ShowDisplayNames,
+                TextFormat.Format(SettingsViewText.Settings_ShowDisplayNamesHint, DisplayNameExample)),
+            Setting(SettingKey.DisplayColumnsFile, SettingsPart.DisplayColumns, SettingsViewText.Settings_DisplayColumnsFile, SettingsViewText.Settings_DisplayColumnsFileHint),
+            Setting(SettingKey.Version, SettingsPart.Updates, SettingsViewText.Settings_Version,
+                installed ? SettingsViewText.Settings_VersionInstalled : SettingsViewText.Settings_VersionNotInstalled),
+            Setting(SettingKey.DiagnoseUiStalls, SettingsPart.Diagnostics, SettingsViewText.Settings_DiagnoseUiStalls,
+                TextFormat.Format(SettingsViewText.Settings_DiagnoseUiStallsHint, StallTool, StallFiles)),
         ];
         if (installed)
         {
             entries.InsertRange(entries.FindIndex(e => e.Id == IdOf(SettingKey.Version)) + 1,
             [
-                Setting(SettingKey.CheckForUpdates, SettingsPart.Updates, ShellText.Settings_CheckForUpdates, ShellText.Settings_CheckForUpdatesHint),
-                Setting(SettingKey.UpdateCheckInterval, SettingsPart.Updates, ShellText.Settings_UpdateCheckInterval, ShellText.Settings_UpdateCheckIntervalHint),
+                Setting(SettingKey.CheckForUpdates, SettingsPart.Updates, SettingsViewText.Settings_CheckForUpdates, SettingsViewText.Settings_CheckForUpdatesHint),
+                Setting(SettingKey.UpdateCheckInterval, SettingsPart.Updates, SettingsViewText.Settings_UpdateCheckInterval, SettingsViewText.Settings_UpdateCheckIntervalHint),
             ]);
         }
 
