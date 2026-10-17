@@ -47,4 +47,25 @@ public static class SqlRedaction
 
         return text.ToString();
     }
+
+    /// <summary>
+    /// The text with every string literal (also <c>N'…'</c>, <c>q'[…]'</c>) as <c>'***'</c>: what the log keeps of a Prod
+    /// statement (decision of the user, review 3.40.0, SE-6) – a value written into the SQL text is a value as much as a
+    /// bind. The SQL history keeps them; it stays on this machine like the workspace files.
+    /// </summary>
+    public static string WithoutLiterals(string sql)
+    {
+        if (!sql.Contains('\''))
+        {
+            return sql;
+        }
+
+        var text = new StringBuilder(sql);
+        foreach (var literal in SqlTokenizer.Tokenize(sql).Where(t => t.Kind == SqlTokenKind.Text).Reverse())
+        {
+            text.Remove(literal.Start, literal.Length).Insert(literal.Start, $"'{Mask}'");
+        }
+
+        return text.ToString();
+    }
 }

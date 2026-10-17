@@ -16,6 +16,9 @@ public readonly record struct DbResult<T>(T? Value, DatabaseException? Error, bo
 
     /// <summary>FerretSharp refused (invalid filter, locked workspace …): no statement ran, there are no details to show.</summary>
     public bool IsRefusal => Error?.InnerException is RefusedException;
+
+    /// <summary>The call went to a connection that masks values (Prod): the error dialog hides the binds of <see cref="Error"/>.</summary>
+    public bool MaskValues { get; init; }
 }
 
 /// <summary>
@@ -57,7 +60,7 @@ public static class DbCalls
                 shell.NotifyChanged();
             }
 
-            return new DbResult<T>(default, ex, false);
+            return new DbResult<T>(default, ex, false) { MaskValues = connection?.Profile?.MasksValues == true };
         }
         catch (RefusedException ex)
         {
@@ -79,7 +82,7 @@ public static class DbCalls
             }
             else
             {
-                shell.ShowError(error);
+                shell.ShowError(error, result.MaskValues);
             }
         }
 

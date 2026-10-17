@@ -46,7 +46,7 @@
     <span>@SortText</span>
     @if (_countError is { } countError)
     {
-        <span class="error">@countError.Display <button class="link-btn" @onclick="() => Shell.ShowError(countError)">@CommonText.Details</button></span>
+        <span class="error">@countError.Display <button class="link-btn" @onclick="() => Shell.ShowError(countError, Active.Profile?.MasksValues == true)">@CommonText.Details</button></span>
     }
     <span class="spacer"></span>
     <span>@TextFormat.Format(GridText.Footer_RowKey, RowKeyText)</span>

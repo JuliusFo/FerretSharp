@@ -208,7 +208,7 @@ none, and read-only until you pick one –, the user and whether you have it alr
 enter them on the first connect. *⋯ › Export…* (or *Export group…* on a group) passes connections on, without passwords.
 
 Settings and workspaces live in `%APPDATA%\FerretSharp` (uninstalling keeps them); passwords are stored in the Windows
-Credential Manager, never in files. Logs and the SQL history never hold values of production connections; the workspace
+Credential Manager, never in files. On production connections the log holds neither bind values nor literals of a statement and the SQL history no bind values; the workspace
 files keep what you work on – SQL text, filter and variable values – like an open document. One FerretSharp runs per data folder: starting it again brings the open window to
 the front.
 

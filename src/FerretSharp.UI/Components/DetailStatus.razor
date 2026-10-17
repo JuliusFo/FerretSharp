@@ -9,7 +9,7 @@
         {
             <span class="muted">@Hint</span>
         }
-        <button class="link-btn" @onclick="() => Shell.ShowError(error)">@CommonText.Details</button>
+        <button class="link-btn" @onclick="() => Shell.ShowError(error, Active.Profile?.MasksValues == true)">@CommonText.Details</button>
     </div>
 }
 else if (Loading)
@@ -20,6 +20,10 @@ else if (Loading)
 @code {
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
+
+    /// <summary>The connection the details were read from: its errors mask values like the connection does (review 3.40.0, A8).</summary>
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
 
     [Parameter]
     public bool Loading { get; set; }

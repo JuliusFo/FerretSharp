@@ -92,7 +92,7 @@
                     <span>@(run.Number > 0 ? TextFormat.Format(SqlEditorText.SqlView_StatementError, run.Number, failure.Display) : failure.Display)</span>
                     @if (failure.ErrorCode is not null)
                     {
-                        <button class="link-btn" @onclick="() => Shell.ShowError(failure)">@CommonText.Details</button>
+                        <button class="link-btn" @onclick="() => Shell.ShowError(failure, Active.Profile?.MasksValues == true)">@CommonText.Details</button>
                     }
                 </div>
                 @if (run.Lock is { } tableLock)

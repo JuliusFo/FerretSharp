@@ -22,7 +22,8 @@
     }
     @if (Error.Statement is { } statement)
     {
-        <SqlCode Sql="@statement.Sql" />
+        @* Passwords (IDENTIFIED BY …) neither shown nor copied (review 3.40.0, A24): the clipboard keeps a history, maybe in the cloud. *@
+        <SqlCode Sql="@SqlRedaction.Redact(statement.Sql)" />
         @if (statement.Parameters.Count > 0)
         {
             <table class="binds">
@@ -64,7 +65,7 @@
 
     private async Task CopyAsync()
     {
-        var text = Error.Display + (Error.Statement is { } s ? Environment.NewLine + Environment.NewLine + BindValues.Describe(s, Mask) : "");
+        var text = Error.Display + (Error.Statement is { } s ? Environment.NewLine + Environment.NewLine + SqlRedaction.Redact(BindValues.Describe(s, Mask)) : "");
         // Through dom.js like every copy (R5b: called navigator.clipboard directly, and a failure escaped the handler).
         _copied = await Dom.CopyTextAsync(Shell, text);
     }

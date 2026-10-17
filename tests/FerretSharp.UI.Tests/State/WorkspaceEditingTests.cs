@@ -231,6 +231,26 @@ public sealed class WorkspaceEditingTests : IAsyncDisposable
         Assert.Null(_app.Editing.BusySince(workspace.WorkspaceId));
     }
 
+    /// <summary>
+    /// Review 3.40.0, A8: the error dialog masked by the connection shown, not by the one the statement ran on – a Prod
+    /// commit failing while Dev was shown listed the Prod bind values.
+    /// </summary>
+    [Fact]
+    public async Task An_error_masks_values_by_the_connection_it_came_from()
+    {
+        var prod = await _app.OpenAsync(TestApp.Profile("Prod", ConnectionKind.Prod));
+        await prod.Workspaces.UnlockAsync(prod.Workspaces.Active!.Id, TestContext.Current.CancellationToken);
+        var dev = await _app.OpenAsync(TestApp.Profile("Dev"));
+        _app.Hub.Show(dev);
+        _app.OnCommit = () => Task.FromException(new DatabaseException("ORA-02291: integrity constraint violated", "ORA-02291"));
+
+        Assert.False(await _app.Editing.CommitAsync(_app.WorkspaceOf(prod)));
+        Assert.Equal(("ORA-02291", true), (_app.Shell.ErrorDetails?.ErrorCode, _app.Shell.ErrorMasked));
+
+        Assert.False(await _app.Editing.CommitAsync(_app.WorkspaceOf(dev)));
+        Assert.Equal(("ORA-02291", false), (_app.Shell.ErrorDetails?.ErrorCode, _app.Shell.ErrorMasked));
+    }
+
     // ---- R4b: what the tests did not cover yet ----
 
     private static readonly TableDetails Kunden = new(
