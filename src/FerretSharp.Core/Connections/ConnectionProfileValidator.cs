@@ -38,6 +38,10 @@ public static class ConnectionProfileValidator
                 {
                     errors[ConnectionField.Host] = ConnectionText.HostMissing;
                 }
+                else if (!OracleAddress.IsPlainHost(hp.Host))
+                {
+                    errors[ConnectionField.Host] = ConnectionText.HostInvalid;
+                }
 
                 if (hp.Port is < 1 or > 65535)
                 {
@@ -50,6 +54,10 @@ public static class ConnectionProfileValidator
                 {
                     errors[ConnectionField.ServiceOrSid] = ConnectionText.ServiceOrSidRequired;
                 }
+                else if (!OracleAddress.IsPlainName(hasService ? hp.ServiceName! : hp.Sid!))
+                {
+                    errors[ConnectionField.ServiceOrSid] = ConnectionText.ServiceOrSidInvalid;
+                }
 
                 break;
 
@@ -57,6 +65,10 @@ public static class ConnectionProfileValidator
                 if (string.IsNullOrWhiteSpace(tns.Alias))
                 {
                     errors[ConnectionField.Alias] = ConnectionText.TnsAliasMissing;
+                }
+                else if (!OracleAddress.IsPlainAlias(tns.Alias))
+                {
+                    errors[ConnectionField.Alias] = ConnectionText.TnsAliasInvalid;
                 }
 
                 break;
