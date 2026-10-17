@@ -121,30 +121,23 @@ public static class XlsxExport
         var shown = column.Present is { } present ? present(value) : value;
         return shown switch
         {
-            null or DBNull => (new Cell((string?)null), 0),
-            string s => Text(column.Column, s, warnings),
-            decimal d => Number(d, styles),
-            int or long or short => Number(Convert.ToDecimal(shown, CultureInfo.InvariantCulture), styles),
-            BigNumber big => Text(column.Column, big.Invariant.Replace('.', ','), warnings),
+            null or DBNull => Empty,
+            decimal d => Number(column.Column, d, shown, styles, warnings),
+            int or long or short => Number(column.Column, Convert.ToDecimal(shown, CultureInfo.InvariantCulture), shown, styles, warnings),
             double d when double.IsFinite(d) => (new Cell(d), d.ToString("R", German).Length),
             // float → double directly would write 0.1 as 0.100000001490116.
             float f when float.IsFinite(f) => (new Cell(double.Parse(f.ToString("R", CultureInfo.InvariantCulture), CultureInfo.InvariantCulture)), f.ToString("R", German).Length),
-            DateTimeOffset dto => Text(column.Column, dto.ToString("dd.MM.yyyy HH:mm:ss.FFFFFFF zzz", CultureInfo.InvariantCulture), warnings),
             DateTime dt => Date(column.Column, dt, styles, warnings),
             bool b => (new Cell(b), 5),
-            byte[] bytes => Text(column.Column, Convert.ToHexString(bytes), warnings),
-            LobValue { Preview: { } preview } clob when preview.Length == clob.Length => Text(column.Column, preview, warnings),
-            LobValue lob => Skip(column.Column, warnings, lob.Preview is null ? DataText.ExportReasonOnlyLength : DataText.ExportReasonOnlyPreview),
-            NotNullMarker => Skip(column.Column, warnings, DataText.ExportReasonTypeNotExported),
-            _ => Text(column.Column, Convert.ToString(shown, CultureInfo.InvariantCulture) ?? "", warnings), // NaN, intervals …
+            _ => AsText(column.Column, shown, warnings), // text, big numbers, time zones, RAW, LOBs, NaN, intervals …
         };
     }
 
-    private static (Cell, double) Skip(ColumnInfo column, ExportWarnings warnings, string reason)
-    {
-        warnings.Skip(column, reason);
-        return (new Cell((string?)null), 0);
-    }
+    private static readonly (Cell, double) Empty = (new Cell((string?)null), 0);
+
+    /// <summary>The value in the notation of the CSV export (<see cref="ExportNotation"/>); one that is not exported stays empty.</summary>
+    private static (Cell, double) AsText(ColumnInfo column, object value, ExportWarnings warnings) =>
+        ExportNotation.Text(column, value, warnings) is { } text ? Text(column, text, warnings) : Empty;
 
     /// <summary>A text cell; longer than a cell holds is shortened with a warning. Its width is that of the first line.</summary>
     private static (Cell, double) Text(ColumnInfo column, string text, ExportWarnings warnings)
@@ -160,15 +153,15 @@ public static class XlsxExport
     }
 
     /// <summary>
-    /// A number as number if Excel keeps it exactly (at most 15 significant digits), else as text in German notation.
+    /// A number as number if Excel keeps it exactly (at most 15 significant digits), else as text in the CSV notation.
     /// Whole numbers get the format <c>0</c>: "General" would show a 12-digit key as <c>1,23457E+11</c>.
     /// </summary>
-    private static (Cell, double) Number(decimal value, Styles styles)
+    private static (Cell, double) Number(ColumnInfo column, decimal value, object raw, Styles styles, ExportWarnings warnings)
     {
         var invariant = value.ToString(CultureInfo.InvariantCulture);
         if (SignificantDigits(invariant) > MaxDigits)
         {
-            return (new Cell(value.ToString(German)), invariant.Length);
+            return AsText(column, raw, warnings);
         }
 
         return value == decimal.Truncate(value)
@@ -193,7 +186,7 @@ public static class XlsxExport
         var isDate = ColumnCategories.Of(column) == ColumnCategory.Date;
         if (value < FirstDate || (!isDate && value.Ticks % TimeSpan.TicksPerMillisecond != 0))
         {
-            return Text(column, value.ToString(isDate ? "dd.MM.yyyy HH:mm:ss" : "dd.MM.yyyy HH:mm:ss.FFFFFFF", CultureInfo.InvariantCulture), warnings);
+            return AsText(column, value, warnings);
         }
 
         return isDate ? (new Cell(value, styles.Date), 19) : (new Cell(value, styles.Timestamp), 23);
