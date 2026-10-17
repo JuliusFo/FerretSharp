@@ -14,7 +14,7 @@ Entscheidung des Nutzers (2026-10-09). Issues bekommen eine Art und einen Status
 
 ## Geplant
 
-Versionen: Minor-Releases 3.x (nichts Inkompatibles). Ein Paket bekommt seine Version erst beim Release (`CHANGELOG.md`, Spalte „Release“ im Index); die Roadmap legt keine fest, weil die Reihenfolge oft abweicht und Fix-Releases dazwischenkommen (Entscheidung des Nutzers, 2026-10-14). Zuletzt released: 3.40.0 (WP-53, Export als Excel-Datei, `docs/work-packages/wp-53-xlsx-export.md`), davor 3.39.0 (WP-52, Warten und Fortschritt laufender Statements, `docs/work-packages/wp-52-waits-and-progress.md`).
+Versionen: Minor-Releases 3.x (nichts Inkompatibles). Ein Paket bekommt seine Version erst beim Release (`CHANGELOG.md`, Spalte „Release“ im Index); die Roadmap legt keine fest, weil die Reihenfolge oft abweicht und Fix-Releases dazwischenkommen (Entscheidung des Nutzers, 2026-10-14). Der Release-Stand steht im Kopf der `CLAUDE.md`, die Historie im `CHANGELOG.md`.
 
 ### Pakete nach WP-36 (WP-37 … WP-47)
 Ausgewählt mit dem Nutzer am 2026-10-14 aus einer Ideensammlung (Bewertung des Nutzers je Paket in Klammern). Reihenfolge nach Abhängigkeiten: erst kleine Pakete mit sofortigem Nutzen (WP-37 … WP-39), dann zwei Fundamente, die je mehrere Pakete tragen – der Code-Index (WP-40 → WP-41, WP-45) und der Beziehungsgraph (WP-42 → WP-43, WP-46) –, das Paket mit Mitschnitt, Quellzeile und Datenänderungen (WP-45) erst, wenn seine Teile stehen. Die Abschnitte sind Vorschläge; „Offen“ wird beim Start mit dem Nutzer entschieden, dann wie üblich der Plan.
@@ -99,5 +99,4 @@ Branch `wp/54-export-all-rows`. Vom Nutzer bei der Planung von WP-53 als eigenes
 - Offen: LOBs vollständig nachladen (teuer) oder wie bisher nur Vorschau mit Warnung; auch für Ergebnisse von SQL-Editor und LINQ-Konsole (dort die Abfrage erneut ausführen – SQL mit Nebenwirkungen gibt es auf dem Leseweg nicht, die LINQ-Konsole führt Nutzercode aus); Obergrenze für CSV.
 
 ## Offene UX-Fragen
-- Shortcut-Belegung für Commit/Rollback – vorläufig, Nutzerfeedback einholen.
 - Workspaces: Standardname ist „Workspace N“ mit der kleinsten freien Nummer (nach Umbenennen von „Workspace 1“ heißt der nächste wieder „Workspace 1“) – so lassen oder fortlaufend zählen?

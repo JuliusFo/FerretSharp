@@ -5,7 +5,7 @@
 
 ## Wo steht was
 
-Diese Datei lädt in jede Session und enthält nur, was immer gilt. Die Fallen eines Bereichs stehen in `.claude/rules/` und laden, sobald eine passende Datei gelesen oder bearbeitet wird (`paths` im Kopf jeder Regel): `oracle`, `oracle-transactions`, `plsql-dictionary`, `ddl`, `clr-model`, `connection-transfer`, `ui`, `ui-grid`, `ui-monaco`, `ui-css`, `tests`, `localization`. Neue Fallen dort eintragen, wo sie gebraucht werden; eine neue Regel nur mit gültigem `paths`-Kopf (ohne lädt sie immer).
+Diese Datei lädt in jede Session und enthält nur, was immer gilt. Die Fallen eines Bereichs stehen in `.claude/rules/` und laden, sobald eine passende Datei gelesen oder bearbeitet wird (`paths` im Kopf jeder Regel): `oracle`, `oracle-transactions`, `plsql-dictionary`, `ddl`, `clr-model`, `connection-transfer`, `links`, `ui`, `ui-grid`, `ui-monaco`, `ui-css`, `tests`, `localization`, `build-release`. Neue Fallen dort eintragen, wo sie gebraucht werden; eine neue Regel nur mit gültigem `paths`-Kopf (ohne lädt sie immer).
 
 | Datei | Lesen … |
 |---|---|
@@ -55,6 +55,7 @@ Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erkl
 | JS-Interop | ein ES-Modul pro Thema in `wwwroot/js` | JS bleibt dünn. **Keine Geschäftslogik in JS.** |
 | Hosting, Logging | `Microsoft.Extensions.Hosting`; **Serilog** (Datei unter `%APPDATA%\FerretSharp\logs`) | Die BlazorWebView nutzt den Service Provider des Hosts. Keine Bind-Werte von Prod loggen. |
 | Grid, Editor | **AG Grid Community 36.2.0** (Infinite Row Model), **Monaco 0.57** (ADR 0011), beide lokal | Keine AG-Grid-Enterprise-Features. |
+| Excel-Export | **SpreadCheetah** (ADR 0028), nur in `Core/Data/XlsxExport` | Streamt vorwärts in einen `Stream`; Text bleibt Text, nie Formeln. Source Generator ausgeschlossen. |
 | App-Mitschnitt | **EventPipe** + `TraceEvent`, nur in `FerretSharp.AppTrace` (ADR 0023) | Feste Feldliste der EF-Events (`EfEvents`): nie Connection-String, nie Parameter. |
 | Oracle | `Oracle.ManagedDataAccess.Core` (23.x), Ziel **19c+** (12.2 sollte gehen) | Rein managed, async mit `CancellationToken`. `OFFSET/FETCH` ab 12c, kein ROWNUM-Fallback. |
 | Tests | **xUnit v3** auf **Microsoft Testing Platform** + NSubstitute; **Testcontainers.Oracle** | Kein VSTest. |
@@ -69,7 +70,7 @@ Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erkl
 ```
 src/FerretSharp.Core/       net10.0 – reine Logik, KEIN WPF, KEINE Windows-only-APIs, baut unter Linux
   Oracle/ Query/ Schema/ Data/ Connections/ (Transfer/: Import/Export) Workspaces/ Settings/ IO/ Resources/
-  Ddl/ (DDL-Text) Design/ (Designer) Compare/ Audit/ Display/ (Anzeigespalten) Forms/ AppTrace/ ClrModel/
+  Ddl/ (DDL-Text) Design/ (Designer) Compare/ Audit/ Display/ (Anzeigespalten) Forms/ AppTrace/ ClrModel/ Links/
 src/FerretSharp.UI/         net10.0 Razor Class Library, plattformneutral: Shell.razor, Components/, State/, Resources/,
                             wwwroot/ (css, js als ES-Module, lib/ag-grid, lib/monaco)
 src/FerretSharp.ModelHost/  Hilfsprozess im Kontext des C#-Projekts des Nutzers (.NET 8, ADR 0009)
@@ -78,6 +79,7 @@ src/FerretSharp.App/        net10.0-windows10.0.19041.0 – schlanker WPF-Host (
 tests/                      Core.Tests, UI.Tests (ohne DB), Integration.Tests (Testcontainers), Stand-ins
                             FakeModelHost, FakeEfApp, FakeEfModel; Shared/
 samples/                    Beispielmodell (DbContext + Entities) zur Beispiel-DB
+pages/                      Weiterleitungsseite für Links auf GitHub Pages (ADR 0026, Nachtrag; Bytes LF, CSP mit Hashes)
 tools/                      icon/New-AppIcon.ps1 (Icon generiert, nicht von Hand), sample-db/, coverage/
 ```
 Welches Paket welchen Ordner gebaut hat: Spalte „Bereiche“ in `docs/work-packages/README.md`.
@@ -115,6 +117,4 @@ Regeln:
 
 ## 8. Als Nächstes
 
-- Gesamt-Review nach 3.31.0 (`docs/review-3.31.0.md`) abgeschlossen: Teil A als R5a in 3.31.1, Teil C (Doku), Teil B als R5b in 3.32.0. 3.32.1 hebt `System.Security.Cryptography.Pkcs` (kommt mit den Oracle-Paketen) direkt auf 8.0.2 – die direkte Referenz kann weg, sobald ein Oracle-Paket selbst 8.0.2 oder neuer mitbringt (WP-36). 3.33.0: Fehler aus dem Alltag (`docs/work-packages/fixes-2026-10-14.md`); offen dazu die Ursache der Render-Fehler nach dem Ruhezustand (HWND-WebView2 oder Software-Rendering prüfen, Backlog). 3.34.0: Update-Dialog mit den Notizen aller Versionen dazwischen und Bildern (WP-49).
-- 3.34.1: WP-36 (Abhängigkeiten, AG Grid 36.2.0). 3.35.0: WP-37 (Filter-Vorlagen und Links `ferretsharp://`, ADR 0026); 3.35.1: Links als https über eine Weiterleitungsseite auf GitHub Pages (`pages/`, Nachtrag zu ADR 0026); 3.35.2: Gruppe vor dem Verbindungsnamen (`docs/work-packages/small-connection-group-label.md`); 3.35.3: Spaltenliste und Designer (`docs/work-packages/fixes-designer-columns-layout.md`); 3.35.4: Verbindung für einen Link selbst wählen (`docs/work-packages/small-link-choose-connection.md`, Nachtrag zu ADR 0026). 3.36.0: WP-48 (FK-Navigation und C#-Namen im Ergebnis von SQL-Editor und LINQ-Konsole, vorgezogen). 3.37.0: WP-50 (Filtergruppen ODER/NICHT, `docs/work-packages/wp-50-filter-groups.md`, vorgezogen). 3.38.0: WP-51 (Audit-Vorlage je Systemgruppe und Verbindung, `docs/work-packages/wp-51-audit-template-per-group.md`, vorgezogen), dazu „+ Gruppe“ neben den Vorlagen (`docs/work-packages/small-filter-group-button.md`). 3.39.0: WP-52 (Warten und Fortschritt laufender Statements, ADR 0027, `docs/work-packages/wp-52-waits-and-progress.md`, vorgezogen). 3.40.0: WP-53 (Export als Excel-Datei mit SpreadCheetah, ADR 0028, `docs/work-packages/wp-53-xlsx-export.md`, vorgezogen). Danach WP-38 … WP-47 in der Reihenfolge aus `docs/roadmap.md` (ausgewählt mit dem Nutzer am 2026-10-14); dazu WP-54 (alle Zeilen des Filters exportieren, CSV und Excel, eingeplant 2026-10-17, Platz in der Reihenfolge offen).
-- Gesamt-Review nach 3.40.0 (`docs/review-3.40.0.md`, Entscheidungen des Nutzers dort): Teil A als R6a in 3.40.1 (`docs/work-packages/r6a-review-3.40.md`). Als Nächstes Teil D (Doku, dabei diesen Abschnitt kürzen), dann R6b (Teil B und C, 3.41.0, Ordnerumbau als reine `git mv`-Commits), dann WP-54.
+Gesamt-Review 3.40.0 (`docs/review-3.40.0.md`): R6a (3.40.1) und Teil D (Doku) erledigt. Als Nächstes R6b (Teil B und C, 3.41.0, Ordnerumbau als reine `git mv`-Commits), dann WP-54, danach WP-38 … WP-47 (`docs/roadmap.md`).

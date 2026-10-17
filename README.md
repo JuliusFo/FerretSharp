@@ -51,7 +51,13 @@ developer works with an Oracle database day to day:
 - Fast grid for large tables (blocks of 500 rows, server-side sorting, deterministic paging), `NULL` shown as such,
   exact numbers beyond `decimal`, LOB previews, pinned columns, column search (Ctrl+F).
 - Composable filters in the style of TablePlus – column, operator, value – translated into bound SQL; see the generated
-  statement and its execution plan at any time.
+  statement and its execution plan at any time. Combine rows with **OR** and **NOT** groups (NOT treats NULL as C# does,
+  so the grid and a LINQ `Where` keep the same rows).
+- **Filter presets**: save the filter rows of a table, and its sort order, under a name ("Open orders") – a preset
+  belongs to the table name, so it works on Dev, Test and Prod alike.
+- **Links to a table view**: "Copy link" puts a link with table, filters, sort order and view on the clipboard – an https
+  address Teams and tickets make clickable, never SQL. A click opens the table in FerretSharp after asking, on the
+  connection that fits or one you choose.
 - Names beside foreign keys: mark a display column per table (`KUNDEN.NAME`) and every reference to it reads
   `4711 · PetersPizza`; a value without a referenced row says "not found". The display columns live in one file you
   can share with your team through your repository.
@@ -62,7 +68,9 @@ developer works with an Oracle database day to day:
 - Form view for wide tables: the focused row beside the grid, one field per column (searchable, empty ones hidden on
   request, editable like the grid); select several rows and compare them side by side with the differences marked
   (<kbd>Alt</kbd>+<kbd>Enter</kbd>).
-- Copy rows as table, `INSERT` statements or C# object initializers; save as CSV or SQL script.
+- Copy rows as table, `INSERT` statements or C# object initializers; save as **Excel file**, CSV or SQL script. The Excel
+  file has real numbers, dates and true/false (text stays text, nothing runs as a formula), a frozen header with a filter,
+  and the labels and values of the grid – C# names, enum members, display columns.
 
 <table>
   <tr>
@@ -76,7 +84,8 @@ developer works with an Oracle database day to day:
       <b>Foreign-key navigation</b><br><br>
       Right-click a cell: jump to the referenced row, or to the rows that reference it – with counts, loaded lazily.
       Each jump opens a new tab with the filter already applied; <kbd>Alt</kbd>+<kbd>←</kbd> takes you back.
-      Relationships that exist only as navigations in your DbContext are marked "aus C#-Modell".
+      Relationships that exist only as navigations in your DbContext are marked "from C# model". The same works in the
+      results of the SQL editor and the LINQ console, for columns read from a table.
     </td>
   </tr>
 </table>
@@ -114,7 +123,8 @@ developer works with an Oracle database day to day:
       before it runs – and the property and configuration lines for your entity – and what Oracle would refuse with
       the data at hand is reported up front.<br><br>
       <b>Audit tables</b> and their trigger come from a template file (your company's pattern, or a built-in one) and
-      follow the table's changes; a trigger is switched on only once it compiles.
+      follow the table's changes; a trigger is switched on only once it compiles. Each connection group – or a single
+      connection – can have its own template.
     </td>
   </tr>
 </table>
@@ -129,11 +139,17 @@ developer works with an Oracle database day to day:
 - SQL editor (Monaco) per workspace: <kbd>Ctrl</kbd>+<kbd>Enter</kbd> runs the statement at the cursor,
   <kbd>Alt</kbd>+<kbd>X</kbd> the whole script, with progress and cancel; queries everywhere, `INSERT`/`UPDATE`/`DELETE`/
   `MERGE` only in writable workspaces, inside their transaction (and part of its undo history).
+- **What is it waiting for?** A statement that runs longer says when it waits for a lock – on which table, held by whom
+  ("your workspace “Bug 3711”", with a button to go there, or another session with user, machine and program) – and shows
+  long operations (full scans, sorts) as a progress bar with Oracle's estimate of the time left. Needs read access to
+  `V$SESSION` and `V$SESSION_LONGOPS`.
 - DDL (`CREATE`, `ALTER`, `DROP`, `COMMENT`, `GRANT` …) in writable workspaces, outside any transaction and after a
   confirmation; the explorer and open tabs follow the new schema. Triggers are switched on only once they compile,
   compile errors are marked in the editor.
 - Bind variables (`:kundeId`) become typed input fields – values are bound, never pasted into the SQL.
 - Completion for tables, views, synonyms and columns (with their C# names), history per connection, export of results.
+- Results know where their columns come from: C# names, enum members and foreign-key jumps as in a table – also with the
+  quoted aliases EF Core writes and through synonyms.
 - Execution plans: estimated (`EXPLAIN PLAN`) or actual, with row counts from the real execution and misestimates flagged.
 
 <picture>
@@ -259,7 +275,8 @@ dotnet run --project src/FerretSharp.App
   `dotnet publish src/FerretSharp.App -c Release -r win-x64 --self-contained -o <folder>`.
 
 **Tech stack:** .NET 10, WPF host with Blazor Hybrid (WebView2), [AG Grid Community](https://www.ag-grid.com/),
-[Monaco Editor](https://microsoft.github.io/monaco-editor/), Oracle.ManagedDataAccess.Core, Roslyn for the LINQ console.
+[Monaco Editor](https://microsoft.github.io/monaco-editor/), Oracle.ManagedDataAccess.Core, Roslyn for the LINQ console,
+[SpreadCheetah](https://github.com/sveinungf/spreadcheetah) for the Excel export, Velopack for install and updates.
 
 **Design notes:** [CHANGELOG.md](CHANGELOG.md) lists every release; architecture decisions are in
 [docs/decisions](docs/decisions), ideas in [docs/backlog.md](docs/backlog.md) (both in German).

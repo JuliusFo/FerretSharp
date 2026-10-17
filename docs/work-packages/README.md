@@ -11,8 +11,8 @@ Was in den abgeschlossenen Paketen gebaut und entschieden wurde, mit Nachträgen
 | **v1 – Read-only Browser** (bis 1.7) | Connections, Schema, Grid, Filter, Workspaces, FK-Navigation, Export | WP-01 … WP-07 |
 | **v2 – Sandbox-Editing** (1.8–2.0) | Transaktionsmodell, Editieren, Commit/Rollback, Lock-Handling, Prod-Freischaltung | WP-08 … WP-10 |
 | **v3 – .NET-Integration** (2.1–3.0) | DbContext-Modell, Schema-Anreicherung, LINQ-Konsole, Explain-Plan, Code-Generierung | WP-11 … WP-15 |
-| **v4 – Komfort & SQL** (3.x) | Modell-Cache, SQL-Editor, Skripte, Schema-Vergleich, mehrere Verbindungen, Formularansicht, Tastenkürzel, PL/SQL ansehen, Änderungsübersicht mit Undo/Redo, DDL im SQL-Editor, Tabellen-Designer mit Entity aus Tabelle, Audit-Tabellen und Trigger aus einer Vorlage, Anzeigespalten (Namen neben FK-Werten), Statements der laufenden App, Installer, Tabs anheften, Verbindungen importieren | WP-16 … WP-35 |
-| **Stabilisierung** | Fehlerbehebung und Struktur nach Reviews (a = Fehler, Patch-Release; b = Struktur) | R1 … R5 |
+| **v4 – Komfort & SQL** (3.x) | Modell-Cache, SQL-Editor, Skripte, Schema-Vergleich, mehrere Verbindungen, Formularansicht, Tastenkürzel, PL/SQL ansehen, Änderungsübersicht mit Undo/Redo, DDL im SQL-Editor, Tabellen-Designer mit Entity aus Tabelle, Audit-Tabellen und Trigger aus einer Vorlage, Anzeigespalten (Namen neben FK-Werten), Statements der laufenden App, Installer, Tabs anheften, Verbindungen importieren; danach Abhängigkeiten, Filter-Vorlagen und Links, FK-Navigation im SQL-/LINQ-Ergebnis, Bilder im Changelog, Filtergruppen ODER/NICHT, Audit-Vorlage je Gruppe, Warten und Fortschritt, Excel-Export | WP-16 … WP-53 |
+| **Stabilisierung** | Fehlerbehebung und Struktur nach Reviews (a = Fehler, Patch-Release; b = Struktur) | R1 … R6 |
 
 - v3: Die Arbeitspakete werden zu Beginn von v3 mit dem Nutzer verfeinert. Grober Zuschnitt: WP-11 … WP-15.
 - v4: Pakete aus dem Backlog, nach v3 mit dem Nutzer ausgewählt (2026-10-05). Versionen: Minor-Releases 3.x (nichts Inkompatibles).
