@@ -16,22 +16,13 @@
     </div>
     <button class="menu-item" disabled="@(Request.CellText is null)" @onclick="() => Export.CopyValueAsync(Column, Request.Row.Values[Request.Column])">@CommonText.CopyValue</button>
 
-    <div class="group-head-btn static">@TextFormat.Format(GridText.GridMenu_ExportGroup, ExportActions.RowsText(Request.Selected.Count))</div>
-    <button class="menu-item" title="@GridText.GridMenu_CopyTableTitle" @onclick="CopyTableAsync">@GridText.GridMenu_CopyTable</button>
-    <button class="menu-item" disabled="@(InsertTarget is null)" @onclick="CopyInsertAsync"
-            title="@(InsertTarget is { } target
-                ? TextFormat.Format(SqlEditorText.ResultMenu_CopyInsertTitle, target.DisplayName)
-                : SqlEditorText.ResultMenu_CopyInsertUnavailable)">
-        @GridText.GridMenu_CopyInsert
-    </button>
-    <button class="menu-item" title="@GridText.GridMenu_SaveCsvTitle" @onclick="SaveCsvAsync">@GridText.GridMenu_SaveCsv</button>
-    <button class="menu-item" title="@GridText.GridMenu_SaveXlsxTitle" @onclick="() => SaveXlsxAsync(XlsxColumns)">@GridText.GridMenu_SaveXlsx</button>
-    @if (ExportColumn.DiffersFromRaw(XlsxColumns))
-    {
-        <button class="menu-item" title="@GridText.GridMenu_SaveXlsxRawTitle" @onclick="() => SaveXlsxAsync(ExportColumn.Raw(Result))">@GridText.GridMenu_SaveXlsxRaw</button>
-    }
+    <ExportMenuItems Export="Export" Table="Result" Rows="Request.Selected" FileName="@ExportName" XlsxColumns="XlsxColumns"
+                     InsertTable="@(InsertTarget is { } target ? Result with { Table = target } : null)"
+                     InsertTitle="@(InsertTarget is { } insert
+                         ? TextFormat.Format(SqlEditorText.ResultMenu_CopyInsertTitle, insert.DisplayName)
+                         : SqlEditorText.ResultMenu_CopyInsertUnavailable)" />
 
-    <FkJumpSection Outgoing="_outgoing" Incoming="_incoming" Related="Related" RowsText="@JumpRowsText" MissingRows="Request.MissingRows"
+    <FkJumpSection Outgoing="_jumps.Outgoing" Incoming="_jumps.Incoming" Related="Related" RowsText="@Request.JumpRowsText" MissingRows="Request.MissingRows"
                    WorkspaceId="WorkspaceId" OnJumped="CloseAsync" />
 </PopoverMenu>
 
@@ -42,8 +33,7 @@
     private const double MenuWidth = 400;
     private const double ItemHeight = 44;
 
-    private IReadOnlyList<FkJump> _outgoing = [];
-    private IReadOnlyList<FkJump> _incoming = [];
+    private FkJumpLists _jumps = FkJumpLists.None;
 
     /// <summary>The result's view of each jump: which row sources it starts from (for <see cref="Related"/>).</summary>
     private Dictionary<FkJump, SqlResultJump> _sources = new(ReferenceEqualityComparer.Instance);
@@ -90,14 +80,8 @@
 
     private ColumnInfo Column => Result.Columns[Request.Column];
 
-    /// <summary>FK jumps start from all selected rows (a right-click into a selection keeps it), as in a table grid.</summary>
-    private IReadOnlyList<RowData> JumpRows => Request.Selected.Count > 0 ? Request.Selected : [Request.Row];
-
-    /// <summary>" · 3 rows" after the jump headings if several rows are selected; nothing for one row.</summary>
-    private string JumpRowsText => Request.Selected.Count + Request.MissingRows > 1 ? $" · {ExportActions.RowsText(JumpRows.Count)}" : "";
-
     /// <summary>For the first placement; dom.js keepInViewport corrects it once rendered.</summary>
-    private double EstimatedHeight => 200 + ItemHeight * (_outgoing.Count + _incoming.Count + (ExportColumn.DiffersFromRaw(XlsxColumns) ? 2 : 1)) + (_outgoing.Count + _incoming.Count > 0 ? 80 : 0);
+    private double EstimatedHeight => 200 + ItemHeight * (_jumps.Count + (ExportMenuItems.OffersRaw(XlsxColumns) ? 2 : 1)) + (_jumps.Count > 0 ? 80 : 0);
 
     protected override void OnInitialized()
     {
@@ -106,33 +90,14 @@
             return;
         }
 
-        var jumps = Sources.JumpsFor(JumpRows, schema.OutgoingOf, schema.IncomingOf);
+        var jumps = Sources.JumpsFor(Request.JumpRows, schema.OutgoingOf, schema.IncomingOf);
         _sources = jumps.ToDictionary<SqlResultJump, FkJump>(j => j.Jump, ReferenceEqualityComparer.Instance);
-        // FKs over the clicked column first: that is usually the one the user means.
-        _outgoing = jumps.Select(j => j.Jump).Where(j => j.Direction == JumpDirection.Outgoing).OrderByDescending(Related).ToList();
-        _incoming = jumps.Select(j => j.Jump).Where(j => j.Direction == JumpDirection.Incoming).OrderByDescending(Related).ToList();
+        _jumps = FkJumpLists.Of(jumps.Select(j => j.Jump), Related);
     }
 
     private bool Related(FkJump jump) => _sources.TryGetValue(jump, out var source) && source.Involves(Request.Column);
 
-    private Task CopyTableAsync() =>
-        Export.CopyAsync(DelimitedExport.Build(Result, Request.Selected, DelimitedExport.ClipboardSeparator), ExportCopy.Table);
-
-    private Task CopyInsertAsync() => InsertTarget is { } target
-        ? Export.CopyAsync(InsertExport.Build(Result with { Table = target }, Request.Selected), ExportCopy.Insert)
-        : Task.CompletedTask;
-
-    private Task SaveCsvAsync() =>
-        Export.SaveAsync(DelimitedExport.Build(Result, Request.Selected, DelimitedExport.CsvSeparator), ExportName + ".csv",
-            GridText.Export_CsvFilter, utf8Bom: true);
-
     private IReadOnlyList<ExportColumn> XlsxColumns => ExportColumns ?? ExportColumn.Raw(Result);
-
-    private Task SaveXlsxAsync(IReadOnlyList<ExportColumn> columns)
-    {
-        var rows = Request.Selected;
-        return Export.SaveFileAsync(() => XlsxExport.BuildAsync(columns, rows, ExportName), ExportName + ".xlsx", GridText.Export_XlsxFilter);
-    }
 
     private Task CloseAsync() => OnClose.InvokeAsync();
 

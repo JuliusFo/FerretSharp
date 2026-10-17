@@ -65,25 +65,18 @@
         }
     }
 
-    <div class="group-head-btn static">@TextFormat.Format(GridText.GridMenu_ExportGroup, RowsText(Request.Selected.Count))</div>
-    <button class="menu-item" title="@GridText.GridMenu_CopyTableTitle" @onclick="CopyTableAsync">@GridText.GridMenu_CopyTable</button>
-    <button class="menu-item" title="@GridText.GridMenu_CopyInsertTitle" @onclick="CopyInsertAsync">@GridText.GridMenu_CopyInsert</button>
-    <button class="menu-item" title="@GridText.GridMenu_SaveCsvTitle" @onclick="SaveCsvAsync">@GridText.GridMenu_SaveCsv</button>
-    <button class="menu-item" title="@GridText.GridMenu_SaveXlsxTitle" @onclick="() => SaveXlsxAsync(_xlsxColumns)">@GridText.GridMenu_SaveXlsx</button>
-    @if (ExportColumn.DiffersFromRaw(_xlsxColumns))
-    {
-        <button class="menu-item" title="@GridText.GridMenu_SaveXlsxRawTitle" @onclick="() => SaveXlsxAsync(ExportColumn.Raw(Details))">@GridText.GridMenu_SaveXlsxRaw</button>
-    }
-    <button class="menu-item" @onclick="SaveInsertAsync">@GridText.GridMenu_SaveInsert</button>
-    @if (Active.Profile is { } linkProfile)
-    {
-        @* Links (WP-37): to the selected rows by their primary key, or to the view with its filters and sort order. *@
-        var rowsLink = Core.Links.TableLink.ForRows(linkProfile, Details, Request.Selected);
-        <button class="menu-item" disabled="@(rowsLink.Link is null)" title="@(rowsLink.Unavailable ?? GridText.GridMenu_CopyRowsLinkTitle)"
-                @onclick="() => CopyLinkAsync(linkProfile, rowsLink.Link!, rowsOnly: true)">@GridText.GridMenu_CopyRowsLink</button>
-        <button class="menu-item" title="@GridText.GridMenu_CopyViewLinkTitle"
-                @onclick="() => CopyLinkAsync(linkProfile, Core.Links.TableLink.For(linkProfile, Details.Table.Ref, Tab.AppliedFilters, Tab.Sorts, Tab.Mode), rowsOnly: false)">@GridText.GridMenu_CopyViewLink</button>
-    }
+    <ExportMenuItems Export="Export" Table="Details" Rows="Request.Selected" FileName="@Details.Table.DisplayName" XlsxColumns="_xlsxColumns" InsertTable="Details">
+        <button class="menu-item" @onclick="SaveInsertAsync">@GridText.GridMenu_SaveInsert</button>
+        @if (Active.Profile is { } linkProfile)
+        {
+            @* Links (WP-37): to the selected rows by their primary key, or to the view with its filters and sort order. *@
+            var rowsLink = Core.Links.TableLink.ForRows(linkProfile, Details, Request.Selected);
+            <button class="menu-item" disabled="@(rowsLink.Link is null)" title="@(rowsLink.Unavailable ?? GridText.GridMenu_CopyRowsLinkTitle)"
+                    @onclick="() => CopyLinkAsync(linkProfile, rowsLink.Link!, rowsOnly: true)">@GridText.GridMenu_CopyRowsLink</button>
+            <button class="menu-item" title="@GridText.GridMenu_CopyViewLinkTitle"
+                    @onclick="() => CopyLinkAsync(linkProfile, Core.Links.TableLink.For(linkProfile, Details.Table.Ref, Tab.AppliedFilters, Tab.Sorts, Tab.Mode), rowsOnly: false)">@GridText.GridMenu_CopyViewLink</button>
+        }
+    </ExportMenuItems>
 
     @if (_presentation.Entity is not null)
     {
@@ -93,7 +86,7 @@
         <button class="menu-item" disabled="@(seed is not null)" title="@(seed ?? GridText.GridMenu_CopySeedTitle)" @onclick="CopySeedAsync">@GridText.GridMenu_CopySeed</button>
     }
 
-    <FkJumpSection Outgoing="_outgoing" Incoming="_incoming" Related="InvolvesColumn" RowsText="@JumpRowsText" MissingRows="Request.MissingRows"
+    <FkJumpSection Outgoing="_jumps.Outgoing" Incoming="_jumps.Incoming" Related="InvolvesColumn" RowsText="@Request.JumpRowsText" MissingRows="Request.MissingRows"
                    WorkspaceId="Tab.WorkspaceId" ShowEmpty="true" OnJumped="CloseAsync" />
 </PopoverMenu>
 
@@ -107,8 +100,7 @@
     private const double MenuWidth = 400;
     private const double ItemHeight = 44;
 
-    private IReadOnlyList<FkJump> _outgoing = [];
-    private IReadOnlyList<FkJump> _incoming = [];
+    private FkJumpLists _jumps = FkJumpLists.None;
     private DomModule? _dom;
     private ExportActions? _export;
 
@@ -204,17 +196,8 @@
 
     private ColumnInfo Column => Details.Columns[Request.Column];
 
-    /// <summary>
-    /// FK jumps start from all selected rows (a right-click into a selection keeps it); rows no longer loaded are left
-    /// out and mentioned below the jumps.
-    /// </summary>
-    private IReadOnlyList<RowData> JumpRows => Request.Selected.Count > 0 ? Request.Selected : [Request.Row];
-
-    /// <summary>" · 3 rows" after the jump headings if several rows are selected; nothing for one row.</summary>
-    private string JumpRowsText => Request.Selected.Count + Request.MissingRows > 1 ? $" · {RowsText(JumpRows.Count)}" : "";
-
     /// <summary>For the first placement; dom.js keepInViewport corrects it once rendered.</summary>
-    private double EstimatedHeight => 336 + ItemHeight * (_outgoing.Count + _incoming.Count + (ExportColumn.DiffersFromRaw(_xlsxColumns) ? 2 : 1)) + (_cell is null ? 0 : 128) + (Request.MissingRows > 0 ? 40 : 0);
+    private double EstimatedHeight => 336 + ItemHeight * (_jumps.Count + (ExportMenuItems.OffersRaw(_xlsxColumns) ? 2 : 1)) + (_cell is null ? 0 : 128) + (Request.MissingRows > 0 ? 40 : 0);
 
     protected override void OnInitialized()
     {
@@ -227,10 +210,7 @@
         }
 
         var row = Details.Table.Ref;
-        var jumps = FkNavigation.JumpsFor(Details, JumpRows, schema.OutgoingOf(row), schema.IncomingOf(row));
-        // FKs over the clicked column first: that is usually the one the user means.
-        _outgoing = jumps.Where(j => j.Direction == JumpDirection.Outgoing).OrderByDescending(InvolvesColumn).ToList();
-        _incoming = jumps.Where(j => j.Direction == JumpDirection.Incoming).OrderByDescending(InvolvesColumn).ToList();
+        _jumps = FkJumpLists.Of(FkNavigation.JumpsFor(Details, Request.JumpRows, schema.OutgoingOf(row), schema.IncomingOf(row)), InvolvesColumn);
     }
 
     private bool InvolvesColumn(FkJump jump) =>
@@ -244,24 +224,9 @@
 
     private static string RowsText(int rows) => ExportActions.RowsText(rows);
 
-    private Task CopyTableAsync() =>
-        Export.CopyAsync(DelimitedExport.Build(Details, Request.Selected, DelimitedExport.ClipboardSeparator), ExportCopy.Table);
-
-    private Task CopyInsertAsync() => Export.CopyAsync(InsertExport.Build(Details, Request.Selected), ExportCopy.Insert);
-
     private Task CopyObjectsAsync() => Export.CopyAsync(CSharpRows.Initializers(_presentation, Request.Selected), ExportCopy.CSharpObjects);
 
     private Task CopySeedAsync() => Export.CopyAsync(CSharpRows.HasData(_presentation, Request.Selected), ExportCopy.HasData);
-
-    private Task SaveCsvAsync() =>
-        Export.SaveAsync(
-            DelimitedExport.Build(Details, Request.Selected, DelimitedExport.CsvSeparator), Details.Table.DisplayName + ".csv", GridText.Export_CsvFilter, utf8Bom: true);
-
-    private Task SaveXlsxAsync(IReadOnlyList<ExportColumn> columns)
-    {
-        var rows = Request.Selected;
-        return Export.SaveFileAsync(() => XlsxExport.BuildAsync(columns, rows, Details.Table.DisplayName), Details.Table.DisplayName + ".xlsx", GridText.Export_XlsxFilter);
-    }
 
     private Task SaveInsertAsync() =>
         Export.SaveAsync(InsertExport.Build(Details, Request.Selected), Details.Table.DisplayName + ".sql", GridText.Export_SqlScriptFilter, utf8Bom: false);

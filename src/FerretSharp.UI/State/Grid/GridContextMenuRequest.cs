@@ -12,4 +12,14 @@ namespace FerretSharp.UI.State;
 /// <param name="SelectedIndexes">Grid row indexes of the selected rows (delete/revert from the menu).</param>
 public sealed record GridContextMenuRequest(
     RowData Row, int Column, string? CellText, IReadOnlyList<RowData> Selected, int MissingRows,
-    double X, double Y, double ViewportWidth, double ViewportHeight, IReadOnlyList<int>? SelectedIndexes = null, int RowIndex = -1);
+    double X, double Y, double ViewportWidth, double ViewportHeight, IReadOnlyList<int>? SelectedIndexes = null, int RowIndex = -1)
+{
+    /// <summary>
+    /// FK jumps start from all selected rows (a right-click into a selection keeps it), else from the clicked row; rows no
+    /// longer loaded are left out and mentioned below the jumps.
+    /// </summary>
+    public IReadOnlyList<RowData> JumpRows => Selected.Count > 0 ? Selected : [Row];
+
+    /// <summary>" · 3 rows" after the jump headings if several rows are selected; nothing for one row.</summary>
+    public string JumpRowsText => Selected.Count + MissingRows > 1 ? $" · {ExportActions.RowsText(JumpRows.Count)}" : "";
+}
