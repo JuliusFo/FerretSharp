@@ -12,14 +12,6 @@ public sealed record PresetChoice(FilterPreset Preset, bool Append);
 public static class FilterPresetText
 {
     /// <summary>
-    /// A filter row as text, <c>KUNDENART = Gewerbe</c> – the one way for the tab header, the preset tooltip and the links
-    /// (review 3.40.0, A31: three copies, and only the tab header read enum and bool values as members of the C# model).
-    /// </summary>
-    /// <param name="presentation">The table's C# model; null shows the values as they are (what a link carries).</param>
-    public static string Row(FilterCondition filter, TablePresentation? presentation = null) =>
-        $"{filter.Column} {OperatorLabels.Label(filter.Op)} {string.Join("; ", filter.Values.Select(v => presentation?.FilterValueText(filter.Column, v) ?? v))}".TrimEnd();
-
-    /// <summary>
     /// One line per filter row, as in the tab header with <paramref name="presentation"/>; disabled rows marked as such,
     /// rows of a group (WP-50) with the group's kind and number ("ODER-Gruppe 1: …"), a disabled group's as disabled.
     /// Without a presentation (the link dialog, the note on Prod values) the values stand as the link carries them.
@@ -30,7 +22,7 @@ public static class FilterPresetText
         var numbers = new Dictionary<int, int>();
         foreach (var f in filters)
         {
-            var text = Row(f, presentation);
+            var text = FilterText.Row(f, presentation);
             if (f.Group is { } own)
             {
                 var group = groups[own.Id];

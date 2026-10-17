@@ -371,7 +371,7 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
             };
         }
 
-        string Text(FilterCondition f) => FilterPresetText.Row(f, presentation);
+        string Text(FilterCondition f) => FilterText.Row(f, presentation);
     }
 
     /// <param name="workspaceTabs">The tabs of the workspace in order, to save the origin as an index.</param>

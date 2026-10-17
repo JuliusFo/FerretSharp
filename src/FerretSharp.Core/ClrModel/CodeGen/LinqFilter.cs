@@ -61,7 +61,7 @@ public static class LinqFilter
                 }
                 else
                 {
-                    skipped.Add($"{Describe(presentation, filter)}: {result.Problem}");
+                    skipped.Add($"{FilterText.Row(filter)}: {result.Problem}");
                 }
             }
             else if (results.All(r => r.Result.Code is not null))
@@ -72,9 +72,9 @@ public static class LinqFilter
             else
             {
                 // Without one of its rows a group would find other rows than the grid: it stays out as a whole.
-                var problems = results.Where(r => r.Result.Code is null).Select(r => $"{Describe(presentation, r.Filter)}: {r.Result.Problem}");
+                var problems = results.Where(r => r.Result.Code is null).Select(r => $"{FilterText.Row(r.Filter)}: {r.Result.Problem}");
                 skipped.Add(TextFormat.Format(ClrModelText.FilterGroupSkipped, FilterGroupLabels.Label(group.Kind),
-                    string.Join(" | ", members.Select(f => Describe(presentation, f))), string.Join("; ", problems)));
+                    string.Join(" | ", members.Select(f => FilterText.Row(f))), string.Join("; ", problems)));
             }
         }
 
@@ -165,10 +165,6 @@ public static class LinqFilter
 
         return true;
     }
-
-    /// <summary>A filter as the user sees it: <c>KUNDENART = 7</c>.</summary>
-    private static string Describe(TablePresentation presentation, FilterCondition filter) =>
-        $"{filter.Column} {OperatorLabels.Label(filter.Op)} {string.Join("; ", filter.Values)}".TrimEnd();
 
     /// <param name="inNotGroup">
     /// In a NOT group (WP-50) a condition on a nullable member is guarded (<c>x.Umsatz != null &amp;&amp; x.Umsatz &lt; 5000</c>):
