@@ -1150,4 +1150,7 @@
     <value>Your workspace “{0}” in {1}</value>
     <comment>{0}: workspace name; {1}: connection label</comment>
   </data>
+  <data name="Editing_CommitOutcomeUnknown" xml:space="preserve">
+    <value>The connection broke while committing – whether the commit arrived is not known. The changes are shown as pending again: after reconnecting, check whether they are already in the database before you write them again (an INSERT would add the rows twice).</value>
+  </data>
 </root>

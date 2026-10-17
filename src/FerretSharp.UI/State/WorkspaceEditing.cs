@@ -216,11 +216,18 @@ public sealed class WorkspaceEditing(
             {
                 await editor.CommitAsync(CancellationToken.None);
             }
-            catch (DatabaseException) when (editor.Transaction.Mode != TransactionMode.ReadWrite)
+            catch (DatabaseException ex) when (editor.Transaction.Mode != TransactionMode.ReadWrite)
             {
-                // Oracle rolled the transaction back (ORA-02091, deferred constraint) or the session is gone: nothing
-                // written is in the database – it becomes pending again instead of vanishing from the grid.
+                // Oracle rolled the transaction back (ORA-02091, deferred constraint) or the session is gone: what was
+                // written becomes pending again instead of vanishing from the grid.
                 RestorePending(workspace);
+                if (ex.IsConnectionLost)
+                {
+                    // The connection broke while the COMMIT was on its way (review 3.40.0, A6): whether it arrived is not
+                    // known. Writing the changes again unchecked could insert rows twice – so say so, not "rolled back".
+                    throw new DatabaseException(GridText.Editing_CommitOutcomeUnknown, ex.ErrorCode, ex);
+                }
+
                 throw;
             }
         }

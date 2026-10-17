@@ -297,6 +297,31 @@ public sealed class WorkspaceEditingTests : IAsyncDisposable
         Assert.Null(_app.Editing.GridWriteOf(workspace.WorkspaceId, write.Id));
     }
 
+    /// <summary>
+    /// Review 3.40.0, A6: a connection lost during the COMMIT was taken for a rollback – the changes came back as pending
+    /// with nothing said, though the commit may well have arrived (writing again would insert rows twice).
+    /// </summary>
+    [Fact]
+    public async Task A_connection_lost_while_committing_says_the_outcome_is_unknown()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("Test"));
+        var (workspace, tab) = AddTab(scope);
+        tab.Changes!.SetValue(Row(1, "Meier"), 1, "Müller");
+        Assert.True(await _app.Editing.FlushAsync(workspace));
+        _app.OnCommit = () =>
+        {
+            _app.EndTransactions(); // the session is gone with the connection
+            return Task.FromException(TestApp.LostError());
+        };
+
+        Assert.False(await _app.Editing.CommitAsync(workspace));
+
+        Assert.Equal((1, 0), (tab.Changes.PendingCount, tab.Changes.FlushedCount)); // nothing vanishes
+        Assert.Equal("ORA-03113", _app.Shell.ErrorDetails?.ErrorCode);
+        Assert.True(_app.Shell.ErrorDetails?.IsConnectionLost); // the banner still shows
+        Assert.StartsWith("Die Verbindung brach während des Commits ab", _app.Shell.ErrorDetails?.Message);
+    }
+
     [Fact]
     public async Task A_failed_rollback_keeps_the_writes_so_it_can_be_tried_again()
     {

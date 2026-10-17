@@ -903,4 +903,7 @@
   <data name="Problem_OwnWorkspaceElsewhere" xml:space="preserve">
     <value>Dein Workspace „{0}“ in {1}</value>
   </data>
+  <data name="Editing_CommitOutcomeUnknown" xml:space="preserve">
+    <value>Die Verbindung brach während des Commits ab – ob er angekommen ist, ist offen. Die Änderungen stehen wieder als ausstehend da: Nach dem Neuverbinden erst prüfen, ob sie schon in der Datenbank sind, bevor du sie erneut schreibst (ein INSERT legte die Zeilen sonst doppelt an).</value>
+  </data>
 </root>
