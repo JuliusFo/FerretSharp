@@ -24,9 +24,6 @@
   <data name="InvalidFile" xml:space="preserve">
     <value>{0} ist keine gültige Datei mit Schema-Vergleichen: {1}</value>
   </data>
-  <data name="FileFromNewerVersionNotOverwritten" xml:space="preserve">
-    <value>{0} stammt aus einer neueren FerretSharp-Version (Format {1}). Sie wird nicht überschrieben.</value>
-  </data>
   <data name="ExportObject" xml:space="preserve">
     <value>Objekt</value>
   </data>

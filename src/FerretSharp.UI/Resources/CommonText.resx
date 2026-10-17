@@ -157,4 +157,8 @@ Restart FerretSharp now?</value>
     <value>FerretSharp is already running, but the link could not be handed over to it. Click the link again in a moment.</value>
     <comment>Message box at start when a ferretsharp:// link could not be passed to the running instance</comment>
   </data>
+  <data name="Choose" xml:space="preserve">
+    <value>Choose…</value>
+    <comment>Button: opens a file dialog</comment>
+  </data>
 </root>

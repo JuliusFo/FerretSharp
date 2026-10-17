@@ -72,7 +72,7 @@ public sealed class ComparisonStore(string filePath)
             // A file of a newer FerretSharp (used again after a downgrade) would lose what this version does not know.
             if (await VersionedJsonFile.ReadAsync<Document>(filePath, CurrentVersion, JsonFiles.Options, cancellationToken) is { State: JsonFileState.Newer } newer)
             {
-                throw new IOException(TextFormat.Format(CompareText.FileFromNewerVersionNotOverwritten, filePath, newer.Version));
+                throw new IOException(TextFormat.Format(CoreText.FileFromNewerVersionNotOverwritten, filePath, newer.Version));
             }
 
             await AtomicJsonFile.WriteAsync(filePath, new Document(CurrentVersion, comparisons), JsonFiles.Options, cancellationToken);

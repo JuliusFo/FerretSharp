@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -858,9 +858,6 @@
   <data name="Changes_ShowWorkspace" xml:space="preserve">
     <value>Diesen Workspace zeigen</value>
   </data>
-  <data name="Changes_OtherCounts" xml:space="preserve">
-    <value>{0} ausstehend · {1} geschrieben</value>
-  </data>
   <data name="Changes_ShowSource" xml:space="preserve">
     <value>Zeigen, woher es kam</value>
   </data>
@@ -948,12 +945,6 @@
   <data name="Settings_AuditTemplateHint" xml:space="preserve">
     <value>Audit-Tabelle und Trigger einer Tabelle folgen dieser Vorlage – z. B. einer Datei im Repository der Firma. Sie gilt für jede Verbindung ohne Vorlage ihrer Gruppe oder eigene. Leer nimmt die eingebaute Vorlage.</value>
   </data>
-  <data name="Settings_AuditTemplateBuiltIn" xml:space="preserve">
-    <value>Eingebaute Vorlage</value>
-  </data>
-  <data name="Settings_AuditTemplatePick" xml:space="preserve">
-    <value>Auswählen…</value>
-  </data>
   <data name="Settings_AuditTemplateFilter" xml:space="preserve">
     <value>Audit-Vorlage</value>
   </data>
@@ -1034,9 +1025,6 @@
   </data>
   <data name="Settings_DisplayColumnsDefault" xml:space="preserve">
     <value>display-columns.json im Datenordner</value>
-  </data>
-  <data name="Settings_DisplayColumnsPick" xml:space="preserve">
-    <value>Auswählen…</value>
   </data>
   <data name="Settings_DisplayColumnsFilter" xml:space="preserve">
     <value>Anzeigespalten</value>
@@ -1520,5 +1508,11 @@
   </data>
   <data name="Status_StuckTitle" xml:space="preserve">
     <value>Das Schreiben bzw. der Commit kommt seit einer Weile nicht zurück – die Verbindung hängt vielleicht (VPN, Firewall). Die Session des Workspaces zu trennen beendet es.</value>
+  </data>
+  <data name="Changes_OtherCountsOne" xml:space="preserve">
+    <value>{1} ausstehend · {0} Aktion offen</value>
+  </data>
+  <data name="Changes_OtherCountsOther" xml:space="preserve">
+    <value>{1} ausstehend · {0} Aktionen offen</value>
   </data>
 </root>
