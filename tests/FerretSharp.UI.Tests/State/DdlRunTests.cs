@@ -43,6 +43,29 @@ public sealed class DdlRunTests
     }
 
     /// <summary>
+    /// Review 3.40.0, C1: the fake session refuses DDL while a write is open, as Oracle's session does – the run rolls
+    /// back after the confirmation, so it goes through; skipping that rollback would fail here instead of staying green.
+    /// </summary>
+    [Fact]
+    public async Task Ddl_runs_after_the_rollback_and_the_session_refuses_it_while_a_write_is_open()
+    {
+        await using var app = new TestApp();
+        var scope = await app.OpenAsync(TestApp.Profile("Test"));
+        var workspace = scope.Workspaces.Active!.Id;
+        var editor = await scope.Workspaces.GetEditorAsync(workspace, Ct);
+        await editor.ExecuteAsync(new FerretSharp.Core.Query.QuerySpec("UPDATE KUNDEN SET NAME = 'x'", []), Ct);
+
+        var refused = await Assert.ThrowsAsync<RefusedException>(() => editor.ExecuteDdlAsync(First, Ct));
+        Assert.StartsWith("DDL läuft nur ohne offene Transaktion", refused.Message, StringComparison.Ordinal);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => editor.ExecuteDdlAsync("TRUNCATE TABLE KUNDEN", Ct));
+
+        var result = await app.Lifecycle.Statements.RunDdlAsync(workspace, [First], app.WorkspaceOf(scope), null, _ => { }, Ct);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal([First], app.RanDdl);
+    }
+
+    /// <summary>
     /// R4a: a statement the schema path refuses stopped the run with an unhandled programming error, after the statements
     /// before it had run (DDL commits each one). All are checked first; nothing runs, nothing is rolled back.
     /// </summary>
