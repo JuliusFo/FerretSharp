@@ -87,6 +87,15 @@
   <data name="ExportReasonTypeNotExported" xml:space="preserve">
     <value>Typ wird nicht exportiert</value>
   </data>
+  <data name="ExportTruncatedOne" xml:space="preserve">
+    <value>{1} ({2}): {0} Wert gekürzt – eine Excel-Zelle fasst höchstens 32.767 Zeichen.</value>
+  </data>
+  <data name="ExportTruncatedOther" xml:space="preserve">
+    <value>{1} ({2}): {0} Werte gekürzt – eine Excel-Zelle fasst höchstens 32.767 Zeichen.</value>
+  </data>
+  <data name="ExportSheetRowLimit" xml:space="preserve">
+    <value>Nur die ersten {0} Zeilen exportiert – mehr fasst ein Excel-Blatt nicht.</value>
+  </data>
   <data name="LobEmpty" xml:space="preserve">
     <value>‹leer›</value>
   </data>

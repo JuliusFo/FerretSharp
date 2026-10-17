@@ -107,6 +107,18 @@
     <value>this type is not exported</value>
     <comment>Reason in an export warning (lower case, ends a sentence): values of this data type are not exported</comment>
   </data>
+  <data name="ExportTruncatedOne" xml:space="preserve">
+    <value>{1} ({2}): {0} value shortened – an Excel cell holds at most 32,767 characters.</value>
+    <comment>Excel export warning. {0} = number of values (1), {1} = column name, {2} = data type</comment>
+  </data>
+  <data name="ExportTruncatedOther" xml:space="preserve">
+    <value>{1} ({2}): {0} values shortened – an Excel cell holds at most 32,767 characters.</value>
+    <comment>Excel export warning. {0} = number of values, {1} = column name, {2} = data type</comment>
+  </data>
+  <data name="ExportSheetRowLimit" xml:space="preserve">
+    <value>Only the first {0} rows were exported – an Excel sheet holds no more.</value>
+    <comment>Excel export warning. {0} = number of rows written</comment>
+  </data>
   <data name="LobEmpty" xml:space="preserve">
     <value>‹empty›</value>
     <comment>Grid cell of an empty (not NULL) LOB</comment>

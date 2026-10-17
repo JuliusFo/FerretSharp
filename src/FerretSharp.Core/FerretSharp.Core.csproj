@@ -8,6 +8,8 @@
   <ItemGroup>
     <PackageReference Include="Oracle.ManagedDataAccess.Core" />
     <PackageReference Include="System.Security.Cryptography.Pkcs" />
+    <!-- XLSX export (WP-53, ADR 0028); its source generator is not used. -->
+    <PackageReference Include="SpreadCheetah" ExcludeAssets="analyzers" />
   </ItemGroup>
 
   <ItemGroup>
