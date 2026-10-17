@@ -40,8 +40,7 @@ public sealed class SqlResultPresentation
             {
                 var name = source.Details.Columns[table].Name;
                 _byColumn[result] = (presentation, table);
-                _fk[result] = foreignKeys.Any(f => f.Source == FkSource.Declared && f.FromColumns.Contains(name));
-                _fkModel[result] = foreignKeys.Any(f => f.Source == FkSource.ClrModel && f.FromColumns.Contains(name)); // as FerretGrid
+                (_fk[result], _fkModel[result]) = ForeignKeyBadges.Of(foreignKeys, name); // as FerretGrid
             }
         }
 
@@ -112,35 +111,12 @@ public sealed class SqlResultPresentation
     /// <summary>A row as grid.js gets it: cells by column id, <c>__u</c> values without enum member, <c>__t</c> tooltips (as <see cref="GridRows"/>).</summary>
     public Dictionary<string, object?> Row(IReadOnlyList<object?> values)
     {
-        var cells = new Dictionary<string, object?>(values.Count + 2);
-        List<string>? unknown = null;
-        Dictionary<string, string>? tooltips = null;
+        var cells = new GridRows.PresentedCells(new Dictionary<string, object?>(values.Count + 2));
         for (var i = 0; i < values.Count; i++)
         {
-            var id = GridColumn.IdOf(i);
-            var presented = Present(i, values[i]);
-            cells[id] = presented.Text;
-            if (presented.Unknown)
-            {
-                (unknown ??= []).Add(id);
-            }
-
-            if (presented.Tooltip is { } tooltip)
-            {
-                (tooltips ??= [])[id] = tooltip;
-            }
+            cells.Add(GridColumn.IdOf(i), Present(i, values[i]));
         }
 
-        if (unknown is not null)
-        {
-            cells["__u"] = unknown;
-        }
-
-        if (tooltips is not null)
-        {
-            cells["__t"] = tooltips;
-        }
-
-        return cells;
+        return cells.Finish();
     }
 }

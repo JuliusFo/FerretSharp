@@ -141,7 +141,7 @@
         var category = ColumnCategories.Of(c);
         var label = Presentation.LabelOf(i);
         var values = Presentation.ValuesOf(i);
-        var foreignKeys = Active.Schema?.OutgoingOf(Details.Table.Ref).Where(f => f.FromColumns.Contains(c.Name)).ToList() ?? [];
+        var (fk, fkModel) = ForeignKeyBadges.Of(Active.Schema?.OutgoingOf(Details.Table.Ref) ?? [], c.Name);
         var lob = OracleTypeMapper.IsLob(c);
         var named = Names.Shows(i);
         return new GridColumn(ColumnId(i), c.Name, label.Name, c.DisplayType, category.ToString(), c.Nullable)
@@ -150,8 +150,8 @@
             ClrType = label.ClrType,
             ClrLine = Presentation.ShowsClrNames,
             Pk = Details.PrimaryKey.Contains(c.Name),
-            Fk = foreignKeys.Any(f => f.Source == FkSource.Declared),
-            FkModel = foreignKeys.Any(f => f.Source == FkSource.ClrModel),
+            Fk = fk,
+            FkModel = fkModel,
             DisplayColumn = Details.Table.Kind != TableKind.View && DisplayColumns.Current().Columns.IndexIn(Details) == i,
             Numeric = category == ColumnCategory.Number && values is null && !named,
             Named = named,

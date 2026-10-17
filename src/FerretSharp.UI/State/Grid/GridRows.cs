@@ -23,27 +23,16 @@ public static class GridRows
     {
         var columns = presentation.Details.Columns.Count;
         var cells = new Dictionary<string, object?>(columns + 5);
+        var presentedCells = new PresentedCells(cells);
         var stages = new Dictionary<string, string>();
         var readOnly = new List<string>();
-        var unknown = new List<string>();
-        Dictionary<string, string>? tooltips = null;
         Dictionary<string, string>? displayNames = null;
         List<string>? notFound = null;
         for (var i = 0; i < columns; i++)
         {
             var id = GridColumn.IdOf(i);
             var value = change is not null ? change.ValueOf(i) : values?[i];
-            var presented = presentation.Present(i, value);
-            cells[id] = presented.Text;
-            if (presented.Unknown)
-            {
-                unknown.Add(id);
-            }
-
-            if (presented.Tooltip is { } tooltip)
-            {
-                (tooltips ??= [])[id] = tooltip;
-            }
+            presentedCells.Add(id, presentation.Present(i, value));
 
             switch (names?.NameOf(i, value))
             {
@@ -81,16 +70,7 @@ public static class GridRows
             cells["__ro"] = readOnly;
         }
 
-        if (unknown.Count > 0)
-        {
-            cells["__u"] = unknown;
-        }
-
-        if (tooltips is not null)
-        {
-            cells["__t"] = tooltips;
-        }
-
+        presentedCells.Finish();
         if (displayNames is not null)
         {
             cells["__n"] = displayNames;
@@ -119,6 +99,46 @@ public static class GridRows
     /// <summary>The position of a new row among the pinned ones; -1 if it is not there.</summary>
     public static int NewRowIndex(ChangeTracker? changes, string? newId) =>
         newId is null || changes is null ? -1 : changes.NewRows.ToList().FindIndex(r => NewRowId(r) == newId);
+
+    /// <summary>
+    /// The presented values of a row for grid.js: the text by column id, <c>__u</c> values the C# model does not know,
+    /// <c>__t</c> tooltips (R6b, review 3.40.0, B11: the table grid and the result grid collected them each).
+    /// </summary>
+    public sealed class PresentedCells(Dictionary<string, object?> cells)
+    {
+        private List<string>? _unknown;
+        private Dictionary<string, string>? _tooltips;
+
+        public void Add(string id, PresentedValue presented)
+        {
+            cells[id] = presented.Text;
+            if (presented.Unknown)
+            {
+                (_unknown ??= []).Add(id);
+            }
+
+            if (presented.Tooltip is { } tooltip)
+            {
+                (_tooltips ??= [])[id] = tooltip;
+            }
+        }
+
+        /// <summary>Adds the lists, if any; returns the cells.</summary>
+        public Dictionary<string, object?> Finish()
+        {
+            if (_unknown is not null)
+            {
+                cells["__u"] = _unknown;
+            }
+
+            if (_tooltips is not null)
+            {
+                cells["__t"] = _tooltips;
+            }
+
+            return cells;
+        }
+    }
 
     private static string Stage(ChangeStage stage) => stage == ChangeStage.Pending ? "p" : "f";
 }
