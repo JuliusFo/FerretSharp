@@ -61,7 +61,7 @@
 
         _loadedFor = Details;
         _status = null;
-        if (AuditTemplates.Current().Template is not { } template || Active.Schema is not { } schema
+        if (AuditTemplates.For(Active.Profile).Template is not { } template || Active.Schema is not { } schema
             || AuditStatus.IsAuditTable(template, Details.Table.Ref, schema.Tables.Where(t => t.Kind == TableKind.Table && t.Synonym is null).Select(t => t.Ref)))
         {
             return;

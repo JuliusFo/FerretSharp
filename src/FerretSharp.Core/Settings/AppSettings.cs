@@ -103,9 +103,17 @@ public sealed record AppSettings
 
     /// <summary>
     /// The audit template (WP-26, <c>docs/audit-templates.md</c>) as a file, e.g. in the company's repository; null or empty
-    /// for the built-in one. Read through <see cref="Audit.AuditTemplateSource"/>.
+    /// for the built-in one. Read through <see cref="Audit.AuditTemplateSource"/>. A connection group or a connection can
+    /// have its own (<see cref="AuditTemplateGroups"/>, <see cref="Connections.ConnectionProfile.AuditTemplatePath"/>).
     /// </summary>
     public string? AuditTemplatePath { get; init; }
+
+    /// <summary>
+    /// Audit templates of connection groups (WP-51): group name → file. Each group of systems has its own template; a group
+    /// without an entry takes <see cref="AuditTemplatePath"/>. An entry stays when no connection has the group any more
+    /// (renamed): the settings page shows it as such (decision of the user, 2026-10-17).
+    /// </summary>
+    public SettingsMap AuditTemplateGroups { get; init; } = SettingsMap.Empty;
 
     /// <summary>
     /// Values of the display column beside foreign key values in the grid (WP-31): <c>4711 · PetersPizza</c>. On by default.

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -1285,7 +1285,7 @@
     <value>Gruppe für Verbindungen ohne Gruppe</value>
   </data>
   <data name="Import_TakeLocalPaths" xml:space="preserve">
-    <value>Pfade des Quellrechners übernehmen (C#-Projekt, Skriptordner, TNS_ADMIN)</value>
+    <value>Pfade des Quellrechners übernehmen (C#-Projekt, Skriptordner, TNS_ADMIN, Audit-Vorlage)</value>
   </data>
   <data name="Import_TakeLocalPathsHint" xml:space="preserve">
     <value>Nur für eigene Verbindungen von einem anderen Rechner: Ein C#-Projektpfad lädt und startet dieses Projekt. Ohne sie nimmt ein TNS-Alias TNS_ADMIN dieses Rechners.</value>
@@ -1324,7 +1324,7 @@
     <value>{0} von {1}</value>
   </data>
   <data name="Export_LocalPaths" xml:space="preserve">
-    <value>Pfade dieses Rechners mitnehmen (C#-Projekt, Skriptordner, TNS_ADMIN)</value>
+    <value>Pfade dieses Rechners mitnehmen (C#-Projekt, Skriptordner, TNS_ADMIN, Audit-Vorlage)</value>
   </data>
   <data name="Export_NoPasswords" xml:space="preserve">
     <value>Passwörter werden nie exportiert.</value>

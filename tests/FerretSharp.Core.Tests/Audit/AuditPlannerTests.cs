@@ -160,6 +160,72 @@ public sealed class AuditPlannerTests
         Assert.Contains(status.Reasons, r => r.Contains("KUNDE_ID"));
     }
 
+    /// <summary>The audit table as <see cref="UpToDate"/> has it, with one of its columns changed.</summary>
+    private static AuditState WithAuditColumn(AuditTemplate template, IReadOnlyList<ColumnInfo> columns, string name, Func<ColumnInfo, ColumnInfo> change) =>
+        new(Table("AUDIT_KUNDE", template.TableFor(Kunde, columns).Columns.Select(c => c.Name == name ? change(c) : c).ToList()),
+            new AuditTriggerState(Kunde, true, true, template.TriggerFor(Kunde, columns).Columns), "Changes to KUNDE");
+
+    /// <summary>
+    /// WP-51 (found by the user): an audit table of another template has AUDIT_TIME as TIMESTAMP WITH TIME ZONE, the template
+    /// says DATE. A DATE value goes into the wider column whole – a warning that names the template, not a problem that
+    /// blocks the designer and blames "the table".
+    /// </summary>
+    [Fact]
+    public void A_template_column_wider_in_the_audit_table_is_a_warning()
+    {
+        var state = WithAuditColumn(Template, Columns, "AUDIT_TIME", c => c with { DataType = "TIMESTAMP(6) WITH TIME ZONE", Scale = 6 });
+
+        var plan = AuditPlanner.Plan(Template, Kunde, Columns, state, Rows(10));
+
+        Assert.Empty(plan.Problems);
+        Assert.Empty(plan.Steps);
+        var warning = Assert.Single(plan.Warnings);
+        Assert.Contains("AUDIT_TIME", warning);
+        Assert.Contains("TIMESTAMP(6) WITH TIME ZONE", warning);
+        Assert.Contains("Vorlage (DATE)", warning);
+        Assert.Equal(AuditHealth.UpToDate, AuditStatus.Of(Template, Kunde, Columns, state).Health);
+    }
+
+    /// <summary>WP-51: a column the audit table keeps narrower than the template's takes its values with a loss – a warning.</summary>
+    [Fact]
+    public void A_template_column_narrower_in_the_audit_table_takes_values_with_a_loss()
+    {
+        var template = AuditTemplates.Parse(AuditTemplateTests.CompanyTemplate.Replace("AUDIT_TIME  DATE ", "AUDIT_TIME  TIMESTAMP(6) WITH TIME ZONE ", StringComparison.Ordinal));
+        var state = WithAuditColumn(template, Columns, "AUDIT_TIME", c => c with { DataType = "DATE", Scale = null });
+
+        var plan = AuditPlanner.Plan(template, Kunde, Columns, state, Rows(10));
+
+        Assert.Empty(plan.Problems);
+        Assert.DoesNotContain(plan.Steps, s => s.Kind == DdlStepKind.ModifyType); // needs an empty column: never proposed
+        Assert.Contains(plan.Warnings, w => w.Contains("AUDIT_TIME") && w.Contains("Vorlage (TIMESTAMP(6) WITH TIME ZONE)") && w.Contains("Verlust"));
+    }
+
+    /// <summary>WP-51: a copied column of the table, a timestamp with time zone, into an older DATE audit column.</summary>
+    [Fact]
+    public void A_table_column_taken_with_a_loss_is_a_warning_that_names_the_table()
+    {
+        var date = Column("GEAENDERT", "DATE", position: 4);
+        var zoned = date with { DataType = "TIMESTAMP(6) WITH TIME ZONE", Scale = 6 };
+
+        var plan = AuditPlanner.Plan(Template, Kunde, [.. Columns, zoned], UpToDate([.. Columns, date]), Rows(10));
+
+        Assert.Empty(plan.Problems);
+        Assert.Empty(plan.Steps);
+        Assert.Contains(plan.Warnings, w => w.Contains("GEAENDERT") && w.Contains("Tabelle (TIMESTAMP(6) WITH TIME ZONE)"));
+    }
+
+    /// <summary>WP-51: a column of the template's own that cannot take its values names the template as the source.</summary>
+    [Fact]
+    public void A_template_column_of_another_type_family_names_the_template()
+    {
+        var state = WithAuditColumn(Template, Columns, "AUDIT_USER", c => c with { DataType = "NUMBER", Length = null, Precision = 10, Scale = 0 });
+
+        var plan = AuditPlanner.Plan(Template, Kunde, Columns, state, Rows(10));
+
+        Assert.False(plan.CanRun);
+        Assert.Contains(plan.Problems, p => p.Contains("AUDIT_USER") && p.Contains("Vorlage (VARCHAR2(30))"));
+    }
+
     /// <summary>R5 review: a rename onto a name the audit table has already is not done silently.</summary>
     [Fact]
     public void A_rename_onto_an_existing_audit_column_is_reported()

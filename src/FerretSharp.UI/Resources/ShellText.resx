@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -1578,7 +1578,7 @@
     <value>Group for connections without a group</value>
   </data>
   <data name="Import_TakeLocalPaths" xml:space="preserve">
-    <value>Take the paths of the source computer (C# project, script folder, TNS_ADMIN)</value>
+    <value>Take the paths of the source computer (C# project, script folder, TNS_ADMIN, audit template)</value>
   </data>
   <data name="Import_TakeLocalPathsHint" xml:space="preserve">
     <value>Only for your own connections from another computer: a C# project path loads and runs that project. Without them, a TNS alias uses TNS_ADMIN of this computer.</value>
@@ -1625,7 +1625,7 @@
     <comment>{0}: selected connections of the group; {1}: all of the group</comment>
   </data>
   <data name="Export_LocalPaths" xml:space="preserve">
-    <value>Include paths of this computer (C# project, script folder, TNS_ADMIN)</value>
+    <value>Include paths of this computer (C# project, script folder, TNS_ADMIN, audit template)</value>
   </data>
   <data name="Export_NoPasswords" xml:space="preserve">
     <value>Passwords are never exported.</value>
