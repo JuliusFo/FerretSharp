@@ -1,3 +1,4 @@
+using FerretSharp.Core.Ddl;
 using FerretSharp.Core.Design;
 using FerretSharp.Core.Oracle;
 using FerretSharp.Core.Query;
@@ -212,6 +213,20 @@ public class TableDesignTests
 
         Assert.Equal([$"""ALTER TABLE {T} MODIFY ("NOTIZ" VARCHAR2(100 BYTE))"""], plan.Statements);
         Assert.Equal(["NOTIZ: VARCHAR2(200) → VARCHAR2(100) scheitert, wenn ein Wert zu lang dafür ist (ORA-01441)."], plan.Warnings);
+    }
+
+    /// <summary>Review 3.40.0, A9: these went through with data and changed the values without a word.</summary>
+    [Fact]
+    public void Type_changes_that_change_values_say_so()
+    {
+        var padded = Plan(Draft(Changed(Notiz, c => c with { DataType = "CHAR" })));
+        var stamp = new ColumnInfo("ZEIT", "TIMESTAMP(6)", null, true, null, 6, true, false, null, 6);
+
+        Assert.Equal(["NOTIZ: VARCHAR2(200) → CHAR(200) füllt jeden Wert mit Leerzeichen auf die volle Länge auf; Vergleiche mit VARCHAR2-Werten (Beziehungen, Filter) treffen danach womöglich nicht mehr."],
+            padded.Warnings);
+        Assert.True(padded.CanRun);
+        var step = Assert.Single(ColumnChange.Steps(Kunde.Table.Ref, stamp, stamp with { DataType = "DATE", Scale = null }, ChangeIntent.Unknown));
+        Assert.Equal((DdlRisk.DataLoss, "Läuft mit Daten durch, aber die Werte verlieren ihre Sekundenbruchteile."), (step.Risk, step.Warning));
     }
 
     [Fact]

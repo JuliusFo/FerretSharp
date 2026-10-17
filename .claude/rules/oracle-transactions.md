@@ -24,6 +24,6 @@ Modell der Änderungen (Pending → Flushed → Committed, Undo-Stapel, Schemawe
 - Deshalb holt sich der Schemaweg vor `ALTER TABLE` die Tabelle mit `LOCK TABLE … IN EXCLUSIVE MODE NOWAIT` (scheitert bei fremder DML nach Millisekunden, braucht keine Rechte; ein DDL danach in derselben ODP.NET-Transaktion läuft, und `Rollback`/`Dispose` des Transaktionsobjekts danach schadet nicht).
 
 ## ALTER TABLE … MODIFY mit Daten (WP-23, gemessen gegen Oracle 23)
-- Was ein Typwechsel braucht, steht nur in `OracleTypes.ChangeOf`: frei / scheitert an zu langen Werten (ORA-01441) / nur bei leerer Spalte (ORA-01439, ORA-01440, ORA-30082) / nie per MODIFY bei LOB (ORA-22858, auch leer).
-- Nicht naheliegend: `NUMBER(10)` → `NUMBER(10,2)` braucht eine leere Spalte (weniger Vorkommastellen), `TIMESTAMP` → `DATE` geht mit Daten, NVARCHAR2 → VARCHAR2 nicht; `MODIFY (x NULL)` auf eine schon nullable Spalte ist ORA-01451; Identity nur für neue Spalten (ORA-30673).
+- Was ein Typwechsel braucht, steht nur in `OracleTypes.ChangeOf`: frei / frei, aber verändert Werte (`ChangesValues`: `TIMESTAMP` → `DATE` schneidet Sekundenbruchteile ab, `VARCHAR2` → `CHAR` füllt mit Leerzeichen auf – Designer und Vergleich warnen, Review 3.40.0 A9) / scheitert an zu langen Werten (ORA-01441) / nur bei leerer Spalte (ORA-01439, ORA-01440, ORA-30082) / nie per MODIFY bei LOB (ORA-22858, auch leer).
+- Nicht naheliegend: `NUMBER(10)` → `NUMBER(10,2)` braucht eine leere Spalte (weniger Vorkommastellen), `TIMESTAMP` → `DATE` geht mit Daten (ohne Sekundenbruchteile), NVARCHAR2 → VARCHAR2 nicht; `MODIFY (x NULL)` auf eine schon nullable Spalte ist ORA-01451; Identity nur für neue Spalten (ORA-30673).
 - Zählungen für die Prüfungen über den Leseweg (`TableDesign.CountAsync`), nie mit eigenem SQL.

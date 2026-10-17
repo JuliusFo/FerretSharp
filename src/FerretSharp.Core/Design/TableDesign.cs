@@ -542,6 +542,10 @@ public static partial class TableDesign
                 case ColumnTypeChange.MayFailOnValues:
                     Warnings.Add(TextFormat.Format(DesignText.TypeChangeMayFail, after.Name, from, to));
                     return true;
+                case ColumnTypeChange.ChangesValues: // review 3.40.0, A9: went through without a word
+                    Warnings.Add(TextFormat.Format(
+                        OracleTypes.IsTimestamp(before.DataType) ? DesignText.TypeChangeCutsFractions : DesignText.TypeChangePads, after.Name, from, to));
+                    return true;
                 case ColumnTypeChange.NeedsEmptyColumn:
                     switch (facts.Of(new DataQuestion(DataQuestionKind.Values, before.Name)))
                     {

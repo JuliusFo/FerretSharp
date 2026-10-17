@@ -170,6 +170,8 @@ public static class ColumnChange
         steps.Add(change switch
         {
             ColumnTypeChange.MayFailOnValues => Step(table, DdlStepKind.ModifyType, sql, DdlRisk.MayFailOnValues, CompareText.MayFailOnData),
+            ColumnTypeChange.ChangesValues => Step(table, DdlStepKind.ModifyType, sql, DdlRisk.DataLoss,
+                OracleTypes.IsTimestamp(before.DataType) ? CompareText.CutsFractionalSeconds : CompareText.PadsWithBlanks),
             ColumnTypeChange.NeedsEmptyColumn => Step(table, DdlStepKind.ModifyType, sql, DdlRisk.NeedsEmptyColumn, CompareText.NeedsEmptyColumn),
             ColumnTypeChange.NotPossible => Step(table, DdlStepKind.ModifyType, sql, DdlRisk.NotExecutable, TextFormat.Format(CompareText.TypeChangeWarning, from, to)),
             _ => Step(table, DdlStepKind.ModifyType, sql),

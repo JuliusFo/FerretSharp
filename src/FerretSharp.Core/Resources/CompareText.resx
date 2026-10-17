@@ -273,4 +273,10 @@
     <value>Drops the check constraint.</value>
     <comment>Check constraint</comment>
   </data>
+  <data name="CutsFractionalSeconds" xml:space="preserve">
+    <value>Goes through with data, but the values lose their fractional seconds.</value>
+  </data>
+  <data name="PadsWithBlanks" xml:space="preserve">
+    <value>Goes through with data, but every value is padded with blanks to the full length – comparisons with VARCHAR2 values may no longer match.</value>
+  </data>
 </root>
