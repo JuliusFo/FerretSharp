@@ -28,8 +28,10 @@ public sealed class SessionGateTests
             secondStarted = true;
             return Task.FromResult(2);
         }, Ct);
-        await Task.Delay(Short, Ct);
 
+        // Waiting for the taken gate returns unfinished at once: the work runs only after the first call released it – no
+        // fixed wait, which passed under load also when the work started too early (review 3.40.0, C8).
+        Assert.False(second.IsCompleted);
         Assert.False(secondStarted);
         Assert.True(gate.IsBusy);
 

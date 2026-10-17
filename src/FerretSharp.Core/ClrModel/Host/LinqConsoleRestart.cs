@@ -110,11 +110,12 @@ internal sealed class LinqConsoleRestart(LinqConsoleRestart.ITarget target)
     }
 
     /// <summary>Starts a restart now (the watcher missed a build) – unless one runs already.</summary>
-    public void StartIfIdle()
+    /// <returns>Whether a restart started (tests; review 3.40.0, C8).</returns>
+    public bool StartIfIdle()
     {
         lock (_lock)
         {
-            StartLocked(supersede: false);
+            return StartLocked(supersede: false);
         }
     }
 
@@ -152,16 +153,17 @@ internal sealed class LinqConsoleRestart(LinqConsoleRestart.ITarget target)
         }
     }
 
-    private void StartLocked(bool supersede)
+    private bool StartLocked(bool supersede)
     {
         if (_ended || (!supersede && !_task.IsCompleted))
         {
-            return;
+            return false;
         }
 
         _running?.Cancel();
         var cts = _running = new CancellationTokenSource();
         _task = Task.Run(() => RunAsync(cts));
+        return true;
     }
 
     private async Task RunAsync(CancellationTokenSource cts)

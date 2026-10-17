@@ -440,7 +440,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
 
         // Two hosts building a large model at the same time made the UI stutter: the console waits for the model.
         await WaitUntil(() => _models.State is { Phase: ClrModelPhase.Loading, BuildChanged: true });
-        await Task.Delay(300, Ct);
+        await WaitUntil(() => consoles.Restart.IsWaiting); // parked on the reload (review 3.40.0, C8: was a fixed wait of 300 ms)
         Assert.True(consoles.State.IsReloading);
         await _runner.Received(1).StartConsoleAsync(Arg.Any<ClrProjectLink>(), Arg.Any<BuildOutput>(), Arg.Any<CancellationToken>(), Arg.Any<IProgress<string>?>());
         second.SetResult(Model());

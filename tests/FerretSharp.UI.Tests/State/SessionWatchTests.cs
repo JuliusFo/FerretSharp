@@ -34,10 +34,13 @@ public sealed class SessionWatchTests
         return await _looks.Reader.ReadAsync(timeout.Token);
     }
 
-    /// <summary>No look yet (the continuation after a timer runs on the pool: give it a moment to show up if it were there).</summary>
-    private async Task AssertNoLookAsync()
+    /// <summary>
+    /// No look: the watch is parked on its <paramref name="timers"/>-th delay (a look only follows a delay that is due) or has
+    /// ended – not "nothing came within 50 ms", which passed under load also when a look came too early (review 3.40.0, C8).
+    /// </summary>
+    private async Task AssertNoLookAsync(int timers)
     {
-        await Task.Delay(50, Ct);
+        await WaitUntilAsync(() => _time.Timers == timers);
         Assert.False(_looks.Reader.TryRead(out _));
     }
 
@@ -48,12 +51,12 @@ public sealed class SessionWatchTests
         var run = watch.RunAsync();
 
         _time.Advance(SessionWatch.Delay - TimeSpan.FromMilliseconds(100));
-        await AssertNoLookAsync();
+        await AssertNoLookAsync(timers: 1);
         _time.Advance(TimeSpan.FromMilliseconds(100));
         var first = await NextLookAsync();
 
         _time.Advance(TimeSpan.FromSeconds(30)); // the database is slow to answer: no second look meanwhile
-        await AssertNoLookAsync();
+        await AssertNoLookAsync(timers: 1); // no second delay either: the check below for the second one would fail
         var waiting = new SessionActivity(new SessionWait("enq: TX - row lock contention", TimeSpan.FromSeconds(4), 77, null, null), null);
         first.SetResult(waiting);
         await WaitUntilAsync(() => watch.Latest is not null);
@@ -85,7 +88,7 @@ public sealed class SessionWatchTests
         Assert.True(watch.Unavailable);
         Assert.Null(watch.Latest);
         _time.Advance(TimeSpan.FromMinutes(1));
-        await AssertNoLookAsync();
+        await AssertNoLookAsync(timers: 1); // the run has ended
     }
 
     [Fact]
@@ -99,7 +102,7 @@ public sealed class SessionWatchTests
         await run.WaitAsync(TimeSpan.FromSeconds(10), Ct);
         _time.Advance(TimeSpan.FromMinutes(1));
 
-        await AssertNoLookAsync();
+        await AssertNoLookAsync(timers: 1); // the run has ended
         Assert.Equal(0, _changed);
     }
 
@@ -116,21 +119,6 @@ public sealed class SessionWatchTests
 
         Assert.True(look.Task.IsCanceled);
         Assert.False(watch.Unavailable);
-    }
-
-    /// <summary>A fake clock that counts the timers created on it, i.e. the delays the watch has started.</summary>
-    private sealed class CountingTimeProvider : FakeTimeProvider
-    {
-        private int _timers;
-
-        public int Timers => Volatile.Read(ref _timers);
-
-        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
-        {
-            var timer = base.CreateTimer(callback, state, dueTime, period);
-            Interlocked.Increment(ref _timers);
-            return timer;
-        }
     }
 
     private static async Task WaitUntilAsync(Func<bool> condition)
