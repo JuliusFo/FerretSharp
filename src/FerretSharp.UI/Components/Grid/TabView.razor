@@ -221,16 +221,7 @@
     private readonly HashSet<TabMode> _visited = [];
     private int _version; // F5 in a detail view: incremented, the detail views reload
 
-    // A property, not a static field: the labels follow the UI language.
-    private static (TabMode Mode, string Label)[] Modes =>
-    [
-        (TabMode.Data, SchemaViewText.Tab_ViewData),
-        (TabMode.Structure, SchemaViewText.Tab_ViewColumns),
-        (TabMode.Constraints, SchemaViewText.Tab_ViewConstraints),
-        (TabMode.Indexes, SchemaViewText.Tab_ViewIndexes),
-        (TabMode.Dependencies, SchemaViewText.Tab_ViewDependencies),
-        (TabMode.Ddl, SchemaViewText.Tab_ViewDdl),
-    ];
+    private static IReadOnlyList<(TabMode Mode, string Label)> Modes => TabModeLabels.All;
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;

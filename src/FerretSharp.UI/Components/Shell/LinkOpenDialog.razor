@@ -195,15 +195,7 @@
         await Lifecycle.ConnectAsync(profile);
     }
 
-    private static string ModeLabel(FerretSharp.Core.Workspaces.TabMode mode) => mode switch
-    {
-        FerretSharp.Core.Workspaces.TabMode.Structure => SchemaViewText.Tab_ViewColumns,
-        FerretSharp.Core.Workspaces.TabMode.Constraints => SchemaViewText.Tab_ViewConstraints,
-        FerretSharp.Core.Workspaces.TabMode.Indexes => SchemaViewText.Tab_ViewIndexes,
-        FerretSharp.Core.Workspaces.TabMode.Dependencies => SchemaViewText.Tab_ViewDependencies,
-        FerretSharp.Core.Workspaces.TabMode.Ddl => SchemaViewText.Tab_ViewDdl,
-        _ => SchemaViewText.Tab_ViewData,
-    };
+    private static string ModeLabel(FerretSharp.Core.Workspaces.TabMode mode) => TabModeLabels.Of(mode);
 
     /// <param name="withGroup">Not under its group's heading: the group goes in front of the name.</param>
     private RenderFragment Option(ConnectionProfile profile, bool withGroup = false) =>
