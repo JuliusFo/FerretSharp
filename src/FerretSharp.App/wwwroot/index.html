@@ -4,6 +4,11 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>FerretSharp</title>
+    <!-- Review 3.40.0, A28: a second line of defence – script only from the app itself, images also from the release notes
+         (raw.githubusercontent.com, WP-49), nothing to frame, post or embed. Inline styles: AG Grid and Monaco set them;
+         blob workers: Monaco. -->
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://raw.githubusercontent.com; font-src 'self' data:; worker-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-src 'none'; form-action 'none'" />
     <base href="/" />
     <link href="_content/FerretSharp.UI/css/ferretsharp.css" rel="stylesheet" />
 </head>
