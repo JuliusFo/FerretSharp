@@ -185,10 +185,26 @@ public sealed partial class OracleSession : IAsyncDisposable
     /// is retried in a new snapshot (up to <see cref="MaxSnapshotRetries"/> times); <paramref name="read"/> must therefore not keep state across calls.
     /// </remarks>
     /// <exception cref="InvalidOperationException">The statement is not a plain query (see <see cref="IsReadOnlyStatement"/>).</exception>
-    public async Task<T> ExecuteReaderAsync<T>(
+    public Task<T> ExecuteReaderAsync<T>(
         string sql,
         IReadOnlyList<QueryParameter> parameters,
         Func<DbDataReader, CancellationToken, Task<T>> read,
+        CancellationToken cancellationToken) =>
+        ExecuteReaderAsync(sql, parameters, read, WholeLobs, cancellationToken);
+
+    /// <summary>Whole LOBs come with each row (<see cref="OracleCommand.InitialLOBFetchSize"/> = -1).</summary>
+    internal const int WholeLobs = -1;
+
+    /// <inheritdoc cref="ExecuteReaderAsync{T}(string, IReadOnlyList{QueryParameter}, Func{DbDataReader, CancellationToken, Task{T}}, CancellationToken)"/>
+    /// <param name="lobPrefetch">
+    /// Characters or bytes of each LOB that come with the row; the length always comes along (review 3.40.0, A12: the SQL
+    /// editor keeps a preview only, but fetched every LOB whole – also of the rows it skips to reach a page).
+    /// </param>
+    internal async Task<T> ExecuteReaderAsync<T>(
+        string sql,
+        IReadOnlyList<QueryParameter> parameters,
+        Func<DbDataReader, CancellationToken, Task<T>> read,
+        int lobPrefetch,
         CancellationToken cancellationToken)
     {
         // Tripwire: ExecuteReader would run DML just as well, and without a transaction ODP.NET commits it at once.
@@ -209,7 +225,7 @@ public sealed partial class OracleSession : IAsyncDisposable
             {
                 try
                 {
-                    return await ReadCoreAsync(sql, parameters, read, cancellationToken);
+                    return await ReadCoreAsync(sql, parameters, read, cancellationToken, lobPrefetch);
                 }
                 catch (OracleStatementException ex) when (
                     _readOnlySnapshots && attempt <= MaxSnapshotRetries && ex.Oracle is { } oracle && OracleErrorCodes.SnapshotUnusable.Contains(oracle.Number))
@@ -313,9 +329,10 @@ public sealed partial class OracleSession : IAsyncDisposable
     /// <see cref="OperationCanceledException"/>); other Oracle errors carry the statement. Caller holds the gate.
     /// </summary>
     private async Task<T> RunAsync<T>(
-        string sql, IReadOnlyList<QueryParameter> parameters, Func<OracleCommand, CancellationToken, Task<T>> run, CancellationToken cancellationToken)
+        string sql, IReadOnlyList<QueryParameter> parameters, Func<OracleCommand, CancellationToken, Task<T>> run, CancellationToken cancellationToken,
+        int lobPrefetch = WholeLobs)
     {
-        await using var command = CreateCommand(sql, parameters);
+        await using var command = CreateCommand(sql, parameters, lobPrefetch);
 
         // ODP.NET sends the break synchronously, and over a silent VPN it blocks: whoever cancels the token (a click on
         // "Cancel", closing a view – the UI thread) froze with it (review 3.40.0, A3). ODP.NET only ever sees a token that
@@ -352,16 +369,17 @@ public sealed partial class OracleSession : IAsyncDisposable
 
     /// <summary>A query; the reader goes to <paramref name="read"/>. Caller holds the gate.</summary>
     private Task<T> ReadCoreAsync<T>(
-        string sql, IReadOnlyList<QueryParameter> parameters, Func<DbDataReader, CancellationToken, Task<T>> read, CancellationToken cancellationToken) =>
+        string sql, IReadOnlyList<QueryParameter> parameters, Func<DbDataReader, CancellationToken, Task<T>> read, CancellationToken cancellationToken,
+        int lobPrefetch = WholeLobs) =>
         RunAsync(sql, parameters, async (command, ct) =>
         {
             await using var reader = (OracleDataReader)await command.ExecuteReaderAsync(ct);
             reader.SuppressGetDecimalInvalidCastException = true; // NUMBER(38) exceeds decimal
             return await read(reader, ct);
-        }, cancellationToken);
+        }, cancellationToken, lobPrefetch);
 
     /// <summary>Commands join the connection's open transaction by themselves (integration test).</summary>
-    private OracleCommand CreateCommand(string sql, IReadOnlyList<QueryParameter> parameters)
+    private OracleCommand CreateCommand(string sql, IReadOnlyList<QueryParameter> parameters, int lobPrefetch = WholeLobs)
     {
         // After a fatal error (ORA-03113 …) ODP.NET closes the connection; report that like the error itself.
         if (_connection.State != ConnectionState.Open)
@@ -373,8 +391,8 @@ public sealed partial class OracleSession : IAsyncDisposable
         command.BindByName = true;
         command.InitialLONGFetchSize = LongFetchSize;
         // Whole LOBs come with the row (LOB editor, locked rows of the concurrency check). Grid queries never select a
-        // LOB column itself, only a preview and its length (QueryBuilder).
-        command.InitialLOBFetchSize = -1;
+        // LOB column itself, only a preview and its length (QueryBuilder); the SQL editor takes a preview (A12).
+        command.InitialLOBFetchSize = lobPrefetch;
         command.CommandText = sql;
         foreach (var parameter in parameters)
         {

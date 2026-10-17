@@ -37,6 +37,8 @@ public sealed class SqlEditorExecutionTests(OracleContainerFixture oracle) : IAs
                 "CREATE TABLE SX_NEU (ID NUMBER(10) PRIMARY KEY, NAME VARCHAR2(50 CHAR))",
                 "INSERT INTO SX_NEU VALUES (1, 'Erste; neu')",
                 "INSERT INTO SX_NEU VALUES (42, 'Zweiundvierzig')",
+                "CREATE TABLE SX_LOB (ID NUMBER(10) PRIMARY KEY, TEXT CLOB, NTEXT NCLOB, DATA BLOB, NOTHING CLOB)",
+                "INSERT INTO SX_LOB SELECT LEVEL, TO_CLOB(RPAD('a', 4000, 'x')) || RPAD('y', 4000, 'y') || RPAD('z', 4000, 'z'), TO_NCLOB(N'Łódź'), HEXTORAW('0102030405'), NULL FROM DUAL CONNECT BY LEVEL <= 3",
                 "COMMIT",
             })
             {
@@ -95,6 +97,26 @@ public sealed class SqlEditorExecutionTests(OracleContainerFixture oracle) : IAs
 
         Assert.Equal([7m, 8m, 9m], customers.Rows.Select(r => r[0]));
         Assert.Equal(["a;b", 42m], dual.Rows.Single());
+    }
+
+    /// <summary>
+    /// Review 3.40.0, A12: the SQL editor fetched every LOB whole – also of the rows it skips to reach a page – and kept a
+    /// preview only. Now only the preview comes along, and preview and length are the same as before.
+    /// </summary>
+    [Fact]
+    public async Task Lobs_come_as_preview_and_length_also_on_later_pages()
+    {
+        await using var connection = await OpenAsync("SQL lob");
+        var page = await connection.Data.ReadSqlAsync(new QuerySpec("SELECT id, text, ntext, data, nothing FROM sx_lob ORDER BY id", []), 2, 10, Ct);
+
+        var row = Assert.Single(page.Rows);
+        Assert.Equal(3m, row[0]);
+        var text = Assert.IsType<LobValue>(row[1]);
+        Assert.Equal((QueryBuilder.ClobPreviewLength, 12000L), (text.Preview!.Length, text.Length));
+        Assert.StartsWith("axx", text.Preview, StringComparison.Ordinal);
+        Assert.Equal(new LobValue("Łódź", 4), row[2]);
+        Assert.Equal(new LobValue(null, 5), row[3]);
+        Assert.Null(row[4]);
     }
 
     [Fact]
