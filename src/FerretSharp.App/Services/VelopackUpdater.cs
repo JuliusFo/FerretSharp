@@ -13,7 +13,7 @@ namespace FerretSharp.App.Services;
 /// </summary>
 internal sealed class VelopackUpdater : IAppUpdater
 {
-    public const string RepositoryUrl = "https://github.com/JuliusFo/FerretSharp";
+    public const string RepositoryUrl = ProjectSite.Url;
 
     private readonly UpdateManager _manager;
     private readonly string[] _restartArguments;

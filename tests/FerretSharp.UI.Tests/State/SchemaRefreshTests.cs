@@ -185,7 +185,7 @@ public sealed class SchemaRefreshTests
         var scope = await app.OpenAsync(TestApp.Profile("Test"));
         var busy = new DatabaseException("Nicht gestartet …", inner: new TableBusyException("Nicht gestartet …"));
         var dropped = new DatabaseException("Sperre …", "ORA-00054");
-        var holder = new LockHolder(42, "APP_USER", "jdoe", "PC-1234", "MeineApp.exe", "FerretSharp", "Workspace 2", null);
+        var holder = new LockHolder(42, "APP_USER", "jdoe", "PC-1234", "MeineApp.exe", "FerretSharp", "Workspace 2");
 
         app.LockHolders = [holder];
         var alter = await app.Lifecycle.LockOfAsync(scope, "ALTER TABLE kunden ADD (fax VARCHAR2(30))", busy);

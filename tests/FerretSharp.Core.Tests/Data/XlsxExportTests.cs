@@ -119,6 +119,34 @@ public class XlsxExportTests
         Assert.True(sheet["B3"].IsText);
     }
 
+    /// <summary>R6b, B6: what Excel gets as text is written in the notation of the CSV export, from one place.</summary>
+    [Theory]
+    [MemberData(nameof(TextValues))]
+    public async Task Values_written_as_text_have_the_notation_of_the_csv_export(string type, object value)
+    {
+        var column = Col("X", type);
+
+        var (_, sheet) = await ExportAsync([new ExportColumn("X", 0, column)], Row(value));
+
+        Assert.True(sheet["A2"].IsText);
+        Assert.Equal(DelimitedExport.CellText(column, value).Text, sheet["A2"].Value);
+    }
+
+    public static TheoryData<string, object> TextValues() => new()
+    {
+        { "NUMBER", new BigNumber("12345678901234567890123456789012345678.5") },
+        { "NUMBER", 9007199254740993L },
+        { "NUMBER", 1234567890.123456m },
+        { "TIMESTAMP(6) WITH TIME ZONE", new DateTimeOffset(2026, 10, 1, 13, 45, 7, TimeSpan.FromHours(2)) },
+        { "TIMESTAMP(9)", new DateTime(2026, 10, 1, 13, 45, 7).AddTicks(1234567) },
+        { "DATE", new DateTime(1899, 12, 31, 8, 0, 0) },
+        { "RAW", new byte[] { 0xCA, 0xFE } },
+        { "BINARY_DOUBLE", double.NaN },
+        { "BINARY_FLOAT", float.PositiveInfinity },
+        { "INTERVAL DAY(2) TO SECOND(6)", TimeSpan.FromHours(26) },
+        { "VARCHAR2", "Text" },
+    };
+
     [Fact]
     public async Task Incomplete_lobs_are_left_out_and_long_texts_shortened_with_warnings()
     {

@@ -30,7 +30,7 @@ public sealed class SessionActivityTests
     [InlineData(996, 1000, 99)] // never 100 % while it runs
     [InlineData(5, 0, 0)]
     public void Long_operations_show_whole_percent(long done, long total, int percent) =>
-        Assert.Equal(percent, new LongOperation("Table Scan", "APP.KUNDEN", done, total, "Blocks", null).Percent);
+        Assert.Equal(percent, new LongOperation("Table Scan", "APP.KUNDEN", done, total, null).Percent);
 
     [Fact]
     public async Task Without_rights_on_the_v_views_the_connection_asks_only_once()

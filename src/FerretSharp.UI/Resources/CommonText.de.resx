@@ -135,4 +135,7 @@ FerretSharp jetzt neu starten?</value>
   <data name="LinkNotHandedOver" xml:space="preserve">
     <value>FerretSharp läuft schon, aber der Link konnte nicht übergeben werden. Den Link gleich noch einmal anklicken.</value>
   </data>
+  <data name="Choose" xml:space="preserve">
+    <value>Auswählen…</value>
+  </data>
 </root>

@@ -26,7 +26,7 @@ public sealed record SessionWait(string Event, TimeSpan? For, int BlockerSid, Lo
 /// <param name="Operation">Oracle's name for it (<c>OPNAME</c>: "Table Scan", "Hash Join", "Sort Output"), not translated.</param>
 /// <param name="Target">What it works on (<c>TARGET</c>, usually OWNER.TABLE); null for joins and sorts.</param>
 /// <param name="Remaining">Oracle's estimate (<c>TIME_REMAINING</c>); null if it has none yet.</param>
-public sealed record LongOperation(string Operation, string? Target, long Done, long Total, string? Units, TimeSpan? Remaining)
+public sealed record LongOperation(string Operation, string? Target, long Done, long Total, TimeSpan? Remaining)
 {
     /// <summary>Done as a share of the total, 0 … 1.</summary>
     public double Fraction => Total <= 0 ? 0 : Math.Clamp((double)Done / Total, 0, 1);

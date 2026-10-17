@@ -1,0 +1,408 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Settings_Title" xml:space="preserve">
+    <value>Settings</value>
+    <comment>Page title</comment>
+  </data>
+  <data name="Settings_Sections" xml:space="preserve">
+    <value>Section</value>
+    <comment>Accessible label of the settings tabs</comment>
+  </data>
+  <data name="Settings_Shortcuts" xml:space="preserve">
+    <value>Shortcuts</value>
+    <comment>Settings tab</comment>
+  </data>
+  <data name="Settings_Appearance" xml:space="preserve">
+    <value>Appearance</value>
+    <comment>Settings section</comment>
+  </data>
+  <data name="Settings_Language" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="Settings_LanguageHint" xml:space="preserve">
+    <value>Takes effect at the next start. Enum names from the C# project keep the language of its resources.</value>
+  </data>
+  <data name="Settings_LanguageAfterRestart" xml:space="preserve">
+    <value>FerretSharp shows the selected language after a restart.</value>
+  </data>
+  <data name="Settings_ColorScheme" xml:space="preserve">
+    <value>Color scheme</value>
+  </data>
+  <data name="Settings_ColorSchemeHint" xml:space="preserve">
+    <value>“System” follows the Windows setting.</value>
+  </data>
+  <data name="Settings_ConnectionGroup" xml:space="preserve">
+    <value>Group before the connection name</value>
+  </data>
+  <data name="Settings_ConnectionGroupHint" xml:space="preserve">
+    <value>Shows a connection's group in front of its name in the connection switcher, the open and recent connections and the confirmations, e.g. {0} – helpful when several groups have a DEV, TEST or PROD.</value>
+    <comment>{0}: an example, "Kunde A › DEV"</comment>
+  </data>
+  <data name="Settings_ThemeSystem" xml:space="preserve">
+    <value>System</value>
+    <comment>Color scheme option</comment>
+  </data>
+  <data name="Settings_ThemeLight" xml:space="preserve">
+    <value>Light</value>
+    <comment>Color scheme option</comment>
+  </data>
+  <data name="Settings_ThemeDark" xml:space="preserve">
+    <value>Dark</value>
+    <comment>Color scheme option</comment>
+  </data>
+  <data name="Settings_ThemeForced" xml:space="preserve">
+    <value>This session was started with {0} and therefore stays {1}. The selection is saved and applies from the next start without this parameter.</value>
+    <comment>{0} = the command line argument (code), {1} = Settings_ThemeForcedDark or Settings_ThemeForcedLight</comment>
+  </data>
+  <data name="Settings_ThemeForcedDark" xml:space="preserve">
+    <value>dark</value>
+    <comment>Completes Settings_ThemeForced</comment>
+  </data>
+  <data name="Settings_ThemeForcedLight" xml:space="preserve">
+    <value>light</value>
+    <comment>Completes Settings_ThemeForced</comment>
+  </data>
+  <data name="Settings_ClrModel" xml:space="preserve">
+    <value>C# model</value>
+    <comment>Settings section</comment>
+  </data>
+  <data name="Settings_ClrNames" xml:space="preserve">
+    <value>C# names</value>
+  </data>
+  <data name="Settings_ClrNamesHint" xml:space="preserve">
+    <value>Entity and property names of the linked project in the explorer, the table header and the column search: beside the Oracle names, or in front in their place. FerretSharp always shows enum values with their C# name; SQL keeps the names of the database.</value>
+  </data>
+  <data name="Settings_ClrNamesBeside" xml:space="preserve">
+    <value>Beside</value>
+    <comment>C# names option</comment>
+  </data>
+  <data name="Settings_ClrNamesFront" xml:space="preserve">
+    <value>In front</value>
+    <comment>C# names option</comment>
+  </data>
+  <data name="Settings_Connection" xml:space="preserve">
+    <value>Connection</value>
+    <comment>Settings section</comment>
+  </data>
+  <data name="Settings_KeepAlive" xml:space="preserve">
+    <value>Check idle connections</value>
+  </data>
+  <data name="Settings_KeepAliveHint" xml:space="preserve">
+    <value>Sends a short query to idle sessions every 2 minutes ({0}). A lost connection is reported immediately, and firewalls do not drop idle connections. However, this also keeps sessions open despite an {1} limit of the database.</value>
+    <comment>{0} = SELECT 1 FROM DUAL (code), {1} = IDLE_TIME (code)</comment>
+  </data>
+  <data name="Settings_LockWait" xml:space="preserve">
+    <value>Wait for locked rows</value>
+  </data>
+  <data name="Settings_LockWaitHint" xml:space="preserve">
+    <value>If another session holds a lock on a row you want to write, FerretSharp waits this long and then shows who holds it ({0}).</value>
+    <comment>{0} = SELECT … FOR UPDATE WAIT n (code)</comment>
+  </data>
+  <data name="Settings_FkCounts" xml:space="preserve">
+    <value>Count incoming foreign keys</value>
+  </data>
+  <data name="Settings_FkCountsHint" xml:space="preserve">
+    <value>The cell menu and the form show how many rows refer to the row. The counts run one after the other on the workspace’s session – a jump to another table waits until the running count has ended. “On hover” counts only the entry the mouse rests on.</value>
+  </data>
+  <data name="Settings_FkCountsImmediately" xml:space="preserve">
+    <value>Immediately</value>
+    <comment>Option of "Count incoming foreign keys": all at once when the menu opens</comment>
+  </data>
+  <data name="Settings_FkCountsOnHover" xml:space="preserve">
+    <value>On hover</value>
+    <comment>Option of "Count incoming foreign keys": only the entry under the mouse</comment>
+  </data>
+  <data name="Settings_Diagnostics" xml:space="preserve">
+    <value>Diagnostics</value>
+    <comment>Settings section</comment>
+  </data>
+  <data name="Settings_DiagnoseUiStalls" xml:space="preserve">
+    <value>Log UI stalls</value>
+  </data>
+  <data name="Settings_DiagnoseUiStallsHint" xml:space="preserve">
+    <value>Writes to the log when the user interface does not respond for more than 0.3 s, and what FerretSharp was busy with. If the .NET tool {0} is installed, stalls over 1.5 s also write the stacks of all threads to the log folder as {1}. Meant for tracking down stalls, not for everyday use.</value>
+    <comment>{0} = dotnet-stack (code), {1} = stall-*.txt (code)</comment>
+  </data>
+  <data name="Settings_NotRead" xml:space="preserve">
+    <value>Settings could not be read.</value>
+    <comment>Notice at start; the details (file, copy) follow as a warning</comment>
+  </data>
+  <data name="Settings_NotSaved" xml:space="preserve">
+    <value>Setting applied but not saved: {0}</value>
+    <comment>{0} = error message</comment>
+  </data>
+  <data name="Shortcuts_Intro" xml:space="preserve">
+    <value>Changes take effect at once. Click “Change” and press the new key combination; Esc cancels. Shortcuts use Ctrl, Alt or a function key; grayed-out ones are fixed.</value>
+  </data>
+  <data name="Shortcuts_PressKeys" xml:space="preserve">
+    <value>Press a key combination …</value>
+  </data>
+  <data name="Shortcuts_None" xml:space="preserve">
+    <value>not assigned</value>
+    <comment>A shortcut without keys</comment>
+  </data>
+  <data name="Shortcuts_Changed" xml:space="preserve">
+    <value>changed</value>
+    <comment>A shortcut that differs from the default</comment>
+  </data>
+  <data name="Shortcuts_Change" xml:space="preserve">
+    <value>Change</value>
+    <comment>Button: record a new key combination</comment>
+  </data>
+  <data name="Shortcuts_DefaultTitle" xml:space="preserve">
+    <value>Default: {0}</value>
+    <comment>{0} = the default key combination</comment>
+  </data>
+  <data name="Shortcuts_NotPossible" xml:space="preserve">
+    <value>{0} cannot be used: {1}</value>
+    <comment>{0} = key combination, {1} = reason</comment>
+  </data>
+  <data name="Shortcuts_Conflict" xml:space="preserve">
+    <value>{0} is already assigned to “{1}” – applying removes it there.</value>
+    <comment>{0} = key combination, {1} = the action it is assigned to</comment>
+  </data>
+  <data name="Shortcuts_FixedTitle" xml:space="preserve">
+    <value>Fixed – cannot be changed</value>
+  </data>
+  <data name="Shortcuts_Fixed" xml:space="preserve">
+    <value>fixed</value>
+    <comment>A shortcut that cannot be changed</comment>
+  </data>
+  <data name="Shortcuts_ResetAllQuestion" xml:space="preserve">
+    <value>Reset all shortcuts to the defaults?</value>
+  </data>
+  <data name="Shortcuts_ResetAll" xml:space="preserve">
+    <value>Reset all</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Settings_Audit" xml:space="preserve">
+    <value>Audit tables</value>
+    <comment>Settings section (WP-26)</comment>
+  </data>
+  <data name="Settings_AuditTemplate" xml:space="preserve">
+    <value>Template</value>
+    <comment>Settings row: the file of the audit template</comment>
+  </data>
+  <data name="Settings_AuditTemplateHint" xml:space="preserve">
+    <value>Audit table and trigger of a table follow this template – e.g. a file in your company's repository. It applies to every connection without a template of its group or its own. Empty uses the built-in template.</value>
+  </data>
+  <data name="Settings_AuditTemplateFilter" xml:space="preserve">
+    <value>Audit template</value>
+    <comment>File type label in the open dialog</comment>
+  </data>
+  <data name="Settings_AuditTemplateReset" xml:space="preserve">
+    <value>Use built-in</value>
+    <comment>Button: back to the built-in template</comment>
+  </data>
+  <data name="Settings_AuditTemplateResetTitle" xml:space="preserve">
+    <value>Use the built-in template again</value>
+  </data>
+  <data name="Settings_AuditTemplateUsingBuiltIn" xml:space="preserve">
+    <value>The built-in template is used: audit table AUDIT_&lt;table&gt;, trigger &lt;table&gt;_AUDIT.</value>
+  </data>
+  <data name="Settings_AuditTemplateValid" xml:space="preserve">
+    <value>The template is valid.</value>
+  </data>
+  <data name="Settings_AuditTemplateCopy" xml:space="preserve">
+    <value>Copy the built-in template</value>
+    <comment>Link button</comment>
+  </data>
+  <data name="Settings_AuditTemplateCopyTitle" xml:space="preserve">
+    <value>As the start of your own template – its syntax is explained in it</value>
+  </data>
+  <data name="Settings_AuditTemplateCopied" xml:space="preserve">
+    <value>Built-in audit template copied.</value>
+  </data>
+  <data name="Settings_DisplayColumns" xml:space="preserve">
+    <value>Display columns</value>
+    <comment>Settings section (WP-31)</comment>
+  </data>
+  <data name="Settings_ShowDisplayNames" xml:space="preserve">
+    <value>Names beside foreign keys</value>
+    <comment>Settings row: on/off</comment>
+  </data>
+  <data name="Settings_ShowDisplayNamesHint" xml:space="preserve">
+    <value>Shows the value of the referenced table's display column beside a foreign key value in the grid, e.g. {0}. Mark a display column in the context menu of a column header.</value>
+    <comment>{0}: an example, "4711 · PetersPizza"</comment>
+  </data>
+  <data name="Settings_DisplayColumnsFile" xml:space="preserve">
+    <value>File</value>
+    <comment>Settings row: the file of the display columns</comment>
+  </data>
+  <data name="Settings_DisplayColumnsFileHint" xml:space="preserve">
+    <value>Where the display columns are kept – e.g. in your team's repository, so colleagues see the same names. Empty uses a file in FerretSharp's data folder.</value>
+  </data>
+  <data name="Settings_DisplayColumnsDefault" xml:space="preserve">
+    <value>display-columns.json in the data folder</value>
+    <comment>Placeholder of the empty path field</comment>
+  </data>
+  <data name="Settings_DisplayColumnsFilter" xml:space="preserve">
+    <value>Display columns</value>
+    <comment>File type label in the open dialog</comment>
+  </data>
+  <data name="Settings_DisplayColumnsReset" xml:space="preserve">
+    <value>Use data folder</value>
+    <comment>Button: back to the file in the data folder</comment>
+  </data>
+  <data name="Settings_DisplayColumnsResetTitle" xml:space="preserve">
+    <value>Keep the display columns in FerretSharp's data folder again</value>
+  </data>
+  <data name="Settings_DisplayColumnsCountOne" xml:space="preserve">
+    <value>{0} display column in {1}.</value>
+    <comment>{0}: count (1); {1}: path of the file</comment>
+  </data>
+  <data name="Settings_DisplayColumnsCountOther" xml:space="preserve">
+    <value>{0} display columns in {1}.</value>
+    <comment>{0}: count; {1}: path of the file</comment>
+  </data>
+  <data name="Settings_DisplayColumnsNoFile" xml:space="preserve">
+    <value>{0} does not exist yet: marking the first display column creates it.</value>
+    <comment>{0}: path of the file</comment>
+  </data>
+  <data name="Settings_Updates" xml:space="preserve">
+    <value>Updates</value>
+    <comment>Settings section (WP-32)</comment>
+  </data>
+  <data name="Settings_Version" xml:space="preserve">
+    <value>Version</value>
+    <comment>Label of the installed version in Settings › Updates</comment>
+  </data>
+  <data name="Settings_VersionInstalled" xml:space="preserve">
+    <value>Installed – updates come from the GitHub releases.</value>
+    <comment>Hint below the version</comment>
+  </data>
+  <data name="Settings_VersionNotInstalled" xml:space="preserve">
+    <value>Not installed (a build or the zip): updates only reach a FerretSharp installed with Setup.exe.</value>
+    <comment>Hint below the version</comment>
+  </data>
+  <data name="Settings_CheckForUpdates" xml:space="preserve">
+    <value>Check automatically</value>
+    <comment>Label of the on/off setting</comment>
+  </data>
+  <data name="Settings_CheckForUpdatesHint" xml:space="preserve">
+    <value>At start and while FerretSharp runs (below), asks GitHub whether a newer version is out and shows it in the status bar. Downloading and installing wait for your click.</value>
+  </data>
+  <data name="Settings_UpdateCheckInterval" xml:space="preserve">
+    <value>While FerretSharp runs</value>
+    <comment>Label: how often to check for updates again while the app is open</comment>
+  </data>
+  <data name="Settings_UpdateCheckIntervalHint" xml:space="preserve">
+    <value>Checks again this long after the last check, for when FerretSharp stays open for days. Only with automatic checks on.</value>
+  </data>
+  <data name="Settings_UpdateCheckNever" xml:space="preserve">
+    <value>Never</value>
+    <comment>Option: only check at start</comment>
+  </data>
+  <data name="Settings_UpdateCheckHourly" xml:space="preserve">
+    <value>Hourly</value>
+  </data>
+  <data name="Settings_UpdateCheckEvery4Hours" xml:space="preserve">
+    <value>Every 4 hours</value>
+  </data>
+  <data name="Settings_UpdateCheckDaily" xml:space="preserve">
+    <value>Daily</value>
+  </data>
+  <data name="Settings_Search" xml:space="preserve">
+    <value>Search settings</value>
+    <comment>Placeholder of the search field above the list of sections (WP-34)</comment>
+  </data>
+  <data name="Settings_NoMatch" xml:space="preserve">
+    <value>No setting or shortcut matches “{0}”.</value>
+    <comment>{0}: the search text</comment>
+  </data>
+  <data name="Settings_ShortcutGroupInSearch" xml:space="preserve">
+    <value>Shortcuts › {0}</value>
+    <comment>Heading of a group of shortcuts among the search results of the settings (WP-34); {0}: the group, e.g. Editing</comment>
+  </data>
+  <data name="Settings_LinkProtocol" xml:space="preserve">
+    <value>Links (ferretsharp://)</value>
+    <comment>Settings row: which FerretSharp opens ferretsharp:// links</comment>
+  </data>
+  <data name="Settings_LinkProtocolHint" xml:space="preserve">
+    <value>A click on a ferretsharp:// link – from a colleague, in a ticket – opens the table in FerretSharp, after asking. The installer registers this itself; a portable copy or a build of your own does it here. Only for your Windows user.</value>
+  </data>
+  <data name="Settings_LinkProtocolRegister" xml:space="preserve">
+    <value>Register</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Settings_LinkProtocolTakeOver" xml:space="preserve">
+    <value>Use this FerretSharp</value>
+    <comment>Button: links open with this copy instead of another one</comment>
+  </data>
+  <data name="Settings_LinkProtocolRemove" xml:space="preserve">
+    <value>Remove</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Settings_LinkProtocolMine" xml:space="preserve">
+    <value>Links open with this FerretSharp.</value>
+  </data>
+  <data name="Settings_LinkProtocolNone" xml:space="preserve">
+    <value>Links do not open with FerretSharp yet.</value>
+  </data>
+  <data name="Settings_LinkProtocolOther" xml:space="preserve">
+    <value>Links open with another FerretSharp: {0}</value>
+    <comment>{0}: path of the program</comment>
+  </data>
+  <data name="Settings_LinkProtocolFailed" xml:space="preserve">
+    <value>The registration could not be changed: {0}</value>
+    <comment>{0}: error message</comment>
+  </data>
+  <data name="Settings_AuditTemplateGroups" xml:space="preserve">
+    <value>Templates of connection groups</value>
+    <comment>WP-51: settings row</comment>
+  </data>
+  <data name="Settings_AuditTemplateGroupsHint" xml:space="preserve">
+    <value>Each group of systems can have its own template, e.g. from its repository. A group without one takes the template above.</value>
+  </data>
+  <data name="Settings_AuditTemplateNoGroups" xml:space="preserve">
+    <value>No connection has a group yet – it is set in the connection dialog.</value>
+  </data>
+  <data name="Settings_AuditTemplateGroupOrphaned" xml:space="preserve">
+    <value>No connection is in this group any more (renamed?).</value>
+  </data>
+  <data name="Settings_AuditTemplateAsGlobal" xml:space="preserve">
+    <value>Template above</value>
+    <comment>Placeholder of a group's empty path field</comment>
+  </data>
+  <data name="Settings_AuditTemplateUseGlobal" xml:space="preserve">
+    <value>Use the one above</value>
+    <comment>Button: the group takes the global template again</comment>
+  </data>
+  <data name="Settings_AuditTemplateAsGlobalTitle" xml:space="preserve">
+    <value>The group takes the template above again</value>
+  </data>
+  <data name="Settings_AuditTemplateRemove" xml:space="preserve">
+    <value>Remove</value>
+    <comment>Button: removes the entry of a group no connection has</comment>
+  </data>
+  <data name="Settings_AuditTemplateOfGroup" xml:space="preserve">
+    <value>Template of the group {0}</value>
+    <comment>Accessible name of the path field. {0}: group name</comment>
+  </data>
+  <data name="Settings_AuditTemplateConnections" xml:space="preserve">
+    <value>Templates of single connections</value>
+    <comment>WP-51: settings row</comment>
+  </data>
+  <data name="Settings_AuditTemplateConnectionsHint" xml:space="preserve">
+    <value>A connection whose audit tables follow another template than its group has its own, set in the connection dialog. It goes before the group's.</value>
+  </data>
+  <data name="Settings_AuditTemplateNoConnections" xml:space="preserve">
+    <value>No connection has its own template.</value>
+  </data>
+  <data name="Settings_AuditTemplateEditConnection" xml:space="preserve">
+    <value>Edit connection…</value>
+    <comment>Button: opens the connection dialog</comment>
+  </data>
+</root>

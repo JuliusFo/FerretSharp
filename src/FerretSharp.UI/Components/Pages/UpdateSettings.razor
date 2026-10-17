@@ -1,0 +1,75 @@
+@* Settings › Updates (WP-32): the version, when to check, and what the last check found (R6b: a section of its own). The
+   page renders it anew whenever the update state changes. *@
+@using FerretSharp.Core.Settings
+@inject AppSettingsService Settings
+@inject UpdateState Updates
+
+<section class="settings-section">
+    <h2>@SettingsViewText.Settings_Updates</h2>
+    <div class="settings-row @Filter.HideClass(SettingKey.Version)">
+        <div class="settings-label">
+            <span>@SettingsViewText.Settings_Version</span>
+            <span class="hint">
+                @(Updates.Phase == UpdatePhase.NotInstalled ? SettingsViewText.Settings_VersionNotInstalled : SettingsViewText.Settings_VersionInstalled)
+            </span>
+        </div>
+        <span class="settings-value">@CurrentVersion</span>
+    </div>
+    @if (Updates.Phase != UpdatePhase.NotInstalled)
+    {
+        <SettingsChoice TValue="bool" Filter="Filter" Key="SettingKey.CheckForUpdates" Label="@SettingsViewText.Settings_CheckForUpdates" Options="SettingsOptions.OnOff"
+                        Value="Settings.Current.CheckForUpdates" OnChange="on => UpdateAsync(s => s with { CheckForUpdates = on })">
+            <Hint>@SettingsViewText.Settings_CheckForUpdatesHint</Hint>
+        </SettingsChoice>
+        <SettingsChoice TValue="int" Filter="Filter" Key="SettingKey.UpdateCheckInterval" Label="@SettingsViewText.Settings_UpdateCheckInterval" Options="SettingsOptions.UpdateIntervals"
+                        Value="Math.Max(Settings.Current.UpdateCheckHours, 0)" Disabled="!Settings.Current.CheckForUpdates"
+                        OnChange="hours => UpdateAsync(s => s with { UpdateCheckHours = hours })">
+            <Hint>@SettingsViewText.Settings_UpdateCheckIntervalHint</Hint>
+        </SettingsChoice>
+        <div class="settings-note update-status @(Updates.Phase is UpdatePhase.DownloadFailed ? "error" : "") @Filter.HideClass(SettingKey.CheckForUpdates)">
+            @switch (Updates.Phase)
+            {
+                case UpdatePhase.Checking:
+                    <span class="spinner small"></span> @ShellText.Update_Checking
+                    break;
+                case UpdatePhase.UpToDate when Updates.LastChecked is { } at:
+                    @TextFormat.Format(ShellText.Update_UpToDate, at.ToString("t", CultureInfo.CurrentCulture))
+                    break;
+                case UpdatePhase.CheckFailed:
+                    @TextFormat.Format(ShellText.Update_CheckFailed, Updates.Error)
+                    break;
+                case UpdatePhase.Available when Updates.Update is { } update:
+                    @TextFormat.Format(ShellText.Update_Available, update.Version)
+                    <button class="link-btn" @onclick="Updates.ShowDetails">@ShellText.Update_ShowChanges</button>
+                    break;
+                case UpdatePhase.Downloading when Updates.Update is { } update:
+                    <span class="spinner small"></span> @TextFormat.Format(ShellText.Update_Downloading, update.Version, Updates.Progress)
+                    break;
+                case UpdatePhase.Ready when Updates.Update is { } update:
+                    @TextFormat.Format(ShellText.Update_Ready, update.Version)
+                    <button class="link-btn" @onclick="Updates.Restart">@ShellText.Update_RestartNow</button>
+                    break;
+                case UpdatePhase.DownloadFailed when Updates.Update is { } update:
+                    @TextFormat.Format(ShellText.Update_DownloadFailed, update.Version, Updates.Error)
+                    <button class="link-btn" @onclick="Updates.ShowDetails">@CommonText.TryAgain</button>
+                    break;
+            }
+            @if (Updates.CanCheck)
+            {
+                <button class="btn small update-check" @onclick="Updates.CheckAsync">@ShellText.Update_CheckNow</button>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public SettingsFilter Filter { get; set; } = null!;
+
+    private static readonly string CurrentVersion = AppVersion.Current;
+
+    private Task UpdateAsync(Func<AppSettings, AppSettings> change) => Shell.TrySaveSettingsAsync(() => Settings.UpdateAsync(change, CancellationToken.None));
+}

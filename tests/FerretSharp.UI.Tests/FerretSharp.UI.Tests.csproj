@@ -23,12 +23,14 @@
     <Compile Include="..\Shared\ResourceChecks.cs" Link="Shared\ResourceChecks.cs" />
     <Compile Include="..\Shared\FakeDatabase.cs" Link="Shared\FakeDatabase.cs" />
     <Compile Include="..\Shared\Repository.cs" Link="Shared\Repository.cs" />
+    <Compile Include="..\Shared\ReleaseWorkflow.cs" Link="Shared\ReleaseWorkflow.cs" />
+    <Compile Include="..\Shared\InMemorySecretStore.cs" Link="Shared\InMemorySecretStore.cs" />
+    <Compile Include="..\Shared\InMemoryWorkspaceStore.cs" Link="Shared\InMemoryWorkspaceStore.cs" />
     <Using Include="FerretSharp.Testing" />
   </ItemGroup>
 
   <ItemGroup>
     <!-- The in-memory stores of the Core tests, shared instead of copied. -->
-    <Compile Include="..\FerretSharp.Core.Tests\Fakes\*.cs" Link="Fakes\%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>

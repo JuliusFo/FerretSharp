@@ -152,11 +152,14 @@ public sealed partial class OracleSession : IAsyncDisposable
         return result.Length > maxLength ? result.ToString(0, maxLength) : result.ToString();
     }
 
-    /// <summary>Round trip with <c>SELECT 1 FROM DUAL</c>.</summary>
+    /// <summary>The statement of <see cref="PingAsync"/>; the settings show it.</summary>
+    public const string PingSql = "SELECT 1 FROM DUAL";
+
+    /// <summary>Round trip with <see cref="PingSql"/>.</summary>
     public async Task<TimeSpan> PingAsync(CancellationToken cancellationToken)
     {
         var stopwatch = Stopwatch.StartNew();
-        await ExecuteReaderAsync("SELECT 1 FROM DUAL", [], (reader, ct) => reader.ReadAsync(ct), cancellationToken);
+        await ExecuteReaderAsync(PingSql, [], (reader, ct) => reader.ReadAsync(ct), cancellationToken);
         return stopwatch.Elapsed;
     }
 

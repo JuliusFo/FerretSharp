@@ -1,0 +1,421 @@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Query
+@using FerretSharp.Core.Schema
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject ShortcutService Shortcuts
+
+<div class="filterbar" @ref="_bar">
+    @if (Tab.FilterRows.Count == 0 && Tab.FilterGroups.Count == 0)
+    {
+        <button class="btn" @onclick="() => AddRow(null)"><span class="plus">+</span> @GridText.Filter_Add</button>
+        @AddGroupButton
+        <span class="hint">@GridText.Filter_NoFilter</span>
+        <span class="spacer"></span>
+        <PresetMenu Tab="Tab" Details="Details" OnApply="ApplyPresetAsync" />
+        @if (Presentations.For(Details).Entity is not null)
+        {
+            <LinqMenu Details="Details" Filters="CurrentFilters" />
+        }
+        <button class="btn ghost" @onclick="OnShowSql">@Icons.Code SQL</button>
+        <button class="btn ghost" title="@GridText.Filter_PlanTitle" @onclick="OnShowPlan">@GridText.Filter_Plan</button>
+    }
+    else
+    {
+        <div class="filter-rows">
+            @foreach (var row in Tab.RowsOf(null))
+            {
+                @RowView(row)
+            }
+            @for (var i = 0; i < Tab.FilterGroups.Count; i++)
+            {
+                var group = Tab.FilterGroups[i];
+                var number = i + 1;
+                var rows = Tab.RowsOf(group).ToList();
+                @* A drop target for dragged rows (data-drop, dom.js dragToDrop). *@
+                <div @key="group" class="filter-group @(group.Enabled ? "" : "disabled")" data-drop="@DropOf(group)">
+                    <div class="filter-group-head">
+                        <span></span>
+                        <input type="checkbox" class="row-toggle" checked="@group.Enabled" title="@GridText.Filter_GroupEnabled"
+                               @onchange="e => { group.Enabled = e.Value is true; Shell.MarkDirty(); }" />
+                        <div class="filter-group-title">
+                            <select class="field group-kind" value="@group.Kind" title="@GridText.Filter_GroupKindTitle"
+                                    @onchange="e => { group.Kind = Enum.Parse<FilterGroupKind>((string)e.Value!); Shell.MarkDirty(); }">
+                                <option value="@FilterGroupKind.Any">@FilterGroupLabels.Label(FilterGroupKind.Any)</option>
+                                <option value="@FilterGroupKind.None">@FilterGroupLabels.Label(FilterGroupKind.None)</option>
+                            </select>
+                            <span class="muted">@TextFormat.Format(GridText.Filter_GroupName, number) · @(group.Kind == FilterGroupKind.None ? GridText.Filter_GroupNoneHint : GridText.Filter_GroupAnyHint)</span>
+                            @if (!rows.Any(r => r.Enabled))
+                            {
+                                <span class="filter-note">@GridText.Filter_GroupEmpty</span>
+                            }
+                            <span class="spacer"></span>
+                            <button class="btn ghost small" title="@GridText.Filter_GroupAddRowTitle" @onclick="() => AddRow(group)"><span class="plus">+</span> @GridText.Filter_GroupAddRow</button>
+                            <button class="icon-btn" title="@GridText.Filter_GroupDissolve" @onclick="() => DissolveAsync(group)">✕</button>
+                        </div>
+                    </div>
+                    @foreach (var row in rows)
+                    {
+                        @RowView(row)
+                    }
+                </div>
+            }
+            @if (Tab.FilterGroups.Count > 0)
+            {
+                @* Out of a group: shown only while dragging (CSS), the rows without a group are targets too. *@
+                <div class="filter-more" data-drop="@NoGroup">@GridText.Filter_DropNoGroup</div>
+            }
+        </div>
+        <div class="filter-actions">
+            @AddGroupButton
+            <PresetMenu Tab="Tab" Details="Details" OnApply="ApplyPresetAsync" />
+            @if (Presentations.For(Details).Entity is not null)
+            {
+                <LinqMenu Details="Details" Filters="CurrentFilters" />
+            }
+            <button class="btn ghost" @onclick="OnShowSql">@Icons.Code SQL</button>
+            <button class="btn ghost" title="@GridText.Filter_PlanTitle" @onclick="OnShowPlan">@GridText.Filter_Plan</button>
+            <button class="btn ghost" @onclick="ClearAsync">@GridText.Filter_Clear</button>
+            <button class="btn primary" @onclick="OnApply">@GridText.Filter_Apply <Kbd Action="ShortcutAction.ApplyFilters" /></button>
+        </div>
+    }
+</div>
+
+@code {
+    [CascadingParameter]
+    public PresentationService Presentations { get; set; } = null!;
+
+    /// <summary>
+    /// The row just added; its column picker gets the focus, so the user can type the column right away. Only for its
+    /// first render: a row moved into or out of a group is rendered anew and would open its picker again.
+    /// </summary>
+    private FilterRow? _newRow;
+
+    protected override void OnAfterRender(bool firstRender) => _newRow = null;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public TableTab Tab { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public TableDetails Details { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnApply { get; set; }
+
+    /// <summary>
+    /// The filter rows were set from a preset (WP-37): apply them with its sort order (null keeps the grid's).
+    /// </summary>
+    [Parameter]
+    public EventCallback<IReadOnlyList<SortSpec>?> OnApplyPreset { get; set; }
+
+    [Parameter]
+    public EventCallback OnShowSql { get; set; }
+
+    /// <summary>The execution plan of the query (WP-14).</summary>
+    [Parameter]
+    public EventCallback OnShowPlan { get; set; }
+
+    /// <summary>The filters as edited if they are valid, else the applied ones (like the SQL preview).</summary>
+    private IReadOnlyList<FilterCondition> CurrentFilters()
+    {
+        var edited = Tab.EditedFilters();
+        return QueryBuilder.Validate(Details, edited).Count == 0 ? edited : Tab.AppliedFilters;
+    }
+
+    /// <summary>One filter row: grip to drag it, switch, column, operator, values, menu, remove, add.</summary>
+    private RenderFragment RowView(FilterRow r) => __builder =>
+    {
+        var presentation = Presentations.For(Details);
+        var column = Details.Columns.FirstOrDefault(c => c.Name == r.Column);
+        var category = column is null ? ColumnCategory.Unsupported : ColumnCategories.Of(column);
+        // Enum and converted bool columns of the C# model (WP-12): members to pick instead of typing.
+        var values = column is null ? null : presentation.ValuesOf(IndexOf(column));
+        var valueCount = FilterRules.ValueCount(r.Op);
+        <div @key="r" class="filter-row @(r.Error is null ? "" : "invalid") @(r.Enabled ? "" : "disabled")" data-drop="@(r.Group is null ? NoGroup : null)">
+            <span class="filter-grip" title="@GridText.Filter_DragTitle" @onpointerdown="e => DragAsync(r, e)" @onpointerdown:preventDefault="true">⠿</span>
+            <input type="checkbox" class="row-toggle" checked="@r.Enabled" title="@GridText.Filter_Enabled"
+                   @onchange="e => { r.Enabled = e.Value is true; Shell.MarkDirty(); }" />
+            <ColumnPicker Details="Details" Value="@r.Column" OnChange="name => ChangeColumn(r, name)" AutoFocus="r == _newRow" />
+            @* Keyed by category: with other options the browser would show the first one while the kept operator
+               (e.g. "=" from DATE to VARCHAR2) did not change, so Blazor would not set the value again. *@
+            <select @key="(category, values is null)" class="field op" value="@r.Op" @onchange="e => { r.Op = Enum.Parse<FilterOperator>((string)e.Value!); Shell.MarkDirty(); }">
+                @* A column the table does not have (a preset's, WP-37) keeps showing its operator. *@
+                @foreach (var op in column is null ? [r.Op] : Operators(category, values, r.Op))
+                {
+                    <option value="@op">@OperatorLabels.Label(op)</option>
+                }
+            </select>
+            <div class="values">
+                @if (valueCount == 0)
+                {
+                    <div class="field value disabled">—</div>
+                }
+                else if (values is not null && r.Op is FilterOperator.Equals or FilterOperator.NotEquals or FilterOperator.In)
+                {
+                    <ValuePicker Values="values" Value="@r.Value" Multiple="r.Op == FilterOperator.In"
+                                 OnChange="v => { r.Value = v; r.Error = null; Shell.MarkDirty(); }" />
+                }
+                else if (valueCount == 2)
+                {
+                    <input class="field value" placeholder="@TextFormat.Format(GridText.Filter_From, Placeholder(category))" @bind="r.Value" @bind:event="oninput" @bind:after="Shell.MarkDirty" @onkeydown="OnKeyDown" />
+                    <input class="field value" placeholder="@TextFormat.Format(GridText.Filter_To, Placeholder(category))" @bind="r.Value2" @bind:event="oninput" @bind:after="Shell.MarkDirty" @onkeydown="OnKeyDown" />
+                }
+                else
+                {
+                    <input class="field value" placeholder="@(valueCount < 0 ? GridText.Filter_ListPlaceholder : Placeholder(category))"
+                           @bind="r.Value" @bind:event="oninput" @bind:after="Shell.MarkDirty" @onkeydown="OnKeyDown" />
+                }
+            </div>
+            <MenuButton Class="icon-btn" Title="@GridText.Filter_RowMenu" Width="MenuWidth" EstimatedHeight="@(40 + 30 * Tab.FilterGroups.Count)" ShiftX="40" ShiftY="14">
+                <Label>⋯</Label>
+                <ChildContent Context="menu">
+                    @for (var i = 0; i < Tab.FilterGroups.Count; i++)
+                    {
+                        var group = Tab.FilterGroups[i];
+                        if (group != r.Group)
+                        {
+                            <button class="menu-item" @onclick="() => { menu.Close(); Move(r, group); }">@TextFormat.Format(GridText.Filter_MoveToGroup, FilterGroupLabels.Label(group.Kind), i + 1)</button>
+                        }
+                    }
+                    <button class="menu-item" @onclick="() => { menu.Close(); MoveToNewGroup(r, FilterGroupKind.Any); }">@TextFormat.Format(GridText.Filter_MoveToNewGroup, FilterGroupLabels.Label(FilterGroupKind.Any))</button>
+                    <button class="menu-item" @onclick="() => { menu.Close(); MoveToNewGroup(r, FilterGroupKind.None); }">@TextFormat.Format(GridText.Filter_MoveToNewGroup, FilterGroupLabels.Label(FilterGroupKind.None))</button>
+                    @if (r.Group is not null)
+                    {
+                        <button class="menu-item" @onclick="() => { menu.Close(); Move(r, null); }">@GridText.Filter_MoveOutOfGroup</button>
+                    }
+                </ChildContent>
+            </MenuButton>
+            <button class="icon-btn" title="@GridText.Filter_Remove" @onclick="() => RemoveRow(r)">−</button>
+            <button class="icon-btn" title="@GridText.Filter_AddTitle" @onclick="() => AddRow(r.Group)">+</button>
+            @if (r.Error is not null)
+            {
+                <span class="filter-error">@r.Error</span>
+            }
+            else if (column is null)
+            {
+                @* From a filter preset of another version of the table (WP-37): kept, disabled, to show what it wanted. *@
+                <span class="filter-note">@GridText.Presets_ColumnMissing</span>
+            }
+        </div>
+    };
+
+    /// <summary>A new row at the end of a group, or of the rows without one.</summary>
+    private void AddRow(FilterRowGroup? group)
+    {
+        // Prefer the first text column: "contains" on a name is the most common quick filter. Enum columns (C# model)
+        // are no names; they get their member list with "=".
+        var column = Details.Columns.FirstOrDefault(c => ColumnCategories.Of(c) == ColumnCategory.Text && !Details.PrimaryKey.Contains(c.Name) && ValuesOf(c.Name) is null)
+                     ?? Details.Columns[0];
+        var row = new FilterRow { Column = column.Name };
+        row.Op = Operators(ColumnCategories.Of(column), ValuesOf(column.Name), null)[0];
+        Tab.AddFilterRow(row, group);
+        _newRow = row;
+        Shell.MarkDirty();
+    }
+
+    /// <summary>A new group (WP-50) with a first row to fill in.</summary>
+    private void AddGroup(FilterGroupKind kind)
+    {
+        AddRow(Tab.AddFilterGroup(kind));
+    }
+
+    private void Move(FilterRow row, FilterRowGroup? group)
+    {
+        if (group is not null && !Tab.FilterGroups.Contains(group))
+        {
+            return; // ended meanwhile
+        }
+
+        Tab.MoveFilterRow(row, group);
+        Shell.MarkDirty();
+    }
+
+    private void MoveToNewGroup(FilterRow row, FilterGroupKind kind)
+    {
+        if (Tab.FilterRows.Contains(row))
+        {
+            Move(row, Tab.AddFilterGroup(kind));
+        }
+    }
+
+    /// <summary>✕ of a group: its rows stay, combined with AND (decision of the user).</summary>
+    private async Task DissolveAsync(FilterRowGroup group)
+    {
+        Tab.DissolveFilterGroup(group);
+        await OnApply.InvokeAsync();
+    }
+
+    /// <summary>Drags a row by its grip onto a group or the rows without one (dom.js dragToDrop).</summary>
+    private async Task DragAsync(FilterRow row, PointerEventArgs e)
+    {
+        if (e.Button != 0)
+        {
+            return;
+        }
+
+        var drop = await Dom.InvokeAsync<string?>("dragToDrop", _bar, e.PointerId, ".filter-rows [data-drop]", "drop-over");
+        if (_disposed || drop is null || !Tab.FilterRows.Contains(row))
+        {
+            return;
+        }
+
+        var group = drop == NoGroup ? null : Tab.FilterGroups.FirstOrDefault(g => DropOf(g) == drop);
+        if ((drop == NoGroup || group is not null) && group != row.Group)
+        {
+            Move(row, group);
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>"+ Group ▾" (WP-50): an OR or a NOT group with a first row to fill in.</summary>
+    private RenderFragment AddGroupButton => @<MenuButton Class="btn ghost" Title="@GridText.Filter_AddGroupTitle" Width="MenuWidth" EstimatedHeight="80" ShiftX="40" ShiftY="14">
+        <Label><span class="plus">+</span> @GridText.Filter_AddGroup ▾</Label>
+        <ChildContent Context="menu">
+            <button class="menu-item" @onclick="() => { menu.Close(); AddGroup(FilterGroupKind.Any); }">@GridText.Filter_GroupAny</button>
+            <button class="menu-item" @onclick="() => { menu.Close(); AddGroup(FilterGroupKind.None); }">@GridText.Filter_GroupNone</button>
+        </ChildContent>
+    </MenuButton>;
+
+    private const string NoGroup = "none";
+
+    private static string DropOf(FilterRowGroup group) => "g" + group.Id.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    private const double MenuWidth = 280;
+
+    private ElementReference _bar;
+
+    private bool _disposed;
+
+    private DomModule? _dom;
+
+    /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
+    private DomModule Dom => _dom ??= new(JS);
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        if (_dom is not null)
+        {
+            await _dom.DisposeAsync();
+        }
+    }
+
+    private async Task ApplyPresetAsync(PresetChoice choice)
+    {
+        var applied = FilterPresets.Apply(choice.Preset, Details, Tab.EditedFilters(), choice.Append);
+        Tab.SetFilterRows(applied.Filters);
+        if (!choice.Append)
+        {
+            Tab.Preset = choice.Preset.Id; // added rows keep the preset shown before, now "changed"
+        }
+
+        Shell.MarkDirty(); // saved even if a row does not validate and applying stops there
+
+        if (applied.MissingColumns.Count > 0)
+        {
+            Shell.Notify(TextFormat.Plural(applied.MissingColumns.Count, GridText.Presets_MissingColumnsOne, GridText.Presets_MissingColumnsOther,
+                choice.Preset.Name, string.Join(", ", applied.MissingColumns)));
+        }
+
+        await OnApplyPreset.InvokeAsync(applied.Sorts);
+    }
+
+    private async Task RemoveRow(FilterRow row)
+    {
+        Tab.RemoveFilterRow(row);
+        await OnApply.InvokeAsync();
+    }
+
+    private async Task ClearAsync()
+    {
+        Tab.ClearFilterRows();
+        Tab.Preset = null;
+        await OnApply.InvokeAsync();
+    }
+
+    private void ChangeColumn(FilterRow row, string name)
+    {
+        var values = ValuesOf(row.Column);
+        row.Column = name;
+        row.Error = null;
+        var column = Details.Columns.FirstOrDefault(c => c.Name == row.Column);
+        var newValues = ValuesOf(name);
+        var allowed = column is null ? [] : Operators(ColumnCategories.Of(column), newValues, null);
+        if (!allowed.Contains(row.Op))
+        {
+            row.Op = allowed.FirstOrDefault();
+        }
+
+        // From or to a member list: a value typed for the other column would only be in the way.
+        if ((values is null) != (newValues is null) || !ReferenceEquals(values?.Property, newValues?.Property))
+        {
+            row.Value = "";
+            row.Value2 = "";
+        }
+
+        Shell.MarkDirty();
+    }
+
+    /// <summary>Operators of an enum or bool column: equality, "in" and the NULL checks (as far as the type allows them).</summary>
+    private static readonly FilterOperator[] MemberOperators =
+        [FilterOperator.Equals, FilterOperator.NotEquals, FilterOperator.In, FilterOperator.IsNull, FilterOperator.IsNotNull];
+
+    /// <summary>
+    /// Operators offered for a column; for members only those of <see cref="MemberOperators"/>. An operator the row
+    /// already has (from before the model was loaded) stays in the list, so the select shows it.
+    /// </summary>
+    private static IReadOnlyList<FilterOperator> Operators(ColumnCategory category, ValueTable? values, FilterOperator? current)
+    {
+        var all = FilterRules.OperatorsFor(category);
+        if (values is null)
+        {
+            return all;
+        }
+
+        var members = MemberOperators.Where(all.Contains).ToList();
+        if (current is { } op && all.Contains(op) && !members.Contains(op))
+        {
+            members.Add(op);
+        }
+
+        return members;
+    }
+
+    private ValueTable? ValuesOf(string column)
+    {
+        var index = IndexOf(Details.Columns.FirstOrDefault(c => c.Name == column));
+        return index < 0 ? null : Presentations.For(Details).ValuesOf(index);
+    }
+
+    private int IndexOf(ColumnInfo? column)
+    {
+        for (var i = 0; column is not null && i < Details.Columns.Count; i++)
+        {
+            if (Details.Columns[i] == column)
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await OnApply.InvokeAsync();
+        }
+    }
+
+    private static string Placeholder(ColumnCategory category) => category switch
+    {
+        ColumnCategory.Number => GridText.Filter_NumberPlaceholder,
+        ColumnCategory.Date or ColumnCategory.Timestamp or ColumnCategory.TimestampWithTimeZone => GridText.Filter_DatePlaceholder,
+        ColumnCategory.Raw => GridText.Filter_RawPlaceholder,
+        _ => GridText.Filter_TextPlaceholder,
+    };
+}

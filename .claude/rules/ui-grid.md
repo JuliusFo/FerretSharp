@@ -1,12 +1,8 @@
 ---
 paths:
-  - "src/FerretSharp.UI/Components/*Grid*"
-  - "src/FerretSharp.UI/Components/RowFormPanel*"
-  - "src/FerretSharp.UI/State/Grid*"
-  - "src/FerretSharp.UI/State/FkCounts*"
-  - "src/FerretSharp.UI/State/FormCursor*"
-  - "src/FerretSharp.UI/State/ExportActions*"
-  - "src/FerretSharp.UI/State/SqlResultPresentation*"
+  - "src/FerretSharp.UI/Components/Grid/**"
+  - "src/FerretSharp.UI/Components/Sql/SqlResultGrid*"
+  - "src/FerretSharp.UI/State/Grid/**"
   - "src/FerretSharp.Core/Data/RowBlocks*"
   - "src/FerretSharp.UI/wwwroot/js/grid.js"
 ---

@@ -1,10 +1,11 @@
 ---
 paths:
   - "src/FerretSharp.Core/Links/**"
-  - "src/FerretSharp.UI/Components/LinkOpenDialog*"
-  - "src/FerretSharp.UI/State/Link*"
+  - "src/FerretSharp.UI/Components/Shell/LinkOpenDialog*"
+  - "src/FerretSharp.UI/State/Links/Link*"
   - "src/FerretSharp.App/Services/LinkPipe.cs"
   - "src/FerretSharp.App/Services/ProtocolRegistration.cs"
+  - "src/FerretSharp.UI/State/Host/ProtocolCommand*"
   - "pages/**"
 ---
 
@@ -19,5 +20,5 @@ Ein Link ist der erste Eingang, über den **fremde Eingabe** FerretSharp steuert
 - **Nie ins Log:** weder Link noch Werte – Pipe und Dialog loggen nur die Länge bzw. den Namen der eigenen Verbindung. Auf Prod nennt der Hinweis beim Kopieren die Filterwerte (Schlüssel markierter Zeilen ohne Hinweis).
 - **Kommandozeile:** Nach dem Link zählt kein Argument mehr (`CommandLine.Effective`), sonst brächte ein Link eigene Optionen mit (`--data-dir=`, `--update-source=`). Ein Neustart startet ohne den Link (`CommandLine.Restart`).
 - **Pipe** (`LinkPipe`): je Datenordner, `PipeOptions.CurrentUserOnly`, eine Nachricht je Verbindung mit Zeitgrenze; der Sender schickt höchstens ein Zeichen mehr als `MaxLength` (`TableLink.ForTransfer`), damit ein zu langer Link nicht gekürzt als anderer gültiger ankommt. Fremd belegte Pipe: Backoff, einmal warnen.
-- **Registrierung** nur unter `HKCU\Software\Classes\ferretsharp` (Velopack-Hooks, Einstellungen › Verbindung). Im E2E nie klicken – sie schreibt in die Registry des Nutzers (`docs/e2e-testing.md`); zweite Starts immer mit `--data-dir`.
+- **Registrierung** nur unter `HKCU\Software\Classes\ferretsharp` (Velopack-Hooks, Einstellungen › Verbindung); Befehlszeile und „ist es unsere?“ in `ProtocolCommand` (UI, getestet; R6b). Im E2E nie klicken – sie schreibt in die Registry des Nutzers (`docs/e2e-testing.md`); zweite Starts immer mit `--data-dir`.
 - **Weiterleitungsseite** (`pages/open/`): Vertrauensanker wie der Update-Kanal – sie liest den `#`-Teil mit allen Filterwerten. GitHub-Konto nie umbenennen oder aufgeben, `pages/` nur mit derselben Sorgfalt wie `release.yml` ändern. Sie lädt nichts nach (CSP `default-src 'none'`, Skript/Style per Hash, Bytes LF über `.gitattributes`), zeigt nichts vom Link an, sendet keinen Referrer.

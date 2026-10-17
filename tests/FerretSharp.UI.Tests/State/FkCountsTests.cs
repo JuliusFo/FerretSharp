@@ -22,7 +22,7 @@ public sealed class FkCountsTests
     private static readonly FkJump Rechnung = Incoming("RECHNUNG");
     private static readonly FkJump Adresse = Incoming("ADRESSE");
 
-    private readonly FakeTimeProvider _time = new();
+    private readonly CountingTimeProvider _time = new();
     private readonly Dictionary<FkJump, TaskCompletionSource<DbResult<long?>>> _answers = [];
     private readonly List<FkJump> _asked = [];
     private int _running;
@@ -125,7 +125,7 @@ public sealed class FkCountsTests
 
         var hover = counts.HoverAsync(Auftrag, Ct);
         _time.Advance(FkCounts.HoverDelay / 2);
-        await Task.Delay(50, Ct);
+        await Eventually(() => _time.Timers == 1); // parked on the delay (review 3.40.0, C8: was a fixed wait of 50 ms)
         Assert.Empty(Asked);
 
         _time.Advance(FkCounts.HoverDelay);

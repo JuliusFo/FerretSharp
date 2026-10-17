@@ -25,7 +25,7 @@ public sealed class ExecutionPlanTests
         Assert.Equal(expected, Plans.WithStatistics(sql));
 
     private static PlanStep Step(int id, long? rows, long? actual, long starts = 1) =>
-        new(id, id == 0 ? null : 0, id == 0 ? 0 : 1, "TABLE ACCESS", "FULL", "APP", "T", 10, rows, null, null, null, actual, starts);
+        new(id, id == 0 ? 0 : 1, "TABLE ACCESS", "FULL", "APP", "T", 10, rows, null, null, null, actual, starts);
 
     [Fact]
     public void Misestimates_are_marked_both_ways_only_for_the_whole_result()
@@ -47,8 +47,8 @@ public sealed class ExecutionPlanTests
     {
         var plan = new ExecutionPlan(PlanSource.Actual, "SELECT …",
         [
-            new PlanStep(0, null, 0, "SELECT STATEMENT", null, null, null, 4, null, null, null, null, 5, 1, TimeSpan.FromMilliseconds(2.27), 7),
-            new PlanStep(1, 0, 1, "TABLE ACCESS", "FULL", "APP", "PS_T", 4, 990, 19800, null, "\"ID\">10", 990, 1, TimeSpan.FromMilliseconds(0.03), 7),
+            new PlanStep(0, 0, "SELECT STATEMENT", null, null, null, 4, null, null, null, null, 5, 1, TimeSpan.FromMilliseconds(2.27), 7),
+            new PlanStep(1, 1, "TABLE ACCESS", "FULL", "APP", "PS_T", 4, 990, 19800, null, "\"ID\">10", 990, 1, TimeSpan.FromMilliseconds(0.03), 7),
         ], SqlId: "aubfwnuqbygmt", ChildNumber: 0, WholeResult: true, RowsFetched: 5);
 
         var text = Plans.Format(plan);

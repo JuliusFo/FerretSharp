@@ -131,7 +131,7 @@ public sealed class EditingTests(OracleContainerFixture oracle) : IAsyncLifetime
         var operations = tracker.PendingOperations();
         var result = await a.Editor.FlushAsync(table, operations, new FlushOptions(), Ct);
         tracker.MarkFlushed(operations, result.NewKeys);
-        var stored = result.InsertedRows[row.Id];
+        var stored = (await RowAsync(a, table, 100))!; // as Oracle stored it, in the own transaction
         Assert.Equal(new RowKey.PrimaryKey([100m]), stored.Key);
         Assert.Equal("std", stored.Values[I(table, "DEF")]); // default applied: column left out of the INSERT
         Assert.NotNull(stored.Values[I(table, "LFD")]); // identity value

@@ -152,7 +152,19 @@ public sealed class SettingsStoreTests : IDisposable
     {
         await File.WriteAllTextAsync(_store.FilePath, """{ "version": 1, "settings": { "shortcuts": null } }""", Ct);
 
-        Assert.Same(ShortcutOverrides.Empty, (await _store.LoadAsync(Ct)).Shortcuts);
+        Assert.Same(SettingsMap.Empty, (await _store.LoadAsync(Ct)).Shortcuts);
+    }
+
+    /// <summary>WP-25: the changed shortcuts as a plain object with the action names as given (R6b: one map type for both).</summary>
+    [Fact]
+    public async Task Shortcuts_round_trip_as_a_plain_object_with_action_names_as_keys()
+    {
+        var settings = AppSettings.Default with { Shortcuts = new ShortcutMap().With(ShortcutAction.Flush, KeyChord.Parse("ctrl+shift+s")) };
+
+        await _store.SaveAsync(settings, Ct);
+
+        Assert.Contains("\"Flush\": \"ctrl+shift+s\"", await File.ReadAllTextAsync(_store.FilePath, Ct), StringComparison.Ordinal);
+        Assert.Equal(settings, await _store.LoadAsync(Ct));
     }
 
     /// <summary>WP-51: the audit templates of groups as a plain object, compared by content; null by hand is none.</summary>

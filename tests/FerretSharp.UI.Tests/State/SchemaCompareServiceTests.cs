@@ -1,7 +1,7 @@
 using FerretSharp.Core.Compare;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Schema;
-using FerretSharp.Core.Tests.Fakes;
+using FerretSharp.Testing;
 using FerretSharp.UI.Resources;
 using FerretSharp.UI.State;
 using Microsoft.Extensions.Logging.Abstractions;

@@ -1,9 +1,9 @@
 ---
 paths:
-  - "src/FerretSharp.UI/Components/MonacoEditor*"
-  - "src/FerretSharp.UI/Components/SqlView*"
-  - "src/FerretSharp.UI/Components/LinqView*"
-  - "src/FerretSharp.UI/Components/PlSqlSourceView*"
+  - "src/FerretSharp.UI/Components/Sql/MonacoEditor*"
+  - "src/FerretSharp.UI/Components/Sql/SqlView*"
+  - "src/FerretSharp.UI/Components/Sql/LinqView*"
+  - "src/FerretSharp.UI/Components/PlSql/PlSqlSourceView*"
   - "src/FerretSharp.UI/wwwroot/js/monaco.js"
 ---
 

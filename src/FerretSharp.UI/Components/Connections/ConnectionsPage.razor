@@ -1,0 +1,145 @@
+@using FerretSharp.Core.Connections
+@implements IDisposable
+@inject ConnectionManager Connections
+@inject ConnectionHub Hub
+@inject RecentConnections Recent
+
+<div class="connections-page @(Connections.Profiles.Count == 0 ? "is-empty" : "")">
+    <div class="page-head">
+        <h1>@ConnectionViewText.Connections_Title <span class="count">@Connections.Profiles.Count</span></h1>
+        <SearchBox @bind-Value="_query" Class="search grow" Placeholder="@ConnectionViewText.Connections_Search" />
+        <button class="btn" @onclick="Shell.OpenImport">@ConnectionViewText.Import_Button</button>
+        <button class="btn primary" @onclick="Shell.NewConnection"><span class="plus">+</span> @ConnectionViewText.Connection_New</button>
+        <MoreMenu Class="page-more" Items="PageMenu" />
+    </div>
+
+    @if (Connections.Profiles.Count == 0)
+    {
+        @* EmptyState fills its positioned parent: this box below the head, not the page (it covered "New connection"). *@
+        <div class="connections-empty">
+            <EmptyState Title="@ConnectionViewText.Connections_Welcome" Text="@ConnectionViewText.Connections_WelcomeText">
+                <div class="empty-buttons">
+                    <button class="btn primary" @onclick="Shell.NewConnection">@ConnectionViewText.Connections_Add</button>
+                    <button class="btn" @onclick="Shell.OpenImport">@ConnectionViewText.Import_Button</button>
+                </div>
+            </EmptyState>
+        </div>
+    }
+    else
+    {
+        var groups = ConnectionSearch.Group(Connections.Profiles, _query);
+        @if (groups.Count == 0)
+        {
+            <div class="page-hint">@TextFormat.Format(ConnectionViewText.Connection_NoMatch, _query)</div>
+        }
+
+        <div class="conn-table">
+            @foreach (var group in groups)
+            {
+                var key = group.Name ?? "";
+                var collapsed = string.IsNullOrWhiteSpace(_query) && _collapsed.Contains(key);
+                <section class="conn-group">
+                    @* Before the head: the line styles rely on the head being directly followed by the first line. *@
+                    <MoreMenu Class="group-more" Items="GroupMenu(group.Name)" />
+                    <button class="group-head-btn" @onclick="() => ToggleGroup(key)">
+                        <span class="chev @(collapsed ? "closed" : "")">▾</span>
+                        <span>@(group.Name ?? ConnectionViewText.Connection_NoGroup)</span>
+                        <span class="count">@group.Profiles.Count</span>
+                    </button>
+
+                    @if (!collapsed)
+                    {
+                        foreach (var profile in group.Profiles)
+                        {
+                            var p = profile;
+                            <div class="conn-line @ConnectionKindInfo.CssClass(p.Kind)" title="@ConnectionViewText.Connections_DoubleClickToConnect"
+                                 @onclick="e => ConnectOnDoubleClick(e, p)">
+                                <span class="dot"></span>
+                                <span class="name">
+                                    @p.Name
+                                    @if (Hub.Find(p.Id) is { Active.IsConnected: true } scope)
+                                    {
+                                        <span class="connected-tag">@(scope == Hub.Current ? ConnectionViewText.Connection_TagShown : ConnectionViewText.Connection_TagConnected)</span>
+                                    }
+                                </span>
+                                <span class="kind-badge">@ConnectionKindInfo.Short(p.Kind)</span>
+                                <span class="addr">@p.Address.Display@(p.Address is TnsAliasAddress ? " (TNS)" : "")</span>
+                                <span class="user">@p.User@(p.DefaultSchema is { } schema ? $" → {schema}" : "")</span>
+                                <span class="last-used">@LastUsedText(p)</span>
+                                <ConnectionActionsMenu Profile="p" />
+                            </div>
+                        }
+                    }
+                </section>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    private readonly HashSet<string> _collapsed = [];
+    private string _query = "";
+
+    private IReadOnlyList<MoreMenuItem> PageMenu =>
+        [new(ConnectionViewText.Export_Button, () => Shell.OpenExport(new ConnectionExportRequest()), Connections.Profiles.Count > 0)];
+
+    private IReadOnlyList<MoreMenuItem> GroupMenu(string? group) =>
+        [new(ConnectionViewText.Export_GroupButton, () => Shell.OpenExport(new ConnectionExportRequest(OnlyGroup: true, group)))];
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    /// <summary>Not @ondblclick: in the WPF host a real double click never raises dblclick (see .claude/rules/ui.md).</summary>
+    private void ConnectOnDoubleClick(MouseEventArgs e, ConnectionProfile profile)
+    {
+        if (e.Detail >= 2)
+        {
+            Shell.Connect(profile);
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        Connections.Changed += OnConnectionsChanged;
+        Active.Changed += OnConnectionsChanged;
+        Hub.Changed += OnConnectionsChanged;
+    }
+
+    private string LastUsedText(ConnectionProfile profile)
+    {
+        if (!Recent.LastUsed.TryGetValue(profile.Id, out var lastUsed))
+        {
+            return "";
+        }
+
+        var local = lastUsed.ToLocalTime();
+        var days = (DateTime.Today - local.Date).Days;
+        return days switch
+        {
+            0 => TextFormat.Format(ConnectionViewText.Connections_TodayAt, local),
+            1 => TextFormat.Format(ConnectionViewText.Connections_YesterdayAt, local),
+            < 7 => TextFormat.Format(ConnectionViewText.Connections_DaysAgo, days),
+            _ => local.ToString("dd.MM.yyyy", CultureInfo.CurrentCulture),
+        };
+    }
+
+    private void ToggleGroup(string key)
+    {
+        if (!_collapsed.Remove(key))
+        {
+            _collapsed.Add(key);
+        }
+    }
+
+    private void OnConnectionsChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Connections.Changed -= OnConnectionsChanged;
+        Active.Changed -= OnConnectionsChanged;
+        Hub.Changed -= OnConnectionsChanged;
+    }
+}

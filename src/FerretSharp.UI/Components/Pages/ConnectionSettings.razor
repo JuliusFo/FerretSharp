@@ -1,0 +1,76 @@
+@* Settings › Connection: keep-alive, lock wait, incoming FK counts, and which FerretSharp opens links (R6b: a section of its own). *@
+@using FerretSharp.Core.Settings
+@inject AppSettingsService Settings
+@inject IProtocolRegistration Protocol
+
+<section class="settings-section">
+    <h2>@SettingsViewText.Settings_Connection</h2>
+    <SettingsChoice TValue="bool" Filter="Filter" Key="SettingKey.KeepAlive" Label="@SettingsViewText.Settings_KeepAlive" Options="SettingsOptions.OnOff"
+                    Value="Settings.Current.KeepAlive" OnChange="on => UpdateAsync(s => s with { KeepAlive = on })">
+        <Hint>
+            <Fmt Text="@SettingsViewText.Settings_KeepAliveHint">
+                <Arg0><code>@SettingsCatalog.KeepAliveQuery</code></Arg0>
+                <Arg1><code>@SettingsCatalog.KeepAliveProfileLimit</code></Arg1>
+            </Fmt>
+        </Hint>
+    </SettingsChoice>
+    <SettingsChoice TValue="int" Filter="Filter" Key="SettingKey.LockWait" Label="@SettingsViewText.Settings_LockWait" Options="SettingsOptions.LockWaits"
+                    Value="Settings.Current.LockWaitSeconds" OnChange="seconds => UpdateAsync(s => s with { LockWaitSeconds = seconds })">
+        <Hint><Fmt Text="@SettingsViewText.Settings_LockWaitHint"><Arg0><code>@SettingsCatalog.LockWaitClause</code></Arg0></Fmt></Hint>
+    </SettingsChoice>
+    <SettingsChoice TValue="FkCountMode" Filter="Filter" Key="SettingKey.FkCounts" Label="@SettingsViewText.Settings_FkCounts" Options="SettingsOptions.FkCounts"
+                    Value="Settings.Current.FkCounts" OnChange="mode => UpdateAsync(s => s with { FkCounts = mode })">
+        <Hint>@SettingsViewText.Settings_FkCountsHint</Hint>
+    </SettingsChoice>
+    @* WP-37: which FerretSharp opens ferretsharp:// links – the installer registers itself; a portable copy or a build here. *@
+    @{ var registered = Protocol.RegisteredProgram; var mine = IsOwnProgram(registered); }
+    <div class="settings-row @Filter.HideClass(SettingKey.LinkProtocol)">
+        <div class="settings-label">
+            <span>@SettingsViewText.Settings_LinkProtocol</span>
+            <span class="hint">@SettingsViewText.Settings_LinkProtocolHint</span>
+        </div>
+        <div class="settings-path">
+            @if (mine)
+            {
+                <button class="btn ghost" @onclick="() => ChangeLinks(Protocol.Unregister)">@SettingsViewText.Settings_LinkProtocolRemove</button>
+            }
+            else
+            {
+                <button class="btn" @onclick="() => ChangeLinks(Protocol.Register)">@(registered is null ? SettingsViewText.Settings_LinkProtocolRegister : SettingsViewText.Settings_LinkProtocolTakeOver)</button>
+            }
+        </div>
+    </div>
+    <div class="settings-note @(_protocolError is null ? "" : "error") @Filter.HideClass(SettingKey.LinkProtocol)">
+        @(_protocolError ?? (mine ? SettingsViewText.Settings_LinkProtocolMine
+            : registered is null ? SettingsViewText.Settings_LinkProtocolNone
+            : TextFormat.Format(SettingsViewText.Settings_LinkProtocolOther, registered)))
+    </div>
+</section>
+
+@code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public SettingsFilter Filter { get; set; } = null!;
+
+    /// <summary>Why registering or removing the link protocol failed (WP-37); null if it did not.</summary>
+    private string? _protocolError;
+
+    private bool IsOwnProgram(string? program) => ProtocolCommand.SameProgram(program, Protocol.OwnProgram);
+
+    private void ChangeLinks(Action change)
+    {
+        try
+        {
+            change();
+            _protocolError = null;
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or System.Security.SecurityException)
+        {
+            _protocolError = TextFormat.Format(SettingsViewText.Settings_LinkProtocolFailed, ex.Message);
+        }
+    }
+
+    private Task UpdateAsync(Func<AppSettings, AppSettings> change) => Shell.TrySaveSettingsAsync(() => Settings.UpdateAsync(change, CancellationToken.None));
+}

@@ -191,12 +191,12 @@ public static class ColumnTypeCheck
     {
         if (property.MaxLength is not { } maxLength || column.Length is not { } length
             || !(kind is StoredKind.Text or StoredKind.Char && OracleTypes.IsCharacter(column.DataType)
-                 || kind == StoredKind.Bytes && column.DataType == "RAW"))
+                 || kind == StoredKind.Bytes && OracleTypes.IsRaw(column.DataType)))
         {
             return null;
         }
 
-        var raw = column.DataType == "RAW";
+        var raw = OracleTypes.IsRaw(column.DataType);
         // A character column counting bytes: the model counts characters, the column bytes.
         var charsInBytes = !raw && OracleTypes.LengthInBytes(column);
         if (maxLength > length)
@@ -223,9 +223,9 @@ public static class ColumnTypeCheck
     private static (MismatchSeverity Severity, string Message)? PrecisionProblem(
         StoredKind kind, int digits, PropertyExport property, ColumnInfo column, ColumnCategory category, bool readOnly)
     {
-        if (category != ColumnCategory.Number || column.DataType != "NUMBER")
+        if (category != ColumnCategory.Number || !OracleTypes.IsNumber(column.DataType))
         {
-            return kind == StoredKind.Integer && column.DataType is "FLOAT" or "BINARY_FLOAT" or "BINARY_DOUBLE"
+            return kind == StoredKind.Integer && OracleTypes.IsFloatingPoint(column.DataType)
                 ? (MismatchSeverity.Warning, TextFormat.Format(ClrModelText.IntegerFloatColumn, column.DisplayType))
                 : null;
         }

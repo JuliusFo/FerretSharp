@@ -177,7 +177,7 @@ public sealed class FilterPresetStore(string filePath)
 
     private IOException Problem(JsonFileRead<Document> read, bool saving = false) => read.State switch
     {
-        JsonFileState.Newer => new IOException(TextFormat.Format(saving ? QueryText.PresetFileNewerNotOverwritten : CoreText.FileFromNewerVersion, filePath, read.Version)),
+        JsonFileState.Newer => new IOException(TextFormat.Format(saving ? CoreText.FileFromNewerVersionNotOverwritten : CoreText.FileFromNewerVersion, filePath, read.Version)),
         JsonFileState.Broken => new IOException(TextFormat.Format(saving ? QueryText.PresetFileInvalidNotOverwritten : QueryText.PresetFileInvalid, filePath, read.Error!.Message), read.Error),
         _ => new IOException(TextFormat.Format(QueryText.PresetFileUnreadable, filePath, read.Error?.Message), read.Error),
     };

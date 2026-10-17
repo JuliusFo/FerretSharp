@@ -397,7 +397,7 @@ public static partial class TableDesign
                 return false;
             }
 
-            if (column.DataType == "NUMBER" && (column.Precision is < 1 or > 38 || column.Scale is < -84 or > 127))
+            if (OracleTypes.IsNumber(column.DataType) && (column.Precision is < 1 or > 38 || column.Scale is < -84 or > 127))
             {
                 Problems.Add(TextFormat.Format(DesignText.ColumnNumberFacets, column.Name));
                 return false;

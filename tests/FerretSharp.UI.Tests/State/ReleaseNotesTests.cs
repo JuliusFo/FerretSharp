@@ -46,6 +46,24 @@ public sealed class ReleaseNotesTests
         Assert.All(block.Spans, s => Assert.False(s.Code));
     }
 
+    /// <summary>
+    /// Review 3.40.0, C7: the dialog shows as an image exactly the lines the release workflow rewrote – a line of its own;
+    /// one in a sentence stays text in both.
+    /// </summary>
+    [Theory]
+    [InlineData("![The dialog]({0}3.34.0-dialog.png)")]
+    [InlineData("  ![The dialog]({0}3.34.0-dialog.png)")]
+    [InlineData("- See ![the dialog]({0}3.34.0-dialog.png) here.")]
+    [InlineData("![Two]({0}a.png) ![images]({0}b.png)")]
+    public void The_dialog_shows_as_image_what_the_release_workflow_takes_for_one(string template)
+    {
+        var line = string.Format(System.Globalization.CultureInfo.InvariantCulture, template, Own);
+
+        var image = ReleaseNotes.Parse(line).Any(b => b.Kind == NoteBlockKind.Image);
+
+        Assert.Equal(ReleaseWorkflow.ImageLine.IsMatch(line), image);
+    }
+
     private const string Own = "https://raw.githubusercontent.com/JuliusFo/FerretSharp/v3.34.0/docs/images/changelog/";
 
     [Fact]

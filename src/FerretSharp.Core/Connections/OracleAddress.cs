@@ -37,6 +37,22 @@ public abstract partial record OracleAddress
     }
 
     /// <summary>
+    /// The address as an ODP.NET data source, as <see cref="Parse"/> reads it back: EZConnect with a service, a connect
+    /// descriptor with a SID (EZConnect has none), else the TNS alias; null without service and SID. The parts go in as
+    /// they are – whoever connects checks them first (<see cref="IsPlainHost"/>, review 3.40.0, A7). R6b (B11): was
+    /// written in the connection string and the link.
+    /// </summary>
+    public string? ToDataSource() => this switch
+    {
+        HostPortAddress { ServiceName: { } service } hp when !string.IsNullOrWhiteSpace(service) =>
+            $"{hp.Host.Trim()}:{hp.Port.ToString(CultureInfo.InvariantCulture)}/{service.Trim()}",
+        HostPortAddress { Sid: { } sid } hp when !string.IsNullOrWhiteSpace(sid) =>
+            $"(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={hp.Host.Trim()})(PORT={hp.Port.ToString(CultureInfo.InvariantCulture)}))(CONNECT_DATA=(SID={sid.Trim()})))",
+        TnsAliasAddress tns => tns.Alias.Trim(),
+        _ => null,
+    };
+
+    /// <summary>
     /// The same database (import duplicates, the connection of a traced app): host, service, SID and alias without letter
     /// case (Oracle and DNS ignore it) and surrounding blanks, an empty service or SID as none; the port exactly. Where
     /// <c>tnsnames.ora</c> lies does not count. R5b: before, two rules – the app match ignored the SID beside a service.

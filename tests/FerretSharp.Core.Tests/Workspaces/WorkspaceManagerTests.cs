@@ -2,7 +2,7 @@ using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
 using FerretSharp.Core.Schema;
 using FerretSharp.Core.Tests.Connections;
-using FerretSharp.Core.Tests.Fakes;
+using FerretSharp.Testing;
 using FerretSharp.Core.Workspaces;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;

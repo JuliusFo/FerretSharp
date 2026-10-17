@@ -84,7 +84,7 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
             RedoOf = redone?.Origin,
         };
         _log.Add(action, savepoint);
-        return new FlushResult(newKeys, inserted) { Action = action };
+        return new FlushResult(newKeys) { Action = action };
     }
 
     /// <summary>
@@ -428,7 +428,6 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
                 if (row is not null)
                 {
                     newKeys[operation.Change.Id] = row.Key;
-                    inserted[operation.Change.Id] = row;
                 }
                 else
                 {

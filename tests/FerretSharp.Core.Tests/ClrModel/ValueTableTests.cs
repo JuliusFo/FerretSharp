@@ -1,3 +1,4 @@
+using FerretSharp.Core.Query;
 using FerretSharp.Core.ClrModel;
 using FerretSharp.Core.Data;
 using FerretSharp.Core.Resources;
@@ -246,6 +247,18 @@ public sealed class TablePresentationTests
             Assert.Equal("Gewerbe", presentation.FilterValueText("KUNDENART", "2"));
             Assert.Equal("4711", presentation.FilterValueText("KUNDE_ID", "4711"));
         }
+    }
+
+    /// <summary>R6b (review 3.40.0, A31/B11): one text for a filter row, with members only when a model is given.</summary>
+    [Fact]
+    public async Task A_filter_row_reads_with_members_of_the_model_or_as_the_values_are()
+    {
+        var presentation = TablePresentation.Create(Kunden, await MappingAsync(), ClrNameDisplay.Beside);
+        var filter = new FilterCondition("KUNDENART", FilterOperator.In, ["2", "99"]);
+
+        Assert.Equal("KUNDENART in Liste Gewerbe; 99", FilterText.Row(filter, presentation)); // 99 is no member
+        Assert.Equal("KUNDENART in Liste 2; 99", FilterText.Row(filter));
+        Assert.Equal($"KUNDENART {OperatorLabels.Label(FilterOperator.IsNull)}", FilterText.Row(new FilterCondition("KUNDENART", FilterOperator.IsNull, [])));
     }
 
     [Fact]

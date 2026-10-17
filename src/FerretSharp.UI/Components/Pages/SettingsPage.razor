@@ -1,0 +1,183 @@
+@* App settings: appearance (language, light/dark), C# names of a linked project, the connection behaviour, audit template and display columns; the shortcuts
+   as a section of their own (WP-25). R6b (review 3.40.0, B9): each larger section is a component of its own. *@
+@using FerretSharp.Core.Settings
+@inject AppSettingsService Settings
+@inject UpdateState Updates
+@inject ShortcutService Shortcuts
+@implements IDisposable
+
+<div class="settings-page">
+    <div class="page-head">
+        <h1>@SettingsViewText.Settings_Title</h1>
+        <span class="grow"></span>
+        <button class="btn ghost" @onclick="Back">@CommonText.Back</button>
+    </div>
+
+    <div class="settings-layout">
+    @* WP-34: the sections as a list to jump to, and a search over every setting and shortcut. *@
+    <nav class="settings-nav" aria-label="@SettingsViewText.Settings_Sections">
+        <SearchBox @bind-Value="Query" Class="search settings-search" Placeholder="@SettingsViewText.Settings_Search" />
+        @foreach (var (part, label) in SettingsCatalog.Parts)
+        {
+            var value = part;
+            var current = !Filter.IsActive && _part == value;
+            <button class="settings-nav-item @(current ? "active" : "") @(Filter.IsActive && !ShowSection(value) ? "dim" : "")"
+                    aria-current="@(current ? "page" : null)" @onclick="() => Select(value)">@label</button>
+        }
+    </nav>
+
+    <div class="settings-content">
+        @if (Filter.IsEmpty)
+        {
+            <div class="settings-note settings-no-match">@TextFormat.Format(SettingsViewText.Settings_NoMatch, Filter.Search.Query)</div>
+        }
+        @if (ShowSection(SettingsPart.Appearance))
+        {
+            <AppearanceSettings Filter="Filter" />
+        }
+
+        @if (ShowSection(SettingsPart.ClrModel))
+        {
+        <section class="settings-section">
+            <h2>@SettingsViewText.Settings_ClrModel</h2>
+            <SettingsChoice TValue="ClrNameDisplay" Filter="Filter" Key="SettingKey.ClrNames" Label="@SettingsViewText.Settings_ClrNames" Options="SettingsOptions.ClrNames"
+                            Value="Settings.Current.ClrNames" OnChange="mode => UpdateAsync(s => s with { ClrNames = mode })">
+                <Hint>@SettingsViewText.Settings_ClrNamesHint</Hint>
+            </SettingsChoice>
+        </section>
+        }
+
+        @if (ShowSection(SettingsPart.Connection))
+        {
+            <ConnectionSettings Filter="Filter" />
+        }
+
+        @if (ShowSection(SettingsPart.Audit))
+        {
+            <AuditSettings Filter="Filter" />
+        }
+
+        @if (ShowSection(SettingsPart.DisplayColumns))
+        {
+            <DisplayColumnSettings Filter="Filter" />
+        }
+
+        @if (ShowSection(SettingsPart.Updates))
+        {
+            <UpdateSettings Filter="Filter" />
+        }
+
+        @if (ShowSection(SettingsPart.Diagnostics))
+        {
+        <section class="settings-section">
+            <h2>@SettingsViewText.Settings_Diagnostics</h2>
+            <SettingsChoice TValue="bool" Filter="Filter" Key="SettingKey.DiagnoseUiStalls" Label="@SettingsViewText.Settings_DiagnoseUiStalls" Options="SettingsOptions.OnOff"
+                            Value="Settings.Current.DiagnoseUiStalls" OnChange="on => UpdateAsync(s => s with { DiagnoseUiStalls = on })">
+                <Hint>
+                    <Fmt Text="@SettingsViewText.Settings_DiagnoseUiStallsHint">
+                        <Arg0><code>@SettingsCatalog.StallTool</code></Arg0>
+                        <Arg1><code>@SettingsCatalog.StallFiles</code></Arg1>
+                    </Fmt>
+                </Hint>
+            </SettingsChoice>
+        </section>
+        }
+        @if (ShowSection(SettingsPart.Shortcuts))
+        {
+            <ShortcutSettings Filter="Filter" />
+        }
+    </div>
+    </div>
+</div>
+
+@code {
+    /// <summary>The section shown without a search; kept while the app runs, so the page opens where it was left (WP-34).</summary>
+    private static SettingsPart s_part = SettingsPart.Appearance;
+
+    private SettingsPart _part = s_part;
+
+    private string _query = "";
+
+    /// <summary>The search text; a new one works the filter out again.</summary>
+    private string Query
+    {
+        get => _query;
+        set
+        {
+            _query = value;
+            _filter = null;
+        }
+    }
+
+    private SettingsFilter? _filter;
+
+    /// <summary>Whether <see cref="_filter"/> was built with the update settings.</summary>
+    private bool _filterWithUpdates;
+
+    /// <summary>
+    /// What shows for the query, worked out once per query (and again when the shortcuts or the installation state change,
+    /// both are part of what the page shows).
+    /// </summary>
+    private SettingsFilter Filter
+    {
+        get
+        {
+            if (_filter is null)
+            {
+                _filterWithUpdates = Updates.Phase != UpdatePhase.NotInstalled;
+                _filter = new(new SettingsSearch(_query), SettingsCatalog.Entries(Shortcuts.Map, _filterWithUpdates));
+            }
+
+            return _filter;
+        }
+    }
+
+    /// <summary>A click in the list shows that section and ends a search.</summary>
+    private void Select(SettingsPart part)
+    {
+        _part = s_part = part;
+        Query = "";
+    }
+
+    private bool ShowSection(SettingsPart part) => Filter.ShowsSection(part, _part);
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnBack { get; set; }
+
+    private Task Back() => OnBack.InvokeAsync();
+
+    private Task UpdateAsync(Func<AppSettings, AppSettings> change) => Shell.TrySaveSettingsAsync(() => Settings.UpdateAsync(change, CancellationToken.None));
+
+    protected override void OnInitialized()
+    {
+        Updates.Changed += OnUpdatesChanged;
+        Shortcuts.Changed += OnCatalogChanged;
+    }
+
+    /// <summary>A shortcut changed: part of what the search finds.</summary>
+    private void OnCatalogChanged() => InvokeAsync(() =>
+    {
+        _filter = null;
+        StateHasChanged();
+    });
+
+    /// <summary>The update state changed (every percent of a download): the search only depends on "installed" (A49).</summary>
+    private void OnUpdatesChanged() => InvokeAsync(() =>
+    {
+        if (_filter is not null && (Updates.Phase != UpdatePhase.NotInstalled) != _filterWithUpdates)
+        {
+            _filter = null;
+        }
+
+        StateHasChanged();
+    });
+
+    public void Dispose()
+    {
+        Updates.Changed -= OnUpdatesChanged;
+        Shortcuts.Changed -= OnCatalogChanged;
+    }
+}

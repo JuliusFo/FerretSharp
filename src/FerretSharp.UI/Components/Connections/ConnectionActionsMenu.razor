@@ -1,0 +1,25 @@
+@* "⋯" of a connection: connect, edit, duplicate, delete – a MoreMenu (Escape, focus, kept inside the window: near the
+   bottom of the switcher "Delete…" was cut off, review 3.31.0 A22). *@
+@using FerretSharp.Core.Connections
+
+<MoreMenu Items="Items" Width="200" OnAction="OnAction" />
+
+@code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public ConnectionProfile Profile { get; set; } = null!;
+
+    /// <summary>Raised before an action runs, e.g. to close the surrounding popover.</summary>
+    [Parameter]
+    public EventCallback OnAction { get; set; }
+
+    private IReadOnlyList<MoreMenuItem> Items =>
+    [
+        new(ConnectionViewText.ConnectionMenu_Connect, () => Shell.Connect(Profile)) { Strong = true },
+        new(ConnectionViewText.Connection_Edit, () => Shell.EditConnection(Profile)) { SeparatorBefore = true },
+        new(ConnectionViewText.ConnectionMenu_Duplicate, () => Shell.DuplicateConnection(Profile)),
+        new(ConnectionViewText.Connection_DeleteEllipsis, () => Shell.RequestDelete(Profile)) { SeparatorBefore = true, Danger = true },
+    ];
+}

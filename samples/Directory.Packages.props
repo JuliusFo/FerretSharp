@@ -3,12 +3,15 @@
   <!-- Package versions of the samples (a user's project), independent of FerretSharp's own. -->
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <!-- A version here also holds for a package that only comes in transitively (the Pkcs fix below). -->
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageVersion Include="Oracle.EntityFrameworkCore" Version="8.23.26301" />
-    <!-- Oracle's packages bring System.Security.Cryptography.Pkcs 8.0.1 (CVE-2026-84008, CVE-2026-70162): referenced
-         directly where they come in, until a version of theirs brings 8.0.2 or later. -->
+    <!-- Oracle's packages bring System.Security.Cryptography.Pkcs 8.0.1 (CVE-2026-84008, CVE-2026-70162): pinned here for
+         every project that gets it transitively (CentralPackageTransitivePinningEnabled, review 3.40.0 B14), until a
+         version of theirs brings 8.0.2 or later. -->
     <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="8.0.2" />
   </ItemGroup>
 

@@ -1,0 +1,78 @@
+@* "C# ▾" at the filter bar (WP-15): the filters as LINQ over the entity – copied or opened in a new LINQ console. *@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Data
+@using FerretSharp.Core.Query
+@using FerretSharp.Core.Schema
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject ShortcutService Shortcuts
+
+@* A MoreMenu (Escape, focus, kept inside the window – review 3.31.0, A22; R6b, B4). *@
+<MoreMenu ButtonClass="btn ghost" Title="@TextFormat.Format(SqlEditorText.LinqMenu_Title, Presentations.For(Details).EntityName)" Label="@Label"
+          Items="Items" ShiftX="40" ShiftY="14" />
+
+@code {
+    [CascadingParameter]
+    public PresentationService Presentations { get; set; } = null!;
+
+    private static readonly RenderFragment Label = @<text>C# ▾</text>;
+
+    private DomModule? _dom;
+
+    /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
+    private DomModule Dom => _dom ??= new(JS);
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public TableDetails Details { get; set; } = null!;
+
+    /// <summary>The filters to translate (as the SQL preview takes them: edited if valid, else applied).</summary>
+    [Parameter, EditorRequired]
+    public Func<IReadOnlyList<FilterCondition>> Filters { get; set; } = null!;
+
+    private IReadOnlyList<MoreMenuItem> Items =>
+    [
+        new(SqlEditorText.LinqMenu_Copy, CopyAsync) { Title = SqlEditorText.LinqMenu_CopyTitle },
+        new(SqlEditorText.LinqMenu_OpenConsole, OpenConsole)
+        {
+            Title = Shortcuts.Label(ShortcutAction.ApplyFilters) is { } key
+                ? TextFormat.Format(SqlEditorText.LinqMenu_OpenConsoleTitleWithKey, key)
+                : SqlEditorText.LinqMenu_OpenConsoleTitle,
+        },
+    ];
+
+    private ExportText Build(string? source = null)
+    {
+        var presentation = Presentations.For(Details);
+        return LinqFilter.Build(presentation, Filters(), source is null ? null : LinqFilter.Source(presentation));
+    }
+
+    private async Task CopyAsync()
+    {
+        var linq = Build();
+        if (linq.Text.Length == 0)
+        {
+            Shell.Notify(SqlEditorText.LinqMenu_NoFilters);
+            return;
+        }
+
+        var copied = await Dom.CopyTextAsync(linq.Text);
+        Shell.Notify(copied
+            ? TextFormat.Plural(linq.Rows, SqlEditorText.LinqMenu_CopiedOne, SqlEditorText.LinqMenu_CopiedOther)
+            : CommonText.ClipboardUnavailable, linq.Warnings);
+    }
+
+    private void OpenConsole()
+    {
+        var linq = Build(source: "db");
+        Shell.OpenLinq(linq.Text);
+        if (linq.Warnings.Count > 0)
+        {
+            Shell.Notify(TextFormat.Plural(linq.Rows, SqlEditorText.LinqMenu_AdoptedOne, SqlEditorText.LinqMenu_AdoptedOther), linq.Warnings);
+        }
+    }
+
+    public ValueTask DisposeAsync() => Dom.DisposeAsync();
+}

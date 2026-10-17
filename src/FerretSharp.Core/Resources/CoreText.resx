@@ -28,4 +28,8 @@
     <value>{0} comes from a newer version of FerretSharp (format {1}).</value>
     <comment>{0}: path or name of the file; {1}: format version found in the file</comment>
   </data>
+  <data name="FileFromNewerVersionNotOverwritten" xml:space="preserve">
+    <value>{0} comes from a newer version of FerretSharp (format {1}). It will not be overwritten.</value>
+    <comment>{0}: file path; {1}: format version number</comment>
+  </data>
 </root>

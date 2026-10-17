@@ -13,11 +13,10 @@ namespace FerretSharp.Core.Data;
 /// </param>
 public sealed record FlushOptions(int LockWaitSeconds = DmlBuilder.DefaultLockWaitSeconds, IReadOnlySet<Guid>? Overwrite = null, Guid? RedoOf = null);
 
-/// <param name="NewKeys">Key of each inserted row by <see cref="RowChange.Id"/>.</param>
-/// <param name="InsertedRows">Inserted rows as Oracle stored them (defaults, identity values, triggers).</param>
-public sealed record FlushResult(IReadOnlyDictionary<Guid, RowKey> NewKeys, IReadOnlyDictionary<Guid, RowData> InsertedRows)
+/// <param name="NewKeys">Key of each inserted row by <see cref="RowChange.Id"/> – as Oracle stored it (identity, triggers).</param>
+public sealed record FlushResult(IReadOnlyDictionary<Guid, RowKey> NewKeys)
 {
-    public static readonly FlushResult Empty = new(new Dictionary<Guid, RowKey>(), new Dictionary<Guid, RowData>());
+    public static readonly FlushResult Empty = new(new Dictionary<Guid, RowKey>());
 
     /// <summary>The flush as one of <see cref="IDataEditor.Actions"/>; null if there was nothing to write.</summary>
     public WriteAction? Action { get; init; }
@@ -198,5 +197,5 @@ public interface IDataEditor
 /// which names the workspace when it is one of this instance's.
 /// </param>
 public sealed record LockHolder(
-    int Sid, string? User, string? OsUser, string? Machine, string? Program, string? Module, string? Action, DateTime? LogonTime,
+    int Sid, string? User, string? OsUser, string? Machine, string? Program, string? Module, string? Action,
     string? ClientInfo = null);

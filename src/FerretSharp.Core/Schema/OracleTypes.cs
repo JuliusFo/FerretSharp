@@ -83,6 +83,15 @@ public static partial class OracleTypes
     /// </summary>
     public static bool IsDecimalNumber(string dataType) => dataType is "NUMBER" or "FLOAT" or "INTEGER";
 
+    /// <summary>NUMBER itself (with precision and scale), not INTEGER or FLOAT.</summary>
+    public static bool IsNumber(string dataType) => dataType == "NUMBER";
+
+    /// <summary>Types a number may lose digits in: FLOAT (binary precision) and the IEEE types.</summary>
+    public static bool IsFloatingPoint(string dataType) => dataType is "FLOAT" or "BINARY_FLOAT" or "BINARY_DOUBLE";
+
+    /// <summary>RAW(n); LONG RAW is a LONG (<see cref="IsLong"/>).</summary>
+    public static bool IsRaw(string dataType) => dataType == "RAW";
+
     /// <summary>TIMESTAMP in all its forms, with or without (local) time zone.</summary>
     public static bool IsTimestamp(string dataType) => dataType.StartsWith("TIMESTAMP", StringComparison.Ordinal);
 

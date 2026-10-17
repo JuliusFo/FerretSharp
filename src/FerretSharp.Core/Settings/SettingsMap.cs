@@ -7,8 +7,9 @@ using System.Text.Json.Serialization;
 namespace FerretSharp.Core.Settings;
 
 /// <summary>
-/// Text keys to text values in the settings (WP-51: audit template per connection group). Compared by content, so
-/// <see cref="AppSettings"/> stays a value; in <c>settings.json</c> a plain object (<c>{ "ERP": "C:\\repo\\audit.sql" }</c>).
+/// Text keys to text values in the settings: changed shortcuts (WP-25, action name → keys) and the audit template per
+/// connection group (WP-51). Compared by content, so <see cref="AppSettings"/> stays a value; in <c>settings.json</c> a
+/// plain object (<c>{ "Flush": "ctrl+shift+s" }</c>, <c>{ "ERP": "C:\\repo\\audit.sql" }</c>).
 /// Keys are kept as given, ordered ordinally; looking one up by another rule (groups ignore case) is the caller's.
 /// </summary>
 [JsonConverter(typeof(SettingsMapConverter))]

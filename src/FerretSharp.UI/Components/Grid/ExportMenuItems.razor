@@ -1,0 +1,68 @@
+@* The export group of a right-click menu (R6b, review 3.40.0, B5; WP-53 had to add Excel to two menus): copy the rows as
+   table or INSERT, save them as CSV or Excel – and as Excel with database names and raw values when the columns are
+   presented. Further entries of the group (a SQL script, links) as child content. *@
+@using FerretSharp.Core.Data
+@using FerretSharp.Core.Query
+@using FerretSharp.Core.Schema
+
+<div class="group-head-btn static">@TextFormat.Format(GridText.GridMenu_ExportGroup, ExportActions.RowsText(Rows.Count))</div>
+<button class="menu-item" title="@GridText.GridMenu_CopyTableTitle" @onclick="CopyTableAsync">@GridText.GridMenu_CopyTable</button>
+<button class="menu-item" disabled="@(InsertTable is null)" title="@InsertTitle" @onclick="CopyInsertAsync">@GridText.GridMenu_CopyInsert</button>
+<button class="menu-item" title="@GridText.GridMenu_SaveCsvTitle" @onclick="SaveCsvAsync">@GridText.GridMenu_SaveCsv</button>
+<button class="menu-item" title="@GridText.GridMenu_SaveXlsxTitle" @onclick="() => SaveXlsxAsync(XlsxColumns)">@GridText.GridMenu_SaveXlsx</button>
+@if (OffersRaw(XlsxColumns))
+{
+    <button class="menu-item" title="@GridText.GridMenu_SaveXlsxRawTitle" @onclick="() => SaveXlsxAsync(ExportColumn.Raw(Table))">@GridText.GridMenu_SaveXlsxRaw</button>
+}
+@ChildContent
+
+@code {
+    [Parameter, EditorRequired]
+    public ExportActions Export { get; set; } = null!;
+
+    /// <summary>The columns of the rows (database names): CSV, the table copy and the raw Excel variant.</summary>
+    [Parameter, EditorRequired]
+    public TableDetails Table { get; set; } = null!;
+
+    /// <summary>The selected rows.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<RowData> Rows { get; set; } = [];
+
+    /// <summary>File name (without extension) offered for CSV and Excel.</summary>
+    [Parameter, EditorRequired]
+    public string FileName { get; set; } = "";
+
+    /// <summary>The columns of the Excel export as the grid presents them (WP-53).</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<ExportColumn> XlsxColumns { get; set; } = [];
+
+    /// <summary>The table the INSERT statements write into; null disables "Copy as INSERT" (<see cref="InsertTitle"/> says why).</summary>
+    [Parameter]
+    public TableDetails? InsertTable { get; set; }
+
+    [Parameter]
+    public string InsertTitle { get; set; } = GridText.GridMenu_CopyInsertTitle;
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Whether the raw Excel variant is offered – one entry more for the menu's estimated height.</summary>
+    public static bool OffersRaw(IReadOnlyList<ExportColumn> columns) => ExportColumn.DiffersFromRaw(columns);
+
+    private Task CopyTableAsync() =>
+        Export.CopyAsync(DelimitedExport.Build(Table, Rows, DelimitedExport.ClipboardSeparator), ExportCopy.Table);
+
+    private Task CopyInsertAsync() => InsertTable is { } target
+        ? Export.CopyAsync(InsertExport.Build(target, Rows), ExportCopy.Insert)
+        : Task.CompletedTask;
+
+    private Task SaveCsvAsync() =>
+        Export.SaveAsync(DelimitedExport.Build(Table, Rows, DelimitedExport.CsvSeparator), FileName + ".csv", GridText.Export_CsvFilter, utf8Bom: true);
+
+    private Task SaveXlsxAsync(IReadOnlyList<ExportColumn> columns)
+    {
+        var rows = Rows;
+        var name = FileName;
+        return Export.SaveFileAsync(() => XlsxExport.BuildAsync(columns, rows, name), name + ".xlsx", GridText.Export_XlsxFilter);
+    }
+}

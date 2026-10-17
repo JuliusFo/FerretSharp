@@ -5,6 +5,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.41.0] - 2026-10-17
+
+Structure after the review of the whole code (R6b): sorted folders, shared building blocks, stronger tests – no new features.
+
+### Changed
+- The open changes count the other workspaces' writes as such ("0 pending · 1 action open") – the number counts write actions, not rows.
+- Excel export: infinity is written as in the CSV export.
+- The installation is smaller: the model host no longer brings the language files of 13 cultures the app never shows.
+- Under the hood: the UI's components and state and parts of the core are sorted into folders by area, the settings page is built from sections, menus, the export entries of the cell and result menus and grid editing are shared building blocks, and the tests check more against Oracle (filter groups through EF Core, progress of running statements). Details: `docs/work-packages/r6b-review-3.40.md`.
+
 ## [3.40.1] - 2026-10-17
 
 Fixes from a second review of the whole code (R6a).

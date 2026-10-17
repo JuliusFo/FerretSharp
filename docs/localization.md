@@ -15,7 +15,9 @@ Die Oberfläche gibt es auf Englisch (Standard) und Deutsch. Entscheidung und Hi
 | Projekt | Datei | Inhalt |
 |---|---|---|
 | UI | `CommonText` | Wörter und Sätze, die in mehreren Bereichen dasselbe meinen (Abbrechen, Schließen, Kopieren, „Speichern fehlgeschlagen: {0}“, „Die Zwischenablage ist nicht verfügbar.“, „Stand {0}“ …). Nur ergänzen, wenn der Text wirklich bereichsübergreifend ist; zufällig gleiche Einzelwörter mit anderer Bedeutung („Name“, „Typ“) bleiben im Bereich. |
-| UI | `ShellText` | Shell, Statusleiste, Verbindungen (Dialog, Wechsler, Seite), Workspaces, Tabs, Einstellungen, Tastenkürzel, allgemeine Dialoge |
+| UI | `ShellText` | Shell, Statusleiste, Workspaces, Tabs, Änderungsübersicht, Links, Updates, allgemeine Dialoge |
+| UI | `SettingsViewText` | Einstellungen und Tastenkürzel (`Settings_…`, `Shortcuts_…`; R6b aus `ShellText`) |
+| UI | `ConnectionViewText` | Verbindungen: Dialog, Wechsler, Seite, Menü, Import/Export, Passwortabfrage, Art (R6b aus `ShellText`) |
 | UI | `GridText` | Tabellen-Grid, Kontextmenü, Filter, Formular, Zeilenvergleich, LOB-Dialog, Schreibprobleme |
 | UI | `SqlEditorText` | SQL-Editor, LINQ-Konsole, Ergebnis-Grid, Ausführungsplan, Laufanzeige, Verlauf, Monaco |
 | UI | `SchemaViewText`, `ModelViewText`, `CompareViewText` | Explorer, Tab-Ansichten (Spalten, Constraints, Indizes, Abhängigkeiten, DDL), PL/SQL; Modellseite; Schema-Vergleich |
@@ -45,7 +47,7 @@ Klassennamen sind über alle Projekte eindeutig (die Razor-Komponenten sehen Cor
 |---|---|
 | Fester Text in Razor | `@ShellText.Settings_Title`, Attribute `title="@GridText.GridMenu_CopyTableTitle"` |
 | Text mit Werten | `TextFormat.Format(GridText.Grid_ColumnCopied, column.Name)` – ganzer Satz mit Platzhaltern, **nie Satzteile zusammenkleben** (Wortstellung ist je Sprache anders) |
-| Text mit Markup (`<code>`, `<b>`, Link, `<Kbd>`) | `<Fmt Text="@X.Y"><Arg0><code>…</code></Arg0></Fmt>` (`Components/Fmt.cs`, bis `{3}`) |
+| Text mit Markup (`<code>`, `<b>`, Link, `<Kbd>`) | `<Fmt Text="@X.Y"><Arg0><code>…</code></Arg0></Fmt>` (`Components/Common/Fmt.cs`, bis `{3}`) |
 | Zahl/Datum im Text | Kultur wie vorher: Interpolation/`CurrentCulture` → `TextFormat.Format(…)`; Code, der ausdrücklich `German` nimmt → `TextFormat.Format(German, …)`. Die Formatkultur bleibt in WP-29 unverändert (Backlog). |
 | Beschriftungs-Tabellen in `@code` | als Eigenschaft `=>`, **nicht** `static readonly`: Ein statisches Feld behält die Sprache des ersten Zugriffs (Tests wechseln die Kultur). |
 | Meldung aus dem Core | Der Core baut den fertigen Satz aus seiner eigenen Ressource; die UI zeigt ihn. Der Core kennt keine UI-Ressourcen. |

@@ -222,9 +222,6 @@
   <data name="PresetFileInvalidNotOverwritten" xml:space="preserve">
     <value>{0} ist keine gültige Datei mit Filter-Vorlagen und wird nicht überschrieben: {1}</value>
   </data>
-  <data name="PresetFileNewerNotOverwritten" xml:space="preserve">
-    <value>{0} stammt aus einer neueren FerretSharp-Version (Format {1}). Sie wird nicht überschrieben.</value>
-  </data>
   <data name="PresetFileUnreadable" xml:space="preserve">
     <value>{0} konnte nicht gelesen werden: {1}</value>
   </data>

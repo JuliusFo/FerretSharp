@@ -1,0 +1,175 @@
+@* A Monaco editor (ADR 0011): C# in the LINQ console (markers show Roslyn's diagnostics), SQL in the SQL editor; both
+   with completion from .NET. The text belongs to the parent: changes come back through OnChange, SetTextAsync replaces it.
+   Read-only for PL/SQL source (WP-28), with compile errors as markers. *@
+@using FerretSharp.Core.ClrModel
+@inherits FerretComponent
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div id="@_id" class="monaco-host @Class"></div>
+
+@code {
+    private readonly string _id = "monaco-" + Guid.NewGuid().ToString("N");
+    private JsModule? _module;
+    private DotNetObjectReference<MonacoEditor>? _selfRef;
+    private IReadOnlyList<LinqDiagnostic>? _shownMarkers;
+
+    /// <summary>The JS editor exists (create has returned); until then a reveal waits in <see cref="_pendingReveal"/>.</summary>
+    private bool _created;
+    private (int Line, int Column)? _pendingReveal;
+
+    /// <summary>Set first thing in <see cref="DisposeAsync"/>; a start or a call still waiting then does nothing more.</summary>
+    private bool _disposed;
+
+    /// <summary>Text when the editor is created; afterwards the editor owns it.</summary>
+    [Parameter]
+    public string Text { get; set; } = "";
+
+    [Parameter]
+    public EventCallback<string> OnChange { get; set; }
+
+    /// <summary>No line numbers, no folding: for the few lines of variables.</summary>
+    [Parameter]
+    public bool Minimal { get; set; }
+
+    [Parameter]
+    public string? Placeholder { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    /// <summary>Diagnostics of this editor's section.</summary>
+    [Parameter]
+    public IReadOnlyList<LinqDiagnostic> Markers { get; set; } = [];
+
+    /// <summary>Monaco language id: <c>csharp</c>, <c>sql</c>, <c>plsql</c> (FerretSharp's own colouring) or <c>plaintext</c>.</summary>
+    [Parameter]
+    public string Language { get; set; } = "csharp";
+
+    /// <summary>View only (PL/SQL source, WP-28): typing shows a hint instead of changing the text.</summary>
+    [Parameter]
+    public bool ReadOnly { get; set; }
+
+    /// <summary>Completion items for (text, cursor offset); null = no completion from .NET.</summary>
+    [Parameter]
+    public Func<string, int, Task<IReadOnlyList<CompletionItem>>>? Completion { get; set; }
+
+    /// <param name="Kind">Picks the icon: SQL (<c>Table</c>, <c>Column</c> …) or C# (<c>Property</c>, <c>ExtensionMethod</c> …).</param>
+    /// <param name="Rank">Lower comes first; Monaco still ranks by how well an item matches what was typed.</param>
+    public sealed record CompletionItem(string Label, string InsertText, string Kind, string? Detail, int Rank);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _selfRef = DotNetObjectReference.Create(this);
+            _module = new JsModule(JS, "./_content/FerretSharp.UI/js/monaco.js");
+            if (_disposed || !await _module.LoadAsync())
+            {
+                return; // tab closed while the module loaded
+            }
+
+            // uiLanguage: Monaco's own texts (menus, find widget) – loaded once per page, the UI language is fixed until a restart.
+            await CallAsync("create", _id, _selfRef, Text,
+                new
+                {
+                    language = Language, minimal = Minimal, placeholder = Placeholder, completion = Completion is not null, readOnly = ReadOnly,
+                    readOnlyMessage = SqlEditorText.Monaco_ReadOnlyPlSql, // the only read-only editor shows PL/SQL source
+                    uiLanguage = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName,
+                });
+            _created = true;
+            if (_pendingReveal is { } at)
+            {
+                _pendingReveal = null;
+                await CallAsync("reveal", _id, at.Line, at.Column);
+            }
+        }
+
+        if (_module is { IsLoaded: true } && !ReferenceEquals(_shownMarkers, Markers))
+        {
+            _shownMarkers = Markers;
+            await CallAsync("setMarkers", _id, Markers.Select(m => new
+            {
+                line = m.Line, column = m.Column, endLine = m.EndLine, endColumn = m.EndColumn, severity = m.Severity, message = m.Id.Length == 0 ? m.Message : $"{m.Id}: {m.Message}",
+            }));
+        }
+    }
+
+    /// <summary>
+    /// Every call into monaco.js: nothing once the editor is disposed. The parent often calls after a long wait (a
+    /// statement that ran for minutes) – by then the tab may be closed, and the call must not fail the closed tab.
+    /// </summary>
+    private async Task CallAsync(string identifier, params object?[] args)
+    {
+        if (!_disposed && _module is { IsLoaded: true } module)
+        {
+            await module.InvokeVoidAsync(identifier, args);
+        }
+    }
+
+    private async Task<T?> CallAsync<T>(string identifier, params object?[] args) =>
+        !_disposed && _module is { IsLoaded: true } module ? await module.InvokeAsync<T>(identifier, args) : default;
+
+    /// <summary>Review 3.40.0, A29: an exception goes to the tab's error boundary, not unobserved back to JS.</summary>
+    [JSInvokable]
+    public Task OnTextChanged(string elementId, string text) => GuardAsync(() => OnChange.InvokeAsync(text));
+
+    /// <summary>Monaco's completion provider asks; the kind goes as text (Table, Column …) for the icon.</summary>
+    [JSInvokable]
+    public Task<object[]> OnComplete(string elementId, string text, int offset) => GuardAsync<object[]>(async () =>
+    {
+        if (Completion is null)
+        {
+            return [];
+        }
+
+        var items = await Completion(text, offset);
+        return items.Select(i => (object)new { label = i.Label, insertText = i.InsertText, kind = i.Kind, detail = i.Detail, rank = i.Rank }).ToArray();
+    }, []);
+
+    /// <summary>The text with selection start and end (equal without a selection) as offsets; null if the editor is gone.</summary>
+    public Task<EditorRunContext?> GetRunContextAsync() => CallAsync<EditorRunContext?>("getRunContext", _id);
+
+    /// <summary>Briefly highlights a range (the statement that runs).</summary>
+    public Task FlashAsync(int start, int length) => CallAsync("flash", _id, start, length);
+
+    /// <summary>Marks ranges by text offset (SQL errors); an empty list clears them.</summary>
+    public Task SetOffsetMarkersAsync(IEnumerable<EditorMarker> markers) =>
+        CallAsync("setOffsetMarkers", _id, markers.Select(m => new { start = m.Start, length = m.Length, severity = m.Severity, message = m.Message }));
+
+    public Task RevealOffsetAsync(int offset) => CallAsync("revealOffset", _id, offset);
+
+    public sealed record EditorRunContext(string Text, int Start, int End);
+
+    public sealed record EditorMarker(int Start, int Length, string Severity, string Message);
+
+    public Task SetTextAsync(string text) => CallAsync("setText", _id, text);
+
+    /// <summary>The current text, also what the debounce has not reported yet (run right after typing).</summary>
+    public Task<string?> GetTextAsync() => CallAsync<string?>("getText", _id);
+
+    /// <summary>Cursor to a position, shown and focused; asked before the editor exists, it happens once it is created.</summary>
+    public Task RevealAsync(int line, int column)
+    {
+        if (!_created)
+        {
+            _pendingReveal = (line, column);
+            return Task.CompletedTask;
+        }
+
+        return CallAsync("reveal", _id, line, column);
+    }
+
+    public Task FindAsync() => CallAsync("find", _id);
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        if (_module is { } module)
+        {
+            await module.DisposeAsync("destroy", _id);
+        }
+
+        _selfRef?.Dispose();
+    }
+}

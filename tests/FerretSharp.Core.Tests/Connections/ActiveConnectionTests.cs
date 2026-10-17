@@ -1,7 +1,7 @@
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
-using FerretSharp.Core.Tests.Fakes;
+using FerretSharp.Testing;
 using FerretSharp.Core.Workspaces;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;

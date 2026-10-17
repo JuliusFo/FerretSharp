@@ -8,6 +8,22 @@ public sealed class OracleTypesTests
     private static ColumnInfo Column(string type, int? length = null, bool charSemantics = false, int? precision = null, int? scale = null) =>
         new("C", type, length, charSemantics, precision, scale, true, false, null, 1);
 
+    /// <summary>R6b (review 3.40.0, B11): the last type decisions outside <see cref="OracleTypes"/> moved in.</summary>
+    [Theory]
+    [InlineData("NUMBER", true, false, false)]
+    [InlineData("INTEGER", false, false, false)]
+    [InlineData("FLOAT", false, true, false)]
+    [InlineData("BINARY_FLOAT", false, true, false)]
+    [InlineData("BINARY_DOUBLE", false, true, false)]
+    [InlineData("RAW", false, false, true)]
+    [InlineData("LONG RAW", false, false, false)]
+    public void Number_floating_point_and_raw(string type, bool number, bool floating, bool raw)
+    {
+        Assert.Equal(number, OracleTypes.IsNumber(type));
+        Assert.Equal(floating, OracleTypes.IsFloatingPoint(type));
+        Assert.Equal(raw, OracleTypes.IsRaw(type));
+    }
+
     /// <summary>Display and DDL differ only in BYTE: shown it is the usual default, in DDL it is always stated.</summary>
     [Theory]
     [InlineData("VARCHAR2", 50, true, null, null, "VARCHAR2(50 CHAR)", "VARCHAR2(50 CHAR)")]

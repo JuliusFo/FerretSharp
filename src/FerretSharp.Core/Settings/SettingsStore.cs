@@ -36,7 +36,7 @@ public sealed class SettingsStore(string filePath)
                     var settings = read.Document!.Settings!;
                     return settings with
                     {
-                        Shortcuts = settings.Shortcuts ?? ShortcutOverrides.Empty,
+                        Shortcuts = settings.Shortcuts ?? SettingsMap.Empty,
                         AuditTemplateGroups = settings.AuditTemplateGroups ?? SettingsMap.Empty,
                     };
                 case JsonFileState.Empty:

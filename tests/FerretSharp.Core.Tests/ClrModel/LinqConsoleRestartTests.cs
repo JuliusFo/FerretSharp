@@ -198,8 +198,9 @@ public sealed class LinqConsoleRestartTests
         restart.StartIfIdle();
         await target.WaitForStartsAsync(1);
 
-        restart.StartIfIdle(); // the watcher missed a build again: the running restart takes the newest output anyway
-        await Task.Delay(50, TestContext.Current.CancellationToken);
+        // The watcher missed a build again: the running restart takes the newest output anyway. Refused at once, not
+        // "no second start within 50 ms" (review 3.40.0, C8).
+        Assert.False(restart.StartIfIdle());
 
         Assert.Equal(1, target.Started);
         Assert.False(target.Start(0).Token.IsCancellationRequested);

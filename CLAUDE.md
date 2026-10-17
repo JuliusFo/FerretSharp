@@ -69,9 +69,12 @@ Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erkl
 
 ```
 src/FerretSharp.Core/       net10.0 – reine Logik, KEIN WPF, KEINE Windows-only-APIs, baut unter Linux
-  Oracle/ Query/ Schema/ Data/ Connections/ (Transfer/: Import/Export) Workspaces/ Settings/ IO/ Resources/
-  Ddl/ (DDL-Text) Design/ (Designer) Compare/ Audit/ Display/ (Anzeigespalten) Forms/ AppTrace/ ClrModel/ Links/
-src/FerretSharp.UI/         net10.0 Razor Class Library, plattformneutral: Shell.razor, Components/, State/, Resources/,
+  Oracle/ Query/ (SqlEditor/: Textanalyse) Schema/ Data/ Connections/ (Transfer/) Workspaces/ Settings/ IO/ Resources/
+  Ddl/ (DDL-Text) Design/ (Designer) Compare/ Audit/ Display/ (Anzeigespalten) Forms/ AppTrace/ Links/
+  ClrModel/ (Host/: Prozesse und Dateien um den ModelHost, CodeGen/)   – Unterordner ändern den Namespace nicht
+src/FerretSharp.UI/         net10.0 Razor Class Library, plattformneutral: Shell.razor, Resources/,
+                            Components/ (Common Shell Connections Schema PlSql Grid Filter Sql Ddl Pages, je eigener
+                            Namespace, alle in `_Imports.razor`), State/ (gleiche Ordner, Namespace bleibt `UI.State`),
                             wwwroot/ (css, js als ES-Module, lib/ag-grid, lib/monaco)
 src/FerretSharp.ModelHost/  Hilfsprozess im Kontext des C#-Projekts des Nutzers (.NET 8, ADR 0009)
 src/FerretSharp.AppTrace/   an eine laufende App anhängen (EventPipe, ADR 0023), plattformneutral
@@ -117,4 +120,4 @@ Regeln:
 
 ## 8. Als Nächstes
 
-Gesamt-Review 3.40.0 (`docs/review-3.40.0.md`): R6a (3.40.1) und Teil D (Doku) erledigt. Als Nächstes R6b (Teil B und C, 3.41.0, Ordnerumbau als reine `git mv`-Commits), dann WP-54, danach WP-38 … WP-47 (`docs/roadmap.md`).
+Gesamt-Review 3.40.0 (`docs/review-3.40.0.md`) abgeschlossen: R6a (3.40.1), Teil D (Doku), R6b (3.41.0). Als Nächstes WP-54 (alle Zeilen des Filters exportieren, mit A13), danach WP-38 … WP-47 (`docs/roadmap.md`).
