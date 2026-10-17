@@ -11,7 +11,7 @@ namespace FerretSharp.UI.Tests.State;
 /// </summary>
 public sealed class SessionWatchTests
 {
-    private readonly FakeTimeProvider _time = new();
+    private readonly CountingTimeProvider _time = new();
     private readonly Channel<TaskCompletionSource<SessionActivity?>> _looks = Channel.CreateUnbounded<TaskCompletionSource<SessionActivity?>>();
     private int _changed;
 
@@ -60,6 +60,8 @@ public sealed class SessionWatchTests
         Assert.Same(waiting, watch.Latest);
         Assert.False(watch.Unavailable);
 
+        // _latest is set before the next delay starts: advancing in between would be lost, and no second look would come.
+        await WaitUntilAsync(() => _time.Timers == 2);
         _time.Advance(SessionWatch.Interval);
         var second = await NextLookAsync();
         second.SetResult(SessionActivity.None);
@@ -114,6 +116,21 @@ public sealed class SessionWatchTests
 
         Assert.True(look.Task.IsCanceled);
         Assert.False(watch.Unavailable);
+    }
+
+    /// <summary>A fake clock that counts the timers created on it, i.e. the delays the watch has started.</summary>
+    private sealed class CountingTimeProvider : FakeTimeProvider
+    {
+        private int _timers;
+
+        public int Timers => Volatile.Read(ref _timers);
+
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            var timer = base.CreateTimer(callback, state, dueTime, period);
+            Interlocked.Increment(ref _timers);
+            return timer;
+        }
     }
 
     private static async Task WaitUntilAsync(Func<bool> condition)
