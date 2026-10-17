@@ -157,6 +157,8 @@
             <div class="hint small">@ShellText.ConnectionDialog_AppEnvironmentHint</div>
         </div>
 
+        <div class="form-section">@ShellText.Settings_Audit</div>
+
         <label for="cn-audit">@ShellText.ConnectionDialog_AuditTemplate</label>
         <div>
             <div class="field-with-button">
@@ -340,13 +342,14 @@
     }
 
     /// <summary>
-    /// Why the connection's own template cannot be used (WP-51) – judged once the file exists or after a submit, not while
-    /// the path is typed. It does not block saving: the designer and the audit line report it too.
+    /// Why the connection's own template cannot be used (WP-51) – judged for the saved path, once a typed file exists or
+    /// after a submit, not while the path is typed. It does not block saving: the designer and the audit line report it too.
     /// </summary>
     private IReadOnlyList<string> AuditTemplateErrors()
     {
         var path = Form.AuditTemplatePath.Trim().Trim('"');
-        return path.Length > 0 && (_submitted || File.Exists(path)) ? AuditTemplates.Load(path).Errors : [];
+        var judged = _submitted || path == Request.Profile?.AuditTemplatePath || File.Exists(path);
+        return path.Length > 0 && judged ? AuditTemplates.Load(path).Errors : [];
     }
 
     private async Task PickAuditTemplateAsync()
