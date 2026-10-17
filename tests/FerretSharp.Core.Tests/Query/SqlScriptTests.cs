@@ -399,6 +399,13 @@ public sealed class SqlScriptTests
     [InlineData("FLASHBACK TABLE t TO SCN 12345", SqlStatementKind.Truncate)]
     [InlineData("PURGE RECYCLEBIN", SqlStatementKind.Truncate)]
     [InlineData("PURGE TABLE t", SqlStatementKind.Truncate)]
+    // Decision of the user (review 3.40.0, SE-8): past the recycle bin, a schema with all its objects.
+    [InlineData("DROP TABLE t PURGE", SqlStatementKind.Truncate)]
+    [InlineData("drop table app.t cascade constraints purge", SqlStatementKind.Truncate)]
+    [InlineData("DROP USER app CASCADE", SqlStatementKind.Truncate)]
+    [InlineData("DROP TABLE t", SqlStatementKind.Ddl)] // the recycle bin keeps it (FLASHBACK … TO BEFORE DROP)
+    [InlineData("DROP TABLE t CASCADE CONSTRAINTS", SqlStatementKind.Ddl)]
+    [InlineData("DROP USER app", SqlStatementKind.Ddl)] // fails if the user owns objects
     [InlineData("FLASHBACK TABLE t TO BEFORE DROP", SqlStatementKind.Ddl)]
     [InlineData("ALTER TABLE t DROP COLUMN partition_key", SqlStatementKind.Ddl)]
     [InlineData("ALTER TABLE t ADD PARTITION p2026 VALUES LESS THAN (2027)", SqlStatementKind.Ddl)]

@@ -96,6 +96,9 @@ public static class SqlClassifier
             "TRUNCATE" or "PURGE" => SqlStatementKind.Truncate,
             "ALTER" when second == "TABLE" && DropsPartition(tokens) => SqlStatementKind.Truncate,
             "FLASHBACK" when !Follows(tokens, "TO", "BEFORE", "DROP") => SqlStatementKind.Truncate,
+            // Decision of the user (review 3.40.0, SE-8): past the recycle bin, and a schema with all its objects.
+            "DROP" when second == "TABLE" && Follows(tokens, "PURGE") => SqlStatementKind.Truncate,
+            "DROP" when second == "USER" && Follows(tokens, "CASCADE") => SqlStatementKind.Truncate,
             "CREATE" when PlSqlObjectAt(tokens) is { } at => !tokens[at].IsWord("TRIGGER") ? SqlStatementKind.PlSqlObject
                 : IsSystemTrigger(tokens, at) ? SqlStatementKind.SystemTrigger
                 : SqlStatementKind.Trigger,

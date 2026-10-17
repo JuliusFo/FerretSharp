@@ -100,7 +100,7 @@
     <value>Kein Statement am Cursor.</value>
   </data>
   <data name="SqlRejectDataLoss" xml:space="preserve">
-    <value>Statements, die Zeilen oder gelöschte Objekte ohne Rückweg entfernen, führt der SQL-Editor nicht aus: TRUNCATE oder DROP von Partitionen, FLASHBACK TABLE auf einen früheren Stand (TO BEFORE DROP geht), PURGE. Stattdessen DELETE verwenden – das bleibt in der Transaktion.</value>
+    <value>Statements, die Zeilen oder gelöschte Objekte ohne Rückweg entfernen, führt der SQL-Editor nicht aus: TRUNCATE oder DROP von Partitionen, FLASHBACK TABLE auf einen früheren Stand (TO BEFORE DROP geht), PURGE, DROP TABLE … PURGE (am Papierkorb vorbei), DROP USER … CASCADE. Stattdessen DELETE verwenden – das bleibt in der Transaktion.</value>
   </data>
   <data name="SqlRejectTruncate" xml:space="preserve">
     <value>TRUNCATE führt der SQL-Editor nicht aus: Es löscht alle Zeilen und lässt sich nicht rückgängig machen. Stattdessen DELETE verwenden – das bleibt in der Transaktion.</value>

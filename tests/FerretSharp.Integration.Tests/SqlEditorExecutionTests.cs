@@ -188,7 +188,7 @@ public sealed class SqlEditorExecutionTests(OracleContainerFixture oracle) : IAs
         Assert.Equal(TransactionMode.ReadWrite, connection.Editor.Transaction.Mode);
 
         await connection.Editor.RollbackAsync(Ct);
-        await connection.Editor.ExecuteDdlAsync("DROP TABLE sx_ddl PURGE", Ct);
+        await connection.Editor.ExecuteDdlAsync("DROP TABLE sx_ddl", Ct);
     }
 
     [Fact]
@@ -225,7 +225,7 @@ public sealed class SqlEditorExecutionTests(OracleContainerFixture oracle) : IAs
         await writer.Editor.ExecuteAsync(new QuerySpec("INSERT INTO sx_busy VALUES (1)", []), Ct);
         var columns = new QuerySpec("SELECT COUNT(*) FROM user_tab_columns WHERE table_name = 'SX_BUSY'", []);
 
-        var error = await Assert.ThrowsAsync<DatabaseException>(() => ddl.Editor.ExecuteDdlAsync("DROP TABLE sx_busy PURGE", Ct));
+        var error = await Assert.ThrowsAsync<DatabaseException>(() => ddl.Editor.ExecuteDdlAsync("DROP TABLE sx_busy", Ct));
         Assert.Equal("ORA-00054", error.ErrorCode);
         Assert.Contains("anderer Workspace", error.Message);
 
@@ -243,7 +243,7 @@ public sealed class SqlEditorExecutionTests(OracleContainerFixture oracle) : IAs
         Assert.Equal(TransactionMode.None, ddl.Editor.Transaction.Mode); // the lock went with the DDL's commit
         await writer.Editor.ExecuteAsync(new QuerySpec("INSERT INTO sx_busy VALUES (2, 'zwei')", []), Ct); // not held any more
         await writer.Editor.RollbackAsync(Ct);
-        await ddl.Editor.ExecuteDdlAsync("DROP TABLE sx_busy PURGE", Ct);
+        await ddl.Editor.ExecuteDdlAsync("DROP TABLE sx_busy", Ct);
     }
 
     [Theory]
