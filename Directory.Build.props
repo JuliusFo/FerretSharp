@@ -8,6 +8,9 @@
     <Product>FerretSharp</Product>
     <!-- English is the neutral language of the resources (WP-29, ADR 0017); German comes from satellite assemblies. -->
     <NeutralLanguage>en</NeutralLanguage>
+    <!-- Only the UI languages: no satellite folders of other cultures from packages (13 of Roslyn in the model host, WPF,
+         WebView2; review 3.40.0, B14). -->
+    <SatelliteResourceLanguages>en;de</SatelliteResourceLanguages>
     <Version>3.40.1</Version>
   </PropertyGroup>
 

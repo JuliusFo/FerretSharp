@@ -9,8 +9,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Compile only: at run time the user's EF Core assemblies are used (none are copied next to the host). -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" ExcludeAssets="runtime" PrivateAssets="all" />
+    <!-- Compile only: at run time the user's EF Core assemblies are used (none are copied next to the host). The lowest
+         supported EF Core: .NET binds to a higher assembly version, never to a lower one. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" VersionOverride="8.0.0" ExcludeAssets="runtime" PrivateAssets="all" />
     <!-- Shipped next to the host and resolved from its folder (the project's deps.json does not know it). -->
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" />
   </ItemGroup>
