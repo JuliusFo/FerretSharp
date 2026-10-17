@@ -306,17 +306,8 @@ public sealed record TableLink(
         return new(new TableLink(string.IsNullOrEmpty(connection) ? null : connection, OracleAddress.Parse(Single("a")), owner, table, filters, sorts, mode), null);
     }
 
-    /// <summary>
-    /// The address as text <see cref="OracleAddress.Parse"/> reads back: EZConnect with a service, a descriptor with a
-    /// SID (EZConnect has no SID), else the TNS alias.
-    /// </summary>
-    private static string AddressText(OracleAddress address) => address switch
-    {
-        HostPortAddress { ServiceName.Length: > 0 } a => $"{a.Host}:{a.Port.ToString(CultureInfo.InvariantCulture)}/{a.ServiceName}",
-        HostPortAddress a => $"(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={a.Host})(PORT={a.Port.ToString(CultureInfo.InvariantCulture)}))(CONNECT_DATA=(SID={a.Sid})))",
-        TnsAliasAddress a => a.Alias,
-        _ => address.Display,
-    };
+    /// <summary>The address as text <see cref="OracleAddress.Parse"/> reads back (<see cref="OracleAddress.ToDataSource"/>).</summary>
+    private static string AddressText(OracleAddress address) => address.ToDataSource() ?? address.Display;
 
     private static void Add(StringBuilder uri, string key, string value) => Add(uri, key, [value]);
 

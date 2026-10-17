@@ -48,19 +48,21 @@ public static class OracleConnectionStringFactory
         return builder.ConnectionString;
     }
 
-    internal static string DataSourceFor(OracleAddress address) => address switch
+    internal static string DataSourceFor(OracleAddress address)
     {
         // The parts go into the text as they are: one with "(", ")" or "=" would add an address of its own (review 3.40.0,
         // A7). The validator refuses them when saving and importing; this holds for a connections.json edited by hand.
-        HostPortAddress hp when !OracleAddress.IsPlainHost(hp.Host) => throw new ConnectionConfigurationException(ConnectionText.HostInvalid),
-        HostPortAddress { ServiceName: { Length: > 0 } service } when !OracleAddress.IsPlainName(service) =>
-            throw new ConnectionConfigurationException(ConnectionText.ServiceOrSidInvalid),
-        HostPortAddress { ServiceName: { Length: > 0 } service } hp => $"{hp.Host.Trim()}:{hp.Port}/{service.Trim()}",
-        HostPortAddress { Sid: { Length: > 0 } sid } when !OracleAddress.IsPlainName(sid) => throw new ConnectionConfigurationException(ConnectionText.ServiceOrSidInvalid),
-        HostPortAddress { Sid: { Length: > 0 } sid } hp =>
-            $"(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={hp.Host.Trim()})(PORT={hp.Port}))(CONNECT_DATA=(SID={sid.Trim()})))",
-        TnsAliasAddress tns when !OracleAddress.IsPlainAlias(tns.Alias) => throw new ConnectionConfigurationException(ConnectionText.TnsAliasInvalid),
-        TnsAliasAddress tns => tns.Alias.Trim(),
-        _ => throw new ConnectionConfigurationException(OracleText.AddressIncomplete),
-    };
+        switch (address)
+        {
+            case HostPortAddress hp when !OracleAddress.IsPlainHost(hp.Host):
+                throw new ConnectionConfigurationException(ConnectionText.HostInvalid);
+            case HostPortAddress { ServiceName: { Length: > 0 } service } when !OracleAddress.IsPlainName(service):
+            case HostPortAddress { ServiceName: not { Length: > 0 }, Sid: { Length: > 0 } sid } when !OracleAddress.IsPlainName(sid):
+                throw new ConnectionConfigurationException(ConnectionText.ServiceOrSidInvalid);
+            case TnsAliasAddress tns when !OracleAddress.IsPlainAlias(tns.Alias):
+                throw new ConnectionConfigurationException(ConnectionText.TnsAliasInvalid);
+        }
+
+        return address.ToDataSource() ?? throw new ConnectionConfigurationException(OracleText.AddressIncomplete);
+    }
 }

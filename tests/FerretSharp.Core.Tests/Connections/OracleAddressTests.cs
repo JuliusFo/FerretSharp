@@ -17,6 +17,16 @@ public sealed class OracleAddressTests
         Assert.True(OracleAddress.Parse(OracleConnectionStringFactory.DataSourceFor(address))!.SameAs(address));
     }
 
+    /// <summary>R6b (review 3.40.0, B11): one text for the connection and the link – EZConnect has no SID, so a descriptor.</summary>
+    [Fact]
+    public void The_data_source_is_ezconnect_with_a_service_a_descriptor_with_a_sid_else_the_alias()
+    {
+        Assert.Equal("db01:1521/ERP", new HostPortAddress(" db01 ", 1521, "ERP ", null).ToDataSource());
+        Assert.Equal("(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=db01)(PORT=1531))(CONNECT_DATA=(SID=ORCL)))", new HostPortAddress("db01", 1531, null, "ORCL").ToDataSource());
+        Assert.Equal("ERP_PROD", new TnsAliasAddress(" ERP_PROD", @"C:\oracle").ToDataSource());
+        Assert.Null(new HostPortAddress("db01", 1521, "", null).ToDataSource());
+    }
+
     [Theory]
     [InlineData("db01:1521/ERP", "db01", 1521, "ERP")]
     [InlineData("//db01/ERP", "db01", 1521, "ERP")]
