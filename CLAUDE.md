@@ -120,4 +120,4 @@ Regeln:
 
 ## 8. Als Nächstes
 
-Gesamt-Review 3.40.0 (`docs/review-3.40.0.md`): R6a (3.40.1) und Teil D (Doku) erledigt. Als Nächstes R6b (Teil B und C, 3.41.0, Ordnerumbau als reine `git mv`-Commits), dann WP-54, danach WP-38 … WP-47 (`docs/roadmap.md`).
+Gesamt-Review 3.40.0 (`docs/review-3.40.0.md`) abgeschlossen: R6a (3.40.1), Teil D (Doku), R6b (3.41.0). Als Nächstes WP-54 (alle Zeilen des Filters exportieren, mit A13), danach WP-38 … WP-47 (`docs/roadmap.md`).
