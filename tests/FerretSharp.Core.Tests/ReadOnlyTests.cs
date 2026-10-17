@@ -58,43 +58,6 @@ public class ReadOnlyTests
     [InlineData("(SELECT * FROM t)")]
     public void Everything_else_is_refused(string sql) => Assert.False(OracleSession.IsReadOnlyStatement(sql), sql);
 
-    private static readonly string[] WritingNames = ["NonQuery", "Scalar", "Insert", "Update", "Delete", "Merge", "Flush", "Write"];
-
-    private static readonly string[] TransactionControlNames = ["Commit", "Rollback", "Savepoint", "BeginTransaction"];
-
-    private static List<string> PublicMethods(Type type) =>
-        type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly)
-            .Select(m => m.Name)
-            .ToList();
-
-    /// <summary>The database entry points: no public method may write data (until WP-09 brings FlushAsync).</summary>
-    [Theory]
-    [InlineData(typeof(OracleSession))]
-    [InlineData(typeof(IDataAccess))]
-    [InlineData(typeof(ISchemaReader))]
-    [InlineData(typeof(IDatabaseConnection))]
-    [InlineData(typeof(IDatabaseConnector))]
-    public void Database_types_offer_no_writing_methods(Type type) =>
-        Assert.DoesNotContain(PublicMethods(type), name => WritingNames.Any(w => name.Contains(w, StringComparison.OrdinalIgnoreCase)));
-
-    /// <summary>Commit, rollback and savepoints exist on the session only, not on what the UI gets to see.</summary>
-    [Theory]
-    [InlineData(typeof(IDataAccess))]
-    [InlineData(typeof(ISchemaReader))]
-    [InlineData(typeof(IDatabaseConnection))]
-    [InlineData(typeof(IDatabaseConnector))]
-    public void Transaction_control_is_not_exposed_beyond_the_session(Type type) =>
-        Assert.DoesNotContain(PublicMethods(type), name => TransactionControlNames.Any(w => name.Contains(w, StringComparison.OrdinalIgnoreCase)));
-
-    [Fact]
-    public void The_write_path_is_internal()
-    {
-        var method = typeof(OracleSession).GetMethod("ExecuteNonQueryAsync", BindingFlags.NonPublic | BindingFlags.Instance);
-
-        Assert.NotNull(method);
-        Assert.True(method.IsAssembly);
-    }
-
     [Theory]
     [InlineData("INSERT INTO t (a) VALUES (:p0)")]
     [InlineData("  update t set c = :p0 where id = :p1")]
@@ -120,15 +83,6 @@ public class ReadOnlyTests
     [InlineData("DELETE FROM t WHERE c = q'[;]'; DROP TABLE t")]
     [InlineData("DELETE FROM t -- ;\n; DROP TABLE t")]
     public void Write_path_refuses_ddl_plsql_and_everything_else(string sql) => Assert.False(OracleSession.IsWriteStatement(sql), sql);
-
-    [Fact]
-    public void The_schema_path_is_internal()
-    {
-        var method = typeof(OracleSession).GetMethod("ExecuteDdlAsync", BindingFlags.NonPublic | BindingFlags.Instance);
-
-        Assert.NotNull(method);
-        Assert.True(method.IsAssembly);
-    }
 
     /// <summary>WP-22, ADR 0019: the schema path takes DDL the SQL editor runs – a single statement, nothing else.</summary>
     [Theory]
@@ -224,8 +178,9 @@ public class ReadOnlyTests
     };
 
     /// <summary>
-    /// R5b: the exact public methods of the session and of the database interfaces. A new one fails here until it is added
-    /// on purpose – the name checks above only know the names they list (a public <c>RunAsync</c> would pass them).
+    /// R5b: the exact public methods of the session and of the database interfaces – none writes, transaction control only
+    /// on the session (not on what the UI sees). A new one fails here until it is added on purpose (review 3.40.0, C6: this
+    /// replaced the checks by name, which only knew the names they listed).
     /// </summary>
     [Theory]
     [MemberData(nameof(PublicSurfaces))]
@@ -333,15 +288,43 @@ public class ReadOnlyTests
                         _ => hostile,
                     };
                     var values = FilterRules.ValueCount(op) switch { 0 => Array.Empty<string>(), 2 => [value, value], _ => [value] };
-                    var filters = new[] { new FilterCondition(column.Name, op, values) };
+                    var row = new FilterCondition(column.Name, op, values);
+                    var other = FilterCondition.Of(table.Columns[0].Name, FilterOperator.IsNotNull);
 
-                    var select = QueryBuilder.BuildSelect(table, filters, [new SortSpec(table.Columns[0].Name, true)], new PageSpec(0, 500));
-                    var count = QueryBuilder.BuildCount(table, filters);
+                    // Alone, in an OR group and in a NOT group (WP-50, review 3.40.0 C5).
+                    foreach (var filters in new[]
+                    {
+                        new[] { row },
+                        [row with { Group = new FilterGroup(1, FilterGroupKind.Any) }, other with { Group = new FilterGroup(1, FilterGroupKind.Any) }],
+                        [row with { Group = new FilterGroup(1, FilterGroupKind.None) }, other with { Group = new FilterGroup(1, FilterGroupKind.None) }, other],
+                    })
+                    {
+                        var select = QueryBuilder.BuildSelect(table, filters, [new SortSpec(table.Columns[0].Name, true)], new PageSpec(0, 500));
+                        var count = QueryBuilder.BuildCount(table, filters);
 
-                    Assert.True(OracleSession.IsReadOnlyStatement(select.Sql), select.Sql);
-                    Assert.True(OracleSession.IsReadOnlyStatement(count.Sql), count.Sql);
-                    Assert.DoesNotContain("DELETE", select.Sql, StringComparison.OrdinalIgnoreCase);
+                        Assert.True(OracleSession.IsReadOnlyStatement(select.Sql), select.Sql);
+                        Assert.True(OracleSession.IsReadOnlyStatement(count.Sql), count.Sql);
+                        Assert.DoesNotContain("DELETE", select.Sql, StringComparison.OrdinalIgnoreCase);
+                    }
                 }
+            }
+        }
+    }
+
+    /// <summary>Review 3.40.0, C5: reading back a new row by its ROWID and reading a whole LOB are plain queries too.</summary>
+    [Fact]
+    public void The_statements_by_rowid_and_for_a_lob_are_plain_queries()
+    {
+        var table = Tables[0];
+        var byRowId = QueryBuilder.BuildSelectByRowId(table, "AAAR3sAAEAAAACXAAA");
+        Assert.True(OracleSession.IsReadOnlyStatement(byRowId.Sql), byRowId.Sql);
+
+        foreach (var key in new RowKey[] { new RowKey.PrimaryKey([1m]), new RowKey.RowId("AAAR3sAAEAAAACXAAA") })
+        {
+            foreach (var lob in new[] { 3, 4 }) // CLOB, BLOB
+            {
+                var read = QueryBuilder.BuildSelectLob(table, key, lob);
+                Assert.True(OracleSession.IsReadOnlyStatement(read.Sql), read.Sql);
             }
         }
     }
