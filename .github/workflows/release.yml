@@ -72,7 +72,7 @@ jobs:
           }
           $changes = ($section -join "`n").Trim()
           # Images (WP-49): relative in the changelog, here the tag's files on GitHub – for the release page and the update
-          # dialog, which shows nothing else (ReleaseNotes.IsOwnImage). A missing file stops the release.
+          # dialog, which shows nothing else (ReleaseNotes.OwnImageUri). A missing file stops the release.
           $raw = "https://raw.githubusercontent.com/JuliusFo/FerretSharp/$env:TAG/"
           $changes = [regex]::Replace($changes, '(?m)^([ \t]*)!\[([^\]]*)\]\(([^)\s]+)\)[ \t]*$', {
             param($m)

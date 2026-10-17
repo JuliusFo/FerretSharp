@@ -4,7 +4,7 @@ namespace FerretSharp.UI.State;
 
 /// <summary>
 /// Times as the footers, the LINQ console and the model page show them (R5b, review 3.31.0 B12: five ways to write a
-/// duration, two for the time of a snapshot). Plan steps keep their own finer form, the run clock its <c>m:ss</c>.
+/// duration, two for the time of a snapshot), and the run clock (<see cref="Clock"/>). Plan steps keep their own finer form.
 /// </summary>
 public static class TimeText
 {

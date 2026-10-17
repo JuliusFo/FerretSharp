@@ -25,7 +25,7 @@ public sealed record NoteSpan(string Text, bool Code);
 /// CHANGELOG.md, so only what it uses is understood: headings, bullets (with continuation lines), paragraphs, inline code;
 /// links show their text, emphasis markers are dropped. No HTML is rendered: the notes come from the internet.
 /// An image (WP-49) is a line of its own, <c>![alt](url)</c>, also below a bullet; it shows only from the project's
-/// repository (<see cref="IsOwnImage"/>, the release workflow rewrites the changelog's relative paths to it), any other
+/// repository (<see cref="OwnImageUri"/>, the release workflow rewrites the changelog's relative paths to it), any other
 /// address shows the alt text.
 /// </summary>
 public static partial class ReleaseNotes
@@ -70,7 +70,7 @@ public static partial class ReleaseNotes
                 // Its own block even when indented below a bullet: an image in the middle of a sentence is not meant.
                 Flush();
                 var alt = image.Groups["alt"].Value.Trim();
-                if (IsOwnImage(image.Groups["url"].Value) is { } url)
+                if (OwnImageUri(image.Groups["url"].Value) is { } url)
                 {
                     blocks.Add(new NoteBlock(NoteBlockKind.Image, [new NoteSpan(alt, Code: false)], url));
                 }
@@ -112,7 +112,7 @@ public static partial class ReleaseNotes
     /// <see cref="ImagePath"/>, and plain path segments only (no <c>..</c>, no escapes, no query) – the dialog loads it
     /// from the internet, so nothing but the project's own files.
     /// </summary>
-    public static Uri? IsOwnImage(string address)
+    public static Uri? OwnImageUri(string address)
     {
         if (!Uri.TryCreate(address, UriKind.Absolute, out var url)
             || url.Scheme != Uri.UriSchemeHttps

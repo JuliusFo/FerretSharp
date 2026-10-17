@@ -181,7 +181,7 @@
 
 @if (Lifecycle.PendingSql is { } pendingSql)
 {
-    <SqlPreview Sql="@pendingSql" Parameters="NoParameters" Error="@null" OnClose="Lifecycle.ClosePendingSql" />
+    <SqlPreviewDialog Sql="@pendingSql" Parameters="NoParameters" Error="@null" OnClose="Lifecycle.ClosePendingSql" />
 }
 
 @if (Shell.ReconnectOffer is { } changed)

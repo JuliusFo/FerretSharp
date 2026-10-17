@@ -1,6 +1,6 @@
-@* The frame of a right-click menu (R3b, what ModalFrame is for dialogs): a backdrop that closes on a click or another
-   right-click, the menu at the mouse position kept inside the window, focus on it so Escape closes. Used by the
-   grid's cell and header menus and the result menu of SQL/LINQ. *@
+@* The frame of every menu (R3b, what ModalFrame is for dialogs): a backdrop that closes on a click or another right-click,
+   the menu at the mouse position kept inside the window, focus on it so Escape closes. Right-click menus (cells, headers,
+   results, tabs) use it directly, a button with a menu through MenuButton (R6b). *@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 

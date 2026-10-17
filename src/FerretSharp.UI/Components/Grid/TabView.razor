@@ -163,7 +163,7 @@
 
 @if (_sql is { } sql)
 {
-    <SqlPreview Sql="@sql.Sql" Parameters="sql.Parameters" Error="@sql.Error" OnClose="() => _sql = null"
+    <SqlPreviewDialog Sql="@sql.Sql" Parameters="sql.Parameters" Error="@sql.Error" OnClose="() => _sql = null"
                 OnOpenInEditor="() => OpenInSqlEditor(sql.Sql, sql.Parameters)" />
 }
 

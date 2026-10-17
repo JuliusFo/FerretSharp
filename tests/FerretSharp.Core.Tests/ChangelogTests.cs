@@ -4,7 +4,7 @@ namespace FerretSharp.Core.Tests;
 
 /// <summary>
 /// WP-49: images in CHANGELOG.md. The release workflow rewrites their relative paths to the tag's files on GitHub, and the
-/// update dialog shows only a line of its own from there (<c>ReleaseNotes.IsOwnImage</c>) – so each image is a line of its
+/// update dialog shows only a line of its own from there (<c>ReleaseNotes.OwnImageUri</c>) – so each image is a line of its
 /// own, relative, directly below <c>docs/images/changelog/</c> with a plain file name (as the workflow checks), and
 /// exists. Runs in the release workflow too (Core tests), before anything is packed.
 /// </summary>

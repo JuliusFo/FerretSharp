@@ -18,12 +18,12 @@
         break;
     case { Health: AuditHealth.UpToDate } status:
         <div class="audit-status muted" title="@_templateLabel">
-            @SchemaViewText.Audit_Label <AuditTableLink Names="status.Names" Open="OpenAuditTable" /> · <span class="mono">@status.Names.Trigger</span>
+            @SchemaViewText.Audit_Label @AuditTable(status.Names) · <span class="mono">@status.Names.Trigger</span>
         </div>
         break;
     case { Health: AuditHealth.Outdated } status:
         <div class="audit-status warn" title="@($"{SchemaViewText.Audit_OutdatedTitle}\n{_templateLabel}")">
-            ⚠ @SchemaViewText.Audit_Label <AuditTableLink Names="status.Names" Open="OpenAuditTable" />
+            ⚠ @SchemaViewText.Audit_Label @AuditTable(status.Names)
             <span>@TextFormat.Format(SchemaViewText.Audit_Outdated, string.Join("; ", status.Reasons))</span>
             · <button class="link-btn" @onclick="() => OnOpen.InvokeAsync()">@SchemaViewText.Audit_Sync</button>
         </div>
@@ -31,6 +31,10 @@
 }
 
 @code {
+    /// <summary>The audit table's name (WP-26): a link that opens it (R6b: was a component of its own).</summary>
+    private RenderFragment AuditTable(FerretSharp.Core.Audit.AuditNames names) =>
+        @<button class="link-btn mono" title="@SchemaViewText.Audit_OpenTable" @onclick="() => OpenAuditTable(names)">@names.AuditTable.Name</button>;
+
     private AuditStatus? _status;
     private string? _templateLabel; // which template applies and where it is set (WP-51)
     private TableDetails? _loadedFor;
