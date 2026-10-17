@@ -946,7 +946,7 @@
     <value>Vorlage</value>
   </data>
   <data name="Settings_AuditTemplateHint" xml:space="preserve">
-    <value>Audit-Tabelle und Trigger einer Tabelle folgen dieser Vorlage – z. B. einer Datei im Repository der Firma. Leer nimmt die eingebaute Vorlage.</value>
+    <value>Audit-Tabelle und Trigger einer Tabelle folgen dieser Vorlage – z. B. einer Datei im Repository der Firma. Sie gilt für jede Verbindung ohne Vorlage ihrer Gruppe oder eigene. Leer nimmt die eingebaute Vorlage.</value>
   </data>
   <data name="Settings_AuditTemplateBuiltIn" xml:space="preserve">
     <value>Eingebaute Vorlage</value>
@@ -1445,5 +1445,68 @@
   </data>
   <data name="Settings_LinkProtocolFailed" xml:space="preserve">
     <value>Die Registrierung ließ sich nicht ändern: {0}</value>
+  </data>
+  <data name="AuditTemplate_FromConnection" xml:space="preserve">
+    <value>Vorlage dieser Verbindung: {0}</value>
+  </data>
+  <data name="AuditTemplate_FromGroup" xml:space="preserve">
+    <value>Vorlage der Gruppe {0}: {1}</value>
+  </data>
+  <data name="AuditTemplate_FromSettings" xml:space="preserve">
+    <value>Vorlage der Einstellungen: {0}</value>
+  </data>
+  <data name="AuditTemplate_BuiltIn" xml:space="preserve">
+    <value>Eingebaute Vorlage</value>
+  </data>
+  <data name="ConnectionDialog_AuditTemplate" xml:space="preserve">
+    <value>Audit-Vorlage</value>
+  </data>
+  <data name="ConnectionDialog_AuditTemplatePlaceholder" xml:space="preserve">
+    <value>Vorlage der Gruppe oder der Einstellungen</value>
+  </data>
+  <data name="ConnectionDialog_AuditTemplateHint" xml:space="preserve">
+    <value>Nur für eine Verbindung, deren Audit-Tabellen einer anderen Vorlage folgen als ihre Gruppe. Wenn leer: {0}</value>
+  </data>
+  <data name="ConnectionDialog_PickAuditTemplate" xml:space="preserve">
+    <value>Datei der Audit-Vorlage auswählen</value>
+  </data>
+  <data name="Settings_AuditTemplateGroups" xml:space="preserve">
+    <value>Vorlagen der Verbindungsgruppen</value>
+  </data>
+  <data name="Settings_AuditTemplateGroupsHint" xml:space="preserve">
+    <value>Jede Gruppe von Systemen kann ihre eigene Vorlage haben, z. B. aus ihrem Repository. Eine Gruppe ohne eigene nimmt die Vorlage darüber.</value>
+  </data>
+  <data name="Settings_AuditTemplateNoGroups" xml:space="preserve">
+    <value>Noch keine Verbindung hat eine Gruppe – sie wird im Verbindungsdialog gesetzt.</value>
+  </data>
+  <data name="Settings_AuditTemplateGroupOrphaned" xml:space="preserve">
+    <value>Keine Verbindung ist mehr in dieser Gruppe (umbenannt?).</value>
+  </data>
+  <data name="Settings_AuditTemplateAsGlobal" xml:space="preserve">
+    <value>Vorlage darüber</value>
+  </data>
+  <data name="Settings_AuditTemplateUseGlobal" xml:space="preserve">
+    <value>Obere verwenden</value>
+  </data>
+  <data name="Settings_AuditTemplateAsGlobalTitle" xml:space="preserve">
+    <value>Die Gruppe nimmt wieder die Vorlage darüber</value>
+  </data>
+  <data name="Settings_AuditTemplateRemove" xml:space="preserve">
+    <value>Entfernen</value>
+  </data>
+  <data name="Settings_AuditTemplateOfGroup" xml:space="preserve">
+    <value>Vorlage der Gruppe {0}</value>
+  </data>
+  <data name="Settings_AuditTemplateConnections" xml:space="preserve">
+    <value>Vorlagen einzelner Verbindungen</value>
+  </data>
+  <data name="Settings_AuditTemplateConnectionsHint" xml:space="preserve">
+    <value>Eine Verbindung, deren Audit-Tabellen einer anderen Vorlage folgen als ihre Gruppe, hat eine eigene, gesetzt im Verbindungsdialog. Sie geht der Vorlage der Gruppe vor.</value>
+  </data>
+  <data name="Settings_AuditTemplateNoConnections" xml:space="preserve">
+    <value>Keine Verbindung hat eine eigene Vorlage.</value>
+  </data>
+  <data name="Settings_AuditTemplateEditConnection" xml:space="preserve">
+    <value>Verbindung bearbeiten…</value>
   </data>
 </root>

@@ -1161,7 +1161,7 @@
     <comment>Settings row: the file of the audit template</comment>
   </data>
   <data name="Settings_AuditTemplateHint" xml:space="preserve">
-    <value>Audit table and trigger of a table follow this template – e.g. a file in your company's repository. Empty uses the built-in template.</value>
+    <value>Audit table and trigger of a table follow this template – e.g. a file in your company's repository. It applies to every connection without a template of its group or its own. Empty uses the built-in template.</value>
   </data>
   <data name="Settings_AuditTemplateBuiltIn" xml:space="preserve">
     <value>Built-in template</value>
@@ -1775,5 +1775,81 @@
   <data name="Settings_LinkProtocolFailed" xml:space="preserve">
     <value>The registration could not be changed: {0}</value>
     <comment>{0}: error message</comment>
+  </data>
+  <data name="AuditTemplate_FromConnection" xml:space="preserve">
+    <value>Template of this connection: {0}</value>
+    <comment>WP-51: tooltip of the audit line. {0}: file path</comment>
+  </data>
+  <data name="AuditTemplate_FromGroup" xml:space="preserve">
+    <value>Template of the group {0}: {1}</value>
+    <comment>WP-51. {0}: group name, {1}: file path</comment>
+  </data>
+  <data name="AuditTemplate_FromSettings" xml:space="preserve">
+    <value>Template of the settings: {0}</value>
+    <comment>WP-51. {0}: file path</comment>
+  </data>
+  <data name="AuditTemplate_BuiltIn" xml:space="preserve">
+    <value>Built-in template</value>
+    <comment>WP-51</comment>
+  </data>
+  <data name="ConnectionDialog_AuditTemplate" xml:space="preserve">
+    <value>Audit template</value>
+    <comment>WP-51: label in the connection dialog</comment>
+  </data>
+  <data name="ConnectionDialog_AuditTemplatePlaceholder" xml:space="preserve">
+    <value>Template of the group or of the settings</value>
+  </data>
+  <data name="ConnectionDialog_AuditTemplateHint" xml:space="preserve">
+    <value>Only for a connection whose audit tables follow another template than its group. If empty: {0}</value>
+    <comment>{0}: the template that applies without one, e.g. Template of the group ERP: C:\…\audit.sql</comment>
+  </data>
+  <data name="ConnectionDialog_PickAuditTemplate" xml:space="preserve">
+    <value>Choose audit template file</value>
+  </data>
+  <data name="Settings_AuditTemplateGroups" xml:space="preserve">
+    <value>Templates of connection groups</value>
+    <comment>WP-51: settings row</comment>
+  </data>
+  <data name="Settings_AuditTemplateGroupsHint" xml:space="preserve">
+    <value>Each group of systems can have its own template, e.g. from its repository. A group without one takes the template above.</value>
+  </data>
+  <data name="Settings_AuditTemplateNoGroups" xml:space="preserve">
+    <value>No connection has a group yet – it is set in the connection dialog.</value>
+  </data>
+  <data name="Settings_AuditTemplateGroupOrphaned" xml:space="preserve">
+    <value>No connection is in this group any more (renamed?).</value>
+  </data>
+  <data name="Settings_AuditTemplateAsGlobal" xml:space="preserve">
+    <value>Template above</value>
+    <comment>Placeholder of a group's empty path field</comment>
+  </data>
+  <data name="Settings_AuditTemplateUseGlobal" xml:space="preserve">
+    <value>Use the one above</value>
+    <comment>Button: the group takes the global template again</comment>
+  </data>
+  <data name="Settings_AuditTemplateAsGlobalTitle" xml:space="preserve">
+    <value>The group takes the template above again</value>
+  </data>
+  <data name="Settings_AuditTemplateRemove" xml:space="preserve">
+    <value>Remove</value>
+    <comment>Button: removes the entry of a group no connection has</comment>
+  </data>
+  <data name="Settings_AuditTemplateOfGroup" xml:space="preserve">
+    <value>Template of the group {0}</value>
+    <comment>Accessible name of the path field. {0}: group name</comment>
+  </data>
+  <data name="Settings_AuditTemplateConnections" xml:space="preserve">
+    <value>Templates of single connections</value>
+    <comment>WP-51: settings row</comment>
+  </data>
+  <data name="Settings_AuditTemplateConnectionsHint" xml:space="preserve">
+    <value>A connection whose audit tables follow another template than its group has its own, set in the connection dialog. It goes before the group's.</value>
+  </data>
+  <data name="Settings_AuditTemplateNoConnections" xml:space="preserve">
+    <value>No connection has its own template.</value>
+  </data>
+  <data name="Settings_AuditTemplateEditConnection" xml:space="preserve">
+    <value>Edit connection…</value>
+    <comment>Button: opens the connection dialog</comment>
   </data>
 </root>

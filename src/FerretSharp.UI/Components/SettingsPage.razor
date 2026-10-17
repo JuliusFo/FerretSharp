@@ -4,6 +4,7 @@
 @inject IThemeService Theme
 @inject AppSettingsService Settings
 @inject FerretSharp.Core.Audit.AuditTemplateSource AuditTemplates
+@inject FerretSharp.Core.Connections.ConnectionManager Connections
 @inject FerretSharp.Core.Display.DisplayColumnSource DisplaySource
 @inject IFileOpenService Files
 @inject IJSRuntime JS
@@ -249,6 +250,72 @@
                 <div class="settings-note @Hide(SettingKey.AuditTemplate)">
                     <button class="link-btn" title="@ShellText.Settings_AuditTemplateCopyTitle" @onclick="CopyDefaultTemplateAsync">@ShellText.Settings_AuditTemplateCopy</button>
                 </div>
+            }
+
+            @* WP-51: each group of systems its own template; a group without one takes the template above. *@
+            <div class="settings-row @Hide(SettingKey.AuditTemplateGroups)">
+                <div class="settings-label">
+                    <span>@ShellText.Settings_AuditTemplateGroups</span>
+                    <span class="hint">@ShellText.Settings_AuditTemplateGroupsHint</span>
+                </div>
+            </div>
+            @{ var groups = AuditGroupTemplates.Of(Connections.Profiles, Settings.Current.AuditTemplateGroups); }
+            @if (groups.Count == 0)
+            {
+                <div class="settings-note @Hide(SettingKey.AuditTemplateGroups)">@ShellText.Settings_AuditTemplateNoGroups</div>
+            }
+            @foreach (var row in groups)
+            {
+                var group = row.Group;
+                <div class="settings-row settings-subrow @Hide(SettingKey.AuditTemplateGroups)" @key="group">
+                    <div class="settings-label">
+                        <span>@group</span>
+                        @if (row.Orphaned)
+                        {
+                            <span class="hint">@ShellText.Settings_AuditTemplateGroupOrphaned</span>
+                        }
+                    </div>
+                    <div class="settings-path">
+                        <input class="field mono" spellcheck="false" placeholder="@ShellText.Settings_AuditTemplateAsGlobal" value="@row.Path"
+                               @onchange="e => SetGroupTemplateAsync(group, (string?)e.Value)" aria-label="@TextFormat.Format(ShellText.Settings_AuditTemplateOfGroup, group)" />
+                        <button class="btn" @onclick="() => PickGroupTemplateAsync(group, row.Path)">@ShellText.Settings_AuditTemplatePick</button>
+                        @if (row.Path is not null)
+                        {
+                            <button class="btn ghost" title="@ShellText.Settings_AuditTemplateAsGlobalTitle" @onclick="() => SetGroupTemplateAsync(group, null)">
+                                @(row.Orphaned ? ShellText.Settings_AuditTemplateRemove : ShellText.Settings_AuditTemplateUseGlobal)
+                            </button>
+                        }
+                    </div>
+                </div>
+                @if (row.Path is { } groupPath)
+                {
+                    @TemplateCheck(AuditTemplates.Load(groupPath), SettingKey.AuditTemplateGroups)
+                }
+            }
+
+            @* WP-51: a connection's own template is set in the connection dialog; listed here so it is not forgotten. *@
+            <div class="settings-row @Hide(SettingKey.AuditTemplateConnections)">
+                <div class="settings-label">
+                    <span>@ShellText.Settings_AuditTemplateConnections</span>
+                    <span class="hint">@ShellText.Settings_AuditTemplateConnectionsHint</span>
+                </div>
+            </div>
+            @{ var ownTemplates = Connections.Profiles.Where(p => !string.IsNullOrWhiteSpace(p.AuditTemplatePath)).ToList(); }
+            @if (ownTemplates.Count == 0)
+            {
+                <div class="settings-note @Hide(SettingKey.AuditTemplateConnections)">@ShellText.Settings_AuditTemplateNoConnections</div>
+            }
+            @foreach (var profile in ownTemplates.OrderBy(p => ConnectionLabel.Of(p, Settings.Current), StringComparer.CurrentCultureIgnoreCase))
+            {
+                var edited = profile;
+                <div class="settings-row settings-subrow @Hide(SettingKey.AuditTemplateConnections)" @key="profile.Id">
+                    <div class="settings-label"><span>@ConnectionLabel.Of(profile, Settings.Current)</span></div>
+                    <div class="settings-path">
+                        <span class="mono grow" title="@profile.AuditTemplatePath">@profile.AuditTemplatePath</span>
+                        <button class="btn" @onclick="() => Shell.EditConnection(edited)">@ShellText.Settings_AuditTemplateEditConnection</button>
+                    </div>
+                </div>
+                @TemplateCheck(AuditTemplates.Load(profile.AuditTemplatePath), SettingKey.AuditTemplateConnections)
             }
         </section>
         }
@@ -612,6 +679,38 @@
         _auditPath = string.IsNullOrWhiteSpace(path) ? null : path.Trim();
         return UpdateAsync(s => s with { AuditTemplatePath = _auditPath });
     }
+
+    /// <summary>The template of a connection group (WP-51); empty takes the global one again (removes an orphaned entry).</summary>
+    private Task SetGroupTemplateAsync(string group, string? path) =>
+        UpdateAsync(s => s with { AuditTemplateGroups = AuditGroupTemplates.With(s.AuditTemplateGroups, group, path) });
+
+    private async Task PickGroupTemplateAsync(string group, string? current)
+    {
+        if (await Files.PickAsync(ShellText.Settings_AuditTemplateFilter, ["sql", "txt"], current ?? _auditPath) is { } path)
+        {
+            await SetGroupTemplateAsync(group, path);
+        }
+    }
+
+    /// <summary>Under a template's row: its errors with their lines, or that it is valid.</summary>
+    private RenderFragment TemplateCheck(FerretSharp.Core.Audit.AuditTemplateLoad load, SettingKey key) => __builder =>
+    {
+        if (load.Errors.Count > 0)
+        {
+            <div class="settings-note error @Hide(key)">
+                <ul class="settings-problems">
+                    @foreach (var error in load.Errors)
+                    {
+                        <li>@error</li>
+                    }
+                </ul>
+            </div>
+        }
+        else
+        {
+            <div class="settings-note @Hide(key)">@ShellText.Settings_AuditTemplateValid</div>
+        }
+    };
 
     private DomModule? _dom;
 

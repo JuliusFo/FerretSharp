@@ -180,11 +180,11 @@ else
             @if (audit.Template is { } template && AuditTable is { } auditTable)
             {
                 var names = template.NamesFor(auditTable);
-                <span class="muted mono">@names.AuditTable.Name · @names.Trigger</span>
+                <span class="muted mono" title="@AuditTemplateLabel.Of(audit)">@names.AuditTable.Name · @names.Trigger</span>
             }
             else if (audit.Errors.Count > 0)
             {
-                <span class="hint small" title="@string.Join("\n", audit.Errors)">⚠ @SchemaViewText.Audit_TemplateBroken</span>
+                <span class="hint small" title="@($"{AuditTemplateLabel.Of(audit)}\n{string.Join("\n", audit.Errors)}")">⚠ @SchemaViewText.Audit_TemplateBroken</span>
             }
         </div>
 
