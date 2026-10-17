@@ -60,11 +60,14 @@
                     }
                 </div>
             }
-            <div class="filter-more" data-drop="@NoGroup">
-                <button class="btn ghost small" title="@GridText.Filter_AddGroupTitle" @onclick="OpenGroupMenuAsync"><span class="plus">+</span> @GridText.Filter_AddGroup ▾</button>
-            </div>
+            @if (Tab.FilterGroups.Count > 0)
+            {
+                @* Out of a group: shown only while dragging (CSS), the rows without a group are targets too. *@
+                <div class="filter-more" data-drop="@NoGroup">@GridText.Filter_DropNoGroup</div>
+            }
         </div>
         <div class="filter-actions">
+            <button class="btn ghost" title="@GridText.Filter_AddGroupTitle" @onclick="OpenGroupMenuAsync"><span class="plus">+</span> @GridText.Filter_AddGroup ▾</button>
             <PresetMenu Tab="Tab" Details="Details" OnApply="ApplyPresetAsync" />
             @if (Presentations.For(Details).Entity is not null)
             {

@@ -864,6 +864,9 @@
   <data name="Filter_DragTitle" xml:space="preserve">
     <value>In eine Gruppe oder aus ihr heraus ziehen</value>
   </data>
+  <data name="Filter_DropNoGroup" xml:space="preserve">
+    <value>Hier ablegen, um sie aus der Gruppe zu nehmen (UND)</value>
+  </data>
   <data name="Filter_MoveToGroup" xml:space="preserve">
     <value>In {0}-Gruppe {1}</value>
   </data>

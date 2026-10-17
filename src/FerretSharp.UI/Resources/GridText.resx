@@ -1100,6 +1100,10 @@
   <data name="Filter_DragTitle" xml:space="preserve">
     <value>Drag into a group or out of it</value>
   </data>
+  <data name="Filter_DropNoGroup" xml:space="preserve">
+    <value>Drop here to take it out of the group (AND)</value>
+    <comment>Drop target shown while a filter row is dragged</comment>
+  </data>
   <data name="Filter_MoveToGroup" xml:space="preserve">
     <value>To {0} group {1}</value>
     <comment>{0} = kind of group (OR, NOT); {1} = its number</comment>
