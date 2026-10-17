@@ -18,6 +18,9 @@
   <data name="Editing_Busy" xml:space="preserve">
     <value>Changes of this workspace are being written or committed – try again once that is done.</value>
   </data>
+  <data name="Editing_StatementRunning" xml:space="preserve">
+    <value>A statement of this workspace is still running – wait for it or cancel it first; it would otherwise be committed or rolled back unseen.</value>
+  </data>
   <data name="Grid_WriteRunning" xml:space="preserve">
     <value>Changes are being written – edit again once that is done.</value>
   </data>

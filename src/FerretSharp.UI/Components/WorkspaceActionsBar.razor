@@ -1,6 +1,8 @@
 @* Write, undo/redo, commit and rollback of a workspace's changes (R4b): the same buttons, titles and shortcuts in the status
    bar and the change overview – before, each had its own copy of them. *@
 @using FerretSharp.Core.Data
+@inherits FerretComponent
+@implements IDisposable
 @inject ShortcutService Shortcuts
 
 <span class="status-group">
@@ -14,12 +16,37 @@
         <button class="status-btn" title="@(Summary.Undone is [var next, ..] ? redoBlocker ?? TextFormat.Format(ShellText.Status_RedoTitle, next.Display, SourceOf(next)) : ShellText.Status_NothingToRedo)"
                 disabled="@(Busy || !Summary.CanRedo || redoBlocker is not null)" @onclick="() => Summary.Undone is [var redo, ..] ? Lifecycle.RequestRedo(Workspace, redo) : Task.CompletedTask">↷</button>
     }
-    <button class="status-btn commit" title="@TextFormat.Format(ShellText.Status_CommitTitle, Shortcuts.Hint(ShortcutAction.Commit))" disabled="@Busy"
-            @onclick="() => Lifecycle.RequestCommitAsync(Workspace)">Commit</button>
-    <button class="status-btn danger" title="@ShellText.DiscardAll" disabled="@Busy" @onclick="() => Lifecycle.RequestRollback(Workspace)">Rollback</button>
+    <button class="status-btn commit" title="@(StatementRunning ? GridText.Editing_StatementRunning : TextFormat.Format(ShellText.Status_CommitTitle, Shortcuts.Hint(ShortcutAction.Commit)))"
+            disabled="@(Busy || StatementRunning)" @onclick="() => Lifecycle.RequestCommitAsync(Workspace)">Commit</button>
+    <button class="status-btn danger" title="@(StatementRunning ? GridText.Editing_StatementRunning : ShellText.DiscardAll)" disabled="@(Busy || StatementRunning)"
+            @onclick="() => Lifecycle.RequestRollback(Workspace)">Rollback</button>
+    @if (Editing.IsStuck(Workspace.WorkspaceId))
+    {
+        <button class="status-btn danger" title="@ShellText.Status_StuckTitle"
+                @onclick="() => Lifecycle.RequestResetSession(Workspace.WorkspaceId)">@SqlEditorText.Run_DisconnectSessionAsk</button>
+    }
 </span>
 
 @code {
+    /// <summary>Renders once a running write would count as stuck, so "Disconnect session" appears without other changes.</summary>
+    private Timer? _stuck;
+
+    protected override void OnParametersSet()
+    {
+        if (Editing.BusySince(Workspace.WorkspaceId) is { } since && !Editing.IsStuck(Workspace.WorkspaceId) && _stuck is null)
+        {
+            var due = since + WorkspaceEditing.StuckAfter - DateTimeOffset.Now;
+            _stuck = new Timer(_ => Fire(() =>
+            {
+                _stuck?.Dispose();
+                _stuck = null;
+                StateHasChanged();
+            }), null, due > TimeSpan.Zero ? due : TimeSpan.Zero, Timeout.InfiniteTimeSpan);
+        }
+    }
+
+    public void Dispose() => _stuck?.Dispose();
+
     [Parameter, EditorRequired]
     public WorkspaceTabs Workspace { get; set; } = null!;
 
@@ -38,6 +65,9 @@
     private WorkspaceEditing Editing => Lifecycle.Editing;
 
     private bool Busy => Editing.IsBusy(Workspace.WorkspaceId);
+
+    /// <summary>A SQL/LINQ write of the workspace is running: commit and rollback would take it along unseen (review 3.40.0, A1).</summary>
+    private bool StatementRunning => Editing.IsStatementRunning(Workspace.WorkspaceId);
 
     private static string SourceOf(WriteAction action) => action.Kind == WriteActionKind.Grid ? "Grid" : "SQL/LINQ";
 }

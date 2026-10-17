@@ -104,6 +104,15 @@ public sealed class StatementRunner(
         ArgumentNullException.ThrowIfNull(tab);
         var scope = hub.ScopeOfWorkspace(tab.WorkspaceId);
         var at = DateTimeOffset.Now;
+
+        // A write, commit or rollback of the workspace is running (review 3.40.0, A1): the statement would wait for the
+        // editor and land in the commit unseen, or right after the rollback.
+        if (editing.IsBusy(tab.WorkspaceId))
+        {
+            return new StatementOutcome(at, TimeSpan.Zero) { Error = new DatabaseException(GridText.Editing_Busy), Refused = true };
+        }
+
+        using var running = editing.StatementRunning(tab.WorkspaceId);
         var written = await shell.RunDbAsync(logger, scope.Active, async () =>
             await scope.Workspaces.ExecuteAsync(tab.WorkspaceId, statement, cancellationToken), cancellationToken);
         if (written.Value is not { } action)

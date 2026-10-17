@@ -54,9 +54,20 @@
 
 @if (Lifecycle.PendingLeave is { } leave)
 {
-    <LeaveDialog @key="leave" Request="leave" Busy="leave.WorkspaceIds.Any(Editing.IsBusy)"
+    var busy = leave.WorkspaceIds.Where(Editing.IsBusy).ToList();
+    <LeaveDialog @key="leave" Request="leave" Busy="busy.Count > 0"
                  Items="@LeaveItems(leave)"
-                 OnCommit="() => Lifecycle.LeaveAsync(commit: true)" OnDiscard="() => Lifecycle.LeaveAsync(commit: false)" OnCancel="Lifecycle.CancelLeave" />
+                 OnCommit="() => Lifecycle.LeaveAsync(commit: true)" OnDiscard="() => Lifecycle.LeaveAsync(commit: false)" OnCancel="Lifecycle.CancelLeave"
+                 OnResetSession="() => Lifecycle.RequestResetSession(busy[0])" />
+}
+
+@* Review 3.40.0, A2: a write or commit that does not return (status bar, leave dialog) – after the leave dialog, so it is on top. *@
+@if (Lifecycle.ConfirmReset is { } resetId)
+{
+    <ConfirmDialog Title="@ShellText.Dialogs_ResetSessionTitle" ConfirmLabel="@SqlEditorText.Run_DisconnectSession" Danger="true"
+                   OnConfirm="() => Lifecycle.ConfirmResetAsync(resetId)" OnCancel="Lifecycle.CancelConfirmation">
+        <Fmt Text="@ShellText.Dialogs_ResetSessionText"><Arg0><strong>@Lifecycle.WorkspaceName(resetId)</strong></Arg0></Fmt>
+    </ConfirmDialog>
 }
 
 @if (Lifecycle.ConfirmRollback is { } rollbackTabs)

@@ -139,6 +139,98 @@ public sealed class WorkspaceEditingTests : IAsyncDisposable
         Assert.True(committed);
     }
 
+    /// <summary>
+    /// Review 3.40.0, A1: an UPDATE of the SQL editor waiting for a lock holds the editor but is not in its log yet. A commit
+    /// confirmed meanwhile waited for it and committed it unseen; a rollback took it back unseen.
+    /// </summary>
+    [Fact]
+    public async Task Commit_and_rollback_are_refused_while_a_writing_statement_runs()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("Test"));
+        var workspace = _app.WorkspaceOf(scope);
+        var sql = new SqlTab(workspace.WorkspaceId, "SQL 1");
+        workspace.Tabs.Add(sql);
+        var reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var held = new TaskCompletionSource();
+        _app.OnExecute = () => { reached.SetResult(); return held.Task; };
+        var committed = false;
+        _app.OnCommit = () => { committed = true; return Task.CompletedTask; };
+
+        var write = _app.Lifecycle.Statements.WriteAsync(sql, new QuerySpec("UPDATE kunden SET name = 'a'", []), null, TestContext.Current.CancellationToken);
+        await reached.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+
+        Assert.True(_app.Editing.IsStatementRunning(workspace.WorkspaceId));
+        Assert.False(await _app.Editing.CommitAsync(workspace, _app.Editing.SummaryOf(workspace).Actions));
+        Assert.StartsWith("Ein Statement dieses Workspaces läuft noch", _app.Shell.Notice?.Text);
+        Assert.False(await _app.Editing.RollbackAsync(workspace));
+        Assert.False(await _app.Lifecycle.Statements.DiscardTransactionAsync(workspace)); // the rollback before DDL
+        Assert.False(committed);
+
+        _app.OnExecute = null;
+        held.SetResult();
+        Assert.NotNull((await write).Written);
+        Assert.False(_app.Editing.IsStatementRunning(workspace.WorkspaceId));
+        Assert.True(await _app.Editing.CommitAsync(workspace, _app.Editing.SummaryOf(workspace).Actions));
+        Assert.True(committed);
+    }
+
+    /// <summary>Review 3.40.0, A1: a statement started while a commit runs would wait for it and land in the commit unseen.</summary>
+    [Fact]
+    public async Task A_writing_statement_is_refused_while_a_commit_runs()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("Test"));
+        var workspace = _app.WorkspaceOf(scope);
+        var sql = new SqlTab(workspace.WorkspaceId, "SQL 1");
+        workspace.Tabs.Add(sql);
+        var reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var held = new TaskCompletionSource();
+        _app.OnCommit = () => { reached.SetResult(); return held.Task; };
+
+        var commit = _app.Editing.CommitAsync(workspace);
+        await reached.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        var outcome = await _app.Lifecycle.Statements.WriteAsync(sql, new QuerySpec("UPDATE kunden SET name = 'a'", []), null, TestContext.Current.CancellationToken);
+
+        Assert.True(outcome.Refused);
+        Assert.StartsWith("Änderungen dieses Workspaces werden gerade geschrieben", outcome.Error?.Message);
+        Assert.Empty(scope.Workspaces.ActionsOf(workspace.WorkspaceId));
+        held.SetResult();
+        Assert.True(await commit);
+    }
+
+    /// <summary>
+    /// Review 3.40.0, A2: a commit hanging on a silent VPN had no way out – the leave dialog disabled even "Cancel". The
+    /// running write knows when it started (the status bar offers to give up the session after a few seconds), and giving
+    /// it up is asked first.
+    /// </summary>
+    [Fact]
+    public async Task A_hanging_commit_can_be_given_up_after_a_confirmation()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("Test"));
+        var workspace = _app.WorkspaceOf(scope);
+        var reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var held = new TaskCompletionSource();
+        _app.OnCommit = () => { reached.SetResult(); return held.Task; };
+
+        var commit = _app.Editing.CommitAsync(workspace);
+        await reached.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+
+        Assert.NotNull(_app.Editing.BusySince(workspace.WorkspaceId));
+        Assert.False(_app.Editing.IsStuck(workspace.WorkspaceId)); // only after a few seconds
+        _app.Lifecycle.RequestResetSession(workspace.WorkspaceId);
+        Assert.Equal(workspace.WorkspaceId, _app.Lifecycle.ConfirmReset);
+        _app.Lifecycle.CancelConfirmation();
+        Assert.Null(_app.Lifecycle.ConfirmReset);
+
+        _app.Lifecycle.RequestResetSession(workspace.WorkspaceId);
+        await _app.Lifecycle.ConfirmResetAsync(workspace.WorkspaceId);
+        Assert.Null(_app.Lifecycle.ConfirmReset);
+        Assert.StartsWith("Session von", _app.Shell.Notice?.Text);
+
+        held.SetResult();
+        await commit;
+        Assert.Null(_app.Editing.BusySince(workspace.WorkspaceId));
+    }
+
     // ---- R4b: what the tests did not cover yet ----
 
     private static readonly TableDetails Kunden = new(

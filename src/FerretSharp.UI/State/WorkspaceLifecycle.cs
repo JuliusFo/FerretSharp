@@ -149,8 +149,27 @@ public sealed partial class WorkspaceLifecycle(
     /// <summary>"Cancel" in any of the confirmations.</summary>
     public void CancelConfirmation()
     {
-        (ConfirmCommit, ConfirmRollback, ConfirmCloseTab, ConfirmCloseTabs, ConfirmRedo) = (null, null, null, null, null);
+        (ConfirmCommit, ConfirmRollback, ConfirmCloseTab, ConfirmCloseTabs, ConfirmRedo, ConfirmReset) = (null, null, null, null, null, null);
         shell.NotifyChanged();
+    }
+
+    /// <summary>
+    /// Asking before giving up the session of a workspace whose write, commit or rollback does not return (review 3.40.0,
+    /// A2: status bar, leave dialog) – SQL editor and LINQ console ask in their <c>RunProgress</c>.
+    /// </summary>
+    public Guid? ConfirmReset { get; private set; }
+
+    public void RequestResetSession(Guid workspaceId)
+    {
+        ConfirmReset = workspaceId;
+        shell.NotifyChanged();
+    }
+
+    /// <summary>"Disconnect session" confirmed: <see cref="ResetSessionAsync"/>.</summary>
+    public Task ConfirmResetAsync(Guid workspaceId)
+    {
+        ConfirmReset = null;
+        return ResetSessionAsync(workspaceId);
     }
 
     /// <summary>Asking before a statement taken back runs again (WP-30): it runs on the data as it is now.</summary>

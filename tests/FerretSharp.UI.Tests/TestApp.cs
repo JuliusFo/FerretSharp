@@ -170,6 +170,9 @@ internal sealed class TestApp : IAsyncDisposable
     /// <summary>What a commit of any workspace session does; completes at once unless a test holds it.</summary>
     public Func<Task>? OnCommit { get; set; }
 
+    /// <summary>What a writing statement of any workspace session does before it is written; completes at once unless a test holds it.</summary>
+    public Func<Task>? OnExecute { get; set; }
+
     private IDatabaseConnection NewConnection()
     {
         var reader = FakeDatabase.Reader(Kunden);
@@ -188,7 +191,7 @@ internal sealed class TestApp : IAsyncDisposable
             }
 
             return failure;
-        });
+        }, () => OnExecute);
         lock (_lock)
         {
             _editors.Add(editor);

@@ -1509,4 +1509,16 @@
   <data name="Settings_AuditTemplateEditConnection" xml:space="preserve">
     <value>Verbindung bearbeiten…</value>
   </data>
+  <data name="Leave_Busy" xml:space="preserve">
+    <value>Ein Schreiben oder Commit dieser Workspaces läuft noch. Abwarten – oder, wenn es nicht zurückkommt (VPN, Firewall), die Session trennen.</value>
+  </data>
+  <data name="Dialogs_ResetSessionTitle" xml:space="preserve">
+    <value>Session trennen?</value>
+  </data>
+  <data name="Dialogs_ResetSessionText" xml:space="preserve">
+    <value>Das Schreiben bzw. der Commit von {0} kommt nicht zurück. Session trennen beendet es: Was in der Transaktion geschrieben wurde, wird zurückgerollt, Grid-Änderungen werden wieder ausstehend. War ein Commit schon unterwegs, danach prüfen, ob er angekommen ist.</value>
+  </data>
+  <data name="Status_StuckTitle" xml:space="preserve">
+    <value>Das Schreiben bzw. der Commit kommt seit einer Weile nicht zurück – die Verbindung hängt vielleicht (VPN, Firewall). Die Session des Workspaces zu trennen beendet es.</value>
+  </data>
 </root>

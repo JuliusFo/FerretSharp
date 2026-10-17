@@ -12,7 +12,7 @@ namespace FerretSharp.UI.Tests;
 /// A locked session (<see cref="ReadOnly"/>, Prod by default) refuses to write as <c>OracleDataEditor</c> and Oracle do.
 /// One call at a time, like <c>OracleDataEditor</c>: the calls come from pool threads (no UI dispatcher in the tests).
 /// </summary>
-internal sealed class FakeDataEditor(Func<Func<Task>?> onCommit, Func<string, Exception?>? onDdl = null) : IDataEditor
+internal sealed class FakeDataEditor(Func<Func<Task>?> onCommit, Func<string, Exception?>? onDdl = null, Func<Func<Task>?>? onExecute = null) : IDataEditor
 {
     private readonly Lock _gate = new();
     private readonly WriteLog _log = new();
@@ -135,10 +135,16 @@ internal sealed class FakeDataEditor(Func<Func<Task>?> onCommit, Func<string, Ex
         return Task.CompletedTask;
     }
 
-    public Task<WriteAction> ExecuteAsync(QuerySpec statement, CancellationToken cancellationToken) =>
-        ReadOnly
-            ? Task.FromException<WriteAction>(new RefusedException(OracleText.WorkspaceReadOnly))
-            : Task.FromResult(Locked(() => Execute(statement, null)));
+    public async Task<WriteAction> ExecuteAsync(QuerySpec statement, CancellationToken cancellationToken)
+    {
+        if (ReadOnly)
+        {
+            throw new RefusedException(OracleText.WorkspaceReadOnly);
+        }
+
+        await (onExecute?.Invoke()?.Invoke() ?? Task.CompletedTask);
+        return Locked(() => Execute(statement, null));
+    }
 
     public Task ExecuteDdlAsync(string statement, CancellationToken cancellationToken)
     {

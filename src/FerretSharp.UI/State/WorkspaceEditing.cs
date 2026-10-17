@@ -89,6 +89,61 @@ public sealed class WorkspaceEditing(
     /// </summary>
     public bool IsBusy(Guid workspaceId) => _busy.Contains(workspaceId);
 
+    /// <summary>When the running write, commit or rollback of each busy workspace started.</summary>
+    private readonly Dictionary<Guid, DateTimeOffset> _busySince = [];
+
+    /// <summary>How long a write, commit or rollback may run before giving up the session is offered (as for statements).</summary>
+    public static readonly TimeSpan StuckAfter = TimeSpan.FromSeconds(5);
+
+    /// <summary>When the workspace's running write, commit or rollback started; null if none runs.</summary>
+    public DateTimeOffset? BusySince(Guid workspaceId) => _busySince.TryGetValue(workspaceId, out var since) ? since : null;
+
+    /// <summary>
+    /// A write, commit or rollback has run for <see cref="StuckAfter"/> (review 3.40.0, A2): over a silent VPN it may never
+    /// return – no command timeout ends it –, so the status bar and the leave dialog offer to give up the session.
+    /// </summary>
+    public bool IsStuck(Guid workspaceId) => BusySince(workspaceId) is { } since && DateTimeOffset.Now - since >= StuckAfter;
+
+    /// <summary>Writing statements (SQL editor, LINQ console) running per workspace (<see cref="StatementRunning"/>).</summary>
+    private readonly Dictionary<Guid, int> _statements = [];
+
+    /// <summary>
+    /// A writing statement of this workspace is running (review 3.40.0, A1): it holds the editor and is not in its log yet –
+    /// a commit would wait for it and commit it unseen, a rollback take it back unseen. Both are refused meanwhile.
+    /// </summary>
+    public bool IsStatementRunning(Guid workspaceId) => _statements.GetValueOrDefault(workspaceId) > 0;
+
+    /// <summary>Marks a writing statement of the workspace as running until disposed (<see cref="StatementRunner.WriteAsync"/>).</summary>
+    public IDisposable StatementRunning(Guid workspaceId)
+    {
+        _statements[workspaceId] = _statements.GetValueOrDefault(workspaceId) + 1;
+        shell.NotifyChanged();
+        return new Running(() =>
+        {
+            if (--_statements[workspaceId] == 0)
+            {
+                _statements.Remove(workspaceId);
+            }
+
+            shell.NotifyChanged();
+        });
+    }
+
+    private sealed class Running(Action ended) : IDisposable
+    {
+        private Action? _ended = ended;
+
+        public void Dispose() => Interlocked.Exchange(ref _ended, null)?.Invoke();
+    }
+
+    private void RefuseWhileStatementRuns(WorkspaceTabs workspace)
+    {
+        if (IsStatementRunning(workspace.WorkspaceId))
+        {
+            throw new RefusedException(GridText.Editing_StatementRunning);
+        }
+    }
+
     public FlushProblem? Problem { get; private set; }
 
     public static IEnumerable<ChangeTracker> Trackers(WorkspaceTabs workspace) =>
@@ -134,6 +189,7 @@ public sealed class WorkspaceEditing(
     public Task<bool> CommitAsync(WorkspaceTabs workspace, IReadOnlyList<WriteAction>? shown = null) =>
         StoppedByForm(workspace) ? Task.FromResult(false) : RunAsync(workspace, async () =>
     {
+        RefuseWhileStatementRuns(workspace);
         var editor = await WorkspacesOf(workspace.WorkspaceId).GetEditorAsync(workspace.WorkspaceId, CancellationToken.None);
         if (shown is not null && editor.Actions is [.., var newest] && (shown.Count == 0 || shown[^1].Id != newest.Id))
         {
@@ -177,6 +233,7 @@ public sealed class WorkspaceEditing(
     /// <summary>Discards everything: flushed changes (rollback) and pending ones.</summary>
     public Task<bool> RollbackAsync(WorkspaceTabs workspace) => RunAsync(workspace, async () =>
     {
+        RefuseWhileStatementRuns(workspace);
         if (WorkspacesOf(workspace.WorkspaceId).TransactionOf(workspace.WorkspaceId) is { Mode: TransactionMode.ReadWrite })
         {
             var editor = await WorkspacesOf(workspace.WorkspaceId).GetEditorAsync(workspace.WorkspaceId, CancellationToken.None);
@@ -414,6 +471,7 @@ public sealed class WorkspaceEditing(
     /// </summary>
     public Task<bool> RollbackTransactionAsync(WorkspaceTabs workspace) => RunAsync(workspace, async () =>
     {
+        RefuseWhileStatementRuns(workspace);
         if (WorkspacesOf(workspace.WorkspaceId).TransactionOf(workspace.WorkspaceId) is { Mode: TransactionMode.ReadWrite })
         {
             var editor = await WorkspacesOf(workspace.WorkspaceId).GetEditorAsync(workspace.WorkspaceId, CancellationToken.None);
@@ -557,6 +615,8 @@ public sealed class WorkspaceEditing(
             return false;
         }
 
+        _busySince[workspace.WorkspaceId] = DateTimeOffset.Now;
+
         shell.NotifyChanged();
         try
         {
@@ -566,6 +626,7 @@ public sealed class WorkspaceEditing(
         finally
         {
             _busy.Remove(workspace.WorkspaceId);
+            _busySince.Remove(workspace.WorkspaceId);
             shell.NotifyChanged();
         }
     }
