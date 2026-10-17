@@ -32,8 +32,10 @@ Eigene Instanz (`--data-dir`, eigener WebView2-Ordner), eigener Container `ferre
 - Die Einträge erscheinen im Grid und im SQL-Ergebnis, der Rohwert-Eintrag nur mit Präsentation; der native Dialog bietet `KUNDEN.xlsx` bzw. `SQL 1.xlsx` als „Excel-Arbeitsmappe“ an (nur ausgelesen, per `WM_CLOSE` geschlossen).
 - **Nicht geprüft:** Speichern über den Dialog bis zur Datei (native Dialoge werden nicht bedient; Inhalt über die Core-Tests und die Excel-Prüfung), die Namensspalte einer Anzeigespalte in der App (nur Unit-Test, der frische Datenordner hatte keine Anzeigespalten), echte Windows-Eingabe (`SendInput`; die Einträge sind gewöhnliche `@onclick`-Knöpfe).
 
-## Offen / Fragen an den Nutzer
-- Kopfzeile bei „C#-Namen daneben“: Property-Name (so gebaut) oder DB-Name wie im Grid oben?
-- Enum-Werte als `Gewerbe (2)` wie im Grid (so gebaut) oder nur `Gewerbe` – sauberer zum Filtern in Excel, der Code steht dann nur in der Rohwert-Variante.
-- Namen, die das Grid noch nicht nachgeschlagen hat, bleiben leer (selten, das Grid schlägt beim Laden eines Blocks nach). Nachschlagen beim Export?
-- Mehrere Blätter (Backlog) und alle Zeilen (WP-54) folgen.
+## Nachfragen beim Abschluss (Antworten des Nutzers, 2026-10-17)
+- Kopfzeile bei „C#-Namen daneben“: Property-Name bleibt (so gebaut, „passt erstmal“).
+- Enum-Werte bleiben wie im Grid: `Gewerbe (2)`.
+- Namen, die das Grid noch nicht nachgeschlagen hat, schlägt der Export nicht selbst nach – sie bleiben leer.
+
+## Offen
+- Mehrere Blätter je Datei (Backlog) und alle Zeilen des Filters (WP-54, `docs/roadmap.md`).
