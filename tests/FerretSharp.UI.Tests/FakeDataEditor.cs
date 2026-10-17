@@ -83,7 +83,7 @@ internal sealed class FakeDataEditor(Func<Func<Task>?> onCommit, Func<string, Ex
             var keys = operations
                 .Where(o => o.Kind == OperationKind.Insert)
                 .ToDictionary(o => o.Change.Id, RowKey (_) => new RowKey.RowId("ROW" + _savepoints));
-            return new FlushResult(keys, new Dictionary<Guid, RowData>()) { Action = action };
+            return new FlushResult(keys) { Action = action };
         }));
     }
 

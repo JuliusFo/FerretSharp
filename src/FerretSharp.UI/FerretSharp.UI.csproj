@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\FerretSharp.Core\FerretSharp.Core.csproj" />
+    <InternalsVisibleTo Include="FerretSharp.UI.Tests" />
   </ItemGroup>
 
 </Project>

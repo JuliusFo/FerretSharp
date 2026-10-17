@@ -21,7 +21,6 @@ public enum PlanSource
 /// <param name="ActualTime">Time spent in this operation and below in the last run.</param>
 public sealed record PlanStep(
     int Id,
-    int? ParentId,
     int Depth,
     string Operation,
     string? Options,

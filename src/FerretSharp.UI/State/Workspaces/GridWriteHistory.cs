@@ -107,7 +107,7 @@ public sealed class GridWriteHistory
     public bool HasWritten(Guid workspaceId) => _written.GetValueOrDefault(workspaceId) is { Count: > 0 };
 
     /// <summary>Whether anything of the workspace is kept (for tests: a closed workspace leaves nothing behind).</summary>
-    public bool Knows(Guid workspaceId) =>
+    internal bool Knows(Guid workspaceId) =>
         _written.ContainsKey(workspaceId) || _undone.ContainsKey(workspaceId) || _statementTabs.ContainsKey(workspaceId);
 
     private static TValue Get<TValue>(Dictionary<Guid, TValue> map, Guid workspaceId) where TValue : new() =>

@@ -11,7 +11,7 @@ internal static class OraclePlans
 {
     /// <summary>The columns both sources share, in this order; actual plans add the four LAST_* columns.</summary>
     public const string StepColumns =
-        "ID, PARENT_ID, DEPTH, OPERATION, OPTIONS, OBJECT_OWNER, OBJECT_NAME, COST, CARDINALITY, BYTES, ACCESS_PREDICATES, FILTER_PREDICATES";
+        "ID, DEPTH, OPERATION, OPTIONS, OBJECT_OWNER, OBJECT_NAME, COST, CARDINALITY, BYTES, ACCESS_PREDICATES, FILTER_PREDICATES";
 
     public const string ActualSteps = $"""
         SELECT {StepColumns}, LAST_OUTPUT_ROWS, LAST_STARTS, LAST_ELAPSED_TIME, LAST_CR_BUFFER_GETS
@@ -62,21 +62,20 @@ internal static class OraclePlans
         {
             steps.Add(new PlanStep(
                 Int(reader, 0) ?? 0,
-                Int(reader, 1),
-                Int(reader, 2) ?? 0,
-                Text(reader, 3) ?? "",
+                Int(reader, 1) ?? 0,
+                Text(reader, 2) ?? "",
+                Text(reader, 3),
                 Text(reader, 4),
                 Text(reader, 5),
-                Text(reader, 6),
+                Long(reader, 6),
                 Long(reader, 7),
                 Long(reader, 8),
-                Long(reader, 9),
+                Text(reader, 9),
                 Text(reader, 10),
-                Text(reader, 11),
+                actual ? Long(reader, 11) : null,
                 actual ? Long(reader, 12) : null,
-                actual ? Long(reader, 13) : null,
-                actual && Long(reader, 14) is { } microseconds ? TimeSpan.FromMicroseconds(microseconds) : null,
-                actual ? Long(reader, 15) : null));
+                actual && Long(reader, 13) is { } microseconds ? TimeSpan.FromMicroseconds(microseconds) : null,
+                actual ? Long(reader, 14) : null));
         }
 
         return steps;

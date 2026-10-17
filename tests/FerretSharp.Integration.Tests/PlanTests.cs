@@ -95,7 +95,7 @@ public sealed class PlanTests(OracleContainerFixture oracle) : IAsyncLifetime
         Assert.Equal(PlanSource.Estimated, plan.Source);
         Assert.Equal("SELECT STATEMENT", plan.Steps[0].Operation);
         Assert.Contains(plan.Steps, s => s.ObjectName == "PL_T");
-        Assert.All(plan.Steps.Skip(1), s => Assert.NotNull(s.ParentId));
+        Assert.All(plan.Steps.Skip(1), s => Assert.True(s.Depth > 0));
         Assert.Null(plan.Steps[0].ActualRows);
         Assert.Equal(query.Sql, plan.Sql);
         // The PLAN_TABLE rows are gone again.
