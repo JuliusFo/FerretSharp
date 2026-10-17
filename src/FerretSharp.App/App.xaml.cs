@@ -101,7 +101,14 @@ public partial class App : Application
     {
         var theme = WindowTheme.Create(args, settings.Current.Theme);
 
-        var builder = Host.CreateApplicationBuilder(args);
+        // Without the defaults (review 3.40.0, A33): they read appsettings*.json from the working folder and watched it, took
+        // DOTNET_ENVIRONMENT (scope validation only where it is "Development"), the arguments as configuration (a link too)
+        // and logged to the console, the debug output and the Windows event log beside Serilog. Nothing here reads them.
+        var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
+        {
+            DisableDefaults = true,
+            ContentRootPath = AppContext.BaseDirectory,
+        });
         builder.Services.AddSerilog();
         builder.Services.Configure<ConsoleLifetimeOptions>(o => o.SuppressStatusMessages = true);
         builder.Services.AddWpfBlazorWebView();
