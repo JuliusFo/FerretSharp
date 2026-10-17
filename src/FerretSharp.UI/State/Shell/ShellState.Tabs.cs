@@ -128,7 +128,12 @@ public sealed partial class ShellState
     private readonly Dictionary<Guid, SchemaCache> _schemas = [];
 
     /// <summary>A link waiting for its connection to be shown with its workspaces (<see cref="OpenLinkIn"/>).</summary>
-    private (Guid ConnectionId, TableLink Link)? _pendingLink;
+    private readonly PendingOpen<TableLink> _pendingLink = new();
+
+    /// <summary>A script waiting for its connection to be shown with its workspaces (<see cref="OpenSqlIn"/>).</summary>
+    private readonly PendingOpen<string> _pendingSql = new();
+
+    private readonly ConnectionFailures _failures = new();
 
     /// <summary>
     /// Opens the table of a confirmed link (WP-37) in a new tab of the connection's active workspace – right away if the
@@ -136,84 +141,45 @@ public sealed partial class ShellState
     /// </summary>
     public void OpenLinkIn(Guid connectionId, TableLink link)
     {
-        _pendingLink = (connectionId, link);
+        _pendingLink.Wait(connectionId, link);
         Set(OpenPendingLink);
     }
 
-    /// <summary>The failure each connection reported last (<see cref="ReportConnectionFailure"/>); none if it had none.</summary>
-    private readonly Dictionary<Guid, object> _failures = [];
-
     /// <summary>
-    /// A connection's failure after each change of it (review of WP-37): the error of the last attempt to connect, or why it
-    /// was lost; null if none. A new failure drops a link waiting for that connection, so it does not open on its own when
-    /// the user connects again later, maybe hours later. Compared by reference: each attempt fails with an error of its
-    /// own, so a link confirmed for a connection that had failed before waits for the new attempt.
+    /// A connection's failure after each change of it: the error of the last attempt to connect, or why it was lost; null
+    /// if none. A new failure drops a link or script waiting for that connection, so it does not open on its own when the
+    /// user connects again later (<see cref="ConnectionFailures"/>).
     /// </summary>
-    public void ReportConnectionFailure(Guid connectionId, object? failure)
-    {
-        if (failure is null)
-        {
-            _failures.Remove(connectionId);
-            return;
-        }
+    public void ReportConnectionFailure(Guid connectionId, object? failure) => _failures.Report(connectionId, failure, DropPendingFor);
 
-        if (_failures.TryGetValue(connectionId, out var known) && ReferenceEquals(known, failure))
-        {
-            return;
-        }
-
-        _failures[connectionId] = failure;
-        DropPendingFor(connectionId);
-    }
-
-    /// <summary>
-    /// A link or script waiting for <paramref name="connectionId"/> no longer opens on its own: connecting failed or was
-    /// cancelled (review of WP-37). Review 3.40.0, A17: the script of the schema comparison or the app statements kept
-    /// waiting, and a SQL tab opened hours later when the user connected by hand.
-    /// </summary>
+    /// <summary>A link or script waiting for <paramref name="connectionId"/> no longer opens on its own: connecting failed or was cancelled.</summary>
     private void DropPendingFor(Guid connectionId)
     {
-        if (_pendingLink?.ConnectionId == connectionId)
-        {
-            _pendingLink = null;
-        }
-
-        if (_pendingSql?.ConnectionId == connectionId)
-        {
-            _pendingSql = null;
-        }
+        _pendingLink.DropFor(connectionId);
+        _pendingSql.DropFor(connectionId);
     }
 
     /// <summary>What waits for a connection other than <paramref name="shown"/> no longer opens on its own.</summary>
     private void DropPendingExcept(Guid? shown)
     {
-        if (_pendingLink?.ConnectionId is { } linked && linked != shown)
-        {
-            _pendingLink = null;
-        }
-
-        if (_pendingSql?.ConnectionId is { } scripted && scripted != shown)
-        {
-            _pendingSql = null;
-        }
+        _pendingLink.DropExcept(shown);
+        _pendingSql.DropExcept(shown);
     }
 
     private void OpenPendingLink()
     {
-        if (_pendingLink is not { } pending || pending.ConnectionId != CurrentConnection || ActiveWorkspace is not { } workspace
-            || !_schemas.TryGetValue(pending.ConnectionId, out var schema))
+        if (ActiveWorkspace is not { } workspace || CurrentConnection is not { } shown || !_schemas.TryGetValue(shown, out var schema)
+            || _pendingLink.Take(shown) is not { } link)
         {
             return;
         }
 
-        _pendingLink = null;
-        if (LinkedTable(schema, pending.Link) is not { } table)
+        if (LinkedTable(schema, link) is not { } table)
         {
-            Notice = new Notice(TextFormat.Format(ShellText.Link_TableMissing, pending.Link.Table, schema.Owner), [], DateTimeOffset.UtcNow);
+            Notice = new Notice(TextFormat.Format(ShellText.Link_TableMissing, link.Table, schema.Owner), [], DateTimeOffset.UtcNow);
             return;
         }
 
-        var link = pending.Link;
         var tab = new TableTab(workspace.WorkspaceId, table) { AppliedFilters = link.Filters, Sorts = link.Sorts, Mode = link.Mode ?? TabMode.Data, Visited = true, FitToStructure = true };
         tab.SetFilterRows(link.Filters);
         InsertAfterActive(workspace, tab);
@@ -228,9 +194,6 @@ public sealed partial class ShellState
         ?? schema.Tables.FirstOrDefault(t => t.Owner == schema.Owner && t.Name == link.Table && t.Synonym is null)
         ?? schema.Tables.FirstOrDefault(t => t.Synonym?.Name == link.Table); // not any other schema's table of that name
 
-    /// <summary>A script waiting for its connection to be shown with its workspaces (<see cref="OpenSqlIn"/>).</summary>
-    private (Guid ConnectionId, string Text)? _pendingSql;
-
     /// <summary>
     /// Opens a SQL tab with <paramref name="text"/> in the active workspace of the connection (WP-22: the DDL proposal of
     /// the schema comparison, to run there) – right away if it is shown, otherwise once it is (the caller shows or
@@ -238,16 +201,15 @@ public sealed partial class ShellState
     /// </summary>
     public void OpenSqlIn(Guid connectionId, string text)
     {
-        _pendingSql = (connectionId, text);
+        _pendingSql.Wait(connectionId, text);
         OpenPendingSql();
     }
 
     private void OpenPendingSql()
     {
-        if (_pendingSql is { } pending && pending.ConnectionId == CurrentConnection && ActiveWorkspace is not null)
+        if (ActiveWorkspace is not null && _pendingSql.Take(CurrentConnection) is { } text)
         {
-            _pendingSql = null;
-            OpenSql(pending.Text);
+            OpenSql(text);
         }
     }
 
