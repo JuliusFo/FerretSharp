@@ -41,6 +41,7 @@ public sealed class LinqConsoleHost : ILinqConsole
     private StreamReader _reader = StreamReader.Null;
     private StreamWriter _writer = StreamWriter.Null;
     private readonly DirectoryInfo _work;
+    private readonly string _workRoot;
     private readonly IDisposable? _lease;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly StringBuilder _errors;
@@ -48,8 +49,10 @@ public sealed class LinqConsoleHost : ILinqConsole
     private int _nextId;
     private bool _dead;
 
-    private LinqConsoleHost(Process process, NamedPipeServerStream pipe, DirectoryInfo work, IDisposable? lease, BuildOutput output, StringBuilder errors, TimeSpan runTimeout)
+    private LinqConsoleHost(
+        Process process, NamedPipeServerStream pipe, DirectoryInfo work, string workRoot, IDisposable? lease, BuildOutput output, StringBuilder errors, TimeSpan runTimeout)
     {
+        _workRoot = workRoot;
         _runTimeout = runTimeout;
         _process = process;
         _pipe = pipe;
@@ -70,8 +73,10 @@ public sealed class LinqConsoleHost : ILinqConsole
     /// <param name="runTimeout">A run that does not answer within this is given up (<see cref="RunTimeout"/>; shorter in tests).</param>
     internal static async Task<LinqConsoleHost> StartAsync(
         IReadOnlyList<string> arguments, string workingDirectory, string pipeName, DirectoryInfo work, IDisposable? lease, BuildOutput output,
-        TimeSpan startTimeout, TimeSpan runTimeout, IProgress<string>? progress, CancellationToken cancellationToken)
+        TimeSpan startTimeout, TimeSpan runTimeout, IProgress<string>? progress, CancellationToken cancellationToken, string? workRoot = null)
     {
+        // The folder the work folder is removed below (tests give a TestFolder: review 3.40.0, C9).
+        var root = workRoot ?? ModelHostRunner.WorkRoot;
         // Only the own user may connect (R4a): with the default ACL another user of a terminal server could take the pipe
         // first and read the LINQ code and its variables.
         var pipe = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
@@ -99,7 +104,7 @@ public sealed class LinqConsoleHost : ILinqConsole
 
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(startTimeout);
-            var host = new LinqConsoleHost(process, pipe, work, lease, output, errors, runTimeout);
+            var host = new LinqConsoleHost(process, pipe, work, root, lease, output, errors, runTimeout);
             try
             {
                 await pipe.WaitForConnectionAsync(timeout.Token).WaitAsync(timeout.Token);
@@ -137,7 +142,7 @@ public sealed class LinqConsoleHost : ILinqConsole
         {
             await pipe.DisposeAsync();
             lease?.Dispose();
-            TryDelete(work);
+            TryDelete(work, root);
             throw;
         }
     }
@@ -269,12 +274,12 @@ public sealed class LinqConsoleHost : ILinqConsole
         // _gate stays: a request that runs right now releases it at its end (disposed, its Release threw ObjectDisposedException
         // past the caller's handling – A25). A SemaphoreSlim without its wait handle holds nothing to free.
         _lease?.Dispose();
-        TryDelete(_work);
+        TryDelete(_work, _workRoot);
     }
 
     /// <summary>
     /// Removes a work folder of the host (only ever below <see cref="ModelHostRunner.WorkRoot"/>). A file still in use by a
     /// host being killed keeps it: removed on a later start (<see cref="ModelHostRunner.DeleteStaleWorkFolders"/>).
     /// </summary>
-    internal static void TryDelete(DirectoryInfo directory) => SafeDelete.TryDirectoryBelow(ModelHostRunner.WorkRoot, directory.FullName);
+    internal static void TryDelete(DirectoryInfo directory, string? root = null) => SafeDelete.TryDirectoryBelow(root ?? ModelHostRunner.WorkRoot, directory.FullName);
 }

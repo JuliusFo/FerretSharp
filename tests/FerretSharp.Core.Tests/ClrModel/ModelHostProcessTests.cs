@@ -8,8 +8,15 @@ namespace FerretSharp.Core.Tests.ClrModel;
 /// plays each way the host can behave: ready, never connecting, exiting or failing at start, crashing or answering garbage
 /// in a request, not answering a run, ending an export without a result.
 /// </summary>
-public sealed class ModelHostProcessTests
+public sealed class ModelHostProcessTests : IDisposable
 {
+    /// <summary>The work folders of the hosts, below a test folder – not the real <see cref="ModelHostRunner.WorkRoot"/> (review 3.40.0, C9).</summary>
+    private readonly TestFolder _root = new();
+
+    public void Dispose() => _root.Dispose();
+
+    private DirectoryInfo NewWork() => Directory.CreateDirectory(_root.Combine(Guid.NewGuid().ToString("N")));
+
     private static readonly string Configuration = AppContext.BaseDirectory.Contains($"{Path.DirectorySeparatorChar}Release{Path.DirectorySeparatorChar}",
         StringComparison.OrdinalIgnoreCase) ? "Release" : "Debug";
 
@@ -46,21 +53,21 @@ public sealed class ModelHostProcessTests
         }
     }
 
-    private static Task<LinqConsoleHost> StartAsync(string scenario, TimeSpan? start = null, TimeSpan? run = null, IProgress<string>? progress = null) =>
-        StartAsync(scenario, Directory.CreateDirectory(Path.Combine(ModelHostRunner.WorkRoot, Guid.NewGuid().ToString("N"))), start, run, progress);
+    private Task<LinqConsoleHost> StartAsync(string scenario, TimeSpan? start = null, TimeSpan? run = null, IProgress<string>? progress = null) =>
+        StartAsync(scenario, NewWork(), start, run, progress);
 
-    private static Task<LinqConsoleHost> StartAsync(string scenario, DirectoryInfo work, TimeSpan? start = null, TimeSpan? run = null, IProgress<string>? progress = null)
+    private Task<LinqConsoleHost> StartAsync(string scenario, DirectoryInfo work, TimeSpan? start = null, TimeSpan? run = null, IProgress<string>? progress = null)
     {
         var pipe = "ferretsharp-test-" + Guid.NewGuid().ToString("N");
         return LinqConsoleHost.StartAsync(["exec", FakeHost, "--console", pipe, "--scenario", scenario], Path.GetDirectoryName(FakeHost)!, pipe, work, null, Output,
-            start ?? TimeSpan.FromSeconds(30), run ?? TimeSpan.FromSeconds(30), progress, Ct);
+            start ?? TimeSpan.FromSeconds(30), run ?? TimeSpan.FromSeconds(30), progress, Ct, _root.Path);
     }
 
     [Fact]
     public async Task A_ready_host_reports_its_steps_runs_and_ends_with_its_work_folder()
     {
         var steps = new Steps();
-        var work = Directory.CreateDirectory(Path.Combine(ModelHostRunner.WorkRoot, Guid.NewGuid().ToString("N")));
+        var work = NewWork();
         var host = await StartAsync("ready", work, progress: steps);
 
         var result = await host.RunAsync("return 1;", "", Ct);
