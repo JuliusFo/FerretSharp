@@ -278,7 +278,14 @@ public sealed partial class ShellState
     /// <summary>Shows a link from outside for confirmation; a newer one replaces one not yet answered.</summary>
     public void ShowIncomingLink(IncomingLink link) => Set(() => IncomingLink = link);
 
-    public void CloseIncomingLink() => Set(() => IncomingLink = null);
+    public void CloseIncomingLink()
+    {
+        Set(() => IncomingLink = null);
+        IncomingLinkClosed?.Invoke();
+    }
+
+    /// <summary>The link dialog was answered: a link that arrived meanwhile is shown now (review 3.40.0, A25).</summary>
+    public event Action? IncomingLinkClosed;
 
     /// <summary>The import dialog is open (WP-35).</summary>
     public bool ImportOpen { get; private set; }

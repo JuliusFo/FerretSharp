@@ -345,4 +345,7 @@
     <value>NOT</value>
     <comment>Kind of filter group: none of its rows applies. Short, shown in the group header and in messages</comment>
   </data>
+  <data name="LinkIncomplete" xml:space="preserve">
+    <value>The link is incomplete – it was probably cut off on the way (a mail in plain text, a ticket field). Ask for it again or copy it whole.</value>
+  </data>
 </root>

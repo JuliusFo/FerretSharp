@@ -51,8 +51,12 @@ internal sealed class LinkPipeServer(AppPaths paths, LinkInbox inbox, ILogger<Li
     // fills the buffer still decodes to more than TableLink.MaxLength characters (at most 3 bytes each), which the parser refuses.
     private const int MaxBytes = TableLink.MaxLength * 3 + 16;
 
+    /// <summary>The longest wait between two attempts after failures in a row.</summary>
+    private static readonly TimeSpan MaxRetryDelay = TimeSpan.FromMinutes(5);
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        var failures = 0;
         while (!stoppingToken.IsCancellationRequested)
         {
             try
@@ -64,6 +68,7 @@ internal sealed class LinkPipeServer(AppPaths paths, LinkInbox inbox, ILogger<Li
                 // Never the link itself: it may hold values from Prod (like bind values, never in the log).
                 logger.LogInformation("Link received from a second start ({Length} characters)", text.Length);
                 inbox.Post(text);
+                failures = 0;
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -72,8 +77,20 @@ internal sealed class LinkPipeServer(AppPaths paths, LinkInbox inbox, ILogger<Li
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
             {
                 // A sender that went away or never wrote, or the pipe name taken by another process: listen again after a moment.
-                logger.LogWarning(ex, "Link pipe failed");
-                await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken).ConfigureAwait(false);
+                // Review 3.40.0, A27: a name taken for good (another user of a terminal server) failed every 2 s, each time
+                // with a stack trace in the log – now the wait doubles up to 5 minutes, and a series is logged once.
+                failures++;
+                if (failures == 1)
+                {
+                    logger.LogWarning(ex, "Link pipe failed");
+                }
+                else
+                {
+                    logger.LogDebug("Link pipe failed again ({Failures} in a row): {Message}", failures, ex.Message);
+                }
+
+                var delay = TimeSpan.FromSeconds(2 * Math.Pow(2, Math.Min(failures - 1, 10)));
+                await Task.Delay(delay < MaxRetryDelay ? delay : MaxRetryDelay, stoppingToken).ConfigureAwait(false);
             }
         }
     }

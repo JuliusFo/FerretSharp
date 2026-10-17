@@ -298,14 +298,24 @@
 
         // Links (WP-37): the start argument is waiting already; a second start hands one over through the host's pipe.
         Links.Received += OnLinkReceived;
+        _state.IncomingLinkClosed += OnLinkReceived;
         TakeLinks();
     }
 
     private void OnLinkReceived() => Run(TakeLinks);
 
-    /// <summary>Shows the newest waiting link for confirmation (older ones of a burst are dropped: one dialog at a time).</summary>
+    /// <summary>
+    /// Shows the newest waiting link for confirmation (older ones of a burst are dropped: one dialog at a time). While a link
+    /// is being confirmed, new ones wait (review 3.40.0, A25): replacing the dialog's content, a click on "Open" meant for
+    /// the link just read opened another one.
+    /// </summary>
     private void TakeLinks()
     {
+        if (_state.IncomingLink is not null)
+        {
+            return;
+        }
+
         string? latest = null;
         while (Links.TryTake(out var link))
         {
@@ -630,6 +640,7 @@
         KeepAlive.ConnectionLost -= OnKeepAliveLost;
         Shortcuts.Changed -= OnShortcutsChanged;
         Links.Received -= OnLinkReceived;
+        _state.IncomingLinkClosed -= OnLinkReceived;
         if (_shortcuts is not null)
         {
             await _shortcuts.DisposeAsync("unregister");

@@ -270,4 +270,7 @@
   <data name="FilterGroupNone" xml:space="preserve">
     <value>NICHT</value>
   </data>
+  <data name="LinkIncomplete" xml:space="preserve">
+    <value>Der Link ist unvollständig – vermutlich unterwegs abgeschnitten (eine Mail als reiner Text, ein Ticketfeld). Bitte neu schicken lassen oder ganz kopieren.</value>
+  </data>
 </root>

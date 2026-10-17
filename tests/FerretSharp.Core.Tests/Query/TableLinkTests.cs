@@ -2,6 +2,7 @@ using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
 using FerretSharp.Core.Links;
 using FerretSharp.Core.Query;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 using FerretSharp.Core.Workspaces;
 
@@ -49,7 +50,8 @@ public class TableLinkTests
         var uri = link.ToUri();
         var read = Read(uri);
 
-        Assert.StartsWith("ferretsharp://open?v=1&c=ERP%20Test&a=db01%3A1521%2FERPTEST&s=ERP&t=AUFTRAG&f=STATUS,in,OFFEN,NEU%2C%20mit%20Komma,a%26b%3Dc&", uri);
+        Assert.StartsWith("ferretsharp://open?v=1&n=12&c=ERP%20Test&a=db01%3A1521%2FERPTEST&s=ERP&t=AUFTRAG&f=STATUS,in,OFFEN,NEU%2C%20mit%20Komma,a%26b%3Dc&", uri);
+        Assert.EndsWith("&m=constraints&e=1", uri);
         Assert.Equal("ERP Test", read.Connection);
         Assert.True(read.Address!.SameAs(ErpTest.Address));
         Assert.Equal(("ERP", "AUFTRAG"), (read.Owner, read.Table));
@@ -153,10 +155,33 @@ public class TableLinkTests
         var fragment = new Uri(web).Fragment;
         var opened = TableLink.UriStart + fragment[1..]; // what pages/open/index.html does
 
-        Assert.StartsWith("https://juliusfo.github.io/FerretSharp/open/#v=1&c=ERP%20Test&", web);
+        Assert.StartsWith("https://juliusfo.github.io/FerretSharp/open/#v=1&n=8&c=ERP%20Test&", web);
         Assert.Single(web, '#'); // a # in a value stays encoded, the page sees all of it
         Assert.Equal(link.ToUri(), opened);
         Assert.Equal(link.Filters.SelectMany(f => f.Values), Read(opened).Filters.SelectMany(f => f.Values));
+    }
+
+    /// <summary>
+    /// Review 3.40.0, A26: a link cut off on the way (a mail in plain text, a ticket field) was read as another, valid link –
+    /// a value shortened, an IN list without its last values. Links of older versions (without "n") open as before.
+    /// </summary>
+    [Fact]
+    public void A_link_cut_off_anywhere_is_told_from_a_whole_one()
+    {
+        var uri = TableLink.For(ErpTest, new TableRef("ERP", "AUFTRAG"),
+            [FilterCondition.Of("NAME", FilterOperator.StartsWith, "Müller"), FilterCondition.Of("STATUS", FilterOperator.In, "OFFEN", "NEU")],
+            [new SortSpec("ERSTELLT", true)], TabMode.Data).ToUri();
+        Assert.Null(TableLink.Parse(uri).Error);
+
+        // Every cut after the count: at a separator, inside a value, inside the end marker.
+        for (var cut = uri.IndexOf("&c=", StringComparison.Ordinal); cut < uri.Length; cut++)
+        {
+            Assert.Equal(QueryText.LinkIncomplete, TableLink.Parse(uri[..cut]).Error);
+        }
+
+        Assert.Equal(QueryText.LinkIncomplete, TableLink.Parse(uri.Replace("&n=8&", "&n=9&", StringComparison.Ordinal)).Error);
+        var older = "ferretsharp://open?v=1&c=ERP%20Test&s=ERP&t=AUFTRAG&f=NAME,startsWith,M%C3%BCl";
+        Assert.Equal("Mül", Assert.Single(Read(older).Filters).Values[0]); // as before: no way to tell
     }
 
     [Theory]

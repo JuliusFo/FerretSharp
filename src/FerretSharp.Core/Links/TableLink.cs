@@ -100,42 +100,59 @@ public sealed record TableLink(
     public string ToUri()
     {
         var version = Filters.Any(f => f.Group is not null) ? CurrentVersion : VersionWithoutGroups;
-        var uri = new StringBuilder(UriStart).Append("v=").Append(version);
+        var parts = new StringBuilder();
+        var count = AddParts(parts);
+
+        // Review 3.40.0, A26: "n" up front counts what follows, "e" ends the link – one cut off on the way (a mail in plain
+        // text, a ticket field) is told from a whole one. Older versions ignore both.
+        return new StringBuilder(UriStart).Append("v=").Append(version).Append("&n=").Append(count + 1).Append(parts).Append("&e=1").ToString();
+    }
+
+    /// <summary>The parameters after the version; returns how many.</summary>
+    private int AddParts(StringBuilder uri)
+    {
+        var count = 0;
+        void Add(string key, IEnumerable<string> values)
+        {
+            TableLink.Add(uri, key, values);
+            count++;
+        }
+
         if (Connection is { Length: > 0 } connection)
         {
-            Add(uri, "c", connection);
+            Add("c", [connection]);
         }
 
         if (Address is { } address)
         {
-            Add(uri, "a", AddressText(address));
+            Add("a", [AddressText(address)]);
         }
 
-        Add(uri, "s", Owner);
-        Add(uri, "t", Table);
+        Add("s", [Owner]);
+        Add("t", [Table]);
         foreach (var filter in Filters)
         {
             if (filter.Group is { } group)
             {
-                Add(uri, "g", [group.Id.ToString(CultureInfo.InvariantCulture), Name(group.Kind), filter.Column, Name(filter.Op), .. filter.Values]);
+                Add("g", [group.Id.ToString(CultureInfo.InvariantCulture), Name(group.Kind), filter.Column, Name(filter.Op), .. filter.Values]);
             }
             else
             {
-                Add(uri, "f", [filter.Column, Name(filter.Op), .. filter.Values]);
+                Add("f", [filter.Column, Name(filter.Op), .. filter.Values]);
             }
         }
 
         foreach (var sort in Sorts)
         {
-            Add(uri, "o", [sort.Column, sort.Descending ? "desc" : "asc"]);
+            Add("o", [sort.Column, sort.Descending ? "desc" : "asc"]);
         }
 
         if (Mode is { } mode)
         {
-            Add(uri, "m", Name(mode));
+            Add("m", [Name(mode)]);
         }
 
-        return uri.ToString();
+        return count;
     }
 
     /// <summary>
@@ -177,6 +194,15 @@ public sealed record TableLink(
         if (version > CurrentVersion)
         {
             return Failed(TextFormat.Format(QueryText.LinkFromNewerVersion, version));
+        }
+
+        // A link written since 3.40.1 says up front how many parameters follow and ends with "e" (A26); one without "n" is
+        // older and opens as before.
+        if (parameters.FindIndex(p => p.Key == "n") is var counted and >= 0
+            && (!int.TryParse(Unescape(parameters[counted].Raw), NumberStyles.None, CultureInfo.InvariantCulture, out var following)
+                || following != parameters.Count - counted - 1 || parameters[^1] is not ("e", "1")))
+        {
+            return Failed(QueryText.LinkIncomplete);
         }
 
         var owner = Single("s");
