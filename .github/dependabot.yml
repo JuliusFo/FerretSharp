@@ -1,0 +1,8 @@
+# Keeps the actions pinned to commits in the release and pages workflows current (review 3.40.0, A35). NuGet and the
+# libraries in wwwroot/lib are updated by hand in a package of their own (WP-36).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
