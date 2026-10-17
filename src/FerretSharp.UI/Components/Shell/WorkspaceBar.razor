@@ -23,7 +23,13 @@
                     <span class="ws-unlocked" aria-label="@ShellText.Workspace_Unlocked">@Icons.Unlocked</span>
                 }
                 <span class="ws-name">@w.Name</span>
-                <button class="ws-more" title="@ShellText.Actions" @onclick:stopPropagation="true" @onclick="e => OpenActions(e, w)">⋯</button>
+                @* The menu sits in the chip: its clicks must not reach the chip (activate, middle-click closes). *@
+                <span class="ws-more-anchor" @onclick:stopPropagation="true" @onmouseup:stopPropagation="true">
+                    <MenuButton Class="ws-more" Title="@ShellText.Actions" Label="Dots" Width="ActionsMenuWidth"
+                                EstimatedHeight="@(Workspaces.Profile?.ReadOnly == true ? 150 : 110)" ShiftX="@(ActionsMenuWidth - 16)" ShiftY="12">
+                        <ChildContent Context="menu">@ActionsMenu(menu, w)</ChildContent>
+                    </MenuButton>
+                </span>
             }
             @if (open.Count > 1 && _renaming != w.Id)
             {
@@ -34,15 +40,12 @@
     }
 
     <div class="ws-menu-anchor">
-        <button class="ws-add @(_addMenu is not null ? "open" : "")" title="@ShellText.Workspaces_AddTitle" @onclick="ToggleAddMenuAsync">+</button>
-        @if (_addMenu is { } add)
-        {
-            @* Review 3.40.0, A16: a PopoverMenu like every menu – focused (Escape closes at once) and kept inside the window. *@
-            var closedCount = Workspaces.Closed.Count;
-            <PopoverMenu X="add.X" Y="add.Y" ViewportWidth="add.Width" ViewportHeight="add.Height" Width="AddMenuWidth"
-                         EstimatedHeight="@(48 + (closedCount > 0 ? 30 + 44 * closedCount : 0))" OnClose="CloseAddMenu">
+        @* Review 3.40.0, A16: a menu like every menu – focused (Escape closes at once) and kept inside the window. *@
+        <MenuButton Class="ws-add" OpenClass="open" Title="@ShellText.Workspaces_AddTitle" Label="Plus" Width="AddMenuWidth"
+                    EstimatedHeight="@(48 + (Workspaces.Closed.Count > 0 ? 30 + 44 * Workspaces.Closed.Count : 0))" ShiftX="@(AddMenuWidth - 16)" ShiftY="18">
+            <ChildContent Context="menu">
                 <div class="ws-pop">
-                    <button class="menu-item" @onclick="CreateAsync"><span class="plus">+</span> @ShellText.Workspaces_New</button>
+                    <button class="menu-item" @onclick="() => RunActionAsync(menu, CreateAsync)"><span class="plus">+</span> @ShellText.Workspaces_New</button>
                     @{ var closed = Workspaces.Closed; }
                     @if (closed.Count > 0)
                     {
@@ -51,45 +54,19 @@
                         {
                             var w = workspace;
                             <div class="ws-closed">
-                                <button class="menu-item" title="@ShellText.Workspaces_Reopen" @onclick="() => ReopenAsync(w)">
+                                <button class="menu-item" title="@ShellText.Workspaces_Reopen" @onclick="() => RunActionAsync(menu, () => ReopenAsync(w))">
                                     <span class="ws-name">@w.Name</span>
                                     <span class="ws-meta">@TabCount(w) · @w.LastActive.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)</span>
                                 </button>
-                                <button class="icon-btn ghost ws-delete" title="@ShellText.Workspaces_DeletePermanently" @onclick="() => _pendingDelete = w">✕</button>
+                                <button class="icon-btn ghost ws-delete" title="@ShellText.Workspaces_DeletePermanently" @onclick="() => RunAction(menu, () => _pendingDelete = w)">✕</button>
                             </div>
                         }
                     }
                 </div>
-            </PopoverMenu>
-        }
+            </ChildContent>
+        </MenuButton>
     </div>
 </div>
-
-@if (_actionsFor is { } target && _actionsAt is { } at)
-{
-    var lockItems = Workspaces.Profile?.ReadOnly == true;
-    <PopoverMenu X="at.X" Y="at.Y" ViewportWidth="at.Width" ViewportHeight="at.Height" Width="ActionsMenuWidth"
-                 EstimatedHeight="@(lockItems ? 150 : 110)" OnClose="CloseActions">
-        <button class="menu-item" @onclick="() => RunAction(() => StartRename(target))">@ShellText.Rename</button>
-        <button class="menu-item" disabled="@(Workspaces.Open.Count <= 1)"
-                title="@(Workspaces.Open.Count <= 1 ? ShellText.Workspaces_LastStaysOpen : ShellText.Workspaces_CloseHint)"
-                @onclick="() => RunActionAsync(() => CloseAsync(target))">@CommonText.Close</button>
-        @if (lockItems)
-        {
-            <div class="menu-sep"></div>
-            @if (Workspaces.IsUnlocked(target.Id))
-            {
-                <button class="menu-item" title="@ShellText.Workspaces_LockTitle" @onclick="() => RunActionAsync(() => Lifecycle.LockAsync(target.Id))">@ShellText.Workspaces_LockAgain</button>
-            }
-            else
-            {
-                <button class="menu-item danger" @onclick="() => RunAction(() => Shell.RequestUnlock(target.Id))">@ShellText.Workspaces_Unlock</button>
-            }
-        }
-        <div class="menu-sep"></div>
-        <button class="menu-item" @onclick="() => RunActionAsync(CreateAsync)"><span class="plus">+</span> @ShellText.Workspaces_New</button>
-    </PopoverMenu>
-}
 
 @if (_pendingDelete is { } pending)
 {
@@ -109,13 +86,9 @@
     /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
     private DomModule Dom => _dom ??= new(JS);
     private Workspace? _pendingDelete;
-    private bool _disposed;
 
     private const double AddMenuWidth = 320;
     private const double ActionsMenuWidth = 200;
-
-    /// <summary>The "+" menu: new workspace, closed ones to reopen; null while closed.</summary>
-    private MenuAt? _addMenu;
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -126,41 +99,47 @@
 
     protected override void OnInitialized() => Workspaces.Changed += OnChanged;
 
-    /// <summary>Where a menu opens and how large the window is (PopoverMenu keeps it inside); null if the bar is gone meanwhile.</summary>
-    private async Task<MenuAt?> MenuAtAsync(double x, double y)
-    {
-        var size = await Dom.InvokeAsync<double[]>("viewportSize");
-        return _disposed || size is not [var width, var height] ? null : new MenuAt(Math.Max(8, x), y, width, height);
-    }
-
+    /// <summary>"⋯" on a chip: rename, close, lock or unlock, new – like the "⋯" menu of the connections.</summary>
     private static string TabCount(Workspace workspace) => TextFormat.Plural(workspace.Tabs.Count, ShellText.Workspaces_TabsOne, ShellText.Workspaces_TabsOther);
 
-    private Workspace? _actionsFor;
-    private MenuAt? _actionsAt;
-
-    /// <summary>"⋯" on a chip: rename, close, new – like the "⋯" menu of the connections.</summary>
-    private async Task OpenActions(MouseEventArgs e, Workspace workspace)
+    private RenderFragment ActionsMenu(MenuButton menu, Workspace target) => __builder =>
     {
-        _addMenu = null;
-        if (await MenuAtAsync(e.ClientX - 16, e.ClientY + 12) is { } at)
+        var lockItems = Workspaces.Profile?.ReadOnly == true;
+    <button class="menu-item" @onclick="() => RunAction(menu, () => StartRename(target))">@ShellText.Rename</button>
+    <button class="menu-item" disabled="@(Workspaces.Open.Count <= 1)"
+            title="@(Workspaces.Open.Count <= 1 ? ShellText.Workspaces_LastStaysOpen : ShellText.Workspaces_CloseHint)"
+            @onclick="() => RunActionAsync(menu, () => CloseAsync(target))">@CommonText.Close</button>
+    @if (lockItems)
+    {
+        <div class="menu-sep"></div>
+        @if (Workspaces.IsUnlocked(target.Id))
         {
-            (_actionsFor, _actionsAt) = (workspace, at);
+            <button class="menu-item" title="@ShellText.Workspaces_LockTitle" @onclick="() => RunActionAsync(menu, () => Lifecycle.LockAsync(target.Id))">@ShellText.Workspaces_LockAgain</button>
+        }
+        else
+        {
+            <button class="menu-item danger" @onclick="() => RunAction(menu, () => Shell.RequestUnlock(target.Id))">@ShellText.Workspaces_Unlock</button>
         }
     }
+    <div class="menu-sep"></div>
+    <button class="menu-item" @onclick="() => RunActionAsync(menu, CreateAsync)"><span class="plus">+</span> @ShellText.Workspaces_New</button>
+    };
 
-    private void CloseActions() => (_actionsFor, _actionsAt) = (null, null);
-
-    private void RunAction(Action action)
+    private static void RunAction(MenuButton menu, Action action)
     {
-        CloseActions();
+        menu.Close();
         action();
     }
 
-    private async Task RunActionAsync(Func<Task> action)
+    private static async Task RunActionAsync(MenuButton menu, Func<Task> action)
     {
-        CloseActions();
+        menu.Close();
         await action();
     }
+
+    private static readonly RenderFragment Dots = @<text>⋯</text>;
+
+    private static readonly RenderFragment Plus = @<text>+</text>;
 
     private void Activate(Workspace workspace)
     {
@@ -208,24 +187,8 @@
         }
     }
 
-    /// <summary>"+" opens the menu below the button, its left edge at the mouse; a second click closes it.</summary>
-    private async Task ToggleAddMenuAsync(MouseEventArgs e)
-    {
-        if (_addMenu is not null)
-        {
-            _addMenu = null;
-            return;
-        }
-
-        CloseActions();
-        _addMenu = await MenuAtAsync(e.ClientX - 16, e.ClientY + 18);
-    }
-
-    private void CloseAddMenu() => _addMenu = null;
-
     private async Task CreateAsync()
     {
-        _addMenu = null;
         var workspace = await Workspaces.CreateAsync();
         Shell.ShowExplorer();
         StartRename(workspace);
@@ -233,7 +196,6 @@
 
     private async Task ReopenAsync(Workspace workspace)
     {
-        _addMenu = null;
         await Workspaces.ReopenAsync(workspace.Id);
         Shell.ShowExplorer();
     }
@@ -248,10 +210,8 @@
 
     public async ValueTask DisposeAsync()
     {
-        _disposed = true;
         Workspaces.Changed -= OnChanged;
         await Dom.DisposeAsync();
     }
 
-    private sealed record MenuAt(double X, double Y, double Width, double Height);
 }

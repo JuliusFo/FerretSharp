@@ -135,6 +135,8 @@ button:disabled { cursor: default; opacity: .5; }
 .ws-more { width: 20px; height: 20px; border: 0; border-radius: 5px; background: transparent; color: var(--faint); font-size: 14px; line-height: 1; opacity: 0; }
 .ws:hover .ws-more, .ws.active .ws-more { opacity: 1; }
 .ws-more:hover { background: var(--hover); color: var(--text); }
+/* R6b: the chip's menu sits inside the chip (MenuButton) – lays out as before and does not take over its nowrap. */
+.ws-more-anchor { display: contents; white-space: normal; cursor: auto; }
 .ws-close:hover { background: var(--hover); color: var(--text); }
 .title-edit.ws-rename { width: 150px; height: 22px; }
 .ws-menu-anchor { position: relative; flex: none; }

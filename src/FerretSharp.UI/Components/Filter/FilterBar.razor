@@ -9,7 +9,7 @@
     @if (Tab.FilterRows.Count == 0 && Tab.FilterGroups.Count == 0)
     {
         <button class="btn" @onclick="() => AddRow(null)"><span class="plus">+</span> @GridText.Filter_Add</button>
-        <button class="btn ghost" title="@GridText.Filter_AddGroupTitle" @onclick="OpenGroupMenuAsync"><span class="plus">+</span> @GridText.Filter_AddGroup ▾</button>
+        @AddGroupButton
         <span class="hint">@GridText.Filter_NoFilter</span>
         <span class="spacer"></span>
         <PresetMenu Tab="Tab" Details="Details" OnApply="ApplyPresetAsync" />
@@ -67,7 +67,7 @@
             }
         </div>
         <div class="filter-actions">
-            <button class="btn ghost" title="@GridText.Filter_AddGroupTitle" @onclick="OpenGroupMenuAsync"><span class="plus">+</span> @GridText.Filter_AddGroup ▾</button>
+            @AddGroupButton
             <PresetMenu Tab="Tab" Details="Details" OnApply="ApplyPresetAsync" />
             @if (Presentations.For(Details).Entity is not null)
             {
@@ -80,36 +80,6 @@
         </div>
     }
 </div>
-
-@if (_groupMenu is { } groupMenu)
-{
-    <PopoverMenu X="groupMenu.X" Y="groupMenu.Y" ViewportWidth="groupMenu.Width" ViewportHeight="groupMenu.Height" Width="MenuWidth" EstimatedHeight="80" OnClose="CloseMenus">
-        <button class="menu-item" @onclick="() => AddGroup(FilterGroupKind.Any)">@GridText.Filter_GroupAny</button>
-        <button class="menu-item" @onclick="() => AddGroup(FilterGroupKind.None)">@GridText.Filter_GroupNone</button>
-    </PopoverMenu>
-}
-
-@if (_rowMenu is { } rowMenu)
-{
-    var row = rowMenu.Row;
-    <PopoverMenu X="rowMenu.At.X" Y="rowMenu.At.Y" ViewportWidth="rowMenu.At.Width" ViewportHeight="rowMenu.At.Height" Width="MenuWidth"
-                 EstimatedHeight="@(40 + 30 * Tab.FilterGroups.Count)" OnClose="CloseMenus">
-        @for (var i = 0; i < Tab.FilterGroups.Count; i++)
-        {
-            var group = Tab.FilterGroups[i];
-            if (group != row.Group)
-            {
-                <button class="menu-item" @onclick="() => Move(row, group)">@TextFormat.Format(GridText.Filter_MoveToGroup, FilterGroupLabels.Label(group.Kind), i + 1)</button>
-            }
-        }
-        <button class="menu-item" @onclick="() => MoveToNewGroup(row, FilterGroupKind.Any)">@TextFormat.Format(GridText.Filter_MoveToNewGroup, FilterGroupLabels.Label(FilterGroupKind.Any))</button>
-        <button class="menu-item" @onclick="() => MoveToNewGroup(row, FilterGroupKind.None)">@TextFormat.Format(GridText.Filter_MoveToNewGroup, FilterGroupLabels.Label(FilterGroupKind.None))</button>
-        @if (row.Group is not null)
-        {
-            <button class="menu-item" @onclick="() => Move(row, null)">@GridText.Filter_MoveOutOfGroup</button>
-        }
-    </PopoverMenu>
-}
 
 @code {
     [CascadingParameter]
@@ -199,7 +169,25 @@
                            @bind="r.Value" @bind:event="oninput" @bind:after="Shell.MarkDirty" @onkeydown="OnKeyDown" />
                 }
             </div>
-            <button class="icon-btn" title="@GridText.Filter_RowMenu" @onclick="e => OpenRowMenuAsync(r, e)">⋯</button>
+            <MenuButton Class="icon-btn" Title="@GridText.Filter_RowMenu" Width="MenuWidth" EstimatedHeight="@(40 + 30 * Tab.FilterGroups.Count)" ShiftX="40" ShiftY="14">
+                <Label>⋯</Label>
+                <ChildContent Context="menu">
+                    @for (var i = 0; i < Tab.FilterGroups.Count; i++)
+                    {
+                        var group = Tab.FilterGroups[i];
+                        if (group != r.Group)
+                        {
+                            <button class="menu-item" @onclick="() => { menu.Close(); Move(r, group); }">@TextFormat.Format(GridText.Filter_MoveToGroup, FilterGroupLabels.Label(group.Kind), i + 1)</button>
+                        }
+                    }
+                    <button class="menu-item" @onclick="() => { menu.Close(); MoveToNewGroup(r, FilterGroupKind.Any); }">@TextFormat.Format(GridText.Filter_MoveToNewGroup, FilterGroupLabels.Label(FilterGroupKind.Any))</button>
+                    <button class="menu-item" @onclick="() => { menu.Close(); MoveToNewGroup(r, FilterGroupKind.None); }">@TextFormat.Format(GridText.Filter_MoveToNewGroup, FilterGroupLabels.Label(FilterGroupKind.None))</button>
+                    @if (r.Group is not null)
+                    {
+                        <button class="menu-item" @onclick="() => { menu.Close(); Move(r, null); }">@GridText.Filter_MoveOutOfGroup</button>
+                    }
+                </ChildContent>
+            </MenuButton>
             <button class="icon-btn" title="@GridText.Filter_Remove" @onclick="() => RemoveRow(r)">−</button>
             <button class="icon-btn" title="@GridText.Filter_AddTitle" @onclick="() => AddRow(r.Group)">+</button>
             @if (r.Error is not null)
@@ -231,13 +219,11 @@
     /// <summary>A new group (WP-50) with a first row to fill in.</summary>
     private void AddGroup(FilterGroupKind kind)
     {
-        CloseMenus();
         AddRow(Tab.AddFilterGroup(kind));
     }
 
     private void Move(FilterRow row, FilterRowGroup? group)
     {
-        CloseMenus();
         if (group is not null && !Tab.FilterGroups.Contains(group))
         {
             return; // ended meanwhile
@@ -284,35 +270,20 @@
         }
     }
 
+    /// <summary>"+ Group ▾" (WP-50): an OR or a NOT group with a first row to fill in.</summary>
+    private RenderFragment AddGroupButton => @<MenuButton Class="btn ghost" Title="@GridText.Filter_AddGroupTitle" Width="MenuWidth" EstimatedHeight="80" ShiftX="40" ShiftY="14">
+        <Label><span class="plus">+</span> @GridText.Filter_AddGroup ▾</Label>
+        <ChildContent Context="menu">
+            <button class="menu-item" @onclick="() => { menu.Close(); AddGroup(FilterGroupKind.Any); }">@GridText.Filter_GroupAny</button>
+            <button class="menu-item" @onclick="() => { menu.Close(); AddGroup(FilterGroupKind.None); }">@GridText.Filter_GroupNone</button>
+        </ChildContent>
+    </MenuButton>;
+
     private const string NoGroup = "none";
 
     private static string DropOf(FilterRowGroup group) => "g" + group.Id.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
-    private async Task OpenGroupMenuAsync(MouseEventArgs e) => _groupMenu = await MenuAtAsync(e);
-
-    private async Task OpenRowMenuAsync(FilterRow row, MouseEventArgs e) => _rowMenu = await MenuAtAsync(e) is { } at ? new RowMenu(row, at) : null;
-
-    private async Task<MenuAt?> MenuAtAsync(MouseEventArgs e)
-    {
-        var size = await Dom.InvokeAsync<double[]>("viewportSize");
-        return _disposed || size is not [var width, var height] ? null : new MenuAt(Math.Max(8, e.ClientX - MenuWidth + 40), e.ClientY + 14, width, height);
-    }
-
-    private void CloseMenus()
-    {
-        _groupMenu = null;
-        _rowMenu = null;
-    }
-
     private const double MenuWidth = 280;
-
-    private MenuAt? _groupMenu;
-
-    private RowMenu? _rowMenu;
-
-    private sealed record MenuAt(double X, double Y, double Width, double Height);
-
-    private sealed record RowMenu(FilterRow Row, MenuAt At);
 
     private ElementReference _bar;
 

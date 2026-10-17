@@ -1,0 +1,109 @@
+@* A button that opens a menu below it, in a PopoverMenu (backdrop, Escape, focus, kept inside the window). R6b, review
+   3.40.0, B4: six components measured the window and kept the position and their disposal themselves. The menu content
+   gets the button as context to close it: <MenuButton><ChildContent Context="menu"> … menu.Close() … *@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<button class="@(IsOpen && OpenClass is not null ? $"{Class} {OpenClass}" : Class)" title="@Title" disabled="@Disabled" @onclick="OpenAsync" @onclick:stopPropagation="StopPropagation">@Label</button>
+
+@if (_at is { } at)
+{
+    <PopoverMenu X="at.X" Y="at.Y" ViewportWidth="at.ViewportWidth" ViewportHeight="at.ViewportHeight" Width="Width"
+                 EstimatedHeight="EstimatedHeight" OnClose="Close">
+        @ChildContent?.Invoke(this)
+    </PopoverMenu>
+}
+
+@code {
+    private MenuPlacement? _at;
+    private DomModule? _dom;
+    private bool _disposed;
+
+    private DomModule Dom => _dom ??= new(JS);
+
+    [Parameter]
+    public string Class { get; set; } = "icon-btn ghost more";
+
+    /// <summary>Added to the button's class while its menu is open.</summary>
+    [Parameter]
+    public string? OpenClass { get; set; }
+
+    [Parameter]
+    public string? Title { get; set; }
+
+    /// <summary>What the button shows.</summary>
+    [Parameter]
+    public RenderFragment? Label { get; set; }
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    /// <summary>The click does not reach what the button sits in (a row that opens on click).</summary>
+    [Parameter]
+    public bool StopPropagation { get; set; }
+
+    [Parameter]
+    public double Width { get; set; } = 220;
+
+    /// <summary>For the first placement; dom.js keepInViewport corrects it once rendered.</summary>
+    [Parameter]
+    public double EstimatedHeight { get; set; } = 120;
+
+    /// <summary>How far right of the mouse the menu ends (<see cref="MenuPlacement.Below"/>).</summary>
+    [Parameter]
+    public double ShiftX { get; set; }
+
+    /// <summary>How far below the mouse the menu starts.</summary>
+    [Parameter]
+    public double ShiftY { get; set; } = 10;
+
+    /// <summary>Runs before the menu shows (e.g. reading a file again after an error).</summary>
+    [Parameter]
+    public Func<Task>? OnOpening { get; set; }
+
+    [Parameter]
+    public RenderFragment<MenuButton>? ChildContent { get; set; }
+
+    public bool IsOpen => _at is not null;
+
+    /// <summary>Closes the menu – an entry calls it before it acts.</summary>
+    public void Close()
+    {
+        if (_at is null)
+        {
+            return;
+        }
+
+        _at = null;
+        StateHasChanged();
+    }
+
+    private async Task OpenAsync(MouseEventArgs e)
+    {
+        var size = await Dom.InvokeAsync<double[]>("viewportSize");
+        if (_disposed || size is not [var width, var height])
+        {
+            return;
+        }
+
+        if (OnOpening is not null)
+        {
+            await OnOpening();
+            if (_disposed)
+            {
+                return;
+            }
+        }
+
+        _at = MenuPlacement.Below(e.ClientX, e.ClientY, Width, ShiftX, ShiftY, width, height);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        if (_dom is not null)
+        {
+            await _dom.DisposeAsync();
+        }
+    }
+}

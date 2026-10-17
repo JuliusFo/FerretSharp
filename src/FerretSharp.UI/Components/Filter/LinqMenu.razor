@@ -7,26 +7,16 @@
 @inject IJSRuntime JS
 @inject ShortcutService Shortcuts
 
-<button class="btn ghost" title="@TextFormat.Format(SqlEditorText.LinqMenu_Title, Presentations.For(Details).EntityName)" @onclick="OpenAsync">C# ▾</button>
-
-@if (_menu is { } menu)
-{
-    @* A PopoverMenu (Escape, focus, kept inside the window – review 3.31.0, A22). *@
-    <PopoverMenu X="menu.X" Y="menu.Y" ViewportWidth="menu.Width" ViewportHeight="menu.Height" Width="MenuWidth" EstimatedHeight="90" OnClose="Close">
-        <button class="menu-item" title="@SqlEditorText.LinqMenu_CopyTitle" @onclick="CopyAsync">@SqlEditorText.LinqMenu_Copy</button>
-        <button class="menu-item" title="@(Shortcuts.Label(ShortcutAction.ApplyFilters) is { } key ? TextFormat.Format(SqlEditorText.LinqMenu_OpenConsoleTitleWithKey, key) : SqlEditorText.LinqMenu_OpenConsoleTitle)"
-                @onclick="OpenConsole">@SqlEditorText.LinqMenu_OpenConsole</button>
-    </PopoverMenu>
-}
+@* A MoreMenu (Escape, focus, kept inside the window – review 3.31.0, A22; R6b, B4). *@
+<MoreMenu ButtonClass="btn ghost" Title="@TextFormat.Format(SqlEditorText.LinqMenu_Title, Presentations.For(Details).EntityName)" Label="@Label"
+          Items="Items" ShiftX="40" ShiftY="14" />
 
 @code {
     [CascadingParameter]
     public PresentationService Presentations { get; set; } = null!;
 
-    private const double MenuWidth = 220;
+    private static readonly RenderFragment Label = @<text>C# ▾</text>;
 
-    private MenuAt? _menu;
-    private bool _disposed;
     private DomModule? _dom;
 
     /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
@@ -42,20 +32,16 @@
     [Parameter, EditorRequired]
     public Func<IReadOnlyList<FilterCondition>> Filters { get; set; } = null!;
 
-    private async Task OpenAsync(MouseEventArgs e)
-    {
-        var size = await Dom.InvokeAsync<double[]>("viewportSize");
-        if (_disposed || size is not [var width, var height])
+    private IReadOnlyList<MoreMenuItem> Items =>
+    [
+        new(SqlEditorText.LinqMenu_Copy, CopyAsync) { Title = SqlEditorText.LinqMenu_CopyTitle },
+        new(SqlEditorText.LinqMenu_OpenConsole, OpenConsole)
         {
-            return;
-        }
-
-        _menu = new MenuAt(Math.Max(8, e.ClientX - MenuWidth + 40), e.ClientY + 14, width, height);
-    }
-
-    private void Close() => _menu = null;
-
-    private sealed record MenuAt(double X, double Y, double Width, double Height);
+            Title = Shortcuts.Label(ShortcutAction.ApplyFilters) is { } key
+                ? TextFormat.Format(SqlEditorText.LinqMenu_OpenConsoleTitleWithKey, key)
+                : SqlEditorText.LinqMenu_OpenConsoleTitle,
+        },
+    ];
 
     private ExportText Build(string? source = null)
     {
@@ -65,7 +51,6 @@
 
     private async Task CopyAsync()
     {
-        _menu = null;
         var linq = Build();
         if (linq.Text.Length == 0)
         {
@@ -81,7 +66,6 @@
 
     private void OpenConsole()
     {
-        _menu = null;
         var linq = Build(source: "db");
         Shell.OpenLinq(linq.Text);
         if (linq.Warnings.Count > 0)
@@ -90,9 +74,5 @@
         }
     }
 
-    public async ValueTask DisposeAsync()
-    {
-        _disposed = true;
-        await Dom.DisposeAsync();
-    }
+    public ValueTask DisposeAsync() => Dom.DisposeAsync();
 }
