@@ -16,6 +16,15 @@ public static class TimeText
         _ => $"{(int)elapsed.TotalMinutes} min {elapsed.Seconds} s",
     };
 
+    /// <summary>"0:07", "12:45", "1:02:03": the run clock (<c>RunProgress</c>) and how long a statement waits (WP-52).</summary>
+    public static string Clock(TimeSpan elapsed)
+    {
+        var seconds = Math.Max(0, (long)elapsed.TotalSeconds);
+        return seconds >= 3600
+            ? $"{seconds / 3600}:{seconds / 60 % 60:00}:{seconds % 60:00}"
+            : $"{seconds / 60}:{seconds % 60:00}";
+    }
+
     /// <summary>A time of day in the user's culture and time zone ("14:30:05"), e.g. of a read-only snapshot.</summary>
     public static string TimeOfDay(DateTimeOffset at) => at.ToLocalTime().ToString("T", CultureInfo.CurrentCulture);
 }

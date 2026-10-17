@@ -175,7 +175,7 @@
                             @if (_running && _phase == RunPhase.Writing)
                             {
                                 <RunProgress @key="_phaseStarted" WorkspaceId="Tab.WorkspaceId" Title="@TextFormat.Format(SqlEditorText.Run_StatementRunning, SqlScript.FirstWord(command.Sql))" Started="_phaseStarted"
-                                             Detail="@command.Sql" OnCancel="Cancel" />
+                                             Detail="@command.Sql" MayWaitForLock="true" OnCancel="Cancel" />
                             }
                             else if (_written is { } written)
                             {

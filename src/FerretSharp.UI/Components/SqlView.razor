@@ -81,7 +81,7 @@
         @if (_running && _current is { } current)
         {
             <RunProgress @key="current" WorkspaceId="Tab.WorkspaceId" Started="_currentStarted" OnCancel="Cancel"
-                         Title="@RunTitle(current)" Hint="@(current.Info.IsDdl ? SqlEditorText.Run_DdlWaiting : null)"
+                         Title="@RunTitle(current)" Hint="@(current.Info.IsDdl ? SqlEditorText.Run_DdlWaiting : null)" MayWaitForLock="!current.Info.IsQuery"
                          Detail="@current.Statement.Text" ScriptStarted="@(_total > 1 ? _scriptStarted : null)" />
         }
         else if (Tab.ShownRun is { } run && _error is null)

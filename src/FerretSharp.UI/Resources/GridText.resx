@@ -1119,4 +1119,12 @@
     <value>{0} group {1}: {2}</value>
     <comment>{0} = kind of group (OR, NOT); {1} = its number; {2} = the filter row</comment>
   </data>
+  <data name="Problem_OwnWorkspace" xml:space="preserve">
+    <value>Your workspace “{0}”</value>
+    <comment>{0}: name of the user's own workspace holding the lock (lock holder list, WP-52)</comment>
+  </data>
+  <data name="Problem_OwnWorkspaceElsewhere" xml:space="preserve">
+    <value>Your workspace “{0}” in {1}</value>
+    <comment>{0}: workspace name; {1}: connection label</comment>
+  </data>
 </root>

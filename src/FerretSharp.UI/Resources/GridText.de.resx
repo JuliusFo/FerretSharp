@@ -879,4 +879,10 @@
   <data name="Presets_GroupRow" xml:space="preserve">
     <value>{0}-Gruppe {1}: {2}</value>
   </data>
+  <data name="Problem_OwnWorkspace" xml:space="preserve">
+    <value>Dein Workspace „{0}“</value>
+  </data>
+  <data name="Problem_OwnWorkspaceElsewhere" xml:space="preserve">
+    <value>Dein Workspace „{0}“ in {1}</value>
+  </data>
 </root>

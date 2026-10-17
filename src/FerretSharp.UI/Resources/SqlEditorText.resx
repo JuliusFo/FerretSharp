@@ -673,4 +673,60 @@
     <value>Schema changed, but it could not be reloaded: {0}</value>
     <comment>{0} = the error</comment>
   </data>
+  <data name="Run_WaitsOn" xml:space="preserve">
+    <value>Waits for a lock on {0} held by {1}</value>
+    <comment>Below a running statement (WP-52). {0}: table name; {1}: who holds the lock (Run_HolderOwn, Run_HolderSession …)</comment>
+  </data>
+  <data name="Run_Waits" xml:space="preserve">
+    <value>Waits for a lock held by {0}</value>
+    <comment>Like Run_WaitsOn when the table is unknown. {0}: who holds the lock</comment>
+  </data>
+  <data name="Run_HolderOwn" xml:space="preserve">
+    <value>your workspace “{0}”</value>
+    <comment>{0}: workspace name; fills {1} of Run_WaitsOn</comment>
+  </data>
+  <data name="Run_HolderOwnElsewhere" xml:space="preserve">
+    <value>your workspace “{0}” in {1}</value>
+    <comment>{0}: workspace name; {1}: connection label (another connection than the waiting statement's)</comment>
+  </data>
+  <data name="Run_HolderSession" xml:space="preserve">
+    <value>session {0} ({1})</value>
+    <comment>{0}: SID; {1}: user, machine, program of the session</comment>
+  </data>
+  <data name="Run_HolderSessionOnly" xml:space="preserve">
+    <value>session {0}</value>
+    <comment>{0}: SID of a session not visible (another RAC instance)</comment>
+  </data>
+  <data name="Run_ShowWorkspace" xml:space="preserve">
+    <value>Show workspace</value>
+    <comment>Button next to Run_WaitsOn when one of the user's workspaces holds the lock</comment>
+  </data>
+  <data name="Run_ShowWorkspaceTitle" xml:space="preserve">
+    <value>Commit or roll back there to release the lock.</value>
+    <comment>Tooltip of Run_ShowWorkspace</comment>
+  </data>
+  <data name="Run_ProgressOn" xml:space="preserve">
+    <value>{0} {1}: {2} %</value>
+    <comment>Progress of a long operation Oracle reports. {0}: Oracle's operation name (Table Scan, Hash Join); {1}: its target (OWNER.TABLE); {2}: percent done</comment>
+  </data>
+  <data name="Run_Progress" xml:space="preserve">
+    <value>{0}: {1} %</value>
+    <comment>Like Run_ProgressOn without a target. {0}: operation; {1}: percent done</comment>
+  </data>
+  <data name="Run_ProgressLeft" xml:space="preserve">
+    <value>{0} · about {1} left</value>
+    <comment>{0}: Run_ProgressOn/Run_Progress; {1}: Oracle's estimate of the time left (12 s, 2 min 5 s)</comment>
+  </data>
+  <data name="Run_OpenChangesOne" xml:space="preserve">
+    <value>If it waits for a lock: {1} has uncommitted changes – commit or roll back there.</value>
+    <comment>Below a writing statement after a few seconds, when the V$ views cannot be read. {0}: number of workspaces (1); {1}: their names (Run_QuotedName)</comment>
+  </data>
+  <data name="Run_OpenChangesOther" xml:space="preserve">
+    <value>If it waits for a lock: {1} have uncommitted changes – commit or roll back there.</value>
+    <comment>Like Run_OpenChangesOne. {0}: number of workspaces; {1}: their names, comma-separated</comment>
+  </data>
+  <data name="Run_QuotedName" xml:space="preserve">
+    <value>“{0}”</value>
+    <comment>{0}: a workspace name in a list</comment>
+  </data>
 </root>
