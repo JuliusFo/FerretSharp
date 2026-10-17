@@ -135,7 +135,6 @@ button:disabled { cursor: default; opacity: .5; }
 .ws-more { width: 20px; height: 20px; border: 0; border-radius: 5px; background: transparent; color: var(--faint); font-size: 14px; line-height: 1; opacity: 0; }
 .ws:hover .ws-more, .ws.active .ws-more { opacity: 1; }
 .ws-more:hover { background: var(--hover); color: var(--text); }
-.menu:focus { outline: none; }
 .ws-close:hover { background: var(--hover); color: var(--text); }
 .title-edit.ws-rename { width: 150px; height: 22px; }
 .ws-menu-anchor { position: relative; flex: none; }
@@ -734,11 +733,6 @@ table.binds th { color: var(--muted); font-weight: 600; }
 table.binds td { font-family: var(--mono); }
 
 /* ---------- menus ---------- */
-.overlay { position: fixed; inset: 0; z-index: 70; }
-.menu {
-  position: fixed; z-index: 71; width: 200px; padding: 5px;
-  background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow);
-}
 .menu-item {
   display: flex; align-items: center; gap: 8px; width: 100%;
   height: 30px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; text-align: left;
@@ -750,7 +744,6 @@ table.binds td { font-family: var(--mono); }
 .menu-sep { height: 1px; margin: 5px 4px; background: var(--border); }
 .menu-item:disabled { opacity: .55; cursor: default; }
 .menu-item:disabled:hover { background: transparent; }
-.menu.linq-menu { width: 220px; }
 /* filter presets (WP-37): name to apply, then + (append), rename, delete */
 .preset-item { display: flex; align-items: center; gap: 2px; }
 .preset-item .preset-apply { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; line-height: 30px; }
