@@ -31,7 +31,7 @@
     @if (_running is { } running)
     {
         <RunProgress WorkspaceId="WorkspaceId" Title="@SqlScript.Analyze(running).FirstWord" Detail="@running" Started="_started"
-                     Hint="@SqlEditorText.Run_DdlWaiting" OnCancel="Cancel" />
+                     Hint="@SqlEditorText.Run_DdlWaiting" MayWaitForLock="true" OnCancel="Cancel" />
     }
     else if ((_result ?? Earlier) is { Succeeded: false } result)
     {

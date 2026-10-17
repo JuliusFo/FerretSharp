@@ -1,7 +1,11 @@
 @* Who holds locks on a table – sessions from V$LOCKED_OBJECT/V$SESSION, a FerretSharp session with its workspace (out of
    WriteProblemDialog; WP-22 shows it when DDL meets a table another session has written to). Without read access to the
-   V$ views it says so; an empty list (the lock went meanwhile) shows nothing. *@
+   V$ views it says so; an empty list (the lock went meanwhile) shows nothing. A session of this instance is named as the
+   user's own workspace by its tag (WP-52). *@
 @using FerretSharp.Core.Data
+@using FerretSharp.Core.Oracle
+@inject ConnectionHub Hub
+@inject AppSettingsService Settings
 
 @if (Holders is { Count: > 0 } holders)
 {
@@ -14,7 +18,7 @@
                     <td class="mono">@holder.Sid</td>
                     <td>@holder.User@(holder.OsUser is { } os ? $" ({os})" : "")</td>
                     <td>@holder.Machine</td>
-                    <td>@(holder.Module == "FerretSharp" ? TextFormat.Format(GridText.Problem_FerretSharpWorkspace, holder.Action) : holder.Module ?? holder.Program)</td>
+                    <td>@Program(holder)</td>
                 </tr>
             }
         </tbody>
@@ -37,4 +41,18 @@ else if (Holders is null)
     /// <summary>Below the list, if there is one.</summary>
     [Parameter]
     public string? Note { get; set; }
+
+    private string? Program(LockHolder holder)
+    {
+        if (SessionActivityText.OwnOf(Hub, holder.ClientInfo, Hub.Shown.Id, Settings.Current) is { } own)
+        {
+            return own.Connection is { } connection
+                ? TextFormat.Format(GridText.Problem_OwnWorkspaceElsewhere, own.Name, connection)
+                : TextFormat.Format(GridText.Problem_OwnWorkspace, own.Name);
+        }
+
+        return holder.Module == OracleSessionDefaults.Module
+            ? TextFormat.Format(GridText.Problem_FerretSharpWorkspace, holder.Action)
+            : holder.Module ?? holder.Program;
+    }
 }

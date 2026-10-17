@@ -232,7 +232,51 @@ public sealed class EditingTests(OracleContainerFixture oracle) : IAsyncLifetime
 
         Assert.NotNull(holders);
         Assert.Contains(holders, h => h.Module == "FerretSharp" && h.Action == "Bug 3711");
+        Assert.Contains(holders, h => h.ClientInfo == a.SessionTag); // WP-52: the tag names the workspace exactly
         await a.Editor.RollbackAsync(Ct);
+    }
+
+    /// <summary>
+    /// WP-52: while a statement of the SQL editor waits for a row another workspace has written (an UPDATE waits without limit),
+    /// the explorer session finds the waiting session by its tag and names the one holding the lock, with the table.
+    /// </summary>
+    [Fact]
+    public async Task A_statement_waiting_for_a_row_lock_names_the_session_holding_it()
+    {
+        await GrantCatalogRoleAsync();
+        await ExecuteAsync("INSERT INTO ED_TYPES (ID, TXT) VALUES (360, 'x')");
+        await using var a = await OpenAsync("Workspace A");
+        await using var b = await OpenAsync("Workspace B");
+        await using var explorer = await OpenAsync("Explorer");
+        var table = await DetailsAsync(a, "ED_TYPES");
+        var tracker = new ChangeTracker(table);
+        tracker.SetValue((await RowAsync(a, table, 360))!, I(table, "TXT"), "a");
+        await FlushAsync(a, tracker);
+
+        var waiting = b.Editor.ExecuteAsync(new QuerySpec("UPDATE ED_TYPES SET TXT = 'b' WHERE ID = 360", []), Ct);
+        SessionWait? wait = null;
+        var watch = Stopwatch.StartNew();
+        while (wait is null && watch.Elapsed < TimeSpan.FromSeconds(30))
+        {
+            wait = (await explorer.Schema.GetSessionActivityAsync(b.SessionTag!, Ct))?.Wait;
+            if (wait is null)
+            {
+                await Task.Delay(200, Ct);
+            }
+        }
+
+        Assert.NotNull(wait);
+        Assert.Equal(a.SessionTag, wait.Blocker?.ClientInfo);
+        Assert.Equal("Workspace A", wait.Blocker?.Action);
+        Assert.Equal(table.Table.Ref, wait.Object);
+        Assert.Contains("row lock", wait.Event, StringComparison.OrdinalIgnoreCase);
+        Assert.NotNull(wait.For);
+        Assert.False(waiting.IsCompleted);
+
+        await a.Editor.RollbackAsync(Ct);
+        Assert.Equal(1, (await waiting).Rows);
+        Assert.Null((await explorer.Schema.GetSessionActivityAsync(b.SessionTag!, Ct))?.Wait);
+        await b.Editor.RollbackAsync(Ct);
     }
 
     [Fact]

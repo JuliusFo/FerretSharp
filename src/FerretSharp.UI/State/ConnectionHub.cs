@@ -135,6 +135,27 @@ public sealed class ConnectionHub(IServiceScopeFactory scopes, TimeProvider? tim
 
     public bool IsOpen(Guid profileId) => Find(profileId) is not null;
 
+    /// <summary>The open workspace whose session carries the tag, in whichever connection (a lock holder that is ours, WP-52).</summary>
+    public (ConnectionScope Scope, Workspace Workspace)? FindSession(string? tag)
+    {
+        foreach (var scope in Open)
+        {
+            if (scope.Workspaces.FindBySessionTag(tag) is { } workspace)
+            {
+                return (scope, workspace);
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>Shows a workspace, switching to its connection first if needed (changes panel, a lock holder of ours).</summary>
+    public void ShowWorkspace(ConnectionScope scope, Guid workspaceId)
+    {
+        Show(scope);
+        scope.Workspaces.Activate(workspaceId);
+    }
+
     /// <summary>
     /// Shows the connection, opening a scope for it first if needed. Synchronous and meant for the UI thread (R3b): the list
     /// of open connections and <see cref="Current"/> change only there, while the UI renders them. Connecting is the

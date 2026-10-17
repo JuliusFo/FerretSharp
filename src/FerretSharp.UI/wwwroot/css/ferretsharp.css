@@ -1045,6 +1045,16 @@ table.columns td.clr-type .converter { display: block; color: var(--muted); font
 .run-actions { display: flex; align-items: center; gap: 8px; min-height: 30px; }
 .run-stuck p { margin: 0 0 10px; font-size: 12.5px; line-height: 1.5; }
 .run-buttons { display: flex; gap: 8px; }
+/* WP-52: what the session waits for (a lock of another session) and how far a long operation is. */
+.run-wait {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 7px;
+  background: color-mix(in srgb, var(--warn) 12%, transparent); font-size: 12.5px; line-height: 1.45; user-select: text;
+}
+.run-wait span { flex: 1; min-width: 0; }
+.run-wait .btn { flex: none; }
+.run-longop { display: flex; flex-direction: column; gap: 4px; }
+.run-bar { height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; }
+.run-bar span { display: block; height: 100%; background: var(--accent); transition: width 0.4s ease; }
 
 .linq-notice { padding: 10px 12px; border-bottom: 1px solid var(--border); background: var(--clr-weak); font-size: 12.5px; user-select: text; }
 .linq-notice.muted { background: var(--surface); color: var(--muted); }

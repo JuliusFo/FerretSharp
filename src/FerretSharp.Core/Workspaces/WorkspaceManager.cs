@@ -99,6 +99,13 @@ public sealed class WorkspaceManager : IAsyncDisposable
     /// <summary>The uncommitted writes of the workspace's transaction (status bar, undo); empty while the session is not open.</summary>
     public IReadOnlyList<WriteAction> ActionsOf(Guid workspaceId) => _sessions.Connection(workspaceId)?.Editor.Actions ?? [];
 
+    /// <summary>The tag of the workspace's open session (WP-52); null while none is open.</summary>
+    public string? SessionTagOf(Guid workspaceId) => _sessions.Connection(workspaceId)?.SessionTag;
+
+    /// <summary>The open workspace whose session carries the tag (a lock holder or blocker that is one of ours, WP-52).</summary>
+    public Workspace? FindBySessionTag(string? tag) =>
+        string.IsNullOrEmpty(tag) ? null : Open.FirstOrDefault(w => SessionTagOf(w.Id) == tag);
+
     /// <summary>The writes taken back that can be applied again (redo, WP-30), the next one first.</summary>
     public IReadOnlyList<WriteAction> UndoneOf(Guid workspaceId) => _sessions.Connection(workspaceId)?.Editor.Undone ?? [];
 

@@ -12,9 +12,10 @@ public sealed class OracleDatabaseConnector : IDatabaseConnector
         try
         {
             var connectionString = OracleConnectionStringFactory.Create(profile, password);
+            var tag = OracleSessionDefaults.NewSessionTag();
             var session = await OracleSession.OpenAsync(
-                connectionString, new SessionContext(OracleSessionDefaults.Module, action), cancellationToken);
-            return new OracleDatabaseConnection(session);
+                connectionString, new SessionContext(OracleSessionDefaults.Module, action, tag), cancellationToken);
+            return new OracleDatabaseConnection(session, tag);
         }
         catch (Exception ex) when (OracleErrors.Translate(ex) is { } translated)
         {
@@ -26,9 +27,11 @@ public sealed class OracleDatabaseConnector : IDatabaseConnector
     /// The session behind the interfaces the layers above see. No translating wrappers: the session's methods already
     /// report Oracle errors as <see cref="DatabaseException"/> (one place, <c>OracleSession.ExclusiveAsync</c>).
     /// </summary>
-    private sealed class OracleDatabaseConnection(OracleSession session) : IDatabaseConnection
+    private sealed class OracleDatabaseConnection(OracleSession session, string tag) : IDatabaseConnection
     {
         public string ServerVersion => session.ServerVersion;
+
+        public string? SessionTag => tag;
 
         public ISchemaReader Schema { get; } = new OracleSchemaReader(session);
 

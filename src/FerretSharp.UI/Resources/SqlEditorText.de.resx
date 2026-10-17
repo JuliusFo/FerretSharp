@@ -564,4 +564,46 @@
   <data name="SqlView_SchemaNotReloaded" xml:space="preserve">
     <value>Schema geändert, aber nicht neu geladen: {0}</value>
   </data>
+  <data name="Run_WaitsOn" xml:space="preserve">
+    <value>Wartet auf eine Sperre auf {0}, gehalten von {1}</value>
+  </data>
+  <data name="Run_Waits" xml:space="preserve">
+    <value>Wartet auf eine Sperre, gehalten von {0}</value>
+  </data>
+  <data name="Run_HolderOwn" xml:space="preserve">
+    <value>deinem Workspace „{0}“</value>
+  </data>
+  <data name="Run_HolderOwnElsewhere" xml:space="preserve">
+    <value>deinem Workspace „{0}“ in {1}</value>
+  </data>
+  <data name="Run_HolderSession" xml:space="preserve">
+    <value>Session {0} ({1})</value>
+  </data>
+  <data name="Run_HolderSessionOnly" xml:space="preserve">
+    <value>Session {0}</value>
+  </data>
+  <data name="Run_ShowWorkspace" xml:space="preserve">
+    <value>Workspace zeigen</value>
+  </data>
+  <data name="Run_ShowWorkspaceTitle" xml:space="preserve">
+    <value>Ein Commit oder Rollback dort gibt die Sperre frei.</value>
+  </data>
+  <data name="Run_ProgressOn" xml:space="preserve">
+    <value>{0} {1}: {2} %</value>
+  </data>
+  <data name="Run_Progress" xml:space="preserve">
+    <value>{0}: {1} %</value>
+  </data>
+  <data name="Run_ProgressLeft" xml:space="preserve">
+    <value>{0} · noch etwa {1}</value>
+  </data>
+  <data name="Run_OpenChangesOne" xml:space="preserve">
+    <value>Falls es auf eine Sperre wartet: {1} hat nicht committete Änderungen – dort Commit oder Rollback.</value>
+  </data>
+  <data name="Run_OpenChangesOther" xml:space="preserve">
+    <value>Falls es auf eine Sperre wartet: {1} haben nicht committete Änderungen – dort Commit oder Rollback.</value>
+  </data>
+  <data name="Run_QuotedName" xml:space="preserve">
+    <value>„{0}“</value>
+  </data>
 </root>

@@ -188,6 +188,25 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
     public Task<IReadOnlyList<Data.LockHolder>?> GetLockHoldersAsync(TableRef table, CancellationToken cancellationToken) =>
         reader.GetLockHoldersAsync(table, cancellationToken);
 
+    /// <summary>
+    /// What a workspace's session is doing (WP-52); null without rights on the V$ views. The first refusal is remembered for
+    /// this connection: the next statements ask no more (a new connection, after reconnecting, tries again).
+    /// </summary>
+    public async Task<Data.SessionActivity?> GetSessionActivityAsync(string sessionTag, CancellationToken cancellationToken)
+    {
+        if (SessionActivityUnavailable)
+        {
+            return null;
+        }
+
+        var activity = await reader.GetSessionActivityAsync(sessionTag, cancellationToken);
+        SessionActivityUnavailable = activity is null;
+        return activity;
+    }
+
+    /// <summary>The user may not read <c>V$SESSION</c>/<c>V$SESSION_LONGOPS</c> (seen once on this connection).</summary>
+    public bool SessionActivityUnavailable { get; private set; }
+
     /// <summary>Columns of all objects of a schema in one query (not cached: the C# model comparison reads them once).</summary>
     public Task<IReadOnlyDictionary<string, IReadOnlyList<ColumnInfo>>> GetColumnsAsync(string owner, CancellationToken cancellationToken) =>
         reader.GetColumnsAsync(owner, cancellationToken);

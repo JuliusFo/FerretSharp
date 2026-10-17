@@ -195,6 +195,13 @@ public interface ISchemaReader
     Task<IReadOnlyList<Data.LockHolder>?> GetLockHoldersAsync(TableRef table, CancellationToken cancellationToken);
 
     /// <summary>
+    /// What the session with this tag is doing (WP-52, ADR 0027): the lock it waits for and its latest long operation, from
+    /// <c>V$SESSION</c>/<c>V$SESSION_LONGOPS</c>. <see cref="Data.SessionActivity.None"/> if there is nothing to say or the
+    /// session is not visible; null if the user may not read the V$ views.
+    /// </summary>
+    Task<Data.SessionActivity?> GetSessionActivityAsync(string sessionTag, CancellationToken cancellationToken);
+
+    /// <summary>
     /// The columns of every table, view and materialized view of a schema in one query (C# model comparison, where one
     /// query per table costs minutes over a slow network). Table name → columns in column order, without
     /// <see cref="ColumnInfo.Default"/> and <see cref="ColumnInfo.Comment"/>.

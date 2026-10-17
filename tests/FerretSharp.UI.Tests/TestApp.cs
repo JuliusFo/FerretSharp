@@ -198,6 +198,7 @@ internal sealed class TestApp : IAsyncDisposable
         data.ReadSqlAsync(Arg.Any<QuerySpec>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(call => ReadSql(call.Arg<QuerySpec>(), call.Arg<CancellationToken>()));
         var connection = FakeDatabase.Connection(reader);
+        connection.SessionTag.Returns("FerretSharp " + Guid.NewGuid().ToString("N")[..12]); // like the app: one tag per session (WP-52)
         connection.Data.Returns(data);
         connection.Editor.Returns(editor);
         connection.UseReadOnlySnapshotsAsync(Arg.Any<CancellationToken>()).Returns(_ =>

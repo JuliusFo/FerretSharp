@@ -284,13 +284,7 @@
     /// <summary>Another workspace with uncommitted work – of this connection or another one (WP-24).</summary>
     private void Show(WorkspaceTabs other)
     {
-        var scope = Hub.ScopeOf(other);
-        if (scope != Hub.Current)
-        {
-            Hub.Show(scope);
-        }
-
-        scope.Workspaces.Activate(other.WorkspaceId);
+        Hub.ShowWorkspace(Hub.ScopeOf(other), other.WorkspaceId);
         Shell.ShowExplorer();
     }
 
