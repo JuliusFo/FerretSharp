@@ -41,6 +41,7 @@ public static class DotNetCli
             throw new ClrModelException(ClrModelErrorKind.DotNetMissing, ClrModelText.DotNetNotStartable);
         }
 
+        ChildProcesses.Started(process);
         Lower(process);
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
@@ -111,6 +112,7 @@ public static class DotNetCli
             throw new ClrModelException(ClrModelErrorKind.DotNetMissing, ClrModelText.DotNetNotStartable);
         }
 
+        ChildProcesses.Started(process);
         if (background)
         {
             Lower(process);
