@@ -26,6 +26,28 @@ public sealed class ShellStateTabsTests : IAsyncDisposable
         Assert.Contains(testTab, _app.WorkspaceOf(test).Tabs);
     }
 
+    /// <summary>
+    /// Review 3.40.0, A17: a script for a connection whose password was cancelled, which failed or which the user left kept
+    /// waiting – and opened hours later when the user connected by hand. Links already behaved so (review of WP-37).
+    /// </summary>
+    [Fact]
+    public async Task A_waiting_script_is_dropped_like_a_waiting_link()
+    {
+        var test = await _app.OpenAsync(TestApp.Profile("Test"));
+        var dev = await _app.OpenAsync(TestApp.Profile("Dev"));
+
+        _app.Shell.OpenSqlIn(test.Id, "SELECT 1 FROM dual");
+        _app.Shell.RequestPassword(test.Profile!, returnTo: null);
+        _app.Shell.CancelPassword();
+        _app.Shell.OpenSqlIn(dev.Id, "SELECT 2 FROM dual"); // shown: opens at once
+        _app.Shell.OpenSqlIn(test.Id, "SELECT 3 FROM dual");
+        _app.Shell.ReportConnectionFailure(test.Id, new ConnectionError("ORA-12170: TNS:Connect timeout occurred", "ORA-12170"));
+        _app.Shell.ShowConnection(test.Id);
+
+        Assert.Empty(_app.WorkspaceOf(test).Tabs.OfType<SqlTab>());
+        Assert.Equal(["SELECT 2 FROM dual"], _app.WorkspaceOf(dev).Tabs.OfType<SqlTab>().Select(t => t.Text));
+    }
+
     /// <summary>Review 3.40.0, A5: a refresh closed a tab whose table was gone without a word about its changes.</summary>
     [Fact]
     public async Task A_tab_with_changes_stays_when_its_table_is_gone()

@@ -258,12 +258,15 @@ public sealed partial class ShellState
 
     public void ClosePassword() => Set(() => PendingPassword = null);
 
-    /// <summary>The user cancelled the password: a link waiting for that connection (WP-37) does not open later on its own.</summary>
+    /// <summary>
+    /// The user cancelled the password: a link (WP-37) or script (review 3.40.0, A17) waiting for that connection does not
+    /// open later on its own.
+    /// </summary>
     public void CancelPassword() => Set(() =>
     {
-        if (PendingPassword is { } request && _pendingLink?.ConnectionId == request.Profile.Id)
+        if (PendingPassword is { } request)
         {
-            _pendingLink = null;
+            DropPendingFor(request.Profile.Id);
         }
 
         PendingPassword = null;

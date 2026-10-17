@@ -102,10 +102,8 @@ public sealed partial class ShellState
     /// <summary>Another connection is shown (WP-24): its active workspace and tabs become the active ones.</summary>
     public void ShowConnection(Guid? connectionId) => Set(() =>
     {
-        if (_pendingLink?.ConnectionId is { } linked && linked != connectionId)
-        {
-            _pendingLink = null; // the user went elsewhere: the link does not open later on its own
-        }
+        // The user went elsewhere: what waits for another connection does not open later on its own.
+        DropPendingExcept(connectionId);
 
         CurrentConnection = connectionId;
         SwitcherOpen = false;
@@ -165,9 +163,38 @@ public sealed partial class ShellState
         }
 
         _failures[connectionId] = failure;
+        DropPendingFor(connectionId);
+    }
+
+    /// <summary>
+    /// A link or script waiting for <paramref name="connectionId"/> no longer opens on its own: connecting failed or was
+    /// cancelled (review of WP-37). Review 3.40.0, A17: the script of the schema comparison or the app statements kept
+    /// waiting, and a SQL tab opened hours later when the user connected by hand.
+    /// </summary>
+    private void DropPendingFor(Guid connectionId)
+    {
         if (_pendingLink?.ConnectionId == connectionId)
         {
             _pendingLink = null;
+        }
+
+        if (_pendingSql?.ConnectionId == connectionId)
+        {
+            _pendingSql = null;
+        }
+    }
+
+    /// <summary>What waits for a connection other than <paramref name="shown"/> no longer opens on its own.</summary>
+    private void DropPendingExcept(Guid? shown)
+    {
+        if (_pendingLink?.ConnectionId is { } linked && linked != shown)
+        {
+            _pendingLink = null;
+        }
+
+        if (_pendingSql?.ConnectionId is { } scripted && scripted != shown)
+        {
+            _pendingSql = null;
         }
     }
 
