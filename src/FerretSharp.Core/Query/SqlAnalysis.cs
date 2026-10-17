@@ -4,7 +4,14 @@ namespace FerretSharp.Core.Query;
 
 /// <summary>A table (or view, synonym) a statement names, in dictionary form (<c>kunden</c> → <c>KUNDEN</c>).</summary>
 /// <param name="Depth">Parenthesis depth: 0 for the statement's own FROM/JOIN, more inside subqueries.</param>
-public sealed record SqlTableReference(string? Owner, string Name, string? Alias, int Depth);
+public sealed record SqlTableReference(string? Owner, string Name, string? Alias, int Depth)
+{
+    /// <summary>
+    /// The database link of <c>tabelle@link</c>; null for a local table. The table is another database's: it never resolves
+    /// against this connection's schema (review 3.40.0, A23).
+    /// </summary>
+    public string? DbLink { get; init; }
+}
 
 /// <summary>A bind variable compared with a column (<c>k.KUNDE_ID = :id</c>): the column suggests its type.</summary>
 /// <param name="Qualifier">Alias or table before the column (<c>k</c>), in dictionary form; null without one.</param>
@@ -349,9 +356,17 @@ public static class SqlAnalysis
             next += 2;
         }
 
+        string? link = null;
         if (next < tokens.Count && tokens[next].IsSymbol("@"))
         {
-            next += 2; // a database link: @name
+            // A database link: @name, also @name.domain.
+            link = next + 1 < tokens.Count ? tokens[next + 1].Value : "";
+            next += 2;
+            while (next + 1 < tokens.Count && tokens[next].IsSymbol(".") && Name(tokens, next + 1) is { } part)
+            {
+                link += "." + part;
+                next += 2;
+            }
         }
 
         if (next < tokens.Count && tokens[next].IsWord("AS") && !(next + 1 < tokens.Count && tokens[next + 1].IsWord("OF")))
@@ -367,7 +382,7 @@ public static class SqlAnalysis
             next++;
         }
 
-        return (new SqlTableReference(owner, name, alias, depth), next);
+        return (new SqlTableReference(owner, name, alias, depth) { DbLink = link }, next);
     }
 
     /// <summary>Binds compared with a column: <c>col = :b</c>, <c>:b = t.col</c>, <c>col BETWEEN :a AND :b</c>, <c>col IN (:a, :b)</c>.</summary>
