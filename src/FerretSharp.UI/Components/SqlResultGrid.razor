@@ -13,7 +13,7 @@
 
 @if (_menu is { } menu)
 {
-    <ResultMenu Request="menu" Result="AsTable()" Sources="_presentation.Sources" WorkspaceId="WorkspaceId" InsertTarget="InsertTarget"
+    <ResultMenu Request="menu" Result="AsTable()" Sources="_presentation.Sources" ExportColumns="_presentation.ExportColumns()" WorkspaceId="WorkspaceId" InsertTarget="InsertTarget"
                 ExportName="@ExportName" OnClose="() => _menu = null" />
 }
 

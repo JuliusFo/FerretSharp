@@ -2,6 +2,7 @@
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
+@using FerretSharp.Core.Display
 @using FerretSharp.Core.Forms
 @using FerretSharp.Core.Oracle
 @using FerretSharp.Core.Query
@@ -68,6 +69,11 @@
     <button class="menu-item" title="@GridText.GridMenu_CopyTableTitle" @onclick="CopyTableAsync">@GridText.GridMenu_CopyTable</button>
     <button class="menu-item" title="@GridText.GridMenu_CopyInsertTitle" @onclick="CopyInsertAsync">@GridText.GridMenu_CopyInsert</button>
     <button class="menu-item" title="@GridText.GridMenu_SaveCsvTitle" @onclick="SaveCsvAsync">@GridText.GridMenu_SaveCsv</button>
+    <button class="menu-item" title="@GridText.GridMenu_SaveXlsxTitle" @onclick="() => SaveXlsxAsync(_xlsxColumns)">@GridText.GridMenu_SaveXlsx</button>
+    @if (ExportColumn.DiffersFromRaw(_xlsxColumns))
+    {
+        <button class="menu-item" title="@GridText.GridMenu_SaveXlsxRawTitle" @onclick="() => SaveXlsxAsync(ExportColumn.Raw(Details))">@GridText.GridMenu_SaveXlsxRaw</button>
+    }
     <button class="menu-item" @onclick="SaveInsertAsync">@GridText.GridMenu_SaveInsert</button>
     @if (Active.Profile is { } linkProfile)
     {
@@ -112,6 +118,9 @@
     private ExportActions Export => _export ??= new(Shell, Dom, Files, Request.MissingRows, CloseAsync);
     private TablePresentation _presentation = null!;
 
+    /// <summary>The columns of the Excel export as the grid presents them (WP-53).</summary>
+    private IReadOnlyList<ExportColumn> _xlsxColumns = [];
+
     /// <summary>The clicked cell as C# (WP-15); null if the table has no entity.</summary>
     private CSharpValue? _cell;
 
@@ -126,6 +135,10 @@
 
     [Parameter, EditorRequired]
     public TableDetails Details { get; set; } = null!;
+
+    /// <summary>The names the grid has looked up beside its foreign keys (WP-31): the Excel export writes them in a column of their own.</summary>
+    [Parameter]
+    public DisplayNames Names { get; set; } = DisplayNames.None;
 
     [Parameter]
     public EventCallback OnClose { get; set; }
@@ -201,11 +214,12 @@
     private string JumpRowsText => Request.Selected.Count + Request.MissingRows > 1 ? $" · {RowsText(JumpRows.Count)}" : "";
 
     /// <summary>For the first placement; dom.js keepInViewport corrects it once rendered.</summary>
-    private double EstimatedHeight => 336 + ItemHeight * (_outgoing.Count + _incoming.Count) + (_cell is null ? 0 : 128) + (Request.MissingRows > 0 ? 40 : 0);
+    private double EstimatedHeight => 336 + ItemHeight * (_outgoing.Count + _incoming.Count + (ExportColumn.DiffersFromRaw(_xlsxColumns) ? 2 : 1)) + (_cell is null ? 0 : 128) + (Request.MissingRows > 0 ? 40 : 0);
 
     protected override void OnInitialized()
     {
         _presentation = Presentations.For(Details);
+        _xlsxColumns = PresentedExport.Columns(_presentation, Names);
         _cell = _presentation.Entity is null ? null : CSharpRows.Cell(_presentation, Request.Column, Request.Row.Values[Request.Column]);
         if (Active.Schema is not { } schema)
         {
@@ -242,6 +256,12 @@
     private Task SaveCsvAsync() =>
         Export.SaveAsync(
             DelimitedExport.Build(Details, Request.Selected, DelimitedExport.CsvSeparator), Details.Table.DisplayName + ".csv", GridText.Export_CsvFilter, utf8Bom: true);
+
+    private Task SaveXlsxAsync(IReadOnlyList<ExportColumn> columns)
+    {
+        var rows = Request.Selected;
+        return Export.SaveFileAsync(() => XlsxExport.BuildAsync(columns, rows, Details.Table.DisplayName), Details.Table.DisplayName + ".xlsx", GridText.Export_XlsxFilter);
+    }
 
     private Task SaveInsertAsync() =>
         Export.SaveAsync(InsertExport.Build(Details, Request.Selected), Details.Table.DisplayName + ".sql", GridText.Export_SqlScriptFilter, utf8Bom: false);

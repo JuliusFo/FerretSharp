@@ -132,7 +132,7 @@
 
 @if (_menu is { } menu && _details is not null)
 {
-    <GridContextMenu @key="menu" Request="menu" Tab="Tab" Details="_details" OnClose="() => _menu = null"
+    <GridContextMenu @key="menu" Request="menu" Tab="Tab" Details="_details" Names="@(_grid?.Names ?? Core.Display.DisplayNames.None)" OnClose="() => _menu = null"
                      CanEdit="@(_grid?.CanEdit == true && Tab.Changes is not null)"
                      Pinned="@(_grid?.IsPinned(menu.Column) == true)" OnTogglePin="TogglePinAsync"
                      OnDeleteRows="rows => _grid?.ChangeRowsAsync(rows, delete: true) ?? Task.CompletedTask"

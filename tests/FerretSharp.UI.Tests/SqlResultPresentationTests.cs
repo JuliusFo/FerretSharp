@@ -118,6 +118,22 @@ public sealed class SqlResultPresentationTests
     }
 
     [Fact]
+    public async Task The_excel_export_takes_property_names_and_members_of_traced_columns()
+    {
+        var beside = (await PresentationAsync(ClrNameDisplay.Beside)).ExportColumns();
+        var off = (await PresentationAsync(ClrNameDisplay.Off)).ExportColumns();
+
+        // AUFTRAG has no entity: its columns keep the result's names.
+        Assert.Equal(["AUFTRAG_ID", "KUNDE_ID", "Kundenart", "ONE"], beside.Select(c => c.Header));
+        Assert.Equal([0, 1, 2, 3], beside.Select(c => c.Source));
+        Assert.Equal("Gewerbe (2)", beside[2].Present!(2m));
+        Assert.Equal(9m, beside[2].Present!(9m)); // no member: the number stays a number
+        Assert.Equal(["AUFTRAG_ID", "KUNDE_ID", "ART", "ONE"], off.Select(c => c.Header));
+        Assert.True(ExportColumn.DiffersFromRaw(off)); // members by name
+        Assert.False(ExportColumn.DiffersFromRaw(SqlResultPresentation.Plain(Columns).ExportColumns()));
+    }
+
+    [Fact]
     public void A_plain_result_is_shown_as_the_driver_reports_it()
     {
         var presentation = SqlResultPresentation.Plain(Columns);

@@ -123,6 +123,18 @@
   <data name="GridMenu_SaveCsv" xml:space="preserve">
     <value>Als CSV speichern …</value>
   </data>
+  <data name="GridMenu_SaveXlsx" xml:space="preserve">
+    <value>Als Excel-Datei speichern …</value>
+  </data>
+  <data name="GridMenu_SaveXlsxTitle" xml:space="preserve">
+    <value>Zahlen und Datumswerte als typisierte Zellen, Kopfzeile mit Filter – Beschriftungen und Werte wie im Grid</value>
+  </data>
+  <data name="GridMenu_SaveXlsxRaw" xml:space="preserve">
+    <value>Als Excel-Datei speichern (DB-Namen, Rohwerte) …</value>
+  </data>
+  <data name="GridMenu_SaveXlsxRawTitle" xml:space="preserve">
+    <value>Spaltennamen und Werte, wie sie in der Datenbank stehen – ohne C#-Namen, Enum-Namen und Namen aus Anzeigespalten</value>
+  </data>
   <data name="GridMenu_SaveInsert" xml:space="preserve">
     <value>Als INSERT-Skript speichern …</value>
   </data>
@@ -191,6 +203,9 @@
   </data>
   <data name="Export_CsvFilter" xml:space="preserve">
     <value>CSV (Semikolon)</value>
+  </data>
+  <data name="Export_XlsxFilter" xml:space="preserve">
+    <value>Excel-Arbeitsmappe</value>
   </data>
   <data name="Export_SqlScriptFilter" xml:space="preserve">
     <value>SQL-Skript</value>
