@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using FerretSharp.Core.Connections;
 
-namespace FerretSharp.Core.Tests.Fakes;
+namespace FerretSharp.Testing;
 
 /// <summary>Passwords in memory. Thread-safe: sessions open on pool threads.</summary>
 public sealed class InMemorySecretStore : ISecretStore

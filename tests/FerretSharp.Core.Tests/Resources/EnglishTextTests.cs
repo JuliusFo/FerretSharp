@@ -3,7 +3,7 @@ using FerretSharp.Core.Oracle;
 using FerretSharp.Core.Schema;
 using FerretSharp.Core.Settings;
 
-namespace FerretSharp.Core.Tests.Oracle;
+namespace FerretSharp.Core.Tests.Resources;
 
 /// <summary>
 /// The English texts of the Oracle layer, the DDL proposal and the shortcuts (WP-29), where code composes them: key names,

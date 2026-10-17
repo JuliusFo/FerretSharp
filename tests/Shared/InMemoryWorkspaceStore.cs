@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using FerretSharp.Core.Workspaces;
 
-namespace FerretSharp.Core.Tests.Fakes;
+namespace FerretSharp.Testing;
 
 /// <summary>Workspace files in memory. Thread-safe: the debounced saver writes from a timer thread while a test reads.</summary>
 public sealed class InMemoryWorkspaceStore : IWorkspaceStore

@@ -6,7 +6,7 @@ using FerretSharp.Core.Settings;
 using FerretSharp.UI.State;
 using NSubstitute;
 
-namespace FerretSharp.UI.Tests;
+namespace FerretSharp.UI.Tests.State;
 
 /// <summary>WP-48: result columns traced back to their tables read like table columns – C# names, enum members, FK badges.</summary>
 public sealed class SqlResultPresentationTests

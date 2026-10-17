@@ -7,7 +7,7 @@ using FerretSharp.Core.Query;
 using FerretSharp.Core.Workspaces;
 using FerretSharp.Testing;
 
-namespace FerretSharp.Core.Tests.Query;
+namespace FerretSharp.Core.Tests.Links;
 
 /// <summary>
 /// The redirect page for links on GitHub Pages (ADR 0026, addendum): it must take every link FerretSharp writes, open

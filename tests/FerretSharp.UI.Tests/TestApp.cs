@@ -5,7 +5,7 @@ using FerretSharp.Core.Oracle;
 using FerretSharp.Core.Query;
 using FerretSharp.Core.Schema;
 using FerretSharp.Core.Settings;
-using FerretSharp.Core.Tests.Fakes;
+using FerretSharp.Testing;
 using FerretSharp.Core.Workspaces;
 using FerretSharp.UI.State;
 using Microsoft.Extensions.DependencyInjection;

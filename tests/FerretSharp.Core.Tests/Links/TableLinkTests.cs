@@ -6,7 +6,7 @@ using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 using FerretSharp.Core.Workspaces;
 
-namespace FerretSharp.Core.Tests.Query;
+namespace FerretSharp.Core.Tests.Links;
 
 /// <summary>Links to a table view (WP-37, ADR 0026): writing, reading foreign input, rows by key, finding the connection.</summary>
 public class TableLinkTests
