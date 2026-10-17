@@ -22,7 +22,7 @@ internal sealed class ProtocolRegistration : IProtocolRegistration
         get
         {
             using var command = Registry.CurrentUser.OpenSubKey(CommandPath);
-            return ProgramOf(command?.GetValue(null) as string);
+            return ProtocolCommand.ProgramOf(command?.GetValue(null) as string);
         }
     }
 
@@ -42,7 +42,7 @@ internal sealed class ProtocolRegistration : IProtocolRegistration
         }
 
         using var command = key.CreateSubKey(@"shell\open\command");
-        command.SetValue(null, $"\"{program}\" \"%1\"");
+        command.SetValue(null, ProtocolCommand.For(program));
     }
 
     /// <summary>Removes the protocol if it starts <paramref name="program"/> (an uninstall leaves another copy's registration).</summary>
@@ -51,31 +51,12 @@ internal sealed class ProtocolRegistration : IProtocolRegistration
         string? registered;
         using (var command = Registry.CurrentUser.OpenSubKey(CommandPath))
         {
-            registered = ProgramOf(command?.GetValue(null) as string);
+            registered = ProtocolCommand.ProgramOf(command?.GetValue(null) as string);
         }
 
-        if (registered is not null && string.Equals(Path.GetFullPath(registered), Path.GetFullPath(program), StringComparison.OrdinalIgnoreCase))
+        if (ProtocolCommand.SameProgram(registered, program))
         {
             Registry.CurrentUser.DeleteSubKeyTree(KeyPath, throwOnMissingSubKey: false);
         }
-    }
-
-    /// <summary>The program of a command line <c>"C:\…\FerretSharp.exe" "%1"</c>.</summary>
-    private static string? ProgramOf(string? command)
-    {
-        var text = command?.Trim();
-        if (string.IsNullOrEmpty(text))
-        {
-            return null;
-        }
-
-        if (text.StartsWith('"'))
-        {
-            var end = text.IndexOf('"', 1);
-            return end > 1 ? text[1..end] : null;
-        }
-
-        var space = text.IndexOf(' ', StringComparison.Ordinal);
-        return space < 0 ? text : text[..space];
     }
 }

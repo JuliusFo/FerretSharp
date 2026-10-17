@@ -57,8 +57,7 @@
     /// <summary>Why registering or removing the link protocol failed (WP-37); null if it did not.</summary>
     private string? _protocolError;
 
-    private bool IsOwnProgram(string? program) =>
-        program is not null && string.Equals(Path.GetFullPath(program), Path.GetFullPath(Protocol.OwnProgram), StringComparison.OrdinalIgnoreCase);
+    private bool IsOwnProgram(string? program) => ProtocolCommand.SameProgram(program, Protocol.OwnProgram);
 
     private void ChangeLinks(Action change)
     {
