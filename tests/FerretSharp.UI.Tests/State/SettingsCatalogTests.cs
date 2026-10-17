@@ -49,6 +49,18 @@ public sealed class SettingsCatalogTests
         Assert.False(filter.Shows(SettingKey.KeepAlive));
     }
 
+    /// <summary>R6b (B9): the sections of the page hide their rows by this class.</summary>
+    [Fact]
+    public void A_row_that_does_not_match_gets_the_class_that_hides_it()
+    {
+        using var _ = UiCulture.Use("de");
+        var filter = Filter("sperr");
+
+        Assert.Equal("", filter.HideClass(SettingKey.LockWait));
+        Assert.Equal("no-match", filter.HideClass(SettingKey.KeepAlive));
+        Assert.Equal("", Filter("").HideClass(SettingKey.KeepAlive));
+    }
+
     [Fact]
     public void Code_shown_in_hints_and_keys_of_shortcuts_are_found()
     {

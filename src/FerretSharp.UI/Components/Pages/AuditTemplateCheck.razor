@@ -1,0 +1,29 @@
+@* Under a template's row of the settings (WP-26, WP-51): its errors with their lines, or that it is valid – or that the
+   built-in one applies. One for the three levels (all connections, a group, a connection; R6b, review 3.40.0, B9). *@
+
+@if (Load.Errors.Count > 0)
+{
+    <div class="settings-note error @Filter.HideClass(Key)">
+        <ul class="settings-problems">
+            @foreach (var error in Load.Errors)
+            {
+                <li>@error</li>
+            }
+        </ul>
+    </div>
+}
+else
+{
+    <div class="settings-note @Filter.HideClass(Key)">@(Load.IsDefault ? ShellText.Settings_AuditTemplateUsingBuiltIn : ShellText.Settings_AuditTemplateValid)</div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public FerretSharp.Core.Audit.AuditTemplateLoad Load { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public SettingsFilter Filter { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public SettingKey Key { get; set; }
+}

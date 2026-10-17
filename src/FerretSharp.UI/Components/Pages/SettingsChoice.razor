@@ -1,0 +1,52 @@
+@* One row of the settings page with a choice of a few values as segmented buttons (R6b, review 3.40.0, B9: the page had
+   eleven copies of this). *@
+@typeparam TValue
+
+<div class="settings-row @Filter.HideClass(Key)">
+    <div class="settings-label">
+        <span>@Label</span>
+        @if (Hint is not null)
+        {
+            <span class="hint">@Hint</span>
+        }
+    </div>
+    <div class="segmented" role="radiogroup" aria-label="@Label">
+        @foreach (var (value, label) in Options)
+        {
+            var option = value;
+            var active = EqualityComparer<TValue>.Default.Equals(Value, option);
+            <button class="seg @(active ? "active" : "")" role="radio" aria-checked="@(active ? "true" : "false")" lang="@LangOf?.Invoke(option)"
+                    disabled="@Disabled" @onclick="() => OnChange(option)">@label</button>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public SettingsFilter Filter { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public SettingKey Key { get; set; }
+
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = "";
+
+    [Parameter]
+    public RenderFragment? Hint { get; set; }
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<(TValue Value, string Label)> Options { get; set; } = [];
+
+    [Parameter, EditorRequired]
+    public TValue Value { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public Func<TValue, Task> OnChange { get; set; } = null!;
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    /// <summary>The language an option is written in (each UI language under its own name).</summary>
+    [Parameter]
+    public Func<TValue, string?>? LangOf { get; set; }
+}

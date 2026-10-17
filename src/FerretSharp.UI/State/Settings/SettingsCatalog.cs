@@ -158,6 +158,9 @@ public sealed class SettingsFilter
 
     public bool Shows(SettingKey key) => Shows(SettingsCatalog.IdOf(key));
 
+    /// <summary>The class that hides a row and its notes that do not match the search (<c>class="settings-row @…"</c>).</summary>
+    public string HideClass(SettingKey key) => Shows(key) ? "" : "no-match";
+
     /// <summary>A group of shortcuts shows: always without a search, else if one of its shortcuts matches.</summary>
     public bool ShowsGroup(string group) => !IsActive || _groups.Contains(group);
 }
