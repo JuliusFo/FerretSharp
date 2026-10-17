@@ -175,16 +175,7 @@ public sealed record TableLink(
             return Failed(QueryText.LinkNotFerretSharp);
         }
 
-        // The query as written, not Uri.Query: each part is unescaped once, after splitting at the separators.
-        var query = trimmed.IndexOf('?', StringComparison.Ordinal) is var at and >= 0 ? trimmed[(at + 1)..] : "";
-        query = query.IndexOf('#', StringComparison.Ordinal) is var hash and >= 0 ? query[..hash] : query;
-        var parameters = new List<(string Key, string Raw)>();
-        foreach (var part in query.Split('&', StringSplitOptions.RemoveEmptyEntries))
-        {
-            var equals = part.IndexOf('=', StringComparison.Ordinal);
-            parameters.Add(equals < 0 ? (part, "") : (part[..equals], part[(equals + 1)..]));
-        }
-
+        var parameters = Parameters(trimmed);
         string? Single(string key) => parameters.LastOrDefault(p => p.Key == key) is { Key: not null } found ? Unescape(found.Raw) : null;
 
         if (!int.TryParse(Single("v"), NumberStyles.None, CultureInfo.InvariantCulture, out var version) || version < 1)
@@ -197,11 +188,7 @@ public sealed record TableLink(
             return Failed(TextFormat.Format(QueryText.LinkFromNewerVersion, version));
         }
 
-        // A link written since 3.40.1 says up front how many parameters follow and ends with "e" (A26); one without "n" is
-        // older and opens as before.
-        if (parameters.FindIndex(p => p.Key == "n") is var counted and >= 0
-            && (!int.TryParse(Unescape(parameters[counted].Raw), NumberStyles.None, CultureInfo.InvariantCulture, out var following)
-                || following != parameters.Count - counted - 1 || parameters[^1] is not ("e", "1")))
+        if (!IsComplete(parameters))
         {
             return Failed(QueryText.LinkIncomplete);
         }
@@ -224,73 +211,16 @@ public sealed record TableLink(
             return Failed(QueryText.LinkConnectionNameTooLong);
         }
 
-        var filters = new List<FilterCondition>();
-        var groups = new Dictionary<int, FilterGroup>();
-        var values = 0;
-        foreach (var (key, raw) in parameters.Where(p => p.Key is "f" or "g"))
+        var (filters, filterError) = ReadFilters(parameters);
+        if (filterError is not null)
         {
-            if (filters.Count == MaxFilters)
-            {
-                return Failed(TextFormat.Format(QueryText.LinkTooManyFilters, MaxFilters));
-            }
-
-            var parts = raw.Split(',').Select(Unescape).ToArray();
-            FilterGroup? group = null;
-            if (key == "g")
-            {
-                // The group's id and kind, then the row as in "f"; the first row of a group decides its kind.
-                // Ids are numbered from 1 (FilterGroups.Normalize): at most one group per row.
-                if (parts.Length < 2 || !int.TryParse(parts[0], NumberStyles.None, CultureInfo.InvariantCulture, out var id) || id is < 1 or > MaxFilters
-                    || !TryEnum<FilterGroupKind>(parts[1], out var kind))
-                {
-                    return Failed(TextFormat.Format(QueryText.LinkFilterInvalid, parts.ElementAtOrDefault(2) ?? parts[0]));
-                }
-
-                if (!groups.TryGetValue(id, out group))
-                {
-                    groups[id] = group = new FilterGroup(id, kind);
-                }
-
-                parts = parts[2..];
-            }
-
-            if (parts.Length < 2 || OracleIdentifier.Problem(parts[0]) is not null || parts[0].Length == 0
-                || !TryEnum<FilterOperator>(parts[1], out var op))
-            {
-                return Failed(TextFormat.Format(QueryText.LinkFilterInvalid, parts[0]));
-            }
-
-            var filterValues = parts[2..];
-            var expected = FilterRules.ValueCount(op);
-            if (expected >= 0 && filterValues.Length != expected || expected < 0 && filterValues.Length == 0
-                || op == FilterOperator.In && filterValues.Any(v => v.Contains(FilterCondition.ListSeparator, StringComparison.Ordinal)))
-            {
-                return Failed(TextFormat.Format(QueryText.LinkFilterInvalid, parts[0]));
-            }
-
-            values += filterValues.Length;
-            if (values > MaxValues)
-            {
-                return Failed(TextFormat.Format(QueryText.LinkTooManyValues, MaxValues));
-            }
-
-            filters.Add(new FilterCondition(parts[0], op, filterValues) { Group = group });
+            return Failed(filterError);
         }
 
-        var sorts = new List<SortSpec>();
-        foreach (var (_, raw) in parameters.Where(p => p.Key == "o"))
+        var (sorts, sortError) = ReadSorts(parameters);
+        if (sortError is not null)
         {
-            var parts = raw.Split(',').Select(Unescape).ToArray();
-            if (parts.Length != 2 || parts[0].Length == 0 || OracleIdentifier.Problem(parts[0]) is not null || parts[1] is not ("asc" or "desc")
-                || sorts.Count == MaxFilters)
-            {
-                return Failed(TextFormat.Format(QueryText.LinkSortInvalid, parts[0]));
-            }
-
-            if (sorts.All(s => s.Column != parts[0]))
-            {
-                sorts.Add(new SortSpec(parts[0], parts[1] == "desc"));
-            }
+            return Failed(sortError);
         }
 
         TabMode? mode = null;
@@ -305,6 +235,111 @@ public sealed record TableLink(
         }
 
         return new(new TableLink(string.IsNullOrEmpty(connection) ? null : connection, OracleAddress.Parse(Single("a")), owner, table, filters, sorts, mode), null);
+    }
+
+    /// <summary>The query as written, not <see cref="Uri.Query"/>: each part is unescaped once, after splitting at the separators.</summary>
+    private static List<(string Key, string Raw)> Parameters(string link)
+    {
+        var query = link.IndexOf('?', StringComparison.Ordinal) is var at and >= 0 ? link[(at + 1)..] : "";
+        query = query.IndexOf('#', StringComparison.Ordinal) is var hash and >= 0 ? query[..hash] : query;
+        var parameters = new List<(string Key, string Raw)>();
+        foreach (var part in query.Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var equals = part.IndexOf('=', StringComparison.Ordinal);
+            parameters.Add(equals < 0 ? (part, "") : (part[..equals], part[(equals + 1)..]));
+        }
+
+        return parameters;
+    }
+
+    /// <summary>
+    /// A link written since 3.40.1 says up front how many parameters follow and ends with "e" (A26); one without "n" is
+    /// older and opens as before.
+    /// </summary>
+    private static bool IsComplete(List<(string Key, string Raw)> parameters) =>
+        parameters.FindIndex(p => p.Key == "n") is not (var counted and >= 0)
+        || int.TryParse(Unescape(parameters[counted].Raw), NumberStyles.None, CultureInfo.InvariantCulture, out var following)
+           && following == parameters.Count - counted - 1 && parameters[^1] is ("e", "1");
+
+    /// <summary>The filter rows (<c>f</c>) and rows of groups (<c>g</c>, WP-50) as the filter bar would take them.</summary>
+    private static (List<FilterCondition> Filters, string? Error) ReadFilters(List<(string Key, string Raw)> parameters)
+    {
+        var filters = new List<FilterCondition>();
+        var groups = new Dictionary<int, FilterGroup>();
+        var values = 0;
+        foreach (var (key, raw) in parameters.Where(p => p.Key is "f" or "g"))
+        {
+            if (filters.Count == MaxFilters)
+            {
+                return (filters, TextFormat.Format(QueryText.LinkTooManyFilters, MaxFilters));
+            }
+
+            var parts = raw.Split(',').Select(Unescape).ToArray();
+            FilterGroup? group = null;
+            if (key == "g")
+            {
+                // The group's id and kind, then the row as in "f"; the first row of a group decides its kind.
+                // Ids are numbered from 1 (FilterGroups.Normalize): at most one group per row.
+                if (parts.Length < 2 || !int.TryParse(parts[0], NumberStyles.None, CultureInfo.InvariantCulture, out var id) || id is < 1 or > MaxFilters
+                    || !TryEnum<FilterGroupKind>(parts[1], out var kind))
+                {
+                    return (filters, TextFormat.Format(QueryText.LinkFilterInvalid, parts.ElementAtOrDefault(2) ?? parts[0]));
+                }
+
+                if (!groups.TryGetValue(id, out group))
+                {
+                    groups[id] = group = new FilterGroup(id, kind);
+                }
+
+                parts = parts[2..];
+            }
+
+            if (parts.Length < 2 || OracleIdentifier.Problem(parts[0]) is not null || parts[0].Length == 0
+                || !TryEnum<FilterOperator>(parts[1], out var op))
+            {
+                return (filters, TextFormat.Format(QueryText.LinkFilterInvalid, parts[0]));
+            }
+
+            var filterValues = parts[2..];
+            var expected = FilterRules.ValueCount(op);
+            if (expected >= 0 && filterValues.Length != expected || expected < 0 && filterValues.Length == 0
+                || op == FilterOperator.In && filterValues.Any(v => v.Contains(FilterCondition.ListSeparator, StringComparison.Ordinal)))
+            {
+                return (filters, TextFormat.Format(QueryText.LinkFilterInvalid, parts[0]));
+            }
+
+            values += filterValues.Length;
+            if (values > MaxValues)
+            {
+                return (filters, TextFormat.Format(QueryText.LinkTooManyValues, MaxValues));
+            }
+
+            filters.Add(new FilterCondition(parts[0], op, filterValues) { Group = group });
+        }
+
+        return (filters, null);
+    }
+
+    /// <summary>The sort order (<c>o</c>): column and direction, each column once.</summary>
+    private static (List<SortSpec> Sorts, string? Error) ReadSorts(List<(string Key, string Raw)> parameters)
+    {
+        var sorts = new List<SortSpec>();
+        foreach (var (_, raw) in parameters.Where(p => p.Key == "o"))
+        {
+            var parts = raw.Split(',').Select(Unescape).ToArray();
+            if (parts.Length != 2 || parts[0].Length == 0 || OracleIdentifier.Problem(parts[0]) is not null || parts[1] is not ("asc" or "desc")
+                || sorts.Count == MaxFilters)
+            {
+                return (sorts, TextFormat.Format(QueryText.LinkSortInvalid, parts[0]));
+            }
+
+            if (sorts.All(s => s.Column != parts[0]))
+            {
+                sorts.Add(new SortSpec(parts[0], parts[1] == "desc"));
+            }
+        }
+
+        return (sorts, null);
     }
 
     /// <summary>The address as text <see cref="OracleAddress.Parse"/> reads back (<see cref="OracleAddress.ToDataSource"/>).</summary>
