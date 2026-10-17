@@ -23,6 +23,7 @@
     <Compile Include="..\Shared\ResourceChecks.cs" Link="Shared\ResourceChecks.cs" />
     <Compile Include="..\Shared\FakeDatabase.cs" Link="Shared\FakeDatabase.cs" />
     <Compile Include="..\Shared\Repository.cs" Link="Shared\Repository.cs" />
+    <Compile Include="..\Shared\ReleaseWorkflow.cs" Link="Shared\ReleaseWorkflow.cs" />
     <Using Include="FerretSharp.Testing" />
   </ItemGroup>
 

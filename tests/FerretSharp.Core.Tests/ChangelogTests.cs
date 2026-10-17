@@ -52,6 +52,39 @@ public sealed partial class ChangelogTests
             p => Assert.StartsWith("CHANGELOG.md:10: docs/images/changelog/3.34.0-big.png has 400 KB", p, StringComparison.Ordinal));
     }
 
+    /// <summary>
+    /// Review 3.40.0, C7: the workflow takes exactly the lines and paths this check lets through – one rule in two places,
+    /// checked against each other instead of each against itself.
+    /// </summary>
+    [Theory]
+    [InlineData("![The dialog](docs/images/changelog/3.34.0-dialog.png)", true)]
+    [InlineData("  ![The dialog](docs/images/changelog/3.34.0-dialog.png)\t", true)]
+    [InlineData("- See ![the dialog](docs/images/changelog/3.34.0-dialog.png) here.", false)]
+    [InlineData("![Two](docs/images/changelog/a.png) ![images](docs/images/changelog/b.png)", false)]
+    [InlineData("![Space](docs/images/changelog/my dialog.png)", false)]
+    public void The_release_workflow_takes_the_lines_this_check_takes(string line, bool imageLine)
+    {
+        Assert.Equal(imageLine, ImageLine().IsMatch(line.Trim()));
+        Assert.Equal(imageLine, ReleaseWorkflow.ImageLine.IsMatch(line));
+    }
+
+    [Theory]
+    [InlineData("docs/images/changelog/3.34.0-dialog.png", true)]
+    [InlineData("docs/images/changelog/3.34.0_dialog.webp", true)]
+    [InlineData("docs/images/grid-dark.png", false)]
+    [InlineData("docs/images/changelog/sub/a.png", false)]
+    [InlineData("docs/images/changelog/my%20dialog.png", false)]
+    [InlineData("https://example.com/a.png", false)]
+    [InlineData("docs/images/changelog/..", false)] // the workflow's pattern lets it through, its check for a file then stops it
+    public void The_release_workflow_accepts_the_paths_this_check_accepts(string path, bool accepted)
+    {
+        var ours = path.StartsWith(Folder, StringComparison.Ordinal) && FileName().IsMatch(path[Folder.Length..]) && path[Folder.Length..] is not ("." or "..");
+        var workflow = ReleaseWorkflow.ImagePath.IsMatch(path) && !path.EndsWith("/..", StringComparison.Ordinal) && !path.EndsWith("/.", StringComparison.Ordinal);
+
+        Assert.Equal(accepted, ours);
+        Assert.Equal(accepted, workflow);
+    }
+
     private static List<string> Problems(IReadOnlyList<string> lines, string root)
     {
         var problems = new List<string>();
