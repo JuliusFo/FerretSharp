@@ -92,7 +92,7 @@ public sealed class DesignColumn
         {
             row.Type = column.DataType;
             row.Size = N(OracleTypes.HasLength(column.DataType) ? column.Length : column.Precision);
-            row.Scale = column.DataType == "NUMBER" ? N(column.Scale) : "";
+            row.Scale = OracleTypes.IsNumber(column.DataType) ? N(column.Scale) : "";
         }
 
         return row;

@@ -197,7 +197,7 @@ public static class OracleTypeMapper
                 : TextFormat.Format(OracleText.TooManyDecimals, s, column.DisplayType));
         }
 
-        if (column.DataType == "NUMBER" && column.Precision is { } p && scale is { } sc)
+        if (OracleTypes.IsNumber(column.DataType) && column.Precision is { } p && scale is { } sc)
         {
             var integerDigits = decimal.Truncate(decimal.Abs(value)).ToString(System.Globalization.CultureInfo.InvariantCulture).TrimStart('0').Length;
             if (integerDigits > p - sc)

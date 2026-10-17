@@ -158,7 +158,8 @@ public static partial class PropertyCode
     private static bool UsesConvention(IReadOnlyList<PropertyExport> properties) =>
         properties.Count > 0 && properties.Count(p => p.Column == UpperSnake(p.Name)) >= properties.Count * ConventionShare;
 
-    private static bool IsOneCharacterText(ColumnInfo column) => column.DataType is "CHAR" or "VARCHAR2" && column.Length == 1;
+    // VARCHAR2 or CHAR; whether NCHAR(1) should count too is open (R6b protocol).
+    private static bool IsOneCharacterText(ColumnInfo column) => OracleTypes.HasLengthSemantics(column.DataType) && column.Length == 1;
 
     /// <summary>The converter the project uses most for bools stored as text (<c>J</c>/<c>N</c>), and how often.</summary>
     private static (string Converter, int Count)? YesNoConverter(IEnumerable<PropertyExport> properties) =>
