@@ -154,16 +154,16 @@ public sealed class ShortcutMap
     private readonly IReadOnlyList<ShortcutDefinition> _definitions;
     private readonly Dictionary<ShortcutAction, KeyChord?> _chords = [];
 
-    public ShortcutMap(ShortcutOverrides? overrides = null)
+    public ShortcutMap(SettingsMap? overrides = null)
         : this(Definitions, overrides)
     {
     }
 
     /// <summary>A map over other definitions than <see cref="Definitions"/> (tests).</summary>
-    internal ShortcutMap(IReadOnlyList<ShortcutDefinition> definitions, ShortcutOverrides? overrides = null)
+    internal ShortcutMap(IReadOnlyList<ShortcutDefinition> definitions, SettingsMap? overrides = null)
     {
         _definitions = definitions;
-        Overrides = overrides ?? ShortcutOverrides.Empty;
+        Overrides = overrides ?? SettingsMap.Empty;
         foreach (var definition in _definitions)
         {
             _chords[definition.Action] = definition.DefaultChord;
@@ -182,7 +182,7 @@ public sealed class ShortcutMap
     }
 
     /// <summary>The stored differences, as given (including entries this version ignores).</summary>
-    public ShortcutOverrides Overrides { get; }
+    public SettingsMap Overrides { get; }
 
     public static ShortcutDefinition Definition(ShortcutAction action) => Definitions.First(d => d.Action == action);
 
@@ -240,7 +240,7 @@ public sealed class ShortcutMap
     /// The stored differences after giving <paramref name="action"/> the chord (null: no shortcut). If another action had
     /// it, that one loses it. Unknown entries stay.
     /// </summary>
-    public ShortcutOverrides With(ShortcutAction action, KeyChord? chord)
+    public SettingsMap With(ShortcutAction action, KeyChord? chord)
     {
         var result = Overrides.ToDictionary();
         if (chord is not null && _definitions.FirstOrDefault(d => d.Action != action && _chords[d.Action] == chord) is { } other)
@@ -249,18 +249,18 @@ public sealed class ShortcutMap
         }
 
         Store(result, action, chord);
-        return ShortcutOverrides.From(result);
+        return SettingsMap.From(result);
     }
 
     /// <summary>
     /// The stored differences without the one of <paramref name="action"/> (back to its default). Like <see cref="With"/>, an
     /// action that has the default chord meanwhile loses it (R4a: both had it, and one of them silently did nothing).
     /// </summary>
-    public ShortcutOverrides Without(ShortcutAction action) => With(action, Own(action).DefaultChord);
+    public SettingsMap Without(ShortcutAction action) => With(action, Own(action).DefaultChord);
 
     /// <summary>All defaults again; unknown entries (of a newer version) stay.</summary>
-    public ShortcutOverrides Reset() =>
-        ShortcutOverrides.From(Overrides.Where(e => !Enum.GetNames<ShortcutAction>().Contains(e.Key)));
+    public SettingsMap Reset() =>
+        SettingsMap.From(Overrides.Where(e => !Enum.GetNames<ShortcutAction>().Contains(e.Key)));
 
     private void Store(Dictionary<string, string> overrides, ShortcutAction action, KeyChord? chord)
     {

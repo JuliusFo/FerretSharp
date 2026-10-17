@@ -93,7 +93,7 @@ public sealed record AppSettings
     /// Shortcuts that differ from the defaults (WP-25): action name → key combination (<c>ctrl+shift+o</c>), empty for
     /// none. Read through <see cref="ShortcutMap"/>.
     /// </summary>
-    public ShortcutOverrides Shortcuts { get; init; } = ShortcutOverrides.Empty;
+    public SettingsMap Shortcuts { get; init; } = SettingsMap.Empty;
 
     /// <summary>The change overview (WP-30) is open beside the tabs – it opens again after a restart.</summary>
     public bool ChangesPanelOpen { get; init; }

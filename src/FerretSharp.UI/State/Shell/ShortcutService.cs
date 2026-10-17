@@ -53,7 +53,7 @@ public sealed class ShortcutService : IDisposable
     /// <exception cref="IOException">Not saved; the change stays in effect for this session.</exception>
     public Task ResetAllAsync() => UpdateAsync(map => map.Reset());
 
-    private Task UpdateAsync(Func<ShortcutMap, ShortcutOverrides> change) =>
+    private Task UpdateAsync(Func<ShortcutMap, SettingsMap> change) =>
         _settings.UpdateAsync(s => s with { Shortcuts = change(new ShortcutMap(s.Shortcuts)) }, CancellationToken.None);
 
     private void OnSettingsChanged()
