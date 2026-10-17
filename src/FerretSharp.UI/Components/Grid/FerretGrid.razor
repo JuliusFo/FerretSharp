@@ -11,6 +11,7 @@
 @implements IAsyncDisposable
 @implements IFormGrid
 @implements IDisplayNamesGrid
+@implements IEditableGrid
 @inject IJSRuntime JS
 @inject ILogger<FerretGrid> Logger
 @inject ShortcutService Shortcuts
@@ -430,17 +431,28 @@
     /// </summary>
     private bool WriteRunning => Lifecycle.Editing.IsBusy(Tab.WorkspaceId);
 
-    /// <summary>True (and says so) while the workspace writes: the caller changes nothing.</summary>
-    private bool StoppedByWrite()
-    {
-        if (!WriteRunning)
-        {
-            return false;
-        }
+    /// <summary>Typed values, Del, delete and revert, new rows, LOB contents (R6b, review 3.40.0, B10).</summary>
+    private GridEditing Editing => new(this, Details);
 
-        Shell.Notify(GridText.Grid_WriteRunning);
-        return true;
-    }
+    ChangeTracker? IEditableGrid.Changes => Tab.Changes;
+
+    bool IEditableGrid.WriteRunning => WriteRunning;
+
+    RowData? IEditableGrid.RowAt(int rowIndex) => _blocks.At(rowIndex);
+
+    Dictionary<string, object?> IEditableGrid.Draw(RowChange? change, IReadOnlyList<object?>? values) => GridRow(change, values);
+
+    async Task IEditableGrid.UpdateRowsAsync(List<GridRowUpdate> updates) => await _grid.CallAsync("updateRows", updates);
+
+    Task IEditableGrid.SetNewRowsAsync() => SetNewRowsAsync();
+
+    void IEditableGrid.QueueDisplayNames(IReadOnlyList<object?> values) => DisplayNamesOf.Queue([values]);
+
+    void IEditableGrid.ChangesMade() => ChangesMade();
+
+    void IEditableGrid.Notify(string text) => Shell.Notify(text);
+
+    string IEditableGrid.RowNotLoaded => RowNotLoaded;
 
     /// <summary>When the connection's schema was loaded last (<see cref="OnShellChanged"/>).</summary>
     private DateTimeOffset? _schemaLoadedAt;
@@ -513,39 +525,8 @@
         _blocks.At(rowIndex) is { } row ? OnLobOpen.InvokeAsync(new LobRequest(rowIndex, row, null, column)) : Task.CompletedTask;
 
     /// <summary>The LOB editor's result: the whole new value; <paramref name="loaded"/> is what it read from the database.</summary>
-    public async Task<string?> SetLobAsync(LobRequest request, object? loaded, object? value)
-    {
-        if (Tab.Changes is not { } changes)
-        {
-            return GridText.Grid_TableNotEditable;
-        }
-
-        if (WriteRunning)
-        {
-            return GridText.Grid_WriteRunning;
-        }
-
-        EditResult result;
-        if (request.NewRow is { } added)
-        {
-            result = changes.SetContent(added, request.Column, value);
-            if (result.IsValid)
-            {
-                await SetNewRowsAsync();
-            }
-        }
-        else
-        {
-            result = changes.SetContent(request.Row!, request.Column, loaded, value);
-            if (result.IsValid)
-            {
-                await _grid.CallAsync("updateRows", new List<GridRowUpdate> { new(request.RowIndex, GridRow(request.Row!)) });
-            }
-        }
-
-        ChangesMade();
-        return result.Error;
-    }
+    public Task<string?> SetLobAsync(LobRequest request, object? loaded, object? value) =>
+        Editing.SetContentAsync(request.NewRow is null ? (request.RowIndex, request.Row!) : null, request.NewRow, request.Column, loaded, value);
 
     /// <summary>
     /// A grid row: display texts by column id, with pending/flushed values of the tab's changes laid over the loaded
@@ -635,45 +616,7 @@
 
     private string RowNotLoaded => TextFormat.Format(GridText.Grid_RowNotLoaded, Shortcuts.Hint(ShortcutAction.Refresh));
 
-    private GridEdit Edit(int rowIndex, string? newId, int column, string text)
-    {
-        if (Tab.Changes is not { } changes)
-        {
-            return new GridEdit(null, GridText.Grid_TableNotEditable);
-        }
-
-        if (WriteRunning)
-        {
-            return new GridEdit(null, GridText.Grid_WriteRunning);
-        }
-
-        EditResult result;
-        if (NewRow(newId) is { } added)
-        {
-            result = changes.SetValue(added, column, text);
-            ChangesMade();
-            if (result.IsValid)
-            {
-                DisplayNamesOf.Queue([ValuesOf(added)]); // a foreign key typed in: its name, or "not found"
-            }
-
-            return new GridEdit(result.IsValid ? GridRow(added, null) : null, result.Error);
-        }
-
-        if (newId is not null || _blocks.At(rowIndex) is not { } row)
-        {
-            return new GridEdit(null, RowNotLoaded);
-        }
-
-        result = changes.SetValue(row, column, text);
-        ChangesMade();
-        if (result.IsValid)
-        {
-            DisplayNamesOf.Queue([ValuesOf(row)]);
-        }
-
-        return new GridEdit(result.IsValid ? GridRow(row) : null, result.Error);
-    }
+    private GridEdit Edit(int rowIndex, string? newId, int column, string text) => Editing.Edit(rowIndex, newId, column, text);
 
     /// <summary>The focused cell moved (grid.js reports the last position after a short pause).</summary>
     [JSInvokable]
@@ -762,7 +705,7 @@
     [JSInvokable]
     public Task OnEditHistoryKey(bool undo) => GuardAsync(async () =>
     {
-        if (Tab.Changes is not { } changes || StoppedByWrite())
+        if (Tab.Changes is not { } changes || Editing.StoppedByWrite())
         {
             return;
         }
@@ -819,68 +762,10 @@
     [JSInvokable]
     public Task<GridRowUpdate[]> OnDeleteKey(int[] rowIndexes, string[] newIds) => GuardAsync(() => OnDeleteKeyCoreAsync(rowIndexes, newIds), []);
 
-    private async Task<GridRowUpdate[]> OnDeleteKeyCoreAsync(int[] rowIndexes, string[] newIds)
-    {
-        if (Tab.Changes is not { } changes || StoppedByWrite())
-        {
-            return [];
-        }
-
-        foreach (var added in newIds.Select(NewRow).OfType<RowChange>().ToList())
-        {
-            changes.Delete(added);
-        }
-
-        var updates = new List<GridRowUpdate>();
-        foreach (var index in rowIndexes)
-        {
-            if (_blocks.At(index) is { } row)
-            {
-                changes.Delete(row);
-                updates.Add(new GridRowUpdate(index, GridRow(row)));
-            }
-        }
-
-        if (newIds.Length > 0)
-        {
-            await SetNewRowsAsync();
-        }
-
-        ChangesMade();
-        return updates.ToArray();
-    }
+    private Task<GridRowUpdate[]> OnDeleteKeyCoreAsync(int[] rowIndexes, string[] newIds) => Editing.DeleteKeyAsync(rowIndexes, newIds);
 
     /// <summary>Deletes or reverts rows from the context menu; redraws them.</summary>
-    public async Task ChangeRowsAsync(IReadOnlyList<int> rowIndexes, bool delete)
-    {
-        if (Tab.Changes is not { } changes || StoppedByWrite())
-        {
-            return;
-        }
-
-        var updates = new List<GridRowUpdate>();
-        foreach (var index in rowIndexes)
-        {
-            if (_blocks.At(index) is not { } row)
-            {
-                continue;
-            }
-
-            if (delete)
-            {
-                changes.Delete(row);
-            }
-            else
-            {
-                changes.Revert(row.Key);
-            }
-
-            updates.Add(new GridRowUpdate(index, GridRow(row)));
-        }
-
-        await _grid.CallAsync("updateRows", updates);
-        ChangesMade();
-    }
+    public Task ChangeRowsAsync(IReadOnlyList<int> rowIndexes, bool delete) => Editing.ChangeRowsAsync(rowIndexes, delete);
 
     /// <summary>
     /// Adds an empty new row at the top and starts editing its first editable cell – or, with
@@ -888,27 +773,22 @@
     /// </summary>
     public async Task AddRowAsync(bool inGrid = true)
     {
-        if (Tab.Changes is not { } changes || !_grid.IsCreated || StoppedByWrite())
+        if (!_grid.IsCreated || await Editing.AddRowAsync(ColumnPinning.DisplayOrder(Details, Tab.PinnedColumns)) is not { } added)
         {
             return;
         }
 
-        var added = changes.AddRow();
-        await SetNewRowsAsync();
-        var first = ColumnPinning.DisplayOrder(Details, Tab.PinnedColumns)
-            .FirstOrDefault(i => OracleTypeMapper.NotEditableReason(Details, Details.Columns[i], newRow: true) is null, -1);
+        var first = added.Column is { } column ? ColumnId(column) : null;
         if (!inGrid)
         {
-            Focused = new GridCell(-1, GridRows.NewRowId(added), first >= 0 ? first : null);
+            Focused = new GridCell(-1, GridRows.NewRowId(added.Row), added.Column);
             FocusChanged?.Invoke();
-            await _grid.CallAsync("focusRow", changes.NewRows.Count - 1, first >= 0 ? ColumnId(first) : null, true, true);
+            await _grid.CallAsync("focusRow", added.PinnedIndex, first, true, true);
         }
-        else if (first >= 0)
+        else if (first is not null)
         {
-            await _grid.CallAsync("startEditing", changes.NewRows.Count - 1, ColumnId(first), true);
+            await _grid.CallAsync("startEditing", added.PinnedIndex, first, true);
         }
-
-        ChangesMade();
     }
 
     /// <summary>The new (not yet inserted) rows, pinned at the top of the grid.</summary>
