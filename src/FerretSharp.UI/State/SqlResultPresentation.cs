@@ -94,6 +94,17 @@ public sealed class SqlResultPresentation
         };
     }
 
+    /// <summary>
+    /// The columns of an Excel export (WP-53): a traced column as its table presents it (C# name, enum members), under the
+    /// name the query gave it if C# names are off; all other columns as the driver reports them.
+    /// </summary>
+    public IReadOnlyList<ExportColumn> ExportColumns() =>
+    [
+        .. _columns.Select((column, i) => _byColumn[i] is var (presentation, table)
+            ? PresentedExport.Column(presentation, table, column.Name, i) with { Column = column.Column }
+            : new ExportColumn(column.Name, i, column.Column)),
+    ];
+
     /// <summary>A cell's display text: enum members and bools by name for traced columns; null for NULL.</summary>
     public PresentedValue Present(int column, object? value) =>
         _byColumn[column] is var (presentation, table) ? presentation.Present(table, value) : new PresentedValue(CellFormatter.Format(_columns[column].Column, value));

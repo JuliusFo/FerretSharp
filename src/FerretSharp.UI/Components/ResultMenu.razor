@@ -25,6 +25,11 @@
         @GridText.GridMenu_CopyInsert
     </button>
     <button class="menu-item" title="@GridText.GridMenu_SaveCsvTitle" @onclick="SaveCsvAsync">@GridText.GridMenu_SaveCsv</button>
+    <button class="menu-item" title="@GridText.GridMenu_SaveXlsxTitle" @onclick="() => SaveXlsxAsync(XlsxColumns)">@GridText.GridMenu_SaveXlsx</button>
+    @if (ExportColumn.DiffersFromRaw(XlsxColumns))
+    {
+        <button class="menu-item" title="@GridText.GridMenu_SaveXlsxRawTitle" @onclick="() => SaveXlsxAsync(ExportColumn.Raw(Result))">@GridText.GridMenu_SaveXlsxRaw</button>
+    }
 
     <FkJumpSection Outgoing="_outgoing" Incoming="_incoming" Related="Related" RowsText="@JumpRowsText" MissingRows="Request.MissingRows"
                    WorkspaceId="WorkspaceId" OnJumped="CloseAsync" />
@@ -72,7 +77,11 @@
     [Parameter]
     public TableSummary? InsertTarget { get; set; }
 
-    /// <summary>File name (without extension) offered for CSV.</summary>
+    /// <summary>The columns of the Excel export as the result presents them (WP-53); null exports them as the driver reports them.</summary>
+    [Parameter]
+    public IReadOnlyList<ExportColumn>? ExportColumns { get; set; }
+
+    /// <summary>File name (without extension) offered for CSV and Excel.</summary>
     [Parameter]
     public string ExportName { get; set; } = SqlEditorText.Result_DefaultExportName;
 
@@ -88,7 +97,7 @@
     private string JumpRowsText => Request.Selected.Count + Request.MissingRows > 1 ? $" · {ExportActions.RowsText(JumpRows.Count)}" : "";
 
     /// <summary>For the first placement; dom.js keepInViewport corrects it once rendered.</summary>
-    private double EstimatedHeight => 200 + ItemHeight * (_outgoing.Count + _incoming.Count) + (_outgoing.Count + _incoming.Count > 0 ? 80 : 0);
+    private double EstimatedHeight => 200 + ItemHeight * (_outgoing.Count + _incoming.Count + (ExportColumn.DiffersFromRaw(XlsxColumns) ? 2 : 1)) + (_outgoing.Count + _incoming.Count > 0 ? 80 : 0);
 
     protected override void OnInitialized()
     {
@@ -116,6 +125,14 @@
     private Task SaveCsvAsync() =>
         Export.SaveAsync(DelimitedExport.Build(Result, Request.Selected, DelimitedExport.CsvSeparator), ExportName + ".csv",
             GridText.Export_CsvFilter, utf8Bom: true);
+
+    private IReadOnlyList<ExportColumn> XlsxColumns => ExportColumns ?? ExportColumn.Raw(Result);
+
+    private Task SaveXlsxAsync(IReadOnlyList<ExportColumn> columns)
+    {
+        var rows = Request.Selected;
+        return Export.SaveFileAsync(() => XlsxExport.BuildAsync(columns, rows, ExportName), ExportName + ".xlsx", GridText.Export_XlsxFilter);
+    }
 
     private Task CloseAsync() => OnClose.InvokeAsync();
 

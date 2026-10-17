@@ -89,10 +89,15 @@ public static class DelimitedExport
     }
 }
 
-/// <summary>Collects skipped values per column, e.g. "NOTE (CLOB): 3 values not exported – only the preview was loaded."</summary>
+/// <summary>
+/// Collects skipped values per column, e.g. "NOTE (CLOB): 3 values not exported – only the preview was loaded.", and for
+/// the Excel export shortened values and notes on the whole file.
+/// </summary>
 internal sealed class ExportWarnings
 {
     private readonly Dictionary<(string Column, string Type, string Reason), int> _skipped = [];
+    private readonly Dictionary<(string Column, string Type), int> _truncated = [];
+    private readonly List<string> _notes = [];
 
     /// <returns>Empty text for delimited output.</returns>
     public string Skip(ColumnInfo column, string reason)
@@ -102,7 +107,20 @@ internal sealed class ExportWarnings
         return "";
     }
 
-    public List<string> ToList() => _skipped
-        .Select(kv => TextFormat.Plural(kv.Value, DataText.ExportSkippedOne, DataText.ExportSkippedOther, kv.Key.Column, kv.Key.Type, kv.Key.Reason))
-        .ToList();
+    /// <summary>A value was cut to what an Excel cell holds.</summary>
+    public void Truncate(ColumnInfo column)
+    {
+        var key = (column.Name, column.DataType);
+        _truncated[key] = _truncated.GetValueOrDefault(key) + 1;
+    }
+
+    /// <summary>A warning about the whole export (rows left out).</summary>
+    public void Note(string text) => _notes.Add(text);
+
+    public List<string> ToList() =>
+    [
+        .. _skipped.Select(kv => TextFormat.Plural(kv.Value, DataText.ExportSkippedOne, DataText.ExportSkippedOther, kv.Key.Column, kv.Key.Type, kv.Key.Reason)),
+        .. _truncated.Select(kv => TextFormat.Plural(kv.Value, DataText.ExportTruncatedOne, DataText.ExportTruncatedOther, kv.Key.Column, kv.Key.Type)),
+        .. _notes,
+    ];
 }

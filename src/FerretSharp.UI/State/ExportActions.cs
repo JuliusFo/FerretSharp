@@ -97,7 +97,7 @@ public sealed class ExportActions(ShellState shell, DomModule dom, IFileSaveServ
     {
         var copied = await dom.CopyTextAsync(export.Text);
         await close();
-        shell.Notify(copied ? CopiedText(kind, export.Rows) : CommonText.ClipboardUnavailable, Warnings(export));
+        shell.Notify(copied ? CopiedText(kind, export.Rows) : CommonText.ClipboardUnavailable, Warnings(export.Warnings));
     }
 
     /// <param name="fileName">Offered file name with extension.</param>
@@ -109,7 +109,7 @@ public sealed class ExportActions(ShellState shell, DomModule dom, IFileSaveServ
         {
             if (await files.SaveTextAsync(fileName, filter, export.Text, utf8Bom) is { } path)
             {
-                shell.Notify(TextFormat.Plural(export.Rows, GridText.Export_SavedOne, GridText.Export_SavedOther, path), Warnings(export));
+                shell.Notify(TextFormat.Plural(export.Rows, GridText.Export_SavedOne, GridText.Export_SavedOther, path), Warnings(export.Warnings));
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -118,7 +118,27 @@ public sealed class ExportActions(ShellState shell, DomModule dom, IFileSaveServ
         }
     }
 
-    private IReadOnlyList<string> Warnings(ExportText export) => missingRows == 0
-        ? export.Warnings
-        : [.. export.Warnings, TextFormat.Format(GridText.Export_MissingRows, RowsText(missingRows))];
+    /// <summary>A file built once the menu has closed (the Excel export, WP-53), then saved through the native dialog.</summary>
+    /// <param name="fileName">Offered file name with extension.</param>
+    /// <param name="filter">Label of the file type in the dialog, e.g. <c>Excel workbook</c>.</param>
+    public async Task SaveFileAsync(Func<Task<ExportFile>> build, string fileName, string filter)
+    {
+        await close();
+        try
+        {
+            var export = await build();
+            if (await files.SaveBytesAsync(fileName, filter, export.Content) is { } path)
+            {
+                shell.Notify(TextFormat.Plural(export.Rows, GridText.Export_SavedOne, GridText.Export_SavedOther, path), Warnings(export.Warnings));
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            shell.Notify(TextFormat.Format(CommonText.SaveFailed, ex.Message));
+        }
+    }
+
+    private IReadOnlyList<string> Warnings(IReadOnlyList<string> warnings) => missingRows == 0
+        ? warnings
+        : [.. warnings, TextFormat.Format(GridText.Export_MissingRows, RowsText(missingRows))];
 }

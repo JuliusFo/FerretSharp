@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- Save as Excel file: the cell menu of table grids and of results in the SQL editor and the LINQ console saves the selected rows as an `.xlsx` file. Numbers, dates and true/false go in as real Excel values (no more decimal comma guessing as with CSV), text stays text (a value starting with `=` is not run as a formula), and NULL is an empty cell. The header row is bold and frozen, has a filter, and columns are as wide as their content. Labels and values are as in the grid: C# names, enum members, and the names of display columns in a column next to the foreign key. If the grid shows any of these, a second entry "(database names, raw values)" saves the columns as the database has them. Values Excel would change are saved as text: numbers with more than 15 significant digits, timestamps finer than milliseconds, dates before 1 March 1900, and values with a time zone. Texts longer than an Excel cell holds (32,767 characters) are shortened, with a warning.
+
 ## [3.39.0] - 2026-10-17
 
 See what a running statement waits for.

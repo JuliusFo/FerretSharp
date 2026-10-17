@@ -157,6 +157,22 @@
     <value>Save as CSV …</value>
     <comment>Menu item</comment>
   </data>
+  <data name="GridMenu_SaveXlsx" xml:space="preserve">
+    <value>Save as Excel file …</value>
+    <comment>Menu item</comment>
+  </data>
+  <data name="GridMenu_SaveXlsxTitle" xml:space="preserve">
+    <value>Numbers and dates as typed cells, header row with filter – labels and values as in the grid</value>
+    <comment>Tooltip</comment>
+  </data>
+  <data name="GridMenu_SaveXlsxRaw" xml:space="preserve">
+    <value>Save as Excel file (database names, raw values) …</value>
+    <comment>Menu item; only shown if the grid shows C# names, enum members or display column names</comment>
+  </data>
+  <data name="GridMenu_SaveXlsxRawTitle" xml:space="preserve">
+    <value>Column names and values as stored in the database – without C# names, enum members and display column names</value>
+    <comment>Tooltip</comment>
+  </data>
   <data name="GridMenu_SaveInsert" xml:space="preserve">
     <value>Save as INSERT script …</value>
     <comment>Menu item</comment>
@@ -246,6 +262,10 @@
   </data>
   <data name="Export_CsvFilter" xml:space="preserve">
     <value>CSV (semicolon)</value>
+    <comment>File type in the save dialog</comment>
+  </data>
+  <data name="Export_XlsxFilter" xml:space="preserve">
+    <value>Excel workbook</value>
     <comment>File type in the save dialog</comment>
   </data>
   <data name="Export_SqlScriptFilter" xml:space="preserve">
