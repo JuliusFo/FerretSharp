@@ -1,5 +1,6 @@
 using FerretSharp.Core.Audit;
 using FerretSharp.Core.Connections;
+using FerretSharp.Core.IO;
 using FerretSharp.Core.Settings;
 
 namespace FerretSharp.UI.State;
@@ -43,6 +44,6 @@ public static class AuditGroupTemplates
             result = result.Without(key);
         }
 
-        return string.IsNullOrWhiteSpace(path) ? result : result.With(name, path.Trim().Trim('"'));
+        return PathInput.Normalize(path) is { } file ? result.With(name, file) : result;
     }
 }

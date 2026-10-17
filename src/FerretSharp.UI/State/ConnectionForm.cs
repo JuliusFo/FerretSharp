@@ -1,6 +1,7 @@
 using System.Globalization;
 using FerretSharp.Core.ClrModel;
 using FerretSharp.Core.Connections;
+using FerretSharp.Core.IO;
 using FerretSharp.Core.Resources;
 using FerretSharp.UI.Resources;
 
@@ -166,14 +167,14 @@ public sealed class ConnectionForm
         }
         else
         {
-            address = new TnsAliasAddress(Alias.Trim(), NullIfBlank(TnsAdminPath));
+            address = new TnsAliasAddress(Alias.Trim(), PathInput.Normalize(TnsAdminPath));
         }
 
-        var clrProject = NullIfBlank(ClrProjectFile.Trim('"')) is { } projectFile
+        var clrProject = PathInput.Normalize(ClrProjectFile) is { } projectFile
             ? new ClrProjectLink(projectFile, NullIfBlank(ClrConfiguration) ?? "Debug", NullIfBlank(ClrContextType))
             : null;
-        var profile = new ConnectionProfile(Id, Name.Trim(), Kind, address, User.Trim(), NullIfBlank(DefaultSchema), ReadOnly, NullIfBlank(Group), clrProject, ScriptFolder, NullIfBlank(AppEnvironment),
-            NullIfBlank(AuditTemplatePath.Trim().Trim('"')));
+        var profile = new ConnectionProfile(Id, Name.Trim(), Kind, address, User.Trim(), NullIfBlank(DefaultSchema), ReadOnly, NullIfBlank(Group), clrProject, PathInput.Normalize(ScriptFolder), NullIfBlank(AppEnvironment),
+            PathInput.Normalize(AuditTemplatePath));
         foreach (var (field, message) in ConnectionProfileValidator.Validate(profile))
         {
             errors[field] = message;

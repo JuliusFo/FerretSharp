@@ -269,7 +269,7 @@
     private Dictionary<string, string> EarlyErrors()
     {
         var errors = new Dictionary<string, string>();
-        if (ProjectExists.For(Form.ClrProjectFile.Trim().Trim('"')) is (true, true) && Validate() is var all && all.TryGetValue(ConnectionField.ClrProject, out var message))
+        if (PathInput.Normalize(Form.ClrProjectFile) is { } project && ProjectExists.For(project) is (true, true) && Validate() is var all && all.TryGetValue(ConnectionField.ClrProject, out var message))
         {
             errors[ConnectionField.ClrProject] = message;
         }
@@ -364,8 +364,7 @@
     /// </summary>
     private IReadOnlyList<string> AuditTemplateErrors()
     {
-        var path = Form.AuditTemplatePath.Trim().Trim('"');
-        if (path.Length == 0 || TemplateCheck.For(path) is not (true, var (exists, errors)))
+        if (PathInput.Normalize(Form.AuditTemplatePath) is not { } path || TemplateCheck.For(path) is not (true, var (exists, errors)))
         {
             return [];
         }
