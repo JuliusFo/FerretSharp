@@ -1,4 +1,4 @@
-# WP-51 Audit-Vorlage je Systemgruppe → Release offen
+# WP-51 Audit-Vorlage je Systemgruppe → Release 3.38.0
 Branch `wp/51-audit-template-per-group`. Anlass: Fund des Nutzers (2026-10-15). Jede Gruppe von Systemen hat ihre eigene Audit-Vorlage, FerretSharp kannte nur eine für alle (`AppSettings.AuditTemplatePath`, WP-26). Eine Audit-Tabelle mit `AUDIT_TIME TIMESTAMP(6) WITH TIME ZONE` gegen eine Vorlage mit `DATE` sperrte im Designer den Abgleich („… cannot take the values of the table (DATE)“), obwohl `DATE` gar nicht aus der Tabelle kam.
 
 ## Entscheidungen des Nutzers (2026-10-17)

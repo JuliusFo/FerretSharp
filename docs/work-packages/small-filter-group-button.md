@@ -1,4 +1,4 @@
-# Klein: „+ Gruppe“ ohne eigene Zeile → Release offen
+# Klein: „+ Gruppe“ ohne eigene Zeile → Release 3.38.0
 Wunsch des Nutzers (2026-10-16, nach 3.37.0): „+ Gruppe ▾“ stand unter den Filterzeilen in einer eigenen Zeile und kostete Platz, auch ohne Gruppen. Entscheidung des Nutzers: Knopf rechts neben „Vorlagen“, die Ablagefläche „ohne Gruppe“ nur beim Ziehen, „In neue Gruppe“ im Zeilenmenü. Branch `feat/filter-group-button`.
 - `FilterBar`: „+ Gruppe ▾“ steht mit Zeilen in `filter-actions` vor `PresetMenu`; im Leerzustand bleibt er neben „+ Filter“ (dieselbe Zeile, kein Platzgewinn rechts).
 - `filter-more` ist nur noch Ablageziel: gerendert nur mit Gruppen, per CSS nur sichtbar, solange `dragToDrop` am Root `dragging` setzt, als gestrichelte Fläche mit „Hier ablegen, um sie aus der Gruppe zu nehmen (UND)“ (`GridText.Filter_DropNoGroup`). Ohne Gruppen gibt es nichts herauszuziehen; Zeilen ohne Gruppe sind ohnehin Ablageziele, die Fläche zählt, wenn alle Zeilen in Gruppen stehen.
