@@ -367,7 +367,7 @@ public sealed class WorkspaceEditingTests : IAsyncDisposable
         var (workspace, tab) = AddTab(scope);
         tab.Changes!.SetValue(Row(1, "Meier"), 1, "Müller");
         var editor = await EditorAsync(scope);
-        var holder = new LockHolder(42, "APP_USER", "jdoe", "PC-1234", "MeineApp.exe", null, null, null);
+        var holder = new LockHolder(42, "APP_USER", "jdoe", "PC-1234", "MeineApp.exe", null, null);
         _app.LockHolders = [holder];
         editor.FailFlush = operations => Locked(operations[0]);
 
@@ -398,8 +398,8 @@ public sealed class WorkspaceEditingTests : IAsyncDisposable
         tab.Changes!.SetValue(Row(1, "Meier"), 1, "Müller");
         var editor = await EditorAsync(scope);
         var own = scope.Workspaces.SessionTagOf(workspace.WorkspaceId);
-        var other = new LockHolder(42, "APP_USER", "jdoe", "PC-1234", "MeineApp.exe", null, null, null);
-        _app.LockHolders = [other, new LockHolder(7, "APP_USER", "me", "PC-1", "FerretSharp.exe", "FerretSharp", "Test", null, own)];
+        var other = new LockHolder(42, "APP_USER", "jdoe", "PC-1234", "MeineApp.exe", null, null);
+        _app.LockHolders = [other, new LockHolder(7, "APP_USER", "me", "PC-1", "FerretSharp.exe", "FerretSharp", "Test", own)];
         editor.FailFlush = operations => Locked(operations[0]);
 
         Assert.False(await _app.Editing.FlushAsync(workspace));

@@ -198,5 +198,5 @@ public interface IDataEditor
 /// which names the workspace when it is one of this instance's.
 /// </param>
 public sealed record LockHolder(
-    int Sid, string? User, string? OsUser, string? Machine, string? Program, string? Module, string? Action, DateTime? LogonTime,
+    int Sid, string? User, string? OsUser, string? Machine, string? Program, string? Module, string? Action,
     string? ClientInfo = null);

@@ -71,7 +71,7 @@ public sealed class DdlRunTests
         await using var app = new TestApp();
         var profile = TestApp.Profile("Test");
         var scope = await app.OpenAsync(profile);
-        var holder = new LockHolder(42, "APP_USER", "jdoe", "PC-1234", "MeineApp.exe", "FerretSharp", "Workspace 2", null);
+        var holder = new LockHolder(42, "APP_USER", "jdoe", "PC-1234", "MeineApp.exe", "FerretSharp", "Workspace 2");
         app.LockHolders = [holder];
         app.FailDdl = sql => sql == Second ? new DatabaseException("Sperre …", "ORA-00054") : null;
 

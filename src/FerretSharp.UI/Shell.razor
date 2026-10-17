@@ -240,7 +240,6 @@
     private DomModule? _dom;
 
     private DomModule Dom => _dom ??= new(JS);
-    /// <summary>Per open connection the handler subscribed to its events (WP-24), to unsubscribe when it closes.</summary>
     /// <summary>Per open connection: the handler for its connection and workspaces, and the one for its model.</summary>
     private readonly Dictionary<ConnectionScope, (Action Scope, Action Model)> _subscribed = [];
 

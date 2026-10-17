@@ -9,7 +9,7 @@ namespace FerretSharp.UI.Tests.State;
 public sealed class SessionActivityTextTests : IAsyncDisposable
 {
     private static readonly TableRef Kunden = new("APP", "KUNDEN");
-    private static readonly LockHolder Scott = new(123, "SCOTT", "scott", "PC-17", "sqldeveloper64W.exe", "SQL Developer", null, null);
+    private static readonly LockHolder Scott = new(123, "SCOTT", "scott", "PC-17", "sqldeveloper64W.exe", "SQL Developer", null);
 
     private readonly TestApp _app = new();
 
@@ -48,7 +48,7 @@ public sealed class SessionActivityTextTests : IAsyncDisposable
     {
         Assert.Equal("Wartet auf eine Sperre auf KUNDEN, gehalten von Session 123 (SCOTT, PC-17, SQL Developer) · 0:12",
             SessionActivityText.Wait(Wait(Scott, Kunden), null));
-        var colleague = new LockHolder(7, "MARIA", null, "PC-3", "FerretSharp.exe", "FerretSharp", "Test", null, "FerretSharp 0123456789ab");
+        var colleague = new LockHolder(7, "MARIA", null, "PC-3", "FerretSharp.exe", "FerretSharp", "Test", "FerretSharp 0123456789ab");
         Assert.Equal("Wartet auf eine Sperre, gehalten von Session 7 (MARIA, PC-3, FerretSharp · Workspace „Test“) · 0:12",
             SessionActivityText.Wait(Wait(colleague), null));
         Assert.Equal("Wartet auf eine Sperre, gehalten von Session 55 · 0:12", SessionActivityText.Wait(Wait(null), null)); // other RAC instance
@@ -63,11 +63,11 @@ public sealed class SessionActivityTextTests : IAsyncDisposable
     [Fact]
     public void A_long_operation_shows_percent_and_the_time_left()
     {
-        var scan = new LongOperation("Table Scan", "APP.KUNDEN", 430, 1000, "Blocks", TimeSpan.FromSeconds(20));
+        var scan = new LongOperation("Table Scan", "APP.KUNDEN", 430, 1000, TimeSpan.FromSeconds(20));
         var left = TimeText.Duration(TimeSpan.FromSeconds(20));
 
         Assert.Equal($"Table Scan APP.KUNDEN: 43 % · noch etwa {left}", SessionActivityText.Progress(scan));
-        Assert.Equal("Hash Join: 10 %", SessionActivityText.Progress(new LongOperation("Hash Join", null, 1, 10, null, null)));
+        Assert.Equal("Hash Join: 10 %", SessionActivityText.Progress(new LongOperation("Hash Join", null, 1, 10, null)));
         Assert.Null(SessionActivityText.Progress(null));
         using (UiCulture.Use("en"))
         {

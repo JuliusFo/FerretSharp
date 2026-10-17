@@ -127,7 +127,7 @@ public sealed class StatementRunnerTests : IAsyncDisposable
     public async Task Ddl_on_a_table_another_session_holds_names_who_it_is()
     {
         var scope = await _app.OpenAsync(TestApp.Profile("Test"));
-        var holder = new LockHolder(42, "APP_USER", "jdoe", "PC-1234", "MeineApp.exe", null, null, null);
+        var holder = new LockHolder(42, "APP_USER", "jdoe", "PC-1234", "MeineApp.exe", null, null);
         _app.LockHolders = [holder];
         _app.FailDdl = _ => new DatabaseException("ORA-00054: Ressource belegt", "ORA-00054");
         const string ddl = """ALTER TABLE "APP_USER"."KUNDEN" DROP COLUMN "FAX" """;

@@ -43,7 +43,7 @@ public sealed record SettingsEntry(string Id, SettingsPart Part, string Label, s
 /// </summary>
 public static class SettingsCatalog
 {
-    public const string KeepAliveQuery = "SELECT 1 FROM DUAL";
+    public const string KeepAliveQuery = FerretSharp.Core.Oracle.OracleSession.PingSql;
     public const string KeepAliveProfileLimit = "IDLE_TIME";
     public const string LockWaitClause = "SELECT … FOR UPDATE WAIT n";
     public const string DisplayNameExample = "4711 · PetersPizza";
