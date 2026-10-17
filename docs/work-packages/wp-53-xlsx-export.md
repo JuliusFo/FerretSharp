@@ -1,4 +1,4 @@
-# WP-53 Export als Excel-Datei
+# WP-53 Export als Excel-Datei → Release 3.40.0
 Branch `wp/53-xlsx-export`. ADR 0028. Aus der Ideensammlung vom 2026-10-17, vom Nutzer als Paket übernommen und am selben Tag begonnen.
 
 ## Planung (aus `docs/roadmap.md`)
