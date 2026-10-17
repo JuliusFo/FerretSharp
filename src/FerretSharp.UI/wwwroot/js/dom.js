@@ -131,6 +131,38 @@ export function focusFirstInput(element) {
   element?.querySelector('input:not([disabled]):not([readonly]), select:not([disabled]), textarea:not([disabled]):not([readonly])')?.focus();
 }
 
+const focusable = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/** Tab and Shift+Tab stay inside the dialog box (review 3.40.0, A15): they went on to the buttons behind the backdrop, and
+ *  Enter there committed from the status bar while a confirmation was open. Tab inside Monaco or a grid that handles it
+ *  stays theirs. The listener is on the backdrop and goes with it. */
+export function trapFocus(box) {
+  const backdrop = box?.parentElement;
+  if (!backdrop || backdrop._focusTrap) {
+    return;
+  }
+
+  backdrop._focusTrap = true;
+  backdrop.addEventListener('keydown', e => {
+    if (e.key !== 'Tab' || e.defaultPrevented || e.target.closest?.('.monaco-editor')) {
+      return;
+    }
+
+    const items = [...box.querySelectorAll(focusable)].filter(el => el.offsetParent !== null);
+    const active = document.activeElement;
+    if (items.length === 0) {
+      e.preventDefault();
+      box.focus();
+    } else if (e.shiftKey && (active === items[0] || !items.includes(active))) {
+      e.preventDefault();
+      items[items.length - 1].focus();
+    } else if (!e.shiftKey && (active === items[items.length - 1] || !items.includes(active))) {
+      e.preventDefault();
+      items[0].focus();
+    }
+  });
+}
+
 /** True if the element contains the focused element (Ctrl+F: the form's search or the grid's column jump). */
 export function containsFocus(element) {
   return !!element && element.contains(document.activeElement);

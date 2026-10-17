@@ -18,7 +18,7 @@ Entscheidungen des Nutzers (2026-10-05/06): SELECT überall, INSERT/UPDATE/DELET
 - **Bind-Variablen** (`SqlBinds`): Werte wie im Filter (deutsche/invariante Zahlen, deutsches/ISO-Datum, Hex), Typen Text, Text (CHAR – blank-padded wie im Grid), Zahl, Datum, Hex (RAW), NULL. Neue Variablen bekommen den Typ der Spalte, mit der sie verglichen werden. Gebunden nach Namen (`BindByName`), auch doppelt verwendete und in anderer Schreibweise.
 - **Autovervollständigung** (`SqlCompletion`) aus dem Schema-Cache: nach FROM/JOIN/INTO/UPDATE/USING Tabellen, Views, Synonyme (mit Entity), nach `alias.` die Spalten dieser Tabelle in Schema-Reihenfolge (mit Typ und Property), sonst die Spalten aller Tabellen des Statements und Schlüsselwörter; Namen mit Bedarf (gemischte Schreibweise, reservierte Wörter) gequotet. Monaco fragt .NET über einen Completion-Provider je Sprache.
 - **Verlauf** (`SqlHistoryStore`): `history\{Verbindung}.json`, neueste zuerst, höchstens 500, Wiederholung ersetzt den letzten Eintrag; Prod-Verbindungen ohne Bind-Werte. Wird mit der Verbindung gelöscht.
-- Freie Abfragen liefern LOBs wie das Tabellen-Grid als Vorschau mit Länge (die Session liest sie trotzdem ganz – Grenze, Backlog).
+- Freie Abfragen liefern LOBs wie das Tabellen-Grid als Vorschau mit Länge. Nachtrag R6a (3.40.1): Die Session holt auch nur die Vorschau (`InitialLOBFetchSize` = 200, Länge aus dem Locator, gleiche Zahl Roundtrips); vorher las sie jeden LOB ganz, auch der übersprungenen Zeilen beim Blättern.
 
 ## Konsequenzen
 

@@ -39,7 +39,7 @@
             <span>@Failure(result)</span>
             @if (result.Error is { ErrorCode: not null } error)
             {
-                <button class="link-btn" @onclick="() => Shell.ShowError(error)">@CommonText.Details</button>
+                <button class="link-btn" @onclick="() => Shell.ShowError(error, Active.Profile?.MasksValues == true)">@CommonText.Details</button>
             }
         </div>
         @if (result.Lock is { } tableLock)
@@ -87,6 +87,10 @@
 
     [CascadingParameter]
     public WorkspaceManager Workspaces { get; set; } = null!;
+
+    /// <summary>The connection the DDL runs on: its errors mask values like the connection does (review 3.40.0, A8).</summary>
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
 
     [Parameter, EditorRequired]
     public Guid WorkspaceId { get; set; }

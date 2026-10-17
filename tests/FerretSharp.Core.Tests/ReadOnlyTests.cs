@@ -134,7 +134,7 @@ public class ReadOnlyTests
     [Theory]
     [InlineData("CREATE TABLE t (id NUMBER PRIMARY KEY, name VARCHAR2(40 CHAR))")]
     [InlineData("  alter table t add (c number default 0 not null)")]
-    [InlineData("-- schema\nDROP TABLE t PURGE")]
+    [InlineData("-- schema\nDROP TABLE t")]
     [InlineData("COMMENT ON COLUMN t.c IS 'a;b'")]
     [InlineData("CREATE OR REPLACE VIEW v AS SELECT * FROM t")]
     [InlineData("CREATE INDEX t_c ON t (c);")]
@@ -170,6 +170,8 @@ public class ReadOnlyTests
     [InlineData("ALTER TABLE t DROP SUBPARTITION sp1")]
     [InlineData("FLASHBACK TABLE t TO TIMESTAMP SYSTIMESTAMP")]
     [InlineData("PURGE RECYCLEBIN")]
+    [InlineData("-- schema\nDROP TABLE t PURGE")] // review 3.40.0, SE-8: past the recycle bin
+    [InlineData("DROP USER app CASCADE")]
     [InlineData("ALTER SESSION SET CURRENT_SCHEMA = X")]
     [InlineData("ALTER SYSTEM KILL SESSION '1,2'")]
     [InlineData("CREATE OR REPLACE PROCEDURE p AS BEGIN NULL; END;")]

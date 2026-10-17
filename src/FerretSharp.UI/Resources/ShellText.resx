@@ -1852,4 +1852,17 @@
     <value>Edit connection…</value>
     <comment>Button: opens the connection dialog</comment>
   </data>
+  <data name="Leave_Busy" xml:space="preserve">
+    <value>A write or commit of these workspaces is still running. Wait for it – or, if it does not return (VPN, firewall), disconnect the session.</value>
+  </data>
+  <data name="Dialogs_ResetSessionTitle" xml:space="preserve">
+    <value>Disconnect session?</value>
+  </data>
+  <data name="Dialogs_ResetSessionText" xml:space="preserve">
+    <value>The write or commit of {0} has not returned. Disconnecting the session ends it: what was written in its transaction is rolled back, grid changes become pending again. If a commit was already on its way, check afterwards whether it went through.</value>
+    <comment>{0}: workspace name</comment>
+  </data>
+  <data name="Status_StuckTitle" xml:space="preserve">
+    <value>The write or commit has not returned for a while – the connection may be hanging (VPN, firewall). Disconnecting the workspace’s session ends it.</value>
+  </data>
 </root>

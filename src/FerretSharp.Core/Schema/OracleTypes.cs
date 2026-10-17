@@ -13,6 +13,12 @@ public enum ColumnTypeChange
     /// <summary>Works with any data.</summary>
     Free,
 
+    /// <summary>
+    /// Works with any data but changes values without a word (review 3.40.0, A9): TIMESTAMP → DATE cuts the fractional
+    /// seconds, VARCHAR2 → CHAR pads with blanks. Committed at once like every DDL – the designer and the comparison warn.
+    /// </summary>
+    ChangesValues,
+
     /// <summary>Works unless a value is too long for the new length (ORA-01441); Oracle checks the values.</summary>
     MayFailOnValues,
 
@@ -254,7 +260,8 @@ public static partial class OracleTypes
 
     /// <summary>
     /// What <c>ALTER TABLE … MODIFY</c> from one type to another needs, as Oracle 23 answered with data in the column
-    /// (WP-23 experiment): text of the same kind, longer, or with CHAR instead of BYTE, DATE ↔ TIMESTAMP, more digits on both
+    /// (WP-23 experiment): text of the same kind, longer, or with CHAR instead of BYTE, DATE ↔ TIMESTAMP (to DATE without the
+    /// fractional seconds, and to CHAR padded: <see cref="ColumnTypeChange.ChangesValues"/>), more digits on both
     /// sides of the decimal point and an unconstrained NUMBER or FLOAT go through. Shorter text or RAW goes through unless a
     /// value is too long (ORA-01441). Fewer integer or decimal digits (ORA-01440), fewer fractional seconds (ORA-30082),
     /// another family, NVARCHAR2 → VARCHAR2 or a time zone added or taken away (ORA-01439) need an empty column. To or from a
@@ -282,6 +289,7 @@ public static partial class OracleTypes
             "text" when from.DataType is "NVARCHAR2" or "NCHAR" && to.DataType is "VARCHAR2" or "CHAR" => ColumnTypeChange.NeedsEmptyColumn,
             "text" or "raw" => (to.Length ?? 0) < (from.Length ?? 0) || (from.CharSemantics && !to.CharSemantics)
                 ? ColumnTypeChange.MayFailOnValues
+                : IsFixedChar(to.DataType) && !IsFixedChar(from.DataType) ? ColumnTypeChange.ChangesValues // padded with blanks
                 : ColumnTypeChange.Free,
             "number" => NumberChange(from, to),
             "datetime" => DateTimeChange(from.DataType, to.DataType),
@@ -308,7 +316,8 @@ public static partial class OracleTypes
                 : ValueFit.Lossy;
         }
 
-        return ChangeOf(value, column) is ColumnTypeChange.Same or ColumnTypeChange.Free ? ValueFit.Full : ValueFit.None;
+        // Text padded with blanks (VARCHAR2 → CHAR) goes in; date and time types are decided above.
+        return ChangeOf(value, column) is ColumnTypeChange.Same or ColumnTypeChange.Free or ColumnTypeChange.ChangesValues ? ValueFit.Full : ValueFit.None;
 
         static int ZoneLevel(string type) => HasTimeZone(type) ? 2 : IsLocalTimeZone(type) ? 1 : 0;
 
@@ -338,7 +347,10 @@ public static partial class OracleTypes
     {
         if (from == "DATE" || to == "DATE")
         {
-            return Zone(from) == Zone(to) ? ColumnTypeChange.Free : ColumnTypeChange.NeedsEmptyColumn;
+            // TIMESTAMP → DATE goes through with data, cutting the fractional seconds (review 3.40.0, A9).
+            return Zone(from) != Zone(to) ? ColumnTypeChange.NeedsEmptyColumn
+                : to == "DATE" && TimestampFraction(from) > 0 ? ColumnTypeChange.ChangesValues
+                : ColumnTypeChange.Free;
         }
 
         return Zone(from) != Zone(to) || TimestampFraction(to) < TimestampFraction(from) ? ColumnTypeChange.NeedsEmptyColumn : ColumnTypeChange.Free;

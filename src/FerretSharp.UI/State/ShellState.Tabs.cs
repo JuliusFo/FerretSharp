@@ -102,10 +102,8 @@ public sealed partial class ShellState
     /// <summary>Another connection is shown (WP-24): its active workspace and tabs become the active ones.</summary>
     public void ShowConnection(Guid? connectionId) => Set(() =>
     {
-        if (_pendingLink?.ConnectionId is { } linked && linked != connectionId)
-        {
-            _pendingLink = null; // the user went elsewhere: the link does not open later on its own
-        }
+        // The user went elsewhere: what waits for another connection does not open later on its own.
+        DropPendingExcept(connectionId);
 
         CurrentConnection = connectionId;
         SwitcherOpen = false;
@@ -165,9 +163,38 @@ public sealed partial class ShellState
         }
 
         _failures[connectionId] = failure;
+        DropPendingFor(connectionId);
+    }
+
+    /// <summary>
+    /// A link or script waiting for <paramref name="connectionId"/> no longer opens on its own: connecting failed or was
+    /// cancelled (review of WP-37). Review 3.40.0, A17: the script of the schema comparison or the app statements kept
+    /// waiting, and a SQL tab opened hours later when the user connected by hand.
+    /// </summary>
+    private void DropPendingFor(Guid connectionId)
+    {
         if (_pendingLink?.ConnectionId == connectionId)
         {
             _pendingLink = null;
+        }
+
+        if (_pendingSql?.ConnectionId == connectionId)
+        {
+            _pendingSql = null;
+        }
+    }
+
+    /// <summary>What waits for a connection other than <paramref name="shown"/> no longer opens on its own.</summary>
+    private void DropPendingExcept(Guid? shown)
+    {
+        if (_pendingLink?.ConnectionId is { } linked && linked != shown)
+        {
+            _pendingLink = null;
+        }
+
+        if (_pendingSql?.ConnectionId is { } scripted && scripted != shown)
+        {
+            _pendingSql = null;
         }
     }
 
@@ -468,10 +495,27 @@ public sealed partial class ShellState
     /// </summary>
     public void RemoveVanishedTabs(Guid connectionId, SchemaCache schema) => RemoveWhere(connectionId, tab => tab switch
     {
-        TableTab table => schema.Find(table.Table.Ref) is null,
+        TableTab table => Vanished(table, schema),
         PlSqlTab plSql => schema.FindPlSql(plSql.Unit.Ref) is null,
         _ => false,
     });
+
+    /// <summary>
+    /// A table tab whose table is gone from the browsed schema (review 3.40.0, A5). A table of another schema that no synonym
+    /// reaches was opened by name (an FK jump, <see cref="FkTargets.SummaryOf"/>) and is never in the cache – its tab stays, as
+    /// does a tab with pending or written changes: closing it lost them without a word. Its next load names the problem.
+    /// </summary>
+    /// <summary>
+    /// A saved tab on a table of another schema that no synonym reaches: it was opened by name and is restored the same way
+    /// (review 3.40.0, A5) – before, it was dropped on every start. A table of the browsed schema that is gone stays dropped.
+    /// </summary>
+    private static TableSummary? OpenedByName(TableRef table, SchemaCache schema) =>
+        string.Equals(table.Owner, schema.Owner, StringComparison.Ordinal) ? null : new TableSummary(table.Owner, table.Name, TableKind.Table);
+
+    private static bool Vanished(TableTab tab, SchemaCache schema) =>
+        schema.Find(tab.Table.Ref) is null
+        && string.Equals(tab.Table.Owner, schema.Owner, StringComparison.Ordinal)
+        && tab.Changes is not { PendingCount: > 0 } and not { FlushedCount: > 0 };
 
     private void RemoveWhere(Guid connectionId, Predicate<WorkspaceTab> predicate) => Set(() =>
     {
@@ -535,7 +579,7 @@ public sealed partial class ShellState
 
                 tab = PlSqlTab.Restore(workspace.Id, unit, plSql);
             }
-            else if (schema.Find(state.Table) is { } table)
+            else if ((schema.Find(state.Table) ?? OpenedByName(state.Table, schema)) is { } table)
             {
                 var tableTab = TableTab.Restore(workspace.Id, table, state);
                 restored[i] = tableTab;

@@ -2,6 +2,7 @@
    with completion from .NET. The text belongs to the parent: changes come back through OnChange, SetTextAsync replaces it.
    Read-only for PL/SQL source (WP-28), with compile errors as markers. *@
 @using FerretSharp.Core.ClrModel
+@inherits FerretComponent
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 
@@ -113,12 +114,13 @@
     private async Task<T?> CallAsync<T>(string identifier, params object?[] args) =>
         !_disposed && _module is { IsLoaded: true } module ? await module.InvokeAsync<T>(identifier, args) : default;
 
+    /// <summary>Review 3.40.0, A29: an exception goes to the tab's error boundary, not unobserved back to JS.</summary>
     [JSInvokable]
-    public Task OnTextChanged(string elementId, string text) => OnChange.InvokeAsync(text);
+    public Task OnTextChanged(string elementId, string text) => GuardAsync(() => OnChange.InvokeAsync(text));
 
     /// <summary>Monaco's completion provider asks; the kind goes as text (Table, Column …) for the icon.</summary>
     [JSInvokable]
-    public async Task<object[]> OnComplete(string elementId, string text, int offset)
+    public Task<object[]> OnComplete(string elementId, string text, int offset) => GuardAsync<object[]>(async () =>
     {
         if (Completion is null)
         {
@@ -127,7 +129,7 @@
 
         var items = await Completion(text, offset);
         return items.Select(i => (object)new { label = i.Label, insertText = i.InsertText, kind = i.Kind, detail = i.Detail, rank = i.Rank }).ToArray();
-    }
+    }, []);
 
     /// <summary>The text with selection start and end (equal without a selection) as offsets; null if the editor is gone.</summary>
     public Task<EditorRunContext?> GetRunContextAsync() => CallAsync<EditorRunContext?>("getRunContext", _id);

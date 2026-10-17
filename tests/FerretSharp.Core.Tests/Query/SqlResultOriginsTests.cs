@@ -87,6 +87,19 @@ public sealed class SqlResultOriginsTests
             await ResolveAsync("SELECT KUNDE_ID, NAME AS N, 1 + 1 FROM kunden", "KUNDEN.KUNDE_ID", "KUNDEN.NAME", null));
     }
 
+    /// <summary>
+    /// Review 3.40.0, A23 (measured against Oracle 23: ODP.NET names <c>KUNDEN@SELF_LINK</c> just KUNDEN): a table over a
+    /// database link resolved to this connection's table of that name, and the FK jump showed its rows as related.
+    /// </summary>
+    [Fact]
+    public async Task A_table_over_a_database_link_has_no_origin()
+    {
+        Assert.Equal([null, null], await ResolveAsync("SELECT KUNDE_ID, NAME FROM kunden@prod", "KUNDEN.KUNDE_ID", "KUNDEN.NAME"));
+        Assert.Equal([null], await ResolveAsync("SELECT k.KUNDE_ID FROM app.kunden@prod.example.com k", "APP.KUNDEN.KUNDE_ID"));
+        Assert.Equal(["AUFTRAG:APP.AUFTRAG.AUFTRAG_ID", null],
+            await ResolveAsync("SELECT a.AUFTRAG_ID, k.NAME FROM AUFTRAG a JOIN KUNDEN@prod k ON k.KUNDE_ID = a.KUNDE_ID", "AUFTRAG.AUFTRAG_ID", "KUNDEN.NAME"));
+    }
+
     [Fact]
     public async Task An_unquoted_alias_comes_resolved_from_the_driver()
     {

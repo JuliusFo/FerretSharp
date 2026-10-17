@@ -60,7 +60,7 @@
     {
         <div class="tab-error">
             <span>@_loadError.Display</span>
-            <button class="link-btn" @onclick="() => Shell.ShowError(_loadError)">@CommonText.Details</button>
+            <button class="link-btn" @onclick="() => Shell.ShowError(_loadError, Active.Profile?.MasksValues == true)">@CommonText.Details</button>
         </div>
     }
     else if (_details is null)
@@ -77,7 +77,7 @@
                     <span>@Tab.Error</span>
                     @if (Tab.Failure is { } failure)
                     {
-                        <button class="link-btn" @onclick="() => Shell.ShowError(failure)">@CommonText.Details</button>
+                        <button class="link-btn" @onclick="() => Shell.ShowError(failure, Active.Profile?.MasksValues == true)">@CommonText.Details</button>
                     }
                 </div>
             }

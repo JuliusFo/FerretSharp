@@ -292,7 +292,7 @@ public sealed class SessionTransactionTests(OracleContainerFixture oracle) : IAs
         await session.RollbackAsync(Ct);
         Assert.Equal(0, await CountRawAsync("ID = 70")); // the refused DDL did not commit the insert
 
-        await session.ExecuteDdlAsync("DROP TABLE TXS_DDL PURGE", Ct);
+        await session.ExecuteDdlAsync("DROP TABLE TXS_DDL", Ct);
         await session.UseReadOnlySnapshotsAsync(Ct);
         await Assert.ThrowsAsync<RefusedException>(() => session.ExecuteDdlAsync("CREATE TABLE TXS_NIE (ID NUMBER)", Ct));
         Assert.Equal(TransactionMode.ReadOnly, session.Transaction.Mode);

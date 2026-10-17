@@ -52,6 +52,25 @@ public abstract partial record OracleAddress
         _ => false,
     };
 
+    /// <summary>
+    /// A host FerretSharp puts into a connect descriptor or EZConnect text (review 3.40.0, A7): a name or IPv4 address, or an
+    /// IPv6 address in brackets. A value from an imported file such as <c>db01)(PORT=1))(ADDRESS=(PROTOCOL=TCP)(HOST=evil</c>
+    /// would otherwise add an address of its own – Oracle fails over to it, and the saved password with it.
+    /// </summary>
+    public static bool IsPlainHost(string host) => PlainHost().IsMatch(host.Trim());
+
+    /// <summary>A service name or SID: letters, digits and <c>. _ $ # -</c> (see <see cref="IsPlainHost"/>).</summary>
+    public static bool IsPlainName(string name) => PlainName().IsMatch(name.Trim());
+
+    /// <summary>A TNS alias: no blanks and none of <c>( ) =</c> – those would make it a descriptor of its own.</summary>
+    public static bool IsPlainAlias(string alias) => alias.Trim() is { Length: > 0 } text && !text.Any(c => char.IsWhiteSpace(c) || c is '(' or ')' or '=');
+
+    [GeneratedRegex(@"^(\[[0-9A-Fa-f:.%]+\]|[\p{L}\p{N}._-]+)$")]
+    private static partial Regex PlainHost();
+
+    [GeneratedRegex(@"^[\p{L}\p{N}._$#-]+$")]
+    private static partial Regex PlainName();
+
     private static bool Same(string? a, string? b) =>
         string.Equals(string.IsNullOrWhiteSpace(a) ? null : a.Trim(), string.IsNullOrWhiteSpace(b) ? null : b.Trim(), StringComparison.OrdinalIgnoreCase);
 

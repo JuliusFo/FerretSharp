@@ -246,4 +246,8 @@
     <value>The DDL proposal could not be created: {0}</value>
     <comment>{0} = error message</comment>
   </data>
+  <data name="Compare_NotSavedUnread" xml:space="preserve">
+    <value>Not saved: the saved comparisons could not be read ({0}). Fix or remove the file first – saving now would replace all of them.</value>
+    <comment>{0}: why the file could not be read</comment>
+  </data>
 </root>

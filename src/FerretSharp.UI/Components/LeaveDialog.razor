@@ -1,6 +1,8 @@
-@* Uncommitted changes before closing a workspace, disconnecting, switching the connection or exiting (v2). *@
+@* Uncommitted changes before closing a workspace, disconnecting, switching the connection or exiting (v2). While a write or
+   commit of the listed workspaces runs, committing and discarding wait; "Cancel" and Escape always work, and the session
+   can be given up – over a silent VPN the write may never return (review 3.40.0, A2). *@
 
-<ModalFrame Label="@ShellText.Leave_Title" Class="confirm" Alert="true">
+<ModalFrame Label="@ShellText.Leave_Title" Class="confirm" Alert="true" OnCancel="OnCancel">
     <header><span>@ShellText.Leave_Title</span></header>
     <div class="dialog-body">
         <p>@TextFormat.Format(ShellText.Leave_Text, Request.What)</p>
@@ -13,9 +15,17 @@
                 </li>
             }
         </ul>
+        @if (Busy)
+        {
+            <p class="hint">@ShellText.Leave_Busy</p>
+        }
     </div>
     <footer>
-        <button class="btn ghost" @ref="_cancel" @onclick="OnCancel" disabled="@Busy">@CommonText.Cancel</button>
+        <button class="btn ghost" @ref="_cancel" @onclick="OnCancel">@CommonText.Cancel</button>
+        @if (Busy && OnResetSession.HasDelegate)
+        {
+            <button class="btn danger" title="@SqlEditorText.Run_DisconnectSessionTitle" @onclick="OnResetSession">@SqlEditorText.Run_DisconnectSessionAsk</button>
+        }
         <span class="spacer"></span>
         <button class="btn danger-solid" @onclick="OnDiscard" disabled="@Busy">@CommonText.Discard</button>
         <button class="btn primary" @onclick="OnCommit" disabled="@Busy">@ShellText.CommitButton</button>
@@ -41,6 +51,7 @@
     [Parameter, EditorRequired]
     public IReadOnlyList<(string Name, EditSummary Summary)> Items { get; set; } = [];
 
+    /// <summary>A write, commit or rollback of a listed workspace is running.</summary>
     [Parameter]
     public bool Busy { get; set; }
 
@@ -52,6 +63,10 @@
 
     [Parameter]
     public EventCallback OnCancel { get; set; }
+
+    /// <summary>While <see cref="Busy"/>: asks to give up the session of the busy workspace.</summary>
+    [Parameter]
+    public EventCallback OnResetSession { get; set; }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

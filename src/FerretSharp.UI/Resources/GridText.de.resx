@@ -18,6 +18,9 @@
   <data name="Editing_Busy" xml:space="preserve">
     <value>Änderungen dieses Workspaces werden gerade geschrieben oder committet – versuch es noch einmal, sobald das fertig ist.</value>
   </data>
+  <data name="Editing_StatementRunning" xml:space="preserve">
+    <value>Ein Statement dieses Workspaces läuft noch – erst abwarten oder abbrechen; es würde sonst ungesehen committet oder zurückgerollt.</value>
+  </data>
   <data name="Grid_WriteRunning" xml:space="preserve">
     <value>Änderungen werden gerade geschrieben – bearbeite weiter, sobald das fertig ist.</value>
   </data>
@@ -899,5 +902,8 @@
   </data>
   <data name="Problem_OwnWorkspaceElsewhere" xml:space="preserve">
     <value>Dein Workspace „{0}“ in {1}</value>
+  </data>
+  <data name="Editing_CommitOutcomeUnknown" xml:space="preserve">
+    <value>Die Verbindung brach während des Commits ab – ob er angekommen ist, ist offen. Die Änderungen stehen wieder als ausstehend da: Nach dem Neuverbinden erst prüfen, ob sie schon in der Datenbank sind, bevor du sie erneut schreibst (ein INSERT legte die Zeilen sonst doppelt an).</value>
   </data>
 </root>

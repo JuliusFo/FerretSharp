@@ -174,8 +174,12 @@
     /// <summary>A grid already replaced reports nothing: its status would overwrite the one of the grid shown now.</summary>
     private Task Status(SqlGridStatus status) => _disposed ? Task.CompletedTask : OnStatus.InvokeAsync(status);
 
+    /// <summary>Review 3.40.0, A29: a failure of the presentation went back to grid.js – an empty grid, nothing in the log.</summary>
     [JSInvokable]
-    public async Task<GridPage> GetRows(int startRow, int endRow, GridSort[] sortModel)
+    public Task<GridPage> GetRows(int startRow, int endRow, GridSort[] sortModel) =>
+        GuardAsync(() => GetRowsCoreAsync(startRow, endRow), GridPage.Failure);
+
+    private async Task<GridPage> GetRowsCoreAsync(int startRow, int endRow)
     {
         SqlPage page;
         if (startRow == 0 && _firstPage is { } first)

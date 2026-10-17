@@ -65,19 +65,35 @@ internal static class Program
         }
     }
 
-    private static void RegisterLinks(bool onlyIfNone = false)
+    /// <summary>
+    /// Never throws (review 3.40.0, A34): a policy that locks <c>HKCU\Software\Classes</c> would fail the install, update
+    /// or uninstall hook. Links can be registered later in the settings.
+    /// </summary>
+    private static void RegisterLinks(bool onlyIfNone = false) => Quietly(() =>
     {
         if (Environment.ProcessPath is { } program && (!onlyIfNone || new ProtocolRegistration().RegisteredProgram is null))
         {
             ProtocolRegistration.Register(program);
         }
-    }
+    });
 
-    private static void UnregisterLinks()
+    private static void UnregisterLinks() => Quietly(() =>
     {
         if (Environment.ProcessPath is { } program)
         {
             ProtocolRegistration.Unregister(program);
+        }
+    });
+
+    private static void Quietly(Action registryWork)
+    {
+        try
+        {
+            registryWork();
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or System.Security.SecurityException)
+        {
+            // the hook goes on; the settings offer the registration again
         }
     }
 

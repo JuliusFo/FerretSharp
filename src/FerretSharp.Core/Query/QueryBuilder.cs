@@ -412,8 +412,8 @@ public static class QueryBuilder
         private string Like(ColumnInfo column, string c, string pattern) =>
             $"UPPER({c}) LIKE UPPER({Add(new QueryParameter(NextName(), pattern, IsNational(column) ? OracleTypeHint.NVarchar2 : OracleTypeHint.Varchar2))}) ESCAPE '\\'";
 
-        /// <summary>NCHAR and NVARCHAR2 (an NCLOB is never compared with LIKE).</summary>
-        private static bool IsNational(ColumnInfo column) => OracleTypes.IsCharacter(column.DataType) && OracleTypes.IsNational(column.DataType);
+        /// <summary>NCHAR, NVARCHAR2 and NCLOB: "contains" and the like work on an NCLOB too (review 3.40.0, A21 – it was bound as VARCHAR2).</summary>
+        private static bool IsNational(ColumnInfo column) => OracleTypes.IsNational(column.DataType);
 
         private string Bind(ColumnInfo column, string text)
         {

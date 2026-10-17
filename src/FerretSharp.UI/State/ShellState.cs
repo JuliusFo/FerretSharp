@@ -85,6 +85,12 @@ public sealed partial class ShellState
     /// <summary>Shown in the error dialog (code, message, statement).</summary>
     public DatabaseException? ErrorDetails { get; private set; }
 
+    /// <summary>
+    /// The bind values of <see cref="ErrorDetails"/> stay hidden: the statement ran on a connection that masks values (Prod).
+    /// The connection it ran on decides, not the one shown when the dialog opens (review 3.40.0, A8).
+    /// </summary>
+    public bool ErrorMasked { get; private set; }
+
     /// <summary>Short-lived message (export done, warnings), shown as a toast.</summary>
     public Notice? Notice { get; private set; }
 
@@ -177,7 +183,8 @@ public sealed partial class ShellState
 
     public void CancelReconnectOffer() => Set(() => ReconnectOffer = null);
 
-    public void ShowError(DatabaseException error) => Set(() => ErrorDetails = error);
+    /// <param name="maskValues">The connection the statement ran on masks values (<see cref="ConnectionProfile.MasksValues"/>).</param>
+    public void ShowError(DatabaseException error, bool maskValues) => Set(() => (ErrorDetails, ErrorMasked) = (error, maskValues));
 
     public void CloseError() => Set(() => ErrorDetails = null);
 
@@ -251,12 +258,15 @@ public sealed partial class ShellState
 
     public void ClosePassword() => Set(() => PendingPassword = null);
 
-    /// <summary>The user cancelled the password: a link waiting for that connection (WP-37) does not open later on its own.</summary>
+    /// <summary>
+    /// The user cancelled the password: a link (WP-37) or script (review 3.40.0, A17) waiting for that connection does not
+    /// open later on its own.
+    /// </summary>
     public void CancelPassword() => Set(() =>
     {
-        if (PendingPassword is { } request && _pendingLink?.ConnectionId == request.Profile.Id)
+        if (PendingPassword is { } request)
         {
-            _pendingLink = null;
+            DropPendingFor(request.Profile.Id);
         }
 
         PendingPassword = null;
@@ -268,7 +278,14 @@ public sealed partial class ShellState
     /// <summary>Shows a link from outside for confirmation; a newer one replaces one not yet answered.</summary>
     public void ShowIncomingLink(IncomingLink link) => Set(() => IncomingLink = link);
 
-    public void CloseIncomingLink() => Set(() => IncomingLink = null);
+    public void CloseIncomingLink()
+    {
+        Set(() => IncomingLink = null);
+        IncomingLinkClosed?.Invoke();
+    }
+
+    /// <summary>The link dialog was answered: a link that arrived meanwhile is shown now (review 3.40.0, A25).</summary>
+    public event Action? IncomingLinkClosed;
 
     /// <summary>The import dialog is open (WP-35).</summary>
     public bool ImportOpen { get; private set; }

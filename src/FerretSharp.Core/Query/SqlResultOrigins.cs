@@ -117,9 +117,17 @@ public static class SqlResultOrigins
             return named.Count(r => r.Depth == 0) <= 1 && OneTable(named) is { } named1 ? new Source(name, named1) : null;
         }
 
-        /// <summary>The table all references stand for; null if none, unknown or different ones.</summary>
+        /// <summary>
+        /// The table all references stand for; null if none, unknown or different ones – or one over a database link: the
+        /// driver names <c>KUNDEN@PROD</c> just KUNDEN, and the FK jump showed this database's rows as related (A23).
+        /// </summary>
         private TableSummary? OneTable(List<SqlTableReference> candidates)
         {
+            if (candidates.Any(r => r.DbLink is not null))
+            {
+                return null;
+            }
+
             var tables = candidates.Select(r => SqlCompletion.Resolve(schema, r)).ToList();
             return tables is [{ } first, ..] && tables.All(t => t is not null && t.Ref == first.Ref) ? first : null;
         }

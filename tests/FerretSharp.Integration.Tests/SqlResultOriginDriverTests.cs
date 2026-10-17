@@ -72,6 +72,42 @@ public sealed class SqlResultOriginDriverTests(OracleContainerFixture oracle)
         Assert.Equal([$"{SynonymSchema.OtherOwner}.PRODUKT.ID"], await OriginsAsync(connectionString, $"SELECT p.ID FROM {SynonymSchema.OtherOwner}.PRODUKT p"));
     }
 
+    /// <summary>
+    /// Review 3.40.0, A23: a table over a database link comes back as the bare table name – what resolved to this
+    /// connection's table of that name (SqlResultOrigins now gives such references no origin).
+    /// </summary>
+    [Fact]
+    public async Task A_table_over_a_database_link_comes_back_without_the_link()
+    {
+        var connectionString = oracle.RequireConnectionString();
+        await SampleSchema.EnsureCreatedAsync(connectionString, Ct);
+        var app = new OracleConnectionStringBuilder(connectionString);
+        await using (var system = new OracleConnection(new OracleConnectionStringBuilder(connectionString) { UserID = "system" }.ConnectionString))
+        {
+            await system.OpenAsync(Ct);
+            await using var grant = system.CreateCommand();
+            grant.CommandText = $"GRANT CREATE DATABASE LINK TO {app.UserID}";
+            await grant.ExecuteNonQueryAsync(Ct);
+        }
+
+        await using (var connection = new OracleConnection(connectionString))
+        {
+            await connection.OpenAsync(Ct);
+            await using var create = connection.CreateCommand();
+            create.CommandText = $"CREATE DATABASE LINK ORIGIN_LOOP CONNECT TO {app.UserID} IDENTIFIED BY \"{app.Password}\" USING 'localhost:1521/FREEPDB1'";
+            try
+            {
+                await create.ExecuteNonQueryAsync(Ct);
+            }
+            catch (OracleException ex) when (ex.Number == 2011)
+            {
+                // exists from an earlier run against the same container
+            }
+        }
+
+        Assert.Equal(["∅.KUNDEN.KUNDE_ID"], await OriginsAsync(connectionString, "SELECT KUNDE_ID FROM KUNDEN@ORIGIN_LOOP"));
+    }
+
     private static async Task<string[]> OriginsAsync(string connectionString, string sql)
     {
         await using var connection = new OracleConnection(connectionString);

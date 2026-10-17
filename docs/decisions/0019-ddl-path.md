@@ -49,3 +49,6 @@ Entscheidungen des Nutzers (2026-10-06 und 2026-10-10):
 
 ## Nachtrag R5a (2026-10-13, Gesamt-Review 3.31.0, A9)
 Entscheidung des Nutzers: Was wie TRUNCATE Zeilen ohne Rückweg entfernt, wird wie TRUNCATE nie ausgeführt (`SqlStatementKind.Truncate`, Leseweg, Schemaweg und SQL-Editor): `ALTER TABLE … TRUNCATE/DROP [SUB]PARTITION[S]`, `FLASHBACK TABLE … TO` einen Zeitpunkt, eine SCN oder einen Restore Point und `PURGE`. `FLASHBACK TABLE … TO BEFORE DROP` (holt eine gelöschte Tabelle zurück) bleibt DDL, ebenso `DROP TABLE … PURGE` (wie `DROP TABLE` mit Bestätigung).
+
+## Nachtrag R6a (2026-10-17, Gesamt-Review 3.40.0, SE-8)
+Entscheidung des Nutzers: Auch `DROP TABLE … PURGE` (am Papierkorb vorbei, kein `FLASHBACK … TO BEFORE DROP` mehr möglich) und `DROP USER … CASCADE` (ein Schema mit allen Objekten, ohne Papierkorb) werden wie TRUNCATE nie ausgeführt. Ein normales `DROP TABLE` und `DROP USER` ohne `CASCADE` (scheitert, solange dem User Objekte gehören) bleiben DDL. Grenze: Ist der Papierkorb abgeschaltet (`recyclebin = OFF` für Session oder System), ist auch ein normales `DROP TABLE` endgültig – das sieht FerretSharp dem Statement nicht an; `ALTER SESSION` führt der Editor ohnehin nicht aus.

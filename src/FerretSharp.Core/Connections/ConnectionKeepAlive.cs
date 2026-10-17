@@ -40,7 +40,20 @@ public sealed class ConnectionKeepAlive(IOpenConnections connections, AppSetting
             foreach (var connection in connections.All.Where(c => c.IsConnected).ToList())
             {
                 using var timeout = new CancellationTokenSource(PingTimeout, _time);
-                if (await connection.PingIdleSessionsAsync(IdleFor, timeout.Token) is { } lost)
+                DatabaseException? lost;
+                try
+                {
+                    // The timeout bounds the wait, not only the ping (review 3.40.0, A4): a cancel the VPN swallows left the
+                    // ping – and with it the round – hanging, and no other connection was pinged meanwhile. The ping left
+                    // behind keeps its session busy; the next round skips it.
+                    lost = await connection.PingIdleSessionsAsync(IdleFor, timeout.Token).WaitAsync(timeout.Token);
+                }
+                catch (OperationCanceledException) when (timeout.IsCancellationRequested)
+                {
+                    continue;
+                }
+
+                if (lost is not null)
                 {
                     ConnectionLost?.Invoke(connection, lost);
                 }

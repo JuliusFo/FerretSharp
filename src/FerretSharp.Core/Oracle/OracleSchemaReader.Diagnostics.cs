@@ -28,22 +28,29 @@ public sealed partial class OracleSchemaReader
     // One round trip per look (WP-52, ADR 0027): the session by its tag, the session blocking it with the table of the row it
     // waits for, and its latest unfinished long operation. V$SESSION shows the own RAC instance only, so the blocker is joined
     // only if it is there too (a SID alone is not unique across instances). ROW_WAIT_OBJ# is an object id (-1 when not waiting).
+    // Review 3.40.0: BLOCKING_SESSION is also set for waits that are no lock – log file sync (LGWR), read by other session,
+    // buffer busy waits, library cache (A10) – so only an enqueue of the Application class (enq: TX, enq: TM …) with a valid
+    // blocker counts. A long operation counts only for the statement running now (A11): one of a cancelled earlier statement
+    // stays unfinished in V$SESSION_LONGOPS of the same long-lived session.
     private const string SessionActivitySql = """
-        SELECT s.blocking_session, s.event, CASE WHEN s.state = 'WAITING' THEN s.wait_time_micro END,
+        SELECT s.lock_holder, s.event, CASE WHEN s.state = 'WAITING' THEN s.wait_time_micro END,
                b.sid, b.username, b.osuser, b.machine, b.program, b.module, b.action, b.logon_time, b.client_info,
                o.owner, o.object_name,
                l.opname, l.target, l.sofar, l.totalwork, l.units, l.time_remaining
-          FROM v$session s
+          FROM (SELECT x.sid, x.serial#, x.event, x.state, x.wait_time_micro, x.blocking_instance, x.row_wait_obj#, x.sql_id, x.sql_exec_id,
+                       CASE WHEN x.blocking_session_status = 'VALID' AND x.wait_class = 'Application' THEN x.blocking_session END lock_holder
+                  FROM v$session x
+                 WHERE x.client_info = :tag) s
           LEFT JOIN v$session b
-            ON b.sid = s.blocking_session AND s.blocking_instance = SYS_CONTEXT('USERENV', 'INSTANCE')
+            ON b.sid = s.lock_holder AND s.blocking_instance = SYS_CONTEXT('USERENV', 'INSTANCE')
           LEFT JOIN all_objects o
-            ON s.blocking_session IS NOT NULL AND o.object_id = s.row_wait_obj#
+            ON s.lock_holder IS NOT NULL AND o.object_id = s.row_wait_obj#
           OUTER APPLY (SELECT lo.opname, lo.target, lo.sofar, lo.totalwork, lo.units, lo.time_remaining
                          FROM v$session_longops lo
-                        WHERE lo.sid = s.sid AND lo.serial# = s.serial# AND lo.totalwork > 0 AND lo.sofar < lo.totalwork
+                        WHERE lo.sid = s.sid AND lo.serial# = s.serial# AND lo.sql_id = s.sql_id AND lo.sql_exec_id = s.sql_exec_id
+                          AND lo.totalwork > 0 AND lo.sofar < lo.totalwork
                         ORDER BY lo.start_time DESC
                         FETCH FIRST 1 ROW ONLY) l
-         WHERE s.client_info = :tag
         """;
 
     /// <exception cref="PlanUnavailableException">Not a plain query, or the session is locked (read-only transaction).</exception>

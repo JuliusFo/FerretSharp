@@ -126,7 +126,7 @@
     <value>No statement at the cursor.</value>
   </data>
   <data name="SqlRejectDataLoss" xml:space="preserve">
-    <value>The SQL editor does not run statements that delete rows or dropped objects without a way back: TRUNCATE or DROP of partitions, FLASHBACK TABLE to an earlier point (TO BEFORE DROP is fine), PURGE. Use DELETE instead – it stays in the transaction.</value>
+    <value>The SQL editor does not run statements that delete rows or dropped objects without a way back: TRUNCATE or DROP of partitions, FLASHBACK TABLE to an earlier point (TO BEFORE DROP is fine), PURGE, DROP TABLE … PURGE (past the recycle bin), DROP USER … CASCADE. Use DELETE instead – it stays in the transaction.</value>
   </data>
   <data name="SqlRejectTruncate" xml:space="preserve">
     <value>The SQL editor does not run TRUNCATE: it deletes every row and cannot be undone. Use DELETE instead – it stays in the transaction.</value>
@@ -344,5 +344,8 @@
   <data name="FilterGroupNone" xml:space="preserve">
     <value>NOT</value>
     <comment>Kind of filter group: none of its rows applies. Short, shown in the group header and in messages</comment>
+  </data>
+  <data name="LinkIncomplete" xml:space="preserve">
+    <value>The link is incomplete – it was probably cut off on the way (a mail in plain text, a ticket field). Ask for it again or copy it whole.</value>
   </data>
 </root>

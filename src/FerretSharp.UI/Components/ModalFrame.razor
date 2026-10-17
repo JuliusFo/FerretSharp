@@ -1,6 +1,8 @@
 @* The frame of every dialog (R2): backdrop, the dialog box with its role and label, Escape and – for dialogs that only
    show something – a click outside to close. One place, so all dialogs behave alike; the shortcut lock (shortcuts.js
-   looks for a visible .modal-backdrop) sees each of them. *@
+   looks for a visible .modal-backdrop) sees each of them. Tab stays inside the dialog (dom.js trapFocus). *@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
 
 <div class="modal-backdrop" @onclick="OnBackdropClickAsync" @onkeydown="OnKeyDownAsync">
     <div class="modal dialog @Class" @onclick:stopPropagation="true" role="@(Alert ? "alertdialog" : "dialog")" aria-label="@Label"
@@ -42,13 +44,26 @@
     [Parameter]
     public bool FocusOnOpen { get; set; }
 
+    private DomModule? _dom;
+
+    private DomModule Dom => _dom ??= new(JS);
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && FocusOnOpen)
+        if (!firstRender)
+        {
+            return;
+        }
+
+        // Review 3.40.0, A15: Tab went on to the buttons behind the backdrop – Enter on one committed while a confirmation was open.
+        await Dom.InvokeVoidAsync("trapFocus", _box);
+        if (FocusOnOpen)
         {
             await _box.FocusAsync();
         }
     }
+
+    public ValueTask DisposeAsync() => _dom?.DisposeAsync() ?? ValueTask.CompletedTask;
 
     /// <summary>A click outside either closes or keeps the focus in the dialog – otherwise it lands on the page, and Escape is lost.</summary>
     private async Task OnBackdropClickAsync()

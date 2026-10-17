@@ -55,6 +55,13 @@ public partial class App : Application
             .CreateLogger();
         RegisterGlobalExceptionHandlers(); // before anything that can fail (R4a: a failing host build left no trace)
 
+        // Model host, LINQ console and builds end with FerretSharp, also after a crash (review 3.40.0, A18).
+        ChildProcesses.Adopt = ChildJob.Create();
+        if (ChildProcesses.Adopt is null)
+        {
+            Log.Warning("No job object for child processes: they may outlive FerretSharp");
+        }
+
         // Settings decide the theme, which must be known before the window and the WebView exist (no white flash), and the
         // language. Read here, not in an async method: the UI culture belongs to the execution context, and a change made
         // inside an async method is undone when it returns – Blazor would render in the Windows language again.
@@ -94,7 +101,14 @@ public partial class App : Application
     {
         var theme = WindowTheme.Create(args, settings.Current.Theme);
 
-        var builder = Host.CreateApplicationBuilder(args);
+        // Without the defaults (review 3.40.0, A33): they read appsettings*.json from the working folder and watched it, took
+        // DOTNET_ENVIRONMENT (scope validation only where it is "Development"), the arguments as configuration (a link too)
+        // and logged to the console, the debug output and the Windows event log beside Serilog. Nothing here reads them.
+        var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
+        {
+            DisableDefaults = true,
+            ContentRootPath = AppContext.BaseDirectory,
+        });
         builder.Services.AddSerilog();
         builder.Services.Configure<ConsoleLifetimeOptions>(o => o.SuppressStatusMessages = true);
         builder.Services.AddWpfBlazorWebView();

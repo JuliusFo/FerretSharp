@@ -34,12 +34,14 @@
     }
 
     <div class="ws-menu-anchor">
-        <button class="ws-add @(_menuOpen ? "open" : "")" title="@ShellText.Workspaces_AddTitle" @onclick="ToggleMenu">+</button>
-        @if (_menuOpen)
+        <button class="ws-add @(_addMenu is not null ? "open" : "")" title="@ShellText.Workspaces_AddTitle" @onclick="ToggleAddMenuAsync">+</button>
+        @if (_addMenu is { } add)
         {
-            <div class="popover-backdrop" @onclick="() => _menuOpen = false"></div>
-            <div class="popover ws-pop" @onkeydown="OnMenuKeyDown">
-                <div class="popover-list">
+            @* Review 3.40.0, A16: a PopoverMenu like every menu – focused (Escape closes at once) and kept inside the window. *@
+            var closedCount = Workspaces.Closed.Count;
+            <PopoverMenu X="add.X" Y="add.Y" ViewportWidth="add.Width" ViewportHeight="add.Height" Width="AddMenuWidth"
+                         EstimatedHeight="@(48 + (closedCount > 0 ? 30 + 44 * closedCount : 0))" OnClose="CloseAddMenu">
+                <div class="ws-pop">
                     <button class="menu-item" @onclick="CreateAsync"><span class="plus">+</span> @ShellText.Workspaces_New</button>
                     @{ var closed = Workspaces.Closed; }
                     @if (closed.Count > 0)
@@ -58,20 +60,21 @@
                         }
                     }
                 </div>
-            </div>
+            </PopoverMenu>
         }
     </div>
 </div>
 
-@if (_actionsFor is { } target)
+@if (_actionsFor is { } target && _actionsAt is { } at)
 {
-    <div class="overlay" @onclick="CloseActions" @oncontextmenu="CloseActions" @oncontextmenu:preventDefault="true"></div>
-    <div class="menu" style="left:@Px(_actionsX);top:@Px(_actionsY)" tabindex="-1" @ref="_actionsMenu" @onkeydown="OnActionsKeyDown">
+    var lockItems = Workspaces.Profile?.ReadOnly == true;
+    <PopoverMenu X="at.X" Y="at.Y" ViewportWidth="at.Width" ViewportHeight="at.Height" Width="ActionsMenuWidth"
+                 EstimatedHeight="@(lockItems ? 150 : 110)" OnClose="CloseActions">
         <button class="menu-item" @onclick="() => RunAction(() => StartRename(target))">@ShellText.Rename</button>
         <button class="menu-item" disabled="@(Workspaces.Open.Count <= 1)"
                 title="@(Workspaces.Open.Count <= 1 ? ShellText.Workspaces_LastStaysOpen : ShellText.Workspaces_CloseHint)"
                 @onclick="() => RunActionAsync(() => CloseAsync(target))">@CommonText.Close</button>
-        @if (Workspaces.Profile?.ReadOnly == true)
+        @if (lockItems)
         {
             <div class="menu-sep"></div>
             @if (Workspaces.IsUnlocked(target.Id))
@@ -85,7 +88,7 @@
         }
         <div class="menu-sep"></div>
         <button class="menu-item" @onclick="() => RunActionAsync(CreateAsync)"><span class="plus">+</span> @ShellText.Workspaces_New</button>
-    </div>
+    </PopoverMenu>
 }
 
 @if (_pendingDelete is { } pending)
@@ -105,8 +108,14 @@
 
     /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
     private DomModule Dom => _dom ??= new(JS);
-    private bool _menuOpen;
     private Workspace? _pendingDelete;
+    private bool _disposed;
+
+    private const double AddMenuWidth = 320;
+    private const double ActionsMenuWidth = 200;
+
+    /// <summary>The "+" menu: new workspace, closed ones to reopen; null while closed.</summary>
+    private MenuAt? _addMenu;
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -117,42 +126,29 @@
 
     protected override void OnInitialized() => Workspaces.Changed += OnChanged;
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    /// <summary>Where a menu opens and how large the window is (PopoverMenu keeps it inside); null if the bar is gone meanwhile.</summary>
+    private async Task<MenuAt?> MenuAtAsync(double x, double y)
     {
-        if (_focusActions && _actionsFor is not null)
-        {
-            _focusActions = false;
-            await _actionsMenu.FocusAsync();
-        }
+        var size = await Dom.InvokeAsync<double[]>("viewportSize");
+        return _disposed || size is not [var width, var height] ? null : new MenuAt(Math.Max(8, x), y, width, height);
     }
 
     private static string TabCount(Workspace workspace) => TextFormat.Plural(workspace.Tabs.Count, ShellText.Workspaces_TabsOne, ShellText.Workspaces_TabsOther);
 
     private Workspace? _actionsFor;
-    private double _actionsX;
-    private double _actionsY;
-    private ElementReference _actionsMenu;
-    private bool _focusActions;
+    private MenuAt? _actionsAt;
 
     /// <summary>"⋯" on a chip: rename, close, new – like the "⋯" menu of the connections.</summary>
-    private void OpenActions(MouseEventArgs e, Workspace workspace)
+    private async Task OpenActions(MouseEventArgs e, Workspace workspace)
     {
-        _menuOpen = false;
-        _actionsFor = workspace;
-        _actionsX = Math.Max(8, e.ClientX - 16);
-        _actionsY = e.ClientY + 12;
-        _focusActions = true; // Escape closes
-    }
-
-    private void CloseActions() => _actionsFor = null;
-
-    private void OnActionsKeyDown(KeyboardEventArgs e)
-    {
-        if (e.Key == "Escape")
+        _addMenu = null;
+        if (await MenuAtAsync(e.ClientX - 16, e.ClientY + 12) is { } at)
         {
-            CloseActions();
+            (_actionsFor, _actionsAt) = (workspace, at);
         }
     }
+
+    private void CloseActions() => (_actionsFor, _actionsAt) = (null, null);
 
     private void RunAction(Action action)
     {
@@ -165,8 +161,6 @@
         CloseActions();
         await action();
     }
-
-    private static string Px(double value) => value.ToString("0", CultureInfo.InvariantCulture) + "px";
 
     private void Activate(Workspace workspace)
     {
@@ -214,19 +208,24 @@
         }
     }
 
-    private void ToggleMenu() => _menuOpen = !_menuOpen;
-
-    private void OnMenuKeyDown(KeyboardEventArgs e)
+    /// <summary>"+" opens the menu below the button, its left edge at the mouse; a second click closes it.</summary>
+    private async Task ToggleAddMenuAsync(MouseEventArgs e)
     {
-        if (e.Key == "Escape")
+        if (_addMenu is not null)
         {
-            _menuOpen = false;
+            _addMenu = null;
+            return;
         }
+
+        CloseActions();
+        _addMenu = await MenuAtAsync(e.ClientX - 16, e.ClientY + 18);
     }
+
+    private void CloseAddMenu() => _addMenu = null;
 
     private async Task CreateAsync()
     {
-        _menuOpen = false;
+        _addMenu = null;
         var workspace = await Workspaces.CreateAsync();
         Shell.ShowExplorer();
         StartRename(workspace);
@@ -234,7 +233,7 @@
 
     private async Task ReopenAsync(Workspace workspace)
     {
-        _menuOpen = false;
+        _addMenu = null;
         await Workspaces.ReopenAsync(workspace.Id);
         Shell.ShowExplorer();
     }
@@ -249,7 +248,10 @@
 
     public async ValueTask DisposeAsync()
     {
+        _disposed = true;
         Workspaces.Changed -= OnChanged;
         await Dom.DisposeAsync();
     }
+
+    private sealed record MenuAt(double X, double Y, double Width, double Height);
 }

@@ -1,4 +1,6 @@
+using FerretSharp.Core.Connections;
 using FerretSharp.Core.Schema;
+using FerretSharp.Core.Workspaces;
 using FerretSharp.UI.State;
 using NSubstitute;
 
@@ -14,14 +16,94 @@ public sealed class ShellStateTabsTests : IAsyncDisposable
     {
         var test = await _app.OpenAsync(TestApp.Profile("Test"));
         var dev = await _app.OpenAsync(TestApp.Profile("Dev"));
-        var testTab = _app.AddPendingWork(test);
-        var devTab = _app.AddPendingWork(dev);
+        var testTab = AddTab(test, TestApp.Kunden);
+        var devTab = AddTab(dev, TestApp.Kunden);
 
         // Dev's refreshed schema no longer has KUNDEN.
-        _app.Shell.RemoveVanishedTabs(dev.Id, new SchemaCache(Substitute.For<ISchemaReader>(), "APP"));
+        _app.Shell.RemoveVanishedTabs(dev.Id, Gone());
 
         Assert.DoesNotContain(devTab, _app.WorkspaceOf(dev).Tabs);
         Assert.Contains(testTab, _app.WorkspaceOf(test).Tabs);
+    }
+
+    /// <summary>
+    /// Review 3.40.0, A17: a script for a connection whose password was cancelled, which failed or which the user left kept
+    /// waiting – and opened hours later when the user connected by hand. Links already behaved so (review of WP-37).
+    /// </summary>
+    [Fact]
+    public async Task A_waiting_script_is_dropped_like_a_waiting_link()
+    {
+        var test = await _app.OpenAsync(TestApp.Profile("Test"));
+        var dev = await _app.OpenAsync(TestApp.Profile("Dev"));
+
+        _app.Shell.OpenSqlIn(test.Id, "SELECT 1 FROM dual");
+        _app.Shell.RequestPassword(test.Profile!, returnTo: null);
+        _app.Shell.CancelPassword();
+        _app.Shell.OpenSqlIn(dev.Id, "SELECT 2 FROM dual"); // shown: opens at once
+        _app.Shell.OpenSqlIn(test.Id, "SELECT 3 FROM dual");
+        _app.Shell.ReportConnectionFailure(test.Id, new ConnectionError("ORA-12170: TNS:Connect timeout occurred", "ORA-12170"));
+        _app.Shell.ShowConnection(test.Id);
+
+        Assert.Empty(_app.WorkspaceOf(test).Tabs.OfType<SqlTab>());
+        Assert.Equal(["SELECT 2 FROM dual"], _app.WorkspaceOf(dev).Tabs.OfType<SqlTab>().Select(t => t.Text));
+    }
+
+    /// <summary>Review 3.40.0, A5: a refresh closed a tab whose table was gone without a word about its changes.</summary>
+    [Fact]
+    public async Task A_tab_with_changes_stays_when_its_table_is_gone()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("Test"));
+        var tab = _app.AddPendingWork(scope);
+
+        _app.Shell.RemoveVanishedTabs(scope.Id, Gone());
+
+        Assert.Contains(tab, _app.WorkspaceOf(scope).Tabs);
+    }
+
+    /// <summary>
+    /// Review 3.40.0, A5: a table of another schema that no synonym reaches (opened by an FK jump) is never in the cache –
+    /// every DDL and schema refresh closed its tab.
+    /// </summary>
+    [Fact]
+    public async Task A_tab_on_a_table_of_another_schema_stays_after_a_refresh()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("Test"));
+        var foreign = AddTab(scope, new TableSummary("STAMMDATEN", "LAENDER", TableKind.Table));
+
+        _app.Shell.RemoveVanishedTabs(scope.Id, Gone());
+
+        Assert.Contains(foreign, _app.WorkspaceOf(scope).Tabs);
+    }
+
+    /// <summary>Review 3.40.0, A5: such a tab was dropped on every start; a gone table of the browsed schema still is.</summary>
+    [Fact]
+    public async Task A_saved_tab_on_a_table_of_another_schema_is_restored_by_name()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("Test"));
+        var saved = new Workspace(Guid.NewGuid(), scope.Id, "Gespeichert")
+        {
+            Tabs =
+            [
+                new TabState(new TableRef("STAMMDATEN", "LAENDER"), TabMode.Data, [], [], []),
+                new TabState(new TableRef(TestApp.Kunden.Owner, "GELOESCHT"), TabMode.Data, [], [], []),
+            ],
+        };
+
+        _app.Shell.SyncWorkspaces(scope.Id, [saved], saved.Id, scope.Active.Schema!);
+
+        var restored = _app.Shell.AllWorkspaces.Single(w => w.WorkspaceId == saved.Id);
+        Assert.Equal([new TableRef("STAMMDATEN", "LAENDER")], restored.Tabs.OfType<TableTab>().Select(t => t.Table.Ref));
+    }
+
+    /// <summary>The browsed schema (APP_USER, as TestApp's tables) after a refresh, without any table.</summary>
+    private static SchemaCache Gone() => new(Substitute.For<ISchemaReader>(), TestApp.Kunden.Owner);
+
+    private TableTab AddTab(ConnectionScope scope, TableSummary table)
+    {
+        var workspace = _app.WorkspaceOf(scope);
+        var tab = new TableTab(workspace.WorkspaceId, table);
+        workspace.Tabs.Add(tab);
+        return tab;
     }
 
     [Fact]

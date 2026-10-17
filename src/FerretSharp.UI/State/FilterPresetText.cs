@@ -1,3 +1,4 @@
+using FerretSharp.Core.ClrModel;
 using FerretSharp.Core.Query;
 using FerretSharp.Core.Resources;
 using FerretSharp.UI.Resources;
@@ -11,16 +12,25 @@ public sealed record PresetChoice(FilterPreset Preset, bool Append);
 public static class FilterPresetText
 {
     /// <summary>
-    /// One line per filter row, as in the tab header; disabled rows marked as such, rows of a group (WP-50) with the
-    /// group's kind and number ("ODER-Gruppe 1: …"), a disabled group's as disabled.
+    /// A filter row as text, <c>KUNDENART = Gewerbe</c> – the one way for the tab header, the preset tooltip and the links
+    /// (review 3.40.0, A31: three copies, and only the tab header read enum and bool values as members of the C# model).
     /// </summary>
-    public static IEnumerable<string> FilterLines(IReadOnlyList<FilterCondition> filters)
+    /// <param name="presentation">The table's C# model; null shows the values as they are (what a link carries).</param>
+    public static string Row(FilterCondition filter, TablePresentation? presentation = null) =>
+        $"{filter.Column} {OperatorLabels.Label(filter.Op)} {string.Join("; ", filter.Values.Select(v => presentation?.FilterValueText(filter.Column, v) ?? v))}".TrimEnd();
+
+    /// <summary>
+    /// One line per filter row, as in the tab header with <paramref name="presentation"/>; disabled rows marked as such,
+    /// rows of a group (WP-50) with the group's kind and number ("ODER-Gruppe 1: …"), a disabled group's as disabled.
+    /// Without a presentation (the link dialog, the note on Prod values) the values stand as the link carries them.
+    /// </summary>
+    public static IEnumerable<string> FilterLines(IReadOnlyList<FilterCondition> filters, TablePresentation? presentation = null)
     {
         var groups = Core.Query.FilterGroups.Of(filters);
         var numbers = new Dictionary<int, int>();
         foreach (var f in filters)
         {
-            var text = $"{f.Column} {OperatorLabels.Label(f.Op)} {string.Join("; ", f.Values)}".TrimEnd();
+            var text = Row(f, presentation);
             if (f.Group is { } own)
             {
                 var group = groups[own.Id];
@@ -41,9 +51,9 @@ public static class FilterPresetText
         string.Join(", ", sorts.Select(s => $"{s.Column} {(s.Descending ? "↓" : "↑")}"));
 
     /// <summary>The tooltip of a preset in the menu: its filter rows, then its sort order.</summary>
-    public static string Describe(FilterPreset preset)
+    public static string Describe(FilterPreset preset, TablePresentation? presentation = null)
     {
-        var lines = FilterLines(preset.Filters).ToList();
+        var lines = FilterLines(preset.Filters, presentation).ToList();
         if (lines.Count == 0)
         {
             lines.Add(GridText.Presets_NoFilterRows);

@@ -133,6 +133,17 @@ public partial class QueryBuilderTests
         Assert.Contains("UPPER(RTRIM(t.\"KUERZEL\")) LIKE", query.Sql);
     }
 
+    /// <summary>Review 3.40.0, A21: "contains" on an NCLOB bound its pattern as VARCHAR2 – the rest of A18.</summary>
+    [Fact]
+    public void A_text_search_in_an_nclob_binds_nationally()
+    {
+        var table = Kunden with { Columns = [.. Kunden.Columns, Col("BEMERKUNG", "NCLOB")] };
+
+        var query = Select(table, [FilterCondition.Of("BEMERKUNG", FilterOperator.Contains, "Łódź"), FilterCondition.Of("NOTIZ", FilterOperator.Contains, "x")]);
+
+        Assert.Equal([OracleTypeHint.NVarchar2, OracleTypeHint.Varchar2], query.Parameters.Take(2).Select(p => p.Type)); // NOTIZ is a CLOB
+    }
+
     [Fact]
     public void View_without_key_has_no_rowid_and_orders_by_all_sortable_columns()
     {

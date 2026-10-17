@@ -222,7 +222,11 @@
         }
     }
 
-    private void OnStateChanged()
+    /// <summary>
+    /// May fire on a background thread (the connection's state): the query and highlight change on the renderer's thread
+    /// (review 3.40.0, A32), like the render they belong to.
+    /// </summary>
+    private void OnStateChanged() => InvokeAsync(() =>
     {
         if (Shell.SwitcherOpen && !_wasOpen)
         {
@@ -230,8 +234,8 @@
             _highlight = 0;
         }
 
-        InvokeAsync(StateHasChanged);
-    }
+        StateHasChanged();
+    });
 
     private void ToggleGroup(string key)
     {

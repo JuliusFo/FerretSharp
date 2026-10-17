@@ -47,6 +47,11 @@
         "DEFERRABLE", "INITIALLY", "BUILD", "REFRESH", "COMPLETE", "FAST", "DEMAND", "COMMIT", "QUERY", "REWRITE",
         "GENERATED", "ALWAYS", "IDENTITY", "VIRTUAL", "CASCADE", "DELETE", "SET", "ORGANIZATION", "OVERFLOW", "COLLATE",
         "VARCHAR2", "NVARCHAR2", "NUMBER", "DATE", "TIMESTAMP", "CLOB", "BLOB", "CHAR", "NCHAR", "RAW", "BYTE", "INTEGER",
+        // Writes, ALTER and triggers (review 3.40.0, A30: the change overview, the redo dialog, the designer and the audit
+        // templates showed UPDATE, ALTER TABLE … ADD and their triggers half coloured)
+        "INSERT", "INTO", "VALUES", "UPDATE", "MERGE", "MATCHED", "ALTER", "ADD", "MODIFY", "DROP", "RENAME", "TO", "COLUMN",
+        "COMMENT", "TRIGGER", "BEGIN", "BEFORE", "AFTER", "INSTEAD", "OF", "EACH", "ROW", "FOR", "REFERENCING", "NEW", "OLD",
+        "DECLARE", "IF", "ELSIF", "INSERTING", "UPDATING", "DELETING", "RETURNING",
     };
 
     private string _highlightedFor = "";

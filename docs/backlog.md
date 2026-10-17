@@ -24,6 +24,7 @@ Selten, ungeprüft oder bewusst zurückgestellt – vor dem Anfassen nachstellen
 
 ## Verbindungen, Sessions, Workspaces
 
+- Workspaces speichern (Gesamt-Review 3.40.0, ST-10, gemessen in R6a): Jedes `ShellState.Dirty` (Zellbearbeitung, Filterklick, Monaco nach 250 ms) baut `TabState` für alle Workspaces aller Verbindungen und serialisiert alte und neue Liste zum Vergleich. 36 Workspaces mit 360 SQL-Tabs à 10 KB kosten 17 ms je Änderung, im Alltag weit weniger. Erst wenn es spürbar wird: `MarkDirty(workspaceId)` und nur diesen Workspace speichern.
 - Import: JDBC-URLs mit Connect-Descriptor (`jdbc:oracle:thin:@(DESCRIPTION=…)`) und TNS-Alias lesen – `OracleAddress.Parse` kann beides, `JdbcUrl` nimmt bisher nur `host:port/service` und `host:port:SID` (in R5b bewusst nicht, wäre eine neue Fähigkeit).
 
 - Oberfläche für die Workspace-Notizen (Feld `Workspace.Notes` existiert bereits; beim Start von WP-39 fragen, ob sie dort mitkommt).
@@ -79,7 +80,7 @@ Selten, ungeprüft oder bewusst zurückgestellt – vor dem Anfassen nachstellen
   - Aus der Parameter-Ansicht zur Deklaration springen (bei Überladungen nur über PL/Scope, `ALL_IDENTIFIERS`, eindeutig); „Aufruf kopieren“ (`PKG.PROC(p_a => , p_b => )`).
   - Trigger einer Tabelle als eigene Ansicht im Tabellen-Tab (bisher über „Abhängigkeiten“ erreichbar).
   - Schemaweite Quelltextsuche auch in Objekten anderer Schemas, die über Synonyme erreichbar sind; eigene Session für lange Suchen (die Explorer-Session arbeitet einen Aufruf nach dem anderen ab).
-- SQL-Editor (Fortsetzung von WP-17/18): Skript bei Fehler wahlweise fortsetzen statt anhalten; LOBs freier Abfragen nur als Vorschau holen statt ganz (eigene `InitialLOBFetchSize` für den Lesepfad); DML-Zählung in der Statusleiste („N Zeilen per SQL geändert“, bisher nur „Tx seit …“); Formatieren (Einrücken/Großschreibung der Schlüsselwörter).
+- SQL-Editor (Fortsetzung von WP-17/18): Skript bei Fehler wahlweise fortsetzen statt anhalten; DML-Zählung in der Statusleiste („N Zeilen per SQL geändert“, bisher nur „Tx seit …“); Formatieren (Einrücken/Großschreibung der Schlüsselwörter).
 - Herkunft der Ergebnisspalten (Fortsetzung von WP-48): durch Inline-Views hindurch auflösen (EF Core schreibt bei `Take` + `Include` eine Unterabfrage `"t"`; heute ohne Herkunft), ebenso `WITH`; Anzeigespalten (Namen neben FK-Werten) auch im SQL-Ergebnis (ADR 0022 schließt das bisher aus); Formular und Zeilenvergleich für Ergebnisse (siehe Grid). Herkunft bei einem `DefaultSchema` der Verbindung: unqualifizierte Namen löst FerretSharp im angezeigten Schema auf, Oracle im Schema des Users.
 - Explain-Plan (Fortsetzung von WP-14): Plan-Vergleich (geschätzt neben tatsächlich, Unterschiede markiert); Plan-Historie aus AWR/`DBA_HIST_SQL_PLAN` (nur mit Diagnostics-Pack-Lizenz – vorher klären); SQL-Monitor-Bericht (`DBMS_SQL_MONITOR`, ebenfalls lizenzpflichtig); Hinweis auf fehlende Statistiken (`ALL_TAB_STATISTICS.LAST_ANALYZED`, `STALE_STATS`) bei Fehlschätzungen; „Explain“ auch für Count- und FK-Count-Abfragen.
 

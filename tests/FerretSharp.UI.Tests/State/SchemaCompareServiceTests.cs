@@ -187,6 +187,45 @@ public sealed class SchemaCompareServiceTests : IDisposable
         Assert.Null(again.StoreError);
     }
 
+    /// <summary>
+    /// Review 3.40.0, ST-8 (decision of the user: like the filter presets): after a read that failed, the next save replaced
+    /// every saved comparison with the new one.
+    /// </summary>
+    [Fact]
+    public async Task A_broken_file_is_not_overwritten_by_the_next_save()
+    {
+        const string broken = """{ "version": 1, "comparisons": [ { "id": """;
+        await File.WriteAllTextAsync(StoreFile, broken, Ct);
+        var service = await ServiceAsync();
+        Assert.NotNull(service.StoreError);
+
+        await service.SaveAsync("Dev", asNew: false);
+
+        Assert.StartsWith("Nicht gespeichert: Die gespeicherten Vergleiche ließen sich nicht lesen", service.StoreError);
+        Assert.Equal(broken, await File.ReadAllTextAsync(StoreFile, Ct));
+    }
+
+    [Fact]
+    public async Task A_file_that_was_locked_is_read_again_before_saving_and_keeps_its_comparisons()
+    {
+        var earlier = await ServiceAsync();
+        SetSides(earlier, _test.Id);
+        await earlier.SaveAsync("Vorhanden", asNew: false);
+        SchemaCompareService service;
+        await using (File.Open(StoreFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) // another program holds it
+        {
+            service = await ServiceAsync();
+            Assert.NotNull(service.StoreError);
+            Assert.Empty(service.Saved);
+        }
+
+        SetSides(service, _dev.Id);
+        await service.SaveAsync("Neu", asNew: false);
+
+        Assert.Null(service.StoreError);
+        Assert.Equal(["Neu", "Vorhanden"], service.Saved.Select(s => s.Name));
+    }
+
     [Fact]
     public async Task A_file_of_a_newer_version_is_reported_and_not_overwritten()
     {

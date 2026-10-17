@@ -208,4 +208,12 @@
     <value>This statement is not a single DDL statement and would be refused: {0}</value>
     <comment>{0}: the statement, shortened</comment>
   </data>
+  <data name="TypeChangeCutsFractions" xml:space="preserve">
+    <value>{0}: {1} → {2} keeps the values but cuts their fractional seconds – at once and for good (DDL is committed right away).</value>
+    <comment>{0}: column name; {1}: old type; {2}: new type</comment>
+  </data>
+  <data name="TypeChangePads" xml:space="preserve">
+    <value>{0}: {1} → {2} pads every value with blanks to the full length; comparisons with VARCHAR2 values (relationships, filters) may no longer match.</value>
+    <comment>{0}: column name; {1}: old type; {2}: new type</comment>
+  </data>
 </root>

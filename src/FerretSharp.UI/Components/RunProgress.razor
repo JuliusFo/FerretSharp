@@ -168,7 +168,7 @@
 
     protected override void OnInitialized()
     {
-        _ = TickAsync(_ticks.Token);
+        Fire(() => TickAsync(_ticks.Token));
         if (Database)
         {
             _watch = SessionWatch.For(Shell, Logger, Active, Workspaces, WorkspaceId, () => _ = InvokeAsync(StateHasChanged));

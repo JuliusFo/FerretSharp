@@ -90,7 +90,7 @@ public sealed class OracleTypesTests
     [InlineData("VARCHAR2(20 BYTE)", "VARCHAR2(50 BYTE)", ColumnTypeChange.Free)]
     [InlineData("VARCHAR2(20 BYTE)", "VARCHAR2(20 CHAR)", ColumnTypeChange.Free)]
     [InlineData("VARCHAR2(20 BYTE)", "NVARCHAR2(20)", ColumnTypeChange.Free)]
-    [InlineData("VARCHAR2(20 BYTE)", "CHAR(20 BYTE)", ColumnTypeChange.Free)]
+    [InlineData("VARCHAR2(20 BYTE)", "CHAR(20 BYTE)", ColumnTypeChange.ChangesValues)] // padded with blanks (review 3.40.0, A9)
     [InlineData("CHAR(1 BYTE)", "VARCHAR2(1 BYTE)", ColumnTypeChange.Free)]
     [InlineData("VARCHAR2(20 BYTE)", "VARCHAR2(10 BYTE)", ColumnTypeChange.MayFailOnValues)] // ORA-01441 only if a value is longer
     [InlineData("VARCHAR2(20 CHAR)", "VARCHAR2(20 BYTE)", ColumnTypeChange.MayFailOnValues)]
@@ -113,7 +113,8 @@ public sealed class OracleTypesTests
     [InlineData("FLOAT", "NUMBER(10,2)", ColumnTypeChange.NeedsEmptyColumn)]
     [InlineData("DATE", "TIMESTAMP(6)", ColumnTypeChange.Free)]
     [InlineData("DATE", "TIMESTAMP(3)", ColumnTypeChange.Free)]
-    [InlineData("TIMESTAMP(6)", "DATE", ColumnTypeChange.Free)]
+    [InlineData("TIMESTAMP(6)", "DATE", ColumnTypeChange.ChangesValues)] // the fractional seconds go (review 3.40.0, A9)
+    [InlineData("TIMESTAMP(0)", "DATE", ColumnTypeChange.Free)]
     [InlineData("TIMESTAMP(3)", "TIMESTAMP(6)", ColumnTypeChange.Free)]
     [InlineData("TIMESTAMP(6)", "TIMESTAMP(3)", ColumnTypeChange.NeedsEmptyColumn)] // ORA-30082
     [InlineData("TIMESTAMP(6)", "TIMESTAMP(6) WITH TIME ZONE", ColumnTypeChange.NeedsEmptyColumn)] // ORA-01439

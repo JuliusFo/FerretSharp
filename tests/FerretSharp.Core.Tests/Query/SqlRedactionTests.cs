@@ -22,4 +22,13 @@ public class SqlRedactionTests
     [InlineData("ALTER USER app IDENTIFIED BY")]
     public void Text_without_a_password_stays_as_it_is(string sql) =>
         Assert.Equal(sql, SqlRedaction.Redact(sql));
+
+    /// <summary>Review 3.40.0, SE-6: on Prod the log keeps no values written into the text – literals of every kind.</summary>
+    [Theory]
+    [InlineData("SELECT * FROM kunden WHERE name = 'Müller' AND ort = N'Łódź'", "SELECT * FROM kunden WHERE name = '***' AND ort = '***'")]
+    [InlineData("UPDATE t SET c = q'[it's]' WHERE \"Id\" = :id -- 'kommentar'", "UPDATE t SET c = '***' WHERE \"Id\" = :id -- 'kommentar'")]
+    [InlineData("SELECT 'a''b' FROM dual", "SELECT '***' FROM dual")]
+    [InlineData("SELECT id FROM t WHERE x = 42", "SELECT id FROM t WHERE x = 42")]
+    public void Without_literals_masks_every_string_literal_and_keeps_the_rest(string sql, string expected) =>
+        Assert.Equal(expected, SqlRedaction.WithoutLiterals(sql));
 }
