@@ -34,6 +34,15 @@ public sealed class SessionActivityTextTests : IAsyncDisposable
         }
     }
 
+    /// <summary>R6b (review 3.40.0, B11): one rule for the run progress and the list of lock holders.</summary>
+    [Fact]
+    public void The_program_of_a_session_is_another_ferretsharp_with_its_workspace_else_its_module_else_its_program()
+    {
+        Assert.Equal("SQL Developer", SessionActivityText.ProgramOf(Scott));
+        Assert.Equal("sqldeveloper64W.exe", SessionActivityText.ProgramOf(Scott with { Module = null }));
+        Assert.Equal("FerretSharp · Workspace „Test“", SessionActivityText.ProgramOf(Scott with { Module = "FerretSharp", Action = "Test" }));
+    }
+
     [Fact]
     public void A_lock_of_another_session_names_user_machine_and_program()
     {

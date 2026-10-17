@@ -51,8 +51,6 @@ else if (Holders is null)
                 : TextFormat.Format(GridText.Problem_OwnWorkspace, own.Name);
         }
 
-        return holder.Module == OracleSessionDefaults.Module
-            ? TextFormat.Format(GridText.Problem_FerretSharpWorkspace, holder.Action)
-            : holder.Module ?? holder.Program;
+        return SessionActivityText.ProgramOf(holder);
     }
 }

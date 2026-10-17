@@ -64,6 +64,18 @@ public static class SessionActivityText
         ? TextFormat.Format(SqlEditorText.Run_HolderOwnElsewhere, own.Name, connection)
         : TextFormat.Format(SqlEditorText.Run_HolderOwn, own.Name);
 
+    /// <summary>
+    /// The program of a session as the run progress and the lock holders name it: another FerretSharp with its workspace,
+    /// else its module (what SQL Developer and EF apps set), else its program (R6b: was written in both).
+    /// </summary>
+    public static string? ProgramOf(LockHolder holder)
+    {
+        ArgumentNullException.ThrowIfNull(holder);
+        return holder.Module == OracleSessionDefaults.Module
+            ? TextFormat.Format(GridText.Problem_FerretSharpWorkspace, holder.Action)
+            : holder.Module ?? holder.Program;
+    }
+
     /// <summary>"session 123 (SCOTT, PC-17, SQL Developer)"; a FerretSharp of someone else with its workspace.</summary>
     private static string Session(SessionWait wait)
     {
@@ -72,10 +84,7 @@ public static class SessionActivityText
             return TextFormat.Format(SqlEditorText.Run_HolderSessionOnly, wait.BlockerSid);
         }
 
-        var program = blocker.Module == OracleSessionDefaults.Module
-            ? TextFormat.Format(GridText.Problem_FerretSharpWorkspace, blocker.Action)
-            : blocker.Module ?? blocker.Program;
-        var details = new[] { blocker.User, blocker.Machine, program }.Where(part => !string.IsNullOrWhiteSpace(part));
+        var details = new[] { blocker.User, blocker.Machine, ProgramOf(blocker) }.Where(part => !string.IsNullOrWhiteSpace(part));
         return TextFormat.Format(SqlEditorText.Run_HolderSession, blocker.Sid, string.Join(", ", details));
     }
 }
