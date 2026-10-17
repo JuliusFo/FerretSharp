@@ -65,7 +65,8 @@ Selten, ungeprüft oder bewusst zurückgestellt – vor dem Anfassen nachstellen
 
 ## Export und Zwischenablage
 
-- Export: vollständige LOB-Werte (CLOB/BLOB) für markierte Zeilen nachladen statt sie als NULL zu exportieren; „Alle Zeilen des Filters exportieren“ (nicht nur geladene/markierte).
+- Export: vollständige LOB-Werte (CLOB/BLOB) für markierte Zeilen nachladen statt sie als NULL zu exportieren. („Alle Zeilen des Filters exportieren“: eingeplant als WP-54, `docs/roadmap.md`.)
+- Excel-Export (Fortsetzung von WP-53): ein Blatt je Ergebnis, wenn der SQL-Editor mehrere Ergebnisse zeigt (bei der Planung zurückgestellt, Entscheidung des Nutzers 2026-10-17 – Speichern je Ergebnis-Menü reicht).
 - Export: Option „Formeln entschärfen“ für CSV und „Als Tabelle kopieren“ (Textwerte, die mit `=`, `+`, `-`, `@` beginnen, mit führendem `'` – Excel wertet sie sonst als Formel aus). Entscheidung des Nutzers (Gesamt-Review 3.31.0, A38): Standard bleibt der exakte Wert, nur als Option bei Bedarf.
 - Native Dialoge: zuletzt verwendeten Export-Ordner merken.
 

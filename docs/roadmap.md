@@ -88,16 +88,23 @@ Branch `wp/47-since-last-visit`.
 - **Startseite nach dem Verbinden:** Unterschiede zum letzten Stand über den Schema-Vergleich (WP-20, zwei Snapshots derselben Verbindung) – neue/entfernte Tabellen und Spalten, geänderte Typen, neu ungültige Objekte –, neue Abweichungen zum C#-Modell (WP-27), offene Transaktionen anderer Workspaces, zuletzt benutzte Workspaces. Der Release-Check (Backlog, „später“) käme dort als weiterer Block dazu.
 - Offen: eigene Seite oder Hinweis „3 Änderungen seit …“, der die Seite öffnet; was vor dem Abgleich erlaubt ist (Backlog-Eintrag).
 
-### Pakete aus der Ideensammlung 2026-10-17 (WP-52, WP-53)
+### Pakete aus der Ideensammlung 2026-10-17 (WP-52 … WP-54)
 Vom Nutzer aus einer Sammlung von Oracle-Funktionen und Bibliotheken als Pakete übernommen (2026-10-17). Beide klein und unabhängig von WP-38 … WP-47. WP-52 (Warten und Fortschritt laufender Statements) ist vorgezogen und in 3.39.0 released: `docs/work-packages/wp-52-waits-and-progress.md`.
 
 ### WP-53 Export als Excel-Datei
 Branch `wp/53-xlsx-export`.
 - **Ziel:** Export als `.xlsx` mit typisierten Zellen statt Text: Zahlen als Zahl (kein Dezimalkomma-Problem wie beim CSV), DATE/TIMESTAMP als Datum mit Format, Text als Text (damit entfällt beim Export die Formel-Frage aus A38), NULL als leere Zelle; Kopfzeile fixiert, Autofilter, Spaltenbreiten nach Inhalt.
-- Beschriftungen und Werte über die Präsentationsschicht wie beim CSV (C#-Namen, Enum-Namen, Anzeigespalten), Rohwerte als Option. Für Grid-Auswahl bzw. geladene Zeilen eines Tabs und für Ergebnisse von SQL-Editor und LINQ-Konsole; Speichern über den nativen Dialog des Hosts wie die übrigen Exporte. LOBs wie beim CSV.
-- **Bibliothek:** MiniExcel (Apache-2.0, streamt) oder das OpenXML SDK (`DocumentFormat.OpenXml`, MIT, Microsoft) – vor der Wahl Größe, Lizenz, Streaming und Abhängigkeiten vergleichen. Stack-Ergänzung, also ADR; Schreiben in `Core/Data` neben `DelimitedExport` (plattformneutral).
-- **Grenzen:** 1 048 576 Zeilen je Blatt (darüber abbrechen mit Meldung oder weiteres Blatt); Zahlen mit mehr als 15 signifikanten Stellen (`BigNumber`, NUMBER(38)-Schlüssel) und Nanosekunden verliert Excel → als Text schreiben; Zeitzonen-Werte als Text.
-- Offen: Bibliothek; „Alle Zeilen des Filters“ (Backlog, Export) gleich mit, streamend – oder erst nur Geladene/Markierte; ein Blatt je Tab bei mehreren Ergebnissen des SQL-Editors.
+- Für die markierten (geladenen) Zeilen eines Tabs und für Ergebnisse von SQL-Editor und LINQ-Konsole; Speichern über den nativen Dialog des Hosts wie die übrigen Exporte. LOBs wie beim CSV.
+- **Beschriftungen und Werte** (Entscheidung des Nutzers, 2026-10-17): Der CSV-Export schreibt DB-Namen und Rohwerte (`DelimitedExport` kennt die Präsentation nicht) und bleibt so. Excel nimmt standardmäßig die Präsentationsschicht (C#-Namen, Enum-Namen, Anzeigespalten). Ein zweiter Menüeintrag „Als Excel speichern (DB-Namen, Rohwerte)“ – typisiert wie der Standard – erscheint nur, wenn es eine Präsentation gibt (sonst wären beide Dateien gleich); keine Einstellung.
+- **Bibliothek** (Entscheidung des Nutzers, 2026-10-17): SpreadCheetah (MIT, ohne Abhängigkeiten, schreibt streamend in einen Stream; fixierte Zeilen, Autofilter, Spaltenbreiten, Zahlenformate). Stack-Ergänzung, also ADR; Schreiben in `Core/Data` neben `DelimitedExport` (plattformneutral).
+- **Grenzen:** 1 048 576 Zeilen je Blatt (bei markierten Zeilen praktisch unerreichbar, sonst Meldung); als Text schreiben, was Excel verliert: Zahlen mit mehr als 15 signifikanten Stellen (`BigNumber`, NUMBER(38)-Schlüssel, `long` über 2^53), Zeitstempel genauer als Millisekunden, Datum vor dem 01.03.1900 (Excel kennt nichts davor, dazu der Schaltjahr-Fehler 1900), Zeitzonen-Werte. Texte über 32 767 Zeichen (Grenze je Zelle) gekürzt, mit Warnung.
+- Entschieden (2026-10-17): „Alle Zeilen des Filters“ ist ein eigenes Paket (WP-54, für CSV und Excel); ein Blatt je Ergebnis bei mehreren Ergebnissen des SQL-Editors kommt in den Backlog.
+
+### WP-54 Alle Zeilen des Filters exportieren
+Branch `wp/54-export-all-rows`. Vom Nutzer bei der Planung von WP-53 als eigenes Paket eingeplant (2026-10-17); aus dem Backlog („Export und Zwischenablage“).
+- **Ziel:** Export (CSV und Excel) aller Zeilen, die Filter und Sortierung des Tabs liefern – nicht nur der markierten, die das Grid gerade geladen hat (Blöcke à 500, höchstens 40 im Speicher).
+- **Technik:** Abfrage des Tabs aus dem `QueryBuilder` blockweise auf dem Leseweg der Workspace-Session neu ausführen und direkt in die Datei schreiben; Speichern als Stream über den Host (`IFileSaveService` kann heute nur Text oder ein fertiges `byte[]`). Fortschritt mit Zeilenzahl und Abbrechen (große Tabellen über VPN), Obergrenze (Excel: 1 048 576 Zeilen je Blatt).
+- Offen: LOBs vollständig nachladen (teuer) oder wie bisher nur Vorschau mit Warnung; auch für Ergebnisse von SQL-Editor und LINQ-Konsole (dort die Abfrage erneut ausführen – SQL mit Nebenwirkungen gibt es auf dem Leseweg nicht, die LINQ-Konsole führt Nutzercode aus); Obergrenze für CSV.
 
 ## Offene UX-Fragen
 - Shortcut-Belegung für Commit/Rollback – vorläufig, Nutzerfeedback einholen.
