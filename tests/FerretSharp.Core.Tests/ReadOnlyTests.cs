@@ -213,7 +213,7 @@ public class ReadOnlyTests
             typeof(ISchemaReader), [
                 "ExplainAsync", "GetColumnsAsync", "GetConstraintsAsync", "GetCursorAsync", "GetDdlAsync", "GetDependenciesAsync",
                 "GetDetailsAsync", "GetErrorsAsync", "GetForeignKeysAsync", "GetIndexesAsync", "GetLockHoldersAsync", "GetObjectInfoAsync",
-                "GetPlSqlInfoAsync", "GetPlSqlObjectsAsync", "GetSourceAsync", "GetSubprogramsAsync", "GetSynonymTargetsAsync",
+                "GetPlSqlInfoAsync", "GetPlSqlObjectsAsync", "GetSessionActivityAsync", "GetSourceAsync", "GetSubprogramsAsync", "GetSynonymTargetsAsync",
                 "GetTablesAsync", "GetTriggerColumnsAsync", "ReadSnapshotAsync", "SearchSourceAsync",
             ]
         },

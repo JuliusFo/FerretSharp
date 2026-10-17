@@ -193,4 +193,10 @@ public interface IDataEditor
 }
 
 /// <summary>A session holding locks on a table (<c>V$LOCKED_OBJECT</c>/<c>V$SESSION</c>), for the lock conflict dialog.</summary>
-public sealed record LockHolder(int Sid, string? User, string? OsUser, string? Machine, string? Program, string? Module, string? Action, DateTime? LogonTime);
+/// <param name="ClientInfo">
+/// <c>CLIENT_INFO</c>: for a FerretSharp session its tag (<see cref="Connections.IDatabaseConnection.SessionTag"/>, WP-52),
+/// which names the workspace when it is one of this instance's.
+/// </param>
+public sealed record LockHolder(
+    int Sid, string? User, string? OsUser, string? Machine, string? Program, string? Module, string? Action, DateTime? LogonTime,
+    string? ClientInfo = null);

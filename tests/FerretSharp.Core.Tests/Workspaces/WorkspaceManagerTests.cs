@@ -136,6 +136,27 @@ public sealed class WorkspaceManagerTests
     }
 
     [Fact]
+    public async Task A_session_tag_finds_its_open_workspace()
+    {
+        await _manager.AttachAsync(_profile, Ct);
+        var first = _manager.Active!;
+        var second = await _manager.CreateAsync("Bug 3711");
+        Assert.Null(_manager.SessionTagOf(second.Id)); // no session yet
+
+        await _manager.GetDataAsync(first.Id, Ct);
+        await _manager.GetDataAsync(second.Id, Ct);
+        _opened[0].Connection.SessionTag.Returns("FerretSharp aaa");
+        _opened[1].Connection.SessionTag.Returns("FerretSharp bbb");
+
+        Assert.Equal("FerretSharp bbb", _manager.SessionTagOf(second.Id));
+        Assert.Same(second, _manager.FindBySessionTag("FerretSharp bbb"));
+        Assert.Same(first, _manager.FindBySessionTag("FerretSharp aaa"));
+        Assert.Null(_manager.FindBySessionTag("FerretSharp ccc"));
+        Assert.Null(_manager.FindBySessionTag(null));
+        Assert.Null(_manager.FindBySessionTag(""));
+    }
+
+    [Fact]
     public async Task Sessions_of_a_read_only_profile_are_locked_others_not()
     {
         var locked = _profile with { Id = Guid.NewGuid(), ReadOnly = true };

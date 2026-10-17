@@ -9,6 +9,12 @@ public interface IDatabaseConnection : IAsyncDisposable
 {
     string ServerVersion { get; }
 
+    /// <summary>
+    /// Tells this session from all others in <c>V$SESSION</c> (<c>CLIENT_INFO</c>, WP-52, ADR 0027); null if the session has
+    /// none (stand-ins in tests).
+    /// </summary>
+    string? SessionTag { get; }
+
     ISchemaReader Schema { get; }
 
     IDataAccess Data { get; }
