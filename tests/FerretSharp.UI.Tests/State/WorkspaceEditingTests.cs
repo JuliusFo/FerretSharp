@@ -386,6 +386,28 @@ public sealed class WorkspaceEditingTests : IAsyncDisposable
         Assert.Equal((0, 1), (tab.Changes.PendingCount, tab.Changes.FlushedCount));
     }
 
+    /// <summary>
+    /// Review 3.40.0, A20: the waiting session holds a lock on the table itself once it wrote there – it was listed as
+    /// "your workspace", the one that waits.
+    /// </summary>
+    [Fact]
+    public async Task A_lock_conflict_does_not_name_the_waiting_session_itself()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("Test"));
+        var (workspace, tab) = AddTab(scope);
+        tab.Changes!.SetValue(Row(1, "Meier"), 1, "Müller");
+        var editor = await EditorAsync(scope);
+        var own = scope.Workspaces.SessionTagOf(workspace.WorkspaceId);
+        var other = new LockHolder(42, "APP_USER", "jdoe", "PC-1234", "MeineApp.exe", null, null, null);
+        _app.LockHolders = [other, new LockHolder(7, "APP_USER", "me", "PC-1", "FerretSharp.exe", "FerretSharp", "Test", null, own)];
+        editor.FailFlush = operations => Locked(operations[0]);
+
+        Assert.False(await _app.Editing.FlushAsync(workspace));
+
+        Assert.NotNull(own);
+        Assert.Equal([other], _app.Editing.Problem!.Holders);
+    }
+
     [Fact]
     public async Task Overwrite_writes_the_changed_row_anyway()
     {

@@ -566,6 +566,11 @@ public sealed class WorkspaceEditing(
             if (ex is LockConflictException && ScopeOf(workspace.WorkspaceId).Active.Schema is { } schema)
             {
                 holders = await TryAsync(() => schema.GetLockHoldersAsync(tracker.Table.Table.Ref, CancellationToken.None));
+
+                // The waiting session holds a lock on the table itself once it wrote there before (review 3.40.0, A20): it was
+                // listed as "your workspace" – the one that waits. Only the others hold it up.
+                var own = WorkspacesOf(workspace.WorkspaceId).SessionTagOf(workspace.WorkspaceId);
+                holders = holders?.Where(h => own is null || h.ClientInfo != own).ToList();
             }
 
             Problem = new FlushProblem(workspace.WorkspaceId, tab, ex, duringCommit, holders) { RedoOf = options.RedoOf };
