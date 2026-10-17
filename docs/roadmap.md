@@ -89,15 +89,7 @@ Branch `wp/47-since-last-visit`.
 - Offen: eigene Seite oder Hinweis „3 Änderungen seit …“, der die Seite öffnet; was vor dem Abgleich erlaubt ist (Backlog-Eintrag).
 
 ### Pakete aus der Ideensammlung 2026-10-17 (WP-52, WP-53)
-Vom Nutzer aus einer Sammlung von Oracle-Funktionen und Bibliotheken als Pakete übernommen (2026-10-17). Beide klein und unabhängig von WP-38 … WP-47; ob sie vorgezogen werden wie WP-48 … WP-51, entscheidet der Nutzer.
-
-### WP-52 Warten und Fortschritt laufender Statements
-Branch `wp/52-waits-and-progress`.
-- **Technik:** nur lesend über eine **andere** Session als die beschäftigte Workspace-Session (Explorer-Session oder eine eigene kleine Session); die SID jeder Workspace-Session beim Öffnen merken (`SYS_CONTEXT('USERENV','SID')`). Braucht Leserechte auf `V$SESSION` und `V$SESSION_LONGOPS` – dieselben wie der Sperrkonflikt-Dialog (`LockHolder`, `V$LOCKED_OBJECT`/`V$SESSION`); ohne Rechte still weglassen (einmal im Log). Takt etwa alle 2–3 s, erst wenn ein Statement länger als eine Schwelle (Vorschlag 3 s) läuft – sonst nur zusätzliche Roundtrips über das VPN. Abfragen in `Core/Oracle`, Lesesperre unverändert.
-- **Wer blockiert mich:** In der Laufanzeige (SQL-Editor, LINQ-Konsole, Flush, COUNT, FK-Counts) `BLOCKING_SESSION`, `EVENT` und `SECONDS_IN_WAIT` der eigenen SID: „wartet seit 12 s auf eine Zeilensperre von Session 123 (User, Maschine, Programm, MODULE/ACTION)“. Ist die sperrende Session eine eigene (MODULE = FerretSharp, ACTION = Workspace-Name, gleiche Maschine), heißt es „… von **deinem** Workspace 2“ mit Sprung dorthin – Commit/Rollback dort löst die Sperre. Am meisten wert für die Wege ohne Wartegrenze: DML aus SQL-Editor und LINQ-Konsole (`ExecuteUpdate`) wartet unbegrenzt, der Grid-Flush dagegen mit `FOR UPDATE WAIT n` und dem Sperrkonflikt-Dialog.
-- **Fortschritt:** `V$SESSION_LONGOPS` der eigenen SID (`OPNAME`, `TARGET`, `SOFAR`/`TOTALWORK`, `TIME_REMAINING`; Oracle führt dort Full Scans, Hash-Joins und Sortierungen ab etwa 6 s) als Balken in der Laufanzeige: „Full Scan KUNDEN 43 %, noch ~20 s“. Nutzen für COUNT, FK-Counts, freie Abfragen und später Spaltenprofil (WP-38) und Datenqualität (WP-43).
-- Tests: Abfragen und Auswertung im Core mit Fakes; Integrationstest mit zwei Sessions im Testcontainer (eine sperrt, die andere wartet), Longops mit einem Full Scan über eine ausreichend große Tabelle oder nur Auswertung per Unit-Test.
-- Offen: eigene Session oder Explorer-Session (die Explorer-Session arbeitet einen Aufruf nach dem anderen ab, die Anzeige darf nicht hinter Schema-Aufrufen warten – Vorschlag eigene Session, wie für WP-43 ohnehin); Anzeige für Workspaces im Hintergrund (Statusleiste?); Schwelle und Takt als Einstellung oder fest.
+Vom Nutzer aus einer Sammlung von Oracle-Funktionen und Bibliotheken als Pakete übernommen (2026-10-17). Beide klein und unabhängig von WP-38 … WP-47. WP-52 (Warten und Fortschritt laufender Statements) ist gebaut und vorgezogen: `docs/work-packages/wp-52-waits-and-progress.md`.
 
 ### WP-53 Export als Excel-Datei
 Branch `wp/53-xlsx-export`.

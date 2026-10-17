@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- Running statements say what they wait for. After three seconds, the run panel of the SQL editor, the LINQ console and the table designer shows when the statement waits for a lock: on which table and held by whom – "your workspace “Bug 3711”" with a button to go there and commit or roll back, or another session with user, machine and program. Long operations Oracle reports (full table scans, hash joins, sorts) show as a progress bar with Oracle's estimate of the time left. This needs read access to `V$SESSION` and `V$SESSION_LONGOPS` (`SELECT_CATALOG_ROLE` or grants). Without it, a writing statement names the other workspaces with uncommitted changes instead.
+- Lock conflict dialog: a session of one of your own workspaces is named as such, also in another open connection.
+
 ## [3.38.0] - 2026-10-17
 
 An audit template for each connection group and connection.
