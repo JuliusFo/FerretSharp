@@ -5,6 +5,33 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.40.1] - 2026-10-17
+
+Fixes from a second review of the whole code (R6a).
+
+### Security
+- Commit and rollback wait for a running statement of the workspace: an UPDATE of the SQL editor waiting for a lock was committed unseen together with a confirmed Prod commit (or taken back unseen by a rollback). Commit and Rollback are disabled meanwhile and say why; a statement started while a commit runs is refused.
+- A connection imported from a file can no longer redirect the login: a host, service name or SID with `(`, `)` or `=` added an address of its own to the connect descriptor, and Oracle could fail over to it with the saved password. Such values are refused when saving and importing, and for connections saved before when connecting.
+- The error dialog hides the bind values of a Prod statement also while another connection is shown, and neither shows nor copies passwords (`IDENTIFIED BY …`). On Prod the log also leaves out the text literals of a statement; the SQL history keeps them.
+- `DROP TABLE … PURGE` and `DROP USER … CASCADE` are refused like `TRUNCATE`; a plain `DROP TABLE` stays possible (the recycle bin keeps it).
+- Model host, LINQ console and builds end with FerretSharp, also after a crash.
+- The app page has a content security policy, and the release workflow runs one release at a time with its actions pinned.
+
+### Fixed
+- A write or commit that hangs on a silent network (VPN) can be given up: after a few seconds the status bar offers "Disconnect session…", and the dialog before disconnecting or closing offers it too – its Cancel and Escape always work now.
+- "Cancel" of a running statement and "Disconnect session" no longer freeze the window when the network does not answer; the keep-alive goes on with the other connections when one of them hangs.
+- A connection lost while committing says that the outcome is unknown, instead of showing the changes as not written: check before writing them again.
+- A tab on a table of another schema (opened by a foreign key jump) stayed open after DDL or "Reload schema" and is restored at the next start; a tab with changes is never closed by a schema refresh.
+- Changing a column from `TIMESTAMP` to `DATE` (which cuts the fractional seconds) or from `VARCHAR2` to `CHAR` (which pads the values) warns in the table designer and the schema comparison.
+- Running statements: only real lock waits are shown as locks (not log file sync or buffer waits), the progress bar belongs to the running statement, and the lock conflict dialog no longer names the waiting workspace itself.
+- The SQL editor fetches only the preview of LOB columns – pages of results with large CLOBs load much faster, also further down.
+- A table over a database link (`kunden@prod`) no longer offers foreign key jumps to this database's rows.
+- Links: a link cut off on the way (a mail in plain text, a ticket field) is reported as incomplete instead of opening other rows; a new link waits until the open one is answered.
+- The connection dialog checks typed paths in the background – typing a path on a share no longer stutters at every key.
+- "Open in SQL editor" for a connection that is not connected no longer opens hours later after a cancelled password or a failed connect.
+- Dialogs keep the focus: Tab no longer reaches the buttons behind them. The workspace menus stay inside the window and close with Escape.
+- Smaller ones: "contains" on an NCLOB column finds characters outside the database character set, one rule for pasted paths in quotes, the preset tooltip shows C# enum names like the tab header, `UPDATE`, `INSERT` and `ALTER` are highlighted in the change overview, a saved comparison never replaces the others after a read that failed, errors in the editor's completion and in result pages are reported instead of lost, and a link pipe taken by another user no longer fills the log.
+
 ## [3.40.0] - 2026-10-17
 
 Save rows as an Excel file.

@@ -2,7 +2,7 @@
 
 Auftrag des Nutzers (2026-10-17): Gesamt-Review über die ganze Solution, nicht nur über die Pakete seit dem letzten Review (3.31.0) – toter Code, Duplikate, Lesbarkeit, Architektur, Sicherheit, Projekt- und Ordnerstruktur, Tests, Doku. Acht parallele Agenten nach Themen, nur lesend: DB-Zugriff (DB), Zustand/Nebenläufigkeit (ST), UI/JS/CSS (UI), Host/Prozesse/Build (PH), Sicherheit (SE), Wiederverwendung/toter Code (RE), Tests (TE), Doku (DO). Doppelte Befunde sind zusammengeführt (alle IDs genannt). **Nachgeprüft** = zusätzlich von Hand im Code bestätigt; sonst die Einschätzung des Agenten.
 
-**Stand:** Teil A wird als R6a umgesetzt (Branch `fix/r6a-review-3.40`, Patch 3.40.1), dann Teil D (Doku), dann R6b (Teil B und C, 3.41.0), dann WP-54. Entscheidungen des Nutzers unten.
+**Stand:** Teil A ist als R6a umgesetzt (Branch `fix/r6a-review-3.40`, Patch 3.40.1, Protokoll `docs/work-packages/r6a-review-3.40.md`), dazu die Entscheidungen 1, 2 und 4 und aus Teil C TE-4 (Tests für `QueryErrorLog`). A13 geht mit WP-54 (Roadmap). Gemessen bzw. nachgestellt: A12 und A23 bestätigt und behoben, A32/ST-10 gemessen (Backlog), A36/PH-7 nicht bestätigt. Offen: Teil D (Doku), dann R6b (Teil B und C, 3.41.0), dann WP-54.
 
 Schwere: **S** falsche Daten, Datenverlust, Sicherheitslücke, Hänger · **M** falsches Verhalten in realistischen Fällen oder klare Wartungslast · **K** Kleinkram.
 
