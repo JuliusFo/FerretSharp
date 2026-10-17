@@ -1,3 +1,4 @@
+using FerretSharp.Core.Settings;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -32,7 +33,7 @@ public static partial class ReleaseNotes
     /// <summary>Where the release workflow puts the images of a release: the files of its tag.</summary>
     public const string ImageHost = "raw.githubusercontent.com";
 
-    public const string ImagePath = "/JuliusFo/FerretSharp/";
+    public const string ImagePath = ProjectSite.RawPath;
 
     public static IReadOnlyList<NoteBlock> Parse(string? markdown)
     {

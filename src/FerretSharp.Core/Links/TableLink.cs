@@ -6,6 +6,7 @@ using FerretSharp.Core.Oracle;
 using FerretSharp.Core.Query;
 using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
+using FerretSharp.Core.Settings;
 using FerretSharp.Core.Workspaces;
 
 namespace FerretSharp.Core.Links;
@@ -39,7 +40,7 @@ public sealed record TableLink(
     /// addendum): Teams, Azure DevOps and most chats only make https addresses clickable. A static page on GitHub Pages
     /// (<c>pages/open/index.html</c>); it reads the part after <c>#</c>, which the browser never sends to a server.
     /// </summary>
-    public const string WebPage = "https://juliusfo.github.io/FerretSharp/open/";
+    public const string WebPage = ProjectSite.Pages + "open/";
 
     /// <summary>What <see cref="ToUri"/> starts with and the redirect page puts in front of the part after <c>#</c>.</summary>
     public const string UriStart = Scheme + "://open?";
