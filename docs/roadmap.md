@@ -14,7 +14,7 @@ Entscheidung des Nutzers (2026-10-09). Issues bekommen eine Art und einen Status
 
 ## Geplant
 
-Versionen: Minor-Releases 3.x (nichts Inkompatibles). Ein Paket bekommt seine Version erst beim Release (`CHANGELOG.md`, Spalte „Release“ im Index); die Roadmap legt keine fest, weil die Reihenfolge oft abweicht und Fix-Releases dazwischenkommen (Entscheidung des Nutzers, 2026-10-14). Zuletzt released: 3.38.0 (WP-51, Audit-Vorlage je Systemgruppe und Verbindung, `docs/work-packages/wp-51-audit-template-per-group.md`), davor 3.37.0 (WP-50, Filtergruppen ODER und NICHT, `docs/work-packages/wp-50-filter-groups.md`).
+Versionen: Minor-Releases 3.x (nichts Inkompatibles). Ein Paket bekommt seine Version erst beim Release (`CHANGELOG.md`, Spalte „Release“ im Index); die Roadmap legt keine fest, weil die Reihenfolge oft abweicht und Fix-Releases dazwischenkommen (Entscheidung des Nutzers, 2026-10-14). Zuletzt released: 3.39.0 (WP-52, Warten und Fortschritt laufender Statements, `docs/work-packages/wp-52-waits-and-progress.md`), davor 3.38.0 (WP-51, Audit-Vorlage je Systemgruppe und Verbindung, `docs/work-packages/wp-51-audit-template-per-group.md`).
 
 ### Pakete nach WP-36 (WP-37 … WP-47)
 Ausgewählt mit dem Nutzer am 2026-10-14 aus einer Ideensammlung (Bewertung des Nutzers je Paket in Klammern). Reihenfolge nach Abhängigkeiten: erst kleine Pakete mit sofortigem Nutzen (WP-37 … WP-39), dann zwei Fundamente, die je mehrere Pakete tragen – der Code-Index (WP-40 → WP-41, WP-45) und der Beziehungsgraph (WP-42 → WP-43, WP-46) –, das Paket mit Mitschnitt, Quellzeile und Datenänderungen (WP-45) erst, wenn seine Teile stehen. Die Abschnitte sind Vorschläge; „Offen“ wird beim Start mit dem Nutzer entschieden, dann wie üblich der Plan.
@@ -89,7 +89,7 @@ Branch `wp/47-since-last-visit`.
 - Offen: eigene Seite oder Hinweis „3 Änderungen seit …“, der die Seite öffnet; was vor dem Abgleich erlaubt ist (Backlog-Eintrag).
 
 ### Pakete aus der Ideensammlung 2026-10-17 (WP-52, WP-53)
-Vom Nutzer aus einer Sammlung von Oracle-Funktionen und Bibliotheken als Pakete übernommen (2026-10-17). Beide klein und unabhängig von WP-38 … WP-47. WP-52 (Warten und Fortschritt laufender Statements) ist gebaut und vorgezogen: `docs/work-packages/wp-52-waits-and-progress.md`.
+Vom Nutzer aus einer Sammlung von Oracle-Funktionen und Bibliotheken als Pakete übernommen (2026-10-17). Beide klein und unabhängig von WP-38 … WP-47. WP-52 (Warten und Fortschritt laufender Statements) ist vorgezogen und in 3.39.0 released: `docs/work-packages/wp-52-waits-and-progress.md`.
 
 ### WP-53 Export als Excel-Datei
 Branch `wp/53-xlsx-export`.

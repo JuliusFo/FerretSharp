@@ -1,4 +1,4 @@
-# WP-52 Warten und Fortschritt laufender Statements → noch nicht released
+# WP-52 Warten und Fortschritt laufender Statements → Release 3.39.0
 Branch `wp/52-waits-and-progress`. ADR 0027. Aus der Ideensammlung vom 2026-10-17 (Oracle-Funktionen, die FerretSharp noch nicht nutzt), vom Nutzer als Paket übernommen und gleich vorgezogen.
 
 ## Planung (aus `docs/roadmap.md`)
