@@ -3,6 +3,7 @@
    button names the preset applied last and whether the rows changed since ("Open orders · changed"). *@
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
+@using FerretSharp.Core.ClrModel
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject FilterPresetService Presets
@@ -34,7 +35,7 @@ else
         }
         @if (active is not null && changed)
         {
-            <button class="menu-item" title="@FilterPresetText.Describe(active)" @onclick="() => ApplyAsync(active, append: false)">@TextFormat.Format(GridText.Presets_Reset, active.Name)</button>
+            <button class="menu-item" title="@FilterPresetText.Describe(active, Presentation)" @onclick="() => ApplyAsync(active, append: false)">@TextFormat.Format(GridText.Presets_Reset, active.Name)</button>
             <button class="menu-item" @onclick="() => UpdateAsync(active)">@TextFormat.Format(GridText.Presets_Update, active.Name)</button>
             <div class="menu-sep"></div>
         }
@@ -42,7 +43,7 @@ else
         {
             var p = preset;
             <div class="preset-item @(p.Id == active?.Id ? "active" : "")">
-                <button class="menu-item preset-apply" title="@FilterPresetText.Describe(p)" @onclick="() => ApplyAsync(p, append: false)">@p.Name</button>
+                <button class="menu-item preset-apply" title="@FilterPresetText.Describe(p, Presentation)" @onclick="() => ApplyAsync(p, append: false)">@p.Name</button>
                 <button class="icon-btn ghost" title="@GridText.Presets_AppendTitle" @onclick="() => ApplyAsync(p, append: true)">+</button>
                 <button class="icon-btn ghost" title="@ShellText.Rename" @onclick="() => OpenRename(p)">✎</button>
                 <button class="icon-btn ghost preset-delete" title="@CommonText.Delete" @onclick="() => AskDelete(p)">✕</button>
@@ -76,7 +77,7 @@ else
                     {
                         <div class="muted">@GridText.Presets_NoFilterRows</div>
                     }
-                    @foreach (var line in FilterPresetText.FilterLines(dialog.Filters))
+                    @foreach (var line in FilterPresetText.FilterLines(dialog.Filters, Presentation))
                     {
                         <code>@line</code>
                     }
@@ -127,6 +128,12 @@ else
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
+
+    /// <summary>The table's C# model: enum and bool values read as members, as in the tab header (review 3.40.0, A31).</summary>
+    [CascadingParameter]
+    public PresentationService Presentations { get; set; } = null!;
+
+    private TablePresentation Presentation => Presentations.For(Details);
 
     [Parameter, EditorRequired]
     public TableTab Tab { get; set; } = null!;
