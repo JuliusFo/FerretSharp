@@ -316,10 +316,20 @@ public sealed partial class OracleSession : IAsyncDisposable
         string sql, IReadOnlyList<QueryParameter> parameters, Func<OracleCommand, CancellationToken, Task<T>> run, CancellationToken cancellationToken)
     {
         await using var command = CreateCommand(sql, parameters);
-        await using var cancelRegistration = cancellationToken.Register(static c => ((OracleCommand)c!).Cancel(), command);
+
+        // ODP.NET sends the break synchronously, and over a silent VPN it blocks: whoever cancels the token (a click on
+        // "Cancel", closing a view – the UI thread) froze with it (review 3.40.0, A3). ODP.NET only ever sees a token that
+        // is cancelled on a pool thread – its own registrations (async calls) included.
+        using var background = new CancellationTokenSource();
+        await using var forward = cancellationToken.Register(static b => CancelInBackground((CancellationTokenSource)b!), background);
+        await using var cancelRegistration = background.Token.Register(static c => ((OracleCommand)c!).Cancel(), command);
         try
         {
-            return await run(command, cancellationToken);
+            return await run(command, background.Token);
+        }
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested && ex.CancellationToken != cancellationToken)
+        {
+            throw new OperationCanceledException(ex.Message, ex, cancellationToken);
         }
         catch (OracleException ex) when (ex.Number == OracleErrorCodes.UserCancelled)
         {
@@ -375,15 +385,40 @@ public sealed partial class OracleSession : IAsyncDisposable
         return command;
     }
 
+    /// <summary>
+    /// Cancels the running command on a pool thread – "Disconnect session" runs on the UI thread, and
+    /// <see cref="OracleCommand.Cancel"/> blocks while the connection does not answer (review 3.40.0, A3).
+    /// </summary>
     private void CancelRunningCommand()
+    {
+        if (_running is not { } running)
+        {
+            return;
+        }
+
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                running.Cancel();
+            }
+            catch (Exception ex) when (ex is OracleException or InvalidOperationException or ObjectDisposedException)
+            {
+                // the command already finished
+            }
+        });
+    }
+
+    /// <summary>Cancels <paramref name="source"/> on a pool thread, and with it what is registered on its token (<see cref="RunAsync"/>).</summary>
+    private static void CancelInBackground(CancellationTokenSource source) => _ = Task.Run(() =>
     {
         try
         {
-            _running?.Cancel();
+            source.Cancel();
         }
-        catch (Exception ex) when (ex is OracleException or InvalidOperationException or ObjectDisposedException)
+        catch (Exception ex) when (ex is OracleException or InvalidOperationException or ObjectDisposedException or AggregateException)
         {
-            // the command already finished
+            // the command finished meanwhile (the source is disposed with it), or its cancel failed: it ends either way
         }
-    }
+    });
 }

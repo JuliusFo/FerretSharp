@@ -97,6 +97,26 @@ public sealed class ConnectionKeepAliveTests : IDisposable
         await _workspaceSession.Received(1).PingIfIdleAsync(Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>());
     }
 
+    /// <summary>
+    /// Review 3.40.0, A4: the timeout only cancelled the ping. One whose cancel the VPN swallowed hung the round – and no
+    /// other connection was pinged until TCP gave up.
+    /// </summary>
+    [Fact]
+    public async Task A_ping_that_ignores_its_cancel_ends_the_round_after_the_timeout()
+    {
+        await ConnectAsync();
+        var hanging = new TaskCompletionSource<bool>();
+        _explorer.PingIfIdleAsync(Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>()).Returns(hanging.Task);
+
+        var round = _keepAlive.TickAsync();
+        Assert.False(round.IsCompleted);
+        _time.Advance(ConnectionKeepAlive.PingTimeout);
+
+        await round.WaitAsync(TimeSpan.FromSeconds(10), Ct);
+        Assert.Empty(_lost);
+        hanging.SetResult(true);
+    }
+
     [Fact]
     public async Task Switched_off_in_the_settings_pings_nothing()
     {
