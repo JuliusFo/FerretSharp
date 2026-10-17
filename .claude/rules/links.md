@@ -1,8 +1,8 @@
 ---
 paths:
   - "src/FerretSharp.Core/Links/**"
-  - "src/FerretSharp.UI/Components/LinkOpenDialog*"
-  - "src/FerretSharp.UI/State/Link*"
+  - "src/FerretSharp.UI/Components/Shell/LinkOpenDialog*"
+  - "src/FerretSharp.UI/State/Links/Link*"
   - "src/FerretSharp.App/Services/LinkPipe.cs"
   - "src/FerretSharp.App/Services/ProtocolRegistration.cs"
   - "pages/**"

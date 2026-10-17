@@ -45,7 +45,7 @@ Klassennamen sind über alle Projekte eindeutig (die Razor-Komponenten sehen Cor
 |---|---|
 | Fester Text in Razor | `@ShellText.Settings_Title`, Attribute `title="@GridText.GridMenu_CopyTableTitle"` |
 | Text mit Werten | `TextFormat.Format(GridText.Grid_ColumnCopied, column.Name)` – ganzer Satz mit Platzhaltern, **nie Satzteile zusammenkleben** (Wortstellung ist je Sprache anders) |
-| Text mit Markup (`<code>`, `<b>`, Link, `<Kbd>`) | `<Fmt Text="@X.Y"><Arg0><code>…</code></Arg0></Fmt>` (`Components/Fmt.cs`, bis `{3}`) |
+| Text mit Markup (`<code>`, `<b>`, Link, `<Kbd>`) | `<Fmt Text="@X.Y"><Arg0><code>…</code></Arg0></Fmt>` (`Components/Common/Fmt.cs`, bis `{3}`) |
 | Zahl/Datum im Text | Kultur wie vorher: Interpolation/`CurrentCulture` → `TextFormat.Format(…)`; Code, der ausdrücklich `German` nimmt → `TextFormat.Format(German, …)`. Die Formatkultur bleibt in WP-29 unverändert (Backlog). |
 | Beschriftungs-Tabellen in `@code` | als Eigenschaft `=>`, **nicht** `static readonly`: Ein statisches Feld behält die Sprache des ersten Zugriffs (Tests wechseln die Kultur). |
 | Meldung aus dem Core | Der Core baut den fertigen Satz aus seiner eigenen Ressource; die UI zeigt ihn. Der Core kennt keine UI-Ressourcen. |

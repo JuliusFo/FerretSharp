@@ -7,11 +7,7 @@ paths:
   - "src/FerretSharp.Core/Data/WriteLog*"
   - "src/FerretSharp.Core/Workspaces/**"
   - "src/FerretSharp.Core/Design/**"
-  - "src/FerretSharp.UI/State/Workspace*"
-  - "src/FerretSharp.UI/State/StatementRunner*"
-  - "src/FerretSharp.UI/State/SessionWatch*"
-  - "src/FerretSharp.UI/State/GridWriteHistory*"
-  - "src/FerretSharp.UI/State/ChangeOverview*"
+  - "src/FerretSharp.UI/State/Workspaces/**"
 ---
 
 # Transaktionen, Sperren und DDL in Oracle

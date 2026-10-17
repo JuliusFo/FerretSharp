@@ -8,6 +8,10 @@ paths:
 
 UI-Konzept und Tastenkürzel: `docs/architecture.md` 2–3. Grid, Monaco und CSS haben eigene Regeln (`ui-grid.md`, `ui-monaco.md`, `ui-css.md`), Tests `tests.md`.
 
+## Ordner (R6b)
+- Komponenten liegen nach Bereich in `Components/` (Common, Shell, Connections, Schema, PlSql, Grid, Filter, Sql, Ddl, Pages); der Ordner ist der Namespace, ein neuer Ordner kommt in die Wurzel-`_Imports.razor`. Die `.cs`-Helfer dort (`FerretComponent`, `Fmt`, `Icons`, `DetailViewBase`) behalten `FerretSharp.UI.Components`.
+- `State/` hat dieselbe Gliederung (dazu Tabs, Links, Settings, Host = Schnittstellen zur App, Model), der Namespace bleibt `FerretSharp.UI.State`. Neue Dateien in den passenden Ordner, sonst greifen die `paths` der Regeln nicht.
+
 ## Zustand und Dienste
 - Dialoge und Bestätigungen fordern Komponenten über den kaskadierten `ShellState` an. Was mit Workspaces und ihren Änderungen passiert (Commit, Rollback, Sperren/Freischalten, Verbinden, Trennen, Löschen, Tab schließen, „vorher fragen“ über `GuardAsync`), liegt im kaskadierten `WorkspaceLifecycle`. `TabBar`, `StatusBar`, `WorkspaceBadge`, `ConnectionLostBanner`, `DialogHost` bekommen ihn als Parameter, damit sie mit der Shell neu rendern.
 - Dienste einer Verbindung (`ActiveConnection`, `WorkspaceManager`, `ClrModelManager`, `PresentationService`, `LinqConsoleService`) sind **Scoped** und kommen als `[CascadingParameter]` über `ConnectionScopeView`, **nie per `@inject`/`[Inject]`** – sonst bekommt die Komponente die Instanz des WebView-Scopes, eine Geisterverbindung (`ConnectionServiceInjectionTests` schlägt an). Explorer und Tab-Seiten jeder offenen Verbindung stehen unter deren eigenem `ConnectionScopeView` und bleiben gemountet; Leisten, Dialoge und Seiten hängen an `Hub.Shown` und sind darauf gekeyt (Geschwister brauchen verschiedene Keys). Aktionen auf einem Workspace über `ConnectionHub.OwnerOf(workspaceId)`. `ShortcutService` ist nicht verbindungsgebunden (`@inject` erlaubt).

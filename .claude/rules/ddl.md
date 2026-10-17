@@ -4,9 +4,10 @@ paths:
   - "src/FerretSharp.Core/Design/**"
   - "src/FerretSharp.Core/Compare/**"
   - "src/FerretSharp.Core/Audit/**"
-  - "src/FerretSharp.UI/Components/TableDesigner*"
-  - "src/FerretSharp.UI/Components/NewTableView*"
-  - "src/FerretSharp.UI/Components/Audit*"
+  - "src/FerretSharp.UI/Components/Ddl/**"
+  - "src/FerretSharp.UI/Components/Schema/Audit*"
+  - "src/FerretSharp.UI/State/Schema/ColumnDesigner*"
+  - "src/FerretSharp.UI/State/Schema/IndexDraftEditor*"
 ---
 
 # DDL erzeugen (R4b, WP-23, WP-26)

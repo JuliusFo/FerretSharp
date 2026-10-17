@@ -1,8 +1,9 @@
 ---
 paths:
   - "src/FerretSharp.Core/Connections/Transfer/**"
-  - "src/FerretSharp.UI/Components/ConnectionImportDialog*"
-  - "src/FerretSharp.UI/Components/ConnectionExportDialog*"
+  - "src/FerretSharp.UI/Components/Connections/ConnectionImportDialog*"
+  - "src/FerretSharp.UI/Components/Connections/ConnectionExportDialog*"
+  - "src/FerretSharp.UI/State/Connections/ConnectionTransfer*"
 ---
 
 # Verbindungen importieren und exportieren (WP-35, ADR 0025)
