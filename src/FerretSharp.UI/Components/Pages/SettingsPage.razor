@@ -40,7 +40,7 @@
         {
         <section class="settings-section">
             <h2>@SettingsViewText.Settings_ClrModel</h2>
-            <SettingsChoice Filter="Filter" Key="SettingKey.ClrNames" Label="@SettingsViewText.Settings_ClrNames" Options="SettingsOptions.ClrNames"
+            <SettingsChoice TValue="ClrNameDisplay" Filter="Filter" Key="SettingKey.ClrNames" Label="@SettingsViewText.Settings_ClrNames" Options="SettingsOptions.ClrNames"
                             Value="Settings.Current.ClrNames" OnChange="mode => UpdateAsync(s => s with { ClrNames = mode })">
                 <Hint>@SettingsViewText.Settings_ClrNamesHint</Hint>
             </SettingsChoice>
@@ -71,7 +71,7 @@
         {
         <section class="settings-section">
             <h2>@SettingsViewText.Settings_Diagnostics</h2>
-            <SettingsChoice Filter="Filter" Key="SettingKey.DiagnoseUiStalls" Label="@SettingsViewText.Settings_DiagnoseUiStalls" Options="SettingsOptions.OnOff"
+            <SettingsChoice TValue="bool" Filter="Filter" Key="SettingKey.DiagnoseUiStalls" Label="@SettingsViewText.Settings_DiagnoseUiStalls" Options="SettingsOptions.OnOff"
                             Value="Settings.Current.DiagnoseUiStalls" OnChange="on => UpdateAsync(s => s with { DiagnoseUiStalls = on })">
                 <Hint>
                     <Fmt Text="@SettingsViewText.Settings_DiagnoseUiStallsHint">

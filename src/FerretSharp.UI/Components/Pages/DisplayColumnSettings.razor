@@ -7,7 +7,7 @@
 
 <section class="settings-section">
     <h2>@SettingsViewText.Settings_DisplayColumns</h2>
-    <SettingsChoice Filter="Filter" Key="SettingKey.ShowDisplayNames" Label="@SettingsViewText.Settings_ShowDisplayNames" Options="SettingsOptions.OnOff"
+    <SettingsChoice TValue="bool" Filter="Filter" Key="SettingKey.ShowDisplayNames" Label="@SettingsViewText.Settings_ShowDisplayNames" Options="SettingsOptions.OnOff"
                     Value="Settings.Current.ShowDisplayNames" OnChange="on => UpdateAsync(s => s with { ShowDisplayNames = on })">
         <Hint><Fmt Text="@SettingsViewText.Settings_ShowDisplayNamesHint"><Arg0><code>@SettingsCatalog.DisplayNameExample</code></Arg0></Fmt></Hint>
     </SettingsChoice>

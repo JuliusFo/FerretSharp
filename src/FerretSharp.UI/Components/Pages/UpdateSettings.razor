@@ -17,11 +17,11 @@
     </div>
     @if (Updates.Phase != UpdatePhase.NotInstalled)
     {
-        <SettingsChoice Filter="Filter" Key="SettingKey.CheckForUpdates" Label="@SettingsViewText.Settings_CheckForUpdates" Options="SettingsOptions.OnOff"
+        <SettingsChoice TValue="bool" Filter="Filter" Key="SettingKey.CheckForUpdates" Label="@SettingsViewText.Settings_CheckForUpdates" Options="SettingsOptions.OnOff"
                         Value="Settings.Current.CheckForUpdates" OnChange="on => UpdateAsync(s => s with { CheckForUpdates = on })">
             <Hint>@SettingsViewText.Settings_CheckForUpdatesHint</Hint>
         </SettingsChoice>
-        <SettingsChoice Filter="Filter" Key="SettingKey.UpdateCheckInterval" Label="@SettingsViewText.Settings_UpdateCheckInterval" Options="SettingsOptions.UpdateIntervals"
+        <SettingsChoice TValue="int" Filter="Filter" Key="SettingKey.UpdateCheckInterval" Label="@SettingsViewText.Settings_UpdateCheckInterval" Options="SettingsOptions.UpdateIntervals"
                         Value="Math.Max(Settings.Current.UpdateCheckHours, 0)" Disabled="!Settings.Current.CheckForUpdates"
                         OnChange="hours => UpdateAsync(s => s with { UpdateCheckHours = hours })">
             <Hint>@SettingsViewText.Settings_UpdateCheckIntervalHint</Hint>

@@ -5,7 +5,7 @@
 
 <section class="settings-section">
     <h2>@SettingsViewText.Settings_Appearance</h2>
-    <SettingsChoice Filter="Filter" Key="SettingKey.Language" Label="@SettingsViewText.Settings_Language" Options="SettingsOptions.Languages"
+    <SettingsChoice TValue="UiLanguage" Filter="Filter" Key="SettingKey.Language" Label="@SettingsViewText.Settings_Language" Options="SettingsOptions.Languages"
                     Value="Settings.Current.Language" OnChange="SetLanguageAsync" LangOf="l => UiLanguages.Culture(l).Name">
         <Hint>@SettingsViewText.Settings_LanguageHint</Hint>
     </SettingsChoice>
@@ -13,7 +13,7 @@
     {
         <div class="settings-note @Filter.HideClass(SettingKey.Language)">@SettingsViewText.Settings_LanguageAfterRestart</div>
     }
-    <SettingsChoice Filter="Filter" Key="SettingKey.ColorScheme" Label="@SettingsViewText.Settings_ColorScheme" Options="SettingsOptions.Themes"
+    <SettingsChoice TValue="ThemeMode" Filter="Filter" Key="SettingKey.ColorScheme" Label="@SettingsViewText.Settings_ColorScheme" Options="SettingsOptions.Themes"
                     Value="Theme.Mode" OnChange="SetThemeAsync">
         <Hint>@SettingsViewText.Settings_ColorSchemeHint</Hint>
     </SettingsChoice>
@@ -26,7 +26,7 @@
             </Fmt>
         </div>
     }
-    <SettingsChoice Filter="Filter" Key="SettingKey.ConnectionGroup" Label="@SettingsViewText.Settings_ConnectionGroup" Options="SettingsOptions.OnOff"
+    <SettingsChoice TValue="bool" Filter="Filter" Key="SettingKey.ConnectionGroup" Label="@SettingsViewText.Settings_ConnectionGroup" Options="SettingsOptions.OnOff"
                     Value="Settings.Current.ShowConnectionGroup" OnChange="on => UpdateAsync(s => s with { ShowConnectionGroup = on })">
         <Hint><Fmt Text="@SettingsViewText.Settings_ConnectionGroupHint"><Arg0><code>@SettingsCatalog.ConnectionGroupExample</code></Arg0></Fmt></Hint>
     </SettingsChoice>

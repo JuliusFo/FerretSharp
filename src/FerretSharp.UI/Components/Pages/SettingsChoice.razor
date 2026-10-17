@@ -16,7 +16,7 @@
             var option = value;
             var active = EqualityComparer<TValue>.Default.Equals(Value, option);
             <button class="seg @(active ? "active" : "")" role="radio" aria-checked="@(active ? "true" : "false")" lang="@LangOf?.Invoke(option)"
-                    disabled="@Disabled" @onclick="() => OnChange(option)">@label</button>
+                    disabled="@Disabled" @onclick="() => OnChange.InvokeAsync(option)">@label</button>
         }
     </div>
 </div>
@@ -40,8 +40,12 @@
     [Parameter, EditorRequired]
     public TValue Value { get; set; } = default!;
 
+    /// <summary>
+    /// The chosen value. An event callback, not a delegate: it renders the section that set it, whose value then shows –
+    /// a delegate would only render this row with the old value (found in the E2E run of R6b).
+    /// </summary>
     [Parameter, EditorRequired]
-    public Func<TValue, Task> OnChange { get; set; } = null!;
+    public EventCallback<TValue> OnChange { get; set; }
 
     [Parameter]
     public bool Disabled { get; set; }

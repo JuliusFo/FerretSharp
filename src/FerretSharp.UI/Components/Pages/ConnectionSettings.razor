@@ -5,7 +5,7 @@
 
 <section class="settings-section">
     <h2>@SettingsViewText.Settings_Connection</h2>
-    <SettingsChoice Filter="Filter" Key="SettingKey.KeepAlive" Label="@SettingsViewText.Settings_KeepAlive" Options="SettingsOptions.OnOff"
+    <SettingsChoice TValue="bool" Filter="Filter" Key="SettingKey.KeepAlive" Label="@SettingsViewText.Settings_KeepAlive" Options="SettingsOptions.OnOff"
                     Value="Settings.Current.KeepAlive" OnChange="on => UpdateAsync(s => s with { KeepAlive = on })">
         <Hint>
             <Fmt Text="@SettingsViewText.Settings_KeepAliveHint">
@@ -14,11 +14,11 @@
             </Fmt>
         </Hint>
     </SettingsChoice>
-    <SettingsChoice Filter="Filter" Key="SettingKey.LockWait" Label="@SettingsViewText.Settings_LockWait" Options="SettingsOptions.LockWaits"
+    <SettingsChoice TValue="int" Filter="Filter" Key="SettingKey.LockWait" Label="@SettingsViewText.Settings_LockWait" Options="SettingsOptions.LockWaits"
                     Value="Settings.Current.LockWaitSeconds" OnChange="seconds => UpdateAsync(s => s with { LockWaitSeconds = seconds })">
         <Hint><Fmt Text="@SettingsViewText.Settings_LockWaitHint"><Arg0><code>@SettingsCatalog.LockWaitClause</code></Arg0></Fmt></Hint>
     </SettingsChoice>
-    <SettingsChoice Filter="Filter" Key="SettingKey.FkCounts" Label="@SettingsViewText.Settings_FkCounts" Options="SettingsOptions.FkCounts"
+    <SettingsChoice TValue="FkCountMode" Filter="Filter" Key="SettingKey.FkCounts" Label="@SettingsViewText.Settings_FkCounts" Options="SettingsOptions.FkCounts"
                     Value="Settings.Current.FkCounts" OnChange="mode => UpdateAsync(s => s with { FkCounts = mode })">
         <Hint>@SettingsViewText.Settings_FkCountsHint</Hint>
     </SettingsChoice>
