@@ -5,6 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- Audit tables: each connection group can have its own audit template (Settings › Audit tables), and a single connection its own (connection dialog). The connection's template goes first, then its group's, then the one for all connections, then the built-in one. A template file that is missing or broken is reported, not passed over. A group no connection has any more keeps its entry until you remove it. The tooltip of the audit line names the template that applies.
+
+### Fixed
+- Table designer: an audit column of another template no longer blocks bringing the audit table up to date. An `AUDIT_TIME` of type `TIMESTAMP WITH TIME ZONE` against `DATE` in the template is a warning now (the audit table probably comes from another template), and date and time columns that take the values only with a loss of fractions or time zone are a warning too. Messages say whether the type comes from the template or the table – before, they always said "of the table".
+
 ### Changed
 - Filter bar: "+ Group" sits next to "Presets" instead of in a line of its own below the filter rows. The area to drop a row out of its group shows only while you drag one. In a narrow window the buttons move to a line of their own instead of covering a group.
 
