@@ -45,9 +45,9 @@ public class XlsxExportTests
         Assert.True(sheet["B2"].IsText); // a text is never a formula
         Assert.Equal("=SUMME(A1:A2)", sheet["B2"].Value);
         Assert.Equal(new XlsxCell("n", "1234.5", null), sheet["C2"]);
-        Assert.Equal(@"dd\.mm\.yyyy hh:mm:ss", sheet["D2"].Format);
+        Assert.Equal("dd.mm.yyyy hh:mm:ss", sheet["D2"].Format);
         Assert.Equal(46296.573, Math.Round(double.Parse(sheet["D2"].Value!, System.Globalization.CultureInfo.InvariantCulture), 3));
-        Assert.Equal(@"dd\.mm\.yyyy hh:mm:ss.000", sheet["E2"].Format);
+        Assert.Equal("dd.mm.yyyy hh:mm:ss.000", sheet["E2"].Format);
         Assert.Equal("CAFE", sheet["F2"].Value);
         Assert.Equal("kurz", sheet["G2"].Value);
         Assert.False(sheet.Cells.TryGetValue("H2", out var empty) && empty.Value is { Length: > 0 });

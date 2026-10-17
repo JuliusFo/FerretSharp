@@ -224,8 +224,8 @@ public static class XlsxExport
     }
 
     /// <summary>
-    /// The styles of a file. Dates have their dots escaped: unescaped, Excel reads a dot in a format as the decimal separator
-    /// and shows a comma under German settings. The point before the milliseconds is one.
+    /// The styles of a file. Dates as the grid shows them; the point before the milliseconds is the decimal separator (a
+    /// comma under German settings).
     /// </summary>
     private sealed class Styles(Spreadsheet spreadsheet)
     {
@@ -233,8 +233,8 @@ public static class XlsxExport
 
         public StyleId WholeNumber { get; } = spreadsheet.AddStyle(new Style { Format = NumberFormat.Custom("0") });
 
-        public StyleId Date { get; } = spreadsheet.AddStyle(new Style { Format = NumberFormat.Custom(@"dd\.mm\.yyyy hh:mm:ss") });
+        public StyleId Date { get; } = spreadsheet.AddStyle(new Style { Format = NumberFormat.Custom("dd.mm.yyyy hh:mm:ss") });
 
-        public StyleId Timestamp { get; } = spreadsheet.AddStyle(new Style { Format = NumberFormat.Custom(@"dd\.mm\.yyyy hh:mm:ss.000") });
+        public StyleId Timestamp { get; } = spreadsheet.AddStyle(new Style { Format = NumberFormat.Custom("dd.mm.yyyy hh:mm:ss.000") });
     }
 }
