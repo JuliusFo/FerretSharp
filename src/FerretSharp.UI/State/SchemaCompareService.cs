@@ -58,22 +58,16 @@ public sealed class SchemaCompareService(ComparisonStore store, SchemaCompareLoa
 
     private static SavedComparison NewComparison() => new(Guid.NewGuid(), "", [new CompareSide(Guid.Empty), new CompareSide(Guid.Empty)]);
 
-    /// <summary>Reads the saved comparisons once; a broken file is reported, not overwritten.</summary>
+    /// <summary>
+    /// Reads the saved comparisons once they could be read; a file that could not be read is reported and read again on the
+    /// next visit or save – never overwritten (review 3.40.0, ST-8: the next save replaced all saved comparisons with the
+    /// new one, as the filter presets never did).
+    /// </summary>
     public async Task EnsureLoadedAsync()
     {
-        if (_loaded)
+        if (!_loaded)
         {
-            return;
-        }
-
-        _loaded = true;
-        try
-        {
-            Saved = await store.LoadAsync(CancellationToken.None);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            StoreError = ex.Message;
+            await ReadAsync();
         }
 
         if (Sides.Count == 0)
@@ -82,6 +76,21 @@ public sealed class SchemaCompareService(ComparisonStore store, SchemaCompareLoa
         }
 
         Changed?.Invoke();
+    }
+
+    /// <summary>Reads the file; <see cref="StoreError"/> says why not.</summary>
+    private async Task ReadAsync()
+    {
+        try
+        {
+            Saved = await store.LoadAsync(CancellationToken.None);
+            _loaded = true;
+            StoreError = null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            StoreError = ex.Message;
+        }
     }
 
     /// <summary>The label of a side for headers and the export: <c>ERP Test · ERP</c>.</summary>
@@ -213,6 +222,21 @@ public sealed class SchemaCompareService(ComparisonStore store, SchemaCompareLoa
 
     private async Task WriteAsync(IReadOnlyList<SavedComparison> saved)
     {
+        if (!_loaded)
+        {
+            // What is in the file is not known: writing would replace every saved comparison with this list (ST-8).
+            await ReadAsync();
+            if (!_loaded)
+            {
+                StoreError = TextFormat.Format(CompareViewText.Compare_NotSavedUnread, StoreError);
+                Changed?.Invoke();
+                return;
+            }
+
+            // Readable now: what the file holds stays, with this change on top.
+            saved = Saved.Where(s => saved.All(n => n.Id != s.Id)).Concat(saved).OrderBy(s => s.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
+        }
+
         try
         {
             await store.SaveAsync(saved, CancellationToken.None);
