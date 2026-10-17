@@ -73,6 +73,9 @@ public sealed class ConnectionForm
     /// <summary>The environment name the user's app starts with for this database (WP-33); empty = none.</summary>
     public string AppEnvironment { get; set; } = "";
 
+    /// <summary>The connection's own audit template file (WP-51); empty = its group's or the global one.</summary>
+    public string AuditTemplatePath { get; set; } = "";
+
     /// <summary>Not edited in the dialog, only kept (WP-23: set when the designer saves a script).</summary>
     public string? ScriptFolder { get; set; }
 
@@ -117,6 +120,7 @@ public sealed class ConnectionForm
             ClrContextType = profile.ClrProject?.ContextType ?? "",
             ScriptFolder = profile.ScriptFolder,
             AppEnvironment = profile.AppEnvironment ?? "",
+            AuditTemplatePath = profile.AuditTemplatePath ?? "",
         };
         form._kind = profile.Kind;
         form.ReadOnly = profile.ReadOnly;
@@ -168,7 +172,8 @@ public sealed class ConnectionForm
         var clrProject = NullIfBlank(ClrProjectFile.Trim('"')) is { } projectFile
             ? new ClrProjectLink(projectFile, NullIfBlank(ClrConfiguration) ?? "Debug", NullIfBlank(ClrContextType))
             : null;
-        var profile = new ConnectionProfile(Id, Name.Trim(), Kind, address, User.Trim(), NullIfBlank(DefaultSchema), ReadOnly, NullIfBlank(Group), clrProject, ScriptFolder, NullIfBlank(AppEnvironment));
+        var profile = new ConnectionProfile(Id, Name.Trim(), Kind, address, User.Trim(), NullIfBlank(DefaultSchema), ReadOnly, NullIfBlank(Group), clrProject, ScriptFolder, NullIfBlank(AppEnvironment),
+            NullIfBlank(AuditTemplatePath.Trim().Trim('"')));
         foreach (var (field, message) in ConnectionProfileValidator.Validate(profile))
         {
             errors[field] = message;

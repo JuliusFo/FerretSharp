@@ -153,6 +153,22 @@
     <value>{0} in {1} ({2}) cannot take the values of the table ({3}): the trigger would make every DML on the table fail. Change the audit column by hand first (e.g. a new column), or leave the audit box off.</value>
     <comment>{0}: column name, {1}: audit table name, {2}: type in the audit table, {3}: type in the table, e.g. VARCHAR2(30)</comment>
   </data>
+  <data name="PlanTypeIncompatibleTemplate" xml:space="preserve">
+    <value>{0} in {1} ({2}) cannot take the values of the template ({3}): the trigger would make every DML on the table fail. Change the audit column by hand first (e.g. a new column), or leave the audit box off.</value>
+    <comment>WP-51. {0}: column name, {1}: audit table name, {2}: type in the audit table, {3}: type in the template</comment>
+  </data>
+  <data name="PlanTypeLossy" xml:space="preserve">
+    <value>{0} in {1} ({2}) takes the values of the table ({3}) only with a loss (fractional seconds, time zone). The audit column stays as it is; to keep them whole, widen it by hand.</value>
+    <comment>WP-51. {0}: column name, {1}: audit table name, {2}: type in the audit table, {3}: type in the table</comment>
+  </data>
+  <data name="PlanTypeLossyTemplate" xml:space="preserve">
+    <value>{0} in {1} ({2}) takes the values of the template ({3}) only with a loss (fractional seconds, time zone). The audit column stays as it is; to keep them whole, widen it by hand.</value>
+    <comment>WP-51. {0}: column name, {1}: audit table name, {2}: type in the audit table, {3}: type in the template</comment>
+  </data>
+  <data name="PlanWiderThanTemplate" xml:space="preserve">
+    <value>{0} in {1} ({2}) is wider than in the template ({3}): the audit table probably comes from another template. The column stays, but the new trigger only writes values of the template's type – check that this is the right template for this connection.</value>
+    <comment>WP-51. {0}: column name, {1}: audit table name, {2}: type in the audit table, {3}: type in the template</comment>
+  </data>
   <data name="PlanTriggerOnOtherTable" xml:space="preserve">
     <value>There is a trigger {0} already, on {1} – choose another trigger name in the template.</value>
     <comment>{0}: trigger name, {1}: owner.table the trigger is on</comment>

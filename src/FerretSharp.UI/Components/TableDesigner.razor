@@ -24,7 +24,7 @@ else
     var plan = NewTab is { } created
         ? TableDesign.PlanNew(created.Table, draft, designer.Referenced, TakenNames)
         : TableDesign.Plan(context, draft, new DataFacts(_facts));
-    var audit = AuditTemplates.Current();
+    var audit = AuditTemplates.For(Active.Profile);
     plan = WithAudit(designer, draft, plan, audit);
     var counting = _counting.Count > 0 || _auditCounting.Count > 0;
     <section class="designer">
@@ -180,11 +180,11 @@ else
             @if (audit.Template is { } template && AuditTable is { } auditTable)
             {
                 var names = template.NamesFor(auditTable);
-                <span class="muted mono">@names.AuditTable.Name · @names.Trigger</span>
+                <span class="muted mono" title="@AuditTemplateLabel.Of(audit)">@names.AuditTable.Name · @names.Trigger</span>
             }
             else if (audit.Errors.Count > 0)
             {
-                <span class="hint small" title="@string.Join("\n", audit.Errors)">⚠ @SchemaViewText.Audit_TemplateBroken</span>
+                <span class="hint small" title="@($"{AuditTemplateLabel.Of(audit)}\n{string.Join("\n", audit.Errors)}")">⚠ @SchemaViewText.Audit_TemplateBroken</span>
             }
         </div>
 
@@ -326,7 +326,7 @@ else
         _audit = null;
         _auditFacts.Clear();
         _auditFailed.Clear();
-        if (AuditTemplates.Current().Template is { } template)
+        if (AuditTemplates.For(Active.Profile).Template is { } template)
         {
             var loaded = await Shell.RunDbAsync(Logger, Active, () => AuditLoader.LoadAsync(schema, template.NamesFor(Details.Table.Ref), token), token);
             if (_disposed)
@@ -465,7 +465,7 @@ else
         }
 
         // The existing audit table: its rows decide whether a new column may be NOT NULL (WP-26).
-        if (_designer.WithAudit == true && _audit is { AuditTable: { } auditTable } state && AuditTemplates.Current().Template is { } template)
+        if (_designer.WithAudit == true && _audit is { AuditTable: { } auditTable } state && AuditTemplates.For(Active.Profile).Template is { } template)
         {
             var (columns, renamed) = AuditPlanner.After(draft);
             var auditMissing = AuditPlanner.Questions(template, Details.Table.Ref, columns, state, renamed)

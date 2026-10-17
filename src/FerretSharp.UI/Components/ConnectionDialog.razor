@@ -5,6 +5,7 @@
 @inject ConnectionHub Hub
 @inject IConnectionTester Tester
 @inject IFileOpenService Files
+@inject FerretSharp.Core.Audit.AuditTemplateSource AuditTemplates
 
 @{
     // Once per render: validating builds the profile and may look at the file system (the linked project).
@@ -154,6 +155,22 @@
             <input id="cn-app-env" class="field mono" @bind="Form.AppEnvironment" @bind:event="oninput"
                    placeholder="@ShellText.ConnectionDialog_AppEnvironmentPlaceholder" spellcheck="false" autocomplete="off" />
             <div class="hint small">@ShellText.ConnectionDialog_AppEnvironmentHint</div>
+        </div>
+
+        <div class="form-section">@ShellText.Settings_Audit</div>
+
+        <label for="cn-audit">@ShellText.ConnectionDialog_AuditTemplate</label>
+        <div>
+            <div class="field-with-button">
+                <input id="cn-audit" class="field mono" @bind="Form.AuditTemplatePath" @bind:event="oninput"
+                       placeholder="@ShellText.ConnectionDialog_AuditTemplatePlaceholder" spellcheck="false" autocomplete="off" />
+                <button class="btn" title="@ShellText.ConnectionDialog_PickAuditTemplate" @onclick="PickAuditTemplateAsync">…</button>
+            </div>
+            @foreach (var error in AuditTemplateErrors())
+            {
+                <div class="field-error">@error</div>
+            }
+            <div class="hint small">@TextFormat.Format(ShellText.ConnectionDialog_AuditTemplateHint, AuditTemplateLabel.Of(AuditTemplates.For(Form.ToProfile().Profile with { AuditTemplatePath = null })))</div>
         </div>
     </div>
 
@@ -321,6 +338,25 @@
         if (await Files.PickAsync(ShellText.ConnectionDialog_ProjectFilter, ["csproj"], Form.ClrProjectFile) is { } path)
         {
             Form.ClrProjectFile = path;
+        }
+    }
+
+    /// <summary>
+    /// Why the connection's own template cannot be used (WP-51) – judged for the saved path, once a typed file exists or
+    /// after a submit, not while the path is typed. It does not block saving: the designer and the audit line report it too.
+    /// </summary>
+    private IReadOnlyList<string> AuditTemplateErrors()
+    {
+        var path = Form.AuditTemplatePath.Trim().Trim('"');
+        var judged = _submitted || path == Request.Profile?.AuditTemplatePath || File.Exists(path);
+        return path.Length > 0 && judged ? AuditTemplates.Load(path).Errors : [];
+    }
+
+    private async Task PickAuditTemplateAsync()
+    {
+        if (await Files.PickAsync(ShellText.Settings_AuditTemplateFilter, ["sql", "txt"], Form.AuditTemplatePath) is { } path)
+        {
+            Form.AuditTemplatePath = path;
         }
     }
 

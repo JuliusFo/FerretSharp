@@ -143,6 +143,7 @@ public sealed class ImportRow
                 ClrProject = existing.ClrProject ?? imported.ClrProject,
                 ScriptFolder = existing.ScriptFolder ?? imported.ScriptFolder,
                 AppEnvironment = existing.AppEnvironment ?? imported.AppEnvironment,
+                AuditTemplatePath = existing.AuditTemplatePath ?? imported.AuditTemplatePath,
             };
         }
 

@@ -23,6 +23,19 @@ public enum ColumnTypeChange
     NotPossible,
 }
 
+/// <summary>What storing a value of one type in a column of another does (<see cref="OracleTypes.FitOf"/>).</summary>
+public enum ValueFit
+{
+    /// <summary>Every value is kept as it is.</summary>
+    Full,
+
+    /// <summary>The value goes in, but loses something: fractional seconds, its time zone.</summary>
+    Lossy,
+
+    /// <summary>Not every value goes in (another family, too long, too many digits).</summary>
+    None,
+}
+
 /// <summary>
 /// What FerretSharp knows about Oracle column types, in one place (R3b): how a type is written for the user and in DDL,
 /// which types have a length and whether it counts bytes, which can be changed into each other. Before, the same switches
@@ -276,6 +289,32 @@ public static partial class OracleTypes
         };
     }
 
+    /// <summary>
+    /// What an INSERT of a value of type <paramref name="value"/> into a column of type <paramref name="column"/> does (WP-51:
+    /// a trigger writes <c>SYSDATE</c> into an audit column of another type). Date and time types take each other's values
+    /// always – Oracle converts – and keep them whole if the column has at least the fractional digits and as much time
+    /// zone (none &lt; local &lt; with time zone; DATE has neither); otherwise the value goes in with a loss. Any other type
+    /// keeps every value only if <c>MODIFY</c> from <paramref name="value"/> to <paramref name="column"/> works with any data
+    /// (<see cref="ChangeOf"/>) – longer, more digits –, else not every value goes in.
+    /// </summary>
+    public static ValueFit FitOf(ColumnInfo column, ColumnInfo value)
+    {
+        ArgumentNullException.ThrowIfNull(column);
+        ArgumentNullException.ThrowIfNull(value);
+        if (Family(column.DataType) == "datetime" && Family(value.DataType) == "datetime")
+        {
+            return ZoneLevel(column.DataType) >= ZoneLevel(value.DataType) && FractionOf(column.DataType) >= FractionOf(value.DataType)
+                ? ValueFit.Full
+                : ValueFit.Lossy;
+        }
+
+        return ChangeOf(value, column) is ColumnTypeChange.Same or ColumnTypeChange.Free ? ValueFit.Full : ValueFit.None;
+
+        static int ZoneLevel(string type) => HasTimeZone(type) ? 2 : IsLocalTimeZone(type) ? 1 : 0;
+
+        static int FractionOf(string type) => IsTimestamp(type) ? TimestampFraction(type) : 0;
+    }
+
     /// <summary>Binary precision of a plain <c>FLOAT</c>.</summary>
     private const int MaxFloatPrecision = 126;
 
@@ -302,18 +341,18 @@ public static partial class OracleTypes
             return Zone(from) == Zone(to) ? ColumnTypeChange.Free : ColumnTypeChange.NeedsEmptyColumn;
         }
 
-        return Zone(from) != Zone(to) || Fraction(to) < Fraction(from) ? ColumnTypeChange.NeedsEmptyColumn : ColumnTypeChange.Free;
+        return Zone(from) != Zone(to) || TimestampFraction(to) < TimestampFraction(from) ? ColumnTypeChange.NeedsEmptyColumn : ColumnTypeChange.Free;
 
         static string Zone(string type) => type.EndsWith("WITH LOCAL TIME ZONE", StringComparison.Ordinal) ? "local"
             : type.EndsWith("WITH TIME ZONE", StringComparison.Ordinal) ? "zone" : "";
-
-        // TIMESTAMP(6) …: the digits of the fractional seconds; 6 without a number.
-        static int Fraction(string type) =>
-            type.IndexOf('(', StringComparison.Ordinal) is var open and >= 0 && type.IndexOf(')', open) is var close and > 0
-            && int.TryParse(type.AsSpan(open + 1, close - open - 1), NumberStyles.None, CultureInfo.InvariantCulture, out var digits)
-                ? digits
-                : 6;
     }
+
+    /// <summary>TIMESTAMP(6) …: the digits of the fractional seconds; 6 without a number.</summary>
+    private static int TimestampFraction(string type) =>
+        type.IndexOf('(', StringComparison.Ordinal) is var open and >= 0 && type.IndexOf(')', open) is var close and > 0
+        && int.TryParse(type.AsSpan(open + 1, close - open - 1), NumberStyles.None, CultureInfo.InvariantCulture, out var digits)
+            ? digits
+            : 6;
 
     /// <summary>
     /// The type as shown to the user, e.g. <c>VARCHAR2(50 CHAR)</c>, <c>NUMBER(12,2)</c>, <c>NUMBER(*,2)</c>, <c>INTEGER</c>.

@@ -121,6 +121,7 @@ public static class AuditPlanner
     {
         var shape = template.TableFor(table, baseColumns);
         var wanted = shape.Columns.ToDictionary(c => c.Name, StringComparer.Ordinal);
+        var own = template.ColumnsBefore.Concat(template.ColumnsAfter).Select(c => c.Name).ToHashSet(StringComparer.Ordinal);
         var has = audit.Columns.Select(c => c.Name).ToHashSet(StringComparer.Ordinal);
         var drafts = new List<ColumnDraft>();
         var matched = new HashSet<string>(StringComparer.Ordinal);
@@ -153,7 +154,7 @@ public static class AuditPlanner
             }
 
             matched.Add(name);
-            drafts.Add(new ColumnDraft(existing.Name, Kept(existing, target, audit.Table.Name, problems) with { Name = name }));
+            drafts.Add(new ColumnDraft(existing.Name, Kept(existing, target, own.Contains(name), audit.Table.Name, warnings, problems) with { Name = name }));
         }
 
         // New columns go to the end (ALTER TABLE … ADD appends); the trigger names its columns, the order does not matter.
@@ -174,12 +175,16 @@ public static class AuditPlanner
 
     /// <summary>
     /// An existing audit column against what the template wants: the comment follows, NOT NULL is only ever taken away
-    /// (older rows may lack the value), the type only grows – to the table's type if that holds every value the audit
-    /// column has (DATE → TIMESTAMP, longer, more digits). An audit column that cannot take the table's values (another
-    /// type family) is a problem: the trigger would make every DML on the table fail (R5 review). Identity and virtual
-    /// columns stay as they are.
+    /// (older rows may lack the value), the type only grows – to the wanted type if that holds every value the audit
+    /// column has (DATE → TIMESTAMP, longer, more digits). What the trigger writes is an INSERT, not a MODIFY
+    /// (<see cref="OracleTypes.FitOf"/>, WP-51): an audit column that takes the values only with a loss (TIMESTAMP into
+    /// DATE) stays with a warning, one that cannot take them (another type family) is a problem – the trigger would make
+    /// every DML on the table fail (R5 review). A column of the template's own that is wider than the template's (TIMESTAMP
+    /// WITH TIME ZONE against DATE) stays with a warning: the audit table probably comes from another template. The
+    /// messages say whether the type is the template's or the table's. Identity and virtual columns stay as they are.
     /// </summary>
-    private static ColumnInfo Kept(ColumnInfo existing, ColumnInfo target, string auditTable, List<string> problems)
+    /// <param name="ofTemplate">The column is one of the template's own, not a copy of a column of the table.</param>
+    private static ColumnInfo Kept(ColumnInfo existing, ColumnInfo target, bool ofTemplate, string auditTable, List<string> warnings, List<string> problems)
     {
         var kept = existing with { Comment = string.IsNullOrEmpty(target.Comment) ? existing.Comment : target.Comment };
         if (existing.IsIdentity || existing.IsVirtual)
@@ -192,12 +197,24 @@ public static class AuditPlanner
             kept = kept with { Nullable = true };
         }
 
-        if (OracleTypes.ChangeOf(existing, target) == ColumnTypeChange.Same || Holds(existing, target))
+        var change = OracleTypes.ChangeOf(existing, target);
+        if (change == ColumnTypeChange.Same)
         {
             return kept;
         }
 
-        if (OracleTypes.ChangeOf(existing, target) == ColumnTypeChange.Free && Holds(target, existing))
+        var fit = OracleTypes.FitOf(existing, target);
+        if (fit == ValueFit.Full)
+        {
+            if (ofTemplate)
+            {
+                warnings.Add(Message(AuditText.PlanWiderThanTemplate));
+            }
+
+            return kept;
+        }
+
+        if (change == ColumnTypeChange.Free && OracleTypes.FitOf(target, existing) == ValueFit.Full)
         {
             return kept with
             {
@@ -205,17 +222,18 @@ public static class AuditPlanner
             };
         }
 
-        problems.Add(TextFormat.Format(AuditText.PlanTypeIncompatible, existing.Name, auditTable, OracleTypes.DisplayType(existing), OracleTypes.DisplayType(target)));
-        return kept;
-    }
+        if (fit == ValueFit.Lossy)
+        {
+            warnings.Add(Message(ofTemplate ? AuditText.PlanTypeLossyTemplate : AuditText.PlanTypeLossy));
+            return kept;
+        }
 
-    /// <summary>
-    /// A column of type <paramref name="wide"/> takes every value of one of type <paramref name="narrow"/>: the change from
-    /// narrow to wide works with any data – except TIMESTAMP into DATE, which Oracle allows but cuts the fractions off.
-    /// </summary>
-    private static bool Holds(ColumnInfo wide, ColumnInfo narrow) =>
-        OracleTypes.ChangeOf(narrow, wide) is ColumnTypeChange.Same or ColumnTypeChange.Free
-        && !(OracleTypes.IsTimestamp(narrow.DataType) && wide.DataType == "DATE");
+        problems.Add(Message(ofTemplate ? AuditText.PlanTypeIncompatibleTemplate : AuditText.PlanTypeIncompatible));
+        return kept;
+
+        string Message(string format) =>
+            TextFormat.Format(format, existing.Name, auditTable, OracleTypes.DisplayType(existing), OracleTypes.DisplayType(target));
+    }
 
     /// <summary>
     /// The trigger, if it is missing, invalid or outdated: it references other columns than the template's (columns of the

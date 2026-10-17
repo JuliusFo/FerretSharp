@@ -90,6 +90,38 @@ public sealed class CachedFileReadTests : IDisposable
         Assert.Equal("da", cache.Get(File1));
     }
 
+    /// <summary>WP-51: the audit templates of several groups are asked for in turn – each path keeps its own result.</summary>
+    [Fact]
+    public void Each_path_is_kept_on_its_own()
+    {
+        var cache = Cache();
+        var other = _folder.Combine("other.txt");
+        Write("eins", new DateTime(2026, 10, 1, 8, 0, 0, DateTimeKind.Utc));
+        File.WriteAllText(other, "anders");
+
+        Assert.Equal("eins", cache.Get(File1));
+        Assert.Equal("anders", cache.Get(other));
+        Assert.Equal("eins", cache.Get(File1));
+        Assert.Equal("anders", cache.Get(other));
+        Assert.Equal(2, _reads);
+    }
+
+    [Fact]
+    public void The_path_looked_at_longest_ago_goes_first()
+    {
+        var cache = Cache();
+        for (var i = 0; i <= CachedFileRead<string>.MaxPaths; i++)
+        {
+            cache.Get(_folder.Combine($"f{i}.txt"));
+            _clock.Advance(TimeSpan.FromMilliseconds(1));
+        }
+
+        cache.Get(_folder.Combine($"f{CachedFileRead<string>.MaxPaths}.txt"));
+        Assert.Equal(CachedFileRead<string>.MaxPaths + 1, _reads);
+        cache.Get(_folder.Combine("f0.txt"));
+        Assert.Equal(CachedFileRead<string>.MaxPaths + 2, _reads);
+    }
+
     [Fact]
     public void A_path_that_cannot_be_looked_at_is_unreadable()
     {

@@ -121,6 +121,31 @@ public sealed class OracleTypesTests
     public void Type_changes_as_oracle_takes_them_with_data(string from, string to, ColumnTypeChange change) =>
         Assert.Equal(change, OracleTypes.ChangeOf(Parse(from), Parse(to)));
 
+    /// <summary>
+    /// WP-51: an INSERT is not a MODIFY – date and time types take each other's values always (Oracle converts), whole if the
+    /// column has the fractional digits and the time zone; other types keep every value only where MODIFY works with data.
+    /// </summary>
+    [Theory]
+    [InlineData("TIMESTAMP(6) WITH TIME ZONE", "DATE", ValueFit.Full)] // the audit template case: MODIFY would need an empty column
+    [InlineData("TIMESTAMP(6) WITH TIME ZONE", "TIMESTAMP(6) WITH LOCAL TIME ZONE", ValueFit.Full)]
+    [InlineData("TIMESTAMP(6) WITH LOCAL TIME ZONE", "TIMESTAMP(6)", ValueFit.Full)]
+    [InlineData("TIMESTAMP(6)", "DATE", ValueFit.Full)]
+    [InlineData("TIMESTAMP(9)", "TIMESTAMP(6)", ValueFit.Full)]
+    [InlineData("DATE", "TIMESTAMP(0)", ValueFit.Full)]
+    [InlineData("DATE", "TIMESTAMP(6)", ValueFit.Lossy)] // fractions cut off
+    [InlineData("DATE", "TIMESTAMP(6) WITH TIME ZONE", ValueFit.Lossy)]
+    [InlineData("TIMESTAMP(6)", "TIMESTAMP(6) WITH TIME ZONE", ValueFit.Lossy)] // the offset is lost
+    [InlineData("TIMESTAMP(6) WITH LOCAL TIME ZONE", "TIMESTAMP(6) WITH TIME ZONE", ValueFit.Lossy)]
+    [InlineData("TIMESTAMP(3)", "TIMESTAMP(6)", ValueFit.Lossy)]
+    [InlineData("VARCHAR2(50 BYTE)", "VARCHAR2(20 BYTE)", ValueFit.Full)]
+    [InlineData("VARCHAR2(20 BYTE)", "VARCHAR2(50 BYTE)", ValueFit.None)]
+    [InlineData("NUMBER(12)", "NUMBER(10)", ValueFit.Full)]
+    [InlineData("NUMBER(10)", "NUMBER(12,2)", ValueFit.None)]
+    [InlineData("VARCHAR2(30 BYTE)", "NUMBER(10)", ValueFit.None)]
+    [InlineData("DATE", "VARCHAR2(30 BYTE)", ValueFit.None)]
+    public void Values_fit_a_column_as_an_insert_stores_them(string column, string value, ValueFit fit) =>
+        Assert.Equal(fit, OracleTypes.FitOf(Parse(column), Parse(value)));
+
     /// <summary>A type as written in DDL reads into the facets the dictionary shows after CREATE TABLE; DDL writes it back.</summary>
     [Theory]
     [InlineData("NUMBER(12)", "NUMBER", null, false, 12, 0, "NUMBER(12)")]

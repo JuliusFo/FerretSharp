@@ -359,6 +359,10 @@ kbd { font: 600 10px var(--mono); padding: 1px 5px; border-radius: 4px; border: 
 .settings-note code { font-family: var(--mono); }
 .settings-path { display: flex; align-items: center; gap: 8px; flex: 0 1 520px; min-width: 0; }
 .settings-path .field { flex: 1; min-width: 0; }
+/* WP-51: a group's or connection's audit template under the section's row. */
+.settings-subrow { padding-top: 6px; padding-bottom: 6px; }
+.settings-subrow .settings-label { padding-left: 16px; }
+.settings-path .mono.grow { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; }
 .settings-problems { margin: 0; padding-left: 18px; color: var(--danger); }
 .page-head { display: flex; align-items: center; gap: 16px; max-width: 1100px; margin: 0 auto 12px; }
 .page-head h1 { margin: 0; font-size: 20px; font-weight: 600; white-space: nowrap; }
