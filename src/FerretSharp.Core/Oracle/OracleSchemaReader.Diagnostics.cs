@@ -14,9 +14,16 @@ namespace FerretSharp.Core.Oracle;
 /// </summary>
 public sealed partial class OracleSchemaReader
 {
+    /// <summary>
+    /// A session holding a lock, as <see cref="ReadLockHolder"/> reads it – one list for the lock holders and the blocker of a
+    /// waiting session (R6b, review 3.40.0, B11: was written twice, against <c>.claude/rules/oracle.md</c>).
+    /// </summary>
+    private static string LockHolderColumns(string alias) =>
+        string.Join(", ", new[] { "sid", "username", "osuser", "machine", "program", "module", "action", "logon_time", "client_info" }.Select(c => $"{alias}.{c}"));
+
     // TM locks on the table by other sessions; row locks themselves are not listed by Oracle.
-    private const string LockHoldersSql = """
-        SELECT DISTINCT s.sid, s.username, s.osuser, s.machine, s.program, s.module, s.action, s.logon_time, s.client_info
+    private static readonly string LockHoldersSql = $"""
+        SELECT DISTINCT {LockHolderColumns("s")}
           FROM v$locked_object lo
           JOIN v$session s ON s.sid = lo.session_id
           JOIN all_objects o ON o.object_id = lo.object_id
@@ -32,9 +39,9 @@ public sealed partial class OracleSchemaReader
     // buffer busy waits, library cache (A10) – so only an enqueue of the Application class (enq: TX, enq: TM …) with a valid
     // blocker counts. A long operation counts only for the statement running now (A11): one of a cancelled earlier statement
     // stays unfinished in V$SESSION_LONGOPS of the same long-lived session.
-    private const string SessionActivitySql = """
+    private static readonly string SessionActivitySql = $"""
         SELECT s.lock_holder, s.event, CASE WHEN s.state = 'WAITING' THEN s.wait_time_micro END,
-               b.sid, b.username, b.osuser, b.machine, b.program, b.module, b.action, b.logon_time, b.client_info,
+               {LockHolderColumns("b")},
                o.owner, o.object_name,
                l.opname, l.target, l.sofar, l.totalwork, l.units, l.time_remaining
           FROM (SELECT x.sid, x.serial#, x.event, x.state, x.wait_time_micro, x.blocking_instance, x.row_wait_obj#, x.sql_id, x.sql_exec_id,
@@ -103,9 +110,7 @@ public sealed partial class OracleSchemaReader
     {
         try
         {
-            return await session.ReadListAsync(LockHoldersSql, [new("owner", table.Owner), new("name", table.Name)], reader =>
-                new LockHolder(Int(reader, 0) ?? 0, Text(reader, 1), Text(reader, 2), Text(reader, 3), Text(reader, 4),
-                    Text(reader, 5), Text(reader, 6), Date(reader, 7), Text(reader, 8)), cancellationToken);
+            return await session.ReadListAsync(LockHoldersSql, [new("owner", table.Owner), new("name", table.Name)], reader => ReadLockHolder(reader, 0), cancellationToken);
         }
         catch (DatabaseException ex) when (ex.IsAny(OracleErrorCodes.MissingRights))
         {
@@ -126,15 +131,17 @@ public sealed partial class OracleSchemaReader
         }
     }
 
+    /// <summary>The columns of <see cref="LockHolderColumns"/> from <paramref name="first"/> on.</summary>
+    private static LockHolder ReadLockHolder(DbDataReader reader, int first) =>
+        new(Int(reader, first) ?? 0, Text(reader, first + 1), Text(reader, first + 2), Text(reader, first + 3), Text(reader, first + 4),
+            Text(reader, first + 5), Text(reader, first + 6), Date(reader, first + 7), Text(reader, first + 8));
+
     private static SessionActivity ReadActivity(DbDataReader reader)
     {
         SessionWait? wait = null;
         if (Int(reader, 0) is { } blockerSid)
         {
-            var blocker = Int(reader, 3) is { } sid
-                ? new LockHolder(sid, Text(reader, 4), Text(reader, 5), Text(reader, 6), Text(reader, 7), Text(reader, 8),
-                    Text(reader, 9), Date(reader, 10), Text(reader, 11))
-                : null;
+            var blocker = Int(reader, 3) is not null ? ReadLockHolder(reader, 3) : null;
             var table = Text(reader, 12) is { } owner && Text(reader, 13) is { } name ? new TableRef(owner, name) : null;
             var waited = Long(reader, 2) is { } micro ? TimeSpan.FromMicroseconds(micro) : (TimeSpan?)null;
             wait = new SessionWait(Text(reader, 1) ?? "", waited, blockerSid, blocker, table);
