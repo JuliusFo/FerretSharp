@@ -6,7 +6,7 @@ namespace FerretSharp.Core.Tests;
 /// WP-49: images in CHANGELOG.md. The release workflow rewrites their relative paths to the tag's files on GitHub, and the
 /// update dialog shows only a line of its own from there (<c>ReleaseNotes.OwnImageUri</c>) – so each image is a line of its
 /// own, relative, directly below <c>docs/images/changelog/</c> with a plain file name (as the workflow checks), and
-/// exists. Runs in the release workflow too (Core tests), before anything is packed.
+/// exists; with an empty line before and after it, or GitHub sets it into the text next to it. Runs in the release workflow too (Core tests), before anything is packed.
 /// </summary>
 public sealed partial class ChangelogTests
 {
@@ -28,28 +28,45 @@ public sealed partial class ChangelogTests
         var problems = Problems(
             [
                 "- A point.",
+                "",
                 "  ![The dialog](docs/images/changelog/3.34.0-dialog.png)",
+                "",
                 "See ![the dialog](docs/images/changelog/3.34.0-dialog.png) here.",
+                "",
                 "![](docs/images/changelog/3.34.0-dialog.png)",
+                "",
                 "![Elsewhere](https://example.com/a.png)",
+                "",
                 "![Other folder](docs/images/grid-dark.png)",
+                "",
                 "![Up](docs/images/changelog/../grid-dark.png)",
+                "",
                 "![Space](docs/images/changelog/my%20dialog.png)",
+                "",
                 "![Missing](docs/images/changelog/3.34.0-missing.png)",
+                "",
                 "![Big](docs/images/changelog/3.34.0-big.png)",
+                "",
+                "- A point with its image right below.",
+                "  ![The dialog](docs/images/changelog/3.34.0-dialog.png)",
+                "",
+                "![The dialog](docs/images/changelog/3.34.0-dialog.png)",
+                "Text right below.",
             ],
             folder.Path);
 
         Assert.Collection(
             problems,
-            p => Assert.StartsWith("CHANGELOG.md:3: an image needs a line of its own", p, StringComparison.Ordinal),
-            p => Assert.StartsWith("CHANGELOG.md:4: no alt text", p, StringComparison.Ordinal),
-            p => Assert.StartsWith("CHANGELOG.md:5: https://example.com/a.png is not", p, StringComparison.Ordinal),
-            p => Assert.StartsWith("CHANGELOG.md:6: docs/images/grid-dark.png is not", p, StringComparison.Ordinal),
-            p => Assert.StartsWith("CHANGELOG.md:7: docs/images/changelog/../grid-dark.png is not", p, StringComparison.Ordinal),
-            p => Assert.StartsWith("CHANGELOG.md:8: docs/images/changelog/my%20dialog.png is not", p, StringComparison.Ordinal),
-            p => Assert.StartsWith("CHANGELOG.md:9: docs/images/changelog/3.34.0-missing.png does not exist", p, StringComparison.Ordinal),
-            p => Assert.StartsWith("CHANGELOG.md:10: docs/images/changelog/3.34.0-big.png has 400 KB", p, StringComparison.Ordinal));
+            p => Assert.StartsWith("CHANGELOG.md:5: an image needs a line of its own", p, StringComparison.Ordinal),
+            p => Assert.StartsWith("CHANGELOG.md:7: no alt text", p, StringComparison.Ordinal),
+            p => Assert.StartsWith("CHANGELOG.md:9: https://example.com/a.png is not", p, StringComparison.Ordinal),
+            p => Assert.StartsWith("CHANGELOG.md:11: docs/images/grid-dark.png is not", p, StringComparison.Ordinal),
+            p => Assert.StartsWith("CHANGELOG.md:13: docs/images/changelog/../grid-dark.png is not", p, StringComparison.Ordinal),
+            p => Assert.StartsWith("CHANGELOG.md:15: docs/images/changelog/my%20dialog.png is not", p, StringComparison.Ordinal),
+            p => Assert.StartsWith("CHANGELOG.md:17: docs/images/changelog/3.34.0-missing.png does not exist", p, StringComparison.Ordinal),
+            p => Assert.StartsWith("CHANGELOG.md:19: docs/images/changelog/3.34.0-big.png has 400 KB", p, StringComparison.Ordinal),
+            p => Assert.StartsWith("CHANGELOG.md:22: an image needs an empty line before it", p, StringComparison.Ordinal),
+            p => Assert.StartsWith("CHANGELOG.md:24: an image needs an empty line after it", p, StringComparison.Ordinal));
     }
 
     /// <summary>
@@ -101,6 +118,18 @@ public sealed partial class ChangelogTests
             {
                 problems.Add($"{at}: an image needs a line of its own, ![alt](path) – in a sentence the dialog shows \"!alt\".");
                 continue;
+            }
+
+            // GitHub sets an image without an empty line around it into the paragraph of the text next to it, also below a
+            // bullet (the dialog makes a block of it either way).
+            if (i > 0 && lines[i - 1].Trim().Length > 0)
+            {
+                problems.Add($"{at}: an image needs an empty line before it – otherwise GitHub sets it into the text above.");
+            }
+
+            if (i + 1 < lines.Count && lines[i + 1].Trim().Length > 0)
+            {
+                problems.Add($"{at}: an image needs an empty line after it – otherwise GitHub sets the text below beside it.");
             }
 
             var path = image.Groups["path"].Value;
