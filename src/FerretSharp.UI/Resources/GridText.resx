@@ -204,6 +204,14 @@
     <value>Referenced by{0}</value>
     <comment>Menu group heading of incoming FK jumps; {0}: " · 3 rows" if several rows are selected, or empty</comment>
   </data>
+  <data name="GridMenu_ReferencedVia" xml:space="preserve">
+    <value>Referenced via {0}{1}</value>
+    <comment>Menu group heading of jumps into a base table that shares its primary key with the row's table; {0}: base table, {1}: " · 3 rows" if several rows are selected, or empty</comment>
+  </data>
+  <data name="GridMenu_ReferencedViaTitle" xml:space="preserve">
+    <value>{1} extends the base table {0} over the same primary key: what references a row of {0} references the row of {1} as well.</value>
+    <comment>Tooltip of the heading "Referenced via"; {0}: base table, {1}: the extension table(s) of the row, comma-separated</comment>
+  </data>
   <data name="GridMenu_NoForeignKeys" xml:space="preserve">
     <value>No foreign keys on this table.</value>
   </data>
@@ -361,6 +369,10 @@
   <data name="Form_ReferencedBy" xml:space="preserve">
     <value>Referenced by</value>
     <comment>Section heading: incoming FK jumps</comment>
+  </data>
+  <data name="Form_ReferencedVia" xml:space="preserve">
+    <value>Referenced via {0}</value>
+    <comment>Section heading: jumps into a base table that shares its primary key with the row's table; {0}: base table</comment>
   </data>
   <data name="Form_NewRow" xml:space="preserve">
     <value>New row</value>

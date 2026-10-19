@@ -169,7 +169,7 @@ Ein Begriff, eine Übersetzung – überall gleich. Neue Fachbegriffe hier ergä
 | Seite / Referenz / Ziel (Schema-Vergleich) | side / reference / target | |
 | angleichen an (DDL-Vorschlag) | align to | |
 | Schreibweise (nur Groß-/Kleinschreibung anders) | letter case | |
-| Audit-Tabelle / Audit-Vorlage / Basistabelle | audit table / audit template / base table | WP-26 |
+| Audit-Tabelle / Audit-Vorlage / Basistabelle | audit table / audit template / base table | WP-26; „Basistabelle“ auch für die Tabelle, deren Primärschlüssel eine Erweiterungstabelle teilt („Referenziert über FAHRZEUG“ / „Referenced via FAHRZEUG“; Erweiterung / extension) |
 | Anweisung (`-- @…` in einer Vorlage) / Platzhalter / Spaltenschleife | directive / placeholder / column loop | WP-26 |
 | Statements der App (Seite) | app statements | WP-33 |
 | App-Umgebung (Feld der Verbindung: `-environment=…` der eigenen App) | app environment | nicht verwechseln mit „Umgebung“ = Verbindungsart |

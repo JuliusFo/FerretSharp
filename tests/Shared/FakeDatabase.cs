@@ -11,13 +11,14 @@ namespace FerretSharp.Testing;
 /// </summary>
 internal static class FakeDatabase
 {
-    /// <summary>A schema reader that lists the tables, no synonym targets, no foreign keys and no PL/SQL.</summary>
+    /// <summary>A schema reader that lists the tables, no synonym targets, no foreign or primary keys and no PL/SQL.</summary>
     public static ISchemaReader Reader(params TableSummary[] tables)
     {
         var reader = Substitute.For<ISchemaReader>();
         reader.GetTablesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(tables);
         reader.GetSynonymTargetsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(SynonymTargets.None);
         reader.GetForeignKeysAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
+        reader.GetPrimaryKeysAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
         reader.GetPlSqlObjectsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
         return reader;
     }

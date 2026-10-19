@@ -58,7 +58,7 @@ public static class SampleSchema
           FROM KUNDEN k LEFT JOIN AUFTRAG a ON a.KUNDE_ID = k.KUNDE_ID
          GROUP BY k.KUNDE_ID, k.NAME
         """,
-        "CREATE TABLE WEG_DAMIT (ID NUMBER)",
+        "CREATE TABLE WEG_DAMIT (ID NUMBER CONSTRAINT PK_WEG_DAMIT PRIMARY KEY)",
         "DROP TABLE WEG_DAMIT",
         """
         CREATE TABLE GRID_TEST (

@@ -52,13 +52,15 @@ public sealed class SqlResultSource
     public RowData Project(RowData row) => new(RowKey.None.Instance, [.. _resultColumns.Select(i => row.Values[i])]);
 }
 
-/// <summary>An FK jump from result rows and the row sources it starts from (two if the result reads its columns twice).</summary>
-public sealed record SqlResultJump(FkJump Jump, IReadOnlyList<SqlResultSource> Sources)
+/// <summary>
+/// An FK jump from result rows and the row sources it starts from (two if the result reads its columns twice, or reaches
+/// the same rows directly and through a base table), each with the columns of its table the jump takes its values from.
+/// </summary>
+public sealed record SqlResultJump(FkJump Jump, IReadOnlyList<(SqlResultSource Source, IReadOnlyList<string> Columns)> Sources)
 {
     /// <summary>The jump goes over this result column, in any of its sources (the clicked one is usually meant).</summary>
     public bool Involves(int resultColumn) =>
-        Sources.Any(source => source.TableColumnOf(resultColumn) is { } column
-            && (Jump.Direction == JumpDirection.Outgoing ? Jump.ForeignKey.FromColumns : Jump.ForeignKey.ToColumns).Contains(source.Details.Columns[column].Name));
+        Sources.Any(s => s.Source.TableColumnOf(resultColumn) is { } column && s.Columns.Contains(s.Source.Details.Columns[column].Name));
 }
 
 /// <summary>
@@ -111,10 +113,13 @@ public sealed class SqlResultSources
 
     /// <summary>
     /// FK jumps from <paramref name="rows"/> (result rows, at least one): outgoing ones of all row sources first, then incoming
-    /// ones; the same jump reached through two sources (a column read twice) once, with both sources.
+    /// ones (also through base tables, <paramref name="inherited"/>); the same jump reached through two sources (a column read
+    /// twice, or a base table and its extension both in the result) once, with both sources – as a direct jump if one source
+    /// reaches it directly.
     /// </summary>
     public IReadOnlyList<SqlResultJump> JumpsFor(
-        IReadOnlyList<RowData> rows, Func<TableRef, IEnumerable<ForeignKeyInfo>> outgoing, Func<TableRef, IEnumerable<ForeignKeyInfo>> incoming)
+        IReadOnlyList<RowData> rows, Func<TableRef, IEnumerable<ForeignKeyInfo>> outgoing, Func<TableRef, IEnumerable<ForeignKeyInfo>> incoming,
+        Func<TableRef, IEnumerable<InheritedReference>>? inherited = null)
     {
         var jumps = new List<(FkJump Jump, SqlResultSource Source)>();
         foreach (var source in Sources)
@@ -122,13 +127,14 @@ public sealed class SqlResultSources
             var projected = rows.Select(source.Project).ToList();
             var table = source.Table.Ref;
             jumps.AddRange(FkNavigation.JumpsFor(source.Projection, projected,
-                    outgoing(table).Where(f => source.Shows(f.FromColumns)), incoming(table).Where(f => source.Shows(f.ToColumns)))
+                    outgoing(table).Where(f => source.Shows(f.FromColumns)), incoming(table).Where(f => source.Shows(f.ToColumns)),
+                    inherited?.Invoke(table).Where(r => source.Shows(r.Columns)))
                 .Select(j => (j, source)));
         }
 
         return jumps.OrderBy(j => j.Jump.Direction)
             .GroupBy(j => (j.Jump.Direction, j.Jump.ForeignKey, j.Jump.Condition))
-            .Select(g => new SqlResultJump(g.First().Jump, [.. g.Select(j => j.Source)]))
+            .Select(g => new SqlResultJump(g.MinBy(j => j.Jump.Inherited is not null).Jump, [.. g.Select(j => (j.Source, j.Jump.RowColumns))]))
             .ToList();
     }
 }

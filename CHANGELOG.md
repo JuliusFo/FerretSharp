@@ -6,11 +6,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 ## [Unreleased]
 
 ### Added
+- Jumps through base tables: when a table extends another one over the same primary key (table per type, e.g. `PKW` extends `FAHRZEUG` over `FAHRZEUG_ID`), what references the base table now shows for the extension's rows as well – in the cell menu, the menu of a query result and the form, as a group of its own ("Referenced via FAHRZEUG"), with counts and the jump as usual. The other extension tables of the same base are left out. Relationships of the C# model count too. Connecting reads the primary keys of all tables for it (one more query per schema).
 - Export all rows of a filter (WP-54): the cell menu of a table has "All rows of the filter" with CSV and Excel – not only the selected rows the grid has loaded, but every row that the filters and sort order of the tab return. The SQL editor offers the same for all rows of a result ("All rows of the result"; the query runs again). The rows are read again in the workspace's session, block by block: written changes are included, pending ones are not, and the workspace waits until the export ends. In Excel files, the names beside foreign keys (display columns) are looked up for every row. LOBs are exported as before, as a preview with a warning.
 
 ### Changed
 - Saving rows as a file asks where first and then writes the file in the background (review 3.40.0, A13): the status bar shows the file with the rows written so far and a "Cancel" button, also while another tab or connection is shown. A cancelled or failed export leaves no half-written file, and a file chosen to be replaced stays as it was. Before, the file was built in the window's thread before the dialog opened, without a way to cancel.
 - Excel export: the column widths come from the first 1,000 rows.
+- Connecting reads the foreign keys of a schema in far fewer round trips (larger fetch size): noticeable over a slow VPN with many relationships.
 
 ### Fixed
 - Connection dialog: with a linked C# project, "Test" showed neither the spinner nor "Cancel test" while the connection was tested, and a second click started a second test that ended in an error in the log (`NullReferenceException`, since 3.40.1). The spinner now shows at once, and only one test runs at a time. "Save" is disabled as soon as it is clicked, also while the project is checked.
