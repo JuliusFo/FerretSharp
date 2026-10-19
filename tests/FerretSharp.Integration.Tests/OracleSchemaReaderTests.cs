@@ -75,7 +75,7 @@ public class OracleSchemaReaderTests(OracleContainerFixture oracle) : IAsyncLife
     }
 
     [Fact]
-    public async Task Reads_the_primary_keys_of_all_tables_in_key_order()
+    public async Task Reads_the_primary_keys_of_all_tables_in_key_order_without_the_recycle_bin()
     {
         var primaryKeys = await Reader.GetPrimaryKeysAsync(_owner, Ct);
         var keys = primaryKeys.ToDictionary(k => k.Table, k => k.Columns);
@@ -83,7 +83,8 @@ public class OracleSchemaReaderTests(OracleContainerFixture oracle) : IAsyncLife
         Assert.Equal(["KUNDE_ID"], keys[new TableRef(_owner, "KUNDEN")]);
         Assert.Equal(["AUFTRAG_ID", "POS_NR"], keys[new TableRef(_owner, "AUFTRAG_POSITION")]);
         Assert.Equal(["Id"], keys[new TableRef(_owner, "MixedCase")]);
-        Assert.False(keys.ContainsKey(new TableRef(_owner, "WEG_DAMIT")));
+        // WEG_DAMIT had a primary key and lies in the recycle bin now.
+        Assert.DoesNotContain(keys.Keys, k => k.Name.StartsWith("BIN$", StringComparison.Ordinal));
     }
 
     [Fact]

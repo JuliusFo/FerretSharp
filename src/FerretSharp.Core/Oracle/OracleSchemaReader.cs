@@ -83,6 +83,7 @@ public sealed partial class OracleSchemaReader(OracleSession session) : ISchemaR
             ON cc.owner = c.owner AND cc.constraint_name = c.constraint_name AND cc.table_name = c.table_name
          WHERE c.owner = :owner
            AND c.constraint_type = 'P'
+           AND c.table_name NOT LIKE 'BIN$%'
          ORDER BY c.table_name, cc.position
         """;
 
@@ -224,7 +225,7 @@ public sealed partial class OracleSchemaReader(OracleSession session) : ISchemaR
     {
         var rows = await session.ReadListAsync(ForeignKeysSql, [new("owner", owner)], reader =>
             (Name: reader.GetString(0), Table: reader.GetString(1), Column: reader.GetString(2),
-             RefOwner: reader.GetString(3), RefTable: reader.GetString(4), RefColumn: reader.GetString(5)), cancellationToken);
+             RefOwner: reader.GetString(3), RefTable: reader.GetString(4), RefColumn: reader.GetString(5)), cancellationToken, many: true);
 
         return rows
             .GroupBy(r => r.Name)
@@ -245,7 +246,7 @@ public sealed partial class OracleSchemaReader(OracleSession session) : ISchemaR
     public async Task<IReadOnlyList<PrimaryKeyInfo>> GetPrimaryKeysAsync(string owner, CancellationToken cancellationToken)
     {
         var rows = await session.ReadListAsync(PrimaryKeysSql, [new("owner", owner)], reader =>
-            (Table: reader.GetString(0), Column: reader.GetString(1)), cancellationToken);
+            (Table: reader.GetString(0), Column: reader.GetString(1)), cancellationToken, many: true);
 
         return rows
             .GroupBy(r => r.Table)
