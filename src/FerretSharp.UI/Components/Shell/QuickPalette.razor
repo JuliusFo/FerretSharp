@@ -86,6 +86,9 @@
     private List<PaletteGroup> _groups = [];
     private List<PaletteRow> _visible = [];
 
+    /// <summary>The query of the last render, to mark its words in the names and labels.</summary>
+    private TextSearch _marks = TextSearch.None;
+
     private bool Commands => QuickPaletteSearch.IsCommand(_text);
 
     protected override void OnParametersSet()
@@ -119,6 +122,7 @@
     private void Recompute()
     {
         var query = QuickPaletteSearch.QueryOf(_text);
+        _marks = new TextSearch(query);
         _groups = Commands ? CommandGroups(query) : ObjectGroups(query);
         _visible = [.. _groups.SelectMany(g => g.Rows)];
         _empty = _visible.Count > 0 ? null
@@ -196,10 +200,10 @@
         return @<button id="palette-row-@rowIndex" class="table-item palette-row @(rowIndex == _highlight ? "highlight" : "") @(t.IsInvalid ? "invalid" : "")"
                         title="@($"{t.Owner}.{t.Name}")" @onclick="() => Activate(new PaletteRow(Table: t))" @onmouseenter="() => _highlight = rowIndex">
                     @Icons.For(t.Kind)
-                    <span class="name">@(front ? entity : t.DisplayName)</span>
+                    <span class="name"><Highlight Text="@(front ? entity! : t.DisplayName)" Search="_marks" /></span>
                     @if (entity is not null)
                     {
-                        <span class="clr-name">@(front ? t.DisplayName : entity)</span>
+                        <span class="clr-name"><Highlight Text="@(front ? t.DisplayName : entity)" Search="_marks" /></span>
                     }
                     @if (t.Synonym is not null)
                     {
@@ -216,7 +220,7 @@
         @<button id="palette-row-@rowIndex" class="table-item palette-row @(rowIndex == _highlight ? "highlight" : "") @(u.IsInvalid ? "invalid" : "") @(u.IsDisabled ? "disabled-unit" : "")"
                  title="@($"{u.Owner}.{u.Name}")" @onclick="() => Activate(new PaletteRow(Unit: u))" @onmouseenter="() => _highlight = rowIndex">
             @Icons.For(u.Kind)
-            <span class="name">@u.DisplayName</span>
+            <span class="name"><Highlight Text="@u.DisplayName" Search="_marks" /></span>
             @if (u.Synonym is not null)
             {
                 <span class="kind-tag syn">SYN</span>
@@ -228,7 +232,7 @@
         @<button id="palette-row-@rowIndex" class="palette-row palette-command @(rowIndex == _highlight ? "highlight" : "") @(c.Unavailable is null ? "" : "unavailable")"
                  title="@(c.Unavailable ?? c.Definition.Hint)" aria-disabled="@(c.Unavailable is not null)"
                  @onclick="() => Activate(new PaletteRow(Command: c))" @onmouseenter="() => _highlight = rowIndex">
-            <span class="label">@c.Definition.Label</span>
+            <span class="label"><Highlight Text="@c.Definition.Label" Search="_marks" /></span>
             @if (c.Unavailable is { } reason)
             {
                 <span class="reason">@reason</span>

@@ -255,6 +255,7 @@ kbd { font: 600 10px var(--mono); padding: 1px 5px; border-radius: 4px; border: 
 .palette-command .reason { flex: none; max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--muted); }
 .palette-command.unavailable { cursor: default; }
 .palette-command.unavailable .label, .palette-command.unavailable kbd { opacity: .55; }
+.palette-row mark { background: none; color: var(--accent); font-weight: 700; }
 .palette-more { padding: 4px 8px; font-size: 12px; color: var(--faint); }
 .palette-footer { padding: 6px 12px; border-top: 1px solid var(--border); font-size: 11.5px; color: var(--faint); }
 .popover-search { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--faint); }
