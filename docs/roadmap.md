@@ -19,12 +19,16 @@ Versionen: Minor-Releases 3.x (nichts Inkompatibles). Ein Paket bekommt seine Ve
 ### Pakete nach WP-36 (WP-37 … WP-47)
 Ausgewählt mit dem Nutzer am 2026-10-14 aus einer Ideensammlung (Bewertung des Nutzers je Paket in Klammern). Reihenfolge nach Abhängigkeiten: erst kleine Pakete mit sofortigem Nutzen (WP-37 … WP-39), dann zwei Fundamente, die je mehrere Pakete tragen – der Code-Index (WP-40 → WP-41, WP-45) und der Beziehungsgraph (WP-42 → WP-43, WP-46) –, das Paket mit Mitschnitt, Quellzeile und Datenänderungen (WP-45) erst, wenn seine Teile stehen. Die Abschnitte sind Vorschläge; „Offen“ wird beim Start mit dem Nutzer entschieden, dann wie üblich der Plan.
 
-### WP-38 Befehlspalette, Schnellsuche, Spaltenprofil
-(Befehlspalette, Spaltenprofil: „gut“.) Branch `wp/38-palette-quick-open-profile`.
+### WP-38 Befehlspalette und Schnellsuche
+(Befehlspalette: „gut“.) Branch `wp/38-palette-quick-open`. Das Spaltenprofil ist als WP-55 herausgelöst (Entscheidung des Nutzers, 2026-10-19: anderes Thema – Daten im Grid statt Navigation).
 - **Befehlspalette:** Suche über alle Aktionen aus `ShortcutMap.Definitions` (Wortsuche wie seit R5b überall), mit der Taste daneben (`ShortcutService.Label`); nicht verfügbare Aktionen ausgegraut. Nach der Regel aus `docs/architecture.md` 3 bekommt sie **keine Standardtaste** (Ctrl+Shift+P vergibt der Nutzer selbst).
 - **Schnellsuche (Ctrl+P-Stil, aus dem Backlog):** Tabellen, Views und PL/SQL der sichtbaren Verbindung aus dem `SchemaCache`, dazu C#-Entity-Namen (`Kunde` findet `KUNDEN`); Enter öffnet den Tab. Ebenfalls ohne Standardtaste.
+- Offen: Gruppierung der Schnellsuche nach Präfix oder C#-Namespace (beides Backlog).
+
+### WP-55 Spaltenprofil
+(„gut“; aus WP-38 herausgelöst, 2026-10-19 – gleicher Platz in der Reihenfolge.) Branch `wp/55-column-profile`.
 - **Spaltenprofil:** im Header-Menü (`ColumnMenu`) „Werte zählen“: häufigste Werte mit Anzahl (Top N), NULL-Anteil, Anzahl verschiedener Werte, Min/Max – unter dem aktiven Filter, in einer Abfrage aus dem `QueryBuilder` (`GROUP BY … ORDER BY COUNT(*) DESC FETCH FIRST n`), auf dem Leseweg der Workspace-Session (abbrechbar, Laufzeit sichtbar – große Tabellen über VPN). Werte über die Präsentationsschicht (Enum-Namen, Anzeigespalten). Klick auf einen Wert fügt eine Filterzeile `=` hinzu. Nicht für LOB/LONG.
-- Offen: Top N (Vorschlag 20) und ob „Weitere laden“; Profil auch im Ergebnis von SQL-Editor/LINQ-Konsole (Vorschlag: nein, dort fehlt das Filtermodell); Gruppierung der Schnellsuche nach Präfix oder C#-Namespace (beides Backlog); Klick auf einen Wert mit Shift „als ODER zur letzten Gruppe“ (Filtergruppen seit WP-50).
+- Offen: Top N (Vorschlag 20) und ob „Weitere laden“; Profil auch im Ergebnis von SQL-Editor/LINQ-Konsole (Vorschlag: nein, dort fehlt das Filtermodell); Klick auf einen Wert mit Shift „als ODER zur letzten Gruppe“ (Filtergruppen seit WP-50).
 
 ### WP-39 Workspaces anheften und wechseln
 (Aus dem Backlog, dort als ein Paket vorgeschlagen.) Branch `wp/39-workspace-pins`.
