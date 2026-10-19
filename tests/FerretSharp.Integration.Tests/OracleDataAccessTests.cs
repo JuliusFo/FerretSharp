@@ -151,4 +151,89 @@ public class OracleDataAccessTests(OracleContainerFixture oracle) : IAsyncLifeti
         Assert.True(page.IsLastPage);
         Assert.All(page.Rows, r => Assert.IsType<RowKey.None>(r.Key));
     }
+
+    // ---------- whole reads for the export of all rows (WP-54) ----------
+
+    [Fact]
+    public async Task A_whole_read_gives_the_rows_of_the_pages_in_blocks()
+    {
+        IReadOnlyList<FilterCondition> filters = [FilterCondition.Of("GRUPPE", FilterOperator.NotEquals, "3")];
+        IReadOnlyList<SortSpec> sorts = [new SortSpec("GRUPPE", true)];
+        var blocks = new List<IReadOnlyList<RowData>>();
+
+        await _data.ReadAllAsync(_grid, filters, sorts, (rows, _, _) =>
+        {
+            blocks.Add(rows);
+            return Task.FromResult(true);
+        }, Ct);
+
+        var paged = await ReadAllAsync(filters, sorts, pageSize: 500);
+        Assert.Equal(paged.Count, blocks.Sum(b => b.Count));
+        Assert.All(blocks.SkipLast(1), b => Assert.Equal(IDataAccess.BlockSize, b.Count));
+        Assert.Equal(paged.Select(r => r.Key), blocks.SelectMany(b => b).Select(r => r.Key));
+        Assert.Contains(blocks.SelectMany(b => b), r => r.Values[Index("NOTIZ")] is LobValue); // LOBs as preview, like the grid
+    }
+
+    [Fact]
+    public async Task A_whole_read_stops_when_the_consumer_has_enough_and_the_session_goes_on()
+    {
+        var blocks = 0;
+
+        await _data.ReadAllAsync(_grid, [], [], (_, _, _) =>
+        {
+            blocks++;
+            return Task.FromResult(false);
+        }, Ct);
+
+        Assert.Equal(1, blocks);
+        Assert.Equal(RowCount, await CountAsync());
+    }
+
+    [Fact]
+    public async Task Names_are_looked_up_in_the_same_session_while_the_read_is_open()
+    {
+        var found = new List<LookupRow>();
+        var missingTable = _grid with { Table = new TableSummary(_grid.Table.Owner, "GIBT_ES_NICHT", TableKind.Table) };
+        Core.Connections.DatabaseException? failed = null;
+
+        await _data.ReadAllAsync(_grid, [], [], async (rows, lookup, ct) =>
+        {
+            found.AddRange(await lookup.LookupAsync(_grid, Index("ID"), Index("GRUPPE"), [rows[0].Values[Index("ID")]!], ct));
+            failed ??= await Assert.ThrowsAsync<Core.Connections.DatabaseException>(() =>
+                lookup.LookupAsync(missingTable, Index("ID"), Index("GRUPPE"), [1m], ct));
+            return true; // the read goes on after a failed lookup
+        }, Ct);
+
+        Assert.Equal(3, found.Count); // one per block
+        Assert.Equal(new LookupRow(1m, 1m), found[0]);
+        Assert.Equal("ORA-00942", failed!.ErrorCode);
+    }
+
+    [Fact]
+    public async Task A_free_query_is_read_whole_and_refused_once_its_columns_changed()
+    {
+        var query = new QuerySpec("SELECT ID, NAME, NOTIZ FROM GRID_TEST ORDER BY ID", []);
+        var rows = new List<RowData>();
+
+        await _data.ReadSqlAllAsync(query, ["ID", "NAME", "NOTIZ"], (block, _, _) =>
+        {
+            rows.AddRange(block);
+            return Task.FromResult(true);
+        }, Ct);
+
+        Assert.Equal(RowCount, rows.Count);
+        Assert.Equal(Enumerable.Range(1, RowCount).Select(i => (object)(decimal)i), rows.Select(r => r.Values[0]));
+        Assert.All(rows.Where(r => r.Values[2] is not null), r => Assert.IsType<LobValue>(r.Values[2]));
+        await Assert.ThrowsAsync<Core.Connections.RefusedException>(() =>
+            _data.ReadSqlAllAsync(query, ["ID", "NAME"], (_, _, _) => Task.FromResult(true), Ct));
+    }
+
+    [Fact]
+    public async Task The_streaming_reader_runs_plain_queries_only()
+    {
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _session!.ExecuteStreamingReaderAsync(
+            "DELETE FROM GRID_TEST", [], (_, _, _) => Task.FromResult(true), OracleSession.WholeLobs, Ct));
+
+        Assert.Equal(RowCount, await CountAsync());
+    }
 }

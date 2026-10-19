@@ -246,6 +246,82 @@ public sealed partial class OracleSession : IAsyncDisposable
     }
 
     /// <summary>
+    /// A query whose rows are handed on while it reads (the export of all rows, WP-54). Unlike
+    /// <see cref="ExecuteReaderAsync{T}(string, IReadOnlyList{QueryParameter}, Func{DbDataReader, CancellationToken, Task{T}}, int, CancellationToken)"/>
+    /// it is not repeated in a new snapshot: what <paramref name="read"/> passed on cannot be taken back, so an unusable
+    /// snapshot (ORA-01555 after a long read) is reported. Meanwhile <paramref name="read"/> may run further queries on the
+    /// same connection through the <see cref="NestedReader"/> it gets – the session's gate is held by this call.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The statement is not a plain query (see <see cref="IsReadOnlyStatement"/>).</exception>
+    internal async Task<T> ExecuteStreamingReaderAsync<T>(
+        string sql,
+        IReadOnlyList<QueryParameter> parameters,
+        Func<DbDataReader, NestedReader, CancellationToken, Task<T>> read,
+        int lobPrefetch,
+        CancellationToken cancellationToken)
+    {
+        if (!IsReadOnlyStatement(sql))
+        {
+            throw new InvalidOperationException("Only read-only queries (SELECT/WITH without FOR UPDATE) run this way.");
+        }
+
+        return await ExclusiveAsync(async () =>
+        {
+            if (_readOnlySnapshots && _open is null)
+            {
+                await RestartSnapshotCoreAsync(cancellationToken);
+            }
+
+            var nested = new NestedReader(this);
+            try
+            {
+                return await ReadCoreAsync(sql, parameters, (reader, ct) => read(reader, nested, ct), cancellationToken, lobPrefetch);
+            }
+            finally
+            {
+                nested.End();
+            }
+        }, cancellationToken);
+    }
+
+    /// <summary>
+    /// Queries while the reader of <see cref="ExecuteStreamingReaderAsync{T}"/> is open (display names of an export, WP-54):
+    /// on the same connection, inside the gate that call holds – Oracle keeps several cursors of a session open. Valid only
+    /// while that call reads.
+    /// </summary>
+    internal sealed class NestedReader(OracleSession session)
+    {
+        private bool _ended;
+
+        /// <exception cref="DatabaseException">The query failed (translated here: the gate translates only what leaves it).</exception>
+        public async Task<T> ReadAsync<T>(
+            string sql, IReadOnlyList<QueryParameter> parameters, Func<DbDataReader, CancellationToken, Task<T>> read, CancellationToken cancellationToken)
+        {
+            ObjectDisposedException.ThrowIf(_ended, this);
+            if (!IsReadOnlyStatement(sql))
+            {
+                throw new InvalidOperationException("Only read-only queries (SELECT/WITH without FOR UPDATE) run this way.");
+            }
+
+            var outer = session._running;
+            try
+            {
+                return await session.ReadCoreAsync(sql, parameters, read, cancellationToken);
+            }
+            catch (Exception ex) when (OracleErrors.Translate(ex) is { } translated)
+            {
+                throw translated;
+            }
+            finally
+            {
+                session._running = outer; // disposing the session cancels the streaming command again
+            }
+        }
+
+        internal void End() => _ended = true;
+    }
+
+    /// <summary>
     /// Rolls back an open transaction first: nothing uncommitted may survive by accident. A running command (grid page,
     /// keep-alive ping) is cancelled and finishes before the connection closes – <see cref="OracleConnection"/> is not
     /// thread-safe. Callers – the one whose command runs and those waiting for the session – get an

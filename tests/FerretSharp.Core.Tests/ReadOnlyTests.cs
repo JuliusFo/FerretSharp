@@ -164,7 +164,8 @@ public class ReadOnlyTests
                 "BeginTransactionAsync", "SavepointAsync", "RollbackToSavepointAsync", "CommitAsync", "RollbackAsync",
             ]
         },
-        { typeof(IDataAccess), ["CountAsync", "ExplainActualAsync", "LookupAsync", "ReadLobAsync", "ReadPageAsync", "ReadSqlAsync"] },
+        { typeof(IDataAccess), ["CountAsync", "ExplainActualAsync", "ReadAllAsync", "ReadLobAsync", "ReadPageAsync", "ReadSqlAllAsync", "ReadSqlAsync"] },
+        { typeof(IRowLookup), ["LookupAsync"] },
         {
             typeof(ISchemaReader), [
                 "ExplainAsync", "GetColumnsAsync", "GetConstraintsAsync", "GetCursorAsync", "GetDdlAsync", "GetDependenciesAsync",
@@ -192,7 +193,7 @@ public class ReadOnlyTests
     [InlineData(typeof(OracleDataAccess), typeof(IDataAccess))]
     [InlineData(typeof(OracleSchemaReader), typeof(ISchemaReader))]
     public void Oracle_classes_offer_nothing_beyond_their_interface(Type type, Type contract) =>
-        Assert.Empty(PlainPublicMethods(type).Except(PlainPublicMethods(contract)));
+        Assert.Empty(PlainPublicMethods(type).Except(contract.GetInterfaces().Prepend(contract).SelectMany(PlainPublicMethods)));
 
     /// <summary>R5b: every path that runs a statement past the guarded reader stays internal – writes, DDL, EXPLAIN PLAN, locking reads.</summary>
     [Theory]

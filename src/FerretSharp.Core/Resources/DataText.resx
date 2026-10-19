@@ -149,4 +149,12 @@
   <data name="RedoNotPossible" xml:space="preserve">
     <value>The action can no longer be redone – only the action undone last can, as long as nothing new was written.</value>
   </data>
+  <data name="ExportResultChanged" xml:space="preserve">
+    <value>The query now returns other columns than the result shows – run it again, then export.</value>
+    <comment>Export of all rows of a SQL result refused: the re-run query has different columns</comment>
+  </data>
+  <data name="ExportNamesMissing" xml:space="preserve">
+    <value>Names from {0} are missing: {1}</value>
+    <comment>Excel export warning. {0} = table.column of the display column, {1} = database error</comment>
+  </data>
 </root>
