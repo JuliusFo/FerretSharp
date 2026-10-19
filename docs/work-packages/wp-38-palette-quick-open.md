@@ -43,3 +43,19 @@ Branch `wp/38-palette-quick-open`, begonnen am 2026-10-19. Das Spaltenprofil war
 - **Grid- und Formulartasten bleiben draußen:** Sie brauchen den Fokus im Grid und stünden in der Palette immer ausgegraut da. Erst wenn sie im Alltag fehlen, prüfen, welche sich über den Tab ausführen lassen (Backlog).
 - **Treffer hervorheben: gebaut.** `TextSearch.Ranges` liefert die Fundstellen (wie `Matches` verglichen, alle Vorkommen, überlappende und angrenzende zusammengefasst), `Highlight` (Components/Common) setzt sie als `<mark>`; in der Box für Tabellen- und Entity-Namen, PL/SQL und Beschriftungen der Aktionen (CSS `.palette-row mark`: Akzentfarbe, fett). Tests `TextSearchRangesTests`; in der App hell und dunkel angesehen (CDP, Befehlspalette ohne Verbindung).
 - **„Zuletzt benutzt“ für Aktionen: nein** (17 Aktionen, mit zwei, drei Buchstaben gefunden). Stattdessen im Backlog: „Zuletzt geöffnet“ in der Schnellsuche – auch geschlossene Tabellen.
+
+## Nachtrag: Code-Review des Branches (2026-10-19)
+Ein Review-Agent über `origin/main...HEAD` meldete 13 Befunde; der Nutzer hat alle außer 13 übernommen. Vorher `origin/main` (PR #19, Sprünge über Basistabellen) gemergt.
+- **Offene Tabs:** Eine Zeile der leeren Schnellsuche führt ihren Tab; Enter zeigt genau diesen (`ShellState.ShowTab`). Vorher nahm `OpenTable` den ersten Tab derselben Tabelle – nach einem FK-Sprung gibt es zwei.
+- **Esc in der Befehlspalette:** `clearOnEscape` (dom.js) bekommt über `SearchBox.EscapeKeeps` das Präfix: „> sql“ wird zu „>“, und bei nur „>“ schließt Esc die Box. Vorher wurde aus der Befehlspalette mit dem ersten Esc die Schnellsuche.
+- **Suche nicht bei jedem Render:** Die Box merkt sich die Treffer zu Text, Listen des Schemas (ein Neuladen ersetzt sie) und Version der Präsentation; Hover und Änderungen der Shell rechnen nicht mehr über das ganze Schema.
+- **Toggle nach angezeigtem Modus:** `PaletteRequest.ShowsCommands` folgt dem Text; die Taste des angezeigten Modus schließt, die andere öffnet im anderen neu.
+- **Fehler aus der Palette** laufen wie die der Tasten über `Failed` (Log und Meldung).
+- **Regel je Tab-Art:** „Filter anwenden“ nur in Tabellen-, SQL- und LINQ-Tabs, „Neu laden“ und „Spalte suchen“ auch in PL/SQL-Tabs, nichts davon im Tab für eine neue Tabelle – sonst „Nicht in diesem Tab.“ (wie die Ansichten `TabCommand` behandeln).
+- **Tote Texte entfernt** (`Palette_CommandPlaceholder`, `Palette_OnlyInGrid`); `ShellActions.Unavailable` wirft für Aktionen, die nicht global sind (erreichen die Shell nie, ein Test hält es fest).
+- **`aria-disabled`** als `"true"`/`"false"`; Taste in der Zeile über `<Kbd>`.
+- **Lupe** geht über `RunAction(QuickOpen)` und ist ohne Verbindung deaktiviert, mit Grund im Tooltip – dieselbe Regel wie die Taste.
+- **Tasten hinter der offenen Box:** Eine globale Aktion außer den beiden der Box schließt sie vorher (Ctrl+F, F5 … wirken sonst auf den Tab dahinter, während die Box offen bleibt).
+- **`NameRank.Of` ohne Wörter** liefert `Contains` statt einer Ausnahme.
+- Nicht übernommen: Neurendern, wenn Entity-Namen bei offener Box fertig laden (kleine Wirkung, erscheinen beim nächsten Tastendruck).
+- Tests: `ShellStateTabsTests` (zwei Tabs derselben Tabelle), `QuickPaletteSearchTests` (Taste des angezeigten Modus), `ShellActionsTests` (Regel je Tab-Art, Grid-Aktionen werfen), `ObjectSearchTests` (ohne Wörter). Geprüft in der App ohne Verbindung: Esc in der Befehlspalette, Lupe deaktiviert mit Tooltip, Toggle nach Löschen des Präfixes, `aria-disabled`. Das Schließen vor anderen Aktionen braucht eine Verbindung und ist nur im Code nachvollzogen.
