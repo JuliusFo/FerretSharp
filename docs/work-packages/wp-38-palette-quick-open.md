@@ -59,3 +59,8 @@ Ein Review-Agent über `origin/main...HEAD` meldete 13 Befunde; der Nutzer hat a
 - **`NameRank.Of` ohne Wörter** liefert `Contains` statt einer Ausnahme.
 - Nicht übernommen: Neurendern, wenn Entity-Namen bei offener Box fertig laden (kleine Wirkung, erscheinen beim nächsten Tastendruck).
 - Tests: `ShellStateTabsTests` (zwei Tabs derselben Tabelle), `QuickPaletteSearchTests` (Taste des angezeigten Modus), `ShellActionsTests` (Regel je Tab-Art, Grid-Aktionen werfen), `ObjectSearchTests` (ohne Wörter). Geprüft in der App ohne Verbindung: Esc in der Befehlspalette, Lupe deaktiviert mit Tooltip, Toggle nach Löschen des Präfixes, `aria-disabled`. Das Schließen vor anderen Aktionen braucht eine Verbindung und ist nur im Code nachvollzogen.
+
+## Nachtrag: Bilder im Changelog (2026-10-19, Wunsch des Nutzers)
+- Die ersten Bilder im CHANGELOG überhaupt (WP-49): `docs/images/changelog/3.42.0-quick-open.png` („kunde“ mit Entity-Namen, View, Funktion und Markierung) und `3.42.0-command-palette.png` (Aktionen mit Tasten, ausgegraut mit Grund), eingerückt unter dem Punkt von WP-38. Dunkel, englisch, Beispiel-DB in eigenem Container mit verknüpftem `samples`-Projekt, CDP-Ausschnitt genau um die Box (17 und 38 KB). Die View war in der frischen DB ungültig (rot); einmal geöffnet und das Schema neu geladen.
+- Die Version im Dateinamen ist geraten (nächstes Minor-Release mit neuen Features). Wird es eine andere, Dateien und Verweise umbenennen – der Release-Workflow prüft nur Ordner und Dateinamen, nicht die Version.
+
