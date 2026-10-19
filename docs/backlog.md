@@ -66,7 +66,9 @@ Selten, ungeprüft oder bewusst zurückgestellt – vor dem Anfassen nachstellen
 
 ## Export und Zwischenablage
 
-- Export: vollständige LOB-Werte (CLOB/BLOB) für markierte Zeilen nachladen statt sie als NULL zu exportieren. („Alle Zeilen des Filters exportieren“: eingeplant als WP-54, `docs/roadmap.md`.)
+- Export: vollständige LOB-Werte (CLOB/BLOB) nachladen statt sie als NULL zu exportieren – für markierte Zeilen und für „alle Zeilen“ (WP-54 nimmt wie bisher nur die Vorschau, Entscheidung des Nutzers 2026-10-19).
+- „Alle Zeilen“ exportieren auch für Ergebnisse der LINQ-Konsole (bei WP-54 zurückgestellt, Entscheidung des Nutzers 2026-10-19). Ihr Ergebnis ist eine SQL-Abfrage (`QuerySpec`), die das Grid schon seitenweise erneut ausführt: derselbe Weg wie im SQL-Editor (`ReadSqlAllAsync`, `SqlResultGrid.ExportsAllRows`).
+- Export aller Zeilen (Fortsetzung von WP-54): vorher zählen, damit die Statusleiste „x von n“ zeigt, auch wenn der Tab nicht gezählt hat (eine Abfrage mehr über das VPN); wahlweise in einer eigenen Lese-Session, damit der Workspace weiterarbeiten kann (sieht dann die eigenen, nicht committeten Änderungen nicht).
 - Excel-Export (Fortsetzung von WP-53): ein Blatt je Ergebnis, wenn der SQL-Editor mehrere Ergebnisse zeigt (bei der Planung zurückgestellt, Entscheidung des Nutzers 2026-10-17 – Speichern je Ergebnis-Menü reicht).
 - Export: Option „Formeln entschärfen“ für CSV und „Als Tabelle kopieren“ (Textwerte, die mit `=`, `+`, `-`, `@` beginnen, mit führendem `'` – Excel wertet sie sonst als Formel aus). Entscheidung des Nutzers (Gesamt-Review 3.31.0, A38): Standard bleibt der exakte Wert, nur als Option bei Bedarf.
 - Native Dialoge: zuletzt verwendeten Export-Ordner merken.
