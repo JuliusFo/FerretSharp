@@ -792,4 +792,61 @@
   <data name="Status_ExportRowsOf" xml:space="preserve">
     <value>{0:N0} von {1:N0} Zeilen</value>
   </data>
+  <data name="Palette_Title" xml:space="preserve">
+    <value>Schnellsuche</value>
+  </data>
+  <data name="Palette_SearchPlaceholder" xml:space="preserve">
+    <value>Gehe zu Tabelle, View oder PL/SQL – „&gt;“ für Befehle</value>
+  </data>
+  <data name="Palette_OpenTabs" xml:space="preserve">
+    <value>Offene Tabs</value>
+  </data>
+  <data name="Palette_Tables" xml:space="preserve">
+    <value>Tabellen und Views</value>
+  </data>
+  <data name="Palette_PlSql" xml:space="preserve">
+    <value>PL/SQL</value>
+  </data>
+  <data name="Palette_MoreOne" xml:space="preserve">
+    <value>1 weiterer – Suche eingrenzen</value>
+  </data>
+  <data name="Palette_MoreOther" xml:space="preserve">
+    <value>{0} weitere – Suche eingrenzen</value>
+  </data>
+  <data name="Palette_TypeToSearch" xml:space="preserve">
+    <value>Tippe einen Namen, um Tabellen, Views und PL/SQL zu suchen.</value>
+  </data>
+  <data name="Palette_FooterSearch" xml:space="preserve">
+    <value>↑↓ wählen · Enter öffnet · „&gt;“ Befehle · Esc schließt</value>
+  </data>
+  <data name="Palette_FooterCommands" xml:space="preserve">
+    <value>↑↓ wählen · Enter führt aus · Esc schließt</value>
+  </data>
+  <data name="Palette_OnlyInExplorer" xml:space="preserve">
+    <value>Nur im Explorer.</value>
+  </data>
+  <data name="Palette_NoTab" xml:space="preserve">
+    <value>Kein Tab offen.</value>
+  </data>
+  <data name="Palette_OnlyInSqlTab" xml:space="preserve">
+    <value>Nur in einem SQL-Tab.</value>
+  </data>
+  <data name="Palette_NoLinkedProject" xml:space="preserve">
+    <value>Kein C#-Projekt verknüpft.</value>
+  </data>
+  <data name="Palette_ReadOnly" xml:space="preserve">
+    <value>Der Workspace ist schreibgeschützt.</value>
+  </data>
+  <data name="Palette_NothingToGoBackTo" xml:space="preserve">
+    <value>Kein FK-Sprung, von dem es zurückgeht.</value>
+  </data>
+  <data name="Palette_NothingToGoForwardTo" xml:space="preserve">
+    <value>Nichts, wohin es vorwärtsgeht.</value>
+  </data>
+  <data name="Palette_NoPreviousConnection" xml:space="preserve">
+    <value>Keine vorige Verbindung offen.</value>
+  </data>
+  <data name="Palette_NotInThisTab" xml:space="preserve">
+    <value>Nicht in diesem Tab.</value>
+  </data>
 </root>

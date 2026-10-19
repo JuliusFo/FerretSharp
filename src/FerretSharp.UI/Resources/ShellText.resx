@@ -980,4 +980,80 @@
     <value>{0:N0} of {1:N0} rows</value>
     <comment>Progress of a running export; {0}: rows written, {1}: rows expected</comment>
   </data>
+  <data name="Palette_Title" xml:space="preserve">
+    <value>Quick open</value>
+    <comment>Accessible name of the quick open box (WP-38)</comment>
+  </data>
+  <data name="Palette_SearchPlaceholder" xml:space="preserve">
+    <value>Go to table, view or PL/SQL – “&gt;” for commands</value>
+    <comment>Placeholder of the quick open box</comment>
+  </data>
+  <data name="Palette_OpenTabs" xml:space="preserve">
+    <value>Open tabs</value>
+    <comment>Group heading in the quick open box</comment>
+  </data>
+  <data name="Palette_Tables" xml:space="preserve">
+    <value>Tables and views</value>
+    <comment>Group heading in the quick open box</comment>
+  </data>
+  <data name="Palette_PlSql" xml:space="preserve">
+    <value>PL/SQL</value>
+    <comment>Group heading in the quick open box</comment>
+  </data>
+  <data name="Palette_MoreOne" xml:space="preserve">
+    <value>1 more – narrow the search</value>
+    <comment>Below a cut-off list of hits</comment>
+  </data>
+  <data name="Palette_MoreOther" xml:space="preserve">
+    <value>{0} more – narrow the search</value>
+    <comment>{0} = number of hits not shown</comment>
+  </data>
+  <data name="Palette_TypeToSearch" xml:space="preserve">
+    <value>Type a name to search tables, views and PL/SQL.</value>
+    <comment>Empty quick open box without open tabs</comment>
+  </data>
+  <data name="Palette_FooterSearch" xml:space="preserve">
+    <value>↑↓ choose · Enter opens · “&gt;” commands · Esc closes</value>
+    <comment>Key hints at the bottom of the quick open box</comment>
+  </data>
+  <data name="Palette_FooterCommands" xml:space="preserve">
+    <value>↑↓ choose · Enter runs · Esc closes</value>
+    <comment>Key hints at the bottom of the command palette</comment>
+  </data>
+  <data name="Palette_OnlyInExplorer" xml:space="preserve">
+    <value>Only in the explorer.</value>
+    <comment>Why an action of the command palette is greyed out: settings or another page is shown</comment>
+  </data>
+  <data name="Palette_NoTab" xml:space="preserve">
+    <value>No tab open.</value>
+    <comment>Why an action of the command palette is greyed out</comment>
+  </data>
+  <data name="Palette_OnlyInSqlTab" xml:space="preserve">
+    <value>Only in a SQL tab.</value>
+    <comment>Why an action of the command palette is greyed out</comment>
+  </data>
+  <data name="Palette_NoLinkedProject" xml:space="preserve">
+    <value>No C# project linked.</value>
+    <comment>Why an action of the command palette is greyed out</comment>
+  </data>
+  <data name="Palette_ReadOnly" xml:space="preserve">
+    <value>The workspace is read-only.</value>
+    <comment>Why an action of the command palette is greyed out</comment>
+  </data>
+  <data name="Palette_NothingToGoBackTo" xml:space="preserve">
+    <value>No FK jump to go back from.</value>
+    <comment>Why “Back” is greyed out in the command palette</comment>
+  </data>
+  <data name="Palette_NothingToGoForwardTo" xml:space="preserve">
+    <value>Nothing to go forward to.</value>
+    <comment>Why “Forward” is greyed out in the command palette</comment>
+  </data>
+  <data name="Palette_NoPreviousConnection" xml:space="preserve">
+    <value>No previous connection open.</value>
+    <comment>Why an action of the command palette is greyed out</comment>
+  </data>
+  <data name="Palette_NotInThisTab" xml:space="preserve">
+    <value>Not in this tab.</value>
+    <comment>Why an action of the command palette is greyed out: the active tab (e.g. PL/SQL, new table) has nothing for it</comment>
+  </data>
 </root>

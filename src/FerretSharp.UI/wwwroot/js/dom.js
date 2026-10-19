@@ -18,13 +18,15 @@ export function selectIfFocused(element) {
 /**
  * Escape in a search field with text clears it and goes no further: stopped at the field, Blazor's handlers above it
  * (a popover's or dialog's Escape) never see it, so they act only on the next Escape. The input event updates the binding.
+ * A text starting with `keep` (the command prefix of the quick open, WP-38) is cleared back to it, and with only `keep`
+ * left Escape goes on as in an empty field.
  */
-export function clearOnEscape(input) {
+export function clearOnEscape(input, keep = '') {
   input?.addEventListener('keydown', e => {
-    if (e.key !== 'Escape' || e.isComposing || input.value === '') return;
+    if (e.key !== 'Escape' || e.isComposing || input.value === '' || (keep && input.value.trim() === keep)) return;
     e.stopPropagation();
     e.preventDefault();
-    input.value = '';
+    input.value = keep && input.value.trimStart().startsWith(keep) ? keep : '';
     input.dispatchEvent(new Event('input', { bubbles: true }));
   });
 }

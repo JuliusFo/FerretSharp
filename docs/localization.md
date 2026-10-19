@@ -93,6 +93,8 @@ Ein Begriff, eine Übersetzung – überall gleich. Neue Fachbegriffe hier ergä
 | Statusleiste | status bar | |
 | Einstellungen | settings | |
 | Tastenkürzel | shortcut | |
+| Schnellsuche (Box „Gehe zu …“, WP-38) | quick open | |
+| Befehlspalette | command palette | |
 | schreibgeschützt | read-only | |
 | freischalten / Freischaltung (Prod beschreibbar machen) | unlock | |
 | sperren / gesperrt (Workspace wieder schreibgeschützt) | lock / locked | |

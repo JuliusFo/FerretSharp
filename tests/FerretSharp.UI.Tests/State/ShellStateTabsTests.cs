@@ -98,6 +98,22 @@ public sealed class ShellStateTabsTests : IAsyncDisposable
     /// <summary>The browsed schema (APP_USER, as TestApp's tables) after a refresh, without any table.</summary>
     private static SchemaCache Gone() => new(Substitute.For<ISchemaReader>(), TestApp.Kunden.Owner);
 
+    /// <summary>Review of WP-38: the quick open shows the tab chosen, also when an FK jump opened a second one of the table.</summary>
+    [Fact]
+    public async Task Showing_a_tab_shows_that_one_of_two_of_the_same_table()
+    {
+        await _app.OpenAsync(TestApp.Profile("Test"));
+        var first = _app.Shell.OpenTable(TestApp.Kunden)!;
+        var second = _app.Shell.OpenFiltered(TestApp.Kunden, [])!;
+        _app.Shell.ActivateTab(first);
+        _app.Shell.ShowSettings();
+
+        _app.Shell.ShowTab(second);
+
+        Assert.Same(second, _app.Shell.ActiveTab);
+        Assert.Equal(ShellPage.Explorer, _app.Shell.Page);
+    }
+
     private TableTab AddTab(ConnectionScope scope, TableSummary table)
     {
         var workspace = _app.WorkspaceOf(scope);

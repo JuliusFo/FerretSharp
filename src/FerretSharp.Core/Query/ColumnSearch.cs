@@ -3,19 +3,12 @@ using FerretSharp.Core.Schema;
 namespace FerretSharp.Core.Query;
 
 /// <summary>
-/// Finds columns by name for the column picker (filter bar) and the column jump (Ctrl+F). Every whitespace-separated
-/// term must occur in the name, ignoring case; underscores may be left out ("lieferort" finds LIEFER_ORT).
+/// Finds columns by name for the column picker (filter bar) and the column jump (Ctrl+F), ranked by
+/// <see cref="NameRank"/>: every whitespace-separated term must occur in the name, ignoring case; underscores may be left
+/// out ("lieferort" finds LIEFER_ORT).
 /// </summary>
 public static class ColumnSearch
 {
-    private enum Rank
-    {
-        Exact,
-        Prefix,
-        WordStart,
-        Contains,
-    }
-
     /// <summary>
     /// Indexes into <paramref name="columns"/> of the matches: exact name first, then names starting with the first
     /// term, then names where every term starts a word (after "_"), then the rest – each group in schema order.
@@ -27,63 +20,17 @@ public static class ColumnSearch
     /// </param>
     public static IReadOnlyList<int> Find(IReadOnlyList<ColumnInfo> columns, string? query, Func<int, string?>? alternateName = null)
     {
-        var terms = (query ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var terms = NameRank.Terms(query);
         if (terms.Length == 0)
         {
             return Enumerable.Range(0, columns.Count).ToList();
         }
 
         return columns
-            .Select((c, i) => (Index: i, Rank: Best(RankOf(c.Name, terms), alternateName?.Invoke(i) is { } alternate ? RankOf(Words(alternate), terms) : null)))
+            .Select((c, i) => (Index: i, Rank: NameRank.Best(NameRank.Of(c.Name, terms), alternateName?.Invoke(i) is { } alternate ? NameRank.OfClrName(alternate, terms) : null)))
             .Where(x => x.Rank is not null)
             .OrderBy(x => x.Rank) // stable: schema order within a rank
             .Select(x => x.Index)
             .ToList();
     }
-
-    private static Rank? Best(Rank? a, Rank? b) => a is null ? b : b is null ? a : (Rank)Math.Min((int)a, (int)b);
-
-    /// <summary><c>KundeId</c> → <c>Kunde_Id</c>: C# word boundaries become underscores, as in database names.</summary>
-    private static string Words(string name)
-    {
-        var text = new System.Text.StringBuilder(name.Length + 4);
-        for (var i = 0; i < name.Length; i++)
-        {
-            if (i > 0 && char.IsUpper(name[i]) && (char.IsLower(name[i - 1]) || char.IsDigit(name[i - 1])))
-            {
-                text.Append('_');
-            }
-
-            text.Append(name[i]);
-        }
-
-        return text.ToString();
-    }
-
-    private static Rank? RankOf(string name, string[] terms)
-    {
-        var compact = name.Replace("_", "", StringComparison.Ordinal);
-        if (!terms.All(t => Contains(name, t) || Contains(compact, t)))
-        {
-            return null;
-        }
-
-        if (TextSearch.Equal(name, string.Join('_', terms)) || TextSearch.Equal(compact, string.Concat(terms)))
-        {
-            return Rank.Exact;
-        }
-
-        if (TextSearch.StartsWith(name, terms[0]) || TextSearch.StartsWith(compact, terms[0]))
-        {
-            return Rank.Prefix;
-        }
-
-        return terms.All(t => StartsWord(name, t)) ? Rank.WordStart : Rank.Contains;
-    }
-
-    /// <summary>Compared like every search box, accents ignored (<see cref="TextSearch"/>).</summary>
-    private static bool Contains(string text, string term) => TextSearch.Contains(text, term);
-
-    /// <summary>The term occurs right after an underscore ("ort" in LIEFER_ORT, not in SORTE).</summary>
-    private static bool StartsWord(string name, string term) => TextSearch.Contains(name, "_" + term);
 }
