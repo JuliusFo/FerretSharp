@@ -215,6 +215,8 @@ Seit WP-25 (3.16.0) unter Einstellungen › Tastenkürzel änderbar; die Tabelle
 | – (frei belegbar) | Aktiven Tab schließen; fragt vorher (auch beim ✕) bei ausstehenden Änderungen, bei einem eingegebenen, nicht bestätigten Wert (Zelle im Grid oder Feld im Formular) und bei Text im SQL-/LINQ-Tab | 3.21 |
 | – (frei belegbar) | Andere Tabs bzw. alle Tabs des aktiven Workspaces schließen; wie das Kontextmenü eines Tabs (Schließen, Andere, Rechts davon, Alle): Tabs, bei denen etwas verloren ginge, kommen gesammelt in eine Rückfrage (`CloseTabsQuestion`) – alles verwerfen, diese offen lassen und den Rest schließen, oder abbrechen | 3.27 |
 | – (frei belegbar) | Aktiven Tab anheften oder lösen (WP-34); auch im Kontextmenü eines Tabs | 3.30 |
+| – (frei belegbar) | Schnellsuche: Tabellen, Views und PL/SQL der sichtbaren Verbindung, auch nach Entity-Namen; Enter öffnet. Auch über die Lupe in der Kopfleiste. Mit „>“ davor wird daraus die Befehlspalette | WP-38 |
+| – (frei belegbar) | Befehlspalette: dieselbe Box mit „>“ – die globalen Aktionen mit Taste, nicht ausführbare ausgegraut mit Grund | WP-38 |
 | Ctrl+S | Ausstehende Änderungen schreiben (kein Commit) | v1.9 |
 | Ctrl+Shift+Enter | Commit (auf Prod immer mit Bestätigung) | v1.9 |
 | Ctrl+Z / Ctrl+Y | Im Grid: ausstehende Bearbeitung zurücknehmen / wiederholen, Zelle für Zelle. Nur lokal (`grid.js` über `shortcuts.js setLocal`) | WP-30 |
@@ -226,7 +228,7 @@ Seit WP-25 (3.16.0) unter Einstellungen › Tastenkürzel änderbar; die Tabelle
 | Alt+↑ / Alt+↓ | Im Formular: vorige/nächste Zeile (bewegt den Fokus im Grid; im Grid selbst reichen ↑/↓). Nur lokal | WP-21 |
 | – | Rollback nur über Button, mit Bestätigung | v2 |
 
-Fest (`ShortcutMap.Fixed`, nur zur Übersicht in den Einstellungen): Ctrl+C, Entf (zum Löschen markieren), Enter (Zelle bearbeiten), Esc im Grid; Enter im Filterwert; Ctrl+Leertaste, Ctrl+H, Ctrl+Z/Ctrl+Y in den Editoren. `Esc` bleibt dem Grid vorbehalten (Zelleingabe abbrechen) bzw. schließt Menüs/Dialoge. `F12` öffnet im Debug-Build die DevTools. Tabellensuche im Ctrl+P-Stil ist Teil von WP-38 (`docs/roadmap.md`, ohne Standardtaste).
+Fest (`ShortcutMap.Fixed`, nur zur Übersicht in den Einstellungen): Ctrl+C, Entf (zum Löschen markieren), Enter (Zelle bearbeiten), Esc im Grid; Enter im Filterwert; Ctrl+Leertaste, Ctrl+H, Ctrl+Z/Ctrl+Y in den Editoren. `Esc` bleibt dem Grid vorbehalten (Zelleingabe abbrechen) bzw. schließt Menüs/Dialoge. `F12` öffnet im Debug-Build die DevTools. Schnellsuche und Befehlspalette (WP-38) sind eine Box (`QuickPalette`): ohne Präfix Objekte (`ObjectSearch`, Rangfolge wie die Spaltensuche über `NameRank`), mit „>“ Aktionen. Ob eine globale Aktion gerade geht, entscheidet `ShellActions.Unavailable` – für die Taste (tut dann nichts) wie für die Palette (ausgegraut mit Grund); die Shell führt beides über `RunAction` aus. Grid- und Formulartasten stehen nicht in der Palette.
 
 Technik (WP-25):
 - `KeyChord` (Core/Settings): Textform `ctrl+shift+alt+<KeyboardEvent.key klein>` (`space`, `plus`), wie `comboOf` in `shortcuts.js` sie bildet; `settings.json` speichert in `AppSettings.Shortcuts` (`ShortcutOverrides`) nur Abweichungen je Aktionsname, leer = nicht belegt, unbekannte Einträge bleiben erhalten.
