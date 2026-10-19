@@ -988,10 +988,6 @@
     <value>Go to table, view or PL/SQL – “&gt;” for commands</value>
     <comment>Placeholder of the quick open box</comment>
   </data>
-  <data name="Palette_CommandPlaceholder" xml:space="preserve">
-    <value>Run an action</value>
-    <comment>Placeholder of the command palette (the box with “&gt;” in front)</comment>
-  </data>
   <data name="Palette_OpenTabs" xml:space="preserve">
     <value>Open tabs</value>
     <comment>Group heading in the quick open box</comment>
@@ -1056,8 +1052,8 @@
     <value>No previous connection open.</value>
     <comment>Why an action of the command palette is greyed out</comment>
   </data>
-  <data name="Palette_OnlyInGrid" xml:space="preserve">
-    <value>Only in the grid.</value>
-    <comment>Why an action of the command palette is greyed out</comment>
+  <data name="Palette_NotInThisTab" xml:space="preserve">
+    <value>Not in this tab.</value>
+    <comment>Why an action of the command palette is greyed out: the active tab (e.g. PL/SQL, new table) has nothing for it</comment>
   </data>
 </root>

@@ -798,9 +798,6 @@
   <data name="Palette_SearchPlaceholder" xml:space="preserve">
     <value>Gehe zu Tabelle, View oder PL/SQL – „&gt;“ für Befehle</value>
   </data>
-  <data name="Palette_CommandPlaceholder" xml:space="preserve">
-    <value>Aktion ausführen</value>
-  </data>
   <data name="Palette_OpenTabs" xml:space="preserve">
     <value>Offene Tabs</value>
   </data>
@@ -849,7 +846,7 @@
   <data name="Palette_NoPreviousConnection" xml:space="preserve">
     <value>Keine vorige Verbindung offen.</value>
   </data>
-  <data name="Palette_OnlyInGrid" xml:space="preserve">
-    <value>Nur im Grid.</value>
+  <data name="Palette_NotInThisTab" xml:space="preserve">
+    <value>Nicht in diesem Tab.</value>
   </data>
 </root>

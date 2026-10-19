@@ -92,7 +92,27 @@ public sealed class ShellActionsTests
         Assert.Null(ShellActions.Unavailable(ShortcutAction.NewSql, Ready with { ActiveTab = null }));
     }
 
+    [Theory]
+    [InlineData(ShortcutAction.UndoEdit)]
+    [InlineData(ShortcutAction.ToggleForm)]
+    public void The_grids_own_actions_are_no_global_ones(ShortcutAction action) =>
+        Assert.Throws<ArgumentOutOfRangeException>(() => ShellActions.Unavailable(action, Ready));
+
+    /// <summary>Review of WP-38: the palette greys out what the active tab's view does not handle.</summary>
     [Fact]
-    public void The_grids_own_actions_are_not_for_the_palette() =>
-        Assert.Equal("Nur im Grid.", ShellActions.Unavailable(ShortcutAction.UndoEdit, Ready));
+    public void Tab_commands_only_where_the_tab_handles_them()
+    {
+        var plSql = Ready with { ActiveTab = new PlSqlTab(Workspace, new PlSqlObjectSummary("APP", "PKG_KUNDE", PlSqlKind.Package, "VALID")) };
+        var newTable = Ready with { ActiveTab = new NewTableTab(Workspace, "APP") };
+        var linq = Ready with { ActiveTab = new LinqTab(Workspace, "LINQ 1") };
+
+        Assert.Equal("Nicht in diesem Tab.", ShellActions.Unavailable(ShortcutAction.ApplyFilters, plSql));
+        Assert.Null(ShellActions.Unavailable(ShortcutAction.Refresh, plSql));
+        Assert.Null(ShellActions.Unavailable(ShortcutAction.FindColumn, plSql));
+        Assert.All(
+            [ShortcutAction.ApplyFilters, ShortcutAction.Refresh, ShortcutAction.FindColumn],
+            a => Assert.Equal("Nicht in diesem Tab.", ShellActions.Unavailable(a, newTable)));
+        Assert.Null(ShellActions.Unavailable(ShortcutAction.ApplyFilters, linq));
+        Assert.Null(ShellActions.Unavailable(ShortcutAction.CloseTab, newTable));
+    }
 }

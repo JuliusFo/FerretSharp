@@ -44,13 +44,16 @@ public static class ShellActions
         ShortcutAction.PreviousConnection => context.PreviousConnection ? null : ShellText.Palette_NoPreviousConnection,
         ShortcutAction.Back => InExplorer(context) ?? (context.CanGoBack ? null : ShellText.Palette_NothingToGoBackTo),
         ShortcutAction.Forward => InExplorer(context) ?? (context.CanGoForward ? null : ShellText.Palette_NothingToGoForwardTo),
-        ShortcutAction.CloseTab or ShortcutAction.CloseOtherTabs or ShortcutAction.CloseAllTabs or ShortcutAction.PinTab
-            or ShortcutAction.ApplyFilters or ShortcutAction.Refresh or ShortcutAction.FindColumn => WithTab(context),
+        ShortcutAction.CloseTab or ShortcutAction.CloseOtherTabs or ShortcutAction.CloseAllTabs or ShortcutAction.PinTab => WithTab(context),
+        ShortcutAction.ApplyFilters => WithTab(context) ?? (context.ActiveTab is TableTab or SqlTab or LinqTab ? null : ShellText.Palette_NotInThisTab),
+        ShortcutAction.Refresh or ShortcutAction.FindColumn =>
+            WithTab(context) ?? (context.ActiveTab is TableTab or SqlTab or LinqTab or PlSqlTab ? null : ShellText.Palette_NotInThisTab),
         ShortcutAction.RunScript => WithTab(context) ?? (context.ActiveTab is SqlTab ? null : ShellText.Palette_OnlyInSqlTab),
         ShortcutAction.NewSql or ShortcutAction.ToggleChanges => InExplorer(context),
         ShortcutAction.NewLinq => InExplorer(context) ?? (context.LinkedProject ? null : ShellText.Palette_NoLinkedProject),
         ShortcutAction.Flush or ShortcutAction.Commit => InExplorer(context) ?? (context.Writable ? null : ShellText.Palette_ReadOnly),
-        _ => ShellText.Palette_OnlyInGrid,
+        // The grid's and the form's own keys never reach the shell (not global) and are not in the palette.
+        _ => throw new ArgumentOutOfRangeException(nameof(action), action, "Not a global action."),
     };
 
     private static string? InExplorer(ShellActionContext context) =>
