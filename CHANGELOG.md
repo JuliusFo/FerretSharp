@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 ## [Unreleased]
 
 ### Added
+- Jumps through base tables: when a table extends another one over the same primary key (table per type, e.g. `PKW` extends `FAHRZEUG` over `FAHRZEUG_ID`), what references the base table now shows for the extension's rows as well – in the cell menu, the menu of a query result and the form, as a group of its own ("Referenced via FAHRZEUG"), with counts and the jump as usual. The other extension tables of the same base are left out. Relationships of the C# model count too. Connecting reads the primary keys of all tables for it (one more query per schema).
 - Export all rows of a filter (WP-54): the cell menu of a table has "All rows of the filter" with CSV and Excel – not only the selected rows the grid has loaded, but every row that the filters and sort order of the tab return. The SQL editor offers the same for all rows of a result ("All rows of the result"; the query runs again). The rows are read again in the workspace's session, block by block: written changes are included, pending ones are not, and the workspace waits until the export ends. In Excel files, the names beside foreign keys (display columns) are looked up for every row. LOBs are exported as before, as a preview with a warning.
 
 ### Changed
