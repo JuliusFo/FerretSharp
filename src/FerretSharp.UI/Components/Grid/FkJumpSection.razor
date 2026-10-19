@@ -1,5 +1,6 @@
 @* The FK jumps of a context menu (the grid's cell menu, the menu of a query result – WP-48): "Points to" and "Referenced
-   by" with the rows behind incoming jumps, counted at once or on hover (FkCountMode); a jump opens the target table filtered. *@
+   by" with the rows behind incoming jumps, counted at once or on hover (FkCountMode), then "Referenced via" for what
+   references a base table of the row's table (BaseTables); a jump opens the target table filtered. *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Query
 @inherits FerretComponent
@@ -16,10 +17,12 @@
     }
 }
 
-@if (Incoming.Count > 0)
+@foreach (var (via, jumps) in FkJumpLists.Groups(Incoming))
 {
-    <div class="group-head-btn static">@TextFormat.Format(GridText.GridMenu_ReferencedBy, RowsText)</div>
-    @foreach (var jump in Incoming)
+    <div class="group-head-btn static" title="@(via is null ? null : TextFormat.Format(GridText.GridMenu_ReferencedViaTitle, FkTargets.Label(Active, via)))">
+        @(via is null ? TextFormat.Format(GridText.GridMenu_ReferencedBy, RowsText) : TextFormat.Format(GridText.GridMenu_ReferencedVia, FkTargets.Label(Active, via), RowsText))
+    </div>
+    @foreach (var jump in jumps)
     {
         <FkJumpItem Jump="jump" Count="_counts.Of(jump)" Related="Related(jump)" OnJump="JumpAsync" OnEnter="Hover" OnLeave="_counts.Leave" />
     }
@@ -54,7 +57,10 @@ else if (MissingRows > 0)
     [Parameter, EditorRequired]
     public IReadOnlyList<FkJump> Outgoing { get; set; } = [];
 
-    /// <summary>Jumps to the rows referencing the selected rows; counted in the workspace's session.</summary>
+    /// <summary>
+    /// Jumps to the rows referencing the selected rows, those through base tables last (<see cref="FkJumpLists.Of"/>);
+    /// counted in the workspace's session.
+    /// </summary>
     [Parameter, EditorRequired]
     public IReadOnlyList<FkJump> Incoming { get; set; } = [];
 

@@ -36,6 +36,28 @@ public class FkJumpListsTests
     }
 
     [Fact]
+    public void Jumps_through_base_tables_follow_the_direct_ones_grouped_by_base_table_with_related_first()
+    {
+        var basis = new TableRef("APP", "BASIS");
+        var oben = new TableRef("APP", "OBEN");
+        FkJump Through(string name, TableRef via) =>
+            Jump(name, JumpDirection.Incoming) with { Inherited = new(new ForeignKeyInfo(name, Kunde, ["ID"], via, ["ID"], FkSource.Declared), via, ["ID"]) };
+        var direct = Jump("D", JumpDirection.Incoming);
+        var m1 = Through("M1", basis);
+        var o1 = Through("O1", oben);
+        var m2 = Through("M2", basis);
+
+        var lists = FkJumpLists.Of([m1, o1, direct, m2], j => j == m2);
+
+        Assert.Equal([direct, m2, m1, o1], lists.Incoming);
+        var groups = FkJumpLists.Groups(lists.Incoming);
+        Assert.Equal([null, basis, oben], groups.Select(g => g.Via));
+        Assert.Equal([[direct], [m2, m1], [o1]], groups.Select(g => g.Jumps));
+        Assert.Equal(3, lists.Headings);
+        Assert.Equal(2, FkJumpLists.Of([Jump("A", JumpDirection.Outgoing), direct], _ => false).Headings);
+    }
+
+    [Fact]
     public void Jumps_start_from_the_selected_rows_else_from_the_clicked_one()
     {
         var selected = new[] { Row(2m), Row(3m) };

@@ -159,6 +159,12 @@
   <data name="GridMenu_ReferencedBy" xml:space="preserve">
     <value>Referenziert von{0}</value>
   </data>
+  <data name="GridMenu_ReferencedVia" xml:space="preserve">
+    <value>Referenziert über {0}{1}</value>
+  </data>
+  <data name="GridMenu_ReferencedViaTitle" xml:space="preserve">
+    <value>{0} ist eine Basistabelle dieser Tabelle (gleicher Primärschlüssel): Was auf eine Zeile von {0} verweist, verweist auch auf die Zeile hier.</value>
+  </data>
   <data name="GridMenu_NoForeignKeys" xml:space="preserve">
     <value>Keine Fremdschlüssel an dieser Tabelle.</value>
   </data>
@@ -281,6 +287,9 @@
   </data>
   <data name="Form_ReferencedBy" xml:space="preserve">
     <value>Referenziert von</value>
+  </data>
+  <data name="Form_ReferencedVia" xml:space="preserve">
+    <value>Referenziert über {0}</value>
   </data>
   <data name="Form_NewRow" xml:space="preserve">
     <value>Neue Zeile</value>
