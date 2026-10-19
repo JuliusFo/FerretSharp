@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.42.0] - 2026-10-19
+
+Quick open and command palette, export of all rows of a filter in the background, and jumps through base tables.
+
 ### Added
 - Jumps through base tables: when a table extends another one over the same primary key (table per type, e.g. `PKW` extends `FAHRZEUG` over `FAHRZEUG_ID`), what references the base table now shows for the extension's rows as well – in the cell menu, the menu of a query result and the form, as a group of its own ("Referenced via FAHRZEUG"), with counts and the jump as usual. The other extension tables of the same base are left out. Relationships of the C# model count too. Connecting reads the primary keys of all tables for it (one more query per schema).
 - Quick open and command palette (WP-38): one box at the top of the window, opened with the magnifier in the top bar or a shortcut of your choice (Settings › Shortcuts: “Go to table, view or PL/SQL” and “Command palette”, no default key). Type a name to find tables, views and PL/SQL of the shown connection – also by C# entity name, when C# names are shown – and press Enter to open it; the typed words are marked in the hits, and an empty box lists the open tabs. Type “>” first to search the actions with their shortcuts; actions that would do nothing right now are greyed out with the reason (no tab open, the workspace is read-only …). A shortcut and its entry in the palette follow the same rule.
