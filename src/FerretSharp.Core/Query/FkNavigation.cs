@@ -31,6 +31,13 @@ public sealed record FkJump(
 
     public bool IsAvailable => Unavailable is null;
 
+    /// <summary>An incoming jump into a base table of the row's table (<see cref="BaseTables"/>); null for a direct one.</summary>
+    public InheritedReference? Inherited { get; init; }
+
+    /// <summary>The columns of the row's table the jump takes its values from.</summary>
+    public IReadOnlyList<string> RowColumns =>
+        Inherited?.Columns ?? (Direction == JumpDirection.Outgoing ? ForeignKey.FromColumns : ForeignKey.ToColumns);
+
     /// <summary>The key condition, e.g. <c>KUNDE_ID = 4711</c> or <c>KUNDE_ID in (4711; 4712; 4713; …) · 5 values</c>.</summary>
     public string Condition => string.Join(", ", Filters.Select(f => f.Op == FilterOperator.In
         ? TextFormat.Format(FkNavigation.German, QueryText.FkConditionInList, f.Column,
@@ -65,17 +72,24 @@ public static class FkNavigation
 
     internal static readonly CultureInfo German = ValueCulture.German;
 
-    /// <summary>Outgoing jumps first, then incoming ones; each group ordered by table and constraint name.</summary>
+    /// <summary>
+    /// Outgoing jumps first, then incoming ones, then those into base tables (<paramref name="inherited"/>, nearest base table
+    /// first); each group ordered by table and constraint name.
+    /// </summary>
     public static IReadOnlyList<FkJump> JumpsFor(
-        TableDetails table, RowData row, IEnumerable<ForeignKeyInfo> outgoing, IEnumerable<ForeignKeyInfo> incoming) =>
-        JumpsFor(table, [row], outgoing, incoming);
+        TableDetails table, RowData row, IEnumerable<ForeignKeyInfo> outgoing, IEnumerable<ForeignKeyInfo> incoming,
+        IEnumerable<InheritedReference>? inherited = null) =>
+        JumpsFor(table, [row], outgoing, incoming, inherited);
 
-    /// <inheritdoc cref="JumpsFor(TableDetails, RowData, IEnumerable{ForeignKeyInfo}, IEnumerable{ForeignKeyInfo})"/>
+    /// <inheritdoc cref="JumpsFor(TableDetails, RowData, IEnumerable{ForeignKeyInfo}, IEnumerable{ForeignKeyInfo}, IEnumerable{InheritedReference})"/>
     /// <param name="rows">The selected rows (at least one), in selection order.</param>
     public static IReadOnlyList<FkJump> JumpsFor(
-        TableDetails table, IReadOnlyList<RowData> rows, IEnumerable<ForeignKeyInfo> outgoing, IEnumerable<ForeignKeyInfo> incoming) =>
+        TableDetails table, IReadOnlyList<RowData> rows, IEnumerable<ForeignKeyInfo> outgoing, IEnumerable<ForeignKeyInfo> incoming,
+        IEnumerable<InheritedReference>? inherited = null) =>
         outgoing.Select(fk => Outgoing(table, rows, fk)).OrderBy(Key, StringComparer.Ordinal)
             .Concat(incoming.Select(fk => Incoming(table, rows, fk)).OrderBy(Key, StringComparer.Ordinal))
+            .Concat((inherited ?? []).Select(r => Inherited(table, rows, r)).GroupBy(j => j.Inherited!.Via)
+                .SelectMany(g => g.OrderBy(Key, StringComparer.Ordinal)))
             .ToList();
 
     /// <summary><paramref name="row"/> belongs to <c>fk.From</c>; opens <c>fk.To</c> where its key equals the row's FK values.</summary>
@@ -95,6 +109,14 @@ public static class FkNavigation
     /// </summary>
     public static FkJump Incoming(TableDetails table, IReadOnlyList<RowData> rows, ForeignKeyInfo fk) =>
         Build(table, rows, fk, JumpDirection.Incoming, fk.ToColumns, fk.From, fk.FromColumns);
+
+    /// <summary>
+    /// <paramref name="rows"/> belong to an extension table of <c>reference.Via</c>; opens <c>fk.From</c> where its FK columns
+    /// hold one of the rows' keys, taken from the extension table's columns that share the base table's key.
+    /// </summary>
+    public static FkJump Inherited(TableDetails table, IReadOnlyList<RowData> rows, InheritedReference reference) =>
+        Build(table, rows, reference.ForeignKey, JumpDirection.Incoming, reference.Columns, reference.ForeignKey.From, reference.ForeignKey.FromColumns)
+            with { Inherited = reference };
 
     /// <summary>
     /// Filter text that parses back to exactly <paramref name="value"/>: invariant numbers, ISO dates, hex for RAW.

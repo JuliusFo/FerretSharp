@@ -88,7 +88,7 @@
     private ColumnInfo Column => Result.Columns[Request.Column];
 
     /// <summary>For the first placement; dom.js keepInViewport corrects it once rendered.</summary>
-    private double EstimatedHeight => 200 + ItemHeight * (_jumps.Count + (ExportMenuItems.OffersRaw(XlsxColumns) ? 2 : 1) + ExportMenuItems.AllRowsEntries(AllRows, XlsxColumns))
+    private double EstimatedHeight => 200 + ItemHeight * (_jumps.Count + Math.Max(0, _jumps.Headings - 2) + (ExportMenuItems.OffersRaw(XlsxColumns) ? 2 : 1) + ExportMenuItems.AllRowsEntries(AllRows, XlsxColumns))
                                       + (_jumps.Count > 0 ? 80 : 0) + (AllRows is null ? 0 : 40);
 
     protected override void OnInitialized()
@@ -98,7 +98,7 @@
             return;
         }
 
-        var jumps = Sources.JumpsFor(Request.JumpRows, schema.OutgoingOf, schema.IncomingOf);
+        var jumps = Sources.JumpsFor(Request.JumpRows, schema.OutgoingOf, schema.IncomingOf, schema.InheritedIncomingOf);
         _sources = jumps.ToDictionary<SqlResultJump, FkJump>(j => j.Jump, ReferenceEqualityComparer.Instance);
         _jumps = FkJumpLists.Of(jumps.Select(j => j.Jump), Related);
     }

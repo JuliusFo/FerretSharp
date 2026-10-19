@@ -123,10 +123,15 @@
         @if (row is not null && _incoming.Count > 0)
         {
             <div class="form-incoming">
-                <div class="form-section">@GridText.Form_ReferencedBy</div>
-                @foreach (var jump in _incoming)
+                @foreach (var (via, jumps) in FkJumpLists.Groups(_incoming))
                 {
-                    <FkJumpItem Jump="jump" Count="_counts.Of(jump)" OnJump="Jump" OnEnter="Hover" OnLeave="_counts.Leave" />
+                    <div class="form-section" title="@(via is null ? null : FkTargets.ViaTitle(Active, via, jumps))">
+                        @(via is null ? GridText.Form_ReferencedBy : TextFormat.Format(GridText.Form_ReferencedVia, FkTargets.Label(Active, via)))
+                    </div>
+                    @foreach (var jump in jumps)
+                    {
+                        <FkJumpItem Jump="jump" Count="_counts.Of(jump)" OnJump="Jump" OnEnter="Hover" OnLeave="_counts.Leave" />
+                    }
                 }
             </div>
         }
@@ -551,7 +556,7 @@
                 return;
             }
 
-            _incoming = RowForm.Incoming(Details, row, Active.Schema?.IncomingOf(Details.Table.Ref) ?? []);
+            _incoming = RowForm.Incoming(Details, row, Active.Schema?.IncomingOf(Details.Table.Ref) ?? [], Active.Schema?.InheritedIncomingOf(Details.Table.Ref));
             _counts.Reset();
             StateHasChanged();
             if (Settings.Current.FkCounts == FkCountMode.Immediately)

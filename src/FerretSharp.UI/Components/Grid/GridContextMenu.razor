@@ -207,7 +207,7 @@
     private ColumnInfo Column => Details.Columns[Request.Column];
 
     /// <summary>For the first placement; dom.js keepInViewport corrects it once rendered.</summary>
-    private double EstimatedHeight => 336 + ItemHeight * (_jumps.Count + (ExportMenuItems.OffersRaw(_xlsxColumns) ? 2 : 1) + ExportMenuItems.AllRowsEntries(_allRows, _xlsxColumns))
+    private double EstimatedHeight => 336 + ItemHeight * (_jumps.Count + Math.Max(0, _jumps.Headings - 2) + (ExportMenuItems.OffersRaw(_xlsxColumns) ? 2 : 1) + ExportMenuItems.AllRowsEntries(_allRows, _xlsxColumns))
                                       + (_cell is null ? 0 : 128) + (Request.MissingRows > 0 ? 40 : 0);
 
     protected override void OnInitialized()
@@ -222,11 +222,11 @@
         }
 
         var row = Details.Table.Ref;
-        _jumps = FkJumpLists.Of(FkNavigation.JumpsFor(Details, Request.JumpRows, schema.OutgoingOf(row), schema.IncomingOf(row)), InvolvesColumn);
+        _jumps = FkJumpLists.Of(
+            FkNavigation.JumpsFor(Details, Request.JumpRows, schema.OutgoingOf(row), schema.IncomingOf(row), schema.InheritedIncomingOf(row)), InvolvesColumn);
     }
 
-    private bool InvolvesColumn(FkJump jump) =>
-        (jump.Direction == JumpDirection.Outgoing ? jump.ForeignKey.FromColumns : jump.ForeignKey.ToColumns).Contains(Column.Name);
+    private bool InvolvesColumn(FkJump jump) => jump.RowColumns.Contains(Column.Name);
 
     private async Task TogglePinAsync()
     {

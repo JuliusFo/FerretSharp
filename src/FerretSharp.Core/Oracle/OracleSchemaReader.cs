@@ -76,6 +76,17 @@ public sealed partial class OracleSchemaReader(OracleSession session) : ISchemaR
          ORDER BY c.constraint_name, cc.position
         """;
 
+    private const string PrimaryKeysSql = """
+        SELECT c.table_name, cc.column_name
+          FROM all_constraints c
+          JOIN all_cons_columns cc
+            ON cc.owner = c.owner AND cc.constraint_name = c.constraint_name AND cc.table_name = c.table_name
+         WHERE c.owner = :owner
+           AND c.constraint_type = 'P'
+           AND c.table_name NOT LIKE 'BIN$%'
+         ORDER BY c.table_name, cc.position
+        """;
+
     // ---- shared select lists: one owner, narrowed to one table with ByTable (…TableOrdinal is the table name) ----
 
     /// <summary>The column list of <see cref="ColumnsSelect"/>; the light variant of the snapshot replaces two of them.</summary>
@@ -214,7 +225,7 @@ public sealed partial class OracleSchemaReader(OracleSession session) : ISchemaR
     {
         var rows = await session.ReadListAsync(ForeignKeysSql, [new("owner", owner)], reader =>
             (Name: reader.GetString(0), Table: reader.GetString(1), Column: reader.GetString(2),
-             RefOwner: reader.GetString(3), RefTable: reader.GetString(4), RefColumn: reader.GetString(5)), cancellationToken);
+             RefOwner: reader.GetString(3), RefTable: reader.GetString(4), RefColumn: reader.GetString(5)), cancellationToken, many: true);
 
         return rows
             .GroupBy(r => r.Name)
@@ -229,6 +240,17 @@ public sealed partial class OracleSchemaReader(OracleSession session) : ISchemaR
                     g.Select(r => r.RefColumn).ToList(),
                     FkSource.Declared);
             })
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<PrimaryKeyInfo>> GetPrimaryKeysAsync(string owner, CancellationToken cancellationToken)
+    {
+        var rows = await session.ReadListAsync(PrimaryKeysSql, [new("owner", owner)], reader =>
+            (Table: reader.GetString(0), Column: reader.GetString(1)), cancellationToken, many: true);
+
+        return rows
+            .GroupBy(r => r.Table)
+            .Select(g => new PrimaryKeyInfo(new TableRef(owner, g.Key), g.Select(r => r.Column).ToList()))
             .ToList();
     }
 
