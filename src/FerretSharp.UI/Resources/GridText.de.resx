@@ -163,7 +163,7 @@
     <value>Referenziert über {0}{1}</value>
   </data>
   <data name="GridMenu_ReferencedViaTitle" xml:space="preserve">
-    <value>{0} ist eine Basistabelle dieser Tabelle (gleicher Primärschlüssel): Was auf eine Zeile von {0} verweist, verweist auch auf die Zeile hier.</value>
+    <value>{1} erweitert die Basistabelle {0} über denselben Primärschlüssel: Was auf eine Zeile von {0} verweist, verweist auch auf die Zeile von {1}.</value>
   </data>
   <data name="GridMenu_NoForeignKeys" xml:space="preserve">
     <value>Keine Fremdschlüssel an dieser Tabelle.</value>

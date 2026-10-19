@@ -41,7 +41,7 @@ public class FkJumpListsTests
         var basis = new TableRef("APP", "BASIS");
         var oben = new TableRef("APP", "OBEN");
         FkJump Through(string name, TableRef via) =>
-            Jump(name, JumpDirection.Incoming) with { Inherited = new(new ForeignKeyInfo(name, Kunde, ["ID"], via, ["ID"], FkSource.Declared), via, ["ID"]) };
+            Jump(name, JumpDirection.Incoming) with { Inherited = new(Kunde, new ForeignKeyInfo(name, Kunde, ["ID"], via, ["ID"], FkSource.Declared), via, ["ID"]) };
         var direct = Jump("D", JumpDirection.Incoming);
         var m1 = Through("M1", basis);
         var o1 = Through("O1", oben);

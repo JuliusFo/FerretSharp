@@ -125,7 +125,7 @@
             <div class="form-incoming">
                 @foreach (var (via, jumps) in FkJumpLists.Groups(_incoming))
                 {
-                    <div class="form-section" title="@(via is null ? null : TextFormat.Format(GridText.GridMenu_ReferencedViaTitle, FkTargets.Label(Active, via)))">
+                    <div class="form-section" title="@(via is null ? null : FkTargets.ViaTitle(Active, via, jumps))">
                         @(via is null ? GridText.Form_ReferencedBy : TextFormat.Format(GridText.Form_ReferencedVia, FkTargets.Label(Active, via)))
                     </div>
                     @foreach (var jump in jumps)

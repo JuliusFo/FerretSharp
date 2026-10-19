@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Query;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 using FerretSharp.Core.Workspaces;
 using FerretSharp.UI.Resources;
@@ -214,6 +215,14 @@ public static class FkTargets
         var summary = SummaryOf(active, table);
         return summary.Synonym is not null || table.Owner == active.Schema?.Owner ? summary.DisplayName : table.ToString();
     }
+
+    /// <summary>
+    /// Tooltip of a "Referenced via" heading: which tables of the row (one, or several in a query result) extend
+    /// <paramref name="via"/>.
+    /// </summary>
+    public static string ViaTitle(ActiveConnection active, TableRef via, IReadOnlyList<FkJump> jumps) =>
+        TextFormat.Format(GridText.GridMenu_ReferencedViaTitle, Label(active, via),
+            string.Join(", ", jumps.Select(j => j.Inherited?.Table).OfType<TableRef>().Distinct().Select(t => Label(active, t))));
 
     public static string Tooltip(FkJump jump) =>
         $"{jump.ForeignKey.Name}: {jump.ForeignKey.From}({string.Join(", ", jump.ForeignKey.FromColumns)}) → " +
