@@ -232,7 +232,10 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
     /// <summary>Relationships where other tables reference <paramref name="table"/>.</summary>
     public IEnumerable<ForeignKeyInfo> IncomingOf(TableRef table) => _incoming[table];
 
-    /// <summary>The primary key columns of <paramref name="table"/>; empty for a view, a table without one or one outside the loaded schemas.</summary>
+    /// <summary>
+    /// The primary key columns of <paramref name="table"/> (enabled or not; a view's declarative key too); empty for a table
+    /// without one or one outside the loaded schemas.
+    /// </summary>
     public IReadOnlyList<string> PrimaryKeyOf(TableRef table) => _primaryKeys.GetValueOrDefault(table) ?? [];
 
     /// <summary>

@@ -94,16 +94,61 @@ public class BaseTablesTests
         var head = new TableRef("APP", "HEAD");
         var ext = new TableRef("APP", "HEAD_EXT");
         var child = new TableRef("APP", "CHILD");
-        // The extension lists its columns in another order than the base key.
+        // The extension and the referencing table list the key columns in other orders than the extension's key.
         var extHead = new ForeignKeyInfo("FK_EXT", ext, ["E_NR", "E_MANDANT"], head, ["NR", "MANDANT"], FkSource.Declared);
-        var childHead = new ForeignKeyInfo("FK_CHILD", child, ["C_MANDANT", "C_NR"], head, ["MANDANT", "NR"], FkSource.Declared);
+        var childHead = new ForeignKeyInfo("FK_CHILD", child, ["C_NR", "C_MANDANT"], head, ["NR", "MANDANT"], FkSource.Declared);
         var keys = new Dictionary<TableRef, IReadOnlyList<string>> { [head] = ["MANDANT", "NR"], [ext] = ["E_MANDANT", "E_NR"], [child] = ["C_ID"] };
         ForeignKeyInfo[] all = [extHead, childHead];
 
         var reference = Assert.Single(BaseTables.ReferencesOf(ext, t => keys.GetValueOrDefault(t) ?? [],
             t => all.Where(f => f.From == t), t => all.Where(f => f.To == t)));
 
-        Assert.Equal(["E_MANDANT", "E_NR"], reference.Columns);
+        Assert.Equal(["E_NR", "E_MANDANT"], reference.Columns);
+        Assert.Equal(ext, reference.Table);
+    }
+
+    [Fact]
+    public void Reference_reaching_the_same_rows_as_a_direct_one_is_left_out()
+    {
+        // The C# model also knows WARTUNG -> PKW over the same column: the rows are those of WARTUNG -> FAHRZEUG.
+        var wartungPkw = new ForeignKeyInfo("WartungPkw", Wartung, ["FAHRZEUG_ID"], Pkw, ["FAHRZEUG_ID"], FkSource.ClrModel);
+
+        var references = ReferencesOf(Pkw, [wartungPkw, .. Vehicles]);
+
+        Assert.Equal([FahrzeugZug], references.Select(r => r.ForeignKey));
+        Assert.Equal([WartungFahrzeug, FahrzeugZug], ReferencesOf(Lkw, [wartungPkw, .. Vehicles]).Select(r => r.ForeignKey));
+    }
+
+    [Fact]
+    public void Extension_over_another_unique_key_of_the_base_ends_the_way_up()
+    {
+        // PKW extends FAHRZEUG over FAHRZEUG.NR (unique), not its primary key: only references to NR are reached, and
+        // FAHRZEUG's own base is not, since the row does not hold FAHRZEUG_ID.
+        var pkwNr = new ForeignKeyInfo("FK_PKW_NR", Pkw, ["FAHRZEUG_ID"], Fahrzeug, ["NR"], FkSource.Declared);
+        var flotte = new TableRef("APP", "FLOTTE");
+        var fahrzeugFlotte = new ForeignKeyInfo("FK_FAHRZEUG_FLOTTE", Fahrzeug, ["FAHRZEUG_ID"], flotte, ["FAHRZEUG_ID"], FkSource.Declared);
+        var keys = new Dictionary<TableRef, IReadOnlyList<string>>(PrimaryKeys) { [flotte] = ["FAHRZEUG_ID"] };
+        ForeignKeyInfo[] all = [pkwNr, fahrzeugFlotte, WartungFahrzeug, LeasingFahrzeug, new("FK_X", new TableRef("APP", "X"), ["F_ID"], flotte, ["FAHRZEUG_ID"], FkSource.Declared)];
+
+        var references = BaseTables.ReferencesOf(Pkw, t => keys.GetValueOrDefault(t) ?? [],
+            t => all.Where(f => f.From == t), t => all.Where(f => f.To == t));
+
+        var reference = Assert.Single(references);
+        Assert.Equal((LeasingFahrzeug, Fahrzeug), (reference.ForeignKey, reference.Via));
+        Assert.Equal(["FAHRZEUG_ID"], reference.Columns);
+    }
+
+    [Fact]
+    public void Diamond_reaches_each_base_table_once()
+    {
+        // PKW_ELEKTRO extends PKW and FAHRZEUG directly; PKW extends FAHRZEUG.
+        var elektroPkw = new ForeignKeyInfo("FK_ELEKTRO_PKW", Elektro, ["PKW_ID"], Pkw, ["FAHRZEUG_ID"], FkSource.Declared);
+        var elektroFahrzeug = new ForeignKeyInfo("FK_ELEKTRO_FAHRZEUG", Elektro, ["PKW_ID"], Fahrzeug, ["FAHRZEUG_ID"], FkSource.Declared);
+
+        var references = ReferencesOf(Elektro, [elektroPkw, elektroFahrzeug, .. Vehicles]);
+
+        Assert.Equal([WartungFahrzeug, FahrzeugZug, ZulassungPkw], references.Select(r => r.ForeignKey));
+        Assert.Equal([Fahrzeug, Fahrzeug, Pkw], references.Select(r => r.Via));
     }
 
     [Fact]

@@ -78,7 +78,7 @@ public class FkNavigationTests
         // KUNDE_EXT extends KUNDEN (shared key under its own name); AUFTRAG references KUNDEN.
         var extension = new TableDetails(new TableSummary("APP", "KUNDE_EXT", TableKind.Table),
             [Col("EXT_ID", "NUMBER", 10, 0), Col("RABATT", "NUMBER", 4, 2)], ["EXT_ID"], [], false);
-        var reference = new InheritedReference(AuftragKunde, KundenRef, ["EXT_ID"]);
+        var reference = new InheritedReference(extension.Table.Ref, AuftragKunde, KundenRef, ["EXT_ID"]);
 
         var jumps = FkNavigation.JumpsFor(extension, Row(815m, 3m), [], [], [reference]);
 
@@ -96,9 +96,9 @@ public class FkNavigationTests
         var aaa = new ForeignKeyInfo("FK_AAA", new TableRef("APP", "AAA"), ["MANDANT", "NR"], new TableRef("APP", "OBEN"), ["MANDANT", "NR"], FkSource.Declared);
         InheritedReference[] inherited =
         [
-            new(other, new TableRef("APP", "BASIS"), ["MANDANT", "AUFTRAG_NR"]),
-            new(PositionAuftrag with { Name = "FK_BASIS_POS" }, new TableRef("APP", "BASIS"), ["MANDANT", "AUFTRAG_NR"]),
-            new(aaa, new TableRef("APP", "OBEN"), ["MANDANT", "AUFTRAG_NR"]),
+            new(AuftragRef, other, new TableRef("APP", "BASIS"), ["MANDANT", "AUFTRAG_NR"]),
+            new(AuftragRef, PositionAuftrag with { Name = "FK_BASIS_POS" }, new TableRef("APP", "BASIS"), ["MANDANT", "AUFTRAG_NR"]),
+            new(AuftragRef, aaa, new TableRef("APP", "OBEN"), ["MANDANT", "AUFTRAG_NR"]),
         ];
 
         var jumps = FkNavigation.JumpsFor(Auftrag, Row(1m, 4711m, 815m, null), [AuftragKunde], [PositionAuftrag], inherited);

@@ -26,6 +26,10 @@ public sealed class SqlResultOriginsTests
     private static readonly TableDetails Mitarbeiter = new(new TableSummary(Owner, "MITARBEITER", TableKind.Table),
         [Number("ID", 1), Number("CHEF_ID", 2)], ["ID"], [], false);
 
+    /// <summary>Extends <see cref="Kunden"/> over the same key (table per type).</summary>
+    private static readonly TableDetails KundeVip = new(new TableSummary(Owner, "KUNDE_VIP", TableKind.Table),
+        [Number("VIP_ID", 1), Text("STUFE", 2)], ["VIP_ID"], [], false);
+
     private static readonly TableDetails Lieferung = new(new TableSummary(Owner, "LIEFERUNG", TableKind.Table),
         [Number("LIEFERUNG_ID", 1), Number("AUFTRAG_ID", 2), Number("POS_NR", 3)], ["LIEFERUNG_ID"], [], false);
 
@@ -46,13 +50,16 @@ public sealed class SqlResultOriginsTests
     /// <param name="synonymTargets">Objects reached through synonyms; <see cref="Laender"/> if none are given.</param>
     private static async Task<SchemaCache> SchemaAsync(params TableDetails[] synonymTargets)
     {
-        TableDetails[] own = [Kunden, Auftrag, Mitarbeiter, Lieferung, X];
+        TableDetails[] own = [Kunden, Auftrag, Mitarbeiter, Lieferung, X, KundeVip];
         TableDetails[] others = synonymTargets.Length > 0 ? synonymTargets : [Laender];
         var reader = Substitute.For<ISchemaReader>();
         reader.GetTablesAsync(Owner, Arg.Any<CancellationToken>()).Returns(own.Select(t => t.Table).ToList());
         reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns(new SynonymTargets([.. others.Select(t => t.Table)], []));
         reader.GetForeignKeysAsync(Owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyList<ForeignKeyInfo>)[AuftragKunde, LieferungPosition]);
         reader.GetForeignKeysAsync(Arg.Is<string>(o => o != Owner), Arg.Any<CancellationToken>()).Returns((IReadOnlyList<ForeignKeyInfo>)[]);
+        reader.GetPrimaryKeysAsync(Owner, Arg.Any<CancellationToken>())
+            .Returns([.. own.Where(t => t.PrimaryKey.Count > 0).Select(t => new PrimaryKeyInfo(t.Table.Ref, t.PrimaryKey))]);
+        reader.GetPrimaryKeysAsync(Arg.Is<string>(o => o != Owner), Arg.Any<CancellationToken>()).Returns((IReadOnlyList<PrimaryKeyInfo>)[]);
         foreach (var table in own.Concat(others))
         {
             reader.GetDetailsAsync(Arg.Is<TableSummary>(t => t.Ref == table.Table.Ref), Arg.Any<CancellationToken>()).Returns(table);
@@ -260,6 +267,40 @@ public sealed class SqlResultOriginsTests
         var jump = Assert.Single(sources.JumpsFor([Row(3m)], schema.OutgoingOf, schema.IncomingOf));
         Assert.Equal(FkSource.ClrModel, jump.Jump.ForeignKey.Source);
         Assert.Equal("ID = 3", jump.Jump.Condition);
+    }
+
+    [Fact]
+    public async Task Jumps_through_a_base_table_need_the_shared_key_in_the_result()
+    {
+        var schema = await SchemaAsync();
+        schema.SetForeignKeys(FkSource.Manual, [new ForeignKeyInfo("FK_VIP_KUNDE", KundeVip.Table.Ref, ["VIP_ID"], Kunden.Table.Ref, ["KUNDE_ID"], FkSource.Manual)]);
+        var withKey = await SqlResultSources.LoadAsync("SELECT VIP_ID, STUFE FROM KUNDE_VIP", Columns("KUNDE_VIP.VIP_ID", "KUNDE_VIP.STUFE"), schema, Ct);
+        var withoutKey = await SqlResultSources.LoadAsync("SELECT STUFE FROM KUNDE_VIP", Columns("KUNDE_VIP.STUFE"), schema, Ct);
+
+        var jump = Assert.Single(withKey.JumpsFor([Row(4711m, "Gold")], schema.OutgoingOf, schema.IncomingOf, schema.InheritedIncomingOf),
+            j => j.Jump.Direction == JumpDirection.Incoming);
+        Assert.Equal((AuftragKunde, Kunden.Table.Ref), (jump.Jump.ForeignKey, jump.Jump.Inherited?.Via));
+        Assert.Equal("KUNDE_ID = 4711", jump.Jump.Condition);
+        Assert.True(jump.Involves(0));
+        Assert.False(jump.Involves(1));
+        Assert.Empty(withoutKey.JumpsFor([Row("Gold")], schema.OutgoingOf, schema.IncomingOf, schema.InheritedIncomingOf));
+    }
+
+    [Fact]
+    public async Task Base_and_extension_in_one_result_give_the_direct_jump_marked_over_both_keys()
+    {
+        var schema = await SchemaAsync();
+        schema.SetForeignKeys(FkSource.Manual, [new ForeignKeyInfo("FK_VIP_KUNDE", KundeVip.Table.Ref, ["VIP_ID"], Kunden.Table.Ref, ["KUNDE_ID"], FkSource.Manual)]);
+        const string sql = """SELECT "v"."VIP_ID", "k"."KUNDE_ID" FROM "KUNDE_VIP" "v" JOIN "KUNDEN" "k" ON "k"."KUNDE_ID" = "v"."VIP_ID" """;
+        var sources = await SqlResultSources.LoadAsync(sql, Columns("v.VIP_ID", "k.KUNDE_ID"), schema, Ct);
+
+        var jumps = sources.JumpsFor([Row(4711m, 4711m)], schema.OutgoingOf, schema.IncomingOf, schema.InheritedIncomingOf);
+
+        // The extension reaches AUFTRAG through KUNDEN, KUNDEN directly: one jump, a direct one, over both columns.
+        var auftrag = Assert.Single(jumps, j => j.Jump.Table == Auftrag.Table.Ref);
+        Assert.Null(auftrag.Jump.Inherited);
+        Assert.True(auftrag.Involves(0));
+        Assert.True(auftrag.Involves(1));
     }
 
     [Fact]
