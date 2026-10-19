@@ -21,9 +21,14 @@ public static class NameRank
     public static string[] Terms(string? query) =>
         (query ?? "").Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-    /// <summary>How a database name matches; null if a term is missing.</summary>
+    /// <summary>How a database name matches; null if a term is missing. Without terms every name matches alike.</summary>
     public static NameMatch? Of(string name, IReadOnlyList<string> terms)
     {
+        if (terms.Count == 0)
+        {
+            return NameMatch.Contains;
+        }
+
         var compact = name.Replace("_", "", StringComparison.Ordinal);
         if (!terms.All(t => TextSearch.Contains(name, t) || TextSearch.Contains(compact, t)))
         {

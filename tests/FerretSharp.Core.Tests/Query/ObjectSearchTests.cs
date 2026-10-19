@@ -63,6 +63,14 @@ public class ObjectSearchTests
     public void Without_entity_names_only_database_names_count() =>
         Assert.Empty(ObjectSearch.FindTables(Tables, "stamm kunden"));
 
+    /// <summary>Review of WP-38: the public ranking does not fail without terms.</summary>
+    [Fact]
+    public void Without_terms_every_name_matches_alike()
+    {
+        Assert.Equal(NameMatch.Contains, NameRank.Of("KUNDEN", []));
+        Assert.Equal(NameMatch.Contains, NameRank.OfClrName("Kunde", []));
+    }
+
     [Fact]
     public void PlSql_units_by_name_ranked()
     {
