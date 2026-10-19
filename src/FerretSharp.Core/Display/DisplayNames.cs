@@ -1,4 +1,6 @@
+using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.Display;
@@ -194,6 +196,65 @@ public sealed class DisplayNames
             state.NotFound.Clear();
             state.Pending.Clear();
         }
+    }
+
+    /// <summary>
+    /// The same links, nothing looked up yet – and no link switched off: the export of all rows (WP-54) looks up its own
+    /// names while it reads, off the UI thread, so it formats with a <paramref name="format"/> of its own.
+    /// </summary>
+    public DisplayNames Fresh(Func<DisplayLink, object?, string?> format) => new(Links, format);
+
+    /// <summary>
+    /// What was looked up so far, as a copy: the export of the selected rows (A13) writes in the background while the grid
+    /// goes on looking up names.
+    /// </summary>
+    public DisplayNames Copy()
+    {
+        var copy = new DisplayNames(Links, _format);
+        foreach (var (column, state) in _byColumn)
+        {
+            var target = copy._byColumn[column];
+            target.Disabled = state.Disabled;
+            foreach (var (key, text) in state.Found)
+            {
+                target.Found[key] = text;
+            }
+
+            target.NotFound.UnionWith(state.NotFound);
+        }
+
+        return copy;
+    }
+
+    /// <summary>
+    /// Looks up what <paramref name="rows"/> need, one lookup after the other, before they are written (the export of all
+    /// rows, WP-54: it reads the rows itself, through the lookup of its read). A link whose lookup fails is switched off;
+    /// the warnings say which and why.
+    /// </summary>
+    public async Task<IReadOnlyList<string>> FillAsync(IRowLookup lookup, IEnumerable<IReadOnlyList<object?>> rows, CancellationToken cancellationToken)
+    {
+        List<string>? warnings = null;
+        foreach (var missing in Missing(rows))
+        {
+            var link = missing.Link;
+            if (!Shows(link.Column))
+            {
+                Dropped(missing); // switched off by an earlier lookup of the same block
+                continue;
+            }
+
+            try
+            {
+                Found(missing, await lookup.LookupAsync(link.Target, link.KeyColumn, link.DisplayColumn, missing.Keys, cancellationToken));
+            }
+            catch (DatabaseException ex)
+            {
+                Failed(missing, ex.Message);
+                (warnings ??= []).Add(TextFormat.Format(DataText.ExportNamesMissing, $"{link.Target.Table.DisplayName}.{link.Display.Name}", ex.Display));
+            }
+        }
+
+        return warnings ?? [];
     }
 
     /// <summary>
