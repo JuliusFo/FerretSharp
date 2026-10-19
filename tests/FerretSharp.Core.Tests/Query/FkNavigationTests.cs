@@ -72,6 +72,41 @@ public class FkNavigationTests
         Assert.Equal([JumpDirection.Outgoing, JumpDirection.Outgoing, JumpDirection.Incoming], jumps.Select(j => j.Direction));
     }
 
+    [Fact]
+    public void Jump_through_a_base_table_filters_the_referencing_table_by_the_shared_key()
+    {
+        // KUNDE_EXT extends KUNDEN (shared key under its own name); AUFTRAG references KUNDEN.
+        var extension = new TableDetails(new TableSummary("APP", "KUNDE_EXT", TableKind.Table),
+            [Col("EXT_ID", "NUMBER", 10, 0), Col("RABATT", "NUMBER", 4, 2)], ["EXT_ID"], [], false);
+        var reference = new InheritedReference(AuftragKunde, KundenRef, ["EXT_ID"]);
+
+        var jumps = FkNavigation.JumpsFor(extension, Row(815m, 3m), [], [], [reference]);
+
+        var jump = Assert.Single(jumps);
+        Assert.Equal((JumpDirection.Incoming, AuftragRef, reference), (jump.Direction, jump.Table, jump.Inherited));
+        Assert.Equal("KUNDE_ID = 815", jump.Condition);
+        Assert.Equal(["EXT_ID"], jump.RowColumns);
+        Assert.Null(FkNavigation.Incoming(Auftrag, Row(1m, 4711m, 815m, null), PositionAuftrag).Inherited);
+    }
+
+    [Fact]
+    public void Jumps_through_base_tables_follow_the_direct_ones_grouped_by_base_table()
+    {
+        var other = new ForeignKeyInfo("FK_ZZZ", new TableRef("APP", "ZZZ"), ["MANDANT", "NR"], new TableRef("APP", "BASIS"), ["MANDANT", "NR"], FkSource.Declared);
+        var aaa = new ForeignKeyInfo("FK_AAA", new TableRef("APP", "AAA"), ["MANDANT", "NR"], new TableRef("APP", "OBEN"), ["MANDANT", "NR"], FkSource.Declared);
+        InheritedReference[] inherited =
+        [
+            new(other, new TableRef("APP", "BASIS"), ["MANDANT", "AUFTRAG_NR"]),
+            new(PositionAuftrag with { Name = "FK_BASIS_POS" }, new TableRef("APP", "BASIS"), ["MANDANT", "AUFTRAG_NR"]),
+            new(aaa, new TableRef("APP", "OBEN"), ["MANDANT", "AUFTRAG_NR"]),
+        ];
+
+        var jumps = FkNavigation.JumpsFor(Auftrag, Row(1m, 4711m, 815m, null), [AuftragKunde], [PositionAuftrag], inherited);
+
+        Assert.Equal(["KUNDEN", "POSITION", "POSITION", "ZZZ", "AAA"], jumps.Select(j => j.Table.Name));
+        Assert.Equal([null, null, "BASIS", "BASIS", "OBEN"], jumps.Select(j => j.Inherited?.Via.Name));
+    }
+
     private static readonly TableDetails Kunden = new(
         new TableSummary("APP", "KUNDEN", TableKind.Table), [Col("ID", "NUMBER", 10, 0), Col("NAME", "VARCHAR2", length: 50)], ["ID"], [], false);
 

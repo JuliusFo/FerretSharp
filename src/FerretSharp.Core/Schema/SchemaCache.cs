@@ -18,6 +18,7 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
     private Dictionary<PlSqlRef, PlSqlObjectSummary> _plSqlByRef = [];
     private ILookup<TableRef, ForeignKeyInfo> _outgoing = Array.Empty<ForeignKeyInfo>().ToLookup(f => f.From);
     private ILookup<TableRef, ForeignKeyInfo> _incoming = Array.Empty<ForeignKeyInfo>().ToLookup(f => f.To);
+    private Dictionary<TableRef, IReadOnlyList<string>> _primaryKeys = [];
 
     public string Owner { get; } = owner;
 
@@ -64,19 +65,25 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
         progress?.Report(ConnectionText.Step_ReadingPlSql);
         var plSql = Merge(await reader.GetPlSqlObjectsAsync(Owner, cancellationToken), synonymTargets.PlSql);
 
-        // Foreign keys of every schema that contributes objects, so relationships work across synonyms too.
+        // Foreign keys and primary keys of every schema that contributes objects, so relationships work across synonyms too.
         var foreignKeys = new List<ForeignKeyInfo>();
+        var primaryKeys = new Dictionary<TableRef, IReadOnlyList<string>>();
         var schemas = tables.Select(t => t.Owner).Prepend(Owner).Distinct(StringComparer.Ordinal).ToList();
         for (var i = 0; i < schemas.Count; i++)
         {
             progress?.Report(TextFormat.Format(ConnectionText.Step_ReadingForeignKeys, schemas[i], i + 1, schemas.Count));
             foreignKeys.AddRange(await reader.GetForeignKeysAsync(schemas[i], cancellationToken));
+            foreach (var key in await reader.GetPrimaryKeysAsync(schemas[i], cancellationToken))
+            {
+                primaryKeys[key.Table] = key.Columns;
+            }
         }
 
         Tables = tables;
         _byRef = tables.ToDictionary(t => t.Ref);
         PlSqlObjects = plSql;
         _plSqlByRef = plSql.ToDictionary(o => o.Ref);
+        _primaryKeys = primaryKeys;
         lock (_foreignKeyLock)
         {
             _declared = foreignKeys;
@@ -224,6 +231,16 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
 
     /// <summary>Relationships where other tables reference <paramref name="table"/>.</summary>
     public IEnumerable<ForeignKeyInfo> IncomingOf(TableRef table) => _incoming[table];
+
+    /// <summary>The primary key columns of <paramref name="table"/>; empty for a view, a table without one or one outside the loaded schemas.</summary>
+    public IReadOnlyList<string> PrimaryKeyOf(TableRef table) => _primaryKeys.GetValueOrDefault(table) ?? [];
+
+    /// <summary>
+    /// Relationships into the base tables of <paramref name="table"/> that reach its rows too, by their shared primary key
+    /// (<see cref="BaseTables"/>).
+    /// </summary>
+    public IReadOnlyList<InheritedReference> InheritedIncomingOf(TableRef table) =>
+        BaseTables.ReferencesOf(table, PrimaryKeyOf, OutgoingOf, IncomingOf);
 
     /// <summary>
     /// Own objects win over synonyms to them; several synonyms for the same object collapse into one entry,

@@ -75,6 +75,18 @@ public class OracleSchemaReaderTests(OracleContainerFixture oracle) : IAsyncLife
     }
 
     [Fact]
+    public async Task Reads_the_primary_keys_of_all_tables_in_key_order()
+    {
+        var primaryKeys = await Reader.GetPrimaryKeysAsync(_owner, Ct);
+        var keys = primaryKeys.ToDictionary(k => k.Table, k => k.Columns);
+
+        Assert.Equal(["KUNDE_ID"], keys[new TableRef(_owner, "KUNDEN")]);
+        Assert.Equal(["AUFTRAG_ID", "POS_NR"], keys[new TableRef(_owner, "AUFTRAG_POSITION")]);
+        Assert.Equal(["Id"], keys[new TableRef(_owner, "MixedCase")]);
+        Assert.False(keys.ContainsKey(new TableRef(_owner, "WEG_DAMIT")));
+    }
+
+    [Fact]
     public async Task Reads_columns_types_defaults_and_keys()
     {
         var details = await Reader.GetDetailsAsync(new TableSummary(_owner, "KUNDEN", TableKind.Table), Ct);

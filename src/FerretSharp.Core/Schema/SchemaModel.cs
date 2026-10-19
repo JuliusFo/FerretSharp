@@ -119,6 +119,9 @@ public sealed record ForeignKeyInfo(
     IReadOnlyList<string> ToColumns,
     FkSource Source);
 
+/// <summary>The primary key of a table (enabled or not): its columns in key order.</summary>
+public sealed record PrimaryKeyInfo(TableRef Table, IReadOnlyList<string> Columns);
+
 public interface ISchemaReader
 {
     /// <summary>Tables, views and materialized views of <paramref name="owner"/>, sorted by name.</summary>
@@ -167,6 +170,9 @@ public interface ISchemaReader
 
     /// <summary>All declared foreign keys whose referencing table belongs to <paramref name="owner"/>.</summary>
     Task<IReadOnlyList<ForeignKeyInfo>> GetForeignKeysAsync(string owner, CancellationToken cancellationToken);
+
+    /// <summary>The primary keys of all tables of <paramref name="owner"/> (base tables of FK jumps).</summary>
+    Task<IReadOnlyList<PrimaryKeyInfo>> GetPrimaryKeysAsync(string owner, CancellationToken cancellationToken);
 
     Task<TableDetails> GetDetailsAsync(TableSummary table, CancellationToken cancellationToken);
 

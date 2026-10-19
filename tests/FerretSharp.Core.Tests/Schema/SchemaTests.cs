@@ -132,6 +132,29 @@ public class SchemaCacheTests
     }
 
     [Fact]
+    public async Task Primary_keys_are_loaded_and_relationships_into_a_base_table_reach_its_extension()
+    {
+        // KUNDE_EXT extends KUNDEN by a relationship of the C# model; AUFTRAG references KUNDEN.
+        var extension = new TableSummary(Owner, "KUNDE_EXT", TableKind.Table);
+        _reader.GetTablesAsync(Owner, Arg.Any<CancellationToken>()).Returns([Auftrag, Kunden, extension]);
+        _reader.GetPrimaryKeysAsync(Owner, Arg.Any<CancellationToken>()).Returns(
+        [
+            new PrimaryKeyInfo(Kunden.Ref, ["KUNDE_ID"]), new PrimaryKeyInfo(extension.Ref, ["KUNDE_ID"]), new PrimaryKeyInfo(Auftrag.Ref, ["AUFTRAG_ID"]),
+        ]);
+        var cache = new SchemaCache(_reader, Owner);
+        await cache.LoadAsync(Ct);
+        Assert.Equal(["KUNDE_ID"], cache.PrimaryKeyOf(extension.Ref));
+        Assert.Empty(cache.PrimaryKeyOf(new TableRef(Owner, "V_KUNDEN")));
+        Assert.Empty(cache.InheritedIncomingOf(extension.Ref));
+
+        cache.SetForeignKeys(FkSource.ClrModel, [new ForeignKeyInfo("KundeExt", extension.Ref, ["KUNDE_ID"], Kunden.Ref, ["KUNDE_ID"], FkSource.ClrModel)]);
+
+        var reference = Assert.Single(cache.InheritedIncomingOf(extension.Ref));
+        Assert.Equal((AuftragKunde, Kunden.Ref), (reference.ForeignKey, reference.Via));
+        await _reader.Received(1).GetPrimaryKeysAsync(Owner, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public void Merge_prefers_own_objects_and_private_over_public_synonyms()
     {
         var ownKunden = new TableSummary(Owner, "KUNDEN", TableKind.Table);

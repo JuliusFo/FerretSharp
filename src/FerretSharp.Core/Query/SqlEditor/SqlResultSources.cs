@@ -58,7 +58,7 @@ public sealed record SqlResultJump(FkJump Jump, IReadOnlyList<SqlResultSource> S
     /// <summary>The jump goes over this result column, in any of its sources (the clicked one is usually meant).</summary>
     public bool Involves(int resultColumn) =>
         Sources.Any(source => source.TableColumnOf(resultColumn) is { } column
-            && (Jump.Direction == JumpDirection.Outgoing ? Jump.ForeignKey.FromColumns : Jump.ForeignKey.ToColumns).Contains(source.Details.Columns[column].Name));
+            && Jump.RowColumns.Contains(source.Details.Columns[column].Name));
 }
 
 /// <summary>
@@ -111,10 +111,12 @@ public sealed class SqlResultSources
 
     /// <summary>
     /// FK jumps from <paramref name="rows"/> (result rows, at least one): outgoing ones of all row sources first, then incoming
-    /// ones; the same jump reached through two sources (a column read twice) once, with both sources.
+    /// ones (also through base tables, <paramref name="inherited"/>); the same jump reached through two sources (a column read
+    /// twice) once, with both sources.
     /// </summary>
     public IReadOnlyList<SqlResultJump> JumpsFor(
-        IReadOnlyList<RowData> rows, Func<TableRef, IEnumerable<ForeignKeyInfo>> outgoing, Func<TableRef, IEnumerable<ForeignKeyInfo>> incoming)
+        IReadOnlyList<RowData> rows, Func<TableRef, IEnumerable<ForeignKeyInfo>> outgoing, Func<TableRef, IEnumerable<ForeignKeyInfo>> incoming,
+        Func<TableRef, IEnumerable<InheritedReference>>? inherited = null)
     {
         var jumps = new List<(FkJump Jump, SqlResultSource Source)>();
         foreach (var source in Sources)
@@ -122,7 +124,8 @@ public sealed class SqlResultSources
             var projected = rows.Select(source.Project).ToList();
             var table = source.Table.Ref;
             jumps.AddRange(FkNavigation.JumpsFor(source.Projection, projected,
-                    outgoing(table).Where(f => source.Shows(f.FromColumns)), incoming(table).Where(f => source.Shows(f.ToColumns)))
+                    outgoing(table).Where(f => source.Shows(f.FromColumns)), incoming(table).Where(f => source.Shows(f.ToColumns)),
+                    inherited?.Invoke(table).Where(r => source.Shows(r.Columns)))
                 .Select(j => (j, source)));
         }
 
