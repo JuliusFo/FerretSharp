@@ -67,6 +67,27 @@ public sealed class QuickPaletteSearchTests
         Assert.Equal("Der Workspace ist schreibgeschützt.", flush.Unavailable);
     }
 
+    /// <summary>Review of WP-38: the key of the mode shown closes the box, not the key it was opened with.</summary>
+    [Fact]
+    public void The_key_of_the_mode_shown_closes_the_box()
+    {
+        var shell = new ShellState();
+
+        shell.TogglePalette(commands: false);
+        shell.Palette!.ShowsCommands = true; // "> commit" typed
+        shell.TogglePalette(commands: true);
+        Assert.Null(shell.Palette);
+
+        shell.TogglePalette(commands: true);
+        shell.Palette!.ShowsCommands = false; // the prefix deleted
+        shell.TogglePalette(commands: false);
+        Assert.Null(shell.Palette);
+        shell.TogglePalette(commands: true);
+        shell.Palette!.ShowsCommands = false;
+        shell.TogglePalette(commands: true);
+        Assert.Equal(">", shell.Palette!.InitialText); // back to the commands
+    }
+
     [Fact]
     public void The_same_key_closes_the_box_the_other_switches_and_the_switcher_takes_its_place()
     {
@@ -76,7 +97,7 @@ public sealed class QuickPaletteSearchTests
         var quick = Assert.IsType<PaletteRequest>(shell.Palette);
         shell.TogglePalette(commands: true);
         Assert.NotSame(quick, shell.Palette);
-        Assert.True(shell.Palette!.Commands);
+        Assert.Equal(">", shell.Palette!.InitialText);
         shell.TogglePalette(commands: true);
         Assert.Null(shell.Palette);
 

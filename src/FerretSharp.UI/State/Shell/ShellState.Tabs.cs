@@ -388,6 +388,20 @@ public sealed partial class ShellState
     public TableTab? ForwardTarget() =>
         ActiveTab is TableTab tab && Page == ShellPage.Explorer ? tab.ForwardTarget(Tabs.ToList()) : null;
 
+    /// <summary>
+    /// Shows an open tab of the active workspace with the explorer (quick open, WP-38): that tab, also if another tab has
+    /// the same table (FK jumps open a second one).
+    /// </summary>
+    public void ShowTab(WorkspaceTab tab) => Set(() =>
+    {
+        if (ActiveWorkspace is { } workspace && workspace.Tabs.Contains(tab))
+        {
+            tab.Visited = true;
+            workspace.ActiveTab = tab;
+            Page = ShellPage.Explorer;
+        }
+    });
+
     public void ActivateTab(WorkspaceTab tab) => Set(() =>
     {
         if (ActiveWorkspace is { } workspace && workspace.Tabs.Contains(tab))

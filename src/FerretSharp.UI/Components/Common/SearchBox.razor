@@ -1,5 +1,6 @@
 @* A search field with a clear button (✕ while it has text). Escape with text clears it and goes no further, so a popover
    or dialog around it closes only on the next Escape (dom.js clearOnEscape); without text Escape reaches them as before.
+   With EscapeKeeps, a text starting with it is cleared back to it, and with only that left Escape goes on (WP-38).
    The class picks the look of the surrounding box: "search", "popover-search" or "structure-filter". *@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
@@ -40,6 +41,10 @@
     [Parameter]
     public bool Disabled { get; set; }
 
+    /// <summary>A prefix Escape clears back to instead of emptying the field (the command prefix of the quick open); read once.</summary>
+    [Parameter]
+    public string? EscapeKeeps { get; set; }
+
     /// <summary>Shown after the field, e.g. a shortcut hint or a count.</summary>
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
@@ -56,7 +61,7 @@
             return;
         }
 
-        await Dom.InvokeVoidAsync("clearOnEscape", _input);
+        await Dom.InvokeVoidAsync("clearOnEscape", _input, EscapeKeeps ?? "");
     }
 
     private Task OnInputAsync(ChangeEventArgs e) => SetAsync(e.Value?.ToString() ?? "");

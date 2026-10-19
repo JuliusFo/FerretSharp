@@ -318,10 +318,13 @@ public sealed partial class ShellState
     /// </summary>
     public PaletteRequest? Palette { get; private set; }
 
-    /// <summary>Opens the quick open box, or closes it if it is open in that mode already (the same key again).</summary>
+    /// <summary>
+    /// Opens the quick open box, or closes it if it shows that mode already (the same key again). Showing the other mode,
+    /// it opens again in this one.
+    /// </summary>
     public void TogglePalette(bool commands) => Set(() =>
     {
-        Palette = Palette is { } open && open.Commands == commands ? null : new PaletteRequest(commands);
+        Palette = Palette is { } open && open.ShowsCommands == commands ? null : new PaletteRequest(commands);
         SwitcherOpen = false;
     });
 

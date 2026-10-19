@@ -7,9 +7,13 @@ namespace FerretSharp.UI.State;
 /// <param name="commands">Opened as command palette: the text starts with the command prefix.</param>
 public sealed class PaletteRequest(bool commands)
 {
-    public bool Commands { get; } = commands;
+    public string InitialText { get; } = commands ? QuickPaletteSearch.CommandPrefix : "";
 
-    public string InitialText => Commands ? QuickPaletteSearch.CommandPrefix : "";
+    /// <summary>
+    /// What the box shows now – the command palette or the quick open; the box keeps it current as the text changes, so
+    /// the key of the mode shown closes it (<see cref="ShellState.TogglePalette"/>).
+    /// </summary>
+    public bool ShowsCommands { get; set; } = commands;
 }
 
 /// <summary>An action in the command palette: what it is, its key (null if none) and why it cannot run now (null if it can).</summary>

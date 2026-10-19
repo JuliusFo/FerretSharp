@@ -33,8 +33,8 @@
                 <WorkspaceBar />
             }
             <div class="topbar-right">
-                <button class="icon-btn ghost @(_state.Palette is not null ? "active" : "")" title="@(SettingsText.ActionQuickOpen + Shortcuts.Hint(ShortcutAction.QuickOpen))"
-                        @onclick="() => _state.TogglePalette(commands: false)">@Icons.Search</button>
+                <button class="icon-btn ghost @(_state.Palette is not null ? "active" : "")" title="@QuickOpenTitle"
+                        disabled="@(QuickOpenUnavailable is not null)" @onclick="() => RunAction(ShortcutAction.QuickOpen)">@Icons.Search</button>
                 <button class="icon-btn ghost @(_state.Page == ShellPage.AppStatements ? "active" : "")" title="@AppStatementsText.AppStatements_Title"
                         @onclick="() => ToggleSidePage(ShellPage.AppStatements)">@Icons.Pulse</button>
                 <button class="icon-btn ghost @(_state.Page == ShellPage.Compare ? "active" : "")" title="@ShellText.Shell_SchemaComparison"
@@ -398,6 +398,12 @@
         }
     }
 
+    /// <summary>Why the magnifier (quick open) cannot open the box now; null if it can – the rule of its key.</summary>
+    private string? QuickOpenUnavailable => ShellActions.Unavailable(ShortcutAction.QuickOpen, ActionContext());
+
+    private string QuickOpenTitle =>
+        SettingsText.ActionQuickOpen + Shortcuts.Hint(ShortcutAction.QuickOpen) + (QuickOpenUnavailable is { } reason ? Environment.NewLine + reason : "");
+
     /// <summary>What decides whether a global action can run now (<see cref="ShellActions"/>).</summary>
     private ShellActionContext ActionContext() => new(
         InExplorer: _state.Page == ShellPage.Explorer,
@@ -419,6 +425,13 @@
         if (ShellActions.Unavailable(action, ActionContext()) is not null)
         {
             return;
+        }
+
+        // Review of WP-38: an action through its key while the box is open acts on what is behind it – the box closes
+        // first (its own keys toggle it, the switcher replaces it).
+        if (_state.Palette is not null && action is not (ShortcutAction.QuickOpen or ShortcutAction.CommandPalette))
+        {
+            _state.ClosePalette();
         }
 
         switch (action)
@@ -478,8 +491,21 @@
         }
     }
 
-    /// <summary>An action chosen in the command palette (WP-38); the palette closed before.</summary>
-    private void OnPaletteAction(ShortcutAction action) => RunAction(action);
+    /// <summary>
+    /// An action chosen in the command palette (WP-38); the palette closed before. Logged and shown like a shortcut's
+    /// (review of WP-38): no error boundary sits above the shell.
+    /// </summary>
+    private void OnPaletteAction(ShortcutAction action)
+    {
+        try
+        {
+            RunAction(action);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Failed(ex);
+        }
+    }
 
     /// <summary>The change overview opens again after a restart if it was open (WP-30).</summary>
     private void OnChangesOpenChanged(bool open) =>
