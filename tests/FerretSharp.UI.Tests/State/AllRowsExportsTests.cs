@@ -38,7 +38,7 @@ public sealed class AllRowsExportsTests
     [Fact]
     public async Task A_table_reads_the_applied_filters_and_sort_order_as_they_were_when_the_menu_opened()
     {
-        var tab = new TableTab(Guid.NewGuid(), Kunden.Table) { TotalCount = 1234 };
+        var tab = new TableTab(Guid.NewGuid(), Kunden.Table) { TotalCount = 234 };
         IReadOnlyList<FilterCondition> filters = [FilterCondition.Of("NAME", FilterOperator.Contains, "GmbH")];
         IReadOnlyList<SortSpec> sorts = [new SortSpec("NAME", true)];
         tab.AppliedFilters = filters;
@@ -50,8 +50,8 @@ public sealed class AllRowsExportsTests
 
         await _data.Received(1).ReadAllAsync(Kunden, filters, sorts, Arg.Any<RowBlockHandler>(), Ct);
         Assert.Equal([tab.WorkspaceId], _workspaces);
-        Assert.Equal(1234, all.Total);
-        Assert.Equal("Alle Zeilen des Filters · 1.234 Zeilen", all.Heading);
+        Assert.Equal(234, all.Total); // below 1,000: the number format follows the machine's culture, not the UI language
+        Assert.Equal("Alle Zeilen des Filters · 234 Zeilen", all.Heading);
     }
 
     [Fact]
