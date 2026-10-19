@@ -276,4 +276,16 @@
   <data name="HintPinTab" xml:space="preserve">
     <value>Angeheftete Tabs stehen links und bleiben offen, wenn andere Tabs, die rechts davon oder alle geschlossen werden.</value>
   </data>
+  <data name="ActionQuickOpen" xml:space="preserve">
+    <value>Gehe zu Tabelle, View oder PL/SQL</value>
+  </data>
+  <data name="HintQuickOpen" xml:space="preserve">
+    <value>Sucht in der sichtbaren Verbindung nach Namen, auch nach dem C#-Entity-Namen. Mit „&gt;“ davor: die Befehlspalette.</value>
+  </data>
+  <data name="ActionCommandPalette" xml:space="preserve">
+    <value>Befehlspalette</value>
+  </data>
+  <data name="HintCommandPalette" xml:space="preserve">
+    <value>Alle Aktionen mit ihren Tastenkürzeln. Ohne das „&gt;“ wird daraus die Schnellsuche.</value>
+  </data>
 </root>

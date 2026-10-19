@@ -64,6 +64,8 @@ public sealed class ShortcutMapTests
         Assert.Null(map.Chord(ShortcutAction.CloseTab)); // after 3.20: new actions start without a key
         Assert.Null(map.Chord(ShortcutAction.CloseOtherTabs));
         Assert.Null(map.Chord(ShortcutAction.CloseAllTabs));
+        Assert.Null(map.Chord(ShortcutAction.QuickOpen)); // WP-38
+        Assert.Null(map.Chord(ShortcutAction.CommandPalette));
         Assert.False(map.HasChanges);
     }
 

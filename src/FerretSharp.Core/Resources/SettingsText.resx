@@ -340,4 +340,18 @@
   <data name="HintPinTab" xml:space="preserve">
     <value>Pinned tabs stand at the left and stay open when closing other tabs, the tabs to the right or all tabs.</value>
   </data>
+  <data name="ActionQuickOpen" xml:space="preserve">
+    <value>Go to table, view or PL/SQL</value>
+    <comment>Shortcut action: opens the quick open box</comment>
+  </data>
+  <data name="HintQuickOpen" xml:space="preserve">
+    <value>Searches the shown connection by name, also by C# entity name. With “&gt;” in front: the command palette.</value>
+  </data>
+  <data name="ActionCommandPalette" xml:space="preserve">
+    <value>Command palette</value>
+    <comment>Shortcut action: opens the list of all actions</comment>
+  </data>
+  <data name="HintCommandPalette" xml:space="preserve">
+    <value>All actions with their shortcuts. Deleting the “&gt;” goes to the quick open.</value>
+  </data>
 </root>
