@@ -1,6 +1,6 @@
 # Klein: Verweise über Basistabellen im FK-Sprung
 
-Branch `feat/fk-jumps-base-tables` (von `main`), 2026-10-19. Noch nicht released.
+Branch `feat/fk-jumps-base-tables` (von `main`), 2026-10-19. Released mit 3.42.0.
 
 ## Anlass
 Frage des Nutzers: Wird „Referenziert von“ im Kontextmenü bei Tabellen mit vielen Verweisen abgeschnitten? Am Screenshot geklärt: nein, das Menü zeigte alles. Gemeint war ein fehlender Verweis bei Basis- und Erweiterungstabellen mit gemeinsamem Primärschlüssel (Table per Type). Beispiel hier und in den Tests (neutral, nicht das Schema des Nutzers): `FAHRZEUG` (PK `FAHRZEUG_ID`), `PKW` und `LKW` mit PK `FAHRZEUG_ID` und FK auf `FAHRZEUG.FAHRZEUG_ID`; `WARTUNG` verweist auf `FAHRZEUG.FAHRZEUG_ID`. In einer `PKW`-Zeile fehlte `WARTUNG`, obwohl der Verweis fachlich dieselbe Zeile meint.
