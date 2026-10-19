@@ -14,7 +14,7 @@
 @if (_menu is { } menu)
 {
     <ResultMenu Request="menu" Result="AsTable()" Sources="_presentation.Sources" ExportColumns="_presentation.ExportColumns()" WorkspaceId="WorkspaceId" InsertTarget="InsertTarget"
-                ExportName="@ExportName" OnClose="() => _menu = null" />
+                ExportName="@ExportName" AllRows="@(ExportsAllRows ? AllRowsOf() : null)" OnClose="() => _menu = null" />
 }
 
 @code {
@@ -74,9 +74,19 @@
     [Parameter]
     public string ExportName { get; set; } = SqlEditorText.Result_DefaultExportName;
 
+    /// <summary>
+    /// The menu offers to export all rows, running the query again (SQL editor, WP-54) – not for the LINQ console, whose
+    /// queries come from the user's code.
+    /// </summary>
+    [Parameter]
+    public bool ExportsAllRows { get; set; }
+
     private GridContextMenuRequest? _menu;
 
     private int _rowsLoaded;
+
+    /// <summary>The last page was read: <see cref="_rowsLoaded"/> is the result's size.</summary>
+    private bool _allLoaded;
 
     /// <summary>Snapshot of the first page (locked workspaces) and whether a later page came from another one.</summary>
     private DateTimeOffset? _dataAsOf;
@@ -101,6 +111,7 @@
     {
         _blocks.Clear();
         _rowsLoaded = 0;
+        _allLoaded = false;
         await Status(new SqlGridStatus(true, 0, false, null, null, null));
         if (FirstPage is { } preloaded)
         {
@@ -203,6 +214,7 @@
 
         _blocks.Keep(startRow, page.Rows.Select(values => new RowData(RowKey.None.Instance, values)).ToList());
         _rowsLoaded = Math.Max(_rowsLoaded, startRow + page.Rows.Count);
+        _allLoaded |= page.IsLastPage;
         (_dataAsOf, _snapshotMoved) = Snapshots.Next(startRow, _dataAsOf, _snapshotMoved, page.DataAsOf);
         await Status(new SqlGridStatus(false, _rowsLoaded, page.IsLastPage, page.Elapsed, _dataAsOf, null, _snapshotMoved));
         var presentation = _presentation;
@@ -227,6 +239,10 @@
             await ExportActions.CopyCellAsync(Shell, _grid, _columns[column].Column, row.Values[column]);
         }
     });
+
+    /// <summary>All rows of the query, run again in the workspace's session (WP-54).</summary>
+    private AllRowsExport AllRowsOf() =>
+        AllRowsExports.ForResult(Query, _columns, _allLoaded ? _rowsLoaded : null, _presentation.ExportColumns(), WorkspaceId, Workspaces.GetDataAsync);
 
     /// <summary>The result as a table for the export helpers (columns only; it has no key).</summary>
     private TableDetails AsTable() => new(new TableSummary("", ExportName, TableKind.View), _columns.Select(c => c.Column).ToList(), [], [], false);

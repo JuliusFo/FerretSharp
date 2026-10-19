@@ -56,6 +56,7 @@
             <span class="dot err"></span> @TextFormat.Plural(Workspaces.LoadErrors.Count, ShellText.Status_WorkspaceFilesUnreadableOne, ShellText.Status_WorkspaceFilesUnreadableOther)
         </span>
     }
+    <ExportStatus />
     <span class="spacer"></span>
     @foreach (var other in Hub.Open.Where(s => s != Hub.Current && HasWork(s)))
     {

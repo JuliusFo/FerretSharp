@@ -1,0 +1,44 @@
+@* The exports written in the background (A13, WP-54), in the status bar: file, rows so far, cancel. They go on whichever tab
+   or connection is shown. *@
+@implements IDisposable
+
+@foreach (var export in Shell.Exports.Running)
+{
+    <span class="item shrink" title="@TextFormat.Format(ShellText.Status_ExportTitle, export.FileName)">
+        <span class="spinner small"></span> @export.FileName · @RowsText(export)
+        <button class="status-btn" @onclick="export.Cancel">@CommonText.Cancel</button>
+    </span>
+}
+
+@code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    private FileExports? _exports;
+
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_exports, Shell.Exports))
+        {
+            Unsubscribe();
+            _exports = Shell.Exports;
+            _exports.Changed += OnChanged;
+        }
+    }
+
+    private static string RowsText(FileExport export) => export.Total is { } total
+        ? TextFormat.Format(ShellText.Status_ExportRowsOf, export.Rows, total)
+        : ExportActions.RowsText(export.Rows);
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    private void Unsubscribe()
+    {
+        if (_exports is not null)
+        {
+            _exports.Changed -= OnChanged;
+        }
+    }
+
+    public void Dispose() => Unsubscribe();
+}

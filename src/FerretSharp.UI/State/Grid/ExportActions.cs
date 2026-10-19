@@ -1,7 +1,10 @@
+using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
+using FerretSharp.Core.IO;
 using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 using FerretSharp.UI.Resources;
+using Microsoft.Extensions.Logging;
 
 namespace FerretSharp.UI.State;
 
@@ -22,10 +25,13 @@ public enum ExportCopy
 /// </summary>
 /// <param name="missingRows">Selected rows no longer loaded: mentioned as not exported.</param>
 /// <param name="close">Closes the menu.</param>
-public sealed class ExportActions(ShellState shell, DomModule dom, IFileSaveService files, int missingRows, Func<Task> close)
+/// <param name="logger">The menu's logger: a database error of an export of all rows is logged with it.</param>
+/// <param name="connection">The connection an export of all rows reads from (its errors, a lost session).</param>
+public sealed class ExportActions(
+    ShellState shell, DomModule dom, IFileSaveService files, int missingRows, Func<Task> close, ILogger logger, ActiveConnection? connection)
 {
     /// <summary>"1 row", "3 rows" – for headings and notices.</summary>
-    public static string RowsText(int rows) => TextFormat.Plural(rows, GridText.Export_RowsOne, GridText.Export_RowsOther);
+    public static string RowsText(long rows) => TextFormat.Plural(rows, GridText.Export_RowsOne, GridText.Export_RowsOther);
 
     /// <summary>"3 rows copied as a table." and the like.</summary>
     public static string CopiedText(ExportCopy kind, int rows) => kind switch
@@ -118,23 +124,66 @@ public sealed class ExportActions(ShellState shell, DomModule dom, IFileSaveServ
         }
     }
 
-    /// <summary>A file built once the menu has closed (the Excel export, WP-53), then saved through the native dialog.</summary>
+    /// <summary>The selected rows as a file (CSV, Excel): <see cref="SaveFileAsync"/>; rows no longer loaded are named as not exported.</summary>
     /// <param name="fileName">Offered file name with extension.</param>
     /// <param name="filter">Label of the file type in the dialog, e.g. <c>Excel workbook</c>.</param>
-    public async Task SaveFileAsync(Func<Task<ExportFile>> build, string fileName, string filter)
+    public Task SaveRowsAsync(string fileName, string filter, int rows, Func<Stream, IProgress<long>, CancellationToken, Task<ExportSummary>> write) =>
+        SaveFileAsync(fileName, filter, rows, write, Warnings);
+
+    /// <summary>All rows of a grid's query as a file (WP-54): <see cref="SaveFileAsync"/>.</summary>
+    public Task SaveAllRowsAsync(string fileName, string filter, long? total, Func<Stream, IProgress<long>, CancellationToken, Task<ExportSummary>> write) =>
+        SaveFileAsync(fileName, filter, total, write, warnings => warnings);
+
+    /// <summary>
+    /// An export to a file (review 3.40.0 A13, WP-54): the native dialog first, then the file is written in the background,
+    /// block by block, shown in the status bar with its rows and a cancel button. It goes into a temporary file beside the
+    /// target (<see cref="AtomicFile"/>): a cancelled or failed export leaves no half file, an existing one stays as it was.
+    /// A database error is logged and shown like any other (<see cref="DbCalls"/>).
+    /// </summary>
+    /// <param name="total">Rows expected, if known: the status bar shows "x of n".</param>
+    /// <param name="write">Writes the file into the stream, reporting the rows written.</param>
+    private async Task SaveFileAsync(
+        string fileName, string filter, long? total, Func<Stream, IProgress<long>, CancellationToken, Task<ExportSummary>> write,
+        Func<IReadOnlyList<string>, IReadOnlyList<string>> warnings)
     {
         await close();
+        if (await files.AskPathAsync(fileName, filter) is not { Length: > 0 } path)
+        {
+            return;
+        }
+
+        var exports = shell.Exports;
+        var export = exports.Start(Path.GetFileName(path), total);
+        var progress = new Progress<long>(rows => exports.Report(export, rows)); // reports on the UI thread
         try
         {
-            var export = await build();
-            if (await files.SaveBytesAsync(fileName, filter, export.Content) is { } path)
+            var token = export.Token;
+            var result = await shell.RunDbAsync(logger, connection, () => AtomicFile.WriteExportAsync(path, (stream, ct) => write(stream, progress, ct), token), token);
+            if (result.Value is { } summary)
             {
-                shell.Notify(TextFormat.Plural(export.Rows, GridText.Export_SavedOne, GridText.Export_SavedOther, path), Warnings(export.Warnings));
+                foreach (var failure in summary.Failures)
+                {
+                    QueryErrorLog.Log(logger, failure, connection?.Profile); // names left out: the toast says so, the log says why
+                }
+
+                shell.Notify(TextFormat.Plural(summary.Rows, GridText.Export_SavedOne, GridText.Export_SavedOther, path), warnings(summary.Warnings));
+            }
+            else if (result.Cancelled)
+            {
+                shell.Notify(TextFormat.Format(GridText.Export_Cancelled, export.FileName));
+            }
+            else
+            {
+                shell.ShowFailure(result);
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             shell.Notify(TextFormat.Format(CommonText.SaveFailed, ex.Message));
+        }
+        finally
+        {
+            exports.End(export);
         }
     }
 

@@ -24,10 +24,13 @@ public class XlsxExportTests
 
     private static RowData Row(params object?[] values) => new(RowKey.None.Instance, values);
 
-    private static async Task<(ExportFile File, XlsxSheet Sheet)> ExportAsync(IReadOnlyList<ExportColumn> columns, params RowData[] rows)
+    /// <summary>The rows written at once, as the export of the selected rows writes them (row count known).</summary>
+    private static async Task<(ExportSummary File, XlsxSheet Sheet)> ExportAsync(IReadOnlyList<ExportColumn> columns, params RowData[] rows)
     {
-        var file = await XlsxExport.BuildAsync(columns, rows, "KUNDEN", TestContext.Current.CancellationToken);
-        return (file, XlsxSheet.Read(file.Content));
+        var ct = TestContext.Current.CancellationToken;
+        using var stream = new MemoryStream();
+        var summary = await RowExport.WriteAsync(RowExport.FromRows(rows), await XlsxExport.CreateWriterAsync(stream, columns, "KUNDEN", rows.Length, ct), null, null, ct);
+        return (summary, XlsxSheet.Read(stream.ToArray()));
     }
 
     [Fact]

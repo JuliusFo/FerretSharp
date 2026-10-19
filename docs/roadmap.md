@@ -89,14 +89,7 @@ Branch `wp/47-since-last-visit`.
 - Offen: eigene Seite oder Hinweis „3 Änderungen seit …“, der die Seite öffnet; was vor dem Abgleich erlaubt ist (Backlog-Eintrag).
 
 ### Pakete aus der Ideensammlung 2026-10-17 (WP-52 … WP-54)
-Vom Nutzer aus einer Sammlung von Oracle-Funktionen und Bibliotheken als Pakete übernommen (2026-10-17). Alle klein und unabhängig von WP-38 … WP-47. WP-52 (Warten und Fortschritt laufender Statements) ist vorgezogen und in 3.39.0 released: `docs/work-packages/wp-52-waits-and-progress.md`; WP-53 (Export als Excel-Datei) ebenso in 3.40.0: `docs/work-packages/wp-53-xlsx-export.md`.
-
-### WP-54 Alle Zeilen des Filters exportieren
-Branch `wp/54-export-all-rows`. Vom Nutzer bei der Planung von WP-53 als eigenes Paket eingeplant (2026-10-17); aus dem Backlog („Export und Zwischenablage“).
-- **Ziel:** Export (CSV und Excel) aller Zeilen, die Filter und Sortierung des Tabs liefern – nicht nur der markierten, die das Grid gerade geladen hat (Blöcke à 500, höchstens 40 im Speicher).
-- **Technik:** Abfrage des Tabs aus dem `QueryBuilder` blockweise auf dem Leseweg der Workspace-Session neu ausführen und direkt in die Datei schreiben; Speichern als Stream über den Host (`IFileSaveService` kann heute nur Text oder ein fertiges `byte[]`). Fortschritt mit Zeilenzahl und Abbrechen (große Tabellen über VPN), Obergrenze (Excel: 1 048 576 Zeilen je Blatt).
-- Aus dem Gesamt-Review 3.40.0 (Entscheidung des Nutzers): A13 gehört hierher – Excel/CSV entstehen heute synchron im UI-Thread **vor** dem Speichern-Dialog, ohne Abbruch, alles im Speicher; erst der Dialog, dann der Bau per `Task.Run` mit Fortschritt und Abbruch. Vorher in R6b: B5 (`ExportMenuItems` für `GridContextMenu`/`ResultMenu`) und B6 (`ExportNotation` aus `DelimitedExport.Value`), damit WP-54 keinen vierten Export-Ort aufmacht.
-- Offen: LOBs vollständig nachladen (teuer) oder wie bisher nur Vorschau mit Warnung; auch für Ergebnisse von SQL-Editor und LINQ-Konsole (dort die Abfrage erneut ausführen – SQL mit Nebenwirkungen gibt es auf dem Leseweg nicht, die LINQ-Konsole führt Nutzercode aus); Obergrenze für CSV.
+Vom Nutzer aus einer Sammlung von Oracle-Funktionen und Bibliotheken als Pakete übernommen (2026-10-17). Alle klein und unabhängig von WP-38 … WP-47. WP-52 (Warten und Fortschritt laufender Statements) ist vorgezogen und in 3.39.0 released: `docs/work-packages/wp-52-waits-and-progress.md`; WP-53 (Export als Excel-Datei) ebenso in 3.40.0: `docs/work-packages/wp-53-xlsx-export.md`; WP-54 (alle Zeilen des Filters exportieren, mit A13) ist umgesetzt: `docs/work-packages/wp-54-export-all-rows.md`.
 
 ## Offene UX-Fragen
 - Workspaces: Standardname ist „Workspace N“ mit der kleinsten freien Nummer (nach Umbenennen von „Workspace 1“ heißt der nächste wieder „Workspace 1“) – so lassen oder fortlaufend zählen?

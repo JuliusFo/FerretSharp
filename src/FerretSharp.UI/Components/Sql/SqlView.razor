@@ -106,7 +106,7 @@
             {
                 <div class="grid-host">
                     <SqlResultGrid @key="@($"{_runKey}-{Tab.SelectedRun}")" WorkspaceId="Tab.WorkspaceId" Query="run.Query" FirstPage="run.FirstPage"
-                                   OnStatus="OnGridStatus" InsertTarget="InsertTarget(run.Info)" ExportName="@ExportName(run.Info)" />
+                                   OnStatus="OnGridStatus" InsertTarget="InsertTarget(run.Info)" ExportName="@ExportName(run.Info)" ExportsAllRows="true" />
                 </div>
                 <ResultFooter Status="_grid" />
             }

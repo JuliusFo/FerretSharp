@@ -99,7 +99,19 @@ public static class QueryBuilder
     }
 
     public static SelectQuery BuildSelect(
-        TableDetails table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts, PageSpec page)
+        TableDetails table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts, PageSpec page) =>
+        Select(table, filters, sorts, page);
+
+    /// <summary>
+    /// Every row of <see cref="BuildSelect(TableDetails, IReadOnlyList{FilterCondition}, IReadOnlyList{SortSpec}, PageSpec)"/>
+    /// in the same order, without paging: the export of all rows of a filter (WP-54) reads them through one cursor –
+    /// a large OFFSET gets slower page by page.
+    /// </summary>
+    public static SelectQuery BuildSelectAll(TableDetails table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts) =>
+        Select(table, filters, sorts, page: null);
+
+    private static SelectQuery Select(
+        TableDetails table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts, PageSpec? page)
     {
         var builder = new Builder(table);
         var hasRowId = table.Table.Kind != TableKind.View;
@@ -110,13 +122,15 @@ public static class QueryBuilder
             .Append("SELECT ").AppendJoin(",\n       ", select)
             .Append("\n  FROM ").Append(OracleIdentifier.Qualify(table.Table.Owner, table.Table.Name)).Append(' ').Append(Alias)
             .Append(builder.Where(filters))
-            .Append("\n ORDER BY ").AppendJoin(", ", builder.OrderBy(sorts))
-            .Append("\nOFFSET :p_offset ROWS FETCH NEXT :p_limit ROWS ONLY")
-            .ToString();
+            .Append("\n ORDER BY ").AppendJoin(", ", builder.OrderBy(sorts));
+        if (page is not null)
+        {
+            sql.Append("\nOFFSET :p_offset ROWS FETCH NEXT :p_limit ROWS ONLY");
+            builder.Parameters.Add(new QueryParameter("p_offset", page.Offset, OracleTypeHint.Number));
+            builder.Parameters.Add(new QueryParameter("p_limit", page.Limit, OracleTypeHint.Number));
+        }
 
-        builder.Parameters.Add(new QueryParameter("p_offset", page.Offset, OracleTypeHint.Number));
-        builder.Parameters.Add(new QueryParameter("p_limit", page.Limit, OracleTypeHint.Number));
-        return new SelectQuery(sql, builder.Parameters, columns, RowKeyOf(table), hasRowId);
+        return new SelectQuery(sql.ToString(), builder.Parameters, columns, RowKeyOf(table), hasRowId);
     }
 
     /// <summary>The row a ROWID points to, with the same result columns as <see cref="BuildSelect"/> (reload after INSERT).</summary>

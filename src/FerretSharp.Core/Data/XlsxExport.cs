@@ -7,10 +7,6 @@ using SpreadCheetah.Worksheets;
 
 namespace FerretSharp.Core.Data;
 
-/// <param name="Content">The file's bytes.</param>
-/// <param name="Warnings">Values that could not be exported completely (LOBs only loaded as preview, texts shortened …).</param>
-public sealed record ExportFile(byte[] Content, int Rows, IReadOnlyList<string> Warnings);
-
 /// <summary>
 /// One column of an Excel export (WP-53): its header and where its values come from. The plain database view is
 /// <see cref="Raw"/>; the presentation layer adds C# names, enum members and the names beside foreign keys
@@ -39,7 +35,8 @@ public sealed record ExportColumn(string Header, int Source, ColumnInfo Column)
 /// Rows as an Excel file (WP-53, ADR 0028) with typed cells: numbers as numbers, DATE/TIMESTAMP as dates, text as text
 /// (never as formula), NULL as empty cell. What Excel would change is written as text in the notation of the CSV export:
 /// numbers with more than 15 significant digits, timestamps finer than milliseconds, dates before 1 March 1900, values with
-/// time zone. Header row bold and frozen, auto filter, column widths by content.
+/// time zone. Header row bold and frozen, auto filter, column widths by content. Written block by block
+/// (<see cref="CreateWriterAsync"/>, WP-54).
 /// </summary>
 public static class XlsxExport
 {
@@ -61,58 +58,25 @@ public static class XlsxExport
 
     private static readonly CultureInfo German = ValueCulture.German;
 
+    /// <summary>
+    /// Rows whose cells decide the column widths: the sheet's widths must be known when it starts, so the first rows wait
+    /// for it (WP-54; before, all rows decided).
+    /// </summary>
+    public const int WidthSample = 1000;
+
+    /// <summary>
+    /// An Excel file written block by block (WP-54). The column widths come from the first <see cref="WidthSample"/> rows,
+    /// written once those are there. The auto filter covers the rows if <paramref name="rows"/> is known, else the header
+    /// row only: Excel extends it to the rows below when it opens the file (checked with Excel 365; a row empty in every
+    /// column would end it). The stream stays open.
+    /// </summary>
     /// <param name="sheetName">Name of the sheet, made valid (<see cref="SheetName"/>).</param>
-    public static async Task<ExportFile> BuildAsync(
-        IReadOnlyList<ExportColumn> columns, IReadOnlyList<RowData> rows, string sheetName, CancellationToken cancellationToken = default)
+    /// <param name="rows">The number of rows if known beforehand (the selected rows); null while a read is still running.</param>
+    public static async Task<IExportWriter> CreateWriterAsync(
+        Stream stream, IReadOnlyList<ExportColumn> columns, string sheetName, int? rows, CancellationToken cancellationToken)
     {
-        var warnings = new ExportWarnings();
-        var count = Math.Min(rows.Count, MaxSheetRows - 1);
-        if (count < rows.Count)
-        {
-            warnings.Note(TextFormat.Format(DataText.ExportSheetRowLimit, count.ToString("N0", CultureInfo.CurrentCulture)));
-        }
-
-        using var stream = new MemoryStream();
-        await using (var spreadsheet = await Spreadsheet.CreateNewAsync(stream, new SpreadCheetahOptions { PreserveStringWhitespace = true }, cancellationToken))
-        {
-            // Styles first: the cells are built before the sheet starts, because their widths decide the column widths.
-            var styles = new Styles(spreadsheet);
-            var widths = columns.Select(c => c.Header.Length + 3.0).ToArray(); // + the filter button
-            var cells = new List<Cell[]>(count);
-            foreach (var row in rows.Take(count))
-            {
-                var line = new Cell[columns.Count];
-                for (var i = 0; i < columns.Count; i++)
-                {
-                    (line[i], var width) = CellOf(columns[i], row.Values[columns[i].Source], styles, warnings);
-                    widths[i] = Math.Max(widths[i], width);
-                }
-
-                cells.Add(line);
-            }
-
-            var options = new WorksheetOptions { FrozenRows = 1 };
-            if (columns.Count > 0)
-            {
-                options.AutoFilter = new AutoFilterOptions($"A1:{ColumnLetters(columns.Count)}{count + 1}");
-            }
-
-            for (var i = 0; i < columns.Count; i++)
-            {
-                options.Column(i + 1).Width = Math.Clamp(widths[i] + 1, MinWidth, MaxWidth);
-            }
-
-            await spreadsheet.StartWorksheetAsync(SheetName(sheetName), options, cancellationToken);
-            await spreadsheet.AddRowAsync([.. columns.Select(c => new Cell(c.Header, styles.Header))], cancellationToken);
-            foreach (var line in cells)
-            {
-                await spreadsheet.AddRowAsync(line, cancellationToken);
-            }
-
-            await spreadsheet.FinishAsync(cancellationToken);
-        }
-
-        return new ExportFile(stream.ToArray(), count, warnings.ToList());
+        var spreadsheet = await Spreadsheet.CreateNewAsync(stream, new SpreadCheetahOptions { PreserveStringWhitespace = true }, cancellationToken);
+        return new Writer(spreadsheet, columns, SheetName(sheetName), rows);
     }
 
     /// <summary>The cell for a value and the width it needs in characters.</summary>
@@ -214,6 +178,108 @@ public static class XlsxExport
         }
 
         return cleaned.Length == 0 ? "Export" : cleaned;
+    }
+
+    private sealed class Writer : IExportWriter
+    {
+        private readonly Spreadsheet _spreadsheet;
+        private readonly IReadOnlyList<ExportColumn> _columns;
+        private readonly string _sheetName;
+        private readonly int? _expected;
+        private readonly Styles _styles;
+        private readonly double[] _widths;
+        private readonly ExportWarnings _warnings = new();
+
+        /// <summary>The first rows, built but not written: the sheet has not started yet (<see cref="WidthSample"/>).</summary>
+        private List<Cell[]>? _sample = [];
+
+        public Writer(Spreadsheet spreadsheet, IReadOnlyList<ExportColumn> columns, string sheetName, int? expected)
+        {
+            _spreadsheet = spreadsheet;
+            _columns = columns;
+            _sheetName = sheetName;
+            _expected = expected;
+            _styles = new Styles(spreadsheet); // styles before the sheet
+            _widths = [.. columns.Select(c => c.Header.Length + 3.0)]; // + the filter button
+        }
+
+        public long Rows { get; private set; }
+
+        public async ValueTask<bool> WriteAsync(IReadOnlyList<RowData> rows, CancellationToken cancellationToken)
+        {
+            foreach (var row in rows)
+            {
+                if (Rows == MaxSheetRows - 1)
+                {
+                    _warnings.Note(TextFormat.Format(DataText.ExportSheetRowLimit, Rows.ToString("N0", CultureInfo.CurrentCulture)));
+                    return false;
+                }
+
+                var line = new Cell[_columns.Count];
+                for (var i = 0; i < _columns.Count; i++)
+                {
+                    (line[i], var width) = CellOf(_columns[i], row.Values[_columns[i].Source], _styles, _warnings);
+                    if (_sample is not null)
+                    {
+                        _widths[i] = Math.Max(_widths[i], width);
+                    }
+                }
+
+                Rows++;
+                if (_sample is null)
+                {
+                    await _spreadsheet.AddRowAsync(line, cancellationToken);
+                }
+                else
+                {
+                    _sample.Add(line);
+                    if (_sample.Count == WidthSample)
+                    {
+                        await StartAsync(cancellationToken);
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        public async ValueTask<ExportSummary> FinishAsync(CancellationToken cancellationToken)
+        {
+            await StartAsync(cancellationToken);
+            await _spreadsheet.FinishAsync(cancellationToken);
+            return new ExportSummary(Rows, _warnings.ToList());
+        }
+
+        public ValueTask DisposeAsync() => _spreadsheet.DisposeAsync();
+
+        /// <summary>Starts the sheet with the widths of the sample and writes the sample; once.</summary>
+        private async Task StartAsync(CancellationToken cancellationToken)
+        {
+            if (_sample is not { } sample)
+            {
+                return;
+            }
+
+            _sample = null;
+            var options = new WorksheetOptions { FrozenRows = 1 };
+            if (_columns.Count > 0)
+            {
+                var lastRow = _expected is { } expected ? Math.Min(expected, MaxSheetRows - 1) + 1 : 1;
+                options.AutoFilter = new AutoFilterOptions($"A1:{ColumnLetters(_columns.Count)}{lastRow}");
+            }
+
+            for (var i = 0; i < _columns.Count; i++)
+            {
+                options.Column(i + 1).Width = Math.Clamp(_widths[i] + 1, MinWidth, MaxWidth);
+            }
+
+            await _spreadsheet.StartWorksheetAsync(_sheetName, options, cancellationToken);
+            await _spreadsheet.AddRowAsync([.. _columns.Select(c => new Cell(c.Header, _styles.Header))], cancellationToken);
+            foreach (var line in sample)
+            {
+                await _spreadsheet.AddRowAsync(line, cancellationToken);
+            }
+        }
     }
 
     /// <summary>

@@ -786,4 +786,10 @@
   <data name="Changes_OtherCountsOther" xml:space="preserve">
     <value>{1} ausstehend · {0} Aktionen offen</value>
   </data>
+  <data name="Status_ExportTitle" xml:space="preserve">
+    <value>Schreibt {0} im Hintergrund. Abbrechen hinterlässt keine halbe Datei.</value>
+  </data>
+  <data name="Status_ExportRowsOf" xml:space="preserve">
+    <value>{0:N0} von {1:N0} Zeilen</value>
+  </data>
 </root>

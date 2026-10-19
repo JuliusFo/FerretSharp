@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using FerretSharp.Core.Oracle;
 using FerretSharp.Core.Query;
 using FerretSharp.Core.Schema;
 
@@ -77,6 +78,22 @@ public partial class QueryBuilderTests
         Assert.Equal(
             [Projection.Value, Projection.Value, Projection.Value, Projection.Value, Projection.Value, Projection.ClobPreview, Projection.BlobLength, Projection.NullMarker, Projection.Value],
             query.Columns.Select(c => c.Projection));
+    }
+
+    [Fact]
+    public void All_rows_are_the_page_query_without_paging()
+    {
+        IReadOnlyList<FilterCondition> filters = [new("NAME", FilterOperator.Contains, ["Ferret"])];
+        IReadOnlyList<SortSpec> sorts = [new("NAME", true)];
+        var page = Select(Kunden, filters, sorts);
+
+        var all = QueryBuilder.BuildSelectAll(Kunden, filters, sorts);
+
+        AssertBindsMatch(all.Sql, all.Parameters);
+        Assert.Equal(page.Sql.Replace("\nOFFSET :p_offset ROWS FETCH NEXT :p_limit ROWS ONLY", "", StringComparison.Ordinal), all.Sql);
+        Assert.Equal(page.Parameters.Where(p => p.Name is not ("p_offset" or "p_limit")), all.Parameters);
+        Assert.Equal(page.Columns, all.Columns);
+        Assert.True(StatementGuard.IsQuery(all.Sql));
     }
 
     [Fact]

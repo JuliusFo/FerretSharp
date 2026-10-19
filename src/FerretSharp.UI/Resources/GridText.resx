@@ -1153,4 +1153,20 @@
   <data name="Editing_CommitOutcomeUnknown" xml:space="preserve">
     <value>The connection broke while committing – whether the commit arrived is not known. The changes are shown as pending again: after reconnecting, check whether they are already in the database before you write them again (an INSERT would add the rows twice).</value>
   </data>
+  <data name="GridMenu_AllRowsGroup" xml:space="preserve">
+    <value>All rows of the filter{0}</value>
+    <comment>Menu group heading (WP-54); {0}: " · 12,345 rows" if the rows were counted, or empty</comment>
+  </data>
+  <data name="GridMenu_AllResultRowsGroup" xml:space="preserve">
+    <value>All rows of the result{0}</value>
+    <comment>Menu group heading in the SQL editor result (WP-54); {0}: " · 12,345 rows" if all were loaded, or empty</comment>
+  </data>
+  <data name="GridMenu_AllRowsTitle" xml:space="preserve">
+    <value>Reads all rows again in the workspace's session and writes them straight into the file – written changes included, pending ones not. The workspace waits meanwhile.</value>
+    <comment>Second line of the tooltips of the all-rows export entries</comment>
+  </data>
+  <data name="Export_Cancelled" xml:space="preserve">
+    <value>Export cancelled – {0} was not written.</value>
+    <comment>{0}: file name</comment>
+  </data>
 </root>

@@ -86,7 +86,25 @@ public sealed record RowData(RowKey Key, IReadOnlyList<object?> Values);
 /// <param name="DataAsOf">Start of the read-only snapshot the page was read in (locked profiles); null otherwise.</param>
 public sealed record RowPage(IReadOnlyList<RowData> Rows, bool IsLastPage, TimeSpan Elapsed, DateTimeOffset? DataAsOf = null);
 
-public interface IDataAccess
+/// <summary>Looks up display values (WP-31): through the workspace's data access, or within a whole read (WP-54).</summary>
+public interface IRowLookup
+{
+    /// <summary>
+    /// Key and display value of the rows of <paramref name="target"/> whose key column holds one of <paramref name="keys"/>
+    /// (display columns, WP-31; <see cref="QueryBuilder.BuildLookup"/>). In the workspace's session, so it sees the
+    /// workspace's own uncommitted rows; it does not start a new read-only snapshot. Keys without a row are not returned.
+    /// </summary>
+    Task<IReadOnlyList<LookupRow>> LookupAsync(
+        TableDetails target, int keyColumn, int displayColumn, IReadOnlyList<object> keys, CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// One block of a whole read (<see cref="IDataAccess.ReadAllAsync"/>, WP-54) for its consumer, with a lookup that runs in the
+/// same session while the read is open. False stops the read (an Excel sheet is full).
+/// </summary>
+public delegate Task<bool> RowBlockHandler(IReadOnlyList<RowData> rows, IRowLookup lookup, CancellationToken cancellationToken);
+
+public interface IDataAccess : IRowLookup
 {
     /// <summary>Reads one page; values are in <see cref="TableDetails.Columns"/> order.</summary>
     /// <exception cref="QueryValidationException">A filter or sort cannot be applied.</exception>
@@ -123,15 +141,33 @@ public interface IDataAccess
     Task<ExecutionPlan> ExplainActualAsync(QuerySpec query, bool wholeResult, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Key and display value of the rows of <paramref name="target"/> whose key column holds one of <paramref name="keys"/>
-    /// (display columns, WP-31; <see cref="QueryBuilder.BuildLookup"/>). In the workspace's session, so it sees the
-    /// workspace's own uncommitted rows; it does not start a new read-only snapshot. Keys without a row are not returned.
+    /// Every row of a table's query – filters and sort order as in the grid, LOBs as preview – handed to
+    /// <paramref name="onBlock"/> in blocks of <see cref="BlockSize"/> (the export of all rows of a filter, WP-54). One
+    /// cursor instead of pages: a large OFFSET gets slower page by page. Read in the session as it stands – no new snapshot
+    /// in a locked workspace, so the rows are those of the grid's snapshot – and not repeated in a new one: a snapshot that
+    /// becomes unusable meanwhile (ORA-01555) is reported. The session is busy until the read ends.
     /// </summary>
-    Task<IReadOnlyList<LookupRow>> LookupAsync(
-        TableDetails target, int keyColumn, int displayColumn, IReadOnlyList<object> keys, CancellationToken cancellationToken);
+    /// <exception cref="QueryValidationException">A filter or sort cannot be applied.</exception>
+    Task ReadAllAsync(
+        TableDetails table,
+        IReadOnlyList<FilterCondition> filters,
+        IReadOnlyList<SortSpec> sorts,
+        RowBlockHandler onBlock,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Every row of a free query (SQL editor), like <see cref="ReadAllAsync"/>: run once more, values as
+    /// <see cref="ReadSqlAsync"/> reads them, rows without key.
+    /// </summary>
+    /// <param name="columns">The column names the result had: a query that now returns other columns is refused.</param>
+    /// <exception cref="Connections.RefusedException">The query returns other columns than <paramref name="columns"/>.</exception>
+    Task ReadSqlAllAsync(QuerySpec query, IReadOnlyList<string> columns, RowBlockHandler onBlock, CancellationToken cancellationToken);
 
     /// <summary>Rows fetched for the actual plan unless the whole result is wanted: one grid page.</summary>
     public const int ActualPlanPageSize = 500;
+
+    /// <summary>Rows per block of <see cref="ReadAllAsync"/>: a grid block.</summary>
+    public const int BlockSize = 500;
 }
 
 /// <summary>A result column of a free query; <see cref="Column"/> is derived from the driver's type, for formatting.</summary>
@@ -153,7 +189,7 @@ public sealed record SqlColumnOrigin(string? Owner, string? Table, string Column
 public sealed record SqlPage(
     IReadOnlyList<SqlColumn> Columns, IReadOnlyList<IReadOnlyList<object?>> Rows, bool IsLastPage, TimeSpan Elapsed, DateTimeOffset? DataAsOf = null);
 
-/// <summary>A row found by <see cref="IDataAccess.LookupAsync"/>: its key and display value as read (like grid values).</summary>
+/// <summary>A row found by <see cref="IRowLookup.LookupAsync"/>: its key and display value as read (like grid values).</summary>
 public sealed record LookupRow(object Key, object? Display);
 
 /// <summary>Result of <see cref="IDataAccess.ReadLobAsync"/>; <see cref="Found"/> is false if the row is gone.</summary>

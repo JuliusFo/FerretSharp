@@ -74,9 +74,7 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
         var (columns, rows, last) = await session.ExecuteReaderAsync(query.Sql, query.Parameters, async (reader, ct) =>
         {
             var oracle = (OracleDataReader)reader;
-            var schema = oracle.GetSchemaTable();
-            var columns = Enumerable.Range(0, oracle.FieldCount)
-                .Select(i => new SqlColumn(oracle.GetName(i), ColumnOf(oracle, i, schema?.Rows[i]), OriginOf(schema?.Rows[i]))).ToList();
+            var columns = SqlColumnsOf(oracle);
             for (var skipped = 0; skipped < skip; skipped++)
             {
                 if (!await reader.ReadAsync(ct))
@@ -88,21 +86,7 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
             var rows = new List<IReadOnlyList<object?>>(Math.Min(take, 1000));
             while (rows.Count < take && await reader.ReadAsync(ct))
             {
-                var values = new object?[columns.Count];
-                for (var i = 0; i < values.Length; i++)
-                {
-                    // LOBs as in the table grid: a preview and the length (free queries cannot be rewritten to
-                    // DBMS_LOB.SUBSTR like generated ones; the prefetch brings what is needed).
-                    values[i] = oracle.IsDBNull(i) ? null
-                        : ColumnCategories.Of(columns[i].Column) switch
-                        {
-                            ColumnCategory.Clob => ClobPreview(oracle, i),
-                            ColumnCategory.Blob => BlobLength(oracle, i),
-                            _ => ReadValue(oracle, i, columns[i].Column),
-                        };
-                }
-
-                rows.Add(values);
+                rows.Add(ReadSqlRow(oracle, columns));
             }
 
             // One row more tells whether this was the last page.
@@ -111,6 +95,97 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
 
         var snapshot = session.Transaction is { Mode: TransactionMode.ReadOnly } transaction ? transaction.StartedAt : null;
         return new SqlPage(columns, rows, last, stopwatch.Elapsed, snapshot);
+    }
+
+    public Task ReadAllAsync(
+        TableDetails table,
+        IReadOnlyList<FilterCondition> filters,
+        IReadOnlyList<SortSpec> sorts,
+        RowBlockHandler onBlock,
+        CancellationToken cancellationToken)
+    {
+        var query = QueryBuilder.BuildSelectAll(table, filters, sorts);
+        return session.ExecuteStreamingReaderAsync(query.Sql, query.Parameters, (reader, nested, ct) =>
+            ReadBlocksAsync(reader, oracle => ReadRow(oracle, query, table), nested, onBlock, ct),
+            OracleSession.WholeLobs, cancellationToken);
+    }
+
+    public Task ReadSqlAllAsync(QuerySpec query, IReadOnlyList<string> columns, RowBlockHandler onBlock, CancellationToken cancellationToken) =>
+        session.ExecuteStreamingReaderAsync(query.Sql, query.Parameters, (reader, nested, ct) =>
+        {
+            var oracle = (OracleDataReader)reader;
+            var read = SqlColumnsOf(oracle);
+            // The same statement, but the schema may have changed since (a column dropped, SELECT * picking up a new one):
+            // the export's columns would no longer fit.
+            if (!read.Select(c => c.Name).SequenceEqual(columns, StringComparer.Ordinal))
+            {
+                throw new RefusedException(DataText.ExportResultChanged);
+            }
+
+            return ReadBlocksAsync(reader, r => new RowData(RowKey.None.Instance, ReadSqlRow(r, read)), nested, onBlock, ct);
+        }, QueryBuilder.ClobPreviewLength, cancellationToken);
+
+    /// <summary>
+    /// The rows of an open reader in blocks of <see cref="IDataAccess.BlockSize"/>, fetched in large portions (thousands of
+    /// rows over a VPN); stops when <paramref name="onBlock"/> returns false. Before the first block leaves, the session may
+    /// still repeat the query in a new snapshot (<see cref="OracleSession.NestedReader.HandingOn"/>).
+    /// </summary>
+    private static async Task<bool> ReadBlocksAsync(
+        DbDataReader reader, Func<OracleDataReader, RowData> readRow, OracleSession.NestedReader nested, RowBlockHandler onBlock,
+        CancellationToken cancellationToken)
+    {
+        OracleReading.FetchManyRows(reader);
+        var oracle = (OracleDataReader)reader;
+        var lookup = new NestedLookup(nested);
+        var block = new List<RowData>(IDataAccess.BlockSize);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            block.Add(readRow(oracle));
+            if (block.Count < IDataAccess.BlockSize)
+            {
+                continue;
+            }
+
+            nested.HandingOn();
+            if (!await onBlock(block, lookup, cancellationToken))
+            {
+                return false;
+            }
+
+            block = new List<RowData>(IDataAccess.BlockSize);
+        }
+
+        nested.HandingOn();
+        return block.Count == 0 || await onBlock(block, lookup, cancellationToken);
+    }
+
+    /// <summary>The columns of a free query's result, with their origin (WP-48).</summary>
+    private static List<SqlColumn> SqlColumnsOf(OracleDataReader reader)
+    {
+        var schema = reader.GetSchemaTable();
+        return Enumerable.Range(0, reader.FieldCount)
+            .Select(i => new SqlColumn(reader.GetName(i), ColumnOf(reader, i, schema?.Rows[i]), OriginOf(schema?.Rows[i]))).ToList();
+    }
+
+    /// <summary>
+    /// A row of a free query; LOBs as in the table grid: a preview and the length (free queries cannot be rewritten to
+    /// DBMS_LOB.SUBSTR like generated ones; the prefetch brings what is needed).
+    /// </summary>
+    private static object?[] ReadSqlRow(OracleDataReader reader, IReadOnlyList<SqlColumn> columns)
+    {
+        var values = new object?[columns.Count];
+        for (var i = 0; i < values.Length; i++)
+        {
+            values[i] = reader.IsDBNull(i) ? null
+                : ColumnCategories.Of(columns[i].Column) switch
+                {
+                    ColumnCategory.Clob => ClobPreview(reader, i),
+                    ColumnCategory.Blob => BlobLength(reader, i),
+                    _ => ReadValue(reader, i, columns[i].Column),
+                };
+        }
+
+        return values;
     }
 
     public async Task<ExecutionPlan> ExplainActualAsync(QuerySpec query, bool wholeResult, CancellationToken cancellationToken)
@@ -223,9 +298,14 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
         TableDetails target, int keyColumn, int displayColumn, IReadOnlyList<object> keys, CancellationToken cancellationToken)
     {
         var query = QueryBuilder.BuildLookup(target, keyColumn, displayColumn, keys);
+        return await session.ExecuteReaderAsync(query.Sql, query.Parameters, LookupReader(target, keyColumn, displayColumn), cancellationToken);
+    }
+
+    private static Func<DbDataReader, CancellationToken, Task<IReadOnlyList<LookupRow>>> LookupReader(TableDetails target, int keyColumn, int displayColumn)
+    {
         var key = target.Columns[keyColumn];
         var display = target.Columns[displayColumn];
-        return await session.ExecuteReaderAsync(query.Sql, query.Parameters, async (reader, ct) =>
+        return async (reader, ct) =>
         {
             var oracle = (OracleDataReader)reader;
             var rows = new List<LookupRow>();
@@ -235,7 +315,18 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
             }
 
             return rows;
-        }, cancellationToken);
+        };
+    }
+
+    /// <summary>Lookups while a whole read is open (WP-54): on its connection, inside the gate it holds.</summary>
+    private sealed class NestedLookup(OracleSession.NestedReader nested) : IRowLookup
+    {
+        public Task<IReadOnlyList<LookupRow>> LookupAsync(
+            TableDetails target, int keyColumn, int displayColumn, IReadOnlyList<object> keys, CancellationToken cancellationToken)
+        {
+            var query = QueryBuilder.BuildLookup(target, keyColumn, displayColumn, keys);
+            return nested.ReadAsync(query.Sql, query.Parameters, LookupReader(target, keyColumn, displayColumn), cancellationToken);
+        }
     }
 
     internal static RowData ReadRow(OracleDataReader reader, SelectQuery query, TableDetails table)
