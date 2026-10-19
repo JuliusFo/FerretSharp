@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Fixed
+- Connection dialog: with a linked C# project, "Test" showed neither the spinner nor "Cancel test" while the connection was tested, and a second click started a second test that ended in an error in the log (`NullReferenceException`, since 3.40.1). The spinner now shows at once, and only one test runs at a time. "Save" is disabled as soon as it is clicked, also while the project is checked.
+
 ## [3.41.0] - 2026-10-17
 
 Structure after the review of the whole code (R6b): sorted folders, shared building blocks, stronger tests – no new features.
