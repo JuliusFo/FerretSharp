@@ -2,7 +2,6 @@
    shown with the same grid bridge as tables – read-only, unsorted (the query's own ORDER BY counts). *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
-@using FerretSharp.Core.Display
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
 @inherits FerretComponent
@@ -241,20 +240,9 @@
         }
     });
 
-    /// <summary>
-    /// All rows of the query, run again in the workspace's session (WP-54). Refused if it now returns other columns: the
-    /// export's columns are those of the result shown.
-    /// </summary>
-    private AllRowsExport AllRowsOf()
-    {
-        var (query, workspaceId, workspaces) = (Query, WorkspaceId, Workspaces);
-        var columns = _columns.Select(c => c.Name).ToList();
-        var total = _allLoaded ? _rowsLoaded : (long?)null;
-        return new AllRowsExport(
-            TextFormat.Format(GridText.GridMenu_AllResultRowsGroup, total is { } rows ? " · " + ExportActions.RowsText(rows) : ""),
-            async (onBlock, ct) => await (await workspaces.GetDataAsync(workspaceId, ct)).ReadSqlAllAsync(query, columns, onBlock, ct),
-            total, DisplayNames.None, _presentation.ExportColumns());
-    }
+    /// <summary>All rows of the query, run again in the workspace's session (WP-54).</summary>
+    private AllRowsExport AllRowsOf() =>
+        AllRowsExports.ForResult(Query, _columns, _allLoaded ? _rowsLoaded : null, _presentation.ExportColumns(), WorkspaceId, Workspaces.GetDataAsync);
 
     /// <summary>The result as a table for the export helpers (columns only; it has no key).</summary>
     private TableDetails AsTable() => new(new TableSummary("", ExportName, TableKind.View), _columns.Select(c => c.Column).ToList(), [], [], false);

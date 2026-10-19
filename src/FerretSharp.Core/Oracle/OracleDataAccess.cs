@@ -106,7 +106,7 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
     {
         var query = QueryBuilder.BuildSelectAll(table, filters, sorts);
         return session.ExecuteStreamingReaderAsync(query.Sql, query.Parameters, (reader, nested, ct) =>
-            ReadBlocksAsync(reader, oracle => ReadRow(oracle, query, table), new NestedLookup(nested), onBlock, ct),
+            ReadBlocksAsync(reader, oracle => ReadRow(oracle, query, table), nested, onBlock, ct),
             OracleSession.WholeLobs, cancellationToken);
     }
 
@@ -122,18 +122,21 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
                 throw new RefusedException(DataText.ExportResultChanged);
             }
 
-            return ReadBlocksAsync(reader, r => new RowData(RowKey.None.Instance, ReadSqlRow(r, read)), new NestedLookup(nested), onBlock, ct);
+            return ReadBlocksAsync(reader, r => new RowData(RowKey.None.Instance, ReadSqlRow(r, read)), nested, onBlock, ct);
         }, QueryBuilder.ClobPreviewLength, cancellationToken);
 
     /// <summary>
     /// The rows of an open reader in blocks of <see cref="IDataAccess.BlockSize"/>, fetched in large portions (thousands of
-    /// rows over a VPN); stops when <paramref name="onBlock"/> returns false.
+    /// rows over a VPN); stops when <paramref name="onBlock"/> returns false. Before the first block leaves, the session may
+    /// still repeat the query in a new snapshot (<see cref="OracleSession.NestedReader.HandingOn"/>).
     /// </summary>
     private static async Task<bool> ReadBlocksAsync(
-        DbDataReader reader, Func<OracleDataReader, RowData> readRow, IRowLookup lookup, RowBlockHandler onBlock, CancellationToken cancellationToken)
+        DbDataReader reader, Func<OracleDataReader, RowData> readRow, OracleSession.NestedReader nested, RowBlockHandler onBlock,
+        CancellationToken cancellationToken)
     {
         OracleReading.FetchManyRows(reader);
         var oracle = (OracleDataReader)reader;
+        var lookup = new NestedLookup(nested);
         var block = new List<RowData>(IDataAccess.BlockSize);
         while (await reader.ReadAsync(cancellationToken))
         {
@@ -143,6 +146,7 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
                 continue;
             }
 
+            nested.HandingOn();
             if (!await onBlock(block, lookup, cancellationToken))
             {
                 return false;
@@ -151,6 +155,7 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
             block = new List<RowData>(IDataAccess.BlockSize);
         }
 
+        nested.HandingOn();
         return block.Count == 0 || await onBlock(block, lookup, cancellationToken);
     }
 

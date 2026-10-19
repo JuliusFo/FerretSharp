@@ -69,7 +69,7 @@
     }
 
     <ExportMenuItems Export="Export" Table="Details" Rows="Request.Selected" FileName="@Details.Table.DisplayName" XlsxColumns="_xlsxColumns" InsertTable="Details"
-                     AllRows="_allRows">
+                     XlsxColumnsToSave="@(() => PresentedExport.Columns(_presentation, Names.Copy()))" AllRows="_allRows">
         <button class="menu-item" @onclick="SaveInsertAsync">@GridText.GridMenu_SaveInsert</button>
         @if (Active.Profile is { } linkProfile)
         {
@@ -207,15 +207,14 @@
     private ColumnInfo Column => Details.Columns[Request.Column];
 
     /// <summary>For the first placement; dom.js keepInViewport corrects it once rendered.</summary>
-    private double EstimatedHeight => 376 + ItemHeight * (_jumps.Count + (ExportMenuItems.OffersRaw(_xlsxColumns) ? 2 : 1) + ExportMenuItems.AllRowsEntries(_allRows))
+    private double EstimatedHeight => 336 + ItemHeight * (_jumps.Count + (ExportMenuItems.OffersRaw(_xlsxColumns) ? 2 : 1) + ExportMenuItems.AllRowsEntries(_allRows, _xlsxColumns))
                                       + (_cell is null ? 0 : 128) + (Request.MissingRows > 0 ? 40 : 0);
 
     protected override void OnInitialized()
     {
         _presentation = Presentations.For(Details);
-        // A copy: the file is written in the background while the grid goes on looking up names (A13).
-        _xlsxColumns = PresentedExport.Columns(_presentation, Names.Copy());
-        _allRows = AllRowsOf();
+        _xlsxColumns = PresentedExport.Columns(_presentation, Names);
+        _allRows = AllRowsExports.ForTable(Tab, Details, _presentation, Names, Presentations.For, Workspaces.GetDataAsync);
         _cell = _presentation.Entity is null ? null : CSharpRows.Cell(_presentation, Request.Column, Request.Row.Values[Request.Column]);
         if (Active.Schema is not { } schema)
         {
@@ -224,23 +223,6 @@
 
         var row = Details.Table.Ref;
         _jumps = FkJumpLists.Of(FkNavigation.JumpsFor(Details, Request.JumpRows, schema.OutgoingOf(row), schema.IncomingOf(row)), InvolvesColumn);
-    }
-
-    /// <summary>
-    /// All rows of the tab's query as it stands – filters and sort order applied – for the export (WP-54). Their names beside
-    /// foreign keys are looked up while reading, formatted with the targets' presentation as it is now (the export runs off
-    /// the UI thread).
-    /// </summary>
-    private AllRowsExport AllRowsOf()
-    {
-        var (details, filters, sorts, workspaceId, workspaces) = (Details, Tab.AppliedFilters, Tab.Sorts, Tab.WorkspaceId, Workspaces);
-        var total = Tab.TotalCount ?? (Tab.AllRowsLoaded ? (long?)Tab.RowsLoaded : null);
-        var targets = Names.Links.Select(l => l.Target).DistinctBy(t => t.Table.Ref).ToDictionary(t => t.Table.Ref, Presentations.For);
-        var names = Names.Fresh((link, value) => targets[link.Target.Table.Ref].Present(link.DisplayColumn, value).Text);
-        return new AllRowsExport(
-            TextFormat.Format(GridText.GridMenu_AllRowsGroup, total is { } rows ? " · " + RowsText(rows) : ""),
-            async (onBlock, ct) => await (await workspaces.GetDataAsync(workspaceId, ct)).ReadAllAsync(details, filters, sorts, onBlock, ct),
-            total, names, PresentedExport.Columns(_presentation, names));
     }
 
     private bool InvolvesColumn(FkJump jump) =>

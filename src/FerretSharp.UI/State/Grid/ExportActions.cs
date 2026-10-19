@@ -1,6 +1,5 @@
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
-using FerretSharp.Core.Display;
 using FerretSharp.Core.IO;
 using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
@@ -17,16 +16,6 @@ public enum ExportCopy
     CSharpObjects,
     HasData,
 }
-
-/// <summary>
-/// All rows of a grid's query for the export menu (WP-54): read again, block by block, in the workspace's session.
-/// </summary>
-/// <param name="Heading">Heading of the menu group ("All rows of the filter · 12,345 rows").</param>
-/// <param name="Read">Reads the rows (<see cref="IDataAccess.ReadAllAsync"/>, <see cref="IDataAccess.ReadSqlAllAsync"/>).</param>
-/// <param name="Total">Rows expected, if counted.</param>
-/// <param name="Names">The names beside foreign keys, looked up while reading – <paramref name="XlsxColumns"/> write them.</param>
-/// <param name="XlsxColumns">The columns of the Excel export as the grid presents them, over <paramref name="Names"/>.</param>
-public sealed record AllRowsExport(string Heading, RowReader Read, long? Total, DisplayNames Names, IReadOnlyList<ExportColumn> XlsxColumns);
 
 /// <summary>
 /// The export entries of a right-click menu (R3b; were written twice, in the grid's cell menu and the result menu, and their
@@ -169,9 +158,14 @@ public sealed class ExportActions(
         try
         {
             var token = export.Token;
-            var result = await shell.RunDbAsync(logger, connection, () => AtomicFile.WriteAsync(path, (stream, ct) => write(stream, progress, ct), token), token);
+            var result = await shell.RunDbAsync(logger, connection, () => AtomicFile.WriteExportAsync(path, (stream, ct) => write(stream, progress, ct), token), token);
             if (result.Value is { } summary)
             {
+                foreach (var failure in summary.Failures)
+                {
+                    QueryErrorLog.Log(logger, failure, connection?.Profile); // names left out: the toast says so, the log says why
+                }
+
                 shell.Notify(TextFormat.Plural(summary.Rows, GridText.Export_SavedOne, GridText.Export_SavedOther, path), warnings(summary.Warnings));
             }
             else if (result.Cancelled)

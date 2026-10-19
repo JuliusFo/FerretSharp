@@ -88,7 +88,7 @@
     private ColumnInfo Column => Result.Columns[Request.Column];
 
     /// <summary>For the first placement; dom.js keepInViewport corrects it once rendered.</summary>
-    private double EstimatedHeight => 200 + ItemHeight * (_jumps.Count + (ExportMenuItems.OffersRaw(XlsxColumns) ? 2 : 1) + ExportMenuItems.AllRowsEntries(AllRows))
+    private double EstimatedHeight => 200 + ItemHeight * (_jumps.Count + (ExportMenuItems.OffersRaw(XlsxColumns) ? 2 : 1) + ExportMenuItems.AllRowsEntries(AllRows, XlsxColumns))
                                       + (_jumps.Count > 0 ? 80 : 0) + (AllRows is null ? 0 : 40);
 
     protected override void OnInitialized()

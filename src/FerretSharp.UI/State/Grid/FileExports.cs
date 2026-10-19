@@ -4,6 +4,7 @@ namespace FerretSharp.UI.State;
 public sealed class FileExport
 {
     private readonly CancellationTokenSource _cts = new();
+    private bool _ended;
 
     internal FileExport(string fileName, long? total)
     {
@@ -23,11 +24,22 @@ public sealed class FileExport
 
     /// <summary>
     /// Cancels the export. The token's registrations run here (the UI thread): the session hands the cancel to ODP.NET on a
-    /// pool thread itself (review 3.40.0, A3).
+    /// pool thread itself (review 3.40.0, A3). A click that arrives after the export ended (the status bar had not drawn
+    /// again yet) does nothing.
     /// </summary>
-    public void Cancel() => _cts.Cancel();
+    public void Cancel()
+    {
+        if (!_ended)
+        {
+            _cts.Cancel();
+        }
+    }
 
-    internal void Dispose() => _cts.Dispose();
+    internal void End()
+    {
+        _ended = true;
+        _cts.Dispose();
+    }
 }
 
 /// <summary>
@@ -64,7 +76,7 @@ public sealed class FileExports
     {
         if (_running.Remove(export))
         {
-            export.Dispose();
+            export.End();
             Changed?.Invoke();
         }
     }

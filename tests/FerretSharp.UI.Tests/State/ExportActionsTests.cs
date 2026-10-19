@@ -94,7 +94,7 @@ public sealed class ExportActionsTests : IDisposable
         });
 
         Assert.Equal("alt", await File.ReadAllTextAsync(path, TestContext.Current.CancellationToken));
-        Assert.False(File.Exists(path + ".tmp"));
+        Assert.Empty(Directory.GetFiles(_folder.Path, "*.tmp"));
         Assert.Equal("Export abgebrochen – KUNDEN.csv wurde nicht geschrieben.", _shell.Notice!.Text);
         Assert.Empty(_shell.Exports.Running);
     }
@@ -109,7 +109,7 @@ public sealed class ExportActionsTests : IDisposable
 
         Assert.Equal("ORA-01555", _shell.ErrorDetails!.ErrorCode);
         Assert.False(File.Exists(path));
-        Assert.False(File.Exists(path + ".tmp"));
+        Assert.Empty(Directory.GetFiles(_folder.Path, "*.tmp"));
         Assert.Empty(_shell.Exports.Running);
     }
 

@@ -1,10 +1,15 @@
+using FerretSharp.Core.Connections;
 using FerretSharp.Core.Display;
 
 namespace FerretSharp.Core.Data;
 
 /// <summary>What an export wrote.</summary>
 /// <param name="Warnings">Values that could not be exported completely (LOBs only loaded as preview, texts shortened …).</param>
-public sealed record ExportSummary(long Rows, IReadOnlyList<string> Warnings);
+public sealed record ExportSummary(long Rows, IReadOnlyList<string> Warnings)
+{
+    /// <summary>Lookups of names that failed (their warnings are among <see cref="Warnings"/>): for the log.</summary>
+    public IReadOnlyList<DatabaseException> Failures { get; init; } = [];
+}
 
 /// <summary>
 /// Writes an export file block by block (WP-54): CSV (<see cref="DelimitedExport.CreateWriter"/>) or Excel
@@ -55,12 +60,12 @@ public static class RowExport
     {
         await using (writer)
         {
-            var notes = new List<string>();
+            var failures = new List<NameLookupFailure>();
             await read(async (block, lookup, ct) =>
             {
                 if (names is { IsEmpty: false })
                 {
-                    notes.AddRange(await names.FillAsync(lookup, block.Select(r => r.Values), ct));
+                    failures.AddRange(await names.FillAsync(lookup, block.Select(r => r.Values), ct));
                 }
 
                 var more = await writer.WriteAsync(block, ct);
@@ -69,7 +74,9 @@ public static class RowExport
             }, cancellationToken);
 
             var summary = await writer.FinishAsync(cancellationToken);
-            return notes.Count == 0 ? summary : summary with { Warnings = [.. summary.Warnings, .. notes] };
+            return failures.Count == 0
+                ? summary
+                : summary with { Warnings = [.. summary.Warnings, .. failures.Select(f => f.Warning)], Failures = [.. failures.Select(f => f.Error)] };
         }
     }
 

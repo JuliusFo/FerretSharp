@@ -7,10 +7,6 @@ using SpreadCheetah.Worksheets;
 
 namespace FerretSharp.Core.Data;
 
-/// <param name="Content">The file's bytes.</param>
-/// <param name="Warnings">Values that could not be exported completely (LOBs only loaded as preview, texts shortened …).</param>
-public sealed record ExportFile(byte[] Content, int Rows, IReadOnlyList<string> Warnings);
-
 /// <summary>
 /// One column of an Excel export (WP-53): its header and where its values come from. The plain database view is
 /// <see cref="Raw"/>; the presentation layer adds C# names, enum members and the names beside foreign keys
@@ -40,7 +36,7 @@ public sealed record ExportColumn(string Header, int Source, ColumnInfo Column)
 /// (never as formula), NULL as empty cell. What Excel would change is written as text in the notation of the CSV export:
 /// numbers with more than 15 significant digits, timestamps finer than milliseconds, dates before 1 March 1900, values with
 /// time zone. Header row bold and frozen, auto filter, column widths by content. Written block by block
-/// (<see cref="CreateWriterAsync"/>, WP-54) or at once (<see cref="BuildAsync"/>).
+/// (<see cref="CreateWriterAsync"/>, WP-54).
 /// </summary>
 public static class XlsxExport
 {
@@ -68,27 +64,13 @@ public static class XlsxExport
     /// </summary>
     public const int WidthSample = 1000;
 
-    /// <param name="sheetName">Name of the sheet, made valid (<see cref="SheetName"/>).</param>
-    public static async Task<ExportFile> BuildAsync(
-        IReadOnlyList<ExportColumn> columns, IReadOnlyList<RowData> rows, string sheetName, CancellationToken cancellationToken = default)
-    {
-        using var stream = new MemoryStream();
-        ExportSummary summary;
-        await using (var writer = await CreateWriterAsync(stream, columns, sheetName, rows.Count, cancellationToken))
-        {
-            await writer.WriteAsync(rows, cancellationToken);
-            summary = await writer.FinishAsync(cancellationToken);
-        }
-
-        return new ExportFile(stream.ToArray(), (int)summary.Rows, summary.Warnings);
-    }
-
     /// <summary>
     /// An Excel file written block by block (WP-54). The column widths come from the first <see cref="WidthSample"/> rows,
     /// written once those are there. The auto filter covers the rows if <paramref name="rows"/> is known, else the header
     /// row only: Excel extends it to the rows below when it opens the file (checked with Excel 365; a row empty in every
     /// column would end it). The stream stays open.
     /// </summary>
+    /// <param name="sheetName">Name of the sheet, made valid (<see cref="SheetName"/>).</param>
     /// <param name="rows">The number of rows if known beforehand (the selected rows); null while a read is still running.</param>
     public static async Task<IExportWriter> CreateWriterAsync(
         Stream stream, IReadOnlyList<ExportColumn> columns, string sheetName, int? rows, CancellationToken cancellationToken)

@@ -114,7 +114,7 @@ public class RowExportTests
         var writer = new RecordingWriter();
         var progress = new List<long>();
 
-        var summary = await RowExport.WriteAsync(RowExport.FromRows(Rows(1200)), writer, null, new SyncProgress(progress), Ct);
+        var summary = await RowExport.WriteAsync(RowExport.FromRows(Rows(1200)), writer, null, new SyncProgress<long>(progress.Add), Ct);
 
         Assert.Equal([500, 500, 200], writer.Blocks);
         Assert.Equal([500, 1000, 1200], progress);
@@ -246,12 +246,6 @@ public class RowExportTests
             Disposed = true;
             return ValueTask.CompletedTask;
         }
-    }
-
-    /// <summary>Reports at once (<see cref="Progress{T}"/> posts to a context).</summary>
-    private sealed class SyncProgress(List<long> reports) : IProgress<long>
-    {
-        public void Report(long value) => reports.Add(value);
     }
 
     /// <summary>The same row many times, without holding them.</summary>
