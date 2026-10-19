@@ -20,7 +20,7 @@ Branch `wp/38-palette-quick-open`, begonnen am 2026-10-19. Das Spaltenprofil war
 - **Suche der Aktionen:** jedes Wort in Beschriftung, Gruppe oder Taste (`TextSearch`); „ctrl+s“ findet also auch „Ctrl+Shift+…“.
 - **Rangfolge der Objekte** wie in der Spaltensuche: exakt, Präfix, Wortanfang, enthält (`NameRank`, aus `ColumnSearch` herausgelöst; `ObjectSearch` für Tabellen und PL/SQL). Ein Tabellenname zählt mit dem angezeigten Namen, dem echten (Synonymziel) und dem Entity-Namen, der beste Treffer gilt. Entity-Namen nur, wenn C#-Namen angezeigt werden (Einstellung, wie im Explorer).
 - **Leere Eingabe:** die offenen Tabellen- und PL/SQL-Tabs des aktiven Workspaces. Höchstens 50 Treffer je Gruppe, darunter „N weitere – Suche eingrenzen“.
-- Treffer sind nicht hervorgehoben (im Mockup vorgeschlagen), und es gibt keine Gruppe „Zuletzt benutzt“ für Aktionen.
+- **Treffer hervorgehoben** (Nachtrag, siehe unten): jedes Vorkommen jedes Worts in Name, Entity-Name bzw. Beschriftung. Ein Wort, das nur ohne die Unterstriche passt („lieferort“ in LIEFER_ORT), bleibt unmarkiert.
 
 ## Gebaut
 - **Core:** `NameRank`/`NameMatch` (Rangfolge der Namenssuche, `ColumnSearch` nutzt sie), `ObjectSearch.FindTables`/`FindPlSql`; `ShortcutAction.QuickOpen`/`CommandPalette` mit Einträgen in `ShortcutMap.Definitions` (Gruppe Navigation, ohne Standardtaste), Texte `ActionQuickOpen`, `HintQuickOpen`, `ActionCommandPalette`, `HintCommandPalette`.
@@ -38,7 +38,8 @@ Branch `wp/38-palette-quick-open`, begonnen am 2026-10-19. Das Spaltenprofil war
   - Hell und dunkel (`Emulation.setEmulatedMedia`) angesehen.
   - **Nicht geprüft:** Klick mit echter Windows-Eingabe – `SendInput` meldete Erfolg, in der WebView kam aber kein `mousedown` an (vermutlich hält die Sandbox der Shell die Eingabe auf). Der Klick auf die Lupe ist mit CDP-Mauseingabe (Stufe 2) geprüft; die Box nutzt nur `click` und `mouseenter`, keine der Eingaben, die nur Stufe 3 zeigt. Entity-Namen nur in den Unit-Tests: Die Testinstanz hatte kein C#-Projekt verknüpft.
 
-## Offene Fragen an den Nutzer
-- Lupe in der Kopfleiste so lassen oder weglassen, sobald eine Taste vergeben ist?
-- Grid- und Formulartasten in der Palette zeigen (ausgegraut mit „Nur im Grid.“) oder wie jetzt weglassen?
-- Treffer im Namen hervorheben und „Zuletzt benutzt“ für Aktionen – lohnt sich das?
+## Nachtrag: offene Fragen entschieden (2026-10-19, Empfehlungen übernommen)
+- **Lupe bleibt immer**, auch mit vergebener Taste: einziger sichtbarer Weg ohne Standardtaste, ihr Tooltip nennt die Taste; ein Knopf, der je nach Einstellung verschwindet, wirkt wie ein Fehler.
+- **Grid- und Formulartasten bleiben draußen:** Sie brauchen den Fokus im Grid und stünden in der Palette immer ausgegraut da. Erst wenn sie im Alltag fehlen, prüfen, welche sich über den Tab ausführen lassen (Backlog).
+- **Treffer hervorheben: gebaut.** `TextSearch.Ranges` liefert die Fundstellen (wie `Matches` verglichen, alle Vorkommen, überlappende und angrenzende zusammengefasst), `Highlight` (Components/Common) setzt sie als `<mark>`; in der Box für Tabellen- und Entity-Namen, PL/SQL und Beschriftungen der Aktionen (CSS `.palette-row mark`: Akzentfarbe, fett). Tests `TextSearchRangesTests`; in der App hell und dunkel angesehen (CDP, Befehlspalette ohne Verbindung).
+- **„Zuletzt benutzt“ für Aktionen: nein** (17 Aktionen, mit zwei, drei Buchstaben gefunden). Stattdessen im Backlog: „Zuletzt geöffnet“ in der Schnellsuche – auch geschlossene Tabellen.
