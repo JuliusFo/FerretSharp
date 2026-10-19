@@ -234,7 +234,7 @@
     private bool _saving;
     private string? _saveError;
     private ConnectionTestResult? _testResult;
-    private CancellationTokenSource? _testCts;
+    private readonly CancelableRun _test = new();
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -384,23 +384,25 @@
     {
         _submitted = true;
         _validateForTest = true;
-        await CheckProjectAsync();
-        if (Validate(forTest: true).Count > 0)
-        {
-            return;
-        }
-
-        var profile = Form.ToProfile().Profile;
-        var password = EffectivePassword() ?? "";
-
-        _testCts = new CancellationTokenSource();
+        // Spinner and "Cancel test" from the first render on: checking the linked project's build output already awaits, and
+        // the dialog renders only then and at the end – with the flags set later, "Test" stayed clickable the whole test.
         _testing = true;
         _testCancelled = false;
         _testResult = null;
         try
         {
-            var token = _testCts.Token;
-            _testResult = await Task.Run(() => Tester.TestAsync(profile, password, token), token);
+            await _test.TryRunAsync(async token =>
+            {
+                await CheckProjectAsync();
+                if (Validate(forTest: true).Count > 0)
+                {
+                    return;
+                }
+
+                var profile = Form.ToProfile().Profile;
+                var password = EffectivePassword() ?? "";
+                _testResult = await Task.Run(() => Tester.TestAsync(profile, password, token), token);
+            });
         }
         catch (OperationCanceledException)
         {
@@ -408,28 +410,32 @@
         }
         finally
         {
-            _testing = false;
-            _testCts.Dispose();
-            _testCts = null;
+            _testing = _test.Running;
         }
     }
 
-    private void CancelTest() => _testCts?.Cancel();
+    private void CancelTest() => _test.Cancel();
 
     private async Task SaveAsync()
     {
-        _submitted = true;
-        _saveError = null;
-        _validateForTest = false;
-        await CheckProjectAsync();
-        if (Validate().Count > 0)
+        if (_saving)
         {
             return;
         }
 
+        _submitted = true;
+        _saveError = null;
+        _validateForTest = false;
+        // Before the first await, as with "Test": "Save" is disabled while the build output is checked, a second click saves nothing twice.
         _saving = true;
         try
         {
+            await CheckProjectAsync();
+            if (Validate().Count > 0)
+            {
+                return;
+            }
+
             var profile = Form.ToProfile().Profile;
             // Edit: null keeps the stored password. New/duplicate: store the typed one, or the original's saved one (never
             // a password kept only for this run, WP-35); none: asked for when connecting.
@@ -479,9 +485,5 @@
 
     private static string Milliseconds(TimeSpan elapsed) => elapsed.TotalMilliseconds.ToString("N0", CultureInfo.CurrentCulture);
 
-    public void Dispose()
-    {
-        _testCts?.Cancel();
-        _testCts?.Dispose();
-    }
+    public void Dispose() => _test.Cancel();
 }
