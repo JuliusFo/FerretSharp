@@ -240,6 +240,23 @@ kbd { font: 600 10px var(--mono); padding: 1px 5px; border-radius: 4px; border: 
   display: flex; flex-direction: column;
 }
 .switcher-pop { width: 560px; max-height: min(560px, 75vh); }
+/* quick open and command palette (WP-38): one box, top centre */
+.popover.palette-pop {
+  position: fixed; top: 64px; left: 50%; transform: translateX(-50%);
+  width: min(640px, calc(100vw - 32px)); max-height: min(560px, calc(100vh - 96px));
+}
+.palette-row { width: 100%; cursor: pointer; }
+.palette-row.highlight, .palette-row.highlight:hover { background: var(--accent-weak); }
+.palette-command {
+  display: flex; align-items: center; gap: 10px;
+  height: 30px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; text-align: left; color: var(--text);
+}
+.palette-command .label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.palette-command .reason { flex: none; max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--muted); }
+.palette-command.unavailable { cursor: default; }
+.palette-command.unavailable .label, .palette-command.unavailable kbd { opacity: .55; }
+.palette-more { padding: 4px 8px; font-size: 12px; color: var(--faint); }
+.palette-footer { padding: 6px 12px; border-top: 1px solid var(--border); font-size: 11.5px; color: var(--faint); }
 .popover-search { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--faint); }
 .popover-search input { flex: 1; border: 0; outline: none; background: transparent; font-size: 14px; color: var(--text); }
 .popover-list { flex: 1; overflow-y: auto; padding: 4px 6px 8px; }

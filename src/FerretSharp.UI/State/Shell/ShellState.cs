@@ -304,9 +304,28 @@ public sealed partial class ShellState
 
     public void CloseExport() => Set(() => ExportRequest = null);
 
-    public void OpenSwitcher() => Set(() => SwitcherOpen = true);
+    public void OpenSwitcher() => Set(() =>
+    {
+        SwitcherOpen = true;
+        Palette = null;
+    });
 
     public void CloseSwitcher() => Set(() => SwitcherOpen = false);
+
+    /// <summary>
+    /// The quick open box is open (WP-38) with this text to start with: empty for the quick open, the command prefix for
+    /// the command palette; null if closed. A new value opens it again with that text.
+    /// </summary>
+    public PaletteRequest? Palette { get; private set; }
+
+    /// <summary>Opens the quick open box, or closes it if it is open in that mode already (the same key again).</summary>
+    public void TogglePalette(bool commands) => Set(() =>
+    {
+        Palette = Palette is { } open && open.Commands == commands ? null : new PaletteRequest(commands);
+        SwitcherOpen = false;
+    });
+
+    public void ClosePalette() => Set(() => Palette = null);
 
     private void Set(Action change)
     {

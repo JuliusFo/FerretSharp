@@ -364,7 +364,7 @@ public sealed partial class ShellState
     /// <summary>"Back" (Alt+←): activates the tab the active one was opened from by an FK jump.</summary>
     public void GoBack()
     {
-        if (ActiveTab is TableTab tab && Page == ShellPage.Explorer && tab.BackTarget(Tabs.ToList()) is { } target)
+        if (ActiveTab is TableTab tab && BackTarget() is { } target)
         {
             target.Forward = tab;
             ActivateTab(target);
@@ -374,11 +374,19 @@ public sealed partial class ShellState
     /// <summary>"Forward" (Alt+→): returns to the tab the user went back from.</summary>
     public void GoForward()
     {
-        if (ActiveTab is TableTab tab && Page == ShellPage.Explorer && tab.ForwardTarget(Tabs.ToList()) is { } target)
+        if (ForwardTarget() is { } target)
         {
             ActivateTab(target);
         }
     }
+
+    /// <summary>Where <see cref="GoBack"/> would go; null if nowhere (the command palette greys it out, WP-38).</summary>
+    public TableTab? BackTarget() =>
+        ActiveTab is TableTab tab && Page == ShellPage.Explorer ? tab.BackTarget(Tabs.ToList()) : null;
+
+    /// <summary>Where <see cref="GoForward"/> would go; null if nowhere.</summary>
+    public TableTab? ForwardTarget() =>
+        ActiveTab is TableTab tab && Page == ShellPage.Explorer ? tab.ForwardTarget(Tabs.ToList()) : null;
 
     public void ActivateTab(WorkspaceTab tab) => Set(() =>
     {

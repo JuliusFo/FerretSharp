@@ -33,6 +33,8 @@
                 <WorkspaceBar />
             }
             <div class="topbar-right">
+                <button class="icon-btn ghost @(_state.Palette is not null ? "active" : "")" title="@(SettingsText.ActionQuickOpen + Shortcuts.Hint(ShortcutAction.QuickOpen))"
+                        @onclick="() => _state.TogglePalette(commands: false)">@Icons.Search</button>
                 <button class="icon-btn ghost @(_state.Page == ShellPage.AppStatements ? "active" : "")" title="@AppStatementsText.AppStatements_Title"
                         @onclick="() => ToggleSidePage(ShellPage.AppStatements)">@Icons.Pulse</button>
                 <button class="icon-btn ghost @(_state.Page == ShellPage.Compare ? "active" : "")" title="@ShellText.Shell_SchemaComparison"
@@ -192,6 +194,10 @@
 
     <ConnectionScopeView @key='(Shown, "dialogs")' Scope="Shown">
         <DialogHost Lifecycle="_lifecycle" />
+    </ConnectionScopeView>
+    @* WP-38: quick open and command palette, of the shown connection. *@
+    <ConnectionScopeView @key='(Shown, "palette")' Scope="Shown">
+        <QuickPalette ActionState="ActionContext" OnAction="OnPaletteAction" />
     </ConnectionScopeView>
     @* Not per connection: the update is the app's (WP-32). *@
     <UpdateDialog />
@@ -386,28 +392,45 @@
 
     private void OnShortcutCore(string combo, bool modalOpen, bool cellEditing)
     {
-        if (modalOpen)
+        if (!modalOpen && Shortcuts.Map.ActionFor(combo, ShortcutScope.Global) is { } action)
         {
-            return;
+            RunAction(action, cellEditing);
         }
+    }
 
-        var action = Shortcuts.Map.ActionFor(combo, ShortcutScope.Global);
+    /// <summary>What decides whether a global action can run now (<see cref="ShellActions"/>).</summary>
+    private ShellActionContext ActionContext() => new(
+        InExplorer: _state.Page == ShellPage.Explorer,
+        Connected: Active.IsConnected,
+        ActiveTab: _state.ActiveTab,
+        Writable: _state.ActiveWorkspace is { } workspace && Shown.Workspaces.IsWritable(workspace.WorkspaceId),
+        LinkedProject: HasLinkedProject,
+        CanGoBack: _state.BackTarget() is not null,
+        CanGoForward: _state.ForwardTarget() is not null,
+        PreviousConnection: Hub.Previous is { } previous && Hub.Open.Contains(previous));
 
-        // Writing and committing need an editable connection and an active workspace.
-        if (action is ShortcutAction.Flush or ShortcutAction.Commit)
+    /// <summary>
+    /// Runs a global action from its shortcut or the command palette (WP-38); one that cannot run now does nothing – the
+    /// same rule greys it out in the palette.
+    /// </summary>
+    /// <param name="cellEditing">A grid cell of the visible tab is being edited: closing the tab would lose the value.</param>
+    private void RunAction(ShortcutAction action, bool cellEditing = false)
+    {
+        if (ShellActions.Unavailable(action, ActionContext()) is not null)
         {
-            if (_state.ActiveWorkspace is { } workspace && Shown.Workspaces.IsWritable(workspace.WorkspaceId) && _state.Page == ShellPage.Explorer)
-            {
-                Run(() => action == ShortcutAction.Flush ? _editing.FlushAsync(workspace) : _lifecycle.RequestCommitAsync(workspace));
-            }
-
             return;
         }
 
         switch (action)
         {
+            case ShortcutAction.Flush or ShortcutAction.Commit when _state.ActiveWorkspace is { } workspace:
+                Run(() => action == ShortcutAction.Flush ? _editing.FlushAsync(workspace) : _lifecycle.RequestCommitAsync(workspace));
+                break;
             case ShortcutAction.ConnectionSwitcher:
                 _state.OpenSwitcher();
+                break;
+            case ShortcutAction.QuickOpen or ShortcutAction.CommandPalette:
+                _state.TogglePalette(commands: action == ShortcutAction.CommandPalette);
                 break;
             case ShortcutAction.ApplyFilters:
                 _state.RequestTabCommand(TabCommand.ApplyFilters);
@@ -424,22 +447,22 @@
             case ShortcutAction.Forward:
                 _state.GoForward();
                 break;
-            case ShortcutAction.CloseTab when _state.Page == ShellPage.Explorer && _state.ActiveTab is { } tab:
+            case ShortcutAction.CloseTab when _state.ActiveTab is { } tab:
                 _lifecycle.CloseTab(tab, cellEditing);
                 break;
-            case ShortcutAction.CloseOtherTabs or ShortcutAction.CloseAllTabs when _state.Page == ShellPage.Explorer && _state.ActiveTab is { } tab:
+            case ShortcutAction.CloseOtherTabs or ShortcutAction.CloseAllTabs when _state.ActiveTab is { } tab:
                 _lifecycle.CloseTabs(tab, action == ShortcutAction.CloseOtherTabs ? TabCloseScope.Others : TabCloseScope.All, cellEditing);
                 break;
-            case ShortcutAction.PinTab when _state.Page == ShellPage.Explorer && _state.ActiveTab is { } tab:
+            case ShortcutAction.PinTab when _state.ActiveTab is { } tab:
                 _state.SetPinned(tab, !tab.Pinned);
                 break;
-            case ShortcutAction.RunScript when _state.Page == ShellPage.Explorer:
+            case ShortcutAction.RunScript:
                 _state.RequestTabCommand(TabCommand.RunScript);
                 break;
-            case ShortcutAction.NewSql when Active.IsConnected && _state.Page == ShellPage.Explorer:
+            case ShortcutAction.NewSql:
                 _state.OpenSql();
                 break;
-            case ShortcutAction.NewLinq when HasLinkedProject && _state.Page == ShellPage.Explorer:
+            case ShortcutAction.NewLinq:
                 _state.OpenLinq();
                 break;
             case ShortcutAction.PreviousConnection:
@@ -449,11 +472,14 @@
                 }
 
                 break;
-            case ShortcutAction.ToggleChanges when Active.IsConnected && _state.Page == ShellPage.Explorer:
+            case ShortcutAction.ToggleChanges:
                 _state.ToggleChanges();
                 break;
         }
     }
+
+    /// <summary>An action chosen in the command palette (WP-38); the palette closed before.</summary>
+    private void OnPaletteAction(ShortcutAction action) => RunAction(action);
 
     /// <summary>The change overview opens again after a restart if it was open (WP-30).</summary>
     private void OnChangesOpenChanged(bool open) =>
