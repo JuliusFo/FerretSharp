@@ -94,6 +94,9 @@ public sealed partial class ShellState
     /// <summary>Short-lived message (export done, warnings), shown as a toast.</summary>
     public Notice? Notice { get; private set; }
 
+    /// <summary>Exports written in the background, shown in the status bar (A13, WP-54).</summary>
+    public FileExports Exports { get; } = new();
+
     /// <summary>Shows the connection, opening it if needed (WP-24). Whether it was lost is the lifecycle's business: switching away keeps it.</summary>
     public void Connect(ConnectionProfile profile)
     {

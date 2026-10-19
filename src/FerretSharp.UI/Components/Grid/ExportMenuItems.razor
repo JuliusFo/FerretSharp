@@ -1,7 +1,9 @@
 @* The export group of a right-click menu (R6b, review 3.40.0, B5; WP-53 had to add Excel to two menus): copy the rows as
    table or INSERT, save them as CSV or Excel – and as Excel with database names and raw values when the columns are
-   presented. Further entries of the group (a SQL script, links) as child content. *@
+   presented. Further entries of the group (a SQL script, links) as child content. Below, the same files from all rows of
+   the grid's query (WP-54), read again block by block. Files are written after the dialog, in the background (A13). *@
 @using FerretSharp.Core.Data
+@using FerretSharp.Core.Display
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
 
@@ -15,6 +17,17 @@
     <button class="menu-item" title="@GridText.GridMenu_SaveXlsxRawTitle" @onclick="() => SaveXlsxAsync(ExportColumn.Raw(Table))">@GridText.GridMenu_SaveXlsxRaw</button>
 }
 @ChildContent
+
+@if (AllRows is { } all)
+{
+    <div class="group-head-btn static">@all.Heading</div>
+    <button class="menu-item" title="@AllRowsTitle(GridText.GridMenu_SaveCsvTitle)" @onclick="() => SaveAllCsvAsync(all)">@GridText.GridMenu_SaveCsv</button>
+    <button class="menu-item" title="@AllRowsTitle(GridText.GridMenu_SaveXlsxTitle)" @onclick="() => SaveAllXlsxAsync(all, all.XlsxColumns, all.Names)">@GridText.GridMenu_SaveXlsx</button>
+    @if (OffersRaw(all.XlsxColumns))
+    {
+        <button class="menu-item" title="@AllRowsTitle(GridText.GridMenu_SaveXlsxRawTitle)" @onclick="() => SaveAllXlsxAsync(all, ExportColumn.Raw(Table), null)">@GridText.GridMenu_SaveXlsxRaw</button>
+    }
+}
 
 @code {
     [Parameter, EditorRequired]
@@ -43,11 +56,20 @@
     [Parameter]
     public string InsertTitle { get; set; } = GridText.GridMenu_CopyInsertTitle;
 
+    /// <summary>All rows of the grid's query (WP-54); null offers no such entries (the LINQ console).</summary>
+    [Parameter]
+    public AllRowsExport? AllRows { get; set; }
+
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
     /// <summary>Whether the raw Excel variant is offered – one entry more for the menu's estimated height.</summary>
     public static bool OffersRaw(IReadOnlyList<ExportColumn> columns) => ExportColumn.DiffersFromRaw(columns);
+
+    /// <summary>Entries of the group for all rows – for the menu's estimated height.</summary>
+    public static int AllRowsEntries(AllRowsExport? all) => all is null ? 0 : OffersRaw(all.XlsxColumns) ? 4 : 3;
+
+    private static string AllRowsTitle(string format) => format + Environment.NewLine + GridText.GridMenu_AllRowsTitle;
 
     private Task CopyTableAsync() =>
         Export.CopyAsync(DelimitedExport.Build(Table, Rows, DelimitedExport.ClipboardSeparator), ExportCopy.Table);
@@ -56,13 +78,32 @@
         ? Export.CopyAsync(InsertExport.Build(target, Rows), ExportCopy.Insert)
         : Task.CompletedTask;
 
-    private Task SaveCsvAsync() =>
-        Export.SaveAsync(DelimitedExport.Build(Table, Rows, DelimitedExport.CsvSeparator), FileName + ".csv", GridText.Export_CsvFilter, utf8Bom: true);
+    private Task SaveCsvAsync()
+    {
+        var (table, rows) = (Table, Rows);
+        return Export.SaveRowsAsync(FileName + ".csv", GridText.Export_CsvFilter, rows.Count, (stream, progress, ct) =>
+            RowExport.WriteAsync(RowExport.FromRows(rows), DelimitedExport.CreateWriter(stream, table), null, progress, ct));
+    }
 
     private Task SaveXlsxAsync(IReadOnlyList<ExportColumn> columns)
     {
-        var rows = Rows;
+        var (rows, name) = (Rows, FileName);
+        return Export.SaveRowsAsync(name + ".xlsx", GridText.Export_XlsxFilter, rows.Count, async (stream, progress, ct) =>
+            await RowExport.WriteAsync(RowExport.FromRows(rows), await XlsxExport.CreateWriterAsync(stream, columns, name, rows.Count, ct), null, progress, ct));
+    }
+
+    private Task SaveAllCsvAsync(AllRowsExport all)
+    {
+        var table = Table;
+        return Export.SaveAllRowsAsync(FileName + ".csv", GridText.Export_CsvFilter, all.Total, (stream, progress, ct) =>
+            RowExport.WriteAsync(all.Read, DelimitedExport.CreateWriter(stream, table), null, progress, ct));
+    }
+
+    /// <param name="names">The names the columns write, looked up while reading; null for the raw columns.</param>
+    private Task SaveAllXlsxAsync(AllRowsExport all, IReadOnlyList<ExportColumn> columns, DisplayNames? names)
+    {
         var name = FileName;
-        return Export.SaveFileAsync(() => XlsxExport.BuildAsync(columns, rows, name), name + ".xlsx", GridText.Export_XlsxFilter);
+        return Export.SaveAllRowsAsync(name + ".xlsx", GridText.Export_XlsxFilter, all.Total, async (stream, progress, ct) =>
+            await RowExport.WriteAsync(all.Read, await XlsxExport.CreateWriterAsync(stream, columns, name, null, ct), names, progress, ct));
     }
 }

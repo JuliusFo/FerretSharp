@@ -13,4 +13,11 @@ public interface IFileSaveService
     /// <summary>Saves binary content (BLOB) as it is.</summary>
     /// <returns>The path written, or null if the user cancelled.</returns>
     Task<string?> SaveBytesAsync(string fileName, string filter, byte[] content);
+
+    /// <summary>
+    /// Only asks where to save (an export written afterwards, block by block: A13, WP-54). Writes nothing – an existing file
+    /// the user agreed to replace stays until the export replaces it.
+    /// </summary>
+    /// <returns>The chosen path, or null if the user cancelled.</returns>
+    Task<string?> AskPathAsync(string fileName, string filter);
 }

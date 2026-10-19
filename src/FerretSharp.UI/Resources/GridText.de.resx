@@ -906,4 +906,16 @@
   <data name="Editing_CommitOutcomeUnknown" xml:space="preserve">
     <value>Die Verbindung brach während des Commits ab – ob er angekommen ist, ist offen. Die Änderungen stehen wieder als ausstehend da: Nach dem Neuverbinden erst prüfen, ob sie schon in der Datenbank sind, bevor du sie erneut schreibst (ein INSERT legte die Zeilen sonst doppelt an).</value>
   </data>
+  <data name="GridMenu_AllRowsGroup" xml:space="preserve">
+    <value>Alle Zeilen des Filters{0}</value>
+  </data>
+  <data name="GridMenu_AllResultRowsGroup" xml:space="preserve">
+    <value>Alle Zeilen des Ergebnisses{0}</value>
+  </data>
+  <data name="GridMenu_AllRowsTitle" xml:space="preserve">
+    <value>Liest alle Zeilen in der Session des Workspaces neu und schreibt sie direkt in die Datei – geschriebene Änderungen sind dabei, ausstehende nicht. Der Workspace wartet so lange.</value>
+  </data>
+  <data name="Export_Cancelled" xml:space="preserve">
+    <value>Export abgebrochen – {0} wurde nicht geschrieben.</value>
+  </data>
 </root>

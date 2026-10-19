@@ -1,5 +1,6 @@
-@* Right-click menu of a query result (SQL editor, LINQ console): copy the value, export the selected rows, and – for columns
-   traced back to their tables (WP-48) – jump along foreign keys like in a table grid. *@
+@* Right-click menu of a query result (SQL editor, LINQ console): copy the value, export the selected rows – or all rows of
+   the query, run again (SQL editor, WP-54) – and, for columns traced back to their tables (WP-48), jump along foreign keys
+   like in a table grid. *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
 @using FerretSharp.Core.Query
@@ -7,6 +8,7 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject IFileSaveService Files
+@inject ILogger<ResultMenu> Logger
 
 <PopoverMenu X="Request.X" Y="Request.Y" ViewportWidth="Request.ViewportWidth" ViewportHeight="Request.ViewportHeight"
              Width="MenuWidth" EstimatedHeight="EstimatedHeight" OnClose="CloseAsync">
@@ -20,7 +22,8 @@
                      InsertTable="@(InsertTarget is { } target ? Result with { Table = target } : null)"
                      InsertTitle="@(InsertTarget is { } insert
                          ? TextFormat.Format(SqlEditorText.ResultMenu_CopyInsertTitle, insert.DisplayName)
-                         : SqlEditorText.ResultMenu_CopyInsertUnavailable)" />
+                         : SqlEditorText.ResultMenu_CopyInsertUnavailable)"
+                     AllRows="AllRows" />
 
     <FkJumpSection Outgoing="_jumps.Outgoing" Incoming="_jumps.Incoming" Related="Related" RowsText="@Request.JumpRowsText" MissingRows="Request.MissingRows"
                    WorkspaceId="WorkspaceId" OnJumped="CloseAsync" />
@@ -43,7 +46,7 @@
     /// <summary>dom.js for the clipboard, imported on first use (<see cref="DomModule"/>).</summary>
     private DomModule Dom => _dom ??= new(JS);
 
-    private ExportActions Export => _export ??= new(Shell, Dom, Files, Request.MissingRows, CloseAsync);
+    private ExportActions Export => _export ??= new(Shell, Dom, Files, Request.MissingRows, CloseAsync, Logger, Active);
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -75,13 +78,18 @@
     [Parameter]
     public string ExportName { get; set; } = SqlEditorText.Result_DefaultExportName;
 
+    /// <summary>All rows of the query, run again (SQL editor, WP-54); null offers no such entries.</summary>
+    [Parameter]
+    public AllRowsExport? AllRows { get; set; }
+
     [Parameter]
     public EventCallback OnClose { get; set; }
 
     private ColumnInfo Column => Result.Columns[Request.Column];
 
     /// <summary>For the first placement; dom.js keepInViewport corrects it once rendered.</summary>
-    private double EstimatedHeight => 200 + ItemHeight * (_jumps.Count + (ExportMenuItems.OffersRaw(XlsxColumns) ? 2 : 1)) + (_jumps.Count > 0 ? 80 : 0);
+    private double EstimatedHeight => 200 + ItemHeight * (_jumps.Count + (ExportMenuItems.OffersRaw(XlsxColumns) ? 2 : 1) + ExportMenuItems.AllRowsEntries(AllRows))
+                                      + (_jumps.Count > 0 ? 80 : 0) + (AllRows is null ? 0 : 40);
 
     protected override void OnInitialized()
     {

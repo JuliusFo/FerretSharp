@@ -972,4 +972,12 @@
     <value>{1} pending · {0} actions open</value>
     <comment>{0}: uncommitted write actions; {1}: pending changes</comment>
   </data>
+  <data name="Status_ExportTitle" xml:space="preserve">
+    <value>Writing {0} in the background. Cancelling leaves no half-written file.</value>
+    <comment>Tooltip of a running export in the status bar; {0}: file name</comment>
+  </data>
+  <data name="Status_ExportRowsOf" xml:space="preserve">
+    <value>{0:N0} of {1:N0} rows</value>
+    <comment>Progress of a running export; {0}: rows written, {1}: rows expected</comment>
+  </data>
 </root>
