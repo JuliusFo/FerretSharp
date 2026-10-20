@@ -108,9 +108,9 @@ public sealed class CodeUsageRowsTests : IDisposable
         var (_, index) = await IndexAsync();
         var result = new CodeUsageResult("Shop.slnx",
         [
-            new CodeUsageProject(@"C:\repo\Shop\Shop.csproj", new ProjectBuild(@"C:\repo\Shop\Shop.csproj", "Shop", @"C:\repo\Shop\bin\Shop.dll", DateTime.UtcNow, null), null, null),
-            new CodeUsageProject(@"C:\repo\Web\Web.csproj", new ProjectBuild(@"C:\repo\Web\Web.csproj", "Web", null, null, null), null, null),
-            new CodeUsageProject(@"C:\repo\Api\Api.csproj", new ProjectBuild(@"C:\repo\Api\Api.csproj", "Api", @"C:\repo\Api\bin\Api.dll", DateTime.UtcNow, @"C:\repo\Api\Changed.cs"), null, null),
+            Project("Shop", built: true),
+            Project("Web", built: false),
+            Project("Api", built: true, newer: "Changed.cs"),
         ], index);
 
         using (UiCulture.Use("en"))
@@ -118,6 +118,15 @@ public sealed class CodeUsageRowsTests : IDisposable
             Assert.Equal("3 projects · 1 not built · 1 out of date", CodeUsageRows.Projects(result));
             Assert.Equal(["Web: " + ModelViewText.Usage_NotBuilt, "Api: out of date: Changed.cs changed after the build"], CodeUsageRows.ProjectDetails(result).Split('\n'));
         }
+    }
+
+    /// <summary>A project below a temp root, built with Path.Combine (the CI runs the UI tests on Linux too).</summary>
+    private static CodeUsageProject Project(string name, bool built, string? newer = null)
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "repo", name);
+        var file = Path.Combine(folder, name + ".csproj");
+        return new CodeUsageProject(file, new ProjectBuild(file, name, built ? Path.Combine(folder, "bin", name + ".dll") : null,
+            built ? DateTime.UtcNow : null, newer is null ? null : Path.Combine(folder, newer)), null, null);
     }
 
     [Fact]

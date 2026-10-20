@@ -6,8 +6,10 @@ namespace FerretSharp.UI.Tests.State;
 /// <summary>Review of WP-40: VS Code starts without cmd.exe where it can, and refuses a path cmd would misread.</summary>
 public sealed class VsCodeCommandTests
 {
-    private const string CodeCmd = @"C:\Users\me\AppData\Local\Programs\Microsoft VS Code\bin\code.cmd";
-    private const string CodeExe = @"C:\Users\me\AppData\Local\Programs\Microsoft VS Code\Code.exe";
+    // Built with Path.Combine: the CI runs the UI tests on Linux too, where a backslash is no separator.
+    private static readonly string Install = Path.Combine(Path.GetTempPath(), "Programs", "Microsoft VS Code");
+    private static readonly string CodeCmd = Path.Combine(Install, "bin", "code.cmd");
+    private static readonly string CodeExe = Path.Combine(Install, "Code.exe");
 
     [Fact]
     public void Code_exe_beside_the_bin_folder_takes_the_file_and_line_directly()
