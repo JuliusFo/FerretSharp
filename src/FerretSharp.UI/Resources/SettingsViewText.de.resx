@@ -336,4 +336,19 @@
   <data name="Settings_AuditTemplateEditConnection" xml:space="preserve">
     <value>Verbindung bearbeiten…</value>
   </data>
+  <data name="Settings_CodeEditor" xml:space="preserve">
+    <value>Code öffnen in</value>
+  </data>
+  <data name="Settings_CodeEditorHint" xml:space="preserve">
+    <value>Wo eine Verwendung einer Spalte im Code aufgeht (Ansicht „Verwendung“ einer Tabelle). Visual Studio: die laufende Instanz, die die Solution offen hat, an der Zeile; ohne sie ein neues Fenster. VS Code an der Zeile oder das Programm, mit dem Windows .cs-Dateien öffnet.</value>
+  </data>
+  <data name="Settings_CodeEditorVisualStudio" xml:space="preserve">
+    <value>Visual Studio</value>
+  </data>
+  <data name="Settings_CodeEditorVsCode" xml:space="preserve">
+    <value>VS Code</value>
+  </data>
+  <data name="Settings_CodeEditorSystem" xml:space="preserve">
+    <value>Windows-Standard</value>
+  </data>
 </root>

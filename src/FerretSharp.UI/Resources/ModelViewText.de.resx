@@ -198,4 +198,10 @@
   <data name="Mismatches_KindPrecision" xml:space="preserve">
     <value>Stellen</value>
   </data>
+  <data name="Usage_NoVisualStudio" xml:space="preserve">
+    <value>Kein Visual Studio gefunden (vswhere). In den Einstellungen lässt sich ein anderer Editor wählen.</value>
+  </data>
+  <data name="Usage_NoVsCode" xml:space="preserve">
+    <value>VS Code nicht gefunden: code.cmd liegt weder im PATH noch in der Benutzerinstallation.</value>
+  </data>
 </root>

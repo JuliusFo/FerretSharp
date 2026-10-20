@@ -242,4 +242,10 @@
     <value>Precision</value>
     <comment>Kind of mismatch (badge): precision/scale of a number</comment>
   </data>
+  <data name="Usage_NoVisualStudio" xml:space="preserve">
+    <value>No Visual Studio found (vswhere). Choose another editor in the settings.</value>
+  </data>
+  <data name="Usage_NoVsCode" xml:space="preserve">
+    <value>VS Code not found: code.cmd is neither on the PATH nor in the user installation.</value>
+  </data>
 </root>

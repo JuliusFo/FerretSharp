@@ -141,6 +141,7 @@ public partial class App : Application
         builder.Services.AddSingleton<IDialogService, DialogService>();
         builder.Services.AddSingleton<IFileSaveService, FileSaveService>();
         builder.Services.AddSingleton<IFileOpenService, FileOpenService>();
+        builder.Services.AddSingleton<ICodeEditorLauncher, CodeEditorLauncher>();
         var modelHost = Path.Combine(AppContext.BaseDirectory, "modelhost", "FerretSharp.ModelHost.dll");
         // The host runs from copies of the build output, so the linked project can be built meanwhile (ADR 0016).
         var shadow = new BuildOutputShadow(Path.Combine(Path.GetTempPath(), AppPaths.AppFolderName, "shadow"));
