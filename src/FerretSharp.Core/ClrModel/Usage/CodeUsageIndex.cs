@@ -75,11 +75,16 @@ public sealed class CodeUsageIndex
 
     /// <summary>
     /// No use outside tests and mapping code. A foreign key property also counts as used through its navigations (EF
-    /// joins over the key, <c>auftrag.Kunde</c> needs <c>KundeId</c>). Shadow properties have no getter and are never
-    /// "unused": the IL cannot see them.
+    /// joins over the key, <c>auftrag.Kunde</c> needs <c>KundeId</c>). Never "unused": shadow properties (no getter, the
+    /// IL cannot see them) and keys – the primary key and a key other entities' foreign keys point to – which EF needs
+    /// whether code reads them or not (found in the E2E: every primary key was marked).
     /// </summary>
     public bool IsUnused(EntityExport entity, PropertyExport property) =>
-        !property.IsShadow && !UsesCountingFor(entity, property).Any(u => !u.IsTest && !u.IsMapping);
+        !property.IsShadow && !IsKey(entity, property.Name) && !UsesCountingFor(entity, property).Any(u => !u.IsTest && !u.IsMapping);
+
+    private bool IsKey(EntityExport entity, string property) =>
+        entity.PrimaryKey.Contains(property, StringComparer.Ordinal)
+        || Model.Entities.Any(e => e.ForeignKeys.Any(k => k.PrincipalEntity == entity.Name && k.PrincipalProperties.Contains(property, StringComparer.Ordinal)));
 
     /// <summary>Every mapped, non-shadow property without a use outside tests and mapping code (the report).</summary>
     public IReadOnlyList<(EntityExport Entity, PropertyExport Property)> Unused() =>

@@ -84,6 +84,7 @@ public sealed class CodeUsageIndexTests
         var customer = Entity(index, "Customer");
         var order = Entity(index, "Order");
 
+        // Id is the primary key of both (and Customer.Id the principal key of Order.CustomerId): never unused.
         Assert.Equal(["Customer.CreatedAt", "Customer.Unused", "Order.CreatedAt", "Order.Total"],
             index.Unused().Select(u => u.Entity.Name + "." + u.Property.Name).Order().ToList());
         Assert.False(index.IsUnused(customer, customer.Properties.Single(p => p.Name == "Version")));
@@ -101,6 +102,18 @@ public sealed class CodeUsageIndexTests
 
         Assert.Empty(index.ForProperty(order, "CustomerId"));
         Assert.False(index.IsUnused(order, order.Properties.Single(p => p.Name == "CustomerId")));
+    }
+
+    [Fact]
+    public void Keys_are_never_unused()
+    {
+        var scanned = Scanned.Value;
+        var index = CodeUsageIndex.Build(Model(), [scanned with { IsTest = false, Uses = [] }]);
+        var customer = Entity(index, "Customer");
+
+        Assert.False(index.IsUnused(customer, customer.Properties.Single(p => p.Name == "Id")));
+        Assert.True(index.IsUnused(customer, customer.Properties.Single(p => p.Name == "Email")));
+        Assert.DoesNotContain(index.Unused(), u => u.Property.Name == "Id");
     }
 
     [Fact]
