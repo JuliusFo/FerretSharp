@@ -73,6 +73,14 @@ Gefunden vom Nutzer im eigenen Test: Eine FK-Spalte, die der Code nur über die 
 - „Namen kopieren“ kopiert bei einer Verwendung über eine Navigation deren Namen (`Auftrag.Kunde`).
 - Version: Patch 3.43.1 (Entscheidung des Nutzers), obwohl der Block unter „Abfragen“ neu ist.
 
+## Nachtrag: Filter Lesen/Schreiben (2026-10-20, `feat/usage-read-write-filter`)
+Wunsch des Nutzers: in „Verwendung“ Lese- und Schreibzugriffe filtern. Entscheidung des Nutzers: Variante A (Chips plus getrennte Zählspalten) und `ExecuteUpdate` als Schreiben erkennen.
+- **Filter:** `segmented` „Alle · Lesen · Schreiben“ neben den Unter-Tabs, nur bei „Spalten“; bleibt wie der Unter-Tab, solange der Tab offen ist, nicht gespeichert. Mit „Lesen“/„Schreiben“ stehen nur Spalten mit einem solchen Zugriff da (Tests eingeschlossen), aufgeklappt nur diese Zugriffe. Logik in `CodeUsageRows.Matches`/`Filter`, `ColumnUsageRow.Matching`/`Count`.
+- **Einordnung:** Lesen = Getter und LINQ (`Expression`), Schreiben = Setter, Objektinitialisierer, `SetProperty` eines `ExecuteUpdate`. Mapping-Code ist weder noch und steht nur unter „Alle“. Eine Collection-Navigation (`kunde.Auftraege.Add(…)`) ist im IL ein Getter und zählt als Lesen, obwohl sie den FK der Gegenseite setzen kann (Tooltip an „L“).
+- **Spalten L/S** statt „Verwendungen“: Zugriffe im Anwendungscode, in Klammern die in Tests; Mapping zählt in keiner der beiden (vorher in der Klammer).
+- **`ExecuteUpdate` (EF Core 7–9):** `s => s.SetProperty(x => x.Email, …)` ist selbst ein Expression Tree. Der Compiler nennt `SetPropertyCalls<T>.SetProperty` per `ldtoken`, bevor er die Argumente baut; der nächste Getter per `ldtoken` ist die gesetzte Property → `Write`, der Wert-Ausdruck bleibt Lesen. Reihenfolge im Test gegen echten Compiler-Output geprüft (`UsageSamples.cs`, EF-Stand-ins `SetPropertyCalls<T>`, `ExecuteUpdate`). Cache-Format 2: Alle Assemblies werden einmal neu gelesen.
+- **Nicht erkannt:** EF Core 10 (`ExecuteUpdate(s => s.SetProperty(…))` als `Action<UpdateSettersBuilder<T>>`, kein Expression Tree außen) und Complex Types (`x => x.Adresse.Strasse` markiert `Adresse`) – Backlog.
+
 ## Offen
 - Im Rückfall über `devenv /Edit` springt Visual Studio nicht zur Zeile (Backlog: danach die Instanz mit der aktiven Datei suchen und `GotoLine`).
 - Ein Branch-Wechsel im Arbeits-Klon zeigt sich in der Statusleiste nach höchstens 15 s.
