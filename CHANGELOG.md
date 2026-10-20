@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.43.0] - 2026-10-20
+
+Usage in the code: where the C# solution reads, writes and queries each column, with a jump into Visual Studio, and a work clone per connection group.
+
 ### Added
 - Usage in the code (WP-40): a table tab of a connection with a linked C# project has a "Usage" view. It has two sub-tabs: "Columns" lists, per column, the methods of the solution that read or write its property or use it in LINQ, and "Queries" where code queries the table (`Set<T>()`, the DbSet property) – with file and line, and the number of unused columns and of queries in the tab headers – read from the compiled code and its PDBs, so build first. Uses through a base class or an interface count, mapping code (`IEntityTypeConfiguration`, `OnModelCreating`) and test projects are shown apart. A click opens the place in Visual Studio – in the instance that has the solution open, at the line –, in VS Code or in the Windows default program (Settings › C# model › "Open code in"); the menu copies path, path:line or the name. Accesses by string, reflection and raw SQL are not found.
 - Unused properties: the columns view marks mapped properties no code uses outside tests and mapping code, the model page lists them all ("Unused in the code"). Keys and shadow properties are never marked; a foreign key also counts as used through its navigations.

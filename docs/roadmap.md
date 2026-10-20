@@ -31,7 +31,7 @@ Ausgewählt mit dem Nutzer am 2026-10-14 aus einer Ideensammlung (Bewertung des 
 - Offen: welche der Varianten a–c; Ctrl+1 … 9 ist im Backlog für das Wechseln reserviert, aber neue Aktionen bekommen keine Standardtaste (`docs/architecture.md` 3) – Ausnahme dafür oder vom Nutzer belegen lassen; Oberfläche für `Workspace.Notes` mit in dieses Paket?
 
 ### WP-40 Verwendung im Code
-Umgesetzt (noch nicht released): `docs/work-packages/wp-40-code-usage.md`, ADR 0030. Der aktive Arbeits-Klon je Gruppe und der Index der Verwendungen tragen WP-41 und WP-45.
+In 3.43.0 released: `docs/work-packages/wp-40-code-usage.md`, ADR 0030. Der aktive Arbeits-Klon je Gruppe und der Index der Verwendungen tragen WP-41 und WP-45.
 
 ### WP-41 Designer-Änderungen ins C#-Projekt
 Branch `wp/41-designer-to-code`.
