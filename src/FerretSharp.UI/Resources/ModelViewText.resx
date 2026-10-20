@@ -329,9 +329,6 @@
   <data name="Usage_Limits" xml:space="preserve">
     <value>Read from the compiled code: accesses by string (EF.Property, Include("…")), reflection and raw SQL are not found. Code that is not built is missing.</value>
   </data>
-  <data name="Usage_Queries" xml:space="preserve">
-    <value>Queries of the table</value>
-  </data>
   <data name="Usage_NoQueries" xml:space="preserve">
     <value>No Set&lt;T&gt;() and no read of the DbSet property found.</value>
   </data>
@@ -397,5 +394,20 @@
   </data>
   <data name="Usage_VsCodePath" xml:space="preserve">
     <value>VS Code cannot open this path through code.cmd (it contains &amp; ^ % or a similar character) and Code.exe was not found next to it.</value>
+  </data>
+  <data name="Usage_TabColumns" xml:space="preserve">
+    <value>Columns</value>
+  </data>
+  <data name="Usage_TabColumnsTitle" xml:space="preserve">
+    <value>Per column, the methods that read or write its property or use it in LINQ</value>
+  </data>
+  <data name="Usage_TabUnused" xml:space="preserve">
+    <value>{0} unused</value>
+  </data>
+  <data name="Usage_TabQueries" xml:space="preserve">
+    <value>Queries</value>
+  </data>
+  <data name="Usage_TabQueriesTitle" xml:space="preserve">
+    <value>Where code queries the table: Set&lt;T&gt;() and reads of the DbSet property (application code counted)</value>
   </data>
 </root>

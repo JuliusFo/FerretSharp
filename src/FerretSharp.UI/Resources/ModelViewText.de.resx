@@ -285,9 +285,6 @@
   <data name="Usage_Limits" xml:space="preserve">
     <value>Gelesen aus dem kompilierten Code: Zugriffe per String (EF.Property, Include("…")), Reflection und rohes SQL findet das nicht. Nicht gebauter Code fehlt.</value>
   </data>
-  <data name="Usage_Queries" xml:space="preserve">
-    <value>Abfragen der Tabelle</value>
-  </data>
   <data name="Usage_NoQueries" xml:space="preserve">
     <value>Kein Set&lt;T&gt;() und kein Lesen der DbSet-Property gefunden.</value>
   </data>
@@ -353,5 +350,20 @@
   </data>
   <data name="Usage_VsCodePath" xml:space="preserve">
     <value>VS Code kann diesen Pfad nicht über code.cmd öffnen (er enthält &amp; ^ % oder ein ähnliches Zeichen), und Code.exe liegt nicht daneben.</value>
+  </data>
+  <data name="Usage_TabColumns" xml:space="preserve">
+    <value>Spalten</value>
+  </data>
+  <data name="Usage_TabColumnsTitle" xml:space="preserve">
+    <value>Je Spalte die Methoden, die ihre Property lesen, schreiben oder in LINQ verwenden</value>
+  </data>
+  <data name="Usage_TabUnused" xml:space="preserve">
+    <value>{0} ungenutzt</value>
+  </data>
+  <data name="Usage_TabQueries" xml:space="preserve">
+    <value>Abfragen</value>
+  </data>
+  <data name="Usage_TabQueriesTitle" xml:space="preserve">
+    <value>Wo Code die Tabelle abfragt: Set&lt;T&gt;() und Lesen der DbSet-Property (gezählt im Anwendungscode)</value>
   </data>
 </root>

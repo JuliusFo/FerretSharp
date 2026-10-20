@@ -510,7 +510,10 @@ table.columns .default { color: var(--muted); max-width: 260px; overflow: hidden
 /* Code usage (WP-40): unused columns, uses in tests and mapping code. */
 .fs-badge.unused { background: color-mix(in srgb, var(--yellow) 18%, transparent); color: var(--key); }
 .fs-badge.test, .fs-badge.mapping { background: var(--surface-2); color: var(--faint); font-weight: 600; }
-.usage-section h3 { font-size: 12px; font-weight: 600; margin: 14px 0 6px; }
+.usage-tabs { margin: 4px 0 12px; }
+.usage-tabs .seg-count { margin-left: 6px; font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
+.usage-tabs .seg-count.unused { color: var(--key); }
+.usage-limits { margin-left: 6px; font-size: 12px; color: var(--faint); cursor: help; }
 .usage-section .structure-columns-head .spacer { flex: 1; }
 .usage-solution { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
 .usage-list { list-style: none; margin: 0 0 10px; padding: 0; }

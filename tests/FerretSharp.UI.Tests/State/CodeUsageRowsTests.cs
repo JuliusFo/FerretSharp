@@ -76,6 +76,17 @@ public sealed class CodeUsageRowsTests : IDisposable
     }
 
     [Fact]
+    public async Task The_sub_tabs_count_unused_columns_and_queries_of_application_code()
+    {
+        var (mapping, index) = await IndexAsync();
+        CodeUsage Query(bool test = false, bool mapping = false) =>
+            new(new CodeUse("Shop.Kunde", "", CodeUseKind.Query, "Shop.Services.X", "Run", null, null), "Shop", test, mapping, null);
+
+        Assert.Equal(1, CodeUsageRows.UnusedCount(CodeUsageRows.Columns(mapping, index, Kunden))); // EMAIL: only a test writes it
+        Assert.Equal(1, CodeUsageRows.QueryCount([Query(), Query(test: true), Query(mapping: true)]));
+    }
+
+    [Fact]
     public async Task Dropping_or_renaming_a_used_column_warns_with_the_first_places_tests_included()
     {
         var (mapping, index) = await IndexAsync();

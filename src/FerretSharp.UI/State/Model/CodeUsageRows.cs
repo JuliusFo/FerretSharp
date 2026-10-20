@@ -63,6 +63,12 @@ public static class CodeUsageRows
             })
             .ToList();
 
+    /// <summary>The counter of the "Columns" sub-tab: mapped columns no code uses.</summary>
+    public static int UnusedCount(IReadOnlyList<ColumnUsageRow> rows) => rows.Count(r => r.Unused);
+
+    /// <summary>The counter of the "Queries" sub-tab: queries in application code (tests and the DbSet property left out).</summary>
+    public static int QueryCount(IReadOnlyList<CodeUsage> queries) => queries.Count(u => !u.IsTest && !u.IsMapping);
+
     public static string Kind(CodeUseKind kind) => kind switch
     {
         CodeUseKind.Read => ModelViewText.Usage_KindRead,

@@ -1,5 +1,6 @@
 @* "Usage" view (WP-40, ADR 0030): where the linked solution's compiled code uses the table's columns and queries the
-   table, with file and line; a click opens the use in the editor. The index is built when the view is first shown. *@
+   table, with file and line; a click opens the use in the editor. The index is built when the view is first shown. Two
+   sub-tabs (decision of the user, 2026-10-20): the columns first, the queries beside, each with its counter. *@
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Schema
@@ -27,8 +28,9 @@ else
 {
     <section class="usage-section">
         <div class="structure-columns-head">
-            <h2>
+            <h2 title="@ModelViewText.Usage_Limits">
                 <Fmt Text="@ModelViewText.Usage_Heading"><Arg0><strong>@ClrModelMapping.ShortName(entity.Entity.ClrType)</strong></Arg0></Fmt>
+                <span class="usage-limits" aria-label="@ModelViewText.Usage_Limits">ⓘ</span>
             </h2>
             @if (Usage.Solutions is { Count: > 1 } solutions)
             {
@@ -63,12 +65,32 @@ else
         {
             <div class="tab-error"><span>@TextFormat.Format(ModelViewText.Usage_Failed, error)</span></div>
         }
-        <p class="hint small">@ModelViewText.Usage_Limits</p>
+        @{
+            var queries = result?.Index.ForEntity(entity.Entity) ?? [];
+            var rows = result is null ? [] : CodeUsageRows.Columns(mapping, result.Index, Details);
+            var unused = CodeUsageRows.UnusedCount(rows);
+        }
+        <div class="segmented small usage-tabs" role="tablist">
+            <button class="seg @(_showQueries ? "" : "active")" role="tab" aria-selected="@(_showQueries ? "false" : "true")"
+                    title="@ModelViewText.Usage_TabColumnsTitle" @onclick="() => _showQueries = false">
+                @ModelViewText.Usage_TabColumns
+                @if (unused > 0)
+                {
+                    <span class="seg-count unused">@TextFormat.Format(ModelViewText.Usage_TabUnused, unused)</span>
+                }
+            </button>
+            <button class="seg @(_showQueries ? "active" : "")" role="tab" aria-selected="@(_showQueries ? "true" : "false")"
+                    title="@ModelViewText.Usage_TabQueriesTitle" @onclick="() => _showQueries = true">
+                @ModelViewText.Usage_TabQueries
+                @if (result is not null)
+                {
+                    <span class="seg-count">@CodeUsageRows.QueryCount(queries)</span>
+                }
+            </button>
+        </div>
 
-        @if (result is not null)
+        @if (result is not null && _showQueries)
         {
-            var queries = result.Index.ForEntity(entity.Entity);
-            <h3>@ModelViewText.Usage_Queries <span class="count">@queries.Count(u => !u.IsMapping)</span></h3>
             @if (queries.Count == 0)
             {
                 <p class="muted">@ModelViewText.Usage_NoQueries</p>
@@ -82,8 +104,9 @@ else
                     }
                 </ul>
             }
-
-            var rows = CodeUsageRows.Columns(mapping, result.Index, Details);
+        }
+        else if (result is not null)
+        {
             <table class="columns usage-columns">
                 <thead>
                     <tr><th>@SchemaViewText.Head_Name</th><th>@SchemaViewText.Columns_Property</th><th class="num">@ModelViewText.Usage_Uses</th><th></th></tr>
@@ -156,6 +179,9 @@ else
     private bool _wasShown;
 
     private readonly HashSet<string> _expanded = new(StringComparer.Ordinal);
+
+    /// <summary>The "Queries" sub-tab is shown; kept while the tab is open (the view stays mounted), columns first again after a restart.</summary>
+    private bool _showQueries;
     private readonly CancellationTokenSource _lifetime = new();
     private DomModule? _dom;
 

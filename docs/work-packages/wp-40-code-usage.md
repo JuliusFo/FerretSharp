@@ -47,6 +47,11 @@ Eigene Instanz (`--data-dir`, eigener WebView2-Ordner, deutsch, hell), eigener C
 - Log ohne `[ERR]`. Eine von Hand geschriebene `settings.json` im falschen Format legte die App wie vorgesehen als `.bad-…` beiseite; Ctrl+Alt-Tasten lehnt sie ab (AltGr) – beides kein Fehler.
 - **Nicht geprüft:** der Sprung in eine Instanz, die die Solution offen hat (nur im Spike), VS Code, der native Dateidialog „Solution oder Projekt wählen“ (Regel: nicht bedienen), die Auswahl zwischen mehreren Solutions, die Laufzeit gegen die große Solution des Nutzers (425 Entities, mehrere Projekte) und ein echtes Testprojekt dort.
 
+## Unter-Tabs (Wunsch des Nutzers nach dem eigenen Test, 2026-10-20)
+- Die Ansicht „Verwendung“ hat zwei Unter-Tabs statt Abfragen und Spalten untereinander: **Spalten** (Standard) und **Abfragen**, je mit Zähler im Kopf. Spalten zählen die ungenutzten („4 ungenutzt“, gelb wie die Markierung), Abfragen die im Anwendungscode (ohne Tests und DbSet-Property).
+- Der gewählte Unter-Tab bleibt, solange der Tab offen ist; gespeichert wird er nicht.
+- Der Hinweis zu den Grenzen (Strings, Reflection, rohes SQL) steht als Tooltip am Kopf („ⓘ“) statt als Absatz.
+
 ## Code-Review (2026-10-20)
 Review-Lauf über den Branch, zehn Funde, alle behoben:
 - **Verschwundene DLL:** Ein Build, der die Assembly zwischen Finden und Lesen löscht, ergab eine `NullReferenceException` statt eines IO-Fehlers (`IlUsageScanner.OpenExisting`). Der Builder fängt jetzt jeden Fehler je Assembly: Ein seltsames Projekt kostet nur sich selbst.
