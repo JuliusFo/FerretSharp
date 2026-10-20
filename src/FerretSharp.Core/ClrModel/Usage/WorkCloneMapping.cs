@@ -95,7 +95,8 @@ public static partial class WorkCloneMapping
 
     /// <summary>
     /// The first <c>.cs</c> file below <paramref name="root"/> declaring the type (by its simple name; nested types by the
-    /// innermost): files named after the type first. <c>bin</c>, <c>obj</c> and dot folders are skipped.
+    /// innermost): files named after the type first, then in ordinal path order, the same on every system. A declaration
+    /// behind <c>//</c> on its line does not count. <c>bin</c>, <c>obj</c> and dot folders are skipped.
     /// </summary>
     public static string? FindTypeFile(string root, string typeName, CancellationToken cancellationToken)
     {
@@ -106,7 +107,8 @@ public static partial class WorkCloneMapping
             simple = simple[..tick];
         }
 
-        var declaration = new Regex($@"\b(class|record|struct|interface|enum)\s+{Regex.Escape(simple)}\b", RegexOptions.CultureInvariant);
+        var declaration = new Regex($@"^(?:(?!//).)*\b(class|record|struct|interface|enum)\s+{Regex.Escape(simple)}\b",
+            RegexOptions.CultureInvariant | RegexOptions.Multiline);
         var files = SourceFiles(root).ToList();
         foreach (var file in files.OrderBy(f => !string.Equals(Path.GetFileNameWithoutExtension(f), simple, StringComparison.OrdinalIgnoreCase)))
         {
@@ -154,6 +156,8 @@ public static partial class WorkCloneMapping
             {
                 files = Directory.GetFiles(directory, "*.cs");
                 directories = Directory.GetDirectories(directory);
+                Array.Sort(files, StringComparer.Ordinal);
+                Array.Sort(directories, StringComparer.Ordinal);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -165,8 +169,10 @@ public static partial class WorkCloneMapping
                 yield return file;
             }
 
-            foreach (var child in directories)
+            // pushed in reverse, so the stack pops them in ordinal order
+            for (var i = directories.Length - 1; i >= 0; i--)
             {
+                var child = directories[i];
                 var name = Path.GetFileName(child);
                 if (!name.StartsWith('.') && !name.Equals("bin", StringComparison.OrdinalIgnoreCase) && !name.Equals("obj", StringComparison.OrdinalIgnoreCase))
                 {
