@@ -520,6 +520,8 @@ table.columns .default { color: var(--muted); max-width: 260px; overflow: hidden
 .usage-item { display: flex; align-items: center; gap: 8px; padding: 3px 0; white-space: nowrap; }
 .usage-item.test, .usage-item.mapping { opacity: .75; }
 .usage-kind { min-width: 64px; font-size: 11px; color: var(--faint); }
+.usage-subhead { margin: 12px 0 4px; font-size: 13px; font-weight: 600; cursor: help; }
+.usage-subhead .count { margin-left: 4px; font-size: 11px; font-weight: 400; color: var(--faint); font-variant-numeric: tabular-nums; }
 table.usage-columns tr.clickable { cursor: pointer; }
 table.usage-columns tr.usage-detail td { background: var(--surface-2); padding: 4px 12px 4px 28px; }
 table.usage-columns tr.usage-detail:hover td { background: var(--surface-2); }

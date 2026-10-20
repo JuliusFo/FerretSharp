@@ -5,7 +5,7 @@ using FerretSharp.UI.Resources;
 
 namespace FerretSharp.UI.State;
 
-/// <summary>A column of the "Usage" view (WP-40): its property and where the code uses it.</summary>
+/// <summary>A column of the "Usage" view (WP-40): its property and where the code uses it, through navigations too.</summary>
 /// <param name="Property">Null if the column has no property in the model.</param>
 /// <param name="Unused">Mapped, but no use outside tests and mapping code (<see cref="CodeUsageIndex.IsUnused"/>).</param>
 public sealed record ColumnUsageRow(string Column, PropertyExport? Property, IReadOnlyList<CodeUsage> Uses, bool Unused)
@@ -30,7 +30,7 @@ public static class CodeUsageRows
             var property = mapping.PropertyOf(details.Table.Ref, c.Name);
             return property is null
                 ? new ColumnUsageRow(c.Name, null, [], false)
-                : new ColumnUsageRow(c.Name, property, index.ForProperty(entity.Entity, property.Name), index.IsUnused(entity.Entity, property));
+                : new ColumnUsageRow(c.Name, property, index.ForColumn(entity.Entity, property.Name), index.IsUnused(entity.Entity, property));
         }).ToList();
     }
 
@@ -42,12 +42,13 @@ public static class CodeUsageRows
             return null;
         }
 
-        return new ColumnUsageRow(column, property, index.ForProperty(entity.Entity, property.Name), index.IsUnused(entity.Entity, property));
+        return new ColumnUsageRow(column, property, index.ForColumn(entity.Entity, property.Name), index.IsUnused(entity.Entity, property));
     }
 
     /// <summary>
     /// For the designer's warnings and its confirmation (WP-40): each dropped or renamed column that code uses – tests and
-    /// mapping code included, their build breaks too – with the first places.
+    /// mapping code included, their build breaks too – with the first places. A dropped foreign key column also names the
+    /// navigations used: the build does not break over them, their queries fail at run time.
     /// </summary>
     /// <param name="changed">Columns as the table has them now, and their new name (null = dropped).</param>
     public static IReadOnlyList<string> DropNotes(ClrModelMapping mapping, CodeUsageIndex index, TableRef table, IEnumerable<(string Column, string? NewName)> changed) =>
@@ -56,18 +57,40 @@ public static class CodeUsageRows
             .Where(c => c.Row is { Uses.Count: > 0 })
             .Select(c =>
             {
-                var callers = c.Row!.Uses.Select(u => Caller(u.Use)).Distinct().ToList();
-                var shown = string.Join(", ", callers.Take(3)) + (callers.Count > 3 ? ", …" : "");
-                return TextFormat.Format(c.NewName is null ? ModelViewText.Usage_DropUsed : ModelViewText.Usage_RenameUsed,
-                    c.Column, c.Row.Property!.Name, c.Row.Uses.Count, shown);
+                var row = c.Row!;
+                if (c.NewName is not null)
+                {
+                    return TextFormat.Format(ModelViewText.Usage_RenameUsed, c.Column, row.Property!.Name, row.Uses.Count, Callers(row.Uses));
+                }
+
+                var direct = row.Uses.Where(u => u.Navigation is null).ToList();
+                var through = row.Uses.Where(u => u.Navigation is not null).ToList();
+                var navigations = string.Join(", ", through.Select(u => u.Navigation).Distinct());
+                if (direct.Count == 0)
+                {
+                    return TextFormat.Format(ModelViewText.Usage_DropUsedNavigation, c.Column, navigations, through.Count, Callers(through));
+                }
+
+                var note = TextFormat.Format(ModelViewText.Usage_DropUsed, c.Column, row.Property!.Name, direct.Count, Callers(direct));
+                return through.Count == 0 ? note : note + " " + TextFormat.Format(ModelViewText.Usage_DropAlsoNavigation, through.Count, navigations);
             })
             .ToList();
+
+    /// <summary>The first three callers: <c>Export.Run, Import.Run, KundenService.Run, …</c>.</summary>
+    private static string Callers(IEnumerable<CodeUsage> uses)
+    {
+        var callers = uses.Select(u => Caller(u.Use)).Distinct().ToList();
+        return string.Join(", ", callers.Take(3)) + (callers.Count > 3 ? ", …" : "");
+    }
 
     /// <summary>The counter of the "Columns" sub-tab: mapped columns no code uses.</summary>
     public static int UnusedCount(IReadOnlyList<ColumnUsageRow> rows) => rows.Count(r => r.Unused);
 
-    /// <summary>The counter of the "Queries" sub-tab: queries in application code (tests and the DbSet property left out).</summary>
-    public static int QueryCount(IReadOnlyList<CodeUsage> queries) => queries.Count(u => !u.IsTest && !u.IsMapping);
+    /// <summary>
+    /// The counter of the "Queries" sub-tab: queries in application code, navigations to the table included (tests,
+    /// mapping code and the DbSet property left out).
+    /// </summary>
+    public static int QueryCount(IEnumerable<CodeUsage> queries) => queries.Count(u => !u.IsTest && !u.IsMapping);
 
     public static string Kind(CodeUseKind kind) => kind switch
     {
@@ -86,6 +109,10 @@ public static class CodeUsageRows
 
     /// <summary>What "Copy name" copies: <c>Customer.Email</c> (for Ctrl+T in Visual Studio).</summary>
     public static string Name(EntityExport entity, string property) => $"{ClrModelMapping.ShortName(entity.ClrType)}.{property}";
+
+    /// <summary>What "Copy name" copies for a use: the navigation it goes through, else the property or the entity.</summary>
+    public static string Name(CodeUsage use, EntityExport entity, string? property) =>
+        use.Navigation ?? (property is null ? ClrModelMapping.ShortName(entity.ClrType) : Name(entity, property));
 
     /// <summary>"12 projects · 2 not built · 1 out of date".</summary>
     public static string Projects(CodeUsageResult result)

@@ -65,6 +65,14 @@ Review-Lauf über den Branch, zehn Funde, alle behoben:
 - **Links** lassen die Ansicht „Verwendung“ weg wie die Datenansicht: Ein älteres FerretSharp lehnte den ganzen Link wegen der unbekannten Ansicht ab.
 - **Dialog „Arbeits-Klon“** schließt nicht mehr bei Klick daneben (`.claude/rules/ui.md`: nur reine Anzeige-Dialoge).
 
+## Nachtrag: Fremdschlüssel über Navigations (2026-10-20, `fix/fk-usage-via-navigation`, 3.43.1)
+Gefunden vom Nutzer im eigenen Test: Eine FK-Spalte, die der Code nur über die Navigation nutzt (`virtual Kunde` statt `KundeId`), zeigte in „Verwendung“ nur die Konfiguration. Die Markierung „ungenutzt“ zählte die Navigations schon (`UsesCountingFor`), die Liste und der Designer nicht – beide widersprachen sich.
+- **Spalte:** `CodeUsageIndex.ForColumn` liefert die Verwendungen der Property und die ihrer Navigations, auch der Gegenseite (`Kunde.Auftraege`); `IsUnused` baut darauf, damit Markierung und Liste nicht mehr auseinanderlaufen. `CodeUsage.Navigation` nennt die Navigation (`Auftrag.Kunde`), die Ansicht zeigt „über Navigation …“ gemischt mit den direkten Verwendungen nach Datei und Zeile, gezählt wie diese (Entscheidung des Nutzers: gemischt, Gegenseite mit). Ein Schatten-FK hat nur diese Verwendungen.
+- **Abfragen (Entscheidung des Nutzers: gleich mitbauen):** `CodeUsageIndex.NavigationsTo` – Navigations, die Zeilen der Tabelle laden (`auftrag.Kunde` für `KUNDEN`, `kunde.Auftraege` für `AUFTRAEGE`), als eigener Block „Über Navigations“ unter den Abfragen, im Zähler des Unter-Tabs mitgezählt (ohne Tests und Mapping).
+- **Designer:** Beim Löschen einer FK-Spalte stehen die Navigations eigens in der Warnung: Über sie bricht der Build nicht, ihre Abfragen scheitern zur Laufzeit. Umbenennen bleibt bei einem Text (das Mapping muss mitgehen).
+- „Namen kopieren“ kopiert bei einer Verwendung über eine Navigation deren Namen (`Auftrag.Kunde`).
+- Version: Patch 3.43.1 (Entscheidung des Nutzers), obwohl der Block unter „Abfragen“ neu ist.
+
 ## Offen
 - Im Rückfall über `devenv /Edit` springt Visual Studio nicht zur Zeile (Backlog: danach die Instanz mit der aktiven Datei suchen und `GotoLine`).
 - Ein Branch-Wechsel im Arbeits-Klon zeigt sich in der Statusleiste nach höchstens 15 s.
