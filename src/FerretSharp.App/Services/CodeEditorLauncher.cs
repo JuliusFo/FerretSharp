@@ -36,12 +36,16 @@ public sealed class CodeEditorLauncher(ILogger<CodeEditorLauncher> logger) : ICo
                 try
                 {
                     Retry(() => dte.ItemOperations.OpenFile(file), cancellationToken);
-                    if (line is { } at)
+                    // Open now: a line or the window that fails stays a warning (review of WP-40: it fell back to devenv
+                    // /Edit and opened the file a second time, e.g. for a line past the end of a shorter work clone file).
+                    AfterOpen(() =>
                     {
-                        Retry(() => dte.ActiveDocument.Selection.GotoLine(at, true), cancellationToken);
-                    }
-
-                    Retry(() => dte.MainWindow.Activate(), cancellationToken);
+                        if (line is { } at)
+                        {
+                            Retry(() => dte.ActiveDocument.Selection.GotoLine(at, true), cancellationToken);
+                        }
+                    }, "go to the line");
+                    AfterOpen(() => Retry(() => dte.MainWindow.Activate(), cancellationToken), "bring Visual Studio to the front");
                     return new CodeOpenResult(CodeOpenOutcome.Opened);
                 }
                 finally
@@ -63,6 +67,18 @@ public sealed class CodeEditorLauncher(ILogger<CodeEditorLauncher> logger) : ICo
         return Start(new ProcessStartInfo(devenv) { ArgumentList = { "/Edit", file }, UseShellExecute = false }) is { } failure
             ? new CodeOpenResult(CodeOpenOutcome.Failed, failure)
             : new CodeOpenResult(CodeOpenOutcome.OpenedElsewhere);
+    }
+
+    private void AfterOpen(Action step, string what)
+    {
+        try
+        {
+            step();
+        }
+        catch (Exception ex) when (ex is COMException or InvalidCastException or MissingMemberException or Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
+        {
+            logger.LogWarning(ex, "Visual Studio opened the file but could not {Step}", what);
+        }
     }
 
     /// <summary>
@@ -220,18 +236,24 @@ public sealed class CodeEditorLauncher(ILogger<CodeEditorLauncher> logger) : ICo
 
     private CodeOpenResult OpenInVsCode(string file, int? line)
     {
-        var code = Environment.GetEnvironmentVariable("PATH")?.Split(Path.PathSeparator)
+        var code = (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator)
             .Append(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Microsoft VS Code", "bin"))
             .Where(d => d.Length > 0)
             .Select(d => Path.Combine(d.Trim('"'), "code.cmd"))
             .FirstOrDefault(File.Exists);
-        if (code is null)
+        var start = VsCodeCommand.For(code, file, line);
+        if (start.Program is not { } program)
         {
-            return new CodeOpenResult(CodeOpenOutcome.Failed, ModelViewText.Usage_NoVsCode);
+            return new CodeOpenResult(CodeOpenOutcome.Failed, start.Refusal);
         }
 
-        var target = line is { } at ? $"{file}:{at}" : file;
-        return Start(new ProcessStartInfo(code) { ArgumentList = { "-g", target }, UseShellExecute = false, CreateNoWindow = true }) is { } failure
+        var info = new ProcessStartInfo(program) { UseShellExecute = false, CreateNoWindow = true };
+        foreach (var argument in start.Arguments)
+        {
+            info.ArgumentList.Add(argument);
+        }
+
+        return Start(info) is { } failure
             ? new CodeOpenResult(CodeOpenOutcome.Failed, failure)
             : new CodeOpenResult(CodeOpenOutcome.Opened);
     }

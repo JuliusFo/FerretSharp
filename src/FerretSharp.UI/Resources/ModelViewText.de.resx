@@ -351,4 +351,7 @@
   <data name="Usage_ReportNone" xml:space="preserve">
     <value>Jede gemappte Property wird verwendet.</value>
   </data>
+  <data name="Usage_VsCodePath" xml:space="preserve">
+    <value>VS Code kann diesen Pfad nicht über code.cmd öffnen (er enthält &amp; ^ % oder ein ähnliches Zeichen), und Code.exe liegt nicht daneben.</value>
+  </data>
 </root>

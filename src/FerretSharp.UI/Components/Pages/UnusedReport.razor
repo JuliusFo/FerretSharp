@@ -8,13 +8,14 @@
 @{
     var state = Usage.State;
     var result = state.Result;
+    var unused = result is null ? null : Unused(result);
 }
 <section class="settings-section">
     <h2>
         @ModelViewText.Usage_ReportHeading
-        @if (result is not null)
+        @if (unused is not null)
         {
-            <span class="count">@Unused(result).Count</span>
+            <span class="count">@unused.Count</span>
         }
     </h2>
     <p class="hint small">@ModelViewText.Usage_ReportHint</p>
@@ -38,9 +39,8 @@
     {
         <div class="tab-error"><span>@TextFormat.Format(ModelViewText.Usage_Failed, error)</span></div>
     }
-    @if (result is not null)
+    @if (unused is not null)
     {
-        var unused = Unused(result);
         @if (unused.Count == 0)
         {
             <p class="muted">@ModelViewText.Usage_ReportNone</p>
@@ -85,12 +85,25 @@
 
     private readonly CancellationTokenSource _lifetime = new();
 
-    private List<(EntityExport Entity, PropertyExport Property, EntityMapping? Located)> Unused(CodeUsageResult result) =>
-        result.Index.Unused()
-            .Select(u => (u.Entity, u.Property, Mapping.Entities.FirstOrDefault(m => m.Entity == u.Entity)))
+    private (CodeUsageResult Result, ClrModelMapping Mapping, List<(EntityExport Entity, PropertyExport Property, EntityMapping? Located)> Rows)? _unused;
+
+    /// <summary>Computed once per index and mapping, not on every render (review of WP-40).</summary>
+    private List<(EntityExport Entity, PropertyExport Property, EntityMapping? Located)> Unused(CodeUsageResult result)
+    {
+        if (_unused is { } known && ReferenceEquals(known.Result, result) && ReferenceEquals(known.Mapping, Mapping))
+        {
+            return known.Rows;
+        }
+
+        var located = Mapping.Entities.GroupBy(m => m.Entity).ToDictionary(g => g.Key, g => g.First());
+        var rows = result.Index.Unused()
+            .Select(u => (u.Entity, u.Property, located.GetValueOrDefault(u.Entity)))
             .OrderBy(u => ClrModelMapping.ShortName(u.Entity.ClrType), StringComparer.Ordinal)
             .ThenBy(u => u.Property.Name, StringComparer.Ordinal)
             .ToList();
+        _unused = (result, Mapping, rows);
+        return rows;
+    }
 
     protected override void OnInitialized() => Usage.Changed += OnChanged;
 

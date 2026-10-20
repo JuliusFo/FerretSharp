@@ -108,7 +108,7 @@
                             @switch (mode)
                             {
                                 case TabMode.Structure:
-                                    <ColumnsView @ref="_columns" Details="_details" WorkspaceId="Tab.WorkspaceId" Tab="Tab" OnSchemaChanged="() => _version++" />
+                                    <ColumnsView @ref="_columns" Details="_details" WorkspaceId="Tab.WorkspaceId" Tab="Tab" Shown="IsShown(TabMode.Structure)" OnSchemaChanged="() => _version++" />
                                     break;
                                 case TabMode.Constraints:
                                     <ConstraintsView Details="_details" Version="_version" />
@@ -123,7 +123,7 @@
                                     <DdlView Details="_details" Version="_version" />
                                     break;
                                 case TabMode.Usage:
-                                    <UsageView @ref="_usage" Details="_details" />
+                                    <UsageView Details="_details" Shown="IsShown(TabMode.Usage)" />
                                     break;
                             }
                         </div>
@@ -232,7 +232,12 @@
     [CascadingParameter]
     public ClrModelManager Models { get; set; } = null!;
 
-    private UsageView? _usage;
+    /// <summary>
+    /// The view is what the user sees now: the tab's mode, the active tab of the shown connection, the explorer page. Views
+    /// stay mounted once visited; only a shown one reads the code usage index (review of WP-40: hidden ones rebuilt it after
+    /// every build of the project).
+    /// </summary>
+    private bool IsShown(TabMode mode) => Tab.Mode == mode && ReferenceEquals(Shell.ActiveTab, Tab) && Shell.Page == ShellPage.Explorer;
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -301,10 +306,6 @@
         Tab.Mode = mode;
         _visited.Add(mode);
         Shell.NotifyChanged();
-        if (mode == TabMode.Usage && _usage is not null)
-        {
-            Fire(_usage.ShownAsync); // a build since it was last shown
-        }
     }
 
     /// <param name="sorts">A filter preset's sort order (WP-37); null keeps the grid's.</param>

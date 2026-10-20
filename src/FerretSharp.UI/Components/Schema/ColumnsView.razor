@@ -211,9 +211,15 @@
     [CascadingParameter]
     public PresentationService Presentations { get; set; } = null!;
 
-    /// <summary>Marks mapped columns no code uses (WP-40); the index is read when the view opens for a mapped table.</summary>
+    /// <summary>Marks mapped columns no code uses (WP-40); the index is read when the view is shown for a mapped table.</summary>
     [CascadingParameter]
     public CodeUsageService Usage { get; set; } = null!;
+
+    /// <summary>The view is visible now (the tab's mode, the active tab): only then is the code usage index brought up to date.</summary>
+    [Parameter]
+    public bool Shown { get; set; }
+
+    private bool _wasShown;
 
     private readonly CancellationTokenSource _lifetime = new();
     private string _columnQuery = "";
@@ -261,7 +267,17 @@
         DisplaySource.Changed += OnDisplayColumnsChanged;
         Usage.Changed += OnUsageChanged;
         _editing = Tab?.Designer is not null; // a draft that outlived a rebuild of the tab (DDL that stopped halfway)
-        OnUsageChanged();
+    }
+
+    /// <summary>Shown again (or for the first time): a build since then is picked up.</summary>
+    protected override void OnParametersSet()
+    {
+        if (Shown && !_wasShown)
+        {
+            EnsureUsage();
+        }
+
+        _wasShown = Shown;
     }
 
     /// <summary>The index arrived or is out of date: mapped tables show the marker, and read it again while shown.</summary>
@@ -272,14 +288,20 @@
             return;
         }
 
-        Fire(async () =>
+        Fire(StateHasChanged);
+        if (Shown && Usage.State.Phase == CodeUsagePhase.NotBuilt)
         {
-            StateHasChanged();
-            if (Usage.State.Phase == CodeUsagePhase.NotBuilt && !_lifetime.IsCancellationRequested)
-            {
-                await Usage.EnsureAsync(_lifetime.Token); // cancelled when the view goes away: Fire stays silent
-            }
-        });
+            EnsureUsage();
+        }
+    }
+
+    private void EnsureUsage()
+    {
+        if (Models.Mapping?.EntityOf(Details.Table.Ref) is not null && !_lifetime.IsCancellationRequested)
+        {
+            // Cancelled when the view goes away: Fire stays silent.
+            Fire(() => Usage.EnsureAsync(_lifetime.Token));
+        }
     }
 
     private void OnModelChanged() => InvokeAsync(() =>

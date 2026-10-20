@@ -395,4 +395,7 @@
   <data name="Usage_ReportNone" xml:space="preserve">
     <value>Every mapped property is used.</value>
   </data>
+  <data name="Usage_VsCodePath" xml:space="preserve">
+    <value>VS Code cannot open this path through code.cmd (it contains &amp; ^ % or a similar character) and Code.exe was not found next to it.</value>
+  </data>
 </root>

@@ -149,6 +149,12 @@ else
     [Parameter, EditorRequired]
     public TableDetails Details { get; set; } = null!;
 
+    /// <summary>The view is visible now: only then is the index brought up to date (it stays mounted once visited).</summary>
+    [Parameter]
+    public bool Shown { get; set; }
+
+    private bool _wasShown;
+
     private readonly HashSet<string> _expanded = new(StringComparer.Ordinal);
     private readonly CancellationTokenSource _lifetime = new();
     private DomModule? _dom;
@@ -178,15 +184,27 @@ else
 
     private IReadOnlyList<MoreMenuItem> CopyItems(CodeUsage use, EntityExport entity, string? property) =>
     [
-        new(ModelViewText.Usage_CopyPath, () => CopyAsync(Path(use)), use.Use.Document is not null),
-        new(ModelViewText.Usage_CopyPathLine, () => CopyAsync(use.Use.Line is { } line ? $"{Path(use)}:{line}" : Path(use)), use.Use.Document is not null),
+        new(ModelViewText.Usage_CopyPath, async () => await CopyAsync(await PathAsync(use)), use.Use.Document is not null),
+        new(ModelViewText.Usage_CopyPathLine, async () =>
+        {
+            var path = await PathAsync(use);
+            await CopyAsync(use.Use.Line is { } line ? $"{path}:{line}" : path);
+        }, use.Use.Document is not null),
         new(ModelViewText.Usage_CopyName, () => CopyAsync(property is null ? ClrModelMapping.ShortName(entity.ClrType) : CodeUsageRows.Name(entity, property))),
         new(ModelViewText.Usage_CopyCaller, () => CopyAsync(CodeUsageRows.Caller(use.Use))),
     ];
 
-    /// <summary>The file as it would open (work clone first), so a copied path points where the user works.</summary>
-    private string Path(CodeUsage use) =>
-        Models.State.Link is { } link && Opener.Locate(use.Use, link, Active.Profile?.Group, _lifetime.Token) is { } location ? location.Path : use.Use.Document ?? "";
+    /// <summary>
+    /// The file as it would open (work clone first), so a copied path points where the user works; off the render thread,
+    /// since finding a moved file searches the clone.
+    /// </summary>
+    private Task<string> PathAsync(CodeUsage use)
+    {
+        var link = Models.State.Link;
+        var group = Active.Profile?.Group;
+        var token = _lifetime.Token;
+        return Task.Run(() => link is not null && Opener.Locate(use.Use, link, group, token) is { } location ? location.Path : use.Use.Document ?? "", token);
+    }
 
     private async Task CopyAsync(string text) => await Dom.CopyTextAsync(Shell, text);
 
@@ -194,14 +212,24 @@ else
     {
         Usage.Changed += OnChanged;
         Models.Changed += OnChanged;
-        Fire(EnsureAsync);
+    }
+
+    /// <summary>Shown again (or for the first time): a build since then is picked up.</summary>
+    protected override void OnParametersSet()
+    {
+        if (Shown && !_wasShown)
+        {
+            Fire(EnsureAsync);
+        }
+
+        _wasShown = Shown;
     }
 
     private void OnChanged() => Fire(async () =>
     {
         StateHasChanged();
-        // A new model or build: bring the index up to date while the view is mounted (it is cheap when nothing changed).
-        if (Usage.State.Phase == CodeUsagePhase.NotBuilt)
+        // A new model or build: bring the index up to date while the view is shown (cheap when nothing changed).
+        if (Shown && Usage.State.Phase == CodeUsagePhase.NotBuilt)
         {
             await EnsureAsync();
         }
@@ -212,9 +240,6 @@ else
         await Usage.EnsureAsync(_lifetime.Token);
         StateHasChanged();
     }
-
-    /// <summary>Called when the view is shown again: a build meanwhile is picked up.</summary>
-    public Task ShownAsync() => EnsureAsync();
 
     private async Task RefreshAsync()
     {

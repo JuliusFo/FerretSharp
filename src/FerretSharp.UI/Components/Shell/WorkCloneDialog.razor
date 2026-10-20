@@ -8,11 +8,9 @@
 
 @{
     var group = Active.Profile?.Group;
-    var link = Models.State.Link;
-    var choices = WorkCloneChoices.For(Clones, group, link);
     var none = Clones.ActiveFor(group) is null;
 }
-<ModalFrame Label="@ShellText.WorkClone_Title" Class="work-clone-dialog" OnCancel="OnClose" CloseOnBackdrop="true" FocusOnOpen="true">
+<ModalFrame Label="@ShellText.WorkClone_Title" Class="work-clone-dialog" OnCancel="OnClose" FocusOnOpen="true">
     <header>
         <span>@ShellText.WorkClone_Title</span>
         <span class="muted">@(FerretSharp.Core.Connections.ConnectionSearch.NormalizeGroup(group) ?? ShellText.WorkClone_NoGroup)</span>
@@ -26,7 +24,7 @@
                     <span class="muted small">@ShellText.WorkClone_NoneHint</span>
                 </button>
             </li>
-            @foreach (var choice in choices)
+            @foreach (var choice in _choices)
             {
                 var c = choice;
                 <li>
@@ -62,6 +60,15 @@
 
     [Parameter]
     public EventCallback OnClose { get; set; }
+
+    /// <summary>Read once off the render thread: each entry checks its folder, branch and project (review of WP-40).</summary>
+    private IReadOnlyList<WorkCloneChoice> _choices = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var (group, link) = (Active.Profile?.Group, Models.State.Link);
+        _choices = await Task.Run(() => WorkCloneChoices.For(Clones, group, link));
+    }
 
     /// <summary>Why a folder does not fit the shown connection; null if it does (or there is no link to compare with).</summary>
     public static string? FitText(WorkCloneFit? fit) => fit switch
