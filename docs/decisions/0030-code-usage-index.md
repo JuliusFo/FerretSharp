@@ -32,11 +32,11 @@ Verworfen:
 - Laufende Instanzen melden sich in der Running Object Table als `!VisualStudio.DTE.<Version>:<PID>`. FerretSharp liest je Instanz `DTE.Solution.FullName` und wählt die Instanz mit der indizierten Solution am selben relativen Pfad im aktiven Arbeits-Klon; öffnet per `DTE.ItemOperations.OpenFile`, springt per `ActiveDocument.Selection.GotoLine` und holt das Fenster nach vorn.
 - Rückfall: eine Instanz, deren Solution-Ordner die Datei enthält; sonst `devenv /Edit` (Pfad über `vswhere`) mit dem Hinweis „keine passende Visual-Studio-Instanz“.
 - Late Binding (`dynamic`) auf die IDispatch-Schnittstelle, ohne EnvDTE-Paket und ohne Interop-Assembly. Nur im App-Projekt (Windows-only, CA1416); UI und Core kennen ein Interface (`ICodeEditorLauncher`). Daneben VS Code (`code -g datei:zeile`) und das Standardprogramm des Systems; Kopieren von Pfad, Pfad:Zeile und Namen im Kontextmenü.
-- **Spike (2026-10-20):** Aus einer .NET-10-Konsole (MTA, Late Binding) wurde die laufende Instanz `!VisualStudio.DTE.18.0` mit ihrer `.slnx` gefunden und gelesen. Öffnen und `GotoLine` prüft das Paket an einer eigenen Test-Instanz.
+- **Spike (2026-10-20):** Aus einer .NET-10-Konsole (MTA, Late Binding) wurde die laufende Instanz `!VisualStudio.DTE.18.0` mit ihrer `.slnx` gefunden, eine Datei der Solution geöffnet und die Zeile angesprungen (rund 0,9 s). Direkt nach `OpenFile` lehnte VS den nächsten Aufruf mit `RPC_E_SERVERCALL_RETRYLATER` (0x8001010A) ab; der Binder von `dynamic` verpackt das in eine `MissingMemberException` mit dem HRESULT nur im Text. Eine Wiederholung nach 100 ms ging durch.
 
 ## Konsequenzen
 
 - Der Index ist eine zweite Quelle neben dem ModelHost und hängt von dessen Export ab (Typ- und Property-Namen). Ohne geladenes Modell gibt es keine Zuordnung zu Spalten.
-- COM-Aufrufe an Visual Studio können abgelehnt werden, solange VS beschäftigt ist (`RPC_E_CALL_REJECTED`): kurze Wiederholung mit Grenze, dann Rückfall. Eine als Administrator gestartete Instanz ist für eine nicht erhöhte App in der Running Object Table nicht sichtbar – dann greift der Rückfall.
+- COM-Aufrufe an Visual Studio werden abgelehnt, solange VS beschäftigt ist (`RPC_E_CALL_REJECTED`, `RPC_E_SERVERCALL_RETRYLATER` – im Spike regelmäßig direkt nach dem Öffnen): jeder Aufruf wird alle 100 ms wiederholt, höchstens einige Sekunden, dann Rückfall. Erkannt wird das HRESULT auch in der `MissingMemberException` des `dynamic`-Binders. Die Aufrufe laufen nicht im UI-Thread. Eine als Administrator gestartete Instanz ist für eine nicht erhöhte App in der Running Object Table nicht sichtbar – dann greift der Rückfall.
 - Kein Schreiben in Repos des Nutzers (das kommt mit WP-41 und eigenem ADR); der Arbeits-Klon wird hier nur gelesen.
 - Kein neues NuGet-Paket.
