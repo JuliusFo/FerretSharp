@@ -25,6 +25,11 @@
     <ConnectionImportDialog />
 }
 
+@if (Shell.WorkClonesOpen)
+{
+    <WorkCloneDialog OnClose="Shell.CloseWorkClones" />
+}
+
 @if (Shell.ExportRequest is { } exportRequest)
 {
     <ConnectionExportDialog @key="exportRequest" Request="exportRequest" />

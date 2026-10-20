@@ -59,6 +59,10 @@ public sealed record TnsAliasAddress(string Alias, string? TnsAdminPath) : Oracl
 /// The audit template file of this connection (WP-51); it goes before the template of its group and the global one
 /// (<see cref="Audit.AuditTemplateSource"/>). Null = none.
 /// </param>
+/// <param name="CodeSolution">
+/// The solution the code usage index reads (WP-40) when several contain <paramref name="ClrProject"/>; null = the first
+/// found. Beside the link, not in it: the model and the LINQ console do not depend on it.
+/// </param>
 public sealed record ConnectionProfile(
     Guid Id,
     string Name,
@@ -71,7 +75,8 @@ public sealed record ConnectionProfile(
     ClrModel.ClrProjectLink? ClrProject = null,
     string? ScriptFolder = null,
     string? AppEnvironment = null,
-    string? AuditTemplatePath = null)
+    string? AuditTemplatePath = null,
+    string? CodeSolution = null)
 {
     /// <summary>
     /// The schema whose objects are shown, in data dictionary form: <see cref="DefaultSchema"/> if set, otherwise the user.
@@ -96,7 +101,7 @@ public sealed record ConnectionProfile(
     /// login goes).
     /// </summary>
     public IReadOnlyList<string> LocalPaths() =>
-        new[] { ClrProject?.ProjectFile, ScriptFolder, (Address as TnsAliasAddress)?.TnsAdminPath, AuditTemplatePath }
+        new[] { ClrProject?.ProjectFile, CodeSolution, ScriptFolder, (Address as TnsAliasAddress)?.TnsAdminPath, AuditTemplatePath }
             .OfType<string>()
             .Where(p => !string.IsNullOrWhiteSpace(p))
             .ToList();
@@ -118,6 +123,7 @@ public sealed record ConnectionProfile(
     public ConnectionProfile WithoutLocalPaths() => this with
     {
         ClrProject = null,
+        CodeSolution = null,
         ScriptFolder = null,
         AuditTemplatePath = null,
         Address =Address is TnsAliasAddress tns ? tns with { TnsAdminPath = null } : Address,

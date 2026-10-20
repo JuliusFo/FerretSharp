@@ -27,6 +27,7 @@ public sealed class ConnectionScope : IAsyncDisposable
         Models = scope.ServiceProvider.GetRequiredService<ClrModelManager>();
         Presentations = scope.ServiceProvider.GetRequiredService<PresentationService>();
         Linq = scope.ServiceProvider.GetRequiredService<LinqConsoleService>();
+        Usage = scope.ServiceProvider.GetRequiredService<CodeUsageService>();
         if (profile is not null && scope.ServiceProvider.GetService<ILoggerFactory>() is { } loggers)
         {
             _activity = new ClrActivityLog(Models, Linq, loggers.CreateLogger<ClrActivityLog>(), profile.Name);
@@ -51,6 +52,9 @@ public sealed class ConnectionScope : IAsyncDisposable
     public PresentationService Presentations { get; }
 
     public LinqConsoleService Linq { get; }
+
+    /// <summary>Uses of the model in the linked solution's code (WP-40), built when a view needs them.</summary>
+    public CodeUsageService Usage { get; }
 
     /// <summary>The session was found gone (query or keep-alive); the banner offers to reconnect once it is shown.</summary>
     public DatabaseException? Lost => Active.Lost;

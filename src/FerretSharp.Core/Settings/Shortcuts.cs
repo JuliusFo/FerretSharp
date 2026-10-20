@@ -29,6 +29,9 @@ public enum ShortcutAction
     NewSql,
     NewLinq,
     RunScript,
+
+    /// <summary>The work clone of the shown connection's group (WP-40); no default key.</summary>
+    SwitchWorkClone,
 }
 
 /// <summary>Where a shortcut is caught.</summary>
@@ -106,6 +109,7 @@ public sealed class ShortcutMap
         new(ShortcutAction.NewSql, SettingsText.GroupSqlAndLinq, SettingsText.ActionNewSql, "ctrl+shift+q", ShortcutScope.Global),
         new(ShortcutAction.NewLinq, SettingsText.GroupSqlAndLinq, SettingsText.ActionNewLinq, "ctrl+shift+l", ShortcutScope.Global, SettingsText.HintNewLinq),
         new(ShortcutAction.RunScript, SettingsText.GroupSqlAndLinq, SettingsText.ActionRunScript, "alt+x", ShortcutScope.Global, SettingsText.HintRunScript),
+        new(ShortcutAction.SwitchWorkClone, SettingsText.GroupSqlAndLinq, SettingsText.ActionSwitchWorkClone, null, ShortcutScope.Global, SettingsText.HintSwitchWorkClone),
     ];
 
     /// <summary>The fixed shortcuts; a property for the same reason as <see cref="Definitions"/>.</summary>

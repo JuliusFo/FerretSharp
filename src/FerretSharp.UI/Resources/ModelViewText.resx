@@ -242,4 +242,172 @@
     <value>Precision</value>
     <comment>Kind of mismatch (badge): precision/scale of a number</comment>
   </data>
+  <data name="Usage_NoVisualStudio" xml:space="preserve">
+    <value>No Visual Studio found (vswhere). Choose another editor in the settings.</value>
+  </data>
+  <data name="Usage_NoVsCode" xml:space="preserve">
+    <value>VS Code not found: code.cmd is neither on the PATH nor in the user installation.</value>
+  </data>
+  <data name="Usage_KindRead" xml:space="preserve">
+    <value>read</value>
+  </data>
+  <data name="Usage_KindWrite" xml:space="preserve">
+    <value>writes</value>
+  </data>
+  <data name="Usage_KindExpression" xml:space="preserve">
+    <value>LINQ</value>
+  </data>
+  <data name="Usage_KindQuery" xml:space="preserve">
+    <value>query</value>
+  </data>
+  <data name="Usage_Projects" xml:space="preserve">
+    <value>{0} projects</value>
+  </data>
+  <data name="Usage_ProjectsNotBuilt" xml:space="preserve">
+    <value>{0} not built</value>
+  </data>
+  <data name="Usage_ProjectsStale" xml:space="preserve">
+    <value>{0} out of date</value>
+  </data>
+  <data name="Usage_ProjectsFailed" xml:space="preserve">
+    <value>{0} unreadable</value>
+  </data>
+  <data name="Usage_NotBuilt" xml:space="preserve">
+    <value>not built (no assembly in the configuration of the link): its uses are missing, they do not count as unused</value>
+  </data>
+  <data name="Usage_Stale" xml:space="preserve">
+    <value>out of date: {0} changed after the build</value>
+  </data>
+  <data name="Usage_NoPdb" xml:space="preserve">
+    <value>no portable PDB: methods without file and line</value>
+  </data>
+  <data name="Usage_NoSourceFile" xml:space="preserve">
+    <value>No file and line known (the project has no portable PDB).</value>
+  </data>
+  <data name="Usage_FileMissing" xml:space="preserve">
+    <value>The file no longer exists: {0}</value>
+  </data>
+  <data name="Usage_OpenFailed" xml:space="preserve">
+    <value>The editor could not be started.</value>
+  </data>
+  <data name="Usage_OpenedElsewhere" xml:space="preserve">
+    <value>No running Visual Studio has the solution open: the file opened in the last active instance or a new one.</value>
+  </data>
+  <data name="Usage_OpenedByType" xml:space="preserve">
+    <value>The file is not at the same place in the work clone: opened the file declaring the type, without the line.</value>
+  </data>
+  <data name="Usage_NoModel" xml:space="preserve">
+    <value>No C# model loaded</value>
+  </data>
+  <data name="Usage_NoModelText" xml:space="preserve">
+    <value>Link the connection's C# project in the connection dialog; uses are read from its solution's build.</value>
+  </data>
+  <data name="Usage_NoEntity" xml:space="preserve">
+    <value>No entity of the C# model maps this table</value>
+  </data>
+  <data name="Usage_Heading" xml:space="preserve">
+    <value>Usage of {0} in the code</value>
+  </data>
+  <data name="Usage_Solution" xml:space="preserve">
+    <value>Solution</value>
+  </data>
+  <data name="Usage_Building" xml:space="preserve">
+    <value>Reading the build…</value>
+  </data>
+  <data name="Usage_BuiltAt" xml:space="preserve">
+    <value>as of {0}</value>
+  </data>
+  <data name="Usage_Reload" xml:space="preserve">
+    <value>Read again</value>
+  </data>
+  <data name="Usage_ReloadTitle" xml:space="preserve">
+    <value>Read the solution again (new projects); unchanged assemblies come from the cache</value>
+  </data>
+  <data name="Usage_Failed" xml:space="preserve">
+    <value>The solution could not be read: {0}</value>
+  </data>
+  <data name="Usage_Limits" xml:space="preserve">
+    <value>Read from the compiled code: accesses by string (EF.Property, Include("…")), reflection and raw SQL are not found. Code that is not built is missing.</value>
+  </data>
+  <data name="Usage_NoQueries" xml:space="preserve">
+    <value>No Set&lt;T&gt;() and no read of the DbSet property found.</value>
+  </data>
+  <data name="Usage_Uses" xml:space="preserve">
+    <value>Uses</value>
+  </data>
+  <data name="Usage_UsesTitle" xml:space="preserve">
+    <value>Uses in application code; in brackets those in tests and mapping code</value>
+  </data>
+  <data name="Usage_Unused" xml:space="preserve">
+    <value>unused</value>
+  </data>
+  <data name="Usage_UnusedTitle" xml:space="preserve">
+    <value>Mapped, but no code outside tests and mapping reads or writes it (a foreign key also counts through its navigations)</value>
+  </data>
+  <data name="Usage_ShadowTitle" xml:space="preserve">
+    <value>Shadow property: no getter in the code, only EF.Property – not checked</value>
+  </data>
+  <data name="Usage_Via" xml:space="preserve">
+    <value>via {0}</value>
+  </data>
+  <data name="Usage_Test" xml:space="preserve">
+    <value>test</value>
+  </data>
+  <data name="Usage_TestTitle" xml:space="preserve">
+    <value>In a test project: shown, not counted</value>
+  </data>
+  <data name="Usage_Mapping" xml:space="preserve">
+    <value>mapping</value>
+  </data>
+  <data name="Usage_MappingTitle" xml:space="preserve">
+    <value>Mapping code (IEntityTypeConfiguration, OnModelCreating, DbSet property): shown, not counted</value>
+  </data>
+  <data name="Usage_CopyPath" xml:space="preserve">
+    <value>Copy path</value>
+  </data>
+  <data name="Usage_CopyPathLine" xml:space="preserve">
+    <value>Copy path:line</value>
+  </data>
+  <data name="Usage_CopyName" xml:space="preserve">
+    <value>Copy name (Ctrl+T in Visual Studio)</value>
+  </data>
+  <data name="Usage_CopyCaller" xml:space="preserve">
+    <value>Copy method</value>
+  </data>
+  <data name="Usage_DropUsed" xml:space="preserve">
+    <value>Column {0} ({1}) is used in the code at {2} places ({3}): the build breaks once the property is removed.</value>
+  </data>
+  <data name="Usage_RenameUsed" xml:space="preserve">
+    <value>Column {0} ({1}) is renamed and used in the code at {2} places ({3}): the mapping of the property must follow.</value>
+  </data>
+  <data name="Usage_ReportHeading" xml:space="preserve">
+    <value>Unused in the code</value>
+  </data>
+  <data name="Usage_ReportHint" xml:space="preserve">
+    <value>Mapped properties that no code of the solution reads or writes outside tests and mapping code – read from the build; accesses by string and raw SQL are not seen.</value>
+  </data>
+  <data name="Usage_ReportRead" xml:space="preserve">
+    <value>Read the solution</value>
+  </data>
+  <data name="Usage_ReportNone" xml:space="preserve">
+    <value>Every mapped property is used.</value>
+  </data>
+  <data name="Usage_VsCodePath" xml:space="preserve">
+    <value>VS Code cannot open this path through code.cmd (it contains &amp; ^ % or a similar character) and Code.exe was not found next to it.</value>
+  </data>
+  <data name="Usage_TabColumns" xml:space="preserve">
+    <value>Columns</value>
+  </data>
+  <data name="Usage_TabColumnsTitle" xml:space="preserve">
+    <value>Per column, the methods that read or write its property or use it in LINQ</value>
+  </data>
+  <data name="Usage_TabUnused" xml:space="preserve">
+    <value>{0} unused</value>
+  </data>
+  <data name="Usage_TabQueries" xml:space="preserve">
+    <value>Queries</value>
+  </data>
+  <data name="Usage_TabQueriesTitle" xml:space="preserve">
+    <value>Where code queries the table: Set&lt;T&gt;() and reads of the DbSet property (application code counted)</value>
+  </data>
 </root>

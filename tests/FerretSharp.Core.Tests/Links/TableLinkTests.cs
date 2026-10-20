@@ -37,6 +37,15 @@ public class TableLinkTests
     }
 
     [Fact]
+    public void The_usage_view_is_left_out_of_a_link()
+    {
+        var link = TableLink.For(ErpTest, new TableRef("ERP", "AUFTRAG"), [], [], TabMode.Usage);
+
+        Assert.Null(link.Mode);
+        Assert.DoesNotContain("&m=", link.ToUri(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void A_link_reads_back_what_was_written()
     {
         var link = TableLink.For(ErpTest, new TableRef("ERP", "AUFTRAG"), [

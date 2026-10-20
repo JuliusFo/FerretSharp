@@ -18,7 +18,7 @@ public sealed class ConnectionServiceInjectionTests
     private static readonly Type[] ConnectionServices =
     [
         typeof(ConnectionScope), typeof(ActiveConnection), typeof(WorkspaceManager), typeof(ClrModelManager),
-        typeof(PresentationService), typeof(LinqConsoleService),
+        typeof(PresentationService), typeof(LinqConsoleService), typeof(CodeUsageService),
     ];
 
     [Fact]

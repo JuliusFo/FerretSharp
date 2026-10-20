@@ -141,6 +141,7 @@ public partial class App : Application
         builder.Services.AddSingleton<IDialogService, DialogService>();
         builder.Services.AddSingleton<IFileSaveService, FileSaveService>();
         builder.Services.AddSingleton<IFileOpenService, FileOpenService>();
+        builder.Services.AddSingleton<ICodeEditorLauncher, CodeEditorLauncher>();
         var modelHost = Path.Combine(AppContext.BaseDirectory, "modelhost", "FerretSharp.ModelHost.dll");
         // The host runs from copies of the build output, so the linked project can be built meanwhile (ADR 0016).
         var shadow = new BuildOutputShadow(Path.Combine(Path.GetTempPath(), AppPaths.AppFolderName, "shadow"));
@@ -165,6 +166,10 @@ public partial class App : Application
         builder.Services.AddScoped<ClrModelManager>();
         builder.Services.AddScoped<PresentationService>();
         builder.Services.AddScoped<LinqConsoleService>();
+        builder.Services.AddSingleton(new CodeUsageBuilder(paths.CodeUsageCacheDirectory));
+        builder.Services.AddSingleton(new WorkClones(paths.WorkClonesFile));
+        builder.Services.AddScoped<CodeUsageService>();
+        builder.Services.AddSingleton<CodeUsageOpener>();
         builder.Services.AddSingleton<ExitGuard>();
         // Updates (WP-32, ADR 0024): Velopack, only reports; installing waits for a click.
         builder.Services.AddSingleton<IAppUpdater>(new VelopackUpdater(args));

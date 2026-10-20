@@ -354,4 +354,10 @@
   <data name="HintCommandPalette" xml:space="preserve">
     <value>All actions with their shortcuts. Deleting the “&gt;” goes to the quick open.</value>
   </data>
+  <data name="ActionSwitchWorkClone" xml:space="preserve">
+    <value>Switch work clone</value>
+  </data>
+  <data name="HintSwitchWorkClone" xml:space="preserve">
+    <value>The clone you develop in, for the connections of the shown group: uses in the code open there.</value>
+  </data>
 </root>

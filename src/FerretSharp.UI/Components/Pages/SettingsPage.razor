@@ -44,6 +44,10 @@
                             Value="Settings.Current.ClrNames" OnChange="mode => UpdateAsync(s => s with { ClrNames = mode })">
                 <Hint>@SettingsViewText.Settings_ClrNamesHint</Hint>
             </SettingsChoice>
+            <SettingsChoice TValue="CodeEditor" Filter="Filter" Key="SettingKey.CodeEditor" Label="@SettingsViewText.Settings_CodeEditor" Options="SettingsOptions.CodeEditors"
+                            Value="Settings.Current.CodeEditor" OnChange="editor => UpdateAsync(s => s with { CodeEditor = editor })">
+                <Hint>@SettingsViewText.Settings_CodeEditorHint</Hint>
+            </SettingsChoice>
         </section>
         }
 

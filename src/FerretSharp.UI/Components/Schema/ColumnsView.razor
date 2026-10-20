@@ -3,6 +3,7 @@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
+@inherits FerretComponent
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject ShortcutService Shortcuts
@@ -124,6 +125,10 @@
                             var mismatches = mapping.MismatchesOf(Details.Table.Ref, column.Name).ToList();
                             <td class="mono property">
                                 @property.Name@(property.IsShadow ? " (Shadow)" : "")
+                                @if (Usage.State.Result is { } usage && CodeUsageRows.Column(mapping, usage.Index, Details.Table.Ref, column.Name) is { Unused: true })
+                                {
+                                    <span class="fs-badge unused" title="@ModelViewText.Usage_UnusedTitle">@ModelViewText.Usage_Unused</span>
+                                }
                                 @if (mismatches.Count > 0)
                                 {
                                     var worst = mismatches.Min(m => m.Severity);
@@ -205,6 +210,18 @@
 
     [CascadingParameter]
     public PresentationService Presentations { get; set; } = null!;
+
+    /// <summary>Marks mapped columns no code uses (WP-40); the index is read when the view is shown for a mapped table.</summary>
+    [CascadingParameter]
+    public CodeUsageService Usage { get; set; } = null!;
+
+    /// <summary>The view is visible now (the tab's mode, the active tab): only then is the code usage index brought up to date.</summary>
+    [Parameter]
+    public bool Shown { get; set; }
+
+    private bool _wasShown;
+
+    private readonly CancellationTokenSource _lifetime = new();
     private string _columnQuery = "";
 
     [Parameter, EditorRequired]
@@ -248,7 +265,43 @@
         _presentation = new PresentationWatch(Presentations);
         Presentations.Changed += OnModelChanged;
         DisplaySource.Changed += OnDisplayColumnsChanged;
+        Usage.Changed += OnUsageChanged;
         _editing = Tab?.Designer is not null; // a draft that outlived a rebuild of the tab (DDL that stopped halfway)
+    }
+
+    /// <summary>Shown again (or for the first time): a build since then is picked up.</summary>
+    protected override void OnParametersSet()
+    {
+        if (Shown && !_wasShown)
+        {
+            EnsureUsage();
+        }
+
+        _wasShown = Shown;
+    }
+
+    /// <summary>The index arrived or is out of date: mapped tables show the marker, and read it again while shown.</summary>
+    private void OnUsageChanged()
+    {
+        if (Models.Mapping?.EntityOf(Details.Table.Ref) is null)
+        {
+            return;
+        }
+
+        Fire(StateHasChanged);
+        if (Shown && Usage.State.Phase == CodeUsagePhase.NotBuilt)
+        {
+            EnsureUsage();
+        }
+    }
+
+    private void EnsureUsage()
+    {
+        if (Models.Mapping?.EntityOf(Details.Table.Ref) is not null && !_lifetime.IsCancellationRequested)
+        {
+            // Cancelled when the view goes away: Fire stays silent.
+            Fire(() => Usage.EnsureAsync(_lifetime.Token));
+        }
     }
 
     private void OnModelChanged() => InvokeAsync(() =>
@@ -289,6 +342,9 @@
     {
         Presentations.Changed -= OnModelChanged;
         DisplaySource.Changed -= OnDisplayColumnsChanged;
+        Usage.Changed -= OnUsageChanged;
+        await _lifetime.CancelAsync();
+        _lifetime.Dispose();
         await Dom.DisposeAsync();
     }
 }

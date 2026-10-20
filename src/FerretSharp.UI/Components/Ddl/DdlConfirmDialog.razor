@@ -9,6 +9,10 @@
                ConfirmLabel="@(discard is null ? CommonText.Run : SqlEditorText.SqlView_DiscardAndRun)" Danger="true"
                OnConfirm="() => OnConfirm.InvokeAsync(discard?.Workspace)" OnCancel="OnCancel">
     <DdlStatementList Statements="Statements" />
+    @foreach (var note in Notes)
+    {
+        <p class="hint">⚠ @note</p>
+    }
     @if (Active.Profile is { Kind: ConnectionKind.Prod } profile)
     {
         <p><Fmt Text="@SqlEditorText.SqlView_ConfirmProd"><Arg0><strong>@ConnectionLabel.Of(profile, Settings.Current)</strong></Arg0></Fmt></p>
@@ -28,6 +32,10 @@
 
     [Parameter, EditorRequired]
     public IReadOnlyList<string> Statements { get; set; } = [];
+
+    /// <summary>What to know before running, e.g. code using a dropped column (WP-40).</summary>
+    [Parameter]
+    public IReadOnlyList<string> Notes { get; set; } = [];
 
     /// <summary>Run: with the workspace whose uncommitted changes are rolled back first, if it has any.</summary>
     [Parameter]

@@ -166,6 +166,15 @@ public sealed class ConnectionManager(IConnectionStore store, ISecretStore secre
         }
     }
 
+    /// <summary>Remembers the solution of the code usage index (WP-40); a profile that is gone is left alone.</summary>
+    public async Task SetCodeSolutionAsync(Guid profileId, string? solution, CancellationToken cancellationToken)
+    {
+        if (_profiles.FirstOrDefault(p => p.Id == profileId) is { } profile && profile.CodeSolution != solution)
+        {
+            await SaveAsync(profile with { CodeSolution = solution }, null, cancellationToken);
+        }
+    }
+
     public async Task DeleteAsync(Guid profileId, CancellationToken cancellationToken)
     {
         RefuseWithoutFile();

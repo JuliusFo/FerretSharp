@@ -12,6 +12,9 @@ public enum TabMode
     Indexes,
     Dependencies,
     Ddl,
+
+    /// <summary>Uses of the columns in the linked solution's code (WP-40).</summary>
+    Usage,
 }
 
 /// <summary>

@@ -1,0 +1,128 @@
+// Code the IL scanner reads from this test assembly itself (WP-40): entities, a context, a configuration and methods that
+// use them. Each use carries a marker comment the tests look up in the source to know its line. Do not reformat the lines
+// with markers; the tests find them by the comment, not by number.
+using System.Linq.Expressions;
+using Microsoft.EntityFrameworkCore;
+
+#pragma warning disable CA1822, CA1812, IDE0051 // read by the scanner, never run
+
+namespace FerretSharp.Core.Tests.ClrModel.UsageSamples
+{
+    public abstract class EntityBase
+    {
+        public int Id { get; set; }
+
+        public DateTime CreatedAt { get; set; }
+    }
+
+    public interface IHasName
+    {
+        string Name { get; }
+    }
+
+    public class Customer : EntityBase, IHasName
+    {
+        public string Name { get; set; } = "";
+
+        public string? Email { get; set; }
+
+        public string? Unused { get; set; }
+
+        public List<Order> Orders { get; set; } = [];
+    }
+
+    public class Order : EntityBase
+    {
+        public int CustomerId { get; set; }
+
+        public Customer? Customer { get; set; }
+
+        public decimal Total { get; set; }
+
+        public class Line
+        {
+            public int Quantity { get; set; }
+        }
+    }
+
+    public class ShopContext : DbContext
+    {
+        public DbSet<Customer> Customers => Set<Customer>(); // marker: dbset-customers
+
+        protected override void OnModelCreating(ModelBuilder builder) =>
+            builder.Entity<Order>(o => o.Property(x => x.Total)); // marker: mapping-on-model-creating
+    }
+
+    public sealed class CustomerConfiguration : IEntityTypeConfiguration<Customer>
+    {
+        public void Configure(EntityTypeBuilder<Customer> builder) =>
+            builder.Property(x => x.Email); // marker: mapping-configuration
+    }
+
+    public sealed class CustomerService(ShopContext context)
+    {
+        public string? ReadEmail(Customer customer) => customer.Email; // marker: read-email
+
+        public void WriteEmail(Customer customer) => customer.Email = "a@b.c"; // marker: write-email
+
+        public Customer Create() => new() { Name = "x" }; // marker: init-name
+
+        public IQueryable<Customer> WithEmail(IQueryable<Customer> customers) =>
+            customers.Where(c => c.Email != null); // marker: linq-email
+
+        public async Task<int> CountOrdersAsync(Customer customer)
+        {
+            await Task.Yield();
+            return customer.Orders.Count; // marker: async-orders
+        }
+
+        public IEnumerable<int> Ids(IEnumerable<EntityBase> entities) =>
+            entities.Select(e => e.Id); // marker: lambda-base-id
+
+        public string Named(IHasName named) => named.Name; // marker: interface-name
+
+        public int Quantity(Order.Line line) => line.Quantity; // marker: nested-quantity
+
+        public DbSet<Order> Orders() => context.Set<Order>(); // marker: set-orders
+
+        public int Local(Order order)
+        {
+            return Inner();
+
+            int Inner() => order.CustomerId; // marker: local-function
+        }
+
+        public int Framework(string text) => text.Length; // not kept: a framework type
+    }
+}
+
+// Stand-ins for EF Core's types, so the scanner sees the names it looks for without a package (net10.0 test project, EF 8
+// is the user's). Only names and shapes matter.
+namespace Microsoft.EntityFrameworkCore
+{
+    public class DbContext
+    {
+        public DbSet<T> Set<T>() where T : class => new();
+
+        protected virtual void OnModelCreating(ModelBuilder builder)
+        {
+        }
+    }
+
+    public class DbSet<T> where T : class;
+
+    public class ModelBuilder
+    {
+        public ModelBuilder Entity<T>(Action<EntityTypeBuilder<T>> configure) where T : class => this;
+    }
+
+    public class EntityTypeBuilder<T> where T : class
+    {
+        public EntityTypeBuilder<T> Property<TProperty>(Expression<Func<T, TProperty>> property) => this;
+    }
+
+    public interface IEntityTypeConfiguration<T> where T : class
+    {
+        void Configure(EntityTypeBuilder<T> builder);
+    }
+}

@@ -1,0 +1,91 @@
+@* Status bar: the work clone of the shown connection's group with its branch (WP-40); a click opens the dialog. The folder,
+   branch and fit are read off the render thread – when the choice, the connection or the model changes, and every few
+   seconds for a branch switched outside (review of WP-40: the bar renders on every shell change). *@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Connections
+@inherits FerretComponent
+@implements IDisposable
+@inject WorkClones Clones
+
+@{
+    var problem = WorkCloneDialog.FitText(_active?.Fit);
+}
+<button class="item status-link shrink @(problem is null ? "" : "warn")"
+        title="@(_active is null ? ShellText.WorkClone_StatusNoneTitle : problem is null ? TextFormat.Format(ShellText.WorkClone_StatusTitle, _active.Path) : $"{_active.Path}\n⚠ {problem}")"
+        @onclick="Shell.OpenWorkClones">
+    @if (_active is null)
+    {
+        <span class="muted">⎇ @ShellText.WorkClone_StatusNone</span>
+    }
+    else
+    {
+        <span>⎇ @_active.Name@(_active.Branch is { } branch ? $" ({branch})" : "")</span>
+    }
+</button>
+
+@code {
+    /// <summary>How often the branch of the work clone is read again.</summary>
+    private static readonly TimeSpan BranchCheck = TimeSpan.FromSeconds(15);
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public ClrModelManager Models { get; set; } = null!;
+
+    private WorkCloneChoice? _active;
+    private Timer? _timer;
+    private int _reading;
+
+    /// <summary>A change came in while reading: read once more afterwards (a choice made meanwhile is not lost).</summary>
+    private int _again;
+
+    protected override void OnInitialized()
+    {
+        Clones.Changed += Refresh;
+        Active.Changed += Refresh;
+        Models.Changed += Refresh;
+        _timer = new Timer(_ => Refresh(), null, TimeSpan.Zero, BranchCheck);
+    }
+
+    /// <summary>Reads the group's clone on the pool and renders only if something changed; one read at a time.</summary>
+    private void Refresh()
+    {
+        if (Interlocked.Exchange(ref _reading, 1) == 1)
+        {
+            Volatile.Write(ref _again, 1);
+            return;
+        }
+
+        var (group, link) = (Active.Profile?.Group, Models.State.Link);
+        Task.Run(() => WorkCloneChoices.Active(Clones, group, link)).ContinueWith(read =>
+        {
+            Volatile.Write(ref _reading, 0);
+            if (Interlocked.Exchange(ref _again, 0) == 1)
+            {
+                Refresh();
+            }
+
+            if (read.IsCompletedSuccessfully && read.Result != _active)
+            {
+                var value = read.Result;
+                Fire(() =>
+                {
+                    _active = value;
+                    StateHasChanged();
+                });
+            }
+        }, TaskScheduler.Default);
+    }
+
+    public void Dispose()
+    {
+        Clones.Changed -= Refresh;
+        Active.Changed -= Refresh;
+        Models.Changed -= Refresh;
+        _timer?.Dispose();
+    }
+}

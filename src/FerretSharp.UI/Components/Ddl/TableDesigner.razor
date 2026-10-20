@@ -192,7 +192,9 @@ else
         {
             <p class="hint small"><span class="spinner"></span> @SchemaViewText.Designer_Counting</p>
         }
-        <DdlDraftPanel WorkspaceId="WorkspaceId" Steps="@(counting ? [] : plan.Steps)" Problems="@(inputProblems.Concat(plan.Problems).ToList())" Warnings="plan.Warnings"
+        @{ var usageNotes = UsageNotes(designer); }
+        <DdlDraftPanel WorkspaceId="WorkspaceId" Steps="@(counting ? [] : plan.Steps)" Problems="@(inputProblems.Concat(plan.Problems).ToList())"
+                       Warnings="@(plan.Warnings.Concat(usageNotes).ToList())" ConfirmNotes="usageNotes"
                        FileName="@($"{DateTime.Now:yyyy-MM-dd}_{(NewTab?.Table.Name ?? Details.Table.Name)}.sql")" OnRan="OnRanAsync" OnFailed="OnFailedAsync" Ended="OnEnded" Earlier="_failure" OnClose="CloseAsync" />
 
         @if (PropertyLines(designer) is { Count: > 0 } suggestions)
@@ -243,6 +245,17 @@ else
     [CascadingParameter]
     public ClrModelManager Models { get; set; } = null!;
 
+    [CascadingParameter]
+    public CodeUsageService Usage { get; set; } = null!;
+
+    /// <summary>Code using a column that is dropped or renamed (WP-40); empty until the index is read or without a model.</summary>
+    private IReadOnlyList<string> UsageNotes(ColumnDesigner designer) =>
+        Models.Mapping is { } mapping && Usage.State.Result is { } usage && NewTab is null
+            ? CodeUsageRows.DropNotes(mapping, usage.Index, Details.Table.Ref, designer.Columns
+                .Where(c => c.Before is not null && (c.Dropped || c.Name.Trim() != c.Before.Name))
+                .Select(c => (c.Before!.Name, c.Dropped ? null : (string?)c.Name.Trim())))
+            : [];
+
     [Parameter, EditorRequired]
     public TableDetails Details { get; set; } = null!;
 
@@ -279,6 +292,15 @@ else
         }
 
         _failure = Tab?.Designer?.Failure;
+        if (Models.Mapping?.EntityOf(Details.Table.Ref) is not null)
+        {
+            Fire(async () =>
+            {
+                await Usage.EnsureAsync(_cts.Token); // for the warnings on dropping a column used in code
+                StateHasChanged();
+            });
+        }
+
         await LoadAsync(Tab?.Designer?.Draft);
     }
 

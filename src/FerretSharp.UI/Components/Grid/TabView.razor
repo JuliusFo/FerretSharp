@@ -1,3 +1,4 @@
+@using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
 @using FerretSharp.Core.Forms
@@ -107,7 +108,7 @@
                             @switch (mode)
                             {
                                 case TabMode.Structure:
-                                    <ColumnsView @ref="_columns" Details="_details" WorkspaceId="Tab.WorkspaceId" Tab="Tab" OnSchemaChanged="() => _version++" />
+                                    <ColumnsView @ref="_columns" Details="_details" WorkspaceId="Tab.WorkspaceId" Tab="Tab" Shown="IsShown(TabMode.Structure)" OnSchemaChanged="() => _version++" />
                                     break;
                                 case TabMode.Constraints:
                                     <ConstraintsView Details="_details" Version="_version" />
@@ -120,6 +121,9 @@
                                     break;
                                 case TabMode.Ddl:
                                     <DdlView Details="_details" Version="_version" />
+                                    break;
+                                case TabMode.Usage:
+                                    <UsageView Details="_details" Shown="IsShown(TabMode.Usage)" />
                                     break;
                             }
                         </div>
@@ -221,7 +225,19 @@
     private readonly HashSet<TabMode> _visited = [];
     private int _version; // F5 in a detail view: incremented, the detail views reload
 
-    private static IReadOnlyList<(TabMode Mode, string Label)> Modes => TabModeLabels.All;
+    /// <summary>"Usage" only with a linked C# project (WP-40): without one there is no code to search.</summary>
+    private IReadOnlyList<(TabMode Mode, string Label)> Modes =>
+        TabModeLabels.All.Where(m => m.Mode != TabMode.Usage || Models.State.Link is not null || Tab.Mode == TabMode.Usage).ToList();
+
+    [CascadingParameter]
+    public ClrModelManager Models { get; set; } = null!;
+
+    /// <summary>
+    /// The view is what the user sees now: the tab's mode, the active tab of the shown connection, the explorer page. Views
+    /// stay mounted once visited; only a shown one reads the code usage index (review of WP-40: hidden ones rebuilt it after
+    /// every build of the project).
+    /// </summary>
+    private bool IsShown(TabMode mode) => Tab.Mode == mode && ReferenceEquals(Shell.ActiveTab, Tab) && Shell.Page == ShellPage.Explorer;
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;

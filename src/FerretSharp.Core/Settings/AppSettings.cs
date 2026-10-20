@@ -23,6 +23,19 @@ public enum ClrNameDisplay
     Front,
 }
 
+/// <summary>Where a use in code opens (WP-40, ADR 0030).</summary>
+public enum CodeEditor
+{
+    /// <summary>The Visual Studio instance with the solution open, at the line (default).</summary>
+    VisualStudio,
+
+    /// <summary>Visual Studio Code (<c>code -g file:line</c>).</summary>
+    VsCode,
+
+    /// <summary>The program Windows opens <c>.cs</c> files with (no line).</summary>
+    System,
+}
+
 /// <summary>
 /// When the cell menu and the form count the rows behind incoming foreign keys (WP-21). The counts run on the workspace's
 /// session, one after the other: a jump or a page waits until the running one has ended.
@@ -88,6 +101,9 @@ public sealed record AppSettings
 
     /// <summary>Entity and property names of a linked C# project beside the database names (explorer, grid, column search).</summary>
     public ClrNameDisplay ClrNames { get; init; } = ClrNameDisplay.Beside;
+
+    /// <summary>Where a use of a column in the code opens (WP-40).</summary>
+    public CodeEditor CodeEditor { get; init; } = CodeEditor.VisualStudio;
 
     /// <summary>
     /// Shortcuts that differ from the defaults (WP-25): action name → key combination (<c>ctrl+shift+o</c>), empty for

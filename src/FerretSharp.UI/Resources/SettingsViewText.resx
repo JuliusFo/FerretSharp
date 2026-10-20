@@ -405,4 +405,19 @@
     <value>Edit connection…</value>
     <comment>Button: opens the connection dialog</comment>
   </data>
+  <data name="Settings_CodeEditor" xml:space="preserve">
+    <value>Open code in</value>
+  </data>
+  <data name="Settings_CodeEditorHint" xml:space="preserve">
+    <value>Where a use of a column in the code opens ("Usage" view of a table). Visual Studio: the running instance that has the solution open, at the line; without one, a new window. VS Code at the line, or the program Windows opens .cs files with.</value>
+  </data>
+  <data name="Settings_CodeEditorVisualStudio" xml:space="preserve">
+    <value>Visual Studio</value>
+  </data>
+  <data name="Settings_CodeEditorVsCode" xml:space="preserve">
+    <value>VS Code</value>
+  </data>
+  <data name="Settings_CodeEditorSystem" xml:space="preserve">
+    <value>Windows default</value>
+  </data>
 </root>

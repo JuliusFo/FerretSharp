@@ -32,6 +32,12 @@ public sealed class AppPaths
     /// <summary>Exported C# models of linked projects, reused while their build is unchanged (WP-16).</summary>
     public string ModelCacheDirectory => Path.Combine(Root, "cache", "models");
 
+    /// <summary>What the IL scanner read from each assembly of a linked solution, one file per MVID (WP-40).</summary>
+    public string CodeUsageCacheDirectory => Path.Combine(Root, "cache", "code-usage");
+
+    /// <summary>The active work clone of each connection group and the recently chosen folders (WP-40).</summary>
+    public string WorkClonesFile => Path.Combine(Root, "work-clones.json");
+
     /// <summary>The SQL editor's history, one file per connection (WP-17).</summary>
     public string SqlHistoryDirectory => Path.Combine(Root, "history");
 

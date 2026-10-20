@@ -1056,4 +1056,43 @@
     <value>Not in this tab.</value>
     <comment>Why an action of the command palette is greyed out: the active tab (e.g. PL/SQL, new table) has nothing for it</comment>
   </data>
+  <data name="WorkClone_Title" xml:space="preserve">
+    <value>Work clone</value>
+  </data>
+  <data name="WorkClone_NoGroup" xml:space="preserve">
+    <value>Connections without a group</value>
+  </data>
+  <data name="WorkClone_Hint" xml:space="preserve">
+    <value>The clone you develop in, for all connections of this group. Uses in the code open there (same path as in the connection's linked clone); without one, in the linked clone.</value>
+  </data>
+  <data name="WorkClone_None" xml:space="preserve">
+    <value>None – use the linked clone</value>
+  </data>
+  <data name="WorkClone_NoneHint" xml:space="preserve">
+    <value>the clone linked as C# project of the connection</value>
+  </data>
+  <data name="WorkClone_Pick" xml:space="preserve">
+    <value>Choose a solution or project in the clone…</value>
+  </data>
+  <data name="WorkClone_PickFilter" xml:space="preserve">
+    <value>Solutions and projects</value>
+  </data>
+  <data name="WorkClone_Missing" xml:space="preserve">
+    <value>the folder no longer exists</value>
+  </data>
+  <data name="WorkClone_ProjectMissing" xml:space="preserve">
+    <value>does not contain the connection's C# project at the same path</value>
+  </data>
+  <data name="WorkClone_LinkedNotInRepository" xml:space="preserve">
+    <value>the linked project is not in a Git working copy: paths cannot be matched</value>
+  </data>
+  <data name="WorkClone_StatusNone" xml:space="preserve">
+    <value>linked clone</value>
+  </data>
+  <data name="WorkClone_StatusNoneTitle" xml:space="preserve">
+    <value>No work clone chosen for this group: uses in the code open in the linked clone. Click to choose one.</value>
+  </data>
+  <data name="WorkClone_StatusTitle" xml:space="preserve">
+    <value>Work clone of this group: {0}. Click to switch.</value>
+  </data>
 </root>
