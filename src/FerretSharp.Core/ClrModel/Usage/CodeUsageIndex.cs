@@ -28,9 +28,18 @@ public sealed class CodeUsageIndex
     private readonly Dictionary<string, TypeLink> _types = new(StringComparer.Ordinal);
     private readonly Dictionary<string, IReadOnlySet<string>> _ancestors = new(StringComparer.Ordinal);
 
+    /// <summary>(entity name, property) of every key: primary keys and the keys foreign keys point to, built once.</summary>
+    private readonly HashSet<(string Entity, string Property)> _keys = [];
+
     private CodeUsageIndex(ModelExport model, IReadOnlyList<AssemblyUses> assemblies)
     {
         Model = model;
+        foreach (var entity in model.Entities)
+        {
+            _keys.UnionWith(entity.PrimaryKey.Select(p => (entity.Name, p)));
+            _keys.UnionWith(entity.ForeignKeys.SelectMany(k => k.PrincipalProperties.Select(p => (k.PrincipalEntity, p))));
+        }
+
         foreach (var type in assemblies.SelectMany(a => a.Types))
         {
             _types.TryAdd(type.Type, type);
@@ -82,9 +91,7 @@ public sealed class CodeUsageIndex
     public bool IsUnused(EntityExport entity, PropertyExport property) =>
         !property.IsShadow && !IsKey(entity, property.Name) && !UsesCountingFor(entity, property).Any(u => !u.IsTest && !u.IsMapping);
 
-    private bool IsKey(EntityExport entity, string property) =>
-        entity.PrimaryKey.Contains(property, StringComparer.Ordinal)
-        || Model.Entities.Any(e => e.ForeignKeys.Any(k => k.PrincipalEntity == entity.Name && k.PrincipalProperties.Contains(property, StringComparer.Ordinal)));
+    private bool IsKey(EntityExport entity, string property) => _keys.Contains((entity.Name, property));
 
     /// <summary>Every mapped, non-shadow property without a use outside tests and mapping code (the report).</summary>
     public IReadOnlyList<(EntityExport Entity, PropertyExport Property)> Unused() =>

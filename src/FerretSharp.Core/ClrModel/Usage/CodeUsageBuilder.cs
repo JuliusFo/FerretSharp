@@ -19,7 +19,7 @@ public sealed record CodeUsageResult(string? Solution, IReadOnlyList<CodeUsagePr
 /// with <see cref="IlUsageScanner"/> or takes the result from the cache (one file per assembly MVID, so after a build only
 /// the changed assemblies are read again), and joins everything with the model export.
 /// </summary>
-public sealed class CodeUsageBuilder(string cacheDirectory, TimeProvider? time = null)
+public class CodeUsageBuilder(string cacheDirectory, TimeProvider? time = null)
 {
     /// <summary>Cache files not used for this long are removed when an index is built.</summary>
     public static readonly TimeSpan CacheLifetime = TimeSpan.FromDays(30);
@@ -29,7 +29,9 @@ public sealed class CodeUsageBuilder(string cacheDirectory, TimeProvider? time =
     public string CacheDirectory { get; } = cacheDirectory;
 
     /// <param name="solution">The solution to read (<see cref="SolutionFile.Find"/>); null = the linked project alone.</param>
-    public async Task<CodeUsageResult> BuildAsync(ClrProjectLink link, string? solution, ModelExport model, CancellationToken cancellationToken)
+    /// <exception cref="IOException">The solution could not be read.</exception>
+    /// <exception cref="System.Xml.XmlException">An <c>.slnx</c> is no XML.</exception>
+    public virtual async Task<CodeUsageResult> BuildAsync(ClrProjectLink link, string? solution, ModelExport model, CancellationToken cancellationToken)
     {
         var projects = solution is null ? [Path.GetFullPath(link.ProjectFile)] : SolutionFile.Projects(solution);
         var builds = projects.Select(p => Locate(p, link.Configuration)).ToList();
@@ -76,8 +78,9 @@ public sealed class CodeUsageBuilder(string cacheDirectory, TimeProvider? time =
             await SaveAsync(cacheFile, uses, cancellationToken);
             return project with { Uses = uses };
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or BadImageFormatException)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
+            // One odd assembly (deleted by a running build, unusual metadata or PDB) costs that project, not the index.
             return project with { Error = ex.Message };
         }
     }

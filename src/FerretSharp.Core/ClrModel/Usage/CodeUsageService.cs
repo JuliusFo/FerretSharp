@@ -61,31 +61,18 @@ public sealed class CodeUsageService : IDisposable
     private ConnectionProfile? Profile =>
         _active.Profile is { } profile ? _connections.Profiles.FirstOrDefault(p => p.Id == profile.Id) ?? profile : null;
 
-    /// <summary>The solutions containing the linked project (several: the user chooses); empty without one or without a link.</summary>
+    /// <summary>
+    /// The solutions containing the linked project (several: the user chooses), as found by the last build or check; empty
+    /// before. Reads nothing: views render it (review of WP-40, no file system on the render thread).
+    /// </summary>
     public IReadOnlyList<string> Solutions
     {
         get
         {
-            if (_models.State.Link is not { } link)
-            {
-                return [];
-            }
-
             lock (_lock)
             {
-                if (_solutions is { } known && known.ProjectFile == link.ProjectFile)
-                {
-                    return known.Solutions;
-                }
+                return _solutions is { } known && known.ProjectFile == _models.State.Link?.ProjectFile ? known.Solutions : [];
             }
-
-            var found = SolutionFile.Find(link.ProjectFile);
-            lock (_lock)
-            {
-                _solutions = (link.ProjectFile, found);
-            }
-
-            return found;
         }
     }
 
@@ -105,7 +92,8 @@ public sealed class CodeUsageService : IDisposable
     /// The index for the current model and builds; builds it if missing or outdated. Null without a model. Cancelling stops
     /// the wait, not a build other views may wait for too.
     /// </summary>
-    public Task<CodeUsageResult?> EnsureAsync(CancellationToken cancellationToken) => GetAsync(force: false).WaitAsync(cancellationToken);
+    public Task<CodeUsageResult?> EnsureAsync(CancellationToken cancellationToken) =>
+        Task.Run(() => GetAsync(force: false), CancellationToken.None).WaitAsync(cancellationToken); // the check reads the file system
 
     /// <summary>Reads the solution again (new projects, a moved solution), the cache still serving unchanged assemblies.</summary>
     public Task<CodeUsageResult?> RefreshAsync(CancellationToken cancellationToken)
@@ -115,7 +103,7 @@ public sealed class CodeUsageService : IDisposable
             _solutions = null;
         }
 
-        return GetAsync(force: true).WaitAsync(cancellationToken);
+        return Task.Run(() => GetAsync(force: true), CancellationToken.None).WaitAsync(cancellationToken);
     }
 
     /// <summary>Reads another solution from now on and remembers it for the connection.</summary>
@@ -126,11 +114,14 @@ public sealed class CodeUsageService : IDisposable
             await _connections.SetCodeSolutionAsync(profile.Id, solution, cancellationToken);
         }
 
-        await GetAsync(force: true).WaitAsync(cancellationToken);
+        await Task.Run(() => GetAsync(force: true), CancellationToken.None).WaitAsync(cancellationToken);
     }
 
     private Task<CodeUsageResult?> GetAsync(bool force)
     {
+        ClrProjectLink link;
+        ModelExport model;
+        CodeUsageResult? current;
         lock (_lock)
         {
             if (_building is { IsCompleted: false } running)
@@ -138,22 +129,28 @@ public sealed class CodeUsageService : IDisposable
                 return running;
             }
 
-            if (_models.State.Link is not { } link || _models.Mapping?.Model is not { } model)
+            if (_lifetime.IsCancellationRequested || _models.State.Link is not { } linked || _models.Mapping?.Model is not { } loaded)
             {
                 return Task.FromResult<CodeUsageResult?>(null);
             }
 
-            if (_lifetime.IsCancellationRequested)
+            (link, model, current) = (linked, loaded, State.Result);
+        }
+
+        // Outside the lock: the check reads the file system.
+        if (!force && current is not null && IsCurrent(current, model, link))
+        {
+            return Task.FromResult<CodeUsageResult?>(current);
+        }
+
+        lock (_lock)
+        {
+            if (_building is { IsCompleted: false } running)
             {
-                return Task.FromResult<CodeUsageResult?>(null);
+                return running;
             }
 
-            if (!force && State.Result is { } result && IsCurrent(result, model, link))
-            {
-                return Task.FromResult<CodeUsageResult?>(result);
-            }
-
-            return _building = BuildAsync(link, model, _lifetime.Token);
+            return _lifetime.IsCancellationRequested ? Task.FromResult<CodeUsageResult?>(null) : _building = BuildAsync(link, model, _lifetime.Token);
         }
     }
 
@@ -163,20 +160,48 @@ public sealed class CodeUsageService : IDisposable
         Set(State with { Phase = CodeUsagePhase.Building, Error = null });
         try
         {
-            var solution = Solution;
-            var result = await Task.Run(() => _builder.BuildAsync(link, solution, model, cancellationToken), cancellationToken);
-            Set(new CodeUsageState(CodeUsagePhase.Ready, result, _time.GetLocalNow(), null));
+            var result = await Task.Run(() =>
+            {
+                FindSolutions(link);
+                return _builder.BuildAsync(link, Solution, model, cancellationToken);
+            }, cancellationToken);
+
+            // The model changed while it ran (a build of the project): the result is kept but out of date, so views showing
+            // it build it again (review of WP-40: it ended as Ready, and nothing rebuilt it).
+            var outdated = !ReferenceEquals(_models.Mapping?.Model, model);
+            Set(new CodeUsageState(outdated ? CodeUsagePhase.NotBuilt : CodeUsagePhase.Ready, result, _time.GetLocalNow(), null));
             return result;
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             return null; // the connection closed
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Xml.XmlException)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
+            // Never left at Building: views would wait for ever, and the fault would reach every tab waiting for it.
             Set(State with { Phase = CodeUsagePhase.Failed, Error = ex.Message });
             return null;
         }
+    }
+
+    /// <summary>The solutions containing the linked project, read once per link (again after "Neu einlesen").</summary>
+    private IReadOnlyList<string> FindSolutions(ClrProjectLink link)
+    {
+        lock (_lock)
+        {
+            if (_solutions is { } known && known.ProjectFile == link.ProjectFile)
+            {
+                return known.Solutions;
+            }
+        }
+
+        var found = SolutionFile.Find(link.ProjectFile);
+        lock (_lock)
+        {
+            _solutions = (link.ProjectFile, found);
+        }
+
+        return found;
     }
 
     /// <summary>Built from this model and the solution as chosen now, and no assembly of it changed (or appeared) since.</summary>
@@ -184,6 +209,7 @@ public sealed class CodeUsageService : IDisposable
     {
         try
         {
+            FindSolutions(link);
             return ReferenceEquals(result.Index.Model, model)
                    && string.Equals(result.Solution, Solution, StringComparison.OrdinalIgnoreCase)
                    && result.Projects.All(p => p.Build switch

@@ -95,6 +95,15 @@ public sealed class IlUsageScannerTests
     }
 
     [Fact]
+    public void A_file_a_build_deleted_meanwhile_is_an_io_error_not_a_null_reference()
+    {
+        var gone = Path.Combine(Path.GetTempPath(), $"ferret-gone-{Guid.NewGuid():N}.dll");
+
+        Assert.Throws<FileNotFoundException>(() => IlUsageScanner.Scan(gone, []));
+        Assert.Throws<FileNotFoundException>(() => IlUsageScanner.ReadMvid(gone));
+    }
+
+    [Fact]
     public void Types_carry_base_type_and_interfaces_for_inheritance()
     {
         var customer = Assert.Single(Uses.Types, t => t.Type == Samples + "Customer");

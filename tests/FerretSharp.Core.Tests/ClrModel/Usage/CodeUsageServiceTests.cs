@@ -97,14 +97,74 @@ public sealed class CodeUsageServiceTests : IAsyncDisposable
     {
         await ConnectAsync();
 
-        Assert.Equal([_folder.Combine("Other.sln"), _folder.Combine("Shop.slnx")], _usage.Solutions);
         Assert.Equal(_folder.Combine("Other.sln"), (await _usage.EnsureAsync(Ct))!.Solution);
+        Assert.Equal([_folder.Combine("Other.sln"), _folder.Combine("Shop.slnx")], _usage.Solutions);
 
         await _usage.SelectSolutionAsync(_folder.Combine("Shop.slnx"), Ct);
 
         Assert.Equal(_folder.Combine("Shop.slnx"), _connections.Profiles.Single().CodeSolution);
         Assert.Equal(_folder.Combine("Shop.slnx"), _usage.State.Result!.Solution);
         Assert.Same(_usage.State.Result, await _usage.EnsureAsync(Ct));
+    }
+
+    /// <summary>A builder that waits for the test, then builds or throws (the failure paths of the service).</summary>
+    private sealed class GatedBuilder(string cache, Exception? failure = null) : CodeUsageBuilder(cache)
+    {
+        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public override async Task<CodeUsageResult> BuildAsync(ClrProjectLink link, string? solution, ModelExport model, CancellationToken cancellationToken)
+        {
+            Started.TrySetResult();
+            await Release.Task.WaitAsync(cancellationToken);
+            return failure is null ? await base.BuildAsync(link, solution, model, cancellationToken) : throw failure;
+        }
+    }
+
+    [Fact]
+    public async Task An_unexpected_failure_ends_in_failed_not_in_building_for_ever()
+    {
+        await ConnectAsync();
+        var builder = new GatedBuilder(_folder.Combine("cache2"), new InvalidOperationException("odd metadata"));
+        builder.Release.SetResult();
+        using var usage = new CodeUsageService(_models, _active, _connections, builder);
+
+        Assert.Null(await usage.EnsureAsync(Ct)); // no fault for the views waiting for it
+
+        Assert.Equal(CodeUsagePhase.Failed, usage.State.Phase);
+        Assert.Equal("odd metadata", usage.State.Error);
+    }
+
+    [Fact]
+    public async Task A_model_loaded_while_the_index_is_built_leaves_it_out_of_date()
+    {
+        await ConnectAsync();
+        var builder = new GatedBuilder(_folder.Combine("cache2"));
+        using var usage = new CodeUsageService(_models, _active, _connections, builder);
+        var building = usage.EnsureAsync(Ct);
+        await builder.Started.Task.WaitAsync(TimeSpan.FromSeconds(10), Ct);
+
+        var before = _models.Mapping!.Model;
+        await _models.LoadAsync(); // a build of the project: a new model while the index is read
+        Assert.NotSame(before, _models.Mapping!.Model);
+        builder.Release.SetResult();
+        var result = await building;
+
+        Assert.Same(before, result!.Index.Model);
+        Assert.Equal(CodeUsagePhase.NotBuilt, usage.State.Phase); // views showing it build it again
+        Assert.Same(_models.Mapping!.Model, (await usage.EnsureAsync(Ct))!.Index.Model);
+    }
+
+    [Fact]
+    public async Task The_solutions_are_known_after_the_first_build_and_reading_them_reads_nothing()
+    {
+        await ConnectAsync();
+        Assert.Empty(_usage.Solutions);
+
+        await _usage.EnsureAsync(Ct);
+
+        Assert.Equal(2, _usage.Solutions.Count);
     }
 
     public async ValueTask DisposeAsync()

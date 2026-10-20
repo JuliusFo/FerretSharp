@@ -28,7 +28,7 @@ public static class IlUsageScanner
     public static AssemblyUses Scan(string assemblyPath, IReadOnlyCollection<string> solutionAssemblies)
     {
         // The whole image in memory, shared: the build may replace the file while (or right after) it is read.
-        using var stream = OpenShared(assemblyPath)!;
+        using var stream = OpenExisting(assemblyPath);
         using var pe = new PEReader(stream, PEStreamOptions.PrefetchEntireImage);
         if (!pe.HasMetadata)
         {
@@ -70,11 +70,15 @@ public static class IlUsageScanner
     /// <exception cref="BadImageFormatException">The file is no .NET assembly.</exception>
     public static Guid ReadMvid(string assemblyPath)
     {
-        using var stream = OpenShared(assemblyPath)!;
+        using var stream = OpenExisting(assemblyPath);
         using var pe = new PEReader(stream);
         var reader = pe.GetMetadataReader();
         return reader.GetGuid(reader.GetModuleDefinition().Mvid);
     }
+
+    /// <summary>A running build may delete the file between finding and reading it (review of WP-40): an IOException, not null.</summary>
+    private static FileStream OpenExisting(string path) =>
+        OpenShared(path) ?? throw new FileNotFoundException(null, path);
 
     private static FileStream? OpenShared(string path) =>
         File.Exists(path) ? new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete) : null;
