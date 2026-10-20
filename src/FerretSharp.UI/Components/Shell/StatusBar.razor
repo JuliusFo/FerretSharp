@@ -31,6 +31,10 @@
                     @EditStatus(editTabs, edits)
                 }
                 @ModelStatus()
+                @if (Models.State.Link is not null)
+                {
+                    <WorkCloneStatus />
+                }
                 <span class="item shrink shrink-more" title="Oracle @Active.ServerVersion">Oracle @Active.ServerVersion</span>
                 <span class="item shrink shrink-more" title="@SchemaText">@SchemaText</span>
                 <button class="status-btn" @onclick="Lifecycle.DisconnectAsync">@ConnectionViewText.Connection_Disconnect</button>

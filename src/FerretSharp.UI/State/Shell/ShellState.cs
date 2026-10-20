@@ -297,6 +297,13 @@ public sealed partial class ShellState
 
     public void CloseImport() => Set(() => ImportOpen = false);
 
+    /// <summary>The work clone dialog is open (WP-40): from the status bar or the command palette.</summary>
+    public bool WorkClonesOpen { get; private set; }
+
+    public void OpenWorkClones() => Set(() => WorkClonesOpen = true);
+
+    public void CloseWorkClones() => Set(() => WorkClonesOpen = false);
+
     /// <summary>The export dialog is open (WP-35), for all connections or one group.</summary>
     public ConnectionExportRequest? ExportRequest { get; private set; }
 

@@ -1,0 +1,39 @@
+@* Status bar: the work clone of the shown connection's group with its branch (WP-40); a click opens the dialog. *@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Connections
+@implements IDisposable
+@inject WorkClones Clones
+
+@{
+    var active = WorkCloneChoices.Active(Clones, Active.Profile?.Group, Models.State.Link);
+    var problem = WorkCloneDialog.FitText(active?.Fit);
+}
+<button class="item status-link shrink @(problem is null ? "" : "warn")"
+        title="@(active is null ? ShellText.WorkClone_StatusNoneTitle : problem is null ? TextFormat.Format(ShellText.WorkClone_StatusTitle, active.Path) : $"{active.Path}\n⚠ {problem}")"
+        @onclick="Shell.OpenWorkClones">
+    @if (active is null)
+    {
+        <span class="muted">⎇ @ShellText.WorkClone_StatusNone</span>
+    }
+    else
+    {
+        <span>⎇ @active.Name@(active.Branch is { } branch ? $" ({branch})" : "")</span>
+    }
+</button>
+
+@code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public ClrModelManager Models { get; set; } = null!;
+
+    protected override void OnInitialized() => Clones.Changed += OnChanged;
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Clones.Changed -= OnChanged;
+}

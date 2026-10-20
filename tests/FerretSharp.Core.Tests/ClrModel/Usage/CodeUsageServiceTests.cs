@@ -56,7 +56,8 @@ public sealed class CodeUsageServiceTests : IAsyncDisposable
     {
         await _connections.LoadAsync(Ct);
         await _active.ConnectAsync(_profile, Ct);
-        for (var waited = 0; _models.State.Phase != ClrModelPhase.Loaded; waited += 20)
+        // The model's Changed reaches the service after the state is set: wait for both.
+        for (var waited = 0; _models.State.Phase != ClrModelPhase.Loaded || _usage.State.Phase == CodeUsagePhase.None; waited += 20)
         {
             Assert.True(waited < 10_000, "The model did not load.");
             await Task.Delay(20, Ct);

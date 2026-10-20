@@ -520,6 +520,14 @@ table.columns .default { color: var(--muted); max-width: 260px; overflow: hidden
 table.usage-columns tr.clickable { cursor: pointer; }
 table.usage-columns tr.usage-detail td { background: var(--surface-2); padding: 4px 12px 4px 28px; }
 table.usage-columns tr.usage-detail:hover td { background: var(--surface-2); }
+.work-clone-dialog { width: min(640px, 92vw); }
+.work-clone-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; }
+.work-clone-item { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; width: 100%; text-align: left; padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: inherit; cursor: pointer; }
+.work-clone-item:hover { background: var(--hover); }
+.work-clone-item.active { border-color: var(--accent); background: var(--accent-weak); }
+.work-clone-name { font-weight: 600; }
+.work-clone-item .path { flex-basis: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.warn-text { color: var(--warn); }
 
 dl.keys { display: grid; grid-template-columns: 140px 1fr; gap: 6px 12px; margin: 0; }
 dl.keys dt { color: var(--muted); }

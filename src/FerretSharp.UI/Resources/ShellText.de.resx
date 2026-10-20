@@ -849,4 +849,43 @@
   <data name="Palette_NotInThisTab" xml:space="preserve">
     <value>Nicht in diesem Tab.</value>
   </data>
+  <data name="WorkClone_Title" xml:space="preserve">
+    <value>Arbeits-Klon</value>
+  </data>
+  <data name="WorkClone_NoGroup" xml:space="preserve">
+    <value>Verbindungen ohne Gruppe</value>
+  </data>
+  <data name="WorkClone_Hint" xml:space="preserve">
+    <value>Der Klon, in dem du entwickelst, für alle Verbindungen dieser Gruppe. Verwendungen im Code gehen dort auf (gleicher Pfad wie im verknüpften Klon der Verbindung); ohne ihn im verknüpften Klon.</value>
+  </data>
+  <data name="WorkClone_None" xml:space="preserve">
+    <value>Keiner – verknüpften Klon nehmen</value>
+  </data>
+  <data name="WorkClone_NoneHint" xml:space="preserve">
+    <value>der als C#-Projekt der Verbindung verknüpfte Klon</value>
+  </data>
+  <data name="WorkClone_Pick" xml:space="preserve">
+    <value>Solution oder Projekt im Klon wählen …</value>
+  </data>
+  <data name="WorkClone_PickFilter" xml:space="preserve">
+    <value>Solutions und Projekte</value>
+  </data>
+  <data name="WorkClone_Missing" xml:space="preserve">
+    <value>den Ordner gibt es nicht mehr</value>
+  </data>
+  <data name="WorkClone_ProjectMissing" xml:space="preserve">
+    <value>enthält das C#-Projekt der Verbindung nicht am selben Pfad</value>
+  </data>
+  <data name="WorkClone_LinkedNotInRepository" xml:space="preserve">
+    <value>das verknüpfte Projekt liegt in keiner Git-Arbeitskopie: Pfade lassen sich nicht zuordnen</value>
+  </data>
+  <data name="WorkClone_StatusNone" xml:space="preserve">
+    <value>verknüpfter Klon</value>
+  </data>
+  <data name="WorkClone_StatusNoneTitle" xml:space="preserve">
+    <value>Kein Arbeits-Klon für diese Gruppe gewählt: Verwendungen im Code gehen im verknüpften Klon auf. Klicken zum Wählen.</value>
+  </data>
+  <data name="WorkClone_StatusTitle" xml:space="preserve">
+    <value>Arbeits-Klon dieser Gruppe: {0}. Klicken zum Wechseln.</value>
+  </data>
 </root>

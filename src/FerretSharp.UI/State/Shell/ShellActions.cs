@@ -51,6 +51,7 @@ public static class ShellActions
         ShortcutAction.RunScript => WithTab(context) ?? (context.ActiveTab is SqlTab ? null : ShellText.Palette_OnlyInSqlTab),
         ShortcutAction.NewSql or ShortcutAction.ToggleChanges => InExplorer(context),
         ShortcutAction.NewLinq => InExplorer(context) ?? (context.LinkedProject ? null : ShellText.Palette_NoLinkedProject),
+        ShortcutAction.SwitchWorkClone => !context.Connected ? WorkspaceText.NoActiveConnection : context.LinkedProject ? null : ShellText.Palette_NoLinkedProject,
         ShortcutAction.Flush or ShortcutAction.Commit => InExplorer(context) ?? (context.Writable ? null : ShellText.Palette_ReadOnly),
         // The grid's and the form's own keys never reach the shell (not global) and are not in the palette.
         _ => throw new ArgumentOutOfRangeException(nameof(action), action, "Not a global action."),

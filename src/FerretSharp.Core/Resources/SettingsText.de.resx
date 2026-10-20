@@ -288,4 +288,10 @@
   <data name="HintCommandPalette" xml:space="preserve">
     <value>Alle Aktionen mit ihren Tastenkürzeln. Ohne das „&gt;“ wird daraus die Schnellsuche.</value>
   </data>
+  <data name="ActionSwitchWorkClone" xml:space="preserve">
+    <value>Arbeits-Klon wechseln</value>
+  </data>
+  <data name="HintSwitchWorkClone" xml:space="preserve">
+    <value>Der Klon, in dem du entwickelst, für die Verbindungen der angezeigten Gruppe: Verwendungen im Code gehen dort auf.</value>
+  </data>
 </root>
