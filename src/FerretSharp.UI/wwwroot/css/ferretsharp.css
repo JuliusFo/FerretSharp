@@ -507,6 +507,19 @@ table.columns .default { color: var(--muted); max-width: 260px; overflow: hidden
 .fs-badge.pk { background: color-mix(in srgb, var(--yellow) 18%, transparent); color: var(--key); }
 .fs-badge.uk { background: color-mix(in srgb, var(--dev) 16%, transparent); color: var(--dev); }
 .fs-badge.fk { background: var(--accent-weak); color: var(--accent); }
+/* Code usage (WP-40): unused columns, uses in tests and mapping code. */
+.fs-badge.unused { background: color-mix(in srgb, var(--yellow) 18%, transparent); color: var(--key); }
+.fs-badge.test, .fs-badge.mapping { background: var(--surface-2); color: var(--faint); font-weight: 600; }
+.usage-section h3 { font-size: 12px; font-weight: 600; margin: 14px 0 6px; }
+.usage-section .structure-columns-head .spacer { flex: 1; }
+.usage-solution { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
+.usage-list { list-style: none; margin: 0 0 10px; padding: 0; }
+.usage-item { display: flex; align-items: center; gap: 8px; padding: 3px 0; white-space: nowrap; }
+.usage-item.test, .usage-item.mapping { opacity: .75; }
+.usage-kind { min-width: 64px; font-size: 11px; color: var(--faint); }
+table.usage-columns tr.clickable { cursor: pointer; }
+table.usage-columns tr.usage-detail td { background: var(--surface-2); padding: 4px 12px 4px 28px; }
+table.usage-columns tr.usage-detail:hover td { background: var(--surface-2); }
 
 dl.keys { display: grid; grid-template-columns: 140px 1fr; gap: 6px 12px; margin: 0; }
 dl.keys dt { color: var(--muted); }

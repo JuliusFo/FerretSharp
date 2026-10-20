@@ -69,7 +69,7 @@
 
 @if (_confirm)
 {
-    <DdlConfirmDialog WorkspaceId="WorkspaceId" Statements="Statements" OnConfirm="RunAsync" OnCancel="() => _confirm = false" />
+    <DdlConfirmDialog WorkspaceId="WorkspaceId" Statements="Statements" Notes="ConfirmNotes" OnConfirm="RunAsync" OnCancel="() => _confirm = false" />
 }
 
 @code {
@@ -107,6 +107,10 @@
 
     [Parameter]
     public IReadOnlyList<string> Warnings { get; set; } = [];
+
+    /// <summary>Repeated in the confirmation (code using a dropped column, WP-40).</summary>
+    [Parameter]
+    public IReadOnlyList<string> ConfirmNotes { get; set; } = [];
 
     /// <summary>File name offered when saving, e.g. <c>2026-10-11_IX_AUFTRAG_KUNDE_ID.sql</c>.</summary>
     [Parameter, EditorRequired]

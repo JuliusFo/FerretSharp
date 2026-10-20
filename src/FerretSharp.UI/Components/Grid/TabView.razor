@@ -1,3 +1,4 @@
+@using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
 @using FerretSharp.Core.Forms
@@ -121,6 +122,9 @@
                                 case TabMode.Ddl:
                                     <DdlView Details="_details" Version="_version" />
                                     break;
+                                case TabMode.Usage:
+                                    <UsageView @ref="_usage" Details="_details" />
+                                    break;
                             }
                         </div>
                     }
@@ -221,7 +225,14 @@
     private readonly HashSet<TabMode> _visited = [];
     private int _version; // F5 in a detail view: incremented, the detail views reload
 
-    private static IReadOnlyList<(TabMode Mode, string Label)> Modes => TabModeLabels.All;
+    /// <summary>"Usage" only with a linked C# project (WP-40): without one there is no code to search.</summary>
+    private IReadOnlyList<(TabMode Mode, string Label)> Modes =>
+        TabModeLabels.All.Where(m => m.Mode != TabMode.Usage || Models.State.Link is not null || Tab.Mode == TabMode.Usage).ToList();
+
+    [CascadingParameter]
+    public ClrModelManager Models { get; set; } = null!;
+
+    private UsageView? _usage;
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -290,6 +301,10 @@
         Tab.Mode = mode;
         _visited.Add(mode);
         Shell.NotifyChanged();
+        if (mode == TabMode.Usage && _usage is not null)
+        {
+            Fire(_usage.ShownAsync); // a build since it was last shown
+        }
     }
 
     /// <param name="sorts">A filter preset's sort order (WP-37); null keeps the grid's.</param>

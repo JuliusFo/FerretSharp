@@ -212,9 +212,10 @@ public sealed class CodeUsageService : IDisposable
             _seenModel = model;
         }
 
+        // A new model: the index (kept meanwhile) is out of date; views showing it build it again.
         Set(model is null
             ? CodeUsageState.None
-            : State with { Phase = State.Phase is CodeUsagePhase.Building ? CodeUsagePhase.Building : State.Result is null ? CodeUsagePhase.NotBuilt : CodeUsagePhase.Ready });
+            : State with { Phase = State.Phase is CodeUsagePhase.Building ? CodeUsagePhase.Building : CodeUsagePhase.NotBuilt });
     }
 
     private void Set(CodeUsageState state)

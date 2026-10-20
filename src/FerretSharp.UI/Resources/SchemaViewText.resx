@@ -898,4 +898,7 @@
   <data name="Audit_OpenTable" xml:space="preserve">
     <value>Open the audit table</value>
   </data>
+  <data name="Tab_ViewUsage" xml:space="preserve">
+    <value>Usage</value>
+  </data>
 </root>

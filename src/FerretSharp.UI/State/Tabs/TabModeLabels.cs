@@ -15,6 +15,7 @@ public static class TabModeLabels
         (TabMode.Indexes, SchemaViewText.Tab_ViewIndexes),
         (TabMode.Dependencies, SchemaViewText.Tab_ViewDependencies),
         (TabMode.Ddl, SchemaViewText.Tab_ViewDdl),
+        (TabMode.Usage, SchemaViewText.Tab_ViewUsage),
     ];
 
     public static string Of(TabMode mode) => All.FirstOrDefault(m => m.Mode == mode).Label ?? SchemaViewText.Tab_ViewData;

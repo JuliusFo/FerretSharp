@@ -67,10 +67,25 @@ public sealed class WorkCloneTests : IDisposable
 
         Assert.Equal(new SourceLocation(Path.Combine(work, "src", "Shop.Data", "Customer.cs"), true),
             WorkCloneMapping.Resolve(Path.Combine(linkedRoot, "src", "Shop.Data", "Customer.cs"), linked, work, "Shop.Customer", TestContext.Current.CancellationToken));
-        Assert.Equal(new SourceLocation(moved, true), WorkCloneMapping.Resolve(service, linked, work, "Shop.Services.CustomerService", TestContext.Current.CancellationToken));
+        Assert.Equal(new SourceLocation(moved, true, ByType: true), WorkCloneMapping.Resolve(service, linked, work, "Shop.Services.CustomerService", TestContext.Current.CancellationToken));
         Assert.Equal(new SourceLocation(service, false), WorkCloneMapping.Resolve(service, linked, work, "Shop.Services.Nowhere", TestContext.Current.CancellationToken));
         Assert.Equal(new SourceLocation(service, false), WorkCloneMapping.Resolve(service, linked, null, "Shop.Services.CustomerService", TestContext.Current.CancellationToken));
         Assert.Equal(new SourceLocation(service, false), WorkCloneMapping.Resolve(service, linked, _folder.Combine("gone"), null, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public void The_solution_maps_onto_the_work_clone_when_it_is_there()
+    {
+        var linkedRoot = Clone("dev-db", "dev");
+        var linked = Path.Combine(linkedRoot, "src", "Shop.Data", "Shop.Data.csproj");
+        var work = Clone("work", "feature/x");
+        var solution = Write("dev-db/Server.slnx", "<Solution />");
+        var other = Write("dev-db/Client.slnx", "<Solution />");
+        Write("work/Server.slnx", "<Solution />");
+
+        Assert.Equal(Path.Combine(work, "Server.slnx"), WorkCloneMapping.MapSolution(solution, linked, work));
+        Assert.Equal(other, WorkCloneMapping.MapSolution(other, linked, work));
+        Assert.Equal(solution, WorkCloneMapping.MapSolution(solution, linked, null));
     }
 
     [Fact]

@@ -169,6 +169,7 @@ public partial class App : Application
         builder.Services.AddSingleton(new CodeUsageBuilder(paths.CodeUsageCacheDirectory));
         builder.Services.AddSingleton(new WorkClones(paths.WorkClonesFile));
         builder.Services.AddScoped<CodeUsageService>();
+        builder.Services.AddSingleton<CodeUsageOpener>();
         builder.Services.AddSingleton<ExitGuard>();
         // Updates (WP-32, ADR 0024): Velopack, only reports; installing waits for a click.
         builder.Services.AddSingleton<IAppUpdater>(new VelopackUpdater(args));

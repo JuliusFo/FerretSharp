@@ -19,7 +19,8 @@ public enum WorkCloneFit
 }
 
 /// <summary>Where a use's source file is opened: in the work clone or, failing that, in the linked (branch) clone.</summary>
-public sealed record SourceLocation(string Path, bool InWorkClone);
+/// <param name="ByType">Found by searching the type, not at the same path: the PDB's line says nothing about this file.</param>
+public sealed record SourceLocation(string Path, bool InWorkClone, bool ByType = false);
 
 /// <summary>
 /// Maps paths of the linked clone (the PDB's paths come from its build) onto the active work clone (WP-40, ADR 0030).
@@ -69,11 +70,27 @@ public static partial class WorkCloneMapping
 
             if (typeName is not null && FindTypeFile(workClone, typeName, cancellationToken) is { } declared)
             {
-                return new SourceLocation(declared, true);
+                return new SourceLocation(declared, true, ByType: true);
             }
         }
 
         return linkedFile is not null && File.Exists(linkedFile) ? new SourceLocation(linkedFile, false) : null;
+    }
+
+    /// <summary>
+    /// <paramref name="solution"/> (in the linked clone) at the same relative path in the work clone if it is there;
+    /// else the solution itself – Visual Studio is looked up by it.
+    /// </summary>
+    public static string MapSolution(string solution, string linkedProjectFile, string? workClone)
+    {
+        if (workClone is null || GitFolder.FindRoot(linkedProjectFile) is not { } linkedRoot)
+        {
+            return solution;
+        }
+
+        var relative = Path.GetRelativePath(linkedRoot, Path.GetFullPath(solution));
+        var mapped = Path.Combine(workClone, relative);
+        return !relative.StartsWith("..", StringComparison.Ordinal) && File.Exists(mapped) ? mapped : solution;
     }
 
     /// <summary>
