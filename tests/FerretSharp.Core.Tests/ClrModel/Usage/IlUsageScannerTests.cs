@@ -52,6 +52,20 @@ public sealed class IlUsageScannerTests
     }
 
     [Fact]
+    public void The_property_an_execute_update_sets_is_a_write_and_its_value_a_read()
+    {
+        var line = LineOf("execute-update");
+
+        Assert.Equal(line, Single("Invoice", "Number", CodeUseKind.Write, "Rename").Line);
+        Assert.Equal(line, Single("Invoice", "Note", CodeUseKind.Write, "Rename").Line);
+        // The value i => i.Number + i.Note reads both.
+        Assert.Equal(line, Single("Invoice", "Number", CodeUseKind.Expression, "Rename").Line);
+        Assert.Equal(line, Single("Invoice", "Note", CodeUseKind.Expression, "Rename").Line);
+        Assert.Equal(LineOf("execute-update-amount"), Single("Invoice", "Amount", CodeUseKind.Write, "Raise").Line);
+        Assert.Equal(LineOf("execute-update-amount"), Single("Invoice", "Amount", CodeUseKind.Expression, "Raise").Line);
+    }
+
+    [Fact]
     public void Lambdas_async_methods_and_local_functions_resolve_to_the_method_as_written()
     {
         Assert.Equal(LineOf("async-orders"), Single("Customer", "Orders", CodeUseKind.Read, "CountOrdersAsync").Line);

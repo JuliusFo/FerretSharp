@@ -6,7 +6,10 @@ public enum CodeUseKind
     /// <summary>A getter call: <c>kunde.Email</c>.</summary>
     Read,
 
-    /// <summary>A setter call, also an object initializer: <c>kunde.Email = …</c>, <c>new Kunde { Email = … }</c>.</summary>
+    /// <summary>
+    /// A setter call, also an object initializer: <c>kunde.Email = …</c>, <c>new Kunde { Email = … }</c>; and the property an
+    /// <c>ExecuteUpdate</c> sets: <c>s.SetProperty(k =&gt; k.Email, …)</c>.
+    /// </summary>
     Write,
 
     /// <summary>A getter in an expression tree (<c>ldtoken</c>): LINQ to Entities, <c>Include</c>, <c>builder.Property(x => x.Email)</c>.</summary>
@@ -42,5 +45,6 @@ public sealed record AssemblyUses(
     IReadOnlyList<TypeLink> Types,
     IReadOnlyList<CodeUse> Uses)
 {
-    public const int CurrentFormatVersion = 1;
+    /// <summary>2: the property an <c>ExecuteUpdate</c> sets is a write, no longer an expression.</summary>
+    public const int CurrentFormatVersion = 2;
 }
