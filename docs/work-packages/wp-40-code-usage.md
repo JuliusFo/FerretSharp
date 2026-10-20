@@ -47,7 +47,20 @@ Eigene Instanz (`--data-dir`, eigener WebView2-Ordner, deutsch, hell), eigener C
 - Log ohne `[ERR]`. Eine von Hand geschriebene `settings.json` im falschen Format legte die App wie vorgesehen als `.bad-…` beiseite; Ctrl+Alt-Tasten lehnt sie ab (AltGr) – beides kein Fehler.
 - **Nicht geprüft:** der Sprung in eine Instanz, die die Solution offen hat (nur im Spike), VS Code, der native Dateidialog „Solution oder Projekt wählen“ (Regel: nicht bedienen), die Auswahl zwischen mehreren Solutions, die Laufzeit gegen die große Solution des Nutzers (425 Entities, mehrere Projekte) und ein echtes Testprojekt dort.
 
+## Code-Review (2026-10-20)
+Review-Lauf über den Branch, zehn Funde, alle behoben:
+- **Verschwundene DLL:** Ein Build, der die Assembly zwischen Finden und Lesen löscht, ergab eine `NullReferenceException` statt eines IO-Fehlers (`IlUsageScanner.OpenExisting`). Der Builder fängt jetzt jeden Fehler je Assembly: Ein seltsames Projekt kostet nur sich selbst.
+- **Hängender Index:** Ein unerwarteter Fehler ließ den Dienst auf „Building“ stehen und erreichte die Error-Boundary jedes wartenden Tabs. Jetzt endet jeder Fehler in „Failed“ mit Meldung.
+- **Modellwechsel während des Baus:** Das Ergebnis aus dem alten Modell stand als „Ready“ da, und nichts baute neu. Jetzt bleibt es als „NotBuilt“ stehen, und eine sichtbare Ansicht baut nach.
+- **Visual Studio:** Scheitert nach dem Öffnen nur der Sprung zur Zeile (Zeile hinter dem Ende einer kürzeren Datei im Arbeits-Klon) oder das Aktivieren, bleibt es bei einer Warnung im Log. Vorher öffnete der Rückfall die Datei ein zweites Mal.
+- **VS Code ohne cmd.exe:** `code.cmd` ist eine Batch-Datei; ein Pfad mit `&`, `^` oder `%` wurde von cmd zerlegt. Gestartet wird jetzt `Code.exe` neben dem `bin`-Ordner (`VsCodeCommand`), ohne sie wird ein solcher Pfad abgelehnt.
+- **Keine Dateizugriffe beim Rendern:** Die Statusleiste liest Ordner, Branch und Passung im Hintergrund (bei Änderungen und alle 15 s), der Dialog einmal beim Öffnen; `Solutions` liest nichts mehr (gefunden beim Bau), `EnsureAsync` prüft auf dem Pool, „Pfad kopieren“ sucht eine verschobene Datei im Hintergrund.
+- **Nur sichtbare Ansichten bauen:** Spalten- und Verwendungsansicht bleiben nach dem ersten Besuch gemountet und bauten nach jedem Build des Projekts neu. Jetzt nur, wenn sie sichtbar sind (`Shown` aus `TabView`: Modus, aktiver Tab, Explorer). Im E2E geprüft: Neu laden des Modells ohne sichtbare Ansicht baut nicht, das Anzeigen der Spalten danach schon.
+- **Bericht:** einmal je Index berechnet statt zweimal je Rendern; die Schlüssel stehen im Index als Menge statt einer Suche über alle Fremdschlüssel je Property.
+- **Links** lassen die Ansicht „Verwendung“ weg wie die Datenansicht: Ein älteres FerretSharp lehnte den ganzen Link wegen der unbekannten Ansicht ab.
+- **Dialog „Arbeits-Klon“** schließt nicht mehr bei Klick daneben (`.claude/rules/ui.md`: nur reine Anzeige-Dialoge).
+
 ## Offen
 - Im Rückfall über `devenv /Edit` springt Visual Studio nicht zur Zeile (Backlog: danach die Instanz mit der aktiven Datei suchen und `GotoLine`).
-- Der Branch in der Statusleiste wird bei jedem Rendern gelesen, ein Wechsel im Klon zeigt sich also erst beim nächsten Rendern (Verbindung wechseln, Tab, Dialog), nicht von selbst.
+- Ein Branch-Wechsel im Arbeits-Klon zeigt sich in der Statusleiste nach höchstens 15 s.
 - Laufzeit und Größe des Caches gegen die Solution des Nutzers messen.
