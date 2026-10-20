@@ -1,5 +1,5 @@
 @* Cascades the services of one open connection (WP-24) to everything below: its ActiveConnection, workspaces, C# model,
-   presentation and LINQ host. Components take them as cascading parameters instead of @inject, so the explorer and
+   presentation, LINQ host and code usage. Components take them as cascading parameters instead of @inject, so the explorer and
    the tabs of a connection in the background keep talking to their own connection. *@
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
@@ -11,7 +11,9 @@
             <CascadingValue Value="Scope.Models" IsFixed="true">
                 <CascadingValue Value="Scope.Presentations" IsFixed="true">
                     <CascadingValue Value="Scope.Linq" IsFixed="true">
-                        @ChildContent
+                        <CascadingValue Value="Scope.Usage" IsFixed="true">
+                            @ChildContent
+                        </CascadingValue>
                     </CascadingValue>
                 </CascadingValue>
             </CascadingValue>

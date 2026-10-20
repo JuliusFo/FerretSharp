@@ -45,6 +45,9 @@ internal sealed class TestApp : IAsyncDisposable
         services.AddScoped<ClrModelManager>();
         services.AddScoped<PresentationService>();
         services.AddScoped<LinqConsoleService>();
+        services.AddSingleton(new CodeUsageBuilder(_folder.Combine("code-usage")));
+        services.AddSingleton(new WorkClones(_folder.Combine("work-clones.json")));
+        services.AddScoped<CodeUsageService>();
         services.AddSingleton<ConnectionHub>();
         _services = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
 

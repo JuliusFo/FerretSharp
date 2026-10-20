@@ -7,6 +7,7 @@
 @inject ConnectionManager Connections
 @inject ConnectionHub Hub
 @inject RecentConnections Recent
+@inject FerretSharp.Core.ClrModel.WorkClones WorkClones
 @inject ConnectionKeepAlive KeepAlive
 @inject FerretSharp.Core.Settings.AppSettingsService Settings
 @inject ShortcutService Shortcuts
@@ -300,6 +301,7 @@
 
         await Connections.LoadAsync(CancellationToken.None);
         await Recent.LoadAsync(CancellationToken.None);
+        await WorkClones.LoadAsync(CancellationToken.None);
 
         // Links (WP-37): the start argument is waiting already; a second start hands one over through the host's pipe.
         Links.Received += OnLinkReceived;
