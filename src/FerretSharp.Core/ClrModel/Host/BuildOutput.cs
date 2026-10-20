@@ -23,6 +23,16 @@ public sealed record BuildOutput(
     public bool IsStale => NewerSource is not null;
 }
 
+/// <summary>The compiled assembly of one project of a solution (WP-40).</summary>
+/// <param name="Assembly">The newest <c>.dll</c> of the configuration; null if the project is not built.</param>
+/// <param name="NewerSource">A source file of the project changed after the build; null if the build is current.</param>
+public sealed record ProjectBuild(string ProjectFile, string AssemblyName, string? Assembly, DateTime? BuiltAtUtc, string? NewerSource)
+{
+    public bool IsBuilt => Assembly is not null;
+
+    public bool IsStale => NewerSource is not null;
+}
+
 /// <summary>
 /// Finds the build output of a linked project without building it: <c>bin/&lt;Configuration&gt;/&lt;tfm&gt;</c> (or an
 /// artifacts folder), the deps.json, the NuGet package folders from <c>obj/project.assets.json</c>, and whether a source
@@ -69,7 +79,7 @@ public static partial class BuildOutputLocator
         var project = ReadProject(link.ProjectFile);
         var assemblyName = project.AssemblyName ?? link.ProjectName;
 
-        var deps = OutputDirectories(projectDirectory, link)
+        var deps = OutputDirectories(projectDirectory, link.ProjectName, link.Configuration)
             .Where(Directory.Exists)
             .SelectMany(d => Directory.EnumerateFiles(d, assemblyName + ".deps.json", SearchOption.AllDirectories))
             .Where(f => File.Exists(Path.Combine(Path.GetDirectoryName(f)!, assemblyName + ".dll")))
@@ -138,17 +148,57 @@ public static partial class BuildOutputLocator
         return new ProjectInfo(assemblyName, frameworks.Distinct(StringComparer.OrdinalIgnoreCase).ToList(), references);
     }
 
-    /// <summary><c>bin/&lt;Configuration&gt;</c>, or an artifacts layout (<c>UseArtifactsOutput</c>) further up.</summary>
-    private static IEnumerable<string> OutputDirectories(string projectDirectory, ClrProjectLink link)
+    /// <summary>
+    /// The newest compiled assembly of any project (WP-40, the projects of the solution): unlike <see cref="Find"/> no
+    /// deps.json, framework or EF Core is needed. Not built is a state here, not an error.
+    /// </summary>
+    /// <exception cref="IOException">The project file could not be read.</exception>
+    /// <exception cref="UnauthorizedAccessException">The project file could not be read.</exception>
+    /// <exception cref="System.Xml.XmlException">The project file is no XML.</exception>
+    public static ProjectBuild FindAssembly(string projectFile, string configuration)
     {
-        yield return Path.Combine(projectDirectory, "bin", link.Configuration);
+        var projectName = Path.GetFileNameWithoutExtension(projectFile);
+        if (!File.Exists(projectFile))
+        {
+            return new ProjectBuild(projectFile, projectName, null, null, null);
+        }
+
+        var projectDirectory = Path.GetDirectoryName(Path.GetFullPath(projectFile))!;
+        var assemblyName = ReadProject(projectFile).AssemblyName ?? projectName;
+        var assembly = OutputDirectories(projectDirectory, projectName, configuration)
+            .Where(Directory.Exists)
+            .SelectMany(d => Directory.EnumerateFiles(d, assemblyName + ".dll", SearchOption.AllDirectories))
+            // Reference assemblies have no method bodies (older SDKs wrote them to bin/…/ref).
+            .Where(f => Path.GetFileName(Path.GetDirectoryName(f)) is not ("ref" or "refint"))
+            .OrderByDescending(File.GetLastWriteTimeUtc)
+            .FirstOrDefault();
+        if (assembly is null)
+        {
+            return new ProjectBuild(projectFile, assemblyName, null, null, null);
+        }
+
+        var builtAt = File.GetLastWriteTimeUtc(assembly);
+        var newer = SourceFiles(projectDirectory)
+            .Append(projectFile)
+            .Select(f => (File: f, At: File.GetLastWriteTimeUtc(f)))
+            .Where(f => f.At > builtAt)
+            .OrderByDescending(f => f.At)
+            .Select(f => f.File)
+            .FirstOrDefault();
+        return new ProjectBuild(projectFile, assemblyName, assembly, builtAt, newer);
+    }
+
+    /// <summary><c>bin/&lt;Configuration&gt;</c>, or an artifacts layout (<c>UseArtifactsOutput</c>) further up.</summary>
+    private static IEnumerable<string> OutputDirectories(string projectDirectory, string projectName, string configuration)
+    {
+        yield return Path.Combine(projectDirectory, "bin", configuration);
         for (var directory = new DirectoryInfo(projectDirectory); directory is not null; directory = directory.Parent)
         {
-            var artifacts = Path.Combine(directory.FullName, "artifacts", "bin", link.ProjectName);
+            var artifacts = Path.Combine(directory.FullName, "artifacts", "bin", projectName);
             if (Directory.Exists(artifacts))
             {
                 foreach (var output in Directory.EnumerateDirectories(artifacts)
-                             .Where(d => Path.GetFileName(d).StartsWith(link.Configuration, StringComparison.OrdinalIgnoreCase)))
+                             .Where(d => Path.GetFileName(d).StartsWith(configuration, StringComparison.OrdinalIgnoreCase)))
                 {
                     yield return output;
                 }
