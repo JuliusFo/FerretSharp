@@ -286,7 +286,7 @@
     <value>Gelesen aus dem kompilierten Code: Zugriffe per String (EF.Property, Include("…")), Reflection und rohes SQL findet das nicht. Nicht gebauter Code fehlt.</value>
   </data>
   <data name="Usage_NoQueries" xml:space="preserve">
-    <value>Kein Set&lt;T&gt;() und kein Lesen der DbSet-Property gefunden.</value>
+    <value>Kein Set&lt;T&gt;(), kein Lesen der DbSet-Property und keine Navigation zur Tabelle gefunden.</value>
   </data>
   <data name="Usage_Uses" xml:space="preserve">
     <value>Verwendungen</value>
@@ -336,6 +336,21 @@
   <data name="Usage_RenameUsed" xml:space="preserve">
     <value>Spalte {0} ({1}) wird umbenannt und im Code an {2} Stellen verwendet ({3}): Das Mapping der Property muss mitgehen.</value>
   </data>
+  <data name="Usage_DropAlsoNavigation" xml:space="preserve">
+    <value>Dazu {0} Stellen über {1}: Die Beziehung braucht die Spalte, ohne sie scheitern deren Abfragen zur Laufzeit.</value>
+  </data>
+  <data name="Usage_DropUsedNavigation" xml:space="preserve">
+    <value>Spalte {0} wird im Code über {1} an {2} Stellen verwendet ({3}): Die Beziehung braucht die Spalte, ohne sie scheitern deren Abfragen zur Laufzeit.</value>
+  </data>
+  <data name="Usage_ViaNavigation" xml:space="preserve">
+    <value>über Navigation {0}</value>
+  </data>
+  <data name="Usage_NavigationsHeading" xml:space="preserve">
+    <value>Über Navigations</value>
+  </data>
+  <data name="Usage_NavigationsHint" xml:space="preserve">
+    <value>Navigations, die Zeilen der Tabelle laden: EF joint sie ohne ein Set&lt;T&gt;() von ihr.</value>
+  </data>
   <data name="Usage_ReportHeading" xml:space="preserve">
     <value>Im Code ungenutzt</value>
   </data>
@@ -364,6 +379,6 @@
     <value>Abfragen</value>
   </data>
   <data name="Usage_TabQueriesTitle" xml:space="preserve">
-    <value>Wo Code die Tabelle abfragt: Set&lt;T&gt;() und Lesen der DbSet-Property (gezählt im Anwendungscode)</value>
+    <value>Wo Code die Tabelle abfragt: Set&lt;T&gt;(), Lesen der DbSet-Property und Navigations zu ihr (gezählt im Anwendungscode)</value>
   </data>
 </root>

@@ -25,6 +25,14 @@ public sealed class CodeUsageRowsTests : IDisposable
         ],
         ["KUNDE_ID"], [], false);
 
+    private static readonly TableDetails Auftraege = new(new TableSummary(Owner, "AUFTRAEGE", TableKind.Table),
+        [
+            new("AUFTRAG_ID", "NUMBER", null, false, 10, 0, false, false, null, 1),
+            new("KUNDE_ID", "NUMBER", null, false, 10, 0, false, false, null, 2),
+            new("BETRAG", "NUMBER", null, true, 10, 2, false, false, null, 3),
+        ],
+        ["AUFTRAG_ID"], [], false);
+
     private static PropertyExport Property(string name, string column) => new(name, "string", "System.String", true, false, column, null, null, null, false, null);
 
     private static readonly ModelExport Model = new(ModelExport.CurrentFormatVersion, "8.0.0", "Shop.Ctx", "options", null,
@@ -39,18 +47,35 @@ public sealed class CodeUsageRowsTests : IDisposable
     private static AssemblyUses Assembly(string name, bool isTest, params CodeUse[] uses) =>
         new(AssemblyUses.CurrentFormatVersion, Guid.NewGuid(), name, [], isTest, true, [], uses);
 
-    private static async Task<(ClrModelMapping Mapping, CodeUsageIndex Index)> IndexAsync()
+    /// <summary>Kunde plus Auftrag with a foreign key to it, both navigations named (<c>Auftrag.Kunde</c>, <c>Kunde.Auftraege</c>).</summary>
+    private static readonly ModelExport WithOrders = Model with
+    {
+        Entities =
+        [
+            .. Model.Entities,
+            new EntityExport("Auftrag", "Shop.Auftrag", false, null, "AUFTRAEGE", null, null, null,
+                [Property("AuftragId", "AUFTRAG_ID"), Property("KundeId", "KUNDE_ID"), Property("Betrag", "BETRAG")], ["AuftragId"],
+                [new ForeignKeyExport(["KundeId"], "Kunde", ["KundeId"], "Kunde", "Auftraege", false)]),
+        ],
+    };
+
+    private static async Task<ClrModelMapping> MappingAsync(ModelExport model, params TableDetails[] tables)
     {
         var reader = Substitute.For<ISchemaReader>();
-        reader.GetTablesAsync(Owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyList<TableSummary>)[Kunden.Table]);
+        reader.GetTablesAsync(Owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyList<TableSummary>)[.. tables.Select(t => t.Table)]);
         reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns(SynonymTargets.None);
         reader.GetForeignKeysAsync(Owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyList<ForeignKeyInfo>)[]);
-        reader.GetDetailsAsync(Arg.Any<TableSummary>(), Arg.Any<CancellationToken>()).Returns(Kunden);
+        reader.GetDetailsAsync(Arg.Any<TableSummary>(), Arg.Any<CancellationToken>()).Returns(c => tables.Single(t => t.Table == c.Arg<TableSummary>()));
         reader.GetColumnsAsync(Owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyDictionary<string, IReadOnlyList<ColumnInfo>>)
-            new Dictionary<string, IReadOnlyList<ColumnInfo>> { ["KUNDEN"] = Kunden.Columns });
+            tables.ToDictionary(t => t.Table.Name, t => t.Columns));
         var schema = new SchemaCache(reader, Owner);
         await schema.LoadAsync(TestContext.Current.CancellationToken);
-        var mapping = await ClrModelMapping.BuildAsync(Model, schema, TestContext.Current.CancellationToken);
+        return await ClrModelMapping.BuildAsync(model, schema, TestContext.Current.CancellationToken);
+    }
+
+    private static async Task<(ClrModelMapping Mapping, CodeUsageIndex Index)> IndexAsync()
+    {
+        var mapping = await MappingAsync(Model, Kunden);
         var index = CodeUsageIndex.Build(Model,
         [
             Assembly("Shop", false, Use("Name", "KundenService", 12), Use("Name", "Export", 40, CodeUseKind.Expression), Use("Name", "Import", 7, CodeUseKind.Write),
@@ -99,6 +124,37 @@ public sealed class CodeUsageRowsTests : IDisposable
                 "Column NAME (Name) is used in the code at 4 places (Export.Run, Import.Run, KundenService.Run, …): the build breaks once the property is removed.",
                 "Column EMAIL (Email) is renamed and used in the code at 1 places (KundenTests.Run): the mapping of the property must follow.",
             ], notes);
+        }
+    }
+
+    [Fact]
+    public async Task A_foreign_key_column_counts_its_navigations_and_dropping_it_names_them()
+    {
+        var mapping = await MappingAsync(WithOrders, Kunden, Auftraege);
+        var auftrag = WithOrders.Entities.Single(e => e.Name == "Auftrag");
+        var navigations = new[] { Use("Kunde", "Rechnung", 5, type: "Shop.Auftrag"), Use("Auftraege", "KundenService", 30, type: "Shop.Kunde") };
+        var index = CodeUsageIndex.Build(WithOrders, [Assembly("Shop", false, navigations)]);
+
+        var row = Assert.Single(CodeUsageRows.Columns(mapping, index, Auftraege), r => r.Column == "KUNDE_ID");
+        Assert.Equal((2, false), (row.Counted, row.Unused));
+        Assert.Equal(["Kunde.Auftraege", "Auftrag.Kunde"], row.Uses.Select(u => CodeUsageRows.Name(u, auftrag, "KundeId")));
+        Assert.Equal("Auftrag.Betrag", CodeUsageRows.Name(new CodeUsage(navigations[0], "Shop", false, false, null), auftrag, "Betrag"));
+
+        using (UiCulture.Use("en"))
+        {
+            // Only navigations: the build does not break, the relationship does.
+            Assert.Equal(
+            [
+                "Column KUNDE_ID is used in the code through Kunde.Auftraege, Auftrag.Kunde at 2 places (KundenService.Run, Rechnung.Run): "
+                + "the relationship needs the column, their queries fail at run time without it.",
+            ], CodeUsageRows.DropNotes(mapping, index, Auftraege.Table.Ref, [("KUNDE_ID", null)]));
+
+            var both = CodeUsageIndex.Build(WithOrders, [Assembly("Shop", false, [.. navigations, Use("KundeId", "Import", 8, type: "Shop.Auftrag")])]);
+            Assert.Equal(
+            [
+                "Column KUNDE_ID (KundeId) is used in the code at 1 places (Import.Run): the build breaks once the property is removed. "
+                + "2 more through Kunde.Auftraege, Auftrag.Kunde: the relationship needs the column, their queries fail at run time without it.",
+            ], CodeUsageRows.DropNotes(mapping, both, Auftraege.Table.Ref, [("KUNDE_ID", null)]));
         }
     }
 

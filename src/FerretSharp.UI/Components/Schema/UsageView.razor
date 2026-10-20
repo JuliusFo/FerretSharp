@@ -67,6 +67,7 @@ else
         }
         @{
             var queries = result?.Index.ForEntity(entity.Entity) ?? [];
+            var navigations = result?.Index.NavigationsTo(entity.Entity) ?? [];
             var rows = result is null ? [] : CodeUsageRows.Columns(mapping, result.Index, Details);
             var unused = CodeUsageRows.UnusedCount(rows);
         }
@@ -84,21 +85,34 @@ else
                 @ModelViewText.Usage_TabQueries
                 @if (result is not null)
                 {
-                    <span class="seg-count">@CodeUsageRows.QueryCount(queries)</span>
+                    <span class="seg-count">@CodeUsageRows.QueryCount(queries.Concat(navigations))</span>
                 }
             </button>
         </div>
 
         @if (result is not null && _showQueries)
         {
-            @if (queries.Count == 0)
+            @if (queries.Count == 0 && navigations.Count == 0)
             {
                 <p class="muted">@ModelViewText.Usage_NoQueries</p>
             }
-            else
+            @if (queries.Count > 0)
             {
                 <ul class="usage-list">
                     @foreach (var use in queries)
+                    {
+                        @UseItem(use, entity.Entity, null)
+                    }
+                </ul>
+            }
+            @if (navigations.Count > 0)
+            {
+                @* Navigations to the table (decision of the user, 2026-10-20): EF joins it without a Set<T>() of it. *@
+                <h3 class="usage-subhead" title="@ModelViewText.Usage_NavigationsHint">
+                    @ModelViewText.Usage_NavigationsHeading <span class="count">@CodeUsageRows.QueryCount(navigations)</span>
+                </h3>
+                <ul class="usage-list">
+                    @foreach (var use in navigations)
                     {
                         @UseItem(use, entity.Entity, null)
                     }
@@ -193,6 +207,10 @@ else
             <button class="link-btn mono" disabled="@(use.Use.Document is null)" title="@(use.Use.Document ?? ModelViewText.Usage_NoSourceFile)"
                     @onclick="() => OpenAsync(use)">@CodeUsageRows.Caller(use.Use)</button>
             <span class="muted mono">@CodeUsageRows.Location(use.Use)</span>
+            @if (use.Navigation is { } navigation)
+            {
+                <span class="muted">@TextFormat.Format(ModelViewText.Usage_ViaNavigation, navigation)</span>
+            }
             @if (use.Via is { } via)
             {
                 <span class="muted">@TextFormat.Format(ModelViewText.Usage_Via, ClrModelMapping.ShortName(via))</span>
@@ -216,7 +234,7 @@ else
             var path = await PathAsync(use);
             await CopyAsync(use.Use.Line is { } line ? $"{path}:{line}" : path);
         }, use.Use.Document is not null),
-        new(ModelViewText.Usage_CopyName, () => CopyAsync(property is null ? ClrModelMapping.ShortName(entity.ClrType) : CodeUsageRows.Name(entity, property))),
+        new(ModelViewText.Usage_CopyName, () => CopyAsync(CodeUsageRows.Name(use, entity, property))),
         new(ModelViewText.Usage_CopyCaller, () => CopyAsync(CodeUsageRows.Caller(use.Use))),
     ];
 

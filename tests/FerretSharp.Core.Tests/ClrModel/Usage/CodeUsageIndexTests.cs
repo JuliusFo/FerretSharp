@@ -101,7 +101,54 @@ public sealed class CodeUsageIndexTests
         var order = Entity(index, "Order");
 
         Assert.Empty(index.ForProperty(order, "CustomerId"));
+        Assert.Equal("Customer.Orders", Assert.Single(index.ForColumn(order, "CustomerId")).Navigation);
         Assert.False(index.IsUnused(order, order.Properties.Single(p => p.Name == "CustomerId")));
+    }
+
+    [Fact]
+    public void A_foreign_key_column_lists_its_own_uses_and_those_of_its_navigations()
+    {
+        var index = Index();
+        var order = Entity(index, "Order");
+
+        var uses = index.ForColumn(order, "CustomerId");
+
+        // Local() reads CustomerId itself, CountOrdersAsync the inverse navigation Customer.Orders.
+        Assert.Equal([("Local", null), ("CountOrdersAsync", "Customer.Orders")],
+            uses.Select(u => (u.Use.CallerMethod, u.Navigation)).OrderBy(u => u.Navigation).ToList());
+        Assert.All(index.ForColumn(order, "Total"), u => Assert.Null(u.Navigation));
+    }
+
+    [Fact]
+    public void A_shadow_foreign_key_is_used_through_its_navigation_alone()
+    {
+        var navigation = new CodeUse(Samples + "Order", "Customer", CodeUseKind.Read, "Shop.Billing", "Print", "Billing.cs", 7);
+        var model = Model();
+        var shadow = model with
+        {
+            Entities = model.Entities.Select(e => e.Name != "Order" ? e : e with
+            {
+                Properties = e.Properties.Select(p => p.Name == "CustomerId" ? p with { IsShadow = true } : p).ToList(),
+            }).ToList(),
+        };
+        var index = CodeUsageIndex.Build(shadow, [Scanned.Value with { IsTest = false, Uses = [navigation] }]);
+
+        var use = Assert.Single(index.ForColumn(Entity(index, "Order"), "CustomerId"));
+
+        Assert.Equal(("Print", "Order.Customer"), (use.Use.CallerMethod, use.Navigation));
+    }
+
+    [Fact]
+    public void Navigations_to_an_entity_load_its_rows_from_either_side()
+    {
+        var navigation = new CodeUse(Samples + "Order", "Customer", CodeUseKind.Expression, "Shop.Billing", "WithCustomer", "Billing.cs", 9);
+        var scanned = Scanned.Value;
+        var index = CodeUsageIndex.Build(Model(), [scanned with { IsTest = false, Uses = [.. scanned.Uses, navigation] }]);
+
+        // Include(o => o.Customer) loads customers, customer.Orders loads orders; neither names the other's set.
+        Assert.Equal(["Order.Customer"], index.NavigationsTo(Entity(index, "Customer")).Select(u => u.Navigation));
+        Assert.Equal(["CountOrdersAsync"], index.NavigationsTo(Entity(index, "Order")).Select(u => u.Use.CallerMethod));
+        Assert.All(index.ForEntity(Entity(index, "Customer")), u => Assert.Null(u.Navigation));
     }
 
     [Fact]

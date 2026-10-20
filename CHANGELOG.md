@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Fixed
+- "Usage" view: a foreign key column used only through its navigation (`order.Customer`, `customer.Orders`) listed only its mapping code, although it was not marked unused. The column now lists the uses of its navigations too, marked "via navigation Order.Customer", and counts them; a shadow foreign key shows them as well. The "Queries" sub-tab lists the navigations that load the table's rows ("Through navigations", counted in the header). Dropping such a column in the designer names the navigations: the build does not break over them, their queries fail at run time.
+
 ## [3.43.0] - 2026-10-20
 
 Usage in the code: where the C# solution reads, writes and queries each column, with a jump into Visual Studio, and a work clone per connection group.
