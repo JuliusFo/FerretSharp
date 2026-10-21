@@ -606,4 +606,7 @@
   <data name="Run_QuotedName" xml:space="preserve">
     <value>„{0}“</value>
   </data>
+  <data name="ResultForm_HideEmptyTitle" xml:space="preserve">
+    <value>Felder ohne Wert (NULL) ausblenden; gilt für diesen Tab</value>
+  </data>
 </root>

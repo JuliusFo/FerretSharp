@@ -927,4 +927,7 @@
   <data name="Export_Cancelled" xml:space="preserve">
     <value>Export abgebrochen – {0} wurde nicht geschrieben.</value>
   </data>
+  <data name="Compare_FooterNoteResult" xml:space="preserve">
+    <value>Abweichende Werte markiert · Werte wie im Ergebnis</value>
+  </data>
 </root>

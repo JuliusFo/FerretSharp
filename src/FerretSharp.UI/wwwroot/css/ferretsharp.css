@@ -1233,7 +1233,8 @@ table.compare-matrix td.different.g3 { background: color-mix(in srgb, var(--test
 /* ---------- form view of a row (WP-21): beside the grid, and selected rows compared in a dialog ---------- */
 .grid-split { flex: 1; display: flex; min-height: 0; }
 .grid-split > .grid-host { flex: 1; min-width: 0; }
-.tab-toolbar .btn.active { color: var(--accent); background: var(--accent-weak); }
+.result-split { height: 100%; }
+.tab-toolbar .btn.active, .tab-footer .btn.active { color: var(--accent); background: var(--accent-weak); }
 .form-panel { position: relative; flex: none; display: flex; flex-direction: column; min-height: 0; min-width: 300px; max-width: 75%; border-left: 1px solid var(--border); background: var(--surface); }
 .form-resize { position: absolute; left: -4px; top: 0; bottom: 0; width: 7px; cursor: col-resize; z-index: 2; touch-action: none; }
 .form-resize:hover { background: var(--accent-weak); }

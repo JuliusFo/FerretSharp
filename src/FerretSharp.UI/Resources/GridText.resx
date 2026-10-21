@@ -1181,4 +1181,7 @@
     <value>Export cancelled – {0} was not written.</value>
     <comment>{0}: file name</comment>
   </data>
+  <data name="Compare_FooterNoteResult" xml:space="preserve">
+    <value>Differing values marked · values as shown in the result</value>
+  </data>
 </root>

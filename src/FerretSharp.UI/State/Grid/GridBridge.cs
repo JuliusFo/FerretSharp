@@ -79,6 +79,11 @@ public sealed record GridOptions(IReadOnlyList<GridSort> Sorts, int FirstRow, bo
 
     /// <summary>The texts grid.js shows itself, in the UI language at the time the grid is built (WP-29).</summary>
     public GridTexts Texts { get; init; } = new();
+
+    /// <summary>
+    /// A query result with a form (WP-56): the focus (OnFocused) and the form key (OnFormKey) are reported, as for a table.
+    /// </summary>
+    public bool Form { get; init; }
 }
 
 /// <summary>

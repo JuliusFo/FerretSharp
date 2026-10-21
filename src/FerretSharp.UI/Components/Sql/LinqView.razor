@@ -156,10 +156,11 @@
                         @if (_firstPage is not null)
                         {
                             <div class="grid-host">
-                                <SqlResultGrid @key="_runKey" WorkspaceId="Tab.WorkspaceId" Query="_query" FirstPage="_firstPage" OnStatus="OnGridStatus" />
+                                <SqlResultGrid @key="_runKey" WorkspaceId="Tab.WorkspaceId" Query="_query" FirstPage="_firstPage" OnStatus="OnGridStatus"
+                                               FormTab="Tab" OnFormChanged="StateHasChanged" />
                             </div>
                         }
-                        <ResultFooter Status="_grid">
+                        <ResultFooter Status="_grid" FormTab="Tab" OnToggleForm="ToggleForm">
                             <ErrorActions Context="error">
                                 @if (error.ErrorCode == "ORA-00904")
                                 {
@@ -576,6 +577,13 @@
         (diagnostic.Section == LinqProtocol.CodeSection ? _codeEditor : _variablesEditor)?.RevealAsync(diagnostic.Line, diagnostic.Column) ?? Task.CompletedTask;
 
     private void OnConsoleChanged() => InvokeAsync(StateHasChanged);
+
+    /// <summary>The form beside the result (WP-56): open or close; saved with the tab.</summary>
+    private void ToggleForm()
+    {
+        Tab.FormOpen = !Tab.FormOpen;
+        Shell.MarkDirty();
+    }
 
     public void Dispose()
     {

@@ -1,6 +1,8 @@
 @* The footer below a result grid of the SQL editor or the LINQ console (R2: was in both views): loading, the error of a
-   later page (with details), rows, time, the read-only snapshot and whether it moved. *@
+   later page (with details), rows, time, the read-only snapshot and whether it moved; the switch of the form beside the
+   result (WP-56). *@
 @using FerretSharp.Core.Connections
+@inject ShortcutService Shortcuts
 
 <div class="tab-footer">
     @if (Status is { } grid)
@@ -37,6 +39,13 @@
         }
     }
     <span class="spacer"></span>
+    @if (FormTab is { } tab)
+    {
+        <button class="btn ghost small @(tab.FormOpen ? "active" : "")" aria-pressed="@(tab.FormOpen ? "true" : "false")"
+                title="@(Shortcuts.Label(ShortcutAction.ToggleForm) is { } key ? TextFormat.Format(SchemaViewText.Tab_FormTitleWithKey, key) : SchemaViewText.Tab_FormTitle)" @onclick="OnToggleForm">
+            @SchemaViewText.Tab_Form <Kbd Action="ShortcutAction.ToggleForm" />
+        </button>
+    }
     <span class="muted">@SqlEditorText.Footer_Session</span>
 </div>
 
@@ -55,4 +64,12 @@
     /// <summary>More buttons next to an error (the LINQ console links the model drift for ORA-00904).</summary>
     [Parameter]
     public RenderFragment<FerretSharp.Core.Connections.DatabaseException>? ErrorActions { get; set; }
+
+    /// <summary>The tab whose result has a form beside it (WP-56); null shows no switch.</summary>
+    [Parameter]
+    public IFormTab? FormTab { get; set; }
+
+    /// <summary>The switch: the view opens or closes the form.</summary>
+    [Parameter]
+    public EventCallback OnToggleForm { get; set; }
 }

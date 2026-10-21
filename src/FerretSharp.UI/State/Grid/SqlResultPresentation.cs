@@ -84,11 +84,21 @@ public sealed class SqlResultPresentation : IColumnPresentation
 
     public string? SearchNameOf(int column) => _byColumn[column] is var (presentation, table) ? presentation.SearchNameOf(table) : null;
 
-    /// <summary>The table column a result column holds, as "Table.COLUMN" text for tooltips; null if it is not traced.</summary>
-    public string? OriginOf(int column) =>
-        _byColumn[column] is var (presentation, table)
-            ? TextFormat.Format(SqlEditorText.Result_ColumnOrigin, $"{presentation.Details.Table.DisplayName}.{presentation.Details.Columns[table].Name}")
-            : null;
+    /// <summary>
+    /// The tooltip of a traced column: the table column it holds (<c>Aus KUNDEN.NAME</c>) and that column's comment; null if
+    /// it is not traced.
+    /// </summary>
+    public string? CommentOf(int column)
+    {
+        if (_byColumn[column] is not var (presentation, table))
+        {
+            return null;
+        }
+
+        var details = presentation.Details;
+        var origin = TextFormat.Format(SqlEditorText.Result_ColumnOrigin, $"{details.Table.DisplayName}.{details.Columns[table].Name}");
+        return details.Columns[table].Comment is { } comment ? origin + "\n" + comment : origin; // grid.js joins its lines with \n
+    }
 
     private GridColumn ColumnOf(int i)
     {
@@ -104,10 +114,8 @@ public sealed class SqlResultPresentation : IColumnPresentation
             return plain;
         }
 
-        var details = presentation.Details;
         var values = presentation.ValuesOf(table);
         var label = LabelOf(i);
-        var origin = OriginOf(i)!;
         return plain with
         {
             Label = label.Name,
@@ -116,7 +124,7 @@ public sealed class SqlResultPresentation : IColumnPresentation
             Fk = _fk[i],
             FkModel = _fkModel[i],
             Numeric = category == ColumnCategory.Number && values is null,
-            Comment = details.Columns[table].Comment is { } comment ? origin + "\n" + comment : origin, // grid.js joins its lines with \n
+            Comment = CommentOf(i),
             UnknownText = values?.UnknownText,
         };
     }
