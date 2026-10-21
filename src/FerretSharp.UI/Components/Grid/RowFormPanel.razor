@@ -390,7 +390,7 @@
 
         CommitDrafts();
         Show(target);
-        await Grid.FocusRowAsync(target, keepFocus: true);
+        await Grid.FocusRowAsync(target, keepFocus: true, select: true);
     }
 
     /// <summary>The form's own keys (Alt+↑/↓/Enter by default, changeable since WP-25) – not global, Monaco keeps them.</summary>

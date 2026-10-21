@@ -652,9 +652,10 @@
 
     /// <summary>
     /// Moves the grid's focus to a row (the form's ▲ ▼); a block not loaded yet is fetched. <paramref name="keepFocus"/>:
-    /// the keyboard stays in the form.
+    /// the keyboard stays in the form. <paramref name="select"/>: the row becomes the selection, as with the arrow keys
+    /// (opening or closing the form keeps the selection).
     /// </summary>
-    public Task FocusRowAsync(GridCell cell, bool keepFocus)
+    public Task FocusRowAsync(GridCell cell, bool keepFocus, bool select = false)
     {
         var pinned = cell.IsNew;
         var index = pinned ? GridRows.NewRowIndex(Tab.Changes, cell.NewId) : cell.RowIndex;
@@ -664,11 +665,11 @@
         }
 
         Focused = cell with { RowIndex = pinned ? -1 : index };
-        return _grid.CallAsync("focusRow", index, cell.Column is { } column ? ColumnId(column) : null, pinned, keepFocus);
+        return _grid.CallAsync("focusRow", index, cell.Column is { } column ? ColumnId(column) : null, pinned, keepFocus, select);
     }
 
     /// <summary>
-    /// Focuses the row of a change (change overview, WP-30): a new row at the top, a loaded row where it is. False if the
+    /// Focuses and selects the row of a change (change overview, WP-30): a new row at the top, a loaded row where it is. False if the
     /// row is not among the loaded rows (or the grid not created yet).
     /// </summary>
     public async Task<bool> FocusChangeAsync(RowChange change)
@@ -685,7 +686,7 @@
                 return false;
             }
 
-            await FocusRowAsync(cell, keepFocus: false);
+            await FocusRowAsync(cell, keepFocus: false, select: true);
             return true;
         }
 
@@ -694,7 +695,7 @@
             return false;
         }
 
-        await FocusRowAsync(new GridCell(index, null, null), keepFocus: false);
+        await FocusRowAsync(new GridCell(index, null, null), keepFocus: false, select: true);
         return true;
     }
 

@@ -135,6 +135,10 @@
     <value>Mark selected rows for deletion</value>
     <comment>Fixed shortcut</comment>
   </data>
+  <data name="FixedExtendSelection" xml:space="preserve">
+    <value>Extend the selection (the arrow keys alone move it)</value>
+    <comment>Fixed shortcut</comment>
+  </data>
   <data name="FixedEditCell" xml:space="preserve">
     <value>Edit cell, open LOB editor</value>
     <comment>Fixed shortcut</comment>

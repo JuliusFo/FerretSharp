@@ -117,6 +117,8 @@ public sealed class ShortcutMap
     [
         new(SettingsText.GroupData, SettingsText.FixedCopyValue, "Ctrl+C", SettingsText.HintInGrid),
         new(SettingsText.GroupData, SettingsText.FixedMarkForDeletion, KeyChord.Parse("delete")!.Label, SettingsText.HintInGrid),
+        new(SettingsText.GroupData, SettingsText.FixedExtendSelection,
+            $"{KeyChord.Parse("shift+arrowup")!.Label}, {KeyChord.Parse("shift+arrowdown")!.Label}", SettingsText.HintInGrid),
         new(SettingsText.GroupData, SettingsText.FixedEditCell, "Enter", SettingsText.HintInGridDoubleClick),
         new(SettingsText.GroupData, SettingsText.FixedCancelInput, "Esc", SettingsText.HintInGrid),
         new(SettingsText.GroupData, SettingsText.ActionApplyFilters, "Enter", SettingsText.HintInFilterValue),

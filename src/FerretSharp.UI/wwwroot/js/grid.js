@@ -4,6 +4,8 @@
 import { comboOf, localCombo, setEditFinisher } from './shortcuts.js';
 
 const grids = new Map();
+// Per grid: focus changes from .NET – forget the last navigation key (it must not select), select the row (focusRow with select).
+const focusControls = new Map();
 // Cell values on their way to .NET (onCellEditRequest), each resolving to whether .NET took it.
 const pendingEdits = new Set();
 
@@ -604,6 +606,67 @@ export function create(elementId, dotnet, columns, options) {
 
   const selectedRows = () => api.getSelectedNodes().map(n => n.rowIndex).filter(i => i != null);
 
+  // The selection follows the focus like in the Windows Explorer: moving to another row with the keyboard (or the form's
+  // ▲ ▼) selects just that row, Shift+↑ ↓ and Shift+PageUp/PageDown select from the anchor to it and shrink again on the
+  // way back. New rows at the top are never selected (AG Grid does not select pinned rows): focusing one clears the
+  // selection, so Del never takes a row out of sight with it. Clicks stay AG Grid's own.
+  const navigationKeys = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', 'Tab']);
+  const rangeKeys = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown']);
+  // AG Grid raises cellFocused asynchronously, after the key is up: the key is kept a moment longer (a key that moved
+  // nothing must not make a later focus change from .NET select).
+  let keyMove = null; // after a navigation key: 'range' with Shift (not Ctrl), otherwise 'single'
+  let keyPresses = 0;
+  let anchor = null; // where a Shift range starts: the row last clicked or moved to without Shift
+  let focusedRow = null; // the loaded row focused last
+  element.addEventListener('keydown', e => {
+    keyPresses++;
+    keyMove = !navigationKeys.has(e.key) || e.altKey ? null : e.shiftKey && !e.ctrlKey && rangeKeys.has(e.key) ? 'range' : 'single';
+  }, true);
+  element.addEventListener('keyup', () => {
+    const press = keyPresses;
+    setTimeout(() => { if (press === keyPresses) keyMove = null; }, 250);
+  }, true);
+  element.addEventListener('mousedown', () => { keyMove = null; }, true);
+
+  // Rows not loaded yet (a block still on its way) cannot be selected and are left out.
+  function selectRange(gridApi, from, to) {
+    const range = new Set();
+    for (let i = Math.min(from, to); i <= Math.max(from, to); i++) {
+      const node = gridApi.getDisplayedRowAtIndex(i);
+      if (node?.data) range.add(node);
+    }
+    const dropped = gridApi.getSelectedNodes().filter(n => !range.has(n));
+    if (dropped.length > 0) gridApi.setNodesSelected({ nodes: dropped, newValue: false });
+    gridApi.setNodesSelected({ nodes: [...range], newValue: true });
+  }
+
+  function followFocus(gridApi, rowIndex, pinned, how) {
+    if (pinned) {
+      if (gridApi.getSelectedNodes().length > 0) gridApi.deselectAll();
+      anchor = null;
+      return;
+    }
+    if (how !== 'range') {
+      anchor = rowIndex;
+    } else if (anchor === null || !gridApi.getDisplayedRowAtIndex(anchor)?.isSelected()) {
+      anchor = focusedRow ?? rowIndex; // nothing selected any more (reloaded, sorted, Ctrl+click): from where the focus was
+    }
+    selectRange(gridApi, anchor, rowIndex);
+  }
+
+  // e.api: the event may come while createGrid still runs (before `api` is assigned).
+  function onCellFocused(e) {
+    if (e.rowIndex == null) return;
+    const pinned = e.rowPinned === 'top';
+    if (pinned || (keyMove && e.rowIndex !== focusedRow)) followFocus(e.api, e.rowIndex, pinned, keyMove);
+    focusedRow = pinned ? null : e.rowIndex;
+    reportFocus(e);
+  }
+  focusControls.set(elementId, {
+    forgetKey: () => { keyMove = null; },
+    select: (rowIndex, pinned) => followFocus(api, rowIndex, pinned, 'single'),
+  });
+
   // Del (not while editing): mark the selected rows for deletion – pending until written, can be reverted.
   function onDeleteKey(e) {
     if (!table || e.key !== 'Delete' || e.ctrlKey || e.altKey || api.getEditingCells().length > 0) return false;
@@ -686,7 +749,6 @@ export function create(elementId, dotnet, columns, options) {
   let focusTimer = null;
   function reportFocus(e) {
     if (!table || e.rowIndex == null) return;
-    // e.api: the event may come while createGrid still runs (before `api` is assigned).
     const newId = newIdOf(e.api, e);
     if (e.rowPinned && !newId) return;
     const colId = typeof e.column === 'string' ? e.column : e.column?.getColId?.() ?? null;
@@ -761,7 +823,9 @@ export function create(elementId, dotnet, columns, options) {
       edit.finally(() => pendingEdits.delete(edit));
     },
     onBodyScrollEnd: () => { if (table) dotnet.invokeMethodAsync('OnScrolled', firstVisibleRow(api)).catch(callFailed); },
-    onCellFocused: reportFocus,
+    onCellFocused,
+    // A click without Shift sets where a Shift+↑ ↓ range starts (the selection itself is AG Grid's).
+    onCellClicked: e => { if (!e.event?.shiftKey && !e.node.rowPinned) anchor = e.rowIndex; },
     // Pinned or reordered within the pinned area by dragging (changes from setPinned have source 'api').
     onColumnPinned: e => { if (table && e.source?.startsWith('ui')) reportPinned(api, dotnet); },
     onColumnMoved: e => { if (table && e.finished && e.source?.startsWith('ui') && e.column?.getPinned()) reportPinned(api, dotnet); },
@@ -769,7 +833,10 @@ export function create(elementId, dotnet, columns, options) {
     // Right-click on a selected row keeps the selection (export of several rows), otherwise selects just this row.
     onCellContextMenu: e => {
       if (e.rowIndex == null || !e.data || !e.event || e.node.rowPinned) return; // new rows: Del removes them
-      if (!e.node.isSelected()) e.node.setSelected(true, true);
+      if (!e.node.isSelected()) {
+        e.node.setSelected(true, true);
+        anchor = e.rowIndex;
+      }
       const selected = api.getSelectedNodes().map(n => n.rowIndex).filter(i => i != null);
       dotnet.invokeMethodAsync('OnCellContextMenu', e.rowIndex, e.column.getColId(), selected,
         e.event.clientX, e.event.clientY, window.innerWidth, window.innerHeight).catch(callFailed);
@@ -832,6 +899,7 @@ export function startEditing(elementId, rowIndex, colId, pinned) {
   const api = grids.get(elementId);
   if (!api) return;
   api.ensureColumnVisible(colId);
+  focusControls.get(elementId)?.forgetKey();
   api.setFocusedCell(rowIndex, colId, pinned ? 'top' : undefined);
   api.startEditingCell({ rowIndex, colKey: colId, rowPinned: pinned ? 'top' : undefined });
 }
@@ -839,9 +907,9 @@ export function startEditing(elementId, rowIndex, colId, pinned) {
 /**
  * Moves the focused cell to a row (the form's ▲ ▼, WP-21); a block not loaded yet is fetched. colId null keeps the
  * focused column. pinned: rowIndex counts the new rows at the top. keepFocus: the keyboard focus stays where it was
- * (in the form), the grid only shows the row.
+ * (in the form), the grid only shows the row. select: the row becomes the selection, like moving there with the keyboard.
  */
-export function focusRow(elementId, rowIndex, colId, pinned, keepFocus) {
+export function focusRow(elementId, rowIndex, colId, pinned, keepFocus, select) {
   const api = grids.get(elementId);
   if (!api) return;
   const column = colId ?? api.getFocusedCell()?.column.getColId() ?? api.getAllDisplayedColumns()[0]?.getColId();
@@ -849,7 +917,9 @@ export function focusRow(elementId, rowIndex, colId, pinned, keepFocus) {
   const active = document.activeElement;
   if (!pinned) api.ensureIndexVisible(rowIndex);
   api.ensureColumnVisible(column);
+  focusControls.get(elementId)?.forgetKey();
   api.setFocusedCell(rowIndex, column, pinned ? 'top' : undefined);
+  if (select) focusControls.get(elementId)?.select(rowIndex, pinned);
   if (keepFocus && active && active !== document.body && !document.getElementById(elementId)?.contains(active)) {
     active.focus();
   }
@@ -915,6 +985,7 @@ export function jumpToColumn(elementId, colId) {
   if (!api) return;
   api.ensureColumnVisible(colId, 'middle');
   const rows = api.getDisplayedRowCount();
+  focusControls.get(elementId)?.forgetKey();
   if (rows > 0) api.setFocusedCell(Math.min(firstVisibleRow(api), rows - 1), colId);
   // The grid renders the newly visible columns after the scroll.
   setTimeout(() => {
@@ -943,6 +1014,7 @@ export function setEditable(elementId, enabled) {
 export function destroy(elementId) {
   grids.get(elementId)?.destroy();
   grids.delete(elementId);
+  focusControls.delete(elementId);
   metas.delete(elementId);
   headerHeights.delete(elementId);
   editStates.delete(elementId);
