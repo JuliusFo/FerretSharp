@@ -1,7 +1,7 @@
 # FerretSharp – Oracle explorer for .NET developers
 
 > Projektanweisungen für Claude Code. Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-20, zuletzt released 3.43.0 (Historie: `CHANGELOG.md`).
+> Stand: 2026-10-21, zuletzt released 3.44.0 (Historie: `CHANGELOG.md`).
 
 ## Wo steht was
 
@@ -120,4 +120,4 @@ Regeln:
 
 ## 8. Als Nächstes
 
-Gesamt-Review 3.40.0 (`docs/review-3.40.0.md`) abgeschlossen: R6a (3.40.1), Teil D (Doku), R6b (3.41.0). Mit 3.42.0 released: WP-54 (alle Zeilen des Filters exportieren, mit A13), die Sprünge über Basistabellen (`small-fk-jumps-base-tables`) und WP-38 (Schnellsuche und Befehlspalette); mit 3.43.0 WP-40 (Verwendung im Code, Arbeits-Klon). Als Nächstes WP-55, WP-39, WP-41 … WP-47, WP-57 (Werte einer Spalte kopieren) und WP-58 (Zellen und Spalten markieren) (`docs/roadmap.md`).
+Gesamt-Review 3.40.0 (`docs/review-3.40.0.md`) abgeschlossen: R6a (3.40.1), Teil D (Doku), R6b (3.41.0). Mit 3.42.0 released: WP-54 (alle Zeilen des Filters exportieren, mit A13), die Sprünge über Basistabellen (`small-fk-jumps-base-tables`) und WP-38 (Schnellsuche und Befehlspalette); mit 3.43.0 WP-40 (Verwendung im Code, Arbeits-Klon); mit 3.44.0 WP-56 (Formular und Zeilenvergleich für Ergebnisse), WP-57 (Werte einer Spalte kopieren) und die Zeilenauswahl per Tastatur. Als Nächstes WP-55, WP-39, WP-41 … WP-47 und WP-58 (Zellen und Spalten markieren) (`docs/roadmap.md`).

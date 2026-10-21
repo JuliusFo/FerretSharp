@@ -84,7 +84,7 @@ Branch `wp/47-since-last-visit`.
 - Offen: eigene Seite oder Hinweis „3 Änderungen seit …“, der die Seite öffnet; was vor dem Abgleich erlaubt ist (Backlog-Eintrag).
 
 ### WP-57 Werte einer Spalte kopieren
-Umgesetzt (Release offen), mit den Entscheidungen des Nutzers vom 2026-10-21: `docs/work-packages/wp-57-copy-column-values.md`.
+In 3.44.0 released, mit den Entscheidungen des Nutzers vom 2026-10-21: `docs/work-packages/wp-57-copy-column-values.md`.
 
 ### WP-58 Zellen und Spalten markieren
 (Frage des Nutzers 2026-10-21: Zell- und Spaltenauswahl fehlt, weil AG Grid sie nur in der Enterprise-Edition hat. Ein eigenes Grid wurde verworfen, weil es für den heutigen Funktionsumfang 2–4 Monate kosten würde und danach dauerhaft gepflegt werden müsste. Vom Nutzer als Paket eingeplant 2026-10-21.) Branch `wp/58-cell-selection`. Mittel; baut auf WP-57 auf (Kopfmenü, Werte einer Spalte über `ColumnValues`) und auf der Zeilenauswahl (`small-grid-keyboard-selection.md`, `small-grid-select-all.md`). Gilt für Tabelle, SQL-Ergebnis und LINQ-Konsole (alle über `grid.js`).

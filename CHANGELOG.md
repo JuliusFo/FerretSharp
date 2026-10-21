@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.44.0] - 2026-10-21
+
+Form and row comparison for SQL and LINQ results, copying the values of a column, a grid selection that follows the keyboard like the Windows Explorer, and views as an explorer section of their own.
+
 ### Added
 - Form and row comparison for query results (WP-56): the result of the SQL editor and the LINQ console has the form beside it, as tables have – Alt+Enter, "As form" in the context menu or the "Form" switch in the result's footer. It shows every column of the focused row one below the other, read-only, with ▲ ▼ (Alt+↑/↓), the field search and "Hide empty". Columns traced back to their tables carry the C# names, enum members and FK links of the table grid, and the rows referencing the shown one are listed below with their counts. With several rows selected, Alt+Enter or "Compare selected" shows them side by side, deviating values marked; a row's heading opens it in the form. Whether the form is open, its width and "Hide empty" are saved with the tab.
 - Table and result grids: the selection follows the focus like in the Windows Explorer. ↑ ↓, PageUp/PageDown and Ctrl+↑/↓ select just the row they move to (a selection made with Ctrl+click goes), Shift+↑ ↓ and Shift+PageUp/PageDown select from the row clicked last to the focused one and shrink again on the way back. Moving into a new row at the top clears the selection, and the form's ▲ ▼ and the jump from the change overview select the row too. Del, Ctrl+C and Alt+Enter now act on what you see, no longer on rows clicked earlier. Clicks select as before.
