@@ -1,11 +1,11 @@
 # FerretSharp – Oracle explorer for .NET developers
 
 > Projektanweisungen für Claude Code. Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-21, zuletzt released 3.44.0 (Historie: `CHANGELOG.md`).
+> Stand: 2026-10-21, zuletzt released 3.45.0 (Historie: `CHANGELOG.md`).
 
 ## Wo steht was
 
-Diese Datei lädt in jede Session und enthält nur, was immer gilt. Die Fallen eines Bereichs stehen in `.claude/rules/` und laden, sobald eine passende Datei gelesen oder bearbeitet wird (`paths` im Kopf jeder Regel): `oracle`, `oracle-transactions`, `plsql-dictionary`, `ddl`, `clr-model`, `connection-transfer`, `links`, `ui`, `ui-grid`, `ui-monaco`, `ui-css`, `tests`, `localization`, `build-release`. Neue Fallen dort eintragen, wo sie gebraucht werden; eine neue Regel nur mit gültigem `paths`-Kopf (ohne lädt sie immer).
+Diese Datei lädt in jede Session und enthält nur, was immer gilt. Die Fallen eines Bereichs stehen in `.claude/rules/` und laden, sobald eine passende Datei gelesen oder bearbeitet wird (`paths` im Kopf jeder Regel). Neue Fallen dort eintragen, wo sie gebraucht werden; eine neue Regel nur mit gültigem `paths`-Kopf (ohne lädt sie immer).
 
 | Datei | Lesen … |
 |---|---|
@@ -18,11 +18,7 @@ Diese Datei lädt in jede Session und enthält nur, was immer gilt. Die Fallen e
 
 ## 1. Ziel
 
-Ein eigener Datenbank-Editor für **Oracle**, stärker auf den eigenen Arbeitsablauf zugeschnitten als DBeaver:
-- **Workspaces** pro Verbindung, jeder mit eigener Oracle-Connection und Transaktion.
-- **FK-Navigation** im Grid, **zusammenbaubare Filter** (TablePlus-Stil: Spalte, Operator, Wert → WHERE).
-- **Sandbox-Editing**: alle Änderungen in einer Transaktion, Commit/Rollback explizit. Prod ist visuell markiert und standardmäßig read-only.
-- **Brücke zur C#-/EF-Core-Welt**: FerretSharp kennt das Datenmodell des eigenen .NET-Projekts (DbContext): Entity-/Property-Namen, Enums, Navigations als Beziehungen, LINQ-Konsole, Code-Generierung.
+Ein eigener **Oracle**-Editor, stärker auf den eigenen Arbeitsablauf zugeschnitten als DBeaver: Workspaces je Verbindung (eigene Connection und Transaktion), FK-Navigation, zusammenbaubare Filter, Sandbox-Editing (Commit/Rollback explizit, Prod markiert und standardmäßig read-only) und die Brücke zum eigenen EF-Core-Projekt (Namen, Enums, Navigations, LINQ-Konsole, Code-Generierung). Funktionen im Überblick: `README.md`.
 
 Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erklärungen auf Senior-Niveau, keine Grundlagen. Versionen v1–v4 und alle Pakete: `docs/work-packages/README.md`.
 
@@ -31,7 +27,7 @@ Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erkl
 **Lesen und Schreiben sind getrennt (ADR 0006):**
 - Leseweg: `OracleSession.ExecuteReaderAsync` lehnt alles außer reinen Abfragen ab (`IsReadOnlyStatement`: nach Leerraum/Kommentaren `SELECT`/`WITH`, kein `FOR UPDATE`, nur ein Statement) – eine Stolperfalle gegen Programmierfehler, kein SQL-Parser.
 - Schreibweg: `OracleSession.ExecuteNonQueryAsync` ist `internal`, nimmt nur ein einzelnes INSERT/UPDATE/DELETE/MERGE (`IsWriteStatement`, nie DDL) und nur in einer offenen Transaktion. Transaktionssteuerung (Begin, Savepoint, Commit, Rollback) nur an `OracleSession`.
-- Schemaweg (WP-22, ADR 0019): `OracleSession.ExecuteDdlAsync` ist `internal`, nimmt nur ein einzelnes DDL-Statement (`IsDdlStatement`: kein `TRUNCATE` und nichts, was wie TRUNCATE Zeilen unwiderruflich entfernt – Partitionen leeren/löschen, `FLASHBACK TABLE … TO`, `PURGE`, `DROP TABLE … PURGE`, `DROP USER … CASCADE` –, keine Binds, kein PL/SQL außer Triggern auf Tabellen/Views, ADR 0021) und nur **ohne** offene Transaktion, also nie in einer gesperrten Session. Den Rollback vorher macht die UI nach Bestätigung.
+- Schemaweg (WP-22, ADR 0019): `OracleSession.ExecuteDdlAsync` ist `internal`, nimmt nur ein einzelnes DDL-Statement (`IsDdlStatement`: nichts, was Zeilen unwiderruflich entfernt – `TRUNCATE` und alles, was wirkt wie es, Liste in `ddl.md` –, keine Binds, kein PL/SQL außer Triggern auf Tabellen/Views, ADR 0021) und nur **ohne** offene Transaktion, also nie in einer gesperrten Session. Den Rollback vorher macht die UI nach Bestätigung.
 - `ReadOnlyTests` halten das fest (Interfaces ohne Schreib-/Transaktionsmethoden, Schreib- und Schemaweg `internal`, alle SELECT/WITH-Texte passieren die Lesesperre). **Die Lesesperre nie aufweichen** – ein neuer Weg (z. B. PL/SQL ausführen) bekommt eine eigene enge Methode, ein ADR und Tests.
 - Keine Garantie auf Datenbankseite (ODP.NET committet ohne Transaktion sofort; `SET TRANSACTION READ ONLY` hält weder DDL noch `PRAGMA AUTONOMOUS_TRANSACTION` auf) → Empfehlung an den Nutzer: für Prod einen User mit reinen SELECT-Grants.
 - Auf Prod enthält das Log weder Bind-Werte noch Text-Literale, der SQL-Verlauf keine Bind-Werte (Literale bleiben); Passwörter nirgends, auch nicht im Fehlerdialog (`SqlRedaction`). Die Workspace-Dateien halten den Arbeitsstand samt Werten (Entscheidungen des Nutzers, `docs/architecture.md` 1.2).
@@ -49,14 +45,14 @@ Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erkl
 | Bereich | Entscheidung | Hinweise |
 |---|---|---|
 | Runtime | **.NET 10 (LTS)**, C# 14 | SDK per `global.json` (`rollForward: latestFeature`). |
-| Solution | **`FerretSharp.slnx`**, Central Package Management (`Directory.Packages.props`) | Repo-lokales `nuget.config` (nur nuget.org); global ist zusätzlich eine DevExpress-Quelle eingerichtet, CPM verlangt dann Source Mapping. |
+| Solution | **`FerretSharp.slnx`**, Central Package Management (`Directory.Packages.props`) | Repo-lokales `nuget.config` (nur nuget.org; Source Mapping: `build-release.md`). |
 | UI | **Blazor Hybrid**: WPF-Host mit `BlazorWebView`, Komponenten in einer Razor Class Library (ADR 0004) | App-TFM **`net10.0-windows10.0.19041.0`** (mit `net10.0-windows` stürzt BlazorWebView beim Start ab). |
 | Theme, UI-Zustand | eigenes CSS mit Design-Tokens (`ferretsharp.css`); Komponenten + schlanke State-/Service-Klassen | **Nicht verwenden:** WPF-UI, AvalonDock, CommunityToolkit.Mvvm, AvalonEdit, CSS-Frameworks, MVVM- oder Docking-Frameworks. |
 | JS-Interop | ein ES-Modul pro Thema in `wwwroot/js` | JS bleibt dünn. **Keine Geschäftslogik in JS.** |
-| Hosting, Logging | `Microsoft.Extensions.Hosting`; **Serilog** (Datei unter `%APPDATA%\FerretSharp\logs`) | Die BlazorWebView nutzt den Service Provider des Hosts. Keine Bind-Werte von Prod loggen. |
+| Hosting, Logging | `Microsoft.Extensions.Hosting`; **Serilog** (Datei unter `%APPDATA%\FerretSharp\logs`) | Die BlazorWebView nutzt den Service Provider des Hosts. |
 | Grid, Editor | **AG Grid Community 36.2.0** (Infinite Row Model), **Monaco 0.57** (ADR 0011), beide lokal | Keine AG-Grid-Enterprise-Features. |
-| Excel-Export | **SpreadCheetah** (ADR 0028), nur in `Core/Data/XlsxExport` | Streamt vorwärts in einen `Stream`; Text bleibt Text, nie Formeln. Source Generator ausgeschlossen. |
-| App-Mitschnitt | **EventPipe** + `TraceEvent`, nur in `FerretSharp.AppTrace` (ADR 0023) | Feste Feldliste der EF-Events (`EfEvents`): nie Connection-String, nie Parameter. |
+| Excel-Export | **SpreadCheetah** (ADR 0028), nur in `Core/Data/XlsxExport` | Text bleibt Text, nie Formeln. |
+| App-Mitschnitt | **EventPipe** + `TraceEvent`, nur in `FerretSharp.AppTrace` (ADR 0023) | Nie Connection-String oder Parameter (`EfEvents`). |
 | Oracle | `Oracle.ManagedDataAccess.Core` (23.x), Ziel **19c+** (12.2 sollte gehen) | Rein managed, async mit `CancellationToken`. `OFFSET/FETCH` ab 12c, kein ROWNUM-Fallback. |
 | Tests | **xUnit v3** auf **Microsoft Testing Platform** + NSubstitute; **Testcontainers.Oracle** | Kein VSTest. |
 | Persistenz | JSON (`System.Text.Json`): schreiben über `AtomicJsonFile`, lesen über `VersionedJsonFile` | Regel je Datei: `docs/architecture.md` 1.7. Polymorphie über `[JsonPolymorphic]`; keine `object`-Properties (werden zu `JsonElement`). |
@@ -69,24 +65,19 @@ Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erkl
 
 ```
 src/FerretSharp.Core/       net10.0 – reine Logik, KEIN WPF, KEINE Windows-only-APIs, baut unter Linux
-  Oracle/ Query/ (SqlEditor/: Textanalyse, Search/: Namenssuche) Schema/ Data/ Connections/ (Transfer/) Workspaces/ Settings/ IO/ Resources/
-  Ddl/ (DDL-Text) Design/ (Designer) Compare/ Audit/ Display/ (Anzeigespalten) Forms/ AppTrace/ Links/
-  ClrModel/ (Host/: Prozesse und Dateien um den ModelHost, CodeGen/, Usage/: Code-Verwendung)   – Unterordner ändern den Namespace nicht
-src/FerretSharp.UI/         net10.0 Razor Class Library, plattformneutral: Shell.razor, Resources/,
-                            Components/ (Common Shell Connections Schema PlSql Grid Filter Sql Ddl Pages, je eigener
-                            Namespace, alle in `_Imports.razor`), State/ (Connections Export Grid Host Links Model Schema
-                            Settings Shell Tabs Workspaces, Namespace bleibt `UI.State`),
-                            wwwroot/ (css, js als ES-Module, lib/ag-grid, lib/monaco)
+  Oracle/ Query/ (SqlEditor/, Search/) Schema/ Data/ Connections/ (Transfer/) Workspaces/ Settings/ IO/ Resources/ Ddl/
+  Design/ Compare/ Audit/ Display/ Forms/ AppTrace/ Links/ ClrModel/ (Host/ CodeGen/ Usage/) – Unterordner ohne eigenen Namespace
+src/FerretSharp.UI/         net10.0 Razor Class Library, plattformneutral: Shell.razor, Resources/, Components/ (Ordner =
+                            Namespace), State/ (Namespace `UI.State`), wwwroot/ (css, js als ES-Module, lib/)
 src/FerretSharp.ModelHost/  Hilfsprozess im Kontext des C#-Projekts des Nutzers (.NET 8, ADR 0009)
 src/FerretSharp.AppTrace/   an eine laufende App anhängen (EventPipe, ADR 0023), plattformneutral
 src/FerretSharp.App/        net10.0-windows10.0.19041.0 – schlanker WPF-Host (Generic Host, Serilog, Host-Dienste)
 tests/                      Core.Tests, UI.Tests (ohne DB), Integration.Tests (Testcontainers), Stand-ins
                             FakeModelHost, FakeEfApp, FakeEfModel; Shared/
 samples/                    Beispielmodell (DbContext + Entities) zur Beispiel-DB
-pages/                      Weiterleitungsseite für Links auf GitHub Pages (ADR 0026, Nachtrag; Bytes LF, CSP mit Hashes)
-tools/                      icon/New-AppIcon.ps1 (Icon generiert, nicht von Hand), sample-db/, coverage/
+pages/                      Weiterleitungsseite für Links auf GitHub Pages (ADR 0026)
+tools/                      icon/ (Icon generiert, nicht von Hand), sample-db/, coverage/
 ```
-Welches Paket welchen Ordner gebaut hat: Spalte „Bereiche“ in `docs/work-packages/README.md`.
 
 Regeln:
 - `FerretSharp.Core` und `FerretSharp.UI` dürfen **kein** `System.Windows` und keine Windows-only-APIs referenzieren (CA1416). Was nur der Host kann (Credential Manager, native Datei-Dialoge, Fenster, Updates), definiert UI/Core als Interface; die Implementierung liegt in `FerretSharp.App`.
@@ -107,7 +98,7 @@ Regeln:
 - **Fertig heißt:** `dotnet build -warnaserror` und `dotnet test` grün, jeder sichtbare Text in Englisch und Deutsch, ADR bei nicht-trivialen Entscheidungen, Protokoll in `docs/work-packages/` (eigene Datei, Zeile im Index), Eintrag im `CHANGELOG.md`. Danach eine kurze Zusammenfassung auf Deutsch (was gebaut, was offen, was zu testen).
 - **Commits** klein und thematisch, Conventional Commits (`feat:`, `fix:`, `test:`, `docs:`, `refactor:`).
 - **Core zuerst mit Tests, dann UI.** Unit-Tests laufen ohne DB (Mocks). Alles, was eine echte DB braucht, gehört in `FerretSharp.Integration.Tests` und muss sich ohne Docker sauber überspringen.
-- **Ordner rekursiv löschen nur über `SafeDelete.DirectoryBelow(root, path)`** (Core/IO: nur strikt unter einer festen Wurzel, nie Wurzel, Laufwerk oder relativer Pfad), in Tests über `TestFolder` (`tests/Shared`). Nie einen Pfad aus Einstellungen, Umgebungsvariablen oder Eingaben ungeprüft löschen; auch keine `Remove-Item -Recurse`/`rm -r`/`RemoveDir` in Skripten. `SafeDeleteTests` durchsucht Code, Tests und Skripte danach.
+- **Ordner rekursiv löschen nur über `SafeDelete.DirectoryBelow(root, path)`** (nur strikt unter einer festen Wurzel), in Tests über `TestFolder`. Nie einen Pfad aus Einstellungen, Umgebung oder Eingaben ungeprüft löschen, keine `Remove-Item -Recurse`/`rm -r`/`RemoveDir` in Skripten (`SafeDeleteTests` sucht danach).
 - **UI end-to-end prüfen, ohne echte Nutzerdaten anzufassen** (Ablauf: `docs/e2e-testing.md`):
   - App nur mit `--data-dir=<scratch>` starten; eigene Test-DB-Container per Name anlegen und wieder entfernen.
   - Der Container `ferret-sample` auf Port 1522 ist die Beispiel-DB des Nutzers – **nicht anfassen** (`New-SampleDb.ps1` nie ohne `-Name`).
@@ -121,4 +112,4 @@ Regeln:
 
 ## 8. Als Nächstes
 
-Als Nächstes R7: Befunde aus dem Gesamt-Review 3.44.0 (`docs/review-3.44.0.md`, Teil A–D in einem Release). Danach WP-55, WP-39, WP-41 … WP-47 und WP-58 (`docs/roadmap.md`).
+WP-55, WP-39, WP-41 … WP-47 und WP-58 (`docs/roadmap.md`).
