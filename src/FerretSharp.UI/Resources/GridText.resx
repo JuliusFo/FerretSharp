@@ -817,6 +817,19 @@
   <data name="Footer_Counting" xml:space="preserve">
     <value>Counting …</value>
   </data>
+  <data name="Footer_Loading" xml:space="preserve">
+    <value>Loading …</value>
+  </data>
+  <data name="Load_Running" xml:space="preserve">
+    <value>Loading rows</value>
+  </data>
+  <data name="Load_Cancelled" xml:space="preserve">
+    <value>Loading the rows was cancelled.</value>
+  </data>
+  <data name="Load_CancelledKey" xml:space="preserve">
+    <value>Loading the rows was cancelled – {0} loads them again.</value>
+    <comment>{0}: shortcut of Reload, e.g. F5</comment>
+  </data>
   <data name="Footer_CountRows" xml:space="preserve">
     <value>Count rows</value>
     <comment>Button</comment>

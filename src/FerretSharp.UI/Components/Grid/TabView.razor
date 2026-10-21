@@ -84,7 +84,7 @@
             }
             <div class="grid-split">
                 <div class="grid-host">
-                    <FerretGrid @ref="_grid" Tab="Tab" Details="_details" OnPageLoaded="OnPageLoadedAsync"
+                    <FerretGrid @ref="_grid" Tab="Tab" Details="_details" OnPageLoaded="OnPageLoadedAsync" OnLoadingShown="StateHasChanged"
                                 OnContextMenu="r => _menu = r" OnColumnMenu="r => _columnMenu = r"
                                 OnLobOpen="r => _lob = r" OnEditableChanged="StateHasChanged" OnFormRequested="OnFormRequested" />
                 </div>
@@ -93,7 +93,7 @@
                     <RowFormPanel @ref="_form" Tab="Tab" Details="_details" Grid="_grid" OnClose="CloseFormAsync" />
                 }
             </div>
-            <TabFooter @ref="_footer" Tab="Tab" Details="_details" Grid="_grid" />
+            <TabFooter @ref="_footer" Tab="Tab" Details="_details" Grid="_grid" Loading="_grid?.LoadingFirstPage == true" />
         </div>
 
         @* Detail views mount when first shown and then stay (like the grid), so switching back costs no query. *@

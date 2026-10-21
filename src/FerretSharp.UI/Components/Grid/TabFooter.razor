@@ -9,7 +9,11 @@
 
 <footer class="tab-footer">
     @* RowsLoaded is the highest loaded position (blocks load where the user scrolls), so it is a lower bound. *@
-    @if (Tab.AllRowsLoaded)
+    @if (Loading)
+    {
+        <span><span class="spinner small"></span> @GridText.Footer_Loading</span>
+    }
+    else if (Tab.AllRowsLoaded)
     {
         <span><Fmt Text="@(Tab.RowsLoaded == 1 ? CommonText.RowsOne : CommonText.RowsOther)"><Arg0><strong>@Tab.RowsLoaded.ToString("N0", CultureInfo.CurrentCulture)</strong></Arg0></Fmt></span>
     }
@@ -75,6 +79,10 @@
     /// <summary>Learns the counted total, so its scrollbar fits (null before the grid exists).</summary>
     [Parameter]
     public FerretGrid? Grid { get; set; }
+
+    /// <summary>The rows of a new query are on their way: no count yet (it showed "≥ 0 rows").</summary>
+    [Parameter]
+    public bool Loading { get; set; }
 
     /// <summary>A new query (filter, sort, F5): a count still running belongs to the old one; its error goes too.</summary>
     public void Reset()

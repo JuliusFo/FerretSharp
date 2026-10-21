@@ -19,6 +19,12 @@
 @inject DisplayColumnSource DisplayColumns
 
 <div id="@Tab.Id" class="ag-host"></div>
+@if (_loads.Shown is { } load)
+{
+    <div class="grid-loading">
+        <RunProgress @key="load" WorkspaceId="Tab.WorkspaceId" Title="@GridText.Load_Running" Started="load.Started" OnCancel="_loads.Cancel" />
+    </div>
+}
 
 @code {
     [CascadingParameter]
@@ -31,6 +37,7 @@
     public PresentationService Presentations { get; set; } = null!;
 
     private readonly RowBlocks _blocks = new();
+    private readonly PageLoads _loads = new();
 
     /// <summary>grid.js; does nothing once disposed, so queued change handlers cannot touch the released module.</summary>
     private GridBridge _grid = null!;
@@ -53,6 +60,13 @@
     /// <summary>Raised after every page (or failure), so the tab footer can update.</summary>
     [Parameter]
     public EventCallback OnPageLoaded { get; set; }
+
+    /// <summary>A slow block is shown as loading (<see cref="PageLoads.ShowAfter"/>); its end raises <see cref="OnPageLoaded"/>.</summary>
+    [Parameter]
+    public EventCallback OnLoadingShown { get; set; }
+
+    /// <summary>The rows of a new query are loading and it takes a while: the footer has no count yet.</summary>
+    public bool LoadingFirstPage => _loads.Shown is { FirstPage: true };
 
     [Parameter]
     public EventCallback<GridContextMenuRequest> OnContextMenu { get; set; }
@@ -387,6 +401,7 @@
         // Names may read differently after writing, commit or rollback – also when the first block is no longer held and
         // GetRows never starts at row 0.
         DisplayNamesOf.Clear();
+        _loads.Supersede();
         if (await _grid.CallAsync("reload"))
         {
             await SetNewRowsAsync();
@@ -397,6 +412,7 @@
     public async Task RefreshAsync()
     {
         Tab.TotalCount = null;
+        _loads.Supersede(); // grid.js asks for one block at a time: the new query would wait for the old one
         await _grid.CallAsync("refresh");
     }
 
@@ -407,6 +423,7 @@
     public async Task RefreshAsync(IReadOnlyList<SortSpec> sorts)
     {
         Tab.TotalCount = null;
+        _loads.Supersede();
         await _grid.CallAsync("setSorts", GridSorts(sorts));
     }
 
@@ -873,20 +890,30 @@
         var details = Details;
         var filters = Tab.AppliedFilters;
         var sorts = Tab.Sorts;
+        var load = _loads.Start(firstPage: startRow == 0, SortKey(sortModel));
+        Fire(() => ShowLoadAsync(load));
+        var token = load.Token;
         var started = Stopwatch.GetTimestamp();
         var result = await Shell.RunDbAsync(Logger, Active, async () =>
         {
-            var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, CancellationToken.None);
-            return await data.ReadPageAsync(details, filters, sorts, new PageSpec(startRow, endRow - startRow), CancellationToken.None);
-        });
+            var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, token);
+            return await data.ReadPageAsync(details, filters, sorts, new PageSpec(startRow, endRow - startRow), token);
+        }, token);
         // With opening the session and waiting for it (a running FK count): the footer's time is the query's alone.
-        Logger.LogDebug("Rows {Start}+ of {Table} ({Filters} filters): {Elapsed} ms, query {Query} ms",
+        Logger.LogDebug("Rows {Start}+ of {Table} ({Filters} filters): {Elapsed} ms, query {Query} ms{Cancelled}",
             startRow, details.Table.Ref, filters.Count, (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds,
-            (long?)result.Value?.Elapsed.TotalMilliseconds);
+            (long?)result.Value?.Elapsed.TotalMilliseconds, result.Cancelled ? ", cancelled" : "");
+        var cancelledByUser = load.CancelledByUser;
+        if (!_loads.End(load))
+        {
+            return GridPage.Failure; // a new query superseded it: grid.js has dropped the block, its rows are stale
+        }
+
+        StateHasChanged(); // the loading panel goes
         if (result.Value is not { } page)
         {
             // The footer shows why ("Details" only for a statement that ran); grid.js fails the block.
-            Tab.Error = result.Error?.Display;
+            Tab.Error = cancelledByUser ? CancelledText : result.Error?.Display;
             Tab.Failure = result.IsRefusal ? null : result.Error;
             await OnPageLoaded.InvokeAsync();
             return GridPage.Failure;
@@ -906,6 +933,31 @@
 
         return new GridPage(rows, page.IsLastPage ? startRow + page.Rows.Count : -1);
     }
+
+    /// <summary>A click on a header sorted the grid: the rows of the old order still loading are no longer wanted.</summary>
+    [JSInvokable]
+    public void OnSortChanged(GridSort[] sortModel) => Guard(() =>
+    {
+        _loads.Supersede(keep: SortKey(sortModel));
+        StateHasChanged();
+    });
+
+    /// <summary>A sort order as <see cref="PageLoad.Query"/>: "c3 desc, c0 asc".</summary>
+    private static string SortKey(GridSort[] sortModel) => string.Join(", ", sortModel.Select(s => $"{s.ColId} {s.Sort}"));
+
+    /// <summary>A block still loading after <see cref="PageLoads.ShowAfter"/> gets the panel with clock and "Cancel".</summary>
+    private async Task ShowLoadAsync(PageLoad load)
+    {
+        if (await _loads.WaitToShowAsync(load))
+        {
+            StateHasChanged();
+            await OnLoadingShown.InvokeAsync();
+        }
+    }
+
+    private string CancelledText => Shortcuts.Label(ShortcutAction.Refresh) is { } key
+        ? TextFormat.Format(GridText.Load_CancelledKey, key)
+        : GridText.Load_Cancelled;
 
     /// <summary>
     /// Right-click on a cell; the menu needs the raw row values, not the display text. <paramref name="selectedRows"/>
@@ -1008,6 +1060,7 @@
         Shell.Changed -= OnShellChanged;
         Presentations.Changed -= OnPresentationChanged;
         DisplayColumns.Changed -= OnDisplayColumnsChanged;
+        _loads.Supersede(); // the tab closed: its query need not hold the workspace's session any longer
         if (_displayNames is not null)
         {
             await _displayNames.DisposeAsync(); // a running lookup stops; queued ones are not run
