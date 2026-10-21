@@ -5,6 +5,42 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.45.0] - 2026-10-21
+
+Fixes, structure and tests from the third review of the whole code (R7).
+
+### Security
+- "Open with the default program" (usage in the code) opens source files only: a path from a PDB pointing at a `.bat`, `.lnk` or `.url` would have been run, and a path leading out of the repository is no longer followed.
+- Importing connections never replaces the TNS_ADMIN folder of an overwritten TNS connection – also when it had none of its own (the environment's): a `tnsnames.ora` from the imported file could have sent the saved password to another listener.
+- A Git working copy whose `.git` file points to a folder on a foreign share is no longer followed – FerretSharp read on that share every few seconds.
+- `DROP TABLESPACE … INCLUDING CONTENTS`, `DROP CLUSTER … INCLUDING TABLES` and `DROP PLUGGABLE DATABASE … INCLUDING DATAFILES` are refused like `TRUNCATE` (they delete past the recycle bin), `ALTER DATABASE` and `ALTER PLUGGABLE DATABASE` like `ALTER SYSTEM`.
+- Leaving a Prod workspace with "Commit" commits only what had been written when the question was asked: a statement finishing in between is no longer committed unseen.
+
+### Fixed
+- A write from the SQL editor or the LINQ console that hangs on a silent network (VPN) can be given up like a hanging grid write: the status bar and the dialog when leaving offer "Disconnect session…". Before, commit and rollback were refused and FerretSharp could not be closed until the network gave up.
+- While an export of all rows (or a copy of all values of a column) reads in a workspace, writing, committing, undo and statements there are refused with the export's name – instead of waiting, looking stuck after five seconds and offering to disconnect, which cancelled the export and rolled the transaction back.
+- Closing FerretSharp or restarting into an update asks before it cancels running exports, and leaves no temporary file behind.
+- The cell menu of a table closes when the rows reload (a script of the workspace, undo): "Delete rows" and "Revert" could hit other rows.
+- The form of a result: Ctrl+F searches its fields instead of opening the editor's search. A form over a result or filter without rows says so instead of loading for ever (also the table's form).
+- Usage in the code: a solution chosen while the index builds is read afterwards – the view no longer lists one solution with the uses of the other.
+- "Actual plan" of a whole result counts the rows without fetching their LOBs over the network.
+- Table designer and schema comparison: changing `CHAR` to `VARCHAR2` warns that the values keep their trailing blanks (a comparison with the trimmed text no longer finds them); a shorter `CHAR` names the padding too.
+- "Copy column as IN list" leaves out the blanks of `CHAR` values, so the list also finds them in a `VARCHAR2` column. Read with `SELECT DISTINCT`, the status bar no longer counts the tab's rows as its total. Copying stops at 20 million characters with a message, not only at 100,000 values.
+- Every export (INSERT script, CSV, Excel, clipboard) says when fractions of `TIMESTAMP(8)`/`TIMESTAMP(9)` are cut to 100 ns; before, only the IN list did.
+- A failed save of a workspace is tried again after 30 seconds instead of waiting for the next change. A row count finishing just before the footer was reset no longer brings the old number back.
+- Choosing a work clone or a solution while the file is locked (backup, sync) keeps the choice and says it was not saved, instead of an "unexpected error". Finding the Git root of a clone on a share no longer freezes the window.
+- Setting the clipboard no longer freezes the window for seconds while another program holds it; looking for the Visual Studio instance with the solution gives each instance two seconds.
+- Builds of the C# project run without build servers: a compiler server started by FerretSharp ended with it, in the middle of other builds.
+- Quick open and command palette keep the focus like a dialog: Tab no longer leaves the box and Enter no longer works on the button behind it. The same holds in dialogs whose last field is a search box.
+- Settings › Shortcuts lists Shift+PageUp/PageDown of the row selection, and warns when a shortcut would take the grid's jumps to the first or last row or its Ctrl+A.
+- Small ones: "Shadow" and the entity tooltip of a tab are translated, the usage view no longer renders while hidden.
+
+### Changed
+- The model and code usage caches live in `%LOCALAPPDATA%\FerretSharp\cache` instead of the roaming profile (the former folder is removed at start); the code usage cache is written compact, keeps the three most recently used builds of an assembly, and two solutions on one build no longer overwrite each other.
+- The explorer's table and PL/SQL filters find what the quick open finds: underscores may be left out (`lieferort` finds `LIEFER_ORT`), and the C# entity name counts. The list keeps its order.
+- Connecting reads the primary and foreign keys of all schemas in one round trip each, not two per schema.
+- Under the hood: one form frame for tables and results, one snapshot retry for both readers, one background run for all rows and all values, sorted folders for exports and search, tests mirror the source folders, and new tests for the keyboard selection (JavaScript, run by `dotnet test`), the link queue, the error copy, the retry rule and a tripwire for SQL text outside the query and Oracle layers. Details: `docs/work-packages/r7-review-3.44.md`.
+
 ## [3.44.0] - 2026-10-21
 
 Form and row comparison for SQL and LINQ results, copying the values of a column, a grid selection that follows the keyboard like the Windows Explorer, and views as an explorer section of their own.

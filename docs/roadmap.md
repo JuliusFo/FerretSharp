@@ -16,9 +16,6 @@ Entscheidung des Nutzers (2026-10-09). Issues bekommen eine Art und einen Status
 
 Versionen: Minor-Releases 3.x (nichts Inkompatibles). Ein Paket bekommt seine Version erst beim Release (`CHANGELOG.md`, Spalte „Release“ im Index); die Roadmap legt keine fest, weil die Reihenfolge oft abweicht und Fix-Releases dazwischenkommen (Entscheidung des Nutzers, 2026-10-14). Der Release-Stand steht im Kopf der `CLAUDE.md`, die Historie im `CHANGELOG.md`.
 
-### R7 Nach dem Gesamt-Review 3.44.0
-Befunde, Fragen und Entscheidungen: [`review-3.44.0.md`](review-3.44.0.md). Entscheidung des Nutzers (2026-10-21): Teil A bis D in **einem** Paket und einem Release (3.45.0), nicht in Patch und Minor geteilt. Dazu das nachgeholte E2E von WP-56. Branch `wp/r7-review-3.44` von `main`, Protokoll `docs/work-packages/r7-review-3.44.md`.
-
 ### Pakete nach WP-36 (WP-37 … WP-47)
 Ausgewählt mit dem Nutzer am 2026-10-14 aus einer Ideensammlung (Bewertung des Nutzers je Paket in Klammern). Reihenfolge nach Abhängigkeiten: erst kleine Pakete mit sofortigem Nutzen (WP-37 … WP-39), dann zwei Fundamente, die je mehrere Pakete tragen – der Code-Index (WP-40 → WP-41, WP-45) und der Beziehungsgraph (WP-42 → WP-43, WP-46) –, das Paket mit Mitschnitt, Quellzeile und Datenänderungen (WP-45) erst, wenn seine Teile stehen. Die Abschnitte sind Vorschläge; „Offen“ wird beim Start mit dem Nutzer entschieden, dann wie üblich der Plan.
 

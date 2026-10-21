@@ -2,7 +2,7 @@
 
 Auftrag des Nutzers (2026-10-21): wieder ein Gesamt-Review über die ganze Solution mit denselben Punkten wie 3.40.0 – toter Code, Duplikate, Lesbarkeit, Architektur, Sicherheit, Projekt- und Ordnerstruktur, Tests, Doku –, weil seit 3.40 mehrere Pakete ohne eigenes Review dazugekommen sind (R6a/R6b, WP-54, WP-38, WP-40, WP-56, WP-57, Sprünge über Basistabellen, Explorer-Views, Tastatur-Zeilenauswahl u. a.). Acht parallele Agenten nach Themen, nur lesend, auf einer festen Kopie von 09b2a05: DB-Zugriff (DB), Zustand/Nebenläufigkeit (ST), UI/JS/CSS (UI), Host/Prozesse/Build (PH), Sicherheit (SE), Wiederverwendung/toter Code (RE), Tests (TE), Doku (DO). Befunde aus `docs/review-3.40.0.md` und dem Backlog wurden nur gemeldet, wenn ihre Umsetzung fehlt oder fehlerhaft ist. Doppelte Befunde sind zusammengeführt (alle IDs genannt). **Nachgeprüft** = zusätzlich von Hand im Code bestätigt; sonst die Einschätzung des Agenten.
 
-**Stand:** Befunde und Entscheidungen festgehalten, Umsetzung als R7 (ein Release, siehe Entscheidungen).
+**Stand:** umgesetzt mit R7 in 3.45.0 (`docs/work-packages/r7-review-3.44.md`), außer A32 (Entscheidung 2) und den dort genannten Resten.
 
 Schwere: **S** falsche Daten, Datenverlust, Sicherheitslücke, Hänger · **M** falsches Verhalten in realistischen Fällen oder klare Wartungslast · **K** Kleinkram.
 
