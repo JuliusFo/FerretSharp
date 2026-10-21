@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- Reconnect automatically (Settings › Connection, off by default): a lost connection is connected again by itself and its workspaces are restored where you are – FerretSharp neither switches to it nor jumps to the explorer, and one in the background is reconnected too. While the network or the database is away (the VPN after sleep, a restarting instance), it tries again after 5, 15 and 30 seconds, then every minute, for up to 10 minutes after the loss: the connection shows "Connection lost" with the time to the next attempt, "Try now" and "Stop trying", the switcher marks it "reconnecting". It only does so when no workspace of the connection had uncommitted changes – when some were lost, the banner says so and waits for "Reconnect" as before –, waits for a running write or export to end first, and never tries again after a refused login (another wrong password could lock the account). Workspaces unlocked for writing are read-only again; the notice after reconnecting names them.
+- After the computer wakes from sleep, idle connections are checked after a few seconds instead of up to two minutes later, so a connection that died meanwhile shows up (or is reconnected) before the next click.
+
 ### Fixed
 - A table whose rows take a while to load says so: after a moment the grid shows "Loading rows" with a clock and "Cancel" (and, like a running statement, what the session waits for and "Disconnect session…" if a cancel goes unanswered); the footer says "Loading …" instead of "≥ 0 rows". Before, the grid stayed empty until the rows came – after removing a filter or opening a big table sometimes for minutes – and nothing could stop the query.
 - A new query (filter, sort, F5) cancels the rows of the previous one still loading instead of waiting behind it, and closing the tab stops its query.
