@@ -10,7 +10,7 @@ public sealed class ColumnTypeCheckTests
 
     private static PropertyExport Prop(string clrType, bool nullable = false, string? provider = null, string? converter = null,
         int? maxLength = null, int? precision = null, int? scale = null, bool? columnNullable = null) =>
-        new("P", clrType, clrType, nullable, false, "C", null, converter, provider, false, null,
+        new("P", clrType, nullable, false, "C", null, converter, provider, false, null,
             MaxLength: maxLength, Precision: precision, Scale: scale, ColumnNullable: columnNullable);
 
     private static ColumnInfo Col(string dataType, int? length = null, bool charSemantics = false, int? precision = null, int? scale = null,

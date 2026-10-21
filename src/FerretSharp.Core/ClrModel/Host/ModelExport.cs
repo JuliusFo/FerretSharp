@@ -48,7 +48,7 @@ public sealed record ModelExport(
     IReadOnlyList<EntityExport> Entities)
 {
     /// <summary>2: column facets of properties (3.10) – a cached model of version 1 is read again from the project.</summary>
-    public const int CurrentFormatVersion = 2;
+    public const int CurrentFormatVersion = 3; // 3: without ClrTypeFull (review 3.44.0, B6)
 }
 
 /// <param name="Name">Entity name as EF knows it (for shared-type entities not the CLR name).</param>
@@ -70,7 +70,6 @@ public sealed record EntityExport(
     string? DbSet = null);
 
 /// <param name="ClrType">C# type as written, without nullability: <c>int</c>, <c>string</c>, <c>AuftragStatus</c>.</param>
-/// <param name="ClrTypeFull">Full CLR name, e.g. <c>Shop.Entities.AuftragStatus</c>.</param>
 /// <param name="Column">Column in the entity's table (in its view if it has no table).</param>
 /// <param name="Converter">Value converter type, e.g. <c>JaNeinConverter</c>; null without one.</param>
 /// <param name="ProviderClrType">Type the converter stores, e.g. <c>string</c>.</param>
@@ -89,7 +88,6 @@ public sealed record EntityExport(
 public sealed record PropertyExport(
     string Name,
     string ClrType,
-    string ClrTypeFull,
     bool Nullable,
     bool IsShadow,
     string? Column,

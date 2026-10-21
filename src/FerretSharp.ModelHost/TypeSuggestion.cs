@@ -48,16 +48,16 @@ internal static class TypeSuggestion
 
         if (direct is not null)
         {
-            return new LinqUnknownName(name, $"{direct.ToMinimalDisplayString(model, position)} {name} = {Value(direct, model, position)};", true);
+            return new LinqUnknownName(name, $"{direct.ToMinimalDisplayString(model, position)} {name} = {Value(direct, model, position)};");
         }
 
         if (members.Count > 0)
         {
             var parts = members.Select(m => $"{m.Key} = {(m.Value is { } type ? Value(type, model, position) : "default(object)")}");
-            return new LinqUnknownName(name, $"var {name} = new {{ {string.Join(", ", parts)} }};", members.Values.All(t => t is not null));
+            return new LinqUnknownName(name, $"var {name} = new {{ {string.Join(", ", parts)} }};");
         }
 
-        return new LinqUnknownName(name, $"object? {name} = null; // {ModelHostText.FillInTypeAndValue}", false);
+        return new LinqUnknownName(name, $"object? {name} = null; // {ModelHostText.FillInTypeAndValue}");
     }
 
     /// <summary>The type an expression must have where it is used; null if that is not clear.</summary>

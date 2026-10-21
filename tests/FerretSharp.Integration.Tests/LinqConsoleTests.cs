@@ -59,7 +59,6 @@ public sealed class LinqConsoleTests : IAsyncLifetime
         Assert.Contains("\"GESPERRT\" = 'J'", command.Sql);
         Assert.Contains(new CapturedParameter("kundeId_0", "Int32", "Int32", "4711"), command.Parameters);
         Assert.Equal("List<Kunde>", result.ResultType);
-        Assert.Equal(["db", "ct"], result.AutoDeclared);
     }
 
     [Fact]
@@ -86,11 +85,9 @@ public sealed class LinqConsoleTests : IAsyncLifetime
         var result = await _console.RunAsync(code, "", Ct);
 
         Assert.Empty(result.Commands);
-        Assert.Equal(["_context", "cancellationToken"], result.AutoDeclared);
         Assert.Equal(
             ["int customerId = 0;", "var request = new { From = DateTime.Today };", "List<int> ids = new List<int> { };"],
             result.UnknownNames.Select(u => u.Declaration));
-        Assert.All(result.UnknownNames, u => Assert.True(u.TypeKnown));
 
         // As the user would: the suggestions taken, the list filled (empty, EF would turn the condition into 0 = 1).
         var variables = string.Join("\n", result.UnknownNames.Select(u => u.Declaration)).Replace("new List<int> { }", "new List<int> { 1, 2 }", StringComparison.Ordinal);

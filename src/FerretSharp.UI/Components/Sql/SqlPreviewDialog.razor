@@ -2,7 +2,7 @@
 
 <ModalFrame Label="@SqlEditorText.SqlPreview_Title" Class="sql-dialog" OnCancel="OnClose" CloseOnBackdrop="true" FocusOnOpen="true">
     <header>
-        <span>@Title</span>
+        <span>@SqlEditorText.SqlPreview_Title</span>
         <span class="spacer"></span>
         @if (OnOpenInEditor.HasDelegate && Error is null)
         {
@@ -33,9 +33,6 @@
 </ModalFrame>
 
 @code {
-    [Parameter]
-    public string Title { get; set; } = SqlEditorText.SqlPreview_Title;
-
     [Parameter]
     public string Sql { get; set; } = "";
 

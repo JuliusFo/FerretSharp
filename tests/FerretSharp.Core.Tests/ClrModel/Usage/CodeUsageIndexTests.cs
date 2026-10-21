@@ -11,7 +11,7 @@ public sealed class CodeUsageIndexTests
     private static readonly Lazy<AssemblyUses> Scanned = new(() => IlUsageScanner.Scan(typeof(Customer).Assembly.Location, []));
 
     internal static PropertyExport Property(string name, string? column, bool shadow = false) =>
-        new(name, "string", "System.String", true, shadow, column, null, null, null, false, null);
+        new(name, "string", true, shadow, column, null, null, null, false, null);
 
     internal static ModelExport Model()
     {

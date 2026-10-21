@@ -14,7 +14,7 @@ public sealed class ModelCacheTests : IDisposable
 
     private static readonly ModelExport Model = new(ModelExport.CurrentFormatVersion, "8.0.11", "Shop.Ctx", "options", null,
         [new EntityExport("Shop.Kunde", "Shop.Kunde", false, null, "KUNDEN", null, null, null,
-            [new PropertyExport("KundeId", "int", "System.Int32", false, false, "KUNDE_ID", null, null, null, false, null)],
+            [new PropertyExport("KundeId", "int", false, false, "KUNDE_ID", null, null, null, false, null)],
             ["KundeId"], [], "Kunden")]);
 
     public ModelCacheTests()

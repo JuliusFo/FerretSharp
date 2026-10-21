@@ -34,8 +34,8 @@ public sealed class TablePresentationTests
         await schema.LoadAsync(TestContext.Current.CancellationToken);
         var entity = new EntityExport("Shop.Kunde", "Shop.Kunde", false, null, "KUNDEN", null, null, null,
             [
-                new("KundeId", "int", "System.Int32", false, false, "KUNDE_ID", null, null, null, false, null),
-                new("Kundenart", "Kundenart", "Shop.Kundenart", true, false, "KUNDENART", null, null, "int", false,
+                new("KundeId", "int", false, false, "KUNDE_ID", null, null, null, false, null),
+                new("Kundenart", "Kundenart", true, false, "KUNDENART", null, null, "int", false,
                     [new("Privat", "1", "1"), new("Gewerbe", "2", "2")]),
             ],
             ["KundeId"], []);

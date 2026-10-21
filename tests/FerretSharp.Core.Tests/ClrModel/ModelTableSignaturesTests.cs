@@ -19,7 +19,7 @@ public sealed class ModelTableSignaturesTests
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     private static PropertyExport Prop(string name, string column, string type = "int", IReadOnlyList<ValueMapping>? values = null) =>
-        new(name, type, type, false, false, column, null, null, null, false, values);
+        new(name, type, false, false, column, null, null, null, false, values);
 
     private static EntityExport Entity(string clrType, string table, IReadOnlyList<PropertyExport> properties, IReadOnlyList<ForeignKeyExport>? keys = null) =>
         new(clrType, clrType, false, null, table, null, null, null, properties, [], keys ?? []);

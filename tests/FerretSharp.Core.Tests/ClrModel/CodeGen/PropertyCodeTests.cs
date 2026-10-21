@@ -6,7 +6,7 @@ namespace FerretSharp.Core.Tests.ClrModel;
 public class PropertyCodeTests
 {
     private static PropertyExport Prop(string name, string type, string column, string? converter = null, string? provider = null) =>
-        new(name, type, type, true, false, column, null, converter, provider, false, null);
+        new(name, type, true, false, column, null, converter, provider, false, null);
 
     private static ModelExport Model(params PropertyExport[] properties) =>
         new(ModelExport.CurrentFormatVersion, "8.0.0", "Shop.Ctx", "options", null,

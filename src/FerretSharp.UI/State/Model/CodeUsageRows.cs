@@ -10,9 +10,6 @@ namespace FerretSharp.UI.State;
 /// <param name="Unused">Mapped, but no use outside tests and mapping code (<see cref="CodeUsageIndex.IsUnused"/>).</param>
 public sealed record ColumnUsageRow(string Column, PropertyExport? Property, IReadOnlyList<CodeUsage> Uses, bool Unused)
 {
-    /// <summary>Uses that count (outside tests and mapping code).</summary>
-    public int Counted => Uses.Count(u => !u.IsTest && !u.IsMapping);
-
     /// <summary>The uses the filter shows.</summary>
     public IReadOnlyList<CodeUsage> Matching(UsageAccess access) =>
         access == UsageAccess.All ? Uses : Uses.Where(u => CodeUsageRows.Matches(u, access)).ToList();

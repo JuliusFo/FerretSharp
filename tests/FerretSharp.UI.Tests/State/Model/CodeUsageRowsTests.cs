@@ -10,6 +10,9 @@ namespace FerretSharp.UI.Tests.State;
 /// <summary>WP-40: what the "Usage" view, the columns view, the designer and the editor jump make of the index.</summary>
 public sealed class CodeUsageRowsTests : IDisposable
 {
+    /// <summary>Uses that count: outside tests and mapping code.</summary>
+    private static int Counted(ColumnUsageRow row) => row.Uses.Count(u => !u.IsTest && !u.IsMapping);
+
     private const string Owner = "APP";
 
     private readonly TestFolder _folder = new();
@@ -33,7 +36,7 @@ public sealed class CodeUsageRowsTests : IDisposable
         ],
         ["AUFTRAG_ID"], [], false);
 
-    private static PropertyExport Property(string name, string column) => new(name, "string", "System.String", true, false, column, null, null, null, false, null);
+    private static PropertyExport Property(string name, string column) => new(name, "string", true, false, column, null, null, null, false, null);
 
     private static readonly ModelExport Model = new(ModelExport.CurrentFormatVersion, "8.0.0", "Shop.Ctx", "options", null,
     [
@@ -93,9 +96,9 @@ public sealed class CodeUsageRowsTests : IDisposable
         var rows = CodeUsageRows.Columns(mapping, index, Kunden);
 
         Assert.Equal(["KUNDE_ID", "NAME", "EMAIL", "NOTIZ"], rows.Select(r => r.Column));
-        Assert.Equal(4, rows[1].Counted);
+        Assert.Equal(4, Counted(rows[1]));
         Assert.False(rows[1].Unused);
-        Assert.Equal((0, 1, true), (rows[2].Counted, rows[2].Uses.Count, rows[2].Unused)); // only a test writes it
+        Assert.Equal((0, 1, true), (Counted(rows[2]), rows[2].Uses.Count, rows[2].Unused)); // only a test writes it
         Assert.Null(rows[3].Property);
         Assert.False(rows[3].Unused);
     }
@@ -165,7 +168,7 @@ public sealed class CodeUsageRowsTests : IDisposable
         var index = CodeUsageIndex.Build(WithOrders, [Assembly("Shop", false, navigations)]);
 
         var row = Assert.Single(CodeUsageRows.Columns(mapping, index, Auftraege), r => r.Column == "KUNDE_ID");
-        Assert.Equal((2, false), (row.Counted, row.Unused));
+        Assert.Equal((2, false), (Counted(row), row.Unused));
         Assert.Equal(["Kunde.Auftraege", "Auftrag.Kunde"], row.Uses.Select(u => CodeUsageRows.Name(u, auftrag, "KundeId")));
         Assert.Equal("Auftrag.Betrag", CodeUsageRows.Name(new CodeUsage(navigations[0], "Shop", false, false, null), auftrag, "Betrag"));
 

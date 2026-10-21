@@ -33,7 +33,7 @@ internal static class CodeGenerationModel
         [new("KUNDE_ID", "NUMBER", null, false, 10, 0, false, false, null, 1)], [], [], false);
 
     private static PropertyExport Property(string name, string type, string column, bool nullable = false) =>
-        new(name, type, "System." + type, nullable, false, column, null, null, null, false, null);
+        new(name, type, nullable, false, column, null, null, null, false, null);
 
     public static async Task<ClrModelMapping> MappingAsync(string? dbSet = "Kunden")
     {
@@ -56,15 +56,15 @@ internal static class CodeGenerationModel
                 Property("Name", "string", "NAME"),
                 Property("ErstelltAm", "DateTime", "ERSTELLT_AM"),
                 Property("Umsatz", "decimal", "UMSATZ", nullable: true),
-                new("Gesperrt", "bool", "System.Boolean", false, false, "GESPERRT", null, "JaNeinConverter", "string", false,
+                new("Gesperrt", "bool", false, false, "GESPERRT", null, "JaNeinConverter", "string", false,
                     [new("false", "False", "N"), new("true", "True", "J")]),
-                new("Kundenart", "Kundenart", "Shop.Kundenart", false, false, "KUNDENART", null, null, "int", false,
+                new("Kundenart", "Kundenart", false, false, "KUNDENART", null, null, "int", false,
                     [new("Privat", "1", "1"), new("Gewerbe", "2", "2"), new("Behoerde", "3", "3", "Behörde")]),
-                new("Status", "KundeStatus", "Shop.KundeStatus", true, false, "STATUS", null, "UpperCaseEnumConverter<KundeStatus>", "string", false,
+                new("Status", "KundeStatus", true, false, "STATUS", null, "UpperCaseEnumConverter<KundeStatus>", "string", false,
                     [new("Aktiv", "0", "AKTIV"), new("Inaktiv", "1", "INAKTIV")]),
                 Property("MandantId", "int", "MANDANT_ID", nullable: true) with { IsShadow = true },
                 Property("ExternId", "Guid", "EXTERN_ID", nullable: true),
-                new("Geprueft", "bool", "System.Boolean", true, false, "GEPRUEFT", null, "JaNeinConverter", "string", false,
+                new("Geprueft", "bool", true, false, "GEPRUEFT", null, "JaNeinConverter", "string", false,
                     [new("false", "False", "N"), new("true", "True", "J")]),
                 Property("Notiz", "string", "NOTIZ", nullable: true),
             ],

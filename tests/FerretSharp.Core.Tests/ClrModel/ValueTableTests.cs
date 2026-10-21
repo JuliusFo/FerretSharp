@@ -14,7 +14,7 @@ public sealed class ValueTableTests
     private static readonly ColumnInfo JaNein = new("GESPERRT", "CHAR", 1, false, null, null, false, false, null, 3);
 
     private static PropertyExport Enum(string type, params ValueMapping[] values) =>
-        new("P", type, "Shop." + type, false, false, "C", null, null, null, false, values);
+        new("P", type, false, false, "C", null, null, null, false, values);
 
     private static readonly PropertyExport Kundenart = Enum("Kundenart",
         new("Privat", "1", "1"), new("Gewerbe", "2", "2"), new("Behoerde", "3", "3"));
@@ -22,7 +22,7 @@ public sealed class ValueTableTests
     private static readonly PropertyExport AuftragStatus = Enum("AuftragStatus",
         new("Offen", "0", "OFFEN"), new("Versandt", "1", "VERSANDT")) with { Converter = "UpperCaseEnumConverter<AuftragStatus>" };
 
-    private static readonly PropertyExport Gesperrt = new("Gesperrt", "bool", "System.Boolean", false, false, "GESPERRT", null,
+    private static readonly PropertyExport Gesperrt = new("Gesperrt", "bool", false, false, "GESPERRT", null,
         "JaNeinConverter", "string", false, [new("false", "False", "N"), new("true", "True", "J")]);
 
     [Fact]

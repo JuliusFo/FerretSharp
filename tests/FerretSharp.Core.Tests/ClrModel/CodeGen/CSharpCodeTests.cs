@@ -10,7 +10,7 @@ namespace FerretSharp.Core.Tests.ClrModel;
 public sealed class CSharpCodeTests
 {
     private static PropertyExport Of(string type, bool nullable = false) =>
-        new("P", type, "System." + type, nullable, false, "C", null, null, null, false, null);
+        new("P", type, nullable, false, "C", null, null, null, false, null);
 
     private static readonly ColumnInfo Number = new("C", "NUMBER", null, false, null, null, true, false, null, 1);
     private static readonly ColumnInfo Text = new("C", "VARCHAR2", 100, true, null, null, true, false, null, 1);
@@ -75,18 +75,18 @@ public sealed class CSharpCodeTests
     [Fact]
     public void Enums_by_member_flags_combined_numbers_without_member_cast()
     {
-        var kundenart = new PropertyExport("Kundenart", "Kundenart", "Shop.Kundenart", false, false, "C", null, null, "int", false,
+        var kundenart = new PropertyExport("Kundenart", "Kundenart", false, false, "C", null, null, "int", false,
             [new("Privat", "1", "1"), new("Gewerbe", "2", "2")]);
         var values = ValueTable.For(kundenart, Number);
         Assert.Equal("Kundenart.Gewerbe", CSharpCode.Value(kundenart, values, Number, 2m).Code);
         Assert.Equal("(Kundenart)7", CSharpCode.Value(kundenart, values, Number, 7m).Code);
         Assert.Equal("(Kundenart)(-1)", CSharpCode.Value(kundenart, values, Number, -1m).Code);
 
-        var rechte = new PropertyExport("Rechte", "Rechte", "Shop.Rechte", false, false, "C", null, null, "int", true,
+        var rechte = new PropertyExport("Rechte", "Rechte", false, false, "C", null, null, "int", true,
             [new("Keine", "0", "0"), new("Lesen", "1", "1"), new("Schreiben", "2", "2")]);
         Assert.Equal("Rechte.Lesen | Rechte.Schreiben", CSharpCode.Value(rechte, ValueTable.For(rechte, Number), Number, 3m).Code);
 
-        var status = new PropertyExport("Status", "KundeStatus", "Shop.KundeStatus", false, false, "C", null, "UpperCaseEnumConverter", "string",
+        var status = new PropertyExport("Status", "KundeStatus", false, false, "C", null, "UpperCaseEnumConverter", "string",
             false, [new("Aktiv", "0", "AKTIV")]);
         var unknown = CSharpCode.Value(status, ValueTable.For(status, Text), Text, "WEG");
         Assert.Null(unknown.Code);

@@ -46,7 +46,7 @@ public sealed class ClrModelEnrichmentTests(OracleContainerFixture oracle) : IAs
 
     private static PropertyExport Prop(string name, string column, string type = "int", IReadOnlyList<ValueMapping>? values = null,
         string? converter = null, string? provider = null, bool nullable = false) =>
-        new(name, type, type, nullable, false, column, null, converter, provider, false, values);
+        new(name, type, nullable, false, column, null, converter, provider, false, values);
 
     private static ModelExport Model() => new(1, "8.0.0", "Shop.Ctx", "options", null,
     [

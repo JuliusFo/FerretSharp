@@ -11,7 +11,7 @@ public sealed class ValueTableDisplayNameTests
 {
     private static readonly ColumnInfo Art = new("ART", "NUMBER", null, false, 2, 0, false, false, null, 1);
 
-    private static readonly PropertyExport Auftragsart = new("Art", "Auftragsart", "Shop.Auftragsart", false, false, "ART", null, null, null, false,
+    private static readonly PropertyExport Auftragsart = new("Art", "Auftragsart", false, false, "ART", null, null, null, false,
         [new("ProductionOrder", "0", "0", "Fertigungsauftrag"), new("Service", "1", "1")]);
 
     [Fact]

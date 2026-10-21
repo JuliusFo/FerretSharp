@@ -15,7 +15,7 @@ public sealed class ClrModelMappingTests
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     private static PropertyExport Prop(string name, string? column, string type = "int") =>
-        new(name, type, type, false, false, column, null, null, null, false, null);
+        new(name, type, false, false, column, null, null, null, false, null);
 
     private static ColumnInfo Column(
         string name, string dataType, int? length = null, bool charSemantics = false, int? precision = null, int? scale = null,
