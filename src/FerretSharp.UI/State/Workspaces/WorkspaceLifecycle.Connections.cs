@@ -57,6 +57,35 @@ public sealed partial class WorkspaceLifecycle
             return;
         }
 
+        DropLost(scope);
+        hub.Show(scope);
+        shell.ShowExplorer();
+        _ = Task.Run(() => scope.Active.ConnectAsync(profile, CancellationToken.None));
+    }
+
+    /// <summary>
+    /// Reconnecting by itself (<see cref="AutoReconnect"/>): like <see cref="Reconnect"/>, but where the user is – a connection
+    /// in the background stays there, the shown one stays on its page – and with a limit on opening the session, since nobody
+    /// watches the attempt. A later attempt after a failed one only connects. Ends when connecting has ended.
+    /// </summary>
+    public Task ReconnectInPlaceAsync(ConnectionScope scope)
+    {
+        if ((connections.Profiles.FirstOrDefault(p => p.Id == scope.Id) ?? scope.Profile) is not { } profile)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (scope.Lost is not null)
+        {
+            DropLost(scope);
+        }
+
+        return Task.Run(() => scope.Active.ConnectAsync(profile, CancellationToken.None, ReconnectPolicy.OpenTimeout));
+    }
+
+    /// <summary>The lost connection's transactions are gone: its tabs' changes are forgotten, the workspaces restored from what was saved.</summary>
+    private void DropLost(ConnectionScope scope)
+    {
         foreach (var workspace in WorkspacesOf(scope))
         {
             editing.Forget(workspace.WorkspaceId);
@@ -65,9 +94,6 @@ public sealed partial class WorkspaceLifecycle
         SaveTabs();
         scope.Active.ClearLost();
         shell.ClearWorkspaces(scope.Id);
-        hub.Show(scope);
-        shell.ShowExplorer();
-        _ = Task.Run(() => scope.Active.ConnectAsync(profile, CancellationToken.None));
     }
 
     /// <summary>

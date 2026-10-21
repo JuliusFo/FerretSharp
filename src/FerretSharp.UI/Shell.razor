@@ -19,6 +19,7 @@
 
 <CascadingValue Value="_state" IsFixed="true">
 <CascadingValue Value="_lifecycle" IsFixed="true">
+<CascadingValue Value="_reconnect" IsFixed="true">
     <div class="app @(_lifecycle.IsProd ? "is-prod" : "")">
         <header class="topbar">
             <ConnectionScopeView @key='(Shown, "header")' Scope="Shown">
@@ -157,6 +158,10 @@
                                 <ConnectProgress Active="Active" />
                             </EmptyState>
                         }
+                        else if (Active.Status == ConnectionStatus.Failed && Active.Profile is { } waiting && _reconnect.RunOf(Shown) is { Phase: ReconnectPhase.Waiting, NextAt: not null } run)
+                        {
+                            <ReconnectWaiting Run="run" Profile="waiting" />
+                        }
                         else if (Active.Status == ConnectionStatus.Failed && Active.Profile is { } failed)
                         {
                             <EmptyState Title="@TextFormat.Format(ShellText.Shell_ConnectionFailedTo, ConnectionLabel.Of(failed, Settings.Current))" IsError="true">
@@ -204,11 +209,13 @@
     <UpdateDialog />
 </CascadingValue>
 </CascadingValue>
+</CascadingValue>
 
 @code {
     private readonly ShellState _state = new();
     private WorkspaceEditing _editing = null!;
     private WorkspaceLifecycle _lifecycle = null!;
+    private AutoReconnect _reconnect = null!;
 
     /// <summary>
     /// Work the shell starts outside a Blazor event handler (shortcut, service event). No error boundary sits above the
@@ -282,6 +289,7 @@
     {
         _editing = new WorkspaceEditing(_state, Hub, Settings, LoggerFactory.CreateLogger<WorkspaceEditing>());
         _lifecycle = new WorkspaceLifecycle(_state, Hub, Connections, SqlHistory, _editing, LoggerFactory.CreateLogger<WorkspaceLifecycle>());
+        _reconnect = new AutoReconnect(_state, Hub, _editing, Settings, _lifecycle.ReconnectInPlaceAsync, Run, LoggerFactory.CreateLogger<AutoReconnect>());
         ExitGuard.CanExit = () => _lifecycle.CanExit;
         ExitGuard.RequestExit = () => InvokeAsync(() => _lifecycle.RequestExitAsync(ExitGuard.ApproveExit));
         _state.Changed += OnChanged;
@@ -538,6 +546,7 @@
         scope.Active.Changed -= handlers.Scope;
         scope.Workspaces.Changed -= handlers.Scope;
         scope.Models.Changed -= handlers.Model;
+        _reconnect.Stop(scope);
         _subscribed.Remove(scope);
         _linked.Remove(scope);
     }
@@ -574,6 +583,7 @@
             _state.ClearWorkspaces(scope.Id);
         }
 
+        _reconnect.Check(scope); // a loss starts reconnecting by itself, if switched on
         StateHasChanged();
     });
 
@@ -672,6 +682,7 @@
         }
 
         KeepAlive.ConnectionLost -= OnKeepAliveLost;
+        _reconnect.Dispose();
         Shortcuts.Changed -= OnShortcutsChanged;
         Links.Received -= OnLinkReceived;
         _state.IncomingLinkClosed -= OnLinkReceived;

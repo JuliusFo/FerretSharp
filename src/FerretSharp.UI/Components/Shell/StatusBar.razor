@@ -20,7 +20,7 @@
         {
             case ConnectionStatus.Connected when Active.Lost is not null:
                 @* Reconnect and details are in the banner. *@
-                <span class="item error"><span class="dot err"></span> @ConnectionViewText.Connection_Lost</span>
+                <span class="item error"><span class="dot err"></span> @(Reconnect.RunOf(Scope) is { Phase: ReconnectPhase.Holding } ? ShellText.Status_ReconnectHolding : ConnectionViewText.Connection_Lost)</span>
                 break;
             case ConnectionStatus.Connected:
                 @* Connection, workspace and its lock are in the top bar (switcher, workspace chips, badge); the bar shows
@@ -41,6 +41,9 @@
                 break;
             case ConnectionStatus.Connecting:
                 <span class="item"><span class="spinner small"></span> @TextFormat.Format(ConnectionViewText.Connection_ConnectingTo, NameOf(Active.Profile)) <ConnectProgress Active="Active" Compact="true" /></span>
+                break;
+            case ConnectionStatus.Failed when Reconnect.RunOf(Scope) is { Phase: ReconnectPhase.Waiting, NextAt: { } next }:
+                <span class="item error"><span class="dot err"></span> <Fmt Text="@ShellText.Status_ReconnectIn"><Arg0><ReconnectCountdown At="next" /></Arg0></Fmt></span>
                 break;
             case ConnectionStatus.Failed:
                 <span class="item error"><span class="dot err"></span> @ShellText.Status_ConnectionFailed</span>
@@ -94,6 +97,12 @@
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public ConnectionScope Scope { get; set; } = null!;
+
+    [CascadingParameter]
+    public AutoReconnect Reconnect { get; set; } = null!;
 
     /// <summary>A parameter (not only cascaded), so the bar renders again whenever the shell does.</summary>
     [Parameter, EditorRequired]

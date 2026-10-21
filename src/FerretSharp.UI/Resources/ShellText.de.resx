@@ -909,4 +909,40 @@
   <data name="Status_CopyValuesTitle" xml:space="preserve">
     <value>Liest die Werte von {0} im Hintergrund; in die Zwischenablage kommen sie, wenn alles gelesen ist.</value>
   </data>
+  <data name="AutoReconnect_Done" xml:space="preserve">
+    <value>„{0}“ ist wieder verbunden, die Workspaces sind wiederhergestellt.</value>
+  </data>
+  <data name="AutoReconnect_LockedAgain" xml:space="preserve">
+    <value>Wieder schreibgeschützt: {0}</value>
+  </data>
+  <data name="AutoReconnect_GaveUp" xml:space="preserve">
+    <value>„{0}“ wurde nicht wieder verbunden.</value>
+  </data>
+  <data name="LostBanner_AutoHolding" xml:space="preserve">
+    <value>Verbindet sich von selbst neu, sobald das laufende Schreiben oder der Export beendet ist.</value>
+  </data>
+  <data name="LostBanner_AutoKeptForWork" xml:space="preserve">
+    <value>Nicht von selbst neu verbunden: Mit der Verbindung gingen nicht committete Änderungen verloren.</value>
+  </data>
+  <data name="Reconnect_LostTitle" xml:space="preserve">
+    <value>Verbindung zu {0} verloren</value>
+  </data>
+  <data name="Reconnect_Next" xml:space="preserve">
+    <value>Versuch {0} ist gescheitert. Nächster Versuch in {1}.</value>
+  </data>
+  <data name="Reconnect_GivesUp" xml:space="preserve">
+    <value>Versucht es bis {0} min nach dem Verlust weiter.</value>
+  </data>
+  <data name="Reconnect_TryNow" xml:space="preserve">
+    <value>Jetzt versuchen</value>
+  </data>
+  <data name="Reconnect_Stop" xml:space="preserve">
+    <value>Nicht mehr versuchen</value>
+  </data>
+  <data name="Status_ReconnectIn" xml:space="preserve">
+    <value>Verbindung verloren – nächster Versuch in {0}</value>
+  </data>
+  <data name="Status_ReconnectHolding" xml:space="preserve">
+    <value>Verbindung verloren – verbindet nach der laufenden Arbeit neu</value>
+  </data>
 </root>

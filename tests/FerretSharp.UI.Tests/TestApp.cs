@@ -30,7 +30,11 @@ internal sealed class TestApp : IAsyncDisposable
 
     public TestApp()
     {
-        var connector = FakeDatabase.Connector(_ => NewConnection());
+        var connector = FakeDatabase.Connector(_ =>
+        {
+            Interlocked.Increment(ref _openAttempts);
+            return FailOpen?.Invoke() is { } failure ? throw failure : NewConnection();
+        });
 
         var services = new ServiceCollection();
         services.AddSingleton<ISecretStore>(Secrets);
@@ -63,6 +67,16 @@ internal sealed class TestApp : IAsyncDisposable
     public FakeTimeProvider Time { get; } = new();
 
     public InMemorySecretStore Secrets { get; } = new();
+
+    public AppSettingsService Settings => _services.GetRequiredService<AppSettingsService>();
+
+    /// <summary>Opening a session (explorer or workspace) fails with what this returns; opens when null.</summary>
+    public Func<Exception?>? FailOpen { get; set; }
+
+    /// <summary>How often a session (explorer or workspace) was to be opened, also failed ones.</summary>
+    public int OpenAttempts => Volatile.Read(ref _openAttempts);
+
+    private int _openAttempts;
 
     public ConnectionManager Connections => _services.GetRequiredService<ConnectionManager>();
 
