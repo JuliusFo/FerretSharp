@@ -403,6 +403,14 @@ public sealed class SqlScriptTests
     [InlineData("DROP TABLE t PURGE", SqlStatementKind.Truncate)]
     [InlineData("drop table app.t cascade constraints purge", SqlStatementKind.Truncate)]
     [InlineData("DROP USER app CASCADE", SqlStatementKind.Truncate)]
+    // The same (review 3.44.0, A14, decision of the user).
+    [InlineData("DROP TABLESPACE ts INCLUDING CONTENTS AND DATAFILES", SqlStatementKind.Truncate)]
+    [InlineData("drop cluster c including tables cascade constraints", SqlStatementKind.Truncate)]
+    [InlineData("DROP PLUGGABLE DATABASE pdb1 INCLUDING DATAFILES", SqlStatementKind.Truncate)]
+    [InlineData("DROP TABLESPACE ts", SqlStatementKind.Ddl)] // fails while it holds objects
+    [InlineData("DROP PLUGGABLE DATABASE pdb1 KEEP DATAFILES", SqlStatementKind.Ddl)]
+    [InlineData("ALTER DATABASE CLOSE", SqlStatementKind.SessionControl)]
+    [InlineData("ALTER PLUGGABLE DATABASE pdb1 CLOSE IMMEDIATE", SqlStatementKind.SessionControl)]
     [InlineData("DROP TABLE t", SqlStatementKind.Ddl)] // the recycle bin keeps it (FLASHBACK … TO BEFORE DROP)
     [InlineData("DROP TABLE t CASCADE CONSTRAINTS", SqlStatementKind.Ddl)]
     [InlineData("DROP USER app", SqlStatementKind.Ddl)] // fails if the user owns objects

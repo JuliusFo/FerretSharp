@@ -126,6 +126,10 @@ public class ReadOnlyTests
     [InlineData("PURGE RECYCLEBIN")]
     [InlineData("-- schema\nDROP TABLE t PURGE")] // review 3.40.0, SE-8: past the recycle bin
     [InlineData("DROP USER app CASCADE")]
+    [InlineData("DROP TABLESPACE ts INCLUDING CONTENTS")] // review 3.44.0, A14
+    [InlineData("DROP CLUSTER c INCLUDING TABLES")]
+    [InlineData("DROP PLUGGABLE DATABASE pdb1 INCLUDING DATAFILES")]
+    [InlineData("ALTER DATABASE CLOSE")]
     [InlineData("ALTER SESSION SET CURRENT_SCHEMA = X")]
     [InlineData("ALTER SYSTEM KILL SESSION '1,2'")]
     [InlineData("CREATE OR REPLACE PROCEDURE p AS BEGIN NULL; END;")]

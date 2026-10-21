@@ -121,7 +121,7 @@
     <value>{0} läuft über die Statusleiste (Commit, Rollback).</value>
   </data>
   <data name="SqlRejectSessionControl" xml:space="preserve">
-    <value>ALTER SESSION/SYSTEM ändert die Session des Workspaces und wird nicht ausgeführt.</value>
+    <value>ALTER SESSION/SYSTEM/DATABASE ändert die Session des Workspaces oder die ganze Datenbank und wird nicht ausgeführt.</value>
   </data>
   <data name="SqlRejectLock" xml:space="preserve">
     <value>LOCK TABLE wird nicht ausgeführt – Sperren setzt FerretSharp nur beim Editieren.</value>

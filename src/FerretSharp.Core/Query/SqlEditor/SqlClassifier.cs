@@ -92,13 +92,19 @@ public static class SqlClassifier
             "UPDATE" => SqlStatementKind.Update,
             "DELETE" => SqlStatementKind.Delete,
             "MERGE" => SqlStatementKind.Merge,
-            "ALTER" when second is "SESSION" or "SYSTEM" => SqlStatementKind.SessionControl,
+            // ALTER DATABASE / PLUGGABLE DATABASE (CLOSE IMMEDIATE …) like ALTER SYSTEM (review 3.44.0, A14, decision of the user).
+            "ALTER" when second is "SESSION" or "SYSTEM" or "DATABASE" or "PLUGGABLE" => SqlStatementKind.SessionControl,
             "TRUNCATE" or "PURGE" => SqlStatementKind.Truncate,
             "ALTER" when second == "TABLE" && DropsPartition(tokens) => SqlStatementKind.Truncate,
             "FLASHBACK" when !Follows(tokens, "TO", "BEFORE", "DROP") => SqlStatementKind.Truncate,
             // Decision of the user (review 3.40.0, SE-8): past the recycle bin, and a schema with all its objects.
             "DROP" when second == "TABLE" && Follows(tokens, "PURGE") => SqlStatementKind.Truncate,
             "DROP" when second == "USER" && Follows(tokens, "CASCADE") => SqlStatementKind.Truncate,
+            // The same past the recycle bin (review 3.44.0, A14, decision of the user): a tablespace with its tables, a cluster
+            // with its tables, a pluggable database with its data files.
+            "DROP" when second == "TABLESPACE" && Follows(tokens, "INCLUDING", "CONTENTS") => SqlStatementKind.Truncate,
+            "DROP" when second == "CLUSTER" && Follows(tokens, "INCLUDING", "TABLES") => SqlStatementKind.Truncate,
+            "DROP" when second == "PLUGGABLE" && Follows(tokens, "INCLUDING", "DATAFILES") => SqlStatementKind.Truncate,
             "CREATE" when PlSqlObjectAt(tokens) is { } at => !tokens[at].IsWord("TRIGGER") ? SqlStatementKind.PlSqlObject
                 : IsSystemTrigger(tokens, at) ? SqlStatementKind.SystemTrigger
                 : SqlStatementKind.Trigger,
