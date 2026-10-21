@@ -17,9 +17,8 @@ public enum NameMatch
 /// </summary>
 public static class NameRank
 {
-    /// <summary>The terms of a query; empty if nothing was typed.</summary>
-    public static string[] Terms(string? query) =>
-        (query ?? "").Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    /// <summary>The terms of a query, the words of every search box (<see cref="TextSearch.Words"/>); empty if nothing was typed.</summary>
+    public static string[] Terms(string? query) => [.. new TextSearch(query).Words];
 
     /// <summary>How a database name matches; null if a term is missing. Without terms every name matches alike.</summary>
     public static NameMatch? Of(string name, IReadOnlyList<string> terms)

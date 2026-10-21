@@ -1,4 +1,5 @@
 @using FerretSharp.Core.Connections
+@using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
 @using FerretSharp.Core.Settings
 @implements IAsyncDisposable
@@ -362,7 +363,7 @@
         Schema?.Tables.Where(t => ExplorerList.IsIn(t, section, SeparateViews)) ?? [];
 
     private bool TableMatches(TableSummary table) =>
-        ExplorerList.Matches(_query, table.DisplayName, table.Name, Presentation.ShownEntityNameOf(table.Ref));
+        ObjectSearch.Matches(table, _query, Presentation.ShownEntityNameOf(table.Ref));
 
     private SortedDictionary<char, List<PlSqlObjectSummary>> PlSqlGroups() =>
         ExplorerList.Group(ExplorerList.Filter(Schema?.PlSqlObjects ?? [], _query), u => u.DisplayName);

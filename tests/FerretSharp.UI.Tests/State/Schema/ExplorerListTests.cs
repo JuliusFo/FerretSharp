@@ -18,6 +18,20 @@ public class ExplorerListTests
         Assert.Equal(3, ExplorerList.Filter([Rechnung, Druck, Import], "").Count());
     }
 
+    /// <summary>Review 3.44.0, B4: the explorer filters by the quick open's rule – underscores may be left out, C# names count.</summary>
+    [Fact]
+    public void The_explorer_finds_what_the_quick_open_finds()
+    {
+        var lieferOrt = new TableSummary("APP", "LIEFER_ORT", TableKind.Table);
+
+        Assert.True(Core.Query.ObjectSearch.Matches(lieferOrt, "lieferort", null));
+        Assert.True(Core.Query.ObjectSearch.Matches(lieferOrt, "", null));
+        Assert.True(Core.Query.ObjectSearch.Matches(Kunden, "kunde", "Customer"));
+        Assert.True(Core.Query.ObjectSearch.Matches(Kunden, "customer", "Customer"));
+        Assert.False(Core.Query.ObjectSearch.Matches(Kunden, "auftrag", "Customer"));
+        Assert.Equal([Rechnung], ExplorerList.Filter([Rechnung, Druck, Import], "pkgrechnung"));
+    }
+
     private static readonly TableSummary Kunden = new("APP", "KUNDEN", TableKind.Table);
     private static readonly TableSummary KundenView = new("APP", "KUNDEN_V", TableKind.View);
     private static readonly TableSummary KundenMView = new("APP", "KUNDEN_MV", TableKind.MaterializedView);

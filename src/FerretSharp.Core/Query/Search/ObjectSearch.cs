@@ -14,21 +14,33 @@ public static class ObjectSearch
     public static IReadOnlyList<TableSummary> FindTables(IEnumerable<TableSummary> tables, string? query, Func<TableRef, string?>? entityName = null)
     {
         var terms = NameRank.Terms(query);
-        return terms.Length == 0
-            ? []
-            : Ranked(tables, t => NameRank.Best(
-                NameRank.Best(NameRank.Of(t.DisplayName, terms), NameRank.Of(t.Name, terms)),
-                entityName?.Invoke(t.Ref) is { } entity ? NameRank.OfClrName(entity, terms) : null));
+        return terms.Length == 0 ? [] : Ranked(tables, t => RankOf(t, terms, entityName?.Invoke(t.Ref)));
     }
 
     /// <summary>The matching PL/SQL units by the name shown and the real name, best first; none without a query.</summary>
     public static IReadOnlyList<PlSqlObjectSummary> FindPlSql(IEnumerable<PlSqlObjectSummary> units, string? query)
     {
         var terms = NameRank.Terms(query);
-        return terms.Length == 0
-            ? []
-            : Ranked(units, u => NameRank.Best(NameRank.Of(u.DisplayName, terms), NameRank.Of(u.Name, terms)));
+        return terms.Length == 0 ? [] : Ranked(units, u => RankOf(u, terms));
     }
+
+    /// <summary>
+    /// The explorer's filter, by the same rule as the quick open (review 3.44.0, B4: "lieferort" found LIEFER_ORT with Ctrl+P,
+    /// not in the explorer); true without a query. The list keeps its order.
+    /// </summary>
+    public static bool Matches(TableSummary table, string? query, string? entityName) =>
+        NameRank.Terms(query) is var terms && (terms.Length == 0 || RankOf(table, terms, entityName) is not null);
+
+    /// <inheritdoc cref="Matches(TableSummary, string?, string?)"/>
+    public static bool Matches(PlSqlObjectSummary unit, string? query) =>
+        NameRank.Terms(query) is var terms && (terms.Length == 0 || RankOf(unit, terms) is not null);
+
+    private static NameMatch? RankOf(TableSummary table, IReadOnlyList<string> terms, string? entityName) => NameRank.Best(
+        NameRank.Best(NameRank.Of(table.DisplayName, terms), NameRank.Of(table.Name, terms)),
+        entityName is not null ? NameRank.OfClrName(entityName, terms) : null);
+
+    private static NameMatch? RankOf(PlSqlObjectSummary unit, IReadOnlyList<string> terms) =>
+        NameRank.Best(NameRank.Of(unit.DisplayName, terms), NameRank.Of(unit.Name, terms));
 
     private static List<T> Ranked<T>(IEnumerable<T> items, Func<T, NameMatch?> rank) =>
         items
