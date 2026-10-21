@@ -125,4 +125,28 @@ public class ExportTests
         Assert.Equal("TO_DSINTERVAL('+01 02:03:04.000000')", InsertExport.Literal(Col("I", "INTERVAL DAY(2) TO SECOND(6)"), "+01 02:03:04.000000", warnings));
         Assert.Empty(warnings.ToList());
     }
+
+    /// <summary>
+    /// Review 3.44.0, A12: TIMESTAMP(8) and (9) are read as DateTime (100 ns); only the IN list said so, the INSERT script
+    /// ("reproduces them exactly"), CSV and Excel cut silently. Once per column; a TIMESTAMP(6) says nothing.
+    /// </summary>
+    [Fact]
+    public void Exports_of_a_finer_timestamp_say_its_fractions_are_cut()
+    {
+        var fine = new ColumnInfo("ZEIT", "TIMESTAMP(9)", null, false, null, 9, true, false, null, 0);
+        var plain = new ColumnInfo("ZEIT6", "TIMESTAMP(6)", null, false, null, 6, true, false, null, 0);
+        var value = new DateTime(2026, 10, 1, 13, 45, 7).AddTicks(1234567);
+        var expected = "ZEIT (TIMESTAMP(9)): Die Werte werden auf 7 Nachkommastellen gelesen – feinere Bruchteile fehlen im Export.";
+
+        var insert = new ExportWarnings();
+        InsertExport.Literal(fine, value, insert);
+        InsertExport.Literal(fine, value, insert);
+        InsertExport.Literal(plain, value, insert);
+        Assert.Equal([expected], insert.ToList());
+
+        var csv = new ExportWarnings();
+        ExportNotation.Text(fine, new DateTimeOffset(value, TimeSpan.FromHours(2)), csv);
+        Assert.Equal([expected], csv.ToList());
+        Assert.Empty(csv.ToList(fractions: false)); // the IN list words it itself
+    }
 }

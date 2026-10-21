@@ -29,9 +29,6 @@ public sealed class ColumnValues(ExportColumn column, ColumnValuesFormat format)
     /// <summary>More values than this are not copied: the export as CSV or Excel is the way for them.</summary>
     public const int MaxValues = 100_000;
 
-    /// <summary>Fractional second digits a <see cref="DateTime"/> holds (100 ns): TIMESTAMP values are read as one.</summary>
-    private const int DateTimeFractionalDigits = 7;
-
     private readonly StringBuilder _text = new();
     private readonly ExportWarnings _warnings = new();
     private readonly HashSet<string> _literals = new(StringComparer.Ordinal);
@@ -129,7 +126,7 @@ public sealed class ColumnValues(ExportColumn column, ColumnValuesFormat format)
             throw new InvalidOperationException("Too many values to copy.");
         }
 
-        var warnings = _warnings.ToList();
+        var warnings = _warnings.ToList(fractions: format != ColumnValuesFormat.InList);
         if (format == ColumnValuesFormat.InList)
         {
             if (_nulls > 0)
@@ -140,10 +137,9 @@ public sealed class ColumnValues(ExportColumn column, ColumnValuesFormat format)
             }
 
             // TIMESTAMP(8) and (9) are read as DateTime: a literal of a value with finer fractions does not find its row.
-            if (Count > 0 && ColumnCategories.Of(column.Column) is ColumnCategory.Timestamp or ColumnCategory.TimestampWithTimeZone
-                          && ColumnCategories.FractionalDigits(column.Column) > DateTimeFractionalDigits)
+            if (Count > 0 && ColumnCategories.LosesFractionsWhenRead(column.Column))
             {
-                warnings.Add(TextFormat.Format(QueryText.ColumnValuesFractionsCut, column.Column.DataType, DateTimeFractionalDigits));
+                warnings.Add(TextFormat.Format(QueryText.ColumnValuesFractionsCut, column.Column.DataType, ColumnCategories.ReadFractionalDigits));
             }
 
             if (Count > QueryBuilder.MaxInListSize)

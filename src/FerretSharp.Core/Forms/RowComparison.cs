@@ -18,7 +18,10 @@ public sealed record CompareCell(PresentedValue Value, object? Raw, ChangeStage?
 
 /// <summary>A column across the compared rows.</summary>
 /// <param name="Cells">One per row, in the order of the rows.</param>
-/// <param name="Differs">Not all rows hold the same value (compared on the raw values, as Oracle would).</param>
+/// <param name="Differs">
+/// Not all rows hold the same value – compared on the raw values as read (review 3.44.0, A12): a TIMESTAMP(8/9) to 100 ns, a
+/// TIMESTAMP WITH TIME ZONE with its offset (the same instant in another zone differs, unlike in Oracle).
+/// </param>
 public sealed record CompareField(int Column, ColumnInfo Info, ColumnLabel Label, IReadOnlyList<CompareCell> Cells, bool Differs)
 {
     public bool AllNull => Cells.All(c => c.IsNull);
