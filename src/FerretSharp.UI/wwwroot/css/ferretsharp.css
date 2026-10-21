@@ -579,8 +579,14 @@ dl.keys dd { margin: 0; }
 /* ---------- tabs & tab view ---------- */
 .workarea { position: absolute; inset: 0; display: flex; flex-direction: column; }
 .workarea.hidden, .tab-data.hidden { display: none; }
-.tabs { display: flex; flex: none; height: 38px; background: var(--surface); border-bottom: 1px solid var(--border); overflow-x: auto; overflow-y: hidden; }
-.tabs::-webkit-scrollbar { height: 0; }
+/* A thin scrollbar under the tabs (dom.js scrollableTabs adds the mouse wheel): `scroll`, not `auto`, so its 4px are
+   always there and the tabs do not jump once the bar overflows; the thumb shows only while the mouse is over the bar.
+   Class `hover` from dom.js, not `:hover`: Chromium does not repaint the thumb when only the bar's hover state changes. */
+.tabs { display: flex; flex: none; height: 42px; background: var(--surface); border-bottom: 1px solid var(--border); overflow-x: scroll; overflow-y: hidden; }
+.tabs::-webkit-scrollbar { height: 4px; }
+.tabs::-webkit-scrollbar-thumb { background: transparent; border: 0; border-radius: 2px; }
+.tabs.hover::-webkit-scrollbar-thumb { background: var(--border-strong); }
+.tabs::-webkit-scrollbar-thumb:hover { background: var(--faint); }
 .tab {
   display: flex; align-items: center; gap: 8px; flex: none;
   padding: 0 6px 0 14px; border-right: 1px solid var(--border);
