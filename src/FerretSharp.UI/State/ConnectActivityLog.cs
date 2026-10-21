@@ -26,6 +26,22 @@ public sealed class ConnectActivityLog : IDisposable
         _connection = connection;
         _logged = active.Steps;
         _active.StepChanged += OnStepChanged;
+        _active.SessionOpenEnded += OnSessionOpenEnded;
+    }
+
+    /// <summary>On the thread pool: tells a hanging open from a UI thread that holds up the next step.</summary>
+    private void OnSessionOpenEnded(SessionOpenOutcome outcome)
+    {
+        var blocking = outcome.Synchronous ? " (blocking the calling thread)" : "";
+        if (outcome.Error is null)
+        {
+            _logger.LogInformation("{Connection}: session open after {Milliseconds} ms{Blocking}", _connection, (long)outcome.Took.TotalMilliseconds, blocking);
+        }
+        else
+        {
+            _logger.LogInformation("{Connection}: opening the session ended without one after {Milliseconds} ms{Blocking}: {Error}",
+                _connection, (long)outcome.Took.TotalMilliseconds, blocking, outcome.Error);
+        }
     }
 
     private void OnStepChanged()
@@ -58,5 +74,9 @@ public sealed class ConnectActivityLog : IDisposable
             (long)steps.Sum(s => s.Duration.TotalMilliseconds), string.Join(", ", steps.Select(s => $"{s.Name} {(long)s.Duration.TotalMilliseconds} ms")));
     }
 
-    public void Dispose() => _active.StepChanged -= OnStepChanged;
+    public void Dispose()
+    {
+        _active.StepChanged -= OnStepChanged;
+        _active.SessionOpenEnded -= OnSessionOpenEnded;
+    }
 }

@@ -17,6 +17,11 @@ public enum ConnectionStatus
 /// <param name="ErrorCode">e.g. <c>ORA-01017</c>; null for non-Oracle failures.</param>
 public sealed record ConnectionError(string Message, string? ErrorCode);
 
+/// <summary>How opening the explorer session ended, seen from the thread pool (<see cref="ActiveConnection.SessionOpenEnded"/>).</summary>
+/// <param name="Synchronous">It had ended when the connector returned: the open blocked the calling thread, the UI thread.</param>
+/// <param name="Error">Why no session opened (also a cancelled open); null if one did.</param>
+public sealed record SessionOpenOutcome(TimeSpan Took, bool Synchronous, string? Error);
+
 /// <summary>
 /// The connection currently being browsed: opens the explorer session, loads the schema cache, attaches the
 /// workspaces (each with its own data session, see <see cref="WorkspaceManager"/>) and records usage.
@@ -44,6 +49,13 @@ public sealed class ActiveConnection(
     /// renders every mounted tab of every connection.
     /// </summary>
     public event Action? StepChanged;
+
+    /// <summary>
+    /// Raised on the thread pool when opening the explorer session has ended, also after a cancel. Not a step: the steps
+    /// after it run on the caller's context, so a stuck UI thread held up the next one as well and the log could not tell it
+    /// from a hanging open (2026-10-21, after sleep).
+    /// </summary>
+    public event Action<SessionOpenOutcome>? SessionOpenEnded;
 
     /// <summary>While connecting: what is being done right now, since <see cref="StepStartedAt"/>; null otherwise.</summary>
     public string? Step { get; private set; }
@@ -296,7 +308,14 @@ public sealed class ActiveConnection(
     /// </summary>
     private async Task<IDatabaseConnection> OpenAsync(ConnectionProfile profile, string password, CancellationToken cancellationToken)
     {
+        var started = Stopwatch.GetTimestamp();
         var opening = connector.OpenAsync(profile, password, ExplorerAction, cancellationToken);
+        var synchronous = opening.IsCompleted;
+        _ = opening.ContinueWith(opened => SessionOpenEnded?.Invoke(new SessionOpenOutcome(
+                Stopwatch.GetElapsedTime(started),
+                synchronous,
+                opened.IsCanceled ? "cancelled" : opened.Exception?.GetBaseException().Message)),
+            CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default);
         try
         {
             return await opening.WaitAsync(cancellationToken);

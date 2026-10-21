@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Changed
+- The log tells more when FerretSharp seems to stop after sleep: when opening a session ended and after how long (measured apart from the UI thread), and who closed the main window (the user, the app, after the question about uncommitted changes) or that Windows ended the session.
+
 ### Fixed
 - App statements: "Clear" was only offered while the trace was running; once the app has ended or was detached, the recording can now be cleared as well.
 
