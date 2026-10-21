@@ -1,4 +1,7 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using FerretSharp.Core.IO;
 
 namespace FerretSharp.Core.ClrModel;
@@ -19,10 +22,16 @@ public sealed record CodeUsageResult(string? Solution, IReadOnlyList<CodeUsagePr
 /// with <see cref="IlUsageScanner"/> or takes the result from the cache (one file per assembly MVID, so after a build only
 /// the changed assemblies are read again), and joins everything with the model export.
 /// </summary>
-public class CodeUsageBuilder(string cacheDirectory, TimeProvider? time = null)
+public partial class CodeUsageBuilder(string cacheDirectory, TimeProvider? time = null)
 {
     /// <summary>Cache files not used for this long are removed when an index is built.</summary>
     public static readonly TimeSpan CacheLifetime = TimeSpan.FromDays(30);
+
+    /// <summary>
+    /// Builds of one assembly kept in the cache, the most recently used: every build of a changed project writes a new file
+    /// (review 3.44.0, A11) – switching between a few branches stays cheap, a day of builds does not pile up.
+    /// </summary>
+    public const int BuildsKeptPerAssembly = 3;
 
     private readonly TimeProvider _time = time ?? TimeProvider.System;
 
@@ -68,7 +77,7 @@ public class CodeUsageBuilder(string cacheDirectory, TimeProvider? time = null)
         try
         {
             var mvid = IlUsageScanner.ReadMvid(assembly);
-            var cacheFile = Path.Combine(CacheDirectory, mvid.ToString("N") + ".json");
+            var cacheFile = Path.Combine(CacheDirectory, CacheFileName(project.Build.AssemblyName ?? Path.GetFileNameWithoutExtension(assembly), mvid, solutionAssemblies));
             if (await TryLoadAsync(cacheFile, mvid, solutionAssemblies, cancellationToken) is { } cached)
             {
                 return project with { Uses = cached };
@@ -117,12 +126,30 @@ public class CodeUsageBuilder(string cacheDirectory, TimeProvider? time = null)
         }
     }
 
+    /// <summary>
+    /// <c>Assembly.mvid.set.json</c>: a result holds only the uses of the solution's types, so it is valid for this set of
+    /// solution assemblies alone – two solutions on the same build kept overwriting each other's file (review 3.44.0, A27).
+    /// </summary>
+    internal static string CacheFileName(string assemblyName, Guid mvid, IReadOnlyCollection<string> solutionAssemblies)
+    {
+        var set = string.Join('|', solutionAssemblies.Select(a => a.ToUpperInvariant()).Order(StringComparer.Ordinal));
+        var hash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(set)))[..8];
+        return $"{assemblyName}.{mvid:N}.{hash}.json";
+    }
+
+    /// <summary>The assembly a cache file belongs to; null for a file of another form.</summary>
+    private static string? AssemblyOf(string file) =>
+        CacheFilePattern().Match(Path.GetFileName(file)) is { Success: true } match ? match.Groups[1].Value : null;
+
+    [GeneratedRegex(@"^(.+)\.[0-9a-f]{32}\.[0-9a-f]{8}\.json$", RegexOptions.IgnoreCase)]
+    private static partial Regex CacheFilePattern();
+
     /// <summary>Failures to write are ignored: the cache is only a shortcut.</summary>
     private static async Task SaveAsync(string path, AssemblyUses uses, CancellationToken cancellationToken)
     {
         try
         {
-            await AtomicJsonFile.WriteAsync(path, uses, JsonFiles.Options, cancellationToken);
+            await AtomicJsonFile.WriteAsync(path, uses, JsonFiles.Compact, cancellationToken);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -130,7 +157,10 @@ public class CodeUsageBuilder(string cacheDirectory, TimeProvider? time = null)
         }
     }
 
-    /// <summary>Removes cache files of builds nobody has used for <see cref="CacheLifetime"/> (only <c>*.json</c> directly in the cache folder).</summary>
+    /// <summary>
+    /// Removes cache files of builds nobody has used for <see cref="CacheLifetime"/>, and of an assembly all but its
+    /// <see cref="BuildsKeptPerAssembly"/> most recently used (only <c>*.json</c> directly in the cache folder).
+    /// </summary>
     private void PruneCache()
     {
         try
@@ -141,12 +171,16 @@ public class CodeUsageBuilder(string cacheDirectory, TimeProvider? time = null)
             }
 
             var limit = _time.GetUtcNow().UtcDateTime - CacheLifetime;
-            foreach (var file in Directory.EnumerateFiles(CacheDirectory, "*.json", SearchOption.TopDirectoryOnly))
+            var files = Directory.EnumerateFiles(CacheDirectory, "*.json", SearchOption.TopDirectoryOnly)
+                .Select(f => (File: f, Used: File.GetLastWriteTimeUtc(f)))
+                .ToList();
+            var surplus = files
+                .GroupBy(f => AssemblyOf(f.File), StringComparer.OrdinalIgnoreCase)
+                .Where(g => g.Key is not null)
+                .SelectMany(g => g.OrderByDescending(f => f.Used).Skip(BuildsKeptPerAssembly));
+            foreach (var (file, _) in files.Where(f => f.Used < limit).Concat(surplus).Distinct())
             {
-                if (File.GetLastWriteTimeUtc(file) < limit)
-                {
-                    File.Delete(file);
-                }
+                File.Delete(file);
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

@@ -17,4 +17,7 @@ internal static class JsonFiles
         Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
         Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
+
+    /// <summary>As <see cref="Options"/>, without indentation: for caches nobody reads by hand (review 3.44.0, A11).</summary>
+    public static readonly JsonSerializerOptions Compact = new(Options) { WriteIndented = false };
 }
