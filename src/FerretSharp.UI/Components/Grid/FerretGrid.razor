@@ -759,11 +759,12 @@
         }
     }
 
-    /// <summary>Del in the grid: marks the selected loaded rows for deletion; new rows disappear.</summary>
+    /// <summary>Del in the grid: the focused new row disappears, otherwise the selected loaded rows are marked for deletion.</summary>
     [JSInvokable]
-    public Task<GridRowUpdate[]> OnDeleteKey(int[] rowIndexes, string[] newIds) => GuardAsync(() => OnDeleteKeyCoreAsync(rowIndexes, newIds), []);
+    public Task<GridRowUpdate[]> OnDeleteKey(int[] rowIndexes, string? focusedNewId) =>
+        GuardAsync(() => OnDeleteKeyCoreAsync(rowIndexes, focusedNewId), []);
 
-    private Task<GridRowUpdate[]> OnDeleteKeyCoreAsync(int[] rowIndexes, string[] newIds) => Editing.DeleteKeyAsync(rowIndexes, newIds);
+    private Task<GridRowUpdate[]> OnDeleteKeyCoreAsync(int[] rowIndexes, string? focusedNewId) => Editing.DeleteKeyAsync(rowIndexes, focusedNewId);
 
     /// <summary>Deletes or reverts rows from the context menu; redraws them.</summary>
     public Task ChangeRowsAsync(IReadOnlyList<int> rowIndexes, bool delete) => Editing.ChangeRowsAsync(rowIndexes, delete);

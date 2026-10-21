@@ -667,14 +667,15 @@ export function create(elementId, dotnet, columns, options) {
     select: (rowIndex, pinned) => followFocus(api, rowIndex, pinned, 'single'),
   });
 
-  // Del (not while editing): mark the selected rows for deletion – pending until written, can be reverted.
+  // Del (not while editing): mark the selected rows for deletion – pending until written, can be reverted. .NET decides
+  // between the focused new row and the selected loaded rows.
   function onDeleteKey(e) {
     if (!table || e.key !== 'Delete' || e.ctrlKey || e.altKey || api.getEditingCells().length > 0) return false;
     const loaded = selectedRows();
-    const pinned = [newIdOf(api, api.getFocusedCell())].filter(Boolean);
-    if (loaded.length > 0 || pinned.length > 0) {
+    const newId = newIdOf(api, api.getFocusedCell());
+    if (loaded.length > 0 || newId) {
       e.preventDefault();
-      dotnet.invokeMethodAsync('OnDeleteKey', loaded, pinned).then(updates => applyUpdates(api, updates)).catch(callFailed);
+      dotnet.invokeMethodAsync('OnDeleteKey', loaded, newId).then(updates => applyUpdates(api, updates)).catch(callFailed);
     }
     return true;
   }
