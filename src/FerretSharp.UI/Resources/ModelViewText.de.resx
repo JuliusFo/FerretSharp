@@ -408,4 +408,7 @@
   <data name="Usage_NoWrites" xml:space="preserve">
     <value>Keine Spalte dieser Tabelle wird im Code geschrieben.</value>
   </data>
+  <data name="Usage_SolutionNotSaved" xml:space="preserve">
+    <value>Die Solution wird ab jetzt gelesen, ließ sich für die Verbindung aber nicht speichern: {0}</value>
+  </data>
 </root>

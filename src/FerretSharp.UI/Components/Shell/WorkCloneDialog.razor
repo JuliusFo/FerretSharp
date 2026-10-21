@@ -58,6 +58,9 @@
     [CascadingParameter]
     public ClrModelManager Models { get; set; } = null!;
 
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
     [Parameter]
     public EventCallback OnClose { get; set; }
 
@@ -81,7 +84,11 @@
 
     private async Task ChooseAsync(string? path)
     {
-        await Clones.SetActiveAsync(Active.Profile?.Group, path, CancellationToken.None);
+        if (!await Clones.SetActiveAsync(Active.Profile?.Group, path, CancellationToken.None))
+        {
+            Shell.Notify(ShellText.WorkClone_NotSaved);
+        }
+
         await OnClose.InvokeAsync();
     }
 
@@ -91,7 +98,9 @@
         var start = Clones.ActiveFor(Active.Profile?.Group) ?? Models.State.Link?.ProjectFile;
         if (await Files.PickAsync(ShellText.WorkClone_PickFilter, ["sln", "slnx", "csproj"], start) is { } file)
         {
-            await ChooseAsync(WorkCloneChoices.RootOf(file));
+            // Up to the drive root through File/Directory.Exists: not on the render thread (review 3.44.0, A24 – a share over a
+            // dead VPN froze the click until the SMB timeout).
+            await ChooseAsync(await Task.Run(() => WorkCloneChoices.RootOf(file)));
         }
     }
 }

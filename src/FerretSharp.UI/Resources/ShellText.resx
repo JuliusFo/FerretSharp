@@ -1092,6 +1092,9 @@
   <data name="WorkClone_Missing" xml:space="preserve">
     <value>the folder no longer exists</value>
   </data>
+  <data name="WorkClone_NotSaved" xml:space="preserve">
+    <value>The work clone applies from now on, but could not be saved – it is lost on quitting.</value>
+  </data>
   <data name="WorkClone_ProjectMissing" xml:space="preserve">
     <value>does not contain the connection's C# project at the same path</value>
   </data>

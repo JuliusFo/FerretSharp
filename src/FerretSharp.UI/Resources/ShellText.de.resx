@@ -885,6 +885,9 @@
   <data name="WorkClone_Missing" xml:space="preserve">
     <value>den Ordner gibt es nicht mehr</value>
   </data>
+  <data name="WorkClone_NotSaved" xml:space="preserve">
+    <value>Der Arbeits-Klon gilt ab jetzt, ließ sich aber nicht speichern – beim Beenden ist er wieder weg.</value>
+  </data>
   <data name="WorkClone_ProjectMissing" xml:space="preserve">
     <value>enthält das C#-Projekt der Verbindung nicht am selben Pfad</value>
   </data>

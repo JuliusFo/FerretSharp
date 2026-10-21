@@ -66,8 +66,13 @@ public sealed class WorkClones(string filePath, TimeProvider? timeProvider = nul
     /// Makes <paramref name="path"/> the group's work clone and puts it first in the recent folders; null = none (the
     /// linked clone is used).
     /// </summary>
-    public async Task SetActiveAsync(string? group, string? path, CancellationToken cancellationToken)
+    /// <returns>
+    /// False if the file could not be written (a backup or sync held it): the choice applies all the same, until quitting –
+    /// as <c>recent.json</c> (review 3.44.0, A22: it ended in "unexpected error").
+    /// </returns>
+    public async Task<bool> SetActiveAsync(string? group, string? path, CancellationToken cancellationToken)
     {
+        bool saved;
         await _gate.WaitAsync(cancellationToken);
         try
         {
@@ -88,9 +93,17 @@ public sealed class WorkClones(string filePath, TimeProvider? timeProvider = nul
                     .Take(MaxRecent)
                     .ToList();
 
+            saved = true;
             if (!_keepFile)
             {
-                await AtomicJsonFile.WriteAsync(filePath, new Document(CurrentVersion, active, recent), JsonFiles.Options, cancellationToken);
+                try
+                {
+                    await AtomicJsonFile.WriteAsync(filePath, new Document(CurrentVersion, active, recent), JsonFiles.Options, cancellationToken);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    saved = false;
+                }
             }
 
             _active = active;
@@ -102,6 +115,7 @@ public sealed class WorkClones(string filePath, TimeProvider? timeProvider = nul
         }
 
         Changed?.Invoke();
+        return saved;
     }
 
     /// <param name="Group">The connection group as the lists show it (trimmed); null for connections without one.</param>

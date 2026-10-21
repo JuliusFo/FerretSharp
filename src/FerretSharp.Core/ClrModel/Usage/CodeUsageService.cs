@@ -44,6 +44,9 @@ public sealed class CodeUsageService : IDisposable
     private (string ProjectFile, IReadOnlyList<string> Solutions)? _solutions;
     private ModelExport? _seenModel;
 
+    /// <summary>A solution chosen that could not be saved with the connection: it applies all the same, until the scope ends.</summary>
+    private string? _chosen;
+
     public CodeUsageService(ClrModelManager models, ActiveConnection active, ConnectionManager connections, CodeUsageBuilder builder, TimeProvider? time = null)
     {
         _models = models;
@@ -85,7 +88,7 @@ public sealed class CodeUsageService : IDisposable
         get
         {
             var solutions = Solutions;
-            return Profile?.CodeSolution is { } chosen && solutions.Contains(chosen, StringComparer.OrdinalIgnoreCase)
+            return (_chosen ?? Profile?.CodeSolution) is { } chosen && solutions.Contains(chosen, StringComparer.OrdinalIgnoreCase)
                 ? chosen
                 : solutions.FirstOrDefault();
         }
@@ -110,14 +113,28 @@ public sealed class CodeUsageService : IDisposable
     }
 
     /// <summary>Reads another solution from now on and remembers it for the connection.</summary>
-    public async Task SelectSolutionAsync(string solution, CancellationToken cancellationToken)
+    /// <returns>
+    /// Why it could not be remembered (the connections' file locked or unreadable, an older profile the validation refuses);
+    /// null if it was. Read from now on either way (review 3.44.0, A22: the error ended the whole tab).
+    /// </returns>
+    public async Task<string?> SelectSolutionAsync(string solution, CancellationToken cancellationToken)
     {
+        _chosen = solution;
+        string? notSaved = null;
         if (Profile is { } profile)
         {
-            await _connections.SetCodeSolutionAsync(profile.Id, solution, cancellationToken);
+            try
+            {
+                await _connections.SetCodeSolutionAsync(profile.Id, solution, cancellationToken);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
+            {
+                notSaved = ex.Message;
+            }
         }
 
         await Task.Run(() => GetAsync(force: true), CancellationToken.None).WaitAsync(cancellationToken);
+        return notSaved;
     }
 
     private Task<CodeUsageResult?> GetAsync(bool force)

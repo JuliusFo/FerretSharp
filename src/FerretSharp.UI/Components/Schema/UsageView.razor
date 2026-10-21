@@ -334,9 +334,9 @@ else
 
     private async Task SelectSolutionAsync(string? solution)
     {
-        if (solution is not null)
+        if (solution is not null && await Usage.SelectSolutionAsync(solution, _lifetime.Token) is { } notSaved)
         {
-            await Usage.SelectSolutionAsync(solution, _lifetime.Token);
+            Shell.Notify(TextFormat.Format(ModelViewText.Usage_SolutionNotSaved, notSaved));
         }
     }
 

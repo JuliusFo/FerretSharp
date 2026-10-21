@@ -166,4 +166,24 @@ public sealed class WorkCloneTests : IDisposable
         Assert.Equal(newer, File.ReadAllText(file));
         Assert.Equal(_folder.Combine("work"), clones.ActiveFor("ERP"));
     }
+
+    /// <summary>Review 3.44.0, A22: a file held by a backup or a sync ended in "unexpected error"; the choice applies all the same.</summary>
+    [Fact]
+    public async Task A_locked_file_keeps_the_choice_in_memory_and_says_so()
+    {
+        var file = _folder.Combine("work-clones.json");
+        var work = Clone("work", "x");
+        var clones = new WorkClones(file);
+        await clones.SetActiveAsync("ERP", Clone("first", "y"), TestContext.Current.CancellationToken);
+
+        bool saved;
+        using (new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            saved = await clones.SetActiveAsync("ERP", work, TestContext.Current.CancellationToken);
+        }
+
+        Assert.False(saved);
+        Assert.Equal(work, clones.ActiveFor("ERP"));
+        Assert.True(await clones.SetActiveAsync("ERP", work, TestContext.Current.CancellationToken)); // free again: saved
+    }
 }
