@@ -28,7 +28,6 @@ public static class ReconnectPolicy
         "ORA-01034", // not available
         "ORA-01089", // immediate shutdown in progress
         "ORA-01090", // shutdown in progress
-        "ORA-50000", // ODP.NET managed: connection request timed out
     ];
 
     /// <summary>
@@ -46,9 +45,15 @@ public static class ReconnectPolicy
         error is not null && (error.TimedOut || IsNetwork(error.ErrorCode));
 
     private static bool IsNetwork(string? code) =>
-        code is not null && (DatabaseException.IsConnectionLostCode(code) || Unavailable.Contains(code) || IsTns(code));
+        code is not null && (DatabaseException.IsConnectionLostCode(code) || Unavailable.Contains(code) || IsNetworkRange(code));
 
-    /// <summary>ORA-12150 … ORA-12699: TNS and network (no listener, host unreachable, connect timeout, service not registered yet).</summary>
-    private static bool IsTns(string code) =>
-        code.StartsWith("ORA-", StringComparison.Ordinal) && int.TryParse(code.AsSpan(4), out var number) && number is >= 12150 and <= 12699;
+    /// <summary>
+    /// ORA-12150 … ORA-12699: TNS and network (no listener, host unreachable, connect timeout, service not registered yet).
+    /// ORA-50000 … ORA-50999: the managed driver's own errors – a refused port is ORA-50201 "Failed to connect to server or failed
+    /// to parse connect string" (seen with the database stopped; the connect string had worked before), a timeout ORA-50000.
+    /// Logins are refused with ORA-01017 and its kin, never from these ranges.
+    /// </summary>
+    private static bool IsNetworkRange(string code) =>
+        code.StartsWith("ORA-", StringComparison.Ordinal) && int.TryParse(code.AsSpan(4), out var number)
+        && number is >= 12150 and <= 12699 or >= 50000 and <= 50999;
 }

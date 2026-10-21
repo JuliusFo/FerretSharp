@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -1134,7 +1134,7 @@
     <value>Reconnects by itself once the running write or export has ended.</value>
   </data>
   <data name="LostBanner_AutoKeptForWork" xml:space="preserve">
-    <value>Not reconnected by itself: uncommitted changes were lost with the connection.</value>
+    <value>Not reconnected by itself: reconnecting drops the uncommitted changes.</value>
   </data>
   <data name="Reconnect_LostTitle" xml:space="preserve">
     <value>Connection to {0} lost</value>

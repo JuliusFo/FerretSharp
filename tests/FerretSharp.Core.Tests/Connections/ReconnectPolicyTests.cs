@@ -27,6 +27,7 @@ public sealed class ReconnectPolicyTests
     [InlineData("ORA-03113")] // lost while logging in
     [InlineData("ORA-01033")] // initialization in progress
     [InlineData("ORA-50000")] // ODP.NET: connection request timed out
+    [InlineData("ORA-50201")] // ODP.NET: failed to connect to server (port refused, database stopped)
     public void Tries_again_while_network_or_database_are_away(string code) =>
         Assert.True(ReconnectPolicy.IsWorthRetrying(new ConnectionError("away", code)));
 

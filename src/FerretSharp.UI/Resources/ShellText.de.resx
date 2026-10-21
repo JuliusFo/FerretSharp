@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -922,7 +922,7 @@
     <value>Verbindet sich von selbst neu, sobald das laufende Schreiben oder der Export beendet ist.</value>
   </data>
   <data name="LostBanner_AutoKeptForWork" xml:space="preserve">
-    <value>Nicht von selbst neu verbunden: Mit der Verbindung gingen nicht committete Änderungen verloren.</value>
+    <value>Nicht von selbst neu verbunden: Neu verbinden verwirft die nicht committeten Änderungen.</value>
   </data>
   <data name="Reconnect_LostTitle" xml:space="preserve">
     <value>Verbindung zu {0} verloren</value>

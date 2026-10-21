@@ -43,7 +43,7 @@
                 <span class="item"><span class="spinner small"></span> @TextFormat.Format(ConnectionViewText.Connection_ConnectingTo, NameOf(Active.Profile)) <ConnectProgress Active="Active" Compact="true" /></span>
                 break;
             case ConnectionStatus.Failed when Reconnect.RunOf(Scope) is { Phase: ReconnectPhase.Waiting, NextAt: { } next }:
-                <span class="item error"><span class="dot err"></span> <Fmt Text="@ShellText.Status_ReconnectIn"><Arg0><ReconnectCountdown At="next" /></Arg0></Fmt></span>
+                <span class="item error"><span class="dot err"></span> <span><Fmt Text="@ShellText.Status_ReconnectIn"><Arg0><ReconnectCountdown At="next" /></Arg0></Fmt></span></span>
                 break;
             case ConnectionStatus.Failed:
                 <span class="item error"><span class="dot err"></span> @ShellText.Status_ConnectionFailed</span>

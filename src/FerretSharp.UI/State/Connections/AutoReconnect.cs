@@ -158,6 +158,11 @@ public sealed class AutoReconnect(
         }
 
         var now = _time.GetUtcNow();
+        if (scope.Active is { Status: ConnectionStatus.Failed, Error: { } failed })
+        {
+            logger.LogInformation("{Connection}: attempt {Attempt} failed: {Code} {Error}", NameOf(scope), run.Attempts, failed.ErrorCode, failed.Message);
+        }
+
         if (scope.Active.IsConnected)
         {
             _runs.Remove(scope);
@@ -183,7 +188,7 @@ public sealed class AutoReconnect(
         _runs.Remove(scope);
         if (scope.Active.Status == ConnectionStatus.Failed)
         {
-            logger.LogWarning("{Connection}: not reconnected after {Attempts} attempt(s): {Error}", NameOf(scope), run.Attempts, error?.Message);
+            logger.LogWarning("{Connection}: not reconnected after {Attempts} attempt(s): {Code} {Error}", NameOf(scope), run.Attempts, error?.ErrorCode, error?.Message);
             shell.Notify(TextFormat.Format(ShellText.AutoReconnect_GaveUp, NameOf(scope)), error is null ? null : [error.Message]);
         }
         else

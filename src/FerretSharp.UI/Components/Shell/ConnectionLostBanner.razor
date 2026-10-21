@@ -12,9 +12,10 @@
             {
                 <strong>@(" " + ShellText.LostBanner_TransactionLost)</strong>
             }
+            @* The leading blanks are text: Razor drops the whitespace between tags in a code block. *@
             @if (Reconnect.RunOf(Scope) is { Phase: ReconnectPhase.Holding })
             {
-                <span class="muted">@ShellText.LostBanner_AutoHolding</span>
+                <span class="muted">@(" " + ShellText.LostBanner_AutoHolding)</span>
             }
             else
             {
@@ -22,7 +23,7 @@
                 {
                     <span>@(" " + ShellText.LostBanner_AutoKeptForWork)</span>
                 }
-                <span class="muted">@ShellText.LostBanner_ReconnectRestores</span>
+                <span class="muted">@(" " + ShellText.LostBanner_ReconnectRestores)</span>
             }
         </span>
         <button class="btn primary" @onclick="() => Lifecycle.Reconnect(profile)">@ConnectionViewText.Connection_Reconnect</button>
