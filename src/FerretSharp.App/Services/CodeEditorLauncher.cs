@@ -92,15 +92,7 @@ public sealed class CodeEditorLauncher(ILogger<CodeEditorLauncher> logger) : ICo
         var bestDepth = -1;
         foreach (dynamic dte in instances)
         {
-            string? open = null;
-            try
-            {
-                open = (string)dte.Solution.FullName;
-            }
-            catch (Exception ex) when (ex is COMException or MissingMemberException or Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
-            {
-                // busy or closing: not this one
-            }
+            string? open = SolutionOf(dte);
 
             var depth = open is { Length: > 0 } ? Match(open, file, solution) : -1;
             if (depth > bestDepth)
@@ -119,6 +111,30 @@ public sealed class CodeEditorLauncher(ILogger<CodeEditorLauncher> logger) : ICo
         }
 
         return chosen;
+    }
+
+    /// <summary>How long one Visual Studio instance may take to name its solution before it is passed over.</summary>
+    private static readonly TimeSpan AnswerWait = TimeSpan.FromSeconds(2);
+
+    /// <summary>
+    /// The instance's solution; null if it is busy, closing or does not answer within <see cref="AnswerWait"/> (review
+    /// 3.44.0, A25: an instance that blocked instead of refusing held the click – and each further one a thread – for ever).
+    /// A call that hangs keeps its pool thread; the click goes on without that instance.
+    /// </summary>
+    private static string? SolutionOf(object dte)
+    {
+        var asking = Task.Run(() =>
+        {
+            try
+            {
+                return (string?)((dynamic)dte).Solution.FullName;
+            }
+            catch (Exception ex) when (ex is COMException or MissingMemberException or Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
+            {
+                return null; // busy or closing: not this one
+            }
+        });
+        return asking.Wait(AnswerWait) ? asking.Result : null;
     }
 
     /// <summary>Higher is better: the solution itself beats a solution whose folder holds the file (the deeper, the better); -1 = no.</summary>

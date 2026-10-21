@@ -203,8 +203,12 @@ public sealed class ModelHostRunner(string modelHostPath, TimeSpan? timeout = nu
         return arguments;
     }
 
+    /// <remarks>
+    /// Without build servers (review 3.44.0, A26): the build runs in FerretSharp's job object, which ends everything in it
+    /// with the app – a compiler or Razor server it started would end with it, in the middle of other builds sharing it.
+    /// </remarks>
     public Task<DotNetRun> BuildAsync(ClrProjectLink link, CancellationToken cancellationToken) =>
-        DotNetCli.RunAsync(["build", link.ProjectFile, "-c", link.Configuration, "-nologo", "-v", "q", "-nodeReuse:false"],
+        DotNetCli.RunAsync(["build", link.ProjectFile, "-c", link.Configuration, "-nologo", "-v", "q", "-nodeReuse:false", "--disable-build-servers"],
             Path.GetDirectoryName(link.ProjectFile)!, TimeSpan.FromMinutes(10), cancellationToken);
 
     /// <summary>

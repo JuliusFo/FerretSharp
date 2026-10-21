@@ -1,4 +1,4 @@
-# Keeps the actions pinned to commits in the release and pages workflows current (review 3.40.0, A35). NuGet and the
+# Keeps the actions pinned to commits current: release, pages and the coverage job that pushes (review 3.40.0 A35, 3.44.0 A28). NuGet and the
 # libraries in wwwroot/lib are updated by hand in a package of their own (WP-36).
 version: 2
 updates:
