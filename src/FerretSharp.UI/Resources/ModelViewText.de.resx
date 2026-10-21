@@ -288,12 +288,6 @@
   <data name="Usage_NoQueries" xml:space="preserve">
     <value>Kein Set&lt;T&gt;(), kein Lesen der DbSet-Property und keine Navigation zur Tabelle gefunden.</value>
   </data>
-  <data name="Usage_Uses" xml:space="preserve">
-    <value>Verwendungen</value>
-  </data>
-  <data name="Usage_UsesTitle" xml:space="preserve">
-    <value>Verwendungen im Anwendungscode; in Klammern die in Tests und Mapping-Code</value>
-  </data>
   <data name="Usage_Unused" xml:space="preserve">
     <value>ungenutzt</value>
   </data>
@@ -380,5 +374,38 @@
   </data>
   <data name="Usage_TabQueriesTitle" xml:space="preserve">
     <value>Wo Code die Tabelle abfragt: Set&lt;T&gt;(), Lesen der DbSet-Property und Navigations zu ihr (gezählt im Anwendungscode)</value>
+  </data>
+  <data name="Usage_FilterLabel" xml:space="preserve">
+    <value>Verwendungen filtern</value>
+  </data>
+  <data name="Usage_FilterTitle" xml:space="preserve">
+    <value>Lesen umfasst LINQ; Mapping-Code ist weder Lesen noch Schreiben und steht nur unter „Alle“</value>
+  </data>
+  <data name="Usage_FilterAll" xml:space="preserve">
+    <value>Alle</value>
+  </data>
+  <data name="Usage_FilterRead" xml:space="preserve">
+    <value>Lesen</value>
+  </data>
+  <data name="Usage_FilterWrite" xml:space="preserve">
+    <value>Schreiben</value>
+  </data>
+  <data name="Usage_ReadsShort" xml:space="preserve">
+    <value>L</value>
+  </data>
+  <data name="Usage_WritesShort" xml:space="preserve">
+    <value>S</value>
+  </data>
+  <data name="Usage_ReadsTitle" xml:space="preserve">
+    <value>Lesezugriffe im Anwendungscode, LINQ eingeschlossen; in Klammern die in Tests. Eine Collection-Navigation (kunde.Auftraege.Add) zählt als Lesen.</value>
+  </data>
+  <data name="Usage_WritesTitle" xml:space="preserve">
+    <value>Schreibzugriffe im Anwendungscode: Setter, Objektinitialisierer, ExecuteUpdate; in Klammern die in Tests</value>
+  </data>
+  <data name="Usage_NoReads" xml:space="preserve">
+    <value>Keine Spalte dieser Tabelle wird im Code gelesen.</value>
+  </data>
+  <data name="Usage_NoWrites" xml:space="preserve">
+    <value>Keine Spalte dieser Tabelle wird im Code geschrieben.</value>
   </data>
 </root>

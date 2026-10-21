@@ -12,6 +12,21 @@ public sealed record ColumnUsageRow(string Column, PropertyExport? Property, IRe
 {
     /// <summary>Uses that count (outside tests and mapping code).</summary>
     public int Counted => Uses.Count(u => !u.IsTest && !u.IsMapping);
+
+    /// <summary>The uses the filter shows.</summary>
+    public IReadOnlyList<CodeUsage> Matching(UsageAccess access) =>
+        access == UsageAccess.All ? Uses : Uses.Where(u => CodeUsageRows.Matches(u, access)).ToList();
+
+    /// <summary>The columns "R" and "W": reads or writes in application code, or (<paramref name="tests"/>) in tests.</summary>
+    public int Count(UsageAccess access, bool tests) => Uses.Count(u => u.IsTest == tests && CodeUsageRows.Matches(u, access));
+}
+
+/// <summary>The filter of the "Columns" sub-tab: all uses, only reads (LINQ included) or only writes.</summary>
+public enum UsageAccess
+{
+    All,
+    Read,
+    Write,
 }
 
 /// <summary>What the "Usage" view, the columns view and the designer show of the code usage index (WP-40).</summary>
@@ -33,6 +48,22 @@ public static class CodeUsageRows
                 : new ColumnUsageRow(c.Name, property, index.ForColumn(entity.Entity, property.Name), index.IsUnused(entity.Entity, property));
         }).ToList();
     }
+
+    /// <summary>
+    /// Whether the filter shows a use. A LINQ expression reads; mapping code (<c>builder.Property(x =&gt; x.Email)</c>)
+    /// neither reads nor writes data, so only "All" shows it. A collection navigation (<c>customer.Orders.Add(…)</c>) is a
+    /// getter and reads, though it may set the other side's foreign key.
+    /// </summary>
+    public static bool Matches(CodeUsage use, UsageAccess access) => access switch
+    {
+        UsageAccess.Read => !use.IsMapping && use.Use.Kind is CodeUseKind.Read or CodeUseKind.Expression,
+        UsageAccess.Write => !use.IsMapping && use.Use.Kind == CodeUseKind.Write,
+        _ => true,
+    };
+
+    /// <summary>The rows the filter shows: with "Read" or "Write" only columns with such a use, tests included.</summary>
+    public static IReadOnlyList<ColumnUsageRow> Filter(IReadOnlyList<ColumnUsageRow> rows, UsageAccess access) =>
+        access == UsageAccess.All ? rows : rows.Where(r => r.Uses.Any(u => Matches(u, access))).ToList();
 
     /// <summary>The column's row, for the columns view and the designer; null without property or entity.</summary>
     public static ColumnUsageRow? Column(ClrModelMapping mapping, CodeUsageIndex index, TableRef table, string column)

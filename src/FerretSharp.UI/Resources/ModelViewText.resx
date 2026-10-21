@@ -332,12 +332,6 @@
   <data name="Usage_NoQueries" xml:space="preserve">
     <value>No Set&lt;T&gt;(), no read of the DbSet property and no navigation to the table found.</value>
   </data>
-  <data name="Usage_Uses" xml:space="preserve">
-    <value>Uses</value>
-  </data>
-  <data name="Usage_UsesTitle" xml:space="preserve">
-    <value>Uses in application code; in brackets those in tests and mapping code</value>
-  </data>
   <data name="Usage_Unused" xml:space="preserve">
     <value>unused</value>
   </data>
@@ -424,5 +418,38 @@
   </data>
   <data name="Usage_TabQueriesTitle" xml:space="preserve">
     <value>Where code queries the table: Set&lt;T&gt;(), reads of the DbSet property and navigations to it (application code counted)</value>
+  </data>
+  <data name="Usage_FilterLabel" xml:space="preserve">
+    <value>Filter uses</value>
+  </data>
+  <data name="Usage_FilterTitle" xml:space="preserve">
+    <value>Reads include LINQ; mapping code is neither a read nor a write and shows under "All" only</value>
+  </data>
+  <data name="Usage_FilterAll" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="Usage_FilterRead" xml:space="preserve">
+    <value>Read</value>
+  </data>
+  <data name="Usage_FilterWrite" xml:space="preserve">
+    <value>Write</value>
+  </data>
+  <data name="Usage_ReadsShort" xml:space="preserve">
+    <value>R</value>
+  </data>
+  <data name="Usage_WritesShort" xml:space="preserve">
+    <value>W</value>
+  </data>
+  <data name="Usage_ReadsTitle" xml:space="preserve">
+    <value>Reads in application code, LINQ included; in brackets those in tests. A collection navigation (customer.Orders.Add) counts as a read.</value>
+  </data>
+  <data name="Usage_WritesTitle" xml:space="preserve">
+    <value>Writes in application code: setters, object initializers, ExecuteUpdate; in brackets those in tests</value>
+  </data>
+  <data name="Usage_NoReads" xml:space="preserve">
+    <value>No column of this table is read in the code.</value>
+  </data>
+  <data name="Usage_NoWrites" xml:space="preserve">
+    <value>No column of this table is written in the code.</value>
   </data>
 </root>

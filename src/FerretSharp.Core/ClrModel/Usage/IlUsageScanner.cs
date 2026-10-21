@@ -9,12 +9,16 @@ namespace FerretSharp.Core.ClrModel;
 
 /// <summary>
 /// Reads an assembly's IL without loading it (WP-40, ADR 0030): which getters and setters of types of the solution its
-/// methods call, which getters its expression trees name (<c>ldtoken</c>), where it calls <c>DbContext.Set&lt;T&gt;()</c> –
+/// methods call, which getters its expression trees name (<c>ldtoken</c>; the property an <c>ExecuteUpdate</c> sets counts as
+/// written), where it calls <c>DbContext.Set&lt;T&gt;()</c> –
 /// with file and line from the portable PDB. Other calls (framework, packages) are not kept.
 /// </summary>
 public static class IlUsageScanner
 {
     private const string DbContextType = "Microsoft.EntityFrameworkCore.DbContext";
+
+    /// <summary>EF Core 7–9: <c>ExecuteUpdate(s =&gt; s.SetProperty(x =&gt; x.Email, …))</c> writes <c>Email</c>.</summary>
+    private const string SetPropertyCallsType = "Microsoft.EntityFrameworkCore.Query.SetPropertyCalls`1";
 
     private static readonly string[] TestFrameworks = ["xunit", "nunit.framework", "Microsoft.VisualStudio.TestPlatform", "Microsoft.Testing.Platform", "MSTest", "TUnit"];
 
@@ -128,6 +132,9 @@ public static class IlUsageScanner
         {
             Caller? caller = null;
             var points = (ImmutableArray<SequencePoint>?)null;
+            // ExecuteUpdate(s => s.SetProperty(x => x.Email, …)) is an expression tree: the compiler names SetProperty
+            // (ldtoken) before it builds the arguments, so the next getter named is the property written.
+            var selectorNext = false;
             var offset = 0;
             while (offset < il.Length)
             {
@@ -147,12 +154,21 @@ public static class IlUsageScanner
                 if (opCode.OperandType is OperandType.InlineMethod or OperandType.InlineTok)
                 {
                     var token = BitConverter.ToInt32(il.AsSpan(offset, 4));
-                    if (Use(token, opCode == OpCodes.Ldtoken) is { } found)
+                    var isToken = opCode == OpCodes.Ldtoken;
+                    var method = Method(MetadataTokens.EntityHandle(token));
+                    var isSelector = false;
+                    if (isToken && method is { } named)
+                    {
+                        isSelector = selectorNext && named.Name.StartsWith("get_", StringComparison.Ordinal);
+                        selectorNext = named is { Name: "SetProperty", Declaring.Name: SetPropertyCallsType } || (selectorNext && !isSelector);
+                    }
+
+                    if (method is { } called && Use(called, token, isToken) is { } found)
                     {
                         caller ??= Callers.Of(reader, typeHandle, methodHandle, _names);
                         points ??= SequencePoints(methodHandle);
                         var (document, line) = Locate(points.Value, start);
-                        Uses.Add(new CodeUse(found.Type, found.Member, found.Kind, caller.Type, caller.Method, document, line));
+                        Uses.Add(new CodeUse(found.Type, found.Member, isSelector ? CodeUseKind.Write : found.Kind, caller.Type, caller.Method, document, line));
                     }
                 }
 
@@ -160,48 +176,49 @@ public static class IlUsageScanner
             }
         }
 
-        /// <summary>A getter, setter or <c>Set&lt;T&gt;()</c> of the solution behind a method token; null for anything else.</summary>
-        private (string Type, string Member, CodeUseKind Kind)? Use(int token, bool isToken)
+        /// <summary>The method behind a token with its declaring type (a generic one by its definition); null for anything else.</summary>
+        private MethodName? Method(EntityHandle handle)
         {
-            var handle = MetadataTokens.EntityHandle(token);
             switch (handle.Kind)
             {
                 case HandleKind.MethodDefinition:
                 {
                     var method = reader.GetMethodDefinition((MethodDefinitionHandle)handle);
-                    return Accessor(_names.Of(method.GetDeclaringType()), reader.GetString(method.Name), isToken);
+                    return new MethodName(_names.Of(method.GetDeclaringType()), reader.GetString(method.Name), IsGeneric: false);
                 }
                 case HandleKind.MemberReference:
                 {
                     var member = reader.GetMemberReference((MemberReferenceHandle)handle);
                     return member.GetKind() == MemberReferenceKind.Method && _names.OfParent(member.Parent) is { } parent
-                        ? Accessor(parent, reader.GetString(member.Name), isToken)
+                        ? new MethodName(parent, reader.GetString(member.Name), IsGeneric: false)
                         : null;
                 }
-                case HandleKind.MethodSpecification when !isToken:
-                {
-                    var specification = reader.GetMethodSpecification((MethodSpecificationHandle)handle);
-                    var (declaring, name) = specification.Method.Kind switch
-                    {
-                        HandleKind.MemberReference => (_names.OfParent(reader.GetMemberReference((MemberReferenceHandle)specification.Method).Parent),
-                            reader.GetString(reader.GetMemberReference((MemberReferenceHandle)specification.Method).Name)),
-                        HandleKind.MethodDefinition => ((TypeName?)_names.Of(reader.GetMethodDefinition((MethodDefinitionHandle)specification.Method).GetDeclaringType()),
-                            reader.GetString(reader.GetMethodDefinition((MethodDefinitionHandle)specification.Method).Name)),
-                        _ => (null, ""),
-                    };
-                    if (name != "Set" || declaring is not { Name: DbContextType })
-                    {
-                        return null;
-                    }
-
-                    var arguments = specification.DecodeSignature(_names, null);
-                    return arguments is [{ IsDefined: true } entity] && solution.Contains(entity.Assembly!)
-                        ? (entity.Name, "", CodeUseKind.Query)
+                case HandleKind.MethodSpecification:
+                    return Method(reader.GetMethodSpecification((MethodSpecificationHandle)handle).Method) is { } generic
+                        ? generic with { IsGeneric = true }
                         : null;
-                }
                 default:
                     return null;
             }
+        }
+
+        /// <summary>A getter, setter or <c>Set&lt;T&gt;()</c> of the solution; null for anything else.</summary>
+        private (string Type, string Member, CodeUseKind Kind)? Use(MethodName method, int token, bool isToken)
+        {
+            if (!method.IsGeneric)
+            {
+                return Accessor(method.Declaring, method.Name, isToken);
+            }
+
+            if (isToken || method.Name != "Set" || method.Declaring.Name != DbContextType)
+            {
+                return null;
+            }
+
+            var arguments = reader.GetMethodSpecification((MethodSpecificationHandle)MetadataTokens.EntityHandle(token)).DecodeSignature(_names, null);
+            return arguments is [{ IsDefined: true } entity] && solution.Contains(entity.Assembly!)
+                ? (entity.Name, "", CodeUseKind.Query)
+                : null;
         }
 
         private (string, string, CodeUseKind)? Accessor(TypeName type, string method, bool isToken)
@@ -261,6 +278,9 @@ public static class IlUsageScanner
 
     /// <summary>Where a method is written, as the developer sees it: lambdas, local functions and async/iterator state machines resolved.</summary>
     private sealed record Caller(string Type, string Method);
+
+    /// <summary>A called or named method: <c>get_Email</c> of <c>Shop.Customer</c>; <see cref="IsGeneric"/> for a generic instantiation (<c>Set&lt;Customer&gt;</c>).</summary>
+    private readonly record struct MethodName(TypeName Declaring, string Name, bool IsGeneric);
 
     private static class Callers
     {

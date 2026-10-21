@@ -94,6 +94,25 @@ namespace FerretSharp.Core.Tests.ClrModel.UsageSamples
 
         public int Framework(string text) => text.Length; // not kept: a framework type
     }
+
+    /// <summary>Only for ExecuteUpdate: an entity of its own, so the index tests over Customer and Order stay as they are.</summary>
+    public class Invoice
+    {
+        public string Number { get; set; } = "";
+
+        public string? Note { get; set; }
+
+        public decimal Amount { get; set; }
+    }
+
+    public sealed class InvoiceService
+    {
+        public int Rename(IQueryable<Invoice> invoices) =>
+            invoices.ExecuteUpdate(s => s.SetProperty(i => i.Number, i => i.Number + i.Note).SetProperty(i => i.Note, (string?)null)); // marker: execute-update
+
+        public int Raise(IQueryable<Invoice> invoices) =>
+            invoices.ExecuteUpdate(s => s.SetProperty(i => i.Amount, i => i.Amount * 2)); // marker: execute-update-amount
+    }
 }
 
 // Stand-ins for EF Core's types, so the scanner sees the names it looks for without a package (net10.0 test project, EF 8
@@ -124,5 +143,22 @@ namespace Microsoft.EntityFrameworkCore
     public interface IEntityTypeConfiguration<T> where T : class
     {
         void Configure(EntityTypeBuilder<T> builder);
+    }
+
+    public static class RelationalQueryableExtensions
+    {
+        public static int ExecuteUpdate<TSource>(
+            this IQueryable<TSource> source,
+            Expression<Func<Query.SetPropertyCalls<TSource>, Query.SetPropertyCalls<TSource>>> setPropertyCalls) => 0;
+    }
+}
+
+namespace Microsoft.EntityFrameworkCore.Query
+{
+    public sealed class SetPropertyCalls<TSource>
+    {
+        public SetPropertyCalls<TSource> SetProperty<TProperty>(Func<TSource, TProperty> propertyExpression, Func<TSource, TProperty> valueExpression) => this;
+
+        public SetPropertyCalls<TSource> SetProperty<TProperty>(Func<TSource, TProperty> propertyExpression, TProperty valueExpression) => this;
     }
 }

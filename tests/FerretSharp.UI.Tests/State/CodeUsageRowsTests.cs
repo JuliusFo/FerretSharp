@@ -101,6 +101,35 @@ public sealed class CodeUsageRowsTests : IDisposable
     }
 
     [Fact]
+    public async Task The_filter_splits_reads_with_linq_from_writes_and_counts_tests_apart()
+    {
+        var (mapping, index) = await IndexAsync();
+        var rows = CodeUsageRows.Columns(mapping, index, Kunden);
+        var name = rows[1];
+
+        Assert.Equal((3, 1), (name.Count(UsageAccess.Read, tests: false), name.Count(UsageAccess.Write, tests: false)));
+        Assert.Equal(["Export.Run", "KundenService.Run", "Report.Run"], name.Matching(UsageAccess.Read).Select(u => CodeUsageRows.Caller(u.Use)).Order());
+        Assert.Equal(["Import.Run"], name.Matching(UsageAccess.Write).Select(u => CodeUsageRows.Caller(u.Use)));
+        Assert.Equal((0, 1), (rows[2].Count(UsageAccess.Write, tests: false), rows[2].Count(UsageAccess.Write, tests: true)));
+
+        // Rows without such a use drop out; a test's write still shows (the build of the tests breaks too).
+        Assert.Equal(["KUNDE_ID", "NAME"], CodeUsageRows.Filter(rows, UsageAccess.Read).Select(r => r.Column));
+        Assert.Equal(["NAME", "EMAIL"], CodeUsageRows.Filter(rows, UsageAccess.Write).Select(r => r.Column));
+        Assert.Same(rows, CodeUsageRows.Filter(rows, UsageAccess.All));
+    }
+
+    [Fact]
+    public void Mapping_code_is_neither_read_nor_write()
+    {
+        var configure = new CodeUsage(Use("Email", "KundeConfiguration", 4, CodeUseKind.Expression), "Shop", false, IsMapping: true, null);
+
+        Assert.True(CodeUsageRows.Matches(configure, UsageAccess.All));
+        Assert.False(CodeUsageRows.Matches(configure, UsageAccess.Read));
+        Assert.False(CodeUsageRows.Matches(configure, UsageAccess.Write));
+        Assert.True(CodeUsageRows.Matches(configure with { IsMapping = false }, UsageAccess.Read));
+    }
+
+    [Fact]
     public async Task The_sub_tabs_count_unused_columns_and_queries_of_application_code()
     {
         var (mapping, index) = await IndexAsync();

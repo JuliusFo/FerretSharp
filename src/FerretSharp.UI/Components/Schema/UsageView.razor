@@ -71,23 +71,36 @@ else
             var rows = result is null ? [] : CodeUsageRows.Columns(mapping, result.Index, Details);
             var unused = CodeUsageRows.UnusedCount(rows);
         }
-        <div class="segmented small usage-tabs" role="tablist">
-            <button class="seg @(_showQueries ? "" : "active")" role="tab" aria-selected="@(_showQueries ? "false" : "true")"
-                    title="@ModelViewText.Usage_TabColumnsTitle" @onclick="() => _showQueries = false">
-                @ModelViewText.Usage_TabColumns
-                @if (unused > 0)
-                {
-                    <span class="seg-count unused">@TextFormat.Format(ModelViewText.Usage_TabUnused, unused)</span>
-                }
-            </button>
-            <button class="seg @(_showQueries ? "active" : "")" role="tab" aria-selected="@(_showQueries ? "true" : "false")"
-                    title="@ModelViewText.Usage_TabQueriesTitle" @onclick="() => _showQueries = true">
-                @ModelViewText.Usage_TabQueries
-                @if (result is not null)
-                {
-                    <span class="seg-count">@CodeUsageRows.QueryCount(queries.Concat(navigations))</span>
-                }
-            </button>
+        <div class="usage-bar">
+            <div class="segmented small usage-tabs" role="tablist">
+                <button class="seg @(_showQueries ? "" : "active")" role="tab" aria-selected="@(_showQueries ? "false" : "true")"
+                        title="@ModelViewText.Usage_TabColumnsTitle" @onclick="() => _showQueries = false">
+                    @ModelViewText.Usage_TabColumns
+                    @if (unused > 0)
+                    {
+                        <span class="seg-count unused">@TextFormat.Format(ModelViewText.Usage_TabUnused, unused)</span>
+                    }
+                </button>
+                <button class="seg @(_showQueries ? "active" : "")" role="tab" aria-selected="@(_showQueries ? "true" : "false")"
+                        title="@ModelViewText.Usage_TabQueriesTitle" @onclick="() => _showQueries = true">
+                    @ModelViewText.Usage_TabQueries
+                    @if (result is not null)
+                    {
+                        <span class="seg-count">@CodeUsageRows.QueryCount(queries.Concat(navigations))</span>
+                    }
+                </button>
+            </div>
+            @if (!_showQueries)
+            {
+                @* Read/write filter (decision of the user, 2026-10-20): LINQ reads, mapping code is neither. *@
+                <div class="segmented small" role="radiogroup" aria-label="@ModelViewText.Usage_FilterLabel" title="@ModelViewText.Usage_FilterTitle">
+                    @foreach (var (access, label) in AccessChoices)
+                    {
+                        <button class="seg @(_access == access ? "active" : "")" role="radio" aria-checked="@(_access == access ? "true" : "false")"
+                                @onclick="() => _access = access">@label</button>
+                    }
+                </div>
+            }
         </div>
 
         @if (result is not null && _showQueries)
@@ -121,51 +134,60 @@ else
         }
         else if (result is not null)
         {
-            <table class="columns usage-columns">
-                <thead>
-                    <tr><th>@SchemaViewText.Head_Name</th><th>@SchemaViewText.Columns_Property</th><th class="num">@ModelViewText.Usage_Uses</th><th></th></tr>
-                </thead>
-                <tbody>
-                    @foreach (var row in rows)
-                    {
-                        var open = _expanded.Contains(row.Column);
-                        <tr class="@(row.Uses.Count > 0 ? "clickable" : "")" @onclick="() => Toggle(row)">
-                            <td class="name">@(row.Uses.Count > 0 ? (open ? "▾ " : "▸ ") : "")@row.Column</td>
-                            <td class="mono">@(row.Property?.Name ?? "–")</td>
-                            <td class="num" title="@ModelViewText.Usage_UsesTitle">
-                                @row.Counted
-                                @if (row.Uses.Count > row.Counted)
-                                {
-                                    <span class="muted"> (+@(row.Uses.Count - row.Counted))</span>
-                                }
-                            </td>
-                            <td>
-                                @if (row.Unused)
-                                {
-                                    <span class="fs-badge unused" title="@ModelViewText.Usage_UnusedTitle">@ModelViewText.Usage_Unused</span>
-                                }
-                                else if (row.Property?.IsShadow == true)
-                                {
-                                    <span class="muted" title="@ModelViewText.Usage_ShadowTitle">Shadow</span>
-                                }
-                            </td>
+            var shown = CodeUsageRows.Filter(rows, _access);
+            @if (shown.Count == 0)
+            {
+                <p class="muted">@(_access == UsageAccess.Write ? ModelViewText.Usage_NoWrites : ModelViewText.Usage_NoReads)</p>
+            }
+            else
+            {
+                <table class="columns usage-columns">
+                    <thead>
+                        <tr>
+                            <th>@SchemaViewText.Head_Name</th><th>@SchemaViewText.Columns_Property</th>
+                            <th class="num" title="@ModelViewText.Usage_ReadsTitle">@ModelViewText.Usage_ReadsShort</th>
+                            <th class="num" title="@ModelViewText.Usage_WritesTitle">@ModelViewText.Usage_WritesShort</th>
+                            <th></th>
                         </tr>
-                        @if (open)
+                    </thead>
+                    <tbody>
+                        @foreach (var row in shown)
                         {
-                            <tr class="usage-detail">
-                                <td colspan="4">
-                                    <ul class="usage-list">
-                                        @foreach (var use in row.Uses)
-                                        {
-                                            @UseItem(use, entity.Entity, row.Property!.Name)
-                                        }
-                                    </ul>
+                            var open = _expanded.Contains(row.Column);
+                            var uses = row.Matching(_access);
+                            <tr class="@(uses.Count > 0 ? "clickable" : "")" @onclick="() => Toggle(row)">
+                                <td class="name">@(uses.Count > 0 ? (open ? "▾ " : "▸ ") : "")@row.Column</td>
+                                <td class="mono">@(row.Property?.Name ?? "–")</td>
+                                <td class="num" title="@ModelViewText.Usage_ReadsTitle">@AccessCount(row, UsageAccess.Read)</td>
+                                <td class="num" title="@ModelViewText.Usage_WritesTitle">@AccessCount(row, UsageAccess.Write)</td>
+                                <td>
+                                    @if (row.Unused)
+                                    {
+                                        <span class="fs-badge unused" title="@ModelViewText.Usage_UnusedTitle">@ModelViewText.Usage_Unused</span>
+                                    }
+                                    else if (row.Property?.IsShadow == true)
+                                    {
+                                        <span class="muted" title="@ModelViewText.Usage_ShadowTitle">Shadow</span>
+                                    }
                                 </td>
                             </tr>
+                            @if (open && uses.Count > 0)
+                            {
+                                <tr class="usage-detail">
+                                    <td colspan="5">
+                                        <ul class="usage-list">
+                                            @foreach (var use in uses)
+                                            {
+                                                @UseItem(use, entity.Entity, row.Property!.Name)
+                                            }
+                                        </ul>
+                                    </td>
+                                </tr>
+                            }
                         }
-                    }
-                </tbody>
-            </table>
+                    </tbody>
+                </table>
+            }
         }
     </section>
 }
@@ -196,7 +218,27 @@ else
 
     /// <summary>The "Queries" sub-tab is shown; kept while the tab is open (the view stays mounted), columns first again after a restart.</summary>
     private bool _showQueries;
+
+    /// <summary>The read/write filter of the "Columns" sub-tab; kept like the sub-tab, not saved.</summary>
+    private UsageAccess _access;
     private readonly CancellationTokenSource _lifetime = new();
+
+    private static IEnumerable<(UsageAccess Access, string Label)> AccessChoices =>
+    [
+        (UsageAccess.All, ModelViewText.Usage_FilterAll),
+        (UsageAccess.Read, ModelViewText.Usage_FilterRead),
+        (UsageAccess.Write, ModelViewText.Usage_FilterWrite),
+    ];
+
+    /// <summary>Reads or writes in application code, those in tests in brackets.</summary>
+    private static RenderFragment AccessCount(ColumnUsageRow row, UsageAccess access)
+    {
+        var tests = row.Count(access, tests: true);
+        return @<text>@row.Count(access, tests: false)@if (tests > 0)
+        {
+            <span class="muted"> (+@tests)</span>
+        }</text>;
+    }
     private DomModule? _dom;
 
     private DomModule Dom => _dom ??= new(JS);
@@ -300,7 +342,7 @@ else
 
     private void Toggle(ColumnUsageRow row)
     {
-        if (row.Uses.Count > 0 && !_expanded.Remove(row.Column))
+        if (row.Matching(_access).Count > 0 && !_expanded.Remove(row.Column))
         {
             _expanded.Add(row.Column);
         }
