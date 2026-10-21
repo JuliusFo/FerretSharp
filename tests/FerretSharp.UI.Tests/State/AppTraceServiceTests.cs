@@ -327,7 +327,6 @@ public sealed class AppTraceServiceTests : IAsyncDisposable
             try
             {
                 var events = Events.Reader;
-                using var registration = ct.Register(() => Canceled = true);
                 while (true)
                 {
                     EfEvent e;
@@ -357,6 +356,9 @@ public sealed class AppTraceServiceTests : IAsyncDisposable
             }
             finally
             {
+                // Not through ct.Register: canceling ends the wait above first, and the loop can dispose that registration
+                // before its callback ran (flaky under load). The end of the trace is what the service waits for.
+                Canceled |= ct.IsCancellationRequested;
                 Interlocked.Decrement(ref _running);
             }
         }
