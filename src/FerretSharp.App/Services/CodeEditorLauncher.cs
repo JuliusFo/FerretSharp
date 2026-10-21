@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Settings;
 using FerretSharp.UI.Resources;
 using FerretSharp.UI.State;
@@ -275,9 +276,9 @@ public sealed class CodeEditorLauncher(ILogger<CodeEditorLauncher> logger) : ICo
     }
 
     private CodeOpenResult OpenWithShell(string file) =>
-        Start(new ProcessStartInfo(file) { UseShellExecute = true }) is { } failure
-            ? new CodeOpenResult(CodeOpenOutcome.Failed, failure)
-            : new CodeOpenResult(CodeOpenOutcome.Opened);
+        !SourceFiles.MayOpenWithShell(file) ? new CodeOpenResult(CodeOpenOutcome.Failed, TextFormat.Format(ModelViewText.Usage_NotSourceFile, file))
+        : Start(new ProcessStartInfo(file) { UseShellExecute = true }) is { } failure ? new CodeOpenResult(CodeOpenOutcome.Failed, failure)
+        : new CodeOpenResult(CodeOpenOutcome.Opened);
 
     /// <summary>Starts the editor and lets it go (it is the user's program, not a child of FerretSharp); the error text or null.</summary>
     private string? Start(ProcessStartInfo start)

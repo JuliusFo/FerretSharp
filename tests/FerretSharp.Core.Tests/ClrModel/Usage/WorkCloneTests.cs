@@ -99,6 +99,10 @@ public sealed class WorkCloneTests : IDisposable
             WorkCloneMapping.Resolve("/_/src/Shop.Data/Customer.cs", linked, work, null, TestContext.Current.CancellationToken));
         Assert.Equal(new SourceLocation(Path.Combine(linkedRoot, "src", "Shop.Data", "Customer.cs"), false),
             WorkCloneMapping.Resolve("/_/src/Shop.Data/Customer.cs", linked, null, null, TestContext.Current.CancellationToken));
+
+        // Review 3.44.0, A29: out of the repository through the deterministic path, as the absolute one refuses it.
+        File.WriteAllText(Path.Combine(Path.GetDirectoryName(linkedRoot)!, "x.cmd"), "");
+        Assert.Null(WorkCloneMapping.Resolve("/_/../x.cmd", linked, null, null, TestContext.Current.CancellationToken));
     }
 
     [Fact]

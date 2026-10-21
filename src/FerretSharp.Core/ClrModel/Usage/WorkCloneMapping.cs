@@ -58,7 +58,7 @@ public static partial class WorkCloneMapping
         var relative = Relative(document, linkedRoot);
         // "/_/…" is fully qualified on Linux, but it is no file there either.
         var linkedFile = DeterministicPath().IsMatch(document)
-            ? linkedRoot is null ? null : Path.Combine(linkedRoot, relative!)
+            ? linkedRoot is null || relative is null ? null : Path.Combine(linkedRoot, relative)
             : Path.IsPathFullyQualified(document) ? document : null;
 
         if (workClone is not null && Check(linkedProjectFile, workClone) == WorkCloneFit.Fits)
@@ -134,7 +134,9 @@ public static partial class WorkCloneMapping
     {
         if (DeterministicPath().Match(document) is { Success: true } deterministic)
         {
-            return deterministic.Groups[1].Value.Replace('/', Path.DirectorySeparatorChar);
+            // "/_/../../x.cmd" would lead out of the repository (review 3.44.0, A29) – the absolute branch below checks it too.
+            var path = deterministic.Groups[1].Value;
+            return path.Split('/', '\\').Any(s => s == "..") ? null : path.Replace('/', Path.DirectorySeparatorChar);
         }
 
         if (linkedRoot is null || !Path.IsPathFullyQualified(document))

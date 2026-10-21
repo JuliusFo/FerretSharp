@@ -455,4 +455,7 @@
   <data name="Usage_SolutionNotSaved" xml:space="preserve">
     <value>The solution is read from now on, but could not be saved for the connection: {0}</value>
   </data>
+  <data name="Usage_NotSourceFile" xml:space="preserve">
+    <value>The default program opens source files only: {0}</value>
+  </data>
 </root>
