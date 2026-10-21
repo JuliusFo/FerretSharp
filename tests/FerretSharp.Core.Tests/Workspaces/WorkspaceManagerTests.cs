@@ -523,6 +523,31 @@ public sealed class WorkspaceManagerTests
         Assert.Single(_store.Saved[id].Tabs);
     }
 
+    /// <summary>
+    /// Review 3.44.0, A21: a failed save waited for the next change or quitting – a crash meanwhile lost the state. It is
+    /// tried again by itself.
+    /// </summary>
+    [Fact]
+    public async Task A_failed_save_is_tried_again_without_another_change()
+    {
+        await _manager.AttachAsync(_profile, Ct);
+        var id = _manager.Active!.Id;
+        _store.FailNextSave = new IOException("Datei gesperrt");
+
+        _manager.UpdateTabs(id, [Tab("KUNDEN")], 0);
+        await _manager.FlushAsync();
+        Assert.NotNull(_manager.SaveError);
+
+        _time.Advance(TimeSpan.FromSeconds(30));
+        for (var waited = 0; _manager.SaveError is not null; waited += 10)
+        {
+            Assert.True(waited < 5_000, "The save was not tried again.");
+            await Task.Delay(10, Ct); // the timer's save runs on the pool
+        }
+
+        Assert.Single(_store.Saved[id].Tabs);
+    }
+
     [Fact]
     public async Task Delete_for_connection_removes_its_stored_workspaces()
     {

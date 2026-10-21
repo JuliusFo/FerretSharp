@@ -40,6 +40,10 @@ public sealed class WorkCloneTests : IDisposable
         Assert.Equal("0123456", GitFolder.Branch(_folder.Combine("detached")));
         Assert.Null(GitFolder.Branch(Directory.CreateDirectory(_folder.Combine("plain")).FullName));
         Assert.Equal(clone, GitFolder.FindRoot(Path.Combine(clone, "src", "Shop.Data", "Customer.cs")));
+
+        // Review 3.44.0, A31: a share the working copy is not on is not followed (a sign-in to a foreign host every few seconds).
+        Write("unpacked/.git", @"gitdir: \\fremd.invalid\share\meta" + "\n");
+        Assert.Null(GitFolder.Branch(_folder.Combine("unpacked")));
     }
 
     [Fact]
@@ -99,6 +103,10 @@ public sealed class WorkCloneTests : IDisposable
             WorkCloneMapping.Resolve("/_/src/Shop.Data/Customer.cs", linked, work, null, TestContext.Current.CancellationToken));
         Assert.Equal(new SourceLocation(Path.Combine(linkedRoot, "src", "Shop.Data", "Customer.cs"), false),
             WorkCloneMapping.Resolve("/_/src/Shop.Data/Customer.cs", linked, null, null, TestContext.Current.CancellationToken));
+
+        // Review 3.44.0, A29: out of the repository through the deterministic path, as the absolute one refuses it.
+        File.WriteAllText(Path.Combine(Path.GetDirectoryName(linkedRoot)!, "x.cmd"), "");
+        Assert.Null(WorkCloneMapping.Resolve("/_/../x.cmd", linked, null, null, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -165,5 +173,26 @@ public sealed class WorkCloneTests : IDisposable
         await clones.SetActiveAsync("ERP", Clone("work", "x"), TestContext.Current.CancellationToken);
         Assert.Equal(newer, File.ReadAllText(file));
         Assert.Equal(_folder.Combine("work"), clones.ActiveFor("ERP"));
+    }
+
+    /// <summary>Review 3.44.0, A22: a file held by a backup or a sync ended in "unexpected error"; the choice applies all the same.</summary>
+    [Fact]
+    public async Task A_locked_file_keeps_the_choice_in_memory_and_says_so()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Only Windows locks a file against replacing it.");
+        var file = _folder.Combine("work-clones.json");
+        var work = Clone("work", "x");
+        var clones = new WorkClones(file);
+        await clones.SetActiveAsync("ERP", Clone("first", "y"), TestContext.Current.CancellationToken);
+
+        bool saved;
+        using (new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            saved = await clones.SetActiveAsync("ERP", work, TestContext.Current.CancellationToken);
+        }
+
+        Assert.False(saved);
+        Assert.Equal(work, clones.ActiveFor("ERP"));
+        Assert.True(await clones.SetActiveAsync("ERP", work, TestContext.Current.CancellationToken)); // free again: saved
     }
 }

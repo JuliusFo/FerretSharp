@@ -88,7 +88,6 @@ internal static class ModelReader
         return new PropertyExport(
             property.Name,
             TypeName(underlying),
-            underlying.FullName ?? underlying.Name,
             property.IsNullable,
             property.IsShadowProperty(),
             store is { } s ? property.GetColumnName(s) : property.GetColumnName(),

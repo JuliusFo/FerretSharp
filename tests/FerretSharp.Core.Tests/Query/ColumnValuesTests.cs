@@ -76,6 +76,21 @@ public class ColumnValuesTests
         Assert.Equal("TO_DATE('2026-10-01 14:30:00', 'YYYY-MM-DD HH24:MI:SS')", Copy(Created, ColumnValuesFormat.InList, new DateTime(2026, 10, 1, 14, 30, 0)).Text);
     }
 
+    /// <summary>
+    /// Review 3.44.0, A8: CHAR values came with their padding; pasted into a query on a VARCHAR2 column (a relationship
+    /// without a constraint) the list found nothing. Lines keep the value as shown.
+    /// </summary>
+    [Fact]
+    public void The_in_list_leaves_out_the_char_padding()
+    {
+        var code = Col("KUERZEL", "CHAR");
+
+        Assert.Equal("'AB', 'X'", Copy(code, ColumnValuesFormat.InList, "AB ", "X  ", "AB").Text);
+        Assert.Equal("'   '", Copy(code, ColumnValuesFormat.InList, "   ").Text); // a value of blanks only stays
+        Assert.Equal("'AB '", Copy(Name, ColumnValuesFormat.InList, "AB ").Text); // VARCHAR2 keeps what it holds
+        Assert.Equal("AB ", Copy(code, ColumnValuesFormat.Lines, "AB ").Text);
+    }
+
     [Fact]
     public void Nulls_collapsed_by_distinct_are_named_without_a_number()
     {
@@ -120,6 +135,20 @@ public class ColumnValuesTests
         Assert.False(copy.Add(0m));
         Assert.True(copy.TooMany);
         Assert.False(copy.Add(1m));
+        Assert.Throws<InvalidOperationException>(copy.Finish);
+    }
+
+    /// <summary>Review 3.44.0, A16: the limit counted values only – 100,000 long texts made hundreds of MB.</summary>
+    [Fact]
+    public void A_text_longer_than_the_limit_stops_the_reading_and_copies_nothing()
+    {
+        var copy = new ColumnValues(new ExportColumn("NAME", 0, Name), ColumnValuesFormat.Lines);
+        var value = new string('x', 4000);
+
+        Assert.True(copy.AddRange(Enumerable.Repeat<object?>(value, ColumnValues.MaxCharacters / 4002))); // with the line breaks
+        Assert.False(copy.AddRange(Enumerable.Repeat<object?>(value, 10)));
+        Assert.True(copy.TooMany);
+        Assert.True(copy.TooLong);
         Assert.Throws<InvalidOperationException>(copy.Finish);
     }
 

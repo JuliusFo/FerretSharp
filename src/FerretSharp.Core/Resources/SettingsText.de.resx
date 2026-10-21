@@ -193,7 +193,10 @@
     <value>Ausschneiden</value>
   </data>
   <data name="EditorSelectAll" xml:space="preserve">
-    <value>Alles markieren</value>
+    <value>Alles markieren (in den Editoren; im Grid alle Zeilen)</value>
+  </data>
+  <data name="GridJumpToEdge" xml:space="preserve">
+    <value>Zur ersten bzw. letzten Zeile springen (Grid)</value>
   </data>
   <data name="EditorUndo" xml:space="preserve">
     <value>Rückgängig in den Editoren</value>

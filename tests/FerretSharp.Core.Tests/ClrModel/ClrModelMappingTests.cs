@@ -15,7 +15,7 @@ public sealed class ClrModelMappingTests
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     private static PropertyExport Prop(string name, string? column, string type = "int") =>
-        new(name, type, type, false, false, column, null, null, null, false, null);
+        new(name, type, false, false, column, null, null, null, false, null);
 
     private static ColumnInfo Column(
         string name, string dataType, int? length = null, bool charSemantics = false, int? precision = null, int? scale = null,
@@ -31,7 +31,7 @@ public sealed class ClrModelMappingTests
     {
         _reader.GetTablesAsync(Owner, Arg.Any<CancellationToken>()).Returns(tables.Where(t => t.Synonym is null).ToList());
         _reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns(new SynonymTargets(tables.Where(t => t.Synonym is not null).ToList(), []));
-        _reader.GetForeignKeysAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
+        _reader.GetForeignKeysAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>()).Returns([]);
         // The comparison reads all columns of a schema at once, never the details of each table. Tables given by name
         // only get NUMBER(10) NOT NULL columns.
         _reader.GetColumnsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(_ =>

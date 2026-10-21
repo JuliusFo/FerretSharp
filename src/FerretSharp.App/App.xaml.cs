@@ -151,6 +151,12 @@ public partial class App : Application
         builder.Services.AddSingleton<IModelHostRunner>(new ModelHostRunner(modelHost, culture: windowsUiCulture, shadow: shadow));
         // Copies of projects no longer linked or builds long replaced; in the background, it never throws.
         _ = Task.Run(() => shadow.DeleteUnusedAsync(BuildOutputShadow.UnusedAfter, CancellationToken.None));
+        // The caches up to 3.44 in the roaming folder (review 3.44.0, A11): built again where they live now.
+        if (paths.FormerCacheDirectory is { } former)
+        {
+            _ = Task.Run(() => FerretSharp.Core.IO.SafeDelete.TryDirectoryBelow(paths.Root, former));
+        }
+
         builder.Services.AddSingleton(new ModelCache(paths.ModelCacheDirectory, modelHost, windowsUiCulture));
         builder.Services.AddSingleton(new SqlHistoryStore(paths.SqlHistoryDirectory));
         builder.Services.AddSingleton(new ComparisonStore(paths.ComparisonsFile));

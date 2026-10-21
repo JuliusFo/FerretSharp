@@ -36,7 +36,7 @@ else
             {
                 <label class="usage-solution">
                     @ModelViewText.Usage_Solution
-                    <select class="field" value="@Usage.Solution" @onchange="e => SelectSolutionAsync((string?)e.Value)" @key="string.Join('|', solutions)">
+                    <select class="field" value="@Usage.Solution" disabled="@(state.Phase == CodeUsagePhase.Building)" @onchange="e => SelectSolutionAsync((string?)e.Value)" @key="string.Join('|', solutions)">
                         @foreach (var solution in solutions)
                         {
                             <option value="@solution" title="@solution">@System.IO.Path.GetFileName(solution)</option>
@@ -167,7 +167,7 @@ else
                                     }
                                     else if (row.Property?.IsShadow == true)
                                     {
-                                        <span class="muted" title="@ModelViewText.Usage_ShadowTitle">Shadow</span>
+                                        <span class="muted" title="@ModelViewText.Usage_ShadowTitle">@ModelViewText.Usage_Shadow</span>
                                     }
                                 </td>
                             </tr>
@@ -300,6 +300,12 @@ else
         Models.Changed += OnChanged;
     }
 
+    /// <summary>
+    /// Hidden, the view does not render (review 3.44.0, A35): it stays mounted in every tab it was opened in and heard every
+    /// loading step of the model – and built its rows anew each time. Shown again, its parameters render it.
+    /// </summary>
+    protected override bool ShouldRender() => Shown;
+
     /// <summary>Shown again (or for the first time): a build since then is picked up.</summary>
     protected override void OnParametersSet()
     {
@@ -334,9 +340,9 @@ else
 
     private async Task SelectSolutionAsync(string? solution)
     {
-        if (solution is not null)
+        if (solution is not null && await Usage.SelectSolutionAsync(solution, _lifetime.Token) is { } notSaved)
         {
-            await Usage.SelectSolutionAsync(solution, _lifetime.Token);
+            Shell.Notify(TextFormat.Format(ModelViewText.Usage_SolutionNotSaved, notSaved));
         }
     }
 

@@ -164,17 +164,17 @@ public sealed class SchemaSnapshotTests(OracleContainerFixture oracle) : IAsyncL
     [Fact]
     public async Task Reports_its_steps()
     {
-        var progress = new Steps();
+        var progress = new StepRecorder();
         await Reader.ReadSnapshotAsync(Owner, progress, Ct);
 
-        Assert.Equal(["Objekte", "Spalten", "Constraints", "Indizes"], progress.Reported);
+        Assert.Equal(["Objekte", "Spalten", "Constraints", "Indizes"], progress.All);
     }
 
     [Fact]
     public async Task Cancelling_stops_reading_and_the_session_stays_usable()
     {
         using var cancel = CancellationTokenSource.CreateLinkedTokenSource(Ct);
-        var progress = new Steps(step =>
+        var progress = new StepRecorder(step =>
         {
             if (step == "Constraints")
             {
@@ -192,16 +192,4 @@ public sealed class SchemaSnapshotTests(OracleContainerFixture oracle) : IAsyncL
         Assert.True(
             JsonSerializer.Serialize(expected) == JsonSerializer.Serialize(actual),
             $"{table} ({typeof(T).Name}):\nexpected {JsonSerializer.Serialize(expected)}\nactual   {JsonSerializer.Serialize(actual)}");
-
-    /// <summary>Reports synchronously (<see cref="Progress{T}"/> would post them to the thread pool).</summary>
-    private sealed class Steps(Action<string>? onReport = null) : IProgress<string>
-    {
-        public List<string> Reported { get; } = [];
-
-        public void Report(string value)
-        {
-            Reported.Add(value);
-            onReport?.Invoke(value);
-        }
-    }
 }

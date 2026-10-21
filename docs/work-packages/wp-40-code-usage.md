@@ -1,4 +1,4 @@
-# WP-40 Verwendung im Code
+# WP-40 Verwendung im Code → Release 3.43.0
 
 Branch `wp/40-code-usage`, begonnen am 2026-10-20. ADR 0030. Fundament für WP-41 (Designer-Änderungen ins C#-Projekt) und WP-45 (Quellzeile im Mitschnitt).
 

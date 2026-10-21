@@ -2,6 +2,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
+using FerretSharp.Core.IO;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Settings;
 using FerretSharp.UI.Resources;
 using FerretSharp.UI.State;
@@ -92,17 +94,9 @@ public sealed class CodeEditorLauncher(ILogger<CodeEditorLauncher> logger) : ICo
         var bestDepth = -1;
         foreach (dynamic dte in instances)
         {
-            string? open = null;
-            try
-            {
-                open = (string)dte.Solution.FullName;
-            }
-            catch (Exception ex) when (ex is COMException or MissingMemberException or Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
-            {
-                // busy or closing: not this one
-            }
+            string? open = SolutionOf(dte);
 
-            var depth = open is { Length: > 0 } ? Match(open, file, solution) : -1;
+            var depth = open is { Length: > 0 } ? VisualStudioMatch.Score(open, file, solution) : -1;
             if (depth > bestDepth)
             {
                 if (chosen is not null)
@@ -121,18 +115,28 @@ public sealed class CodeEditorLauncher(ILogger<CodeEditorLauncher> logger) : ICo
         return chosen;
     }
 
-    /// <summary>Higher is better: the solution itself beats a solution whose folder holds the file (the deeper, the better); -1 = no.</summary>
-    private static int Match(string open, string file, string? solution)
-    {
-        if (solution is not null && string.Equals(Path.GetFullPath(open), Path.GetFullPath(solution), StringComparison.OrdinalIgnoreCase))
-        {
-            return int.MaxValue;
-        }
+    /// <summary>How long one Visual Studio instance may take to name its solution before it is passed over.</summary>
+    private static readonly TimeSpan AnswerWait = TimeSpan.FromSeconds(2);
 
-        var folder = Path.GetDirectoryName(Path.GetFullPath(open));
-        return folder is not null && Path.GetFullPath(file).StartsWith(folder + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
-            ? folder.Length
-            : -1;
+    /// <summary>
+    /// The instance's solution; null if it is busy, closing or does not answer within <see cref="AnswerWait"/> (review
+    /// 3.44.0, A25: an instance that blocked instead of refusing held the click – and each further one a thread – for ever).
+    /// A call that hangs keeps its pool thread; the click goes on without that instance.
+    /// </summary>
+    private static string? SolutionOf(object dte)
+    {
+        var asking = Task.Run(() =>
+        {
+            try
+            {
+                return (string?)((dynamic)dte).Solution.FullName;
+            }
+            catch (Exception ex) when (ex is COMException or MissingMemberException or Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
+            {
+                return null; // busy or closing: not this one
+            }
+        });
+        return asking.Wait(AnswerWait) ? asking.Result : null;
     }
 
     /// <summary>The DTE objects of the running Visual Studio instances (<c>!VisualStudio.DTE.18.0:1234</c>).</summary>
@@ -236,11 +240,8 @@ public sealed class CodeEditorLauncher(ILogger<CodeEditorLauncher> logger) : ICo
 
     private CodeOpenResult OpenInVsCode(string file, int? line)
     {
-        var code = (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator)
-            .Append(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Microsoft VS Code", "bin"))
-            .Where(d => d.Length > 0)
-            .Select(d => Path.Combine(d.Trim('"'), "code.cmd"))
-            .FirstOrDefault(File.Exists);
+        var code = ExecutableSearch.FindOnPath("code.cmd",
+            [Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Microsoft VS Code", "bin")]);
         var start = VsCodeCommand.For(code, file, line);
         if (start.Program is not { } program)
         {
@@ -259,9 +260,9 @@ public sealed class CodeEditorLauncher(ILogger<CodeEditorLauncher> logger) : ICo
     }
 
     private CodeOpenResult OpenWithShell(string file) =>
-        Start(new ProcessStartInfo(file) { UseShellExecute = true }) is { } failure
-            ? new CodeOpenResult(CodeOpenOutcome.Failed, failure)
-            : new CodeOpenResult(CodeOpenOutcome.Opened);
+        !SourceFiles.MayOpenWithShell(file) ? new CodeOpenResult(CodeOpenOutcome.Failed, TextFormat.Format(ModelViewText.Usage_NotSourceFile, file))
+        : Start(new ProcessStartInfo(file) { UseShellExecute = true }) is { } failure ? new CodeOpenResult(CodeOpenOutcome.Failed, failure)
+        : new CodeOpenResult(CodeOpenOutcome.Opened);
 
     /// <summary>Starts the editor and lets it go (it is the user's program, not a child of FerretSharp); the error text or null.</summary>
     private string? Start(ProcessStartInfo start)

@@ -42,6 +42,21 @@ public static class ConnectionSearch
     public static bool SameGroup(string? a, string? b) =>
         NormalizeGroup(a) is { } left && NormalizeGroup(b) is { } right && GroupComparer.Equals(left, right);
 
+    /// <summary>
+    /// The same entry of something kept per group, where connections without a group share one (the work clone, WP-40) –
+    /// unlike <see cref="SameGroup"/>, for which no group is never the same (review 3.44.0, B8: the rule stood inline twice).
+    /// </summary>
+    public static bool SameGroupKey(string? a, string? b) =>
+        (NormalizeGroup(a), NormalizeGroup(b)) switch
+        {
+            (null, null) => true,
+            ({ } left, { } right) => GroupComparer.Equals(left, right),
+            _ => false,
+        };
+
+    /// <summary>How group names compare: case-insensitive in the user's culture.</summary>
+    public static StringComparer GroupNameComparer => GroupComparer;
+
     /// <summary>The group name trimmed; null for none.</summary>
     public static string? NormalizeGroup(string? group) => string.IsNullOrWhiteSpace(group) ? null : group.Trim();
 }

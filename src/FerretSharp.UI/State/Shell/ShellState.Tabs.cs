@@ -7,31 +7,6 @@ using FerretSharp.Core.Workspaces;
 
 namespace FerretSharp.UI.State;
 
-/// <summary>Tabs of one open workspace.</summary>
-/// <param name="connectionId">The connection the workspace belongs to (WP-24: several can be open).</param>
-public sealed class WorkspaceTabs(Guid workspaceId, Guid connectionId)
-{
-    public Guid WorkspaceId { get; } = workspaceId;
-
-    public Guid ConnectionId { get; } = connectionId;
-
-    public List<WorkspaceTab> Tabs { get; } = [];
-
-    public WorkspaceTab? ActiveTab { get; set; }
-
-    public int ActiveIndex => ActiveTab is null ? -1 : Tabs.IndexOf(ActiveTab);
-
-    /// <summary>The pinned tabs stand first (WP-34); this many.</summary>
-    public int PinnedCount => Tabs.TakeWhile(t => t.Pinned).Count();
-
-    /// <summary>The table tabs (editing, FK navigation); LINQ tabs have no rows of their own.</summary>
-    public IEnumerable<TableTab> TableTabs => Tabs.OfType<TableTab>();
-}
-
-/// <summary><see cref="Reload"/>: fetch the loaded rows again in place (after writing) – unlike <see cref="Refresh"/>, which starts at the top.</summary>
-public enum TabCommand { ApplyFilters, Refresh, FindColumn, Reload, RunScript, FocusRow }
-
-// The tabs of the open workspaces of all open connections: the tab part of the shell state (R3b, a file of its own).
 public sealed partial class ShellState
 {
     private readonly List<WorkspaceTabs> _workspaces = [];
@@ -122,95 +97,6 @@ public sealed partial class ShellState
 
         OpenPendingSql();
         OpenPendingLink();
-    }
-
-    /// <summary>The schema of each connection with workspaces (from <see cref="SyncWorkspaces"/>), to find a linked table.</summary>
-    private readonly Dictionary<Guid, SchemaCache> _schemas = [];
-
-    /// <summary>A link waiting for its connection to be shown with its workspaces (<see cref="OpenLinkIn"/>).</summary>
-    private readonly PendingOpen<TableLink> _pendingLink = new();
-
-    /// <summary>A script waiting for its connection to be shown with its workspaces (<see cref="OpenSqlIn"/>).</summary>
-    private readonly PendingOpen<string> _pendingSql = new();
-
-    private readonly ConnectionFailures _failures = new();
-
-    /// <summary>
-    /// Opens the table of a confirmed link (WP-37) in a new tab of the connection's active workspace – right away if the
-    /// connection is shown, otherwise once it is (the caller shows or connects it). Only the latest link waits.
-    /// </summary>
-    public void OpenLinkIn(Guid connectionId, TableLink link)
-    {
-        _pendingLink.Wait(connectionId, link);
-        Set(OpenPendingLink);
-    }
-
-    /// <summary>
-    /// A connection's failure after each change of it: the error of the last attempt to connect, or why it was lost; null
-    /// if none. A new failure drops a link or script waiting for that connection, so it does not open on its own when the
-    /// user connects again later (<see cref="ConnectionFailures"/>).
-    /// </summary>
-    public void ReportConnectionFailure(Guid connectionId, object? failure) => _failures.Report(connectionId, failure, DropPendingFor);
-
-    /// <summary>A link or script waiting for <paramref name="connectionId"/> no longer opens on its own: connecting failed or was cancelled.</summary>
-    private void DropPendingFor(Guid connectionId)
-    {
-        _pendingLink.DropFor(connectionId);
-        _pendingSql.DropFor(connectionId);
-    }
-
-    /// <summary>What waits for a connection other than <paramref name="shown"/> no longer opens on its own.</summary>
-    private void DropPendingExcept(Guid? shown)
-    {
-        _pendingLink.DropExcept(shown);
-        _pendingSql.DropExcept(shown);
-    }
-
-    private void OpenPendingLink()
-    {
-        if (ActiveWorkspace is not { } workspace || CurrentConnection is not { } shown || !_schemas.TryGetValue(shown, out var schema)
-            || _pendingLink.Take(shown) is not { } link)
-        {
-            return;
-        }
-
-        if (LinkedTable(schema, link) is not { } table)
-        {
-            Notice = new Notice(TextFormat.Format(ShellText.Link_TableMissing, link.Table, schema.Owner), [], DateTimeOffset.UtcNow);
-            return;
-        }
-
-        var tab = new TableTab(workspace.WorkspaceId, table) { AppliedFilters = link.Filters, Sorts = link.Sorts, Mode = link.Mode ?? TabMode.Data, Visited = true, FitToStructure = true };
-        tab.SetFilterRows(link.Filters);
-        InsertAfterActive(workspace, tab);
-    }
-
-    /// <summary>
-    /// The linked table on this connection: by owner and name, else by name in the connection's schema (Test and Prod
-    /// have the same tables, the schema name may differ), else a synonym of that name.
-    /// </summary>
-    public static TableSummary? LinkedTable(SchemaCache schema, TableLink link) =>
-        schema.Find(new TableRef(link.Owner, link.Table))
-        ?? schema.Tables.FirstOrDefault(t => t.Owner == schema.Owner && t.Name == link.Table && t.Synonym is null)
-        ?? schema.Tables.FirstOrDefault(t => t.Synonym?.Name == link.Table); // not any other schema's table of that name
-
-    /// <summary>
-    /// Opens a SQL tab with <paramref name="text"/> in the active workspace of the connection (WP-22: the DDL proposal of
-    /// the schema comparison, to run there) – right away if it is shown, otherwise once it is (the caller shows or
-    /// connects it). Only the latest request waits.
-    /// </summary>
-    public void OpenSqlIn(Guid connectionId, string text)
-    {
-        _pendingSql.Wait(connectionId, text);
-        OpenPendingSql();
-    }
-
-    private void OpenPendingSql()
-    {
-        if (ActiveWorkspace is not null && _pendingSql.Take(CurrentConnection) is { } text)
-        {
-            OpenSql(text);
-        }
     }
 
     /// <summary>Activates the tab of <paramref name="table"/> in the active workspace or opens a new one.</summary>
@@ -485,17 +371,17 @@ public sealed partial class ShellState
     });
 
     /// <summary>
-    /// A table tab whose table is gone from the browsed schema (review 3.40.0, A5). A table of another schema that no synonym
-    /// reaches was opened by name (an FK jump, <see cref="FkTargets.SummaryOf"/>) and is never in the cache – its tab stays, as
-    /// does a tab with pending or written changes: closing it lost them without a word. Its next load names the problem.
-    /// </summary>
-    /// <summary>
     /// A saved tab on a table of another schema that no synonym reaches: it was opened by name and is restored the same way
     /// (review 3.40.0, A5) – before, it was dropped on every start. A table of the browsed schema that is gone stays dropped.
     /// </summary>
     private static TableSummary? OpenedByName(TableRef table, SchemaCache schema) =>
         string.Equals(table.Owner, schema.Owner, StringComparison.Ordinal) ? null : new TableSummary(table.Owner, table.Name, TableKind.Table);
 
+    /// <summary>
+    /// A table tab whose table is gone from the browsed schema (review 3.40.0, A5). A table of another schema that no synonym
+    /// reaches was opened by name (an FK jump, <see cref="FkTargets.SummaryOf"/>) and is never in the cache – its tab stays, as
+    /// does a tab with pending or written changes: closing it lost them without a word. Its next load names the problem.
+    /// </summary>
     private static bool Vanished(TableTab tab, SchemaCache schema) =>
         schema.Find(tab.Table.Ref) is null
         && string.Equals(tab.Table.Owner, schema.Owner, StringComparison.Ordinal)

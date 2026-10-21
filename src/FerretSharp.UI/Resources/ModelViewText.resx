@@ -452,4 +452,13 @@
   <data name="Usage_NoWrites" xml:space="preserve">
     <value>No column of this table is written in the code.</value>
   </data>
+  <data name="Usage_SolutionNotSaved" xml:space="preserve">
+    <value>The solution is read from now on, but could not be saved for the connection: {0}</value>
+  </data>
+  <data name="Usage_NotSourceFile" xml:space="preserve">
+    <value>The default program opens source files only: {0}</value>
+  </data>
+  <data name="Usage_Shadow" xml:space="preserve">
+    <value>Shadow</value>
+  </data>
 </root>

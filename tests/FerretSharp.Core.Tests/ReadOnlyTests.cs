@@ -126,6 +126,10 @@ public class ReadOnlyTests
     [InlineData("PURGE RECYCLEBIN")]
     [InlineData("-- schema\nDROP TABLE t PURGE")] // review 3.40.0, SE-8: past the recycle bin
     [InlineData("DROP USER app CASCADE")]
+    [InlineData("DROP TABLESPACE ts INCLUDING CONTENTS")] // review 3.44.0, A14
+    [InlineData("DROP CLUSTER c INCLUDING TABLES")]
+    [InlineData("DROP PLUGGABLE DATABASE pdb1 INCLUDING DATAFILES")]
+    [InlineData("ALTER DATABASE CLOSE")]
     [InlineData("ALTER SESSION SET CURRENT_SCHEMA = X")]
     [InlineData("ALTER SYSTEM KILL SESSION '1,2'")]
     [InlineData("CREATE OR REPLACE PROCEDURE p AS BEGIN NULL; END;")]
@@ -210,6 +214,38 @@ public class ReadOnlyTests
         Assert.NotEmpty(methods);
         Assert.All(methods, m => Assert.True(m.IsAssembly, name));
     }
+
+    /// <summary>
+    /// Review 3.44.0, C3: the reads of an export (WP-54) – the streaming reader and the queries it runs while its cursor is
+    /// open – check the statement themselves; only a test against a database covered the first, nothing the second.
+    /// </summary>
+    [Theory]
+    [InlineData("DELETE FROM kunden")]
+    [InlineData("SELECT * FROM kunden FOR UPDATE")]
+    [InlineData("SELECT 1 FROM dual; DROP TABLE kunden")]
+    public async Task The_nested_reads_of_an_export_refuse_anything_but_a_query(string sql)
+    {
+        Assert.Throws<InvalidOperationException>(() => OracleSession.GuardReadOnly(sql));
+        var nested = new OracleSession.NestedReader(null!); // the guard comes before the session is touched
+        await Assert.ThrowsAsync<InvalidOperationException>(() => nested.ReadAsync(sql, [], (_, _) => Task.FromResult(0), TestContext.Current.CancellationToken));
+    }
+
+    /// <summary>
+    /// Review 3.44.0, C4: a read is repeated in a new snapshot only in a locked session, only for an unusable snapshot, a
+    /// few times – and never after rows were handed on: the export would write them a second time.
+    /// </summary>
+    [Theory]
+    [InlineData(true, false, 1, 1555, true)] // snapshot too old
+    [InlineData(true, false, 1, 1466, true)] // definition changed
+    [InlineData(true, false, 3, 1555, true)]
+    [InlineData(true, false, 4, 1555, false)] // given up
+    [InlineData(true, true, 1, 1555, false)] // rows already in the file
+    [InlineData(false, false, 1, 1555, false)] // not locked: no snapshot of ours
+    [InlineData(true, false, 1, 942, false)] // another error
+    [InlineData(true, false, 1, null, false)]
+    public void A_read_runs_again_in_a_new_snapshot_only_before_rows_were_handed_on(
+        bool readOnlySnapshots, bool handedOn, int attempt, int? error, bool again) =>
+        Assert.Equal(again, OracleSession.ShouldRetry(readOnlySnapshots, handedOn, attempt, error));
 
     [Fact]
     public void Session_runs_statements_only_through_the_guarded_reader()

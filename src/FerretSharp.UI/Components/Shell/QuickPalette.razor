@@ -11,8 +11,11 @@
 
 @if (Shell.Palette is not null)
 {
+    @* A layer per opening: the focus trap hangs on the box's parent (review 3.44.0, A33 – Tab left the box, and Enter worked
+       on the button behind it, e.g. the status bar's Commit). The rows are not tab stops: the arrow keys move between them. *@
+    <div class="palette-layer">
     <div class="popover-backdrop" @onclick="Shell.ClosePalette"></div>
-    <div class="popover palette-pop" role="dialog" aria-label="@ShellText.Palette_Title" @onkeydown="OnKeyDown">
+    <div class="popover palette-pop" role="dialog" aria-label="@ShellText.Palette_Title" @onkeydown="OnKeyDown" @ref="_box">
         <SearchBox @ref="_search" Class="popover-search" Placeholder="@ShellText.Palette_SearchPlaceholder" EscapeKeeps="@QuickPaletteSearch.CommandPrefix"
                    @bind-Value="_text" @bind-Value:after="OnTextChanged">
             <Kbd Action="@(Commands ? ShortcutAction.CommandPalette : ShortcutAction.QuickOpen)" />
@@ -41,6 +44,7 @@
         </div>
 
         <div class="palette-footer">@(Commands ? ShellText.Palette_FooterCommands : ShellText.Palette_FooterSearch)</div>
+    </div>
     </div>
 }
 
@@ -76,6 +80,7 @@
     /// <summary>The opening shown; another one starts with its own text and the focus in the field.</summary>
     private PaletteRequest? _request;
     private bool _focus;
+    private ElementReference _box;
     private bool _scrollToHighlight;
     private string _text = "";
     private int _highlight;
@@ -123,6 +128,7 @@
         if (_focus && _search is not null)
         {
             _focus = false;
+            await Dom.InvokeVoidAsync("trapFocus", _box);
             await _search.FocusAsync();
         }
 
@@ -218,39 +224,20 @@
     {
         var entity = Presentation.ShownEntityNameOf(t.Ref);
         var front = entity is not null && Presentation.Names == ClrNameDisplay.Front;
-        return @<button id="palette-row-@rowIndex" class="table-item palette-row @(rowIndex == _highlight ? "highlight" : "") @(t.IsInvalid ? "invalid" : "")"
+        return @<button id="palette-row-@rowIndex" tabindex="-1" class="table-item palette-row @(rowIndex == _highlight ? "highlight" : "") @(t.IsInvalid ? "invalid" : "")"
                         title="@($"{t.Owner}.{t.Name}")" @onclick="() => Activate(row)" @onmouseenter="() => _highlight = rowIndex">
-                    @Icons.For(t.Kind)
-                    <span class="name"><Highlight Text="@(front ? entity! : t.DisplayName)" Search="_marks" /></span>
-                    @if (entity is not null)
-                    {
-                        <span class="clr-name"><Highlight Text="@(front ? t.DisplayName : entity)" Search="_marks" /></span>
-                    }
-                    @if (t.Synonym is not null)
-                    {
-                        <span class="kind-tag syn">SYN</span>
-                    }
-                    @if (t.Kind != TableKind.Table)
-                    {
-                        <span class="kind-tag">@(t.Kind == TableKind.View ? "VIEW" : "MVIEW")</span>
-                    }
+                    <ObjectItemContent Table="t" Entity="@entity" EntityFirst="front" Search="_marks" />
                 </button>;
     }
 
     private RenderFragment UnitRow(PaletteRow row, PlSqlObjectSummary u, int rowIndex) =>
-        @<button id="palette-row-@rowIndex" class="table-item palette-row @(rowIndex == _highlight ? "highlight" : "") @(u.IsInvalid ? "invalid" : "") @(u.IsDisabled ? "disabled-unit" : "")"
+        @<button id="palette-row-@rowIndex" tabindex="-1" class="table-item palette-row @(rowIndex == _highlight ? "highlight" : "") @(u.IsInvalid ? "invalid" : "") @(u.IsDisabled ? "disabled-unit" : "")"
                  title="@($"{u.Owner}.{u.Name}")" @onclick="() => Activate(row)" @onmouseenter="() => _highlight = rowIndex">
-            @Icons.For(u.Kind)
-            <span class="name"><Highlight Text="@u.DisplayName" Search="_marks" /></span>
-            @if (u.Synonym is not null)
-            {
-                <span class="kind-tag syn">SYN</span>
-            }
-            <span class="kind-tag">@ExplorerList.Tag(u.Kind)</span>
+            <ObjectItemContent Unit="u" Search="_marks" />
         </button>;
 
     private RenderFragment CommandRow(PaletteRow row, PaletteCommand c, int rowIndex) =>
-        @<button id="palette-row-@rowIndex" class="palette-row palette-command @(rowIndex == _highlight ? "highlight" : "") @(c.Unavailable is null ? "" : "unavailable")"
+        @<button id="palette-row-@rowIndex" tabindex="-1" class="palette-row palette-command @(rowIndex == _highlight ? "highlight" : "") @(c.Unavailable is null ? "" : "unavailable")"
                  title="@(c.Unavailable ?? c.Definition.Hint)" aria-disabled="@(c.Unavailable is null ? "false" : "true")"
                  @onclick="() => Activate(row)" @onmouseenter="() => _highlight = rowIndex">
             <span class="label"><Highlight Text="@c.Definition.Label" Search="_marks" /></span>

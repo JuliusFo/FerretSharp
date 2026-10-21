@@ -53,7 +53,7 @@ public sealed class DisplayLinksTests
         var reader = Substitute.For<ISchemaReader>();
         reader.GetTablesAsync(Owner, Arg.Any<CancellationToken>()).Returns(tables.Select(t => t.Table).ToList());
         reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns(SynonymTargets.None);
-        reader.GetForeignKeysAsync(Owner, Arg.Any<CancellationToken>()).Returns(ForeignKeys.Where(f => f.Source == FkSource.Declared).ToList());
+        reader.GetForeignKeysAsync(Arg.Is<IReadOnlyList<string>>(o => o.Contains(Owner)), Arg.Any<CancellationToken>()).Returns(ForeignKeys.Where(f => f.Source == FkSource.Declared).ToList());
         reader.GetDetailsAsync(Arg.Any<TableSummary>(), Arg.Any<CancellationToken>())
             .Returns(ci => tables.Single(t => t.Table == ci.Arg<TableSummary>()));
         var schema = new SchemaCache(reader, Owner);

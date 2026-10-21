@@ -29,11 +29,16 @@ internal sealed class WorkspaceSaver(
     }
 
     /// <summary>Saves the dirty workspaces after <see cref="WorkspaceManager.SaveDelay"/>; changes until then go along.</summary>
-    public void Schedule()
+    public void Schedule() => Schedule(WorkspaceManager.SaveDelay);
+
+    /// <summary>A failed save is tried again after this long by itself (a backup or virus scanner held the file).</summary>
+    public static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(30);
+
+    private void Schedule(TimeSpan delay)
     {
         lock (_lock)
         {
-            _timer ??= time.CreateTimer(_ => _ = FlushAsync(), null, WorkspaceManager.SaveDelay, Timeout.InfiniteTimeSpan);
+            _timer ??= time.CreateTimer(_ => _ = FlushAsync(), null, delay, Timeout.InfiniteTimeSpan);
         }
     }
 
@@ -91,6 +96,12 @@ internal sealed class WorkspaceSaver(
             {
                 Error = error;
                 errorChanged();
+            }
+
+            if (error is not null)
+            {
+                // Not only at the next change or on quitting (review 3.44.0, A21): a crash meanwhile lost the state.
+                Schedule(RetryDelay);
             }
         }
         finally

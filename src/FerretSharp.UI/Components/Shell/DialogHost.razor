@@ -59,7 +59,7 @@
 
 @if (Lifecycle.PendingLeave is { } leave)
 {
-    var busy = leave.WorkspaceIds.Where(Editing.IsBusy).ToList();
+    var busy = leave.WorkspaceIds.Where(Editing.HoldsSession).ToList();
     <LeaveDialog @key="leave" Request="leave" Busy="busy.Count > 0"
                  Items="@LeaveItems(leave)"
                  OnCommit="() => Lifecycle.LeaveAsync(commit: true)" OnDiscard="() => Lifecycle.LeaveAsync(commit: false)" OnCancel="Lifecycle.CancelLeave"
@@ -72,6 +72,21 @@
     <ConfirmDialog Title="@ShellText.Dialogs_ResetSessionTitle" ConfirmLabel="@SqlEditorText.Run_DisconnectSession" Danger="true"
                    OnConfirm="() => Lifecycle.ConfirmResetAsync(resetId)" OnCancel="Lifecycle.CancelConfirmation">
         <Fmt Text="@ShellText.Dialogs_ResetSessionText"><Arg0><strong>@Lifecycle.WorkspaceName(resetId)</strong></Arg0></Fmt>
+    </ConfirmDialog>
+}
+
+@* Review 3.44.0, A5: quitting (or the restart into an update) cancelled running exports without a word. *@
+@if (Lifecycle.ConfirmExitExports is { } exports)
+{
+    <ConfirmDialog Title="@ShellText.Dialogs_ExitExportsTitle" ConfirmLabel="@ShellText.Dialogs_ExitExportsConfirm" CancelLabel="@ShellText.Dialogs_ExitExportsKeep"
+                   Danger="true" OnConfirm="Lifecycle.ExitCancellingExportsAsync" OnCancel="Lifecycle.CancelExitExports">
+        <p>@ShellText.Dialogs_ExitExportsText</p>
+        <ul class="leave-list">
+            @foreach (var export in exports)
+            {
+                <li title="@export.Title"><strong>@export.Label</strong></li>
+            }
+        </ul>
     </ConfirmDialog>
 }
 

@@ -78,6 +78,9 @@
   <data name="ExportSkippedOne" xml:space="preserve">
     <value>{1} ({2}): {0} Wert nicht exportiert – {3}.</value>
   </data>
+  <data name="ExportFractionsCut" xml:space="preserve">
+    <value>{0} ({1}): Die Werte werden auf {2} Nachkommastellen gelesen – feinere Bruchteile fehlen im Export.</value>
+  </data>
   <data name="ExportSkippedOther" xml:space="preserve">
     <value>{1} ({2}): {0} Werte nicht exportiert – {3}.</value>
   </data>

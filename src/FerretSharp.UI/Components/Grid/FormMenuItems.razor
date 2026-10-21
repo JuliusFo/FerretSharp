@@ -1,0 +1,54 @@
+@* "Compare selected · N rows" or "As form" in a cell menu (WP-21, WP-56): one copy for the table's and the result's menu
+   (review 3.44.0, B1). *@
+@using FerretSharp.Core.Forms
+@inject ShortcutService Shortcuts
+
+@if (Count > 1)
+{
+    <button class="menu-item" disabled="@(Count > RowComparison.MaxRows)"
+            title="@(Count > RowComparison.MaxRows ? TextFormat.Format(GridText.GridMenu_CompareTooMany, RowComparison.MaxRows) : TextFormat.Format(GridText.GridMenu_CompareTitle, Shortcuts.Hint(ShortcutAction.ToggleForm)))"
+            @onclick="CompareAsync">
+        @GridText.GridMenu_CompareSelected <span class="ctx-meta">@ExportActions.RowsText(Count)</span>
+    </button>
+}
+else if (OffersForm)
+{
+    <button class="menu-item" title="@TextFormat.Format(GridText.GridMenu_AsFormTitle, Shortcuts.Hint(ShortcutAction.ToggleForm))" @onclick="OpenFormAsync">@GridText.GridMenu_AsForm</button>
+}
+
+@code {
+    /// <summary>The selected rows still loaded: the comparison needs their values.</summary>
+    [Parameter]
+    public int Count { get; set; }
+
+    /// <summary>The selected rows (grid indexes) handed to <see cref="OnCompare"/>.</summary>
+    [Parameter]
+    public IReadOnlyList<int>? Indexes { get; set; }
+
+    /// <summary>"As form" for a single row; false where the grid has no form.</summary>
+    [Parameter]
+    public bool OffersForm { get; set; } = true;
+
+    /// <summary>Closes the menu before the action.</summary>
+    [Parameter]
+    public EventCallback Close { get; set; }
+
+    [Parameter]
+    public EventCallback OnOpenForm { get; set; }
+
+    [Parameter]
+    public EventCallback<IReadOnlyList<int>> OnCompare { get; set; }
+
+    private async Task OpenFormAsync()
+    {
+        await Close.InvokeAsync();
+        await OnOpenForm.InvokeAsync();
+    }
+
+    private async Task CompareAsync()
+    {
+        var rows = Indexes ?? [];
+        await Close.InvokeAsync();
+        await OnCompare.InvokeAsync(rows);
+    }
+}

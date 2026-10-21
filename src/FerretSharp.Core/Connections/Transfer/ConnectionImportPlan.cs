@@ -135,8 +135,10 @@ public sealed class ImportRow
             return profile with
             {
                 Id = existing.Id,
-                Address = (profile.Address, existing.Address) is (TnsAliasAddress tns, TnsAliasAddress own) && own.TnsAdminPath is { } path
-                    ? tns with { TnsAdminPath = path }
+                // Also "none" – the environment's TNS_ADMIN (review 3.44.0, A30): a folder from the file decides where the saved
+                // password goes, a tnsnames.ora on a foreign share would name another listener.
+                Address = (profile.Address, existing.Address) is (TnsAliasAddress tns, TnsAliasAddress own)
+                    ? tns with { TnsAdminPath = own.TnsAdminPath }
                     : profile.Address,
                 DefaultSchema = imported.DefaultSchema ?? existing.DefaultSchema,
                 Group = imported.Group ?? existing.Group ?? fallbackGroup,

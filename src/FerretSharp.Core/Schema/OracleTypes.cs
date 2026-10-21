@@ -15,7 +15,8 @@ public enum ColumnTypeChange
 
     /// <summary>
     /// Works with any data but changes values without a word (review 3.40.0, A9): TIMESTAMP → DATE cuts the fractional
-    /// seconds, VARCHAR2 → CHAR pads with blanks. Committed at once like every DDL – the designer and the comparison warn.
+    /// seconds, VARCHAR2 → CHAR pads with blanks, CHAR → VARCHAR2 keeps the padding (review 3.44.0, A7). Committed at once
+    /// like every DDL – the designer and the comparison warn (<see cref="OracleTypes.ValueChangeOf"/> says how).
     /// </summary>
     ChangesValues,
 
@@ -27,6 +28,21 @@ public enum ColumnTypeChange
 
     /// <summary>Never with MODIFY (to or from a LOB, ORA-22858): a new column, copy the values, drop the old one.</summary>
     NotPossible,
+}
+
+/// <summary>What a type change does to the values that stay (<see cref="OracleTypes.ValueChangeOf"/>).</summary>
+public enum ValueChange
+{
+    None,
+
+    /// <summary>TIMESTAMP → DATE: the fractional seconds are cut.</summary>
+    CutsFractions,
+
+    /// <summary>To CHAR from variable text: every value is padded with blanks to the full length.</summary>
+    PadsWithBlanks,
+
+    /// <summary>From CHAR to variable text: every value keeps the blanks it was padded with.</summary>
+    KeepsBlanks,
 }
 
 /// <summary>What storing a value of one type in a column of another does (<see cref="OracleTypes.FitOf"/>).</summary>
@@ -298,11 +314,31 @@ public static partial class OracleTypes
             "text" when from.DataType is "NVARCHAR2" or "NCHAR" && to.DataType is "VARCHAR2" or "CHAR" => ColumnTypeChange.NeedsEmptyColumn,
             "text" or "raw" => (to.Length ?? 0) < (from.Length ?? 0) || (from.CharSemantics && !to.CharSemantics)
                 ? ColumnTypeChange.MayFailOnValues
-                : IsFixedChar(to.DataType) && !IsFixedChar(from.DataType) ? ColumnTypeChange.ChangesValues // padded with blanks
+                : ValueChangeOf(from, to) != ValueChange.None ? ColumnTypeChange.ChangesValues // padded with blanks, or keeps them
                 : ColumnTypeChange.Free,
             "number" => NumberChange(from, to),
             "datetime" => DateTimeChange(from.DataType, to.DataType),
             _ => ColumnTypeChange.NeedsEmptyColumn, // INTERVAL, object types …: not tried, so not promised
+        };
+    }
+
+    /// <summary>
+    /// What a change from <paramref name="from"/> to <paramref name="to"/> does to the values that stay – also when it may
+    /// fail on long values (VARCHAR2(20) → CHAR(10) pads what fits, review 3.44.0, A13).
+    /// </summary>
+    public static ValueChange ValueChangeOf(ColumnInfo from, ColumnInfo to)
+    {
+        ArgumentNullException.ThrowIfNull(from);
+        ArgumentNullException.ThrowIfNull(to);
+        return Family(from.DataType) switch
+        {
+            "datetime" when IsTimestamp(from.DataType) && to.DataType == "DATE" => ValueChange.CutsFractions,
+            // CHAR(1) holds no padding: a value is one character or NULL.
+            "text" when Family(to.DataType) == "text" && IsFixedChar(to.DataType) != IsFixedChar(from.DataType) =>
+                IsFixedChar(to.DataType)
+                    ? to.Length > 1 ? ValueChange.PadsWithBlanks : ValueChange.None
+                    : from.Length > 1 ? ValueChange.KeepsBlanks : ValueChange.None,
+            _ => ValueChange.None,
         };
     }
 

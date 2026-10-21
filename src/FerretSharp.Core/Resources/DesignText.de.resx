@@ -171,4 +171,7 @@
   <data name="TypeChangePads" xml:space="preserve">
     <value>{0}: {1} → {2} füllt jeden Wert mit Leerzeichen auf die volle Länge auf; Vergleiche mit VARCHAR2-Werten (Beziehungen, Filter) treffen danach womöglich nicht mehr.</value>
   </data>
+  <data name="TypeChangeKeepsBlanks" xml:space="preserve">
+    <value>{0}: {1} → {2} behält die Leerzeichen, mit denen jeder Wert aufgefüllt war; Vergleiche mit dem Text ohne sie (Beziehungen, Filter, EF Core) treffen danach nicht mehr – anschließend mit RTRIM kürzen.</value>
+  </data>
 </root>

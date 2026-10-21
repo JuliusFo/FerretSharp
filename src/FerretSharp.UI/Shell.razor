@@ -311,29 +311,7 @@
 
     private void OnLinkReceived() => Run(TakeLinks);
 
-    /// <summary>
-    /// Shows the newest waiting link for confirmation (older ones of a burst are dropped: one dialog at a time). While a link
-    /// is being confirmed, new ones wait (review 3.40.0, A25): replacing the dialog's content, a click on "Open" meant for
-    /// the link just read opened another one.
-    /// </summary>
-    private void TakeLinks()
-    {
-        if (_state.IncomingLink is not null)
-        {
-            return;
-        }
-
-        string? latest = null;
-        while (Links.TryTake(out var link))
-        {
-            latest = link;
-        }
-
-        if (latest is not null)
-        {
-            _state.ShowIncomingLink(IncomingLink.Read(latest, Connections.Profiles));
-        }
-    }
+    private void TakeLinks() => _state.TakeLinks(Links, Connections.Profiles);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

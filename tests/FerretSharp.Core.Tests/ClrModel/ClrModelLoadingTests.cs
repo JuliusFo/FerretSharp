@@ -95,7 +95,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
         console.IsAlive.Returns(true);
         console.Output.Returns(BuildOutputLocator.Find(_profile.ClrProject!));
         console.RunAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(new LinqRunResult([], [], [], [], name, null, TimeSpan.Zero));
+            .Returns(new LinqRunResult([], [], [], name, null, TimeSpan.Zero));
         return console;
     }
 
@@ -153,7 +153,7 @@ public sealed class ClrModelLoadingTests : IAsyncDisposable
                 ["KUNDEN"] = columns.Select((c, i) => new ColumnInfo(c, "NUMBER", null, false, 10, 0, false, false, null, i + 1)).ToList(),
             });
         var kunde = new EntityExport("Shop.Kunde", "Shop.Kunde", false, null, "KUNDEN", null, null, null,
-            [new PropertyExport("KundeId", "int", "int", false, false, "KUNDE_ID", null, null, null, false, null)], [], []);
+            [new PropertyExport("KundeId", "int", false, false, "KUNDE_ID", null, null, null, false, null)], [], []);
         _runner.ReadModelAsync(Arg.Any<ClrProjectLink>(), Arg.Any<BuildOutput>(), Arg.Any<CancellationToken>(), Arg.Any<IProgress<string>?>())
             .Returns(new ModelHostResult(new ModelExport(ModelExport.CurrentFormatVersion, "8.0.0", "Shop.Ctx", "options", null, [kunde]), null));
         await ConnectAsync();

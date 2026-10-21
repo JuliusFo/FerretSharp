@@ -231,4 +231,7 @@
   <data name="PadsWithBlanks" xml:space="preserve">
     <value>Läuft mit Daten durch, aber jeder Wert wird mit Leerzeichen auf die volle Länge aufgefüllt – Vergleiche mit VARCHAR2-Werten treffen danach womöglich nicht mehr.</value>
   </data>
+  <data name="KeepsBlanks" xml:space="preserve">
+    <value>Läuft mit Daten durch, aber jeder Wert behält die Leerzeichen, mit denen er aufgefüllt war – Vergleiche mit dem Text ohne sie treffen danach nicht mehr (anschließend RTRIM).</value>
+  </data>
 </root>

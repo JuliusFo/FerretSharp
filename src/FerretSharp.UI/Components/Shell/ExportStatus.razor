@@ -2,7 +2,7 @@
    or connection is shown. *@
 @implements IDisposable
 
-@foreach (var export in Shell.Exports.Running)
+@foreach (var export in Shell.BackgroundReads.Running)
 {
     <span class="item shrink" title="@export.Title">
         <span class="spinner small"></span> @export.Label · @RowsText(export)
@@ -14,19 +14,19 @@
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
 
-    private FileExports? _exports;
+    private BackgroundReads? _exports;
 
     protected override void OnParametersSet()
     {
-        if (!ReferenceEquals(_exports, Shell.Exports))
+        if (!ReferenceEquals(_exports, Shell.BackgroundReads))
         {
             Unsubscribe();
-            _exports = Shell.Exports;
+            _exports = Shell.BackgroundReads;
             _exports.Changed += OnChanged;
         }
     }
 
-    private static string RowsText(FileExport export) => export.Total is { } total
+    private static string RowsText(BackgroundRead export) => export.Total is { } total
         ? TextFormat.Format(ShellText.Status_ExportRowsOf, export.Rows, total)
         : ExportActions.RowsText(export.Rows);
 

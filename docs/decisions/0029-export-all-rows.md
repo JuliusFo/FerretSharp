@@ -30,3 +30,9 @@ Dazu kam A13 aus dem Gesamt-Review 3.40.0: Excel und CSV entstanden synchron im 
 - Während eines Exports warten die Seiten des Grids ohne Zeitgrenze. Nachschlagen und FK-Zählungen im selben Workspace haben eine und können während eines langen Exports hineinlaufen. Nach drei Zeitüberschreitungen in Folge schaltet ein Grid eine Anzeigespalte für den Tab ab (WP-31).
 - LOBs exportiert der Export weiterhin nur als Vorschau, mit Warnung (Entscheidung des Nutzers). Ausstehende, noch nicht geschriebene Änderungen und neue Zeilen sind nicht dabei; der Export der markierten Zeilen nimmt sie weiter mit.
 - Für Ergebnisse der LINQ-Konsole gibt es „alle Zeilen“ noch nicht (Backlog).
+
+## Nachtrag (Review 3.44.0)
+
+- WP-57 („alle Werte einer Spalte kopieren“) liest auf demselben Weg: `IDataAccess.ReadColumnAllAsync` (`QueryBuilder.BuildColumnValues`, auf Wunsch `SELECT DISTINCT`), in den `ReadOnlyTests` geführt wie die beiden anderen.
+- Ein Export hält die Session des Workspaces: Schreiben, Commit und Statements des Workspaces werden in der Zeit mit Hinweis abgelehnt (`WorkspaceEditing.RefusedByExport`), statt zu warten und nach 5 s wie eine hängende Verbindung auszusehen (A2). Beenden fragt vor dem Abbrechen laufender Exporte (A5).
+- Die Wiederholung im neuen Snapshot ist für beide Leser eine Regel (`OracleSession.ShouldRetry`, B2), getestet ohne Datenbank (C4).

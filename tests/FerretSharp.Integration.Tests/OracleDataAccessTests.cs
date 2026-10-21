@@ -189,6 +189,31 @@ public class OracleDataAccessTests(OracleContainerFixture oracle) : IAsyncLifeti
         Assert.Equal(RowCount, await CountAsync());
     }
 
+    /// <summary>
+    /// Review 3.44.0, C9: cancelling an export of all rows in the middle of its read – the cursor open, the token cancelled
+    /// on the way – ends in a cancel and leaves the session usable, also for the names looked up meanwhile.
+    /// </summary>
+    [Fact]
+    public async Task A_whole_read_cancelled_in_the_middle_leaves_the_session_usable()
+    {
+        using var cancel = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+        var blocks = 0;
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _data.ReadAllAsync(_grid, [], [], async (_, _, ct) =>
+        {
+            if (++blocks == 1)
+            {
+                await cancel.CancelAsync(); // the status bar's button
+            }
+
+            ct.ThrowIfCancellationRequested();
+            return true;
+        }, cancel.Token));
+
+        Assert.Equal(1, blocks);
+        Assert.Equal(RowCount, await CountAsync());
+    }
+
     [Fact]
     public async Task Names_are_looked_up_in_the_same_session_while_the_read_is_open()
     {

@@ -168,11 +168,14 @@ public interface ISchemaReader
     /// </summary>
     Task<IReadOnlyList<SourceHit>> SearchSourceAsync(string owner, string text, int limit, CancellationToken cancellationToken);
 
-    /// <summary>All declared foreign keys whose referencing table belongs to <paramref name="owner"/>.</summary>
-    Task<IReadOnlyList<ForeignKeyInfo>> GetForeignKeysAsync(string owner, CancellationToken cancellationToken);
+    /// <summary>
+    /// All declared foreign keys whose referencing table belongs to one of <paramref name="owners"/> – the schemas in one
+    /// round trip (review 3.44.0, A17: one each, one after the other, over the VPN).
+    /// </summary>
+    Task<IReadOnlyList<ForeignKeyInfo>> GetForeignKeysAsync(IReadOnlyList<string> owners, CancellationToken cancellationToken);
 
-    /// <summary>The primary keys of all tables of <paramref name="owner"/> (base tables of FK jumps).</summary>
-    Task<IReadOnlyList<PrimaryKeyInfo>> GetPrimaryKeysAsync(string owner, CancellationToken cancellationToken);
+    /// <summary>The primary keys of all tables of <paramref name="owners"/> (base tables of FK jumps), in one round trip.</summary>
+    Task<IReadOnlyList<PrimaryKeyInfo>> GetPrimaryKeysAsync(IReadOnlyList<string> owners, CancellationToken cancellationToken);
 
     Task<TableDetails> GetDetailsAsync(TableSummary table, CancellationToken cancellationToken);
 

@@ -656,6 +656,9 @@
     /// <summary>A loaded row with the tab's changes; null if its block is not (or no longer) loaded.</summary>
     public FormRow? RowAt(int rowIndex) => _blocks.At(rowIndex) is { } row ? new FormRow(row, Tab.Changes?.Find(row.Key)) : null;
 
+    /// <summary>The loaded rows once the last block was read (the new rows at the top not counted); null before.</summary>
+    public int? RowCount => Tab.AllRowsLoaded ? Tab.RowsLoaded : null;
+
     /// <summary>Grid index of a loaded row by its key (the form finds its row again after writing or reloading).</summary>
     public int? IndexOf(RowKey key) => _blocks.IndexOf(key);
 

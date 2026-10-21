@@ -18,6 +18,9 @@
   <data name="Editing_Busy" xml:space="preserve">
     <value>Changes of this workspace are being written or committed – try again once that is done.</value>
   </data>
+  <data name="Editing_ExportReading" xml:space="preserve">
+    <value>An export is reading through this workspace’s session ({0}) – wait for it, or cancel it in the status bar.</value>
+  </data>
   <data name="Editing_StatementRunning" xml:space="preserve">
     <value>A statement of this workspace is still running – wait for it or cancel it first; it would otherwise be committed or rolled back unseen.</value>
   </data>
@@ -394,6 +397,12 @@
   </data>
   <data name="Form_RowNotLoaded" xml:space="preserve">
     <value>The row is no longer loaded – select a row in the grid.</value>
+  </data>
+  <data name="Form_NoRows" xml:space="preserve">
+    <value>No rows to show.</value>
+  </data>
+  <data name="Form_PastLastRow" xml:space="preserve">
+    <value>The grid has fewer rows now – select a row in the grid.</value>
   </data>
   <data name="Form_ViewValue" xml:space="preserve">
     <value>View the whole value</value>
@@ -1258,6 +1267,9 @@
   <data name="ColumnValues_TooMany" xml:space="preserve">
     <value>More than {0:N0} values – nothing copied. For that many, save all rows as CSV or Excel.</value>
     <comment>Notice; {0}: 100000</comment>
+  </data>
+  <data name="ColumnValues_TooLong" xml:space="preserve">
+    <value>The values are longer than {0:N0} characters together – nothing copied. Better save them through “All rows” as CSV or Excel.</value>
   </data>
   <data name="ColumnValues_Cancelled" xml:space="preserve">
     <value>Copying the values of {0} cancelled.</value>

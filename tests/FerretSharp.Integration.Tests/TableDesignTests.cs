@@ -76,7 +76,7 @@ public sealed class TableDesignTests(OracleContainerFixture oracle) : IAsyncLife
     {
         await using var connection = await OpenAsync("Design fk index");
         var (details, indexes) = await ReadAsync(connection, "TD_AUFTRAG");
-        var foreignKeys = (await connection.Schema.GetForeignKeysAsync(Ref("TD_AUFTRAG").Owner, Ct)).Where(f => f.From == Ref("TD_AUFTRAG")).ToList();
+        var foreignKeys = (await connection.Schema.GetForeignKeysAsync([Ref("TD_AUFTRAG").Owner], Ct)).Where(f => f.From == Ref("TD_AUFTRAG")).ToList();
         var fk = Assert.Single(IndexAdvice.UnindexedForeignKeys(foreignKeys, indexes));
 
         var draft = IndexDesign.ForForeignKey(fk, indexes);
@@ -243,7 +243,7 @@ public sealed class TableDesignTests(OracleContainerFixture oracle) : IAsyncLife
         Assert.Contains(constraints, c => c is { Name: "CK_TD_ORT_NAME", Type: ConstraintType.Check });
         Assert.DoesNotContain(constraints, c => c.Name == "UK_TD_ORT");
         Assert.Contains(afterIndexes, i => i.Name == "IX_TD_ORT_LAND");
-        var fks = (await connection.Schema.GetForeignKeysAsync(after.Table.Owner, Ct)).Where(f => f.From == after.Table.Ref);
+        var fks = (await connection.Schema.GetForeignKeysAsync([after.Table.Owner], Ct)).Where(f => f.From == after.Table.Ref);
         Assert.Empty(IndexAdvice.UnindexedForeignKeys(fks, afterIndexes));
 
         await connection.Editor.ExecuteDdlAsync("DROP TABLE TD_ORT", Ct);

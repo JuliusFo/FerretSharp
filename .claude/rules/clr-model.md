@@ -15,7 +15,7 @@ Schicht und Begründung: ADR 0009/0010/0011/0016; Invariante „C#-Modell als ei
 - DB-first von Hand: erst die DB ändern, dann Entity/Konfiguration; keine Migrations. Namenskonvention im Code (Tabellen groß, `KundenId` → `KUNDEN_ID`), **eigene Value Converter** (bool ↔ J/N, Enum-Kürzel), Enum-Member mit `[Display(ResourceType = …, Name = …)]`. Ein DbContext in einer Klassenbibliothek (Konstruktor `DbContextOptions`), Entities in einem anderen Projekt, EF Core 8.
 - Pro Datenbank ein eigener Klon des DbContext-Repos auf dem passenden Branch (Prod-DB → release, Test-DB → test, Dev-DB → dev), jeweils als C#-Projekt der Verbindung verknüpft; entwickelt wird in einem weiteren Klon.
 - Größenordnung: 425 Entities, ~4000 Properties; ohne Cache braucht der ModelHost ~12 s (meist `OnModelCreating`). Beziehungen ohne FK-Constraint sind häufig.
-- Der Oracle-EF-Provider quotet alle Namen: Spalten mit gemischter Schreibweise im Modell (`Chargenr` gegen `CHARGENR`) ergeben ORA-00904.
+- Der Oracle-EF-Provider quotet alle Namen: Spalten mit gemischter Schreibweise im Modell (`Lieferdatum` gegen `LIEFERDATUM`) ergeben ORA-00904.
 - Kollegen nutzen auch `IDesignTimeDbContextFactory` oder `OnConfiguring` mit echtem Connection-String: Die LINQ-Konsole baut deren Optionen mit ihren Interceptors neu und prüft nach jedem Erzeugen, dass beide aktiv sind – sonst liefe `SaveChanges` echt gegen die DB (R5a, A1, ADR 0011; Test gegen `tests/FerretSharp.FakeEfModel`).
 
 ## Abgleich und Code

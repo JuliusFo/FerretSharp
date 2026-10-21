@@ -210,13 +210,30 @@ public sealed partial class OracleSession : IAsyncDisposable
         int lobPrefetch,
         CancellationToken cancellationToken)
     {
-        // Tripwire: ExecuteReader would run DML just as well, and without a transaction ODP.NET commits it at once.
+        GuardReadOnly(sql);
+        return await ReadInSnapshotAsync(_ => ReadCoreAsync(sql, parameters, read, cancellationToken, lobPrefetch), cancellationToken);
+    }
+
+    /// <summary>
+    /// Tripwire of every read: ExecuteReader would run DML just as well, and without a transaction ODP.NET commits it at once.
+    /// One place for the plain reader, the streaming reader and its nested reads (review 3.44.0, B2: it stood there three times).
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The statement is not a plain query (see <see cref="IsReadOnlyStatement"/>).</exception>
+    internal static void GuardReadOnly(string sql)
+    {
         if (!IsReadOnlyStatement(sql))
         {
             throw new InvalidOperationException("Only read-only queries (SELECT/WITH without FOR UPDATE) run this way.");
         }
+    }
 
-        return await ExclusiveAsync(async () =>
+    /// <summary>
+    /// Runs a read in the session's gate; in a locked session one the snapshot cannot serve is repeated in a new snapshot
+    /// (<see cref="ShouldRetry"/>). <paramref name="read"/> gets the <see cref="NestedReader"/> of its attempt – the plain
+    /// reader ignores it. One loop for both readers (review 3.44.0, B2).
+    /// </summary>
+    private Task<T> ReadInSnapshotAsync<T>(Func<NestedReader, Task<T>> read, CancellationToken cancellationToken) =>
+        ExclusiveAsync(async () =>
         {
             if (_readOnlySnapshots && _open is null)
             {
@@ -226,66 +243,15 @@ public sealed partial class OracleSession : IAsyncDisposable
 
             for (var attempt = 1; ; attempt++)
             {
-                try
-                {
-                    return await ReadCoreAsync(sql, parameters, read, cancellationToken, lobPrefetch);
-                }
-                catch (OracleStatementException ex) when (
-                    _readOnlySnapshots && attempt <= MaxSnapshotRetries && ex.Oracle is { } oracle && OracleErrorCodes.SnapshotUnusable.Contains(oracle.Number))
-                {
-                    // A snapshot taken within about a second of the DDL is still too old for it (ORA-01466).
-                    if (oracle.Number == OracleErrorCodes.DefinitionChanged)
-                    {
-                        await Task.Delay(TimeSpan.FromSeconds(attempt), cancellationToken);
-                    }
-
-                    await RestartSnapshotCoreAsync(cancellationToken);
-                }
-            }
-        }, cancellationToken);
-    }
-
-    /// <summary>
-    /// A query whose rows are handed on while it reads (the export of all rows, WP-54). Like
-    /// <see cref="ExecuteReaderAsync{T}(string, IReadOnlyList{QueryParameter}, Func{DbDataReader, CancellationToken, Task{T}}, int, CancellationToken)"/>
-    /// it is repeated in a new snapshot when the snapshot cannot serve it – but only until <paramref name="read"/> has passed
-    /// rows on (<see cref="NestedReader.HandingOn"/>): those cannot be taken back, so an unusable snapshot after that
-    /// (ORA-01555 after a long read) is reported. Meanwhile <paramref name="read"/> may run further queries on the same
-    /// connection through the <see cref="NestedReader"/> it gets – the session's gate is held by this call.
-    /// </summary>
-    /// <exception cref="InvalidOperationException">The statement is not a plain query (see <see cref="IsReadOnlyStatement"/>).</exception>
-    internal async Task<T> ExecuteStreamingReaderAsync<T>(
-        string sql,
-        IReadOnlyList<QueryParameter> parameters,
-        Func<DbDataReader, NestedReader, CancellationToken, Task<T>> read,
-        int lobPrefetch,
-        CancellationToken cancellationToken)
-    {
-        if (!IsReadOnlyStatement(sql))
-        {
-            throw new InvalidOperationException("Only read-only queries (SELECT/WITH without FOR UPDATE) run this way.");
-        }
-
-        return await ExclusiveAsync(async () =>
-        {
-            if (_readOnlySnapshots && _open is null)
-            {
-                await RestartSnapshotCoreAsync(cancellationToken);
-            }
-
-            for (var attempt = 1; ; attempt++)
-            {
                 var nested = new NestedReader(this);
                 try
                 {
-                    return await ReadCoreAsync(sql, parameters, (reader, ct) => read(reader, nested, ct), cancellationToken, lobPrefetch);
+                    return await read(nested);
                 }
-                catch (OracleStatementException ex) when (
-                    _readOnlySnapshots && !nested.HandedOn && attempt <= MaxSnapshotRetries
-                    && ex.Oracle is { } oracle && OracleErrorCodes.SnapshotUnusable.Contains(oracle.Number))
+                catch (OracleStatementException ex) when (ShouldRetry(_readOnlySnapshots, nested.HandedOn, attempt, ex.Oracle?.Number))
                 {
-                    // Nothing has left yet: as in ExecuteReaderAsync (ORA-01466 needs a snapshot a little younger than the DDL).
-                    if (oracle.Number == OracleErrorCodes.DefinitionChanged)
+                    // A snapshot taken within about a second of the DDL is still too old for it (ORA-01466).
+                    if (ex.Oracle!.Number == OracleErrorCodes.DefinitionChanged)
                     {
                         await Task.Delay(TimeSpan.FromSeconds(attempt), cancellationToken);
                     }
@@ -298,50 +264,14 @@ public sealed partial class OracleSession : IAsyncDisposable
                 }
             }
         }, cancellationToken);
-    }
 
     /// <summary>
-    /// Queries while the reader of <see cref="ExecuteStreamingReaderAsync{T}"/> is open (display names of an export, WP-54):
-    /// on the same connection, inside the gate that call holds – Oracle keeps several cursors of a session open. Valid only
-    /// while that call reads.
+    /// Whether a read that failed with <paramref name="oracleError"/> runs again in a new snapshot: only in a locked session,
+    /// only for the errors of an unusable snapshot, at most <see cref="MaxSnapshotRetries"/> times – and never once rows were
+    /// handed on (<paramref name="handedOn"/>): an export would write them a second time (review 3.44.0, C4).
     /// </summary>
-    internal sealed class NestedReader(OracleSession session)
-    {
-        private bool _ended;
-
-        /// <summary>The caller has passed rows on: from now on the query is not repeated in a new snapshot.</summary>
-        public bool HandedOn { get; private set; }
-
-        /// <summary>Called right before the caller passes rows on (<see cref="HandedOn"/>).</summary>
-        public void HandingOn() => HandedOn = true;
-
-        /// <exception cref="DatabaseException">The query failed (translated here: the gate translates only what leaves it).</exception>
-        public async Task<T> ReadAsync<T>(
-            string sql, IReadOnlyList<QueryParameter> parameters, Func<DbDataReader, CancellationToken, Task<T>> read, CancellationToken cancellationToken)
-        {
-            ObjectDisposedException.ThrowIf(_ended, this);
-            if (!IsReadOnlyStatement(sql))
-            {
-                throw new InvalidOperationException("Only read-only queries (SELECT/WITH without FOR UPDATE) run this way.");
-            }
-
-            var outer = session._running;
-            try
-            {
-                return await session.ReadCoreAsync(sql, parameters, read, cancellationToken);
-            }
-            catch (Exception ex) when (OracleErrors.Translate(ex) is { } translated)
-            {
-                throw translated;
-            }
-            finally
-            {
-                session._running = outer; // disposing the session cancels the streaming command again
-            }
-        }
-
-        internal void End() => _ended = true;
-    }
+    internal static bool ShouldRetry(bool readOnlySnapshots, bool handedOn, int attempt, int? oracleError) =>
+        readOnlySnapshots && !handedOn && attempt <= MaxSnapshotRetries && oracleError is { } number && OracleErrorCodes.SnapshotUnusable.Contains(number);
 
     /// <summary>
     /// Rolls back an open transaction first: nothing uncommitted may survive by accident. A running command (grid page,

@@ -9,7 +9,8 @@ namespace FerretSharp.Core.Query;
 
 /// <summary>
 /// Rows as an INSERT script – text only, FerretSharp never executes it (v1 has no write path). Values become Oracle
-/// literals that reproduce them exactly; LOBs that were only loaded as preview become NULL with a comment and a warning.
+/// literals that reproduce them as read: exactly, except a TIMESTAMP(8/9) to 100 ns (warned) and a time zone region as its
+/// offset. LOBs that were only loaded as preview become NULL with a comment and a warning.
 /// </summary>
 public static class InsertExport
 {
@@ -53,10 +54,10 @@ public static class InsertExport
         int or long or short => Convert.ToString(value, CultureInfo.InvariantCulture)!,
         double d => Binary("DOUBLE", double.IsNaN(d), double.IsInfinity(d) ? Math.Sign(d) : 0, d.ToString("R", CultureInfo.InvariantCulture) + "d"),
         float f => Binary("FLOAT", float.IsNaN(f), float.IsInfinity(f) ? Math.Sign(f) : 0, f.ToString("R", CultureInfo.InvariantCulture) + "f"),
-        DateTimeOffset dto => $"TO_TIMESTAMP_TZ('{dto.ToString("yyyy-MM-dd HH:mm:ss.fffffff zzz", CultureInfo.InvariantCulture)}', 'YYYY-MM-DD HH24:MI:SS.FF7 TZH:TZM')",
+        DateTimeOffset dto => warnings.Read(column, $"TO_TIMESTAMP_TZ('{dto.ToString("yyyy-MM-dd HH:mm:ss.fffffff zzz", CultureInfo.InvariantCulture)}', 'YYYY-MM-DD HH24:MI:SS.FF7 TZH:TZM')"),
         DateTime dt when ColumnCategories.Of(column) == ColumnCategory.Date =>
             $"TO_DATE('{dt.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)}', 'YYYY-MM-DD HH24:MI:SS')",
-        DateTime dt => $"TO_TIMESTAMP('{dt.ToString("yyyy-MM-dd HH:mm:ss.fffffff", CultureInfo.InvariantCulture)}', 'YYYY-MM-DD HH24:MI:SS.FF7')",
+        DateTime dt => warnings.Read(column, $"TO_TIMESTAMP('{dt.ToString("yyyy-MM-dd HH:mm:ss.fffffff", CultureInfo.InvariantCulture)}', 'YYYY-MM-DD HH24:MI:SS.FF7')"),
         bool b => b ? "TRUE" : "FALSE",
         byte[] bytes => $"HEXTORAW('{Convert.ToHexString(bytes)}')",
         string s when ColumnCategories.Of(column) == ColumnCategory.Interval =>
@@ -71,7 +72,11 @@ public static class InsertExport
         _ => Skipped(column, warnings, value.GetType().Name, DataText.ExportReasonTypeNotExported),
     };
 
-    /// <summary>N'…' for national character columns, so characters outside the database charset survive.</summary>
+    /// <summary>
+    /// N'…' for national character columns. Whether characters outside the database charset survive depends on the client
+    /// that runs the script: Oracle converts the statement text to the database charset first, unless the client replaces
+    /// N literals (ORA_NCHAR_LITERAL_REPLACE) – review 3.44.0, A18. The script is text for the user; FerretSharp binds values.
+    /// </summary>
     private static string Text(ColumnInfo column, string value) => OracleLiteral.Text(value, OracleTypes.IsNational(column.DataType));
 
     /// <param name="infinity">+1/-1 for ±infinity, otherwise 0.</param>

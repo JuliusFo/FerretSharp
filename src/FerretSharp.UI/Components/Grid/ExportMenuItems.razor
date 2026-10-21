@@ -123,7 +123,7 @@
     private Task SaveAllCsvAsync(AllRowsExport all)
     {
         var table = Table;
-        return Export.SaveAllRowsAsync(FileName + ".csv", GridText.Export_CsvFilter, all.Total, (stream, progress, ct) =>
+        return Export.SaveAllRowsAsync(FileName + ".csv", GridText.Export_CsvFilter, all.Total, all.WorkspaceId, (stream, progress, ct) =>
             RowExport.WriteAsync(all.Read, DelimitedExport.CreateWriter(stream, table), null, progress, ct));
     }
 
@@ -131,7 +131,7 @@
     private Task SaveAllXlsxAsync(AllRowsExport all, AllRowsExcel excel)
     {
         var name = FileName;
-        return Export.SaveAllRowsAsync(name + ".xlsx", GridText.Export_XlsxFilter, all.Total, async (stream, progress, ct) =>
+        return Export.SaveAllRowsAsync(name + ".xlsx", GridText.Export_XlsxFilter, all.Total, all.WorkspaceId, async (stream, progress, ct) =>
             await RowExport.WriteAsync(all.Read, await XlsxExport.CreateWriterAsync(stream, excel.Columns, name, null, ct), excel.Names, progress, ct));
     }
 }

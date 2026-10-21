@@ -153,8 +153,7 @@
     <comment>Why the SQL editor does not run a statement. {0} = first word of the statement, e.g. COMMIT</comment>
   </data>
   <data name="SqlRejectSessionControl" xml:space="preserve">
-    <value>ALTER SESSION/SYSTEM changes the workspace’s session and is not run.</value>
-    <comment>Why the SQL editor does not run a statement</comment>
+    <value>ALTER SESSION/SYSTEM/DATABASE changes the workspace’s session or the whole database and is not run.</value>
   </data>
   <data name="SqlRejectLock" xml:space="preserve">
     <value>LOCK TABLE is not run – FerretSharp only sets locks when editing.</value>

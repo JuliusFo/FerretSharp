@@ -3,7 +3,13 @@ paths:
   - "src/FerretSharp.Core/Oracle/**"
   - "src/FerretSharp.Core/Schema/**"
   - "src/FerretSharp.Core/Query/**"
-  - "src/FerretSharp.Core/Data/**"
+  - "src/FerretSharp.Core/Data/CellFormatter*"
+  - "src/FerretSharp.Core/Data/DataModel*"
+  - "src/FerretSharp.Core/Data/LobContent*"
+  - "src/FerretSharp.Core/Data/SessionActivity*"
+  - "src/FerretSharp.Core/Data/Snapshots*"
+  - "src/FerretSharp.Core/Data/TimedQuery*"
+  - "src/FerretSharp.Core/Data/ValueCulture*"
   - "tests/FerretSharp.Integration.Tests/**"
 ---
 

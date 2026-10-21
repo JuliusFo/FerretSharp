@@ -169,9 +169,17 @@ public static class ColumnChange
         var sql = OracleDdl.ModifyType(table, column, after);
         steps.Add(change switch
         {
-            ColumnTypeChange.MayFailOnValues => Step(table, DdlStepKind.ModifyType, sql, DdlRisk.MayFailOnValues, CompareText.MayFailOnData),
-            ColumnTypeChange.ChangesValues => Step(table, DdlStepKind.ModifyType, sql, DdlRisk.DataLoss,
-                OracleTypes.IsTimestamp(before.DataType) ? CompareText.CutsFractionalSeconds : CompareText.PadsWithBlanks),
+            // What fits is padded all the same (review 3.44.0, A13: the padding was not mentioned then).
+            ColumnTypeChange.MayFailOnValues => Step(table, DdlStepKind.ModifyType, sql, DdlRisk.MayFailOnValues,
+                OracleTypes.ValueChangeOf(before, after) == ValueChange.PadsWithBlanks
+                    ? CompareText.MayFailOnData + " " + CompareText.PadsWithBlanks
+                    : CompareText.MayFailOnData),
+            ColumnTypeChange.ChangesValues => Step(table, DdlStepKind.ModifyType, sql, DdlRisk.DataLoss, OracleTypes.ValueChangeOf(before, after) switch
+            {
+                ValueChange.CutsFractions => CompareText.CutsFractionalSeconds,
+                ValueChange.KeepsBlanks => CompareText.KeepsBlanks, // review 3.44.0, A7
+                _ => CompareText.PadsWithBlanks,
+            }),
             ColumnTypeChange.NeedsEmptyColumn => Step(table, DdlStepKind.ModifyType, sql, DdlRisk.NeedsEmptyColumn, CompareText.NeedsEmptyColumn),
             ColumnTypeChange.NotPossible => Step(table, DdlStepKind.ModifyType, sql, DdlRisk.NotExecutable, TextFormat.Format(CompareText.TypeChangeWarning, from, to)),
             _ => Step(table, DdlStepKind.ModifyType, sql),

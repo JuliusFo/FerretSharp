@@ -23,14 +23,19 @@ public sealed class CodeUsageOpener(ICodeEditorLauncher launcher, WorkClones wor
             return ModelViewText.Usage_NoSourceFile;
         }
 
-        var location = await Task.Run(() => Locate(use, link, group, cancellationToken), cancellationToken);
+        // The mapping of the solution reads the file system too (Git root, files): with the location off the render thread
+        // (review 3.44.0, A24).
+        var (location, vsSolution) = await Task.Run(() =>
+        {
+            var found = Locate(use, link, group, cancellationToken);
+            var workClone = workClones.ActiveFor(group);
+            return (found, found is null || solution is null ? null : WorkCloneMapping.MapSolution(solution, link.ProjectFile, found.InWorkClone ? workClone : null));
+        }, cancellationToken);
         if (location is null)
         {
             return TextFormat.Format(ModelViewText.Usage_FileMissing, use.Document);
         }
 
-        var workClone = workClones.ActiveFor(group);
-        var vsSolution = solution is null ? null : WorkCloneMapping.MapSolution(solution, link.ProjectFile, location.InWorkClone ? workClone : null);
         var result = await launcher.OpenAsync(settings.Current.CodeEditor, location.Path, location.ByType ? null : use.Line, vsSolution, cancellationToken);
         return result.Outcome switch
         {

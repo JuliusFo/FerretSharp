@@ -46,4 +46,11 @@ public static class ColumnCategories
 
     /// <summary>Fractional second digits of a TIMESTAMP(n) type (default 6).</summary>
     public static int FractionalDigits(ColumnInfo column) => column.Scale ?? 6;
+
+    /// <summary>Fractional second digits a <see cref="DateTime"/> holds (100 ns): TIMESTAMP values are read as one.</summary>
+    public const int ReadFractionalDigits = 7;
+
+    /// <summary>A TIMESTAMP(8) or (9): its values are read without their finest fractions (review 3.44.0, A12).</summary>
+    public static bool LosesFractionsWhenRead(ColumnInfo column) =>
+        Of(column) is ColumnCategory.Timestamp or ColumnCategory.TimestampWithTimeZone && FractionalDigits(column) > ReadFractionalDigits;
 }

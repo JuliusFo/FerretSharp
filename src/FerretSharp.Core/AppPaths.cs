@@ -7,17 +7,35 @@ public sealed class AppPaths
 {
     public const string AppFolderName = "FerretSharp";
 
-    public AppPaths(string root)
+    /// <param name="cacheRoot">Where caches go; <c>cache</c> below <paramref name="root"/> if null (<c>--data-dir</c>, tests).</param>
+    public AppPaths(string root, string? cacheRoot = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(root);
         Root = root;
+        CacheRoot = cacheRoot ?? Path.Combine(root, "cache");
     }
 
-    /// <summary>%APPDATA%\FerretSharp on Windows, ~/.config/FerretSharp on Linux.</summary>
+    /// <summary>
+    /// %APPDATA%\FerretSharp on Windows, ~/.config/FerretSharp on Linux; the caches in %LOCALAPPDATA%\FerretSharp\cache
+    /// (~/.local/share): a roaming profile would carry them along at every logon (review 3.44.0, A11).
+    /// </summary>
     public static AppPaths Default { get; } = new(
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppFolderName));
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppFolderName),
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppFolderName, "cache"));
 
     public string Root { get; }
+
+    /// <summary>Data that can be built again: exported models, code usage.</summary>
+    public string CacheRoot { get; }
+
+    /// <summary>
+    /// The caches' folder up to 3.44 (below <see cref="Root"/>, roaming), if the caches live elsewhere now; null otherwise.
+    /// Removed at start.
+    /// </summary>
+    public string? FormerCacheDirectory =>
+        Path.Combine(Root, "cache") is var former && !string.Equals(Path.GetFullPath(former), Path.GetFullPath(CacheRoot), StringComparison.OrdinalIgnoreCase)
+            ? former
+            : null;
 
     public string LogsDirectory => Path.Combine(Root, "logs");
 
@@ -30,10 +48,10 @@ public sealed class AppPaths
     public string SettingsFile => Path.Combine(Root, "settings.json");
 
     /// <summary>Exported C# models of linked projects, reused while their build is unchanged (WP-16).</summary>
-    public string ModelCacheDirectory => Path.Combine(Root, "cache", "models");
+    public string ModelCacheDirectory => Path.Combine(CacheRoot, "models");
 
     /// <summary>What the IL scanner read from each assembly of a linked solution, one file per MVID (WP-40).</summary>
-    public string CodeUsageCacheDirectory => Path.Combine(Root, "cache", "code-usage");
+    public string CodeUsageCacheDirectory => Path.Combine(CacheRoot, "code-usage");
 
     /// <summary>The active work clone of each connection group and the recently chosen folders (WP-40).</summary>
     public string WorkClonesFile => Path.Combine(Root, "work-clones.json");

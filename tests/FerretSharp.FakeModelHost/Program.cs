@@ -62,7 +62,7 @@ while (await reader.ReadLineAsync() is { } line)
             await Task.Delay(Timeout.Infinite);
             break;
         default:
-            await SendAsync(new LinqResponse(request.Id, new LinqRunResult([], [], [], [new CapturedCommand(LinqProtocol.Reader, "SELECT 1 FROM DUAL", [])],
+            await SendAsync(new LinqResponse(request.Id, new LinqRunResult([], [], [new CapturedCommand(LinqProtocol.Reader, "SELECT 1 FROM DUAL", [])],
                 "List<int>", null, TimeSpan.FromMilliseconds(3))));
             break;
     }

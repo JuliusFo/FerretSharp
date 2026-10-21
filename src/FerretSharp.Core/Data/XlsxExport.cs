@@ -153,6 +153,7 @@ public static class XlsxExport
             return AsText(column, value, warnings);
         }
 
+        warnings.Read(column, "");
         return isDate ? (new Cell(value, styles.Date), 19) : (new Cell(value, styles.Timestamp), 23);
     }
 

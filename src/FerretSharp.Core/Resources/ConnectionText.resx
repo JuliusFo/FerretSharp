@@ -128,8 +128,8 @@
   <data name="Step_ReadingPlSql" xml:space="preserve">
     <value>Reading PL/SQL objects</value>
   </data>
-  <data name="Step_ReadingForeignKeys" xml:space="preserve">
-    <value>Reading foreign keys of {0} ({1} of {2})</value>
+  <data name="Step_ReadingKeys" xml:space="preserve">
+    <value>Reading keys and foreign keys of {0}</value>
     <comment>{0} = schema name, {1} = number of this schema, {2} = number of schemas</comment>
   </data>
   <data name="Step_RestoringWorkspaces" xml:space="preserve">

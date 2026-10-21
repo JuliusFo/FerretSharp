@@ -177,13 +177,13 @@ internal sealed class LinqConsole
         if (suggestions.Count > 0)
         {
             var others = analysis.Diagnostics.Where(d => d.Id != "CS0103").Select(d => Map(d, analysis.Layout)).OfType<LinqDiagnostic>().ToList();
-            return new LinqRunResult(others, suggestions, auto, [], null, null, watch.Elapsed);
+            return new LinqRunResult(others, suggestions, [], null, null, watch.Elapsed);
         }
 
         var diagnostics = analysis.Diagnostics.Select(d => Map(d, analysis.Layout)).OfType<LinqDiagnostic>().ToList();
         if (diagnostics.Any(d => d.Severity == "error"))
         {
-            return new LinqRunResult(diagnostics, [], auto, [], null, null, watch.Elapsed);
+            return new LinqRunResult(diagnostics, [], [], null, null, watch.Elapsed);
         }
 
         using var timeout = new CancellationTokenSource(RunTimeout);
@@ -209,7 +209,7 @@ internal sealed class LinqConsole
             exception = Describe(ex);
         }
 
-        return new LinqRunResult(diagnostics, [], auto, _capture.Stop(), resultType, exception, watch.Elapsed);
+        return new LinqRunResult(diagnostics, [], _capture.Stop(), resultType, exception, watch.Elapsed);
     }
 
     /// <summary>

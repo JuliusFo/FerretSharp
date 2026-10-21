@@ -15,7 +15,6 @@ public sealed class WorkClones(string filePath, TimeProvider? timeProvider = nul
 
     public const int MaxRecent = 20;
 
-    private static readonly StringComparer GroupComparer = StringComparer.CurrentCultureIgnoreCase;
 
     private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
     private readonly SemaphoreSlim _gate = new(1, 1);
@@ -30,7 +29,7 @@ public sealed class WorkClones(string filePath, TimeProvider? timeProvider = nul
     public string? ActiveFor(string? group)
     {
         var key = ConnectionSearch.NormalizeGroup(group);
-        return _active.FirstOrDefault(a => key is null ? a.Group is null : a.Group is not null && GroupComparer.Equals(a.Group, key))?.Path;
+        return _active.FirstOrDefault(a => ConnectionSearch.SameGroupKey(a.Group, key))?.Path;
     }
 
     /// <summary>Recently chosen folders that still exist, most recent first.</summary>
@@ -47,7 +46,7 @@ public sealed class WorkClones(string filePath, TimeProvider? timeProvider = nul
             _active = (read.Document?.Active ?? []).OfType<Active>()
                 .Where(a => !string.IsNullOrWhiteSpace(a.Path))
                 .Select(a => a with { Group = ConnectionSearch.NormalizeGroup(a.Group) })
-                .DistinctBy(a => a.Group ?? "", GroupComparer)
+                .DistinctBy(a => a.Group ?? "", ConnectionSearch.GroupNameComparer)
                 .ToList();
             _recent = (read.Document?.Recent ?? []).OfType<RecentFolder>()
                 .Where(r => !string.IsNullOrWhiteSpace(r.Path))
@@ -66,15 +65,20 @@ public sealed class WorkClones(string filePath, TimeProvider? timeProvider = nul
     /// Makes <paramref name="path"/> the group's work clone and puts it first in the recent folders; null = none (the
     /// linked clone is used).
     /// </summary>
-    public async Task SetActiveAsync(string? group, string? path, CancellationToken cancellationToken)
+    /// <returns>
+    /// False if the file could not be written (a backup or sync held it): the choice applies all the same, until quitting –
+    /// as <c>recent.json</c> (review 3.44.0, A22: it ended in "unexpected error").
+    /// </returns>
+    public async Task<bool> SetActiveAsync(string? group, string? path, CancellationToken cancellationToken)
     {
+        bool saved;
         await _gate.WaitAsync(cancellationToken);
         try
         {
             var key = ConnectionSearch.NormalizeGroup(group);
             var full = path is null ? null : Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
             var active = _active
-                .Where(a => !(key is null ? a.Group is null : a.Group is not null && GroupComparer.Equals(a.Group, key)))
+                .Where(a => !ConnectionSearch.SameGroupKey(a.Group, key))
                 .ToList();
             if (full is not null)
             {
@@ -88,9 +92,17 @@ public sealed class WorkClones(string filePath, TimeProvider? timeProvider = nul
                     .Take(MaxRecent)
                     .ToList();
 
+            saved = true;
             if (!_keepFile)
             {
-                await AtomicJsonFile.WriteAsync(filePath, new Document(CurrentVersion, active, recent), JsonFiles.Options, cancellationToken);
+                try
+                {
+                    await AtomicJsonFile.WriteAsync(filePath, new Document(CurrentVersion, active, recent), JsonFiles.Options, cancellationToken);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    saved = false;
+                }
             }
 
             _active = active;
@@ -102,6 +114,7 @@ public sealed class WorkClones(string filePath, TimeProvider? timeProvider = nul
         }
 
         Changed?.Invoke();
+        return saved;
     }
 
     /// <param name="Group">The connection group as the lists show it (trimmed); null for connections without one.</param>

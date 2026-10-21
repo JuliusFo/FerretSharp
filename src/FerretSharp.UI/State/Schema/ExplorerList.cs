@@ -43,15 +43,9 @@ public static class ExplorerList
     public static IReadOnlyList<(ExplorerSection Section, int Count)> OtherHits(ExplorerSection shown, bool separateViews, Func<ExplorerSection, int> count) =>
         [.. Sections(separateViews).Where(s => s != shown).Select(s => (s, count(s))).Where(hit => hit.Item2 > 0)];
 
-    /// <summary>
-    /// The query is empty, or each of its words is in one of the names (<see cref="TextSearch"/>; R5b: the whole query in one
-    /// name, accents counted).
-    /// </summary>
-    public static bool Matches(string query, params ReadOnlySpan<string?> names) => new TextSearch(query).Matches(names);
-
-    /// <summary>The PL/SQL units the query finds: by the name shown and the real name.</summary>
+    /// <summary>The PL/SQL units the query finds: by the name shown and the real name, as the quick open (<see cref="ObjectSearch"/>).</summary>
     public static IEnumerable<PlSqlObjectSummary> Filter(IEnumerable<PlSqlObjectSummary> units, string query) =>
-        units.Where(u => Matches(query, u.DisplayName, u.Name));
+        units.Where(u => ObjectSearch.Matches(u, query));
 
     public static char KeyOf(string name) => name.Length > 0 && name[0] is >= 'A' and <= 'Z' ? name[0] : Other;
 
@@ -76,6 +70,14 @@ public static class ExplorerList
     private static int SortKey(char letter) => letter == Other ? int.MaxValue : letter;
 
     /// <summary>Short tag in the list, like VIEW/MVIEW for tables.</summary>
+    /// <summary>The kind tag of a view; null for a table.</summary>
+    public static string? Tag(TableKind kind) => kind switch
+    {
+        TableKind.View => "VIEW",
+        TableKind.MaterializedView => "MVIEW",
+        _ => null,
+    };
+
     public static string Tag(PlSqlKind kind) => kind switch
     {
         PlSqlKind.Package => "PKG",

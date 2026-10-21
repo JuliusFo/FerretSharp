@@ -29,8 +29,11 @@ public sealed class ColumnValues(ExportColumn column, ColumnValuesFormat format)
     /// <summary>More values than this are not copied: the export as CSV or Excel is the way for them.</summary>
     public const int MaxValues = 100_000;
 
-    /// <summary>Fractional second digits a <see cref="DateTime"/> holds (100 ns): TIMESTAMP values are read as one.</summary>
-    private const int DateTimeFractionalDigits = 7;
+    /// <summary>
+    /// Nor a text longer than this (review 3.44.0, A16): 100,000 long texts would fill hundreds of MB in memory and on the
+    /// clipboard.
+    /// </summary>
+    public const int MaxCharacters = 20_000_000;
 
     private readonly StringBuilder _text = new();
     private readonly ExportWarnings _warnings = new();
@@ -51,8 +54,11 @@ public sealed class ColumnValues(ExportColumn column, ColumnValuesFormat format)
     /// <summary>Values collected so far (for an IN list: distinct ones).</summary>
     public int Count { get; private set; }
 
-    /// <summary>There were more than <see cref="MaxValues"/> values.</summary>
+    /// <summary>There were more than <see cref="MaxValues"/> values, or more than <see cref="MaxCharacters"/> characters.</summary>
     public bool TooMany { get; private set; }
+
+    /// <summary>It was the characters (<see cref="MaxCharacters"/>), not the number of values.</summary>
+    public bool TooLong { get; private set; }
 
     /// <returns>False once there are more than <see cref="MaxValues"/> values: stop reading.</returns>
     public bool Add(object? value)
@@ -68,6 +74,13 @@ public sealed class ColumnValues(ExportColumn column, ColumnValuesFormat format)
             {
                 _nulls++;
                 return true;
+            }
+
+            // Without the CHAR padding (review 3.44.0, A8): it finds the rows in its own column all the same (blank-padded
+            // comparison), and in a VARCHAR2 column too – a relationship without a constraint, as FkNavigation.FilterValue.
+            if (value is string text && OracleTypes.IsFixedChar(column.Column.DataType) && text.TrimEnd(' ') is { Length: > 0 } trimmed)
+            {
+                value = trimmed;
             }
 
             var literal = InsertExport.Literal(column.Column, value, _warnings);
@@ -122,7 +135,7 @@ public sealed class ColumnValues(ExportColumn column, ColumnValuesFormat format)
             throw new InvalidOperationException("Too many values to copy.");
         }
 
-        var warnings = _warnings.ToList();
+        var warnings = _warnings.ToList(fractions: format != ColumnValuesFormat.InList);
         if (format == ColumnValuesFormat.InList)
         {
             if (_nulls > 0)
@@ -133,10 +146,9 @@ public sealed class ColumnValues(ExportColumn column, ColumnValuesFormat format)
             }
 
             // TIMESTAMP(8) and (9) are read as DateTime: a literal of a value with finer fractions does not find its row.
-            if (Count > 0 && ColumnCategories.Of(column.Column) is ColumnCategory.Timestamp or ColumnCategory.TimestampWithTimeZone
-                          && ColumnCategories.FractionalDigits(column.Column) > DateTimeFractionalDigits)
+            if (Count > 0 && ColumnCategories.LosesFractionsWhenRead(column.Column))
             {
-                warnings.Add(TextFormat.Format(QueryText.ColumnValuesFractionsCut, column.Column.DataType, DateTimeFractionalDigits));
+                warnings.Add(TextFormat.Format(QueryText.ColumnValuesFractionsCut, column.Column.DataType, ColumnCategories.ReadFractionalDigits));
             }
 
             if (Count > QueryBuilder.MaxInListSize)
@@ -150,9 +162,10 @@ public sealed class ColumnValues(ExportColumn column, ColumnValuesFormat format)
 
     private bool Counted()
     {
-        if (Count == MaxValues)
+        if (Count == MaxValues || _text.Length > MaxCharacters)
         {
             TooMany = true;
+            TooLong = Count < MaxValues;
             _text.Clear();
             return false;
         }

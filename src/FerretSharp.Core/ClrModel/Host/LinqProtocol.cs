@@ -57,14 +57,12 @@ public sealed record LinqCompletionItem(string Label, string InsertText, string 
 
 /// <param name="Diagnostics">Compiler errors and warnings, positioned in the user's sections.</param>
 /// <param name="UnknownNames">Names the code uses but nobody declares, with a suggested declaration; the code did not run.</param>
-/// <param name="AutoDeclared">Names FerretSharp declared itself (the context, a cancellation token): <c>_context</c>, <c>ct</c>.</param>
 /// <param name="Commands">The commands EF would have sent, in order; none ran.</param>
 /// <param name="ResultType">C# type of what the code returned (<c>List&lt;Kunde&gt;</c>, <c>int</c>); null without a value.</param>
 /// <param name="Exception">What the code threw; after captured commands usually only EF reacting to the empty result.</param>
 public sealed record LinqRunResult(
     IReadOnlyList<LinqDiagnostic> Diagnostics,
     IReadOnlyList<LinqUnknownName> UnknownNames,
-    IReadOnlyList<string> AutoDeclared,
     IReadOnlyList<CapturedCommand> Commands,
     string? ResultType,
     string? Exception,
@@ -80,8 +78,7 @@ public sealed record LinqRunResult(
 public sealed record LinqDiagnostic(string Section, int Line, int Column, int EndLine, int EndColumn, string Severity, string Id, string Message);
 
 /// <param name="Declaration">A declaration to add to the variables, e.g. <c>int customerId = 0;</c>.</param>
-/// <param name="TypeKnown">Whether the type comes from how the name is used (otherwise the user has to fill it in).</param>
-public sealed record LinqUnknownName(string Name, string Declaration, bool TypeKnown);
+public sealed record LinqUnknownName(string Name, string Declaration);
 
 /// <param name="Kind"><see cref="LinqProtocol.Reader"/>, <see cref="LinqProtocol.NonQuery"/> or <see cref="LinqProtocol.Scalar"/>.</param>
 public sealed record CapturedCommand(string Kind, string Sql, IReadOnlyList<CapturedParameter> Parameters);

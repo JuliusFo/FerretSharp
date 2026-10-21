@@ -769,16 +769,28 @@
     <value>Eingebaute Vorlage</value>
   </data>
   <data name="Leave_Busy" xml:space="preserve">
-    <value>Ein Schreiben oder Commit dieser Workspaces läuft noch. Abwarten – oder, wenn es nicht zurückkommt (VPN, Firewall), die Session trennen.</value>
+    <value>Ein Schreiben, Commit oder Statement dieser Workspaces läuft noch. Abwarten – oder, wenn es nicht zurückkommt (VPN, Firewall), die Session trennen.</value>
   </data>
   <data name="Dialogs_ResetSessionTitle" xml:space="preserve">
     <value>Session trennen?</value>
+  </data>
+  <data name="Dialogs_ExitExportsTitle" xml:space="preserve">
+    <value>Exporte laufen noch</value>
+  </data>
+  <data name="Dialogs_ExitExportsText" xml:space="preserve">
+    <value>Beenden bricht sie ab; eine unfertige Datei wird nicht behalten:</value>
+  </data>
+  <data name="Dialogs_ExitExportsConfirm" xml:space="preserve">
+    <value>Exporte abbrechen und beenden</value>
+  </data>
+  <data name="Dialogs_ExitExportsKeep" xml:space="preserve">
+    <value>Weiter exportieren</value>
   </data>
   <data name="Dialogs_ResetSessionText" xml:space="preserve">
     <value>Das Schreiben bzw. der Commit von {0} kommt nicht zurück. Session trennen beendet es: Was in der Transaktion geschrieben wurde, wird zurückgerollt, Grid-Änderungen werden wieder ausstehend. War ein Commit schon unterwegs, danach prüfen, ob er angekommen ist.</value>
   </data>
   <data name="Status_StuckTitle" xml:space="preserve">
-    <value>Das Schreiben bzw. der Commit kommt seit einer Weile nicht zurück – die Verbindung hängt vielleicht (VPN, Firewall). Die Session des Workspaces zu trennen beendet es.</value>
+    <value>Das Schreiben, der Commit bzw. das Statement kommt seit einer Weile nicht zurück – die Verbindung hängt vielleicht (VPN, Firewall). Die Session des Workspaces zu trennen beendet es.</value>
   </data>
   <data name="Changes_OtherCountsOne" xml:space="preserve">
     <value>{1} ausstehend · {0} Aktion offen</value>
@@ -872,6 +884,9 @@
   </data>
   <data name="WorkClone_Missing" xml:space="preserve">
     <value>den Ordner gibt es nicht mehr</value>
+  </data>
+  <data name="WorkClone_NotSaved" xml:space="preserve">
+    <value>Der Arbeits-Klon gilt ab jetzt, ließ sich aber nicht speichern – beim Beenden ist er wieder weg.</value>
   </data>
   <data name="WorkClone_ProjectMissing" xml:space="preserve">
     <value>enthält das C#-Projekt der Verbindung nicht am selben Pfad</value>

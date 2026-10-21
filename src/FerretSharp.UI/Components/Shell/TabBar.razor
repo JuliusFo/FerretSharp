@@ -304,7 +304,7 @@
     private string TabTooltip(TableTab tab)
     {
         var filters = tab.FilterTexts(PresentationOf(tab)).ToList();
-        var entity = Presentations.ShownEntityNameOf(tab.Table.Ref) is { } name ? $" · Entity {name}" : "";
+        var entity = Presentations.ShownEntityNameOf(tab.Table.Ref) is { } name ? " · " + TextFormat.Format(SchemaViewText.Explorer_EntityTooltip, name) : "";
         return $"{tab.Table.Owner}.{tab.Table.Name}{entity}" + (filters.Count > 0 ? Environment.NewLine + string.Join(Environment.NewLine, filters) : "");
     }
 

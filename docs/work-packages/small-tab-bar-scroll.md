@@ -1,4 +1,4 @@
-# Klein: Tab-Leiste scrollt mit Mausrad und schmaler Scrollbar → Release offen
+# Klein: Tab-Leiste scrollt mit Mausrad und schmaler Scrollbar → Release 3.44.0
 Anlass (2026-10-21): Bugreport eines Kollegen – bei vielen offenen Tabs liefen sie über den rechten Rand, ohne dass man hinkam. Die Leiste konnte seit dem ersten Tab-Commit (`d54f948`) scrollen (`overflow-x: auto`), die Scrollbar war aber auf Höhe 0 versteckt (ohne festgehaltenen Grund, vermutlich Optik), und das normale Mausrad scrollt nur senkrecht – erreichbar war der Rest nur mit Shift+Rad. Branch `fix/tab-bar-scroll`.
 
 Entscheidungen des Nutzers:

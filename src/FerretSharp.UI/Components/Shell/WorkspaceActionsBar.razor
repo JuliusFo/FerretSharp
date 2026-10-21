@@ -33,15 +33,14 @@
 
     protected override void OnParametersSet()
     {
-        if (Editing.BusySince(Workspace.WorkspaceId) is { } since && !Editing.IsStuck(Workspace.WorkspaceId) && _stuck is null)
+        if (Editing.StuckIn(Workspace.WorkspaceId) is { } due && due > TimeSpan.Zero && _stuck is null)
         {
-            var due = since + WorkspaceEditing.StuckAfter - DateTimeOffset.Now;
             _stuck = new Timer(_ => Fire(() =>
             {
                 _stuck?.Dispose();
                 _stuck = null;
                 StateHasChanged();
-            }), null, due > TimeSpan.Zero ? due : TimeSpan.Zero, Timeout.InfiniteTimeSpan);
+            }), null, due, Timeout.InfiniteTimeSpan);
         }
     }
 

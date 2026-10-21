@@ -111,15 +111,60 @@ public sealed partial class WorkspaceLifecycle
         });
     }
 
-    /// <summary>Quitting with uncommitted work in any open connection asks first (the window's closing handler, <see cref="ExitGuard"/>).</summary>
-    public bool CanExit => editing.WithWork().All(w => IsLost(w.WorkspaceId));
+    /// <summary>
+    /// Quitting with uncommitted work in any open connection, or while exports run (review 3.44.0, A5), asks first (the
+    /// window's closing handler, <see cref="ExitGuard"/>).
+    /// </summary>
+    public bool CanExit => shell.BackgroundReads.Running.Count == 0 && editing.WithWork().All(w => IsLost(w.WorkspaceId));
 
-    public Task RequestExitAsync(Action approve) =>
+    /// <summary>Asking before quitting while these exports run: they would be cancelled (review 3.44.0, A5).</summary>
+    public IReadOnlyList<BackgroundRead>? ConfirmExitExports { get; private set; }
+
+    private Action? _approveExit;
+
+    public Task RequestExitAsync(Action approve)
+    {
+        if (shell.BackgroundReads.Running is { Count: > 0 } running)
+        {
+            (ConfirmExitExports, _approveExit) = (running.ToList(), approve);
+            shell.NotifyChanged();
+            return Task.CompletedTask;
+        }
+
+        return GuardExitAsync(approve);
+    }
+
+    private Task GuardExitAsync(Action approve) =>
         GuardAsync(ShellText.Lifecycle_ExitWhat, shell.AllWorkspaces, () =>
         {
             approve();
             return Task.CompletedTask;
         });
+
+    /// <summary>
+    /// "Cancel exports and quit": cancels them and waits a moment for their temporary files to go (a read hanging on the VPN
+    /// is not waited for), then asks about uncommitted work as usual.
+    /// </summary>
+    public async Task ExitCancellingExportsAsync()
+    {
+        if (_approveExit is not { } approve)
+        {
+            return;
+        }
+
+        CancelExitExports();
+        await shell.BackgroundReads.CancelAllAsync(ExportsCancelWait);
+        await GuardExitAsync(approve); // an export still hanging is not asked about again
+    }
+
+    /// <summary>How long quitting waits for cancelled exports to end.</summary>
+    internal static readonly TimeSpan ExportsCancelWait = TimeSpan.FromSeconds(3);
+
+    public void CancelExitExports()
+    {
+        (ConfirmExitExports, _approveExit) = (null, null);
+        shell.NotifyChanged();
+    }
 
     private IReadOnlyList<WorkspaceTabs> WorkspacesOf(ConnectionScope scope) => shell.AllWorkspaces.Where(w => w.ConnectionId == scope.Id).ToList();
 

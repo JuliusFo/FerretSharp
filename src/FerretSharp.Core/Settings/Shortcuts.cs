@@ -121,7 +121,7 @@ public sealed class ShortcutMap
     [
         new(SettingsText.GroupData, SettingsText.FixedCopyValue, "Ctrl+C", SettingsText.HintInGrid),
         new(SettingsText.GroupData, SettingsText.FixedMarkForDeletion, KeyChord.Parse("delete")!.Label, SettingsText.HintInGrid),
-        new(SettingsText.GroupData, SettingsText.FixedExtendSelection, Labels("shift+arrowup", "shift+arrowdown"), SettingsText.HintInGrid),
+        new(SettingsText.GroupData, SettingsText.FixedExtendSelection, Labels("shift+arrowup", "shift+arrowdown", "shift+pageup", "shift+pagedown"), SettingsText.HintInGrid),
         new(SettingsText.GroupData, SettingsText.FixedSelectToEdge, Labels("shift+home", "shift+end", "ctrl+shift+arrowup", "ctrl+shift+arrowdown"),
             SettingsText.HintInGrid),
         new(SettingsText.GroupData, SettingsText.FixedToggleRow, Labels("space"), SettingsText.HintInGrid),
@@ -175,11 +175,16 @@ public sealed class ShortcutMap
     /// What the grid does with a key itself (<c>grid.js</c>), for an action caught in the grid: the action comes first and
     /// takes the key from it. Ctrl+C is the exception – the grid's copy comes first, an action would never get it.
     /// </summary>
+    /// <remarks>
+    /// Review 3.44.0, A34: also the jumps to the first or last row the selection builds on. Keys without Ctrl or Alt cannot be
+    /// given to an action at all (<see cref="SettingsText.NeedsCtrlOrAlt"/>).
+    /// </remarks>
     private static string? TakenFromGrid(string combo) => combo switch
     {
         "ctrl+a" => SettingsText.FixedSelectAllRows,
         "ctrl+space" => SettingsText.FixedToggleRow,
         "ctrl+shift+arrowup" or "ctrl+shift+arrowdown" => SettingsText.FixedSelectToEdge,
+        "ctrl+arrowup" or "ctrl+arrowdown" or "ctrl+home" or "ctrl+end" => SettingsText.GridJumpToEdge,
         _ => null,
     };
 

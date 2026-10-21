@@ -60,7 +60,7 @@ public class OracleSchemaReaderTests(OracleContainerFixture oracle) : IAsyncLife
     [Fact]
     public async Task Reads_simple_and_composite_foreign_keys()
     {
-        var fks = (await Reader.GetForeignKeysAsync(_owner, Ct)).ToDictionary(f => f.Name);
+        var fks = (await Reader.GetForeignKeysAsync([_owner], Ct)).ToDictionary(f => f.Name);
 
         var simple = fks["FK_AUFTRAG_KUNDE"];
         Assert.Equal(new TableRef(_owner, "AUFTRAG"), simple.From);
@@ -77,7 +77,7 @@ public class OracleSchemaReaderTests(OracleContainerFixture oracle) : IAsyncLife
     [Fact]
     public async Task Reads_the_primary_keys_of_all_tables_in_key_order_without_the_recycle_bin()
     {
-        var primaryKeys = await Reader.GetPrimaryKeysAsync(_owner, Ct);
+        var primaryKeys = await Reader.GetPrimaryKeysAsync([_owner], Ct);
         var keys = primaryKeys.ToDictionary(k => k.Table, k => k.Columns);
 
         Assert.Equal(["KUNDE_ID"], keys[new TableRef(_owner, "KUNDEN")]);

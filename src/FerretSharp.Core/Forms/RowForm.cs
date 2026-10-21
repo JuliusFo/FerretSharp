@@ -168,7 +168,9 @@ public static class RowForm
     /// Form view of a query result's row (WP-56): read-only, in the result's column order, with the outgoing FK jumps of
     /// the columns traced back to their tables (WP-48, <see cref="SqlResultSources.JumpsFor"/> for this row).
     /// </summary>
-    public static IReadOnlyList<FormField> ResultFields(IColumnPresentation presentation, RowData row, IReadOnlyList<SqlResultJump> jumps)
+    /// <param name="commentOf">A field's tooltip comment (where the column comes from, and its comment); the column's if null.</param>
+    public static IReadOnlyList<FormField> ResultFields(
+        IColumnPresentation presentation, RowData row, IReadOnlyList<SqlResultJump> jumps, Func<int, string?>? commentOf = null)
     {
         var outgoing = jumps.Where(j => j.Jump.Direction == JumpDirection.Outgoing).ToList();
         return presentation.Columns
@@ -177,7 +179,7 @@ public static class RowForm
                 var raw = row.Values[i];
                 return new FormField(
                     i,
-                    info,
+                    commentOf is null ? info : info with { Comment = commentOf(i) },
                     presentation.LabelOf(i),
                     presentation.Present(i, raw),
                     raw,

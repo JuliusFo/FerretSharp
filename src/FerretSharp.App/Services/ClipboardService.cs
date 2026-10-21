@@ -6,30 +6,32 @@ namespace FerretSharp.App.Services;
 
 public sealed class ClipboardService : IClipboardService
 {
-    private const int Attempts = 5;
-    private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(100);
-
     /// <summary>
-    /// The clipboard is opened on the UI thread (it needs STA). Another program holding it briefly (a clipboard manager, Excel
-    /// reading it) is common: a few more attempts before giving up.
+    /// The clipboard needs an STA thread – its own, not the UI thread (review 3.44.0, A23): WPF already tries again for about a
+    /// second with <c>Thread.Sleep</c> when another program holds the clipboard (a clipboard manager, the RDP clipboard),
+    /// and with retries of our own on the UI thread the window froze for up to five seconds.
     /// </summary>
-    public async Task<bool> SetTextAsync(string text)
+    public Task<bool> SetTextAsync(string text)
     {
-        for (var attempt = 1; ; attempt++)
+        var done = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var thread = new Thread(() =>
         {
             try
             {
-                await Application.Current.Dispatcher.InvokeAsync(() => Clipboard.SetDataObject(text, copy: true));
-                return true;
-            }
-            catch (ExternalException) when (attempt < Attempts)
-            {
-                await Task.Delay(RetryDelay);
+                Clipboard.SetDataObject(text, copy: true);
+                done.SetResult(true);
             }
             catch (ExternalException)
             {
-                return false;
+                done.SetResult(false);
             }
-        }
+        })
+        {
+            IsBackground = true,
+            Name = "Clipboard",
+        };
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        return done.Task;
     }
 }

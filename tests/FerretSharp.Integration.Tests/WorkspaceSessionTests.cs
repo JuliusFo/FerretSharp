@@ -32,7 +32,8 @@ public sealed class WorkspaceSessionTests(OracleContainerFixture oracle) : IAsyn
             await command.ExecuteNonQueryAsync(Ct);
         }
 
-        var secrets = new SingleSecretStore(profile.Id, password);
+        var secrets = new InMemorySecretStore();
+        secrets.SetPassword(profile.Id, password);
         _workspaces = new WorkspaceManager(
             new WorkspaceStore(_folder.Path), new ConnectionManager(new NoConnectionStore(), secrets), new OracleDatabaseConnector());
         await _workspaces.AttachAsync(profile, Ct);
@@ -122,15 +123,6 @@ public sealed class WorkspaceSessionTests(OracleContainerFixture oracle) : IAsyn
             OracleConnectionStringFactory.Create(profile, password), new SessionContext("FerretSharp", "Explorer"), Ct);
         _sessionsToClose.Add(session);
         return session;
-    }
-
-    private sealed class SingleSecretStore(Guid id, string password) : ISecretStore
-    {
-        public string? GetPassword(Guid profileId) => profileId == id ? password : null;
-
-        public void SetPassword(Guid profileId, string value) => throw new NotSupportedException();
-
-        public void DeletePassword(Guid profileId) => throw new NotSupportedException();
     }
 
     private sealed class NoConnectionStore : IConnectionStore

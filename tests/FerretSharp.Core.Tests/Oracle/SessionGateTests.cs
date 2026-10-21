@@ -98,15 +98,18 @@ public sealed class SessionGateTests
     {
         var gate = Gate(ex => new InvalidDataException("would look like a lost connection", ex));
         var started = new TaskCompletionSource();
+        var closing = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var caller = gate.RunAsync<int>(async () =>
         {
             started.SetResult();
-            await Task.Delay(Short, CancellationToken.None);
+            // After the close began – not after a fixed wait, which a loaded CI runner could outlast (review 3.44.0, C7).
+            await closing.Task;
             throw new IOException("connection closed under the command");
         }, Ct);
         await started.Task;
 
         await gate.BeginCloseAsync();
+        closing.SetResult();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => caller);
     }

@@ -19,7 +19,7 @@ public sealed class ModelTableSignaturesTests
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     private static PropertyExport Prop(string name, string column, string type = "int", IReadOnlyList<ValueMapping>? values = null) =>
-        new(name, type, type, false, false, column, null, null, null, false, values);
+        new(name, type, false, false, column, null, null, null, false, values);
 
     private static EntityExport Entity(string clrType, string table, IReadOnlyList<PropertyExport> properties, IReadOnlyList<ForeignKeyExport>? keys = null) =>
         new(clrType, clrType, false, null, table, null, null, null, properties, [], keys ?? []);
@@ -34,7 +34,7 @@ public sealed class ModelTableSignaturesTests
             var reader = Substitute.For<ISchemaReader>();
             reader.GetTablesAsync(Owner, Arg.Any<CancellationToken>()).Returns([new TableSummary(Owner, "KUNDEN", TableKind.Table), new TableSummary(Owner, "AUFTRAG", TableKind.Table)]);
             reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns(SynonymTargets.None);
-            reader.GetForeignKeysAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
+            reader.GetForeignKeysAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>()).Returns([]);
             static IReadOnlyList<ColumnInfo> Columns(params string[] names) =>
                 names.Select((name, i) => new ColumnInfo(name, "NUMBER", null, false, 10, 0, false, false, null, i + 1)).ToList();
             reader.GetColumnsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(new Dictionary<string, IReadOnlyList<ColumnInfo>>

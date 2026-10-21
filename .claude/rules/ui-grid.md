@@ -5,6 +5,8 @@ paths:
   - "src/FerretSharp.UI/State/Grid/**"
   - "src/FerretSharp.Core/Data/RowBlocks*"
   - "src/FerretSharp.UI/wwwroot/js/grid.js"
+  - "src/FerretSharp.UI/wwwroot/js/gridSelection.js"
+  - "tests/js/**"
 ---
 
 # Grid (AG Grid Community, Infinite Row Model)

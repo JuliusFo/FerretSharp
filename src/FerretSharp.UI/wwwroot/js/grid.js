@@ -2,6 +2,7 @@
 // including sorting, comes from .NET; cells arrive as display strings (null = SQL NULL). No business logic here.
 
 import { comboOf, localCombo, setEditFinisher } from './shortcuts.js';
+import { anchorFor, arrivedIn, keyMoveOf, spanOf } from './gridSelection.js';
 
 const grids = new Map();
 // Per grid: focus changes from .NET – forget the last navigation key (it must not select), select the row (focusRow with
@@ -617,8 +618,6 @@ export function create(elementId, dotnet, columns, options) {
   // and Ctrl+↑ ↓ go to the first or last row) select from the anchor to it and shrink again on the way back. New rows at
   // the top are never selected (AG Grid does not select pinned rows): focusing one clears the selection, so Del never
   // takes a row out of sight with it. Clicks stay AG Grid's own.
-  const navigationKeys = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', 'Tab']);
-  const rangeKeys = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End']);
   // AG Grid raises cellFocused asynchronously, after the key is up: the key is kept a moment longer (a key that moved
   // nothing must not make a later focus change from .NET select).
   let keyMove = null; // after a navigation key: 'range' or 'end' (to the last row) with Shift, otherwise 'single'
@@ -631,9 +630,7 @@ export function create(elementId, dotnet, columns, options) {
   let span = null;
   element.addEventListener('keydown', e => {
     keyPresses++;
-    keyMove = !navigationKeys.has(e.key) || e.altKey ? null
-      : !e.shiftKey || !rangeKeys.has(e.key) ? 'single'
-      : e.key === 'End' || (e.ctrlKey && e.key === 'ArrowDown') ? 'end' : 'range';
+    keyMove = keyMoveOf(e);
   }, true);
   element.addEventListener('keyup', () => {
     const press = keyPresses;
@@ -646,7 +643,7 @@ export function create(elementId, dotnet, columns, options) {
 
   // Rows not loaded yet (a block still on its way) cannot be selected yet: the span takes them in when they arrive.
   function selectRange(gridApi, from, to, toEnd) {
-    span = { from: Math.min(from, to), to: toEnd ? Infinity : Math.max(from, to) };
+    span = spanOf(from, to, toEnd);
     const range = new Set();
     for (let i = span.from; i <= Math.max(from, to); i++) {
       const node = gridApi.getDisplayedRowAtIndex(i);
@@ -667,9 +664,10 @@ export function create(elementId, dotnet, columns, options) {
 
   // A block arrived (getRows): its rows within the span are selected.
   function selectArrived(gridApi, from, to) {
-    if (!span) return;
+    const arrived = arrivedIn(span, from, to);
+    if (!arrived) return;
     const nodes = [];
-    for (let i = Math.max(from, span.from); i < Math.min(to, span.to + 1); i++) {
+    for (let i = arrived[0]; i < arrived[1]; i++) {
       const node = gridApi.getDisplayedRowAtIndex(i);
       if (node?.data && !node.isSelected()) nodes.push(node);
     }
@@ -683,11 +681,7 @@ export function create(elementId, dotnet, columns, options) {
       span = null;
       return;
     }
-    if (how === 'single') {
-      anchor = rowIndex;
-    } else if (anchor === null || !gridApi.getDisplayedRowAtIndex(anchor)?.isSelected()) {
-      anchor = focusedRow ?? rowIndex; // nothing selected any more (reloaded, sorted, Ctrl+click): from where the focus was
-    }
+    anchor = anchorFor(how, anchor, anchor !== null && !!gridApi.getDisplayedRowAtIndex(anchor)?.isSelected(), focusedRow, rowIndex);
     selectRange(gridApi, anchor, rowIndex, how === 'end');
   }
 

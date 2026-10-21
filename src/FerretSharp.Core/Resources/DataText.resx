@@ -94,6 +94,9 @@
     <value>{1} ({2}): {0} value not exported – {3}.</value>
     <comment>Export warning. {0} = number of values (1), {1} = column name, {2} = data type, {3} = reason (ExportReason…)</comment>
   </data>
+  <data name="ExportFractionsCut" xml:space="preserve">
+    <value>{0} ({1}): values are read to {2} fractional digits – finer fractions are not exported.</value>
+  </data>
   <data name="ExportSkippedOther" xml:space="preserve">
     <value>{1} ({2}): {0} values not exported – {3}.</value>
     <comment>Export warning. {0} = number of values, {1} = column name, {2} = data type, {3} = reason (ExportReason…)</comment>
