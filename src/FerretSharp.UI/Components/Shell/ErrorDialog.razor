@@ -65,9 +65,8 @@
 
     private async Task CopyAsync()
     {
-        var text = Error.Display + (Error.Statement is { } s ? Environment.NewLine + Environment.NewLine + SqlRedaction.Redact(BindValues.Describe(s, Mask)) : "");
         // Through dom.js like every copy (R5b: called navigator.clipboard directly, and a failure escaped the handler).
-        _copied = await Dom.CopyTextAsync(Shell, text);
+        _copied = await Dom.CopyTextAsync(Shell, ErrorReport.Text(Error, Mask));
     }
 
     public async ValueTask DisposeAsync() => await Dom.DisposeAsync();

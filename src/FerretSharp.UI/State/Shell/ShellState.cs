@@ -278,8 +278,32 @@ public sealed partial class ShellState
     /// <summary>A link from outside waiting for the user's confirmation (WP-37); null if none.</summary>
     public IncomingLink? IncomingLink { get; private set; }
 
-    /// <summary>Shows a link from outside for confirmation; a newer one replaces one not yet answered.</summary>
+    /// <summary>Shows a link from outside for confirmation (<see cref="TakeLinks"/>: never over one not yet answered).</summary>
     public void ShowIncomingLink(IncomingLink link) => Set(() => IncomingLink = link);
+
+    /// <summary>
+    /// Shows the newest waiting link for confirmation (older ones of a burst are dropped: one dialog at a time). While a link
+    /// is being confirmed, new ones wait (review 3.40.0, A25): replacing the dialog's content, a click on "Open" meant for
+    /// the link just read opened another one. Out of the shell's component, with a test (review 3.44.0, C1).
+    /// </summary>
+    public void TakeLinks(LinkInbox inbox, IReadOnlyList<ConnectionProfile> profiles)
+    {
+        if (IncomingLink is not null)
+        {
+            return;
+        }
+
+        string? latest = null;
+        while (inbox.TryTake(out var link))
+        {
+            latest = link;
+        }
+
+        if (latest is not null)
+        {
+            ShowIncomingLink(IncomingLink.Read(latest, profiles));
+        }
+    }
 
     public void CloseIncomingLink()
     {
