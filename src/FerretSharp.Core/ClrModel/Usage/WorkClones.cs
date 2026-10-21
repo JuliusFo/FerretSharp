@@ -15,7 +15,6 @@ public sealed class WorkClones(string filePath, TimeProvider? timeProvider = nul
 
     public const int MaxRecent = 20;
 
-    private static readonly StringComparer GroupComparer = StringComparer.CurrentCultureIgnoreCase;
 
     private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
     private readonly SemaphoreSlim _gate = new(1, 1);
@@ -30,7 +29,7 @@ public sealed class WorkClones(string filePath, TimeProvider? timeProvider = nul
     public string? ActiveFor(string? group)
     {
         var key = ConnectionSearch.NormalizeGroup(group);
-        return _active.FirstOrDefault(a => key is null ? a.Group is null : a.Group is not null && GroupComparer.Equals(a.Group, key))?.Path;
+        return _active.FirstOrDefault(a => ConnectionSearch.SameGroupKey(a.Group, key))?.Path;
     }
 
     /// <summary>Recently chosen folders that still exist, most recent first.</summary>
@@ -47,7 +46,7 @@ public sealed class WorkClones(string filePath, TimeProvider? timeProvider = nul
             _active = (read.Document?.Active ?? []).OfType<Active>()
                 .Where(a => !string.IsNullOrWhiteSpace(a.Path))
                 .Select(a => a with { Group = ConnectionSearch.NormalizeGroup(a.Group) })
-                .DistinctBy(a => a.Group ?? "", GroupComparer)
+                .DistinctBy(a => a.Group ?? "", ConnectionSearch.GroupNameComparer)
                 .ToList();
             _recent = (read.Document?.Recent ?? []).OfType<RecentFolder>()
                 .Where(r => !string.IsNullOrWhiteSpace(r.Path))
@@ -79,7 +78,7 @@ public sealed class WorkClones(string filePath, TimeProvider? timeProvider = nul
             var key = ConnectionSearch.NormalizeGroup(group);
             var full = path is null ? null : Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
             var active = _active
-                .Where(a => !(key is null ? a.Group is null : a.Group is not null && GroupComparer.Equals(a.Group, key)))
+                .Where(a => !ConnectionSearch.SameGroupKey(a.Group, key))
                 .ToList();
             if (full is not null)
             {

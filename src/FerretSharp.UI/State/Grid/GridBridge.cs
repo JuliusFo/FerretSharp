@@ -70,8 +70,11 @@ public sealed record GridColumn(string Id, string Name, string Label, string Typ
 /// <param name="FirstRow">Rough scroll position to restore (0 = top).</param>
 /// <param name="Editable">The workspace may write (v2); the columns say whether they can be edited at all.</param>
 /// <param name="HeaderHeight">With the line for C# names (WP-12); null for the theme default.</param>
-/// <param name="Table">A table tab: header menu, Del, pinning and scroll position are reported to .NET. A query result
-/// (SQL editor, LINQ console) has none of these and only answers GetRows, OnCopy and OnCellContextMenu.</param>
+/// <param name="Table">
+/// A table tab: Del, pinning and scroll position are reported to .NET. A query result (SQL editor, LINQ console) has none of
+/// these: it answers GetRows, OnCopy, OnCopyColumn, OnSelectionChanged, OnCellContextMenu and OnHeaderContextMenu, with
+/// <c>form</c> also OnFocused and OnFormKey (WP-56, WP-57; review 3.44.0, B7).
+/// </param>
 public sealed record GridOptions(IReadOnlyList<GridSort> Sorts, int FirstRow, bool Editable, int? HeaderHeight, bool Table)
 {
     /// <summary>Header height with the line for C# names (WP-12); the theme's 46 px otherwise.</summary>

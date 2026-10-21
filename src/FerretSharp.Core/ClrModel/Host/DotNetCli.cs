@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using FerretSharp.Core.IO;
 using FerretSharp.Core.Resources;
 
 namespace FerretSharp.Core.ClrModel;
@@ -219,13 +220,9 @@ public static class DotNetCli
             return host;
         }
 
-        foreach (var directory in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+        if (ExecutableSearch.FindOnPath(name) is { } onPath)
         {
-            var candidate = Path.Combine(directory.Trim('"'), name);
-            if (File.Exists(candidate))
-            {
-                return candidate;
-            }
+            return onPath;
         }
 
         var installed = OperatingSystem.IsWindows()

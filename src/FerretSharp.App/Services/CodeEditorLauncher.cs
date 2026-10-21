@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
+using FerretSharp.Core.IO;
 using FerretSharp.Core.Resources;
 using FerretSharp.Core.Settings;
 using FerretSharp.UI.Resources;
@@ -253,11 +254,8 @@ public sealed class CodeEditorLauncher(ILogger<CodeEditorLauncher> logger) : ICo
 
     private CodeOpenResult OpenInVsCode(string file, int? line)
     {
-        var code = (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator)
-            .Append(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Microsoft VS Code", "bin"))
-            .Where(d => d.Length > 0)
-            .Select(d => Path.Combine(d.Trim('"'), "code.cmd"))
-            .FirstOrDefault(File.Exists);
+        var code = ExecutableSearch.FindOnPath("code.cmd",
+            [Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Microsoft VS Code", "bin")]);
         var start = VsCodeCommand.For(code, file, line);
         if (start.Program is not { } program)
         {

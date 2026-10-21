@@ -95,7 +95,8 @@ public static partial class WorkCloneMapping
 
     /// <summary>
     /// The first <c>.cs</c> file below <paramref name="root"/> declaring the type (by its simple name; nested types by the
-    /// innermost): files named after the type first, then in ordinal path order, the same on every system. A declaration
+    /// innermost): files named after the type first, then depth first – a folder's files, then its subfolders, each in
+    /// ordinal order –, the same on every system. A declaration
     /// behind <c>//</c> on its line does not count. <c>bin</c>, <c>obj</c> and dot folders are skipped.
     /// </summary>
     public static string? FindTypeFile(string root, string typeName, CancellationToken cancellationToken)

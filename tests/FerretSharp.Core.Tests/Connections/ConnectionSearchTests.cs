@@ -49,4 +49,16 @@ public class ConnectionSearchTests
     {
         Assert.Equal(["ERP", "Kasse"], ConnectionSearch.GroupNames(All));
     }
+
+    /// <summary>Review 3.44.0, B8: what is kept per group (the work clone) treats "no group" as a group of its own.</summary>
+    [Theory]
+    [InlineData("ERP", " erp ", true, true)]
+    [InlineData(null, "  ", true, false)] // no group: a key of its own, never "the same group"
+    [InlineData("ERP", null, false, false)]
+    [InlineData("ERP", "Kasse", false, false)]
+    public void Group_keys_and_groups(string? a, string? b, bool sameKey, bool sameGroup)
+    {
+        Assert.Equal(sameKey, ConnectionSearch.SameGroupKey(a, b));
+        Assert.Equal(sameGroup, ConnectionSearch.SameGroup(a, b));
+    }
 }

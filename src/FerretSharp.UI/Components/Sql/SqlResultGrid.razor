@@ -97,7 +97,7 @@
     [Parameter]
     public TableSummary? InsertTarget { get; set; }
 
-    /// <summary>File name offered when saving the result as CSV.</summary>
+    /// <summary>File name offered when saving the result (CSV, Excel), also the title of the row comparison.</summary>
     [Parameter]
     public string ExportName { get; set; } = SqlEditorText.Result_DefaultExportName;
 
