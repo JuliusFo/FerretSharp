@@ -541,10 +541,19 @@ public static partial class TableDesign
                     return false;
                 case ColumnTypeChange.MayFailOnValues:
                     Warnings.Add(TextFormat.Format(DesignText.TypeChangeMayFail, after.Name, from, to));
+                    if (OracleTypes.ValueChangeOf(before, after) == ValueChange.PadsWithBlanks)
+                    {
+                        Warnings.Add(TextFormat.Format(DesignText.TypeChangePads, after.Name, from, to)); // what fits (review 3.44.0, A13)
+                    }
+
                     return true;
                 case ColumnTypeChange.ChangesValues: // review 3.40.0, A9: went through without a word
-                    Warnings.Add(TextFormat.Format(
-                        OracleTypes.IsTimestamp(before.DataType) ? DesignText.TypeChangeCutsFractions : DesignText.TypeChangePads, after.Name, from, to));
+                    Warnings.Add(TextFormat.Format(OracleTypes.ValueChangeOf(before, after) switch
+                    {
+                        ValueChange.CutsFractions => DesignText.TypeChangeCutsFractions,
+                        ValueChange.KeepsBlanks => DesignText.TypeChangeKeepsBlanks, // review 3.44.0, A7
+                        _ => DesignText.TypeChangePads,
+                    }, after.Name, from, to));
                     return true;
                 case ColumnTypeChange.NeedsEmptyColumn:
                     switch (facts.Of(new DataQuestion(DataQuestionKind.Values, before.Name)))

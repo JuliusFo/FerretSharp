@@ -229,6 +229,27 @@ public class TableDesignTests
         Assert.Equal((DdlRisk.DataLoss, "Läuft mit Daten durch, aber die Werte verlieren ihre Sekundenbruchteile."), (step.Risk, step.Warning));
     }
 
+    /// <summary>
+    /// Review 3.44.0, A7 and A13: CHAR → VARCHAR2 kept the padding without a word (a comparison with the trimmed text finds
+    /// nothing after it), and a shorter CHAR named only the values that may fail, not the padding of the rest.
+    /// </summary>
+    [Fact]
+    public void Char_changes_name_the_blanks_in_designer_and_comparison()
+    {
+        var code = new ColumnInfo("CODE", "CHAR", 3, true, null, null, false, false, null, 7);
+        var kept = Plan(Draft(Changed(Notiz, c => c with { Length = 100, DataType = "CHAR" })));
+
+        Assert.Equal(
+            [
+                "NOTIZ: VARCHAR2(200) → CHAR(100) scheitert, wenn ein Wert zu lang dafür ist (ORA-01441).",
+                "NOTIZ: VARCHAR2(200) → CHAR(100) füllt jeden Wert mit Leerzeichen auf die volle Länge auf; Vergleiche mit VARCHAR2-Werten (Beziehungen, Filter) treffen danach womöglich nicht mehr.",
+            ],
+            kept.Warnings);
+        var step = Assert.Single(ColumnChange.Steps(Kunde.Table.Ref, code, code with { DataType = "VARCHAR2" }, ChangeIntent.Unknown));
+        Assert.Equal(DdlRisk.DataLoss, step.Risk);
+        Assert.StartsWith("Läuft mit Daten durch, aber jeder Wert behält die Leerzeichen", step.Warning);
+    }
+
     [Fact]
     public void A_type_change_that_needs_an_empty_column_asks_for_its_values()
     {

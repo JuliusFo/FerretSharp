@@ -108,6 +108,8 @@ public sealed class OracleTypesTests
     [InlineData("VARCHAR2(20 BYTE)", "NVARCHAR2(20)", ColumnTypeChange.Free)]
     [InlineData("VARCHAR2(20 BYTE)", "CHAR(20 BYTE)", ColumnTypeChange.ChangesValues)] // padded with blanks (review 3.40.0, A9)
     [InlineData("CHAR(1 BYTE)", "VARCHAR2(1 BYTE)", ColumnTypeChange.Free)]
+    [InlineData("CHAR(3 BYTE)", "VARCHAR2(3 BYTE)", ColumnTypeChange.ChangesValues)] // keeps the padding (review 3.44.0, A7)
+    [InlineData("VARCHAR2(1 BYTE)", "CHAR(1 BYTE)", ColumnTypeChange.Free)] // nothing to pad
     [InlineData("VARCHAR2(20 BYTE)", "VARCHAR2(10 BYTE)", ColumnTypeChange.MayFailOnValues)] // ORA-01441 only if a value is longer
     [InlineData("VARCHAR2(20 CHAR)", "VARCHAR2(20 BYTE)", ColumnTypeChange.MayFailOnValues)]
     [InlineData("RAW(16)", "RAW(8)", ColumnTypeChange.MayFailOnValues)]
@@ -137,6 +139,19 @@ public sealed class OracleTypesTests
     [InlineData("TIMESTAMP(6) WITH TIME ZONE", "TIMESTAMP(6)", ColumnTypeChange.NeedsEmptyColumn)]
     public void Type_changes_as_oracle_takes_them_with_data(string from, string to, ColumnTypeChange change) =>
         Assert.Equal(change, OracleTypes.ChangeOf(Parse(from), Parse(to)));
+
+    /// <summary>How a change alters the values that stay; padding also where the change may fail on long values (review 3.44.0, A7, A13).</summary>
+    [Theory]
+    [InlineData("TIMESTAMP(6)", "DATE", ValueChange.CutsFractions)]
+    [InlineData("VARCHAR2(20 BYTE)", "CHAR(20 BYTE)", ValueChange.PadsWithBlanks)]
+    [InlineData("VARCHAR2(20 BYTE)", "CHAR(10 BYTE)", ValueChange.PadsWithBlanks)] // may fail on long values, pads the rest
+    [InlineData("CHAR(3 BYTE)", "VARCHAR2(3 BYTE)", ValueChange.KeepsBlanks)]
+    [InlineData("NCHAR(3)", "NVARCHAR2(10)", ValueChange.KeepsBlanks)]
+    [InlineData("CHAR(1 BYTE)", "VARCHAR2(1 BYTE)", ValueChange.None)]
+    [InlineData("CHAR(3 BYTE)", "NCHAR(3)", ValueChange.None)]
+    [InlineData("DATE", "TIMESTAMP(6)", ValueChange.None)]
+    public void What_a_change_does_to_the_values(string from, string to, ValueChange change) =>
+        Assert.Equal(change, OracleTypes.ValueChangeOf(Parse(from), Parse(to)));
 
     /// <summary>
     /// WP-51: an INSERT is not a MODIFY – date and time types take each other's values always (Oracle converts), whole if the

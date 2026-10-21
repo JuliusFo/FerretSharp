@@ -275,4 +275,7 @@
   <data name="PadsWithBlanks" xml:space="preserve">
     <value>Goes through with data, but every value is padded with blanks to the full length – comparisons with VARCHAR2 values may no longer match.</value>
   </data>
+  <data name="KeepsBlanks" xml:space="preserve">
+    <value>Goes through with data, but every value keeps the blanks it was padded with – comparisons with the text without them no longer match (RTRIM afterwards).</value>
+  </data>
 </root>

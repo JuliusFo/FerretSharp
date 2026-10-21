@@ -216,4 +216,7 @@
     <value>{0}: {1} → {2} pads every value with blanks to the full length; comparisons with VARCHAR2 values (relationships, filters) may no longer match.</value>
     <comment>{0}: column name; {1}: old type; {2}: new type</comment>
   </data>
+  <data name="TypeChangeKeepsBlanks" xml:space="preserve">
+    <value>{0}: {1} → {2} keeps the blanks every value was padded with; comparisons with the text without them (relationships, filters, EF Core) no longer match – trim them with RTRIM afterwards.</value>
+  </data>
 </root>
