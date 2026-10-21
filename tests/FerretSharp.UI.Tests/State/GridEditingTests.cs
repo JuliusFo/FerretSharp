@@ -76,17 +76,33 @@ public sealed class GridEditingTests
     }
 
     [Fact]
-    public async Task Del_marks_loaded_rows_and_drops_new_ones()
+    public async Task Del_marks_the_selected_loaded_rows()
     {
         _grid.Rows[0] = Row(1, "Peter");
         _grid.Rows[1] = Row(2, "Paul");
         var added = _grid.Changes!.AddRow();
 
-        var updates = await Editing.DeleteKeyAsync([0, 1, 7], [GridRows.NewRowId(added)]);
+        var updates = await Editing.DeleteKeyAsync([0, 1, 7], null);
 
         Assert.Equal([0, 1], updates.Select(u => u.RowIndex));
         Assert.Equal(ChangeStage.Pending, _grid.Changes.Find(new RowKey.PrimaryKey([2m]))!.Deleted);
-        Assert.Empty(_grid.Changes.NewRows);
+        Assert.Same(added, Assert.Single(_grid.Changes.NewRows));
+        Assert.Equal(0, _grid.NewRowsSet);
+    }
+
+    [Fact]
+    public async Task Del_on_a_new_row_drops_only_it_and_spares_the_loaded_rows_still_selected()
+    {
+        // AG Grid does not select rows pinned at the top: the last clicked loaded row stays selected while a new row has the focus.
+        _grid.Rows[0] = Row(1, "Peter");
+        var first = _grid.Changes!.AddRow();
+        var second = _grid.Changes.AddRow();
+
+        var updates = await Editing.DeleteKeyAsync([0], GridRows.NewRowId(second));
+
+        Assert.Empty(updates);
+        Assert.Null(_grid.Changes.Find(new RowKey.PrimaryKey([1m])));
+        Assert.Same(first, Assert.Single(_grid.Changes.NewRows));
         Assert.Equal(1, _grid.NewRowsSet);
     }
 
@@ -96,7 +112,7 @@ public sealed class GridEditingTests
         _grid.Rows[0] = Row(1, "Peter");
         _grid.WriteRunning = true;
 
-        Assert.Empty(await Editing.DeleteKeyAsync([0], []));
+        Assert.Empty(await Editing.DeleteKeyAsync([0], null));
         await Editing.ChangeRowsAsync([0], delete: true);
         Assert.Null(await Editing.AddRowAsync([0, 1, 2]));
 

@@ -144,18 +144,31 @@ public sealed class GridEditing(IEditableGrid grid, TableDetails details)
         return result.Error;
     }
 
-    /// <summary>Del in the grid: marks the selected loaded rows for deletion; new rows disappear.</summary>
+    /// <summary>
+    /// Del in the grid: the new row with the focus disappears, otherwise the selected loaded rows are marked for deletion.
+    /// New rows are pinned and never selected, so the last clicked loaded row stays selected while a new row has the
+    /// focus – it must not go with it.
+    /// </summary>
+    /// <param name="rowIndexes">The selected loaded rows.</param>
+    /// <param name="focusedNewId">The new row with the focus, or null.</param>
     /// <returns>The loaded rows to redraw (grid.js draws them itself).</returns>
-    public async Task<GridRowUpdate[]> DeleteKeyAsync(IReadOnlyList<int> rowIndexes, IReadOnlyList<string> newIds)
+    public async Task<GridRowUpdate[]> DeleteKeyAsync(IReadOnlyList<int> rowIndexes, string? focusedNewId)
     {
         if (grid.Changes is not { } changes || StoppedByWrite())
         {
             return [];
         }
 
-        foreach (var added in newIds.Select(id => GridRows.NewRow(changes, id)).OfType<RowChange>().ToList())
+        if (focusedNewId is not null)
         {
-            changes.Delete(added);
+            if (GridRows.NewRow(changes, focusedNewId) is { } added)
+            {
+                changes.Delete(added);
+                await grid.SetNewRowsAsync();
+                grid.ChangesMade();
+            }
+
+            return [];
         }
 
         var updates = new List<GridRowUpdate>();
@@ -166,11 +179,6 @@ public sealed class GridEditing(IEditableGrid grid, TableDetails details)
                 changes.Delete(row);
                 updates.Add(new GridRowUpdate(index, Draw(changes, row)));
             }
-        }
-
-        if (newIds.Count > 0)
-        {
-            await grid.SetNewRowsAsync();
         }
 
         grid.ChangesMade();
