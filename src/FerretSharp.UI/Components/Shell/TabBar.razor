@@ -153,12 +153,19 @@
     private static string WithTitle(WorkspaceTab tab, string text) =>
         tab.Pinned && tab is ITitledTab titled ? titled.Title + Environment.NewLine + text : text;
 
-    /// <summary>A full bar narrows the pinned tabs (WP-34, class <c>crowded</c>): dom.js watches whether the tabs still fit.</summary>
+    /// <summary>
+    /// A full bar narrows the pinned tabs (WP-34, class <c>crowded</c>): dom.js watches whether the tabs still fit. It also
+    /// scrolls the bar by mouse wheel (its scrollbar is thin and shows only on hover) and keeps the active tab in view.
+    /// </summary>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
             await Dom.InvokeVoidAsync("watchOverflow", _bar, "crowded");
+            if (!_disposed)
+            {
+                await Dom.InvokeVoidAsync("scrollableTabs", _bar);
+            }
         }
     }
 

@@ -191,6 +191,53 @@ export function watchOverflow(element, className) {
   update();
 }
 
+/** Makes the tab bar easy to scroll, its scrollbar being thin: the mouse wheel scrolls it sideways (a plain wheel only
+ *  scrolls vertically, the bar could only be reached with Shift), and a newly activated tab – opened, or picked by
+ *  shortcut – is scrolled into view next to the pinned group, which stays at the left (sticky). Only a change of the
+ *  active tab scrolls, so a bar scrolled away by hand stays put while the tabs re-render. The class `hover` shows the
+ *  thumb: Chromium does not repaint it for `:hover` on the bar. */
+export function scrollableTabs(element) {
+  if (!element || element._scrollableTabs) {
+    return;
+  }
+
+  element.addEventListener('mouseenter', () => element.classList.add('hover'));
+  element.addEventListener('mouseleave', () => element.classList.remove('hover'));
+
+  element.addEventListener('wheel', e => {
+    const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    if (e.ctrlKey || delta === 0 || element.scrollWidth <= element.clientWidth) {
+      return;
+    }
+    e.preventDefault();
+    element.scrollLeft += delta;
+  }, { passive: false });
+
+  let shown = null;
+  const reveal = () => {
+    const tab = element.querySelector('.tab.active');
+    if (tab === shown) {
+      return;
+    }
+    shown = tab;
+    if (!tab || tab.classList.contains('pinned')) {
+      return;
+    }
+    const bar = element.getBoundingClientRect();
+    const rect = tab.getBoundingClientRect();
+    const left = bar.left + (element.querySelector('.tabs-pinned')?.offsetWidth ?? 0);
+    const right = bar.left + element.clientWidth;
+    if (rect.left < left) {
+      element.scrollLeft -= left - rect.left;
+    } else if (rect.right > right) {
+      element.scrollLeft += Math.min(rect.right - right, rect.left - left);
+    }
+  };
+  new MutationObserver(reveal).observe(element, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+  element._scrollableTabs = true;
+  reveal();
+}
+
 /** Returns false if the clipboard refused the write. */
 export async function copyText(text) {
   try {
