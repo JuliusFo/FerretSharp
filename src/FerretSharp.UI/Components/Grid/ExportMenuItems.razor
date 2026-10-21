@@ -1,13 +1,24 @@
 @* The export group of a right-click menu (R6b, review 3.40.0, B5; WP-53 had to add Excel to two menus): copy the rows as
    table or INSERT, save them as CSV or Excel – and as Excel with database names and raw values when the columns are
    presented. Further entries of the group (a SQL script, links) as child content. Below, the same files from all rows of
-   the grid's query (WP-54), read again block by block. Files are written after the dialog, in the background (A13). *@
+   the grid's query (WP-54), read again block by block. Files are written after the dialog, in the background (A13). The
+   values of the clicked column from the selected rows, one per line or as an IN list (WP-57). *@
 @using FerretSharp.Core.Data
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
+@inject ShortcutService Shortcuts
 
 <div class="group-head-btn static">@TextFormat.Format(GridText.GridMenu_ExportGroup, ExportActions.RowsText(Rows.Count))</div>
 <button class="menu-item" title="@GridText.GridMenu_CopyTableTitle" @onclick="CopyTableAsync">@GridText.GridMenu_CopyTable</button>
+@if (Column is { } column)
+{
+    var name = Table.Columns[column.Source].Name;
+    var unavailable = ColumnValues.CanCopy(column.Column) ? null : GridText.GridMenu_CopyColumnUnavailable;
+    <button class="menu-item" disabled="@(unavailable is not null)" title="@(unavailable ?? TextFormat.Format(GridText.GridMenu_CopyColumnTitle, Shortcuts.Hint(ShortcutAction.CopyColumnValues)))"
+            @onclick="() => Export.CopyColumnAsync(column, name, ColumnValuesFormat.Lines, Rows)">@TextFormat.Format(GridText.GridMenu_CopyColumn, name)</button>
+    <button class="menu-item" disabled="@(unavailable is not null)" title="@(unavailable ?? GridText.GridMenu_CopyColumnInListTitle)"
+            @onclick="() => Export.CopyColumnAsync(column, name, ColumnValuesFormat.InList, Rows)">@TextFormat.Format(GridText.GridMenu_CopyColumnInList, name)</button>
+}
 <button class="menu-item" disabled="@(InsertTable is null)" title="@InsertTitle" @onclick="CopyInsertAsync">@GridText.GridMenu_CopyInsert</button>
 <button class="menu-item" title="@GridText.GridMenu_SaveCsvTitle" @onclick="SaveCsvAsync">@GridText.GridMenu_SaveCsv</button>
 <button class="menu-item" title="@GridText.GridMenu_SaveXlsxTitle" @onclick="() => SaveXlsxAsync(XlsxColumnsToSave?.Invoke() ?? XlsxColumns)">@GridText.GridMenu_SaveXlsx</button>
@@ -39,6 +50,16 @@
     /// <summary>The selected rows.</summary>
     [Parameter, EditorRequired]
     public IReadOnlyList<RowData> Rows { get; set; } = [];
+
+    /// <summary>
+    /// The clicked column as presented (<see cref="ExportColumn.Source"/>: its index in <see cref="Table"/>): its values can be
+    /// copied (WP-57). Null offers no such entries.
+    /// </summary>
+    [Parameter]
+    public ExportColumn? Column { get; set; }
+
+    /// <summary>Entries for the clicked column – for the menu's estimated height.</summary>
+    public const int ColumnEntries = 2;
 
     /// <summary>File name (without extension) offered for CSV and Excel.</summary>
     [Parameter, EditorRequired]

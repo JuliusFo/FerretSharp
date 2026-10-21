@@ -42,6 +42,7 @@ public sealed class ShortcutService : IDisposable
         ["form"] = _map.Chord(ShortcutAction.ToggleForm)?.Text,
         ["undoEdit"] = _map.Chord(ShortcutAction.UndoEdit)?.Text,
         ["redoEdit"] = _map.Chord(ShortcutAction.RedoEdit)?.Text,
+        ["copyColumn"] = _map.Chord(ShortcutAction.CopyColumnValues)?.Text,
     };
 
     /// <exception cref="IOException">Not saved; the change stays in effect for this session.</exception>

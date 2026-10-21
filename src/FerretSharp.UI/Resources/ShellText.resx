@@ -1095,4 +1095,12 @@
   <data name="WorkClone_StatusTitle" xml:space="preserve">
     <value>Work clone of this group: {0}. Click to switch.</value>
   </data>
+  <data name="Status_CopyValuesLabel" xml:space="preserve">
+    <value>{0} → clipboard</value>
+    <comment>Status bar entry while the values of a column are read (WP-57); {0}: column name</comment>
+  </data>
+  <data name="Status_CopyValuesTitle" xml:space="preserve">
+    <value>Reads the values of {0} in the background; they reach the clipboard when the read is done.</value>
+    <comment>Tooltip; {0}: column name</comment>
+  </data>
 </root>

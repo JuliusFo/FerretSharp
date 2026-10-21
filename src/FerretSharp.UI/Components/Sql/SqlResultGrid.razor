@@ -1,6 +1,7 @@
 @* Result of a query FerretSharp did not build (LINQ console, ADR 0011; SQL editor, WP-17): read in the workspace's session page by page,
    shown with the same grid bridge as tables – read-only, unsorted (the query's own ORDER BY counts). Beside it the form of the
-   focused row, and the selected rows side by side (WP-56), both read-only. *@
+   focused row, and the selected rows side by side (WP-56), both read-only. In the SQL editor a column header menu copies all
+   values of the column (WP-57). *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
 @using FerretSharp.Core.Forms
@@ -28,6 +29,13 @@
     <ResultMenu Request="menu" Result="AsTable()" Sources="_presentation.Sources" ExportColumns="_presentation.ExportColumns()" WorkspaceId="WorkspaceId" InsertTarget="InsertTarget"
                 ExportName="@ExportName" AllRows="@(ExportsAllRows ? AllRowsOf() : null)" OnClose="() => _menu = null"
                 OffersForm="@(FormTab is not null)" OnOpenForm="() => OpenFormAsync(menu.RowIndex, menu.Column)" OnCompare="Compare" />
+}
+
+@if (_columnMenu is { } columnMenu && columnMenu.Column < _columns.Count)
+{
+    <ResultColumnMenu @key="columnMenu" Request="columnMenu" Column="_columns[columnMenu.Column].Column" Presented="PresentedColumn(columnMenu.Column)"
+                      All="@ColumnValueCopies.ForResult(Query, _columns, columnMenu.Column, _allLoaded ? _rowsLoaded : null, WorkspaceId, Workspaces.GetDataAsync)"
+                      OnClose="() => _columnMenu = null" />
 }
 
 @if (_compare is { } compare)
@@ -109,6 +117,7 @@
     public EventCallback OnFormChanged { get; set; }
 
     private GridContextMenuRequest? _menu;
+    private ColumnMenuRequest? _columnMenu;
     private (IReadOnlyList<(int Index, FormRow Row)> Rows, int Missing)? _compare;
 
     /// <summary>The cell with the focus (click, arrow keys, the form's ▲ ▼); null before any.</summary>
@@ -186,7 +195,7 @@
         }
 
         // The result is shown whatever becomes of the tracing; a failure that is a bug reaches the error boundary afterwards.
-        await _grid.CreateAsync(_presentation.Columns(), new GridOptions([], 0, Editable: false, _presentation.HeaderHeight, Table: false) { Form = true });
+        await _grid.CreateAsync(_presentation.Columns(), new GridOptions([], 0, Editable: false, _presentation.HeaderHeight, Table: false) { Form = true, HeaderMenu = ExportsAllRows });
         if (!traced.IsCompletedSuccessfully)
         {
             Fire(() => RelabelAsync(traced));
@@ -287,6 +296,32 @@
             await ExportActions.CopyCellAsync(Shell, _grid, _columns[column].Column, row.Values[column]);
         }
     });
+
+    /// <summary>The shortcut for the values of a column (WP-57): the focused cell's column from the selected rows, else its row.</summary>
+    [JSInvokable]
+    public Task OnCopyColumn(int rowIndex, string colId, int[] selectedRows) => GuardAsync(async () =>
+    {
+        var column = GridColumn.IndexOf(colId);
+        if (column >= _columns.Count || !ColumnValues.CanCopy(_columns[column].Column))
+        {
+            return;
+        }
+
+        var rows = selectedRows.Length > 0 ? selectedRows.Order().ToArray() : [rowIndex];
+        await ColumnValueCopies.CopyRowsAsync(Shell, text => _grid.CopyTextAsync(Shell, text), PresentedColumn(column), _columns[column].Name,
+            ColumnValuesFormat.Lines, rows.Select(_blocks.At).ToList());
+    });
+
+    /// <summary>Right click on a column header (SQL editor only, <see cref="ExportsAllRows"/>): copy all its values.</summary>
+    [JSInvokable]
+    public Task OnHeaderContextMenu(string colId, double x, double y, double viewportWidth, double viewportHeight) => GuardAsync(() =>
+    {
+        _columnMenu = new ColumnMenuRequest(GridColumn.IndexOf(colId), x, y, viewportWidth, viewportHeight);
+        return InvokeAsync(StateHasChanged);
+    });
+
+    /// <summary>A column as the result presents it; the names of a traced foreign key follow it with the same source.</summary>
+    private ExportColumn PresentedColumn(int column) => _presentation.ExportColumns().First(c => c.Source == column);
 
     /// <summary>All rows of the query, run again in the workspace's session (WP-54).</summary>
     private AllRowsExport AllRowsOf() =>

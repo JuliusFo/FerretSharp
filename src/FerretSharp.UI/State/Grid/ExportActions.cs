@@ -1,6 +1,7 @@
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
 using FerretSharp.Core.IO;
+using FerretSharp.Core.Query;
 using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 using FerretSharp.UI.Resources;
@@ -106,6 +107,14 @@ public sealed class ExportActions(
         shell.Notify(copied ? CopiedText(kind, export.Rows) : CommonText.ClipboardUnavailable, Warnings(export.Warnings));
     }
 
+    /// <summary>The values of one column of the selected rows (WP-57); rows no longer loaded are named as not copied.</summary>
+    /// <param name="column">The column as presented; <see cref="ExportColumn.Source"/> is the index of its value.</param>
+    public async Task CopyColumnAsync(ExportColumn column, string columnName, ColumnValuesFormat format, IReadOnlyList<RowData> rows)
+    {
+        await ColumnValueCopies.CopyRowsAsync(shell, dom.CopyTextAsync, column, columnName, format, [.. rows, .. Enumerable.Repeat<RowData?>(null, missingRows)]);
+        await close();
+    }
+
     /// <param name="fileName">Offered file name with extension.</param>
     /// <param name="filter">Label of the file type in the dialog, e.g. <c>CSV (semicolon)</c>.</param>
     public async Task SaveAsync(ExportText export, string fileName, string filter, bool utf8Bom)
@@ -170,7 +179,7 @@ public sealed class ExportActions(
             }
             else if (result.Cancelled)
             {
-                shell.Notify(TextFormat.Format(GridText.Export_Cancelled, export.FileName));
+                shell.Notify(TextFormat.Format(GridText.Export_Cancelled, export.Label));
             }
             else
             {

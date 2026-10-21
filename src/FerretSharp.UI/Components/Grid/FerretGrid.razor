@@ -952,6 +952,29 @@
 
     private Task<bool> CopyTextAsync(string text) => _grid.CopyTextAsync(Shell, text);
 
+    /// <summary>
+    /// The shortcut for the values of a column (WP-57): the focused cell's column from the selected rows – else from its
+    /// row –, pending values as shown (A21).
+    /// </summary>
+    [JSInvokable]
+    public Task OnCopyColumn(int rowIndex, string colId, int[] selectedRows) => GuardAsync(async () =>
+    {
+        if (!colId.StartsWith('c'))
+        {
+            return;
+        }
+
+        var column = ColumnIndex(colId);
+        if (!ColumnValues.CanCopy(Details.Columns[column]))
+        {
+            return;
+        }
+
+        var rows = selectedRows.Length > 0 ? selectedRows.Order().ToArray() : [rowIndex];
+        await ColumnValueCopies.CopyRowsAsync(Shell, CopyTextAsync, PresentedExport.Column(Presentation, column, Details.Columns[column].Name, column),
+            Details.Columns[column].Name, ColumnValuesFormat.Lines, rows.Select(i => _blocks.At(i) is { } r ? Shown(r) : null).ToList());
+    });
+
     /// <summary>Remembers the first visible row (rough scroll position), but only rows that were actually loaded.</summary>
     [JSInvokable]
     public void OnScrolled(int firstVisibleRow) => Guard(() => // like the other synchronous calls from grid.js (A48)

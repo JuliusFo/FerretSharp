@@ -37,7 +37,7 @@
                      InsertTitle="@(InsertTarget is { } insert
                          ? TextFormat.Format(SqlEditorText.ResultMenu_CopyInsertTitle, insert.DisplayName)
                          : SqlEditorText.ResultMenu_CopyInsertUnavailable)"
-                     AllRows="AllRows" />
+                     AllRows="AllRows" Column="@XlsxColumns.First(c => c.Source == Request.Column)" />
 
     <FkJumpSection Outgoing="_jumps.Outgoing" Incoming="_jumps.Incoming" Related="Related" RowsText="@Request.JumpRowsText" MissingRows="Request.MissingRows"
                    WorkspaceId="WorkspaceId" OnJumped="CloseAsync" />
@@ -130,7 +130,7 @@
     private ColumnInfo Column => Result.Columns[Request.Column];
 
     /// <summary>For the first placement; dom.js keepInViewport corrects it once rendered.</summary>
-    private double EstimatedHeight => 244 + ItemHeight * (_jumps.Count + Math.Max(0, _jumps.Headings - 2) + (ExportMenuItems.OffersRaw(XlsxColumns) ? 2 : 1) + ExportMenuItems.AllRowsEntries(AllRows, XlsxColumns))
+    private double EstimatedHeight => 244 + ItemHeight * (_jumps.Count + Math.Max(0, _jumps.Headings - 2) + (ExportMenuItems.OffersRaw(XlsxColumns) ? 2 : 1) + ExportMenuItems.ColumnEntries + ExportMenuItems.AllRowsEntries(AllRows, XlsxColumns))
                                       + (_jumps.Count > 0 ? 80 : 0) + (AllRows is null ? 0 : 40);
 
     protected override void OnInitialized()
@@ -147,6 +147,7 @@
 
     private bool Related(FkJump jump) => _sources.TryGetValue(jump, out var source) && source.Involves(Request.Column);
 
+    /// <summary>The result's columns as presented; a column traced to a foreign key is followed by its names (same <see cref="ExportColumn.Source"/>).</summary>
     private IReadOnlyList<ExportColumn> XlsxColumns => ExportColumns ?? ExportColumn.Raw(Result);
 
     private Task CloseAsync() => OnClose.InvokeAsync();

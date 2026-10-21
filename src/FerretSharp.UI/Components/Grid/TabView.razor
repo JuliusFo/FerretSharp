@@ -162,7 +162,7 @@
 
 @if (_columnMenu is { } columnMenu && _details is not null)
 {
-    <ColumnMenu @key="columnMenu" Request="columnMenu" Details="_details" OnClose="() => _columnMenu = null"
+    <ColumnMenu @key="columnMenu" Request="columnMenu" Details="_details" Tab="Tab" OnClose="() => _columnMenu = null"
                 Pinned="@(_grid?.IsPinned(columnMenu.Column) == true)" OnTogglePin="TogglePinAsync" />
 }
 

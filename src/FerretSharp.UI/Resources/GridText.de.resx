@@ -939,4 +939,55 @@
   <data name="Compare_FooterNoteResult" xml:space="preserve">
     <value>Abweichende Werte markiert · Werte wie im Ergebnis</value>
   </data>
+  <data name="GridMenu_CopyColumn" xml:space="preserve">
+    <value>Spalte {0} kopieren</value>
+  </data>
+  <data name="GridMenu_CopyColumnTitle" xml:space="preserve">
+    <value>Die Werte dieser Spalte aus den markierten Zeilen, einer je Zeile, wie angezeigt – mit ausstehenden Änderungen{0}</value>
+  </data>
+  <data name="GridMenu_CopyColumnInList" xml:space="preserve">
+    <value>Spalte {0} als IN-Liste kopieren</value>
+  </data>
+  <data name="GridMenu_CopyColumnInListTitle" xml:space="preserve">
+    <value>Die Datenbankwerte als Oracle-Literale für eine IN-Liste ('A', 'B'): jeder Wert einmal, ohne NULL</value>
+  </data>
+  <data name="GridMenu_CopyColumnUnavailable" xml:space="preserve">
+    <value>Die Werte von LOB-, LONG- und ähnlichen Spalten lassen sich nicht als Liste kopieren</value>
+  </data>
+  <data name="ColumnMenu_CopyValues" xml:space="preserve">
+    <value>Werte kopieren</value>
+  </data>
+  <data name="ColumnMenu_CopyValuesTitle" xml:space="preserve">
+    <value>Ein Wert je Zeile, wie angezeigt, in der Reihenfolge des Grids</value>
+  </data>
+  <data name="ColumnMenu_CopyInList" xml:space="preserve">
+    <value>Als IN-Liste kopieren</value>
+  </data>
+  <data name="ColumnMenu_AllValuesTitle" xml:space="preserve">
+    <value>Liest alle Werte der Spalte noch einmal in der Session des Workspaces – geschriebene Änderungen ja, ausstehende nein. Der Workspace wartet so lange; mehr als {0:N0} Werte werden nicht kopiert.</value>
+  </data>
+  <data name="ColumnMenu_AllResultValuesTitle" xml:space="preserve">
+    <value>Führt die Abfrage noch einmal ganz in der Session des Workspaces aus. Ohne eindeutiges ORDER BY kann die Reihenfolge abweichen; mehr als {0:N0} Werte werden nicht kopiert.</value>
+  </data>
+  <data name="ColumnValues_CopiedOne" xml:space="preserve">
+    <value>{0} Wert von {1} kopiert.</value>
+  </data>
+  <data name="ColumnValues_CopiedOther" xml:space="preserve">
+    <value>{0:N0} Werte von {1} kopiert.</value>
+  </data>
+  <data name="ColumnValues_CopiedInListOne" xml:space="preserve">
+    <value>{0} Wert von {1} als IN-Liste kopiert.</value>
+  </data>
+  <data name="ColumnValues_CopiedInListOther" xml:space="preserve">
+    <value>{0:N0} Werte von {1} als IN-Liste kopiert.</value>
+  </data>
+  <data name="ColumnValues_None" xml:space="preserve">
+    <value>{0}: keine Werte zum Kopieren.</value>
+  </data>
+  <data name="ColumnValues_TooMany" xml:space="preserve">
+    <value>Mehr als {0:N0} Werte – nichts kopiert. So viele Werte besser über „Alle Zeilen“ als CSV oder Excel speichern.</value>
+  </data>
+  <data name="ColumnValues_Cancelled" xml:space="preserve">
+    <value>Kopieren der Werte von {0} abgebrochen.</value>
+  </data>
 </root>

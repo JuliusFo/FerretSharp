@@ -1,0 +1,31 @@
+@* Right-click menu of a column header of a SQL editor result (WP-57): copy all values of the column, the query run again. *@
+@using FerretSharp.Core.Data
+@using FerretSharp.Core.Schema
+
+<PopoverMenu X="Request.X" Y="Request.Y" ViewportWidth="Request.ViewportWidth" ViewportHeight="Request.ViewportHeight"
+             Width="300" EstimatedHeight="@(60 + 44 * ColumnValuesMenuItems.Entries)" OnClose="OnClose">
+    <div class="ctx-head">
+        <span class="ctx-col">@Column.Name</span>
+        <span class="ctx-value">@Column.DisplayType</span>
+    </div>
+    <ColumnValuesMenuItems Column="Column" Presented="Presented" All="All" OnClose="OnClose" />
+</PopoverMenu>
+
+@code {
+    [Parameter, EditorRequired]
+    public ColumnMenuRequest Request { get; set; } = null!;
+
+    /// <summary>The result column as the driver reports it.</summary>
+    [Parameter, EditorRequired]
+    public ColumnInfo Column { get; set; } = null!;
+
+    /// <summary>The column as the result presents it (enum members of a traced column).</summary>
+    [Parameter, EditorRequired]
+    public ExportColumn Presented { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public AllColumnValues All { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+}

@@ -888,4 +888,10 @@
   <data name="WorkClone_StatusTitle" xml:space="preserve">
     <value>Arbeits-Klon dieser Gruppe: {0}. Klicken zum Wechseln.</value>
   </data>
+  <data name="Status_CopyValuesLabel" xml:space="preserve">
+    <value>{0} → Zwischenablage</value>
+  </data>
+  <data name="Status_CopyValuesTitle" xml:space="preserve">
+    <value>Liest die Werte von {0} im Hintergrund; in die Zwischenablage kommen sie, wenn alles gelesen ist.</value>
+  </data>
 </root>

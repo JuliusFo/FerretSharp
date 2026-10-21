@@ -142,6 +142,7 @@ public partial class App : Application
         builder.Services.AddSingleton<IThemeService, ThemeService>();
         builder.Services.AddSingleton<IDialogService, DialogService>();
         builder.Services.AddSingleton<IFileSaveService, FileSaveService>();
+        builder.Services.AddSingleton<IClipboardService, ClipboardService>();
         builder.Services.AddSingleton<IFileOpenService, FileOpenService>();
         builder.Services.AddSingleton<ICodeEditorLauncher, CodeEditorLauncher>();
         var modelHost = Path.Combine(AppContext.BaseDirectory, "modelhost", "FerretSharp.ModelHost.dll");
