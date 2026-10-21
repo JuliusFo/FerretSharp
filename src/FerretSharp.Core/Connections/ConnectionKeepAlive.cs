@@ -17,14 +17,29 @@ public sealed class ConnectionKeepAlive(IOpenConnections connections, AppSetting
     /// <summary>A ping on a dead network can hang; it is cancelled after this and left to the next statement.</summary>
     public static readonly TimeSpan PingTimeout = TimeSpan.FromSeconds(30);
 
+    /// <summary>After waking from sleep, the network (and the VPN) needs a moment before a ping can tell anything.</summary>
+    public static readonly TimeSpan ResumeDelay = TimeSpan.FromSeconds(5);
+
     private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
     private ITimer? _timer;
+    private ITimer? _soon;
     private int _running;
 
     /// <summary>A ping found a session of this connection gone; may fire on a background thread.</summary>
     public event Action<ActiveConnection, DatabaseException>? ConnectionLost;
 
     public void Start() => _timer ??= _time.CreateTimer(_ => _ = TickAsync(), null, Interval, Interval);
+
+    /// <summary>
+    /// The computer woke from sleep: one round after <see cref="ResumeDelay"/> instead of up to <see cref="Interval"/> later, so
+    /// connections that died meanwhile are reported (and reconnected, <see cref="AppSettings.AutoReconnect"/>) before the next
+    /// click. Every session has been idle that long; a ping that hangs on a network still coming up ends after <see cref="PingTimeout"/>.
+    /// </summary>
+    public void CheckSoon()
+    {
+        var soon = _time.CreateTimer(_ => _ = TickAsync(), null, ResumeDelay, Timeout.InfiniteTimeSpan);
+        Interlocked.Exchange(ref _soon, soon)?.Dispose();
+    }
 
     /// <summary>One round of pings (the timer calls it; public for tests). Skipped if the previous one still runs.</summary>
     public async Task TickAsync()
@@ -65,5 +80,9 @@ public sealed class ConnectionKeepAlive(IOpenConnections connections, AppSetting
         }
     }
 
-    public void Dispose() => _timer?.Dispose();
+    public void Dispose()
+    {
+        _timer?.Dispose();
+        _soon?.Dispose();
+    }
 }
