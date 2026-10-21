@@ -52,6 +52,33 @@ public sealed class ExportActionsTests : IDisposable
         Assert.Equal(["LOB nur Vorschau", "2 Zeilen der Auswahl nicht mehr geladen – nicht exportiert."], _shell.Notice.Warnings);
     }
 
+    /// <summary>
+    /// Review 3.44.0, C9: the target open in Excel – only the core's file handling was tested. The export says so, leaves the
+    /// file as it was and is gone from the status bar; nothing is read.
+    /// </summary>
+    [Fact]
+    public async Task A_locked_target_says_so_and_leaves_the_file_and_the_status_bar()
+    {
+        var path = Target("KUNDEN.csv");
+        await File.WriteAllTextAsync(path, "alt", TestContext.Current.CancellationToken);
+        var read = false;
+
+        using (new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            await Actions().SaveAllRowsAsync("KUNDEN.csv", "CSV", null, Guid.NewGuid(), (stream, _, ct) =>
+            {
+                read = true;
+                return WriteAsync(stream, "neu", ct);
+            });
+        }
+
+        Assert.False(read);
+        Assert.StartsWith("Speichern fehlgeschlagen:", _shell.Notice!.Text);
+        Assert.Empty(_shell.BackgroundReads.Running);
+        Assert.Equal("alt", await File.ReadAllTextAsync(path, TestContext.Current.CancellationToken));
+        Assert.Equal([path], Directory.GetFiles(_folder.Path)); // no temporary file left
+    }
+
     [Fact]
     public async Task All_rows_do_not_mention_selected_rows_no_longer_loaded()
     {
