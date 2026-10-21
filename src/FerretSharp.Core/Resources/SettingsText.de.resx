@@ -111,6 +111,9 @@
   <data name="FixedMarkForDeletion" xml:space="preserve">
     <value>Markierte Zeilen zum Löschen vormerken</value>
   </data>
+  <data name="FixedExtendSelection" xml:space="preserve">
+    <value>Markierung erweitern (die Pfeiltasten allein verschieben sie)</value>
+  </data>
   <data name="FixedEditCell" xml:space="preserve">
     <value>Zelle bearbeiten, LOB-Editor öffnen</value>
   </data>
