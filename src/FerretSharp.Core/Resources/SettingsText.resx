@@ -151,6 +151,10 @@
     <value>Select all rows</value>
     <comment>Fixed shortcut</comment>
   </data>
+  <data name="FixedClearSelection" xml:space="preserve">
+    <value>Clear the selection</value>
+    <comment>Fixed shortcut</comment>
+  </data>
   <data name="FixedEditCell" xml:space="preserve">
     <value>Edit cell, open LOB editor</value>
     <comment>Fixed shortcut</comment>
@@ -177,6 +181,9 @@
   </data>
   <data name="HintInGrid" xml:space="preserve">
     <value>In the grid.</value>
+  </data>
+  <data name="HintInGridNotEditing" xml:space="preserve">
+    <value>In the grid, when no cell is being edited.</value>
   </data>
   <data name="HintSelectAllRows" xml:space="preserve">
     <value>In the grid; rows that only load as you scroll on are selected too.</value>

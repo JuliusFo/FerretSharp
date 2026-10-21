@@ -122,6 +122,7 @@ public sealed class ShortcutMap
             SettingsText.HintInGrid),
         new(SettingsText.GroupData, SettingsText.FixedToggleRow, Labels("space"), SettingsText.HintInGrid),
         new(SettingsText.GroupData, SettingsText.FixedSelectAllRows, Labels("ctrl+a"), SettingsText.HintSelectAllRows),
+        new(SettingsText.GroupData, SettingsText.FixedClearSelection, "Esc", SettingsText.HintInGridNotEditing),
         new(SettingsText.GroupData, SettingsText.FixedEditCell, "Enter", SettingsText.HintInGridDoubleClick),
         new(SettingsText.GroupData, SettingsText.FixedCancelInput, "Esc", SettingsText.HintInGrid),
         new(SettingsText.GroupData, SettingsText.ActionApplyFilters, "Enter", SettingsText.HintInFilterValue),

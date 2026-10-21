@@ -123,6 +123,9 @@
   <data name="FixedSelectAllRows" xml:space="preserve">
     <value>Alle Zeilen markieren</value>
   </data>
+  <data name="FixedClearSelection" xml:space="preserve">
+    <value>Markierung aufheben</value>
+  </data>
   <data name="FixedEditCell" xml:space="preserve">
     <value>Zelle bearbeiten, LOB-Editor öffnen</value>
   </data>
@@ -143,6 +146,9 @@
   </data>
   <data name="HintInGrid" xml:space="preserve">
     <value>Im Grid.</value>
+  </data>
+  <data name="HintInGridNotEditing" xml:space="preserve">
+    <value>Im Grid, wenn keine Zelle bearbeitet wird.</value>
   </data>
   <data name="HintSelectAllRows" xml:space="preserve">
     <value>Im Grid; Zeilen, die erst beim Weiterscrollen laden, werden mitmarkiert.</value>

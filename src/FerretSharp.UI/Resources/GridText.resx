@@ -790,6 +790,17 @@
     <value>≥ {0} rows</value>
     <comment>{0}: number of rows loaded so far (bold)</comment>
   </data>
+  <data name="Footer_SelectedRows" xml:space="preserve">
+    <value>{0} selected</value>
+    <comment>{0}: number of selected rows (2 or more)</comment>
+  </data>
+  <data name="Footer_SelectedLoadedRows" xml:space="preserve">
+    <value>{0} selected (loaded rows)</value>
+    <comment>{0}: number of selected rows after Ctrl+A or a selection up to the last row while not all rows are loaded</comment>
+  </data>
+  <data name="Footer_SelectedLoadedRowsTitle" xml:space="preserve">
+    <value>Only loaded rows are selected; rows that load as you scroll on join them. Deleting, copying and saving take only the selected ones – every row is under “All rows” in the context menu.</value>
+  </data>
   <data name="Footer_Total" xml:space="preserve">
     <value>Total {0}</value>
     <comment>{0}: counted number of rows (bold)</comment>

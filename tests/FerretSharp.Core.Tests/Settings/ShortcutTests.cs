@@ -204,6 +204,7 @@ public sealed class ShortcutMapTests
         Assert.Equal("Shift+Pos1, Shift+Ende, Ctrl+Shift+↑, Ctrl+Shift+↓", keys["Bis zur ersten oder letzten Zeile markieren"]);
         Assert.Equal("Leertaste", keys["Fokussierte Zeile markieren oder Markierung aufheben"]);
         Assert.Equal("Ctrl+A", keys["Alle Zeilen markieren"]);
+        Assert.Equal("Esc", keys["Markierung aufheben"]);
     }
 
     [Fact]

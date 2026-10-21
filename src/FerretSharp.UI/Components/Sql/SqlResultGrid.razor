@@ -9,6 +9,7 @@
 @inherits FerretComponent
 @implements IAsyncDisposable
 @implements IFormGrid
+@implements ISelectionGrid
 @inject IJSRuntime JS
 @inject ILogger<SqlResultGrid> Logger
 
@@ -320,6 +321,18 @@
     {
         Focused = rowIndex < 0 ? null : new GridCell(rowIndex, null, colId is not null && colId.StartsWith('c') ? GridColumn.IndexOf(colId) : null);
         FocusChanged?.Invoke();
+    });
+
+    public GridSelection Selection { get; private set; } = GridSelection.None;
+
+    public event Action? SelectionChanged;
+
+    /// <summary>The selection changed (grid.js reports the last state after a short pause); the footer shows it.</summary>
+    [JSInvokable]
+    public void OnSelectionChanged(int count, bool toEnd) => Guard(() =>
+    {
+        Selection = new GridSelection(count, toEnd);
+        SelectionChanged?.Invoke();
     });
 
     /// <summary>Alt+Enter in the grid: several selected rows are compared, otherwise the form opens or closes (as in a table, WP-21).</summary>

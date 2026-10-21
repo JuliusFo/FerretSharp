@@ -639,6 +639,9 @@ export function create(elementId, dotnet, columns, options) {
     setTimeout(() => { if (press === keyPresses) keyMove = null; }, 250);
   }, true);
   element.addEventListener('mousedown', () => { keyMove = null; }, true);
+  // A left click into the rows selects anew (AG Grid's): it ends the span. Here, not in onCellClicked – AG Grid raises
+  // that later, a Ctrl+A right after the click would lose its span. A right click keeps the selection for the menu.
+  element.addEventListener('mousedown', e => { if (e.button === 0 && e.target.closest?.('.ag-cell')) span = null; }, true);
 
   // Rows not loaded yet (a block still on its way) cannot be selected yet: the span takes them in when they arrive.
   function selectRange(gridApi, from, to, toEnd) {
@@ -701,15 +704,24 @@ export function create(elementId, dotnet, columns, options) {
     select: (rowIndex, pinned) => followFocus(api, rowIndex, pinned, 'single'),
   });
 
-  // Ctrl+A selects all rows. Space selects or deselects the focused row and makes it the anchor (AG Grid's own Space
-  // knows nothing of the anchor, with Shift it would select from where AG Grid last clicked). Not while editing (the
-  // editor's own keys), not on a new row at the top (it cannot be selected).
+  // Ctrl+A selects all rows, Esc clears the selection (only if there is one: otherwise Esc goes on). Space selects or
+  // deselects the focused row and makes it the anchor (AG Grid's own Space knows nothing of the anchor, with Shift it
+  // would select from where AG Grid last clicked). Not while editing (the editor's own keys, Esc cancels the input), not
+  // on a new row at the top (it cannot be selected).
   function onSelectKey(e) {
     if (e.altKey || api.getEditingCells().length > 0) return false;
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'a') {
       e.preventDefault();
       e.stopPropagation();
       selectAll(api);
+      return true;
+    }
+    if (e.key === 'Escape' && !e.ctrlKey && !e.shiftKey && !e.metaKey) {
+      if (api.getSelectedNodes().length === 0) return false;
+      e.preventDefault();
+      e.stopPropagation();
+      span = null;
+      api.deselectAll();
       return true;
     }
     if (e.key !== ' ') return false;
@@ -803,6 +815,17 @@ export function create(elementId, dotnet, columns, options) {
     return true;
   }
 
+  // How many rows are selected and whether rows still to load join them (span to the end), for the footer; Shift+↓ held
+  // down changes it fast, so only the last state within a moment is reported.
+  let selectionTimer = null;
+  function reportSelection() {
+    clearTimeout(selectionTimer);
+    selectionTimer = setTimeout(() => {
+      if (grids.get(elementId) !== api) return; // destroyed or created anew meanwhile
+      dotnet.invokeMethodAsync('OnSelectionChanged', api.getSelectedNodes().length, span?.to === Infinity).catch(callFailed);
+    }, 60);
+  }
+
   // The form follows the focused cell; arrow keys move it fast, so only the last position within a moment is reported.
   let focusTimer = null;
   function reportFocus(e) {
@@ -882,13 +905,11 @@ export function create(elementId, dotnet, columns, options) {
     },
     onBodyScrollEnd: () => { if (table) dotnet.invokeMethodAsync('OnScrolled', firstVisibleRow(api)).catch(callFailed); },
     onCellFocused,
-    // A click without Shift sets where a Shift+↑ ↓ range starts (the selection itself is AG Grid's) and ends the span.
-    onCellClicked: e => {
-      span = null;
-      if (!e.event?.shiftKey && !e.node.rowPinned) anchor = e.rowIndex;
-    },
+    // A click without Shift sets where a Shift+↑ ↓ range starts (the selection itself is AG Grid's).
+    onCellClicked: e => { if (!e.event?.shiftKey && !e.node.rowPinned) anchor = e.rowIndex; },
     // Other rows in the same places: the span no longer means them.
     onSortChanged: () => { span = null; },
+    onSelectionChanged: reportSelection,
     // Pinned or reordered within the pinned area by dragging (changes from setPinned have source 'api').
     onColumnPinned: e => { if (table && e.source?.startsWith('ui')) reportPinned(api, dotnet); },
     onColumnMoved: e => { if (table && e.finished && e.source?.startsWith('ui') && e.column?.getPinned()) reportPinned(api, dotnet); },
