@@ -29,6 +29,8 @@ public class SqlRedactionTests
     [InlineData("UPDATE t SET c = q'[it's]' WHERE \"Id\" = :id -- 'kommentar'", "UPDATE t SET c = '***' WHERE \"Id\" = :id -- 'kommentar'")]
     [InlineData("SELECT 'a''b' FROM dual", "SELECT '***' FROM dual")]
     [InlineData("SELECT id FROM t WHERE x = 42", "SELECT id FROM t WHERE x = 42")]
+    // Review 3.44.0, C10: a typo like this (ORA-01756) is just what lands in the log on Prod – the rest is the literal.
+    [InlineData("SELECT * FROM kunden WHERE name = 'Müller AND id = 4711", "SELECT * FROM kunden WHERE name = '***'")]
     public void Without_literals_masks_every_string_literal_and_keeps_the_rest(string sql, string expected) =>
         Assert.Equal(expected, SqlRedaction.WithoutLiterals(sql));
 }
