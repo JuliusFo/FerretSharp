@@ -548,6 +548,13 @@
             return;
         }
 
+        if (command is TabCommand.ApplyFilters or TabCommand.Refresh or TabCommand.Reload)
+        {
+            // An open cell menu holds row indexes of the rows before (review 3.44.0, A3): a script of the workspace that
+            // reloaded the table made "Delete rows" and "Revert" hit other rows.
+            _menu = null;
+        }
+
         Fire(async () =>
         {
             switch (command)
