@@ -70,6 +70,13 @@ public sealed class ColumnValues(ExportColumn column, ColumnValuesFormat format)
                 return true;
             }
 
+            // Without the CHAR padding (review 3.44.0, A8): it finds the rows in its own column all the same (blank-padded
+            // comparison), and in a VARCHAR2 column too – a relationship without a constraint, as FkNavigation.FilterValue.
+            if (value is string text && OracleTypes.IsFixedChar(column.Column.DataType) && text.TrimEnd(' ') is { Length: > 0 } trimmed)
+            {
+                value = trimmed;
+            }
+
             var literal = InsertExport.Literal(column.Column, value, _warnings);
             if (!_literals.Add(literal))
             {

@@ -76,6 +76,21 @@ public class ColumnValuesTests
         Assert.Equal("TO_DATE('2026-10-01 14:30:00', 'YYYY-MM-DD HH24:MI:SS')", Copy(Created, ColumnValuesFormat.InList, new DateTime(2026, 10, 1, 14, 30, 0)).Text);
     }
 
+    /// <summary>
+    /// Review 3.44.0, A8: CHAR values came with their padding; pasted into a query on a VARCHAR2 column (a relationship
+    /// without a constraint) the list found nothing. Lines keep the value as shown.
+    /// </summary>
+    [Fact]
+    public void The_in_list_leaves_out_the_char_padding()
+    {
+        var code = Col("KUERZEL", "CHAR");
+
+        Assert.Equal("'AB', 'X'", Copy(code, ColumnValuesFormat.InList, "AB ", "X  ", "AB").Text);
+        Assert.Equal("'   '", Copy(code, ColumnValuesFormat.InList, "   ").Text); // a value of blanks only stays
+        Assert.Equal("'AB '", Copy(Name, ColumnValuesFormat.InList, "AB ").Text); // VARCHAR2 keeps what it holds
+        Assert.Equal("AB ", Copy(code, ColumnValuesFormat.Lines, "AB ").Text);
+    }
+
     [Fact]
     public void Nulls_collapsed_by_distinct_are_named_without_a_number()
     {
