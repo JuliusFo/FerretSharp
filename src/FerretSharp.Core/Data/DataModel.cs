@@ -163,6 +163,22 @@ public interface IDataAccess : IRowLookup
     /// <exception cref="Connections.RefusedException">The query returns other columns than <paramref name="columns"/>.</exception>
     Task ReadSqlAllAsync(QuerySpec query, IReadOnlyList<string> columns, RowBlockHandler onBlock, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// The values of one column for every row of a table's query (copy the values of a column, WP-57;
+    /// <see cref="QueryBuilder.BuildColumnValues"/>), read like <see cref="ReadAllAsync"/>: one cursor in the session as it
+    /// stands. Each row holds the one value, without key.
+    /// </summary>
+    /// <param name="distinct">Each value once, ordered by the value (an IN list); otherwise in the grid's order.</param>
+    /// <exception cref="QueryValidationException">A filter or sort cannot be applied.</exception>
+    Task ReadColumnAllAsync(
+        TableDetails table,
+        int column,
+        IReadOnlyList<FilterCondition> filters,
+        IReadOnlyList<SortSpec> sorts,
+        bool distinct,
+        RowBlockHandler onBlock,
+        CancellationToken cancellationToken);
+
     /// <summary>Rows fetched for the actual plan unless the whole result is wanted: one grid page.</summary>
     public const int ActualPlanPageSize = 500;
 

@@ -32,6 +32,9 @@ public enum ShortcutAction
 
     /// <summary>The work clone of the shown connection's group (WP-40); no default key.</summary>
     SwitchWorkClone,
+
+    /// <summary>The values of the focused cell's column from the selected rows (WP-57); no default key.</summary>
+    CopyColumnValues,
 }
 
 /// <summary>Where a shortcut is caught.</summary>
@@ -110,6 +113,7 @@ public sealed class ShortcutMap
         new(ShortcutAction.NewLinq, SettingsText.GroupSqlAndLinq, SettingsText.ActionNewLinq, "ctrl+shift+l", ShortcutScope.Global, SettingsText.HintNewLinq),
         new(ShortcutAction.RunScript, SettingsText.GroupSqlAndLinq, SettingsText.ActionRunScript, "alt+x", ShortcutScope.Global, SettingsText.HintRunScript),
         new(ShortcutAction.SwitchWorkClone, SettingsText.GroupSqlAndLinq, SettingsText.ActionSwitchWorkClone, null, ShortcutScope.Global, SettingsText.HintSwitchWorkClone),
+        new(ShortcutAction.CopyColumnValues, SettingsText.GroupData, SettingsText.ActionCopyColumnValues, null, ShortcutScope.Grid, SettingsText.HintCopyColumnValues),
     ];
 
     /// <summary>The fixed shortcuts; a property for the same reason as <see cref="Definitions"/>.</summary>

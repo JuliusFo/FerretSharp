@@ -270,4 +270,13 @@
   <data name="LinkIncomplete" xml:space="preserve">
     <value>Der Link ist unvollständig – vermutlich unterwegs abgeschnitten (eine Mail als reiner Text, ein Ticketfeld). Bitte neu schicken lassen oder ganz kopieren.</value>
   </data>
+  <data name="ColumnValuesNullsLeftOutOne" xml:space="preserve">
+    <value>{0} NULL-Wert steht nicht in der Liste: IN findet NULL nie.</value>
+  </data>
+  <data name="ColumnValuesNullsLeftOutOther" xml:space="preserve">
+    <value>{0:N0} NULL-Werte stehen nicht in der Liste: IN findet NULL nie.</value>
+  </data>
+  <data name="ColumnValuesInListTooLong" xml:space="preserve">
+    <value>Oracle nimmt höchstens {0:N0} Werte je IN-Liste (ORA-01795): Liste teilen oder mehrere mit OR verbinden.</value>
+  </data>
 </root>

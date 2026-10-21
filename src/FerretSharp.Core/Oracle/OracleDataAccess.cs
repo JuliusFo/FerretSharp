@@ -110,6 +110,21 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
             OracleSession.WholeLobs, cancellationToken);
     }
 
+    public Task ReadColumnAllAsync(
+        TableDetails table,
+        int column,
+        IReadOnlyList<FilterCondition> filters,
+        IReadOnlyList<SortSpec> sorts,
+        bool distinct,
+        RowBlockHandler onBlock,
+        CancellationToken cancellationToken)
+    {
+        var query = QueryBuilder.BuildColumnValues(table, column, filters, sorts, distinct);
+        return session.ExecuteStreamingReaderAsync(query.Sql, query.Parameters, (reader, nested, ct) =>
+            ReadBlocksAsync(reader, oracle => ReadRow(oracle, query, table), nested, onBlock, ct),
+            OracleSession.WholeLobs, cancellationToken);
+    }
+
     public Task ReadSqlAllAsync(QuerySpec query, IReadOnlyList<string> columns, RowBlockHandler onBlock, CancellationToken cancellationToken) =>
         session.ExecuteStreamingReaderAsync(query.Sql, query.Parameters, (reader, nested, ct) =>
         {

@@ -164,7 +164,7 @@ public class ReadOnlyTests
                 "BeginTransactionAsync", "SavepointAsync", "RollbackToSavepointAsync", "CommitAsync", "RollbackAsync",
             ]
         },
-        { typeof(IDataAccess), ["CountAsync", "ExplainActualAsync", "ReadAllAsync", "ReadLobAsync", "ReadPageAsync", "ReadSqlAllAsync", "ReadSqlAsync"] },
+        { typeof(IDataAccess), ["CountAsync", "ExplainActualAsync", "ReadAllAsync", "ReadColumnAllAsync", "ReadLobAsync", "ReadPageAsync", "ReadSqlAllAsync", "ReadSqlAsync"] },
         { typeof(IRowLookup), ["LookupAsync"] },
         {
             typeof(ISchemaReader), [

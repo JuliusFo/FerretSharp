@@ -110,6 +110,30 @@ public static class QueryBuilder
     public static SelectQuery BuildSelectAll(TableDetails table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts) =>
         Select(table, filters, sorts, page: null);
 
+    /// <summary>
+    /// The values of one column for every row of <see cref="BuildSelectAll"/> (copy the values of a column, WP-57): in the
+    /// grid's order, or each value once (<paramref name="distinct"/>, for an IN list) ordered by the value – with DISTINCT,
+    /// Oracle only sorts by what is selected. Only columns read as they are (<see cref="Projection.Value"/>).
+    /// </summary>
+    /// <exception cref="ArgumentException">The column is a LOB, LONG or a type read only as a marker.</exception>
+    public static SelectQuery BuildColumnValues(
+        TableDetails table, int column, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts, bool distinct)
+    {
+        var info = table.Columns[column];
+        if (ProjectionOf(info) != Projection.Value)
+        {
+            throw new ArgumentException($"Column {info.Name} ({info.DataType}) is not read as a value.", nameof(column));
+        }
+
+        var builder = new Builder(table);
+        var sql = new StringBuilder()
+            .Append(distinct ? "SELECT DISTINCT " : "SELECT ").Append(builder.Ref(info))
+            .Append("\n  FROM ").Append(OracleIdentifier.Qualify(table.Table.Owner, table.Table.Name)).Append(' ').Append(Alias)
+            .Append(builder.Where(filters))
+            .Append("\n ORDER BY ").AppendJoin(", ", distinct ? [builder.Ref(info)] : builder.OrderBy(sorts));
+        return new SelectQuery(sql.ToString(), builder.Parameters, [new ResultColumn(info, Projection.Value)], RowKeyKind.None, HasRowId: false);
+    }
+
     private static SelectQuery Select(
         TableDetails table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts, PageSpec? page)
     {
