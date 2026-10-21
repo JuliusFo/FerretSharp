@@ -49,6 +49,8 @@ public partial class App : Application
                 retainedFileCountLimit: 14)
             .CreateLogger();
         RegisterGlobalExceptionHandlers(); // before anything that can fail (R4a: a failing host build left no trace)
+        // With the main window's close (MainWindow), the log tells why the app ended.
+        SessionEnding += (_, args) => Log.Information("Windows session ending ({Reason})", args.ReasonSessionEnding);
 
         // Settings decide the theme, which must be known before the window and the WebView exist (no white flash), and the
         // language. Read here, not in an async method: the UI culture belongs to the execution context, and a change made

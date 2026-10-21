@@ -1,6 +1,7 @@
 using System.Windows;
 using FerretSharp.App.Services;
 using FerretSharp.UI.State;
+using Microsoft.Extensions.Logging;
 
 namespace FerretSharp.App.Views;
 
@@ -8,7 +9,7 @@ public partial class MainWindow : Window
 {
     private bool _exitApproved;
 
-    public MainWindow(IServiceProvider services, WindowTheme theme, ExitGuard exitGuard)
+    public MainWindow(IServiceProvider services, WindowTheme theme, ExitGuard exitGuard, ILogger<MainWindow> logger)
     {
         theme.PrepareWebViewBackground();
         InitializeComponent();
@@ -29,8 +30,10 @@ public partial class MainWindow : Window
         };
 
         // Uncommitted changes: the shell asks first (commit / roll back / cancel), then approves the exit.
+        // Who closes is logged: after a render thread failure (2026-10-21) the log could not tell the user's close from the app's.
         Closing += (_, e) =>
         {
+            var by = _exitApproved ? "after the question about uncommitted changes" : _closeFromApp ? "by the app" : "by the user";
             if (!_closeFromApp && !_exitApproved)
             {
                 exitGuard.UserClosing(); // the user's own close never installs an update whose restart they cancelled
@@ -38,10 +41,12 @@ public partial class MainWindow : Window
 
             if (_exitApproved || exitGuard.CanExit?.Invoke() != false)
             {
+                logger.LogInformation("Main window closing {By}", by);
                 exitGuard.Exiting();
                 return;
             }
 
+            logger.LogInformation("Main window closing {By}: asking about uncommitted changes first", by);
             e.Cancel = true;
             exitGuard.RequestExit?.Invoke();
         };
