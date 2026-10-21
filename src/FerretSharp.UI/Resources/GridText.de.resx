@@ -639,6 +639,18 @@
   <data name="Footer_Counting" xml:space="preserve">
     <value>Zähle …</value>
   </data>
+  <data name="Footer_Loading" xml:space="preserve">
+    <value>Lädt …</value>
+  </data>
+  <data name="Load_Running" xml:space="preserve">
+    <value>Zeilen werden geladen</value>
+  </data>
+  <data name="Load_Cancelled" xml:space="preserve">
+    <value>Laden der Zeilen abgebrochen.</value>
+  </data>
+  <data name="Load_CancelledKey" xml:space="preserve">
+    <value>Laden der Zeilen abgebrochen – {0} lädt sie neu.</value>
+  </data>
   <data name="Footer_CountRows" xml:space="preserve">
     <value>Zeilen zählen</value>
   </data>

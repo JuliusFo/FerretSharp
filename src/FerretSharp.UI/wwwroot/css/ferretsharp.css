@@ -657,7 +657,10 @@ code.condition { font: 12px var(--mono); white-space: pre-wrap; }
 .table-item.invalid .icon { color: var(--danger); }
 .tab-error { padding: 8px 12px; background: var(--danger-weak); color: var(--danger); border-bottom: 1px solid var(--border); font-size: 12.5px; user-select: text; }
 .structure-loading.padded { padding: 20px; }
-.grid-host { flex: 1; min-height: 0; }
+.grid-host { flex: 1; min-height: 0; position: relative; }
+/* A slow block of a table grid (fix 3.45.1): RunProgress over the rows, the grid stays usable beside it. */
+.grid-loading { position: absolute; inset: 0; z-index: 5; display: flex; justify-content: center; align-items: center; pointer-events: none; }
+.grid-loading > .run-progress { pointer-events: auto; }
 .ag-host { height: 100%; }
 .tab-footer {
   display: flex; gap: 16px; align-items: center; flex: none;

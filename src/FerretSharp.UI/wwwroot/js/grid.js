@@ -916,8 +916,18 @@ export function create(elementId, dotnet, columns, options) {
     onCellFocused,
     // A click without Shift sets where a Shift+↑ ↓ range starts (the selection itself is AG Grid's).
     onCellClicked: e => { if (!e.event?.shiftKey && !e.node.rowPinned) anchor = e.rowIndex; },
-    // Other rows in the same places: the span no longer means them.
-    onSortChanged: () => { span = null; },
+    // Other rows in the same places: the span no longer means them. A block still loading counts against
+    // maxConcurrentDatasourceRequests even after the grid dropped it, so .NET cancels it – the new order waited behind it.
+    // The new order goes along: this event comes after the grid may already have asked for its first block.
+    onSortChanged: e => {
+      span = null;
+      if (!table) return;
+      const sortModel = e.api.getColumnState()
+        .filter(s => s.sort)
+        .sort((a, b) => (a.sortIndex ?? 0) - (b.sortIndex ?? 0))
+        .map(s => ({ colId: s.colId, sort: s.sort }));
+      dotnet.invokeMethodAsync('OnSortChanged', sortModel).catch(callFailed);
+    },
     onSelectionChanged: reportSelection,
     // Pinned or reordered within the pinned area by dragging (changes from setPinned have source 'api').
     onColumnPinned: e => { if (table && e.source?.startsWith('ui')) reportPinned(api, dotnet); },

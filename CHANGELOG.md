@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Fixed
+- A table whose rows take a while to load says so: after a moment the grid shows "Loading rows" with a clock and "Cancel" (and, like a running statement, what the session waits for and "Disconnect session…" if a cancel goes unanswered); the footer says "Loading …" instead of "≥ 0 rows". Before, the grid stayed empty until the rows came – after removing a filter or opening a big table sometimes for minutes – and nothing could stop the query.
+- A new query (filter, sort, F5) cancels the rows of the previous one still loading instead of waiting behind it, and closing the tab stops its query.
+
 ## [3.45.0] - 2026-10-21
 
 Fixes, structure and tests from the third review of the whole code (R7).
