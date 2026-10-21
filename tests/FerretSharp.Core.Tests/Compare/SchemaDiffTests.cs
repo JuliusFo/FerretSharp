@@ -315,12 +315,12 @@ public class SchemaDiffTests
     [Fact]
     public void A_column_only_in_another_letter_case_is_matched_as_other_case()
     {
-        var result = Compare(Schema(Table("T", [Text("Chargenr", 20)])), Schema(Table("T", [Text("CHARGENR", 20)])));
+        var result = Compare(Schema(Table("T", [Text("Lieferdatum", 20)])), Schema(Table("T", [Text("LIEFERDATUM", 20)])));
 
         var row = Assert.Single(result.Objects[0].Children);
-        Assert.Equal("Chargenr", row.Name);
+        Assert.Equal("Lieferdatum", row.Name);
         Assert.Equal([Same, OtherCase], States(row));
-        Assert.Equal("CHARGENR", row.Cells[1].Name);
+        Assert.Equal("LIEFERDATUM", row.Cells[1].Name);
     }
 
     // ---- constraints -----------------------------------------------------------------------------------------------

@@ -19,7 +19,7 @@ public class PropertyCodeTests
         Prop("Aktiv", "bool", "AKTIV", "JaNeinConverter", "string"),
         Prop("Gesperrt", "bool", "GESPERRT", "JaNeinConverter", "string"),
         Prop("ErstelltAm", "DateTime", "ERSTELLT_AM"),
-        Prop("Chargenr", "string", "CHARGEN_NR"));
+        Prop("Lieferscheinnr", "string", "LIEFERSCHEIN_NR"));
 
     private static ColumnInfo Col(string name, string type, int? length = null, int? precision = null, int? scale = null, bool nullable = true) =>
         new(name, type, length, false, precision, scale, nullable, false, null, 1);
@@ -31,7 +31,7 @@ public class PropertyCodeTests
 
         Assert.Equal("FaxNummer", suggestion.Name);
         Assert.Equal("public string? FaxNummer { get; set; }", suggestion.Declaration);
-        Assert.Equal("builder.Property(x => x.FaxNummer).HasColumnName(\"FAX_NUMMER\").HasMaxLength(30);", suggestion.Configuration); // CHARGEN_NR breaks the convention
+        Assert.Equal("builder.Property(x => x.FaxNummer).HasColumnName(\"FAX_NUMMER\").HasMaxLength(30);", suggestion.Configuration); // LIEFERSCHEIN_NR breaks the convention
         Assert.Empty(suggestion.Notes);
     }
 
@@ -57,10 +57,10 @@ public class PropertyCodeTests
     [Fact]
     public void The_same_column_elsewhere_gives_name_type_and_converter()
     {
-        var suggestion = PropertyCode.Suggest(Shop, Col("CHARGEN_NR", "VARCHAR2", 20));
+        var suggestion = PropertyCode.Suggest(Shop, Col("LIEFERSCHEIN_NR", "VARCHAR2", 20));
 
-        Assert.Equal("public string? Chargenr { get; set; }", suggestion.Declaration);
-        Assert.Equal(["Name und Typ wie bei CHARGEN_NR in einer anderen Entity des Projekts."], suggestion.Notes);
+        Assert.Equal("public string? Lieferscheinnr { get; set; }", suggestion.Declaration);
+        Assert.Equal(["Name und Typ wie bei LIEFERSCHEIN_NR in einer anderen Entity des Projekts."], suggestion.Notes);
     }
 
     /// <summary>

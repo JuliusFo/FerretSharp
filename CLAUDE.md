@@ -69,12 +69,13 @@ Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erkl
 
 ```
 src/FerretSharp.Core/       net10.0 – reine Logik, KEIN WPF, KEINE Windows-only-APIs, baut unter Linux
-  Oracle/ Query/ (SqlEditor/: Textanalyse) Schema/ Data/ Connections/ (Transfer/) Workspaces/ Settings/ IO/ Resources/
+  Oracle/ Query/ (SqlEditor/: Textanalyse, Search/: Namenssuche) Schema/ Data/ Connections/ (Transfer/) Workspaces/ Settings/ IO/ Resources/
   Ddl/ (DDL-Text) Design/ (Designer) Compare/ Audit/ Display/ (Anzeigespalten) Forms/ AppTrace/ Links/
-  ClrModel/ (Host/: Prozesse und Dateien um den ModelHost, CodeGen/)   – Unterordner ändern den Namespace nicht
+  ClrModel/ (Host/: Prozesse und Dateien um den ModelHost, CodeGen/, Usage/: Code-Verwendung)   – Unterordner ändern den Namespace nicht
 src/FerretSharp.UI/         net10.0 Razor Class Library, plattformneutral: Shell.razor, Resources/,
                             Components/ (Common Shell Connections Schema PlSql Grid Filter Sql Ddl Pages, je eigener
-                            Namespace, alle in `_Imports.razor`), State/ (gleiche Ordner, Namespace bleibt `UI.State`),
+                            Namespace, alle in `_Imports.razor`), State/ (Connections Export Grid Host Links Model Schema
+                            Settings Shell Tabs Workspaces, Namespace bleibt `UI.State`),
                             wwwroot/ (css, js als ES-Module, lib/ag-grid, lib/monaco)
 src/FerretSharp.ModelHost/  Hilfsprozess im Kontext des C#-Projekts des Nutzers (.NET 8, ADR 0009)
 src/FerretSharp.AppTrace/   an eine laufende App anhängen (EventPipe, ADR 0023), plattformneutral

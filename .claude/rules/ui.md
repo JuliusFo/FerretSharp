@@ -10,7 +10,7 @@ UI-Konzept und Tastenkürzel: `docs/architecture.md` 2–3. Grid, Monaco und CSS
 
 ## Ordner (R6b)
 - Komponenten liegen nach Bereich in `Components/` (Common, Shell, Connections, Schema, PlSql, Grid, Filter, Sql, Ddl, Pages); der Ordner ist der Namespace, ein neuer Ordner kommt in die Wurzel-`_Imports.razor`. Die `.cs`-Helfer dort (`FerretComponent`, `Fmt`, `Icons`, `DetailViewBase`) behalten `FerretSharp.UI.Components`.
-- `State/` hat dieselbe Gliederung (dazu Tabs, Links, Settings, Host = Schnittstellen zur App, Model), der Namespace bleibt `FerretSharp.UI.State`. Neue Dateien in den passenden Ordner, sonst greifen die `paths` der Regeln nicht.
+- `State/` hat eigene Ordner (Connections, Export, Grid, Host = Schnittstellen zur App und ihre reinen Regeln, Links, Model, Schema, Settings, Shell, Tabs, Workspaces), der Namespace bleibt `FerretSharp.UI.State`. Neue Dateien in den passenden Ordner, sonst greifen die `paths` der Regeln nicht.
 
 ## Zustand und Dienste
 - Dialoge und Bestätigungen fordern Komponenten über den kaskadierten `ShellState` an. Was mit Workspaces und ihren Änderungen passiert (Commit, Rollback, Sperren/Freischalten, Verbinden, Trennen, Löschen, Tab schließen, „vorher fragen“ über `GuardAsync`), liegt im kaskadierten `WorkspaceLifecycle`. `TabBar`, `StatusBar`, `WorkspaceBadge`, `ConnectionLostBanner`, `DialogHost` bekommen ihn als Parameter, damit sie mit der Shell neu rendern.
