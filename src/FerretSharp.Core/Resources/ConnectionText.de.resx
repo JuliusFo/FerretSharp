@@ -111,8 +111,8 @@
   <data name="Step_ReadingPlSql" xml:space="preserve">
     <value>Lese PL/SQL-Objekte</value>
   </data>
-  <data name="Step_ReadingForeignKeys" xml:space="preserve">
-    <value>Lese Fremdschlüssel von {0} ({1} von {2})</value>
+  <data name="Step_ReadingKeys" xml:space="preserve">
+    <value>Lese Schlüssel und Fremdschlüssel von {0}</value>
   </data>
   <data name="Step_RestoringWorkspaces" xml:space="preserve">
     <value>Stelle die Workspaces wieder her</value>

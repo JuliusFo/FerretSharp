@@ -17,8 +17,8 @@ internal static class FakeDatabase
         var reader = Substitute.For<ISchemaReader>();
         reader.GetTablesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(tables);
         reader.GetSynonymTargetsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(SynonymTargets.None);
-        reader.GetForeignKeysAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
-        reader.GetPrimaryKeysAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
+        reader.GetForeignKeysAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>()).Returns([]);
+        reader.GetPrimaryKeysAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>()).Returns([]);
         reader.GetPlSqlObjectsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
         return reader;
     }

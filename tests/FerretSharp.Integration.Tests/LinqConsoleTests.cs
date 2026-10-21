@@ -284,7 +284,7 @@ public sealed class LinqConsoleTests : IAsyncLifetime
         var reader = Substitute.For<ISchemaReader>();
         reader.GetTablesAsync(owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyList<TableSummary>)[kunden.Table]);
         reader.GetSynonymTargetsAsync(owner, Arg.Any<CancellationToken>()).Returns(SynonymTargets.None);
-        reader.GetForeignKeysAsync(owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyList<ForeignKeyInfo>)[]);
+        reader.GetForeignKeysAsync(Arg.Is<IReadOnlyList<string>>(o => o.Contains(owner)), Arg.Any<CancellationToken>()).Returns((IReadOnlyList<ForeignKeyInfo>)[]);
         reader.GetColumnsAsync(owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyDictionary<string, IReadOnlyList<ColumnInfo>>)
             new Dictionary<string, IReadOnlyList<ColumnInfo>> { ["KUNDEN"] = kunden.Columns });
         var schema = new SchemaCache(reader, owner);

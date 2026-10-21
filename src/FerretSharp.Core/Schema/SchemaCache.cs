@@ -66,17 +66,13 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
         var plSql = Merge(await reader.GetPlSqlObjectsAsync(Owner, cancellationToken), synonymTargets.PlSql);
 
         // Foreign keys and primary keys of every schema that contributes objects, so relationships work across synonyms too.
-        var foreignKeys = new List<ForeignKeyInfo>();
-        var primaryKeys = new Dictionary<TableRef, IReadOnlyList<string>>();
         var schemas = tables.Select(t => t.Owner).Prepend(Owner).Distinct(StringComparer.Ordinal).ToList();
-        for (var i = 0; i < schemas.Count; i++)
+        progress?.Report(TextFormat.Format(ConnectionText.Step_ReadingKeys, string.Join(", ", schemas)));
+        var foreignKeys = (await reader.GetForeignKeysAsync(schemas, cancellationToken)).ToList();
+        var primaryKeys = new Dictionary<TableRef, IReadOnlyList<string>>();
+        foreach (var key in await reader.GetPrimaryKeysAsync(schemas, cancellationToken))
         {
-            progress?.Report(TextFormat.Format(ConnectionText.Step_ReadingForeignKeys, schemas[i], i + 1, schemas.Count));
-            foreignKeys.AddRange(await reader.GetForeignKeysAsync(schemas[i], cancellationToken));
-            foreach (var key in await reader.GetPrimaryKeysAsync(schemas[i], cancellationToken))
-            {
-                primaryKeys[key.Table] = key.Columns;
-            }
+            primaryKeys[key.Table] = key.Columns;
         }
 
         Tables = tables;

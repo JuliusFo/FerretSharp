@@ -49,7 +49,7 @@ public sealed class SqlResultPresentationTests
         var reader = Substitute.For<ISchemaReader>();
         reader.GetTablesAsync(Owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyList<TableSummary>)[Kunden.Table, Auftrag.Table]);
         reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns(SynonymTargets.None);
-        reader.GetForeignKeysAsync(Owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyList<ForeignKeyInfo>)[AuftragKunde]);
+        reader.GetForeignKeysAsync(Arg.Is<IReadOnlyList<string>>(o => o.Contains(Owner)), Arg.Any<CancellationToken>()).Returns((IReadOnlyList<ForeignKeyInfo>)[AuftragKunde]);
         reader.GetDetailsAsync(Arg.Is<TableSummary>(t => t.Name == "KUNDEN"), Arg.Any<CancellationToken>()).Returns(Kunden);
         reader.GetDetailsAsync(Arg.Is<TableSummary>(t => t.Name == "AUFTRAG"), Arg.Any<CancellationToken>()).Returns(Auftrag);
         reader.GetColumnsAsync(Owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyDictionary<string, IReadOnlyList<ColumnInfo>>)

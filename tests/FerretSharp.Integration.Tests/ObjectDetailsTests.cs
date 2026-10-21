@@ -124,7 +124,7 @@ public sealed class ObjectDetailsTests(OracleContainerFixture oracle) : IAsyncLi
         var auftrag = await Reader.GetIndexesAsync(new TableRef(_owner, "OD_AUFTRAG"), Ct);
         Assert.DoesNotContain(auftrag, i => i.IndexType == "LOB");
 
-        var foreignKeys = (await Reader.GetForeignKeysAsync(_owner, Ct)).Where(f => f.From.Name == "OD_AUFTRAG");
+        var foreignKeys = (await Reader.GetForeignKeysAsync([_owner], Ct)).Where(f => f.From.Name == "OD_AUFTRAG");
         Assert.Equal(["FK_OD_AUFTRAG_VERK"], IndexAdvice.UnindexedForeignKeys(foreignKeys, auftrag).Select(f => f.Name));
     }
 

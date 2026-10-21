@@ -22,7 +22,7 @@ public class PlSqlSchemaCacheTests
         var viaPrivate = viaPublic with { Synonym = new SynonymInfo(Owner, "DRUCK") };
         var toOwn = Rechnung with { Synonym = new SynonymInfo("PUBLIC", "RECHNUNG") };
         reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns(new SynonymTargets([], [viaPublic, viaPrivate, toOwn]));
-        reader.GetForeignKeysAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
+        reader.GetForeignKeysAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>()).Returns([]);
         var cache = new SchemaCache(reader, Owner);
 
         await cache.LoadAsync(Ct);

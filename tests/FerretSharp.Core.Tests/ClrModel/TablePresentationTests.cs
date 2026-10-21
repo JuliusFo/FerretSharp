@@ -26,7 +26,7 @@ public sealed class TablePresentationTests
             (IReadOnlyList<TableSummary>)[Kunden.Table]);
         NSubstitute.SubstituteExtensions.Returns(reader.GetSynonymTargetsAsync(Owner, NSubstitute.Arg.Any<CancellationToken>()),
             FerretSharp.Core.Schema.SynonymTargets.None);
-        NSubstitute.SubstituteExtensions.Returns(reader.GetForeignKeysAsync(Owner, NSubstitute.Arg.Any<CancellationToken>()),
+        NSubstitute.SubstituteExtensions.Returns(reader.GetForeignKeysAsync(NSubstitute.Arg.Is<IReadOnlyList<string>>(o => o.Contains(Owner)), NSubstitute.Arg.Any<CancellationToken>()),
             (IReadOnlyList<ForeignKeyInfo>)[]);
         NSubstitute.SubstituteExtensions.Returns(reader.GetColumnsAsync(Owner, NSubstitute.Arg.Any<CancellationToken>()),
             (IReadOnlyDictionary<string, IReadOnlyList<ColumnInfo>>)new Dictionary<string, IReadOnlyList<ColumnInfo>> { ["KUNDEN"] = Kunden.Columns });

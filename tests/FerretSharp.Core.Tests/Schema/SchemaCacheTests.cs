@@ -20,7 +20,7 @@ public class SchemaCacheTests
     {
         _reader.GetTablesAsync(Owner, Arg.Any<CancellationToken>()).Returns([Auftrag, Kunden]);
         _reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns(SynonymTargets.None);
-        _reader.GetForeignKeysAsync(Owner, Arg.Any<CancellationToken>()).Returns([AuftragKunde]);
+        _reader.GetForeignKeysAsync(Arg.Is<IReadOnlyList<string>>(o => o.Contains(Owner)), Arg.Any<CancellationToken>()).Returns([AuftragKunde]);
         _reader.GetDetailsAsync(Arg.Any<TableSummary>(), Arg.Any<CancellationToken>())
             .Returns(ci => new TableDetails(ci.Arg<TableSummary>(), [], [], [], false));
     }
@@ -97,7 +97,7 @@ public class SchemaCacheTests
         var kategorie = new TableSummary("ERP", "KATEGORIE", TableKind.Table, new SynonymInfo(SynonymInfo.PublicOwner, "KATEGORIE"));
         var produktKategorie = new ForeignKeyInfo("FK_PK", produkt.Ref, ["KAT_ID"], kategorie.Ref, ["ID"], FkSource.Declared);
         _reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns(new SynonymTargets([produkt, kategorie], []));
-        _reader.GetForeignKeysAsync("ERP", Arg.Any<CancellationToken>()).Returns([produktKategorie]);
+        _reader.GetForeignKeysAsync(Arg.Is<IReadOnlyList<string>>(o => o.Contains("ERP")), Arg.Any<CancellationToken>()).Returns([produktKategorie]);
         var cache = new SchemaCache(_reader, Owner);
 
         await cache.LoadAsync(Ct);
@@ -105,7 +105,7 @@ public class SchemaCacheTests
         Assert.Equal(["AUFTRAG", "KATEGORIE", "KUNDEN", "S_PRODUKT"], cache.Tables.Select(t => t.DisplayName));
         Assert.Same(produkt, cache.Find(new TableRef("ERP", "PRODUKT")));
         Assert.Equal([produktKategorie], cache.IncomingOf(kategorie.Ref));
-        await _reader.Received(1).GetForeignKeysAsync("ERP", Arg.Any<CancellationToken>());
+        await _reader.Received(1).GetForeignKeysAsync(Arg.Is<IReadOnlyList<string>>(o => o.Contains("ERP")), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -114,7 +114,7 @@ public class SchemaCacheTests
         // KUNDE_EXT extends KUNDEN by a relationship of the C# model; AUFTRAG references KUNDEN.
         var extension = new TableSummary(Owner, "KUNDE_EXT", TableKind.Table);
         _reader.GetTablesAsync(Owner, Arg.Any<CancellationToken>()).Returns([Auftrag, Kunden, extension]);
-        _reader.GetPrimaryKeysAsync(Owner, Arg.Any<CancellationToken>()).Returns(
+        _reader.GetPrimaryKeysAsync(Arg.Is<IReadOnlyList<string>>(o => o.Contains(Owner)), Arg.Any<CancellationToken>()).Returns(
         [
             new PrimaryKeyInfo(Kunden.Ref, ["KUNDE_ID"]), new PrimaryKeyInfo(extension.Ref, ["KUNDE_ID"]), new PrimaryKeyInfo(Auftrag.Ref, ["AUFTRAG_ID"]),
         ]);
@@ -128,7 +128,7 @@ public class SchemaCacheTests
 
         var reference = Assert.Single(cache.InheritedIncomingOf(extension.Ref));
         Assert.Equal((AuftragKunde, Kunden.Ref), (reference.ForeignKey, reference.Via));
-        await _reader.Received(1).GetPrimaryKeysAsync(Owner, Arg.Any<CancellationToken>());
+        await _reader.Received(1).GetPrimaryKeysAsync(Arg.Is<IReadOnlyList<string>>(o => o.Contains(Owner)), Arg.Any<CancellationToken>());
     }
 
     [Fact]

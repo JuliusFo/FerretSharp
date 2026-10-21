@@ -21,7 +21,7 @@ public class SchemaCacheForeignKeySourceTests
         _reader.GetTablesAsync(Owner, Arg.Any<CancellationToken>()).Returns(
             [new TableSummary(Owner, "AUFTRAG", TableKind.Table), new TableSummary(Owner, "KUNDEN", TableKind.Table), new TableSummary(Owner, "MITARBEITER", TableKind.Table)]);
         _reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns(SynonymTargets.None);
-        _reader.GetForeignKeysAsync(Owner, Arg.Any<CancellationToken>()).Returns(_ => _declared);
+        _reader.GetForeignKeysAsync(Arg.Is<IReadOnlyList<string>>(o => o.Contains(Owner)), Arg.Any<CancellationToken>()).Returns(_ => _declared);
     }
 
     private static ForeignKeyInfo Model(string name, TableRef from, string[] fromColumns, TableRef to, string[] toColumns) =>

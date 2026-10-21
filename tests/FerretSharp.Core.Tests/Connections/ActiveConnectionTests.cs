@@ -63,7 +63,7 @@ public sealed class ActiveConnectionTests : IDisposable
         string[] steps =
         [
             ConnectionText.Step_OpeningSession, ConnectionText.Step_ReadingTables, ConnectionText.Step_ReadingSynonyms,
-            ConnectionText.Step_ReadingPlSql, TextFormat.Format(ConnectionText.Step_ReadingForeignKeys, "APP_USER", 1, 1),
+            ConnectionText.Step_ReadingPlSql, TextFormat.Format(ConnectionText.Step_ReadingKeys, "APP_USER", 1, 1),
             ConnectionText.Step_RestoringWorkspaces,
         ];
         Assert.Equal([.. steps, null], shown);

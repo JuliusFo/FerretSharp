@@ -57,11 +57,11 @@ public sealed class SqlResultOriginsTests
         var reader = Substitute.For<ISchemaReader>();
         reader.GetTablesAsync(Owner, Arg.Any<CancellationToken>()).Returns(own.Select(t => t.Table).ToList());
         reader.GetSynonymTargetsAsync(Owner, Arg.Any<CancellationToken>()).Returns(new SynonymTargets([.. others.Select(t => t.Table)], []));
-        reader.GetForeignKeysAsync(Owner, Arg.Any<CancellationToken>()).Returns((IReadOnlyList<ForeignKeyInfo>)[AuftragKunde, LieferungPosition]);
-        reader.GetForeignKeysAsync(Arg.Is<string>(o => o != Owner), Arg.Any<CancellationToken>()).Returns((IReadOnlyList<ForeignKeyInfo>)[]);
-        reader.GetPrimaryKeysAsync(Owner, Arg.Any<CancellationToken>())
+        reader.GetForeignKeysAsync(Arg.Is<IReadOnlyList<string>>(o => o.Contains(Owner)), Arg.Any<CancellationToken>()).Returns((IReadOnlyList<ForeignKeyInfo>)[AuftragKunde, LieferungPosition]);
+        reader.GetForeignKeysAsync(Arg.Is<IReadOnlyList<string>>(o => !o.Contains(Owner)), Arg.Any<CancellationToken>()).Returns((IReadOnlyList<ForeignKeyInfo>)[]);
+        reader.GetPrimaryKeysAsync(Arg.Is<IReadOnlyList<string>>(o => o.Contains(Owner)), Arg.Any<CancellationToken>())
             .Returns([.. own.Where(t => t.PrimaryKey.Count > 0).Select(t => new PrimaryKeyInfo(t.Table.Ref, t.PrimaryKey))]);
-        reader.GetPrimaryKeysAsync(Arg.Is<string>(o => o != Owner), Arg.Any<CancellationToken>()).Returns((IReadOnlyList<PrimaryKeyInfo>)[]);
+        reader.GetPrimaryKeysAsync(Arg.Is<IReadOnlyList<string>>(o => !o.Contains(Owner)), Arg.Any<CancellationToken>()).Returns((IReadOnlyList<PrimaryKeyInfo>)[]);
         foreach (var table in own.Concat(others))
         {
             reader.GetDetailsAsync(Arg.Is<TableSummary>(t => t.Ref == table.Table.Ref), Arg.Any<CancellationToken>()).Returns(table);

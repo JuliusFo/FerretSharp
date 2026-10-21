@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Data.Common;
 using FerretSharp.Core.Query;
 using FerretSharp.Core.Schema;
@@ -62,8 +63,9 @@ public sealed partial class OracleSchemaReader(OracleSession session) : ISchemaR
          GROUP BY s.owner, s.synonym_name, s.table_owner, s.table_name
         """;
 
+    /// <summary>Of several schemas in one round trip (review 3.44.0, A17); <c>{0}</c> takes the owners' binds.</summary>
     private const string ForeignKeysSql = """
-        SELECT c.constraint_name, c.table_name, cc.column_name, r.owner, r.table_name, rc.column_name
+        SELECT c.constraint_name, c.table_name, cc.column_name, r.owner, r.table_name, rc.column_name, c.owner
           FROM all_constraints c
           JOIN all_cons_columns cc
             ON cc.owner = c.owner AND cc.constraint_name = c.constraint_name AND cc.table_name = c.table_name
@@ -71,21 +73,30 @@ public sealed partial class OracleSchemaReader(OracleSession session) : ISchemaR
             ON r.owner = c.r_owner AND r.constraint_name = c.r_constraint_name
           JOIN all_cons_columns rc
             ON rc.owner = r.owner AND rc.constraint_name = r.constraint_name AND rc.position = cc.position
-         WHERE c.owner = :owner
+         WHERE c.owner IN ({0})
            AND c.constraint_type = 'R'
-         ORDER BY c.constraint_name, cc.position
+         ORDER BY c.owner, c.constraint_name, cc.position
         """;
 
+    /// <inheritdoc cref="ForeignKeysSql"/>
     private const string PrimaryKeysSql = """
-        SELECT c.table_name, cc.column_name
+        SELECT c.table_name, cc.column_name, c.owner
           FROM all_constraints c
           JOIN all_cons_columns cc
             ON cc.owner = c.owner AND cc.constraint_name = c.constraint_name AND cc.table_name = c.table_name
-         WHERE c.owner = :owner
+         WHERE c.owner IN ({0})
            AND c.constraint_type = 'P'
            AND c.table_name NOT LIKE 'BIN$%'
-         ORDER BY c.table_name, cc.position
+         ORDER BY c.owner, c.table_name, cc.position
         """;
+
+    /// <summary>The statement with one bind per owner in its <c>IN ({0})</c>.</summary>
+    private static (string Sql, QueryParameter[] Parameters) ForOwners(string sql, IReadOnlyList<string> owners)
+    {
+        ArgumentOutOfRangeException.ThrowIfZero(owners.Count);
+        var parameters = owners.Select((owner, i) => new QueryParameter("o" + i.ToString(CultureInfo.InvariantCulture), owner)).ToArray();
+        return (string.Format(CultureInfo.InvariantCulture, sql, string.Join(", ", parameters.Select(p => ":" + p.Name))), parameters);
+    }
 
     // ---- shared select lists: one owner, narrowed to one table with ByTable (…TableOrdinal is the table name) ----
 
@@ -221,20 +232,21 @@ public sealed partial class OracleSchemaReader(OracleSession session) : ISchemaR
         return new SynonymTargets(rows.OfType<TableSummary>().ToList(), rows.OfType<PlSqlObjectSummary>().ToList());
     }
 
-    public async Task<IReadOnlyList<ForeignKeyInfo>> GetForeignKeysAsync(string owner, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<ForeignKeyInfo>> GetForeignKeysAsync(IReadOnlyList<string> owners, CancellationToken cancellationToken)
     {
-        var rows = await session.ReadListAsync(ForeignKeysSql, [new("owner", owner)], reader =>
+        var (sql, parameters) = ForOwners(ForeignKeysSql, owners);
+        var rows = await session.ReadListAsync(sql, parameters, reader =>
             (Name: reader.GetString(0), Table: reader.GetString(1), Column: reader.GetString(2),
-             RefOwner: reader.GetString(3), RefTable: reader.GetString(4), RefColumn: reader.GetString(5)), cancellationToken, many: true);
+             RefOwner: reader.GetString(3), RefTable: reader.GetString(4), RefColumn: reader.GetString(5), Owner: reader.GetString(6)), cancellationToken, many: true);
 
         return rows
-            .GroupBy(r => r.Name)
+            .GroupBy(r => (r.Owner, r.Name))
             .Select(g =>
             {
                 var first = g.First();
                 return new ForeignKeyInfo(
-                    g.Key,
-                    new TableRef(owner, first.Table),
+                    g.Key.Name,
+                    new TableRef(g.Key.Owner, first.Table),
                     g.Select(r => r.Column).ToList(),
                     new TableRef(first.RefOwner, first.RefTable),
                     g.Select(r => r.RefColumn).ToList(),
@@ -243,14 +255,15 @@ public sealed partial class OracleSchemaReader(OracleSession session) : ISchemaR
             .ToList();
     }
 
-    public async Task<IReadOnlyList<PrimaryKeyInfo>> GetPrimaryKeysAsync(string owner, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<PrimaryKeyInfo>> GetPrimaryKeysAsync(IReadOnlyList<string> owners, CancellationToken cancellationToken)
     {
-        var rows = await session.ReadListAsync(PrimaryKeysSql, [new("owner", owner)], reader =>
-            (Table: reader.GetString(0), Column: reader.GetString(1)), cancellationToken, many: true);
+        var (sql, parameters) = ForOwners(PrimaryKeysSql, owners);
+        var rows = await session.ReadListAsync(sql, parameters, reader =>
+            (Table: reader.GetString(0), Column: reader.GetString(1), Owner: reader.GetString(2)), cancellationToken, many: true);
 
         return rows
-            .GroupBy(r => r.Table)
-            .Select(g => new PrimaryKeyInfo(new TableRef(owner, g.Key), g.Select(r => r.Column).ToList()))
+            .GroupBy(r => new TableRef(r.Owner, r.Table))
+            .Select(g => new PrimaryKeyInfo(g.Key, g.Select(r => r.Column).ToList()))
             .ToList();
     }
 
