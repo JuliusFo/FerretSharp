@@ -59,7 +59,7 @@ public sealed record TabState(
     /// </summary>
     public Guid? Preset { get; init; }
 
-    /// <summary>The form beside the grid (WP-21); null if it was never opened in the tab.</summary>
+    /// <summary>The form beside the grid (WP-21; of a SQL or LINQ tab: beside its result, WP-56); null if it was never opened in the tab.</summary>
     public FormTabState? Form { get; init; }
 
     /// <summary>Set for a PL/SQL tab (WP-28); <see cref="Table"/> is then <see cref="LinqTabState.NoTable"/> as well.</summary>
@@ -75,7 +75,7 @@ public sealed record TabState(
     public static TabState OfPlSql(PlSqlTabState plSql) => new(LinqTabState.NoTable, TabMode.Data, [], [], []) { PlSql = plSql };
 }
 
-/// <summary>The form view of a table tab (WP-21): whether the panel is open, its width and "leere ausblenden".</summary>
+/// <summary>The form view of a tab (WP-21, WP-56): whether the panel is open, its width and "leere ausblenden".</summary>
 /// <param name="Width">Width of the panel in CSS pixels; null for the default.</param>
 public sealed record FormTabState(bool Open, int? Width = null, bool HideEmpty = false);
 
