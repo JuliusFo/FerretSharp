@@ -192,6 +192,8 @@ public class OracleDataAccessTests(OracleContainerFixture oracle) : IAsyncLifeti
     /// <summary>
     /// Review 3.44.0, C9: cancelling an export of all rows in the middle of its read – the cursor open, the token cancelled
     /// on the way – ends in a cancel and leaves the session usable, also for the names looked up meanwhile.
+    /// The consumer's token is the session's own, cancelled on a pool thread (review 3.40.0, A3): it follows the caller's a
+    /// moment later, so the consumer waits for it like a block being written – checking it at once raced the pool thread.
     /// </summary>
     [Fact]
     public async Task A_whole_read_cancelled_in_the_middle_leaves_the_session_usable()
@@ -204,6 +206,7 @@ public class OracleDataAccessTests(OracleContainerFixture oracle) : IAsyncLifeti
             if (++blocks == 1)
             {
                 await cancel.CancelAsync(); // the status bar's button
+                await Task.Delay(TimeSpan.FromSeconds(30), ct); // ends with the cancel; if it never comes, a second block fails below
             }
 
             ct.ThrowIfCancellationRequested();
