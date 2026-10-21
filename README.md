@@ -47,9 +47,13 @@ developer works with an Oracle database day to day:
 
 - Several connections open at once, one shown: switch from DEV to PROD and back (<kbd>Alt</kbd>+<kbd>O</kbd>) without
   disconnecting – tabs, grids and open transactions stay as they were.
-- Explorer with letter index and search; tables, views, materialized views and objects reachable through synonyms.
+- Explorer with letter index and search; tables, views, materialized views and objects reachable through synonyms –
+  views on request in a section of their own.
+- **Quick open and command palette**: one box at the top of the window – type a name to open a table, view or PL/SQL
+  (also by its C# entity name), or ">" to find an action with its shortcut.
 - Fast grid for large tables (blocks of 500 rows, server-side sorting, deterministic paging), `NULL` shown as such,
-  exact numbers beyond `decimal`, LOB previews, pinned columns, column search (Ctrl+F).
+  exact numbers beyond `decimal`, LOB previews, pinned columns, column search (Ctrl+F). The row selection follows the
+  keyboard as in the Windows Explorer: Shift+↑/↓, Ctrl+A, Space.
 - Composable filters in the style of TablePlus – column, operator, value – translated into bound SQL; see the generated
   statement and its execution plan at any time. Combine rows with **OR** and **NOT** groups (NOT treats NULL as C# does,
   so the grid and a LINQ `Where` keep the same rows).
@@ -67,10 +71,13 @@ developer works with an Oracle database day to day:
   PL/SQL of the schema. Nothing is run or compiled.
 - Form view for wide tables: the focused row beside the grid, one field per column (searchable, empty ones hidden on
   request, editable like the grid); select several rows and compare them side by side with the differences marked
-  (<kbd>Alt</kbd>+<kbd>Enter</kbd>).
+  (<kbd>Alt</kbd>+<kbd>Enter</kbd>). The same for the results of the SQL editor and the LINQ console.
 - Copy rows as table, `INSERT` statements or C# object initializers; save as **Excel file**, CSV or SQL script. The Excel
   file has real numbers, dates and true/false (text stays text, nothing runs as a formula), a frozen header with a filter,
-  and the labels and values of the grid – C# names, enum members, display columns.
+  and the labels and values of the grid – C# names, enum members, display columns. Save the selected rows or **all rows
+  of the filter**: those are read in the background, with a cancel button in the status bar.
+- Copy the values of a column, one per line or as an `IN` list of Oracle literals – from the selected rows or from all
+  rows of the filter.
 
 <table>
   <tr>
@@ -192,6 +199,9 @@ changes, and a new build is picked up automatically:
   see every statement it sends through EF Core, grouped by origin (LINQ, lazy loading, raw SQL, `SaveChanges` …), the
   most frequent and most expensive ones, and N+1 patterns. Look a statement up in V$SQL of the app's connection with its
   plan, or open it in the SQL editor. Local apps of your own user only, EF Core 7 or later for the origin.
+- **Usage in the code**: per column, the methods of your solution that read or write its property or query the table,
+  read from the compiled code – a click opens the line in Visual Studio. Properties no code uses are marked, and the
+  designer warns before dropping a column the code still uses. Uses open in your *work clone* of the connection group.
 
 ## Getting started
 
@@ -246,6 +256,7 @@ The defaults – every one of them can be changed under *Settings › Shortcuts*
 | <kbd>Ctrl</kbd>+<kbd>F</kbd> | Find a column · search in the editor |
 | <kbd>Alt</kbd>+<kbd>←</kbd> / <kbd>Alt</kbd>+<kbd>→</kbd> | Back / forward along foreign-key jumps |
 | <kbd>Alt</kbd>+<kbd>Enter</kbd> | Form view of the focused row · compare the selected rows |
+| <kbd>Alt</kbd>+<kbd>↑</kbd> / <kbd>Alt</kbd>+<kbd>↓</kbd> | Previous / next row in the form |
 | <kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd> | Undo / redo a pending edit in the grid |
 | <kbd>Ctrl</kbd>+<kbd>S</kbd> | Write pending changes (no commit) |
 | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd> | Commit |
