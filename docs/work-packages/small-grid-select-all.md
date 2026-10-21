@@ -1,4 +1,4 @@
-# Klein: Ctrl+A und die übrigen Markier-Tasten im Grid → Release offen
+# Klein: Ctrl+A und die übrigen Markier-Tasten im Grid → Release 3.44.0
 Anlass (2026-10-21): Frage des Nutzers, ob Ctrl+A alle gezeigten Zeilen markiert – tat es nicht. Dazu die Bitte, die übrigen Markier-Tasten gleich mitzunehmen, „nicht dass wir nur halb arbeiten“. Branch `feat/grid-selection-keys`, baut auf [small-grid-keyboard-selection.md](small-grid-keyboard-selection.md) auf (Auswahl folgt dem Fokus wie im Explorer).
 
 Bestand vorher (aus dem Quelltext von AG Grid 36.2 gelesen):

@@ -33,11 +33,8 @@ Ausgewählt mit dem Nutzer am 2026-10-14 aus einer Ideensammlung (Bewertung des 
 - Workspace-Übersicht je Verbindung (Tabs, offene Transaktion, zuletzt benutzt, Notizen) und Wechseln per Tastenkürzel.
 - Offen: welche der Varianten a–c; Ctrl+1 … 9 ist im Backlog für das Wechseln reserviert, aber neue Aktionen bekommen keine Standardtaste (`docs/architecture.md` 3) – Ausnahme dafür oder vom Nutzer belegen lassen; Oberfläche für `Workspace.Notes` mit in dieses Paket?
 
-### WP-40 Verwendung im Code
-In 3.43.0 released: `docs/work-packages/wp-40-code-usage.md`, ADR 0030. Der aktive Arbeits-Klon je Gruppe und der Index der Verwendungen tragen WP-41 und WP-45.
-
 ### WP-41 Designer-Änderungen ins C#-Projekt
-Branch `wp/41-designer-to-code`.
+Branch `wp/41-designer-to-code`. Baut auf WP-40 (released 3.43.0, ADR 0030): dessen Index der Verwendungen und der aktive Arbeits-Klon je Gruppe tragen WP-41 und WP-45.
 - Nach einer Änderung im Tabellen-Designer (WP-23) die passende Änderung an Entity-Klasse und `IEntityTypeConfiguration` vorschlagen: Spalte hinzu → Property und Konfiguration im Stil des Projekts (`PropertyCode`, `EntityCode`), Länge/NULL geändert → Facetten anpassen, Spalte gelöscht → Property entfernen. Neue Tabelle → neue Dateien wie „Entity aus Tabelle“.
 - Dateien finden über den Index aus WP-40 (Dokument der Property-Getter, Implementierungen von `IEntityTypeConfiguration<T>`). Änderung als Roslyn-Syntax-Umbau (nur Syntax, kein Kompilieren; aktuelles Roslyn im .NET-10-Prozess), Kodierung, BOM und Zeilenenden der Datei bleiben.
 - Vorschau als Diff, Schreiben erst nach Bestätigung und nur, wenn die Datei seit der Analyse unverändert ist; kein Build, kein Commit. Nach dem Build des Nutzers lädt das Modell neu, der Abgleich (WP-27) zeigt, ob es passt.
@@ -86,9 +83,6 @@ Branch `wp/47-since-last-visit`.
 - **Startseite nach dem Verbinden:** Unterschiede zum letzten Stand über den Schema-Vergleich (WP-20, zwei Snapshots derselben Verbindung) – neue/entfernte Tabellen und Spalten, geänderte Typen, neu ungültige Objekte –, neue Abweichungen zum C#-Modell (WP-27), offene Transaktionen anderer Workspaces, zuletzt benutzte Workspaces. Der Release-Check (Backlog, „später“) käme dort als weiterer Block dazu.
 - Offen: eigene Seite oder Hinweis „3 Änderungen seit …“, der die Seite öffnet; was vor dem Abgleich erlaubt ist (Backlog-Eintrag).
 
-### WP-57 Werte einer Spalte kopieren
-In 3.44.0 released, mit den Entscheidungen des Nutzers vom 2026-10-21: `docs/work-packages/wp-57-copy-column-values.md`.
-
 ### WP-58 Zellen und Spalten markieren
 (Frage des Nutzers 2026-10-21: Zell- und Spaltenauswahl fehlt, weil AG Grid sie nur in der Enterprise-Edition hat. Ein eigenes Grid wurde verworfen, weil es für den heutigen Funktionsumfang 2–4 Monate kosten würde und danach dauerhaft gepflegt werden müsste. Vom Nutzer als Paket eingeplant 2026-10-21.) Branch `wp/58-cell-selection`. Mittel; baut auf WP-57 auf (Kopfmenü, Werte einer Spalte über `ColumnValues`) und auf der Zeilenauswahl (`small-grid-keyboard-selection.md`, `small-grid-select-all.md`). Gilt für Tabelle, SQL-Ergebnis und LINQ-Konsole (alle über `grid.js`).
 - **Ausgangslage:** Das Grid markiert nur ganze Zeilen (`rowSelection` per Klick, Anker und `span` in `grid.js`). Ziehen mit der Maus markiert Text (`enableCellTextSelection`), Ctrl+C kopiert die fokussierte Zelle oder die markierten Zeilen (`OnCopy`). Das `CellSelectionModule` von AG Grid (Zellbereich, Kopieren, Ausfüllen) ist Enterprise und bleibt ausgeschlossen. Gebaut wird eine eigene Auswahl auf den Mitteln von Community.
@@ -107,9 +101,6 @@ In 3.44.0 released, mit den Entscheidungen des Nutzers vom 2026-10-21: `docs/wor
   - Die Kopfzeile mitkopieren? Vorschlag: nein, wie Excel; „Als Tabelle kopieren“ bleibt mit Kopf.
   - Obergrenze für Bereiche mit nicht geladenen Zeilen.
   - Spaltenmarkierung im SQL-Ergebnis: Die Abfrage läuft dann noch einmal, wie bei WP-57.
-
-### Pakete aus der Ideensammlung 2026-10-17 (WP-52 … WP-54)
-Vom Nutzer aus einer Sammlung von Oracle-Funktionen und Bibliotheken als Pakete übernommen (2026-10-17). Alle klein und unabhängig von WP-38 … WP-47. WP-52 (Warten und Fortschritt laufender Statements) ist vorgezogen und in 3.39.0 released: `docs/work-packages/wp-52-waits-and-progress.md`; WP-53 (Export als Excel-Datei) ebenso in 3.40.0: `docs/work-packages/wp-53-xlsx-export.md`; WP-54 (alle Zeilen des Filters exportieren, mit A13) ist umgesetzt: `docs/work-packages/wp-54-export-all-rows.md`.
 
 ## Offene UX-Fragen
 - Workspaces: Standardname ist „Workspace N“ mit der kleinsten freien Nummer (nach Umbenennen von „Workspace 1“ heißt der nächste wieder „Workspace 1“) – so lassen oder fortlaufend zählen?

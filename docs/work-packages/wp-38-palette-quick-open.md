@@ -1,4 +1,4 @@
-# WP-38 Befehlspalette und Schnellsuche
+# WP-38 Befehlspalette und Schnellsuche → Release 3.42.0
 
 Branch `wp/38-palette-quick-open`, begonnen am 2026-10-19. Das Spaltenprofil war ursprünglich Teil des Pakets und ist seit 2026-10-19 WP-55 (Entscheidung des Nutzers: anderes Thema, Daten im Grid statt Navigation).
 

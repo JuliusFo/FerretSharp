@@ -1,4 +1,4 @@
-# Klein: Views als eigener Bereich im Explorer
+# Klein: Views als eigener Bereich im Explorer → Release 3.44.0
 
 Branch `feat/explorer-views` (von `main`), 2026-10-21.
 
@@ -7,7 +7,7 @@ Frage des Nutzers: Views per Option nicht bei den Tabellen, sondern als eigener 
 
 Entscheidungen des Nutzers:
 - Die Suche bleibt wie in WP-28: Sie filtert den aktiven Bereich und nennt Treffer in den anderen („3 Treffer unter PL/SQL“, Klick wechselt). Eine gruppierte Trefferliste über alle Bereiche untereinander war besprochen und wurde verworfen, die Schnellsuche (WP-38) deckt das ab.
-- Ohne Antwort übernommen (Vorschlag aus der Bewertung, offen zur Nachfrage): Materialized Views stehen unter Views; die Einstellung ist standardmäßig aus, der Explorer bleibt also wie bisher.
+- Ohne Antwort übernommen, im Gesamt-Review 3.44.0 bestätigt (2026-10-21, D4): Materialized Views stehen unter Views; die Einstellung ist standardmäßig aus, der Explorer bleibt also wie bisher.
 
 ## Gebaut
 - Einstellung „Views als eigener Bereich“ unter Einstellungen › Darstellung (`AppSettings.ViewsInOwnSection`, `SettingKey.ExplorerViews`).

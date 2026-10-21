@@ -1,4 +1,4 @@
-# Klein: Verweise über Basistabellen im FK-Sprung
+# Klein: Verweise über Basistabellen im FK-Sprung → Release 3.42.0
 
 Branch `feat/fk-jumps-base-tables` (von `main`), 2026-10-19. Released mit 3.42.0.
 

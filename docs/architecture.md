@@ -1,6 +1,6 @@
 # Architektur – Domänenmodell und UI-Konzept
 
-Aus der `CLAUDE.md` ausgelagert (3.14.0), nachgezogen bis 3.40.1. Vor Änderungen am jeweiligen Bereich den passenden Abschnitt lesen. Die Kurzfassung der Invarianten steht in der `CLAUDE.md`, die Fallen in `.claude/rules/`.
+Aus der `CLAUDE.md` ausgelagert (3.14.0), nachgezogen bis 3.45.0. Vor Änderungen am jeweiligen Bereich den passenden Abschnitt lesen. Die Kurzfassung der Invarianten steht in der `CLAUDE.md`, die Fallen in `.claude/rules/`.
 
 ## 1. Domänenmodell
 
@@ -164,7 +164,7 @@ Geschrieben wird atomar (`AtomicJsonFile`) mit `JsonFiles.Options`, gelesen übe
 | `filter-presets.json` (WP-37) | Fehler im Menü „Vorlagen“, nie überschrieben | Fehler im Menü, Speichern verweigert, bis ein erneuter Versuch (Menü öffnen) gelingt | Fehler, nie überschrieben |
 | `work-clones.json` (WP-40) | kein Arbeits-Klon gewählt | wie kaputt | keiner gewählt, Datei bleibt (Wahl nur im Speicher) |
 
-Eigene Regeln, nicht über den Leser: die Anzeigespalten (liest auch eine neuere Datei, dann nur lesend, und hält unbekannte Felder; synchron im `CachedFileRead`), der Modell-Cache und der Cache der Code-Verwendung (`cache/code-usage`, eine Datei je MVID, WP-40; jede Abweichung ist ein Cache-Fehlschlag, 30 Tage unbenutzte Dateien entfernt der nächste Aufbau).
+Eigene Regeln, nicht über den Leser: die Anzeigespalten (liest auch eine neuere Datei, dann nur lesend, und hält unbekannte Felder; synchron im `CachedFileRead`), der Modell-Cache und der Cache der Code-Verwendung (`code-usage`, eine Datei je Assembly, MVID und Menge der Solution-Assemblies, ohne Einrückung, WP-40; jede Abweichung ist ein Cache-Fehlschlag, der nächste Aufbau entfernt 30 Tage unbenutzte Dateien und behält je Assembly die drei zuletzt benutzten Builds). Beide Caches liegen seit 3.45 unter `%LOCALAPPDATA%\FerretSharp\cache` (mit `--data-dir` darunter), nicht im Roaming-Profil; der alte Ordner `cache` im Datenordner wird beim Start entfernt (Review 3.44.0, A11).
 
 ## 2. UI-Konzept
 
@@ -225,6 +225,7 @@ Eine Aktion im Grid (`ShortcutScope.Grid`, `GridAndForm`) bekommt nie Ctrl+C –
 | – (frei belegbar) | Aktiven Tab anheften oder lösen (WP-34); auch im Kontextmenü eines Tabs | 3.30 |
 | – (frei belegbar) | Schnellsuche: Tabellen, Views und PL/SQL der sichtbaren Verbindung, auch nach Entity-Namen; Enter öffnet. Auch über die Lupe in der Kopfleiste. Mit „>“ davor wird daraus die Befehlspalette | WP-38 |
 | – (frei belegbar) | Befehlspalette: dieselbe Box mit „>“ – die globalen Aktionen mit Taste, nicht ausführbare ausgegraut mit Grund | WP-38 |
+| – (frei belegbar) | Arbeits-Klon der Verbindungsgruppe wechseln (wie „⎇“ in der Statusleiste) | WP-40 |
 | Ctrl+S | Ausstehende Änderungen schreiben (kein Commit) | v1.9 |
 | Ctrl+Shift+Enter | Commit (auf Prod immer mit Bestätigung) | v1.9 |
 | Ctrl+Z / Ctrl+Y | Im Grid: ausstehende Bearbeitung zurücknehmen / wiederholen, Zelle für Zelle. Nur lokal (`grid.js` über `shortcuts.js setLocal`) | WP-30 |
@@ -237,10 +238,10 @@ Eine Aktion im Grid (`ShortcutScope.Grid`, `GridAndForm`) bekommt nie Ctrl+C –
 | – (frei belegbar) | Im Grid: die Werte der Spalte der fokussierten Zelle aus den markierten Zeilen kopieren, einer je Zeile (wie „Spalte X kopieren“ im Zellmenü). Nur lokal (`copyColumn`); nicht Ctrl+Shift+C – in WebView2 die Elementauswahl der DevTools | WP-57 |
 | – | Rollback nur über Button, mit Bestätigung | v2 |
 
-Fest (`ShortcutMap.Fixed`, nur zur Übersicht in den Einstellungen): Ctrl+C, Entf (zum Löschen markieren), Shift+↑/↓ (Markierung erweitern), Shift+Pos1/Ende und Ctrl+Shift+↑/↓ (bis zur ersten/letzten Zeile), Leertaste (Zeile an/ab), Ctrl+A (alle Zeilen), Esc (Markierung aufheben), Enter (Zelle bearbeiten), Esc im Grid; Enter im Filterwert; Ctrl+Leertaste, Ctrl+H, Ctrl+Z/Ctrl+Y in den Editoren. `Esc` bleibt dem Grid vorbehalten (Zelleingabe abbrechen) bzw. schließt Menüs/Dialoge. `F12` öffnet im Debug-Build die DevTools. Schnellsuche und Befehlspalette (WP-38) sind eine Box (`QuickPalette`): ohne Präfix Objekte (`ObjectSearch`, Rangfolge wie die Spaltensuche über `NameRank`), mit „>“ Aktionen. Ob eine globale Aktion gerade geht, entscheidet `ShellActions.Unavailable` – für die Taste (tut dann nichts) wie für die Palette (ausgegraut mit Grund); die Shell führt beides über `RunAction` aus. Grid- und Formulartasten stehen nicht in der Palette.
+Fest (`ShortcutMap.Fixed`, nur zur Übersicht in den Einstellungen): Ctrl+C, Entf (zum Löschen markieren), Shift+↑/↓ und Shift+Bild↑/↓ (Markierung erweitern), Shift+Pos1/Ende und Ctrl+Shift+↑/↓ (bis zur ersten/letzten Zeile), Leertaste (Zeile an/ab), Ctrl+A (alle Zeilen), Esc (Markierung aufheben), Enter (Zelle bearbeiten), Esc im Grid; Enter im Filterwert; Ctrl+Leertaste, Ctrl+H, Ctrl+Z/Ctrl+Y in den Editoren. `Esc` bleibt dem Grid vorbehalten (Zelleingabe abbrechen) bzw. schließt Menüs/Dialoge. `F12` öffnet im Debug-Build die DevTools. Schnellsuche und Befehlspalette (WP-38) sind eine Box (`QuickPalette`): ohne Präfix Objekte (`ObjectSearch`, Rangfolge wie die Spaltensuche über `NameRank`), mit „>“ Aktionen. Ob eine globale Aktion gerade geht, entscheidet `ShellActions.Unavailable` – für die Taste (tut dann nichts) wie für die Palette (ausgegraut mit Grund); die Shell führt beides über `RunAction` aus. Grid- und Formulartasten stehen nicht in der Palette.
 
 Technik (WP-25):
-- `KeyChord` (Core/Settings): Textform `ctrl+shift+alt+<KeyboardEvent.key klein>` (`space`, `plus`), wie `comboOf` in `shortcuts.js` sie bildet; `settings.json` speichert in `AppSettings.Shortcuts` (`ShortcutOverrides`) nur Abweichungen je Aktionsname, leer = nicht belegt, unbekannte Einträge bleiben erhalten.
+- `KeyChord` (Core/Settings): Textform `ctrl+shift+alt+<KeyboardEvent.key klein>` (`space`, `plus`), wie `comboOf` in `shortcuts.js` sie bildet; `settings.json` speichert in `AppSettings.Shortcuts` (`SettingsMap`) nur Abweichungen je Aktionsname, leer = nicht belegt, unbekannte Einträge bleiben erhalten.
 - `ShortcutMap.Check`: abgelehnt werden von Windows/WebView belegte Kombinationen (Alt+F4, Alt+Leertaste, F12, Ctrl+Shift+I …), Ctrl+Alt (= AltGr) und Tasten ohne Ctrl/Alt außer F-Tasten; Konflikt mit einer anderen Aktion → „Übernehmen“ nimmt sie dort weg; Warnung bei Tasten der Editoren/des Grids (Ctrl+Z, Ctrl+Leertaste …) und bei Alt+Shift.
 - Globale Kürzel registriert die `Shell` über `shortcuts.js` (Capture-Listener → `OnShortcut` → `ShortcutMap.ActionFor`), neu bei jeder Änderung (`ShortcutService.Changed`). Lokal: Formular-Taste, Ctrl+Z/Ctrl+Y und die Werte einer Spalte (WP-57) des Grids liest `grid.js` aus `shortcuts.js` (`ShortcutService.LocalCombos` → `setLocal`/`localCombo`), das Formular prüft seine Tasten über `ShortcutService.Is`.
 - Anzeige nie als festen Text: `<Kbd Action="…" />`, `ShortcutService.Hint(…)` („ (Ctrl+S)“, leer, wenn die Aktion nicht belegt ist) und `ShortcutService.Label(…)` („Ctrl+S“, null, wenn nicht belegt) – in Sätzen als Platzhalter-Argument.

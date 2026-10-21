@@ -1,4 +1,4 @@
-# Klein: Zeilenauswahl folgt dem Fokus → Release offen
+# Klein: Zeilenauswahl folgt dem Fokus → Release 3.44.0
 Anlass (2026-10-21): Bugreport eines Kollegen – Entf auf einer neuen Zeile löschte auch die zuletzt angeklickte geladene Zeile (Fix in PR #28, `fix/delete-new-row-spares-selection`). Ursache dort: AG Grid wählt angeheftete Zeilen nie aus, und die Auswahl blieb stehen, während der Fokus wanderte. Auswahl und Fokus liefen auch mit den Pfeiltasten auseinander: Entf, Ctrl+C und Alt+Enter trafen die Zeilen des letzten Klicks, nicht die sichtbar fokussierte. Branch `feat/grid-keyboard-selection`.
 
 Entscheidungen des Nutzers:

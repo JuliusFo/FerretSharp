@@ -1,4 +1,4 @@
-# WP-57 Werte einer Spalte kopieren → Release offen
+# WP-57 Werte einer Spalte kopieren → Release 3.44.0
 
 Branch `wp/57-copy-column-values`. Aus dem Backlog („Export und Zwischenablage“: Frage des Nutzers nach Ctrl+Shift+↓ wie in Excel), vom Nutzer am 2026-10-21 als Paket eingeplant und am selben Tag begonnen.
 

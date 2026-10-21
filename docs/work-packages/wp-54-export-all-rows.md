@@ -1,4 +1,4 @@
-# WP-54 Alle Zeilen des Filters exportieren
+# WP-54 Alle Zeilen des Filters exportieren → Release 3.42.0
 
 Branch `wp/54-export-all-rows`. ADR 0029. Vom Nutzer bei der Planung von WP-53 als eigenes Paket eingeplant (2026-10-17), begonnen am 2026-10-19. Mit A13 aus dem Gesamt-Review 3.40.0.
 

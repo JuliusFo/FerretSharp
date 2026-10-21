@@ -1,4 +1,4 @@
-# WP-56 Formular und Zeilenvergleich für SQL- und LINQ-Ergebnisse → Release offen
+# WP-56 Formular und Zeilenvergleich für SQL- und LINQ-Ergebnisse → Release 3.44.0
 
 Wunsch des Nutzers (2026-10-21), aus dem Backlog (Fortsetzung von WP-21, Herkunft der Ergebnisspalten aus WP-48). Vorgabe: nur lesen, Bedienung wie bei Tabellen. Eigener Branch von `main`.
 
@@ -12,7 +12,7 @@ Wunsch des Nutzers (2026-10-21), aus dem Backlog (Fortsetzung von WP-21, Herkunf
   - Grid: `GridOptions.Form` → grid.js meldet Fokus (`OnFocused`) und Formular-Taste (`OnFormKey`) auch ohne `table`. `SqlResultGrid` implementiert `IFormGrid` (ohne Schlüssel und neue Zeilen), damit `FormCursor` unverändert dem Index folgt. Es trägt Panel und Vergleichsdialog selbst, so dass SQL-Editor und LINQ-Konsole nur `FormTab` durchreichen.
   - UI: `ResultFormPanel` (Sql/) baut auf `FormFieldView` auf, `OnLob` ist dort jetzt optional. „Referenziert von“ zählt wie im Tabellen-Formular über `FkCounts`, die Sprünge werden je Zeile und Präsentation zwischengespeichert, weil die Zählungen sie über die Referenz kennen. `RowCompareDialog` nimmt jetzt Titel, Präsentation, Spaltenreihenfolge und optional den Schlüsseltext, statt `TableTab`/`TableDetails`. `ResultMenu` hat die beiden Einträge, `ResultFooter` den Schalter.
 - Tests: Core (`RowComparisonTests`: Reihenfolge des Ergebnisses; `SqlResultOriginsTests`: Felder einer Ergebniszeile mit Sprüngen), UI (`SqlResultPresentationTests`: Beschriftung, Suche und Vergleich über C#-Namen und Enum-Member; `FormTabsTests`: Speichern und Wiederherstellen).
-- E2E: **nicht durchgeführt.** In der Arbeitsumgebung gab es kein Docker, also keinen eigenen Test-Container (`ferret-sample` bleibt tabu). Zu prüfen: Alt+Enter im SQL- und LINQ-Ergebnis (Formular auf/zu, mehrere Zeilen → Vergleich), ▲ ▼ über die Blockgrenze 500/501, Schalter in der Fußzeile (aktiv-Zustand nach Alt+Enter), FK-Link und „Referenziert von“ mit Zählung bei einem JOIN, C#-Namen mit verknüpftem `samples`-Projekt, Breite ziehen, Neustart stellt das offene Formular wieder her, Wechsel zwischen den Ergebnissen eines Skripts (Alt+X), Höhe des Grids in der LINQ-Konsole (`.result-split`), hell/dunkel, Log ohne `[ERR]`.
-- Offen (Fragen an den Nutzer):
-  - Platz des Schalters: Fußzeile des Ergebnisses (gebaut) oder über dem Ergebnis?
+- E2E: **nicht durchgeführt** (in R7 nachgeholt: `r7-review-3.44.md`). In der Arbeitsumgebung gab es kein Docker, also keinen eigenen Test-Container (`ferret-sample` bleibt tabu). Zu prüfen: Alt+Enter im SQL- und LINQ-Ergebnis (Formular auf/zu, mehrere Zeilen → Vergleich), ▲ ▼ über die Blockgrenze 500/501, Schalter in der Fußzeile (aktiv-Zustand nach Alt+Enter), FK-Link und „Referenziert von“ mit Zählung bei einem JOIN, C#-Namen mit verknüpftem `samples`-Projekt, Breite ziehen, Neustart stellt das offene Formular wieder her, Wechsel zwischen den Ergebnissen eines Skripts (Alt+X), Höhe des Grids in der LINQ-Konsole (`.result-split`), hell/dunkel, Log ohne `[ERR]`.
+- Fragen an den Nutzer, beantwortet im Gesamt-Review 3.44.0 (2026-10-21, D4): wie gebaut.
+  - Platz des Schalters: Fußzeile des Ergebnisses.
   - Titel im Vergleich: im SQL-Editor die gelesene Tabelle bzw. der Tab-Titel (wie der Exportname), in der LINQ-Konsole „Ergebnis“.
