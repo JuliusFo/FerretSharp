@@ -217,6 +217,7 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
 
         var hinted = Plans.WithStatistics(query.Sql);
         await session.RefreshSnapshotAsync(cancellationToken); // a fresh run, like a new query in the grid
+        // The rows are only counted: no LOB of them comes along (review 3.44.0, A6 – "whole result" fetched every CLOB/BLOB).
         var fetched = await session.ExecuteReaderAsync(hinted, query.Parameters, async (reader, ct) =>
         {
             long rows = 0;
@@ -226,7 +227,7 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
             }
 
             return rows;
-        }, cancellationToken);
+        }, lobPrefetch: 0, cancellationToken);
 
         var sqlId = Plans.SqlId(hinted);
         var (child, steps) = await OraclePlans.ReadActualAsync(session, sqlId, cancellationToken);
