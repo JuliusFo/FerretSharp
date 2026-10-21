@@ -37,7 +37,7 @@ UI-Konzept und Tastenkürzel: `docs/architecture.md` 2–3. Zustand, Dienste und
 
 ## Blazor im WPF-Host (WebView2)
 - Kein `auxclick`-Event in Blazor: `@onauxclick` wird still als HTML-Attribut ausgegeben. Mittelklick über `@onmouseup` mit `e.Button == 1`.
-- **Kein `@ondblclick`:** Der WPF-Host (`WebView2CompositionControl`) reicht beim zweiten Klick das Mouse-down doppelt weiter, Chromium zählt `detail` 1 → 2 → 3, `dblclick` feuert nie. Doppelklick über `@onclick` mit `e.Detail >= 2`.
+- **Kein `@ondblclick`:** Der WPF-Host (`WebView2CompositionControl`) reicht beim zweiten Klick das Mouse-down doppelt weiter, Chromium zählt `detail` 1 → 2 → 3, `dblclick` feuert nie. Doppelklick über `@onclick` mit `e.Detail >= 2`. Das Duplikat kommt ~0,2 ms nach dem echten, vor dem Mouse-up, nur beim zweiten Klick (ein dritter hat `detail` 4). Wer selbst Klicks zählt (Monaco), sieht einen Dreifachklick (Abhilfe: `ui-monaco.md`).
 - Native `<select>`: die Auswahl über `value` am `<select>` setzen, nicht `selected=` an der Option – sobald der Nutzer einmal gewählt hat, ignoriert der Browser das Attribut. Ändern sich die Optionen, `@key` auf die Optionsmenge: Bleibt der Wert gleich, setzt Blazor ihn nicht neu, und der Browser zeigt die erste Option.
 - **UI-Kultur nur synchron setzen:** `CultureInfo.CurrentUICulture` gehört zum `ExecutionContext`, eine Änderung in einer async-Methode wird beim Verlassen zurückgenommen. `App.OnStartup` liest die Einstellungen synchron und setzt die Kultur vor dem async-Teil. Unit-Tests merken das nicht.
 - **DPI:** Der Host ist per `app.manifest` PerMonitorV2-aware; ohne wird das Fenster auf Monitoren mit anderer Skalierung unscharf und `<select>`-Popups falsch groß.
