@@ -120,4 +120,4 @@ Regeln:
 
 ## 8. Als Nächstes
 
-Gesamt-Review 3.40.0 (`docs/review-3.40.0.md`) abgeschlossen: R6a (3.40.1), Teil D (Doku), R6b (3.41.0). Mit 3.42.0 released: WP-54 (alle Zeilen des Filters exportieren, mit A13), die Sprünge über Basistabellen (`small-fk-jumps-base-tables`) und WP-38 (Schnellsuche und Befehlspalette); mit 3.43.0 WP-40 (Verwendung im Code, Arbeits-Klon); mit 3.44.0 WP-56 (Formular und Zeilenvergleich für Ergebnisse), WP-57 (Werte einer Spalte kopieren) und die Zeilenauswahl per Tastatur. Als Nächstes WP-55, WP-39, WP-41 … WP-47 und WP-58 (Zellen und Spalten markieren) (`docs/roadmap.md`).
+Als Nächstes R7: Befunde aus dem Gesamt-Review 3.44.0 (`docs/review-3.44.0.md`, Teil A–D in einem Release). Danach WP-55, WP-39, WP-41 … WP-47 und WP-58 (`docs/roadmap.md`).
