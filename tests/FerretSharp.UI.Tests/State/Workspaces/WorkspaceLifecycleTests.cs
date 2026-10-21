@@ -243,8 +243,8 @@ public sealed class WorkspaceLifecycleTests : IAsyncDisposable
     {
         var scope = await _app.OpenAsync(TestApp.Profile("ERP Test"));
         _app.AddPendingWork(scope);
-        var export = _app.Shell.Exports.Start("KUNDEN.xlsx", null, workspaceId: _app.WorkspaceOf(scope).WorkspaceId);
-        export.Token.Register(() => _app.Shell.Exports.End(export)); // as the export does when its read stops
+        var export = _app.Shell.BackgroundReads.Start("KUNDEN.xlsx", null, workspaceId: _app.WorkspaceOf(scope).WorkspaceId);
+        export.Token.Register(() => _app.Shell.BackgroundReads.End(export)); // as the export does when its read stops
         var approved = 0;
 
         Assert.False(Lifecycle.CanExit);
@@ -253,12 +253,12 @@ public sealed class WorkspaceLifecycleTests : IAsyncDisposable
         Assert.Null(Lifecycle.PendingLeave);
 
         Lifecycle.CancelExitExports(); // "keep exporting"
-        Assert.Equal([export], _app.Shell.Exports.Running);
+        Assert.Equal([export], _app.Shell.BackgroundReads.Running);
 
         await Lifecycle.RequestExitAsync(() => approved++);
         await Lifecycle.ExitCancellingExportsAsync();
 
-        Assert.Empty(_app.Shell.Exports.Running);
+        Assert.Empty(_app.Shell.BackgroundReads.Running);
         Assert.Null(Lifecycle.ConfirmExitExports);
         Assert.NotNull(Lifecycle.PendingLeave); // the pending change is asked about next
         await Lifecycle.LeaveAsync(commit: false);

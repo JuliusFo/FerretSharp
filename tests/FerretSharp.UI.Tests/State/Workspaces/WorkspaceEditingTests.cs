@@ -244,7 +244,7 @@ public sealed class WorkspaceEditingTests : IAsyncDisposable
         var test = await _app.OpenAsync(TestApp.Profile("Test"));
         var dev = await _app.OpenAsync(TestApp.Profile("Dev"));
         var workspace = _app.WorkspaceOf(test);
-        var export = _app.Shell.Exports.Start("KUNDEN.xlsx", null, workspaceId: workspace.WorkspaceId);
+        var export = _app.Shell.BackgroundReads.Start("KUNDEN.xlsx", null, workspaceId: workspace.WorkspaceId);
 
         Assert.False(await _app.Editing.CommitAsync(workspace));
         Assert.Equal("Ein Export liest gerade über die Session dieses Workspaces (KUNDEN.xlsx) – abwarten oder ihn in der Statusleiste abbrechen.", _app.Shell.Notice?.Text);
@@ -259,7 +259,7 @@ public sealed class WorkspaceEditingTests : IAsyncDisposable
         Assert.Equal((true, null), (outcome.Refused, outcome.Written));
         Assert.StartsWith("Ein Export liest gerade", outcome.Error?.Message);
 
-        _app.Shell.Exports.End(export);
+        _app.Shell.BackgroundReads.End(export);
         Assert.True(await _app.Editing.CommitAsync(workspace));
     }
 

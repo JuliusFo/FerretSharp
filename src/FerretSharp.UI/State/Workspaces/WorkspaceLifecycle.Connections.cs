@@ -115,16 +115,16 @@ public sealed partial class WorkspaceLifecycle
     /// Quitting with uncommitted work in any open connection, or while exports run (review 3.44.0, A5), asks first (the
     /// window's closing handler, <see cref="ExitGuard"/>).
     /// </summary>
-    public bool CanExit => shell.Exports.Running.Count == 0 && editing.WithWork().All(w => IsLost(w.WorkspaceId));
+    public bool CanExit => shell.BackgroundReads.Running.Count == 0 && editing.WithWork().All(w => IsLost(w.WorkspaceId));
 
     /// <summary>Asking before quitting while these exports run: they would be cancelled (review 3.44.0, A5).</summary>
-    public IReadOnlyList<FileExport>? ConfirmExitExports { get; private set; }
+    public IReadOnlyList<BackgroundRead>? ConfirmExitExports { get; private set; }
 
     private Action? _approveExit;
 
     public Task RequestExitAsync(Action approve)
     {
-        if (shell.Exports.Running is { Count: > 0 } running)
+        if (shell.BackgroundReads.Running is { Count: > 0 } running)
         {
             (ConfirmExitExports, _approveExit) = (running.ToList(), approve);
             shell.NotifyChanged();
@@ -153,7 +153,7 @@ public sealed partial class WorkspaceLifecycle
         }
 
         CancelExitExports();
-        await shell.Exports.CancelAllAsync(ExportsCancelWait);
+        await shell.BackgroundReads.CancelAllAsync(ExportsCancelWait);
         await GuardExitAsync(approve); // an export still hanging is not asked about again
     }
 

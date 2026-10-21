@@ -163,13 +163,11 @@ public sealed class ExportActions(
             return;
         }
 
-        var exports = shell.Exports;
-        var export = exports.Start(Path.GetFileName(path), total, workspaceId: workspaceId);
-        var progress = new Progress<long>(rows => exports.Report(export, rows)); // reports on the UI thread
+        var label = Path.GetFileName(path);
         try
         {
-            var token = export.Token;
-            var result = await shell.RunDbAsync(logger, connection, () => AtomicFile.WriteExportAsync(path, (stream, ct) => write(stream, progress, ct), token), token);
+            var result = await shell.RunInBackgroundAsync(logger, connection, label, total, null, workspaceId,
+                (progress, token) => AtomicFile.WriteExportAsync(path, (stream, ct) => write(stream, progress, ct), token));
             if (result.Value is { } summary)
             {
                 foreach (var failure in summary.Failures)
@@ -181,7 +179,7 @@ public sealed class ExportActions(
             }
             else if (result.Cancelled)
             {
-                shell.Notify(TextFormat.Format(GridText.Export_Cancelled, export.Label));
+                shell.Notify(TextFormat.Format(GridText.Export_Cancelled, label));
             }
             else
             {
@@ -191,10 +189,6 @@ public sealed class ExportActions(
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             shell.Notify(TextFormat.Format(CommonText.SaveFailed, ex.Message));
-        }
-        finally
-        {
-            exports.End(export);
         }
     }
 

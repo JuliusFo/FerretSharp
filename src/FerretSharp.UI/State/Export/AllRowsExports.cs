@@ -22,7 +22,7 @@ public sealed record AllRowsExcel(IReadOnlyList<ExportColumn> Columns, DisplayNa
 /// The Excel columns, built when the export is chosen (on the UI thread: it takes the presentations as they are then) – not
 /// on every opening of the menu.
 /// </param>
-/// <param name="WorkspaceId">The workspace whose session reads the rows (<see cref="FileExport.WorkspaceId"/>).</param>
+/// <param name="WorkspaceId">The workspace whose session reads the rows (<see cref="BackgroundRead.WorkspaceId"/>).</param>
 public sealed record AllRowsExport(string Heading, RowReader Read, long? Total, Func<AllRowsExcel> Excel, Guid WorkspaceId);
 
 /// <summary>What "all rows" of a table tab and of a SQL editor result read and write (WP-54).</summary>

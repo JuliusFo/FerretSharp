@@ -102,13 +102,8 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
         IReadOnlyList<FilterCondition> filters,
         IReadOnlyList<SortSpec> sorts,
         RowBlockHandler onBlock,
-        CancellationToken cancellationToken)
-    {
-        var query = QueryBuilder.BuildSelectAll(table, filters, sorts);
-        return session.ExecuteStreamingReaderAsync(query.Sql, query.Parameters, (reader, nested, ct) =>
-            ReadBlocksAsync(reader, oracle => ReadRow(oracle, query, table), nested, onBlock, ct),
-            OracleSession.WholeLobs, cancellationToken);
-    }
+        CancellationToken cancellationToken) =>
+        ReadTableAllAsync(table, QueryBuilder.BuildSelectAll(table, filters, sorts), onBlock, cancellationToken);
 
     public Task ReadColumnAllAsync(
         TableDetails table,
@@ -117,13 +112,14 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
         IReadOnlyList<SortSpec> sorts,
         bool distinct,
         RowBlockHandler onBlock,
-        CancellationToken cancellationToken)
-    {
-        var query = QueryBuilder.BuildColumnValues(table, column, filters, sorts, distinct);
-        return session.ExecuteStreamingReaderAsync(query.Sql, query.Parameters, (reader, nested, ct) =>
+        CancellationToken cancellationToken) =>
+        ReadTableAllAsync(table, QueryBuilder.BuildColumnValues(table, column, filters, sorts, distinct), onBlock, cancellationToken);
+
+    /// <summary>Every row of a query on a table, block by block (all rows WP-54, all values of a column WP-57).</summary>
+    private Task ReadTableAllAsync(TableDetails table, SelectQuery query, RowBlockHandler onBlock, CancellationToken cancellationToken) =>
+        session.ExecuteStreamingReaderAsync(query.Sql, query.Parameters, (reader, nested, ct) =>
             ReadBlocksAsync(reader, oracle => ReadRow(oracle, query, table), nested, onBlock, ct),
             OracleSession.WholeLobs, cancellationToken);
-    }
 
     public Task ReadSqlAllAsync(QuerySpec query, IReadOnlyList<string> columns, RowBlockHandler onBlock, CancellationToken cancellationToken) =>
         session.ExecuteStreamingReaderAsync(query.Sql, query.Parameters, (reader, nested, ct) =>

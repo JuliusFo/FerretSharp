@@ -164,7 +164,7 @@ public sealed partial class WorkspaceEditing(
     /// the transaction back. Says so instead; null if no export reads there.
     /// </summary>
     public string? RefusedByExport(Guid workspaceId) =>
-        shell.Exports.ReadingIn(workspaceId) is { } export ? TextFormat.Format(GridText.Editing_ExportReading, export.Label) : null;
+        shell.BackgroundReads.ReadingIn(workspaceId) is { } export ? TextFormat.Format(GridText.Editing_ExportReading, export.Label) : null;
 
     private void RefuseWhileStatementRuns(WorkspaceTabs workspace)
     {

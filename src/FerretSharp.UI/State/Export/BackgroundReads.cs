@@ -1,5 +1,7 @@
+using FerretSharp.Core.Connections;
 using FerretSharp.Core.Resources;
 using FerretSharp.UI.Resources;
+using Microsoft.Extensions.Logging;
 
 namespace FerretSharp.UI.State;
 
@@ -7,12 +9,12 @@ namespace FerretSharp.UI.State;
 /// An export being written in the background (A13, WP-54) – or the values of a column read for the clipboard (WP-57): what
 /// it is, the rows so far, and how to cancel it.
 /// </summary>
-public sealed class FileExport
+public sealed class BackgroundRead
 {
     private readonly CancellationTokenSource _cts = new();
     private bool _ended;
 
-    internal FileExport(string label, long? total, string title, Guid? workspaceId)
+    internal BackgroundRead(string label, long? total, string title, Guid? workspaceId)
     {
         Label = label;
         Total = total;
@@ -63,30 +65,30 @@ public sealed class FileExport
 /// The exports running (A13, WP-54): the status bar shows each with its rows and a cancel button, whichever tab or connection
 /// is shown – an export goes on when the user moves elsewhere. Used from the UI thread only.
 /// </summary>
-public sealed class FileExports
+public sealed class BackgroundReads
 {
-    private readonly List<FileExport> _running = [];
+    private readonly List<BackgroundRead> _running = [];
 
     /// <summary>An export started, made progress or ended.</summary>
     public event Action? Changed;
 
-    public IReadOnlyList<FileExport> Running => _running;
+    public IReadOnlyList<BackgroundRead> Running => _running;
 
     /// <summary>A running export that reads through the workspace's session; null if none.</summary>
-    public FileExport? ReadingIn(Guid workspaceId) => _running.FirstOrDefault(e => e.WorkspaceId == workspaceId);
+    public BackgroundRead? ReadingIn(Guid workspaceId) => _running.FirstOrDefault(e => e.WorkspaceId == workspaceId);
 
     /// <param name="label">The file's name (without folder), or what else is read.</param>
     /// <param name="title">The tooltip; null for an export to the file <paramref name="label"/>.</param>
     /// <param name="workspaceId">The workspace whose session reads the rows; null if none is read.</param>
-    public FileExport Start(string label, long? total, string? title = null, Guid? workspaceId = null)
+    public BackgroundRead Start(string label, long? total, string? title = null, Guid? workspaceId = null)
     {
-        var export = new FileExport(label, total, title ?? TextFormat.Format(ShellText.Status_ExportTitle, label), workspaceId);
+        var export = new BackgroundRead(label, total, title ?? TextFormat.Format(ShellText.Status_ExportTitle, label), workspaceId);
         _running.Add(export);
         Changed?.Invoke();
         return export;
     }
 
-    public void Report(FileExport export, long rows)
+    public void Report(BackgroundRead export, long rows)
     {
         if (_running.Contains(export) && rows != export.Rows)
         {
@@ -95,7 +97,7 @@ public sealed class FileExports
         }
     }
 
-    public void End(FileExport export)
+    public void End(BackgroundRead export)
     {
         if (_running.Remove(export))
         {
@@ -137,6 +139,36 @@ public sealed class FileExports
         catch (TimeoutException)
         {
             // what still runs ends with the app
+        }
+    }
+}
+
+/// <summary>
+/// A read in the background (review 3.44.0, B3: one way for "all rows" as a file and "all values" for the clipboard): shown in
+/// the status bar with its rows and a cancel button while it runs; errors, refusals and the cancel come back as a
+/// <see cref="DbResult{T}"/> like any database call.
+/// </summary>
+public static class BackgroundRuns
+{
+    /// <param name="label">What the status bar shows (the file's name, the column).</param>
+    /// <param name="title">The tooltip; null for an export to the file <paramref name="label"/>.</param>
+    /// <param name="workspaceId">The workspace whose session reads; null if none is read.</param>
+    /// <param name="work">The read, reporting its rows (on the UI thread) and stopping at the token.</param>
+    public static async Task<DbResult<T>> RunInBackgroundAsync<T>(
+        this ShellState shell, ILogger logger, ActiveConnection? connection, string label, long? total, string? title, Guid? workspaceId,
+        Func<IProgress<long>, CancellationToken, Task<T>> work)
+    {
+        var reads = shell.BackgroundReads;
+        var job = reads.Start(label, total, title, workspaceId);
+        var progress = new Progress<long>(rows => reads.Report(job, rows)); // reports on the UI thread
+        try
+        {
+            var token = job.Token;
+            return await shell.RunDbAsync(logger, connection, () => work(progress, token), token);
+        }
+        finally
+        {
+            reads.End(job);
         }
     }
 }

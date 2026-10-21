@@ -142,12 +142,12 @@ public sealed class ColumnValueCopiesTests
     [Fact]
     public async Task All_values_are_read_in_the_background_shown_in_the_status_bar_and_copied_at_the_end()
     {
-        FileExport? running = null;
+        BackgroundRead? running = null;
         bool? distinct = null;
         var all = Blocks(d =>
         {
             distinct = d;
-            running = Assert.Single(_shell.Exports.Running);
+            running = Assert.Single(_shell.BackgroundReads.Running);
             Assert.Empty(_copied);
         }, [Row(2m), Row(7m)], [Row(2m)]);
 
@@ -156,7 +156,7 @@ public sealed class ColumnValueCopiesTests
         Assert.False(distinct);
         Assert.Equal("ART → Zwischenablage", running!.Label);
         Assert.Contains("ART", running.Title, StringComparison.Ordinal);
-        Assert.Empty(_shell.Exports.Running);
+        Assert.Empty(_shell.BackgroundReads.Running);
         Assert.Equal(["Gewerbe (2)\r\n7\r\nGewerbe (2)"], _copied);
         Assert.Equal("3 Werte von ART kopiert.", _shell.Notice!.Text);
     }
@@ -177,7 +177,7 @@ public sealed class ColumnValueCopiesTests
     public async Task A_distinct_read_shows_its_rows_without_the_tab_s_total()
     {
         long? total = -1;
-        var all = Blocks(_ => total = _shell.Exports.Running[0].Total, [Row(2m)]) with { Total = 150_000, DistinctInQuery = true };
+        var all = Blocks(_ => total = _shell.BackgroundReads.Running[0].Total, [Row(2m)]) with { Total = 150_000, DistinctInQuery = true };
 
         await CopyAllAsync(ColumnValuesFormat.InList, all);
         Assert.Null(total);
@@ -237,7 +237,7 @@ public sealed class ColumnValueCopiesTests
         var all = new AllColumnValues("", null, _ => async (onBlock, ct) =>
         {
             await onBlock([Row(2m)], Substitute.For<IRowLookup>(), ct);
-            _shell.Exports.Running[0].Cancel(); // the status bar's button
+            _shell.BackgroundReads.Running[0].Cancel(); // the status bar's button
             ct.ThrowIfCancellationRequested();
         }, 0, "", Guid.NewGuid());
 
@@ -245,7 +245,7 @@ public sealed class ColumnValueCopiesTests
 
         Assert.Empty(_copied);
         Assert.Equal("Kopieren der Werte von ART abgebrochen.", _shell.Notice!.Text);
-        Assert.Empty(_shell.Exports.Running);
+        Assert.Empty(_shell.BackgroundReads.Running);
     }
 
     [Fact]
@@ -257,6 +257,6 @@ public sealed class ColumnValueCopiesTests
 
         Assert.Equal("ORA-01555", _shell.ErrorDetails!.ErrorCode);
         Assert.Empty(_copied);
-        Assert.Empty(_shell.Exports.Running);
+        Assert.Empty(_shell.BackgroundReads.Running);
     }
 }

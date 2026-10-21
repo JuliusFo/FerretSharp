@@ -36,17 +36,17 @@ public sealed class ExportActionsTests : IDisposable
     public async Task Saves_after_the_dialog_in_the_background_shown_while_it_runs()
     {
         var path = Target("KUNDEN.csv");
-        FileExport? running = null;
+        BackgroundRead? running = null;
 
         await Actions(missingRows: 2).SaveRowsAsync("KUNDEN.csv", "CSV", 3, (stream, _, ct) =>
         {
-            running = Assert.Single(_shell.Exports.Running);
+            running = Assert.Single(_shell.BackgroundReads.Running);
             return WriteAsync(stream, "a;b", ct, "LOB nur Vorschau");
         });
 
         Assert.Equal("KUNDEN.csv", running!.Label);
         Assert.Equal(3, running.Total);
-        Assert.Empty(_shell.Exports.Running);
+        Assert.Empty(_shell.BackgroundReads.Running);
         Assert.Equal("a;b", await File.ReadAllTextAsync(path, TestContext.Current.CancellationToken));
         Assert.Equal($"3 Zeilen gespeichert: {path}", _shell.Notice!.Text);
         Assert.Equal(["LOB nur Vorschau", "2 Zeilen der Auswahl nicht mehr geladen – nicht exportiert."], _shell.Notice.Warnings);
@@ -76,7 +76,7 @@ public sealed class ExportActionsTests : IDisposable
 
         Assert.False(written);
         Assert.Null(_shell.Notice);
-        Assert.Empty(_shell.Exports.Running);
+        Assert.Empty(_shell.BackgroundReads.Running);
     }
 
     [Fact]
@@ -88,7 +88,7 @@ public sealed class ExportActionsTests : IDisposable
         await Actions().SaveAllRowsAsync("KUNDEN.csv", "CSV", null, Guid.NewGuid(), async (stream, _, ct) =>
         {
             await stream.WriteAsync("halb"u8.ToArray(), ct);
-            _shell.Exports.Running[0].Cancel(); // the status bar's button
+            _shell.BackgroundReads.Running[0].Cancel(); // the status bar's button
             ct.ThrowIfCancellationRequested();
             return new ExportSummary(0, []);
         });
@@ -96,7 +96,7 @@ public sealed class ExportActionsTests : IDisposable
         Assert.Equal("alt", await File.ReadAllTextAsync(path, TestContext.Current.CancellationToken));
         Assert.Empty(Directory.GetFiles(_folder.Path, "*.tmp"));
         Assert.Equal("Export abgebrochen – KUNDEN.csv wurde nicht geschrieben.", _shell.Notice!.Text);
-        Assert.Empty(_shell.Exports.Running);
+        Assert.Empty(_shell.BackgroundReads.Running);
     }
 
     [Fact]
@@ -110,7 +110,7 @@ public sealed class ExportActionsTests : IDisposable
         Assert.Equal("ORA-01555", _shell.ErrorDetails!.ErrorCode);
         Assert.False(File.Exists(path));
         Assert.Empty(Directory.GetFiles(_folder.Path, "*.tmp"));
-        Assert.Empty(_shell.Exports.Running);
+        Assert.Empty(_shell.BackgroundReads.Running);
     }
 
     [Fact]
@@ -127,7 +127,7 @@ public sealed class ExportActionsTests : IDisposable
     [Fact]
     public void Progress_is_reported_until_the_export_ends()
     {
-        var exports = new FileExports();
+        var exports = new BackgroundReads();
         var changes = 0;
         exports.Changed += () => changes++;
 

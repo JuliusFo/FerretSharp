@@ -20,7 +20,7 @@ namespace FerretSharp.UI.State;
 /// <param name="DistinctInQuery">
 /// Asked for each value once, the read is <c>SELECT DISTINCT</c> (a table): its NULLs are one row, their number unknown.
 /// </param>
-/// <param name="WorkspaceId">The workspace whose session reads the values (<see cref="FileExport.WorkspaceId"/>).</param>
+/// <param name="WorkspaceId">The workspace whose session reads the values (<see cref="BackgroundRead.WorkspaceId"/>).</param>
 public sealed record AllColumnValues(
     string Heading, long? Total, Func<bool, RowReader> Read, int ValueIndex, string Tooltip, Guid WorkspaceId, bool DistinctInQuery = false);
 
@@ -93,18 +93,14 @@ public static class ColumnValueCopies
         ShellState shell, IClipboardService clipboard, ILogger logger, ActiveConnection? connection, ExportColumn column, string columnName,
         ColumnValuesFormat format, AllColumnValues all)
     {
-        var exports = shell.Exports;
         var distinct = format == ColumnValuesFormat.InList;
         // SELECT DISTINCT reads each value once: the rows of the tab are no total for it (review 3.44.0, A15: "71 of 150,000").
         var total = distinct && all.DistinctInQuery ? null : all.Total;
-        var job = exports.Start(TextFormat.Format(ShellText.Status_CopyValuesLabel, columnName), total, TextFormat.Format(ShellText.Status_CopyValuesTitle, columnName), all.WorkspaceId);
-        var progress = new Progress<long>(rows => exports.Report(job, rows)); // reports on the UI thread
-        try
-        {
-            var token = job.Token;
-            var values = new ColumnValues(column, format) { NullsCollapsed = distinct && all.DistinctInQuery };
-            var read = all.Read(distinct);
-            var result = await shell.RunDbAsync(logger, connection, async () =>
+        var values = new ColumnValues(column, format) { NullsCollapsed = distinct && all.DistinctInQuery };
+        var read = all.Read(distinct);
+        var result = await shell.RunInBackgroundAsync(logger, connection,
+            TextFormat.Format(ShellText.Status_CopyValuesLabel, columnName), total, TextFormat.Format(ShellText.Status_CopyValuesTitle, columnName), all.WorkspaceId,
+            async (progress, token) =>
             {
                 long rows = 0;
                 await read((block, _, _) =>
@@ -118,27 +114,22 @@ public static class ColumnValueCopies
                     }
 
                     rows += block.Count;
-                    ((IProgress<long>)progress).Report(rows);
+                    progress.Report(rows);
                     return Task.FromResult(true);
                 }, token);
                 return values;
-            }, token);
-            if (result.Value is not null)
-            {
-                await FinishAsync(shell, clipboard.SetTextAsync, values, columnName, []);
-            }
-            else if (result.Cancelled)
-            {
-                shell.Notify(TextFormat.Format(GridText.ColumnValues_Cancelled, columnName));
-            }
-            else
-            {
-                shell.ShowFailure(result);
-            }
-        }
-        finally
+            });
+        if (result.Value is not null)
         {
-            exports.End(job);
+            await FinishAsync(shell, clipboard.SetTextAsync, values, columnName, []);
+        }
+        else if (result.Cancelled)
+        {
+            shell.Notify(TextFormat.Format(GridText.ColumnValues_Cancelled, columnName));
+        }
+        else
+        {
+            shell.ShowFailure(result);
         }
     }
 
