@@ -29,30 +29,6 @@ public sealed class ModelHostProcessTests : IDisposable
     private static BuildOutput Output => new(FakeHost, Path.ChangeExtension(FakeHost, ".deps.json"), new Version(Environment.Version.Major, Environment.Version.Minor),
         DateTime.UtcNow, [], [], null);
 
-    private sealed class Steps : IProgress<string>
-    {
-        private readonly List<string> _steps = [];
-
-        public IReadOnlyList<string> All
-        {
-            get
-            {
-                lock (_steps)
-                {
-                    return _steps.ToList();
-                }
-            }
-        }
-
-        public void Report(string value)
-        {
-            lock (_steps)
-            {
-                _steps.Add(value);
-            }
-        }
-    }
-
     private Task<LinqConsoleHost> StartAsync(string scenario, TimeSpan? start = null, TimeSpan? run = null, IProgress<string>? progress = null) =>
         StartAsync(scenario, NewWork(), start, run, progress);
 
@@ -66,7 +42,7 @@ public sealed class ModelHostProcessTests : IDisposable
     [Fact]
     public async Task A_ready_host_reports_its_steps_runs_and_ends_with_its_work_folder()
     {
-        var steps = new Steps();
+        var steps = new StepRecorder();
         var work = NewWork();
         var host = await StartAsync("ready", work, progress: steps);
 

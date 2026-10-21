@@ -59,13 +59,13 @@ public sealed class BuildOutputShadowTests : IDisposable
     [Fact]
     public async Task Hosts_on_the_same_build_share_one_copy()
     {
-        var progress = new List<string>();
-        using var first = await _shadow.AcquireAsync(_build, new Progress(progress), Ct);
-        using var second = await _shadow.AcquireAsync(_build, new Progress(progress), Ct);
+        var progress = new StepRecorder();
+        using var first = await _shadow.AcquireAsync(_build, progress, Ct);
+        using var second = await _shadow.AcquireAsync(_build, progress, Ct);
 
         Assert.Equal(first.Directory, second.Directory);
         Assert.Equal(0, second.CopiedFiles);
-        Assert.Equal([BuildOutputShadow.CopyStep, BuildOutputShadow.CopyStep], progress);
+        Assert.Equal([BuildOutputShadow.CopyStep, BuildOutputShadow.CopyStep], progress.All);
     }
 
     [Fact]
@@ -211,11 +211,5 @@ public sealed class BuildOutputShadowTests : IDisposable
     public async Task Nothing_to_remove_without_any_copies()
     {
         Assert.Equal(0, await _shadow.DeleteUnusedAsync(BuildOutputShadow.UnusedAfter, Ct));
-    }
-
-    /// <summary>Synchronous, unlike <see cref="Progress{T}"/>.</summary>
-    private sealed class Progress(List<string> steps) : IProgress<string>
-    {
-        public void Report(string value) => steps.Add(value);
     }
 }

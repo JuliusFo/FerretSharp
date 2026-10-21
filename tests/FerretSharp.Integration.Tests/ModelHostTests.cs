@@ -33,30 +33,6 @@ public sealed class ModelHostTests
     internal static ModelHostRunner Runner(string culture = "de-DE") =>
         new(ModelHostPath, culture: System.Globalization.CultureInfo.GetCultureInfo(culture), shadow: Shadow);
 
-    private sealed class StepCollector : IProgress<string>
-    {
-        private readonly List<string> _steps = [];
-
-        public IReadOnlyList<string> Steps
-        {
-            get
-            {
-                lock (_steps)
-                {
-                    return _steps.ToList();
-                }
-            }
-        }
-
-        public void Report(string value)
-        {
-            lock (_steps)
-            {
-                _steps.Add(value);
-            }
-        }
-    }
-
     [Fact]
     public void The_sample_build_output_is_found_with_its_runtime_and_packages()
     {
@@ -72,13 +48,13 @@ public sealed class ModelHostTests
     public async Task Reads_the_sample_model_with_naming_convention_converters_and_navigations()
     {
         var link = SampleLink();
-        var steps = new StepCollector();
+        var steps = new StepRecorder();
         var result = await Runner().ReadModelAsync(link, BuildOutputLocator.Find(link), Ct, steps);
 
         Assert.Null(result.Error);
         // The host reports its steps on stdout as they happen (shown on the model page with their durations).
         Assert.Equal([BuildOutputShadow.CopyStep, "Starte den Hilfsprozess", "Lade die Assemblies", "Erzeuge den DbContext", "Baue das Modell (OnModelCreating)", "Lese das Modell aus"],
-            steps.Steps);
+            steps.All);
         var model = result.Model!;
         Assert.StartsWith("8.0.", model.EfVersion);
         Assert.Equal("options", model.CreatedBy); // our options and the DbContextOptions constructor, no start-up code
