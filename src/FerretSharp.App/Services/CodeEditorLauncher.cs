@@ -96,7 +96,7 @@ public sealed class CodeEditorLauncher(ILogger<CodeEditorLauncher> logger) : ICo
         {
             string? open = SolutionOf(dte);
 
-            var depth = open is { Length: > 0 } ? Match(open, file, solution) : -1;
+            var depth = open is { Length: > 0 } ? VisualStudioMatch.Score(open, file, solution) : -1;
             if (depth > bestDepth)
             {
                 if (chosen is not null)
@@ -137,20 +137,6 @@ public sealed class CodeEditorLauncher(ILogger<CodeEditorLauncher> logger) : ICo
             }
         });
         return asking.Wait(AnswerWait) ? asking.Result : null;
-    }
-
-    /// <summary>Higher is better: the solution itself beats a solution whose folder holds the file (the deeper, the better); -1 = no.</summary>
-    private static int Match(string open, string file, string? solution)
-    {
-        if (solution is not null && string.Equals(Path.GetFullPath(open), Path.GetFullPath(solution), StringComparison.OrdinalIgnoreCase))
-        {
-            return int.MaxValue;
-        }
-
-        var folder = Path.GetDirectoryName(Path.GetFullPath(open));
-        return folder is not null && Path.GetFullPath(file).StartsWith(folder + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
-            ? folder.Length
-            : -1;
     }
 
     /// <summary>The DTE objects of the running Visual Studio instances (<c>!VisualStudio.DTE.18.0:1234</c>).</summary>

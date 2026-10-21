@@ -51,9 +51,6 @@ internal sealed class LinkPipeServer(AppPaths paths, LinkInbox inbox, ILogger<Li
     // fills the buffer still decodes to more than TableLink.MaxLength characters (at most 3 bytes each), which the parser refuses.
     private const int MaxBytes = TableLink.MaxLength * 3 + 16;
 
-    /// <summary>The longest wait between two attempts after failures in a row.</summary>
-    private static readonly TimeSpan MaxRetryDelay = TimeSpan.FromMinutes(5);
-
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var failures = 0;
@@ -89,8 +86,7 @@ internal sealed class LinkPipeServer(AppPaths paths, LinkInbox inbox, ILogger<Li
                     logger.LogDebug("Link pipe failed again ({Failures} in a row): {Message}", failures, ex.Message);
                 }
 
-                var delay = TimeSpan.FromSeconds(2 * Math.Pow(2, Math.Min(failures - 1, 10)));
-                await Task.Delay(delay < MaxRetryDelay ? delay : MaxRetryDelay, stoppingToken).ConfigureAwait(false);
+                await Task.Delay(LinkPipeRetry.Delay(failures), stoppingToken).ConfigureAwait(false);
             }
         }
     }
