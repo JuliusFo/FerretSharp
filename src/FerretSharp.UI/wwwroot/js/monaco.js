@@ -157,11 +157,32 @@ export async function create(elementId, dotnet, text, options) {
       send();
     }
   });
+  dropRepeatedMouseDown(element, editor);
   editors.set(elementId, editor);
   if (options.completion) {
     completions.set(editor.getModel().uri.toString(), { id: elementId, dotnet });
     registerProvider(monaco, options.language ?? 'csharp');
   }
+}
+
+/**
+ * The WPF host passes the second mouse-down of a double click twice (.claude/rules/ui.md): Monaco counts three and selects
+ * the line instead of the word. The copy comes before any mouse-up, a fraction of a millisecond later; it is dropped before
+ * Monaco sees it. Monaco keeps its own count, so a real triple click still selects the line.
+ */
+function dropRepeatedMouseDown(element, editor) {
+  const listening = new AbortController();
+  let last = null; // { button, time } of the mouse-down still waiting for its mouse-up
+  element.addEventListener('mousedown', e => {
+    if (last && last.button === e.button && e.timeStamp - last.time < 50) {
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      return;
+    }
+    last = { button: e.button, time: e.timeStamp };
+  }, { capture: true, signal: listening.signal });
+  element.addEventListener('mouseup', () => { last = null; }, { capture: true, signal: listening.signal });
+  editor.onDidDispose(() => listening.abort());
 }
 
 /** One provider per language; it asks the .NET side of the editor whose model is being edited. */

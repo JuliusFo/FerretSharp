@@ -14,4 +14,5 @@ paths:
 - Offsets sind UTF-16; Text und Offsets immer aus demselben `getRunContext`.
 - Nur-Lesen (PL/SQL-Quelltext): Marker erscheinen nur mit `renderValidationDecorations: 'on'` (Standard `'editable'` blendet sie aus). `executeEdits` (also `SetTextAsync`) tut in einem Nur-Lesen-Editor nichts → neuer Text über einen neuen Editor (`@key` auf die Daten).
 - Ein `RevealAsync`, bevor der Editor erzeugt ist, merkt sich `MonacoEditor` und führt es nach `create` aus; `reveal` ruft vorher `layout()`, weil die Ansicht gerade erst sichtbar geworden sein kann.
+- Doppelklick: Das doppelte Mouse-down des WPF-Hosts (`ui.md`) machte aus jedem Doppelklick einen Dreifachklick (Zeile statt Wort). `dropRepeatedMouseDown` verwirft es vor Monaco (gleiche Taste, noch kein Mouse-up, < 50 ms); Monaco zählt selbst weiter, der Dreifachklick markiert weiter die Zeile. Neue Monaco-Instanzen nur über `create`, sonst fehlt das.
 - Monaco behält seine Tasten: Kürzel, die nur im Grid/Formular gelten, nicht global in `shortcuts.js` registrieren.
