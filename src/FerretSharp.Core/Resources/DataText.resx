@@ -79,6 +79,9 @@
   <data name="RowMarkedForDeletion" xml:space="preserve">
     <value>The row is marked for deletion.</value>
   </data>
+  <data name="QueryResultReadOnly" xml:space="preserve">
+    <value>Query results are read-only.</value>
+  </data>
   <data name="NotALobColumn" xml:space="preserve">
     <value>{0} is not a LOB column.</value>
     <comment>{0} = column name</comment>

@@ -16,7 +16,7 @@ public sealed record ColumnLabel(string Name, string? AlternateName, string? Clr
 /// the setting, and shows enum and converted bool values by their C# names. SQL, filters and edits keep database
 /// names and values – only what the user sees changes.
 /// </summary>
-public sealed class TablePresentation
+public sealed class TablePresentation : IColumnPresentation
 {
     private readonly PropertyExport?[] _properties;
     private readonly ValueTable?[] _values;
@@ -32,6 +32,8 @@ public sealed class TablePresentation
     }
 
     public TableDetails Details { get; }
+
+    IReadOnlyList<ColumnInfo> IColumnPresentation.Columns => Details.Columns;
 
     /// <summary>The entity mapped to the table; null without a model or if none maps it.</summary>
     public EntityMapping? Entity { get; }

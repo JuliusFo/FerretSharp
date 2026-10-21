@@ -146,7 +146,7 @@ public static class RowForm
             : FkNavigation.JumpsFor(table, row.Current(table.Columns.Count), [], incoming, inherited);
 
     /// <summary>The fields matching the search (column or C# property name) and the switches, in their order.</summary>
-    public static FormView<FormField> Visible(IReadOnlyList<FormField> fields, TablePresentation presentation, FormFilter filter)
+    public static FormView<FormField> Visible(IReadOnlyList<FormField> fields, IColumnPresentation presentation, FormFilter filter)
     {
         var found = Matches(presentation, filter.Query);
         var matching = fields.Where(f => found.Contains(f.Column) && (!filter.OnlyChanged || f.Stage is not null)).ToList();
@@ -161,8 +161,41 @@ public static class RowForm
     }
 
     /// <summary>Column indexes matching the search, like Ctrl+F (C# names only while they are shown).</summary>
-    internal static HashSet<int> Matches(TablePresentation presentation, string? query) =>
-        ColumnSearch.Find(presentation.Details.Columns, query, presentation.SearchNameOf).ToHashSet();
+    internal static HashSet<int> Matches(IColumnPresentation presentation, string? query) =>
+        ColumnSearch.Find(presentation.Columns, query, presentation.SearchNameOf).ToHashSet();
+
+    /// <summary>
+    /// Form view of a query result's row (WP-56): read-only, in the result's column order, with the outgoing FK jumps of
+    /// the columns traced back to their tables (WP-48, <see cref="SqlResultSources.JumpsFor"/> for this row).
+    /// </summary>
+    public static IReadOnlyList<FormField> ResultFields(IColumnPresentation presentation, RowData row, IReadOnlyList<SqlResultJump> jumps)
+    {
+        var outgoing = jumps.Where(j => j.Jump.Direction == JumpDirection.Outgoing).ToList();
+        return presentation.Columns
+            .Select((info, i) =>
+            {
+                var raw = row.Values[i];
+                return new FormField(
+                    i,
+                    info,
+                    presentation.LabelOf(i),
+                    presentation.Present(i, raw),
+                    raw,
+                    "",
+                    null,
+                    DataText.QueryResultReadOnly,
+                    false,
+                    false,
+                    null,
+                    outgoing.Where(j => j.Involves(i)).Select(j => j.Jump).ToList(),
+                    []);
+            })
+            .ToList();
+    }
+
+    /// <summary>Rows referencing a result row (also through base tables), in the order of <paramref name="jumps"/>.</summary>
+    public static IReadOnlyList<FkJump> ResultIncoming(IReadOnlyList<SqlResultJump> jumps) =>
+        [.. jumps.Where(j => j.Jump.Direction == JumpDirection.Incoming).Select(j => j.Jump)];
 
     private static string? ReadOnlyReason(TableDetails table, ColumnInfo info, FormRow row, object? raw, bool writable)
     {
