@@ -1268,6 +1268,9 @@
     <value>More than {0:N0} values – nothing copied. For that many, save all rows as CSV or Excel.</value>
     <comment>Notice; {0}: 100000</comment>
   </data>
+  <data name="ColumnValues_TooLong" xml:space="preserve">
+    <value>The values are longer than {0:N0} characters together – nothing copied. Better save them through “All rows” as CSV or Excel.</value>
+  </data>
   <data name="ColumnValues_Cancelled" xml:space="preserve">
     <value>Copying the values of {0} cancelled.</value>
     <comment>Notice; {0}: column name</comment>

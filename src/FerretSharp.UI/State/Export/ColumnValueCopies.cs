@@ -94,12 +94,14 @@ public static class ColumnValueCopies
         ColumnValuesFormat format, AllColumnValues all)
     {
         var exports = shell.Exports;
-        var job = exports.Start(TextFormat.Format(ShellText.Status_CopyValuesLabel, columnName), all.Total, TextFormat.Format(ShellText.Status_CopyValuesTitle, columnName), all.WorkspaceId);
+        var distinct = format == ColumnValuesFormat.InList;
+        // SELECT DISTINCT reads each value once: the rows of the tab are no total for it (review 3.44.0, A15: "71 of 150,000").
+        var total = distinct && all.DistinctInQuery ? null : all.Total;
+        var job = exports.Start(TextFormat.Format(ShellText.Status_CopyValuesLabel, columnName), total, TextFormat.Format(ShellText.Status_CopyValuesTitle, columnName), all.WorkspaceId);
         var progress = new Progress<long>(rows => exports.Report(job, rows)); // reports on the UI thread
         try
         {
             var token = job.Token;
-            var distinct = format == ColumnValuesFormat.InList;
             var values = new ColumnValues(column, format) { NullsCollapsed = distinct && all.DistinctInQuery };
             var read = all.Read(distinct);
             var result = await shell.RunDbAsync(logger, connection, async () =>
@@ -145,7 +147,9 @@ public static class ColumnValueCopies
     {
         if (values.TooMany)
         {
-            shell.Notify(TextFormat.Format(GridText.ColumnValues_TooMany, ColumnValues.MaxValues), extra);
+            shell.Notify(values.TooLong
+                ? TextFormat.Format(GridText.ColumnValues_TooLong, ColumnValues.MaxCharacters)
+                : TextFormat.Format(GridText.ColumnValues_TooMany, ColumnValues.MaxValues), extra);
             return;
         }
 

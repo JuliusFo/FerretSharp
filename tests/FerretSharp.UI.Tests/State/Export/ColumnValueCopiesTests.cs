@@ -172,6 +172,20 @@ public sealed class ColumnValueCopiesTests
         Assert.Equal(["2, 7"], _copied);
     }
 
+    /// <summary>Review 3.44.0, A15: a DISTINCT read counted against the tab's rows – "71 of 150,000" at the end.</summary>
+    [Fact]
+    public async Task A_distinct_read_shows_its_rows_without_the_tab_s_total()
+    {
+        long? total = -1;
+        var all = Blocks(_ => total = _shell.Exports.Running[0].Total, [Row(2m)]) with { Total = 150_000, DistinctInQuery = true };
+
+        await CopyAllAsync(ColumnValuesFormat.InList, all);
+        Assert.Null(total);
+
+        await CopyAllAsync(ColumnValuesFormat.Lines, all); // every row: the total holds
+        Assert.Equal(150_000, total);
+    }
+
     [Fact]
     public async Task A_distinct_read_names_null_without_a_number()
     {

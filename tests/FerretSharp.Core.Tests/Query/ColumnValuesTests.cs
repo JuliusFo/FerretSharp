@@ -138,6 +138,20 @@ public class ColumnValuesTests
         Assert.Throws<InvalidOperationException>(copy.Finish);
     }
 
+    /// <summary>Review 3.44.0, A16: the limit counted values only – 100,000 long texts made hundreds of MB.</summary>
+    [Fact]
+    public void A_text_longer_than_the_limit_stops_the_reading_and_copies_nothing()
+    {
+        var copy = new ColumnValues(new ExportColumn("NAME", 0, Name), ColumnValuesFormat.Lines);
+        var value = new string('x', 4000);
+
+        Assert.True(copy.AddRange(Enumerable.Repeat<object?>(value, ColumnValues.MaxCharacters / 4002))); // with the line breaks
+        Assert.False(copy.AddRange(Enumerable.Repeat<object?>(value, 10)));
+        Assert.True(copy.TooMany);
+        Assert.True(copy.TooLong);
+        Assert.Throws<InvalidOperationException>(copy.Finish);
+    }
+
     [Fact]
     public void Duplicates_do_not_count_towards_the_limit_of_an_in_list()
     {

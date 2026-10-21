@@ -996,6 +996,9 @@
   <data name="ColumnValues_TooMany" xml:space="preserve">
     <value>Mehr als {0:N0} Werte – nichts kopiert. So viele Werte besser über „Alle Zeilen“ als CSV oder Excel speichern.</value>
   </data>
+  <data name="ColumnValues_TooLong" xml:space="preserve">
+    <value>Die Werte sind zusammen länger als {0:N0} Zeichen – nichts kopiert. Besser über „Alle Zeilen“ als CSV oder Excel speichern.</value>
+  </data>
   <data name="ColumnValues_Cancelled" xml:space="preserve">
     <value>Kopieren der Werte von {0} abgebrochen.</value>
   </data>

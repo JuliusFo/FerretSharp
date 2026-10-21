@@ -29,6 +29,12 @@ public sealed class ColumnValues(ExportColumn column, ColumnValuesFormat format)
     /// <summary>More values than this are not copied: the export as CSV or Excel is the way for them.</summary>
     public const int MaxValues = 100_000;
 
+    /// <summary>
+    /// Nor a text longer than this (review 3.44.0, A16): 100,000 long texts would fill hundreds of MB in memory and on the
+    /// clipboard.
+    /// </summary>
+    public const int MaxCharacters = 20_000_000;
+
     private readonly StringBuilder _text = new();
     private readonly ExportWarnings _warnings = new();
     private readonly HashSet<string> _literals = new(StringComparer.Ordinal);
@@ -48,8 +54,11 @@ public sealed class ColumnValues(ExportColumn column, ColumnValuesFormat format)
     /// <summary>Values collected so far (for an IN list: distinct ones).</summary>
     public int Count { get; private set; }
 
-    /// <summary>There were more than <see cref="MaxValues"/> values.</summary>
+    /// <summary>There were more than <see cref="MaxValues"/> values, or more than <see cref="MaxCharacters"/> characters.</summary>
     public bool TooMany { get; private set; }
+
+    /// <summary>It was the characters (<see cref="MaxCharacters"/>), not the number of values.</summary>
+    public bool TooLong { get; private set; }
 
     /// <returns>False once there are more than <see cref="MaxValues"/> values: stop reading.</returns>
     public bool Add(object? value)
@@ -153,9 +162,10 @@ public sealed class ColumnValues(ExportColumn column, ColumnValuesFormat format)
 
     private bool Counted()
     {
-        if (Count == MaxValues)
+        if (Count == MaxValues || _text.Length > MaxCharacters)
         {
             TooMany = true;
+            TooLong = Count < MaxValues;
             _text.Clear();
             return false;
         }
