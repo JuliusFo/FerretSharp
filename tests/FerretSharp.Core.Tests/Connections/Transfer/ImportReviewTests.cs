@@ -164,6 +164,26 @@ etworkadmin") };
         Assert.Equal(own.Address, Assert.Single(plan.Build()).Address);
     }
 
+    /// <summary>
+    /// Review 3.44.0, A30: an overwritten TNS connection without a TNS_ADMIN of its own (the environment's) took the one of
+    /// the file – a tnsnames.ora on a foreign share would have sent the saved password to another listener.
+    /// </summary>
+    [Fact]
+    public void An_overwrite_keeps_the_environment_s_tns_admin_too()
+    {
+        var own = SavedProd with { Address = new TnsAliasAddress("ERP", null) };
+        var colleague = own with { Id = Guid.NewGuid(), Address = new TnsAliasAddress("ERP", @"\\fremd\tns") };
+        var plan = new ConnectionImportPlan(
+            ConnectionImportReader.Read(Utf8(FerretSharpConnections.Export([colleague], includeLocalPaths: true)), Ct), [own]);
+        Assert.Single(plan.Rows).Selected = true;
+        plan.TakeLocalPaths = true;
+
+        var saved = Assert.Single(plan.Build());
+
+        Assert.Equal(own.Id, saved.Id);
+        Assert.Equal(new TnsAliasAddress("ERP", null), saved.Address);
+    }
+
     [Fact]
     public void Local_paths_of_another_computer_do_not_replace_the_own_ones()
     {
