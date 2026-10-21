@@ -53,6 +53,7 @@ Drei Stufen, von schwach nach stark:
 - Monaco über `getModels()…setValue`/`setPosition` füttern, `triggerSuggest` erst nach > 250 ms.
 - Ausdrücke mit Anführungszeichen über eine Datei an `node` geben (PowerShell 5.1 verliert sie).
 - Abfragen über `Kunde` im Beispielmodell scheitern absichtlich mit ORA-00904 (Drift).
+- Langsame Abfragen nachstellen (Ladeanzeige, Fix 3.45.1): eine View über eine Tabelle mit einer skalaren Unterabfrage, die einmal je Ausführung läuft und deren Dauer eine Steuertabelle vorgibt (`UPDATE E2E_DELAY …` per sqlplus zwischen den Schritten, danach im Explorer „Schema neu laden“). `DBMS_SESSION.SLEEP` in einer Funktion **ignoriert den Abbruch** (`OracleCommand.Cancel`): Die Abfrage läuft bis zum Ende, die Oberfläche bietet nach 5 s „Session trennen“. Zum Prüfen des Abbrechens rechnen statt schlafen: `SUM(MOD(a.l * b.l, 7))` über zwei `CONNECT BY LEVEL`-Mengen (ein `COUNT(*) > 0` kürzt der Optimierer weg) – sie bricht sofort ab.
 - Holt `SendInput` das Fenster nach vorn, bekommt das zuletzt fokussierte Feld den Fokus zurück – eine Spaltenauswahl öffnet dann ihre Liste und kann das Klickziel verdecken. Vorher per CDP `document.activeElement.blur()`.
 - PowerShell 5.1 schreibt `Set-Content` als ANSI: Zeichen wie „−“ oder „⋯“ in JS-Dateien für CDP gehen verloren. Elemente über Position oder Klasse wählen oder `-Encoding utf8`.
 
