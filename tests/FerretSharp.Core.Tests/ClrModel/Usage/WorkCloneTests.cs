@@ -179,6 +179,7 @@ public sealed class WorkCloneTests : IDisposable
     [Fact]
     public async Task A_locked_file_keeps_the_choice_in_memory_and_says_so()
     {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Only Windows locks a file against replacing it.");
         var file = _folder.Combine("work-clones.json");
         var work = Clone("work", "x");
         var clones = new WorkClones(file);

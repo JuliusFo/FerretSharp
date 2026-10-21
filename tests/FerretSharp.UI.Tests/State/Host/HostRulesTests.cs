@@ -19,11 +19,14 @@ public sealed class HostRulesTests
     [Fact]
     public void The_solution_itself_wins_then_the_deepest_folder_holding_the_file()
     {
-        const string file = @"C:\repo\src\Shop.Data\Customer.cs";
+        var file = At("repo", "src", "Shop.Data", "Customer.cs");
 
-        Assert.Equal(int.MaxValue, VisualStudioMatch.Score(@"C:\repo\Shop.slnx", file, @"C:\REPO\Shop.slnx"));
-        Assert.True(VisualStudioMatch.Score(@"C:\repo\src\Shop.slnx", file, null) > VisualStudioMatch.Score(@"C:\repo\All.slnx", file, null));
-        Assert.Equal(-1, VisualStudioMatch.Score(@"C:\other\Other.slnx", file, null));
-        Assert.Equal(-1, VisualStudioMatch.Score(@"C:\re\Re.slnx", @"C:\repo\x.cs", null)); // C:\re is no folder of C:\repo
+        Assert.Equal(int.MaxValue, VisualStudioMatch.Score(At("repo", "Shop.slnx"), file, At("REPO", "Shop.slnx")));
+        Assert.True(VisualStudioMatch.Score(At("repo", "src", "Shop.slnx"), file, null) > VisualStudioMatch.Score(At("repo", "All.slnx"), file, null));
+        Assert.Equal(-1, VisualStudioMatch.Score(At("other", "Other.slnx"), file, null));
+        Assert.Equal(-1, VisualStudioMatch.Score(At("re", "Re.slnx"), At("repo", "x.cs"), null)); // re is no folder of repo
     }
+
+    /// <summary>An absolute path on this platform (C:\… on Windows, /… elsewhere – the CI runs the UI tests on Linux).</summary>
+    private static string At(params string[] parts) => Path.Combine([OperatingSystem.IsWindows() ? @"C:\" : "/", .. parts]);
 }

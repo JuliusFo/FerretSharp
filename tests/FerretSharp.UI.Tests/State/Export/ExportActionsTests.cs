@@ -59,6 +59,7 @@ public sealed class ExportActionsTests : IDisposable
     [Fact]
     public async Task A_locked_target_says_so_and_leaves_the_file_and_the_status_bar()
     {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Only Windows locks a file against replacing it.");
         var path = Target("KUNDEN.csv");
         await File.WriteAllTextAsync(path, "alt", TestContext.Current.CancellationToken);
         var read = false;
