@@ -44,7 +44,7 @@ public sealed class ExportActionsTests : IDisposable
             return WriteAsync(stream, "a;b", ct, "LOB nur Vorschau");
         });
 
-        Assert.Equal("KUNDEN.csv", running!.FileName);
+        Assert.Equal("KUNDEN.csv", running!.Label);
         Assert.Equal(3, running.Total);
         Assert.Empty(_shell.Exports.Running);
         Assert.Equal("a;b", await File.ReadAllTextAsync(path, TestContext.Current.CancellationToken));

@@ -67,17 +67,23 @@ public static class DelimitedExport
             }
 
             first = false;
-            if (field.IndexOfAny([separator, '"', '\r', '\n']) >= 0)
-            {
-                text.Append('"').Append(field.Replace("\"", "\"\"", StringComparison.Ordinal)).Append('"');
-            }
-            else
-            {
-                text.Append(field);
-            }
+            AppendField(text, field, separator);
         }
 
         text.Append("\r\n");
+    }
+
+    /// <summary>One field, in quotes (inner quotes doubled) if it holds the separator, a quote or a line break – as Excel reads it.</summary>
+    internal static void AppendField(StringBuilder text, string field, char separator)
+    {
+        if (field.IndexOfAny([separator, '"', '\r', '\n']) >= 0)
+        {
+            text.Append('"').Append(field.Replace("\"", "\"\"", StringComparison.Ordinal)).Append('"');
+        }
+        else
+        {
+            text.Append(field);
+        }
     }
 
     private sealed class Writer(Stream stream, TableDetails table, char separator) : IExportWriter

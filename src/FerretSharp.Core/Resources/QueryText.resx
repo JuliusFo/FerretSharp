@@ -344,4 +344,24 @@
   <data name="LinkIncomplete" xml:space="preserve">
     <value>The link is incomplete – it was probably cut off on the way (a mail in plain text, a ticket field). Ask for it again or copy it whole.</value>
   </data>
+  <data name="ColumnValuesNullsLeftOutOne" xml:space="preserve">
+    <value>{0} NULL value is not in the list: IN never finds NULL.</value>
+    <comment>Warning after copying an IN list. {0} = number of NULL values (1)</comment>
+  </data>
+  <data name="ColumnValuesNullsLeftOutOther" xml:space="preserve">
+    <value>{0:N0} NULL values are not in the list: IN never finds NULL.</value>
+    <comment>Warning after copying an IN list. {0} = number of NULL values</comment>
+  </data>
+  <data name="ColumnValuesInListTooLong" xml:space="preserve">
+    <value>Oracle takes at most {0:N0} values per IN list (ORA-01795): split the list or join several with OR.</value>
+    <comment>Warning after copying an IN list with more values. {0} = 1000</comment>
+  </data>
+  <data name="ColumnValuesNullsLeftOut" xml:space="preserve">
+    <value>NULL values are not in the list: IN never finds NULL.</value>
+    <comment>Warning after copying an IN list read with SELECT DISTINCT (the number of NULL rows is not known)</comment>
+  </data>
+  <data name="ColumnValuesFractionsCut" xml:space="preserve">
+    <value>{0}: the literals are exact to {1} fractional digits only – a value with finer fractions does not find its row.</value>
+    <comment>Warning after copying an IN list of a TIMESTAMP(8/9) column. {0} = data type, {1} = 7</comment>
+  </data>
 </root>

@@ -196,6 +196,23 @@ public sealed class ShortcutMapTests
         Assert.Equal(warns, new ShortcutMap().Check(action, Chord(text)).Warning is not null);
 
     [Fact]
+    public void A_grid_action_never_gets_ctrl_c()
+    {
+        Assert.NotNull(new ShortcutMap().Check(ShortcutAction.CopyColumnValues, Chord("ctrl+c")).Error);
+        Assert.NotNull(new ShortcutMap().Check(ShortcutAction.ToggleForm, Chord("ctrl+c")).Error);
+        Assert.Null(new ShortcutMap().Check(ShortcutAction.Flush, Chord("ctrl+c")).Error); // global: before the grid, with a warning
+    }
+
+    [Theory]
+    [InlineData(ShortcutAction.CopyColumnValues, "ctrl+a", true)] // select all rows
+    [InlineData(ShortcutAction.CopyColumnValues, "ctrl+space", true)]
+    [InlineData(ShortcutAction.CopyColumnValues, "ctrl+shift+arrowdown", true)]
+    [InlineData(ShortcutAction.CopyColumnValues, "ctrl+shift+k", false)]
+    [InlineData(ShortcutAction.FormNext, "ctrl+a", false)] // only in the form
+    public void Warns_when_the_grid_loses_a_key(ShortcutAction action, string text, bool warns) =>
+        Assert.Equal(warns, new ShortcutMap().Check(action, Chord(text)).Warning is not null);
+
+    [Fact]
     public void The_fixed_keys_list_the_grid_selection_keys()
     {
         var keys = ShortcutMap.Fixed.ToDictionary(f => f.Label, f => f.Keys);

@@ -1,11 +1,13 @@
-@* Right-click menu of a column header: pin the column to the left or release it; mark it as the table's display column (WP-31). *@
+@* Right-click menu of a column header: pin the column to the left or release it; mark it as the table's display column (WP-31);
+   copy all its values under the tab's filter (WP-57). *@
+@using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Display
 @using FerretSharp.Core.Schema
 @inject DisplayColumnSource DisplaySource
 
 <PopoverMenu X="Request.X" Y="Request.Y" ViewportWidth="Request.ViewportWidth" ViewportHeight="Request.ViewportHeight"
-             Width="300" EstimatedHeight="125" OnClose="OnClose">
+             Width="300" EstimatedHeight="@(125 + 44 * ColumnValuesMenuItems.Entries)" OnClose="OnClose">
     <div class="ctx-head">
         <span class="ctx-col">@Column.Name</span>
         <span class="ctx-value">@Column.DisplayType</span>
@@ -29,17 +31,29 @@
             title="@(notPossible ?? (isDisplay ? null : TextFormat.Format(GridText.ColumnMenu_UseAsDisplayTitle, Details.Table.DisplayName, display.Path)))">
         @(isDisplay ? GridText.ColumnMenu_RemoveDisplay : GridText.ColumnMenu_UseAsDisplay)
     </button>
+    <ColumnValuesMenuItems Column="Column" Presented="@PresentedExport.Column(Presentations.For(Details), Request.Column, Column.Name, Request.Column)"
+                           All="@ColumnValueCopies.ForTable(Tab, Details, Request.Column, Workspaces.GetDataAsync)" OnClose="OnClose" />
 </PopoverMenu>
 
 @code {
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
 
+    [CascadingParameter]
+    public PresentationService Presentations { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceManager Workspaces { get; set; } = null!;
+
     [Parameter, EditorRequired]
     public ColumnMenuRequest Request { get; set; } = null!;
 
     [Parameter, EditorRequired]
     public TableDetails Details { get; set; } = null!;
+
+    /// <summary>The tab: its applied filters and sort order for copying all values.</summary>
+    [Parameter, EditorRequired]
+    public TableTab Tab { get; set; } = null!;
 
     /// <summary>Whether the column is currently pinned.</summary>
     [Parameter]

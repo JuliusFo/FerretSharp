@@ -228,6 +228,43 @@ public class OracleDataAccessTests(OracleContainerFixture oracle) : IAsyncLifeti
             _data.ReadSqlAllAsync(query, ["ID", "NAME"], (_, _, _) => Task.FromResult(true), Ct));
     }
 
+    // ---------- the values of a column (WP-57) ----------
+
+    [Fact]
+    public async Task The_values_of_a_column_come_in_the_order_of_the_grid()
+    {
+        IReadOnlyList<FilterCondition> filters = [FilterCondition.Of("GRUPPE", FilterOperator.NotEquals, "3")];
+        IReadOnlyList<SortSpec> sorts = [new SortSpec("NAME", true)];
+        var values = new List<object?>();
+
+        await _data.ReadColumnAllAsync(_grid, Index("ID"), filters, sorts, distinct: false, (rows, _, _) =>
+        {
+            Assert.All(rows, r => Assert.Single(r.Values));
+            values.AddRange(rows.Select(r => r.Values[0]));
+            return Task.FromResult(true);
+        }, Ct);
+
+        var paged = await ReadAllAsync(filters, sorts, pageSize: 500);
+        Assert.Equal(paged.Select(r => r.Values[Index("ID")]), values);
+    }
+
+    [Fact]
+    public async Task Distinct_values_of_a_column_come_each_once_with_null()
+    {
+        var values = new List<object?>();
+
+        await _data.ReadColumnAllAsync(_grid, Index("NAME"), [], [], distinct: true, (rows, _, _) =>
+        {
+            values.AddRange(rows.Select(r => r.Values[0]));
+            return Task.FromResult(true);
+        }, Ct);
+
+        var all = (await ReadAllAsync([], [], pageSize: 500)).Select(r => r.Values[Index("NAME")]).ToList();
+        Assert.Equal(all.Distinct().Count(), values.Count);
+        Assert.Equal(all.Distinct().OfType<string>().Order(StringComparer.Ordinal), values.OfType<string>());
+        Assert.Contains(null, values);
+    }
+
     [Fact]
     public async Task The_streaming_reader_runs_plain_queries_only()
     {

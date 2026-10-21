@@ -32,6 +32,9 @@ public enum ShortcutAction
 
     /// <summary>The work clone of the shown connection's group (WP-40); no default key.</summary>
     SwitchWorkClone,
+
+    /// <summary>The values of the focused cell's column from the selected rows (WP-57); no default key.</summary>
+    CopyColumnValues,
 }
 
 /// <summary>Where a shortcut is caught.</summary>
@@ -110,6 +113,7 @@ public sealed class ShortcutMap
         new(ShortcutAction.NewLinq, SettingsText.GroupSqlAndLinq, SettingsText.ActionNewLinq, "ctrl+shift+l", ShortcutScope.Global, SettingsText.HintNewLinq),
         new(ShortcutAction.RunScript, SettingsText.GroupSqlAndLinq, SettingsText.ActionRunScript, "alt+x", ShortcutScope.Global, SettingsText.HintRunScript),
         new(ShortcutAction.SwitchWorkClone, SettingsText.GroupSqlAndLinq, SettingsText.ActionSwitchWorkClone, null, ShortcutScope.Global, SettingsText.HintSwitchWorkClone),
+        new(ShortcutAction.CopyColumnValues, SettingsText.GroupData, SettingsText.ActionCopyColumnValues, null, ShortcutScope.Grid, SettingsText.HintCopyColumnValues),
     ];
 
     /// <summary>The fixed shortcuts; a property for the same reason as <see cref="Definitions"/>.</summary>
@@ -164,6 +168,18 @@ public sealed class ShortcutMap
         "alt+arrowup" => SettingsText.EditorMoveLineUp,
         "alt+arrowdown" => SettingsText.EditorMoveLineDown,
         "delete" => SettingsText.GridDeleteRows,
+        _ => null,
+    };
+
+    /// <summary>
+    /// What the grid does with a key itself (<c>grid.js</c>), for an action caught in the grid: the action comes first and
+    /// takes the key from it. Ctrl+C is the exception – the grid's copy comes first, an action would never get it.
+    /// </summary>
+    private static string? TakenFromGrid(string combo) => combo switch
+    {
+        "ctrl+a" => SettingsText.FixedSelectAllRows,
+        "ctrl+space" => SettingsText.FixedToggleRow,
+        "ctrl+shift+arrowup" or "ctrl+shift+arrowdown" => SettingsText.FixedSelectToEdge,
         _ => null,
     };
 
@@ -243,12 +259,21 @@ public sealed class ShortcutMap
             return new ShortcutCheck(SettingsText.NeedsCtrlOrAlt, null, null);
         }
 
+        var scope = Own(action).Scope;
+        var inGrid = scope is ShortcutScope.Grid or ShortcutScope.GridAndForm;
+        if (inGrid && chord.Text == "ctrl+c")
+        {
+            return new ShortcutCheck(SettingsText.GridCopiesFirst, null, null);
+        }
+
         var conflict = ignoreConflicts ? null : _definitions.FirstOrDefault(d => d.Action != action && _chords[d.Action] == chord)?.Action;
-        var warning = Own(action).Scope == ShortcutScope.Global && TakenFromEditors(chord.Text) is { } taken
+        var warning = scope == ShortcutScope.Global && TakenFromEditors(chord.Text) is { } taken
             ? TextFormat.Format(SettingsText.TakenFromEditor, chord.Label, taken)
-            : chord.Shift && chord.Alt && !chord.Ctrl
-                ? SettingsText.AltShiftSwitchesLanguage
-                : null;
+            : inGrid && TakenFromGrid(chord.Text) is { } fromGrid
+                ? TextFormat.Format(SettingsText.TakenFromEditor, chord.Label, fromGrid)
+                : chord.Shift && chord.Alt && !chord.Ctrl
+                    ? SettingsText.AltShiftSwitchesLanguage
+                    : null;
         return new ShortcutCheck(null, conflict, warning);
     }
 

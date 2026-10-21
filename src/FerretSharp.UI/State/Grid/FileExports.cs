@@ -1,19 +1,29 @@
+using FerretSharp.Core.Resources;
+using FerretSharp.UI.Resources;
+
 namespace FerretSharp.UI.State;
 
-/// <summary>An export being written in the background (A13, WP-54): its file, the rows so far, and how to cancel it.</summary>
+/// <summary>
+/// An export being written in the background (A13, WP-54) – or the values of a column read for the clipboard (WP-57): what
+/// it is, the rows so far, and how to cancel it.
+/// </summary>
 public sealed class FileExport
 {
     private readonly CancellationTokenSource _cts = new();
     private bool _ended;
 
-    internal FileExport(string fileName, long? total)
+    internal FileExport(string label, long? total, string title)
     {
-        FileName = fileName;
+        Label = label;
         Total = total;
+        Title = title;
     }
 
-    /// <summary>The file's name (without folder), as the status bar shows it.</summary>
-    public string FileName { get; }
+    /// <summary>What the status bar shows: the file's name (without folder), or the column whose values are copied.</summary>
+    public string Label { get; }
+
+    /// <summary>The status bar's tooltip.</summary>
+    public string Title { get; }
 
     /// <summary>Rows expected, if known beforehand (the selected rows, a counted filter).</summary>
     public long? Total { get; }
@@ -55,9 +65,11 @@ public sealed class FileExports
 
     public IReadOnlyList<FileExport> Running => _running;
 
-    public FileExport Start(string fileName, long? total)
+    /// <param name="label">The file's name (without folder), or what else is read.</param>
+    /// <param name="title">The tooltip; null for an export to the file <paramref name="label"/>.</param>
+    public FileExport Start(string label, long? total, string? title = null)
     {
-        var export = new FileExport(fileName, total);
+        var export = new FileExport(label, total, title ?? TextFormat.Format(ShellText.Status_ExportTitle, label));
         _running.Add(export);
         Changed?.Invoke();
         return export;

@@ -84,6 +84,9 @@ public sealed record GridOptions(IReadOnlyList<GridSort> Sorts, int FirstRow, bo
     /// A query result with a form (WP-56): the focus (OnFocused) and the form key (OnFormKey) are reported, as for a table.
     /// </summary>
     public bool Form { get; init; }
+
+    /// <summary>A query result whose column headers have a menu (SQL editor, WP-57): OnHeaderContextMenu is reported, as for a table.</summary>
+    public bool HeaderMenu { get; init; }
 }
 
 /// <summary>

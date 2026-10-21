@@ -4,8 +4,8 @@
 
 @foreach (var export in Shell.Exports.Running)
 {
-    <span class="item shrink" title="@TextFormat.Format(ShellText.Status_ExportTitle, export.FileName)">
-        <span class="spinner small"></span> @export.FileName · @RowsText(export)
+    <span class="item shrink" title="@export.Title">
+        <span class="spinner small"></span> @export.Label · @RowsText(export)
         <button class="status-btn" @onclick="export.Cancel">@CommonText.Cancel</button>
     </span>
 }

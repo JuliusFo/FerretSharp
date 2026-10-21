@@ -97,6 +97,43 @@ public partial class QueryBuilderTests
     }
 
     [Fact]
+    public void Column_values_select_one_column_in_the_order_of_all_rows()
+    {
+        IReadOnlyList<FilterCondition> filters = [new("NAME", FilterOperator.Contains, ["Ferret"])];
+        IReadOnlyList<SortSpec> sorts = [new("ERSTELLT_AM", true)];
+        var all = QueryBuilder.BuildSelectAll(Kunden, filters, sorts);
+
+        var values = QueryBuilder.BuildColumnValues(Kunden, 1, filters, sorts, distinct: false);
+
+        AssertBindsMatch(values.Sql, values.Parameters);
+        Assert.StartsWith("SELECT t.\"NAME\"\n  FROM \"APP\".\"KUNDEN\" t\n WHERE ", values.Sql);
+        Assert.Equal(all.Sql[all.Sql.IndexOf("\n WHERE ", StringComparison.Ordinal)..], values.Sql[values.Sql.IndexOf("\n WHERE ", StringComparison.Ordinal)..]);
+        Assert.Equal(all.Parameters, values.Parameters);
+        Assert.Equal([new ResultColumn(Kunden.Columns[1], Projection.Value)], values.Columns);
+        Assert.Equal(RowKeyKind.None, values.RowKey);
+        Assert.False(values.HasRowId);
+        Assert.True(StatementGuard.IsQuery(values.Sql));
+    }
+
+    [Fact]
+    public void Distinct_column_values_are_ordered_by_the_value()
+    {
+        var values = QueryBuilder.BuildColumnValues(Log, 2, [], [new("NAME", false)], distinct: true);
+
+        Assert.Equal("SELECT DISTINCT t.\"KUERZEL\"\n  FROM \"APP\".\"LOG\" t\n ORDER BY t.\"KUERZEL\"", values.Sql);
+        Assert.True(StatementGuard.IsQuery(values.Sql));
+    }
+
+    [Theory]
+    [InlineData(5)] // CLOB
+    [InlineData(6)] // BLOB
+    [InlineData(7)] // XMLTYPE
+    public void Column_values_refuse_columns_not_read_as_values(int column)
+    {
+        Assert.Throws<ArgumentException>(() => QueryBuilder.BuildColumnValues(Kunden, column, [], [], distinct: false));
+    }
+
+    [Fact]
     public void Default_order_is_the_primary_key()
     {
         Assert.Contains("ORDER BY t.\"KUNDE_ID\"\n", Select(Kunden).Sql);

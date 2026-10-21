@@ -315,4 +315,13 @@
   <data name="HintSwitchWorkClone" xml:space="preserve">
     <value>Der Klon, in dem du entwickelst, für die Verbindungen der angezeigten Gruppe: Verwendungen im Code gehen dort auf.</value>
   </data>
+  <data name="ActionCopyColumnValues" xml:space="preserve">
+    <value>Werte der Spalte kopieren</value>
+  </data>
+  <data name="HintCopyColumnValues" xml:space="preserve">
+    <value>Die Spalte der fokussierten Zelle aus den markierten Zeilen, ein Wert je Zeile. Nur im Grid.</value>
+  </data>
+  <data name="GridCopiesFirst" xml:space="preserve">
+    <value>Ctrl+C kopiert im Grid selbst – diese Aktion bekäme die Taste nie.</value>
+  </data>
 </root>

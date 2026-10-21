@@ -386,4 +386,15 @@
   <data name="HintSwitchWorkClone" xml:space="preserve">
     <value>The clone you develop in, for the connections of the shown group: uses in the code open there.</value>
   </data>
+  <data name="ActionCopyColumnValues" xml:space="preserve">
+    <value>Copy the column's values</value>
+    <comment>Shortcut action (WP-57)</comment>
+  </data>
+  <data name="HintCopyColumnValues" xml:space="preserve">
+    <value>The column of the focused cell from the selected rows, one value per line. Only in the grid.</value>
+  </data>
+  <data name="GridCopiesFirst" xml:space="preserve">
+    <value>Ctrl+C copies in the grid itself – this action would never get the key.</value>
+    <comment>Refusal when a grid shortcut is set to Ctrl+C</comment>
+  </data>
 </root>

@@ -518,13 +518,14 @@ function reportPinned(api, dotnet) {
  *   editable: whether the workspace may write (v2); the columns say whether they can be edited at all.
  *   headerHeight: with the line for C# names (WP-12); null for the theme default.
  *   table: a table tab – header menu, Del, pinning and scroll position are reported to .NET. A query result only
- *     answers GetRows, OnCopy and OnCellContextMenu.
+ *     answers GetRows, OnCopy, OnCopyColumn (WP-57) and OnCellContextMenu, and what the options below ask for.
  *   form: the grid reports its focus (OnFocused) and the form key (OnFormKey) – always for a table, for a query result since
  *     WP-56.
+ *   headerMenu: a query result reports a right click on a column header too (OnHeaderContextMenu, SQL editor, WP-57).
  */
 export function create(elementId, dotnet, columns, options) {
   // texts: what the grid shows itself (header tooltips, the member list), in the UI language – JS holds no texts.
-  const { sorts, firstRow, editable, headerHeight, table, form, texts } = options;
+  const { sorts, firstRow, editable, headerHeight, table, form, headerMenu, texts } = options;
   const reportsForm = table || !!form;
   registerModules();
   destroy(elementId);
@@ -600,13 +601,13 @@ export function create(elementId, dotnet, columns, options) {
   element.addEventListener('contextmenu', e => {
     e.preventDefault();
     const colId = e.target.closest?.('.ag-header-cell')?.getAttribute('col-id');
-    if (colId && table) {
+    if (colId && (table || headerMenu)) {
       dotnet.invokeMethodAsync('OnHeaderContextMenu', colId, e.clientX, e.clientY, window.innerWidth, window.innerHeight).catch(callFailed);
     }
   });
 
   // The grid's keys, in the capture phase (before AG Grid): each handler says whether the key was its.
-  element.addEventListener('keydown', e => onDeleteKey(e) || onCopyKey(e) || onFormKey(e) || onLobKey(e) || onEditHistoryKey(e)
+  element.addEventListener('keydown', e => onDeleteKey(e) || onCopyKey(e) || onCopyColumnKey(e) || onFormKey(e) || onLobKey(e) || onEditHistoryKey(e)
     || onSelectKey(e), true);
 
   const selectedRows = () => api.getSelectedNodes().map(n => n.rowIndex).filter(i => i != null);
@@ -758,6 +759,20 @@ export function create(elementId, dotnet, columns, options) {
     if (!cell || cell.rowIndex == null || cell.rowPinned) return true;
     e.preventDefault();
     dotnet.invokeMethodAsync('OnCopy', cell.rowIndex, cell.column.getColId(), selectedRows()).catch(callFailed);
+    return true;
+  }
+
+  // The values of the focused cell's column from the selected rows (WP-57): no default key, the user gives it one. In both
+  // grids; not while a cell is edited.
+  function onCopyColumnKey(e) {
+    const key = localCombo('copyColumn');
+    if (!key || comboOf(e) !== key || api.getEditingCells().length > 0) return false;
+    e.preventDefault();
+    e.stopPropagation();
+    const cell = api.getFocusedCell();
+    if (cell && cell.rowIndex != null && !cell.rowPinned) {
+      dotnet.invokeMethodAsync('OnCopyColumn', cell.rowIndex, cell.column.getColId(), selectedRows()).catch(callFailed);
+    }
     return true;
   }
 

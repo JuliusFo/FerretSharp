@@ -1195,4 +1195,72 @@
   <data name="Compare_FooterNoteResult" xml:space="preserve">
     <value>Differing values marked · values as shown in the result</value>
   </data>
+  <data name="GridMenu_CopyColumn" xml:space="preserve">
+    <value>Copy column {0}</value>
+    <comment>Cell menu entry (WP-57); {0}: column name</comment>
+  </data>
+  <data name="GridMenu_CopyColumnTitle" xml:space="preserve">
+    <value>The values of this column from the selected rows, one per line, as shown – pending changes included{0}</value>
+    <comment>Tooltip; {0}: shortcut hint like " (Ctrl+…)" or empty</comment>
+  </data>
+  <data name="GridMenu_CopyColumnInList" xml:space="preserve">
+    <value>Copy column {0} as IN list</value>
+    <comment>Cell menu entry (WP-57); {0}: column name</comment>
+  </data>
+  <data name="GridMenu_CopyColumnInListTitle" xml:space="preserve">
+    <value>The database values as Oracle literals for an IN list ('A', 'B'): each value once, without NULL</value>
+    <comment>Tooltip of the IN list entries</comment>
+  </data>
+  <data name="GridMenu_CopyColumnUnavailable" xml:space="preserve">
+    <value>The values of LOB, LONG and similar columns cannot be copied as a list</value>
+    <comment>Tooltip of the disabled entries</comment>
+  </data>
+  <data name="ColumnMenu_CopyValues" xml:space="preserve">
+    <value>Copy values</value>
+    <comment>Column header menu entry (WP-57)</comment>
+  </data>
+  <data name="ColumnMenu_CopyValuesTitle" xml:space="preserve">
+    <value>One value per line, as shown, in the order of the grid</value>
+    <comment>Tooltip, first line</comment>
+  </data>
+  <data name="ColumnMenu_CopyInList" xml:space="preserve">
+    <value>Copy as IN list</value>
+    <comment>Column header menu entry (WP-57)</comment>
+  </data>
+  <data name="ColumnMenu_AllValuesTitle" xml:space="preserve">
+    <value>Reads all values of the column again in the workspace's session – written changes included, pending ones not. The workspace waits meanwhile; more than {0:N0} values are not copied.</value>
+    <comment>Tooltip, second line; {0}: 100000</comment>
+  </data>
+  <data name="ColumnMenu_AllResultValuesTitle" xml:space="preserve">
+    <value>Runs the query again in full in the workspace's session. Without a unique ORDER BY the order may differ; more than {0:N0} values are not copied.</value>
+    <comment>Tooltip, second line, SQL editor result; {0}: 100000</comment>
+  </data>
+  <data name="ColumnValues_CopiedOne" xml:space="preserve">
+    <value>{0} value of {1} copied.</value>
+    <comment>Notice; {0}: 1, {1}: column name</comment>
+  </data>
+  <data name="ColumnValues_CopiedOther" xml:space="preserve">
+    <value>{0:N0} values of {1} copied.</value>
+    <comment>Notice; {0}: number of values, {1}: column name</comment>
+  </data>
+  <data name="ColumnValues_CopiedInListOne" xml:space="preserve">
+    <value>{0} value of {1} copied as IN list.</value>
+    <comment>Notice; {0}: 1, {1}: column name</comment>
+  </data>
+  <data name="ColumnValues_CopiedInListOther" xml:space="preserve">
+    <value>{0:N0} values of {1} copied as IN list.</value>
+    <comment>Notice; {0}: number of distinct values, {1}: column name</comment>
+  </data>
+  <data name="ColumnValues_None" xml:space="preserve">
+    <value>{0}: no values to copy.</value>
+    <comment>Notice; {0}: column name</comment>
+  </data>
+  <data name="ColumnValues_TooMany" xml:space="preserve">
+    <value>More than {0:N0} values – nothing copied. For that many, save all rows as CSV or Excel.</value>
+    <comment>Notice; {0}: 100000</comment>
+  </data>
+  <data name="ColumnValues_Cancelled" xml:space="preserve">
+    <value>Copying the values of {0} cancelled.</value>
+    <comment>Notice; {0}: column name</comment>
+  </data>
 </root>

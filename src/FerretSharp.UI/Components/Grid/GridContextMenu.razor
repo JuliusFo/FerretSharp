@@ -1,6 +1,6 @@
 @* Right-click menu of a grid cell: copy the value (also as C#), open a LOB, pin the column, the form or the comparison of
-   the selected rows, delete or revert them, export them (ExportMenuItems) or copy a link, C# objects and seed data, and
-   jump along foreign keys from them (outgoing and incoming with counts). *@
+   the selected rows, delete or revert them, export them or the clicked column's values (ExportMenuItems) or copy a link,
+   C# objects and seed data, and jump along foreign keys from them (outgoing and incoming with counts). *@
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
@@ -69,7 +69,8 @@
     }
 
     <ExportMenuItems Export="Export" Table="Details" Rows="Request.Selected" FileName="@Details.Table.DisplayName" XlsxColumns="_xlsxColumns" InsertTable="Details"
-                     XlsxColumnsToSave="@(() => PresentedExport.Columns(_presentation, Names.Copy()))" AllRows="_allRows">
+                     XlsxColumnsToSave="@(() => PresentedExport.Columns(_presentation, Names.Copy()))" AllRows="_allRows"
+                     Column="@PresentedExport.Column(_presentation, Request.Column, Column.Name, Request.Column)">
         <button class="menu-item" @onclick="SaveInsertAsync">@GridText.GridMenu_SaveInsert</button>
         @if (Active.Profile is { } linkProfile)
         {
@@ -207,7 +208,7 @@
     private ColumnInfo Column => Details.Columns[Request.Column];
 
     /// <summary>For the first placement; dom.js keepInViewport corrects it once rendered.</summary>
-    private double EstimatedHeight => 336 + ItemHeight * (_jumps.Count + Math.Max(0, _jumps.Headings - 2) + (ExportMenuItems.OffersRaw(_xlsxColumns) ? 2 : 1) + ExportMenuItems.AllRowsEntries(_allRows, _xlsxColumns))
+    private double EstimatedHeight => 336 + ItemHeight * (_jumps.Count + Math.Max(0, _jumps.Headings - 2) + (ExportMenuItems.OffersRaw(_xlsxColumns) ? 2 : 1) + ExportMenuItems.ColumnEntries + ExportMenuItems.AllRowsEntries(_allRows, _xlsxColumns))
                                       + (_cell is null ? 0 : 128) + (Request.MissingRows > 0 ? 40 : 0);
 
     protected override void OnInitialized()
