@@ -264,7 +264,10 @@ public sealed partial class WorkspaceLifecycle(
             return then();
         }
 
-        PendingLeave = new LeaveRequest(what, withWork, then);
+        PendingLeave = new LeaveRequest(what, withWork, then)
+        {
+            Shown = scope.Where(w => withWork.Contains(w.WorkspaceId)).ToDictionary(w => w.WorkspaceId, w => editing.SummaryOf(w).Actions),
+        };
         shell.NotifyChanged();
         return Task.CompletedTask;
     }
@@ -284,7 +287,8 @@ public sealed partial class WorkspaceLifecycle(
                 continue;
             }
 
-            if (!(commit ? await editing.CommitAsync(workspace) : await editing.RollbackAsync(workspace)))
+            var shown = ScopeOf(id).Profile?.Kind == ConnectionKind.Prod ? leave.Shown.GetValueOrDefault(id) : null;
+            if (!(commit ? await editing.CommitAsync(workspace, shown) : await editing.RollbackAsync(workspace)))
             {
                 CancelLeave(); // a write problem dialog (or error) explains why; nothing is left behind half done
                 return;

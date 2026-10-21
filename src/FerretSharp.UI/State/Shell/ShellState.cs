@@ -372,7 +372,14 @@ public sealed partial class ShellState
 /// <param name="What">What is about to happen, e.g. "Close workspace".</param>
 /// <param name="WorkspaceIds">Workspaces whose changes are at stake.</param>
 /// <param name="Continue">Runs after the changes were committed or discarded.</param>
-public sealed record LeaveRequest(string What, IReadOnlyList<Guid> WorkspaceIds, Func<Task> Continue);
+public sealed record LeaveRequest(string What, IReadOnlyList<Guid> WorkspaceIds, Func<Task> Continue)
+{
+    /// <summary>
+    /// The writes of each workspace when the question was asked: "Commit" on Prod commits nothing written since (review
+    /// 3.44.0, A19 – a statement finishing meanwhile was committed unseen, as R4a ruled out for the commit confirmation).
+    /// </summary>
+    public IReadOnlyDictionary<Guid, IReadOnlyList<WriteAction>> Shown { get; init; } = new Dictionary<Guid, IReadOnlyList<WriteAction>>();
+}
 
 /// <param name="Warnings">Shown below the text, e.g. LOB values that were not exported.</param>
 public sealed record Notice(string Text, IReadOnlyList<string> Warnings, DateTimeOffset At);

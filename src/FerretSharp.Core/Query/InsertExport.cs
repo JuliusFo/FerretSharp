@@ -72,7 +72,11 @@ public static class InsertExport
         _ => Skipped(column, warnings, value.GetType().Name, DataText.ExportReasonTypeNotExported),
     };
 
-    /// <summary>N'…' for national character columns, so characters outside the database charset survive.</summary>
+    /// <summary>
+    /// N'…' for national character columns. Whether characters outside the database charset survive depends on the client
+    /// that runs the script: Oracle converts the statement text to the database charset first, unless the client replaces
+    /// N literals (ORA_NCHAR_LITERAL_REPLACE) – review 3.44.0, A18. The script is text for the user; FerretSharp binds values.
+    /// </summary>
     private static string Text(ColumnInfo column, string value) => OracleLiteral.Text(value, OracleTypes.IsNational(column.DataType));
 
     /// <param name="infinity">+1/-1 for ±infinity, otherwise 0.</param>

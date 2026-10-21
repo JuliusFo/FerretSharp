@@ -1,4 +1,5 @@
 using FerretSharp.Core.Connections;
+using FerretSharp.Core.Query;
 using FerretSharp.Core.Resources;
 using FerretSharp.UI.Resources;
 using FerretSharp.UI.State;
@@ -207,6 +208,30 @@ public sealed class WorkspaceLifecycleTests : IAsyncDisposable
 
         Assert.Equal(1, tab.Changes!.PendingCount);
         Assert.Contains(tab, _app.WorkspaceOf(scope).Tabs);
+    }
+
+    /// <summary>
+    /// Review 3.44.0, A19: "Commit" in the leave dialog had no check like the Prod confirmation (R4a) – a statement that
+    /// finished after the dialog opened was committed unseen. It is refused now; the dialog closes, nothing goes on.
+    /// </summary>
+    [Fact]
+    public async Task Leaving_prod_commits_nothing_written_after_the_question()
+    {
+        var scope = await OpenUnlockedProdAsync();
+        var id = scope.Workspaces.Active!.Id;
+        await scope.Workspaces.ExecuteAsync(id, new QuerySpec("UPDATE kunden SET name = 'a'", []), Ct);
+        var continued = false;
+        await Lifecycle.GuardAsync("Trennen", [id], () => { continued = true; return Task.CompletedTask; });
+        await scope.Workspaces.ExecuteAsync(id, new QuerySpec("UPDATE kunden SET name = 'b'", []), Ct); // finished meanwhile
+        var committed = false;
+        _app.OnCommit = () => { committed = true; return Task.CompletedTask; };
+
+        await Lifecycle.LeaveAsync(commit: true);
+
+        Assert.False(committed);
+        Assert.False(continued);
+        Assert.Null(Lifecycle.PendingLeave);
+        Assert.StartsWith("Nicht committet:", _app.Shell.Notice?.Text);
     }
 
     /// <summary>
