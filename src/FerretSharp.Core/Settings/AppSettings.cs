@@ -66,6 +66,12 @@ public sealed record AppSettings
     public bool ShowConnectionGroup { get; init; } = true;
 
     /// <summary>
+    /// The explorer lists views and materialized views in a section of their own (Tables | Views | PL/SQL) instead of with
+    /// the tables. Off by default.
+    /// </summary>
+    public bool ViewsInOwnSection { get; init; }
+
+    /// <summary>
     /// Ping idle sessions regularly (<see cref="Connections.ConnectionKeepAlive"/>): a lost connection shows up at once,
     /// and firewalls do not drop idle connections. Keeps sessions alive against a database <c>IDLE_TIME</c> as well.
     /// </summary>

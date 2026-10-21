@@ -45,6 +45,12 @@
   <data name="Settings_ConnectionGroupHint" xml:space="preserve">
     <value>Zeigt die Gruppe einer Verbindung vor ihrem Namen – im Verbindungsumschalter, bei den offenen und zuletzt benutzten Verbindungen und in den Bestätigungen, z. B. {0}. Hilfreich, wenn mehrere Gruppen ein DEV, TEST oder PROD haben.</value>
   </data>
+  <data name="Settings_ExplorerViews" xml:space="preserve">
+    <value>Views als eigener Bereich</value>
+  </data>
+  <data name="Settings_ExplorerViewsHint" xml:space="preserve">
+    <value>Der Explorer listet Views und Materialized Views in einem eigenen Bereich – Tabellen | Views | PL/SQL – statt bei den Tabellen. Die Namenssuche nennt weiterhin die Treffer in den anderen Bereichen.</value>
+  </data>
   <data name="Settings_ThemeSystem" xml:space="preserve">
     <value>System</value>
   </data>

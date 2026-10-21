@@ -1,4 +1,4 @@
-@* Settings › Appearance: language, light/dark, the group in front of a connection's name (R6b: a section of its own). *@
+@* Settings › Appearance: language, light/dark, the group in front of a connection's name, views in the explorer (R6b: a section of its own). *@
 @using FerretSharp.Core.Settings
 @inject IThemeService Theme
 @inject AppSettingsService Settings
@@ -29,6 +29,10 @@
     <SettingsChoice TValue="bool" Filter="Filter" Key="SettingKey.ConnectionGroup" Label="@SettingsViewText.Settings_ConnectionGroup" Options="SettingsOptions.OnOff"
                     Value="Settings.Current.ShowConnectionGroup" OnChange="on => UpdateAsync(s => s with { ShowConnectionGroup = on })">
         <Hint><Fmt Text="@SettingsViewText.Settings_ConnectionGroupHint"><Arg0><code>@SettingsCatalog.ConnectionGroupExample</code></Arg0></Fmt></Hint>
+    </SettingsChoice>
+    <SettingsChoice TValue="bool" Filter="Filter" Key="SettingKey.ExplorerViews" Label="@SettingsViewText.Settings_ExplorerViews" Options="SettingsOptions.OnOff"
+                    Value="Settings.Current.ViewsInOwnSection" OnChange="on => UpdateAsync(s => s with { ViewsInOwnSection = on })">
+        <Hint>@SettingsViewText.Settings_ExplorerViewsHint</Hint>
     </SettingsChoice>
 </section>
 

@@ -7,6 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ### Added
 - Table and result grids: the selection follows the focus like in the Windows Explorer. ↑ ↓, PageUp/PageDown and Ctrl+↑/↓ select just the row they move to (a selection made with Ctrl+click goes), Shift+↑ ↓ and Shift+PageUp/PageDown select from the row clicked last to the focused one and shrink again on the way back. Moving into a new row at the top clears the selection, and the form's ▲ ▼ and the jump from the change overview select the row too. Del, Ctrl+C and Alt+Enter now act on what you see, no longer on rows clicked earlier. Clicks select as before.
+- Explorer: views and materialized views can have a section of their own, "Tables | Views | PL/SQL" (Settings › Appearance › "Views as a section of their own", off by default). The Views section counts invalid views like PL/SQL does. The name search still filters the section shown and names the hits in each other section ("2 hits in views", a click switches).
 - "Usage" view, "Columns" sub-tab: a filter "All · Read · Write" beside the sub-tabs, and the uses column split into "R" (reads, LINQ included) and "W" (writes), each with those in tests in brackets. With "Read" or "Write" only columns with such a use are listed, and only those uses when expanded; mapping code is neither and shows under "All" only. The filter stays while the tab is open.
 
 ### Changed
