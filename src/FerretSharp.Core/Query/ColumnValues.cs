@@ -29,6 +29,9 @@ public sealed class ColumnValues(ExportColumn column, ColumnValuesFormat format)
     /// <summary>More values than this are not copied: the export as CSV or Excel is the way for them.</summary>
     public const int MaxValues = 100_000;
 
+    /// <summary>Fractional second digits a <see cref="DateTime"/> holds (100 ns): TIMESTAMP values are read as one.</summary>
+    private const int DateTimeFractionalDigits = 7;
+
     private readonly StringBuilder _text = new();
     private readonly ExportWarnings _warnings = new();
     private readonly HashSet<string> _literals = new(StringComparer.Ordinal);
@@ -38,6 +41,12 @@ public sealed class ColumnValues(ExportColumn column, ColumnValuesFormat format)
     public static bool CanCopy(ColumnInfo column) => QueryBuilder.ProjectionOf(column) == Projection.Value;
 
     public ColumnValuesFormat Format => format;
+
+    /// <summary>
+    /// The values came each once from the database (<c>SELECT DISTINCT</c>): all NULLs are one row, so the IN list's note
+    /// on them gives no number.
+    /// </summary>
+    public bool NullsCollapsed { get; init; }
 
     /// <summary>Values collected so far (for an IN list: distinct ones).</summary>
     public int Count { get; private set; }
@@ -118,7 +127,16 @@ public sealed class ColumnValues(ExportColumn column, ColumnValuesFormat format)
         {
             if (_nulls > 0)
             {
-                warnings.Add(TextFormat.Plural(_nulls, QueryText.ColumnValuesNullsLeftOutOne, QueryText.ColumnValuesNullsLeftOutOther));
+                warnings.Add(NullsCollapsed
+                    ? QueryText.ColumnValuesNullsLeftOut
+                    : TextFormat.Plural(_nulls, QueryText.ColumnValuesNullsLeftOutOne, QueryText.ColumnValuesNullsLeftOutOther));
+            }
+
+            // TIMESTAMP(8) and (9) are read as DateTime: a literal of a value with finer fractions does not find its row.
+            if (Count > 0 && ColumnCategories.Of(column.Column) is ColumnCategory.Timestamp or ColumnCategory.TimestampWithTimeZone
+                          && ColumnCategories.FractionalDigits(column.Column) > DateTimeFractionalDigits)
+            {
+                warnings.Add(TextFormat.Format(QueryText.ColumnValuesFractionsCut, column.Column.DataType, DateTimeFractionalDigits));
             }
 
             if (Count > QueryBuilder.MaxInListSize)

@@ -77,6 +77,27 @@ public class ColumnValuesTests
     }
 
     [Fact]
+    public void Nulls_collapsed_by_distinct_are_named_without_a_number()
+    {
+        var copy = new ColumnValues(new ExportColumn("NAME", 0, Name), ColumnValuesFormat.InList) { NullsCollapsed = true };
+        copy.AddRange(["A", null]);
+
+        Assert.Equal(["NULL-Werte stehen nicht in der Liste: IN findet NULL nie."], copy.Finish().Warnings);
+    }
+
+    [Theory]
+    [InlineData("TIMESTAMP(9)", 9, true)]
+    [InlineData("TIMESTAMP(9) WITH TIME ZONE", 9, true)]
+    [InlineData("TIMESTAMP(6)", 6, false)]
+    [InlineData("TIMESTAMP(7)", 7, false)]
+    public void An_in_list_of_finer_timestamps_than_datetime_holds_says_so(string type, int scale, bool warns)
+    {
+        var text = Copy(Col("ZEIT", type, scale: scale), ColumnValuesFormat.InList, new DateTime(2026, 10, 1, 12, 0, 0));
+
+        Assert.Equal(warns, text.Warnings.Any(w => w.Contains(type, StringComparison.Ordinal)));
+    }
+
+    [Fact]
     public void An_in_list_longer_than_oracle_takes_says_so()
     {
         var text = Copy(Amount, ColumnValuesFormat.InList, [.. Enumerable.Range(1, 1001).Select(i => (object?)(decimal)i)]);

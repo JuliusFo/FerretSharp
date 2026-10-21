@@ -171,6 +171,18 @@ public sealed class ShortcutMap
         _ => null,
     };
 
+    /// <summary>
+    /// What the grid does with a key itself (<c>grid.js</c>), for an action caught in the grid: the action comes first and
+    /// takes the key from it. Ctrl+C is the exception – the grid's copy comes first, an action would never get it.
+    /// </summary>
+    private static string? TakenFromGrid(string combo) => combo switch
+    {
+        "ctrl+a" => SettingsText.FixedSelectAllRows,
+        "ctrl+space" => SettingsText.FixedToggleRow,
+        "ctrl+shift+arrowup" or "ctrl+shift+arrowdown" => SettingsText.FixedSelectToEdge,
+        _ => null,
+    };
+
     private readonly IReadOnlyList<ShortcutDefinition> _definitions;
     private readonly Dictionary<ShortcutAction, KeyChord?> _chords = [];
 
@@ -247,12 +259,21 @@ public sealed class ShortcutMap
             return new ShortcutCheck(SettingsText.NeedsCtrlOrAlt, null, null);
         }
 
+        var scope = Own(action).Scope;
+        var inGrid = scope is ShortcutScope.Grid or ShortcutScope.GridAndForm;
+        if (inGrid && chord.Text == "ctrl+c")
+        {
+            return new ShortcutCheck(SettingsText.GridCopiesFirst, null, null);
+        }
+
         var conflict = ignoreConflicts ? null : _definitions.FirstOrDefault(d => d.Action != action && _chords[d.Action] == chord)?.Action;
-        var warning = Own(action).Scope == ShortcutScope.Global && TakenFromEditors(chord.Text) is { } taken
+        var warning = scope == ShortcutScope.Global && TakenFromEditors(chord.Text) is { } taken
             ? TextFormat.Format(SettingsText.TakenFromEditor, chord.Label, taken)
-            : chord.Shift && chord.Alt && !chord.Ctrl
-                ? SettingsText.AltShiftSwitchesLanguage
-                : null;
+            : inGrid && TakenFromGrid(chord.Text) is { } fromGrid
+                ? TextFormat.Format(SettingsText.TakenFromEditor, chord.Label, fromGrid)
+                : chord.Shift && chord.Alt && !chord.Ctrl
+                    ? SettingsText.AltShiftSwitchesLanguage
+                    : null;
         return new ShortcutCheck(null, conflict, warning);
     }
 

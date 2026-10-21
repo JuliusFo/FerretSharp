@@ -37,8 +37,8 @@
     [Parameter]
     public EventCallback OnClose { get; set; }
 
-    /// <summary>Entries of the group with its separator and heading – for the menu's estimated height.</summary>
-    public const int Entries = 3;
+    /// <summary>Rows of the group – separator, heading and two entries – for the menu's estimated height.</summary>
+    public const int Entries = 4;
 
     private bool CanCopy => ColumnValues.CanCopy(Column);
 

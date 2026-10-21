@@ -111,7 +111,7 @@ public sealed class ExportActions(
     /// <param name="column">The column as presented; <see cref="ExportColumn.Source"/> is the index of its value.</param>
     public async Task CopyColumnAsync(ExportColumn column, string columnName, ColumnValuesFormat format, IReadOnlyList<RowData> rows)
     {
-        await ColumnValueCopies.CopyRowsAsync(shell, dom.CopyTextAsync, column, columnName, format, [.. rows, .. Enumerable.Repeat<RowData?>(null, missingRows)]);
+        await ColumnValueCopies.CopyRowsAsync(shell, dom.CopyTextAsync, column, columnName, format, rows, missingRows);
         await close();
     }
 

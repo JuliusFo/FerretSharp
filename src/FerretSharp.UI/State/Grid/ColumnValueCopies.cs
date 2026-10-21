@@ -17,7 +17,11 @@ namespace FerretSharp.UI.State;
 /// <param name="Read">Reads the rows; true asks for each value once (an IN list), where the query can.</param>
 /// <param name="ValueIndex">Where the column's value is in a row read.</param>
 /// <param name="Tooltip">Second line of the entries' tooltips: what is read, and what it costs.</param>
-public sealed record AllColumnValues(string Heading, long? Total, Func<bool, RowReader> Read, int ValueIndex, string Tooltip);
+/// <param name="DistinctInQuery">
+/// Asked for each value once, the read is <c>SELECT DISTINCT</c> (a table): its NULLs are one row, their number unknown.
+/// </param>
+public sealed record AllColumnValues(
+    string Heading, long? Total, Func<bool, RowReader> Read, int ValueIndex, string Tooltip, bool DistinctInQuery = false);
 
 /// <summary>
 /// Copies the values of one column (WP-57): from the selected rows as they are shown (pending values included, A21), or all
@@ -31,13 +35,14 @@ public static class ColumnValueCopies
         TableTab tab, TableDetails details, int column, Func<Guid, CancellationToken, Task<IDataAccess>> dataOf)
     {
         var (filters, sorts, workspaceId) = (tab.AppliedFilters, tab.Sorts, tab.WorkspaceId);
-        var total = tab.TotalCount ?? (tab.AllRowsLoaded ? tab.RowsLoaded : null);
+        var total = AllRowsExports.TotalOf(tab);
         return new AllColumnValues(
-            Heading(GridText.GridMenu_AllRowsGroup, total),
+            AllRowsExports.Heading(GridText.GridMenu_AllRowsGroup, total),
             total,
             distinct => async (onBlock, ct) => await (await dataOf(workspaceId, ct)).ReadColumnAllAsync(details, column, filters, sorts, distinct, onBlock, ct),
             0,
-            TextFormat.Format(GridText.ColumnMenu_AllValuesTitle, ColumnValues.MaxValues));
+            TextFormat.Format(GridText.ColumnMenu_AllValuesTitle, ColumnValues.MaxValues),
+            DistinctInQuery: true);
     }
 
     /// <summary>
@@ -51,7 +56,7 @@ public static class ColumnValueCopies
     {
         var names = columns.Select(c => c.Name).ToList();
         return new AllColumnValues(
-            Heading(GridText.GridMenu_AllResultRowsGroup, total),
+            AllRowsExports.Heading(GridText.GridMenu_AllResultRowsGroup, total),
             total,
             _ => async (onBlock, ct) => await (await dataOf(workspaceId, ct)).ReadSqlAllAsync(query, names, onBlock, ct),
             column,
@@ -63,15 +68,15 @@ public static class ColumnValueCopies
     /// named as not copied.
     /// </summary>
     /// <param name="column">The column as presented (<see cref="ExportColumn.Source"/>: the index of its value).</param>
-    /// <param name="selected">The selected rows in order, pending values applied; null for one no longer loaded.</param>
+    /// <param name="rows">The selected rows still loaded, in order, pending values applied.</param>
+    /// <param name="missing">Selected rows no longer loaded.</param>
     /// <param name="copy">Writes the clipboard; false if it is not available.</param>
     public static async Task CopyRowsAsync(
         ShellState shell, Func<string, Task<bool>> copy, ExportColumn column, string columnName, ColumnValuesFormat format,
-        IReadOnlyList<RowData?> selected)
+        IReadOnlyList<RowData> rows, int missing)
     {
         var values = new ColumnValues(column, format);
-        values.AddRange(selected.OfType<RowData>().Select(r => r.Values[column.Source]));
-        var missing = selected.Count(r => r is null);
+        values.AddRange(rows.Select(r => r.Values[column.Source]));
         IReadOnlyList<string> extra = missing == 0 ? [] : [TextFormat.Plural(missing, GridText.Grid_SelectedRowsNotCopiedOne, GridText.Grid_SelectedRowsNotCopiedOther)];
         await FinishAsync(shell, copy, values, columnName, extra);
     }
@@ -91,8 +96,9 @@ public static class ColumnValueCopies
         try
         {
             var token = job.Token;
-            var values = new ColumnValues(column, format);
-            var read = all.Read(format == ColumnValuesFormat.InList);
+            var distinct = format == ColumnValuesFormat.InList;
+            var values = new ColumnValues(column, format) { NullsCollapsed = distinct && all.DistinctInQuery };
+            var read = all.Read(distinct);
             var result = await shell.RunDbAsync(logger, connection, async () =>
             {
                 long rows = 0;
@@ -157,7 +163,4 @@ public static class ColumnValueCopies
             shell.Notify(CommonText.ClipboardUnavailable);
         }
     }
-
-    private static string Heading(string format, long? total) =>
-        TextFormat.Format(format, total is { } rows ? " · " + ExportActions.RowsText(rows) : "");
 }

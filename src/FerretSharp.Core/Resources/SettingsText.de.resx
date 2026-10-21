@@ -321,4 +321,7 @@
   <data name="HintCopyColumnValues" xml:space="preserve">
     <value>Die Spalte der fokussierten Zelle aus den markierten Zeilen, ein Wert je Zeile. Nur im Grid.</value>
   </data>
+  <data name="GridCopiesFirst" xml:space="preserve">
+    <value>Ctrl+C kopiert im Grid selbst – diese Aktion bekäme die Taste nie.</value>
+  </data>
 </root>

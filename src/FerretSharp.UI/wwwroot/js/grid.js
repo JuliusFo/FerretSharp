@@ -518,7 +518,7 @@ function reportPinned(api, dotnet) {
  *   editable: whether the workspace may write (v2); the columns say whether they can be edited at all.
  *   headerHeight: with the line for C# names (WP-12); null for the theme default.
  *   table: a table tab – header menu, Del, pinning and scroll position are reported to .NET. A query result only
- *     answers GetRows, OnCopy and OnCellContextMenu.
+ *     answers GetRows, OnCopy, OnCopyColumn (WP-57) and OnCellContextMenu, and what the options below ask for.
  *   form: the grid reports its focus (OnFocused) and the form key (OnFormKey) – always for a table, for a query result since
  *     WP-56.
  *   headerMenu: a query result reports a right click on a column header too (OnHeaderContextMenu, SQL editor, WP-57).

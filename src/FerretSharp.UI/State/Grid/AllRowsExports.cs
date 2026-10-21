@@ -39,7 +39,7 @@ public static class AllRowsExports
         Func<TableDetails, TablePresentation> presentationOf, Func<Guid, CancellationToken, Task<IDataAccess>> dataOf)
     {
         var (filters, sorts, workspaceId) = (tab.AppliedFilters, tab.Sorts, tab.WorkspaceId);
-        var total = tab.TotalCount ?? (tab.AllRowsLoaded ? tab.RowsLoaded : null);
+        var total = TotalOf(tab);
         return new AllRowsExport(
             Heading(GridText.GridMenu_AllRowsGroup, total),
             async (onBlock, ct) => await (await dataOf(workspaceId, ct)).ReadAllAsync(details, filters, sorts, onBlock, ct),
@@ -75,6 +75,10 @@ public static class AllRowsExports
             () => new AllRowsExcel(xlsxColumns, null));
     }
 
-    private static string Heading(string format, long? total) =>
+    /// <summary>The rows of a table tab's query, if known: counted, or all loaded.</summary>
+    internal static long? TotalOf(TableTab tab) => tab.TotalCount ?? (tab.AllRowsLoaded ? tab.RowsLoaded : null);
+
+    /// <summary>A heading of the menu group for all rows, with the number of rows if it is known.</summary>
+    internal static string Heading(string format, long? total) =>
         TextFormat.Format(format, total is { } rows ? " · " + ExportActions.RowsText(rows) : "");
 }

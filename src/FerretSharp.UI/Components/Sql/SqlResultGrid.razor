@@ -163,6 +163,9 @@
     /// <summary>Runs the query: the first page gives the columns, then the grid is (re)built and fetches the rest itself.</summary>
     private async Task StartAsync()
     {
+        // A menu still open belongs to the result before: its row and column indexes would point into the new one.
+        _menu = null;
+        _columnMenu = null;
         _blocks.Clear();
         _rowsLoaded = 0;
         _allLoaded = false;
@@ -307,9 +310,9 @@
             return;
         }
 
-        var rows = selectedRows.Length > 0 ? selectedRows.Order().ToArray() : [rowIndex];
+        var rows = (selectedRows.Length > 0 ? selectedRows.Order().ToArray() : [rowIndex]).Select(_blocks.At).ToList();
         await ColumnValueCopies.CopyRowsAsync(Shell, text => _grid.CopyTextAsync(Shell, text), PresentedColumn(column), _columns[column].Name,
-            ColumnValuesFormat.Lines, rows.Select(_blocks.At).ToList());
+            ColumnValuesFormat.Lines, rows.OfType<RowData>().ToList(), rows.Count(r => r is null));
     });
 
     /// <summary>Right click on a column header (SQL editor only, <see cref="ExportsAllRows"/>): copy all its values.</summary>

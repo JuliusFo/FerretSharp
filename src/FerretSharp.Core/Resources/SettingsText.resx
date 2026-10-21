@@ -393,4 +393,8 @@
   <data name="HintCopyColumnValues" xml:space="preserve">
     <value>The column of the focused cell from the selected rows, one value per line. Only in the grid.</value>
   </data>
+  <data name="GridCopiesFirst" xml:space="preserve">
+    <value>Ctrl+C copies in the grid itself – this action would never get the key.</value>
+    <comment>Refusal when a grid shortcut is set to Ctrl+C</comment>
+  </data>
 </root>

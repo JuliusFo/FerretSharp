@@ -47,5 +47,13 @@ Eigene Instanz (`--data-dir`, eigener WebView2-Ordner, Build im Scratchpad, `--l
 - Log der Testinstanz ohne `[ERR]`/`[WRN]`.
 - **Nicht geprüft:** die LINQ-Konsole (kein verknüpftes C#-Projekt in der Testverbindung) und damit auch Enum-Member in der Liste (Logik in `ColumnValuesTests`/`ColumnValueCopiesTests`); das Kopieren nach dem Lesen im Hintergrund, während ein anderes Fenster vorn ist (der Grund für `IClipboardService`); Abbrechen über die Statusleiste mit echtem Klick (Logik in `ColumnValueCopiesTests`); das dunkle Theme (keine neuen Stile); das Lesen über das VPN.
 
+## Nachtrag: Code-Review (2026-10-21)
+Acht Befunde, alle umgesetzt:
+- **NULL bei der `IN`-Liste aus der Tabelle:** Mit `SELECT DISTINCT` sind alle NULL-Zeilen eine, der Hinweis sagte deshalb immer „1 NULL-Wert“ (im E2E bei KUNDEN.KUERZEL gesehen). Er nennt dann keine Zahl mehr (`ColumnValues.NullsCollapsed`, gesetzt über `AllColumnValues.DistinctInQuery`). Markierte Zeilen und das SQL-Ergebnis zählen weiter.
+- **TIMESTAMP(8) und (9):** Gelesen wird als `DateTime` (100 ns), ein Literal eines Werts mit feineren Bruchteilen fände seine Zeile nicht. Die `IN`-Liste solcher Spalten sagt es jetzt (`QueryText.ColumnValuesFractionsCut`).
+- **Tasten des Grids:** `ShortcutMap.Check` lehnt Ctrl+C für eine Aktion im Grid ab (die Kopier-Taste des Grids kommt zuerst, die Aktion bekäme sie nie) und warnt bei Ctrl+A, Ctrl+Leertaste und Ctrl+Shift+↑/↓ (die Aktion nimmt dem Grid die Taste). Gilt auch für die Formular-Taste.
+- **Menüs des SQL-Ergebnisses** schließen, wenn das Grid eine neue Abfrage startet; ihre Zeilen- und Spaltenindizes zeigten sonst ins neue Ergebnis.
+- Aufgeräumt: Überschrift und Zeilenzahl aus `AllRowsExports` (`Heading`, `TotalOf`) statt einer Kopie; `ColumnValueCopies.CopyRowsAsync` nimmt die geladenen Zeilen und die Zahl der fehlenden statt Platzhaltern; Kommentar der Optionen in `grid.js`; geschätzte Menühöhe der Gruppe.
+
 ## Offen
 - Kopfmenü der LINQ-Konsole: „alle Werte“ zusammen mit „alle Zeilen“ (Backlog, WP-54).

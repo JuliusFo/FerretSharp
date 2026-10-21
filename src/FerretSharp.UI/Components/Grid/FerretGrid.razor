@@ -970,9 +970,9 @@
             return;
         }
 
-        var rows = selectedRows.Length > 0 ? selectedRows.Order().ToArray() : [rowIndex];
+        var rows = (selectedRows.Length > 0 ? selectedRows.Order().ToArray() : [rowIndex]).Select(_blocks.At).ToList();
         await ColumnValueCopies.CopyRowsAsync(Shell, CopyTextAsync, PresentedExport.Column(Presentation, column, Details.Columns[column].Name, column),
-            Details.Columns[column].Name, ColumnValuesFormat.Lines, rows.Select(i => _blocks.At(i) is { } r ? Shown(r) : null).ToList());
+            Details.Columns[column].Name, ColumnValuesFormat.Lines, rows.OfType<RowData>().Select(Shown).ToList(), rows.Count(r => r is null));
     });
 
     /// <summary>Remembers the first visible row (rough scroll position), but only rows that were actually loaded.</summary>

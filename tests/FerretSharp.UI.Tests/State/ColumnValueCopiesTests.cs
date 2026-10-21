@@ -81,6 +81,7 @@ public sealed class ColumnValueCopiesTests
         await _data.Received(1).ReadColumnAllAsync(Kunden, 2, filters, sorts, false, Arg.Any<RowBlockHandler>(), Ct);
         await _data.Received(1).ReadColumnAllAsync(Kunden, 2, filters, sorts, true, Arg.Any<RowBlockHandler>(), Ct);
         Assert.Equal(0, all.ValueIndex);
+        Assert.True(all.DistinctInQuery);
         Assert.Equal(234, all.Total);
         Assert.Equal("Alle Zeilen des Filters · 234 Zeilen", all.Heading);
     }
@@ -96,6 +97,7 @@ public sealed class ColumnValueCopiesTests
 
         await _data.Received(1).ReadSqlAllAsync(query, Arg.Is<IReadOnlyList<string>>(n => n.SequenceEqual(new[] { "ID", "NAME" })), Arg.Any<RowBlockHandler>(), Ct);
         Assert.Equal(1, all.ValueIndex);
+        Assert.False(all.DistinctInQuery);
         Assert.Equal("Alle Zeilen des Ergebnisses", all.Heading);
     }
 
@@ -103,7 +105,7 @@ public sealed class ColumnValueCopiesTests
     public async Task The_selected_rows_give_their_values_as_shown_and_name_rows_no_longer_loaded()
     {
         await ColumnValueCopies.CopyRowsAsync(_shell, CopyAsync, Art, "ART", ColumnValuesFormat.Lines,
-            [Row(1m, "A", 2m), null, Row(2m, "B", 7m), Row(3m, "C", null)]);
+            [Row(1m, "A", 2m), Row(2m, "B", 7m), Row(3m, "C", null)], missing: 1);
 
         Assert.Equal(["Gewerbe (2)\r\n7\r\n"], _copied);
         Assert.Equal("3 Werte von ART kopiert.", _shell.Notice!.Text);
@@ -113,7 +115,7 @@ public sealed class ColumnValueCopiesTests
     [Fact]
     public async Task The_selected_rows_give_an_in_list_of_database_values()
     {
-        await ColumnValueCopies.CopyRowsAsync(_shell, CopyAsync, Art, "ART", ColumnValuesFormat.InList, [Row(1m, "A", 2m), Row(2m, "B", 2m), Row(3m, "C", null)]);
+        await ColumnValueCopies.CopyRowsAsync(_shell, CopyAsync, Art, "ART", ColumnValuesFormat.InList, [Row(1m, "A", 2m), Row(2m, "B", 2m), Row(3m, "C", null)], 0);
 
         Assert.Equal(["2"], _copied);
         Assert.Equal("1 Wert von ART als IN-Liste kopiert.", _shell.Notice!.Text);
@@ -123,7 +125,7 @@ public sealed class ColumnValueCopiesTests
     [Fact]
     public async Task Only_null_copies_nothing()
     {
-        await ColumnValueCopies.CopyRowsAsync(_shell, CopyAsync, Art, "ART", ColumnValuesFormat.InList, [Row(1m, "A", null)]);
+        await ColumnValueCopies.CopyRowsAsync(_shell, CopyAsync, Art, "ART", ColumnValuesFormat.InList, [Row(1m, "A", null)], 0);
 
         Assert.Empty(_copied);
         Assert.Equal("ART: keine Werte zum Kopieren.", _shell.Notice!.Text);
@@ -132,7 +134,7 @@ public sealed class ColumnValueCopiesTests
     [Fact]
     public async Task A_clipboard_that_refuses_says_so()
     {
-        await ColumnValueCopies.CopyRowsAsync(_shell, _ => Task.FromResult(false), Art, "ART", ColumnValuesFormat.Lines, [Row(1m, "A", 7m)]);
+        await ColumnValueCopies.CopyRowsAsync(_shell, _ => Task.FromResult(false), Art, "ART", ColumnValuesFormat.Lines, [Row(1m, "A", 7m)], 0);
 
         Assert.Equal(CommonText.ClipboardUnavailable, _shell.Notice!.Text);
     }
@@ -168,6 +170,24 @@ public sealed class ColumnValueCopiesTests
 
         Assert.True(distinct);
         Assert.Equal(["2, 7"], _copied);
+    }
+
+    [Fact]
+    public async Task A_distinct_read_names_null_without_a_number()
+    {
+        var all = Blocks(null, [Row(2m), Row((object?)null)]) with { DistinctInQuery = true };
+
+        await CopyAllAsync(ColumnValuesFormat.InList, all);
+
+        Assert.Equal(["NULL-Werte stehen nicht in der Liste: IN findet NULL nie."], _shell.Notice!.Warnings);
+    }
+
+    [Fact]
+    public async Task A_result_counts_its_null_rows()
+    {
+        await CopyAllAsync(ColumnValuesFormat.InList, Blocks(null, [Row(2m), Row((object?)null), Row((object?)null)]));
+
+        Assert.Equal(["2 NULL-Werte stehen nicht in der Liste: IN findet NULL nie."], _shell.Notice!.Warnings);
     }
 
     [Fact]

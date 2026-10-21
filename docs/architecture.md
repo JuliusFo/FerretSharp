@@ -207,6 +207,8 @@ Eigene Regeln, nicht über den Leser: die Anzeigespalten (liest auch eine neuere
 
 Seit WP-25 (3.16.0) unter Einstellungen › Tastenkürzel änderbar; die Tabelle zeigt die Standardbelegung (`ShortcutMap.Definitions`, fest: `ShortcutMap.Fixed`).
 
+Eine Aktion im Grid (`ShortcutScope.Grid`, `GridAndForm`) bekommt nie Ctrl+C – die Kopier-Taste des Grids kommt in `grid.js` zuerst –, und bei Ctrl+A, Ctrl+Leertaste und Ctrl+Shift+↑/↓ warnt die Seite, dass die Aktion dem Grid die Taste nimmt (WP-57, `ShortcutMap.Check`).
+
 **Neue Aktionen bekommen keine Standardtaste** (Entscheidung des Nutzers, nach 3.20; `Default` = null): Eine gespeicherte Taste einer anderen Aktion könnte schon darauf liegen, und bei doppelter Belegung gewinnt die erste Definition – die neue Vorgabe würde dem Nutzer seine Taste stillschweigend wegnehmen. Der Nutzer vergibt die Taste selbst. Die Standardtasten bis 3.20 bleiben, wie sie sind.
 
 | Taste (Standard) | Aktion | Version |
