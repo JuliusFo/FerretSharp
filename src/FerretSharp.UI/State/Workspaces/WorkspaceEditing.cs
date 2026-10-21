@@ -158,6 +158,14 @@ public sealed partial class WorkspaceEditing(
         public void Dispose() => Interlocked.Exchange(ref _ended, null)?.Invoke();
     }
 
+    /// <summary>
+    /// An export of all rows reads through the workspace's session (review 3.44.0, A2): a write would wait for it without a
+    /// word, and after a few seconds look like a hanging connection – giving up the session would cancel the export and roll
+    /// the transaction back. Says so instead; null if no export reads there.
+    /// </summary>
+    public string? RefusedByExport(Guid workspaceId) =>
+        shell.Exports.ReadingIn(workspaceId) is { } export ? TextFormat.Format(GridText.Editing_ExportReading, export.Label) : null;
+
     private void RefuseWhileStatementRuns(WorkspaceTabs workspace)
     {
         if (IsStatementRunning(workspace.WorkspaceId))
@@ -506,6 +514,12 @@ public sealed partial class WorkspaceEditing(
         {
             // Say so (review 3.31.0, A27): "Commit" in the leave dialog closed it without a word while a write hung on the VPN.
             shell.Notify(GridText.Editing_Busy);
+            return false;
+        }
+
+        if (RefusedByExport(workspace.WorkspaceId) is { } exporting)
+        {
+            shell.Notify(exporting);
             return false;
         }
 

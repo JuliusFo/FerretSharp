@@ -57,7 +57,7 @@ public sealed class ExportActionsTests : IDisposable
     {
         Target("KUNDEN.csv");
 
-        await Actions(missingRows: 2).SaveAllRowsAsync("KUNDEN.csv", "CSV", null, (stream, _, ct) => WriteAsync(stream, "a;b", ct));
+        await Actions(missingRows: 2).SaveAllRowsAsync("KUNDEN.csv", "CSV", null, Guid.NewGuid(), (stream, _, ct) => WriteAsync(stream, "a;b", ct));
 
         Assert.Empty(_shell.Notice!.Warnings);
     }
@@ -68,7 +68,7 @@ public sealed class ExportActionsTests : IDisposable
         var written = false;
         _files.AskPathAsync(default!, default!).ReturnsForAnyArgs((string?)null);
 
-        await Actions().SaveAllRowsAsync("KUNDEN.csv", "CSV", null, (stream, _, ct) =>
+        await Actions().SaveAllRowsAsync("KUNDEN.csv", "CSV", null, Guid.NewGuid(), (stream, _, ct) =>
         {
             written = true;
             return WriteAsync(stream, "a;b", ct);
@@ -85,7 +85,7 @@ public sealed class ExportActionsTests : IDisposable
         var path = Target("KUNDEN.csv");
         await File.WriteAllTextAsync(path, "alt", TestContext.Current.CancellationToken);
 
-        await Actions().SaveAllRowsAsync("KUNDEN.csv", "CSV", null, async (stream, _, ct) =>
+        await Actions().SaveAllRowsAsync("KUNDEN.csv", "CSV", null, Guid.NewGuid(), async (stream, _, ct) =>
         {
             await stream.WriteAsync("halb"u8.ToArray(), ct);
             _shell.Exports.Running[0].Cancel(); // the status bar's button
@@ -104,7 +104,7 @@ public sealed class ExportActionsTests : IDisposable
     {
         var path = Target("KUNDEN.csv");
 
-        await Actions().SaveAllRowsAsync("KUNDEN.csv", "CSV", null, (_, _, _) =>
+        await Actions().SaveAllRowsAsync("KUNDEN.csv", "CSV", null, Guid.NewGuid(), (_, _, _) =>
             throw new DatabaseException("Snapshot zu alt", "ORA-01555"));
 
         Assert.Equal("ORA-01555", _shell.ErrorDetails!.ErrorCode);
@@ -118,7 +118,7 @@ public sealed class ExportActionsTests : IDisposable
     {
         Target("SQL 1.csv");
 
-        await Actions().SaveAllRowsAsync("SQL 1.csv", "CSV", null, (_, _, _) => throw new RefusedException("Andere Spalten"));
+        await Actions().SaveAllRowsAsync("SQL 1.csv", "CSV", null, Guid.NewGuid(), (_, _, _) => throw new RefusedException("Andere Spalten"));
 
         Assert.Equal("Andere Spalten", _shell.Notice!.Text);
         Assert.Null(_shell.ErrorDetails);

@@ -112,6 +112,11 @@ public sealed class StatementRunner(
             return new StatementOutcome(at, TimeSpan.Zero) { Error = new DatabaseException(GridText.Editing_Busy), Refused = true };
         }
 
+        if (editing.RefusedByExport(tab.WorkspaceId) is { } exporting)
+        {
+            return new StatementOutcome(at, TimeSpan.Zero) { Error = new DatabaseException(exporting), Refused = true };
+        }
+
         using var running = editing.StatementRunning(tab.WorkspaceId);
         var written = await shell.RunDbAsync(logger, scope.Active, async () =>
             await scope.Workspaces.ExecuteAsync(tab.WorkspaceId, statement, cancellationToken), cancellationToken);

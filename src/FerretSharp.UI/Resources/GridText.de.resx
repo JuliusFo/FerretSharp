@@ -18,6 +18,9 @@
   <data name="Editing_Busy" xml:space="preserve">
     <value>Änderungen dieses Workspaces werden gerade geschrieben oder committet – versuch es noch einmal, sobald das fertig ist.</value>
   </data>
+  <data name="Editing_ExportReading" xml:space="preserve">
+    <value>Ein Export liest gerade über die Session dieses Workspaces ({0}) – abwarten oder ihn in der Statusleiste abbrechen.</value>
+  </data>
   <data name="Editing_StatementRunning" xml:space="preserve">
     <value>Ein Statement dieses Workspaces läuft noch – erst abwarten oder abbrechen; es würde sonst ungesehen committet oder zurückgerollt.</value>
   </data>

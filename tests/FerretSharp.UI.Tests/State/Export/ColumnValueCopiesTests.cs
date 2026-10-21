@@ -59,7 +59,7 @@ public sealed class ColumnValueCopiesTests
                     return;
                 }
             }
-        }, 0, "");
+        }, 0, "", Guid.NewGuid());
 
     private Task CopyAllAsync(ColumnValuesFormat format, AllColumnValues all) =>
         ColumnValueCopies.CopyAllAsync(_shell, _clipboard, new ListLogger(), null, Art with { Source = 0 }, "ART", format, all);
@@ -207,7 +207,7 @@ public sealed class ColumnValueCopiesTests
                     return;
                 }
             }
-        }, 0, "");
+        }, 0, "", Guid.NewGuid());
 
         await CopyAllAsync(ColumnValuesFormat.Lines, all);
 
@@ -225,7 +225,7 @@ public sealed class ColumnValueCopiesTests
             await onBlock([Row(2m)], Substitute.For<IRowLookup>(), ct);
             _shell.Exports.Running[0].Cancel(); // the status bar's button
             ct.ThrowIfCancellationRequested();
-        }, 0, "");
+        }, 0, "", Guid.NewGuid());
 
         await CopyAllAsync(ColumnValuesFormat.Lines, all);
 
@@ -237,7 +237,7 @@ public sealed class ColumnValueCopiesTests
     [Fact]
     public async Task A_database_error_opens_the_error_dialog()
     {
-        var all = new AllColumnValues("", null, _ => (_, _) => throw new DatabaseException("Snapshot zu alt", "ORA-01555"), 0, "");
+        var all = new AllColumnValues("", null, _ => (_, _) => throw new DatabaseException("Snapshot zu alt", "ORA-01555"), 0, "", Guid.NewGuid());
 
         await CopyAllAsync(ColumnValuesFormat.Lines, all);
 

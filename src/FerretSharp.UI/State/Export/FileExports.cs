@@ -12,12 +12,19 @@ public sealed class FileExport
     private readonly CancellationTokenSource _cts = new();
     private bool _ended;
 
-    internal FileExport(string label, long? total, string title)
+    internal FileExport(string label, long? total, string title, Guid? workspaceId)
     {
         Label = label;
         Total = total;
         Title = title;
+        WorkspaceId = workspaceId;
     }
+
+    /// <summary>
+    /// The workspace whose session reads the rows (all rows of a query); null if nothing is read (the rows loaded). The read
+    /// holds the session until it ends: commit and writes of the workspace say so instead of waiting (review 3.44.0, A2).
+    /// </summary>
+    public Guid? WorkspaceId { get; }
 
     /// <summary>What the status bar shows: the file's name (without folder), or the column whose values are copied.</summary>
     public string Label { get; }
@@ -65,11 +72,15 @@ public sealed class FileExports
 
     public IReadOnlyList<FileExport> Running => _running;
 
+    /// <summary>A running export that reads through the workspace's session; null if none.</summary>
+    public FileExport? ReadingIn(Guid workspaceId) => _running.FirstOrDefault(e => e.WorkspaceId == workspaceId);
+
     /// <param name="label">The file's name (without folder), or what else is read.</param>
     /// <param name="title">The tooltip; null for an export to the file <paramref name="label"/>.</param>
-    public FileExport Start(string label, long? total, string? title = null)
+    /// <param name="workspaceId">The workspace whose session reads the rows; null if none is read.</param>
+    public FileExport Start(string label, long? total, string? title = null, Guid? workspaceId = null)
     {
-        var export = new FileExport(label, total, title ?? TextFormat.Format(ShellText.Status_ExportTitle, label));
+        var export = new FileExport(label, total, title ?? TextFormat.Format(ShellText.Status_ExportTitle, label), workspaceId);
         _running.Add(export);
         Changed?.Invoke();
         return export;

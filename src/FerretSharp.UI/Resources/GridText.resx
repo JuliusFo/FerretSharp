@@ -18,6 +18,9 @@
   <data name="Editing_Busy" xml:space="preserve">
     <value>Changes of this workspace are being written or committed – try again once that is done.</value>
   </data>
+  <data name="Editing_ExportReading" xml:space="preserve">
+    <value>An export is reading through this workspace’s session ({0}) – wait for it, or cancel it in the status bar.</value>
+  </data>
   <data name="Editing_StatementRunning" xml:space="preserve">
     <value>A statement of this workspace is still running – wait for it or cancel it first; it would otherwise be committed or rolled back unseen.</value>
   </data>

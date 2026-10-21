@@ -234,6 +234,36 @@ public sealed class WorkspaceEditingTests : IAsyncDisposable
     }
 
     /// <summary>
+    /// Review 3.44.0, A2: an export of all rows holds the workspace's session. Commit waited without a word, and after five
+    /// seconds the status bar called the connection hanging and offered to give up the session – cancelling the export and
+    /// rolling back the transaction. Writes say why they cannot run now; other workspaces are not affected.
+    /// </summary>
+    [Fact]
+    public async Task An_export_reading_in_the_workspace_refuses_writes_with_a_reason()
+    {
+        var test = await _app.OpenAsync(TestApp.Profile("Test"));
+        var dev = await _app.OpenAsync(TestApp.Profile("Dev"));
+        var workspace = _app.WorkspaceOf(test);
+        var export = _app.Shell.Exports.Start("KUNDEN.xlsx", null, workspaceId: workspace.WorkspaceId);
+
+        Assert.False(await _app.Editing.CommitAsync(workspace));
+        Assert.Equal("Ein Export liest gerade über die Session dieses Workspaces (KUNDEN.xlsx) – abwarten oder ihn in der Statusleiste abbrechen.", _app.Shell.Notice?.Text);
+        Assert.False(_app.Editing.HoldsSession(workspace.WorkspaceId)); // nothing waits on the session, nothing looks stuck
+        Assert.NotNull(_app.Editing.RefusedByExport(workspace.WorkspaceId));
+        Assert.Null(_app.Editing.RefusedByExport(_app.WorkspaceOf(dev).WorkspaceId));
+
+        var sql = new SqlTab(workspace.WorkspaceId, "SQL 1");
+        workspace.Tabs.Add(sql);
+        var outcome = await _app.Lifecycle.Statements.WriteAsync(
+            sql, new QuerySpec("UPDATE kunden SET name = 'x'", []), null, TestContext.Current.CancellationToken);
+        Assert.Equal((true, null), (outcome.Refused, outcome.Written));
+        Assert.StartsWith("Ein Export liest gerade", outcome.Error?.Message);
+
+        _app.Shell.Exports.End(export);
+        Assert.True(await _app.Editing.CommitAsync(workspace));
+    }
+
+    /// <summary>
     /// Review 3.44.0, A1: a writing statement whose tab was closed hung on the VPN – commit and rollback were refused
     /// ("statement running"), and neither the status bar nor the leave dialog offered to give up the session.
     /// </summary>

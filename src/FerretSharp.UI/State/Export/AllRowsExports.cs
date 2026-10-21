@@ -22,7 +22,8 @@ public sealed record AllRowsExcel(IReadOnlyList<ExportColumn> Columns, DisplayNa
 /// The Excel columns, built when the export is chosen (on the UI thread: it takes the presentations as they are then) – not
 /// on every opening of the menu.
 /// </param>
-public sealed record AllRowsExport(string Heading, RowReader Read, long? Total, Func<AllRowsExcel> Excel);
+/// <param name="WorkspaceId">The workspace whose session reads the rows (<see cref="FileExport.WorkspaceId"/>).</param>
+public sealed record AllRowsExport(string Heading, RowReader Read, long? Total, Func<AllRowsExcel> Excel, Guid WorkspaceId);
 
 /// <summary>What "all rows" of a table tab and of a SQL editor result read and write (WP-54).</summary>
 public static class AllRowsExports
@@ -55,7 +56,8 @@ public static class AllRowsExports
                 var targets = gridNames.Links.Select(l => l.Target).DistinctBy(t => t.Table.Ref).ToDictionary(t => t.Table.Ref, presentationOf);
                 var names = gridNames.Fresh((link, value) => targets[link.Target.Table.Ref].Present(link.DisplayColumn, value).Text);
                 return new AllRowsExcel(PresentedExport.Columns(presentation, names), names);
-            });
+            },
+            workspaceId);
     }
 
     /// <summary>
@@ -72,7 +74,8 @@ public static class AllRowsExports
             Heading(GridText.GridMenu_AllResultRowsGroup, total),
             async (onBlock, ct) => await (await dataOf(workspaceId, ct)).ReadSqlAllAsync(query, names, onBlock, ct),
             total,
-            () => new AllRowsExcel(xlsxColumns, null));
+            () => new AllRowsExcel(xlsxColumns, null),
+            workspaceId);
     }
 
     /// <summary>The rows of a table tab's query, if known: counted, or all loaded.</summary>

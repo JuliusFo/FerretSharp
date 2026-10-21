@@ -20,8 +20,9 @@ namespace FerretSharp.UI.State;
 /// <param name="DistinctInQuery">
 /// Asked for each value once, the read is <c>SELECT DISTINCT</c> (a table): its NULLs are one row, their number unknown.
 /// </param>
+/// <param name="WorkspaceId">The workspace whose session reads the values (<see cref="FileExport.WorkspaceId"/>).</param>
 public sealed record AllColumnValues(
-    string Heading, long? Total, Func<bool, RowReader> Read, int ValueIndex, string Tooltip, bool DistinctInQuery = false);
+    string Heading, long? Total, Func<bool, RowReader> Read, int ValueIndex, string Tooltip, Guid WorkspaceId, bool DistinctInQuery = false);
 
 /// <summary>
 /// Copies the values of one column (WP-57): from the selected rows as they are shown (pending values included, A21), or all
@@ -42,6 +43,7 @@ public static class ColumnValueCopies
             distinct => async (onBlock, ct) => await (await dataOf(workspaceId, ct)).ReadColumnAllAsync(details, column, filters, sorts, distinct, onBlock, ct),
             0,
             TextFormat.Format(GridText.ColumnMenu_AllValuesTitle, ColumnValues.MaxValues),
+            workspaceId,
             DistinctInQuery: true);
     }
 
@@ -60,7 +62,8 @@ public static class ColumnValueCopies
             total,
             _ => async (onBlock, ct) => await (await dataOf(workspaceId, ct)).ReadSqlAllAsync(query, names, onBlock, ct),
             column,
-            TextFormat.Format(GridText.ColumnMenu_AllResultValuesTitle, ColumnValues.MaxValues));
+            TextFormat.Format(GridText.ColumnMenu_AllResultValuesTitle, ColumnValues.MaxValues),
+            workspaceId);
     }
 
     /// <summary>
@@ -91,7 +94,7 @@ public static class ColumnValueCopies
         ColumnValuesFormat format, AllColumnValues all)
     {
         var exports = shell.Exports;
-        var job = exports.Start(TextFormat.Format(ShellText.Status_CopyValuesLabel, columnName), all.Total, TextFormat.Format(ShellText.Status_CopyValuesTitle, columnName));
+        var job = exports.Start(TextFormat.Format(ShellText.Status_CopyValuesLabel, columnName), all.Total, TextFormat.Format(ShellText.Status_CopyValuesTitle, columnName), all.WorkspaceId);
         var progress = new Progress<long>(rows => exports.Report(job, rows)); // reports on the UI thread
         try
         {

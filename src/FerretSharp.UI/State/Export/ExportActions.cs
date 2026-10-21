@@ -137,11 +137,13 @@ public sealed class ExportActions(
     /// <param name="fileName">Offered file name with extension.</param>
     /// <param name="filter">Label of the file type in the dialog, e.g. <c>Excel workbook</c>.</param>
     public Task SaveRowsAsync(string fileName, string filter, int rows, Func<Stream, IProgress<long>, CancellationToken, Task<ExportSummary>> write) =>
-        SaveFileAsync(fileName, filter, rows, write, Warnings);
+        SaveFileAsync(fileName, filter, rows, write, Warnings, workspaceId: null);
 
     /// <summary>All rows of a grid's query as a file (WP-54): <see cref="SaveFileAsync"/>.</summary>
-    public Task SaveAllRowsAsync(string fileName, string filter, long? total, Func<Stream, IProgress<long>, CancellationToken, Task<ExportSummary>> write) =>
-        SaveFileAsync(fileName, filter, total, write, warnings => warnings);
+    /// <param name="workspaceId">The workspace whose session reads the rows.</param>
+    public Task SaveAllRowsAsync(
+        string fileName, string filter, long? total, Guid workspaceId, Func<Stream, IProgress<long>, CancellationToken, Task<ExportSummary>> write) =>
+        SaveFileAsync(fileName, filter, total, write, warnings => warnings, workspaceId);
 
     /// <summary>
     /// An export to a file (review 3.40.0 A13, WP-54): the native dialog first, then the file is written in the background,
@@ -153,7 +155,7 @@ public sealed class ExportActions(
     /// <param name="write">Writes the file into the stream, reporting the rows written.</param>
     private async Task SaveFileAsync(
         string fileName, string filter, long? total, Func<Stream, IProgress<long>, CancellationToken, Task<ExportSummary>> write,
-        Func<IReadOnlyList<string>, IReadOnlyList<string>> warnings)
+        Func<IReadOnlyList<string>, IReadOnlyList<string>> warnings, Guid? workspaceId)
     {
         await close();
         if (await files.AskPathAsync(fileName, filter) is not { Length: > 0 } path)
@@ -162,7 +164,7 @@ public sealed class ExportActions(
         }
 
         var exports = shell.Exports;
-        var export = exports.Start(Path.GetFileName(path), total);
+        var export = exports.Start(Path.GetFileName(path), total, workspaceId: workspaceId);
         var progress = new Progress<long>(rows => exports.Report(export, rows)); // reports on the UI thread
         try
         {
