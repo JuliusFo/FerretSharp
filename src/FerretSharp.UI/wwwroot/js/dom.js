@@ -150,7 +150,8 @@ export function trapFocus(box) {
       return;
     }
 
-    const items = [...box.querySelectorAll(focusable)].filter(el => el.offsetParent !== null);
+    // Buttons with tabindex="-1" (the quick open's rows) are skipped by Tab: counted, they let the focus out past the last stop.
+    const items = [...box.querySelectorAll(focusable)].filter(el => el.offsetParent !== null && el.tabIndex >= 0);
     const active = document.activeElement;
     if (items.length === 0) {
       e.preventDefault();
