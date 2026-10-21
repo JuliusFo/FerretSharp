@@ -167,6 +167,8 @@ public sealed class ShortcutMapTests
     [InlineData(ShortcutAction.CopyColumnValues, "ctrl+a", true)] // select all rows
     [InlineData(ShortcutAction.CopyColumnValues, "ctrl+space", true)]
     [InlineData(ShortcutAction.CopyColumnValues, "ctrl+shift+arrowdown", true)]
+    [InlineData(ShortcutAction.CopyColumnValues, "ctrl+arrowdown", true)] // review 3.44.0, A34: to the last row
+    [InlineData(ShortcutAction.CopyColumnValues, "ctrl+end", true)]
     [InlineData(ShortcutAction.CopyColumnValues, "ctrl+shift+k", false)]
     [InlineData(ShortcutAction.FormNext, "ctrl+a", false)] // only in the form
     public void Warns_when_the_grid_loses_a_key(ShortcutAction action, string text, bool warns) =>
@@ -177,7 +179,7 @@ public sealed class ShortcutMapTests
     {
         var keys = ShortcutMap.Fixed.ToDictionary(f => f.Label, f => f.Keys);
 
-        Assert.Equal("Shift+↑, Shift+↓", keys["Markierung erweitern (die Pfeiltasten allein verschieben sie)"]);
+        Assert.Equal("Shift+↑, Shift+↓, Shift+Bild↑, Shift+Bild↓", keys["Markierung erweitern (die Pfeiltasten allein verschieben sie)"]);
         Assert.Equal("Shift+Pos1, Shift+Ende, Ctrl+Shift+↑, Ctrl+Shift+↓", keys["Bis zur ersten oder letzten Zeile markieren"]);
         Assert.Equal("Leertaste", keys["Fokussierte Zeile markieren oder Markierung aufheben"]);
         Assert.Equal("Ctrl+A", keys["Alle Zeilen markieren"]);

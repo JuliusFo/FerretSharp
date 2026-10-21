@@ -232,8 +232,10 @@
     <comment>What a key does in the editors or the grid; shown in TakenFromEditor</comment>
   </data>
   <data name="EditorSelectAll" xml:space="preserve">
-    <value>Select all</value>
-    <comment>What a key does in the editors or the grid; shown in TakenFromEditor</comment>
+    <value>Select all (in the editors; all rows in the grid)</value>
+  </data>
+  <data name="GridJumpToEdge" xml:space="preserve">
+    <value>Jump to the first or last row (the grid)</value>
   </data>
   <data name="EditorUndo" xml:space="preserve">
     <value>Undo in the editors</value>

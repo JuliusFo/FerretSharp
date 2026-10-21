@@ -414,4 +414,7 @@
   <data name="Usage_NotSourceFile" xml:space="preserve">
     <value>Mit dem Standardprogramm öffnet FerretSharp nur Quelltext: {0}</value>
   </data>
+  <data name="Usage_Shadow" xml:space="preserve">
+    <value>Shadow</value>
+  </data>
 </root>

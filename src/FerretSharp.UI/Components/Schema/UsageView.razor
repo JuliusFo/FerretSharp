@@ -167,7 +167,7 @@ else
                                     }
                                     else if (row.Property?.IsShadow == true)
                                     {
-                                        <span class="muted" title="@ModelViewText.Usage_ShadowTitle">Shadow</span>
+                                        <span class="muted" title="@ModelViewText.Usage_ShadowTitle">@ModelViewText.Usage_Shadow</span>
                                     }
                                 </td>
                             </tr>
@@ -299,6 +299,12 @@ else
         Usage.Changed += OnChanged;
         Models.Changed += OnChanged;
     }
+
+    /// <summary>
+    /// Hidden, the view does not render (review 3.44.0, A35): it stays mounted in every tab it was opened in and heard every
+    /// loading step of the model – and built its rows anew each time. Shown again, its parameters render it.
+    /// </summary>
+    protected override bool ShouldRender() => Shown;
 
     /// <summary>Shown again (or for the first time): a build since then is picked up.</summary>
     protected override void OnParametersSet()
