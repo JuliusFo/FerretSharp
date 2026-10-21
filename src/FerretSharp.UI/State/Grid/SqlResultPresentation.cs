@@ -11,11 +11,12 @@ namespace FerretSharp.UI.State;
 /// How a query result is shown (WP-48): a column traced back to a table column (<see cref="SqlResultSources"/>) gets the
 /// table's C# name and type, enum members and FK badge, like in a table grid – under the name the query gave it. All other
 /// columns stay as the driver reports them. No PK badge: grid.js pins key columns to the left, and the query's column
-/// order counts.
+/// order counts. The form and the comparison of rows (WP-56) label and show the columns the same way.
 /// </summary>
-public sealed class SqlResultPresentation
+public sealed class SqlResultPresentation : IColumnPresentation
 {
     private readonly IReadOnlyList<SqlColumn> _columns;
+    private readonly ColumnInfo[] _infos;
     private readonly (TablePresentation Presentation, int Table)?[] _byColumn;
     private readonly bool[] _fk;
     private readonly bool[] _fkModel;
@@ -27,6 +28,7 @@ public sealed class SqlResultPresentation
         Func<TableRef, IEnumerable<ForeignKeyInfo>> outgoing)
     {
         _columns = columns;
+        _infos = [.. columns.Select(c => c.Column)];
         Sources = sources;
         _byColumn = new (TablePresentation, int)?[columns.Count];
         _fk = new bool[columns.Count];
@@ -57,7 +59,46 @@ public sealed class SqlResultPresentation
 
     public int? HeaderHeight => ShowsClrNames ? GridOptions.ClrHeaderHeight : null;
 
+    /// <summary>The result columns as the driver reports them (named as the query names them).</summary>
+    IReadOnlyList<ColumnInfo> IColumnPresentation.Columns => _infos;
+
     public IReadOnlyList<GridColumn> Columns() => [.. _columns.Select((_, i) => ColumnOf(i))];
+
+    /// <summary>
+    /// A traced column under the name the query gave it, with the property name and type of its table column if C# names
+    /// are shown; all other columns by that name alone.
+    /// </summary>
+    public ColumnLabel LabelOf(int column)
+    {
+        var name = _columns[column].Name;
+        if (_byColumn[column] is not var (presentation, table) || !presentation.ShowsClrNames || presentation.PropertyOf(table) is not { } property)
+        {
+            return new ColumnLabel(name, null, null);
+        }
+
+        var type = TablePresentation.ClrTypeText(property);
+        return presentation.Names == Core.Settings.ClrNameDisplay.Front
+            ? new ColumnLabel(property.Name, name, type)
+            : new ColumnLabel(name, property.Name, type);
+    }
+
+    public string? SearchNameOf(int column) => _byColumn[column] is var (presentation, table) ? presentation.SearchNameOf(table) : null;
+
+    /// <summary>
+    /// The tooltip of a traced column: the table column it holds (<c>Aus KUNDEN.NAME</c>) and that column's comment; null if
+    /// it is not traced.
+    /// </summary>
+    public string? CommentOf(int column)
+    {
+        if (_byColumn[column] is not var (presentation, table))
+        {
+            return null;
+        }
+
+        var details = presentation.Details;
+        var origin = TextFormat.Format(SqlEditorText.Result_ColumnOrigin, $"{details.Table.DisplayName}.{details.Columns[table].Name}");
+        return details.Columns[table].Comment is { } comment ? origin + "\n" + comment : origin; // grid.js joins its lines with \n
+    }
 
     private GridColumn ColumnOf(int i)
     {
@@ -73,22 +114,17 @@ public sealed class SqlResultPresentation
             return plain;
         }
 
-        var details = presentation.Details;
         var values = presentation.ValuesOf(table);
-        var property = presentation.ShowsClrNames ? presentation.PropertyOf(table) : null;
-        var (label, alternate) = property is null ? (column.Name, (string?)null)
-            : presentation.Names == Core.Settings.ClrNameDisplay.Front ? (property.Name, column.Name)
-            : (column.Name, property.Name);
-        var origin = TextFormat.Format(SqlEditorText.Result_ColumnOrigin, $"{details.Table.DisplayName}.{details.Columns[table].Name}");
+        var label = LabelOf(i);
         return plain with
         {
-            Label = label,
-            Alternate = alternate,
-            ClrType = property is null ? null : TablePresentation.ClrTypeText(property),
+            Label = label.Name,
+            Alternate = label.AlternateName,
+            ClrType = label.ClrType,
             Fk = _fk[i],
             FkModel = _fkModel[i],
             Numeric = category == ColumnCategory.Number && values is null,
-            Comment = details.Columns[table].Comment is { } comment ? origin + "\n" + comment : origin, // grid.js joins its lines with \n
+            Comment = CommentOf(i),
             UnknownText = values?.UnknownText,
         };
     }

@@ -134,6 +134,29 @@ public sealed class SqlResultPresentationTests
     }
 
     [Fact]
+    public async Task Form_and_comparison_label_search_and_compare_result_rows_like_the_grid()
+    {
+        // WP-56: the form and the comparison see the result through the same presentation as the grid.
+        var presentation = await PresentationAsync(ClrNameDisplay.Beside);
+        IColumnPresentation columns = presentation;
+
+        Assert.Equal(["AUFTRAG_ID", "KUNDE_ID", "ART", "ONE"], columns.Columns.Select(c => c.Name));
+        Assert.Equal(new ColumnLabel("ART", "Kundenart", "Kundenart"), presentation.LabelOf(2));
+        Assert.Equal(new ColumnLabel("ONE", null, null), presentation.LabelOf(3));
+        Assert.Equal("Kundenart", presentation.SearchNameOf(2));
+        Assert.Null(presentation.SearchNameOf(3));
+        Assert.Equal("Aus KUNDEN.KUNDENART\n1 privat, 2 Gewerbe", presentation.CommentOf(2));
+        Assert.Null(presentation.CommentOf(3));
+
+        Core.Forms.FormRow[] rows = [new(new RowData(RowKey.None.Instance, [10m, 4711m, 2m, 1m]), null), new(new RowData(RowKey.None.Instance, [11m, 4711m, 1m, 1m]), null)];
+        var fields = Core.Forms.RowComparison.Compare(presentation, rows, [0, 1, 2, 3]);
+        Assert.Equal([true, false, true, false], fields.Select(f => f.Differs));
+        Assert.Equal(["Gewerbe (2)", "Privat (1)"], fields[2].Cells.Select(c => c.Value.Text));
+        var found = Core.Forms.RowComparison.Visible(fields, presentation, new Core.Forms.CompareFilter("kundenart"));
+        Assert.Equal(["ART"], found.Fields.Select(f => f.Info.Name)); // found by its property
+    }
+
+    [Fact]
     public void A_plain_result_is_shown_as_the_driver_reports_it()
     {
         var presentation = SqlResultPresentation.Plain(Columns);

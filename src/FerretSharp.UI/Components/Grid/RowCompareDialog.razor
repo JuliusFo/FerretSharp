@@ -1,19 +1,19 @@
-@* Selected rows side by side (WP-21): one column per row, one line per table column, deviating values marked.
-   Read-only – values as the grid shows them, including pending changes. A row's heading leads back to the grid and
-   opens that row in the form. *@
+@* Selected rows side by side (WP-21; of a query result since WP-56): one column per row, one line per column, deviating
+   values marked. Read-only – values as the grid shows them, including pending changes. A row's heading leads back to the
+   grid and opens that row in the form. *@
+@using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Data
 @using FerretSharp.Core.Forms
 @using FerretSharp.Core.Schema
 
-<ModalFrame Label="@TextFormat.Format(GridText.Compare_Label, Details.Table.DisplayName)" Class="compare-rows-dialog" OnCancel="OnClose" CloseOnBackdrop="true" FocusOnOpen="true">
+<ModalFrame Label="@TextFormat.Format(GridText.Compare_Label, Title)" Class="compare-rows-dialog" OnCancel="OnClose" CloseOnBackdrop="true" FocusOnOpen="true">
     @{
-        var presentation = Presentations.For(Details);
-        var fields = RowComparison.Compare(Details, presentation, Rows.Select(r => r.Row).ToList(), Tab.PinnedColumns);
-        var view = RowComparison.Visible(fields, presentation, new CompareFilter(_query, _hideEmpty, _onlyDifferences));
+        var fields = RowComparison.Compare(Presentation, Rows.Select(r => r.Row).ToList(), Order);
+        var view = RowComparison.Visible(fields, Presentation, new CompareFilter(_query, _hideEmpty, _onlyDifferences));
         var differing = fields.Count(f => f.Differs);
     }
     <header>
-        <span>@TextFormat.Format(GridText.Compare_Header, RowsText(Rows.Count), Details.Table.DisplayName)</span>
+        <span>@TextFormat.Format(GridText.Compare_Header, RowsText(Rows.Count), Title)</span>
         <SearchBox Class="structure-filter" Placeholder="@GridText.Compare_SearchColumns" @bind-Value="_query" />
         <label class="check"><input type="checkbox" checked="@_onlyDifferences" @onchange="e => _onlyDifferences = e.Value is true" /> @CommonText.OnlyDifferences</label>
         <label class="check" title="@GridText.Compare_HideEmptyTitle"><input type="checkbox" checked="@_hideEmpty" @onchange="e => _hideEmpty = e.Value is true" /> @GridText.Grid_HideEmpty</label>
@@ -32,9 +32,9 @@
                     {
                         <th>
                             <button class="link-btn cr-row" title="@GridText.Compare_ShowRowTitle" @onclick="() => OnShow.InvokeAsync(index)">@TextFormat.Format(GridText.Compare_Row, index + 1)</button>
-                            @if (row.KeyText(Details) is { } key)
+                            @if (KeyText?.Invoke(row) is { } key)
                             {
-                                <span class="cr-key" title="@string.Join(", ", Details.PrimaryKey)">@key</span>
+                                <span class="cr-key" title="@KeyTitle">@key</span>
                             }
                         </th>
                     }
@@ -67,7 +67,7 @@
     </div>
     <footer>
         <span class="muted">
-            @GridText.Compare_FooterNote@(Missing > 0 ? " · " + TextFormat.Format(GridText.Compare_MissingRows, RowsText(Missing)) : "")
+            @(Note ?? GridText.Compare_FooterNote)@(Missing > 0 ? " · " + TextFormat.Format(GridText.Compare_MissingRows, RowsText(Missing)) : "")
         </span>
         <span class="spacer"></span>
         <button class="btn" @onclick="OnClose">@CommonText.Close</button>
@@ -75,18 +75,32 @@
 </ModalFrame>
 
 @code {
-    [CascadingParameter]
-    public PresentationService Presentations { get; set; } = null!;
-
     private string _query = "";
     private bool _onlyDifferences;
     private bool _hideEmpty;
 
+    /// <summary>What is compared: the table's name, or the name of a query result.</summary>
     [Parameter, EditorRequired]
-    public TableTab Tab { get; set; } = null!;
+    public string Title { get; set; } = "";
 
     [Parameter, EditorRequired]
-    public TableDetails Details { get; set; } = null!;
+    public IColumnPresentation Presentation { get; set; } = null!;
+
+    /// <summary>The columns in display order (a table: key and pinned ones first; a result: its own order).</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<int> Order { get; set; } = [];
+
+    /// <summary>The primary key values of a row beside its heading; null without a key.</summary>
+    [Parameter]
+    public Func<FormRow, string?>? KeyText { get; set; }
+
+    /// <summary>Tooltip of the key values: the key's columns.</summary>
+    [Parameter]
+    public string? KeyTitle { get; set; }
+
+    /// <summary>The note in the footer; null for the one of a table (with pending changes).</summary>
+    [Parameter]
+    public string? Note { get; set; }
 
     /// <summary>The compared rows with their grid index, in grid order.</summary>
     [Parameter, EditorRequired]

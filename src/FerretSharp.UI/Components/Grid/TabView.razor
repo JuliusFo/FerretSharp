@@ -147,7 +147,8 @@
 
 @if (_compare is { } compare && _details is not null)
 {
-    <RowCompareDialog Tab="Tab" Details="_details" Rows="compare.Rows" Missing="compare.Missing"
+    <RowCompareDialog Title="@_details.Table.DisplayName" Presentation="Presentations.For(_details)" Order="ColumnPinning.DisplayOrder(_details, Tab.PinnedColumns)"
+                      KeyText="r => r.KeyText(_details)" KeyTitle="@string.Join(", ", _details.PrimaryKey)" Rows="compare.Rows" Missing="compare.Missing"
                       OnClose="() => _compare = null" OnShow="ShowComparedRowAsync" />
 }
 

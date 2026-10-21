@@ -64,7 +64,7 @@ public sealed class FilterRowGroup
 }
 
 /// <summary>An open table in the content area of a workspace.</summary>
-public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTab(workspaceId, "grid-")
+public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTab(workspaceId, "grid-"), IFormTab
 {
     public TableSummary Table { get; } = table;
 
@@ -381,7 +381,7 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
         PinnedColumns = PinnedColumns,
         Preset = Preset,
         OriginTab = BackTarget(workspaceTabs) is { } origin ? IndexOf(workspaceTabs, origin) : null,
-        Form = FormOpen || FormWidth is not null || FormHideEmpty ? new FormTabState(FormOpen, FormWidth, FormHideEmpty) : null,
+        Form = FormTabs.Save(this),
     };
 
     private static int IndexOf(IReadOnlyList<WorkspaceTab> tabs, WorkspaceTab tab)
@@ -407,10 +407,7 @@ public sealed class TableTab(Guid workspaceId, TableSummary table) : WorkspaceTa
             FirstVisibleRow = state.FirstVisibleRow,
             PinnedColumns = state.PinnedColumns,
             Preset = state.Preset,
-            FormOpen = state.Form?.Open ?? false,
-            FormWidth = state.Form?.Width,
-            FormHideEmpty = state.Form?.HideEmpty ?? false,
-        };
+        }.WithForm(state.Form);
         tab.SetFilterRows(state.FilterRows);
         return tab;
     }

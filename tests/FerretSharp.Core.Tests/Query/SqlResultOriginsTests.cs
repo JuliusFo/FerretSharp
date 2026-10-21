@@ -1,4 +1,6 @@
+using FerretSharp.Core.ClrModel;
 using FerretSharp.Core.Data;
+using FerretSharp.Core.Forms;
 using FerretSharp.Core.Query;
 using FerretSharp.Core.Schema;
 using NSubstitute;
@@ -234,6 +236,29 @@ public sealed class SqlResultOriginsTests
         Assert.Equal("KUNDE_ID", incoming.Jump.Filters[0].Column);
         Assert.True(incoming.Involves(2));
         Assert.Equal(JumpDirection.Outgoing, jumps[0].Jump.Direction);
+    }
+
+    [Fact]
+    public async Task A_result_row_in_the_form_is_read_only_with_the_jumps_of_its_columns()
+    {
+        // WP-56: the form of a result row, in the result's order; each outgoing jump at the column it goes over.
+        const string sql = """SELECT "a"."AUFTRAG_ID", "a"."KUNDE_ID", "k"."KUNDE_ID", "k"."NAME" FROM "AUFTRAG" "a" JOIN "KUNDEN" "k" ON 1 = 1""";
+        var schema = await SchemaAsync();
+        var columns = Columns("a.AUFTRAG_ID", "a.KUNDE_ID", "k.KUNDE_ID", "k.NAME");
+        var sources = await SqlResultSources.LoadAsync(sql, columns, schema, Ct);
+        var row = Row(10m, 4711m, 4711m, null);
+        var jumps = sources.JumpsFor([row], schema.OutgoingOf, schema.IncomingOf);
+        var result = new TableDetails(new TableSummary("", "Ergebnis", TableKind.View), [.. columns.Select(c => c.Column)], [], [], false);
+
+        var fields = RowForm.ResultFields(TablePresentation.Plain(result), row, jumps);
+
+        Assert.Equal(["AUFTRAG_ID", "KUNDE_ID", "KUNDE_ID", "NAME"], fields.Select(f => f.Info.Name));
+        Assert.Equal(["10", "4.711", "4.711", null], fields.Select(f => f.Value.Text));
+        Assert.All(fields, f => Assert.Equal("Ergebnisse einer Abfrage sind nur lesbar.", f.ReadOnlyReason));
+        Assert.True(fields[3].IsNull);
+        Assert.Equal("KUNDEN", Assert.Single(fields[1].Jumps).Table.Name);
+        Assert.Empty(fields[2].Jumps); // the incoming jump goes below the fields
+        Assert.Equal("AUFTRAG", Assert.Single(RowForm.ResultIncoming(jumps)).Table.Name);
     }
 
     [Fact]

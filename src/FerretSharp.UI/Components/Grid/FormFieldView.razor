@@ -40,12 +40,12 @@
     </div>
 
     <div class="ff-value">
-        @if (Field.IsLob)
+        @if (Field.IsLob && OnLob is not null)
         {
             <div class="ff-ro ff-lob">
                 <span class="@(Field.IsNull ? "fs-null" : "")">@(Field.Value.Text ?? "NULL")</span>
             </div>
-            <button class="btn small" title="@(Field.IsEditable ? GridText.Form_ViewOrChangeValue : GridText.Form_ViewValue)" @onclick="() => OnLob(Field.Column)">@GridText.Grid_OpenContent</button>
+            <button class="btn small" title="@(Field.IsEditable ? GridText.Form_ViewOrChangeValue : GridText.Form_ViewValue)" @onclick="() => OnLob?.Invoke(Field.Column)">@GridText.Grid_OpenContent</button>
         }
         else if (!Field.IsEditable)
         {
@@ -168,8 +168,9 @@
     [Parameter, EditorRequired]
     public Action<FkJump> OnJump { get; set; } = null!;
 
-    [Parameter, EditorRequired]
-    public Action<int> OnLob { get; set; } = null!;
+    /// <summary>Opens the LOB editor; null where there is none (a query result, WP-56): the preview is shown like any value.</summary>
+    [Parameter]
+    public Action<int>? OnLob { get; set; }
 
     [Parameter, EditorRequired]
     public Func<FormField, Task> OnCopy { get; set; } = null!;

@@ -729,4 +729,7 @@
     <value>“{0}”</value>
     <comment>{0}: a workspace name in a list</comment>
   </data>
+  <data name="ResultForm_HideEmptyTitle" xml:space="preserve">
+    <value>Hide fields without a value (NULL); applies to this tab</value>
+  </data>
 </root>

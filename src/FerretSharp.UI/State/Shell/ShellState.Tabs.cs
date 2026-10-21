@@ -548,11 +548,11 @@ public sealed partial class ShellState
             WorkspaceTab tab;
             if (state.Linq is { } linq)
             {
-                tab = LinqTab.Restore(workspace.Id, linq);
+                tab = LinqTab.Restore(workspace.Id, linq, state.Form);
             }
             else if (state.Sql is { } sql)
             {
-                tab = SqlTab.Restore(workspace.Id, sql);
+                tab = SqlTab.Restore(workspace.Id, sql, state.Form);
             }
             else if (state.PlSql is { } plSql)
             {

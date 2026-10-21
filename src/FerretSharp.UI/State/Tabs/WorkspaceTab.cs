@@ -59,8 +59,39 @@ public interface ITitledTab
     string Title { get; set; }
 }
 
+/// <summary>
+/// A tab with the form beside its grid (WP-21; the result of the SQL editor and the LINQ console since WP-56), saved with
+/// the tab as <see cref="TabState.Form"/>.
+/// </summary>
+public interface IFormTab
+{
+    /// <summary>The form beside the grid is open.</summary>
+    bool FormOpen { get; set; }
+
+    /// <summary>Width of the form in CSS pixels; null for the default.</summary>
+    int? FormWidth { get; set; }
+
+    /// <summary>"Leere ausblenden" in the form, per tab (decision of the user).</summary>
+    bool FormHideEmpty { get; set; }
+}
+
+public static class FormTabs
+{
+    /// <summary>What is saved of the form; null if it was never used in the tab.</summary>
+    public static FormTabState? Save(IFormTab tab) =>
+        tab.FormOpen || tab.FormWidth is not null || tab.FormHideEmpty ? new FormTabState(tab.FormOpen, tab.FormWidth, tab.FormHideEmpty) : null;
+
+    public static T WithForm<T>(this T tab, FormTabState? state) where T : IFormTab
+    {
+        tab.FormOpen = state?.Open ?? false;
+        tab.FormWidth = state?.Width;
+        tab.FormHideEmpty = state?.HideEmpty ?? false;
+        return tab;
+    }
+}
+
 /// <summary>A LINQ console tab (WP-13, ADR 0011): C# against the linked project's DbContext, run in the workspace's session.</summary>
-public sealed class LinqTab(Guid workspaceId, string title) : WorkspaceTab(workspaceId, "linq-"), ITitledTab
+public sealed class LinqTab(Guid workspaceId, string title) : WorkspaceTab(workspaceId, "linq-"), ITitledTab, IFormTab
 {
     public string Title { get; set; } = title;
 
@@ -75,15 +106,21 @@ public sealed class LinqTab(Guid workspaceId, string title) : WorkspaceTab(works
     /// <summary>Index into <c>LastRun.Commands</c> of the command shown.</summary>
     public int SelectedCommand { get; set; }
 
-    public override TabState ToState(IReadOnlyList<WorkspaceTab> workspaceTabs) =>
-        TabState.OfLinq(new LinqTabState(Title, Code, Variables));
+    public bool FormOpen { get; set; }
 
-    public static LinqTab Restore(Guid workspaceId, LinqTabState state) =>
-        new(workspaceId, state.Title) { Code = state.Code, Variables = state.Variables };
+    public int? FormWidth { get; set; }
+
+    public bool FormHideEmpty { get; set; }
+
+    public override TabState ToState(IReadOnlyList<WorkspaceTab> workspaceTabs) =>
+        TabState.OfLinq(new LinqTabState(Title, Code, Variables)) with { Form = FormTabs.Save(this) };
+
+    public static LinqTab Restore(Guid workspaceId, LinqTabState state, FormTabState? form = null) =>
+        new LinqTab(workspaceId, state.Title) { Code = state.Code, Variables = state.Variables }.WithForm(form);
 }
 
 /// <summary>A SQL editor tab (WP-17, ADR 0014): a script whose statement at the cursor runs in the workspace's session.</summary>
-public sealed class SqlTab(Guid workspaceId, string title) : WorkspaceTab(workspaceId, "sql-"), ITitledTab
+public sealed class SqlTab(Guid workspaceId, string title) : WorkspaceTab(workspaceId, "sql-"), ITitledTab, IFormTab
 {
     public string Title { get; set; } = title;
 
@@ -100,11 +137,17 @@ public sealed class SqlTab(Guid workspaceId, string title) : WorkspaceTab(worksp
 
     public SqlRun? ShownRun => Runs.Count == 0 ? null : Runs[Math.Clamp(SelectedRun, 0, Runs.Count - 1)];
 
-    public override TabState ToState(IReadOnlyList<WorkspaceTab> workspaceTabs) =>
-        TabState.OfSql(new SqlTabState(Title, Text, Variables));
+    public bool FormOpen { get; set; }
 
-    public static SqlTab Restore(Guid workspaceId, SqlTabState state) =>
-        new(workspaceId, state.Title) { Text = state.Text, Variables = state.Variables };
+    public int? FormWidth { get; set; }
+
+    public bool FormHideEmpty { get; set; }
+
+    public override TabState ToState(IReadOnlyList<WorkspaceTab> workspaceTabs) =>
+        TabState.OfSql(new SqlTabState(Title, Text, Variables)) with { Form = FormTabs.Save(this) };
+
+    public static SqlTab Restore(Guid workspaceId, SqlTabState state, FormTabState? form = null) =>
+        new SqlTab(workspaceId, state.Title) { Text = state.Text, Variables = state.Variables }.WithForm(form);
 }
 
 /// <summary>

@@ -518,10 +518,13 @@ function reportPinned(api, dotnet) {
  *   headerHeight: with the line for C# names (WP-12); null for the theme default.
  *   table: a table tab – header menu, Del, pinning and scroll position are reported to .NET. A query result only
  *     answers GetRows, OnCopy and OnCellContextMenu.
+ *   form: the grid reports its focus (OnFocused) and the form key (OnFormKey) – always for a table, for a query result since
+ *     WP-56.
  */
 export function create(elementId, dotnet, columns, options) {
   // texts: what the grid shows itself (header tooltips, the member list), in the UI language – JS holds no texts.
-  const { sorts, firstRow, editable, headerHeight, table, texts } = options;
+  const { sorts, firstRow, editable, headerHeight, table, form, texts } = options;
+  const reportsForm = table || !!form;
   registerModules();
   destroy(elementId);
   let restoreRow = firstRow > 0 ? firstRow : null;
@@ -724,7 +727,7 @@ export function create(elementId, dotnet, columns, options) {
   // of the selected rows (WP-21). Only in the grid, not a global shortcut – the SQL and LINQ editors keep their keys.
   function onFormKey(e) {
     const formKey = localCombo('form');
-    if (!table || !formKey || comboOf(e) !== formKey || api.getEditingCells().length > 0) return false;
+    if (!reportsForm || !formKey || comboOf(e) !== formKey || api.getEditingCells().length > 0) return false;
     e.preventDefault();
     e.stopPropagation();
     const cell = api.getFocusedCell();
@@ -749,7 +752,7 @@ export function create(elementId, dotnet, columns, options) {
   // The form follows the focused cell; arrow keys move it fast, so only the last position within a moment is reported.
   let focusTimer = null;
   function reportFocus(e) {
-    if (!table || e.rowIndex == null) return;
+    if (!reportsForm || e.rowIndex == null) return;
     const newId = newIdOf(e.api, e);
     if (e.rowPinned && !newId) return;
     const colId = typeof e.column === 'string' ? e.column : e.column?.getColId?.() ?? null;

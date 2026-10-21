@@ -28,7 +28,7 @@ public sealed record CompareField(int Column, ColumnInfo Info, ColumnLabel Label
 public sealed record CompareFilter(string? Query = null, bool HideEmpty = false, bool OnlyDifferences = false);
 
 /// <summary>
-/// Selected rows side by side (WP-21, read-only): which columns differ. Compared on the current values (pending and
+/// Selected rows side by side (WP-21, read-only; query results since WP-56): which columns differ. Compared on the current values (pending and
 /// flushed changes laid over, like the grid shows them), not on display texts – the building block the audit mode
 /// of the backlog needs as well. LOBs are known only as preview and length: equal previews of equal length count as
 /// equal.
@@ -38,9 +38,14 @@ public static class RowComparison
     /// <summary>At most this many rows side by side; more get unreadable even with scrolling.</summary>
     public const int MaxRows = 20;
 
+    /// <summary>A table's rows, in the grid's display order (primary key, pinned columns, the rest in schema order).</summary>
     public static IReadOnlyList<CompareField> Compare(
         TableDetails table, TablePresentation presentation, IReadOnlyList<FormRow> rows, IReadOnlyList<string> pinned) =>
-        ColumnPinning.DisplayOrder(table, pinned)
+        Compare(presentation, rows, ColumnPinning.DisplayOrder(table, pinned));
+
+    /// <summary>Rows in the given column order – a query result's own (WP-56).</summary>
+    public static IReadOnlyList<CompareField> Compare(IColumnPresentation presentation, IReadOnlyList<FormRow> rows, IEnumerable<int> order) =>
+        order
             .Select(i =>
             {
                 var values = rows.Select(r => r.ValueOf(i)).ToList();
@@ -48,7 +53,7 @@ public static class RowComparison
                 var cells = values
                     .Select((raw, r) => new CompareCell(presentation.Present(i, raw), raw, rows[r].Change?.StageOf(i), !OracleTypeMapper.ValuesEqual(common, raw)))
                     .ToList();
-                return new CompareField(i, table.Columns[i], presentation.LabelOf(i), cells, cells.Any(c => c.Deviates));
+                return new CompareField(i, presentation.Columns[i], presentation.LabelOf(i), cells, cells.Any(c => c.Deviates));
             })
             .ToList();
 
@@ -70,7 +75,7 @@ public static class RowComparison
     }
 
     /// <summary>The columns matching the search and the switches; "leere" are columns NULL in every row.</summary>
-    public static FormView<CompareField> Visible(IReadOnlyList<CompareField> fields, TablePresentation presentation, CompareFilter filter)
+    public static FormView<CompareField> Visible(IReadOnlyList<CompareField> fields, IColumnPresentation presentation, CompareFilter filter)
     {
         var found = RowForm.Matches(presentation, filter.Query);
         var matching = fields.Where(f => found.Contains(f.Column) && (!filter.OnlyDifferences || f.Differs)).ToList();

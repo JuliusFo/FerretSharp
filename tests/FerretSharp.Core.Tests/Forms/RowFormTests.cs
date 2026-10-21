@@ -273,6 +273,20 @@ public sealed class RowComparisonTests
     }
 
     [Fact]
+    public void Result_rows_are_compared_in_the_given_column_order()
+    {
+        // WP-56: a query result keeps its own column order (no key, nothing pinned).
+        var result = new TableDetails(new TableSummary("", "Ergebnis", TableKind.View), [Kunden.Columns[1], Kunden.Columns[0]], [], [], false);
+        FormRow[] rows = [new(new RowData(RowKey.None.Instance, ["Meier", 8m]), null), new(new RowData(RowKey.None.Instance, ["Meier", 15m]), null)];
+
+        var fields = RowComparison.Compare(TablePresentation.Plain(result), rows, [1, 0]);
+
+        Assert.Equal(["KUNDE_ID", "NAME"], fields.Select(f => f.Info.Name));
+        Assert.Equal([true, false], fields.Select(f => f.Differs));
+        Assert.Equal([false, true], fields[0].Cells.Select(c => c.Deviates));
+    }
+
+    [Fact]
     public async Task Only_differences_and_hiding_columns_null_everywhere()
     {
         var presentation = await CodeGenerationModel.PresentationAsync();

@@ -66,6 +66,9 @@
   <data name="RowMarkedForDeletion" xml:space="preserve">
     <value>Die Zeile ist zum Löschen markiert.</value>
   </data>
+  <data name="QueryResultReadOnly" xml:space="preserve">
+    <value>Ergebnisse einer Abfrage sind nur lesbar.</value>
+  </data>
   <data name="NotALobColumn" xml:space="preserve">
     <value>{0} ist keine LOB-Spalte.</value>
   </data>

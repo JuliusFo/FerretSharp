@@ -1,20 +1,38 @@
 @* Result of a query FerretSharp did not build (LINQ console, ADR 0011; SQL editor, WP-17): read in the workspace's session page by page,
-   shown with the same grid bridge as tables – read-only, unsorted (the query's own ORDER BY counts). *@
+   shown with the same grid bridge as tables – read-only, unsorted (the query's own ORDER BY counts). Beside it the form of the
+   focused row, and the selected rows side by side (WP-56), both read-only. *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
+@using FerretSharp.Core.Forms
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
 @inherits FerretComponent
 @implements IAsyncDisposable
+@implements IFormGrid
 @inject IJSRuntime JS
 @inject ILogger<SqlResultGrid> Logger
 
-<div id="@_id" class="ag-host"></div>
+<div class="grid-split result-split">
+    <div class="grid-host">
+        <div id="@_id" class="ag-host"></div>
+    </div>
+    @if (FormTab is { FormOpen: true } formTab)
+    {
+        <ResultFormPanel Tab="formTab" Grid="this" WorkspaceId="WorkspaceId" OnClose="CloseFormAsync" />
+    }
+</div>
 
 @if (_menu is { } menu)
 {
     <ResultMenu Request="menu" Result="AsTable()" Sources="_presentation.Sources" ExportColumns="_presentation.ExportColumns()" WorkspaceId="WorkspaceId" InsertTarget="InsertTarget"
-                ExportName="@ExportName" AllRows="@(ExportsAllRows ? AllRowsOf() : null)" OnClose="() => _menu = null" />
+                ExportName="@ExportName" AllRows="@(ExportsAllRows ? AllRowsOf() : null)" OnClose="() => _menu = null"
+                OffersForm="@(FormTab is not null)" OnOpenForm="() => OpenFormAsync(menu.RowIndex, menu.Column)" OnCompare="Compare" />
+}
+
+@if (_compare is { } compare)
+{
+    <RowCompareDialog Title="@ExportName" Presentation="_presentation" Order="@(Enumerable.Range(0, _columns.Count).ToList())" Rows="compare.Rows" Missing="compare.Missing" Note="@GridText.Compare_FooterNoteResult"
+                      OnClose="() => _compare = null" OnShow="ShowComparedRowAsync" />
 }
 
 @code {
@@ -81,7 +99,33 @@
     [Parameter]
     public bool ExportsAllRows { get; set; }
 
+    /// <summary>The tab whose form shows the focused row (WP-56); null offers no form (the comparison still works).</summary>
+    [Parameter]
+    public IFormTab? FormTab { get; set; }
+
+    /// <summary>The form was opened or closed here (Alt+Enter, menu, ✕): the view's switch shows it.</summary>
+    [Parameter]
+    public EventCallback OnFormChanged { get; set; }
+
     private GridContextMenuRequest? _menu;
+    private (IReadOnlyList<(int Index, FormRow Row)> Rows, int Missing)? _compare;
+
+    /// <summary>The cell with the focus (click, arrow keys, the form's ▲ ▼); null before any.</summary>
+    public GridCell? Focused { get; private set; }
+
+    /// <summary>The focused cell moved: the form follows.</summary>
+    public event Action? FocusChanged;
+
+    /// <summary>Rows were loaded or the columns relabelled: the form may show its row now.</summary>
+    public event Action? RowsChanged;
+
+    /// <summary>How the result is shown (also in the form and the comparison).</summary>
+    public SqlResultPresentation Presentation => _presentation;
+
+    /// <summary>Rows read so far; with <see cref="AllLoaded"/> the result's size.</summary>
+    public int RowsLoaded => _rowsLoaded;
+
+    public bool AllLoaded => _allLoaded;
 
     private int _rowsLoaded;
 
@@ -141,7 +185,7 @@
         }
 
         // The result is shown whatever becomes of the tracing; a failure that is a bug reaches the error boundary afterwards.
-        await _grid.CreateAsync(_presentation.Columns(), new GridOptions([], 0, Editable: false, _presentation.HeaderHeight, Table: false));
+        await _grid.CreateAsync(_presentation.Columns(), new GridOptions([], 0, Editable: false, _presentation.HeaderHeight, Table: false) { Form = true });
         if (!traced.IsCompletedSuccessfully)
         {
             Fire(() => RelabelAsync(traced));
@@ -180,6 +224,8 @@
         {
             await _grid.CallAsync("updateRows", _blocks.All().Select(r => new GridRowUpdate(r.Index, presentation.Row(r.Row.Values))).ToList());
         }
+
+        RowsChanged?.Invoke();
     }
 
     /// <summary>A grid already replaced reports nothing: its status would overwrite the one of the grid shown now.</summary>
@@ -219,6 +265,7 @@
         await Status(new SqlGridStatus(false, _rowsLoaded, page.IsLastPage, page.Elapsed, _dataAsOf, null, _snapshotMoved));
         var presentation = _presentation;
         var rows = page.Rows.Select(presentation.Row).ToList();
+        RowsChanged?.Invoke();
         return new GridPage(rows, page.IsLastPage ? startRow + page.Rows.Count : -1);
     }
 
@@ -263,8 +310,116 @@
         var indexes = selectedRows.Contains(rowIndex) ? selectedRows.Order().ToArray() : [rowIndex];
         var selected = indexes.Select(_blocks.At).OfType<RowData>().ToList();
         _menu = new GridContextMenuRequest(row, column, _presentation.Present(column, row.Values[column]).Text,
-            selected, indexes.Length - selected.Count, x, y, viewportWidth, viewportHeight);
+            selected, indexes.Length - selected.Count, x, y, viewportWidth, viewportHeight, indexes, rowIndex);
         return InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>The focused cell moved (grid.js reports the last position after a short pause).</summary>
+    [JSInvokable]
+    public void OnFocused(int rowIndex, string? newId, string? colId) => Guard(() =>
+    {
+        Focused = rowIndex < 0 ? null : new GridCell(rowIndex, null, colId is not null && colId.StartsWith('c') ? GridColumn.IndexOf(colId) : null);
+        FocusChanged?.Invoke();
+    });
+
+    /// <summary>Alt+Enter in the grid: several selected rows are compared, otherwise the form opens or closes (as in a table, WP-21).</summary>
+    [JSInvokable]
+    public Task OnFormKey(int rowIndex, string? newId, int[] selectedRows) => GuardAsync(async () =>
+    {
+        if (selectedRows.Length > 1)
+        {
+            Compare(selectedRows.Order().ToList());
+            await InvokeAsync(StateHasChanged);
+        }
+        else if (FormTab is { FormOpen: true })
+        {
+            await CloseFormAsync();
+        }
+        else if (FormTab is { } tab)
+        {
+            await SetFormOpenAsync(tab, true);
+        }
+    });
+
+    public FormRow? RowOf(GridCell cell) => cell.IsNew ? null : RowAt(cell.RowIndex);
+
+    public FormRow? RowAt(int rowIndex) => _blocks.At(rowIndex) is { } row ? new FormRow(row, null) : null;
+
+    /// <summary>Result rows have no key: the form follows the grid index.</summary>
+    public int? IndexOf(RowKey key) => null;
+
+    /// <summary>A result has no new rows.</summary>
+    public GridCell? CellOf(RowChange newRow, int? column) => null;
+
+    /// <summary>Moves the grid's focus to a row (the form's ▲ ▼); a block not loaded yet is fetched.</summary>
+    public Task FocusRowAsync(GridCell cell, bool keepFocus, bool select = false)
+    {
+        Focused = cell;
+        return _grid.CallAsync("focusRow", cell.RowIndex, cell.Column is { } column ? GridColumn.IdOf(column) : null, false, keepFocus, select);
+    }
+
+    /// <summary>The form's copy button: the whole value, with the notes of Ctrl+C.</summary>
+    public Task CopyValueAsync(ColumnInfo column, object? value) => ExportActions.CopyCellAsync(Shell, _grid, column, value);
+
+    private async Task SetFormOpenAsync(IFormTab tab, bool open)
+    {
+        tab.FormOpen = open;
+        Shell.MarkDirty();
+        await InvokeAsync(StateHasChanged);
+        await OnFormChanged.InvokeAsync();
+    }
+
+    /// <summary>The context menu or a compared row's heading: the form on that row.</summary>
+    private async Task OpenFormAsync(int rowIndex, int? column)
+    {
+        if (FormTab is not { } tab)
+        {
+            return;
+        }
+
+        if (!tab.FormOpen)
+        {
+            await SetFormOpenAsync(tab, true);
+        }
+
+        await FocusRowAsync(new GridCell(rowIndex, null, column), keepFocus: false, select: true);
+    }
+
+    /// <summary>The form's ✕ (or Alt+Enter in it): closed, the keyboard back in the grid.</summary>
+    private async Task CloseFormAsync()
+    {
+        if (FormTab is not { } tab)
+        {
+            return;
+        }
+
+        await SetFormOpenAsync(tab, false);
+        await FocusRowAsync(Focused ?? new GridCell(0, null, null), keepFocus: false);
+    }
+
+    /// <summary>The selected rows side by side; rows no longer loaded are counted, not compared.</summary>
+    private void Compare(IReadOnlyList<int> selected)
+    {
+        if (selected.Count > RowComparison.MaxRows)
+        {
+            Shell.Notify(TextFormat.Format(SchemaViewText.Tab_CompareTooMany, RowComparison.MaxRows, selected.Count));
+            return;
+        }
+
+        var rows = selected.Select(i => (Index: i, Row: RowAt(i))).Where(r => r.Row is not null).Select(r => (r.Index, r.Row!)).ToList();
+        if (rows.Count < 2)
+        {
+            Shell.Notify(SchemaViewText.Tab_CompareTooFew);
+            return;
+        }
+
+        _compare = (rows, selected.Count - rows.Count);
+    }
+
+    private Task ShowComparedRowAsync(int rowIndex)
+    {
+        _compare = null;
+        return OpenFormAsync(rowIndex, null);
     }
 
     public async ValueTask DisposeAsync()

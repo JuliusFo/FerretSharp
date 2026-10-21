@@ -106,9 +106,10 @@
             {
                 <div class="grid-host">
                     <SqlResultGrid @key="@($"{_runKey}-{Tab.SelectedRun}")" WorkspaceId="Tab.WorkspaceId" Query="run.Query" FirstPage="run.FirstPage"
-                                   OnStatus="OnGridStatus" InsertTarget="InsertTarget(run.Info)" ExportName="@ExportName(run.Info)" ExportsAllRows="true" />
+                                   OnStatus="OnGridStatus" InsertTarget="InsertTarget(run.Info)" ExportName="@ExportName(run.Info)" ExportsAllRows="true"
+                                   FormTab="Tab" OnFormChanged="StateHasChanged" />
                 </div>
-                <ResultFooter Status="_grid" />
+                <ResultFooter Status="_grid" FormTab="Tab" OnToggleForm="ToggleForm" />
             }
             else if (run.SchemaChanged)
             {
@@ -707,6 +708,13 @@
         info.Tables is [{ Depth: 0 } only] && Active.Schema is { } schema ? SqlCompletion.Resolve(schema, only) : null;
 
     private string ExportName(SqlStatementInfo info) => InsertTarget(info)?.DisplayName ?? Tab.Title;
+
+    /// <summary>The form beside the result (WP-56): open or close; saved with the tab.</summary>
+    private void ToggleForm()
+    {
+        Tab.FormOpen = !Tab.FormOpen;
+        Shell.MarkDirty();
+    }
 
     /// <summary>Whether the statement's write is still uncommitted, was taken back (↶) or ended with commit or rollback.</summary>
     private WriteFate FateOf(SqlRun run) =>
