@@ -659,7 +659,7 @@ code.condition { font: 12px var(--mono); white-space: pre-wrap; }
 .structure-loading.padded { padding: 20px; }
 .grid-host { flex: 1; min-height: 0; position: relative; }
 /* A slow block of a table grid (fix 3.45.1): RunProgress over the rows, the grid stays usable beside it. */
-.grid-loading { position: absolute; inset: 0; z-index: 5; display: flex; justify-content: center; align-items: flex-start; pointer-events: none; }
+.grid-loading { position: absolute; inset: 0; z-index: 5; display: flex; justify-content: center; align-items: center; pointer-events: none; }
 .grid-loading > .run-progress { pointer-events: auto; }
 .ag-host { height: 100%; }
 .tab-footer {

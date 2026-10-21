@@ -34,7 +34,8 @@
         <button class="status-btn" @onclick="CountAsync">@GridText.Footer_CountRows</button>
     }
     <SelectionCount Grid="Grid" AllLoaded="Tab.AllRowsLoaded" />
-    @if (Tab.LastQueryTime is { } time)
+    @* While loading, the time would be the query's before. *@
+    @if (Tab.LastQueryTime is { } time && !Loading)
     {
         <span>@TimeText.Duration(time)</span>
     }
