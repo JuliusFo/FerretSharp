@@ -1,0 +1,71 @@
+@* Settings › Display columns (WP-31): names beside foreign keys on or off, and the file that lists the display columns
+   (R6b: a section of its own). *@
+@using FerretSharp.Core.Settings
+@inject AppSettingsService Settings
+@inject FerretSharp.Core.Display.DisplayColumnSource DisplaySource
+@inject IFileOpenService Files
+
+<section class="settings-section">
+    <h2>@SettingsViewText.Settings_DisplayColumns</h2>
+    <SettingsChoice TValue="bool" Filter="Filter" Key="SettingKey.ShowDisplayNames" Label="@SettingsViewText.Settings_ShowDisplayNames" Options="SettingsOptions.OnOff"
+                    Value="Settings.Current.ShowDisplayNames" OnChange="on => UpdateAsync(s => s with { ShowDisplayNames = on })">
+        <Hint><Fmt Text="@SettingsViewText.Settings_ShowDisplayNamesHint"><Arg0><code>@SettingsCatalog.DisplayNameExample</code></Arg0></Fmt></Hint>
+    </SettingsChoice>
+    <div class="settings-row @Filter.HideClass(SettingKey.DisplayColumnsFile)">
+        <div class="settings-label">
+            <span>@SettingsViewText.Settings_DisplayColumnsFile</span>
+            <span class="hint">@SettingsViewText.Settings_DisplayColumnsFileHint</span>
+        </div>
+        <div class="settings-path">
+            <input class="field mono" spellcheck="false" placeholder="@SettingsViewText.Settings_DisplayColumnsDefault" value="@_displayPath"
+                   @onchange="e => SetDisplayColumnsPathAsync((string?)e.Value)" aria-label="@SettingsViewText.Settings_DisplayColumnsFile" />
+            <button class="btn" @onclick="PickDisplayColumnsAsync">@CommonText.Choose</button>
+            @if (!string.IsNullOrWhiteSpace(_displayPath))
+            {
+                <button class="btn ghost" title="@SettingsViewText.Settings_DisplayColumnsResetTitle" @onclick="() => SetDisplayColumnsPathAsync(null)">@SettingsViewText.Settings_DisplayColumnsReset</button>
+            }
+        </div>
+    </div>
+    @{ var display = DisplaySource.Load(_displayPath); }
+    @if ((display.Error ?? display.ReadOnly) is { } problem)
+    {
+        <div class="settings-note error @Filter.HideClass(SettingKey.DisplayColumnsFile)">@problem</div>
+    }
+    else
+    {
+        <div class="settings-note @Filter.HideClass(SettingKey.DisplayColumnsFile)">
+            @(display.Exists
+                ? TextFormat.Plural(display.Columns.Count, SettingsViewText.Settings_DisplayColumnsCountOne, SettingsViewText.Settings_DisplayColumnsCountOther, display.Path)
+                : TextFormat.Format(SettingsViewText.Settings_DisplayColumnsNoFile, display.Path))
+        </div>
+    }
+</section>
+
+@code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public SettingsFilter Filter { get; set; } = null!;
+
+    /// <summary>The display columns file as the field shows it (WP-31); null = the data folder.</summary>
+    private string? _displayPath;
+
+    protected override void OnInitialized() => _displayPath = Settings.Current.DisplayColumnsPath;
+
+    private Task SetDisplayColumnsPathAsync(string? path)
+    {
+        _displayPath = PathInput.Normalize(path);
+        return UpdateAsync(s => s with { DisplayColumnsPath = _displayPath });
+    }
+
+    private async Task PickDisplayColumnsAsync()
+    {
+        if (await Files.PickAsync(SettingsViewText.Settings_DisplayColumnsFilter, ["json"], _displayPath) is { } path)
+        {
+            await SetDisplayColumnsPathAsync(path);
+        }
+    }
+
+    private Task UpdateAsync(Func<AppSettings, AppSettings> change) => Shell.TrySaveSettingsAsync(() => Settings.UpdateAsync(change, CancellationToken.None));
+}

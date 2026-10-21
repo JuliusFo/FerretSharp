@@ -27,10 +27,6 @@
     <value>{0} is not a valid schema comparison file: {1}</value>
     <comment>{0}: file path; {1}: error message of the JSON reader</comment>
   </data>
-  <data name="FileFromNewerVersionNotOverwritten" xml:space="preserve">
-    <value>{0} comes from a newer version of FerretSharp (format {1}). It will not be overwritten.</value>
-    <comment>{0}: file path; {1}: format version number</comment>
-  </data>
   <data name="ExportObject" xml:space="preserve">
     <value>Object</value>
     <comment>Column header of the comparison exported as a Markdown table</comment>
@@ -272,5 +268,11 @@
   <data name="DropCheck" xml:space="preserve">
     <value>Drops the check constraint.</value>
     <comment>Check constraint</comment>
+  </data>
+  <data name="CutsFractionalSeconds" xml:space="preserve">
+    <value>Goes through with data, but the values lose their fractional seconds.</value>
+  </data>
+  <data name="PadsWithBlanks" xml:space="preserve">
+    <value>Goes through with data, but every value is padded with blanks to the full length – comparisons with VARCHAR2 values may no longer match.</value>
   </data>
 </root>

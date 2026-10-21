@@ -1,0 +1,124 @@
+@* The FK jumps of a context menu (the grid's cell menu, the menu of a query result – WP-48): "Points to" and "Referenced
+   by" with the rows behind incoming jumps, counted at once or on hover (FkCountMode), then "Referenced via" for what
+   references a base table of the row's table (BaseTables); a jump opens the target table filtered. *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Query
+@inherits FerretComponent
+@implements IDisposable
+@inject ILogger<FkJumpSection> Logger
+@inject AppSettingsService Settings
+
+@if (Outgoing.Count > 0)
+{
+    <div class="group-head-btn static">@TextFormat.Format(GridText.GridMenu_PointsTo, RowsText)</div>
+    @foreach (var jump in Outgoing)
+    {
+        <FkJumpItem Jump="jump" Related="Related(jump)" OnJump="JumpAsync" />
+    }
+}
+
+@foreach (var (via, jumps) in FkJumpLists.Groups(Incoming))
+{
+    <div class="group-head-btn static" title="@(via is null ? null : FkTargets.ViaTitle(Active, via, jumps))">
+        @(via is null ? TextFormat.Format(GridText.GridMenu_ReferencedBy, RowsText) : TextFormat.Format(GridText.GridMenu_ReferencedVia, FkTargets.Label(Active, via), RowsText))
+    </div>
+    @foreach (var jump in jumps)
+    {
+        <FkJumpItem Jump="jump" Count="_counts.Of(jump)" Related="Related(jump)" OnJump="JumpAsync" OnEnter="Hover" OnLeave="_counts.Leave" />
+    }
+}
+
+@if (Outgoing.Count == 0 && Incoming.Count == 0)
+{
+    @if (ShowEmpty)
+    {
+        <div class="ctx-empty">@GridText.GridMenu_NoForeignKeys</div>
+    }
+}
+else if (MissingRows > 0)
+{
+    <div class="ctx-note">@TextFormat.Format(GridText.GridMenu_MissingRows, ExportActions.RowsText(MissingRows))</div>
+}
+
+@code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceManager Workspaces { get; set; } = null!;
+
+    private readonly CancellationTokenSource _cts = new();
+    private FkCounts _counts = null!;
+
+    /// <summary>Jumps to the rows the selected rows reference, those over the clicked column first.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<FkJump> Outgoing { get; set; } = [];
+
+    /// <summary>
+    /// Jumps to the rows referencing the selected rows, those through base tables last (<see cref="FkJumpLists.Of"/>);
+    /// counted in the workspace's session.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<FkJump> Incoming { get; set; } = [];
+
+    /// <summary>The jump goes over the clicked column: highlighted.</summary>
+    [Parameter, EditorRequired]
+    public Func<FkJump, bool> Related { get; set; } = _ => false;
+
+    /// <summary>" · 3 rows" after the headings if several rows are selected; empty for one row.</summary>
+    [Parameter]
+    public string RowsText { get; set; } = "";
+
+    /// <summary>Selected rows no longer loaded: left out of the jumps, mentioned below them.</summary>
+    [Parameter]
+    public int MissingRows { get; set; }
+
+    /// <summary>The workspace the rows were read in: incoming jumps are counted there.</summary>
+    [Parameter, EditorRequired]
+    public Guid WorkspaceId { get; set; }
+
+    /// <summary>Says so when there are no jumps (a table grid); a query result without traced columns shows nothing.</summary>
+    [Parameter]
+    public bool ShowEmpty { get; set; }
+
+    /// <summary>After a jump opened its tab: the menu closes.</summary>
+    [Parameter]
+    public EventCallback OnJumped { get; set; }
+
+    protected override void OnInitialized()
+    {
+        _counts = FkCounts.For(Shell, Logger, Active, Workspaces, WorkspaceId, () => InvokeAsync(StateHasChanged));
+        // One after the other: they share the workspace's session. Closing the menu cancels the rest.
+        if (Settings.Current.FkCounts == FkCountMode.Immediately)
+        {
+            var token = _cts.Token;
+            Fire(() => _counts.CountAllAsync(Incoming, token));
+        }
+    }
+
+    /// <summary>Counts the entry the mouse rests on (<see cref="FkCountMode.OnHover"/>); a jump then waits for one count at most.</summary>
+    private void Hover(FkJump jump)
+    {
+        if (Settings.Current.FkCounts == FkCountMode.OnHover && jump.Direction == JumpDirection.Incoming && !_cts.IsCancellationRequested)
+        {
+            var token = _cts.Token;
+            Fire(() => _counts.HoverAsync(jump, token));
+        }
+    }
+
+    private async Task JumpAsync(FkJump jump)
+    {
+        await _cts.CancelAsync();
+        Shell.OpenFiltered(FkTargets.SummaryOf(Active, jump.Table), jump.Filters);
+        await OnJumped.InvokeAsync();
+    }
+
+    public void Dispose()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
+    }
+}

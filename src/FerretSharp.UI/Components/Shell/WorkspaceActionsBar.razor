@@ -1,0 +1,73 @@
+@* Write, undo/redo, commit and rollback of a workspace's changes (R4b): the same buttons, titles and shortcuts in the status
+   bar and the change overview – before, each had its own copy of them. *@
+@using FerretSharp.Core.Data
+@inherits FerretComponent
+@implements IDisposable
+@inject ShortcutService Shortcuts
+
+<span class="status-group">
+    <button class="status-btn" title="@TextFormat.Format(ShellText.Status_FlushTitle, Shortcuts.Hint(ShortcutAction.Flush))" disabled="@(Busy || Summary.Pending == 0)"
+            @onclick="() => Editing.FlushAsync(Workspace)">@ShellText.Status_Flush</button>
+    @if (UndoRedo)
+    {
+        var redoBlocker = Summary.CanRedo ? Editing.RedoBlocker(Workspace) : null;
+        <button class="status-btn" title="@(Summary.Actions is [.., var last] ? TextFormat.Format(ShellText.Status_UndoTitle, last.Display, SourceOf(last)) : ShellText.Status_NothingToUndo)"
+                disabled="@(Busy || !Summary.CanUndo)" @onclick="() => Editing.UndoLastAsync(Workspace, Summary.Actions is [.., var newest] ? newest.Id : null)">↶</button>
+        <button class="status-btn" title="@(Summary.Undone is [var next, ..] ? redoBlocker ?? TextFormat.Format(ShellText.Status_RedoTitle, next.Display, SourceOf(next)) : ShellText.Status_NothingToRedo)"
+                disabled="@(Busy || !Summary.CanRedo || redoBlocker is not null)" @onclick="() => Summary.Undone is [var redo, ..] ? Lifecycle.RequestRedo(Workspace, redo) : Task.CompletedTask">↷</button>
+    }
+    <button class="status-btn commit" title="@(StatementRunning ? GridText.Editing_StatementRunning : TextFormat.Format(ShellText.Status_CommitTitle, Shortcuts.Hint(ShortcutAction.Commit)))"
+            disabled="@(Busy || StatementRunning)" @onclick="() => Lifecycle.RequestCommitAsync(Workspace)">Commit</button>
+    <button class="status-btn danger" title="@(StatementRunning ? GridText.Editing_StatementRunning : ShellText.DiscardAll)" disabled="@(Busy || StatementRunning)"
+            @onclick="() => Lifecycle.RequestRollback(Workspace)">Rollback</button>
+    @if (Editing.IsStuck(Workspace.WorkspaceId))
+    {
+        <button class="status-btn danger" title="@ShellText.Status_StuckTitle"
+                @onclick="() => Lifecycle.RequestResetSession(Workspace.WorkspaceId)">@SqlEditorText.Run_DisconnectSessionAsk</button>
+    }
+</span>
+
+@code {
+    /// <summary>Renders once a running write would count as stuck, so "Disconnect session" appears without other changes.</summary>
+    private Timer? _stuck;
+
+    protected override void OnParametersSet()
+    {
+        if (Editing.BusySince(Workspace.WorkspaceId) is { } since && !Editing.IsStuck(Workspace.WorkspaceId) && _stuck is null)
+        {
+            var due = since + WorkspaceEditing.StuckAfter - DateTimeOffset.Now;
+            _stuck = new Timer(_ => Fire(() =>
+            {
+                _stuck?.Dispose();
+                _stuck = null;
+                StateHasChanged();
+            }), null, due > TimeSpan.Zero ? due : TimeSpan.Zero, Timeout.InfiniteTimeSpan);
+        }
+    }
+
+    public void Dispose() => _stuck?.Dispose();
+
+    [Parameter, EditorRequired]
+    public WorkspaceTabs Workspace { get; set; } = null!;
+
+    /// <summary>The workspace's counts, as the caller read them for its own text.</summary>
+    [Parameter, EditorRequired]
+    public EditSummary Summary { get; set; } = null!;
+
+    /// <summary>A parameter (not only cascaded), so the buttons render again whenever their bar does.</summary>
+    [Parameter, EditorRequired]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
+    /// <summary>↶ and ↷ as well (the status bar; the change overview undoes up to an action itself).</summary>
+    [Parameter]
+    public bool UndoRedo { get; set; }
+
+    private WorkspaceEditing Editing => Lifecycle.Editing;
+
+    private bool Busy => Editing.IsBusy(Workspace.WorkspaceId);
+
+    /// <summary>A SQL/LINQ write of the workspace is running: commit and rollback would take it along unseen (review 3.40.0, A1).</summary>
+    private bool StatementRunning => Editing.IsStatementRunning(Workspace.WorkspaceId);
+
+    private static string SourceOf(WriteAction action) => action.Kind == WriteActionKind.Grid ? "Grid" : "SQL/LINQ";
+}

@@ -1,0 +1,586 @@
+@* LINQ console tab (WP-13, ADR 0011): C# against the linked project's DbContext. The model host turns it into the SQL
+   EF would send; FerretSharp runs that in the workspace's session – reading always, writing (ExecuteUpdate/Delete) only
+   on writable workspaces and only after the user pressed "Run in workspace" below the statement. *@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Data
+@using FerretSharp.Core.Query
+@inherits FerretComponent
+@implements IDisposable
+@inject ShortcutService Shortcuts
+@inject AppSettingsService Settings
+
+<div class="linqview">
+    <div class="tab-toolbar">
+        @Icons.Code
+        <TabTitle Tab="Tab" />
+        @if (Console.State.Phase == LinqConsolePhase.Starting || Console.State.IsReloading)
+        {
+            <span class="spinner small"></span>
+        }
+        <span class="linq-console @ConsoleClass" title="@ConsoleTitle"><span class="linq-console-label">@SqlEditorText.Linq_ConsoleLabel</span> @ConsoleText</span>
+        @if (Console.State.Phase == LinqConsolePhase.Starting && !_running)
+        {
+            <button class="btn ghost" title="@SqlEditorText.Linq_CancelStartTitle" @onclick="Console.CancelStart">@CommonText.Cancel</button>
+        }
+        <span class="spacer"></span>
+        <button class="btn primary" disabled="@(_running || Console.State.Phase == LinqConsolePhase.NotLinked)" @onclick="RunAsync"
+                title="@SqlEditorText.Linq_RunTitle">
+            ▶ @CommonText.Run <Kbd Action="ShortcutAction.ApplyFilters" />
+        </button>
+    </div>
+
+    <div class="linq-editors">
+        <div class="linq-label">
+            @SqlEditorText.Editor_Variables
+            <span class="hint">
+                <Fmt Text="@SqlEditorText.Linq_VariablesHint">
+                    <Arg0><code>var kundeId = 4711;</code></Arg0>
+                    <Arg1><code>_context</code></Arg1>
+                    <Arg2><code>db</code></Arg2>
+                    <Arg3><code>ct</code></Arg3>
+                </Fmt>
+            </span>
+        </div>
+        <MonacoEditor @ref="_variablesEditor" Minimal="true" Class="linq-variables" Text="@Tab.Variables" OnChange="OnVariablesChanged" Completion="CompleteVariablesAsync"
+                      Markers="Markers(LinqProtocol.VariablesSection)" Placeholder="// var kundeId = 4711;" />
+        <div class="linq-label">
+            @SqlEditorText.Linq_Query
+            <span class="hint"><Fmt Text="@SqlEditorText.Linq_QueryHint"><Arg0><code>return</code></Arg0></Fmt></span>
+        </div>
+        <MonacoEditor @ref="_codeEditor" Class="linq-code" Text="@Tab.Code" OnChange="OnCodeChanged" Completion="CompleteCodeAsync" Markers="Markers(LinqProtocol.CodeSection)"
+                      Placeholder="return await db.Kunden.Where(k => k.KundeId == kundeId).ToListAsync(ct);" />
+    </div>
+
+    <div class="linq-output">
+        @if (_error is not null)
+        {
+            <div class="tab-error" title="@_errorDetail">@_error</div>
+        }
+
+        @if (_running && _phase == RunPhase.Translating)
+        {
+            <RunProgress @key="_phaseStarted" WorkspaceId="Tab.WorkspaceId" Title="@SqlEditorText.Linq_Translating" Started="_phaseStarted"
+                         OnCancel="Cancel" Database="false" />
+        }
+        else if (Tab.LastRun is { } run)
+        {
+            @if (run.UnknownNames.Count > 0)
+            {
+                <div class="linq-notice">
+                    <Fmt Text="@SqlEditorText.Linq_UnknownNames">
+                        <Arg0><strong>@TextFormat.Plural(run.UnknownNames.Count, SqlEditorText.Linq_UnknownNamesOne, SqlEditorText.Linq_UnknownNamesOther)</strong></Arg0>
+                    </Fmt>
+                    <pre class="linq-declarations">@string.Join("\n", run.UnknownNames.Select(u => u.Declaration))</pre>
+                    <button class="btn" @onclick="AdoptDeclarationsAsync">@SqlEditorText.Linq_AdoptDeclarations</button>
+                </div>
+            }
+
+            var problems = run.Diagnostics.OrderByDescending(d => d.Severity == "error").ToList();
+            @if (problems.Count > 0)
+            {
+                <ul class="linq-diagnostics">
+                    @foreach (var d in problems)
+                    {
+                        var diagnostic = d;
+                        <li class="@diagnostic.Severity" @onclick="() => RevealAsync(diagnostic)" title="@SqlEditorText.Linq_GoToLocation">
+                            <span class="where">@(diagnostic.Section == LinqProtocol.CodeSection ? SqlEditorText.Linq_Query : SqlEditorText.Editor_Variables) @diagnostic.Line:@diagnostic.Column</span>
+                            <span class="id">@diagnostic.Id</span>
+                            @diagnostic.Message
+                        </li>
+                    }
+                </ul>
+            }
+
+            @if (run.Commands.Count == 0 && run.UnknownNames.Count == 0 && !run.HasErrors)
+            {
+                <div class="linq-notice muted">
+                    @SqlEditorText.Linq_NoSql
+                    @if (run.Exception is { } thrown)
+                    {
+                        <span class="error">@TextFormat.Format(SqlEditorText.Linq_Exception, thrown)</span>
+                    }
+                </div>
+            }
+
+            @if (run.Commands.Count > 0)
+            {
+                var command = run.Commands[Math.Clamp(Tab.SelectedCommand, 0, run.Commands.Count - 1)];
+                var kind = LinqStatements.KindOf(command);
+                <div class="linq-commands">
+                    @if (run.Commands.Count > 1)
+                    {
+                        @for (var i = 0; i < run.Commands.Count; i++)
+                        {
+                            var index = i;
+                            <button class="chip-btn @(index == Tab.SelectedCommand ? "active" : "")" disabled="@_running" @onclick="() => SelectCommandAsync(index)">
+                                @(index + 1) · @SqlScript.FirstWord(run.Commands[index].Sql)
+                            </button>
+                        }
+                    }
+                    <span class="muted">@(run.ResultType is { } type
+                        ? TextFormat.Format(SqlEditorText.Linq_TranslatedWithType, type, TimeText.Duration(run.Elapsed))
+                        : TextFormat.Format(SqlEditorText.Linq_Translated, TimeText.Duration(run.Elapsed)))</span>
+                    <span class="spacer"></span>
+                    @if (kind == LinqCommandKind.Query && _query is not null)
+                    {
+                        <button class="btn ghost" title="@SqlEditorText.Linq_PlanTitle"
+                                @onclick="() => _planOpen = true">@SqlEditorText.Plan_Open</button>
+                    }
+                    <button class="btn ghost" @onclick="() => _showSql = !_showSql">@Icons.Code @(_showSql ? SqlEditorText.Linq_HideSql : "SQL")</button>
+                </div>
+
+                @if (_showSql || kind != LinqCommandKind.Query)
+                {
+                    <div class="linq-sql">
+                        <SqlCode Sql="@command.Sql" Class="linq-sql-code" />
+                        @if (command.Parameters.Count > 0)
+                        {
+                            <div class="linq-params">
+                                @foreach (var p in command.Parameters)
+                                {
+                                    <span><code>:@p.Name</code> = @(p.Value ?? "NULL") <span class="muted">@p.OracleType</span></span>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+
+                @switch (kind)
+                {
+                    case LinqCommandKind.Query when _query is not null && _running && _phase == RunPhase.Reading:
+                        <RunProgress @key="_phaseStarted" WorkspaceId="Tab.WorkspaceId" Title="@SqlEditorText.Run_QueryRunning" Started="_phaseStarted"
+                                     Detail="@command.Sql" OnCancel="Cancel" />
+                        break;
+                    case LinqCommandKind.Query when _query is not null:
+                        @if (_firstPage is not null)
+                        {
+                            <div class="grid-host">
+                                <SqlResultGrid @key="_runKey" WorkspaceId="Tab.WorkspaceId" Query="_query" FirstPage="_firstPage" OnStatus="OnGridStatus" />
+                            </div>
+                        }
+                        <ResultFooter Status="_grid">
+                            <ErrorActions Context="error">
+                                @if (error.ErrorCode == "ORA-00904")
+                                {
+                                    @* The model maps a column the database does not have (yet): the model page lists such drift. *@
+                                    <button class="btn ghost" title="@SqlEditorText.Linq_ModelMismatchTitle"
+                                            @onclick="Shell.ShowModel">@SqlEditorText.Linq_ShowModelMismatches</button>
+                                }
+                            </ErrorActions>
+                        </ResultFooter>
+                        break;
+                    case LinqCommandKind.Write:
+                        <div class="linq-write">
+                            @if (_running && _phase == RunPhase.Writing)
+                            {
+                                <RunProgress @key="_phaseStarted" WorkspaceId="Tab.WorkspaceId" Title="@TextFormat.Format(SqlEditorText.Run_StatementRunning, SqlScript.FirstWord(command.Sql))" Started="_phaseStarted"
+                                             Detail="@command.Sql" MayWaitForLock="true" OnCancel="Cancel" />
+                            }
+                            else if (_written is { } written)
+                            {
+                                var took = _writtenElapsed is { } elapsed ? $" ({TimeText.Duration(elapsed)})" : "";
+                                <WriteOutcome Rows="written.Rows" Fate="WorkspaceEditing.FateOf(Workspaces, Tab.WorkspaceId, written.Id, _writtenIn)" Detail="@took" />
+                            }
+                            else if (Workspaces.IsWritable(Tab.WorkspaceId))
+                            {
+                                <p>@SqlEditorText.Linq_WriteHint</p>
+                                <button class="btn danger-solid" disabled="@_running" @onclick="RequestWriteAsync">@SqlEditorText.Linq_RunInWorkspace</button>
+                            }
+                            else
+                            {
+                                <p>@SqlEditorText.Linq_WorkspaceReadOnly</p>
+                                <button class="btn" @onclick="() => Shell.RequestUnlock(Tab.WorkspaceId)">@SqlEditorText.Editor_UnlockWorkspace</button>
+                            }
+                        </div>
+                        break;
+                    case LinqCommandKind.Unsupported:
+                        <div class="linq-notice muted">
+                            <Fmt Text="@SqlEditorText.Linq_Unsupported">
+                                <Arg0><code>ExecuteUpdate</code></Arg0>
+                                <Arg1><code>ExecuteDelete</code></Arg1>
+                            </Fmt>
+                        </div>
+                        break;
+                }
+            }
+        }
+        else if (_error is null)
+        {
+            <EmptyState Title="@SqlEditorText.Linq_EmptyTitle"
+                        Text="@(Shortcuts.Label(ShortcutAction.ApplyFilters) is { } key ? TextFormat.Format(SqlEditorText.Linq_EmptyTextWithKey, key) : SqlEditorText.Linq_EmptyText)" />
+        }
+    </div>
+</div>
+
+@if (_confirmWrite && Active.Profile is { } prodProfile)
+{
+    <ConfirmDialog Title="@SqlEditorText.Linq_ConfirmProdTitle" ConfirmLabel="@CommonText.Run" Danger="true" OnConfirm="WriteAsync" OnCancel="() => _confirmWrite = false">
+        <Fmt Text="@SqlEditorText.Linq_ConfirmProd">
+            <Arg0><strong>@Tab.Title</strong></Arg0>
+            <Arg1><strong>@ConnectionLabel.Of(prodProfile, Settings.Current)</strong></Arg1>
+        </Fmt>
+    </ConfirmDialog>
+}
+
+@if (_planOpen && _query is { } planQuery)
+{
+    <PlanDialog Query="planQuery" WorkspaceId="Tab.WorkspaceId" Title="@TextFormat.Format(SqlEditorText.Linq_PlanDialogTitle, Tab.Title, Tab.SelectedCommand + 1)" OnClose="() => _planOpen = false" />
+}
+
+@code {
+    private LinqRunResult? _markersOf;
+    private readonly Dictionary<string, IReadOnlyList<LinqDiagnostic>> _markers = [];
+
+    [CascadingParameter]
+    public LinqConsoleService Console { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceManager Workspaces { get; set; } = null!;
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    private MonacoEditor? _variablesEditor;
+    private bool _planOpen;
+    private MonacoEditor? _codeEditor;
+    private CancellationTokenSource? _cts;
+    private bool _confirmWrite; // Prod: asked before writing
+    private bool _running;
+    private bool _showSql;
+    private string? _error;
+    private string? _errorDetail;
+    private QuerySpec? _query;
+    private int _runKey;
+    private SqlGridStatus? _grid;
+    private WriteAction? _written;
+    private TimeSpan? _writtenElapsed;
+
+    /// <summary>The selected query's first page, read here (cancellable, shown by <see cref="RunProgress"/>); the grid reads the rest.</summary>
+    private SqlPage? _firstPage;
+
+    /// <summary>What the running work is at, and since when (one <see cref="RunProgress"/> per phase).</summary>
+    private RunPhase _phase;
+    private DateTimeOffset _phaseStarted;
+
+    /// <summary>Start of the transaction <see cref="_written"/> ran in (to tell undo from commit/rollback).</summary>
+    private DateTimeOffset? _writtenIn;
+
+    private enum RunPhase
+    {
+        Translating,
+        Reading,
+        Writing,
+    }
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public LinqTab Tab { get; set; } = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Console.Changed += OnConsoleChanged;
+        Shell.TabCommandRequested += OnTabCommand;
+        Fire(Console.WarmUpAsync); // the host loads the model while the user writes
+        if (Tab.LastRun is not null)
+        {
+            await RunningAsync(ShowCommandAsync); // mounted again (workspace switch): show the last result
+        }
+    }
+
+    private string ConsoleText => Console.State switch
+    {
+        { Phase: LinqConsolePhase.NotLinked } => SqlEditorText.Linq_ConsoleNotLinked,
+        { Phase: LinqConsolePhase.Starting, Step: { } step } => step + " …",
+        { Phase: LinqConsolePhase.Starting } => SqlEditorText.Linq_ConsoleStarting,
+        { Phase: LinqConsolePhase.Ready, Step: { } step } => step + " …",
+        { Phase: LinqConsolePhase.Ready, Error: not null } => SqlEditorText.Linq_ConsoleReadyPreviousBuild,
+        { Phase: LinqConsolePhase.Ready } => SqlEditorText.Linq_ConsoleReady,
+        { Phase: LinqConsolePhase.Failed, Error: { } error } => TextFormat.Format(SqlEditorText.Linq_ConsoleFailed, error.Message),
+        _ => SqlEditorText.Linq_ConsoleStartsOnRun,
+    };
+
+    private string ConsoleClass => Console.State switch
+    {
+        { Phase: LinqConsolePhase.Ready, Error: not null } => "warn",
+        { Phase: LinqConsolePhase.Ready } => "ready",
+        { Phase: LinqConsolePhase.Failed or LinqConsolePhase.NotLinked } => "failed",
+        _ => "",
+    };
+
+    private string ConsoleTitle => Console.State switch
+    {
+        { Phase: LinqConsolePhase.Ready, Error: { } error } => error.Message + (error.Detail is { } detail ? Environment.NewLine + Environment.NewLine + detail : ""),
+        { Error.Detail: { } detail } => detail,
+        { IsReloading: true } => SqlEditorText.Linq_ConsoleReloadingTitle,
+        _ => SqlEditorText.Linq_ConsoleTitle,
+    };
+
+    /// <summary>
+    /// The run's diagnostics of a section – the same list until the next run: the editor sends markers to Monaco whenever
+    /// it gets another list, and the tab renders on every console state change.
+    /// </summary>
+    private IReadOnlyList<LinqDiagnostic> Markers(string section)
+    {
+        if (!ReferenceEquals(_markersOf, Tab.LastRun))
+        {
+            _markersOf = Tab.LastRun;
+            _markers.Clear();
+        }
+
+        if (!_markers.TryGetValue(section, out var markers))
+        {
+            markers = Tab.LastRun?.Diagnostics.Where(d => d.Section == section).ToList() ?? [];
+            _markers[section] = markers;
+        }
+
+        return markers;
+    }
+    private void OnVariablesChanged(string text)
+    {
+        Tab.Variables = text;
+        Shell.MarkDirty();
+    }
+
+    private void OnCodeChanged(string text)
+    {
+        Tab.Code = text;
+        Shell.MarkDirty();
+    }
+
+    /// <summary>Completion from the console's host (WP-19); the other section comes from the tab (at most 250 ms old).</summary>
+    private Task<IReadOnlyList<MonacoEditor.CompletionItem>> CompleteCodeAsync(string code, int offset) =>
+        CompleteAsync(code, Tab.Variables, LinqProtocol.CodeSection, offset);
+
+    private Task<IReadOnlyList<MonacoEditor.CompletionItem>> CompleteVariablesAsync(string variables, int offset) =>
+        CompleteAsync(Tab.Code, variables, LinqProtocol.VariablesSection, offset);
+
+    private async Task<IReadOnlyList<MonacoEditor.CompletionItem>> CompleteAsync(string code, string variables, string section, int offset)
+    {
+        // Off the UI thread: reading the host's answer (up to 3000 items at the start of a word) must not hold up typing.
+        return await Task.Run(async () =>
+        {
+            var items = await Console.CompleteAsync(code, variables, section, offset);
+            return (IReadOnlyList<MonacoEditor.CompletionItem>)items.Select(i => new MonacoEditor.CompletionItem(i.Label, i.InsertText, i.Kind, i.Detail, i.Rank)).ToList();
+        });
+    }
+
+    private void OnTabCommand(WorkspaceTab tab, TabCommand command)
+    {
+        if (tab != Tab)
+        {
+            return;
+        }
+
+        switch (command)
+        {
+            case TabCommand.ApplyFilters or TabCommand.Refresh:
+                Fire(RunAsync);
+                break;
+            case TabCommand.FindColumn when _codeEditor is not null:
+                Fire(_codeEditor.FindAsync);
+                break;
+        }
+    }
+
+    private async Task RunAsync()
+    {
+        if (_running)
+        {
+            return;
+        }
+
+        // The editors report changes debounced: take what they hold right now.
+        Tab.Code = await (_codeEditor?.GetTextAsync() ?? Task.FromResult<string?>(null)) ?? Tab.Code;
+        Tab.Variables = await (_variablesEditor?.GetTextAsync() ?? Task.FromResult<string?>(null)) ?? Tab.Variables;
+        Shell.MarkDirty();
+
+        _error = null;
+        _errorDetail = null;
+        _written = null;
+        await RunningAsync(async token =>
+        {
+            try
+            {
+                Begin(RunPhase.Translating);
+                var code = Tab.Code;
+                var variables = Tab.Variables;
+                Tab.LastRun = await Task.Run(() => Console.RunAsync(code, variables, token), token);
+                Tab.SelectedCommand = Math.Max(0, Tab.LastRun.Commands.ToList().FindIndex(c => LinqStatements.KindOf(c) != LinqCommandKind.Unsupported));
+            }
+            catch (OperationCanceledException)
+            {
+                _error = SqlEditorText.Run_Canceled;
+                return;
+            }
+            catch (ClrModelException ex)
+            {
+                _error = ex.Message;
+                _errorDetail = ex.Detail;
+                return;
+            }
+
+            await ShowCommandAsync(token);
+        });
+    }
+
+    /// <summary>
+    /// Runs <paramref name="work"/> as the tab's one running thing: the run buttons are disabled, <see cref="RunProgress"/>
+    /// shows it (<see cref="Begin"/>), "Cancel" cancels its token.
+    /// </summary>
+    private async Task RunningAsync(Func<CancellationToken, Task> work)
+    {
+        if (_running)
+        {
+            return;
+        }
+
+        _running = true;
+        using var cts = _cts = new CancellationTokenSource();
+        try
+        {
+            await work(cts.Token);
+        }
+        finally
+        {
+            _running = false;
+            _cts = null;
+            // Started from a shortcut (Ctrl+Enter), not a UI event: Blazor does not render on its own afterwards.
+            StateHasChanged();
+        }
+    }
+
+    private void Begin(RunPhase phase)
+    {
+        (_phase, _phaseStarted) = (phase, DateTimeOffset.Now);
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// The selected command: a query reads its first page here – cancellable, with the run panel – and goes to a new
+    /// result grid, which reads the later pages.
+    /// </summary>
+    private async Task ShowCommandAsync(CancellationToken token)
+    {
+        (_written, _grid, _firstPage, _query) = (null, null, null, null);
+        _runKey++;
+        if (Tab.LastRun is not { Commands.Count: > 0 } run
+            || run.Commands[Math.Clamp(Tab.SelectedCommand, 0, run.Commands.Count - 1)] is not { } command
+            || LinqStatements.KindOf(command) != LinqCommandKind.Query)
+        {
+            return;
+        }
+
+        var query = _query = LinqStatements.ToQuery(command);
+        Begin(RunPhase.Reading);
+        var outcome = await Lifecycle.Statements.ReadAsync(Tab.WorkspaceId, query, SqlResultGrid.PageSize, log: null, token);
+        if (outcome.Cancelled)
+        {
+            _error = token.IsCancellationRequested ? SqlEditorText.Linq_QueryCanceled : null;
+            return;
+        }
+
+        _firstPage = outcome.FirstPage;
+        _grid = outcome.Error is { } error ? new SqlGridStatus(false, 0, false, null, null, error) : null;
+    }
+
+    private Task SelectCommandAsync(int index)
+    {
+        if (_running)
+        {
+            return Task.CompletedTask;
+        }
+
+        Tab.SelectedCommand = index;
+        _error = null;
+        return RunningAsync(ShowCommandAsync);
+    }
+
+    private void Cancel() => _cts?.Cancel();
+
+    private void OnGridStatus(SqlGridStatus status) => _grid = status;
+
+    /// <summary>The button below the statement; on Prod it asks once more, like DML in the SQL editor (WP-17).</summary>
+    private Task RequestWriteAsync()
+    {
+        if (Active.Profile?.Kind == ConnectionKind.Prod)
+        {
+            _confirmWrite = true;
+            return Task.CompletedTask;
+        }
+
+        return WriteAsync();
+    }
+
+    /// <summary>ExecuteUpdate/ExecuteDelete: the user confirmed by pressing the button below the statement. "Cancel" stops it.</summary>
+    private async Task WriteAsync()
+    {
+        _confirmWrite = false;
+        if (Tab.LastRun is not { } run || !Workspaces.IsWritable(Tab.WorkspaceId))
+        {
+            return;
+        }
+
+        var statement = LinqStatements.ToQuery(run.Commands[Tab.SelectedCommand]);
+        _error = null;
+        StatementOutcome? outcome = null;
+        await RunningAsync(async token =>
+        {
+            Begin(RunPhase.Writing);
+            outcome = await Lifecycle.Statements.WriteAsync(Tab, statement, log: null, token);
+        });
+        if (outcome is null)
+        {
+            return; // another run was going on
+        }
+
+        if (outcome.Cancelled)
+        {
+            _error = SqlEditorText.Run_CanceledWriteUndone;
+            return;
+        }
+
+        _error = outcome.Error?.Display;
+        if (outcome.Written is not { } written)
+        {
+            return;
+        }
+
+        (_written, _writtenIn, _writtenElapsed) = (written, outcome.Transaction, outcome.Elapsed);
+        await Lifecycle.Statements.FinishAsync(Tab.WorkspaceId, wrote: true, changedSchema: false); // tabs may show the changed rows, the status bar the transaction
+    }
+
+    /// <summary>Appends the suggested declarations to the variables and puts the cursor on the first of them.</summary>
+    private async Task AdoptDeclarationsAsync()
+    {
+        if (Tab.LastRun is not { UnknownNames.Count: > 0 } run || _variablesEditor is null)
+        {
+            return;
+        }
+
+        var existing = (await _variablesEditor.GetTextAsync() ?? Tab.Variables).TrimEnd();
+        var firstLine = existing.Length == 0 ? 1 : existing.Split('\n').Length + 1;
+        Tab.Variables = (existing.Length == 0 ? "" : existing + "\n") + string.Join("\n", run.UnknownNames.Select(u => u.Declaration));
+        await _variablesEditor.SetTextAsync(Tab.Variables);
+        Tab.LastRun = run with { UnknownNames = [] };
+        Shell.MarkDirty();
+        await _variablesEditor.RevealAsync(firstLine, 1);
+    }
+
+    private Task RevealAsync(LinqDiagnostic diagnostic) =>
+        (diagnostic.Section == LinqProtocol.CodeSection ? _codeEditor : _variablesEditor)?.RevealAsync(diagnostic.Line, diagnostic.Column) ?? Task.CompletedTask;
+
+    private void OnConsoleChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Console.Changed -= OnConsoleChanged;
+        Shell.TabCommandRequested -= OnTabCommand;
+        _cts?.Cancel();
+    }
+}

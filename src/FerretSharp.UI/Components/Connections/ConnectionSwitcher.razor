@@ -1,0 +1,292 @@
+@using FerretSharp.Core.Connections
+@implements IAsyncDisposable
+@inject ConnectionManager Connections
+@inject RecentConnections Recent
+@inject ConnectionHub Hub
+@inject IJSRuntime JS
+@inject ShortcutService Shortcuts
+@inject AppSettingsService Settings
+
+<div class="switcher">
+    <button class="switcher-btn @(Shell.SwitcherOpen ? "open" : "") @(Active.Profile is { } ap ? ConnectionKindInfo.CssClass(ap.Kind) : "")"
+            title="@(ConnectionViewText.Switcher_ChooseConnection + Shortcuts.Hint(ShortcutAction.ConnectionSwitcher))" @onclick="Toggle">
+        @if (Active.Status == ConnectionStatus.Connecting)
+        {
+            <span class="spinner small"></span>
+        }
+        else
+        {
+            <span class="dot @(Active.Status == ConnectionStatus.Failed ? "err" : "")"></span>
+        }
+        @if (Active.Profile is { } activeProfile)
+        {
+            @if (ConnectionLabel.GroupOf(activeProfile, Settings.Current) is { } activeGroup)
+            {
+                <span class="switcher-group" title="@activeGroup">@activeGroup</span>
+                <span class="switcher-sep">›</span>
+            }
+            <span class="switcher-name">@activeProfile.Name</span>
+            <span class="kind-badge">@ConnectionKindInfo.Short(activeProfile.Kind)</span>
+        }
+        else
+        {
+            <span>@ConnectionViewText.Switcher_ChooseConnection</span>
+        }
+        <span class="chev">▾</span>
+    </button>
+
+    @if (Shell.SwitcherOpen)
+    {
+        <div class="popover-backdrop" @onclick="Shell.CloseSwitcher"></div>
+        <div class="popover switcher-pop" @onkeydown="OnKeyDown">
+            <SearchBox @ref="_search" Class="popover-search" Placeholder="@ConnectionViewText.Switcher_Search"
+                       @bind-Value="_query" @bind-Value:after="() => _highlight = 0">
+                <Kbd Action="ShortcutAction.ConnectionSwitcher" />
+            </SearchBox>
+
+            <div class="popover-list">
+                @{ Recompute(); var index = 0; }
+                @if (Connections.Profiles.Count == 0)
+                {
+                    <div class="popover-empty">@ConnectionViewText.Switcher_NoConnections</div>
+                }
+                else if (_visible.Count == 0)
+                {
+                    <div class="popover-empty">@TextFormat.Format(ConnectionViewText.Connection_NoMatch, _query)</div>
+                }
+
+                @if (_open.Count > 0)
+                {
+                    <div class="group-head-btn static" title="@(Shortcuts.Label(ShortcutAction.PreviousConnection) is { } key ? TextFormat.Format(ConnectionViewText.Switcher_OpenTitleKey, key) : ConnectionViewText.Switcher_OpenTitle)">@ConnectionViewText.Switcher_Open</div>
+                    @foreach (var profile in _open)
+                    {
+                        @Row(profile, index++, withGroup: true)
+                    }
+                }
+
+                @if (_recent.Count > 0)
+                {
+                    <div class="group-head-btn static">@ConnectionViewText.Switcher_Recent</div>
+                    @foreach (var profile in _recent)
+                    {
+                        @Row(profile, index++, withGroup: true)
+                    }
+                }
+
+                @foreach (var group in _groups)
+                {
+                    var key = group.Name ?? "";
+                    var collapsed = !Searching && _collapsed.Contains(key);
+                    <button class="group-head-btn" @onclick="() => ToggleGroup(key)">
+                        <span class="chev @(collapsed ? "closed" : "")">▾</span>
+                        <span>@(group.Name ?? ConnectionViewText.Connection_NoGroup)</span>
+                        <span class="count">@group.Profiles.Count</span>
+                    </button>
+
+                    @if (!collapsed)
+                    {
+                        foreach (var profile in group.Profiles)
+                        {
+                            @Row(profile, index++)
+                        }
+                    }
+                }
+            </div>
+
+            <div class="popover-footer">
+                <button class="menu-item" @onclick="NewConnection"><span class="plus">+</span> @ConnectionViewText.Connection_New</button>
+                <button class="menu-item" @onclick="Shell.ShowConnections">@ConnectionViewText.Switcher_ManageAll</button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    private const int RecentCount = 3;
+
+    private readonly HashSet<string> _collapsed = [];
+    private SearchBox? _search;
+    private DomModule? _dom;
+
+    /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
+    private DomModule Dom => _dom ??= new(JS);
+    private bool _scrollToHighlight;
+    private bool _wasOpen;
+    private string _query = "";
+    private int _highlight;
+    private IReadOnlyList<ConnectionGroup> _groups = [];
+    private IReadOnlyList<ConnectionProfile> _recent = [];
+    private IReadOnlyList<ConnectionProfile> _open = [];
+    private List<ConnectionProfile> _visible = [];
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
+    private bool Searching => !string.IsNullOrWhiteSpace(_query);
+
+    /// <param name="withGroup">The row is not under its group's heading (open, recent): the group goes in front of the name.</param>
+    private RenderFragment Row(ConnectionProfile p, int rowIndex, bool withGroup = false) =>
+        @<div id="conn-row-@rowIndex" class="conn-row @ConnectionKindInfo.CssClass(p.Kind) @(rowIndex == _highlight ? "highlight" : "")"
+              @onclick="() => Activate(p)" @onmouseenter="() => _highlight = rowIndex">
+            <span class="dot"></span>
+            <span class="name @(withGroup ? "with-group" : "")">
+                @if (withGroup && ConnectionLabel.GroupOf(p, Settings.Current) is { } group)
+                {
+                    <span class="row-group" title="@group">@group</span><span class="row-group-sep">›</span>
+                }
+                @p.Name
+                @if (Hub.Find(p.Id) is { } scope)
+                {
+                    @if (scope.Lost is not null)
+                    {
+                        <span class="connected-tag lost" title="@scope.Lost.Message">@ConnectionViewText.Connection_Lost</span>
+                    }
+                    else if (scope.Active.IsConnected)
+                    {
+                        <span class="connected-tag" title="@(scope == Hub.Current ? ConnectionViewText.Switcher_ShownTitle : ConnectionViewText.Switcher_BackgroundTitle)">@(scope == Hub.Current ? ConnectionViewText.Connection_TagShown : ConnectionViewText.Connection_TagConnected)</span>
+                    }
+
+                    @if (scope.UncommittedActions is > 0 and var actions)
+                    {
+                        <span class="connected-tag tx" title="@ConnectionViewText.Switcher_UncommittedTitle">@TextFormat.Plural(actions, ConnectionViewText.Switcher_ActionsOpenOne, ConnectionViewText.Switcher_ActionsOpenOther)</span>
+                    }
+                }
+            </span>
+            <span class="kind-badge">@ConnectionKindInfo.Short(p.Kind)</span>
+            <span class="addr">@p.Address.Display</span>
+            @* Every row has the slot, empty for closed connections: the grid keeps its columns (an extra button pushed
+               "⋯" into a second grid line that overlapped the row below). *@
+            <span class="conn-disconnect">
+                @if (Hub.Find(p.Id) is { } openScope)
+                {
+                    <button class="btn ghost small" title="@ConnectionViewText.Switcher_DisconnectTitle"
+                            @onclick="() => DisconnectAsync(openScope)" @onclick:stopPropagation="true">@ConnectionViewText.Connection_Disconnect</button>
+                }
+            </span>
+            <ConnectionActionsMenu Profile="p" OnAction="Shell.CloseSwitcher" />
+        </div>;
+
+    protected override void OnInitialized()
+    {
+        Shell.Changed += OnStateChanged;
+        Connections.Changed += OnStateChanged;
+        Active.Changed += OnStateChanged;
+        Hub.Changed += OnStateChanged;
+        Settings.Changed += OnStateChanged;
+    }
+
+    /// <summary>Recent, groups and the flat list of visible rows (for keyboard navigation), rebuilt on every render.</summary>
+    private void Recompute()
+    {
+        _open = Searching ? [] : Hub.Open.Select(s => s.Profile).OfType<ConnectionProfile>().ToList();
+        _recent = Searching ? [] : Recent.MostRecent(Connections.Profiles.Where(p => !Hub.IsOpen(p.Id)), RecentCount);
+        _groups = ConnectionSearch.Group(Connections.Profiles, _query);
+        _visible = _open
+            .Concat(_recent)
+            .Concat(_groups.Where(g => Searching || !_collapsed.Contains(g.Name ?? "")).SelectMany(g => g.Profiles))
+            .ToList();
+        _highlight = Math.Clamp(_highlight, 0, Math.Max(0, _visible.Count - 1));
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var justOpened = Shell.SwitcherOpen && !_wasOpen;
+        _wasOpen = Shell.SwitcherOpen;
+        if (justOpened && _search is not null)
+        {
+            await _search.FocusAsync();
+        }
+
+        if (_scrollToHighlight)
+        {
+            _scrollToHighlight = false;
+            await Dom.InvokeVoidAsync("scrollIntoViewById", $"conn-row-{_highlight}");
+        }
+    }
+
+    private void Toggle()
+    {
+        if (Shell.SwitcherOpen)
+        {
+            Shell.CloseSwitcher();
+        }
+        else
+        {
+            Shell.OpenSwitcher();
+        }
+    }
+
+    /// <summary>
+    /// May fire on a background thread (the connection's state): the query and highlight change on the renderer's thread
+    /// (review 3.40.0, A32), like the render they belong to.
+    /// </summary>
+    private void OnStateChanged() => InvokeAsync(() =>
+    {
+        if (Shell.SwitcherOpen && !_wasOpen)
+        {
+            _query = "";
+            _highlight = 0;
+        }
+
+        StateHasChanged();
+    });
+
+    private void ToggleGroup(string key)
+    {
+        if (!_collapsed.Remove(key))
+        {
+            _collapsed.Add(key);
+        }
+    }
+
+    private void Activate(ConnectionProfile profile) => Shell.Connect(profile);
+
+    private async Task DisconnectAsync(ConnectionScope scope)
+    {
+        Shell.CloseSwitcher();
+        await Lifecycle.DisconnectAsync(scope);
+    }
+
+    private void NewConnection()
+    {
+        Shell.CloseSwitcher();
+        Shell.NewConnection();
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "ArrowDown":
+                _highlight = Math.Min(_highlight + 1, Math.Max(0, _visible.Count - 1));
+                _scrollToHighlight = true;
+                break;
+            case "ArrowUp":
+                _highlight = Math.Max(_highlight - 1, 0);
+                _scrollToHighlight = true;
+                break;
+            case "Enter" when _visible.Count > 0:
+                Activate(_visible[_highlight]);
+                break;
+            case "Escape":
+                Shell.CloseSwitcher();
+                break;
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Shell.Changed -= OnStateChanged;
+        Connections.Changed -= OnStateChanged;
+        Active.Changed -= OnStateChanged;
+        Hub.Changed -= OnStateChanged;
+        Settings.Changed -= OnStateChanged;
+        await Dom.DisposeAsync();
+    }
+}

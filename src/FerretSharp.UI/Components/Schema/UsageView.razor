@@ -1,0 +1,375 @@
+@* "Usage" view (WP-40, ADR 0030): where the linked solution's compiled code uses the table's columns and queries the
+   table, with file and line; a click opens the use in the editor. The index is built when the view is first shown. Two
+   sub-tabs (decision of the user, 2026-10-20): the columns first, the queries beside, each with its counter. *@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Schema
+@inherits FerretComponent
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject CodeUsageOpener Opener
+
+@{
+    var mapping = Models.Mapping;
+    var entity = mapping?.EntityOf(Details.Table.Ref);
+    var state = Usage.State;
+    var result = state.Result;
+}
+
+@if (mapping is null)
+{
+    <EmptyState Title="@ModelViewText.Usage_NoModel" Text="@ModelViewText.Usage_NoModelText" />
+}
+else if (entity is null)
+{
+    <EmptyState Title="@ModelViewText.Usage_NoEntity" />
+}
+else
+{
+    <section class="usage-section">
+        <div class="structure-columns-head">
+            <h2 title="@ModelViewText.Usage_Limits">
+                <Fmt Text="@ModelViewText.Usage_Heading"><Arg0><strong>@ClrModelMapping.ShortName(entity.Entity.ClrType)</strong></Arg0></Fmt>
+                <span class="usage-limits" aria-label="@ModelViewText.Usage_Limits">ⓘ</span>
+            </h2>
+            @if (Usage.Solutions is { Count: > 1 } solutions)
+            {
+                <label class="usage-solution">
+                    @ModelViewText.Usage_Solution
+                    <select class="field" value="@Usage.Solution" @onchange="e => SelectSolutionAsync((string?)e.Value)" @key="string.Join('|', solutions)">
+                        @foreach (var solution in solutions)
+                        {
+                            <option value="@solution" title="@solution">@System.IO.Path.GetFileName(solution)</option>
+                        }
+                    </select>
+                </label>
+            }
+            else if (result?.Solution is { } single)
+            {
+                <span class="muted" title="@single">@System.IO.Path.GetFileName(single)</span>
+            }
+            <span class="spacer"></span>
+            @if (state.Phase == CodeUsagePhase.Building)
+            {
+                <span class="muted"><span class="spinner"></span> @ModelViewText.Usage_Building</span>
+            }
+            else if (result is not null && state.BuiltAt is { } builtAt)
+            {
+                <span class="muted" title="@CodeUsageRows.ProjectDetails(result)">
+                    @CodeUsageRows.Projects(result) · @TextFormat.Format(ModelViewText.Usage_BuiltAt, builtAt.ToString("t", CultureInfo.CurrentCulture))
+                </span>
+            }
+            <button class="btn" disabled="@(state.Phase == CodeUsagePhase.Building)" title="@ModelViewText.Usage_ReloadTitle" @onclick="RefreshAsync">@ModelViewText.Usage_Reload</button>
+        </div>
+        @if (state.Error is { } error)
+        {
+            <div class="tab-error"><span>@TextFormat.Format(ModelViewText.Usage_Failed, error)</span></div>
+        }
+        @{
+            var queries = result?.Index.ForEntity(entity.Entity) ?? [];
+            var navigations = result?.Index.NavigationsTo(entity.Entity) ?? [];
+            var rows = result is null ? [] : CodeUsageRows.Columns(mapping, result.Index, Details);
+            var unused = CodeUsageRows.UnusedCount(rows);
+        }
+        <div class="usage-bar">
+            <div class="segmented small usage-tabs" role="tablist">
+                <button class="seg @(_showQueries ? "" : "active")" role="tab" aria-selected="@(_showQueries ? "false" : "true")"
+                        title="@ModelViewText.Usage_TabColumnsTitle" @onclick="() => _showQueries = false">
+                    @ModelViewText.Usage_TabColumns
+                    @if (unused > 0)
+                    {
+                        <span class="seg-count unused">@TextFormat.Format(ModelViewText.Usage_TabUnused, unused)</span>
+                    }
+                </button>
+                <button class="seg @(_showQueries ? "active" : "")" role="tab" aria-selected="@(_showQueries ? "true" : "false")"
+                        title="@ModelViewText.Usage_TabQueriesTitle" @onclick="() => _showQueries = true">
+                    @ModelViewText.Usage_TabQueries
+                    @if (result is not null)
+                    {
+                        <span class="seg-count">@CodeUsageRows.QueryCount(queries.Concat(navigations))</span>
+                    }
+                </button>
+            </div>
+            @if (!_showQueries)
+            {
+                @* Read/write filter (decision of the user, 2026-10-20): LINQ reads, mapping code is neither. *@
+                <div class="segmented small" role="radiogroup" aria-label="@ModelViewText.Usage_FilterLabel" title="@ModelViewText.Usage_FilterTitle">
+                    @foreach (var (access, label) in AccessChoices)
+                    {
+                        <button class="seg @(_access == access ? "active" : "")" role="radio" aria-checked="@(_access == access ? "true" : "false")"
+                                @onclick="() => _access = access">@label</button>
+                    }
+                </div>
+            }
+        </div>
+
+        @if (result is not null && _showQueries)
+        {
+            @if (queries.Count == 0 && navigations.Count == 0)
+            {
+                <p class="muted">@ModelViewText.Usage_NoQueries</p>
+            }
+            @if (queries.Count > 0)
+            {
+                <ul class="usage-list">
+                    @foreach (var use in queries)
+                    {
+                        @UseItem(use, entity.Entity, null)
+                    }
+                </ul>
+            }
+            @if (navigations.Count > 0)
+            {
+                @* Navigations to the table (decision of the user, 2026-10-20): EF joins it without a Set<T>() of it. *@
+                <h3 class="usage-subhead" title="@ModelViewText.Usage_NavigationsHint">
+                    @ModelViewText.Usage_NavigationsHeading <span class="count">@CodeUsageRows.QueryCount(navigations)</span>
+                </h3>
+                <ul class="usage-list">
+                    @foreach (var use in navigations)
+                    {
+                        @UseItem(use, entity.Entity, null)
+                    }
+                </ul>
+            }
+        }
+        else if (result is not null)
+        {
+            var shown = CodeUsageRows.Filter(rows, _access);
+            @if (shown.Count == 0)
+            {
+                <p class="muted">@(_access == UsageAccess.Write ? ModelViewText.Usage_NoWrites : ModelViewText.Usage_NoReads)</p>
+            }
+            else
+            {
+                <table class="columns usage-columns">
+                    <thead>
+                        <tr>
+                            <th>@SchemaViewText.Head_Name</th><th>@SchemaViewText.Columns_Property</th>
+                            <th class="num" title="@ModelViewText.Usage_ReadsTitle">@ModelViewText.Usage_ReadsShort</th>
+                            <th class="num" title="@ModelViewText.Usage_WritesTitle">@ModelViewText.Usage_WritesShort</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in shown)
+                        {
+                            var open = _expanded.Contains(row.Column);
+                            var uses = row.Matching(_access);
+                            <tr class="@(uses.Count > 0 ? "clickable" : "")" @onclick="() => Toggle(row)">
+                                <td class="name">@(uses.Count > 0 ? (open ? "▾ " : "▸ ") : "")@row.Column</td>
+                                <td class="mono">@(row.Property?.Name ?? "–")</td>
+                                <td class="num" title="@ModelViewText.Usage_ReadsTitle">@AccessCount(row, UsageAccess.Read)</td>
+                                <td class="num" title="@ModelViewText.Usage_WritesTitle">@AccessCount(row, UsageAccess.Write)</td>
+                                <td>
+                                    @if (row.Unused)
+                                    {
+                                        <span class="fs-badge unused" title="@ModelViewText.Usage_UnusedTitle">@ModelViewText.Usage_Unused</span>
+                                    }
+                                    else if (row.Property?.IsShadow == true)
+                                    {
+                                        <span class="muted" title="@ModelViewText.Usage_ShadowTitle">Shadow</span>
+                                    }
+                                </td>
+                            </tr>
+                            @if (open && uses.Count > 0)
+                            {
+                                <tr class="usage-detail">
+                                    <td colspan="5">
+                                        <ul class="usage-list">
+                                            @foreach (var use in uses)
+                                            {
+                                                @UseItem(use, entity.Entity, row.Property!.Name)
+                                            }
+                                        </ul>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            }
+        }
+    </section>
+}
+
+@code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public ClrModelManager Models { get; set; } = null!;
+
+    [CascadingParameter]
+    public CodeUsageService Usage { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public TableDetails Details { get; set; } = null!;
+
+    /// <summary>The view is visible now: only then is the index brought up to date (it stays mounted once visited).</summary>
+    [Parameter]
+    public bool Shown { get; set; }
+
+    private bool _wasShown;
+
+    private readonly HashSet<string> _expanded = new(StringComparer.Ordinal);
+
+    /// <summary>The "Queries" sub-tab is shown; kept while the tab is open (the view stays mounted), columns first again after a restart.</summary>
+    private bool _showQueries;
+
+    /// <summary>The read/write filter of the "Columns" sub-tab; kept like the sub-tab, not saved.</summary>
+    private UsageAccess _access;
+    private readonly CancellationTokenSource _lifetime = new();
+
+    private static IEnumerable<(UsageAccess Access, string Label)> AccessChoices =>
+    [
+        (UsageAccess.All, ModelViewText.Usage_FilterAll),
+        (UsageAccess.Read, ModelViewText.Usage_FilterRead),
+        (UsageAccess.Write, ModelViewText.Usage_FilterWrite),
+    ];
+
+    /// <summary>Reads or writes in application code, those in tests in brackets.</summary>
+    private static RenderFragment AccessCount(ColumnUsageRow row, UsageAccess access)
+    {
+        var tests = row.Count(access, tests: true);
+        return @<text>@row.Count(access, tests: false)@if (tests > 0)
+        {
+            <span class="muted"> (+@tests)</span>
+        }</text>;
+    }
+    private DomModule? _dom;
+
+    private DomModule Dom => _dom ??= new(JS);
+
+    private RenderFragment UseItem(CodeUsage use, EntityExport entity, string? property) =>
+        @<li class="usage-item @(use.IsTest ? "test" : "") @(use.IsMapping ? "mapping" : "")">
+            <span class="usage-kind">@CodeUsageRows.Kind(use.Use.Kind)</span>
+            <button class="link-btn mono" disabled="@(use.Use.Document is null)" title="@(use.Use.Document ?? ModelViewText.Usage_NoSourceFile)"
+                    @onclick="() => OpenAsync(use)">@CodeUsageRows.Caller(use.Use)</button>
+            <span class="muted mono">@CodeUsageRows.Location(use.Use)</span>
+            @if (use.Navigation is { } navigation)
+            {
+                <span class="muted">@TextFormat.Format(ModelViewText.Usage_ViaNavigation, navigation)</span>
+            }
+            @if (use.Via is { } via)
+            {
+                <span class="muted">@TextFormat.Format(ModelViewText.Usage_Via, ClrModelMapping.ShortName(via))</span>
+            }
+            @if (use.IsTest)
+            {
+                <span class="fs-badge test" title="@ModelViewText.Usage_TestTitle">@ModelViewText.Usage_Test</span>
+            }
+            @if (use.IsMapping)
+            {
+                <span class="fs-badge mapping" title="@ModelViewText.Usage_MappingTitle">@ModelViewText.Usage_Mapping</span>
+            }
+            <MoreMenu Width="220" Items="CopyItems(use, entity, property)" />
+        </li>;
+
+    private IReadOnlyList<MoreMenuItem> CopyItems(CodeUsage use, EntityExport entity, string? property) =>
+    [
+        new(ModelViewText.Usage_CopyPath, async () => await CopyAsync(await PathAsync(use)), use.Use.Document is not null),
+        new(ModelViewText.Usage_CopyPathLine, async () =>
+        {
+            var path = await PathAsync(use);
+            await CopyAsync(use.Use.Line is { } line ? $"{path}:{line}" : path);
+        }, use.Use.Document is not null),
+        new(ModelViewText.Usage_CopyName, () => CopyAsync(CodeUsageRows.Name(use, entity, property))),
+        new(ModelViewText.Usage_CopyCaller, () => CopyAsync(CodeUsageRows.Caller(use.Use))),
+    ];
+
+    /// <summary>
+    /// The file as it would open (work clone first), so a copied path points where the user works; off the render thread,
+    /// since finding a moved file searches the clone.
+    /// </summary>
+    private Task<string> PathAsync(CodeUsage use)
+    {
+        var link = Models.State.Link;
+        var group = Active.Profile?.Group;
+        var token = _lifetime.Token;
+        return Task.Run(() => link is not null && Opener.Locate(use.Use, link, group, token) is { } location ? location.Path : use.Use.Document ?? "", token);
+    }
+
+    private async Task CopyAsync(string text) => await Dom.CopyTextAsync(Shell, text);
+
+    protected override void OnInitialized()
+    {
+        Usage.Changed += OnChanged;
+        Models.Changed += OnChanged;
+    }
+
+    /// <summary>Shown again (or for the first time): a build since then is picked up.</summary>
+    protected override void OnParametersSet()
+    {
+        if (Shown && !_wasShown)
+        {
+            Fire(EnsureAsync);
+        }
+
+        _wasShown = Shown;
+    }
+
+    private void OnChanged() => Fire(async () =>
+    {
+        StateHasChanged();
+        // A new model or build: bring the index up to date while the view is shown (cheap when nothing changed).
+        if (Shown && Usage.State.Phase == CodeUsagePhase.NotBuilt)
+        {
+            await EnsureAsync();
+        }
+    });
+
+    private async Task EnsureAsync()
+    {
+        await Usage.EnsureAsync(_lifetime.Token);
+        StateHasChanged();
+    }
+
+    private async Task RefreshAsync()
+    {
+        await Usage.RefreshAsync(_lifetime.Token);
+    }
+
+    private async Task SelectSolutionAsync(string? solution)
+    {
+        if (solution is not null)
+        {
+            await Usage.SelectSolutionAsync(solution, _lifetime.Token);
+        }
+    }
+
+    private void Toggle(ColumnUsageRow row)
+    {
+        if (row.Matching(_access).Count > 0 && !_expanded.Remove(row.Column))
+        {
+            _expanded.Add(row.Column);
+        }
+    }
+
+    private async Task OpenAsync(CodeUsage use)
+    {
+        if (Models.State.Link is not { } link)
+        {
+            return;
+        }
+
+        if (await Opener.OpenAsync(use.Use, link, Usage.Solution, Active.Profile?.Group, _lifetime.Token) is { } notice)
+        {
+            Shell.Notify(notice);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Usage.Changed -= OnChanged;
+        Models.Changed -= OnChanged;
+        await _lifetime.CancelAsync();
+        _lifetime.Dispose();
+        if (_dom is not null)
+        {
+            await _dom.DisposeAsync();
+        }
+    }
+}

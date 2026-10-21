@@ -79,7 +79,7 @@ public sealed partial class SafeDeleteTests : IDisposable
     [Fact]
     public void Only_the_guarded_helpers_delete_folders()
     {
-        var root = RepositoryRoot();
+        var root = Repository.Root;
         var allowed = new[]
         {
             Path.Combine("src", "FerretSharp.Core", "IO", "SafeDelete.cs"),
@@ -106,6 +106,18 @@ public sealed partial class SafeDeleteTests : IDisposable
     [InlineData("ci.yml", "run: rm -rf ./out")]
     [InlineData("x.targets", "<RemoveDir Directories=\"$(OutDir)\" />")]
     [InlineData("x.cmd", "rd /s /q %DIR%")]
+    // Review 3.40.0, C12: abbreviated parameters, the aliases of Remove-Item, .NET from PowerShell, del /s, Python.
+    [InlineData("x.ps1", "Remove-Item $dir -r -Force")]
+    [InlineData("x.ps1", "Remove-Item -Path $dir -Rec")]
+    [InlineData("x.ps1", "rmdir $dir -Recurse")]
+    [InlineData("x.ps1", "ri $dir -Recurse -Force")]
+    [InlineData("x.ps1", "del $dir -r")]
+    [InlineData("x.ps1", "[IO.Directory]::Delete($p, $true)")]
+    [InlineData("x.ps1", "[System.IO.Directory]::Delete($p)")]
+    [InlineData("x.cmd", "del /s /q %DIR%\\*")]
+    [InlineData("x.cmd", "erase /q /s %DIR%")]
+    [InlineData("x.py", "shutil.rmtree(folder)")]
+    [InlineData("x.py", "os.removedirs(folder)")]
     public void The_check_sees_folder_deletes(string file, string line) => Assert.True(DeletesFolders(file, line));
 
     [Theory]
@@ -113,37 +125,39 @@ public sealed partial class SafeDeleteTests : IDisposable
     [InlineData("x.cs", "tracker.Delete(row);")]
     [InlineData("x.cs", "SafeDelete.DirectoryBelow(root, path);")]
     [InlineData("x.ps1", "Remove-Item $file")]
+    [InlineData("x.ps1", "Remove-Item $file -Force")]
+    [InlineData("x.cmd", "del /q %FILE%")]
+    [InlineData("x.py", "os.remove(file)")]
     public void The_check_lets_other_deletes_pass(string file, string line) => Assert.False(DeletesFolders(file, line));
 
-    private static bool DeletesFolders(string file, string line) =>
-        Path.GetExtension(file) is ".cs" or ".razor" ? CSharpFolderDelete().IsMatch(line) : ScriptFolderDelete().IsMatch(line);
+    private static bool DeletesFolders(string file, string line) => Path.GetExtension(file) switch
+    {
+        ".cs" or ".razor" => CSharpFolderDelete().IsMatch(line),
+        ".py" => PythonFolderDelete().IsMatch(line),
+        _ => ScriptFolderDelete().IsMatch(line),
+    };
 
     [GeneratedRegex(@"\bDirectory\.Delete\s*\(|\.Delete\s*\(\s*(recursive\s*:\s*)?true\s*\)")]
     private static partial Regex CSharpFolderDelete();
 
-    [GeneratedRegex(@"Remove-Item\b.*-Recurse|\brm\s+-[a-zA-Z]*[rR]|\bRemoveDir\b|\b(rmdir|rd)\s+/[sS]", RegexOptions.IgnoreCase)]
+    // PowerShell takes any unambiguous start of a parameter (-r, -Rec) and has aliases for Remove-Item (rm, rmdir, rd, ri,
+    // del, erase); .NET's Directory.Delete is callable from it; cmd's del/erase /s delete a tree of files.
+    [GeneratedRegex(
+        @"\b(Remove-Item|rm|rmdir|rd|ri|del|erase)\b.*\s-r(e(c(u(r(s(e)?)?)?)?)?)?\b|\brm\s+-[a-zA-Z]*[rR]|\bRemoveDir\b|\b(rmdir|rd)\s+/[sS]"
+        + @"|\b(del|erase)\s+(/[a-zA-Z]\s+)*/[sS]\b|\[(System\.)?IO\.Directory\]::Delete\s*\(",
+        RegexOptions.IgnoreCase)]
     private static partial Regex ScriptFolderDelete();
 
-    private static readonly string[] Extensions = [".cs", ".razor", ".ps1", ".psm1", ".sh", ".cmd", ".bat", ".yml", ".yaml", ".props", ".targets", ".csproj"];
+    [GeneratedRegex(@"\bshutil\.rmtree\b|\bos\.removedirs\b|\bos\.rmdir\b|\.rmdir\s*\(")]
+    private static partial Regex PythonFolderDelete();
+
+    private static readonly string[] Extensions = [".cs", ".razor", ".ps1", ".psm1", ".sh", ".cmd", ".bat", ".yml", ".yaml", ".props", ".targets", ".csproj", ".py"];
     private static readonly string[] SkippedFolders = ["bin", "obj", ".git", ".vs", "artifacts", "node_modules", "lib"];
 
     private static IEnumerable<string> SourceFiles(string root) =>
         Directory.EnumerateFiles(root, "*", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint })
             .Where(f => Extensions.Contains(Path.GetExtension(f), StringComparer.OrdinalIgnoreCase))
             .Where(f => !Path.GetRelativePath(root, f).Split(Path.DirectorySeparatorChar).Any(SkippedFolders.Contains));
-
-    private static string RepositoryRoot()
-    {
-        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "FerretSharp.slnx")))
-            {
-                return directory.FullName;
-            }
-        }
-
-        throw new InvalidOperationException("FerretSharp.slnx not found above " + AppContext.BaseDirectory);
-    }
 
     public void Dispose() => _folder.Dispose();
 }

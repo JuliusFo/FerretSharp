@@ -1,0 +1,130 @@
+@* Model page: mapped properties no code of the solution uses outside tests and mapping (WP-40) – read on request, since
+   reading the solution's build takes a moment. *@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Schema
+@inherits FerretComponent
+@implements IDisposable
+
+@{
+    var state = Usage.State;
+    var result = state.Result;
+    var unused = result is null ? null : Unused(result);
+}
+<section class="settings-section">
+    <h2>
+        @ModelViewText.Usage_ReportHeading
+        @if (unused is not null)
+        {
+            <span class="count">@unused.Count</span>
+        }
+    </h2>
+    <p class="hint small">@ModelViewText.Usage_ReportHint</p>
+    <div class="settings-row">
+        @if (state.Phase == CodeUsagePhase.Building)
+        {
+            <span class="muted"><span class="spinner"></span> @ModelViewText.Usage_Building</span>
+        }
+        else
+        {
+            <button class="btn" @onclick="ReadAsync">@(result is null ? ModelViewText.Usage_ReportRead : ModelViewText.Usage_Reload)</button>
+        }
+        @if (result is not null && state.BuiltAt is { } builtAt)
+        {
+            <span class="muted" title="@CodeUsageRows.ProjectDetails(result)">
+                @CodeUsageRows.Projects(result) · @TextFormat.Format(ModelViewText.Usage_BuiltAt, builtAt.ToString("t", CultureInfo.CurrentCulture))
+            </span>
+        }
+    </div>
+    @if (state.Error is { } error)
+    {
+        <div class="tab-error"><span>@TextFormat.Format(ModelViewText.Usage_Failed, error)</span></div>
+    }
+    @if (unused is not null)
+    {
+        @if (unused.Count == 0)
+        {
+            <p class="muted">@ModelViewText.Usage_ReportNone</p>
+        }
+        else
+        {
+            <table class="model-table">
+                <thead><tr><th>@ModelViewText.Model_HeadEntity</th><th>@SchemaViewText.Columns_Property</th><th>@ModelViewText.Model_HeadTable</th></tr></thead>
+                <tbody>
+                    @foreach (var (entity, property, located) in unused)
+                    {
+                        <tr>
+                            <td title="@entity.ClrType">@ClrModelMapping.ShortName(entity.ClrType)</td>
+                            <td class="mono">@property.Name</td>
+                            <td>
+                                @if (located is not null)
+                                {
+                                    <button class="link-btn mono" @onclick="() => OnOpen.InvokeAsync(located.Table)">@located.Table.DisplayName.@(property.Column)</button>
+                                }
+                                else
+                                {
+                                    <span class="mono muted">@(entity.Table ?? entity.View).@(property.Column)</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    }
+</section>
+
+@code {
+    [CascadingParameter]
+    public CodeUsageService Usage { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public ClrModelMapping Mapping { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback<TableSummary> OnOpen { get; set; }
+
+    private readonly CancellationTokenSource _lifetime = new();
+
+    private (CodeUsageResult Result, ClrModelMapping Mapping, List<(EntityExport Entity, PropertyExport Property, EntityMapping? Located)> Rows)? _unused;
+
+    /// <summary>Computed once per index and mapping, not on every render (review of WP-40).</summary>
+    private List<(EntityExport Entity, PropertyExport Property, EntityMapping? Located)> Unused(CodeUsageResult result)
+    {
+        if (_unused is { } known && ReferenceEquals(known.Result, result) && ReferenceEquals(known.Mapping, Mapping))
+        {
+            return known.Rows;
+        }
+
+        var located = Mapping.Entities.GroupBy(m => m.Entity).ToDictionary(g => g.Key, g => g.First());
+        var rows = result.Index.Unused()
+            .Select(u => (u.Entity, u.Property, located.GetValueOrDefault(u.Entity)))
+            .OrderBy(u => ClrModelMapping.ShortName(u.Entity.ClrType), StringComparer.Ordinal)
+            .ThenBy(u => u.Property.Name, StringComparer.Ordinal)
+            .ToList();
+        _unused = (result, Mapping, rows);
+        return rows;
+    }
+
+    protected override void OnInitialized() => Usage.Changed += OnChanged;
+
+    private void OnChanged() => Fire(StateHasChanged);
+
+    private async Task ReadAsync()
+    {
+        if (Usage.State.Result is null)
+        {
+            await Usage.EnsureAsync(_lifetime.Token);
+        }
+        else
+        {
+            await Usage.RefreshAsync(_lifetime.Token);
+        }
+    }
+
+    public void Dispose()
+    {
+        Usage.Changed -= OnChanged;
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+    }
+}

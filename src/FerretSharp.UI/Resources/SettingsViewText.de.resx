@@ -1,0 +1,354 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Settings_Title" xml:space="preserve">
+    <value>Einstellungen</value>
+  </data>
+  <data name="Settings_Sections" xml:space="preserve">
+    <value>Bereich</value>
+  </data>
+  <data name="Settings_Shortcuts" xml:space="preserve">
+    <value>Tastenkürzel</value>
+  </data>
+  <data name="Settings_Appearance" xml:space="preserve">
+    <value>Darstellung</value>
+  </data>
+  <data name="Settings_Language" xml:space="preserve">
+    <value>Sprache</value>
+  </data>
+  <data name="Settings_LanguageHint" xml:space="preserve">
+    <value>Gilt ab dem nächsten Start. Enum-Namen aus dem C#-Projekt bleiben in der Sprache seiner Ressourcen.</value>
+  </data>
+  <data name="Settings_LanguageAfterRestart" xml:space="preserve">
+    <value>FerretSharp zeigt die gewählte Sprache nach einem Neustart.</value>
+  </data>
+  <data name="Settings_ColorScheme" xml:space="preserve">
+    <value>Farbschema</value>
+  </data>
+  <data name="Settings_ColorSchemeHint" xml:space="preserve">
+    <value>„System“ folgt der Windows-Einstellung.</value>
+  </data>
+  <data name="Settings_ConnectionGroup" xml:space="preserve">
+    <value>Gruppe vor dem Verbindungsnamen</value>
+  </data>
+  <data name="Settings_ConnectionGroupHint" xml:space="preserve">
+    <value>Zeigt die Gruppe einer Verbindung vor ihrem Namen – im Verbindungsumschalter, bei den offenen und zuletzt benutzten Verbindungen und in den Bestätigungen, z. B. {0}. Hilfreich, wenn mehrere Gruppen ein DEV, TEST oder PROD haben.</value>
+  </data>
+  <data name="Settings_ThemeSystem" xml:space="preserve">
+    <value>System</value>
+  </data>
+  <data name="Settings_ThemeLight" xml:space="preserve">
+    <value>Hell</value>
+  </data>
+  <data name="Settings_ThemeDark" xml:space="preserve">
+    <value>Dunkel</value>
+  </data>
+  <data name="Settings_ThemeForced" xml:space="preserve">
+    <value>Diese Sitzung wurde mit {0} gestartet und bleibt deshalb {1}. Die Auswahl wird gespeichert und gilt ab dem nächsten Start ohne diesen Parameter.</value>
+  </data>
+  <data name="Settings_ThemeForcedDark" xml:space="preserve">
+    <value>dunkel</value>
+  </data>
+  <data name="Settings_ThemeForcedLight" xml:space="preserve">
+    <value>hell</value>
+  </data>
+  <data name="Settings_ClrModel" xml:space="preserve">
+    <value>C#-Modell</value>
+  </data>
+  <data name="Settings_ClrNames" xml:space="preserve">
+    <value>C#-Namen</value>
+  </data>
+  <data name="Settings_ClrNamesHint" xml:space="preserve">
+    <value>Entity- und Property-Namen des verknüpften Projekts im Explorer, im Tabellenkopf und in der Spaltensuche: neben den Oracle-Namen oder statt ihrer vorne. Enum-Werte zeigt FerretSharp immer mit ihrem C#-Namen; SQL bleibt bei den Namen der Datenbank.</value>
+  </data>
+  <data name="Settings_ClrNamesBeside" xml:space="preserve">
+    <value>Daneben</value>
+  </data>
+  <data name="Settings_ClrNamesFront" xml:space="preserve">
+    <value>Vorne</value>
+  </data>
+  <data name="Settings_Connection" xml:space="preserve">
+    <value>Verbindung</value>
+  </data>
+  <data name="Settings_KeepAlive" xml:space="preserve">
+    <value>Verbindung im Leerlauf prüfen</value>
+  </data>
+  <data name="Settings_KeepAliveHint" xml:space="preserve">
+    <value>Fragt ruhende Sessions alle 2 Minuten kurz ab ({0}). Ein Verbindungsabbruch wird so sofort gemeldet, und Firewalls trennen ruhende Verbindungen nicht. Hält die Sessions aber auch gegen ein {1}-Limit der Datenbank offen.</value>
+  </data>
+  <data name="Settings_LockWait" xml:space="preserve">
+    <value>Warten auf gesperrte Zeilen</value>
+  </data>
+  <data name="Settings_LockWaitHint" xml:space="preserve">
+    <value>Hält eine andere Session eine Zeile gesperrt, die du schreiben willst, wartet FerretSharp so lange und zeigt dann, wer sperrt ({0}).</value>
+  </data>
+  <data name="Settings_FkCounts" xml:space="preserve">
+    <value>Eingehende Fremdschlüssel zählen</value>
+  </data>
+  <data name="Settings_FkCountsHint" xml:space="preserve">
+    <value>Zellmenü und Formular zeigen, wie viele Zeilen auf die Zeile verweisen. Die Zählungen laufen nacheinander in der Session des Workspaces – ein Sprung in eine andere Tabelle wartet, bis die laufende Zählung fertig ist. „Beim Darüberfahren“ zählt nur den Eintrag, auf dem die Maus ruht.</value>
+  </data>
+  <data name="Settings_FkCountsImmediately" xml:space="preserve">
+    <value>Sofort</value>
+  </data>
+  <data name="Settings_FkCountsOnHover" xml:space="preserve">
+    <value>Beim Darüberfahren</value>
+  </data>
+  <data name="Settings_Diagnostics" xml:space="preserve">
+    <value>Diagnose</value>
+  </data>
+  <data name="Settings_DiagnoseUiStalls" xml:space="preserve">
+    <value>Hänger der Oberfläche protokollieren</value>
+  </data>
+  <data name="Settings_DiagnoseUiStallsHint" xml:space="preserve">
+    <value>Schreibt ins Log, wenn die Oberfläche länger als 0,3 s nicht reagiert, und womit FerretSharp da beschäftigt war. Ist das .NET-Werkzeug {0} installiert, kommen bei Hängern über 1,5 s die Stacks aller Threads als {1} in den Log-Ordner. Zum Eingrenzen von Hängern gedacht, nicht für den Alltag.</value>
+  </data>
+  <data name="Settings_NotRead" xml:space="preserve">
+    <value>Einstellungen ließen sich nicht lesen.</value>
+  </data>
+  <data name="Settings_NotSaved" xml:space="preserve">
+    <value>Einstellung angewendet, aber nicht gespeichert: {0}</value>
+  </data>
+  <data name="Shortcuts_Intro" xml:space="preserve">
+    <value>Änderungen gelten sofort. „Ändern“ und dann die neue Tastenkombination drücken, Esc bricht ab. Kürzel mit Ctrl, Alt oder einer F-Taste; ausgegraute sind fest.</value>
+  </data>
+  <data name="Shortcuts_PressKeys" xml:space="preserve">
+    <value>Tastenkombination drücken …</value>
+  </data>
+  <data name="Shortcuts_None" xml:space="preserve">
+    <value>nicht belegt</value>
+  </data>
+  <data name="Shortcuts_Changed" xml:space="preserve">
+    <value>geändert</value>
+  </data>
+  <data name="Shortcuts_Change" xml:space="preserve">
+    <value>Ändern</value>
+  </data>
+  <data name="Shortcuts_DefaultTitle" xml:space="preserve">
+    <value>Standard: {0}</value>
+  </data>
+  <data name="Shortcuts_NotPossible" xml:space="preserve">
+    <value>{0} geht nicht: {1}</value>
+  </data>
+  <data name="Shortcuts_Conflict" xml:space="preserve">
+    <value>{0} ist schon „{1}“ – übernehmen nimmt es dort weg.</value>
+  </data>
+  <data name="Shortcuts_FixedTitle" xml:space="preserve">
+    <value>Fest – nicht änderbar</value>
+  </data>
+  <data name="Shortcuts_Fixed" xml:space="preserve">
+    <value>fest</value>
+  </data>
+  <data name="Shortcuts_ResetAllQuestion" xml:space="preserve">
+    <value>Alle Kürzel auf die Standardbelegung zurücksetzen?</value>
+  </data>
+  <data name="Shortcuts_ResetAll" xml:space="preserve">
+    <value>Alle zurücksetzen</value>
+  </data>
+  <data name="Settings_Audit" xml:space="preserve">
+    <value>Audit-Tabellen</value>
+  </data>
+  <data name="Settings_AuditTemplate" xml:space="preserve">
+    <value>Vorlage</value>
+  </data>
+  <data name="Settings_AuditTemplateHint" xml:space="preserve">
+    <value>Audit-Tabelle und Trigger einer Tabelle folgen dieser Vorlage – z. B. einer Datei im Repository der Firma. Sie gilt für jede Verbindung ohne Vorlage ihrer Gruppe oder eigene. Leer nimmt die eingebaute Vorlage.</value>
+  </data>
+  <data name="Settings_AuditTemplateFilter" xml:space="preserve">
+    <value>Audit-Vorlage</value>
+  </data>
+  <data name="Settings_AuditTemplateReset" xml:space="preserve">
+    <value>Eingebaute verwenden</value>
+  </data>
+  <data name="Settings_AuditTemplateResetTitle" xml:space="preserve">
+    <value>Wieder die eingebaute Vorlage verwenden</value>
+  </data>
+  <data name="Settings_AuditTemplateUsingBuiltIn" xml:space="preserve">
+    <value>Die eingebaute Vorlage gilt: Audit-Tabelle AUDIT_&lt;Tabelle&gt;, Trigger &lt;Tabelle&gt;_AUDIT.</value>
+  </data>
+  <data name="Settings_AuditTemplateValid" xml:space="preserve">
+    <value>Die Vorlage ist gültig.</value>
+  </data>
+  <data name="Settings_AuditTemplateCopy" xml:space="preserve">
+    <value>Eingebaute Vorlage kopieren</value>
+  </data>
+  <data name="Settings_AuditTemplateCopyTitle" xml:space="preserve">
+    <value>Als Anfang einer eigenen Vorlage – die Syntax ist darin erklärt</value>
+  </data>
+  <data name="Settings_AuditTemplateCopied" xml:space="preserve">
+    <value>Eingebaute Audit-Vorlage kopiert.</value>
+  </data>
+  <data name="Settings_DisplayColumns" xml:space="preserve">
+    <value>Anzeigespalten</value>
+  </data>
+  <data name="Settings_ShowDisplayNames" xml:space="preserve">
+    <value>Namen neben Fremdschlüsseln</value>
+  </data>
+  <data name="Settings_ShowDisplayNamesHint" xml:space="preserve">
+    <value>Zeigt im Grid neben einem Fremdschlüsselwert den Wert der Anzeigespalte der referenzierten Tabelle, z. B. {0}. Eine Anzeigespalte markierst du im Kontextmenü eines Spaltenkopfs.</value>
+  </data>
+  <data name="Settings_DisplayColumnsFile" xml:space="preserve">
+    <value>Datei</value>
+  </data>
+  <data name="Settings_DisplayColumnsFileHint" xml:space="preserve">
+    <value>Wo die Anzeigespalten liegen – z. B. im Repository deines Teams, damit die Kollegen dieselben Namen sehen. Leer: eine Datei im Datenordner von FerretSharp.</value>
+  </data>
+  <data name="Settings_DisplayColumnsDefault" xml:space="preserve">
+    <value>display-columns.json im Datenordner</value>
+  </data>
+  <data name="Settings_DisplayColumnsFilter" xml:space="preserve">
+    <value>Anzeigespalten</value>
+  </data>
+  <data name="Settings_DisplayColumnsReset" xml:space="preserve">
+    <value>Datenordner verwenden</value>
+  </data>
+  <data name="Settings_DisplayColumnsResetTitle" xml:space="preserve">
+    <value>Die Anzeigespalten wieder im Datenordner von FerretSharp ablegen</value>
+  </data>
+  <data name="Settings_DisplayColumnsCountOne" xml:space="preserve">
+    <value>{0} Anzeigespalte in {1}.</value>
+  </data>
+  <data name="Settings_DisplayColumnsCountOther" xml:space="preserve">
+    <value>{0} Anzeigespalten in {1}.</value>
+  </data>
+  <data name="Settings_DisplayColumnsNoFile" xml:space="preserve">
+    <value>{0} gibt es noch nicht: Die erste markierte Anzeigespalte legt die Datei an.</value>
+  </data>
+  <data name="Settings_Updates" xml:space="preserve">
+    <value>Updates</value>
+  </data>
+  <data name="Settings_Version" xml:space="preserve">
+    <value>Version</value>
+  </data>
+  <data name="Settings_VersionInstalled" xml:space="preserve">
+    <value>Installiert – Updates kommen aus den GitHub-Releases.</value>
+  </data>
+  <data name="Settings_VersionNotInstalled" xml:space="preserve">
+    <value>Nicht installiert (ein Build oder das Zip): Updates gibt es nur für ein mit Setup.exe installiertes FerretSharp.</value>
+  </data>
+  <data name="Settings_CheckForUpdates" xml:space="preserve">
+    <value>Automatisch prüfen</value>
+  </data>
+  <data name="Settings_CheckForUpdatesHint" xml:space="preserve">
+    <value>Fragt beim Start und während FerretSharp läuft (darunter) bei GitHub, ob es eine neuere Version gibt, und zeigt sie in der Statusleiste. Herunterladen und Installieren erst nach deinem Klick.</value>
+  </data>
+  <data name="Settings_UpdateCheckInterval" xml:space="preserve">
+    <value>Während FerretSharp läuft</value>
+  </data>
+  <data name="Settings_UpdateCheckIntervalHint" xml:space="preserve">
+    <value>Prüft so lange nach der letzten Prüfung erneut – für den Fall, dass FerretSharp tagelang offen bleibt. Nur mit automatischer Prüfung.</value>
+  </data>
+  <data name="Settings_UpdateCheckNever" xml:space="preserve">
+    <value>Nie</value>
+  </data>
+  <data name="Settings_UpdateCheckHourly" xml:space="preserve">
+    <value>Stündlich</value>
+  </data>
+  <data name="Settings_UpdateCheckEvery4Hours" xml:space="preserve">
+    <value>Alle 4 Stunden</value>
+  </data>
+  <data name="Settings_UpdateCheckDaily" xml:space="preserve">
+    <value>Täglich</value>
+  </data>
+  <data name="Settings_Search" xml:space="preserve">
+    <value>Einstellungen durchsuchen</value>
+  </data>
+  <data name="Settings_NoMatch" xml:space="preserve">
+    <value>Keine Einstellung und kein Tastenkürzel passt zu „{0}“.</value>
+  </data>
+  <data name="Settings_ShortcutGroupInSearch" xml:space="preserve">
+    <value>Tastenkürzel › {0}</value>
+  </data>
+  <data name="Settings_LinkProtocol" xml:space="preserve">
+    <value>Links (ferretsharp://)</value>
+  </data>
+  <data name="Settings_LinkProtocolHint" xml:space="preserve">
+    <value>Ein Klick auf einen ferretsharp://-Link – von Kollegen, in einem Ticket – öffnet die Tabelle in FerretSharp, nach einer Rückfrage. Der Installer trägt das selbst ein; eine portable Kopie oder ein eigener Build tut es hier. Nur für deinen Windows-Benutzer.</value>
+  </data>
+  <data name="Settings_LinkProtocolRegister" xml:space="preserve">
+    <value>Registrieren</value>
+  </data>
+  <data name="Settings_LinkProtocolTakeOver" xml:space="preserve">
+    <value>Diese FerretSharp verwenden</value>
+  </data>
+  <data name="Settings_LinkProtocolRemove" xml:space="preserve">
+    <value>Entfernen</value>
+  </data>
+  <data name="Settings_LinkProtocolMine" xml:space="preserve">
+    <value>Links öffnen mit dieser FerretSharp.</value>
+  </data>
+  <data name="Settings_LinkProtocolNone" xml:space="preserve">
+    <value>Links öffnen noch nicht mit FerretSharp.</value>
+  </data>
+  <data name="Settings_LinkProtocolOther" xml:space="preserve">
+    <value>Links öffnen mit einer anderen FerretSharp: {0}</value>
+  </data>
+  <data name="Settings_LinkProtocolFailed" xml:space="preserve">
+    <value>Die Registrierung ließ sich nicht ändern: {0}</value>
+  </data>
+  <data name="Settings_AuditTemplateGroups" xml:space="preserve">
+    <value>Vorlagen der Verbindungsgruppen</value>
+  </data>
+  <data name="Settings_AuditTemplateGroupsHint" xml:space="preserve">
+    <value>Jede Gruppe von Systemen kann ihre eigene Vorlage haben, z. B. aus ihrem Repository. Eine Gruppe ohne eigene nimmt die Vorlage darüber.</value>
+  </data>
+  <data name="Settings_AuditTemplateNoGroups" xml:space="preserve">
+    <value>Noch keine Verbindung hat eine Gruppe – sie wird im Verbindungsdialog gesetzt.</value>
+  </data>
+  <data name="Settings_AuditTemplateGroupOrphaned" xml:space="preserve">
+    <value>Keine Verbindung ist mehr in dieser Gruppe (umbenannt?).</value>
+  </data>
+  <data name="Settings_AuditTemplateAsGlobal" xml:space="preserve">
+    <value>Vorlage darüber</value>
+  </data>
+  <data name="Settings_AuditTemplateUseGlobal" xml:space="preserve">
+    <value>Obere verwenden</value>
+  </data>
+  <data name="Settings_AuditTemplateAsGlobalTitle" xml:space="preserve">
+    <value>Die Gruppe nimmt wieder die Vorlage darüber</value>
+  </data>
+  <data name="Settings_AuditTemplateRemove" xml:space="preserve">
+    <value>Entfernen</value>
+  </data>
+  <data name="Settings_AuditTemplateOfGroup" xml:space="preserve">
+    <value>Vorlage der Gruppe {0}</value>
+  </data>
+  <data name="Settings_AuditTemplateConnections" xml:space="preserve">
+    <value>Vorlagen einzelner Verbindungen</value>
+  </data>
+  <data name="Settings_AuditTemplateConnectionsHint" xml:space="preserve">
+    <value>Eine Verbindung, deren Audit-Tabellen einer anderen Vorlage folgen als ihre Gruppe, hat eine eigene, gesetzt im Verbindungsdialog. Sie geht der Vorlage der Gruppe vor.</value>
+  </data>
+  <data name="Settings_AuditTemplateNoConnections" xml:space="preserve">
+    <value>Keine Verbindung hat eine eigene Vorlage.</value>
+  </data>
+  <data name="Settings_AuditTemplateEditConnection" xml:space="preserve">
+    <value>Verbindung bearbeiten…</value>
+  </data>
+  <data name="Settings_CodeEditor" xml:space="preserve">
+    <value>Code öffnen in</value>
+  </data>
+  <data name="Settings_CodeEditorHint" xml:space="preserve">
+    <value>Wo eine Verwendung einer Spalte im Code aufgeht (Ansicht „Verwendung“ einer Tabelle). Visual Studio: die laufende Instanz, die die Solution offen hat, an der Zeile; ohne sie ein neues Fenster. VS Code an der Zeile oder das Programm, mit dem Windows .cs-Dateien öffnet.</value>
+  </data>
+  <data name="Settings_CodeEditorVisualStudio" xml:space="preserve">
+    <value>Visual Studio</value>
+  </data>
+  <data name="Settings_CodeEditorVsCode" xml:space="preserve">
+    <value>VS Code</value>
+  </data>
+  <data name="Settings_CodeEditorSystem" xml:space="preserve">
+    <value>Windows-Standard</value>
+  </data>
+</root>

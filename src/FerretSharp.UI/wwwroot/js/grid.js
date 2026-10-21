@@ -576,7 +576,7 @@ export function create(elementId, dotnet, columns, options) {
     // While editing, Enter belongs to the editor (check in .NET first, Shift+Enter: new line in the multi-line box).
     // The member list keeps the arrow keys while editing.
     suppressKeyboardEvent: p => p.editing && (p.event.key === 'Enter' || (!!meta.options && listKeys.has(p.event.key))),
-    tooltipValueGetter: p => (p.value === null || p.value === undefined ? null
+    tooltip: p => (p.value === null || p.value === undefined ? null
       : [p.value, p.data?.__n?.[meta.id], p.data?.__nm?.includes(meta.id) ? texts.notFoundTitle : null, p.data?.__t?.[meta.id],
         p.data?.__u?.includes(meta.id) ? meta.unknownText : null].filter(Boolean).join('\n')),
     headerComponent: FerretHeader,
@@ -714,6 +714,9 @@ export function create(elementId, dotnet, columns, options) {
     maxBlocksInCache: 40,
     maxConcurrentDatasourceRequests: 1,
     infiniteInitialRowCount: 1,
+    // Since AG Grid 35 the infinite row model shows "No Rows" / "No Matching Rows" itself (English, no localeText): the
+    // tab's footer already says how many rows there are.
+    suppressOverlays: ['noRows', 'noMatchingRows'],
     // Click selects a row, Ctrl+click adds/removes, Shift+click selects a range (only loaded rows).
     rowSelection: { mode: 'multiRow', checkboxes: false, headerCheckbox: false, enableClickSelection: true },
     enableCellTextSelection: true,
@@ -866,6 +869,20 @@ export function refresh(elementId) {
   if (!api) return;
   api.ensureIndexVisible(0, 'top');
   api.purgeInfiniteCache();
+}
+
+/**
+ * Sorts by exactly these columns (a filter preset, WP-37): [{ colId, sort }] in sort order, all others unsorted. AG Grid
+ * then drops its cached blocks and asks .NET for the first rows again, as after a click on a header.
+ */
+export function setSorts(elementId, sorts) {
+  const api = grids.get(elementId);
+  if (!api) return;
+  api.ensureIndexVisible(0, 'top');
+  api.applyColumnState({
+    state: sorts.map((s, i) => ({ colId: s.colId, sort: s.sort, sortIndex: i })),
+    defaultState: { sort: null, sortIndex: null },
+  });
 }
 
 /**

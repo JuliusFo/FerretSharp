@@ -1,0 +1,97 @@
+@* The work clone of the shown connection's group (WP-40, ADR 0030): state, not configuration – chosen here from the
+   status bar or the command palette. Uses in the code open there; without one, in the linked clone. *@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Connections
+@inherits FerretComponent
+@inject WorkClones Clones
+@inject IFileOpenService Files
+
+@{
+    var group = Active.Profile?.Group;
+    var none = Clones.ActiveFor(group) is null;
+}
+<ModalFrame Label="@ShellText.WorkClone_Title" Class="work-clone-dialog" OnCancel="OnClose" FocusOnOpen="true">
+    <header>
+        <span>@ShellText.WorkClone_Title</span>
+        <span class="muted">@(FerretSharp.Core.Connections.ConnectionSearch.NormalizeGroup(group) ?? ShellText.WorkClone_NoGroup)</span>
+    </header>
+    <div class="dialog-body">
+        <p class="hint small">@ShellText.WorkClone_Hint</p>
+        <ul class="work-clone-list">
+            <li>
+                <button class="work-clone-item @(none ? "active" : "")" @onclick="() => ChooseAsync(null)">
+                    <span class="work-clone-name">@ShellText.WorkClone_None</span>
+                    <span class="muted small">@ShellText.WorkClone_NoneHint</span>
+                </button>
+            </li>
+            @foreach (var choice in _choices)
+            {
+                var c = choice;
+                <li>
+                    <button class="work-clone-item @(c.IsActive ? "active" : "")" title="@c.Path" @onclick="() => ChooseAsync(c.Path)">
+                        <span class="work-clone-name">@c.Name</span>
+                        @if (c.Branch is { } branch)
+                        {
+                            <span class="mono small">⎇ @branch</span>
+                        }
+                        @if (FitText(c.Fit) is { } fit)
+                        {
+                            <span class="small warn-text">⚠ @fit</span>
+                        }
+                        <span class="muted small path">@c.Path</span>
+                    </button>
+                </li>
+            }
+        </ul>
+    </div>
+    <footer>
+        <button class="btn" @onclick="PickAsync">@ShellText.WorkClone_Pick</button>
+        <span class="spacer"></span>
+        <button class="btn ghost" @onclick="OnClose">@CommonText.Close</button>
+    </footer>
+</ModalFrame>
+
+@code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public ClrModelManager Models { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    /// <summary>Read once off the render thread: each entry checks its folder, branch and project (review of WP-40).</summary>
+    private IReadOnlyList<WorkCloneChoice> _choices = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var (group, link) = (Active.Profile?.Group, Models.State.Link);
+        _choices = await Task.Run(() => WorkCloneChoices.For(Clones, group, link));
+    }
+
+    /// <summary>Why a folder does not fit the shown connection; null if it does (or there is no link to compare with).</summary>
+    public static string? FitText(WorkCloneFit? fit) => fit switch
+    {
+        WorkCloneFit.Missing => ShellText.WorkClone_Missing,
+        WorkCloneFit.ProjectMissing => ShellText.WorkClone_ProjectMissing,
+        WorkCloneFit.LinkedNotInRepository => ShellText.WorkClone_LinkedNotInRepository,
+        _ => null,
+    };
+
+    private async Task ChooseAsync(string? path)
+    {
+        await Clones.SetActiveAsync(Active.Profile?.Group, path, CancellationToken.None);
+        await OnClose.InvokeAsync();
+    }
+
+    /// <summary>The host has no folder dialog: a solution or project in the clone stands for it, its Git root is the clone.</summary>
+    private async Task PickAsync()
+    {
+        var start = Clones.ActiveFor(Active.Profile?.Group) ?? Models.State.Link?.ProjectFile;
+        if (await Files.PickAsync(ShellText.WorkClone_PickFilter, ["sln", "slnx", "csproj"], start) is { } file)
+        {
+            await ChooseAsync(WorkCloneChoices.RootOf(file));
+        }
+    }
+}

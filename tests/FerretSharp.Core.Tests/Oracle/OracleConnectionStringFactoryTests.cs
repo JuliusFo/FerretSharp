@@ -28,6 +28,45 @@ public class OracleConnectionStringFactoryTests
         Assert.Equal("(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=db01.example.com)(PORT=1521))(CONNECT_DATA=(SID=ORCL)))", cs.DataSource);
     }
 
+    /// <summary>
+    /// Review 3.40.0, A7: an imported host (or a connections.json edited by hand) put a second ADDRESS into the descriptor –
+    /// Oracle fails over to it, with the saved password.
+    /// </summary>
+    [Theory]
+    [InlineData("db01)(PORT=1))(ADDRESS=(PROTOCOL=TCP)(HOST=evil", "ORCL", null)]
+    [InlineData("db01", "ORCL)(SERVER=DEDICATED", null)]
+    [InlineData("db01", null, "ORCL)))(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=evil)(PORT=1521))(CONNECT_DATA=(SID=X")]
+    [InlineData("evil:1521/x", "ORCL", null)]
+    public void Address_parts_that_would_change_the_descriptor_are_refused(string host, string? service, string? sid)
+    {
+        var profile = TestProfiles.HostPort() with { Address = new HostPortAddress(host, 1521, service, sid) };
+
+        Assert.Throws<ConnectionConfigurationException>(() => OracleConnectionStringFactory.Create(profile, "pw", getEnvironmentVariable: NoEnvironment));
+        Assert.NotEmpty(ConnectionProfileValidator.Validate(profile));
+    }
+
+    [Theory]
+    [InlineData("db01.example.com")]
+    [InlineData("10.1.2.3")]
+    [InlineData("[fe80::1%3]")]
+    [InlineData("db-01_test")]
+    public void Plain_hosts_are_accepted(string host)
+    {
+        var profile = TestProfiles.HostPort() with { Address = new HostPortAddress(host, 1521, "ORCL.example.com", null) };
+
+        Assert.Equal($"{host}:1521/ORCL.example.com", Parse(OracleConnectionStringFactory.Create(profile, "pw", getEnvironmentVariable: NoEnvironment)).DataSource);
+        Assert.Empty(ConnectionProfileValidator.Validate(profile));
+    }
+
+    [Fact]
+    public void A_tns_alias_with_a_descriptor_of_its_own_is_refused()
+    {
+        var profile = TestProfiles.Tns(alias: "ERP=(DESCRIPTION=(ADDRESS=(HOST=evil)))");
+
+        Assert.Throws<ConnectionConfigurationException>(() => OracleConnectionStringFactory.Create(profile, "pw", getEnvironmentVariable: _ => @"C:\tns"));
+        Assert.Contains(ConnectionField.Alias, ConnectionProfileValidator.Validate(profile).Keys);
+    }
+
     [Fact]
     public void Pooling_is_always_disabled()
     {

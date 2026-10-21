@@ -1,0 +1,270 @@
+@* The dialogs and the toast of the shell (R2, out of Shell.razor): what ShellState and WorkspaceLifecycle ask for. Dialogs
+   of a tab (plan, LOB, SQL preview) stay with the tab. *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Settings
+@inject AppSettingsService Settings
+@inject ConnectionHub Hub
+
+@if (Shell.ConnectionDialog is { } request)
+{
+    <ConnectionDialog @key="request" Request="request" OnClose="Shell.CloseConnectionDialog" />
+}
+
+@if (Shell.PendingPassword is { } passwordFor)
+{
+    <PasswordDialog @key="passwordFor" Request="passwordFor" Lifecycle="Lifecycle" />
+}
+
+@if (Shell.IncomingLink is { } incomingLink)
+{
+    <LinkOpenDialog @key="incomingLink" Request="incomingLink" Lifecycle="Lifecycle" />
+}
+
+@if (Shell.ImportOpen)
+{
+    <ConnectionImportDialog />
+}
+
+@if (Shell.WorkClonesOpen)
+{
+    <WorkCloneDialog OnClose="Shell.CloseWorkClones" />
+}
+
+@if (Shell.ExportRequest is { } exportRequest)
+{
+    <ConnectionExportDialog @key="exportRequest" Request="exportRequest" />
+}
+
+@if (Shell.ErrorDetails is { } error)
+{
+    <ErrorDialog @key="error" Error="error" Mask="Shell.ErrorMasked" OnClose="Shell.CloseError" />
+}
+
+@if (Shell.Notice is { } notice)
+{
+    <div class="toast @(notice.Warnings.Count > 0 ? "warn" : "")" role="status" @key="notice">
+        <div class="toast-text">@notice.Text</div>
+        @foreach (var warning in notice.Warnings)
+        {
+            <div class="toast-warning">⚠ @warning</div>
+        }
+        <button class="icon-btn ghost toast-close" title="@CommonText.Close" @onclick="() => Shell.DismissNotice(notice)">✕</button>
+    </div>
+}
+
+@if (Editing.Problem is { } problem)
+{
+    <WriteProblemDialog @key="problem" Problem="problem" Wait="Settings.Current.LockWaitSeconds" OnChoice="Editing.ResolveAsync" />
+}
+
+@if (Lifecycle.PendingLeave is { } leave)
+{
+    var busy = leave.WorkspaceIds.Where(Editing.IsBusy).ToList();
+    <LeaveDialog @key="leave" Request="leave" Busy="busy.Count > 0"
+                 Items="@LeaveItems(leave)"
+                 OnCommit="() => Lifecycle.LeaveAsync(commit: true)" OnDiscard="() => Lifecycle.LeaveAsync(commit: false)" OnCancel="Lifecycle.CancelLeave"
+                 OnResetSession="() => Lifecycle.RequestResetSession(busy[0])" />
+}
+
+@* Review 3.40.0, A2: a write or commit that does not return (status bar, leave dialog) – after the leave dialog, so it is on top. *@
+@if (Lifecycle.ConfirmReset is { } resetId)
+{
+    <ConfirmDialog Title="@ShellText.Dialogs_ResetSessionTitle" ConfirmLabel="@SqlEditorText.Run_DisconnectSession" Danger="true"
+                   OnConfirm="() => Lifecycle.ConfirmResetAsync(resetId)" OnCancel="Lifecycle.CancelConfirmation">
+        <Fmt Text="@ShellText.Dialogs_ResetSessionText"><Arg0><strong>@Lifecycle.WorkspaceName(resetId)</strong></Arg0></Fmt>
+    </ConfirmDialog>
+}
+
+@if (Lifecycle.ConfirmRollback is { } rollbackTabs)
+{
+    <ConfirmDialog Title="Rollback" ConfirmLabel="@ShellText.DiscardAll" Danger="true"
+                   OnConfirm="() => Lifecycle.RollbackAsync(rollbackTabs)" OnCancel="Lifecycle.CancelConfirmation">
+        <Fmt Text="@ShellText.Dialogs_RollbackQuestion"><Arg0><strong>@Lifecycle.WorkspaceName(rollbackTabs.WorkspaceId)</strong></Arg0></Fmt>
+    </ConfirmDialog>
+}
+
+@if (Lifecycle.ConfirmCommit is { } commitTabs)
+{
+    var commitSummary = Editing.SummaryOf(commitTabs);
+    <ConfirmDialog Title="@ShellText.Dialogs_CommitProdTitle" ConfirmLabel="@ShellText.CommitButton" Danger="true"
+                   OnConfirm="() => Lifecycle.CommitAsync(commitTabs, commitSummary.Actions)" OnCancel="Lifecycle.CancelConfirmation">
+        <Fmt Text="@ShellText.Dialogs_CommitProdText">
+            <Arg0><strong>@Lifecycle.WorkspaceName(commitTabs.WorkspaceId)</strong></Arg0>
+            <Arg1>@commitSummary.Pending</Arg1>
+            <Arg2>@commitSummary.Flushed</Arg2>
+            <Arg3><strong>@(Active.Profile is { } activeProfile ? ConnectionLabel.Of(activeProfile, Settings.Current) : null)</strong></Arg3>
+        </Fmt>
+        @* WP-30: what exactly is committed. *@
+        <OpenChangesList Workspace="commitTabs" Summary="commitSummary" Heading="@ShellText.Dialogs_CommitActions" />
+    </ConfirmDialog>
+}
+
+@if (Lifecycle.ConfirmRedo is ({ } redoTabs, { } redoAction))
+{
+    <ConfirmDialog Title="@ShellText.Dialogs_RedoTitle" ConfirmLabel="@ShellText.Dialogs_RedoConfirm" Danger="@IsProd(redoTabs)"
+                   OnConfirm="Lifecycle.RedoConfirmedAsync" OnCancel="Lifecycle.CancelConfirmation">
+        <p>
+            <Fmt Text="@ShellText.Dialogs_RedoText">
+                <Arg0><strong>@redoAction.Description</strong></Arg0>
+                <Arg1><strong>@Lifecycle.WorkspaceName(redoTabs.WorkspaceId)</strong></Arg1>
+            </Fmt>
+        </p>
+        @if (IsProd(redoTabs))
+        {
+            <p><Fmt Text="@ShellText.Dialogs_RedoProd"><Arg0><strong>@(Hub.ScopeOf(redoTabs).Profile is { } redoProfile ? ConnectionLabel.Of(redoProfile, Settings.Current) : null)</strong></Arg0></Fmt></p>
+        }
+        <div class="hint small">@TextFormat.Format(ShellText.Dialogs_RedoRowsBefore, redoAction.Rows)</div>
+        <SqlCode Sql="@ChangeOverview.Sql(redoAction)" />
+    </ConfirmDialog>
+}
+
+@if (Lifecycle.RedoRowsDiffer is (_, { } firstRun, { } againRun))
+{
+    <ConfirmDialog Title="@ShellText.Dialogs_RedoRowsTitle" ConfirmLabel="@ShellText.Dialogs_RedoUndo" CancelLabel="@ShellText.Dialogs_RedoKeep"
+                   OnConfirm="() => Lifecycle.ResolveRedoRowsAsync(keep: false)" OnCancel="() => Lifecycle.ResolveRedoRowsAsync(keep: true)">
+        <Fmt Text="@ShellText.Dialogs_RedoRowsText">
+            <Arg0><strong>@againRun.Description</strong></Arg0>
+            <Arg1><strong>@againRun.Rows</strong></Arg1>
+            <Arg2>@firstRun.Rows</Arg2>
+        </Fmt>
+    </ConfirmDialog>
+}
+
+@if (Shell.PendingUnlock is { } unlockId && Active.Profile is { } unlockProfile && Shell.Workspaces.Any(w => w.WorkspaceId == unlockId))
+{
+    <UnlockDialog @key="unlockId" Profile="unlockProfile" WorkspaceName="@Lifecycle.WorkspaceName(unlockId)"
+                  OnConfirm="() => Lifecycle.UnlockAsync(unlockId)" OnCancel="Shell.CloseUnlock" />
+}
+
+@if (Lifecycle.ConfirmCloseTab is { } closing)
+{
+    <ConfirmDialog Title="@ShellText.CloseTab" ConfirmLabel="@ShellText.Dialogs_DiscardAndClose" Danger="true"
+                   OnConfirm="() => Lifecycle.CloseTabConfirmed(closing.Tab)" OnCancel="Lifecycle.CancelConfirmation">
+        @* Pending changes are counted now, not when asked: the dialog takes the focus from a cell or form field being
+           edited, which turns the typed value into a pending change. *@
+        @switch (closing)
+        {
+            case { Tab: TableTab { Changes.PendingCount: > 0 } table }:
+                var pendingCount = table.Changes!.PendingCount;
+                <Fmt Text="@(pendingCount == 1 ? ShellText.Dialogs_CloseTabTextOne : ShellText.Dialogs_CloseTabTextOther)">
+                    <Arg0>@pendingCount</Arg0>
+                    <Arg1><strong>@table.Table.DisplayName</strong></Arg1>
+                </Fmt>
+                break;
+            case { Loss: CloseTabLoss.TypedValue, Tab: TableTab table }:
+                <Fmt Text="@ShellText.Dialogs_CloseTabTypedValue"><Arg0><strong>@table.Table.DisplayName</strong></Arg0></Fmt>
+                break;
+            case { Loss: CloseTabLoss.TableDraft }:
+                <Fmt Text="@ShellText.Dialogs_CloseTabTableDraft"><Arg0><strong>@(closing.Tab switch { NewTableTab draft => draft.Table.Name.Length > 0 ? draft.Table.Name : ShellText.TabBar_NewTable, TableTab table => table.Table.DisplayName, _ => "" })</strong></Arg0></Fmt>
+                break;
+            case { Tab: ITitledTab titled }:
+                <Fmt Text="@ShellText.Dialogs_CloseTabEditorText"><Arg0><strong>@titled.Title</strong></Arg0></Fmt>
+                break;
+        }
+    </ConfirmDialog>
+}
+
+@if (Lifecycle.ConfirmCloseTabs is { } closingTabs)
+{
+    <ConfirmDialog Title="@ShellText.Dialogs_CloseTabsTitle" ConfirmLabel="@ShellText.Dialogs_CloseTabsDiscard" Danger="true"
+                   SecondaryLabel="@(closingTabs.Others.Count > 0 ? ShellText.Dialogs_CloseTabsKeep : null)"
+                   OnConfirm="() => Lifecycle.CloseTabsConfirmed(keepLosing: false)" OnSecondary="() => Lifecycle.CloseTabsConfirmed(keepLosing: true)"
+                   OnCancel="Lifecycle.CancelConfirmation">
+        <p>@ShellText.Dialogs_CloseTabsText</p>
+        <ul class="leave-list">
+            @foreach (var losing in closingTabs.Losing)
+            {
+                <li><strong>@TabName(losing.Tab)</strong> – @LossText(losing)</li>
+            }
+        </ul>
+        @if (closingTabs.Losing.Any(q => q.Tab is TableTab))
+        {
+            <div class="hint small">@ShellText.Dialogs_CloseTabsWritten</div>
+        }
+    </ConfirmDialog>
+}
+
+@if (Lifecycle.PendingSql is { } pendingSql)
+{
+    <SqlPreviewDialog Sql="@pendingSql" Parameters="NoParameters" Error="@null" OnClose="Lifecycle.ClosePendingSql" />
+}
+
+@if (Shell.ReconnectOffer is { } changed)
+{
+    <ConfirmDialog Title="@ShellText.Dialogs_ReconnectTitle" ConfirmLabel="@ConnectionViewText.Connection_Reconnect" CancelLabel="@ShellText.Dialogs_ReconnectLater"
+                   OnConfirm="() => Lifecycle.ReconnectChangedAsync(changed)" OnCancel="Shell.CancelReconnectOffer">
+        <Fmt Text="@ShellText.Dialogs_ReconnectText"><Arg0><strong>@changed.Name</strong></Arg0></Fmt>
+    </ConfirmDialog>
+}
+
+@if (Shell.PendingDelete is { } pending)
+{
+    <ConfirmDialog Title="@ConnectionViewText.Connection_Delete" ConfirmLabel="@CommonText.Delete" Danger="true"
+                   OnConfirm="() => Lifecycle.DeleteAsync(pending)" OnCancel="Shell.CancelDelete">
+        <Fmt Text="@ShellText.Dialogs_DeleteConnectionText"><Arg0><strong>@pending.Name</strong></Arg0><Arg1>@pending.Address.Display</Arg1></Fmt>
+    </ConfirmDialog>
+}
+
+@code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    private static readonly IReadOnlyList<FerretSharp.Core.Query.QueryParameter> NoParameters = [];
+
+    private Notice? _scheduledNotice;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    /// <summary>A parameter (not only cascaded), so the dialogs render again whenever the shell does.</summary>
+    [Parameter, EditorRequired]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
+    private WorkspaceEditing Editing => Lifecycle.Editing;
+
+    /// <summary>The workspace belongs to a Prod connection (which need not be the shown one).</summary>
+    private bool IsProd(WorkspaceTabs workspace) => Hub.ScopeOf(workspace).Profile?.Kind == ConnectionKind.Prod;
+
+    /// <summary>
+    /// The workspaces the leave dialog lists – of any open connection (exiting, disconnecting one in the background), not
+    /// only the shown one's.
+    /// </summary>
+    private IReadOnlyList<(string Name, EditSummary Summary)> LeaveItems(LeaveRequest leave) =>
+        leave.WorkspaceIds
+            .Select(Shell.FindWorkspace)
+            .OfType<WorkspaceTabs>()
+            .Select(w => (Lifecycle.WorkspaceName(w.WorkspaceId), Editing.SummaryOf(w)))
+            .ToList();
+
+    /// <summary>How a tab is named in the dialogs.</summary>
+    private static string TabName(WorkspaceTab tab) => tab.Caption;
+
+    /// <summary>
+    /// What a tab in the list of <see cref="CloseTabsQuestion"/> would lose. Pending changes are counted now, not when asked
+    /// (the dialog takes the focus from a cell being edited, which turns the typed value into a pending change).
+    /// </summary>
+    private static string LossText(CloseTabQuestion question) => question switch
+    {
+        { Tab: TableTab { Changes.PendingCount: > 0 and var count } } =>
+            TextFormat.Plural(count, ShellText.Dialogs_CloseTabsPendingOne, ShellText.Dialogs_CloseTabsPendingOther),
+        { Loss: CloseTabLoss.TableDraft } => ShellText.Dialogs_CloseTabsTableDraft,
+        { Loss: CloseTabLoss.EditorText } => ShellText.Dialogs_CloseTabsEditorText,
+        _ => ShellText.Dialogs_CloseTabsTypedValue,
+    };
+
+    /// <summary>Toasts disappear by themselves; with warnings they stay longer.</summary>
+    protected override void OnParametersSet()
+    {
+        if (Shell.Notice is { } notice && notice != _scheduledNotice)
+        {
+            _scheduledNotice = notice;
+            _ = DismissLaterAsync(notice);
+        }
+    }
+
+    private async Task DismissLaterAsync(Notice notice)
+    {
+        await Task.Delay(notice.Warnings.Count > 0 ? TimeSpan.FromSeconds(12) : TimeSpan.FromSeconds(5));
+        await InvokeAsync(() => Shell.DismissNotice(notice));
+    }
+}

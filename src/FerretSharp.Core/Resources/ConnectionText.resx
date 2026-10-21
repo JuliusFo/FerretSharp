@@ -135,4 +135,13 @@
   <data name="Step_RestoringWorkspaces" xml:space="preserve">
     <value>Restoring the workspaces</value>
   </data>
+  <data name="HostInvalid" xml:space="preserve">
+    <value>The host may only contain letters, digits, “.”, “-” and “_” (an IPv6 address in brackets).</value>
+  </data>
+  <data name="ServiceOrSidInvalid" xml:space="preserve">
+    <value>The service name or SID may only contain letters, digits and “. _ $ # -”.</value>
+  </data>
+  <data name="TnsAliasInvalid" xml:space="preserve">
+    <value>The TNS alias may not contain blanks or “(”, “)”, “=”.</value>
+  </data>
 </root>

@@ -165,4 +165,10 @@
   <data name="StatementNotDdl" xml:space="preserve">
     <value>Diese Anweisung ist keine einzelne DDL-Anweisung und würde abgewiesen: {0}</value>
   </data>
+  <data name="TypeChangeCutsFractions" xml:space="preserve">
+    <value>{0}: {1} → {2} behält die Werte, schneidet aber ihre Sekundenbruchteile ab – sofort und endgültig (DDL wird gleich committet).</value>
+  </data>
+  <data name="TypeChangePads" xml:space="preserve">
+    <value>{0}: {1} → {2} füllt jeden Wert mit Leerzeichen auf die volle Länge auf; Vergleiche mit VARCHAR2-Werten (Beziehungen, Filter) treffen danach womöglich nicht mehr.</value>
+  </data>
 </root>

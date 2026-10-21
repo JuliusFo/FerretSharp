@@ -107,6 +107,18 @@
     <value>this type is not exported</value>
     <comment>Reason in an export warning (lower case, ends a sentence): values of this data type are not exported</comment>
   </data>
+  <data name="ExportTruncatedOne" xml:space="preserve">
+    <value>{1} ({2}): {0} value shortened – an Excel cell holds at most 32,767 characters.</value>
+    <comment>Excel export warning. {0} = number of values (1), {1} = column name, {2} = data type</comment>
+  </data>
+  <data name="ExportTruncatedOther" xml:space="preserve">
+    <value>{1} ({2}): {0} values shortened – an Excel cell holds at most 32,767 characters.</value>
+    <comment>Excel export warning. {0} = number of values, {1} = column name, {2} = data type</comment>
+  </data>
+  <data name="ExportSheetRowLimit" xml:space="preserve">
+    <value>Only the first {0} rows were exported – an Excel sheet holds no more.</value>
+    <comment>Excel export warning. {0} = number of rows written</comment>
+  </data>
   <data name="LobEmpty" xml:space="preserve">
     <value>‹empty›</value>
     <comment>Grid cell of an empty (not NULL) LOB</comment>
@@ -136,5 +148,13 @@
   </data>
   <data name="RedoNotPossible" xml:space="preserve">
     <value>The action can no longer be redone – only the action undone last can, as long as nothing new was written.</value>
+  </data>
+  <data name="ExportResultChanged" xml:space="preserve">
+    <value>The query now returns other columns than the result shows – run it again, then export.</value>
+    <comment>Export of all rows of a SQL result refused: the re-run query has different columns</comment>
+  </data>
+  <data name="ExportNamesMissing" xml:space="preserve">
+    <value>Names from {0} are missing: {1}</value>
+    <comment>Excel export warning. {0} = table.column of the display column, {1} = database error</comment>
   </data>
 </root>

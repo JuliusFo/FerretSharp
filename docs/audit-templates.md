@@ -2,7 +2,18 @@
 
 Zu einer Tabelle (der **Basistabelle**) legt FerretSharp eine **Audit-Tabelle** und einen **Trigger** an, der jede Änderung dorthin schreibt. Wie beide aussehen, steht in einer **Vorlage**: einer SQL-Datei mit Anweisungszeilen. FerretSharp bringt eine Standardvorlage mit (unten); eine eigene Vorlage (z. B. aus dem Repo der Firma) ersetzt sie.
 
-Code: `src/FerretSharp.Core/Audit/` (`AuditTemplates.Parse`, `AuditTemplate.NamesFor`/`TableFor`/`TriggerFor`), Typwissen in `Schema/OracleTypes` (`TryParse`, `IsComparable`, `IsLong`), Texte in `Resources/AuditText.resx`. Entscheidungen des Nutzers: `docs/roadmap.md` (WP-26), Trigger über den Schemaweg: ADR 0021.
+Code: `src/FerretSharp.Core/Audit/` (`AuditTemplates.Parse`, `AuditTemplate.NamesFor`/`TableFor`/`TriggerFor`), Typwissen in `Schema/OracleTypes` (`TryParse`, `IsComparable`, `IsLong`, `FitOf`), Texte in `Resources/AuditText.resx`. Entscheidungen des Nutzers: `docs/work-packages/wp-26-history-tables.md`, `docs/work-packages/wp-51-audit-template-per-group.md`, Trigger über den Schemaweg: ADR 0021.
+
+## Welche Vorlage gilt (WP-51)
+
+Jede Gruppe von Systemen hat ihre eigene Vorlage. `AuditTemplateSource.For(profile)` nimmt die erste, die gesetzt ist:
+
+1. die Vorlage der Verbindung (`ConnectionProfile.AuditTemplatePath`, im Verbindungsdialog; ein lokaler Pfad wie der Skriptordner, Import und Export nehmen ihn nur auf Wunsch mit),
+2. die Vorlage ihrer Gruppe (`AppSettings.AuditTemplateGroups`, Gruppenname → Datei; Gruppen wie in der Verbindungsliste ohne Leerraum und Groß-/Kleinschreibung verglichen),
+3. die Vorlage der Einstellungen (`AppSettings.AuditTemplatePath`),
+4. die eingebaute.
+
+Eine gesetzte Datei, die fehlt oder Fehler hat, wird gemeldet, nicht übersprungen: Die nächste Vorlage gehört womöglich zu einem anderen System. Ein Eintrag einer Gruppe, die keine Verbindung mehr hat (umbenannt), bleibt stehen und ist in den Einstellungen als solcher markiert, bis er entfernt wird. Designer, Audit-Zeile und `AuditStatus.IsAuditTable` fragen mit der Verbindung des Tabs; der Tooltip der Audit-Zeile nennt die Vorlage und woher sie kommt.
 
 ## Beispiel
 
@@ -145,6 +156,12 @@ Schleifen lassen sich nicht schachteln. Eine Schleife ohne Spalten (z. B. `compa
 
 - Keine Audit-Tabelle: `CREATE TABLE` mit Kommentaren, danach der Trigger.
 - Vorhandene Audit-Tabelle (Entscheidungen des Nutzers 2026-10-12): Spalten, die die Tabelle nicht mehr hat, **bleiben** und werden nullable; Typen werden nur **größer** (sonst eine Warnung); Kommentare folgen der Tabelle; Umbenennungen aus dem Designer werden übernommen; neue Spalten kommen ans Ende, in einer Audit-Tabelle mit (oder unbekannt vielen) Zeilen nullable (ORA-01758).
+- Typen vorhandener Audit-Spalten (WP-51): Der Trigger schreibt per INSERT, nicht per MODIFY – maßgeblich ist `OracleTypes.FitOf` (Spalte, Wert). Datums- und Zeittypen nehmen einander immer an (Oracle wandelt um), vollständig, wenn die Spalte mindestens so viele Sekundenbruchteile und so viel Zeitzone hat (keine < lokal < mit Zeitzone; DATE hat beides nicht). Daraus:
+  - Die Spalte nimmt die Werte vollständig an: bleibt. Ist es eine **eigene Spalte der Vorlage** und die Audit-Spalte breiter (z. B. `TIMESTAMP(6) WITH TIME ZONE` gegen `DATE` in der Vorlage), gibt es eine Warnung: Die Audit-Tabelle stammt vermutlich aus einer anderen Vorlage, der neue Trigger schriebe nur noch die schmaleren Werte.
+  - Verbreitern geht per MODIFY mit Daten: wird verbreitert (DATE → TIMESTAMP, länger, mehr Stellen).
+  - Nur mit Verlust (Sekundenbruchteile, Zeitzone, z. B. eine DATE-Spalte für `TIMESTAMP WITH TIME ZONE`): Warnung, die Spalte bleibt (MODIFY bräuchte eine leere Spalte – Entscheidung des Nutzers 2026-10-17).
+  - Gar nicht (andere Typfamilie, zu kurz): ein Problem, der Trigger ließe jede DML scheitern.
+  - Jede Meldung sagt, ob der verglichene Typ aus der **Vorlage** oder aus der **Tabelle** kommt.
 - Trigger: neu geschrieben, wenn er fehlt, ungültig ist, andere Spalten benutzt als die Vorlage, die Audit-Tabelle neue Spalten bekommt oder ausdrücklich gewünscht (Vorlage geändert). Ein gleichnamiger Trigger auf einer anderen Tabelle ist ein Problem. Ein aktueller, aber ausgeschalteter Trigger wird nur gemeldet.
 - `AuditPlanner.Combine` hängt den Plan an den des Designers: ein Skript, die Basistabelle vor der Audit-Tabelle, der Trigger zuletzt.
 

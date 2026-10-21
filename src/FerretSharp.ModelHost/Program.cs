@@ -237,7 +237,7 @@ internal static class Program
             }
             catch (CultureNotFoundException)
             {
-                // unknown culture (or invariant globalization): English
+                // unknown culture: English
             }
         }
 

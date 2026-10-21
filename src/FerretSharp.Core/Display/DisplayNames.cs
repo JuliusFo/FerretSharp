@@ -1,4 +1,6 @@
+using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.Display;
@@ -10,6 +12,9 @@ public sealed record LookedUpName(string? Text, bool NotFound);
 
 /// <summary>One lookup to run: keys of one link not known yet, at most <see cref="Query.QueryBuilder.MaxLookupKeys"/>.</summary>
 public sealed record DisplayLookup(DisplayLink Link, IReadOnlyList<object> Keys);
+
+/// <summary>A lookup of <see cref="DisplayNames.FillAsync"/> that failed: the warning for the user and the error for the log.</summary>
+public sealed record NameLookupFailure(string Warning, DatabaseException Error);
 
 /// <summary>
 /// The names of one grid (WP-31): which values of its foreign key columns were looked up, what was found, and which
@@ -194,6 +199,67 @@ public sealed class DisplayNames
             state.NotFound.Clear();
             state.Pending.Clear();
         }
+    }
+
+    /// <summary>
+    /// The same links, nothing looked up yet – and no link switched off: the export of all rows (WP-54) looks up its own
+    /// names while it reads, off the UI thread, so it formats with a <paramref name="format"/> of its own.
+    /// </summary>
+    public DisplayNames Fresh(Func<DisplayLink, object?, string?> format) => new(Links, format);
+
+    /// <summary>
+    /// What was looked up so far, as a copy: the export of the selected rows (A13) writes in the background while the grid
+    /// goes on looking up names.
+    /// </summary>
+    public DisplayNames Copy()
+    {
+        var copy = new DisplayNames(Links, _format);
+        foreach (var (column, state) in _byColumn)
+        {
+            var target = copy._byColumn[column];
+            target.Disabled = state.Disabled;
+            foreach (var (key, text) in state.Found)
+            {
+                target.Found[key] = text;
+            }
+
+            target.NotFound.UnionWith(state.NotFound);
+        }
+
+        return copy;
+    }
+
+    /// <summary>
+    /// Looks up what <paramref name="rows"/> need, one lookup after the other, before they are written (the export of all
+    /// rows, WP-54: it reads the rows itself, through the lookup of its read). A link whose lookup fails is switched off and
+    /// named in the failures; a lost connection is no failure of a link and ends the export.
+    /// </summary>
+    /// <exception cref="DatabaseException">The connection was lost (<see cref="DatabaseException.IsConnectionLost"/>).</exception>
+    public async Task<IReadOnlyList<NameLookupFailure>> FillAsync(
+        IRowLookup lookup, IEnumerable<IReadOnlyList<object?>> rows, CancellationToken cancellationToken)
+    {
+        List<NameLookupFailure>? failures = null;
+        foreach (var missing in Missing(rows))
+        {
+            var link = missing.Link;
+            if (!Shows(link.Column))
+            {
+                continue; // a further lookup of a link that failed (more keys than one lookup takes)
+            }
+
+            try
+            {
+                Found(missing, await lookup.LookupAsync(link.Target, link.KeyColumn, link.DisplayColumn, missing.Keys, cancellationToken));
+            }
+            catch (DatabaseException ex) when (!ex.IsConnectionLost)
+            {
+                Failed(missing, ex.Message);
+                var warning = TextFormat.Format(DataText.ExportNamesMissing, $"{link.Target.Table.DisplayName}.{link.Display.Name}", ex.Display);
+                (failures ??= []).Add(new NameLookupFailure(warning, ex));
+            }
+        }
+
+        return failures ?? [];
     }
 
     /// <summary>

@@ -4,7 +4,7 @@ paths:
   - "src/FerretSharp.Core/Oracle/OracleDataEditor*"
   - "src/FerretSharp.Core/Schema/PlSql*"
   - "src/FerretSharp.Core/Audit/**"
-  - "src/FerretSharp.UI/Components/PlSql*"
+  - "src/FerretSharp.UI/Components/PlSql/**"
 ---
 
 # PL/SQL im Dictionary (WP-28, WP-26)

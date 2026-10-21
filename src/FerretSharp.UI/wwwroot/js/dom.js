@@ -18,13 +18,15 @@ export function selectIfFocused(element) {
 /**
  * Escape in a search field with text clears it and goes no further: stopped at the field, Blazor's handlers above it
  * (a popover's or dialog's Escape) never see it, so they act only on the next Escape. The input event updates the binding.
+ * A text starting with `keep` (the command prefix of the quick open, WP-38) is cleared back to it, and with only `keep`
+ * left Escape goes on as in an empty field.
  */
-export function clearOnEscape(input) {
+export function clearOnEscape(input, keep = '') {
   input?.addEventListener('keydown', e => {
-    if (e.key !== 'Escape' || e.isComposing || input.value === '') return;
+    if (e.key !== 'Escape' || e.isComposing || input.value === '' || (keep && input.value.trim() === keep)) return;
     e.stopPropagation();
     e.preventDefault();
-    input.value = '';
+    input.value = keep && input.value.trimStart().startsWith(keep) ? keep : '';
     input.dispatchEvent(new Event('input', { bubbles: true }));
   });
 }
@@ -77,9 +79,90 @@ export function dragWidth(handle, panel, pointerId, startX, min, maxFraction) {
   });
 }
 
+/**
+ * Drags something onto a drop target while the pointer is down (a filter row into a group, WP-50): the target under the
+ * pointer – the closest element matching the selector – gets hoverClass, root gets 'dragging'. Resolves with the
+ * target's data-drop when the pointer is released over one, else null. Pointer events, not HTML5 drag and drop.
+ */
+export function dragToDrop(root, pointerId, selector, hoverClass) {
+  return new Promise(resolve => {
+    let over = null;
+    const move = e => {
+      const target = document.elementFromPoint(e.clientX, e.clientY)?.closest(selector) ?? null;
+      if (target !== over) {
+        over?.classList.remove(hoverClass);
+        target?.classList.add(hoverClass);
+        over = target;
+      }
+    };
+    let done = false;
+    const onMove = e => ((e.buttons & 1) === 0 ? end(e) : move(e)); // the button came up unseen: no drop
+    const end = e => {
+      if (done) return;
+      done = true;
+      root.removeEventListener('pointermove', onMove);
+      root.removeEventListener('pointerup', end);
+      root.removeEventListener('pointercancel', end);
+      root.removeEventListener('lostpointercapture', end);
+      root.classList.remove('dragging');
+      over?.classList.remove(hoverClass);
+      if (root.hasPointerCapture(pointerId)) root.releasePointerCapture(pointerId);
+      resolve(e.type === 'pointerup' && over ? over.dataset.drop ?? null : null);
+    };
+    try {
+      root.setPointerCapture(pointerId);
+    } catch {
+      // released before the capture: nothing to drag
+    }
+    // A mouse button released while the call came here leaves no capture (and no exception): a later click elsewhere in
+    // the bar must not drop the row there (review of WP-50).
+    if (!root.hasPointerCapture(pointerId)) {
+      resolve(null);
+      return;
+    }
+    root.classList.add('dragging');
+    root.addEventListener('pointermove', onMove);
+    root.addEventListener('pointerup', end);
+    root.addEventListener('pointercancel', end);
+    root.addEventListener('lostpointercapture', end); // the bar went away, or the capture ended otherwise
+  });
+}
+
 /** Focuses the first enabled input, select or text area inside the element (a new row in the form). */
 export function focusFirstInput(element) {
   element?.querySelector('input:not([disabled]):not([readonly]), select:not([disabled]), textarea:not([disabled]):not([readonly])')?.focus();
+}
+
+const focusable = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/** Tab and Shift+Tab stay inside the dialog box (review 3.40.0, A15): they went on to the buttons behind the backdrop, and
+ *  Enter there committed from the status bar while a confirmation was open. Tab inside Monaco or a grid that handles it
+ *  stays theirs. The listener is on the backdrop and goes with it. */
+export function trapFocus(box) {
+  const backdrop = box?.parentElement;
+  if (!backdrop || backdrop._focusTrap) {
+    return;
+  }
+
+  backdrop._focusTrap = true;
+  backdrop.addEventListener('keydown', e => {
+    if (e.key !== 'Tab' || e.defaultPrevented || e.target.closest?.('.monaco-editor')) {
+      return;
+    }
+
+    const items = [...box.querySelectorAll(focusable)].filter(el => el.offsetParent !== null);
+    const active = document.activeElement;
+    if (items.length === 0) {
+      e.preventDefault();
+      box.focus();
+    } else if (e.shiftKey && (active === items[0] || !items.includes(active))) {
+      e.preventDefault();
+      items[items.length - 1].focus();
+    } else if (!e.shiftKey && (active === items[items.length - 1] || !items.includes(active))) {
+      e.preventDefault();
+      items[0].focus();
+    }
+  });
 }
 
 /** True if the element contains the focused element (Ctrl+F: the form's search or the grid's column jump). */

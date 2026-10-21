@@ -117,4 +117,13 @@
   <data name="Step_RestoringWorkspaces" xml:space="preserve">
     <value>Stelle die Workspaces wieder her</value>
   </data>
+  <data name="HostInvalid" xml:space="preserve">
+    <value>Der Host darf nur Buchstaben, Ziffern, „.“, „-“ und „_“ enthalten (eine IPv6-Adresse in eckigen Klammern).</value>
+  </data>
+  <data name="ServiceOrSidInvalid" xml:space="preserve">
+    <value>Service Name bzw. SID dürfen nur Buchstaben, Ziffern und „. _ $ # -“ enthalten.</value>
+  </data>
+  <data name="TnsAliasInvalid" xml:space="preserve">
+    <value>Der TNS-Alias darf keine Leerzeichen und kein „(“, „)“, „=“ enthalten.</value>
+  </data>
 </root>

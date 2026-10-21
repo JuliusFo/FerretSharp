@@ -38,5 +38,10 @@ public static class ConnectionSearch
             .Order(GroupComparer)
             .ToList();
 
-    private static string? NormalizeGroup(string? group) => string.IsNullOrWhiteSpace(group) ? null : group.Trim();
+    /// <summary>The same group as the lists show it: trimmed, case ignored; no group is never the same as another.</summary>
+    public static bool SameGroup(string? a, string? b) =>
+        NormalizeGroup(a) is { } left && NormalizeGroup(b) is { } right && GroupComparer.Equals(left, right);
+
+    /// <summary>The group name trimmed; null for none.</summary>
+    public static string? NormalizeGroup(string? group) => string.IsNullOrWhiteSpace(group) ? null : group.Trim();
 }

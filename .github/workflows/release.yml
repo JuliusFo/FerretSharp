@@ -16,6 +16,12 @@ on:
 permissions:
   contents: write
 
+# One release at a time (review 3.40.0, A35): two tags pushed in a row would otherwise run side by side, and the second
+# would take as the base of its delta package a release that is still a draft.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 env:
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
@@ -31,11 +37,12 @@ jobs:
       run:
         shell: pwsh
     steps:
-      - uses: actions/checkout@v5
+      # Pinned to commits (review 3.40.0, A35): this job may write releases; Dependabot keeps the pins current.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ env.TAG }}
 
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           global-json-file: global.json
 
@@ -64,6 +71,21 @@ jobs:
             $section += $line
           }
           $changes = ($section -join "`n").Trim()
+          # Images (WP-49): relative in the changelog, here the tag's files on GitHub – for the release page and the update
+          # dialog, which shows nothing else (ReleaseNotes.OwnImageUri). A missing file stops the release.
+          $raw = "https://raw.githubusercontent.com/JuliusFo/FerretSharp/$env:TAG/"
+          $changes = [regex]::Replace($changes, '(?m)^([ \t]*)!\[([^\]]*)\]\(([^)\s]+)\)[ \t]*$', {
+            param($m)
+            $path = $m.Groups[3].Value
+            if ($path -notmatch '^docs/images/changelog/[A-Za-z0-9._-]+$') { throw "CHANGELOG.md: image $path is not a file below docs/images/changelog/." }
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "CHANGELOG.md: image $path does not exist." }
+            "$($m.Groups[1].Value)![$($m.Groups[2].Value)]($raw$path)"
+          })
+          # Any other image (in a sentence) was neither checked nor rewritten: broken on the release page, alt text only in
+          # the dialog (review 3.40.0, A34). ChangelogTests refuses it in the CI too.
+          foreach ($m in [regex]::Matches($changes, '!\[[^\]]*\]\(([^)\s]*)\)')) {
+            if (-not $m.Groups[1].Value.StartsWith($raw)) { throw "CHANGELOG.md: image $($m.Groups[1].Value) needs a line of its own." }
+          }
           # What the app shows in its update dialog (packed into the release by vpk).
           Set-Content changes.md $changes -Encoding utf8
           $notes = $changes + "`n`n---`n**Download** (Windows 10/11, x64; the WebView2 runtime is part of Windows):`n" +

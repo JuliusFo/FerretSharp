@@ -1,0 +1,217 @@
+@* Workspaces of the active connection: click activates, double-click or "⋯" renames, × or middle-click closes. *@
+@using FerretSharp.Core.Workspaces
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div class="workspaces">
+    @{ var open = Workspaces.Open; var activeId = Workspaces.Active?.Id; }
+    @foreach (var workspace in open)
+    {
+        var w = workspace;
+        var unlocked = Workspaces.IsUnlocked(w.Id);
+        <div class="ws @(w.Id == activeId ? "active" : "") @(unlocked ? "unlocked" : "")"
+             title="@(_renaming == w.Id ? null : unlocked ? $"{ShellText.Workspaces_UnlockedForWriting} · {ShellText.Workspaces_ChipTitle}" : ShellText.Workspaces_ChipTitle)"
+             @onclick="e => OnChipClick(e, w)" @onmouseup="e => CloseOnMiddleClick(e, w)">
+            @if (_renaming == w.Id)
+            {
+                <TitleEditor Value="@w.Name" Class="ws-rename" OnCommit="name => CommitRename(w, name)" OnCancel="() => _renaming = null" />
+            }
+            else
+            {
+                @if (unlocked)
+                {
+                    <span class="ws-unlocked" aria-label="@ShellText.Workspace_Unlocked">@Icons.Unlocked</span>
+                }
+                <span class="ws-name">@w.Name</span>
+                @* The menu sits in the chip: its clicks must not reach the chip (activate, middle-click closes). *@
+                <span class="ws-more-anchor" @onclick:stopPropagation="true" @onmouseup:stopPropagation="true">
+                    <MenuButton Class="ws-more" Title="@ShellText.Actions" Label="Dots" Width="ActionsMenuWidth"
+                                EstimatedHeight="@(Workspaces.Profile?.ReadOnly == true ? 150 : 110)" ShiftX="@(ActionsMenuWidth - 16)" ShiftY="12">
+                        <ChildContent Context="menu">@ActionsMenu(menu, w)</ChildContent>
+                    </MenuButton>
+                </span>
+            }
+            @if (open.Count > 1 && _renaming != w.Id)
+            {
+                <button class="ws-close" title="@ShellText.Workspaces_CloseTitle"
+                        @onclick:stopPropagation="true" @onclick="() => CloseAsync(w)">✕</button>
+            }
+        </div>
+    }
+
+    <div class="ws-menu-anchor">
+        @* Review 3.40.0, A16: a menu like every menu – focused (Escape closes at once) and kept inside the window. *@
+        <MenuButton Class="ws-add" OpenClass="open" Title="@ShellText.Workspaces_AddTitle" Label="Plus" Width="AddMenuWidth"
+                    EstimatedHeight="@(48 + (Workspaces.Closed.Count > 0 ? 30 + 44 * Workspaces.Closed.Count : 0))" ShiftX="@(AddMenuWidth - 16)" ShiftY="18">
+            <ChildContent Context="menu">
+                <div class="ws-pop">
+                    <button class="menu-item" @onclick="() => RunActionAsync(menu, CreateAsync)"><span class="plus">+</span> @ShellText.Workspaces_New</button>
+                    @{ var closed = Workspaces.Closed; }
+                    @if (closed.Count > 0)
+                    {
+                        <div class="group-head-btn static">@ShellText.Workspaces_Closed</div>
+                        @foreach (var workspace in closed)
+                        {
+                            var w = workspace;
+                            <div class="ws-closed">
+                                <button class="menu-item" title="@ShellText.Workspaces_Reopen" @onclick="() => RunActionAsync(menu, () => ReopenAsync(w))">
+                                    <span class="ws-name">@w.Name</span>
+                                    <span class="ws-meta">@TabCount(w) · @w.LastActive.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)</span>
+                                </button>
+                                <button class="icon-btn ghost ws-delete" title="@ShellText.Workspaces_DeletePermanently" @onclick="() => RunAction(menu, () => _pendingDelete = w)">✕</button>
+                            </div>
+                        }
+                    }
+                </div>
+            </ChildContent>
+        </MenuButton>
+    </div>
+</div>
+
+@if (_pendingDelete is { } pending)
+{
+    <ConfirmDialog Title="@ShellText.Workspaces_DeleteTitle" ConfirmLabel="@CommonText.Delete" Danger="true"
+                   OnConfirm="() => DeleteAsync(pending)" OnCancel="() => _pendingDelete = null">
+        <Fmt Text="@ShellText.Workspaces_DeleteQuestion"><Arg0><strong>@pending.Name</strong></Arg0><Arg1>@TabCount(pending)</Arg1></Fmt>
+    </ConfirmDialog>
+}
+
+@code {
+    [CascadingParameter]
+    public WorkspaceManager Workspaces { get; set; } = null!;
+
+    private Guid? _renaming;
+    private DomModule? _dom;
+
+    /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
+    private DomModule Dom => _dom ??= new(JS);
+    private Workspace? _pendingDelete;
+
+    private const double AddMenuWidth = 320;
+    private const double ActionsMenuWidth = 200;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    /// <summary>Closing and locking a workspace ask about its uncommitted changes first.</summary>
+    [CascadingParameter]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
+    protected override void OnInitialized() => Workspaces.Changed += OnChanged;
+
+    /// <summary>"⋯" on a chip: rename, close, lock or unlock, new – like the "⋯" menu of the connections.</summary>
+    private static string TabCount(Workspace workspace) => TextFormat.Plural(workspace.Tabs.Count, ShellText.Workspaces_TabsOne, ShellText.Workspaces_TabsOther);
+
+    private RenderFragment ActionsMenu(MenuButton menu, Workspace target) => __builder =>
+    {
+        var lockItems = Workspaces.Profile?.ReadOnly == true;
+    <button class="menu-item" @onclick="() => RunAction(menu, () => StartRename(target))">@ShellText.Rename</button>
+    <button class="menu-item" disabled="@(Workspaces.Open.Count <= 1)"
+            title="@(Workspaces.Open.Count <= 1 ? ShellText.Workspaces_LastStaysOpen : ShellText.Workspaces_CloseHint)"
+            @onclick="() => RunActionAsync(menu, () => CloseAsync(target))">@CommonText.Close</button>
+    @if (lockItems)
+    {
+        <div class="menu-sep"></div>
+        @if (Workspaces.IsUnlocked(target.Id))
+        {
+            <button class="menu-item" title="@ShellText.Workspaces_LockTitle" @onclick="() => RunActionAsync(menu, () => Lifecycle.LockAsync(target.Id))">@ShellText.Workspaces_LockAgain</button>
+        }
+        else
+        {
+            <button class="menu-item danger" @onclick="() => RunAction(menu, () => Shell.RequestUnlock(target.Id))">@ShellText.Workspaces_Unlock</button>
+        }
+    }
+    <div class="menu-sep"></div>
+    <button class="menu-item" @onclick="() => RunActionAsync(menu, CreateAsync)"><span class="plus">+</span> @ShellText.Workspaces_New</button>
+    };
+
+    private static void RunAction(MenuButton menu, Action action)
+    {
+        menu.Close();
+        action();
+    }
+
+    private static async Task RunActionAsync(MenuButton menu, Func<Task> action)
+    {
+        menu.Close();
+        await action();
+    }
+
+    private static readonly RenderFragment Dots = @<text>⋯</text>;
+
+    private static readonly RenderFragment Plus = @<text>+</text>;
+
+    private void Activate(Workspace workspace)
+    {
+        Workspaces.Activate(workspace.Id);
+        Shell.ShowExplorer();
+    }
+
+    /// <summary>
+    /// Double click renames. Not via @ondblclick: in the WPF host a real double click reaches the WebView with a
+    /// duplicated mousedown, the click count jumps to 3 and dblclick never fires (see .claude/rules/ui.md).
+    /// </summary>
+    private void OnChipClick(MouseEventArgs e, Workspace workspace)
+    {
+        if (e.Detail >= 2)
+        {
+            StartRename(workspace);
+        }
+        else
+        {
+            Activate(workspace);
+        }
+    }
+
+    /// <summary>The chip shows a <see cref="TitleEditor"/> (R5b: had a copy of it), which focuses and selects the name itself.</summary>
+    private void StartRename(Workspace workspace) => _renaming = workspace.Id;
+
+    private void CommitRename(Workspace workspace, string typed)
+    {
+        if (Workspace.NormalizeName(typed) is { } name)
+        {
+            Workspaces.Rename(workspace.Id, name);
+        }
+
+        _renaming = null;
+    }
+
+    /// <summary>Closing ends the workspace's session: uncommitted changes are committed or discarded first.</summary>
+    private Task CloseAsync(Workspace workspace) => Lifecycle.CloseWorkspaceAsync(workspace.Id);
+
+    private async Task CloseOnMiddleClick(MouseEventArgs e, Workspace workspace)
+    {
+        if (e.Button == 1)
+        {
+            await CloseAsync(workspace);
+        }
+    }
+
+    private async Task CreateAsync()
+    {
+        var workspace = await Workspaces.CreateAsync();
+        Shell.ShowExplorer();
+        StartRename(workspace);
+    }
+
+    private async Task ReopenAsync(Workspace workspace)
+    {
+        await Workspaces.ReopenAsync(workspace.Id);
+        Shell.ShowExplorer();
+    }
+
+    private async Task DeleteAsync(Workspace workspace)
+    {
+        _pendingDelete = null;
+        await Workspaces.DeleteAsync(workspace.Id);
+    }
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    public async ValueTask DisposeAsync()
+    {
+        Workspaces.Changed -= OnChanged;
+        await Dom.DisposeAsync();
+    }
+
+}

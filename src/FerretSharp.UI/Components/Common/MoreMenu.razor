@@ -1,0 +1,63 @@
+@* A "⋯" button (or another label) with a small menu of plain actions (WP-35: head of the connections page, group heads;
+   R6b: a connection's actions, "C# ▾" of the filter bar) – a MenuButton with MoreMenuItem entries. *@
+
+<MenuButton Class="@ButtonClassOrDefault"Title="@(Title ?? ShellText.Actions)" Label="@(Label ?? Dots)" StopPropagation="true"
+            Width="Width" EstimatedHeight="@(12 + 32 * Items.Count + 9 * Items.Count(i => i.SeparatorBefore))" ShiftX="ShiftX" ShiftY="ShiftY">
+    <ChildContent Context="menu">
+        @foreach (var item in Items)
+        {
+            var entry = item;
+            @if (entry.SeparatorBefore)
+            {
+                <div class="menu-sep"></div>
+            }
+            <button class="menu-item @(entry.Strong ? "strong" : "") @(entry.Danger ? "danger" : "")" disabled="@(!entry.Enabled)" title="@entry.Title"
+                    @onclick="() => RunAsync(menu, entry)">@entry.Label</button>
+        }
+    </ChildContent>
+</MenuButton>
+
+@code {
+    private static readonly RenderFragment Dots = @<text>⋯</text>;
+
+    /// <summary>More classes of the "⋯" button (e.g. to show it always, not only on hover).</summary>
+    [Parameter]
+    public string? Class { get; set; }
+
+    /// <summary>The whole class of the button, for a button that is no "⋯" (e.g. <c>btn ghost</c>).</summary>
+    [Parameter]
+    public string? ButtonClass { get; set; }
+
+    [Parameter]
+    public string? Title { get; set; }
+
+    /// <summary>What the button shows instead of "⋯".</summary>
+    [Parameter]
+    public RenderFragment? Label { get; set; }
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<MoreMenuItem> Items { get; set; } = [];
+
+    [Parameter]
+    public double Width { get; set; } = 220;
+
+    /// <summary>The menu ends at the mouse by default, its top 10 px below it.</summary>
+    [Parameter]
+    public double ShiftX { get; set; }
+
+    [Parameter]
+    public double ShiftY { get; set; } = 10;
+
+    /// <summary>Runs before the chosen entry, after the menu closed (e.g. to close the popover the button sits in).</summary>
+    [Parameter]
+    public EventCallback OnAction { get; set; }
+
+    private string ButtonClassOrDefault => ButtonClass ?? $"icon-btn ghost more {Class}";
+
+    private async Task RunAsync(MenuButton menu, MoreMenuItem item)
+    {
+        menu.Close();
+        await OnAction.InvokeAsync();
+        await item.Run();
+    }
+}

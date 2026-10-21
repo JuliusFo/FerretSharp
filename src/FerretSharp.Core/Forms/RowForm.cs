@@ -135,11 +135,15 @@ public static class RowForm
     public static string EditTextOf(TablePresentation presentation, int column, object? raw) =>
         presentation.ValuesOf(column)?.OptionOf(raw)?.Value ?? OracleTypeMapper.EditText(presentation.Details.Columns[column], raw);
 
-    /// <summary>Rows referencing this one, per incoming foreign key; none for a new row (nothing can reference it yet).</summary>
-    public static IReadOnlyList<FkJump> Incoming(TableDetails table, FormRow row, IEnumerable<ForeignKeyInfo> incoming) =>
+    /// <summary>
+    /// Rows referencing this one, per incoming foreign key, then those referencing it through a base table
+    /// (<paramref name="inherited"/>); none for a new row (nothing can reference it yet).
+    /// </summary>
+    public static IReadOnlyList<FkJump> Incoming(
+        TableDetails table, FormRow row, IEnumerable<ForeignKeyInfo> incoming, IEnumerable<InheritedReference>? inherited = null) =>
         row.IsNew
             ? []
-            : FkNavigation.JumpsFor(table, row.Current(table.Columns.Count), [], incoming);
+            : FkNavigation.JumpsFor(table, row.Current(table.Columns.Count), [], incoming, inherited);
 
     /// <summary>The fields matching the search (column or C# property name) and the switches, in their order.</summary>
     public static FormView<FormField> Visible(IReadOnlyList<FormField> fields, TablePresentation presentation, FormFilter filter)

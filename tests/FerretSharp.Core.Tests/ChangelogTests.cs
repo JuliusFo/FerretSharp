@@ -1,0 +1,167 @@
+using System.Text.RegularExpressions;
+
+namespace FerretSharp.Core.Tests;
+
+/// <summary>
+/// WP-49: images in CHANGELOG.md. The release workflow rewrites their relative paths to the tag's files on GitHub, and the
+/// update dialog shows only a line of its own from there (<c>ReleaseNotes.OwnImageUri</c>) – so each image is a line of its
+/// own, relative, directly below <c>docs/images/changelog/</c> with a plain file name (as the workflow checks), and
+/// exists; with an empty line before and after it, or GitHub sets it into the text next to it. Runs in the release workflow too (Core tests), before anything is packed.
+/// </summary>
+public sealed partial class ChangelogTests
+{
+    private const string Folder = "docs/images/changelog/";
+    private const long MaxBytes = 400 * 1024;
+
+    [Fact]
+    public void Every_image_is_a_line_of_its_own_and_exists_in_the_repository() =>
+        Assert.Empty(Problems(File.ReadAllLines(Path.Combine(Repository.Root, "CHANGELOG.md")), Repository.Root));
+
+    [Fact]
+    public void The_check_finds_every_kind_of_wrong_image()
+    {
+        using var folder = new TestFolder();
+        Directory.CreateDirectory(folder.Combine("docs", "images", "changelog"));
+        File.WriteAllBytes(folder.Combine("docs", "images", "changelog", "3.34.0-dialog.png"), new byte[10]);
+        File.WriteAllBytes(folder.Combine("docs", "images", "changelog", "3.34.0-big.png"), new byte[MaxBytes + 1]);
+
+        var problems = Problems(
+            [
+                "- A point.",
+                "",
+                "  ![The dialog](docs/images/changelog/3.34.0-dialog.png)",
+                "",
+                "See ![the dialog](docs/images/changelog/3.34.0-dialog.png) here.",
+                "",
+                "![](docs/images/changelog/3.34.0-dialog.png)",
+                "",
+                "![Elsewhere](https://example.com/a.png)",
+                "",
+                "![Other folder](docs/images/grid-dark.png)",
+                "",
+                "![Up](docs/images/changelog/../grid-dark.png)",
+                "",
+                "![Space](docs/images/changelog/my%20dialog.png)",
+                "",
+                "![Missing](docs/images/changelog/3.34.0-missing.png)",
+                "",
+                "![Big](docs/images/changelog/3.34.0-big.png)",
+                "",
+                "- A point with its image right below.",
+                "  ![The dialog](docs/images/changelog/3.34.0-dialog.png)",
+                "",
+                "![The dialog](docs/images/changelog/3.34.0-dialog.png)",
+                "Text right below.",
+            ],
+            folder.Path);
+
+        Assert.Collection(
+            problems,
+            p => Assert.StartsWith("CHANGELOG.md:5: an image needs a line of its own", p, StringComparison.Ordinal),
+            p => Assert.StartsWith("CHANGELOG.md:7: no alt text", p, StringComparison.Ordinal),
+            p => Assert.StartsWith("CHANGELOG.md:9: https://example.com/a.png is not", p, StringComparison.Ordinal),
+            p => Assert.StartsWith("CHANGELOG.md:11: docs/images/grid-dark.png is not", p, StringComparison.Ordinal),
+            p => Assert.StartsWith("CHANGELOG.md:13: docs/images/changelog/../grid-dark.png is not", p, StringComparison.Ordinal),
+            p => Assert.StartsWith("CHANGELOG.md:15: docs/images/changelog/my%20dialog.png is not", p, StringComparison.Ordinal),
+            p => Assert.StartsWith("CHANGELOG.md:17: docs/images/changelog/3.34.0-missing.png does not exist", p, StringComparison.Ordinal),
+            p => Assert.StartsWith("CHANGELOG.md:19: docs/images/changelog/3.34.0-big.png has 400 KB", p, StringComparison.Ordinal),
+            p => Assert.StartsWith("CHANGELOG.md:22: an image needs an empty line before it", p, StringComparison.Ordinal),
+            p => Assert.StartsWith("CHANGELOG.md:24: an image needs an empty line after it", p, StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// Review 3.40.0, C7: the workflow takes exactly the lines and paths this check lets through – one rule in two places,
+    /// checked against each other instead of each against itself.
+    /// </summary>
+    [Theory]
+    [InlineData("![The dialog](docs/images/changelog/3.34.0-dialog.png)", true)]
+    [InlineData("  ![The dialog](docs/images/changelog/3.34.0-dialog.png)\t", true)]
+    [InlineData("- See ![the dialog](docs/images/changelog/3.34.0-dialog.png) here.", false)]
+    [InlineData("![Two](docs/images/changelog/a.png) ![images](docs/images/changelog/b.png)", false)]
+    [InlineData("![Space](docs/images/changelog/my dialog.png)", false)]
+    public void The_release_workflow_takes_the_lines_this_check_takes(string line, bool imageLine)
+    {
+        Assert.Equal(imageLine, ImageLine().IsMatch(line.Trim()));
+        Assert.Equal(imageLine, ReleaseWorkflow.ImageLine.IsMatch(line));
+    }
+
+    [Theory]
+    [InlineData("docs/images/changelog/3.34.0-dialog.png", true)]
+    [InlineData("docs/images/changelog/3.34.0_dialog.webp", true)]
+    [InlineData("docs/images/grid-dark.png", false)]
+    [InlineData("docs/images/changelog/sub/a.png", false)]
+    [InlineData("docs/images/changelog/my%20dialog.png", false)]
+    [InlineData("https://example.com/a.png", false)]
+    [InlineData("docs/images/changelog/..", false)] // the workflow's pattern lets it through, its check for a file then stops it
+    public void The_release_workflow_accepts_the_paths_this_check_accepts(string path, bool accepted)
+    {
+        var ours = path.StartsWith(Folder, StringComparison.Ordinal) && FileName().IsMatch(path[Folder.Length..]) && path[Folder.Length..] is not ("." or "..");
+        var workflow = ReleaseWorkflow.ImagePath.IsMatch(path) && !path.EndsWith("/..", StringComparison.Ordinal) && !path.EndsWith("/.", StringComparison.Ordinal);
+
+        Assert.Equal(accepted, ours);
+        Assert.Equal(accepted, workflow);
+    }
+
+    private static List<string> Problems(IReadOnlyList<string> lines, string root)
+    {
+        var problems = new List<string>();
+        for (var i = 0; i < lines.Count; i++)
+        {
+            var line = lines[i].Trim();
+            if (!line.Contains("![", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var at = $"CHANGELOG.md:{i + 1}";
+            if (ImageLine().Match(line) is not { Success: true } image)
+            {
+                problems.Add($"{at}: an image needs a line of its own, ![alt](path) – in a sentence the dialog shows \"!alt\".");
+                continue;
+            }
+
+            // GitHub sets an image without an empty line around it into the paragraph of the text next to it, also below a
+            // bullet (the dialog makes a block of it either way).
+            if (i > 0 && lines[i - 1].Trim().Length > 0)
+            {
+                problems.Add($"{at}: an image needs an empty line before it – otherwise GitHub sets it into the text above.");
+            }
+
+            if (i + 1 < lines.Count && lines[i + 1].Trim().Length > 0)
+            {
+                problems.Add($"{at}: an image needs an empty line after it – otherwise GitHub sets the text below beside it.");
+            }
+
+            var path = image.Groups["path"].Value;
+            if (image.Groups["alt"].Value.Trim().Length == 0)
+            {
+                problems.Add($"{at}: no alt text (shown offline and in older versions).");
+            }
+
+            if (!path.StartsWith(Folder, StringComparison.Ordinal)
+                || !FileName().IsMatch(path[Folder.Length..]) || path[Folder.Length..] is "." or "..")
+            {
+                problems.Add($"{at}: {path} is not a file directly below {Folder} (letters, digits, '.', '-', '_').");
+                continue;
+            }
+
+            var file = new FileInfo(Path.Combine(root, path));
+            if (!file.Exists)
+            {
+                problems.Add($"{at}: {path} does not exist.");
+            }
+            else if (file.Length > MaxBytes)
+            {
+                problems.Add($"{at}: {path} has {file.Length / 1024} KB – crop it (docs/release.md › Bilder im Changelog).");
+            }
+        }
+
+        return problems;
+    }
+
+    [GeneratedRegex(@"^!\[(?<alt>[^\]]*)\]\((?<path>[^)\s]+)\)$")]
+    private static partial Regex ImageLine();
+
+    [GeneratedRegex(@"^[A-Za-z0-9._-]+$")]
+    private static partial Regex FileName();
+}

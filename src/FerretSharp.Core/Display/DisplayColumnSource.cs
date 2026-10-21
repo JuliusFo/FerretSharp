@@ -9,12 +9,11 @@ namespace FerretSharp.Core.Display;
 
 /// <summary>The display columns in use and where they come from.</summary>
 /// <param name="Path">The file; it need not exist yet (the first marked column creates it).</param>
-/// <param name="IsDefaultPath">No path is set: the file in the data folder.</param>
 /// <param name="Error">Why the file cannot be used (unreadable, no valid JSON); the columns are then empty.</param>
 /// <param name="ReadOnly">
 /// Why the file is not written although it was read (a newer FerretSharp wrote it); null if it can be written.
 /// </param>
-public sealed record DisplayColumnLoad(DisplayColumns Columns, string Path, bool IsDefaultPath, string? Error, string? ReadOnly = null)
+public sealed record DisplayColumnLoad(DisplayColumns Columns, string Path, string? Error, string? ReadOnly = null)
 {
     public bool Exists { get; init; }
 
@@ -235,25 +234,24 @@ public sealed class DisplayColumnSource : IDisposable
     /// <summary>The file, parsed; only a successful read is reused while the file is unchanged.</summary>
     private FileRead<DisplayColumnLoad> Read(string path, FileInfo file)
     {
-        var isDefault = path == _defaultPath;
         if (!file.Exists)
         {
-            return new(new DisplayColumnLoad(DisplayColumns.Empty, path, isDefault, null));
+            return new(new DisplayColumnLoad(DisplayColumns.Empty, path, null));
         }
 
         try
         {
             var document = ReadDocument(path) ?? new DisplayColumnDocument();
-            return new(new DisplayColumnLoad(DisplayColumns.From(document.DisplayColumns), path, isDefault, null, NewerVersion(path, document)) { Exists = true });
+            return new(new DisplayColumnLoad(DisplayColumns.From(document.DisplayColumns), path, null, NewerVersion(path, document)) { Exists = true });
         }
         catch (JsonException ex)
         {
-            return new(new DisplayColumnLoad(DisplayColumns.Empty, path, isDefault, TextFormat.Format(DisplayText.FileInvalid, path, ex.Message)) { Exists = true }, Reuse: false);
+            return new(new DisplayColumnLoad(DisplayColumns.Empty, path, TextFormat.Format(DisplayText.FileInvalid, path, ex.Message)) { Exists = true }, Reuse: false);
         }
     }
 
     private DisplayColumnLoad Unreadable(string path, Exception ex) =>
-        new(DisplayColumns.Empty, path, path == _defaultPath, TextFormat.Format(DisplayText.FileUnreadable, path, ex.Message));
+        new(DisplayColumns.Empty, path, TextFormat.Format(DisplayText.FileUnreadable, path, ex.Message));
 
     private static string? NewerVersion(string path, DisplayColumnDocument document) =>
         document.Version > DisplayColumnDocument.CurrentVersion

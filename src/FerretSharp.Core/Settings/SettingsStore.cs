@@ -34,7 +34,11 @@ public sealed class SettingsStore(string filePath)
                 case JsonFileState.Ok:
                     // A value set to null by hand (review 3.31.0, A6): the default, not a crash at start.
                     var settings = read.Document!.Settings!;
-                    return settings with { Shortcuts = settings.Shortcuts ?? ShortcutOverrides.Empty };
+                    return settings with
+                    {
+                        Shortcuts = settings.Shortcuts ?? SettingsMap.Empty,
+                        AuditTemplateGroups = settings.AuditTemplateGroups ?? SettingsMap.Empty,
+                    };
                 case JsonFileState.Empty:
                     throw new SettingsStoreException(TextFormat.Format(CoreText.FileEmpty, FilePath));
                 case JsonFileState.Newer:

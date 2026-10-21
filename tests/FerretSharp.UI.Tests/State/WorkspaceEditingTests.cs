@@ -139,6 +139,118 @@ public sealed class WorkspaceEditingTests : IAsyncDisposable
         Assert.True(committed);
     }
 
+    /// <summary>
+    /// Review 3.40.0, A1: an UPDATE of the SQL editor waiting for a lock holds the editor but is not in its log yet. A commit
+    /// confirmed meanwhile waited for it and committed it unseen; a rollback took it back unseen.
+    /// </summary>
+    [Fact]
+    public async Task Commit_and_rollback_are_refused_while_a_writing_statement_runs()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("Test"));
+        var workspace = _app.WorkspaceOf(scope);
+        var sql = new SqlTab(workspace.WorkspaceId, "SQL 1");
+        workspace.Tabs.Add(sql);
+        var reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var held = new TaskCompletionSource();
+        _app.OnExecute = () => { reached.SetResult(); return held.Task; };
+        var committed = false;
+        _app.OnCommit = () => { committed = true; return Task.CompletedTask; };
+
+        var write = _app.Lifecycle.Statements.WriteAsync(sql, new QuerySpec("UPDATE kunden SET name = 'a'", []), null, TestContext.Current.CancellationToken);
+        await reached.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+
+        Assert.True(_app.Editing.IsStatementRunning(workspace.WorkspaceId));
+        Assert.False(await _app.Editing.CommitAsync(workspace, _app.Editing.SummaryOf(workspace).Actions));
+        Assert.StartsWith("Ein Statement dieses Workspaces läuft noch", _app.Shell.Notice?.Text);
+        Assert.False(await _app.Editing.RollbackAsync(workspace));
+        Assert.False(await _app.Lifecycle.Statements.DiscardTransactionAsync(workspace)); // the rollback before DDL
+        Assert.False(committed);
+
+        _app.OnExecute = null;
+        held.SetResult();
+        Assert.NotNull((await write).Written);
+        Assert.False(_app.Editing.IsStatementRunning(workspace.WorkspaceId));
+        Assert.True(await _app.Editing.CommitAsync(workspace, _app.Editing.SummaryOf(workspace).Actions));
+        Assert.True(committed);
+    }
+
+    /// <summary>Review 3.40.0, A1: a statement started while a commit runs would wait for it and land in the commit unseen.</summary>
+    [Fact]
+    public async Task A_writing_statement_is_refused_while_a_commit_runs()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("Test"));
+        var workspace = _app.WorkspaceOf(scope);
+        var sql = new SqlTab(workspace.WorkspaceId, "SQL 1");
+        workspace.Tabs.Add(sql);
+        var reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var held = new TaskCompletionSource();
+        _app.OnCommit = () => { reached.SetResult(); return held.Task; };
+
+        var commit = _app.Editing.CommitAsync(workspace);
+        await reached.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        var outcome = await _app.Lifecycle.Statements.WriteAsync(sql, new QuerySpec("UPDATE kunden SET name = 'a'", []), null, TestContext.Current.CancellationToken);
+
+        Assert.True(outcome.Refused);
+        Assert.StartsWith("Änderungen dieses Workspaces werden gerade geschrieben", outcome.Error?.Message);
+        Assert.Empty(scope.Workspaces.ActionsOf(workspace.WorkspaceId));
+        held.SetResult();
+        Assert.True(await commit);
+    }
+
+    /// <summary>
+    /// Review 3.40.0, A2: a commit hanging on a silent VPN had no way out – the leave dialog disabled even "Cancel". The
+    /// running write knows when it started (the status bar offers to give up the session after a few seconds), and giving
+    /// it up is asked first.
+    /// </summary>
+    [Fact]
+    public async Task A_hanging_commit_can_be_given_up_after_a_confirmation()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("Test"));
+        var workspace = _app.WorkspaceOf(scope);
+        var reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var held = new TaskCompletionSource();
+        _app.OnCommit = () => { reached.SetResult(); return held.Task; };
+
+        var commit = _app.Editing.CommitAsync(workspace);
+        await reached.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+
+        Assert.NotNull(_app.Editing.BusySince(workspace.WorkspaceId));
+        Assert.False(_app.Editing.IsStuck(workspace.WorkspaceId)); // only after a few seconds
+        _app.Lifecycle.RequestResetSession(workspace.WorkspaceId);
+        Assert.Equal(workspace.WorkspaceId, _app.Lifecycle.ConfirmReset);
+        _app.Lifecycle.CancelConfirmation();
+        Assert.Null(_app.Lifecycle.ConfirmReset);
+
+        _app.Lifecycle.RequestResetSession(workspace.WorkspaceId);
+        await _app.Lifecycle.ConfirmResetAsync(workspace.WorkspaceId);
+        Assert.Null(_app.Lifecycle.ConfirmReset);
+        Assert.StartsWith("Session von", _app.Shell.Notice?.Text);
+
+        held.SetResult();
+        await commit;
+        Assert.Null(_app.Editing.BusySince(workspace.WorkspaceId));
+    }
+
+    /// <summary>
+    /// Review 3.40.0, A8: the error dialog masked by the connection shown, not by the one the statement ran on – a Prod
+    /// commit failing while Dev was shown listed the Prod bind values.
+    /// </summary>
+    [Fact]
+    public async Task An_error_masks_values_by_the_connection_it_came_from()
+    {
+        var prod = await _app.OpenAsync(TestApp.Profile("Prod", ConnectionKind.Prod));
+        await prod.Workspaces.UnlockAsync(prod.Workspaces.Active!.Id, TestContext.Current.CancellationToken);
+        var dev = await _app.OpenAsync(TestApp.Profile("Dev"));
+        _app.Hub.Show(dev);
+        _app.OnCommit = () => Task.FromException(new DatabaseException("ORA-02291: integrity constraint violated", "ORA-02291"));
+
+        Assert.False(await _app.Editing.CommitAsync(_app.WorkspaceOf(prod)));
+        Assert.Equal(("ORA-02291", true), (_app.Shell.ErrorDetails?.ErrorCode, _app.Shell.ErrorMasked));
+
+        Assert.False(await _app.Editing.CommitAsync(_app.WorkspaceOf(dev)));
+        Assert.Equal(("ORA-02291", false), (_app.Shell.ErrorDetails?.ErrorCode, _app.Shell.ErrorMasked));
+    }
+
     // ---- R4b: what the tests did not cover yet ----
 
     private static readonly TableDetails Kunden = new(
@@ -183,6 +295,31 @@ public sealed class WorkspaceEditingTests : IAsyncDisposable
         Assert.Equal((1, 0), (tab.Changes.PendingCount, tab.Changes.FlushedCount));
         Assert.Equal("ORA-02091", _app.Shell.ErrorDetails?.ErrorCode);
         Assert.Null(_app.Editing.GridWriteOf(workspace.WorkspaceId, write.Id));
+    }
+
+    /// <summary>
+    /// Review 3.40.0, A6: a connection lost during the COMMIT was taken for a rollback – the changes came back as pending
+    /// with nothing said, though the commit may well have arrived (writing again would insert rows twice).
+    /// </summary>
+    [Fact]
+    public async Task A_connection_lost_while_committing_says_the_outcome_is_unknown()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("Test"));
+        var (workspace, tab) = AddTab(scope);
+        tab.Changes!.SetValue(Row(1, "Meier"), 1, "Müller");
+        Assert.True(await _app.Editing.FlushAsync(workspace));
+        _app.OnCommit = () =>
+        {
+            _app.EndTransactions(); // the session is gone with the connection
+            return Task.FromException(TestApp.LostError());
+        };
+
+        Assert.False(await _app.Editing.CommitAsync(workspace));
+
+        Assert.Equal((1, 0), (tab.Changes.PendingCount, tab.Changes.FlushedCount)); // nothing vanishes
+        Assert.Equal("ORA-03113", _app.Shell.ErrorDetails?.ErrorCode);
+        Assert.True(_app.Shell.ErrorDetails?.IsConnectionLost); // the banner still shows
+        Assert.StartsWith("Die Verbindung brach während des Commits ab", _app.Shell.ErrorDetails?.Message);
     }
 
     [Fact]
@@ -230,7 +367,7 @@ public sealed class WorkspaceEditingTests : IAsyncDisposable
         var (workspace, tab) = AddTab(scope);
         tab.Changes!.SetValue(Row(1, "Meier"), 1, "Müller");
         var editor = await EditorAsync(scope);
-        var holder = new LockHolder(42, "APP_USER", "jdoe", "PC-1234", "MeineApp.exe", null, null, null);
+        var holder = new LockHolder(42, "APP_USER", "jdoe", "PC-1234", "MeineApp.exe", null, null);
         _app.LockHolders = [holder];
         editor.FailFlush = operations => Locked(operations[0]);
 
@@ -247,6 +384,28 @@ public sealed class WorkspaceEditingTests : IAsyncDisposable
 
         Assert.Null(_app.Editing.Problem);
         Assert.Equal((0, 1), (tab.Changes.PendingCount, tab.Changes.FlushedCount));
+    }
+
+    /// <summary>
+    /// Review 3.40.0, A20: the waiting session holds a lock on the table itself once it wrote there – it was listed as
+    /// "your workspace", the one that waits.
+    /// </summary>
+    [Fact]
+    public async Task A_lock_conflict_does_not_name_the_waiting_session_itself()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("Test"));
+        var (workspace, tab) = AddTab(scope);
+        tab.Changes!.SetValue(Row(1, "Meier"), 1, "Müller");
+        var editor = await EditorAsync(scope);
+        var own = scope.Workspaces.SessionTagOf(workspace.WorkspaceId);
+        var other = new LockHolder(42, "APP_USER", "jdoe", "PC-1234", "MeineApp.exe", null, null);
+        _app.LockHolders = [other, new LockHolder(7, "APP_USER", "me", "PC-1", "FerretSharp.exe", "FerretSharp", "Test", own)];
+        editor.FailFlush = operations => Locked(operations[0]);
+
+        Assert.False(await _app.Editing.FlushAsync(workspace));
+
+        Assert.NotNull(own);
+        Assert.Equal([other], _app.Editing.Problem!.Holders);
     }
 
     [Fact]

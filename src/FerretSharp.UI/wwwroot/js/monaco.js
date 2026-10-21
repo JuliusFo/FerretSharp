@@ -187,7 +187,8 @@ function registerProvider(monaco, language) {
       let items = [];
       try {
         items = await target.dotnet.invokeMethodAsync('OnComplete', target.id, model.getValue(), model.getOffsetAt(position));
-      } catch {
+      } catch (err) {
+        console.debug('Completion not received', err); // .NET reports its own errors (GuardAsync); this is the interop
         return { suggestions: [] };
       }
       return {

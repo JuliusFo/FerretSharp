@@ -1,5 +1,5 @@
 using FerretSharp.Core.Connections;
-using FerretSharp.Core.Tests.Fakes;
+using FerretSharp.Testing;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 

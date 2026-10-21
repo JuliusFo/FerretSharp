@@ -13,6 +13,12 @@ public enum ColumnTypeChange
     /// <summary>Works with any data.</summary>
     Free,
 
+    /// <summary>
+    /// Works with any data but changes values without a word (review 3.40.0, A9): TIMESTAMP → DATE cuts the fractional
+    /// seconds, VARCHAR2 → CHAR pads with blanks. Committed at once like every DDL – the designer and the comparison warn.
+    /// </summary>
+    ChangesValues,
+
     /// <summary>Works unless a value is too long for the new length (ORA-01441); Oracle checks the values.</summary>
     MayFailOnValues,
 
@@ -21,6 +27,19 @@ public enum ColumnTypeChange
 
     /// <summary>Never with MODIFY (to or from a LOB, ORA-22858): a new column, copy the values, drop the old one.</summary>
     NotPossible,
+}
+
+/// <summary>What storing a value of one type in a column of another does (<see cref="OracleTypes.FitOf"/>).</summary>
+public enum ValueFit
+{
+    /// <summary>Every value is kept as it is.</summary>
+    Full,
+
+    /// <summary>The value goes in, but loses something: fractional seconds, its time zone.</summary>
+    Lossy,
+
+    /// <summary>Not every value goes in (another family, too long, too many digits).</summary>
+    None,
 }
 
 /// <summary>
@@ -63,6 +82,15 @@ public static partial class OracleTypes
     /// can report one) – not BINARY_FLOAT or BINARY_DOUBLE.
     /// </summary>
     public static bool IsDecimalNumber(string dataType) => dataType is "NUMBER" or "FLOAT" or "INTEGER";
+
+    /// <summary>NUMBER itself (with precision and scale), not INTEGER or FLOAT.</summary>
+    public static bool IsNumber(string dataType) => dataType == "NUMBER";
+
+    /// <summary>Types a number may lose digits in: FLOAT (binary precision) and the IEEE types.</summary>
+    public static bool IsFloatingPoint(string dataType) => dataType is "FLOAT" or "BINARY_FLOAT" or "BINARY_DOUBLE";
+
+    /// <summary>RAW(n); LONG RAW is a LONG (<see cref="IsLong"/>).</summary>
+    public static bool IsRaw(string dataType) => dataType == "RAW";
 
     /// <summary>TIMESTAMP in all its forms, with or without (local) time zone.</summary>
     public static bool IsTimestamp(string dataType) => dataType.StartsWith("TIMESTAMP", StringComparison.Ordinal);
@@ -241,7 +269,8 @@ public static partial class OracleTypes
 
     /// <summary>
     /// What <c>ALTER TABLE … MODIFY</c> from one type to another needs, as Oracle 23 answered with data in the column
-    /// (WP-23 experiment): text of the same kind, longer, or with CHAR instead of BYTE, DATE ↔ TIMESTAMP, more digits on both
+    /// (WP-23 experiment): text of the same kind, longer, or with CHAR instead of BYTE, DATE ↔ TIMESTAMP (to DATE without the
+    /// fractional seconds, and to CHAR padded: <see cref="ColumnTypeChange.ChangesValues"/>), more digits on both
     /// sides of the decimal point and an unconstrained NUMBER or FLOAT go through. Shorter text or RAW goes through unless a
     /// value is too long (ORA-01441). Fewer integer or decimal digits (ORA-01440), fewer fractional seconds (ORA-30082),
     /// another family, NVARCHAR2 → VARCHAR2 or a time zone added or taken away (ORA-01439) need an empty column. To or from a
@@ -269,11 +298,39 @@ public static partial class OracleTypes
             "text" when from.DataType is "NVARCHAR2" or "NCHAR" && to.DataType is "VARCHAR2" or "CHAR" => ColumnTypeChange.NeedsEmptyColumn,
             "text" or "raw" => (to.Length ?? 0) < (from.Length ?? 0) || (from.CharSemantics && !to.CharSemantics)
                 ? ColumnTypeChange.MayFailOnValues
+                : IsFixedChar(to.DataType) && !IsFixedChar(from.DataType) ? ColumnTypeChange.ChangesValues // padded with blanks
                 : ColumnTypeChange.Free,
             "number" => NumberChange(from, to),
             "datetime" => DateTimeChange(from.DataType, to.DataType),
             _ => ColumnTypeChange.NeedsEmptyColumn, // INTERVAL, object types …: not tried, so not promised
         };
+    }
+
+    /// <summary>
+    /// What an INSERT of a value of type <paramref name="value"/> into a column of type <paramref name="column"/> does (WP-51:
+    /// a trigger writes <c>SYSDATE</c> into an audit column of another type). Date and time types take each other's values
+    /// always – Oracle converts – and keep them whole if the column has at least the fractional digits and as much time
+    /// zone (none &lt; local &lt; with time zone; DATE has neither); otherwise the value goes in with a loss. Any other type
+    /// keeps every value only if <c>MODIFY</c> from <paramref name="value"/> to <paramref name="column"/> works with any data
+    /// (<see cref="ChangeOf"/>) – longer, more digits –, else not every value goes in.
+    /// </summary>
+    public static ValueFit FitOf(ColumnInfo column, ColumnInfo value)
+    {
+        ArgumentNullException.ThrowIfNull(column);
+        ArgumentNullException.ThrowIfNull(value);
+        if (Family(column.DataType) == "datetime" && Family(value.DataType) == "datetime")
+        {
+            return ZoneLevel(column.DataType) >= ZoneLevel(value.DataType) && FractionOf(column.DataType) >= FractionOf(value.DataType)
+                ? ValueFit.Full
+                : ValueFit.Lossy;
+        }
+
+        // Text padded with blanks (VARCHAR2 → CHAR) goes in; date and time types are decided above.
+        return ChangeOf(value, column) is ColumnTypeChange.Same or ColumnTypeChange.Free or ColumnTypeChange.ChangesValues ? ValueFit.Full : ValueFit.None;
+
+        static int ZoneLevel(string type) => HasTimeZone(type) ? 2 : IsLocalTimeZone(type) ? 1 : 0;
+
+        static int FractionOf(string type) => IsTimestamp(type) ? TimestampFraction(type) : 0;
     }
 
     /// <summary>Binary precision of a plain <c>FLOAT</c>.</summary>
@@ -299,21 +356,24 @@ public static partial class OracleTypes
     {
         if (from == "DATE" || to == "DATE")
         {
-            return Zone(from) == Zone(to) ? ColumnTypeChange.Free : ColumnTypeChange.NeedsEmptyColumn;
+            // TIMESTAMP → DATE goes through with data, cutting the fractional seconds (review 3.40.0, A9).
+            return Zone(from) != Zone(to) ? ColumnTypeChange.NeedsEmptyColumn
+                : to == "DATE" && TimestampFraction(from) > 0 ? ColumnTypeChange.ChangesValues
+                : ColumnTypeChange.Free;
         }
 
-        return Zone(from) != Zone(to) || Fraction(to) < Fraction(from) ? ColumnTypeChange.NeedsEmptyColumn : ColumnTypeChange.Free;
+        return Zone(from) != Zone(to) || TimestampFraction(to) < TimestampFraction(from) ? ColumnTypeChange.NeedsEmptyColumn : ColumnTypeChange.Free;
 
         static string Zone(string type) => type.EndsWith("WITH LOCAL TIME ZONE", StringComparison.Ordinal) ? "local"
             : type.EndsWith("WITH TIME ZONE", StringComparison.Ordinal) ? "zone" : "";
-
-        // TIMESTAMP(6) …: the digits of the fractional seconds; 6 without a number.
-        static int Fraction(string type) =>
-            type.IndexOf('(', StringComparison.Ordinal) is var open and >= 0 && type.IndexOf(')', open) is var close and > 0
-            && int.TryParse(type.AsSpan(open + 1, close - open - 1), NumberStyles.None, CultureInfo.InvariantCulture, out var digits)
-                ? digits
-                : 6;
     }
+
+    /// <summary>TIMESTAMP(6) …: the digits of the fractional seconds; 6 without a number.</summary>
+    private static int TimestampFraction(string type) =>
+        type.IndexOf('(', StringComparison.Ordinal) is var open and >= 0 && type.IndexOf(')', open) is var close and > 0
+        && int.TryParse(type.AsSpan(open + 1, close - open - 1), NumberStyles.None, CultureInfo.InvariantCulture, out var digits)
+            ? digits
+            : 6;
 
     /// <summary>
     /// The type as shown to the user, e.g. <c>VARCHAR2(50 CHAR)</c>, <c>NUMBER(12,2)</c>, <c>NUMBER(*,2)</c>, <c>INTEGER</c>.

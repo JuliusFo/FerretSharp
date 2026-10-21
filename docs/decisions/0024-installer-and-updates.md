@@ -36,3 +36,10 @@ Entscheidungen des Nutzers: Downloads je Release sind `Setup.exe` und ein Portab
 - Pakete sind ~95 MB (self-contained), Deltas bei kleinen Änderungen einige 100 KB.
 - Eine zweite Instanz mit **anderem** `--data-dir` aus derselben Installation hält beim Update Dateien in `current` offen; das betrifft nur Tests und ist nicht abgefangen. Wie der Updater dann reagiert, ist nicht geprüft.
 - Nicht automatisch geprüft (nur von Hand, E2E): der echte Ablauf mit Velopack (`VelopackUpdater`, `Program.Main`, Fenster nach vorn holen).
+
+## Nachtrag (2026-10-17, Gesamt-Review 3.40.0, D9): Bilder in den Release-Notizen (WP-49, 3.34.0)
+
+Seit WP-49 lädt der Update-Dialog Bilder aus dem Netz – der einzige Inhalt der Notizen, der nicht als Text im Paket steht.
+- **Nur aus dem eigenen Repo:** `ReleaseNotes.OwnImageUri` lässt nur https, Host genau `raw.githubusercontent.com`, Standard-Port, ohne UserInfo/Query/Fragment, `..` oder Escapes und nur unter dem Pfad `JuliusFo/FerretSharp/…` durch; alles andere zeigt den Alt-Text. Die CSP der App-Seite (R6a, A28) erlaubt für Bilder neben der App selbst nur diesen Host.
+- **Am Tag, nicht an `main`:** Der Release-Workflow schreibt die relativen Pfade auf `…/FerretSharp/vX.Y.Z/<pfad>` um – das Bild eines Releases ändert sich danach nicht mehr. Nur Bildzeilen unter `docs/images/changelog/`; ein fehlendes Bild oder eines mitten im Satz bricht das Release ab (`ChangelogTests` prüft dasselbe in der CI).
+- **Folgen:** Der Dialog meldet sich bei GitHub, sobald Notizen Bilder haben (Adresse des Nutzers, wie die Update-Prüfung selbst; README › Install sagt das). Offline oder über ein VPN ohne Zugang steht der Alt-Text da. Wer das GitHub-Konto übernimmt, kann Bilder austauschen, aber keinen Code ausführen – derselbe Vertrauensanker wie Update-Kanal und Weiterleitungsseite (ADR 0026, Nachtrag R6a).

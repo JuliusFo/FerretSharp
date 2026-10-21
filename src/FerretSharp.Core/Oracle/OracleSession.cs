@@ -152,11 +152,14 @@ public sealed partial class OracleSession : IAsyncDisposable
         return result.Length > maxLength ? result.ToString(0, maxLength) : result.ToString();
     }
 
-    /// <summary>Round trip with <c>SELECT 1 FROM DUAL</c>.</summary>
+    /// <summary>The statement of <see cref="PingAsync"/>; the settings show it.</summary>
+    public const string PingSql = "SELECT 1 FROM DUAL";
+
+    /// <summary>Round trip with <see cref="PingSql"/>.</summary>
     public async Task<TimeSpan> PingAsync(CancellationToken cancellationToken)
     {
         var stopwatch = Stopwatch.StartNew();
-        await ExecuteReaderAsync("SELECT 1 FROM DUAL", [], (reader, ct) => reader.ReadAsync(ct), cancellationToken);
+        await ExecuteReaderAsync(PingSql, [], (reader, ct) => reader.ReadAsync(ct), cancellationToken);
         return stopwatch.Elapsed;
     }
 
@@ -185,10 +188,26 @@ public sealed partial class OracleSession : IAsyncDisposable
     /// is retried in a new snapshot (up to <see cref="MaxSnapshotRetries"/> times); <paramref name="read"/> must therefore not keep state across calls.
     /// </remarks>
     /// <exception cref="InvalidOperationException">The statement is not a plain query (see <see cref="IsReadOnlyStatement"/>).</exception>
-    public async Task<T> ExecuteReaderAsync<T>(
+    public Task<T> ExecuteReaderAsync<T>(
         string sql,
         IReadOnlyList<QueryParameter> parameters,
         Func<DbDataReader, CancellationToken, Task<T>> read,
+        CancellationToken cancellationToken) =>
+        ExecuteReaderAsync(sql, parameters, read, WholeLobs, cancellationToken);
+
+    /// <summary>Whole LOBs come with each row (<see cref="OracleCommand.InitialLOBFetchSize"/> = -1).</summary>
+    internal const int WholeLobs = -1;
+
+    /// <inheritdoc cref="ExecuteReaderAsync{T}(string, IReadOnlyList{QueryParameter}, Func{DbDataReader, CancellationToken, Task{T}}, CancellationToken)"/>
+    /// <param name="lobPrefetch">
+    /// Characters or bytes of each LOB that come with the row; the length always comes along (review 3.40.0, A12: the SQL
+    /// editor keeps a preview only, but fetched every LOB whole – also of the rows it skips to reach a page).
+    /// </param>
+    internal async Task<T> ExecuteReaderAsync<T>(
+        string sql,
+        IReadOnlyList<QueryParameter> parameters,
+        Func<DbDataReader, CancellationToken, Task<T>> read,
+        int lobPrefetch,
         CancellationToken cancellationToken)
     {
         // Tripwire: ExecuteReader would run DML just as well, and without a transaction ODP.NET commits it at once.
@@ -209,7 +228,7 @@ public sealed partial class OracleSession : IAsyncDisposable
             {
                 try
                 {
-                    return await ReadCoreAsync(sql, parameters, read, cancellationToken);
+                    return await ReadCoreAsync(sql, parameters, read, cancellationToken, lobPrefetch);
                 }
                 catch (OracleStatementException ex) when (
                     _readOnlySnapshots && attempt <= MaxSnapshotRetries && ex.Oracle is { } oracle && OracleErrorCodes.SnapshotUnusable.Contains(oracle.Number))
@@ -224,6 +243,104 @@ public sealed partial class OracleSession : IAsyncDisposable
                 }
             }
         }, cancellationToken);
+    }
+
+    /// <summary>
+    /// A query whose rows are handed on while it reads (the export of all rows, WP-54). Like
+    /// <see cref="ExecuteReaderAsync{T}(string, IReadOnlyList{QueryParameter}, Func{DbDataReader, CancellationToken, Task{T}}, int, CancellationToken)"/>
+    /// it is repeated in a new snapshot when the snapshot cannot serve it – but only until <paramref name="read"/> has passed
+    /// rows on (<see cref="NestedReader.HandingOn"/>): those cannot be taken back, so an unusable snapshot after that
+    /// (ORA-01555 after a long read) is reported. Meanwhile <paramref name="read"/> may run further queries on the same
+    /// connection through the <see cref="NestedReader"/> it gets – the session's gate is held by this call.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The statement is not a plain query (see <see cref="IsReadOnlyStatement"/>).</exception>
+    internal async Task<T> ExecuteStreamingReaderAsync<T>(
+        string sql,
+        IReadOnlyList<QueryParameter> parameters,
+        Func<DbDataReader, NestedReader, CancellationToken, Task<T>> read,
+        int lobPrefetch,
+        CancellationToken cancellationToken)
+    {
+        if (!IsReadOnlyStatement(sql))
+        {
+            throw new InvalidOperationException("Only read-only queries (SELECT/WITH without FOR UPDATE) run this way.");
+        }
+
+        return await ExclusiveAsync(async () =>
+        {
+            if (_readOnlySnapshots && _open is null)
+            {
+                await RestartSnapshotCoreAsync(cancellationToken);
+            }
+
+            for (var attempt = 1; ; attempt++)
+            {
+                var nested = new NestedReader(this);
+                try
+                {
+                    return await ReadCoreAsync(sql, parameters, (reader, ct) => read(reader, nested, ct), cancellationToken, lobPrefetch);
+                }
+                catch (OracleStatementException ex) when (
+                    _readOnlySnapshots && !nested.HandedOn && attempt <= MaxSnapshotRetries
+                    && ex.Oracle is { } oracle && OracleErrorCodes.SnapshotUnusable.Contains(oracle.Number))
+                {
+                    // Nothing has left yet: as in ExecuteReaderAsync (ORA-01466 needs a snapshot a little younger than the DDL).
+                    if (oracle.Number == OracleErrorCodes.DefinitionChanged)
+                    {
+                        await Task.Delay(TimeSpan.FromSeconds(attempt), cancellationToken);
+                    }
+
+                    await RestartSnapshotCoreAsync(cancellationToken);
+                }
+                finally
+                {
+                    nested.End();
+                }
+            }
+        }, cancellationToken);
+    }
+
+    /// <summary>
+    /// Queries while the reader of <see cref="ExecuteStreamingReaderAsync{T}"/> is open (display names of an export, WP-54):
+    /// on the same connection, inside the gate that call holds – Oracle keeps several cursors of a session open. Valid only
+    /// while that call reads.
+    /// </summary>
+    internal sealed class NestedReader(OracleSession session)
+    {
+        private bool _ended;
+
+        /// <summary>The caller has passed rows on: from now on the query is not repeated in a new snapshot.</summary>
+        public bool HandedOn { get; private set; }
+
+        /// <summary>Called right before the caller passes rows on (<see cref="HandedOn"/>).</summary>
+        public void HandingOn() => HandedOn = true;
+
+        /// <exception cref="DatabaseException">The query failed (translated here: the gate translates only what leaves it).</exception>
+        public async Task<T> ReadAsync<T>(
+            string sql, IReadOnlyList<QueryParameter> parameters, Func<DbDataReader, CancellationToken, Task<T>> read, CancellationToken cancellationToken)
+        {
+            ObjectDisposedException.ThrowIf(_ended, this);
+            if (!IsReadOnlyStatement(sql))
+            {
+                throw new InvalidOperationException("Only read-only queries (SELECT/WITH without FOR UPDATE) run this way.");
+            }
+
+            var outer = session._running;
+            try
+            {
+                return await session.ReadCoreAsync(sql, parameters, read, cancellationToken);
+            }
+            catch (Exception ex) when (OracleErrors.Translate(ex) is { } translated)
+            {
+                throw translated;
+            }
+            finally
+            {
+                session._running = outer; // disposing the session cancels the streaming command again
+            }
+        }
+
+        internal void End() => _ended = true;
     }
 
     /// <summary>
@@ -313,13 +430,24 @@ public sealed partial class OracleSession : IAsyncDisposable
     /// <see cref="OperationCanceledException"/>); other Oracle errors carry the statement. Caller holds the gate.
     /// </summary>
     private async Task<T> RunAsync<T>(
-        string sql, IReadOnlyList<QueryParameter> parameters, Func<OracleCommand, CancellationToken, Task<T>> run, CancellationToken cancellationToken)
+        string sql, IReadOnlyList<QueryParameter> parameters, Func<OracleCommand, CancellationToken, Task<T>> run, CancellationToken cancellationToken,
+        int lobPrefetch = WholeLobs)
     {
-        await using var command = CreateCommand(sql, parameters);
-        await using var cancelRegistration = cancellationToken.Register(static c => ((OracleCommand)c!).Cancel(), command);
+        await using var command = CreateCommand(sql, parameters, lobPrefetch);
+
+        // ODP.NET sends the break synchronously, and over a silent VPN it blocks: whoever cancels the token (a click on
+        // "Cancel", closing a view – the UI thread) froze with it (review 3.40.0, A3). ODP.NET only ever sees a token that
+        // is cancelled on a pool thread – its own registrations (async calls) included.
+        using var background = new CancellationTokenSource();
+        await using var forward = cancellationToken.Register(static b => CancelInBackground((CancellationTokenSource)b!), background);
+        await using var cancelRegistration = background.Token.Register(static c => ((OracleCommand)c!).Cancel(), command);
         try
         {
-            return await run(command, cancellationToken);
+            return await run(command, background.Token);
+        }
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested && ex.CancellationToken != cancellationToken)
+        {
+            throw new OperationCanceledException(ex.Message, ex, cancellationToken);
         }
         catch (OracleException ex) when (ex.Number == OracleErrorCodes.UserCancelled)
         {
@@ -342,16 +470,17 @@ public sealed partial class OracleSession : IAsyncDisposable
 
     /// <summary>A query; the reader goes to <paramref name="read"/>. Caller holds the gate.</summary>
     private Task<T> ReadCoreAsync<T>(
-        string sql, IReadOnlyList<QueryParameter> parameters, Func<DbDataReader, CancellationToken, Task<T>> read, CancellationToken cancellationToken) =>
+        string sql, IReadOnlyList<QueryParameter> parameters, Func<DbDataReader, CancellationToken, Task<T>> read, CancellationToken cancellationToken,
+        int lobPrefetch = WholeLobs) =>
         RunAsync(sql, parameters, async (command, ct) =>
         {
             await using var reader = (OracleDataReader)await command.ExecuteReaderAsync(ct);
             reader.SuppressGetDecimalInvalidCastException = true; // NUMBER(38) exceeds decimal
             return await read(reader, ct);
-        }, cancellationToken);
+        }, cancellationToken, lobPrefetch);
 
     /// <summary>Commands join the connection's open transaction by themselves (integration test).</summary>
-    private OracleCommand CreateCommand(string sql, IReadOnlyList<QueryParameter> parameters)
+    private OracleCommand CreateCommand(string sql, IReadOnlyList<QueryParameter> parameters, int lobPrefetch = WholeLobs)
     {
         // After a fatal error (ORA-03113 …) ODP.NET closes the connection; report that like the error itself.
         if (_connection.State != ConnectionState.Open)
@@ -363,8 +492,8 @@ public sealed partial class OracleSession : IAsyncDisposable
         command.BindByName = true;
         command.InitialLONGFetchSize = LongFetchSize;
         // Whole LOBs come with the row (LOB editor, locked rows of the concurrency check). Grid queries never select a
-        // LOB column itself, only a preview and its length (QueryBuilder).
-        command.InitialLOBFetchSize = -1;
+        // LOB column itself, only a preview and its length (QueryBuilder); the SQL editor takes a preview (A12).
+        command.InitialLOBFetchSize = lobPrefetch;
         command.CommandText = sql;
         foreach (var parameter in parameters)
         {
@@ -375,15 +504,40 @@ public sealed partial class OracleSession : IAsyncDisposable
         return command;
     }
 
+    /// <summary>
+    /// Cancels the running command on a pool thread – "Disconnect session" runs on the UI thread, and
+    /// <see cref="OracleCommand.Cancel"/> blocks while the connection does not answer (review 3.40.0, A3).
+    /// </summary>
     private void CancelRunningCommand()
+    {
+        if (_running is not { } running)
+        {
+            return;
+        }
+
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                running.Cancel();
+            }
+            catch (Exception ex) when (ex is OracleException or InvalidOperationException or ObjectDisposedException)
+            {
+                // the command already finished
+            }
+        });
+    }
+
+    /// <summary>Cancels <paramref name="source"/> on a pool thread, and with it what is registered on its token (<see cref="RunAsync"/>).</summary>
+    private static void CancelInBackground(CancellationTokenSource source) => _ = Task.Run(() =>
     {
         try
         {
-            _running?.Cancel();
+            source.Cancel();
         }
-        catch (Exception ex) when (ex is OracleException or InvalidOperationException or ObjectDisposedException)
+        catch (Exception ex) when (ex is OracleException or InvalidOperationException or ObjectDisposedException or AggregateException)
         {
-            // the command already finished
+            // the command finished meanwhile (the source is disposed with it), or its cancel failed: it ends either way
         }
-    }
+    });
 }

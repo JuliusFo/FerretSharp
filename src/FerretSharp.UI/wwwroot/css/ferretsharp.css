@@ -100,6 +100,8 @@ button:disabled { cursor: default; opacity: .5; }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 10px; border: 3px solid transparent; background-clip: content-box; }
 ::-webkit-scrollbar-track { background: transparent; }
+/* Where both scrollbars meet (AG Grid 36: the spacer right of the horizontal scrollbar scrolls both ways) – white by default. */
+::-webkit-scrollbar-corner { background: transparent; }
 
 /* ---------- shell ---------- */
 .app { display: flex; flex-direction: column; height: 100vh; }
@@ -133,7 +135,8 @@ button:disabled { cursor: default; opacity: .5; }
 .ws-more { width: 20px; height: 20px; border: 0; border-radius: 5px; background: transparent; color: var(--faint); font-size: 14px; line-height: 1; opacity: 0; }
 .ws:hover .ws-more, .ws.active .ws-more { opacity: 1; }
 .ws-more:hover { background: var(--hover); color: var(--text); }
-.menu:focus { outline: none; }
+/* R6b: the chip's menu sits inside the chip (MenuButton) – lays out as before and does not take over its nowrap. */
+.ws-more-anchor { display: contents; white-space: normal; cursor: auto; }
 .ws-close:hover { background: var(--hover); color: var(--text); }
 .title-edit.ws-rename { width: 150px; height: 22px; }
 .ws-menu-anchor { position: relative; flex: none; }
@@ -237,6 +240,24 @@ kbd { font: 600 10px var(--mono); padding: 1px 5px; border-radius: 4px; border: 
   display: flex; flex-direction: column;
 }
 .switcher-pop { width: 560px; max-height: min(560px, 75vh); }
+/* quick open and command palette (WP-38): one box, top centre */
+.popover.palette-pop {
+  position: fixed; top: 64px; left: 50%; transform: translateX(-50%);
+  width: min(640px, calc(100vw - 32px)); max-height: min(560px, calc(100vh - 96px));
+}
+.palette-row { width: 100%; cursor: pointer; }
+.palette-row.highlight, .palette-row.highlight:hover { background: var(--accent-weak); }
+.palette-command {
+  display: flex; align-items: center; gap: 10px;
+  height: 30px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; text-align: left; color: var(--text);
+}
+.palette-command .label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.palette-command .reason { flex: none; max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--muted); }
+.palette-command.unavailable { cursor: default; }
+.palette-command.unavailable .label, .palette-command.unavailable kbd { opacity: .55; }
+.palette-row mark { background: none; color: var(--accent); font-weight: 700; }
+.palette-more { padding: 4px 8px; font-size: 12px; color: var(--faint); }
+.palette-footer { padding: 6px 12px; border-top: 1px solid var(--border); font-size: 11.5px; color: var(--faint); }
 .popover-search { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--faint); }
 .popover-search input { flex: 1; border: 0; outline: none; background: transparent; font-size: 14px; color: var(--text); }
 .popover-list { flex: 1; overflow-y: auto; padding: 4px 6px 8px; }
@@ -357,6 +378,10 @@ kbd { font: 600 10px var(--mono); padding: 1px 5px; border-radius: 4px; border: 
 .settings-note code { font-family: var(--mono); }
 .settings-path { display: flex; align-items: center; gap: 8px; flex: 0 1 520px; min-width: 0; }
 .settings-path .field { flex: 1; min-width: 0; }
+/* WP-51: a group's or connection's audit template under the section's row. */
+.settings-subrow { padding-top: 6px; padding-bottom: 6px; }
+.settings-subrow .settings-label { padding-left: 16px; }
+.settings-path .mono.grow { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; }
 .settings-problems { margin: 0; padding-left: 18px; color: var(--danger); }
 .page-head { display: flex; align-items: center; gap: 16px; max-width: 1100px; margin: 0 auto 12px; }
 .page-head h1 { margin: 0; font-size: 20px; font-weight: 600; white-space: nowrap; }
@@ -394,6 +419,13 @@ kbd { font: 600 10px var(--mono); padding: 1px 5px; border-radius: 4px; border: 
 .conn-line .last-used { font-size: 12px; color: var(--faint); text-align: right; white-space: nowrap; }
 .connected-tag { margin-left: 8px; font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 8px; background: color-mix(in srgb, var(--test) 15%, transparent); color: var(--test); vertical-align: 1px; }
 .switcher-name { font-weight: 500; }
+/* The group in front of the name (ConnectionLabel): subdued, cut with "…" so a long group does not push the badge away. */
+.switcher-group { max-width: 160px; overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-size: 12px; }
+.switcher-sep { margin: 0 -4px; color: var(--faint); font-size: 12px; }
+/* The group gives way to the name: a long group is cut, the name stays readable. */
+.conn-row .name.with-group { display: flex; align-items: center; }
+.conn-row .row-group { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 400; color: var(--muted); }
+.conn-row .row-group-sep { flex: none; margin: 0 5px; color: var(--faint); font-weight: 400; }
 .group-head-btn.static { cursor: default; }
 .group-head-btn.static:hover { color: var(--faint); }
 .icon-btn.active { background: var(--accent-weak); color: var(--accent); }
@@ -430,7 +462,7 @@ kbd { font: 600 10px var(--mono); padding: 1px 5px; border-radius: 4px; border: 
 .kind-tag.syn, .chip.syn { border-color: color-mix(in srgb, var(--dev) 50%, transparent); color: var(--dev); }
 
 /* ---------- table structure ---------- */
-.structure { position: absolute; inset: 0; overflow: auto; padding: 22px 28px 40px; user-select: text; }
+.structure { --structure-top: 22px; position: absolute; inset: 0; overflow: auto; padding: var(--structure-top) 28px 40px; user-select: text; }
 .structure-head { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
 .structure-head h1 { margin: 0; font: 600 19px var(--mono); }
 .structure-icon { color: var(--accent); display: flex; }
@@ -439,6 +471,8 @@ kbd { font: 600 10px var(--mono); padding: 1px 5px; border-radius: 4px; border: 
 .chip { font-size: 10px; font-weight: 700; letter-spacing: .05em; padding: 2px 7px; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); }
 .structure-loading { display: flex; align-items: center; gap: 10px; color: var(--muted); }
 .structure section { margin-bottom: 26px; max-width: 1100px; }
+/* The columns and the designer (a section, too) get more room: comments wrap less. */
+.structure section.columns-section, .structure section.designer { max-width: 1600px; }
 .structure h2 { margin: 0 0 8px; font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
 .structure h2 .count { color: var(--faint); font-weight: 500; margin-left: 4px; }
 .structure-columns-head { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
@@ -457,8 +491,10 @@ kbd { font: 600 10px var(--mono); padding: 1px 5px; border-radius: 4px; border: 
 .structure-filter input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; font: 12px var(--mono); color: var(--text); }
 .structure p.muted { margin: 0; color: var(--faint); }
 
-table.columns { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-table.columns th { text-align: left; font-size: 11px; font-weight: 600; color: var(--faint); padding: 7px 12px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+/* clip, not hidden: hidden makes the table a scroll container of its own, and the sticky head would stick to it
+   instead of to .structure, which scrolls. The head sticks at the top edge of .structure, not below its padding. */
+table.columns { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: clip; }
+table.columns th { position: sticky; top: calc(-1 * var(--structure-top, 0px)); z-index: 1; text-align: left; font-size: 11px; font-weight: 600; color: var(--faint); padding: 7px 12px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
 table.columns td { padding: 6px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
 table.columns tr:last-child td { border-bottom: 0; }
 table.columns tr:hover td { background: var(--hover); }
@@ -471,6 +507,32 @@ table.columns .default { color: var(--muted); max-width: 260px; overflow: hidden
 .fs-badge.pk { background: color-mix(in srgb, var(--yellow) 18%, transparent); color: var(--key); }
 .fs-badge.uk { background: color-mix(in srgb, var(--dev) 16%, transparent); color: var(--dev); }
 .fs-badge.fk { background: var(--accent-weak); color: var(--accent); }
+/* Code usage (WP-40): unused columns, uses in tests and mapping code. */
+.fs-badge.unused { background: color-mix(in srgb, var(--yellow) 18%, transparent); color: var(--key); }
+.fs-badge.test, .fs-badge.mapping { background: var(--surface-2); color: var(--faint); font-weight: 600; }
+.usage-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 4px 0 12px; }
+.usage-tabs .seg-count { margin-left: 6px; font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
+.usage-tabs .seg-count.unused { color: var(--key); }
+.usage-limits { margin-left: 6px; font-size: 12px; color: var(--faint); cursor: help; }
+.usage-section .structure-columns-head .spacer { flex: 1; }
+.usage-solution { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
+.usage-list { list-style: none; margin: 0 0 10px; padding: 0; }
+.usage-item { display: flex; align-items: center; gap: 8px; padding: 3px 0; white-space: nowrap; }
+.usage-item.test, .usage-item.mapping { opacity: .75; }
+.usage-kind { min-width: 64px; font-size: 11px; color: var(--faint); }
+.usage-subhead { margin: 12px 0 4px; font-size: 13px; font-weight: 600; cursor: help; }
+.usage-subhead .count { margin-left: 4px; font-size: 11px; font-weight: 400; color: var(--faint); font-variant-numeric: tabular-nums; }
+table.usage-columns tr.clickable { cursor: pointer; }
+table.usage-columns tr.usage-detail td { background: var(--surface-2); padding: 4px 12px 4px 28px; }
+table.usage-columns tr.usage-detail:hover td { background: var(--surface-2); }
+.work-clone-dialog { width: min(640px, 92vw); }
+.work-clone-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; }
+.work-clone-item { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; width: 100%; text-align: left; padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: inherit; cursor: pointer; }
+.work-clone-item:hover { background: var(--hover); }
+.work-clone-item.active { border-color: var(--accent); background: var(--accent-weak); }
+.work-clone-name { font-weight: 600; }
+.work-clone-item .path { flex-basis: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.warn-text { color: var(--warn); }
 
 dl.keys { display: grid; grid-template-columns: 140px 1fr; gap: 6px 12px; margin: 0; }
 dl.keys dt { color: var(--muted); }
@@ -569,7 +631,7 @@ dl.keys dd { margin: 0; }
 .chip.invalid { background: var(--danger-weak); border-color: transparent; color: var(--danger); }
 .detail-error { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-bottom: 16px; padding: 8px 12px; border-radius: 8px; background: var(--danger-weak); color: var(--danger); font-size: 12.5px; }
 .detail-error .muted { color: var(--muted); }
-table.columns td.comment { white-space: normal; min-width: 180px; max-width: 460px; color: var(--muted); }
+table.columns td.comment { white-space: normal; min-width: 280px; color: var(--muted); }
 table.columns td.flags { font-size: 10.5px; font-weight: 600; letter-spacing: .03em; color: var(--muted); }
 table.columns td.state { font-size: 12px; color: var(--muted); }
 table.columns td.state.bad { color: var(--danger); font-weight: 600; }
@@ -603,11 +665,14 @@ code.condition { font: 12px var(--mono); white-space: pre-wrap; }
 .tab-footer > span { display: inline-flex; align-items: center; gap: 6px; }
 
 /* ---------- filter bar ---------- */
-.filterbar { display: flex; align-items: flex-start; gap: 12px; flex: none; padding: 8px 12px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.filterbar { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; flex: none; padding: 8px 12px; background: var(--surface); border-bottom: 1px solid var(--border); }
 .filterbar > .hint { align-self: center; }
 .filterbar > .spacer { flex: 1; }
-.filter-rows { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.filter-row { display: grid; grid-template-columns: 18px 220px 130px minmax(180px, 420px) 28px 28px auto; gap: 6px; align-items: center; }
+/* Column and value shrink before the row runs under the actions (a preset's name there, WP-37); at their least the actions
+   move to a line of their own (right-aligned) instead of covering a group. The rows share one set of
+   columns (subgrid): a note or an error after one row ("Not in this table") would otherwise shorten only that row's fields. */
+.filter-rows { flex: 1; display: grid; grid-template-columns: 14px 18px minmax(150px, 220px) 130px minmax(100px, 420px) 28px 28px 28px auto; gap: 6px; align-content: start; min-width: min-content; }
+.filter-row { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; align-items: center; }
 .filter-row.disabled .field { opacity: .5; }
 .filter-row .field { height: 30px; }
 .filter-row .col { font-family: var(--mono); font-size: 12px; }
@@ -615,8 +680,25 @@ code.condition { font: 12px var(--mono); white-space: pre-wrap; }
 .filter-row .values .field { flex: 1; min-width: 0; }
 .filter-row.invalid .values .field { border-color: var(--danger); box-shadow: 0 0 0 3px var(--danger-weak); }
 .filter-error { color: var(--danger); font-size: 12px; white-space: nowrap; }
+.filter-note { color: var(--faint); font-size: 12px; white-space: nowrap; }
 .row-toggle { width: 15px; height: 15px; margin: 0; accent-color: var(--accent); }
-.filter-actions { display: flex; gap: 6px; }
+.filter-actions { display: flex; gap: 6px; margin-left: auto; }
+/* Filter groups (WP-50): a box per group in the grid of the rows, its rows aligned with the others (subgrid). */
+.filter-group { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; row-gap: 6px; padding: 6px 0; border: 1px dashed var(--border-strong); border-radius: 8px; background: var(--surface-2); }
+.filter-group.disabled > .filter-row .field, .filter-group.disabled .group-kind { opacity: .5; }
+.filter-group-head { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; align-items: center; }
+.filter-group-title { grid-column: 3 / -1; display: flex; align-items: center; gap: 8px; min-width: 0; padding-right: 6px; }
+.filter-group-title .muted { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.filter-group-title .spacer { flex: 1; }
+.group-kind { height: 26px; font-weight: 600; }
+/* "Without a group": a drop target only while a row is dragged, so it takes no line otherwise. */
+.filter-more { grid-column: 1 / -1; display: none; align-items: center; justify-content: center; height: 30px; border: 1px dashed var(--border-strong); border-radius: 8px; color: var(--muted); font-size: 12px; }
+.filterbar.dragging .filter-more { display: flex; }
+.filterbar .btn.small { height: 26px; padding: 0 8px; }
+.filter-grip { color: var(--faint); cursor: grab; user-select: none; text-align: center; line-height: 30px; touch-action: none; }
+.filter-grip:hover { color: var(--text); }
+.filterbar.dragging, .filterbar.dragging * { cursor: grabbing !important; }
+.filter-rows .drop-over { outline: 2px solid var(--accent); outline-offset: 1px; background: var(--accent-weak); }
 
 /* ---------- column search (filter bar picker, Ctrl+F jump) ---------- */
 .colpick { position: relative; min-width: 0; }
@@ -697,11 +779,6 @@ table.binds th { color: var(--muted); font-weight: 600; }
 table.binds td { font-family: var(--mono); }
 
 /* ---------- menus ---------- */
-.overlay { position: fixed; inset: 0; z-index: 70; }
-.menu {
-  position: fixed; z-index: 71; width: 200px; padding: 5px;
-  background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow);
-}
 .menu-item {
   display: flex; align-items: center; gap: 8px; width: 100%;
   height: 30px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; text-align: left;
@@ -713,7 +790,36 @@ table.binds td { font-family: var(--mono); }
 .menu-sep { height: 1px; margin: 5px 4px; background: var(--border); }
 .menu-item:disabled { opacity: .55; cursor: default; }
 .menu-item:disabled:hover { background: transparent; }
-.menu.linq-menu { width: 220px; }
+/* filter presets (WP-37): name to apply, then + (append), rename, delete */
+.preset-item { display: flex; align-items: center; gap: 2px; }
+.preset-item .preset-apply { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; line-height: 30px; }
+.preset-item .icon-btn { flex: none; width: 26px; height: 26px; color: var(--faint); }
+.preset-item .icon-btn:hover { color: var(--text); }
+.preset-item .preset-delete:hover { color: var(--danger); }
+.preset-note { padding: 6px 10px; color: var(--faint); font-size: 12.5px; }
+.preset-item.active .preset-apply { font-weight: 600; }
+.btn.preset-active { max-width: 220px; }
+.btn.preset-active .preset-active-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--accent); }
+.btn.preset-active .preset-changed { color: var(--faint); white-space: nowrap; }
+.preset-note.error { color: var(--danger); }
+.dialog.preset-dialog { width: min(560px, 94vw); }
+/* links (WP-37): what a link from outside opens, before it does */
+.dialog.link-dialog { width: min(560px, 94vw); }
+.link-facts { display: grid; grid-template-columns: 110px 1fr; gap: 10px 14px; margin: 0; }
+.link-facts dt { color: var(--muted); font-weight: 500; }
+.link-facts dd { margin: 0; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.link-facts code { font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; }
+.link-facts .link-candidate { padding-top: 0; }
+.link-target { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px; }
+.link-other .link-btn { padding-left: 0; }
+/* The user's own choice: all connections, searchable, in a list that scrolls inside the dialog. */
+.link-choices { max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding: 0 2px 4px; border: 1px solid var(--border); border-radius: 7px; }
+.link-choices .group-head-btn { padding: 8px 6px 2px; }
+.link-choices .link-candidate { padding: 2px 6px; }
+.link-dialog .hint { margin: 12px 0 0; }
+.preset-content { display: flex; flex-direction: column; gap: 6px; padding-top: 6px; min-width: 0; }
+.preset-content code { font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; }
+.preset-content .hint { font-size: 12px; }
 
 /* ---------- errors, connection loss, notices ---------- */
 .link-btn { border: 0; padding: 0 0 0 8px; background: transparent; color: inherit; text-decoration: underline; cursor: pointer; font-size: inherit; }
@@ -798,6 +904,8 @@ table.binds td { font-family: var(--mono); }
 .icon-btn { width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--muted); }
 .icon-btn:hover { color: var(--text); }
 .icon-btn.ghost { border-color: transparent; background: transparent; }
+/* An inline SVG sits on the text baseline and rides up by the descender; as a block it is centered like a glyph would be. */
+.icon-btn .icon { display: block; }
 .btn.danger { color: var(--danger); }
 .btn.danger:hover:not(:disabled) { background: var(--danger-weak); color: var(--danger); }
 
@@ -976,6 +1084,16 @@ table.columns td.clr-type .converter { display: block; color: var(--muted); font
 .run-actions { display: flex; align-items: center; gap: 8px; min-height: 30px; }
 .run-stuck p { margin: 0 0 10px; font-size: 12.5px; line-height: 1.5; }
 .run-buttons { display: flex; gap: 8px; }
+/* WP-52: what the session waits for (a lock of another session) and how far a long operation is. */
+.run-wait {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 7px;
+  background: color-mix(in srgb, var(--warn) 12%, transparent); font-size: 12.5px; line-height: 1.45; user-select: text;
+}
+.run-wait span { flex: 1; min-width: 0; }
+.run-wait .btn { flex: none; }
+.run-longop { display: flex; flex-direction: column; gap: 4px; }
+.run-bar { height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; }
+.run-bar span { display: block; height: 100%; background: var(--accent); transition: width 0.4s ease; }
 
 .linq-notice { padding: 10px 12px; border-bottom: 1px solid var(--border); background: var(--clr-weak); font-size: 12.5px; user-select: text; }
 .linq-notice.muted { background: var(--surface); color: var(--muted); }
@@ -1216,7 +1334,7 @@ table.compare-rows td.ff-flushed { box-shadow: inset 2px 0 0 var(--accent); back
 .source-hit:hover:not(:disabled) { background: var(--hover); }
 .source-hit .line-no { flex: none; min-width: 34px; text-align: right; color: var(--faint); font-variant-numeric: tabular-nums; }
 .source-hit .line-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.details-body > .structure.source-host { padding: 0; overflow: hidden; }
+.details-body > .structure.source-host { --structure-top: 0px; padding: 0; overflow: hidden; }
 .source-host > .structure-loading, .source-host > .detail-error { margin: 22px 28px; }
 .plsql-source { position: absolute; inset: 0; }
 .monaco-host.plsql-code { height: 100%; border: 0; border-radius: 0; }
@@ -1315,12 +1433,17 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .ddl-actions .spacer { flex: 1; }
 
 /* Table designer (WP-23, stage 2): the edit mode of the Columns view. */
-.designer { max-width: 1400px; display: flex; flex-direction: column; gap: 10px; }
+.designer { display: flex; flex-direction: column; gap: 10px; }
 .designer h2 { margin: 14px 0 0; }
 .designer-columns td { padding-top: 3px; padding-bottom: 3px; }
 .designer-columns .field { height: 26px; padding: 0 6px; font-size: 12px; width: 100%; min-width: 0; }
 .designer-columns select.field { min-width: 150px; }
 .designer-columns .field.narrow { width: 64px; }
+/* The fields fill their cells: without a minimum the name would shrink to a few letters. The comment takes the room
+   the others leave. */
+.designer-columns td.name-cell { min-width: 150px; }
+.designer-columns td.default-cell { min-width: 90px; }
+.designer-columns td.comment-cell { width: 35%; min-width: 200px; }
 .designer-columns .check-cell { text-align: center; }
 .designer-columns .row-actions { white-space: nowrap; }
 .designer-columns .row-actions > span { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
@@ -1400,10 +1523,14 @@ table.parameters td { overflow: hidden; text-overflow: ellipsis; }
 .update-current { color: var(--muted); }
 .release-notes { margin: 0 0 12px; padding: 4px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); max-height: 46vh; overflow-y: auto; }
 .release-notes h3 { margin: 10px 0 4px; font-size: 13px; }
+.release-notes h2.release-version { margin: 14px 0 2px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 14px; }
+.release-notes h2.release-version:first-child { margin-top: 6px; padding-top: 0; border-top: 0; }
 .release-notes p { margin: 8px 0; }
 .release-notes ul { margin: 4px 0 8px; padding-left: 20px; }
 .release-notes li { margin: 3px 0; }
 .release-notes code { font-family: var(--mono); font-size: 12px; }
+.release-notes .note-image { display: block; width: fit-content; max-width: 100%; margin: 8px 0; }
+.release-notes .note-image img { display: block; max-width: 100%; max-height: 320px; border: 1px solid var(--border); border-radius: 6px; }
 .update-progress { width: 160px; height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; flex: none; }
 .update-progress .bar { height: 100%; background: var(--accent); transition: width .2s; }
 

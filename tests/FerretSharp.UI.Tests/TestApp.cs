@@ -1,10 +1,11 @@
 using FerretSharp.Core.ClrModel;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
+using FerretSharp.Core.Oracle;
 using FerretSharp.Core.Query;
 using FerretSharp.Core.Schema;
 using FerretSharp.Core.Settings;
-using FerretSharp.Core.Tests.Fakes;
+using FerretSharp.Testing;
 using FerretSharp.Core.Workspaces;
 using FerretSharp.UI.State;
 using Microsoft.Extensions.DependencyInjection;
@@ -44,6 +45,9 @@ internal sealed class TestApp : IAsyncDisposable
         services.AddScoped<ClrModelManager>();
         services.AddScoped<PresentationService>();
         services.AddScoped<LinqConsoleService>();
+        services.AddSingleton(new CodeUsageBuilder(_folder.Combine("code-usage")));
+        services.AddSingleton(new WorkClones(_folder.Combine("work-clones.json")));
+        services.AddScoped<CodeUsageService>();
         services.AddSingleton<ConnectionHub>();
         _services = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
 
@@ -170,6 +174,9 @@ internal sealed class TestApp : IAsyncDisposable
     /// <summary>What a commit of any workspace session does; completes at once unless a test holds it.</summary>
     public Func<Task>? OnCommit { get; set; }
 
+    /// <summary>What a writing statement of any workspace session does before it is written; completes at once unless a test holds it.</summary>
+    public Func<Task>? OnExecute { get; set; }
+
     private IDatabaseConnection NewConnection()
     {
         var reader = FakeDatabase.Reader(Kunden);
@@ -188,7 +195,7 @@ internal sealed class TestApp : IAsyncDisposable
             }
 
             return failure;
-        });
+        }, () => OnExecute);
         lock (_lock)
         {
             _editors.Add(editor);
@@ -196,8 +203,11 @@ internal sealed class TestApp : IAsyncDisposable
 
         var data = Substitute.For<IDataAccess>();
         data.ReadSqlAsync(Arg.Any<QuerySpec>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .Returns(call => ReadSql(call.Arg<QuerySpec>(), call.Arg<CancellationToken>()));
+            .Returns(call => StatementGuard.IsQuery(call.Arg<QuerySpec>().Sql)
+                ? ReadSql(call.Arg<QuerySpec>(), call.Arg<CancellationToken>())
+                : throw new InvalidOperationException("Only plain queries are read (review 3.40.0, C1: as the session refuses them)."));
         var connection = FakeDatabase.Connection(reader);
+        connection.SessionTag.Returns("FerretSharp " + Guid.NewGuid().ToString("N")[..12]); // like the app: one tag per session (WP-52)
         connection.Data.Returns(data);
         connection.Editor.Returns(editor);
         connection.UseReadOnlySnapshotsAsync(Arg.Any<CancellationToken>()).Returns(_ =>

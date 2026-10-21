@@ -1,0 +1,350 @@
+@* "Columns" view: the columns with type, NULL, default, flags and comment, filterable (Ctrl+F); for views also the definition. *@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Query
+@using FerretSharp.Core.Schema
+@inherits FerretComponent
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject ShortcutService Shortcuts
+@inject FerretSharp.Core.Display.DisplayColumnSource DisplaySource
+
+@{
+    var fkColumns = (Active.Schema?.OutgoingOf(Details.Table.Ref) ?? [])
+        .SelectMany(f => f.FromColumns.Select(c => (Column: c, Fk: f)))
+        .ToLookup(x => x.Column, x => x.Fk);
+    var uniqueColumns = Details.UniqueKeys.SelectMany(k => k).ToHashSet();
+    // The table's display column (WP-31): its values stand beside foreign keys to the table.
+    var displayColumn = Details.Table.Kind == TableKind.View ? null : DisplaySource.Current().Columns.ColumnOf(Details.Table.Name);
+    // Filtering keeps the schema order: this is a table of the columns, not a list of search hits.
+    var shown = ColumnSearch.Find(Details.Columns, _columnQuery).Order().Select(i => Details.Columns[i]).ToList();
+    var filtering = !string.IsNullOrWhiteSpace(_columnQuery);
+    // C# model of the linked project (WP-11): entity of this table and the property of each column.
+    var mapping = Models.Mapping;
+    var entity = mapping?.EntityOf(Details.Table.Ref);
+}
+
+<section class="columns-section">
+    <div class="structure-columns-head">
+        <h2>
+            @SchemaViewText.Columns_Heading
+            <span class="count">@(filtering ? TextFormat.Format(SchemaViewText.Columns_FilteredCount, shown.Count, Details.Columns.Count) : Details.Columns.Count.ToString(CultureInfo.CurrentCulture))</span>
+        </h2>
+        @if (entity is not null)
+        {
+            <span class="entity-name" title="@TextFormat.Format(SchemaViewText.Columns_EntityTitle, entity.Entity.ClrType)">
+                <Fmt Text="@SchemaViewText.Columns_Entity"><Arg0><strong>@ClrModelMapping.ShortName(entity.Entity.ClrType)</strong></Arg0></Fmt>
+            </span>
+        }
+        @if (!_editing)
+        {
+            <SearchBox @ref="_filter" Class="structure-filter" Placeholder="@TextFormat.Format(SchemaViewText.Columns_FilterPlaceholder, Shortcuts.Hint(ShortcutAction.FindColumn))" @bind-Value="_columnQuery" />
+            @if (Details.Table.Kind == TableKind.Table && WorkspaceId != Guid.Empty)
+            {
+                <button class="btn" title="@SchemaViewText.Designer_EditTitle" @onclick="() => _editing = true">@SchemaViewText.Designer_Edit</button>
+            }
+            @if (mapping is not null && entity is null)
+            {
+                <button class="btn @(_entityName is null ? "" : "active")" title="@SchemaViewText.Entity_CreateTitle"
+                        @onclick="() => _entityName = _entityName is null ? EntityCode.SuggestName(mapping.Model, Details.Table.Name) : null">C# · @SchemaViewText.Entity_Create</button>
+            }
+        }
+    </div>
+    @if (_editing)
+    {
+        <TableDesigner Details="Details" WorkspaceId="WorkspaceId" Tab="Tab" StartWithAudit="_startWithAudit" OnRan="OnDesignRanAsync"
+                       OnClose="() => (_editing, _startWithAudit) = (false, false)" />
+    }
+    else
+    {
+    @if (Details.Table.Kind == TableKind.Table && WorkspaceId != Guid.Empty)
+    {
+        <AuditStatusLine Details="Details" OnOpen="() => (_editing, _startWithAudit) = (true, true)" />
+    }
+    <table class="columns">
+        <thead>
+            <tr>
+                <th class="num">#</th><th>@SchemaViewText.Head_Name</th><th>@SchemaViewText.Head_Type</th>
+                @if (entity is not null)
+                {
+                    <th>@SchemaViewText.Columns_Property</th><th>@SchemaViewText.Columns_ClrType</th>
+                }
+                <th>@SchemaViewText.Columns_Null</th><th>@SchemaViewText.Head_Default</th><th></th><th>@SchemaViewText.Columns_Comment</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (shown.Count == 0)
+            {
+                <tr><td colspan="@(entity is null ? 7 : 9)" class="muted">@TextFormat.Format(SchemaViewText.NoColumnMatches, _columnQuery)</td></tr>
+            }
+            @foreach (var column in shown)
+            {
+                <tr>
+                    <td class="num">@column.Position</td>
+                    <td class="name">
+                        @column.Name
+                        @if (Details.PrimaryKey.Contains(column.Name))
+                        {
+                            <span class="fs-badge pk" title="@SchemaViewText.Columns_PrimaryKey">PK</span>
+                        }
+                        else if (uniqueColumns.Contains(column.Name))
+                        {
+                            <span class="fs-badge uk" title="@SchemaViewText.Columns_UniqueKey">UK</span>
+                        }
+                        @foreach (var fk in fkColumns[column.Name])
+                        {
+                            @if (fk.Source == FkSource.ClrModel)
+                            {
+                                <span class="fs-badge fk model" title="@TextFormat.Format(SchemaViewText.Columns_FkFromModel, fk.Name, fk.To)">FK</span>
+                            }
+                            else
+                            {
+                                <span class="fs-badge fk" title="@fk.Name → @fk.To">FK</span>
+                            }
+                        }
+                        @if (column.Name == displayColumn)
+                        {
+                            <span class="fs-badge display" title="@GridText.Grid_DisplayBadgeTitle">@GridText.Grid_DisplayBadge</span>
+                        }
+                    </td>
+                    <td class="mono">@column.DisplayType</td>
+                    @if (entity is not null)
+                    {
+                        var property = mapping!.PropertyOf(Details.Table.Ref, column.Name);
+                        @if (property is null)
+                        {
+                            <td class="muted" title="@SchemaViewText.Columns_NoProperty">
+                                –
+                                <button class="link-btn" title="@SchemaViewText.Designer_PropertyCodeTitle"
+                                        @onclick="() => _csharpFor = _csharpFor == column.Name ? null : column.Name">C#</button>
+                            </td>
+                            <td></td>
+                        }
+                        else
+                        {
+                            var mismatches = mapping.MismatchesOf(Details.Table.Ref, column.Name).ToList();
+                            <td class="mono property">
+                                @property.Name@(property.IsShadow ? " (Shadow)" : "")
+                                @if (Usage.State.Result is { } usage && CodeUsageRows.Column(mapping, usage.Index, Details.Table.Ref, column.Name) is { Unused: true })
+                                {
+                                    <span class="fs-badge unused" title="@ModelViewText.Usage_UnusedTitle">@ModelViewText.Usage_Unused</span>
+                                }
+                                @if (mismatches.Count > 0)
+                                {
+                                    var worst = mismatches.Min(m => m.Severity);
+                                    <span class="mismatch-sev @ModelMismatches.Css(worst)"
+                                          title="@string.Join("\n", mismatches.Select(m => $"{ModelMismatches.KindText(m.Kind)}: {m.Message}"))">@string.Join(" · ", mismatches.Select(m => ModelMismatches.KindText(m.Kind)))</span>
+                                }
+                            </td>
+                            <td class="mono clr-type" title="@ValuesTitle(property)">
+                                @TablePresentation.ClrTypeText(property)
+                                @if (property.Converter is { } converter)
+                                {
+                                    <span class="converter">@converter</span>
+                                }
+                                else if (property.Values is not null)
+                                {
+                                    <span class="converter">@SchemaViewText.Columns_EnumAsNumber</span>
+                                }
+                            </td>
+                        }
+                    }
+                    <td>@(column.Nullable ? "" : "NOT NULL")</td>
+                    <td class="mono default" title="@(column.IsVirtual ? SchemaViewText.Columns_VirtualExpression : null)">@column.Default</td>
+                    <td class="flags">@Flags(column)</td>
+                    <td class="comment">@column.Comment</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    @if (_csharpFor is { } csharpColumn && mapping is not null && entity is not null && Details.IndexOf(csharpColumn) is var at and >= 0)
+    {
+        <h2>@TextFormat.Format(SchemaViewText.Designer_CSharpHeading, ClrModelMapping.ShortName(entity.Entity.ClrType))</h2>
+        <PropertySuggestions Suggestions="@(new[] { PropertyCode.Suggest(mapping.Model, Details.Columns[at]) })" />
+    }
+    @if (_entityName is not null && mapping is not null && entity is null)
+    {
+        var entityCode = EntityCode.Write(mapping, Details, (Active.Schema?.OutgoingOf(Details.Table.Ref) ?? []).ToList(),
+            _entityName.Trim().Length > 0 ? _entityName : Details.Table.Name);
+        <section class="entity-code">
+            <div class="index-draft-form">
+                <label for="@_entityId">@SchemaViewText.Entity_Name</label>
+                <input id="@_entityId" class="field mono" spellcheck="false" @bind="_entityName" @bind:event="oninput" />
+            </div>
+            <SqlCode Sql="@entityCode.Entity" Plain="true" />
+            <SqlCode Sql="@entityCode.Configuration" Plain="true" />
+            @foreach (var note in entityCode.Notes)
+            {
+                <p class="hint small">@note</p>
+            }
+        </section>
+    }
+    }
+</section>
+
+@if (Details.Definition is { } definition)
+{
+    <section>
+        <h2>@SchemaViewText.Columns_Definition</h2>
+        <SqlCode Sql="@definition" Class="definition" />
+        @if (Details.DefinitionTruncated)
+        {
+            <p class="muted">@SchemaViewText.Columns_DefinitionTruncated</p>
+        }
+    </section>
+}
+
+@code {
+    private PresentationWatch _presentation = null!;
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public ClrModelManager Models { get; set; } = null!;
+
+    private SearchBox? _filter;
+    private DomModule? _dom;
+
+    /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
+    private DomModule Dom => _dom ??= new(JS);
+
+    [CascadingParameter]
+    public PresentationService Presentations { get; set; } = null!;
+
+    /// <summary>Marks mapped columns no code uses (WP-40); the index is read when the view is shown for a mapped table.</summary>
+    [CascadingParameter]
+    public CodeUsageService Usage { get; set; } = null!;
+
+    /// <summary>The view is visible now (the tab's mode, the active tab): only then is the code usage index brought up to date.</summary>
+    [Parameter]
+    public bool Shown { get; set; }
+
+    private bool _wasShown;
+
+    private readonly CancellationTokenSource _lifetime = new();
+    private string _columnQuery = "";
+
+    [Parameter, EditorRequired]
+    public TableDetails Details { get; set; } = null!;
+
+    /// <summary>The tab's workspace: the designer's DDL runs and counts there (WP-23); empty = no edit mode.</summary>
+    [Parameter]
+    public Guid WorkspaceId { get; set; }
+
+    /// <summary>The tab, for the designer's warning about its uncommitted changes.</summary>
+    [Parameter]
+    public TableTab? Tab { get; set; }
+
+    /// <summary>DDL of the designer ran: the tab reloads its detail views (constraints, indexes, DDL).</summary>
+    [Parameter]
+    public EventCallback OnSchemaChanged { get; set; }
+
+    /// <summary>The edit mode is open (WP-23, stage 2).</summary>
+    private bool _editing;
+
+    /// <summary>The column without property whose C# is shown below the table.</summary>
+    private string? _csharpFor;
+
+    /// <summary>"Entity" is open for a table without one (WP-23, stage 3): the name as the user has it; null = closed.</summary>
+    private string? _entityName;
+
+    private readonly string _entityId = $"entity-name-{Guid.NewGuid():N}";
+
+    /// <summary>The designer opens with the audit box on (WP-26).</summary>
+    private bool _startWithAudit;
+
+    private async Task OnDesignRanAsync()
+    {
+        (_editing, _startWithAudit) = (false, false);
+        await OnSchemaChanged.InvokeAsync();
+    }
+
+    /// <summary>A newly loaded model that changes this table (not every loading step, not every table after a build).</summary>
+    protected override void OnInitialized()
+    {
+        _presentation = new PresentationWatch(Presentations);
+        Presentations.Changed += OnModelChanged;
+        DisplaySource.Changed += OnDisplayColumnsChanged;
+        Usage.Changed += OnUsageChanged;
+        _editing = Tab?.Designer is not null; // a draft that outlived a rebuild of the tab (DDL that stopped halfway)
+    }
+
+    /// <summary>Shown again (or for the first time): a build since then is picked up.</summary>
+    protected override void OnParametersSet()
+    {
+        if (Shown && !_wasShown)
+        {
+            EnsureUsage();
+        }
+
+        _wasShown = Shown;
+    }
+
+    /// <summary>The index arrived or is out of date: mapped tables show the marker, and read it again while shown.</summary>
+    private void OnUsageChanged()
+    {
+        if (Models.Mapping?.EntityOf(Details.Table.Ref) is null)
+        {
+            return;
+        }
+
+        Fire(StateHasChanged);
+        if (Shown && Usage.State.Phase == CodeUsagePhase.NotBuilt)
+        {
+            EnsureUsage();
+        }
+    }
+
+    private void EnsureUsage()
+    {
+        if (Models.Mapping?.EntityOf(Details.Table.Ref) is not null && !_lifetime.IsCancellationRequested)
+        {
+            // Cancelled when the view goes away: Fire stays silent.
+            Fire(() => Usage.EnsureAsync(_lifetime.Token));
+        }
+    }
+
+    private void OnModelChanged() => InvokeAsync(() =>
+    {
+        if (_presentation.ChangedFor(Details.Table.Ref))
+        {
+            StateHasChanged();
+        }
+    });
+
+    /// <summary>A display column was marked or the file changed (WP-31): the badge follows.</summary>
+    private void OnDisplayColumnsChanged() => InvokeAsync(StateHasChanged);
+
+    /// <summary>Enum members (or true/false) with what the project stores for them, as a tooltip.</summary>
+    private static string? ValuesTitle(PropertyExport property) => property.Values is { } values
+        ? string.Join("\n", values.Select(v => v.DisplayName is { } display
+            ? TextFormat.Format(SchemaViewText.Columns_EnumValueWithDisplay, v.Name, display, v.ProviderValue ?? "?")
+            : $"{v.Name} = {v.ProviderValue ?? "?"}"))
+        : null;
+
+    private static string Flags(ColumnInfo column) => string.Join(" · ", new[]
+    {
+        column.IsIdentity ? "IDENTITY" : null,
+        column.IsVirtual ? "VIRTUAL" : null,
+        column.DefaultOnNull ? "DEFAULT ON NULL" : null,
+    }.OfType<string>());
+
+    /// <summary>Ctrl+F: focuses the column filter and selects its text.</summary>
+    public async Task FocusFilterAsync()
+    {
+        if (_filter is not null)
+        {
+            await Dom.InvokeVoidAsync("focusAndSelect", _filter.Input);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Presentations.Changed -= OnModelChanged;
+        DisplaySource.Changed -= OnDisplayColumnsChanged;
+        Usage.Changed -= OnUsageChanged;
+        await _lifetime.CancelAsync();
+        _lifetime.Dispose();
+        await Dom.DisposeAsync();
+    }
+}

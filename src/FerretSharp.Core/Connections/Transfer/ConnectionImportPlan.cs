@@ -141,8 +141,10 @@ public sealed class ImportRow
                 DefaultSchema = imported.DefaultSchema ?? existing.DefaultSchema,
                 Group = imported.Group ?? existing.Group ?? fallbackGroup,
                 ClrProject = existing.ClrProject ?? imported.ClrProject,
+                CodeSolution = existing.ClrProject is null ? imported.CodeSolution : existing.CodeSolution,
                 ScriptFolder = existing.ScriptFolder ?? imported.ScriptFolder,
                 AppEnvironment = existing.AppEnvironment ?? imported.AppEnvironment,
+                AuditTemplatePath = existing.AuditTemplatePath ?? imported.AuditTemplatePath,
             };
         }
 

@@ -12,130 +12,6 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <data name="Settings_Title" xml:space="preserve">
-    <value>Settings</value>
-    <comment>Page title</comment>
-  </data>
-  <data name="Settings_Sections" xml:space="preserve">
-    <value>Section</value>
-    <comment>Accessible label of the settings tabs</comment>
-  </data>
-  <data name="Settings_Shortcuts" xml:space="preserve">
-    <value>Shortcuts</value>
-    <comment>Settings tab</comment>
-  </data>
-  <data name="Settings_Appearance" xml:space="preserve">
-    <value>Appearance</value>
-    <comment>Settings section</comment>
-  </data>
-  <data name="Settings_Language" xml:space="preserve">
-    <value>Language</value>
-  </data>
-  <data name="Settings_LanguageHint" xml:space="preserve">
-    <value>Takes effect at the next start. Enum names from the C# project keep the language of its resources.</value>
-  </data>
-  <data name="Settings_LanguageAfterRestart" xml:space="preserve">
-    <value>FerretSharp shows the selected language after a restart.</value>
-  </data>
-  <data name="Settings_ColorScheme" xml:space="preserve">
-    <value>Color scheme</value>
-  </data>
-  <data name="Settings_ColorSchemeHint" xml:space="preserve">
-    <value>“System” follows the Windows setting.</value>
-  </data>
-  <data name="Settings_ThemeSystem" xml:space="preserve">
-    <value>System</value>
-    <comment>Color scheme option</comment>
-  </data>
-  <data name="Settings_ThemeLight" xml:space="preserve">
-    <value>Light</value>
-    <comment>Color scheme option</comment>
-  </data>
-  <data name="Settings_ThemeDark" xml:space="preserve">
-    <value>Dark</value>
-    <comment>Color scheme option</comment>
-  </data>
-  <data name="Settings_ThemeForced" xml:space="preserve">
-    <value>This session was started with {0} and therefore stays {1}. The selection is saved and applies from the next start without this parameter.</value>
-    <comment>{0} = the command line argument (code), {1} = Settings_ThemeForcedDark or Settings_ThemeForcedLight</comment>
-  </data>
-  <data name="Settings_ThemeForcedDark" xml:space="preserve">
-    <value>dark</value>
-    <comment>Completes Settings_ThemeForced</comment>
-  </data>
-  <data name="Settings_ThemeForcedLight" xml:space="preserve">
-    <value>light</value>
-    <comment>Completes Settings_ThemeForced</comment>
-  </data>
-  <data name="Settings_ClrModel" xml:space="preserve">
-    <value>C# model</value>
-    <comment>Settings section</comment>
-  </data>
-  <data name="Settings_ClrNames" xml:space="preserve">
-    <value>C# names</value>
-  </data>
-  <data name="Settings_ClrNamesHint" xml:space="preserve">
-    <value>Entity and property names of the linked project in the explorer, the table header and the column search: beside the Oracle names, or in front in their place. FerretSharp always shows enum values with their C# name; SQL keeps the names of the database.</value>
-  </data>
-  <data name="Settings_ClrNamesBeside" xml:space="preserve">
-    <value>Beside</value>
-    <comment>C# names option</comment>
-  </data>
-  <data name="Settings_ClrNamesFront" xml:space="preserve">
-    <value>In front</value>
-    <comment>C# names option</comment>
-  </data>
-  <data name="Settings_Connection" xml:space="preserve">
-    <value>Connection</value>
-    <comment>Settings section</comment>
-  </data>
-  <data name="Settings_KeepAlive" xml:space="preserve">
-    <value>Check idle connections</value>
-  </data>
-  <data name="Settings_KeepAliveHint" xml:space="preserve">
-    <value>Sends a short query to idle sessions every 2 minutes ({0}). A lost connection is reported immediately, and firewalls do not drop idle connections. However, this also keeps sessions open despite an {1} limit of the database.</value>
-    <comment>{0} = SELECT 1 FROM DUAL (code), {1} = IDLE_TIME (code)</comment>
-  </data>
-  <data name="Settings_LockWait" xml:space="preserve">
-    <value>Wait for locked rows</value>
-  </data>
-  <data name="Settings_LockWaitHint" xml:space="preserve">
-    <value>If another session holds a lock on a row you want to write, FerretSharp waits this long and then shows who holds it ({0}).</value>
-    <comment>{0} = SELECT … FOR UPDATE WAIT n (code)</comment>
-  </data>
-  <data name="Settings_FkCounts" xml:space="preserve">
-    <value>Count incoming foreign keys</value>
-  </data>
-  <data name="Settings_FkCountsHint" xml:space="preserve">
-    <value>The cell menu and the form show how many rows refer to the row. The counts run one after the other on the workspace’s session – a jump to another table waits until the running count has ended. “On hover” counts only the entry the mouse rests on.</value>
-  </data>
-  <data name="Settings_FkCountsImmediately" xml:space="preserve">
-    <value>Immediately</value>
-    <comment>Option of "Count incoming foreign keys": all at once when the menu opens</comment>
-  </data>
-  <data name="Settings_FkCountsOnHover" xml:space="preserve">
-    <value>On hover</value>
-    <comment>Option of "Count incoming foreign keys": only the entry under the mouse</comment>
-  </data>
-  <data name="Settings_Diagnostics" xml:space="preserve">
-    <value>Diagnostics</value>
-    <comment>Settings section</comment>
-  </data>
-  <data name="Settings_DiagnoseUiStalls" xml:space="preserve">
-    <value>Log UI stalls</value>
-  </data>
-  <data name="Settings_DiagnoseUiStallsHint" xml:space="preserve">
-    <value>Writes to the log when the user interface does not respond for more than 0.3 s, and what FerretSharp was busy with. If the .NET tool {0} is installed, stalls over 1.5 s also write the stacks of all threads to the log folder as {1}. Meant for tracking down stalls, not for everyday use.</value>
-    <comment>{0} = dotnet-stack (code), {1} = stall-*.txt (code)</comment>
-  </data>
-  <data name="Settings_NotRead" xml:space="preserve">
-    <value>Settings could not be read.</value>
-    <comment>Notice at start; the details (file, copy) follow as a warning</comment>
-  </data>
-  <data name="Settings_NotSaved" xml:space="preserve">
-    <value>Setting applied but not saved: {0}</value>
-    <comment>{0} = error message</comment>
-  </data>
   <data name="Actions" xml:space="preserve">
     <value>Actions</value>
     <comment>Tooltip of the “⋯” menu button</comment>
@@ -177,70 +53,6 @@
   </data>
   <data name="Dialogs_ReconnectLater" xml:space="preserve">
     <value>Later</value>
-  </data>
-  <data name="Connection_Reconnect" xml:space="preserve">
-    <value>Reconnect</value>
-    <comment>Button</comment>
-  </data>
-  <data name="Connection_Disconnect" xml:space="preserve">
-    <value>Disconnect</value>
-    <comment>Button</comment>
-  </data>
-  <data name="Connection_Lost" xml:space="preserve">
-    <value>Connection lost</value>
-    <comment>Status</comment>
-  </data>
-  <data name="Connection_ConnectingTo" xml:space="preserve">
-    <value>Connecting to {0} …</value>
-    <comment>{0} = connection name</comment>
-  </data>
-  <data name="Connection_TagShown" xml:space="preserve">
-    <value>shown</value>
-    <comment>Tag on an open connection that is shown</comment>
-  </data>
-  <data name="Connection_TagConnected" xml:space="preserve">
-    <value>connected</value>
-    <comment>Tag on an open connection in the background</comment>
-  </data>
-  <data name="Connection_NoGroup" xml:space="preserve">
-    <value>No group</value>
-    <comment>Group heading for connections without a group</comment>
-  </data>
-  <data name="Connection_NoMatch" xml:space="preserve">
-    <value>No connection matches “{0}”.</value>
-    <comment>{0} = search text</comment>
-  </data>
-  <data name="Connection_New" xml:space="preserve">
-    <value>New connection</value>
-    <comment>Button and dialog title</comment>
-  </data>
-  <data name="Connection_Edit" xml:space="preserve">
-    <value>Edit</value>
-    <comment>Button / menu item: edit the connection</comment>
-  </data>
-  <data name="Connection_DeleteEllipsis" xml:space="preserve">
-    <value>Delete …</value>
-    <comment>Button / menu item: delete the connection (asks first)</comment>
-  </data>
-  <data name="Connection_Delete" xml:space="preserve">
-    <value>Delete connection</value>
-    <comment>Dialog title; also what is about to happen in the uncommitted changes dialog</comment>
-  </data>
-  <data name="ConnectionKind_Dev" xml:space="preserve">
-    <value>Development</value>
-    <comment>Connection kind</comment>
-  </data>
-  <data name="ConnectionKind_Test" xml:space="preserve">
-    <value>Test</value>
-    <comment>Connection kind</comment>
-  </data>
-  <data name="ConnectionKind_Prod" xml:space="preserve">
-    <value>Production</value>
-    <comment>Connection kind</comment>
-  </data>
-  <data name="ConnectionKind_Other" xml:space="preserve">
-    <value>Other</value>
-    <comment>Connection kind</comment>
   </data>
   <data name="Shell_AllConnections" xml:space="preserve">
     <value>All connections</value>
@@ -424,227 +236,6 @@
     <value>{0} mismatches between model and database – details</value>
     <comment>{0} = number of mismatches</comment>
   </data>
-  <data name="ConnectionDialog_EditTitle" xml:space="preserve">
-    <value>Edit connection</value>
-    <comment>Dialog title</comment>
-  </data>
-  <data name="ConnectionDialog_DuplicateTitle" xml:space="preserve">
-    <value>Duplicate connection</value>
-    <comment>Dialog title</comment>
-  </data>
-  <data name="ConnectionDialog_Name" xml:space="preserve">
-    <value>Name</value>
-    <comment>Field label</comment>
-  </data>
-  <data name="ConnectionDialog_NamePlaceholder" xml:space="preserve">
-    <value>e.g. ERP Test</value>
-  </data>
-  <data name="ConnectionDialog_Group" xml:space="preserve">
-    <value>Group</value>
-    <comment>Field label</comment>
-  </data>
-  <data name="ConnectionDialog_GroupPlaceholder" xml:space="preserve">
-    <value>e.g. project or customer – optional</value>
-  </data>
-  <data name="ConnectionDialog_Environment" xml:space="preserve">
-    <value>Environment</value>
-    <comment>Field label: the connection kind</comment>
-  </data>
-  <data name="ConnectionDialog_Address" xml:space="preserve">
-    <value>Address</value>
-    <comment>Field label</comment>
-  </data>
-  <data name="ConnectionDialog_TnsAlias" xml:space="preserve">
-    <value>TNS alias</value>
-    <comment>Option and field label</comment>
-  </data>
-  <data name="ConnectionDialog_Database" xml:space="preserve">
-    <value>Database</value>
-    <comment>Field label</comment>
-  </data>
-  <data name="ConnectionDialog_TnsAdminPlaceholder" xml:space="preserve">
-    <value>Folder of tnsnames.ora – empty = environment variable TNS_ADMIN</value>
-  </data>
-  <data name="ConnectionDialog_User" xml:space="preserve">
-    <value>User</value>
-    <comment>Field label: the database user</comment>
-  </data>
-  <data name="ConnectionDialog_Password" xml:space="preserve">
-    <value>Password</value>
-    <comment>Field label</comment>
-  </data>
-  <data name="ConnectionDialog_PasswordHint" xml:space="preserve">
-    <value>Stored in the Windows Credential Manager, never in the connections file.</value>
-  </data>
-  <data name="ConnectionDialog_PasswordAsOriginal" xml:space="preserve">
-    <value>as in the original</value>
-    <comment>Password placeholder when duplicating</comment>
-  </data>
-  <data name="ConnectionDialog_PasswordUnchanged" xml:space="preserve">
-    <value>unchanged</value>
-    <comment>Password placeholder when editing</comment>
-  </data>
-  <data name="ConnectionDialog_PasswordMissing" xml:space="preserve">
-    <value>Password is missing.</value>
-  </data>
-  <data name="ConnectionDialog_SchemaPlaceholder" xml:space="preserve">
-    <value>empty = the user’s schema</value>
-  </data>
-  <data name="ConnectionDialog_ReadOnly" xml:space="preserve">
-    <value>Read-only</value>
-    <comment>Checkbox</comment>
-  </data>
-  <data name="ConnectionDialog_ReadOnlyHint" xml:space="preserve">
-    <value>· Oracle itself refuses changes (READ ONLY transaction)</value>
-  </data>
-  <data name="ConnectionDialog_ClrModel" xml:space="preserve">
-    <value>C# model</value>
-    <comment>Form section</comment>
-  </data>
-  <data name="ConnectionDialog_ClrModelHint" xml:space="preserve">
-    <value>· optional: entity and property names from your own EF Core project</value>
-  </data>
-  <data name="ConnectionDialog_Project" xml:space="preserve">
-    <value>Project</value>
-    <comment>Field label: the linked C# project</comment>
-  </data>
-  <data name="ConnectionDialog_ProjectPlaceholder" xml:space="preserve">
-    <value>…\Data\Data.csproj – the project with the DbContext</value>
-  </data>
-  <data name="ConnectionDialog_PickProject" xml:space="preserve">
-    <value>Choose project file</value>
-  </data>
-  <data name="ConnectionDialog_ProjectFilter" xml:space="preserve">
-    <value>C# project</value>
-    <comment>File dialog filter label</comment>
-  </data>
-  <data name="ConnectionDialog_ProjectHint" xml:space="preserve">
-    <value>FerretSharp reads the model from the existing build (EF Core 8 or later) – without the application’s startup code and without a database connection.</value>
-  </data>
-  <data name="ConnectionDialog_ContextPlaceholder" xml:space="preserve">
-    <value>empty = the only DbContext in the project</value>
-  </data>
-  <data name="ConnectionDialog_AppEnvironment" xml:space="preserve">
-    <value>App environment</value>
-    <comment>Field label: the environment name the user's own app starts with for this database (-environment=…)</comment>
-  </data>
-  <data name="ConnectionDialog_AppEnvironmentPlaceholder" xml:space="preserve">
-    <value>e.g. erp-test – empty = none</value>
-  </data>
-  <data name="ConnectionDialog_AppEnvironmentHint" xml:space="preserve">
-    <value>The value of -environment=… your app starts with for this database. “App statements” match a running app to this connection by it.</value>
-  </data>
-  <data name="ConnectionDialog_Connecting" xml:space="preserve">
-    <value>Connecting …</value>
-  </data>
-  <data name="ConnectionDialog_TestCanceled" xml:space="preserve">
-    <value>Test canceled.</value>
-  </data>
-  <data name="ConnectionDialog_TestOk" xml:space="preserve">
-    <value>Connected in {0} ms · Oracle {1}</value>
-    <comment>{0} = milliseconds, {1} = server version</comment>
-  </data>
-  <data name="ConnectionDialog_CancelTest" xml:space="preserve">
-    <value>Cancel test</value>
-    <comment>Button</comment>
-  </data>
-  <data name="ConnectionDialog_Test" xml:space="preserve">
-    <value>Test connection</value>
-    <comment>Button</comment>
-  </data>
-  <data name="Switcher_ChooseConnection" xml:space="preserve">
-    <value>Choose a connection</value>
-    <comment>Button label and tooltip</comment>
-  </data>
-  <data name="Switcher_Search" xml:space="preserve">
-    <value>Search connections …</value>
-    <comment>Placeholder</comment>
-  </data>
-  <data name="Switcher_NoConnections" xml:space="preserve">
-    <value>No connections yet.</value>
-  </data>
-  <data name="Switcher_OpenTitle" xml:space="preserve">
-    <value>These stay connected while another connection is shown</value>
-    <comment>Tooltip of the “Open” group</comment>
-  </data>
-  <data name="Switcher_OpenTitleKey" xml:space="preserve">
-    <value>These stay connected while another connection is shown – {0} switches to the previous one</value>
-    <comment>{0} = shortcut, e.g. Alt+O</comment>
-  </data>
-  <data name="Switcher_Open" xml:space="preserve">
-    <value>Open</value>
-    <comment>Group heading: the open connections</comment>
-  </data>
-  <data name="Switcher_Recent" xml:space="preserve">
-    <value>Recently used</value>
-    <comment>Group heading</comment>
-  </data>
-  <data name="Switcher_ManageAll" xml:space="preserve">
-    <value>Manage all connections …</value>
-  </data>
-  <data name="Switcher_ShownTitle" xml:space="preserve">
-    <value>Shown</value>
-    <comment>Tooltip of the “shown” tag</comment>
-  </data>
-  <data name="Switcher_BackgroundTitle" xml:space="preserve">
-    <value>Connected in the background</value>
-    <comment>Tooltip of the “connected” tag</comment>
-  </data>
-  <data name="Switcher_UncommittedTitle" xml:space="preserve">
-    <value>Uncommitted changes in this connection</value>
-  </data>
-  <data name="Switcher_ActionsOpenOne" xml:space="preserve">
-    <value>{0} uncommitted action</value>
-    <comment>{0} = number of uncommitted write actions</comment>
-  </data>
-  <data name="Switcher_ActionsOpenOther" xml:space="preserve">
-    <value>{0} uncommitted actions</value>
-    <comment>{0} = number of uncommitted write actions</comment>
-  </data>
-  <data name="Switcher_DisconnectTitle" xml:space="preserve">
-    <value>Disconnect this connection (asks about open changes first)</value>
-  </data>
-  <data name="Connections_Title" xml:space="preserve">
-    <value>Connections</value>
-    <comment>Page title</comment>
-  </data>
-  <data name="Connections_Search" xml:space="preserve">
-    <value>Search by name, group, host, user …</value>
-    <comment>Placeholder</comment>
-  </data>
-  <data name="Connections_Welcome" xml:space="preserve">
-    <value>Welcome to FerretSharp</value>
-  </data>
-  <data name="Connections_WelcomeText" xml:space="preserve">
-    <value>Start by adding an Oracle connection.</value>
-  </data>
-  <data name="Connections_Add" xml:space="preserve">
-    <value>Add connection</value>
-    <comment>Button</comment>
-  </data>
-  <data name="Connections_DoubleClickToConnect" xml:space="preserve">
-    <value>Double-click to connect</value>
-  </data>
-  <data name="Connections_TodayAt" xml:space="preserve">
-    <value>today {0:HH:mm}</value>
-    <comment>Last used; {0} = time</comment>
-  </data>
-  <data name="Connections_YesterdayAt" xml:space="preserve">
-    <value>yesterday {0:HH:mm}</value>
-    <comment>Last used; {0} = time</comment>
-  </data>
-  <data name="Connections_DaysAgo" xml:space="preserve">
-    <value>{0} days ago</value>
-    <comment>Last used; {0} = number of days (2 to 6)</comment>
-  </data>
-  <data name="ConnectionMenu_Connect" xml:space="preserve">
-    <value>Connect</value>
-    <comment>Menu item</comment>
-  </data>
-  <data name="ConnectionMenu_Duplicate" xml:space="preserve">
-    <value>Duplicate</value>
-    <comment>Menu item</comment>
-  </data>
   <data name="LostBanner_Title" xml:space="preserve">
     <value>Connection to the database lost.</value>
   </data>
@@ -653,50 +244,6 @@
   </data>
   <data name="LostBanner_ReconnectRestores" xml:space="preserve">
     <value>“Reconnect” restores all workspaces with their tabs and filters.</value>
-  </data>
-  <data name="Shortcuts_Intro" xml:space="preserve">
-    <value>Changes take effect at once. Click “Change” and press the new key combination; Esc cancels. Shortcuts use Ctrl, Alt or a function key; grayed-out ones are fixed.</value>
-  </data>
-  <data name="Shortcuts_PressKeys" xml:space="preserve">
-    <value>Press a key combination …</value>
-  </data>
-  <data name="Shortcuts_None" xml:space="preserve">
-    <value>not assigned</value>
-    <comment>A shortcut without keys</comment>
-  </data>
-  <data name="Shortcuts_Changed" xml:space="preserve">
-    <value>changed</value>
-    <comment>A shortcut that differs from the default</comment>
-  </data>
-  <data name="Shortcuts_Change" xml:space="preserve">
-    <value>Change</value>
-    <comment>Button: record a new key combination</comment>
-  </data>
-  <data name="Shortcuts_DefaultTitle" xml:space="preserve">
-    <value>Default: {0}</value>
-    <comment>{0} = the default key combination</comment>
-  </data>
-  <data name="Shortcuts_NotPossible" xml:space="preserve">
-    <value>{0} cannot be used: {1}</value>
-    <comment>{0} = key combination, {1} = reason</comment>
-  </data>
-  <data name="Shortcuts_Conflict" xml:space="preserve">
-    <value>{0} is already assigned to “{1}” – applying removes it there.</value>
-    <comment>{0} = key combination, {1} = the action it is assigned to</comment>
-  </data>
-  <data name="Shortcuts_FixedTitle" xml:space="preserve">
-    <value>Fixed – cannot be changed</value>
-  </data>
-  <data name="Shortcuts_Fixed" xml:space="preserve">
-    <value>fixed</value>
-    <comment>A shortcut that cannot be changed</comment>
-  </data>
-  <data name="Shortcuts_ResetAllQuestion" xml:space="preserve">
-    <value>Reset all shortcuts to the defaults?</value>
-  </data>
-  <data name="Shortcuts_ResetAll" xml:space="preserve">
-    <value>Reset all</value>
-    <comment>Button</comment>
   </data>
   <data name="Workspaces_UnlockedForWriting" xml:space="preserve">
     <value>Unlocked for writing</value>
@@ -1043,10 +590,6 @@
   <data name="Changes_ShowWorkspace" xml:space="preserve">
     <value>Show this workspace</value>
   </data>
-  <data name="Changes_OtherCounts" xml:space="preserve">
-    <value>{0} pending · {1} written</value>
-    <comment>{0}: pending changes, {1}: uncommitted write actions</comment>
-  </data>
   <data name="Changes_ShowSource" xml:space="preserve">
     <value>Show where it came from</value>
   </data>
@@ -1145,52 +688,6 @@
     <value>The draft of {0} has not run yet and is lost when the tab closes.</value>
     <comment>{0}: table name</comment>
   </data>
-  <data name="Settings_Audit" xml:space="preserve">
-    <value>Audit tables</value>
-    <comment>Settings section (WP-26)</comment>
-  </data>
-  <data name="Settings_AuditTemplate" xml:space="preserve">
-    <value>Template</value>
-    <comment>Settings row: the file of the audit template</comment>
-  </data>
-  <data name="Settings_AuditTemplateHint" xml:space="preserve">
-    <value>Audit table and trigger of a table follow this template – e.g. a file in your company's repository. Empty uses the built-in template.</value>
-  </data>
-  <data name="Settings_AuditTemplateBuiltIn" xml:space="preserve">
-    <value>Built-in template</value>
-    <comment>Placeholder of the empty path field</comment>
-  </data>
-  <data name="Settings_AuditTemplatePick" xml:space="preserve">
-    <value>Choose…</value>
-    <comment>Button: opens a file dialog</comment>
-  </data>
-  <data name="Settings_AuditTemplateFilter" xml:space="preserve">
-    <value>Audit template</value>
-    <comment>File type label in the open dialog</comment>
-  </data>
-  <data name="Settings_AuditTemplateReset" xml:space="preserve">
-    <value>Use built-in</value>
-    <comment>Button: back to the built-in template</comment>
-  </data>
-  <data name="Settings_AuditTemplateResetTitle" xml:space="preserve">
-    <value>Use the built-in template again</value>
-  </data>
-  <data name="Settings_AuditTemplateUsingBuiltIn" xml:space="preserve">
-    <value>The built-in template is used: audit table AUDIT_&lt;table&gt;, trigger &lt;table&gt;_AUDIT.</value>
-  </data>
-  <data name="Settings_AuditTemplateValid" xml:space="preserve">
-    <value>The template is valid.</value>
-  </data>
-  <data name="Settings_AuditTemplateCopy" xml:space="preserve">
-    <value>Copy the built-in template</value>
-    <comment>Link button</comment>
-  </data>
-  <data name="Settings_AuditTemplateCopyTitle" xml:space="preserve">
-    <value>As the start of your own template – its syntax is explained in it</value>
-  </data>
-  <data name="Settings_AuditTemplateCopied" xml:space="preserve">
-    <value>Built-in audit template copied.</value>
-  </data>
   <data name="TabMenu_CloseOthers" xml:space="preserve">
     <value>Close others</value>
     <comment>Right-click menu of a tab: closes every other tab of the workspace</comment>
@@ -1240,99 +737,6 @@
   <data name="Dialogs_CloseTabsEditorText" xml:space="preserve">
     <value>the text in the editor</value>
     <comment>Item of the list of tabs that would lose something (SQL or LINQ tab)</comment>
-  </data>
-  <data name="Settings_DisplayColumns" xml:space="preserve">
-    <value>Display columns</value>
-    <comment>Settings section (WP-31)</comment>
-  </data>
-  <data name="Settings_ShowDisplayNames" xml:space="preserve">
-    <value>Names beside foreign keys</value>
-    <comment>Settings row: on/off</comment>
-  </data>
-  <data name="Settings_ShowDisplayNamesHint" xml:space="preserve">
-    <value>Shows the value of the referenced table's display column beside a foreign key value in the grid, e.g. {0}. Mark a display column in the context menu of a column header.</value>
-    <comment>{0}: an example, "4711 · PetersPizza"</comment>
-  </data>
-  <data name="Settings_DisplayColumnsFile" xml:space="preserve">
-    <value>File</value>
-    <comment>Settings row: the file of the display columns</comment>
-  </data>
-  <data name="Settings_DisplayColumnsFileHint" xml:space="preserve">
-    <value>Where the display columns are kept – e.g. in your team's repository, so colleagues see the same names. Empty uses a file in FerretSharp's data folder.</value>
-  </data>
-  <data name="Settings_DisplayColumnsDefault" xml:space="preserve">
-    <value>display-columns.json in the data folder</value>
-    <comment>Placeholder of the empty path field</comment>
-  </data>
-  <data name="Settings_DisplayColumnsPick" xml:space="preserve">
-    <value>Choose…</value>
-    <comment>Button: opens a file dialog</comment>
-  </data>
-  <data name="Settings_DisplayColumnsFilter" xml:space="preserve">
-    <value>Display columns</value>
-    <comment>File type label in the open dialog</comment>
-  </data>
-  <data name="Settings_DisplayColumnsReset" xml:space="preserve">
-    <value>Use data folder</value>
-    <comment>Button: back to the file in the data folder</comment>
-  </data>
-  <data name="Settings_DisplayColumnsResetTitle" xml:space="preserve">
-    <value>Keep the display columns in FerretSharp's data folder again</value>
-  </data>
-  <data name="Settings_DisplayColumnsCountOne" xml:space="preserve">
-    <value>{0} display column in {1}.</value>
-    <comment>{0}: count (1); {1}: path of the file</comment>
-  </data>
-  <data name="Settings_DisplayColumnsCountOther" xml:space="preserve">
-    <value>{0} display columns in {1}.</value>
-    <comment>{0}: count; {1}: path of the file</comment>
-  </data>
-  <data name="Settings_DisplayColumnsNoFile" xml:space="preserve">
-    <value>{0} does not exist yet: marking the first display column creates it.</value>
-    <comment>{0}: path of the file</comment>
-  </data>
-  <data name="Settings_Updates" xml:space="preserve">
-    <value>Updates</value>
-    <comment>Settings section (WP-32)</comment>
-  </data>
-  <data name="Settings_Version" xml:space="preserve">
-    <value>Version</value>
-    <comment>Label of the installed version in Settings › Updates</comment>
-  </data>
-  <data name="Settings_VersionInstalled" xml:space="preserve">
-    <value>Installed – updates come from the GitHub releases.</value>
-    <comment>Hint below the version</comment>
-  </data>
-  <data name="Settings_VersionNotInstalled" xml:space="preserve">
-    <value>Not installed (a build or the zip): updates only reach a FerretSharp installed with Setup.exe.</value>
-    <comment>Hint below the version</comment>
-  </data>
-  <data name="Settings_CheckForUpdates" xml:space="preserve">
-    <value>Check automatically</value>
-    <comment>Label of the on/off setting</comment>
-  </data>
-  <data name="Settings_CheckForUpdatesHint" xml:space="preserve">
-    <value>At start and while FerretSharp runs (below), asks GitHub whether a newer version is out and shows it in the status bar. Downloading and installing wait for your click.</value>
-  </data>
-  <data name="Settings_UpdateCheckInterval" xml:space="preserve">
-    <value>While FerretSharp runs</value>
-    <comment>Label: how often to check for updates again while the app is open</comment>
-  </data>
-  <data name="Settings_UpdateCheckIntervalHint" xml:space="preserve">
-    <value>Checks again this long after the last check, for when FerretSharp stays open for days. Only with automatic checks on.</value>
-  </data>
-  <data name="Settings_UpdateCheckNever" xml:space="preserve">
-    <value>Never</value>
-    <comment>Option: only check at start</comment>
-  </data>
-  <data name="Settings_UpdateCheckHourly" xml:space="preserve">
-    <value>Hourly</value>
-  </data>
-  <data name="Settings_UpdateCheckEvery4Hours" xml:space="preserve">
-    <value>Every 4 hours</value>
-  </data>
-  <data name="Settings_UpdateCheckDaily" xml:space="preserve">
-    <value>Daily</value>
   </data>
   <data name="Update_CheckNow" xml:space="preserve">
     <value>Check now</value>
@@ -1411,6 +815,10 @@
   <data name="Update_NoNotes" xml:space="preserve">
     <value>This release has no notes.</value>
   </data>
+  <data name="Update_NotesOnlyTarget" xml:space="preserve">
+    <value>Only the notes of {0} are known here; versions released in between, if any, are on GitHub.</value>
+    <comment>{0}: version of the update</comment>
+  </data>
   <data name="Update_AllReleases" xml:space="preserve">
     <value>All releases on GitHub</value>
     <comment>Link</comment>
@@ -1438,209 +846,253 @@
     <value>Pinned – click to unpin. Stays open when closing other tabs, the tabs to the right or all tabs.</value>
     <comment>Tooltip of the pin in place of the close button of a pinned tab (WP-34)</comment>
   </data>
-  <data name="Settings_Search" xml:space="preserve">
-    <value>Search settings</value>
-    <comment>Placeholder of the search field above the list of sections (WP-34)</comment>
+  <data name="Link_Title" xml:space="preserve">
+    <value>Open link</value>
+    <comment>Dialog title for a ferretsharp:// link from outside</comment>
   </data>
-  <data name="Settings_NoMatch" xml:space="preserve">
-    <value>No setting or shortcut matches “{0}”.</value>
-    <comment>{0}: the search text</comment>
+  <data name="Link_Invalid" xml:space="preserve">
+    <value>This link cannot be opened.</value>
   </data>
-  <data name="Settings_ShortcutGroupInSearch" xml:space="preserve">
-    <value>Shortcuts › {0}</value>
-    <comment>Heading of a group of shortcuts among the search results of the settings (WP-34); {0}: the group, e.g. Editing</comment>
+  <data name="Link_Table" xml:space="preserve">
+    <value>Table</value>
+    <comment>Label in the link dialog</comment>
   </data>
-  <data name="Password_Title" xml:space="preserve">
-    <value>Enter password</value>
-    <comment>Title of the dialog that asks for the password when connecting (WP-35)</comment>
+  <data name="Link_Filters" xml:space="preserve">
+    <value>Filters</value>
+    <comment>Label in the link dialog</comment>
   </data>
-  <data name="Password_Question" xml:space="preserve">
-    <value>No password is saved for {0}. Log in as {1} with:</value>
-    <comment>{0}: connection name; {1}: user@address</comment>
+  <data name="Link_NoFilters" xml:space="preserve">
+    <value>none – all rows</value>
   </data>
-  <data name="Password_Remember" xml:space="preserve">
-    <value>Save in Credential Manager</value>
-    <comment>Check box: the Windows Credential Manager</comment>
+  <data name="Link_MoreFilters" xml:space="preserve">
+    <value>and {0} more</value>
+    <comment>{0}: number of further filters</comment>
   </data>
-  <data name="Password_ForgetHint" xml:space="preserve">
-    <value>Kept only until FerretSharp ends.</value>
+  <data name="Link_Sort" xml:space="preserve">
+    <value>Sort order</value>
+    <comment>Label in the link dialog</comment>
   </data>
-  <data name="Import_Button" xml:space="preserve">
-    <value>Import…</value>
-    <comment>Button on the connections page: import connections</comment>
+  <data name="Link_Connection" xml:space="preserve">
+    <value>Connection</value>
+    <comment>Label in the link dialog</comment>
   </data>
-  <data name="Import_Title" xml:space="preserve">
-    <value>Import connections</value>
+  <data name="Link_Ambiguous" xml:space="preserve">
+    <value>Several connections fit – which one?</value>
   </data>
-  <data name="Import_Source" xml:space="preserve">
-    <value>Source</value>
+  <data name="Link_NoConnection" xml:space="preserve">
+    <value>None of your connections fits this link.</value>
   </data>
-  <data name="Import_Found" xml:space="preserve">
-    <value>found: {0}</value>
-    <comment>Under DBeaver/SQL Developer in the import dialog; {0}: DBeaver's projects or SQL Developer's version</comment>
+  <data name="Link_NoConnectionNamed" xml:space="preserve">
+    <value>The link names connection {0} at {1}.</value>
+    <comment>{0}: connection name; {1}: address (host:port/service)</comment>
   </data>
-  <data name="Import_ChooseFile" xml:space="preserve">
-    <value>Choose file…</value>
+  <data name="Link_WillConnect" xml:space="preserve">
+    <value>{0} is not connected yet; it will be connected first.</value>
+    <comment>{0}: connection name</comment>
   </data>
-  <data name="Import_FileFilter" xml:space="preserve">
-    <value>Connection files</value>
-    <comment>File type in the open dialog</comment>
+  <data name="Link_AddressDiffers" xml:space="preserve">
+    <value>Found by name only: the link's connection is at {0}, none of yours is. Check that this is the same database.</value>
+    <comment>{0}: address from the link (host:port/service)</comment>
   </data>
-  <data name="Import_NothingFound" xml:space="preserve">
-    <value>No DBeaver or SQL Developer found on this computer – choose a file instead.</value>
+  <data name="Link_Open" xml:space="preserve">
+    <value>Open</value>
+    <comment>Button</comment>
   </data>
-  <data name="Import_Reading" xml:space="preserve">
-    <value>Reading …</value>
+  <data name="Link_Change" xml:space="preserve">
+    <value>Change…</value>
+    <comment>Button: choose another connection than the one found</comment>
   </data>
-  <data name="Import_FoundOne" xml:space="preserve">
-    <value>{0} connection found in {1}.</value>
-    <comment>{0}: count; {1}: DBeaver, SQL Developer or FerretSharp</comment>
+  <data name="Link_OtherConnection" xml:space="preserve">
+    <value>Another connection…</value>
+    <comment>Button below the candidates</comment>
   </data>
-  <data name="Import_FoundOther" xml:space="preserve">
-    <value>{0} connections found in {1}.</value>
-    <comment>{0}: count; {1}: DBeaver, SQL Developer or FerretSharp</comment>
+  <data name="Link_ChooseConnection" xml:space="preserve">
+    <value>Choose the connection to open it on:</value>
   </data>
-  <data name="Import_OtherDatabasesOne" xml:space="preserve">
-    <value>{0} connection to another database left out.</value>
-    <comment>{0}: count of non-Oracle connections</comment>
+  <data name="Link_Suggested" xml:space="preserve">
+    <value>Suggested</value>
+    <comment>Heading of the connections that fit the link or read its schema</comment>
   </data>
-  <data name="Import_OtherDatabasesOther" xml:space="preserve">
-    <value>{0} connections to other databases left out.</value>
-    <comment>{0}: count of non-Oracle connections</comment>
+  <data name="Link_OpensElsewhere" xml:space="preserve">
+    <value>The link points at {0} ({1}); it opens on {2}.</value>
+    <comment>{0} connection name in the link, {1} its address, {2} the chosen connection</comment>
   </data>
-  <data name="Import_ColName" xml:space="preserve">
-    <value>Name</value>
+  <data name="Link_TableMissing" xml:space="preserve">
+    <value>The link's table {0} does not exist in schema {1}.</value>
+    <comment>{0}: table name; {1}: schema name</comment>
   </data>
-  <data name="Import_ColKind" xml:space="preserve">
-    <value>Environment</value>
+  <data name="Link_Copied" xml:space="preserve">
+    <value>Link copied.</value>
   </data>
-  <data name="Import_ColAddress" xml:space="preserve">
-    <value>Address</value>
+  <data name="Link_CopiedWithProdValues" xml:space="preserve">
+    <value>Link copied. It contains values from {0} (production):</value>
+    <comment>{0}: connection name; the values follow as a list</comment>
   </data>
-  <data name="Import_ColStatus" xml:space="preserve">
-    <value>Status</value>
+  <data name="TabMenu_CopyLink" xml:space="preserve">
+    <value>Copy link</value>
+    <comment>Tab context menu</comment>
   </data>
-  <data name="Import_KindGuessed" xml:space="preserve">
-    <value>guessed</value>
-    <comment>Behind the environment in the import preview, e.g. “Test (guessed)”</comment>
+  <data name="TabMenu_CopyLinkTitle" xml:space="preserve">
+    <value>A link that opens this table in FerretSharp with its filters and sort order – for a colleague or a ticket (https, clickable in Teams and Azure DevOps)</value>
   </data>
-  <data name="Import_KindGuessedTitle" xml:space="preserve">
-    <value>The source names no environment; it was guessed from the name. The connection stays read-only until you pick one.</value>
+  <data name="AuditTemplate_FromConnection" xml:space="preserve">
+    <value>Template of this connection: {0}</value>
+    <comment>WP-51: tooltip of the audit line. {0}: file path</comment>
   </data>
-  <data name="Import_New" xml:space="preserve">
-    <value>New</value>
-    <comment>Status of a connection in the import preview</comment>
+  <data name="AuditTemplate_FromGroup" xml:space="preserve">
+    <value>Template of the group {0}: {1}</value>
+    <comment>WP-51. {0}: group name, {1}: file path</comment>
   </data>
-  <data name="Import_Exists" xml:space="preserve">
-    <value>Exists</value>
-    <comment>Status of a connection in the import preview: already saved</comment>
+  <data name="AuditTemplate_FromSettings" xml:space="preserve">
+    <value>Template of the settings: {0}</value>
+    <comment>WP-51. {0}: file path</comment>
   </data>
-  <data name="Import_ExistsTitle" xml:space="preserve">
-    <value>Same address and user as “{0}”.</value>
-    <comment>{0}: name of the saved connection</comment>
+  <data name="AuditTemplate_BuiltIn" xml:space="preserve">
+    <value>Built-in template</value>
+    <comment>WP-51</comment>
   </data>
-  <data name="Import_KindWas" xml:space="preserve">
-    <value>exists as {0}</value>
-    <comment>Under the environment of a connection that overwrites a saved one of another environment; {0}: e.g. Production</comment>
+  <data name="Leave_Busy" xml:space="preserve">
+    <value>A write or commit of these workspaces is still running. Wait for it – or, if it does not return (VPN, firewall), disconnect the session.</value>
   </data>
-  <data name="Import_KeepsReadOnlyTitle" xml:space="preserve">
-    <value>The saved connection is Production or read-only – it stays read-only.</value>
+  <data name="Dialogs_ResetSessionTitle" xml:space="preserve">
+    <value>Disconnect session?</value>
   </data>
-  <data name="Import_Repeated" xml:space="preserve">
-    <value>Twice in the file</value>
-    <comment>Status in the import preview: the same connection came earlier in the file</comment>
+  <data name="Dialogs_ResetSessionText" xml:space="preserve">
+    <value>The write or commit of {0} has not returned. Disconnecting the session ends it: what was written in its transaction is rolled back, grid changes become pending again. If a commit was already on its way, check afterwards whether it went through.</value>
+    <comment>{0}: workspace name</comment>
   </data>
-  <data name="Import_RepeatedTitle" xml:space="preserve">
-    <value>Same address and user as “{0}” above.</value>
-    <comment>{0}: name of the earlier connection in the file</comment>
+  <data name="Status_StuckTitle" xml:space="preserve">
+    <value>The write or commit has not returned for a while – the connection may be hanging (VPN, firewall). Disconnecting the workspace’s session ends it.</value>
   </data>
-  <data name="Import_Overwrite" xml:space="preserve">
-    <value>Overwrite</value>
+  <data name="Changes_OtherCountsOne" xml:space="preserve">
+    <value>{1} pending · {0} action open</value>
+    <comment>{0}: uncommitted write actions (1); {1}: pending changes</comment>
   </data>
-  <data name="Import_Copy" xml:space="preserve">
-    <value>Add as copy</value>
+  <data name="Changes_OtherCountsOther" xml:space="preserve">
+    <value>{1} pending · {0} actions open</value>
+    <comment>{0}: uncommitted write actions; {1}: pending changes</comment>
   </data>
-  <data name="Import_ReadOnlyTitle" xml:space="preserve">
-    <value>Imported read-only</value>
+  <data name="Status_ExportTitle" xml:space="preserve">
+    <value>Writing {0} in the background. Cancelling leaves no half-written file.</value>
+    <comment>Tooltip of a running export in the status bar; {0}: file name</comment>
   </data>
-  <data name="Import_DefaultGroup" xml:space="preserve">
-    <value>Group for connections without a group</value>
+  <data name="Status_ExportRowsOf" xml:space="preserve">
+    <value>{0:N0} of {1:N0} rows</value>
+    <comment>Progress of a running export; {0}: rows written, {1}: rows expected</comment>
   </data>
-  <data name="Import_TakeLocalPaths" xml:space="preserve">
-    <value>Take the paths of the source computer (C# project, script folder, TNS_ADMIN)</value>
+  <data name="Palette_Title" xml:space="preserve">
+    <value>Quick open</value>
+    <comment>Accessible name of the quick open box (WP-38)</comment>
   </data>
-  <data name="Import_TakeLocalPathsHint" xml:space="preserve">
-    <value>Only for your own connections from another computer: a C# project path loads and runs that project. Without them, a TNS alias uses TNS_ADMIN of this computer.</value>
+  <data name="Palette_SearchPlaceholder" xml:space="preserve">
+    <value>Go to table, view or PL/SQL – “&gt;” for commands</value>
+    <comment>Placeholder of the quick open box</comment>
   </data>
-  <data name="Import_NoPasswords" xml:space="preserve">
-    <value>Passwords are not imported – you enter them when connecting.</value>
+  <data name="Palette_OpenTabs" xml:space="preserve">
+    <value>Open tabs</value>
+    <comment>Group heading in the quick open box</comment>
   </data>
-  <data name="Import_ImportOne" xml:space="preserve">
-    <value>Import {0} connection</value>
-    <comment>Button; {0}: count</comment>
+  <data name="Palette_Tables" xml:space="preserve">
+    <value>Tables and views</value>
+    <comment>Group heading in the quick open box</comment>
   </data>
-  <data name="Import_ImportOther" xml:space="preserve">
-    <value>Import {0} connections</value>
-    <comment>Button; {0}: count</comment>
+  <data name="Palette_PlSql" xml:space="preserve">
+    <value>PL/SQL</value>
+    <comment>Group heading in the quick open box</comment>
   </data>
-  <data name="Import_DoneOne" xml:space="preserve">
-    <value>{0} connection imported.</value>
-    <comment>{0}: count</comment>
+  <data name="Palette_MoreOne" xml:space="preserve">
+    <value>1 more – narrow the search</value>
+    <comment>Below a cut-off list of hits</comment>
   </data>
-  <data name="Import_DoneOther" xml:space="preserve">
-    <value>{0} connections imported.</value>
-    <comment>{0}: count</comment>
+  <data name="Palette_MoreOther" xml:space="preserve">
+    <value>{0} more – narrow the search</value>
+    <comment>{0} = number of hits not shown</comment>
   </data>
-  <data name="Export_Button" xml:space="preserve">
-    <value>Export…</value>
-    <comment>Menu entry on the connections page: export connections</comment>
+  <data name="Palette_TypeToSearch" xml:space="preserve">
+    <value>Type a name to search tables, views and PL/SQL.</value>
+    <comment>Empty quick open box without open tabs</comment>
   </data>
-  <data name="Export_GroupButton" xml:space="preserve">
-    <value>Export group…</value>
+  <data name="Palette_FooterSearch" xml:space="preserve">
+    <value>↑↓ choose · Enter opens · “&gt;” commands · Esc closes</value>
+    <comment>Key hints at the bottom of the quick open box</comment>
   </data>
-  <data name="Export_Title" xml:space="preserve">
-    <value>Export connections</value>
+  <data name="Palette_FooterCommands" xml:space="preserve">
+    <value>↑↓ choose · Enter runs · Esc closes</value>
+    <comment>Key hints at the bottom of the command palette</comment>
   </data>
-  <data name="Export_All" xml:space="preserve">
-    <value>All</value>
-    <comment>Button: select all shown connections</comment>
+  <data name="Palette_OnlyInExplorer" xml:space="preserve">
+    <value>Only in the explorer.</value>
+    <comment>Why an action of the command palette is greyed out: settings or another page is shown</comment>
   </data>
-  <data name="Export_None" xml:space="preserve">
-    <value>None</value>
-    <comment>Button: select no connection</comment>
+  <data name="Palette_NoTab" xml:space="preserve">
+    <value>No tab open.</value>
+    <comment>Why an action of the command palette is greyed out</comment>
   </data>
-  <data name="Export_GroupCount" xml:space="preserve">
-    <value>{0} of {1}</value>
-    <comment>{0}: selected connections of the group; {1}: all of the group</comment>
+  <data name="Palette_OnlyInSqlTab" xml:space="preserve">
+    <value>Only in a SQL tab.</value>
+    <comment>Why an action of the command palette is greyed out</comment>
   </data>
-  <data name="Export_LocalPaths" xml:space="preserve">
-    <value>Include paths of this computer (C# project, script folder, TNS_ADMIN)</value>
+  <data name="Palette_NoLinkedProject" xml:space="preserve">
+    <value>No C# project linked.</value>
+    <comment>Why an action of the command palette is greyed out</comment>
   </data>
-  <data name="Export_NoPasswords" xml:space="preserve">
-    <value>Passwords are never exported.</value>
+  <data name="Palette_ReadOnly" xml:space="preserve">
+    <value>The workspace is read-only.</value>
+    <comment>Why an action of the command palette is greyed out</comment>
   </data>
-  <data name="Export_ExportOne" xml:space="preserve">
-    <value>Export {0} connection…</value>
-    <comment>Button; {0}: count</comment>
+  <data name="Palette_NothingToGoBackTo" xml:space="preserve">
+    <value>No FK jump to go back from.</value>
+    <comment>Why “Back” is greyed out in the command palette</comment>
   </data>
-  <data name="Export_ExportOther" xml:space="preserve">
-    <value>Export {0} connections…</value>
-    <comment>Button; {0}: count</comment>
+  <data name="Palette_NothingToGoForwardTo" xml:space="preserve">
+    <value>Nothing to go forward to.</value>
+    <comment>Why “Forward” is greyed out in the command palette</comment>
   </data>
-  <data name="Export_FileFilter" xml:space="preserve">
-    <value>FerretSharp connections</value>
-    <comment>File type in the save dialog</comment>
+  <data name="Palette_NoPreviousConnection" xml:space="preserve">
+    <value>No previous connection open.</value>
+    <comment>Why an action of the command palette is greyed out</comment>
   </data>
-  <data name="Export_DoneOne" xml:space="preserve">
-    <value>{0} connection exported to {1}.</value>
-    <comment>{0}: count; {1}: file name</comment>
+  <data name="Palette_NotInThisTab" xml:space="preserve">
+    <value>Not in this tab.</value>
+    <comment>Why an action of the command palette is greyed out: the active tab (e.g. PL/SQL, new table) has nothing for it</comment>
   </data>
-  <data name="Export_DoneOther" xml:space="preserve">
-    <value>{0} connections exported to {1}.</value>
-    <comment>{0}: count; {1}: file name</comment>
+  <data name="WorkClone_Title" xml:space="preserve">
+    <value>Work clone</value>
   </data>
-  <data name="Export_Failed" xml:space="preserve">
-    <value>Export failed: {0}</value>
-    <comment>{0}: error message</comment>
+  <data name="WorkClone_NoGroup" xml:space="preserve">
+    <value>Connections without a group</value>
+  </data>
+  <data name="WorkClone_Hint" xml:space="preserve">
+    <value>The clone you develop in, for all connections of this group. Uses in the code open there (same path as in the connection's linked clone); without one, in the linked clone.</value>
+  </data>
+  <data name="WorkClone_None" xml:space="preserve">
+    <value>None – use the linked clone</value>
+  </data>
+  <data name="WorkClone_NoneHint" xml:space="preserve">
+    <value>the clone linked as C# project of the connection</value>
+  </data>
+  <data name="WorkClone_Pick" xml:space="preserve">
+    <value>Choose a solution or project in the clone…</value>
+  </data>
+  <data name="WorkClone_PickFilter" xml:space="preserve">
+    <value>Solutions and projects</value>
+  </data>
+  <data name="WorkClone_Missing" xml:space="preserve">
+    <value>the folder no longer exists</value>
+  </data>
+  <data name="WorkClone_ProjectMissing" xml:space="preserve">
+    <value>does not contain the connection's C# project at the same path</value>
+  </data>
+  <data name="WorkClone_LinkedNotInRepository" xml:space="preserve">
+    <value>the linked project is not in a Git working copy: paths cannot be matched</value>
+  </data>
+  <data name="WorkClone_StatusNone" xml:space="preserve">
+    <value>linked clone</value>
+  </data>
+  <data name="WorkClone_StatusNoneTitle" xml:space="preserve">
+    <value>No work clone chosen for this group: uses in the code open in the linked clone. Click to choose one.</value>
+  </data>
+  <data name="WorkClone_StatusTitle" xml:space="preserve">
+    <value>Work clone of this group: {0}. Click to switch.</value>
   </data>
 </root>

@@ -1,11 +1,11 @@
 # FerretSharp – Oracle explorer for .NET developers
 
 > Projektanweisungen für Claude Code. Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-14, zuletzt released 3.33.0 (Historie: `CHANGELOG.md`).
+> Stand: 2026-10-20, zuletzt released 3.43.0 (Historie: `CHANGELOG.md`).
 
 ## Wo steht was
 
-Diese Datei lädt in jede Session und enthält nur, was immer gilt. Die Fallen eines Bereichs stehen in `.claude/rules/` und laden, sobald eine passende Datei gelesen oder bearbeitet wird (`paths` im Kopf jeder Regel): `oracle`, `oracle-transactions`, `plsql-dictionary`, `ddl`, `clr-model`, `connection-transfer`, `ui`, `ui-grid`, `ui-monaco`, `ui-css`, `tests`, `localization`. Neue Fallen dort eintragen, wo sie gebraucht werden; eine neue Regel nur mit gültigem `paths`-Kopf (ohne lädt sie immer).
+Diese Datei lädt in jede Session und enthält nur, was immer gilt. Die Fallen eines Bereichs stehen in `.claude/rules/` und laden, sobald eine passende Datei gelesen oder bearbeitet wird (`paths` im Kopf jeder Regel): `oracle`, `oracle-transactions`, `plsql-dictionary`, `ddl`, `clr-model`, `connection-transfer`, `links`, `ui`, `ui-grid`, `ui-monaco`, `ui-css`, `tests`, `localization`, `build-release`. Neue Fallen dort eintragen, wo sie gebraucht werden; eine neue Regel nur mit gültigem `paths`-Kopf (ohne lädt sie immer).
 
 | Datei | Lesen … |
 |---|---|
@@ -31,10 +31,10 @@ Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erkl
 **Lesen und Schreiben sind getrennt (ADR 0006):**
 - Leseweg: `OracleSession.ExecuteReaderAsync` lehnt alles außer reinen Abfragen ab (`IsReadOnlyStatement`: nach Leerraum/Kommentaren `SELECT`/`WITH`, kein `FOR UPDATE`, nur ein Statement) – eine Stolperfalle gegen Programmierfehler, kein SQL-Parser.
 - Schreibweg: `OracleSession.ExecuteNonQueryAsync` ist `internal`, nimmt nur ein einzelnes INSERT/UPDATE/DELETE/MERGE (`IsWriteStatement`, nie DDL) und nur in einer offenen Transaktion. Transaktionssteuerung (Begin, Savepoint, Commit, Rollback) nur an `OracleSession`.
-- Schemaweg (WP-22, ADR 0019): `OracleSession.ExecuteDdlAsync` ist `internal`, nimmt nur ein einzelnes DDL-Statement (`IsDdlStatement`: kein `TRUNCATE` und nichts, was wie TRUNCATE Zeilen unwiderruflich entfernt – Partitionen leeren/löschen, `FLASHBACK TABLE … TO`, `PURGE` –, keine Binds, kein PL/SQL außer Triggern auf Tabellen/Views, ADR 0021) und nur **ohne** offene Transaktion, also nie in einer gesperrten Session. Den Rollback vorher macht die UI nach Bestätigung.
+- Schemaweg (WP-22, ADR 0019): `OracleSession.ExecuteDdlAsync` ist `internal`, nimmt nur ein einzelnes DDL-Statement (`IsDdlStatement`: kein `TRUNCATE` und nichts, was wie TRUNCATE Zeilen unwiderruflich entfernt – Partitionen leeren/löschen, `FLASHBACK TABLE … TO`, `PURGE`, `DROP TABLE … PURGE`, `DROP USER … CASCADE` –, keine Binds, kein PL/SQL außer Triggern auf Tabellen/Views, ADR 0021) und nur **ohne** offene Transaktion, also nie in einer gesperrten Session. Den Rollback vorher macht die UI nach Bestätigung.
 - `ReadOnlyTests` halten das fest (Interfaces ohne Schreib-/Transaktionsmethoden, Schreib- und Schemaweg `internal`, alle SELECT/WITH-Texte passieren die Lesesperre). **Die Lesesperre nie aufweichen** – ein neuer Weg (z. B. PL/SQL ausführen) bekommt eine eigene enge Methode, ein ADR und Tests.
 - Keine Garantie auf Datenbankseite (ODP.NET committet ohne Transaktion sofort; `SET TRANSACTION READ ONLY` hält weder DDL noch `PRAGMA AUTONOMOUS_TRANSACTION` auf) → Empfehlung an den Nutzer: für Prod einen User mit reinen SELECT-Grants.
-- Logs und SQL-Verlauf enthalten auf Prod nie Werte (Bind-Werte maskiert) und nirgends Passwörter (`SqlRedaction`); die Workspace-Dateien halten den Arbeitsstand samt Werten (Entscheidung des Nutzers, `docs/architecture.md` 1.2).
+- Auf Prod enthält das Log weder Bind-Werte noch Text-Literale, der SQL-Verlauf keine Bind-Werte (Literale bleiben); Passwörter nirgends, auch nicht im Fehlerdialog (`SqlRedaction`). Die Workspace-Dateien halten den Arbeitsstand samt Werten (Entscheidungen des Nutzers, `docs/architecture.md` 1.2).
 
 **C#-Modell als eigene Schicht:**
 - Schema-Records bleiben reine DB-Sicht. Entity-/Property-Namen, CLR-Typen, Enum-Mappings kommen über die nach (Owner, Tabelle, Spalte) adressierte **Annotation-Schicht** (`ClrModelMapping`) – nicht durch Aufbohren von `TableDetails`/`ColumnInfo`.
@@ -54,7 +54,8 @@ Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erkl
 | Theme, UI-Zustand | eigenes CSS mit Design-Tokens (`ferretsharp.css`); Komponenten + schlanke State-/Service-Klassen | **Nicht verwenden:** WPF-UI, AvalonDock, CommunityToolkit.Mvvm, AvalonEdit, CSS-Frameworks, MVVM- oder Docking-Frameworks. |
 | JS-Interop | ein ES-Modul pro Thema in `wwwroot/js` | JS bleibt dünn. **Keine Geschäftslogik in JS.** |
 | Hosting, Logging | `Microsoft.Extensions.Hosting`; **Serilog** (Datei unter `%APPDATA%\FerretSharp\logs`) | Die BlazorWebView nutzt den Service Provider des Hosts. Keine Bind-Werte von Prod loggen. |
-| Grid, Editor | **AG Grid Community 34.3.1** (Infinite Row Model), **Monaco 0.57** (ADR 0011), beide lokal | Keine AG-Grid-Enterprise-Features. |
+| Grid, Editor | **AG Grid Community 36.2.0** (Infinite Row Model), **Monaco 0.57** (ADR 0011), beide lokal | Keine AG-Grid-Enterprise-Features. |
+| Excel-Export | **SpreadCheetah** (ADR 0028), nur in `Core/Data/XlsxExport` | Streamt vorwärts in einen `Stream`; Text bleibt Text, nie Formeln. Source Generator ausgeschlossen. |
 | App-Mitschnitt | **EventPipe** + `TraceEvent`, nur in `FerretSharp.AppTrace` (ADR 0023) | Feste Feldliste der EF-Events (`EfEvents`): nie Connection-String, nie Parameter. |
 | Oracle | `Oracle.ManagedDataAccess.Core` (23.x), Ziel **19c+** (12.2 sollte gehen) | Rein managed, async mit `CancellationToken`. `OFFSET/FETCH` ab 12c, kein ROWNUM-Fallback. |
 | Tests | **xUnit v3** auf **Microsoft Testing Platform** + NSubstitute; **Testcontainers.Oracle** | Kein VSTest. |
@@ -68,9 +69,12 @@ Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor, SignalR). Erkl
 
 ```
 src/FerretSharp.Core/       net10.0 – reine Logik, KEIN WPF, KEINE Windows-only-APIs, baut unter Linux
-  Oracle/ Query/ Schema/ Data/ Connections/ (Transfer/: Import/Export) Workspaces/ Settings/ IO/ Resources/
-  Ddl/ (DDL-Text) Design/ (Designer) Compare/ Audit/ Display/ (Anzeigespalten) Forms/ AppTrace/ ClrModel/
-src/FerretSharp.UI/         net10.0 Razor Class Library, plattformneutral: Shell.razor, Components/, State/, Resources/,
+  Oracle/ Query/ (SqlEditor/: Textanalyse) Schema/ Data/ Connections/ (Transfer/) Workspaces/ Settings/ IO/ Resources/
+  Ddl/ (DDL-Text) Design/ (Designer) Compare/ Audit/ Display/ (Anzeigespalten) Forms/ AppTrace/ Links/
+  ClrModel/ (Host/: Prozesse und Dateien um den ModelHost, CodeGen/)   – Unterordner ändern den Namespace nicht
+src/FerretSharp.UI/         net10.0 Razor Class Library, plattformneutral: Shell.razor, Resources/,
+                            Components/ (Common Shell Connections Schema PlSql Grid Filter Sql Ddl Pages, je eigener
+                            Namespace, alle in `_Imports.razor`), State/ (gleiche Ordner, Namespace bleibt `UI.State`),
                             wwwroot/ (css, js als ES-Module, lib/ag-grid, lib/monaco)
 src/FerretSharp.ModelHost/  Hilfsprozess im Kontext des C#-Projekts des Nutzers (.NET 8, ADR 0009)
 src/FerretSharp.AppTrace/   an eine laufende App anhängen (EventPipe, ADR 0023), plattformneutral
@@ -78,6 +82,7 @@ src/FerretSharp.App/        net10.0-windows10.0.19041.0 – schlanker WPF-Host (
 tests/                      Core.Tests, UI.Tests (ohne DB), Integration.Tests (Testcontainers), Stand-ins
                             FakeModelHost, FakeEfApp, FakeEfModel; Shared/
 samples/                    Beispielmodell (DbContext + Entities) zur Beispiel-DB
+pages/                      Weiterleitungsseite für Links auf GitHub Pages (ADR 0026, Nachtrag; Bytes LF, CSP mit Hashes)
 tools/                      icon/New-AppIcon.ps1 (Icon generiert, nicht von Hand), sample-db/, coverage/
 ```
 Welches Paket welchen Ordner gebaut hat: Spalte „Bereiche“ in `docs/work-packages/README.md`.
@@ -115,5 +120,4 @@ Regeln:
 
 ## 8. Als Nächstes
 
-- Gesamt-Review nach 3.31.0 (`docs/review-3.31.0.md`) abgeschlossen: Teil A als R5a in 3.31.1, Teil C (Doku), Teil B als R5b in 3.32.0. 3.32.1 hebt `System.Security.Cryptography.Pkcs` (kommt mit den Oracle-Paketen) direkt auf 8.0.2 – die direkte Referenz kann weg, sobald ein Oracle-Paket selbst 8.0.2 oder neuer mitbringt (WP-36). 3.33.0: Fehler aus dem Alltag (`docs/work-packages/fixes-2026-10-14.md`); offen dazu die Ursache der Render-Fehler nach dem Ruhezustand (HWND-WebView2 oder Software-Rendering prüfen, Backlog).
-- Danach WP-36 (Abhängigkeiten), dann WP-37 … WP-47 in der Reihenfolge aus `docs/roadmap.md` (ausgewählt mit dem Nutzer am 2026-10-14), dazu WP-48 (FK-Navigation im SQL-Ergebnis) und WP-49 (Bilder im Changelog), Platz in der Reihenfolge jeweils offen.
+Gesamt-Review 3.40.0 (`docs/review-3.40.0.md`) abgeschlossen: R6a (3.40.1), Teil D (Doku), R6b (3.41.0). Mit 3.42.0 released: WP-54 (alle Zeilen des Filters exportieren, mit A13), die Sprünge über Basistabellen (`small-fk-jumps-base-tables`) und WP-38 (Schnellsuche und Befehlspalette); mit 3.43.0 WP-40 (Verwendung im Code, Arbeits-Klon). Als Nächstes WP-55, WP-39, WP-41 … WP-47 (`docs/roadmap.md`).

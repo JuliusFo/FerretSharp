@@ -397,7 +397,7 @@ public static partial class TableDesign
                 return false;
             }
 
-            if (column.DataType == "NUMBER" && (column.Precision is < 1 or > 38 || column.Scale is < -84 or > 127))
+            if (OracleTypes.IsNumber(column.DataType) && (column.Precision is < 1 or > 38 || column.Scale is < -84 or > 127))
             {
                 Problems.Add(TextFormat.Format(DesignText.ColumnNumberFacets, column.Name));
                 return false;
@@ -541,6 +541,10 @@ public static partial class TableDesign
                     return false;
                 case ColumnTypeChange.MayFailOnValues:
                     Warnings.Add(TextFormat.Format(DesignText.TypeChangeMayFail, after.Name, from, to));
+                    return true;
+                case ColumnTypeChange.ChangesValues: // review 3.40.0, A9: went through without a word
+                    Warnings.Add(TextFormat.Format(
+                        OracleTypes.IsTimestamp(before.DataType) ? DesignText.TypeChangeCutsFractions : DesignText.TypeChangePads, after.Name, from, to));
                     return true;
                 case ColumnTypeChange.NeedsEmptyColumn:
                     switch (facts.Of(new DataQuestion(DataQuestionKind.Values, before.Name)))

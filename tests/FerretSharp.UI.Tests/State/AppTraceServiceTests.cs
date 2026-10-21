@@ -2,7 +2,7 @@ using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 using FerretSharp.Core.AppTrace;
 using FerretSharp.Core.Connections;
-using FerretSharp.Core.Tests.Fakes;
+using FerretSharp.Testing;
 using FerretSharp.UI.State;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;

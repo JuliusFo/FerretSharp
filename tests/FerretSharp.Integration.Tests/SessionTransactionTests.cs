@@ -174,6 +174,43 @@ public sealed class SessionTransactionTests(OracleContainerFixture oracle) : IAs
         }
     }
 
+    /// <summary>
+    /// The same for a whole read (WP-54): before the first block has left, the streaming reader restarts the snapshot like
+    /// the grid's reads do.
+    /// </summary>
+    [Fact]
+    public async Task A_whole_read_restarts_an_unusable_snapshot_before_handing_rows_on()
+    {
+        var name = "TXS_ALL_" + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
+        await using var writer = await OpenRawAsync();
+        await ExecuteAsync(writer, $"CREATE TABLE {name} (ID NUMBER)");
+        try
+        {
+            await using var session = await OpenAsync();
+            await session.UseReadOnlySnapshotsAsync(Ct);
+            await ExecuteAsync(writer, $"INSERT INTO {name} VALUES (1)");
+
+            var rows = await session.ExecuteStreamingReaderAsync($"SELECT ID FROM {name}", [], async (reader, nested, ct) =>
+            {
+                var count = 0;
+                while (await reader.ReadAsync(ct))
+                {
+                    count++;
+                }
+
+                nested.HandingOn();
+                return count;
+            }, OracleSession.WholeLobs, Ct); // must not throw
+
+            Assert.InRange(rows, 0, 1);
+            Assert.Equal(TransactionMode.ReadOnly, session.Transaction.Mode);
+        }
+        finally
+        {
+            await ExecuteAsync(writer, $"DROP TABLE {name} PURGE");
+        }
+    }
+
     [Fact]
     public async Task Writing_transaction_with_savepoint_commit_and_rollback()
     {
@@ -292,7 +329,7 @@ public sealed class SessionTransactionTests(OracleContainerFixture oracle) : IAs
         await session.RollbackAsync(Ct);
         Assert.Equal(0, await CountRawAsync("ID = 70")); // the refused DDL did not commit the insert
 
-        await session.ExecuteDdlAsync("DROP TABLE TXS_DDL PURGE", Ct);
+        await session.ExecuteDdlAsync("DROP TABLE TXS_DDL", Ct);
         await session.UseReadOnlySnapshotsAsync(Ct);
         await Assert.ThrowsAsync<RefusedException>(() => session.ExecuteDdlAsync("CREATE TABLE TXS_NIE (ID NUMBER)", Ct));
         Assert.Equal(TransactionMode.ReadOnly, session.Transaction.Mode);

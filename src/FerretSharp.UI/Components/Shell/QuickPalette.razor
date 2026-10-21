@@ -1,0 +1,311 @@
+@* The quick open box (WP-38), one box for two searches (decision of the user): without a prefix tables, views and PL/SQL of
+   the shown connection, also by C# entity name; with ">" in front the command palette – the global actions with their
+   keys, greyed out with the reason where they would do nothing now (the shell's own rule, ShellActions). Arrow keys,
+   Enter and Escape like the connection switcher. *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Query
+@using FerretSharp.Core.Schema
+@implements IAsyncDisposable
+@inject ShortcutService Shortcuts
+@inject IJSRuntime JS
+
+@if (Shell.Palette is not null)
+{
+    <div class="popover-backdrop" @onclick="Shell.ClosePalette"></div>
+    <div class="popover palette-pop" role="dialog" aria-label="@ShellText.Palette_Title" @onkeydown="OnKeyDown">
+        <SearchBox @ref="_search" Class="popover-search" Placeholder="@ShellText.Palette_SearchPlaceholder" EscapeKeeps="@QuickPaletteSearch.CommandPrefix"
+                   @bind-Value="_text" @bind-Value:after="OnTextChanged">
+            <Kbd Action="@(Commands ? ShortcutAction.CommandPalette : ShortcutAction.QuickOpen)" />
+        </SearchBox>
+
+        <div class="popover-list">
+            @{ Recompute(); var index = 0; }
+            @if (_empty is { } empty)
+            {
+                <div class="popover-empty">@empty</div>
+            }
+
+            @foreach (var group in _groups)
+            {
+                <div class="group-head-btn static">@group.Title</div>
+                foreach (var row in group.Rows)
+                {
+                    @Row(row, index++)
+                }
+
+                @if (group.More > 0)
+                {
+                    <div class="palette-more">@TextFormat.Plural(group.More, ShellText.Palette_MoreOne, ShellText.Palette_MoreOther)</div>
+                }
+            }
+        </div>
+
+        <div class="palette-footer">@(Commands ? ShellText.Palette_FooterCommands : ShellText.Palette_FooterSearch)</div>
+    </div>
+}
+
+@code {
+    /// <summary>A row: an object to open, an open tab to show (<paramref name="Tab"/>, with its table or unit) or an action to run.</summary>
+    private sealed record PaletteRow(TableSummary? Table = null, PlSqlObjectSummary? Unit = null, PaletteCommand? Command = null, WorkspaceTab? Tab = null);
+
+    private sealed record PaletteGroup(string Title, IReadOnlyList<PaletteRow> Rows, int More = 0);
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public PresentationService Presentation { get; set; } = null!;
+
+    /// <summary>The shell's state for <see cref="ShellActions.Unavailable"/>, asked on every render.</summary>
+    [Parameter, EditorRequired]
+    public Func<ShellActionContext> ActionState { get; set; } = null!;
+
+    /// <summary>Runs a chosen action; the box is closed before.</summary>
+    [Parameter]
+    public EventCallback<ShortcutAction> OnAction { get; set; }
+
+    private SearchBox? _search;
+    private DomModule? _dom;
+
+    /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
+    private DomModule Dom => _dom ??= new(JS);
+
+    /// <summary>The opening shown; another one starts with its own text and the focus in the field.</summary>
+    private PaletteRequest? _request;
+    private bool _focus;
+    private bool _scrollToHighlight;
+    private string _text = "";
+    private int _highlight;
+
+    /// <summary>The text changed: the highlight goes to the first row that can be chosen (not a greyed-out action).</summary>
+    private bool _toFirst = true;
+    private string? _empty;
+    private List<PaletteGroup> _groups = [];
+    private List<PaletteRow> _visible = [];
+
+    /// <summary>The query of the last render, to mark its words in the names and labels.</summary>
+    private TextSearch _marks = TextSearch.None;
+
+    /// <summary>
+    /// The hits of the last object search and what they were found for: rendering again (hover, every change of the shell)
+    /// does not search the whole schema again (review of WP-38). A schema refresh replaces its lists, the presentation
+    /// counts its changes.
+    /// </summary>
+    private (string Query, object Tables, object Units, int Presentation, ClrNameDisplay Names)? _hitsFor;
+    private (IReadOnlyList<TableSummary> Tables, IReadOnlyList<PlSqlObjectSummary> Units) _hits = ([], []);
+
+    private bool Commands => QuickPaletteSearch.IsCommand(_text);
+
+    /// <summary>Typed: the highlight goes to the first row that can be chosen, and the request knows the mode shown (its key closes it).</summary>
+    private void OnTextChanged()
+    {
+        _toFirst = true;
+        Shell.Palette?.ShowsCommands = Commands;
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (Shell.Palette is { } request && request != _request)
+        {
+            _text = request.InitialText;
+            _toFirst = true;
+            _focus = true;
+        }
+
+        _request = Shell.Palette;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focus && _search is not null)
+        {
+            _focus = false;
+            await _search.FocusAsync();
+        }
+
+        if (_scrollToHighlight)
+        {
+            _scrollToHighlight = false;
+            await Dom.InvokeVoidAsync("scrollIntoViewById", $"palette-row-{_highlight}");
+        }
+    }
+
+    /// <summary>Groups and the flat list of rows (for the arrow keys), rebuilt on every render.</summary>
+    private void Recompute()
+    {
+        var query = QuickPaletteSearch.QueryOf(_text);
+        _marks = new TextSearch(query);
+        _groups = Commands ? CommandGroups(query) : ObjectGroups(query);
+        _visible = [.. _groups.SelectMany(g => g.Rows)];
+        _empty = _visible.Count > 0 ? null
+            : !Commands && Active.Schema is null ? WorkspaceText.NoActiveConnection
+            : query.Length > 0 ? TextFormat.Format(SchemaViewText.Explorer_NothingFound, query)
+            : Commands ? null
+            : ShellText.Palette_TypeToSearch;
+        if (_toFirst)
+        {
+            _toFirst = false;
+            _highlight = Math.Max(0, _visible.FindIndex(r => r.Command?.Unavailable is null));
+        }
+
+        _highlight = Math.Clamp(_highlight, 0, Math.Max(0, _visible.Count - 1));
+    }
+
+    /// <summary>The actions by group, in the order of the settings page.</summary>
+    private List<PaletteGroup> CommandGroups(string query) =>
+    [
+        .. QuickPaletteSearch.Commands(query, ActionState(), Shortcuts.Label)
+            .GroupBy(c => c.Definition.Group)
+            .Select(g => new PaletteGroup(g.Key, [.. g.Select(c => new PaletteRow(Command: c))])),
+    ];
+
+    /// <summary>Without a query the open tables and PL/SQL units of the active workspace, else the hits.</summary>
+    private List<PaletteGroup> ObjectGroups(string query)
+    {
+        if (Active.Schema is not { } schema)
+        {
+            return [];
+        }
+
+        if (query.Length == 0)
+        {
+            List<PaletteRow> open =
+            [
+                .. Shell.Tabs.Select(t => t switch
+                {
+                    TableTab table => new PaletteRow(Table: table.Table, Tab: table),
+                    PlSqlTab unit => new PaletteRow(Unit: unit.Unit, Tab: unit),
+                    _ => null,
+                }).OfType<PaletteRow>(),
+            ];
+            return open.Count == 0 ? [] : [new PaletteGroup(ShellText.Palette_OpenTabs, open)];
+        }
+
+        var key = (query, (object)schema.Tables, (object)schema.PlSqlObjects, Presentation.Version, Presentation.Names);
+        if (_hitsFor != key)
+        {
+            _hits = (ObjectSearch.FindTables(schema.Tables, query, Presentation.ShownEntityNameOf), ObjectSearch.FindPlSql(schema.PlSqlObjects, query));
+            _hitsFor = key;
+        }
+
+        var (tables, units) = _hits;
+        List<PaletteGroup> groups = [];
+        if (tables.Count > 0)
+        {
+            groups.Add(new PaletteGroup(ShellText.Palette_Tables, [.. tables.Take(QuickPaletteSearch.Limit).Select(t => new PaletteRow(Table: t))], Math.Max(0, tables.Count - QuickPaletteSearch.Limit)));
+        }
+
+        if (units.Count > 0)
+        {
+            groups.Add(new PaletteGroup(ShellText.Palette_PlSql, [.. units.Take(QuickPaletteSearch.Limit).Select(u => new PaletteRow(Unit: u))], Math.Max(0, units.Count - QuickPaletteSearch.Limit)));
+        }
+
+        return groups;
+    }
+
+    private RenderFragment Row(PaletteRow row, int rowIndex) => row switch
+    {
+        { Table: { } t } => TableRow(row, t, rowIndex),
+        { Unit: { } u } => UnitRow(row, u, rowIndex),
+        { Command: { } c } => CommandRow(row, c, rowIndex),
+        _ => _ => { },
+    };
+
+    private RenderFragment TableRow(PaletteRow row, TableSummary t, int rowIndex)
+    {
+        var entity = Presentation.ShownEntityNameOf(t.Ref);
+        var front = entity is not null && Presentation.Names == ClrNameDisplay.Front;
+        return @<button id="palette-row-@rowIndex" class="table-item palette-row @(rowIndex == _highlight ? "highlight" : "") @(t.IsInvalid ? "invalid" : "")"
+                        title="@($"{t.Owner}.{t.Name}")" @onclick="() => Activate(row)" @onmouseenter="() => _highlight = rowIndex">
+                    @Icons.For(t.Kind)
+                    <span class="name"><Highlight Text="@(front ? entity! : t.DisplayName)" Search="_marks" /></span>
+                    @if (entity is not null)
+                    {
+                        <span class="clr-name"><Highlight Text="@(front ? t.DisplayName : entity)" Search="_marks" /></span>
+                    }
+                    @if (t.Synonym is not null)
+                    {
+                        <span class="kind-tag syn">SYN</span>
+                    }
+                    @if (t.Kind != TableKind.Table)
+                    {
+                        <span class="kind-tag">@(t.Kind == TableKind.View ? "VIEW" : "MVIEW")</span>
+                    }
+                </button>;
+    }
+
+    private RenderFragment UnitRow(PaletteRow row, PlSqlObjectSummary u, int rowIndex) =>
+        @<button id="palette-row-@rowIndex" class="table-item palette-row @(rowIndex == _highlight ? "highlight" : "") @(u.IsInvalid ? "invalid" : "") @(u.IsDisabled ? "disabled-unit" : "")"
+                 title="@($"{u.Owner}.{u.Name}")" @onclick="() => Activate(row)" @onmouseenter="() => _highlight = rowIndex">
+            @Icons.For(u.Kind)
+            <span class="name"><Highlight Text="@u.DisplayName" Search="_marks" /></span>
+            @if (u.Synonym is not null)
+            {
+                <span class="kind-tag syn">SYN</span>
+            }
+            <span class="kind-tag">@ExplorerList.Tag(u.Kind)</span>
+        </button>;
+
+    private RenderFragment CommandRow(PaletteRow row, PaletteCommand c, int rowIndex) =>
+        @<button id="palette-row-@rowIndex" class="palette-row palette-command @(rowIndex == _highlight ? "highlight" : "") @(c.Unavailable is null ? "" : "unavailable")"
+                 title="@(c.Unavailable ?? c.Definition.Hint)" aria-disabled="@(c.Unavailable is null ? "false" : "true")"
+                 @onclick="() => Activate(row)" @onmouseenter="() => _highlight = rowIndex">
+            <span class="label"><Highlight Text="@c.Definition.Label" Search="_marks" /></span>
+            @if (c.Unavailable is { } reason)
+            {
+                <span class="reason">@reason</span>
+            }
+            <Kbd Action="c.Definition.Action" />
+        </button>;
+
+    private async Task Activate(PaletteRow row)
+    {
+        if (row.Command is { Unavailable: not null })
+        {
+            return;
+        }
+
+        Shell.ClosePalette();
+        switch (row)
+        {
+            case { Tab: { } tab }:
+                Shell.ShowTab(tab);
+                break;
+            case { Table: { } table }:
+                Shell.OpenTable(table);
+                break;
+            case { Unit: { } unit }:
+                Shell.OpenPlSql(unit);
+                break;
+            case { Command: { } command }:
+                await OnAction.InvokeAsync(command.Definition.Action);
+                break;
+        }
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "ArrowDown":
+                _highlight = Math.Min(_highlight + 1, Math.Max(0, _visible.Count - 1));
+                _scrollToHighlight = true;
+                break;
+            case "ArrowUp":
+                _highlight = Math.Max(_highlight - 1, 0);
+                _scrollToHighlight = true;
+                break;
+            case "Enter" when _visible.Count > 0:
+                await Activate(_visible[_highlight]);
+                break;
+            case "Escape":
+                Shell.ClosePalette();
+                break;
+        }
+    }
+
+    public async ValueTask DisposeAsync() => await Dom.DisposeAsync();
+}

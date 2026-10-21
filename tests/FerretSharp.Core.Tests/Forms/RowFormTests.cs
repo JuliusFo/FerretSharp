@@ -164,6 +164,22 @@ public sealed class RowFormTests
     }
 
     [Fact]
+    public void Incoming_jumps_through_a_base_table_follow_the_direct_ones()
+    {
+        // KUNDEN extends a base table PARTNER over KUNDE_ID; RECHNUNG references PARTNER.
+        var partner = new TableRef(CodeGenerationModel.Owner, "PARTNER");
+        var rechnung = new ForeignKeyInfo("FK_RECHNUNG_PARTNER", new TableRef(CodeGenerationModel.Owner, "RECHNUNG"), ["PARTNER_ID"], partner, ["PARTNER_ID"], FkSource.Declared);
+        var tracker = new ChangeTracker(Kunden);
+        InheritedReference[] inherited = [new(Kunden.Table.Ref, rechnung, partner, ["KUNDE_ID"])];
+
+        var jumps = RowForm.Incoming(Kunden, new FormRow(Row(8, "Meier"), null), [FromAuftrag], inherited);
+
+        Assert.Equal([null, partner], jumps.Select(j => j.Inherited?.Via));
+        Assert.Equal(["KUNDE_ID = 8", "PARTNER_ID = 8"], jumps.Select(j => j.Condition));
+        Assert.Empty(RowForm.Incoming(Kunden, new FormRow(null, tracker.AddRow()), [FromAuftrag], inherited));
+    }
+
+    [Fact]
     public void The_key_text_names_the_primary_key_values()
     {
         Assert.Equal("8", new FormRow(Row(8, "Meier"), null).KeyText(Kunden));

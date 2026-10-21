@@ -2,7 +2,7 @@ using System.IO.Compression;
 using FerretSharp.Core.ClrModel;
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Connections.Transfer;
-using FerretSharp.Core.Tests.Fakes;
+using FerretSharp.Testing;
 using NSubstitute;
 using static FerretSharp.Core.Tests.Connections.Transfer.ImportSamples;
 

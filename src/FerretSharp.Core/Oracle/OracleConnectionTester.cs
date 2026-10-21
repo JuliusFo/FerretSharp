@@ -45,4 +45,11 @@ public sealed class OracleConnectionTester : IConnectionTester
 public static class OracleSessionDefaults
 {
     public const string Module = "FerretSharp";
+
+    /// <summary>
+    /// A tag for <c>CLIENT_INFO</c> that tells one session from all others (WP-52, ADR 0027): the explorer session finds it in
+    /// <c>V$SESSION</c> while it runs a statement, and a blocking session with such a tag is one of this instance's workspaces.
+    /// ASCII only (see <see cref="OracleSession.ToSessionAttribute"/>), well under 64 characters.
+    /// </summary>
+    public static string NewSessionTag() => $"{Module} {Guid.NewGuid():N}"[..(Module.Length + 13)];
 }

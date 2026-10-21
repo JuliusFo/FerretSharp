@@ -119,6 +119,9 @@ public sealed record ForeignKeyInfo(
     IReadOnlyList<string> ToColumns,
     FkSource Source);
 
+/// <summary>The primary key of a table (enabled or not): its columns in key order.</summary>
+public sealed record PrimaryKeyInfo(TableRef Table, IReadOnlyList<string> Columns);
+
 public interface ISchemaReader
 {
     /// <summary>Tables, views and materialized views of <paramref name="owner"/>, sorted by name.</summary>
@@ -168,6 +171,9 @@ public interface ISchemaReader
     /// <summary>All declared foreign keys whose referencing table belongs to <paramref name="owner"/>.</summary>
     Task<IReadOnlyList<ForeignKeyInfo>> GetForeignKeysAsync(string owner, CancellationToken cancellationToken);
 
+    /// <summary>The primary keys of all tables of <paramref name="owner"/> (base tables of FK jumps).</summary>
+    Task<IReadOnlyList<PrimaryKeyInfo>> GetPrimaryKeysAsync(string owner, CancellationToken cancellationToken);
+
     Task<TableDetails> GetDetailsAsync(TableSummary table, CancellationToken cancellationToken);
 
     /// <summary>Status, dates, comment and statistics of one object.</summary>
@@ -193,6 +199,13 @@ public interface ISchemaReader
     /// may not read <c>V$LOCKED_OBJECT</c>/<c>V$SESSION</c> (needs <c>SELECT_CATALOG_ROLE</c> or grants).
     /// </summary>
     Task<IReadOnlyList<Data.LockHolder>?> GetLockHoldersAsync(TableRef table, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// What the session with this tag is doing (WP-52, ADR 0027): the lock it waits for and its latest long operation, from
+    /// <c>V$SESSION</c>/<c>V$SESSION_LONGOPS</c>. <see cref="Data.SessionActivity.None"/> if there is nothing to say or the
+    /// session is not visible; null if the user may not read the V$ views.
+    /// </summary>
+    Task<Data.SessionActivity?> GetSessionActivityAsync(string sessionTag, CancellationToken cancellationToken);
 
     /// <summary>
     /// The columns of every table, view and materialized view of a schema in one query (C# model comparison, where one

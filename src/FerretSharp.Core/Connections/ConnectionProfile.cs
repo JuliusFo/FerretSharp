@@ -55,6 +55,14 @@ public sealed record TnsAliasAddress(string Alias, string? TnsAdminPath) : Oracl
 /// The environment name the user's own app starts with when it uses this database (<c>-environment=erp-test</c>, WP-33):
 /// a running app is matched to this connection by it. Null = none.
 /// </param>
+/// <param name="AuditTemplatePath">
+/// The audit template file of this connection (WP-51); it goes before the template of its group and the global one
+/// (<see cref="Audit.AuditTemplateSource"/>). Null = none.
+/// </param>
+/// <param name="CodeSolution">
+/// The solution the code usage index reads (WP-40) when several contain <paramref name="ClrProject"/>; null = the first
+/// found. Beside the link, not in it: the model and the LINQ console do not depend on it.
+/// </param>
 public sealed record ConnectionProfile(
     Guid Id,
     string Name,
@@ -66,7 +74,9 @@ public sealed record ConnectionProfile(
     string? Group = null,
     ClrModel.ClrProjectLink? ClrProject = null,
     string? ScriptFolder = null,
-    string? AppEnvironment = null)
+    string? AppEnvironment = null,
+    string? AuditTemplatePath = null,
+    string? CodeSolution = null)
 {
     /// <summary>
     /// The schema whose objects are shown, in data dictionary form: <see cref="DefaultSchema"/> if set, otherwise the user.
@@ -85,12 +95,13 @@ public sealed record ConnectionProfile(
     public bool MasksValues => Kind == ConnectionKind.Prod;
 
     /// <summary>
-    /// The paths that only make sense on one computer: linked C# project, script folder, TNS_ADMIN folder. An export leaves
-    /// them out unless asked, an import takes them only when asked (WP-35; review 3.31.0, A4: a project path of another
-    /// computer loads – and runs – that project's DLLs, a TNS_ADMIN folder on a share decides where the login goes).
+    /// The paths that only make sense on one computer: linked C# project, script folder, TNS_ADMIN folder, audit template.
+    /// An export leaves them out unless asked, an import takes them only when asked (WP-35; review 3.31.0, A4: a project
+    /// path of another computer loads – and runs – that project's DLLs, a TNS_ADMIN folder on a share decides where the
+    /// login goes).
     /// </summary>
     public IReadOnlyList<string> LocalPaths() =>
-        new[] { ClrProject?.ProjectFile, ScriptFolder, (Address as TnsAliasAddress)?.TnsAdminPath }
+        new[] { ClrProject?.ProjectFile, CodeSolution, ScriptFolder, (Address as TnsAliasAddress)?.TnsAdminPath, AuditTemplatePath }
             .OfType<string>()
             .Where(p => !string.IsNullOrWhiteSpace(p))
             .ToList();
@@ -112,7 +123,9 @@ public sealed record ConnectionProfile(
     public ConnectionProfile WithoutLocalPaths() => this with
     {
         ClrProject = null,
+        CodeSolution = null,
         ScriptFolder = null,
-        Address = Address is TnsAliasAddress tns ? tns with { TnsAdminPath = null } : Address,
+        AuditTemplatePath = null,
+        Address =Address is TnsAliasAddress tns ? tns with { TnsAdminPath = null } : Address,
     };
 }

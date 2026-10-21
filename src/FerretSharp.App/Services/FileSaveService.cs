@@ -31,6 +31,8 @@ public sealed class FileSaveService : IFileSaveService
         return path;
     }
 
+    public Task<string?> AskPathAsync(string fileName, string filter) => AskAsync(fileName, filter);
+
     private static async Task<string?> AskAsync(string fileName, string filter, string? folder = null)
     {
         // A remembered folder that is gone (renamed repository, other machine, a share behind a lost VPN) is no reason to

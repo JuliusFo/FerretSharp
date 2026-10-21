@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using FerretSharp.Core.Oracle;
 using FerretSharp.Core.Query;
 using FerretSharp.Core.Schema;
 
@@ -80,6 +81,22 @@ public partial class QueryBuilderTests
     }
 
     [Fact]
+    public void All_rows_are_the_page_query_without_paging()
+    {
+        IReadOnlyList<FilterCondition> filters = [new("NAME", FilterOperator.Contains, ["Ferret"])];
+        IReadOnlyList<SortSpec> sorts = [new("NAME", true)];
+        var page = Select(Kunden, filters, sorts);
+
+        var all = QueryBuilder.BuildSelectAll(Kunden, filters, sorts);
+
+        AssertBindsMatch(all.Sql, all.Parameters);
+        Assert.Equal(page.Sql.Replace("\nOFFSET :p_offset ROWS FETCH NEXT :p_limit ROWS ONLY", "", StringComparison.Ordinal), all.Sql);
+        Assert.Equal(page.Parameters.Where(p => p.Name is not ("p_offset" or "p_limit")), all.Parameters);
+        Assert.Equal(page.Columns, all.Columns);
+        Assert.True(StatementGuard.IsQuery(all.Sql));
+    }
+
+    [Fact]
     public void Default_order_is_the_primary_key()
     {
         Assert.Contains("ORDER BY t.\"KUNDE_ID\"\n", Select(Kunden).Sql);
@@ -131,6 +148,17 @@ public partial class QueryBuilderTests
 
         Assert.Equal([OracleTypeHint.NVarchar2, OracleTypeHint.NChar, OracleTypeHint.NVarchar2, OracleTypeHint.Varchar2], query.Parameters.Take(4).Select(p => p.Type)); // then paging
         Assert.Contains("UPPER(RTRIM(t.\"KUERZEL\")) LIKE", query.Sql);
+    }
+
+    /// <summary>Review 3.40.0, A21: "contains" on an NCLOB bound its pattern as VARCHAR2 – the rest of A18.</summary>
+    [Fact]
+    public void A_text_search_in_an_nclob_binds_nationally()
+    {
+        var table = Kunden with { Columns = [.. Kunden.Columns, Col("BEMERKUNG", "NCLOB")] };
+
+        var query = Select(table, [FilterCondition.Of("BEMERKUNG", FilterOperator.Contains, "Łódź"), FilterCondition.Of("NOTIZ", FilterOperator.Contains, "x")]);
+
+        Assert.Equal([OracleTypeHint.NVarchar2, OracleTypeHint.Varchar2], query.Parameters.Take(2).Select(p => p.Type)); // NOTIZ is a CLOB
     }
 
     [Fact]
@@ -231,7 +259,7 @@ public partial class QueryBuilderTests
     {
         var (where, parameters) = Where(FilterCondition.Of("ERSTELLT_AM", FilterOperator.Between, "1.10.2026", "31.10.2026"));
 
-        Assert.Equal("t.\"ERSTELLT_AM\" >= :p0 AND t.\"ERSTELLT_AM\" < :p1", where);
+        Assert.Equal("(t.\"ERSTELLT_AM\" >= :p0 AND t.\"ERSTELLT_AM\" < :p1)", where);
         Assert.Equal([new DateTime(2026, 10, 1), new DateTime(2026, 11, 1)], parameters.Select(p => p.Value));
     }
 

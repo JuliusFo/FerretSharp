@@ -1,0 +1,299 @@
+using System.Globalization;
+using FerretSharp.Core.Resources;
+using FerretSharp.Core.Schema;
+using SpreadCheetah;
+using SpreadCheetah.Styling;
+using SpreadCheetah.Worksheets;
+
+namespace FerretSharp.Core.Data;
+
+/// <summary>
+/// One column of an Excel export (WP-53): its header and where its values come from. The plain database view is
+/// <see cref="Raw"/>; the presentation layer adds C# names, enum members and the names beside foreign keys
+/// (<c>PresentedExport</c>, <c>SqlResultPresentation</c>).
+/// </summary>
+/// <param name="Source">Index of the row value the column shows.</param>
+/// <param name="Column">The column the value belongs to (its type decides how dates are written).</param>
+public sealed record ExportColumn(string Header, int Source, ColumnInfo Column)
+{
+    /// <summary>
+    /// What is written instead of the value: a text (an enum member, a looked-up name), a bool, or the value itself if the
+    /// presentation has nothing for it. Null writes the value as it is.
+    /// </summary>
+    public Func<object?, object?>? Present { get; init; }
+
+    /// <summary>The table's columns with their database names and raw values.</summary>
+    public static IReadOnlyList<ExportColumn> Raw(TableDetails table) =>
+        [.. table.Columns.Select((c, i) => new ExportColumn(c.Name, i, c))];
+
+    /// <summary>Whether the columns show anything else than <see cref="Raw"/> would: only then is the raw variant offered.</summary>
+    public static bool DiffersFromRaw(IReadOnlyList<ExportColumn> columns) =>
+        columns.Where((c, i) => c.Present is not null || c.Source != i || c.Header != c.Column.Name).Any();
+}
+
+/// <summary>
+/// Rows as an Excel file (WP-53, ADR 0028) with typed cells: numbers as numbers, DATE/TIMESTAMP as dates, text as text
+/// (never as formula), NULL as empty cell. What Excel would change is written as text in the notation of the CSV export:
+/// numbers with more than 15 significant digits, timestamps finer than milliseconds, dates before 1 March 1900, values with
+/// time zone. Header row bold and frozen, auto filter, column widths by content. Written block by block
+/// (<see cref="CreateWriterAsync"/>, WP-54).
+/// </summary>
+public static class XlsxExport
+{
+    /// <summary>Rows of a sheet including the header row.</summary>
+    public const int MaxSheetRows = 1_048_576;
+
+    /// <summary>Characters a cell holds.</summary>
+    public const int MaxCellText = 32_767;
+
+    /// <summary>Significant digits Excel keeps of a number (it stores a double and shows 15 digits).</summary>
+    public const int MaxDigits = 15;
+
+    /// <summary>Column widths in characters of the standard font.</summary>
+    public const double MinWidth = 6;
+    public const double MaxWidth = 60;
+
+    /// <summary>Earliest date Excel shows correctly: it counts from 1900 and has a 29 February 1900 that never was.</summary>
+    private static readonly DateTime FirstDate = new(1900, 3, 1);
+
+    private static readonly CultureInfo German = ValueCulture.German;
+
+    /// <summary>
+    /// Rows whose cells decide the column widths: the sheet's widths must be known when it starts, so the first rows wait
+    /// for it (WP-54; before, all rows decided).
+    /// </summary>
+    public const int WidthSample = 1000;
+
+    /// <summary>
+    /// An Excel file written block by block (WP-54). The column widths come from the first <see cref="WidthSample"/> rows,
+    /// written once those are there. The auto filter covers the rows if <paramref name="rows"/> is known, else the header
+    /// row only: Excel extends it to the rows below when it opens the file (checked with Excel 365; a row empty in every
+    /// column would end it). The stream stays open.
+    /// </summary>
+    /// <param name="sheetName">Name of the sheet, made valid (<see cref="SheetName"/>).</param>
+    /// <param name="rows">The number of rows if known beforehand (the selected rows); null while a read is still running.</param>
+    public static async Task<IExportWriter> CreateWriterAsync(
+        Stream stream, IReadOnlyList<ExportColumn> columns, string sheetName, int? rows, CancellationToken cancellationToken)
+    {
+        var spreadsheet = await Spreadsheet.CreateNewAsync(stream, new SpreadCheetahOptions { PreserveStringWhitespace = true }, cancellationToken);
+        return new Writer(spreadsheet, columns, SheetName(sheetName), rows);
+    }
+
+    /// <summary>The cell for a value and the width it needs in characters.</summary>
+    private static (Cell Cell, double Width) CellOf(ExportColumn column, object? value, Styles styles, ExportWarnings warnings)
+    {
+        var shown = column.Present is { } present ? present(value) : value;
+        return shown switch
+        {
+            null or DBNull => Empty,
+            decimal d => Number(column.Column, d, shown, styles, warnings),
+            int or long or short => Number(column.Column, Convert.ToDecimal(shown, CultureInfo.InvariantCulture), shown, styles, warnings),
+            double d when double.IsFinite(d) => (new Cell(d), d.ToString("R", German).Length),
+            // float → double directly would write 0.1 as 0.100000001490116.
+            float f when float.IsFinite(f) => (new Cell(double.Parse(f.ToString("R", CultureInfo.InvariantCulture), CultureInfo.InvariantCulture)), f.ToString("R", German).Length),
+            DateTime dt => Date(column.Column, dt, styles, warnings),
+            bool b => (new Cell(b), 5),
+            _ => AsText(column.Column, shown, warnings), // text, big numbers, time zones, RAW, LOBs, NaN, intervals …
+        };
+    }
+
+    private static readonly (Cell, double) Empty = (new Cell((string?)null), 0);
+
+    /// <summary>The value in the notation of the CSV export (<see cref="ExportNotation"/>); one that is not exported stays empty.</summary>
+    private static (Cell, double) AsText(ColumnInfo column, object value, ExportWarnings warnings) =>
+        ExportNotation.Text(column, value, warnings) is { } text ? Text(column, text, warnings) : Empty;
+
+    /// <summary>A text cell; longer than a cell holds is shortened with a warning. Its width is that of the first line.</summary>
+    private static (Cell, double) Text(ColumnInfo column, string text, ExportWarnings warnings)
+    {
+        if (text.Length > MaxCellText)
+        {
+            warnings.Truncate(column);
+            text = text[..MaxCellText];
+        }
+
+        var end = text.AsSpan().IndexOfAny('\r', '\n');
+        return (new Cell(text), end >= 0 ? end : text.Length);
+    }
+
+    /// <summary>
+    /// A number as number if Excel keeps it exactly (at most 15 significant digits), else as text in the CSV notation.
+    /// Whole numbers get the format <c>0</c>: "General" would show a 12-digit key as <c>1,23457E+11</c>.
+    /// </summary>
+    private static (Cell, double) Number(ColumnInfo column, decimal value, object raw, Styles styles, ExportWarnings warnings)
+    {
+        var invariant = value.ToString(CultureInfo.InvariantCulture);
+        if (SignificantDigits(invariant) > MaxDigits)
+        {
+            return AsText(column, raw, warnings);
+        }
+
+        return value == decimal.Truncate(value)
+            ? (new Cell(value, styles.WholeNumber), decimal.Truncate(value).ToString(CultureInfo.InvariantCulture).Length)
+            : (new Cell(value), invariant.Length);
+    }
+
+    /// <summary>Significant digits of an invariant number text: without sign, point, leading and trailing zeros.</summary>
+    internal static int SignificantDigits(string invariant)
+    {
+        var digits = invariant.Where(char.IsAsciiDigit).SkipWhile(c => c == '0').ToList();
+        var trailing = Enumerable.Reverse(digits).TakeWhile(c => c == '0').Count();
+        return digits.Count - trailing;
+    }
+
+    /// <summary>
+    /// DATE to the second, TIMESTAMP to the millisecond, as the grid shows them. A finer timestamp or a date before
+    /// 1 March 1900 becomes text in the notation of the CSV export.
+    /// </summary>
+    private static (Cell, double) Date(ColumnInfo column, DateTime value, Styles styles, ExportWarnings warnings)
+    {
+        var isDate = ColumnCategories.Of(column) == ColumnCategory.Date;
+        if (value < FirstDate || (!isDate && value.Ticks % TimeSpan.TicksPerMillisecond != 0))
+        {
+            return AsText(column, value, warnings);
+        }
+
+        return isDate ? (new Cell(value, styles.Date), 19) : (new Cell(value, styles.Timestamp), 23);
+    }
+
+    /// <summary>A1 column letters: 1 → A, 27 → AA.</summary>
+    internal static string ColumnLetters(int column)
+    {
+        var letters = "";
+        for (var n = column; n > 0; n = (n - 1) / 26)
+        {
+            letters = (char)('A' + (n - 1) % 26) + letters;
+        }
+
+        return letters;
+    }
+
+    /// <summary>A valid sheet name: at most 31 characters, none of <c>[ ] : * ? / \</c>, no quote at either end.</summary>
+    internal static string SheetName(string name)
+    {
+        var cleaned = new string([.. name.Select(c => c is '[' or ']' or ':' or '*' or '?' or '/' or '\\' ? '_' : c)]).Trim().Trim('\'');
+        if (cleaned.Length > 31)
+        {
+            cleaned = cleaned[..31].TrimEnd('\'', ' ');
+        }
+
+        return cleaned.Length == 0 ? "Export" : cleaned;
+    }
+
+    private sealed class Writer : IExportWriter
+    {
+        private readonly Spreadsheet _spreadsheet;
+        private readonly IReadOnlyList<ExportColumn> _columns;
+        private readonly string _sheetName;
+        private readonly int? _expected;
+        private readonly Styles _styles;
+        private readonly double[] _widths;
+        private readonly ExportWarnings _warnings = new();
+
+        /// <summary>The first rows, built but not written: the sheet has not started yet (<see cref="WidthSample"/>).</summary>
+        private List<Cell[]>? _sample = [];
+
+        public Writer(Spreadsheet spreadsheet, IReadOnlyList<ExportColumn> columns, string sheetName, int? expected)
+        {
+            _spreadsheet = spreadsheet;
+            _columns = columns;
+            _sheetName = sheetName;
+            _expected = expected;
+            _styles = new Styles(spreadsheet); // styles before the sheet
+            _widths = [.. columns.Select(c => c.Header.Length + 3.0)]; // + the filter button
+        }
+
+        public long Rows { get; private set; }
+
+        public async ValueTask<bool> WriteAsync(IReadOnlyList<RowData> rows, CancellationToken cancellationToken)
+        {
+            foreach (var row in rows)
+            {
+                if (Rows == MaxSheetRows - 1)
+                {
+                    _warnings.Note(TextFormat.Format(DataText.ExportSheetRowLimit, Rows.ToString("N0", CultureInfo.CurrentCulture)));
+                    return false;
+                }
+
+                var line = new Cell[_columns.Count];
+                for (var i = 0; i < _columns.Count; i++)
+                {
+                    (line[i], var width) = CellOf(_columns[i], row.Values[_columns[i].Source], _styles, _warnings);
+                    if (_sample is not null)
+                    {
+                        _widths[i] = Math.Max(_widths[i], width);
+                    }
+                }
+
+                Rows++;
+                if (_sample is null)
+                {
+                    await _spreadsheet.AddRowAsync(line, cancellationToken);
+                }
+                else
+                {
+                    _sample.Add(line);
+                    if (_sample.Count == WidthSample)
+                    {
+                        await StartAsync(cancellationToken);
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        public async ValueTask<ExportSummary> FinishAsync(CancellationToken cancellationToken)
+        {
+            await StartAsync(cancellationToken);
+            await _spreadsheet.FinishAsync(cancellationToken);
+            return new ExportSummary(Rows, _warnings.ToList());
+        }
+
+        public ValueTask DisposeAsync() => _spreadsheet.DisposeAsync();
+
+        /// <summary>Starts the sheet with the widths of the sample and writes the sample; once.</summary>
+        private async Task StartAsync(CancellationToken cancellationToken)
+        {
+            if (_sample is not { } sample)
+            {
+                return;
+            }
+
+            _sample = null;
+            var options = new WorksheetOptions { FrozenRows = 1 };
+            if (_columns.Count > 0)
+            {
+                var lastRow = _expected is { } expected ? Math.Min(expected, MaxSheetRows - 1) + 1 : 1;
+                options.AutoFilter = new AutoFilterOptions($"A1:{ColumnLetters(_columns.Count)}{lastRow}");
+            }
+
+            for (var i = 0; i < _columns.Count; i++)
+            {
+                options.Column(i + 1).Width = Math.Clamp(_widths[i] + 1, MinWidth, MaxWidth);
+            }
+
+            await _spreadsheet.StartWorksheetAsync(_sheetName, options, cancellationToken);
+            await _spreadsheet.AddRowAsync([.. _columns.Select(c => new Cell(c.Header, _styles.Header))], cancellationToken);
+            foreach (var line in sample)
+            {
+                await _spreadsheet.AddRowAsync(line, cancellationToken);
+            }
+        }
+    }
+
+    /// <summary>
+    /// The styles of a file. Dates as the grid shows them; the point before the milliseconds is the decimal separator (a
+    /// comma under German settings).
+    /// </summary>
+    private sealed class Styles(Spreadsheet spreadsheet)
+    {
+        public StyleId Header { get; } = spreadsheet.AddStyle(new Style { Font = { Bold = true } });
+
+        public StyleId WholeNumber { get; } = spreadsheet.AddStyle(new Style { Format = NumberFormat.Custom("0") });
+
+        public StyleId Date { get; } = spreadsheet.AddStyle(new Style { Format = NumberFormat.Custom("dd.mm.yyyy hh:mm:ss") });
+
+        public StyleId Timestamp { get; } = spreadsheet.AddStyle(new Style { Format = NumberFormat.Custom("dd.mm.yyyy hh:mm:ss.000") });
+    }
+}

@@ -8,7 +8,8 @@ public readonly record struct FileRead<T>(T Value, bool Reuse = true);
 /// A file that is read again only when it changed (the audit template, the display columns file): within
 /// <see cref="Fresh"/> after a look the last result comes back without touching the disk – views ask while they render, and
 /// a file on a share over VPN must not stall the UI thread each time; after that the file's time and length decide. R5b:
-/// before, a copy each, and the audit template kept a failed read until the file changed.
+/// before, a copy each, and the audit template kept a failed read until the file changed. Each path is kept on its own
+/// (WP-51: the audit templates of several groups are asked for in turn).
 /// </summary>
 /// <param name="read">Reads the file at the path as given, also when it does not exist (<see cref="FileInfo.Exists"/> false).</param>
 /// <param name="unreadable">The result when the file cannot even be looked at or read (I/O, access, an invalid path).</param>
@@ -19,14 +20,18 @@ public sealed class CachedFileRead<T>(Func<string, FileInfo, FileRead<T>> read, 
 
     private readonly TimeProvider _clock = clock ?? TimeProvider.System;
     private readonly Lock _lock = new();
-    private (string Path, DateTime Written, long Length, T Value, bool Reuse, DateTimeOffset Checked)? _cached;
+
+    /// <summary>Paths kept at most; the one looked at longest ago goes first.</summary>
+    internal const int MaxPaths = 32;
+
+    private readonly Dictionary<string, (DateTime Written, long Length, T Value, bool Reuse, DateTimeOffset Checked)> _cached = new(StringComparer.Ordinal);
 
     /// <summary>The file at <paramref name="path"/>: the last result if looked at within <see cref="Fresh"/> or unchanged since.</summary>
     public T Get(string path)
     {
         lock (_lock)
         {
-            if (_cached is { } recent && recent.Path == path && _clock.GetUtcNow() - recent.Checked < Fresh)
+            if (_cached.TryGetValue(path, out var recent) && _clock.GetUtcNow() - recent.Checked < Fresh)
             {
                 return recent.Value;
             }
@@ -44,9 +49,9 @@ public sealed class CachedFileRead<T>(Func<string, FileInfo, FileRead<T>> read, 
 
             lock (_lock)
             {
-                if (_cached is { Reuse: true } cached && cached.Path == path && (cached.Written, cached.Length) == (written, length))
+                if (_cached.TryGetValue(path, out var cached) && cached.Reuse && (cached.Written, cached.Length) == (written, length))
                 {
-                    _cached = cached with { Checked = _clock.GetUtcNow() };
+                    _cached[path] = cached with { Checked = _clock.GetUtcNow() };
                     return cached.Value;
                 }
             }
@@ -60,18 +65,23 @@ public sealed class CachedFileRead<T>(Func<string, FileInfo, FileRead<T>> read, 
 
         lock (_lock)
         {
-            _cached = (path, written, length, result.Value, result.Reuse, _clock.GetUtcNow());
+            if (!_cached.ContainsKey(path) && _cached.Count >= MaxPaths)
+            {
+                _cached.Remove(_cached.MinBy(e => e.Value.Checked).Key);
+            }
+
+            _cached[path] = (written, length, result.Value, result.Reuse, _clock.GetUtcNow());
         }
 
         return result.Value;
     }
 
-    /// <summary>The next <see cref="Get"/> reads the file (after writing it).</summary>
+    /// <summary>The next <see cref="Get"/> reads the files (after writing one).</summary>
     public void Forget()
     {
         lock (_lock)
         {
-            _cached = null;
+            _cached.Clear();
         }
     }
 }

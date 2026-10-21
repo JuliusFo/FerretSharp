@@ -64,6 +64,8 @@ public sealed class ShortcutMapTests
         Assert.Null(map.Chord(ShortcutAction.CloseTab)); // after 3.20: new actions start without a key
         Assert.Null(map.Chord(ShortcutAction.CloseOtherTabs));
         Assert.Null(map.Chord(ShortcutAction.CloseAllTabs));
+        Assert.Null(map.Chord(ShortcutAction.QuickOpen)); // WP-38
+        Assert.Null(map.Chord(ShortcutAction.CommandPalette));
         Assert.False(map.HasChanges);
     }
 
@@ -105,7 +107,7 @@ public sealed class ShortcutMapTests
         var overrides = new ShortcutMap(RunScriptUnbound).With(ShortcutAction.RunScript, Chord("ctrl+k"));
         var map = new ShortcutMap(RunScriptUnbound, overrides);
 
-        Assert.Equal(ShortcutOverrides.From(new Dictionary<string, string> { ["RunScript"] = "ctrl+k" }), overrides);
+        Assert.Equal(SettingsMap.From(new Dictionary<string, string> { ["RunScript"] = "ctrl+k" }), overrides);
         Assert.Equal(ShortcutAction.RunScript, map.ActionFor("ctrl+k", ShortcutScope.Global));
         Assert.False(map.IsDefault(ShortcutAction.RunScript));
         Assert.Empty(map.With(ShortcutAction.RunScript, null)); // no key is its default: nothing to store
@@ -120,7 +122,7 @@ public sealed class ShortcutMapTests
         Assert.Equal(ShortcutAction.Flush, map.ActionFor("ctrl+shift+s", ShortcutScope.Global));
         Assert.Null(map.ActionFor("ctrl+s", ShortcutScope.Global));
         Assert.Contains("ctrl+shift+s", map.GlobalCombos);
-        Assert.Equal(ShortcutOverrides.From(new Dictionary<string, string> { ["Flush"] = "ctrl+shift+s" }), map.Overrides);
+        Assert.Equal(SettingsMap.From(new Dictionary<string, string> { ["Flush"] = "ctrl+shift+s" }), map.Overrides);
     }
 
     [Fact]
@@ -196,7 +198,7 @@ public sealed class ShortcutMapTests
     [Fact]
     public void Removed_unknown_and_broken_entries_are_handled()
     {
-        var map = new ShortcutMap(ShortcutOverrides.From(new Dictionary<string, string>
+        var map = new ShortcutMap(SettingsMap.From(new Dictionary<string, string>
         {
             ["NewLinq"] = "",
             ["SomethingNewer"] = "ctrl+k",
@@ -209,7 +211,7 @@ public sealed class ShortcutMapTests
         Assert.Equal(Chord("ctrl+s"), map.Chord(ShortcutAction.Flush)); // unreadable: default
         Assert.Equal(Chord("ctrl+shift+enter"), map.Chord(ShortcutAction.Commit)); // reserved: default
         Assert.Equal("ctrl+k", map.With(ShortcutAction.Refresh, Chord("f6"))["SomethingNewer"]);
-        Assert.Equal(ShortcutOverrides.From(new Dictionary<string, string> { ["SomethingNewer"] = "ctrl+k" }), map.Reset());
+        Assert.Equal(SettingsMap.From(new Dictionary<string, string> { ["SomethingNewer"] = "ctrl+k" }), map.Reset());
     }
 
     [Fact]

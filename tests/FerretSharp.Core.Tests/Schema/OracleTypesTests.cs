@@ -8,6 +8,22 @@ public sealed class OracleTypesTests
     private static ColumnInfo Column(string type, int? length = null, bool charSemantics = false, int? precision = null, int? scale = null) =>
         new("C", type, length, charSemantics, precision, scale, true, false, null, 1);
 
+    /// <summary>R6b (review 3.40.0, B11): the last type decisions outside <see cref="OracleTypes"/> moved in.</summary>
+    [Theory]
+    [InlineData("NUMBER", true, false, false)]
+    [InlineData("INTEGER", false, false, false)]
+    [InlineData("FLOAT", false, true, false)]
+    [InlineData("BINARY_FLOAT", false, true, false)]
+    [InlineData("BINARY_DOUBLE", false, true, false)]
+    [InlineData("RAW", false, false, true)]
+    [InlineData("LONG RAW", false, false, false)]
+    public void Number_floating_point_and_raw(string type, bool number, bool floating, bool raw)
+    {
+        Assert.Equal(number, OracleTypes.IsNumber(type));
+        Assert.Equal(floating, OracleTypes.IsFloatingPoint(type));
+        Assert.Equal(raw, OracleTypes.IsRaw(type));
+    }
+
     /// <summary>Display and DDL differ only in BYTE: shown it is the usual default, in DDL it is always stated.</summary>
     [Theory]
     [InlineData("VARCHAR2", 50, true, null, null, "VARCHAR2(50 CHAR)", "VARCHAR2(50 CHAR)")]
@@ -90,7 +106,7 @@ public sealed class OracleTypesTests
     [InlineData("VARCHAR2(20 BYTE)", "VARCHAR2(50 BYTE)", ColumnTypeChange.Free)]
     [InlineData("VARCHAR2(20 BYTE)", "VARCHAR2(20 CHAR)", ColumnTypeChange.Free)]
     [InlineData("VARCHAR2(20 BYTE)", "NVARCHAR2(20)", ColumnTypeChange.Free)]
-    [InlineData("VARCHAR2(20 BYTE)", "CHAR(20 BYTE)", ColumnTypeChange.Free)]
+    [InlineData("VARCHAR2(20 BYTE)", "CHAR(20 BYTE)", ColumnTypeChange.ChangesValues)] // padded with blanks (review 3.40.0, A9)
     [InlineData("CHAR(1 BYTE)", "VARCHAR2(1 BYTE)", ColumnTypeChange.Free)]
     [InlineData("VARCHAR2(20 BYTE)", "VARCHAR2(10 BYTE)", ColumnTypeChange.MayFailOnValues)] // ORA-01441 only if a value is longer
     [InlineData("VARCHAR2(20 CHAR)", "VARCHAR2(20 BYTE)", ColumnTypeChange.MayFailOnValues)]
@@ -113,13 +129,39 @@ public sealed class OracleTypesTests
     [InlineData("FLOAT", "NUMBER(10,2)", ColumnTypeChange.NeedsEmptyColumn)]
     [InlineData("DATE", "TIMESTAMP(6)", ColumnTypeChange.Free)]
     [InlineData("DATE", "TIMESTAMP(3)", ColumnTypeChange.Free)]
-    [InlineData("TIMESTAMP(6)", "DATE", ColumnTypeChange.Free)]
+    [InlineData("TIMESTAMP(6)", "DATE", ColumnTypeChange.ChangesValues)] // the fractional seconds go (review 3.40.0, A9)
+    [InlineData("TIMESTAMP(0)", "DATE", ColumnTypeChange.Free)]
     [InlineData("TIMESTAMP(3)", "TIMESTAMP(6)", ColumnTypeChange.Free)]
     [InlineData("TIMESTAMP(6)", "TIMESTAMP(3)", ColumnTypeChange.NeedsEmptyColumn)] // ORA-30082
     [InlineData("TIMESTAMP(6)", "TIMESTAMP(6) WITH TIME ZONE", ColumnTypeChange.NeedsEmptyColumn)] // ORA-01439
     [InlineData("TIMESTAMP(6) WITH TIME ZONE", "TIMESTAMP(6)", ColumnTypeChange.NeedsEmptyColumn)]
     public void Type_changes_as_oracle_takes_them_with_data(string from, string to, ColumnTypeChange change) =>
         Assert.Equal(change, OracleTypes.ChangeOf(Parse(from), Parse(to)));
+
+    /// <summary>
+    /// WP-51: an INSERT is not a MODIFY – date and time types take each other's values always (Oracle converts), whole if the
+    /// column has the fractional digits and the time zone; other types keep every value only where MODIFY works with data.
+    /// </summary>
+    [Theory]
+    [InlineData("TIMESTAMP(6) WITH TIME ZONE", "DATE", ValueFit.Full)] // the audit template case: MODIFY would need an empty column
+    [InlineData("TIMESTAMP(6) WITH TIME ZONE", "TIMESTAMP(6) WITH LOCAL TIME ZONE", ValueFit.Full)]
+    [InlineData("TIMESTAMP(6) WITH LOCAL TIME ZONE", "TIMESTAMP(6)", ValueFit.Full)]
+    [InlineData("TIMESTAMP(6)", "DATE", ValueFit.Full)]
+    [InlineData("TIMESTAMP(9)", "TIMESTAMP(6)", ValueFit.Full)]
+    [InlineData("DATE", "TIMESTAMP(0)", ValueFit.Full)]
+    [InlineData("DATE", "TIMESTAMP(6)", ValueFit.Lossy)] // fractions cut off
+    [InlineData("DATE", "TIMESTAMP(6) WITH TIME ZONE", ValueFit.Lossy)]
+    [InlineData("TIMESTAMP(6)", "TIMESTAMP(6) WITH TIME ZONE", ValueFit.Lossy)] // the offset is lost
+    [InlineData("TIMESTAMP(6) WITH LOCAL TIME ZONE", "TIMESTAMP(6) WITH TIME ZONE", ValueFit.Lossy)]
+    [InlineData("TIMESTAMP(3)", "TIMESTAMP(6)", ValueFit.Lossy)]
+    [InlineData("VARCHAR2(50 BYTE)", "VARCHAR2(20 BYTE)", ValueFit.Full)]
+    [InlineData("VARCHAR2(20 BYTE)", "VARCHAR2(50 BYTE)", ValueFit.None)]
+    [InlineData("NUMBER(12)", "NUMBER(10)", ValueFit.Full)]
+    [InlineData("NUMBER(10)", "NUMBER(12,2)", ValueFit.None)]
+    [InlineData("VARCHAR2(30 BYTE)", "NUMBER(10)", ValueFit.None)]
+    [InlineData("DATE", "VARCHAR2(30 BYTE)", ValueFit.None)]
+    public void Values_fit_a_column_as_an_insert_stores_them(string column, string value, ValueFit fit) =>
+        Assert.Equal(fit, OracleTypes.FitOf(Parse(column), Parse(value)));
 
     /// <summary>A type as written in DDL reads into the facets the dictionary shows after CREATE TABLE; DDL writes it back.</summary>
     [Theory]

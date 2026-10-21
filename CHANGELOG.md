@@ -5,8 +5,188 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- "Usage" view, "Columns" sub-tab: a filter "All · Read · Write" beside the sub-tabs, and the uses column split into "R" (reads, LINQ included) and "W" (writes), each with those in tests in brackets. With "Read" or "Write" only columns with such a use are listed, and only those uses when expanded; mapping code is neither and shows under "All" only. The filter stays while the tab is open.
+
 ### Changed
+- Code usage: the property an `ExecuteUpdate` sets (`s.SetProperty(c => c.Email, …)`, EF Core 7–9) counts as a write, no longer as a LINQ read; the value expression still reads. The index reads every assembly once more after the update (new cache format).
 - The log tells more when FerretSharp seems to stop after sleep: when opening a session ended and after how long (measured apart from the UI thread), and who closed the main window (the user, the app, after the question about uncommitted changes) or that Windows ended the session.
+
+### Fixed
+- "Usage" view: a foreign key column used only through its navigation (`order.Customer`, `customer.Orders`) listed only its mapping code, although it was not marked unused. The column now lists the uses of its navigations too, marked "via navigation Order.Customer", and counts them; a shadow foreign key shows them as well. The "Queries" sub-tab lists the navigations that load the table's rows ("Through navigations", counted in the header). Dropping such a column in the designer names the navigations: the build does not break over them, their queries fail at run time.
+
+## [3.43.0] - 2026-10-20
+
+Usage in the code: where the C# solution reads, writes and queries each column, with a jump into Visual Studio, and a work clone per connection group.
+
+### Added
+- Usage in the code (WP-40): a table tab of a connection with a linked C# project has a "Usage" view. It has two sub-tabs: "Columns" lists, per column, the methods of the solution that read or write its property or use it in LINQ, and "Queries" where code queries the table (`Set<T>()`, the DbSet property) – with file and line, and the number of unused columns and of queries in the tab headers – read from the compiled code and its PDBs, so build first. Uses through a base class or an interface count, mapping code (`IEntityTypeConfiguration`, `OnModelCreating`) and test projects are shown apart. A click opens the place in Visual Studio – in the instance that has the solution open, at the line –, in VS Code or in the Windows default program (Settings › C# model › "Open code in"); the menu copies path, path:line or the name. Accesses by string, reflection and raw SQL are not found.
+- Unused properties: the columns view marks mapped properties no code uses outside tests and mapping code, the model page lists them all ("Unused in the code"). Keys and shadow properties are never marked; a foreign key also counts as used through its navigations.
+- The table designer warns before dropping or renaming a column the code uses, with the first places, also in the confirmation.
+- Work clone: the clone you develop in, per connection group, chosen in the status bar ("⎇ folder (branch)") or with "Switch work clone" in the command palette (no default key). Uses open there, at the same path as in the connection's linked clone, and the status bar says when a clone does not contain the connection's project. Several solutions containing the linked project: the "Usage" view lets you choose, per connection.
+
+## [3.42.0] - 2026-10-19
+
+Quick open and command palette, export of all rows of a filter in the background, and jumps through base tables.
+
+### Added
+- Jumps through base tables: when a table extends another one over the same primary key (table per type, e.g. `PKW` extends `FAHRZEUG` over `FAHRZEUG_ID`), what references the base table now shows for the extension's rows as well – in the cell menu, the menu of a query result and the form, as a group of its own ("Referenced via FAHRZEUG"), with counts and the jump as usual. The other extension tables of the same base are left out. Relationships of the C# model count too. Connecting reads the primary keys of all tables for it (one more query per schema).
+- Quick open and command palette (WP-38): one box at the top of the window, opened with the magnifier in the top bar or a shortcut of your choice (Settings › Shortcuts: “Go to table, view or PL/SQL” and “Command palette”, no default key). Type a name to find tables, views and PL/SQL of the shown connection – also by C# entity name, when C# names are shown – and press Enter to open it; the typed words are marked in the hits, and an empty box lists the open tabs. Type “>” first to search the actions with their shortcuts; actions that would do nothing right now are greyed out with the reason (no tab open, the workspace is read-only …). A shortcut and its entry in the palette follow the same rule.
+
+  ![Quick open: typing “kunde” finds the table KUNDEN with its entity name Kunde, the view V_KUNDEN_AUFTRAEGE and the function KUNDE_UMSATZ, the typed word marked.](docs/images/changelog/3.42.0-quick-open.png)
+
+  ![Command palette: the actions with their shortcuts, those that would do nothing right now greyed out with the reason.](docs/images/changelog/3.42.0-command-palette.png)
+
+- Export all rows of a filter (WP-54): the cell menu of a table has "All rows of the filter" with CSV and Excel – not only the selected rows the grid has loaded, but every row that the filters and sort order of the tab return. The SQL editor offers the same for all rows of a result ("All rows of the result"; the query runs again). The rows are read again in the workspace's session, block by block: written changes are included, pending ones are not, and the workspace waits until the export ends. In Excel files, the names beside foreign keys (display columns) are looked up for every row. LOBs are exported as before, as a preview with a warning.
+
+### Changed
+- Saving rows as a file asks where first and then writes the file in the background (review 3.40.0, A13): the status bar shows the file with the rows written so far and a "Cancel" button, also while another tab or connection is shown. A cancelled or failed export leaves no half-written file, and a file chosen to be replaced stays as it was. Before, the file was built in the window's thread before the dialog opened, without a way to cancel.
+- Excel export: the column widths come from the first 1,000 rows.
+- Connecting reads the foreign keys of a schema in far fewer round trips (larger fetch size): noticeable over a slow VPN with many relationships.
+
+### Fixed
+- Connection dialog: with a linked C# project, "Test" showed neither the spinner nor "Cancel test" while the connection was tested, and a second click started a second test that ended in an error in the log (`NullReferenceException`, since 3.40.1). The spinner now shows at once, and only one test runs at a time. "Save" is disabled as soon as it is clicked, also while the project is checked.
+
+## [3.41.0] - 2026-10-17
+
+Structure after the review of the whole code (R6b): sorted folders, shared building blocks, stronger tests – no new features.
+
+### Changed
+- The open changes count the other workspaces' writes as such ("0 pending · 1 action open") – the number counts write actions, not rows.
+- Excel export: infinity is written as in the CSV export.
+- The installation is smaller: the model host no longer brings the language files of 13 cultures the app never shows.
+- Under the hood: the UI's components and state and parts of the core are sorted into folders by area, the settings page is built from sections, menus, the export entries of the cell and result menus and grid editing are shared building blocks, and the tests check more against Oracle (filter groups through EF Core, progress of running statements). Details: `docs/work-packages/r6b-review-3.40.md`.
+
+## [3.40.1] - 2026-10-17
+
+Fixes from a second review of the whole code (R6a).
+
+### Security
+- Commit and rollback wait for a running statement of the workspace: an UPDATE of the SQL editor waiting for a lock was committed unseen together with a confirmed Prod commit (or taken back unseen by a rollback). Commit and Rollback are disabled meanwhile and say why; a statement started while a commit runs is refused.
+- A connection imported from a file can no longer redirect the login: a host, service name or SID with `(`, `)` or `=` added an address of its own to the connect descriptor, and Oracle could fail over to it with the saved password. Such values are refused when saving and importing, and for connections saved before when connecting.
+- The error dialog hides the bind values of a Prod statement also while another connection is shown, and neither shows nor copies passwords (`IDENTIFIED BY …`). On Prod the log also leaves out the text literals of a statement; the SQL history keeps them.
+- `DROP TABLE … PURGE` and `DROP USER … CASCADE` are refused like `TRUNCATE`; a plain `DROP TABLE` stays possible (the recycle bin keeps it).
+- Model host, LINQ console and builds end with FerretSharp, also after a crash.
+- The app page has a content security policy, and the release workflow runs one release at a time with its actions pinned.
+
+### Fixed
+- A write or commit that hangs on a silent network (VPN) can be given up: after a few seconds the status bar offers "Disconnect session…", and the dialog before disconnecting or closing offers it too – its Cancel and Escape always work now.
+- "Cancel" of a running statement and "Disconnect session" no longer freeze the window when the network does not answer; the keep-alive goes on with the other connections when one of them hangs.
+- A connection lost while committing says that the outcome is unknown, instead of showing the changes as not written: check before writing them again.
+- A tab on a table of another schema (opened by a foreign key jump) stayed open after DDL or "Reload schema" and is restored at the next start; a tab with changes is never closed by a schema refresh.
+- Changing a column from `TIMESTAMP` to `DATE` (which cuts the fractional seconds) or from `VARCHAR2` to `CHAR` (which pads the values) warns in the table designer and the schema comparison.
+- Running statements: only real lock waits are shown as locks (not log file sync or buffer waits), the progress bar belongs to the running statement, and the lock conflict dialog no longer names the waiting workspace itself.
+- The SQL editor fetches only the preview of LOB columns – pages of results with large CLOBs load much faster, also further down.
+- A table over a database link (`kunden@prod`) no longer offers foreign key jumps to this database's rows.
+- Links: a link cut off on the way (a mail in plain text, a ticket field) is reported as incomplete instead of opening other rows; a new link waits until the open one is answered.
+- The connection dialog checks typed paths in the background – typing a path on a share no longer stutters at every key.
+- "Open in SQL editor" for a connection that is not connected no longer opens hours later after a cancelled password or a failed connect.
+- Dialogs keep the focus: Tab no longer reaches the buttons behind them. The workspace menus stay inside the window and close with Escape.
+- Smaller ones: "contains" on an NCLOB column finds characters outside the database character set, one rule for pasted paths in quotes, the preset tooltip shows C# enum names like the tab header, `UPDATE`, `INSERT` and `ALTER` are highlighted in the change overview, a saved comparison never replaces the others after a read that failed, errors in the editor's completion and in result pages are reported instead of lost, and a link pipe taken by another user no longer fills the log.
+
+## [3.40.0] - 2026-10-17
+
+Save rows as an Excel file.
+
+### Added
+- Save as Excel file: the cell menu of table grids and of results in the SQL editor and the LINQ console saves the selected rows as an `.xlsx` file. Numbers, dates and true/false go in as real Excel values (no more decimal comma guessing as with CSV), text stays text (a value starting with `=` is not run as a formula), and NULL is an empty cell. The header row is bold and frozen, has a filter, and columns are as wide as their content. Labels and values are as in the grid: C# names, enum members, and the names of display columns in a column next to the foreign key. If the grid shows any of these, a second entry "(database names, raw values)" saves the columns as the database has them. Values Excel would change are saved as text: numbers with more than 15 significant digits, timestamps finer than milliseconds, dates before 1 March 1900, and values with a time zone. Texts longer than an Excel cell holds (32,767 characters) are shortened, with a warning.
+
+## [3.39.0] - 2026-10-17
+
+See what a running statement waits for.
+
+### Added
+- Running statements say what they wait for. After three seconds, the run panel of the SQL editor, the LINQ console and the table designer shows when the statement waits for a lock: on which table and held by whom – "your workspace “Bug 3711”" with a button to go there and commit or roll back, or another session with user, machine and program. Long operations Oracle reports (full table scans, hash joins, sorts) show as a progress bar with Oracle's estimate of the time left. This needs read access to `V$SESSION` and `V$SESSION_LONGOPS` (`SELECT_CATALOG_ROLE` or grants). Without it, a writing statement names the other workspaces with uncommitted changes instead.
+- Lock conflict dialog: a session of one of your own workspaces is named as such, also in another open connection.
+
+## [3.38.0] - 2026-10-17
+
+An audit template for each connection group and connection.
+
+### Added
+- Audit tables: each connection group can have its own audit template (Settings › Audit tables), and a single connection its own (connection dialog). The connection's template goes first, then its group's, then the one for all connections, then the built-in one. A template file that is missing or broken is reported, not passed over. A group no connection has any more keeps its entry until you remove it. The tooltip of the audit line names the template that applies.
+
+### Changed
+- Filter bar: "+ Group" sits next to "Presets" instead of in a line of its own below the filter rows. The area to drop a row out of its group shows only while you drag one. In a narrow window the buttons move to a line of their own instead of covering a group.
+
+### Fixed
+- Table designer: an audit column of another template no longer blocks bringing the audit table up to date. An `AUDIT_TIME` of type `TIMESTAMP WITH TIME ZONE` against `DATE` in the template is a warning now (the audit table probably comes from another template), and date and time columns that take the values only with a loss of fractions or time zone are a warning too. Messages say whether the type comes from the template or the table – before, they always said "of the table".
+
+## [3.37.0] - 2026-10-16
+
+Combine filter rows with OR and NOT.
+
+### Added
+- Filter groups: combine filter rows with OR or NOT. "+ Group" in the filter bar adds an OR group (at least one row applies) or a NOT group (none applies); groups combine with each other and the other rows by AND. Move a row into a group or out of it from its "⋯" menu or by dragging its grip; the ✕ of a group ends it and keeps its rows. NOT treats NULL as C# does: `!(x.Kbez == "NA")` keeps the rows where KBEZ is NULL, and so does the grid. The SQL preview, the LINQ export, presets, links and the tab title carry the groups; a link with groups needs FerretSharp 3.37.0 or newer to open.
+
+### Fixed
+- Explorer: the "+" (new table) and the reload button sit at the same height – the "+" is an icon now, and icons in icon buttons no longer ride up on the text baseline.
+
+## [3.36.0] - 2026-10-15
+
+Jump along foreign keys from the results of the SQL editor and the LINQ console.
+
+### Added
+- SQL editor and LINQ console: the result knows where its columns come from ([#14](https://github.com/JuliusFo/FerretSharp/issues/14)). Right-click a row to jump along foreign keys as in a table – "Points to" from FK columns, "Referenced by" when the table's key is in the result, from several selected rows too, relationships of the C# model included. Columns read from a table show its C# name and type, enum members by name and the FK badge; the header tooltip names the table column. Works with the quoted aliases EF Core writes (`"a"`, `"k"`) and through synonyms. Columns from expressions, `WITH`, `UNION` and inline views have no origin and stay as they are.
+
+### Fixed
+- SQL editor completion: when a private and a public synonym share a name but lead to different objects, the columns of the private one are offered – the one Oracle uses – instead of whichever came first alphabetically.
+
+## [3.35.4] - 2026-10-15
+
+Open a link on the connection you choose.
+
+### Added
+- Links: choose the connection a link opens on. When none of your connections fits a link – a colleague's connection under another name and address – the dialog lists your connections to pick from, with a search and suggestions first (connections that fit, then those reading the link's schema). When one fits, "Change…" opens it elsewhere, e.g. in another environment of the same application. Nothing is picked for you, and the dialog says when a link opens on another connection than the one it points at.
+
+## [3.35.3] - 2026-10-15
+
+A steadier table designer: the right CHAR box, a header that stays, room for comments.
+
+### Fixed
+- Table designer: the CHAR box of a column whose type has no length semantics (NUMBER, DATE …) showed the choice of a text column, ticked and greyed out. It is now clear for such types and ticked for NVARCHAR2/NCHAR, which always count characters; switching back to VARCHAR2 or CHAR brings the choice back.
+- The header of the column list stays in sight while you scroll through a table with many columns – in the Columns view and in the designer, and also in the lists of constraints and indexes.
+- Comments get more room: the column list and the designer use up to 1600 px instead of 1100 px, a comment column is at least 280 px wide, and in the designer the comment field takes the room the other fields leave.
+
+## [3.35.2] - 2026-10-15
+
+See at a glance which group a connection belongs to.
+
+### Added
+- A connection's group in front of its name (`Kunde A › DEV`) wherever the group heading is not in sight: the connection switcher button, its "Open" and "Recent" rows, the status bar, the password prompt, the confirmations before running on production, DDL, unlocking and redo, the link dialog and the app statements page. Helps when several groups have a DEV, TEST or PROD. A long group is cut, the name stays readable. On by default; Settings › Appearance › "Group before the connection name" turns it off. Typing the name to unlock production stays the bare name.
+
+## [3.35.1] - 2026-10-15
+
+Links you can click in Teams and Azure DevOps.
+
+### Changed
+- Links (WP-37) are copied as https addresses, so Teams, Azure DevOps and other chats and tickets make them clickable: `https://juliusfo.github.io/FerretSharp/open/#…` opens a small page that hands the link to FerretSharp, which still asks before it opens anything. Everything after `#` stays in your browser – it is never sent to a server. `ferretsharp://` links keep working.
+
+## [3.35.0] - 2026-10-15
+
+Filter presets and links: name the filters you use again and again, and send a table view to a colleague as a link.
+
+### Added
+- Filter presets (WP-37): save the filter rows of a table, and optionally its sort order, under a name such as "Open orders" and apply them again from "Presets ▾" in the filter bar. A preset belongs to the table name, so it works on every connection (Test and Prod have the same schema). A click replaces the filter rows, "+" adds the preset's rows to the current ones; presets can be renamed and deleted. Rows on columns a table does not have come disabled, with a note. The button names the preset applied last and says "changed" once the filter rows or its sort order differ from it; its menu then offers to go back to the preset or to save the current rows into it.
+- Links to a table view (WP-37): "Copy link" in the tab menu, and in the grid menu for the view or the selected rows, puts a `ferretsharp://` link on the clipboard – table, filters, sort order and view, never SQL. A click on such a link, from a colleague or in a ticket, opens the table in a new tab of the connection's last active workspace, after asking: FerretSharp shows what the link opens and on which connection, connects first if needed, and lets you choose when several connections fit – and warns when a connection was found by name only while the link points at another address. Filters and a sort order on columns the table does not have (another version of the schema) come disabled or are left out, as with presets. A link to selected rows filters on their primary key. On production, copying a link with filter values says which values it contains. Installing FerretSharp registers `ferretsharp://` for your Windows user, and so does this update unless another copy of FerretSharp is registered; a portable copy or your own build does so in Settings › Connection › "Links (ferretsharp://)". Links are never written to the log.
+
+## [3.34.1] - 2026-10-14
+
+Up-to-date libraries: the data grid moves to AG Grid 36.
+
+### Changed
+- The data grid uses AG Grid Community 36.2.0 (before: 34.3.1, without fixes since 2025). It looks and behaves as before; an empty result still shows only "0 rows" in the footer, no extra "No Rows" message.
+- Updated libraries: ASP.NET Core components and hosting 10.0.13, Windows Credential Manager access 3.0.5.
+
+## [3.34.0] - 2026-10-14
+
+The update dialog shows what is new in every version you skip, and release notes can show images.
+
+### Added
+- Release notes can contain images (WP-49): the update dialog shows them from this repository on GitHub, below the point they belong to; a click opens one in the browser. Offline, or from anywhere else, the dialog shows the image's description instead. Like the notes of every version, this takes effect from the update after this release.
+
+### Changed
+- The update dialog shows the notes of every version between yours and the new one, newest first under its version, instead of the new version's only. This takes effect from the update after this release, as the dialog belongs to the installed version. Where the versions between are not known (the portable zip, or a release without a delta package), it shows the new version's notes and says so.
 
 ### Fixed
 - App statements: "Clear" was only offered while the trace was running; once the app has ended or was detached, the recording can now be cleared as well.

@@ -24,9 +24,6 @@
   <data name="InvalidFile" xml:space="preserve">
     <value>{0} ist keine gültige Datei mit Schema-Vergleichen: {1}</value>
   </data>
-  <data name="FileFromNewerVersionNotOverwritten" xml:space="preserve">
-    <value>{0} stammt aus einer neueren FerretSharp-Version (Format {1}). Sie wird nicht überschrieben.</value>
-  </data>
   <data name="ExportObject" xml:space="preserve">
     <value>Objekt</value>
   </data>
@@ -227,5 +224,11 @@
   </data>
   <data name="DropCheck" xml:space="preserve">
     <value>Löscht die Prüfung.</value>
+  </data>
+  <data name="CutsFractionalSeconds" xml:space="preserve">
+    <value>Läuft mit Daten durch, aber die Werte verlieren ihre Sekundenbruchteile.</value>
+  </data>
+  <data name="PadsWithBlanks" xml:space="preserve">
+    <value>Läuft mit Daten durch, aber jeder Wert wird mit Leerzeichen auf die volle Länge aufgefüllt – Vergleiche mit VARCHAR2-Werten treffen danach womöglich nicht mehr.</value>
   </data>
 </root>

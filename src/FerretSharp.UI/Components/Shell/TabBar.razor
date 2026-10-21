@@ -1,0 +1,341 @@
+@* The tabs of the active workspace (R2, out of Shell.razor): table tabs with their filters and change dot, PL/SQL tabs, SQL and LINQ
+   tabs that can be renamed, and the buttons for new SQL/LINQ tabs. *@
+@using FerretSharp.Core.ClrModel
+@implements IAsyncDisposable
+@inject ShortcutService Shortcuts
+@inject IJSRuntime JS
+@inject ConnectionHub Hub
+
+<nav class="tabs" @ref="_bar">
+    @if (Shell.Tabs.Any(t => t.Pinned))
+    {
+        @* WP-34: the pinned tabs stay at the left while the bar scrolls. *@
+        <div class="tabs-pinned">
+            @foreach (var tab in Shell.Tabs.Where(t => t.Pinned))
+            {
+                @TabItem(tab)
+            }
+        </div>
+    }
+    @foreach (var tab in Shell.Tabs.Where(t => !t.Pinned))
+    {
+        @TabItem(tab)
+    }
+    <button class="tab-new" title="@TextFormat.Format(ShellText.TabBar_NewSqlTitle, Shortcuts.Hint(ShortcutAction.NewSql))"
+            @onclick="() => Shell.OpenSql()">+ SQL</button>
+    @if (Models.State.Link is not null)
+    {
+        <button class="tab-new" title="@TextFormat.Format(ShellText.TabBar_NewLinqTitle, Shortcuts.Hint(ShortcutAction.NewLinq))"
+                @onclick="() => Shell.OpenLinq()">+ LINQ</button>
+    }
+</nav>
+
+@if (_menu is { } menu && Shell.Tabs.Contains(menu.Tab))
+{
+    var index = Shell.Tabs.ToList().IndexOf(menu.Tab);
+    <PopoverMenu X="menu.X" Y="menu.Y" ViewportWidth="menu.ViewportWidth" ViewportHeight="menu.ViewportHeight" Width="250" EstimatedHeight="140"
+                 OnClose="CloseMenu">
+        <div class="tab-menu">
+            <button class="menu-item" @onclick="TogglePinFromMenu">
+                @(menu.Tab.Pinned ? ShellText.TabMenu_Unpin : ShellText.TabMenu_Pin) <Kbd Action="ShortcutAction.PinTab" />
+            </button>
+            @if (menu.Tab is TableTab)
+            {
+                <button class="menu-item" title="@ShellText.TabMenu_CopyLinkTitle" @onclick="CopyLinkFromMenuAsync">@ShellText.TabMenu_CopyLink</button>
+            }
+            <div class="menu-sep"></div>
+            <button class="menu-item" @onclick="() => CloseFromMenu(TabCloseScope.This)">@CommonText.Close <Kbd Action="ShortcutAction.CloseTab" /></button>
+            @* Pinned tabs stay open (WP-34): a scope that would close nothing is disabled. *@
+            <button class="menu-item" disabled="@(!Shell.Tabs.Any(t => t != menu.Tab && !t.Pinned))" @onclick="() => CloseFromMenu(TabCloseScope.Others)">
+                @ShellText.TabMenu_CloseOthers <Kbd Action="ShortcutAction.CloseOtherTabs" />
+            </button>
+            <button class="menu-item" disabled="@(!Shell.Tabs.Skip(index + 1).Any(t => !t.Pinned))" @onclick="() => CloseFromMenu(TabCloseScope.ToTheRight)">
+                @ShellText.TabMenu_CloseToTheRight
+            </button>
+            <div class="menu-sep"></div>
+            <button class="menu-item" disabled="@(!Shell.Tabs.Any(t => !t.Pinned))" @onclick="() => CloseFromMenu(TabCloseScope.All)">
+                @ShellText.TabMenu_CloseAll <Kbd Action="ShortcutAction.CloseAllTabs" />
+            </button>
+        </div>
+    </PopoverMenu>
+}
+
+@code {
+    private string? Tooltip(WorkspaceTab tab) => tab switch
+        {
+            TableTab table => TabTooltip(table),
+            PlSqlTab plSql => TextFormat.Format(ShellText.TabBar_PlSqlTitle, ExplorerList.KindLabel(plSql.Unit.Kind), plSql.Unit.Owner, plSql.Unit.Name),
+            NewTableTab => ShellText.TabBar_NewTableTitle,
+            _ when _renaming == tab => null,
+            LinqTab => WithTitle(tab, ShellText.TabBar_LinqTitle),
+            _ => WithTitle(tab, ShellText.TabBar_SqlTitle),
+        };
+
+    /// <summary>One tab, in the pinned group or after it.</summary>
+    private RenderFragment TabItem(WorkspaceTab tab) =>
+        @<div class="tab @KindClass(tab) @(tab == Shell.ActiveTab ? "active" : "") @(tab.Pinned ? "pinned" : "")" title="@Tooltip(tab)"
+             @onclick="e => OnClick(e, tab)" @onmouseup="e => CloseOnMiddleClick(e, tab)"
+             @oncontextmenu="e => OpenMenuAsync(e, tab)" @oncontextmenu:preventDefault="true">
+            @switch (tab)
+            {
+                case TableTab table:
+                    @Icons.For(table.Table.Kind)
+                    <span class="tab-name">@tab.Caption</span>
+                    @if (table.Changes is { HasChanges: true } changes)
+                    {
+                        <span class="dot @(changes.PendingCount > 0 ? "pending" : "flushed")"
+                              title="@TextFormat.Format(ShellText.Changes_PendingWritten, changes.PendingCount, changes.FlushedCount)"></span>
+                    }
+                    @if (FilterSummaryOf(table) is { } summary)
+                    {
+                        <span class="tab-filter">@summary</span>
+                    }
+                    else if (table.ActiveFilterCount > 0)
+                    {
+                        <span class="filter-pill">@TextFormat.Plural(table.ActiveFilterCount, ShellText.TabBar_FiltersOne, ShellText.TabBar_FiltersOther)</span>
+                    }
+                    break;
+                case NewTableTab draft:
+                    @Icons.For(FerretSharp.Core.Schema.TableKind.Table)
+                    <span class="tab-name">@tab.Caption</span>
+                    <span class="filter-pill">@ShellText.TabBar_NewTableBadge</span>
+                    break;
+                case PlSqlTab plSql:
+                    @Icons.For(plSql.Unit.Kind)
+                    <span class="tab-name">@tab.Caption</span>
+                    @if (plSql.Unit.IsInvalid)
+                    {
+                        <span class="dot err" title="@ShellText.TabBar_Invalid"></span>
+                    }
+                    break;
+                case ITitledTab titled:
+                    @(tab is LinqTab ? Icons.Code : Icons.Database)
+                    @if (_renaming == tab)
+                    {
+                        <TitleEditor Value="@titled.Title" Class="tab-rename" OnCommit="name => Rename(tab, name)" OnCancel="() => _renaming = null" />
+                    }
+                    else
+                    {
+                        <span class="tab-name">@tab.Caption</span>
+                    }
+                    break;
+            }
+            @if (tab.Pinned)
+            {
+                @* WP-34: a pinned tab shows its pin where others have ✕; a click unpins it (closing stays in the menu and the shortcut). *@
+                <button class="tab-close tab-pin" title="@ShellText.TabBar_UnpinTitle"
+                        @onmousedown:preventDefault="true" @onclick:stopPropagation="true" @onclick="() => Shell.SetPinned(tab, false)">@Icons.Pin</button>
+            }
+            else
+            {
+                <button class="tab-close" title="@TextFormat.Format(ShellText.TabBar_CloseTitle, Shortcuts.Hint(ShortcutAction.CloseTab))"
+                        @onmousedown:preventDefault="true" @onclick:stopPropagation="true" @onclick="() => CloseAsync(tab)">✕</button>
+            }
+        </div>;
+
+    [CascadingParameter]
+    public PresentationService Presentations { get; set; } = null!;
+
+    [CascadingParameter]
+    public ClrModelManager Models { get; set; } = null!;
+
+    /// <summary>The SQL or LINQ tab whose title is being edited.</summary>
+    private WorkspaceTab? _renaming;
+
+    /// <summary>shortcuts.js, imported on the first close of a table tab (is a grid cell being edited?).</summary>
+    private JsModule? _shortcuts;
+
+    private bool _disposed;
+
+    private ElementReference _bar;
+
+    /// <summary>A pinned SQL or LINQ tab may show a shortened name (WP-34): the tooltip has the full one.</summary>
+    private static string WithTitle(WorkspaceTab tab, string text) =>
+        tab.Pinned && tab is ITitledTab titled ? titled.Title + Environment.NewLine + text : text;
+
+    /// <summary>A full bar narrows the pinned tabs (WP-34, class <c>crowded</c>): dom.js watches whether the tabs still fit.</summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Dom.InvokeVoidAsync("watchOverflow", _bar, "crowded");
+        }
+    }
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    /// <summary>A parameter (not only cascaded), so the bar renders again whenever the shell does.</summary>
+    [Parameter, EditorRequired]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
+    private static string KindClass(WorkspaceTab tab) => tab switch
+    {
+        LinqTab => "linq",
+        SqlTab => "sql",
+        PlSqlTab => "plsql",
+        _ => "",
+    };
+
+    /// <summary>
+    /// Double click renames a SQL or LINQ tab. Not via @@ondblclick: in the WPF host a real double click never fires it
+    /// (see .claude/rules/ui.md, like the workspace chips).
+    /// </summary>
+    private void OnClick(MouseEventArgs e, WorkspaceTab tab)
+    {
+        Shell.ActivateTab(tab);
+        if (tab is ITitledTab && e.Detail >= 2)
+        {
+            _renaming = tab;
+        }
+    }
+
+    private void Rename(WorkspaceTab tab, string name)
+    {
+        _renaming = null;
+        if (tab is ITitledTab titled)
+        {
+            Shell.RenameTab(titled, name);
+        }
+    }
+
+    /// <summary>The tab whose right-click menu is open, with the mouse position and window size.</summary>
+    private sealed record TabMenuRequest(WorkspaceTab Tab, double X, double Y, double ViewportWidth, double ViewportHeight);
+
+    private TabMenuRequest? _menu;
+
+    private DomModule? _dom;
+
+    private DomModule Dom => _dom ??= new(JS);
+
+    /// <summary>Right click: the menu opens at the mouse; the tab is not activated (it acts on the tab, not on what is shown).</summary>
+    private async Task OpenMenuAsync(MouseEventArgs e, WorkspaceTab tab)
+    {
+        var size = await Dom.InvokeAsync<double[]>("viewportSize");
+        if (_disposed || size is not [var width, var height])
+        {
+            return;
+        }
+
+        _menu = new TabMenuRequest(tab, e.ClientX, e.ClientY, width, height);
+    }
+
+    private void CloseMenu() => _menu = null;
+
+    /// <summary>
+    /// The menu took the focus when it opened, so a grid cell being edited has ended its input by now: the value is a
+    /// pending change and asked about like one.
+    /// </summary>
+    private void CloseFromMenu(TabCloseScope scope)
+    {
+        if (_menu is not { } menu)
+        {
+            return;
+        }
+
+        _menu = null;
+        Lifecycle.CloseTabs(menu.Tab, scope);
+    }
+
+    /// <summary>The link to the tab's view (WP-37): the applied filters, the sort order and the view.</summary>
+    private async Task CopyLinkFromMenuAsync()
+    {
+        if (_menu is not { Tab: TableTab tab } || Hub.OwnerOf(tab.WorkspaceId)?.Profile is not { } profile)
+        {
+            return;
+        }
+
+        _menu = null;
+        var link = Core.Links.TableLink.For(profile, tab.Table.Ref, tab.AppliedFilters, tab.Sorts, tab.Mode);
+        await LinkCopy.CopyAsync(Shell, Dom, profile, link);
+    }
+
+    private void TogglePinFromMenu()
+    {
+        if (_menu is { } menu)
+        {
+            _menu = null;
+            Shell.SetPinned(menu.Tab, !menu.Tab.Pinned);
+        }
+    }
+
+    /// <summary>A pinned tab does not close by middle click (WP-34): too easy to hit while working along the bar.</summary>
+    private async Task CloseOnMiddleClick(MouseEventArgs e, WorkspaceTab tab)
+    {
+        if (e.Button == 1 && !tab.Pinned)
+        {
+            await CloseAsync(tab);
+        }
+    }
+
+    /// <summary>
+    /// ✕ or middle click. The ✕ leaves the focus where it is (mousedown without default): a grid cell being edited would
+    /// otherwise end its input only after the click had closed the tab. So the editor is still open here, shortcuts.js
+    /// can tell, and closing asks first instead of dropping the typed value.
+    /// </summary>
+    private async Task CloseAsync(WorkspaceTab tab)
+    {
+        var cellEditing = false;
+        if (tab is TableTab && tab == Shell.ActiveTab)
+        {
+            _shortcuts ??= new JsModule(JS, "./_content/FerretSharp.UI/js/shortcuts.js");
+            cellEditing = await _shortcuts.InvokeAsync<bool>("cellEditing");
+            if (_disposed)
+            {
+                return;
+            }
+        }
+
+        Lifecycle.CloseTab(tab, cellEditing);
+    }
+
+    /// <summary>Several tabs of one table (FK jumps) are told apart by their filters.</summary>
+    private string? FilterSummaryOf(TableTab tab) =>
+        Shell.Tabs.OfType<TableTab>().Count(o => o.Table.Ref == tab.Table.Ref) > 1 ? tab.FilterSummary(presentation: PresentationOf(tab)) : null;
+
+    /// <summary>Owner.table plus the active filters, so several tabs of the same table can be told apart.</summary>
+    private string TabTooltip(TableTab tab)
+    {
+        var filters = tab.FilterTexts(PresentationOf(tab)).ToList();
+        var entity = Presentations.ShownEntityNameOf(tab.Table.Ref) is { } name ? $" · Entity {name}" : "";
+        return $"{tab.Table.Owner}.{tab.Table.Name}{entity}" + (filters.Count > 0 ? Environment.NewLine + string.Join(Environment.NewLine, filters) : "");
+    }
+
+    /// <summary>Enum and bool filter values by their C# names, once the tab knows its table's structure.</summary>
+    private TablePresentation? PresentationOf(TableTab tab) => tab.Details is { } details ? Presentations.For(details) : null;
+
+    /// <summary>The presentation subscribed to: the shown connection's, which changes on a switch.</summary>
+    private PresentationService? _presentations;
+
+    /// <summary>A new model or name setting: titles and tooltips follow (the shell no longer renders for it).</summary>
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_presentations, Presentations))
+        {
+            if (_presentations is not null)
+            {
+                _presentations.Changed -= OnPresentationChanged;
+            }
+
+            _presentations = Presentations;
+            _presentations.Changed += OnPresentationChanged;
+        }
+    }
+
+    private void OnPresentationChanged() => InvokeAsync(StateHasChanged);
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        await Dom.DisposeAsync();
+        if (_presentations is not null)
+        {
+            _presentations.Changed -= OnPresentationChanged;
+        }
+
+        if (_shortcuts is not null)
+        {
+            await _shortcuts.DisposeAsync();
+        }
+    }
+}

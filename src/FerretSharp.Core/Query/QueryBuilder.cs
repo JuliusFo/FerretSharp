@@ -72,13 +72,17 @@ public static class QueryBuilder
         _ => Projection.Value,
     };
 
-    /// <summary>Validation errors keyed by filter index; empty if every enabled filter is usable.</summary>
+    /// <summary>
+    /// Validation errors keyed by filter index; empty if every filter that filters is usable. Rows of a disabled group are
+    /// not checked, like disabled rows (WP-50).
+    /// </summary>
     public static IReadOnlyDictionary<int, string> Validate(TableDetails table, IReadOnlyList<FilterCondition> filters)
     {
         var errors = new Dictionary<int, string>();
+        var groups = FilterGroups.Of(filters);
         for (var i = 0; i < filters.Count; i++)
         {
-            if (!filters[i].Enabled)
+            if (!FilterGroups.IsActive(filters[i], groups))
             {
                 continue;
             }
@@ -95,7 +99,19 @@ public static class QueryBuilder
     }
 
     public static SelectQuery BuildSelect(
-        TableDetails table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts, PageSpec page)
+        TableDetails table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts, PageSpec page) =>
+        Select(table, filters, sorts, page);
+
+    /// <summary>
+    /// Every row of <see cref="BuildSelect(TableDetails, IReadOnlyList{FilterCondition}, IReadOnlyList{SortSpec}, PageSpec)"/>
+    /// in the same order, without paging: the export of all rows of a filter (WP-54) reads them through one cursor –
+    /// a large OFFSET gets slower page by page.
+    /// </summary>
+    public static SelectQuery BuildSelectAll(TableDetails table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts) =>
+        Select(table, filters, sorts, page: null);
+
+    private static SelectQuery Select(
+        TableDetails table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts, PageSpec? page)
     {
         var builder = new Builder(table);
         var hasRowId = table.Table.Kind != TableKind.View;
@@ -106,13 +122,15 @@ public static class QueryBuilder
             .Append("SELECT ").AppendJoin(",\n       ", select)
             .Append("\n  FROM ").Append(OracleIdentifier.Qualify(table.Table.Owner, table.Table.Name)).Append(' ').Append(Alias)
             .Append(builder.Where(filters))
-            .Append("\n ORDER BY ").AppendJoin(", ", builder.OrderBy(sorts))
-            .Append("\nOFFSET :p_offset ROWS FETCH NEXT :p_limit ROWS ONLY")
-            .ToString();
+            .Append("\n ORDER BY ").AppendJoin(", ", builder.OrderBy(sorts));
+        if (page is not null)
+        {
+            sql.Append("\nOFFSET :p_offset ROWS FETCH NEXT :p_limit ROWS ONLY");
+            builder.Parameters.Add(new QueryParameter("p_offset", page.Offset, OracleTypeHint.Number));
+            builder.Parameters.Add(new QueryParameter("p_limit", page.Limit, OracleTypeHint.Number));
+        }
 
-        builder.Parameters.Add(new QueryParameter("p_offset", page.Offset, OracleTypeHint.Number));
-        builder.Parameters.Add(new QueryParameter("p_limit", page.Limit, OracleTypeHint.Number));
-        return new SelectQuery(sql, builder.Parameters, columns, RowKeyOf(table), hasRowId);
+        return new SelectQuery(sql.ToString(), builder.Parameters, columns, RowKeyOf(table), hasRowId);
     }
 
     /// <summary>The row a ROWID points to, with the same result columns as <see cref="BuildSelect"/> (reload after INSERT).</summary>
@@ -220,9 +238,39 @@ public static class QueryBuilder
                 throw new QueryValidationException(errors);
             }
 
-            var conditions = filters.Where(f => f.Enabled).Select(Condition).ToList();
+            var conditions = FilterGroups.Terms(filters)
+                .Select(term => term.Group is { } group
+                    ? GroupCondition(group.Kind, term.Indexes.Select(i => filters[i]).ToList())
+                    : Condition(filters[term.Indexes[0]]))
+                .ToList();
             return conditions.Count == 0 ? "" : "\n WHERE " + string.Join("\n   AND ", conditions);
         }
+
+        /// <summary>
+        /// A filter group (WP-50). Each condition is a single term on its own (none ends in a bare AND or OR), so OR can
+        /// join them. "None" follows C#'s <c>!(a || b)</c>: a row whose conditions are unknown (NULL) counts as "does not
+        /// apply" and stays – <c>NOT (…)</c> would drop it. Only where the SQL of every condition is never unknown, the plain NOT.
+        /// </summary>
+        private string GroupCondition(FilterGroupKind kind, IReadOnlyList<FilterCondition> filters)
+        {
+            var any = string.Join(" OR ", filters.Select(Condition));
+            return kind switch
+            {
+                FilterGroupKind.Any => filters.Count == 1 ? any : $"({any})",
+                FilterGroupKind.None when filters.All(NeverUnknown) => $"NOT ({any})",
+                FilterGroupKind.None => $"CASE WHEN {any} THEN 1 ELSE 0 END = 0",
+                _ => throw new InvalidOperationException($"Unhandled filter group {kind}."),
+            };
+        }
+
+        /// <summary>
+        /// Whether the SQL of the condition itself is always true or false, never unknown: NULL checks, and "≠" on a
+        /// nullable column (it says <c>OR c IS NULL</c>). Not the dictionary's NOT NULL: a view over an outer join, or a
+        /// constraint ENABLE NOVALIDATE, can hold NULLs in such a column (review of WP-50).
+        /// </summary>
+        private bool NeverUnknown(FilterCondition filter) =>
+            filter.Op is FilterOperator.IsNull or FilterOperator.IsNotNull
+            || filter.Op == FilterOperator.NotEquals && table.Columns.First(c => c.Name == filter.Column).Nullable;
 
         public IEnumerable<string> OrderBy(IReadOnlyList<SortSpec> sorts)
         {
@@ -346,7 +394,7 @@ public static class QueryBuilder
                 case FilterOperator.Between:
                     var to = ParseDate(filter.Values[1]);
                     return to.DateOnly
-                        ? $"{c} >= {Add(column, first.Value)} AND {c} < {Add(column, to.Value.AddDays(1))}"
+                        ? $"({c} >= {Add(column, first.Value)} AND {c} < {Add(column, to.Value.AddDays(1))})"
                         : $"{c} BETWEEN {Add(column, first.Value)} AND {Add(column, to.Value)}";
                 case FilterOperator.In:
                     var parts = filter.Values.Select(v => DayOrInstant(column, c, ParseDate(v))).ToList();
@@ -378,8 +426,8 @@ public static class QueryBuilder
         private string Like(ColumnInfo column, string c, string pattern) =>
             $"UPPER({c}) LIKE UPPER({Add(new QueryParameter(NextName(), pattern, IsNational(column) ? OracleTypeHint.NVarchar2 : OracleTypeHint.Varchar2))}) ESCAPE '\\'";
 
-        /// <summary>NCHAR and NVARCHAR2 (an NCLOB is never compared with LIKE).</summary>
-        private static bool IsNational(ColumnInfo column) => OracleTypes.IsCharacter(column.DataType) && OracleTypes.IsNational(column.DataType);
+        /// <summary>NCHAR, NVARCHAR2 and NCLOB: "contains" and the like work on an NCLOB too (review 3.40.0, A21 – it was bound as VARCHAR2).</summary>
+        private static bool IsNational(ColumnInfo column) => OracleTypes.IsNational(column.DataType);
 
         private string Bind(ColumnInfo column, string text)
         {

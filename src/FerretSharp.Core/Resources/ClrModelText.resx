@@ -422,4 +422,8 @@
     <value>Add a DbSet&lt;{0}&gt; to the DbContext and register the configuration, as the project does it.</value>
     <comment>{0}: entity name</comment>
   </data>
+  <data name="FilterGroupSkipped" xml:space="preserve">
+    <value>{0} group ({1}) – {2}</value>
+    <comment>{0} = kind of group (OR, NOT); {1} = its filters; {2} = filters without a C# form and why. Goes into “Not included: …”</comment>
+  </data>
 </root>

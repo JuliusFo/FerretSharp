@@ -1,0 +1,507 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Connection_Reconnect" xml:space="preserve">
+    <value>Reconnect</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Connection_Disconnect" xml:space="preserve">
+    <value>Disconnect</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Connection_Lost" xml:space="preserve">
+    <value>Connection lost</value>
+    <comment>Status</comment>
+  </data>
+  <data name="Connection_ConnectingTo" xml:space="preserve">
+    <value>Connecting to {0} …</value>
+    <comment>{0} = connection name</comment>
+  </data>
+  <data name="Connection_TagShown" xml:space="preserve">
+    <value>shown</value>
+    <comment>Tag on an open connection that is shown</comment>
+  </data>
+  <data name="Connection_TagConnected" xml:space="preserve">
+    <value>connected</value>
+    <comment>Tag on an open connection in the background</comment>
+  </data>
+  <data name="Connection_NoGroup" xml:space="preserve">
+    <value>No group</value>
+    <comment>Group heading for connections without a group</comment>
+  </data>
+  <data name="Connection_NoMatch" xml:space="preserve">
+    <value>No connection matches “{0}”.</value>
+    <comment>{0} = search text</comment>
+  </data>
+  <data name="Connection_New" xml:space="preserve">
+    <value>New connection</value>
+    <comment>Button and dialog title</comment>
+  </data>
+  <data name="Connection_Edit" xml:space="preserve">
+    <value>Edit</value>
+    <comment>Button / menu item: edit the connection</comment>
+  </data>
+  <data name="Connection_DeleteEllipsis" xml:space="preserve">
+    <value>Delete …</value>
+    <comment>Button / menu item: delete the connection (asks first)</comment>
+  </data>
+  <data name="Connection_Delete" xml:space="preserve">
+    <value>Delete connection</value>
+    <comment>Dialog title; also what is about to happen in the uncommitted changes dialog</comment>
+  </data>
+  <data name="ConnectionKind_Dev" xml:space="preserve">
+    <value>Development</value>
+    <comment>Connection kind</comment>
+  </data>
+  <data name="ConnectionKind_Test" xml:space="preserve">
+    <value>Test</value>
+    <comment>Connection kind</comment>
+  </data>
+  <data name="ConnectionKind_Prod" xml:space="preserve">
+    <value>Production</value>
+    <comment>Connection kind</comment>
+  </data>
+  <data name="ConnectionKind_Other" xml:space="preserve">
+    <value>Other</value>
+    <comment>Connection kind</comment>
+  </data>
+  <data name="ConnectionDialog_EditTitle" xml:space="preserve">
+    <value>Edit connection</value>
+    <comment>Dialog title</comment>
+  </data>
+  <data name="ConnectionDialog_DuplicateTitle" xml:space="preserve">
+    <value>Duplicate connection</value>
+    <comment>Dialog title</comment>
+  </data>
+  <data name="ConnectionDialog_Name" xml:space="preserve">
+    <value>Name</value>
+    <comment>Field label</comment>
+  </data>
+  <data name="ConnectionDialog_NamePlaceholder" xml:space="preserve">
+    <value>e.g. ERP Test</value>
+  </data>
+  <data name="ConnectionDialog_Group" xml:space="preserve">
+    <value>Group</value>
+    <comment>Field label</comment>
+  </data>
+  <data name="ConnectionDialog_GroupPlaceholder" xml:space="preserve">
+    <value>e.g. project or customer – optional</value>
+  </data>
+  <data name="ConnectionDialog_Environment" xml:space="preserve">
+    <value>Environment</value>
+    <comment>Field label: the connection kind</comment>
+  </data>
+  <data name="ConnectionDialog_Address" xml:space="preserve">
+    <value>Address</value>
+    <comment>Field label</comment>
+  </data>
+  <data name="ConnectionDialog_TnsAlias" xml:space="preserve">
+    <value>TNS alias</value>
+    <comment>Option and field label</comment>
+  </data>
+  <data name="ConnectionDialog_Database" xml:space="preserve">
+    <value>Database</value>
+    <comment>Field label</comment>
+  </data>
+  <data name="ConnectionDialog_TnsAdminPlaceholder" xml:space="preserve">
+    <value>Folder of tnsnames.ora – empty = environment variable TNS_ADMIN</value>
+  </data>
+  <data name="ConnectionDialog_User" xml:space="preserve">
+    <value>User</value>
+    <comment>Field label: the database user</comment>
+  </data>
+  <data name="ConnectionDialog_Password" xml:space="preserve">
+    <value>Password</value>
+    <comment>Field label</comment>
+  </data>
+  <data name="ConnectionDialog_PasswordHint" xml:space="preserve">
+    <value>Stored in the Windows Credential Manager, never in the connections file.</value>
+  </data>
+  <data name="ConnectionDialog_PasswordAsOriginal" xml:space="preserve">
+    <value>as in the original</value>
+    <comment>Password placeholder when duplicating</comment>
+  </data>
+  <data name="ConnectionDialog_PasswordUnchanged" xml:space="preserve">
+    <value>unchanged</value>
+    <comment>Password placeholder when editing</comment>
+  </data>
+  <data name="ConnectionDialog_PasswordMissing" xml:space="preserve">
+    <value>Password is missing.</value>
+  </data>
+  <data name="ConnectionDialog_SchemaPlaceholder" xml:space="preserve">
+    <value>empty = the user’s schema</value>
+  </data>
+  <data name="ConnectionDialog_ReadOnly" xml:space="preserve">
+    <value>Read-only</value>
+    <comment>Checkbox</comment>
+  </data>
+  <data name="ConnectionDialog_ReadOnlyHint" xml:space="preserve">
+    <value>· Oracle itself refuses changes (READ ONLY transaction)</value>
+  </data>
+  <data name="ConnectionDialog_ClrModel" xml:space="preserve">
+    <value>C# model</value>
+    <comment>Form section</comment>
+  </data>
+  <data name="ConnectionDialog_ClrModelHint" xml:space="preserve">
+    <value>· optional: entity and property names from your own EF Core project</value>
+  </data>
+  <data name="ConnectionDialog_Project" xml:space="preserve">
+    <value>Project</value>
+    <comment>Field label: the linked C# project</comment>
+  </data>
+  <data name="ConnectionDialog_ProjectPlaceholder" xml:space="preserve">
+    <value>…\Data\Data.csproj – the project with the DbContext</value>
+  </data>
+  <data name="ConnectionDialog_PickProject" xml:space="preserve">
+    <value>Choose project file</value>
+  </data>
+  <data name="ConnectionDialog_ProjectFilter" xml:space="preserve">
+    <value>C# project</value>
+    <comment>File dialog filter label</comment>
+  </data>
+  <data name="ConnectionDialog_ProjectHint" xml:space="preserve">
+    <value>FerretSharp reads the model from the existing build (EF Core 8 or later) – without the application’s startup code and without a database connection.</value>
+  </data>
+  <data name="ConnectionDialog_ContextPlaceholder" xml:space="preserve">
+    <value>empty = the only DbContext in the project</value>
+  </data>
+  <data name="ConnectionDialog_AppEnvironment" xml:space="preserve">
+    <value>App environment</value>
+    <comment>Field label: the environment name the user's own app starts with for this database (-environment=…)</comment>
+  </data>
+  <data name="ConnectionDialog_AppEnvironmentPlaceholder" xml:space="preserve">
+    <value>e.g. erp-test – empty = none</value>
+  </data>
+  <data name="ConnectionDialog_AppEnvironmentHint" xml:space="preserve">
+    <value>The value of -environment=… your app starts with for this database. “App statements” match a running app to this connection by it.</value>
+  </data>
+  <data name="ConnectionDialog_Connecting" xml:space="preserve">
+    <value>Connecting …</value>
+  </data>
+  <data name="ConnectionDialog_TestCanceled" xml:space="preserve">
+    <value>Test canceled.</value>
+  </data>
+  <data name="ConnectionDialog_TestOk" xml:space="preserve">
+    <value>Connected in {0} ms · Oracle {1}</value>
+    <comment>{0} = milliseconds, {1} = server version</comment>
+  </data>
+  <data name="ConnectionDialog_CancelTest" xml:space="preserve">
+    <value>Cancel test</value>
+    <comment>Button</comment>
+  </data>
+  <data name="ConnectionDialog_Test" xml:space="preserve">
+    <value>Test connection</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Switcher_ChooseConnection" xml:space="preserve">
+    <value>Choose a connection</value>
+    <comment>Button label and tooltip</comment>
+  </data>
+  <data name="Switcher_Search" xml:space="preserve">
+    <value>Search connections …</value>
+    <comment>Placeholder</comment>
+  </data>
+  <data name="Switcher_NoConnections" xml:space="preserve">
+    <value>No connections yet.</value>
+  </data>
+  <data name="Switcher_OpenTitle" xml:space="preserve">
+    <value>These stay connected while another connection is shown</value>
+    <comment>Tooltip of the “Open” group</comment>
+  </data>
+  <data name="Switcher_OpenTitleKey" xml:space="preserve">
+    <value>These stay connected while another connection is shown – {0} switches to the previous one</value>
+    <comment>{0} = shortcut, e.g. Alt+O</comment>
+  </data>
+  <data name="Switcher_Open" xml:space="preserve">
+    <value>Open</value>
+    <comment>Group heading: the open connections</comment>
+  </data>
+  <data name="Switcher_Recent" xml:space="preserve">
+    <value>Recently used</value>
+    <comment>Group heading</comment>
+  </data>
+  <data name="Switcher_ManageAll" xml:space="preserve">
+    <value>Manage all connections …</value>
+  </data>
+  <data name="Switcher_ShownTitle" xml:space="preserve">
+    <value>Shown</value>
+    <comment>Tooltip of the “shown” tag</comment>
+  </data>
+  <data name="Switcher_BackgroundTitle" xml:space="preserve">
+    <value>Connected in the background</value>
+    <comment>Tooltip of the “connected” tag</comment>
+  </data>
+  <data name="Switcher_UncommittedTitle" xml:space="preserve">
+    <value>Uncommitted changes in this connection</value>
+  </data>
+  <data name="Switcher_ActionsOpenOne" xml:space="preserve">
+    <value>{0} uncommitted action</value>
+    <comment>{0} = number of uncommitted write actions</comment>
+  </data>
+  <data name="Switcher_ActionsOpenOther" xml:space="preserve">
+    <value>{0} uncommitted actions</value>
+    <comment>{0} = number of uncommitted write actions</comment>
+  </data>
+  <data name="Switcher_DisconnectTitle" xml:space="preserve">
+    <value>Disconnect this connection (asks about open changes first)</value>
+  </data>
+  <data name="Connections_Title" xml:space="preserve">
+    <value>Connections</value>
+    <comment>Page title</comment>
+  </data>
+  <data name="Connections_Search" xml:space="preserve">
+    <value>Search by name, group, host, user …</value>
+    <comment>Placeholder</comment>
+  </data>
+  <data name="Connections_Welcome" xml:space="preserve">
+    <value>Welcome to FerretSharp</value>
+  </data>
+  <data name="Connections_WelcomeText" xml:space="preserve">
+    <value>Start by adding an Oracle connection.</value>
+  </data>
+  <data name="Connections_Add" xml:space="preserve">
+    <value>Add connection</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Connections_DoubleClickToConnect" xml:space="preserve">
+    <value>Double-click to connect</value>
+  </data>
+  <data name="Connections_TodayAt" xml:space="preserve">
+    <value>today {0:HH:mm}</value>
+    <comment>Last used; {0} = time</comment>
+  </data>
+  <data name="Connections_YesterdayAt" xml:space="preserve">
+    <value>yesterday {0:HH:mm}</value>
+    <comment>Last used; {0} = time</comment>
+  </data>
+  <data name="Connections_DaysAgo" xml:space="preserve">
+    <value>{0} days ago</value>
+    <comment>Last used; {0} = number of days (2 to 6)</comment>
+  </data>
+  <data name="ConnectionMenu_Connect" xml:space="preserve">
+    <value>Connect</value>
+    <comment>Menu item</comment>
+  </data>
+  <data name="ConnectionMenu_Duplicate" xml:space="preserve">
+    <value>Duplicate</value>
+    <comment>Menu item</comment>
+  </data>
+  <data name="Password_Title" xml:space="preserve">
+    <value>Enter password</value>
+    <comment>Title of the dialog that asks for the password when connecting (WP-35)</comment>
+  </data>
+  <data name="Password_Question" xml:space="preserve">
+    <value>No password is saved for {0}. Log in as {1} with:</value>
+    <comment>{0}: connection name; {1}: user@address</comment>
+  </data>
+  <data name="Password_Remember" xml:space="preserve">
+    <value>Save in Credential Manager</value>
+    <comment>Check box: the Windows Credential Manager</comment>
+  </data>
+  <data name="Password_ForgetHint" xml:space="preserve">
+    <value>Kept only until FerretSharp ends.</value>
+  </data>
+  <data name="Import_Button" xml:space="preserve">
+    <value>Import…</value>
+    <comment>Button on the connections page: import connections</comment>
+  </data>
+  <data name="Import_Title" xml:space="preserve">
+    <value>Import connections</value>
+  </data>
+  <data name="Import_Source" xml:space="preserve">
+    <value>Source</value>
+  </data>
+  <data name="Import_Found" xml:space="preserve">
+    <value>found: {0}</value>
+    <comment>Under DBeaver/SQL Developer in the import dialog; {0}: DBeaver's projects or SQL Developer's version</comment>
+  </data>
+  <data name="Import_ChooseFile" xml:space="preserve">
+    <value>Choose file…</value>
+  </data>
+  <data name="Import_FileFilter" xml:space="preserve">
+    <value>Connection files</value>
+    <comment>File type in the open dialog</comment>
+  </data>
+  <data name="Import_NothingFound" xml:space="preserve">
+    <value>No DBeaver or SQL Developer found on this computer – choose a file instead.</value>
+  </data>
+  <data name="Import_Reading" xml:space="preserve">
+    <value>Reading …</value>
+  </data>
+  <data name="Import_FoundOne" xml:space="preserve">
+    <value>{0} connection found in {1}.</value>
+    <comment>{0}: count; {1}: DBeaver, SQL Developer or FerretSharp</comment>
+  </data>
+  <data name="Import_FoundOther" xml:space="preserve">
+    <value>{0} connections found in {1}.</value>
+    <comment>{0}: count; {1}: DBeaver, SQL Developer or FerretSharp</comment>
+  </data>
+  <data name="Import_OtherDatabasesOne" xml:space="preserve">
+    <value>{0} connection to another database left out.</value>
+    <comment>{0}: count of non-Oracle connections</comment>
+  </data>
+  <data name="Import_OtherDatabasesOther" xml:space="preserve">
+    <value>{0} connections to other databases left out.</value>
+    <comment>{0}: count of non-Oracle connections</comment>
+  </data>
+  <data name="Import_ColName" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="Import_ColKind" xml:space="preserve">
+    <value>Environment</value>
+  </data>
+  <data name="Import_ColAddress" xml:space="preserve">
+    <value>Address</value>
+  </data>
+  <data name="Import_ColStatus" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="Import_KindGuessed" xml:space="preserve">
+    <value>guessed</value>
+    <comment>Behind the environment in the import preview, e.g. “Test (guessed)”</comment>
+  </data>
+  <data name="Import_KindGuessedTitle" xml:space="preserve">
+    <value>The source names no environment; it was guessed from the name. The connection stays read-only until you pick one.</value>
+  </data>
+  <data name="Import_New" xml:space="preserve">
+    <value>New</value>
+    <comment>Status of a connection in the import preview</comment>
+  </data>
+  <data name="Import_Exists" xml:space="preserve">
+    <value>Exists</value>
+    <comment>Status of a connection in the import preview: already saved</comment>
+  </data>
+  <data name="Import_ExistsTitle" xml:space="preserve">
+    <value>Same address and user as “{0}”.</value>
+    <comment>{0}: name of the saved connection</comment>
+  </data>
+  <data name="Import_KindWas" xml:space="preserve">
+    <value>exists as {0}</value>
+    <comment>Under the environment of a connection that overwrites a saved one of another environment; {0}: e.g. Production</comment>
+  </data>
+  <data name="Import_KeepsReadOnlyTitle" xml:space="preserve">
+    <value>The saved connection is Production or read-only – it stays read-only.</value>
+  </data>
+  <data name="Import_Repeated" xml:space="preserve">
+    <value>Twice in the file</value>
+    <comment>Status in the import preview: the same connection came earlier in the file</comment>
+  </data>
+  <data name="Import_RepeatedTitle" xml:space="preserve">
+    <value>Same address and user as “{0}” above.</value>
+    <comment>{0}: name of the earlier connection in the file</comment>
+  </data>
+  <data name="Import_Overwrite" xml:space="preserve">
+    <value>Overwrite</value>
+  </data>
+  <data name="Import_Copy" xml:space="preserve">
+    <value>Add as copy</value>
+  </data>
+  <data name="Import_ReadOnlyTitle" xml:space="preserve">
+    <value>Imported read-only</value>
+  </data>
+  <data name="Import_DefaultGroup" xml:space="preserve">
+    <value>Group for connections without a group</value>
+  </data>
+  <data name="Import_TakeLocalPaths" xml:space="preserve">
+    <value>Take the paths of the source computer (C# project, script folder, TNS_ADMIN, audit template)</value>
+  </data>
+  <data name="Import_TakeLocalPathsHint" xml:space="preserve">
+    <value>Only for your own connections from another computer: a C# project path loads and runs that project. Without them, a TNS alias uses TNS_ADMIN of this computer.</value>
+  </data>
+  <data name="Import_NoPasswords" xml:space="preserve">
+    <value>Passwords are not imported – you enter them when connecting.</value>
+  </data>
+  <data name="Import_ImportOne" xml:space="preserve">
+    <value>Import {0} connection</value>
+    <comment>Button; {0}: count</comment>
+  </data>
+  <data name="Import_ImportOther" xml:space="preserve">
+    <value>Import {0} connections</value>
+    <comment>Button; {0}: count</comment>
+  </data>
+  <data name="Import_DoneOne" xml:space="preserve">
+    <value>{0} connection imported.</value>
+    <comment>{0}: count</comment>
+  </data>
+  <data name="Import_DoneOther" xml:space="preserve">
+    <value>{0} connections imported.</value>
+    <comment>{0}: count</comment>
+  </data>
+  <data name="Export_Button" xml:space="preserve">
+    <value>Export…</value>
+    <comment>Menu entry on the connections page: export connections</comment>
+  </data>
+  <data name="Export_GroupButton" xml:space="preserve">
+    <value>Export group…</value>
+  </data>
+  <data name="Export_Title" xml:space="preserve">
+    <value>Export connections</value>
+  </data>
+  <data name="Export_All" xml:space="preserve">
+    <value>All</value>
+    <comment>Button: select all shown connections</comment>
+  </data>
+  <data name="Export_None" xml:space="preserve">
+    <value>None</value>
+    <comment>Button: select no connection</comment>
+  </data>
+  <data name="Export_GroupCount" xml:space="preserve">
+    <value>{0} of {1}</value>
+    <comment>{0}: selected connections of the group; {1}: all of the group</comment>
+  </data>
+  <data name="Export_LocalPaths" xml:space="preserve">
+    <value>Include paths of this computer (C# project, script folder, TNS_ADMIN, audit template)</value>
+  </data>
+  <data name="Export_NoPasswords" xml:space="preserve">
+    <value>Passwords are never exported.</value>
+  </data>
+  <data name="Export_ExportOne" xml:space="preserve">
+    <value>Export {0} connection…</value>
+    <comment>Button; {0}: count</comment>
+  </data>
+  <data name="Export_ExportOther" xml:space="preserve">
+    <value>Export {0} connections…</value>
+    <comment>Button; {0}: count</comment>
+  </data>
+  <data name="Export_FileFilter" xml:space="preserve">
+    <value>FerretSharp connections</value>
+    <comment>File type in the save dialog</comment>
+  </data>
+  <data name="Export_DoneOne" xml:space="preserve">
+    <value>{0} connection exported to {1}.</value>
+    <comment>{0}: count; {1}: file name</comment>
+  </data>
+  <data name="Export_DoneOther" xml:space="preserve">
+    <value>{0} connections exported to {1}.</value>
+    <comment>{0}: count; {1}: file name</comment>
+  </data>
+  <data name="Export_Failed" xml:space="preserve">
+    <value>Export failed: {0}</value>
+    <comment>{0}: error message</comment>
+  </data>
+  <data name="ConnectionDialog_AuditTemplate" xml:space="preserve">
+    <value>Audit template</value>
+    <comment>WP-51: label in the connection dialog</comment>
+  </data>
+  <data name="ConnectionDialog_AuditTemplatePlaceholder" xml:space="preserve">
+    <value>Template of the group or of the settings</value>
+  </data>
+  <data name="ConnectionDialog_AuditTemplateHint" xml:space="preserve">
+    <value>Only for a connection whose audit tables follow another template than its group. If empty: {0}</value>
+    <comment>{0}: the template that applies without one, e.g. Template of the group ERP: C:\…\audit.sql</comment>
+  </data>
+  <data name="ConnectionDialog_PickAuditTemplate" xml:space="preserve">
+    <value>Choose audit template file</value>
+  </data>
+</root>

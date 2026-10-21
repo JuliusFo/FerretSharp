@@ -1,5 +1,6 @@
 using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
+using FerretSharp.Core.Oracle;
 using FerretSharp.Core.Query;
 using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
@@ -11,13 +12,19 @@ namespace FerretSharp.UI.Tests;
 /// so undo up to an action and redo behave as with Oracle (WP-30). The transaction is always open, like the mock before.
 /// A locked session (<see cref="ReadOnly"/>, Prod by default) refuses to write as <c>OracleDataEditor</c> and Oracle do.
 /// One call at a time, like <c>OracleDataEditor</c>: the calls come from pool threads (no UI dispatcher in the tests).
+/// Review 3.40.0, C1: statements go through the session's own guards (<see cref="StatementGuard"/>), and DDL is refused
+/// while something is written and neither committed nor rolled back – as the session does (<c>DdlOnlyWithoutTransaction</c>),
+/// so a forgotten rollback before DDL no longer stays green.
 /// </summary>
-internal sealed class FakeDataEditor(Func<Func<Task>?> onCommit, Func<string, Exception?>? onDdl = null) : IDataEditor
+internal sealed class FakeDataEditor(Func<Func<Task>?> onCommit, Func<string, Exception?>? onDdl = null, Func<Func<Task>?>? onExecute = null) : IDataEditor
 {
     private readonly Lock _gate = new();
     private readonly WriteLog _log = new();
     private readonly List<string> _ddl = [];
     private int _savepoints;
+
+    /// <summary>Something was written since the last commit or rollback: the real session has its transaction open.</summary>
+    private bool _written;
 
     private readonly TransactionInfo _transaction = new(TransactionMode.ReadWrite, DateTimeOffset.Now);
     private readonly TransactionInfo _readOnly = new(TransactionMode.ReadOnly, DateTimeOffset.Now);
@@ -80,10 +87,11 @@ internal sealed class FakeDataEditor(Func<Func<Task>?> onCommit, Func<string, Ex
                 RedoOf = redone?.Origin,
             };
             _log.Add(action, Savepoint());
+            _written = true;
             var keys = operations
                 .Where(o => o.Kind == OperationKind.Insert)
                 .ToDictionary(o => o.Change.Id, RowKey (_) => new RowKey.RowId("ROW" + _savepoints));
-            return new FlushResult(keys, new Dictionary<Guid, RowData>()) { Action = action };
+            return new FlushResult(keys) { Action = action };
         }));
     }
 
@@ -117,6 +125,7 @@ internal sealed class FakeDataEditor(Func<Func<Task>?> onCommit, Func<string, Ex
         lock (_gate)
         {
             _log.Clear();
+            _written = false;
         }
     }
 
@@ -130,21 +139,43 @@ internal sealed class FakeDataEditor(Func<Func<Task>?> onCommit, Func<string, Ex
         lock (_gate)
         {
             _log.Clear();
+            _written = false;
         }
 
         return Task.CompletedTask;
     }
 
-    public Task<WriteAction> ExecuteAsync(QuerySpec statement, CancellationToken cancellationToken) =>
-        ReadOnly
-            ? Task.FromException<WriteAction>(new RefusedException(OracleText.WorkspaceReadOnly))
-            : Task.FromResult(Locked(() => Execute(statement, null)));
+    public async Task<WriteAction> ExecuteAsync(QuerySpec statement, CancellationToken cancellationToken)
+    {
+        if (!StatementGuard.IsWrite(statement.Sql))
+        {
+            throw new InvalidOperationException("Writes only take a single INSERT, UPDATE, DELETE or MERGE statement.");
+        }
+
+        if (ReadOnly)
+        {
+            throw new RefusedException(OracleText.WorkspaceReadOnly);
+        }
+
+        await (onExecute?.Invoke()?.Invoke() ?? Task.CompletedTask);
+        return Locked(() => Execute(statement, null));
+    }
 
     public Task ExecuteDdlAsync(string statement, CancellationToken cancellationToken)
     {
+        if (!StatementGuard.IsDdl(statement))
+        {
+            throw new InvalidOperationException("The schema path only takes a single DDL statement – no TRUNCATE, PL/SQL or bind variables.");
+        }
+
         if (ReadOnly)
         {
             return Task.FromException(new RefusedException(OracleText.WorkspaceReadOnly));
+        }
+
+        if (Locked(() => _written))
+        {
+            return Task.FromException(new RefusedException(OracleText.DdlOnlyWithoutTransaction));
         }
 
         if (onDdl?.Invoke(statement) is { } failure)
@@ -172,6 +203,7 @@ internal sealed class FakeDataEditor(Func<Func<Task>?> onCommit, Func<string, Ex
     /// <summary>Under <see cref="_gate"/>.</summary>
     private WriteAction Execute(QuerySpec statement, WriteAction? redone)
     {
+        _written = true;
         var action = new WriteAction(Guid.NewGuid(), WriteActionKind.Statement, statement.Sql, StatementRows, DateTimeOffset.Now)
         {
             Statements = [statement],

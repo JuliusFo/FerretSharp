@@ -1,0 +1,113 @@
+@* Right-click menu of a query result (SQL editor, LINQ console): copy the value, export the selected rows – or all rows of
+   the query, run again (SQL editor, WP-54) – and, for columns traced back to their tables (WP-48), jump along foreign keys
+   like in a table grid. *@
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Data
+@using FerretSharp.Core.Query
+@using FerretSharp.Core.Schema
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject IFileSaveService Files
+@inject ILogger<ResultMenu> Logger
+
+<PopoverMenu X="Request.X" Y="Request.Y" ViewportWidth="Request.ViewportWidth" ViewportHeight="Request.ViewportHeight"
+             Width="MenuWidth" EstimatedHeight="EstimatedHeight" OnClose="CloseAsync">
+    <div class="ctx-head">
+        <span class="ctx-col">@Column.Name</span>
+        <span class="ctx-value @(Request.CellText is null ? "fs-null" : "")">@(Request.CellText ?? "NULL")</span>
+    </div>
+    <button class="menu-item" disabled="@(Request.CellText is null)" @onclick="() => Export.CopyValueAsync(Column, Request.Row.Values[Request.Column])">@CommonText.CopyValue</button>
+
+    <ExportMenuItems Export="Export" Table="Result" Rows="Request.Selected" FileName="@ExportName" XlsxColumns="XlsxColumns"
+                     InsertTable="@(InsertTarget is { } target ? Result with { Table = target } : null)"
+                     InsertTitle="@(InsertTarget is { } insert
+                         ? TextFormat.Format(SqlEditorText.ResultMenu_CopyInsertTitle, insert.DisplayName)
+                         : SqlEditorText.ResultMenu_CopyInsertUnavailable)"
+                     AllRows="AllRows" />
+
+    <FkJumpSection Outgoing="_jumps.Outgoing" Incoming="_jumps.Incoming" Related="Related" RowsText="@Request.JumpRowsText" MissingRows="Request.MissingRows"
+                   WorkspaceId="WorkspaceId" OnJumped="CloseAsync" />
+</PopoverMenu>
+
+@code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    private const double MenuWidth = 400;
+    private const double ItemHeight = 44;
+
+    private FkJumpLists _jumps = FkJumpLists.None;
+
+    /// <summary>The result's view of each jump: which row sources it starts from (for <see cref="Related"/>).</summary>
+    private Dictionary<FkJump, SqlResultJump> _sources = new(ReferenceEqualityComparer.Instance);
+    private DomModule? _dom;
+    private ExportActions? _export;
+
+    /// <summary>dom.js for the clipboard, imported on first use (<see cref="DomModule"/>).</summary>
+    private DomModule Dom => _dom ??= new(JS);
+
+    private ExportActions Export => _export ??= new(Shell, Dom, Files, Request.MissingRows, CloseAsync, Logger, Active);
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public GridContextMenuRequest Request { get; set; } = null!;
+
+    /// <summary>The result's columns as a table (for the export helpers).</summary>
+    [Parameter, EditorRequired]
+    public TableDetails Result { get; set; } = null!;
+
+    /// <summary>The tables behind the result columns (WP-48); <see cref="SqlResultSources.None"/> offers no jumps.</summary>
+    [Parameter]
+    public SqlResultSources Sources { get; set; } = SqlResultSources.None;
+
+    /// <summary>The workspace the result was read in: incoming jumps are counted there.</summary>
+    [Parameter, EditorRequired]
+    public Guid WorkspaceId { get; set; }
+
+    /// <summary>The table the query reads, as target of "Copy as INSERT"; null if it reads several or none.</summary>
+    [Parameter]
+    public TableSummary? InsertTarget { get; set; }
+
+    /// <summary>The columns of the Excel export as the result presents them (WP-53); null exports them as the driver reports them.</summary>
+    [Parameter]
+    public IReadOnlyList<ExportColumn>? ExportColumns { get; set; }
+
+    /// <summary>File name (without extension) offered for CSV and Excel.</summary>
+    [Parameter]
+    public string ExportName { get; set; } = SqlEditorText.Result_DefaultExportName;
+
+    /// <summary>All rows of the query, run again (SQL editor, WP-54); null offers no such entries.</summary>
+    [Parameter]
+    public AllRowsExport? AllRows { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private ColumnInfo Column => Result.Columns[Request.Column];
+
+    /// <summary>For the first placement; dom.js keepInViewport corrects it once rendered.</summary>
+    private double EstimatedHeight => 200 + ItemHeight * (_jumps.Count + Math.Max(0, _jumps.Headings - 2) + (ExportMenuItems.OffersRaw(XlsxColumns) ? 2 : 1) + ExportMenuItems.AllRowsEntries(AllRows, XlsxColumns))
+                                      + (_jumps.Count > 0 ? 80 : 0) + (AllRows is null ? 0 : 40);
+
+    protected override void OnInitialized()
+    {
+        if (Active.Schema is not { } schema || Sources.Sources.Count == 0)
+        {
+            return;
+        }
+
+        var jumps = Sources.JumpsFor(Request.JumpRows, schema.OutgoingOf, schema.IncomingOf, schema.InheritedIncomingOf);
+        _sources = jumps.ToDictionary<SqlResultJump, FkJump>(j => j.Jump, ReferenceEqualityComparer.Instance);
+        _jumps = FkJumpLists.Of(jumps.Select(j => j.Jump), Related);
+    }
+
+    private bool Related(FkJump jump) => _sources.TryGetValue(jump, out var source) && source.Involves(Request.Column);
+
+    private IReadOnlyList<ExportColumn> XlsxColumns => ExportColumns ?? ExportColumn.Raw(Result);
+
+    private Task CloseAsync() => OnClose.InvokeAsync();
+
+    public ValueTask DisposeAsync() => Dom.DisposeAsync();
+}

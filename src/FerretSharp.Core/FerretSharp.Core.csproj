@@ -7,7 +7,8 @@
 
   <ItemGroup>
     <PackageReference Include="Oracle.ManagedDataAccess.Core" />
-    <PackageReference Include="System.Security.Cryptography.Pkcs" />
+    <!-- XLSX export (WP-53, ADR 0028); its source generator is not used. -->
+    <PackageReference Include="SpreadCheetah" ExcludeAssets="analyzers" />
   </ItemGroup>
 
   <ItemGroup>
@@ -18,6 +19,8 @@
   <ItemGroup>
     <InternalsVisibleTo Include="FerretSharp.Core.Tests" />
     <InternalsVisibleTo Include="FerretSharp.Integration.Tests" />
+    <!-- The UI tests' fake editor refuses statements as the session does (StatementGuard, review 3.40.0 C1). -->
+    <InternalsVisibleTo Include="FerretSharp.UI.Tests" />
   </ItemGroup>
 
 </Project>

@@ -11,7 +11,7 @@ public sealed class ModelHostTests
     private static readonly string Configuration = AppContext.BaseDirectory.Contains($"{Path.DirectorySeparatorChar}Release{Path.DirectorySeparatorChar}",
         StringComparison.OrdinalIgnoreCase) ? "Release" : "Debug";
 
-    private static readonly string Root = FindRoot();
+    private static readonly string Root = Repository.Root;
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -55,19 +55,6 @@ public sealed class ModelHostTests
                 _steps.Add(value);
             }
         }
-    }
-
-    private static string FindRoot()
-    {
-        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "FerretSharp.slnx")))
-            {
-                return directory.FullName;
-            }
-        }
-
-        throw new InvalidOperationException("Repository root not found.");
     }
 
     [Fact]

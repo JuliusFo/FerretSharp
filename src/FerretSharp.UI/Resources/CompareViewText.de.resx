@@ -201,4 +201,7 @@
   <data name="CompareDdl_Failed" xml:space="preserve">
     <value>Der DDL-Vorschlag ließ sich nicht erzeugen: {0}</value>
   </data>
+  <data name="Compare_NotSavedUnread" xml:space="preserve">
+    <value>Nicht gespeichert: Die gespeicherten Vergleiche ließen sich nicht lesen ({0}). Erst die Datei reparieren oder entfernen – Speichern würde sonst alle ersetzen.</value>
+  </data>
 </root>

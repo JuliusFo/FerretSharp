@@ -188,7 +188,7 @@ public sealed class TableDesignTests(OracleContainerFixture oracle) : IAsyncLife
 
         // The table as it is now: the draft of it writes nothing.
         Assert.Empty(TableDesign.Plan(DesignContext.Of(after), TableDraft.Of(after), DataFacts.None).Statements);
-        await connection.Editor.ExecuteDdlAsync("DROP TABLE TD_PERSON PURGE", Ct);
+        await connection.Editor.ExecuteDdlAsync("DROP TABLE TD_PERSON", Ct);
     }
 
     /// <summary>Constraints of the designer against Oracle: new keys, check and foreign key with its index; a dropped constraint frees its column.</summary>
@@ -246,8 +246,8 @@ public sealed class TableDesignTests(OracleContainerFixture oracle) : IAsyncLife
         var fks = (await connection.Schema.GetForeignKeysAsync(after.Table.Owner, Ct)).Where(f => f.From == after.Table.Ref);
         Assert.Empty(IndexAdvice.UnindexedForeignKeys(fks, afterIndexes));
 
-        await connection.Editor.ExecuteDdlAsync("DROP TABLE TD_ORT PURGE", Ct);
-        await connection.Editor.ExecuteDdlAsync("DROP TABLE TD_LAND PURGE", Ct);
+        await connection.Editor.ExecuteDdlAsync("DROP TABLE TD_ORT", Ct);
+        await connection.Editor.ExecuteDdlAsync("DROP TABLE TD_LAND", Ct);
     }
 
     /// <summary>

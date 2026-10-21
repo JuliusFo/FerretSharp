@@ -6,19 +6,19 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <RootNamespace>FerretSharp.ModelHost</RootNamespace>
-    <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Compile only: at run time the user's EF Core assemblies are used (none are copied next to the host). -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" ExcludeAssets="runtime" PrivateAssets="all" />
+    <!-- Compile only: at run time the user's EF Core assemblies are used (none are copied next to the host). The lowest
+         supported EF Core: .NET binds to a higher assembly version, never to a lower one. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" VersionOverride="8.0.0" ExcludeAssets="runtime" PrivateAssets="all" />
     <!-- Shipped next to the host and resolved from its folder (the project's deps.json does not know it). -->
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" />
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\FerretSharp.Core\ClrModel\ModelExport.cs" Link="ModelExport.cs" />
-    <Compile Include="..\FerretSharp.Core\ClrModel\LinqProtocol.cs" Link="LinqProtocol.cs" />
+    <Compile Include="..\FerretSharp.Core\ClrModel\Host\ModelExport.cs" Link="ModelExport.cs" />
+    <Compile Include="..\FerretSharp.Core\ClrModel\Host\LinqProtocol.cs" Link="LinqProtocol.cs" />
   </ItemGroup>
 
 </Project>

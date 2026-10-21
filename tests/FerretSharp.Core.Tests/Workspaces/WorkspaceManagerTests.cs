@@ -2,7 +2,7 @@ using FerretSharp.Core.Connections;
 using FerretSharp.Core.Data;
 using FerretSharp.Core.Schema;
 using FerretSharp.Core.Tests.Connections;
-using FerretSharp.Core.Tests.Fakes;
+using FerretSharp.Testing;
 using FerretSharp.Core.Workspaces;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
@@ -133,6 +133,27 @@ public sealed class WorkspaceManagerTests
         Assert.NotSame(data1, data2);
         Assert.Equal(["Workspace 1", "Bug 3711"], _opened.Select(o => o.Action));
         await _connector.Received(2).OpenAsync(_profile, "pw", Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_session_tag_finds_its_open_workspace()
+    {
+        await _manager.AttachAsync(_profile, Ct);
+        var first = _manager.Active!;
+        var second = await _manager.CreateAsync("Bug 3711");
+        Assert.Null(_manager.SessionTagOf(second.Id)); // no session yet
+
+        await _manager.GetDataAsync(first.Id, Ct);
+        await _manager.GetDataAsync(second.Id, Ct);
+        _opened[0].Connection.SessionTag.Returns("FerretSharp aaa");
+        _opened[1].Connection.SessionTag.Returns("FerretSharp bbb");
+
+        Assert.Equal("FerretSharp bbb", _manager.SessionTagOf(second.Id));
+        Assert.Same(second, _manager.FindBySessionTag("FerretSharp bbb"));
+        Assert.Same(first, _manager.FindBySessionTag("FerretSharp aaa"));
+        Assert.Null(_manager.FindBySessionTag("FerretSharp ccc"));
+        Assert.Null(_manager.FindBySessionTag(null));
+        Assert.Null(_manager.FindBySessionTag(""));
     }
 
     [Fact]

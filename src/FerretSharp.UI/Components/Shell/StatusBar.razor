@@ -1,0 +1,234 @@
+@* The status bar (R2, out of Shell.razor): connection state, uncommitted changes with write/undo/commit/rollback, the
+   C# model, saving problems. Where the user is (connection, workspace, lock) shows the top bar. *@
+@using FerretSharp.Core.ClrModel
+@using FerretSharp.Core.Connections
+@using FerretSharp.Core.Data
+@implements IAsyncDisposable
+@inject ConnectionManager Connections
+@inject ConnectionHub Hub
+@inject ShortcutService Shortcuts
+@inject AppSettingsService Settings
+
+<footer class="statusbar">
+    @if (Connections.LoadError is { } loadError)
+    {
+        <span class="item error" title="@loadError"><span class="dot err"></span> @ShellText.Status_ConnectionsNotLoaded</span>
+    }
+    else
+    {
+        @switch (Active.Status)
+        {
+            case ConnectionStatus.Connected when Active.Lost is not null:
+                @* Reconnect and details are in the banner. *@
+                <span class="item error"><span class="dot err"></span> @ConnectionViewText.Connection_Lost</span>
+                break;
+            case ConnectionStatus.Connected:
+                @* Connection, workspace and its lock are in the top bar (switcher, workspace chips, badge); the bar shows
+                   the state and what is going on. *@
+                <span class="item"><span class="dot ok"></span> @ShellText.Status_Connected</span>
+                @if (Shell.ActiveWorkspace is { } editTabs && Editing.SummaryOf(editTabs) is { HasWork: true } edits)
+                {
+                    @EditStatus(editTabs, edits)
+                }
+                @ModelStatus()
+                @if (Models.State.Link is not null)
+                {
+                    <WorkCloneStatus />
+                }
+                <span class="item shrink shrink-more" title="Oracle @Active.ServerVersion">Oracle @Active.ServerVersion</span>
+                <span class="item shrink shrink-more" title="@SchemaText">@SchemaText</span>
+                <button class="status-btn" @onclick="Lifecycle.DisconnectAsync">@ConnectionViewText.Connection_Disconnect</button>
+                break;
+            case ConnectionStatus.Connecting:
+                <span class="item"><span class="spinner small"></span> @TextFormat.Format(ConnectionViewText.Connection_ConnectingTo, NameOf(Active.Profile)) <ConnectProgress Active="Active" Compact="true" /></span>
+                break;
+            case ConnectionStatus.Failed:
+                <span class="item error"><span class="dot err"></span> @ShellText.Status_ConnectionFailed</span>
+                break;
+            default:
+                <span class="item"><span class="dot"></span> @ShellText.Status_NotConnected</span>
+                break;
+        }
+    }
+    @if (Workspaces.SaveError is { } saveError)
+    {
+        <span class="item error" title="@saveError"><span class="dot err"></span> @ShellText.Status_WorkspaceNotSaved</span>
+    }
+    @if (Workspaces.LoadErrors.Count > 0)
+    {
+        <span class="item error" title="@string.Join(Environment.NewLine, Workspaces.LoadErrors)">
+            <span class="dot err"></span> @TextFormat.Plural(Workspaces.LoadErrors.Count, ShellText.Status_WorkspaceFilesUnreadableOne, ShellText.Status_WorkspaceFilesUnreadableOther)
+        </span>
+    }
+    <ExportStatus />
+    <span class="spacer"></span>
+    @foreach (var other in Hub.Open.Where(s => s != Hub.Current && HasWork(s)))
+    {
+        @* WP-24: uncommitted work in a connection in the background must not be forgotten. *@
+        <button class="status-link warn" title="@TextFormat.Format(ShellText.Status_OtherUncommittedTitle, NameOf(other.Profile))"
+                @onclick="() => Show(other)">@TextFormat.Format(ShellText.Status_OtherUncommitted, NameOf(other.Profile))</button>
+    }
+    <UpdateIndicator />
+    <span class="item">@Version</span>
+</footer>
+
+@code {
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public WorkspaceManager Workspaces { get; set; } = null!;
+
+    [CascadingParameter]
+    public ClrModelManager Models { get; set; } = null!;
+
+    /// <summary>A connection as the status bar names it, with its group in front (<see cref="ConnectionLabel"/>).</summary>
+    private string? NameOf(ConnectionProfile? profile) => profile is null ? null : ConnectionLabel.Of(profile, Settings.Current);
+
+    /// <summary>An open writing transaction older than this is shown as a warning: it holds row locks.</summary>
+    private static readonly TimeSpan LongTransaction = TimeSpan.FromMinutes(10);
+
+    private static readonly string Version = "v" + AppVersion.Current;
+
+    private Timer? _ticker;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    /// <summary>A parameter (not only cascaded), so the bar renders again whenever the shell does.</summary>
+    [Parameter, EditorRequired]
+    public WorkspaceLifecycle Lifecycle { get; set; } = null!;
+
+    private WorkspaceEditing Editing => Lifecycle.Editing;
+
+    private string SchemaText =>
+        TextFormat.Plural(Active.Schema?.Tables.Count ?? 0, ShellText.Status_SchemaObjectsOne, ShellText.Status_SchemaObjectsOther, Active.Schema?.Owner);
+
+    private bool HasWork(ConnectionScope scope) =>
+        Shell.AllWorkspaces.Where(w => w.ConnectionId == scope.Id).Any(w => Editing.SummaryOf(w).HasWork);
+
+    private void Show(ConnectionScope scope)
+    {
+        Hub.Show(scope);
+        Shell.ShowExplorer();
+    }
+
+    /// <summary>The age of an open transaction counts up.</summary>
+    protected override void OnInitialized() =>
+        _ticker = new Timer(_ => InvokeAsync(() =>
+        {
+            if (Editing.WithWork().Count > 0) // all connections
+            {
+                StateHasChanged();
+            }
+        }), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+
+    /// <summary>The model subscribed to: the shown connection's, which changes on a switch.</summary>
+    private ClrModelManager? _models;
+
+    /// <summary>The C# model's loading steps show (the shell no longer renders for them).</summary>
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_models, Models))
+        {
+            if (_models is not null)
+            {
+                _models.Changed -= OnModelChanged;
+            }
+
+            _models = Models;
+            _models.Changed += OnModelChanged;
+        }
+    }
+
+    private void OnModelChanged() => InvokeAsync(StateHasChanged);
+
+    /// <summary>The segment of the active workspace while it has uncommitted work.</summary>
+    private RenderFragment EditStatus(WorkspaceTabs workspace, EditSummary edits)
+    {
+        var age = edits.Transaction is { Mode: TransactionMode.ReadWrite, StartedAt: { } started } ? DateTimeOffset.Now - started : (TimeSpan?)null;
+        var counts = age is { } a
+            ? TextFormat.Format(ShellText.Status_TransactionAge, Age(a), edits.Pending, edits.Flushed)
+            : TextFormat.Format(ShellText.Changes_PendingWritten, edits.Pending, edits.Flushed);
+        return @<text>
+            @* WP-30: the counts open the change overview (it replaced the tooltip list and the "SQL" button). *@
+            <button class="item tx status-link @(age > LongTransaction ? "warn" : "") @(Shell.ChangesOpen ? "open" : "")"
+                    title="@((age > LongTransaction ? ShellText.Status_LongTransactionTitle : ShellText.Status_TransactionTitle) + Environment.NewLine + ShellText.Changes_ToggleTitle + Shortcuts.Hint(ShortcutAction.ToggleChanges))"
+                    aria-pressed="@(Shell.ChangesOpen ? "true" : "false")" @onclick="Shell.ToggleChanges">
+                <span class="dot @(edits.Pending > 0 ? "pending" : "flushed")"></span>
+                @counts
+                @if (edits.Actions.Count > 0)
+                {
+                    <span>· @TextFormat.Plural(edits.Actions.Count, ShellText.Status_ActionsUncommittedOne, ShellText.Status_ActionsUncommittedOther)</span>
+                }
+            </button>
+            <WorkspaceActionsBar Workspace="workspace" Summary="edits" Lifecycle="Lifecycle" UndoRedo="true" />
+        </text>;
+    }
+
+    private static string Age(TimeSpan age) => age.TotalMinutes < 1 ? "< 1 min" : $"{(int)age.TotalMinutes} min";
+
+    /// <summary>The C# model of the linked project (WP-11); opens the model page.</summary>
+    private RenderFragment ModelStatus()
+    {
+        var state = Models.State;
+        if (state.Link is null)
+        {
+            return @<text></text>;
+        }
+
+        var step = state.Step ?? ShellText.Status_ModelReading;
+        if (state is { Phase: ClrModelPhase.Loading, BuildChanged: true })
+        {
+            return @<button class="item status-link shrink warn" title="@TextFormat.Format(ShellText.Status_ModelBuildChangedTitle, step)" @onclick="Shell.ShowModel"><span class="spinner small"></span> @ShellText.Status_ModelBuildChanged</button>;
+        }
+
+        if (state.Phase == ClrModelPhase.Loading)
+        {
+            return @<button class="item status-link shrink" title="@($"{step} …")" @onclick="Shell.ShowModel"><span class="spinner small"></span> C# · @(state.Step ?? ShellText.Status_ModelLoading) …</button>;
+        }
+
+        if (state.Phase == ClrModelPhase.Failed)
+        {
+            return @<button class="item status-link error" title="@state.Error?.Message" @onclick="Shell.ShowModel"><span class="dot err"></span> @ShellText.Status_ClrModel</button>;
+        }
+
+        if (state.Mapping is not { } mapping)
+        {
+            return @<text></text>;
+        }
+
+        var stale = state.Output?.IsStale == true;
+        // Names and type/NULL/length mismatches that matter; hints only on the model page.
+        var differences = mapping.Issues.Count + mapping.ColumnMismatches.Count(m => m.Severity != MismatchSeverity.Hint);
+        // Segments of a list, joined with " · ".
+        List<string> segments = ["C#", TextFormat.Format(ShellText.Status_ModelEntities, mapping.MappedEntityCount)];
+        if (differences > 0)
+        {
+            segments.Add(TextFormat.Format(ShellText.Status_ModelMismatches, differences));
+        }
+
+        if (stale)
+        {
+            segments.Add(ShellText.Status_ModelBuildStale);
+        }
+
+        var text = string.Join(" · ", segments);
+        var mismatches = TextFormat.Plural(differences, ShellText.Status_ModelMismatchesTitleOne, ShellText.Status_ModelMismatchesTitleOther);
+        var title = stale ? ShellText.Status_ModelSourceNewer + " " + mismatches : mismatches;
+        return @<button class="item status-link shrink @(stale ? "warn" : "")" title="@title" @onclick="Shell.ShowModel">@text</button>;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_models is not null)
+        {
+            _models.Changed -= OnModelChanged;
+        }
+
+        if (_ticker is not null)
+        {
+            await _ticker.DisposeAsync();
+        }
+    }
+}

@@ -198,4 +198,214 @@
   <data name="Mismatches_KindPrecision" xml:space="preserve">
     <value>Stellen</value>
   </data>
+  <data name="Usage_NoVisualStudio" xml:space="preserve">
+    <value>Kein Visual Studio gefunden (vswhere). In den Einstellungen lässt sich ein anderer Editor wählen.</value>
+  </data>
+  <data name="Usage_NoVsCode" xml:space="preserve">
+    <value>VS Code nicht gefunden: code.cmd liegt weder im PATH noch in der Benutzerinstallation.</value>
+  </data>
+  <data name="Usage_KindRead" xml:space="preserve">
+    <value>liest</value>
+  </data>
+  <data name="Usage_KindWrite" xml:space="preserve">
+    <value>schreibt</value>
+  </data>
+  <data name="Usage_KindExpression" xml:space="preserve">
+    <value>LINQ</value>
+  </data>
+  <data name="Usage_KindQuery" xml:space="preserve">
+    <value>Abfrage</value>
+  </data>
+  <data name="Usage_Projects" xml:space="preserve">
+    <value>{0} Projekte</value>
+  </data>
+  <data name="Usage_ProjectsNotBuilt" xml:space="preserve">
+    <value>{0} nicht gebaut</value>
+  </data>
+  <data name="Usage_ProjectsStale" xml:space="preserve">
+    <value>{0} veraltet</value>
+  </data>
+  <data name="Usage_ProjectsFailed" xml:space="preserve">
+    <value>{0} nicht lesbar</value>
+  </data>
+  <data name="Usage_NotBuilt" xml:space="preserve">
+    <value>nicht gebaut (keine Assembly in der Konfiguration der Verknüpfung): Seine Verwendungen fehlen, sie zählen nicht als ungenutzt</value>
+  </data>
+  <data name="Usage_Stale" xml:space="preserve">
+    <value>veraltet: {0} wurde nach dem Build geändert</value>
+  </data>
+  <data name="Usage_NoPdb" xml:space="preserve">
+    <value>keine portable PDB: Methoden ohne Datei und Zeile</value>
+  </data>
+  <data name="Usage_NoSourceFile" xml:space="preserve">
+    <value>Keine Datei und Zeile bekannt (das Projekt hat keine portable PDB).</value>
+  </data>
+  <data name="Usage_FileMissing" xml:space="preserve">
+    <value>Die Datei gibt es nicht mehr: {0}</value>
+  </data>
+  <data name="Usage_OpenFailed" xml:space="preserve">
+    <value>Der Editor ließ sich nicht starten.</value>
+  </data>
+  <data name="Usage_OpenedElsewhere" xml:space="preserve">
+    <value>Kein laufendes Visual Studio hat die Solution offen: Die Datei ging in der zuletzt aktiven Instanz oder einer neuen auf.</value>
+  </data>
+  <data name="Usage_OpenedByType" xml:space="preserve">
+    <value>Die Datei liegt im Arbeits-Klon nicht an derselben Stelle: Geöffnet ist die Datei mit dem Typ, ohne Zeile.</value>
+  </data>
+  <data name="Usage_NoModel" xml:space="preserve">
+    <value>Kein C#-Modell geladen</value>
+  </data>
+  <data name="Usage_NoModelText" xml:space="preserve">
+    <value>Das C#-Projekt der Verbindung im Verbindungsdialog verknüpfen; die Verwendungen kommen aus dem Build seiner Solution.</value>
+  </data>
+  <data name="Usage_NoEntity" xml:space="preserve">
+    <value>Keine Entity des C#-Modells zeigt auf diese Tabelle</value>
+  </data>
+  <data name="Usage_Heading" xml:space="preserve">
+    <value>Verwendung von {0} im Code</value>
+  </data>
+  <data name="Usage_Solution" xml:space="preserve">
+    <value>Solution</value>
+  </data>
+  <data name="Usage_Building" xml:space="preserve">
+    <value>Liest den Build …</value>
+  </data>
+  <data name="Usage_BuiltAt" xml:space="preserve">
+    <value>Stand {0}</value>
+  </data>
+  <data name="Usage_Reload" xml:space="preserve">
+    <value>Neu einlesen</value>
+  </data>
+  <data name="Usage_ReloadTitle" xml:space="preserve">
+    <value>Solution neu einlesen (neue Projekte); unveränderte Assemblies kommen aus dem Cache</value>
+  </data>
+  <data name="Usage_Failed" xml:space="preserve">
+    <value>Die Solution ließ sich nicht lesen: {0}</value>
+  </data>
+  <data name="Usage_Limits" xml:space="preserve">
+    <value>Gelesen aus dem kompilierten Code: Zugriffe per String (EF.Property, Include("…")), Reflection und rohes SQL findet das nicht. Nicht gebauter Code fehlt.</value>
+  </data>
+  <data name="Usage_NoQueries" xml:space="preserve">
+    <value>Kein Set&lt;T&gt;(), kein Lesen der DbSet-Property und keine Navigation zur Tabelle gefunden.</value>
+  </data>
+  <data name="Usage_Unused" xml:space="preserve">
+    <value>ungenutzt</value>
+  </data>
+  <data name="Usage_UnusedTitle" xml:space="preserve">
+    <value>Gemappt, aber kein Code außerhalb von Tests und Mapping liest oder schreibt sie (ein Fremdschlüssel zählt auch über seine Navigations)</value>
+  </data>
+  <data name="Usage_ShadowTitle" xml:space="preserve">
+    <value>Schatten-Property: kein Getter im Code, nur EF.Property – nicht prüfbar</value>
+  </data>
+  <data name="Usage_Via" xml:space="preserve">
+    <value>über {0}</value>
+  </data>
+  <data name="Usage_Test" xml:space="preserve">
+    <value>Test</value>
+  </data>
+  <data name="Usage_TestTitle" xml:space="preserve">
+    <value>In einem Testprojekt: angezeigt, nicht gezählt</value>
+  </data>
+  <data name="Usage_Mapping" xml:space="preserve">
+    <value>Mapping</value>
+  </data>
+  <data name="Usage_MappingTitle" xml:space="preserve">
+    <value>Mapping-Code (IEntityTypeConfiguration, OnModelCreating, DbSet-Property): angezeigt, nicht gezählt</value>
+  </data>
+  <data name="Usage_CopyPath" xml:space="preserve">
+    <value>Pfad kopieren</value>
+  </data>
+  <data name="Usage_CopyPathLine" xml:space="preserve">
+    <value>Pfad:Zeile kopieren</value>
+  </data>
+  <data name="Usage_CopyName" xml:space="preserve">
+    <value>Namen kopieren (Ctrl+T in Visual Studio)</value>
+  </data>
+  <data name="Usage_CopyCaller" xml:space="preserve">
+    <value>Methode kopieren</value>
+  </data>
+  <data name="Usage_DropUsed" xml:space="preserve">
+    <value>Spalte {0} ({1}) wird im Code an {2} Stellen verwendet ({3}): Der Build bricht, sobald die Property entfernt ist.</value>
+  </data>
+  <data name="Usage_RenameUsed" xml:space="preserve">
+    <value>Spalte {0} ({1}) wird umbenannt und im Code an {2} Stellen verwendet ({3}): Das Mapping der Property muss mitgehen.</value>
+  </data>
+  <data name="Usage_DropAlsoNavigation" xml:space="preserve">
+    <value>Dazu {0} Stellen über {1}: Die Beziehung braucht die Spalte, ohne sie scheitern deren Abfragen zur Laufzeit.</value>
+  </data>
+  <data name="Usage_DropUsedNavigation" xml:space="preserve">
+    <value>Spalte {0} wird im Code über {1} an {2} Stellen verwendet ({3}): Die Beziehung braucht die Spalte, ohne sie scheitern deren Abfragen zur Laufzeit.</value>
+  </data>
+  <data name="Usage_ViaNavigation" xml:space="preserve">
+    <value>über Navigation {0}</value>
+  </data>
+  <data name="Usage_NavigationsHeading" xml:space="preserve">
+    <value>Über Navigations</value>
+  </data>
+  <data name="Usage_NavigationsHint" xml:space="preserve">
+    <value>Navigations, die Zeilen der Tabelle laden: EF joint sie ohne ein Set&lt;T&gt;() von ihr.</value>
+  </data>
+  <data name="Usage_ReportHeading" xml:space="preserve">
+    <value>Im Code ungenutzt</value>
+  </data>
+  <data name="Usage_ReportHint" xml:space="preserve">
+    <value>Gemappte Properties, die kein Code der Solution außerhalb von Tests und Mapping liest oder schreibt – gelesen aus dem Build; Zugriffe per String und rohes SQL sieht das nicht.</value>
+  </data>
+  <data name="Usage_ReportRead" xml:space="preserve">
+    <value>Solution einlesen</value>
+  </data>
+  <data name="Usage_ReportNone" xml:space="preserve">
+    <value>Jede gemappte Property wird verwendet.</value>
+  </data>
+  <data name="Usage_VsCodePath" xml:space="preserve">
+    <value>VS Code kann diesen Pfad nicht über code.cmd öffnen (er enthält &amp; ^ % oder ein ähnliches Zeichen), und Code.exe liegt nicht daneben.</value>
+  </data>
+  <data name="Usage_TabColumns" xml:space="preserve">
+    <value>Spalten</value>
+  </data>
+  <data name="Usage_TabColumnsTitle" xml:space="preserve">
+    <value>Je Spalte die Methoden, die ihre Property lesen, schreiben oder in LINQ verwenden</value>
+  </data>
+  <data name="Usage_TabUnused" xml:space="preserve">
+    <value>{0} ungenutzt</value>
+  </data>
+  <data name="Usage_TabQueries" xml:space="preserve">
+    <value>Abfragen</value>
+  </data>
+  <data name="Usage_TabQueriesTitle" xml:space="preserve">
+    <value>Wo Code die Tabelle abfragt: Set&lt;T&gt;(), Lesen der DbSet-Property und Navigations zu ihr (gezählt im Anwendungscode)</value>
+  </data>
+  <data name="Usage_FilterLabel" xml:space="preserve">
+    <value>Verwendungen filtern</value>
+  </data>
+  <data name="Usage_FilterTitle" xml:space="preserve">
+    <value>Lesen umfasst LINQ; Mapping-Code ist weder Lesen noch Schreiben und steht nur unter „Alle“</value>
+  </data>
+  <data name="Usage_FilterAll" xml:space="preserve">
+    <value>Alle</value>
+  </data>
+  <data name="Usage_FilterRead" xml:space="preserve">
+    <value>Lesen</value>
+  </data>
+  <data name="Usage_FilterWrite" xml:space="preserve">
+    <value>Schreiben</value>
+  </data>
+  <data name="Usage_ReadsShort" xml:space="preserve">
+    <value>L</value>
+  </data>
+  <data name="Usage_WritesShort" xml:space="preserve">
+    <value>S</value>
+  </data>
+  <data name="Usage_ReadsTitle" xml:space="preserve">
+    <value>Lesezugriffe im Anwendungscode, LINQ eingeschlossen; in Klammern die in Tests. Eine Collection-Navigation (kunde.Auftraege.Add) zählt als Lesen.</value>
+  </data>
+  <data name="Usage_WritesTitle" xml:space="preserve">
+    <value>Schreibzugriffe im Anwendungscode: Setter, Objektinitialisierer, ExecuteUpdate; in Klammern die in Tests</value>
+  </data>
+  <data name="Usage_NoReads" xml:space="preserve">
+    <value>Keine Spalte dieser Tabelle wird im Code gelesen.</value>
+  </data>
+  <data name="Usage_NoWrites" xml:space="preserve">
+    <value>Keine Spalte dieser Tabelle wird im Code geschrieben.</value>
+  </data>
 </root>

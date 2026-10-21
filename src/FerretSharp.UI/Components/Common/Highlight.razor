@@ -1,0 +1,18 @@
+@* A text with the words of a search marked (WP-38, quick open): where TextSearch finds them, as <mark>. *@
+@using FerretSharp.Core.Query
+
+@{ var at = 0; }
+@foreach (var range in Search.Ranges(Text))
+{
+    @Text[at..range.Start]<mark>@Text[range.Start..range.End]</mark>
+    at = range.End;
+}
+@Text[at..]
+
+@code {
+    [Parameter, EditorRequired]
+    public string Text { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public TextSearch Search { get; set; } = TextSearch.None;
+}

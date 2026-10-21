@@ -56,9 +56,62 @@ public sealed class TextSearch
         return true;
     }
 
+    /// <summary>
+    /// Where the words of the query occur in <paramref name="text"/>, for highlighting hits (WP-38): every occurrence of
+    /// every word, compared as in <see cref="Matches"/>, sorted, overlapping or adjacent ones merged; none without a
+    /// query. A word found only without the underscores of a name ("lieferort" in LIEFER_ORT) is not marked.
+    /// </summary>
+    public IReadOnlyList<TextRange> Ranges(string? text)
+    {
+        if (string.IsNullOrEmpty(text) || _words.Length == 0)
+        {
+            return [];
+        }
+
+        var found = new List<TextRange>();
+        foreach (var word in _words)
+        {
+            var start = 0;
+            while (start < text.Length)
+            {
+                var offset = Compare.IndexOf(text.AsSpan(start), word, Options, out var length);
+                if (offset < 0 || length == 0)
+                {
+                    break;
+                }
+
+                found.Add(new TextRange(start + offset, length));
+                start += offset + length;
+            }
+        }
+
+        found.Sort((a, b) => a.Start.CompareTo(b.Start));
+        var merged = new List<TextRange>();
+        foreach (var range in found)
+        {
+            if (merged.Count > 0 && range.Start <= merged[^1].End)
+            {
+                var last = merged[^1];
+                merged[^1] = last with { Length = Math.Max(last.End, range.End) - last.Start };
+            }
+            else
+            {
+                merged.Add(range);
+            }
+        }
+
+        return merged;
+    }
+
     public static bool Contains(string text, string word) => Compare.IndexOf(text, word, Options) >= 0;
 
     public static bool StartsWith(string text, string word) => Compare.IsPrefix(text, word, Options);
 
     public static bool Equal(string a, string b) => Compare.Compare(a, b, Options) == 0;
+}
+
+/// <summary>A part of a text: where it starts and how long it is.</summary>
+public readonly record struct TextRange(int Start, int Length)
+{
+    public int End => Start + Length;
 }

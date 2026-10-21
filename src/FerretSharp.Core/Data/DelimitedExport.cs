@@ -1,6 +1,4 @@
-using System.Globalization;
 using System.Text;
-using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 
 namespace FerretSharp.Core.Data;
@@ -17,19 +15,30 @@ public static class DelimitedExport
     public const char CsvSeparator = ';';
     public const char ClipboardSeparator = '\t';
 
-    private static readonly CultureInfo German = ValueCulture.German;
-
     public static ExportText Build(TableDetails table, IReadOnlyList<RowData> rows, char separator)
     {
         var warnings = new ExportWarnings();
         var text = new StringBuilder();
+        AppendHeader(text, table, separator);
+        AppendRows(text, table, rows, separator, warnings);
+        return new ExportText(text.ToString(), rows.Count, warnings.ToList());
+    }
+
+    /// <summary>
+    /// A CSV file written block by block (WP-54): UTF-8 with byte order mark (Excel needs it to read UTF-8), separator
+    /// <see cref="CsvSeparator"/>, the notation of <see cref="Build"/>. The stream stays open.
+    /// </summary>
+    public static IExportWriter CreateWriter(Stream stream, TableDetails table) => new Writer(stream, table, CsvSeparator);
+
+    private static void AppendHeader(StringBuilder text, TableDetails table, char separator) =>
         AppendLine(text, table.Columns.Select(c => c.Name), separator);
+
+    private static void AppendRows(StringBuilder text, TableDetails table, IEnumerable<RowData> rows, char separator, ExportWarnings warnings)
+    {
         foreach (var row in rows)
         {
             AppendLine(text, table.Columns.Select((c, i) => Value(c, row.Values[i], warnings)), separator);
         }
-
-        return new ExportText(text.ToString(), rows.Count, warnings.ToList());
     }
 
     /// <summary>
@@ -44,25 +53,8 @@ public static class DelimitedExport
         return new ExportText(text, 1, warnings.ToList());
     }
 
-    private static string Value(ColumnInfo column, object? value, ExportWarnings warnings) => value switch
-    {
-        null or DBNull => "",
-        decimal d => d.ToString(German),
-        BigNumber big => big.Invariant.Replace('.', ','),
-        int or long or short => Convert.ToString(value, CultureInfo.InvariantCulture)!,
-        double d => d.ToString("R", German),
-        float f => f.ToString("R", German),
-        DateTimeOffset dto => dto.ToString("dd.MM.yyyy HH:mm:ss.FFFFFFF zzz", CultureInfo.InvariantCulture),
-        DateTime dt when ColumnCategories.Of(column) == ColumnCategory.Date => dt.ToString("dd.MM.yyyy HH:mm:ss", CultureInfo.InvariantCulture),
-        DateTime dt => dt.ToString("dd.MM.yyyy HH:mm:ss.FFFFFFF", CultureInfo.InvariantCulture),
-        bool b => b ? "TRUE" : "FALSE",
-        byte[] bytes => Convert.ToHexString(bytes),
-        LobValue { Preview: { } preview } clob when preview.Length == clob.Length => preview,
-        LobValue lob => warnings.Skip(column, lob.Preview is null ? DataText.ExportReasonOnlyLength : DataText.ExportReasonOnlyPreview),
-        NotNullMarker => warnings.Skip(column, DataText.ExportReasonTypeNotExported),
-        string s => s,
-        _ => Convert.ToString(value, CultureInfo.InvariantCulture) ?? "",
-    };
+    private static string Value(ColumnInfo column, object? value, ExportWarnings warnings) =>
+        ExportNotation.Text(column, value, warnings) ?? "";
 
     private static void AppendLine(StringBuilder text, IEnumerable<string> fields, char separator)
     {
@@ -87,22 +79,49 @@ public static class DelimitedExport
 
         text.Append("\r\n");
     }
-}
 
-/// <summary>Collects skipped values per column, e.g. "NOTE (CLOB): 3 values not exported – only the preview was loaded."</summary>
-internal sealed class ExportWarnings
-{
-    private readonly Dictionary<(string Column, string Type, string Reason), int> _skipped = [];
-
-    /// <returns>Empty text for delimited output.</returns>
-    public string Skip(ColumnInfo column, string reason)
+    private sealed class Writer(Stream stream, TableDetails table, char separator) : IExportWriter
     {
-        var key = (column.Name, column.DataType, reason);
-        _skipped[key] = _skipped.GetValueOrDefault(key) + 1;
-        return "";
-    }
+        private readonly StreamWriter _file = new(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true), bufferSize: 1 << 16, leaveOpen: true);
+        private readonly ExportWarnings _warnings = new();
+        private readonly StringBuilder _text = new();
+        private bool _started;
 
-    public List<string> ToList() => _skipped
-        .Select(kv => TextFormat.Plural(kv.Value, DataText.ExportSkippedOne, DataText.ExportSkippedOther, kv.Key.Column, kv.Key.Type, kv.Key.Reason))
-        .ToList();
+        public long Rows { get; private set; }
+
+        public async ValueTask<bool> WriteAsync(IReadOnlyList<RowData> rows, CancellationToken cancellationToken)
+        {
+            Start();
+            AppendRows(_text, table, rows, separator, _warnings);
+            await FlushTextAsync(cancellationToken);
+            Rows += rows.Count;
+            return true;
+        }
+
+        public async ValueTask<ExportSummary> FinishAsync(CancellationToken cancellationToken)
+        {
+            Start(); // no rows: the header alone
+            await FlushTextAsync(cancellationToken);
+            await _file.FlushAsync(cancellationToken);
+            return new ExportSummary(Rows, _warnings.ToList());
+        }
+
+        public ValueTask DisposeAsync() => _file.DisposeAsync();
+
+        private void Start()
+        {
+            if (!_started)
+            {
+                _started = true;
+                AppendHeader(_text, table, separator);
+            }
+        }
+
+        private async Task FlushTextAsync(CancellationToken cancellationToken)
+        {
+            await _file.WriteAsync(_text, cancellationToken);
+            _text.Clear();
+        }
+    }
 }
+

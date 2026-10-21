@@ -31,7 +31,6 @@ public sealed class DisplayColumnSourceTests : IDisposable
 
         var load = source.Current();
 
-        Assert.True(load.IsDefaultPath);
         Assert.Equal(DefaultPath, load.Path);
         Assert.False(load.Exists);
         Assert.Null(load.Error);
@@ -59,7 +58,7 @@ public sealed class DisplayColumnSourceTests : IDisposable
             """.ReplaceLineEndings(),
             (await File.ReadAllTextAsync(path, Ct)).ReplaceLineEndings());
         Assert.Equal("NAME", source.Current().Columns.ColumnOf("KUNDE"));
-        Assert.False(source.Current().IsDefaultPath);
+        Assert.NotEqual(DefaultPath, source.Current().Path);
     }
 
     [Fact]
@@ -187,7 +186,7 @@ public sealed class DisplayColumnSourceTests : IDisposable
 
         await settings.UpdateAsync(s => s with { DisplayColumnsPath = null }, Ct);
         Assert.Equal(4, reported);
-        Assert.True(source.Current().IsDefaultPath);
+        Assert.Equal(DefaultPath, source.Current().Path);
         Assert.Equal(4, source.Version);
     }
 

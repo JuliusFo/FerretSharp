@@ -7,6 +7,7 @@
 @inject ConnectionManager Connections
 @inject ConnectionHub Hub
 @inject RecentConnections Recent
+@inject FerretSharp.Core.ClrModel.WorkClones WorkClones
 @inject ConnectionKeepAlive KeepAlive
 @inject FerretSharp.Core.Settings.AppSettingsService Settings
 @inject ShortcutService Shortcuts
@@ -14,6 +15,7 @@
 @inject IJSRuntime JS
 @inject FerretSharp.Core.Workspaces.SqlHistoryStore SqlHistory
 @inject ILoggerFactory LoggerFactory
+@inject LinkInbox Links
 
 <CascadingValue Value="_state" IsFixed="true">
 <CascadingValue Value="_lifecycle" IsFixed="true">
@@ -32,6 +34,8 @@
                 <WorkspaceBar />
             }
             <div class="topbar-right">
+                <button class="icon-btn ghost @(_state.Palette is not null ? "active" : "")" title="@QuickOpenTitle"
+                        disabled="@(QuickOpenUnavailable is not null)" @onclick="() => RunAction(ShortcutAction.QuickOpen)">@Icons.Search</button>
                 <button class="icon-btn ghost @(_state.Page == ShellPage.AppStatements ? "active" : "")" title="@AppStatementsText.AppStatements_Title"
                         @onclick="() => ToggleSidePage(ShellPage.AppStatements)">@Icons.Pulse</button>
                 <button class="icon-btn ghost @(_state.Page == ShellPage.Compare ? "active" : "")" title="@ShellText.Shell_SchemaComparison"
@@ -147,7 +151,7 @@
                         }
                         else if (Active.Status == ConnectionStatus.Connecting && Active.Profile is { } connecting)
                         {
-                            <EmptyState Title="@TextFormat.Format(ShellText.Connection_ConnectingTo, connecting.Name)"Text="@connecting.Address.Display">
+                            <EmptyState Title="@TextFormat.Format(ConnectionViewText.Connection_ConnectingTo, connecting.Name)"Text="@connecting.Address.Display">
                                 <span class="spinner"></span>
                                 <button class="btn" @onclick="Active.CancelPendingConnect">@CommonText.Cancel</button>
                                 <ConnectProgress Active="Active" />
@@ -155,7 +159,7 @@
                         }
                         else if (Active.Status == ConnectionStatus.Failed && Active.Profile is { } failed)
                         {
-                            <EmptyState Title="@TextFormat.Format(ShellText.Shell_ConnectionFailedTo, failed.Name)" IsError="true">
+                            <EmptyState Title="@TextFormat.Format(ShellText.Shell_ConnectionFailedTo, ConnectionLabel.Of(failed, Settings.Current))" IsError="true">
                                 <div class="error-detail">
                                     @if (Active.Error?.ErrorCode is { } errorCode)
                                     {
@@ -165,7 +169,7 @@
                                 </div>
                                 <div class="button-row">
                                     <button class="btn primary" @onclick="() => _state.Connect(failed)">@CommonText.TryAgain</button>
-                                    <button class="btn" @onclick="() => _state.EditConnection(failed)">@ShellText.Connection_Edit</button>
+                                    <button class="btn" @onclick="() => _state.EditConnection(failed)">@ConnectionViewText.Connection_Edit</button>
                                     <button class="btn ghost" @onclick="_state.ShowConnections">@ShellText.Shell_ToOverview</button>
                                 </div>
                             </EmptyState>
@@ -191,6 +195,10 @@
 
     <ConnectionScopeView @key='(Shown, "dialogs")' Scope="Shown">
         <DialogHost Lifecycle="_lifecycle" />
+    </ConnectionScopeView>
+    @* WP-38: quick open and command palette, of the shown connection. *@
+    <ConnectionScopeView @key='(Shown, "palette")' Scope="Shown">
+        <QuickPalette ActionState="ActionContext" OnAction="OnPaletteAction" />
     </ConnectionScopeView>
     @* Not per connection: the update is the app's (WP-32). *@
     <UpdateDialog />
@@ -239,7 +247,6 @@
     private DomModule? _dom;
 
     private DomModule Dom => _dom ??= new(JS);
-    /// <summary>Per open connection the handler subscribed to its events (WP-24), to unsubscribe when it closes.</summary>
     /// <summary>Per open connection: the handler for its connection and workspaces, and the one for its model.</summary>
     private readonly Dictionary<ConnectionScope, (Action Scope, Action Model)> _subscribed = [];
 
@@ -289,11 +296,43 @@
         KeepAlive.Start();
         if (Settings.StartupNotice is { } notice)
         {
-            _state.Notify(ShellText.Settings_NotRead, [notice]); // the settings file could not be read (R4a); a warning stays longer
+            _state.Notify(SettingsViewText.Settings_NotRead, [notice]); // the settings file could not be read (R4a); a warning stays longer
         }
 
         await Connections.LoadAsync(CancellationToken.None);
         await Recent.LoadAsync(CancellationToken.None);
+        await WorkClones.LoadAsync(CancellationToken.None);
+
+        // Links (WP-37): the start argument is waiting already; a second start hands one over through the host's pipe.
+        Links.Received += OnLinkReceived;
+        _state.IncomingLinkClosed += OnLinkReceived;
+        TakeLinks();
+    }
+
+    private void OnLinkReceived() => Run(TakeLinks);
+
+    /// <summary>
+    /// Shows the newest waiting link for confirmation (older ones of a burst are dropped: one dialog at a time). While a link
+    /// is being confirmed, new ones wait (review 3.40.0, A25): replacing the dialog's content, a click on "Open" meant for
+    /// the link just read opened another one.
+    /// </summary>
+    private void TakeLinks()
+    {
+        if (_state.IncomingLink is not null)
+        {
+            return;
+        }
+
+        string? latest = null;
+        while (Links.TryTake(out var link))
+        {
+            latest = link;
+        }
+
+        if (latest is not null)
+        {
+            _state.ShowIncomingLink(IncomingLink.Read(latest, Connections.Profiles));
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -355,28 +394,58 @@
 
     private void OnShortcutCore(string combo, bool modalOpen, bool cellEditing)
     {
-        if (modalOpen)
+        if (!modalOpen && Shortcuts.Map.ActionFor(combo, ShortcutScope.Global) is { } action)
+        {
+            RunAction(action, cellEditing);
+        }
+    }
+
+    /// <summary>Why the magnifier (quick open) cannot open the box now; null if it can – the rule of its key.</summary>
+    private string? QuickOpenUnavailable => ShellActions.Unavailable(ShortcutAction.QuickOpen, ActionContext());
+
+    private string QuickOpenTitle =>
+        SettingsText.ActionQuickOpen + Shortcuts.Hint(ShortcutAction.QuickOpen) + (QuickOpenUnavailable is { } reason ? Environment.NewLine + reason : "");
+
+    /// <summary>What decides whether a global action can run now (<see cref="ShellActions"/>).</summary>
+    private ShellActionContext ActionContext() => new(
+        InExplorer: _state.Page == ShellPage.Explorer,
+        Connected: Active.IsConnected,
+        ActiveTab: _state.ActiveTab,
+        Writable: _state.ActiveWorkspace is { } workspace && Shown.Workspaces.IsWritable(workspace.WorkspaceId),
+        LinkedProject: HasLinkedProject,
+        CanGoBack: _state.BackTarget() is not null,
+        CanGoForward: _state.ForwardTarget() is not null,
+        PreviousConnection: Hub.Previous is { } previous && Hub.Open.Contains(previous));
+
+    /// <summary>
+    /// Runs a global action from its shortcut or the command palette (WP-38); one that cannot run now does nothing – the
+    /// same rule greys it out in the palette.
+    /// </summary>
+    /// <param name="cellEditing">A grid cell of the visible tab is being edited: closing the tab would lose the value.</param>
+    private void RunAction(ShortcutAction action, bool cellEditing = false)
+    {
+        if (ShellActions.Unavailable(action, ActionContext()) is not null)
         {
             return;
         }
 
-        var action = Shortcuts.Map.ActionFor(combo, ShortcutScope.Global);
-
-        // Writing and committing need an editable connection and an active workspace.
-        if (action is ShortcutAction.Flush or ShortcutAction.Commit)
+        // Review of WP-38: an action through its key while the box is open acts on what is behind it – the box closes
+        // first (its own keys toggle it, the switcher replaces it).
+        if (_state.Palette is not null && action is not (ShortcutAction.QuickOpen or ShortcutAction.CommandPalette))
         {
-            if (_state.ActiveWorkspace is { } workspace && Shown.Workspaces.IsWritable(workspace.WorkspaceId) && _state.Page == ShellPage.Explorer)
-            {
-                Run(() => action == ShortcutAction.Flush ? _editing.FlushAsync(workspace) : _lifecycle.RequestCommitAsync(workspace));
-            }
-
-            return;
+            _state.ClosePalette();
         }
 
         switch (action)
         {
+            case ShortcutAction.Flush or ShortcutAction.Commit when _state.ActiveWorkspace is { } workspace:
+                Run(() => action == ShortcutAction.Flush ? _editing.FlushAsync(workspace) : _lifecycle.RequestCommitAsync(workspace));
+                break;
             case ShortcutAction.ConnectionSwitcher:
                 _state.OpenSwitcher();
+                break;
+            case ShortcutAction.QuickOpen or ShortcutAction.CommandPalette:
+                _state.TogglePalette(commands: action == ShortcutAction.CommandPalette);
                 break;
             case ShortcutAction.ApplyFilters:
                 _state.RequestTabCommand(TabCommand.ApplyFilters);
@@ -393,22 +462,22 @@
             case ShortcutAction.Forward:
                 _state.GoForward();
                 break;
-            case ShortcutAction.CloseTab when _state.Page == ShellPage.Explorer && _state.ActiveTab is { } tab:
+            case ShortcutAction.CloseTab when _state.ActiveTab is { } tab:
                 _lifecycle.CloseTab(tab, cellEditing);
                 break;
-            case ShortcutAction.CloseOtherTabs or ShortcutAction.CloseAllTabs when _state.Page == ShellPage.Explorer && _state.ActiveTab is { } tab:
+            case ShortcutAction.CloseOtherTabs or ShortcutAction.CloseAllTabs when _state.ActiveTab is { } tab:
                 _lifecycle.CloseTabs(tab, action == ShortcutAction.CloseOtherTabs ? TabCloseScope.Others : TabCloseScope.All, cellEditing);
                 break;
-            case ShortcutAction.PinTab when _state.Page == ShellPage.Explorer && _state.ActiveTab is { } tab:
+            case ShortcutAction.PinTab when _state.ActiveTab is { } tab:
                 _state.SetPinned(tab, !tab.Pinned);
                 break;
-            case ShortcutAction.RunScript when _state.Page == ShellPage.Explorer:
+            case ShortcutAction.RunScript:
                 _state.RequestTabCommand(TabCommand.RunScript);
                 break;
-            case ShortcutAction.NewSql when Active.IsConnected && _state.Page == ShellPage.Explorer:
+            case ShortcutAction.NewSql:
                 _state.OpenSql();
                 break;
-            case ShortcutAction.NewLinq when HasLinkedProject && _state.Page == ShellPage.Explorer:
+            case ShortcutAction.NewLinq:
                 _state.OpenLinq();
                 break;
             case ShortcutAction.PreviousConnection:
@@ -418,9 +487,28 @@
                 }
 
                 break;
-            case ShortcutAction.ToggleChanges when Active.IsConnected && _state.Page == ShellPage.Explorer:
+            case ShortcutAction.ToggleChanges:
                 _state.ToggleChanges();
                 break;
+            case ShortcutAction.SwitchWorkClone:
+                _state.OpenWorkClones();
+                break;
+        }
+    }
+
+    /// <summary>
+    /// An action chosen in the command palette (WP-38); the palette closed before. Logged and shown like a shortcut's
+    /// (review of WP-38): no error boundary sits above the shell.
+    /// </summary>
+    private void OnPaletteAction(ShortcutAction action)
+    {
+        try
+        {
+            RunAction(action);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Failed(ex);
         }
     }
 
@@ -498,6 +586,7 @@
             return; // closed meanwhile
         }
 
+        _state.ReportConnectionFailure(scope.Id, scope.Lost ?? (object?)(scope.Active.Status == ConnectionStatus.Failed ? scope.Active.Error : null));
         if (scope.Active.IsConnected && scope.Active.Schema is { } schema && scope.Workspaces.Profile?.Id == scope.Id)
         {
             _state.SyncWorkspaces(scope.Id, scope.Workspaces.Open, scope.Workspaces.Active?.Id, schema);
@@ -606,6 +695,8 @@
 
         KeepAlive.ConnectionLost -= OnKeepAliveLost;
         Shortcuts.Changed -= OnShortcutsChanged;
+        Links.Received -= OnLinkReceived;
+        _state.IncomingLinkClosed -= OnLinkReceived;
         if (_shortcuts is not null)
         {
             await _shortcuts.DisposeAsync("unregister");
