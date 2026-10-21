@@ -226,33 +226,14 @@
         var front = entity is not null && Presentation.Names == ClrNameDisplay.Front;
         return @<button id="palette-row-@rowIndex" tabindex="-1" class="table-item palette-row @(rowIndex == _highlight ? "highlight" : "") @(t.IsInvalid ? "invalid" : "")"
                         title="@($"{t.Owner}.{t.Name}")" @onclick="() => Activate(row)" @onmouseenter="() => _highlight = rowIndex">
-                    @Icons.For(t.Kind)
-                    <span class="name"><Highlight Text="@(front ? entity! : t.DisplayName)" Search="_marks" /></span>
-                    @if (entity is not null)
-                    {
-                        <span class="clr-name"><Highlight Text="@(front ? t.DisplayName : entity)" Search="_marks" /></span>
-                    }
-                    @if (t.Synonym is not null)
-                    {
-                        <span class="kind-tag syn">SYN</span>
-                    }
-                    @if (t.Kind != TableKind.Table)
-                    {
-                        <span class="kind-tag">@(t.Kind == TableKind.View ? "VIEW" : "MVIEW")</span>
-                    }
+                    <ObjectItemContent Table="t" Entity="@entity" EntityFirst="front" Search="_marks" />
                 </button>;
     }
 
     private RenderFragment UnitRow(PaletteRow row, PlSqlObjectSummary u, int rowIndex) =>
         @<button id="palette-row-@rowIndex" tabindex="-1" class="table-item palette-row @(rowIndex == _highlight ? "highlight" : "") @(u.IsInvalid ? "invalid" : "") @(u.IsDisabled ? "disabled-unit" : "")"
                  title="@($"{u.Owner}.{u.Name}")" @onclick="() => Activate(row)" @onmouseenter="() => _highlight = rowIndex">
-            @Icons.For(u.Kind)
-            <span class="name"><Highlight Text="@u.DisplayName" Search="_marks" /></span>
-            @if (u.Synonym is not null)
-            {
-                <span class="kind-tag syn">SYN</span>
-            }
-            <span class="kind-tag">@ExplorerList.Tag(u.Kind)</span>
+            <ObjectItemContent Unit="u" Search="_marks" />
         </button>;
 
     private RenderFragment CommandRow(PaletteRow row, PaletteCommand c, int rowIndex) =>

@@ -1,0 +1,53 @@
+@* What a row of a table, view or PL/SQL unit shows in the explorer and the quick open (review 3.44.0, B5: written out in
+   both): icon, name, the C# entity name in front or behind, SYN and the kind. The caller's button holds it. *@
+@using FerretSharp.Core.Query
+@using FerretSharp.Core.Schema
+
+@if (Table is { } t)
+{
+    var front = Entity is not null && EntityFirst;
+    @Icons.For(t.Kind)
+    <span class="name"><Highlight Text="@(front ? Entity! : t.DisplayName)" Search="Search" /></span>
+    @if (Entity is not null)
+    {
+        <span class="clr-name"><Highlight Text="@(front ? t.DisplayName : Entity)" Search="Search" /></span>
+    }
+    @if (t.Synonym is not null)
+    {
+        <span class="kind-tag syn">SYN</span>
+    }
+    @if (ExplorerList.Tag(t.Kind) is { } tag)
+    {
+        <span class="kind-tag">@tag</span>
+    }
+}
+else if (Unit is { } u)
+{
+    @Icons.For(u.Kind)
+    <span class="name"><Highlight Text="@u.DisplayName" Search="Search" /></span>
+    @if (u.Synonym is not null)
+    {
+        <span class="kind-tag syn">SYN</span>
+    }
+    <span class="kind-tag">@ExplorerList.Tag(u.Kind)</span>
+}
+
+@code {
+    [Parameter]
+    public TableSummary? Table { get; set; }
+
+    [Parameter]
+    public PlSqlObjectSummary? Unit { get; set; }
+
+    /// <summary>The table's C# entity name if names are shown; null otherwise.</summary>
+    [Parameter]
+    public string? Entity { get; set; }
+
+    /// <summary>The entity name in front, the table's behind (<c>ClrNameDisplay.Front</c>).</summary>
+    [Parameter]
+    public bool EntityFirst { get; set; }
+
+    /// <summary>The words to mark (quick open); none in the explorer.</summary>
+    [Parameter]
+    public TextSearch Search { get; set; } = TextSearch.None;
+}

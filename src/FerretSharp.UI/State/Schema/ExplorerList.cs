@@ -70,6 +70,14 @@ public static class ExplorerList
     private static int SortKey(char letter) => letter == Other ? int.MaxValue : letter;
 
     /// <summary>Short tag in the list, like VIEW/MVIEW for tables.</summary>
+    /// <summary>The kind tag of a view; null for a table.</summary>
+    public static string? Tag(TableKind kind) => kind switch
+    {
+        TableKind.View => "VIEW",
+        TableKind.MaterializedView => "MVIEW",
+        _ => null,
+    };
+
     public static string Tag(PlSqlKind kind) => kind switch
     {
         PlSqlKind.Package => "PKG",
