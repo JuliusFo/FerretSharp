@@ -156,6 +156,28 @@ public sealed class CodeUsageServiceTests : IAsyncDisposable
         Assert.Same(_models.Mapping!.Model, (await usage.EnsureAsync(Ct))!.Index.Model);
     }
 
+    /// <summary>
+    /// Review 3.44.0, A4: choosing another solution while the first build ran returned that build – the view listed the new
+    /// solution and showed the uses of the old one, as Ready.
+    /// </summary>
+    [Fact]
+    public async Task A_solution_chosen_while_the_index_is_built_is_read_after_it()
+    {
+        await ConnectAsync();
+        var builder = new GatedBuilder(_folder.Combine("cache2"));
+        using var usage = new CodeUsageService(_models, _active, _connections, builder);
+        var building = usage.EnsureAsync(Ct);
+        await builder.Started.Task.WaitAsync(TimeSpan.FromSeconds(10), Ct);
+
+        var choosing = usage.SelectSolutionAsync(_folder.Combine("Shop.slnx"), Ct);
+        builder.Release.SetResult();
+
+        Assert.Equal(_folder.Combine("Other.sln"), (await building)!.Solution);
+        await choosing;
+        Assert.Equal(_folder.Combine("Shop.slnx"), usage.State.Result!.Solution);
+        Assert.Equal(CodeUsagePhase.Ready, usage.State.Phase);
+    }
+
     [Fact]
     public async Task The_solutions_are_known_after_the_first_build_and_reading_them_reads_nothing()
     {

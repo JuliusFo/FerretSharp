@@ -38,6 +38,9 @@ public sealed class CodeUsageService : IDisposable
     /// <summary>A build is shared by every view asking for it: it runs for the service's lifetime, not the first caller's.</summary>
     private readonly CancellationTokenSource _lifetime = new();
     private Task<CodeUsageResult?>? _building;
+
+    /// <summary>A build asked for while another ran (another solution, "read again"): it follows the running one.</summary>
+    private Task<CodeUsageResult?>? _rerun;
     private (string ProjectFile, IReadOnlyList<string> Solutions)? _solutions;
     private ModelExport? _seenModel;
 
@@ -126,7 +129,9 @@ public sealed class CodeUsageService : IDisposable
         {
             if (_building is { IsCompleted: false } running)
             {
-                return running;
+                // A forced build reads what the running one may not have seen – another solution, a moved one (review
+                // 3.44.0, A4: the view showed solution B in its list and the uses of A).
+                return force ? _rerun ??= RerunAfterAsync(running) : running;
             }
 
             if (_lifetime.IsCancellationRequested || _models.State.Link is not { } linked || _models.Mapping?.Model is not { } loaded)
@@ -147,11 +152,22 @@ public sealed class CodeUsageService : IDisposable
         {
             if (_building is { IsCompleted: false } running)
             {
-                return running;
+                return force ? _rerun ??= RerunAfterAsync(running) : running;
             }
 
             return _lifetime.IsCancellationRequested ? Task.FromResult<CodeUsageResult?>(null) : _building = BuildAsync(link, model, _lifetime.Token);
         }
+    }
+
+    private async Task<CodeUsageResult?> RerunAfterAsync(Task<CodeUsageResult?> running)
+    {
+        await running; // never faults: BuildAsync ends in Failed or null
+        lock (_lock)
+        {
+            _rerun = null;
+        }
+
+        return await GetAsync(force: true);
     }
 
     private async Task<CodeUsageResult?> BuildAsync(ClrProjectLink link, ModelExport model, CancellationToken cancellationToken)
@@ -166,9 +182,10 @@ public sealed class CodeUsageService : IDisposable
                 return _builder.BuildAsync(link, Solution, model, cancellationToken);
             }, cancellationToken);
 
-            // The model changed while it ran (a build of the project): the result is kept but out of date, so views showing
-            // it build it again (review of WP-40: it ended as Ready, and nothing rebuilt it).
-            var outdated = !ReferenceEquals(_models.Mapping?.Model, model);
+            // The model changed while it ran (a build of the project), or another solution was chosen: the result is kept
+            // but out of date, so views showing it build it again (review of WP-40: it ended as Ready, and nothing rebuilt it).
+            var outdated = !ReferenceEquals(_models.Mapping?.Model, model)
+                           || !string.Equals(result.Solution, Solution, StringComparison.OrdinalIgnoreCase);
             Set(new CodeUsageState(outdated ? CodeUsagePhase.NotBuilt : CodeUsagePhase.Ready, result, _time.GetLocalNow(), null));
             return result;
         }

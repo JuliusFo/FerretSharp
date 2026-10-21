@@ -36,7 +36,7 @@ else
             {
                 <label class="usage-solution">
                     @ModelViewText.Usage_Solution
-                    <select class="field" value="@Usage.Solution" @onchange="e => SelectSolutionAsync((string?)e.Value)" @key="string.Join('|', solutions)">
+                    <select class="field" value="@Usage.Solution" disabled="@(state.Phase == CodeUsagePhase.Building)" @onchange="e => SelectSolutionAsync((string?)e.Value)" @key="string.Join('|', solutions)">
                         @foreach (var solution in solutions)
                         {
                             <option value="@solution" title="@solution">@System.IO.Path.GetFileName(solution)</option>
