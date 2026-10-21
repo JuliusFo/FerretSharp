@@ -29,6 +29,7 @@
     {
         <button class="status-btn" @onclick="CountAsync">@GridText.Footer_CountRows</button>
     }
+    <SelectionCount Grid="Grid" AllLoaded="Tab.AllRowsLoaded" />
     @if (Tab.LastQueryTime is { } time)
     {
         <span>@TimeText.Duration(time)</span>

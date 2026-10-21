@@ -117,8 +117,12 @@ public sealed class ShortcutMap
     [
         new(SettingsText.GroupData, SettingsText.FixedCopyValue, "Ctrl+C", SettingsText.HintInGrid),
         new(SettingsText.GroupData, SettingsText.FixedMarkForDeletion, KeyChord.Parse("delete")!.Label, SettingsText.HintInGrid),
-        new(SettingsText.GroupData, SettingsText.FixedExtendSelection,
-            $"{KeyChord.Parse("shift+arrowup")!.Label}, {KeyChord.Parse("shift+arrowdown")!.Label}", SettingsText.HintInGrid),
+        new(SettingsText.GroupData, SettingsText.FixedExtendSelection, Labels("shift+arrowup", "shift+arrowdown"), SettingsText.HintInGrid),
+        new(SettingsText.GroupData, SettingsText.FixedSelectToEdge, Labels("shift+home", "shift+end", "ctrl+shift+arrowup", "ctrl+shift+arrowdown"),
+            SettingsText.HintInGrid),
+        new(SettingsText.GroupData, SettingsText.FixedToggleRow, Labels("space"), SettingsText.HintInGrid),
+        new(SettingsText.GroupData, SettingsText.FixedSelectAllRows, Labels("ctrl+a"), SettingsText.HintSelectAllRows),
+        new(SettingsText.GroupData, SettingsText.FixedClearSelection, "Esc", SettingsText.HintInGridNotEditing),
         new(SettingsText.GroupData, SettingsText.FixedEditCell, "Enter", SettingsText.HintInGridDoubleClick),
         new(SettingsText.GroupData, SettingsText.FixedCancelInput, "Esc", SettingsText.HintInGrid),
         new(SettingsText.GroupData, SettingsText.ActionApplyFilters, "Enter", SettingsText.HintInFilterValue),
@@ -127,6 +131,8 @@ public sealed class ShortcutMap
         new(SettingsText.GroupSqlAndLinq, SettingsText.FixedUndoRedo, "Ctrl+Z, Ctrl+Y", SettingsText.HintInEditorNotWritten),
         new(SettingsText.GroupGeneral, SettingsText.FixedClose, "Esc"),
     ];
+
+    private static string Labels(params string[] combos) => string.Join(", ", combos.Select(c => KeyChord.Parse(c)!.Label));
 
     /// <summary>Why a key combination is taken by Windows or the WebView before FerretSharp sees it; null if it is not.</summary>
     private static string? Reserved(string combo) => combo switch

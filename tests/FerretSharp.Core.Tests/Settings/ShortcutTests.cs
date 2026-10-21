@@ -196,6 +196,18 @@ public sealed class ShortcutMapTests
         Assert.Equal(warns, new ShortcutMap().Check(action, Chord(text)).Warning is not null);
 
     [Fact]
+    public void The_fixed_keys_list_the_grid_selection_keys()
+    {
+        var keys = ShortcutMap.Fixed.ToDictionary(f => f.Label, f => f.Keys);
+
+        Assert.Equal("Shift+↑, Shift+↓", keys["Markierung erweitern (die Pfeiltasten allein verschieben sie)"]);
+        Assert.Equal("Shift+Pos1, Shift+Ende, Ctrl+Shift+↑, Ctrl+Shift+↓", keys["Bis zur ersten oder letzten Zeile markieren"]);
+        Assert.Equal("Leertaste", keys["Fokussierte Zeile markieren oder Markierung aufheben"]);
+        Assert.Equal("Ctrl+A", keys["Alle Zeilen markieren"]);
+        Assert.Equal("Esc", keys["Markierung aufheben"]);
+    }
+
+    [Fact]
     public void Removed_unknown_and_broken_entries_are_handled()
     {
         var map = new ShortcutMap(SettingsMap.From(new Dictionary<string, string>

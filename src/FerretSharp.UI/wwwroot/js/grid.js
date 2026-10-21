@@ -4,7 +4,8 @@
 import { comboOf, localCombo, setEditFinisher } from './shortcuts.js';
 
 const grids = new Map();
-// Per grid: focus changes from .NET – forget the last navigation key (it must not select), select the row (focusRow with select).
+// Per grid: focus changes from .NET – forget the last navigation key (it must not select), select the row (focusRow with
+// select); refresh ends the rows the keyboard selected (forgetSpan).
 const focusControls = new Map();
 // Cell values on their way to .NET (onCellEditRequest), each resolving to whether .NET took it.
 const pendingEdits = new Set();
@@ -605,36 +606,48 @@ export function create(elementId, dotnet, columns, options) {
   });
 
   // The grid's keys, in the capture phase (before AG Grid): each handler says whether the key was its.
-  element.addEventListener('keydown', e => onDeleteKey(e) || onCopyKey(e) || onFormKey(e) || onLobKey(e) || onEditHistoryKey(e), true);
+  element.addEventListener('keydown', e => onDeleteKey(e) || onCopyKey(e) || onFormKey(e) || onLobKey(e) || onEditHistoryKey(e)
+    || onSelectKey(e), true);
 
   const selectedRows = () => api.getSelectedNodes().map(n => n.rowIndex).filter(i => i != null);
 
   // The selection follows the focus like in the Windows Explorer: moving to another row with the keyboard (or the form's
-  // ▲ ▼) selects just that row, Shift+↑ ↓ and Shift+PageUp/PageDown select from the anchor to it and shrink again on the
-  // way back. New rows at the top are never selected (AG Grid does not select pinned rows): focusing one clears the
-  // selection, so Del never takes a row out of sight with it. Clicks stay AG Grid's own.
+  // ▲ ▼) selects just that row, Shift+↑ ↓, Shift+PageUp/PageDown, Shift+Home/End and Ctrl+Shift+↑ ↓ (AG Grid's Home/End
+  // and Ctrl+↑ ↓ go to the first or last row) select from the anchor to it and shrink again on the way back. New rows at
+  // the top are never selected (AG Grid does not select pinned rows): focusing one clears the selection, so Del never
+  // takes a row out of sight with it. Clicks stay AG Grid's own.
   const navigationKeys = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', 'Tab']);
-  const rangeKeys = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown']);
+  const rangeKeys = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End']);
   // AG Grid raises cellFocused asynchronously, after the key is up: the key is kept a moment longer (a key that moved
   // nothing must not make a later focus change from .NET select).
-  let keyMove = null; // after a navigation key: 'range' with Shift (not Ctrl), otherwise 'single'
+  let keyMove = null; // after a navigation key: 'range' or 'end' (to the last row) with Shift, otherwise 'single'
   let keyPresses = 0;
   let anchor = null; // where a Shift range starts: the row last clicked or moved to without Shift
   let focusedRow = null; // the loaded row focused last
+  // The rows the keyboard selected, { from, to } (to: Infinity after Ctrl+A or a range to the last row). Rows of a block
+  // that arrives later within them are selected too: a block still on its way, the rows below the last loaded one, a
+  // block dropped from the cache and fetched again. A click, Space or anything that loads other rows ends it.
+  let span = null;
   element.addEventListener('keydown', e => {
     keyPresses++;
-    keyMove = !navigationKeys.has(e.key) || e.altKey ? null : e.shiftKey && !e.ctrlKey && rangeKeys.has(e.key) ? 'range' : 'single';
+    keyMove = !navigationKeys.has(e.key) || e.altKey ? null
+      : !e.shiftKey || !rangeKeys.has(e.key) ? 'single'
+      : e.key === 'End' || (e.ctrlKey && e.key === 'ArrowDown') ? 'end' : 'range';
   }, true);
   element.addEventListener('keyup', () => {
     const press = keyPresses;
     setTimeout(() => { if (press === keyPresses) keyMove = null; }, 250);
   }, true);
   element.addEventListener('mousedown', () => { keyMove = null; }, true);
+  // A left click into the rows selects anew (AG Grid's): it ends the span. Here, not in onCellClicked – AG Grid raises
+  // that later, a Ctrl+A right after the click would lose its span. A right click keeps the selection for the menu.
+  element.addEventListener('mousedown', e => { if (e.button === 0 && e.target.closest?.('.ag-cell')) span = null; }, true);
 
-  // Rows not loaded yet (a block still on its way) cannot be selected and are left out.
-  function selectRange(gridApi, from, to) {
+  // Rows not loaded yet (a block still on its way) cannot be selected yet: the span takes them in when they arrive.
+  function selectRange(gridApi, from, to, toEnd) {
+    span = { from: Math.min(from, to), to: toEnd ? Infinity : Math.max(from, to) };
     const range = new Set();
-    for (let i = Math.min(from, to); i <= Math.max(from, to); i++) {
+    for (let i = span.from; i <= Math.max(from, to); i++) {
       const node = gridApi.getDisplayedRowAtIndex(i);
       if (node?.data) range.add(node);
     }
@@ -643,18 +656,38 @@ export function create(elementId, dotnet, columns, options) {
     gridApi.setNodesSelected({ nodes: [...range], newValue: true });
   }
 
+  // Ctrl+A: every loaded row; rows loaded later (scrolling on, a block still on its way) join while the span lasts.
+  function selectAll(gridApi) {
+    span = { from: 0, to: Infinity };
+    const nodes = [];
+    gridApi.forEachNode(node => { if (node.data && !node.rowPinned) nodes.push(node); });
+    gridApi.setNodesSelected({ nodes, newValue: true });
+  }
+
+  // A block arrived (getRows): its rows within the span are selected.
+  function selectArrived(gridApi, from, to) {
+    if (!span) return;
+    const nodes = [];
+    for (let i = Math.max(from, span.from); i < Math.min(to, span.to + 1); i++) {
+      const node = gridApi.getDisplayedRowAtIndex(i);
+      if (node?.data && !node.isSelected()) nodes.push(node);
+    }
+    if (nodes.length > 0) gridApi.setNodesSelected({ nodes, newValue: true });
+  }
+
   function followFocus(gridApi, rowIndex, pinned, how) {
     if (pinned) {
       if (gridApi.getSelectedNodes().length > 0) gridApi.deselectAll();
       anchor = null;
+      span = null;
       return;
     }
-    if (how !== 'range') {
+    if (how === 'single') {
       anchor = rowIndex;
     } else if (anchor === null || !gridApi.getDisplayedRowAtIndex(anchor)?.isSelected()) {
       anchor = focusedRow ?? rowIndex; // nothing selected any more (reloaded, sorted, Ctrl+click): from where the focus was
     }
-    selectRange(gridApi, anchor, rowIndex);
+    selectRange(gridApi, anchor, rowIndex, how === 'end');
   }
 
   // e.api: the event may come while createGrid still runs (before `api` is assigned).
@@ -667,8 +700,41 @@ export function create(elementId, dotnet, columns, options) {
   }
   focusControls.set(elementId, {
     forgetKey: () => { keyMove = null; },
+    forgetSpan: () => { span = null; },
     select: (rowIndex, pinned) => followFocus(api, rowIndex, pinned, 'single'),
   });
+
+  // Ctrl+A selects all rows, Esc clears the selection (only if there is one: otherwise Esc goes on). Space selects or
+  // deselects the focused row and makes it the anchor (AG Grid's own Space knows nothing of the anchor, with Shift it
+  // would select from where AG Grid last clicked). Not while editing (the editor's own keys, Esc cancels the input), not
+  // on a new row at the top (it cannot be selected).
+  function onSelectKey(e) {
+    if (e.altKey || api.getEditingCells().length > 0) return false;
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'a') {
+      e.preventDefault();
+      e.stopPropagation();
+      selectAll(api);
+      return true;
+    }
+    if (e.key === 'Escape' && !e.ctrlKey && !e.shiftKey && !e.metaKey) {
+      if (api.getSelectedNodes().length === 0) return false;
+      e.preventDefault();
+      e.stopPropagation();
+      span = null;
+      api.deselectAll();
+      return true;
+    }
+    if (e.key !== ' ') return false;
+    const cell = api.getFocusedCell();
+    const node = cell && !cell.rowPinned ? api.getDisplayedRowAtIndex(cell.rowIndex) : null;
+    if (!node?.data) return false;
+    e.preventDefault();
+    e.stopPropagation();
+    node.setSelected(!node.isSelected());
+    anchor = cell.rowIndex;
+    span = null;
+    return true;
+  }
 
   // Del (not while editing): mark the selected rows for deletion – pending until written, can be reverted. .NET decides
   // between the focused new row and the selected loaded rows.
@@ -747,6 +813,17 @@ export function create(elementId, dotnet, columns, options) {
     e.stopPropagation();
     dotnet.invokeMethodAsync('OnEditHistoryKey', undo).catch(callFailed);
     return true;
+  }
+
+  // How many rows are selected and whether rows still to load join them (span to the end), for the footer; Shift+↓ held
+  // down changes it fast, so only the last state within a moment is reported.
+  let selectionTimer = null;
+  function reportSelection() {
+    clearTimeout(selectionTimer);
+    selectionTimer = setTimeout(() => {
+      if (grids.get(elementId) !== api) return; // destroyed or created anew meanwhile
+      dotnet.invokeMethodAsync('OnSelectionChanged', api.getSelectedNodes().length, span?.to === Infinity).catch(callFailed);
+    }, 60);
   }
 
   // The form follows the focused cell; arrow keys move it fast, so only the last position within a moment is reported.
@@ -830,6 +907,9 @@ export function create(elementId, dotnet, columns, options) {
     onCellFocused,
     // A click without Shift sets where a Shift+↑ ↓ range starts (the selection itself is AG Grid's).
     onCellClicked: e => { if (!e.event?.shiftKey && !e.node.rowPinned) anchor = e.rowIndex; },
+    // Other rows in the same places: the span no longer means them.
+    onSortChanged: () => { span = null; },
+    onSelectionChanged: reportSelection,
     // Pinned or reordered within the pinned area by dragging (changes from setPinned have source 'api').
     onColumnPinned: e => { if (table && e.source?.startsWith('ui')) reportPinned(api, dotnet); },
     onColumnMoved: e => { if (table && e.finished && e.source?.startsWith('ui') && e.column?.getPinned()) reportPinned(api, dotnet); },
@@ -840,6 +920,7 @@ export function create(elementId, dotnet, columns, options) {
       if (!e.node.isSelected()) {
         e.node.setSelected(true, true);
         anchor = e.rowIndex;
+        span = null;
       }
       const selected = api.getSelectedNodes().map(n => n.rowIndex).filter(i => i != null);
       dotnet.invokeMethodAsync('OnCellContextMenu', e.rowIndex, e.column.getColId(), selected,
@@ -855,6 +936,7 @@ export function create(elementId, dotnet, columns, options) {
             return;
           }
           params.successCallback(page.rows, page.lastRow);
+          selectArrived(api, params.startRow, params.startRow + page.rows.length);
           if (restoreRow !== null) restoreScroll(params.startRow, params.startRow + page.rows.length, page.lastRow);
         } catch (e) {
           console.error(e);
@@ -941,6 +1023,7 @@ export function reload(elementId) {
 export function refresh(elementId) {
   const api = grids.get(elementId);
   if (!api) return;
+  focusControls.get(elementId)?.forgetSpan();
   api.ensureIndexVisible(0, 'top');
   api.purgeInfiniteCache();
 }

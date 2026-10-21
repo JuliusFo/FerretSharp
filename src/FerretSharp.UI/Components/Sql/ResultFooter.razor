@@ -24,6 +24,7 @@
                     <Arg0><strong>@(grid.AllLoaded ? "" : "≥ ")@grid.RowsLoaded.ToString("N0", CultureInfo.CurrentCulture)</strong></Arg0>
                 </Fmt>
             </span>
+            <SelectionCount Grid="Grid" AllLoaded="grid.AllLoaded" />
             @if (grid.Elapsed is { } elapsed)
             {
                 <span>@TimeText.Duration(elapsed)</span>
@@ -60,6 +61,10 @@
     /// <summary>The grid's state; null before it reported anything.</summary>
     [Parameter]
     public SqlGridStatus? Status { get; set; }
+
+    /// <summary>The result grid, for the number of selected rows; null before it exists.</summary>
+    [Parameter]
+    public ISelectionGrid? Grid { get; set; }
 
     /// <summary>More buttons next to an error (the LINQ console links the model drift for ORA-00904).</summary>
     [Parameter]

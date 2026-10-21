@@ -156,11 +156,11 @@
                         @if (_firstPage is not null)
                         {
                             <div class="grid-host">
-                                <SqlResultGrid @key="_runKey" WorkspaceId="Tab.WorkspaceId" Query="_query" FirstPage="_firstPage" OnStatus="OnGridStatus"
+                                <SqlResultGrid @key="_runKey" @ref="_resultGrid" WorkspaceId="Tab.WorkspaceId" Query="_query" FirstPage="_firstPage" OnStatus="OnGridStatus"
                                                FormTab="Tab" OnFormChanged="StateHasChanged" />
                             </div>
                         }
-                        <ResultFooter Status="_grid" FormTab="Tab" OnToggleForm="ToggleForm">
+                        <ResultFooter Status="_grid" Grid="_resultGrid" FormTab="Tab" OnToggleForm="ToggleForm">
                             <ErrorActions Context="error">
                                 @if (error.ErrorCode == "ORA-00904")
                                 {
@@ -254,6 +254,7 @@
     private QuerySpec? _query;
     private int _runKey;
     private SqlGridStatus? _grid;
+    private SqlResultGrid? _resultGrid;
     private WriteAction? _written;
     private TimeSpan? _writtenElapsed;
 

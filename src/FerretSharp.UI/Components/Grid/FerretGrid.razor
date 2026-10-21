@@ -12,6 +12,7 @@
 @implements IFormGrid
 @implements IDisplayNamesGrid
 @implements IEditableGrid
+@implements ISelectionGrid
 @inject IJSRuntime JS
 @inject ILogger<FerretGrid> Logger
 @inject ShortcutService Shortcuts
@@ -624,6 +625,18 @@
     {
         Focused = new GridCell(rowIndex, newId, colId is not null && colId.StartsWith('c') ? ColumnIndex(colId) : null);
         FocusChanged?.Invoke();
+    });
+
+    public GridSelection Selection { get; private set; } = GridSelection.None;
+
+    public event Action? SelectionChanged;
+
+    /// <summary>The selection changed (grid.js reports the last state after a short pause); the footer shows it.</summary>
+    [JSInvokable]
+    public void OnSelectionChanged(int count, bool toEnd) => Guard(() =>
+    {
+        Selection = new GridSelection(count, toEnd);
+        SelectionChanged?.Invoke();
     });
 
     /// <summary>Alt+Enter in the grid (WP-21).</summary>

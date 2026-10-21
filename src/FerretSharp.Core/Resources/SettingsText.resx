@@ -139,6 +139,22 @@
     <value>Extend the selection (the arrow keys alone move it)</value>
     <comment>Fixed shortcut</comment>
   </data>
+  <data name="FixedSelectToEdge" xml:space="preserve">
+    <value>Select up to the first or last row</value>
+    <comment>Fixed shortcut</comment>
+  </data>
+  <data name="FixedToggleRow" xml:space="preserve">
+    <value>Select or deselect the focused row</value>
+    <comment>Fixed shortcut</comment>
+  </data>
+  <data name="FixedSelectAllRows" xml:space="preserve">
+    <value>Select all rows</value>
+    <comment>Fixed shortcut</comment>
+  </data>
+  <data name="FixedClearSelection" xml:space="preserve">
+    <value>Clear the selection</value>
+    <comment>Fixed shortcut</comment>
+  </data>
   <data name="FixedEditCell" xml:space="preserve">
     <value>Edit cell, open LOB editor</value>
     <comment>Fixed shortcut</comment>
@@ -165,6 +181,12 @@
   </data>
   <data name="HintInGrid" xml:space="preserve">
     <value>In the grid.</value>
+  </data>
+  <data name="HintInGridNotEditing" xml:space="preserve">
+    <value>In the grid, when no cell is being edited.</value>
+  </data>
+  <data name="HintSelectAllRows" xml:space="preserve">
+    <value>In the grid; rows that only load as you scroll on are selected too.</value>
   </data>
   <data name="HintInGridDoubleClick" xml:space="preserve">
     <value>In the grid; also double-click.</value>

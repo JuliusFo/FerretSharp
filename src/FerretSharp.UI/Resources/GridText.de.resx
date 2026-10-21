@@ -615,6 +615,15 @@
   <data name="Footer_AtLeastRows" xml:space="preserve">
     <value>≥ {0} Zeilen</value>
   </data>
+  <data name="Footer_SelectedRows" xml:space="preserve">
+    <value>{0} markiert</value>
+  </data>
+  <data name="Footer_SelectedLoadedRows" xml:space="preserve">
+    <value>{0} markiert (geladene Zeilen)</value>
+  </data>
+  <data name="Footer_SelectedLoadedRowsTitle" xml:space="preserve">
+    <value>Nur geladene Zeilen sind markiert; Zeilen, die beim Weiterscrollen laden, kommen dazu. Löschen, Kopieren und Speichern nehmen nur die markierten – alle Zeilen gibt es im Kontextmenü unter „Alle Zeilen“.</value>
+  </data>
   <data name="Footer_Total" xml:space="preserve">
     <value>Gesamt {0}</value>
   </data>

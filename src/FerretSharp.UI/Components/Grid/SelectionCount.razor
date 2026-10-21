@@ -1,0 +1,51 @@
+@* How many rows are selected, in the footer of a table tab or a query result: from two rows on, and – after Ctrl+A or a
+   selection up to the last row while not every row is loaded – that only loaded rows count. Follows the grid itself, so
+   a changed selection renders only this, not the tab. *@
+@inherits FerretComponent
+@implements IDisposable
+
+@if (_grid?.Selection.FooterText(AllLoaded) is { } text)
+{
+    <span class="@(_grid.Selection.FooterTitle(AllLoaded) is null ? "" : "warn")" title="@_grid.Selection.FooterTitle(AllLoaded)">@text</span>
+}
+
+@code {
+    private ISelectionGrid? _grid;
+
+    /// <summary>The grid; null before it exists.</summary>
+    [Parameter]
+    public ISelectionGrid? Grid { get; set; }
+
+    /// <summary>Every row of the grid is loaded (the last block has arrived).</summary>
+    [Parameter]
+    public bool AllLoaded { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(Grid, _grid))
+        {
+            return;
+        }
+
+        if (_grid is not null)
+        {
+            _grid.SelectionChanged -= OnSelectionChanged;
+        }
+
+        _grid = Grid;
+        if (_grid is not null)
+        {
+            _grid.SelectionChanged += OnSelectionChanged;
+        }
+    }
+
+    private void OnSelectionChanged() => Fire(StateHasChanged);
+
+    public void Dispose()
+    {
+        if (_grid is not null)
+        {
+            _grid.SelectionChanged -= OnSelectionChanged;
+        }
+    }
+}
