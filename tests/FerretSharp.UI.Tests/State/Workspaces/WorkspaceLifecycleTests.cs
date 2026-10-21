@@ -209,5 +209,36 @@ public sealed class WorkspaceLifecycleTests : IAsyncDisposable
         Assert.Contains(tab, _app.WorkspaceOf(scope).Tabs);
     }
 
+    /// <summary>
+    /// Review 3.44.0, A5: closing the window or restarting into an update cancelled a running export without a word. Quitting
+    /// asks; "cancel exports and quit" cancels them, lets them remove their files, then asks about uncommitted work as usual.
+    /// </summary>
+    [Fact]
+    public async Task Quitting_while_an_export_runs_asks_and_cancels_it_first()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("ERP Test"));
+        _app.AddPendingWork(scope);
+        var export = _app.Shell.Exports.Start("KUNDEN.xlsx", null, workspaceId: _app.WorkspaceOf(scope).WorkspaceId);
+        export.Token.Register(() => _app.Shell.Exports.End(export)); // as the export does when its read stops
+        var approved = 0;
+
+        Assert.False(Lifecycle.CanExit);
+        await Lifecycle.RequestExitAsync(() => approved++);
+        Assert.Equal([export], Lifecycle.ConfirmExitExports);
+        Assert.Null(Lifecycle.PendingLeave);
+
+        Lifecycle.CancelExitExports(); // "keep exporting"
+        Assert.Equal([export], _app.Shell.Exports.Running);
+
+        await Lifecycle.RequestExitAsync(() => approved++);
+        await Lifecycle.ExitCancellingExportsAsync();
+
+        Assert.Empty(_app.Shell.Exports.Running);
+        Assert.Null(Lifecycle.ConfirmExitExports);
+        Assert.NotNull(Lifecycle.PendingLeave); // the pending change is asked about next
+        await Lifecycle.LeaveAsync(commit: false);
+        Assert.Equal(1, approved);
+    }
+
     public ValueTask DisposeAsync() => _app.DisposeAsync();
 }

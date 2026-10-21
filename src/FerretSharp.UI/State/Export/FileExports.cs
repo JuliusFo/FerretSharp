@@ -102,5 +102,41 @@ public sealed class FileExports
             export.End();
             Changed?.Invoke();
         }
+
+        if (_running.Count == 0)
+        {
+            _idle?.TrySetResult();
+            _idle = null;
+        }
+    }
+
+    private TaskCompletionSource? _idle;
+
+    /// <summary>
+    /// Cancels every export and waits until they ended – each removes its temporary file –, at most <paramref name="max"/>: a
+    /// read over a silent VPN may not return on a cancel (quitting, review 3.44.0, A5).
+    /// </summary>
+    public async Task CancelAllAsync(TimeSpan max)
+    {
+        if (_running.Count == 0)
+        {
+            return;
+        }
+
+        _idle ??= new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var idle = _idle.Task;
+        foreach (var export in _running.ToList())
+        {
+            export.Cancel();
+        }
+
+        try
+        {
+            await idle.WaitAsync(max);
+        }
+        catch (TimeoutException)
+        {
+            // what still runs ends with the app
+        }
     }
 }

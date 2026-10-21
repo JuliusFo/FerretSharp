@@ -774,6 +774,18 @@
   <data name="Dialogs_ResetSessionTitle" xml:space="preserve">
     <value>Session trennen?</value>
   </data>
+  <data name="Dialogs_ExitExportsTitle" xml:space="preserve">
+    <value>Exporte laufen noch</value>
+  </data>
+  <data name="Dialogs_ExitExportsText" xml:space="preserve">
+    <value>Beenden bricht sie ab; eine unfertige Datei wird nicht behalten:</value>
+  </data>
+  <data name="Dialogs_ExitExportsConfirm" xml:space="preserve">
+    <value>Exporte abbrechen und beenden</value>
+  </data>
+  <data name="Dialogs_ExitExportsKeep" xml:space="preserve">
+    <value>Weiter exportieren</value>
+  </data>
   <data name="Dialogs_ResetSessionText" xml:space="preserve">
     <value>Das Schreiben bzw. der Commit von {0} kommt nicht zurück. Session trennen beendet es: Was in der Transaktion geschrieben wurde, wird zurückgerollt, Grid-Änderungen werden wieder ausstehend. War ein Commit schon unterwegs, danach prüfen, ob er angekommen ist.</value>
   </data>

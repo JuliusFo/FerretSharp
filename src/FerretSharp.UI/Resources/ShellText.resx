@@ -957,6 +957,18 @@
   <data name="Dialogs_ResetSessionTitle" xml:space="preserve">
     <value>Disconnect session?</value>
   </data>
+  <data name="Dialogs_ExitExportsTitle" xml:space="preserve">
+    <value>Exports are still running</value>
+  </data>
+  <data name="Dialogs_ExitExportsText" xml:space="preserve">
+    <value>Quitting now cancels them; an unfinished file is not kept:</value>
+  </data>
+  <data name="Dialogs_ExitExportsConfirm" xml:space="preserve">
+    <value>Cancel exports and quit</value>
+  </data>
+  <data name="Dialogs_ExitExportsKeep" xml:space="preserve">
+    <value>Keep exporting</value>
+  </data>
   <data name="Dialogs_ResetSessionText" xml:space="preserve">
     <value>The write or commit of {0} has not returned. Disconnecting the session ends it: what was written in its transaction is rolled back, grid changes become pending again. If a commit was already on its way, check afterwards whether it went through.</value>
     <comment>{0}: workspace name</comment>

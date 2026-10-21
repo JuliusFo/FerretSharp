@@ -75,6 +75,21 @@
     </ConfirmDialog>
 }
 
+@* Review 3.44.0, A5: quitting (or the restart into an update) cancelled running exports without a word. *@
+@if (Lifecycle.ConfirmExitExports is { } exports)
+{
+    <ConfirmDialog Title="@ShellText.Dialogs_ExitExportsTitle" ConfirmLabel="@ShellText.Dialogs_ExitExportsConfirm" CancelLabel="@ShellText.Dialogs_ExitExportsKeep"
+                   Danger="true" OnConfirm="Lifecycle.ExitCancellingExportsAsync" OnCancel="Lifecycle.CancelExitExports">
+        <p>@ShellText.Dialogs_ExitExportsText</p>
+        <ul class="leave-list">
+            @foreach (var export in exports)
+            {
+                <li title="@export.Title"><strong>@export.Label</strong></li>
+            }
+        </ul>
+    </ConfirmDialog>
+}
+
 @if (Lifecycle.ConfirmRollback is { } rollbackTabs)
 {
     <ConfirmDialog Title="Rollback" ConfirmLabel="@ShellText.DiscardAll" Danger="true"
