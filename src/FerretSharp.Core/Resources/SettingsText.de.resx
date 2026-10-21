@@ -114,6 +114,15 @@
   <data name="FixedExtendSelection" xml:space="preserve">
     <value>Markierung erweitern (die Pfeiltasten allein verschieben sie)</value>
   </data>
+  <data name="FixedSelectToEdge" xml:space="preserve">
+    <value>Bis zur ersten oder letzten Zeile markieren</value>
+  </data>
+  <data name="FixedToggleRow" xml:space="preserve">
+    <value>Fokussierte Zeile markieren oder Markierung aufheben</value>
+  </data>
+  <data name="FixedSelectAllRows" xml:space="preserve">
+    <value>Alle Zeilen markieren</value>
+  </data>
   <data name="FixedEditCell" xml:space="preserve">
     <value>Zelle bearbeiten, LOB-Editor öffnen</value>
   </data>
@@ -134,6 +143,9 @@
   </data>
   <data name="HintInGrid" xml:space="preserve">
     <value>Im Grid.</value>
+  </data>
+  <data name="HintSelectAllRows" xml:space="preserve">
+    <value>Im Grid; Zeilen, die erst beim Weiterscrollen laden, werden mitmarkiert.</value>
   </data>
   <data name="HintInGridDoubleClick" xml:space="preserve">
     <value>Im Grid; auch Doppelklick.</value>
