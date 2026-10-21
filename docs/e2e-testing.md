@@ -57,6 +57,10 @@ Drei Stufen, von schwach nach stark:
 - Holt `SendInput` das Fenster nach vorn, bekommt das zuletzt fokussierte Feld den Fokus zurück – eine Spaltenauswahl öffnet dann ihre Liste und kann das Klickziel verdecken. Vorher per CDP `document.activeElement.blur()`.
 - PowerShell 5.1 schreibt `Set-Content` als ANSI: Zeichen wie „−“ oder „⋯“ in JS-Dateien für CDP gehen verloren. Elemente über Position oder Klasse wählen oder `-Encoding utf8`.
 
+## Verbindungsverlust nachstellen
+- Sessions der Testinstanz beenden: im eigenen Container `sqlplus / as sysdba` (OS-Anmeldung, kein Passwort nötig), `ALTER SESSION SET CONTAINER = FREEPDB1`, dann `ALTER SYSTEM KILL SESSION 'sid,serial#' IMMEDIATE` für `V$SESSION` mit `MODULE = 'FerretSharp'`. Die nächste Abfrage meldet ORA-12537/03135, ohne Abfrage meldet der Keep-alive nach bis zu 3 min. `SET SERVEROUTPUT ON` erst **nach** dem Containerwechsel, sonst fehlt die Ausgabe.
+- Netz weg: `docker stop <eigener Name>` (der Managed-Treiber meldet den abgewiesenen Port als ORA-50201), danach `docker start` – die DB ist nach rund 30 s wieder bereit.
+
 ## SQL*Plus im Container
 - Statements per PowerShell-Pipe an `docker exec … sqlplus` bekommen ein BOM vorangestellt (SP2-0734) → `docker exec <name> bash -c "echo '…' | sqlplus …"` oder Skriptdatei per `docker cp`.
 - SQL*Plus-Testskripte: `SET DEFINE OFF` (sonst wird `&` als Variable abgefragt) und `NLS_LANG=…AL32UTF8` für Umlaute.

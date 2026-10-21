@@ -126,4 +126,7 @@
   <data name="TnsAliasInvalid" xml:space="preserve">
     <value>Der TNS-Alias darf keine Leerzeichen und kein „(“, „)“, „=“ enthalten.</value>
   </data>
+  <data name="OpenTimedOut" xml:space="preserve">
+    <value>Die Session ließ sich nicht innerhalb von {0} s öffnen.</value>
+  </data>
 </root>

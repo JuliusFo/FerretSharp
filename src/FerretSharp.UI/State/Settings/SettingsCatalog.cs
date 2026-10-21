@@ -1,3 +1,4 @@
+using FerretSharp.Core.Connections;
 using FerretSharp.Core.Resources;
 using FerretSharp.Core.Settings;
 using FerretSharp.UI.Resources;
@@ -17,6 +18,7 @@ public enum SettingKey
     ClrNames,
     CodeEditor,
     KeepAlive,
+    AutoReconnect,
     LockWait,
     FkCounts,
     LinkProtocol,
@@ -89,6 +91,8 @@ public static class SettingsCatalog
             Setting(SettingKey.CodeEditor, SettingsPart.ClrModel, SettingsViewText.Settings_CodeEditor, SettingsViewText.Settings_CodeEditorHint),
             Setting(SettingKey.KeepAlive, SettingsPart.Connection, SettingsViewText.Settings_KeepAlive,
                 TextFormat.Format(SettingsViewText.Settings_KeepAliveHint, KeepAliveQuery, KeepAliveProfileLimit)),
+            Setting(SettingKey.AutoReconnect, SettingsPart.Connection, SettingsViewText.Settings_AutoReconnect,
+                TextFormat.Format(SettingsViewText.Settings_AutoReconnectHint, (int)ReconnectPolicy.GiveUpAfter.TotalMinutes)),
             Setting(SettingKey.LockWait, SettingsPart.Connection, SettingsViewText.Settings_LockWait, TextFormat.Format(SettingsViewText.Settings_LockWaitHint, LockWaitClause)),
             Setting(SettingKey.FkCounts, SettingsPart.Connection, SettingsViewText.Settings_FkCounts, SettingsViewText.Settings_FkCountsHint),
             Setting(SettingKey.LinkProtocol, SettingsPart.Connection, SettingsViewText.Settings_LinkProtocol, SettingsViewText.Settings_LinkProtocolHint),

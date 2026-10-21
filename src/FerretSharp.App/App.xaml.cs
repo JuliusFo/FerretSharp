@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Threading;
+using Microsoft.Win32;
 using FerretSharp.App.Services;
 using FerretSharp.App.Views;
 using FerretSharp.Core;
@@ -31,6 +32,7 @@ public partial class App : Application
     private readonly string[] _args;
     private IHost? _host;
     private ILogger<App>? _logger;
+    private PowerModeChangedEventHandler? _powerModeChanged;
 
     /// <summary>Started by <see cref="Program.Main"/>, which holds the data folder's instance lock (WP-32).</summary>
     /// <param name="args">The arguments to act on (<see cref="CommandLine.Effective"/>), not WPF's own copy of the raw command line.</param>
@@ -206,6 +208,7 @@ public partial class App : Application
         }
 
         _host.Services.GetRequiredService<UiStallMonitor>().Start();
+        WatchSleep(_host.Services.GetRequiredService<ConnectionKeepAlive>());
         _ = _host.Services.GetRequiredService<UpdateState>().StartAsync(); // never throws: a failed check is a note in the settings
     }
 
@@ -216,9 +219,31 @@ public partial class App : Application
     private static string ImportAppData(string[] args) =>
         CommandLine.ValueOf(args, CommandLine.ImportAppData) ?? Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
 
+    /// <summary>
+    /// After sleep the sessions are usually gone (the VPN dropped, the database timed them out): check them a few seconds after
+    /// waking instead of up to two minutes later, so the banner – or reconnecting by itself – comes before the next click.
+    /// </summary>
+    private void WatchSleep(ConnectionKeepAlive keepAlive)
+    {
+        _powerModeChanged = (_, args) =>
+        {
+            Log.Information("Power mode {Mode}", args.Mode); // with the connect steps, the log tells what sleep did (2026-10-21)
+            if (args.Mode == PowerModes.Resume)
+            {
+                keepAlive.CheckSoon();
+            }
+        };
+        SystemEvents.PowerModeChanged += _powerModeChanged;
+    }
+
     protected override void OnExit(ExitEventArgs e)
     {
         _logger?.LogInformation("FerretSharp shutting down");
+        if (_powerModeChanged is not null)
+        {
+            SystemEvents.PowerModeChanged -= _powerModeChanged; // a static event: it would keep the app's objects alive
+        }
+
         CloseConnection();
 
         // Synchronously, off the dispatcher and with a limit (review 3.31.0, A44): in the former async void OnExit the process

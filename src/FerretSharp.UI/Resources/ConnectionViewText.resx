@@ -504,4 +504,11 @@
   <data name="ConnectionDialog_PickAuditTemplate" xml:space="preserve">
     <value>Choose audit template file</value>
   </data>
+  <data name="Connection_TagReconnecting" xml:space="preserve">
+    <value>reconnecting</value>
+    <comment>Tag on a lost connection that is being connected again by itself</comment>
+  </data>
+  <data name="Switcher_ReconnectingTitle" xml:space="preserve">
+    <value>Lost – connecting again by itself</value>
+  </data>
 </root>

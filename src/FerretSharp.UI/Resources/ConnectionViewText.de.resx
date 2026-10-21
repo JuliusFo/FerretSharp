@@ -417,4 +417,10 @@
   <data name="ConnectionDialog_PickAuditTemplate" xml:space="preserve">
     <value>Datei der Audit-Vorlage auswählen</value>
   </data>
+  <data name="Connection_TagReconnecting" xml:space="preserve">
+    <value>verbindet neu</value>
+  </data>
+  <data name="Switcher_ReconnectingTitle" xml:space="preserve">
+    <value>Verloren – verbindet sich von selbst neu</value>
+  </data>
 </root>

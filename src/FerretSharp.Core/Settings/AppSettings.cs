@@ -78,6 +78,13 @@ public sealed record AppSettings
     public bool KeepAlive { get; init; } = true;
 
     /// <summary>
+    /// Connect again by itself when a connection is lost and none of its workspaces had uncommitted work, restoring the
+    /// workspaces where the user is; while the network is away, again with pauses (<see cref="Connections.ReconnectPolicy"/>).
+    /// Off by default.
+    /// </summary>
+    public bool AutoReconnect { get; init; }
+
+    /// <summary>
     /// Seconds to wait for a row another session has locked before writing gives up with a lock conflict
     /// (<c>SELECT … FOR UPDATE WAIT n</c>, 1–60).
     /// </summary>

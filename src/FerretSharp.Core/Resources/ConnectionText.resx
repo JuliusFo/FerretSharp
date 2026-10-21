@@ -144,4 +144,8 @@
   <data name="TnsAliasInvalid" xml:space="preserve">
     <value>The TNS alias may not contain blanks or “(”, “)”, “=”.</value>
   </data>
+  <data name="OpenTimedOut" xml:space="preserve">
+    <value>Opening the session did not finish within {0} s.</value>
+    <comment>{0}: seconds</comment>
+  </data>
 </root>

@@ -1,0 +1,20 @@
+@* The time until the next reconnect attempt (AutoReconnect), counting down by itself: the shell renders only on changes. *@
+@implements IDisposable
+
+<span class="reconnect-countdown">@TimeText.Clock(Remaining)</span>
+
+@code {
+    /// <summary>When the next attempt starts.</summary>
+    [Parameter, EditorRequired]
+    public DateTimeOffset At { get; set; }
+
+    private Timer? _ticker;
+
+    /// <summary>Whole seconds, rounded up: "0:00" only when the attempt starts.</summary>
+    private TimeSpan Remaining => TimeSpan.FromSeconds(Math.Max(0, Math.Ceiling((At - DateTimeOffset.UtcNow).TotalSeconds)));
+
+    protected override void OnInitialized() =>
+        _ticker = new Timer(_ => InvokeAsync(StateHasChanged), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+
+    public void Dispose() => _ticker?.Dispose();
+}

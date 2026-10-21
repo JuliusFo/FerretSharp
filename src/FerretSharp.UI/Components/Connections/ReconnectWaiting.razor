@@ -1,0 +1,46 @@
+@* Instead of "Connection failed" while reconnecting by itself waits for the next attempt (AutoReconnect): what failed, when it
+   tries again, try now or stop. *@
+@using FerretSharp.Core.Connections
+
+<EmptyState Title="@TextFormat.Format(ShellText.Reconnect_LostTitle, ConnectionLabel.Of(Profile, Settings.Current))" IsError="true">
+    <div class="error-detail">
+        @if (Active.Error?.ErrorCode is { } errorCode)
+        {
+            <span class="code">@errorCode</span>
+        }
+        <span>@Active.Error?.Message</span>
+    </div>
+    <p>
+        <Fmt Text="@ShellText.Reconnect_Next"><Arg0>@Run.Attempts</Arg0><Arg1><ReconnectCountdown At="Run.NextAt!.Value" /></Arg1></Fmt>
+        <span class="hint">@TextFormat.Format(ShellText.Reconnect_GivesUp, (int)ReconnectPolicy.GiveUpAfter.TotalMinutes)</span>
+    </p>
+    <div class="button-row">
+        <button class="btn primary" @onclick="() => Reconnect.TryNow(Scope)">@ShellText.Reconnect_TryNow</button>
+        <button class="btn" @onclick="() => Reconnect.Stop(Scope)">@ShellText.Reconnect_Stop</button>
+        <button class="btn ghost" @onclick="() => Shell.EditConnection(Profile)">@ConnectionViewText.Connection_Edit</button>
+    </div>
+</EmptyState>
+
+@code {
+    [CascadingParameter]
+    public ConnectionScope Scope { get; set; } = null!;
+
+    [CascadingParameter]
+    public ActiveConnection Active { get; set; } = null!;
+
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [CascadingParameter]
+    public AutoReconnect Reconnect { get; set; } = null!;
+
+    [Inject]
+    public FerretSharp.Core.Settings.AppSettingsService Settings { get; set; } = null!;
+
+    /// <summary>A parameter, so it renders again with the shell; <see cref="ReconnectPhase.Waiting"/>.</summary>
+    [Parameter, EditorRequired]
+    public ReconnectRun Run { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public ConnectionProfile Profile { get; set; } = null!;
+}

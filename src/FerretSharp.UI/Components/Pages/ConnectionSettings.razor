@@ -1,4 +1,5 @@
-@* Settings › Connection: keep-alive, lock wait, incoming FK counts, and which FerretSharp opens links (R6b: a section of its own). *@
+@* Settings › Connection: keep-alive, reconnecting by itself, lock wait, incoming FK counts, and which FerretSharp opens links (R6b: a section of its own). *@
+@using FerretSharp.Core.Connections
 @using FerretSharp.Core.Settings
 @inject AppSettingsService Settings
 @inject IProtocolRegistration Protocol
@@ -13,6 +14,10 @@
                 <Arg1><code>@SettingsCatalog.KeepAliveProfileLimit</code></Arg1>
             </Fmt>
         </Hint>
+    </SettingsChoice>
+    <SettingsChoice TValue="bool" Filter="Filter" Key="SettingKey.AutoReconnect" Label="@SettingsViewText.Settings_AutoReconnect" Options="SettingsOptions.OnOff"
+                    Value="Settings.Current.AutoReconnect" OnChange="on => UpdateAsync(s => s with { AutoReconnect = on })">
+        <Hint>@TextFormat.Format(SettingsViewText.Settings_AutoReconnectHint, (int)ReconnectPolicy.GiveUpAfter.TotalMinutes)</Hint>
     </SettingsChoice>
     <SettingsChoice TValue="int" Filter="Filter" Key="SettingKey.LockWait" Label="@SettingsViewText.Settings_LockWait" Options="SettingsOptions.LockWaits"
                     Value="Settings.Current.LockWaitSeconds" OnChange="seconds => UpdateAsync(s => s with { LockWaitSeconds = seconds })">

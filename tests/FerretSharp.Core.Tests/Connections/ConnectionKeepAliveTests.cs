@@ -129,6 +129,33 @@ public sealed class ConnectionKeepAliveTests : IDisposable
     }
 
     [Fact]
+    public async Task After_waking_from_sleep_pings_once_after_the_delay()
+    {
+        await ConnectAsync();
+
+        _keepAlive.CheckSoon();
+        _time.Advance(ConnectionKeepAlive.ResumeDelay - TimeSpan.FromSeconds(1));
+        await _explorer.DidNotReceive().PingIfIdleAsync(Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>());
+
+        _time.Advance(TimeSpan.FromSeconds(1));
+        _time.Advance(ConnectionKeepAlive.ResumeDelay);
+        await _explorer.Received(1).PingIfIdleAsync(Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Waking_twice_in_a_row_pings_once()
+    {
+        await ConnectAsync();
+
+        _keepAlive.CheckSoon();
+        _time.Advance(TimeSpan.FromSeconds(2));
+        _keepAlive.CheckSoon();
+        _time.Advance(ConnectionKeepAlive.ResumeDelay);
+
+        await _explorer.Received(1).PingIfIdleAsync(Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Without_a_connection_pings_nothing()
     {
         await _keepAlive.TickAsync();

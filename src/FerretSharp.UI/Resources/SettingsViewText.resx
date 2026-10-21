@@ -106,7 +106,7 @@
     <value>Check idle connections</value>
   </data>
   <data name="Settings_KeepAliveHint" xml:space="preserve">
-    <value>Sends a short query to idle sessions every 2 minutes ({0}). A lost connection is reported immediately, and firewalls do not drop idle connections. However, this also keeps sessions open despite an {1} limit of the database.</value>
+    <value>Sends a short query to idle sessions every 2 minutes ({0}). A lost connection is reported immediately, and firewalls do not drop idle connections. Also checks shortly after the computer wakes from sleep. However, this keeps sessions open despite an {1} limit of the database.</value>
     <comment>{0} = SELECT 1 FROM DUAL (code), {1} = IDLE_TIME (code)</comment>
   </data>
   <data name="Settings_LockWait" xml:space="preserve">
@@ -425,5 +425,12 @@
   </data>
   <data name="Settings_CodeEditorSystem" xml:space="preserve">
     <value>Windows default</value>
+  </data>
+  <data name="Settings_AutoReconnect" xml:space="preserve">
+    <value>Reconnect automatically</value>
+  </data>
+  <data name="Settings_AutoReconnectHint" xml:space="preserve">
+    <value>Connects a lost connection again by itself and restores its workspaces where you are – also one in the background. While the network or the database is away, it tries again for up to {0} min. If a workspace of the connection had uncommitted changes, the banner shows the loss as before. Workspaces unlocked for writing are read-only again.</value>
+    <comment>{0} = minutes</comment>
   </data>
 </root>

@@ -15,7 +15,15 @@ public enum ConnectionStatus
 }
 
 /// <param name="ErrorCode">e.g. <c>ORA-01017</c>; null for non-Oracle failures.</param>
-public sealed record ConnectionError(string Message, string? ErrorCode);
+public sealed record ConnectionError(string Message, string? ErrorCode)
+{
+    /// <summary>Opening the session did not finish within the time the caller gave it (<see cref="ReconnectPolicy.OpenTimeout"/>).</summary>
+    public bool TimedOut { get; init; }
+}
+
+/// <summary>Opening the explorer session took longer than the caller allowed; the session is closed if it opens after all.</summary>
+public sealed class SessionOpenTimeoutException(TimeSpan limit)
+    : DatabaseException(TextFormat.Format(ConnectionText.OpenTimedOut, (int)limit.TotalSeconds));
 
 /// <summary>How opening the explorer session ended, seen from the thread pool (<see cref="ActiveConnection.SessionOpenEnded"/>).</summary>
 /// <param name="Synchronous">It had ended when the connector returned: the open blocked the calling thread, the UI thread.</param>
@@ -26,8 +34,10 @@ public sealed record SessionOpenOutcome(TimeSpan Took, bool Synchronous, string?
 /// The connection currently being browsed: opens the explorer session, loads the schema cache, attaches the
 /// workspaces (each with its own data session, see <see cref="WorkspaceManager"/>) and records usage.
 /// </summary>
+/// <param name="time">The clock of the open timeout (tests); the system's if null.</param>
 public sealed class ActiveConnection(
-    ConnectionManager connections, IDatabaseConnector connector, RecentConnections recent, WorkspaceManager workspaces) : IAsyncDisposable
+    ConnectionManager connections, IDatabaseConnector connector, RecentConnections recent, WorkspaceManager workspaces, TimeProvider? time = null)
+    : IAsyncDisposable
 {
     public const string ExplorerAction = "Explorer";
 
@@ -111,7 +121,11 @@ public sealed class ActiveConnection(
     }
 
     /// <summary>Closes any current connection, then opens <paramref name="profile"/>. Failures end in <see cref="ConnectionStatus.Failed"/>.</summary>
-    public async Task ConnectAsync(ConnectionProfile profile, CancellationToken cancellationToken)
+    /// <param name="openTimeout">
+    /// How long opening the session may take before the connect fails (<see cref="ConnectionError.TimedOut"/>); null to wait for
+    /// ODP.NET (the user can cancel). Reconnecting by itself sets it: nobody watches that attempt.
+    /// </param>
+    public async Task ConnectAsync(ConnectionProfile profile, CancellationToken cancellationToken, TimeSpan? openTimeout = null)
     {
         CancelPendingConnect();
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -136,7 +150,7 @@ public sealed class ActiveConnection(
                 ?? throw new DatabaseException(ConnectionText.NoPasswordSaved);
 
             StartStep(ConnectionText.Step_OpeningSession);
-            _connection = await OpenAsync(profile, password, cts.Token);
+            _connection = await OpenAsync(profile, password, openTimeout, cts.Token);
             connections.PasswordWorked(profile.Id); // a password entered with "save" is saved only now (A11)
             var schema = new SchemaCache(_connection.Schema, profile.EffectiveSchema);
             await schema.LoadAsync(new SyncProgress<string>(StartStep), cts.Token);
@@ -164,7 +178,7 @@ public sealed class ActiveConnection(
 
             FinishSteps();
             await CloseAsync();
-            Set(ConnectionStatus.Failed, profile, new ConnectionError(ex.Message, ex.ErrorCode));
+            Set(ConnectionStatus.Failed, profile, new ConnectionError(ex.Message, ex.ErrorCode) { TimedOut = ex is SessionOpenTimeoutException });
             return;
         }
         catch (Exception ex)
@@ -306,6 +320,25 @@ public sealed class ActiveConnection(
     /// ODP.NET does not stop opening when cancelled: the TCP connect to an unreachable address runs to its timeout (15 s), and
     /// Cancel did nothing until then. Cancelling returns at once; a session that opens after all is closed right away.
     /// </summary>
+    private async Task<IDatabaseConnection> OpenAsync(ConnectionProfile profile, string password, TimeSpan? timeout, CancellationToken cancellationToken)
+    {
+        if (timeout is not { } after)
+        {
+            return await OpenAsync(profile, password, cancellationToken);
+        }
+
+        using var expired = new CancellationTokenSource(after, time ?? TimeProvider.System);
+        using var limit = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, expired.Token);
+        try
+        {
+            return await OpenAsync(profile, password, limit.Token);
+        }
+        catch (OperationCanceledException) when (expired.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        {
+            throw new SessionOpenTimeoutException(after);
+        }
+    }
+
     private async Task<IDatabaseConnection> OpenAsync(ConnectionProfile profile, string password, CancellationToken cancellationToken)
     {
         var started = Stopwatch.GetTimestamp();

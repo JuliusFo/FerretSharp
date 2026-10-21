@@ -128,6 +128,9 @@
     [CascadingParameter]
     public WorkspaceLifecycle Lifecycle { get; set; } = null!;
 
+    [CascadingParameter]
+    public AutoReconnect Reconnect { get; set; } = null!;
+
     private bool Searching => !string.IsNullOrWhiteSpace(_query);
 
     /// <param name="withGroup">The row is not under its group's heading (open, recent): the group goes in front of the name.</param>
@@ -143,7 +146,11 @@
                 @p.Name
                 @if (Hub.Find(p.Id) is { } scope)
                 {
-                    @if (scope.Lost is not null)
+                    @if (Reconnect.RunOf(scope) is not null)
+                    {
+                        <span class="connected-tag lost" title="@ConnectionViewText.Switcher_ReconnectingTitle">@ConnectionViewText.Connection_TagReconnecting</span>
+                    }
+                    else if (scope.Lost is not null)
                     {
                         <span class="connected-tag lost" title="@scope.Lost.Message">@ConnectionViewText.Connection_Lost</span>
                     }

@@ -91,7 +91,7 @@
     <value>Verbindung im Leerlauf prüfen</value>
   </data>
   <data name="Settings_KeepAliveHint" xml:space="preserve">
-    <value>Fragt ruhende Sessions alle 2 Minuten kurz ab ({0}). Ein Verbindungsabbruch wird so sofort gemeldet, und Firewalls trennen ruhende Verbindungen nicht. Hält die Sessions aber auch gegen ein {1}-Limit der Datenbank offen.</value>
+    <value>Fragt ruhende Sessions alle 2 Minuten kurz ab ({0}). Ein Verbindungsabbruch wird so sofort gemeldet, und Firewalls trennen ruhende Verbindungen nicht. Prüft außerdem kurz nach dem Aufwachen aus dem Ruhezustand. Hält die Sessions aber auch gegen ein {1}-Limit der Datenbank offen.</value>
   </data>
   <data name="Settings_LockWait" xml:space="preserve">
     <value>Warten auf gesperrte Zeilen</value>
@@ -356,5 +356,11 @@
   </data>
   <data name="Settings_CodeEditorSystem" xml:space="preserve">
     <value>Windows-Standard</value>
+  </data>
+  <data name="Settings_AutoReconnect" xml:space="preserve">
+    <value>Automatisch neu verbinden</value>
+  </data>
+  <data name="Settings_AutoReconnectHint" xml:space="preserve">
+    <value>Verbindet eine verlorene Verbindung von selbst neu und stellt ihre Workspaces dort wieder her, wo du gerade bist – auch eine im Hintergrund. Solange Netz oder Datenbank weg sind, versucht es das bis {0} min lang weiter. Hatte ein Workspace der Verbindung nicht committete Änderungen, zeigt das Banner den Verlust wie bisher. Zum Schreiben freigeschaltete Workspaces sind danach wieder schreibgeschützt.</value>
   </data>
 </root>

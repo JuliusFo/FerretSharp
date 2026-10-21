@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -1117,5 +1117,51 @@
   <data name="Status_CopyValuesTitle" xml:space="preserve">
     <value>Reads the values of {0} in the background; they reach the clipboard when the read is done.</value>
     <comment>Tooltip; {0}: column name</comment>
+  </data>
+  <data name="AutoReconnect_Done" xml:space="preserve">
+    <value>“{0}” is connected again, its workspaces are restored.</value>
+    <comment>{0} = connection name; notice after reconnecting by itself</comment>
+  </data>
+  <data name="AutoReconnect_LockedAgain" xml:space="preserve">
+    <value>Read-only again: {0}</value>
+    <comment>{0} = workspace names that had been unlocked for writing</comment>
+  </data>
+  <data name="AutoReconnect_GaveUp" xml:space="preserve">
+    <value>“{0}” was not connected again.</value>
+    <comment>{0} = connection name; reconnecting by itself stopped</comment>
+  </data>
+  <data name="LostBanner_AutoHolding" xml:space="preserve">
+    <value>Reconnects by itself once the running write or export has ended.</value>
+  </data>
+  <data name="LostBanner_AutoKeptForWork" xml:space="preserve">
+    <value>Not reconnected by itself: reconnecting drops the uncommitted changes.</value>
+  </data>
+  <data name="Reconnect_LostTitle" xml:space="preserve">
+    <value>Connection to {0} lost</value>
+    <comment>{0} = connection name; heading while reconnecting by itself</comment>
+  </data>
+  <data name="Reconnect_Next" xml:space="preserve">
+    <value>Attempt {0} failed. Next attempt in {1}.</value>
+    <comment>{0} = number of the attempt, {1} = time until the next one (e.g. 0:12)</comment>
+  </data>
+  <data name="Reconnect_GivesUp" xml:space="preserve">
+    <value>Tries again for up to {0} min after the loss.</value>
+    <comment>{0} = minutes</comment>
+  </data>
+  <data name="Reconnect_TryNow" xml:space="preserve">
+    <value>Try now</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Reconnect_Stop" xml:space="preserve">
+    <value>Stop trying</value>
+    <comment>Button</comment>
+  </data>
+  <data name="Status_ReconnectIn" xml:space="preserve">
+    <value>Connection lost – next attempt in {0}</value>
+    <comment>{0} = time until the next attempt (e.g. 0:12); status bar</comment>
+  </data>
+  <data name="Status_ReconnectHolding" xml:space="preserve">
+    <value>Connection lost – reconnects after the running work</value>
+    <comment>Status bar</comment>
   </data>
 </root>

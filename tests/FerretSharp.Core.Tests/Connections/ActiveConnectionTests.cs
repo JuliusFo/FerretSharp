@@ -5,6 +5,7 @@ using FerretSharp.Testing;
 using FerretSharp.Core.Workspaces;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
+using Microsoft.Extensions.Time.Testing;
 
 namespace FerretSharp.Core.Tests.Connections;
 
@@ -118,6 +119,44 @@ public sealed class ActiveConnectionTests : IDisposable
         Assert.Null(ended[0].Error);
         Assert.True(ended[0].Synchronous); // the fake returns a completed task
         Assert.True(ended[0].Took >= TimeSpan.Zero);
+    }
+
+    /// <summary>Reconnecting by itself gives the open a limit: after sleep it hung beyond ODP.NET's 15 s (2026-10-21).</summary>
+    [Fact]
+    public async Task An_open_beyond_its_limit_fails_as_timed_out_and_a_session_that_opens_later_is_closed()
+    {
+        var time = new FakeTimeProvider();
+        var active = new ActiveConnection(new ConnectionManager(Substitute.For<IConnectionStore>(), _secrets), _connector, _recent, _workspaces, time);
+        var opening = new TaskCompletionSource<IDatabaseConnection>();
+        _connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(opening.Task);
+        var connecting = active.ConnectAsync(_profile, Ct, ReconnectPolicy.OpenTimeout);
+        await Eventually(() => active.Step == ConnectionText.Step_OpeningSession);
+
+        time.Advance(ReconnectPolicy.OpenTimeout);
+        await connecting.WaitAsync(TimeSpan.FromSeconds(5), Ct);
+
+        Assert.Equal(ConnectionStatus.Failed, active.Status);
+        Assert.True(active.Error!.TimedOut);
+        Assert.Null(active.Error.ErrorCode);
+        opening.SetResult(_connection);
+        await Eventually(() => _connection.ReceivedCalls().Any(c => c.GetMethodInfo().Name == nameof(IAsyncDisposable.DisposeAsync)));
+    }
+
+    [Fact]
+    public async Task Cancelling_an_open_with_a_limit_still_disconnects()
+    {
+        var opening = new TaskCompletionSource<IDatabaseConnection>();
+        _connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(opening.Task);
+        var connecting = _active.ConnectAsync(_profile, Ct, ReconnectPolicy.OpenTimeout);
+        await Eventually(() => _active.Step == ConnectionText.Step_OpeningSession);
+
+        _active.CancelPendingConnect();
+        await connecting.WaitAsync(TimeSpan.FromSeconds(5), Ct);
+
+        Assert.Equal(ConnectionStatus.Disconnected, _active.Status);
+        opening.SetResult(_connection);
     }
 
     [Fact]
