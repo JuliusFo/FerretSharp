@@ -33,6 +33,32 @@ public sealed class FormCursorTests
         Assert.False(cursor.Shows(new GridCell(0, null, 0)));
     }
 
+    /// <summary>
+    /// Review 3.44.0, A10: the form open over a query without rows (or a filter that left fewer rows) said "loading row" for
+    /// ever – it waited for a block that never comes.
+    /// </summary>
+    [Fact]
+    public void A_row_past_the_end_of_the_grid_is_lost_with_a_reason()
+    {
+        var cursor = new FormCursor(_grid);
+        cursor.Show(new GridCell(0, null, null)); // opened before the first block
+        Assert.Equal(FormFollow.Unchanged, cursor.RowsChanged());
+
+        _grid.RowCount = 0; // the query read to its end: nothing
+        Assert.Equal(FormFollow.Lost, cursor.RowsChanged());
+        Assert.Equal("Keine Zeilen zum Anzeigen.", cursor.Lost);
+
+        _grid.Load(Row(10), Row(11));
+        _grid.RowCount = 2;
+        cursor.Show(new GridCell(5, null, null)); // the focus kept from a larger result
+        Assert.Null(cursor.Cell);
+        Assert.Equal("Das Grid hat jetzt weniger Zeilen – im Grid eine Zeile wählen.", cursor.Lost);
+
+        cursor.Show(new GridCell(1, null, null));
+        Assert.Null(cursor.Lost);
+        Assert.Equal(Row(11).Key, cursor.Key);
+    }
+
     [Fact]
     public void Key_becomes_known_when_the_block_arrives()
     {
@@ -146,5 +172,7 @@ public sealed class FormCursorTests
 
         public GridCell? CellOf(RowChange newRow, int? column) =>
             Changes.NewRows.Contains(newRow) ? new GridCell(-1, GridRows.NewRowId(newRow), column) : null;
+
+        public int? RowCount { get; set; }
     }
 }

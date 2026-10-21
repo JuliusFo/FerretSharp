@@ -398,6 +398,12 @@
   <data name="Form_RowNotLoaded" xml:space="preserve">
     <value>The row is no longer loaded – select a row in the grid.</value>
   </data>
+  <data name="Form_NoRows" xml:space="preserve">
+    <value>No rows to show.</value>
+  </data>
+  <data name="Form_PastLastRow" xml:space="preserve">
+    <value>The grid has fewer rows now – select a row in the grid.</value>
+  </data>
   <data name="Form_ViewValue" xml:space="preserve">
     <value>View the whole value</value>
     <comment>Tooltip</comment>

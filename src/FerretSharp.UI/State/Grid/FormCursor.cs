@@ -25,6 +25,9 @@ public interface IFormGrid
 
     /// <summary>The grid position of a new row that is not inserted yet; null if it is gone (inserted or removed).</summary>
     GridCell? CellOf(RowChange newRow, int? column);
+
+    /// <summary>The number of loaded rows once the last block was read; null while the end is not known.</summary>
+    int? RowCount { get; }
 }
 
 /// <summary>What became of the shown row after the grid's rows changed (<see cref="FormCursor.RowsChanged"/>).</summary>
@@ -70,6 +73,7 @@ public sealed class FormCursor(IFormGrid grid)
         var row = grid.RowOf(cell);
         Key = row?.Loaded?.Key;
         NewRow = cell.IsNew ? row?.Change : null;
+        PastTheEnd(cell);
     }
 
     /// <summary>The focused cell is in the shown row (only the column changed).</summary>
@@ -113,7 +117,7 @@ public sealed class FormCursor(IFormGrid grid)
 
         if (grid.RowAt(cell.RowIndex) is not { Loaded: { } loaded })
         {
-            return FormFollow.Unchanged; // its block is not loaded (yet)
+            return PastTheEnd(cell) ? FormFollow.Lost : FormFollow.Unchanged; // its block is not loaded (yet)
         }
 
         if (Key is null)
@@ -162,6 +166,21 @@ public sealed class FormCursor(IFormGrid grid)
         }
 
         return target > lastIndex ? null : new GridCell(target, null, cell.Column);
+    }
+
+    /// <summary>
+    /// The grid ends before the shown index – an empty result, a filter with fewer rows (review 3.44.0, A10: the form said
+    /// "loading row" for ever, waiting for a block that never comes).
+    /// </summary>
+    private bool PastTheEnd(GridCell cell)
+    {
+        if (cell.IsNew || grid.RowCount is not { } count || cell.RowIndex < count)
+        {
+            return false;
+        }
+
+        LoseRow(count == 0 ? GridText.Form_NoRows : GridText.Form_PastLastRow);
+        return true;
     }
 
     private FormFollow LoseRow(string why)

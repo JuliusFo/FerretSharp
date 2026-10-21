@@ -39,18 +39,7 @@
     {
         <button class="menu-item" @onclick="TogglePinAsync">@(Pinned ? GridText.Grid_UnpinColumn : GridText.Grid_PinColumnLeft)</button>
     }
-    @if (CompareCount > 1)
-    {
-        <button class="menu-item" disabled="@(CompareCount > RowComparison.MaxRows)"
-                title="@(CompareCount > RowComparison.MaxRows ? TextFormat.Format(GridText.GridMenu_CompareTooMany, RowComparison.MaxRows) : TextFormat.Format(GridText.GridMenu_CompareTitle, Shortcuts.Hint(ShortcutAction.ToggleForm)))"
-                @onclick="CompareAsync">
-            @GridText.GridMenu_CompareSelected <span class="ctx-meta">@RowsText(CompareCount)</span>
-        </button>
-    }
-    else
-    {
-        <button class="menu-item" title="@TextFormat.Format(GridText.GridMenu_AsFormTitle, Shortcuts.Hint(ShortcutAction.ToggleForm))" @onclick="OpenFormAsync">@GridText.GridMenu_AsForm</button>
-    }
+    <FormMenuItems Count="Request.Selected.Count" Indexes="Request.SelectedIndexes" Close="CloseAsync" OnOpenForm="OnOpenForm" OnCompare="OnCompare" />
 
     @if (CanEdit && Tab.Changes is { } changes)
     {
@@ -176,21 +165,6 @@
     [Parameter]
     public EventCallback<IReadOnlyList<int>> OnCompare { get; set; }
 
-    /// <summary>Loaded selected rows; the comparison needs their values.</summary>
-    private int CompareCount => Request.Selected.Count;
-
-    private async Task OpenFormAsync()
-    {
-        await CloseAsync();
-        await OnOpenForm.InvokeAsync();
-    }
-
-    private async Task CompareAsync()
-    {
-        var rows = Request.SelectedIndexes ?? [];
-        await CloseAsync();
-        await OnCompare.InvokeAsync(rows);
-    }
 
     private async Task OpenLobAsync()
     {

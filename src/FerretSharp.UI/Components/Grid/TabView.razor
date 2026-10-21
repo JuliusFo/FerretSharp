@@ -220,7 +220,7 @@
     private ColumnMenuRequest? _columnMenu;
     private ColumnJump? _jump;
     private RowFormPanel? _form;
-    private (IReadOnlyList<(int Index, FormRow Row)> Rows, int Missing)? _compare;
+    private RowCompareRequest? _compare;
     private ColumnsView? _columns;
     private int? _pendingJump; // scrolled to after the search list has closed, so the grid cell keeps the focus
     private readonly HashSet<TabMode> _visited = [];
@@ -414,20 +414,13 @@
             return;
         }
 
-        if (selected.Count > RowComparison.MaxRows)
+        var (request, refusal) = RowCompareRequest.Of(selected, _grid.RowAt);
+        if (refusal is not null)
         {
-            Shell.Notify(TextFormat.Format(SchemaViewText.Tab_CompareTooMany, RowComparison.MaxRows, selected.Count));
-            return;
+            Shell.Notify(refusal);
         }
 
-        var rows = selected.Select(i => (Index: i, Row: _grid.RowAt(i))).Where(r => r.Row is not null).Select(r => (r.Index, r.Row!)).ToList();
-        if (rows.Count < 2)
-        {
-            Shell.Notify(SchemaViewText.Tab_CompareTooFew);
-            return;
-        }
-
-        _compare = (rows, selected.Count - rows.Count);
+        _compare = request;
     }
 
     private Task ShowComparedRowAsync(int rowIndex)

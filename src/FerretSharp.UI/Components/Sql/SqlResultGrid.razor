@@ -20,7 +20,7 @@
     </div>
     @if (FormTab is { FormOpen: true } formTab)
     {
-        <ResultFormPanel Tab="formTab" Grid="this" WorkspaceId="WorkspaceId" OnClose="CloseFormAsync" />
+        <ResultFormPanel @ref="_form" Tab="formTab" Grid="this" WorkspaceId="WorkspaceId" OnClose="CloseFormAsync" />
     }
 </div>
 
@@ -118,7 +118,11 @@
 
     private GridContextMenuRequest? _menu;
     private ColumnMenuRequest? _columnMenu;
-    private (IReadOnlyList<(int Index, FormRow Row)> Rows, int Missing)? _compare;
+    private ResultFormPanel? _form;
+
+    /// <summary>Ctrl+F: the form's field search if the focus is in the form; false otherwise (the editor searches).</summary>
+    public Task<bool> FindInFormAsync() => _form?.FindInFormAsync() ?? Task.FromResult(false);
+    private RowCompareRequest? _compare;
 
     /// <summary>The cell with the focus (click, arrow keys, the form's ▲ ▼); null before any.</summary>
     public GridCell? Focused { get; private set; }
@@ -396,6 +400,8 @@
 
     public FormRow? RowAt(int rowIndex) => _blocks.At(rowIndex) is { } row ? new FormRow(row, null) : null;
 
+    public int? RowCount => _allLoaded ? _rowsLoaded : null;
+
     /// <summary>Result rows have no key: the form follows the grid index.</summary>
     public int? IndexOf(RowKey key) => null;
 
@@ -451,20 +457,13 @@
     /// <summary>The selected rows side by side; rows no longer loaded are counted, not compared.</summary>
     private void Compare(IReadOnlyList<int> selected)
     {
-        if (selected.Count > RowComparison.MaxRows)
+        var (request, refusal) = RowCompareRequest.Of(selected, RowAt);
+        if (refusal is not null)
         {
-            Shell.Notify(TextFormat.Format(SchemaViewText.Tab_CompareTooMany, RowComparison.MaxRows, selected.Count));
-            return;
+            Shell.Notify(refusal);
         }
 
-        var rows = selected.Select(i => (Index: i, Row: RowAt(i))).Where(r => r.Row is not null).Select(r => (r.Index, r.Row!)).ToList();
-        if (rows.Count < 2)
-        {
-            Shell.Notify(SchemaViewText.Tab_CompareTooFew);
-            return;
-        }
-
-        _compare = (rows, selected.Count - rows.Count);
+        _compare = request;
     }
 
     private Task ShowComparedRowAsync(int rowIndex)

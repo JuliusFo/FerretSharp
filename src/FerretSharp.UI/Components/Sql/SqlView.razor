@@ -307,7 +307,14 @@
                 Fire(RunAsync);
                 break;
             case TabCommand.FindColumn when _editor is not null:
-                Fire(_editor.FindAsync);
+                // The focus in the result's form: its field search (review 3.44.0, A9), else the editor's search.
+                Fire(async () =>
+                {
+                    if (_resultGrid is null || !await _resultGrid.FindInFormAsync())
+                    {
+                        await _editor.FindAsync();
+                    }
+                });
                 break;
         }
     }

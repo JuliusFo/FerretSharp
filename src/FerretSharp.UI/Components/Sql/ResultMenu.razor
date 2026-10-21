@@ -19,18 +19,7 @@
         <span class="ctx-value @(Request.CellText is null ? "fs-null" : "")">@(Request.CellText ?? "NULL")</span>
     </div>
     <button class="menu-item" disabled="@(Request.CellText is null)" @onclick="() => Export.CopyValueAsync(Column, Request.Row.Values[Request.Column])">@CommonText.CopyValue</button>
-    @if (CompareCount > 1)
-    {
-        <button class="menu-item" disabled="@(CompareCount > RowComparison.MaxRows)"
-                title="@(CompareCount > RowComparison.MaxRows ? TextFormat.Format(GridText.GridMenu_CompareTooMany, RowComparison.MaxRows) : TextFormat.Format(GridText.GridMenu_CompareTitle, Shortcuts.Hint(ShortcutAction.ToggleForm)))"
-                @onclick="CompareAsync">
-            @GridText.GridMenu_CompareSelected <span class="ctx-meta">@ExportActions.RowsText(CompareCount)</span>
-        </button>
-    }
-    else if (OffersForm)
-    {
-        <button class="menu-item" title="@TextFormat.Format(GridText.GridMenu_AsFormTitle, Shortcuts.Hint(ShortcutAction.ToggleForm))" @onclick="OpenFormAsync">@GridText.GridMenu_AsForm</button>
-    }
+    <FormMenuItems Count="Request.Selected.Count" Indexes="Request.SelectedIndexes" OffersForm="OffersForm" Close="CloseAsync" OnOpenForm="OnOpenForm" OnCompare="OnCompare" />
 
     <ExportMenuItems Export="Export" Table="Result" Rows="Request.Selected" FileName="@ExportName" XlsxColumns="XlsxColumns"
                      InsertTable="@(InsertTarget is { } target ? Result with { Table = target } : null)"
@@ -111,21 +100,6 @@
     [Parameter]
     public EventCallback<IReadOnlyList<int>> OnCompare { get; set; }
 
-    /// <summary>Loaded selected rows; the comparison needs their values.</summary>
-    private int CompareCount => Request.Selected.Count;
-
-    private async Task OpenFormAsync()
-    {
-        await CloseAsync();
-        await OnOpenForm.InvokeAsync();
-    }
-
-    private async Task CompareAsync()
-    {
-        var rows = Request.SelectedIndexes ?? [];
-        await CloseAsync();
-        await OnCompare.InvokeAsync(rows);
-    }
 
     private ColumnInfo Column => Result.Columns[Request.Column];
 

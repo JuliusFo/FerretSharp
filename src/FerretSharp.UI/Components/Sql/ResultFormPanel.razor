@@ -1,114 +1,33 @@
 @* Form view of a query result's row (WP-56), beside the result of the SQL editor or the LINQ console: every column of the
    row the grid has focused, one below the other – read-only. Columns traced back to their tables (WP-48) carry C# names,
-   enum members and FK links, and the rows referencing the shown one are listed below, as in a table's form (WP-21). *@
+   enum members and FK links, and the rows referencing the shown one are listed below, as in a table's form (WP-21). The
+   frame is the table form's (FormPanelFrame, review 3.44.0 B1). *@
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
 @using FerretSharp.Core.Forms
 @using FerretSharp.Core.Query
-@using FerretSharp.Core.Schema
 @inherits FerretComponent
-@implements IAsyncDisposable
-@inject IJSRuntime JS
+@implements IDisposable
 @inject ILogger<ResultFormPanel> Logger
-@inject ShortcutService Shortcuts
 @inject AppSettingsService Settings
 
-<aside class="form-panel" style="@WidthStyle" tabindex="-1" @ref="_panel" @onkeydown="OnKeyDownAsync">
-    <div class="form-resize" @ref="_handle" title="@GridText.Form_ResizeWidth" @onpointerdown="StartResizeAsync"></div>
-    <header class="form-head">
-        <button class="icon-btn ghost" title="@TextFormat.Format(GridText.Form_PreviousRow, Shortcuts.Hint(ShortcutAction.FormPrevious))" disabled="@(!CanMove(-1))" @onclick="() => MoveAsync(-1)">▲</button>
-        <button class="icon-btn ghost" title="@TextFormat.Format(GridText.Form_NextRow, Shortcuts.Hint(ShortcutAction.FormNext))" disabled="@(!CanMove(1))" @onclick="() => MoveAsync(1)">▼</button>
-        <span class="form-pos">
-            @if (_cursor.Cell is { } cell)
-            {
-                <strong>@PositionText(cell)</strong>
-            }
-            else
-            {
-                <span class="muted">@GridText.Form_Title</span>
-            }
-        </span>
-        <span class="spacer"></span>
-        <button class="icon-btn ghost" title="@TextFormat.Format(GridText.Form_Close, Shortcuts.Hint(ShortcutAction.ToggleForm))" @onclick="OnClose">✕</button>
-    </header>
+@{
+    var row = CurrentRow;
+    var presentation = Grid.Presentation;
+    IReadOnlyList<FormField> fields = row?.Loaded is { } loaded ? RowForm.ResultFields(presentation, loaded, JumpsOf(loaded), presentation.CommentOf) : [];
+}
 
-    <div class="form-tools">
-        <SearchBox Class="structure-filter" Placeholder="@TextFormat.Format(GridText.Form_SearchFields, Shortcuts.Hint(ShortcutAction.FindColumn))" @bind-Value="_query" />
-        <div class="form-switches">
-            <label class="check" title="@SqlEditorText.ResultForm_HideEmptyTitle">
-                <input type="checkbox" checked="@Tab.FormHideEmpty" @onchange="e => SetHideEmpty(e.Value is true)" /> @GridText.Grid_HideEmpty
-            </label>
-        </div>
-    </div>
-
-    @{
-        var row = CurrentRow;
-        var presentation = Grid.Presentation;
-        IReadOnlyList<FormField> fields = row?.Loaded is { } loaded
-            ? [.. RowForm.ResultFields(presentation, loaded, JumpsOf(loaded)).Select(f => f with { Info = f.Info with { Comment = presentation.CommentOf(f.Column) } })]
-            : [];
-        var view = RowForm.Visible(fields, presentation, new FormFilter(_query, Tab.FormHideEmpty));
-    }
-
-    @if (row is not null)
-    {
-        <div class="form-count">
-            @if (view.Fields.Count == view.Total)
-            {
-                <span>@TextFormat.Plural(view.Total, GridText.Form_FieldsOne, GridText.Form_FieldsOther)</span>
-            }
-            else
-            {
-                <span>@TextFormat.Format(GridText.Form_FieldsShown, view.Fields.Count, view.Total)</span>
-                @if (view.EmptyHidden > 0)
-                {
-                    <span> · @TextFormat.Format(GridText.Form_EmptyHidden, view.EmptyHidden)</span>
-                }
-            }
-        </div>
-    }
-
-    <div class="form-fields">
-        @if (_cursor.Cell is null)
-        {
-            <div class="form-empty">@(_cursor.Lost ?? GridText.Form_ChooseRow)</div>
-        }
-        else if (row is null)
-        {
-            <div class="form-empty"><span class="spinner small"></span> @GridText.Form_LoadingRow</div>
-        }
-        else if (view.Fields.Count == 0)
-        {
-            <div class="form-empty">@(string.IsNullOrWhiteSpace(_query) ? GridText.Form_NoFieldMatches : TextFormat.Format(GridText.Form_NoFieldMatchesQuery, _query))</div>
-        }
-        else
-        {
-            @foreach (var field in view.Fields)
-            {
-                <FormFieldView @key="(_rowVersion, field.Column)" Field="field" Id="@FieldId(field.Column)" RowVersion="_rowVersion"
-                               Highlight="@(field.Column == _highlight)"
-                               OnTyped="(_, _) => { }" OnCommit="(_, _) => null" OnDiscard="_ => { }" OnJump="Jump" OnCopy="Copy"
-                               TableLabel="t => FkTargets.Label(Active, t)" />
-            }
-        }
-
-        @if (row is not null && _incoming.Count > 0)
-        {
-            <div class="form-incoming">
-                @foreach (var (via, jumps) in FkJumpLists.Groups(_incoming))
-                {
-                    <div class="form-section" title="@(via is null ? null : FkTargets.ViaTitle(Active, via, jumps))">
-                        @(via is null ? GridText.Form_ReferencedBy : TextFormat.Format(GridText.Form_ReferencedVia, FkTargets.Label(Active, via)))
-                    </div>
-                    @foreach (var jump in jumps)
-                    {
-                        <FkJumpItem Jump="jump" Count="_counts.Of(jump)" OnJump="Jump" OnEnter="Hover" OnLeave="_counts.Leave" />
-                    }
-                }
-            </div>
-        }
-    </div>
-</aside>
+<FormPanelFrame @ref="_frame" Tab="Tab" Position="@(_cursor.Cell is { } cell ? PositionText(cell) : null)" Lost="@_cursor.Lost" RowLoaded="row is not null"
+                CanPrevious="CanMove(-1)" CanNext="CanMove(1)" OnMove="MoveAsync" OnClose="OnClose"
+                HideEmptyTitle="@SqlEditorText.ResultForm_HideEmptyTitle" Fields="fields" Presentation="presentation"
+                Incoming="_incoming" OnJump="Jump">
+    <Field Context="field">
+        <FormFieldView @key="(_rowVersion, field.Field.Column)" Field="field.Field" Id="@field.Id" RowVersion="_rowVersion"
+                       Highlight="@(field.Field.Column == _highlight)"
+                       OnTyped="(_, _) => { }" OnCommit="(_, _) => null" OnDiscard="_ => { }" OnJump="Jump" OnCopy="Copy"
+                       TableLabel="t => FkTargets.Label(Active, t)" />
+    </Field>
+</FormPanelFrame>
 
 @code {
     [CascadingParameter]
@@ -120,30 +39,13 @@
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
 
-    private const int MinWidth = 300;
-    private const double MaxFraction = 0.75;
-
-    /// <summary>Incoming counts start once the row stays this long (arrowing through rows would count each one).</summary>
-    private static readonly TimeSpan CountDelay = TimeSpan.FromMilliseconds(400);
-
-    private readonly string _idPrefix = "rf-" + Guid.NewGuid().ToString("N")[..8] + "-";
-    private FkCounts _counts = null!;
-    private ElementReference _panel;
-    private ElementReference _handle;
-    private DomModule? _dom;
-
-    /// <summary>dom.js, imported on first use; does nothing once disposed (<see cref="DomModule"/>).</summary>
-    private DomModule Dom => _dom ??= new(JS);
-
+    private FormPanelFrame? _frame;
+    private IncomingCounts _incoming = null!;
     private FormCursor _cursor = null!;
     private SqlResultGrid? _subscribed;
     private bool _disposed;
     private int? _highlight;
-    private bool _revealHighlight;
     private int _rowVersion;
-    private string _query = "";
-    private IReadOnlyList<FkJump> _incoming = [];
-    private CancellationTokenSource? _countCts;
 
     /// <summary>The jumps of the shown row, for this row and presentation (the counts know their jumps by reference).</summary>
     private (RowData Row, SqlResultPresentation Presentation, IReadOnlyList<SqlResultJump> Jumps)? _jumps;
@@ -163,12 +65,23 @@
 
     private FormRow? CurrentRow => _cursor.Cell is { } cell ? Grid.RowOf(cell) : null;
 
-    private string WidthStyle => FormattableString.Invariant($"width: {Tab.FormWidth ?? RowFormPanel.DefaultWidth}px;");
+    /// <summary>Ctrl+F while the focus is in the form (review 3.44.0, A9: it opened the editor's search).</summary>
+    public async Task<bool> FindInFormAsync()
+    {
+        if (_frame is null || !await _frame.ContainsFocusAsync())
+        {
+            return false;
+        }
 
-    private string FieldId(int column) => _idPrefix + column.ToString(CultureInfo.InvariantCulture);
+        _frame.FocusSearch();
+        return true;
+    }
 
-    protected override void OnInitialized() =>
-        _counts = FkCounts.For(Shell, Logger, Active, Workspaces, WorkspaceId, () => InvokeAsync(StateHasChanged));
+    protected override void OnInitialized()
+    {
+        var counts = FkCounts.For(Shell, Logger, Active, Workspaces, WorkspaceId, () => InvokeAsync(StateHasChanged));
+        _incoming = new IncomingCounts(counts, () => Settings.Current.FkCounts, InvokeAsync, StateHasChanged);
+    }
 
     protected override void OnParametersSet()
     {
@@ -197,15 +110,6 @@
             var first = new GridCell(0, null, null);
             Show(first);
             Fire(() => Grid.FocusRowAsync(first, keepFocus: true));
-        }
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (!_disposed && _revealHighlight && _highlight is { } column)
-        {
-            _revealHighlight = false;
-            await Dom.InvokeVoidAsync("scrollIntoViewById", FieldId(column), "nearest");
         }
     }
 
@@ -246,7 +150,7 @@
         else if (cell.Column is { } column && column != _highlight)
         {
             _highlight = column;
-            _revealHighlight = true;
+            _frame?.Reveal(column);
         }
 
         StateHasChanged();
@@ -290,103 +194,22 @@
         await Grid.FocusRowAsync(target, keepFocus: true, select: true);
     }
 
-    /// <summary>The form's own keys (Alt+↑/↓/Enter by default), as in a table's form.</summary>
-    private async Task OnKeyDownAsync(KeyboardEventArgs e)
-    {
-        if (Shortcuts.Is(ShortcutAction.FormPrevious, e))
-        {
-            await MoveAsync(-1);
-        }
-        else if (Shortcuts.Is(ShortcutAction.FormNext, e))
-        {
-            await MoveAsync(1);
-        }
-        else if (Shortcuts.Is(ShortcutAction.ToggleForm, e))
-        {
-            await OnClose.InvokeAsync();
-        }
-    }
-
-    private void SetHideEmpty(bool hide)
-    {
-        Tab.FormHideEmpty = hide;
-        Shell.MarkDirty();
-    }
-
     private void Jump(FkJump jump)
     {
-        // The counts run on the workspace's session: the new tab's first page would wait for all of them.
-        _countCts?.Cancel();
+        _incoming.Cancel();
         Shell.OpenFiltered(FkTargets.SummaryOf(Active, jump.Table), jump.Filters);
-    }
-
-    /// <summary>Counts the entry the mouse rests on (<see cref="FkCountMode.OnHover"/>); moving to another row cancels it.</summary>
-    private void Hover(FkJump jump)
-    {
-        if (Settings.Current.FkCounts == FkCountMode.OnHover && _countCts is { IsCancellationRequested: false } cts)
-        {
-            var token = cts.Token;
-            Fire(() => _counts.HoverAsync(jump, token));
-        }
     }
 
     private Task Copy(FormField field) => Grid.CopyValueAsync(field.Info, field.Raw);
 
-    /// <summary>Incoming FK counts for the shown row, once it stays a moment; moving on cancels them.</summary>
     private void StartCounts()
     {
-        _countCts?.Cancel();
-        _countCts?.Dispose();
-        _countCts = new CancellationTokenSource();
-        _incoming = [];
-        var token = _countCts.Token;
-        Fire(() => CountLaterAsync(token));
+        // Started here: the previous row's jumps go at once, not with the next render.
+        var counting = _incoming.StartAsync(() => CurrentRow?.Loaded is { } row ? RowForm.ResultIncoming(JumpsOf(row)) : null);
+        Fire(() => counting);
     }
 
-    private async Task CountLaterAsync(CancellationToken token)
-    {
-        try
-        {
-            await Task.Delay(CountDelay, token);
-        }
-        catch (OperationCanceledException)
-        {
-            return;
-        }
-
-        await InvokeAsync(async () =>
-        {
-            if (_disposed || token.IsCancellationRequested || CurrentRow?.Loaded is not { } row)
-            {
-                return;
-            }
-
-            _incoming = RowForm.ResultIncoming(JumpsOf(row));
-            _counts.Reset();
-            StateHasChanged();
-            if (Settings.Current.FkCounts == FkCountMode.Immediately)
-            {
-                await _counts.CountAllAsync(_incoming, token);
-            }
-        });
-    }
-
-    private async Task StartResizeAsync(PointerEventArgs e)
-    {
-        if (e.Button != 0)
-        {
-            return;
-        }
-
-        var width = await Dom.InvokeAsync<int>("dragWidth", _handle, _panel, e.PointerId, e.ClientX, MinWidth, MaxFraction);
-        if (!_disposed && width > 0)
-        {
-            Tab.FormWidth = width;
-            Shell.MarkDirty();
-        }
-    }
-
-    public async ValueTask DisposeAsync()
+    public void Dispose()
     {
         _disposed = true;
         if (_subscribed is not null)
@@ -395,8 +218,6 @@
             _subscribed.RowsChanged -= OnRowsChanged;
         }
 
-        _countCts?.Cancel();
-        _countCts?.Dispose();
-        await Dom.DisposeAsync();
+        _incoming.Dispose();
     }
 }

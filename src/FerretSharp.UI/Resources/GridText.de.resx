@@ -312,6 +312,12 @@
   <data name="Form_RowNotLoaded" xml:space="preserve">
     <value>Die Zeile ist nicht mehr geladen – im Grid eine Zeile wählen.</value>
   </data>
+  <data name="Form_NoRows" xml:space="preserve">
+    <value>Keine Zeilen zum Anzeigen.</value>
+  </data>
+  <data name="Form_PastLastRow" xml:space="preserve">
+    <value>Das Grid hat jetzt weniger Zeilen – im Grid eine Zeile wählen.</value>
+  </data>
   <data name="Form_ViewValue" xml:space="preserve">
     <value>Den ganzen Wert ansehen</value>
   </data>
