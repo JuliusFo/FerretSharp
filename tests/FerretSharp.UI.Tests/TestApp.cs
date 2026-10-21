@@ -10,6 +10,7 @@ using FerretSharp.Core.Workspaces;
 using FerretSharp.UI.State;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 
 namespace FerretSharp.UI.Tests;
@@ -52,11 +53,14 @@ internal sealed class TestApp : IAsyncDisposable
         _services = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
 
         Hub = _services.GetRequiredService<ConnectionHub>();
-        Editing = new WorkspaceEditing(Shell, Hub, _services.GetRequiredService<AppSettingsService>(), NullLogger<WorkspaceEditing>.Instance);
+        Editing = new WorkspaceEditing(Shell, Hub, _services.GetRequiredService<AppSettingsService>(), NullLogger<WorkspaceEditing>.Instance, Time);
         Lifecycle = new WorkspaceLifecycle(
             Shell, Hub, _services.GetRequiredService<ConnectionManager>(), History = new SqlHistoryStore(_folder.Combine("history")),
             Editing, NullLogger<WorkspaceLifecycle>.Instance);
     }
+
+    /// <summary>The clock of the editing (stuck writes and statements, review 3.44.0, C2).</summary>
+    public FakeTimeProvider Time { get; } = new();
 
     public InMemorySecretStore Secrets { get; } = new();
 

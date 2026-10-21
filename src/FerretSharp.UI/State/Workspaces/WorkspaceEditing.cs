@@ -68,8 +68,10 @@ public enum ProblemChoice
 /// Owned by the shell.
 /// </summary>
 public sealed partial class WorkspaceEditing(
-    ShellState shell, ConnectionHub hub, AppSettingsService settings, ILogger<WorkspaceEditing> logger)
+    ShellState shell, ConnectionHub hub, AppSettingsService settings, ILogger<WorkspaceEditing> logger, TimeProvider? time = null)
 {
+    private readonly TimeProvider _time = time ?? TimeProvider.System;
+
     /// <summary>The connection a workspace belongs to (WP-24: several can be open; a background one may still finish a write).</summary>
     private ConnectionScope ScopeOf(Guid workspaceId) => hub.ScopeOfWorkspace(workspaceId);
 
@@ -80,53 +82,73 @@ public sealed partial class WorkspaceEditing(
 
     private readonly Dictionary<Guid, HashSet<Guid>> _overwrite = [];
 
-    /// <summary>Workspaces with a write, commit or rollback running (their buttons are disabled).</summary>
-    private readonly HashSet<Guid> _busy = [];
+    /// <summary>A write, commit or rollback (<see cref="RunAsync"/>) or a writing statement running on a workspace's session.</summary>
+    private sealed record Work(DateTimeOffset Started, bool Statement);
+
+    /// <summary>
+    /// What runs on each workspace's session. Giving up the session (<see cref="SessionReset"/>) drops its entries: work that
+    /// hangs on a silent VPN no longer holds the workspace, and ends without touching the entries of the new session.
+    /// </summary>
+    private readonly Dictionary<Guid, List<Work>> _running = [];
+
+    private IEnumerable<Work> RunningOn(Guid workspaceId) => _running.TryGetValue(workspaceId, out var work) ? work : [];
+
+    private Work Start(Guid workspaceId, bool statement)
+    {
+        var work = new Work(_time.GetUtcNow(), statement);
+        (_running.TryGetValue(workspaceId, out var list) ? list : _running[workspaceId] = []).Add(work);
+        shell.NotifyChanged();
+        return work;
+    }
+
+    private void End(Guid workspaceId, Work work)
+    {
+        if (_running.TryGetValue(workspaceId, out var list) && list.Remove(work) && list.Count == 0)
+        {
+            _running.Remove(workspaceId);
+        }
+
+        shell.NotifyChanged();
+    }
 
     /// <summary>
     /// A write, commit or rollback of this workspace is running. Per workspace (WP-24): a slow commit on one connection must
     /// not silently swallow Ctrl+S in another.
     /// </summary>
-    public bool IsBusy(Guid workspaceId) => _busy.Contains(workspaceId);
-
-    /// <summary>When the running write, commit or rollback of each busy workspace started.</summary>
-    private readonly Dictionary<Guid, DateTimeOffset> _busySince = [];
-
-    /// <summary>How long a write, commit or rollback may run before giving up the session is offered (as for statements).</summary>
-    public static readonly TimeSpan StuckAfter = TimeSpan.FromSeconds(5);
-
-    /// <summary>When the workspace's running write, commit or rollback started; null if none runs.</summary>
-    public DateTimeOffset? BusySince(Guid workspaceId) => _busySince.TryGetValue(workspaceId, out var since) ? since : null;
+    public bool IsBusy(Guid workspaceId) => RunningOn(workspaceId).Any(w => !w.Statement);
 
     /// <summary>
-    /// A write, commit or rollback has run for <see cref="StuckAfter"/> (review 3.40.0, A2): over a silent VPN it may never
-    /// return – no command timeout ends it –, so the status bar and the leave dialog offer to give up the session.
+    /// A write, commit, rollback or writing statement holds the workspace's session: the leave dialog waits for it or offers
+    /// to give up the session (review 3.44.0, A1 – a statement whose tab was closed counted nowhere).
     /// </summary>
-    public bool IsStuck(Guid workspaceId) => BusySince(workspaceId) is { } since && DateTimeOffset.Now - since >= StuckAfter;
+    public bool HoldsSession(Guid workspaceId) => RunningOn(workspaceId).Any();
 
-    /// <summary>Writing statements (SQL editor, LINQ console) running per workspace (<see cref="StatementRunning"/>).</summary>
-    private readonly Dictionary<Guid, int> _statements = [];
+    /// <summary>How long a write, commit, rollback or statement may run before giving up the session is offered.</summary>
+    public static readonly TimeSpan StuckAfter = TimeSpan.FromSeconds(5);
+
+    /// <summary>When the oldest work running on the workspace's session started; null if none runs.</summary>
+    public DateTimeOffset? BusySince(Guid workspaceId) => RunningOn(workspaceId).Select(w => (DateTimeOffset?)w.Started).Min();
+
+    /// <summary>
+    /// Work on the session has run for <see cref="StuckAfter"/> (review 3.40.0, A2; statements since 3.44.0, A1): over a silent
+    /// VPN it may never return – no command timeout ends it –, so the status bar and the leave dialog offer to give up the session.
+    /// </summary>
+    public bool IsStuck(Guid workspaceId) => StuckIn(workspaceId) <= TimeSpan.Zero;
+
+    /// <summary>How long until the running work counts as stuck (zero or less: it is); null if nothing runs.</summary>
+    public TimeSpan? StuckIn(Guid workspaceId) => BusySince(workspaceId) is { } since ? since + StuckAfter - _time.GetUtcNow() : null;
 
     /// <summary>
     /// A writing statement of this workspace is running (review 3.40.0, A1): it holds the editor and is not in its log yet –
     /// a commit would wait for it and commit it unseen, a rollback take it back unseen. Both are refused meanwhile.
     /// </summary>
-    public bool IsStatementRunning(Guid workspaceId) => _statements.GetValueOrDefault(workspaceId) > 0;
+    public bool IsStatementRunning(Guid workspaceId) => RunningOn(workspaceId).Any(w => w.Statement);
 
     /// <summary>Marks a writing statement of the workspace as running until disposed (<see cref="StatementRunner.WriteAsync"/>).</summary>
     public IDisposable StatementRunning(Guid workspaceId)
     {
-        _statements[workspaceId] = _statements.GetValueOrDefault(workspaceId) + 1;
-        shell.NotifyChanged();
-        return new Running(() =>
-        {
-            if (--_statements[workspaceId] == 0)
-            {
-                _statements.Remove(workspaceId);
-            }
-
-            shell.NotifyChanged();
-        });
+        var work = Start(workspaceId, statement: true);
+        return new Running(() => End(workspaceId, work));
     }
 
     private sealed class Running(Action ended) : IDisposable
@@ -355,6 +377,8 @@ public sealed partial class WorkspaceEditing(
     /// </summary>
     public void SessionReset(WorkspaceTabs workspace)
     {
+        // What hangs on the old session no longer holds the workspace (review 3.44.0, A1): commit and rollback work again.
+        _running.Remove(workspace.WorkspaceId);
         RestorePending(workspace);
         Forget(workspace.WorkspaceId);
         shell.ReloadTableTabs(workspace.WorkspaceId);
@@ -478,16 +502,14 @@ public sealed partial class WorkspaceEditing(
 
     private async Task<bool> RunAsync(WorkspaceTabs workspace, Func<Task<bool>> action)
     {
-        if (!_busy.Add(workspace.WorkspaceId))
+        if (IsBusy(workspace.WorkspaceId))
         {
             // Say so (review 3.31.0, A27): "Commit" in the leave dialog closed it without a word while a write hung on the VPN.
             shell.Notify(GridText.Editing_Busy);
             return false;
         }
 
-        _busySince[workspace.WorkspaceId] = DateTimeOffset.Now;
-
-        shell.NotifyChanged();
+        var work = Start(workspace.WorkspaceId, statement: false);
         try
         {
             var result = await shell.CallDbAsync(logger, ScopeOf(workspace.WorkspaceId).Active, action);
@@ -495,9 +517,7 @@ public sealed partial class WorkspaceEditing(
         }
         finally
         {
-            _busy.Remove(workspace.WorkspaceId);
-            _busySince.Remove(workspace.WorkspaceId);
-            shell.NotifyChanged();
+            End(workspace.WorkspaceId, work);
         }
     }
 

@@ -952,7 +952,7 @@
     <comment>WP-51</comment>
   </data>
   <data name="Leave_Busy" xml:space="preserve">
-    <value>A write or commit of these workspaces is still running. Wait for it – or, if it does not return (VPN, firewall), disconnect the session.</value>
+    <value>A write, commit or statement of these workspaces is still running. Wait for it – or, if it does not return (VPN, firewall), disconnect the session.</value>
   </data>
   <data name="Dialogs_ResetSessionTitle" xml:space="preserve">
     <value>Disconnect session?</value>
@@ -962,7 +962,7 @@
     <comment>{0}: workspace name</comment>
   </data>
   <data name="Status_StuckTitle" xml:space="preserve">
-    <value>The write or commit has not returned for a while – the connection may be hanging (VPN, firewall). Disconnecting the workspace’s session ends it.</value>
+    <value>The write, commit or statement has not returned for a while – the connection may be hanging (VPN, firewall). Disconnecting the workspace’s session ends it.</value>
   </data>
   <data name="Changes_OtherCountsOne" xml:space="preserve">
     <value>{1} pending · {0} action open</value>

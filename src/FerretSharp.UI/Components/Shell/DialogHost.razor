@@ -59,7 +59,7 @@
 
 @if (Lifecycle.PendingLeave is { } leave)
 {
-    var busy = leave.WorkspaceIds.Where(Editing.IsBusy).ToList();
+    var busy = leave.WorkspaceIds.Where(Editing.HoldsSession).ToList();
     <LeaveDialog @key="leave" Request="leave" Busy="busy.Count > 0"
                  Items="@LeaveItems(leave)"
                  OnCommit="() => Lifecycle.LeaveAsync(commit: true)" OnDiscard="() => Lifecycle.LeaveAsync(commit: false)" OnCancel="Lifecycle.CancelLeave"

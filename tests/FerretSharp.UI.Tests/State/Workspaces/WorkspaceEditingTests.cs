@@ -216,6 +216,8 @@ public sealed class WorkspaceEditingTests : IAsyncDisposable
 
         Assert.NotNull(_app.Editing.BusySince(workspace.WorkspaceId));
         Assert.False(_app.Editing.IsStuck(workspace.WorkspaceId)); // only after a few seconds
+        _app.Time.Advance(WorkspaceEditing.StuckAfter);
+        Assert.True(_app.Editing.IsStuck(workspace.WorkspaceId)); // review 3.44.0, C2: the clock is the editing's own
         _app.Lifecycle.RequestResetSession(workspace.WorkspaceId);
         Assert.Equal(workspace.WorkspaceId, _app.Lifecycle.ConfirmReset);
         _app.Lifecycle.CancelConfirmation();
@@ -229,6 +231,35 @@ public sealed class WorkspaceEditingTests : IAsyncDisposable
         held.SetResult();
         await commit;
         Assert.Null(_app.Editing.BusySince(workspace.WorkspaceId));
+    }
+
+    /// <summary>
+    /// Review 3.44.0, A1: a writing statement whose tab was closed hung on the VPN – commit and rollback were refused
+    /// ("statement running"), and neither the status bar nor the leave dialog offered to give up the session.
+    /// </summary>
+    [Fact]
+    public async Task A_hanging_statement_holds_the_session_until_it_is_given_up()
+    {
+        var scope = await _app.OpenAsync(TestApp.Profile("Test"));
+        var workspace = _app.WorkspaceOf(scope);
+
+        var statement = _app.Editing.StatementRunning(workspace.WorkspaceId);
+        Assert.True(_app.Editing.HoldsSession(workspace.WorkspaceId));
+        Assert.False(_app.Editing.IsBusy(workspace.WorkspaceId)); // the grid may still edit
+        Assert.False(_app.Editing.IsStuck(workspace.WorkspaceId));
+        _app.Time.Advance(WorkspaceEditing.StuckAfter);
+        Assert.True(_app.Editing.IsStuck(workspace.WorkspaceId));
+
+        await _app.Lifecycle.ResetSessionAsync(workspace.WorkspaceId);
+        Assert.False(_app.Editing.HoldsSession(workspace.WorkspaceId));
+        Assert.False(_app.Editing.IsStatementRunning(workspace.WorkspaceId));
+
+        // The old statement ends late: it does not touch what runs on the new session.
+        var next = _app.Editing.StatementRunning(workspace.WorkspaceId);
+        statement.Dispose();
+        Assert.True(_app.Editing.IsStatementRunning(workspace.WorkspaceId));
+        next.Dispose();
+        Assert.False(_app.Editing.HoldsSession(workspace.WorkspaceId));
     }
 
     /// <summary>
