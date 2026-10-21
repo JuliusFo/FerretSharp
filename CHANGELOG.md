@@ -10,6 +10,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ### Changed
 - Code usage: the property an `ExecuteUpdate` sets (`s.SetProperty(c => c.Email, …)`, EF Core 7–9) counts as a write, no longer as a LINQ read; the value expression still reads. The index reads every assembly once more after the update (new cache format).
+- The log tells more when FerretSharp seems to stop after sleep: when opening a session ended and after how long (measured apart from the UI thread), and who closed the main window (the user, the app, after the question about uncommitted changes) or that Windows ended the session.
 
 ### Fixed
 - "Usage" view: a foreign key column used only through its navigation (`order.Customer`, `customer.Orders`) listed only its mapping code, although it was not marked unused. The column now lists the uses of its navigations too, marked "via navigation Order.Customer", and counts them; a shadow foreign key shows them as well. The "Queries" sub-tab lists the navigations that load the table's rows ("Through navigations", counted in the header). Dropping such a column in the designer names the navigations: the build does not break over them, their queries fail at run time.

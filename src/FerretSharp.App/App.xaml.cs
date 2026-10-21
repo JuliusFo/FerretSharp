@@ -54,6 +54,8 @@ public partial class App : Application
                 retainedFileCountLimit: 14)
             .CreateLogger();
         RegisterGlobalExceptionHandlers(); // before anything that can fail (R4a: a failing host build left no trace)
+        // With the main window's close (MainWindow), the log tells why the app ended.
+        SessionEnding += (_, args) => Log.Information("Windows session ending ({Reason})", args.ReasonSessionEnding);
 
         // Model host, LINQ console and builds end with FerretSharp, also after a crash (review 3.40.0, A18).
         ChildProcesses.Adopt = ChildJob.Create();

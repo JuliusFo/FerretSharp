@@ -102,6 +102,45 @@ public sealed class ActiveConnectionTests : IDisposable
         await Eventually(() => _connection.ReceivedCalls().Any(c => c.GetMethodInfo().Name == nameof(IAsyncDisposable.DisposeAsync)));
     }
 
+    /// <summary>
+    /// After sleep (2026-10-21) the log stood at "Opening the session" for 20 s: the open hanging, or the UI thread holding up
+    /// the next step? The end of the open is reported from the thread pool, whatever the caller's context does.
+    /// </summary>
+    [Fact]
+    public async Task The_end_of_opening_the_session_is_reported_with_its_duration()
+    {
+        var ended = new List<SessionOpenOutcome>();
+        _active.SessionOpenEnded += o => { lock (ended) { ended.Add(o); } };
+
+        await _active.ConnectAsync(_profile, Ct);
+
+        await Eventually(() => { lock (ended) { return ended.Count == 1; } });
+        Assert.Null(ended[0].Error);
+        Assert.True(ended[0].Synchronous); // the fake returns a completed task
+        Assert.True(ended[0].Took >= TimeSpan.Zero);
+    }
+
+    [Fact]
+    public async Task An_open_that_ends_after_a_cancel_is_still_reported()
+    {
+        var opening = new TaskCompletionSource<IDatabaseConnection>();
+        _connector.OpenAsync(Arg.Any<ConnectionProfile>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(opening.Task);
+        SessionOpenOutcome? ended = null;
+        _active.SessionOpenEnded += o => ended = o;
+        var connecting = _active.ConnectAsync(_profile, Ct);
+        await Eventually(() => _active.Step == ConnectionText.Step_OpeningSession);
+
+        _active.CancelPendingConnect();
+        await connecting.WaitAsync(TimeSpan.FromSeconds(5), Ct);
+        Assert.Null(ended);
+        opening.SetException(new DatabaseException("timeout", "ORA-12170"));
+
+        await Eventually(() => ended is not null);
+        Assert.False(ended!.Synchronous);
+        Assert.Contains("timeout", ended.Error);
+    }
+
     private static async Task Eventually(Func<bool> condition)
     {
         for (var waited = 0; !condition(); waited += 10)
