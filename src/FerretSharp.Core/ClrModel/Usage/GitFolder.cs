@@ -72,6 +72,15 @@ public static class GitFolder
         }
 
         var target = line[prefix.Length..].Trim();
-        return Path.GetFullPath(Path.IsPathRooted(target) ? target : Path.Combine(root, target));
+        var full = Path.GetFullPath(Path.IsPathRooted(target) ? target : Path.Combine(root, target));
+
+        // A share the working copy is not on (review 3.44.0, A31): a folder unpacked from an archive would make FerretSharp
+        // sign in to a foreign host every few seconds (the branch is read by a timer). A clone on a share may keep its
+        // worktree data there.
+        return IsShare(full) && !string.Equals(Path.GetPathRoot(full), Path.GetPathRoot(Path.GetFullPath(root)), StringComparison.OrdinalIgnoreCase)
+            ? null
+            : full;
     }
+
+    private static bool IsShare(string path) => path.StartsWith(@"\\", StringComparison.Ordinal) || path.StartsWith("//", StringComparison.Ordinal);
 }

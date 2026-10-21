@@ -40,6 +40,10 @@ public sealed class WorkCloneTests : IDisposable
         Assert.Equal("0123456", GitFolder.Branch(_folder.Combine("detached")));
         Assert.Null(GitFolder.Branch(Directory.CreateDirectory(_folder.Combine("plain")).FullName));
         Assert.Equal(clone, GitFolder.FindRoot(Path.Combine(clone, "src", "Shop.Data", "Customer.cs")));
+
+        // Review 3.44.0, A31: a share the working copy is not on is not followed (a sign-in to a foreign host every few seconds).
+        Write("unpacked/.git", @"gitdir: \\fremd.invalid\share\meta" + "\n");
+        Assert.Null(GitFolder.Branch(_folder.Combine("unpacked")));
     }
 
     [Fact]
