@@ -4,8 +4,9 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject ILogger<Explorer> Logger
+@inject AppSettingsService Settings
 
-@{ _shellKey = ShellKey(); }
+@{ _shellKey = ShellKey(); _shownSeparateViews = SeparateViews; }
 <aside class="sidebar explorer">
     <div class="sidebar-head">
         <div class="schema-row">
@@ -17,29 +18,28 @@
             </button>
         </div>
         <div class="segmented small explorer-sections" role="tablist">
-            <button class="seg @(_section == ExplorerSection.Tables ? "active" : "")" role="tab" aria-selected="@(_section == ExplorerSection.Tables ? "true" : "false")"
-                    title="@SchemaViewText.Explorer_TablesTitle" @onclick="() => SetSection(ExplorerSection.Tables)">@SchemaViewText.Explorer_Tables</button>
-            <button class="seg @(_section == ExplorerSection.PlSql ? "active" : "")" role="tab" aria-selected="@(_section == ExplorerSection.PlSql ? "true" : "false")"
-                    title="@SchemaViewText.Explorer_PlSqlTitle" @onclick="() => SetSection(ExplorerSection.PlSql)">
-                PL/SQL
-                @if (Schema is { } schema && schema.PlSqlObjects.Any(u => u.IsInvalid))
-                {
-                    <span class="seg-count bad" title="@SchemaViewText.Explorer_InvalidObjects">@schema.PlSqlObjects.Count(u => u.IsInvalid)</span>
-                }
-            </button>
+            @foreach (var section in ExplorerList.Sections(SeparateViews))
+            {
+                @SectionButton(section)
+            }
         </div>
         <div class="explorer-search" @onkeydown="OnSearchKeyAsync">
             <SearchBox @bind-Value="_query" Placeholder="@Placeholder" Disabled="@(Schema is null)" />
-            @if (_section == ExplorerSection.PlSql)
+            @if (Section == ExplorerSection.PlSql)
             {
                 <button class="btn ghost source-toggle @(_inSource ? "active" : "")" aria-pressed="@(_inSource ? "true" : "false")"
                         title="@SchemaViewText.Explorer_SourceSearchTitle" disabled="@(Schema is null)"
                         @onclick="ToggleSourceSearch">@SchemaViewText.Explorer_Source</button>
             }
         </div>
-        @if (OtherSectionHits() is { } other)
+        @if (OtherSectionHits() is { Count: > 0 } others)
         {
-            <button class="link-btn other-hits" @onclick="() => SetSection(other.Section)">@other.Text</button>
+            <div class="other-hits">
+                @foreach (var (section, count) in others)
+                {
+                    <button class="link-btn" @onclick="() => SetSection(section)">@HitsText(section, count)</button>
+                }
+            </div>
         }
     </div>
 
@@ -48,7 +48,7 @@
         <div class="sidebar-error">@_refreshError</div>
     }
 
-    @if (_section == ExplorerSection.PlSql && _inSource)
+    @if (Section == ExplorerSection.PlSql && _inSource)
     {
         <div class="sidebar-body">
             <div class="table-list source-hits">
@@ -59,8 +59,8 @@
     else
     {
         <div class="sidebar-body">
-            @{ var letters = _section == ExplorerSection.Tables ? TableGroups() : null; }
-            @{ var units = _section == ExplorerSection.PlSql ? PlSqlGroups() : null; }
+            @{ var letters = Section != ExplorerSection.PlSql ? TableGroups() : null; }
+            @{ var units = Section == ExplorerSection.PlSql ? PlSqlGroups() : null; }
             <LetterIndexBar Available="@((letters?.Keys.AsEnumerable() ?? units!.Keys).ToHashSet())" OnJump="JumpAsync" />
 
             <div class="table-list">
@@ -68,7 +68,7 @@
                 {
                     @if (Schema is not null && letters.Count == 0)
                     {
-                        <div class="sidebar-empty">@(string.IsNullOrWhiteSpace(_query) ? SchemaViewText.Explorer_NoTables : TextFormat.Format(SchemaViewText.Explorer_NothingFound, _query))</div>
+                        <div class="sidebar-empty">@(string.IsNullOrWhiteSpace(_query) ? NoTablesText : TextFormat.Format(SchemaViewText.Explorer_NothingFound, _query))</div>
                     }
                     @foreach (var (letter, tables) in letters)
                     {
@@ -123,8 +123,15 @@
     private bool _refreshing;
     private string? _refreshError;
 
-    /// <summary>Tables or PL/SQL; kept per connection while it is open (the explorer stays mounted), not saved.</summary>
+    /// <summary>
+    /// The section chosen, kept per connection while it is open (the explorer stays mounted), not saved. Shown is
+    /// <see cref="Section"/>: views are with the tables again once the setting is off.
+    /// </summary>
     private ExplorerSection _section;
+
+    private ExplorerSection Section => ExplorerList.Shown(_section, SeparateViews);
+
+    private bool SeparateViews => Settings.Current.ViewsInOwnSection;
 
     /// <summary>In the PL/SQL section: the search field searches the source (Enter) instead of filtering by name.</summary>
     private bool _inSource;
@@ -150,17 +157,44 @@
                 return "";
             }
 
-            var count = _section == ExplorerSection.Tables ? schema.Tables.Count : schema.PlSqlObjects.Count;
+            var count = Section == ExplorerSection.PlSql ? schema.PlSqlObjects.Count : TablesIn(Section).Count();
             return TextFormat.Plural(count, SchemaViewText.Explorer_ObjectCountOne, SchemaViewText.Explorer_ObjectCountOther);
         }
     }
 
-    private string Placeholder => _section switch
+    private string Placeholder => Section switch
     {
         ExplorerSection.PlSql when _inSource => SchemaViewText.Explorer_SearchSourcePlaceholder,
         ExplorerSection.PlSql => SchemaViewText.Explorer_SearchPlSqlPlaceholder,
+        ExplorerSection.Views => SchemaViewText.Explorer_SearchViewPlaceholder,
         _ => SchemaViewText.Explorer_SearchTablePlaceholder,
     };
+
+    private string NoTablesText => Section switch
+    {
+        ExplorerSection.Views => SchemaViewText.Explorer_NoViews,
+        _ when SeparateViews => SchemaViewText.Explorer_NoTablesOnly,
+        _ => SchemaViewText.Explorer_NoTables,
+    };
+
+    /// <summary>A button of the switch; PL/SQL and views count their invalid objects.</summary>
+    private RenderFragment SectionButton(ExplorerSection section)
+    {
+        var (label, title, invalid) = section switch
+        {
+            ExplorerSection.PlSql => ("PL/SQL", SchemaViewText.Explorer_PlSqlTitle, Schema?.PlSqlObjects.Count(u => u.IsInvalid) ?? 0),
+            ExplorerSection.Views => (SchemaViewText.Explorer_Views, SchemaViewText.Explorer_ViewsTitle, TablesIn(section).Count(t => t.IsInvalid)),
+            _ => (SchemaViewText.Explorer_Tables, SeparateViews ? null : SchemaViewText.Explorer_TablesTitle, 0),
+        };
+        return @<button class="seg @(Section == section ? "active" : "")" role="tab" aria-selected="@(Section == section ? "true" : "false")"
+                        title="@title" @onclick="() => SetSection(section)">
+                    @label
+                    @if (invalid > 0)
+                    {
+                        <span class="seg-count bad" title="@SchemaViewText.Explorer_InvalidObjects">@invalid</span>
+                    }
+                </button>;
+    }
 
     /// <summary>What the list showed of the shell at its last render (<see cref="ShellKey"/>).</summary>
     private string? _shellKey;
@@ -204,7 +238,20 @@
         Shell.Changed += OnShellChanged;
         _presentationWatch = new PresentationWatch(Presentation);
         Presentation.Changed += OnPresentationChanged;
+        Settings.Changed += OnSettingsChanged;
     }
+
+    /// <summary>Whether the list showed views in a section of their own at its last render.</summary>
+    private bool _shownSeparateViews;
+
+    /// <summary>Renders again only if views moved in or out of their own section, not for every other setting.</summary>
+    private void OnSettingsChanged() => InvokeAsync(() =>
+    {
+        if (SeparateViews != _shownSeparateViews)
+        {
+            StateHasChanged();
+        }
+    });
 
     /// <summary>Renders the whole table list again only if the entity names beside the tables changed.</summary>
     private void OnPresentationChanged() => InvokeAsync(() =>
@@ -308,8 +355,11 @@
         }
 
         // The entity name is found as well, unless C# names are switched off.
-        return ExplorerList.Group(Schema.Tables.Where(TableMatches), t => t.DisplayName);
+        return ExplorerList.Group(TablesIn(Section).Where(TableMatches), t => t.DisplayName);
     }
+
+    private IEnumerable<TableSummary> TablesIn(ExplorerSection section) =>
+        Schema?.Tables.Where(t => ExplorerList.IsIn(t, section, SeparateViews)) ?? [];
 
     private bool TableMatches(TableSummary table) =>
         ExplorerList.Matches(_query, table.DisplayName, table.Name, Presentation.ShownEntityNameOf(table.Ref));
@@ -317,26 +367,25 @@
     private SortedDictionary<char, List<PlSqlObjectSummary>> PlSqlGroups() =>
         ExplorerList.Group(ExplorerList.Filter(Schema?.PlSqlObjects ?? [], _query), u => u.DisplayName);
 
-    /// <summary>"3 Treffer unter PL/SQL": the name search finds nothing here but something in the other section.</summary>
-    private (ExplorerSection Section, string Text)? OtherSectionHits()
+    /// <summary>"3 Treffer unter PL/SQL": what the name search finds in the other sections; a click there switches.</summary>
+    private IReadOnlyList<(ExplorerSection Section, int Count)>? OtherSectionHits()
     {
-        if (Schema is not { } schema || string.IsNullOrWhiteSpace(_query) || _inSource && _section == ExplorerSection.PlSql)
+        if (Schema is not { } schema || string.IsNullOrWhiteSpace(_query) || _inSource && Section == ExplorerSection.PlSql)
         {
             return null;
         }
 
-        var (other, count) = _section == ExplorerSection.Tables
-            ? (ExplorerSection.PlSql, ExplorerList.Filter(schema.PlSqlObjects, _query).Count())
-            : (ExplorerSection.Tables, schema.Tables.Count(TableMatches));
-        if (count == 0)
-        {
-            return null;
-        }
-
-        return (other, other == ExplorerSection.PlSql
-            ? TextFormat.Plural(count, SchemaViewText.Explorer_HitsInPlSqlOne, SchemaViewText.Explorer_HitsInPlSqlOther)
-            : TextFormat.Plural(count, SchemaViewText.Explorer_HitsInTablesOne, SchemaViewText.Explorer_HitsInTablesOther));
+        return ExplorerList.OtherHits(Section, SeparateViews, section => section == ExplorerSection.PlSql
+            ? ExplorerList.Filter(schema.PlSqlObjects, _query).Count()
+            : TablesIn(section).Count(TableMatches));
     }
+
+    private static string HitsText(ExplorerSection section, int count) => section switch
+    {
+        ExplorerSection.PlSql => TextFormat.Plural(count, SchemaViewText.Explorer_HitsInPlSqlOne, SchemaViewText.Explorer_HitsInPlSqlOther),
+        ExplorerSection.Views => TextFormat.Plural(count, SchemaViewText.Explorer_HitsInViewsOne, SchemaViewText.Explorer_HitsInViewsOther),
+        _ => TextFormat.Plural(count, SchemaViewText.Explorer_HitsInTablesOne, SchemaViewText.Explorer_HitsInTablesOther),
+    };
 
     private bool IsOpen(TableSummary table) => Shell.Tabs.OfType<TableTab>().Any(t => t.Table.Ref == table.Ref);
 
@@ -361,7 +410,7 @@
 
     private async Task OnSearchKeyAsync(KeyboardEventArgs e)
     {
-        if (e.Key == "Enter" && _section == ExplorerSection.PlSql && _inSource)
+        if (e.Key == "Enter" && Section == ExplorerSection.PlSql && _inSource)
         {
             await SearchSourceAsync();
         }
@@ -480,6 +529,7 @@
         Active.Changed -= OnChanged;
         Shell.Changed -= OnShellChanged;
         Presentation.Changed -= OnPresentationChanged;
+        Settings.Changed -= OnSettingsChanged;
         _searchCts?.Cancel();
         await Dom.DisposeAsync();
     }

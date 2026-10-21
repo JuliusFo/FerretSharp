@@ -1322,7 +1322,7 @@ table.compare-rows td.ff-flushed { box-shadow: inset 2px 0 0 var(--accent); back
 .explorer-search > label { flex: 1; min-width: 0; }
 .explorer-search .source-toggle { flex: none; height: 28px; padding: 0 8px; font-size: 12px; }
 .explorer-search .source-toggle.active { color: var(--accent); background: var(--accent-weak); }
-.other-hits { align-self: flex-start; font-size: 12px; }
+.other-hits { display: flex; flex-wrap: wrap; gap: 2px 4px; font-size: 12px; }
 .table-item.disabled-unit .name, .table-item.disabled-unit .icon { opacity: .55; }
 .source-hits { padding-left: 8px; }
 .source-hits .hits-summary { padding: 2px 6px 6px; font-size: 12px; }

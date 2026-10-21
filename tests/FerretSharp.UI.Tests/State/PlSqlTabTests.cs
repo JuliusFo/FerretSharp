@@ -98,6 +98,42 @@ public class ExplorerListTests
         Assert.Equal(3, ExplorerList.Filter([Rechnung, Druck, Import], "").Count());
     }
 
+    private static readonly TableSummary Kunden = new("APP", "KUNDEN", TableKind.Table);
+    private static readonly TableSummary KundenView = new("APP", "KUNDEN_V", TableKind.View);
+    private static readonly TableSummary KundenMView = new("APP", "KUNDEN_MV", TableKind.MaterializedView);
+
+    [Fact]
+    public void Views_are_with_the_tables_unless_they_have_a_section_of_their_own()
+    {
+        TableSummary[] all = [Kunden, KundenView, KundenMView];
+
+        Assert.Equal(all, all.Where(t => ExplorerList.IsIn(t, ExplorerSection.Tables, separateViews: false)));
+        Assert.DoesNotContain(all, t => ExplorerList.IsIn(t, ExplorerSection.Views, separateViews: false));
+        Assert.Equal([Kunden], all.Where(t => ExplorerList.IsIn(t, ExplorerSection.Tables, separateViews: true)));
+        Assert.Equal([KundenView, KundenMView], all.Where(t => ExplorerList.IsIn(t, ExplorerSection.Views, separateViews: true)));
+        Assert.DoesNotContain(all, t => ExplorerList.IsIn(t, ExplorerSection.PlSql, separateViews: true));
+    }
+
+    [Fact]
+    public void The_views_section_is_only_in_the_switch_while_views_are_separated()
+    {
+        Assert.Equal([ExplorerSection.Tables, ExplorerSection.PlSql], ExplorerList.Sections(separateViews: false));
+        Assert.Equal([ExplorerSection.Tables, ExplorerSection.Views, ExplorerSection.PlSql], ExplorerList.Sections(separateViews: true));
+        Assert.Equal(ExplorerSection.Tables, ExplorerList.Shown(ExplorerSection.Views, separateViews: false));
+        Assert.Equal(ExplorerSection.Views, ExplorerList.Shown(ExplorerSection.Views, separateViews: true));
+        Assert.Equal(ExplorerSection.PlSql, ExplorerList.Shown(ExplorerSection.PlSql, separateViews: false));
+    }
+
+    [Fact]
+    public void Hits_in_the_other_sections_are_named_in_the_order_of_the_switch()
+    {
+        var counts = new Dictionary<ExplorerSection, int> { [ExplorerSection.Tables] = 2, [ExplorerSection.Views] = 0, [ExplorerSection.PlSql] = 1 };
+
+        Assert.Equal([(ExplorerSection.PlSql, 1)], ExplorerList.OtherHits(ExplorerSection.Tables, separateViews: true, s => counts[s]));
+        Assert.Equal([(ExplorerSection.Tables, 2), (ExplorerSection.PlSql, 1)], ExplorerList.OtherHits(ExplorerSection.Views, separateViews: true, s => counts[s]));
+        Assert.Equal([(ExplorerSection.Tables, 2)], ExplorerList.OtherHits(ExplorerSection.PlSql, separateViews: false, s => counts[s]));
+    }
+
     [Fact]
     public void Groups_by_first_letter_with_other_names_last()
     {

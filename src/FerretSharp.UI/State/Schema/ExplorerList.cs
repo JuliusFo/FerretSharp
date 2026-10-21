@@ -4,18 +4,44 @@ using FerretSharp.UI.Resources;
 
 namespace FerretSharp.UI.State;
 
-/// <summary>What the explorer lists (WP-28): tables, views and materialized views – or the schema's PL/SQL.</summary>
+/// <summary>
+/// What the explorer lists (WP-28): tables, views and materialized views – or the schema's PL/SQL. Views and materialized
+/// views have a section of their own only with <see cref="Core.Settings.AppSettings.ViewsInOwnSection"/>.
+/// </summary>
 public enum ExplorerSection
 {
     Tables,
+    Views,
     PlSql,
 }
 
-/// <summary>Filtering and letter groups of the explorer's lists, the same for both sections.</summary>
+/// <summary>Filtering and letter groups of the explorer's lists, the same for all sections.</summary>
 public static class ExplorerList
 {
     /// <summary>Group key for names that do not start with A–Z (quoted identifiers like "1_Import" or "Übersicht").</summary>
     public const char Other = '#';
+
+    /// <summary>The sections of the switch in its order: views in one of their own only if they are separated.</summary>
+    public static IReadOnlyList<ExplorerSection> Sections(bool separateViews) =>
+        separateViews ? [ExplorerSection.Tables, ExplorerSection.Views, ExplorerSection.PlSql] : [ExplorerSection.Tables, ExplorerSection.PlSql];
+
+    /// <summary>The section shown for the one chosen: views are with the tables again once the setting is off.</summary>
+    public static ExplorerSection Shown(ExplorerSection chosen, bool separateViews) =>
+        chosen == ExplorerSection.Views && !separateViews ? ExplorerSection.Tables : chosen;
+
+    /// <summary>Whether a table, view or materialized view is listed in the section.</summary>
+    public static bool IsIn(TableSummary table, ExplorerSection section, bool separateViews) => section switch
+    {
+        ExplorerSection.Tables => !separateViews || table.Kind == TableKind.Table,
+        ExplorerSection.Views => separateViews && table.Kind != TableKind.Table,
+        _ => false,
+    };
+
+    /// <summary>
+    /// The other sections in which the name search finds something, in the order of the switch ("3 hits in PL/SQL").
+    /// </summary>
+    public static IReadOnlyList<(ExplorerSection Section, int Count)> OtherHits(ExplorerSection shown, bool separateViews, Func<ExplorerSection, int> count) =>
+        [.. Sections(separateViews).Where(s => s != shown).Select(s => (s, count(s))).Where(hit => hit.Item2 > 0)];
 
     /// <summary>
     /// The query is empty, or each of its words is in one of the names (<see cref="TextSearch"/>; R5b: the whole query in one

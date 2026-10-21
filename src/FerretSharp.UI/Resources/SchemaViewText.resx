@@ -91,6 +91,12 @@
   <data name="Explorer_TablesTitle" xml:space="preserve">
     <value>Tables, views and materialized views</value>
   </data>
+  <data name="Explorer_Views" xml:space="preserve">
+    <value>Views</value>
+  </data>
+  <data name="Explorer_ViewsTitle" xml:space="preserve">
+    <value>Views and materialized views</value>
+  </data>
   <data name="Explorer_PlSqlTitle" xml:space="preserve">
     <value>Packages, procedures, functions and triggers – view only</value>
   </data>
@@ -107,6 +113,12 @@
   </data>
   <data name="Explorer_NoTables" xml:space="preserve">
     <value>The schema has no tables or views.</value>
+  </data>
+  <data name="Explorer_NoTablesOnly" xml:space="preserve">
+    <value>The schema has no tables.</value>
+  </data>
+  <data name="Explorer_NoViews" xml:space="preserve">
+    <value>The schema has no views.</value>
   </data>
   <data name="Explorer_NoPlSql" xml:space="preserve">
     <value>The schema has no packages, procedures, functions or triggers.</value>
@@ -131,6 +143,9 @@
   </data>
   <data name="Explorer_SearchTablePlaceholder" xml:space="preserve">
     <value>Search tables …</value>
+  </data>
+  <data name="Explorer_SearchViewPlaceholder" xml:space="preserve">
+    <value>Search views …</value>
   </data>
   <data name="Explorer_Searching" xml:space="preserve">
     <value>Searching for “{0}” …</value>
@@ -170,6 +185,14 @@
   </data>
   <data name="Explorer_HitsInTablesOther" xml:space="preserve">
     <value>{0} hits in tables</value>
+    <comment>Link to the other explorer section. {0} = number of hits</comment>
+  </data>
+  <data name="Explorer_HitsInViewsOne" xml:space="preserve">
+    <value>{0} hit in views</value>
+    <comment>Link to the other explorer section. {0} = number of hits</comment>
+  </data>
+  <data name="Explorer_HitsInViewsOther" xml:space="preserve">
+    <value>{0} hits in views</value>
     <comment>Link to the other explorer section. {0} = number of hits</comment>
   </data>
   <data name="Explorer_SourceSearchTooShort" xml:space="preserve">

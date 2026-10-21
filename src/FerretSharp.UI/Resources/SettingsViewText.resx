@@ -50,6 +50,12 @@
     <value>Shows a connection's group in front of its name in the connection switcher, the open and recent connections and the confirmations, e.g. {0} – helpful when several groups have a DEV, TEST or PROD.</value>
     <comment>{0}: an example, "Kunde A › DEV"</comment>
   </data>
+  <data name="Settings_ExplorerViews" xml:space="preserve">
+    <value>Views as a section of their own</value>
+  </data>
+  <data name="Settings_ExplorerViewsHint" xml:space="preserve">
+    <value>The explorer lists views and materialized views in a section of their own – Tables | Views | PL/SQL – instead of with the tables. The name search still names the hits in the other sections.</value>
+  </data>
   <data name="Settings_ThemeSystem" xml:space="preserve">
     <value>System</value>
     <comment>Color scheme option</comment>

@@ -75,6 +75,12 @@
   <data name="Explorer_TablesTitle" xml:space="preserve">
     <value>Tabellen, Views und Materialized Views</value>
   </data>
+  <data name="Explorer_Views" xml:space="preserve">
+    <value>Views</value>
+  </data>
+  <data name="Explorer_ViewsTitle" xml:space="preserve">
+    <value>Views und Materialized Views</value>
+  </data>
   <data name="Explorer_PlSqlTitle" xml:space="preserve">
     <value>Packages, Prozeduren, Funktionen und Trigger – nur ansehen</value>
   </data>
@@ -89,6 +95,12 @@
   </data>
   <data name="Explorer_NoTables" xml:space="preserve">
     <value>Das Schema enthält keine Tabellen oder Views.</value>
+  </data>
+  <data name="Explorer_NoTablesOnly" xml:space="preserve">
+    <value>Das Schema enthält keine Tabellen.</value>
+  </data>
+  <data name="Explorer_NoViews" xml:space="preserve">
+    <value>Das Schema enthält keine Views.</value>
   </data>
   <data name="Explorer_NoPlSql" xml:space="preserve">
     <value>Das Schema enthält keine Packages, Prozeduren, Funktionen oder Trigger.</value>
@@ -110,6 +122,9 @@
   </data>
   <data name="Explorer_SearchTablePlaceholder" xml:space="preserve">
     <value>Tabelle suchen …</value>
+  </data>
+  <data name="Explorer_SearchViewPlaceholder" xml:space="preserve">
+    <value>View suchen …</value>
   </data>
   <data name="Explorer_Searching" xml:space="preserve">
     <value>Suche „{0}“ …</value>
@@ -140,6 +155,12 @@
   </data>
   <data name="Explorer_HitsInTablesOther" xml:space="preserve">
     <value>{0} Treffer unter Tabellen</value>
+  </data>
+  <data name="Explorer_HitsInViewsOne" xml:space="preserve">
+    <value>{0} Treffer unter Views</value>
+  </data>
+  <data name="Explorer_HitsInViewsOther" xml:space="preserve">
+    <value>{0} Treffer unter Views</value>
   </data>
   <data name="Explorer_SourceSearchTooShort" xml:space="preserve">
     <value>Mindestens {0} Zeichen eingeben.</value>

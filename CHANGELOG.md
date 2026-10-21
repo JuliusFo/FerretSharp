@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 ## [Unreleased]
 
 ### Added
+- Explorer: views and materialized views can have a section of their own, "Tables | Views | PL/SQL" (Settings › Appearance › "Views as a section of their own", off by default). The Views section counts invalid views like PL/SQL does. The name search still filters the section shown and names the hits in each other section ("2 hits in views", a click switches).
 - "Usage" view, "Columns" sub-tab: a filter "All · Read · Write" beside the sub-tabs, and the uses column split into "R" (reads, LINQ included) and "W" (writes), each with those in tests in brackets. With "Read" or "Write" only columns with such a use are listed, and only those uses when expanded; mapping code is neither and shows under "All" only. The filter stays while the tab is open.
 
 ### Changed
