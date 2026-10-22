@@ -1,5 +1,7 @@
 // Small DOM helpers that Blazor cannot do on its own.
 
+import { TypedText, optionsOf, pickTyped, typedCharOf } from './cellTyping.js';
+
 /** block: 'nearest' keeps the element just visible (keyboard navigation), 'start' jumps to it (letter index). */
 export function scrollIntoViewById(id, block = 'nearest') {
   document.getElementById(id)?.scrollIntoView({ block });
@@ -187,6 +189,44 @@ export function trapFocus(box) {
       items[0].focus();
     }
   });
+}
+
+/**
+ * Typing in the member lists (native selects) below root – the enum fields of the form: as in the grid's cell editor the
+ * value first, then the label (cellTyping.js); the list's own search knows only the labels, digits found nothing. The pick
+ * goes to Blazor as typed text (an input event): the field keeps it as a draft like any typed text – taken with Enter,
+ * on leaving the list or before a write or another row, dropped with Esc. The listeners are on root and go with it.
+ */
+export function typeInLists(root) {
+  if (!root || root._typeInLists) {
+    return;
+  }
+
+  root._typeInLists = true;
+  const typed = new WeakMap(); // select → TypedText
+  root.addEventListener('keydown', e => {
+    const select = e.target;
+    if (!(select instanceof HTMLSelectElement)) return;
+    let text = typed.get(select);
+    if (!text) typed.set(select, text = new TypedText());
+    const char = typedCharOf(e);
+    const now = Date.now();
+    // A space on its own opens the list as before; while typing it belongs to the text. Other keys end the typing.
+    if (char === null || (char === ' ' && !text.active(now))) {
+      text.reset();
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+    const value = pickTyped(optionsOf(select.options), text.add(char, now), select.value);
+    if (value === null || value === select.value) return;
+    select.value = value;
+    select.dispatchEvent(new Event('input', { bubbles: true }));
+  }, true);
+  root.addEventListener('focusout', e => {
+    if (e.target instanceof HTMLSelectElement) typed.get(e.target)?.reset();
+  }, true);
 }
 
 /** True if the element contains the focused element (Ctrl+F: the form's search or the grid's column jump). */

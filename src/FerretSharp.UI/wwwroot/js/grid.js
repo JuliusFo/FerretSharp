@@ -5,6 +5,9 @@ import { comboOf, localCombo, setEditFinisher } from './shortcuts.js';
 import {
   anchorFor, arrivedIn, inDisplayOrder, keyMoveOf, markOf, markedColumns, movedEnd, rectOf, spanOf,
 } from './gridSelection.js';
+import {
+  ALTGR_FOLLOWS, TypedText, isAltGrChar, isAltGrKey, isDigits, optionsOf, pickLabel, pickTyped, typedCharOf,
+} from './cellTyping.js';
 
 const grids = new Map();
 // Per grid: focus changes from .NET – forget the last navigation key (it must not select), select the row (focusRow with
@@ -225,8 +228,8 @@ class FerretCellEditor {
       this.eGui.appendChild(error);
     } else if (params.eventKey && params.eventKey.length === 1) {
       this.input.value = params.eventKey; // typing starts editing: replace the value
-    } else if (params.eventKey === 'Backspace' || params.eventKey === 'Delete') {
-      this.input.value = '';
+    } else if (params.eventKey === 'Backspace' || params.eventKey === 'Delete' || params.eventKey === ALTGR_FOLLOWS) {
+      this.input.value = ''; // AltGr: the character follows as text input into the focused box
     } else {
       this.input.disabled = true;
       state.dotnet.invokeMethodAsync('GetEditText', ...rowArgs(params.node, params.data), params.column.getColId())
@@ -277,7 +280,8 @@ class FerretCellEditor {
 /**
  * Cell editor for enum and converted bool columns (WP-12): a list of the members; the value is the database value, so
  * .NET checks and writes it like typed text. Picking with the mouse takes the value at once; with the keyboard Enter
- * does (arrow keys on the closed list already change the selection).
+ * does (arrow keys on the closed list already change the selection). Typing picks by value first, then by label
+ * (`0` or `Ne` for `Neu (0)`, cellTyping.js); the key that started editing counts as typed.
  */
 class FerretSelectEditor {
   init(params) {
@@ -292,13 +296,17 @@ class FerretSelectEditor {
     for (const option of meta.options) this.addOption(option.value, option.label);
     this.eGui.appendChild(this.select);
     this.select.disabled = true;
+    this.typed = new TypedText();
     const clear = params.eventKey === 'Backspace' || params.eventKey === 'Delete';
+    const started = params.eventKey?.length === 1 ? params.eventKey : null;
     params.state.dotnet.invokeMethodAsync('GetEditText', ...rowArgs(params.node, params.data), params.column.getColId())
       .then(text => {
         const value = clear ? '' : text ?? '';
         // A value without a member stays selectable, so leaving the editor does not change it.
         if (![...this.select.options].some(o => o.value === value)) this.addOption(value, params.state.texts.noMember.replace('{0}', value));
         this.select.value = value;
+        // Typed onto the cell: that key picks, from the first member on (not the next after the current one).
+        if (started) this.type(started, null);
         this.select.disabled = false;
         this.loaded = true;
         this.select.focus();
@@ -310,6 +318,12 @@ class FerretSelectEditor {
     option.value = value;
     option.textContent = label;
     this.select.appendChild(option);
+  }
+  /** Adds a typed character to what was typed (a pause starts anew) and picks the member it means, if one does. */
+  type(char, current) {
+    const text = this.typed.add(char, Date.now());
+    const value = pickTyped(optionsOf(this.select.options), text, current);
+    if (value !== null) this.select.value = value;
   }
   async commit() {
     const params = this.params;
@@ -326,6 +340,16 @@ class FerretSelectEditor {
     this.select.addEventListener('change', () => { if (pointer) this.commit(); });
     this.select.addEventListener('keydown', e => {
       pointer = false;
+      // Typed characters pick here, not in the list's own search (it knows only the labels). A space while typing
+      // belongs to the text (`Neuer Kunde`); on its own it opens the list as before.
+      const char = typedCharOf(e);
+      if (char !== null && (char !== ' ' || this.typed.active(Date.now()))) {
+        e.preventDefault();
+        e.stopPropagation();
+        showEditorError(this.eGui, null);
+        this.type(char, this.select.value);
+        return;
+      }
       if (e.key !== 'Enter') return;
       e.preventDefault();
       e.stopPropagation();
@@ -344,7 +368,9 @@ class FerretSelectEditor {
  * Cell editor for flags enums stored as their number: a drop-down list of the flags to tick (and NULL where allowed).
  * The boxes, which are ticked and the bits no member stands for come from .NET (GetFlagsEdit); here they are only shown
  * and the ticked values added up. The sum is checked and written by .NET like typed text. Space or a click ticks, Enter
- * takes the value, Esc drops it.
+ * takes the value, Esc drops it. Typed digits are the value itself: .NET ticks the flags it holds (`5`: 1 and 4) and shows
+ * the bits no member stands for as a box of their own (GetFlagsEditOf). Letters go to the flag whose label starts with
+ * them (cellTyping.js); the key that started editing counts as typed.
  */
 class FerretFlagsEditor {
   init(params) {
@@ -361,8 +387,12 @@ class FerretFlagsEditor {
     this.list.setAttribute('aria-multiselectable', 'true');
     this.eGui.append(this.summary, this.list);
     this.boxes = [];
+    this.typed = new TypedText();
+    this.typedRequests = 0;
+    this.typedEdit = null; // the boxes for typed digits, on their way from .NET
     this.list.addEventListener('change', e => this.onChange(e.target));
     const clear = params.eventKey === 'Backspace' || params.eventKey === 'Delete';
+    const started = params.eventKey?.length === 1 && params.eventKey !== ' ' ? params.eventKey : null;
     params.state.dotnet.invokeMethodAsync('GetFlagsEdit', ...rowArgs(params.node, params.data), params.column.getColId())
       .then(edit => {
         if (!edit) {
@@ -370,17 +400,24 @@ class FerretFlagsEditor {
           return;
         }
 
-        this.nullBox = edit.null ? this.addItem(edit.null, 'fs-null') : null;
-        this.boxes = edit.boxes.map(box => this.addItem(box, box.unknown ? 'fs-unknown-text' : null));
-        this.raw = edit.raw ?? undefined;
-        this.original = edit.text;
+        this.show(edit);
         // Backspace or Delete opened the editor: start from NULL where it can be chosen.
         if (clear && this.nullBox) this.onChange(this.nullBox.box, true);
-        this.updateSummary();
         this.loaded = true;
         this.focusFirst();
+        if (started) this.type(started, true);
       })
       .catch(e => cancelEditor(params, e));
+  }
+  /** The boxes as .NET describes them (GetFlagsEdit, GetFlagsEditOf); the value is edit.text until a box is ticked. */
+  show(edit) {
+    this.list.replaceChildren();
+    this.nullBox = edit.null ? this.addItem(edit.null, 'fs-null') : null;
+    this.boxes = edit.boxes.map(box => this.addItem(box, box.unknown ? 'fs-unknown-text' : null));
+    this.raw = edit.raw ?? undefined;
+    this.original = edit.text;
+    this.changed = false;
+    this.updateSummary();
   }
   /** A box as .NET describes it ({ value, label, name, checked }); its value is what it adds to the sum. */
   addItem(box, labelClass) {
@@ -394,7 +431,7 @@ class FerretFlagsEditor {
     if (labelClass) text.className = labelClass;
     item.append(input, text);
     this.list.appendChild(item);
-    return { box: input, bits: box.value === '' ? 0n : BigInt(box.value), name: box.name };
+    return { box: input, bits: box.value === '' ? 0n : BigInt(box.value), name: box.name, label: box.label };
   }
   onChange(box, tick) {
     if (tick) box.checked = true;
@@ -420,11 +457,44 @@ class FerretFlagsEditor {
       : value === '' ? 'NULL'
       : `${names.length ? names.join(', ') : this.params.state.texts.noFlag} = ${value}`;
   }
+  /**
+   * Digits are the value itself: .NET takes it apart as for a stored value (GetFlagsEditOf) and the boxes are shown anew;
+   * a bit no member stands for gets a ticked box of its own, so ticking another flag keeps it. Letters go to the flag
+   * whose label starts with them (fromFirst: from the first one, not the next after the focused). Switching between a
+   * number and a name starts anew.
+   */
+  type(char, fromFirst) {
+    const now = Date.now();
+    if (this.typed.active(now) && /\d/.test(char) !== isDigits(this.typed.text)) this.typed.reset();
+    const text = this.typed.add(char, now);
+    if (isDigits(text)) {
+      const params = this.params;
+      const request = ++this.typedRequests;
+      this.typedEdit = params.state.dotnet.invokeMethodAsync('GetFlagsEditOf', ...rowArgs(params.node, params.data), params.column.getColId(), text)
+        .then(edit => {
+          if (request !== this.typedRequests || !edit) return; // typed on meanwhile, or the cell can no longer be edited
+          const at = [...this.list.querySelectorAll('input')].indexOf(document.activeElement);
+          this.show(edit);
+          showEditorError(this.eGui, null);
+          const boxes = this.list.querySelectorAll('input');
+          (boxes[at] ?? boxes[0])?.focus(); // the old boxes are gone, and the keys with them
+        })
+        .catch(callFailed);
+      return;
+    }
+
+    const all = this.nullBox ? [this.nullBox, ...this.boxes] : this.boxes;
+    const options = all.map((f, i) => ({ value: f === this.nullBox ? '' : String(i), label: f === this.nullBox ? 'NULL' : f.label }));
+    const focused = fromFirst ? -1 : all.findIndex(f => f.box === document.activeElement);
+    const picked = pickLabel(options, text, focused < 0 ? null : options[focused].value);
+    if (picked !== null) all[options.findIndex(o => o.value === picked)].box.focus();
+  }
   focusFirst() {
     (this.list.querySelector('input:checked') ?? this.list.querySelector('input'))?.focus();
   }
   async commit() {
     const params = this.params;
+    await this.typedEdit; // Enter right after typing digits: their boxes first
     const error = await validateEdit(params, this.value());
     if (error) {
       showEditorError(this.eGui, error);
@@ -434,6 +504,14 @@ class FerretFlagsEditor {
   }
   afterGuiAttached() {
     this.list.addEventListener('keydown', e => {
+      // Space ticks as before; other characters type (a number or the start of a label).
+      const char = typedCharOf(e);
+      if (char !== null && char !== ' ') {
+        e.preventDefault();
+        e.stopPropagation();
+        this.type(char, false);
+        return;
+      }
       const boxes = [...this.list.querySelectorAll('input')];
       const index = boxes.indexOf(document.activeElement);
       const move = { ArrowDown: 1, ArrowUp: -1, Home: -boxes.length, End: boxes.length }[e.key];
@@ -652,7 +730,7 @@ export function create(elementId, dotnet, columns, options) {
 
   // The grid's keys, in the capture phase (before AG Grid): each handler says whether the key was its.
   element.addEventListener('keydown', e => onDeleteKey(e) || onCopyKey(e) || onCopyColumnKey(e) || onFormKey(e) || onLobKey(e) || onEditHistoryKey(e)
-    || onMarkKey(e) || onSelectKey(e), true);
+    || onMarkKey(e) || onSelectKey(e) || onAltGrKey(e), true);
 
   const selectedRows = () => api.getSelectedNodes().map(n => n.rowIndex).filter(i => i != null);
 
@@ -1117,6 +1195,27 @@ export function create(elementId, dotnet, columns, options) {
     const colId = typeof e.column === 'string' ? e.column : e.column?.getColId?.() ?? null;
     clearTimeout(focusTimer);
     focusTimer = setTimeout(() => dotnet.invokeMethodAsync('OnFocused', e.rowPinned ? -1 : e.rowIndex, newId ?? null, colId).catch(callFailed), 60);
+  }
+
+  // A character typed with AltGr (@ € \ { } on a German keyboard) starts editing like any other. Chromium reports it as
+  // Ctrl+Alt with the character, which AG Grid takes for a shortcut: editing starts with the character. The WPF host
+  // reports the plain key with the AltGraph modifier (AltGr+Q: `q`), which AG Grid took for typed – and suppressed the
+  // `@` that follows as text input: editing starts empty, and the default is left so the `@` lands in the box. A member
+  // list has no use for such a character. Only on a focused cell (not the header) that can be edited; LOB cells open
+  // their editor with Enter.
+  function onAltGrKey(e) {
+    const withChar = isAltGrChar(e);
+    if ((!withChar && !isAltGrKey(e)) || !e.target.closest?.('.ag-cell') || api.getEditingCells().length > 0) return false;
+    const cell = api.getFocusedCell();
+    const meta = cell ? metaById.get(cell.column.getColId()) : null;
+    if (!cell || cell.rowIndex == null || meta?.lob) return false;
+    const node = cell.rowPinned ? api.getPinnedTopRow(cell.rowIndex) : api.getDisplayedRowAtIndex(cell.rowIndex);
+    if (!node || !cell.column.isCellEditable(node)) return false;
+    e.stopPropagation();
+    if (withChar || meta?.options || meta?.flags) e.preventDefault();
+    if (!withChar && (meta?.options || meta?.flags)) return true;
+    api.startEditingCell({ rowIndex: cell.rowIndex, colKey: cell.column.getColId(), rowPinned: cell.rowPinned ?? undefined, key: withChar ? e.key : ALTGR_FOLLOWS });
+    return true;
   }
 
   // Enter on a LOB cell opens the LOB editor (see openLob).
