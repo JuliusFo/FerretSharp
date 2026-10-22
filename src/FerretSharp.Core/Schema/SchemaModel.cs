@@ -45,6 +45,9 @@ public sealed record TableSummary(string Owner, string Name, TableKind Kind, Syn
 /// <param name="Comment">Column comment (<c>ALL_COL_COMMENTS</c>).</param>
 /// <param name="IsVirtual">Virtual column: computed from <see cref="Default"/>, which then holds the expression.</param>
 /// <param name="DefaultOnNull"><c>DEFAULT ON NULL</c>: the default also replaces an explicit NULL.</param>
+/// <param name="IdentityAlways">
+/// An identity column <c>GENERATED ALWAYS</c>: Oracle refuses any value for it (ORA-32795), a copy cannot keep its key (WP-42).
+/// </param>
 public sealed record ColumnInfo(
     string Name,
     string DataType,
@@ -58,7 +61,8 @@ public sealed record ColumnInfo(
     int Position,
     string? Comment = null,
     bool IsVirtual = false,
-    bool DefaultOnNull = false)
+    bool DefaultOnNull = false,
+    bool IdentityAlways = false)
 {
     /// <summary>The type as shown to the user, e.g. <c>VARCHAR2(50 CHAR)</c>, <c>NUMBER(12,2)</c>, <c>DATE</c> (<see cref="OracleTypes.DisplayType"/>).</summary>
     public string DisplayType => OracleTypes.DisplayType(this);
@@ -155,6 +159,12 @@ public interface ISchemaReader
     /// trigger or it is not VALID (an invalid trigger's entries can name the wrong columns).
     /// </summary>
     Task<IReadOnlyList<string>> GetTriggerColumnsAsync(string owner, string trigger, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The enabled triggers on the table's DML (<c>ALL_TRIGGERS</c>), owner and name of each, by name (WP-42: they fire on a
+    /// copy into the table). Empty if there are none or the session may not see them.
+    /// </summary>
+    Task<IReadOnlyList<TableRef>> GetTableTriggersAsync(TableRef table, CancellationToken cancellationToken);
 
     /// <summary>Compile errors and warnings of both parts (<c>ALL_ERRORS</c>), specification first.</summary>
     Task<IReadOnlyList<PlSqlError>> GetErrorsAsync(PlSqlObjectSummary unit, CancellationToken cancellationToken);

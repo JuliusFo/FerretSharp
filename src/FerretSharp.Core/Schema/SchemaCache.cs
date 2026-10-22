@@ -181,6 +181,10 @@ public sealed class SchemaCache(ISchemaReader reader, string owner)
     public Task<IReadOnlyList<string>> GetTriggerColumnsAsync(string owner, string trigger, CancellationToken cancellationToken) =>
         reader.GetTriggerColumnsAsync(owner, trigger, cancellationToken);
 
+    /// <summary>Enabled triggers on the table's DML, as owner and name (WP-42); not cached.</summary>
+    public Task<IReadOnlyList<TableRef>> GetTableTriggersAsync(TableRef table, CancellationToken cancellationToken) =>
+        reader.GetTableTriggersAsync(table, cancellationToken);
+
     public Task<ObjectDependencies> GetDependenciesAsync(PlSqlObjectSummary unit, CancellationToken cancellationToken) =>
         reader.GetDependenciesAsync(unit, cancellationToken);
 

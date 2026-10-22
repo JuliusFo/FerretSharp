@@ -37,6 +37,14 @@ public sealed partial class OracleSchemaReader
          WHERE owner = :owner AND trigger_name = :name
         """;
 
+    // Triggers that fire on DML of the table (WP-42: they run along with a copy into it, an audit trigger for one).
+    private const string TableTriggersSql = """
+        SELECT owner, trigger_name
+          FROM all_triggers
+         WHERE table_owner = :owner AND table_name = :name AND base_object_type = 'TABLE' AND status = 'ENABLED'
+         ORDER BY trigger_name, owner
+        """;
+
     // Only columns of the trigger's own table (ALL_TRIGGERS): a trigger on a nested table column may also list others.
     // A schema or database trigger has no table and no rows. Only a VALID trigger: the entries point at column positions,
     // and dropping any column of the table invalidates the trigger without renumbering them – until it compiles again,
@@ -170,6 +178,10 @@ public sealed partial class OracleSchemaReader
             AuthId: authId,
             Trigger: trigger);
     }
+
+    public async Task<IReadOnlyList<TableRef>> GetTableTriggersAsync(TableRef table, CancellationToken cancellationToken) =>
+        await session.ReadListAsync(TableTriggersSql, [new("owner", table.Owner), new("name", table.Name)],
+            reader => new TableRef(reader.GetString(0), reader.GetString(1)), cancellationToken);
 
     public async Task<IReadOnlyList<string>> GetTriggerColumnsAsync(string owner, string trigger, CancellationToken cancellationToken) =>
         await session.ReadListAsync(TriggerColumnsSql, [new("owner", owner), new("name", trigger)], reader => reader.GetString(0), cancellationToken);

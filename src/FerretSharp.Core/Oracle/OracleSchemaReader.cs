@@ -100,10 +100,17 @@ public sealed partial class OracleSchemaReader(OracleSession session) : ISchemaR
 
     // ---- shared select lists: one owner, narrowed to one table with ByTable (…TableOrdinal is the table name) ----
 
-    /// <summary>The column list of <see cref="ColumnsSelect"/>; the light variant of the snapshot replaces two of them.</summary>
+    /// <summary>
+    /// The column list of <see cref="ColumnsSelect"/>; the light variant of the snapshot replaces two of them. The identity
+    /// column's generation (WP-42: ALWAYS takes no value) only for identity columns, 'YES' if the view has no row for it.
+    /// </summary>
     private const string ColumnFields = """
         c.column_name, c.data_type, c.char_used, c.char_length, c.data_length, c.data_precision, c.data_scale,
-               c.nullable, c.identity_column, c.data_default, c.column_id, cm.comments, c.virtual_column, c.default_on_null,
+               c.nullable,
+               CASE c.identity_column WHEN 'YES' THEN NVL((SELECT ic.generation_type FROM all_tab_identity_cols ic
+                                                           WHERE ic.owner = c.owner AND ic.table_name = c.table_name
+                                                             AND ic.column_name = c.column_name), 'YES') END,
+               c.data_default, c.column_id, cm.comments, c.virtual_column, c.default_on_null,
                c.table_name
         """;
 
@@ -368,12 +375,13 @@ public sealed partial class OracleSchemaReader(OracleSession session) : ISchemaR
             Precision: Int(reader, 5),
             Scale: Int(reader, 6),
             Nullable: reader.GetString(7) == "Y",
-            IsIdentity: !reader.IsDBNull(8) && reader.GetString(8) == "YES",
+            IsIdentity: !reader.IsDBNull(8),
             Default: reader.IsDBNull(9) ? null : reader.GetString(9).Trim() is { Length: > 0 } d ? d : null,
             Position: Int(reader, 10) ?? fallbackPosition,
             Comment: Text(reader, 11),
             IsVirtual: Text(reader, 12) == "YES",
-            DefaultOnNull: Text(reader, 13) == "YES");
+            DefaultOnNull: Text(reader, 13) == "YES",
+            IdentityAlways: Text(reader, 8) == "ALWAYS");
     }
 
     /// <summary>One row of <see cref="ConstraintsSelect"/>; the column lists are keyed by constraint name.</summary>

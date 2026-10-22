@@ -175,7 +175,7 @@ public class ReadOnlyTests
                 "ExplainAsync", "GetColumnsAsync", "GetConstraintsAsync", "GetCursorAsync", "GetDdlAsync", "GetDependenciesAsync",
                 "GetDetailsAsync", "GetErrorsAsync", "GetForeignKeysAsync", "GetIndexesAsync", "GetLockHoldersAsync", "GetObjectInfoAsync",
                 "GetPlSqlInfoAsync", "GetPlSqlObjectsAsync", "GetPrimaryKeysAsync", "GetSessionActivityAsync", "GetSourceAsync", "GetSubprogramsAsync", "GetSynonymTargetsAsync",
-                "GetTablesAsync", "GetTriggerColumnsAsync", "ReadSnapshotAsync", "SearchSourceAsync",
+                "GetTableTriggersAsync", "GetTablesAsync", "GetTriggerColumnsAsync", "ReadSnapshotAsync", "SearchSourceAsync",
             ]
         },
         { typeof(IDatabaseConnection), ["PingIfIdleAsync", "SetActionAsync", "StopReadOnlySnapshotsAsync", "UseReadOnlySnapshotsAsync"] },
