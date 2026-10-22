@@ -13,6 +13,7 @@ public static class CopyTargets
             .Where(scope => !ReferenceEquals(scope.Active, source) && scope.Active.IsConnected && scope.Active.Schema is not null && scope.Profile is not null)
             .SelectMany(scope => scope.Workspaces.Open.Select(workspace => new CopyTarget(
                 scope.Id, workspace.Id, $"{ConnectionLabel.Of(scope.Profile!, settings)} · {workspace.Name}", scope.Profile!.Kind,
-                scope.Workspaces.IsWritable(workspace.Id), scope.Active.Schema!, ct => scope.Workspaces.GetDataAsync(workspace.Id, ct)))),
+                () => scope.Workspaces.IsWritable(workspace.Id), scope.Active.Schema!, ct => scope.Workspaces.GetDataAsync(workspace.Id, ct),
+                scope.Active))),
     ];
 }

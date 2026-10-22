@@ -311,13 +311,29 @@
             _progress = p;
             InvokeAsync(StateHasChanged);
         });
-        var task = Shell.RunDbAsync(Logger, Active, () => Draft.LoadAsync(progress, token), token);
+        // Reading the source and checking against the target each with its own connection: a failure is logged as that
+        // connection masks values, and a lost session shows the banner of the connection it belongs to.
+        var collecting = Shell.RunDbAsync(Logger, Active, () => Draft.CollectAsync(progress, token), token);
         StateHasChanged(); // the stage is Loading now
-        var result = await task;
+        var collected = await collecting;
+        if (Failed(collected) || !collected.Value || Draft.Target is not { } target)
+        {
+            return;
+        }
+
+        Failed(await Shell.RunDbAsync(Logger, target.Connection, () => Draft.PlanAsync(token), token));
+    }
+
+    /// <summary>Shows the error of a step of reading; true if there was one.</summary>
+    private bool Failed<T>(DbResult<T> result)
+    {
         if (result.Error is { } error)
         {
             Shell.ShowError(error, result.MaskValues);
+            return true;
         }
+
+        return false;
     }
 
     /// <summary>On a pool thread: ODP.NET sends the break synchronously, over a silent VPN it blocks (A3).</summary>

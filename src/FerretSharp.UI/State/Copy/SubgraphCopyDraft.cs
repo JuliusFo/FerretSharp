@@ -7,11 +7,16 @@ namespace FerretSharp.UI.State;
 
 /// <summary>A workspace of another open connection a copy can go to (WP-42).</summary>
 /// <param name="Label">"TEST › Workspace 1": connection (with group) and workspace.</param>
-/// <param name="Writable">The workspace may write now (a locked Prod must be unlocked first).</param>
+/// <param name="CanWrite">Whether the workspace may write now (a locked Prod must be unlocked first) – asked each time.</param>
 /// <param name="Data">The workspace's read path (existing rows are looked up there).</param>
+/// <param name="Connection">The target connection: its errors are logged and its lost session reported there.</param>
 public sealed record CopyTarget(
-    Guid ConnectionId, Guid WorkspaceId, string Label, ConnectionKind Kind, bool Writable, SchemaCache Schema,
-    Func<CancellationToken, Task<IDataAccess>> Data);
+    Guid ConnectionId, Guid WorkspaceId, string Label, ConnectionKind Kind, Func<bool> CanWrite, SchemaCache Schema,
+    Func<CancellationToken, Task<IDataAccess>> Data, ActiveConnection? Connection = null)
+{
+    /// <summary>The workspace may write now; follows unlocking and locking while the dialog is open.</summary>
+    public bool Writable => CanWrite();
+}
 
 /// <summary>Where a copy stands in the dialog.</summary>
 public enum CopyStage
@@ -39,6 +44,9 @@ public sealed class SubgraphCopyDraft
     private readonly string _sourceOwner;
     private readonly Func<CancellationToken, Task<IDataAccess>> _sourceData;
     private readonly Func<TableRef, CancellationToken, Task<TableDetails?>> _sourceDetails;
+
+    /// <summary>Rows collected and not yet checked against the target (between <see cref="CollectAsync"/> and <see cref="PlanAsync"/>).</summary>
+    private RowGraph? _collected;
 
     /// <param name="sourceOwner">The schema the source connection browses.</param>
     /// <param name="sourceData">The source workspace's read path.</param>
@@ -179,40 +187,80 @@ public sealed class SubgraphCopyDraft
     public TraversalPlan Traversal =>
         new([.. _paths.Select(PathOf).OfType<IReadOnlyList<ForeignKeyInfo>>().OrderBy(p => p.Count)], new HashSet<string>(_skippedParents, StringComparer.Ordinal));
 
-    /// <summary>
-    /// Collects the rows on the source workspace's read path and checks them against the target. A refusal (too many rows)
-    /// ends up in <see cref="LoadError"/>; cancelling and database errors return to choosing and go to the caller.
-    /// </summary>
+    /// <summary>Collects the rows and checks them against the target: <see cref="CollectAsync"/>, then <see cref="PlanAsync"/>.</summary>
     public async Task LoadAsync(IProgress<TraversalProgress>? progress, CancellationToken cancellationToken)
     {
-        if (Target is not { } target)
+        if (await CollectAsync(progress, cancellationToken))
         {
-            return;
+            await PlanAsync(cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// Collects the rows on the source workspace's read path – its database errors belong to the source connection. A refusal
+    /// (too many rows) ends up in <see cref="LoadError"/>; cancelling and database errors return to choosing and go to the caller.
+    /// </summary>
+    /// <returns>True if the rows are there for <see cref="PlanAsync"/>.</returns>
+    public async Task<bool> CollectAsync(IProgress<TraversalProgress>? progress, CancellationToken cancellationToken)
+    {
+        if (Target is null)
+        {
+            return false;
         }
 
         Stage = CopyStage.Loading;
         LoadError = null;
         Graph = null;
         Plan = null;
-        try
+        _collected = null;
+        return await LoadingAsync(async () =>
         {
-            var traversal = Traversal;
             var collector = new RowTraversal(await _sourceData(cancellationToken), Relations, _sourceDetails, wholeLobs: true);
-            var graph = await collector.CollectAsync(Start, _keys, traversal, progress, cancellationToken);
+            _collected = await collector.CollectAsync(Start, _keys, Traversal, progress, cancellationToken);
+        });
+    }
+
+    /// <summary>
+    /// Checks the collected rows against the target on the target workspace's read path – its database errors belong to the
+    /// target connection (<see cref="CopyTarget.Connection"/>). Errors as with <see cref="CollectAsync"/>.
+    /// </summary>
+    public async Task PlanAsync(CancellationToken cancellationToken)
+    {
+        if (Stage != CopyStage.Loading || _collected is not { } graph || Target is not { } target)
+        {
+            return;
+        }
+
+        await LoadingAsync(async () =>
+        {
             var planner = new SubgraphCopyPlanner(_sourceOwner, target.Schema, await target.Data(cancellationToken));
             Plan = await planner.PlanAsync(graph, [.. _skippedParents.Select(Relations.Find).OfType<ForeignKeyInfo>()], cancellationToken);
             Graph = graph;
+            _collected = null;
             Stage = CopyStage.Planned;
+        });
+    }
+
+    /// <returns>False if the step failed: back to choosing.</returns>
+    private async Task<bool> LoadingAsync(Func<Task> step)
+    {
+        try
+        {
+            await step();
+            return true;
         }
         catch (RefusedException ex)
         {
             LoadError = ex.Message;
             Stage = CopyStage.Choosing;
+            _collected = null;
+            return false;
         }
         catch
         {
             // Cancelled, or a database error the caller reports (a lost session goes to its connection).
             Stage = CopyStage.Choosing;
+            _collected = null;
             throw;
         }
     }

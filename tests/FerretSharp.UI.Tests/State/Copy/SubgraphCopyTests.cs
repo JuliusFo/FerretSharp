@@ -28,7 +28,8 @@ public sealed class SubgraphCopyTests : IAsyncDisposable
     private static readonly RelationGraph Relations = new([AuftragKunde, PositionAuftrag]);
 
     /// <summary>The source has customer 1 with order 10 and its position 100; the target has the same tables, empty.</summary>
-    private static async Task<SubgraphCopyDraft> DraftAsync(bool writable = true)
+    /// <param name="targetError">What reading in the target throws; null: nothing.</param>
+    private static async Task<SubgraphCopyDraft> DraftAsync(bool writable = true, Exception? targetError = null)
     {
         var rows = new Dictionary<TableRef, RowData[]>
         {
@@ -45,7 +46,8 @@ public sealed class SubgraphCopyTests : IAsyncDisposable
             return Task.FromResult<IReadOnlyList<RowData>>([.. rows[table.Table.Ref].Where(r => keys.Contains(r.Values[column]!))]);
         });
         var target = Substitute.For<IDataAccess>();
-        target.ReadByKeysAsync(default!, default, default!, default, default).ReturnsForAnyArgs(Task.FromResult<IReadOnlyList<RowData>>([]));
+        target.ReadByKeysAsync(default!, default, default!, default, default).ReturnsForAnyArgs(
+            targetError is null ? Task.FromResult<IReadOnlyList<RowData>>([]) : Task.FromException<IReadOnlyList<RowData>>(targetError));
 
         var reader = Substitute.For<ISchemaReader>();
         TableDetails[] targetTables = [.. new[] { Kunde, Auftrag, Position }.Select(t => t with { Table = t.Table with { Owner = "TEST" } })];
@@ -63,7 +65,7 @@ public sealed class SubgraphCopyTests : IAsyncDisposable
         return new SubgraphCopyDraft(
             "DEV", "APP", Relations, Kunde, [new RowKey.PrimaryKey([1m])], _ => Task.FromResult(source),
             (table, _) => Task.FromResult(all.GetValueOrDefault(table)),
-            [new CopyTarget(Guid.NewGuid(), Guid.NewGuid(), "TEST · Workspace 1", ConnectionKind.Test, writable, schema, _ => Task.FromResult(target))]);
+            [new CopyTarget(Guid.NewGuid(), Guid.NewGuid(), "TEST · Workspace 1", ConnectionKind.Test, () => writable, schema, _ => Task.FromResult(target))]);
     }
 
     [Fact]
@@ -162,6 +164,22 @@ public sealed class SubgraphCopyTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task Reading_the_source_and_checking_the_target_are_separate_steps_each_with_its_own_errors()
+    {
+        var draft = await DraftAsync(targetError: new DatabaseException("ORA-03113: end-of-file on communication channel"));
+
+        Assert.True(await draft.CollectAsync(null, Ct));
+        Assert.Equal(CopyStage.Loading, draft.Stage);
+
+        await Assert.ThrowsAsync<DatabaseException>(() => draft.PlanAsync(Ct));
+        Assert.Equal(CopyStage.Choosing, draft.Stage);
+        Assert.Null(draft.Plan);
+
+        await draft.PlanAsync(Ct); // nothing collected any more: does nothing
+        Assert.Equal(CopyStage.Choosing, draft.Stage);
+    }
+
+    [Fact]
     public async Task Targets_are_the_workspaces_of_the_other_connections_a_locked_prod_among_them()
     {
         var test = await _app.OpenAsync(TestApp.Profile("Test"));
@@ -173,6 +191,20 @@ public sealed class SubgraphCopyTests : IAsyncDisposable
         Assert.Equal(["Prod · Workspace 1", "Dev · Workspace 1"], targets.Select(t => t.Label));
         Assert.Equal([false, true], targets.Select(t => t.Writable));
         Assert.DoesNotContain(targets, t => t.ConnectionId == test.Id);
+        Assert.All(targets, t => Assert.Same(_app.Hub.Open.Single(s => s.Id == t.ConnectionId).Active, t.Connection));
+    }
+
+    [Fact]
+    public async Task A_target_unlocked_while_the_dialog_is_open_may_write()
+    {
+        var test = await _app.OpenAsync(TestApp.Profile("Test"));
+        var prod = await _app.OpenAsync(TestApp.Profile("Prod", ConnectionKind.Prod));
+        var target = Assert.Single(CopyTargets.Targets(_app.Hub, test.Active, _app.Settings.Current));
+        Assert.False(target.Writable);
+
+        await prod.Workspaces.UnlockAsync(target.WorkspaceId, Ct);
+
+        Assert.True(target.Writable);
     }
 
     [Fact]
