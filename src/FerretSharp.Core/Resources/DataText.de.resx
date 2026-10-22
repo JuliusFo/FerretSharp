@@ -132,4 +132,13 @@
   <data name="ExportNamesMissing" xml:space="preserve">
     <value>Namen aus {0} fehlen: {1}</value>
   </data>
+  <data name="FillTooManyRows" xml:space="preserve">
+    <value>Höchstens {0} Zeilen lassen sich auf einmal ändern – markiere weniger.</value>
+  </data>
+  <data name="FillDownNeedsTwoRows" xml:space="preserve">
+    <value>Ausfüllen nach unten braucht mindestens zwei Zeilen: Die Werte der obersten Zeile gehen in die Zeilen darunter.</value>
+  </data>
+  <data name="FillInvalidInColumn" xml:space="preserve">
+    <value>{0}: {1}</value>
+  </data>
 </root>
