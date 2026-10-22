@@ -16,6 +16,9 @@ namespace FerretSharp.Core.Relations;
 /// <param name="targetData">The target workspace's read path.</param>
 public sealed class SubgraphCopyPlanner(string sourceOwner, SchemaCache target, IDataAccess targetData)
 {
+    /// <summary>Columns a warning names at most.</summary>
+    private const int MaxNamedColumns = 5;
+
     /// <summary>The target table of a source table (the source's own schema becomes the target's).</summary>
     public TableRef TargetOf(TableRef source) => source.Owner == sourceOwner ? source with { Owner = target.Owner } : source;
 
@@ -151,11 +154,16 @@ public sealed class SubgraphCopyPlanner(string sourceOwner, SchemaCache target, 
 
         // Same key, other values: with keys from sequences, ID 4711 in the source may be another record in the target – the
         // copied children would then hang on the wrong parent.
-        var differing = matched.Where(m => Differs(source.Details, m.Value.Source, details, m.Value.Target, columns, conflictKey!)).Select(m => m.Key).ToHashSet();
+        // The columns are named: some differ between any two databases (ERSTELLT_AM DEFAULT SYSDATE) and say nothing (E2E).
+        var differences = matched.Select(m => (m.Key, Columns: DifferingColumns(source.Details, m.Value.Source, details, m.Value.Target, columns, conflictKey!).ToList()))
+            .Where(d => d.Columns.Count > 0).ToList();
+        var differing = differences.Select(d => d.Key).ToHashSet();
         if (differing.Count > 0)
         {
+            var named = differences.SelectMany(d => d.Columns).Distinct().Order().Select(i => details.Columns[i].Name).ToList();
+            var list = string.Join(", ", named.Take(MaxNamedColumns)) + (named.Count > MaxNamedColumns ? ", …" : "");
             issues.Add(new CopyIssue(CopySeverity.Warning, source.Table,
-                TextFormat.Plural(differing.Count, RelationText.CopyExistingDifferOne, RelationText.CopyExistingDifferOther, name)));
+                TextFormat.Plural(differing.Count, RelationText.CopyExistingDifferOne, RelationText.CopyExistingDifferOther, name, list)));
         }
 
         // A new row whose other unique key the target holds already: the same record under another ID, or ORA-00001.
@@ -275,13 +283,13 @@ public sealed class SubgraphCopyPlanner(string sourceOwner, SchemaCache target, 
     }
 
     /// <summary>
-    /// Whether a source row and the target row with its key hold other values in the columns copied (keys and LOBs left out:
-    /// the target's LOBs are read as preview only). Compared as the traversal compares keys: 5 and 5.00 are equal, CHAR with
-    /// and without its padding too.
+    /// The copied columns (by target index) in which a source row and the target row with its key hold other values – keys and
+    /// LOBs left out (the target's LOBs are read as preview only). Compared as the traversal compares keys: 5 and 5.00 are
+    /// equal, CHAR with and without its padding too.
     /// </summary>
-    private static bool Differs(
+    private static IEnumerable<int> DifferingColumns(
         TableDetails source, RowData sourceRow, TableDetails target, RowData targetRow, IReadOnlyList<ColumnMapping> columns, IReadOnlyList<int> key) =>
-        columns.Where(c => !key.Contains(c.Target) && !OracleTypeMapper.IsLob(target.Columns[c.Target])).Any(c =>
+        columns.Where(c => !key.Contains(c.Target) && !OracleTypeMapper.IsLob(target.Columns[c.Target])).Where(c =>
         {
             var (a, b) = (sourceRow.Values[c.Source], targetRow.Values[c.Target]);
             if (a is null || b is null)
@@ -291,7 +299,7 @@ public sealed class SubgraphCopyPlanner(string sourceOwner, SchemaCache target, 
 
             var trim = OracleTypes.IsFixedChar(source.Columns[c.Source].DataType) || OracleTypes.IsFixedChar(target.Columns[c.Target].DataType);
             return RowTraversal.KeyText([a], trim) != RowTraversal.KeyText([b], trim);
-        });
+        }).Select(c => c.Target);
 
     /// <summary>Source rows whose key (in the target's key columns <paramref name="key"/>) the target table holds, with the target's row.</summary>
     private async Task<Dictionary<RowKey, (RowData Source, RowData Target)>> MatchAsync(

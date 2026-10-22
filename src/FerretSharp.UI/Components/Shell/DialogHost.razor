@@ -116,10 +116,12 @@
 
 @if (Lifecycle.ConfirmRedo is ({ } redoTabs, { } redoAction))
 {
-    <ConfirmDialog Title="@ShellText.Dialogs_RedoTitle" ConfirmLabel="@ShellText.Dialogs_RedoConfirm" Danger="@IsProd(redoTabs)"
+    var copy = redoAction.Kind == Core.Data.WriteActionKind.Copy;
+    <ConfirmDialog Title="@(copy ? ShellText.Dialogs_RedoCopyTitle : ShellText.Dialogs_RedoTitle)"
+                   ConfirmLabel="@(copy ? ShellText.Dialogs_RedoCopyConfirm : ShellText.Dialogs_RedoConfirm)" Danger="@IsProd(redoTabs)"
                    OnConfirm="Lifecycle.RedoConfirmedAsync" OnCancel="Lifecycle.CancelConfirmation">
         <p>
-            <Fmt Text="@ShellText.Dialogs_RedoText">
+            <Fmt Text="@(copy ? ShellText.Dialogs_RedoCopyText : ShellText.Dialogs_RedoText)">
                 <Arg0><strong>@redoAction.Description</strong></Arg0>
                 <Arg1><strong>@Lifecycle.WorkspaceName(redoTabs.WorkspaceId)</strong></Arg1>
             </Fmt>

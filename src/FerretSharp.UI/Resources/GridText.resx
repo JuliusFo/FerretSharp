@@ -1479,4 +1479,8 @@
   <data name="GridMenu_CopyToConnectionView" xml:space="preserve">
     <value>Only rows of tables can be copied.</value>
   </data>
+  <data name="GridMenu_CopyToConnectionGroup" xml:space="preserve">
+    <value>Other connection · {0}</value>
+    <comment>Group heading in the cell menu; {0}: e.g. '3 rows'</comment>
+  </data>
 </root>

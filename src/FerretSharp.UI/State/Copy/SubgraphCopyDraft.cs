@@ -149,8 +149,16 @@ public sealed class SubgraphCopyDraft
     public IReadOnlyList<TableRef> ParentRoots =>
         [.. new[] { Start.Table.Ref }.Concat(Traversal.Children.SelectMany(p => p).Select(r => r.From)).Distinct()];
 
-    /// <summary>The relationships in which <paramref name="table"/> references others: one level of the parent tree.</summary>
-    public IReadOnlyList<ForeignKeyInfo> ParentsBelow(TableRef table) => [.. Relations.ParentsOf(table)];
+    /// <summary>
+    /// The relationships in which <paramref name="table"/> references others: one level of the parent tree. Those of the chosen
+    /// paths of children are left out – they lead back to the rows the children were found from (E2E: AUFTRAG → KUNDEN under
+    /// the orders of a customer).
+    /// </summary>
+    public IReadOnlyList<ForeignKeyInfo> ParentsBelow(TableRef table)
+    {
+        var onPaths = Traversal.Children.SelectMany(p => p).ToHashSet();
+        return [.. Relations.ParentsOf(table).Where(r => !onPaths.Contains(r))];
+    }
 
     /// <summary>Rows reached along a path of children by the last read; null before reading or after the choice changed.</summary>
     public int? ReachedAlong(IReadOnlyList<ForeignKeyInfo> path) => Stage == CopyStage.Planned ? Graph?.ReachedAlong(path) : null;

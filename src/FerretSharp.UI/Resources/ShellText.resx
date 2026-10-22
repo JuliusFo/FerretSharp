@@ -1176,4 +1176,16 @@
     <value>Copy the rows again – asks first</value>
     <comment>Tooltip of the redo button of a copy from another connection</comment>
   </data>
+  <data name="Dialogs_RedoCopyTitle" xml:space="preserve">
+    <value>Copy again</value>
+    <comment>Title of the confirmation before a copy taken back is written again</comment>
+  </data>
+  <data name="Dialogs_RedoCopyText" xml:space="preserve">
+    <value>Copy “{0}” into {1} again? The data may have changed since it was taken back – a row the target has meanwhile makes the copy fail, and nothing is kept.</value>
+    <comment>{0}: description of the copy (bold); {1}: workspace (bold)</comment>
+  </data>
+  <data name="Dialogs_RedoCopyConfirm" xml:space="preserve">
+    <value>Copy again</value>
+    <comment>Button</comment>
+  </data>
 </root>

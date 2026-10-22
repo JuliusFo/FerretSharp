@@ -123,4 +123,7 @@
   <data name="StrandRowsTitle" xml:space="preserve">
     <value>Zeilen über diese Beziehung beim letzten Lesen</value>
   </data>
+  <data name="TargetLockedHint" xml:space="preserve">
+    <value>{0} ist gesperrt: Schalte den Workspace dort frei, um hineinzukopieren.</value>
+  </data>
 </root>

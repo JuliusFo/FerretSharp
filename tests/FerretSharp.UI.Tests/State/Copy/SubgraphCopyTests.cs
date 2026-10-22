@@ -124,7 +124,6 @@ public sealed class SubgraphCopyTests : IAsyncDisposable
         Assert.Equal([Kunde.Table.Ref, Auftrag.Table.Ref], draft.ParentRoots);
         draft.Toggle([AuftragKunde, PositionAuftrag]);
         Assert.Equal([Kunde.Table.Ref, Auftrag.Table.Ref, Position.Table.Ref], draft.ParentRoots);
-        Assert.Equal([PositionAuftrag], draft.ParentsBelow(Position.Table.Ref));
         Assert.Null(draft.ReachedAlong([AuftragKunde]));
 
         await draft.LoadAsync(null, Ct);
@@ -134,6 +133,21 @@ public sealed class SubgraphCopyTests : IAsyncDisposable
         Assert.Equal(1, draft.ParentsAlong(AuftragKunde));
         draft.ToggleParent(PositionAuftrag);
         Assert.Null(draft.ParentsAlong(PositionAuftrag)); // switched off, and the read no longer fits
+    }
+
+    /// <summary>E2E: under the orders of a customer the tree showed ORDER → CUSTOMER again, the way back to the start rows.</summary>
+    [Fact]
+    public async Task The_parent_tree_leaves_out_the_relationships_of_the_chosen_paths()
+    {
+        var draft = await DraftAsync();
+        Assert.Empty(draft.ParentsBelow(Auftrag.Table.Ref));
+        Assert.Equal([PositionAuftrag], draft.ParentsBelow(Position.Table.Ref)); // not on a chosen path yet
+
+        draft.Toggle([AuftragKunde, PositionAuftrag]);
+        Assert.Empty(draft.ParentsBelow(Position.Table.Ref));
+
+        draft.Toggle([AuftragKunde]);
+        Assert.Equal([AuftragKunde], draft.ParentsBelow(Auftrag.Table.Ref));
     }
 
     [Fact]

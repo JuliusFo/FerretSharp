@@ -76,10 +76,10 @@
     <value>Kopie aus {1}: {0:N0} Zeilen</value>
   </data>
   <data name="CopyExistingDifferOne" xml:space="preserve">
-    <value>{1}: {0:N0} Zeile hat im Ziel denselben Schlüssel, aber andere Werte – womöglich ein anderer Datensatz. Beim Überspringen verweisen mitkopierte Zeilen auf diesen.</value>
+    <value>{1}: {0:N0} Zeile hat im Ziel denselben Schlüssel, aber andere Werte in {2} – womöglich ein anderer Datensatz. Beim Überspringen verweisen mitkopierte Zeilen auf diesen.</value>
   </data>
   <data name="CopyExistingDifferOther" xml:space="preserve">
-    <value>{1}: {0:N0} Zeilen haben im Ziel denselben Schlüssel, aber andere Werte – womöglich andere Datensätze. Beim Überspringen verweisen mitkopierte Zeilen auf diese.</value>
+    <value>{1}: {0:N0} Zeilen haben im Ziel denselben Schlüssel, aber andere Werte in {2} – womöglich andere Datensätze. Beim Überspringen verweisen mitkopierte Zeilen auf diese.</value>
   </data>
   <data name="CopyUniqueTakenOne" xml:space="preserve">
     <value>{1}: {0:N0} neue Zeile hat in {2} Werte, die eine Zeile des Ziels schon unter anderem Schlüssel hat – derselbe Datensatz mit anderer ID, oder das Einfügen scheitert (ORA-00001).</value>

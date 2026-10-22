@@ -152,4 +152,8 @@
   <data name="StrandRowsTitle" xml:space="preserve">
     <value>Rows along this relationship in the last read</value>
   </data>
+  <data name="TargetLockedHint" xml:space="preserve">
+    <value>{0} is locked: unlock the workspace there to copy into it.</value>
+    <comment>{0}: target connection and workspace</comment>
+  </data>
 </root>

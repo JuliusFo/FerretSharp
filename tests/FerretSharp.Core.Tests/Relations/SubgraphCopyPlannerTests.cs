@@ -115,7 +115,9 @@ public class SubgraphCopyPlannerTests
         Assert.Empty(plan.Tables[1].Differing);
         var issue = Assert.Single(plan.Issues);
         Assert.Equal(CopySeverity.Warning, issue.Severity);
-        Assert.StartsWith("KUNDE: 1 Zeile hat im Ziel denselben Schlüssel, aber andere Werte", issue.Message);
+        Assert.Equal(
+            "KUNDE: 1 Zeile hat im Ziel denselben Schlüssel, aber andere Werte in NAME – womöglich ein anderer Datensatz. Beim Überspringen verweisen mitkopierte Zeilen auf diesen.",
+            issue.Message); // the columns are named: some differ between any two databases and say nothing
         Assert.True(plan.CanCopy(Defaults));
     }
 
@@ -216,7 +218,7 @@ public class SubgraphCopyPlannerTests
         Assert.Equal(ConflictMode.Skip, SubgraphCopyPlan.ModeOf(kunde, new Dictionary<TableRef, ConflictMode> { [kunde.Table] = ConflictMode.Update }));
         Assert.Equal(
             [
-                "KUNDE: 1 Zeile hat im Ziel denselben Schlüssel, aber andere Werte – womöglich ein anderer Datensatz. Beim Überspringen verweisen mitkopierte Zeilen auf diesen.",
+                "KUNDE: 1 Zeile hat im Ziel denselben Schlüssel, aber andere Werte in ID – womöglich ein anderer Datensatz. Beim Überspringen verweisen mitkopierte Zeilen auf diesen.",
                 "MITARBEITER hat im Ziel keinen Primär- oder Unique-Schlüssel: Zeilen werden immer eingefügt, vorhandene nicht erkannt.",
             ],
             plan.Issues.Select(i => i.Message)); // the same name under ID 7: the ID is another value

@@ -1167,4 +1167,7 @@
   <data name="GridMenu_CopyToConnectionView" xml:space="preserve">
     <value>Kopieren lassen sich nur Zeilen von Tabellen.</value>
   </data>
+  <data name="GridMenu_CopyToConnectionGroup" xml:space="preserve">
+    <value>Andere Verbindung · {0}</value>
+  </data>
 </root>

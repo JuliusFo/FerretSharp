@@ -55,28 +55,6 @@
             <ul class="copy-tree">@Parents(root, [root])</ul>
         }
 
-        <div class="copy-read">
-            @if (Draft.Stage == CopyStage.Loading)
-            {
-                <span class="spinner"></span>
-                <span>@(_progress is { } p ? TextFormat.Format(CopyViewText.Reading, p.Table.Name, p.Rows) : "")</span>
-                <button class="btn" @onclick="CancelRead">@CommonText.Cancel</button>
-            }
-            else
-            {
-                <button class="btn @(Draft.Plan is null ? "primary" : "")" disabled="@(Draft.Target is null)" @onclick="ReadAsync">
-                    @(_readOnce ? CopyViewText.ReadAgain : CopyViewText.Read)
-                </button>
-                @if (_readOnce && Draft.Stage == CopyStage.Choosing && Draft.LoadError is null)
-                {
-                    <span class="copy-hint">@CopyViewText.ChoiceChanged</span>
-                }
-                @if (Draft.LoadError is { } error)
-                {
-                    <span class="warn-text">@error</span>
-                }
-            }
-        </div>
 
         @if (Draft.Stage == CopyStage.Planned && Draft.Plan is { } plan)
         {
@@ -137,8 +115,35 @@
         }
     </div>
     <footer>
+        <div class="copy-read">
+            @if (Draft.Stage == CopyStage.Loading)
+            {
+                <span class="spinner"></span>
+                <span>@(_progress is { } p ? TextFormat.Format(CopyViewText.Reading, p.Table.Name, p.Rows) : "")</span>
+                <button class="btn" @onclick="CancelRead">@CommonText.Cancel</button>
+            }
+            else
+            {
+                <button class="btn @(Draft.Stage == CopyStage.Planned ? "" : "primary")" disabled="@(Draft.Target is null)" @onclick="ReadAsync">
+                    @(_readOnce ? CopyViewText.ReadAgain : CopyViewText.Read)
+                </button>
+                @if (_readOnce && Draft.Stage == CopyStage.Choosing && Draft.LoadError is null)
+                {
+                    <span class="copy-hint">@CopyViewText.ChoiceChanged</span>
+                }
+                @if (Draft.LoadError is { } error)
+                {
+                    <span class="warn-text">@error</span>
+                }
+                else if (Draft.Target is { Writable: false } locked)
+                {
+                    <span class="warn-text">@TextFormat.Format(CopyViewText.TargetLockedHint, locked.Label)</span>
+                }
+            }
+        </div>
+        <span class="spacer"></span>
         <button class="btn" @onclick="CloseAsync">@CommonText.Cancel</button>
-        <button class="btn primary" disabled="@(!Draft.CanCopy || _copying)" title="@CopyViewText.CopyTitle" @onclick="CopyAsync">@CopyViewText.Copy</button>
+        <button class="btn primary" disabled="@(!Draft.CanCopy || _copying)" title="@CopyTitle" @onclick="CopyAsync">@CopyViewText.Copy</button>
     </footer>
 </ModalFrame>
 
@@ -169,6 +174,9 @@
     public EventCallback OnClose { get; set; }
 
     private bool Busy => Draft.Stage == CopyStage.Loading || _copying;
+
+    /// <summary>Why "Copy" is off when the target is locked, otherwise what it does.</summary>
+    private string CopyTitle => Draft.Target is { Writable: false } locked ? TextFormat.Format(CopyViewText.TargetLockedHint, locked.Label) : CopyViewText.CopyTitle;
 
     /// <summary>The child relationships below a path, each with its checkbox and, while it may go deeper, a way to show the next level.</summary>
     private RenderFragment Children(IReadOnlyList<ForeignKeyInfo> parent) => __builder =>
@@ -206,15 +214,17 @@
 
     /// <summary>
     /// The parent relationships of a table, each with its checkbox; a switched-on one opens to the parents of its table, as
-    /// long as that table is not on the way already (a circle) and is not the table itself (a self reference).
+    /// long as that table is not on the way already (a circle, a self reference) and is no root of its own (its parents are
+    /// listed there).
     /// </summary>
     private RenderFragment Parents(TableRef table, IReadOnlyList<TableRef> way) => __builder =>
     {
+        var roots = Draft.ParentRoots;
         foreach (var relation in Draft.ParentsBelow(table))
         {
             var key = "p|" + string.Join("|", way.Select(t => t.ToString())) + "|" + RelationGraph.KeyOf(relation);
             var on = !Draft.IsParentSkipped(relation);
-            var deeper = on && !way.Contains(relation.To) && Draft.ParentsBelow(relation.To).Count > 0;
+            var deeper = on && !way.Contains(relation.To) && !roots.Contains(relation.To) && Draft.ParentsBelow(relation.To).Count > 0;
             var open = _expanded.Contains(key);
             <li @key="key">
                 <span class="copy-node">
