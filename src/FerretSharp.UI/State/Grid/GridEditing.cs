@@ -235,23 +235,33 @@ public sealed class GridEditing(IEditableGrid grid, TableDetails details)
     /// </summary>
     public async Task<GridFill> FillAsync(GridMarks marks, CellFill fill)
     {
-        var (from, to) = marks.Whole ? (0, (grid.AllRows ?? 0) - 1) : (marks.FromRow, marks.ToRow);
         if (marks.Whole && grid.AllRows is null)
         {
             return GridFill.Refused(GridText.Fill_ColumnsNotLoaded);
         }
 
+        var (from, to) = marks.Whole ? (0, grid.AllRows!.Value - 1) : (marks.FromRow, marks.ToRow);
         if (Refusal(to - from + 1, fill) is { } refused)
         {
             return refused;
         }
 
+        var changes = grid.Changes;
         if (await CellCopies.RowsAsync(grid.RowAt, grid.ReadRowsAsync, from, to) is not { } rows)
         {
             return GridFill.Refused(""); // the read said why
         }
 
-        return Fill([.. rows.Select((row, i) => (from + i, row))], marks.ColumnIndexes, fill);
+        // Reading rows over the VPN takes a moment: a write may have started meanwhile, or the tab dropped or replaced its
+        // changes (commit or rollback on a locked connection, a new structure) – the rows read belong to none of them then.
+        if (Refusal(rows.Count, fill) is { } late)
+        {
+            return late;
+        }
+
+        return ReferenceEquals(grid.Changes, changes)
+            ? Fill([.. rows.Select((row, i) => (from + i, row))], marks.ColumnIndexes, fill)
+            : GridFill.Refused(grid.RowNotLoaded);
     }
 
     /// <summary>A value for one column of the selected rows (WP-59: Ctrl+Enter in a cell editor, "Set value…" of the cell menu).</summary>
@@ -293,15 +303,14 @@ public sealed class GridEditing(IEditableGrid grid, TableDetails details)
         }
 
         grid.ChangesMade();
+        var changed = result.Changed.ToHashSet();
         var updates = new List<GridRowUpdate>();
-        foreach (var (index, row) in rows)
+        foreach (var (index, row) in rows.Where(r => changed.Contains(r.Row.Key)))
         {
-            if (changes.Find(row.Key) is { } change)
-            {
-                grid.QueueDisplayNames(ValuesOf(change));
-            }
+            grid.QueueDisplayNames(changes.Find(row.Key) is { } change ? ValuesOf(change) : row.Values);
 
-            if (grid.RowAt(index) is not null)
+            // Sorted or reloaded while rows were read: another row may stand at the index now – only the row itself is drawn.
+            if (grid.RowAt(index) is { } shown && shown.Key.Equals(row.Key))
             {
                 updates.Add(new GridRowUpdate(index, Draw(changes, row)));
             }

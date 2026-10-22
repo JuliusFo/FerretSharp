@@ -463,6 +463,11 @@ public sealed class ChangeTracker(TableDetails table)
             return CellFillResult.Failed(refusal);
         }
 
+        if (rows.Count == 0)
+        {
+            return new CellFillResult(0, [], 0, 0, null); // an empty table, or a read that found none of the rows any more
+        }
+
         var values = new List<(int Column, object? Value)>(columns.Count);
         var skipped = new List<SkippedColumn>();
         foreach (var column in columns)
@@ -485,6 +490,7 @@ public sealed class ChangeTracker(TableDetails table)
         }
 
         var before = new List<RowState>();
+        var changed = new List<RowKey>();
         var seen = new HashSet<RowKey>();
         var (cells, deleted, tooPrecise) = (0, 0, 0);
         foreach (var row in values.Count == 0 ? [] : fill.Kind == CellFillKind.Down ? rows.Skip(1) : rows)
@@ -520,12 +526,13 @@ public sealed class ChangeTracker(TableDetails table)
             if (touched)
             {
                 before.Add(state);
+                changed.Add(row.Key);
                 Keep(change);
             }
         }
 
         Remember(before);
-        return new CellFillResult(cells, skipped, deleted, tooPrecise, null);
+        return new CellFillResult(cells, skipped, deleted, tooPrecise, null) { Changed = changed };
     }
 
     /// <summary>
@@ -538,20 +545,23 @@ public sealed class ChangeTracker(TableDetails table)
         : null;
 
     /// <summary>
+    /// Why a column of loaded rows cannot take a value of a command for many cells (WP-59: not editable, a LOB); null if it
+    /// can. The cell menu asks it too, to grey out "Set value…".
+    /// </summary>
+    public static string? FillUnavailable(TableDetails table, ColumnInfo column) =>
+        OracleTypeMapper.NotEditableReason(table, column, newRow: false)
+        ?? (OracleTypeMapper.IsLob(column) ? TextFormat.Format(DataText.EditInLobEditor, column.DisplayType) : null);
+
+    /// <summary>
     /// What a command for many cells puts into one column: the value, or why the column is left as it is (skip), or why
     /// nothing may be set at all (error: the typed value does not fit the column).
     /// </summary>
     private (object? Value, string? Skip, string? Error) FillValueOf(RowData top, int column, CellFill fill)
     {
         var info = Table.Columns[column];
-        if (OracleTypeMapper.NotEditableReason(Table, info, newRow: false) is { } reason)
+        if (FillUnavailable(Table, info) is { } reason)
         {
             return (null, reason, null);
-        }
-
-        if (OracleTypeMapper.IsLob(info))
-        {
-            return (null, TextFormat.Format(DataText.EditInLobEditor, info.DisplayType), null);
         }
 
         switch (fill.Kind)

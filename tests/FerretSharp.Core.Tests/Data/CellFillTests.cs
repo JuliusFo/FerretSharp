@@ -161,6 +161,31 @@ public sealed class CellFillTests
     }
 
     [Fact]
+    public void No_rows_set_nothing_and_say_so_without_an_error()
+    {
+        var changes = new ChangeTracker(Kunden);
+
+        var result = changes.SetCells([], [I("KZ")], CellFill.Null); // a whole column of an empty table (review WP-59)
+
+        Assert.Null(result.Error);
+        Assert.Equal(0, result.Cells);
+        Assert.False(changes.CanUndoEdit);
+    }
+
+    [Fact]
+    public void The_result_names_the_rows_changed_and_leaves_out_the_others()
+    {
+        var changes = new ChangeTracker(Kunden);
+        changes.Delete(Rows[1]);
+
+        var result = changes.SetCells(Rows, [I("KZ")], CellFill.Value("ABC"));
+
+        Assert.Equal([Rows[0].Key, Rows[2].Key], result.Changed);
+        Assert.Contains("LOB-Editor", ChangeTracker.FillUnavailable(Kunden, Kunden.Columns[I("NOTIZ")]));
+        Assert.Null(ChangeTracker.FillUnavailable(Kunden, Kunden.Columns[I("KZ")]));
+    }
+
+    [Fact]
     public void Too_many_rows_and_a_fill_down_of_one_row_set_nothing()
     {
         var changes = new ChangeTracker(Kunden);

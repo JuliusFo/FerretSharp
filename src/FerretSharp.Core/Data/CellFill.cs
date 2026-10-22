@@ -35,5 +35,8 @@ public sealed record SkippedColumn(int Column, string Name, string Reason);
 /// <param name="Error">Why nothing was set (a value invalid for one of the columns, too many rows); null if the command ran.</param>
 public sealed record CellFillResult(int Cells, IReadOnlyList<SkippedColumn> Columns, int DeletedRows, int TooPrecise, string? Error)
 {
+    /// <summary>The rows the command set a cell of, top to bottom: only they need drawing again and their names looked up.</summary>
+    public IReadOnlyList<RowKey> Changed { get; init; } = [];
+
     internal static CellFillResult Failed(string error) => new(0, [], 0, 0, error);
 }

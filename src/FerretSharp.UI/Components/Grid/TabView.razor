@@ -232,7 +232,7 @@
     /// <summary>"Set value…" of the cell menu, open (WP-59).</summary>
     private SetValueRequest? _setValue;
 
-    /// <summary>The value of "Set value…" for its cells; the dialog closes once it is set.</summary>
+    /// <summary>The value of "Set value…" for its cells; the dialog closes itself once it is set (its OnClose).</summary>
     private async Task<string?> ApplySetValueAsync(string text)
     {
         if (_setValue is not { } request || _grid is null)
@@ -240,17 +240,9 @@
             return null;
         }
 
-        var error = request.Marks is { } marks
+        return request.Marks is { } marks
             ? await _grid.FillMarksAsync(marks, text)
             : await _grid.FillRowsAsync(request.Rows, request.Column, CellFill.Value(text));
-        if (error is null)
-        {
-            // Called through a delegate, not an EventCallback: the tab re-renders only when told (ui.md, "Rendern").
-            _setValue = null;
-            StateHasChanged();
-        }
-
-        return error;
     }
 
     private ColumnsView? _columns;

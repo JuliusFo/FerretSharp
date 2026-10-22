@@ -51,5 +51,16 @@ Eigene Instanz (`--data-dir`, eigener WebView2-Ordner, Build im Scratchpad, `--l
 - **Schreiben:** dreimal „Z9“ in KUERZEL lehnt Oracle ab (`UK_KUNDEN_KUERZEL`, Dialog nennt Zeile und Constraint) – richtig so. Drei UMSATZ-Werte geschrieben: offene Transaktion von „Workspace 1“ in `V$TRANSACTION`, danach Rollback, keine Transaktion mehr. Log der Testinstanz ohne `[ERR]`/`[WRN]`.
 - **Nicht geprüft:** echte Windows-Eingabe (`SendInput`) – die Befehle sind Tasten und Menüklicks, die Maus-Markierung stammt unverändert aus WP-58; mehr als 10 000 Zeilen (nur Unit-Tests); Lesen nicht geladener Zeilen eines Bereichs beim Setzen (Weg von WP-58, Unit-Test); Prod mit gesperrtem Workspace (Entf/Ctrl+D tun dann nichts, `editState.enabled`).
 
+## Review (2026-10-22)
+Code-Review über den Branch, alle sieben Befunde behoben:
+- **Leere Zeilenliste:** `SetCells` las `rows[0]` auch ohne Zeilen – eine ganze Spalte einer leeren Tabelle (oder ein Nachlesen, das keine Zeile mehr fand) warf. Jetzt 0 Zellen ohne Fehler.
+- **Ctrl+Enter speicherte die Editorzelle ein zweites Mal:** `params.stopEditing(true)` bricht in AG Grid 36 nicht ab – der Parameter heißt dort `suppressNavigateAfterEdit`, der Wert ging als eigenes Edit an .NET (meist unsichtbar, weil derselbe Wert kein Schritt ist; in einer Zeile zum Löschen öffnete sich der Editor danach mit Fehler). Jetzt `params.api.stopEditing(true)`. Das ältere `cancelEditor` geht nur deshalb, weil die Editoren dort `isCancelAfterEnd` melden.
+- **Nach dem Nachlesen** prüft `FillAsync` erneut, ob gerade geschrieben wird, und ob der Tab noch denselben `ChangeTracker` hat (Commit/Rollback auf gesperrter Verbindung, neue Struktur) – sonst wird nichts gesetzt.
+- **Neu gezeichnet** wird nur eine Zeile, die noch an ihrem Index steht (Zeilenschlüssel verglichen): Sortieren oder F5 während des Nachlesens zeichnete sonst die gefüllten Werte in eine andere Zeile.
+- **Nur geänderte Zeilen** werden neu gezeichnet und nach Namen nachgeschlagen (`CellFillResult.Changed`), nicht alle bis zu 10 000.
+- **Eine Spaltenregel:** `ChangeTracker.FillUnavailable` für Tracker und Zellmenü (vorher doppelt).
+- **Dialog:** „Wert setzen…“ schließt sich nach dem Setzen selbst über sein `OnClose` (`EventCallback`); das `StateHasChanged` in `TabView` ist weg.
+- Nicht erneut im E2E geprüft (Container entfernt): das Abbrechen des Editors nach Ctrl+Enter und das Schließen des Dialogs über `OnClose`.
+
 ## Offen
 - Keine. Beide UX-Fragen aus dem E2E hat der Nutzer am 2026-10-22 entschieden: Es bleibt, wie es ist – „N Zellen gesetzt“ zählt auch Zellen, die den Wert schon hatten, und Ctrl+D ohne Markierung tut nichts.

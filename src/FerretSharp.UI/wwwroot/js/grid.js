@@ -217,7 +217,9 @@ async function fillAll(params, value, showError) {
       if (result.error) showError(result.error); // empty: a read failed and has said why
       return true;
     }
-    params.stopEditing(true); // the value is set already
+    // The value is set already: cancel the editor. Its own params.stopEditing(true) would not – the flag there means
+    // "do not move on after the edit", the value would still go to .NET as an edit of its own.
+    params.api.stopEditing(true);
     params.state.applyUpdates(result.rows);
   } catch (e) {
     callFailed(e);

@@ -50,7 +50,7 @@
     [Parameter, EditorRequired]
     public TableTab Tab { get; set; } = null!;
 
-    /// <summary>Sets the value; returns why it was not set (empty: said already), null if it was – the tab closes the dialog then.</summary>
+    /// <summary>Sets the value; returns why it was not set (empty: said already), null if it was – the dialog closes then.</summary>
     [Parameter, EditorRequired]
     public Func<string, Task<string?>> OnApply { get; set; } = null!;
 
@@ -114,6 +114,10 @@
             if (await OnApply(Text) is { } error)
             {
                 _error = error.Length > 0 ? error : null;
+            }
+            else
+            {
+                await OnClose.InvokeAsync(); // an EventCallback: the tab renders without the dialog
             }
         }
         finally

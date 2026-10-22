@@ -218,12 +218,7 @@
     private ColumnInfo Column => Details.Columns[Request.Column];
 
     /// <summary>Why a column cannot take a value from the cell menu (WP-59); null if it can.</summary>
-    private string? NotSettable(int column)
-    {
-        var info = Details.Columns[column];
-        return OracleTypeMapper.NotEditableReason(Details, info, newRow: false)
-               ?? (OracleTypeMapper.IsLob(info) ? TextFormat.Format(DataText.EditInLobEditor, info.DisplayType) : null);
-    }
+    private string? NotSettable(int column) => ChangeTracker.FillUnavailable(Details, Details.Columns[column]);
 
     /// <summary>
     /// Why a command cannot run on the marked cells (WP-59): whole columns before all their rows are loaded, too many rows,
