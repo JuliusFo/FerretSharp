@@ -1,4 +1,4 @@
-# Klein: Automatisch neu verbinden → Release offen
+# Klein: Automatisch neu verbinden → Release 3.46.0
 
 Branch `feat/auto-reconnect` (von `main`), 2026-10-21.
 

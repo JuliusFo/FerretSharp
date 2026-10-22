@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [3.46.0] - 2026-10-22
+
+Cells and whole columns can be marked and copied in the grid, one value set for many cells at once (with Del for NULL and Ctrl+D to fill down), and a lost connection can be reconnected automatically.
+
 ### Added
 - Reconnect automatically (Settings › Connection, off by default): a lost connection is connected again by itself and its workspaces are restored where you are – FerretSharp neither switches to it nor jumps to the explorer, and one in the background is reconnected too. While the network or the database is away (the VPN after sleep, a restarting instance), it tries again after 5, 15 and 30 seconds, then every minute, for up to 10 minutes after the loss: the connection shows "Connection lost" with the time to the next attempt, "Try now" and "Stop trying", the switcher marks it "reconnecting". It only does so when no workspace of the connection had uncommitted changes – when some were lost, the banner says so and waits for "Reconnect" as before –, waits for a running write or export to end first, and never tries again after a refused login (another wrong password could lock the account). Workspaces unlocked for writing are read-only again; the notice after reconnecting names them.
 - After the computer wakes from sleep, idle connections are checked after a few seconds instead of up to two minutes later, so a connection that died meanwhile shows up (or is reconnected) before the next click.
