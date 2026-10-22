@@ -1092,4 +1092,67 @@
   <data name="Filter_ListPasteTitle" xml:space="preserve">
     <value>Eingefügte Zeilen (eine aus dem Grid oder Excel kopierte Spalte) oder eine IN-Liste ('A', 'B') werden zu den Werten.</value>
   </data>
+  <data name="Fill_CellsSetOne" xml:space="preserve">
+    <value>{0:N0} Zelle gesetzt.</value>
+  </data>
+  <data name="Fill_CellsSetOther" xml:space="preserve">
+    <value>{0:N0} Zellen gesetzt.</value>
+  </data>
+  <data name="Fill_NothingSet" xml:space="preserve">
+    <value>Keine Zelle gesetzt.</value>
+  </data>
+  <data name="Fill_DeletedRowsOne" xml:space="preserve">
+    <value>{0:N0} Zeile ausgelassen: zum Löschen markiert.</value>
+  </data>
+  <data name="Fill_DeletedRowsOther" xml:space="preserve">
+    <value>{0:N0} Zeilen ausgelassen: zum Löschen markiert.</value>
+  </data>
+  <data name="Fill_TooPreciseOne" xml:space="preserve">
+    <value>{0:N0} Zelle ausgelassen: eine Zahl mit mehr als 28 Stellen.</value>
+  </data>
+  <data name="Fill_TooPreciseOther" xml:space="preserve">
+    <value>{0:N0} Zellen ausgelassen: Zahlen mit mehr als 28 Stellen.</value>
+  </data>
+  <data name="Fill_ColumnLeft" xml:space="preserve">
+    <value>{0} unverändert: {1}</value>
+  </data>
+  <data name="Fill_ColumnsNotLoaded" xml:space="preserve">
+    <value>Ganze Spalten lassen sich erst ändern, wenn alle ihre Zeilen geladen sind – markiere stattdessen die Zellen.</value>
+  </data>
+  <data name="GridMenu_SetValue" xml:space="preserve">
+    <value>Wert setzen…</value>
+  </data>
+  <data name="GridMenu_SetValueTitle" xml:space="preserve">
+    <value>Ein Wert für alle markierten Zellen – wie in eine davon tippen und Ctrl+Enter drücken</value>
+  </data>
+  <data name="GridMenu_SetValueRowsTitle" xml:space="preserve">
+    <value>Ein Wert in dieser Spalte für alle markierten Zeilen – wie in eine davon tippen und Ctrl+Enter drücken</value>
+  </data>
+  <data name="GridMenu_SetValueInColumn" xml:space="preserve">
+    <value>Wert in {0} setzen…</value>
+  </data>
+  <data name="GridMenu_SetValueNoColumn" xml:space="preserve">
+    <value>Keine der markierten Spalten lässt sich hier ändern.</value>
+  </data>
+  <data name="GridMenu_SetNull" xml:space="preserve">
+    <value>Auf NULL setzen</value>
+  </data>
+  <data name="GridMenu_SetNullTitle" xml:space="preserve">
+    <value>Entf tut dasselbe. Spalten, die einen Wert brauchen (NOT NULL), bleiben, wie sie sind.</value>
+  </data>
+  <data name="GridMenu_FillDown" xml:space="preserve">
+    <value>Nach unten ausfüllen</value>
+  </data>
+  <data name="GridMenu_FillDownTitle" xml:space="preserve">
+    <value>Die Werte der obersten Zeile in die Zeilen darunter – Ctrl+D tut dasselbe</value>
+  </data>
+  <data name="SetValue_Title" xml:space="preserve">
+    <value>Wert setzen</value>
+  </data>
+  <data name="SetValue_Apply" xml:space="preserve">
+    <value>Setzen</value>
+  </data>
+  <data name="SetValue_SeveralColumns" xml:space="preserve">
+    <value>Der Wert geht in jede markierte Spalte, und jede prüft ihn selbst. Spalten, die ihn nicht nehmen können, bleiben, wie sie sind.</value>
+  </data>
 </root>

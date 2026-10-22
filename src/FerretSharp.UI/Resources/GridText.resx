@@ -1392,4 +1392,78 @@
     <value>Pasted lines (a column copied from the grid or Excel) or an IN list ('A', 'B') become the values.</value>
     <comment>Tooltip of the list value (WP-58)</comment>
   </data>
+  <data name="Fill_CellsSetOne" xml:space="preserve">
+    <value>{0:N0} cell set.</value>
+    <comment>WP-59, status bar after setting a value, NULL or fill down for marked cells; more sentences may follow</comment>
+  </data>
+  <data name="Fill_CellsSetOther" xml:space="preserve">
+    <value>{0:N0} cells set.</value>
+  </data>
+  <data name="Fill_NothingSet" xml:space="preserve">
+    <value>No cell set.</value>
+  </data>
+  <data name="Fill_DeletedRowsOne" xml:space="preserve">
+    <value>{0:N0} row left out: marked for deletion.</value>
+  </data>
+  <data name="Fill_DeletedRowsOther" xml:space="preserve">
+    <value>{0:N0} rows left out: marked for deletion.</value>
+  </data>
+  <data name="Fill_TooPreciseOne" xml:space="preserve">
+    <value>{0:N0} cell left out: a number with more than 28 digits.</value>
+  </data>
+  <data name="Fill_TooPreciseOther" xml:space="preserve">
+    <value>{0:N0} cells left out: numbers with more than 28 digits.</value>
+  </data>
+  <data name="Fill_ColumnLeft" xml:space="preserve">
+    <value>{0} unchanged: {1}</value>
+    <comment>{0} = column name, {1} = why (a sentence)</comment>
+  </data>
+  <data name="Fill_ColumnsNotLoaded" xml:space="preserve">
+    <value>Whole columns can only be changed once all their rows are loaded – mark the cells instead.</value>
+  </data>
+  <data name="GridMenu_SetValue" xml:space="preserve">
+    <value>Set value…</value>
+    <comment>WP-59, cell menu of marked cells: opens a dialog for one value for all of them</comment>
+  </data>
+  <data name="GridMenu_SetValueTitle" xml:space="preserve">
+    <value>One value for all marked cells – like typing it into one of them and pressing Ctrl+Enter</value>
+    <comment>Tooltip</comment>
+  </data>
+  <data name="GridMenu_SetValueRowsTitle" xml:space="preserve">
+    <value>One value in this column for all selected rows – like typing it into one of them and pressing Ctrl+Enter</value>
+    <comment>Tooltip</comment>
+  </data>
+  <data name="GridMenu_SetValueInColumn" xml:space="preserve">
+    <value>Set value in {0}…</value>
+    <comment>Cell menu of several selected rows; {0} = column name</comment>
+  </data>
+  <data name="GridMenu_SetValueNoColumn" xml:space="preserve">
+    <value>None of the marked columns can be changed here.</value>
+  </data>
+  <data name="GridMenu_SetNull" xml:space="preserve">
+    <value>Set to NULL</value>
+  </data>
+  <data name="GridMenu_SetNullTitle" xml:space="preserve">
+    <value>Del does the same. Columns that need a value (NOT NULL) stay as they are.</value>
+    <comment>Tooltip</comment>
+  </data>
+  <data name="GridMenu_FillDown" xml:space="preserve">
+    <value>Fill down</value>
+    <comment>As in Excel: the top row’s values into the rows below</comment>
+  </data>
+  <data name="GridMenu_FillDownTitle" xml:space="preserve">
+    <value>The top row’s values into the rows below – Ctrl+D does the same</value>
+    <comment>Tooltip</comment>
+  </data>
+  <data name="SetValue_Title" xml:space="preserve">
+    <value>Set value</value>
+    <comment>Dialog title</comment>
+  </data>
+  <data name="SetValue_Apply" xml:space="preserve">
+    <value>Set</value>
+    <comment>Button: sets the value for all marked cells</comment>
+  </data>
+  <data name="SetValue_SeveralColumns" xml:space="preserve">
+    <value>The value goes into every marked column, and each checks it itself. Columns that cannot take it stay as they are.</value>
+  </data>
 </root>

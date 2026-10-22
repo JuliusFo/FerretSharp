@@ -169,6 +169,7 @@ public sealed class ShortcutMapTests
     [InlineData(ShortcutAction.CopyColumnValues, "ctrl+shift+arrowdown", true)]
     [InlineData(ShortcutAction.CopyColumnValues, "ctrl+arrowdown", true)] // review 3.44.0, A34: to the last row
     [InlineData(ShortcutAction.CopyColumnValues, "ctrl+end", true)]
+    [InlineData(ShortcutAction.CopyColumnValues, "ctrl+d", true)] // WP-59: fill down
     [InlineData(ShortcutAction.CopyColumnValues, "ctrl+shift+k", false)]
     [InlineData(ShortcutAction.FormNext, "ctrl+a", false)] // only in the form
     public void Warns_when_the_grid_loses_a_key(ShortcutAction action, string text, bool warns) =>
@@ -183,6 +184,7 @@ public sealed class ShortcutMapTests
         Assert.Equal("Shift+Pos1, Shift+Ende, Ctrl+Shift+↑, Ctrl+Shift+↓", keys["Bis zur ersten oder letzten Zeile markieren"]);
         Assert.Equal("Shift+←, Shift+→", keys["Zellen ab der fokussierten markieren (danach erweitern Shift+↑ ↓ und Shift+Bild↑/↓; Ziehen mit der Maus geht auch)"]);
         Assert.Equal("Leertaste", keys["Fokussierte Zeile markieren oder Markierung aufheben"]);
+        Assert.Equal("Ctrl+D", keys["Markierte Zellen mit den Werten der obersten Zeile nach unten ausfüllen"]); // WP-59
         Assert.Equal("Ctrl+A", keys["Alle Zeilen markieren"]);
         Assert.Equal("Esc", keys["Markierung aufheben"]);
     }

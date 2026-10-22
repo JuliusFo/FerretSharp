@@ -428,15 +428,159 @@ public sealed class ChangeTracker(TableDetails table)
     }
 
     /// <summary>Marks a loaded row for deletion (pending); a new row that was never inserted simply disappears.</summary>
-    public void Delete(RowData row)
+    public void Delete(RowData row) => Delete([row]);
+
+    /// <summary>Marks loaded rows for deletion (Del on several rows): one step in the edit history (WP-59).</summary>
+    public void Delete(IReadOnlyList<RowData> rows)
     {
-        var existing = _byKey.GetValueOrDefault(row.Key);
-        var before = existing is null ? null : State(existing);
-        var change = existing ?? new RowChange(row.Key, row.Values);
-        change.DiscardPending();
-        change.Deleted ??= ChangeStage.Pending;
-        Keep(change);
-        Remember([before ?? RowState.Untouched(change)]);
+        var before = new List<RowState>(rows.Count);
+        foreach (var row in rows.DistinctBy(r => r.Key))
+        {
+            var existing = _byKey.GetValueOrDefault(row.Key);
+            var change = existing ?? new RowChange(row.Key, row.Values);
+            before.Add(existing is null ? RowState.Untouched(change) : State(existing));
+            change.DiscardPending();
+            change.Deleted ??= ChangeStage.Pending;
+            Keep(change);
+        }
+
+        Remember(before);
+    }
+
+    /// <summary>At most this many rows per command for many cells (WP-59): writing them is one UPDATE each over the VPN.</summary>
+    public const int MaxFillRows = 10_000;
+
+    /// <summary>
+    /// Sets many cells of loaded rows at once (WP-59): one value, NULL, or the top row's values down. Each column is checked
+    /// once – a value invalid for one of them sets nothing. Columns that cannot take the value are left as they are and
+    /// named, so are rows marked for deletion and numbers too precise to edit here. One step in the edit history.
+    /// </summary>
+    /// <param name="rows">The rows top to bottom, as loaded (a fill down takes the first one's values, as shown).</param>
+    public CellFillResult SetCells(IReadOnlyList<RowData> rows, IReadOnlyList<int> columns, CellFill fill)
+    {
+        if (FillRefusal(rows.Count, fill) is { } refusal)
+        {
+            return CellFillResult.Failed(refusal);
+        }
+
+        if (rows.Count == 0)
+        {
+            return new CellFillResult(0, [], 0, 0, null); // an empty table, or a read that found none of the rows any more
+        }
+
+        var values = new List<(int Column, object? Value)>(columns.Count);
+        var skipped = new List<SkippedColumn>();
+        foreach (var column in columns)
+        {
+            var info = Table.Columns[column];
+            var (value, skip, error) = FillValueOf(rows[0], column, fill);
+            if (error is not null)
+            {
+                return CellFillResult.Failed(columns.Count > 1 ? TextFormat.Format(DataText.FillInvalidInColumn, info.Name, error) : error);
+            }
+
+            if (skip is not null)
+            {
+                skipped.Add(new SkippedColumn(column, info.Name, skip));
+            }
+            else
+            {
+                values.Add((column, value));
+            }
+        }
+
+        var before = new List<RowState>();
+        var changed = new List<RowKey>();
+        var seen = new HashSet<RowKey>();
+        var (cells, deleted, tooPrecise) = (0, 0, 0);
+        foreach (var row in values.Count == 0 ? [] : fill.Kind == CellFillKind.Down ? rows.Skip(1) : rows)
+        {
+            if (!seen.Add(row.Key))
+            {
+                continue;
+            }
+
+            var existing = _byKey.GetValueOrDefault(row.Key);
+            if (existing?.Deleted is not null)
+            {
+                deleted++;
+                continue;
+            }
+
+            var change = existing ?? new RowChange(row.Key, row.Values);
+            var state = existing is null ? RowState.Untouched(change) : State(existing);
+            var touched = false;
+            foreach (var (column, value) in values)
+            {
+                if (!OracleTypeMapper.IsEditableValue(row.Values[column]))
+                {
+                    tooPrecise++;
+                    continue;
+                }
+
+                change.Set(column, value, OracleTypeMapper.ValuesEqual(value, change.ExpectedOf(column)));
+                cells++;
+                touched = true;
+            }
+
+            if (touched)
+            {
+                before.Add(state);
+                changed.Add(row.Key);
+                Keep(change);
+            }
+        }
+
+        Remember(before);
+        return new CellFillResult(cells, skipped, deleted, tooPrecise, null) { Changed = changed };
+    }
+
+    /// <summary>
+    /// Why a command for many cells cannot run on so many rows (too many; a fill down of one); null if it can. The grid asks
+    /// before it reads rows that are not loaded.
+    /// </summary>
+    public static string? FillRefusal(int rows, CellFill fill) =>
+        rows > MaxFillRows ? TextFormat.Format(DataText.FillTooManyRows, MaxFillRows)
+        : fill.Kind == CellFillKind.Down && rows < 2 ? DataText.FillDownNeedsTwoRows
+        : null;
+
+    /// <summary>
+    /// Why a column of loaded rows cannot take a value of a command for many cells (WP-59: not editable, a LOB); null if it
+    /// can. The cell menu asks it too, to grey out "Set value…".
+    /// </summary>
+    public static string? FillUnavailable(TableDetails table, ColumnInfo column) =>
+        OracleTypeMapper.NotEditableReason(table, column, newRow: false)
+        ?? (OracleTypeMapper.IsLob(column) ? TextFormat.Format(DataText.EditInLobEditor, column.DisplayType) : null);
+
+    /// <summary>
+    /// What a command for many cells puts into one column: the value, or why the column is left as it is (skip), or why
+    /// nothing may be set at all (error: the typed value does not fit the column).
+    /// </summary>
+    private (object? Value, string? Skip, string? Error) FillValueOf(RowData top, int column, CellFill fill)
+    {
+        var info = Table.Columns[column];
+        if (FillUnavailable(Table, info) is { } reason)
+        {
+            return (null, reason, null);
+        }
+
+        switch (fill.Kind)
+        {
+            case CellFillKind.Value:
+                var parsed = OracleTypeMapper.Parse(info, fill.Text);
+                return parsed.IsValid ? (parsed.Value, null, null) : (null, null, parsed.Error);
+            case CellFillKind.Null:
+                return info.Nullable ? (null, null, null) : (null, TextFormat.Format(OracleText.ValueRequired, info.Name), null);
+            default:
+                // As shown (A21): a pending value of the top row goes down.
+                var value = Find(top.Key) is { } change ? change.ValueOf(column) : top.Values[column];
+                if (!OracleTypeMapper.IsEditableValue(value))
+                {
+                    return (null, DataText.NumberTooPreciseToEdit, null);
+                }
+
+                return value is null && !info.Nullable ? (null, TextFormat.Format(OracleText.ValueRequired, info.Name), null) : (value, null, null);
+        }
     }
 
     public void Delete(RowChange newRow)
@@ -450,15 +594,23 @@ public sealed class ChangeTracker(TableDetails table)
     }
 
     /// <summary>Undoes the pending changes of one row (also a pending delete).</summary>
-    public void Revert(RowKey key)
+    public void Revert(RowKey key) => Revert([key]);
+
+    /// <summary>Undoes the pending changes of rows (also pending deletes): one step in the edit history (WP-59).</summary>
+    public void Revert(IReadOnlyList<RowKey> keys)
     {
-        if (_byKey.GetValueOrDefault(key) is { } change)
+        var before = new List<RowState>(keys.Count);
+        foreach (var key in keys.Distinct())
         {
-            var before = State(change);
-            change.DiscardPending();
-            Forget(change);
-            Remember([before]);
+            if (_byKey.GetValueOrDefault(key) is { } change)
+            {
+                before.Add(State(change));
+                change.DiscardPending();
+                Forget(change);
+            }
         }
+
+        Remember(before);
     }
 
     /// <summary>Undoes the pending value of one cell (change overview, WP-30); a pending delete stays.</summary>

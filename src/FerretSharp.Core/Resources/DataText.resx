@@ -163,4 +163,15 @@
     <value>Names from {0} are missing: {1}</value>
     <comment>Excel export warning. {0} = table.column of the display column, {1} = database error</comment>
   </data>
+  <data name="FillTooManyRows" xml:space="preserve">
+    <value>At most {0:N0} rows can be changed at once – mark fewer.</value>
+    <comment>WP-59: setting a value, NULL or fill down for marked cells. {0} = the limit</comment>
+  </data>
+  <data name="FillDownNeedsTwoRows" xml:space="preserve">
+    <value>Fill down needs at least two rows: the top row’s values go into the rows below.</value>
+  </data>
+  <data name="FillInvalidInColumn" xml:space="preserve">
+    <value>{0}: {1}</value>
+    <comment>A typed value for several columns does not fit one of them. {0} = column name, {1} = why (a sentence)</comment>
+  </data>
 </root>

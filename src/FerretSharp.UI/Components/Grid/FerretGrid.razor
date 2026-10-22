@@ -473,6 +473,10 @@
 
     string IEditableGrid.RowNotLoaded => RowNotLoaded;
 
+    int? IEditableGrid.AllRows => RowCount;
+
+    Task<IReadOnlyList<RowData>?> IEditableGrid.ReadRowsAsync(int start, int count) => ReadRowsAsync(start, count);
+
     /// <summary>When the connection's schema was loaded last (<see cref="OnShellChanged"/>).</summary>
     private DateTimeOffset? _schemaLoadedAt;
 
@@ -819,6 +823,70 @@
     /// <summary>Deletes or reverts rows from the context menu; redraws them.</summary>
     public Task ChangeRowsAsync(IReadOnlyList<int> rowIndexes, bool delete) => Editing.ChangeRowsAsync(rowIndexes, delete);
 
+    // ---------- many cells at once (WP-59) ----------
+
+    /// <summary>
+    /// Ctrl+Enter in a cell editor with marked cells or several selected rows: the typed value for all of them – the
+    /// marked cells, or the edited column of the selected rows. The editor shows an error; the grid redraws the rows.
+    /// </summary>
+    [JSInvokable]
+    public Task<GridFill> OnFillValue(string colId, string text, GridMarks? marks, int[] selectedRows) =>
+        GuardAsync(() => marks is not null
+            ? Editing.FillAsync(marks, CellFill.Value(text))
+            : Task.FromResult(Editing.FillRows([.. selectedRows.Order()], ColumnIndex(colId), CellFill.Value(text))), GridFill.Refused(CommonText.UnexpectedError));
+
+    /// <summary>Del on marked cells: NULL (WP-59). The grid redraws the rows; a refusal goes to the status bar.</summary>
+    [JSInvokable]
+    public Task<GridRowUpdate[]> OnClearMarks(GridMarks marks) => GuardAsync(() => FillCoreAsync(marks, CellFill.Null), []);
+
+    /// <summary>Ctrl+D on marked cells: the top row's values into the rows below (WP-59).</summary>
+    [JSInvokable]
+    public Task<GridRowUpdate[]> OnFillDown(GridMarks marks) => GuardAsync(() => FillCoreAsync(marks, CellFill.Down), []);
+
+    /// <summary>A command of the cell menu for marked cells (WP-59): set, redrawn, a refusal in the status bar.</summary>
+    public async Task FillAsync(GridMarks marks, CellFill fill)
+    {
+        if (await FillCoreAsync(marks, fill) is { Length: > 0 } updates)
+        {
+            await _grid.CallAsync("updateRows", updates.ToList());
+        }
+    }
+
+    /// <summary>"Set value…" for selected rows (WP-59); returns why the value was not set, null if it was.</summary>
+    public async Task<string?> FillRowsAsync(IReadOnlyList<int> rowIndexes, int column, CellFill fill)
+    {
+        var result = Editing.FillRows(rowIndexes, column, fill);
+        if (result.Rows.Length > 0)
+        {
+            await _grid.CallAsync("updateRows", result.Rows.ToList());
+        }
+
+        return result.Error;
+    }
+
+    /// <summary>"Set value…" for marked cells (WP-59); returns why the value was not set, null if it was.</summary>
+    public async Task<string?> FillMarksAsync(GridMarks marks, string text)
+    {
+        var result = await Editing.FillAsync(marks, CellFill.Value(text));
+        if (result.Rows.Length > 0)
+        {
+            await _grid.CallAsync("updateRows", result.Rows.ToList());
+        }
+
+        return result.Error;
+    }
+
+    private async Task<GridRowUpdate[]> FillCoreAsync(GridMarks marks, CellFill fill)
+    {
+        var result = await Editing.FillAsync(marks, fill);
+        if (result.Error is { Length: > 0 } error)
+        {
+            Shell.Notify(error);
+        }
+
+        return result.Rows;
+    }
+
     /// <summary>
     /// Adds an empty new row at the top and starts editing its first editable cell – or, with
     /// <paramref name="inGrid"/> false (the form is open, WP-21), only focuses the row: it is filled in the form.
@@ -1021,11 +1089,11 @@
     private MarkedCells Marked => new(
         column => PresentedExport.Column(Presentation, column, Details.Columns[column].Name, column),
         rowIndex => _blocks.At(rowIndex) is { } row ? Shown(row) : null,
-        ReadRowsAsync,
+        ReadShownRowsAsync,
         columns => ColumnValueCopies.ForTable(Tab, Details, columns, Workspaces.GetDataAsync),
         columns => Tab.Changes?.PendingIn([.. columns]) ?? 0);
 
-    /// <summary>Rows of a marked range that are not loaded: read like a block, shown with the tab's changes; null if it failed.</summary>
+    /// <summary>Rows of a marked range that are not loaded: read like a block, as the database has them; null if it failed.</summary>
     private async Task<IReadOnlyList<RowData>?> ReadRowsAsync(int start, int count)
     {
         var (details, filters, sorts) = (Details, Tab.AppliedFilters, Tab.Sorts);
@@ -1034,8 +1102,12 @@
             var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, CancellationToken.None);
             return await data.ReadPageAsync(details, filters, sorts, new PageSpec(start, count), CancellationToken.None);
         });
-        return Shell.ShowFailure(result) ? result.Value!.Rows.Select(Shown).ToList() : null;
+        return Shell.ShowFailure(result) ? result.Value!.Rows : null;
     }
+
+    /// <summary>Rows of a marked range that are not loaded, shown with the tab's changes (copying, A21).</summary>
+    private async Task<IReadOnlyList<RowData>?> ReadShownRowsAsync(int start, int count) =>
+        await ReadRowsAsync(start, count) is { } rows ? [.. rows.Select(Shown)] : null;
 
     /// <summary>Copies marked cells or columns (Ctrl+C, the cell menu).</summary>
     private Task CopyMarksAsync(GridMarks marks, MarksCopy kind) =>

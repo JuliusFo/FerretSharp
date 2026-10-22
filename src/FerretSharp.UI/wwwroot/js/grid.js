@@ -3,7 +3,7 @@
 
 import { comboOf, localCombo, setEditFinisher } from './shortcuts.js';
 import {
-  anchorFor, arrivedIn, inDisplayOrder, keyMoveOf, markOf, markedColumns, movedEnd, rectOf, spanOf,
+  anchorFor, arrivedIn, fillTargetOf, inDisplayOrder, keyMoveOf, markOf, markedColumns, movedEnd, rectOf, spanOf,
 } from './gridSelection.js';
 import {
   ALTGR_FOLLOWS, TypedText, isAltGrChar, isAltGrKey, isDigits, optionsOf, pickLabel, pickTyped, typedCharOf,
@@ -200,6 +200,33 @@ async function validateEdit(params, value) {
   }
 }
 
+/** Ctrl+Enter in a cell editor (WP-59); the global shortcut of the same key rests while a cell is edited (shortcuts.js). */
+const isFillKey = e => e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey;
+
+/**
+ * Ctrl+Enter: the typed value for the marked cells or the selected rows the edited cell lies in (fillTargetOf). .NET sets
+ * them all at once; the editor closes without an edit of its own, or stays open with the reason. False if there is nothing
+ * to fill – the key is an Enter then.
+ */
+async function fillAll(params, value, showError) {
+  const targets = params.state.fillTargets?.(params.node, params.column.getColId());
+  if (!targets) return false;
+  try {
+    const result = await params.state.dotnet.invokeMethodAsync('OnFillValue', params.column.getColId(), value, targets.marks, targets.rows);
+    if (result.error != null) {
+      if (result.error) showError(result.error); // empty: a read failed and has said why
+      return true;
+    }
+    // The value is set already: cancel the editor. Its own params.stopEditing(true) would not – the flag there means
+    // "do not move on after the edit", the value would still go to .NET as an edit of its own.
+    params.api.stopEditing(true);
+    params.state.applyUpdates(result.rows);
+  } catch (e) {
+    callFailed(e);
+  }
+  return true;
+}
+
 /** The current value could not be read from .NET: the editor ends without a value – left open and empty, it wrote NULL (A47). */
 function cancelEditor(params, e) {
   if (e) callFailed(e);
@@ -253,6 +280,7 @@ class FerretCellEditor {
       if (e.key !== 'Enter' || (params.meta.multiline && e.shiftKey)) return;
       e.preventDefault();
       e.stopPropagation();
+      if (isFillKey(e) && await fillAll(params, this.input.value, message => this.showError(message))) return;
       const error = await validateEdit(params, this.input.value);
       if (error) {
         this.showError(error);
@@ -325,8 +353,9 @@ class FerretSelectEditor {
     const value = pickTyped(optionsOf(this.select.options), text, current);
     if (value !== null) this.select.value = value;
   }
-  async commit() {
+  async commit(fill) {
     const params = this.params;
+    if (fill && await fillAll(params, this.select.value, message => showEditorError(this.eGui, message))) return;
     const error = await validateEdit(params, this.select.value);
     if (error) {
       showEditorError(this.eGui, error);
@@ -353,7 +382,7 @@ class FerretSelectEditor {
       if (e.key !== 'Enter') return;
       e.preventDefault();
       e.stopPropagation();
-      this.commit();
+      this.commit(isFillKey(e));
     });
     this.select.focus();
   }
@@ -492,9 +521,10 @@ class FerretFlagsEditor {
   focusFirst() {
     (this.list.querySelector('input:checked') ?? this.list.querySelector('input'))?.focus();
   }
-  async commit() {
+  async commit(fill) {
     const params = this.params;
     await this.typedEdit; // Enter right after typing digits: their boxes first
+    if (fill && await fillAll(params, this.value(), message => showEditorError(this.eGui, message))) return;
     const error = await validateEdit(params, this.value());
     if (error) {
       showEditorError(this.eGui, error);
@@ -521,7 +551,7 @@ class FerretFlagsEditor {
       } else if (e.key === 'Enter') {
         e.preventDefault();
         e.stopPropagation();
-        this.commit();
+        this.commit(isFillKey(e));
       }
     });
     this.focusFirst();
@@ -662,6 +692,16 @@ export function create(elementId, dotnet, columns, options) {
   let rect = null; // `cells` as rows and display positions (rectOf), for drawing
   const marksColumns = table || !!headerMenu; // whole columns need a way to read all rows: a table, the SQL editor
 
+  // Ctrl+Enter in a cell editor (WP-59): the marked cells or columns, or the selected rows, the edited cell lies in; null
+  // if only the cell itself – the value is then an ordinary edit.
+  editState.fillTargets = (node, colId) => {
+    if (!table || node.rowPinned || node.rowIndex == null) return null;
+    const rows = selectedRows();
+    const target = fillTargetOf(rect, marked, order, rows, node.rowIndex, colId);
+    return target === 'marks' ? { marks: marksOf(), rows: [] } : target === 'rows' ? { marks: null, rows } : null;
+  };
+  editState.applyUpdates = updates => applyUpdates(api, updates);
+
   // How a cell is drawn: null if it is not marked, else which of its sides are the outline.
   const markAt = (p, colId) => (!rect && marked.size === 0) || p.node.rowPinned || p.node.rowIndex == null
     ? null
@@ -729,8 +769,9 @@ export function create(elementId, dotnet, columns, options) {
   });
 
   // The grid's keys, in the capture phase (before AG Grid): each handler says whether the key was its.
+  // Ctrl+D after the actions the user can give a key (TakenFromGrid in Shortcuts.cs: such an action comes first).
   element.addEventListener('keydown', e => onDeleteKey(e) || onCopyKey(e) || onCopyColumnKey(e) || onFormKey(e) || onLobKey(e) || onEditHistoryKey(e)
-    || onMarkKey(e) || onSelectKey(e) || onAltGrKey(e), true);
+    || onFillDownKey(e) || onMarkKey(e) || onSelectKey(e) || onAltGrKey(e), true);
 
   const selectedRows = () => api.getSelectedNodes().map(n => n.rowIndex).filter(i => i != null);
 
@@ -1067,15 +1108,33 @@ export function create(elementId, dotnet, columns, options) {
   }
 
   // Del (not while editing): mark the selected rows for deletion – pending until written, can be reverted. .NET decides
-  // between the focused new row and the selected loaded rows.
+  // between the focused new row and the selected loaded rows. On marked cells or columns: NULL (WP-59).
   function onDeleteKey(e) {
     if (!table || e.key !== 'Delete' || e.ctrlKey || e.altKey || api.getEditingCells().length > 0) return false;
+    const marks = marksOf();
+    if (marks) {
+      e.preventDefault();
+      if (editState.enabled) dotnet.invokeMethodAsync('OnClearMarks', marks).then(updates => applyUpdates(api, updates)).catch(callFailed);
+      return true;
+    }
     const loaded = selectedRows();
     const newId = newIdOf(api, api.getFocusedCell());
     if (loaded.length > 0 || newId) {
       e.preventDefault();
       dotnet.invokeMethodAsync('OnDeleteKey', loaded, newId).then(updates => applyUpdates(api, updates)).catch(callFailed);
     }
+    return true;
+  }
+
+  // Ctrl+D on marked cells or columns (WP-59): the top row's values into the rows below, as in Excel. Without marks the key
+  // does nothing here.
+  function onFillDownKey(e) {
+    if (!table || !(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'd' || api.getEditingCells().length > 0) return false;
+    const marks = marksOf();
+    if (!marks) return false;
+    e.preventDefault();
+    e.stopPropagation();
+    if (editState.enabled) dotnet.invokeMethodAsync('OnFillDown', marks).then(updates => applyUpdates(api, updates)).catch(callFailed);
     return true;
   }
 

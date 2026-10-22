@@ -254,7 +254,7 @@
     <comment>What a key does in the editors or the grid; shown in TakenFromEditor</comment>
   </data>
   <data name="EditorSelectNextMatch" xml:space="preserve">
-    <value>Select next match in the editors</value>
+    <value>Select next match in the editors, fill down in the grid</value>
     <comment>What a key does in the editors or the grid; shown in TakenFromEditor</comment>
   </data>
   <data name="EditorGoToLine" xml:space="preserve">
@@ -274,7 +274,7 @@
     <comment>What a key does in the editors or the grid; shown in TakenFromEditor</comment>
   </data>
   <data name="GridDeleteRows" xml:space="preserve">
-    <value>Delete rows in the grid</value>
+    <value>Delete rows in the grid, or set marked cells to NULL</value>
     <comment>What a key does in the editors or the grid; shown in TakenFromEditor</comment>
   </data>
   <data name="CtrlAltIsAltGr" xml:space="preserve">
@@ -402,5 +402,24 @@
   <data name="FixedMarkCells" xml:space="preserve">
     <value>Select cells from the focused one (then Shift+↑ ↓ and Shift+Page↑/↓ extend them; dragging with the mouse does the same)</value>
     <comment>Fixed shortcut (WP-58)</comment>
+  </data>
+  <data name="GridFillDown" xml:space="preserve">
+    <value>Fill down marked cells in the grid</value>
+    <comment>What a key does in the grid; shown in TakenFromEditor (WP-59: Ctrl+D)</comment>
+  </data>
+  <data name="FixedSetMarkedCells" xml:space="preserve">
+    <value>Typed value for all marked cells, or for the column of the selected rows</value>
+    <comment>Fixed key (WP-59): Ctrl+Enter in a cell editor</comment>
+  </data>
+  <data name="FixedClearMarkedCells" xml:space="preserve">
+    <value>Set marked cells to NULL</value>
+    <comment>Fixed key (WP-59): Del</comment>
+  </data>
+  <data name="FixedFillDown" xml:space="preserve">
+    <value>Fill marked cells down with the top row’s values</value>
+    <comment>Fixed key (WP-59): Ctrl+D</comment>
+  </data>
+  <data name="HintInCellEditor" xml:space="preserve">
+    <value>While a cell is being edited in the grid.</value>
   </data>
 </root>

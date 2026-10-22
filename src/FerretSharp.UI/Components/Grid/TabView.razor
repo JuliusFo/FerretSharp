@@ -142,7 +142,13 @@
                      OnDeleteRows="rows => _grid?.ChangeRowsAsync(rows, delete: true) ?? Task.CompletedTask"
                      OnRevertRows="rows => _grid?.ChangeRowsAsync(rows, delete: false) ?? Task.CompletedTask"
                      OnOpenLob="() => _grid?.OpenLobAsync(menu.RowIndex, menu.Column) ?? Task.CompletedTask"
-                     OnOpenForm="() => OpenFormAsync(menu.RowIndex, menu.Column)" OnCompare="Compare" />
+                     OnOpenForm="() => OpenFormAsync(menu.RowIndex, menu.Column)" OnCompare="Compare"
+                     OnFillMarks="fill => _grid?.FillAsync(menu.Marks!.Marks, fill) ?? Task.CompletedTask" OnSetValue="r => _setValue = r" />
+}
+
+@if (_setValue is { } setValue && _details is not null)
+{
+    <SetValueDialog @key="setValue" Request="setValue" Details="_details" Tab="Tab" OnApply="ApplySetValueAsync" OnClose="() => _setValue = null" />
 }
 
 @if (_compare is { } compare && _details is not null)
@@ -222,6 +228,23 @@
     private ColumnJump? _jump;
     private RowFormPanel? _form;
     private RowCompareRequest? _compare;
+
+    /// <summary>"Set value…" of the cell menu, open (WP-59).</summary>
+    private SetValueRequest? _setValue;
+
+    /// <summary>The value of "Set value…" for its cells; the dialog closes itself once it is set (its OnClose).</summary>
+    private async Task<string?> ApplySetValueAsync(string text)
+    {
+        if (_setValue is not { } request || _grid is null)
+        {
+            return null;
+        }
+
+        return request.Marks is { } marks
+            ? await _grid.FillMarksAsync(marks, text)
+            : await _grid.FillRowsAsync(request.Rows, request.Column, CellFill.Value(text));
+    }
+
     private ColumnsView? _columns;
     private int? _pendingJump; // scrolled to after the search list has closed, so the grid cell keeps the focus
     private readonly HashSet<TabMode> _visited = [];

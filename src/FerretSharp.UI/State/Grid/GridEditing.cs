@@ -39,6 +39,19 @@ public interface IEditableGrid
 
     /// <summary>"Row no longer loaded – F5 loads it again."</summary>
     string RowNotLoaded { get; }
+
+    /// <summary>How many rows the query has, once all of them are loaded; null while more may follow (WP-59: whole columns).</summary>
+    int? AllRows { get; }
+
+    /// <summary>Rows not loaded, read from a grid index on (start, count) as the database has them; null if the read failed (said why).</summary>
+    Task<IReadOnlyList<RowData>?> ReadRowsAsync(int start, int count);
+}
+
+/// <summary>A command for many cells (WP-59): the loaded rows to redraw, or why nothing was set.</summary>
+/// <param name="Error">Why nothing was set; empty if that was said already (a read failed); null if the command ran.</param>
+public sealed record GridFill(GridRowUpdate[] Rows, string? Error)
+{
+    public static GridFill Refused(string error) => new([], error);
 }
 
 /// <param name="Row">The new row.</param>
@@ -171,18 +184,10 @@ public sealed class GridEditing(IEditableGrid grid, TableDetails details)
             return [];
         }
 
-        var updates = new List<GridRowUpdate>();
-        foreach (var index in rowIndexes)
-        {
-            if (grid.RowAt(index) is { } row)
-            {
-                changes.Delete(row);
-                updates.Add(new GridRowUpdate(index, Draw(changes, row)));
-            }
-        }
-
+        var rows = Loaded(rowIndexes);
+        changes.Delete([.. rows.Select(r => r.Row)]);
         grid.ChangesMade();
-        return [.. updates];
+        return [.. rows.Select(r => new GridRowUpdate(r.Index, Draw(changes, r.Row)))];
     }
 
     /// <summary>Deletes or reverts loaded rows from the cell menu; redraws them.</summary>
@@ -193,27 +198,17 @@ public sealed class GridEditing(IEditableGrid grid, TableDetails details)
             return;
         }
 
-        var updates = new List<GridRowUpdate>();
-        foreach (var index in rowIndexes)
+        var rows = Loaded(rowIndexes);
+        if (delete)
         {
-            if (grid.RowAt(index) is not { } row)
-            {
-                continue;
-            }
-
-            if (delete)
-            {
-                changes.Delete(row);
-            }
-            else
-            {
-                changes.Revert(row.Key);
-            }
-
-            updates.Add(new GridRowUpdate(index, Draw(changes, row)));
+            changes.Delete([.. rows.Select(r => r.Row)]);
+        }
+        else
+        {
+            changes.Revert([.. rows.Select(r => r.Row.Key)]);
         }
 
-        await grid.UpdateRowsAsync(updates);
+        await grid.UpdateRowsAsync([.. rows.Select(r => new GridRowUpdate(r.Index, Draw(changes, r.Row)))]);
         grid.ChangesMade();
     }
 
@@ -232,6 +227,102 @@ public sealed class GridEditing(IEditableGrid grid, TableDetails details)
         grid.ChangesMade();
         return new AddedRow(added, first >= 0 ? first : null, changes.NewRows.Count - 1);
     }
+
+    /// <summary>
+    /// A command for marked cells or whole columns (WP-59): Ctrl+Enter in a cell editor, Del, Ctrl+D, the cell menu. A range's
+    /// rows not loaded are read first; whole columns only once all rows of the query are loaded (a set-based UPDATE of rows
+    /// never seen is not offered). What was set and left out goes to the status bar.
+    /// </summary>
+    public async Task<GridFill> FillAsync(GridMarks marks, CellFill fill)
+    {
+        if (marks.Whole && grid.AllRows is null)
+        {
+            return GridFill.Refused(GridText.Fill_ColumnsNotLoaded);
+        }
+
+        var (from, to) = marks.Whole ? (0, grid.AllRows!.Value - 1) : (marks.FromRow, marks.ToRow);
+        if (Refusal(to - from + 1, fill) is { } refused)
+        {
+            return refused;
+        }
+
+        var changes = grid.Changes;
+        if (await CellCopies.RowsAsync(grid.RowAt, grid.ReadRowsAsync, from, to) is not { } rows)
+        {
+            return GridFill.Refused(""); // the read said why
+        }
+
+        // Reading rows over the VPN takes a moment: a write may have started meanwhile, or the tab dropped or replaced its
+        // changes (commit or rollback on a locked connection, a new structure) – the rows read belong to none of them then.
+        if (Refusal(rows.Count, fill) is { } late)
+        {
+            return late;
+        }
+
+        return ReferenceEquals(grid.Changes, changes)
+            ? Fill([.. rows.Select((row, i) => (from + i, row))], marks.ColumnIndexes, fill)
+            : GridFill.Refused(grid.RowNotLoaded);
+    }
+
+    /// <summary>A value for one column of the selected rows (WP-59: Ctrl+Enter in a cell editor, "Set value…" of the cell menu).</summary>
+    public GridFill FillRows(IReadOnlyList<int> rowIndexes, int column, CellFill fill)
+    {
+        if (Refusal(rowIndexes.Count, fill) is { } refused)
+        {
+            return refused;
+        }
+
+        var rows = Loaded(rowIndexes);
+        return rows.Count < rowIndexes.Count ? GridFill.Refused(grid.RowNotLoaded) : Fill(rows, [column], fill);
+    }
+
+    /// <summary>Why a command for so many rows cannot run now; null if it can.</summary>
+    private GridFill? Refusal(int rows, CellFill fill)
+    {
+        if (grid.Changes is null)
+        {
+            return GridFill.Refused(GridText.Grid_TableNotEditable);
+        }
+
+        if (grid.WriteRunning)
+        {
+            return GridFill.Refused(GridText.Grid_WriteRunning);
+        }
+
+        // Before reading rows that are not loaded: the tracker would refuse them anyway.
+        return ChangeTracker.FillRefusal(rows, fill) is { } refusal ? GridFill.Refused(refusal) : null;
+    }
+
+    private GridFill Fill(IReadOnlyList<(int Index, RowData Row)> rows, IReadOnlyList<int> columns, CellFill fill)
+    {
+        var changes = grid.Changes!;
+        var result = changes.SetCells([.. rows.Select(r => r.Row)], columns, fill);
+        if (result.Error is not null)
+        {
+            return GridFill.Refused(result.Error);
+        }
+
+        grid.ChangesMade();
+        var changed = result.Changed.ToHashSet();
+        var updates = new List<GridRowUpdate>();
+        foreach (var (index, row) in rows.Where(r => changed.Contains(r.Row.Key)))
+        {
+            grid.QueueDisplayNames(changes.Find(row.Key) is { } change ? ValuesOf(change) : row.Values);
+
+            // Sorted or reloaded while rows were read: another row may stand at the index now – only the row itself is drawn.
+            if (grid.RowAt(index) is { } shown && shown.Key.Equals(row.Key))
+            {
+                updates.Add(new GridRowUpdate(index, Draw(changes, row)));
+            }
+        }
+
+        grid.Notify(FillNotice.Text(result));
+        return new GridFill([.. updates], null);
+    }
+
+    /// <summary>The loaded rows of grid indexes, in order; indexes whose block is gone are left out.</summary>
+    private List<(int Index, RowData Row)> Loaded(IEnumerable<int> rowIndexes) =>
+        [.. rowIndexes.Select(i => (Index: i, Row: grid.RowAt(i))).Where(r => r.Row is not null).Select(r => (r.Index, r.Row!))];
 
     private Dictionary<string, object?> Draw(ChangeTracker changes, RowData row) => grid.Draw(changes.Find(row.Key), row.Values);
 

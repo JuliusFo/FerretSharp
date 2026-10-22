@@ -36,7 +36,7 @@ public sealed class EnglishTextTests
         {
             Assert.Equal("Ctrl+Alt is AltGr on German keyboards (@, €, {) – it would catch characters while typing.",
                 map.Check(ShortcutAction.Refresh, KeyChord.Parse("ctrl+alt+r")!).Error);
-            Assert.Equal("Ctrl+D is otherwise “Select next match in the editors” – the shortcut takes precedence and that function is lost there.",
+            Assert.Equal("Ctrl+D is otherwise “Select next match in the editors, fill down in the grid” – the shortcut takes precedence and that function is lost there.",
                 map.Check(ShortcutAction.Refresh, KeyChord.Parse("ctrl+d")!).Warning);
             Assert.Equal("F12 opens the developer tools.", map.Check(ShortcutAction.Refresh, KeyChord.Parse("f12")!).Error);
             Assert.Equal("Data", ShortcutMap.Definition(ShortcutAction.Refresh).Group);
