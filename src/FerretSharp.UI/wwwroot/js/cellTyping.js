@@ -24,12 +24,29 @@ export class TypedText {
 }
 
 /**
+ * The editor of a cell started by a key pressed with AltGr whose character the event does not carry (isAltGrKey): it
+ * starts empty, the character follows as text input. Passed as the editor's eventKey (a key name, so no editor takes it
+ * for a typed character).
+ */
+export const ALTGR_FOLLOWS = 'AltGraph';
+
+/**
+ * A key pressed with AltGr whose character the event does not carry: in the WPF host (WebView2) AltGr+Q arrives as `q`
+ * with the AltGraph modifier and neither Ctrl nor Alt; the character (`@`) follows as text input. AG Grid took the `q`
+ * for typed and suppressed the `@` (found in the E2E with a real keyboard).
+ */
+export function isAltGrKey(e) {
+  return !!e.getModifierState?.('AltGraph') && !e.ctrlKey && !e.altKey && !e.metaKey && e.key?.length === 1;
+}
+
+/**
  * The character a key types, or null: a printable key without Ctrl, Alt or Meta, or a character typed with AltGr.
- * Windows reports AltGr as Ctrl+Alt, so AG Grid takes `@ € \ { }` (German keyboard) for a shortcut and does not start
- * editing. A real Ctrl+Alt shortcut types a letter or digit and stays a shortcut.
+ * Chromium reports AltGr as Ctrl+Alt with the character (`@ € \ { }` on a German keyboard), so AG Grid takes it for a
+ * shortcut and does not start editing; a real Ctrl+Alt shortcut types a letter or digit and stays a shortcut. A key whose
+ * character only follows (isAltGrKey) types nothing here.
  */
 export function typedCharOf(e) {
-  if (!e.key || e.key.length !== 1 || e.metaKey) return null;
+  if (!e.key || e.key.length !== 1 || e.metaKey || isAltGrKey(e)) return null;
   if (!e.ctrlKey && !e.altKey) return e.key;
   return e.ctrlKey && e.altKey && !/^[a-z0-9]$/i.test(e.key) ? e.key : null;
 }

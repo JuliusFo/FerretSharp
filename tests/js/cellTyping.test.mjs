@@ -2,7 +2,7 @@
 // JsTests) through `node --test`; on its own: node --test tests/js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { TYPE_PAUSE, TypedText, isAltGrChar, isDigits, optionsOf, pickLabel, pickTyped, typedCharOf } from '../../src/FerretSharp.UI/wwwroot/js/cellTyping.js';
+import { TYPE_PAUSE, TypedText, isAltGrChar, isAltGrKey, isDigits, optionsOf, pickLabel, pickTyped, typedCharOf } from '../../src/FerretSharp.UI/wwwroot/js/cellTyping.js';
 
 const key = (k, mods = {}) => ({ key: k, shiftKey: false, ctrlKey: false, altKey: false, metaKey: false, ...mods });
 const altGr = k => key(k, { ctrlKey: true, altKey: true });
@@ -17,6 +17,19 @@ test('printable keys type their character, other keys and shortcuts do not', () 
   assert.equal(typedCharOf(key('c', { ctrlKey: true })), null);
   assert.equal(typedCharOf(key('x', { altKey: true })), null);
   assert.equal(typedCharOf(key('v', { metaKey: true })), null);
+});
+
+test('the WPF host reports AltGr as the plain key with AltGraph: no character, it follows as text input', () => {
+  const host = (k, altGraph = true) => key(k, { getModifierState: m => m === 'AltGraph' && altGraph });
+  assert.equal(isAltGrKey(host('q')), true); // AltGr+Q, the @ comes as input
+  assert.equal(typedCharOf(host('q')), null);
+  assert.equal(isAltGrChar(host('q')), false);
+  assert.equal(isAltGrKey(host('q', false)), false);
+  assert.equal(typedCharOf(host('q', false)), 'q');
+  assert.equal(isAltGrKey(host('AltGraph')), false); // the modifier itself
+  assert.equal(isAltGrKey(key('q')), false); // no getModifierState (Node, old events)
+  // Chromium's own way (Ctrl+Alt with the character) is not this case, whatever AltGraph says.
+  assert.equal(isAltGrKey({ ...altGr('@'), getModifierState: () => true }), false);
 });
 
 test('AltGr characters type, Ctrl+Alt with a letter or digit stays a shortcut', () => {

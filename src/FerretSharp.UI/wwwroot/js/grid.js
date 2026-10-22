@@ -5,7 +5,9 @@ import { comboOf, localCombo, setEditFinisher } from './shortcuts.js';
 import {
   anchorFor, arrivedIn, inDisplayOrder, keyMoveOf, markOf, markedColumns, movedEnd, rectOf, spanOf,
 } from './gridSelection.js';
-import { TypedText, isAltGrChar, isDigits, optionsOf, pickLabel, pickTyped, typedCharOf } from './cellTyping.js';
+import {
+  ALTGR_FOLLOWS, TypedText, isAltGrChar, isAltGrKey, isDigits, optionsOf, pickLabel, pickTyped, typedCharOf,
+} from './cellTyping.js';
 
 const grids = new Map();
 // Per grid: focus changes from .NET – forget the last navigation key (it must not select), select the row (focusRow with
@@ -226,8 +228,8 @@ class FerretCellEditor {
       this.eGui.appendChild(error);
     } else if (params.eventKey && params.eventKey.length === 1) {
       this.input.value = params.eventKey; // typing starts editing: replace the value
-    } else if (params.eventKey === 'Backspace' || params.eventKey === 'Delete') {
-      this.input.value = '';
+    } else if (params.eventKey === 'Backspace' || params.eventKey === 'Delete' || params.eventKey === ALTGR_FOLLOWS) {
+      this.input.value = ''; // AltGr: the character follows as text input into the focused box
     } else {
       this.input.disabled = true;
       state.dotnet.invokeMethodAsync('GetEditText', ...rowArgs(params.node, params.data), params.column.getColId())
@@ -1195,17 +1197,24 @@ export function create(elementId, dotnet, columns, options) {
     focusTimer = setTimeout(() => dotnet.invokeMethodAsync('OnFocused', e.rowPinned ? -1 : e.rowIndex, newId ?? null, colId).catch(callFailed), 60);
   }
 
-  // A character typed with AltGr (@ € \ { } on a German keyboard) starts editing like any other: AG Grid takes Ctrl+Alt
-  // for a shortcut. Only on a focused cell (not the header) that can be edited; LOB cells open their editor with Enter.
+  // A character typed with AltGr (@ € \ { } on a German keyboard) starts editing like any other. Chromium reports it as
+  // Ctrl+Alt with the character, which AG Grid takes for a shortcut: editing starts with the character. The WPF host
+  // reports the plain key with the AltGraph modifier (AltGr+Q: `q`), which AG Grid took for typed – and suppressed the
+  // `@` that follows as text input: editing starts empty, and the default is left so the `@` lands in the box. A member
+  // list has no use for such a character. Only on a focused cell (not the header) that can be edited; LOB cells open
+  // their editor with Enter.
   function onAltGrKey(e) {
-    if (!isAltGrChar(e) || !e.target.closest?.('.ag-cell') || api.getEditingCells().length > 0) return false;
+    const withChar = isAltGrChar(e);
+    if ((!withChar && !isAltGrKey(e)) || !e.target.closest?.('.ag-cell') || api.getEditingCells().length > 0) return false;
     const cell = api.getFocusedCell();
-    if (!cell || cell.rowIndex == null || metaById.get(cell.column.getColId())?.lob) return false;
+    const meta = cell ? metaById.get(cell.column.getColId()) : null;
+    if (!cell || cell.rowIndex == null || meta?.lob) return false;
     const node = cell.rowPinned ? api.getPinnedTopRow(cell.rowIndex) : api.getDisplayedRowAtIndex(cell.rowIndex);
     if (!node || !cell.column.isCellEditable(node)) return false;
-    e.preventDefault();
     e.stopPropagation();
-    api.startEditingCell({ rowIndex: cell.rowIndex, colKey: cell.column.getColId(), rowPinned: cell.rowPinned ?? undefined, key: e.key });
+    if (withChar || meta?.options || meta?.flags) e.preventDefault();
+    if (!withChar && (meta?.options || meta?.flags)) return true;
+    api.startEditingCell({ rowIndex: cell.rowIndex, colKey: cell.column.getColId(), rowPinned: cell.rowPinned ?? undefined, key: withChar ? e.key : ALTGR_FOLLOWS });
     return true;
   }
 
