@@ -915,10 +915,17 @@ export function create(elementId, dotnet, columns, options) {
     }
     clearMarks();
     if (e.ctrlKey || e.metaKey || e.shiftKey) return; // the row selection's own clicks
-    drag = { start: cell, active: false, x: e.clientX, y: e.clientY, timer: null };
+    drag = { start: cell, active: false, x: e.clientX, y: e.clientY, timer: null, outside: false };
     document.addEventListener('mousemove', onDragMove, true);
     document.addEventListener('mouseup', onDragEnd, true);
+    document.addEventListener('mouseout', onDragOut, true);
   }, true);
+
+  // The mouse left the page while marking. Released out there, the WPF host passes no mouseup (seen with real input in the
+  // E2E): the grid stops scrolling on until the mouse is back – the next move tells whether the button is still down.
+  function onDragOut(e) {
+    if (drag && !e.relatedTarget) drag.outside = true;
+  }
   element.addEventListener('click', e => {
     if (!swallowClick) return;
     swallowClick = false;
@@ -933,6 +940,7 @@ export function create(elementId, dotnet, columns, options) {
     }
     drag.x = e.clientX;
     drag.y = e.clientY;
+    drag.outside = false;
     const cell = cellAt(document.elementFromPoint(e.clientX, e.clientY));
     if (!drag.active) {
       if (!cell || (cell.row === drag.start.row && cell.col === drag.start.col)) return;
@@ -949,6 +957,7 @@ export function create(elementId, dotnet, columns, options) {
   function onDragEnd() {
     document.removeEventListener('mousemove', onDragMove, true);
     document.removeEventListener('mouseup', onDragEnd, true);
+    document.removeEventListener('mouseout', onDragOut, true);
     if (drag?.active) {
       swallowClick = true; // the click lands on the row (or on what both cells share)
       clearInterval(drag.timer);
@@ -961,7 +970,7 @@ export function create(elementId, dotnet, columns, options) {
   // the mouse is beyond the edge. The rows' area is the grid's viewport below the header (AG Grid 36: `.ag-grid-viewport`,
   // without the scrollbars).
   function scrollWhileMarking() {
-    if (!drag?.active || !cells) return;
+    if (!drag?.active || drag.outside || !cells) return;
     const view = (element.querySelector('.ag-grid-viewport') ?? element).getBoundingClientRect();
     const top = element.querySelector('.ag-header')?.getBoundingClientRect().bottom ?? view.top;
     const edge = 6;
@@ -1084,12 +1093,14 @@ export function create(elementId, dotnet, columns, options) {
   }
 
   // How many rows are selected and whether rows still to load join them (span to the end), or how many cells or whole
-  // columns are marked (WP-58), for the footer; Shift+↓ held down changes it fast, so only the last state within a moment
-  // is reported.
+  // columns are marked (WP-58), for the footer; Shift+↓ held down changes it fast, so the state is reported at most every
+  // moment – as it is then. Not after a pause: scrolling while marking by mouse changes it every 60 ms, the footer stood
+  // still until the end (E2E).
   let selectionTimer = null;
   function reportSelection() {
-    clearTimeout(selectionTimer);
+    if (selectionTimer) return;
     selectionTimer = setTimeout(() => {
+      selectionTimer = null;
       if (grids.get(elementId) !== api) return; // destroyed or created anew meanwhile
       const marks = marksOf();
       dotnet.invokeMethodAsync('OnSelectionChanged', api.getSelectedNodes().length, span?.to === Infinity,
