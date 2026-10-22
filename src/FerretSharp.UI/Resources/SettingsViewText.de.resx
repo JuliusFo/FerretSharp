@@ -51,6 +51,30 @@
   <data name="Settings_ExplorerViewsHint" xml:space="preserve">
     <value>Der Explorer listet Views und Materialized Views in einem eigenen Bereich – Tabellen | Views | PL/SQL – statt bei den Tabellen. Die Namenssuche nennt weiterhin die Treffer in den anderen Bereichen.</value>
   </data>
+  <data name="Settings_DataView" xml:space="preserve">
+    <value>Datenansicht</value>
+  </data>
+  <data name="Settings_HeaderTypes" xml:space="preserve">
+    <value>Typ im Spaltenkopf</value>
+  </data>
+  <data name="Settings_HeaderTypesHint" xml:space="preserve">
+    <value>Zeigt den Oracle-Typ einer Spalte, z. B. {0}, unter ihrem Namen im Spaltenkopf – im Grid einer Tabelle und im Ergebnis einer Abfrage.</value>
+  </data>
+  <data name="Settings_HeaderNotNull" xml:space="preserve">
+    <value>{0} im Spaltenkopf</value>
+  </data>
+  <data name="Settings_HeaderNotNullHint" xml:space="preserve">
+    <value>Kennzeichnet die Spalten, die einen Wert haben müssen. Ist auch der Typ aus, entfällt diese Zeile, und der Kopf wird niedriger.</value>
+  </data>
+  <data name="Settings_FilterSql" xml:space="preserve">
+    <value>SQL eines Filters</value>
+  </data>
+  <data name="Settings_FilterSqlHint" xml:space="preserve">
+    <value>Was „SQL“ in der Filterleiste zeigt und im SQL-Editor öffnet: das Statement des Grids – ROWID, jede Spalte, LOBs als Vorschau und Länge, die erste Seite – oder {0} nur mit Filter und Sortierung.</value>
+  </data>
+  <data name="Settings_FilterSqlListed" xml:space="preserve">
+    <value>Jede Spalte</value>
+  </data>
   <data name="Settings_ThemeSystem" xml:space="preserve">
     <value>System</value>
   </data>

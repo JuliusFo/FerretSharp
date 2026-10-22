@@ -1,0 +1,28 @@
+@* Settings › Data view: type and NOT NULL in the column headers (table grid and SQL result), and what "SQL" in the filter bar shows. *@
+@inject AppSettingsService Settings
+
+<section class="settings-section">
+    <h2>@SettingsViewText.Settings_DataView</h2>
+    <SettingsChoice TValue="bool" Filter="Filter" Key="SettingKey.HeaderTypes" Label="@SettingsViewText.Settings_HeaderTypes" Options="SettingsOptions.OnOff"
+                    Value="Settings.Current.ShowColumnTypes" OnChange="on => UpdateAsync(s => s with { ShowColumnTypes = on })">
+        <Hint><Fmt Text="@SettingsViewText.Settings_HeaderTypesHint"><Arg0><code>@SettingsCatalog.HeaderTypeExample</code></Arg0></Fmt></Hint>
+    </SettingsChoice>
+    <SettingsChoice TValue="bool" Filter="Filter" Key="SettingKey.HeaderNotNull" Label="@TextFormat.Format(SettingsViewText.Settings_HeaderNotNull, SettingsCatalog.NotNull)"
+                    Options="SettingsOptions.OnOff" Value="Settings.Current.ShowNotNull" OnChange="on => UpdateAsync(s => s with { ShowNotNull = on })">
+        <Hint>@SettingsViewText.Settings_HeaderNotNullHint</Hint>
+    </SettingsChoice>
+    <SettingsChoice TValue="FilterSqlColumns" Filter="Filter" Key="SettingKey.FilterSql" Label="@SettingsViewText.Settings_FilterSql" Options="SettingsOptions.FilterSql"
+                    Value="Settings.Current.FilterSql" OnChange="columns => UpdateAsync(s => s with { FilterSql = columns })">
+        <Hint><Fmt Text="@SettingsViewText.Settings_FilterSqlHint"><Arg0><code>@SettingsCatalog.FilterSqlStar</code></Arg0></Fmt></Hint>
+    </SettingsChoice>
+</section>
+
+@code {
+    [CascadingParameter]
+    public ShellState Shell { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public SettingsFilter Filter { get; set; } = null!;
+
+    private Task UpdateAsync(Func<AppSettings, AppSettings> change) => Shell.TrySaveSettingsAsync(() => Settings.UpdateAsync(change, CancellationToken.None));
+}

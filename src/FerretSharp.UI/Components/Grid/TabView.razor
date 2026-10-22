@@ -9,6 +9,7 @@
 @implements IDisposable
 @inject ILogger<TabView> Logger
 @inject ShortcutService Shortcuts
+@inject AppSettingsService Settings
 
 <div class="tabview">
     <div class="tab-toolbar">
@@ -487,7 +488,10 @@
         Shell.OpenSql(sql + ";\n", parameters.Select(SqlBinds.FromParameter).ToList());
     }
 
-    /// <summary>Shows the statement for the filters as currently edited (or the applied ones if the edit is invalid).</summary>
+    /// <summary>
+    /// Shows the statement for the filters as currently edited (or the applied ones if the edit is invalid): the grid's own,
+    /// or <c>SELECT t.*</c> as the setting says.
+    /// </summary>
     private void ShowSql()
     {
         if (_details is null)
@@ -499,8 +503,16 @@
         var filters = QueryBuilder.Validate(_details, edited).Count == 0 ? edited : Tab.AppliedFilters;
         try
         {
-            var query = QueryBuilder.BuildSelect(_details, filters, Tab.Sorts, new PageSpec(0, 500));
-            _sql = (query.Sql, query.Parameters, null);
+            if (Settings.Current.FilterSql == FilterSqlColumns.Star)
+            {
+                var star = QueryBuilder.BuildSelectStar(_details, filters, Tab.Sorts);
+                _sql = (star.Sql, star.Parameters, null);
+            }
+            else
+            {
+                var query = QueryBuilder.BuildSelect(_details, filters, Tab.Sorts, new PageSpec(0, 500));
+                _sql = (query.Sql, query.Parameters, null);
+            }
         }
         catch (QueryValidationException ex)
         {
