@@ -117,8 +117,8 @@ public sealed class RowTraversal(
             // All children of these rows go on along the path, also those the graph had already (reached by another path).
             var parentKeys = rows.Select(r => r.Key).ToHashSet();
             var children = graph.Of(next.Key.From);
-            List<RowData> reached = children is null ? [] : [.. graph.Links
-                .Where(l => l.Relation == next.Key && parentKeys.Contains(l.Parent))
+            List<RowData> reached = children is null ? [] : [.. graph.LinksAlong(next.Key)
+                .Where(l => parentKeys.Contains(l.Parent))
                 .Select(l => l.Child).Distinct()
                 .Select(k => children.Find(k)).OfType<RowData>()];
             graph.NoteReached(next.First().Take(depth + 1).ToList(), reached.Count);

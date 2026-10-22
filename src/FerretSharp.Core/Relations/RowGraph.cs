@@ -15,6 +15,7 @@ public sealed class RowGraph
     private readonly List<TableRef> _order = [];
     private readonly HashSet<RowLink> _links = [];
     private readonly List<RowLink> _linkOrder = [];
+    private readonly Dictionary<ForeignKeyInfo, List<RowLink>> _byRelation = [];
     private readonly List<RelationProblem> _problems = [];
     private readonly Dictionary<string, int> _reached = new(StringComparer.Ordinal);
 
@@ -35,7 +36,13 @@ public sealed class RowGraph
     public int? ReachedAlong(IReadOnlyList<ForeignKeyInfo> path) => _reached.TryGetValue(RelationGraph.PathKey(path), out var rows) ? rows : null;
 
     /// <summary>The distinct rows linked as parents along a relationship.</summary>
-    public int ParentsAlong(ForeignKeyInfo relation) => _linkOrder.Where(l => l.Relation == relation).Select(l => l.Parent).Distinct().Count();
+    public int ParentsAlong(ForeignKeyInfo relation) => LinksAlong(relation).Select(l => l.Parent).Distinct().Count();
+
+    /// <summary>Links along one relationship, in the order they were found.</summary>
+    public IReadOnlyList<RowLink> LinksAlong(ForeignKeyInfo relation) => _byRelation.GetValueOrDefault(relation) ?? [];
+
+    /// <summary>The relationships with at least one link.</summary>
+    public IReadOnlyCollection<ForeignKeyInfo> RelationsLinked => _byRelation.Keys;
 
     internal void NoteReached(IReadOnlyList<ForeignKeyInfo> path, int rows) => _reached[RelationGraph.PathKey(path)] = rows;
 
@@ -63,6 +70,12 @@ public sealed class RowGraph
         if (_links.Add(link))
         {
             _linkOrder.Add(link);
+            if (!_byRelation.TryGetValue(link.Relation, out var along))
+            {
+                _byRelation[link.Relation] = along = [];
+            }
+
+            along.Add(link);
         }
     }
 

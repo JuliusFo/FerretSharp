@@ -128,4 +128,12 @@
     <value>{1}: {0:N0} rows of {2} it references are missing in the target, and relationship {3} is switched off – the copied rows will reference nothing there.</value>
     <comment>{0}: number of missing rows; {1}: referencing table; {2}: referenced table; {3}: relationship without constraint</comment>
   </data>
+  <data name="CopyValueNotConvertibleOne" xml:space="preserve">
+    <value>{1}: {0:N0} value of column {2} does not convert to {3} in the target.</value>
+    <comment>{0}: number of values; {1}: table; {2}: column; {3}: target type, e.g. NUMBER(10)</comment>
+  </data>
+  <data name="CopyValueNotConvertibleOther" xml:space="preserve">
+    <value>{1}: {0:N0} values of column {2} do not convert to {3} in the target.</value>
+    <comment>{0}: number of values; {1}: table; {2}: column; {3}: target type, e.g. NUMBER(10)</comment>
+  </data>
 </root>

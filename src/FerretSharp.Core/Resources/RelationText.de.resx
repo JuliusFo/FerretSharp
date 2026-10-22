@@ -99,4 +99,10 @@
   <data name="CopyParentMissingUncheckedOther" xml:space="preserve">
     <value>{1}: {0:N0} Zeilen von {2}, auf die verwiesen wird, fehlen im Ziel, und die Beziehung {3} ist abgewählt – die kopierten Zeilen verweisen dort ins Leere.</value>
   </data>
+  <data name="CopyValueNotConvertibleOne" xml:space="preserve">
+    <value>{1}: {0:N0} Wert der Spalte {2} lässt sich nicht in {3} des Ziels umwandeln.</value>
+  </data>
+  <data name="CopyValueNotConvertibleOther" xml:space="preserve">
+    <value>{1}: {0:N0} Werte der Spalte {2} lassen sich nicht in {3} des Ziels umwandeln.</value>
+  </data>
 </root>

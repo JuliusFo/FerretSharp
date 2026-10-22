@@ -1,4 +1,5 @@
 using FerretSharp.Core.Data;
+using FerretSharp.Core.Oracle;
 using FerretSharp.Core.Query;
 using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
@@ -34,7 +35,34 @@ public enum CopySeverity
 public sealed record CopyIssue(CopySeverity Severity, TableRef? Table, string Message);
 
 /// <summary>A source column copied into a target column, both by index.</summary>
-public sealed record ColumnMapping(int Source, int Target);
+/// <param name="Convert">
+/// Source values without the target's value type (NUMBER into VARCHAR2): converted as the grid takes a typed value – the
+/// source's edit text parsed for the target column. Without it, ODP.NET would get values it cannot bind.
+/// </param>
+public sealed record ColumnMapping(int Source, int Target, bool Convert = false)
+{
+    /// <summary>The value written into the target column for <paramref name="row"/> (a row of <paramref name="source"/>).</summary>
+    public object? ValueOf(TableDetails source, TableDetails target, RowData row) =>
+        Convert ? Converted(source.Columns[Source], target.Columns[Target], row.Values[Source]).Value : row.Values[Source];
+
+    /// <summary>The value as the target column takes it: unchanged if it has the column's value type already.</summary>
+    internal static ParsedValue Converted(ColumnInfo source, ColumnInfo target, object? value) =>
+        value is null || Fits(target, value) ? ParsedValue.Ok(value)
+        : ColumnCategories.Of(target) == ColumnCategory.Clob ? ParsedValue.Ok(OracleTypeMapper.EditText(source, value))
+        : OracleTypeMapper.Parse(target, OracleTypeMapper.EditText(source, value));
+
+    /// <summary>The value has the type the session binds for the column (<see cref="OracleTypeMapper.BindType"/>).</summary>
+    internal static bool Fits(ColumnInfo target, object value) => (ColumnCategories.Of(target), value) switch
+    {
+        (ColumnCategory.Text or ColumnCategory.Clob, string) => true,
+        (ColumnCategory.Number, decimal or BigNumber) => true,
+        (ColumnCategory.Date or ColumnCategory.Timestamp, DateTime) => true,
+        (ColumnCategory.TimestampWithTimeZone, DateTime) => OracleTypeMapper.IsLocalTimeZone(target),
+        (ColumnCategory.TimestampWithTimeZone, DateTimeOffset) => !OracleTypeMapper.IsLocalTimeZone(target),
+        (ColumnCategory.Raw or ColumnCategory.Blob, byte[]) => true,
+        _ => false,
+    };
+}
 
 /// <summary>One table of a copy: its rows in the order to insert them, where they go and which exist there already.</summary>
 public sealed class TableCopy
@@ -86,6 +114,9 @@ public sealed class TableCopy
     public IReadOnlyList<TableRef> Triggers { get; }
 
     public int NewRows => Rows.Count - Existing.Count;
+
+    /// <summary>The value a source row writes into the target column of <paramref name="column"/>.</summary>
+    public object? ValueOf(RowData row, ColumnMapping column) => column.ValueOf(Source.Details, Target!, row);
 }
 
 /// <summary>
@@ -130,8 +161,9 @@ public sealed class SubgraphCopyPlan
     public const int MaxBatchRows = 500;
 
     /// <summary>
-    /// The writes of the copy with these modes, table after table in the plan's order: per table first the updates of
-    /// existing rows (conflict mode "update"), then the new rows in blocks of <see cref="MaxBatchRows"/>.
+    /// The writes of the copy with these modes, table after table in the plan's order: per table first the new rows in blocks
+    /// of <see cref="MaxBatchRows"/>, then the updates of existing rows (conflict mode "update") – an existing row may get a
+    /// reference to a new row of its own table (a new manager).
     /// </summary>
     /// <param name="source">The source connection's name for the description ("Copy from DEV: 57 rows").</param>
     /// <exception cref="InvalidOperationException">The copy cannot run with these modes (<see cref="CanCopy"/>).</exception>
@@ -146,29 +178,29 @@ public sealed class SubgraphCopyPlan
         foreach (var table in Tables)
         {
             var target = table.Target!;
+            var columns = table.Columns.Select(c => c.Target).ToList();
+            var fresh = table.Rows.Where(r => !table.Existing.Contains(r.Key))
+                .Select(r => (IReadOnlyList<object?>)[.. table.Columns.Select(c => table.ValueOf(r, c))])
+                .ToList();
+            steps.AddRange(fresh.Chunk(MaxBatchRows).Select(rows => new CopyInsert(target, DmlBuilder.InsertBatch(target, columns, rows))));
+
             if (ModeOf(table, modes) == ConflictMode.Update)
             {
                 var keyColumns = target.PrimaryKey.Select(target.IndexOf).ToHashSet();
                 foreach (var row in table.Rows.Where(r => table.Existing.Contains(r.Key)))
                 {
-                    var key = new RowKey.PrimaryKey([.. target.PrimaryKey.Select(name => row.Values[table.Columns.First(c => c.Target == target.IndexOf(name)).Source])]);
-                    var values = table.Columns.Where(c => !keyColumns.Contains(c.Target)).ToDictionary(c => c.Target, c => row.Values[c.Source]);
+                    var key = new RowKey.PrimaryKey([.. target.PrimaryKey.Select(name => table.ValueOf(row, table.Columns.First(c => c.Target == target.IndexOf(name))))]);
+                    var values = table.Columns.Where(c => !keyColumns.Contains(c.Target)).ToDictionary(c => c.Target, c => table.ValueOf(row, c));
                     if (values.Count > 0)
                     {
                         steps.Add(new CopyUpdate(target, key, values));
                     }
                 }
             }
-
-            var columns = table.Columns.Select(c => c.Target).ToList();
-            var fresh = table.Rows.Where(r => !table.Existing.Contains(r.Key))
-                .Select(r => (IReadOnlyList<object?>)[.. table.Columns.Select(c => r.Values[c.Source])])
-                .ToList();
-            steps.AddRange(fresh.Chunk(MaxBatchRows).Select(rows => new CopyInsert(target, DmlBuilder.InsertBatch(target, columns, rows))));
         }
 
-        var written = steps.Sum(s => s is CopyInsert insert ? insert.Batch.Rows : 1);
-        return new CopyWrite(TextFormat.Plural(written, RelationText.CopyActionOne, RelationText.CopyActionOther, source), steps, lockWaitSeconds);
+        var write = new CopyWrite("", steps, lockWaitSeconds);
+        return write with { Description = TextFormat.Plural(write.Rows, RelationText.CopyActionOne, RelationText.CopyActionOther, source) };
     }
 
     /// <summary>The chosen mode; skip if none is chosen or updating is not possible for the table.</summary>

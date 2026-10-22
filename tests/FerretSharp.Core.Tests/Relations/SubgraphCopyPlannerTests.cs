@@ -263,7 +263,7 @@ public class SubgraphCopyPlannerTests
     }
 
     [Fact]
-    public async Task Update_overwrites_existing_rows_by_the_targets_primary_key_before_new_rows_are_inserted()
+    public async Task Update_overwrites_existing_rows_by_the_targets_primary_key_after_the_new_rows_of_the_table()
     {
         _target.Add(In(Target, _kunde), [1m, "x"]);
         _target.Add(In(Target, _mitarbeiter), [10m, null]);
@@ -272,7 +272,8 @@ public class SubgraphCopyPlannerTests
 
         var write = plan.ToWrite(new Dictionary<TableRef, ConflictMode> { [_kunde.Table.Ref] = ConflictMode.Update, [_mitarbeiter.Table.Ref] = ConflictMode.Update }, "DEV", 3);
 
-        Assert.Equal(["CopyUpdate KUNDE", "CopyUpdate MITARBEITER", "CopyInsert MITARBEITER", "CopyInsert AUFTRAG"],
+        // MITARBEITER 10 exists, 11 and 12 are new: an update that pointed 10 at a new manager must find it inserted.
+        Assert.Equal(["CopyUpdate KUNDE", "CopyInsert MITARBEITER", "CopyUpdate MITARBEITER", "CopyInsert AUFTRAG"],
             write.Steps.Select(s => $"{s.GetType().Name} {s.Table.Table.Name}"));
         var kunde = (CopyUpdate)write.Steps[0];
         Assert.Equal(new RowKey.PrimaryKey([1m]), kunde.Key);
@@ -339,6 +340,55 @@ public class SubgraphCopyPlannerTests
 
         _target.Add(In(Target, _mitarbeiter), [12m, null]);
         Assert.Empty((await PlanWithoutClerksAsync()).Issues);
+    }
+
+    [Fact]
+    public async Task A_switched_off_parent_whose_rows_come_along_by_another_way_still_orders_the_tables()
+    {
+        // AUFGABE and PERSONAL are both children of the site; AUFGABE → PERSONAL is switched off, but the staff come along as
+        // children. By name AUFGABE would go first and its insert fail on the target's constraint.
+        var standort = _source.Add(Table("STANDORT", ["ID"], Col("ID", nullable: false)), [1m]);
+        var personal = _source.Add(Table("PERSONAL", ["ID"], Col("ID", nullable: false), Col("STANDORT_ID")), [7m, 1m]);
+        var aufgabe = _source.Add(Table("AUFGABE", ["ID"], Col("ID", nullable: false), Col("STANDORT_ID"), Col("PERSONAL_ID")), [70m, 1m, 7m]);
+        ForeignKeyInfo personalStandort = new("FK_PERSONAL_STANDORT", personal.Table.Ref, ["STANDORT_ID"], standort.Table.Ref, ["ID"], FkSource.Declared);
+        ForeignKeyInfo aufgabeStandort = new("FK_AUFGABE_STANDORT", aufgabe.Table.Ref, ["STANDORT_ID"], standort.Table.Ref, ["ID"], FkSource.Declared);
+        ForeignKeyInfo aufgabePersonal = new("FK_AUFGABE_PERSONAL", aufgabe.Table.Ref, ["PERSONAL_ID"], personal.Table.Ref, ["ID"], FkSource.Declared);
+        _target.Add(In(Target, standort));
+        _target.Add(In(Target, personal));
+        _target.Add(In(Target, aufgabe));
+        var relations = new RelationGraph([personalStandort, aufgabeStandort, aufgabePersonal]);
+        var traversal = new RowTraversal(_source.Data, relations, _source.DetailsOf, wholeLobs: true);
+        var plan = TraversalPlan.Default(relations, standort.Table.Ref) with { SkippedParents = new HashSet<string> { RelationGraph.KeyOf(aufgabePersonal) } };
+        var graph = await traversal.CollectAsync(standort, [new RowKey.PrimaryKey([1m])], plan, null, Ct);
+        var schema = await _target.SchemaAsync(Target);
+
+        var copy = await new SubgraphCopyPlanner("APP", schema, _target.Data).PlanAsync(graph, [aufgabePersonal], Ct);
+
+        Assert.Equal(["STANDORT", "PERSONAL", "AUFGABE"], copy.Tables.Select(t => t.Table.Name));
+        Assert.Empty(copy.Issues);
+    }
+
+    [Fact]
+    public async Task Values_of_another_type_in_the_target_are_converted_and_those_that_do_not_convert_are_an_error()
+    {
+        var ort = _source.Add(Table("ORT", ["ID"], Col("ID", nullable: false), Col("PLZ"), Col("CODE", "VARCHAR2", length: 10)),
+            [1m, 12345m, "7"], [2m, 4711m, "x"]);
+        _target.Add(In(Target, Table("ORT", ["ID"], Col("ID", nullable: false), Col("PLZ", "VARCHAR2", length: 10), Col("CODE"))));
+        var schema = await _target.SchemaAsync(Target);
+        var traversal = new RowTraversal(_source.Data, new RelationGraph([]), _source.DetailsOf, wholeLobs: true);
+        async Task<SubgraphCopyPlan> PlanOf(params decimal[] ids) => await new SubgraphCopyPlanner("APP", schema, _target.Data).PlanAsync(
+            await traversal.CollectAsync(ort, [.. ids.Select(id => (RowKey)new RowKey.PrimaryKey([id]))], TraversalPlan.ParentsOnly, null, Ct), Ct);
+
+        var plan = await PlanOf(1m, 2m);
+
+        Assert.Equal([new ColumnMapping(0, 0), new ColumnMapping(1, 1, Convert: true), new ColumnMapping(2, 2, Convert: true)], plan.Tables[0].Columns);
+        var error = Assert.Single(plan.Issues, i => i.Severity == CopySeverity.Error);
+        Assert.Equal("ORT: 1 Wert der Spalte CODE lässt sich nicht in NUMBER(10) des Ziels umwandeln.", error.Message);
+        Assert.False(plan.CanCopy(Defaults));
+
+        var insert = Assert.IsType<CopyInsert>(Assert.Single((await PlanOf(1m)).ToWrite(Defaults, "DEV", 3).Steps));
+        Assert.Equal(["12345"], insert.Batch.Parameters[1].Values);
+        Assert.Equal([7m], insert.Batch.Parameters[2].Values);
     }
 
     [Fact]

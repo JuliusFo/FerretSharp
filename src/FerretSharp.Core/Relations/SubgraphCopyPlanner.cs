@@ -33,8 +33,18 @@ public sealed class SubgraphCopyPlanner(string sourceOwner, SchemaCache target, 
         var issues = new List<CopyIssue>();
         issues.AddRange(graph.Problems.Select(p => new CopyIssue(CopySeverity.Warning, p.Relation.From, p.Message)));
 
-        var linked = graph.Links.Select(l => l.Relation).Distinct().ToList();
-        var order = RelationGraph.Order(graph.Tables.Select(t => t.Table), linked);
+        // Switched-off parents first: those that come along by another way bind the order like a followed relationship.
+        var skippedIssues = new List<CopyIssue>();
+        var binding = graph.RelationsLinked.ToHashSet();
+        foreach (var relation in skippedParents)
+        {
+            if (await CheckSkippedParentAsync(graph, relation, skippedIssues, cancellationToken))
+            {
+                binding.Add(relation);
+            }
+        }
+
+        var order = RelationGraph.Order(graph.Tables.Select(t => t.Table), binding);
         issues.AddRange(order.Cycles.Select(c => new CopyIssue(CopySeverity.Error, null, TextFormat.Format(RelationText.CopyCycle, c.Display))));
 
         var tables = new List<TableCopy>();
@@ -43,11 +53,7 @@ public sealed class SubgraphCopyPlanner(string sourceOwner, SchemaCache target, 
             tables.Add(await PlanTableAsync(graph, graph.Of(table)!, issues, cancellationToken));
         }
 
-        foreach (var relation in skippedParents)
-        {
-            await CheckSkippedParentAsync(graph, relation, issues, cancellationToken);
-        }
-
+        issues.AddRange(skippedIssues);
         return new SubgraphCopyPlan(tables, [.. issues.OrderBy(i => i.Severity)]);
     }
 
@@ -55,17 +61,21 @@ public sealed class SubgraphCopyPlanner(string sourceOwner, SchemaCache target, 
     /// The rows a switched-off relationship references from the copied rows must be in the target already – or come along
     /// with the copy by another way. What is missing is counted by distinct key.
     /// </summary>
-    private async Task CheckSkippedParentAsync(RowGraph graph, ForeignKeyInfo relation, List<CopyIssue> issues, CancellationToken cancellationToken)
+    /// <returns>
+    /// Whether copied rows reference rows that come along by another way: then their table has to be inserted first, although
+    /// the traversal did not link them along this relationship.
+    /// </returns>
+    private async Task<bool> CheckSkippedParentAsync(RowGraph graph, ForeignKeyInfo relation, List<CopyIssue> issues, CancellationToken cancellationToken)
     {
-        if (graph.Of(relation.From) is not { } children || target.Find(TargetOf(relation.To)) is not { } parentSummary)
+        if (graph.Of(relation.From) is not { } children)
         {
-            return;
+            return false;
         }
 
         var from = relation.FromColumns.Select(children.Details.IndexOf).ToArray();
         if (from.Any(i => i < 0))
         {
-            return;
+            return false;
         }
 
         var trim = from.Any(i => OracleTypes.IsFixedChar(children.Details.Columns[i].DataType));
@@ -73,6 +83,7 @@ public sealed class SubgraphCopyPlanner(string sourceOwner, SchemaCache target, 
             ? parents.Rows.Select(r => RowTraversal.KeyText([.. to.Select(i => r.Values[i] ?? "")], true)).ToHashSet(StringComparer.Ordinal)
             : [];
         var wanted = new Dictionary<string, IReadOnlyList<object>>(StringComparer.Ordinal);
+        var comesAlong = false;
         foreach (var row in children.Rows)
         {
             if (from.Any(i => row.Values[i] is null))
@@ -82,17 +93,26 @@ public sealed class SubgraphCopyPlanner(string sourceOwner, SchemaCache target, 
 
             object[] values = [.. from.Select(i => trim && row.Values[i] is string s ? s.TrimEnd(' ') : row.Values[i]!)];
             var text = RowTraversal.KeyText(values, true);
-            if (!copied.Contains(text))
+            if (copied.Contains(text))
+            {
+                comesAlong = true;
+            }
+            else
             {
                 wanted.TryAdd(text, values);
             }
         }
 
+        if (wanted.Count == 0 || target.Find(TargetOf(relation.To)) is not { } parentSummary)
+        {
+            return comesAlong;
+        }
+
         var parentDetails = await target.GetDetailsAsync(parentSummary, cancellationToken);
         var key = relation.ToColumns.Select(parentDetails.IndexOf).ToArray();
-        if (wanted.Count == 0 || key.Any(i => i < 0))
+        if (key.Any(i => i < 0))
         {
-            return;
+            return comesAlong;
         }
 
         foreach (var found in await targetData.ReadByKeysAsync(parentDetails, key, [.. wanted.Values], wholeLobs: false, cancellationToken))
@@ -102,7 +122,7 @@ public sealed class SubgraphCopyPlanner(string sourceOwner, SchemaCache target, 
 
         if (wanted.Count == 0)
         {
-            return;
+            return comesAlong;
         }
 
         var pairs = relation.FromColumns.Zip(relation.ToColumns).Order().ToList();
@@ -112,6 +132,7 @@ public sealed class SubgraphCopyPlanner(string sourceOwner, SchemaCache target, 
             declared ? RelationText.CopyParentMissingOne : RelationText.CopyParentMissingUncheckedOne,
             declared ? RelationText.CopyParentMissingOther : RelationText.CopyParentMissingUncheckedOther,
             relation.From.Name, relation.To.Name, relation.Name)));
+        return comesAlong;
     }
 
     private async Task<TableCopy> PlanTableAsync(RowGraph graph, TableRows source, List<CopyIssue> issues, CancellationToken cancellationToken)
@@ -141,7 +162,7 @@ public sealed class SubgraphCopyPlanner(string sourceOwner, SchemaCache target, 
         }
 
         var details = await target.GetDetailsAsync(summary, cancellationToken);
-        var columns = MapColumns(source, details, issues);
+        var columns = Conversions(source, details, MapColumns(source, details, issues), issues);
         var conflictKey = ConflictKeyOf(details, columns);
         if (conflictKey is null && !(details.PrimaryKeyEnforced && details.PrimaryKey.Count > 0) && details.UniqueKeys.Count == 0)
         {
@@ -265,6 +286,32 @@ public sealed class SubgraphCopyPlanner(string sourceOwner, SchemaCache target, 
         return mapped;
     }
 
+    /// <summary>
+    /// The columns whose source values lack the target's value type (NUMBER into VARCHAR2), marked to be converted
+    /// (<see cref="ColumnMapping.Convert"/>); values that do not convert (text into NUMBER) are an error.
+    /// </summary>
+    private static List<ColumnMapping> Conversions(TableRows source, TableDetails target, List<ColumnMapping> columns, List<CopyIssue> issues) =>
+    [
+        .. columns.Select(c =>
+        {
+            var (from, to) = (source.Details.Columns[c.Source], target.Columns[c.Target]);
+            var foreign = source.Rows.Select(r => r.Values[c.Source]).Where(v => v is not null && !ColumnMapping.Fits(to, v)).ToList();
+            if (foreign.Count == 0)
+            {
+                return c;
+            }
+
+            var failed = foreign.Count(v => !ColumnMapping.Converted(from, to, v).IsValid);
+            if (failed > 0)
+            {
+                issues.Add(new CopyIssue(CopySeverity.Error, source.Table, TextFormat.Plural(failed,
+                    RelationText.CopyValueNotConvertibleOne, RelationText.CopyValueNotConvertibleOther, source.Table.Name, to.Name, to.DisplayType)));
+            }
+
+            return c with { Convert = true };
+        }),
+    ];
+
     /// <summary>Types written as values (grid editing, LOB editor); INTERVAL, BINARY_DOUBLE, LONG, XMLTYPE … are not.</summary>
     private static bool Copyable(ColumnInfo column) => OracleTypeMapper.IsEditableType(column) || OracleTypeMapper.IsLob(column);
 
@@ -291,7 +338,7 @@ public sealed class SubgraphCopyPlanner(string sourceOwner, SchemaCache target, 
         TableDetails source, RowData sourceRow, TableDetails target, RowData targetRow, IReadOnlyList<ColumnMapping> columns, IReadOnlyList<int> key) =>
         columns.Where(c => !key.Contains(c.Target) && !OracleTypeMapper.IsLob(target.Columns[c.Target])).Where(c =>
         {
-            var (a, b) = (sourceRow.Values[c.Source], targetRow.Values[c.Target]);
+            var (a, b) = (c.ValueOf(source, target, sourceRow), targetRow.Values[c.Target]);
             if (a is null || b is null)
             {
                 return a is not null || b is not null;
@@ -306,18 +353,19 @@ public sealed class SubgraphCopyPlanner(string sourceOwner, SchemaCache target, 
         TableRows source, IReadOnlyList<RowData> rows, TableDetails target, IReadOnlyList<ColumnMapping> columns, IReadOnlyList<int> key,
         CancellationToken cancellationToken)
     {
-        var sourceOf = key.Select(t => columns.First(c => c.Target == t).Source).ToArray();
-        var trim = key.Select(i => target.Columns[i]).Concat(sourceOf.Select(i => source.Details.Columns[i])).Any(c => OracleTypes.IsFixedChar(c.DataType));
+        var mappings = key.Select(t => columns.First(c => c.Target == t)).ToArray();
+        var trim = key.Select(i => target.Columns[i]).Concat(mappings.Select(m => source.Details.Columns[m.Source])).Any(c => OracleTypes.IsFixedChar(c.DataType));
         var byText = new Dictionary<string, List<RowData>>(StringComparer.Ordinal);
         var keys = new List<IReadOnlyList<object>>();
         foreach (var row in rows)
         {
-            if (sourceOf.Any(i => row.Values[i] is null))
+            var written = mappings.Select(m => m.ValueOf(source.Details, target, row)).ToArray();
+            if (written.Any(v => v is null))
             {
                 continue; // a NULL in a unique key never conflicts
             }
 
-            object[] values = [.. sourceOf.Select(i => trim && row.Values[i] is string s ? s.TrimEnd(' ') : row.Values[i]!)];
+            object[] values = [.. written.Select(v => trim && v is string s ? s.TrimEnd(' ') : v!)];
             var text = RowTraversal.KeyText(values, trim);
             if (!byText.TryGetValue(text, out var list))
             {
@@ -352,27 +400,40 @@ public sealed class SubgraphCopyPlanner(string sourceOwner, SchemaCache target, 
     /// </summary>
     private static List<RowData> InsertOrder(RowGraph graph, TableRows table, List<CopyIssue> issues)
     {
-        var self = graph.Links.Where(l => RelationGraph.IsSelfReference(l.Relation) && l.Relation.From == table.Table && !l.Child.Equals(l.Parent)).ToList();
+        var self = graph.RelationsLinked
+            .Where(r => RelationGraph.IsSelfReference(r) && r.From == table.Table)
+            .SelectMany(graph.LinksAlong)
+            .Where(l => !l.Child.Equals(l.Parent))
+            .Select(l => (l.Child, l.Parent))
+            .Distinct()
+            .ToList();
         if (self.Count == 0)
         {
             return [.. table.Rows];
         }
 
-        var waitingFor = table.Rows.ToDictionary(r => r.Key, r => self.Where(l => l.Child.Equals(r.Key)).Select(l => l.Parent).ToHashSet());
-        var ordered = new List<RowData>(table.Rows.Count);
-        var placed = new HashSet<RowKey>();
-        while (ordered.Count < table.Rows.Count)
+        // Level by level, each level in the order found: a row is ready once the last of its parents is placed.
+        var position = table.Rows.Select((row, i) => (row.Key, i)).ToDictionary(p => p.Key, p => p.i);
+        var waiting = table.Rows.ToDictionary(r => r.Key, _ => 0);
+        foreach (var (child, _) in self)
         {
-            var ready = table.Rows.Where(r => !placed.Contains(r.Key) && waitingFor[r.Key].All(placed.Contains)).ToList();
-            if (ready.Count == 0)
-            {
-                issues.Add(new CopyIssue(CopySeverity.Error, table.Table, TextFormat.Format(RelationText.CopyRowCycle, table.Table.Name)));
-                ordered.AddRange(table.Rows.Where(r => !placed.Contains(r.Key)));
-                break;
-            }
+            waiting[child]++;
+        }
 
-            ordered.AddRange(ready);
-            placed.UnionWith(ready.Select(r => r.Key));
+        var staff = self.ToLookup(l => l.Parent, l => l.Child);
+        var ordered = new List<RowData>(table.Rows.Count);
+        var level = table.Rows.Where(r => waiting[r.Key] == 0).ToList();
+        while (level.Count > 0)
+        {
+            ordered.AddRange(level);
+            level = [.. level.SelectMany(r => staff[r.Key]).Where(child => --waiting[child] == 0)
+                .Select(child => position[child]).Order().Select(i => table.Rows[i])];
+        }
+
+        if (ordered.Count < table.Rows.Count)
+        {
+            issues.Add(new CopyIssue(CopySeverity.Error, table.Table, TextFormat.Format(RelationText.CopyRowCycle, table.Table.Name)));
+            ordered.AddRange(table.Rows.Where(r => waiting[r.Key] > 0));
         }
 
         return ordered;
