@@ -75,6 +75,8 @@ Selten, ungeprüft oder bewusst zurückgestellt – vor dem Anfassen nachstellen
 - Excel-Export (Fortsetzung von WP-53): ein Blatt je Ergebnis, wenn der SQL-Editor mehrere Ergebnisse zeigt (bei der Planung zurückgestellt, Entscheidung des Nutzers 2026-10-17 – Speichern je Ergebnis-Menü reicht).
 - Export: Option „Formeln entschärfen“ für CSV und „Als Tabelle kopieren“ (Textwerte, die mit `=`, `+`, `-`, `@` beginnen, mit führendem `'` – Excel wertet sie sonst als Formel aus). Entscheidung des Nutzers (Gesamt-Review 3.31.0, A38): Standard bleibt der exakte Wert, nur als Option bei Bedarf.
 - Native Dialoge: zuletzt verwendeten Export-Ordner merken.
+- „Bereich exportieren“ (Fortsetzung von WP-58): einen Zellbereich bzw. markierte Spalten als CSV/Excel speichern, nur diese Zellen. In WP-58 gelten die Zeilen eines Zellbereichs nicht als markierte Zeilen, die zeilenbezogenen Exporte nehmen ihn also nicht (Entscheidung des Nutzers 2026-10-22).
+- Werte aller Zeilen (Kopfmenü von WP-57, markierte Spalten in WP-58) mit ausstehenden Änderungen: die Werte aus dem `ChangeTracker` über den Zeilenschlüssel in die gelesenen Werte einmischen, damit die Kopie wie angezeigt ist. Bis dahin liefert das Lesen den Stand der Datenbank, mit Hinweis in der Statusleiste (Entscheidung des Nutzers 2026-10-22). Offen: Zeilen, die durch ausstehende Änderungen in den Filter hinein- oder aus ihm herausfallen.
 
 ## SQL-Editor, PL/SQL, Explain-Plan
 

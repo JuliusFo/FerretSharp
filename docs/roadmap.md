@@ -91,13 +91,18 @@ Branch `wp/47-since-last-visit`.
 - **Kopieren (Ctrl+C, Zellmenü):** Ein Bereich wird als Tabulator-getrennter Text kopiert (Zeilen × Spalten), wie angezeigt mit ausstehenden Werten (A21). Neuer Aufruf `OnCopyRange(fromRow, toRow, colIds)` an `FerretGrid`/`SqlResultGrid`, der Text entsteht in Core. Liegen im Bereich noch nicht geladene Zeilen (selten, weil Ziehen mit Auto-Scroll sie lädt), liest .NET die fehlenden Blöcke nach. Markierte Spalten liefern die Werte aller Zeilen über den Weg von WP-57 (Abfrage wie „Alle Zeilen“, mit Obergrenze), mehrere Spalten nebeneinander.
 - **Fußzeile:** zeigt „3 × 4 Zellen“ bzw. „2 Spalten“ statt der Zahl markierter Zeilen.
 - **Nicht in diesem Paket (bleibt im Backlog bzw. kommt dorthin):** mehrere Zellen aus Excel einfügen (Backlog, Editieren), Entf auf einen Bereich (NULL setzen), Ausfüllen nach unten, Summe und Anzahl markierter Zahlen in der Fußzeile, mehrere getrennte Bereiche (Ctrl+Ziehen).
-- Offen:
-  - Markiert ein einfacher Klick weiter die Zeile oder nur noch die Zelle wie in Excel? Vorschlag: weiter die Zeile, sonst ändern sich Export, Formular und Zeilenvergleich.
-  - Gelten die Zeilen eines Zellbereichs für Export, Formular und Vergleich als markierte Zeilen?
-  - Spalten per Ctrl+Klick im Kopf markieren oder über einen schmalen Streifen im Kopf?
-  - Die Kopfzeile mitkopieren? Vorschlag: nein, wie Excel; „Als Tabelle kopieren“ bleibt mit Kopf.
-  - Obergrenze für Bereiche mit nicht geladenen Zeilen.
-  - Spaltenmarkierung im SQL-Ergebnis: Die Abfrage läuft dann noch einmal, wie bei WP-57.
+- Entscheidungen des Nutzers (2026-10-22):
+  - **Einfacher Klick:** markiert weiter die ganze Zeile, nicht die Zelle wie in Excel. Export, Formular, Zeilenvergleich, Entf und Ctrl+C hängen an der Zeilenauswahl. Einen Zellbereich startet erst Ziehen über mehrere Zellen oder Shift+←/→.
+  - **Zeilen eines Zellbereichs:** gelten **nicht** als markierte Zeilen, es bleibt bei einer Art Auswahl. Formular, Zeilenvergleich und die zeilenbezogenen Exporte (INSERT, CSV, Excel) verhalten sich bei einem Zellbereich wie ohne Zeilenauswahl. „Bereich exportieren“ (CSV/Excel nur der markierten Zellen) kommt in den Backlog.
+  - **Spalten markieren:** per Ctrl+Klick auf den Kopf, dazu „Spalte markieren“ im Kopfmenü; kein eigener Streifen (kostet Höhe und kollidiert mit Verschieben und Breite ändern). Ctrl ist im Kopf frei: Shift+Klick bleibt die Mehrfachsortierung (`progressSort(e.shiftKey)`), `FerretHeader` sortiert bei Ctrl nicht.
+  - **Kopfzeile:** Ctrl+C kopiert ohne Kopf, wie Excel, damit der Bereich direkt in eine bestehende Tabelle oder einen Filter passt. „Als Tabelle kopieren“ im Zellmenü kopiert bei einem Zellbereich bzw. markierten Spalten genau diese mit Kopf; ein eigener Eintrag „Mit Spaltennamen kopieren“ ist damit nicht nötig.
+  - **Obergrenze:** dieselbe Regel wie WP-57, 100 000 Werte, hier gezählt als Zellen (Zeilen × Spalten), für Zellbereiche und markierte Spalten (`ColumnValues.MaxValues`). Darüber wird **nichts** kopiert, mit Hinweis auf „Alle Zeilen“ als CSV/Excel – ein still gekürzter Bereich sähe vollständig aus.
+  - **Spalten im SQL-Ergebnis:** Die Abfrage läuft noch einmal, wie bei WP-57 (der Leseweg lässt nur SELECT zu). Sind schon alle Zeilen geladen (letzter Block kürzer als die Blockgröße), kommen die Werte aus den geladenen Blöcken, ohne neuen Roundtrip über das VPN. Beim Start prüfen, ob WP-57 das schon so macht.
+  - **Menüs von WP-57:** Das Zellmenü bezieht sich immer auf die aktive Auswahl: bei einem Zellbereich auf seine Zellen, bei markierten Spalten auf alle Zeilen (Weg von WP-57), sonst wie heute auf die geklickte Spalte der markierten Zeilen.
+    - Bei einem Zellbereich entfällt „Spalte X kopieren“, Ctrl+C liefert bei einer Spalte schon dasselbe (ein Wert je Zeile, Anführungszeichen wie Excel über `AppendField`). „Als IN-Liste“ gilt für die Zellen des Bereichs (Datenbankwerte, ohne Duplikate) und nur, wenn er genau eine Spalte breit ist.
+    - Der Rechtsklick auf markierte Spalten zeigt dieselben Einträge wie das Kopfmenü („Werte kopieren“, „Als IN-Liste“, gleicher Code über `ColumnValuesMenuItems`).
+    - Bleiben: das Kopfmenü als direkter Weg zu allen Werten ohne vorheriges Markieren (im SQL-Ergebnis der einzige Einstieg) und „Spalte X kopieren“ im Zellmenü für markierte Zeilen.
+  - **Ausstehende Änderungen:** Ein Zellbereich kopiert wie angezeigt mit ausstehenden Werten (A21), markierte Spalten lesen über den Weg von WP-57 den Stand der Datenbank (geschriebene Änderungen ja, ausstehende nein). Hat der Tab in diesen Spalten ausstehende Änderungen, zeigt die Statusleiste nach dem Kopieren einen Hinweis („Stand der Datenbank, N ausstehende Änderungen nicht enthalten“). Die ausstehenden Werte über den Zeilenschlüssel einzumischen kommt in den Backlog.
 
 ## Offene UX-Fragen
 - Workspaces: Standardname ist „Workspace N“ mit der kleinsten freien Nummer (nach Umbenennen von „Workspace 1“ heißt der nächste wieder „Workspace 1“) – so lassen oder fortlaufend zählen?
