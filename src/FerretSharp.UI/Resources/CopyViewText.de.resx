@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Title" xml:space="preserve">
+    <value>In andere Verbindung kopieren</value>
+  </data>
+  <data name="SourceOne" xml:space="preserve">
+    <value>{0:N0} Zeile von {1} aus {2}</value>
+  </data>
+  <data name="SourceOther" xml:space="preserve">
+    <value>{0:N0} Zeilen von {1} aus {2}</value>
+  </data>
+  <data name="SourceTransaction" xml:space="preserve">
+    <value>Dieser Workspace hat nicht committete Änderungen: Die Kopie nimmt die Zeilen, wie er sie sieht.</value>
+  </data>
+  <data name="TargetHeading" xml:space="preserve">
+    <value>Ziel</value>
+  </data>
+  <data name="TargetLocked" xml:space="preserve">
+    <value>{0} (gesperrt – zum Kopieren freischalten)</value>
+  </data>
+  <data name="NoTarget" xml:space="preserve">
+    <value>Keine andere Verbindung ist offen. Öffne zuerst die Zielverbindung.</value>
+  </data>
+  <data name="ChildrenHeading" xml:space="preserve">
+    <value>Kinder</value>
+  </data>
+  <data name="ChildrenHint" xml:space="preserve">
+    <value>Zeilen, die auf die kopierten verweisen, entlang der gewählten Beziehungen, bis {0} Ebenen tief. Eltern kommen immer mit.</value>
+  </data>
+  <data name="NoChildren" xml:space="preserve">
+    <value>Keine Tabelle verweist auf {0}.</value>
+  </data>
+  <data name="Via" xml:space="preserve">
+    <value>über {0}</value>
+  </data>
+  <data name="ShowChildren" xml:space="preserve">
+    <value>Tabellen zeigen, die auf {0} verweisen</value>
+  </data>
+  <data name="Read" xml:space="preserve">
+    <value>Zeilen lesen</value>
+  </data>
+  <data name="ReadAgain" xml:space="preserve">
+    <value>Neu lesen</value>
+  </data>
+  <data name="ChoiceChanged" xml:space="preserve">
+    <value>Die Auswahl hat sich geändert, seit die Zeilen gelesen wurden.</value>
+  </data>
+  <data name="Reading" xml:space="preserve">
+    <value>Lese {0} … bisher {1:N0} Zeilen</value>
+  </data>
+  <data name="PreviewHeading" xml:space="preserve">
+    <value>Zu kopierende Zeilen</value>
+  </data>
+  <data name="ColumnTable" xml:space="preserve">
+    <value>Tabelle</value>
+  </data>
+  <data name="ColumnTarget" xml:space="preserve">
+    <value>Im Ziel</value>
+  </data>
+  <data name="ColumnRows" xml:space="preserve">
+    <value>Zeilen</value>
+  </data>
+  <data name="ColumnNew" xml:space="preserve">
+    <value>Neu</value>
+  </data>
+  <data name="ColumnExisting" xml:space="preserve">
+    <value>Vorhanden</value>
+  </data>
+  <data name="ColumnConflict" xml:space="preserve">
+    <value>Wenn vorhanden</value>
+  </data>
+  <data name="ModeSkip" xml:space="preserve">
+    <value>Überspringen</value>
+  </data>
+  <data name="ModeUpdate" xml:space="preserve">
+    <value>Aktualisieren</value>
+  </data>
+  <data name="ModeAbort" xml:space="preserve">
+    <value>Abbrechen</value>
+  </data>
+  <data name="UpdateNeedsKey" xml:space="preserve">
+    <value>Aktualisieren braucht den Primärschlüssel des Ziels.</value>
+  </data>
+  <data name="ParentsHeading" xml:space="preserve">
+    <value>Eltern über</value>
+  </data>
+  <data name="ParentsHint" xml:space="preserve">
+    <value>Zeilen, auf die die kopierten verweisen, kommen mit – sonst wäre die Beziehung im Ziel verletzt. Schalte eine nur ab, wenn diese Zeilen dort schon stehen.</value>
+  </data>
+  <data name="ParentRows" xml:space="preserve">
+    <value>{0} · {1:N0} Zeilen von {2}</value>
+  </data>
+  <data name="CheckHeading" xml:space="preserve">
+    <value>Prüfung</value>
+  </data>
+  <data name="Copy" xml:space="preserve">
+    <value>Kopieren</value>
+  </data>
+  <data name="CopyTitle" xml:space="preserve">
+    <value>Schreibt als eine Aktion in die Transaktion des Ziel-Workspaces – dort mit ↶ zurücknehmen, Commit wie gewohnt.</value>
+  </data>
+  <data name="Copied" xml:space="preserve">
+    <value>{0} – in {1}, noch nicht committet.</value>
+  </data>
+</root>

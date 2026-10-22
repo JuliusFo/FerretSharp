@@ -100,6 +100,10 @@
         }
     </ExportMenuItems>
 
+    <button class="menu-item" disabled="@(CopyUnavailable is not null)" title="@(CopyUnavailable ?? GridText.GridMenu_CopyToConnectionTitle)" @onclick="CopyToConnectionAsync">
+        @GridText.GridMenu_CopyToConnection
+    </button>
+
     @if (_presentation.Entity is not null)
     {
         var seed = CSharpRows.HasDataUnavailable(_presentation);
@@ -201,6 +205,19 @@
     [Parameter]
     public EventCallback<SetValueRequest> OnSetValue { get; set; }
 
+    /// <summary>Why the rows cannot be copied to another connection (none open, a view); null if they can (WP-42).</summary>
+    [Parameter]
+    public string? CopyUnavailable { get; set; }
+
+    /// <summary>Opens the copy of the selected rows (or the clicked one) into another connection (WP-42).</summary>
+    [Parameter]
+    public EventCallback OnCopyToConnection { get; set; }
+
+    private async Task CopyToConnectionAsync()
+    {
+        await CloseAsync();
+        await OnCopyToConnection.InvokeAsync();
+    }
 
     private async Task OpenLobAsync()
     {
@@ -256,7 +273,7 @@
     }
 
     /// <summary>For the first placement; dom.js keepInViewport corrects it once rendered.</summary>
-    private double EstimatedHeight => 336 + ItemHeight * (_jumps.Count + Math.Max(0, _jumps.Headings - 2) + (ExportMenuItems.OffersRaw(_xlsxColumns) ? 2 : 1) + ExportMenuItems.ColumnEntries + ExportMenuItems.AllRowsEntries(_allRows, _xlsxColumns))
+    private double EstimatedHeight => 336 + ItemHeight + ItemHeight * (_jumps.Count + Math.Max(0, _jumps.Headings - 2) + (ExportMenuItems.OffersRaw(_xlsxColumns) ? 2 : 1) + ExportMenuItems.ColumnEntries + ExportMenuItems.AllRowsEntries(_allRows, _xlsxColumns))
                                       + (_cell is null ? 0 : 128) + (Request.MissingRows > 0 ? 40 : 0)
                                       + (Request.Marks is null ? 0 : ItemHeight * (MarkedCellsMenuItems.Entries - 1 - ExportMenuItems.ColumnEntries))
                                       + (!CanEdit ? 0 : Request.Marks is not null ? ItemHeight * 4 : Request.Selected.Count > 1 ? ItemHeight : 0);

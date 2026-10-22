@@ -65,7 +65,7 @@ public sealed record CopyWrite(string Description, IReadOnlyList<CopyStep> Steps
 /// the reason (Oracle's, or a row that went missing).
 /// </summary>
 public sealed class CopyFailedException(CopyStep step, string reason, Exception? inner = null)
-    : Exception(TextFormat.Format(DataText.CopyFailed, step.Table.Table.DisplayName, reason), inner)
+    : RefusedException(TextFormat.Format(DataText.CopyFailed, step.Table.Table.DisplayName, reason), inner)
 {
     public CopyStep Step { get; } = step;
 }

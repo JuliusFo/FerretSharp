@@ -1164,4 +1164,16 @@
     <value>Connection lost – reconnects after the running work</value>
     <comment>Status bar</comment>
   </data>
+  <data name="Changes_SourceCopy" xml:space="preserve">
+    <value>Copy</value>
+    <comment>Source label of a write in the change overview: rows copied from another connection</comment>
+  </data>
+  <data name="Changes_MoreStatements" xml:space="preserve">
+    <value>-- … {0:N0} more statements</value>
+    <comment>SQL comment at the end of a long list of statements; {0}: number left out</comment>
+  </data>
+  <data name="Changes_RedoCopyTitle" xml:space="preserve">
+    <value>Copy the rows again – asks first</value>
+    <comment>Tooltip of the redo button of a copy from another connection</comment>
+  </data>
 </root>

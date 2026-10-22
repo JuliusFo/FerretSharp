@@ -945,4 +945,13 @@
   <data name="Status_ReconnectHolding" xml:space="preserve">
     <value>Verbindung verloren – verbindet nach der laufenden Arbeit neu</value>
   </data>
+  <data name="Changes_SourceCopy" xml:space="preserve">
+    <value>Kopie</value>
+  </data>
+  <data name="Changes_MoreStatements" xml:space="preserve">
+    <value>-- … {0:N0} weitere Statements</value>
+  </data>
+  <data name="Changes_RedoCopyTitle" xml:space="preserve">
+    <value>Die Zeilen erneut kopieren – fragt vorher</value>
+  </data>
 </root>

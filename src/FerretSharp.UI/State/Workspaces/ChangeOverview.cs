@@ -1,7 +1,9 @@
 using FerretSharp.Core.ClrModel;
 using FerretSharp.Core.Data;
 using FerretSharp.Core.Query;
+using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
+using FerretSharp.UI.Resources;
 
 namespace FerretSharp.UI.State;
 
@@ -66,7 +68,15 @@ public static class ChangeOverview
     /// The statements of a written action with their bind values, as the user may run them again – shown in the UI only,
     /// also on Prod (CLAUDE.md: never in a log). The ROWID output of an INSERT is left out.
     /// </summary>
-    public static string Sql(WriteAction action) =>
-        string.Join(Environment.NewLine + Environment.NewLine, action.Statements.Select(s =>
-            BindValues.Describe(new QuerySpec(s.Sql, s.Parameters.Where(p => !p.Output).ToList()), mask: false) + ";"));
+    public static string Sql(WriteAction action)
+    {
+        var shown = action.Statements.Take(MaxStatements).Select(s =>
+            BindValues.Describe(new QuerySpec(s.Sql, s.Parameters.Where(p => !p.Output).ToList()), mask: false) + ";");
+        var more = action.Statements.Count - MaxStatements;
+        return string.Join(Environment.NewLine + Environment.NewLine,
+            more > 0 ? [.. shown, TextFormat.Format(ShellText.Changes_MoreStatements, more)] : shown);
+    }
+
+    /// <summary>Statements of one action shown at most: a copy (WP-42) writes up to 10,000 rows, one INSERT each in the list.</summary>
+    public const int MaxStatements = 100;
 }

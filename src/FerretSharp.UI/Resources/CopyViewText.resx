@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Title" xml:space="preserve">
+    <value>Copy to another connection</value>
+    <comment>Dialog title</comment>
+  </data>
+  <data name="SourceOne" xml:space="preserve">
+    <value>{0:N0} row of {1} from {2}</value>
+    <comment>{0}: number of selected rows; {1}: table; {2}: source connection</comment>
+  </data>
+  <data name="SourceOther" xml:space="preserve">
+    <value>{0:N0} rows of {1} from {2}</value>
+    <comment>{0}: number of selected rows; {1}: table; {2}: source connection</comment>
+  </data>
+  <data name="SourceTransaction" xml:space="preserve">
+    <value>This workspace has uncommitted changes: the copy takes the rows as it sees them.</value>
+  </data>
+  <data name="TargetHeading" xml:space="preserve">
+    <value>Target</value>
+    <comment>Section heading: where the rows go</comment>
+  </data>
+  <data name="TargetLocked" xml:space="preserve">
+    <value>{0} (locked – unlock it to copy)</value>
+    <comment>{0}: connection and workspace</comment>
+  </data>
+  <data name="NoTarget" xml:space="preserve">
+    <value>No other connection is open. Open the target connection first.</value>
+  </data>
+  <data name="ChildrenHeading" xml:space="preserve">
+    <value>Children</value>
+    <comment>Section heading: rows that reference the copied rows</comment>
+  </data>
+  <data name="ChildrenHint" xml:space="preserve">
+    <value>Rows that reference the copied rows, along the chosen relationships, up to {0} levels deep. Parents always come along.</value>
+    <comment>{0}: maximum depth, 3</comment>
+  </data>
+  <data name="NoChildren" xml:space="preserve">
+    <value>No table references {0}.</value>
+    <comment>{0}: table</comment>
+  </data>
+  <data name="Via" xml:space="preserve">
+    <value>via {0}</value>
+    <comment>{0}: name of the relationship, e.g. FK_AUFTRAG_KUNDE</comment>
+  </data>
+  <data name="ShowChildren" xml:space="preserve">
+    <value>Show the tables that reference {0}</value>
+    <comment>{0}: table</comment>
+  </data>
+  <data name="Read" xml:space="preserve">
+    <value>Read rows</value>
+    <comment>Button</comment>
+  </data>
+  <data name="ReadAgain" xml:space="preserve">
+    <value>Read again</value>
+    <comment>Button: the choice changed since the rows were read</comment>
+  </data>
+  <data name="ChoiceChanged" xml:space="preserve">
+    <value>The choice changed since the rows were read.</value>
+  </data>
+  <data name="Reading" xml:space="preserve">
+    <value>Reading {0} … {1:N0} rows so far</value>
+    <comment>{0}: table; {1}: rows found so far</comment>
+  </data>
+  <data name="PreviewHeading" xml:space="preserve">
+    <value>Rows to copy</value>
+    <comment>Section heading</comment>
+  </data>
+  <data name="ColumnTable" xml:space="preserve">
+    <value>Table</value>
+    <comment>Column heading</comment>
+  </data>
+  <data name="ColumnTarget" xml:space="preserve">
+    <value>In the target</value>
+    <comment>Column heading: the target table</comment>
+  </data>
+  <data name="ColumnRows" xml:space="preserve">
+    <value>Rows</value>
+    <comment>Column heading</comment>
+  </data>
+  <data name="ColumnNew" xml:space="preserve">
+    <value>New</value>
+    <comment>Column heading: rows the target does not have</comment>
+  </data>
+  <data name="ColumnExisting" xml:space="preserve">
+    <value>Exist</value>
+    <comment>Column heading: rows the target has already</comment>
+  </data>
+  <data name="ColumnConflict" xml:space="preserve">
+    <value>If it exists</value>
+    <comment>Column heading: what happens to a row the target has already</comment>
+  </data>
+  <data name="ModeSkip" xml:space="preserve">
+    <value>Skip</value>
+    <comment>Conflict mode</comment>
+  </data>
+  <data name="ModeUpdate" xml:space="preserve">
+    <value>Update</value>
+    <comment>Conflict mode</comment>
+  </data>
+  <data name="ModeAbort" xml:space="preserve">
+    <value>Abort</value>
+    <comment>Conflict mode: copy nothing</comment>
+  </data>
+  <data name="UpdateNeedsKey" xml:space="preserve">
+    <value>Updating needs the target's primary key.</value>
+  </data>
+  <data name="ParentsHeading" xml:space="preserve">
+    <value>Parents along</value>
+    <comment>Section heading, followed by relationships</comment>
+  </data>
+  <data name="ParentsHint" xml:space="preserve">
+    <value>Rows the copied rows reference come along – otherwise the relationship would be violated in the target. Switch one off only if those rows exist there already.</value>
+  </data>
+  <data name="ParentRows" xml:space="preserve">
+    <value>{0} · {1:N0} rows of {2}</value>
+    <comment>{0}: relationship; {1}: rows reached; {2}: table</comment>
+  </data>
+  <data name="CheckHeading" xml:space="preserve">
+    <value>Check</value>
+    <comment>Section heading: errors, warnings and hints of the copy</comment>
+  </data>
+  <data name="Copy" xml:space="preserve">
+    <value>Copy</value>
+    <comment>Button</comment>
+  </data>
+  <data name="CopyTitle" xml:space="preserve">
+    <value>Writes into the target workspace's transaction as one action – undo there with ↶, commit as usual.</value>
+  </data>
+  <data name="Copied" xml:space="preserve">
+    <value>{0} – in {1}, not committed yet.</value>
+    <comment>{0}: description of the copy, e.g. 'Copy from DEV: 57 rows'; {1}: target connection and workspace</comment>
+  </data>
+</root>
