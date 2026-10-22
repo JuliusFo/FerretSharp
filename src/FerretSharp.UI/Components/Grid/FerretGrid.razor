@@ -18,7 +18,6 @@
 @inject ShortcutService Shortcuts
 @inject DisplayColumnSource DisplayColumns
 @inject IClipboardService Clipboard
-@inject AppSettingsService Settings
 
 <div id="@Tab.Id" class="ag-host"></div>
 @if (_loads.Shown is { } load)
@@ -47,7 +46,7 @@
     private TablePresentation? _presentation;
     private PresentationWatch _presentationWatch = null!;
 
-    /// <summary>Type and NOT NULL in the headers as the settings show them.</summary>
+    /// <summary>Type and NOT NULL as the grid's headers show them (<see cref="PresentationService.Header"/> when built).</summary>
     private ColumnHeaderLines _header = ColumnHeaderLines.All;
 
     [CascadingParameter]
@@ -128,8 +127,8 @@
         _schemaLoadedAt = Active.Schema?.LoadedAt;
         Presentations.Changed += OnPresentationChanged;
         DisplayColumns.Changed += OnDisplayColumnsChanged;
-        Settings.Changed += OnSettingsChanged;
-        _header = ColumnHeaderLines.Of(Settings.Current);
+        Presentations.HeaderChanged += OnHeaderChanged;
+        _header = Presentations.Header;
         _displayVersion = DisplayColumns.Version;
         _presentationWatch = new PresentationWatch(Presentations);
         _presentation = Presentations.For(Details);
@@ -144,10 +143,11 @@
             await SetNewRowsAsync(); // the tab was mounted again (workspace switch) with new rows still unsaved
         }
 
-        // An unlock or a C# model that came while the grid was created: the handlers skipped it (R4a). Both check for
-        // themselves whether anything changed.
+        // An unlock, a C# model or header lines that came while the grid was created: the handlers skipped it (R4a). All
+        // check for themselves whether anything changed.
         OnWorkspacesChanged();
         OnPresentationChanged();
+        OnHeaderChanged();
         await DisplayNamesOf.PlanAsync();
     }
 
@@ -169,6 +169,7 @@
         return new GridColumn(ColumnId(i), c.Name, label.Name, _header.TextOf(c), category.ToString(), c.Nullable)
         {
             TypeLine = _header.TypeLine,
+            TypeHint = _header.HintOf(c),
             Alternate = label.AlternateName,
             ClrType = label.ClrType,
             ClrLine = Presentation.ShowsClrNames,
@@ -240,11 +241,14 @@
         }
     }
 
-    /// <summary>Type or NOT NULL in the headers switched on or off: relabel in place, the rows read as before.</summary>
-    private void OnSettingsChanged() => Fire(async () =>
+    /// <summary>
+    /// Type or NOT NULL in the headers switched on or off: relabel in place, the rows read as before. Not before the grid is
+    /// created – the grid catches up afterwards, with the lines it was built with still in <see cref="_header"/>.
+    /// </summary>
+    private void OnHeaderChanged() => Fire(async () =>
     {
-        var header = ColumnHeaderLines.Of(Settings.Current);
-        if (header == _header)
+        var header = Presentations.Header;
+        if (!_grid.IsCreated || header == _header)
         {
             return;
         }
@@ -1216,7 +1220,7 @@
         Shell.Changed -= OnShellChanged;
         Presentations.Changed -= OnPresentationChanged;
         DisplayColumns.Changed -= OnDisplayColumnsChanged;
-        Settings.Changed -= OnSettingsChanged;
+        Presentations.HeaderChanged -= OnHeaderChanged;
         _loads.Supersede(); // the tab closed: its query need not hold the workspace's session any longer
         if (_displayNames is not null)
         {

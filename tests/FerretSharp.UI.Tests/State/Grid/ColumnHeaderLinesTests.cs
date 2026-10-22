@@ -25,6 +25,16 @@ public sealed class ColumnHeaderLinesTests
     }
 
     [Fact]
+    public void What_the_line_hides_goes_into_the_tooltip()
+    {
+        Assert.Null(ColumnHeaderLines.All.HintOf(Id));
+        Assert.Equal("NUMBER(10) · NOT NULL", new ColumnHeaderLines(false, true).HintOf(Id));
+        Assert.Equal("NUMBER(10) · NOT NULL", new ColumnHeaderLines(true, false).HintOf(Id));
+        Assert.Null(new ColumnHeaderLines(true, false).HintOf(Note)); // nullable: the line shows all there is
+        Assert.Equal("VARCHAR2(200)", new ColumnHeaderLines(false, false).HintOf(Note));
+    }
+
+    [Fact]
     public void The_header_is_lower_by_a_line_without_type_line()
     {
         var hidden = new ColumnHeaderLines(false, false);

@@ -58,7 +58,7 @@ public static class SettingsCatalog
     public const string StallTool = "dotnet-stack";
     public const string StallFiles = "stall-*.txt";
     public const string HeaderTypeExample = "NUMBER(10)";
-    public const string NotNull = "NOT NULL";
+    public const string NotNull = ColumnHeaderLines.NotNullText;
     public const string FilterSqlStar = FerretSharp.Core.Query.QueryBuilder.StarSelect;
 
     // Properties, not static fields: the texts would keep the language of the first access.

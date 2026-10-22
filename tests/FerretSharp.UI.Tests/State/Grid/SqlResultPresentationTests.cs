@@ -172,9 +172,9 @@ public sealed class SqlResultPresentationTests
         var presentation = await PresentationAsync(ClrNameDisplay.Beside);
         var hidden = new ColumnHeaderLines(Types: false, NotNull: false);
 
-        Assert.All(presentation.Columns(hidden), c => Assert.Equal((false, ""), (c.TypeLine, c.Type)));
+        Assert.All(presentation.Columns(hidden), c => Assert.Equal((false, "", "NUMBER"), (c.TypeLine, c.Type, c.TypeHint)));
         Assert.Null(presentation.HeaderHeight(hidden)); // the C# line stays: one line under the name
         Assert.Equal(ColumnHeaderLines.NameOnlyHeight, SqlResultPresentation.Plain(Columns).HeaderHeight(hidden));
-        Assert.All(presentation.Columns(ColumnHeaderLines.All), c => Assert.Equal((true, "NUMBER"), (c.TypeLine, c.Type)));
+        Assert.All(presentation.Columns(ColumnHeaderLines.All), c => Assert.Equal((true, "NUMBER", (string?)null), (c.TypeLine, c.Type, c.TypeHint)));
     }
 }

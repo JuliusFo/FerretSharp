@@ -166,8 +166,8 @@ class FerretHeader {
       params.column.addEventListener('sortChanged', this.onSortChanged);
       this.updateSort();
     }
-    // Column comment (ALL_COL_COMMENTS) as tooltip.
-    this.eGui.title = [meta.alternate ? `${meta.label} · ${meta.alternate}` : null, meta.comment,
+    // Column comment (ALL_COL_COMMENTS) as tooltip; type and NOT NULL when the header line hides them (settings).
+    this.eGui.title = [meta.alternate ? `${meta.label} · ${meta.alternate}` : null, meta.typeHint, meta.comment,
       meta.sortable ? null : texts.notSortable].filter(Boolean).join('\n');
   }
   updateSort() {
@@ -636,8 +636,8 @@ function reportPinned(api, dotnet) {
 }
 
 /**
- * columns: [{ id, name, label, alternate, clrType, clrLine, type, typeLine, category, nullable, pk, fk, fkModel, numeric, sortable,
- *   pinned, options, unknownText, … }] in display order (GridColumn in .NET).
+ * columns: [{ id, name, label, alternate, clrType, clrLine, type, typeLine, typeHint, category, nullable, pk, fk, fkModel, numeric,
+ *   sortable, pinned, options, unknownText, … }] in display order (GridColumn in .NET).
  * options (GridOptions in .NET):
  *   sorts: [{ colId, sort }] initial sort state.
  *   firstRow: rough scroll position to restore (0 = top); the block containing it is loaded on demand.

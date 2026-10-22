@@ -16,6 +16,9 @@ public sealed record GridColumn(string Id, string Name, string Label, string Typ
     /// <summary>The table has the type line at all (<see cref="ColumnHeaderLines.TypeLine"/>).</summary>
     public bool TypeLine { get; init; }
 
+    /// <summary>Type and NOT NULL for the header's tooltip when the line hides part of them (<see cref="ColumnHeaderLines.HintOf"/>).</summary>
+    public string? TypeHint { get; init; }
+
     /// <summary>The other name (C# property or column) and the C# type, on the header's middle line (WP-12).</summary>
     public string? Alternate { get; init; }
 

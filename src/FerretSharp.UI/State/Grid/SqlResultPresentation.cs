@@ -116,6 +116,7 @@ public sealed class SqlResultPresentation : IColumnPresentation
         var plain = new GridColumn(GridColumn.IdOf(i), column.Name, column.Name, header.TextOf(column.Column), category.ToString(), column.Column.Nullable)
         {
             TypeLine = header.TypeLine,
+            TypeHint = header.HintOf(column.Column),
             Numeric = category == ColumnCategory.Number,
             ClrLine = ShowsClrNames,
         };

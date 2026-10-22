@@ -8,7 +8,8 @@ namespace FerretSharp.UI.State;
 /// The presentation of tables for the components (WP-12): the loaded C# model and the "C#-Namen" setting in one place.
 /// <see cref="Changed"/> fires only when either of them really changes – not for every progress step of a model load,
 /// and not for a reload after a build that changed nothing a table shows. Which tables a change touches is known
-/// (<see cref="ChangedSince"/>), so after a build only the views of those tables render again (ADR 0016).
+/// (<see cref="ChangedSince"/>), so after a build only the views of those tables render again (ADR 0016). The header lines
+/// (type and NOT NULL) change apart from it (<see cref="HeaderChanged"/>): the values read as before, nothing is fetched again.
 /// </summary>
 public sealed class PresentationService : IDisposable
 {
@@ -21,6 +22,7 @@ public sealed class PresentationService : IDisposable
     private readonly List<(int Version, IReadOnlySet<TableRef>? Tables, bool Names)> _changes = [];
     private ClrModelMapping? _mapping;
     private ClrNameDisplay _names;
+    private ColumnHeaderLines _header;
     private ModelTableSignatures _signatures;
 
     public PresentationService(ClrModelManager models, AppSettingsService settings)
@@ -29,6 +31,7 @@ public sealed class PresentationService : IDisposable
         _settings = settings;
         _mapping = models.Mapping;
         _names = settings.Current.ClrNames;
+        _header = ColumnHeaderLines.Of(settings.Current);
         _signatures = ModelTableSignatures.Of(_mapping);
         _models.Changed += OnChanged;
         _settings.Changed += OnChanged;
@@ -40,6 +43,21 @@ public sealed class PresentationService : IDisposable
     public ClrModelMapping? Mapping => _mapping;
 
     public ClrNameDisplay Names => _names;
+
+    /// <summary>Type and NOT NULL in the column headers (table grid and SQL result) as the settings show them.</summary>
+    public ColumnHeaderLines Header
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return _header;
+            }
+        }
+    }
+
+    /// <summary><see cref="Header"/> changed; may fire on a background thread. Not a <see cref="Changed"/>: rows read as before.</summary>
+    public event Action? HeaderChanged;
 
     /// <summary>Changes whenever <see cref="Changed"/> fires: lets a component tell whether its presentation is stale.</summary>
     public int Version { get; private set; }
@@ -86,6 +104,19 @@ public sealed class PresentationService : IDisposable
     /// <summary>On the thread that reported (a model load runs in the background): comparing costs nothing on the UI thread.</summary>
     private void OnChanged()
     {
+        var header = ColumnHeaderLines.Of(_settings.Current);
+        bool headerChanged;
+        lock (_lock)
+        {
+            headerChanged = header != _header;
+            _header = header;
+        }
+
+        if (headerChanged)
+        {
+            HeaderChanged?.Invoke();
+        }
+
         var mapping = _models.Mapping;
         var names = _settings.Current.ClrNames;
         ClrModelMapping? shown;

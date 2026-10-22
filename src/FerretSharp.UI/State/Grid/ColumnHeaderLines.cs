@@ -12,6 +12,9 @@ public sealed record ColumnHeaderLines(bool Types, bool NotNull)
     /// <summary>Header height with the name alone (no C# line, no type line).</summary>
     public const int NameOnlyHeight = 30;
 
+    /// <summary>The mark of a column that must have a value, in the header and in the setting's label.</summary>
+    public const string NotNullText = "NOT NULL";
+
     public static readonly ColumnHeaderLines All = new(true, true);
 
     public static ColumnHeaderLines Of(AppSettings settings)
@@ -31,7 +34,18 @@ public sealed record ColumnHeaderLines(bool Types, bool NotNull)
     }
 
     public string TextOf(string type, bool nullable) =>
-        string.Join(" · ", new[] { Types ? type : null, NotNull && !nullable ? "NOT NULL" : null }.Where(p => p is not null));
+        string.Join(" · ", new[] { Types ? type : null, NotNull && !nullable ? NotNullText : null }.Where(p => p is not null));
+
+    /// <summary>
+    /// The whole line for the header's tooltip when the line hides part of it (<c>NUMBER(10) · NOT NULL</c>); null when the
+    /// header shows it all.
+    /// </summary>
+    public string? HintOf(ColumnInfo column)
+    {
+        ArgumentNullException.ThrowIfNull(column);
+        var all = All.TextOf(column);
+        return all == TextOf(column) ? null : all;
+    }
 
     /// <summary>The header height for grid.js: null for the theme's 46 px (name and one more line).</summary>
     public int? HeightWith(bool clrLine) => (clrLine, TypeLine) switch
