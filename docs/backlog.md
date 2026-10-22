@@ -6,6 +6,7 @@ Ideen und Themen, die während der Arbeit auftauchen, aber nicht zum aktuellen P
 
 Selten, ungeprüft oder bewusst zurückgestellt – vor dem Anfassen nachstellen.
 
+- Eine `connections.json`, die sich nicht lesen lässt (z. B. ungültiges Escape in einem Pfad), zeigt nur „Verbindungen konnten nicht geladen werden“; der Grund (`ConnectionStoreException` mit Zeile/Position) steht weder im Log noch in der Oberfläche. Gefunden im E2E 2026-10-22 (von Hand geschriebene Datei).
 - Aus dem Gesamt-Review 3.31.0, nicht in R5a (selten oder ungeprüft, `docs/review-3.31.0.md`):
   - TIMESTAMP(8/9) als Schlüssel verliert Nanosekunden (`DateTime`), Schreiben meldet dann „inzwischen gelöscht“; Filter auf TIMESTAMP WITH TIME ZONE nimmt keinen Offset an (A33).
   - SQL_ID per MD5 über UTF-8 – bei einer Nicht-AL32UTF8-Datenbank findet „tatsächlicher Plan“/„Statements der App“ den Cursor eines Statements mit Umlaut nicht; `V$SQL` statt `GV$SQL` auf RAC (A34).
