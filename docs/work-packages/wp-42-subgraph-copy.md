@@ -55,5 +55,10 @@ Branch `wp/42-subgraph-copy`, begonnen am 2026-10-22. ADR 0032. Fundament für W
 - UI: `SubgraphCopyTests` (Pfade, Neu-Lesen nach Änderung, nicht beschreibbares Ziel, Ziele aus dem Hub, Kopie als eine Aktion, gesperrtes Prod), `ChangeOverviewTests` (Kürzung).
 
 ## Offen
-- **E2E in der App:** noch nicht gelaufen (auf Wunsch des Nutzers verschoben). Zu prüfen: Menüeintrag, Dialog in hell und dunkel, Baum aufklappen, Lesen mit Fortschritt und Abbrechen, Konfliktmodus, Kopie mit Änderungsübersicht, Undo/Redo, Tabs des Ziels laden neu.
+- **E2E, erster Teil (2026-10-22, abgebrochen):** Zellmenü, Dialog, beide Bäume, Lesen mit Zählern, Vorschau (abweichend, fehlende Tabelle/Spalten, Trigger), „Auswahl geändert“ → „Neu lesen“, Kopie mit „Aktualisieren“ (6 Zeilen, „1 Aktion offen“ im Ziel) liefen. Befunde, noch zu beheben:
+  1. Der Menüeintrag steht ohne eigene Überschrift unter „Alle Zeilen des Filters“ – eigene Gruppe.
+  2. Der Eltern-Baum zeigt die Beziehung eines Kind-Pfads rückwärts noch einmal (AUFTRAG → KUNDEN über FK_AUFTRAG_KUNDE) und Tabellen, die selbst Wurzel sind – ausblenden.
+  3. „Abweichend“ zählt Spalten wie `ERSTELLT_AM DEFAULT SYSDATE` mit, die zwischen Datenbanken immer abweichen – die Meldung soll die abweichenden Spalten nennen.
+  4. „Zeilen lesen“ steht unter den Bäumen und muss gescrollt werden – in die Fußzeile neben „Kopieren“.
+- **E2E, noch offen:** Zu prüfen: Menüeintrag, Dialog in hell und dunkel, Baum aufklappen, Lesen mit Fortschritt und Abbrechen, Konfliktmodus, Kopie mit Änderungsübersicht, Undo/Redo, Tabs des Ziels laden neu.
 - Fragen an den Nutzer: Soll das Ziel auch ein anderer Workspace derselben Verbindung sein dürfen (heute ausgeschlossen)? Reicht die Prüfung „gesperrt → erst freischalten“ für Prod als Ziel, oder zusätzlich eine Bestätigung mit Verbindungsnamen (wie beim Redo)?
