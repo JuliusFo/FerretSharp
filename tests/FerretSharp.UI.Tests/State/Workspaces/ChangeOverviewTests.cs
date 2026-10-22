@@ -73,6 +73,21 @@ public sealed class ChangeOverviewTests : IAsyncDisposable
         Assert.EndsWith(";", sql);
     }
 
+    /// <summary>A copy (WP-42) has an INSERT per row in its statements: the overview shows the first ones and counts the rest.</summary>
+    [Fact]
+    public void A_long_list_of_statements_is_cut_with_a_count()
+    {
+        var action = new WriteAction(Guid.NewGuid(), WriteActionKind.Copy, "Kopie aus DEV: 250 Zeilen", 250, DateTimeOffset.Now)
+        {
+            Statements = [.. Enumerable.Range(0, 250).Select(i => new QuerySpec("INSERT INTO KUNDEN (ID) VALUES (:v0)", [new QueryParameter("v0", (decimal)i, OracleTypeHint.Number)]))],
+        };
+
+        var sql = ChangeOverview.Sql(action);
+
+        Assert.Equal(ChangeOverview.MaxStatements, sql.Split("INSERT INTO").Length - 1);
+        Assert.EndsWith("-- … 150 weitere Statements", sql);
+    }
+
     [Fact]
     public async Task Undo_up_to_a_grid_write_takes_the_later_statement_along_and_redo_writes_the_same_rows_again()
     {
