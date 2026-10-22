@@ -112,4 +112,4 @@ Regeln:
 
 ## 8. Als Nächstes
 
-WP-55, WP-39, WP-41 … WP-47 und WP-58 (`docs/roadmap.md`).
+WP-55, WP-39, WP-41 … WP-47 (`docs/roadmap.md`).

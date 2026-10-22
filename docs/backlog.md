@@ -66,6 +66,7 @@ Selten, ungeprüft oder bewusst zurückgestellt – vor dem Anfassen nachstellen
 - Offene Änderungen (Fortsetzung von WP-30): Sprung zu einer Zeile, die nicht unter den geladenen ist (heute nur ein Hinweis) – z. B. einen Tab mit Filter auf ihren Schlüssel öffnen; „Bis hier“ und Redo auch für Workspaces anderer Verbindungen direkt aus dem Panel. (Grid-Redo nach einem Konflikt im Schreibproblem-Dialog fortsetzen: seit R5a, A14.)
 - Tastenkürzel für die Ansichten eines Tabs (z. B. Alt+1 … Alt+6); Ctrl+1 … 9 bleibt für das Wechseln der Workspaces reserviert.
 - Keyset-Paging für sehr große Tabellen; exakte Scroll-Wiederherstellung.
+- Markierte Zellen (Fortsetzung von WP-58): Entf auf einen Bereich (NULL setzen), Ausfüllen nach unten, Summe und Anzahl markierter Zahlen in der Fußzeile, mehrere getrennte Bereiche (Ctrl+Ziehen), ganze Spalten auch in der LINQ-Konsole (braucht „alle Zeilen“ dort). Mehrere Zellen aus Excel einfügen steht unter „Editieren“.
 
 ## Export und Zwischenablage
 
