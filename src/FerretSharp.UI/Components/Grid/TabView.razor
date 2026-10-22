@@ -245,11 +245,14 @@
             : await _grid.FillRowsAsync(request.Rows, request.Column, CellFill.Value(text));
         if (error is null)
         {
+            // Called through a delegate, not an EventCallback: the tab re-renders only when told (ui.md, "Rendern").
             _setValue = null;
+            StateHasChanged();
         }
 
         return error;
     }
+
     private ColumnsView? _columns;
     private int? _pendingJump; // scrolled to after the search list has closed, so the grid cell keeps the focus
     private readonly HashSet<TabMode> _visited = [];
