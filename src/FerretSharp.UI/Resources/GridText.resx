@@ -1222,7 +1222,7 @@
     <comment>Cell menu entry (WP-57); {0}: column name</comment>
   </data>
   <data name="GridMenu_CopyColumnTitle" xml:space="preserve">
-    <value>The values of this column from the selected rows, one per line, as shown – pending changes included{0}</value>
+    <value>The values of this column from the selected rows, one per line, as shown – pending changes included, like Ctrl+C</value>
     <comment>Tooltip; {0}: shortcut hint like " (Ctrl+…)" or empty</comment>
   </data>
   <data name="GridMenu_CopyColumnInList" xml:space="preserve">
@@ -1287,5 +1287,109 @@
   <data name="ColumnValues_Cancelled" xml:space="preserve">
     <value>Copying the values of {0} cancelled.</value>
     <comment>Notice; {0}: column name</comment>
+  </data>
+  <data name="Footer_MarkedCell" xml:space="preserve">
+    <value>1 cell selected</value>
+    <comment>Footer: one marked cell (WP-58)</comment>
+  </data>
+  <data name="Footer_MarkedCells" xml:space="preserve">
+    <value>{0} × {1} cells selected</value>
+    <comment>Footer; {0}: rows, {1}: columns of the marked cells</comment>
+  </data>
+  <data name="Footer_MarkedColumnsOne" xml:space="preserve">
+    <value>1 column selected · all rows</value>
+    <comment>Footer: one marked whole column</comment>
+  </data>
+  <data name="Footer_MarkedColumnsOther" xml:space="preserve">
+    <value>{0} columns selected · all rows</value>
+    <comment>Footer; {0}: number of marked whole columns</comment>
+  </data>
+  <data name="Marks_Cell" xml:space="preserve">
+    <value>1 cell</value>
+    <comment>Heading and notices: one marked cell</comment>
+  </data>
+  <data name="Marks_Cells" xml:space="preserve">
+    <value>{0} × {1} cells</value>
+    <comment>Heading and notices; {0}: rows, {1}: columns</comment>
+  </data>
+  <data name="Marks_ColumnsOne" xml:space="preserve">
+    <value>1 column · all rows</value>
+    <comment>Heading and notices: one marked whole column</comment>
+  </data>
+  <data name="Marks_ColumnsOther" xml:space="preserve">
+    <value>{0} columns · all rows</value>
+    <comment>Heading and notices; {0}: number of marked whole columns</comment>
+  </data>
+  <data name="Marks_Copied" xml:space="preserve">
+    <value>{0} copied.</value>
+    <comment>Notice; {0}: the marked cells (Marks_Cells)</comment>
+  </data>
+  <data name="Marks_CopiedAsTable" xml:space="preserve">
+    <value>{0} copied as a table.</value>
+    <comment>Notice; {0}: the marked cells (Marks_Cells)</comment>
+  </data>
+  <data name="Marks_ColumnsCopied" xml:space="preserve">
+    <value>{0} copied: {1}.</value>
+    <comment>Notice; {0}: the marked columns (Marks_Columns…), {1}: rows ("1,234 rows")</comment>
+  </data>
+  <data name="Marks_ColumnsCopiedAsTable" xml:space="preserve">
+    <value>{0} copied as a table: {1}.</value>
+    <comment>Notice; {0}: the marked columns, {1}: rows</comment>
+  </data>
+  <data name="Marks_TooMany" xml:space="preserve">
+    <value>More than {0:N0} cells – nothing copied. For that many, save all rows as CSV or Excel.</value>
+    <comment>Notice; {0}: the limit</comment>
+  </data>
+  <data name="Marks_None" xml:space="preserve">
+    <value>{0}: nothing to copy.</value>
+    <comment>Notice; {0}: the marked cells or columns</comment>
+  </data>
+  <data name="Marks_Cancelled" xml:space="preserve">
+    <value>Copying {0} cancelled.</value>
+    <comment>Notice; {0}: the marked columns</comment>
+  </data>
+  <data name="ColumnValues_PendingLeftOutOne" xml:space="preserve">
+    <value>Database state: {0} row with pending changes is not included as shown – write it first.</value>
+    <comment>Note after reading all values (WP-58); {0}: rows</comment>
+  </data>
+  <data name="ColumnValues_PendingLeftOutOther" xml:space="preserve">
+    <value>Database state: {0:N0} rows with pending changes are not included as shown – write them first.</value>
+    <comment>Note after reading all values (WP-58); {0}: rows</comment>
+  </data>
+  <data name="GridMenu_CopyCells" xml:space="preserve">
+    <value>Copy</value>
+    <comment>Context menu of marked cells: tab-separated without header</comment>
+  </data>
+  <data name="GridMenu_CopyCellsTitle" xml:space="preserve">
+    <value>Tab-separated as shown, without a header – pending changes included, like Ctrl+C</value>
+    <comment>Tooltip</comment>
+  </data>
+  <data name="GridMenu_CopyColumnsTitle" xml:space="preserve">
+    <value>Tab-separated as shown, one line per row, without a header, like Ctrl+C</value>
+    <comment>Tooltip for marked whole columns</comment>
+  </data>
+  <data name="GridMenu_CopyInListOneColumn" xml:space="preserve">
+    <value>Only for cells of a single column</value>
+    <comment>Tooltip of the disabled IN list entry</comment>
+  </data>
+  <data name="ColumnMenu_MarkColumn" xml:space="preserve">
+    <value>Select column</value>
+    <comment>Column header menu (WP-58)</comment>
+  </data>
+  <data name="ColumnMenu_MarkColumnTitle" xml:space="preserve">
+    <value>Selects the whole column – all rows. Ctrl+click on a header does the same, Ctrl+Shift+click selects the columns up to it.</value>
+    <comment>Tooltip</comment>
+  </data>
+  <data name="ColumnMenu_LoadedResultValuesTitle" xml:space="preserve">
+    <value>Every row of the result is loaded: the values come from them, the query does not run again. More than {0:N0} values are not copied.</value>
+    <comment>Tooltip (WP-58); {0}: the limit</comment>
+  </data>
+  <data name="ResultColumnMenu_MarkColumnTitle" xml:space="preserve">
+    <value>Selects the whole column – all rows of the result. Ctrl+click on a header does the same, Ctrl+Shift+click selects the columns up to it.</value>
+    <comment>Tooltip (WP-58)</comment>
+  </data>
+  <data name="Filter_ListPasteTitle" xml:space="preserve">
+    <value>Pasted lines (a column copied from the grid or Excel) or an IN list ('A', 'B') become the values.</value>
+    <comment>Tooltip of the list value (WP-58)</comment>
   </data>
 </root>

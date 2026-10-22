@@ -327,4 +327,7 @@
   <data name="GridCopiesFirst" xml:space="preserve">
     <value>Ctrl+C kopiert im Grid selbst – diese Aktion bekäme die Taste nie.</value>
   </data>
+  <data name="FixedMarkCells" xml:space="preserve">
+    <value>Zellen ab der fokussierten markieren (danach erweitern Shift+↑ ↓ und Shift+Bild↑/↓; Ziehen mit der Maus geht auch)</value>
+  </data>
 </root>

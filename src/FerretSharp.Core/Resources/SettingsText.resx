@@ -399,4 +399,8 @@
     <value>Ctrl+C copies in the grid itself – this action would never get the key.</value>
     <comment>Refusal when a grid shortcut is set to Ctrl+C</comment>
   </data>
+  <data name="FixedMarkCells" xml:space="preserve">
+    <value>Select cells from the focused one (then Shift+↑ ↓ and Shift+Page↑/↓ extend them; dragging with the mouse does the same)</value>
+    <comment>Fixed shortcut (WP-58)</comment>
+  </data>
 </root>

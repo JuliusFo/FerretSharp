@@ -59,7 +59,7 @@ public sealed class ColumnValueCopiesTests
                     return;
                 }
             }
-        }, 0, "", Guid.NewGuid());
+        }, [0], "", Guid.NewGuid());
 
     private Task CopyAllAsync(ColumnValuesFormat format, AllColumnValues all) =>
         ColumnValueCopies.CopyAllAsync(_shell, _clipboard, new ListLogger(), null, Art with { Source = 0 }, "ART", format, all);
@@ -73,14 +73,14 @@ public sealed class ColumnValueCopiesTests
         tab.AppliedFilters = filters;
         tab.Sorts = sorts;
 
-        var all = ColumnValueCopies.ForTable(tab, Kunden, 2, DataOf);
+        var all = ColumnValueCopies.ForTable(tab, Kunden, [2], DataOf);
         tab.AppliedFilters = [];
         await all.Read(false)(Ignore, Ct);
         await all.Read(true)(Ignore, Ct);
 
-        await _data.Received(1).ReadColumnAllAsync(Kunden, 2, filters, sorts, false, Arg.Any<RowBlockHandler>(), Ct);
-        await _data.Received(1).ReadColumnAllAsync(Kunden, 2, filters, sorts, true, Arg.Any<RowBlockHandler>(), Ct);
-        Assert.Equal(0, all.ValueIndex);
+        await _data.Received(1).ReadColumnAllAsync(Kunden, Arg.Is<IReadOnlyList<int>>(c => c.SequenceEqual(new[] { 2 })), filters, sorts, false, Arg.Any<RowBlockHandler>(), Ct);
+        await _data.Received(1).ReadColumnAllAsync(Kunden, Arg.Is<IReadOnlyList<int>>(c => c.SequenceEqual(new[] { 2 })), filters, sorts, true, Arg.Any<RowBlockHandler>(), Ct);
+        Assert.Equal([0], all.ValueIndexes);
         Assert.True(all.DistinctInQuery);
         Assert.Equal(234, all.Total);
         Assert.Equal("Alle Zeilen des Filters · 234 Zeilen", all.Heading);
@@ -92,11 +92,11 @@ public sealed class ColumnValueCopiesTests
         var query = new QuerySpec("SELECT ID, NAME FROM KUNDEN", []);
         IReadOnlyList<SqlColumn> columns = [new("ID", Kunden.Columns[0]), new("NAME", Kunden.Columns[1])];
 
-        var all = ColumnValueCopies.ForResult(query, columns, 1, null, Guid.NewGuid(), DataOf);
+        var all = ColumnValueCopies.ForResult(query, columns, [1], null, Guid.NewGuid(), DataOf);
         await all.Read(true)(Ignore, Ct); // the query itself is not made distinct
 
         await _data.Received(1).ReadSqlAllAsync(query, Arg.Is<IReadOnlyList<string>>(n => n.SequenceEqual(new[] { "ID", "NAME" })), Arg.Any<RowBlockHandler>(), Ct);
-        Assert.Equal(1, all.ValueIndex);
+        Assert.Equal([1], all.ValueIndexes);
         Assert.False(all.DistinctInQuery);
         Assert.Equal("Alle Zeilen des Ergebnisses", all.Heading);
     }
@@ -221,7 +221,7 @@ public sealed class ColumnValueCopiesTests
                     return;
                 }
             }
-        }, 0, "", Guid.NewGuid());
+        }, [0], "", Guid.NewGuid());
 
         await CopyAllAsync(ColumnValuesFormat.Lines, all);
 
@@ -239,7 +239,7 @@ public sealed class ColumnValueCopiesTests
             await onBlock([Row(2m)], Substitute.For<IRowLookup>(), ct);
             _shell.BackgroundReads.Running[0].Cancel(); // the status bar's button
             ct.ThrowIfCancellationRequested();
-        }, 0, "", Guid.NewGuid());
+        }, [0], "", Guid.NewGuid());
 
         await CopyAllAsync(ColumnValuesFormat.Lines, all);
 
@@ -251,7 +251,7 @@ public sealed class ColumnValueCopiesTests
     [Fact]
     public async Task A_database_error_opens_the_error_dialog()
     {
-        var all = new AllColumnValues("", null, _ => (_, _) => throw new DatabaseException("Snapshot zu alt", "ORA-01555"), 0, "", Guid.NewGuid());
+        var all = new AllColumnValues("", null, _ => (_, _) => throw new DatabaseException("Snapshot zu alt", "ORA-01555"), [0], "", Guid.NewGuid());
 
         await CopyAllAsync(ColumnValuesFormat.Lines, all);
 

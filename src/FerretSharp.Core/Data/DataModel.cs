@@ -164,15 +164,16 @@ public interface IDataAccess : IRowLookup
     Task ReadSqlAllAsync(QuerySpec query, IReadOnlyList<string> columns, RowBlockHandler onBlock, CancellationToken cancellationToken);
 
     /// <summary>
-    /// The values of one column for every row of a table's query (copy the values of a column, WP-57;
-    /// <see cref="QueryBuilder.BuildColumnValues"/>), read like <see cref="ReadAllAsync"/>: one cursor in the session as it
-    /// stands. Each row holds the one value, without key.
+    /// The values of columns for every row of a table's query (copy the values of a column, WP-57, or of marked columns,
+    /// WP-58; <see cref="QueryBuilder.BuildColumnValues"/>), read like <see cref="ReadAllAsync"/>: one cursor in the session
+    /// as it stands. Each row holds the values of <paramref name="columns"/> in their order, without key.
     /// </summary>
-    /// <param name="distinct">Each value once, ordered by the value (an IN list); otherwise in the grid's order.</param>
+    /// <param name="columns">Indexes into the table's columns.</param>
+    /// <param name="distinct">Each value once, ordered by the value (an IN list, one column); otherwise in the grid's order.</param>
     /// <exception cref="QueryValidationException">A filter or sort cannot be applied.</exception>
     Task ReadColumnAllAsync(
         TableDetails table,
-        int column,
+        IReadOnlyList<int> columns,
         IReadOnlyList<FilterCondition> filters,
         IReadOnlyList<SortSpec> sorts,
         bool distinct,

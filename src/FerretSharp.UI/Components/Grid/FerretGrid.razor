@@ -17,6 +17,7 @@
 @inject ILogger<FerretGrid> Logger
 @inject ShortcutService Shortcuts
 @inject DisplayColumnSource DisplayColumns
+@inject IClipboardService Clipboard
 
 <div id="@Tab.Id" class="ag-host"></div>
 @if (_loads.Shown is { } load)
@@ -648,11 +649,13 @@
 
     public event Action? SelectionChanged;
 
-    /// <summary>The selection changed (grid.js reports the last state after a short pause); the footer shows it.</summary>
+    /// <summary>
+    /// The selection or the marked cells changed (grid.js reports the last state after a short pause); the footer shows it.
+    /// </summary>
     [JSInvokable]
-    public void OnSelectionChanged(int count, bool toEnd) => Guard(() =>
+    public void OnSelectionChanged(int count, bool toEnd, int markedRows, int markedColumns, bool wholeColumns) => Guard(() =>
     {
-        Selection = new GridSelection(count, toEnd);
+        Selection = new GridSelection(count, toEnd, markedRows, markedColumns, wholeColumns);
         SelectionChanged?.Invoke();
     });
 
@@ -962,14 +965,15 @@
     /// <summary>
     /// Right-click on a cell; the menu needs the raw row values, not the display text. <paramref name="selectedRows"/>
     /// are the selected row indexes (the clicked row is always among them); rows no longer cached are counted as missing.
+    /// <paramref name="marks"/>: the click landed in marked cells or columns (WP-58), the selected rows are the clicked one.
     /// </summary>
     [JSInvokable]
     public Task OnCellContextMenu(
-        int rowIndex, string colId, int[] selectedRows, double x, double y, double viewportWidth, double viewportHeight) =>
-        GuardAsync(() => OnCellContextMenuCoreAsync(rowIndex, colId, selectedRows, x, y, viewportWidth, viewportHeight));
+        int rowIndex, string colId, int[] selectedRows, GridMarks? marks, double x, double y, double viewportWidth, double viewportHeight) =>
+        GuardAsync(() => OnCellContextMenuCoreAsync(rowIndex, colId, selectedRows, marks, x, y, viewportWidth, viewportHeight));
 
     private async Task OnCellContextMenuCoreAsync(
-        int rowIndex, string colId, int[] selectedRows, double x, double y, double viewportWidth, double viewportHeight)
+        int rowIndex, string colId, int[] selectedRows, GridMarks? marks, double x, double y, double viewportWidth, double viewportHeight)
     {
         if (_blocks.At(rowIndex) is not { } row || !colId.StartsWith('c'))
         {
@@ -981,8 +985,54 @@
         row = Shown(row);
         await OnContextMenu.InvokeAsync(new GridContextMenuRequest(
             row, column, Presentation.Present(column, row.Values[column]).Text,
-            selected.OfType<RowData>().ToList(), selected.Count(r => r is null), x, y, viewportWidth, viewportHeight, selectedRows.Order().ToList(), rowIndex));
+            selected.OfType<RowData>().ToList(), selected.Count(r => r is null), x, y, viewportWidth, viewportHeight, selectedRows.Order().ToList(), rowIndex,
+            marks is null ? null : MenuOf(marks)));
     }
+
+    // ---------- marked cells and columns (WP-58) ----------
+
+    /// <summary>What the cell menu offers for marked cells or columns.</summary>
+    private MarksMenu MenuOf(GridMarks marks)
+    {
+        var columns = marks.ColumnIndexes;
+        var inList = columns.Count != 1 ? GridText.GridMenu_CopyInListOneColumn
+            : ColumnValues.CanCopy(Details.Columns[columns[0]]) ? null : GridText.GridMenu_CopyColumnUnavailable;
+        return new MarksMenu(marks, kind => CopyMarksAsync(marks, kind), inList, marks.Whole ? Marked.AllOf!(columns).Tooltip : null);
+    }
+
+    /// <summary>
+    /// The grid's side of copying marked cells: columns as presented, the loaded rows as shown (A21), rows not loaded read
+    /// under the tab's applied filters and sort order, whole columns read again like "Copy values" (WP-57).
+    /// </summary>
+    private MarkedCells Marked => new(
+        column => PresentedExport.Column(Presentation, column, Details.Columns[column].Name, column),
+        rowIndex => _blocks.At(rowIndex) is { } row ? Shown(row) : null,
+        ReadRowsAsync,
+        columns => ColumnValueCopies.ForTable(Tab, Details, columns, Workspaces.GetDataAsync),
+        columns => Tab.Changes?.PendingIn([.. columns]) ?? 0);
+
+    /// <summary>Rows of a marked range that are not loaded: read like a block, shown with the tab's changes; null if it failed.</summary>
+    private async Task<IReadOnlyList<RowData>?> ReadRowsAsync(int start, int count)
+    {
+        var (details, filters, sorts) = (Details, Tab.AppliedFilters, Tab.Sorts);
+        var result = await Shell.RunDbAsync(Logger, Active, async () =>
+        {
+            var data = await Workspaces.GetDataAsync(Tab.WorkspaceId, CancellationToken.None);
+            return await data.ReadPageAsync(details, filters, sorts, new PageSpec(start, count), CancellationToken.None);
+        });
+        return Shell.ShowFailure(result) ? result.Value!.Rows.Select(Shown).ToList() : null;
+    }
+
+    /// <summary>Copies marked cells or columns (Ctrl+C, the cell menu).</summary>
+    private Task CopyMarksAsync(GridMarks marks, MarksCopy kind) =>
+        CellCopies.CopyAsync(Shell, CopyTextAsync, Clipboard, Logger, Active, Marked, marks, kind);
+
+    /// <summary>Ctrl+C on marked cells or columns (WP-58); <paramref name="header"/> copies them as a table.</summary>
+    [JSInvokable]
+    public Task OnCopyCells(GridMarks marks, bool header) => GuardAsync(() => CopyMarksAsync(marks, header ? MarksCopy.Table : MarksCopy.Cells));
+
+    /// <summary>Marks a whole column (the header menu's "Select column").</summary>
+    public Task MarkColumnAsync(int column) => _grid.CallAsync("markColumn", ColumnId(column));
 
     /// <summary>
     /// Ctrl+C in the grid: several selected rows are copied as a table (like "Copy as table"), otherwise the

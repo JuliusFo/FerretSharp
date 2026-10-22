@@ -16,7 +16,11 @@ public partial class MainWindow : Window
 
         WebView.Services = services;
         theme.Attach(this);
-        WebView.BlazorWebViewInitialized += (_, e) => theme.AttachWebView(e.WebView.CoreWebView2);
+        WebView.BlazorWebViewInitialized += (_, e) =>
+        {
+            theme.AttachWebView(e.WebView.CoreWebView2);
+            HoldMouseWhileDragging(e.WebView);
+        };
 
         // Only web links leave the app (release notes, GitHub): BlazorWebView opens every other URL with the system's default
         // handler – a file dropped on the window would be opened or run (review 3.31.0, A39).
@@ -72,4 +76,21 @@ public partial class MainWindow : Window
 
     /// <summary>Set while <see cref="ExitGuard.RequestClose"/> closes the window, to tell it from the user's close.</summary>
     private bool _closeFromApp;
+
+    /// <summary>
+    /// While the left button is down the WebView holds the mouse, so a drag goes on beyond the window like in a browser:
+    /// the composition control does not, and neither the moves out there nor the release reached the page. Marking cells
+    /// (WP-58) scrolled on until the mouse came back (seen in the E2E with real input).
+    /// </summary>
+    private static void HoldMouseWhileDragging(UIElement view)
+    {
+        view.PreviewMouseLeftButtonDown += (_, _) => view.CaptureMouse();
+        view.PreviewMouseLeftButtonUp += (_, _) =>
+        {
+            if (view.IsMouseCaptured)
+            {
+                view.ReleaseMouseCapture();
+            }
+        };
+    }
 }
