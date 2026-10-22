@@ -1388,4 +1388,8 @@
     <value>Selects the whole column – all rows of the result. Ctrl+click on a header does the same, Ctrl+Shift+click selects the columns up to it.</value>
     <comment>Tooltip (WP-58)</comment>
   </data>
+  <data name="Filter_ListPasteTitle" xml:space="preserve">
+    <value>Pasted lines (a column copied from the grid or Excel) or an IN list ('A', 'B') become the values.</value>
+    <comment>Tooltip of the list value (WP-58)</comment>
+  </data>
 </root>

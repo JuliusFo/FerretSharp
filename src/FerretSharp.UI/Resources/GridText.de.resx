@@ -1089,4 +1089,7 @@
   <data name="ResultColumnMenu_MarkColumnTitle" xml:space="preserve">
     <value>Markiert die ganze Spalte – alle Zeilen des Ergebnisses. Ctrl+Klick auf einen Spaltenkopf tut dasselbe, Ctrl+Shift+Klick markiert die Spalten bis dorthin.</value>
   </data>
+  <data name="Filter_ListPasteTitle" xml:space="preserve">
+    <value>Eingefügte Zeilen (eine aus dem Grid oder Excel kopierte Spalte) oder eine IN-Liste ('A', 'B') werden zu den Werten.</value>
+  </data>
 </root>

@@ -31,6 +31,29 @@ export function clearOnEscape(input, keep = '') {
   });
 }
 
+/**
+ * Text pasted into a list value (an input with `data-list` inside `root`) is turned into the list by .NET (`ListFromPaste`:
+ * lines or an IN list become `A; B`, null leaves the text as it is) and inserted where the selection was. The input event
+ * updates the binding.
+ */
+export function listPaste(root, dotnet) {
+  root?.addEventListener('paste', async e => {
+    const input = e.target.closest?.('input[data-list]');
+    const text = e.clipboardData?.getData('text/plain');
+    if (!input || !text) return;
+    e.preventDefault();
+    const [start, end] = [input.selectionStart, input.selectionEnd];
+    let value = text;
+    try {
+      value = await dotnet.invokeMethodAsync('ListFromPaste', text) ?? text;
+    } catch (err) {
+      console.debug('FerretSharp: list paste could not ask .NET', err);
+    }
+    input.setRangeText(value, start ?? input.value.length, end ?? input.value.length, 'end');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+}
+
 export function focusById(id) {
   document.getElementById(id)?.focus();
 }

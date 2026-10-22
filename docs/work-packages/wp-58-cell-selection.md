@@ -51,7 +51,12 @@ Eigene Instanz (`--data-dir`, eigener WebView2-Ordner, Build im Scratchpad, `--l
 - Bestätigt: `refreshCells` ohne `force` wendet die `cellClassRules` neu an. Der Klick nach dem Ziehen wählt keine Zeile. Sortieren über den Kopf hebt einen Zellbereich auf, Ctrl+Klick sortiert nicht. Log der Testinstanz ohne `[ERR]`/`[WRN]`.
 - **Nicht geprüft:** echte Maus (s. o.), die LINQ-Konsole (kein verknüpftes C#-Projekt), Lesen über das VPN, Abbrechen des Lesens ganzer Spalten über die Statusleiste (Weg von WP-57).
 
+## Nachtrag: Einfügen in „in Liste“ (2026-10-22)
+Im Maustest aufgefallen: Die IN-Liste eines Bereichs (`'041', '054'`) in den Filter „KUERZEL in Liste“ eingefügt ergab 0 Zeilen – der Filter trennt mit `;`, die Liste wurde ein einziger Wert mit Anführungszeichen; Zeilen („Kopieren“) liefen im einzeiligen Feld zusammen. Auf Wunsch des Nutzers im Paket erledigt:
+- **`Core/Query/PastedList`:** Eine SQL-IN-Liste (Literale mit Komma, optional in Klammern, `N'…'`, Zahlen, `TO_DATE(…)` u. Ä. mit dem ersten Literal als Wert, `HEXTORAW(…)`, NULL fällt weg) oder mehrere Zeilen (getrimmt, Anführungszeichen wie Excel) werden zu `A; B`. Alles andere wird eingefügt wie bisher: ein einzelner Wert, schon mit `;` getrennte Werte, mehrere Spalten (Tabs), ein Wert mit `;`. Ohne Literal in Anführungszeichen zählt ein Komma nur mit Leerzeichen danach – `1,5` bleibt eine deutsche Zahl.
+- **Einfügen:** `dom.js listPaste` fängt das Einfügen in Wertfeldern mit `data-list` (Operator mit Liste) ab und fragt `FilterBar.ListFromPaste`; JS entscheidet nichts. Tooltip am Feld (`GridText.Filter_ListPasteTitle`).
+- **E2E:** echtes Ctrl+V aus der Windows-Zwischenablage (`Set-Clipboard`, CDP-Taste mit Befehl „paste“): IN-Liste und Zeilen werden zu `041; 054; 067`, der Filter liefert 3 Zeilen; `1,5` bleibt wie es ist.
+
 ## Offen
 - Nicht eigens geprüft: Textmarkieren in Monaco über den Fensterrand hinaus mit dem neuen Festhalten der Maus (sollte jetzt wie im Browser weiterlaufen).
-- UX-Frage (im E2E aufgefallen): Die IN-Liste (`'A', 'B'`) eingefügt in den Filter „in Liste“ ergibt einen einzigen Wert – der Filter trennt mit `;`, und Zeilen gehen in einem einzeiligen Feld verloren. Soll „in Liste“ beim Einfügen Zeilen und SQL-Literale erkennen?
 - UX-Frage: Soll Ctrl+C auf markierte Spalten bei bekannter Zeilenzahl über der Grenze gar nicht erst lesen? Heute liest es bis zur Grenze und meldet dann „nichts kopiert“.
