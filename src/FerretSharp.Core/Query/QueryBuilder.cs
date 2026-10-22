@@ -254,6 +254,80 @@ public static class QueryBuilder
         return new QuerySpec(sql, parameters);
     }
 
+    /// <summary>
+    /// The rows of <paramref name="table"/> whose <paramref name="keyColumns"/> hold one of <paramref name="keys"/> – the rows a
+    /// relationship leads to (WP-42, <see cref="Relations.RowTraversal"/>). One column: <c>t."C" IN (:k0, …)</c>; several: a tuple
+    /// list <c>(t."A", t."B") IN ((:k0_0, :k0_1), …)</c>, which the filter model does not have; no columns: by ROWID. The list is
+    /// filled up to the next of <see cref="LookupSizes"/> with the last key (one statement per size in the shared pool),
+    /// ordered by the row key.
+    /// </summary>
+    /// <param name="keyColumns">Indexes into the table's columns; null for ROWIDs (one text per key).</param>
+    /// <param name="wholeLobs">
+    /// LOB columns as whole values (a copy writes them) instead of preview and length; LONG and types read only as a marker
+    /// stay markers either way.
+    /// </param>
+    /// <exception cref="ArgumentException">No keys, more than <see cref="MaxLookupKeys"/>, a key of the wrong size or with a NULL.</exception>
+    public static SelectQuery BuildRowsByKeys(TableDetails table, IReadOnlyList<int>? keyColumns, IReadOnlyList<IReadOnlyList<object>> keys, bool wholeLobs)
+    {
+        var width = keyColumns?.Count ?? 1;
+        if (keys.Count == 0 || keys.Count > MaxLookupKeys || width == 0
+            || keys.Any(k => k.Count != width || k.Any(v => v is null)))
+        {
+            throw new ArgumentException($"A lookup takes 1 to {MaxLookupKeys} keys of {width} values, none of them NULL.", nameof(keys));
+        }
+
+        var builder = new Builder(table);
+        var hasRowId = table.Table.Kind != TableKind.View;
+        var columns = table.Columns.Select(c => new ResultColumn(c, wholeLobs && ProjectionOf(c) is Projection.ClobPreview or Projection.BlobLength
+            ? Projection.Value
+            : ProjectionOf(c))).ToList();
+        var sql = new StringBuilder()
+            .Append("SELECT ").AppendJoin(",\n       ", SelectList(builder, columns, hasRowId))
+            .Append("\n  FROM ").Append(OracleIdentifier.Qualify(table.Table.Owner, table.Table.Name)).Append(' ').Append(Alias)
+            .Append("\n WHERE ").Append(KeyIn(table, keyColumns, keys, builder.Parameters))
+            .Append("\n ORDER BY ").AppendJoin(", ", builder.OrderBy([]))
+            .ToString();
+        return new SelectQuery(sql, builder.Parameters, columns, RowKeyOf(table), hasRowId);
+    }
+
+    /// <summary>
+    /// <c>t."C" IN (:k0, …)</c>, <c>(t."A", t."B") IN ((:k0_0, :k0_1), …)</c> or <c>t.ROWID IN (…)</c> for
+    /// <see cref="BuildRowsByKeys"/>; values bound with the column's type, filled up to the next of <see cref="LookupSizes"/>.
+    /// </summary>
+    internal static string KeyIn(TableDetails table, IReadOnlyList<int>? keyColumns, IReadOnlyList<IReadOnlyList<object>> keys, List<QueryParameter> parameters)
+    {
+        var size = LookupSizes.First(s => s >= keys.Count);
+        var invariant = System.Globalization.CultureInfo.InvariantCulture;
+        if (keyColumns is null)
+        {
+            var rowIds = Enumerable.Range(0, size).Select(i =>
+            {
+                var name = "k" + i.ToString(invariant);
+                parameters.Add(new QueryParameter(name, keys[Math.Min(i, keys.Count - 1)][0], OracleTypeHint.Varchar2));
+                return ":" + name;
+            });
+            return $"{Alias}.ROWID IN ({string.Join(", ", rowIds)})";
+        }
+
+        var columns = keyColumns.Select(c => table.Columns[c]).ToList();
+        var types = columns.Select(OracleTypeMapper.BindType).ToList();
+        var tuples = Enumerable.Range(0, size).Select(i =>
+        {
+            var key = keys[Math.Min(i, keys.Count - 1)];
+            var binds = columns.Select((_, c) =>
+            {
+                var name = columns.Count == 1 ? "k" + i.ToString(invariant) : $"k{i.ToString(invariant)}_{c.ToString(invariant)}";
+                parameters.Add(new QueryParameter(name, key[c], types[c]));
+                return ":" + name;
+            });
+            return columns.Count == 1 ? binds.Single() : $"({string.Join(", ", binds)})";
+        }).ToList();
+        var refs = columns.Select(c => $"{Alias}.{OracleIdentifier.Quote(c.Name)}").ToList();
+        return columns.Count == 1
+            ? $"{refs[0]} IN ({string.Join(", ", tuples)})"
+            : $"({string.Join(", ", refs)}) IN ({string.Join(", ", tuples)})";
+    }
+
     private static List<string> SelectList(Builder builder, IReadOnlyList<ResultColumn> columns, bool hasRowId)
     {
         var select = new List<string>();

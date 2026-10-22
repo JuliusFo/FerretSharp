@@ -306,6 +306,28 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
         }, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<RowData>> ReadByKeysAsync(
+        TableDetails table, IReadOnlyList<int>? keyColumns, IReadOnlyList<IReadOnlyList<object>> keys, bool wholeLobs, CancellationToken cancellationToken)
+    {
+        var rows = new List<RowData>();
+        foreach (var chunk in keys.Chunk(QueryBuilder.MaxLookupKeys))
+        {
+            var query = QueryBuilder.BuildRowsByKeys(table, keyColumns, chunk, wholeLobs);
+            rows.AddRange(await session.ExecuteReaderAsync(query.Sql, query.Parameters, async (reader, ct) =>
+            {
+                var found = new List<RowData>();
+                while (await reader.ReadAsync(ct))
+                {
+                    found.Add(ReadRow((OracleDataReader)reader, query, table));
+                }
+
+                return found;
+            }, cancellationToken));
+        }
+
+        return rows;
+    }
+
     public async Task<IReadOnlyList<LookupRow>> LookupAsync(
         TableDetails target, int keyColumn, int displayColumn, IReadOnlyList<object> keys, CancellationToken cancellationToken)
     {
