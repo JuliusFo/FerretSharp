@@ -14,6 +14,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 - A new query (filter, sort, F5) cancels the rows of the previous one still loading instead of waiting behind it, and closing the tab stops its query.
 - A double click in the SQL editor, the LINQ console and PL/SQL source selects the word again (e.g. a name inside quotes) instead of the whole line; a triple click still selects the line.
 - Enum and bool cells of a C# model can be typed into: the value picks its member (`0` for "New (0)", `1` `0` for 10), the start of the name does too (`Ne`); the same letter again goes to the next member with it. The key that starts editing counts – before, it only opened the list and was lost, and the list searched its labels only, so numbers found nothing.
+- Flags cells can be typed into too: digits set the value itself (`5` ticks the flags 1 and 4; bits no flag stands for stay in it), letters go to the flag whose name starts with them, Space ticks as before.
 - Characters typed with AltGr (`@ € \ { } [ ] ~ |` on a German keyboard) start editing a cell like any other key; before, only a double click, Enter or F2 did.
 
 ## [3.45.0] - 2026-10-21
