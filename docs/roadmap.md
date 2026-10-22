@@ -17,7 +17,7 @@ Entscheidung des Nutzers (2026-10-09). Issues bekommen eine Art und einen Status
 Versionen: Minor-Releases 3.x (nichts Inkompatibles). Ein Paket bekommt seine Version erst beim Release (`CHANGELOG.md`, Spalte „Release“ im Index); die Roadmap legt keine fest, weil die Reihenfolge oft abweicht und Fix-Releases dazwischenkommen (Entscheidung des Nutzers, 2026-10-14). Der Release-Stand steht im Kopf der `CLAUDE.md`, die Historie im `CHANGELOG.md`.
 
 ### Pakete nach WP-36 (WP-37 … WP-47)
-Ausgewählt mit dem Nutzer am 2026-10-14 aus einer Ideensammlung (Bewertung des Nutzers je Paket in Klammern). Reihenfolge nach Abhängigkeiten: erst kleine Pakete mit sofortigem Nutzen (WP-37 … WP-39), dann zwei Fundamente, die je mehrere Pakete tragen – der Code-Index (WP-40 → WP-41, WP-45) und der Beziehungsgraph (WP-42 → WP-43, WP-46) –, das Paket mit Mitschnitt, Quellzeile und Datenänderungen (WP-45) erst, wenn seine Teile stehen. Die Abschnitte sind Vorschläge; „Offen“ wird beim Start mit dem Nutzer entschieden, dann wie üblich der Plan.
+Ausgewählt mit dem Nutzer am 2026-10-14 aus einer Ideensammlung (Bewertung des Nutzers je Paket in Klammern). Reihenfolge nach Abhängigkeiten: erst kleine Pakete mit sofortigem Nutzen (WP-37 … WP-39), dann zwei Fundamente, die je mehrere Pakete tragen – der Code-Index (WP-40 → WP-41, WP-45) und der Beziehungsgraph (WP-42 → WP-43, WP-46) –, das Paket mit Mitschnitt, Quellzeile und Datenänderungen (WP-45) erst, wenn seine Teile stehen. Am 2026-10-22 hat der Nutzer das Beziehungsdiagramm (WP-46) direkt hinter WP-42 gezogen, vor WP-43, und um ein Diagramm konkreter Datensätze erweitert (WP-60, danach). Die Abschnitte sind Vorschläge; „Offen“ wird beim Start mit dem Nutzer entschieden, dann wie üblich der Plan.
 
 ### WP-55 Spaltenprofil
 („gut“; aus WP-38 herausgelöst, 2026-10-19 – gleicher Platz in der Reihenfolge. WP-38 ist umgesetzt: `docs/work-packages/wp-38-palette-quick-open.md`.) Branch `wp/55-column-profile`.
@@ -43,10 +43,24 @@ Branch `wp/41-designer-to-code`. Baut auf WP-40 (released 3.43.0, ADR 0030): des
 (Fundament für WP-43 und WP-46.) Branch `wp/42-subgraph-copy`.
 - **Beziehungsgraph** im Core: Kanten aus deklarierten FKs und Navigations des C#-Modells, später auch `Manual`/`Convention` (`FkSource`), je Kante Spaltenpaare und Quelle.
 - **Kopieren:** markierte Zeilen eines Tabs als Start; Eltern werden immer mitgenommen (sonst FK-Verletzung), Kinder je Kante wählbar mit begrenzter Tiefe. Vorschau als Baum mit Zeilenzahl je Tabelle. Lesen auf der Quelle nur über den Leseweg, in Blöcken mit `in` (Grenze 1000 Werte je Liste).
+- **Traversierung als eigener Baustein im Core**, getrennt vom Einfügen ins Ziel: Startzeilen, Kanten und Tiefe hinein, gefundene Zeilen je Tabelle mit den verbindenden Kanten heraus, schrittweise erweiterbar (eine Kante eines Knotens nachladen). Das Datensatz-Diagramm (WP-60) nutzt sie ohne Kopierziel.
 - **Ziel:** ein Workspace einer anderen offenen Verbindung; Einfügen in dessen Sandbox-Transaktion in FK-Reihenfolge (topologisch sortiert), als **eine** Aktion im Undo-Stapel (ADR 0018); Commit wie immer nur auf Befehl. Ziel Prod nur nach Freischalten; Quelle Prod ist erlaubt (nur lesend).
 - **Konflikte:** gleicher Schlüssel im Ziel vorhanden → überspringen, aktualisieren oder abbrechen, in der Vorschau sichtbar. Spalten, die im Ziel fehlen oder abweichen, warnen (wie der Schema-Vergleich); Identity ALWAYS lässt sich nicht einfügen; Trigger im Ziel (z. B. Audit) laufen mit – Hinweis.
 - ADR (Kopieren über Verbindungen hinweg).
 - Offen: Standardtiefe für Kinder; Standard bei Konflikten; Spalten beim Kopieren maskieren (Namen, E-Mail) – in diesem Paket oder später; neue Schlüssel im Ziel (Sequenzen, Umschreiben der FKs) – Vorschlag: später; Zyklen im Graphen (Vorschlag: melden statt auflösen).
+
+### WP-46 Beziehungsdiagramm
+(braucht WP-42; seit 2026-10-22 direkt danach, vor WP-43.) Branch `wp/46-relationship-diagram`. Schema-Ebene; die Ebene der Datensätze folgt in WP-60 und nutzt Layout und Darstellung von hier.
+- Nachbarschaft einer Tabelle über 1–2 Ebenen als Diagramm, Kanten nach `FkSource` gefärbt (deklariert, C#-Modell, später manuell/vermutet), Knoten mit Tabellen- und Entity-Namen; Klick öffnet den Tab, Doppelklick erweitert den Knoten. „Als Mermaid kopieren“ für Doku und Tickets.
+- Das Layout muss schrittweises Erweitern und zusammengefasste Knoten tragen („Position ×200“, aufklappbar), weil WP-60 darauf aufbaut.
+- Offen: Platz (Ansicht im Tabellen-Tab oder eigener Tab); Layout – SVG aus Razor mit einem einfachen Schichten-Layout im Core (keine neue Bibliothek, keine Logik in JS) oder eine Layout-Bibliothek wie elkjs lokal unter `wwwroot/lib` (dann ADR zum Stack). Vorschlag wegen WP-60: eigenes Layout, über das wir die Kontrolle behalten.
+
+### WP-60 Datensatz-Diagramm
+(Idee des Nutzers, 2026-10-22; braucht WP-42 und WP-46.) Branch `wp/60-record-diagram`.
+- Von markierten Zeilen eines Tabs aus die verbundenen Datensätze als Diagramm: Knoten sind Zeilen (Tabellen-/Entity-Name, Schlüssel, Anzeigespalte über die Präsentationsschicht), Kanten die Beziehungen aus dem Graphen von WP-42, die diese Zeilen tatsächlich verbinden. Doppelklick lädt Eltern oder Kinder einer Kante nach, Klick öffnet den Tab mit Filter auf die Zeile.
+- Laden über die Traversierung aus WP-42 (Leseweg der Workspace-Session, Blöcke mit `in`, abbrechbar), Darstellung und Layout aus WP-46. Viele Kinder an einer Kante werden zu einem Knoten zusammengefasst („Position ×200“), aufklappbar. Werte nur im Speicher.
+- **Verbindung zum Kopieren (WP-42):** Knoten markieren und „Teilgraph kopieren“ mit diesen Zeilen als Start; die Kopier-Vorschau von WP-42 als Diagramm mit Zeilenzahl und Konflikten am Knoten.
+- Offen: Grenze, ab der zusammengefasst wird; ob das Diagramm die Baum-Vorschau von WP-42 ersetzt oder ergänzt; Start auch aus einem Ergebnis von SQL-Editor/LINQ-Konsole, wenn die Herkunft bekannt ist (WP-48); „Als Mermaid kopieren“ auch hier (enthält Werte).
 
 ### WP-43 Datenqualität der Beziehungen
 Branch `wp/43-relationship-check`.
@@ -68,11 +82,6 @@ Branch `wp/44-data-diff`. Zwei Stufen, die dritte kommt mit WP-45.
 - **Datenänderungen (Daten-Diff Stufe 3):** „Aufzeichnen“ merkt die SCN der zugeordneten Verbindung; die Zieltabellen der INSERT/UPDATE/DELETE/MERGE-Statements des Mitschnitts bestimmen, welche Tabellen „Stopp“ per Flashback (WP-44) vergleicht. Ergebnis: alle Änderungen der App in allen betroffenen Tabellen, ohne vorher etwas auszuwählen. Audit-Tabellen (WP-26) auf Wunsch mit, weil ihre Trigger nicht im Mitschnitt stehen.
 - Feldliste bleibt fest (ADR 0023): aus dem Stapel nur Methodennamen, nie Werte – Nachtrag zum ADR.
 - Offen: Ergebnis des Spikes; ob die Quellzeile nur für die Top-Statements ermittelt wird (Kosten).
-
-### WP-46 Beziehungsdiagramm
-(braucht WP-42.) Branch `wp/46-relationship-diagram`.
-- Nachbarschaft einer Tabelle über 1–2 Ebenen als Diagramm, Kanten nach `FkSource` gefärbt (deklariert, C#-Modell, später manuell/vermutet), Knoten mit Tabellen- und Entity-Namen; Klick öffnet den Tab, Doppelklick erweitert den Knoten. „Als Mermaid kopieren“ für Doku und Tickets.
-- Offen: Platz (Ansicht im Tabellen-Tab oder eigener Tab); Layout – SVG aus Razor mit einem einfachen Schichten-Layout im Core (keine neue Bibliothek, keine Logik in JS) oder eine Layout-Bibliothek wie elkjs lokal unter `wwwroot/lib` (dann ADR zum Stack).
 
 ### WP-47 Startseite „Seit deinem letzten Besuch“ mit Schema-Cache
 Branch `wp/47-since-last-visit`.
