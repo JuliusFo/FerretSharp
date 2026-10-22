@@ -40,7 +40,7 @@ public static class ColumnValueCopies
         return new AllColumnValues(
             AllRowsExports.Heading(GridText.GridMenu_AllRowsGroup, total),
             total,
-            distinct => async (onBlock, ct) => await (await dataOf(workspaceId, ct)).ReadColumnAllAsync(details, column, filters, sorts, distinct, onBlock, ct),
+            distinct => async (onBlock, ct) => await (await dataOf(workspaceId, ct)).ReadColumnAllAsync(details, [column], filters, sorts, distinct, onBlock, ct),
             0,
             TextFormat.Format(GridText.ColumnMenu_AllValuesTitle, ColumnValues.MaxValues),
             workspaceId,

@@ -103,7 +103,7 @@ public partial class QueryBuilderTests
         IReadOnlyList<SortSpec> sorts = [new("ERSTELLT_AM", true)];
         var all = QueryBuilder.BuildSelectAll(Kunden, filters, sorts);
 
-        var values = QueryBuilder.BuildColumnValues(Kunden, 1, filters, sorts, distinct: false);
+        var values = QueryBuilder.BuildColumnValues(Kunden, [1], filters, sorts, distinct: false);
 
         AssertBindsMatch(values.Sql, values.Parameters);
         Assert.StartsWith("SELECT t.\"NAME\"\n  FROM \"APP\".\"KUNDEN\" t\n WHERE ", values.Sql);
@@ -118,7 +118,7 @@ public partial class QueryBuilderTests
     [Fact]
     public void Distinct_column_values_are_ordered_by_the_value()
     {
-        var values = QueryBuilder.BuildColumnValues(Log, 2, [], [new("NAME", false)], distinct: true);
+        var values = QueryBuilder.BuildColumnValues(Log, [2], [], [new("NAME", false)], distinct: true);
 
         Assert.Equal("SELECT DISTINCT t.\"KUERZEL\"\n  FROM \"APP\".\"LOG\" t\n ORDER BY t.\"KUERZEL\"", values.Sql);
         Assert.True(StatementGuard.IsQuery(values.Sql));
@@ -130,7 +130,29 @@ public partial class QueryBuilderTests
     [InlineData(7)] // XMLTYPE
     public void Column_values_refuse_columns_not_read_as_values(int column)
     {
-        Assert.Throws<ArgumentException>(() => QueryBuilder.BuildColumnValues(Kunden, column, [], [], distinct: false));
+        Assert.Throws<ArgumentException>(() => QueryBuilder.BuildColumnValues(Kunden, [column], [], [], distinct: false));
+        Assert.Throws<ArgumentException>(() => QueryBuilder.BuildColumnValues(Kunden, [1, column], [], [], distinct: false));
+    }
+
+    [Fact]
+    public void Values_of_several_columns_come_in_the_given_order()
+    {
+        IReadOnlyList<SortSpec> sorts = [new("ERSTELLT_AM", true)];
+        var all = QueryBuilder.BuildSelectAll(Kunden, [], sorts);
+
+        var values = QueryBuilder.BuildColumnValues(Kunden, [2, 0], [], sorts, distinct: false);
+
+        Assert.StartsWith("SELECT t.\"" + Kunden.Columns[2].Name + "\", t.\"KUNDE_ID\"\n  FROM \"APP\".\"KUNDEN\" t\n ORDER BY ", values.Sql);
+        Assert.Equal(all.Sql[all.Sql.IndexOf("\n ORDER BY ", StringComparison.Ordinal)..], values.Sql[values.Sql.IndexOf("\n ORDER BY ", StringComparison.Ordinal)..]);
+        Assert.Equal([new ResultColumn(Kunden.Columns[2], Projection.Value), new ResultColumn(Kunden.Columns[0], Projection.Value)], values.Columns);
+        Assert.True(StatementGuard.IsQuery(values.Sql));
+    }
+
+    [Fact]
+    public void Column_values_need_a_column_and_distinct_only_one()
+    {
+        Assert.Throws<ArgumentException>(() => QueryBuilder.BuildColumnValues(Kunden, [], [], [], distinct: false));
+        Assert.Throws<ArgumentException>(() => QueryBuilder.BuildColumnValues(Kunden, [1, 2], [], [], distinct: true));
     }
 
     [Fact]

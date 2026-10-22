@@ -78,8 +78,8 @@ public sealed class ColumnValueCopiesTests
         await all.Read(false)(Ignore, Ct);
         await all.Read(true)(Ignore, Ct);
 
-        await _data.Received(1).ReadColumnAllAsync(Kunden, 2, filters, sorts, false, Arg.Any<RowBlockHandler>(), Ct);
-        await _data.Received(1).ReadColumnAllAsync(Kunden, 2, filters, sorts, true, Arg.Any<RowBlockHandler>(), Ct);
+        await _data.Received(1).ReadColumnAllAsync(Kunden, Arg.Is<IReadOnlyList<int>>(c => c.SequenceEqual(new[] { 2 })), filters, sorts, false, Arg.Any<RowBlockHandler>(), Ct);
+        await _data.Received(1).ReadColumnAllAsync(Kunden, Arg.Is<IReadOnlyList<int>>(c => c.SequenceEqual(new[] { 2 })), filters, sorts, true, Arg.Any<RowBlockHandler>(), Ct);
         Assert.Equal(0, all.ValueIndex);
         Assert.True(all.DistinctInQuery);
         Assert.Equal(234, all.Total);

@@ -228,6 +228,23 @@ public class EditingTests
     }
 
     [Fact]
+    public void Pending_changes_of_columns_count_their_values_deletes_and_new_rows_but_not_what_is_written()
+    {
+        var tracker = new ChangeTracker(Kunden);
+        tracker.SetValue(Row(1, "Müller", 10m), I("BETRAG"), "20");
+        tracker.SetValue(Row(2, "Meier"), I("NAME"), "Maier");
+        tracker.MarkFlushed(tracker.PendingOperations(), new Dictionary<Guid, RowKey>()); // written: the database has them
+        tracker.SetValue(Row(3, "Schulz"), I("BETRAG"), "5");
+        tracker.Delete(Row(4, "Weber"));
+
+        Assert.Equal(2, tracker.PendingIn([I("BETRAG")])); // row 3 and the deleted row 4
+        Assert.Equal(1, tracker.PendingIn([I("NAME")]));
+
+        tracker.AddRow();
+        Assert.Equal(3, tracker.PendingIn([I("BETRAG"), I("NAME")]));
+    }
+
+    [Fact]
     public void Invalid_or_not_editable_input_changes_nothing()
     {
         var tracker = new ChangeTracker(Kunden);

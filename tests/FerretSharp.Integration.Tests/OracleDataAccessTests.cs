@@ -265,7 +265,7 @@ public class OracleDataAccessTests(OracleContainerFixture oracle) : IAsyncLifeti
         IReadOnlyList<SortSpec> sorts = [new SortSpec("NAME", true)];
         var values = new List<object?>();
 
-        await _data.ReadColumnAllAsync(_grid, Index("ID"), filters, sorts, distinct: false, (rows, _, _) =>
+        await _data.ReadColumnAllAsync(_grid, [Index("ID")], filters, sorts, distinct: false, (rows, _, _) =>
         {
             Assert.All(rows, r => Assert.Single(r.Values));
             values.AddRange(rows.Select(r => r.Values[0]));
@@ -277,11 +277,27 @@ public class OracleDataAccessTests(OracleContainerFixture oracle) : IAsyncLifeti
     }
 
     [Fact]
+    public async Task The_values_of_several_columns_come_side_by_side_in_the_order_of_the_grid()
+    {
+        IReadOnlyList<SortSpec> sorts = [new SortSpec("NAME", false)];
+        var values = new List<IReadOnlyList<object?>>();
+
+        await _data.ReadColumnAllAsync(_grid, [Index("NAME"), Index("ID")], [], sorts, distinct: false, (rows, _, _) =>
+        {
+            values.AddRange(rows.Select(r => r.Values));
+            return Task.FromResult(true);
+        }, Ct);
+
+        var paged = await ReadAllAsync([], sorts, pageSize: 500);
+        Assert.Equal(paged.Select(r => (r.Values[Index("NAME")], r.Values[Index("ID")])), values.Select(v => (v[0], v[1])));
+    }
+
+    [Fact]
     public async Task Distinct_values_of_a_column_come_each_once_with_null()
     {
         var values = new List<object?>();
 
-        await _data.ReadColumnAllAsync(_grid, Index("NAME"), [], [], distinct: true, (rows, _, _) =>
+        await _data.ReadColumnAllAsync(_grid, [Index("NAME")], [], [], distinct: true, (rows, _, _) =>
         {
             values.AddRange(rows.Select(r => r.Values[0]));
             return Task.FromResult(true);

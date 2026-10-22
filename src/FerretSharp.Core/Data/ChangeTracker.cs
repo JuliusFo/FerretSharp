@@ -267,6 +267,13 @@ public sealed class ChangeTracker(TableDetails table)
 
     public int FlushedCount => Changes.Count(c => c.HasFlushed);
 
+    /// <summary>
+    /// Rows whose pending changes the database does not hold yet for these columns (WP-58: a read of all values misses them):
+    /// a pending value in one of them, a pending delete, a new row not inserted.
+    /// </summary>
+    public int PendingIn(IReadOnlyCollection<int> columns) => Changes.Count(c =>
+        c.Deleted == ChangeStage.Pending || (c.IsNew && !c.IsInserted && c.Deleted is null) || c.PendingColumns.Any(columns.Contains));
+
     public bool HasChanges => _byKey.Count > 0 || _newRows.Count > 0;
 
     /// <summary>A pending edit can be taken back (tests).</summary>
