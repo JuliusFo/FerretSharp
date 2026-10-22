@@ -37,6 +37,10 @@
     [Parameter]
     public EventCallback OnClose { get; set; }
 
+    /// <summary>Rows with pending changes of the column: the read does not have them, the notice says so (WP-58).</summary>
+    [Parameter]
+    public int Pending { get; set; }
+
     /// <summary>Rows of the group – separator, heading and two entries – for the menu's estimated height.</summary>
     public const int Entries = 4;
 
@@ -47,8 +51,8 @@
     /// <summary>Closes the menu first: the read goes on in the background, shown in the status bar.</summary>
     private async Task CopyAsync(ColumnValuesFormat format)
     {
-        var (shell, active, column, presented, all) = (Shell, Active, Column, Presented, All);
+        var (shell, active, column, presented, all, pending) = (Shell, Active, Column, Presented, All, Pending);
         await OnClose.InvokeAsync();
-        await ColumnValueCopies.CopyAllAsync(shell, Clipboard, Logger, active, presented, column.Name, format, all);
+        await ColumnValueCopies.CopyAllAsync(shell, Clipboard, Logger, active, presented, column.Name, format, all, ColumnValueCopies.PendingLeftOut(pending));
     }
 }

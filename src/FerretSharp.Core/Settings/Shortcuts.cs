@@ -124,6 +124,7 @@ public sealed class ShortcutMap
         new(SettingsText.GroupData, SettingsText.FixedExtendSelection, Labels("shift+arrowup", "shift+arrowdown", "shift+pageup", "shift+pagedown"), SettingsText.HintInGrid),
         new(SettingsText.GroupData, SettingsText.FixedSelectToEdge, Labels("shift+home", "shift+end", "ctrl+shift+arrowup", "ctrl+shift+arrowdown"),
             SettingsText.HintInGrid),
+        new(SettingsText.GroupData, SettingsText.FixedMarkCells, Labels("shift+arrowleft", "shift+arrowright"), SettingsText.HintInGrid),
         new(SettingsText.GroupData, SettingsText.FixedToggleRow, Labels("space"), SettingsText.HintInGrid),
         new(SettingsText.GroupData, SettingsText.FixedSelectAllRows, Labels("ctrl+a"), SettingsText.HintSelectAllRows),
         new(SettingsText.GroupData, SettingsText.FixedClearSelection, "Esc", SettingsText.HintInGridNotEditing),

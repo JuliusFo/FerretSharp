@@ -1,13 +1,15 @@
-@* Right-click menu of a column header of a SQL editor result (WP-57): copy all values of the column, the query run again. *@
+@* Right-click menu of a column header of a SQL editor result (WP-57): select the column as a whole (WP-58), copy all values of
+   the column – the query run again, unless every row is loaded. *@
 @using FerretSharp.Core.Data
 @using FerretSharp.Core.Schema
 
 <PopoverMenu X="Request.X" Y="Request.Y" ViewportWidth="Request.ViewportWidth" ViewportHeight="Request.ViewportHeight"
-             Width="300" EstimatedHeight="@(60 + 44 * ColumnValuesMenuItems.Entries)" OnClose="OnClose">
+             Width="300" EstimatedHeight="@(104 + 44 * ColumnValuesMenuItems.Entries)" OnClose="OnClose">
     <div class="ctx-head">
         <span class="ctx-col">@Column.Name</span>
         <span class="ctx-value">@Column.DisplayType</span>
     </div>
+    <button class="menu-item" title="@GridText.ResultColumnMenu_MarkColumnTitle" @onclick="MarkAsync">@GridText.ColumnMenu_MarkColumn</button>
     <ColumnValuesMenuItems Column="Column" Presented="Presented" All="All" OnClose="OnClose" />
 </PopoverMenu>
 
@@ -28,4 +30,14 @@
 
     [Parameter]
     public EventCallback OnClose { get; set; }
+
+    /// <summary>Marks the column as a whole (WP-58).</summary>
+    [Parameter]
+    public EventCallback OnMarkColumn { get; set; }
+
+    private async Task MarkAsync()
+    {
+        await OnClose.InvokeAsync();
+        await OnMarkColumn.InvokeAsync();
+    }
 }

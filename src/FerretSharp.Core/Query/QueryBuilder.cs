@@ -111,27 +111,37 @@ public static class QueryBuilder
         Select(table, filters, sorts, page: null);
 
     /// <summary>
-    /// The values of one column for every row of <see cref="BuildSelectAll"/> (copy the values of a column, WP-57): in the
-    /// grid's order, or each value once (<paramref name="distinct"/>, for an IN list) ordered by the value – with DISTINCT,
-    /// Oracle only sorts by what is selected. Only columns read as they are (<see cref="Projection.Value"/>).
+    /// The values of columns for every row of <see cref="BuildSelectAll"/> (copy the values of a column, WP-57, or of marked
+    /// columns, WP-58): in the grid's order, or each value once (<paramref name="distinct"/>, for an IN list – one column only)
+    /// ordered by the value – with DISTINCT, Oracle only sorts by what is selected. Only columns read as they are
+    /// (<see cref="Projection.Value"/>).
     /// </summary>
-    /// <exception cref="ArgumentException">The column is a LOB, LONG or a type read only as a marker.</exception>
+    /// <param name="columns">Indexes into the table's columns, in the order of the result.</param>
+    /// <exception cref="ArgumentException">
+    /// A column is a LOB, LONG or a type read only as a marker; no column; DISTINCT over several columns.
+    /// </exception>
     public static SelectQuery BuildColumnValues(
-        TableDetails table, int column, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts, bool distinct)
+        TableDetails table, IReadOnlyList<int> columns, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts, bool distinct)
     {
-        var info = table.Columns[column];
-        if (ProjectionOf(info) != Projection.Value)
+        if (columns.Count == 0 || (distinct && columns.Count > 1))
         {
-            throw new ArgumentException($"Column {info.Name} ({info.DataType}) is not read as a value.", nameof(column));
+            throw new ArgumentException("One column for DISTINCT, at least one otherwise.", nameof(columns));
+        }
+
+        var infos = columns.Select(c => table.Columns[c]).ToList();
+        if (infos.FirstOrDefault(i => ProjectionOf(i) != Projection.Value) is { } info)
+        {
+            throw new ArgumentException($"Column {info.Name} ({info.DataType}) is not read as a value.", nameof(columns));
         }
 
         var builder = new Builder(table);
+        var refs = infos.Select(builder.Ref).ToList();
         var sql = new StringBuilder()
-            .Append(distinct ? "SELECT DISTINCT " : "SELECT ").Append(builder.Ref(info))
+            .Append(distinct ? "SELECT DISTINCT " : "SELECT ").AppendJoin(", ", refs)
             .Append("\n  FROM ").Append(OracleIdentifier.Qualify(table.Table.Owner, table.Table.Name)).Append(' ').Append(Alias)
             .Append(builder.Where(filters))
-            .Append("\n ORDER BY ").AppendJoin(", ", distinct ? [builder.Ref(info)] : builder.OrderBy(sorts));
-        return new SelectQuery(sql.ToString(), builder.Parameters, [new ResultColumn(info, Projection.Value)], RowKeyKind.None, HasRowId: false);
+            .Append("\n ORDER BY ").AppendJoin(", ", distinct ? refs : builder.OrderBy(sorts));
+        return new SelectQuery(sql.ToString(), builder.Parameters, [.. infos.Select(i => new ResultColumn(i, Projection.Value))], RowKeyKind.None, HasRowId: false);
     }
 
     private static SelectQuery Select(

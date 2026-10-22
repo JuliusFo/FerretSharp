@@ -91,7 +91,24 @@
     /// </summary>
     private FilterRow? _newRow;
 
-    protected override void OnAfterRender(bool firstRender) => _newRow = null;
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        _newRow = null;
+        if (firstRender)
+        {
+            _self = DotNetObjectReference.Create(this);
+            await Dom.InvokeVoidAsync("listPaste", _bar, _self);
+        }
+    }
+
+    private DotNetObjectReference<FilterBar>? _self;
+
+    /// <summary>
+    /// Text pasted into a list value ("in list"): lines – a column copied from the grid or Excel – or an IN list become its
+    /// values; null pastes the text as it is (<see cref="PastedList"/>).
+    /// </summary>
+    [JSInvokable]
+    public string? ListFromPaste(string text) => PastedList.ToFilterValue(text);
 
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
@@ -165,7 +182,8 @@
                 }
                 else
                 {
-                    <input class="field value" placeholder="@(valueCount < 0 ? GridText.Filter_ListPlaceholder : Placeholder(category))"
+                    <input class="field value" placeholder="@(valueCount < 0 ? GridText.Filter_ListPlaceholder : Placeholder(category))" data-list="@(valueCount < 0)"
+                           title="@(valueCount < 0 ? GridText.Filter_ListPasteTitle : null)"
                            @bind="r.Value" @bind:event="oninput" @bind:after="Shell.MarkDirty" @onkeydown="OnKeyDown" />
                 }
             </div>
@@ -301,6 +319,8 @@
         {
             await _dom.DisposeAsync();
         }
+
+        _self?.Dispose();
     }
 
     private async Task ApplyPresetAsync(PresetChoice choice)

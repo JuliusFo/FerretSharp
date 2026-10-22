@@ -1,5 +1,5 @@
-@* Right-click menu of a column header: pin the column to the left or release it; mark it as the table's display column (WP-31);
-   copy all its values under the tab's filter (WP-57). *@
+@* Right-click menu of a column header: pin the column to the left or release it; select it as a whole (WP-58); mark it as the
+   table's display column (WP-31); copy all its values under the tab's filter (WP-57). *@
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Display
@@ -7,7 +7,7 @@
 @inject DisplayColumnSource DisplaySource
 
 <PopoverMenu X="Request.X" Y="Request.Y" ViewportWidth="Request.ViewportWidth" ViewportHeight="Request.ViewportHeight"
-             Width="300" EstimatedHeight="@(125 + 44 * ColumnValuesMenuItems.Entries)" OnClose="OnClose">
+             Width="300" EstimatedHeight="@(169 + 44 * ColumnValuesMenuItems.Entries)" OnClose="OnClose">
     <div class="ctx-head">
         <span class="ctx-col">@Column.Name</span>
         <span class="ctx-value">@Column.DisplayType</span>
@@ -20,6 +20,7 @@
     {
         <button class="menu-item" @onclick="ToggleAsync">@(Pinned ? GridText.Grid_UnpinColumn : GridText.Grid_PinColumnLeft)</button>
     }
+    <button class="menu-item" title="@GridText.ColumnMenu_MarkColumnTitle" @onclick="MarkAsync">@GridText.ColumnMenu_MarkColumn</button>
     @{
         var display = DisplaySource.Current();
         var isDisplay = display.Columns.ColumnOf(Details.Table.Name) == Column.Name;
@@ -32,7 +33,8 @@
         @(isDisplay ? GridText.ColumnMenu_RemoveDisplay : GridText.ColumnMenu_UseAsDisplay)
     </button>
     <ColumnValuesMenuItems Column="Column" Presented="@PresentedExport.Column(Presentations.For(Details), Request.Column, Column.Name, Request.Column)"
-                           All="@ColumnValueCopies.ForTable(Tab, Details, Request.Column, Workspaces.GetDataAsync)" OnClose="OnClose" />
+                           All="@ColumnValueCopies.ForTable(Tab, Details, [Request.Column], Workspaces.GetDataAsync)" OnClose="OnClose"
+                           Pending="@(Tab.Changes?.PendingIn([Request.Column]) ?? 0)" />
 </PopoverMenu>
 
 @code {
@@ -65,7 +67,17 @@
     [Parameter]
     public EventCallback OnClose { get; set; }
 
+    /// <summary>Marks the column as a whole (WP-58).</summary>
+    [Parameter]
+    public EventCallback<int> OnMarkColumn { get; set; }
+
     private ColumnInfo Column => Details.Columns[Request.Column];
+
+    private async Task MarkAsync()
+    {
+        await OnClose.InvokeAsync();
+        await OnMarkColumn.InvokeAsync(Request.Column);
+    }
 
     private async Task ToggleAsync()
     {

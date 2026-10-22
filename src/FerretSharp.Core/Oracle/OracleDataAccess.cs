@@ -107,13 +107,13 @@ public sealed class OracleDataAccess(OracleSession session) : IDataAccess
 
     public Task ReadColumnAllAsync(
         TableDetails table,
-        int column,
+        IReadOnlyList<int> columns,
         IReadOnlyList<FilterCondition> filters,
         IReadOnlyList<SortSpec> sorts,
         bool distinct,
         RowBlockHandler onBlock,
         CancellationToken cancellationToken) =>
-        ReadTableAllAsync(table, QueryBuilder.BuildColumnValues(table, column, filters, sorts, distinct), onBlock, cancellationToken);
+        ReadTableAllAsync(table, QueryBuilder.BuildColumnValues(table, columns, filters, sorts, distinct), onBlock, cancellationToken);
 
     /// <summary>Every row of a query on a table, block by block (all rows WP-54, all values of a column WP-57).</summary>
     private Task ReadTableAllAsync(TableDetails table, SelectQuery query, RowBlockHandler onBlock, CancellationToken cancellationToken) =>
