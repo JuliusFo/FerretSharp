@@ -223,6 +223,16 @@
             return;
         }
 
+        if (firstRender)
+        {
+            // Enum fields: typing picks by value, then by label, like the grid's cell editor.
+            await Dom.InvokeVoidAsync("typeInLists", _panel);
+            if (_disposed)
+            {
+                return;
+            }
+        }
+
         if (_reveal is { } column)
         {
             _reveal = null;

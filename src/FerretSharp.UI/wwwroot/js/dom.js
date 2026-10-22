@@ -1,5 +1,7 @@
 // Small DOM helpers that Blazor cannot do on its own.
 
+import { TYPE_PAUSE, TypedText, pickTyped, typedCharOf } from './cellTyping.js';
+
 /** block: 'nearest' keeps the element just visible (keyboard navigation), 'start' jumps to it (letter index). */
 export function scrollIntoViewById(id, block = 'nearest') {
   document.getElementById(id)?.scrollIntoView({ block });
@@ -164,6 +166,56 @@ export function trapFocus(box) {
       items[0].focus();
     }
   });
+}
+
+/**
+ * Typing in the member lists (native selects) below root – the enum fields of the form: as in the grid's cell editor the
+ * value first, then the label (cellTyping.js); the list's own search knows only the labels, digits found nothing. The pick
+ * goes to Blazor (a change event) when typing pauses, on Enter or when the list loses the focus – not with every key, so
+ * `1` `0` is one change, not two. The listeners are on root and go with it; lists rendered anew need nothing.
+ */
+export function typeInLists(root) {
+  if (!root || root._typeInLists) {
+    return;
+  }
+
+  root._typeInLists = true;
+  const states = new WeakMap(); // select → { typed, pending, timer }
+  const take = select => {
+    const state = states.get(select);
+    state?.typed.reset(); // the next key starts anew
+    if (!state?.pending) return;
+    clearTimeout(state.timer);
+    state.pending = false;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+  root.addEventListener('keydown', e => {
+    const select = e.target;
+    if (!(select instanceof HTMLSelectElement)) return;
+    if (e.key === 'Enter') {
+      take(select);
+      return;
+    }
+
+    let state = states.get(select);
+    if (!state) states.set(select, state = { typed: new TypedText(), pending: false, timer: 0 });
+    const char = typedCharOf(e);
+    const now = Date.now();
+    // A space on its own opens the list as before; while typing it belongs to the text.
+    if (char === null || (char === ' ' && !state.typed.active(now))) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const options = [...select.options].map(o => ({ value: o.value, label: o.textContent }));
+    const value = pickTyped(options, state.typed.add(char, now), select.value);
+    if (value === null || value === select.value) return;
+    select.value = value;
+    state.pending = true;
+    clearTimeout(state.timer);
+    state.timer = setTimeout(() => take(select), TYPE_PAUSE);
+  }, true);
+  root.addEventListener('focusout', e => {
+    if (e.target instanceof HTMLSelectElement) take(e.target);
+  }, true);
 }
 
 /** True if the element contains the focused element (Ctrl+F: the form's search or the grid's column jump). */
