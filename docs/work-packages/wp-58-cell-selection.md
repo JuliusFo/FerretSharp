@@ -1,4 +1,4 @@
-# WP-58 Zellen und Spalten markieren → Release offen
+# WP-58 Zellen und Spalten markieren → Release 3.46.0
 
 Branch `wp/58-cell-selection`. Frage des Nutzers 2026-10-21: Zell- und Spaltenauswahl fehlt, weil AG Grid sie nur in der Enterprise-Edition hat. Ein eigenes Grid wurde verworfen (2–4 Monate für den heutigen Funktionsumfang, danach dauerhaft zu pflegen). Vom Nutzer als Paket eingeplant 2026-10-21, offene Fragen am 2026-10-22 entschieden, am selben Tag begonnen.
 

@@ -1,4 +1,4 @@
-# WP-59 Werte für markierte Zellen setzen → Release offen
+# WP-59 Werte für markierte Zellen setzen → Release 3.46.0
 
 Branch `wp/59-range-edit`. „Bulk-Update“, Rückmeldung eines Kollegen 2026-10-22; vom Nutzer am selben Tag als Paket eingeplant, zusammen mit „Entf auf einen Bereich“ und „Ausfüllen nach unten“ (aus WP-58 zurückgestellt). Offene Fragen am 2026-10-22 entschieden, am selben Tag begonnen.
 

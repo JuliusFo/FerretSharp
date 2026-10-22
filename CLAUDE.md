@@ -1,7 +1,7 @@
 # FerretSharp – Oracle explorer for .NET developers
 
 > Projektanweisungen für Claude Code. Arbeitssprache mit dem Nutzer: **Deutsch**. Code, Kommentare und Commit-Messages: **Englisch**.
-> Stand: 2026-10-21, zuletzt released 3.45.0 (Historie: `CHANGELOG.md`).
+> Stand: 2026-10-22, zuletzt released 3.46.0 (Historie: `CHANGELOG.md`).
 
 ## Wo steht was
 
@@ -112,4 +112,4 @@ Regeln:
 
 ## 8. Als Nächstes
 
-WP-55, WP-39, WP-41 … WP-47 und WP-59 (`docs/roadmap.md`).
+WP-55, WP-39 und WP-41 … WP-47 (`docs/roadmap.md`).

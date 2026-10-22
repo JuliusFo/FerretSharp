@@ -1,4 +1,4 @@
-# Klein: Tippen im Enum- und Flags-Editor und im Formular, AltGr-Zeichen starten die Bearbeitung → nächstes Release
+# Klein: Tippen im Enum- und Flags-Editor und im Formular, AltGr-Zeichen starten die Bearbeitung → Release 3.46.0
 Anlass (2026-10-22): Rückmeldung eines Kollegen über den Nutzer: (1) Eingaben gingen nur per Doppelklick, Lostippen auf der fokussierten Zelle nicht; (2) Enum-Werte aus dem C#-Modell ließen sich nicht als Zahl eingeben (`0` für den ersten Member), nur über die Liste. Branch `fix/enum-editor-typing`. Entscheidung des Nutzers: „Variante A“ – Tippen im vorhandenen Editor, kein neues Eingabefeld mit gefilterter Liste.
 
 Befund (nachgestellt mit dem echten `grid.js` und AG Grid 36.2 auf einer Testseite, CDP-Tastendrücke, Stand `main` und `wp/58-cell-selection`):
