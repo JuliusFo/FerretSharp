@@ -77,6 +77,19 @@ public sealed class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task Header_lines_show_and_filter_sql_lists_columns_by_default_and_round_trip()
+    {
+        await File.WriteAllTextAsync(_store.FilePath, """{ "version": 1, "settings": { "theme": "dark" } }""", Ct);
+        var loaded = await _store.LoadAsync(Ct);
+        Assert.Equal((true, true, FilterSqlColumns.Listed), (loaded.ShowColumnTypes, loaded.ShowNotNull, loaded.FilterSql));
+
+        await _store.SaveAsync(new AppSettings { ShowColumnTypes = false, ShowNotNull = false, FilterSql = FilterSqlColumns.Star }, Ct);
+
+        loaded = await _store.LoadAsync(Ct);
+        Assert.Equal((false, false, FilterSqlColumns.Star), (loaded.ShowColumnTypes, loaded.ShowNotNull, loaded.FilterSql));
+    }
+
+    [Fact]
     public async Task Update_check_is_on_by_default_also_in_files_written_before_it_existed_and_round_trips()
     {
         await File.WriteAllTextAsync(_store.FilePath, """{ "version": 1, "settings": { "theme": "dark" } }""", Ct);

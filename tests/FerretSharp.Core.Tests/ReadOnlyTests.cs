@@ -338,9 +338,11 @@ public class ReadOnlyTests
                     {
                         var select = QueryBuilder.BuildSelect(table, filters, [new SortSpec(table.Columns[0].Name, true)], new PageSpec(0, 500));
                         var count = QueryBuilder.BuildCount(table, filters);
+                        var star = QueryBuilder.BuildSelectStar(table, filters, [new SortSpec(table.Columns[0].Name, true)]);
 
                         Assert.True(OracleSession.IsReadOnlyStatement(select.Sql), select.Sql);
                         Assert.True(OracleSession.IsReadOnlyStatement(count.Sql), count.Sql);
+                        Assert.True(OracleSession.IsReadOnlyStatement(star.Sql), star.Sql);
                         Assert.DoesNotContain("DELETE", select.Sql, StringComparison.OrdinalIgnoreCase);
                     }
                 }

@@ -49,6 +49,16 @@ public enum FkCountMode
     OnHover,
 }
 
+/// <summary>What "SQL" in a table's filter bar shows and opens in the SQL editor.</summary>
+public enum FilterSqlColumns
+{
+    /// <summary>The grid's own statement: ROWID, each column (LOBs as preview and length), the first page (default).</summary>
+    Listed,
+
+    /// <summary><c>SELECT t.*</c> with the filter and the sorting, without ROWID and page.</summary>
+    Star,
+}
+
 /// <summary>User preferences of the app (not per connection). Saved as <c>settings.json</c> in the data directory.</summary>
 public sealed record AppSettings
 {
@@ -154,6 +164,18 @@ public sealed record AppSettings
     /// empty for <c>display-columns.json</c> in the data folder. Read through <see cref="Display.DisplayColumnSource"/>.
     /// </summary>
     public string? DisplayColumnsPath { get; init; }
+
+    /// <summary>The Oracle type on the last line of a column header (table grid and SQL result). On by default.</summary>
+    public bool ShowColumnTypes { get; init; } = true;
+
+    /// <summary>
+    /// <c>NOT NULL</c> on the last line of a column header. On by default; with <see cref="ShowColumnTypes"/> off as well,
+    /// the header has no such line.
+    /// </summary>
+    public bool ShowNotNull { get; init; } = true;
+
+    /// <summary>What "SQL" in a table's filter bar shows: the grid's statement (default) or <c>SELECT t.*</c>.</summary>
+    public FilterSqlColumns FilterSql { get; init; } = FilterSqlColumns.Listed;
 }
 
 /// <summary>

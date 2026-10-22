@@ -97,6 +97,32 @@ public partial class QueryBuilderTests
     }
 
     [Fact]
+    public void Select_star_has_the_filter_and_the_sorts_with_the_key_but_no_rowid_projection_or_page()
+    {
+        IReadOnlyList<FilterCondition> filters = [new("NAME", FilterOperator.Contains, ["Ferret"])];
+        IReadOnlyList<SortSpec> sorts = [new("ERSTELLT_AM", true)];
+        var all = QueryBuilder.BuildSelectAll(Kunden, filters, sorts);
+
+        var star = QueryBuilder.BuildSelectStar(Kunden, filters, sorts);
+
+        AssertBindsMatch(star.Sql, star.Parameters);
+        Assert.StartsWith("SELECT t.*\n  FROM \"APP\".\"KUNDEN\" t\n WHERE ", star.Sql);
+        Assert.Equal(all.Sql[all.Sql.IndexOf("\n WHERE ", StringComparison.Ordinal)..], star.Sql[star.Sql.IndexOf("\n WHERE ", StringComparison.Ordinal)..]);
+        Assert.EndsWith("\n ORDER BY t.\"ERSTELLT_AM\" DESC, t.\"KUNDE_ID\"", star.Sql);
+        Assert.Equal(all.Parameters, star.Parameters);
+        Assert.DoesNotContain("ROWID", star.Sql, StringComparison.Ordinal);
+        Assert.True(StatementGuard.IsQuery(star.Sql));
+    }
+
+    [Fact]
+    public void Select_star_without_key_orders_only_by_the_sorts_and_without_sorts_not_at_all()
+    {
+        Assert.Equal("SELECT t.*\n  FROM \"APP\".\"LOG\" t\n ORDER BY t.\"NAME\"", QueryBuilder.BuildSelectStar(Log, [], [new("NAME", false)]).Sql);
+        Assert.Equal("SELECT t.*\n  FROM \"APP\".\"LOG\" t", QueryBuilder.BuildSelectStar(Log, [], []).Sql);
+        Assert.Equal("SELECT t.*\n  FROM \"APP\".\"V_KUNDEN\" t", QueryBuilder.BuildSelectStar(View, [], []).Sql);
+    }
+
+    [Fact]
     public void Column_values_select_one_column_in_the_order_of_all_rows()
     {
         IReadOnlyList<FilterCondition> filters = [new("NAME", FilterOperator.Contains, ["Ferret"])];
