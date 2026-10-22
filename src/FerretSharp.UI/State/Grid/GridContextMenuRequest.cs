@@ -10,9 +10,13 @@ namespace FerretSharp.UI.State;
 /// <param name="MissingRows">Selected rows whose block is no longer cached; they cannot be exported.</param>
 /// <param name="X">Mouse position in CSS pixels, relative to the viewport.</param>
 /// <param name="SelectedIndexes">Grid row indexes of the selected rows (delete/revert from the menu).</param>
+/// <param name="Marks">
+/// The right-click landed in marked cells or columns (WP-58): their own group; the row's entries then take the clicked row.
+/// </param>
 public sealed record GridContextMenuRequest(
     RowData Row, int Column, string? CellText, IReadOnlyList<RowData> Selected, int MissingRows,
-    double X, double Y, double ViewportWidth, double ViewportHeight, IReadOnlyList<int>? SelectedIndexes = null, int RowIndex = -1)
+    double X, double Y, double ViewportWidth, double ViewportHeight, IReadOnlyList<int>? SelectedIndexes = null, int RowIndex = -1,
+    MarksMenu? Marks = null)
 {
     /// <summary>
     /// FK jumps start from all selected rows (a right-click into a selection keeps it), else from the clicked row; rows no
@@ -23,3 +27,9 @@ public sealed record GridContextMenuRequest(
     /// <summary>" · 3 rows" after the jump headings if several rows are selected; nothing for one row.</summary>
     public string JumpRowsText => Selected.Count + MissingRows > 1 ? $" · {ExportActions.RowsText(JumpRows.Count)}" : "";
 }
+
+/// <summary>The marked cells or columns a right-click landed in (WP-58): what the menu offers for them.</summary>
+/// <param name="Copy">Copies them; the menu closes first.</param>
+/// <param name="InListUnavailable">Why there is no IN list (several columns, a LOB); null if there is one.</param>
+/// <param name="AllRowsTooltip">Whole columns: what reading all their rows means (second line of the tooltips).</param>
+public sealed record MarksMenu(GridMarks Marks, Func<MarksCopy, Task> Copy, string? InListUnavailable, string? AllRowsTooltip);

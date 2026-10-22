@@ -1,0 +1,31 @@
+@* The group of a right-click menu for marked cells or whole columns (WP-58): copy them tab-separated, as a table with the
+   headers, or – one column – as an IN list. Whole columns mean all their rows, read again. *@
+
+<div class="group-head-btn static">@Menu.Marks.Text</div>
+<button class="menu-item" title="@Title(Menu.Marks.Whole ? GridText.GridMenu_CopyColumnsTitle : GridText.GridMenu_CopyCellsTitle)" @onclick="() => CopyAsync(MarksCopy.Cells)">
+    @(Menu.Marks.Whole ? GridText.ColumnMenu_CopyValues : GridText.GridMenu_CopyCells)
+</button>
+<button class="menu-item" title="@Title(GridText.GridMenu_CopyTableTitle)" @onclick="() => CopyAsync(MarksCopy.Table)">@GridText.GridMenu_CopyTable</button>
+<button class="menu-item" disabled="@(Menu.InListUnavailable is not null)" title="@(Menu.InListUnavailable ?? Title(GridText.GridMenu_CopyColumnInListTitle))"
+        @onclick="() => CopyAsync(MarksCopy.InList)">@GridText.ColumnMenu_CopyInList</button>
+
+@code {
+    [Parameter, EditorRequired]
+    public MarksMenu Menu { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    /// <summary>Rows of the group – heading and three entries – for the menu's estimated height.</summary>
+    public const int Entries = 4;
+
+    private string Title(string first) => Menu.AllRowsTooltip is { } all ? first + Environment.NewLine + all : first;
+
+    /// <summary>Closes the menu first: whole columns are read in the background, shown in the status bar.</summary>
+    private async Task CopyAsync(MarksCopy kind)
+    {
+        var copy = Menu.Copy;
+        await OnClose.InvokeAsync();
+        await copy(kind);
+    }
+}

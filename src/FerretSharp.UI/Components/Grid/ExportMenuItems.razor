@@ -2,15 +2,19 @@
    table or INSERT, save them as CSV or Excel – and as Excel with database names and raw values when the columns are
    presented. Further entries of the group (a SQL script, links) as child content. Below, the same files from all rows of
    the grid's query (WP-54), read again block by block. Files are written after the dialog, in the background (A13). The
-   values of the clicked column from the selected rows, one per line or as an IN list (WP-57). *@
+   values of the clicked column from the selected rows, one per line or as an IN list (WP-57) – not inside marked cells,
+   which have their own group (WP-58). *@
 @using FerretSharp.Core.Data
 @using FerretSharp.Core.Query
 @using FerretSharp.Core.Schema
 @inject ShortcutService Shortcuts
 
 <div class="group-head-btn static">@TextFormat.Format(GridText.GridMenu_ExportGroup, ExportActions.RowsText(Rows.Count))</div>
-<button class="menu-item" title="@GridText.GridMenu_CopyTableTitle" @onclick="CopyTableAsync">@GridText.GridMenu_CopyTable</button>
-@if (Column is { } column)
+@if (!Marked)
+{
+    <button class="menu-item" title="@GridText.GridMenu_CopyTableTitle" @onclick="CopyTableAsync">@GridText.GridMenu_CopyTable</button>
+}
+@if (Column is { } column && !Marked)
 {
     var name = Table.Columns[column.Source].Name;
     var unavailable = ColumnValues.CanCopy(column.Column) ? null : GridText.GridMenu_CopyColumnUnavailable;
@@ -60,6 +64,13 @@
 
     /// <summary>Entries for the clicked column – for the menu's estimated height.</summary>
     public const int ColumnEntries = 2;
+
+    /// <summary>
+    /// The right-click landed in marked cells (WP-58): their group copies them (<see cref="MarkedCellsMenuItems"/>), so the
+    /// table copy and the column's values are left out here; the other entries take the clicked row.
+    /// </summary>
+    [Parameter]
+    public bool Marked { get; set; }
 
     /// <summary>File name (without extension) offered for CSV and Excel.</summary>
     [Parameter, EditorRequired]

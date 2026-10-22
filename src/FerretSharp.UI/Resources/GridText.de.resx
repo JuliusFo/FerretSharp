@@ -964,7 +964,7 @@
     <value>Spalte {0} kopieren</value>
   </data>
   <data name="GridMenu_CopyColumnTitle" xml:space="preserve">
-    <value>Die Werte dieser Spalte aus den markierten Zeilen, einer je Zeile, wie angezeigt – mit ausstehenden Änderungen{0}</value>
+    <value>Die Werte dieser Spalte aus den markierten Zeilen, einer je Zeile, wie angezeigt – mit ausstehenden Änderungen, wie Ctrl+C</value>
   </data>
   <data name="GridMenu_CopyColumnInList" xml:space="preserve">
     <value>Spalte {0} als IN-Liste kopieren</value>
@@ -1013,5 +1013,80 @@
   </data>
   <data name="ColumnValues_Cancelled" xml:space="preserve">
     <value>Kopieren der Werte von {0} abgebrochen.</value>
+  </data>
+  <data name="Footer_MarkedCell" xml:space="preserve">
+    <value>1 Zelle markiert</value>
+  </data>
+  <data name="Footer_MarkedCells" xml:space="preserve">
+    <value>{0} × {1} Zellen markiert</value>
+  </data>
+  <data name="Footer_MarkedColumnsOne" xml:space="preserve">
+    <value>1 Spalte markiert · alle Zeilen</value>
+  </data>
+  <data name="Footer_MarkedColumnsOther" xml:space="preserve">
+    <value>{0} Spalten markiert · alle Zeilen</value>
+  </data>
+  <data name="Marks_Cell" xml:space="preserve">
+    <value>1 Zelle</value>
+  </data>
+  <data name="Marks_Cells" xml:space="preserve">
+    <value>{0} × {1} Zellen</value>
+  </data>
+  <data name="Marks_ColumnsOne" xml:space="preserve">
+    <value>1 Spalte · alle Zeilen</value>
+  </data>
+  <data name="Marks_ColumnsOther" xml:space="preserve">
+    <value>{0} Spalten · alle Zeilen</value>
+  </data>
+  <data name="Marks_Copied" xml:space="preserve">
+    <value>{0} kopiert.</value>
+  </data>
+  <data name="Marks_CopiedAsTable" xml:space="preserve">
+    <value>{0} als Tabelle kopiert.</value>
+  </data>
+  <data name="Marks_ColumnsCopied" xml:space="preserve">
+    <value>{0} kopiert: {1}.</value>
+  </data>
+  <data name="Marks_ColumnsCopiedAsTable" xml:space="preserve">
+    <value>{0} als Tabelle kopiert: {1}.</value>
+  </data>
+  <data name="Marks_TooMany" xml:space="preserve">
+    <value>Mehr als {0:N0} Zellen – nichts kopiert. So viele Werte besser über „Alle Zeilen“ als CSV oder Excel speichern.</value>
+  </data>
+  <data name="Marks_None" xml:space="preserve">
+    <value>{0}: nichts zu kopieren.</value>
+  </data>
+  <data name="Marks_Cancelled" xml:space="preserve">
+    <value>Kopieren von {0} abgebrochen.</value>
+  </data>
+  <data name="ColumnValues_PendingLeftOutOne" xml:space="preserve">
+    <value>Stand der Datenbank: {0} Zeile mit ausstehenden Änderungen ist nicht wie angezeigt enthalten – vorher schreiben.</value>
+  </data>
+  <data name="ColumnValues_PendingLeftOutOther" xml:space="preserve">
+    <value>Stand der Datenbank: {0:N0} Zeilen mit ausstehenden Änderungen sind nicht wie angezeigt enthalten – vorher schreiben.</value>
+  </data>
+  <data name="GridMenu_CopyCells" xml:space="preserve">
+    <value>Kopieren</value>
+  </data>
+  <data name="GridMenu_CopyCellsTitle" xml:space="preserve">
+    <value>Tabulator-getrennt wie angezeigt, ohne Kopfzeile – mit ausstehenden Änderungen, wie Ctrl+C</value>
+  </data>
+  <data name="GridMenu_CopyColumnsTitle" xml:space="preserve">
+    <value>Tabulator-getrennt wie angezeigt, eine Zeile je Datensatz, ohne Kopfzeile, wie Ctrl+C</value>
+  </data>
+  <data name="GridMenu_CopyInListOneColumn" xml:space="preserve">
+    <value>Nur für Zellen einer einzelnen Spalte</value>
+  </data>
+  <data name="ColumnMenu_MarkColumn" xml:space="preserve">
+    <value>Spalte markieren</value>
+  </data>
+  <data name="ColumnMenu_MarkColumnTitle" xml:space="preserve">
+    <value>Markiert die ganze Spalte – alle Zeilen. Ctrl+Klick auf einen Spaltenkopf tut dasselbe, Ctrl+Shift+Klick markiert die Spalten bis dorthin.</value>
+  </data>
+  <data name="ColumnMenu_LoadedResultValuesTitle" xml:space="preserve">
+    <value>Alle Zeilen des Ergebnisses sind geladen: Die Werte kommen aus ihnen, die Abfrage läuft nicht noch einmal. Mehr als {0:N0} Werte werden nicht kopiert.</value>
+  </data>
+  <data name="ResultColumnMenu_MarkColumnTitle" xml:space="preserve">
+    <value>Markiert die ganze Spalte – alle Zeilen des Ergebnisses. Ctrl+Klick auf einen Spaltenkopf tut dasselbe, Ctrl+Shift+Klick markiert die Spalten bis dorthin.</value>
   </data>
 </root>

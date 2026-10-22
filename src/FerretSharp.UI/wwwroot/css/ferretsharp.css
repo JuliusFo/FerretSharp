@@ -28,6 +28,9 @@
   --grid-odd-row: #fbfbfc;
   --grid-border: #ececf0;
   --grid-pinned-border: #c4c4ce;
+  /* Marked cells and columns (WP-58): fill and outline. */
+  --grid-range: color-mix(in srgb, var(--accent) 12%, transparent);
+  --grid-range-border: var(--accent);
   /* States and hints (A50): text/markers as tokens, their light fills as color-mix of them, so dark mode follows. */
   --warn: #c07a00;            /* warnings in text, borders */
   --pending: #d4a106;         /* marker of a pending (unwritten) value */
@@ -68,6 +71,8 @@
     --grid-odd-row: #1f2025;
     --grid-border: #2c2d34;
     --grid-pinned-border: #4a4b56;
+    --grid-range: color-mix(in srgb, var(--accent) 20%, transparent);
+    --grid-range-border: var(--accent);
     --warn: #e8a33c;
     --pending: #e3b341;
     --key: #e0b04a;
@@ -743,6 +748,16 @@ code.condition { font: 12px var(--mono); white-space: pre-wrap; }
 .ag-row.fs-row-deleted .ag-cell { text-decoration: line-through; color: var(--danger); background: var(--danger-weak); }
 .ag-row.fs-row-new .ag-cell { background: color-mix(in srgb, var(--green) 12%, transparent); }
 .ag-row.fs-row-new .ag-cell.fs-pending { background: color-mix(in srgb, var(--yellow) 22%, transparent); }
+/* Marked cells and columns (WP-58), over the edit states: the outline as an overlay, the edit marker (box-shadow) stays. */
+.ag-cell.fs-range { background: var(--grid-range); }
+.ag-cell.fs-range::after { content: ""; position: absolute; inset: 0; pointer-events: none; border: 0 solid var(--grid-range-border); }
+.ag-cell.fs-range-top::after { border-top-width: 2px; }
+.ag-cell.fs-range-bottom::after { border-bottom-width: 2px; }
+.ag-cell.fs-range-left::after { border-left-width: 2px; }
+.ag-cell.fs-range-right::after { border-right-width: 2px; }
+.ag-header-cell:has(.fs-header.marked) { background: var(--grid-range); box-shadow: inset 0 -2px 0 var(--grid-range-border); }
+/* While marking by mouse the browser marks no text across the cells. */
+.fs-marking, .fs-marking * { user-select: none; }
 .fs-editor { position: relative; width: 100%; height: 100%; }
 .fs-editor-input { width: 100%; height: 100%; padding: 0 8px; border: 0; outline: 2px solid var(--accent); outline-offset: -2px; background: var(--surface); color: var(--text); font: inherit; }
 .fs-editor.multiline { width: 520px; height: 200px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; box-shadow: var(--shadow); }

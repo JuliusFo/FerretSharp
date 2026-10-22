@@ -2,7 +2,9 @@
 // including sorting, comes from .NET; cells arrive as display strings (null = SQL NULL). No business logic here.
 
 import { comboOf, localCombo, setEditFinisher } from './shortcuts.js';
-import { anchorFor, arrivedIn, keyMoveOf, spanOf } from './gridSelection.js';
+import {
+  anchorFor, arrivedIn, inDisplayOrder, keyMoveOf, markOf, markedColumns, movedEnd, rectOf, spanOf,
+} from './gridSelection.js';
 
 const grids = new Map();
 // Per grid: focus changes from .NET – forget the last navigation key (it must not select), select the row (focusRow with
@@ -145,8 +147,17 @@ class FerretHeader {
       badges.appendChild(badge);
     }
     this.sortEl = this.eGui.querySelector('.fs-h-sort');
+    // Ctrl+click marks the column instead of sorting it, Ctrl+Shift+click the columns up to it (WP-58) – where the grid
+    // marks columns at all (params.markColumn).
+    const colId = params.column.getColId();
+    if (meta.sortable || params.markColumn) {
+      this.eGui.addEventListener('click', e => {
+        if (params.markColumn && (e.ctrlKey || e.metaKey)) params.markColumn(colId, e.shiftKey);
+        else if (meta.sortable) params.progressSort(e.shiftKey);
+      });
+    }
+    this.eGui.classList.toggle('marked', !!params.isMarked?.(colId));
     if (meta.sortable) {
-      this.eGui.addEventListener('click', e => params.progressSort(e.shiftKey));
       this.onSortChanged = () => this.updateSort();
       params.column.addEventListener('sortChanged', this.onSortChanged);
       this.updateSort();
@@ -484,6 +495,11 @@ function width(meta) {
   return 180;
 }
 
+/** The ids of the displayed columns, pinned ones first: the order in which marked cells and columns count (WP-58). */
+function displayOrder(api) {
+  return api.getAllDisplayedColumns().map(c => c.getColId());
+}
+
 function cellOf(node) {
   const el = node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement;
   return el?.closest('.ag-cell') ?? null;
@@ -519,10 +535,12 @@ function reportPinned(api, dotnet) {
  *   editable: whether the workspace may write (v2); the columns say whether they can be edited at all.
  *   headerHeight: with the line for C# names (WP-12); null for the theme default.
  *   table: a table tab – header menu, Del, pinning and scroll position are reported to .NET. A query result only
- *     answers GetRows, OnCopy, OnCopyColumn (WP-57) and OnCellContextMenu, and what the options below ask for.
+ *     answers GetRows, OnCopy, OnCopyColumn (WP-57), OnCopyCells (WP-58) and OnCellContextMenu, and what the options below
+ *     ask for.
  *   form: the grid reports its focus (OnFocused) and the form key (OnFormKey) – always for a table, for a query result since
  *     WP-56.
  *   headerMenu: a query result reports a right click on a column header too (OnHeaderContextMenu, SQL editor, WP-57).
+ *     Whole columns can be marked (WP-58) where there is a header menu: they mean all rows, read again.
  */
 export function create(elementId, dotnet, columns, options) {
   // texts: what the grid shows itself (header tooltips, the member list), in the UI language – JS holds no texts.
@@ -556,6 +574,21 @@ export function create(elementId, dotnet, columns, options) {
   const metaById = new Map(columns.map(meta => [meta.id, meta]));
   metas.set(elementId, metaById);
   headerHeights.set(elementId, headerHeight);
+
+  // Marked cells (WP-58): a rectangle of cells (`cells`: { anchor, end }, each { row, col }) or whole columns (`marked`) –
+  // never both, never together with selected rows. JS only knows what is marked; what happens with the cells .NET decides.
+  let cells = null;
+  let marked = new Set();
+  let markAnchor = null; // the column a Ctrl+Shift+click on a header marks from
+  let order = []; // the displayed columns when the marks were drawn
+  let rect = null; // `cells` as rows and display positions (rectOf), for drawing
+  const marksColumns = table || !!headerMenu; // whole columns need a way to read all rows: a table, the SQL editor
+
+  // How a cell is drawn: null if it is not marked, else which of its sides are the outline.
+  const markAt = (p, colId) => (!rect && marked.size === 0) || p.node.rowPinned || p.node.rowIndex == null
+    ? null
+    : markOf(rect, marked, order, p.node.rowIndex, colId);
+
   const columnDefs = columns.map(meta => ({
     colId: meta.id,
     field: meta.id,
@@ -580,6 +613,11 @@ export function create(elementId, dotnet, columns, options) {
       'fs-unknown': p => !!p.data?.__u?.includes(meta.id),
       'fs-pending': p => p.data?.__s?.[meta.id] === 'p',
       'fs-flushed': p => p.data?.__s?.[meta.id] === 'f',
+      'fs-range': p => !!markAt(p, meta.id),
+      'fs-range-top': p => !!markAt(p, meta.id)?.top,
+      'fs-range-bottom': p => !!markAt(p, meta.id)?.bottom,
+      'fs-range-left': p => !!markAt(p, meta.id)?.left,
+      'fs-range-right': p => !!markAt(p, meta.id)?.right,
     },
     // While editing, Enter belongs to the editor (check in .NET first, Shift+Enter: new line in the multi-line box).
     // The member list keeps the arrow keys while editing.
@@ -589,7 +627,12 @@ export function create(elementId, dotnet, columns, options) {
         p.data?.__u?.includes(meta.id) ? meta.unknownText : null].filter(Boolean).join('\n')),
     headerComponent: FerretHeader,
     // A function, not the object: AG Grid deep-copies plain objects of the column def, and updateColumns changes meta in place.
-    headerComponentParams: { getMeta: () => meta, texts },
+    headerComponentParams: {
+      getMeta: () => meta,
+      texts,
+      markColumn: marksColumns ? (colId, extend) => markColumn(colId, extend) : null,
+      isMarked: colId => marked.has(colId),
+    },
     pinned: meta.pinned ? 'left' : null,
     // The primary key always stays pinned at the very left; other columns can also be pinned by dragging them there.
     lockPinned: meta.pk,
@@ -609,7 +652,7 @@ export function create(elementId, dotnet, columns, options) {
 
   // The grid's keys, in the capture phase (before AG Grid): each handler says whether the key was its.
   element.addEventListener('keydown', e => onDeleteKey(e) || onCopyKey(e) || onCopyColumnKey(e) || onFormKey(e) || onLobKey(e) || onEditHistoryKey(e)
-    || onSelectKey(e), true);
+    || onMarkKey(e) || onSelectKey(e), true);
 
   const selectedRows = () => api.getSelectedNodes().map(n => n.rowIndex).filter(i => i != null);
 
@@ -656,6 +699,7 @@ export function create(elementId, dotnet, columns, options) {
 
   // Ctrl+A: every loaded row; rows loaded later (scrolling on, a block still on its way) join while the span lasts.
   function selectAll(gridApi) {
+    clearMarks();
     span = { from: 0, to: Infinity };
     const nodes = [];
     gridApi.forEachNode(node => { if (node.data && !node.rowPinned) nodes.push(node); });
@@ -675,6 +719,7 @@ export function create(elementId, dotnet, columns, options) {
   }
 
   function followFocus(gridApi, rowIndex, pinned, how) {
+    clearMarks(); // the selected rows take over
     if (pinned) {
       if (gridApi.getSelectedNodes().length > 0) gridApi.deselectAll();
       anchor = null;
@@ -690,13 +735,22 @@ export function create(elementId, dotnet, columns, options) {
     if (e.rowIndex == null) return;
     const pinned = e.rowPinned === 'top';
     if (pinned || (keyMove && e.rowIndex !== focusedRow)) followFocus(e.api, e.rowIndex, pinned, keyMove);
+    else if (keyMove) clearMarks(); // moving sideways in the row
     focusedRow = pinned ? null : e.rowIndex;
     reportFocus(e);
   }
   focusControls.set(elementId, {
     forgetKey: () => { keyMove = null; },
-    forgetSpan: () => { span = null; },
+    // Other rows in the same places (filters changed, F5): neither the span nor marked cells mean them any longer.
+    forgetSpan: () => {
+      span = null;
+      clearCells();
+    },
     select: (rowIndex, pinned) => followFocus(api, rowIndex, pinned, 'single'),
+    markColumn: colId => {
+      marked = new Set();
+      markColumn(colId, false);
+    },
   });
 
   // Ctrl+A selects all rows, Esc clears the selection (only if there is one: otherwise Esc goes on). Space selects or
@@ -725,10 +779,201 @@ export function create(elementId, dotnet, columns, options) {
     if (!node?.data) return false;
     e.preventDefault();
     e.stopPropagation();
+    clearMarks();
     node.setSelected(!node.isSelected());
     anchor = cell.rowIndex;
     span = null;
     return true;
+  }
+
+  // ---------- marked cells and columns (WP-58) ----------
+
+  // Redraws the marks – the cells (cellClassRules) and the headers of marked columns – and reports them for the footer.
+  function drawMarks() {
+    order = displayOrder(api);
+    rect = cells ? rectOf(cells.anchor, cells.end, order) : null;
+    if (cells && !rect) cells = null; // a column of the rectangle is no longer displayed
+    api.refreshCells({ suppressFlash: true });
+    for (const header of element.querySelectorAll('.ag-header-cell[col-id]')) {
+      header.querySelector('.fs-header')?.classList.toggle('marked', marked.has(header.getAttribute('col-id')));
+    }
+    reportSelection();
+  }
+
+  // Marks the cells from anchor to end: the selected rows and marked columns go.
+  function markCells(start, end) {
+    cells = { anchor: start, end };
+    marked = new Set();
+    markAnchor = null;
+    span = null;
+    if (api.getSelectedNodes().length > 0) api.deselectAll();
+    drawMarks();
+  }
+
+  // Ctrl+click on a header (or the header menu): the column comes in or goes, with Shift the columns up to it come in.
+  function markColumn(colId, extend) {
+    ({ marked, anchor: markAnchor } = markedColumns(marked, markAnchor, colId, extend, displayOrder(api)));
+    cells = null;
+    span = null;
+    if (api.getSelectedNodes().length > 0) api.deselectAll();
+    drawMarks();
+  }
+
+  // True if anything was marked.
+  function clearMarks() {
+    if (!cells && marked.size === 0) return false;
+    cells = null;
+    marked = new Set();
+    markAnchor = null;
+    drawMarks();
+    return true;
+  }
+
+  // Sorting, filtering, moving or pinning a column: other cells in the same places. Marked columns stay – they mean all rows.
+  function clearCells() {
+    if (!cells) return;
+    cells = null;
+    drawMarks();
+  }
+
+  // A column was moved or pinned: marked cells go, marked columns get their outline anew.
+  function clearMarksAfterMove() {
+    if (cells) clearCells();
+    else if (marked.size > 0) drawMarks();
+  }
+
+  // What is marked, for .NET: the rows and columns of the marked cells, or whole columns (all rows); null if nothing is.
+  function marksOf() {
+    if (rect) return { fromRow: rect.top, toRow: rect.bottom, columns: rect.cols, whole: false };
+    if (marked.size > 0) return { fromRow: -1, toRow: -1, columns: inDisplayOrder(marked, displayOrder(api)), whole: true };
+    return null;
+  }
+
+  // The end of the marked cells in view (keys, scrolling while marking by mouse).
+  function showEnd() {
+    api.ensureIndexVisible(cells.end.row);
+    api.ensureColumnVisible(cells.end.col);
+  }
+
+  const pageRows = () => {
+    const range = api.getVerticalPixelRange();
+    return Math.max(1, Math.floor((range.bottom - range.top) / ROW_HEIGHT) - 1);
+  };
+
+  // Shift+← → marks cells from the focused one on; with marked cells Shift+↑ ↓ and Shift+Page↑ Page↓ extend them (without,
+  // they stay the row selection). Esc clears the marks (before it clears selected rows). Not while editing, not on the new
+  // rows at the top. The focus stays where the marking started, like Excel's active cell.
+  function onMarkKey(e) {
+    if (e.altKey || e.ctrlKey || e.metaKey || api.getEditingCells().length > 0) return false;
+    if (e.key === 'Escape') {
+      if (e.shiftKey || !clearMarks()) return false;
+      e.preventDefault();
+      e.stopPropagation();
+      return true;
+    }
+    if (!e.shiftKey || (!cells && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return false;
+    let start = cells?.anchor;
+    let end = cells?.end;
+    if (!cells) {
+      const focused = api.getFocusedCell();
+      if (!focused || focused.rowPinned || focused.rowIndex == null) return false;
+      start = end = { row: focused.rowIndex, col: focused.column.getColId() };
+    }
+    const moved = movedEnd(end, e.key, displayOrder(api), api.getDisplayedRowCount(), pageRows());
+    if (!moved) return false;
+    e.preventDefault();
+    e.stopPropagation();
+    markCells(start, moved);
+    showEnd();
+    return true;
+  }
+
+  // The cell under an element: row index and column id; null outside the rows (the new rows at the top included).
+  function cellAt(target) {
+    const cell = target?.closest?.('.ag-cell');
+    if (!cell || !element.contains(cell)) return null;
+    const index = cell.closest('.ag-row')?.getAttribute('row-index') ?? '';
+    const col = cell.getAttribute('col-id');
+    return col && /^\d+$/.test(index) ? { row: Number(index), col } : null;
+  }
+
+  // Dragging from one cell into another marks the cells between; within one cell the mouse marks text as before, which goes
+  // once it leaves the cell. Beyond the edge of the rows the grid scrolls on. Shift+click extends marked cells (without,
+  // it stays the row selection). It starts in mousedown: AG Grid raises onCellClicked later (ui-grid.md).
+  let drag = null; // the left button held down in a cell: { start, active, x, y, timer }
+  let swallowClick = false; // the click after marking by mouse selects no row
+  element.addEventListener('mousedown', e => {
+    swallowClick = false;
+    if (e.button !== 0 || api.getEditingCells().length > 0) return;
+    const cell = cellAt(e.target);
+    if (!cell) return;
+    if (e.shiftKey && cells) {
+      e.stopPropagation(); // AG Grid would select the rows in between
+      swallowClick = true;
+      markCells(cells.anchor, cell);
+      return;
+    }
+    clearMarks();
+    if (e.ctrlKey || e.metaKey || e.shiftKey) return; // the row selection's own clicks
+    drag = { start: cell, active: false, x: e.clientX, y: e.clientY, timer: null };
+    document.addEventListener('mousemove', onDragMove, true);
+    document.addEventListener('mouseup', onDragEnd, true);
+  }, true);
+  element.addEventListener('click', e => {
+    if (!swallowClick) return;
+    swallowClick = false;
+    e.stopPropagation();
+  }, true);
+
+  function onDragMove(e) {
+    if (!drag) return;
+    if ((e.buttons & 1) === 0) {
+      onDragEnd(); // released where no mouseup reached the page
+      return;
+    }
+    drag.x = e.clientX;
+    drag.y = e.clientY;
+    const cell = cellAt(document.elementFromPoint(e.clientX, e.clientY));
+    if (!drag.active) {
+      if (!cell || (cell.row === drag.start.row && cell.col === drag.start.col)) return;
+      drag.active = true;
+      window.getSelection()?.removeAllRanges();
+      element.classList.add('fs-marking');
+      drag.timer = setInterval(scrollWhileMarking, 60);
+      markCells(drag.start, cell);
+    } else if (cell && (cell.row !== cells.end.row || cell.col !== cells.end.col)) {
+      markCells(cells.anchor, cell);
+    }
+  }
+
+  function onDragEnd() {
+    document.removeEventListener('mousemove', onDragMove, true);
+    document.removeEventListener('mouseup', onDragEnd, true);
+    if (drag?.active) {
+      swallowClick = true; // the click lands on the row (or on what both cells share)
+      clearInterval(drag.timer);
+      element.classList.remove('fs-marking');
+    }
+    drag = null;
+  }
+
+  // The mouse at or beyond the edge of the rows while marking: a row or a column further per step.
+  function scrollWhileMarking() {
+    if (!drag?.active || !cells) return;
+    const body = (element.querySelector('.ag-body-viewport') ?? element).getBoundingClientRect();
+    const box = element.getBoundingClientRect();
+    const edge = 6;
+    const rows = drag.y >= body.bottom - edge ? 'ArrowDown' : drag.y <= body.top + edge ? 'ArrowUp' : null;
+    const columns = drag.x >= box.right - edge ? 'ArrowRight' : drag.x <= box.left + edge ? 'ArrowLeft' : null;
+    if (!rows && !columns) return;
+    const shown = displayOrder(api);
+    const count = api.getDisplayedRowCount();
+    let end = cells.end;
+    if (rows) end = movedEnd(end, rows, shown, count, 1);
+    if (columns) end = movedEnd(end, columns, shown, count, 1);
+    if (end.row === cells.end.row && end.col === cells.end.col) return;
+    markCells(cells.anchor, end);
+    showEnd();
   }
 
   // Del (not while editing): mark the selected rows for deletion – pending until written, can be reverted. .NET decides
@@ -744,11 +989,17 @@ export function create(elementId, dotnet, columns, options) {
     return true;
   }
 
-  // Ctrl+C: the focused cell, or the selected rows if there are several (AG Grid Community has no clipboard).
-  // Text marked with the mouse inside one cell is copied by the browser as usual.
+  // Ctrl+C: the marked cells or columns (WP-58), the focused cell, or the selected rows if there are several (AG Grid
+  // Community has no clipboard). Text marked with the mouse inside one cell is copied by the browser as usual.
   function onCopyKey(e) {
     if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'c') return false;
     if (textMarkedInOneCell()) return true;
+    const marks = marksOf();
+    if (marks) {
+      e.preventDefault();
+      dotnet.invokeMethodAsync('OnCopyCells', marks, false).catch(callFailed);
+      return true;
+    }
     const cell = api.getFocusedCell();
     if (!cell || cell.rowIndex == null || cell.rowPinned) return true;
     e.preventDefault();
@@ -756,15 +1007,20 @@ export function create(elementId, dotnet, columns, options) {
     return true;
   }
 
-  // The values of the focused cell's column from the selected rows (WP-57): no default key, the user gives it one. In both
-  // grids; not while a cell is edited.
+  // The values of the focused cell's column from the selected rows (WP-57) or the marked cells (WP-58): no default key, the
+  // user gives it one. In both grids; not while a cell is edited.
   function onCopyColumnKey(e) {
     const key = localCombo('copyColumn');
     if (!key || comboOf(e) !== key || api.getEditingCells().length > 0) return false;
     e.preventDefault();
     e.stopPropagation();
     const cell = api.getFocusedCell();
-    if (cell && cell.rowIndex != null && !cell.rowPinned) {
+    const marks = marksOf();
+    if (marks) {
+      // The marked cells of the focused column (it is among them), else all of them.
+      const col = cell?.column.getColId();
+      dotnet.invokeMethodAsync('OnCopyCells', marks.columns.includes(col) ? { ...marks, columns: [col] } : marks, false).catch(callFailed);
+    } else if (cell && cell.rowIndex != null && !cell.rowPinned) {
       dotnet.invokeMethodAsync('OnCopyColumn', cell.rowIndex, cell.column.getColId(), selectedRows()).catch(callFailed);
     }
     return true;
@@ -824,14 +1080,17 @@ export function create(elementId, dotnet, columns, options) {
     return true;
   }
 
-  // How many rows are selected and whether rows still to load join them (span to the end), for the footer; Shift+↓ held
-  // down changes it fast, so only the last state within a moment is reported.
+  // How many rows are selected and whether rows still to load join them (span to the end), or how many cells or whole
+  // columns are marked (WP-58), for the footer; Shift+↓ held down changes it fast, so only the last state within a moment
+  // is reported.
   let selectionTimer = null;
   function reportSelection() {
     clearTimeout(selectionTimer);
     selectionTimer = setTimeout(() => {
       if (grids.get(elementId) !== api) return; // destroyed or created anew meanwhile
-      dotnet.invokeMethodAsync('OnSelectionChanged', api.getSelectedNodes().length, span?.to === Infinity).catch(callFailed);
+      const marks = marksOf();
+      dotnet.invokeMethodAsync('OnSelectionChanged', api.getSelectedNodes().length, span?.to === Infinity,
+        marks && !marks.whole ? marks.toRow - marks.fromRow + 1 : 0, marks?.columns.length ?? 0, !!marks?.whole).catch(callFailed);
     }, 60);
   }
 
@@ -921,6 +1180,7 @@ export function create(elementId, dotnet, columns, options) {
     // The new order goes along: this event comes after the grid may already have asked for its first block.
     onSortChanged: e => {
       span = null;
+      clearCells();
       if (!table) return;
       const sortModel = e.api.getColumnState()
         .filter(s => s.sort)
@@ -929,20 +1189,35 @@ export function create(elementId, dotnet, columns, options) {
       dotnet.invokeMethodAsync('OnSortChanged', sortModel).catch(callFailed);
     },
     onSelectionChanged: reportSelection,
-    // Pinned or reordered within the pinned area by dragging (changes from setPinned have source 'api').
-    onColumnPinned: e => { if (table && e.source?.startsWith('ui')) reportPinned(api, dotnet); },
-    onColumnMoved: e => { if (table && e.finished && e.source?.startsWith('ui') && e.column?.getPinned()) reportPinned(api, dotnet); },
+    // Pinned or reordered within the pinned area by dragging (changes from setPinned have source 'api'). Marked cells mean
+    // other columns afterwards; marked columns get their outline anew.
+    onColumnPinned: e => {
+      if (table && e.source?.startsWith('ui')) reportPinned(api, dotnet);
+      clearMarksAfterMove();
+    },
+    onColumnMoved: e => {
+      if (!e.finished) return;
+      if (table && e.source?.startsWith('ui') && e.column?.getPinned()) reportPinned(api, dotnet);
+      clearMarksAfterMove();
+    },
     // The menu itself is a Blazor component; the grid only reports where the user right-clicked.
-    // Right-click on a selected row keeps the selection (export of several rows), otherwise selects just this row.
+    // Right-click on a selected row keeps the selection (export of several rows), otherwise selects just this row. Inside
+    // marked cells or columns (WP-58) they stay, and no row is selected: the row's own entries take the clicked row.
     onCellContextMenu: e => {
       if (e.rowIndex == null || !e.data || !e.event || e.node.rowPinned) return; // new rows: Del removes them
-      if (!e.node.isSelected()) {
+      const colId = e.column.getColId();
+      let marks = marksOf();
+      if (marks && !(marks.whole ? marks.columns.includes(colId) : markOf(rect, null, order, e.rowIndex, colId))) {
+        clearMarks();
+        marks = null;
+      }
+      if (!marks && !e.node.isSelected()) {
         e.node.setSelected(true, true);
         anchor = e.rowIndex;
         span = null;
       }
-      const selected = api.getSelectedNodes().map(n => n.rowIndex).filter(i => i != null);
-      dotnet.invokeMethodAsync('OnCellContextMenu', e.rowIndex, e.column.getColId(), selected,
+      const selected = marks ? [e.rowIndex] : api.getSelectedNodes().map(n => n.rowIndex).filter(i => i != null);
+      dotnet.invokeMethodAsync('OnCellContextMenu', e.rowIndex, colId, selected, marks,
         e.event.clientX, e.event.clientY, window.innerWidth, window.innerHeight).catch(callFailed);
     },
     datasource: {
@@ -1036,6 +1311,11 @@ export function reload(elementId) {
   if (!api) return;
   api.stopEditing(true);
   api.refreshInfiniteCache();
+}
+
+/** Marks a whole column instead of anything marked before (the header menu's "Mark column", WP-58). */
+export function markColumn(elementId, colId) {
+  focusControls.get(elementId)?.markColumn(colId);
 }
 
 /** Drops all cached blocks and reloads from the first row (filters changed, F5). */

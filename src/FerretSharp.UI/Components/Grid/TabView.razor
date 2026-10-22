@@ -163,7 +163,8 @@
 @if (_columnMenu is { } columnMenu && _details is not null)
 {
     <ColumnMenu @key="columnMenu" Request="columnMenu" Details="_details" Tab="Tab" OnClose="() => _columnMenu = null"
-                Pinned="@(_grid?.IsPinned(columnMenu.Column) == true)" OnTogglePin="TogglePinAsync" />
+                Pinned="@(_grid?.IsPinned(columnMenu.Column) == true)" OnTogglePin="TogglePinAsync"
+                OnMarkColumn="column => _grid?.MarkColumnAsync(column) ?? Task.CompletedTask" />
 }
 
 @if (_sql is { } sql)

@@ -2,7 +2,7 @@ using FerretSharp.UI.State;
 
 namespace FerretSharp.UI.Tests.State;
 
-/// <summary>The number of selected rows in the footers of table tabs and query results.</summary>
+/// <summary>The number of selected rows, or the marked cells or columns (WP-58), in the footers of table tabs and query results.</summary>
 public sealed class GridSelectionTests
 {
     [Theory]
@@ -40,6 +40,45 @@ public sealed class GridSelectionTests
         using (UiCulture.Use("en"))
         {
             Assert.Equal("500 selected (loaded rows)", selection.FooterText(allLoaded: false));
+        }
+    }
+
+    [Fact]
+    public void Marked_cells_are_counted_as_rows_by_columns_instead_of_selected_rows()
+    {
+        var selection = new GridSelection(0, ToEnd: false, MarkedRows: 3, MarkedColumns: 4);
+
+        Assert.Equal("3 × 4 Zellen markiert", selection.FooterText(allLoaded: false));
+        Assert.Equal("1 Zelle markiert", new GridSelection(0, false, 1, 1).FooterText(allLoaded: false));
+        Assert.Null(selection.FooterTitle(allLoaded: false));
+        using (UiCulture.Use("en"))
+        {
+            Assert.Equal("3 × 4 cells selected", selection.FooterText(allLoaded: false));
+        }
+    }
+
+    [Fact]
+    public void Marked_columns_mean_all_rows()
+    {
+        Assert.Equal("2 Spalten markiert · alle Zeilen", new GridSelection(0, false, 0, 2, WholeColumns: true).FooterText(allLoaded: false));
+        Assert.Equal("1 Spalte markiert · alle Zeilen", new GridSelection(0, false, 0, 1, WholeColumns: true).FooterText(allLoaded: true));
+    }
+
+    [Fact]
+    public void Marks_name_their_cells_or_columns_and_give_the_column_indexes_in_display_order()
+    {
+        var cells = new GridMarks(4, 6, ["c3", "c0"], Whole: false);
+        var columns = new GridMarks(-1, -1, ["c2", "c5"], Whole: true);
+
+        Assert.Equal(3, cells.Rows);
+        Assert.Equal([3, 0], cells.ColumnIndexes);
+        Assert.Equal("3 × 2 Zellen", cells.Text);
+        Assert.Equal("1 Zelle", new GridMarks(4, 4, ["c1"], false).Text);
+        Assert.Equal(0, columns.Rows);
+        Assert.Equal("2 Spalten · alle Zeilen", columns.Text);
+        using (UiCulture.Use("en"))
+        {
+            Assert.Equal("1 column · all rows", (columns with { Columns = ["c2"] }).Text);
         }
     }
 }
