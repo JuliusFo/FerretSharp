@@ -959,6 +959,12 @@ button.badge-btn:hover { filter: brightness(1.08); }
 .unlock-confirm { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; }
 .unlock-confirm .field { font-family: var(--mono); }
 
+/* "Set value…" for marked cells (WP-59): the form's field of the column, without its copy button */
+.dialog.set-value-dialog { width: min(640px, 94vw); }
+.set-value-dialog .form-field { border-bottom: none; padding-left: 0; }
+.set-value-dialog .ff-copy { display: none; }
+.set-value-hint { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
+
 /* LOB editor (WP-10) */
 .dialog.lob-dialog { width: min(980px, 94vw); }
 .lob-type { margin-left: 8px; color: var(--muted); font-weight: 400; font-size: 12px; }

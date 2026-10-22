@@ -1,5 +1,6 @@
 // The arithmetic of the grid's row selection by keyboard (3.44): which key moves how, which rows a range covers, which rows
-// of a block that arrives belong to it. And of the marked cells (WP-58): a rectangle of cells, or whole columns. Pure – no
+// of a block that arrives belong to it. And of the marked cells (WP-58): a rectangle of cells, or whole columns, and which
+// cells a value typed with Ctrl+Enter goes to (WP-59). Pure – no
 // DOM, no AG Grid –, so it has tests (tests/js, ADR 0031; review 3.44.0, C5). grid.js applies the results to the grid.
 
 const navigationKeys = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', 'Tab']);
@@ -109,4 +110,16 @@ export function markedColumns(marked, anchor, col, extend, order) {
 /** The ids of marked columns in display order (what is copied, and how). */
 export function inDisplayOrder(marked, order) {
   return order.filter(id => marked.has(id));
+}
+
+// ---------- many cells at once (WP-59) ----------
+
+/**
+ * Where a value typed into a cell goes with Ctrl+Enter: 'marks' – the marked cells or columns, if the edited cell is one
+ * of them –, 'rows' – the edited column of the selected rows, if several are and the edited row is one of them –, else
+ * null: only into the edited cell, like Enter. `selected` are the indexes of the selected rows.
+ */
+export function fillTargetOf(rect, marked, order, selected, row, col) {
+  if (rect || marked.size > 0) return markOf(rect, marked, order, row, col) ? 'marks' : null;
+  return selected.length > 1 && selected.includes(row) ? 'rows' : null;
 }

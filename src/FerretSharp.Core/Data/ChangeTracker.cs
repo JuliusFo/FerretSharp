@@ -458,14 +458,9 @@ public sealed class ChangeTracker(TableDetails table)
     /// <param name="rows">The rows top to bottom, as loaded (a fill down takes the first one's values, as shown).</param>
     public CellFillResult SetCells(IReadOnlyList<RowData> rows, IReadOnlyList<int> columns, CellFill fill)
     {
-        if (rows.Count > MaxFillRows)
+        if (FillRefusal(rows.Count, fill) is { } refusal)
         {
-            return CellFillResult.Failed(TextFormat.Format(DataText.FillTooManyRows, MaxFillRows.ToString("N0", System.Globalization.CultureInfo.CurrentCulture)));
-        }
-
-        if (fill.Kind == CellFillKind.Down && rows.Count < 2)
-        {
-            return CellFillResult.Failed(DataText.FillDownNeedsTwoRows);
+            return CellFillResult.Failed(refusal);
         }
 
         var values = new List<(int Column, object? Value)>(columns.Count);
@@ -532,6 +527,15 @@ public sealed class ChangeTracker(TableDetails table)
         Remember(before);
         return new CellFillResult(cells, skipped, deleted, tooPrecise, null);
     }
+
+    /// <summary>
+    /// Why a command for many cells cannot run on so many rows (too many; a fill down of one); null if it can. The grid asks
+    /// before it reads rows that are not loaded.
+    /// </summary>
+    public static string? FillRefusal(int rows, CellFill fill) =>
+        rows > MaxFillRows ? TextFormat.Format(DataText.FillTooManyRows, MaxFillRows)
+        : fill.Kind == CellFillKind.Down && rows < 2 ? DataText.FillDownNeedsTwoRows
+        : null;
 
     /// <summary>
     /// What a command for many cells puts into one column: the value, or why the column is left as it is (skip), or why

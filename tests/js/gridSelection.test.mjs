@@ -1,9 +1,10 @@
-// The arithmetic of the grid's keyboard selection (review 3.44.0, C5; ADR 0031) and of its marked cells (WP-58). Run by `dotnet test` (UI.Tests, JsTests)
+// The arithmetic of the grid's keyboard selection (review 3.44.0, C5; ADR 0031), of its marked cells (WP-58) and of where
+// Ctrl+Enter puts a typed value (WP-59). Run by `dotnet test` (UI.Tests, JsTests)
 // through `node --test`; on its own: node --test tests/js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  anchorFor, arrivedIn, inDisplayOrder, keyMoveOf, markOf, markedColumns, movedEnd, rectOf, spanOf,
+  anchorFor, arrivedIn, fillTargetOf, inDisplayOrder, keyMoveOf, markOf, markedColumns, movedEnd, rectOf, spanOf,
 } from '../../src/FerretSharp.UI/wwwroot/js/gridSelection.js';
 
 const key = (k, mods = {}) => ({ key: k, shiftKey: false, ctrlKey: false, altKey: false, ...mods });
@@ -97,4 +98,15 @@ test('Ctrl+click marks or unmarks a column, Ctrl+Shift+click marks up to it from
   assert.deepEqual(inDisplayOrder(state.marked, order), ['c3', 'c2']);
   assert.equal(state.anchor, 'c1');
   assert.deepEqual([...markedColumns(new Set(), null, 'c2', true, order).marked], ['c2']); // no anchor yet: just the column
+});
+
+test('Ctrl+Enter fills the marks the edited cell lies in, else the selected rows it lies in, else only the cell', () => {
+  const rect = rectOf({ row: 2, col: 'c1' }, { row: 5, col: 'c2' }, order);
+  assert.equal(fillTargetOf(rect, new Set(), order, [], 3, 'c2'), 'marks');
+  assert.equal(fillTargetOf(rect, new Set(), order, [], 6, 'c2'), null); // outside the marked cells: not them, not rows
+  assert.equal(fillTargetOf(null, new Set(['c3']), order, [], 99, 'c3'), 'marks');
+  assert.equal(fillTargetOf(null, new Set(['c3']), order, [], 1, 'c1'), null);
+  assert.equal(fillTargetOf(null, new Set(), order, [4, 5, 6], 5, 'c1'), 'rows');
+  assert.equal(fillTargetOf(null, new Set(), order, [4, 5, 6], 7, 'c1'), null);
+  assert.equal(fillTargetOf(null, new Set(), order, [5], 5, 'c1'), null); // one row: a plain edit
 });

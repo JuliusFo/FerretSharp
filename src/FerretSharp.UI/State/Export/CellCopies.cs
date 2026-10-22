@@ -76,7 +76,7 @@ public static class CellCopies
             return;
         }
 
-        if (await RowsAsync(grid, marks.FromRow, marks.ToRow) is not { } rows)
+        if (await RowsAsync(grid.RowAt, grid.ReadRows, marks.FromRow, marks.ToRow) is not { } rows)
         {
             return;
         }
@@ -96,13 +96,17 @@ public static class CellCopies
     /// <summary>
     /// The rows of a range: loaded ones as they are, each gap of rows not loaded read at once (up to <see cref="ReadSize"/>).
     /// Null if a read failed. A read that returns fewer rows than asked for ends the range there (the result shrank meanwhile).
+    /// Also for changing marked cells (WP-59, <see cref="GridEditing"/>), there with the rows as loaded.
     /// </summary>
-    internal static async Task<IReadOnlyList<RowData>?> RowsAsync(MarkedCells grid, int from, int to)
+    /// <param name="rowAt">A loaded row by grid index; null if its block is not loaded.</param>
+    /// <param name="read">Reads rows from a grid index on (start, count); null if the read failed.</param>
+    internal static async Task<IReadOnlyList<RowData>?> RowsAsync(
+        Func<int, RowData?> rowAt, Func<int, int, Task<IReadOnlyList<RowData>?>> read, int from, int to)
     {
         var rows = new List<RowData>(to - from + 1);
         for (var i = from; i <= to;)
         {
-            if (grid.RowAt(i) is { } row)
+            if (rowAt(i) is { } row)
             {
                 rows.Add(row);
                 i++;
@@ -110,18 +114,18 @@ public static class CellCopies
             }
 
             var count = 1;
-            while (i + count <= to && count < ReadSize && grid.RowAt(i + count) is null)
+            while (i + count <= to && count < ReadSize && rowAt(i + count) is null)
             {
                 count++;
             }
 
-            if (await grid.ReadRows(i, count) is not { } read)
+            if (await read(i, count) is not { } block)
             {
                 return null;
             }
 
-            rows.AddRange(read);
-            if (read.Count < count)
+            rows.AddRange(block);
+            if (block.Count < count)
             {
                 break;
             }

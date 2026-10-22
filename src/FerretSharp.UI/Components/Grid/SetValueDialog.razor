@@ -1,0 +1,126 @@
+@* "Set value…" of the cell menu (WP-59): one value for the marked cells or a column of the selected rows, typed in the
+   form's field of the column (enum lists, flags and long texts as there). "Set" or Enter sets it for all; the grid checks
+   it per column and says in the status bar what was left out. *@
+@using FerretSharp.Core.Data
+@using FerretSharp.Core.Forms
+@using FerretSharp.Core.Oracle
+@using FerretSharp.Core.Schema
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<ModalFrame Label="@GridText.SetValue_Title" Class="set-value-dialog" OnCancel="OnClose">
+    <header>
+        <span>@GridText.SetValue_Title <span class="lob-type">@Request.Target</span></span>
+        <button class="icon-btn ghost" title="@CommonText.Close" @onclick="OnClose">✕</button>
+    </header>
+    <div class="dialog-body" @ref="_body" @onkeydown="OnKeyDownAsync">
+        <FormFieldView Field="_field" Id="set-value-field" Draft="@_draft" Error="@_error" RowVersion="0"
+                       OnTyped="Typed" OnCommit="Commit" OnDiscard="_ => _draft = null"
+                       OnJump="_ => { }" OnCopy="_ => Task.CompletedTask" TableLabel="_ => string.Empty" />
+        @if (Request.Marks?.Columns.Length > 1)
+        {
+            <p class="set-value-hint">@GridText.SetValue_SeveralColumns</p>
+        }
+    </div>
+    <footer>
+        <button class="btn" @onclick="OnClose">@CommonText.Cancel</button>
+        <button class="btn primary" disabled="@_busy" @onclick="ApplyAsync">@GridText.SetValue_Apply</button>
+    </footer>
+</ModalFrame>
+
+@code {
+    private FormField _field = null!;
+    private string? _draft;
+    private string? _error;
+    private bool _busy;
+    private ElementReference _body;
+    private DomModule? _dom;
+
+    private DomModule Dom => _dom ??= new(JS);
+
+    [CascadingParameter]
+    public PresentationService Presentations { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public SetValueRequest Request { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public TableDetails Details { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public TableTab Tab { get; set; } = null!;
+
+    /// <summary>Sets the value; returns why it was not set (empty: said already), null if it was – the tab closes the dialog then.</summary>
+    [Parameter, EditorRequired]
+    public Func<string, Task<string?>> OnApply { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    protected override void OnInitialized()
+    {
+        // The row as shown, without its change: a row marked for deletion still offers the field (the grid leaves it out).
+        var row = new FormRow(Request.Row, null);
+        _field = RowForm.Fields(Details, Presentations.For(Details), row, writable: true, [], null, Tab.PinnedColumns)
+            .Single(f => f.Column == Request.Column);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Typing in an enum list picks by value or label, as in the form (dom.js); the field gets the focus.
+            await Dom.InvokeVoidAsync("typeInLists", _body);
+            await Dom.InvokeVoidAsync("focusFirstInput", _body);
+        }
+    }
+
+    private string Text => _draft ?? _field.EditText;
+
+    private void Typed(int column, string text)
+    {
+        _draft = text;
+        _error = null;
+    }
+
+    /// <summary>Enter or leaving the field: the text is checked against the field's column (the others when it is set).</summary>
+    private string? Commit(int column, string text)
+    {
+        _draft = text;
+        _error = OracleTypeMapper.Parse(_field.Info, text).Error;
+        StateHasChanged();
+        return _error;
+    }
+
+    /// <summary>Enter sets the value – in a long text Ctrl+Enter, Enter is a new line there.</summary>
+    private async Task OnKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.AltKey && !e.ShiftKey && (e.CtrlKey || !_field.IsMultiline))
+        {
+            await ApplyAsync();
+        }
+    }
+
+    private async Task ApplyAsync()
+    {
+        if (_busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            if (await OnApply(Text) is { } error)
+            {
+                _error = error.Length > 0 ? error : null;
+            }
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    public ValueTask DisposeAsync() => Dom.DisposeAsync();
+}

@@ -1,7 +1,8 @@
 @* Right-click menu of a grid cell: copy the value (also as C#), open a LOB, pin the column, the form or the comparison of
    the selected rows, delete or revert them, export them or the clicked column's values (ExportMenuItems) or copy a link,
    C# objects and seed data, and jump along foreign keys from them (outgoing and incoming with counts). Inside marked cells
-   or columns (WP-58) their group comes first, and the row's entries take the clicked row. *@
+   or columns (WP-58) their group comes first, and the row's entries take the clicked row; on a writable workspace one value,
+   NULL or the top row's values for them, or one value for a column of the selected rows (WP-59). *@
 @using FerretSharp.Core.ClrModel
 @using FerretSharp.Core.Connections
 @using FerretSharp.Core.Data
@@ -56,11 +57,33 @@
                 @GridText.GridMenu_DiscardPending
             </button>
         }
+        @if (Request.Marks is null && Request.Selected.Count > 1)
+        {
+            var reason = NotSettable(Request.Column);
+            <button class="menu-item" disabled="@(reason is not null)" title="@(reason ?? GridText.GridMenu_SetValueRowsTitle)" @onclick="SetRowsValueAsync">
+                @TextFormat.Format(GridText.GridMenu_SetValueInColumn, Column.Name)
+            </button>
+        }
     }
 
     @if (Request.Marks is { } marks)
     {
         <MarkedCellsMenuItems Menu="marks" OnClose="CloseAsync" />
+        @if (CanEdit && Tab.Changes is not null)
+        {
+            var refused = MarksRefusal(marks.Marks, CellFill.Null);
+            var down = MarksRefusal(marks.Marks, CellFill.Down);
+            var editor = refused is null ? EditorColumn(marks.Marks) : null;
+            <div class="group-head-btn static">@TextFormat.Format(GridText.GridMenu_EditGroup, marks.Marks.Text)</div>
+            <button class="menu-item" disabled="@(editor is null)" title="@(refused ?? (editor is null ? GridText.GridMenu_SetValueNoColumn : GridText.GridMenu_SetValueTitle))"
+                    @onclick="() => SetMarksValueAsync(marks.Marks, editor!.Value)">@GridText.GridMenu_SetValue</button>
+            <button class="menu-item" disabled="@(refused is not null)" title="@(refused ?? GridText.GridMenu_SetNullTitle)" @onclick="() => FillAsync(CellFill.Null)">
+                @GridText.GridMenu_SetNull
+            </button>
+            <button class="menu-item" disabled="@(down is not null)" title="@(down ?? GridText.GridMenu_FillDownTitle)" @onclick="() => FillAsync(CellFill.Down)">
+                @GridText.GridMenu_FillDown
+            </button>
+        }
     }
     <ExportMenuItems Export="Export" Table="Details" Rows="Request.Selected" FileName="@Details.Table.DisplayName" XlsxColumns="_xlsxColumns" InsertTable="Details"
                      XlsxColumnsToSave="@(() => PresentedExport.Columns(_presentation, Names.Copy()))" AllRows="_allRows" Marked="@(Request.Marks is not null)"
@@ -170,6 +193,14 @@
     [Parameter]
     public EventCallback<IReadOnlyList<int>> OnCompare { get; set; }
 
+    /// <summary>NULL or the top row's values for the marked cells (WP-59).</summary>
+    [Parameter]
+    public EventCallback<CellFill> OnFillMarks { get; set; }
+
+    /// <summary>Opens "Set value…" for the marked cells or a column of the selected rows (WP-59).</summary>
+    [Parameter]
+    public EventCallback<SetValueRequest> OnSetValue { get; set; }
+
 
     private async Task OpenLobAsync()
     {
@@ -186,10 +217,54 @@
 
     private ColumnInfo Column => Details.Columns[Request.Column];
 
+    /// <summary>Why a column cannot take a value from the cell menu (WP-59); null if it can.</summary>
+    private string? NotSettable(int column)
+    {
+        var info = Details.Columns[column];
+        return OracleTypeMapper.NotEditableReason(Details, info, newRow: false)
+               ?? (OracleTypeMapper.IsLob(info) ? TextFormat.Format(DataText.EditInLobEditor, info.DisplayType) : null);
+    }
+
+    /// <summary>
+    /// Why a command cannot run on the marked cells (WP-59): whole columns before all their rows are loaded, too many rows,
+    /// a fill down of one row. Null if it can.
+    /// </summary>
+    private string? MarksRefusal(GridMarks marks, CellFill fill) =>
+        marks.Whole && !Tab.AllRowsLoaded ? GridText.Fill_ColumnsNotLoaded
+        : ChangeTracker.FillRefusal(marks.Whole ? Tab.RowsLoaded : marks.Rows, fill);
+
+    /// <summary>The column whose editor "Set value…" shows: the clicked one if it can take a value, else the first marked one that can.</summary>
+    private int? EditorColumn(GridMarks marks)
+    {
+        var columns = marks.ColumnIndexes;
+        return columns.Contains(Request.Column) && NotSettable(Request.Column) is null ? Request.Column
+            : columns.Where(c => NotSettable(c) is null).Cast<int?>().FirstOrDefault();
+    }
+
+    private async Task FillAsync(CellFill fill)
+    {
+        await CloseAsync();
+        await OnFillMarks.InvokeAsync(fill);
+    }
+
+    private async Task SetMarksValueAsync(GridMarks marks, int column)
+    {
+        await CloseAsync();
+        await OnSetValue.InvokeAsync(new SetValueRequest(Request.Row, column, marks, [], marks.Text));
+    }
+
+    private async Task SetRowsValueAsync()
+    {
+        var rows = Request.SelectedIndexes ?? [];
+        await CloseAsync();
+        await OnSetValue.InvokeAsync(new SetValueRequest(Request.Row, Request.Column, null, rows, $"{Column.Name} · {RowsText(rows.Count)}"));
+    }
+
     /// <summary>For the first placement; dom.js keepInViewport corrects it once rendered.</summary>
     private double EstimatedHeight => 336 + ItemHeight * (_jumps.Count + Math.Max(0, _jumps.Headings - 2) + (ExportMenuItems.OffersRaw(_xlsxColumns) ? 2 : 1) + ExportMenuItems.ColumnEntries + ExportMenuItems.AllRowsEntries(_allRows, _xlsxColumns))
                                       + (_cell is null ? 0 : 128) + (Request.MissingRows > 0 ? 40 : 0)
-                                      + (Request.Marks is null ? 0 : ItemHeight * (MarkedCellsMenuItems.Entries - 1 - ExportMenuItems.ColumnEntries));
+                                      + (Request.Marks is null ? 0 : ItemHeight * (MarkedCellsMenuItems.Entries - 1 - ExportMenuItems.ColumnEntries))
+                                      + (!CanEdit ? 0 : Request.Marks is not null ? ItemHeight * 4 : Request.Selected.Count > 1 ? ItemHeight : 0);
 
     protected override void OnInitialized()
     {

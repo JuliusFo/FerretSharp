@@ -144,8 +144,111 @@ public sealed class GridEditingTests
         Assert.Single(_grid.Updated);
     }
 
+    // ---------- many cells at once (WP-59) ----------
+
+    [Fact]
+    public async Task Marked_cells_get_the_value_rows_not_loaded_are_read_first_and_it_is_one_step()
+    {
+        _grid.Rows[0] = Row(1, "Peter");
+        _grid.Rows[1] = Row(2, "Paul");
+        _grid.Database[2] = Row(3, "Mary");
+
+        var result = await Editing.FillAsync(new GridMarks(0, 2, ["c2"], false), CellFill.Value("X"));
+
+        Assert.Null(result.Error);
+        Assert.Equal([0, 1], result.Rows.Select(u => u.RowIndex)); // the row not loaded shows the change once it is
+        Assert.Equal([(2, 1)], _grid.Reads);
+        Assert.Equal(3, _grid.Changes!.PendingCount);
+        Assert.Equal(3, _grid.Queued.Count);
+        Assert.Equal("3 Zellen gesetzt.", Assert.Single(_grid.Notices));
+        Assert.Equal(3, _grid.Changes.UndoEdit().Count);
+    }
+
+    [Fact]
+    public async Task Whole_columns_are_changed_only_once_all_rows_are_loaded()
+    {
+        _grid.Rows[0] = Row(1, "Peter");
+        _grid.Rows[1] = Row(2, "Paul");
+        var marks = new GridMarks(-1, -1, ["c2"], true);
+
+        var refused = await Editing.FillAsync(marks, CellFill.Null);
+        _grid.AllRows = 2;
+        var set = await Editing.FillAsync(marks, CellFill.Null);
+
+        Assert.StartsWith("Ganze Spalten lassen sich erst ändern", refused.Error);
+        Assert.Null(set.Error);
+        Assert.Equal([0, 1], set.Rows.Select(u => u.RowIndex));
+        Assert.Equal(2, _grid.Changes!.PendingCount);
+    }
+
+    [Fact]
+    public async Task Too_many_rows_or_one_row_to_fill_down_are_refused_before_anything_is_read()
+    {
+        var many = await Editing.FillAsync(new GridMarks(0, ChangeTracker.MaxFillRows, ["c2"], false), CellFill.Value("X"));
+        var one = await Editing.FillAsync(new GridMarks(4, 4, ["c2"], false), CellFill.Down);
+
+        Assert.Contains("10.000", many.Error);
+        Assert.NotNull(one.Error);
+        Assert.Empty(_grid.Reads);
+        Assert.False(_grid.Changes!.HasChanges);
+    }
+
+    [Fact]
+    public void The_selected_rows_get_the_value_in_one_column_if_all_are_loaded()
+    {
+        _grid.Rows[0] = Row(1, "Peter");
+        _grid.Rows[2] = Row(3, "Mary");
+
+        Assert.Equal("Zeile nicht geladen", Editing.FillRows([0, 1, 2], 2, CellFill.Value("X")).Error);
+        var set = Editing.FillRows([0, 2], 2, CellFill.Value("X"));
+
+        Assert.Null(set.Error);
+        Assert.Equal([0, 2], set.Rows.Select(u => u.RowIndex));
+        Assert.Equal("X", _grid.Changes!.Find(new RowKey.PrimaryKey([3m]))!.ValueOf(2));
+
+        _grid.WriteRunning = true;
+        Assert.NotNull(Editing.FillRows([0], 2, CellFill.Value("Y")).Error);
+    }
+
+    [Fact]
+    public async Task Del_on_several_rows_is_one_step()
+    {
+        _grid.Rows[0] = Row(1, "Peter");
+        _grid.Rows[1] = Row(2, "Paul");
+
+        await Editing.DeleteKeyAsync([0, 1], null);
+
+        Assert.Equal(2, _grid.Changes!.UndoEdit().Count);
+        Assert.False(_grid.Changes.HasChanges);
+    }
+
+    [Fact]
+    public void The_notice_says_what_was_set_and_what_was_left_out()
+    {
+        var result = new CellFillResult(1_234, [new SkippedColumn(1, "ID", "Primärschlüssel sind nur bei neuen Zeilen änderbar.")], 2, 1, null);
+
+        Assert.Equal(
+            "1.234 Zellen gesetzt. 2 Zeilen ausgelassen: zum Löschen markiert. 1 Zelle ausgelassen: eine Zahl mit mehr als 28 Stellen. "
+            + "ID unverändert: Primärschlüssel sind nur bei neuen Zeilen änderbar.",
+            FillNotice.Text(result));
+        Assert.Equal("Keine Zelle gesetzt.", FillNotice.Text(new CellFillResult(0, [], 0, 0, null)));
+    }
+
     private sealed class FakeGrid : IEditableGrid
     {
+        /// <summary>Rows not loaded, by grid index, as a read returns them.</summary>
+        public Dictionary<int, RowData> Database { get; } = [];
+
+        public List<(int Start, int Count)> Reads { get; } = [];
+
+        public int? AllRows { get; set; }
+
+        public Task<IReadOnlyList<RowData>?> ReadRowsAsync(int start, int count)
+        {
+            Reads.Add((start, count));
+            return Task.FromResult<IReadOnlyList<RowData>?>([.. Enumerable.Range(start, count).Where(Database.ContainsKey).Select(i => Database[i])]);
+        }
+
         public ChangeTracker? Changes { get; set; } = new(Kunden);
 
         public bool WriteRunning { get; set; }

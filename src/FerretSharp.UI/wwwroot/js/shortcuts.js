@@ -48,6 +48,9 @@ export function register(dotnet, combos, takeEditFirst = []) {
   handler = e => {
     if (recording) return;
     const combo = comboOf(e);
+    // In a cell editor Ctrl+Enter belongs to the grid (WP-59): it sets the value for all marked cells, or is an Enter.
+    // As "apply filters" it reloaded the grid, and the typed value was lost.
+    if (combo === 'ctrl+enter' && cellEditing()) return;
     if (combo && wanted.has(combo)) {
       // Taken also while a dialog is open (.NET then ignores it): F5 would reload the whole WebView otherwise.
       e.preventDefault();
