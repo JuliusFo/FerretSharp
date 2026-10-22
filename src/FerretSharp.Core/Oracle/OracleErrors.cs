@@ -35,6 +35,12 @@ internal static class OracleErrorCodes
     /// its errors are in <c>ALL_ERRORS</c>. SQL*Plus shows it as a warning, ODP.NET throws.
     /// </summary>
     public const int CompiledWithErrors = 24344;
+    /// <summary>
+    /// ORA-24381: error(s) in array DML – an array-bound statement (WP-42) failed for some rows; the errors of the rows
+    /// (ORA-02291 …) come along in <see cref="OracleException.Errors"/>.
+    /// </summary>
+    public const int ArrayDmlErrors = 24381;
+
     /// <summary>ORA-01466: table definition changed since the snapshot (also within about a second after DDL).</summary>
     public const int DefinitionChanged = 1466;
 
@@ -63,6 +69,8 @@ internal static class OracleErrors
     /// <summary>Maps driver/configuration failures to <see cref="DatabaseException"/>; null for anything else.</summary>
     public static DatabaseException? Translate(Exception ex) => ex switch
     {
+        OracleStatementException { Oracle: { } oracle } statement when FirstRowError(oracle) is { } row => new DatabaseException(
+            OracleConnectionTester.CleanMessage(row.Message), OracleErrorCodes.Code(row.Number), oracle) { Statement = statement.Statement },
         OracleStatementException { Oracle: { } oracle } statement => new DatabaseException(
             OracleConnectionTester.CleanMessage(oracle.Message), OracleErrorCodes.Code(oracle.Number), oracle) { Statement = statement.Statement },
         OracleStatementException closed => new DatabaseException(closed.Message, inner: closed)
@@ -75,4 +83,13 @@ internal static class OracleErrors
         ConnectionConfigurationException config => new DatabaseException(config.Message, inner: config),
         _ => null,
     };
+
+    /// <summary>
+    /// For ORA-24381 (array DML), the first row's own error – the constraint, the value too large – instead of the summary,
+    /// so the message says what went wrong and the error code maps like a single statement's; null for any other error.
+    /// </summary>
+    private static OracleError? FirstRowError(OracleException oracle) =>
+        oracle.Number == OracleErrorCodes.ArrayDmlErrors
+            ? oracle.Errors.Cast<OracleError>().FirstOrDefault(e => e.Number is not (0 or OracleErrorCodes.ArrayDmlErrors))
+            : null;
 }
