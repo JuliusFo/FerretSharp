@@ -3,7 +3,7 @@
 
 import { comboOf, localCombo, setEditFinisher } from './shortcuts.js';
 import { anchorFor, arrivedIn, keyMoveOf, spanOf } from './gridSelection.js';
-import { TYPE_PAUSE, isAltGrChar, pickTyped, typedCharOf } from './cellTyping.js';
+import { TypedText, flagsOfSum, isAltGrChar, pickLabel, pickTyped, typedCharOf, typedSum } from './cellTyping.js';
 
 const grids = new Map();
 // Per grid: focus changes from .NET – forget the last navigation key (it must not select), select the row (focusRow with
@@ -283,8 +283,7 @@ class FerretSelectEditor {
     for (const option of meta.options) this.addOption(option.value, option.label);
     this.eGui.appendChild(this.select);
     this.select.disabled = true;
-    this.typed = '';
-    this.typedAt = 0;
+    this.typed = new TypedText();
     const clear = params.eventKey === 'Backspace' || params.eventKey === 'Delete';
     const started = params.eventKey?.length === 1 ? params.eventKey : null;
     params.state.dotnet.invokeMethodAsync('GetEditText', ...rowArgs(params.node, params.data), params.column.getColId())
@@ -309,11 +308,9 @@ class FerretSelectEditor {
   }
   /** Adds a typed character to what was typed (a pause starts anew) and picks the member it means, if one does. */
   type(char, current) {
-    const now = Date.now();
-    this.typed = (now - this.typedAt > TYPE_PAUSE ? '' : this.typed) + char;
-    this.typedAt = now;
+    const text = this.typed.add(char, Date.now());
     const options = [...this.select.options].map(o => ({ value: o.value, label: o.textContent }));
-    const value = pickTyped(options, this.typed, current);
+    const value = pickTyped(options, text, current);
     if (value !== null) this.select.value = value;
   }
   async commit() {
@@ -334,7 +331,7 @@ class FerretSelectEditor {
       // Typed characters pick here, not in the list's own search (it knows only the labels). A space while typing
       // belongs to the text (`Neuer Kunde`); on its own it opens the list as before.
       const char = typedCharOf(e);
-      if (char !== null && (char !== ' ' || this.typed && Date.now() - this.typedAt <= TYPE_PAUSE)) {
+      if (char !== null && (char !== ' ' || this.typed.active(Date.now()))) {
         e.preventDefault();
         e.stopPropagation();
         showEditorError(this.eGui, null);
@@ -359,7 +356,8 @@ class FerretSelectEditor {
  * Cell editor for flags enums stored as their number: a drop-down list of the flags to tick (and NULL where allowed).
  * The boxes, which are ticked and the bits no member stands for come from .NET (GetFlagsEdit); here they are only shown
  * and the ticked values added up. The sum is checked and written by .NET like typed text. Space or a click ticks, Enter
- * takes the value, Esc drops it.
+ * takes the value, Esc drops it. Typed digits set the value itself (`5` ticks 1 and 4), letters go to the flag whose label
+ * starts with them (cellTyping.js); the key that started editing counts as typed.
  */
 class FerretFlagsEditor {
   init(params) {
@@ -376,8 +374,10 @@ class FerretFlagsEditor {
     this.list.setAttribute('aria-multiselectable', 'true');
     this.eGui.append(this.summary, this.list);
     this.boxes = [];
+    this.typed = new TypedText();
     this.list.addEventListener('change', e => this.onChange(e.target));
     const clear = params.eventKey === 'Backspace' || params.eventKey === 'Delete';
+    const started = params.eventKey?.length === 1 && params.eventKey !== ' ' ? params.eventKey : null;
     params.state.dotnet.invokeMethodAsync('GetFlagsEdit', ...rowArgs(params.node, params.data), params.column.getColId())
       .then(edit => {
         if (!edit) {
@@ -394,6 +394,7 @@ class FerretFlagsEditor {
         this.updateSummary();
         this.loaded = true;
         this.focusFirst();
+        if (started) this.type(started, true);
       })
       .catch(e => cancelEditor(params, e));
   }
@@ -409,11 +410,12 @@ class FerretFlagsEditor {
     if (labelClass) text.className = labelClass;
     item.append(input, text);
     this.list.appendChild(item);
-    return { box: input, bits: box.value === '' ? 0n : BigInt(box.value), name: box.name };
+    return { box: input, bits: box.value === '' ? 0n : BigInt(box.value), name: box.name, label: box.label };
   }
   onChange(box, tick) {
     if (tick) box.checked = true;
     this.raw = undefined;
+    this.sum = undefined; // ticked by hand: the boxes make the value again
     if (box === this.nullBox?.box) {
       if (box.checked) for (const f of this.boxes) f.box.checked = false;
     } else if (this.nullBox && box.checked) {
@@ -425,15 +427,46 @@ class FerretFlagsEditor {
   }
   value() {
     if (!this.changed) return this.original;
+    if (this.sum !== undefined) return this.sum.toString();
     if (this.nullBox?.box.checked) return '';
     return this.boxes.filter(f => f.box.checked).reduce((all, f) => all | f.bits, 0n).toString();
   }
   updateSummary() {
     const value = this.value();
     const names = this.boxes.filter(f => f.box.checked).map(f => f.name);
+    if (this.sum !== undefined && this.rest) names.push(this.rest.toString()); // typed bits no box stands for
     this.summary.textContent = this.raw !== undefined ? this.raw
       : value === '' ? 'NULL'
       : `${names.length ? names.join(', ') : this.params.state.texts.noFlag} = ${value}`;
+  }
+  /**
+   * Digits set the value: the flags it holds are ticked, bits without a box stay in it. Letters go to the flag whose
+   * label starts with them (fromFirst: from the first one, not the next after the focused). Switching between a number
+   * and a name starts anew.
+   */
+  type(char, fromFirst) {
+    const now = Date.now();
+    if (this.typed.active(now) && /\d/.test(char) !== (typedSum(this.typed.text) !== null)) this.typed.reset();
+    const text = this.typed.add(char, now);
+    const sum = typedSum(text);
+    if (sum !== null) {
+      const { ticked, rest } = flagsOfSum(this.boxes.map(f => f.bits), sum);
+      this.boxes.forEach((f, i) => { f.box.checked = ticked[i]; });
+      if (this.nullBox) this.nullBox.box.checked = false;
+      this.raw = undefined;
+      this.sum = sum;
+      this.rest = rest;
+      this.changed = true;
+      showEditorError(this.eGui, null);
+      this.updateSummary();
+      return;
+    }
+
+    const all = this.nullBox ? [this.nullBox, ...this.boxes] : this.boxes;
+    const options = all.map((f, i) => ({ value: f === this.nullBox ? '' : String(i), label: f === this.nullBox ? 'NULL' : f.label }));
+    const focused = fromFirst ? -1 : all.findIndex(f => f.box === document.activeElement);
+    const picked = pickLabel(options, text, focused < 0 ? null : options[focused].value);
+    if (picked !== null) all[options.findIndex(o => o.value === picked)].box.focus();
   }
   focusFirst() {
     (this.list.querySelector('input:checked') ?? this.list.querySelector('input'))?.focus();
@@ -449,6 +482,14 @@ class FerretFlagsEditor {
   }
   afterGuiAttached() {
     this.list.addEventListener('keydown', e => {
+      // Space ticks as before; other characters type (a number or the start of a label).
+      const char = typedCharOf(e);
+      if (char !== null && char !== ' ') {
+        e.preventDefault();
+        e.stopPropagation();
+        this.type(char, false);
+        return;
+      }
       const boxes = [...this.list.querySelectorAll('input')];
       const index = boxes.indexOf(document.activeElement);
       const move = { ArrowDown: 1, ArrowUp: -1, Home: -boxes.length, End: boxes.length }[e.key];

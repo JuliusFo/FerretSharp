@@ -1,8 +1,8 @@
-// Typing in the grid: AltGr characters and the member a typed text picks (ADR 0031). Run by `dotnet test` (UI.Tests,
+// Typing in the grid: AltGr characters, the member a typed text picks, the flags a typed sum ticks (ADR 0031). Run by `dotnet test` (UI.Tests,
 // JsTests) through `node --test`; on its own: node --test tests/js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isAltGrChar, pickTyped, typedCharOf } from '../../src/FerretSharp.UI/wwwroot/js/cellTyping.js';
+import { TYPE_PAUSE, TypedText, flagsOfSum, isAltGrChar, pickLabel, pickTyped, typedCharOf, typedSum } from '../../src/FerretSharp.UI/wwwroot/js/cellTyping.js';
 
 const key = (k, mods = {}) => ({ key: k, shiftKey: false, ctrlKey: false, altKey: false, metaKey: false, ...mods });
 const altGr = k => key(k, { ctrlKey: true, altKey: true });
@@ -74,4 +74,42 @@ test('a single letter or the same letter again goes on to the next label with it
   assert.equal(pickTyped(states, 'nn', '10'), '');
   assert.equal(pickTyped(states, 'nnn', ''), '0');
   assert.equal(pickTyped(states, 'n', '1'), '0'); // the current member has another letter: the first
+});
+
+test('typed text grows while typing goes on and starts anew after a pause', () => {
+  const typed = new TypedText();
+  assert.equal(typed.active(0), false);
+  assert.equal(typed.add('1', 1000), '1');
+  assert.equal(typed.add('0', 1000 + TYPE_PAUSE), '10');
+  assert.equal(typed.active(1000 + 2 * TYPE_PAUSE), true);
+  assert.equal(typed.add('n', 1001 + 2 * TYPE_PAUSE), 'n');
+  typed.reset();
+  assert.equal(typed.active(1001 + 2 * TYPE_PAUSE), false);
+  assert.equal(typed.add('a', 1001 + 2 * TYPE_PAUSE), 'a');
+});
+
+test('labels only: a number in a label is no value, NULL comes last', () => {
+  const flags = [{ value: '', label: 'NULL' }, { value: '0', label: 'Lesen (1)' }, { value: '1', label: 'Schreiben (2)' }, { value: '2', label: 'Nachweis (4)' }];
+  assert.equal(pickLabel(flags, '1', null), null); // pickTyped would take the value '1'
+  assert.equal(pickLabel(flags, 'sch', null), '1');
+  assert.equal(pickLabel(flags, 'n', null), '2');
+  assert.equal(pickLabel(flags, 'n', '2'), '');
+  assert.equal(pickLabel(flags, '', null), null);
+});
+
+test('digits are a sum, anything else is not', () => {
+  assert.equal(typedSum('5'), 5n);
+  assert.equal(typedSum('012'), 12n);
+  assert.equal(typedSum('99999999999999999999'), 99999999999999999999n); // too large for a long: .NET says so
+  assert.equal(typedSum('5a'), null);
+  assert.equal(typedSum('-1'), null);
+  assert.equal(typedSum(''), null);
+});
+
+test('a sum ticks the flags it holds and keeps the bits no box stands for', () => {
+  assert.deepEqual(flagsOfSum([1n, 2n, 4n, 8n], 5n), { ticked: [true, false, true, false], rest: 0n });
+  assert.deepEqual(flagsOfSum([1n, 2n, 4n], 0n), { ticked: [false, false, false], rest: 0n });
+  assert.deepEqual(flagsOfSum([1n, 2n, 4n], 17n), { ticked: [true, false, false], rest: 16n });
+  assert.deepEqual(flagsOfSum([1n, 2n, 16n], 17n), { ticked: [true, false, true], rest: 0n }); // the box of bits without a member
+  assert.deepEqual(flagsOfSum([0n, 1n], 1n), { ticked: [false, true], rest: 0n }); // NULL is never ticked
 });

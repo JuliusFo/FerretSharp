@@ -4,6 +4,25 @@
 /** A pause this long (ms) ends what was typed into a member list; the next key starts anew (as Windows' own lists). */
 export const TYPE_PAUSE = 1000;
 
+/** What was typed into a list so far; a pause of TYPE_PAUSE starts anew. now: milliseconds (Date.now()). */
+export class TypedText {
+  text = '';
+  at = -Infinity;
+  /** Adds a character and returns the text typed so far. */
+  add(char, now) {
+    this.text = (this.active(now) ? this.text : '') + char;
+    this.at = now;
+    return this.text;
+  }
+  /** True while typing goes on: a space then belongs to the text. */
+  active(now) {
+    return this.text !== '' && now - this.at <= TYPE_PAUSE;
+  }
+  reset() {
+    this.text = '';
+  }
+}
+
 /**
  * The character a key types, or null: a printable key without Ctrl, Alt or Meta, or a character typed with AltGr.
  * Windows reports AltGr as Ctrl+Alt, so AG Grid takes `@ € \ { }` (German keyboard) for a shortcut and does not start
@@ -34,8 +53,13 @@ export function pickTyped(options, text, current) {
   const byValue = options.find(o => o.value !== '' && o.value === text)
     ?? options.find(o => o.value !== '' && o.value.toLowerCase() === lower)
     ?? options.find(o => o.value !== '' && o.value.toLowerCase().startsWith(lower));
-  if (byValue) return byValue.value;
+  return byValue ? byValue.value : pickLabel(options, text, current);
+}
 
+/** The value of the entry whose label typed text means, as pickTyped without looking at the values; null if none. */
+export function pickLabel(options, text, current) {
+  if (!text) return null;
+  const lower = text.toLowerCase();
   const byLabel = [...options.filter(o => o.value !== ''), ...options.filter(o => o.value === '')];
   const startsWith = prefix => byLabel.filter(o => o.label.toLowerCase().startsWith(prefix));
   if (lower.length > 1) {
@@ -48,4 +72,19 @@ export function pickTyped(options, text, current) {
   if (same.length === 0) return null;
   const at = same.findIndex(o => o.value === current);
   return same[(at + 1) % same.length].value;
+}
+
+/** Digits typed into the flags editor as the value they mean (the sum of the flags), or null for other text. */
+export function typedSum(text) {
+  return /^\d+$/.test(text) ? BigInt(text) : null;
+}
+
+/**
+ * The boxes of the flags editor a sum ticks: those whose bits are all set in it (bits: BigInt per box, 0n for NULL,
+ * which is never ticked). rest: the bits of the sum no box stands for (kept in the value, shown as a number).
+ */
+export function flagsOfSum(bits, sum) {
+  const ticked = bits.map(b => b !== 0n && (sum & b) === b);
+  const covered = bits.reduce((all, b, i) => ticked[i] ? all | b : all, 0n);
+  return { ticked, rest: sum & ~covered };
 }
