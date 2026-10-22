@@ -41,13 +41,14 @@ public sealed class TableCopy
 {
     internal TableCopy(
         TableRows source, TableDetails? target, IReadOnlyList<ColumnMapping> columns, IReadOnlyList<RowData> rows,
-        IReadOnlySet<RowKey> existing, IReadOnlyList<int>? conflictKey, IReadOnlyList<TableRef> triggers)
+        IReadOnlySet<RowKey> existing, IReadOnlySet<RowKey> differing, IReadOnlyList<int>? conflictKey, IReadOnlyList<TableRef> triggers)
     {
         Source = source;
         Target = target;
         Columns = columns;
         Rows = rows;
         Existing = existing;
+        Differing = differing;
         ConflictKey = conflictKey;
         Triggers = triggers;
     }
@@ -66,6 +67,12 @@ public sealed class TableCopy
 
     /// <summary>Source rows (by their source key) whose key the target table holds already.</summary>
     public IReadOnlySet<RowKey> Existing { get; }
+
+    /// <summary>
+    /// Of <see cref="Existing"/>, the rows whose target row holds other values in the copied columns (LOBs not compared):
+    /// possibly another record under the same key.
+    /// </summary>
+    public IReadOnlySet<RowKey> Differing { get; }
 
     /// <summary>The target columns that recognize an existing row: the enforced primary key, else a unique key; null without.</summary>
     public IReadOnlyList<int>? ConflictKey { get; }

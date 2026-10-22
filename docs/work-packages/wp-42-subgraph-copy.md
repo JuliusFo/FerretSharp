@@ -35,6 +35,8 @@ Branch `wp/42-subgraph-copy`, begonnen am 2026-10-22. ADR 0032. Fundament für W
   - `ChangeOverview.Sql` zeigt höchstens 100 Statements einer Aktion und zählt den Rest.
 - **Texte:** Core `RelationText` (neu), `DataText.CopyFailed`; UI `CopyViewText` (neu), `GridText.GridMenu_CopyToConnection*`, `ShellText.Changes_SourceCopy`/`Changes_RedoCopyTitle`/`Changes_MoreStatements`.
 
+7. **Gleiche Daten, andere ID / gleiche ID, andere Daten** (Nachfrage des Nutzers, 2026-10-22, Variante A): Die Kopie erkennt und warnt, sie ordnet nicht um. Vorhandene Zeilen (über den Konfliktschlüssel) werden mit dem Ziel verglichen – andere Werte in den kopierten Spalten (ohne Schlüssel und LOBs) sind eine Warnung, weil Kinder beim Überspringen auf einen womöglich anderen Datensatz zeigen (`TableCopy.Differing`, Spalte „Vorhanden“ mit „(n abweichend)“). Neue Zeilen werden gegen **alle** übrigen Schlüssel des Ziels geprüft (PK und UKs, deren Spalten Werte bekommen): ein Treffer ist ein Fehler in der Vorschau statt ORA-00001 beim Schreiben. Zuordnen über einen fachlichen Schlüssel mit Umschreiben der IDs (Variante B) bleibt im Backlog.
+
 ## Entscheidungen in der Umsetzung
 - **Pfade statt Kanten mit Tiefe:** Die Auswahl der Kinder ist eine Menge von Pfaden ab der Starttabelle. Dieselbe Beziehung kann auf verschiedenen Ebenen vorkommen; ein Pfad ist eindeutig.
 - **Reihenfolge der Tabellen nur über Beziehungen, die Zeilen tatsächlich verbinden** (`RowGraph.Links`), nicht über alle Beziehungen der Tabellen. Sonst blockierte ein Kreis über eine C#-Modell-Beziehung ohne Constraint, die in den kopierten Daten gar nicht vorkommt.

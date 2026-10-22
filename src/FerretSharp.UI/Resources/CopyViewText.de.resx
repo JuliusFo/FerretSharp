@@ -114,4 +114,10 @@
   <data name="Copied" xml:space="preserve">
     <value>{0} – in {1}, noch nicht committet.</value>
   </data>
+  <data name="ExistingDiffer" xml:space="preserve">
+    <value>{0:N0} ({1:N0} abweichend)</value>
+  </data>
+  <data name="ExistingDifferTitle" xml:space="preserve">
+    <value>Gleicher Schlüssel, im Ziel andere Werte – womöglich andere Datensätze</value>
+  </data>
 </root>

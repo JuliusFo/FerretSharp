@@ -142,4 +142,11 @@
     <value>{0} – in {1}, not committed yet.</value>
     <comment>{0}: description of the copy, e.g. 'Copy from DEV: 57 rows'; {1}: target connection and workspace</comment>
   </data>
+  <data name="ExistingDiffer" xml:space="preserve">
+    <value>{0:N0} ({1:N0} different)</value>
+    <comment>{0}: rows the target has; {1}: of them with other values</comment>
+  </data>
+  <data name="ExistingDifferTitle" xml:space="preserve">
+    <value>Same key, other values in the target – possibly other records</value>
+  </data>
 </root>

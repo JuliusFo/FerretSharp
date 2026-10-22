@@ -93,7 +93,14 @@
                             <td class="faint">@(t.Target?.Table.Ref.ToString() ?? "–")</td>
                             <td class="num">@t.Rows.Count.ToString("N0")</td>
                             <td class="num">@t.NewRows.ToString("N0")</td>
-                            <td class="num">@t.Existing.Count.ToString("N0")</td>
+                            @if (t.Differing.Count > 0)
+                            {
+                                <td class="num warn-text" title="@CopyViewText.ExistingDifferTitle">@TextFormat.Format(CopyViewText.ExistingDiffer, t.Existing.Count, t.Differing.Count)</td>
+                            }
+                            else
+                            {
+                                <td class="num">@t.Existing.Count.ToString("N0")</td>
+                            }
                             <td>
                                 @if (t.Existing.Count > 0)
                                 {

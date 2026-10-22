@@ -88,8 +88,11 @@ public sealed class SubgraphCopyTests(OracleContainerFixture oracle) : IAsyncLif
         Assert.Equal(["CP_KUNDE", "CP_MITARBEITER", "CP_AUFTRAG", "CP_POSITION", "CP_LIEFERUNG"], plan.Tables.Select(t => t.Table.Name));
         Assert.Equal([10m, 11m, 12m], plan.Tables[1].Rows.Select(r => r.Values[0])); // the manager before the staff
         Assert.Equal([new RowKey.PrimaryKey([1m])], plan.Tables[0].Existing);
-        var hint = Assert.Single(plan.Issues);
-        Assert.Equal((CopySeverity.Hint, "Trigger auf CP_AUFTRAG im Ziel laufen beim Kopieren mit: TRG_CP_AUFTRAG_LOG."), (hint.Severity, hint.Message));
+        Assert.Equal([new RowKey.PrimaryKey([1m])], plan.Tables[0].Differing); // "Peters Pizza (Test)" in the target
+        Assert.Equal(
+            [CopySeverity.Warning, CopySeverity.Hint],
+            plan.Issues.Select(i => i.Severity));
+        Assert.Equal("Trigger auf CP_AUFTRAG im Ziel laufen beim Kopieren mit: TRG_CP_AUFTRAG_LOG.", plan.Issues[1].Message);
 
         var editor = new OracleDataEditor(_target!);
         var modes = new Dictionary<TableRef, ConflictMode> { [plan.Tables[0].Table] = ConflictMode.Update };

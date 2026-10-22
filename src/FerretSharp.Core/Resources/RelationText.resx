@@ -96,4 +96,20 @@
     <value>Copy from {1}: {0:N0} rows</value>
     <comment>{0}: number of rows written; {1}: name of the source connection</comment>
   </data>
+  <data name="CopyExistingDifferOne" xml:space="preserve">
+    <value>{1}: {0:N0} row has the same key in the target but other values – possibly another record. If it is skipped, rows copied with it reference that one.</value>
+    <comment>{0}: number of rows; {1}: table</comment>
+  </data>
+  <data name="CopyExistingDifferOther" xml:space="preserve">
+    <value>{1}: {0:N0} rows have the same key in the target but other values – possibly other records. If they are skipped, rows copied with them reference those.</value>
+    <comment>{0}: number of rows; {1}: table</comment>
+  </data>
+  <data name="CopyUniqueTakenOne" xml:space="preserve">
+    <value>{1}: {0:N0} new row has values in {2} that a row of the target holds already under another key – the same record under another ID, or the insert fails (ORA-00001).</value>
+    <comment>{0}: number of rows; {1}: table; {2}: columns of the unique key</comment>
+  </data>
+  <data name="CopyUniqueTakenOther" xml:space="preserve">
+    <value>{1}: {0:N0} new rows have values in {2} that rows of the target hold already under other keys – the same records under other IDs, or the insert fails (ORA-00001).</value>
+    <comment>{0}: number of rows; {1}: table; {2}: columns of the unique key</comment>
+  </data>
 </root>

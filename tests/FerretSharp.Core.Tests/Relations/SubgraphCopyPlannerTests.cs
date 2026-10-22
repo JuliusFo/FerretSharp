@@ -103,9 +103,42 @@ public class SubgraphCopyPlannerTests
     }
 
     [Fact]
+    public async Task A_row_with_the_same_key_but_other_values_in_the_target_is_a_warning()
+    {
+        _target.Add(In(Target, _kunde), [1m, "Anderer Kunde"]);
+        _target.Add(In(Target, _mitarbeiter), [10m, null], [11m, 10m], [12m, 11m]); // same values
+        _target.Add(In(Target, _auftrag));
+
+        var plan = await PlanAsync();
+
+        Assert.Equal([new RowKey.PrimaryKey([1m])], plan.Tables[0].Differing);
+        Assert.Empty(plan.Tables[1].Differing);
+        var issue = Assert.Single(plan.Issues);
+        Assert.Equal(CopySeverity.Warning, issue.Severity);
+        Assert.StartsWith("KUNDE: 1 Zeile hat im Ziel denselben Schlüssel, aber andere Werte", issue.Message);
+        Assert.True(plan.CanCopy(Defaults));
+    }
+
+    [Fact]
+    public async Task A_new_row_whose_unique_key_the_target_holds_under_another_id_is_an_error()
+    {
+        _target.Add(In(Target, _kunde with { UniqueKeys = [["NAME"]] }), [7m, "Peters Pizza"]);
+        _target.Add(In(Target, _mitarbeiter));
+        _target.Add(In(Target, _auftrag));
+
+        var plan = await PlanAsync();
+
+        Assert.Empty(plan.Tables[0].Existing); // by its primary key the row is new
+        var issue = Assert.Single(plan.Issues);
+        Assert.Equal(CopySeverity.Error, issue.Severity);
+        Assert.StartsWith("KUNDE: 1 neue Zeile hat in NAME Werte, die eine Zeile des Ziels schon unter anderem Schlüssel hat", issue.Message);
+        Assert.False(plan.CanCopy(Defaults));
+    }
+
+    [Fact]
     public async Task Abort_with_existing_rows_is_an_error_and_nothing_new_is_nothing_to_copy()
     {
-        _target.Add(In(Target, _kunde), [1m, "x"]);
+        _target.Add(In(Target, _kunde), [1m, "Peters Pizza"]);
         _target.Add(In(Target, _mitarbeiter), [10m, null], [11m, 10m], [12m, 11m]);
         _target.Add(In(Target, _auftrag), [100m, 1m, 12m], [101m, 1m, null]);
         var plan = await PlanAsync();
@@ -182,8 +215,11 @@ public class SubgraphCopyPlannerTests
         Assert.False(kunde.CanUpdate);
         Assert.Equal(ConflictMode.Skip, SubgraphCopyPlan.ModeOf(kunde, new Dictionary<TableRef, ConflictMode> { [kunde.Table] = ConflictMode.Update }));
         Assert.Equal(
-            "MITARBEITER hat im Ziel keinen Primär- oder Unique-Schlüssel: Zeilen werden immer eingefügt, vorhandene nicht erkannt.",
-            Assert.Single(plan.Issues).Message);
+            [
+                "KUNDE: 1 Zeile hat im Ziel denselben Schlüssel, aber andere Werte – womöglich ein anderer Datensatz. Beim Überspringen verweisen mitkopierte Zeilen auf diesen.",
+                "MITARBEITER hat im Ziel keinen Primär- oder Unique-Schlüssel: Zeilen werden immer eingefügt, vorhandene nicht erkannt.",
+            ],
+            plan.Issues.Select(i => i.Message)); // the same name under ID 7: the ID is another value
     }
 
     [Fact]

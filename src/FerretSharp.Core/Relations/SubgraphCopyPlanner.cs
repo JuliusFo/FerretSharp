@@ -44,7 +44,7 @@ public sealed class SubgraphCopyPlanner(string sourceOwner, SchemaCache target, 
         TableCopy Without(string message)
         {
             issues.Add(new CopyIssue(CopySeverity.Error, source.Table, message));
-            return new TableCopy(source, null, [], rows, new HashSet<RowKey>(), null, []);
+            return new TableCopy(source, null, [], rows, new HashSet<RowKey>(), new HashSet<RowKey>(), null, []);
         }
 
         if (source.Details.Table.Kind != TableKind.Table)
@@ -72,7 +72,35 @@ public sealed class SubgraphCopyPlanner(string sourceOwner, SchemaCache target, 
             issues.Add(new CopyIssue(CopySeverity.Warning, source.Table, TextFormat.Format(RelationText.CopyNoConflictKey, name)));
         }
 
-        var existing = conflictKey is null ? new HashSet<RowKey>() : await ExistingAsync(source, rows, details, columns, conflictKey, cancellationToken);
+        var matched = conflictKey is null ? [] : await MatchAsync(source, rows, details, columns, conflictKey, cancellationToken);
+        var existing = matched.Keys.ToHashSet();
+
+        // Same key, other values: with keys from sequences, ID 4711 in the source may be another record in the target – the
+        // copied children would then hang on the wrong parent.
+        var differing = matched.Where(m => Differs(source.Details, m.Value.Source, details, m.Value.Target, columns, conflictKey!)).Select(m => m.Key).ToHashSet();
+        if (differing.Count > 0)
+        {
+            issues.Add(new CopyIssue(CopySeverity.Warning, source.Table,
+                TextFormat.Plural(differing.Count, RelationText.CopyExistingDifferOne, RelationText.CopyExistingDifferOther, name)));
+        }
+
+        // A new row whose other unique key the target holds already: the same record under another ID, or ORA-00001.
+        foreach (var key in KeysOf(details).Where(k => conflictKey is null || !k.Order().SequenceEqual(conflictKey.Order())))
+        {
+            var fresh = rows.Where(r => !existing.Contains(r.Key)).ToList();
+            if (fresh.Count == 0 || !key.All(columns.Select(c => c.Target).Contains))
+            {
+                continue;
+            }
+
+            var taken = await MatchAsync(source, fresh, details, columns, key, cancellationToken);
+            if (taken.Count > 0)
+            {
+                issues.Add(new CopyIssue(CopySeverity.Error, source.Table, TextFormat.Plural(taken.Count, RelationText.CopyUniqueTakenOne,
+                    RelationText.CopyUniqueTakenOther, name, string.Join(", ", key.Select(i => details.Columns[i].Name)))));
+            }
+        }
+
         var triggers = await target.GetTableTriggersAsync(details.Table.Ref, cancellationToken);
         if (triggers.Count > 0)
         {
@@ -80,7 +108,7 @@ public sealed class SubgraphCopyPlanner(string sourceOwner, SchemaCache target, 
                 TextFormat.Format(RelationText.CopyTriggers, name, string.Join(", ", triggers.Select(t => t.Owner == details.Table.Owner ? t.Name : t.ToString())))));
         }
 
-        return new TableCopy(source, details, columns, rows, existing, conflictKey, triggers);
+        return new TableCopy(source, details, columns, rows, existing, differing, conflictKey, triggers);
     }
 
     /// <summary>
@@ -162,18 +190,43 @@ public sealed class SubgraphCopyPlanner(string sourceOwner, SchemaCache target, 
     private static IReadOnlyList<int>? ConflictKeyOf(TableDetails target, IReadOnlyList<ColumnMapping> columns)
     {
         var filled = columns.Select(c => c.Target).ToHashSet();
-        IEnumerable<IReadOnlyList<string>> keys = target.PrimaryKeyEnforced && target.PrimaryKey.Count > 0 ? [target.PrimaryKey, .. target.UniqueKeys] : target.UniqueKeys;
-        return keys.Select(k => k.Select(target.IndexOf).ToList()).FirstOrDefault(k => k.Count > 0 && k.All(filled.Contains));
+        return KeysOf(target).FirstOrDefault(k => k.All(filled.Contains));
     }
 
-    /// <summary>Source rows whose key (in the target's key columns) the target table holds already.</summary>
-    private async Task<HashSet<RowKey>> ExistingAsync(
+    /// <summary>The target's keys as column indexes: the enforced primary key first, then the unique keys.</summary>
+    private static IEnumerable<IReadOnlyList<int>> KeysOf(TableDetails target)
+    {
+        IEnumerable<IReadOnlyList<string>> keys = target.PrimaryKeyEnforced && target.PrimaryKey.Count > 0 ? [target.PrimaryKey, .. target.UniqueKeys] : target.UniqueKeys;
+        return keys.Where(k => k.Count > 0 && k.All(c => target.IndexOf(c) >= 0)).Select(k => (IReadOnlyList<int>)[.. k.Select(target.IndexOf)]);
+    }
+
+    /// <summary>
+    /// Whether a source row and the target row with its key hold other values in the columns copied (keys and LOBs left out:
+    /// the target's LOBs are read as preview only). Compared as the traversal compares keys: 5 and 5.00 are equal, CHAR with
+    /// and without its padding too.
+    /// </summary>
+    private static bool Differs(
+        TableDetails source, RowData sourceRow, TableDetails target, RowData targetRow, IReadOnlyList<ColumnMapping> columns, IReadOnlyList<int> key) =>
+        columns.Where(c => !key.Contains(c.Target) && !OracleTypeMapper.IsLob(target.Columns[c.Target])).Any(c =>
+        {
+            var (a, b) = (sourceRow.Values[c.Source], targetRow.Values[c.Target]);
+            if (a is null || b is null)
+            {
+                return a is not null || b is not null;
+            }
+
+            var trim = OracleTypes.IsFixedChar(source.Columns[c.Source].DataType) || OracleTypes.IsFixedChar(target.Columns[c.Target].DataType);
+            return RowTraversal.KeyText([a], trim) != RowTraversal.KeyText([b], trim);
+        });
+
+    /// <summary>Source rows whose key (in the target's key columns <paramref name="key"/>) the target table holds, with the target's row.</summary>
+    private async Task<Dictionary<RowKey, (RowData Source, RowData Target)>> MatchAsync(
         TableRows source, IReadOnlyList<RowData> rows, TableDetails target, IReadOnlyList<ColumnMapping> columns, IReadOnlyList<int> key,
         CancellationToken cancellationToken)
     {
         var sourceOf = key.Select(t => columns.First(c => c.Target == t).Source).ToArray();
         var trim = key.Select(i => target.Columns[i]).Concat(sourceOf.Select(i => source.Details.Columns[i])).Any(c => OracleTypes.IsFixedChar(c.DataType));
-        var byText = new Dictionary<string, List<RowKey>>(StringComparer.Ordinal);
+        var byText = new Dictionary<string, List<RowData>>(StringComparer.Ordinal);
         var keys = new List<IReadOnlyList<object>>();
         foreach (var row in rows)
         {
@@ -190,25 +243,25 @@ public sealed class SubgraphCopyPlanner(string sourceOwner, SchemaCache target, 
                 keys.Add(values);
             }
 
-            list.Add(row.Key);
+            list.Add(row);
         }
 
-        var existing = new HashSet<RowKey>();
+        var matched = new Dictionary<RowKey, (RowData Source, RowData Target)>();
         if (keys.Count == 0)
         {
-            return existing;
+            return matched;
         }
 
         foreach (var found in await targetData.ReadByKeysAsync(target, key, keys, wholeLobs: false, cancellationToken))
         {
             var text = RowTraversal.KeyText([.. key.Select(i => trim && found.Values[i] is string s ? s.TrimEnd(' ') : found.Values[i]!)], trim);
-            if (byText.TryGetValue(text, out var matching))
+            foreach (var row in byText.GetValueOrDefault(text) ?? [])
             {
-                existing.UnionWith(matching);
+                matched.TryAdd(row.Key, (row, found));
             }
         }
 
-        return existing;
+        return matched;
     }
 
     /// <summary>
