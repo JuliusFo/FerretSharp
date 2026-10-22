@@ -52,5 +52,4 @@ Eigene Instanz (`--data-dir`, eigener WebView2-Ordner, Build im Scratchpad, `--l
 - **Nicht geprüft:** echte Windows-Eingabe (`SendInput`) – die Befehle sind Tasten und Menüklicks, die Maus-Markierung stammt unverändert aus WP-58; mehr als 10 000 Zeilen (nur Unit-Tests); Lesen nicht geladener Zeilen eines Bereichs beim Setzen (Weg von WP-58, Unit-Test); Prod mit gesperrtem Workspace (Entf/Ctrl+D tun dann nichts, `editState.enabled`).
 
 ## Offen
-- UX-Frage: Ctrl+D und Wert setzen zählen auch Zellen, die schon den Wert der Datenbank hatten, als „gesetzt“ (die ausstehende Änderung entfällt dann). Genauer wäre „N geändert“ – lohnt das?
-- UX-Frage: Ctrl+D ohne Markierung tut nichts. Excel holt dann den Wert der Zeile darüber – wenn gewünscht, später.
+- Keine. Beide UX-Fragen aus dem E2E hat der Nutzer am 2026-10-22 entschieden: Es bleibt, wie es ist – „N Zellen gesetzt“ zählt auch Zellen, die den Wert schon hatten, und Ctrl+D ohne Markierung tut nichts.
