@@ -3,6 +3,7 @@
 
 import { comboOf, localCombo, setEditFinisher } from './shortcuts.js';
 import { anchorFor, arrivedIn, keyMoveOf, spanOf } from './gridSelection.js';
+import { TYPE_PAUSE, isAltGrChar, pickTyped, typedCharOf } from './cellTyping.js';
 
 const grids = new Map();
 // Per grid: focus changes from .NET – forget the last navigation key (it must not select), select the row (focusRow with
@@ -266,7 +267,8 @@ class FerretCellEditor {
 /**
  * Cell editor for enum and converted bool columns (WP-12): a list of the members; the value is the database value, so
  * .NET checks and writes it like typed text. Picking with the mouse takes the value at once; with the keyboard Enter
- * does (arrow keys on the closed list already change the selection).
+ * does (arrow keys on the closed list already change the selection). Typing picks by value first, then by label
+ * (`0` or `Ne` for `Neu (0)`, cellTyping.js); the key that started editing counts as typed.
  */
 class FerretSelectEditor {
   init(params) {
@@ -281,13 +283,18 @@ class FerretSelectEditor {
     for (const option of meta.options) this.addOption(option.value, option.label);
     this.eGui.appendChild(this.select);
     this.select.disabled = true;
+    this.typed = '';
+    this.typedAt = 0;
     const clear = params.eventKey === 'Backspace' || params.eventKey === 'Delete';
+    const started = params.eventKey?.length === 1 ? params.eventKey : null;
     params.state.dotnet.invokeMethodAsync('GetEditText', ...rowArgs(params.node, params.data), params.column.getColId())
       .then(text => {
         const value = clear ? '' : text ?? '';
         // A value without a member stays selectable, so leaving the editor does not change it.
         if (![...this.select.options].some(o => o.value === value)) this.addOption(value, params.state.texts.noMember.replace('{0}', value));
         this.select.value = value;
+        // Typed onto the cell: that key picks, from the first member on (not the next after the current one).
+        if (started) this.type(started, null);
         this.select.disabled = false;
         this.loaded = true;
         this.select.focus();
@@ -299,6 +306,15 @@ class FerretSelectEditor {
     option.value = value;
     option.textContent = label;
     this.select.appendChild(option);
+  }
+  /** Adds a typed character to what was typed (a pause starts anew) and picks the member it means, if one does. */
+  type(char, current) {
+    const now = Date.now();
+    this.typed = (now - this.typedAt > TYPE_PAUSE ? '' : this.typed) + char;
+    this.typedAt = now;
+    const options = [...this.select.options].map(o => ({ value: o.value, label: o.textContent }));
+    const value = pickTyped(options, this.typed, current);
+    if (value !== null) this.select.value = value;
   }
   async commit() {
     const params = this.params;
@@ -315,6 +331,16 @@ class FerretSelectEditor {
     this.select.addEventListener('change', () => { if (pointer) this.commit(); });
     this.select.addEventListener('keydown', e => {
       pointer = false;
+      // Typed characters pick here, not in the list's own search (it knows only the labels). A space while typing
+      // belongs to the text (`Neuer Kunde`); on its own it opens the list as before.
+      const char = typedCharOf(e);
+      if (char !== null && (char !== ' ' || this.typed && Date.now() - this.typedAt <= TYPE_PAUSE)) {
+        e.preventDefault();
+        e.stopPropagation();
+        showEditorError(this.eGui, null);
+        this.type(char, this.select.value);
+        return;
+      }
       if (e.key !== 'Enter') return;
       e.preventDefault();
       e.stopPropagation();
@@ -609,7 +635,7 @@ export function create(elementId, dotnet, columns, options) {
 
   // The grid's keys, in the capture phase (before AG Grid): each handler says whether the key was its.
   element.addEventListener('keydown', e => onDeleteKey(e) || onCopyKey(e) || onCopyColumnKey(e) || onFormKey(e) || onLobKey(e) || onEditHistoryKey(e)
-    || onSelectKey(e), true);
+    || onSelectKey(e) || onAltGrKey(e), true);
 
   const selectedRows = () => api.getSelectedNodes().map(n => n.rowIndex).filter(i => i != null);
 
@@ -844,6 +870,20 @@ export function create(elementId, dotnet, columns, options) {
     const colId = typeof e.column === 'string' ? e.column : e.column?.getColId?.() ?? null;
     clearTimeout(focusTimer);
     focusTimer = setTimeout(() => dotnet.invokeMethodAsync('OnFocused', e.rowPinned ? -1 : e.rowIndex, newId ?? null, colId).catch(callFailed), 60);
+  }
+
+  // A character typed with AltGr (@ € \ { } on a German keyboard) starts editing like any other: AG Grid takes Ctrl+Alt
+  // for a shortcut. Only on a focused cell (not the header) that can be edited; LOB cells open their editor with Enter.
+  function onAltGrKey(e) {
+    if (!isAltGrChar(e) || !e.target.closest?.('.ag-cell') || api.getEditingCells().length > 0) return false;
+    const cell = api.getFocusedCell();
+    if (!cell || cell.rowIndex == null || metaById.get(cell.column.getColId())?.lob) return false;
+    const node = cell.rowPinned ? api.getPinnedTopRow(cell.rowIndex) : api.getDisplayedRowAtIndex(cell.rowIndex);
+    if (!node || !cell.column.isCellEditable(node)) return false;
+    e.preventDefault();
+    e.stopPropagation();
+    api.startEditingCell({ rowIndex: cell.rowIndex, colKey: cell.column.getColId(), rowPinned: cell.rowPinned ?? undefined, key: e.key });
+    return true;
   }
 
   // Enter on a LOB cell opens the LOB editor (see openLob).
