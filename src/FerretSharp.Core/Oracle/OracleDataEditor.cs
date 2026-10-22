@@ -125,12 +125,14 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
     public Task<WriteAction> RedoAsync(Guid actionId, CancellationToken cancellationToken) =>
         OneAtATimeAsync(() =>
         {
-            var redone = CheckRedo(actionId, WriteActionKind.Statement);
-            return ExecuteCoreAsync(redone.Statements.Single(), redone, cancellationToken);
+            var redone = CheckRedo(actionId, WriteActionKind.Statement, WriteActionKind.Copy);
+            return redone.Copy is { } copy
+                ? CopyCoreAsync(copy, redone, cancellationToken)
+                : ExecuteCoreAsync(redone.Statements.Single(), redone, cancellationToken);
         }, cancellationToken);
 
-    /// <summary>The write to apply again: the next redo of the open transaction, of the expected kind.</summary>
-    private WriteAction CheckRedo(Guid actionId, WriteActionKind kind)
+    /// <summary>The write to apply again: the next redo of the open transaction, of an expected kind.</summary>
+    private WriteAction CheckRedo(Guid actionId, params WriteActionKind[] kinds)
     {
         if (!IsWriting)
         {
@@ -138,9 +140,78 @@ internal sealed class OracleDataEditor(OracleSession session) : IDataEditor
         }
 
         var redone = _log.CheckRedo(actionId);
-        return redone.Kind == kind
+        return kinds.Contains(redone.Kind)
             ? redone
-            : throw new InvalidOperationException($"{redone.Kind} actions are not redone by a {kind} write.");
+            : throw new InvalidOperationException($"{redone.Kind} actions are not redone by a {string.Join("/", kinds)} write.");
+    }
+
+    public Task<WriteAction> CopyAsync(CopyWrite copy, CancellationToken cancellationToken) =>
+        OneAtATimeAsync(() => CopyCoreAsync(copy, redone: null, cancellationToken), cancellationToken);
+
+    /// <summary>
+    /// The steps of a copy behind one savepoint (WP-42): inserts array-bound, updates locked and checked like a grid write.
+    /// Whatever fails, nothing of the copy stays.
+    /// </summary>
+    /// <param name="redone">The copy a redo writes again; null for a new one.</param>
+    private async Task<WriteAction> CopyCoreAsync(CopyWrite copy, WriteAction? redone, CancellationToken cancellationToken)
+    {
+        if (session.Transaction.Mode == TransactionMode.ReadOnly)
+        {
+            throw new RefusedException(OracleText.WorkspaceReadOnly);
+        }
+
+        await BeginIfNeededAsync(cancellationToken);
+        var savepoint = NextSavepoint("FS_COPY_");
+        await session.SavepointAsync(savepoint, cancellationToken);
+
+        var statements = new List<QuerySpec>();
+        var rows = 0;
+        foreach (var step in copy.Steps)
+        {
+            try
+            {
+                switch (step)
+                {
+                    case CopyInsert insert:
+                        rows += await session.ExecuteNonQueryAsync(insert.Batch, cancellationToken);
+                        statements.AddRange(insert.Batch.Expand());
+                        break;
+                    case CopyUpdate update:
+                        var spec = DmlBuilder.Lock(update.Table, update.Key, [], copy.LockWaitSeconds);
+                        var found = await session.ExecuteLockingReaderAsync(spec.Sql, spec.Parameters, (reader, ct) => reader.ReadAsync(ct), cancellationToken);
+                        var statement = DmlBuilder.Update(update.Table, update.Key, update.Values);
+                        if (!found || (await session.ExecuteNonQueryAsync(statement.Sql, statement.Parameters, cancellationToken)).Rows != 1)
+                        {
+                            throw new CopyFailedException(step, DataText.RowGone);
+                        }
+
+                        rows++;
+                        statements.Add(statement);
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(copy), step.GetType().Name, null);
+                }
+            }
+            catch (Exception ex)
+            {
+                await RollBackFlushAsync(savepoint);
+                if (ex is DatabaseException { IsConnectionLost: false } error)
+                {
+                    throw new CopyFailedException(step, error.IsAny(OracleErrorCodes.RowLocked) ? DataText.RowLockedByOtherSession : WriteFailedException.Describe(error), error);
+                }
+
+                throw;
+            }
+        }
+
+        var action = new WriteAction(Guid.NewGuid(), WriteActionKind.Copy, copy.Description, rows, DateTimeOffset.Now)
+        {
+            Statements = statements,
+            RedoOf = redone?.Origin,
+            Copy = copy,
+        };
+        _log.Add(action, savepoint);
+        return action;
     }
 
     public Task CommitAsync(CancellationToken cancellationToken) =>

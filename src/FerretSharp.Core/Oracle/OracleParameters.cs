@@ -31,6 +31,16 @@ internal static class OracleParameters
         return result;
     }
 
+    /// <summary>
+    /// A bind variable of an array-bound statement (<see cref="BatchSpec"/>): the values as one array, NULL as
+    /// <see cref="DBNull"/>. The type must be known – ODP.NET cannot infer it from an array.
+    /// </summary>
+    public static OracleParameter FromArray(BatchParameter parameter) =>
+        new(parameter.Name, DbTypeOf(parameter.Type) ?? throw new ArgumentException($"Array bind {parameter.Name} needs a type.", nameof(parameter)))
+        {
+            Value = parameter.Values.Select(v => ValueOf(new QueryParameter(parameter.Name, v, parameter.Type))).ToArray(),
+        };
+
     /// <summary>The values of the output parameters by name, as text.</summary>
     public static IReadOnlyDictionary<string, object?> Outputs(OracleCommand command) =>
         command.Parameters.Cast<OracleParameter>()

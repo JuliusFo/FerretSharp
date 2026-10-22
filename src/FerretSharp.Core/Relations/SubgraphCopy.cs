@@ -1,4 +1,5 @@
 using FerretSharp.Core.Data;
+using FerretSharp.Core.Query;
 using FerretSharp.Core.Resources;
 using FerretSharp.Core.Schema;
 
@@ -117,6 +118,51 @@ public sealed class SubgraphCopyPlan
     public bool CanCopy(IReadOnlyDictionary<TableRef, ConflictMode> modes) =>
         IssuesWith(modes).All(i => i.Severity != CopySeverity.Error)
         && Tables.Any(t => t.NewRows > 0 || (t.Existing.Count > 0 && ModeOf(t, modes) == ConflictMode.Update));
+
+    /// <summary>Rows per INSERT of a copy: array binding sends them in one round trip, the values stay in memory.</summary>
+    public const int MaxBatchRows = 500;
+
+    /// <summary>
+    /// The writes of the copy with these modes, table after table in the plan's order: per table first the updates of
+    /// existing rows (conflict mode "update"), then the new rows in blocks of <see cref="MaxBatchRows"/>.
+    /// </summary>
+    /// <param name="source">The source connection's name for the description ("Copy from DEV: 57 rows").</param>
+    /// <exception cref="InvalidOperationException">The copy cannot run with these modes (<see cref="CanCopy"/>).</exception>
+    public CopyWrite ToWrite(IReadOnlyDictionary<TableRef, ConflictMode> modes, string source, int lockWaitSeconds)
+    {
+        if (!CanCopy(modes))
+        {
+            throw new InvalidOperationException("The copy has errors or nothing to write.");
+        }
+
+        var steps = new List<CopyStep>();
+        foreach (var table in Tables)
+        {
+            var target = table.Target!;
+            if (ModeOf(table, modes) == ConflictMode.Update)
+            {
+                var keyColumns = target.PrimaryKey.Select(target.IndexOf).ToHashSet();
+                foreach (var row in table.Rows.Where(r => table.Existing.Contains(r.Key)))
+                {
+                    var key = new RowKey.PrimaryKey([.. target.PrimaryKey.Select(name => row.Values[table.Columns.First(c => c.Target == target.IndexOf(name)).Source])]);
+                    var values = table.Columns.Where(c => !keyColumns.Contains(c.Target)).ToDictionary(c => c.Target, c => row.Values[c.Source]);
+                    if (values.Count > 0)
+                    {
+                        steps.Add(new CopyUpdate(target, key, values));
+                    }
+                }
+            }
+
+            var columns = table.Columns.Select(c => c.Target).ToList();
+            var fresh = table.Rows.Where(r => !table.Existing.Contains(r.Key))
+                .Select(r => (IReadOnlyList<object?>)[.. table.Columns.Select(c => r.Values[c.Source])])
+                .ToList();
+            steps.AddRange(fresh.Chunk(MaxBatchRows).Select(rows => new CopyInsert(target, DmlBuilder.InsertBatch(target, columns, rows))));
+        }
+
+        var written = steps.Sum(s => s is CopyInsert insert ? insert.Batch.Rows : 1);
+        return new CopyWrite(TextFormat.Plural(written, RelationText.CopyActionOne, RelationText.CopyActionOther, source), steps, lockWaitSeconds);
+    }
 
     /// <summary>The chosen mode; skip if none is chosen or updating is not possible for the table.</summary>
     public static ConflictMode ModeOf(TableCopy table, IReadOnlyDictionary<TableRef, ConflictMode> modes) =>

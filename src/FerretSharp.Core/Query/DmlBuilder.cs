@@ -85,6 +85,29 @@ public static class DmlBuilder
         return new QuerySpec($"INSERT INTO {Target(table)} ({columns})\nVALUES ({binds})\nRETURNING ROWID INTO :{RowIdOutput}", parameters);
     }
 
+    /// <summary>
+    /// One INSERT of <paramref name="columns"/> for all <paramref name="rows"/> (array binding, WP-42): the columns listed even
+    /// where a row's value is NULL – a copy keeps the NULL rather than taking the target's default. No <c>RETURNING</c>: the
+    /// copy knows its keys.
+    /// </summary>
+    /// <param name="columns">Indexes into the table's columns.</param>
+    /// <param name="rows">Per row the values of <paramref name="columns"/>, in their order.</param>
+    public static BatchSpec InsertBatch(TableDetails table, IReadOnlyList<int> columns, IReadOnlyList<IReadOnlyList<object?>> rows)
+    {
+        if (columns.Count == 0 || rows.Count == 0 || rows.Any(r => r.Count != columns.Count))
+        {
+            throw new ArgumentException("At least one column and one row, a value per column in every row.", nameof(rows));
+        }
+
+        var parameters = columns.Select((column, i) => new BatchParameter(
+            "v" + column.ToString(CultureInfo.InvariantCulture),
+            [.. rows.Select(r => r[i])],
+            OracleTypeMapper.BindType(table.Columns[column]))).ToList();
+        var sql = $"INSERT INTO {Target(table)} ({string.Join(", ", columns.Select(c => OracleIdentifier.Quote(table.Columns[c].Name)))})"
+                  + $"\nVALUES ({string.Join(", ", parameters.Select(p => ":" + p.Name))})";
+        return new BatchSpec(sql, parameters, rows.Count);
+    }
+
     /// <summary>The statements a flush would run, in order (for "Show changes as SQL").</summary>
     public static IReadOnlyList<QuerySpec> Describe(TableDetails table, IReadOnlyList<PendingOperation> operations, int waitSeconds)
     {

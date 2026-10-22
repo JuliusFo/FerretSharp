@@ -69,4 +69,10 @@
   <data name="CopyAbortExistingOther" xml:space="preserve">
     <value>{1}: {0:N0} Zeilen gibt es im Ziel schon, und bei Konflikten ist „Abbrechen“ gewählt.</value>
   </data>
+  <data name="CopyActionOne" xml:space="preserve">
+    <value>Kopie aus {1}: {0:N0} Zeile</value>
+  </data>
+  <data name="CopyActionOther" xml:space="preserve">
+    <value>Kopie aus {1}: {0:N0} Zeilen</value>
+  </data>
 </root>

@@ -204,6 +204,68 @@ public class SubgraphCopyPlannerTests
     }
 
     [Fact]
+    public async Task The_write_inserts_new_rows_table_by_table_and_skips_existing_ones()
+    {
+        _target.Add(In(Target, _kunde), [1m, "x"]);
+        _target.Add(In(Target, _mitarbeiter));
+        _target.Add(In(Target, _auftrag));
+        var plan = await PlanAsync();
+
+        var write = plan.ToWrite(Defaults, "DEV", lockWaitSeconds: 5);
+
+        Assert.Equal("Kopie aus DEV: 5 Zeilen", write.Description);
+        Assert.Equal(5, write.LockWaitSeconds);
+        Assert.Equal(5, write.Rows);
+        var inserts = write.Steps.Cast<CopyInsert>().ToList();
+        Assert.Equal(["MITARBEITER", "AUFTRAG"], inserts.Select(i => i.Table.Table.Name));
+        Assert.All(inserts, i => Assert.Equal(Target, i.Table.Table.Owner));
+        Assert.Equal("INSERT INTO \"TEST\".\"MITARBEITER\" (\"ID\", \"VORGESETZTER_ID\")\nVALUES (:v0, :v1)", inserts[0].Batch.Sql);
+        Assert.Equal([10m, 11m, 12m], inserts[0].Batch.Parameters[0].Values);
+        Assert.Equal([null, 10m, 11m], inserts[0].Batch.Parameters[1].Values);
+    }
+
+    [Fact]
+    public async Task Update_overwrites_existing_rows_by_the_targets_primary_key_before_new_rows_are_inserted()
+    {
+        _target.Add(In(Target, _kunde), [1m, "x"]);
+        _target.Add(In(Target, _mitarbeiter), [10m, null]);
+        _target.Add(In(Target, _auftrag));
+        var plan = await PlanAsync();
+
+        var write = plan.ToWrite(new Dictionary<TableRef, ConflictMode> { [_kunde.Table.Ref] = ConflictMode.Update, [_mitarbeiter.Table.Ref] = ConflictMode.Update }, "DEV", 3);
+
+        Assert.Equal(["CopyUpdate KUNDE", "CopyUpdate MITARBEITER", "CopyInsert MITARBEITER", "CopyInsert AUFTRAG"],
+            write.Steps.Select(s => $"{s.GetType().Name} {s.Table.Table.Name}"));
+        var kunde = (CopyUpdate)write.Steps[0];
+        Assert.Equal(new RowKey.PrimaryKey([1m]), kunde.Key);
+        Assert.Equal(new Dictionary<int, object?> { [1] = "Peters Pizza" }, kunde.Values);
+        Assert.Equal(6, write.Rows);
+    }
+
+    [Fact]
+    public async Task Many_rows_go_in_blocks_and_a_copy_that_cannot_run_is_refused()
+    {
+        _source.Add(_kunde, [1m, "Peters Pizza"]);
+        _source.Add(_auftrag, [.. Enumerable.Range(0, SubgraphCopyPlan.MaxBatchRows + 1).Select(i => new object?[] { (decimal)(1000 + i), 1m, null })]);
+        SameTablesInTarget();
+        var plan = await PlanAsync();
+
+        var write = plan.ToWrite(Defaults, "DEV", 3);
+
+        Assert.Equal([1, SubgraphCopyPlan.MaxBatchRows, 1], write.Steps.Cast<CopyInsert>().Select(i => i.Batch.Rows));
+    }
+
+    [Fact]
+    public async Task A_copy_that_cannot_run_is_not_written()
+    {
+        _target.Add(In(Target, _kunde));
+
+        var plan = await PlanAsync();
+
+        Assert.Throws<InvalidOperationException>(() => plan.ToWrite(Defaults, "DEV", 3));
+    }
+
+    [Fact]
     public async Task Tables_of_other_schemas_keep_their_owner()
     {
         var schema = await _target.SchemaAsync(Target);

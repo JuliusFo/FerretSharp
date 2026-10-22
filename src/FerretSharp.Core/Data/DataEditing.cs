@@ -29,6 +29,45 @@ public enum WriteActionKind
 
     /// <summary>A statement of the SQL editor or the LINQ console (ExecuteUpdate/ExecuteDelete).</summary>
     Statement,
+
+    /// <summary>Rows copied from another connection (WP-42): inserts and updates of several tables as one action.</summary>
+    Copy,
+}
+
+/// <summary>One step of a copy (<see cref="IDataEditor.CopyAsync"/>) in one target table.</summary>
+public abstract record CopyStep(TableDetails Table);
+
+/// <summary>New rows, inserted with one statement (array binding).</summary>
+public sealed record CopyInsert(TableDetails Table, BatchSpec Batch) : CopyStep(Table);
+
+/// <summary>A row the target has already, overwritten with the source's values (conflict mode "update"): locked first, like a grid write.</summary>
+/// <param name="Values">New values by column index; the key columns are not among them.</param>
+public sealed record CopyUpdate(TableDetails Table, RowKey Key, IReadOnlyDictionary<int, object?> Values) : CopyStep(Table);
+
+/// <summary>A copy into a workspace's transaction (WP-42), the steps in the order they run (parents first).</summary>
+/// <param name="Description">"Copy from DEV: 57 rows" – the action's description.</param>
+/// <param name="LockWaitSeconds">How long an update waits for a row another session has locked (also when redone).</param>
+public sealed record CopyWrite(string Description, IReadOnlyList<CopyStep> Steps, int LockWaitSeconds = DmlBuilder.DefaultLockWaitSeconds)
+{
+    /// <summary>Rows written: inserted and updated.</summary>
+    public int Rows => Steps.Sum(s => s switch
+    {
+        CopyInsert insert => insert.Batch.Rows,
+        _ => 1,
+    });
+
+    /// <summary>Without the values (they must not reach a log, Prod).</summary>
+    public override string ToString() => $"{Description} ({Steps.Count} steps)";
+}
+
+/// <summary>
+/// A copy stopped at a step; everything of the copy has been rolled back to its savepoint. The message names the table and
+/// the reason (Oracle's, or a row that went missing).
+/// </summary>
+public sealed class CopyFailedException(CopyStep step, string reason, Exception? inner = null)
+    : Exception(TextFormat.Format(DataText.CopyFailed, step.Table.Table.DisplayName, reason), inner)
+{
+    public CopyStep Step { get; } = step;
 }
 
 /// <summary>One write in a workspace's open transaction, as the status bar and the change overview list it.</summary>
@@ -49,11 +88,14 @@ public sealed record WriteAction(Guid Id, WriteActionKind Kind, string Descripti
     /// <summary>The first write of the line: <see cref="Id"/>, or for a redo the write it applies again.</summary>
     public Guid Origin => RedoOf ?? Id;
 
+    /// <summary>What a <see cref="WriteActionKind.Copy"/> wrote, to write it again (redo); null for other kinds.</summary>
+    public CopyWrite? Copy { get; init; }
+
     /// <summary>Without <see cref="Statements"/>: their bind values must not reach a log.</summary>
     public override string ToString() => $"{Kind} {Description} ({Rows}, {At:HH:mm:ss})";
 
-    /// <summary>"UPDATE ORDERS · 12 rows"; a grid write counts its rows in the description already.</summary>
-    public string Display => Kind == WriteActionKind.Grid
+    /// <summary>"UPDATE ORDERS · 12 rows"; a grid write and a copy count their rows in the description already.</summary>
+    public string Display => Kind is WriteActionKind.Grid or WriteActionKind.Copy
         ? Description
         : TextFormat.Plural(ValueCulture.German, Rows, DataText.WriteActionRowsOne, DataText.WriteActionRowsOther, Description);
 }
@@ -168,10 +210,19 @@ public interface IDataEditor
 
     /// <summary>
     /// Runs the statement of a write taken back again (WP-30), with the same bind values. It must be the next of
-    /// <see cref="Undone"/> and a <see cref="WriteActionKind.Statement"/>; grid writes are applied again by a flush with
-    /// <see cref="FlushOptions.RedoOf"/>. The data may have changed meanwhile: the caller compares the rows.
+    /// <see cref="Undone"/> and a <see cref="WriteActionKind.Statement"/> or a <see cref="WriteActionKind.Copy"/> (its steps
+    /// again, WP-42); grid writes are applied again by a flush with <see cref="FlushOptions.RedoOf"/>. The data may have
+    /// changed meanwhile: the caller compares the rows.
     /// </summary>
     Task<WriteAction> RedoAsync(Guid actionId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Copies rows into the workspace's transaction (WP-42, ADR 0032), begun if there is none: the steps in order behind one
+    /// savepoint, as one of <see cref="Actions"/> – undone as a whole. Updates lock their row first (at most
+    /// <see cref="CopyWrite.LockWaitSeconds"/>). On failure everything of the copy is rolled back and a
+    /// <see cref="CopyFailedException"/> names the step. Not in a locked (read-only) workspace.
+    /// </summary>
+    Task<WriteAction> CopyAsync(CopyWrite copy, CancellationToken cancellationToken);
 
     Task CommitAsync(CancellationToken cancellationToken);
 

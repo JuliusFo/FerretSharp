@@ -88,4 +88,12 @@
     <value>{1}: {0:N0} rows exist in the target already, and conflicts are set to abort.</value>
     <comment>{0}: number of rows; {1}: table</comment>
   </data>
+  <data name="CopyActionOne" xml:space="preserve">
+    <value>Copy from {1}: {0:N0} row</value>
+    <comment>{0}: number of rows written; {1}: name of the source connection</comment>
+  </data>
+  <data name="CopyActionOther" xml:space="preserve">
+    <value>Copy from {1}: {0:N0} rows</value>
+    <comment>{0}: number of rows written; {1}: name of the source connection</comment>
+  </data>
 </root>
