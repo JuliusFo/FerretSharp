@@ -1,3 +1,4 @@
+using System.Globalization;
 using FerretSharp.Core.Data;
 using FerretSharp.Core.Schema;
 using FerretSharp.UI.State;
@@ -187,7 +188,7 @@ public sealed class GridEditingTests
         var many = await Editing.FillAsync(new GridMarks(0, ChangeTracker.MaxFillRows, ["c2"], false), CellFill.Value("X"));
         var one = await Editing.FillAsync(new GridMarks(4, 4, ["c2"], false), CellFill.Down);
 
-        Assert.Contains("10.000", many.Error);
+        Assert.Contains(ChangeTracker.MaxFillRows.ToString("N0", CultureInfo.CurrentCulture), many.Error); // the machine's number format
         Assert.NotNull(one.Error);
         Assert.Empty(_grid.Reads);
         Assert.False(_grid.Changes!.HasChanges);
@@ -265,7 +266,7 @@ public sealed class GridEditingTests
         var result = new CellFillResult(1_234, [new SkippedColumn(1, "ID", "Primärschlüssel sind nur bei neuen Zeilen änderbar.")], 2, 1, null);
 
         Assert.Equal(
-            "1.234 Zellen gesetzt. 2 Zeilen ausgelassen: zum Löschen markiert. 1 Zelle ausgelassen: eine Zahl mit mehr als 28 Stellen. "
+            $"{1_234.ToString("N0", CultureInfo.CurrentCulture)} Zellen gesetzt. 2 Zeilen ausgelassen: zum Löschen markiert. 1 Zelle ausgelassen: eine Zahl mit mehr als 28 Stellen. "
             + "ID unverändert: Primärschlüssel sind nur bei neuen Zeilen änderbar.",
             FillNotice.Text(result));
         Assert.Equal("Keine Zelle gesetzt.", FillNotice.Text(new CellFillResult(0, [], 0, 0, null)));

@@ -191,7 +191,8 @@ public sealed class CellFillTests
         var changes = new ChangeTracker(Kunden);
         var many = Enumerable.Range(1, ChangeTracker.MaxFillRows + 1).Select(i => Row(i)).ToList();
 
-        Assert.Contains("10.000", changes.SetCells(many, [I("KZ")], CellFill.Null).Error);
+        // Numbers follow the machine's culture, the texts the UI culture (German in the tests): "10,000" on the Linux CI.
+        Assert.Contains(ChangeTracker.MaxFillRows.ToString("N0", System.Globalization.CultureInfo.CurrentCulture), changes.SetCells(many, [I("KZ")], CellFill.Null).Error);
         Assert.NotNull(changes.SetCells([Rows[0]], [I("KZ")], CellFill.Down).Error);
         Assert.False(changes.HasChanges);
     }
