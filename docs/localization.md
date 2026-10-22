@@ -21,6 +21,7 @@ Die Oberfläche gibt es auf Englisch (Standard) und Deutsch. Entscheidung und Hi
 | UI | `GridText` | Tabellen-Grid, Kontextmenü, Filter, Formular, Zeilenvergleich, LOB-Dialog, Schreibprobleme |
 | UI | `SqlEditorText` | SQL-Editor, LINQ-Konsole, Ergebnis-Grid, Ausführungsplan, Laufanzeige, Verlauf, Monaco |
 | UI | `SchemaViewText`, `ModelViewText`, `CompareViewText` | Explorer, Tab-Ansichten (Spalten, Constraints, Indizes, Abhängigkeiten, DDL), PL/SQL; Modellseite; Schema-Vergleich |
+| UI | `CopyViewText` | In andere Verbindung kopieren (WP-42): Ziel, Baum der Kind-Beziehungen, Lesen, Vorschau mit Konfliktmodus, Eltern, Prüfung |
 | UI | `AppStatementsText` | Statements der App (WP-33): Seite, Prozessliste, Verbindung, Herkunft, N+1-Hinweise, Nachsehen in V$SQL |
 | Core | `ClrModelText` | C#-Modell, LINQ-Konsole, Code-Generierung, Build-Ausgabe |
 | Core | `QueryText`, `DataText` | Query (Filter, SQL-Skripte, FK-Navigation, Export), Data und Forms |
@@ -29,6 +30,7 @@ Die Oberfläche gibt es auf Englisch (Standard) und Deutsch. Entscheidung und Hi
 | Core | `DesignText` | Tabellen-Designer (WP-23): Prüfungen von Index- und Tabellenentwürfen |
 | Core | `AuditText` | Audit-Vorlagen (WP-26): Fehler der Vorlage mit Zeile, Probleme und Warnungen beim Erzeugen von Audit-Tabelle und Trigger |
 | Core | `DisplayText` | Anzeigespalten (WP-31): Datei der Anzeigespalten (nicht lesbar, kein JSON, neuere Version, nicht schreibbar), nicht anzeigbare Spaltentypen |
+| Core | `RelationText` | Beziehungen und Teilgraph kopieren (WP-42): nicht verfolgte Beziehungen, Zeilengrenze, Prüfungen der Kopie (Tabellen, Spalten, Identity, Konflikte, Trigger, Kreise), Beschreibung der Kopie-Aktion |
 | Core | `AppTraceText` | Statements der App (WP-33): Anhängen nicht möglich (Prozess beendet, keine Diagnose) |
 | ModelHost | `ModelHostText` | Meldungen und Schritte des Hilfsprozesses |
 

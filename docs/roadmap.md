@@ -40,14 +40,7 @@ Branch `wp/41-designer-to-code`. Baut auf WP-40 (released 3.43.0, ADR 0030): des
 - Offen: Umfang der ersten Stufe (Vorschlag: hinzufügen, Facetten ändern, löschen; Umbenennen später); woran „Branch einer Verbindung“ erkannt wird (Branches der verknüpften Klone oder Liste von Hand).
 
 ### WP-42 Beziehungsgraph und Teilgraph kopieren
-(Fundament für WP-43 und WP-46.) Branch `wp/42-subgraph-copy`.
-- **Beziehungsgraph** im Core: Kanten aus deklarierten FKs und Navigations des C#-Modells, später auch `Manual`/`Convention` (`FkSource`), je Kante Spaltenpaare und Quelle.
-- **Kopieren:** markierte Zeilen eines Tabs als Start; Eltern werden immer mitgenommen (sonst FK-Verletzung), Kinder je Kante wählbar mit begrenzter Tiefe. Vorschau als Baum mit Zeilenzahl je Tabelle. Lesen auf der Quelle nur über den Leseweg, in Blöcken mit `in` (Grenze 1000 Werte je Liste).
-- **Traversierung als eigener Baustein im Core**, getrennt vom Einfügen ins Ziel: Startzeilen, Kanten und Tiefe hinein, gefundene Zeilen je Tabelle mit den verbindenden Kanten heraus, schrittweise erweiterbar (eine Kante eines Knotens nachladen). Das Datensatz-Diagramm (WP-60) nutzt sie ohne Kopierziel.
-- **Ziel:** ein Workspace einer anderen offenen Verbindung; Einfügen in dessen Sandbox-Transaktion in FK-Reihenfolge (topologisch sortiert), als **eine** Aktion im Undo-Stapel (ADR 0018); Commit wie immer nur auf Befehl. Ziel Prod nur nach Freischalten; Quelle Prod ist erlaubt (nur lesend).
-- **Konflikte:** gleicher Schlüssel im Ziel vorhanden → überspringen, aktualisieren oder abbrechen, in der Vorschau sichtbar. Spalten, die im Ziel fehlen oder abweichen, warnen (wie der Schema-Vergleich); Identity ALWAYS lässt sich nicht einfügen; Trigger im Ziel (z. B. Audit) laufen mit – Hinweis.
-- ADR (Kopieren über Verbindungen hinweg).
-- Entschieden (Nutzer, 2026-10-22): alle Kanten aus `SchemaCache.ForeignKeys` (heute deklariert und C#-Modell; `Manual`/`Convention` erzeugt noch nichts, sie kommen dann von selbst dazu), in der Vorschau abwählbar; Kinder standardmäßig 1 Ebene, je Kante bis 3; Konflikt standardmäßig „überspringen“, je Tabelle umstellbar; Maskieren und neue Schlüssel im Ziel später (Backlog); Zyklen zwischen Tabellen melden statt auflösen (ein Selbstbezug wird auf Zeilenebene geordnet). Plan bestätigt mit Array Binding für die INSERTs, Grenze 10 000 Zeilen, Ziel nur eine andere Verbindung.
+Umgesetzt auf `wp/42-subgraph-copy` (Release offen, E2E steht noch aus): Planung, Entscheidungen und Stand in `docs/work-packages/wp-42-subgraph-copy.md`, ADR 0032. Für WP-46/WP-60 da: `RelationGraph` und `RowTraversal.FollowAsync` (Core/Relations).
 
 ### WP-46 Beziehungsdiagramm
 (braucht WP-42; seit 2026-10-22 direkt danach, vor WP-43.) Branch `wp/46-relationship-diagram`. Schema-Ebene; die Ebene der Datensätze folgt in WP-60 und nutzt Layout und Darstellung von hier.
@@ -60,7 +53,7 @@ Branch `wp/41-designer-to-code`. Baut auf WP-40 (released 3.43.0, ADR 0030): des
 - Von markierten Zeilen eines Tabs aus die verbundenen Datensätze als Diagramm: Knoten sind Zeilen (Tabellen-/Entity-Name, Schlüssel, Anzeigespalte über die Präsentationsschicht), Kanten die Beziehungen aus dem Graphen von WP-42, die diese Zeilen tatsächlich verbinden. Doppelklick lädt Eltern oder Kinder einer Kante nach, Klick öffnet den Tab mit Filter auf die Zeile.
 - Laden über die Traversierung aus WP-42 (Leseweg der Workspace-Session, Blöcke mit `in`, abbrechbar), Darstellung und Layout aus WP-46. Viele Kinder an einer Kante werden zu einem Knoten zusammengefasst („Position ×200“), aufklappbar. Werte nur im Speicher.
 - **Verbindung zum Kopieren (WP-42):** Knoten markieren und „Teilgraph kopieren“ mit diesen Zeilen als Start; die Kopier-Vorschau von WP-42 als Diagramm mit Zeilenzahl und Konflikten am Knoten.
-- Offen: Grenze, ab der zusammengefasst wird; ob das Diagramm die Baum-Vorschau von WP-42 ersetzt oder ergänzt; Start auch aus einem Ergebnis von SQL-Editor/LINQ-Konsole, wenn die Herkunft bekannt ist (WP-48); „Als Mermaid kopieren“ auch hier (enthält Werte).
+- Offen: Grenze, ab der zusammengefasst wird; ob das Diagramm die Tabellen-Vorschau von WP-42 ersetzt oder ergänzt; Start auch aus einem Ergebnis von SQL-Editor/LINQ-Konsole, wenn die Herkunft bekannt ist (WP-48); „Als Mermaid kopieren“ auch hier (enthält Werte).
 
 ### WP-43 Datenqualität der Beziehungen
 Branch `wp/43-relationship-check`.
