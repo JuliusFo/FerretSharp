@@ -60,7 +60,7 @@ Code-Review über den Branch, alle sieben Befunde behoben:
 - **Nur geänderte Zeilen** werden neu gezeichnet und nach Namen nachgeschlagen (`CellFillResult.Changed`), nicht alle bis zu 10 000.
 - **Eine Spaltenregel:** `ChangeTracker.FillUnavailable` für Tracker und Zellmenü (vorher doppelt).
 - **Dialog:** „Wert setzen…“ schließt sich nach dem Setzen selbst über sein `OnClose` (`EventCallback`); das `StateHasChanged` in `TabView` ist weg.
-- Nicht erneut im E2E geprüft (Container entfernt): das Abbrechen des Editors nach Ctrl+Enter und das Schließen des Dialogs über `OnClose`.
+- **Nachgeprüft im E2E** (neuer Container `ferret-wp59`, danach entfernt): Nach Ctrl+Enter über drei Zellen kommt kein `cellEditRequest` mehr (mitgezählt per `api.addEventListener`), ein normales Enter liefert zum Vergleich genau eines; Undo nimmt danach erst das Einzel-Edit, dann die drei Zellen in einem Schritt zurück. „Wert setzen…“ schließt sich nach dem Setzen über „Setzen“ (Zellbereich) wie über Enter (markierte Zeilen), Esc schließt ohne Setzen, ein Wert, der in eine der Spalten nicht passt, lässt den Dialog mit Grund offen. Die Zeile zum Löschen aus dem Befund ist in der App nicht erreichbar: Ihre Zellen öffnen keinen Editor. Log ohne `[ERR]`/`[WRN]`.
 
 ## Offen
 - Keine. Beide UX-Fragen aus dem E2E hat der Nutzer am 2026-10-22 entschieden: Es bleibt, wie es ist – „N Zellen gesetzt“ zählt auch Zellen, die den Wert schon hatten, und Ctrl+D ohne Markierung tut nichts.
