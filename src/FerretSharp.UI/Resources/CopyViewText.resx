@@ -117,15 +117,11 @@
     <value>Updating needs the target's primary key.</value>
   </data>
   <data name="ParentsHeading" xml:space="preserve">
-    <value>Parents along</value>
-    <comment>Section heading, followed by relationships</comment>
+    <value>Parents</value>
+    <comment>Section heading: rows the copied rows reference</comment>
   </data>
   <data name="ParentsHint" xml:space="preserve">
-    <value>Rows the copied rows reference come along – otherwise the relationship would be violated in the target. Switch one off only if those rows exist there already.</value>
-  </data>
-  <data name="ParentRows" xml:space="preserve">
-    <value>{0} · {1:N0} rows of {2}</value>
-    <comment>{0}: relationship; {1}: rows reached; {2}: table</comment>
+    <value>Rows the copied rows reference come along, up the whole chain – otherwise the relationship would be violated in the target. Switch one off if those rows exist there already (master data, say); the check looks for them in the target.</value>
   </data>
   <data name="CheckHeading" xml:space="preserve">
     <value>Check</value>
@@ -148,5 +144,12 @@
   </data>
   <data name="ExistingDifferTitle" xml:space="preserve">
     <value>Same key, other values in the target – possibly other records</value>
+  </data>
+  <data name="ShowParents" xml:space="preserve">
+    <value>Show the tables {0} references</value>
+    <comment>{0}: table</comment>
+  </data>
+  <data name="StrandRowsTitle" xml:space="preserve">
+    <value>Rows along this relationship in the last read</value>
   </data>
 </root>

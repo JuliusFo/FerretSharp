@@ -142,15 +142,22 @@ public sealed class SubgraphCopyDraft
         Changed();
     }
 
-    /// <summary>The parent relationships the loaded rows were linked by, with the rows they reached, for switching them off.</summary>
-    public IReadOnlyList<(ForeignKeyInfo Relation, int Rows)> ParentRelations =>
-        Graph is null ? [] : [.. Graph.Links.Where(l => !_pathRelations.Contains(l.Relation)).GroupBy(l => l.Relation)
-            .Select(g => (g.Key, g.Select(l => l.Parent).Distinct().Count()))];
+    /// <summary>
+    /// The tables whose parents are collected, as roots of the parent tree: the start table, then the tables the chosen paths
+    /// of children reach, each once.
+    /// </summary>
+    public IReadOnlyList<TableRef> ParentRoots =>
+        [.. new[] { Start.Table.Ref }.Concat(Traversal.Children.SelectMany(p => p).Select(r => r.From)).Distinct()];
 
-    private HashSet<ForeignKeyInfo> _pathRelations = [];
+    /// <summary>The relationships in which <paramref name="table"/> references others: one level of the parent tree.</summary>
+    public IReadOnlyList<ForeignKeyInfo> ParentsBelow(TableRef table) => [.. Relations.ParentsOf(table)];
 
-    /// <summary>Relationships switched off before (they no longer link anything) – shown so they can be switched on again.</summary>
-    public IReadOnlyList<ForeignKeyInfo> SkippedParentRelations => [.. _skippedParents.Select(Relations.Find).OfType<ForeignKeyInfo>()];
+    /// <summary>Rows reached along a path of children by the last read; null before reading or after the choice changed.</summary>
+    public int? ReachedAlong(IReadOnlyList<ForeignKeyInfo> path) => Stage == CopyStage.Planned ? Graph?.ReachedAlong(path) : null;
+
+    /// <summary>Parent rows linked along a relationship by the last read; null before reading or after the choice changed.</summary>
+    public int? ParentsAlong(ForeignKeyInfo relation) =>
+        Stage == CopyStage.Planned && Graph is { } graph && !IsParentSkipped(relation) ? graph.ParentsAlong(relation) : null;
 
     public ConflictMode ModeOf(TableCopy table) => SubgraphCopyPlan.ModeOf(table, _modes);
 
@@ -185,9 +192,8 @@ public sealed class SubgraphCopyDraft
             var collector = new RowTraversal(await _sourceData(cancellationToken), Relations, _sourceDetails, wholeLobs: true);
             var graph = await collector.CollectAsync(Start, _keys, traversal, progress, cancellationToken);
             var planner = new SubgraphCopyPlanner(_sourceOwner, target.Schema, await target.Data(cancellationToken));
-            Plan = await planner.PlanAsync(graph, cancellationToken);
+            Plan = await planner.PlanAsync(graph, [.. _skippedParents.Select(Relations.Find).OfType<ForeignKeyInfo>()], cancellationToken);
             Graph = graph;
-            _pathRelations = [.. traversal.Children.SelectMany(p => p)];
             Stage = CopyStage.Planned;
         }
         catch (RefusedException ex)
@@ -222,5 +228,5 @@ public sealed class SubgraphCopyDraft
         return relations.All(r => r is not null) ? [.. relations.OfType<ForeignKeyInfo>()] : null;
     }
 
-    private static string KeyOf(IReadOnlyList<ForeignKeyInfo> path) => string.Join('\u0002', path.Select(RelationGraph.KeyOf));
+    private static string KeyOf(IReadOnlyList<ForeignKeyInfo> path) => RelationGraph.PathKey(path);
 }

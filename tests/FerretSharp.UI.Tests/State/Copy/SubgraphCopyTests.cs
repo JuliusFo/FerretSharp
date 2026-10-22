@@ -118,6 +118,25 @@ public sealed class SubgraphCopyTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task The_parent_tree_starts_at_the_start_table_and_the_tables_of_the_chosen_paths_and_counts_after_reading()
+    {
+        var draft = await DraftAsync();
+        Assert.Equal([Kunde.Table.Ref, Auftrag.Table.Ref], draft.ParentRoots);
+        draft.Toggle([AuftragKunde, PositionAuftrag]);
+        Assert.Equal([Kunde.Table.Ref, Auftrag.Table.Ref, Position.Table.Ref], draft.ParentRoots);
+        Assert.Equal([PositionAuftrag], draft.ParentsBelow(Position.Table.Ref));
+        Assert.Null(draft.ReachedAlong([AuftragKunde]));
+
+        await draft.LoadAsync(null, Ct);
+
+        Assert.Equal(1, draft.ReachedAlong([AuftragKunde]));
+        Assert.Equal(1, draft.ReachedAlong([AuftragKunde, PositionAuftrag]));
+        Assert.Equal(1, draft.ParentsAlong(AuftragKunde));
+        draft.ToggleParent(PositionAuftrag);
+        Assert.Null(draft.ParentsAlong(PositionAuftrag)); // switched off, and the read no longer fits
+    }
+
+    [Fact]
     public async Task A_target_that_may_not_write_plans_but_does_not_copy()
     {
         var draft = await DraftAsync(writable: false);

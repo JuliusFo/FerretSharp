@@ -94,13 +94,10 @@
     <value>Aktualisieren braucht den Primärschlüssel des Ziels.</value>
   </data>
   <data name="ParentsHeading" xml:space="preserve">
-    <value>Eltern über</value>
+    <value>Eltern</value>
   </data>
   <data name="ParentsHint" xml:space="preserve">
-    <value>Zeilen, auf die die kopierten verweisen, kommen mit – sonst wäre die Beziehung im Ziel verletzt. Schalte eine nur ab, wenn diese Zeilen dort schon stehen.</value>
-  </data>
-  <data name="ParentRows" xml:space="preserve">
-    <value>{0} · {1:N0} Zeilen von {2}</value>
+    <value>Zeilen, auf die die kopierten verweisen, kommen mit, die ganze Kette hinauf – sonst wäre die Beziehung im Ziel verletzt. Schalte eine ab, wenn diese Zeilen dort schon stehen (Stammdaten etwa); die Prüfung sucht sie im Ziel.</value>
   </data>
   <data name="CheckHeading" xml:space="preserve">
     <value>Prüfung</value>
@@ -119,5 +116,11 @@
   </data>
   <data name="ExistingDifferTitle" xml:space="preserve">
     <value>Gleicher Schlüssel, im Ziel andere Werte – womöglich andere Datensätze</value>
+  </data>
+  <data name="ShowParents" xml:space="preserve">
+    <value>Tabellen zeigen, auf die {0} verweist</value>
+  </data>
+  <data name="StrandRowsTitle" xml:space="preserve">
+    <value>Zeilen über diese Beziehung beim letzten Lesen</value>
   </data>
 </root>

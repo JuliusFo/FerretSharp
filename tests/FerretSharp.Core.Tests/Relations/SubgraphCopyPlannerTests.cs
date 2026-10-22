@@ -301,6 +301,44 @@ public class SubgraphCopyPlannerTests
         Assert.Throws<InvalidOperationException>(() => plan.ToWrite(Defaults, "DEV", 3));
     }
 
+    /// <summary>The orders of customer 1 without the clerks: the relationship to MITARBEITER switched off.</summary>
+    private async Task<SubgraphCopyPlan> PlanWithoutClerksAsync(IReadOnlyList<ForeignKeyInfo>? targetForeignKeys = null)
+    {
+        var relations = new RelationGraph([_auftragKunde, _auftragBearbeiter, _vorgesetzter]);
+        var skipped = new HashSet<string> { RelationGraph.KeyOf(_auftragBearbeiter) };
+        var traversal = new RowTraversal(_source.Data, relations, _source.DetailsOf, wholeLobs: true);
+        var graph = await traversal.CollectAsync(_kunde, [new RowKey.PrimaryKey([1m])], TraversalPlan.Default(relations, _kunde.Table.Ref) with { SkippedParents = skipped }, null, Ct);
+        var schema = await _target.SchemaAsync(Target, foreignKeys: targetForeignKeys);
+        return await new SubgraphCopyPlanner("APP", schema, _target.Data).PlanAsync(graph, [_auftragBearbeiter], Ct);
+    }
+
+    [Fact]
+    public async Task A_switched_off_parent_missing_in_the_target_is_an_error_where_the_target_has_the_constraint()
+    {
+        SameTablesInTarget();
+        var declared = new ForeignKeyInfo("FK_AUFTRAG_BEARBEITER", new TableRef(Target, "AUFTRAG"), ["BEARBEITER_ID"], new TableRef(Target, "MITARBEITER"), ["ID"], FkSource.Declared);
+
+        var plan = await PlanWithoutClerksAsync([declared]);
+
+        Assert.Null(plan.Tables.SingleOrDefault(t => t.Table.Name == "MITARBEITER"));
+        var issue = Assert.Single(plan.Issues);
+        Assert.Equal(CopySeverity.Error, issue.Severity);
+        Assert.Equal("AUFTRAG: 1 Zeile von MITARBEITER, auf die verwiesen wird, fehlt im Ziel, und die Beziehung Auftrag.Bearbeiter ist abgewählt – der Constraint des Ziels lehnt das Einfügen ab.", issue.Message);
+    }
+
+    [Fact]
+    public async Task A_switched_off_parent_missing_without_a_constraint_is_a_warning_and_one_the_target_has_is_fine()
+    {
+        SameTablesInTarget();
+
+        var plan = await PlanWithoutClerksAsync();
+
+        Assert.Equal(CopySeverity.Warning, Assert.Single(plan.Issues).Severity);
+
+        _target.Add(In(Target, _mitarbeiter), [12m, null]);
+        Assert.Empty((await PlanWithoutClerksAsync()).Issues);
+    }
+
     [Fact]
     public async Task Tables_of_other_schemas_keep_their_owner()
     {

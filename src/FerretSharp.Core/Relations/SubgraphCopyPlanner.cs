@@ -19,7 +19,13 @@ public sealed class SubgraphCopyPlanner(string sourceOwner, SchemaCache target, 
     /// <summary>The target table of a source table (the source's own schema becomes the target's).</summary>
     public TableRef TargetOf(TableRef source) => source.Owner == sourceOwner ? source with { Owner = target.Owner } : source;
 
-    public async Task<SubgraphCopyPlan> PlanAsync(RowGraph graph, CancellationToken cancellationToken)
+    public Task<SubgraphCopyPlan> PlanAsync(RowGraph graph, CancellationToken cancellationToken) => PlanAsync(graph, [], cancellationToken);
+
+    /// <param name="skippedParents">
+    /// Parent relationships the user switched off: the rows they reference are looked up in the target – missing ones are an
+    /// error where the target has the constraint, a warning otherwise.
+    /// </param>
+    public async Task<SubgraphCopyPlan> PlanAsync(RowGraph graph, IReadOnlyCollection<ForeignKeyInfo> skippedParents, CancellationToken cancellationToken)
     {
         var issues = new List<CopyIssue>();
         issues.AddRange(graph.Problems.Select(p => new CopyIssue(CopySeverity.Warning, p.Relation.From, p.Message)));
@@ -34,7 +40,75 @@ public sealed class SubgraphCopyPlanner(string sourceOwner, SchemaCache target, 
             tables.Add(await PlanTableAsync(graph, graph.Of(table)!, issues, cancellationToken));
         }
 
+        foreach (var relation in skippedParents)
+        {
+            await CheckSkippedParentAsync(graph, relation, issues, cancellationToken);
+        }
+
         return new SubgraphCopyPlan(tables, [.. issues.OrderBy(i => i.Severity)]);
+    }
+
+    /// <summary>
+    /// The rows a switched-off relationship references from the copied rows must be in the target already – or come along
+    /// with the copy by another way. What is missing is counted by distinct key.
+    /// </summary>
+    private async Task CheckSkippedParentAsync(RowGraph graph, ForeignKeyInfo relation, List<CopyIssue> issues, CancellationToken cancellationToken)
+    {
+        if (graph.Of(relation.From) is not { } children || target.Find(TargetOf(relation.To)) is not { } parentSummary)
+        {
+            return;
+        }
+
+        var from = relation.FromColumns.Select(children.Details.IndexOf).ToArray();
+        if (from.Any(i => i < 0))
+        {
+            return;
+        }
+
+        var trim = from.Any(i => OracleTypes.IsFixedChar(children.Details.Columns[i].DataType));
+        var copied = graph.Of(relation.To) is { } parents && relation.ToColumns.Select(parents.Details.IndexOf).ToArray() is var to && to.All(i => i >= 0)
+            ? parents.Rows.Select(r => RowTraversal.KeyText([.. to.Select(i => r.Values[i] ?? "")], true)).ToHashSet(StringComparer.Ordinal)
+            : [];
+        var wanted = new Dictionary<string, IReadOnlyList<object>>(StringComparer.Ordinal);
+        foreach (var row in children.Rows)
+        {
+            if (from.Any(i => row.Values[i] is null))
+            {
+                continue;
+            }
+
+            object[] values = [.. from.Select(i => trim && row.Values[i] is string s ? s.TrimEnd(' ') : row.Values[i]!)];
+            var text = RowTraversal.KeyText(values, true);
+            if (!copied.Contains(text))
+            {
+                wanted.TryAdd(text, values);
+            }
+        }
+
+        var parentDetails = await target.GetDetailsAsync(parentSummary, cancellationToken);
+        var key = relation.ToColumns.Select(parentDetails.IndexOf).ToArray();
+        if (wanted.Count == 0 || key.Any(i => i < 0))
+        {
+            return;
+        }
+
+        foreach (var found in await targetData.ReadByKeysAsync(parentDetails, key, [.. wanted.Values], wholeLobs: false, cancellationToken))
+        {
+            wanted.Remove(RowTraversal.KeyText([.. key.Select(i => found.Values[i] ?? "")], true));
+        }
+
+        if (wanted.Count == 0)
+        {
+            return;
+        }
+
+        var pairs = relation.FromColumns.Zip(relation.ToColumns).Order().ToList();
+        var declared = target.OutgoingOf(TargetOf(relation.From)).Any(fk => fk.Source == FkSource.Declared && fk.To == parentSummary.Ref
+                                                                           && fk.FromColumns.Zip(fk.ToColumns).Order().SequenceEqual(pairs));
+        issues.Add(new CopyIssue(declared ? CopySeverity.Error : CopySeverity.Warning, relation.From, TextFormat.Plural(wanted.Count,
+            declared ? RelationText.CopyParentMissingOne : RelationText.CopyParentMissingUncheckedOne,
+            declared ? RelationText.CopyParentMissingOther : RelationText.CopyParentMissingUncheckedOther,
+            relation.From.Name, relation.To.Name, relation.Name)));
     }
 
     private async Task<TableCopy> PlanTableAsync(RowGraph graph, TableRows source, List<CopyIssue> issues, CancellationToken cancellationToken)

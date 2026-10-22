@@ -88,6 +88,21 @@ public class RowTraversalTests
     }
 
     [Fact]
+    public async Task Rows_reached_are_counted_per_path_and_a_path_goes_on_from_rows_known_already()
+    {
+        // Positions of the orders of customer 1 – and a second path to the same orders, which the graph then knows.
+        var plan = new TraversalPlan([[_auftragKunde], [_auftragKunde, _positionAuftrag]], new HashSet<string>());
+
+        var graph = await Traversal().CollectAsync(_kunde, [Key(1m)], plan, null, Ct);
+
+        Assert.Equal(2, graph.ReachedAlong([_auftragKunde]));
+        Assert.Equal(3, graph.ReachedAlong([_auftragKunde, _positionAuftrag]));
+        Assert.Null(graph.ReachedAlong([_positionAuftrag]));
+        Assert.Equal(1, graph.ParentsAlong(_auftragBearbeiter)); // 12, the clerk of order 100
+        Assert.Equal(2, graph.ParentsAlong(_vorgesetzter)); // 11 and 10 up the chain
+    }
+
+    [Fact]
     public async Task Parents_along_a_skipped_relationship_are_left_out()
     {
         var plan = TraversalPlan.Default(Relations, _kunde.Table.Ref) with { SkippedParents = new HashSet<string> { RelationGraph.KeyOf(_auftragBearbeiter) } };

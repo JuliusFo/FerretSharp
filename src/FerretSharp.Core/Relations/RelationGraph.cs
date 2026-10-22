@@ -47,6 +47,9 @@ public sealed class RelationGraph
     /// </summary>
     public static string KeyOf(ForeignKeyInfo relation) => $"{relation.From.Owner}\0{relation.From.Name}\0{relation.Name}\0{relation.Source}";
 
+    /// <summary>Identifies a path of relationships (children of children …) by the keys of its relationships.</summary>
+    public static string PathKey(IReadOnlyList<ForeignKeyInfo> path) => string.Join('\u0002', path.Select(KeyOf));
+
     /// <summary>The row references a row of its own table (an employee's manager).</summary>
     public static bool IsSelfReference(ForeignKeyInfo relation) => relation.From == relation.To;
 

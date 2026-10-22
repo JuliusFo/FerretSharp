@@ -123,6 +123,25 @@ public sealed class SubgraphCopyTests(OracleContainerFixture oracle) : IAsyncLif
     }
 
     [Fact]
+    public async Task A_switched_off_parent_the_target_lacks_is_found_before_writing()
+    {
+        var source = await SchemaAsync(_source!, _sourceOwner);
+        var relations = RelationGraph.Of(source);
+        var clerk = relations.Relations.Single(r => r.Name == "FK_CP_AUFTRAG_MA");
+        var traversal = new RowTraversal(new OracleDataAccess(_source!), relations,
+            async (table, ct) => source.Find(table) is { } summary ? await source.GetDetailsAsync(summary, ct) : null, wholeLobs: true);
+        var paths = TraversalPlan.Default(relations, new TableRef(_sourceOwner, "CP_KUNDE")) with { SkippedParents = new HashSet<string> { RelationGraph.KeyOf(clerk) } };
+        var graph = await traversal.CollectAsync(await DetailsAsync(source, "CP_KUNDE"), [new RowKey.PrimaryKey([1m])], paths, null, Ct);
+        var target = await SchemaAsync(_target!, CopySchema.TargetOwner);
+
+        var plan = await new SubgraphCopyPlanner(_sourceOwner, target, new OracleDataAccess(_target!)).PlanAsync(graph, [clerk], Ct);
+
+        Assert.Null(graph.Of(new TableRef(_sourceOwner, "CP_MITARBEITER")));
+        Assert.Contains(plan.Issues, i => i.Severity == CopySeverity.Error && i.Message.StartsWith("CP_AUFTRAG: 1 Zeile von CP_MITARBEITER", StringComparison.Ordinal));
+        Assert.False(plan.CanCopy(new Dictionary<TableRef, ConflictMode>()));
+    }
+
+    [Fact]
     public async Task A_copy_that_fails_keeps_nothing_and_names_the_table()
     {
         var target = await SchemaAsync(_target!, CopySchema.TargetOwner);

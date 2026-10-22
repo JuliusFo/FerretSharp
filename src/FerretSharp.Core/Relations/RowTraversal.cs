@@ -112,7 +112,16 @@ public sealed class RowTraversal(
             }
 
             progress?.Report(new TraversalProgress(next.Key.From, graph.RowCount));
-            var reached = await FollowAsync(graph, next.Key, LinkDirection.Children, rows, cancellationToken);
+            await FollowAsync(graph, next.Key, LinkDirection.Children, rows, cancellationToken);
+
+            // All children of these rows go on along the path, also those the graph had already (reached by another path).
+            var parentKeys = rows.Select(r => r.Key).ToHashSet();
+            var children = graph.Of(next.Key.From);
+            List<RowData> reached = children is null ? [] : [.. graph.Links
+                .Where(l => l.Relation == next.Key && parentKeys.Contains(l.Parent))
+                .Select(l => l.Child).Distinct()
+                .Select(k => children.Find(k)).OfType<RowData>()];
+            graph.NoteReached(next.First().Take(depth + 1).ToList(), reached.Count);
             await FollowPathsAsync(graph, next.Key.From, reached, [.. next], depth + 1, progress, cancellationToken);
         }
     }

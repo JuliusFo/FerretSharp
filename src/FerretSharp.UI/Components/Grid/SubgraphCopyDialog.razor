@@ -47,6 +47,14 @@
             <ul class="copy-tree">@Children([])</ul>
         }
 
+        <h3>@CopyViewText.ParentsHeading</h3>
+        <p class="copy-hint">@CopyViewText.ParentsHint</p>
+        @foreach (var root in Draft.ParentRoots.Where(r => Draft.ParentsBelow(r).Count > 0))
+        {
+            <div class="copy-root" @key="root">@root.Name</div>
+            <ul class="copy-tree">@Parents(root, [root])</ul>
+        }
+
         <div class="copy-read">
             @if (Draft.Stage == CopyStage.Loading)
             {
@@ -115,33 +123,6 @@
                     }
                 </tbody>
             </table>
-
-            @if (Draft.ParentRelations.Count > 0 || Draft.SkippedParentRelations.Count > 0)
-            {
-                <h3>@CopyViewText.ParentsHeading</h3>
-                <p class="copy-hint">@CopyViewText.ParentsHint</p>
-                <ul class="copy-parents">
-                    @foreach (var (relation, rows) in Draft.ParentRelations)
-                    {
-                        var r = relation;
-                        <li>
-                            <label>
-                                <input type="checkbox" checked @onchange="() => Draft.ToggleParent(r)" />
-                                @TextFormat.Format(CopyViewText.ParentRows, r.Name, rows, r.To.Name)
-                            </label>
-                            @SourceBadge(r)
-                        </li>
-                    }
-                    @foreach (var relation in Draft.SkippedParentRelations)
-                    {
-                        var r = relation;
-                        <li>
-                            <label><input type="checkbox" @onchange="() => Draft.ToggleParent(r)" /> @r.Name → @r.To.Name</label>
-                            @SourceBadge(r)
-                        </li>
-                    }
-                </ul>
-            }
 
             @if (Draft.Issues.Count > 0)
             {
@@ -213,12 +194,59 @@
                         <b>@relation.From.Name</b> <span class="faint">@TextFormat.Format(CopyViewText.Via, relation.Name)</span>
                     </label>
                     @SourceBadge(relation)
+                    @Count(Draft.ReachedAlong(path))
                 </span>
                 @if (deeper && open)
                 {
                     <ul>@Children(path)</ul>
                 }
             </li>
+        }
+    };
+
+    /// <summary>
+    /// The parent relationships of a table, each with its checkbox; a switched-on one opens to the parents of its table, as
+    /// long as that table is not on the way already (a circle) and is not the table itself (a self reference).
+    /// </summary>
+    private RenderFragment Parents(TableRef table, IReadOnlyList<TableRef> way) => __builder =>
+    {
+        foreach (var relation in Draft.ParentsBelow(table))
+        {
+            var key = "p|" + string.Join("|", way.Select(t => t.ToString())) + "|" + RelationGraph.KeyOf(relation);
+            var on = !Draft.IsParentSkipped(relation);
+            var deeper = on && !way.Contains(relation.To) && Draft.ParentsBelow(relation.To).Count > 0;
+            var open = _expanded.Contains(key);
+            <li @key="key">
+                <span class="copy-node">
+                    @if (deeper)
+                    {
+                        <button class="icon-btn ghost tree-toggle" title="@TextFormat.Format(CopyViewText.ShowParents, relation.To.Name)" @onclick="() => Expand(key)">@(open ? "▾" : "▸")</button>
+                    }
+                    else
+                    {
+                        <span class="tree-toggle"></span>
+                    }
+                    <label>
+                        <input type="checkbox" checked="@on" disabled="@Busy" @onchange="() => Draft.ToggleParent(relation)" />
+                        <b>@relation.To.Name</b> <span class="faint">@TextFormat.Format(CopyViewText.Via, relation.Name)</span>
+                    </label>
+                    @SourceBadge(relation)
+                    @Count(Draft.ParentsAlong(relation))
+                </span>
+                @if (deeper && open)
+                {
+                    <ul>@Parents(relation.To, [.. way, relation.To])</ul>
+                }
+            </li>
+        }
+    };
+
+    /// <summary>Rows a strand brought with the last read, behind its name.</summary>
+    private static RenderFragment Count(int? rows) => __builder =>
+    {
+        if (rows is { } n)
+        {
+            <span class="copy-count" title="@CopyViewText.StrandRowsTitle">@n.ToString("N0")</span>
         }
     };
 

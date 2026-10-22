@@ -16,6 +16,7 @@ public sealed class RowGraph
     private readonly HashSet<RowLink> _links = [];
     private readonly List<RowLink> _linkOrder = [];
     private readonly List<RelationProblem> _problems = [];
+    private readonly Dictionary<string, int> _reached = new(StringComparer.Ordinal);
 
     /// <summary>Tables in the order their first row was found.</summary>
     public IReadOnlyList<TableRows> Tables => [.. _order.Select(t => _tables[t])];
@@ -29,6 +30,14 @@ public sealed class RowGraph
     public int RowCount { get; private set; }
 
     public TableRows? Of(TableRef table) => _tables.GetValueOrDefault(table);
+
+    /// <summary>Rows reached at the end of a path of children (<see cref="RowTraversal.CollectAsync"/>); null if it was not followed.</summary>
+    public int? ReachedAlong(IReadOnlyList<ForeignKeyInfo> path) => _reached.TryGetValue(RelationGraph.PathKey(path), out var rows) ? rows : null;
+
+    /// <summary>The distinct rows linked as parents along a relationship.</summary>
+    public int ParentsAlong(ForeignKeyInfo relation) => _linkOrder.Where(l => l.Relation == relation).Select(l => l.Parent).Distinct().Count();
+
+    internal void NoteReached(IReadOnlyList<ForeignKeyInfo> path, int rows) => _reached[RelationGraph.PathKey(path)] = rows;
 
     /// <returns>False if the row is known already (by its row key).</returns>
     internal bool Add(TableDetails table, RowData row)

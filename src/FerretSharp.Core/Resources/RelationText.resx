@@ -112,4 +112,20 @@
     <value>{1}: {0:N0} new rows have values in {2} that rows of the target hold already under other keys – the same records under other IDs, or the insert fails (ORA-00001).</value>
     <comment>{0}: number of rows; {1}: table; {2}: columns of the unique key</comment>
   </data>
+  <data name="CopyParentMissingOne" xml:space="preserve">
+    <value>{1}: {0:N0} row of {2} it references is missing in the target, and relationship {3} is switched off – the target's constraint refuses the insert.</value>
+    <comment>{0}: number of missing rows; {1}: referencing table; {2}: referenced table; {3}: relationship</comment>
+  </data>
+  <data name="CopyParentMissingOther" xml:space="preserve">
+    <value>{1}: {0:N0} rows of {2} it references are missing in the target, and relationship {3} is switched off – the target's constraint refuses the insert.</value>
+    <comment>{0}: number of missing rows; {1}: referencing table; {2}: referenced table; {3}: relationship</comment>
+  </data>
+  <data name="CopyParentMissingUncheckedOne" xml:space="preserve">
+    <value>{1}: {0:N0} row of {2} it references is missing in the target, and relationship {3} is switched off – the copied rows will reference nothing there.</value>
+    <comment>{0}: number of missing rows; {1}: referencing table; {2}: referenced table; {3}: relationship without constraint</comment>
+  </data>
+  <data name="CopyParentMissingUncheckedOther" xml:space="preserve">
+    <value>{1}: {0:N0} rows of {2} it references are missing in the target, and relationship {3} is switched off – the copied rows will reference nothing there.</value>
+    <comment>{0}: number of missing rows; {1}: referencing table; {2}: referenced table; {3}: relationship without constraint</comment>
+  </data>
 </root>
