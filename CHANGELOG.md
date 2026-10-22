@@ -13,6 +13,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 - A table whose rows take a while to load says so: after a moment the grid shows "Loading rows" with a clock and "Cancel" (and, like a running statement, what the session waits for and "Disconnect session…" if a cancel goes unanswered); the footer says "Loading …" instead of "≥ 0 rows". Before, the grid stayed empty until the rows came – after removing a filter or opening a big table sometimes for minutes – and nothing could stop the query.
 - A new query (filter, sort, F5) cancels the rows of the previous one still loading instead of waiting behind it, and closing the tab stops its query.
 - A double click in the SQL editor, the LINQ console and PL/SQL source selects the word again (e.g. a name inside quotes) instead of the whole line; a triple click still selects the line.
+- Enum and bool cells of a C# model can be typed into: the value picks its member (`0` for "New (0)", `1` `0` for 10), the start of the name does too (`Ne`); the same letter again goes to the next member with it. The key that starts editing counts – before, it only opened the list and was lost, and the list searched its labels only, so numbers found nothing.
+- Characters typed with AltGr (`@ € \ { } [ ] ~ |` on a German keyboard) start editing a cell like any other key; before, only a double click, Enter or F2 did.
 
 ## [3.45.0] - 2026-10-21
 
