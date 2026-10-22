@@ -27,6 +27,9 @@ public static class SettingsOptions
     public static IReadOnlyList<(FkCountMode Mode, string Label)> FkCounts =>
         [(FkCountMode.Immediately, SettingsViewText.Settings_FkCountsImmediately), (FkCountMode.OnHover, SettingsViewText.Settings_FkCountsOnHover)];
 
+    public static IReadOnlyList<(FilterSqlColumns Columns, string Label)> FilterSql =>
+        [(FilterSqlColumns.Listed, SettingsViewText.Settings_FilterSqlListed), (FilterSqlColumns.Star, SettingsCatalog.FilterSqlStar)];
+
     public static IReadOnlyList<(int Hours, string Label)> UpdateIntervals =>
     [
         (0, SettingsViewText.Settings_UpdateCheckNever), (1, SettingsViewText.Settings_UpdateCheckHourly),

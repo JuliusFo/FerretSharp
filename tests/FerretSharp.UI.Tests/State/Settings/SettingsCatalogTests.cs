@@ -90,5 +90,19 @@ public sealed class SettingsCatalogTests
     }
 
     [Fact]
+    public void The_data_view_is_found_by_the_header_lines_and_the_sql_of_a_filter()
+    {
+        using var _ = UiCulture.Use("de");
+
+        var notNull = Filter("not null");
+        Assert.True(notNull.ShowsSection(SettingsPart.DataView, selected: SettingsPart.Appearance));
+        Assert.True(notNull.Shows(SettingKey.HeaderNotNull));
+        Assert.True(Filter("spaltenkopf").Shows(SettingKey.HeaderTypes));
+        Assert.True(Filter("t.*").Shows(SettingKey.FilterSql));
+        Assert.True(Filter("rowid").Shows(SettingKey.FilterSql));
+        Assert.True(Filter("datenansicht").ShowsSection(SettingsPart.DataView, selected: SettingsPart.Appearance));
+    }
+
+    [Fact]
     public void A_query_without_any_match_is_empty() => Assert.True(Filter("xyzzy").IsEmpty);
 }

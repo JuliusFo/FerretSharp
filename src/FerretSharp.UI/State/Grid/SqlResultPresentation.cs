@@ -57,12 +57,21 @@ public sealed class SqlResultPresentation : IColumnPresentation
     /// <summary>Some column carries C# names: the header has the line for them.</summary>
     public bool ShowsClrNames { get; }
 
-    public int? HeaderHeight => ShowsClrNames ? GridOptions.ClrHeaderHeight : null;
+    public int? HeaderHeight(ColumnHeaderLines header)
+    {
+        ArgumentNullException.ThrowIfNull(header);
+        return header.HeightWith(ShowsClrNames);
+    }
 
     /// <summary>The result columns as the driver reports them (named as the query names them).</summary>
     IReadOnlyList<ColumnInfo> IColumnPresentation.Columns => _infos;
 
-    public IReadOnlyList<GridColumn> Columns() => [.. _columns.Select((_, i) => ColumnOf(i))];
+    /// <param name="header">Type and NOT NULL as the settings show them.</param>
+    public IReadOnlyList<GridColumn> Columns(ColumnHeaderLines header)
+    {
+        ArgumentNullException.ThrowIfNull(header);
+        return [.. _columns.Select((_, i) => ColumnOf(i, header))];
+    }
 
     /// <summary>
     /// A traced column under the name the query gave it, with the property name and type of its table column if C# names
@@ -100,12 +109,14 @@ public sealed class SqlResultPresentation : IColumnPresentation
         return details.Columns[table].Comment is { } comment ? origin + "\n" + comment : origin; // grid.js joins its lines with \n
     }
 
-    private GridColumn ColumnOf(int i)
+    private GridColumn ColumnOf(int i, ColumnHeaderLines header)
     {
         var column = _columns[i];
         var category = ColumnCategories.Of(column.Column);
-        var plain = new GridColumn(GridColumn.IdOf(i), column.Name, column.Name, column.Column.DisplayType, category.ToString(), column.Column.Nullable)
+        var plain = new GridColumn(GridColumn.IdOf(i), column.Name, column.Name, header.TextOf(column.Column), category.ToString(), column.Column.Nullable)
         {
+            TypeLine = header.TypeLine,
+            TypeHint = header.HintOf(column.Column),
             Numeric = category == ColumnCategory.Number,
             ClrLine = ShowsClrNames,
         };

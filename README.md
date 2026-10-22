@@ -55,7 +55,7 @@ developer works with an Oracle database day to day:
   exact numbers beyond `decimal`, LOB previews, pinned columns, column search (Ctrl+F). The row selection follows the
   keyboard as in the Windows Explorer: Shift+↑/↓, Ctrl+A, Space.
 - Composable filters in the style of TablePlus – column, operator, value – translated into bound SQL; see the generated
-  statement and its execution plan at any time. Combine rows with **OR** and **NOT** groups (NOT treats NULL as C# does,
+  statement (the grid's own or a short `SELECT t.*`) and its execution plan at any time. Combine rows with **OR** and **NOT** groups (NOT treats NULL as C# does,
   so the grid and a LINQ `Where` keep the same rows).
 - **Filter presets**: save the filter rows of a table, and its sort order, under a name ("Open orders") – a preset
   belongs to the table name, so it works on Dev, Test and Prod alike.

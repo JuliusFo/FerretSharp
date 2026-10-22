@@ -1,4 +1,4 @@
-@* App settings: appearance (language, light/dark), C# names of a linked project, the connection behaviour, audit template and display columns; the shortcuts
+@* App settings: appearance (language, light/dark), the data view (column headers, SQL of a filter), C# names of a linked project, the connection behaviour, audit template and display columns; the shortcuts
    as a section of their own (WP-25). R6b (review 3.40.0, B9): each larger section is a component of its own. *@
 @using FerretSharp.Core.Settings
 @inject AppSettingsService Settings
@@ -34,6 +34,11 @@
         @if (ShowSection(SettingsPart.Appearance))
         {
             <AppearanceSettings Filter="Filter" />
+        }
+
+        @if (ShowSection(SettingsPart.DataView))
+        {
+            <DataViewSettings Filter="Filter" />
         }
 
         @if (ShowSection(SettingsPart.ClrModel))

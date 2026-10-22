@@ -56,6 +56,35 @@
   <data name="Settings_ExplorerViewsHint" xml:space="preserve">
     <value>The explorer lists views and materialized views in a section of their own – Tables | Views | PL/SQL – instead of with the tables. The name search still names the hits in the other sections.</value>
   </data>
+  <data name="Settings_DataView" xml:space="preserve">
+    <value>Data view</value>
+    <comment>Settings section: the grid of a table and the result of a query</comment>
+  </data>
+  <data name="Settings_HeaderTypes" xml:space="preserve">
+    <value>Type in the column header</value>
+  </data>
+  <data name="Settings_HeaderTypesHint" xml:space="preserve">
+    <value>Shows a column's Oracle type, e.g. {0}, under its name in the column header – in the grid of a table and in the result of a query.</value>
+    <comment>{0}: an Oracle type, "NUMBER(10)"</comment>
+  </data>
+  <data name="Settings_HeaderNotNull" xml:space="preserve">
+    <value>{0} in the column header</value>
+    <comment>{0}: "NOT NULL"</comment>
+  </data>
+  <data name="Settings_HeaderNotNullHint" xml:space="preserve">
+    <value>Marks the columns that must have a value. With the type off as well, the header loses this line and gets lower.</value>
+  </data>
+  <data name="Settings_FilterSql" xml:space="preserve">
+    <value>SQL of a filter</value>
+  </data>
+  <data name="Settings_FilterSqlHint" xml:space="preserve">
+    <value>What “SQL” in the filter bar shows and opens in the SQL editor: the grid's own statement – ROWID, each column, LOBs as preview and length, the first page – or {0} with the filter and the sorting only.</value>
+    <comment>{0}: "SELECT t.*"</comment>
+  </data>
+  <data name="Settings_FilterSqlListed" xml:space="preserve">
+    <value>Each column</value>
+    <comment>Option of "SQL of a filter"; the other option is "SELECT t.*"</comment>
+  </data>
   <data name="Settings_ThemeSystem" xml:space="preserve">
     <value>System</value>
     <comment>Color scheme option</comment>

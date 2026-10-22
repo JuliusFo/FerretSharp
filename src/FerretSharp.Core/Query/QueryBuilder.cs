@@ -58,6 +58,9 @@ public static class QueryBuilder
     public const int MaxInListSize = 1000; // ORA-01795
     private const string Alias = "t";
 
+    /// <summary>The select list of <see cref="BuildSelectStar"/>, also for showing it (settings).</summary>
+    public const string StarSelect = "SELECT " + Alias + ".*";
+
     /// <summary>The primary key if its values are unique (or the table is a view), otherwise ROWID; views without a key: none.</summary>
     public static RowKeyKind RowKeyOf(TableDetails table) =>
         table.PrimaryKey.Count > 0 && (table.PrimaryKeyEnforced || table.Table.Kind == TableKind.View) ? RowKeyKind.PrimaryKey
@@ -109,6 +112,29 @@ public static class QueryBuilder
     /// </summary>
     public static SelectQuery BuildSelectAll(TableDetails table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts) =>
         Select(table, filters, sorts, page: null);
+
+    /// <summary>
+    /// The filter as a statement to read and go on with in the SQL editor ("SQL" in the filter bar): <c>SELECT t.*</c> with
+    /// the same conditions and binds, ordered by the sorts and the row key – without ROWID in the select list, LOB
+    /// projections and page. A table without primary key still ends its ORDER BY with <c>t.ROWID</c>: the SQL editor reads
+    /// later pages by running the statement again, an order that is not total would repeat or skip rows (review of the
+    /// change, decision of the user). A view without key is ordered by the sorts only.
+    /// </summary>
+    public static QuerySpec BuildSelectStar(TableDetails table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts)
+    {
+        var builder = new Builder(table);
+        var sql = new StringBuilder()
+            .Append(StarSelect)
+            .Append("\n  FROM ").Append(OracleIdentifier.Qualify(table.Table.Owner, table.Table.Name)).Append(' ').Append(Alias)
+            .Append(builder.Where(filters));
+        var order = builder.OrderBy(sorts, keylessViewByAllColumns: false).ToList();
+        if (order.Count > 0)
+        {
+            sql.Append("\n ORDER BY ").AppendJoin(", ", order);
+        }
+
+        return new QuerySpec(sql.ToString(), builder.Parameters);
+    }
 
     /// <summary>
     /// The values of columns for every row of <see cref="BuildSelectAll"/> (copy the values of a column, WP-57, or of marked
@@ -306,7 +332,10 @@ public static class QueryBuilder
             filter.Op is FilterOperator.IsNull or FilterOperator.IsNotNull
             || filter.Op == FilterOperator.NotEquals && table.Columns.First(c => c.Name == filter.Column).Nullable;
 
-        public IEnumerable<string> OrderBy(IReadOnlyList<SortSpec> sorts)
+        /// <param name="keylessViewByAllColumns">
+        /// A view without key is ordered by all its sortable columns as well (the grid's paging); otherwise by the sorts only.
+        /// </param>
+        public IEnumerable<string> OrderBy(IReadOnlyList<SortSpec> sorts, bool keylessViewByAllColumns = true)
         {
             var used = new HashSet<string>(StringComparer.Ordinal);
             foreach (var sort in sorts)
@@ -336,7 +365,7 @@ public static class QueryBuilder
                 case RowKeyKind.RowId:
                     yield return $"{Alias}.ROWID";
                     break;
-                default:
+                case RowKeyKind.None when keylessViewByAllColumns:
                     // Views without a key: all sortable columns (fully deterministic unless rows are exact duplicates).
                     foreach (var column in table.Columns.Where(c => ColumnCategories.IsSortable(ColumnCategories.Of(c)) && used.Add(c.Name)))
                     {

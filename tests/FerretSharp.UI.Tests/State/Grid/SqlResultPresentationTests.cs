@@ -76,7 +76,7 @@ public sealed class SqlResultPresentationTests
     [Fact]
     public async Task Traced_columns_carry_the_names_badges_and_origin_of_their_table()
     {
-        var columns = (await PresentationAsync(ClrNameDisplay.Beside)).Columns();
+        var columns = (await PresentationAsync(ClrNameDisplay.Beside)).Columns(ColumnHeaderLines.All);
 
         Assert.True(columns[1].Fk);
         Assert.Equal((false, false), (columns[0].Fk, columns[0].FkModel));
@@ -97,10 +97,10 @@ public sealed class SqlResultPresentationTests
     {
         var presentation = await PresentationAsync(ClrNameDisplay.Front);
 
-        var art = presentation.Columns()[2];
+        var art = presentation.Columns(ColumnHeaderLines.All)[2];
 
         Assert.Equal(("Kundenart", "ART"), (art.Label, art.Alternate));
-        Assert.Equal(GridOptions.ClrHeaderHeight, presentation.HeaderHeight);
+        Assert.Equal(GridOptions.ClrHeaderHeight, presentation.HeaderHeight(ColumnHeaderLines.All));
     }
 
     [Fact]
@@ -161,8 +161,20 @@ public sealed class SqlResultPresentationTests
     {
         var presentation = SqlResultPresentation.Plain(Columns);
 
-        Assert.Null(presentation.HeaderHeight);
-        Assert.All(presentation.Columns(), c => Assert.Equal((false, false, null), (c.Fk, c.ClrLine, c.Comment)));
+        Assert.Null(presentation.HeaderHeight(ColumnHeaderLines.All));
+        Assert.All(presentation.Columns(ColumnHeaderLines.All), c => Assert.Equal((false, false, null), (c.Fk, c.ClrLine, c.Comment)));
         Assert.Equal("2", presentation.Row([10m, 4711m, 2m, 1m])["c2"]);
+    }
+
+    [Fact]
+    public async Task Without_type_and_not_null_the_headers_lose_their_last_line()
+    {
+        var presentation = await PresentationAsync(ClrNameDisplay.Beside);
+        var hidden = new ColumnHeaderLines(Types: false, NotNull: false);
+
+        Assert.All(presentation.Columns(hidden), c => Assert.Equal((false, "", "NUMBER"), (c.TypeLine, c.Type, c.TypeHint)));
+        Assert.Null(presentation.HeaderHeight(hidden)); // the C# line stays: one line under the name
+        Assert.Equal(ColumnHeaderLines.NameOnlyHeight, SqlResultPresentation.Plain(Columns).HeaderHeight(hidden));
+        Assert.All(presentation.Columns(ColumnHeaderLines.All), c => Assert.Equal((true, "NUMBER", (string?)null), (c.TypeLine, c.Type, c.TypeHint)));
     }
 }

@@ -112,7 +112,8 @@ media.addEventListener('change', () => grids.forEach((api, id) => api.setGridOpt
 
 /**
  * Header: name, Oracle type, NOT NULL, PK/FK badges, sort arrow. With a C# model (WP-12) a line between them shows the
- * other name and the C# type (`KundeId · int`); `meta.clrLine` says whether the table has that line at all.
+ * other name and the C# type (`KundeId · int`); `meta.clrLine` says whether the table has that line at all. The type line
+ * comes as text from .NET (type and NOT NULL as the settings show them), `meta.typeLine` says whether there is one.
  */
 class FerretHeader {
   init(params) {
@@ -124,12 +125,12 @@ class FerretHeader {
     this.eGui.innerHTML =
       '<div class="fs-h-top"><span class="fs-h-name"></span><span class="fs-h-badges"></span><span class="fs-h-sort"></span></div>' +
       (meta.clrLine ? '<div class="fs-h-clr"></div>' : '') +
-      '<div class="fs-h-type"></div>';
+      (meta.typeLine ? '<div class="fs-h-type"></div>' : '');
     this.eGui.querySelector('.fs-h-name').textContent = meta.label;
     if (meta.clrLine) {
       this.eGui.querySelector('.fs-h-clr').textContent = [meta.alternate, meta.clrType].filter(Boolean).join(' · ');
     }
-    this.eGui.querySelector('.fs-h-type').textContent = meta.type + (meta.nullable ? '' : ' · NOT NULL');
+    if (meta.typeLine) this.eGui.querySelector('.fs-h-type').textContent = meta.type;
     const badges = this.eGui.querySelector('.fs-h-badges');
     if (meta.pk) badges.insertAdjacentHTML('beforeend', '<span class="fs-badge pk">PK</span>');
     if (meta.fk) badges.insertAdjacentHTML('beforeend', '<span class="fs-badge fk">FK</span>');
@@ -165,8 +166,8 @@ class FerretHeader {
       params.column.addEventListener('sortChanged', this.onSortChanged);
       this.updateSort();
     }
-    // Column comment (ALL_COL_COMMENTS) as tooltip.
-    this.eGui.title = [meta.alternate ? `${meta.label} · ${meta.alternate}` : null, meta.comment,
+    // Column comment (ALL_COL_COMMENTS) as tooltip; type and NOT NULL when the header line hides them (settings).
+    this.eGui.title = [meta.alternate ? `${meta.label} · ${meta.alternate}` : null, meta.typeHint, meta.comment,
       meta.sortable ? null : texts.notSortable].filter(Boolean).join('\n');
   }
   updateSort() {
@@ -635,13 +636,13 @@ function reportPinned(api, dotnet) {
 }
 
 /**
- * columns: [{ id, name, label, alternate, clrType, clrLine, type, category, nullable, pk, fk, fkModel, numeric, sortable, pinned,
- *   options, unknownText, … }] in display order (GridColumn in .NET).
+ * columns: [{ id, name, label, alternate, clrType, clrLine, type, typeLine, typeHint, category, nullable, pk, fk, fkModel, numeric,
+ *   sortable, pinned, options, unknownText, … }] in display order (GridColumn in .NET).
  * options (GridOptions in .NET):
  *   sorts: [{ colId, sort }] initial sort state.
  *   firstRow: rough scroll position to restore (0 = top); the block containing it is loaded on demand.
  *   editable: whether the workspace may write (v2); the columns say whether they can be edited at all.
- *   headerHeight: with the line for C# names (WP-12); null for the theme default.
+ *   headerHeight: with the line for C# names (WP-12), without the type line; null for the theme default.
  *   table: a table tab – header menu, Del, pinning and scroll position are reported to .NET. A query result only
  *     answers GetRows, OnCopy, OnCopyColumn (WP-57), OnCopyCells (WP-58) and OnCellContextMenu, and what the options below
  *     ask for.
@@ -1579,8 +1580,9 @@ export function destroy(elementId) {
 }
 
 /**
- * The C# model arrived or the name setting changed (WP-12): new labels, badges, member lists and header height, without
- * rebuilding the grid (widths, order, sorting and scroll position stay). The rows are reloaded by .NET afterwards.
+ * The C# model arrived or the name or header setting changed (WP-12): new labels, badges, member lists and header height,
+ * without rebuilding the grid (widths, order, sorting and scroll position stay). The rows are reloaded by .NET afterwards
+ * where they read differently.
  */
 export function updateColumns(elementId, columns, headerHeight, keepEditing) {
   const api = grids.get(elementId);

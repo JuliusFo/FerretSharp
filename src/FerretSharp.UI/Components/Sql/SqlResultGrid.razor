@@ -154,7 +154,30 @@
     /// <summary>Set first thing in <see cref="DisposeAsync"/>: a start still awaiting must not report its status.</summary>
     private bool _disposed;
 
-    protected override void OnInitialized() => _grid = new GridBridge(JS, _id, DotNetObjectReference.Create(this));
+    /// <summary>Type and NOT NULL as the grid's headers show them (<see cref="PresentationService.Header"/> when built).</summary>
+    private ColumnHeaderLines _header = ColumnHeaderLines.All;
+
+    protected override void OnInitialized()
+    {
+        _grid = new GridBridge(JS, _id, DotNetObjectReference.Create(this));
+        Presentations.HeaderChanged += OnHeaderChanged;
+    }
+
+    /// <summary>
+    /// Type or NOT NULL in the headers switched on or off: relabel in place, the rows read as before. Not before the grid is
+    /// created – <see cref="StartAsync"/> catches up afterwards, with the lines it was built with still in <see cref="_header"/>.
+    /// </summary>
+    private void OnHeaderChanged() => Fire(async () =>
+    {
+        var header = Presentations.Header;
+        if (_disposed || !_grid.IsCreated || header == _header)
+        {
+            return;
+        }
+
+        _header = header;
+        await _grid.CallAsync("updateColumns", _presentation.Columns(header), _presentation.HeaderHeight(header), true);
+    });
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -203,7 +226,9 @@
         }
 
         // The result is shown whatever becomes of the tracing; a failure that is a bug reaches the error boundary afterwards.
-        await _grid.CreateAsync(_presentation.Columns(), new GridOptions([], 0, Editable: false, _presentation.HeaderHeight, Table: false) { Form = true, HeaderMenu = ExportsAllRows });
+        _header = Presentations.Header;
+        await _grid.CreateAsync(_presentation.Columns(_header), new GridOptions([], 0, Editable: false, _presentation.HeaderHeight(_header), Table: false) { Form = true, HeaderMenu = ExportsAllRows });
+        OnHeaderChanged(); // header lines that came while the grid was created (R4a)
         if (!traced.IsCompletedSuccessfully)
         {
             Fire(() => RelabelAsync(traced));
@@ -238,7 +263,7 @@
         }
 
         _presentation = presentation;
-        if (await _grid.CallAsync("updateColumns", presentation.Columns(), presentation.HeaderHeight))
+        if (await _grid.CallAsync("updateColumns", presentation.Columns(_header), presentation.HeaderHeight(_header)))
         {
             await _grid.CallAsync("updateRows", _blocks.All().Select(r => new GridRowUpdate(r.Index, presentation.Row(r.Row.Values))).ToList());
         }
@@ -538,6 +563,7 @@
     public async ValueTask DisposeAsync()
     {
         _disposed = true;
+        Presentations.HeaderChanged -= OnHeaderChanged;
         await _cts.CancelAsync();
         _cts.Dispose();
         await _grid.DisposeAsync();

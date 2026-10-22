@@ -46,6 +46,9 @@
     private TablePresentation? _presentation;
     private PresentationWatch _presentationWatch = null!;
 
+    /// <summary>Type and NOT NULL as the grid's headers show them (<see cref="PresentationService.Header"/> when built).</summary>
+    private ColumnHeaderLines _header = ColumnHeaderLines.All;
+
     [CascadingParameter]
     public ShellState Shell { get; set; } = null!;
 
@@ -124,6 +127,8 @@
         _schemaLoadedAt = Active.Schema?.LoadedAt;
         Presentations.Changed += OnPresentationChanged;
         DisplayColumns.Changed += OnDisplayColumnsChanged;
+        Presentations.HeaderChanged += OnHeaderChanged;
+        _header = Presentations.Header;
         _displayVersion = DisplayColumns.Version;
         _presentationWatch = new PresentationWatch(Presentations);
         _presentation = Presentations.For(Details);
@@ -138,17 +143,18 @@
             await SetNewRowsAsync(); // the tab was mounted again (workspace switch) with new rows still unsaved
         }
 
-        // An unlock or a C# model that came while the grid was created: the handlers skipped it (R4a). Both check for
-        // themselves whether anything changed.
+        // An unlock, a C# model or header lines that came while the grid was created: the handlers skipped it (R4a). All
+        // check for themselves whether anything changed.
         OnWorkspacesChanged();
         OnPresentationChanged();
+        OnHeaderChanged();
         await DisplayNamesOf.PlanAsync();
     }
 
     /// <summary>How columns and values are shown: plain, or with the C# model (WP-12).</summary>
     public TablePresentation Presentation => _presentation ??= Presentations.For(Details);
 
-    private int? HeaderHeight => Presentation.ShowsClrNames ? GridOptions.ClrHeaderHeight : null;
+    private int? HeaderHeight => _header.HeightWith(Presentation.ShowsClrNames);
 
     /// <summary>What grid.js needs to know about a column (header, editing, member list).</summary>
     private GridColumn ColumnMeta(int i)
@@ -160,8 +166,10 @@
         var (fk, fkModel) = ForeignKeyBadges.Of(Active.Schema?.OutgoingOf(Details.Table.Ref) ?? [], c.Name);
         var lob = OracleTypeMapper.IsLob(c);
         var named = Names.Shows(i);
-        return new GridColumn(ColumnId(i), c.Name, label.Name, c.DisplayType, category.ToString(), c.Nullable)
+        return new GridColumn(ColumnId(i), c.Name, label.Name, _header.TextOf(c), category.ToString(), c.Nullable)
         {
+            TypeLine = _header.TypeLine,
+            TypeHint = _header.HintOf(c),
             Alternate = label.AlternateName,
             ClrType = label.ClrType,
             ClrLine = Presentation.ShowsClrNames,
@@ -232,6 +240,22 @@
             await ReloadAsync();
         }
     }
+
+    /// <summary>
+    /// Type or NOT NULL in the headers switched on or off: relabel in place, the rows read as before. Not before the grid is
+    /// created – the grid catches up afterwards, with the lines it was built with still in <see cref="_header"/>.
+    /// </summary>
+    private void OnHeaderChanged() => Fire(async () =>
+    {
+        var header = Presentations.Header;
+        if (!_grid.IsCreated || header == _header)
+        {
+            return;
+        }
+
+        _header = header;
+        await RelabelAsync();
+    });
 
     // ---------- names beside foreign key values (WP-31) ----------
 
@@ -1196,6 +1220,7 @@
         Shell.Changed -= OnShellChanged;
         Presentations.Changed -= OnPresentationChanged;
         DisplayColumns.Changed -= OnDisplayColumnsChanged;
+        Presentations.HeaderChanged -= OnHeaderChanged;
         _loads.Supersede(); // the tab closed: its query need not hold the workspace's session any longer
         if (_displayNames is not null)
         {

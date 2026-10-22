@@ -9,8 +9,16 @@ namespace FerretSharp.UI.State;
 /// What grid.js needs to know about a column: header (name, other name and C# type, Oracle type, badges), sorting,
 /// pinning, editing and the member list. Ids are <c>c</c> + schema index (Oracle names may contain dots).
 /// </summary>
+/// <param name="Type">The header's last line: Oracle type and <c>NOT NULL</c> as the settings show them (<see cref="ColumnHeaderLines"/>).</param>
+/// <param name="Nullable">The member list offers NULL.</param>
 public sealed record GridColumn(string Id, string Name, string Label, string Type, string Category, bool Nullable)
 {
+    /// <summary>The table has the type line at all (<see cref="ColumnHeaderLines.TypeLine"/>).</summary>
+    public bool TypeLine { get; init; }
+
+    /// <summary>Type and NOT NULL for the header's tooltip when the line hides part of them (<see cref="ColumnHeaderLines.HintOf"/>).</summary>
+    public string? TypeHint { get; init; }
+
     /// <summary>The other name (C# property or column) and the C# type, on the header's middle line (WP-12).</summary>
     public string? Alternate { get; init; }
 
@@ -69,7 +77,7 @@ public sealed record GridColumn(string Id, string Name, string Label, string Typ
 /// <summary>How grid.js builds the grid.</summary>
 /// <param name="FirstRow">Rough scroll position to restore (0 = top).</param>
 /// <param name="Editable">The workspace may write (v2); the columns say whether they can be edited at all.</param>
-/// <param name="HeaderHeight">With the line for C# names (WP-12); null for the theme default.</param>
+/// <param name="HeaderHeight">With the line for C# names (WP-12), without the type line; null for the theme default (<see cref="ColumnHeaderLines.HeightWith"/>).</param>
 /// <param name="Table">
 /// A table tab: Del, pinning and scroll position are reported to .NET. A query result (SQL editor, LINQ console) has none of
 /// these: it answers GetRows, OnCopy, OnCopyColumn, OnSelectionChanged, OnCellContextMenu and OnHeaderContextMenu, with
@@ -77,7 +85,7 @@ public sealed record GridColumn(string Id, string Name, string Label, string Typ
 /// </param>
 public sealed record GridOptions(IReadOnlyList<GridSort> Sorts, int FirstRow, bool Editable, int? HeaderHeight, bool Table)
 {
-    /// <summary>Header height with the line for C# names (WP-12); the theme's 46 px otherwise.</summary>
+    /// <summary>Header height with the line for C# names (WP-12) and the type line; the theme's 46 px for one of them.</summary>
     public const int ClrHeaderHeight = 62;
 
     /// <summary>The texts grid.js shows itself, in the UI language at the time the grid is built (WP-29).</summary>
