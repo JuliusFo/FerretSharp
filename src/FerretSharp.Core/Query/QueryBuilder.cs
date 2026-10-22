@@ -115,7 +115,10 @@ public static class QueryBuilder
 
     /// <summary>
     /// The filter as a statement to read and go on with in the SQL editor ("SQL" in the filter bar): <c>SELECT t.*</c> with
-    /// the same conditions and binds, ordered by the sorts and the primary key – without ROWID, LOB projections and page.
+    /// the same conditions and binds, ordered by the sorts and the row key – without ROWID in the select list, LOB
+    /// projections and page. A table without primary key still ends its ORDER BY with <c>t.ROWID</c>: the SQL editor reads
+    /// later pages by running the statement again, an order that is not total would repeat or skip rows (review of the
+    /// change, decision of the user). A view without key is ordered by the sorts only.
     /// </summary>
     public static QuerySpec BuildSelectStar(TableDetails table, IReadOnlyList<FilterCondition> filters, IReadOnlyList<SortSpec> sorts)
     {
@@ -124,7 +127,7 @@ public static class QueryBuilder
             .Append(StarSelect)
             .Append("\n  FROM ").Append(OracleIdentifier.Qualify(table.Table.Owner, table.Table.Name)).Append(' ').Append(Alias)
             .Append(builder.Where(filters));
-        var order = builder.OrderBy(sorts, total: false).ToList();
+        var order = builder.OrderBy(sorts, keylessViewByAllColumns: false).ToList();
         if (order.Count > 0)
         {
             sql.Append("\n ORDER BY ").AppendJoin(", ", order);
@@ -329,11 +332,10 @@ public static class QueryBuilder
             filter.Op is FilterOperator.IsNull or FilterOperator.IsNotNull
             || filter.Op == FilterOperator.NotEquals && table.Columns.First(c => c.Name == filter.Column).Nullable;
 
-        /// <param name="total">
-        /// Make the order total for paging (ROWID, or every sortable column of a view without key); otherwise only the
-        /// primary key follows the sorts.
+        /// <param name="keylessViewByAllColumns">
+        /// A view without key is ordered by all its sortable columns as well (the grid's paging); otherwise by the sorts only.
         /// </param>
-        public IEnumerable<string> OrderBy(IReadOnlyList<SortSpec> sorts, bool total = true)
+        public IEnumerable<string> OrderBy(IReadOnlyList<SortSpec> sorts, bool keylessViewByAllColumns = true)
         {
             var used = new HashSet<string>(StringComparer.Ordinal);
             foreach (var sort in sorts)
@@ -360,10 +362,10 @@ public static class QueryBuilder
                     }
 
                     break;
-                case RowKeyKind.RowId when total:
+                case RowKeyKind.RowId:
                     yield return $"{Alias}.ROWID";
                     break;
-                case RowKeyKind.None when total:
+                case RowKeyKind.None when keylessViewByAllColumns:
                     // Views without a key: all sortable columns (fully deterministic unless rows are exact duplicates).
                     foreach (var column in table.Columns.Where(c => ColumnCategories.IsSortable(ColumnCategories.Of(c)) && used.Add(c.Name)))
                     {

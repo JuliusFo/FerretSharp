@@ -114,11 +114,16 @@ public partial class QueryBuilderTests
         Assert.True(StatementGuard.IsQuery(star.Sql));
     }
 
+    /// <summary>
+    /// The SQL editor reads later pages by running the statement again: a table without key keeps ROWID as the last term of
+    /// the order (not in the select list), or rows would repeat or go missing between pages.
+    /// </summary>
     [Fact]
-    public void Select_star_without_key_orders_only_by_the_sorts_and_without_sorts_not_at_all()
+    public void Select_star_without_key_ends_the_order_with_rowid_a_view_without_key_has_only_the_sorts()
     {
-        Assert.Equal("SELECT t.*\n  FROM \"APP\".\"LOG\" t\n ORDER BY t.\"NAME\"", QueryBuilder.BuildSelectStar(Log, [], [new("NAME", false)]).Sql);
-        Assert.Equal("SELECT t.*\n  FROM \"APP\".\"LOG\" t", QueryBuilder.BuildSelectStar(Log, [], []).Sql);
+        Assert.Equal("SELECT t.*\n  FROM \"APP\".\"LOG\" t\n ORDER BY t.\"NAME\", t.ROWID", QueryBuilder.BuildSelectStar(Log, [], [new("NAME", false)]).Sql);
+        Assert.Equal("SELECT t.*\n  FROM \"APP\".\"LOG\" t\n ORDER BY t.ROWID", QueryBuilder.BuildSelectStar(Log, [], []).Sql);
+        Assert.Equal("SELECT t.*\n  FROM \"APP\".\"V_KUNDEN\" t\n ORDER BY t.\"NAME\"", QueryBuilder.BuildSelectStar(View, [], [new("NAME", false)]).Sql);
         Assert.Equal("SELECT t.*\n  FROM \"APP\".\"V_KUNDEN\" t", QueryBuilder.BuildSelectStar(View, [], []).Sql);
     }
 
