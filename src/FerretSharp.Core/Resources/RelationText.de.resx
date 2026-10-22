@@ -24,4 +24,49 @@
   <data name="KeyTypeNotComparable" xml:space="preserve">
     <value>Beziehung {0} wird nicht verfolgt: Werte vom Typ {1} lassen sich nicht vergleichen.</value>
   </data>
+  <data name="CopyCycle" xml:space="preserve">
+    <value>Diese Tabellen verweisen im Kreis aufeinander, ihre Zeilen lassen sich nicht nacheinander einfügen: {0}.</value>
+  </data>
+  <data name="CopyRowCycle" xml:space="preserve">
+    <value>Zeilen von {0} verweisen im Kreis aufeinander und lassen sich nicht nacheinander einfügen.</value>
+  </data>
+  <data name="CopyNotATable" xml:space="preserve">
+    <value>{0} ist eine View: Kopieren lassen sich nur Zeilen von Tabellen.</value>
+  </data>
+  <data name="CopyTableMissing" xml:space="preserve">
+    <value>{0} lässt sich nicht kopieren: Im Ziel gibt es keine Tabelle {1}.</value>
+  </data>
+  <data name="CopyTargetNotATable" xml:space="preserve">
+    <value>{0} lässt sich nicht kopieren: {1} ist im Ziel keine Tabelle.</value>
+  </data>
+  <data name="CopyNoConflictKey" xml:space="preserve">
+    <value>{0} hat im Ziel keinen Primär- oder Unique-Schlüssel: Zeilen werden immer eingefügt, vorhandene nicht erkannt.</value>
+  </data>
+  <data name="CopyTriggers" xml:space="preserve">
+    <value>Trigger auf {0} im Ziel laufen beim Kopieren mit: {1}.</value>
+  </data>
+  <data name="CopyColumnMissing" xml:space="preserve">
+    <value>Die Spalte {0}.{1} gibt es im Ziel nicht: Ihre Werte werden nicht kopiert.</value>
+  </data>
+  <data name="CopyColumnOnlyInTarget" xml:space="preserve">
+    <value>Die Spalte {0}.{1} gibt es nur im Ziel, NOT NULL ohne Default: Keine Zeile lässt sich einfügen.</value>
+  </data>
+  <data name="CopyIdentityKey" xml:space="preserve">
+    <value>Die Schlüsselspalte {0}.{1} ist im Ziel eine Identity GENERATED ALWAYS: Die Zeilen können ihre Schlüssel nicht behalten.</value>
+  </data>
+  <data name="CopyIdentityValue" xml:space="preserve">
+    <value>Die Spalte {0}.{1} ist im Ziel eine Identity GENERATED ALWAYS: Das Ziel vergibt neue Werte.</value>
+  </data>
+  <data name="CopyColumnNotCopyable" xml:space="preserve">
+    <value>Die Spalte {0}.{1} ({2}) wird nicht kopiert: Werte dieses Typs schreibt FerretSharp nicht.</value>
+  </data>
+  <data name="CopyColumnType" xml:space="preserve">
+    <value>Die Spalte {0}.{1} ist in der Quelle {2} und im Ziel {3}: Werte passen womöglich nicht.</value>
+  </data>
+  <data name="CopyAbortExistingOne" xml:space="preserve">
+    <value>{1}: {0:N0} Zeile gibt es im Ziel schon, und bei Konflikten ist „Abbrechen“ gewählt.</value>
+  </data>
+  <data name="CopyAbortExistingOther" xml:space="preserve">
+    <value>{1}: {0:N0} Zeilen gibt es im Ziel schon, und bei Konflikten ist „Abbrechen“ gewählt.</value>
+  </data>
 </root>

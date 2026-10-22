@@ -31,6 +31,30 @@ internal sealed class MemoryTables
     public static TableDetails Table(string name, string[] key, params ColumnInfo[] columns) =>
         new(new TableSummary("APP", name, TableKind.Table), columns, key, [], false);
 
+    /// <summary>The same table in another schema (the target of a copy).</summary>
+    public static TableDetails In(string owner, TableDetails table) => table with { Table = table.Table with { Owner = owner } };
+
+    /// <summary>
+    /// The schema of <paramref name="owner"/> over these tables, loaded; <paramref name="triggers"/> are the enabled
+    /// triggers per table.
+    /// </summary>
+    public async Task<SchemaCache> SchemaAsync(string owner, IReadOnlyDictionary<TableRef, IReadOnlyList<TableRef>>? triggers = null)
+    {
+        var reader = Substitute.For<ISchemaReader>();
+        reader.GetTablesAsync(owner, Arg.Any<CancellationToken>()).Returns(
+            [.. _tables.Values.Select(t => t.Details.Table).Where(t => t.Owner == owner).OrderBy(t => t.Name, StringComparer.Ordinal)]);
+        reader.GetSynonymTargetsAsync(owner, Arg.Any<CancellationToken>()).Returns(SynonymTargets.None);
+        reader.GetPlSqlObjectsAsync(owner, Arg.Any<CancellationToken>()).Returns([]);
+        reader.GetForeignKeysAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>()).Returns([]);
+        reader.GetPrimaryKeysAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>()).Returns([]);
+        reader.GetDetailsAsync(Arg.Any<TableSummary>(), Arg.Any<CancellationToken>()).Returns(call => _tables[call.Arg<TableSummary>().Ref].Details);
+        reader.GetTableTriggersAsync(Arg.Any<TableRef>(), Arg.Any<CancellationToken>()).Returns(call =>
+            triggers?.GetValueOrDefault(call.Arg<TableRef>()) ?? (IReadOnlyList<TableRef>)[]);
+        var schema = new SchemaCache(reader, owner);
+        await schema.LoadAsync(TestContext.Current.CancellationToken);
+        return schema;
+    }
+
     public TableDetails Add(TableDetails table, params object?[][] rows)
     {
         _tables[table.Table.Ref] = (table, [.. rows]);

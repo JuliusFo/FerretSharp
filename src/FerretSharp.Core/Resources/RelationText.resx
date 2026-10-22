@@ -28,4 +28,64 @@
     <value>Relationship {0} is not followed: values of type {1} cannot be compared.</value>
     <comment>{0}: name of the relationship; {1}: Oracle type, e.g. BINARY_DOUBLE</comment>
   </data>
+  <data name="CopyCycle" xml:space="preserve">
+    <value>These tables reference each other in a circle, so their rows cannot be inserted one after the other: {0}.</value>
+    <comment>{0}: table names, comma-separated</comment>
+  </data>
+  <data name="CopyRowCycle" xml:space="preserve">
+    <value>Rows of {0} reference each other in a circle, so they cannot be inserted one after the other.</value>
+    <comment>{0}: table</comment>
+  </data>
+  <data name="CopyNotATable" xml:space="preserve">
+    <value>{0} is a view: only rows of tables can be copied.</value>
+    <comment>{0}: name of the view</comment>
+  </data>
+  <data name="CopyTableMissing" xml:space="preserve">
+    <value>{0} cannot be copied: the target has no table {1}.</value>
+    <comment>{0}: source table; {1}: OWNER.TABLE in the target</comment>
+  </data>
+  <data name="CopyTargetNotATable" xml:space="preserve">
+    <value>{0} cannot be copied: {1} is no table in the target.</value>
+    <comment>{0}: source table; {1}: OWNER.TABLE in the target</comment>
+  </data>
+  <data name="CopyNoConflictKey" xml:space="preserve">
+    <value>{0} has no primary or unique key in the target: rows are always inserted, rows that exist already are not recognized.</value>
+    <comment>{0}: table</comment>
+  </data>
+  <data name="CopyTriggers" xml:space="preserve">
+    <value>Triggers on {0} in the target fire with the copy: {1}.</value>
+    <comment>{0}: table; {1}: trigger names, comma-separated</comment>
+  </data>
+  <data name="CopyColumnMissing" xml:space="preserve">
+    <value>Column {0}.{1} does not exist in the target: its values are not copied.</value>
+    <comment>{0}: table; {1}: column</comment>
+  </data>
+  <data name="CopyColumnOnlyInTarget" xml:space="preserve">
+    <value>Column {0}.{1} exists only in the target and is NOT NULL without default: no row can be inserted.</value>
+    <comment>{0}: table; {1}: column</comment>
+  </data>
+  <data name="CopyIdentityKey" xml:space="preserve">
+    <value>Key column {0}.{1} is an identity GENERATED ALWAYS in the target: the rows cannot keep their keys.</value>
+    <comment>{0}: table; {1}: column</comment>
+  </data>
+  <data name="CopyIdentityValue" xml:space="preserve">
+    <value>Column {0}.{1} is an identity GENERATED ALWAYS in the target: the target assigns new values.</value>
+    <comment>{0}: table; {1}: column</comment>
+  </data>
+  <data name="CopyColumnNotCopyable" xml:space="preserve">
+    <value>Column {0}.{1} ({2}) is not copied: FerretSharp does not write values of this type.</value>
+    <comment>{0}: table; {1}: column; {2}: Oracle type, e.g. INTERVAL DAY TO SECOND</comment>
+  </data>
+  <data name="CopyColumnType" xml:space="preserve">
+    <value>Column {0}.{1} is {2} in the source and {3} in the target: values may not fit.</value>
+    <comment>{0}: table; {1}: column; {2}, {3}: types, e.g. VARCHAR2(50)</comment>
+  </data>
+  <data name="CopyAbortExistingOne" xml:space="preserve">
+    <value>{1}: {0:N0} row exists in the target already, and conflicts are set to abort.</value>
+    <comment>{0}: number of rows; {1}: table</comment>
+  </data>
+  <data name="CopyAbortExistingOther" xml:space="preserve">
+    <value>{1}: {0:N0} rows exist in the target already, and conflicts are set to abort.</value>
+    <comment>{0}: number of rows; {1}: table</comment>
+  </data>
 </root>
