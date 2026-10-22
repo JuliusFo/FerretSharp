@@ -181,6 +181,7 @@ public sealed class ShortcutMapTests
 
         Assert.Equal("Shift+↑, Shift+↓, Shift+Bild↑, Shift+Bild↓", keys["Markierung erweitern (die Pfeiltasten allein verschieben sie)"]);
         Assert.Equal("Shift+Pos1, Shift+Ende, Ctrl+Shift+↑, Ctrl+Shift+↓", keys["Bis zur ersten oder letzten Zeile markieren"]);
+        Assert.Equal("Shift+←, Shift+→", keys["Zellen ab der fokussierten markieren (danach erweitern Shift+↑ ↓ und Shift+Bild↑/↓; Ziehen mit der Maus geht auch)"]);
         Assert.Equal("Leertaste", keys["Fokussierte Zeile markieren oder Markierung aufheben"]);
         Assert.Equal("Ctrl+A", keys["Alle Zeilen markieren"]);
         Assert.Equal("Esc", keys["Markierung aufheben"]);

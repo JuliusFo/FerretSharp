@@ -46,8 +46,11 @@ public sealed record MarkedCells(
 /// </summary>
 public static class CellCopies
 {
-    /// <summary>Rows read at a time for a range's rows not loaded: a grid block.</summary>
-    public const int BlockSize = 500;
+    /// <summary>
+    /// Rows read at most at a time for a range's rows not loaded: a gap is read in one query where it can (roundtrips over
+    /// the VPN are what costs), not block by block.
+    /// </summary>
+    public const int ReadSize = 5000;
 
     /// <param name="copy">Writes the clipboard from the page (a range: the window is in front); false if it is not available.</param>
     /// <param name="clipboard">Writes the clipboard through the host after a read in the background (whole columns).</param>
@@ -91,8 +94,8 @@ public static class CellCopies
     }
 
     /// <summary>
-    /// The rows of a range: loaded ones as they are, the others read block by block. Null if a read failed. A read that
-    /// returns fewer rows than asked for ends the range there (the result shrank meanwhile).
+    /// The rows of a range: loaded ones as they are, each gap of rows not loaded read at once (up to <see cref="ReadSize"/>).
+    /// Null if a read failed. A read that returns fewer rows than asked for ends the range there (the result shrank meanwhile).
     /// </summary>
     internal static async Task<IReadOnlyList<RowData>?> RowsAsync(MarkedCells grid, int from, int to)
     {
@@ -106,7 +109,12 @@ public static class CellCopies
                 continue;
             }
 
-            var count = Math.Min(BlockSize, to - i + 1);
+            var count = 1;
+            while (i + count <= to && count < ReadSize && grid.RowAt(i + count) is null)
+            {
+                count++;
+            }
+
             if (await grid.ReadRows(i, count) is not { } read)
             {
                 return null;

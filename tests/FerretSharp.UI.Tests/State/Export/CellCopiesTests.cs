@@ -92,17 +92,26 @@ public sealed class CellCopiesTests
     }
 
     [Fact]
-    public async Task Rows_of_a_range_that_are_not_loaded_are_read_block_by_block()
+    public async Task Rows_of_a_range_that_are_not_loaded_are_read_gap_by_gap()
     {
         Load(0, 499);
         Load(1500, 1999); // dropped from the cache in between, or never loaded
 
         await CopyAsync(Grid(), new GridMarks(498, 1501, ["c0"], false), MarksCopy.Cells);
 
-        Assert.Equal([(500, 500), (1000, 500)], _reads);
+        Assert.Equal([(500, 1000)], _reads); // one query for the gap, not a block at a time
         var lines = _copied.Single().Split("\r\n");
         Assert.Equal(1004, lines.Length);
         Assert.Equal(Enumerable.Range(498, 1004).Select(i => i.ToString(System.Globalization.CultureInfo.InvariantCulture)), lines);
+    }
+
+    [Fact]
+    public async Task A_long_gap_is_read_in_parts()
+    {
+        await CopyAsync(Grid(), new GridMarks(0, CellCopies.ReadSize + 9, ["c0"], false), MarksCopy.Cells);
+
+        Assert.Equal([(0, CellCopies.ReadSize), (CellCopies.ReadSize, 10)], _reads);
+        Assert.Equal(CellCopies.ReadSize + 10, _copied.Single().Split("\r\n").Length);
     }
 
     [Fact]

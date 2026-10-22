@@ -957,19 +957,22 @@ export function create(elementId, dotnet, columns, options) {
     drag = null;
   }
 
-  // The mouse at or beyond the edge of the rows while marking: a row or a column further per step.
+  // The mouse at or beyond the edge of the rows while marking: a column further per step, rows the faster the farther
+  // the mouse is beyond the edge. The rows' area is the grid's viewport below the header (AG Grid 36: `.ag-grid-viewport`,
+  // without the scrollbars).
   function scrollWhileMarking() {
     if (!drag?.active || !cells) return;
-    const body = (element.querySelector('.ag-body-viewport') ?? element).getBoundingClientRect();
-    const box = element.getBoundingClientRect();
+    const view = (element.querySelector('.ag-grid-viewport') ?? element).getBoundingClientRect();
+    const top = element.querySelector('.ag-header')?.getBoundingClientRect().bottom ?? view.top;
     const edge = 6;
-    const rows = drag.y >= body.bottom - edge ? 'ArrowDown' : drag.y <= body.top + edge ? 'ArrowUp' : null;
-    const columns = drag.x >= box.right - edge ? 'ArrowRight' : drag.x <= box.left + edge ? 'ArrowLeft' : null;
+    const beyond = drag.y >= view.bottom - edge ? drag.y - view.bottom + edge : drag.y <= top + edge ? top + edge - drag.y : 0;
+    const rows = beyond === 0 ? null : drag.y > top + edge ? 'PageDown' : 'PageUp';
+    const columns = drag.x >= view.right - edge ? 'ArrowRight' : drag.x <= view.left + edge ? 'ArrowLeft' : null;
     if (!rows && !columns) return;
     const shown = displayOrder(api);
     const count = api.getDisplayedRowCount();
     let end = cells.end;
-    if (rows) end = movedEnd(end, rows, shown, count, 1);
+    if (rows) end = movedEnd(end, rows, shown, count, Math.max(1, Math.round(beyond / 8)));
     if (columns) end = movedEnd(end, columns, shown, count, 1);
     if (end.row === cells.end.row && end.col === cells.end.col) return;
     markCells(cells.anchor, end);
